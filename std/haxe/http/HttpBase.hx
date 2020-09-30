@@ -76,9 +76,9 @@ class HttpBase {
 	}
 
 	/**
-		Sets the header identified as `header` to value `value`.
+		Sets the header identified as `name` to value `value`.
 
-		If `header` or `value` are null, the result is unspecified.
+		If `name` or `value` are null, the result is unspecified.
 
 		This method provides a fluent interface.
 	**/
@@ -103,9 +103,9 @@ class HttpBase {
 	}
 
 	/**
-		Sets the parameter identified as `param` to value `value`.
+		Sets the parameter identified as `name` to value `value`.
 
-		If `header` or `value` are null, the result is unspecified.
+		If `name` or `value` are null, the result is unspecified.
 
 		This method provides a fluent interface.
 	**/
