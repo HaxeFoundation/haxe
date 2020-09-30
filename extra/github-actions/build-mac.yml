@@ -2,7 +2,7 @@
   run: |
     set -ex
     brew update
-    brew unlink python@2
+    # brew unlink python@2
     brew bundle --file=tests/Brewfile --no-upgrade
 
 - name: Install OCaml libraries
