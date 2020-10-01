@@ -13,6 +13,7 @@
 		json
 		unix str threads dynlink
 		xml-light extlib ptmap sha
+		luv
 	)
 	(modules (:standard \ haxe))
 	(preprocess (per_module
