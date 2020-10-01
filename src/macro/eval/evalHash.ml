@@ -144,3 +144,5 @@ let key_mbedtls_Entropy = hash "mbedtls.Entropy"
 let key_mbedtls_PkContext = hash "mbedtls.PkContext"
 let key_mbedtls_Ssl = hash "mbedtls.Ssl"
 let key_mbedtls_X509Crt = hash "mbedtls.X509Crt"
+
+let key_eval_PosixError = hash "eval.PosixError"

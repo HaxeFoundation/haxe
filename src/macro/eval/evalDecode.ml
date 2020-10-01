@@ -57,6 +57,10 @@ let decode_vstring v = match v with
 	| VString s -> s
 	| _ -> unexpected_value v "string"
 
+let decode_native_string v = match v with
+	| VNativeString s -> s
+	| _ -> unexpected_value v "native string"
+
 let decode_bytes v = match v with
 	| VInstance {ikind=IBytes s} -> s
 	| _ -> unexpected_value v "string"

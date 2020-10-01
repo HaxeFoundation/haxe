@@ -109,6 +109,7 @@ type value =
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
 	| VLazy of (unit -> value) ref
+	| VNativeString of string
 
 and vfunc = value list -> value
 
@@ -237,6 +238,7 @@ let rec equals a b = match a,b with
 	| VVector vv1,VVector vv2 -> vv1 == vv2
 	| VFunction(vf1,_),VFunction(vf2,_) -> vf1 == vf2
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
+	| VNativeString s1,VNativeString s2 -> s1 = s2
 	| VLazy f1,_ -> equals (!f1()) b
 	| _,VLazy f2 -> equals a (!f2())
 	| _ -> a == b
@@ -263,6 +265,7 @@ let vint i = VInt32 (Int32.of_int i)
 let vint32 i = VInt32 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e
+let vnative_string s = VNativeString s
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 

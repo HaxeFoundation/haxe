@@ -290,6 +290,8 @@ let value_signature v =
 			)
 		| VString s ->
 			adds s.sstring
+		| VNativeString s ->
+			add s
 		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
