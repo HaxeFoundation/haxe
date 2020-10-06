@@ -1674,11 +1674,6 @@ extern class Global {
 	static function ob_get_status(full_status:Bool = false):NativeArray;
 
 	/**
-		@see http://php.net/manual/en/function.ob-get-status.php
-	**/
-	static function ob_get_status(full_status:Bool = false):NativeArray;
-
-	/**
 		@see http://php.net/manual/en/function.ob-implicit-flush.php
 	**/
 	static function ob_implicit_flush(flag:Int = 1):Void;
