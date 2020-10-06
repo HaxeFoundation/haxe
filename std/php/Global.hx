@@ -1622,4 +1622,74 @@ extern class Global {
 	**/
 	@:overload(function(version1:String, version2:String, comparisonOperator:String):Bool {})
 	static function version_compare(version1:String, version2:String):Int;
+
+	/**
+		@see http://php.net/manual/en/function.ob-clean.php
+	**/
+	static function ob_clean():Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-end-clean.php
+	**/
+	static function ob_end_clean():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ob-end-flush.php
+	**/
+	static function ob_end_flush():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ob-flush.php
+	**/
+	static function ob_flush():Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-clean.php
+	**/
+	static function ob_get_clean():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-contents.php
+	**/
+	static function ob_get_contents():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-flush.php
+	**/
+	static function ob_get_flush():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-length.php
+	**/
+	static function ob_get_length():EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-level.php
+	**/
+	static function ob_get_level():Int;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-status.php
+	**/
+	static function ob_get_status(full_status:Bool = false):NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-status.php
+	**/
+	static function ob_get_status(full_status:Bool = false):NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.ob-implicit-flush.php
+	**/
+	static function ob_implicit_flush(flag:Int = 1):Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-list-handlers.php
+	**/
+	static function ob_list_handlers():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-start.php
+	**/
+	static function ob_start(output_callback: (String, ?Int) -> String = null, chunk_size:Int = 0, ?flags:Int):Bool;
 }

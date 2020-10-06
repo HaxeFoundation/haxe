@@ -431,4 +431,19 @@ extern class Const {
 	static final ZLIB_SYNC_FLUSH:Int;
 	static final ZLIB_FULL_FLUSH:Int;
 	static final ZLIB_FINISH:Int;
+
+	/**
+		@see http://php.net/manual/en/outcontrol.constants.php
+	**/
+	static final PHP_OUTPUT_HANDLER_CLEAN:Int;
+	static final PHP_OUTPUT_HANDLER_CLEANABLE:Int;
+	static final PHP_OUTPUT_HANDLER_CONT:Int;
+	static final PHP_OUTPUT_HANDLER_END:Int;
+	static final PHP_OUTPUT_HANDLER_FINAL:Int;
+	static final PHP_OUTPUT_HANDLER_FLUSH:Int;
+	static final PHP_OUTPUT_HANDLER_FLUSHABLE:Int;
+	static final PHP_OUTPUT_HANDLER_REMOVABLE:Int;
+	static final PHP_OUTPUT_HANDLER_START:Int;
+	static final PHP_OUTPUT_HANDLER_STDFLAGS:Int;
+	static final PHP_OUTPUT_HANDLER_WRITE:Int;
 }
