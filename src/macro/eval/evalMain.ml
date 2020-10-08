@@ -142,13 +142,16 @@ let create com api is_macro =
 	(* If no user-defined exception handler is set then follow libuv behavior.
 		Which is printing an error to stderr and exiting with code 2 *)
 	Luv.Error.set_on_unhandled_exception (fun ex ->
-		let msg =
-			match ex with
-			| Error.Error (err,_) -> Error.error_msg err
-			| _ -> Printexc.to_string ex
-		in
-		Printf.eprintf "%s\n" msg;
-		raise (Sys_exit 2);
+		match ex with
+		| Sys_exit _ -> raise ex
+		| _ ->
+			let msg =
+				match ex with
+				| Error.Error (err,_) -> Error.error_msg err
+				| _ -> Printexc.to_string ex
+			in
+			Printf.eprintf "%s\n" msg;
+			raise (Sys_exit 2);
 	);
 	t();
 	ctx
