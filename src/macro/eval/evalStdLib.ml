@@ -3715,52 +3715,10 @@ let init_standard_library builtins =
 		"toBytes",StdNativeString.to_bytes;
 		"toString",StdNativeString.to_string;
 	] [];
-	init_fields builtins (["eval";"luv";"_UVError"],"UVError_Impl_") [
-		"toString",EvalLuv.error_strerror;
-		"errName",EvalLuv.error_err_name;
-		"translateSysError",EvalLuv.error_translate_sys_error;
-		"setOnUnhandledException",EvalLuv.error_set_on_unhandled_exception;
-	] [];
-	init_fields builtins (["eval";"luv";"_Loop"],"Loop_Impl_") [
-		"run",EvalLuv.loop_run;
-		"stop",EvalLuv.loop_stop;
-		"init",EvalLuv.loop_init;
-		"close",EvalLuv.loop_close;
-		"alive",EvalLuv.loop_alive;
-		"defaultLoop",EvalLuv.loop_default;
-	] [];
-	init_fields builtins (["eval";"luv";"_Handle"],"Handle_Impl_") [
-		"close",EvalLuv.handle_close;
-		"isActive",EvalLuv.handle_is_active;
-		"isClosing",EvalLuv.handle_is_closing;
-		"ref",EvalLuv.handle_ref;
-		"unref",EvalLuv.handle_unref;
-		"hasRef",EvalLuv.handle_has_ref;
-	] [];
-	init_fields builtins (["eval";"luv";"_Handle"],"Handle_Impl_") [
-		"close",EvalLuv.handle_close;
-		"isActive",EvalLuv.handle_is_active;
-		"isClosing",EvalLuv.handle_is_closing;
-		"ref",EvalLuv.handle_ref;
-		"unref",EvalLuv.handle_unref;
-		"hasRef",EvalLuv.handle_has_ref;
-	] [];
-	init_fields builtins (["eval";"luv";"_Idle"], "Idle_Impl_") [
-		"init",EvalLuv.idle_init;
-		"start",EvalLuv.idle_start;
-		"stop",EvalLuv.idle_stop;
-	] [];
-	init_fields builtins (["eval";"luv";"_Async"], "Async_Impl_") [
-		"init",EvalLuv.async_init;
-		"send",EvalLuv.async_send;
-	] [];
-	init_fields builtins (["eval";"luv";"_Timer"], "Timer_Impl_") [
-		"init",EvalLuv.timer_init;
-		"start",EvalLuv.timer_start;
-		"stop",EvalLuv.timer_stop;
-		"again",EvalLuv.timer_again;
-		"set_repeat",EvalLuv.timer_set_repeat;
-		"get_repeat",EvalLuv.timer_get_repeat;
-		"get_dueIn",EvalLuv.timer_get_due_in;
-	] [];
+	init_fields builtins (["eval";"luv";"_UVError"],"UVError_Impl_") EvalLuv.uv_error_fields [];
+	init_fields builtins (["eval";"luv";"_Loop"],"Loop_Impl_") EvalLuv.loop_fields [];
+	init_fields builtins (["eval";"luv";"_Handle"],"Handle_Impl_") EvalLuv.handle_fields [];
+	init_fields builtins (["eval";"luv";"_Idle"], "Idle_Impl_") EvalLuv.idle_fields [];
+	init_fields builtins (["eval";"luv";"_Async"], "Async_Impl_") EvalLuv.async_fields [];
+	init_fields builtins (["eval";"luv";"_Timer"], "Timer_Impl_") EvalLuv.timer_fields [];
 	EvalSsl.init_fields init_fields builtins

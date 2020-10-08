@@ -217,39 +217,6 @@ let resolve_result = function
 	| Ok v -> v
 	| Error e -> throw (luv_exception e) null_pos
 
-let error_strerror = vfun1 (fun v ->
-	let e = decode_uv_error v in
-	EvalString.create_unknown (Error.strerror e)
-)
-
-let error_err_name = vfun1 (fun v ->
-	let e = decode_uv_error v in
-	EvalString.create_unknown (Error.err_name e)
-)
-
-let error_translate_sys_error = vfun1 (fun v ->
-	let e = decode_int v in
-	encode_uv_error (Error.translate_sys_error e)
-)
-
-let error_set_on_unhandled_exception = vfun1 (fun v ->
-	let cb = prepare_callback v 1 in
-	Error.set_on_unhandled_exception (fun ex ->
-		let msg =
-			match ex with
-			| HaxeError.Error (Custom msg,_) ->
-				(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
-				(try fst (ExtString.String.split msg "\n")
-				with _ -> msg)
-			| HaxeError.Error (err,_) -> HaxeError.error_msg err
-			| _ -> Printexc.to_string ex
-		in
-		let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in
-		ignore(cb [e])
-	);
-	vnull
-)
-
 let decode_loop v =
 	match decode_handle v with
 	| HLoop t -> t
@@ -281,140 +248,169 @@ let decode_async v =
 	| HAsync t -> t
 	| _ -> unexpected_value v "eval.luv.Async"
 
-let loop_run = vfun2 (fun v1 v2 ->
-	let loop = decode_loop_opt v1
-	and mode =
-		match decode_int v2 with
-		| 0 -> `DEFAULT
-		| 1 -> `ONCE
-		| 2 -> `NOWAIT
-		| _ -> unexpected_value v2 "valid loop run mode"
-	in
-	vbool (Loop.run ~loop ~mode ())
-)
+let decode_buffer v =
+	match decode_handle v with
+	| HBuffer t -> t
+	| _ -> unexpected_value v "eval.luv.Buffer"
 
-let loop_stop = vfun1 (fun v ->
-	let loop = decode_loop v in
-	Loop.stop loop;
-	vnull
-)
 
-let loop_init = vfun0 (fun () ->
-	encode_result (fun l -> encode_handle (HLoop l)) (Loop.init())
-)
+let uv_error_fields = [
+	"toString", vfun1 (fun v ->
+		let e = decode_uv_error v in
+		EvalString.create_unknown (Error.strerror e)
+	);
+	"errName", vfun1 (fun v ->
+		let e = decode_uv_error v in
+		EvalString.create_unknown (Error.err_name e)
+	);
+	"translateSysError", vfun1 (fun v ->
+		let e = decode_int v in
+		encode_uv_error (Error.translate_sys_error e)
+	);
+	"setOnUnhandledException", vfun1 (fun v ->
+		let cb = prepare_callback v 1 in
+		Error.set_on_unhandled_exception (fun ex ->
+			let msg =
+				match ex with
+				| HaxeError.Error (Custom msg,_) ->
+					(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
+					(try fst (ExtString.String.split msg "\n")
+					with _ -> msg)
+				| HaxeError.Error (err,_) -> HaxeError.error_msg err
+				| _ -> Printexc.to_string ex
+			in
+			let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in
+			ignore(cb [e])
+		);
+		vnull
+	);
+]
 
-let loop_close = vfun1 (fun v ->
-	let loop = decode_loop v in
-	encode_unit_result (Loop.close loop)
-)
+let loop_fields = [
+	"run", vfun2 (fun v1 v2 ->
+		let loop = decode_loop_opt v1
+		and mode =
+			match decode_int v2 with
+			| 0 -> `DEFAULT
+			| 1 -> `ONCE
+			| 2 -> `NOWAIT
+			| _ -> unexpected_value v2 "valid loop run mode"
+		in
+		vbool (Loop.run ~loop ~mode ())
+	);
+	"stop", vfun1 (fun v ->
+		let loop = decode_loop v in
+		Loop.stop loop;
+		vnull
+	);
+	"init", vfun0 (fun () ->
+		encode_result (fun l -> encode_handle (HLoop l)) (Loop.init())
+	);
+	"close", vfun1 (fun v ->
+		let loop = decode_loop v in
+		encode_unit_result (Loop.close loop)
+	);
+	"alive", vfun1 (fun v ->
+		let loop = decode_loop v in
+		vbool (Loop.alive loop)
+	);
+	"defaultLoop", vfun0 (fun () ->
+		encode_handle (HLoop (Loop.default()))
+	);
+]
 
-let loop_alive = vfun1 (fun v ->
-	let loop = decode_loop v in
-	vbool (Loop.alive loop)
-)
+let handle_fields = [
+	"close", vfun2 (fun v1 v2 ->
+		let handle = decode_luv_handle v1
+		and cb = prepare_callback v2 0 in
+		Handle.close handle (fun() -> ignore(cb []));
+		vnull
+	);
+	"isActive", vfun1 (fun v ->
+		let handle = decode_luv_handle v in
+		vbool (Handle.is_active handle)
+	);
+	"isClosing", vfun1 (fun v ->
+		let handle = decode_luv_handle v in
+		vbool (Handle.is_closing handle)
+	);
+	"ref", vfun1 (fun v ->
+		let handle = decode_luv_handle v in
+		Handle.ref handle;
+		vnull
+	);
+	"unref", vfun1 (fun v ->
+		let handle = decode_luv_handle v in
+		Handle.unref handle;
+		vnull
+	);
+	"hasRef", vfun1 (fun v ->
+		let handle = decode_luv_handle v in
+		vbool (Handle.has_ref handle)
+	);
+]
 
-let loop_default = vfun0 (fun () ->
-	encode_handle (HLoop (Loop.default()))
-)
+let idle_fields = [
+	"init", vfun1 (fun v ->
+		let loop = decode_loop_opt v in
+		encode_result (fun i -> encode_handle (HIdle i)) (Idle.init ~loop ())
+	);
+	"start", vfun2 (fun v1 v2 ->
+		let idle = decode_idle v1 in
+		let cb = prepare_callback v2 0 in
+		encode_unit_result (Idle.start idle (fun() -> ignore(cb [])));
+	);
+	"stop", vfun1 (fun v ->
+		let idle = decode_idle v in
+		encode_unit_result (Idle.stop idle)
+	);
+]
 
-let handle_close = vfun2 (fun v1 v2 ->
-	let handle = decode_luv_handle v1
-	and cb = prepare_callback v2 0 in
-	Handle.close handle (fun() -> ignore(cb []));
-	vnull
-)
+let timer_fields = [
+	"init", vfun1 (fun v ->
+		let loop = decode_loop_opt v in
+		encode_result (fun i -> encode_handle (HTimer i)) (Timer.init ~loop ())
+	);
+	"start", vfun4 (fun v1 v2 v3 v4 ->
+		let timer = decode_timer v1
+		and cb = prepare_callback v2 0
+		and timeout = decode_int v3
+		and repeat = default_int v4 0 in
+		encode_unit_result (Timer.start ~repeat timer timeout (fun() -> ignore(cb [])));
+	);
+	"stop", vfun1 (fun v ->
+		let timer = decode_timer v in
+		encode_unit_result (Timer.stop timer)
+	);
+	"again", vfun1 (fun v ->
+		let timer = decode_timer v in
+		encode_unit_result (Timer.again timer)
+	);
+	"set_repeat", vfun2 (fun v1 v2 ->
+		let timer = decode_timer v1
+		and repeat = decode_int v2 in
+		Timer.set_repeat timer repeat;
+		vint repeat
+	);
+	"get_repeat", vfun1 (fun v1 ->
+		let timer = decode_timer v1 in
+		vint (Timer.get_repeat timer)
+	);
+	"get_dueIn", vfun1 (fun v1 ->
+		let timer = decode_timer v1 in
+		vint (Timer.get_due_in timer)
+	);
+]
 
-let handle_is_active = vfun1 (fun v ->
-	let handle = decode_luv_handle v in
-	vbool (Handle.is_active handle)
-)
-
-let handle_is_closing = vfun1 (fun v ->
-	let handle = decode_luv_handle v in
-	vbool (Handle.is_closing handle)
-)
-
-let handle_ref = vfun1 (fun v ->
-	let handle = decode_luv_handle v in
-	Handle.ref handle;
-	vnull
-)
-
-let handle_unref = vfun1 (fun v ->
-	let handle = decode_luv_handle v in
-	Handle.unref handle;
-	vnull
-)
-
-let handle_has_ref = vfun1 (fun v ->
-	let handle = decode_luv_handle v in
-	vbool (Handle.has_ref handle)
-)
-
-let idle_init = vfun1 (fun v ->
-	let loop = decode_loop_opt v in
-	encode_result (fun i -> encode_handle (HIdle i)) (Idle.init ~loop ())
-)
-
-let idle_start = vfun2 (fun v1 v2 ->
-	let idle = decode_idle v1 in
-	let cb = prepare_callback v2 0 in
-	encode_unit_result (Idle.start idle (fun() -> ignore(cb [])));
-)
-
-let idle_stop = vfun1 (fun v ->
-	let idle = decode_idle v in
-	encode_unit_result (Idle.stop idle)
-)
-
-let timer_init = vfun1 (fun v ->
-	let loop = decode_loop_opt v in
-	encode_result (fun i -> encode_handle (HTimer i)) (Timer.init ~loop ())
-)
-
-let timer_start = vfun4 (fun v1 v2 v3 v4 ->
-	let timer = decode_timer v1
-	and cb = prepare_callback v2 0
-	and timeout = decode_int v3
-	and repeat = default_int v4 0 in
-	encode_unit_result (Timer.start ~repeat timer timeout (fun() -> ignore(cb [])));
-)
-
-let timer_stop = vfun1 (fun v ->
-	let timer = decode_timer v in
-	encode_unit_result (Timer.stop timer)
-)
-
-let timer_again = vfun1 (fun v ->
-	let timer = decode_timer v in
-	encode_unit_result (Timer.again timer)
-)
-
-let timer_set_repeat = vfun2 (fun v1 v2 ->
-	let timer = decode_timer v1
-	and repeat = decode_int v2 in
-	Timer.set_repeat timer repeat;
-	vint repeat
-)
-
-let timer_get_repeat = vfun1 (fun v1 ->
-	let timer = decode_timer v1 in
-	vint (Timer.get_repeat timer)
-)
-
-let timer_get_due_in = vfun1 (fun v1 ->
-	let timer = decode_timer v1 in
-	vint (Timer.get_due_in timer)
-)
-
-let async_init = vfun2 (fun v1 v2 ->
-	let loop = decode_loop_opt v1
-	and cb = prepare_callback v2 1 in
-	let callback async = ignore(cb [encode_handle (HAsync async)]) in
-	encode_result (fun i -> encode_handle (HAsync i)) (Async.init ~loop callback)
-)
-
-let async_send = vfun1 (fun v ->
-	let async = decode_async v in
-	encode_unit_result (Async.send async);
-)
+let async_fields = [
+	"init", vfun2 (fun v1 v2 ->
+		let loop = decode_loop_opt v1
+		and cb = prepare_callback v2 1 in
+		let callback async = ignore(cb [encode_handle (HAsync async)]) in
+		encode_result (fun i -> encode_handle (HAsync i)) (Async.init ~loop callback)
+	);
+	"send", vfun1 (fun v ->
+		let async = decode_async v in
+		encode_unit_result (Async.send async);
+	);
+]
