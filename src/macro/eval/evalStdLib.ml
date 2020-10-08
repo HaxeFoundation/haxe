@@ -3750,4 +3750,13 @@ let init_standard_library builtins =
 		"start",EvalLuv.idle_start;
 		"stop",EvalLuv.idle_stop;
 	] [];
+	init_fields builtins (["eval";"luv";"_Timer"], "Timer_Impl_") [
+		"init",EvalLuv.timer_init;
+		"start",EvalLuv.timer_start;
+		"stop",EvalLuv.timer_stop;
+		"again",EvalLuv.timer_again;
+		"set_repeat",EvalLuv.timer_set_repeat;
+		"get_repeat",EvalLuv.timer_get_repeat;
+		"get_dueIn",EvalLuv.timer_get_due_in;
+	] [];
 	EvalSsl.init_fields init_fields builtins

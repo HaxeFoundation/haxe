@@ -96,6 +96,7 @@ type vprototype_kind =
 type vhandle =
 	| HLoop of Luv.Loop.t
 	| HIdle of Luv.Idle.t
+	| HTimer of Luv.Timer.t
 
 type value =
 	| VNull
@@ -231,7 +232,8 @@ let same_handle h1 h2 =
 	match h1, h2 with
 	| HLoop l1, HLoop l2 -> l1 == l2
 	| HIdle i1, HIdle i2 -> i1 == i2
-	| HLoop _, _ | HIdle _, _ -> false
+	| HTimer t1, HTimer t2 -> t1 == t2
+	| HTimer _, _ | HLoop _, _ | HIdle _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

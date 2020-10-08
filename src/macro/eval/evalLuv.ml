@@ -267,7 +267,12 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 let decode_idle v =
 	match decode_handle v with
 	| HIdle t -> t
-	| _ -> unexpected_value v "eval.luv.Idle.IdleHandle"
+	| _ -> unexpected_value v "eval.luv.Idle"
+
+let decode_timer v =
+	match decode_handle v with
+	| HTimer t -> t
+	| _ -> unexpected_value v "eval.luv.Timer"
 
 let loop_run = vfun2 (fun v1 v2 ->
 	let loop = decode_loop_opt v1
@@ -352,6 +357,45 @@ let idle_start = vfun2 (fun v1 v2 ->
 
 let idle_stop = vfun1 (fun v ->
 	let idle = decode_idle v in
-	resolve_result (Idle.stop idle);
-	vnull;
+	encode_unit_result (Idle.stop idle)
+)
+
+let timer_init = vfun1 (fun v ->
+	let loop = decode_loop_opt v in
+	encode_result (fun i -> encode_handle (HTimer i)) (Timer.init ~loop ())
+)
+
+let timer_start = vfun4 (fun v1 v2 v3 v4 ->
+	let timer = decode_timer v1
+	and cb = prepare_callback v2 0
+	and timeout = decode_int v3
+	and repeat = default_int v4 0 in
+	encode_unit_result (Timer.start ~repeat timer timeout (fun() -> ignore(cb [])));
+)
+
+let timer_stop = vfun1 (fun v ->
+	let timer = decode_timer v in
+	encode_unit_result (Timer.stop timer)
+)
+
+let timer_again = vfun1 (fun v ->
+	let timer = decode_timer v in
+	encode_unit_result (Timer.again timer)
+)
+
+let timer_set_repeat = vfun2 (fun v1 v2 ->
+	let timer = decode_timer v1
+	and repeat = decode_int v2 in
+	Timer.set_repeat timer repeat;
+	vint repeat
+)
+
+let timer_get_repeat = vfun1 (fun v1 ->
+	let timer = decode_timer v1 in
+	vint (Timer.get_repeat timer)
+)
+
+let timer_get_due_in = vfun1 (fun v1 ->
+	let timer = decode_timer v1 in
+	vint (Timer.get_due_in timer)
 )
