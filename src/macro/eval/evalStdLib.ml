@@ -3750,6 +3750,10 @@ let init_standard_library builtins =
 		"start",EvalLuv.idle_start;
 		"stop",EvalLuv.idle_stop;
 	] [];
+	init_fields builtins (["eval";"luv";"_Async"], "Async_Impl_") [
+		"init",EvalLuv.async_init;
+		"send",EvalLuv.async_send;
+	] [];
 	init_fields builtins (["eval";"luv";"_Timer"], "Timer_Impl_") [
 		"init",EvalLuv.timer_init;
 		"start",EvalLuv.timer_start;

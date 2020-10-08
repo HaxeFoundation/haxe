@@ -274,6 +274,11 @@ let decode_timer v =
 	| HTimer t -> t
 	| _ -> unexpected_value v "eval.luv.Timer"
 
+let decode_async v =
+	match decode_handle v with
+	| HAsync t -> t
+	| _ -> unexpected_value v "eval.luv.Async"
+
 let loop_run = vfun2 (fun v1 v2 ->
 	let loop = decode_loop_opt v1
 	and mode =
@@ -398,4 +403,16 @@ let timer_get_repeat = vfun1 (fun v1 ->
 let timer_get_due_in = vfun1 (fun v1 ->
 	let timer = decode_timer v1 in
 	vint (Timer.get_due_in timer)
+)
+
+let async_init = vfun2 (fun v1 v2 ->
+	let loop = decode_loop_opt v1
+	and cb = prepare_callback v2 1 in
+	let callback async = ignore(cb [encode_handle (HAsync async)]) in
+	encode_result (fun i -> encode_handle (HAsync i)) (Async.init ~loop callback)
+)
+
+let async_send = vfun1 (fun v ->
+	let async = decode_async v in
+	encode_unit_result (Async.send async);
 )

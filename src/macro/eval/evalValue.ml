@@ -97,6 +97,7 @@ type vhandle =
 	| HLoop of Luv.Loop.t
 	| HIdle of Luv.Idle.t
 	| HTimer of Luv.Timer.t
+	| HAsync of Luv.Async.t
 
 type value =
 	| VNull
@@ -230,10 +231,11 @@ and vlock = {
 
 let same_handle h1 h2 =
 	match h1, h2 with
-	| HLoop l1, HLoop l2 -> l1 == l2
-	| HIdle i1, HIdle i2 -> i1 == i2
-	| HTimer t1, HTimer t2 -> t1 == t2
-	| HTimer _, _ | HLoop _, _ | HIdle _, _ -> false
+	| HLoop h1, HLoop h2 -> h1 == h2
+	| HIdle h1, HIdle h2 -> h1 == h2
+	| HTimer h1, HTimer h2 -> h1 == h2
+	| HAsync h1, HAsync h2 -> h1 == h2
+	| HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue
