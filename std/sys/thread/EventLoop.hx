@@ -22,6 +22,7 @@ abstract EventLoopHandle(Int) {}
 /**
 	An event loop implementation used for `sys.thread.Thread`
 **/
+@:coreApi
 class EventLoop {
 	public final handle:EventLoopHandle = cast 0;
 
@@ -124,7 +125,7 @@ class EventLoop {
 		Waits for a new event to be added, or `timeout` (in seconds) to expire.
 		Returns `true` if an event was added and `false` if a timeout occurs.
 	**/
-	public function wait(?timeout:Float) {
+	public function wait(?timeout:Float):Bool {
 		return waitLock.wait(timeout);
 	}
 
