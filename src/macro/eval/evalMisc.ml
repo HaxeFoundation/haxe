@@ -265,3 +265,27 @@ let prepare_callback v n =
 			| None -> vnull)
 	| _ ->
 		raise MacroApi.Invalid_expr
+
+let create_haxe_exception ?stack msg =
+	let vi = encode_instance key_haxe_Exception in
+	match vi with
+	| VInstance i ->
+		let v_msg = create_unknown (msg) in
+		set_instance_field i key_exception_message v_msg;
+		set_instance_field i key_native_exception v_msg;
+		(match stack with
+		| Some stack ->
+			let stack = EvalStackTrace.make_stack stack in
+			set_instance_field i key_native_stack stack;
+		| None ->
+			let ctx = get_ctx() in
+			let eval = get_eval ctx in
+			match eval.env with
+			| Some _ ->
+				let stack = EvalStackTrace.make_stack_value (call_stack eval) in
+				set_instance_field i key_native_stack stack;
+			| None -> ()
+		);
+		vi
+	| _ ->
+		die "" __LOC__

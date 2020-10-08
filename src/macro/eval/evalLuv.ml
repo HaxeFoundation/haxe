@@ -1,3 +1,5 @@
+module HaxeError = Error
+
 open Luv
 open Globals
 open EvalContext
@@ -9,6 +11,7 @@ open EvalHash
 open EvalMisc
 
 let key_eval_luv_Result = hash "eval.luv.Result"
+let key_eval_luv_LuvException = hash "eval.luv.LuvException"
 
 let encode_uv_error (e:Error.t) =
 	vint (match e with
@@ -92,6 +95,88 @@ let encode_uv_error (e:Error.t) =
 	| `EILSEQ -> 77
 	)
 
+let decode_uv_error v : Error.t =
+	match decode_int v with
+	| 0 -> `E2BIG
+	| 1 -> `EACCES
+	| 2 -> `EADDRINUSE
+	| 3 -> `EADDRNOTAVAIL
+	| 4 -> `EAFNOSUPPORT
+	| 5 -> `EAGAIN
+	| 6 -> `EAI_ADDRFAMILY
+	| 7 -> `EAI_AGAIN
+	| 8 -> `EAI_BADFLAGS
+	| 9 -> `EAI_BADHINTS
+	| 10 -> `EAI_CANCELED
+	| 11 -> `EAI_FAIL
+	| 12 -> `EAI_FAMILY
+	| 13 -> `EAI_MEMORY
+	| 14 -> `EAI_NODATA
+	| 15 -> `EAI_NONAME
+	| 16 -> `EAI_OVERFLOW
+	| 17 -> `EAI_PROTOCOL
+	| 18 -> `EAI_SERVICE
+	| 19 -> `EAI_SOCKTYPE
+	| 20 -> `EALREADY
+	| 21 -> `EBADF
+	| 22 -> `EBUSY
+	| 23 -> `ECANCELED
+	(* | 24 -> `ECHARSET not defined in Luv *)
+	| 25 -> `ECONNABORTED
+	| 26 -> `ECONNREFUSED
+	| 27 -> `ECONNRESET
+	| 28 -> `EDESTADDRREQ
+	| 29 -> `EEXIST
+	| 30 -> `EFAULT
+	| 31 -> `EFBIG
+	| 32 -> `EHOSTUNREACH
+	| 33 -> `EINTR
+	| 34 -> `EINVAL
+	| 35 -> `EIO
+	| 36 -> `EISCONN
+	| 37 -> `EISDIR
+	| 38 -> `ELOOP
+	| 39 -> `EMFILE
+	| 40 -> `EMSGSIZE
+	| 41 -> `ENAMETOOLONG
+	| 42 -> `ENETDOWN
+	| 43 -> `ENETUNREACH
+	| 44 -> `ENFILE
+	| 45 -> `ENOBUFS
+	| 46 -> `ENODEV
+	| 47 -> `ENOENT
+	| 48 -> `ENOMEM
+	| 49 -> `ENONET
+	| 50 -> `ENOPROTOOPT
+	| 51 -> `ENOSPC
+	| 52 -> `ENOSYS
+	| 53 -> `ENOTCONN
+	| 54 -> `ENOTDIR
+	| 55 -> `ENOTEMPTY
+	| 56 -> `ENOTSOCK
+	| 57 -> `ENOTSUP
+	| 58 -> `EPERM
+	| 59 -> `EPIPE
+	| 60 -> `EPROTO
+	| 61 -> `EPROTONOSUPPORT
+	| 62 -> `EPROTOTYPE
+	| 63 -> `ERANGE
+	| 64 -> `EROFS
+	| 65 -> `ESHUTDOWN
+	| 66 -> `ESPIPE
+	| 67 -> `ESRCH
+	| 68 -> `ETIMEDOUT
+	| 69 -> `ETXTBSY
+	| 70 -> `EXDEV
+	| 71 -> `UNKNOWN
+	| 72 -> `EOF
+	| 73 -> `ENXIO
+	| 74 -> `EMLINK
+	| 75 -> `ENOTTY
+	| 76 -> `EFTYPE
+	| 77 -> `EILSEQ
+	| _ -> unexpected_value v "eval.luv.UVError"
+
 let luv_exception e =
 	let vi = encode_instance key_eval_luv_LuvException in
 	match vi with
@@ -131,6 +216,39 @@ let encode_unit_result result =
 let resolve_result = function
 	| Ok v -> v
 	| Error e -> throw (luv_exception e) null_pos
+
+let error_strerror = vfun1 (fun v ->
+	let e = decode_uv_error v in
+	EvalString.create_unknown (Error.strerror e)
+)
+
+let error_err_name = vfun1 (fun v ->
+	let e = decode_uv_error v in
+	EvalString.create_unknown (Error.err_name e)
+)
+
+let error_translate_sys_error = vfun1 (fun v ->
+	let e = decode_int v in
+	encode_uv_error (Error.translate_sys_error e)
+)
+
+let error_set_on_unhandled_exception = vfun1 (fun v ->
+	let cb = prepare_callback v 1 in
+	Error.set_on_unhandled_exception (fun ex ->
+		let msg =
+			match ex with
+			| HaxeError.Error (Custom msg,_) ->
+				(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
+				(try fst (ExtString.String.split msg "\n")
+				with _ -> msg)
+			| HaxeError.Error (err,_) -> HaxeError.error_msg err
+			| _ -> Printexc.to_string ex
+		in
+		let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in
+		ignore(cb [e])
+	);
+	vnull
+)
 
 let decode_loop v =
 	match decode_handle v with
@@ -227,8 +345,8 @@ let idle_init = vfun1 (fun v ->
 )
 
 let idle_start = vfun2 (fun v1 v2 ->
-	let idle = decode_idle v1
-	and cb = prepare_callback v2 0 in
+	let idle = decode_idle v1 in
+	let cb = prepare_callback v2 0 in
 	encode_unit_result (Idle.start idle (fun() -> ignore(cb [])));
 )
 

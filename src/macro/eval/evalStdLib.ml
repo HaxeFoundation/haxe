@@ -3715,6 +3715,12 @@ let init_standard_library builtins =
 		"toBytes",StdNativeString.to_bytes;
 		"toString",StdNativeString.to_string;
 	] [];
+	init_fields builtins (["eval";"luv";"_UVError"],"UVError_Impl_") [
+		"toString",EvalLuv.error_strerror;
+		"errName",EvalLuv.error_err_name;
+		"translateSysError",EvalLuv.error_translate_sys_error;
+		"setOnUnhandledException",EvalLuv.error_set_on_unhandled_exception;
+	] [];
 	init_fields builtins (["eval";"luv";"_Loop"],"Loop_Impl_") [
 		"run",EvalLuv.loop_run;
 		"stop",EvalLuv.loop_stop;
@@ -3739,7 +3745,7 @@ let init_standard_library builtins =
 		"unref",EvalLuv.handle_unref;
 		"hasRef",EvalLuv.handle_has_ref;
 	] [];
-	init_fields builtins (["eval";"luv"], "Idle") [
+	init_fields builtins (["eval";"luv";"_Idle"], "Idle_Impl_") [
 		"init",EvalLuv.idle_init;
 		"start",EvalLuv.idle_start;
 		"stop",EvalLuv.idle_stop;
