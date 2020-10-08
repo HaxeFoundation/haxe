@@ -3721,4 +3721,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Idle"], "Idle_Impl_") EvalLuv.idle_fields [];
 	init_fields builtins (["eval";"luv";"_Async"], "Async_Impl_") EvalLuv.async_fields [];
 	init_fields builtins (["eval";"luv";"_Timer"], "Timer_Impl_") EvalLuv.timer_fields [];
+	init_fields builtins (["eval";"luv";"_Buffer"], "Buffer_Impl_") EvalLuv.buffer_fields [];
 	EvalSsl.init_fields init_fields builtins

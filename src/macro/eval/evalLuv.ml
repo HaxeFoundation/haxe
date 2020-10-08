@@ -414,3 +414,105 @@ let async_fields = [
 		encode_unit_result (Async.send async);
 	);
 ]
+
+let buffer_get getter = vfun2 (fun v1 v2 ->
+	let buffer = decode_buffer v1
+	and index = decode_int v2 in
+	vint (int_of_char (getter buffer index))
+)
+
+let buffer_set setter = vfun3 (fun v1 v2 v3 ->
+	let buffer = decode_buffer v1
+	and index = decode_int v2
+	and byte = decode_int v3 in
+	setter buffer index (char_of_int byte);
+	v3
+)
+
+let buffer_fields = [
+	"create", vfun1 (fun v ->
+		let size = decode_int v in
+		encode_handle (HBuffer (Buffer.create size))
+	);
+	"fromNativeString", vfun1 (fun v ->
+		let s = decode_native_string v in
+		encode_handle (HBuffer (Buffer.from_string s))
+	);
+	"fromString", vfun1 (fun v ->
+		let s = decode_string v in
+		encode_handle (HBuffer (Buffer.from_string s))
+	);
+	"fromBytes", vfun1 (fun v ->
+		let b = decode_bytes v in
+		encode_handle (HBuffer (Buffer.from_bytes b))
+	);
+	"totalSize", vfun1 (fun v ->
+		let l = List.map decode_buffer (decode_array v) in
+		vint (Buffer.total_size l)
+	);
+	"drop", vfun2 (fun v1 v2 ->
+		let l = List.map decode_buffer (decode_array v1)
+		and count = decode_int v2
+		and encode_buffer buffer = encode_handle (HBuffer buffer) in
+		encode_array (List.map encode_buffer (Buffer.drop l count))
+	);
+	"size", vfun1 (fun v ->
+		let buffer = decode_buffer v in
+		vint (Buffer.size buffer)
+	);
+	"get", buffer_get Buffer.get;
+	"unsafeGet", buffer_get Buffer.unsafe_get;
+	"set", buffer_set Buffer.set;
+	"unsafeSet", buffer_set Buffer.unsafe_set;
+	"sub", vfun3 (fun v1 v2 v3 ->
+		let buffer = decode_buffer v1
+		and offset = decode_int v2
+		and length = decode_int v3 in
+		encode_handle (HBuffer (Buffer.sub buffer offset length))
+	);
+	"blit", vfun2 (fun v1 v2 ->
+		let buffer = decode_buffer v1
+		and destination = decode_buffer v2 in
+		Buffer.blit buffer destination;
+		vnull
+	);
+	"fill", vfun2 (fun v1 v2 ->
+		let buffer = decode_buffer v1
+		and byte = decode_int v2 in
+		Buffer.fill buffer (char_of_int byte);
+		vnull
+	);
+	"toString", vfun1 (fun v ->
+		let buffer = decode_buffer v in
+		EvalString.create_unknown (Buffer.to_string buffer)
+	);
+	"toNativeString", vfun1 (fun v ->
+		let buffer = decode_buffer v in
+		vnative_string (Buffer.to_string buffer)
+	);
+	"toBytes", vfun1 (fun v ->
+		let buffer = decode_buffer v in
+		encode_bytes (Buffer.to_bytes buffer)
+	);
+	"blitToBytes", vfun3 (fun v1 v2 v3 ->
+		let buffer = decode_buffer v1
+		and destination = decode_bytes v2
+		and offset = decode_int v3 in
+		Buffer.blit_to_bytes buffer destination offset;
+		vnull
+	);
+	"blitFromBytes", vfun3 (fun v1 v2 v3 ->
+		let buffer = decode_buffer v1
+		and source = decode_bytes v2
+		and offset = decode_int v3 in
+		Buffer.blit_from_bytes buffer source offset;
+		vnull
+	);
+	"blitFromBytes", vfun3 (fun v1 v2 v3 ->
+		let buffer = decode_buffer v1
+		and source = decode_native_string v2
+		and offset = decode_int v3 in
+		Buffer.blit_from_string buffer source offset;
+		vnull
+	);
+]
