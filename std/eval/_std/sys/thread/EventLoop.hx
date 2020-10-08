@@ -1,5 +1,7 @@
 package sys.thread;
 
+import eval.luv.Loop;
+
 /**
 	When an event loop has an available event to execute.
 **/
@@ -17,13 +19,16 @@ enum NextEventTime {
 	At(time:Float);
 }
 
-abstract EventLoopHandle(Int) {}
+abstract EventLoopHandle(Loop) from Loop {}
+
+abstract EventHandler(RegularEvent) from RegularEvent to RegularEvent {}
 
 /**
 	An event loop implementation used for `sys.thread.Thread`
 **/
+@:coreApi
 class EventLoop {
-	public final handle:EventLoopHandle = cast 0;
+	public final handle:EventLoopHandle;
 
 	final mutex = new Mutex();
 	final oneTimeEvents = new Array<Null<()->Void>>();
@@ -32,7 +37,9 @@ class EventLoop {
 	var promisedEventsCount = 0;
 	var regularEvents:Null<RegularEvent>;
 
-	public function new():Void {}
+	public function new():Void {
+		handle = Loop.init();
+	}
 
 	/**
 		Schedule event for execution every `intervalMs` milliseconds in current loop.
@@ -216,8 +223,6 @@ class EventLoop {
 		return {nextEventAt:nextEventAt, anyTime:hasPromisedEvents}
 	}
 }
-
-abstract EventHandler(RegularEvent) from RegularEvent to RegularEvent {}
 
 private class RegularEvent {
 	public var nextRunTime:Float;

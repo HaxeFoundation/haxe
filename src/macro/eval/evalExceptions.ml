@@ -77,6 +77,7 @@ let s_value_kind = function
 	| VFieldClosure _ -> "VFieldClosure"
 	| VLazy _ -> "VLazy"
 	| VNativeString _ -> "VNativeString"
+	| VHandle _ -> "VHandle"
 
 let unexpected_value : 'a . value -> string -> 'a = fun v s ->
 	let str = match v with

@@ -40,6 +40,7 @@ let rtrue = create_ascii "true"
 let rfalse = create_ascii "false"
 let rfun = create_ascii "#fun"
 let rclosure = create_ascii "#closure"
+let rhandle = create_ascii "#handle"
 
 let s_date d =
 	let open Unix in
@@ -118,6 +119,7 @@ and s_value depth v =
 		create_ascii (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
 	| VFunction (f,_) -> rfun
 	| VFieldClosure _ -> rclosure
+	| VHandle _ -> rhandle
 	| VEnumValue ve -> s_enum_value depth ve
 	| VString s -> s
 	| VNativeString s -> create_unknown_vstring s

@@ -93,6 +93,10 @@ type vprototype_kind =
 	| PInstance
 	| PObject
 
+type vhandle =
+	| HLoop of Luv.Loop.t
+	| HIdle of Luv.Idle.t
+
 type value =
 	| VNull
 	| VTrue
@@ -110,6 +114,7 @@ type value =
 	| VFieldClosure of value * vfunc
 	| VLazy of (unit -> value) ref
 	| VNativeString of string
+	| VHandle of vhandle
 
 and vfunc = value list -> value
 
@@ -222,6 +227,12 @@ and vlock = {
 	ldeque : vdeque;
 }
 
+let same_handle h1 h2 =
+	match h1, h2 with
+	| HLoop l1, HLoop l2 -> l1 == l2
+	| HIdle i1, HIdle i2 -> i1 == i2
+	| HLoop _, _ | HIdle _, _ -> false
+
 let rec equals a b = match a,b with
 	| VTrue,VTrue
 	| VFalse,VFalse
@@ -239,6 +250,7 @@ let rec equals a b = match a,b with
 	| VFunction(vf1,_),VFunction(vf2,_) -> vf1 == vf2
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
 	| VNativeString s1,VNativeString s2 -> s1 = s2
+	| VHandle h1,VHandle h2 -> same_handle h1 h2
 	| VLazy f1,_ -> equals (!f1()) b
 	| _,VLazy f2 -> equals a (!f2())
 	| _ -> a == b

@@ -255,3 +255,13 @@ let get_binop_fun op p = match op with
 	| OpUShr -> op_ushr p
 	| OpMod -> op_mod p
 	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die "" __LOC__
+
+let prepare_callback v n =
+	match v with
+	| VFunction _ | VFieldClosure _ ->
+		let ctx = get_ctx() in
+		(fun args -> match catch_exceptions ctx (fun() -> call_value v args) null_pos with
+			| Some v -> v
+			| None -> vnull)
+	| _ ->
+		raise MacroApi.Invalid_expr
