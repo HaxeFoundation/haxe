@@ -261,7 +261,9 @@ let decode_loop_opt v =
 
 let decode_luv_handle v : 'kind Luv.Handle.t =
 	match decode_handle v with
-	| HIdle t -> t
+	| HIdle t -> Handle.coerce t
+	| HTimer t -> Handle.coerce t
+	| HAsync t -> Handle.coerce t
 	| _ -> unexpected_value v "eval.luv.Handle"
 
 let decode_idle v =
