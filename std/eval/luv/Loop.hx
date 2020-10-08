@@ -17,16 +17,23 @@ enum abstract RunMode(Int) {
 @:coreType abstract Loop {
 	/**
 		Runs an event loop.
-
-		If `loop` is specified, the given loop will be run.
-		If not, this function will run `Loop.defaultLoop`.
 	**/
-	extern static public function run(?loop:Loop, mode:RunMode):Bool;
+	extern public function run(mode:RunMode):Bool;
+
+	/**
+		Releases resources associated with an event loop.
+	**/
+	extern public function close():Result<Result.NoData>;
+
+	/**
+		Indicates whether the loop is monitoring any activity.
+	**/
+	extern public function alive():Bool;
 
 	/**
 		Stops an event loop as soon as possible.
 	**/
-	extern static public function stop(loop:Loop):Void;
+	extern public function stop():Void;
 
 	/**
 		Returns the default event loop.
@@ -37,14 +44,4 @@ enum abstract RunMode(Int) {
 		Allocates and initializes a new event loop.
 	**/
 	extern static public function init():Result<Loop>;
-
-	/**
-		Releases resources associated with an event loop.
-	**/
-	extern static public function close(loop:Loop):Result<Result.NoData>;
-
-	/**
-		Indicates whether the loop is monitoring any activity.
-	**/
-	extern static public function alive(loop:Loop):Bool;
 }
