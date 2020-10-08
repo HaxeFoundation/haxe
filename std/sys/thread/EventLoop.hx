@@ -110,6 +110,9 @@ class EventLoop {
 		Executes all pending events.
 
 		The returned time stamps can be used with `Sys.time()` for calculations.
+
+		Depending on a target platform this method may be non-reentrant. It must
+		not be called from event callbacks.
 	**/
 	public function progress():NextEventTime {
 		return switch __progress(Sys.time(), []) {
@@ -122,8 +125,16 @@ class EventLoop {
 	}
 
 	/**
-		Waits for a new event to be added, or `timeout` (in seconds) to expire.
-		Returns `true` if an event was added and `false` if a timeout occurs.
+		Blocks until a new event is added or `timeout` (in seconds) to expires.
+
+		Depending on a target platform this method may also automatically execute arriving
+		events while waiting. However if any event is executed it will stop waiting.
+
+		Returns `true` if more events are expected.
+		Returns `false` if no more events expected.
+
+		Depending on a target platform this method may be non-reentrant. It must
+		not be called from event callbacks.
 	**/
 	public function wait(?timeout:Float):Bool {
 		return waitLock.wait(timeout);
@@ -133,6 +144,9 @@ class EventLoop {
 		Execute all pending events.
 		Wait and execute as many events as many times `promiseEvent()` was called.
 		Runs until all repeating events are cancelled and no more events is expected.
+
+		Depending on a target platform this method may be non-reentrant. It must
+		not be called from event callbacks.
 	**/
 	public function loop():Void {
 		var events = [];
