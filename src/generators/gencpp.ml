@@ -4781,9 +4781,9 @@ let path_of_string path =
 let find_referenced_types_flags ctx obj field_name super_deps constructor_deps header_only for_depends include_super_args =
    let types = ref PMap.empty in
    if for_depends then begin
-      let include_file = get_meta_string_path (t_infos obj).mt_meta Meta.Depend in
-      if (include_file<>"") then
-         types := (PMap.add ( path_of_string include_file ) true !types);
+      let include_files = get_all_meta_string_path (t_infos obj).mt_meta Meta.Depend in
+      let include_adder = fun inc -> types := (PMap.add ( path_of_string inc ) true !types) in
+      List.iter include_adder include_files;
    end;
    let rec add_type_flag isNative in_path =
       if ( not (PMap.mem in_path !types)) then begin
@@ -4797,9 +4797,9 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
    in
    let add_extern_type decl =
       let tinfo = t_infos decl in
-      let include_file = get_meta_string_path tinfo.mt_meta (if for_depends then Meta.Depend else Meta.Include) in
-      if (include_file<>"") then
-         add_type ( path_of_string include_file )
+      let include_files = get_all_meta_string_path tinfo.mt_meta (if for_depends then Meta.Depend else Meta.Include) in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> add_type(path_of_string inc)) include_files
       else if (not for_depends) && (has_meta_key tinfo.mt_meta Meta.Include) then
          add_type tinfo.mt_path
    in
@@ -4808,9 +4808,9 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
       add_extern_type (TClassDecl klass)
    in
    let add_native_gen_class klass =
-      let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
-      if (include_file<>"") then
-         add_type ( path_of_string include_file )
+      let include_files = get_all_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> add_type ( path_of_string inc )) include_files
       else if for_depends then
          add_type klass.cl_path
       else begin
@@ -6650,15 +6650,21 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    (match class_def.cl_super with
    | Some super ->
       let klass = fst super in
-      let include_file = get_meta_string_path klass.cl_meta Meta.Include in
-      h_file#add_include (if include_file="" then klass.cl_path else path_of_string include_file)
+      let include_files = get_all_meta_string_path klass.cl_meta Meta.Include in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> h_file#add_include (path_of_string inc)) include_files
+      else
+         h_file#add_include klass.cl_path
    | _ -> () );
 
    (* And any interfaces ... *)
    List.iter (fun imp->
       let interface = fst imp in
-      let include_file = get_meta_string_path interface.cl_meta Meta.Include in
-      h_file#add_include (if include_file="" then interface.cl_path else path_of_string include_file) )
+      let include_files = get_all_meta_string_path interface.cl_meta Meta.Include in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> h_file#add_include (path_of_string inc)) include_files
+      else
+         h_file#add_include interface.cl_path)
       (real_interfaces class_def.cl_implements);
 
    (* Only need to forward-declare classes that are mentioned in the header file
