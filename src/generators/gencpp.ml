@@ -416,6 +416,20 @@ let join_class_path_remap path separator =
    | x -> x
 ;;
 
+let make_path_absolute path pos =
+   try
+      if (String.sub path 0 2) = "./" then begin
+         let base = if (Filename.is_relative pos.pfile) then
+            Filename.concat (Sys.getcwd()) pos.pfile
+         else
+            pos.pfile
+         in
+         Path.normalize_path (Filename.concat (Filename.dirname base) (String.sub path 2 ((String.length path) -2)))
+      end else
+         path
+   with Invalid_argument _ -> path
+;;
+
 let get_meta_string meta key =
    let rec loop = function
       | [] -> ""
@@ -425,28 +439,30 @@ let get_meta_string meta key =
    loop meta
 ;;
 
-
-
 let get_meta_string_path meta key =
    let rec loop = function
       | [] -> ""
       | (k,[Ast.EConst (Ast.String(name,_)),_], pos) :: _  when k=key->
-           (try
-           if (String.sub name 0 2) = "./" then begin
-              let base = if (Filename.is_relative pos.pfile) then
-                 Filename.concat (Sys.getcwd()) pos.pfile
-              else
-                 pos.pfile
-              in
-              Path.normalize_path (Filename.concat (Filename.dirname base) (String.sub name 2 ((String.length name) -2)  ))
-           end else
-              name
-           with Invalid_argument _ -> name)
+           make_path_absolute name pos
       | _ :: l -> loop l
       in
    loop meta
 ;;
 
+let get_all_meta_string_path meta_list key =
+   let extract_path pos expr =
+      match expr with
+      | (Ast.EConst (Ast.String(name, _)), _) -> Some (make_path_absolute name pos)
+      | _ -> None in
+   let extract_meta meta =
+      match meta with
+      | (k, exprs, pos) when k = key ->
+         List.filter_map (extract_path pos) exprs
+      | _ ->
+         [] in
+   let all_includes meta key = List.map extract_meta meta in
+   List.flatten (all_includes meta_list key)
+;;
 
 let get_meta_string_full_filename meta key =
    let rec loop = function
@@ -5883,9 +5899,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    cpp_file#write_h "\n";
 
    output_cpp ( get_class_code class_def Meta.CppFileCode );
-   let inc = get_meta_string_path class_def.cl_meta Meta.CppInclude in
-   if (inc<>"") then
-      output_cpp ("#include \"" ^ inc ^ "\"\n");
+   let includes = get_all_meta_string_path class_def.cl_meta Meta.CppInclude in
+   let printer  = fun inc -> output_cpp ("#include \"" ^ inc ^ "\"\n") in
+   List.iter printer includes;
 
    gen_open_namespace output_cpp class_path;
    output_cpp "\n";
@@ -6652,9 +6668,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    output_h "\n";
 
    output_h ( get_class_code class_def Meta.HeaderCode );
-   let inc = get_meta_string_path class_def.cl_meta Meta.HeaderInclude in
-   if (inc<>"") then
-      output_h ("#include \"" ^ inc ^ "\"\n");
+   let includes = get_all_meta_string_path class_def.cl_meta Meta.HeaderInclude in
+   let printer  = fun inc -> output_h ("#include \"" ^ inc ^ "\"\n") in
+   List.iter printer includes;
 
    gen_open_namespace output_h class_path;
    output_h "\n\n";
