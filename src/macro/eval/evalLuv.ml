@@ -292,6 +292,16 @@ let decode_pipe v =
 	| HPipe t -> t
 	| _ -> unexpected_value v "eval.luv.Pipe"
 
+let decode_tty v =
+	match decode_handle v with
+	| HTty t -> t
+	| _ -> unexpected_value v "eval.luv.Tty"
+
+let decode_file v =
+	match decode_handle v with
+	| HFile f -> f
+	| _ -> unexpected_value v "eval.luv.File"
+
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
 		let e = decode_uv_error v in
@@ -455,8 +465,8 @@ let timer_fields = [
 
 let async_fields = [
 	"init", vfun2 (fun v1 v2 ->
-		let loop = decode_loop_opt v1
-		and cb = prepare_callback v2 1 in
+		let cb = prepare_callback v1 1
+		and loop = decode_loop_opt v2 in
 		let callback async = ignore(cb [VHandle (HAsync async)]) in
 		encode_result (fun i -> VHandle (HAsync i)) (Async.init ~loop callback)
 	);
@@ -699,5 +709,50 @@ let pipe_fields = [
 			| _ -> unexpected_value v2 "eval.luv.Pipe.PipeMode"
 		in
 		encode_unit_result (Pipe.chmod pipe mode)
+	);
+]
+
+let tty_fields = [
+	"init", vfun2 (fun v1 v2 ->
+		let file = decode_file v1
+		and loop = decode_loop_opt v2 in
+		encode_result (fun tty -> VHandle (HTty tty)) (TTY.init ~loop file)
+	);
+	"setMode", vfun2 (fun v1 v2 ->
+		let tty = decode_tty v1
+		and mode =
+			match decode_int v2 with
+			| 0 -> `NORMAL
+			| 1 -> `RAW
+			| 2 -> `IO
+			| _ -> unexpected_value v2 "eval.luv.Tty.TtyMode"
+		in
+		encode_unit_result (TTY.set_mode tty mode)
+	);
+	"resetMode", vfun0 (fun () ->
+		encode_unit_result (TTY.reset_mode ())
+	);
+	"getWinSize", vfun1 (fun v ->
+		let tty = decode_tty v in
+		let encode (w,h) = encode_obj_s ["width",vint w; "height",vint h] in
+		encode_result encode (TTY.get_winsize tty)
+	);
+	"setVTermState", vfun1 (fun v ->
+		let state =
+			match decode_int v with
+			| 0 -> `SUPPORTED
+			| 1 -> `UNSUPPORTED
+			| _ -> unexpected_value v "eval.luv.Tty.VTermState"
+		in
+		TTY.set_vterm_state state;
+		vnull
+	);
+	"getVTermState", vfun0 (fun () ->
+		let encode state =
+			vint (match state with
+			| `SUPPORTED -> 0
+			| `UNSUPPORTED -> 1)
+		in
+		encode_result encode (TTY.get_vterm_state())
 	);
 ]
