@@ -213,6 +213,10 @@ let encode_unit_result result =
 	in
 	encode_enum_value key_eval_luv_Result index args None
 
+let encode_callback v_callback encode_result result =
+	let cb = prepare_callback v_callback 1 in
+	ignore(cb [encode_result result])
+
 let resolve_result = function
 	| Ok v -> v
 	| Error e -> throw (luv_exception e) null_pos
@@ -260,6 +264,11 @@ let decode_sockaddr v =
 
 let encode_sockaddr h =
 	VHandle (HSockAddr h)
+
+let decode_tcp v =
+	match decode_handle v with
+	| HTcp t -> t
+	| _ -> unexpected_value v "eval.luv.Tcp"
 
 let decode_socket_type v : Sockaddr.Socket_type.t =
 	match decode_enum v with
@@ -573,5 +582,59 @@ let sockaddr_fields = [
 		match Sockaddr.to_string a with
 		| Some s -> EvalString.create_unknown s
 		| None -> EvalString.vstring (EvalString.create_ascii "")
+	);
+]
+
+let tcp_fields = [
+	"init", vfun2 (fun v1 v2 ->
+		let loop = decode_loop_opt v1 in
+		let tcp =
+			if v2 = VNull then
+				TCP.init ~loop ()
+			else
+				let domain = decode_address_family v2 in
+				TCP.init ~loop ~domain ()
+		in
+		encode_result (fun t -> VHandle (HTcp t)) tcp
+	);
+	"noDelay", vfun2 (fun v1 v2 ->
+		let tcp = decode_tcp v1
+		and value = decode_bool v2 in
+		encode_unit_result (TCP.nodelay tcp value)
+	);
+	"keepAlive", vfun2 (fun v1 v2 ->
+		let tcp = decode_tcp v1
+		and value = decode_option decode_int v2 in
+		encode_unit_result (TCP.keepalive tcp value)
+	);
+	"simultaneousAccepts", vfun2 (fun v1 v2 ->
+		let tcp = decode_tcp v1
+		and value = decode_bool v2 in
+		encode_unit_result (TCP.simultaneous_accepts tcp value)
+	);
+	"bind", vfun3 (fun v1 v2 v3 ->
+		let tcp = decode_tcp v1
+		and addr = decode_sockaddr v2
+		and ipv6only = if v3 = VNull then false else decode_bool v3 in
+		encode_unit_result (TCP.bind ~ipv6only tcp addr)
+	);
+	"getSockName", vfun1 (fun v ->
+		let tcp = decode_tcp v in
+		encode_result encode_sockaddr (TCP.getsockname tcp)
+	);
+	"getPeerName", vfun1 (fun v ->
+		let tcp = decode_tcp v in
+		encode_result encode_sockaddr (TCP.getpeername tcp)
+	);
+	"connect", vfun3 (fun v1 v2 v3 ->
+		let tcp = decode_tcp v1
+		and addr = decode_sockaddr v2 in
+		TCP.connect tcp addr (encode_callback v3 encode_unit_result);
+		vnull
+	);
+	"closeReset", vfun2 (fun v1 v2 ->
+		let tcp = decode_tcp v1 in
+		TCP.close_reset tcp (encode_callback v2 encode_unit_result);
+		vnull
 	);
 ]
