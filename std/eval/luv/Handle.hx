@@ -1,5 +1,7 @@
 package eval.luv;
 
+@:coreType abstract SocketHandle {}
+
 /**
 	Handles.
 
@@ -44,4 +46,33 @@ package eval.luv;
 		@see https://aantron.github.io/luv/luv/Luv/Handle/#val-has_ref
 	**/
 	static public function hasRef(handle:Handle):Bool;
+
+// TODO
+	// /**
+	// 	Gets the size of the OS send buffer for a socket.
+
+	// 	@see https://aantron.github.io/luv/luv/Luv/Handle/#val-send_buffer_size
+	// **/
+	// static public function sendBufferSize(handle:SocketHandle):Result<Int>;
+
+	// /**
+	// 	Sets the size of the OS send buffer for a socket.
+
+	// 	@see https://aantron.github.io/luv/luv/Luv/Handle/#val-set_send_buffer_size
+	// **/
+	// static public function SetSendBufferSize(handle:SocketHandle, size:Int):Result<Result.NoData>;
+
+	// /**
+	// 	Gets the size of the OS receive buffer for a socket.
+
+	// 	@see https://aantron.github.io/luv/luv/Luv/Handle/#val-recv_buffer_size
+	// **/
+	// static public function recvBufferSize(handle:SocketHandle):Result<Int>;
+
+	// /**
+	// 	Sets the size of the OS receive buffer for a socket.
+
+	// 	@see https://aantron.github.io/luv/luv/Luv/Handle/#val-set_recv_buffer_size
+	// **/
+	// static public function SetRecvBufferSize(handle:SocketHandle, size:Int):Result<Result.NoData>;
 }
