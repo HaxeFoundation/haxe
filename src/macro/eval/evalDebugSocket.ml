@@ -68,6 +68,7 @@ let var_to_json name value vio env =
 		| VTrue -> "true"
 		| VFalse -> "false"
 		| VInt32 i -> Int32.to_string i
+		| VUInt64 u -> Unsigned.UInt64.to_string u
 		| VFloat f -> string_of_float f
 		| VEnumValue ve ->
 			let name = EvalPrinting.s_enum_ctor_name ve in
@@ -98,6 +99,7 @@ let var_to_json name value vio env =
 		| VTrue -> jv "Bool" "true" 0
 		| VFalse -> jv "Bool" "false" 0
 		| VInt32 i -> jv "Int" (Int32.to_string i) 0
+		| VUInt64 u -> jv "UInt64" (Unsigned.UInt64.to_string u) 0
 		| VFloat f -> jv "Float" (string_of_float f) 0
 		| VEnumValue ve ->
 			let type_s = rev_hash ve.epath in
@@ -267,7 +269,8 @@ let output_scope_vars env scope =
 
 let output_inner_vars v env =
 	let rec loop v = match v with
-		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ | VHandle _ -> []
+		| VNull | VTrue | VFalse | VInt32 _ | VUInt64 _ | VFloat _
+		| VFunction _ | VFieldClosure _ | VNativeString _ | VHandle _ -> []
 		| VEnumValue ve ->
 			begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
 				| PEnum names ->
@@ -429,7 +432,8 @@ module ValueCompletion = struct
 			| _ -> "field"
 		in
 		let rec loop v = match v with
-			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ | VHandle _->
+			| VNull | VTrue | VFalse | VInt32 _ | VUInt64 _ | VFloat _
+			| VFunction _ | VFieldClosure _ | VNativeString _ | VHandle _->
 				[]
 			| VObject o ->
 				let fields = object_fields o in

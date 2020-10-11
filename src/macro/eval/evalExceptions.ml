@@ -65,6 +65,7 @@ let s_value_kind = function
 	| VTrue -> "VTrue"
 	| VFalse -> "VFalse"
 	| VInt32 _ -> "VInt32"
+	| VUInt64 _ -> "VUInt64"
 	| VFloat _ -> "VFloat"
 	| VEnumValue _ -> "VEnumValue"
 	| VObject _ -> "VObject"

@@ -230,6 +230,9 @@ let value_signature v =
 		| VInt32 i ->
 			addc 'i';
 			add (Int32.to_string i)
+		| VUInt64 u ->
+			add "u64";
+			add (Unsigned.UInt64.to_string u)
 		| VFloat f ->
 			if f = neg_infinity then addc 'm'
 			else if f = infinity then addc 'p'

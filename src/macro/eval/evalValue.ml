@@ -118,6 +118,7 @@ type value =
 	| VLazy of (unit -> value) ref
 	| VNativeString of string
 	| VHandle of vhandle
+	| VUInt64 of Unsigned.UInt64.t
 
 and vfunc = value list -> value
 
