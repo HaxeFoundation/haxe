@@ -9,7 +9,8 @@ import eval.luv.SockAddr;
 	@see https://aantron.github.io/luv/luv/Luv/TCP
 **/
 @:using(eval.luv.Handle)
-@:coreType abstract Tcp to Handle {
+@:using(eval.luv.Stream)
+@:coreType abstract Tcp to Handle to Stream to Stream.TStream<Tcp> {
 	/**
 		Allocates and initializes a TCP stream.
 

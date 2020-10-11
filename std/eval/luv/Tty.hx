@@ -17,7 +17,8 @@ enum abstract VTermState(Int) {
 	@see https://aantron.github.io/luv/luv/Luv/Tty
 **/
 @:using(eval.luv.Handle)
-@:coreType abstract Tty to Handle {
+@:using(eval.luv.Stream)
+@:coreType abstract Tty to Handle to Stream to Stream.TStream<Tty> {
 	/**
 		To be called when the program exits.
 		Resets TTY settings to default values for the next process to take over.

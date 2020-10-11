@@ -20,7 +20,8 @@ enum ReceiveHandle {
 	@see https://aantron.github.io/luv/luv/Luv/Pipe
 **/
 @:using(eval.luv.Handle)
-@:coreType abstract Pipe to Handle {
+@:using(eval.luv.Stream)
+@:coreType abstract Pipe to Handle to Stream to Stream.TStream<Pipe> {
 	/**
 		Allocates and initializes a pipe.
 

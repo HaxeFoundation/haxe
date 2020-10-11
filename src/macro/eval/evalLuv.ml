@@ -238,6 +238,13 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 	| HAsync t -> Handle.coerce t
 	| _ -> unexpected_value v "eval.luv.Handle"
 
+let decode_stream v : 'kind Luv.Stream.t =
+	match decode_handle v with
+	| HTcp t -> Stream.coerce t
+	| HTty t -> Stream.coerce t
+	| HPipe t -> Stream.coerce t
+	| _ -> unexpected_value v "eval.luv.Stream"
+
 let decode_idle v =
 	match decode_handle v with
 	| HIdle t -> t
@@ -754,5 +761,87 @@ let tty_fields = [
 			| `UNSUPPORTED -> 1)
 		in
 		encode_result encode (TTY.get_vterm_state())
+	);
+]
+
+let stream_fields = [
+	"shutdown", vfun2 (fun v1 v2 ->
+		let stream = decode_stream v1 in
+		Stream.shutdown stream (encode_callback encode_unit_result v2);
+		vnull
+	);
+	"listen", vfun2 (fun v1 v2 ->
+		let stream = decode_stream v1 in
+		Stream.listen stream (encode_callback encode_unit_result v2);
+		vnull
+	);
+	"accept", vfun2 (fun v1 v2 ->
+		let server = decode_stream v1
+		and client = decode_stream v2 in
+		encode_unit_result (Stream.accept server client)
+	);
+	"readStart", vfun3 (fun v1 v2 v3 ->
+		let stream = decode_stream v1
+		and callback = encode_callback (encode_result (fun b -> VHandle (HBuffer b))) v2 in
+		if v3 = VNull then
+			Stream.read_start stream callback
+		else begin
+			let allocate =
+				let cb = prepare_callback v3 1 in
+				(fun i -> decode_buffer (cb [vint i]))
+			in
+			Stream.read_start ~allocate stream callback
+		end;
+		vnull
+	);
+	"readStop", vfun1 (fun v ->
+		let stream = decode_stream v in
+		encode_unit_result (Stream.read_stop stream)
+	);
+	"write", vfun3 (fun v1 v2 v3 ->
+		let stream = decode_stream v1
+		and data = List.map decode_buffer (decode_array v2)
+		and callback =
+			let cb = prepare_callback v3 2 in
+			(fun result bytes_written ->
+				ignore(cb [encode_unit_result result; vint bytes_written])
+			)
+		in
+		Stream.write stream data callback;
+		vnull
+	);
+	"write2", vfun4 (fun v1 v2 v3 v4 ->
+		let stream = decode_pipe v1
+		and data = List.map decode_buffer (decode_array v2)
+		and callback =
+			let cb = prepare_callback v4 2 in
+			(fun result bytes_written ->
+				ignore(cb [encode_unit_result result; vint bytes_written])
+			)
+		in
+		(match decode_enum v3 with
+		| 0,[vh] -> Stream.write2 stream data ~send_handle:(decode_tcp vh) callback
+		| 1,[vh] -> Stream.write2 stream data ~send_handle:(decode_pipe vh) callback
+		| _ -> unexpected_value v3 "eval.luv.Stream.SendHandle"
+		);
+		vnull
+	);
+	"tryWrite", vfun2 (fun v1 v2 ->
+		let stream = decode_pipe v1
+		and data = List.map decode_buffer (decode_array v2) in
+		encode_result vint (Stream.try_write stream data)
+	);
+	"isReadable", vfun1 (fun v ->
+		let stream = decode_pipe v in
+		vbool (Stream.is_readable stream)
+	);
+	"isWritable", vfun1 (fun v ->
+		let stream = decode_pipe v in
+		vbool (Stream.is_writable stream)
+	);
+	"setBlocking", vfun2 (fun v1 v2 ->
+		let stream = decode_pipe v1
+		and block = decode_bool v2 in
+		encode_unit_result (Stream.set_blocking stream block)
 	);
 ]
