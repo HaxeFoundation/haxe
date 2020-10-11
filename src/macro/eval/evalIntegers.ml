@@ -23,7 +23,8 @@ let uint64_fields = [
 	);
 	"ofString", vfun1 (fun v ->
 		let s = decode_string v in
-		VUInt64 (UInt64.of_string s)
+		try VUInt64 (UInt64.of_string s)
+		with Failure _ -> throw_string "The string is not a valid UInt64 representation" null_pos
 	);
 	"max", vfun2 (fun v1 v2 ->
 		let a = decode_u64 v1
@@ -59,7 +60,8 @@ let uint64_fields = [
 	"remainder", vfun2 (fun v1 v2 ->
 		let a = decode_u64 v1
 		and b = decode_u64 v2 in
-		VUInt64 (UInt64.rem a b)
+		try VUInt64 (UInt64.rem a b)
+		with e -> throw_string (Printexc.to_string e) null_pos
 	);
 	"add", vfun2 (fun v1 v2 ->
 		let a = decode_u64 v1
@@ -79,7 +81,8 @@ let uint64_fields = [
 	"div", vfun2 (fun v1 v2 ->
 		let a = decode_u64 v1
 		and b = decode_u64 v2 in
-		VUInt64 (UInt64.div a b)
+		try VUInt64 (UInt64.div a b)
+		with e -> throw_string (Printexc.to_string e) null_pos
 	);
 	"logand", vfun2 (fun v1 v2 ->
 		let a = decode_u64 v1
