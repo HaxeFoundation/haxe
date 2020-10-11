@@ -101,6 +101,7 @@ type vhandle =
 	| HBuffer of Luv.Buffer.t
 	| HSockAddr of Luv.Sockaddr.t
 	| HTcp of Luv.TCP.t
+	| HPipe of Luv.Pipe.t
 
 type value =
 	| VNull
@@ -242,8 +243,9 @@ let same_handle h1 h2 =
 	| HBuffer h1, HBuffer h2 -> h1 == h2
 	| HSockAddr h1, HSockAddr h2 -> h1 == h2
 	| HTcp h1, HTcp h2 -> h1 == h2
+	| HPipe h1, HPipe h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
-	| HTcp _, _ -> false
+	| HTcp _, _ | HPipe _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

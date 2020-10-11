@@ -12,6 +12,7 @@ open EvalMisc
 
 let key_eval_luv_Result = hash "eval.luv.Result"
 let key_eval_luv_LuvException = hash "eval.luv.LuvException"
+let key_eval_luv_ReceiveHandle = hash "eval.luv.ReceiveHandle"
 
 let encode_uv_error (e:Error.t) =
 	vint (match e with
@@ -213,7 +214,7 @@ let encode_unit_result result =
 	in
 	encode_enum_value key_eval_luv_Result index args None
 
-let encode_callback v_callback encode_result result =
+let encode_callback encode_result v_callback result =
 	let cb = prepare_callback v_callback 1 in
 	ignore(cb [encode_result result])
 
@@ -285,6 +286,11 @@ let decode_address_family v : Sockaddr.Address_family.t =
 	| 2, [] -> `INET6
 	| 3, [v] -> `OTHER (decode_int v)
 	| _ -> unexpected_value v "eval.luv.SockAddr.AddressType"
+
+let decode_pipe v =
+	match decode_handle v with
+	| HPipe t -> t
+	| _ -> unexpected_value v "eval.luv.Pipe"
 
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
@@ -629,12 +635,69 @@ let tcp_fields = [
 	"connect", vfun3 (fun v1 v2 v3 ->
 		let tcp = decode_tcp v1
 		and addr = decode_sockaddr v2 in
-		TCP.connect tcp addr (encode_callback v3 encode_unit_result);
+		TCP.connect tcp addr (encode_callback encode_unit_result v3);
 		vnull
 	);
 	"closeReset", vfun2 (fun v1 v2 ->
 		let tcp = decode_tcp v1 in
-		TCP.close_reset tcp (encode_callback v2 encode_unit_result);
+		TCP.close_reset tcp (encode_callback encode_unit_result v2);
 		vnull
+	);
+]
+
+let pipe_fields = [
+	"init", vfun2 (fun v1 v2 ->
+		let loop = decode_loop_opt v1
+		and for_handle_passing = if v2 = VNull then false else decode_bool v2 in
+		encode_result (fun p -> VHandle (HPipe p)) (Pipe.init ~loop ~for_handle_passing ())
+	);
+	"bind", vfun2 (fun v1 v2 ->
+		let pipe = decode_pipe v1
+		and name = decode_native_string v2 in
+		encode_unit_result (Pipe.bind pipe name)
+	);
+	"connect", vfun3 (fun v1 v2 v3 ->
+		let pipe = decode_pipe v1
+		and target = decode_native_string v2 in
+		Pipe.connect pipe target (encode_callback encode_unit_result v3);
+		vnull
+	);
+	"getSockName", vfun1 (fun v ->
+		let pipe = decode_pipe v in
+		encode_result vnative_string (Pipe.getsockname pipe)
+	);
+	"getPeerName", vfun1 (fun v ->
+		let pipe = decode_pipe v in
+		encode_result vnative_string (Pipe.getpeername pipe)
+	);
+	"pendingInstances", vfun2 (fun v1 v2 ->
+		let pipe = decode_pipe v1
+		and amount = decode_int v2 in
+		Pipe.pending_instances pipe amount;
+		vnull
+	);
+	"receiveHandle", vfun1 (fun v ->
+		let pipe = decode_pipe v in
+		let index,args =
+			match Pipe.receive_handle pipe with
+			| `None ->
+				0,[||]
+			| `TCP assoc ->
+				1,[|vfun1 (fun v -> encode_unit_result (assoc (decode_tcp v)))|]
+			| `Pipe assoc ->
+				2,[|vfun1 (fun v -> encode_unit_result (assoc (decode_pipe v)))|]
+		in
+		encode_enum_value key_eval_luv_ReceiveHandle index args None
+	);
+	"chmod", vfun2 (fun v1 v2 ->
+		let pipe = decode_pipe v1
+		and mode =
+			match decode_int v2 with
+			| 0 -> [`READABLE]
+			| 1 -> [`WRITABLE]
+			| 2 -> [`READABLE; `WRITABLE]
+			| _ -> unexpected_value v2 "eval.luv.Pipe.PipeMode"
+		in
+		encode_unit_result (Pipe.chmod pipe mode)
 	);
 ]

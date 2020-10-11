@@ -50,10 +50,10 @@ import eval.luv.SockAddr;
 	/**
 		Connects to a host.
 	**/
-	public function connect(addr:SockAddr, callback:(_:Result<Result.NoData>)->Void):Void;
+	public function connect(addr:SockAddr, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
 		Resets the connection.
 	**/
-	public function closeReset(callback:(_:Result<Result.NoData>)->Void):Void;
+	public function closeReset(callback:(result:Result<Result.NoData>)->Void):Void;
 }
