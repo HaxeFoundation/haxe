@@ -317,6 +317,19 @@ let loop_fields = [
 	"defaultLoop", vfun0 (fun () ->
 		encode_handle (HLoop (Loop.default()))
 	);
+	"libraryShutdown", vfun0 (fun () ->
+		Loop.library_shutdown();
+		vnull
+	);
+	"now", vfun1 (fun v ->
+		let loop = decode_loop v in
+		VUInt64 (Loop.now loop)
+	);
+	"updateTime", vfun1 (fun v ->
+		let loop = decode_loop v in
+		Loop.update_time loop;
+		vnull
+	);
 ]
 
 let handle_fields = [

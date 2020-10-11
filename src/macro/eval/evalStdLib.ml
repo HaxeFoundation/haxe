@@ -3717,6 +3717,7 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"integers";"_UInt64"],"UInt64_Impl_") EvalIntegers.uint64_fields [];
 	init_fields builtins (["eval";"luv";"_UVError"],"UVError_Impl_") EvalLuv.uv_error_fields [];
 	init_fields builtins (["eval";"luv";"_Loop"],"Loop_Impl_") EvalLuv.loop_fields [];
+	init_fields builtins (["eval";"luv";"_Loop"],"LoopOption_Impl_") ["sigprof",vint Luv.Loop.Option.sigprof] [];
 	init_fields builtins (["eval";"luv";"_Handle"],"Handle_Impl_") EvalLuv.handle_fields [];
 	init_fields builtins (["eval";"luv";"_Idle"], "Idle_Impl_") EvalLuv.idle_fields [];
 	init_fields builtins (["eval";"luv";"_Async"], "Async_Impl_") EvalLuv.async_fields [];
