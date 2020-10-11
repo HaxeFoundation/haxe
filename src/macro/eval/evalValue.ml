@@ -99,6 +99,7 @@ type vhandle =
 	| HTimer of Luv.Timer.t
 	| HAsync of Luv.Async.t
 	| HBuffer of Luv.Buffer.t
+	| HSockAddr of Luv.Sockaddr.t
 
 type value =
 	| VNull
@@ -238,7 +239,8 @@ let same_handle h1 h2 =
 	| HTimer h1, HTimer h2 -> h1 == h2
 	| HAsync h1, HAsync h2 -> h1 == h2
 	| HBuffer h1, HBuffer h2 -> h1 == h2
-	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ -> false
+	| HSockAddr h1, HSockAddr h2 -> h1 == h2
+	| HSockAddr _, _| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

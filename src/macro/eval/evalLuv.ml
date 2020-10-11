@@ -253,6 +253,29 @@ let decode_buffer v =
 	| HBuffer t -> t
 	| _ -> unexpected_value v "eval.luv.Buffer"
 
+let decode_sockaddr v =
+	match decode_handle v with
+	| HSockAddr t -> t
+	| _ -> unexpected_value v "eval.luv.SockAddr"
+
+let encode_sockaddr h =
+	VHandle (HSockAddr h)
+
+let decode_socket_type v : Sockaddr.Socket_type.t =
+	match decode_enum v with
+	| 0, [] -> `STREAM
+	| 1, [] -> `DGRAM
+	| 2, [] -> `RAW
+	| 3, [v] -> `OTHER (decode_int v)
+	| _ -> unexpected_value v "eval.luv.SockAddr.SocketType"
+
+let decode_address_family v : Sockaddr.Address_family.t =
+	match decode_enum v with
+	| 0, [] -> `UNSPEC
+	| 1, [] -> `INET
+	| 2, [] -> `INET6
+	| 3, [v] -> `OTHER (decode_int v)
+	| _ -> unexpected_value v "eval.luv.SockAddr.AddressType"
 
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
@@ -304,7 +327,7 @@ let loop_fields = [
 		vnull
 	);
 	"init", vfun0 (fun () ->
-		encode_result (fun l -> encode_handle (HLoop l)) (Loop.init())
+		encode_result (fun l -> VHandle (HLoop l)) (Loop.init())
 	);
 	"close", vfun1 (fun v ->
 		let loop = decode_loop v in
@@ -315,7 +338,7 @@ let loop_fields = [
 		vbool (Loop.alive loop)
 	);
 	"defaultLoop", vfun0 (fun () ->
-		encode_handle (HLoop (Loop.default()))
+		VHandle (HLoop (Loop.default()))
 	);
 	"libraryShutdown", vfun0 (fun () ->
 		Loop.library_shutdown();
@@ -366,7 +389,7 @@ let handle_fields = [
 let idle_fields = [
 	"init", vfun1 (fun v ->
 		let loop = decode_loop_opt v in
-		encode_result (fun i -> encode_handle (HIdle i)) (Idle.init ~loop ())
+		encode_result (fun i -> VHandle (HIdle i)) (Idle.init ~loop ())
 	);
 	"start", vfun2 (fun v1 v2 ->
 		let idle = decode_idle v1 in
@@ -382,7 +405,7 @@ let idle_fields = [
 let timer_fields = [
 	"init", vfun1 (fun v ->
 		let loop = decode_loop_opt v in
-		encode_result (fun i -> encode_handle (HTimer i)) (Timer.init ~loop ())
+		encode_result (fun i -> VHandle (HTimer i)) (Timer.init ~loop ())
 	);
 	"start", vfun4 (fun v1 v2 v3 v4 ->
 		let timer = decode_timer v1
@@ -419,8 +442,8 @@ let async_fields = [
 	"init", vfun2 (fun v1 v2 ->
 		let loop = decode_loop_opt v1
 		and cb = prepare_callback v2 1 in
-		let callback async = ignore(cb [encode_handle (HAsync async)]) in
-		encode_result (fun i -> encode_handle (HAsync i)) (Async.init ~loop callback)
+		let callback async = ignore(cb [VHandle (HAsync async)]) in
+		encode_result (fun i -> VHandle (HAsync i)) (Async.init ~loop callback)
 	);
 	"send", vfun1 (fun v ->
 		let async = decode_async v in
@@ -445,19 +468,19 @@ let buffer_set setter = vfun3 (fun v1 v2 v3 ->
 let buffer_fields = [
 	"create", vfun1 (fun v ->
 		let size = decode_int v in
-		encode_handle (HBuffer (Buffer.create size))
+		VHandle (HBuffer (Buffer.create size))
 	);
 	"fromNativeString", vfun1 (fun v ->
 		let s = decode_native_string v in
-		encode_handle (HBuffer (Buffer.from_string s))
+		VHandle (HBuffer (Buffer.from_string s))
 	);
 	"fromString", vfun1 (fun v ->
 		let s = decode_string v in
-		encode_handle (HBuffer (Buffer.from_string s))
+		VHandle (HBuffer (Buffer.from_string s))
 	);
 	"fromBytes", vfun1 (fun v ->
 		let b = decode_bytes v in
-		encode_handle (HBuffer (Buffer.from_bytes b))
+		VHandle (HBuffer (Buffer.from_bytes b))
 	);
 	"totalSize", vfun1 (fun v ->
 		let l = List.map decode_buffer (decode_array v) in
@@ -466,7 +489,7 @@ let buffer_fields = [
 	"drop", vfun2 (fun v1 v2 ->
 		let l = List.map decode_buffer (decode_array v1)
 		and count = decode_int v2
-		and encode_buffer buffer = encode_handle (HBuffer buffer) in
+		and encode_buffer buffer = VHandle (HBuffer buffer) in
 		encode_array (List.map encode_buffer (Buffer.drop l count))
 	);
 	"size", vfun1 (fun v ->
@@ -481,7 +504,7 @@ let buffer_fields = [
 		let buffer = decode_buffer v1
 		and offset = decode_int v2
 		and length = decode_int v3 in
-		encode_handle (HBuffer (Buffer.sub buffer offset length))
+		VHandle (HBuffer (Buffer.sub buffer offset length))
 	);
 	"blit", vfun2 (fun v1 v2 ->
 		let buffer = decode_buffer v1
@@ -527,5 +550,28 @@ let buffer_fields = [
 		and offset = decode_int v3 in
 		Buffer.blit_from_string buffer source offset;
 		vnull
+	);
+]
+
+let sockaddr_fields = [
+	"get_port", vfun1 (fun v ->
+		let a = decode_sockaddr v in
+		encode_option vint (Sockaddr.port a)
+	);
+	"ipv4", vfun2 (fun v1 v2 ->
+		let host = decode_string v1
+		and port = decode_int v2 in
+		encode_result encode_sockaddr (Sockaddr.ipv4 host port)
+	);
+	"ipv6", vfun2 (fun v1 v2 ->
+		let host = decode_string v1
+		and port = decode_int v2 in
+		encode_result encode_sockaddr (Sockaddr.ipv6 host port)
+	);
+	"toString", vfun1 (fun v ->
+		let a = decode_sockaddr v in
+		match Sockaddr.to_string a with
+		| Some s -> EvalString.create_unknown s
+		| None -> EvalString.vstring (EvalString.create_ascii "")
 	);
 ]

@@ -118,3 +118,9 @@ let num = function
 	| VInt32 i -> Int32.to_float i
 	| VFloat f -> f
 	| v -> unexpected_value v "number"
+
+let decode_option decode_value v =
+	match decode_enum v with
+	| 0, [v] -> Some (decode_value v)
+	| 1, [] -> None
+	| _ -> unexpected_value v "haxe.ds.Option"

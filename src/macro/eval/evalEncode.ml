@@ -291,5 +291,7 @@ let encode_lazy f =
 	) in
 	VLazy r
 
-let encode_handle h =
-	VHandle h
+let encode_option encode_value o =
+	match o with
+	| Some v -> encode_enum_value key_haxe_ds_Option 0 [|encode_value v|] None
+	| None -> encode_enum_value key_haxe_ds_Option 1 [||] None
