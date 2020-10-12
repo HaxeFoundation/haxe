@@ -124,3 +124,7 @@ let decode_option decode_value v =
 	| 0, [v] -> Some (decode_value v)
 	| 1, [] -> None
 	| _ -> unexpected_value v "haxe.ds.Option"
+
+let decode_nullable decode if_null v =
+	if v = VNull then if_null
+	else decode v

@@ -1,7 +1,5 @@
 package eval.luv;
 
-import haxe.ds.Option;
-
 enum abstract PipeMode(Int) {
 	var READ = 0;
 	var WRITE = 1;

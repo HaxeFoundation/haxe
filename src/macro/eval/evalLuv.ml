@@ -265,6 +265,12 @@ let decode_buffer v =
 	| HBuffer t -> t
 	| _ -> unexpected_value v "eval.luv.Buffer"
 
+let decode_buffers v =
+	List.map decode_buffer (decode_array v)
+
+let encode_buffer b =
+	VHandle (HBuffer b)
+
 let decode_sockaddr v =
 	match decode_handle v with
 	| HSockAddr t -> t
@@ -277,6 +283,20 @@ let decode_tcp v =
 	match decode_handle v with
 	| HTcp t -> t
 	| _ -> unexpected_value v "eval.luv.Tcp"
+
+let decode_udp v =
+	match decode_handle v with
+	| HUdp t -> t
+	| _ -> unexpected_value v "eval.luv.Udp"
+
+let encode_udp udp =
+	VHandle (HUdp udp)
+
+let decode_udp_membership v =
+	match decode_int v with
+	| 0 -> `LEAVE_GROUP
+	| 1 -> `JOIN_GROUP
+	| _ -> unexpected_value v "eval.luv.Udp.UdpMembership"
 
 let decode_socket_type v : Sockaddr.Socket_type.t =
 	match decode_enum v with
@@ -500,28 +520,28 @@ let buffer_set setter = vfun3 (fun v1 v2 v3 ->
 let buffer_fields = [
 	"create", vfun1 (fun v ->
 		let size = decode_int v in
-		VHandle (HBuffer (Buffer.create size))
+		encode_buffer (Buffer.create size)
 	);
 	"fromNativeString", vfun1 (fun v ->
 		let s = decode_native_string v in
-		VHandle (HBuffer (Buffer.from_string s))
+		encode_buffer (Buffer.from_string s)
 	);
 	"fromString", vfun1 (fun v ->
 		let s = decode_string v in
-		VHandle (HBuffer (Buffer.from_string s))
+		encode_buffer (Buffer.from_string s)
 	);
 	"fromBytes", vfun1 (fun v ->
 		let b = decode_bytes v in
-		VHandle (HBuffer (Buffer.from_bytes b))
+		encode_buffer (Buffer.from_bytes b)
 	);
 	"totalSize", vfun1 (fun v ->
-		let l = List.map decode_buffer (decode_array v) in
+		let l = decode_buffers v in
 		vint (Buffer.total_size l)
 	);
 	"drop", vfun2 (fun v1 v2 ->
-		let l = List.map decode_buffer (decode_array v1)
+		let l = decode_buffers v1
 		and count = decode_int v2
-		and encode_buffer buffer = VHandle (HBuffer buffer) in
+		and encode_buffer buffer = encode_buffer buffer in
 		encode_array (List.map encode_buffer (Buffer.drop l count))
 	);
 	"size", vfun1 (fun v ->
@@ -536,7 +556,7 @@ let buffer_fields = [
 		let buffer = decode_buffer v1
 		and offset = decode_int v2
 		and length = decode_int v3 in
-		VHandle (HBuffer (Buffer.sub buffer offset length))
+		encode_buffer (Buffer.sub buffer offset length)
 	);
 	"blit", vfun2 (fun v1 v2 ->
 		let buffer = decode_buffer v1
@@ -588,7 +608,7 @@ let buffer_fields = [
 let sockaddr_fields = [
 	"get_port", vfun1 (fun v ->
 		let a = decode_sockaddr v in
-		encode_option vint (Sockaddr.port a)
+		encode_nullable vint (Sockaddr.port a)
 	);
 	"ipv4", vfun2 (fun v1 v2 ->
 		let host = decode_string v1
@@ -638,7 +658,7 @@ let tcp_fields = [
 	"bind", vfun3 (fun v1 v2 v3 ->
 		let tcp = decode_tcp v1
 		and addr = decode_sockaddr v2
-		and ipv6only = if v3 = VNull then false else decode_bool v3 in
+		and ipv6only = decode_nullable decode_bool false v3 in
 		encode_unit_result (TCP.bind ~ipv6only tcp addr)
 	);
 	"getSockName", vfun1 (fun v ->
@@ -662,10 +682,156 @@ let tcp_fields = [
 	);
 ]
 
+let udp_fields = [
+	"init", vfun3 (fun v1 v2 v3 ->
+		let loop = decode_loop_opt v1
+		and recvmmsg = decode_nullable decode_bool false v3 in
+		let udp =
+			if v2 = VNull then
+				UDP.init ~loop ~recvmmsg ()
+			else
+				let domain = decode_address_family v2 in
+				UDP.init ~loop ~domain ~recvmmsg ()
+		in
+		encode_result encode_udp udp
+	);
+	"bind", vfun4 (fun v1 v2 v3 v4 ->
+		let udp = decode_udp v1
+		and addr = decode_sockaddr v2
+		and ipv6only = decode_nullable decode_bool false v3
+		and reuseaddr = decode_nullable decode_bool false v4 in
+		encode_unit_result (UDP.bind ~ipv6only ~reuseaddr udp addr)
+	);
+	"connect", vfun2 (fun v1 v2 ->
+		let udp = decode_udp v1
+		and addr = decode_sockaddr v2 in
+		match UDP.Connected.connect udp addr with
+		| Ok () -> encode_result encode_udp (Ok udp)
+		| Error e -> encode_result encode_udp (Error e)
+	);
+	"getSockName", vfun1 (fun v ->
+		let udp = decode_udp v in
+		encode_result encode_sockaddr (UDP.getsockname udp)
+	);
+	"setMembership", vfun4 (fun v1 v2 v3 v4 ->
+		let udp = decode_udp v1
+		and group = decode_string v2
+		and interface = decode_string v3
+		and membership = decode_udp_membership v4 in
+		encode_unit_result (UDP.set_membership udp ~group ~interface membership)
+	);
+	"setSourceMembership", vfun5 (fun v1 v2 v3 v4 v5 ->
+		let udp = decode_udp v1
+		and group = decode_string v2
+		and interface = decode_string v3
+		and source = decode_string v4
+		and membership = decode_udp_membership v5 in
+		encode_unit_result (UDP.set_source_membership udp ~group ~interface ~source membership)
+	);
+	"setMulticastLoop", vfun2 (fun v1 v2 ->
+		let udp = decode_udp v1
+		and value = decode_bool v2 in
+		encode_unit_result (UDP.set_multicast_loop udp value)
+	);
+	"setMulticastTtl", vfun2 (fun v1 v2 ->
+		let udp = decode_udp v1
+		and value = decode_int v2 in
+		encode_unit_result (UDP.set_multicast_ttl udp value)
+	);
+	"setMulticastInterface", vfun2 (fun v1 v2 ->
+		let udp = decode_udp v1
+		and value = decode_string v2 in
+		encode_unit_result (UDP.set_multicast_interface udp value)
+	);
+	"setBroadcast", vfun2 (fun v1 v2 ->
+		let udp = decode_udp v1
+		and value = decode_bool v2 in
+		encode_unit_result (UDP.set_broadcast udp value)
+	);
+	"setTtl", vfun2 (fun v1 v2 ->
+		let udp = decode_udp v1
+		and value = decode_int v2 in
+		encode_unit_result (UDP.set_ttl udp value)
+	);
+	"send", vfun4 (fun v1 v2 v3 v4 ->
+		let udp = decode_udp v1
+		and l = decode_buffers v2
+		and addr = decode_sockaddr v3 in
+		UDP.send udp l addr (encode_callback encode_unit_result v4);
+		vnull
+	);
+	"trySend", vfun3 (fun v1 v2 v3 ->
+		let udp = decode_udp v1
+		and l = decode_buffers v2
+		and addr = decode_sockaddr v3 in
+		encode_unit_result (UDP.try_send udp l addr)
+	);
+	"recvStart", vfun3 (fun v1 v2 v3 ->
+		let encode (buf,addr,flags) =
+			let encode_flag = function
+				| `PARTIAL -> vint 0
+				| `MMSG_CHUNK -> vint 1
+				| `MMSG_FREE -> vint 2
+			in
+			encode_obj_s [
+				"buf",encode_buffer buf;
+				"addr",encode_option encode_sockaddr addr;
+				"flags",encode_array (List.map encode_flag flags)
+			]
+		in
+		let udp = decode_udp v1
+		and callback = encode_callback (encode_result encode) v2 in
+		if v3 = VNull then
+			UDP.recv_start udp callback
+		else begin
+			let allocate =
+				let cb = prepare_callback v3 1 in
+				(fun i -> decode_buffer (cb [vint i]))
+			in
+			UDP.recv_start ~allocate udp callback
+		end;
+		vnull
+	);
+	"recvStop", vfun1 (fun v ->
+		let udp = decode_udp v in
+		encode_unit_result (UDP.recv_stop udp)
+	);
+	"getSendQueueSize", vfun1 (fun v ->
+		let udp = decode_udp v in
+		vint (UDP.get_send_queue_size udp)
+	);
+	"getSendQueueCount", vfun1 (fun v ->
+		let udp = decode_udp v in
+		vint (UDP.get_send_queue_count udp)
+	);
+]
+
+let connected_udp_fields = [
+	"disconnect", vfun1 (fun v ->
+		let udp = decode_udp v in
+		encode_unit_result (UDP.Connected.disconnect udp)
+	);
+	"getPeerName", vfun1 (fun v ->
+		let udp = decode_udp v in
+		encode_result encode_sockaddr (UDP.Connected.getpeername udp)
+	);
+	"send", vfun3 (fun v1 v2 v3 ->
+		let udp = decode_udp v1
+		and l = decode_buffers v2 in
+		UDP.Connected.send udp l (encode_callback encode_unit_result v3);
+		vnull
+	);
+	"send", vfun2 (fun v1 v2 ->
+		let udp = decode_udp v1
+		and l = decode_buffers v2 in
+		encode_unit_result (UDP.Connected.try_send udp l)
+	);
+]
+
 let pipe_fields = [
 	"init", vfun2 (fun v1 v2 ->
 		let loop = decode_loop_opt v1
-		and for_handle_passing = if v2 = VNull then false else decode_bool v2 in
+		and for_handle_passing = decode_nullable decode_bool false v2 in
 		encode_result (fun p -> VHandle (HPipe p)) (Pipe.init ~loop ~for_handle_passing ())
 	);
 	"bind", vfun2 (fun v1 v2 ->
@@ -782,7 +948,7 @@ let stream_fields = [
 	);
 	"readStart", vfun3 (fun v1 v2 v3 ->
 		let stream = decode_stream v1
-		and callback = encode_callback (encode_result (fun b -> VHandle (HBuffer b))) v2 in
+		and callback = encode_callback (encode_result encode_buffer) v2 in
 		if v3 = VNull then
 			Stream.read_start stream callback
 		else begin
@@ -800,7 +966,7 @@ let stream_fields = [
 	);
 	"write", vfun3 (fun v1 v2 v3 ->
 		let stream = decode_stream v1
-		and data = List.map decode_buffer (decode_array v2)
+		and data = decode_buffers v2
 		and callback =
 			let cb = prepare_callback v3 2 in
 			(fun result bytes_written ->
@@ -812,7 +978,7 @@ let stream_fields = [
 	);
 	"write2", vfun4 (fun v1 v2 v3 v4 ->
 		let stream = decode_pipe v1
-		and data = List.map decode_buffer (decode_array v2)
+		and data = decode_buffers v2
 		and callback =
 			let cb = prepare_callback v4 2 in
 			(fun result bytes_written ->
@@ -828,7 +994,7 @@ let stream_fields = [
 	);
 	"tryWrite", vfun2 (fun v1 v2 ->
 		let stream = decode_pipe v1
-		and data = List.map decode_buffer (decode_array v2) in
+		and data = decode_buffers v2 in
 		encode_result vint (Stream.try_write stream data)
 	);
 	"isReadable", vfun1 (fun v ->

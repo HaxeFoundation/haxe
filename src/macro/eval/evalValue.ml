@@ -101,6 +101,7 @@ type vhandle =
 	| HBuffer of Luv.Buffer.t
 	| HSockAddr of Luv.Sockaddr.t
 	| HTcp of Luv.TCP.t
+	| HUdp of Luv.UDP.t
 	| HPipe of Luv.Pipe.t
 	| HTty of Luv.TTY.t
 	| HFile of Luv.File.t
@@ -248,8 +249,9 @@ let same_handle h1 h2 =
 	| HPipe h1, HPipe h2 -> h1 == h2
 	| HTty h1, HTty h2 -> h1 == h2
 	| HFile h1, HFile h2 -> h1 == h2
+	| HUdp h1, HUdp h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
-	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ -> false
+	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

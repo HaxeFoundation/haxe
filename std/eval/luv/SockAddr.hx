@@ -1,7 +1,5 @@
 package eval.luv;
 
-import haxe.ds.Option;
-
 /**
 	Network address families.
 **/
@@ -29,8 +27,8 @@ enum SocketType {
 **/
 @:coreType abstract SockAddr {
 	/** Extracts the port in a network address. */
-	public var port(get,never):Option<Int>;
-	function get_port():Option<Int>;
+	public var port(get,never):Null<Int>;
+	function get_port():Null<Int>;
 
 	/**
 		Converts a string and port number to an IPv4 struct sockaddr.

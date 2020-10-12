@@ -17,7 +17,7 @@ enum abstract NoData(Dynamic) {
 
 class ResultTools {
 	/**
-		Returns the result value if on success or throws `eval.luv.LuvException`
+		Returns the result value on success or throws `eval.luv.LuvException`
 		on failure.
 	**/
 	static public inline function resolve<T>(result:Result<T>):T {

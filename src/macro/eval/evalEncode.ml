@@ -295,3 +295,8 @@ let encode_option encode_value o =
 	match o with
 	| Some v -> encode_enum_value key_haxe_ds_Option 0 [|encode_value v|] None
 	| None -> encode_enum_value key_haxe_ds_Option 1 [||] None
+
+let encode_nullable encode_value o =
+	match o with
+	| Some v -> encode_value v
+	| None -> VNull
