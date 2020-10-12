@@ -238,6 +238,13 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 	| HAsync t -> Handle.coerce t
 	| _ -> unexpected_value v "eval.luv.Handle"
 
+let decode_socket_handle v : [< `Stream of [< `Pipe | `TCP ] | `UDP ] Luv.Handle.t =
+	match decode_handle v with
+	| HTcp t -> Obj.magic t
+	| HUdp t -> Obj.magic t
+	| HPipe t -> Obj.magic t
+	| _ -> unexpected_value v "eval.luv.Handle.SocketHandle"
+
 let decode_stream v : 'kind Luv.Stream.t =
 	match decode_handle v with
 	| HTcp t -> Stream.coerce t
@@ -435,6 +442,24 @@ let handle_fields = [
 	"hasRef", vfun1 (fun v ->
 		let handle = decode_luv_handle v in
 		vbool (Handle.has_ref handle)
+	);
+	"sendBufferSize", vfun1 (fun v ->
+		let handle = decode_socket_handle v in
+		encode_result vint (Handle.send_buffer_size handle)
+	);
+	"setSendBufferSize", vfun2 (fun v1 v2 ->
+		let handle = decode_socket_handle v1
+		and size = decode_int v2 in
+		encode_unit_result (Handle.set_send_buffer_size handle size)
+	);
+	"recvBufferSize", vfun1 (fun v ->
+		let handle = decode_socket_handle v in
+		encode_result vint (Handle.recv_buffer_size handle)
+	);
+	"setRendBufferSize", vfun2 (fun v1 v2 ->
+		let handle = decode_socket_handle v1
+		and size = decode_int v2 in
+		encode_unit_result (Handle.set_recv_buffer_size handle size)
 	);
 ]
 
@@ -774,7 +799,7 @@ let udp_fields = [
 				| `MMSG_FREE -> vint 2
 			in
 			encode_obj_s [
-				"buf",encode_buffer buf;
+				"data",encode_buffer buf;
 				"addr",encode_option encode_sockaddr addr;
 				"flags",encode_array (List.map encode_flag flags)
 			]

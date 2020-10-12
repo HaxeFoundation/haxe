@@ -19,7 +19,7 @@ enum ReceiveHandle {
 **/
 @:using(eval.luv.Handle)
 @:using(eval.luv.Stream)
-@:coreType abstract Pipe to Handle to Stream to Stream.TStream<Pipe> {
+@:coreType abstract Pipe to Handle to Stream to Stream.TStream<Pipe> to Handle.SocketHandle {
 	/**
 		Allocates and initializes a pipe.
 

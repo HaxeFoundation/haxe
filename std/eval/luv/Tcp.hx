@@ -10,7 +10,7 @@ import eval.luv.SockAddr;
 **/
 @:using(eval.luv.Handle)
 @:using(eval.luv.Stream)
-@:coreType abstract Tcp to Handle to Stream to Stream.TStream<Tcp> {
+@:coreType abstract Tcp to Handle to Stream to Stream.TStream<Tcp> to Handle.SocketHandle {
 	/**
 		Allocates and initializes a TCP stream.
 

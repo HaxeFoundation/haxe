@@ -20,7 +20,7 @@ enum abstract RecvFlag(Int) {
 	@see https://aantron.github.io/luv/luv/Luv/UDP
 **/
 @:using(eval.luv.Handle)
-@:coreType abstract Udp to Handle {
+@:coreType abstract Udp to Handle to Handle.SocketHandle {
 	/**
 		Allocates and initializes a UDP socket.
 	**/
@@ -93,7 +93,7 @@ enum abstract RecvFlag(Int) {
 
 		@see https://aantron.github.io/luv/luv/Luv/UDP/index.html#val-recv_start
 	**/
-	public function recvStart(callback:(result:Result<{data:{buf:Buffer, addr:Option<SockAddr>, flags:Array<RecvFlag>}>, ?allocate:(size:Int)->Buffer)->Void):Void;
+	public function recvStart(callback:(result:Result<{data:Buffer, addr:Option<SockAddr>, flags:Array<RecvFlag>}>, ?allocate:(size:Int)->Buffer)->Void):Void;
 
 	/**
 		Stops the callback provided to `eval.luv.UDP.recvStart`.
