@@ -969,12 +969,22 @@ extern class Global {
 		secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.html-entity-decode.php
+	**/
+	static function html_entity_decode(string:String, ?flags:Int, ?encoding:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.htmlentities.php
+	**/
+	static function htmlentities(string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true):String;
+
+	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
 	**/
 	static function htmlspecialchars(string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true):String;
 
 	/**
-		@see http://php.net/manual/en/function.htmlspecialchars_decode.php
+		@see http://php.net/manual/en/function.htmlspecialchars-decode.php
 	**/
 	static function htmlspecialchars_decode(string:String, ?flags:Int):String;
 
@@ -1687,4 +1697,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.ob-start.php
 	**/
 	static function ob_start(output_callback: (String, ?Int) -> String = null, chunk_size:Int = 0, ?flags:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.strip-tags.php
+	**/
+	static function strip_tags(str: String, ?allowable_tags:EitherType<String, Array<String>>):String;
 }
