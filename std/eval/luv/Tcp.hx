@@ -16,7 +16,7 @@ import eval.luv.SockAddr;
 
 		The stream is not yet connected or listening.
 	**/
-	static public function init(?loop:Loop, ?domain:AddressFamily):Result<Tcp>;
+	static public function init(loop:Loop, ?domain:AddressFamily):Result<Tcp>;
 
 	/**
 		Sets TCP_NODELAY.

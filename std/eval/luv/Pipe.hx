@@ -25,7 +25,7 @@ enum ReceiveHandle {
 
 		The pipe is not yet connected to anything at this point.
 	**/
-	static public function init(?loop:Loop, forHandlePassing:Bool = false):Result<Pipe>;
+	static public function init(loop:Loop, forHandlePassing:Bool = false):Result<Pipe>;
 
 	/**
 		Assigns a pipe a name or an address.

@@ -31,7 +31,7 @@ extern enum abstract SigNum(Int) from Int to Int {
 	/**
 		Allocates and initializes a signal handle.
 	**/
-	static public function init(?loop:Loop):Result<Signal>;
+	static public function init(loop:Loop):Result<Signal>;
 
 	/**
 		Starts the signal handle.

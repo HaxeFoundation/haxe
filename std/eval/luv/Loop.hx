@@ -26,6 +26,11 @@ enum abstract LoopOption<T>(Int) {
 	@see https://aantron.github.io/luv/luv/Luv/Loop
 **/
 @:coreType abstract Loop {
+	@:from
+	static inline function fromHaxeEventLoop(events:sys.thread.EventLoop):Loop {
+		return events.handle;
+	}
+
 	/**
 		Returns the default event loop.
 	**/

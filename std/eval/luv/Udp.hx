@@ -24,7 +24,7 @@ enum abstract RecvFlag(Int) {
 	/**
 		Allocates and initializes a UDP socket.
 	**/
-	static public function init(?loop:Loop, ?domain:AddressFamily, recvmmsg:Bool = false):Result<Udp>;
+	static public function init(loop:Loop, ?domain:AddressFamily, recvmmsg:Bool = false):Result<Udp>;
 
 	/**
 		Assigns an address to the UDP socket.

@@ -227,10 +227,6 @@ let decode_loop v =
 	| HLoop t -> t
 	| _ -> unexpected_value v "eval.luv.Loop"
 
-let decode_loop_opt v =
-	if v = vnull then Loop.default()
-	else decode_loop v
-
 let decode_luv_handle v : 'kind Luv.Handle.t =
 	match decode_handle v with
 	| HIdle t -> Handle.coerce t
@@ -388,7 +384,7 @@ let uv_error_fields = [
 
 let loop_fields = [
 	"run", vfun2 (fun v1 v2 ->
-		let loop = decode_loop_opt v1
+		let loop = decode_loop v1
 		and mode =
 			match decode_int v2 with
 			| 0 -> `DEFAULT
@@ -483,7 +479,7 @@ let handle_fields = [
 
 let idle_fields = [
 	"init", vfun1 (fun v ->
-		let loop = decode_loop_opt v in
+		let loop = decode_loop v in
 		encode_result (fun i -> VHandle (HIdle i)) (Idle.init ~loop ())
 	);
 	"start", vfun2 (fun v1 v2 ->
@@ -499,7 +495,7 @@ let idle_fields = [
 
 let timer_fields = [
 	"init", vfun1 (fun v ->
-		let loop = decode_loop_opt v in
+		let loop = decode_loop v in
 		encode_result (fun i -> VHandle (HTimer i)) (Timer.init ~loop ())
 	);
 	"start", vfun4 (fun v1 v2 v3 v4 ->
@@ -535,8 +531,8 @@ let timer_fields = [
 
 let async_fields = [
 	"init", vfun2 (fun v1 v2 ->
-		let cb = prepare_callback v1 1
-		and loop = decode_loop_opt v2 in
+		let loop = decode_loop v1
+		and cb = prepare_callback v2 1 in
 		let callback async = ignore(cb [VHandle (HAsync async)]) in
 		encode_result (fun i -> VHandle (HAsync i)) (Async.init ~loop callback)
 	);
@@ -673,7 +669,7 @@ let sockaddr_fields = [
 
 let tcp_fields = [
 	"init", vfun2 (fun v1 v2 ->
-		let loop = decode_loop_opt v1 in
+		let loop = decode_loop v1 in
 		let tcp =
 			if v2 = VNull then
 				TCP.init ~loop ()
@@ -727,7 +723,7 @@ let tcp_fields = [
 
 let udp_fields = [
 	"init", vfun3 (fun v1 v2 v3 ->
-		let loop = decode_loop_opt v1
+		let loop = decode_loop v1
 		and recvmmsg = decode_nullable decode_bool false v3 in
 		let udp =
 			if v2 = VNull then
@@ -873,7 +869,7 @@ let connected_udp_fields = [
 
 let pipe_fields = [
 	"init", vfun2 (fun v1 v2 ->
-		let loop = decode_loop_opt v1
+		let loop = decode_loop v1
 		and for_handle_passing = decode_nullable decode_bool false v2 in
 		encode_result (fun p -> VHandle (HPipe p)) (Pipe.init ~loop ~for_handle_passing ())
 	);
@@ -930,8 +926,8 @@ let pipe_fields = [
 
 let tty_fields = [
 	"init", vfun2 (fun v1 v2 ->
-		let file = decode_file v1
-		and loop = decode_loop_opt v2 in
+		let loop = decode_loop v1
+		and file = decode_file v2 in
 		encode_result (fun tty -> VHandle (HTty tty)) (TTY.init ~loop file)
 	);
 	"setMode", vfun2 (fun v1 v2 ->
@@ -1069,7 +1065,7 @@ let signum_fields = [
 
 let signal_fields = [
 	"init", vfun1 (fun v ->
-		let loop = decode_loop_opt v in
+		let loop = decode_loop v in
 		encode_result (fun s -> VHandle (HSignal s)) (Signal.init ~loop ())
 	);
 	"start", vfun3 (fun v1 v2 v3 ->

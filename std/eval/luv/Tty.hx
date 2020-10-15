@@ -47,7 +47,7 @@ enum abstract VTermState(Int) {
 	/**
 		Allocates and initializes a TTY handle.
 	**/
-	static public function init(file:File, ?loop:Loop):Result<Tty>;
+	static public function init(loop:Loop, file:File):Result<Tty>;
 
 	/**
 		Sets the TTY's mode.

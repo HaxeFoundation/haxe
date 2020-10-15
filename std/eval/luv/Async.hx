@@ -12,7 +12,7 @@ package eval.luv;
 
 		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
-	static public function init(callback:(async:Async)->Void, ?loop:Loop):Result<Async>;
+	static public function init(loop:Loop, callback:(async:Async)->Void):Result<Async>;
 
 	/**
 		Triggers a call to the handle's callback by the handle's loop.
