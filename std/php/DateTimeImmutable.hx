@@ -48,15 +48,15 @@ extern class DateTimeImmutable implements DateTimeInterface {
 	static function createFromFormat(format : String, datetime: String, ?timezone: DateTimeZone): EitherType<DateTimeImmutable, Bool>;
 	static function createFromMutable(object: DateTime): DateTimeImmutable;
 	static function getLastErrors(): NativeAssocArray<Dynamic>;
-	function diff(targetObject: DateTimeInterface, ?absolute: Bool = false): EitherType<DateInterval, Bool>;
+	function diff(targetObject: DateTimeInterface, absolute: Bool = false): EitherType<DateInterval, Bool>;
 	function format(format: String): EitherType<String, Bool>;
 	function getOffset(): EitherType<Int, Bool>;
 	function getTimestamp(): Int;
 	function getTimezone(): EitherType<DateTimeZone, Bool>;
 	function modify(modifier: String): EitherType<DateTimeImmutable, Bool>;
 	function setDate(year: Int, month: Int, day: Int): EitherType<DateTimeImmutable, Bool>;
-	function setISODate(year: Int, week: Int, ?dayOfWeek: Int = 1): EitherType<DateTimeImmutable, Bool>;
-	function setTime(hour: Int, minute: Int, ?second: Int = 0, ?microsecond: Int = 0): EitherType<DateTimeImmutable, Bool>;
+	function setISODate(year: Int, week: Int, dayOfWeek: Int = 1): EitherType<DateTimeImmutable, Bool>;
+	function setTime(hour: Int, minute: Int, second: Int = 0, microsecond: Int = 0): EitherType<DateTimeImmutable, Bool>;
 	function setTimestamp(timestamp: Int): EitherType<DateTimeImmutable, Bool>;
 	function setTimezone(timezone: DateTimeZone): EitherType<DateTimeImmutable, Bool>;
 	function sub(interval: DateInterval): EitherType<DateTimeImmutable, Bool>;

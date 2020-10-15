@@ -43,7 +43,7 @@ extern interface DateTimeInterface {
 	@:phpClassConst static final RSS: Int;
 	@:phpClassConst static final W3C: Int;
 
-	function diff(targetObject: DateTimeInterface, ?absolute: Bool = false): EitherType<DateInterval, Bool>;
+	function diff(targetObject: DateTimeInterface, absolute: Bool = false): EitherType<DateInterval, Bool>;
 	function format(format: String): EitherType<String, Bool>;
 	function getOffset(): EitherType<Int, Bool>;
 	function getTimestamp(): Int;
