@@ -236,6 +236,19 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 	| HIdle t -> Handle.coerce t
 	| HTimer t -> Handle.coerce t
 	| HAsync t -> Handle.coerce t
+	| HPipe t -> Handle.coerce t
+	| HTcp t -> Handle.coerce t
+	| HTty t -> Handle.coerce t
+	| HUdp t -> Handle.coerce t
+	| HSignal t -> Handle.coerce t
+	(* TODO
+	| HCheck t -> Handle.coerce t
+	| HFS_event t -> Handle.coerce t
+	| HFS_poll t -> Handle.coerce t
+	| HPoll t -> Handle.coerce t
+	| HPrepare t -> Handle.coerce t
+	| HProcess t -> Handle.coerce t
+	*)
 	| _ -> unexpected_value v "eval.luv.Handle"
 
 let decode_socket_handle v : [< `Stream of [< `Pipe | `TCP ] | `UDP ] Luv.Handle.t =
@@ -335,6 +348,11 @@ let decode_file v =
 	match decode_handle v with
 	| HFile f -> f
 	| _ -> unexpected_value v "eval.luv.File"
+
+let decode_signal v =
+	match decode_handle v with
+	| HSignal t -> t
+	| _ -> unexpected_value v "eval.luv.Signal"
 
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
@@ -1034,5 +1052,44 @@ let stream_fields = [
 		let stream = decode_pipe v1
 		and block = decode_bool v2 in
 		encode_unit_result (Stream.set_blocking stream block)
+	);
+]
+
+let signum_fields = [
+	"SIGABRT", vint Signal.sigabrt;
+	"SIGFPE", vint Signal.sigfpe;
+	"SIGHUP", vint Signal.sighup;
+	"SIGILL", vint Signal.sigill;
+	"SIGINT", vint Signal.sigint;
+	"SIGKILL", vint Signal.sigkill;
+	"SIGSEGV", vint Signal.sigsegv;
+	"SIGTERM", vint Signal.sigterm;
+	"SIGWINCH", vint Signal.sigwinch;
+]
+
+let signal_fields = [
+	"init", vfun1 (fun v ->
+		let loop = decode_loop_opt v in
+		encode_result (fun s -> VHandle (HSignal s)) (Signal.init ~loop ())
+	);
+	"start", vfun3 (fun v1 v2 v3 ->
+		let s = decode_signal v1
+		and signum = decode_int v2
+		and cb = prepare_callback v3 0 in
+		encode_unit_result (Signal.start s signum (fun() -> ignore(cb [])))
+	);
+	"startOneshot", vfun3 (fun v1 v2 v3 ->
+		let s = decode_signal v1
+		and signum = decode_int v2
+		and cb = prepare_callback v3 0 in
+		encode_unit_result (Signal.start_oneshot s signum (fun() -> ignore(cb [])))
+	);
+	"stop", vfun1 (fun v ->
+		let s = decode_signal v in
+		encode_unit_result (Signal.stop s)
+	);
+	"signum", vfun1 (fun v ->
+		let s = decode_signal v in
+		vint (Signal.signum s)
 	);
 ]

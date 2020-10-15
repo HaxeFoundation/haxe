@@ -3730,4 +3730,6 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Pipe"], "Pipe_Impl_") EvalLuv.pipe_fields [];
 	init_fields builtins (["eval";"luv";"_Tty"], "Tty_Impl_") EvalLuv.tty_fields [];
 	init_fields builtins (["eval";"luv";"_Stream"], "Stream_Impl_") EvalLuv.stream_fields [];
+	init_fields builtins (["eval";"luv";"_Signal"], "Signal_Impl_") EvalLuv.signal_fields [];
+	init_fields builtins (["eval";"luv";"_Signal"], "SigNum_Impl_") EvalLuv.signum_fields [];
 	EvalSsl.init_fields init_fields builtins
