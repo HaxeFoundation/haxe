@@ -2980,7 +2980,7 @@ module StdType = struct
 				7,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
 				loop (!f())
-			| VUInt64 _ | VNativeString _ | VHandle _ -> 8,[||]
+			| VInt64 _ | VUInt64 _ | VNativeString _ | VHandle _ -> 8,[||]
 		in
 		let i,vl = loop v in
 		encode_enum_value key_ValueType i vl None
@@ -3732,4 +3732,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Stream"], "Stream_Impl_") EvalLuv.stream_fields [];
 	init_fields builtins (["eval";"luv";"_Signal"], "Signal_Impl_") EvalLuv.signal_fields [];
 	init_fields builtins (["eval";"luv";"_Signal"], "SigNum_Impl_") EvalLuv.signum_fields [];
+	init_fields builtins (["eval";"luv";"_Process"], "Process_Impl_") EvalLuv.process_fields [];
 	EvalSsl.init_fields init_fields builtins

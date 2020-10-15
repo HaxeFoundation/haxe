@@ -106,6 +106,8 @@ type vhandle =
 	| HTty of Luv.TTY.t
 	| HFile of Luv.File.t
 	| HSignal of Luv.Signal.t
+	| HProcess of Luv.Process.t
+	| HRedirection of Luv.Process.redirection
 
 type value =
 	| VNull
@@ -125,6 +127,7 @@ type value =
 	| VLazy of (unit -> value) ref
 	| VNativeString of string
 	| VHandle of vhandle
+	| VInt64 of Signed.Int64.t
 	| VUInt64 of Unsigned.UInt64.t
 
 and vfunc = value list -> value
@@ -252,8 +255,11 @@ let same_handle h1 h2 =
 	| HFile h1, HFile h2 -> h1 == h2
 	| HUdp h1, HUdp h2 -> h1 == h2
 	| HSignal h1, HSignal h2 -> h1 == h2
+	| HProcess h1, HProcess h2 -> h1 == h2
+	| HRedirection h1, HRedirection h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
-	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _ -> false
+	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _
+	| HProcess _, _ | HRedirection _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

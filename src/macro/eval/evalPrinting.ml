@@ -111,6 +111,7 @@ and s_value depth v =
 	else match v with
 	| VNull -> rnull
 	| VInt32 i32 -> create_ascii(Int32.to_string i32)
+	| VInt64 i -> create_ascii(Signed.Int64.to_string i)
 	| VUInt64 u -> create_ascii(Unsigned.UInt64.to_string u)
 	| VTrue -> rtrue
 	| VFalse -> rfalse

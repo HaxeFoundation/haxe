@@ -4,7 +4,7 @@ package eval.integers;
 	Unsigned 64-bit integer type and operations.
 **/
 @:coreType abstract UInt64 {
-	/** The greates representable UInt64 value */
+	/** The greatest representable UInt64 value. */
 	extern static public final MAX:UInt64;
 	/** The integer `0` */
 	extern static public final ZERO:UInt64;
@@ -51,7 +51,7 @@ package eval.integers;
 	public function toInt():Int;
 
 	/**
-		Return the string representation of its argument.
+		Return the string representation of this value.
 	**/
 	public function toString():String;
 
