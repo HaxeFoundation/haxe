@@ -33,12 +33,15 @@ extern class DatePeriod {
 	var include_start_date: Bool;
 	var start: DateTimeInterface;
 	var current: DateTimeInterface;
-	var end: DateTimeInterface;
+	var end: Null<DateTimeInterface>;
 	var interval: DateInterval;
 
-	// TODO
+	@:overload(function(start: DateTimeInterface, interval: DateInterval, recurrences: Int, ?options: Int): Void {})
+	@:overload(function(start: DateTimeInterface, interval: DateInterval, end: DateTimeInterface, ?options: Int): Void {})
+	function new(isostr: String, ?options: Int);
+
 	function getDateInterval(): DateInterval;
-	function getEndDate(): DateTimeInterface;
+	function getEndDate(): Null<DateTimeInterface>;
 	function getRecurrences(): Int;
 	function getStartDate(): DateTimeInterface;
 }
