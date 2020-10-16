@@ -446,4 +446,35 @@ extern class Const {
 	static final PHP_OUTPUT_HANDLER_START:Int;
 	static final PHP_OUTPUT_HANDLER_STDFLAGS:Int;
 	static final PHP_OUTPUT_HANDLER_WRITE:Int;
+
+	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static final LOCK_EX:Int;
+	static final LOCK_NB:Int;
+	static final LOCK_SH:Int;
+	static final LOCK_UN:Int;
+
+	/**
+		@see http://php.net/manual/en/function.fnmatch.php
+	**/
+	static final FNM_CASEFOLD:Int;
+	static final FNM_NOESCAPE:Int;
+	static final FNM_PATHNAME:Int;
+	static final FNM_PERIOD:Int;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-file.php
+	**/
+	static final INI_SCANNER_NORMAL:Int;
+	static final INI_SCANNER_RAW:Int;
+	static final INI_SCANNER_TYPED:Int;
+
+	/**
+		@see http://php.net/manual/en/function.pathinfo.php
+	**/
+	static final PATHINFO_BASENAME:Int;
+	static final PATHINFO_DIRNAME:Int;
+	static final PATHINFO_EXTENSION:Int;
+	static final PATHINFO_FILENAME:Int;
 }

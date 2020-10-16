@@ -686,6 +686,11 @@ extern class Global {
 	static function fflush(handle:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static function flock(handle:Resource, operation:Int, ?wouldblock:Ref<Int>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.fwrite.php
 	**/
 	static function fwrite(handle:Resource, string:String, ?length:Int):EitherType<Int, Bool>;
@@ -744,6 +749,16 @@ extern class Global {
 		@see http://php.net/manual/en/function.stat.php
 	**/
 	static function stat(filename:String):EitherType<NativeArray, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.fnmatch.php
+	**/
+	static function fnmatch(pattern:String, string:String, flags:Int = 0):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.pathinfo.php
+	**/
+	static function pathinfo(path:String, ?options:Int):EitherType<String, NativeAssocArray<String>>;
 
 	/**
 		@see http://php.net/manual/en/function.realpath.php
@@ -1702,4 +1717,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.strip-tags.php
 	**/
 	static function strip_tags(str: String, ?allowable_tags:EitherType<String, Array<String>>):String;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-file.php
+	**/
+	static function parse_ini_file(filename:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-string.php
+	**/
+	static function parse_ini_string(ini:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
 }
