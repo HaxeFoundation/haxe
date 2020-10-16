@@ -35,7 +35,7 @@ class EventLoop {
 
 	public function new():Void {
 		handle = Loop.init().resolve();
-		wakeup = Async.init(consumePending, handle).resolve();
+		wakeup = Async.init(handle, consumePending).resolve();
 		wakeup.unref();
 	}
 
