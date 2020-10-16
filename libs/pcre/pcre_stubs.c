@@ -21,7 +21,7 @@
 */
 
 #if defined(_WIN32)
-#  define snprintf _snprintf
+// #  define snprintf _snprintf
 #  if defined(_DLL)
 #    define PCREextern __declspec(dllexport)
 #  else
