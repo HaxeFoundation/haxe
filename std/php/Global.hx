@@ -1727,4 +1727,34 @@ extern class Global {
 		@see http://php.net/manual/en/function.parse-ini-string.php
 	**/
 	static function parse_ini_string(ini:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-compile-file.php
+	**/
+	static function opcache_compile_file(file:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-get-configuration.php
+	**/
+	static function opcache_get_configuration():Void;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-get-status.php
+	**/
+	static function opcache_get_status():NativeAssocArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-invalidate.php
+	**/
+	static function opcache_invalidate(script:String, force:Bool = false):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-is-script-cached.php
+	**/
+	static function opcache_is_script_cached(file:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-reset.php
+	**/
+	static function opcache_reset():Bool;
 }
