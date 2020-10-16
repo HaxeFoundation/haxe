@@ -731,6 +731,11 @@ extern class Global {
 	static function filemtime(filename:String):EitherType<Int, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.fileowner.php
+	**/
+	static function fileowner(filename:String):EitherType<Int, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.filesize.php
 	**/
 	static function filesize(filename:String):EitherType<Int, Bool>;
