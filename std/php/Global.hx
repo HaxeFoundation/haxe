@@ -1736,12 +1736,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.opcache-get-configuration.php
 	**/
-	static function opcache_get_configuration():Void;
+	static function opcache_get_configuration():NativeAssocArray<Dynamic>;
 
 	/**
 		@see http://php.net/manual/en/function.opcache-get-status.php
 	**/
-	static function opcache_get_status():NativeAssocArray<Dynamic>;
+	static function opcache_get_status(get_scripts:Bool = true):EitherType<NativeAssocArray<Dynamic>, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.opcache-invalidate.php
