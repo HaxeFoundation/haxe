@@ -1702,4 +1702,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.ob-start.php
 	**/
 	static function ob_start(output_callback: (String, ?Int) -> String = null, chunk_size:Int = 0, ?flags:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-file.php
+	**/
+	static function parse_ini_file(filename:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-string.php
+	**/
+	static function parse_ini_string(ini:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
 }
