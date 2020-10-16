@@ -1757,4 +1757,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.opcache-reset.php
 	**/
 	static function opcache_reset():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.touch.php
+	**/
+	static function touch(filename:String, ?time:Int, ?atime: Int):Bool;
 }
