@@ -9,6 +9,7 @@ open EvalEncode
 open EvalDecode
 open EvalHash
 open EvalMisc
+open EvalField
 
 let key_eval_luv_Result = hash "eval.luv.Result"
 let key_eval_luv_LuvException = hash "eval.luv.LuvException"
@@ -349,6 +350,11 @@ let decode_signal v =
 	match decode_handle v with
 	| HSignal t -> t
 	| _ -> unexpected_value v "eval.luv.Signal"
+
+let decode_process v =
+	match decode_handle v with
+	| HProcess t -> t
+	| _ -> unexpected_value v "eval.luv.Process"
 
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
@@ -1087,5 +1093,99 @@ let signal_fields = [
 	"signum", vfun1 (fun v ->
 		let s = decode_signal v in
 		vint (Signal.signum s)
+	);
+]
+
+let process_fields = [
+	"stdin", vint Process.stdin;
+	"stdout", vint Process.stdout;
+	"stderr", vint Process.stderr;
+	"toParentPipe", vfun5 (fun v1 v2 v3 v4 v5 ->
+		let fd = decode_int v1
+		and parent_pipe = decode_pipe v2
+		and readable_in_child = decode_bool v3
+		and writable_in_child = decode_bool v4
+		and overlapped = decode_bool v5 in
+		let r = Process.to_parent_pipe ~fd ~parent_pipe ~readable_in_child ~writable_in_child ~overlapped () in
+		VHandle (HRedirection r)
+	);
+	"inheritFd", vfun2 (fun v1 v2 ->
+		let fd = decode_int v1
+		and from_parent_fd = decode_int v2 in
+		let r = Process.inherit_fd ~fd ~from_parent_fd () in
+		VHandle (HRedirection r)
+	);
+	"inheritStream", vfun2 (fun v1 v2 ->
+		let fd = decode_int v1
+		and from_parent_stream = decode_stream v2 in
+		let r = Process.inherit_stream ~fd ~from_parent_stream () in
+		VHandle (HRedirection r)
+	);
+	"spawn", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and cmd = decode_string v2
+		and args = List.map decode_string (decode_array v3) in
+		let result =
+			if v4 = VNull then
+				Process.spawn ~loop cmd args
+			else begin
+				let options = decode_object v4 in
+				let get name f =
+					let v = object_field options (hash name) in
+					if v = VNull then None
+					else Some (f v)
+				in
+				let on_exit =
+					get "onExit" (fun v ->
+						let cb = prepare_callback v 3 in
+						(fun p ~exit_status ~term_signal ->
+							ignore(cb [VHandle (HProcess p); VInt64 exit_status; vint term_signal])
+						)
+					)
+				and environment =
+					get "environment" (fun v ->
+						match decode_instance v with
+						| { ikind = IStringMap m } ->
+							StringHashtbl.fold (fun k (_,v) acc -> (k, decode_string v) :: acc) m []
+						| _ ->
+							unexpected_value v "haxe.ds.Map<String,String>"
+					)
+				and redirect =
+					get "⁠redirect" (fun v ->
+						List.map (fun v2 ->
+							match v2 with
+							| VHandle (HRedirection r) -> r
+							| _ -> unexpected_value v2 "eval.luv.Process.Redirection"
+						) (decode_array v)
+					)
+				and working_directory = get "workingDirectory" decode_string
+				and uid = get "⁠uid" decode_int
+				and gid = get "⁠gid" decode_int
+				and windows_verbatim_arguments = get "⁠windowsVerbatimArguments" decode_bool
+				and detached = get "⁠detached" decode_bool
+				and windows_hide = get "⁠windowsHide" decode_bool
+				and windows_hide_console = get "⁠windowsHideConsole" decode_bool
+				and windows_hide_gui = get "⁠windowsHideGui" decode_bool
+				in
+				(* Process.spawn ~loop ?detached cmd args *)
+				Process.spawn ~loop ?on_exit ?environment ?working_directory ?redirect
+					?uid ?gid ?windows_verbatim_arguments ?detached ?windows_hide
+					?windows_hide_console ?windows_hide_gui cmd args
+			end
+		in
+		encode_result (fun p -> VHandle (HProcess p)) result
+	);
+	"disableStdioInheritance", vfun0 (fun() ->
+		Process.disable_stdio_inheritance();
+		vnull
+	);
+	"killPid", vfun2 (fun v1 v2 ->
+		let pid = decode_int v1
+		and sig_num = decode_int v2 in
+		encode_unit_result (Process.kill_pid ~pid sig_num)
+	);
+	"pid", vfun1 (fun v ->
+		let p = decode_process v in
+		vint (Process.pid p)
 	);
 ]

@@ -74,4 +74,12 @@ package eval.luv;
 		@see https://aantron.github.io/luv/luv/Luv/Handle/#val-set_recv_buffer_size
 	**/
 	static public function setRecvBufferSize(handle:SocketHandle, size:Int):Result<Result.NoData>;
+
+// TODO
+	// /**
+	// 	Retrieves the file descriptor associated with the handle.
+
+	// 	@see https://aantron.github.io/luv/luv/Luv/Handle/#val-fileno
+	// **/
+	// static public function fileno(handle:FileNo):Result<OsFd>;
 }
