@@ -23,6 +23,7 @@
 package sys;
 
 import php.*;
+import haxe.Exception;
 import haxe.io.Path;
 
 private enum FileKind {
@@ -39,7 +40,8 @@ class FileSystem {
 	}
 
 	public static inline function rename(path:String, newPath:String):Void {
-		Global.rename(path, newPath);
+		if (!Global.rename(path, newPath))
+			throw new Exception('Cannot rename file $path');
 	}
 
 	public static function stat(path:String):FileStat {
@@ -97,21 +99,26 @@ class FileSystem {
 
 	public static function createDirectory(path:String):Void {
 		Global.clearstatcache(true, path);
-		if (!Global.is_dir(path))
-			Global.mkdir(path, 493, true);
+		if (!Global.is_dir(path) && !Global.mkdir(path, 493, true))
+			throw new Exception('Cannot create directory $path');
 	}
 
 	public static inline function deleteFile(path:String):Void {
-		Global.unlink(path);
+		if (!Global.unlink(path))
+			throw new Exception('Cannot delete file $path');
 	}
 
 	public static inline function deleteDirectory(path:String):Void {
-		Global.rmdir(path);
+		if (!Global.rmdir(path))
+			throw new Exception('Cannot delete directory $path');
 	}
 
 	public static function readDirectory(path:String):Array<String> {
 		var list = [];
 		var dir = Global.opendir(path);
+		if (dir == false)
+			throw new Exception('Cannot read directory $path');
+
 		var file;
 		while ((file = Global.readdir(dir)) != false) {
 			if (file != '.' && file != '..') {
