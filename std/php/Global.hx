@@ -751,6 +751,11 @@ extern class Global {
 	static function stat(filename:String):EitherType<NativeArray, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.pathinfo.php
+	**/
+	static function pathinfo(path:String, ?options:Int):EitherType<String, NativeAssocArray<String>>;
+
+	/**
 		@see http://php.net/manual/en/function.realpath.php
 	**/
 	static function realpath(path:String):EitherType<String, Bool>;
