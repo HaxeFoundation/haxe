@@ -686,6 +686,11 @@ extern class Global {
 	static function fflush(handle:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static function flock(handle:Resource, operation:Int, ?wouldblock:Ref<Int>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.fwrite.php
 	**/
 	static function fwrite(handle:Resource, string:String, ?length:Int):EitherType<Int, Bool>;
