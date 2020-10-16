@@ -1713,7 +1713,7 @@ extern class Global {
 	**/
 	static function ob_start(output_callback: (String, ?Int) -> String = null, chunk_size:Int = 0, ?flags:Int):Bool;
 
-  /**
+	/**
 		@see http://php.net/manual/en/function.strip-tags.php
 	**/
 	static function strip_tags(str: String, ?allowable_tags:EitherType<String, Array<String>>):String;
