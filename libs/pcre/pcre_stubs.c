@@ -21,7 +21,6 @@
 */
 
 #if defined(_WIN32)
-// #  define snprintf _snprintf
 #  if defined(_DLL)
 #    define PCREextern __declspec(dllexport)
 #  else
@@ -46,6 +45,10 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+
+#if defined(_WIN32)
+#  define snprintf _snprintf
+#endif
 
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
