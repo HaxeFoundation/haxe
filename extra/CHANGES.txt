@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	jvm : fixed equality checks for `Null<Float>` and `Null<Int>` (#9897)
+	hl : fixed crash if a thread finishes without invoking `sendMessage`/`readMessage` (#9920)
 
 2020-09-11 4.1.4:
 

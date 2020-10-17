@@ -69,6 +69,8 @@ abstract Thread(ThreadHandle) from ThreadHandle to ThreadHandle {
 	}
 
 	static inline function dropThread(handle:ThreadHandle) {
+		if( queue_mutex == null )
+			return;
 		queue_mutex.acquire();
 		for (i => tq in threads_queues) {
 			if (tq.t == handle) {
