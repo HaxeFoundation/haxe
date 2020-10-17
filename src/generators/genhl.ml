@@ -4068,8 +4068,30 @@ let check ctx =
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map
 
+let make_context_sign com =
+	let mhash = Hashtbl.create 0 in
+	List.iter (fun t ->
+		let mt = t_infos t in
+		let mid = mt.mt_module.m_id in
+		Hashtbl.add mhash mid true
+	) com.types;
+	let data = Marshal.to_string mhash [No_sharing] in
+	Digest.to_hex (Digest.string data)
+
+let prev_sign = ref "" and prev_data = ref ""
+
 let generate com =
 	let dump = Common.defined com Define.Dump in
+	let hl_check = Common.raw_defined com "hl-check" in
+
+	let sign = make_context_sign com in
+	if sign = !prev_sign && not dump && not hl_check then begin
+		(* reuse previously generated data *)
+		let ch = open_out_bin com.file in
+		output_string ch !prev_data;
+		close_out ch;
+	end else
+
 	let ctx = create_context com false dump in
 	add_types ctx com.types;
 	let code = build_code ctx com.types com.main in
@@ -4091,7 +4113,7 @@ let generate com =
 		) code.functions;
 		close_out ch;
 	end;*)
-	if Common.raw_defined com "hl-check" then begin
+	if hl_check then begin
 		check ctx;
 		Hlinterp.check code false;
 	end;
@@ -4117,6 +4139,8 @@ let generate com =
 		let ch = open_out_bin com.file in
 		output_string ch str;
 		close_out ch;
+		prev_sign := sign;
+		prev_data := str;
 	end;
 	Hlopt.clean_cache();
 	t();
