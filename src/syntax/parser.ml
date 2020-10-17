@@ -299,6 +299,7 @@ let rec make_unop op ((v,p2) as e) p1 =
 	match v with
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
+	| EIs (e, t) -> EIs (make_unop op e p1, t), punion p1 p2
 	| EConst (Int i) when op = Neg -> EConst (Int (neg i)),punion p1 p2
 	| EConst (Float j) when op = Neg -> EConst (Float (neg j)),punion p1 p2
 	| _ -> EUnop (op,Prefix,e), punion p1 p2
