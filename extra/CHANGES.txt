@@ -4,6 +4,7 @@
 
 	jvm : fixed equality checks for `Null<Float>` and `Null<Int>` (#9897)
 	hl : fixed crash if a thread finishes without invoking `sendMessage`/`readMessage` (#9920)
+	php : fixed local vars with certain names (_SERVER, _GET etc) overriding super global values (#9924)
 
 2020-09-11 4.1.4:
 
