@@ -1189,3 +1189,16 @@ let process_fields = [
 		vint (Process.pid p)
 	);
 ]
+
+let request_fields = [
+	"cancel", vfun1 (fun v ->
+		encode_unit_result (match v with
+			| VHandle (HFileRequest r) -> Request.cancel r
+			| VHandle (HAddrRequest r) -> Request.cancel r
+			| VHandle (HNameRequest r) -> Request.cancel r
+			| VHandle (HRandomRequest r) -> Request.cancel r
+			| VHandle (HThreadPoolRequest r) -> Request.cancel r
+			| _ -> unexpected_value v "eval.luv.Request"
+		)
+	)
+]

@@ -108,6 +108,11 @@ type vhandle =
 	| HSignal of Luv.Signal.t
 	| HProcess of Luv.Process.t
 	| HRedirection of Luv.Process.redirection
+	| HAddrRequest of Luv.DNS.Addr_info.Request.t
+	| HNameRequest of Luv.DNS.Name_info.Request.t
+	| HFileRequest of Luv.File.Request.t
+	| HRandomRequest of Luv.Random.Request.t
+	| HThreadPoolRequest of Luv.Thread_pool.Request.t
 
 type value =
 	| VNull
@@ -257,9 +262,15 @@ let same_handle h1 h2 =
 	| HSignal h1, HSignal h2 -> h1 == h2
 	| HProcess h1, HProcess h2 -> h1 == h2
 	| HRedirection h1, HRedirection h2 -> h1 == h2
+	| HFileRequest h1, HFileRequest h2 -> h1 == h2
+	| HNameRequest h1, HNameRequest h2 -> h1 == h2
+	| HAddrRequest h1, HAddrRequest h2 -> h1 == h2
+	| HRandomRequest h1, HRandomRequest h2 -> h1 == h2
+	| HThreadPoolRequest h1, HThreadPoolRequest h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
 	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _
-	| HProcess _, _ | HRedirection _, _ -> false
+	| HProcess _, _ | HRedirection _, _| HFileRequest _, _ | HAddrRequest _, _
+	| HNameRequest _, _ | HRandomRequest _, _ | HThreadPoolRequest _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue
