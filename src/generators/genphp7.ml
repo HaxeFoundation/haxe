@@ -209,6 +209,15 @@ let is_native_array_type t = match follow t with TAbstract ({ a_path = tp }, _) 
 let get_real_name name = if is_keyword name then name ^ "_hx" else name
 
 (**
+	Returns local variable name free of risk to collide with superglobals like $_SERVER or $_GET
+*)
+let vname name =
+	match name with
+	| "GLOBALS" | "_SERVER" | "_GET" | "_POST" | "_FILES" | "_COOKIE"
+	| "_SESSION" | "_REQUEST" | "_ENV" -> name ^ "_hx_"
+	| _ -> name
+
+(**
 	If `path` contains some reserved in PHP words, they will be replaced with allowed words.
 *)
 let get_real_path path = List.map get_real_name path
@@ -1527,8 +1536,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			(match expr.eexpr with
 				| TConst const -> self#write_expr_const const
 				| TLocal var ->
-					vars#used var.v_name;
-					self#write ("$" ^ var.v_name)
+					vars#used (vname var.v_name);
+					self#write ("$" ^ (vname var.v_name))
 				| TArray (target, index) -> self#write_expr_array_access target index
 				| TBinop (OpAssign, { eexpr = TArray (target, index) }, value) when is_array_type target.etype ->
 					self#write_expr_set_array_item target index value
@@ -1681,8 +1690,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Writes TVar to output buffer
 		*)
 		method write_expr_var var expr =
-			vars#declared var.v_name;
-			self#write ("$" ^ var.v_name ^ " = ");
+			vars#declared (vname var.v_name);
+			self#write ("$" ^ (vname var.v_name) ^ " = ");
 			match expr with
 				| None -> self#write "null"
 				| Some expr -> self#write_expr expr
@@ -1865,8 +1874,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			let rec traverse = function
 				| [] -> ()
 				| (v,body) :: rest ->
-					self#write (" catch(" ^ (self#use_t v.v_type) ^ " $" ^ v.v_name ^ ") ");
-					vars#declared v.v_name;
+					self#write (" catch(" ^ (self#use_t v.v_type) ^ " $" ^ (vname v.v_name) ^ ") ");
+					vars#declared (vname v.v_name);
 					self#write_as_block body;
 					traverse rest
 			in
@@ -2556,7 +2565,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					if add_parentheses then self#write "(";
 					self#write_expr collection;
 					if add_parentheses then self#write ")";
-					self#write (" as $" ^ key.v_name ^ " => $" ^ value.v_name ^ ") ");
+					self#write (" as $" ^ (vname key.v_name) ^ " => $" ^ (vname value.v_name) ^ ") ");
 					self#write_as_block ~unset_locals:true { body with eexpr = TBlock body_exprs };
 				| _ ->
 					fail self#pos __LOC__
@@ -2798,9 +2807,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_function_arg arg =
 			match arg with
 				| ({ v_name = arg_name; v_type = arg_type }, default_value) ->
-					vars#declared arg_name;
+					vars#declared (vname arg_name);
 					if is_ref arg_type then self#write "&";
-					self#write ("$" ^ arg_name);
+					self#write ("$" ^ (vname arg_name));
 					match default_value with
 						| None -> ()
 						| Some expr ->
