@@ -479,6 +479,22 @@ extern class Const {
 	static final PATHINFO_FILENAME:Int;
 
 	/**
+		@see http://php.net/manual/en/function.dns-get-record.php
+	**/
+	static final DNS_A:Int;
+	static final DNS_AAAA:Int;
+	static final DNS_ALL:Int;
+	static final DNS_ANY:Int;
+	static final DNS_CAA:Int;
+	static final DNS_CNAME:Int;
+	static final DNS_HINFO:Int;
+	static final DNS_MX:Int;
+	static final DNS_NS:Int;
+	static final DNS_PTR:Int;
+	static final DNS_SOA:Int;
+	static final DNS_TXT:Int;
+
+	/**
 		@see http://php.net/manual/en/intl.constants.php
 	**/
 	static final IDNA_ALLOW_UNASSIGNED:Int;
