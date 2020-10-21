@@ -477,4 +477,32 @@ extern class Const {
 	static final PATHINFO_DIRNAME:Int;
 	static final PATHINFO_EXTENSION:Int;
 	static final PATHINFO_FILENAME:Int;
+
+	/**
+		@see http://php.net/manual/en/intl.constants.php
+	**/
+	static final IDNA_ALLOW_UNASSIGNED:Int;
+	static final IDNA_CHECK_BIDI:Int;
+	static final IDNA_CHECK_CONTEXTJ:Int;
+	static final IDNA_DEFAULT:Int;
+	static final IDNA_ERROR_BIDI:Int;
+	static final IDNA_ERROR_CONTEXTJ:Int;
+	static final IDNA_ERROR_DISALLOWED:Int;
+	static final IDNA_ERROR_DOMAIN_NAME_TOO_LONG:Int;
+	static final IDNA_ERROR_EMPTY_LABEL:Int;
+	static final IDNA_ERROR_HYPHEN_3_4:Int;
+	static final IDNA_ERROR_INVALID_ACE_LABEL:Int;
+	static final IDNA_ERROR_LABEL_HAS_DOT:Int;
+	static final IDNA_ERROR_LABEL_TOO_LONG:Int;
+	static final IDNA_ERROR_LEADING_COMBINING_MARK:Int;
+	static final IDNA_ERROR_LEADING_HYPHEN:Int;
+	static final IDNA_ERROR_PUNYCODE:Int;
+	static final IDNA_ERROR_TRAILING_HYPHEN:Int;
+	static final IDNA_NONTRANSITIONAL_TO_ASCII:Int;
+	static final IDNA_NONTRANSITIONAL_TO_UNICODE:Int;
+	static final IDNA_USE_STD3_RULES:Int;
+	static final INTL_ICU_VERSION:String;
+	static final INTL_IDNA_VARIANT_2003:Int;
+	static final INTL_IDNA_VARIANT_UTS46:Int;
+	static final INTL_MAX_LOCALE_LEN:Int;
 }
