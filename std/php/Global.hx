@@ -1762,4 +1762,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.touch.php
 	**/
 	static function touch(filename:String, ?time:Int, ?atime: Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.checkdnsrr.php
+	**/
+	static function checkdnsrr(host:String, type:String = "MX"):Bool;
 }
