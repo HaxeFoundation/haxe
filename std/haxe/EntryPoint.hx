@@ -36,9 +36,12 @@ class EntryPoint {
 	#if sys
 		static var mutex = new Mutex();
 		#if (target.threaded && !cppia)
-			static var mainThread:Thread;
-			@:keep static function init() {
-				mainThread = Thread.current();
+			@:isVar static var mainThread(get,null):Thread;
+			static function get_mainThread() {
+				if(mainThread == null){
+					mainThread = Thread.current();
+				}
+				return mainThread;
 			}
 		#else
 			static var sleepLock = new Lock();
