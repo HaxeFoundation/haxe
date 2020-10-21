@@ -1202,3 +1202,13 @@ let request_fields = [
 		)
 	)
 ]
+
+let dns_fields = [
+	"createAddrRequest", vfun0 (fun () ->
+		VHandle (HAddrRequest (DNS.Addr_info.Request.make()))
+	);
+	"createInfoRequest", vfun0 (fun () ->
+		VHandle (HNameRequest (DNS.Name_info.Request.make()))
+	);
+	(* "getAddrInfo", vfun3 *)
+]
