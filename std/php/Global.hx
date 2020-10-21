@@ -1771,10 +1771,10 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.idn-to-ascii.php
 	**/
-	static function idn_to_ascii(domain:String, ?options:Int, ?variant: Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+	static function idn_to_ascii(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.idn-to-utf8.php
 	**/
-	static function idn_to_utf8(domain:String, ?options:Int, ?variant: Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+	static function idn_to_utf8(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
 }
