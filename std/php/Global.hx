@@ -1772,7 +1772,7 @@ extern class Global {
 		@see http://php.net/manual/en/function.dns-get-record.php
 	**/
 	static function dns_get_record(hostname:String, ?type:Int, ?authns:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>,
-		?addtl:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>, raw:Bool = false): EitherType<NativeIndexedArray<NativeAssocArray<Dynamic>>, Bool>;
+		?addtl:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>, raw:Bool = false):EitherType<NativeIndexedArray<NativeAssocArray<Dynamic>>, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.idn-to-ascii.php
