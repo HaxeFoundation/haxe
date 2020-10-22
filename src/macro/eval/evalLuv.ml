@@ -11,10 +11,6 @@ open EvalHash
 open EvalMisc
 open EvalField
 
-let key_eval_luv_Result = hash "eval.luv.Result"
-let key_eval_luv_LuvException = hash "eval.luv.LuvException"
-let key_eval_luv_ReceiveHandle = hash "eval.luv.ReceiveHandle"
-
 let encode_uv_error (e:Error.t) =
 	vint (match e with
 	| `E2BIG -> 0
@@ -330,6 +326,26 @@ let decode_address_family v : Sockaddr.Address_family.t =
 	| 2, [] -> `INET6
 	| 3, [v] -> `OTHER (decode_int v)
 	| _ -> unexpected_value v "eval.luv.SockAddr.AddressType"
+
+let encode_address_family (a:Sockaddr.Address_family.t) =
+	let index,args =
+		match a with
+		| `UNSPEC -> 0, [||]
+		| `INET -> 1, [||]
+		| `INET6 -> 2, [||]
+		| `OTHER i -> 3, [|vint i|]
+	in
+	encode_enum_value key_eval_luv_AddressFamily index args None
+
+let encode_socket_type (a:Sockaddr.Socket_type.t) =
+	let index,args =
+		match a with
+		| `STREAM -> 0, [||]
+		| `DGRAM -> 1, [||]
+		| `RAW -> 2, [||]
+		| `OTHER i -> 3, [|vint i|]
+	in
+	encode_enum_value key_eval_luv_SocketType index args None
 
 let decode_pipe v =
 	match decode_handle v with
@@ -1130,20 +1146,20 @@ let process_fields = [
 				Process.spawn ~loop cmd args
 			else begin
 				let options = decode_object v4 in
-				let get name f =
-					let v = object_field options (hash name) in
+				let get name_hash f =
+					let v = object_field options name_hash in
 					if v = VNull then None
 					else Some (f v)
 				in
 				let on_exit =
-					get "onExit" (fun v ->
+					get key_onExit (fun v ->
 						let cb = prepare_callback v 3 in
 						(fun p ~exit_status ~term_signal ->
 							ignore(cb [VHandle (HProcess p); VInt64 exit_status; vint term_signal])
 						)
 					)
 				and environment =
-					get "environment" (fun v ->
+					get key_environment (fun v ->
 						match decode_instance v with
 						| { ikind = IStringMap m } ->
 							StringHashtbl.fold (fun k (_,v) acc -> (k, decode_string v) :: acc) m []
@@ -1151,21 +1167,21 @@ let process_fields = [
 							unexpected_value v "haxe.ds.Map<String,String>"
 					)
 				and redirect =
-					get "⁠redirect" (fun v ->
+					get key_redirect (fun v ->
 						List.map (fun v2 ->
 							match v2 with
 							| VHandle (HRedirection r) -> r
 							| _ -> unexpected_value v2 "eval.luv.Process.Redirection"
 						) (decode_array v)
 					)
-				and working_directory = get "workingDirectory" decode_string
-				and uid = get "⁠uid" decode_int
-				and gid = get "⁠gid" decode_int
-				and windows_verbatim_arguments = get "⁠windowsVerbatimArguments" decode_bool
-				and detached = get "⁠detached" decode_bool
-				and windows_hide = get "⁠windowsHide" decode_bool
-				and windows_hide_console = get "⁠windowsHideConsole" decode_bool
-				and windows_hide_gui = get "⁠windowsHideGui" decode_bool
+				and working_directory = get key_workingDirectory decode_string
+				and uid = get key_uid decode_int
+				and gid = get key_gid decode_int
+				and windows_verbatim_arguments = get key_windowsVerbatimArguments decode_bool
+				and detached = get key_detached decode_bool
+				and windows_hide = get key_windowsHide decode_bool
+				and windows_hide_console = get key_windowsHideConsole decode_bool
+				and windows_hide_gui = get key_windowsHideGui decode_bool
 				in
 				(* Process.spawn ~loop ?detached cmd args *)
 				Process.spawn ~loop ?on_exit ?environment ?working_directory ?redirect
@@ -1210,5 +1226,121 @@ let dns_fields = [
 	"createInfoRequest", vfun0 (fun () ->
 		VHandle (HNameRequest (DNS.Name_info.Request.make()))
 	);
-	(* "getAddrInfo", vfun3 *)
+	"getAddrInfo", vfun5 (fun v1 v2 v3 v4 v5 ->
+		let loop = decode_loop v1
+		and node = decode_nullable (fun v -> Some (decode_string v)) None v2
+		and service = decode_nullable (fun v -> Some (decode_string v)) None v3
+		in
+		if node = None && service = None then
+			throw (create_haxe_exception "Either node or service has to be not null") null_pos
+		else begin
+			let callback =
+				let cb = prepare_callback v5 1 in
+				(fun result ->
+					let v =
+						encode_result (fun infos ->
+							encode_array (List.map (fun (info:DNS.Addr_info.t) ->
+								let fields = [
+									key_family,encode_address_family info.family;
+									key_sockType,encode_socket_type info.socktype;
+									key_protocol,vint info.protocol;
+									key_addr,encode_sockaddr info.addr;
+								] in
+								let fields =
+									match info.canonname with
+									| None -> fields
+									| Some s -> (key_canonName,EvalString.create_unknown s) :: fields
+								in
+								encode_obj fields
+							) infos)
+						) result
+					in
+					ignore(cb [v])
+				)
+			in
+			if v4 = VNull then
+				DNS.getaddrinfo ~loop ?node ?service () callback
+			else begin
+				let options = decode_object v4 in
+				let get name_hash f =
+					let v = object_field options name_hash in
+					if v = VNull then None
+					else Some (f v)
+				in
+				let request =
+					get key_request (function
+						| VHandle (HAddrRequest r) -> r
+						| v -> unexpected_value v "eval.luv.Dns.AddrInfoRequest"
+					)
+				and family = get key_family decode_address_family
+				and socktype = get key_sockType decode_socket_type
+				and protocol = get key_protocol decode_int
+				and flags =
+					get key_flags (fun v ->
+						List.map (fun v ->
+							match decode_int v with
+							| 0 -> `PASSIVE
+							| 1 -> `CANONNAME
+							| 2 -> `NUMERICHOST
+							| 3 -> `NUMERICSERV
+							| 4 -> `V4MAPPED
+							| 5 -> `ALL
+							| 6 -> `ADDRCONFIG
+							| _ -> unexpected_value v "eval.luv.Dns.AddrInfoFlag"
+						) (decode_array v)
+					)
+				in
+				DNS.getaddrinfo ~loop ?request ?family ?socktype ?protocol ?flags ?service ?node () callback
+			end;
+			vnull
+		end
+	);
+	"getNameInfo", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and addr = decode_sockaddr v2
+		and callback =
+			let cb = prepare_callback v4 1 in
+			(fun result ->
+				let v =
+					encode_result (fun (node,service) ->
+						encode_obj [
+							key_node,encode_string node;
+							key_service,encode_string service;
+						]
+					) result
+				in
+				ignore(cb [v])
+			)
+		in
+		if v3 = VNull then
+			DNS.getnameinfo ~loop addr callback
+		else begin
+			let options = decode_object v3 in
+			let get name_hash f =
+				let v = object_field options name_hash in
+				if v = VNull then None
+				else Some (f v)
+			in
+			let request =
+				get key_request (function
+					| VHandle (HNameRequest r) -> r
+					| v -> unexpected_value v "eval.luv.Dns.NameInfoRequest"
+				)
+			and flags =
+				get key_flags (fun v ->
+					List.map (fun v ->
+						match decode_int v with
+						| 0 -> `NAMEREQD
+						| 1 -> `DGRAM
+						| 2 -> `NOFQDN
+						| 3 -> `NUMERICHOST
+						| 4 -> `NUMERICSERV
+						| _ -> unexpected_value v "eval.luv.Dns.NameInfoFlag"
+					) (decode_array v)
+				)
+			in
+			DNS.getnameinfo ~loop ?request ?flags addr callback
+		end;
+		vnull
+	);
 ]

@@ -6,17 +6,17 @@ abstract AddrInfoRequest(Request) {}
 typedef AddrInfo = {
 	var family:SockAddr.AddressFamily;
 	var sockType:SockAddr.SocketType;
-	var protocol:int;
+	var protocol:Int;
 	var addr:SockAddr;
 	var ?canonName:String;
 }
 
 typedef AddrInfoOptions = {
-	var ?⁠request:AddrInfoRequest;
-	var ?⁠family:SockAddr.AddressFamily;
-	var ?⁠sockType:SockAddr.SocketType;
-	var ?⁠protocol:Int;
-	var ?⁠flags:Array<AddrInfoFlag>;
+	var ?request:AddrInfoRequest;
+	var ?family:SockAddr.AddressFamily;
+	var ?sockType:SockAddr.SocketType;
+	var ?protocol:Int;
+	var ?flags:Array<AddrInfoFlag>;
 }
 
 enum abstract AddrInfoFlag(Int) {
@@ -40,6 +40,11 @@ enum abstract NameInfoFlag(Int) {
 	var NUMERICSERV = 4;
 }
 
+typedef NameInfoOptions = {
+	var ?request:NameInfoRequest;
+	var ?flags:Array<NameInfoFlag>;
+}
+
 /**
 	DNS queries.
 
@@ -55,10 +60,10 @@ extern class Dns {
 		Retrieves addresses.
 		Either `node` or `service` may be `null` but not both.
 	**/
-	static function getAddrInfo(loop:Loop, node:Null<String>, service:Null<String>, ?options:AddrInfoOptions, callback:(result:Result<Array<AddrInfo>>)->Void):Void;
+	static function getAddrInfo(loop:Loop, node:Null<String>, service:Null<String>, options:Null<AddrInfoOptions>, callback:(result:Result<Array<AddrInfo>>)->Void):Void;
 
 	/**
 		Retrieves host names.
 	**/
-	static function getNameInfo(loop:Loop, addr:SockAddr, ?⁠request:NameInfoRequest, ?⁠flags:Array<NameInfoFlag>, callback:(result:Result<{hostName:String, service:String}>)->Void):Void;
+	static function getNameInfo(loop:Loop, addr:SockAddr, options:Null<NameInfoOptions>, callback:(result:Result<{hostName:String, service:String}>)->Void):Void;
 }
