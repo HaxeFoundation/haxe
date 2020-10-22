@@ -1762,4 +1762,25 @@ extern class Global {
 		@see http://php.net/manual/en/function.touch.php
 	**/
 	static function touch(filename:String, ?time:Int, ?atime: Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.checkdnsrr.php
+	**/
+	static function checkdnsrr(host:String, type:String = "MX"):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.dns-get-record.php
+	**/
+	static function dns_get_record(hostname:String, ?type:Int, ?authns:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>,
+		?addtl:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>, raw:Bool = false):EitherType<NativeIndexedArray<NativeAssocArray<Dynamic>>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.idn-to-ascii.php
+	**/
+	static function idn_to_ascii(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.idn-to-utf8.php
+	**/
+	static function idn_to_utf8(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
 }
