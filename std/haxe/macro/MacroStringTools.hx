@@ -39,7 +39,7 @@ class MacroStringTools {
 		The returned expression is a concatenation of string parts and escaped
 		elements.
 	**/
-	static public function formatString(s:String, pos:Position) {
+	static public function formatString(s:String, pos:Position):Expr {
 		#if (neko || eval)
 		return Context.load("format_string", 2)(s, pos);
 		#end
