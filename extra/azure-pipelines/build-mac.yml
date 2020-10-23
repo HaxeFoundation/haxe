@@ -15,9 +15,13 @@ jobs:
         submodules: recursive
       - script: |
           set -ex
+          brew uninstall openssl@1.0.2t
+          brew uninstall python@2.7.17
+          brew untap local/openssl
+          brew untap local/python2
           brew update || brew update || brew update
-          brew unlink python@2
-          brew bundle --file=tests/Brewfile --no-upgrade
+          # brew unlink python@2
+          brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
         displayName: Install dependencies
       - template: install-neko-snapshot.yaml
         parameters:
