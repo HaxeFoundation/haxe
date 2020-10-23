@@ -21,7 +21,7 @@ jobs:
           brew untap local/python2
           brew update || brew update || brew update
           # brew unlink python@2
-          brew bundle --file=tests/Brewfile --no-upgrade
+          brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
         displayName: Install dependencies
       - template: install-neko-snapshot.yaml
         parameters:

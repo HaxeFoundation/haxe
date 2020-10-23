@@ -7,7 +7,7 @@
     brew untap local/python2
     brew update
     # brew unlink python@2
-    brew bundle --file=tests/Brewfile --no-upgrade
+    brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
 
 - name: Install OCaml libraries
   run: |
