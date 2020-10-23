@@ -274,7 +274,7 @@ jobs:
           brew untap local/python2
           brew update
           # brew unlink python@2
-          brew bundle --file=tests/Brewfile --no-upgrade
+          brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
       
       - name: Install OCaml libraries
         run: |
@@ -628,7 +628,12 @@ jobs:
       
       - name: Install homebrew packages
         if: matrix.BREW_PACKAGES
-        run: brew install ${{matrix.BREW_PACKAGES}}
+        run: |
+          brew uninstall openssl@1.0.2t
+          brew uninstall python@2.7.17
+          brew untap local/openssl
+          brew untap local/python2
+          brew install ${{matrix.BREW_PACKAGES}}
       
       - name: Test
         run: |
