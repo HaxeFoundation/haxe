@@ -3777,7 +3777,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          let path = match path with
          | "::Int" -> "int"
          | "::Bool" -> "bool"
-         | "::haxe::_Int64::Int64_Impl_" -> "::cpp::Int64"
          | x -> x in
          if (native) then
             out "null()"
