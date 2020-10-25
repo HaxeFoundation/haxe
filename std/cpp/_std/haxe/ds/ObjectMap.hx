@@ -35,6 +35,7 @@ package haxe.ds;
   inline void set(Dynamic key, float value) { __object_hash_set_float(HX_MAP_THIS,key,value); }
   inline void set(Dynamic key, double value) { __object_hash_set_float(HX_MAP_THIS,key,value); }
   inline void set(Dynamic key, ::String value) { __object_hash_set_string(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, cpp::Int64 value) { __object_hash_set_int64(HX_MAP_THIS,key,value); }
 
 
   template<typename V, typename H>
@@ -48,7 +49,7 @@ package haxe.ds;
   inline int get_int(Dynamic key) { return __object_hash_get_int(h,key); }
   inline Float get_float(Dynamic key) { return __object_hash_get_float(h,key); }
   inline String get_string(Dynamic key) { return __object_hash_get_string(h,key); }
-
+  inline String get_int64(Dynamic key) { return __object_hash_get_int64(h,key); }
 ")
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
