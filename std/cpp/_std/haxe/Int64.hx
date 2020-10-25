@@ -48,6 +48,18 @@ private extern class NativeInt64Helper {
 	@:native("_hx_int64_ushr")
 	static function ushr(a:Int64, b:Int):Int64;
 
+	@:native("_hx_int64_and")
+	static function and(a:Int64, b:Int64):Int64;
+
+	@:native("_hx_int64_or")
+	static function or(a:Int64, b:Int64):Int64;
+
+	@:native("_hx_int64_xor")
+	static function xor(a:Int64, b:Int64):Int64;
+
+	@:native("_hx_int64_complement")
+	static function complement(a:Int64):Int64;
+
 	@:native("_hx_int64_high")
 	static function high(a:Int64):Int32;
 
@@ -303,19 +315,19 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 
 	@:op(~A)
 	private static #if !cppia inline #end function complement(a:Int64):Int64
-		return ~a.val;
+		return NativeInt64Helper.complement(a);
 
 	@:op(A & B)
 	public static #if !cppia inline #end function and(a:Int64, b:Int64):Int64
-		return a.val & b.val;
+		return NativeInt64Helper.and(a, b);
 
 	@:op(A | B)
 	public static #if !cppia inline #end function or(a:Int64, b:Int64):Int64
-		return a.val | b.val;
+		return NativeInt64Helper.or(a, b);
 
 	@:op(A ^ B)
 	public static #if !cppia inline #end function xor(a:Int64, b:Int64):Int64
-		return a.val ^ b.val;
+		return NativeInt64Helper.xor(a, b);
 
 	@:op(A << B)
 	public static #if !cppia inline #end function shl(a:Int64, b:Int):Int64
