@@ -10,6 +10,7 @@ open EvalDecode
 open EvalHash
 open EvalMisc
 open EvalField
+open EvalIntegers
 
 let encode_uv_error (e:Error.t) =
 	vint (match e with
@@ -203,17 +204,18 @@ let encode_result f result =
 	in
 	encode_enum_value key_eval_luv_Result index args None
 
-let encode_unit_result result =
-	let index, args =
-		match result with
-		| Ok r -> 0, [|vnull|]
-		| Error e -> 1, [|encode_uv_error e|]
-	in
-	encode_enum_value key_eval_luv_Result index args None
-
-let encode_callback encode_result v_callback result =
+let encode_callback encode_ok_value v_callback result =
 	let cb = prepare_callback v_callback 1 in
-	ignore(cb [encode_result result])
+	ignore(cb [encode_result encode_ok_value result])
+
+let encode_unit () =
+	vnull
+
+let encode_unit_result =
+	encode_result encode_unit
+
+let encode_unit_callback =
+	encode_callback encode_unit
 
 let resolve_result = function
 	| Ok v -> v
@@ -371,6 +373,47 @@ let decode_process v =
 	match decode_handle v with
 	| HProcess t -> t
 	| _ -> unexpected_value v "eval.luv.Process"
+
+let decode_file_mode v : File.Mode.t =
+	match decode_enum v with
+	| 0,[] -> `IRWXU
+	| 1,[] -> `IRUSR
+	| 2,[] -> `IWUSR
+	| 3,[] -> `IXUSR
+	| 4,[] -> `IRWXG
+	| 5,[] -> `IRGRP
+	| 6,[] -> `IWGRP
+	| 7,[] -> `IXGRP
+	| 8,[] -> `IRWXO
+	| 9,[] -> `IROTH
+	| 10,[] -> `IWOTH
+	| 11,[] -> `IXOTH
+	| 12,[] -> `ISUID
+	| 13,[] -> `ISGID
+	| 14,[] -> `ISVTX
+	| 15,[] -> `IFMT
+	| 16,[] -> `IFREG
+	| 17,[] -> `IFDIR
+	| 18,[] -> `IFBLK
+	| 19,[] -> `IFCHR
+	| 20,[] -> `IFLNK
+	| 21,[] -> `IFIFO
+	| 22,[v2] -> `NUMERIC (decode_int v2)
+	| _ -> unexpected_value v "eval.luv.File.FileMode"
+
+let decode_file_mode_list v =
+	List.map decode_file_mode (decode_array v)
+
+let decode_file_request v =
+	match v with
+	| VHandle (HFileRequest r) -> r
+	| _ -> unexpected_value v "eval.luv.File.FileRequest"
+
+let encode_timespec (t:File.Stat.timespec) =
+	encode_obj [
+		key_sec, VInt64 (Signed.Long.to_int64 t.sec);
+		key_nsec, VInt64 (Signed.Long.to_int64 t.nsec)
+	]
 
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
@@ -691,14 +734,9 @@ let sockaddr_fields = [
 
 let tcp_fields = [
 	"init", vfun2 (fun v1 v2 ->
-		let loop = decode_loop v1 in
-		let tcp =
-			if v2 = VNull then
-				TCP.init ~loop ()
-			else
-				let domain = decode_address_family v2 in
-				TCP.init ~loop ~domain ()
-		in
+		let loop = decode_loop v1
+		and domain = decode_optional decode_address_family v2 in
+		let tcp = TCP.init ~loop ?domain () in
 		encode_result (fun t -> VHandle (HTcp t)) tcp
 	);
 	"noDelay", vfun2 (fun v1 v2 ->
@@ -733,12 +771,12 @@ let tcp_fields = [
 	"connect", vfun3 (fun v1 v2 v3 ->
 		let tcp = decode_tcp v1
 		and addr = decode_sockaddr v2 in
-		TCP.connect tcp addr (encode_callback encode_unit_result v3);
+		TCP.connect tcp addr (encode_unit_callback v3);
 		vnull
 	);
 	"closeReset", vfun2 (fun v1 v2 ->
 		let tcp = decode_tcp v1 in
-		TCP.close_reset tcp (encode_callback encode_unit_result v2);
+		TCP.close_reset tcp (encode_unit_callback v2);
 		vnull
 	);
 ]
@@ -746,14 +784,9 @@ let tcp_fields = [
 let udp_fields = [
 	"init", vfun3 (fun v1 v2 v3 ->
 		let loop = decode_loop v1
+		and domain = decode_optional decode_address_family v2
 		and recvmmsg = decode_nullable decode_bool false v3 in
-		let udp =
-			if v2 = VNull then
-				UDP.init ~loop ~recvmmsg ()
-			else
-				let domain = decode_address_family v2 in
-				UDP.init ~loop ~domain ~recvmmsg ()
-		in
+		let udp = UDP.init ~loop ?domain ~recvmmsg () in
 		encode_result encode_udp udp
 	);
 	"bind", vfun4 (fun v1 v2 v3 v4 ->
@@ -818,7 +851,7 @@ let udp_fields = [
 		let udp = decode_udp v1
 		and l = decode_buffers v2
 		and addr = decode_sockaddr v3 in
-		UDP.send udp l addr (encode_callback encode_unit_result v4);
+		UDP.send udp l addr (encode_unit_callback v4);
 		vnull
 	);
 	"trySend", vfun3 (fun v1 v2 v3 ->
@@ -834,23 +867,21 @@ let udp_fields = [
 				| `MMSG_CHUNK -> vint 1
 				| `MMSG_FREE -> vint 2
 			in
-			encode_obj_s [
-				"data",encode_buffer buf;
-				"addr",encode_option encode_sockaddr addr;
-				"flags",encode_array (List.map encode_flag flags)
+			encode_obj [
+				key_data,encode_buffer buf;
+				key_addr,encode_option encode_sockaddr addr;
+				key_flags,encode_array (List.map encode_flag flags)
 			]
 		in
 		let udp = decode_udp v1
-		and callback = encode_callback (encode_result encode) v2 in
-		if v3 = VNull then
-			UDP.recv_start udp callback
-		else begin
-			let allocate =
-				let cb = prepare_callback v3 1 in
+		and callback = encode_callback encode v2
+		and allocate =
+			decode_optional (fun v ->
+				let cb = prepare_callback v 1 in
 				(fun i -> decode_buffer (cb [vint i]))
-			in
-			UDP.recv_start ~allocate udp callback
-		end;
+			) v3
+		in
+		UDP.recv_start ?allocate udp callback;
 		vnull
 	);
 	"recvStop", vfun1 (fun v ->
@@ -879,7 +910,7 @@ let connected_udp_fields = [
 	"send", vfun3 (fun v1 v2 v3 ->
 		let udp = decode_udp v1
 		and l = decode_buffers v2 in
-		UDP.Connected.send udp l (encode_callback encode_unit_result v3);
+		UDP.Connected.send udp l (encode_unit_callback v3);
 		vnull
 	);
 	"send", vfun2 (fun v1 v2 ->
@@ -903,7 +934,7 @@ let pipe_fields = [
 	"connect", vfun3 (fun v1 v2 v3 ->
 		let pipe = decode_pipe v1
 		and target = decode_native_string v2 in
-		Pipe.connect pipe target (encode_callback encode_unit_result v3);
+		Pipe.connect pipe target (encode_unit_callback v3);
 		vnull
 	);
 	"getSockName", vfun1 (fun v ->
@@ -968,7 +999,7 @@ let tty_fields = [
 	);
 	"getWinSize", vfun1 (fun v ->
 		let tty = decode_tty v in
-		let encode (w,h) = encode_obj_s ["width",vint w; "height",vint h] in
+		let encode (w,h) = encode_obj [key_width,vint w; key_height,vint h] in
 		encode_result encode (TTY.get_winsize tty)
 	);
 	"setVTermState", vfun1 (fun v ->
@@ -994,12 +1025,12 @@ let tty_fields = [
 let stream_fields = [
 	"shutdown", vfun2 (fun v1 v2 ->
 		let stream = decode_stream v1 in
-		Stream.shutdown stream (encode_callback encode_unit_result v2);
+		Stream.shutdown stream (encode_unit_callback v2);
 		vnull
 	);
 	"listen", vfun2 (fun v1 v2 ->
 		let stream = decode_stream v1 in
-		Stream.listen stream (encode_callback encode_unit_result v2);
+		Stream.listen stream (encode_unit_callback v2);
 		vnull
 	);
 	"accept", vfun2 (fun v1 v2 ->
@@ -1009,16 +1040,14 @@ let stream_fields = [
 	);
 	"readStart", vfun3 (fun v1 v2 v3 ->
 		let stream = decode_stream v1
-		and callback = encode_callback (encode_result encode_buffer) v2 in
-		if v3 = VNull then
-			Stream.read_start stream callback
-		else begin
-			let allocate =
-				let cb = prepare_callback v3 1 in
+		and callback = encode_callback encode_buffer v2
+		and allocate =
+			decode_optional (fun v ->
+				let cb = prepare_callback v 1 in
 				(fun i -> decode_buffer (cb [vint i]))
-			in
-			Stream.read_start ~allocate stream callback
-		end;
+			) v3
+		in
+		Stream.read_start ?allocate stream callback;
 		vnull
 	);
 	"readStop", vfun1 (fun v ->
@@ -1148,8 +1177,7 @@ let process_fields = [
 				let options = decode_object v4 in
 				let get name_hash f =
 					let v = object_field options name_hash in
-					if v = VNull then None
-					else Some (f v)
+					decode_optional f v
 				in
 				let on_exit =
 					get key_onExit (fun v ->
@@ -1264,8 +1292,7 @@ let dns_fields = [
 				let options = decode_object v4 in
 				let get name_hash f =
 					let v = object_field options name_hash in
-					if v = VNull then None
-					else Some (f v)
+					decode_optional f v
 				in
 				let request =
 					get key_request (function
@@ -1318,8 +1345,7 @@ let dns_fields = [
 			let options = decode_object v3 in
 			let get name_hash f =
 				let v = object_field options name_hash in
-				if v = VNull then None
-				else Some (f v)
+				decode_optional f v
 			in
 			let request =
 				get key_request (function
@@ -1341,6 +1367,203 @@ let dns_fields = [
 			in
 			DNS.getnameinfo ~loop ?request ?flags addr callback
 		end;
+		vnull
+	);
+]
+
+let do_stat v1 v2 v3 fn =
+	let loop = decode_loop v1
+	and request = decode_optional decode_file_request v2
+	and callback =
+		encode_callback (fun (s:File.Stat.t) ->
+			encode_obj [
+				key_dev,VUInt64 s.dev;
+				key_mode, VHandle (HFileModeNumeric s.mode);
+				key_nlink,VUInt64 s.nlink;
+				key_uid,VUInt64 s.uid;
+				key_gid,VUInt64 s.gid;
+				key_rdev,VUInt64 s.rdev;
+				key_ino,VUInt64 s.ino;
+				key_size,VUInt64 s.size;
+				key_blksize,VUInt64 s.blksize;
+				key_blocks,VUInt64 s.blocks;
+				key_flags,VUInt64 s.flags;
+				key_gen,VUInt64 s.gen;
+				key_atim,encode_timespec s.atim;
+				key_mtim,encode_timespec s.mtim;
+				key_ctim,encode_timespec s.ctim;
+				key_birthtim,encode_timespec s.birthtim;
+			]
+		) v3
+	in
+	fn loop request callback;
+	vnull
+
+let file_fields = [
+	"get_stdin", VHandle (HFile File.stdin);
+	"get_stdout", VHandle (HFile File.stdout);
+	"get_stderr", VHandle (HFile File.stderr);
+	"createRequest", vfun0 (fun() ->
+		VHandle (HFileRequest (File.Request.make()))
+	);
+	"testMode", vfun2 (fun v1 v2 ->
+		let mask = decode_file_mode_list v1
+		and bits =
+			match v2 with
+			| VHandle (HFileModeNumeric m) -> m
+			| _ -> unexpected_value v2 "eval.luv.File.FileModeNumeric"
+		in
+		vbool (File.Mode.test mask bits)
+	);
+	"open", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
+		let loop = decode_loop v1
+		and path = decode_native_string v2
+		and flags : File.Open_flag.t list =
+			List.map (fun v ->
+				match decode_int v with
+				| 0 -> `RDONLY
+				| 1 -> `WRONLY
+				| 2 -> `RDWR
+				| 3 -> `CREAT
+				| 4 -> `EXCL
+				| 5 -> `EXLOCK
+				| 6 -> `NOCTTY
+				| 7 -> `NOFOLLOW
+				| 8 -> `TEMPORARY
+				| 9 -> `TRUNC
+				| 10 -> `APPEND
+				| 11 -> `DIRECT
+				| 12 -> `DSYNC
+				| 13 -> `FILEMAP
+				| 14 -> `NOATIME
+				| 15 -> `NONBLOCK
+				| 16 -> `RANDOM
+				| 17 -> `SEQUENTIAL
+				| 18 -> `SHORT_LIVED
+				| 19 -> `SYMLINK
+				| 20 -> `SYNC
+				| _ -> unexpected_value v "eval.luv.File.FileOpenFile"
+			) (decode_array v3)
+		and mode = decode_optional decode_file_mode_list v4
+		and request = decode_optional decode_file_request v5
+		and callback = encode_callback (fun f -> VHandle (HFile f)) v6
+		in
+		File.open_ ~loop ?request ?mode path flags callback;
+		vnull
+	);
+	"close", vfun4 (fun v1 v2 v3 v4 ->
+		let f = decode_file v1
+		and loop = decode_loop v2
+		and request = decode_optional decode_file_request v3
+		and callback = encode_unit_callback v4 in
+		File.close ~loop ?request f callback;
+		vnull
+	);
+	"read", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
+		let f = decode_file v1
+		and loop = decode_loop v2
+		and file_offset = decode_i64 v3
+		and buffers = decode_buffers v4
+		and request = decode_optional decode_file_request v5
+		and callback = encode_callback encode_size_t v6 in
+		File.read ~loop ?request ~file_offset f buffers callback;
+		vnull
+	);
+	"write", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
+		let f = decode_file v1
+		and loop = decode_loop v2
+		and file_offset = decode_i64 v3
+		and buffers = decode_buffers v4
+		and request = decode_optional decode_file_request v5
+		and callback = encode_callback encode_size_t v6 in
+		File.write ~loop ?request ~file_offset f buffers callback;
+		vnull
+	);
+	"write", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and path = decode_native_string v2
+		and request = decode_optional decode_file_request v3
+		and callback = encode_unit_callback v4 in
+		File.unlink ~loop ?request path callback;
+		vnull
+	);
+	"rename", vfun5 (fun v1 v2 v3 v4 v5 ->
+		let loop = decode_loop v1
+		and path = decode_native_string v2
+		and to_ = decode_native_string v3
+		and request = decode_optional decode_file_request v4
+		and callback = encode_unit_callback v5 in
+		File.rename ~loop ?request path ~to_ callback;
+		vnull
+	);
+	"mkstemp", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and pattern = decode_native_string v2
+		and request = decode_optional decode_file_request v3
+		and callback =
+			encode_callback (fun (n,f) ->
+				encode_obj [key_name,vnative_string n; key_file,VHandle (HFile f)]
+			) v4
+		in
+		File.mkstemp ~loop ?request pattern callback;
+		vnull
+	);
+	"mkdtemp", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and pattern = decode_native_string v2
+		and request = decode_optional decode_file_request v3
+		and callback = encode_callback vnative_string v4 in
+		File.mkdtemp ~loop ?request pattern callback;
+		vnull
+	);
+	"mkdir", vfun5 (fun v1 v2 v3 v4 v5 ->
+		let loop = decode_loop v1
+		and path = decode_native_string v2
+		and mode = decode_optional decode_file_mode_list v3
+		and request = decode_optional decode_file_request v4
+		and callback = encode_unit_callback v5 in
+		File.mkdir ~loop ?mode ?request path callback;
+		vnull
+	);
+	"rmdir", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and path = decode_native_string v2
+		and request = decode_optional decode_file_request v3
+		and callback = encode_unit_callback v4 in
+		File.rmdir ~loop ?request path callback;
+		vnull
+	);
+	"stat", vfun4 (fun v1 v2 v3 v4 ->
+		let path = decode_native_string v2 in
+		do_stat v1 v3 v4 (fun loop request callback -> File.stat ~loop ?request path callback)
+	);
+	"lstat", vfun4 (fun v1 v2 v3 v4 ->
+		let path = decode_native_string v2 in
+		do_stat v1 v3 v4 (fun loop request callback -> File.lstat ~loop ?request path callback)
+	);
+	"fstat", vfun4 (fun v1 v2 v3 v4 ->
+		let f = decode_file v1 in
+		do_stat v2 v3 v4 (fun loop request callback -> File.fstat ~loop ?request f callback)
+	);
+	"statFs", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and path = decode_native_string v2
+		and request = decode_optional decode_file_request v3
+		and callback =
+			encode_callback (fun (s:File.Statfs.t) ->
+				encode_obj [
+					key_type, VUInt64 s.type_;
+					key_bsize, VUInt64 s.bsize;
+					key_blocks, VUInt64 s.blocks;
+					key_bfree, VUInt64 s.bfree;
+					key_bavail, VUInt64 s.bavail;
+					key_files, VUInt64 s.files;
+					key_ffree, VUInt64 s.ffree;
+					key_fspare, match s.f_spare with u1, u2, u3, u4 -> encode_array [VUInt64 u1; VUInt64 u2; VUInt64 u3; VUInt64 u4]
+				]
+			) v4
+		in
+		File.statfs ~loop ?request path callback;
 		vnull
 	);
 ]

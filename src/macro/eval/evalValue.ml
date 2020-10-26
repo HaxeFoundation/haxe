@@ -113,6 +113,7 @@ type vhandle =
 	| HFileRequest of Luv.File.Request.t
 	| HRandomRequest of Luv.Random.Request.t
 	| HThreadPoolRequest of Luv.Thread_pool.Request.t
+	| HFileModeNumeric of Luv.File.Mode.numeric
 
 type value =
 	| VNull
@@ -267,10 +268,12 @@ let same_handle h1 h2 =
 	| HAddrRequest h1, HAddrRequest h2 -> h1 == h2
 	| HRandomRequest h1, HRandomRequest h2 -> h1 == h2
 	| HThreadPoolRequest h1, HThreadPoolRequest h2 -> h1 == h2
+	| HFileModeNumeric h1, HFileModeNumeric h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
 	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _
 	| HProcess _, _ | HRedirection _, _| HFileRequest _, _ | HAddrRequest _, _
-	| HNameRequest _, _ | HRandomRequest _, _ | HThreadPoolRequest _, _ -> false
+	| HNameRequest _, _ | HRandomRequest _, _ | HThreadPoolRequest _, _
+	| HFileModeNumeric _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

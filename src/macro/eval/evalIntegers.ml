@@ -22,6 +22,9 @@ let decode_i64 v =
 	| VInt64 i -> i
 	| _ -> unexpected_value v "eval.integers.Int64"
 
+let encode_size_t t =
+	VUInt64 (UInt64.of_int64 (Size_t.to_int64 t))
+
 let uint64_fields = [
 	"MAX", VUInt64 UInt64.max_int;
 	"ZERO", VUInt64 UInt64.zero;

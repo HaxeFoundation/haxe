@@ -108,7 +108,18 @@ let vfun5 f = vstatic_function (fun vl -> match vl with
 	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull
 	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull
 	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4
-	| _ -> invalid_call_arg_number 4 (List.length  vl
+	| _ -> invalid_call_arg_number 5 (List.length  vl
+))
+
+let vfun6 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4 vnull
+	| [v0;v1;v2;v3;v4;v5] -> f v0 v1 v2 v3 v4 v5
+	| _ -> invalid_call_arg_number 6 (List.length  vl
 ))
 
 (* Objects *)

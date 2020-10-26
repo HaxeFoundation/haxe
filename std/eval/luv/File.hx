@@ -65,7 +65,7 @@ enum FileMode {
 	multiple bits may be set. These bit fields are returned by operations such
 	as `eval.luv.File.stat`
 **/
-abstract FileModeNumeric(Int) {}
+@:coreType abstract FileModeNumeric {}
 
 typedef FileStatTimeSpec = {
 	var sec:Int64;
@@ -74,7 +74,7 @@ typedef FileStatTimeSpec = {
 
 typedef FileStat = {
 	var dev:UInt64;
-	var mode:Int;
+	var mode:FileModeNumeric;
 	var nlink:UInt64;
 	var uid:UInt64;
 	var gid:UInt64;
@@ -128,13 +128,9 @@ enum abstract FileSymlinkFlag(Int) {
 @:using(eval.luv.Handle)
 @:coreType abstract File to Handle {
 
-	static public var stdin(get,never):File;
-	static public var stdout(get,never):File;
-	static public var stderr(get,never):File;
-
-	static function get_stdin():File;
-	static function get_stdout():File;
-	static function get_stderr():File;
+	static public final stdin:File;
+	static public final stdout:File;
+	static public final stderr:File;
 
 	static public function createRequest():FileRequest;
 
@@ -150,7 +146,7 @@ enum abstract FileSymlinkFlag(Int) {
 		Opens the file at the given path.
 		The default value of the `mode` argument is equal to octal `0o644`.
 	**/
-	static public function open(loop:Loop, flags:Array<FileOpenFlag>, ?mode:FileMode, ?request:FileRequest, callback:(result:Result<File>)->Void):Void;
+	static public function open(loop:Loop, path:NativeString, flags:Array<FileOpenFlag>, ?mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<File>)->Void):Void;
 
 	/**
 		Closes the file.
@@ -187,7 +183,7 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Creates a temporary file with name based on the given pattern.
 	**/
-	static public function mkstemp(loop:Loop, pattern:NativeString, ?request:FileRequest, callback:(result:Result<NativeString>)->Void):Void;
+	static public function mkstemp(loop:Loop, pattern:NativeString, ?request:FileRequest, callback:(result:Result<{name:NativeString,file:File}>)->Void):Void;
 
 	/**
 		Creates a temporary directory with name based on the given pattern.
@@ -197,12 +193,7 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Creates a directory.
 	**/
-	static public function mkdir(loop:Loop, path:NativeString, ?mode:FileMode, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
-
-	/**
-		Deletes a directory.
-	**/
-	static public function rmdir(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function mkdir(loop:Loop, path:NativeString, ?mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
 		Deletes a directory.
@@ -222,7 +213,7 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Retrieves status information for this file.
 	**/
-	public function fstat(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<FileStat>)->Void):Void;
+	public function fstat(loop:Loop, ?request:FileRequest, callback:(result:Result<FileStat>)->Void):Void;
 
 	/**
 		Retrieves status information for the filesystem containing the given path.

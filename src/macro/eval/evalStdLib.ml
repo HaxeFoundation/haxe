@@ -3735,4 +3735,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Process"], "Process_Impl_") EvalLuv.process_fields [];
 	init_fields builtins (["eval";"luv";"_Request"], "Request_Impl_") EvalLuv.request_fields [];
 	init_fields builtins (["eval";"luv"], "Dns") EvalLuv.dns_fields [];
+	init_fields builtins (["eval";"luv";"_File"], "File_Impl_") EvalLuv.file_fields [];
 	EvalSsl.init_fields init_fields builtins
