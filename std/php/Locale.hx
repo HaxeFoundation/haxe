@@ -22,8 +22,6 @@
 
 package php;
 
-import haxe.extern.EitherType;
-
 /**
 	@see https://www.php.net/manual/en/class.locale.php
 **/
