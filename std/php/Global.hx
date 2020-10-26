@@ -1783,4 +1783,24 @@ extern class Global {
 		@see http://php.net/manual/en/function.idn-to-utf8.php
 	**/
 	static function idn_to_utf8(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.intl-error-name.php
+	**/
+	static function intl_error_name(error_code:Int):String;
+
+	/**
+		@see http://php.net/manual/en/function.intl-get-error-code.php
+	**/
+	static function intl_get_error_code():Int;
+
+	/**
+		@see http://php.net/manual/en/function.intl-get-error-message.php
+	**/
+	static function intl_get_error_message():String;
+
+	/**
+		@see http://php.net/manual/en/function.intl-is-failure.php
+	**/
+	static function intl_is_failure(error_code:Int):Bool;
 }
