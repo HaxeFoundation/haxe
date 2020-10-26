@@ -521,4 +521,26 @@ extern class Const {
 	static final INTL_IDNA_VARIANT_2003:Int;
 	static final INTL_IDNA_VARIANT_UTS46:Int;
 	static final INTL_MAX_LOCALE_LEN:Int;
+
+	/**
+		@see http://php.net/manual/en/array.constants.php
+	**/
+	static final CASE_LOWER:Int;
+	static final CASE_UPPER:Int;
+	static final EXTR_IF_EXISTS:Int;
+	static final EXTR_OVERWRITE:Int;
+	static final EXTR_PREFIX_ALL:Int;
+	static final EXTR_PREFIX_IF_EXISTS:Int;
+	static final EXTR_PREFIX_INVALID:Int;
+	static final EXTR_PREFIX_SAME:Int;
+	static final EXTR_REFS:Int;
+	static final EXTR_SKIP:Int;
+	static final SORT_ASC:Int;
+	static final SORT_DESC:Int;
+	static final SORT_FLAG_CASE:Int;
+	static final SORT_LOCALE_STRING:Int;
+	static final SORT_NATURAL:Int;
+	static final SORT_NUMERIC:Int;
+	static final SORT_REGULAR:Int;
+	static final SORT_STRING:Int;
 }
