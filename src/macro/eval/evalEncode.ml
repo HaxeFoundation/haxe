@@ -122,6 +122,18 @@ let vfun6 f = vstatic_function (fun vl -> match vl with
 	| _ -> invalid_call_arg_number 6 (List.length  vl
 ))
 
+let vfun7 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull vnull vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4 vnull vnull
+	| [v0;v1;v2;v3;v4;v5] -> f v0 v1 v2 v3 v4 v5 vnull
+	| [v0;v1;v2;v3;v4;v5;v6] -> f v0 v1 v2 v3 v4 v5 v6
+	| _ -> invalid_call_arg_number 7 (List.length  vl
+))
+
 (* Objects *)
 
 let encode_obj l =
@@ -203,6 +215,9 @@ let encode_vector_instance v =
 
 let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
+
+let encode_array_a a =
+	encode_array_instance (EvalArray.create a)
 
 let encode_string s =
 	create_unknown s

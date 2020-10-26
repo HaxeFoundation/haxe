@@ -24,6 +24,10 @@ enum abstract LoopOption<T>(Int) {
 	Event loops.
 
 	@see https://aantron.github.io/luv/luv/Luv/Loop
+
+	Haxe event loops define an implicit cast to libuv loops. That is, you can use
+	`sys.thread.Thread.current().events` in any place where `eval.luv.Loop` is
+	expected.
 **/
 @:coreType abstract Loop {
 	@:from

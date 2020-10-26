@@ -128,9 +128,9 @@ enum abstract FileSymlinkFlag(Int) {
 @:using(eval.luv.Handle)
 @:coreType abstract File to Handle {
 
-	static public final stdin:File;
-	static public final stdout:File;
-	static public final stderr:File;
+	extern static public final stdin:File;
+	extern static public final stdout:File;
+	extern static public final stderr:File;
 
 	static public function createRequest():FileRequest;
 
@@ -278,7 +278,7 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Hardlinks a file at the location given by `link`.
 	**/
-	static public function lutime(loop:Loop, path:NativeString, link:NativeString, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function link(loop:Loop, path:NativeString, link:NativeString, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
 		Symlinks a file at the location given by `link`.
@@ -298,17 +298,17 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Changes owneship of the file at the given path.
 	**/
-	static public function chown(loop:Loop, path:NativeString, uid:Int, guid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function chown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
 		Changes owneship of the file at the given path. without dereferencing symlinks.
 	**/
-	static public function lchown(loop:Loop, path:NativeString, uid:Int, guid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function lchown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
 		Changes owneship of the file.
 	**/
-	public function fchown(loop:Loop, uid:Int, guid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function fchown(loop:Loop, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
 
 	/**
 		Returns the integer representation of `eval.luv.File`.

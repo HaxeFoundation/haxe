@@ -3715,6 +3715,7 @@ let init_standard_library builtins =
 		"toString",StdNativeString.to_string;
 	] [];
 	init_fields builtins (["eval";"integers";"_UInt64"],"UInt64_Impl_") EvalIntegers.uint64_fields [];
+	init_fields builtins (["eval";"integers";"_Int64"],"Int64_Impl_") EvalIntegers.int64_fields [];
 	init_fields builtins (["eval";"luv";"_UVError"],"UVError_Impl_") EvalLuv.uv_error_fields [];
 	init_fields builtins (["eval";"luv";"_Loop"],"Loop_Impl_") EvalLuv.loop_fields [];
 	init_fields builtins (["eval";"luv";"_Loop"],"LoopOption_Impl_") ["sigprof",vint Luv.Loop.Option.sigprof] [];
@@ -3736,4 +3737,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Request"], "Request_Impl_") EvalLuv.request_fields [];
 	init_fields builtins (["eval";"luv"], "Dns") EvalLuv.dns_fields [];
 	init_fields builtins (["eval";"luv";"_File"], "File_Impl_") EvalLuv.file_fields [];
+	init_fields builtins (["eval";"luv";"_Dir"], "Dir_Impl_") EvalLuv.dir_fields [];
 	EvalSsl.init_fields init_fields builtins

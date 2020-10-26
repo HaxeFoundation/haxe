@@ -26,4 +26,15 @@ class ResultTools {
 			case Error(e): throw new LuvException(e);
 		}
 	}
+
+	/**
+		Returns `true` if the result is `Ok`.
+		Returns `false` if the result is `Error`.
+	**/
+	static public inline function isOk<T>(result:Result<T>):Bool {
+		return switch result {
+			case Ok(_): true;
+			case Error(_): false;
+		}
+	}
 }

@@ -43,15 +43,15 @@ typedef Dirent = {
 	static public function scan(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<DirectoryScan>)->Void):Void;
 }
 
-@:coreType abstract DirectoryScan {
+typedef DirectoryScan = {
 	/**
 		Retrieves the next directory entry.
 	**/
-	public function next():Null<Dirent>;
+	function next():Null<Dirent>;
 
 	/**
 		Cleans up after a directory scan.
 	**/
-	public function end():Void;
+	function end():Void;
 }
 

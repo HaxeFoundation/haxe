@@ -105,6 +105,7 @@ type vhandle =
 	| HPipe of Luv.Pipe.t
 	| HTty of Luv.TTY.t
 	| HFile of Luv.File.t
+	| HDir of Luv.File.Dir.t
 	| HSignal of Luv.Signal.t
 	| HProcess of Luv.Process.t
 	| HRedirection of Luv.Process.redirection
@@ -259,6 +260,7 @@ let same_handle h1 h2 =
 	| HPipe h1, HPipe h2 -> h1 == h2
 	| HTty h1, HTty h2 -> h1 == h2
 	| HFile h1, HFile h2 -> h1 == h2
+	| HDir h1, HDir h2 -> h1 == h2
 	| HUdp h1, HUdp h2 -> h1 == h2
 	| HSignal h1, HSignal h2 -> h1 == h2
 	| HProcess h1, HProcess h2 -> h1 == h2
@@ -273,7 +275,7 @@ let same_handle h1 h2 =
 	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _
 	| HProcess _, _ | HRedirection _, _| HFileRequest _, _ | HAddrRequest _, _
 	| HNameRequest _, _ | HRandomRequest _, _ | HThreadPoolRequest _, _
-	| HFileModeNumeric _, _ -> false
+	| HFileModeNumeric _, _ | HDir _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue
