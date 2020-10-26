@@ -56,15 +56,15 @@ enum ReceiveHandle {
 	/**
 		Receives a file descriptor over the given pipe.
 
-		File descriptors are sent using the `send_handle` argument of `eval.luv.Stream.write2`.
-		On the receiving end, call `eval.luv.Stream.read_start`. When that function
+		File descriptors are sent using the `sendHandle` argument of `eval.luv.Stream.write2`.
+		On the receiving end, call `eval.luv.Stream.readStart`. When that function
 		calls its callback, there may be file descriptors in the pipe, in addition
 		to the ordinary data provided to the callback.
 
-		To check, call this function `eval.luv.Pipe.recieve_handle` in a loop until
-		it returns `None`. Each time it returns `TTcp` or `TPipe`, create an appropriate
-		handle using either `eval.luv.TCP.init` or `eval.uv.Pipe.init`, and call
-		`receive_handle` to receive the file descriptor and associate it with handle.
+		To check, call this function `eval.luv.Pipe.recieveHandle` in a loop until
+		it returns `NONE`. Each time it returns `TCP(associate)` or `PIPE(associate)`,
+		create an appropriate handle using either `eval.luv.TCP.init` or `eval.uv.Pipe.init`,
+		and call `associate` to receive the file descriptor and associate it with handle.
 	**/
 	public function receiveHandle():ReceiveHandle;
 

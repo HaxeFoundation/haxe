@@ -60,10 +60,10 @@ extern class Dns {
 		Retrieves addresses.
 		Either `node` or `service` may be `null` but not both.
 	**/
-	static function getAddrInfo(loop:Loop, node:Null<String>, service:Null<String>, options:Null<AddrInfoOptions>, callback:(result:Result<Array<AddrInfo>>)->Void):Void;
+	static function getAddrInfo(loop:Loop, node:Null<String>, service:Null<String>, ?options:AddrInfoOptions, callback:(result:Result<Array<AddrInfo>>)->Void):Void;
 
 	/**
 		Retrieves host names.
 	**/
-	static function getNameInfo(loop:Loop, addr:SockAddr, options:Null<NameInfoOptions>, callback:(result:Result<{hostName:String, service:String}>)->Void):Void;
+	static function getNameInfo(loop:Loop, addr:SockAddr, ?options:NameInfoOptions, callback:(result:Result<{hostName:String, service:String}>)->Void):Void;
 }
