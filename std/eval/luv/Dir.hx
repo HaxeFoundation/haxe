@@ -18,6 +18,18 @@ typedef Dirent = {
 	var name:NativeString;
 }
 
+typedef DirectoryScan = {
+	/**
+		Retrieves the next directory entry.
+	**/
+	function next():Null<Dirent>;
+
+	/**
+		Cleans up after a directory scan.
+	**/
+	function end():Void;
+}
+
 /**
 	@see https://aantron.github.io/luv/luv/Luv/File#module-Dir
 **/
@@ -43,15 +55,19 @@ typedef Dirent = {
 	static public function scan(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<DirectoryScan>)->Void):Void;
 }
 
-typedef DirectoryScan = {
-	/**
-		Retrieves the next directory entry.
-	**/
-	function next():Null<Dirent>;
+/**
+	Synchronous version of `eval.luv.Dir` API
+**/
+extern class DirSync {
+	@:inheritDoc(eval.luv.Dir.open)
+	static public function open(loop:Loop, path:NativeString):Result<Dir>;
 
-	/**
-		Cleans up after a directory scan.
-	**/
-	function end():Void;
+	@:inheritDoc(eval.luv.Dir.close)
+	static public function close(dir:Dir, loop:Loop):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.Dir.read)
+	static public function read(dir:Dir, loop:Loop, ?numberOfEntries:Int):Result<Array<Dirent>>;
+
+	@:inheritDoc(eval.luv.Dir.scan)
+	static public function scan(loop:Loop, path:NativeString):Result<DirectoryScan>;
 }
-

@@ -1454,67 +1454,66 @@ let dns_fields = [
 ]
 
 module F = struct
-	let async v1 v2 fn =
-		let loop = Some (decode_loop v1)
-		and request = decode_optional decode_file_request v2 in
+	let async ~vloop ~vrequest fn =
+		let loop = Some (decode_loop vloop)
+		and request = decode_optional decode_file_request vrequest in
 		fn ?loop ?request
 
-	let path v fn =
-		fn (decode_native_string v)
+	let path ~vpath fn =
+		fn (decode_native_string vpath)
 
-	let file v fn =
-		fn (decode_file v)
+	let file ~vfile fn =
+		fn (decode_file vfile)
 
-	let dir v fn =
-		fn (decode_dir v)
+	let dir ~vdir fn =
+		fn (decode_dir vdir)
 
-	let to_ v fn =
-		let to_ = decode_native_string v in
+	let to_ ~vto fn =
+		let to_ = decode_native_string vto in
 		fn ~to_
 
-	let mode v fn =
-		let mode = decode_file_mode_list v in
-		fn mode
+	let mode ~vmode fn =
+		fn (decode_file_mode_list vmode)
 
-	let mode_opt v fn =
-		let mode = decode_optional decode_file_mode_list v in
+	let mode_opt ~vmode fn =
+		let mode = decode_optional decode_file_mode_list vmode in
 		fn ?mode
 
-	let open_ v1 v2 v3 fn =
-		let flags = List.map decode_file_open_flag (decode_array v3) in
-		(fn |> mode_opt v1 |> path v2) flags
+	let open_ ~vmode ~vpath ~vflags fn =
+		let flags = List.map decode_file_open_flag (decode_array vflags) in
+		(fn |> mode_opt ~vmode |> path ~vpath) flags
 
-	let rename v1 v2 fn =
-		fn |> path v1 |> to_ v2
+	let rename ~vpath ~vto fn =
+		fn |> path ~vpath |> to_ ~vto
 
-	let mkdir v1 v2 fn =
-		fn |> mode_opt v1 |> path v2
+	let mkdir ~vmode ~vpath fn =
+		fn |> mode_opt ~vmode |> path ~vpath
 
-	let data v1 v2 v3 fn =
-		let file = decode_file v1
-		and file_offset = Some (decode_i64 v2)
-		and buffers = decode_buffers v3 in
+	let data ~vfile_offset ~vfile ~vbuffers fn =
+		let file = decode_file vfile
+		and file_offset = Some (decode_i64 vfile_offset)
+		and buffers = decode_buffers vbuffers in
 		fn ?file_offset file buffers
 
-	let ftruncate v1 v2 fn =
-		let file = decode_file v1
-		and length = decode_i64 v2 in
+	let ftruncate ~vfile ~vlength fn =
+		let file = decode_file vfile
+		and length = decode_i64 vlength in
 		fn file length
 
-	let copyFile v1 v2 v3 fn =
-		let flags = List.map decode_int (decode_array v3) in
+	let copyFile ~vflags ~vpath ~vto fn =
+		let flags = List.map decode_int (decode_array vflags) in
 		let excl = if List.mem 0 flags then Some true else None
 		and ficlone = if List.mem 1 flags then Some true else None
 		and ficlone_force = if List.mem 2 flags then Some true else None in
-		(fn ?excl ?ficlone ?ficlone_force) |> path v1 |> to_ v2
+		(fn ?excl ?ficlone ?ficlone_force) |> path ~vpath |> to_ ~vto
 
-	let sendFile v1 v2 v3 v4 fn =
-		let to_ = decode_file v2
-		and offset = decode_i64 v3
-		and length = decode_size_t v4 in
-		(fn |> file v1) ~to_ ~offset length
+	let sendFile ~vfile ~vto ~voffset ~vlength fn =
+		let to_ = decode_file vto
+		and offset = decode_i64 voffset
+		and length = decode_size_t vlength in
+		(fn |> file ~vfile) ~to_ ~offset length
 
-	let access v1 v2 fn =
+	let access ~vpath ~vflags fn =
 		let flags =
 			List.map (fun v : File.Access_flag.t ->
 				match decode_int v with
@@ -1523,32 +1522,32 @@ module F = struct
 				| 2 -> `W_OK
 				| 3 -> `X_OK
 				| _ -> unexpected_value v "eval.luv.File.FileAccessFlag"
-			) (decode_array v2) in
-		(fn |> path v1) flags
+			) (decode_array vflags) in
+		(fn |> path ~vpath) flags
 
-	let utime v1 v2 fn =
-		let atime = decode_float v1
-		and mtime = decode_float v2 in
+	let utime ~vatime ~vmtime fn =
+		let atime = decode_float vatime
+		and mtime = decode_float vmtime in
 		fn ~atime ~mtime
 
-	let link v fn =
-		let link = decode_native_string v in
+	let link ~vlink fn =
+		let link = decode_native_string vlink in
 		fn ~link
 
-	let symlink v fn =
-		let flags = List.map decode_int (decode_array v) in
+	let symlink ~vflags fn =
+		let flags = List.map decode_int (decode_array vflags) in
 		let dir = if List.mem 0 flags then Some true else None
 		and junction = if List.mem 1 flags then Some true else None in
 		fn ?dir ?junction
 
-	let chown v1 v2 fn =
-		let uid = decode_int v1
-		and gid = decode_int v2 in
+	let chown ~vuid ~vgid fn =
+		let uid = decode_int vuid
+		and gid = decode_int vgid in
 		fn ~uid ~gid
 
-	let readdir v1 v2 fn =
-		let number_of_entries = decode_optional decode_int v2 in
-		fn ?number_of_entries |> dir v1
+	let readdir ~vdir ~vnumber_of_entries fn =
+		let number_of_entries = decode_optional decode_int vnumber_of_entries in
+		fn ?number_of_entries |> dir ~vdir
 end
 
 let file_fields = [
@@ -1567,168 +1566,168 @@ let file_fields = [
 		in
 		vbool (File.Mode.test mask bits)
 	);
-	"open", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_callback (fun f -> VHandle (HFile f)) v6 in
-		(File.open_ |> F.async v1 v5 |> F.open_ v4 v2 v3) callback;
+	"open", vfun6 (fun vloop vpath vflags vmode vrequest vcallback ->
+		let callback = encode_callback (fun f -> VHandle (HFile f)) vcallback in
+		(File.open_ |> F.async ~vloop ~vrequest |> F.open_ ~vmode ~vpath ~vflags) callback;
 		vnull
 	);
-	"close", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_unit_callback v4 in
-		(File.close |> F.async v2 v3 |> F.file v1) callback;
+	"close", vfun4 (fun vfile vloop vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.close |> F.async ~vloop ~vrequest |> F.file ~vfile) callback;
 		vnull
 	);
-	"read", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_callback encode_size_t v6 in
-		(File.read |> F.async v2 v5 |> F.data v1 v3 v4) callback;
+	"read", vfun6 (fun vfile vloop vfile_offset vbuffers vrequest vcallback ->
+		let callback = encode_callback encode_size_t vcallback in
+		(File.read |> F.async ~vloop ~vrequest |> F.data ~vfile_offset ~vfile ~vbuffers) callback;
 		vnull
 	);
-	"write", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_callback encode_size_t v6 in
-		(File.write |> F.async v2 v5 |> F.data v1 v3 v4) callback;
+	"write", vfun6 (fun vfile vloop vfile_offset vbuffers vrequest vcallback ->
+		let callback = encode_callback encode_size_t vcallback in
+		(File.write |> F.async ~vloop ~vrequest |> F.data ~vfile_offset ~vfile ~vbuffers) callback;
 		vnull
 	);
-	"unlink", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_unit_callback v4 in
-		(File.unlink |> F.async v1 v3 |> F.path v2) callback;
+	"unlink", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.unlink |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
 		vnull
 	);
-	"rename", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let callback = encode_unit_callback v5 in
-		(File.rename |> F.async v1 v4 |> F.rename v2 v3) callback;
+	"rename", vfun5 (fun vloop vpath vto vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.rename |> F.async ~vloop ~vrequest |> F.rename ~vpath ~vto) callback;
 		vnull
 	);
-	"mkstemp", vfun4 (fun v1 v2 v3 v4 ->
+	"mkstemp", vfun4 (fun vloop vpath vrequest vcallback ->
 		let callback =
 			encode_callback (fun (n,file) ->
 				encode_obj [key_name,vnative_string n; key_file,VHandle (HFile file)]
-			) v4
+			) vcallback
 		in
-		(File.mkstemp |> F.async v1 v3 |> F.path v2) callback;
+		(File.mkstemp |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
 		vnull
 	);
-	"mkdtemp", vfun4 (fun v1 v2 v3 v4 ->
+	"mkdtemp", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_callback vnative_string vcallback in
+		(File.mkdtemp |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
+		vnull
+	);
+	"mkdir", vfun5 (fun vloop vpath vmode vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.mkdir |> F.async ~vloop ~vrequest |> F.mkdir ~vmode ~vpath) callback;
+		vnull
+	);
+	"rmdir", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.rmdir |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
+		vnull
+	);
+	"stat", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_callback encode_file_stat vcallback in
+		(File.stat |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
+		vnull
+	);
+	"lstat", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_callback encode_file_stat vcallback in
+		(File.lstat |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
+		vnull
+	);
+	"fstat", vfun4 (fun vfile vloop vrequest vcallback ->
+		let callback = encode_callback encode_file_stat vcallback in
+		(File.fstat |> F.async ~vloop ~vrequest |> F.file ~vfile) callback;
+		vnull
+	);
+	"statFs", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_callback encode_file_statfs vcallback in
+		(File.statfs |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
+		vnull
+	);
+	"fsync", vfun4 (fun vfile vloop vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.fsync |> F.async ~vloop ~vrequest |> F.file ~vfile) callback;
+		vnull
+	);
+	"fdataSync", vfun4 (fun vfile vloop vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.fdatasync |> F.async ~vloop ~vrequest |> F.file ~vfile) callback;
+		vnull
+	);
+	"ftruncate", vfun5 (fun vfile vloop vlength vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.ftruncate |> F.async ~vloop ~vrequest |> F.ftruncate ~vfile ~vlength) callback;
+		vnull
+	);
+	"copyFile", vfun6 (fun vloop vpath vto vflags vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.copyfile |> F.async ~vloop ~vrequest |> F.copyFile ~vflags ~vpath ~vto) callback;
+		vnull
+	);
+	"sendFile", vfun7 (fun vfile vloop vto voffset vlength vrequest vcallback ->
+		let callback = encode_callback encode_size_t vcallback in
+		(File.sendfile |> F.async ~vloop ~vrequest |> F.sendFile ~vfile ~vto ~voffset ~vlength) callback;
+		vnull
+	);
+	"access", vfun5 (fun vloop vpath vflags vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.access |> F.async ~vloop ~vrequest |> F.access ~vpath ~vflags) callback;
+		vnull
+	);
+	"chmod", vfun5 (fun vloop vpath vmode vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.chmod |> F.async ~vloop ~vrequest |> F.path ~vpath |> F.mode ~vmode) callback;
+		vnull
+	);
+	"fchmod", vfun5 (fun vfile vloop vmode vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.fchmod |> F.async ~vloop ~vrequest |> F.file ~vfile |> F.mode ~vmode) callback;
+		vnull
+	);
+	"utime", vfun6 (fun vloop vpath vatime vmtime vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.utime |> F.async ~vloop ~vrequest |> F.path ~vpath |> F.utime ~vatime ~vmtime) callback;
+		vnull
+	);
+	"lutime", vfun6 (fun vloop vpath vatime vmtime vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.lutime |> F.async ~vloop ~vrequest |> F.path ~vpath |> F.utime ~vatime ~vmtime) callback;
+		vnull
+	);
+	"futime", vfun6 (fun vfile vloop vatime vmtime vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.futime |> F.async ~vloop ~vrequest |> F.file ~vfile |> F.utime ~vatime ~vmtime) callback;
+		vnull
+	);
+	"link", vfun5 (fun vloop vpath vlink vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.link |> F.async ~vloop ~vrequest |> F.path ~vpath |> F.link ~vlink) callback;
+		vnull
+	);
+	"symlink", vfun6 (fun vloop vpath vlink vflags vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.symlink |> F.async ~vloop ~vrequest |> F.symlink ~vflags |> F.path ~vpath |> F.link ~vlink) callback;
+		vnull
+	);
+	"readLink", vfun4 (fun vloop vpath vrequest v4 ->
 		let callback = encode_callback vnative_string v4 in
-		(File.mkdtemp |> F.async v1 v3 |> F.path v2) callback;
+		(File.readlink |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
 		vnull
 	);
-	"mkdir", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let callback = encode_unit_callback v5 in
-		(File.mkdir |> F.async v1 v4 |> F.mkdir v3 v2) callback;
-		vnull
-	);
-	"rmdir", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_unit_callback v4 in
-		(File.rmdir |> F.async v1 v3 |> F.path v2) callback;
-		vnull
-	);
-	"stat", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_callback encode_file_stat v4 in
-		(File.stat |> F.async v1 v3 |> F.path v2) callback;
-		vnull
-	);
-	"lstat", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_callback encode_file_stat v4 in
-		(File.lstat |> F.async v1 v3 |> F.path v2) callback;
-		vnull
-	);
-	"fstat", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_callback encode_file_stat v4 in
-		(File.fstat |> F.async v2 v3 |> F.file v1) callback;
-		vnull
-	);
-	"statFs", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_callback encode_file_statfs v4 in
-		(File.statfs |> F.async v1 v3 |> F.path v2) callback;
-		vnull
-	);
-	"fsync", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_unit_callback v4 in
-		(File.fsync |> F.async v2 v3 |> F.file v1) callback;
-		vnull
-	);
-	"fdataSync", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_unit_callback v4 in
-		(File.fdatasync |> F.async v2 v3 |> F.file v1) callback;
-		vnull
-	);
-	"ftruncate", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let callback = encode_unit_callback v5 in
-		(File.ftruncate |> F.async v2 v4 |> F.ftruncate v1 v3) callback;
-		vnull
-	);
-	"copyFile", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.copyfile |> F.async v1 v5 |> F.copyFile v2 v3 v4) callback;
-		vnull
-	);
-	"sendFile", vfun7 (fun v1 v2 v3 v4 v5 v6 v7 ->
-		let callback = encode_callback encode_size_t v7 in
-		(File.sendfile |> F.async v2 v6 |> F.sendFile v1 v3 v4 v5) callback;
-		vnull
-	);
-	"access", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let callback = encode_unit_callback v5 in
-		(File.access |> F.async v1 v4 |> F.access v2 v3) callback;
-		vnull
-	);
-	"chmod", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let callback = encode_unit_callback v5 in
-		(File.chmod |> F.async v1 v4 |> F.path v2 |> F.mode v3) callback;
-		vnull
-	);
-	"fchmod", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let callback = encode_unit_callback v5 in
-		(File.fchmod |> F.async v2 v4 |> F.file v1 |> F.mode v3) callback;
-		vnull
-	);
-	"utime", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.utime |> F.async v1 v5 |> F.path v2 |> F.utime v3 v4) callback;
-		vnull
-	);
-	"lutime", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.lutime |> F.async v1 v5 |> F.path v2 |> F.utime v3 v4) callback;
-		vnull
-	);
-	"futime", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.futime |> F.async v2 v5 |> F.file v1 |> F.utime v3 v4) callback;
-		vnull
-	);
-	"link", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let callback = encode_unit_callback v5 in
-		(File.link |> F.async v1 v4 |> F.path v2 |> F.link v3) callback;
-		vnull
-	);
-	"symlink", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.symlink |> F.async v1 v5 |> F.symlink v4 |> F.path v2 |> F.link v3) callback;
-		vnull
-	);
-	"readLink", vfun4 (fun v1 v2 v3 v4 ->
+	"realPath", vfun4 (fun vloop vpath vrequest v4 ->
 		let callback = encode_callback vnative_string v4 in
-		(File.readlink |> F.async v1 v3 |> F.path v2) callback;
+		(File.realpath |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
 		vnull
 	);
-	"realPath", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_callback vnative_string v4 in
-		(File.realpath |> F.async v1 v3 |> F.path v2) callback;
+	"chown", vfun6 (fun vloop vpath vuid vgid vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.chown |> F.async ~vloop ~vrequest |> F.path ~vpath |> F.chown ~vuid ~vgid) callback;
 		vnull
 	);
-	"chown", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.chown |> F.async v1 v5 |> F.path v2 |> F.chown v3 v4) callback;
+	"lchown", vfun6 (fun vloop vpath vuid vgid vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.lchown |> F.async ~vloop ~vrequest |> F.path ~vpath |> F.chown ~vuid ~vgid) callback;
 		vnull
 	);
-	"lchown", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.lchown |> F.async v1 v5 |> F.path v2 |> F.chown v3 v4) callback;
-		vnull
-	);
-	"fchown", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let callback = encode_unit_callback v6 in
-		(File.fchown |> F.async v2 v5 |> F.file v1 |> F.chown v3 v4) callback;
+	"fchown", vfun6 (fun vloop vfile vuid vgid vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.fchown |> F.async ~vloop ~vrequest |> F.file ~vfile |> F.chown ~vuid ~vgid) callback;
 		vnull
 	);
 	"toInt", vfun1 (fun v ->
@@ -1737,29 +1736,149 @@ let file_fields = [
 	);
 ]
 
+let file_sync_fields = [
+	"open", vfun3 (fun vpath vmode vflags ->
+		File.Sync.open_ |> F.open_ ~vmode ~vpath ~vflags |> encode_result (fun f -> VHandle (HFile f))
+	);
+	"close", vfun1 (fun vfile ->
+		File.Sync.close |> F.file ~vfile |> encode_unit_result
+	);
+	"read", vfun3 (fun vfile vfile_offset vbuffers ->
+		File.Sync.read |> F.data ~vfile_offset ~vfile ~vbuffers |> encode_result encode_size_t
+	);
+	"write", vfun3 (fun vfile vfile_offset vbuffers ->
+		File.Sync.write |> F.data ~vfile_offset ~vfile ~vbuffers |> encode_result encode_size_t
+	);
+	"unlink", vfun1 (fun vpath ->
+		File.Sync.unlink |> F.path ~vpath |> encode_unit_result
+	);
+	"rename", vfun2 (fun vpath vto ->
+		File.Sync.rename |> F.rename ~vpath ~vto |> encode_unit_result
+	);
+	"mkstemp", vfun1 (fun vpath ->
+		let encode (n,file) =
+			encode_obj [key_name,vnative_string n; key_file,VHandle (HFile file)]
+		in
+		File.Sync.mkstemp |> F.path ~vpath |> encode_result encode
+	);
+	"mkdtemp", vfun1 (fun vpath ->
+		File.Sync.mkdtemp |> F.path ~vpath |> encode_result vnative_string
+	);
+	"mkdir", vfun2 (fun vpath vmode ->
+		File.Sync.mkdir |> F.mkdir ~vmode ~vpath |> encode_unit_result
+	);
+	"rmdir", vfun1 (fun vpath ->
+		File.Sync.rmdir |> F.path ~vpath |> encode_unit_result
+	);
+	"stat", vfun1 (fun vpath ->
+		File.Sync.stat |> F.path ~vpath |> encode_result encode_file_stat
+	);
+	"lstat", vfun1 (fun vpath ->
+		File.Sync.lstat |> F.path ~vpath |> encode_result encode_file_stat
+	);
+	"fstat", vfun1 (fun vfile ->
+		File.Sync.fstat |> F.file ~vfile |> encode_result encode_file_stat
+	);
+	"statFs", vfun1 (fun vpath ->
+		File.Sync.statfs |> F.path ~vpath |> encode_result encode_file_statfs
+	);
+	"fsync", vfun1 (fun vfile ->
+		File.Sync.fsync |> F.file ~vfile |> encode_unit_result
+	);
+	"fdataSync", vfun1 (fun vfile ->
+		File.Sync.fdatasync |> F.file ~vfile |> encode_unit_result
+	);
+	"ftruncate", vfun2 (fun vfile vlength ->
+		File.Sync.ftruncate |> F.ftruncate ~vfile ~vlength |> encode_unit_result
+	);
+	"copyFile", vfun3 (fun vpath vto vflags ->
+		File.Sync.copyfile |> F.copyFile ~vflags ~vpath ~vto |> encode_unit_result
+	);
+	"sendFile", vfun4 (fun vfile vto voffset vlength ->
+		File.Sync.sendfile |> F.sendFile ~vfile ~vto ~voffset ~vlength |> encode_result encode_size_t
+	);
+	"access", vfun2 (fun vpath vflags ->
+		File.Sync.access |> F.access ~vpath ~vflags |> encode_unit_result
+	);
+	"chmod", vfun2 (fun vpath vmode ->
+		File.Sync.chmod |> F.path ~vpath |> F.mode ~vmode |> encode_unit_result
+	);
+	"fchmod", vfun2 (fun vfile vmode ->
+		File.Sync.fchmod |> F.file ~vfile |> F.mode ~vmode |> encode_unit_result
+	);
+	"utime", vfun3 (fun vpath vatime vmtime ->
+		File.Sync.utime |> F.path ~vpath |> F.utime ~vatime ~vmtime |> encode_unit_result
+	);
+	"lutime", vfun3 (fun vpath vatime vmtime ->
+		File.Sync.lutime |> F.path ~vpath |> F.utime ~vatime ~vmtime |> encode_unit_result
+	);
+	"futime", vfun3 (fun vfile vatime vmtime ->
+		File.Sync.futime |> F.file ~vfile |> F.utime ~vatime ~vmtime |> encode_unit_result
+	);
+	"link", vfun2 (fun vpath vlink ->
+		File.Sync.link |> F.path ~vpath |> F.link ~vlink |> encode_unit_result
+	);
+	"symlink", vfun3 (fun vpath vlink vflags ->
+		File.Sync.symlink |> F.symlink ~vflags |> F.path ~vpath |> F.link ~vlink |> encode_unit_result
+	);
+	"readLink", vfun1 (fun vpath ->
+		File.Sync.readlink |> F.path ~vpath |> encode_result vnative_string
+	);
+	"realPath", vfun1 (fun vpath ->
+		File.Sync.realpath |> F.path ~vpath |> encode_result vnative_string
+	);
+	"chown", vfun3 (fun vpath vuid vgid ->
+		File.Sync.chown |> F.path ~vpath |> F.chown ~vuid ~vgid |> encode_unit_result
+	);
+	"lchown", vfun3 (fun vpath vuid vgid ->
+		File.Sync.lchown |> F.path ~vpath |> F.chown ~vuid ~vgid |> encode_unit_result
+	);
+	"fchown", vfun3 (fun vfile vuid vgid ->
+		File.Sync.fchown |> F.file ~vfile |> F.chown ~vuid ~vgid |> encode_unit_result
+	);
+]
+
 let dir_fields = [
-	"open", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_callback (fun dir -> VHandle (HDir dir)) v4 in
-		(File.opendir |> F.async v1 v3 |> F.path v2) callback;
+	"open", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_callback (fun dir -> VHandle (HDir dir)) vcallback in
+		(File.opendir |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
 		vnull
 	);
-	"close", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_unit_callback v4 in
-		(File.closedir |> F.async v2 v3 |> F.dir v1) callback;
+	"close", vfun4 (fun vdir vloop vrequest vcallback ->
+		let callback = encode_unit_callback vcallback in
+		(File.closedir |> F.async ~vloop ~vrequest |> F.dir ~vdir) callback;
 		vnull
 	);
-	"read", vfun5 (fun v1 v2 v3 v4 v5 ->
+	"read", vfun5 (fun vdir vloop vnumber_of_entries vrequest vcallback ->
 		let callback =
 			encode_callback (fun a ->
 				encode_array_a (Array.map encode_dirent a)
-			) v5
+			) vcallback
 		in
-		(File.readdir |> F.async v2 v4 |> F.readdir v1 v3) callback;
+		(File.readdir |> F.async ~vloop ~vrequest |> F.readdir ~vnumber_of_entries ~vdir) callback;
 		vnull
 	);
-	"scan", vfun4 (fun v1 v2 v3 v4 ->
-		let callback = encode_callback encode_scandir v4 in
-		(File.scandir |> F.async v1 v3 |> F.path v2) callback;
+	"scan", vfun4 (fun vloop vpath vrequest vcallback ->
+		let callback = encode_callback encode_scandir vcallback in
+		(File.scandir |> F.async ~vloop ~vrequest |> F.path ~vpath) callback;
 		vnull
+	);
+]
+
+let dir_sync_fields = [
+	"open", vfun1 (fun vpath ->
+		File.Sync.opendir |> F.path ~vpath |> encode_result (fun dir -> VHandle (HDir dir))
+	);
+	"close", vfun1 (fun vdir ->
+		File.Sync.closedir |> F.dir ~vdir |> encode_unit_result
+	);
+	"read", vfun2 (fun vdir vnumber_of_entries ->
+		let encode a =
+			encode_array_a (Array.map encode_dirent a)
+		in
+		File.Sync.readdir |> F.readdir ~vnumber_of_entries ~vdir |> encode_result encode
+	);
+	"scan", vfun1 (fun vpath ->
+		File.Sync.scandir |> F.path ~vpath |> encode_result encode_scandir
 	);
 ]

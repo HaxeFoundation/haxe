@@ -319,5 +319,106 @@ enum abstract FileSymlinkFlag(Int) {
 		by integers.
 	**/
 	public function toInt():Int;
+}
+
+/**
+	Synchronous version of `eval.luv.File` API
+**/
+extern class FileSync {
+	@:inheritDoc(eval.luv.File.open)
+	static function open(path:NativeString, flags:Array<FileOpenFlag>, ?mode:Array<FileMode>):Result<File>;
+
+	@:inheritDoc(eval.luv.File.close)
+	static function close(file:File):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.read)
+	static function read(file:File, fileOffset:Int64, buffers:Array<Buffer>):Result<UInt64>;
+
+	@:inheritDoc(eval.luv.File.write)
+	static function write(file:File, fileOffset:Int64, buffers:Array<Buffer>):Result<UInt64>;
+
+	@:inheritDoc(eval.luv.File.unlink)
+	static function unlink(path:NativeString):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.rename)
+	static function rename(path:NativeString, toPath:NativeString):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.mkstemp)
+	static function mkstemp(pattern:NativeString):Result<{name:NativeString,file:File}>;
+
+	@:inheritDoc(eval.luv.File.mkdtemp)
+	static function mkdtemp(pattern:NativeString):Result<NativeString>;
+
+	@:inheritDoc(eval.luv.File.mkdir)
+	static function mkdir(path:NativeString, ?mode:Array<FileMode>):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.rmdir)
+	static function rmdir(path:NativeString):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.stat)
+	static function stat(path:NativeString):Result<FileStat>;
+
+	@:inheritDoc(eval.luv.File.lstat)
+	static function lstat(path:NativeString):Result<FileStat>;
+
+	@:inheritDoc(eval.luv.File.fstat)
+	static function fstat(file:File):Result<FileStat>;
+
+	@:inheritDoc(eval.luv.File.statFs)
+	static function statFs(path:NativeString):Result<FileStatFs>;
+
+	@:inheritDoc(eval.luv.File.fsync)
+	static function fsync(file:File):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.fdataSync)
+	static function fdataSync(file:File):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.ftruncate)
+	static function ftruncate(file:File, length:Int64):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.copyFile)
+	static function copyFile(path:NativeString, toPath:NativeString, ?flags:Array<FileCopyFlag>):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.sendFile)
+	static function sendFile(file:File, toFile:File, offset:Int64, length:UInt64):Result<UInt64>;
+
+	@:inheritDoc(eval.luv.File.access)
+	static function access(path:NativeString, flags:Array<FileAccessFlag>):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.chmod)
+	static function chmod(path:NativeString, mode:Array<FileMode>):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.fchmod)
+	static function fchmod(file:File, mode:Array<FileMode>):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.utime)
+	static function utime(path:NativeString, atime:Float, mtime:Float):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.futime)
+	static function futime(file:File, atime:Float, mtime:Float):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.lutime)
+	static function lutime(path:NativeString, atime:Float, mtime:Float):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.link)
+	static function link(path:NativeString, link:NativeString):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.symlink)
+	static function symlink(path:NativeString, link:NativeString, ?flags:Array<FileSymlinkFlag>):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.readLink)
+	static function readLink(path:NativeString):Result<NativeString>;
+
+	@:inheritDoc(eval.luv.File.realPath)
+	static function realPath(path:NativeString):Result<NativeString>;
+
+	@:inheritDoc(eval.luv.File.chown)
+	static function chown(path:NativeString, uid:Int, gid:Int):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.lchown)
+	static function lchown(path:NativeString, uid:Int, gid:Int):Result<Result.NoData>;
+
+	@:inheritDoc(eval.luv.File.fchown)
+	static function fchown(file:File, uid:Int, gid:Int):Result<Result.NoData>;
 
 }
