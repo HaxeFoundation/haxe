@@ -434,6 +434,69 @@ let encode_dirent (de:File.Dirent.t) =
 	in
 	encode_obj [key_kind,vint kind; key_name,vnative_string de.name]
 
+let encode_scandir sd =
+	encode_obj [
+		key_next,vfun0 (fun() -> encode_nullable encode_dirent (File.scandir_next sd));
+		key_end,vfun0 (fun() -> File.scandir_end sd; vnull);
+	]
+
+let decode_file_open_flag v : File.Open_flag.t =
+	match decode_int v with
+	| 0 -> `RDONLY
+	| 1 -> `WRONLY
+	| 2 -> `RDWR
+	| 3 -> `CREAT
+	| 4 -> `EXCL
+	| 5 -> `EXLOCK
+	| 6 -> `NOCTTY
+	| 7 -> `NOFOLLOW
+	| 8 -> `TEMPORARY
+	| 9 -> `TRUNC
+	| 10 -> `APPEND
+	| 11 -> `DIRECT
+	| 12 -> `DSYNC
+	| 13 -> `FILEMAP
+	| 14 -> `NOATIME
+	| 15 -> `NONBLOCK
+	| 16 -> `RANDOM
+	| 17 -> `SEQUENTIAL
+	| 18 -> `SHORT_LIVED
+	| 19 -> `SYMLINK
+	| 20 -> `SYNC
+	| _ -> unexpected_value v "eval.luv.File.FileOpenFlag"
+
+let encode_file_stat (s:File.Stat.t) =
+	encode_obj [
+		key_dev,VUInt64 s.dev;
+		key_mode, VHandle (HFileModeNumeric s.mode);
+		key_nlink,VUInt64 s.nlink;
+		key_uid,VUInt64 s.uid;
+		key_gid,VUInt64 s.gid;
+		key_rdev,VUInt64 s.rdev;
+		key_ino,VUInt64 s.ino;
+		key_size,VUInt64 s.size;
+		key_blksize,VUInt64 s.blksize;
+		key_blocks,VUInt64 s.blocks;
+		key_flags,VUInt64 s.flags;
+		key_gen,VUInt64 s.gen;
+		key_atim,encode_timespec s.atim;
+		key_mtim,encode_timespec s.mtim;
+		key_ctim,encode_timespec s.ctim;
+		key_birthtim,encode_timespec s.birthtim;
+	]
+
+let encode_file_statfs (s:File.Statfs.t) =
+	encode_obj [
+		key_type, VUInt64 s.type_;
+		key_bsize, VUInt64 s.bsize;
+		key_blocks, VUInt64 s.blocks;
+		key_bfree, VUInt64 s.bfree;
+		key_bavail, VUInt64 s.bavail;
+		key_files, VUInt64 s.files;
+		key_ffree, VUInt64 s.ffree;
+		key_fspare, match s.f_spare with u1, u2, u3, u4 -> encode_array [VUInt64 u1; VUInt64 u2; VUInt64 u3; VUInt64 u4]
+	]
+
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
 		let e = decode_uv_error v in
@@ -1390,75 +1453,103 @@ let dns_fields = [
 	);
 ]
 
-let do_stat v1 v2 v3 fn =
-	let loop = decode_loop v1
-	and request = decode_optional decode_file_request v2
-	and callback =
-		encode_callback (fun (s:File.Stat.t) ->
-			encode_obj [
-				key_dev,VUInt64 s.dev;
-				key_mode, VHandle (HFileModeNumeric s.mode);
-				key_nlink,VUInt64 s.nlink;
-				key_uid,VUInt64 s.uid;
-				key_gid,VUInt64 s.gid;
-				key_rdev,VUInt64 s.rdev;
-				key_ino,VUInt64 s.ino;
-				key_size,VUInt64 s.size;
-				key_blksize,VUInt64 s.blksize;
-				key_blocks,VUInt64 s.blocks;
-				key_flags,VUInt64 s.flags;
-				key_gen,VUInt64 s.gen;
-				key_atim,encode_timespec s.atim;
-				key_mtim,encode_timespec s.mtim;
-				key_ctim,encode_timespec s.ctim;
-				key_birthtim,encode_timespec s.birthtim;
-			]
-		) v3
-	in
-	fn loop request callback;
-	vnull
+module F = struct
+	let async v1 v2 fn =
+		let loop = Some (decode_loop v1)
+		and request = decode_optional decode_file_request v2 in
+		fn ?loop ?request
 
-let do_utime v1 v2 v3 v4 v5 fn target =
-	let loop = Some (decode_loop v1)
-	and atime = decode_float v2
-	and mtime = decode_float v3
-	and request = decode_optional decode_file_request v4
-	and callback = encode_unit_callback v5 in
-	fn ?loop ?request target ~atime ~mtime callback;
-	vnull
+	let path v fn =
+		fn (decode_native_string v)
 
-let do_chmod v1 v2 v3 v4 fn target =
-	let loop = Some (decode_loop v1)
-	and mode = decode_file_mode_list v2
-	and request = decode_optional decode_file_request v3
-	and callback = encode_unit_callback v4 in
-	fn ?loop ?request target mode callback;
-	vnull
+	let file v fn =
+		fn (decode_file v)
 
-let do_sync v1 v2 v3 v4 fn =
-	let file = decode_file v1
-	and loop = Some (decode_loop v2)
-	and request = decode_optional decode_file_request v3
-	and callback = encode_unit_callback v4 in
-	fn ?loop ?request file callback;
-	vnull
+	let dir v fn =
+		fn (decode_dir v)
 
-let do_path v1 v2 v3 v4 fn =
-	let loop = Some (decode_loop v1)
-	and path = decode_native_string v2
-	and request = decode_optional decode_file_request v3
-	and callback = encode_callback vnative_string v4 in
-	fn ?loop ?request path callback;
-	vnull
+	let to_ v fn =
+		let to_ = decode_native_string v in
+		fn ~to_
 
-let do_chown v1 v2 v3 v4 v5 fn target =
-	let loop = Some (decode_loop v1)
-	and uid = decode_int v2
-	and gid = decode_int v3
-	and request = decode_optional decode_file_request v4
-	and callback = encode_unit_callback v5 in
-	fn ?loop ?request target ~uid ~gid callback;
-	vnull
+	let mode v fn =
+		let mode = decode_file_mode_list v in
+		fn mode
+
+	let mode_opt v fn =
+		let mode = decode_optional decode_file_mode_list v in
+		fn ?mode
+
+	let open_ v1 v2 v3 fn =
+		let flags = List.map decode_file_open_flag (decode_array v3) in
+		(fn |> mode_opt v1 |> path v2) flags
+
+	let rename v1 v2 fn =
+		fn |> path v1 |> to_ v2
+
+	let mkdir v1 v2 fn =
+		fn |> mode_opt v1 |> path v2
+
+	let data v1 v2 v3 fn =
+		let file = decode_file v1
+		and file_offset = Some (decode_i64 v2)
+		and buffers = decode_buffers v3 in
+		fn ?file_offset file buffers
+
+	let ftruncate v1 v2 fn =
+		let file = decode_file v1
+		and length = decode_i64 v2 in
+		fn file length
+
+	let copyFile v1 v2 v3 fn =
+		let flags = List.map decode_int (decode_array v3) in
+		let excl = if List.mem 0 flags then Some true else None
+		and ficlone = if List.mem 1 flags then Some true else None
+		and ficlone_force = if List.mem 2 flags then Some true else None in
+		(fn ?excl ?ficlone ?ficlone_force) |> path v1 |> to_ v2
+
+	let sendFile v1 v2 v3 v4 fn =
+		let to_ = decode_file v2
+		and offset = decode_i64 v3
+		and length = decode_size_t v4 in
+		(fn |> file v1) ~to_ ~offset length
+
+	let access v1 v2 fn =
+		let flags =
+			List.map (fun v : File.Access_flag.t ->
+				match decode_int v with
+				| 0 -> `F_OK
+				| 1 -> `R_OK
+				| 2 -> `W_OK
+				| 3 -> `X_OK
+				| _ -> unexpected_value v "eval.luv.File.FileAccessFlag"
+			) (decode_array v2) in
+		(fn |> path v1) flags
+
+	let utime v1 v2 fn =
+		let atime = decode_float v1
+		and mtime = decode_float v2 in
+		fn ~atime ~mtime
+
+	let link v fn =
+		let link = decode_native_string v in
+		fn ~link
+
+	let symlink v fn =
+		let flags = List.map decode_int (decode_array v) in
+		let dir = if List.mem 0 flags then Some true else None
+		and junction = if List.mem 1 flags then Some true else None in
+		fn ?dir ?junction
+
+	let chown v1 v2 fn =
+		let uid = decode_int v1
+		and gid = decode_int v2 in
+		fn ~uid ~gid
+
+	let readdir v1 v2 fn =
+		let number_of_entries = decode_optional decode_int v2 in
+		fn ?number_of_entries |> dir v1
+end
 
 let file_fields = [
 	"get_stdin", VHandle (HFile File.stdin);
@@ -1477,270 +1568,168 @@ let file_fields = [
 		vbool (File.Mode.test mask bits)
 	);
 	"open", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and flags : File.Open_flag.t list =
-			List.map (fun v ->
-				match decode_int v with
-				| 0 -> `RDONLY
-				| 1 -> `WRONLY
-				| 2 -> `RDWR
-				| 3 -> `CREAT
-				| 4 -> `EXCL
-				| 5 -> `EXLOCK
-				| 6 -> `NOCTTY
-				| 7 -> `NOFOLLOW
-				| 8 -> `TEMPORARY
-				| 9 -> `TRUNC
-				| 10 -> `APPEND
-				| 11 -> `DIRECT
-				| 12 -> `DSYNC
-				| 13 -> `FILEMAP
-				| 14 -> `NOATIME
-				| 15 -> `NONBLOCK
-				| 16 -> `RANDOM
-				| 17 -> `SEQUENTIAL
-				| 18 -> `SHORT_LIVED
-				| 19 -> `SYMLINK
-				| 20 -> `SYNC
-				| _ -> unexpected_value v "eval.luv.File.FileOpenFile"
-			) (decode_array v3)
-		and mode = decode_optional decode_file_mode_list v4
-		and request = decode_optional decode_file_request v5
-		and callback = encode_callback (fun f -> VHandle (HFile f)) v6
-		in
-		File.open_ ~loop ?request ?mode path flags callback;
+		let callback = encode_callback (fun f -> VHandle (HFile f)) v6 in
+		(File.open_ |> F.async v1 v5 |> F.open_ v4 v2 v3) callback;
 		vnull
 	);
 	"close", vfun4 (fun v1 v2 v3 v4 ->
-		let file = decode_file v1
-		and loop = decode_loop v2
-		and request = decode_optional decode_file_request v3
-		and callback = encode_unit_callback v4 in
-		File.close ~loop ?request file callback;
+		let callback = encode_unit_callback v4 in
+		(File.close |> F.async v2 v3 |> F.file v1) callback;
 		vnull
 	);
 	"read", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let file = decode_file v1
-		and loop = decode_loop v2
-		and file_offset = decode_i64 v3
-		and buffers = decode_buffers v4
-		and request = decode_optional decode_file_request v5
-		and callback = encode_callback encode_size_t v6 in
-		File.read ~loop ?request ~file_offset file buffers callback;
+		let callback = encode_callback encode_size_t v6 in
+		(File.read |> F.async v2 v5 |> F.data v1 v3 v4) callback;
 		vnull
 	);
 	"write", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let file = decode_file v1
-		and loop = decode_loop v2
-		and file_offset = decode_i64 v3
-		and buffers = decode_buffers v4
-		and request = decode_optional decode_file_request v5
-		and callback = encode_callback encode_size_t v6 in
-		File.write ~loop ?request ~file_offset file buffers callback;
+		let callback = encode_callback encode_size_t v6 in
+		(File.write |> F.async v2 v5 |> F.data v1 v3 v4) callback;
 		vnull
 	);
-	"write", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and request = decode_optional decode_file_request v3
-		and callback = encode_unit_callback v4 in
-		File.unlink ~loop ?request path callback;
+	"unlink", vfun4 (fun v1 v2 v3 v4 ->
+		let callback = encode_unit_callback v4 in
+		(File.unlink |> F.async v1 v3 |> F.path v2) callback;
 		vnull
 	);
 	"rename", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and to_ = decode_native_string v3
-		and request = decode_optional decode_file_request v4
-		and callback = encode_unit_callback v5 in
-		File.rename ~loop ?request path ~to_ callback;
+		let callback = encode_unit_callback v5 in
+		(File.rename |> F.async v1 v4 |> F.rename v2 v3) callback;
 		vnull
 	);
 	"mkstemp", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and pattern = decode_native_string v2
-		and request = decode_optional decode_file_request v3
-		and callback =
+		let callback =
 			encode_callback (fun (n,file) ->
 				encode_obj [key_name,vnative_string n; key_file,VHandle (HFile file)]
 			) v4
 		in
-		File.mkstemp ~loop ?request pattern callback;
+		(File.mkstemp |> F.async v1 v3 |> F.path v2) callback;
 		vnull
 	);
 	"mkdtemp", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and pattern = decode_native_string v2
-		and request = decode_optional decode_file_request v3
-		and callback = encode_callback vnative_string v4 in
-		File.mkdtemp ~loop ?request pattern callback;
+		let callback = encode_callback vnative_string v4 in
+		(File.mkdtemp |> F.async v1 v3 |> F.path v2) callback;
 		vnull
 	);
 	"mkdir", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and mode = decode_optional decode_file_mode_list v3
-		and request = decode_optional decode_file_request v4
-		and callback = encode_unit_callback v5 in
-		File.mkdir ~loop ?mode ?request path callback;
+		let callback = encode_unit_callback v5 in
+		(File.mkdir |> F.async v1 v4 |> F.mkdir v3 v2) callback;
 		vnull
 	);
 	"rmdir", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and request = decode_optional decode_file_request v3
-		and callback = encode_unit_callback v4 in
-		File.rmdir ~loop ?request path callback;
+		let callback = encode_unit_callback v4 in
+		(File.rmdir |> F.async v1 v3 |> F.path v2) callback;
 		vnull
 	);
 	"stat", vfun4 (fun v1 v2 v3 v4 ->
-		let path = decode_native_string v2 in
-		do_stat v1 v3 v4 (fun loop request callback -> File.stat ~loop ?request path callback)
+		let callback = encode_callback encode_file_stat v4 in
+		(File.stat |> F.async v1 v3 |> F.path v2) callback;
+		vnull
 	);
 	"lstat", vfun4 (fun v1 v2 v3 v4 ->
-		let path = decode_native_string v2 in
-		do_stat v1 v3 v4 (fun loop request callback -> File.lstat ~loop ?request path callback)
+		let callback = encode_callback encode_file_stat v4 in
+		(File.lstat |> F.async v1 v3 |> F.path v2) callback;
+		vnull
 	);
 	"fstat", vfun4 (fun v1 v2 v3 v4 ->
-		let file = decode_file v1 in
-		do_stat v2 v3 v4 (fun loop request callback -> File.fstat ~loop ?request file callback)
+		let callback = encode_callback encode_file_stat v4 in
+		(File.fstat |> F.async v2 v3 |> F.file v1) callback;
+		vnull
 	);
 	"statFs", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and request = decode_optional decode_file_request v3
-		and callback =
-			encode_callback (fun (s:File.Statfs.t) ->
-				encode_obj [
-					key_type, VUInt64 s.type_;
-					key_bsize, VUInt64 s.bsize;
-					key_blocks, VUInt64 s.blocks;
-					key_bfree, VUInt64 s.bfree;
-					key_bavail, VUInt64 s.bavail;
-					key_files, VUInt64 s.files;
-					key_ffree, VUInt64 s.ffree;
-					key_fspare, match s.f_spare with u1, u2, u3, u4 -> encode_array [VUInt64 u1; VUInt64 u2; VUInt64 u3; VUInt64 u4]
-				]
-			) v4
-		in
-		File.statfs ~loop ?request path callback;
+		let callback = encode_callback encode_file_statfs v4 in
+		(File.statfs |> F.async v1 v3 |> F.path v2) callback;
 		vnull
 	);
 	"fsync", vfun4 (fun v1 v2 v3 v4 ->
-		do_sync v1 v2 v3 v4 File.fsync
+		let callback = encode_unit_callback v4 in
+		(File.fsync |> F.async v2 v3 |> F.file v1) callback;
+		vnull
 	);
 	"fdataSync", vfun4 (fun v1 v2 v3 v4 ->
-		do_sync v1 v2 v3 v4 File.fdatasync
+		let callback = encode_unit_callback v4 in
+		(File.fdatasync |> F.async v2 v3 |> F.file v1) callback;
+		vnull
 	);
 	"ftruncate", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let file = decode_file v1
-		and loop = decode_loop v2
-		and length = decode_i64 v3
-		and request = decode_optional decode_file_request v4
-		and callback = encode_unit_callback v5 in
-		File.ftruncate ~loop ?request file length callback;
+		let callback = encode_unit_callback v5 in
+		(File.ftruncate |> F.async v2 v4 |> F.ftruncate v1 v3) callback;
 		vnull
 	);
 	"copyFile", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let flags = List.map decode_int (decode_array v4) in
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and to_ = decode_native_string v3
-		and excl = List.mem 0 flags
-		and ficlone = List.mem 1 flags
-		and ficlone_force = List.mem 2 flags
-		and request = decode_optional decode_file_request v5
-		and callback = encode_unit_callback v6 in
-		File.copyfile ~loop ?request ~excl ~ficlone ~ficlone_force path ~to_ callback;
+		let callback = encode_unit_callback v6 in
+		(File.copyfile |> F.async v1 v5 |> F.copyFile v2 v3 v4) callback;
 		vnull
 	);
 	"sendFile", vfun7 (fun v1 v2 v3 v4 v5 v6 v7 ->
-		let file = decode_file v1
-		and loop = decode_loop v2
-		and to_ = decode_file v3
-		and offset = decode_i64 v4
-		and length = decode_size_t v5
-		and request = decode_optional decode_file_request v6
-		and callback = encode_callback encode_size_t v7 in
-		File.sendfile ~loop ?request file ~to_ ~offset length callback;
+		let callback = encode_callback encode_size_t v7 in
+		(File.sendfile |> F.async v2 v6 |> F.sendFile v1 v3 v4 v5) callback;
 		vnull
 	);
 	"access", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and flags =
-			List.map (fun v ->
-				match decode_int v with
-				| 0 -> `F_OK
-				| 1 -> `R_OK
-				| 2 -> `W_OK
-				| 3 -> `X_OK
-				| _ -> unexpected_value v "eval.luv.File.FileAccessFlag"
-			) (decode_array v3)
-		and request = decode_optional decode_file_request v4
-		and callback = encode_unit_callback v5 in
-		File.access ~loop ?request path flags callback;
+		let callback = encode_unit_callback v5 in
+		(File.access |> F.async v1 v4 |> F.access v2 v3) callback;
 		vnull
 	);
 	"chmod", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let path = decode_native_string v2 in
-		do_chmod v1 v3 v4 v5 File.chmod path
+		let callback = encode_unit_callback v5 in
+		(File.chmod |> F.async v1 v4 |> F.path v2 |> F.mode v3) callback;
+		vnull
 	);
 	"fchmod", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let file = decode_file v1 in
-		do_chmod v2 v3 v4 v5 File.fchmod file
+		let callback = encode_unit_callback v5 in
+		(File.fchmod |> F.async v2 v4 |> F.file v1 |> F.mode v3) callback;
+		vnull
 	);
 	"utime", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let path = decode_native_string v2 in
-		do_utime v1 v3 v4 v5 v6 File.utime path
+		let callback = encode_unit_callback v6 in
+		(File.utime |> F.async v1 v5 |> F.path v2 |> F.utime v3 v4) callback;
+		vnull
 	);
 	"lutime", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let path = decode_native_string v2 in
-		do_utime v1 v3 v4 v5 v6 File.lutime path
+		let callback = encode_unit_callback v6 in
+		(File.lutime |> F.async v1 v5 |> F.path v2 |> F.utime v3 v4) callback;
+		vnull
 	);
 	"futime", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let file = decode_file v1 in
-		do_utime v2 v3 v4 v5 v6 File.futime file
+		let callback = encode_unit_callback v6 in
+		(File.futime |> F.async v2 v5 |> F.file v1 |> F.utime v3 v4) callback;
+		vnull
 	);
 	"link", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and link = decode_native_string v3
-		and request = decode_optional decode_file_request v4
-		and callback = encode_unit_callback v5 in
-		File.link ~loop ?request path ~link callback;
+		let callback = encode_unit_callback v5 in
+		(File.link |> F.async v1 v4 |> F.path v2 |> F.link v3) callback;
 		vnull
 	);
 	"symlink", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let flags = List.map decode_int (decode_array v4) in
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and link = decode_native_string v3
-		and dir = List.mem 0 flags
-		and junction = List.mem 1 flags
-		and request = decode_optional decode_file_request v5
-		and callback = encode_unit_callback v6 in
-		File.symlink ~loop ?request ~dir ~junction path ~link callback;
+		let callback = encode_unit_callback v6 in
+		(File.symlink |> F.async v1 v5 |> F.symlink v4 |> F.path v2 |> F.link v3) callback;
 		vnull
 	);
 	"readLink", vfun4 (fun v1 v2 v3 v4 ->
-		do_path v1 v2 v3 v4 File.readlink
+		let callback = encode_callback vnative_string v4 in
+		(File.readlink |> F.async v1 v3 |> F.path v2) callback;
+		vnull
 	);
 	"realPath", vfun4 (fun v1 v2 v3 v4 ->
-		do_path v1 v2 v3 v4 File.realpath
+		let callback = encode_callback vnative_string v4 in
+		(File.realpath |> F.async v1 v3 |> F.path v2) callback;
+		vnull
 	);
 	"chown", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let path = decode_native_string v2 in
-		do_chown v1 v3 v4 v5 v6 File.chown path
+		let callback = encode_unit_callback v6 in
+		(File.chown |> F.async v1 v5 |> F.path v2 |> F.chown v3 v4) callback;
+		vnull
 	);
 	"lchown", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let path = decode_native_string v2 in
-		do_chown v1 v3 v4 v5 v6 File.chown path
+		let callback = encode_unit_callback v6 in
+		(File.lchown |> F.async v1 v5 |> F.path v2 |> F.chown v3 v4) callback;
+		vnull
 	);
 	"fchown", vfun6 (fun v1 v2 v3 v4 v5 v6 ->
-		let file = decode_file v1 in
-		do_chown v2 v3 v4 v5 v6 File.fchown file
+		let callback = encode_unit_callback v6 in
+		(File.fchown |> F.async v2 v5 |> F.file v1 |> F.chown v3 v4) callback;
+		vnull
 	);
 	"toInt", vfun1 (fun v ->
 		let file = decode_file v in
@@ -1750,47 +1739,27 @@ let file_fields = [
 
 let dir_fields = [
 	"open", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and request = decode_optional decode_file_request v3
-		and callback = encode_callback (fun dir -> VHandle (HDir dir)) v4 in
-		File.opendir ~loop ?request path callback;
+		let callback = encode_callback (fun dir -> VHandle (HDir dir)) v4 in
+		(File.opendir |> F.async v1 v3 |> F.path v2) callback;
 		vnull
 	);
 	"close", vfun4 (fun v1 v2 v3 v4 ->
-		let dir = decode_dir v1
-		and loop = decode_loop v2
-		and request = decode_optional decode_file_request v3
-		and callback = encode_unit_callback v4 in
-		File.closedir ~loop ?request dir callback;
+		let callback = encode_unit_callback v4 in
+		(File.closedir |> F.async v2 v3 |> F.dir v1) callback;
 		vnull
 	);
 	"read", vfun5 (fun v1 v2 v3 v4 v5 ->
-		let dir = decode_dir v1
-		and loop = decode_loop v2
-		and number_of_entries = decode_optional decode_int v3
-		and request = decode_optional decode_file_request v4
-		and callback =
+		let callback =
 			encode_callback (fun a ->
 				encode_array_a (Array.map encode_dirent a)
 			) v5
 		in
-		File.readdir ~loop ?request ?number_of_entries dir callback;
+		(File.readdir |> F.async v2 v4 |> F.readdir v1 v3) callback;
 		vnull
 	);
 	"scan", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and path = decode_native_string v2
-		and request = decode_optional decode_file_request v3
-		and callback =
-			encode_callback (fun sd ->
-				encode_obj [
-					key_next,vfun0 (fun() -> encode_nullable encode_dirent (File.scandir_next sd));
-					key_end,vfun0 (fun() -> File.scandir_end sd; vnull);
-				]
-			) v4
-		in
-		File.scandir ~loop ?request path callback;
+		let callback = encode_callback encode_scandir v4 in
+		(File.scandir |> F.async v1 v3 |> F.path v2) callback;
 		vnull
 	);
 ]
