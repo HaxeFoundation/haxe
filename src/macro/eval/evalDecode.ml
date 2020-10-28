@@ -128,7 +128,3 @@ let decode_option decode_value v =
 let decode_optional decode_value v =
 	if v = VNull then None
 	else Some (decode_value v)
-
-let decode_nullable decode if_null v =
-	if v = VNull then if_null
-	else decode v

@@ -850,8 +850,8 @@ let tcp_fields = [
 	"bind", vfun3 (fun v1 v2 v3 ->
 		let tcp = decode_tcp v1
 		and addr = decode_sockaddr v2
-		and ipv6only = decode_nullable decode_bool false v3 in
-		encode_unit_result (TCP.bind ~ipv6only tcp addr)
+		and ipv6only = decode_optional decode_bool v3 in
+		encode_unit_result (TCP.bind ?ipv6only tcp addr)
 	);
 	"getSockName", vfun1 (fun v ->
 		let tcp = decode_tcp v in
@@ -878,16 +878,16 @@ let udp_fields = [
 	"init", vfun3 (fun v1 v2 v3 ->
 		let loop = decode_loop v1
 		and domain = decode_optional decode_address_family v2
-		and recvmmsg = decode_nullable decode_bool false v3 in
-		let udp = UDP.init ~loop ?domain ~recvmmsg () in
+		and recvmmsg = decode_optional decode_bool v3 in
+		let udp = UDP.init ~loop ?domain ?recvmmsg () in
 		encode_result encode_udp udp
 	);
 	"bind", vfun4 (fun v1 v2 v3 v4 ->
 		let udp = decode_udp v1
 		and addr = decode_sockaddr v2
-		and ipv6only = decode_nullable decode_bool false v3
-		and reuseaddr = decode_nullable decode_bool false v4 in
-		encode_unit_result (UDP.bind ~ipv6only ~reuseaddr udp addr)
+		and ipv6only = decode_optional decode_bool v3
+		and reuseaddr = decode_optional decode_bool v4 in
+		encode_unit_result (UDP.bind ?ipv6only ?reuseaddr udp addr)
 	);
 	"connect", vfun2 (fun v1 v2 ->
 		let udp = decode_udp v1
@@ -1016,8 +1016,8 @@ let connected_udp_fields = [
 let pipe_fields = [
 	"init", vfun2 (fun v1 v2 ->
 		let loop = decode_loop v1
-		and for_handle_passing = decode_nullable decode_bool false v2 in
-		encode_result (fun p -> VHandle (HPipe p)) (Pipe.init ~loop ~for_handle_passing ())
+		and for_handle_passing = decode_optional decode_bool v2 in
+		encode_result (fun p -> VHandle (HPipe p)) (Pipe.init ~loop ?for_handle_passing ())
 	);
 	"bind", vfun2 (fun v1 v2 ->
 		let pipe = decode_pipe v1
@@ -1349,8 +1349,8 @@ let dns_fields = [
 	);
 	"getAddrInfo", vfun5 (fun v1 v2 v3 v4 v5 ->
 		let loop = decode_loop v1
-		and node = decode_nullable (fun v -> Some (decode_string v)) None v2
-		and service = decode_nullable (fun v -> Some (decode_string v)) None v3
+		and node = decode_optional decode_string v2
+		and service = decode_optional decode_string v3
 		in
 		if node = None && service = None then
 			throw (create_haxe_exception "Either node or service has to be not null") null_pos
