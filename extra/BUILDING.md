@@ -12,7 +12,7 @@ Alternatively, source .zip archives or tarballs can be obtained from the [GitHub
 
 ## Setting up OCaml
 
-The Haxe compiler is written in OCaml, so you have to set up an OCaml development environment. In addition, we make use of a number of OCaml libraries. We recommend using OPAM, which is an OCaml package manager that can also manage OCaml installations.
+The Haxe compiler is written in OCaml, so you have to set up an OCaml development environment. In addition, we make use of several OCaml libraries. We recommend using OPAM, which is an OCaml package manager that can also manage OCaml installations.
 
 The Haxe compiler requires OCaml version 4.02 or higher. Since some of the OCaml libraries Haxe depends on were uploaded in the OPAM 2 format, you should use OPAM 2.x instead of OPAM 1.x.
 
@@ -40,7 +40,7 @@ To install the native libraries, use the appropriate system package manager.
  * Debian / Ubuntu
     * `sudo apt install libpcre3-dev zlib1g-dev`.
  * Windows (Cygwin)
-    * Run the Cygwin [setup-x86_64.exe](https://cygwin.com/install.html) against the Cygwin installation directory. Install `make`, `git`, `zlib-devel`, `libpcre-devel`, `mingw64-x86_64-gcc-core`, `mingw64-x86_64-zlib`, and `mingw64-x86_64-pcre`. You may need to select "Not Installed" in the dropdown list to see the packages. Copy `zlib1.dll` and `libpcre-1.dll` from `path/to/cygwin/usr/x86_64-w64-mingw32/sys-root/mingw/bin` to the checked out Haxe source directory.
+    * Run the Cygwin [setup-x86_64.exe](https://cygwin.com/install.html) against the Cygwin installation directory. Install `make`, `git`, `zlib-devel`, `libpcre-devel`, `mingw64-x86_64-gcc-core`, `mingw64-x86_64-zlib`, and `mingw64-x86_64-pcre`. You may need to select "Not Installed" in the dropdown list to see the packages. Copy `zlib1.dll` and `libpcre-1.dll` from `path/to/cygwin/usr/x86_64-w64-mingw32/sys-root/mingw/bin` to the checked-out Haxe source directory.
     * Install Neko by either
       * Download the [Neko binaries](https://nekovm.org/download/), and add the extracted directory to the beginning of PATH.
       * Install the [Chocolatey Neko package](https://chocolatey.org/packages/neko).
@@ -48,7 +48,7 @@ To install the native libraries, use the appropriate system package manager.
 To install the OCaml libraries, use OPAM as follows:
 
 ```sh
-# pin the haxe package to the checked out Haxe source directory
+# pin the haxe package to the checked-out Haxe source directory
 opam pin add haxe path/to/haxe --kind=path --no-action
 
 # install the haxe package dependencies (as listed in the `opam` file)
