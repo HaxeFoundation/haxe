@@ -1976,3 +1976,18 @@ let thread_fields = [
 		encode_unit_result (Thread.join thread)
 	);
 ]
+
+let once_fields = [
+	"init", vfun0 (fun() ->
+		encode_result (fun o -> VHandle (HOnce o)) (Once.init())
+	);
+	"once", vfun2 (fun v1 v2 ->
+		let once =
+			match v1 with
+			| VHandle (HOnce o) -> o
+			| _ -> unexpected_value v1 "eval.luv.Once"
+		and callback = prepare_callback v2 0 in
+		Once.once once (fun() -> ignore(callback []));
+		vnull
+	);
+]
