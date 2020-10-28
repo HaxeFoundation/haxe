@@ -121,6 +121,7 @@ type vhandle =
 	| HMutex of Luv.Mutex.t
 	| HRwLock of Luv.Rwlock.t
 	| HSemaphore of Luv.Semaphore.t
+	| HCondition of Luv.Condition.t
 
 type value =
 	| VNull
@@ -283,12 +284,13 @@ let same_handle h1 h2 =
 	| HMutex h1, HMutex h2 -> h1 == h2
 	| HRwLock h1, HRwLock h2 -> h1 == h2
 	| HSemaphore h1, HSemaphore h2 -> h1 == h2
+	| HCondition h1, HCondition h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
 	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _
 	| HProcess _, _ | HRedirection _, _| HFileRequest _, _ | HAddrRequest _, _
 	| HNameRequest _, _ | HRandomRequest _, _ | HThreadPoolRequest _, _
 	| HFileModeNumeric _, _ | HDir _, _ | HFsEvent _, _ | HThread _, _ | HOnce _, _
-	| HMutex _, _ | HRwLock _, _ | HSemaphore _, _ -> false
+	| HMutex _, _ | HRwLock _, _ | HSemaphore _, _ | HCondition _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

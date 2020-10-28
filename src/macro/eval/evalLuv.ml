@@ -516,6 +516,10 @@ let decode_semaphore = function
 	| VHandle (HSemaphore s) -> s
 	| v -> unexpected_value v "eval.luv.Semaphore"
 
+let decode_condition = function
+	| VHandle (HCondition c) -> c
+	| v -> unexpected_value v "eval.luv.Condition"
+
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
 		let e = decode_uv_error v in
@@ -2076,5 +2080,35 @@ let semaphore_fields = [
 	);
 	"tryWait", vfun1 (fun v ->
 		encode_unit_result (Semaphore.trywait (decode_semaphore v))
+	);
+]
+
+let condition_fields = [
+	"init", vfun0 (fun() ->
+		encode_result (fun s -> VHandle (HCondition s)) (Condition.init ())
+	);
+	"destroy", vfun1 (fun v ->
+		Condition.destroy (decode_condition v);
+		vnull
+	);
+	"signal", vfun1 (fun v ->
+		Condition.signal (decode_condition v);
+		vnull
+	);
+	"broadcast", vfun1 (fun v ->
+		Condition.broadcast (decode_condition v);
+		vnull
+	);
+	"wait", vfun2 (fun v1 v2 ->
+		let condition = decode_condition v1
+		and mutex = decode_mutex v2 in
+		Condition.wait condition mutex;
+		vnull
+	);
+	"timedWait", vfun3 (fun v1 v2 v3 ->
+		let condition = decode_condition v1
+		and mutex = decode_mutex v2
+		and timeout = decode_int v3 in
+		encode_unit_result (Condition.timedwait condition mutex timeout)
 	);
 ]
