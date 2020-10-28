@@ -520,6 +520,10 @@ let decode_condition = function
 	| VHandle (HCondition c) -> c
 	| v -> unexpected_value v "eval.luv.Condition"
 
+let decode_barrier = function
+	| VHandle (HBarrier b) -> b
+	| v -> unexpected_value v "eval.luv.Barrier"
+
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
 		let e = decode_uv_error v in
@@ -2110,5 +2114,18 @@ let condition_fields = [
 		and mutex = decode_mutex v2
 		and timeout = decode_int v3 in
 		encode_unit_result (Condition.timedwait condition mutex timeout)
+	);
+]
+
+let barrier_fields = [
+	"init", vfun1 (fun v ->
+		encode_result (fun b -> VHandle (HBarrier b)) (Barrier.init (decode_int v))
+	);
+	"destroy", vfun1 (fun v ->
+		Barrier.destroy (decode_barrier v);
+		vnull
+	);
+	"wait", vfun1 (fun v ->
+		vbool (Barrier.wait (decode_barrier v))
 	);
 ]
