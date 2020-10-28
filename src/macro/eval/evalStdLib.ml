@@ -3745,4 +3745,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Thread"], "Thread_Impl_") EvalLuv.thread_fields [];
 	init_fields builtins (["eval";"luv";"_Once"], "Once_Impl_") EvalLuv.once_fields [];
 	init_fields builtins (["eval";"luv";"_Mutex"], "Mutex_Impl_") EvalLuv.mutex_fields [];
+	init_fields builtins (["eval";"luv";"_RwLock"], "RwLock_Impl_") EvalLuv.rwlock_fields [];
 	EvalSsl.init_fields init_fields builtins

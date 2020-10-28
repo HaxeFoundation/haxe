@@ -508,6 +508,10 @@ let decode_mutex = function
 	| VHandle (HMutex m) -> m
 	| v -> unexpected_value v "eval.luv.Mutex"
 
+let decode_rwlock = function
+	| VHandle (HRwLock l) -> l
+	| v -> unexpected_value v "eval.luv.RwLock"
+
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
 		let e = decode_uv_error v in
@@ -2014,6 +2018,38 @@ let mutex_fields = [
 	);
 	"unlock", vfun1 (fun v ->
 		Mutex.unlock (decode_mutex v);
+		vnull
+	);
+]
+
+let rwlock_fields = [
+	"init", vfun1 (fun v ->
+		encode_result (fun l -> VHandle (HRwLock l)) (Rwlock.init())
+	);
+	"destroy", vfun1 (fun v ->
+		Rwlock.destroy (decode_rwlock v);
+		vnull
+	);
+	"rdLock", vfun1 (fun v ->
+		Rwlock.rdlock (decode_rwlock v);
+		vnull
+	);
+	"rdTryLock", vfun1 (fun v ->
+		encode_unit_result (Rwlock.tryrdlock (decode_rwlock v))
+	);
+	"rdUnlock", vfun1 (fun v ->
+		Rwlock.rdunlock (decode_rwlock v);
+		vnull
+	);
+	"wrLock", vfun1 (fun v ->
+		Rwlock.wrlock (decode_rwlock v);
+		vnull
+	);
+	"wrTryLock", vfun1 (fun v ->
+		encode_unit_result (Rwlock.trywrlock (decode_rwlock v))
+	);
+	"wrUnlock", vfun1 (fun v ->
+		Rwlock.wrunlock (decode_rwlock v);
 		vnull
 	);
 ]
