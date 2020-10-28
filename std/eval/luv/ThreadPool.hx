@@ -7,8 +7,6 @@ abstract ThreadPoolRequest(Request) to Request {}
 	Thread pool.
 
 	@see https://aantron.github.io/luv/luv/Luv/Thread_pool
-
-	TODO: `queueWork` is disabled because
 **/
 extern class ThreadPool {
 

@@ -1955,3 +1955,24 @@ let thread_pool_fields = [
 		vnull
 	);
 ]
+
+let thread_fields = [
+	"self", vfun0 (fun() ->
+		VHandle (HThread (Thread.self()))
+	);
+	"create", vfun2 (fun v1 v2 ->
+		let fn =
+			let cb = prepare_callback v1 0 in
+			(fun() -> EvalThread.run (get_ctx()) (fun() -> cb []))
+		and stack_size = decode_optional decode_int v2 in
+		encode_result (fun t -> VHandle (HThread t)) (Thread.create ?stack_size fn)
+	);
+	"join", vfun1 (fun v ->
+		let thread =
+			match v with
+			| VHandle (HThread t) -> t
+			| _ -> unexpected_value v "eval.luv.Thread"
+		in
+		encode_unit_result (Thread.join thread)
+	);
+]
