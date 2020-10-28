@@ -512,6 +512,10 @@ let decode_rwlock = function
 	| VHandle (HRwLock l) -> l
 	| v -> unexpected_value v "eval.luv.RwLock"
 
+let decode_semaphore = function
+	| VHandle (HSemaphore s) -> s
+	| v -> unexpected_value v "eval.luv.Semaphore"
+
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
 		let e = decode_uv_error v in
@@ -2023,7 +2027,7 @@ let mutex_fields = [
 ]
 
 let rwlock_fields = [
-	"init", vfun1 (fun v ->
+	"init", vfun0 (fun() ->
 		encode_result (fun l -> VHandle (HRwLock l)) (Rwlock.init())
 	);
 	"destroy", vfun1 (fun v ->
@@ -2051,5 +2055,26 @@ let rwlock_fields = [
 	"wrUnlock", vfun1 (fun v ->
 		Rwlock.wrunlock (decode_rwlock v);
 		vnull
+	);
+]
+
+let semaphore_fields = [
+	"init", vfun1 (fun v ->
+		encode_result (fun s -> VHandle (HSemaphore s)) (Semaphore.init (decode_int v))
+	);
+	"destroy", vfun1 (fun v ->
+		Semaphore.destroy (decode_semaphore v);
+		vnull
+	);
+	"post", vfun1 (fun v ->
+		Semaphore.post (decode_semaphore v);
+		vnull
+	);
+	"wait", vfun1 (fun v ->
+		Semaphore.wait (decode_semaphore v);
+		vnull
+	);
+	"tryWait", vfun1 (fun v ->
+		encode_unit_result (Semaphore.trywait (decode_semaphore v))
 	);
 ]

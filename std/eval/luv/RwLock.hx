@@ -9,7 +9,7 @@ package eval.luv;
 	/**
 		Allocates and initializes a read-write lock.
 	**/
-	static public function init(?recursive:Bool):Result<RwLock>;
+	static public function init():Result<RwLock>;
 
 	/**
 		Cleans up a read-write lock.
