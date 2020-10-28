@@ -12,7 +12,7 @@
 
 #
 
-Haxe is an open source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
+Haxe is an open-source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
 
  * **The Haxe programming language**, a modern, high-level, strictly-typed programming language
  * **The Haxe cross-compiler**, a state-of-the-art, lightning-speed compiler for many targets
@@ -43,7 +43,7 @@ The Haxe project has several licenses, covering different parts of the projects.
 
  * The Haxe compiler is released under the GNU General Public License version 2 or any later version.
  * The Haxe standard library is released under the MIT license.
- * The Neko virtual machine is released under the MIT license. Its bundled runtime libraries (ndll) and tools are released under open source licenses as described in https://github.com/HaxeFoundation/neko/blob/master/LICENSE
+ * The Neko virtual machine is released under the MIT license. Its bundled runtime libraries (ndll) and tools are released under open-source licenses as described in https://github.com/HaxeFoundation/neko/blob/master/LICENSE
 
 For the complete Haxe licenses, please see https://haxe.org/foundation/open-source.html or [extra/LICENSE.txt](extra/LICENSE.txt).
 
