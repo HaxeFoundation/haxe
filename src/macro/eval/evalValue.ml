@@ -118,6 +118,7 @@ type vhandle =
 	| HFsEvent of Luv.FS_event.t
 	| HThread of Luv.Thread.t
 	| HOnce of Luv.Once.t
+	| HMutex of Luv.Mutex.t
 
 type value =
 	| VNull
@@ -277,11 +278,13 @@ let same_handle h1 h2 =
 	| HFsEvent h1, HFsEvent h2 -> h1 == h2
 	| HThread h1, HThread h2 -> Luv.Thread.equal h1 h2
 	| HOnce h1, HOnce h2 -> h1 == h2
+	| HMutex h1, HMutex h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
 	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _
 	| HProcess _, _ | HRedirection _, _| HFileRequest _, _ | HAddrRequest _, _
 	| HNameRequest _, _ | HRandomRequest _, _ | HThreadPoolRequest _, _
-	| HFileModeNumeric _, _ | HDir _, _ | HFsEvent _, _ | HThread _, _ | HOnce _, _ -> false
+	| HFileModeNumeric _, _ | HDir _, _ | HFsEvent _, _ | HThread _, _ | HOnce _, _
+	| HMutex _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

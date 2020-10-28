@@ -504,6 +504,10 @@ let decode_fs_event = function
 	| VHandle (HFsEvent e) -> e
 	| v -> unexpected_value v "eval.luv.FsEvent"
 
+let decode_mutex = function
+	| VHandle (HMutex m) -> m
+	| v -> unexpected_value v "eval.luv.Mutex"
+
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
 		let e = decode_uv_error v in
@@ -1988,6 +1992,28 @@ let once_fields = [
 			| _ -> unexpected_value v1 "eval.luv.Once"
 		and callback = prepare_callback v2 0 in
 		Once.once once (fun() -> ignore(callback []));
+		vnull
+	);
+]
+
+let mutex_fields = [
+	"init", vfun1 (fun v ->
+		let recursive = decode_optional decode_bool v in
+		encode_result (fun m -> VHandle (HMutex m)) (Mutex.init ?recursive ())
+	);
+	"destroy", vfun1 (fun v ->
+		Mutex.destroy (decode_mutex v);
+		vnull
+	);
+	"lock", vfun1 (fun v ->
+		Mutex.lock (decode_mutex v);
+		vnull
+	);
+	"tryLock", vfun1 (fun v ->
+		encode_unit_result (Mutex.trylock (decode_mutex v))
+	);
+	"unlock", vfun1 (fun v ->
+		Mutex.unlock (decode_mutex v);
 		vnull
 	);
 ]
