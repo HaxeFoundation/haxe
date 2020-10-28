@@ -3740,4 +3740,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Dir"], "Dir_Impl_") EvalLuv.dir_fields [];
 	init_fields builtins (["eval";"luv"], "FileSync") EvalLuv.file_sync_fields [];
 	init_fields builtins (["eval";"luv"], "DirSync") EvalLuv.dir_sync_fields [];
+	init_fields builtins (["eval";"luv";"_FsEvent"], "FsEvent_Impl_") EvalLuv.fs_event_fields [];
 	EvalSsl.init_fields init_fields builtins

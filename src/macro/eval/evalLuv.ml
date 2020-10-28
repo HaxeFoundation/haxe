@@ -237,9 +237,9 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 	| HUdp t -> Handle.coerce t
 	| HSignal t -> Handle.coerce t
 	| HProcess t -> Handle.coerce t
+	| HFsEvent t -> Handle.coerce t
 	(* TODO
 	| HCheck t -> Handle.coerce t
-	| HFS_event t -> Handle.coerce t
 	| HFS_poll t -> Handle.coerce t
 	| HPoll t -> Handle.coerce t
 	| HPrepare t -> Handle.coerce t
@@ -440,6 +440,9 @@ let encode_scandir sd =
 		key_end,vfun0 (fun() -> File.scandir_end sd; vnull);
 	]
 
+let decode_int_flags v =
+	List.map decode_int (decode_array v)
+
 let decode_file_open_flag v : File.Open_flag.t =
 	match decode_int v with
 	| 0 -> `RDONLY
@@ -496,6 +499,10 @@ let encode_file_statfs (s:File.Statfs.t) =
 		key_ffree, VUInt64 s.ffree;
 		key_fspare, match s.f_spare with u1, u2, u3, u4 -> encode_array [VUInt64 u1; VUInt64 u2; VUInt64 u3; VUInt64 u4]
 	]
+
+let decode_fs_event = function
+	| VHandle (HFsEvent e) -> e
+	| v -> unexpected_value v "eval.luv.FsEvent"
 
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
@@ -1501,7 +1508,7 @@ module F = struct
 		fn file length
 
 	let copyFile ~vflags ~vpath ~vto fn =
-		let flags = List.map decode_int (decode_array vflags) in
+		let flags = decode_int_flags vflags in
 		let excl = if List.mem 0 flags then Some true else None
 		and ficlone = if List.mem 1 flags then Some true else None
 		and ficlone_force = if List.mem 2 flags then Some true else None in
@@ -1535,7 +1542,7 @@ module F = struct
 		fn ~link
 
 	let symlink ~vflags fn =
-		let flags = List.map decode_int (decode_array vflags) in
+		let flags = decode_int_flags vflags in
 		let dir = if List.mem 0 flags then Some true else None
 		and junction = if List.mem 1 flags then Some true else None in
 		fn ?dir ?junction
@@ -1737,7 +1744,7 @@ let file_fields = [
 ]
 
 let file_sync_fields = [
-	"open", vfun3 (fun vpath vmode vflags ->
+	"open", vfun3 (fun vpath vflags vmode ->
 		File.Sync.open_ |> F.open_ ~vmode ~vpath ~vflags |> encode_result (fun f -> VHandle (HFile f))
 	);
 	"close", vfun1 (fun vfile ->
@@ -1880,5 +1887,45 @@ let dir_sync_fields = [
 	);
 	"scan", vfun1 (fun vpath ->
 		File.Sync.scandir |> F.path ~vpath |> encode_result encode_scandir
+	);
+]
+
+let fs_event_fields = [
+	"init", vfun1 (fun v ->
+		let loop = decode_loop v in
+		encode_result (fun e -> VHandle (HFsEvent e)) (FS_event.init ~loop ())
+	);
+	"start", vfun4 (fun v1 v2 v3 v4 ->
+		let event = decode_fs_event v1
+		and path = decode_native_string v2
+		and callback =
+			encode_callback (fun (file,events) ->
+				let vevents =
+					List.map (fun (e:FS_event.Event.t) ->
+						match e with
+						| `RENAME -> vint 0
+						| `CHANGE -> vint 1
+					) events
+				in
+				encode_obj [
+					key_file,vnative_string file;
+					key_events,encode_array vevents;
+				]
+			) v4
+		in
+		if v3 = VNull then
+			FS_event.start event path callback
+		else begin
+			let flags = decode_int_flags v3 in
+			let watch_entry = List.mem 0 flags
+			and stat = List.mem 1 flags
+			and recursive = List.mem 2 flags in
+			FS_event.start ~watch_entry ~stat ~recursive event path callback
+		end;
+		vnull
+	);
+	"stop", vfun1 (fun v ->
+		let event = decode_fs_event v in
+		encode_unit_result (FS_event.stop event)
 	);
 ]
