@@ -4,7 +4,7 @@ import eval.integers.Int64;
 import eval.integers.UInt64;
 
 @:forward
-abstract FileRequest(Request) {}
+abstract FileRequest(Request) to Request {}
 
 enum abstract FileOpenFlag(Int) {
 	var RDONLY = 0;

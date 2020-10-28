@@ -1,7 +1,7 @@
 package eval.luv;
 
 @:forward
-abstract AddrInfoRequest(Request) {}
+abstract AddrInfoRequest(Request) to Request {}
 
 typedef AddrInfo = {
 	var family:SockAddr.AddressFamily;
@@ -30,7 +30,7 @@ enum abstract AddrInfoFlag(Int) {
 }
 
 @:forward
-abstract NameInfoRequest(Request) {}
+abstract NameInfoRequest(Request) to Request {}
 
 enum abstract NameInfoFlag(Int) {
 	var NAMEREQD = 0;

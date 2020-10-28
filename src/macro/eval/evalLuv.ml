@@ -1929,3 +1929,29 @@ let fs_event_fields = [
 		encode_unit_result (FS_event.stop event)
 	);
 ]
+
+let thread_pool_fields = [
+	"createRequest", vfun0 (fun() ->
+		VHandle (HThreadPoolRequest (Thread_pool.Request.make()))
+	);
+	"queueWork", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and request =
+			decode_optional (function
+				| VHandle (HThreadPoolRequest r) -> r
+				| v -> unexpected_value v "eval.luv.ThreadPool.ThreadPoolRequest"
+			) v2
+		and work =
+			let cb = prepare_callback v3 0 in
+			(fun() -> EvalThread.run (get_ctx()) (fun() -> cb []))
+		and callback = encode_unit_callback v4 in
+		Thread_pool.queue_work ~loop ?request work callback;
+		vnull
+	);
+	"setSize", vfun2 (fun v1 v2 ->
+		let size = decode_int v1
+		and if_not_already_set = decode_optional decode_bool v2 in
+		Thread_pool.set_size ?if_not_already_set size;
+		vnull
+	);
+]
