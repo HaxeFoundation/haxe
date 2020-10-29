@@ -2268,3 +2268,63 @@ let fs_poll_fields = [
 		encode_unit_result (FS_poll.stop poll)
 	);
 ]
+
+let resource_fields = [
+	"uptime", vfun0 (fun() ->
+		encode_result vfloat (Resource.uptime());
+	);
+	"loadAvg", vfun0 (fun() ->
+		let m1,m5,m15 = Resource.loadavg() in
+		encode_array_a [|vfloat m1; vfloat m5; vfloat m15|];
+	);
+	"freeMemory", vfun0 (fun() ->
+		VUInt64 (Resource.free_memory())
+	);
+	"totalMemory", vfun0 (fun() ->
+		VUInt64 (Resource.total_memory())
+	);
+	"constrainedMemory", vfun0 (fun() ->
+		encode_nullable (fun u -> VUInt64 u) (Resource.constrained_memory())
+	);
+	"getPriority", vfun1 (fun v ->
+		let pid = decode_int v in
+		encode_result vint (Resource.getpriority pid)
+	);
+	"setPriority", vfun2 (fun v1 v2 ->
+		let pid = decode_int v1
+		and priority = decode_int v2 in
+		encode_unit_result (Resource.setpriority pid priority)
+	);
+	"residentSetMemory", vfun0 (fun() ->
+		encode_result encode_size_t (Resource.resident_set_memory())
+	);
+	"getRUsage", vfun0 (fun() ->
+		let encode_timeval (t:Resource.timeval) =
+			encode_obj [
+				key_sec, VInt64 (Signed.Long.to_int64 t.sec);
+				key_usec, VInt64 (Signed.Long.to_int64 t.usec)
+			]
+		in
+		let encode_rusage (r:Resource.rusage) =
+			encode_obj_s [
+				"utime", encode_timeval r.utime;
+				"stime", encode_timeval r.stime;
+				"maxrss", VUInt64 r.maxrss;
+				"ixrss", VUInt64 r.ixrss;
+				"idrss", VUInt64 r.idrss;
+				"isrss", VUInt64 r.isrss;
+				"minflt", VUInt64 r.minflt;
+				"majflt", VUInt64 r.majflt;
+				"nswap", VUInt64 r.nswap;
+				"inblock", VUInt64 r.inblock;
+				"oublock", VUInt64 r.oublock;
+				"msgsnd", VUInt64 r.msgsnd;
+				"msgrcv", VUInt64 r.msgrcv;
+				"nsignals", VUInt64 r.nsignals;
+				"nvcsw", VUInt64 r.nvcsw;
+				"nivcsw", VUInt64 r.nivcsw;
+			]
+		in
+		encode_result encode_rusage (Resource.getrusage())
+	);
+]

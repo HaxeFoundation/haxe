@@ -3756,4 +3756,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv"], "RandomSync") EvalLuv.random_sync_fields [];
 	init_fields builtins (["eval";"luv"], "Network") EvalLuv.network_fields [];
 	init_fields builtins (["eval";"luv";"_FsPoll"], "FsPoll_Impl_") EvalLuv.fs_poll_fields [];
+	init_fields builtins (["eval";"luv"], "Resource") EvalLuv.resource_fields [];
 	EvalSsl.init_fields init_fields builtins
