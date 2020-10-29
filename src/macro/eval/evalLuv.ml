@@ -2360,3 +2360,12 @@ let system_info_fields = [
 		) (System_info.uname())
 	);
 ]
+
+let pid_fields = [
+	"getPid", vfun0 (fun() ->
+		vint (Pid.getpid())
+	);
+	"getPPid", vfun0 (fun() ->
+		vint (Pid.getppid())
+	);
+]
