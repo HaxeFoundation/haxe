@@ -2328,3 +2328,35 @@ let resource_fields = [
 		encode_result encode_rusage (Resource.getrusage())
 	);
 ]
+
+let system_info_fields = [
+	"cpuInfo", vfun0 (fun() ->
+		let encode_info (i:System_info.CPU_info.t) =
+			encode_obj_s [
+				"model", encode_string i.model;
+				"speed", vint i.speed;
+				"times", encode_obj_s [
+					"user", VUInt64 i.times.user;
+					"nice", VUInt64 i.times.nice;
+					"sys", VUInt64 i.times.sys;
+					"idle", VUInt64 i.times.idle;
+					"irq", VUInt64 i.times.irq;
+				]
+			]
+		in
+		let encode l =
+			encode_array (List.map encode_info l)
+		in
+		encode_result encode (System_info.cpu_info());
+	);
+	"uname", vfun0 (fun() ->
+		encode_result (fun (u:System_info.Uname.t) ->
+			encode_obj_s [
+				"sysname", encode_string u.sysname;
+				"release", encode_string u.release;
+				"version", encode_string u.version;
+				"machine", encode_string u.machine;
+			]
+		) (System_info.uname())
+	);
+]
