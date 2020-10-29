@@ -2168,3 +2168,21 @@ let time_fields = [
 		vnull
 	);
 ]
+
+let path_fields = [
+	"exePath", vfun0 (fun() ->
+		encode_result vnative_string (Path.exepath())
+	);
+	"cwd", vfun0 (fun() ->
+		encode_result vnative_string (Path.cwd())
+	);
+	"chdir", vfun1 (fun v ->
+		encode_unit_result (Path.chdir (decode_native_string v))
+	);
+	"homedir", vfun0 (fun() ->
+		encode_result vnative_string (Path.homedir())
+	);
+	"tmpdir", vfun0 (fun() ->
+		encode_result vnative_string (Path.tmpdir())
+	);
+]

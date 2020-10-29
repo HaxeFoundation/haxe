@@ -3751,4 +3751,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Barrier"], "Barrier_Impl_") EvalLuv.barrier_fields [];
 	init_fields builtins (["eval";"luv"], "Env") EvalLuv.env_fields [];
 	init_fields builtins (["eval";"luv"], "Time") EvalLuv.time_fields [];
+	init_fields builtins (["eval";"luv"], "Path") EvalLuv.path_fields [];
 	EvalSsl.init_fields init_fields builtins
