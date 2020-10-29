@@ -2211,3 +2211,30 @@ let random_sync_fields = [
 		encode_unit_result (Random.Sync.random buffer)
 	);
 ]
+
+let network_fields = [
+	"interfaceAddresses", vfun0 (fun() ->
+		encode_result (fun addresses ->
+			encode_array (List.map (fun (a:Network.Interface_address.t) ->
+				encode_obj [
+					key_name, encode_string a.name;
+					key_isInternal, vbool a.is_internal;
+					key_physical, vnative_string a.physical;
+					key_address, encode_sockaddr a.address;
+					key_netmask, encode_sockaddr a.netmask;
+				]
+			) addresses)
+		) (Network.interface_addresses())
+	);
+	"ifIndexToName", vfun1 (fun v ->
+		let index = decode_int v in
+		encode_result encode_string (Network.if_indextoname index)
+	);
+	"ifIndexToIid", vfun1 (fun v ->
+		let index = decode_int v in
+		encode_result encode_string (Network.if_indextoiid index)
+	);
+	"getHostName", vfun0 (fun() ->
+		encode_result encode_string (Network.gethostname())
+	);
+]
