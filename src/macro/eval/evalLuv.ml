@@ -1277,8 +1277,8 @@ let process_fields = [
 	);
 	"spawn", vfun4 (fun v1 v2 v3 v4 ->
 		let loop = decode_loop v1
-		and cmd = decode_string v2
-		and args = List.map decode_string (decode_array v3) in
+		and cmd = decode_native_string v2
+		and args = List.map decode_native_string (decode_array v3) in
 		let result =
 			if v4 = VNull then
 				Process.spawn ~loop cmd args
@@ -1299,7 +1299,7 @@ let process_fields = [
 					get key_environment (fun v ->
 						match decode_instance v with
 						| { ikind = IStringMap m } ->
-							StringHashtbl.fold (fun k (_,v) acc -> (k, decode_string v) :: acc) m []
+							StringHashtbl.fold (fun k (_,v) acc -> (k, decode_native_string v) :: acc) m []
 						| _ ->
 							unexpected_value v "haxe.ds.Map<String,String>"
 					)
@@ -1311,7 +1311,7 @@ let process_fields = [
 							| _ -> unexpected_value v2 "eval.luv.Process.Redirection"
 						) (decode_array v)
 					)
-				and working_directory = get key_workingDirectory decode_string
+				and working_directory = get key_workingDirectory decode_native_string
 				and uid = get key_uid decode_int
 				and gid = get key_gid decode_int
 				and windows_verbatim_arguments = get key_windowsVerbatimArguments decode_bool
@@ -2127,5 +2127,29 @@ let barrier_fields = [
 	);
 	"wait", vfun1 (fun v ->
 		vbool (Barrier.wait (decode_barrier v))
+	);
+]
+
+let env_fields = [
+	"getEnv", vfun1 (fun v ->
+		let name = decode_string v in
+		encode_result vnative_string (Env.getenv name)
+	);
+	"setEnv", vfun2 (fun v1 v2 ->
+		let name = decode_string v1
+		and value = decode_native_string v2 in
+		encode_unit_result (Env.setenv name ~value)
+	);
+	"environ", vfun0 (fun() ->
+		let encode env =
+			let map =
+				List.fold_left (fun map (name,value) ->
+					StringHashtbl.add map (EvalString.create_unknown_vstring name) (vnative_string value);
+					map
+				) (StringHashtbl.create()) env
+			in
+			encode_string_map_direct map
+		in
+		encode_result encode (Env.environ())
 	);
 ]

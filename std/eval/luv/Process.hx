@@ -12,8 +12,8 @@ import eval.integers.Int64;
 **/
 typedef ProcessOptions = {
 	var ?⁠onExit:(p:Process, exitStatus:Int64, termSignal:Int)->Void;
-	var ?⁠environment:Map<String,String>;
-	var ?⁠workingDirectory:String;
+	var ?⁠environment:Map<String,NativeString>;
+	var ?⁠workingDirectory:NativeString;
 	var ?⁠redirect:Array<Redirection>;
 	var ?⁠uid:Int;
 	var ?⁠gid:Int;
@@ -63,7 +63,7 @@ typedef ProcessOptions = {
 	/**
 		Starts a process.
 	**/
-	static public function spawn(loop:Loop, cmd:String, args:Array<String>, ?options:ProcessOptions):Result<Process>;
+	static public function spawn(loop:Loop, cmd:NativeString, args:Array<NativeString>, ?options:ProcessOptions):Result<Process>;
 
 	/**
 		Disables (tries) file descriptor inheritance for inherited descriptors.

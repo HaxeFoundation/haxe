@@ -3749,4 +3749,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Semaphore"], "Semaphore_Impl_") EvalLuv.semaphore_fields [];
 	init_fields builtins (["eval";"luv";"_Condition"], "Condition_Impl_") EvalLuv.condition_fields [];
 	init_fields builtins (["eval";"luv";"_Barrier"], "Barrier_Impl_") EvalLuv.barrier_fields [];
+	init_fields builtins (["eval";"luv"], "Env") EvalLuv.env_fields [];
 	EvalSsl.init_fields init_fields builtins
