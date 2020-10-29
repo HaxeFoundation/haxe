@@ -221,10 +221,9 @@ let resolve_result = function
 	| Ok v -> v
 	| Error e -> throw (luv_exception e) null_pos
 
-let decode_loop v =
-	match decode_handle v with
-	| HLoop t -> t
-	| _ -> unexpected_value v "eval.luv.Loop"
+let decode_loop = function
+	| VHandle (HLoop t) -> t
+	| v -> unexpected_value v "eval.luv.Loop"
 
 let decode_luv_handle v : 'kind Luv.Handle.t =
 	match decode_handle v with
@@ -239,10 +238,10 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 	| HProcess t -> Handle.coerce t
 	| HFsEvent t -> Handle.coerce t
 	| HFsPoll t -> Handle.coerce t
+	| HPrepare t -> Handle.coerce t
 	(* TODO
 	| HCheck t -> Handle.coerce t
 	| HPoll t -> Handle.coerce t
-	| HPrepare t -> Handle.coerce t
 	*)
 	| _ -> unexpected_value v "eval.luv.Handle"
 
@@ -260,25 +259,21 @@ let decode_stream v : 'kind Luv.Stream.t =
 	| HPipe t -> Stream.coerce t
 	| _ -> unexpected_value v "eval.luv.Stream"
 
-let decode_idle v =
-	match decode_handle v with
-	| HIdle t -> t
-	| _ -> unexpected_value v "eval.luv.Idle"
+let decode_idle = function
+	| VHandle (HIdle t) -> t
+	| v -> unexpected_value v "eval.luv.Idle"
 
-let decode_timer v =
-	match decode_handle v with
-	| HTimer t -> t
-	| _ -> unexpected_value v "eval.luv.Timer"
+let decode_timer = function
+	| VHandle (HTimer t) -> t
+	| v -> unexpected_value v "eval.luv.Timer"
 
-let decode_async v =
-	match decode_handle v with
-	| HAsync t -> t
-	| _ -> unexpected_value v "eval.luv.Async"
+let decode_async = function
+	| VHandle (HAsync t) -> t
+	| v -> unexpected_value v "eval.luv.Async"
 
-let decode_buffer v =
-	match decode_handle v with
-	| HBuffer t -> t
-	| _ -> unexpected_value v "eval.luv.Buffer"
+let decode_buffer = function
+	| VHandle (HBuffer t) -> t
+	| v -> unexpected_value v "eval.luv.Buffer"
 
 let decode_buffers v =
 	List.map decode_buffer (decode_array v)
@@ -294,15 +289,13 @@ let decode_sockaddr v =
 let encode_sockaddr h =
 	VHandle (HSockAddr h)
 
-let decode_tcp v =
-	match decode_handle v with
-	| HTcp t -> t
-	| _ -> unexpected_value v "eval.luv.Tcp"
+let decode_tcp = function
+	| VHandle (HTcp t) -> t
+	| v -> unexpected_value v "eval.luv.Tcp"
 
-let decode_udp v =
-	match decode_handle v with
-	| HUdp t -> t
-	| _ -> unexpected_value v "eval.luv.Udp"
+let decode_udp = function
+	| VHandle (HUdp t) -> t
+	| v -> unexpected_value v "eval.luv.Udp"
 
 let encode_udp udp =
 	VHandle (HUdp udp)
@@ -349,30 +342,29 @@ let encode_socket_type (a:Sockaddr.Socket_type.t) =
 	in
 	encode_enum_value key_eval_luv_SocketType index args None
 
-let decode_pipe v =
-	match decode_handle v with
-	| HPipe t -> t
-	| _ -> unexpected_value v "eval.luv.Pipe"
+let decode_pipe = function
+	| VHandle (HPipe t) -> t
+	| v -> unexpected_value v "eval.luv.Pipe"
 
-let decode_tty v =
-	match decode_handle v with
-	| HTty t -> t
-	| _ -> unexpected_value v "eval.luv.Tty"
+let decode_tty = function
+	| VHandle (HTty t) -> t
+	| v -> unexpected_value v "eval.luv.Tty"
 
-let decode_file v =
-	match decode_handle v with
-	| HFile f -> f
-	| _ -> unexpected_value v "eval.luv.File"
+let decode_file = function
+	| VHandle (HFile f) -> f
+	| v -> unexpected_value v "eval.luv.File"
 
-let decode_signal v =
-	match decode_handle v with
-	| HSignal t -> t
-	| _ -> unexpected_value v "eval.luv.Signal"
+let decode_signal = function
+	| VHandle (HSignal t) -> t
+	| v -> unexpected_value v "eval.luv.Signal"
 
-let decode_process v =
-	match decode_handle v with
-	| HProcess t -> t
-	| _ -> unexpected_value v "eval.luv.Process"
+let decode_process = function
+	| VHandle (HProcess t) -> t
+	| v -> unexpected_value v "eval.luv.Process"
+
+let decode_prepare = function
+	| VHandle (HPrepare t) -> t
+	| v -> unexpected_value v "eval.luv.Prepare"
 
 let decode_file_mode v : File.Mode.t =
 	match decode_enum v with
@@ -404,10 +396,9 @@ let decode_file_mode v : File.Mode.t =
 let decode_file_mode_list v =
 	List.map decode_file_mode (decode_array v)
 
-let decode_file_request v =
-	match v with
+let decode_file_request = function
 	| VHandle (HFileRequest r) -> r
-	| _ -> unexpected_value v "eval.luv.File.FileRequest"
+	| v -> unexpected_value v "eval.luv.File.FileRequest"
 
 let encode_timespec (t:File.Stat.timespec) =
 	encode_obj [
@@ -2388,5 +2379,21 @@ let metrics_fields = [
 	"idleTime", vfun1 (fun v ->
 		let loop = decode_loop v in
 		VUInt64 (Metrics.idle_time loop)
+	);
+]
+
+let prepare_fields = [
+	"init", vfun1 (fun v ->
+		let loop = decode_loop v in
+		encode_result (fun i -> VHandle (HPrepare i)) (Prepare.init ~loop ())
+	);
+	"start", vfun2 (fun v1 v2 ->
+		let prepare = decode_prepare v1 in
+		let cb = prepare_callback v2 0 in
+		encode_unit_result (Prepare.start prepare (fun() -> ignore(cb [])));
+	);
+	"stop", vfun1 (fun v ->
+		let prepare = decode_prepare v in
+		encode_unit_result (Prepare.stop prepare)
 	);
 ]
