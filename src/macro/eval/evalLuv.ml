@@ -2383,3 +2383,10 @@ let passwd_fields = [
 		) (Passwd.get_passwd())
 	);
 ]
+
+let metrics_fields = [
+	"idleTime", vfun1 (fun v ->
+		let loop = decode_loop v in
+		VUInt64 (Metrics.idle_time loop)
+	);
+]
