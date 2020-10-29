@@ -11,17 +11,17 @@ import eval.integers.Int64;
 	Options for spawning the process.
 **/
 typedef ProcessOptions = {
-	var ?⁠onExit:(p:Process, exitStatus:Int64, termSignal:Int)->Void;
-	var ?⁠environment:Map<String,NativeString>;
-	var ?⁠workingDirectory:NativeString;
-	var ?⁠redirect:Array<Redirection>;
-	var ?⁠uid:Int;
-	var ?⁠gid:Int;
-	var ?⁠windowsVerbatimArguments:Bool;
-	var ?⁠detached:Bool;
-	var ?⁠windowsHide:Bool;
-	var ?⁠windowsHideConsole:Bool;
-	var ?⁠windowsHideGui:Bool;
+	var ?onExit:(p:Process, exitStatus:Int64, termSignal:Int)->Void;
+	var ?environment:Map<String,NativeString>;
+	var ?workingDirectory:NativeString;
+	var ?redirect:Array<Redirection>;
+	var ?uid:Int;
+	var ?gid:Int;
+	var ?windowsVerbatimArguments:Bool;
+	var ?detached:Bool;
+	var ?windowsHide:Bool;
+	var ?windowsHideConsole:Bool;
+	var ?windowsHideGui:Bool;
 }
 
 /**
