@@ -30,6 +30,8 @@ extern enum abstract SigNum(Int) from Int to Int {
 @:coreType abstract Signal to Handle {
 	/**
 		Allocates and initializes a signal handle.
+
+		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
 	static public function init(loop:Loop):Result<Signal>;
 

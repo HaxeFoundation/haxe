@@ -24,6 +24,8 @@ enum ReceiveHandle {
 		Allocates and initializes a pipe.
 
 		The pipe is not yet connected to anything at this point.
+
+		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
 	static public function init(loop:Loop, forHandlePassing:Bool = false):Result<Pipe>;
 

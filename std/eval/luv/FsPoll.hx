@@ -11,6 +11,8 @@ import eval.luv.File;
 @:coreType abstract FsPoll to Handle {
 	/**
 		Allocates and initializes an FS polling handle.
+
+		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
 	static public function init(loop:Loop):Result<FsPoll>;
 

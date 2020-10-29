@@ -15,6 +15,8 @@ import eval.luv.SockAddr;
 		Allocates and initializes a TCP stream.
 
 		The stream is not yet connected or listening.
+
+		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
 	static public function init(loop:Loop, ?domain:AddressFamily):Result<Tcp>;
 

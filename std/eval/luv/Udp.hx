@@ -23,6 +23,8 @@ enum abstract RecvFlag(Int) {
 @:coreType abstract Udp to Handle to Handle.SocketHandle {
 	/**
 		Allocates and initializes a UDP socket.
+
+		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
 	static public function init(loop:Loop, ?domain:AddressFamily, recvmmsg:Bool = false):Result<Udp>;
 

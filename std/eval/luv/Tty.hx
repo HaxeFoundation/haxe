@@ -46,6 +46,8 @@ enum abstract VTermState(Int) {
 
 	/**
 		Allocates and initializes a TTY handle.
+
+		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
 	static public function init(loop:Loop, file:File):Result<Tty>;
 
