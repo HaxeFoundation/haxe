@@ -31,9 +31,9 @@ typedef ProcessOptions = {
 **/
 @:using(eval.luv.Handle)
 @:coreType abstract Process to Handle {
-	static public final stdin:Int;
-	static public final stdout:Int;
-	static public final stderr:Int;
+	extern static public final stdin:Int;
+	extern static public final stdout:Int;
+	extern static public final stderr:Int;
 
 	/**
 		Causes `fd` in the child to be connected to `toParentPipe` in the parent.
