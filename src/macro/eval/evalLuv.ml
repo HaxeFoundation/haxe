@@ -2417,3 +2417,13 @@ let check_fields = [
 		encode_unit_result (Check.stop check)
 	);
 ]
+
+let version_fields = [
+	"string", vfun0 (fun() -> encode_string (Version.string()));
+	"major", vint (Version.major);
+	"minor", vint (Version.minor);
+	"patch", vint (Version.patch);
+	"isRelease", vbool (Version.is_release);
+	"suffix", encode_string (Version.suffix);
+	"hex", vint (Version.hex);
+]
