@@ -238,9 +238,9 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 	| HSignal t -> Handle.coerce t
 	| HProcess t -> Handle.coerce t
 	| HFsEvent t -> Handle.coerce t
+	| HFsPoll t -> Handle.coerce t
 	(* TODO
 	| HCheck t -> Handle.coerce t
-	| HFS_poll t -> Handle.coerce t
 	| HPoll t -> Handle.coerce t
 	| HPrepare t -> Handle.coerce t
 	*)
@@ -523,6 +523,10 @@ let decode_condition = function
 let decode_barrier = function
 	| VHandle (HBarrier b) -> b
 	| v -> unexpected_value v "eval.luv.Barrier"
+
+let decode_fs_poll = function
+	| VHandle (HFsPoll p) -> p
+	| v -> unexpected_value v "eval.luv.FsPoll"
 
 let uv_error_fields = [
 	"toString", vfun1 (fun v ->
@@ -2236,5 +2240,31 @@ let network_fields = [
 	);
 	"getHostName", vfun0 (fun() ->
 		encode_result encode_string (Network.gethostname())
+	);
+]
+
+let fs_poll_fields = [
+	"init", vfun1 (fun v ->
+		let loop = decode_loop v in
+		encode_result (fun p -> VHandle (HFsPoll p)) (FS_poll.init ~loop ())
+	);
+	"start", vfun4 (fun v1 v2 v3 v4 ->
+		let poll = decode_fs_poll v1
+		and path = decode_native_string v2
+		and interval = decode_optional decode_int v3
+		and callback =
+			encode_callback (fun (previous,current) ->
+				encode_obj [
+					key_previous,encode_file_stat previous;
+					key_current,encode_file_stat current;
+				]
+			) v4
+		in
+		FS_poll.start ?interval poll path callback;
+		vnull
+	);
+	"stop", vfun1 (fun v ->
+		let poll = decode_fs_poll v in
+		encode_unit_result (FS_poll.stop poll)
 	);
 ]
