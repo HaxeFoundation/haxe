@@ -239,8 +239,8 @@ let decode_luv_handle v : 'kind Luv.Handle.t =
 	| HFsEvent t -> Handle.coerce t
 	| HFsPoll t -> Handle.coerce t
 	| HPrepare t -> Handle.coerce t
-	(* TODO
 	| HCheck t -> Handle.coerce t
+	(* TODO
 	| HPoll t -> Handle.coerce t
 	*)
 	| _ -> unexpected_value v "eval.luv.Handle"
@@ -365,6 +365,10 @@ let decode_process = function
 let decode_prepare = function
 	| VHandle (HPrepare t) -> t
 	| v -> unexpected_value v "eval.luv.Prepare"
+
+let decode_check = function
+	| VHandle (HCheck t) -> t
+	| v -> unexpected_value v "eval.luv.Check"
 
 let decode_file_mode v : File.Mode.t =
 	match decode_enum v with
@@ -2395,5 +2399,21 @@ let prepare_fields = [
 	"stop", vfun1 (fun v ->
 		let prepare = decode_prepare v in
 		encode_unit_result (Prepare.stop prepare)
+	);
+]
+
+let check_fields = [
+	"init", vfun1 (fun v ->
+		let loop = decode_loop v in
+		encode_result (fun i -> VHandle (HCheck i)) (Check.init ~loop ())
+	);
+	"start", vfun2 (fun v1 v2 ->
+		let check = decode_check v1 in
+		let cb = prepare_callback v2 0 in
+		encode_unit_result (Check.start check (fun() -> ignore(cb [])));
+	);
+	"stop", vfun1 (fun v ->
+		let check = decode_check v in
+		encode_unit_result (Check.stop check)
 	);
 ]

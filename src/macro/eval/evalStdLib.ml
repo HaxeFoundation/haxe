@@ -3762,4 +3762,5 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv"], "Passwd") EvalLuv.passwd_fields [];
 	init_fields builtins (["eval";"luv"], "Metrics") EvalLuv.metrics_fields [];
 	init_fields builtins (["eval";"luv";"_Prepare"], "Prepare_Impl_") EvalLuv.prepare_fields [];
+	init_fields builtins (["eval";"luv";"_Check"], "Check_Impl_") EvalLuv.check_fields [];
 	EvalSsl.init_fields init_fields builtins

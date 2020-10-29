@@ -125,6 +125,7 @@ type vhandle =
 	| HBarrier of Luv.Barrier.t
 	| HFsPoll of Luv.FS_poll.t
 	| HPrepare of Luv.Prepare.t
+	| HCheck of Luv.Check.t
 
 type value =
 	| VNull
@@ -291,13 +292,14 @@ let same_handle h1 h2 =
 	| HBarrier h1, HBarrier h2 -> h1 == h2
 	| HFsPoll h1, HFsPoll h2 -> h1 == h2
 	| HPrepare h1, HPrepare h2 -> h1 == h2
+	| HCheck h1, HCheck h2 -> h1 == h2
 	| HBuffer _,_ | HAsync _,_ | HTimer _, _ | HLoop _, _ | HIdle _, _ | HSockAddr _, _
 	| HTcp _, _ | HPipe _, _ | HTty _, _ | HFile _, _ | HUdp _, _ | HSignal _, _
 	| HProcess _, _ | HRedirection _, _| HFileRequest _, _ | HAddrRequest _, _
 	| HNameRequest _, _ | HRandomRequest _, _ | HThreadPoolRequest _, _
 	| HFileModeNumeric _, _ | HDir _, _ | HFsEvent _, _ | HThread _, _ | HOnce _, _
 	| HMutex _, _ | HRwLock _, _ | HSemaphore _, _ | HCondition _, _ | HBarrier _, _
-	| HFsPoll _, _ | HPrepare _, _ -> false
+	| HFsPoll _, _ | HPrepare _, _ | HCheck _, _ -> false
 
 let rec equals a b = match a,b with
 	| VTrue,VTrue

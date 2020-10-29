@@ -1,18 +1,18 @@
 package eval.luv;
 
 /**
-	Pre-I/O callback.
+	Post-I/O callback.
 
-	@see https://aantron.github.io/luv/luv/Luv/Prepare
+	@see https://aantron.github.io/luv/luv/Luv/Check
 **/
 @:using(eval.luv.Handle)
-@:coreType abstract Prepare to Handle {
+@:coreType abstract Check to Handle {
 	/**
-		Allocate and initialize a prepare handle.
+		Allocate and initialize a check handle.
 
 		The handle should be cleaned up with `eval.luv.Handle.close` when no longer needed.
 	**/
-	static public function init(loop:Loop):Result<Prepare>;
+	static public function init(loop:Loop):Result<Check>;
 
 	/**
 		Starts the handle with the given callback.
