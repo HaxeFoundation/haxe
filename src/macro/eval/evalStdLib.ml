@@ -3752,4 +3752,6 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv"], "Env") EvalLuv.env_fields [];
 	init_fields builtins (["eval";"luv"], "Time") EvalLuv.time_fields [];
 	init_fields builtins (["eval";"luv"], "Path") EvalLuv.path_fields [];
+	init_fields builtins (["eval";"luv"], "Random") EvalLuv.random_fields [];
+	init_fields builtins (["eval";"luv"], "RandomSync") EvalLuv.random_sync_fields [];
 	EvalSsl.init_fields init_fields builtins

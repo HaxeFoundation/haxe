@@ -2186,3 +2186,28 @@ let path_fields = [
 		encode_result vnative_string (Path.tmpdir())
 	);
 ]
+
+let random_fields = [
+	"createRequest", vfun0 (fun() ->
+		VHandle (HRandomRequest (Random.Request.make()))
+	);
+	"random", vfun4 (fun v1 v2 v3 v4 ->
+		let loop = decode_loop v1
+		and buffer = decode_buffer v2
+		and request =
+			decode_optional (function
+				| VHandle (HRandomRequest r) -> r
+				| v -> unexpected_value v "eval.luv.Random.RandomRequest"
+			) v3
+		and callback = encode_unit_callback v4 in
+		Random.random ~loop ?request buffer callback;
+		vnull
+	);
+]
+
+let random_sync_fields = [
+	"random", vfun1(fun v ->
+		let buffer = decode_buffer v in
+		encode_unit_result (Random.Sync.random buffer)
+	);
+]
