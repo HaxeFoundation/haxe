@@ -2153,3 +2153,18 @@ let env_fields = [
 		encode_result encode (Env.environ())
 	);
 ]
+
+let time_fields = [
+	"getTimeOfDay", vfun0 (fun() ->
+		encode_result (fun (t:Time.t) ->
+			encode_obj [key_sec,VInt64 t.tv_sec; key_usec,vint32 t.tv_usec]
+		) (Time.gettimeofday())
+	);
+	"hrTime", vfun0 (fun() ->
+		VUInt64 (Time.hrtime())
+	);
+	"sleep", vfun1 (fun v ->
+		Time.sleep (decode_int v);
+		vnull
+	);
+]
