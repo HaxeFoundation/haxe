@@ -18,7 +18,15 @@ abstract EventHandler(RegularEvent) from RegularEvent to RegularEvent {}
 
 private class RegularEvent {
 	public var timer:Null<LuvTimer>;
-	public function new() {}
+	public var event:()->Void;
+
+	public function new(e:()->Void) {
+		event = e;
+	}
+
+	public function run() {
+		event();
+	}
 }
 
 @:coreApi
@@ -40,11 +48,11 @@ class EventLoop {
 	}
 
 	public function repeat(event:()->Void, intervalMs:Int):EventHandler {
-		var e = new RegularEvent();
+		var e = new RegularEvent(event);
 		mutex.acquire();
 		pending.push(() -> {
 			e.timer = LuvTimer.init(handle).resolve();
-			e.timer.start(event, intervalMs, intervalMs < 1 ? 1 : intervalMs).resolve();
+			e.timer.start(e.run, intervalMs, intervalMs < 1 ? 1 : intervalMs).resolve();
 		});
 		mutex.release();
 		wakeup.send();
@@ -53,14 +61,16 @@ class EventLoop {
 
 	public function cancel(eventHandler:EventHandler):Void {
 		mutex.acquire();
+		(eventHandler:RegularEvent).event = noop;
 		pending.push(() -> {
 			var timer = (eventHandler:RegularEvent).timer;
 			timer.stop().resolve();
-			timer.close(() -> {});
+			timer.close(noop);
 		});
 		mutex.release();
 		wakeup.send();
 	}
+	static final noop = function() {}
 
 	public function promise():Void {
 		mutex.acquire();
