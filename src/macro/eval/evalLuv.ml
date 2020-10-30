@@ -199,8 +199,8 @@ let luv_exception e =
 let encode_result f result =
 	let index, args =
 		match result with
-		| Ok r -> 0, [|f r|]
-		| Error e -> 1, [|encode_uv_error e|]
+		| Result.Ok r -> 0, [|f r|]
+		| Result.Error e -> 1, [|encode_uv_error e|]
 	in
 	encode_enum_value key_eval_luv_Result index args None
 
@@ -218,8 +218,8 @@ let encode_unit_callback =
 	encode_callback encode_unit
 
 let resolve_result = function
-	| Ok v -> v
-	| Error e -> throw (luv_exception e) null_pos
+	| Result.Ok v -> v
+	| Result.Error e -> throw (luv_exception e) null_pos
 
 let decode_loop = function
 	| VHandle (HLoop t) -> t
@@ -1541,7 +1541,7 @@ module F = struct
 
 	let access ~vpath ~vflags fn =
 		let flags =
-			List.map (fun v : File.Access_flag.t ->
+			List.map (fun v ->
 				match decode_int v with
 				| 0 -> `F_OK
 				| 1 -> `R_OK
