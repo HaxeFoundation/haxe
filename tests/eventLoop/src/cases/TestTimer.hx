@@ -5,6 +5,8 @@ import haxe.Timer;
 @:timeout(10000)
 @:depends(cases.TestEvents)
 class TestTimer extends utest.Test {
+	static inline var APPROX_FACTOR = 0.95;
+
 	function testCorrectInterval(async:Async) {
 		async.branch(async -> {
 			var i = 0;
@@ -14,7 +16,7 @@ class TestTimer extends utest.Test {
 			t.run = () -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~100ms
-				isTrue(dt >= interval * 0.98, 'Passed time ($dt seconds) is too small. At least $interval seconds expected.');
+				isTrue(dt >= interval * APPROX_FACTOR, 'Passed time ($dt seconds) is too small. At least $interval seconds expected.');
 				if(i++ > 5) {
 					t.stop();
 					async.done();
@@ -29,7 +31,7 @@ class TestTimer extends utest.Test {
 			Timer.delay(() -> {
 				var dt = Timer.stamp() - start;
 				//check the interval is ~50ms
-				isTrue(dt >= delay * 0.98, 'Passed time ($dt seconds) is too small. At least $delay seconds expected.');
+				isTrue(dt >= delay * APPROX_FACTOR, 'Passed time ($dt seconds) is too small. At least $delay seconds expected.');
 				async.done();
 			}, Std.int(delay * 1000));
 		});
