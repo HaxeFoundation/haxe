@@ -151,7 +151,7 @@ let create com api is_macro =
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
-			raise (Sys_exit 2);
+			exit 2
 	);
 	t();
 	ctx
