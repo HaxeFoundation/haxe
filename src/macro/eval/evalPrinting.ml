@@ -110,6 +110,8 @@ and s_value depth v =
 	else match v with
 	| VNull -> rnull
 	| VInt32 i32 -> create_ascii(Int32.to_string i32)
+	| VInt64 i -> create_ascii(Signed.Int64.to_string i)
+	| VUInt64 u -> create_ascii(Unsigned.UInt64.to_string u)
 	| VTrue -> rtrue
 	| VFalse -> rfalse
 	| VFloat f ->
@@ -123,6 +125,7 @@ and s_value depth v =
 	| VArray va -> s_array (depth + 1) va
 	| VVector vv -> s_vector (depth + 1) vv
 	| VInstance {ikind=IDate d} -> s_date d
+	| VNativeString s -> create_unknown_vstring s
 	| VInstance {ikind=IPos p} -> create_ascii ("#pos(" ^ Lexer.get_error_pos (Printf.sprintf "%s:%d:") p ^ ")") (* STODO: not ascii? *)
 	| VInstance {ikind=IRegex r} -> r.r_rex_string
 	| VInstance i -> (try call_to_string () with Not_found -> s_hash i.iproto.ppath)

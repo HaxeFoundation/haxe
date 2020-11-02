@@ -32,4 +32,5 @@ depends: [
   "conf-zlib"
   "conf-mbedtls"
   "conf-neko"
+  "integers"
 ]

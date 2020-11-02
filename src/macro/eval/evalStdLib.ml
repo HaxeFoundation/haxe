@@ -3020,6 +3020,7 @@ module StdType = struct
 				7,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
 				loop (!f())
+			| VInt64 _ | VUInt64 _ | VNativeString _ -> 8,[||]
 		in
 		let i,vl = loop v in
 		encode_enum_value key_ValueType i vl None
@@ -3120,6 +3121,28 @@ module StdUtf8 = struct
 			vtrue
 		with UTF8.Malformed_code ->
 			vfalse
+	)
+end
+
+module StdNativeString = struct
+	let from_string = vfun1 (fun v ->
+		let s = decode_vstring v in
+		vnative_string s.sstring
+	)
+
+	let from_bytes = vfun1 (fun v ->
+		let b = decode_bytes v in
+		vnative_string (Bytes.to_string b)
+	)
+
+	let to_string = vfun1 (fun v ->
+		let s = decode_native_string v in
+		create_unknown s
+	)
+
+	let to_bytes = vfun1 (fun v ->
+		let s = decode_native_string v in
+		encode_bytes (Bytes.of_string s)
 	)
 end
 
@@ -3725,4 +3748,12 @@ let init_standard_library builtins =
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
 	];
+	init_fields builtins (["eval";"_NativeString"],"NativeString_Impl_") [
+		"fromBytes",StdNativeString.from_bytes;
+		"fromString",StdNativeString.from_string;
+		"toBytes",StdNativeString.to_bytes;
+		"toString",StdNativeString.to_string;
+	] [];
+	init_fields builtins (["eval";"integers";"_UInt64"],"UInt64_Impl_") EvalIntegers.uint64_fields [];
+	init_fields builtins (["eval";"integers";"_Int64"],"Int64_Impl_") EvalIntegers.int64_fields [];
 	EvalSsl.init_fields init_fields builtins
