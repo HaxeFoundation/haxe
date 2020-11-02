@@ -18,7 +18,10 @@ package eval.integers;
 
 	/**
 		Parse the given string value to an unsigned integer.
+<<<<<<< HEAD
 
+=======
+>>>>>>> development
 		Throws if the given string is not a valid representation of an unsigned
 		integer.
 	**/
@@ -44,11 +47,15 @@ package eval.integers;
 
 	/**
 		Convert to an integer value.
-
 		The 64-bit unsigned integer is taken modulo 2{^32}, i.e. the top 32 bits
 		are lost during the conversion.
 	**/
 	public function toInt():Int;
+
+	/**
+		Convert to a signed integer value.
+	**/
+	public function toInt64():Int64;
 
 	/**
 		Return the string representation of this value.

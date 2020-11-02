@@ -62,6 +62,10 @@ let uint64_fields = [
 		let u = decode_u64 v in
 		vint32 (UInt32.to_int32 (UInt64.to_uint32 u))
 	);
+	"toInt64", vfun1 (fun v ->
+		let u = decode_u64 v in
+		VInt64 (Int64.of_int64 (UInt64.to_int64 u))
+	);
 	"toString", vfun1 (fun v ->
 		let u = decode_u64 v in
 		EvalString.vstring (EvalString.create_ascii (UInt64.to_string u))
@@ -163,6 +167,10 @@ let int64_fields = [
 	"toInt", vfun1 (fun v ->
 		let i = decode_i64 v in
 		vint32 (GInt64.to_int32 i)
+	);
+	"toUInt64", vfun1 (fun v ->
+		let i = decode_i64 v in
+		VUInt64 (UInt64.of_int64 i)
 	);
 	"toString", vfun1 (fun v ->
 		let i = decode_i64 v in

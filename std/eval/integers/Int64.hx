@@ -1,7 +1,7 @@
 package eval.integers;
 
 /**
-	Unsigned 64-bit integer type and operations.
+	Signed 64-bit integer type and operations.
 **/
 @:coreType abstract Int64 {
 	/** The greatest representable Int64 value. */
@@ -20,7 +20,6 @@ package eval.integers;
 
 	/**
 		Parse the given string value to Int64.
-
 		Throws if the given string is not a valid representation of Int64.
 	**/
 	static public function ofString(s:String):Int64;
@@ -45,11 +44,15 @@ package eval.integers;
 
 	/**
 		Convert to an integer value.
-
 		The 64-bit signed integer is taken modulo 2{^32}, i.e. the top 32 bits
 		are lost during the conversion.
 	**/
 	public function toInt():Int;
+
+	/**
+		Convert to an unsigned integer value.
+	**/
+	public function toUInt64():UInt64;
 
 	/**
 		Return the string representation of this value.
