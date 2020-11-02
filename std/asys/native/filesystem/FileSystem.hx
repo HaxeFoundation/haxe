@@ -19,12 +19,15 @@ import asys.native.system.SystemGroup;
 @:coreApi
 class FileSystem {
 	/**
-		Returns an object which allows to run all IO operations through the
+		Returns an object which is _advised_ to run all IO operations through the
 		given job `executor`.
+
+		Depending on the `asys.native.filesystem.IFileSystem` implementation `executor`
+		may be ignored.
 
 		Default executor implementation depends on a target platform.
 	**/
-	static public function create(executor:IJobExecutor = null):IFileSystem {
+	static public dynamic function create(executor:IJobExecutor = null):IFileSystem {
 		throw new NotImplementedException();
 	}
 
@@ -310,4 +313,118 @@ class FileSystem {
 	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();
 	}
+}
+
+/**
+	Default implementation of `asys.native.filesystem.IFileSystem`
+**/
+class DefaultFileSystem implements IFileSystem {
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.openFile)
+	public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.tempFile)
+	public function tempFile(callback:Callback<File>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.readBytes)
+	public function readBytes(path:FilePath, callback:Callback<Bytes>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.readString)
+	public function readString(path:FilePath, callback:Callback<String>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.writeBytes)
+	public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.writeString)
+	public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.openDirectory)
+	public function openDirectory(path:FilePath, callback:Callback<Directory>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.listDirectory)
+	public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.createDirectory)
+	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.uniqueDirectory)
+	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.move)
+	public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.deleteFile)
+	public function deleteFile(path:FilePath, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.deleteDirectory)
+	public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.info)
+	public function info(path:FilePath, callback:Callback<FileInfo>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.check)
+	public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.isDirectory)
+	public function isDirectory(path:FilePath, callback:Callback<Bool>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.isFile)
+	public function isFile(path:FilePath, callback:Callback<Bool>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.setPermissions)
+	public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.setOwner)
+	public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.setLinkOwner)
+	public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.link)
+	public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.isLink)
+	public function isLink(path:FilePath, callback:Callback<Bool>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.readLink)
+	public function readLink(path:FilePath, callback:Callback<FilePath>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.linkInfo)
+	public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.copyFile)
+	public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.resize)
+	public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
+
+	@:inheritDoc(asys.native.filesystem.FileSystem.setTimes)
+	public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void
+		throw new NotImplementedException();
 }

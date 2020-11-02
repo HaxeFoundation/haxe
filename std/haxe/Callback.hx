@@ -5,9 +5,6 @@ typedef CallbackHandler<E,R> = (error:Null<E>, result:R) -> Void;
 /**
 	A callback.
 
-	All instances of `Callback` are one-time functions. That is, invoking a callback
-	the second time must never happen.
-
 	All callbacks in the standard library are functions which accept
 	two arguments: an error (`haxe.Exception`) and a result (`T`).
 
