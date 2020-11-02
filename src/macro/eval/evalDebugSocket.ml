@@ -64,7 +64,6 @@ let var_to_json name value vio env =
 	in
 	let string_repr s = "\"" ^ (StringHelper.s_escape s) ^ "\"" in
 	let rec level2_value_repr = function
-		| VFileDescriptor _ -> "<descriptor>"
 		| VNull -> "null"
 		| VTrue -> "true"
 		| VFalse -> "false"
@@ -94,7 +93,6 @@ let var_to_json name value vio env =
 		Printf.sprintf "[%s]" (String.concat ", " l)
 	in
 	let rec value_string v = match v with
-		| VFileDescriptor _ -> jv "eval.Unix.FileDescriptor" "<descriptor>" 0
 		| VNull -> jv "NULL" "null" 0
 		| VTrue -> jv "Bool" "true" 0
 		| VFalse -> jv "Bool" "false" 0
@@ -267,7 +265,7 @@ let output_scope_vars env scope =
 
 let output_inner_vars v env =
 	let rec loop v = match v with
-		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ | VFileDescriptor _ -> []
+		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ -> []
 		| VEnumValue ve ->
 			begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
 				| PEnum names ->
@@ -429,7 +427,7 @@ module ValueCompletion = struct
 			| _ -> "field"
 		in
 		let rec loop v = match v with
-			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ | VFileDescriptor _ ->
+			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ | VNativeString _ ->
 				[]
 			| VObject o ->
 				let fields = object_fields o in

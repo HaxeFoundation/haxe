@@ -110,7 +110,6 @@ type value =
 	| VFieldClosure of value * vfunc
 	| VLazy of (unit -> value) ref
 	| VNativeString of string
-	| VFileDescriptor of Unix.file_descr
 
 and vfunc = value list -> value
 
@@ -266,7 +265,6 @@ let vint32 i = VInt32 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e
 let vnative_string s = VNativeString s
-let vfile_descriptor s = VFileDescriptor s
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 

@@ -328,13 +328,6 @@ let value_signature v =
 				add (string_of_int !cache_count);
 				incr cache_count
 			)
-		| VFileDescriptor _ ->
-			(* Custom format: enumerate descriptors as D0, D1 etc. *)
-			cache v (fun () ->
-				addc 'D';
-				add (string_of_int !cache_count);
-				incr cache_count
-			)
 		| VLazy f ->
 			loop (!f())
 	and loop_fields fields =

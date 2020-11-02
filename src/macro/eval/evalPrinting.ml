@@ -109,7 +109,6 @@ and s_value depth v =
 	in
 	if depth > 5 then rstop
 	else match v with
-	| VFileDescriptor _ -> rdescriptor
 	| VNull -> rnull
 	| VInt32 i32 -> create_ascii(Int32.to_string i32)
 	| VTrue -> rtrue

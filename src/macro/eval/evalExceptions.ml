@@ -61,7 +61,6 @@ let is v path =
 	| _ -> false
 
 let s_value_kind = function
-	| VFileDescriptor _ -> "VFileDescriptor"
 	| VNull -> "VNull"
 	| VTrue -> "VTrue"
 	| VFalse -> "VFalse"

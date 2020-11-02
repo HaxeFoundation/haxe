@@ -3021,7 +3021,6 @@ module StdType = struct
 			| VLazy f ->
 				loop (!f())
 			| VNativeString _ -> 8,[||]
-			| VFileDescriptor _ -> 8,[||]
 		in
 		let i,vl = loop v in
 		encode_enum_value key_ValueType i vl None
@@ -3761,19 +3760,5 @@ let init_standard_library builtins =
 		"toBytes",StdNativeString.to_bytes;
 		"toString",StdNativeString.to_string;
 		"equals",StdNativeString.equals;
-	] [];
-	init_fields builtins (["eval"],"Unix") [
-		"isLink",EvalUnix.is_link;
-		"isFile",EvalUnix.is_file;
-		"isDirectory",EvalUnix.is_directory;
-		"stat",EvalUnix.get_stat;
-		"lstat",EvalUnix.get_lstat;
-		"utimes",EvalUnix.set_utimes;
-		"realPath",EvalUnix.get_real_path;
-		"mkdir",EvalUnix.mkdir;
-		"openFile",EvalUnix.open_file;
-		"closeFile",EvalUnix.close_file;
-		"read",EvalUnix.read_file;
-		"write",EvalUnix.write_file;
 	] [];
 	EvalSsl.init_fields init_fields builtins
