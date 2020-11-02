@@ -63,7 +63,7 @@ enum SendHandle {
 		To read only once, call `eval.luv.Stream.readStop` immediately, in the `callback`.
 		Otherwise, the main callback will be called repeatedly.
 	**/
-	extern static public function readStart(stream:Stream, callback:(result:Result<Buffer>)->Void, allocate:(size:Int)->Buffer):Void;
+	extern static public function readStart(stream:Stream, callback:(result:Result<Buffer>)->Void, ?allocate:(size:Int)->Buffer):Void;
 
 	/**
 		Stops reading.

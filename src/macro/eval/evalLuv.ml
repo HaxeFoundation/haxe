@@ -1136,9 +1136,10 @@ let stream_fields = [
 		Stream.shutdown stream (encode_unit_callback v2);
 		vnull
 	);
-	"listen", vfun2 (fun v1 v2 ->
+	"listen", vfun3 (fun v1 v2 v3 ->
 		let stream = decode_stream v1 in
-		Stream.listen stream (encode_unit_callback v2);
+		let backlog = decode_optional (fun v -> decode_int v) v3 in
+		Stream.listen ?backlog stream (encode_unit_callback v2);
 		vnull
 	);
 	"accept", vfun2 (fun v1 v2 ->
@@ -1191,20 +1192,20 @@ let stream_fields = [
 		vnull
 	);
 	"tryWrite", vfun2 (fun v1 v2 ->
-		let stream = decode_pipe v1
+		let stream = decode_stream v1
 		and data = decode_buffers v2 in
 		encode_result vint (Stream.try_write stream data)
 	);
 	"isReadable", vfun1 (fun v ->
-		let stream = decode_pipe v in
+		let stream = decode_stream v in
 		vbool (Stream.is_readable stream)
 	);
 	"isWritable", vfun1 (fun v ->
-		let stream = decode_pipe v in
+		let stream = decode_stream v in
 		vbool (Stream.is_writable stream)
 	);
 	"setBlocking", vfun2 (fun v1 v2 ->
-		let stream = decode_pipe v1
+		let stream = decode_stream v1
 		and block = decode_bool v2 in
 		encode_unit_result (Stream.set_blocking stream block)
 	);
