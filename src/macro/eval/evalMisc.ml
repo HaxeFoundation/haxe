@@ -167,6 +167,7 @@ let op_add p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
+	| VNativeString s1,VNativeString s2 -> vnative_string (s1 ^ s2)
 	| VString s1,VString s2 -> vstring (concat s1 s2)
 	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
 	| v1,VString s2 -> vstring (concat (s_value 0 v1) s2)
