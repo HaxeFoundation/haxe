@@ -1,6 +1,6 @@
 package cases;
 
-@:timeout(1000)
+@:timeout(2000)
 class TestEvents extends utest.Test {
 
 	function testThreadRunWithEventLoop() {
@@ -69,6 +69,7 @@ class TestEvents extends utest.Test {
 	@:depends(testRun)
 	function testPromisedEvents(async:Async) {
 		var mainThread = Thread.current();
+		mainThread.events.promise();
 		// this thread is expected to wait for promised events
 		Thread.createWithEventLoop(() -> {
 			var eventsExecuted = 0;
@@ -92,7 +93,7 @@ class TestEvents extends utest.Test {
 				testThread.events.runPromised(() -> {
 					++eventsExecuted;
 					isTrue(testThread == Thread.current());
-					mainThread.events.run(() -> {
+					mainThread.events.runPromised(() -> {
 						equals(3, eventsExecuted);
 						async.done();
 					});

@@ -319,8 +319,15 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-    let id = Thread.id (Thread.self()) in
-    if id = 0 then ctx.eval else IntMap.find id ctx.evals
+	let id = Thread.id (Thread.self()) in
+	if id = 0 then
+		ctx.eval
+	else
+		try
+			IntMap.find id ctx.evals
+		with Not_found ->
+			die "Cannot run Haxe code in a non-Haxe thread" __LOC__
+
 
 let rec kind_name eval kind =
 	let rec loop kind env = match kind with

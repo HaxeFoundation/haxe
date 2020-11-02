@@ -560,6 +560,16 @@ extern class Global {
 	static function mt_getrandmax():Int;
 
 	/**
+		@see http://php.net/manual/en/function.random-bytes.php
+	**/
+	static function random_bytes(length:Int):String;
+
+	/**
+		@see http://php.net/manual/en/function.random-int.php
+	**/
+	static function random_int(min:Int, max:Int):Int;
+
+	/**
 		@see http://php.net/manual/en/function.is-nan.php
 	**/
 	static function is_nan(arg:Float):Bool;
@@ -791,6 +801,16 @@ extern class Global {
 	static function lchgrp(filename:String, group:EitherType<Int,String>):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.fnmatch.php
+	**/
+	static function fnmatch(pattern:String, string:String, flags:Int = 0):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.pathinfo.php
+	**/
+	static function pathinfo(path:String, ?options:Int):EitherType<String, NativeAssocArray<String>>;
+
+	/**
 		@see http://php.net/manual/en/function.realpath.php
 	**/
 	static function realpath(path:String):EitherType<String, Bool>;
@@ -1019,12 +1039,22 @@ extern class Global {
 		secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.html-entity-decode.php
+	**/
+	static function html_entity_decode(string:String, ?flags:Int, ?encoding:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.htmlentities.php
+	**/
+	static function htmlentities(string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true):String;
+
+	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
 	**/
 	static function htmlspecialchars(string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true):String;
 
 	/**
-		@see http://php.net/manual/en/function.htmlspecialchars_decode.php
+		@see http://php.net/manual/en/function.htmlspecialchars-decode.php
 	**/
 	static function htmlspecialchars_decode(string:String, ?flags:Int):String;
 
@@ -1677,4 +1707,155 @@ extern class Global {
 	**/
 	@:overload(function(version1:String, version2:String, comparisonOperator:String):Bool {})
 	static function version_compare(version1:String, version2:String):Int;
+
+	/**
+		@see http://php.net/manual/en/function.ob-clean.php
+	**/
+	static function ob_clean():Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-end-clean.php
+	**/
+	static function ob_end_clean():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ob-end-flush.php
+	**/
+	static function ob_end_flush():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ob-flush.php
+	**/
+	static function ob_flush():Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-clean.php
+	**/
+	static function ob_get_clean():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-contents.php
+	**/
+	static function ob_get_contents():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-flush.php
+	**/
+	static function ob_get_flush():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-length.php
+	**/
+	static function ob_get_length():EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-level.php
+	**/
+	static function ob_get_level():Int;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-status.php
+	**/
+	static function ob_get_status(full_status:Bool = false):NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.ob-implicit-flush.php
+	**/
+	static function ob_implicit_flush(flag:Int = 1):Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-list-handlers.php
+	**/
+	static function ob_list_handlers():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-start.php
+	**/
+	static function ob_start(output_callback: (String, ?Int) -> String = null, chunk_size:Int = 0, ?flags:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.strip-tags.php
+	**/
+	static function strip_tags(str: String, ?allowable_tags:EitherType<String, Array<String>>):String;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-file.php
+	**/
+	static function parse_ini_file(filename:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-string.php
+	**/
+	static function parse_ini_string(ini:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-compile-file.php
+	**/
+	static function opcache_compile_file(file:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-get-configuration.php
+	**/
+	static function opcache_get_configuration():NativeAssocArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-get-status.php
+	**/
+	static function opcache_get_status(get_scripts:Bool = true):EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-invalidate.php
+	**/
+	static function opcache_invalidate(script:String, force:Bool = false):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-is-script-cached.php
+	**/
+	static function opcache_is_script_cached(file:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-reset.php
+	**/
+	static function opcache_reset():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.checkdnsrr.php
+	**/
+	static function checkdnsrr(host:String, type:String = "MX"):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.dns-get-record.php
+	**/
+	static function dns_get_record(hostname:String, ?type:Int, ?authns:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>,
+		?addtl:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>, raw:Bool = false):EitherType<NativeIndexedArray<NativeAssocArray<Dynamic>>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.idn-to-ascii.php
+	**/
+	static function idn_to_ascii(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.idn-to-utf8.php
+	**/
+	static function idn_to_utf8(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.intl-error-name.php
+	**/
+	static function intl_error_name(error_code:Int):String;
+
+	/**
+		@see http://php.net/manual/en/function.intl-get-error-code.php
+	**/
+	static function intl_get_error_code():Int;
+
+	/**
+		@see http://php.net/manual/en/function.intl-get-error-message.php
+	**/
+	static function intl_get_error_message():String;
+
+	/**
+		@see http://php.net/manual/en/function.intl-is-failure.php
+	**/
+	static function intl_is_failure(error_code:Int):Bool;
 }

@@ -546,46 +546,6 @@ module StdBytesBuffer = struct
 	)
 end
 
-module StdNativeStackTrace = struct
-	let make_stack envs =
-		let l = DynArray.create () in
-		List.iter (fun (pos,kind) ->
-			let file_pos s =
-				let line1,col1,_,_ = Lexer.get_pos_coords pos in
-				encode_enum_value key_haxe_StackItem 2 [|s;create_unknown pos.pfile;vint line1;vint col1|] None
-			in
-			match kind with
-			| EKLocalFunction i ->
-				let local_function = encode_enum_value key_haxe_StackItem 4 [|vint i|] None in
-				DynArray.add l (file_pos local_function);
-			| EKMethod(st,sf) ->
-				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
-				DynArray.add l (file_pos local_function);
-			| EKEntrypoint ->
-				()
-		) envs;
-		encode_array (DynArray.to_list l)
-
-	let make_stack_value envs =
-		make_stack (List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
-
-	let getCallStack = vfun0 (fun () ->
-		let ctx = get_ctx() in
-		let envs = call_stack (get_eval ctx) in
-		let envs = match envs with
-			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
-			| _ -> envs
-		in
-		make_stack_value  envs
-	)
-
-	let getExceptionStack = vfun0 (fun () ->
-		let ctx = get_ctx() in
-		let envs = ctx.exception_stack in
-		make_stack (List.rev envs)
-	)
-end
-
 module StdCompress = struct
 	open Extc
 
@@ -3020,7 +2980,7 @@ module StdType = struct
 				7,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
 				loop (!f())
-			| VNativeString _ -> 8,[||]
+			| VInt64 _ | VUInt64 _ | VNativeString _ | VHandle _ -> 8,[||]
 		in
 		let i,vl = loop v in
 		encode_enum_value key_ValueType i vl None
@@ -3143,12 +3103,6 @@ module StdNativeString = struct
 	let to_bytes = vfun1 (fun v ->
 		let s = decode_native_string v in
 		encode_bytes (Bytes.of_string s)
-	)
-
-	let equals = vfun2 (fun v1 v2 ->
-		let s1 = decode_native_string v1
-		and s2 = decode_native_string v2 in
-		vbool (s1 = s2)
 	)
 end
 
@@ -3408,8 +3362,8 @@ let init_standard_library builtins =
 		"getBytes",StdBytesBuffer.getBytes;
 	];
 	init_fields builtins (["haxe"],"NativeStackTrace") [
-		"_callStack",StdNativeStackTrace.getCallStack;
-		"exceptionStack",StdNativeStackTrace.getExceptionStack;
+		"_callStack",EvalStackTrace.getCallStack;
+		"exceptionStack",EvalStackTrace.getExceptionStack;
 	] [];
 	init_fields builtins (["haxe";"zip"],"Compress") [
 		"run",StdCompress.run;
@@ -3759,6 +3713,55 @@ let init_standard_library builtins =
 		"fromString",StdNativeString.from_string;
 		"toBytes",StdNativeString.to_bytes;
 		"toString",StdNativeString.to_string;
-		"equals",StdNativeString.equals;
 	] [];
+	init_fields builtins (["eval";"integers";"_UInt64"],"UInt64_Impl_") EvalIntegers.uint64_fields [];
+	init_fields builtins (["eval";"integers";"_Int64"],"Int64_Impl_") EvalIntegers.int64_fields [];
+	init_fields builtins (["eval";"luv";"_UVError"],"UVError_Impl_") EvalLuv.uv_error_fields [];
+	init_fields builtins (["eval";"luv";"_Loop"],"Loop_Impl_") EvalLuv.loop_fields [];
+	init_fields builtins (["eval";"luv";"_Loop"],"LoopOption_Impl_") ["sigprof",vint Luv.Loop.Option.sigprof] [];
+	init_fields builtins (["eval";"luv";"_Handle"],"Handle_Impl_") EvalLuv.handle_fields [];
+	init_fields builtins (["eval";"luv";"_Idle"], "Idle_Impl_") EvalLuv.idle_fields [];
+	init_fields builtins (["eval";"luv";"_Async"], "Async_Impl_") EvalLuv.async_fields [];
+	init_fields builtins (["eval";"luv";"_Timer"], "Timer_Impl_") EvalLuv.timer_fields [];
+	init_fields builtins (["eval";"luv";"_Buffer"], "Buffer_Impl_") EvalLuv.buffer_fields [];
+	init_fields builtins (["eval";"luv";"_SockAddr"], "SockAddr_Impl_") EvalLuv.sockaddr_fields [];
+	init_fields builtins (["eval";"luv";"_Tcp"], "Tcp_Impl_") EvalLuv.tcp_fields [];
+	init_fields builtins (["eval";"luv";"_Udp"], "Udp_Impl_") EvalLuv.udp_fields [];
+	init_fields builtins (["eval";"luv";"_ConnectedUdp"], "ConnectedUdp_Impl_") EvalLuv.connected_udp_fields [];
+	init_fields builtins (["eval";"luv";"_Pipe"], "Pipe_Impl_") EvalLuv.pipe_fields [];
+	init_fields builtins (["eval";"luv";"_Tty"], "Tty_Impl_") EvalLuv.tty_fields [];
+	init_fields builtins (["eval";"luv";"_Stream"], "Stream_Impl_") EvalLuv.stream_fields [];
+	init_fields builtins (["eval";"luv";"_Signal"], "Signal_Impl_") EvalLuv.signal_fields [];
+	init_fields builtins (["eval";"luv";"_Signal"], "SigNum_Impl_") EvalLuv.signum_fields [];
+	init_fields builtins (["eval";"luv";"_Process"], "Process_Impl_") EvalLuv.process_fields [];
+	init_fields builtins (["eval";"luv";"_Request"], "Request_Impl_") EvalLuv.request_fields [];
+	init_fields builtins (["eval";"luv"], "Dns") EvalLuv.dns_fields [];
+	init_fields builtins (["eval";"luv";"_File"], "File_Impl_") EvalLuv.file_fields [];
+	init_fields builtins (["eval";"luv";"_Dir"], "Dir_Impl_") EvalLuv.dir_fields [];
+	init_fields builtins (["eval";"luv"], "FileSync") EvalLuv.file_sync_fields [];
+	init_fields builtins (["eval";"luv"], "DirSync") EvalLuv.dir_sync_fields [];
+	init_fields builtins (["eval";"luv";"_FsEvent"], "FsEvent_Impl_") EvalLuv.fs_event_fields [];
+	init_fields builtins (["eval";"luv"], "ThreadPool") EvalLuv.thread_pool_fields [];
+	init_fields builtins (["eval";"luv";"_Thread"], "Thread_Impl_") EvalLuv.thread_fields [];
+	init_fields builtins (["eval";"luv";"_Once"], "Once_Impl_") EvalLuv.once_fields [];
+	init_fields builtins (["eval";"luv";"_Mutex"], "Mutex_Impl_") EvalLuv.mutex_fields [];
+	init_fields builtins (["eval";"luv";"_RwLock"], "RwLock_Impl_") EvalLuv.rwlock_fields [];
+	init_fields builtins (["eval";"luv";"_Semaphore"], "Semaphore_Impl_") EvalLuv.semaphore_fields [];
+	init_fields builtins (["eval";"luv";"_Condition"], "Condition_Impl_") EvalLuv.condition_fields [];
+	init_fields builtins (["eval";"luv";"_Barrier"], "Barrier_Impl_") EvalLuv.barrier_fields [];
+	init_fields builtins (["eval";"luv"], "Env") EvalLuv.env_fields [];
+	init_fields builtins (["eval";"luv"], "Time") EvalLuv.time_fields [];
+	init_fields builtins (["eval";"luv"], "Path") EvalLuv.path_fields [];
+	init_fields builtins (["eval";"luv"], "Random") EvalLuv.random_fields [];
+	init_fields builtins (["eval";"luv"], "RandomSync") EvalLuv.random_sync_fields [];
+	init_fields builtins (["eval";"luv"], "Network") EvalLuv.network_fields [];
+	init_fields builtins (["eval";"luv";"_FsPoll"], "FsPoll_Impl_") EvalLuv.fs_poll_fields [];
+	init_fields builtins (["eval";"luv"], "Resource") EvalLuv.resource_fields [];
+	init_fields builtins (["eval";"luv"], "SystemInfo") EvalLuv.system_info_fields [];
+	init_fields builtins (["eval";"luv"], "Pid") EvalLuv.pid_fields [];
+	init_fields builtins (["eval";"luv"], "Passwd") EvalLuv.passwd_fields [];
+	init_fields builtins (["eval";"luv"], "Metrics") EvalLuv.metrics_fields [];
+	init_fields builtins (["eval";"luv";"_Prepare"], "Prepare_Impl_") EvalLuv.prepare_fields [];
+	init_fields builtins (["eval";"luv";"_Check"], "Check_Impl_") EvalLuv.check_fields [];
+	init_fields builtins (["eval";"luv"], "Version") EvalLuv.version_fields [];
 	EvalSsl.init_fields init_fields builtins

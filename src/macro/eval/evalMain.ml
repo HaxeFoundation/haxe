@@ -139,6 +139,20 @@ let create com api is_macro =
 		select ctx;
 		ignore(Event.sync(Event.receive eval.debug_channel));
 	end;
+	(* If no user-defined exception handler is set then follow libuv behavior.
+		Which is printing an error to stderr and exiting with code 2 *)
+	Luv.Error.set_on_unhandled_exception (fun ex ->
+		match ex with
+		| Sys_exit _ -> raise ex
+		| _ ->
+			let msg =
+				match ex with
+				| Error.Error (err,_) -> Error.error_msg err
+				| _ -> Printexc.to_string ex
+			in
+			Printf.eprintf "%s\n" msg;
+			exit 2
+	);
 	t();
 	ctx
 
@@ -199,7 +213,15 @@ let value_signature v =
 			incr cache_length;
 			f()
 	in
-	let cache_count = ref 0 in
+	let custom_count = ref 0 in
+	(* Custom format: enumerate custom entities as name_char0, name_char1 etc. *)
+	let custom_name name_char =
+		cache v (fun () ->
+			addc 'F';
+			add (string_of_int !custom_count);
+			incr custom_count
+		)
+	in
 	let rec loop v = match v with
 		| VNull -> addc 'n'
 		| VTrue -> addc 't'
@@ -208,6 +230,12 @@ let value_signature v =
 		| VInt32 i ->
 			addc 'i';
 			add (Int32.to_string i)
+		| VInt64 i ->
+			add "i64";
+			add (Signed.Int64.to_string i)
+		| VUInt64 u ->
+			add "u64";
+			add (Unsigned.UInt64.to_string u)
 		| VFloat f ->
 			if f = neg_infinity then addc 'm'
 			else if f = infinity then addc 'p'
@@ -322,12 +350,9 @@ let value_signature v =
 		| VPrototype _ ->
 			die "" __LOC__
 		| VFunction _ | VFieldClosure _ ->
-			(* Custom format: enumerate functions as F0, F1 etc. *)
-			cache v (fun () ->
-				addc 'F';
-				add (string_of_int !cache_count);
-				incr cache_count
-			)
+			custom_name 'F'
+		| VHandle _ ->
+			custom_name 'H'
 		| VLazy f ->
 			loop (!f())
 	and loop_fields fields =
@@ -339,15 +364,7 @@ let value_signature v =
 	loop v;
 	Digest.string (Buffer.contents buf)
 
-let prepare_callback v n =
-	match v with
-	| VFunction _ | VFieldClosure _ ->
-		let ctx = get_ctx() in
-		(fun args -> match catch_exceptions ctx (fun() -> call_value v args) null_pos with
-			| Some v -> v
-			| None -> vnull)
-	| _ ->
-		raise Invalid_expr
+let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()
 
@@ -392,7 +409,7 @@ let compiler_error msg pos =
 		let eval = get_eval ctx in
 		(match eval.env with
 		| Some _ ->
-			let stack = EvalStdLib.StdNativeStackTrace.make_stack_value (call_stack eval) in
+			let stack = EvalStackTrace.make_stack_value (call_stack eval) in
 			set_instance_field i key_native_stack stack;
 		| None -> ());
 		exc vi

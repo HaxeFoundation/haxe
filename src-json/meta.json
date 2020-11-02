@@ -798,7 +798,7 @@
 	{
 		"name": "NoDoc",
 		"metadata": ":noDoc",
-		"doc": "Prevents a type from being included in documentation generation."
+		"doc": "Prevents a type or field from being included in documentation generation."
 	},
 	{
 		"name": "NoExpr",

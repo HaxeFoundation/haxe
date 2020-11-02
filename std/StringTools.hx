@@ -209,7 +209,11 @@ class StringTools {
 		When `value` is `null`, the result is unspecified.
 	**/
 	public static inline function contains(s:String, value:String):Bool {
+		#if (js && js_es >= 6)
+		return (cast s).includes(value);
+		#else 
 		return s.indexOf(value) != -1;
+		#end
 	}
 
 	/**
@@ -219,7 +223,7 @@ class StringTools {
 
 		If `start` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java || python) inline #end function startsWith(s:String, start:String):Bool {
+	public static #if (cs || java || python || (js && js_es >= 6)) inline #end function startsWith(s:String, start:String):Bool {
 		#if java
 		return (cast s : java.NativeString).startsWith(start);
 		#elseif cs
@@ -228,6 +232,8 @@ class StringTools {
 		return @:privateAccess (s.length >= start.length && s.bytes.compare(0, start.bytes, 0, start.length << 1) == 0);
 		#elseif python
 		return python.NativeStringTools.startswith(s, start);
+		#elseif (js && js_es >= 6)
+		return (cast s).startsWith(start);
 		#else
 		return (s.length >= start.length && s.lastIndexOf(start, 0) == 0);
 		#end
@@ -240,7 +246,7 @@ class StringTools {
 
 		If `end` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java || python) inline #end function endsWith(s:String, end:String):Bool {
+	public static #if (cs || java || python || (js && js_es >= 6)) inline #end function endsWith(s:String, end:String):Bool {
 		#if java
 		return (cast s : java.NativeString).endsWith(end);
 		#elseif cs
@@ -251,6 +257,8 @@ class StringTools {
 		return @:privateAccess (slen >= elen && s.bytes.compare((slen - elen) << 1, end.bytes, 0, elen << 1) == 0);
 		#elseif python
 		return python.NativeStringTools.endswith(s, end);
+		#elseif (js && js_es >= 6)
+		return (cast s).endsWith(end);
 		#else
 		var elen = end.length;
 		var slen = s.length;

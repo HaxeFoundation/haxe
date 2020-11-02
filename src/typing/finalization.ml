@@ -55,17 +55,21 @@ let get_main ctx types =
 		in
 		(* add haxe.EntryPoint.run() call *)
 		let add_entry_point_run main =
-			(try
+			try
 				main :: [call_static (["haxe"],"EntryPoint") "run"]
 			with Not_found ->
 				[main]
-			)
+		and add_entry_point_init main =
+			try
+				main :: [call_static (["haxe"],"EntryPoint") "init"]
+			with Not_found ->
+				[main]
 		in
 		(* add calls for event loop *)
 		let add_event_loop main =
 			(try
 				let thread = (["sys";"thread";"_Thread"],"Thread_Impl_") in
-				call_static thread "initEventLoop" :: add_entry_point_run main @ [call_static thread "processEvents"]
+				call_static thread "initEventLoop" :: add_entry_point_init main @ [call_static thread "processEvents"]
 			with Not_found ->
 				[main]
 			)

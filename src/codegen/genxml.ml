@@ -219,7 +219,7 @@ let rec gen_type_decl com pos t =
 		) c.cl_ordered_statics in
 		let stats = List.map (gen_field ["static","1"]) stats in
 		let fields = List.filter (fun cf ->
-			not (Meta.has Meta.GenericInstance cf.cf_meta)
+			not (Meta.has Meta.GenericInstance cf.cf_meta) && not (Meta.has Meta.NoDoc cf.cf_meta)
 		) c.cl_ordered_fields in
 		let fields = (match c.cl_super with
 			| None -> List.map (fun f -> f,[]) fields

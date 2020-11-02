@@ -65,6 +65,8 @@ let s_value_kind = function
 	| VTrue -> "VTrue"
 	| VFalse -> "VFalse"
 	| VInt32 _ -> "VInt32"
+	| VInt64 _ -> "VInt64"
+	| VUInt64 _ -> "VUInt64"
 	| VFloat _ -> "VFloat"
 	| VEnumValue _ -> "VEnumValue"
 	| VObject _ -> "VObject"
@@ -77,6 +79,7 @@ let s_value_kind = function
 	| VFieldClosure _ -> "VFieldClosure"
 	| VLazy _ -> "VLazy"
 	| VNativeString _ -> "VNativeString"
+	| VHandle _ -> "VHandle"
 
 let unexpected_value : 'a . value -> string -> 'a = fun v s ->
 	let str = match v with
