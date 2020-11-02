@@ -75,6 +75,7 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam pin add luv https://github.com/aantron/luv.git#somaxconn --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
       
@@ -161,6 +162,7 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam pin add luv https://github.com/aantron/luv.git#somaxconn --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
       
@@ -628,12 +630,7 @@ jobs:
       
       - name: Install homebrew packages
         if: matrix.BREW_PACKAGES
-        run: |
-          brew uninstall openssl@1.0.2t
-          brew uninstall python@2.7.17
-          brew untap local/openssl
-          brew untap local/python2
-          brew install ${{matrix.BREW_PACKAGES}}
+        run: brew install ${{matrix.BREW_PACKAGES}}
       
       - name: Test
         run: |
