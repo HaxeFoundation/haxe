@@ -320,17 +320,16 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
 					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls then
+				else if ctx.com.config.pf_pad_nulls && is_nullable t then
 					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
 				else
 					ordered_args
 			in
 			loop args [] given_args missing_args a
-		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
-			error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
-			let v = alloc_var VGenerated (alloc_name n) (if o then ctx.t.tnull t else t) p in
+			let v = alloc_var VGenerated (alloc_name n) t p in
+			let o = o && is_nullable t in
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType.with_argument t n) in

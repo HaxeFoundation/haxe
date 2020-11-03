@@ -77,7 +77,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	let skipped = ref [] in
 	let invalid_skips = ref [] in
 	let skip name ul t p =
-		if not ctx.com.config.pf_can_skip_non_nullable_argument && not (is_nullable t) then
+		if not (is_nullable t) then
 			invalid_skips := name :: !invalid_skips;
 		skipped := (name,ul,p) :: !skipped;
 		default_value name t
@@ -108,7 +108,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			call_error (Not_enough_arguments args) callp
 		| [],(name,true,t) :: args ->
 			begin match loop [] args with
-				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
+				| [] when not (inline && (ctx.g.doinline || force_inline)) && not (ctx.com.config.pf_pad_nulls && is_nullable t) ->
 					if is_pos_infos t then [mk_pos_infos t,true]
 					else []
 				| args ->

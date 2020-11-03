@@ -1,1 +1,1 @@
-Main2.hx:4: characters 3-9 : Cannot skip non-nullable argument x
+Main2.hx:4: characters 3-9 : Not enough arguments, expected y:Float

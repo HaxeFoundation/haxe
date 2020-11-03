@@ -1201,7 +1201,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| _ ->
 			None
 	in
-	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
+	let is_extern = (fctx.is_extern || has_class_flag ctx.curclass CExtern) && not fctx.is_inline in
 	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
