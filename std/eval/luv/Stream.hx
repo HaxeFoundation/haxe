@@ -17,7 +17,7 @@ enum SendHandle {
 	/**
 		Shuts down the write side of the stream.
 	**/
-	extern static public function shutdown(stream:Stream, callback:(result:Result<Result.NoData>)->Void):Void;
+	extern static public function shutdown(stream:Stream, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Starts listening for incoming connections.
@@ -25,7 +25,7 @@ enum SendHandle {
 		`backlog` indicates the number of connections the kernel might queue.
 		When a new incoming connection is received the `callback` is called.
 	**/
-	extern static public function listen(stream:Stream, callback:(result:Result<Result.NoData>)->Void, ?backlog:Int):Void;
+	extern static public function listen(stream:Stream, callback:(result:Result<haxe.NoData>)->Void, ?backlog:Int):Void;
 
 	/**
 		This call is used in conjunction with `Stream.listen()` to accept incoming
@@ -38,7 +38,7 @@ enum SendHandle {
 
 		`client` should be a freshly-initialized stream.
 	**/
-	extern static public function accept<T>(server:TStream<T>, client:TStream<T>):Result<Result.NoData>;
+	extern static public function accept<T>(server:TStream<T>, client:TStream<T>):Result<haxe.NoData>;
 
 	/**
 		Calls the `callback` whenever data is available on the stream.
@@ -68,7 +68,7 @@ enum SendHandle {
 	/**
 		Stops reading.
 	**/
-	extern static public function readStop(stream:Stream):Result<Result.NoData>;
+	extern static public function readStop(stream:Stream):Result<haxe.NoData>;
 
 	/**
 		Writes the given buffer to the stream.
@@ -78,13 +78,13 @@ enum SendHandle {
 		that writes can be partial at the libuv API level, so it is possible to receive
 		both an `UVError` result, and for some data to have been successfully written.
 	**/
-	extern static public function write(stream:Stream, data:Array<Buffer>, callback:(result:Result<Result.NoData>, bytesWritten:Int)->Void):Result<Result.NoData>;
+	extern static public function write(stream:Stream, data:Array<Buffer>, callback:(result:Result<haxe.NoData>, bytesWritten:Int)->Void):Result<haxe.NoData>;
 
 	/**
 		Like `eval.luv.Stream.write`, but allows sending a TCP socket or pipe over the
 		stream.
 	**/
-	extern static public function write2(stream:TStream<Pipe>, data:Array<Buffer>, sendHandle:SendHandle, callback:(result:Result<Result.NoData>, bytesWritten:Int)->Void):Result<Result.NoData>;
+	extern static public function write2(stream:TStream<Pipe>, data:Array<Buffer>, sendHandle:SendHandle, callback:(result:Result<haxe.NoData>, bytesWritten:Int)->Void):Result<haxe.NoData>;
 
 	/**
 		Same as `eval.luv.Stream.write()`, but won’t queue a write request if it can’t
@@ -107,5 +107,5 @@ enum SendHandle {
 	/**
 		Sets the blocking mode of the stream.
 	**/
-	extern static public function setBlocking(stream:Stream, block:Bool):Result<Result.NoData>;
+	extern static public function setBlocking(stream:Stream, block:Bool):Result<haxe.NoData>;
 }

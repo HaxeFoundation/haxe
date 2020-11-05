@@ -29,6 +29,6 @@ package eval.luv;
 	/**
 		Waits for the thread to terminate.
 	**/
-	public function join():Result<Result.NoData>;
+	public function join():Result<haxe.NoData>;
 
 }

@@ -38,17 +38,17 @@ extern enum abstract SigNum(Int) from Int to Int {
 	/**
 		Starts the signal handle.
 	**/
-	public function start(sigNum:SigNum, callback:()->Void):Result<Result.NoData>;
+	public function start(sigNum:SigNum, callback:()->Void):Result<haxe.NoData>;
 
 	/**
 		Like `eval.luv.Signal.start`, but the handle is stopped after one callback call.
 	**/
-	public function startOneshot(sigNum:SigNum, callback:()->Void):Result<Result.NoData>;
+	public function startOneshot(sigNum:SigNum, callback:()->Void):Result<haxe.NoData>;
 
 	/**
 		Stops the signal handle.
 	**/
-	public function stop():Result<Result.NoData>;
+	public function stop():Result<haxe.NoData>;
 
 	/**
 		Evaluates to the signal number associated with the handle.

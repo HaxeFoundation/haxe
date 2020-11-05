@@ -24,7 +24,7 @@ package eval.luv;
 	/**
 		Tries to take a read-write lock for reading without blocking.
 	**/
-	public function rdTryLock():Result<Result.NoData>;
+	public function rdTryLock():Result<haxe.NoData>;
 
 	/**
 		Releases a read-write lock after it was taken for reading.
@@ -39,7 +39,7 @@ package eval.luv;
 	/**
 		Tries to take a read-write lock for writing without blocking.
 	**/
-	public function wrTryLock():Result<Result.NoData>;
+	public function wrTryLock():Result<haxe.NoData>;
 
 	/**
 		Releases a read-write lock after it was taken for writing.

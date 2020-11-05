@@ -18,10 +18,7 @@ package eval.integers;
 
 	/**
 		Parse the given string value to an unsigned integer.
-<<<<<<< HEAD
 
-=======
->>>>>>> development
 		Throws if the given string is not a valid representation of an unsigned
 		integer.
 	**/

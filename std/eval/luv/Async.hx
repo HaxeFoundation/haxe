@@ -17,5 +17,5 @@ package eval.luv;
 	/**
 		Triggers a call to the handle's callback by the handle's loop.
 	**/
-	public function send():Result<Result.NoData>;
+	public function send():Result<haxe.NoData>;
 }

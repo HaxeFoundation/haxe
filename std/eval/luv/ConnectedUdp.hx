@@ -13,7 +13,7 @@ abstract ConnectedUdp(Udp) to Udp to Handle {
 	/**
 		Removes the peer address assigned to the given socket.
 	**/
-	extern public function disconnect():Result<Result.NoData>;
+	extern public function disconnect():Result<haxe.NoData>;
 
 	/**
 		Retrieves the peer address assigned to the given socket.
@@ -24,11 +24,11 @@ abstract ConnectedUdp(Udp) to Udp to Handle {
 		Like `eval.luv.UDP.send`, but the remote address used is the peer address
 		assigned to the socket.
 	**/
-	extern public function send(data:Array<Buffer>, callback:(result:Result<Result.NoData>)->Void):Void;
+	extern public function send(data:Array<Buffer>, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Like `eval.luv.UDP.trySend`, but the remote address used is the peer address
 		assigned to the socket.
 	**/
-	extern public function trySend(data:Array<Buffer>):Result<Result.NoData>;
+	extern public function trySend(data:Array<Buffer>):Result<haxe.NoData>;
 }

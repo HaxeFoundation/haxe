@@ -23,7 +23,7 @@ enum abstract VTermState(Int) {
 		To be called when the program exits.
 		Resets TTY settings to default values for the next process to take over.
 	**/
-	static public function resetMode():Result<Result.NoData>;
+	static public function resetMode():Result<haxe.NoData>;
 
 	/**
 		Controls whether console virtual terminal sequences are processed by libuv
@@ -54,7 +54,7 @@ enum abstract VTermState(Int) {
 	/**
 		Sets the TTY's mode.
 	**/
-	public function setMode(mode:TtyMode):Result<Result.NoData>;
+	public function setMode(mode:TtyMode):Result<haxe.NoData>;
 
 	/**
 		Retrieves the current window size.

@@ -17,7 +17,7 @@ enum abstract LoopOption<T>(Int) {
 	extern static public final sigprof:Int;
 
 	var LOOP_BLOCK_SIGNAL:LoopOption<Int> = 0;
-	var METRICS_IDLE_TIME:LoopOption<Result.NoData> = 1;
+	var METRICS_IDLE_TIME:LoopOption<haxe.NoData> = 1;
 }
 
 /**
@@ -64,7 +64,7 @@ enum abstract LoopOption<T>(Int) {
 	/**
 		Releases resources associated with an event loop.
 	**/
-	public function close():Result<Result.NoData>;
+	public function close():Result<haxe.NoData>;
 
 	/**
 		Indicates whether the loop is monitoring any activity.
@@ -89,5 +89,5 @@ enum abstract LoopOption<T>(Int) {
 	/**
 		Sets the loop option.
 	**/
-	public function configure<T>(option:LoopOption<T>, value:T):Result<Result.NoData>;
+	public function configure<T>(option:LoopOption<T>, value:T):Result<haxe.NoData>;
 }
