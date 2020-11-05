@@ -13,7 +13,4 @@ import haxe.io.Bytes;
 
 	@:op(A + B)
 	public function concat(s:NativeString):NativeString;
-
-	@:op(A == B)
-	public function equals(s:NativeString):Bool;
 }

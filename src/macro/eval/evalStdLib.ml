@@ -3104,6 +3104,12 @@ module StdNativeString = struct
 		let s = decode_native_string v in
 		encode_bytes (Bytes.of_string s)
 	)
+
+	let concat = vfun2 (fun v1 v2 ->
+		let s1 = decode_native_string v1
+		and s2 = decode_native_string v2 in
+		vnative_string (s1 ^ s2)
+	)
 end
 
 let init_fields builtins path static_fields instance_fields =
@@ -3713,6 +3719,7 @@ let init_standard_library builtins =
 		"fromString",StdNativeString.from_string;
 		"toBytes",StdNativeString.to_bytes;
 		"toString",StdNativeString.to_string;
+		"concat",StdNativeString.concat;
 	] [];
 	init_fields builtins (["eval";"integers";"_UInt64"],"UInt64_Impl_") EvalIntegers.uint64_fields [];
 	init_fields builtins (["eval";"integers";"_Int64"],"Int64_Impl_") EvalIntegers.int64_fields [];
