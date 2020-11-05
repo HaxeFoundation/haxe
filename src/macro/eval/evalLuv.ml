@@ -1553,8 +1553,8 @@ module F = struct
 		(fn |> path ~vpath) flags
 
 	let utime ~vatime ~vmtime fn =
-		let atime = decode_float vatime
-		and mtime = decode_float vmtime in
+		let atime = num vatime
+		and mtime = num vmtime in
 		fn ~atime ~mtime
 
 	let link ~vlink fn =
