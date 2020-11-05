@@ -210,7 +210,7 @@ class TestFileSystem extends FsTest {
 				FileSystem.setPermissions('test-data/temp/perm', permissions, (e, r) -> {
 					if(noException(e))
 						FileSystem.info('test-data/temp/perm', (_, r) -> {
-							isTrue(permissions == r.permissions & permissions);
+							isTrue(r.mode.has(permissions));
 						});
 				});
 			}),
@@ -345,24 +345,24 @@ class TestFileSystem extends FsTest {
 			FileSystem.info('test-data/sub/hello.world', (e, r) -> {
 				if(noException(e)) {
 					equals(13, r.size);
-					isTrue(r.isFile());
-					isFalse(r.isDirectory());
-					isFalse(r.isSymbolicLink());
+					isTrue(r.mode.isFile());
+					isFalse(r.mode.isDirectory());
+					isFalse(r.mode.isLink());
 				}
 			}),
 			FileSystem.info('test-data/symlink', (e, r) -> {
 				if(noException(e)) {
 					equals(13, r.size);
-					isTrue(r.isFile());
-					isFalse(r.isDirectory());
-					isFalse(r.isSymbolicLink());
+					isTrue(r.mode.isFile());
+					isFalse(r.mode.isDirectory());
+					isFalse(r.mode.isLink());
 				}
 			}),
 			FileSystem.info('test-data/sub', (e, r) -> {
 				if(noException(e)) {
-					isFalse(r.isFile());
-					isTrue(r.isDirectory());
-					isFalse(r.isSymbolicLink());
+					isFalse(r.mode.isFile());
+					isTrue(r.mode.isDirectory());
+					isFalse(r.mode.isLink());
 				}
 			}),
 			FileSystem.info('non-existent', (e, r) -> {
@@ -411,9 +411,9 @@ class TestFileSystem extends FsTest {
 		asyncAll(async,
 			FileSystem.linkInfo('test-data/symlink', (e, r) -> {
 				if(noException(e)) {
-					isFalse(r.isFile());
-					isFalse(r.isDirectory());
-					isTrue(r.isSymbolicLink());
+					isFalse(r.mode.isFile());
+					isFalse(r.mode.isDirectory());
+					isTrue(r.mode.isLink());
 				}
 			}),
 			FileSystem.linkInfo('non-existent', (e, r) -> {
@@ -603,14 +603,14 @@ class TestFileSystem extends FsTest {
 
 	@:depends(testInfo)
 	function testUniqueDirectory(async:Async) {
-		var mode:FilePermissions = [0, 7, 6, 5];
+		var permissions:FilePermissions = [0, 7, 6, 5];
 		asyncAll(async,
-			FileSystem.uniqueDirectory('test-data/temp/non-existent/dir1', mode, true, (e, path) -> {
+			FileSystem.uniqueDirectory('test-data/temp/non-existent/dir1', permissions, true, (e, path) -> {
 				if(noException(e))
 					FileSystem.info(path, (e, r) -> {
 						if(noException(e)) {
-							isTrue(r.isDirectory());
-							isTrue(mode == r.permissions & FilePermissions.octal(0, 7, 7, 7));
+							isTrue(r.mode.isDirectory());
+							isTrue(r.mode.has(permissions));
 						}
 					});
 			}),

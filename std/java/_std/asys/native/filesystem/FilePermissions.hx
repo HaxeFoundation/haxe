@@ -9,13 +9,13 @@ import java.util.Set;
 private typedef NativePermissions = Set<PosixFilePermission>;
 
 @:coreApi
-abstract FilePermissions(NativePermissions) from NativePermissions to NativePermissions {
+abstract FilePermissions(NativePermissions) to NativePermissions {
 	static public inline function ignoresSpecialBit():Bool {
 		return true;
 	}
 
 	static inline function empty():NativePermissions {
-		return EnumSet.noneOf((cast PosixFilePermission:java.lang.Class<PosixFilePermission>));
+		return new FilePermissions(EnumSet.noneOf((cast PosixFilePermission:java.lang.Class<PosixFilePermission>)));
 	}
 
 	static public function octal(s:Int, u:Int, g:Int, o:Int):FilePermissions {
@@ -53,7 +53,7 @@ abstract FilePermissions(NativePermissions) from NativePermissions to NativePerm
 			case 7: set.add(OTHERS_EXECUTE); set.add(OTHERS_WRITE); set.add(OTHERS_READ);
 			case _: throw new ArgumentException('g');
 		}
-		return set;
+		return new FilePermissions(set);
 	}
 
 	@:from static inline function fromOctal(mode:Array<Int>):FilePermissions {
@@ -74,7 +74,7 @@ abstract FilePermissions(NativePermissions) from NativePermissions to NativePerm
 		if(dec & (1 << 6) != 0) set.add(OWNER_EXECUTE);
 		if(dec & (1 << 7) != 0) set.add(OWNER_WRITE);
 		if(dec & (1 << 8) != 0) set.add(OWNER_READ);
-		return set;
+		return new FilePermissions(set);
 	}
 
 	@:to function toDecimal():Int {
@@ -109,13 +109,13 @@ abstract FilePermissions(NativePermissions) from NativePermissions to NativePerm
 				result.add(values[i]);
 			}
 		}
-		return result;
+		return new FilePermissions(result);
 	}
 
 	@:op(A | B) static function merge(perm1:FilePermissions, perm2:FilePermissions):FilePermissions {
 		var result = EnumSet.copyOf(perm1);
 		result.addAll(perm2);
-		return result;
+		return new FilePermissions(result);
 	}
 
 	@:op(A == B) static function equals(perm1:Null<FilePermissions>, perm2:Null<FilePermissions>):Bool {
@@ -132,6 +132,10 @@ abstract FilePermissions(NativePermissions) from NativePermissions to NativePerm
 
 	@:op(A == B) @:commutative static inline function equalsDecimal(perm1:Null<FilePermissions>, dec:Int):Bool {
 		return equals(perm1, fromDecimal(dec));
+	}
+
+	inline function new(perm:NativePermissions) {
+		this = perm;
 	}
 
 	public inline function toString():String {

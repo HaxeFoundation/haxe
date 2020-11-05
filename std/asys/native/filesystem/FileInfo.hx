@@ -48,25 +48,6 @@ private typedef NativeInfo = {
 **/
 @:coreApi
 abstract FileInfo(NativeInfo) from NativeInfo to NativeInfo {
-	/** file type bit mask */
-	static inline var S_IFMT:Int = 61440;
-	/** named pipe (fifo) */
-	static inline var S_IFIFO:Int = 4096;
-	/** character special */
-	static inline var S_IFCHR:Int = 8192;
-	/** directory */
-	static inline var S_IFDIR:Int = 16384;
-	/** block special */
-	static inline var S_IFBLK:Int = 24576;
-	/** regular */
-	static inline var S_IFREG:Int = 32768;
-	/** symbolic link */
-	static inline var S_IFLNK:Int = 40960;
-	/** socket */
-	static inline var S_IFSOCK:Int = 49152;
-	/** whiteout */
-	static inline var S_IFWHT:Int = 57344;
-
 	/** Time of last access (Unix timestamp) */
 	public var accessTime(get,never):Int;
 	inline function get_accessTime():Int
@@ -102,9 +83,9 @@ abstract FileInfo(NativeInfo) from NativeInfo to NativeInfo {
 	inline function get_inodeNumber():Int
 		return this.ino;
 
-	/** File permissions */
-	public var permissions(get,never):FilePermissions;
-	inline function get_permissions():FilePermissions
+	/** File type and permissions */
+	public var mode(get,never):FileMode;
+	inline function get_mode():FileMode
 		return this.mode;
 
 	/** Number of links */
@@ -131,28 +112,4 @@ abstract FileInfo(NativeInfo) from NativeInfo to NativeInfo {
 	public var blocks(get,never):Int;
 	inline function get_blocks():Int
 		return this.blocks;
-
-	public inline function isBlockDevice():Bool
-		return this.mode & S_IFMT == S_IFBLK;
-
-	public inline function isCharacterDevice():Bool
-		return this.mode & S_IFMT == S_IFCHR;
-
-	public inline function isDirectory():Bool
-		return this.mode & S_IFMT == S_IFDIR;
-
-	/**
-		TODO: Fifo? FiFo?
-	**/
-	public inline function isFIFO():Bool
-		return this.mode & S_IFMT == S_IFIFO;
-
-	public inline function isFile():Bool
-		return this.mode & S_IFMT == S_IFREG;
-
-	public inline function isSocket():Bool
-		return this.mode & S_IFMT == S_IFSOCK;
-
-	public inline function isSymbolicLink():Bool
-		return this.mode & S_IFMT == S_IFLNK;
 }

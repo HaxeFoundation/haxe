@@ -44,10 +44,10 @@ class FileSystem {
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void
 		inline (inline new DefaultFileSystem(Native.defaultExecutor)).listDirectory(path, callback);
 
-	static public function createDirectory(path:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void
+	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void
 		inline (inline new DefaultFileSystem(Native.defaultExecutor)).createDirectory(path, permissions, recursive, callback);
 
-	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
+	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void
 		inline (inline new DefaultFileSystem(Native.defaultExecutor)).uniqueDirectory(parentDirectory, prefix, permissions, recursive, callback);
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
@@ -265,7 +265,8 @@ class DefaultFileSystem implements IFileSystem {
 		);
 	}
 
-	public function createDirectory(path:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
+		if(permissions == null) permissions = 511;
 		jobs.addJob(
 			() -> {
 				try {
@@ -281,7 +282,8 @@ class DefaultFileSystem implements IFileSystem {
 		);
 	}
 
-	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
+	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
+		if(permissions == null) permissions = 511;
 		jobs.addJob(
 			() -> {
 				try {

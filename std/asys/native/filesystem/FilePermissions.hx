@@ -12,7 +12,7 @@ private typedef NativePermissions = Int;
 	For octal numbers use `FilePermissions.octal` method.
 **/
 @:coreApi
-abstract FilePermissions(NativePermissions) from NativePermissions to NativePermissions {
+abstract FilePermissions(NativePermissions) to NativePermissions {
 	/**
 		Returns `true` if the special bit (sticky, SETUID, SETGUID) is ignored
 		by current implementation.
@@ -45,7 +45,7 @@ abstract FilePermissions(NativePermissions) from NativePermissions to NativePerm
 		7 - read, write, and execute
 	**/
 	static public inline function octal(s:Int, u:Int, g:Int, o:Int):FilePermissions {
-		return 512 * s + 64 * u + 8 * g + 1 * o;
+		return new FilePermissions(512 * s + 64 * u + 8 * g + 1 * o);
 	}
 
 	/**
@@ -71,8 +71,16 @@ abstract FilePermissions(NativePermissions) from NativePermissions to NativePerm
 		return octal(mode[0], mode[1], mode[2], mode[3]);
 	}
 
+	@:from static inline function fromDecimal(mode:Int):FilePermissions {
+		return new FilePermissions(mode);
+	}
+
 	@:op(A & B) static function intersect(perm1:FilePermissions, perm2:FilePermissions):FilePermissions;
 	@:op(A | B) static function merge(perm1:FilePermissions, perm2:FilePermissions):FilePermissions;
+
+	inline function new(perm:Int) {
+		this = perm;
+	}
 
 	public inline function toString():String {
 		return '$this';

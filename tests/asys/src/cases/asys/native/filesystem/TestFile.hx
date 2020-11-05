@@ -615,9 +615,9 @@ class TestFile extends FsTest {
 				file.info((e, r) -> {
 					if(noException(e)) {
 						equals(13, r.size);
-						isTrue(r.isFile());
-						isFalse(r.isDirectory());
-						isFalse(r.isSymbolicLink());
+						isTrue(r.mode.isFile());
+						isFalse(r.mode.isDirectory());
+						isFalse(r.mode.isLink());
 					}
 					file.close((_, _) -> {});
 				});
@@ -633,7 +633,7 @@ class TestFile extends FsTest {
 				file.setPermissions(permissions, (e, r) -> {
 					if(noException(e))
 						file.info((_, r) -> {
-							isTrue(permissions == r.permissions & permissions);
+							isTrue(r.mode.has(permissions));
 							file.close((_, _) -> {});
 						});
 				});
