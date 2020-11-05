@@ -3,82 +3,82 @@ package asys.native.filesystem;
 import haxe.exceptions.NotSupportedException;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
-import eval.Unix;
+import eval.luv.File as LFile;
 
-private typedef NativeInfo = Stats;
+private typedef NativeInfo = eval.luv.File.FileStat;
 
 @:coreApi
 abstract FileInfo(NativeInfo) from NativeInfo to NativeInfo {
 	public var accessTime(get,never):Int;
 	inline function get_accessTime():Int
-		return this.st_atime;
+		return this.atim.sec.toInt();
 
 	public var modificationTime(get,never):Int;
 	inline function get_modificationTime():Int
-		return this.st_mtime;
+		return this.mtim.sec.toInt();
 
 	public var creationTime(get,never):Int;
 	inline function get_creationTime():Int
-		return this.st_ctime;
+		return this.ctim.sec.toInt();
 
 	public var deviceNumber(get,never):Int;
 	inline function get_deviceNumber():Int
-		return this.st_dev;
+		return this.dev.toInt();
 
 	public var group(get,never):SystemGroup;
 	inline function get_group():SystemGroup
-		return this.st_gid;
+		return this.gid.toInt();
 
 	public var user(get,never):SystemUser;
 	inline function get_user():SystemUser
-		return this.st_uid;
+		return this.uid.toInt();
 
 	public var inodeNumber(get,never):Int;
 	inline function get_inodeNumber():Int
-		return this.st_ino;
+		return this.ino.toInt();
 
 	public var permissions(get,never):FilePermissions;
 	inline function get_permissions():FilePermissions
-		return this.st_perm;
+		throw NotSupportedException.field();
 
 	public var links(get,never):Int;
 	inline function get_links():Int
-		return this.st_nlink;
+		return this.nlink.toInt();
 
 	public var deviceType(get,never):Int;
 	inline function get_deviceType():Int
-		return this.st_rdev;
+		return this.rdev.toInt();
 
 	public var size(get,never):Int;
 	inline function get_size():Int
-		return this.st_size;
+		return this.size.toInt();
 
 	public var blockSize(get,never):Int;
 	inline function get_blockSize():Int
-		throw NotSupportedException.field();
+		return this.blksize.toInt();
 
 	public var blocks(get,never):Int;
 	inline function get_blocks():Int
-		throw NotSupportedException.field();
+		return this.blocks.toInt();
 
 	public inline function isBlockDevice():Bool
-		return this.st_kind == S_BLK;
+		return LFile.testMode([IFBLK], this.mode);
 
 	public inline function isCharacterDevice():Bool
-		return this.st_kind == S_CHR;
+		return LFile.testMode([IFCHR], this.mode);
 
 	public inline function isDirectory():Bool
-		return this.st_kind == S_DIR;
+		return LFile.testMode([IFDIR], this.mode);
 
 	public inline function isFIFO():Bool
-		return this.st_kind == S_FIFO;
+		return LFile.testMode([IFIFO], this.mode);
 
 	public inline function isFile():Bool
-		return this.st_kind == S_REG;
+		return LFile.testMode([IFREG], this.mode);
 
 	public inline function isSocket():Bool
-		return this.st_kind == S_SOCK;
+		throw NotSupportedException.field();
 
 	public inline function isSymbolicLink():Bool
-		return this.st_kind == S_LNK;
+		return LFile.testMode([IFLNK], this.mode);
 }
