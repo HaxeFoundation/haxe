@@ -45,7 +45,7 @@ private typedef NativeFilePath = NativeString;
 		}
 	}
 
-	@:op(A == B) function equals(p:FilePath):Bool {
+	@:op(A == B) inline function equals(p:FilePath):Bool {
 		return this == (p:NativeString);
 	}
 

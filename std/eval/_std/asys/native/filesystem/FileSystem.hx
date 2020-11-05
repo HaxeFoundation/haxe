@@ -25,88 +25,88 @@ class FileSystem {
 	}
 
 	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).openFile(path, flag, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).openFile(path, flag, callback);
 
 	static public function tempFile(callback:Callback<File>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).tempFile(callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).tempFile(callback);
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).readBytes(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).readBytes(path, callback);
 
 	static public function readString(path:FilePath, callback:Callback<String>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).readString(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).readString(path, callback);
 
 	static public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).writeBytes(path, data, flag, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).writeBytes(path, data, flag, callback);
 
 	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).writeString(path, text, flag, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).writeString(path, text, flag, callback);
 
 	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).openDirectory(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).openDirectory(path, callback);
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).listDirectory(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).listDirectory(path, callback);
 
-	static public function createDirectory(path:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).createDirectory(path, permissions, recursive, callback);
+	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).createDirectory(path, permissions, recursive, callback);
 
-	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).uniqueDirectory(parentDirectory, prefix, permissions, recursive, callback);
+	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).uniqueDirectory(parentDirectory, prefix, permissions, recursive, callback);
 
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).move(oldPath, newPath, overwrite, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).move(oldPath, newPath, overwrite, callback);
 
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).deleteFile(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).deleteFile(path, callback);
 
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).deleteDirectory(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).deleteDirectory(path, callback);
 
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).info(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).info(path, callback);
 
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).check(path, mode, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).check(path, mode, callback);
 
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).isDirectory(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).isDirectory(path, callback);
 
 	static public function isFile(path:FilePath, callback:Callback<Bool>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).isFile(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).isFile(path, callback);
 
 	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).setPermissions(path, permissions, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).setPermissions(path, permissions, callback);
 
 	static public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).setOwner(path, user, group, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).setOwner(path, user, group, callback);
 
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).setLinkOwner(path, user, group, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).setLinkOwner(path, user, group, callback);
 
 	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).link(target, path, type, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).link(target, path, type, callback);
 
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).isLink(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).isLink(path, callback);
 
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).readLink(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).readLink(path, callback);
 
 	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).linkInfo(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).linkInfo(path, callback);
 
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).copyFile(source, destination, overwrite, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).copyFile(source, destination, overwrite, callback);
 
 	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).resize(path, newSize, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).resize(path, newSize, callback);
 
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).setTimes(path, accessTime, modificationTime, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).setTimes(path, accessTime, modificationTime, callback);
 
 	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void
-		inline (new DefaultFileSystem(Native.defaultExecutor)).realPath(path, callback);
+		inline (inline new DefaultFileSystem(Native.defaultExecutor)).realPath(path, callback);
 }
 
 class DefaultFileSystem implements IFileSystem {
@@ -140,7 +140,7 @@ class DefaultFileSystem implements IFileSystem {
 		});
 	}
 
-	function readFile(path:FilePath, callback:Callback<Bytes>) {
+	inline function readFile(path:FilePath, callback:Callback<Bytes>) {
 		var loop = currentLoop();
 		LFile.open(loop, path, [RDONLY], r -> switch r {
 			case Error(e):
@@ -169,7 +169,7 @@ class DefaultFileSystem implements IFileSystem {
 		writeFile(path, text, flag, callback);
 	}
 
-	function writeFile(path:FilePath, data:Buffer, flag:FileOpenFlag<Dynamic>, callback:Callback<NoData>) {
+	inline function writeFile(path:FilePath, data:Buffer, flag:FileOpenFlag<Dynamic>, callback:Callback<NoData>) {
 		var loop = currentLoop();
 		LFile.open(loop, path, evalOpenFlags(flag), r -> switch r {
 			case Error(e):
@@ -217,11 +217,13 @@ class DefaultFileSystem implements IFileSystem {
 		});
 	}
 
-	public function createDirectory(path:FilePath, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<NoData>):Void {
+	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
+		if(permissions == null) permissions = 511;
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
-	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions = 511, recursive:Bool = false, callback:Callback<FilePath>):Void {
+	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
+		if(permissions == null) permissions = 511;
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
@@ -254,7 +256,10 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function info(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.stat(currentLoop(), path, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(stat): callback.success(stat);
+		});
 	}
 
 	public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
@@ -262,23 +267,40 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.stat(currentLoop(), path, null, r -> switch r {
+			case Error(UV_ENOENT): callback.success(false);
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(stat): callback.success((stat:FileInfo).mode.isDirectory());
+		});
 	}
 
 	public function isFile(path:FilePath, callback:Callback<Bool>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.stat(currentLoop(), path, null, r -> switch r {
+			case Error(UV_ENOENT): callback.success(false);
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(stat): callback.success((stat:FileInfo).mode.isFile());
+		});
 	}
 
 	public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.chmod(currentLoop(), path, [NUMERIC(permissions)], null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
 	}
 
 	public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.chown(currentLoop(), path, user, group, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
 	}
 
 	public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.lchown(currentLoop(), path, user, group, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
 	}
 
 	public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
@@ -286,15 +308,25 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function isLink(path:FilePath, callback:Callback<Bool>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.lstat(currentLoop(), path, null, r -> switch r {
+			case Error(UV_ENOENT): callback.success(false);
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(stat): callback.success((stat:FileInfo).mode.isLink());
+		});
 	}
 
 	public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.readLink(currentLoop(), path, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(real): callback.success(@:privateAccess new FilePath(real));
+		});
 	}
 
 	public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.lstat(currentLoop(), path, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(stat): callback.success(stat);
+		});
 	}
 
 	public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
@@ -322,7 +354,10 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.utime(currentLoop(), path, accessTime, modificationTime, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(real): callback.success(NoData);
+		});
 	}
 
 	public function realPath(path:FilePath, callback:Callback<FilePath>):Void {

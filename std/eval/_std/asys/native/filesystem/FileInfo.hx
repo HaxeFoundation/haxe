@@ -37,9 +37,9 @@ abstract FileInfo(NativeInfo) from NativeInfo to NativeInfo {
 	inline function get_inodeNumber():Int
 		return this.ino.toInt();
 
-	public var permissions(get,never):FilePermissions;
-	inline function get_permissions():FilePermissions
-		throw NotSupportedException.field();
+	public var mode(get,never):FileMode;
+	inline function get_mode():FileMode
+		return this.mode;
 
 	public var links(get,never):Int;
 	inline function get_links():Int
@@ -60,25 +60,4 @@ abstract FileInfo(NativeInfo) from NativeInfo to NativeInfo {
 	public var blocks(get,never):Int;
 	inline function get_blocks():Int
 		return this.blocks.toInt();
-
-	public inline function isBlockDevice():Bool
-		return LFile.testMode([IFBLK], this.mode);
-
-	public inline function isCharacterDevice():Bool
-		return LFile.testMode([IFCHR], this.mode);
-
-	public inline function isDirectory():Bool
-		return LFile.testMode([IFDIR], this.mode);
-
-	public inline function isFIFO():Bool
-		return LFile.testMode([IFIFO], this.mode);
-
-	public inline function isFile():Bool
-		return LFile.testMode([IFREG], this.mode);
-
-	public inline function isSocket():Bool
-		throw NotSupportedException.field();
-
-	public inline function isSymbolicLink():Bool
-		return LFile.testMode([IFLNK], this.mode);
 }
