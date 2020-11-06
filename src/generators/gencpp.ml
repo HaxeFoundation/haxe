@@ -59,7 +59,6 @@ let is_internal_class = function
    |  ([],"Int") | ([],"Void") |  ([],"String") | ([], "Null") | ([], "Float")
    |  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
    |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")
-   |  (["haxe"], "Int64")
    |  (["cpp"],"Pointer") | (["cpp"],"ConstPointer")
    |  (["cpp"],"RawPointer") | (["cpp"],"RawConstPointer")
    |  (["cpp"],"Function") -> true
@@ -768,14 +767,12 @@ and type_string_suff suffix haxe_type remap =
    | TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
    | TAbstract ({ a_path = ([],"Float") },[]) -> "Float"
    | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
-   | TAbstract ({ a_path = (["haxe"],"Int64")},[]) -> "::cpp::Int64"
    | TAbstract ({ a_path = (["cpp"],"UInt8") },[]) -> "unsigned char"
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
    | TAbstract ({ a_path = ([],"Null") }, [t]) ->
 		(match follow t with
 		| TAbstract ({ a_path = [],"Int" },_)
 		| TAbstract ({ a_path = [],"Float" },_)
-		| TAbstract ({ a_path = ["haxe"],"Int64" },_)
 		| TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
 		| t when type_has_meta_key t Meta.NotNull -> "Dynamic" ^ suffix
 		| _ -> type_string_suff suffix t remap)
@@ -1449,7 +1446,6 @@ and tcpp_expr_expr =
    | CppFloat of string
    | CppString of string
    | CppBool of bool
-   | CppInt64 of int64
    | CppNull
    | CppNullAccess
    | CppNil
@@ -1508,7 +1504,6 @@ let rec s_tcpp = function
    | CppFloat _ -> "CppFloat"
    | CppString _ -> "CppString"
    | CppBool _ -> "CppBool"
-   | CppInt64 _ -> "CppInt64"
    | CppNull -> "CppNull"
    | CppNil -> "CppNil"
    | CppThis _ -> "CppThis"
@@ -1787,7 +1782,6 @@ let rec cpp_type_of stack ctx haxe_type =
       | ([], "Class"),_ -> TCppClass
       | ([], "Enum"),_  -> TCppClass
       | ([], "Single"),_ -> TCppScalar("float")
-      | (["haxe"], "Int64"), _ -> TCppScalar("::cpp::Int64")
       | (["cpp"], "Char"),_ -> TCppScalar("char")
       | (["cpp"], "Object"),_ -> TCppObjectPtr
       | (["cpp"], "Float32"),_ -> TCppScalar("float")
@@ -2050,7 +2044,6 @@ let cpp_variant_type_of t = match t with
    | TCppVoidStar -> TCppVoidStar
    | TCppScalar "Int"
    | TCppScalar "bool"
-   | TCppScalar "::cpp::Int64"
    | TCppScalar "Float"  -> t
    | TCppScalar "double"
    | TCppScalar "float" -> TCppScalar("Float")
@@ -2735,7 +2728,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   let fname, cppType = match return_type with
                   | TCppVoid | TCppScalar("bool")  -> (if forCppia then "getBool" else "get_bool"), return_type
                   | TCppScalar("int")  -> (if forCppia then "getInt" else "get_int"), return_type
-                  | TCppScalar("::cpp::Int64") -> (if forCppia then "getInt64" else "get_int64"), return_type
                   | TCppScalar("Float")  -> (if forCppia then "getFloat" else "get_float"), return_type
                   | TCppString  -> (if forCppia then "getString" else "get_string"), return_type
                   | _ -> "get", TCppDynamic
@@ -2755,7 +2747,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   let fname = match retypedArgs with
                   | [_;{cpptype=TCppScalar("bool")}]  -> "setBool"
                   | [_;{cpptype=TCppScalar("int")}]  -> "setInt"
-                  | [_;{cpptype=TCppScalar("::cpp::Int64")}] -> "setInt64"
                   | [_;{cpptype=TCppScalar("Float")}]  -> "setFloat"
                   | [_;{cpptype=TCppString}]  -> "setString"
                   | _ -> "set"
@@ -3368,7 +3359,6 @@ let rec is_constant_zero expr =
   match expr.cppexpr with
   | CppFloat x when (float_of_string x) = 0.0 -> true
   | CppInt i when i = Int32.of_int 0 -> true
-  | CppInt64 i when i = Int64.of_int 0 -> true
   | CppCastScalar(expr,_) -> is_constant_zero(expr)
   | _ -> false
 ;;
@@ -3377,7 +3367,7 @@ let cpp_is_const_scalar_array arrayType expressions =
    List.length expressions>0 && (match arrayType with
    | TCppScalarArray _ ->
         List.for_all (fun expr -> match expr.cppexpr with
-            | CppInt _ | CppFloat _ | CppString _ | CppBool _ | CppInt64 _ -> true
+            | CppInt _ | CppFloat _ | CppString _ | CppBool _ -> true
             | _ -> false
          ) expressions
    | _ -> false)
@@ -3468,7 +3458,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          if new_line then writer#end_block else writer#end_block_line;
 
       | CppInt i -> out (Printf.sprintf (if i> Int32.of_int(-1000000000) && i< Int32.of_int(1000000000) then "%ld" else "(int)%ld") i)
-      | CppInt64 i -> out (Printf.sprintf (if i > Int64.min_int && i < Int64.max_int then "%Ld" else "(::cpp::Int64)%Ld") i)
       | CppFloat float_as_string -> out ("((Float)" ^ float_as_string ^")")
       | CppString s -> out (strq s)
       | CppBool b -> out (if b then "true" else "false")
@@ -3838,7 +3827,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out_top ("static const " ^ typeName ^ " " ^ id ^ "[] = {\n\t");
          List.iter (fun expr -> match expr.cppexpr with
             | CppInt i -> out_top (Printf.sprintf "(%s)%ld," typeName i)
-            | CppInt64 i -> out_top (Printf.sprintf "(%s)%Ld," typeName i)
             | CppFloat f -> out_top ( f ^ "," )
             | CppString s -> out_top ( (strq s) ^ "," )
             | CppBool b -> out_top (if b then "1," else "0,")
@@ -6208,7 +6196,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       let storage field = match (cpp_type_of ctx field.cf_type) with
          | TCppScalar("bool") -> "::hx::fsBool"
          | TCppScalar("int") -> "::hx::fsInt"
-         | TCppScalar("::cpp::Int64") -> "::hx::fsInt64"
          | TCppScalar("Float") -> "::hx::fsFloat"
          | TCppString -> "::hx::fsString"
          | o when is_object_element ctx o -> "::hx::fsObject" ^ " /* " ^ (tcpp_to_string o ) ^ " */ "
@@ -7864,7 +7851,6 @@ class script_writer ctx filename asciiOut =
                 gen_expression init;
             )
          | CppInt i -> this#write ((this#op IaConstInt) ^ (Printf.sprintf "%ld " i))
-         | CppInt64 i -> this#write ((this#op IaConstInt) ^ (Printf.sprintf "%Ld " i))
          | CppFloat float_as_string -> this#write ((this#op IaConstFloat) ^ (this#stringText float_as_string))
          | CppString s -> this#write ((this#op IaConstString) ^ (this#stringText s))
          | CppBool false -> this#writeOp IaConstFalse
