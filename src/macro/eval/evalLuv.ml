@@ -436,7 +436,8 @@ let encode_scandir sd =
 	]
 
 let decode_int_flags v =
-	List.map decode_int (decode_array v)
+	if v = VNull then []
+	else List.map decode_int (decode_array v)
 
 let decode_file_open_flag v : File.Open_flag.t =
 	match decode_int v with
