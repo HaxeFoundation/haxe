@@ -14,6 +14,7 @@ import eval.luv.Buffer;
 import eval.luv.File as LFile;
 import eval.luv.Dir;
 import eval.luv.File.FileOpenFlag as LFileOpenFlag;
+import eval.luv.File.FileAccessFlag;
 import eval.luv.LuvException;
 
 using eval.luv.Result;
@@ -219,7 +220,15 @@ class DefaultFileSystem implements IFileSystem {
 
 	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
 		if(permissions == null) permissions = 511;
-		throw new haxe.exceptions.NotImplementedException();
+		var loop = currentLoop();
+		LFile.mkdir(loop, path, permissions, null, r -> switch r {
+			case Error(UV_ENOENT):
+				callback.success(NoData);
+			case Error(e):
+				callback.fail(new FsException(e, path));
+			case Ok(_):
+				callback.success(NoData);
+		});
 	}
 
 	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
@@ -248,7 +257,10 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.unlink(currentLoop(), path, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
 	}
 
 	public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
@@ -263,7 +275,16 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		var flags = [];
+		if(mode.has(Exists)) flags.push(F_OK);
+		if(mode.has(Executable)) flags.push(X_OK);
+		if(mode.has(Writable)) flags.push(W_OK);
+		if(mode.has(Readable)) flags.push(R_OK);
+		LFile.access(currentLoop(), path, flags, null, r -> switch r {
+			case Error(UV_ENOENT | UV_EACCES): callback.success(false);
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(true);
+		});
 	}
 
 	public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
@@ -304,7 +325,16 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		var cb:(r:Result<NoData>)->Void = r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		}
+		switch type {
+			case HardLink:
+				LFile.link(currentLoop(), target, path, null, cb);
+			case SymLink:
+				LFile.symlink(currentLoop(), target, path, null, null, cb);
+		}
 	}
 
 	public function isLink(path:FilePath, callback:Callback<Bool>):Void {
@@ -330,7 +360,11 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.copyFile(currentLoop(), source, destination, (overwrite ? null : [COPYFILE_EXCL]), null, r -> switch r {
+			case Error(UV_EEXIST): callback.fail(new FsException(FileExists, destination));
+			case Error(e): callback.fail(new FsException(e, source));
+			case Ok(stat): callback.success(stat);
+		});
 	}
 
 	public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
