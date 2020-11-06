@@ -205,6 +205,7 @@ class FileSystem {
 	/**
 		Check if the path is a directory.
 		If `path` is a symbolic links then it will be resolved and checked.
+		Returns `false` if `path` does not exist.
 	**/
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
 		throw new NotImplementedException();
@@ -213,6 +214,7 @@ class FileSystem {
 	/**
 		Check if the path is a regular file.
 		If `path` is a symbolic links then it will be resolved and checked.
+		Returns `false` if `path` does not exist.
 	**/
 	static public function isFile(path:FilePath, callback:Callback<Bool>):Void {
 		throw new NotImplementedException();
@@ -259,6 +261,7 @@ class FileSystem {
 
 	/**
 		Check if the path is a symbolic link.
+		Returns `false` if `path` does not exist.
 	**/
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void {
 		throw new NotImplementedException();

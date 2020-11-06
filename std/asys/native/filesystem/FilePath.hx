@@ -39,6 +39,13 @@ private typedef NativeFilePath = Dynamic;
 	}
 
 	/**
+		Check if this is an absolute path.
+	**/
+	public function isAbsolute():Bool {
+		throw new NotImplementedException();
+	}
+
+	/**
 		Get an absolute path of this path.
 		For example translates `./path` to `/current/dir/path`.
 		Resolves `.` and `..` and removes excessive slashes.
@@ -46,6 +53,20 @@ private typedef NativeFilePath = Dynamic;
 		It does not matter if the path does not exist.
 	**/
 	public function absolute():FilePath {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Get the directory containing this path.
+		E.g. for `dir/to/path` this method returns `dir/to`.
+
+		Returns `null` if this is the root of file system.
+
+		For relative paths this method resolves absolute paths if needed.
+		E.g. for `./` this method returns the path to the parent of current working
+		directory.
+	**/
+	public function parent():Null<FilePath> {
 		throw new NotImplementedException();
 	}
 }

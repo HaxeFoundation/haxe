@@ -33,6 +33,10 @@ private typedef NativeFilePath = Path;
 		return this.equals(p);
 	}
 
+	public inline function isAbsolute():Bool {
+		return this.isAbsolute();
+	}
+
 	public function absolute():FilePath {
 		var fullPath:NativeString = cast this.toAbsolutePath().toString();
 
@@ -64,5 +68,15 @@ private typedef NativeFilePath = Path;
 			builder.append(result[i]);
 		}
 		return new FilePath(Paths.get(builder.toString(), new NativeArray(0)));
+	}
+
+	public function parent():Null<FilePath> {
+		var path = switch this.getParent() {
+			case null if(!this.isAbsolute()):
+				this.toAbsolutePath().getParent();
+			case path:
+				path;
+		}
+		return new FilePath(path);
 	}
 }

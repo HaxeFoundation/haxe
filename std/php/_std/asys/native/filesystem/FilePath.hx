@@ -3,6 +3,7 @@ package asys.native.filesystem;
 import haxe.io.Bytes;
 import haxe.EntryPoint;
 import php.*;
+import php.Const.*;
 import php.Global.*;
 import php.Syntax.*;
 import php.NativeArray;
@@ -12,12 +13,12 @@ private typedef NativeFilePath = php.NativeString;
 @:coreApi abstract FilePath(NativeFilePath) to String to NativeString {
 	public static var SEPARATOR(get,never):String;
 	static inline function get_SEPARATOR():String {
-		return php.Const.DIRECTORY_SEPARATOR;
+		return DIRECTORY_SEPARATOR;
 	}
 
 	@:allow(asys.native.filesystem)
 	inline function new(s:String) {
-		this = rtrim(s, '\\/');
+		this = s == null || strlen(s) == 1 ? s : rtrim(s, DIRECTORY_SEPARATOR == '/' ? '/' : '\\/');
 	}
 
 	@:from public static inline function fromString(path:String):FilePath {
@@ -26,6 +27,23 @@ private typedef NativeFilePath = php.NativeString;
 
 	public function toString():String {
 		return this;
+	}
+
+	public function isAbsolute():Bool {
+		if(this == '')
+			return false;
+		if(this[0] == '/')
+			return true;
+		if(SEPARATOR == '\\') {
+			if(this[0] == '\\')
+				return true;
+			//This is not 100% valid. `Z:some\path` is "a relative path from the current directory of the Z: drive"
+			//but PHP doesn't have a function to get current directory of another drive so we keep the check like this
+			//to be consisten with `FilePath.absolute` method.
+			if(preg_match('/^[a-zA-Z]:/', this))
+				return true;
+		}
+		return false;
 	}
 
 	public function absolute():FilePath {
@@ -72,5 +90,23 @@ private typedef NativeFilePath = php.NativeString;
 		}
 		array_unshift(result, parts[0]);
 		return implode(SEPARATOR, result);
+	}
+
+	public function parent():Null<FilePath> {
+		var path = if(this == '.') {
+			Sys.getCwd();
+		} else {
+			switch dirname(this) {
+				case '.':
+					var abs = absolute();
+					var path = dirname(abs);
+					path == abs ? null : path;
+				case '':
+					dirname(Sys.getCwd());
+				case path:
+					path == this ? null : path;
+			}
+		}
+		return new FilePath(path);
 	}
 }
