@@ -3110,6 +3110,42 @@ module StdNativeString = struct
 		and s2 = decode_native_string v2 in
 		vnative_string (s1 ^ s2)
 	)
+
+	let char = vfun2 (fun v1 v2 ->
+		let s = decode_native_string v1
+		and index = decode_int v2 in
+		try encode_string (String.make 1 s.[index])
+		with Invalid_argument s -> throw_string s null_pos
+	)
+
+	let code = vfun2 (fun v1 v2 ->
+		let s = decode_native_string v1
+		and index = decode_int v2 in
+		try vint (int_of_char s.[index])
+		with Invalid_argument s -> throw_string s null_pos
+	)
+
+	let get_length = vfun1 (fun v ->
+		let s = decode_native_string v in
+		vint (String.length s)
+	)
+
+	let sub = vfun3 (fun v1 v2 v3 ->
+		let s = decode_native_string v1
+		and start = decode_int v2 in
+		let max_length = String.length s - start in
+		try
+			if v3 = VNull then
+				vnative_string (String.sub s start max_length)
+			else
+				let length =
+					let l = decode_int v3 in
+					if l > max_length then max_length else l
+				in
+				vnative_string (String.sub s start length)
+		with Invalid_argument _ ->
+			throw_string "Invalid arguments for eval.NativeString.sub" null_pos
+	)
 end
 
 let init_fields builtins path static_fields instance_fields =
@@ -3720,6 +3756,10 @@ let init_standard_library builtins =
 		"toBytes",StdNativeString.to_bytes;
 		"toString",StdNativeString.to_string;
 		"concat",StdNativeString.concat;
+		"char",StdNativeString.char;
+		"code",StdNativeString.code;
+		"get_length",StdNativeString.get_length;
+		"sub",StdNativeString.sub;
 	] [];
 	init_fields builtins (["eval";"integers";"_UInt64"],"UInt64_Impl_") EvalIntegers.uint64_fields [];
 	init_fields builtins (["eval";"integers";"_Int64"],"Int64_Impl_") EvalIntegers.int64_fields [];
