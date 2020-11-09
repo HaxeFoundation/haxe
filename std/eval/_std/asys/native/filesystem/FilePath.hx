@@ -24,29 +24,67 @@ private typedef NativeFilePath = NativeString;
 		return c == '/'.code || (SEPARATOR == '\\' && c == '\\'.code);
 	}
 
+	static function trimSlashes(s:NativeString):NativeString {
+		var i = s.length - 1;
+		if(i <= 0)
+			return s;
+		var sep = isSeparator(s.code(i));
+		if(sep) {
+			do {
+				--i;
+				sep = isSeparator(s.code(i));
+			} while(i > 0 && sep);
+			return s.sub(0, i + 1);
+		} else {
+			return s;
+		}
+	}
+
 	@:from public static inline function fromString(path:String):FilePath {
 		return new FilePath(path);
 	}
 
 	inline function new(b:NativeString) {
-		this = b;
+		this = trimSlashes(b);
 	}
 
 	@:to public function toString():String {
-		var bytes = this.toBytes();
-		switch bytes.length {
-			case 0 | 1: return bytes.toString();
-			//trim trailing slashes
-			case (_ - 1) => i:
-				while(i > 0 && isSeparator(bytes.get(i))) {
-					--i;
-				}
-				return bytes.getString(0, i + 1);
-		}
+		return this.toString();
 	}
 
 	@:op(A == B) inline function equals(p:FilePath):Bool {
 		return this == (p:NativeString);
+	}
+
+	public function isAbsolute():Bool {
+		return switch this.length {
+			case 0: false;
+			case _ if(isSeparator(this.code(0))): true;
+			case 1: false;
+			// This is not 100% valid. `Z:some\path` is "a relative path from the
+			// current directory of the Z: drive", but we keep the check like this
+			// to be consistent with `FilePath.absolute` method.
+			case _: SEPARATOR == '\\' && this.code(1) == ':'.code;
+		}
+	}
+
+	public function parent():Null<FilePath> {
+		switch this.length {
+			case 0:
+				return new FilePath(Sys.getCwd()).parent();
+			case 1 if(isSeparator(this.code(0))):
+				return null;
+			case 2 if(SEPARATOR == '\\' && this.code(1) == ':'.code):
+				return null;
+			case (_ - 1) => i:
+				while(!isSeparator(this.code(i))) {
+					--i;
+					if(i < 0)
+						return new FilePath(Sys.getCwd());
+				}
+				return new FilePath(this.sub(0, i + 1));
+
+		}
 	}
 
 	public function absolute():FilePath {
@@ -66,7 +104,8 @@ private typedef NativeFilePath = NativeString;
 		} else if(separatorCode == '\\'.code) {
 			if(thisBytes.get(0) == '\\'.code) {
 				thisBytes;
-			//This is not 100% valid. `Z:some\path` is "a relative path from the current directory of the Z: drive"
+			// This is not 100% valid. `Z:some\path` is "a relative path from the
+			// current directory of the Z: drive"
 			} else if(thisBytes.length > 1 && thisBytes.get(1) == ':'.code) {
 				thisBytes;
 			} else {
@@ -148,22 +187,22 @@ private typedef NativeFilePath = NativeString;
 		return new FilePath(result.getBytes());
 	}
 
-	function join(path:FilePath):FilePath {
-		var thisBytes = this.toBytes();
-		var i = thisBytes.length - 1;
-		var separatorCode = StringTools.fastCodeAt(SEPARATOR, 0);
-		while(i >= 0) {
-			var c = thisBytes.get(i);
-			if(c != separatorCode && c != '/'.code) {
-				break;
-			}
-			--i;
-		}
-		var buffer = new BytesBuffer();
-		buffer.addBytes(thisBytes, 0, (i >= 0 ? i + 1 : thisBytes.length));
-		buffer.addByte(separatorCode);
-		var thatBytes = (path:NativeString).toBytes();
-		buffer.addBytes(thatBytes, 0, thatBytes.length);
-		return new FilePath(buffer.getBytes());
-	}
+	// function join(path:FilePath):FilePath {
+	// 	var thisBytes = this.toBytes();
+	// 	var i = thisBytes.length - 1;
+	// 	var separatorCode = StringTools.fastCodeAt(SEPARATOR, 0);
+	// 	while(i >= 0) {
+	// 		var c = thisBytes.get(i);
+	// 		if(c != separatorCode && c != '/'.code) {
+	// 			break;
+	// 		}
+	// 		--i;
+	// 	}
+	// 	var buffer = new BytesBuffer();
+	// 	buffer.addBytes(thisBytes, 0, (i >= 0 ? i + 1 : thisBytes.length));
+	// 	buffer.addByte(separatorCode);
+	// 	var thatBytes = (path:NativeString).toBytes();
+	// 	buffer.addBytes(thatBytes, 0, thatBytes.length);
+	// 	return new FilePath(buffer.getBytes());
+	// }
 }

@@ -34,6 +34,9 @@ private typedef NativeFilePath = Dynamic;
 		throw new NotImplementedException();
 	}
 
+	/**
+		TODO: Should `my/path` and `my\\path` be equal on windows?
+	**/
 	@:op(A == B) function equals(p:FilePath):Bool {
 		throw new NotImplementedException();
 	}

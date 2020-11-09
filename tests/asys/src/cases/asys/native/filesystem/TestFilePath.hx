@@ -33,6 +33,7 @@ class TestFilePath extends FsTest {
 		var cwd = Sys.getCwd();
 
 		var cases = [
+			'.' => mk(Path.removeTrailingSlashes(cwd)),
 			'./' => mk(Path.removeTrailingSlashes(cwd)),
 			'non-existent.file' => mk(cwd + 'non-existent.file'),
 			'path/to/../../non-existent.file' => mk(cwd + 'non-existent.file'),
@@ -71,6 +72,7 @@ class TestFilePath extends FsTest {
 			'path/to/file' => mk('path/to'),
 			'path/to/dir/' => mk('path/to'),
 			'path/to/../file' => mk('path/to/..'),
+			'.' => mk(cwd),
 			'./' => mk(cwd),
 			'' => mk(Path.directory(cwd)),
 			'/' => mk(null)
