@@ -7,6 +7,7 @@ import haxe.IJobExecutor;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import sys.thread.Thread;
+import eval.NativeString;
 import eval.integers.Int64;
 import eval.integers.UInt64;
 import eval.luv.Loop;
@@ -220,20 +221,55 @@ class DefaultFileSystem implements IFileSystem {
 
 	public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
 		if(permissions == null) permissions = 511;
-		var loop = currentLoop();
-		LFile.mkdir(loop, path, permissions, null, r -> switch r {
-			case Error(UV_ENOENT):
-				callback.success(NoData);
-			case Error(e):
-				callback.fail(new FsException(e, path));
-			case Ok(_):
-				callback.success(NoData);
+		inline mkdir(path, permissions, recursive, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
 		});
+	}
+
+	function mkdir(path:FilePath, permissions:FilePermissions, recursive:Bool, callback:(r:Result<NoData>)->Void) {
+		var loop = currentLoop();
+		function mk(path:FilePath, callback:(r:Result<NoData>)->Void) {
+			LFile.mkdir(loop, path, permissions, null, r -> switch r {
+				case Error(UV_ENOENT) if(recursive):
+					switch path.parent() {
+						case null:
+							callback(r);
+						case parent:
+							mk(parent, r -> switch r {
+								case Error(_):
+									callback(r);
+								case Ok(_):
+									LFile.mkdir(loop, path, permissions, null, callback);
+							});
+					}
+				case _:
+					callback(r);
+			});
+		}
+		mk(path, callback);
 	}
 
 	public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		if(permissions == null) permissions = 511;
-		throw new haxe.exceptions.NotImplementedException();
+
+		var name = (prefix == null ? '' : prefix) + getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+		var path = @:privateAccess new FilePath((parentDirectory:NativeString).concat(FilePath.SEPARATOR + name));
+
+		function create(callback:(r:Result<NoData>)->Void) {
+			inline mkdir(path, permissions, recursive, r -> switch r {
+				case Error(UV_EEXIST):
+					var next = (path:NativeString).concat(getRandomChar());
+					path = @:privateAccess new FilePath(next);
+					create(callback);
+				case _:
+					callback(r);
+			});
+		}
+		create(r -> switch r {
+			case Error(e): callback.fail(new FsException(e, parentDirectory));
+			case Ok(_): callback.success(path);
+		});
 	}
 
 	static var __codes:Null<Array<String>>;
@@ -253,7 +289,22 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		var loop = currentLoop();
+		inline function move() {
+			LFile.rename(loop, oldPath, newPath, null, r -> switch r {
+				case Error(e): callback.fail(new FsException(e, oldPath));
+				case Ok(_): callback.success(NoData);
+			});
+		}
+		if(overwrite) {
+			move();
+		} else {
+			LFile.access(loop, newPath, [F_OK], null, r -> switch r {
+				case Error(UV_ENOENT): move();
+				case Error(e): callback.fail(new FsException(e, newPath));
+				case Ok(_): callback.fail(new FsException(FileExists, newPath));
+			});
+		}
 	}
 
 	public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
@@ -264,7 +315,10 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		LFile.rmdir(currentLoop(), path, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(stat): callback.success(stat);
+		});
 	}
 
 	public function info(path:FilePath, callback:Callback<FileInfo>):Void {
