@@ -56,12 +56,12 @@ let get_main ctx types =
 		(* add haxe.EntryPoint.run() call *)
 		let add_entry_point_run main =
 			try
-				main :: [call_static (["haxe"],"EntryPoint") "run"]
+				[main; call_static (["haxe"],"EntryPoint") "run"]
 			with Not_found ->
 				[main]
 		and add_entry_point_init main =
 			try
-				main :: [call_static (["haxe"],"EntryPoint") "init"]
+				[call_static (["haxe"],"EntryPoint") "init"; main]
 			with Not_found ->
 				[main]
 		in
