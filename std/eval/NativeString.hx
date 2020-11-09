@@ -25,6 +25,17 @@ import haxe.io.Bytes;
 	**/
 	public function code(index:Int):Int;
 
+	/**
+		Returns a fresh string up to `length` characters long, containing the
+		substring that starts at position `start`.
+
+		If `length` is not specified the all characters from `start` to the end
+		of this string are returned.
+
+		Throws an exception if `index` is outside of the string bounds.
+	**/
+	public function sub(start:Int, ?length:Int):NativeString;
+
 	public function toString():String;
 
 	public function toBytes():Bytes;
