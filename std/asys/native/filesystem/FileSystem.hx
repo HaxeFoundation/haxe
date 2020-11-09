@@ -141,8 +141,8 @@ class FileSystem {
 		Default `permissions` equals to octal `0777`, which means read+write+execution
 		permissions for everyone.
 
-		If `recursive` is `true`: create missing directories tree all the way down to `path`.
-		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
+		If `recursive` is `true`: create missing directories tree all the way down to the generated path.
+		If `recursive` is `false`: fail if any parent directory of the generated path does not exist.
 	**/
 	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();
