@@ -759,7 +759,7 @@ class TestFile extends FsTest {
 	}
 
 	@:depends(testOpenWriteRead)
-	function testFileSystem_tmpFile(async:Async) {
+	function testFileSystem_tempFile(async:Async) {
 		asyncAll(async,
 			FileSystem.tempFile((e, file) -> {
 				if(noException(e)) {
