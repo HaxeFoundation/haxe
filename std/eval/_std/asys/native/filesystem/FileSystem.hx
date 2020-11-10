@@ -190,7 +190,10 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
-		throw new haxe.exceptions.NotImplementedException();
+		Dir.open(currentLoop(), path, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(dir): callback.success(@:privateAccess new Directory(dir, path));
+		});
 	}
 
 	public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
