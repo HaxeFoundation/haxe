@@ -9,7 +9,6 @@ import php.Global.*;
 
 class Directory {
 	public final path:FilePath;
-	public var buffer:Int = 32;
 
 	final handle:Resource;
 	final executor:IJobExecutor;
@@ -20,7 +19,7 @@ class Directory {
 		this.executor = executor;
 	}
 
-	public function next(callback:Callback<Null<FilePath>>) {
+	public function nextEntry(callback:Callback<Null<FilePath>>) {
 		executor.addJob(
 			() -> {
 				var result = try {
@@ -41,9 +40,31 @@ class Directory {
 		);
 	}
 
-	/**
-		Close the directory.
-	**/
+	public function nextBatch(maxBatchSize:Int, callback:Callback<Array<FilePath>>) {
+		executor.addJob(
+			() -> {
+				try {
+					var entries = [];
+					while(entries.length < maxBatchSize) {
+						var entry = readdir(handle);
+						while(entry != false && (entry == '.' || entry == '..')) {
+							entry = readdir(handle);
+						}
+						if(entry != false) {
+							entries.push(@:privateAccess new FilePath(entry));
+						} else {
+							break;
+						}
+					}
+					entries;
+				} catch(e:php.Exception) {
+					throw new FsException(CustomError(e.getMessage()), path);
+				}
+			},
+			callback
+		);
+	}
+
 	public function close(callback:Callback<NoData>) {
 		executor.addJob(
 			() -> {
