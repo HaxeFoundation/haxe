@@ -11,12 +11,6 @@ class Directory {
 	/** The path of this directory as it was at the moment of opening the directory */
 	public final path:FilePath;
 
-	/**
-		How many entries are buffered internally when reading from the directory.
-		Higher numbers may improve performance, but increase memory usage.
-	**/
-	public var buffer:Int = 32;
-
 	function new() {
 		path = 'stub';
 	}
@@ -26,7 +20,16 @@ class Directory {
 		Passes `null` to `callback` if no more entries left to read.
 		Ignores `.` and `..` entries.
 	**/
-	public function next(callback:Callback<Null<FilePath>>):Void {
+	public function nextEntry(callback:Callback<Null<FilePath>>):Void {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Read next batch of directory entries.
+		Passes an empty array to `callback` if no more entries left to read.
+		Ignores `.` and `..` entries.
+	**/
+	public function nextBatch(maxBatchSize:Int, callback:Callback<Array<FilePath>>):Void {
 		throw new NotImplementedException();
 	}
 

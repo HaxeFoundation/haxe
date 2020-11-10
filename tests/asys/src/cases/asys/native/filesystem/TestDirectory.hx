@@ -6,10 +6,19 @@ import asys.native.filesystem.Directory;
 
 @:depends(cases.asys.native.filesystem.TestFileSystem)
 class TestDirectory extends FsTest {
-	function test(async:Async) {
+	function testOpenNonExistent(async:Async) {
+		FileSystem.openDirectory('test-data/temp/non-existent', (e, _) -> {
+			assertType(e, FsException, e -> {
+				equals('test-data/temp/non-existent', e.path.toString());
+				async.done();
+			});
+		});
+	}
+
+	function testNextEntry(async:Async) {
 		var contents = [];
 		function read(dir:Directory, callback:()->Void) {
-			dir.next((e, r) -> {
+			dir.nextEntry((e, r) -> {
 				if(noException(e))
 					switch r {
 						case null:
@@ -34,11 +43,32 @@ class TestDirectory extends FsTest {
 						same(expected, contents);
 						dir.close((e, _) -> noException(e));
 					});
-			}),
-			FileSystem.openDirectory('test-data/temp/non-existent', (e, _) -> {
-				assertType(e, FsException, e -> {
-					equals('test-data/temp/non-existent', e.path.toString());
-				});
+			})
+		);
+	}
+
+	function testNextBatch(async:Async) {
+		var expected = ['sub', 'symlink-dir', 'temp', 'bytes.bin', 'symlink'];
+		var batchSize = 4;
+		var actual = [];
+		asyncAll(async,
+			FileSystem.openDirectory('test-data', (e, dir) -> {
+				if(noException(e))
+					dir.nextBatch(batchSize, (e, r) -> {
+						if(noException(e)) {
+							equals(batchSize, r.length);
+							for(f in r) actual.push(f.toString());
+							dir.nextBatch(batchSize, (e, r) -> {
+								if(noException(e)) {
+									for(f in r) actual.push(f.toString());
+									expected.sort(Reflect.compare);
+									actual.sort(Reflect.compare);
+									same(expected, actual);
+								}
+								dir.close((e, _) -> noException(e));
+							});
+						}
+					});
 			})
 		);
 	}
