@@ -61,7 +61,7 @@ class Base64 {
 	}
 
 	public static inline function urlDecode(str:String, complement = false):Bytes {
-		if (!complement) {
+		if (complement) {
 			switch (strlen(str) % 3) {
 				case 1:
 					str += "==";
