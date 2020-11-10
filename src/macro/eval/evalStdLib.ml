@@ -42,17 +42,6 @@ let ptmap_keys h =
 let hashtbl_keys h =
 	Hashtbl.fold (fun k _ acc -> k :: acc) h []
 
-let encode_i64 low high =
-	let vi = create_instance key_haxe__Int64____Int64 in
-	set_instance_field vi key_high (vint32 high);
-	set_instance_field vi key_low (vint32 low);
-	vinstance vi
-
-let encode_i64_direct i64 =
-	let low = Int64.to_int32 i64 in
-	let high = Int64.to_int32 (Int64.shift_right_logical i64 32) in
-	encode_i64 low high
-
 module StdEvalVector = struct
 	let this this = match this with
 		| VVector vv -> vv
@@ -344,7 +333,7 @@ module StdBytes = struct
 		try
 			let low = read_i32 this pos in
 			let high = read_i32 this (pos + 4) in
-			encode_i64 low high;
+			EvalIntegers.encode_haxe_i64 low high;
 		with _ ->
 			outside_bounds()
 	)
@@ -1157,7 +1146,7 @@ module StdFPHelper = struct
 	let doubleToI64 = vfun1 (fun v ->
 		let f = num v in
 		let i64 = Int64.bits_of_float f in
-		encode_i64_direct i64
+		EvalIntegers.encode_haxe_i64_direct i64
 	)
 
 	let floatToI32 = vfun1 (fun f ->
