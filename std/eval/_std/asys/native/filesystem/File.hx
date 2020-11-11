@@ -4,17 +4,25 @@ import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
+import sys.thread.Thread;
 import asys.native.IWritable;
 import asys.native.IReadable;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import eval.luv.File as LFile;
+import eval.luv.Loop;
+import eval.luv.Buffer;
+import eval.luv.Idle;
 
 @:coreApi
 class File {
 	public final path:FilePath;
 
 	final file:LFile;
+
+	static inline function currentLoop():Loop {
+		return Thread.current().events;
+	}
 
 	function new(file:LFile, path:FilePath):Void {
 		this.file = file;
@@ -33,22 +41,59 @@ class File {
 		if `length` is negative, an error is passed to the `callback`.
 	**/
 	public function write(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		throw new NotImplementedException();
+		var loop = currentLoop();
+		var error = null;
+		if(length < 0) {
+			error = 'Negative length';
+		} else if(position < 0) {
+			error = 'Negative position';
+		} else if(offset < 0 || offset > buffer.length) {
+			error = 'Offset out of buffer bounds';
+		}
+		if(error != null) {
+			var idle = Idle.init(loop).resolve();
+			idle.start(() -> {
+				idle.stop();
+				idle.close(() -> {});
+				callback.fail(new FsException(CustomError(error), path));
+			});
+		} else {
+			var b = Buffer.create(offset + length > buffer.length ? buffer.length - offset : length);
+			b.blitFromBytes(buffer, offset);
+			file.write(currentLoop(), position, [b], null, r -> switch r {
+				case Error(e): callback.fail(new FsException(e, path));
+				case Ok(bytesWritten): callback.success(bytesWritten.toInt());
+			});
+		}
 	}
 
-	/**
-		Read up to `length` bytes from the file `position` and write them into
-		`buffer` starting at `offset` position in `buffer`, then invoke `callback`
-		with the amount of bytes read.
-
-		If `position` is greater or equal to the file size at the moment of reading
-		then `0` is passed to the `callback` and `buffer` is unaffected.
-
-		If `position` is negative or `offset` is outside of `buffer` bounds, an
-		error is passed to the `callback`.
-	**/
 	public function read(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		throw new NotImplementedException();
+		var loop = currentLoop();
+		var error = null;
+		if(length < 0) {
+			error = 'Negative length';
+		} else if(position < 0) {
+			error = 'Negative position';
+		} else if(offset < 0 || offset > buffer.length) {
+			error = 'Offset out of buffer bounds';
+		}
+		if(error != null) {
+			var idle = Idle.init(loop).resolve();
+			idle.start(() -> {
+				idle.stop();
+				idle.close(() -> {});
+				callback.fail(new FsException(CustomError(error), path));
+			});
+		} else {
+			var b = Buffer.create(offset + length > buffer.length ? buffer.length - offset : length);
+			file.read(currentLoop(), position, [b], null, r -> switch r {
+				case Error(e):
+					callback.fail(new FsException(e, path));
+				case Ok(bytesRead):
+					b.blitToBytes(buffer, offset);
+					callback.success(bytesRead.toInt());
+			});
+		}
 	}
 
 	/**
@@ -122,12 +167,10 @@ class File {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Close the file.
-
-		Does not fail if the file is already closed.
-	**/
 	public function close(callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		file.close(currentLoop(), null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
 	}
 }

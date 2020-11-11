@@ -78,11 +78,11 @@ abstract FileRead(File) from File {}
 abstract FileWrite(File) from File {}
 
 /**
-	Limits file operations to writing at the end of file and reading.
+	Limits file operations to writing at the end of file.
 	@see asys.native.filesystem.File
 **/
-@:forward(path,read,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close,isOpen)
-abstract FileAppendRead(File) from File {
+@:forward(path,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close,isOpen)
+abstract FileAppend(File) from File {
 	/**
 		Append up to `length` bytes from `buffer` starting at the buffer `offset`
 		to the file, then invoke `callback` with the amount of bytes written.
@@ -96,10 +96,3 @@ abstract FileAppendRead(File) from File {
 		this.write(0, buffer, offset, length, callback);
 	}
 }
-
-/**
-	Limits file operations to writing at the end of file.
-	@see asys.native.filesystem.File
-**/
-@:forward(path,write,flush,sync,info,setPermissions,setOwner,setGroup,setTimes,lock,resize,close,isOpen)
-abstract FileAppend(FileAppendRead) from File {}

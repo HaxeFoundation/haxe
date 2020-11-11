@@ -124,13 +124,13 @@ class DefaultFileSystem implements IFileSystem {
 	public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
 		LFile.open(currentLoop(), path, evalOpenFlags(flag), null, null, r -> switch r {
 			case Error(e): callback.fail(new FsException(e, path));
-			case Ok(f): callback.success(@:privateAccess new File(f, path));
+			case Ok(f): callback.success(cast @:privateAccess new File(f, path));
 		});
 	}
 
 	public function tempFile(callback:Callback<File>):Void {
 		LFile.mkstemp(currentLoop(), 'XXXXXX', null, r -> switch r {
-			case Error(e): callback.fail(new FsException(e, path));
+			case Error(e): callback.fail(new FsException(e, '(unknown path)'));
 			case Ok(f): callback.success(@:privateAccess new File(f.file, @:privateAccess new FilePath(f.name)));
 		});
 	}
