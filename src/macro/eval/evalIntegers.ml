@@ -20,26 +20,34 @@ let encode_haxe_i64 low high =
 
 let encode_haxe_i64_direct i64 =
 	let low = GInt64.to_int32 i64 in
-	let high = GInt64.to_int32 (Int64.shift_right_logical i64 32) in
+	let high = GInt64.to_int32 (GInt64.shift_right_logical i64 32) in
 	encode_haxe_i64 low high
 
-let decode_u64 v =
+let decode_haxe_i64 v =
 	match v with
-	| VUInt64 u -> u
-	| _ -> unexpected_value v "eval.integers.UInt64"
+	| VInstance vi when is v key_haxe__Int64____Int64 ->
+		let high = decode_i32 (vi.ifields.(get_instance_field_index_raise vi.iproto key_high))
+		and low = decode_i32 (vi.ifields.(get_instance_field_index_raise vi.iproto key_low)) in
+		let high64 = GInt64.shift_left (Int32.to_int64 high) 32
+		and low64 = Int32.to_int64 low in
+		GInt64.logor high64 low64
+	| _ ->
+		unexpected_value v "haxe.Int64"
 
-let decode_i64 v =
-	match v with
+let decode_u64 = function
+	| VUInt64 u -> u
+	| v -> unexpected_value v "eval.integers.UInt64"
+
+let decode_i64 = function
 	| VInt64 i -> i
-	| _ -> unexpected_value v "eval.integers.Int64"
+	| v -> unexpected_value v "eval.integers.Int64"
 
 let encode_size_t t =
 	VUInt64 (UInt64.of_int64 (Size_t.to_int64 t))
 
-let decode_size_t v =
-	match v with
+let decode_size_t = function
 	| VUInt64 u -> Size_t.of_int64 (UInt64.to_int64 u)
-	| _ -> unexpected_value v "eval.integers.UInt64"
+	| v -> unexpected_value v "eval.integers.UInt64"
 
 let uint64_fields = [
 	"MAX", VUInt64 UInt64.max_int;
@@ -160,6 +168,9 @@ let int64_fields = [
 		let s = decode_string v in
 		try VInt64 (Int64.of_string s)
 		with Failure _ -> throw_string "The string is not a valid Int64 representation" null_pos
+	);
+	"ofHxInt64", vfun1 (fun v ->
+		VInt64 (decode_haxe_i64 v)
 	);
 	"max", vfun2 (fun v1 v2 ->
 		let a = decode_i64 v1

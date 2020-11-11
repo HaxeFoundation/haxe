@@ -25,6 +25,11 @@ package eval.integers;
 	static public function ofString(s:String):Int64;
 
 	/**
+		Convert `haxe.Int64` to `eval.integers.Int64`
+	**/
+	@:from static public function ofHxInt64(hx:haxe.Int64):Int64;
+
+	/**
 		Returns the greater of `a` and `b`.
 	**/
 	static public function max(a:Int64, b:Int64):Int64;

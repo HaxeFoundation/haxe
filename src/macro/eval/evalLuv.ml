@@ -809,7 +809,7 @@ let buffer_fields = [
 		Buffer.blit_from_bytes buffer source offset;
 		vnull
 	);
-	"blitFromBytes", vfun3 (fun v1 v2 v3 ->
+	"blitFromString", vfun3 (fun v1 v2 v3 ->
 		let buffer = decode_buffer v1
 		and source = decode_native_string v2
 		and offset = decode_int v3 in
