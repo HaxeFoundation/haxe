@@ -12,6 +12,17 @@ open EvalMisc
 open Unsigned
 open Signed
 
+let encode_haxe_i64 low high =
+	let vi = create_instance key_haxe__Int64____Int64 in
+	set_instance_field vi key_high (vint32 high);
+	set_instance_field vi key_low (vint32 low);
+	vinstance vi
+
+let encode_haxe_i64_direct i64 =
+	let low = GInt64.to_int32 i64 in
+	let high = GInt64.to_int32 (Int64.shift_right_logical i64 32) in
+	encode_haxe_i64 low high
+
 let decode_u64 v =
 	match v with
 	| VUInt64 u -> u
@@ -138,6 +149,7 @@ let uint64_fields = [
 
 let int64_fields = [
 	"MAX", VInt64 Int64.max_int;
+	"MIN", VInt64 Int64.min_int;
 	"ZERO", VInt64 Int64.zero;
 	"ONE", VInt64 Int64.one;
 	"ofInt", vfun1 (fun v ->
@@ -171,6 +183,10 @@ let int64_fields = [
 	"toUInt64", vfun1 (fun v ->
 		let i = decode_i64 v in
 		VUInt64 (UInt64.of_int64 i)
+	);
+	"toHxInt64", vfun1 (fun v ->
+		let i = decode_i64 v in
+		encode_haxe_i64_direct i
 	);
 	"toString", vfun1 (fun v ->
 		let i = decode_i64 v in

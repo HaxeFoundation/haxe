@@ -55,6 +55,11 @@ package eval.integers;
 	public function toUInt64():UInt64;
 
 	/**
+		Convert to `haxe.Int64`.
+	**/
+	@:to public function toHxInt64():haxe.Int64;
+
+	/**
 		Return the string representation of this value.
 	**/
 	public function toString():String;
