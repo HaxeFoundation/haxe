@@ -130,9 +130,9 @@ class File {
 		);
 	}
 
-	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>) {
+	public function setPermissions(permissions:FilePermissions, callback:Callback<NoData>) {
 		//PHP does not have `fchmod`
-		getFs().setPermissions(path, mode, callback);
+		getFs().setPermissions(path, permissions, callback);
 	}
 
 	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>) {
@@ -165,24 +165,24 @@ class File {
 		getFs().setTimes(path, accessTime, modificationTime, callback);
 	}
 
-	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
-		executor.addJob(
-			() -> {
-				var result = try {
-					var mode = switch mode {
-						case Exclusive: LOCK_EX;
-						case Shared: LOCK_SH;
-						case Unlock: LOCK_UN;
-					}
-					flock(handle, wait ? mode : mode | LOCK_NB);
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				result;
-			},
-			callback
-		);
-	}
+	// public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
+	// 	executor.addJob(
+	// 		() -> {
+	// 			var result = try {
+	// 				var mode = switch mode {
+	// 					case Exclusive: LOCK_EX;
+	// 					case Shared: LOCK_SH;
+	// 					case Unlock: LOCK_UN;
+	// 				}
+	// 				flock(handle, wait ? mode : mode | LOCK_NB);
+	// 			} catch(e:php.Exception) {
+	// 				throw new FsException(CustomError(e.getMessage()), path);
+	// 			}
+	// 			result;
+	// 		},
+	// 		callback
+	// 	);
+	// }
 
 	public function close(callback:Callback<NoData>) {
 		executor.addJob(

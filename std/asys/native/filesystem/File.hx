@@ -65,7 +65,7 @@ class File {
 	/**
 		Set file permissions.
 	**/
-	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>):Void {
+	public function setPermissions(permissions:FilePermissions, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
@@ -96,6 +96,9 @@ class File {
 	}
 
 	/**
+		TODO: this requires a separate work for design and implementation
+		to find a solid cross-platform solution.
+
 		Acquire or release a file lock for the current process.
 
 		The `callback` is supplied with `true` if a lock was successfully acquired.
@@ -115,9 +118,9 @@ class File {
 
 		This lock is _not_ suitable for controlling access to a file by multiple threads.
 	**/
-	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
-	}
+	// public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
+	// 	throw new NotImplementedException();
+	// }
 
 	/**
 		Close the file.

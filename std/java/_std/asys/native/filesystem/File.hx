@@ -91,8 +91,8 @@ class File {
 		getFs().info(path, callback);
 	}
 
-	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>):Void {
-		getFs().setPermissions(path, mode, callback);
+	public function setPermissions(permissions:FilePermissions, callback:Callback<NoData>):Void {
+		getFs().setPermissions(path, permissions, callback);
 	}
 
 	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
@@ -125,36 +125,36 @@ class File {
 		getFs().setTimes(path, accessTime, modificationTime, callback);
 	}
 
-	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
-		jobs.addJob(
-			() -> {
-				try {
-					interProcessLock = switch [mode, wait] {
-						case [Exclusive, true]: channel.lock();
-						case [Shared, true]: channel.lock(0, java.lang.Long.MAX_VALUE, true);
-						case [Exclusive, false]: channel.tryLock();
-						case [Shared, false]: channel.tryLock(0, java.lang.Long.MAX_VALUE, true);
-						case [Unlock, _]:
-							switch interProcessLock {
-								case null: null;
-								case l:
-									l.release();
-									null;
-							}
-					}
-					switch mode {
-						case Unlock: interProcessLock == null;
-						case _: interProcessLock != null;
-					}
-				} catch(e:FileSystemException) {
-					throw new FsException(CustomError(e.getReason()), path);
-				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.toString()), path);
-				}
-			},
-			callback
-		);
-	}
+	// public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
+	// 	jobs.addJob(
+	// 		() -> {
+	// 			try {
+	// 				interProcessLock = switch [mode, wait] {
+	// 					case [Exclusive, true]: channel.lock();
+	// 					case [Shared, true]: channel.lock(0, java.lang.Long.MAX_VALUE, true);
+	// 					case [Exclusive, false]: channel.tryLock();
+	// 					case [Shared, false]: channel.tryLock(0, java.lang.Long.MAX_VALUE, true);
+	// 					case [Unlock, _]:
+	// 						switch interProcessLock {
+	// 							case null: null;
+	// 							case l:
+	// 								l.release();
+	// 								null;
+	// 						}
+	// 				}
+	// 				switch mode {
+	// 					case Unlock: interProcessLock == null;
+	// 					case _: interProcessLock != null;
+	// 				}
+	// 			} catch(e:FileSystemException) {
+	// 				throw new FsException(CustomError(e.getReason()), path);
+	// 			} catch(e:Throwable) {
+	// 				throw new FsException(CustomError(e.toString()), path);
+	// 			}
+	// 		},
+	// 		callback
+	// 	);
+	// }
 
 	public function close(callback:Callback<NoData>):Void {
 		jobs.addJob(

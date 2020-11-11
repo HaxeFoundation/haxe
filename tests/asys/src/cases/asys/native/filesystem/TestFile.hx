@@ -719,32 +719,33 @@ class TestFile extends FsTest {
 		);
 	}
 
-	@:depends(testOpenWrite)
-	function testLock(async:Async) {
-		//TODO: proper test for File.lock
-		if(Sys.systemName() != 'Linux') {
-			pass();
-			return;
-		}
+	// TODO: see the doc block for `asys.native.filesystem.File.lock`
+	// @:depends(testOpenWrite)
+	// function testLock(async:Async) {
+	// 	//TODO: proper test for File.lock
+	// 	if(Sys.systemName() != 'Linux') {
+	// 		pass();
+	// 		return;
+	// 	}
 
-		asyncAll(async,
-			FileSystem.openFile('test-data/temp/file.lock', Write, (_, file) -> {
-				file.lock(Exclusive, false, (e, r) -> {
-					if(noException(e) && isTrue(r)) {
-						var lockedExternally = 0 == Sys.command('flock', ['-n', 'test-data/temp/file.lock', '-c', 'echo']);
-						isFalse(lockedExternally);
-						file.lock(Unlock, (e, r) -> {
-							if(noException(e) && isTrue(r)) {
-								var lockedExternally = 0 == Sys.command('flock', ['-n', 'test-data/temp/file.lock', '-c', 'echo']);
-								isTrue(lockedExternally);
-							}
-							file.close((_, _) -> {});
-						});
-					}
-				});
-			})
-		);
-	}
+	// 	asyncAll(async,
+	// 		FileSystem.openFile('test-data/temp/file.lock', Write, (_, file) -> {
+	// 			file.lock(Exclusive, false, (e, r) -> {
+	// 				if(noException(e) && isTrue(r)) {
+	// 					var lockedExternally = 0 == Sys.command('flock', ['-n', 'test-data/temp/file.lock', '-c', 'echo']);
+	// 					isFalse(lockedExternally);
+	// 					file.lock(Unlock, (e, r) -> {
+	// 						if(noException(e) && isTrue(r)) {
+	// 							var lockedExternally = 0 == Sys.command('flock', ['-n', 'test-data/temp/file.lock', '-c', 'echo']);
+	// 							isTrue(lockedExternally);
+	// 						}
+	// 						file.close((_, _) -> {});
+	// 					});
+	// 				}
+	// 			});
+	// 		})
+	// 	);
+	// }
 
 	@:depends(testOpenRead)
 	function testClose_multipleClose(async:Async) {
