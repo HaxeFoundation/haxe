@@ -19,27 +19,18 @@ class File {
 	public final path:FilePath;
 
 	final file:LFile;
+	final deleteOnClose:Bool;
 
 	static inline function currentLoop():Loop {
 		return Thread.current().events;
 	}
 
-	function new(file:LFile, path:FilePath):Void {
+	function new(file:LFile, path:FilePath, deleteOnClose:Bool = false):Void {
 		this.file = file;
 		this.path = path;
+		this.deleteOnClose = deleteOnClose;
 	}
 
-	/**
-		Write up to `length` bytes from `buffer` starting at the buffer `offset`
-		to the file starting at the file `position`, then invoke `callback` with
-		the amount of bytes written.
-
-		If `position` is greater than the file size then the file will be grown
-		to the required size with the zero bytes before writing.
-
-		If `position` is negative or `offset` is outside of `buffer` bounds or
-		if `length` is negative, an error is passed to the `callback`.
-	**/
 	public function write(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
 		var loop = currentLoop();
 		var error = null;
@@ -90,87 +81,66 @@ class File {
 				case Error(e):
 					callback.fail(new FsException(e, path));
 				case Ok(bytesRead):
-					b.blitToBytes(buffer, offset);
+					b.sub(0, bytesRead.toInt()).blitToBytes(buffer, offset);
 					callback.success(bytesRead.toInt());
 			});
 		}
 	}
 
-	/**
-		Force all buffered data to be written to disk.
-	**/
 	public function flush(callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Get file status information.
-	**/
-	public function info(callback:Callback<FileInfo>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Set file permissions.
-	**/
-	public function setPermissions(mode:FilePermissions, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Set file owner and group.
-	**/
-	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Shrink or expand the file to `newSize` bytes.
-
-		If the file is larger than `newSize`, the extra data is lost.
-		If the file is shorter, zero bytes are used to fill the added length.
-	**/
-	public function resize(newSize:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Change access and modification times of the file.
-
-		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
-	**/
-	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Acquire or release a file lock for the current process.
-
-		The `callback` is supplied with `true` if a lock was successfully acquired.
-
-		Modes:
-		- `Shared` - acquire a shared lock (usually used for reading)
-		- `Exclusive` - acquire an exclusive lock (usually used for writing)
-		- `Unlock` - release a lock.
-
-		By default (`wait` is `true`) `lock` waits until a lock can be acquired.
-		Pass `false` to `wait` to invoke `callback` with `false` if a lock cannot
-		be acquired immediately.
-
-		Although a lock may be released automatically on file closing, for a
-		consistent cross-platform behavior it is strongly recommended to always
-		release a lock manually.
-
-		This lock is _not_ suitable for controlling access to a file by multiple threads.
-	**/
-	public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
-	}
-
-	public function close(callback:Callback<NoData>):Void {
-		file.close(currentLoop(), null, r -> switch r {
+		file.fsync(currentLoop(), null, r -> switch r {
 			case Error(e): callback.fail(new FsException(e, path));
 			case Ok(_): callback.success(NoData);
+		});
+	}
+
+	public function info(callback:Callback<FileInfo>):Void {
+		file.fstat(currentLoop(), null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(stat): callback.success(stat);
+		});
+	}
+
+	public function setPermissions(permissions:FilePermissions, callback:Callback<NoData>):Void {
+		file.fchmod(currentLoop(), permissions, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
+	}
+
+	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
+		file.fchown(currentLoop(), user, group, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
+	}
+
+	public function resize(newSize:Int, callback:Callback<NoData>):Void {
+		file.ftruncate(currentLoop(), Int64.ofInt(newSize), null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(_): callback.success(NoData);
+		});
+	}
+
+	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
+		file.futime(currentLoop(), accessTime, modificationTime, null, r -> switch r {
+			case Error(e): callback.fail(new FsException(e, path));
+			case Ok(real): callback.success(NoData);
+		});
+	}
+
+	// public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
+	// 	throw new NotImplementedException();
+	// }
+
+	public function close(callback:Callback<NoData>):Void {
+		var loop = currentLoop();
+		if(deleteOnClose) {
+			LFile.unlink(loop, path, null, _ -> {});
+		}
+		file.close(loop, null, r -> switch r {
+			case Ok(_) | Error(UV_EBADF): callback.success(NoData);
+			case Error(e): callback.fail(new FsException(e, path));
 		});
 	}
 }

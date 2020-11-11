@@ -129,9 +129,13 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function tempFile(callback:Callback<File>):Void {
-		LFile.mkstemp(currentLoop(), 'XXXXXX', null, r -> switch r {
+		var pattern = switch eval.luv.Path.tmpdir() {
+			case Error(_): NativeString.fromString('./XXXXXX');
+			case Ok(dir): dir.concat('/XXXXXX');
+		}
+		LFile.mkstemp(currentLoop(), pattern, null, r -> switch r {
 			case Error(e): callback.fail(new FsException(e, '(unknown path)'));
-			case Ok(f): callback.success(@:privateAccess new File(f.file, @:privateAccess new FilePath(f.name)));
+			case Ok(f): callback.success(@:privateAccess new File(f.file, @:privateAccess new FilePath(f.name), true));
 		});
 	}
 
@@ -367,7 +371,7 @@ class DefaultFileSystem implements IFileSystem {
 	}
 
 	public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
-		LFile.chmod(currentLoop(), path, [NUMERIC(permissions)], null, r -> switch r {
+		LFile.chmod(currentLoop(), path, permissions, null, r -> switch r {
 			case Error(e): callback.fail(new FsException(e, path));
 			case Ok(_): callback.success(NoData);
 		});
@@ -471,7 +475,7 @@ class DefaultFileSystem implements IFileSystem {
 			case ReadWrite: [RDWR];
 			case Write: [WRONLY, CREAT, TRUNC];
 			case WriteX: [WRONLY, CREAT, EXCL];
-			case WriteRead: [RDWR, TRUNC, CREAT];
+			case WriteRead: [RDWR, CREAT, TRUNC];
 			case WriteReadX: [RDWR, CREAT, EXCL];
 			case Overwrite: [WRONLY, CREAT];
 			case OverwriteRead: [RDWR, CREAT];
