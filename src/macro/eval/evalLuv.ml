@@ -1753,7 +1753,7 @@ let file_fields = [
 		(File.lchown |> F.async ~vloop ~vrequest |> F.path ~vpath |> F.chown ~vuid ~vgid) callback;
 		vnull
 	);
-	"fchown", vfun6 (fun vloop vfile vuid vgid vrequest vcallback ->
+	"fchown", vfun6 (fun vfile vloop vuid vgid vrequest vcallback ->
 		let callback = encode_unit_callback vcallback in
 		(File.fchown |> F.async ~vloop ~vrequest |> F.file ~vfile |> F.chown ~vuid ~vgid) callback;
 		vnull
