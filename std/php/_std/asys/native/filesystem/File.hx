@@ -1,10 +1,8 @@
 package asys.native.filesystem;
 
 import haxe.Int64;
-import haxe.EntryPoint;
 import haxe.io.Bytes;
 import haxe.NoData;
-import haxe.IJobExecutor;
 import asys.native.IWritable;
 import asys.native.IReadable;
 import php.Resource;
@@ -19,154 +17,144 @@ class File {
 	public final path:FilePath;
 
 	final handle:Resource;
-	final executor:IJobExecutor;
-	var fs:Null<IFileSystem>;
 	var isClosed:Bool = false;
 
-	@:allow(asys.native.filesystem)
-	function new(handle:Resource, path:FilePath, executor:IJobExecutor) {
+	static inline function run(job:()->Void):Void {
+		inline haxe.EntryPoint.runInMainThread(job);
+	}
+
+	function new(handle:Resource, path:FilePath) {
 		this.handle = handle;
 		this.path = path;
-		this.executor = executor;
 	}
 
 	public function write(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
-		executor.addJob(
-			() -> {
-				var result = try {
-					if(length < 0)
-						throw new php.Exception('File.write(): negative length');
-					if(position < 0)
-						throw new php.Exception('File.write(): negative position');
-					if(offset < 0 || offset > buffer.length)
-						throw new php.Exception('File.write(): offset out of buffer bounds');
-					if(fseek(handle, int64ToInt(position)) == 0)
-						fwrite(handle, buffer.getData().sub(offset, length))
-					else
-						throw new php.Exception('File.write(): Failed to set file position');
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				switch result {
-					case false:
-						throw new FsException(CustomError('Failed to read a file'), path);
-					case _:
-						result;
-				}
-			},
-			callback
-		);
+		run(() -> {
+			var result = try {
+				if(length < 0)
+					throw new php.Exception('File.write(): negative length');
+				if(position < 0)
+					throw new php.Exception('File.write(): negative position');
+				if(offset < 0 || offset > buffer.length)
+					throw new php.Exception('File.write(): offset out of buffer bounds');
+				if(fseek(handle, int64ToInt(position)) == 0)
+					switch fwrite(handle, buffer.getData().sub(offset, length)) {
+						case false: throw new php.Exception('Failed to read a file');
+						case r: r;
+					}
+				else
+					throw new php.Exception('File.write(): Failed to set file position');
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(result);
+		});
 	}
 
 	public function read(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>) {
-		executor.addJob(
-			() -> {
-				var result = try {
-					if(length < 0)
-						throw new php.Exception('File.read(): negative length');
-					if(position < 0)
-						throw new php.Exception('File.read(): negative position');
-					if(offset < 0 || offset > buffer.length)
-						throw new php.Exception('File.read(): offset out of buffer bounds');
-					if(offset == buffer.length)
-						('':haxe.extern.EitherType<Bool,String>)
-					else if(fseek(handle, int64ToInt(position)) == 0)
-						fread(handle, length)
-					else
-						throw new php.Exception('File.read(): Failed to set file position');
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				switch result {
-					case false:
-						throw new FsException(CustomError('Failed to read a file'), path);
-					case (_:String) => s:
-						if(strlen(s) == 0) {
-							0;
-						} else {
-							var bytesRead = try {
-								var bytes = Bytes.ofString(s);
-								buffer.blit(offset, bytes, 0, bytes.length);
-								bytes.length;
-							} catch(e) {
-								throw new FsException(CustomError('Failed to write to buffer: ${e.message}'), path, e);
-							}
-							bytesRead;
+		run(() -> {
+			var result = try {
+				if(length < 0)
+					throw new php.Exception('File.read(): negative length');
+				if(position < 0)
+					throw new php.Exception('File.read(): negative position');
+				if(offset < 0 || offset > buffer.length)
+					throw new php.Exception('File.read(): offset out of buffer bounds');
+				if(offset == buffer.length)
+					('':haxe.extern.EitherType<Bool,String>)
+				else if(fseek(handle, int64ToInt(position)) == 0)
+					fread(handle, length)
+				else
+					throw new php.Exception('File.read(): Failed to set file position');
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to read a file'), path));
+				case (_:String) => s:
+					var result = if(strlen(s) == 0) {
+						0;
+					} else {
+						var bytesRead = try {
+							var bytes = Bytes.ofString(s);
+							buffer.blit(offset, bytes, 0, bytes.length);
+							bytes.length;
+						} catch(e) {
+							callback.fail(new FsException(CustomError('Failed to write to buffer: ${e.message}'), path, e));
+							return;
 						}
-				}
-			},
-			callback
-		);
+						bytesRead;
+					}
+					callback.success(result);
+			}
+		});
 	}
 
 	public function flush(callback:Callback<NoData>) {
-		executor.addJob(
-			() -> {
-				var success = try {
-					fflush(handle);
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				if(success)
-					NoData
-				else
-					throw new FsException(CustomError('Failed to flush a file'), path);
-			},
-			callback
-		);
+		run(() -> {
+			var success = try {
+				fflush(handle);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(success)
+				callback.success(NoData)
+			else
+				callback.fail(new FsException(CustomError('Failed to flush a file'), path));
+		});
 	}
 
 	public function info(callback:Callback<FileInfo>) {
-		executor.addJob(
-			() -> {
-				var result = try {
-					fstat(handle);
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				@:privateAccess FileSystem.phpStatToHx(result);
-			},
-			callback
-		);
+		run(() -> {
+			var result = try {
+				fstat(handle);
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			callback.success(@:privateAccess FileSystem.phpStatToHx(result));
+		});
 	}
 
 	public function setPermissions(permissions:FilePermissions, callback:Callback<NoData>) {
 		//PHP does not have `fchmod`
-		getFs().setPermissions(path, permissions, callback);
+		FileSystem.setPermissions(path, permissions, callback);
 	}
 
 	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>) {
 		//PHP does not have `fchown`
-		getFs().setOwner(path, user, group, callback);
+		FileSystem.setOwner(path, user, group, callback);
 	}
 
 	public function resize(newSize:Int, callback:Callback<NoData>) {
-		executor.addJob(
-			() -> {
-				var result = try {
-					var result = ftruncate(handle, newSize);
-					result;
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				switch result {
-					case false:
-						throw new FsException(CustomError('Failed to resize file'), path);
-					case _:
-						NoData;
-				}
-			},
-			callback
-		);
+		run(() -> {
+			var result = try {
+				var result = ftruncate(handle, newSize);
+				result;
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			switch result {
+				case false:
+					callback.fail(new FsException(CustomError('Failed to resize file'), path));
+				case _:
+					callback.success(NoData);
+			}
+		});
 	}
 
 	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>) {
 		//PHP does not have `utime` or `utimes`
-		getFs().setTimes(path, accessTime, modificationTime, callback);
+		FileSystem.setTimes(path, accessTime, modificationTime, callback);
 	}
 
 	// public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>) {
-	// 	executor.addJob(
+	// 	run(
 	// 		() -> {
 	// 			var result = try {
 	// 				var mode = switch mode {
@@ -185,20 +173,18 @@ class File {
 	// }
 
 	public function close(callback:Callback<NoData>) {
-		executor.addJob(
-			() -> {
-				var result = try {
-					is_resource(handle) ? fclose(handle) : true;
-				} catch(e:php.Exception) {
-					throw new FsException(CustomError(e.getMessage()), path);
-				}
-				if(result)
-					NoData;
-				else
-					throw new FsException(CustomError('Failed to close a file'), path);
-			},
-			callback
-		);
+		run(() -> {
+			var result = try {
+				is_resource(handle) ? fclose(handle) : true;
+			} catch(e:php.Exception) {
+				callback.fail(new FsException(CustomError(e.getMessage()), path));
+				return;
+			}
+			if(result)
+				callback.success(NoData);
+			else
+				callback.fail(new FsException(CustomError('Failed to close a file'), path));
+		});
 	}
 
 	inline function int64ToInt(i64:Int64):Int {
@@ -206,17 +192,6 @@ class File {
 			Int64.toInt(i64);
 		} else {
 			((cast i64:{high:Int}).high << 32) | (cast i64:{low:Int}).low;
-		}
-	}
-
-	function getFs():IFileSystem {
-		switch fs {
-			case null:
-				var fs = FileSystem.create(executor);
-				this.fs = fs;
-				return fs;
-			case fs:
-				return fs;
 		}
 	}
 }
