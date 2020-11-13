@@ -560,7 +560,7 @@ and parse_meta_entry = parser
 	[< '(At,p1); s >] ->
 		let meta = check_resume p1 (fun () -> Some (Meta.Last,[],p1)) (fun () -> None) in
 		match s with parser
-		| [< name,p = parse_meta_name p1; params = parse_meta_params p; s >] -> (name,params,punion p1 p)
+		| [< name,p = parse_meta_name p1; params = parse_meta_params p >] -> (name,params,punion p1 p)
 		| [< >] -> match meta with None -> serror() | Some meta -> meta
 
 and parse_meta = parser
@@ -1194,7 +1194,7 @@ and parse_var_decls final p1 = parser
 	| [< meta,name,final,t,pn = parse_var_decl_head final; s >] ->
 		let v_decl = parse_var_assignment_resume final [] name pn t meta s in
 		List.rev (parse_var_decls_next final [v_decl] s)
-	| [< s >] -> error (Custom "Missing variable identifier") p1
+	| [< >] -> error (Custom "Missing variable identifier") p1
 
 and parse_var_decl final = parser
 	| [< meta,name,final,t,pn = parse_var_decl_head final; v_decl = parse_var_assignment_resume final [] name pn t meta >] -> v_decl
@@ -1385,7 +1385,7 @@ and expr = parser
 				syntax_error (Expected [")"]) s (mk_null_expr (pos cond))
 		in
 		let e2 = (match s with parser
-			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
+			| [< '(Kwd Else,_); e2 = secure_expr >] -> Some e2
 			| [< >] ->
 				(* We check this in two steps to avoid the lexer missing tokens (#8565). *)
 				match Stream.npeek 1 s with
