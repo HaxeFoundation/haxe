@@ -24,7 +24,7 @@ class TestThreadPool extends utest.Test {
 
 		//wait for all tasks to finish
 		for(_ in 0...tasksCount) {
-			if(!lock.wait(2)) {
+			if(!lock.wait(2.0)) {
 				fail('Timeout waiting for tasks to finish');
 				return;
 			}
