@@ -43,10 +43,9 @@ class FixedThreadPool implements IThreadPool {
 	var _isShutdown = false;
 	function get_isShutdown():Bool return _isShutdown;
 
-
 	final pool:Array<Worker>;
 	final poolMutex = new Mutex();
-	final queue = new Deque<Null<()->Void>>();
+	final queue = new Deque<()->Void>();
 
 	/**
 		Create a new thread pool with `threadsCount` threads.
@@ -82,11 +81,16 @@ class FixedThreadPool implements IThreadPool {
 		if(_isShutdown) return;
 		_isShutdown = true;
 		for(_ in pool) {
-			//`null` is used as a signal to workers to terminate threads
-			queue.add(null);
+			queue.add(shutdownTask);
 		}
 	}
+
+	static function shutdownTask():Void {
+		throw new ShutdownException('');
+	}
 }
+
+private class ShutdownException extends Exception {}
 
 private class Worker {
 	var thread:Thread;
@@ -100,11 +104,10 @@ private class Worker {
 	function loop() {
 		try {
 			while(true) {
-				switch queue.pop(true) {
-					case null: break;
-					case fn: fn();
-				}
+				var task = queue.pop(true);
+				task();
 			}
+		} catch(_:ShutdownException) {
 		} catch(e) {
 			thread = Thread.create(loop);
 			throw e;
