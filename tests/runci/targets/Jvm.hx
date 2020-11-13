@@ -22,10 +22,10 @@ class Jvm {
 		runCommand("haxe", ["build.hxml", "--jvm", "bin/test.jar"].concat(args));
 		runCommand("java", ["-jar", "bin/test.jar"]);
 
-		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "--jvm", "export/threads.jar"].concat(args));
-		if (systemName != "Windows") { // #8154
-			runCommand("java", ["-jar", "export/threads.jar"]);
-		}
+		// changeDirectory(threadsDir);
+		// runCommand("haxe", ["build.hxml", "--jvm", "export/threads.jar"].concat(args));
+		// if (systemName != "Windows") { // #8154
+		// 	runCommand("java", ["-jar", "export/threads.jar"]);
+		// }
 	}
 }
