@@ -100,10 +100,16 @@ module DiagnosticsKind = struct
 end
 
 module CompletionResultKind = struct
+	type expected_type_completion = {
+		expected_type : CompletionItem.CompletionType.t;
+		expected_type_followed : CompletionItem.CompletionType.t;
+		compatible_types : CompletionItem.CompletionType.t list;
+	}
+
 	type t =
 		| CRField of CompletionItem.t * pos * Type.t option * (Type.t * Type.t) option
 		| CRStructureField
-		| CRToplevel of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option
+		| CRToplevel of expected_type_completion option
 		| CRMetadata
 		| CRTypeHint
 		| CRExtends
@@ -112,7 +118,7 @@ module CompletionResultKind = struct
 		| CRImport
 		| CRUsing
 		| CRNew
-		| CRPattern of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option * bool
+		| CRPattern of expected_type_completion option * bool
 		| CROverride
 		| CRTypeRelation
 		| CRTypeDecl
@@ -120,9 +126,10 @@ module CompletionResultKind = struct
 	let to_json ctx kind =
 		let expected_type_fields t = match t with
 			| None -> []
-			| Some(ct1,ct2) -> [
-					"expectedType",CompletionItem.CompletionType.to_json ctx ct1;
-					"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ct2;
+			| Some ext -> [
+					"expectedType",CompletionItem.CompletionType.to_json ctx ext.expected_type;
+					"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ext.expected_type_followed;
+					"compatibleTypes",jarray (List.map (CompletionItem.CompletionType.to_json ctx) ext.compatible_types);
 				]
 		in
 		let i,args = match kind with
