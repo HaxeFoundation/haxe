@@ -22,42 +22,30 @@
 
 package sys.thread;
 
-#if (!target.threaded)
-#error "This class is not available on this target"
-#end
-
 /**
-	A Deque is a double-ended queue with a `pop` method that can block until
-	an element is available. It is commonly used to synchronize threads.
- */
-@:coreApi extern class Deque<T> {
-	/**
-		Create a new Deque instance which is initially empty.
-	**/
-	function new():Void;
+	A thread pool interface.
+**/
+interface IThreadPool {
+
+	/** Amount of alive threads in this pool. */
+	var threadsCount(get,never):Int;
+
+	/** Indicates if `shutdown` method of this pool has been called. */
+	var isShutdown(get,never):Bool;
 
 	/**
-		Adds an element at the end of `this` Deque.
+		Submit a task to run in a thread.
 
-		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
+		Throws an exception if the pool is shut down.
 	**/
-	function add(i:T):Void;
+	function run(task:()->Void):Void;
 
 	/**
-		Adds an element at the front of `this` Deque.
+		Initiates a shutdown.
+		All previousely submitted tasks will be executed, but no new tasks will
+		be accepted.
 
-		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
+		Multiple calls to this method have no effect.
 	**/
-	function push(i:T):Void;
-
-	/**
-		Tries to retrieve an element from the front of `this` Deque.
-
-		If an element is available, it is removed from the queue and returned.
-
-		If no element is available and `block` is `false`, `null` is returned.
-
-		Otherwise, execution blocks until an element is available and returns it.
-	**/
-	function pop(block:Bool):Null<T>;
+	function shutdown():Void;
 }

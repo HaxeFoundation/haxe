@@ -13,12 +13,8 @@ class Neko {
 		runCommand("haxe", ["compile-neko.hxml"].concat(args));
 		runCommand("neko", ["bin/neko/sys.n"]);
 
-		changeDirectory(eventLoopDir);
-		runCommand("haxe", ["build.hxml", "--neko", "bin/test.n"]);
-		runCommand("neko", ["bin/test.n"]);
-
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "-neko", "export/threads.n"]);
-		// runCommand("neko", ["export/threads.n"]);
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "--neko", "export/threads.n"]);
+		runCommand("neko", ["export/threads.n"]);
 	}
 }

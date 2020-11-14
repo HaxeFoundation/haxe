@@ -147,7 +147,20 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t ->
 			let from_type = CompletionType.from_type (get_import_status ctx) in
-			Some (from_type t,from_type (Type.map follow (follow t)))
+			let t_followed = Type.map follow (follow t) in
+			let compatible = match t_followed with
+					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
+						let fields = Some (get_struct_init_anon_fields c tl) in
+						let ta = mk_anon ?fields (ref Closed) in
+						[from_type ta]
+					| _ ->
+						[]
+			in
+			Some {
+				expected_type = from_type t;
+				expected_type_followed = from_type t_followed;
+				compatible_types = compatible;
+			}
 
 let raise_toplevel ctx dk with_type (subject,psubject) =
 	let expected_type = get_expected_type ctx with_type in
