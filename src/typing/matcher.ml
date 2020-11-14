@@ -1124,7 +1124,7 @@ module Compile = struct
 				error "Invalid match: Too many patterns" p
 		in
 		let bindings = loop patterns subjects bindings in
-		if bindings = [] then dt else bind mctx bindings dt
+		if bindings = [] then dt else bind mctx (List.rev bindings) dt
 
 	and compile_switch mctx subjects cases =
 		let subject,subjects = match subjects with
@@ -1237,14 +1237,21 @@ module Compile = struct
 			match_pos = p;
 			dt_count = 0;
 		} in
-		let subjects,vars = List.fold_left (fun (subjects,vars) e -> match e.eexpr with
-			| TConst _ | TLocal _ ->
-				(e :: subjects,vars)
-			| _ ->
-				let v = gen_local ctx e.etype e.epos in
-				let ev = mk (TLocal v) e.etype e.epos in
-				(ev :: subjects,(v,e.epos,e) :: vars)
-		) ([],[]) subjects in
+		let rec loop (subjects,vars) el = match el with
+			| [] ->
+				List.rev subjects,List.rev vars
+			| e :: el ->
+				let subjects,vars = match e.eexpr with
+				| TConst _ | TLocal _ ->
+					(e :: subjects,vars)
+				| _ ->
+					let v = gen_local ctx e.etype e.epos in
+					let ev = mk (TLocal v) e.etype e.epos in
+					(ev :: subjects,(v,e.epos,e) :: vars)
+				in
+				loop (subjects,vars) el
+		in
+		let subjects,vars = loop ([],[]) subjects in
 		begin match cases,subjects with
 		| [],(subject :: _) ->
 			let dt_fail = fail mctx subject.epos in
@@ -1574,7 +1581,7 @@ module TexprConverter = struct
 						in
 						f()
 					| Bind(bl,dt) ->
-						let el = List.rev_map (fun (v,p,e) ->
+						let el = List.map (fun (v,p,e) ->
 							v_lookup := IntMap.add v.v_id e !v_lookup;
 							mk (TVar(v,Some e)) com.basic.tvoid p
 						) bl in
@@ -1608,7 +1615,6 @@ module Match = struct
 				e.etype,[e]
 		in
 		let t,subjects = loop e in
-		let subjects = List.rev subjects in
 		let cases = match def with
 			| None -> cases
 			| Some (eo,p) -> cases @ [[EConst (Ident "_"),p],None,eo,p]

@@ -2171,7 +2171,7 @@ module StdStd = struct
 	)
 
 	let parseFloat = vfun1 (fun v ->
-		try vfloat (Numeric.parse_float (decode_string v)) with _ -> vnull
+		try vfloat (Numeric.parse_float (decode_string v)) with _ -> vfloat nan
 	)
 
 	let random = vfun1 (fun v ->

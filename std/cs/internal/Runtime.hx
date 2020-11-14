@@ -475,17 +475,26 @@ import cs.system.Object;
 				tgs[i] = untyped __typeof__(Dynamic);
 			}
 			m = m.MakeGenericMethod(tgs);
-			var retg = m.Invoke(obj, oargs);
+			var retg = try
+				m.Invoke(obj, oargs)
+			catch(e:TargetInvocationException)
+				throw e.InnerException;
 			return cs.internal.Runtime.unbox(retg);
 		}
 
 		var m = methods[0];
 		if (obj == null && Std.isOfType(m, cs.system.reflection.ConstructorInfo)) {
-			var ret = cast(m, cs.system.reflection.ConstructorInfo).Invoke(oargs);
+			var ret = try
+				cast(m, cs.system.reflection.ConstructorInfo).Invoke(oargs)
+			catch(e:TargetInvocationException)
+				throw e.InnerException;
 			return unbox(ret);
 		}
 
-		var ret = m.Invoke(obj, oargs);
+		var ret = try
+			m.Invoke(obj, oargs)
+		catch(e:TargetInvocationException)
+			throw e.InnerException;
 		return unbox(ret);
 	}
 
