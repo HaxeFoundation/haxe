@@ -3,6 +3,7 @@ package misc;
 import sys.thread.IThreadPool;
 import sys.thread.ThreadPoolException;
 import sys.thread.Deque;
+import sys.thread.Mutex;
 import haxe.Timer;
 
 abstract class TestThreadPoolBase extends utest.Test {
@@ -25,17 +26,20 @@ abstract class TestThreadPoolBase extends utest.Test {
 
 	function testCreateRunShutdown() {
 		var threadsCount = 5;
-		var tasksCount = 10;
+		var tasksCount = threadsCount * 2;
+		var taskThreads = [];
+		var taskIds = [];
 		var lock = new Lock();
-		var threads = new Deque();
+		var mutex = new Mutex();
 
 		var pool = createThreadPool(threadsCount);
-		var taskIds = [];
 		for(id in 0...tasksCount) {
 			pool.run(() -> {
 				Sys.sleep(0.2); // keep the thread busy until all the tasks are submitted
-				threads.add(Thread.current());
+				mutex.acquire();
+				taskThreads.push(Thread.current());
 				taskIds.push(id);
+				mutex.release();
 				lock.release();
 			});
 		}
@@ -45,22 +49,19 @@ abstract class TestThreadPoolBase extends utest.Test {
 
 		//check we had `tasksCount` unique tasks
 		taskIds.sort(Reflect.compare);
-		same([for(id in 0...tasksCount) id], taskIds);
+		var expected = [for(id in 0...tasksCount) id];
+		same(expected, taskIds, 'Expected $expected, but they are $taskIds');
 
-		//check we've run our tasks in `threadsCount` unique threads
-		var uniqueThreads = [];
-		while(true) {
-			switch threads.pop(false) {
-				case null:
-					break;
-				case thread:
-					if(!Lambda.exists(uniqueThreads, (t:Thread) -> t == thread)) {
-						uniqueThreads.push(thread);
-					}
-			}
+		//check each thread run two tasks
+		for(thread in taskThreads) {
+			var count = 0;
+			for(t in taskThreads)
+				if(t == thread)
+					++count;
+			if(count != 2)
+				fail('Some thread executed $count tasks instead of 2');
 		}
 		equals(threadsCount, pool.threadsCount);
-		equals(threadsCount, uniqueThreads.length);
 
 		pool.shutdown();
 		isTrue(pool.isShutdown);
