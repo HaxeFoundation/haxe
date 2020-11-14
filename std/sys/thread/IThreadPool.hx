@@ -25,6 +25,7 @@ package sys.thread;
 /**
 	A thread pool interface.
 **/
+@:using(sys.thread.IThreadPool.ThreadPoolUtils)
 interface IThreadPool {
 
 	/** Amount of alive threads in this pool. */
@@ -48,4 +49,26 @@ interface IThreadPool {
 		Multiple calls to this method have no effect.
 	**/
 	function shutdown():Void;
+}
+
+class ThreadPoolUtils {
+	/**
+		Run `task` and then invoke `callback` with the outcome of the task.
+
+		The callback will be invoked in the same thread `.runFor` was called.
+		The calling thread must have an event loop set up (see `sys.thread.Thread.events`)
+	**/
+	static public function runFor<R>(pool:IThreadPool, task:()->R, callback:haxe.Callback<haxe.Exception,R>):Void {
+		var events = sys.thread.Thread.current().events;
+		events.promise();
+		pool.run(() -> {
+			var result = try {
+				task();
+			} catch(e) {
+				events.runPromised(() -> callback.fail(e));
+				return;
+			}
+			events.runPromised(() -> callback.success(result));
+		});
+	}
 }
