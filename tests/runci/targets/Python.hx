@@ -80,14 +80,10 @@ class Python {
 			runCommand(py, ["test.py"]);
 		}
 
-		changeDirectory(eventLoopDir);
-		runCommand("haxe", ["build.hxml", "--python", "bin/test.py"]);
-		for (py in pys) {
-			runCommand(py, ["bin/test.py"]);
-		}
-
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--python", "export/threads.py"].concat(args));
-		runCommand("python3", ["export/threads.py"]);
+		for (py in pys) {
+			runCommand(py, ["export/threads.py"]);
+		}
 	}
 }

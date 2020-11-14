@@ -37,9 +37,6 @@ class Macro {
 			case _: // TODO
 		}
 
-		changeDirectory(eventLoopDir);
-		runCommand("haxe", ["build.hxml"].concat(args).concat(["--interp"]));
-
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--interp"]);
 	}

@@ -68,12 +68,6 @@ class Cpp {
 		runCommand("haxe", ["compile-cpp.hxml"].concat(args));
 		runCpp("bin/cpp/Main-debug", []);
 
-		if(testCompiled) {
-			changeDirectory(eventLoopDir);
-			runCommand("haxe", ["build.hxml", "--cpp", "bin/cpp", "--debug"].concat(args));
-			runCpp("bin/cpp/Main-debug", []);
-		}
-
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
 		runCpp("export/cpp/Main");

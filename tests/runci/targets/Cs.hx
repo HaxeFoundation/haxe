@@ -66,10 +66,6 @@ class Cs {
 		runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
 		runCs("export/cs/bin/Main.exe");
 
-		changeDirectory(eventLoopDir);
-		runCommand("haxe", ["build.hxml", "--cs", "bin/cs"]);
-		runCs("bin/cs/bin/Main.exe");
-
 		changeDirectory(miscCsDir);
 		runCommand("haxe", ["run.hxml"]);
 
