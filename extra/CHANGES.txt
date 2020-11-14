@@ -10,6 +10,7 @@
 	hl : fixed crash if a thread finishes without invoking `sendMessage`/`readMessage` (#9920)
 	php : fixed local vars with certain names (_SERVER, _GET etc) overriding super global values (#9924)
 	macro : added return type hint to haxe.macro.MacroStringTools.formatString (#9928)
+	cs : fixed catching exceptions from static closures (#9957)
 
 2020-09-11 4.1.4:
 
