@@ -62,9 +62,9 @@ class Cs {
 		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
 		runCs("bin/cs/bin/Main-Debug.exe", []);
 
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
-		// runCs("export/cs/bin/Main.exe");
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
+		runCs("export/cs/bin/Main.exe");
 
 		changeDirectory(eventLoopDir);
 		runCommand("haxe", ["build.hxml", "--cs", "bin/cs"]);

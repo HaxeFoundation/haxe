@@ -74,11 +74,9 @@ class Cpp {
 			runCpp("bin/cpp/Main-debug", []);
 		}
 
-		// if (systemName != "Windows") { // TODO: find out why we keep getting "missed async calls" error
-		// 	changeDirectory(threadsDir);
-		// 	runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
-		// 	runCpp("export/cpp/Main");
-		// }
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
+		runCpp("export/cpp/Main");
 
 		// if (Sys.systemName() == "Mac")
 		// {

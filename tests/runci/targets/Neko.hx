@@ -17,8 +17,8 @@ class Neko {
 		runCommand("haxe", ["build.hxml", "--neko", "bin/test.n"]);
 		runCommand("neko", ["bin/test.n"]);
 
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "-neko", "export/threads.n"]);
-		// runCommand("neko", ["export/threads.n"]);
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-neko", "export/threads.n"]);
+		runCommand("neko", ["export/threads.n"]);
 	}
 }
