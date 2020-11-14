@@ -6,6 +6,6 @@ private typedef NativeGroup = java.nio.file.attribute.GroupPrincipal;
 abstract SystemGroup(NativeGroup) from NativeGroup to NativeGroup {
 
 	public inline function toString():String {
-		return this.toString();
+		return #if jvm this.toString() #else (cast this:java.lang.Object).toString() #end;
 	}
 }

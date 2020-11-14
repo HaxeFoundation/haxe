@@ -26,11 +26,11 @@ private typedef NativeFilePath = Path;
 	}
 
 	@:to public inline function toString():String {
-		return this.toString();
+		return #if jvm this.toString() #else jObj(this).toString() #end;
 	}
 
 	@:op(A == B) function equals(p:FilePath):Bool {
-		return this.equals(p);
+		return #if jvm this.equals(p) #else jObj(this).equals(jObj(this)) #end;
 	}
 
 	public inline function isAbsolute():Bool {
@@ -38,7 +38,7 @@ private typedef NativeFilePath = Path;
 	}
 
 	public function absolute():FilePath {
-		var fullPath:NativeString = cast this.toAbsolutePath().toString();
+		var fullPath:NativeString = cast #if jvm this.toAbsolutePath().toString() #else jObj(this.toAbsolutePath()).toString() #end;
 
 		var parts:NativeArray<String> = if(SEPARATOR == '\\') {
 			fullPath.split('\\|/');
@@ -79,4 +79,10 @@ private typedef NativeFilePath = Path;
 		}
 		return new FilePath(path);
 	}
+
+#if !jvm
+	static inline function jObj(o:Dynamic):java.lang.Object {
+		return o;
+	}
+#end
 }

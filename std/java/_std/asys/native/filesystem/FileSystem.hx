@@ -290,8 +290,6 @@ class FileSystem {
 					&& (!mode.has(Readable) || Files.isReadable(path))
 					&& (!mode.has(Writable) || Files.isWritable(path))
 					&& (!mode.has(Executable) || Files.isExecutable(path));
-				} catch(e:FileSystemException) {
-					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -305,8 +303,6 @@ class FileSystem {
 			() -> {
 				try {
 					Files.isDirectory(path, new NativeArray(0));
-				} catch(e:FileSystemException) {
-					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -320,8 +316,6 @@ class FileSystem {
 			() -> {
 				try {
 					Files.isRegularFile(path, new NativeArray(0));
-				} catch(e:FileSystemException) {
-					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -406,8 +400,6 @@ class FileSystem {
 			() -> {
 				try {
 					Files.isSymbolicLink(path);
-				} catch(e:FileSystemException) {
-					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}

@@ -126,7 +126,7 @@ abstract FilePermissions(NativePermissions) to NativePermissions {
 		} else if(p1 == null || p2 == null) {
 			return false;
 		} else {
-			return p1.equals(p2);
+			return #if jvm p1.equals(p2) #else (cast p1:java.lang.Object).equals(p2) #end;
 		}
 	}
 

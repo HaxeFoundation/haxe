@@ -30,8 +30,6 @@ class Directory {
 					new FilePath(iterator.next().getFileName());
 				} catch(_:NoSuchElementException) {
 					null;
-				} catch(e:FileSystemException) {
-					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -51,8 +49,6 @@ class Directory {
 					result;
 				} catch(_:NoSuchElementException) {
 					result;
-				} catch(e:FileSystemException) {
-					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
