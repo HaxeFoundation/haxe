@@ -3,7 +3,6 @@ package asys.native.filesystem;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.NoData;
-import haxe.IJobExecutor;
 import haxe.exceptions.NotImplementedException;
 import haxe.exceptions.NotSupportedException;
 import asys.native.IWritable;
@@ -17,27 +16,25 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileLock as JFileLock;
 import java.nio.file.FileSystemException;
 import java.lang.Throwable;
+import asys.native.filesystem.FileSystem.pool;
 
 @:coreApi
 class File {
 	public final path:FilePath;
 
 	final channel:FileChannel;
-	final jobs:IJobExecutor;
-	var fs:Null<IFileSystem>;
 	var deleteOnClose:Bool;
 	var interProcessLock:Null<JFileLock>;
 
 	@:allow(asys.native.filesystem)
-	function new(path:FilePath, channel:FileChannel, jobs:IJobExecutor, deleteOnClose:Bool = false) {
+	function new(path:FilePath, channel:FileChannel, deleteOnClose:Bool = false) {
 		this.path = path;
 		this.channel = channel;
-		this.jobs = jobs;
 		this.deleteOnClose = deleteOnClose;
 	}
 
 	public function write(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				try {
 					var realLength = length > buffer.length - offset ? buffer.length - offset : length;
@@ -54,7 +51,7 @@ class File {
 	}
 
 	public function read(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				try {
 					var realLength = length > buffer.length - offset ? buffer.length - offset : length;
@@ -72,7 +69,7 @@ class File {
 	}
 
 	public function flush(callback:Callback<NoData>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				try {
 					channel.force(false);
@@ -88,19 +85,19 @@ class File {
 	}
 
 	public function info(callback:Callback<FileInfo>):Void {
-		getFs().info(path, callback);
+		FileSystem.info(path, callback);
 	}
 
 	public function setPermissions(permissions:FilePermissions, callback:Callback<NoData>):Void {
-		getFs().setPermissions(path, permissions, callback);
+		FileSystem.setPermissions(path, permissions, callback);
 	}
 
 	public function setOwner(user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		getFs().setOwner(path, user, group, callback);
+		FileSystem.setOwner(path, user, group, callback);
 	}
 
 	public function resize(newSize:Int, callback:Callback<NoData>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				try {
 					var current = channel.size();
@@ -122,11 +119,11 @@ class File {
 	}
 
 	public function setTimes(accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		getFs().setTimes(path, accessTime, modificationTime, callback);
+		FileSystem.setTimes(path, accessTime, modificationTime, callback);
 	}
 
 	// public function lock(mode:FileLock = Exclusive, wait:Bool = true, callback:Callback<Bool>):Void {
-	// 	jobs.addJob(
+	// 	pool.runFor(
 	// 		() -> {
 	// 			try {
 	// 				interProcessLock = switch [mode, wait] {
@@ -157,7 +154,7 @@ class File {
 	// }
 
 	public function close(callback:Callback<NoData>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				try {
 					channel.close();
@@ -174,16 +171,5 @@ class File {
 			},
 			callback
 		);
-	}
-
-	function getFs():IFileSystem {
-		switch fs {
-			case null:
-				var fs = FileSystem.create(jobs);
-				this.fs = fs;
-				return fs;
-			case fs:
-				return fs;
-		}
 	}
 }

@@ -1,13 +1,13 @@
 package asys.native.filesystem;
 
 import haxe.NoData;
-import haxe.IJobExecutor;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 import java.util.Iterator as JIterator;
 import java.util.NoSuchElementException;
 import java.lang.Throwable;
 import java.nio.file.FileSystemException;
+import asys.native.filesystem.FileSystem.pool;
 
 @:coreApi
 class Directory {
@@ -15,18 +15,16 @@ class Directory {
 
 	final stream:DirectoryStream<Path>;
 	final iterator:JIterator<Path>;
-	final jobs:IJobExecutor;
 
 	@:allow(asys.native.filesystem)
-	function new(path:FilePath, stream:DirectoryStream<Path>, jobs:IJobExecutor) {
+	function new(path:FilePath, stream:DirectoryStream<Path>) {
 		this.path = path;
 		this.stream = stream;
 		this.iterator = stream.iterator();
-		this.jobs = jobs;
 	}
 
 	public function nextEntry(callback:Callback<Null<FilePath>>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				try {
 					new FilePath(iterator.next().getFileName());
@@ -43,7 +41,7 @@ class Directory {
 	}
 
 	public function nextBatch(maxBatchSize:Int, callback:Callback<Array<FilePath>>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				var result = [];
 				try {
@@ -64,7 +62,7 @@ class Directory {
 	}
 
 	public function close(callback:Callback<NoData>):Void {
-		jobs.addJob(
+		pool.runFor(
 			() -> {
 				try {
 					stream.close();
