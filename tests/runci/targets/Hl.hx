@@ -72,6 +72,9 @@ class Hl {
         runCommand("haxe", ["compile-hl.hxml"].concat(args));
         runCommand(hlBinary, ["bin/unit.hl"]);
 
+        changeDirectory(miscDir + 'hl/libuv');
+        runCommand("haxe", ["build.hxml"].concat(args));
+
         changeDirectory(threadsDir);
         runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
         runCommand("hl", ["export/threads.hl"]);
