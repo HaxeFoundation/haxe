@@ -29,6 +29,10 @@ enum abstract LoopRunMode(Int) {
 }
 
 abstract Loop(hl.Abstract<"uv_loop">) {
+	@:hlNative("uv", "loop_init_wrap") static public function init():Loop {
+		return null;
+	}
+
 	@:hlNative("uv", "loop_close") public function close():Int {
 		return 0;
 	}

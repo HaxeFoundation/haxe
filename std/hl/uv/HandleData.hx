@@ -22,4 +22,7 @@
 
 package hl.uv;
 
-typedef HandleData = hl.Abstract<"uv_handle">;
+abstract HandleData(hl.Abstract<"uv_handle">) {
+	@:hlNative("uv", "close_handle")
+	public function close(?callback:()->Void):Void {}
+}

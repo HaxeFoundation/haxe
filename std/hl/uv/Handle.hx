@@ -24,17 +24,15 @@ package hl.uv;
 
 @:hlNative("uv")
 class Handle {
-	public var handle:HandleData;
+	var handle:Null<HandleData>;
 
 	function new(h) {
 		handle = h;
 	}
 
-	public function close(?callb) {
+	public function close(?callback:()->Void) {
 		if (handle != null)
-			close_handle(handle, callb);
+			handle.close(callb);
 		handle = null;
 	}
-
-	static function close_handle(h:HandleData, callb:Void->Void):Void {}
 }
