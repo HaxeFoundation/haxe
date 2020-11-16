@@ -17,15 +17,11 @@ enum NextEventTime {
 	At(time:Float);
 }
 
-abstract EventLoopHandle(Int) {}
-
 /**
 	An event loop implementation used for `sys.thread.Thread`
 **/
 @:coreApi
 class EventLoop {
-	public final handle:EventLoopHandle = cast 0;
-
 	final mutex = new Mutex();
 	final oneTimeEvents = new Array<Null<()->Void>>();
 	var oneTimeEventsIdx = 0;
