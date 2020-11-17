@@ -73,4 +73,17 @@ class TestTimer extends TestBase {
 		timer.again();
 		loop.run(Default);
 	}
+
+	@:depends(testInitStartStop)
+	function testDueIn() {
+		var timer1 = Timer.init(loop);
+		var timer2 = Timer.init(loop);
+		timer1.start(() -> {}, 100, 0);
+		timer2.start(() -> {
+			sameInterval(0.09, timer1.dueIn / 1000);
+			timer1.stop();
+			timer2.stop();
+		}, 10, 0);
+		loop.run(Default);
+	}
 }

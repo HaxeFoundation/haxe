@@ -34,10 +34,9 @@ abstract Timer(HandleData) to HandleData {
 	@:hlNative("uv", "timer_get_repeat_wrap") function get_repeat():Int return 0;
 	@:hlNative("uv", "timer_set_repeat_wrap") function set_repeat(v:Int):Int return v;
 
-	// TODO: requires libuv 1.40
-	// /** Get the timer due value or 0 if it has expired. */
-	// public var dueIn(get,never):Int;
-	// @:hlNative("uv", "timer_get_due_in_wrap") public function get_dueIn():Int return 0;
+	/** Get the timer due value or 0 if it has expired. */
+	public var dueIn(get,never):Int;
+	@:hlNative("uv", "timer_get_due_in_wrap") public function get_dueIn():Int return 0;
 
 	/**
 		Initialize the timer.
