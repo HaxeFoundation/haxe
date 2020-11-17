@@ -561,17 +561,27 @@ let get_struct_init_anon_fields c tl =
 	let args =
 		match c.cl_constructor with
 		| Some cf ->
+			let javadoc = match gen_doc_text_opt cf.cf_doc with
+				| None -> None
+				| Some s -> Some (new Javadoc.javadoc s)
+			in
+			let extract_param_info name = match javadoc with
+				| Some javadoc -> javadoc#get_param_info name
+				| None -> None
+			in
 			(match follow cf.cf_type with
 			| TFun (args,_) ->
 				Some (match cf.cf_expr with
 					| Some { eexpr = TFunction fn } ->
 						List.map (fun (name,_,t) ->
 							let t = apply_params c.cl_params tl t in
-							try
+							let p = try
 								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
-								name,t,v.v_pos
+								v.v_pos
 							with Not_found ->
-								name,t,cf.cf_name_pos
+								cf.cf_name_pos
+							in
+							name,t,p,extract_param_info name
 						) args
 					| _ ->
 						List.map
@@ -579,9 +589,9 @@ let get_struct_init_anon_fields c tl =
 								let t = apply_params c.cl_params tl t in
 								try
 									let cf = PMap.find name c.cl_fields in
-									name,t,cf.cf_name_pos
+									name,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
 								with Not_found ->
-									name,t,cf.cf_name_pos
+									name,t,cf.cf_name_pos,extract_param_info name
 							) args
 				)
 			| _ -> None
@@ -590,8 +600,9 @@ let get_struct_init_anon_fields c tl =
 	in
 	match args with
 	| Some args ->
-		List.fold_left (fun fields (name,t,p) ->
+		List.fold_left (fun fields (name,t,p,doc) ->
 			let cf = mk_field name t p p in
+			cf.cf_doc <- (doc_from_string_opt doc);
 			PMap.add cf.cf_name cf fields
 		) PMap.empty args
 	| _ ->

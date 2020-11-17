@@ -200,19 +200,9 @@ let unify_field_call ctx fa el_typed el p inline =
 	in
 	let raise_augmented_display_exception cf de =
 		let default () = raise (DisplayException.DisplayException de) in
-		let doc = match gen_doc_text_opt cf.cf_doc with
+		let javadoc = match gen_doc_text_opt cf.cf_doc with
 			| None -> default()
-			| Some s -> s
-		in
-		let extract_javadoc_param_info name =
-			(* TODO: Parse this properly *)
-			let s = "@param " ^ name ^ " \\(.*\\)" in
-			let reg = Str.regexp s in
-			try
-				ignore(Str.search_forward reg doc 0);
-				Some (Str.matched_group 1 doc)
-			with Not_found ->
-				None
+			| Some s -> new Javadoc.javadoc s
 		in
 		match de with
 		| DisplayHover (Some hover) ->
@@ -220,9 +210,9 @@ let unify_field_call ctx fa el_typed el p inline =
 			| Some (WithType(t,Some si)) ->
 				let si = match si with
 				| FunctionArgument ({si_doc = None} as si) ->
-					WithType.FunctionArgument {si with si_doc = extract_javadoc_param_info si.si_name};
+					WithType.FunctionArgument {si with si_doc = javadoc#get_param_info si.si_name};
 				| StructureField ({si_doc = None} as si) ->
-					WithType.StructureField {si with si_doc = extract_javadoc_param_info si.si_name};
+					WithType.StructureField {si with si_doc = javadoc#get_param_info si.si_name};
 				| _ ->
 					si
 				in

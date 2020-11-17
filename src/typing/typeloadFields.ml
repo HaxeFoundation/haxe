@@ -177,6 +177,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let super_args,super_expr,super_tl = get_struct_init_super_info ctx c p in
 		let params = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
+		let doc_buf = Buffer.create 0 in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
 			| Var { v_write = AccNever } -> args,el,tl
 			| Var _ ->
@@ -201,6 +202,17 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 					else
 						assign_expr
 				in
+				begin match gen_doc_text_opt cf.cf_doc with
+				| None ->
+					()
+				| Some doc ->
+					Buffer.add_string doc_buf "@param ";
+					Buffer.add_string doc_buf cf.cf_name;
+					Buffer.add_string doc_buf " ";
+					let doc = ExtString.String.trim doc in
+					Buffer.add_string doc_buf doc;
+					Buffer.add_string doc_buf "\n";
+				end;
 				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
 			| Method _ ->
 				args,el,tl
@@ -213,6 +225,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		} in
 		let e = mk (TFunction tf) (TFun(tl @ super_tl,ctx.t.tvoid)) p in
 		let cf = mk_field "new" e.etype p null_pos in
+		cf.cf_doc <- doc_from_string (Buffer.contents doc_buf);
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
