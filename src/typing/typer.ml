@@ -1143,13 +1143,8 @@ and type_map_declaration ctx e1 el with_type p =
 			let e2 = type_expr ctx e2 WithType.value in
 			(e1 :: el_k,e2 :: el_v)
 		) ([],[]) el_kv in
-		let unify_min_resume el = try
-			unify_min_raise ctx el
-		with Error (Unify l,p) when ctx.in_call_args ->
-			 raise (WithTypeError(Unify l,p))
-		in
-		let tkey = unify_min_resume el_k in
-		let tval = unify_min_resume el_v in
+		let tkey = unify_min_raise ctx el_k in
+		let tval = unify_min_raise ctx el_v in
 		el_k,el_v,tkey,tval
 	end in
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
