@@ -17,6 +17,7 @@ jobs:
   windows64-build:
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       OPAMYES: 1
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
@@ -35,6 +36,7 @@ jobs:
   windows-build:
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
       OPAMYES: 1
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
