@@ -54,9 +54,7 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
-let rec unify_call_args' ctx el args r callp inline force_inline =
-	let in_call_args = ctx.in_call_args in
-	ctx.in_call_args <- true;
+let rec unify_call_args' ctx el args r callp inline force_inline in_overload =
 	let call_error err p =
 		raise (Error (Call_error err,p))
 	in
@@ -120,8 +118,9 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				| [] ->
 					if ctx.is_display_file && not (Diagnostics.is_diagnostics_run ctx.com p) then begin
 						ignore(type_expr ctx (e,p) WithType.value);
-						loop el []
-					end	else call_error Too_many_arguments p
+						ignore(loop el [])
+					end;
+					call_error Too_many_arguments p
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
@@ -139,12 +138,22 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 						| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 	in
-	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in
-	ctx.in_call_args <- in_call_args;
+	let restore =
+		let in_call_args = ctx.in_call_args in
+		let in_overload_call_args = ctx.in_overload_call_args in
+		ctx.in_call_args <- true;
+		ctx.in_overload_call_args <- in_overload;
+		(fun () ->
+			ctx.in_call_args <- in_call_args;
+			ctx.in_overload_call_args <- in_overload_call_args;
+		)
+	in
+	let el = try loop el args with exc -> restore(); raise exc; in
+	restore();
 	el,TFun(args,r)
 
 let unify_call_args ctx el args r p inline force_inline =
-	let el,tf = unify_call_args' ctx el args r p inline force_inline in
+	let el,tf = unify_call_args' ctx el args r p inline force_inline false in
 	List.map fst el,tf
 
 type overload_kind =
@@ -181,7 +190,23 @@ let unify_field_call ctx fa el_typed el p inline =
 		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	let attempt_call cf =
+	(* Delayed display handling works like this: If ctx.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
+	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.delayed_display.
+	   The overload handling here extracts them and associates the exception with the field call candidates. Afterwards, normal overload resolution
+	   can take place and only then the display callback is actually committed.
+	*)
+	let extract_delayed_display () = match ctx.delayed_display with
+		| Some f ->
+			ctx.delayed_display <- None;
+			Some f
+		| None ->
+			None
+	in
+	let commit_delayed_display fcc =
+		Option.may raise (snd fcc.fc_data);
+		{fcc with fc_data = fst fcc.fc_data}
+	in
+	let attempt_call cf in_overload =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
@@ -202,7 +227,7 @@ let unify_field_call ctx fa el_typed el p inline =
 					List.rev acc_el,List.rev acc_args,args
 			in
 			let el_typed,args_typed,args = loop [] [] tmap args el_typed in
-			let el,_ = unify_call_args' ctx el args ret p inline is_forced_inline in
+			let el,_ = unify_call_args' ctx el args ret p inline is_forced_inline in_overload in
 			let el = el_typed @ el in
 			let tf = TFun(args_typed @ args,ret) in
 			let mk_call () =
@@ -210,7 +235,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				let el = List.map fst el in
 				!make_call_ref ctx ef el ret ~force_inline:inline p
 			in
-			make_field_call_candidate el ret monos tf cf mk_call
+			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
 		| t ->
 			error (s_type (print_context()) t ^ " cannot be called") p
 	in
@@ -232,7 +257,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				) ctx.monomorphs.perfunction in
 				let current_monos = ctx.monomorphs.perfunction in
 				begin try
-					let candidate = attempt_call cf in
+					let candidate = attempt_call cf true in
 					ctx.monomorphs.perfunction <- current_monos;
 					if overload_kind = OverloadProper then begin
 						let candidates,failures = loop candidates in
@@ -247,7 +272,7 @@ let unify_field_call ctx fa el_typed el p inline =
 					ctx.monomorphs.perfunction <- current_monos;
 					maybe_raise_unknown_ident cerr p;
 					let candidates,failures = loop candidates in
-					candidates,(cf,err,p) :: failures
+					candidates,(cf,err,p,extract_delayed_display()) :: failures
 				end
 		in
 		loop candidates
@@ -273,14 +298,18 @@ let unify_field_call ctx fa el_typed el p inline =
 	| [cf] ->
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
-			attempt_call cf
+			commit_delayed_display (attempt_call cf false)
 		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
 			fail_fun();
 		end
 	| _ ->
 		let candidates,failures = attempt_calls candidates in
 		let fail () =
-			let failures = List.map (fun (cf,err,p) -> cf,error_msg err,p) failures in
+			let failures = List.map (fun (cf,err,p,delayed_display) ->
+				(* If any resolution attempt had a delayed display result, we might as well raise it now. *)
+				Option.may raise delayed_display;
+				cf,error_msg err,p
+			) failures in
 			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in
 			begin match failures with
 			| [_,msg,p] ->
@@ -298,17 +327,17 @@ let unify_field_call ctx fa el_typed el p inline =
 			| [] -> fail()
 			| [fcc] ->
 				maybe_check_access fcc.fc_field;
-				fcc
+				commit_delayed_display fcc
 			| fcc :: l ->
 				display_error ctx "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
 				List.iter (fun fcc ->
 					display_error ctx (Printf.sprintf "... %s" (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
 				) (fcc :: l);
-				fcc
+				commit_delayed_display fcc
 		end else begin match List.rev candidates with
 			| [] -> fail()
-			| fcc :: _ -> fcc
+			| fcc :: _ -> commit_delayed_display fcc
 		end
 
 class call_dispatcher

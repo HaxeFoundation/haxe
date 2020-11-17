@@ -991,6 +991,8 @@ let type_types_into_module ctx m tdecls p =
 		in_loop = false;
 		opened = [];
 		in_call_args = false;
+		in_overload_call_args = false;
+		delayed_display = None;
 		monomorphs = {
 			perfunction = [];
 		};

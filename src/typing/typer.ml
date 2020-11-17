@@ -1892,6 +1892,8 @@ let rec create com =
 		opened = [];
 		vthis = None;
 		in_call_args = false;
+		in_overload_call_args = false;
+		delayed_display = None;
 		monomorphs = {
 			perfunction = [];
 		};
