@@ -5,34 +5,7 @@ open CompletionItem
 open Type
 open Genjson
 
-type hover_result = {
-	hitem : CompletionItem.t;
-	hpos : pos;
-	hexpected : WithType.t option;
-}
-
-type fields_result = {
-	fitems : CompletionItem.t list;
-	fkind : CompletionResultKind.t;
-	fsubject : completion_subject;
-}
-
-type signature_kind =
-	| SKCall
-	| SKArrayAccess
-
-type kind =
-	| DisplayDiagnostics of DiagnosticsTypes.diagnostics_context
-	| Statistics of string
-	| ModuleSymbols of string
-	| Metadata of string
-	| DisplaySignatures of (((tsignature * CompletionType.ct_function) * documentation) list * int * int * signature_kind) option
-	| DisplayHover of hover_result option
-	| DisplayPositions of pos list
-	| DisplayFields of fields_result option
-	| DisplayPackage of string list
-
-exception DisplayException of kind
+exception DisplayException of display_exception_kind
 
 let raise_diagnostics s = raise (DisplayException(DisplayDiagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))

@@ -244,29 +244,10 @@ type shared_display_information = {
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
 
-(* diagnostics *)
-
-type missing_field_cause =
-	| AbstractParent of tclass * tparams
-	| ImplementedInterface of tclass * tparams
-	| PropertyAccessor of tclass_field * bool (* true = getter *)
-	| FieldAccess
-	| FinalFields of tclass_field list
-
-and missing_fields_diagnostics = {
-	mf_pos : pos;
-	mf_on : module_type;
-	mf_fields : (tclass_field * Type.t * CompletionItem.CompletionType.t) list;
-	mf_cause : missing_field_cause;
-}
-
-and module_diagnostics =
-	| MissingFields of missing_fields_diagnostics
-
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable display_module_has_macro_defines : bool;
-	mutable module_diagnostics : module_diagnostics list;
+	mutable module_diagnostics : DisplayTypes.module_diagnostics list;
 }
 
 (* This information is shared between normal and macro context. *)

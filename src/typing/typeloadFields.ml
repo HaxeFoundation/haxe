@@ -24,7 +24,8 @@ open Ast
 open Type
 open Typecore
 open Typeload
-open DisplayTypes.DisplayMode
+open DisplayTypes
+open DisplayMode
 open CompletionItem.ClassFieldOrigin
 open Common
 open Error

@@ -24,6 +24,7 @@ open Typecore
 open Type
 open CompletionItem
 open ClassFieldOrigin
+open DisplayTypes
 open Display
 
 let get_submodule_fields ctx path =
