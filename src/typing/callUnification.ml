@@ -54,7 +54,7 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
-let rec unify_call_args' ctx el args r callp inline force_inline in_overload =
+let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p =
 		raise (Error (Call_error err,p))
 	in
@@ -98,7 +98,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline in_overload =
 		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe";"extern"],"Rest"},_) -> true | _ -> false) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
-					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
+					(try List.map (fun e -> type_against name t e) el with WithTypeError(ul,p) -> arg_error ul name false p)
 				| _ ->
 					die "" __LOC__
 			end
@@ -107,11 +107,11 @@ let rec unify_call_args' ctx el args r callp inline force_inline in_overload =
 		| [],(name,true,t) :: args ->
 			begin match loop [] args with
 				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
-					if is_pos_infos t then [mk_pos_infos t,true]
+					if is_pos_infos t then [mk_pos_infos t]
 					else []
 				| args ->
 					let e_def = default_value name t in
-					(e_def,true) :: args
+					e_def :: args
 			end
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
@@ -126,12 +126,12 @@ let rec unify_call_args' ctx el args r callp inline force_inline in_overload =
 		| e :: el,(name,opt,t) :: args ->
 			begin try
 				let e = type_against name t e in
-				(e,opt) :: loop el args
+				e :: loop el args
 			with
 				WithTypeError (ul,p)->
 					if opt && List.length el < List.length args then
 						let e_def = skip name ul t p in
-						(e_def,true) :: loop (e :: el) args
+						e_def :: loop (e :: el) args
 					else
 						match List.rev !skipped with
 						| [] -> arg_error ul name opt p
@@ -151,10 +151,6 @@ let rec unify_call_args' ctx el args r callp inline force_inline in_overload =
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
 	el,TFun(args,r)
-
-let unify_call_args ctx el args r p inline force_inline =
-	let el,tf = unify_call_args' ctx el args r p inline force_inline false in
-	List.map fst el,tf
 
 type overload_kind =
 	| OverloadProper (* @:overload or overload *)
@@ -219,7 +215,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						let call_error = Call_error(Could_not_unify msg) in
 						raise(Error(call_error,p))
 					end;
-					loop ((e,opt) :: acc_el) (arg :: acc_args) (fun t -> t) args el_typed
+					loop (e :: acc_el) (arg :: acc_args) (fun t -> t) args el_typed
 				| [],_ :: _ ->
 					let call_error = Call_error(Too_many_arguments) in
 					raise(Error(call_error,p))
@@ -227,12 +223,11 @@ let unify_field_call ctx fa el_typed el p inline =
 					List.rev acc_el,List.rev acc_args,args
 			in
 			let el_typed,args_typed,args = loop [] [] tmap args el_typed in
-			let el,_ = unify_call_args' ctx el args ret p inline is_forced_inline in_overload in
+			let el,_ = unify_call_args ctx el args ret p inline is_forced_inline in_overload in
 			let el = el_typed @ el in
 			let tf = TFun(args_typed @ args,ret) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
-				let el = List.map fst el in
 				!make_call_ref ctx ef el ret ~force_inline:inline p
 			in
 			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
@@ -423,7 +418,7 @@ object(self)
 		check_assign();
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
-			let el, tfunc = unify_call_args ctx el args r p false false in
+			let el, tfunc = unify_call_args ctx el args r p false false false in
 			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
 			mk (TCall (e,el)) r p
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->

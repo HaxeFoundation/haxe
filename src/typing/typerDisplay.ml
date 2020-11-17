@@ -209,7 +209,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			| (t,doc,values) :: tl ->
 				let keep (args,r) =
 					begin try
-						let _ = unify_call_args' ctx el args r p false false false in
+						let _ = unify_call_args ctx el args r p false false false in
 						true
 					with
 					| Error(Call_error (Not_enough_arguments _),_) -> true

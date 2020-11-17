@@ -150,7 +150,7 @@ and monomorphs = {
 type 'a field_call_candidate = {
 	(* The argument expressions for this call and whether or not the argument is optional on the
 	   target function. *)
-	fc_args  : (texpr * bool) list;
+	fc_args  : texpr list;
 	(* The applied return type. *)
 	fc_ret   : Type.t;
 	(* The applied function type. *)
@@ -605,7 +605,7 @@ let make_field_call_candidate args ret monos t cf data = {
 let s_field_call_candidate fcc =
 	let pctx = print_context() in
 	let se = s_expr_pretty false "" false (s_type pctx) in
-	let sl_args = List.map (fun (e,_) -> se e) fcc.fc_args in
+	let sl_args = List.map se fcc.fc_args in
 	Printer.s_record_fields "" [
 		"fc_args",String.concat ", " sl_args;
 		"fc_type",s_type pctx fcc.fc_type;

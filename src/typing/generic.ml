@@ -360,7 +360,7 @@ let type_generic_function ctx fa el_typed el with_type p =
 		| TMono m -> safe_mono_close ctx m p
 		| _ -> ()
 	) monos;
-	let el = List.map fst fcc.fc_args in
+	let el = fcc.fc_args in
 	(try
 		let gctx = make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.name in
