@@ -655,8 +655,8 @@ let handle_display ctx e_ast dk mode with_type =
 	if ctx.in_overload_call_args then begin
 		try
 			f()
-		with DisplayException _ as exc ->
-			ctx.delayed_display <- Some exc;
+		with DisplayException de ->
+			ctx.delayed_display <- Some de;
 			e
 	end else
 		f()

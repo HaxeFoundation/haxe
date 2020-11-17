@@ -180,10 +180,11 @@ let to_json ctx de =
 		in
 		let ctx = Genjson.create_context GMFull in
 		let generate_name kind =
-			let i, name = named_source_kind kind in
+			let i,si = named_source_kind kind in
 			jobject [
-				"name",jstring name;
+				"name",jstring si.si_name;
 				"kind",jint i;
+				"doc",(match si.si_doc with None -> jnull | Some s -> jstring s);
 			]
 		in
 		let expected = match hover.hexpected with
@@ -192,10 +193,14 @@ let to_json ctx de =
 				:: (match src with
 					| None -> []
 					| Some ImplicitReturn -> []
-					| Some src -> ["name",generate_name src])
+					| Some src -> [
+							"name",generate_name src;
+						])
 				)
 			| Some(Value(Some ((FunctionArgument name | StructureField name) as src))) ->
-				jobject ["name",generate_name src]
+				jobject [
+					"name",generate_name src;
+				]
 			| _ -> jnull
 		in
 		jobject [

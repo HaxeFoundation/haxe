@@ -134,7 +134,7 @@ and typer = {
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
 	mutable in_overload_call_args : bool;
-	mutable delayed_display : exn option;
+	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	mutable monomorphs : monomorphs;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;

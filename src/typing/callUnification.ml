@@ -198,8 +198,46 @@ let unify_field_call ctx fa el_typed el p inline =
 		| None ->
 			None
 	in
+	let raise_augmented_display_exception cf de =
+		let default () = raise (DisplayException.DisplayException de) in
+		let doc = match gen_doc_text_opt cf.cf_doc with
+			| None -> default()
+			| Some s -> s
+		in
+		let extract_javadoc_param_info name =
+			(* TODO: Parse this properly *)
+			let s = "@param " ^ name ^ " \\(.*\\)" in
+			let reg = Str.regexp s in
+			try
+				ignore(Str.search_forward reg doc 0);
+				Some (Str.matched_group 1 doc)
+			with Not_found ->
+				None
+		in
+		match de with
+		| DisplayHover (Some hover) ->
+			begin match hover.hexpected with
+			| Some (WithType(t,Some si)) ->
+				let si = match si with
+				| FunctionArgument ({si_doc = None} as si) ->
+					WithType.FunctionArgument {si with si_doc = extract_javadoc_param_info si.si_name};
+				| StructureField ({si_doc = None} as si) ->
+					WithType.StructureField {si with si_doc = extract_javadoc_param_info si.si_name};
+				| _ ->
+					si
+				in
+				let expected = WithType.WithType(t,Some si) in
+				DisplayException.raise_hover hover.hitem (Some expected) hover.hpos
+			| _ ->
+				default()
+			end
+		| _ ->
+			default()
+	in
 	let commit_delayed_display fcc =
-		Option.may raise (snd fcc.fc_data);
+		Option.may (fun de ->
+			raise_augmented_display_exception fcc.fc_field de;
+		) (snd fcc.fc_data);
 		{fcc with fc_data = fst fcc.fc_data}
 	in
 	let attempt_call cf in_overload =
@@ -223,7 +261,13 @@ let unify_field_call ctx fa el_typed el p inline =
 					List.rev acc_el,List.rev acc_args,args
 			in
 			let el_typed,args_typed,args = loop [] [] tmap args el_typed in
-			let el,_ = unify_call_args ctx el args ret p inline is_forced_inline in_overload in
+			let el,_ =
+				try
+					unify_call_args ctx el args ret p inline is_forced_inline in_overload
+				with DisplayException.DisplayException de ->
+					raise_augmented_display_exception cf de;
+			in
+			(* here *)
 			let el = el_typed @ el in
 			let tf = TFun(args_typed @ args,ret) in
 			let mk_call () =
@@ -302,7 +346,9 @@ let unify_field_call ctx fa el_typed el p inline =
 		let fail () =
 			let failures = List.map (fun (cf,err,p,delayed_display) ->
 				(* If any resolution attempt had a delayed display result, we might as well raise it now. *)
-				Option.may raise delayed_display;
+				Option.may (fun de ->
+					raise_augmented_display_exception cf de;
+				) delayed_display;
 				cf,error_msg err,p
 			) failures in
 			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in

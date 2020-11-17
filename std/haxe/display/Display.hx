@@ -505,6 +505,7 @@ typedef HoverDisplayItemOccurence<T> = DisplayItemOccurrence<T> & {
 		var ?name:{
 			var name:String;
 			var kind:HoverExpectedNameKind;
+			var ?doc:String;
 		};
 	};
 }
