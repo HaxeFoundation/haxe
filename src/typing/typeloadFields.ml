@@ -228,9 +228,10 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		cf.cf_doc <- doc_from_string (Buffer.contents doc_buf);
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
-		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
+		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos; Meta.InheritDoc,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
-		c.cl_constructor <- Some cf
+		c.cl_constructor <- Some cf;
+		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem_assoc AStatic f.cff_access in

@@ -1,3 +1,4 @@
+import haxe.PosInfos;
 import haxe.Exception;
 import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
@@ -193,6 +194,21 @@ class TestCase implements ITest {
 		if (type != null) {
 			Assert.isTrue(check(type), null, p);
 		}
+	}
+
+	function assertClassField(completion:CompletionResult, name:String, ?callback:(field:JsonClassField)->Void, ?pos:PosInfos) {
+		for (item in completion.result.items) {
+			switch item.kind {
+				case ClassField if(item.args.field.name == name):
+					switch callback {
+						case null: Assert.pass(pos);
+						case fn: fn(item.args.field);
+					}
+					return;
+				case _:
+			}
+		}
+		Assert.fail(pos);
 	}
 
 	function assertHasCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
