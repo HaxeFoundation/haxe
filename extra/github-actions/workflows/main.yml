@@ -81,6 +81,7 @@ jobs:
     needs: windows64-build
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
@@ -105,6 +106,7 @@ jobs:
     needs: windows-build
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
