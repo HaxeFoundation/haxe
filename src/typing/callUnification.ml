@@ -378,7 +378,7 @@ class call_dispatcher
 	(p : pos)
 =
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	let check_assign () = if is_set then invalid_assign p in
+	let check_assign () = if is_set && ctx.com.display.dms_error_policy <> EPIgnore then invalid_assign p in
 
 object(self)
 

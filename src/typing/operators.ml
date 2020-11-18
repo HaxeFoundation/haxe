@@ -134,7 +134,7 @@ module BinopResult = struct
 end
 
 let check_assign ctx e =
-	match e.eexpr with
+	if ctx.com.display.dms_error_policy <> EPIgnore then match e.eexpr with
 	| TLocal v when has_var_flag v VFinal ->
 		error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
