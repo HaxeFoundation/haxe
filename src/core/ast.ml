@@ -235,8 +235,43 @@ and type_param = {
 	tp_meta : metadata;
 }
 
+(**
+	This structure represents a documentation comment of a symbol.
+
+	Use `Ast.get_doc_text` to generate a final user-readable text for a doc_block.
+*)
 and doc_block = {
+	(** Contains own docs written nearby the symbol in Haxe code *)
 	doc_own: string option;
+	(**
+		This field is for docs pointed by @:inheritDoc meta.
+
+		It's populated with `InheritDoc.build_*` functions.
+		Each string in this list is compiled of a doc a single @:inheritDoc points to.
+
+		E.g. calling `InheritDoc.build_class_field_doc` for `field4` (from sample below)
+		will produce `doc_inherited = ["Own field3 doc"; "Own field2 doc\nOwn field1 doc"]`.
+
+		Sample:
+		```
+		class MyClass {
+
+			/** Own field1 doc */
+			function field1();
+
+			/** Own field2 doc */
+			@:inheritDoc(MyClass.field1) function field2();
+
+			/** Own field3 doc */
+			function field2();
+
+			/** Own field4 doc */
+			@:inheritDoc(MyClass.field3)
+			@:inheritDoc(MyClass.field2)
+			function field4();
+		}
+		```
+	*)
 	mutable doc_inherited: string list;
 }
 
@@ -374,6 +409,11 @@ let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
 
 let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
 
+(**
+	Generates full doc block text out of `doc_block` structure
+	by concatenating `d.doc_own` and all entries of `d.doc_inherited` with new lines
+	in between.
+*)
 let gen_doc_text d =
 	let docs =
 		match d.doc_own with
