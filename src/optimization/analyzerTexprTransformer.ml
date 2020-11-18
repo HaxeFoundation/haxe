@@ -202,8 +202,12 @@ let rec func ctx bb tf t p =
 			end
 		) (false,[]) (List.rev el) in
 		let bb,values = List.fold_left (fun (bb,acc) (aff,opt,e) ->
-			let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
-			bb,(value :: acc)
+			if bb == g.g_unreachable then
+				bb,acc
+			else begin
+				let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
+				bb,(value :: acc)
+			end
 		) (bb,[]) el in
 		bb,List.rev values
 	and bind_to_temp ?(v=None) bb sequential e =
