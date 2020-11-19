@@ -39,7 +39,7 @@ let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
 		error "Cannot access this from a static function" p
-	| FunMemberClassLocal | FunMemberAbstractLocal ->
+	| FunMemberClassLocal | FunMemberAbstractLocal when not ctx.com.config.pf_can_capture_this ->
 		let v = match ctx.vthis with
 			| None ->
 				let v = if ctx.curfun = FunMemberAbstractLocal then
@@ -54,10 +54,10 @@ let get_this ctx p =
 				v
 		in
 		mk (TLocal v) ctx.tthis p
-	| FunMemberAbstract ->
+	| FunMemberAbstract | FunMemberAbstractLocal ->
 		let v = (try PMap.find "this" ctx.locals with Not_found -> die "" __LOC__) in
 		mk (TLocal v) v.v_type p
-	| FunConstructor | FunMember ->
+	| FunConstructor | FunMember | FunMemberClassLocal ->
 		mk (TConst TThis) ctx.tthis p
 
 let assign_to_this_is_allowed ctx =

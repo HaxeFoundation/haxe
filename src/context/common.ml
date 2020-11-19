@@ -182,6 +182,8 @@ type platform_config = {
 	pf_exceptions : exceptions_config;
 	(** the scoping of local variables *)
 	pf_scoping : var_scoping_config;
+	(** whether or not the target needs a variable to capture `this` *)
+	pf_can_capture_this : bool;
 }
 
 class compiler_callbacks = object(self)
@@ -421,7 +423,8 @@ let default_config =
 		pf_scoping = {
 			vs_scope = BlockScope;
 			vs_flags = [];
-		}
+		};
+		pf_can_capture_this = true;
 	}
 
 let get_config com =
@@ -578,7 +581,7 @@ let get_config com =
 					{
 						vs_scope = FunctionScope;
 						vs_flags = [NoShadowing; ReserveAllTopLevelSymbols; ReserveNames(["_"])];
-					}
+					};
 		}
 	| Python ->
 		{
@@ -625,6 +628,7 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_capture_policy = CPWrapRef;
+			pf_can_capture_this = false;
 		}
 
 let memory_marker = [|Unix.time()|]
