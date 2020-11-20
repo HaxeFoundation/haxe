@@ -650,6 +650,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| None -> raise Exit
 		| Some e -> Some e)
 	with Exit ->
+	List.iter (fun (a,_) ->
+		if not (has_meta Meta.This a.v_meta) && ExtType.is_rest (follow a.v_type) then
+			error "Cannot inline function with rest arguments" p
+	) f.tf_args;
 	let state = new inline_state ctx ethis params cf f p in
 	let vthis_opt = state#initialize in
 	let opt f = function

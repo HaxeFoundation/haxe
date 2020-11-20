@@ -1128,7 +1128,7 @@ module Printer = struct
 					if !had_kw_args then abort "Arguments after KwArgs are not allowed" p;
 					had_kw_args := true;
 					"**" ^ name
-				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
+				| TAbstract({a_path = (["python"],"VarArgs" | ["haxe"],"Rest")},_) ->
 					check_err ();
 					had_var_args := true;
 					"*" ^ name

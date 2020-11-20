@@ -316,6 +316,11 @@ let is_string expr = ExtType.is_string (follow expr.etype)
 let is_array_type t = match follow t with TInst ({ cl_path = ([], "Array") }, _) -> true | _ -> false
 
 (**
+	Check if specified type is haxe.Rest
+*)
+let is_rest_type t = ExtType.is_rest (follow t)
+
+(**
 	Check if specified type represents a function
 *)
 let is_function_type t = match follow t with TFun _ -> true | _ -> false
@@ -2808,6 +2813,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match arg with
 				| ({ v_name = arg_name; v_type = arg_type }, default_value) ->
 					vars#declared (vname arg_name);
+					if is_rest_type arg_type then self#write "...";
 					if is_ref arg_type then self#write "&";
 					self#write ("$" ^ (vname arg_name));
 					match default_value with

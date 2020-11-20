@@ -326,6 +326,38 @@ let rec concat ctx s f = function
 		spr ctx s;
 		concat ctx s f l
 
+(**
+	Produce expressions to declare arguments of a function with `Rest<T>` trailing argument.
+	Used for ES5 and older standards, which don't support "rest parameters" syntax.
+	`args` is a list of explicitly defined arguments.
+	`rest_arg` is the argument of `Rest<T>` type.
+*)
+let declare_rest_args_legacy com args rest_arg =
+	let arguments = mk (TIdent "arguments") t_dynamic null_pos
+	and index i = mk (TConst (TInt (Int32.of_int i))) com.basic.tint null_pos in
+	let rec loop args i =
+		match args with
+		| [] -> []
+		| (v,e_opt) :: rest ->
+			(* var v = arguments[i]; *)
+			let value = mk (TArray (arguments,index i)) v.v_type null_pos in
+			let decl = mk (TVar (v,Some value)) com.basic.tvoid v.v_pos in
+
+			match e_opt with
+			| None -> decl :: loop rest (i + 1)
+			| Some e -> decl :: Texpr.set_default com.basic v e v.v_pos :: loop rest (i + 1)
+	in
+	let i = string_of_int (List.length args) in
+	let new_array = mk (TIdent ("new Array($l-"^ i ^")")) t_dynamic rest_arg.v_pos
+	and populate = mk (TIdent ("for(var $i=" ^ i ^ ";$i<$l;++$i){" ^ (ident rest_arg.v_name) ^ "[$i-" ^ i ^ "]=arguments[$i];}")) com.basic.tvoid rest_arg.v_pos
+	in
+	loop args 0
+	@ [
+		mk (TIdent ("var $l=arguments.length")) com.basic.tvoid rest_arg.v_pos;
+		mk (TVar (rest_arg,Some new_array)) com.basic.tvoid rest_arg.v_pos;
+		populate
+	]
+
 let fun_block ctx f p =
 	let e = List.fold_left (fun e (a,c) ->
 		match c with
@@ -822,10 +854,34 @@ and gen_function ?(keyword="function") ctx f pos =
 	let old = ctx.in_value, ctx.in_loop in
 	ctx.in_value <- None;
 	ctx.in_loop <- false;
-	let args = List.map (fun (v,_) ->
-		check_var_declaration v;
-		ident v.v_name
-	) f.tf_args in
+	let f,args =
+		match List.rev f.tf_args with
+		| (v,None) :: args_rev when ExtType.is_rest (follow v.v_type) ->
+			(* Use ES6 rest args syntax: `...arg` *)
+			if ctx.es_version >= 6 then
+				f, List.map (fun (a,_) ->
+					check_var_declaration a;
+					if a == v then ("..." ^ ident a.v_name)
+					else ident a.v_name
+				) f.tf_args
+			(* Resort to `arguments` special object for ES < 6 *)
+			else
+				let args_decl = declare_rest_args_legacy ctx.com (List.rev args_rev) v in
+				let body =
+					let el =
+						match f.tf_expr.eexpr with
+						| TBlock el -> args_decl @ el
+						| _ -> args_decl @ [f.tf_expr]
+					in
+					mk (TBlock el) f.tf_expr.etype f.tf_expr.epos
+				in
+				{ f with tf_args = []; tf_expr = body }, []
+		| _ ->
+			f, List.map (fun (v,_) ->
+				check_var_declaration v;
+				ident v.v_name
+			) f.tf_args
+	in
 	print ctx "%s(%s) " keyword (String.concat "," args);
 	gen_expr ctx (fun_block ctx f pos);
 	ctx.in_value <- fst old;

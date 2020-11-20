@@ -87,14 +87,11 @@ object(self)
 			l
 
 	method private check_rest (is_last : bool) (eo : expr option) (opt : bool) (t : Type.t) (pn : pos) =
-		match follow t with
-			| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
-				if not is_extern then error "Rest argument are only supported for extern methods" pn;
-				if opt then error "Rest argument cannot be optional" pn;
-				begin match eo with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
-				if not is_last then error "Rest should only be used for the last function argument" pn;
-			| _ ->
-				()
+		if ExtType.is_rest t then begin
+			if opt then error "Rest argument cannot be optional" pn;
+			begin match eo with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
+			if not is_last then error "Rest should only be used for the last function argument" pn;
+		end
 
 	(* Returns the `(tvar * texpr option) list` for `tf_args`. Also checks the validity of argument names and whether or not
 	   an argument should be displayed. *)

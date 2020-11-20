@@ -22,7 +22,7 @@
 
 package php;
 
-import haxe.extern.Rest;
+import haxe.Rest;
 import haxe.extern.AsVar;
 import haxe.extern.EitherType;
 

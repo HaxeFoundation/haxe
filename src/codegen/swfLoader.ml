@@ -47,7 +47,7 @@ let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
 let ct_dyn = CTPath tp_dyn
 
 let ct_rest = CTPath {
-	tpackage = ["haxe"; "extern"];
+	tpackage = ["haxe"];
 	tname = "Rest";
 	tparams = [TPType (ct_dyn,null_pos)];
 	tsub = None;

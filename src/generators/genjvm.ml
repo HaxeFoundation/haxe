@@ -124,7 +124,7 @@ let rec jsignature_of_type gctx stack t =
 				| [t] -> get_boxed_type (jsignature_of_type t)
 				| _ -> die "" __LOC__
 				end
-			| (["haxe";"ds"],"Vector") | (["haxe";"extern"],"Rest") ->
+			| (["haxe";"ds"],"Vector") | (["haxe"],"Rest") ->
 				begin match tl with
 				| [t] -> TArray(jsignature_of_type t,None)
 				| _ -> die "" __LOC__
@@ -1388,7 +1388,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| (_,_,t) :: tl,e :: el ->
 				let jsig = jsignature_of_type gctx t in
 				begin match tl,Type.follow t with
-				| [],(TAbstract({a_path = ["haxe";"extern"],"Rest"},[t])) ->
+				| [],(TAbstract({a_path = ["haxe"],"Rest"},[t])) ->
 					self#new_native_array (jsignature_of_type gctx t) (e :: el);
 					List.rev (jsig :: acc)
 				| _ ->

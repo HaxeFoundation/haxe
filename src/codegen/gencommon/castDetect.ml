@@ -543,8 +543,11 @@ let select_overload gen applied_f overloads types params =
 	let rec check_arg arglist elist =
 		match arglist, elist with
 			| [], [] -> true (* it is valid *)
-			| (_,_,TAbstract({ a_path = (["haxe";"extern"],"Rest") }, [t])) :: [], elist ->
+			| (_,_,t) :: [], elist when ExtType.is_rest t ->
+				(match follow t with
+				| TAbstract({ a_path = (["haxe"],"Rest") }, [t]) ->
 				List.for_all (fun (_,_,et) -> Type.type_iseq (clean_t et) (clean_t t)) elist
+				| _ -> die "" __LOC__)
 			| (_,_,t) :: arglist, (_,_,et) :: elist when Type.type_iseq (clean_t et) (clean_t t) ->
 				check_arg arglist elist
 			| _ -> false
@@ -645,8 +648,11 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 
 let change_rest tfun elist =
 	let rec loop acc arglist elist = match arglist, elist with
-		| (_,_,TAbstract({ a_path = (["haxe";"extern"],"Rest") },[t])) :: [], elist ->
+		| (_,_,t) :: [], elist when ExtType.is_rest t ->
+			(match follow t with
+			| TAbstract({ a_path = (["haxe"],"Rest") },[t]) ->
 			List.rev (List.map (fun _ -> "rest",false,t) elist @ acc)
+			| _ -> die "" __LOC__)
 		| (n,o,t) :: arglist, _ :: elist ->
 			loop ((n,o,t) :: acc) arglist elist
 		| _, _ ->

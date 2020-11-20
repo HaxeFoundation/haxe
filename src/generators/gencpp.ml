@@ -1819,7 +1819,7 @@ let rec cpp_type_of stack ctx haxe_type =
       | (("cpp"::["objc"]),"ObjcBlock"), [function_type] ->
             let args,ret = (cpp_function_type_of_args_ret stack ctx function_type) in
             TCppObjCBlock(args,ret)
-      | (["haxe";"extern"], "Rest"),[rest] ->
+      | ((["haxe";"extern"]|["haxe"]), "Rest"),[rest] ->
             TCppRest(cpp_type_of stack ctx rest)
       | (("cpp"::["objc"]),"Protocol"), [interface_type] ->
             (match follow interface_type with
