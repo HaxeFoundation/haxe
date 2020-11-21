@@ -18,7 +18,7 @@ class TestRest extends Test {
 	}
 
 	function testRestReturn() {
-		function rest(r:Rest<Int>){
+		function rest(r:Rest<Int>):Rest<Int> {
 			return r;
 		}
 		eq(4, rest(1,2,3,4)[3]);

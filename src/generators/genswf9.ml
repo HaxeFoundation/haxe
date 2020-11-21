@@ -1636,6 +1636,7 @@ and gen_unop ctx retval op flag e =
 	| NegBits ->
 		gen_expr ctx true e;
 		write ctx (HOp A3OBitNot);
+	| Spread -> die "todo" __LOC__
 	| Increment
 	| Decrement ->
 		let incr = (op = Increment) in

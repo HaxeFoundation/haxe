@@ -172,6 +172,7 @@ and unop jit op flag e1 p =
 		end
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
+	| Spread -> die "todo" __LOC__
 
 and jit_default jit return def =
 	match def with

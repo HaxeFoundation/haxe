@@ -9,9 +9,18 @@ package haxe;
 	Allows to use array access by index to get values of rest arguments.
 	If the index exceeds the amount of rest arguments passed, the result is unspecified.
 **/
-@:coreType abstract Rest<T> {
+@:coreApi
+@:coreType
+@:using(haxe.Rest)
+abstract Rest<T> {
+	/** Amount of arguments passed as rest arguments */
 	public var length(get,never):Int;
 	extern function get_length():Int;
+
+	/**
+		Create rest arguments using contents of `array`.
+	**/
+	@:from extern static public function of<T>(array:Array<T>):Rest<T>;
 
 	@:arrayAccess extern function get(index:Int):T;
 
@@ -26,6 +35,17 @@ package haxe;
 	public inline function keyValueIterator():RestKeyValueIterator<T> {
 		return new RestKeyValueIterator<T>(this);
 	}
+
+	//TODO
+	// /**
+	// 	Create a new rest arguments collection by appending `item` to this one.
+	// **/
+	// extern public function append(item:T):Rest<T>;
+	//
+	// /**
+	// 	Create a new rest arguments collection by prepending this one with `item`.
+	// **/
+	// extern public function prepend(item:T):Rest<T>;
 }
 
 private class RestIterator<T> {

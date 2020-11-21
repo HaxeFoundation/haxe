@@ -825,6 +825,7 @@ let type_unop ctx op flag e with_type p =
 				check_int()
 			| Neg ->
 				check_int()
+			| Spread -> die "todo" __LOC__
 		in
 		mk (TUnop (op,flag,e)) t p
 	in
@@ -835,6 +836,8 @@ let type_unop ctx op flag e with_type p =
 			make e
 	in
 	match op with
+	| Spread ->
+		error "Spread unary operator is only allowed for unpacking rest arguments in a call" p
 	| Not | Neg | NegBits ->
 		let access_get = !type_access_ref ctx (fst e) (snd e) MGet WithType.value (* WITHTYPETODO *) in
 		let e = acc_get ctx access_get p in

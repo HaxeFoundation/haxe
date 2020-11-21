@@ -189,6 +189,7 @@ and gen_unop ctx p op flag e =
 	| Not -> call p (builtin p "not") [gen_expr ctx e]
 	| Neg -> (EBinop ("-",int p 0, gen_expr ctx e),p)
 	| NegBits -> (EBinop ("-",int p (-1), gen_expr ctx e),p)
+	| Spread -> die "todo" __LOC__
 
 and gen_call ctx p e el =
 	match e.eexpr , el with

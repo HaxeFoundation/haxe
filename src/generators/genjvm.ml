@@ -1359,6 +1359,8 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				(self#condition false e)
 				(fun () -> code#bconst false)
 				(fun () -> code#bconst true)
+		| Spread, _ ->
+			die "todo" __LOC__
 		| NegBits,_ ->
 			let jsig = jsignature_of_type gctx (follow e.etype) in
 			self#texpr rvalue_any e;

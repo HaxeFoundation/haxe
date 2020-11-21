@@ -1058,6 +1058,7 @@ module Printer = struct
 		| Not -> "not "
 		| Neg -> "-";
 		| NegBits -> "~"
+		| Spread -> die "todo" __LOC__
 
 	let print_binop = function
 		| OpAdd -> "+"

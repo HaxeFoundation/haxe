@@ -97,8 +97,22 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 			[]
 		| _,[name,false,t] when ExtType.is_rest t ->
 			begin match follow t with
-				| TAbstract({a_path=(["haxe"],"Rest")},[t]) ->
-					(try List.map (fun e -> type_against name t e) el with WithTypeError(ul,p) -> arg_error ul name false p)
+				| TAbstract({a_path=(["haxe"],"Rest")},[arg_t]) ->
+					(match el with
+					| [(EUnop (Spread,Prefix,e),p)] ->
+						(try [mk (TUnop (Spread, Prefix, type_against name t e)) t p]
+						with WithTypeError(ul,p) -> arg_error ul name false p)
+					| _ ->
+						(try
+							List.map (fun e ->
+								match e with
+								| (EUnop (Spread,Prefix,_),p) ->
+									arg_error (Custom "Cannot spread arguments with additional rest arguments") name false p
+								| _ -> type_against name arg_t e
+							) el
+						with WithTypeError(ul,p) ->
+							arg_error ul name false p)
+					)
 				| _ ->
 					die "" __LOC__
 			end

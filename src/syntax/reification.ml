@@ -277,6 +277,7 @@ let reify in_macro =
 				| Not -> "OpNot"
 				| Neg -> "OpNeg"
 				| NegBits -> "OpNegBits"
+				| Spread -> "OpSpread"
 			) [] p in
 			expr "EUnop" [op;to_bool (flag = Postfix) p;loop e]
 		| EVars vl ->

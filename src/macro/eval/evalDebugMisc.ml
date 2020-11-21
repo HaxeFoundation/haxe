@@ -285,7 +285,7 @@ let rec expr_to_value ctx env e =
 				end
 			| NegBits ->
 				op_sub (pos e) (vint32 (Int32.minus_one)) (loop e1)
-			| Increment | Decrement ->
+			| Increment | Decrement | Spread ->
 				raise Exit
 			end
 		| ECall(e1,el) ->

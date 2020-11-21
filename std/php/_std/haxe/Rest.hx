@@ -2,12 +2,18 @@ package haxe;
 
 import php.*;
 
-@:coreType @:semantics(value)
+@:coreApi
+@:coreType
+@:using(haxe.Rest)
+@:semantics(value)
 abstract Rest<T> {
 	public var length(get,never):Int;
-	inline function get_length():Int {
+	inline function get_length():Int
 		return Global.count(this);
-	}
+
+	@:from
+	static public inline function of<T>(array:Array<T>):Rest<T>
+		return cast @:privateAccess array.arr;
 
 	@:arrayAccess function get(index:Int):T;
 
