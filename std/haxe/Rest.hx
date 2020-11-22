@@ -1,5 +1,8 @@
 package haxe;
 
+import haxe.iterators.RestIterator;
+import haxe.iterators.RestKeyValueIterator;
+
 /**
 	A special type that represents "rest" function argument.
 
@@ -36,48 +39,13 @@ abstract Rest<T> {
 		return new RestKeyValueIterator<T>(this);
 	}
 
-	//TODO
-	// /**
-	// 	Create a new rest arguments collection by appending `item` to this one.
-	// **/
-	// extern public function append(item:T):Rest<T>;
-	//
-	// /**
-	// 	Create a new rest arguments collection by prepending this one with `item`.
-	// **/
-	// extern public function prepend(item:T):Rest<T>;
-}
+	/**
+		Create a new rest arguments collection by appending `item` to this one.
+	**/
+	extern public function append(item:T):Rest<T>;
 
-private class RestIterator<T> {
-	final args:Rest<T>;
-	var current:Int = 0;
-
-	public inline function new(args:Any) {
-		this.args = args;
-	}
-
-	public inline function hasNext():Bool {
-		return current < args.length;
-	}
-
-	public inline function next():T {
-		return args[current++];
-	}
-}
-
-private class RestKeyValueIterator<T> {
-	final args:Rest<T>;
-	var current:Int = 0;
-
-	public inline function new(args:Any) {
-		this.args = args;
-	}
-
-	public inline function hasNext():Bool {
-		return current < args.length;
-	}
-
-	public inline function next():{key:Int, value:T} {
-		return {key:current, value:args[current++]};
-	}
+	/**
+		Create a new rest arguments collection by prepending this one with `item`.
+	**/
+	extern public function prepend(item:T):Rest<T>;
 }
