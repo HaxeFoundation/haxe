@@ -837,7 +837,7 @@ let type_unop ctx op flag e with_type p =
 	in
 	match op with
 	| Spread ->
-		error "Spread unary operator is only allowed for unpacking rest arguments in a call" p
+		error "Spread unary operator is only allowed for unpacking the last argument in a call with rest arguments" p
 	| Not | Neg | NegBits ->
 		let access_get = !type_access_ref ctx (fst e) (snd e) MGet WithType.value (* WITHTYPETODO *) in
 		let e = acc_get ctx access_get p in

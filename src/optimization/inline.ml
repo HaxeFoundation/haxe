@@ -651,6 +651,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| Some e -> Some e)
 	with Exit ->
 	List.iter (fun (a,_) ->
+		(* TODO: implement this via `new haxe.Rest` *)
 		if not (has_meta Meta.This a.v_meta) && ExtType.is_rest (follow a.v_type) then
 			error "Cannot inline function with rest arguments" p
 	) f.tf_args;
