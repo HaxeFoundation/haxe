@@ -1,12 +1,14 @@
 package haxe;
 
 import php.*;
+import haxe.iterators.RestIterator;
+import haxe.iterators.RestKeyValueIterator;
 
 @:coreApi
 @:coreType
 @:using(haxe.Rest)
 @:semantics(value)
-abstract Rest<T> {
+abstract Rest<T> to NativeIndexedArray<T> to NativeArray {
 	public var length(get,never):Int;
 	inline function get_length():Int
 		return Global.count(this);
@@ -22,48 +24,22 @@ abstract Rest<T> {
 	}
 
 	public inline function iterator():RestIterator<T> {
-		return new RestIterator<T>(cast this);
+		return new RestIterator(this);
 	}
 
 	public inline function keyValueIterator():RestKeyValueIterator<T> {
-		return new RestKeyValueIterator<T>(cast this);
-	}
-}
-
-private class RestIterator<T> {
-	final args:NativeIndexedArray<T>;
-	final length:Int;
-	var current:Int = 0;
-
-	public inline function new(args:NativeIndexedArray<T>) {
-		length = Global.count(args);
-		this.args = args;
+		return new RestKeyValueIterator(this);
 	}
 
-	public inline function hasNext():Bool {
-		return current < length;
+	public inline function append(item:T):Rest<T> {
+		var result:NativeIndexedArray<T> = this;
+		result.push(item);
+		return cast result;
 	}
 
-	public inline function next():T {
-		return args[current++];
-	}
-}
-
-private class RestKeyValueIterator<T> {
-	final args:NativeIndexedArray<T>;
-	final length:Int;
-	var current:Int = 0;
-
-	public inline function new(args:NativeIndexedArray<T>) {
-		length = Global.count(args);
-		this.args = args;
-	}
-
-	public inline function hasNext():Bool {
-		return current < length;
-	}
-
-	public inline function next():{key:Int, value:T} {
-		return {key:current, value:args[current++]};
+	public inline function prepend(item:T):Rest<T> {
+		var result:NativeIndexedArray<T> = this;
+		Global.array_unshift(result, item);
+		return cast result;
 	}
 }
