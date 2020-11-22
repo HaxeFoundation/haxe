@@ -1,13 +1,20 @@
 package haxe;
 
 import js.Syntax;
+import haxe.iterators.RestIterator;
+import haxe.iterators.RestKeyValueIterator;
 
+@:coreApi
 @:coreType
+@:using(haxe.Rest)
 abstract Rest<T> {
 	public var length(get,never):Int;
 	inline function get_length():Int {
 		return Syntax.code('{0}.length', this);
 	}
+
+	@:from static public inline function of<T>(array:Array<T>):Rest<T>
+		return cast array;
 
 	@:arrayAccess function get(index:Int):T;
 
@@ -16,44 +23,22 @@ abstract Rest<T> {
 	}
 
 	public inline function iterator():RestIterator<T> {
-		return new RestIterator<T>(cast this);
+		return new RestIterator(this);
 	}
 
 	public inline function keyValueIterator():RestKeyValueIterator<T> {
-		return new RestKeyValueIterator<T>(cast this);
-	}
-}
-
-private class RestIterator<T> {
-	final args:Array<T>;
-	var current:Int = 0;
-
-	public inline function new(args:Array<T>) {
-		this.args = args;
+		return new RestKeyValueIterator(this);
 	}
 
-	public inline function hasNext():Bool {
-		return current < args.length;
+	public inline function append(item:T):Rest<T> {
+		var result = (cast this:Array<T>).copy();
+		result.push(item);
+		return result;
 	}
 
-	public inline function next():T {
-		return args[current++];
-	}
-}
-
-private class RestKeyValueIterator<T> {
-	final args:Array<T>;
-	var current:Int = 0;
-
-	public inline function new(args:Array<T>) {
-		this.args = args;
-	}
-
-	public inline function hasNext():Bool {
-		return current < args.length;
-	}
-
-	public inline function next():{key:Int, value:T} {
-		return {key:current, value:args[current++]};
+	public inline function prepend(item:T):Rest<T> {
+		var result = (cast this:Array<T>).copy();
+		result.unshift(item);
+		return result;
 	}
 }

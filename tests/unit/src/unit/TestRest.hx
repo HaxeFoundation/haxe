@@ -2,6 +2,7 @@ package unit;
 
 import haxe.Rest;
 
+// TODO: add tests for constructors and overridden methods
 class TestRest extends Test {
 	function testArrayAccess() {
 		function rest(a:Int, b:Int, r:Rest<Int>) {
