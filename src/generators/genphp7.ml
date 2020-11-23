@@ -673,6 +673,15 @@ let is_access expr =
 		| _ -> false
 
 (**
+	Check if specified field access is an access to the field `Array.arr`
+	It's a private field of the php-specific implementation of Haxe Array.
+*)
+let is_array_arr faccess =
+	match faccess with
+		| FInstance ({ cl_path = [],"Array" }, _, { cf_name = "arr" }) -> true
+		| _ -> false
+
+(**
 	Indicates if `expr` is actually a call to Haxe->PHP magic function
 	@see http://old.haxe.org/doc/advanced/magic#php-magic
 *)
@@ -1411,6 +1420,30 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| Some { eexpr = TCall _ } -> true
 				| _ -> false
 		(**
+			Indicates if current expression is passed to `php.Ref<T>`
+		*)
+		method current_expr_is_for_ref =
+			match expr_hierarchy with
+				| [] -> false
+				| current :: _ ->
+					match self#parent_expr with
+						| Some { eexpr = TCall (target, params) } when current != (reveal_expr target) ->
+							(match follow target.etype with
+								| TFun (args,_) ->
+									let rec check args params =
+										match args, params with
+										| (_, _, t) :: _, param :: _ when current == (reveal_expr param) ->
+											is_ref t
+										| _, [] | [], _ ->
+											false
+										| _ :: args, _ :: params ->
+											check args params
+									in
+									check args params
+								| _ -> false
+							)
+						| _ -> false
+		(**
 			Check if currently generated expression is located in a left part of assignment.
 		*)
 		method is_in_write_context =
@@ -1549,7 +1582,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TBinop (operation, expr1, expr2) when needs_dereferencing (is_assignment_binop operation) expr1 ->
 					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
-				| TField ({ eexpr = TArrayDecl exprs }, FInstance ({ cl_path = [],"Array" }, _, { cf_name = "arr" })) -> self#write_native_array_decl exprs
+				| TField ({ eexpr = TArrayDecl exprs }, faccess) when is_array_arr faccess && not self#current_expr_is_for_ref ->
+					self#write_native_array_decl exprs
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
 				| TField (fexpr, access) when needs_dereferencing (self#is_in_write_context) expr -> self#write_expr (self#dereference expr)
