@@ -1549,6 +1549,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TBinop (operation, expr1, expr2) when needs_dereferencing (is_assignment_binop operation) expr1 ->
 					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
+				| TField ({ eexpr = TArrayDecl exprs }, FInstance ({ cl_path = [],"Array" }, _, { cf_name = "arr" })) -> self#write_native_array_decl exprs
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
 				| TField (fexpr, access) when needs_dereferencing (self#is_in_write_context) expr -> self#write_expr (self#dereference expr)
@@ -1560,9 +1561,6 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write ")"
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
-				| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["haxe";"_Rest"],"Rest_Impl_") }, {cf_name = "spread"})) }, [arg]) ->
-					self#write "...";
-					self#write_expr arg
 				| TCall (target, [arg1; arg2]) when is_std_is target -> self#write_expr_std_is target arg1 arg2
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
 					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __LOC__)
@@ -1633,16 +1631,27 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| _ ->
 							decl()
 					)
-				| [expr] ->
-					self#write ((self#use array_type_path) ^ "::wrap([");
-					self#write_expr expr;
-					self#write "])"
 				| _ ->
-					self#write ((self#use array_type_path) ^ "::wrap([\n");
+					self#write ((self#use array_type_path) ^ "::wrap(");
+					self#write_native_array_decl exprs;
+					self#write ")"
+		(**
+			Writes native array declaration to output buffer
+		*)
+		method write_native_array_decl exprs =
+			match exprs with
+				| [] ->
+					self#write "[]";
+				| [expr] ->
+					self#write "[";
+					self#write_expr expr;
+					self#write "]"
+				| _ ->
+					self#write "[\n";
 					self#indent_more;
 					List.iter (fun expr -> self#write_array_item ~separate_line:true expr) exprs;
 					self#indent_less;
-					self#write_with_indentation "])"
+					self#write_with_indentation "]"
 		(**
 			Write associative array declaration
 		*)
