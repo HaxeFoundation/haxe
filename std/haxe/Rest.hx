@@ -23,6 +23,11 @@ abstract Rest<T>(NativeRest<T>) {
 
 	/**
 		Create rest arguments using contents of `array`.
+
+		WARNING:
+		Depending on a target platform modifying `array` after using this method
+		may affect the created `Rest` instance.
+		Use `Rest.of(array.copy())` to avoid that.
 	**/
 	@:from static public inline function of<T>(array:Array<T>):Rest<T>
 		return new Rest(array);
