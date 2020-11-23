@@ -912,6 +912,6 @@ and inline_rest_params ctx f params p =
 		| [], params ->
 			params
 		| _ :: _, [] ->
-			die ~p "Insufficient arguments" __LOC__
+			[]
 	in
 	loop f.tf_args params
