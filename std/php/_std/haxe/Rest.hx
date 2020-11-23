@@ -4,42 +4,43 @@ import php.*;
 import haxe.iterators.RestIterator;
 import haxe.iterators.RestKeyValueIterator;
 
+private typedef NativeRest<T> = NativeIndexedArray<T>;
+
 @:coreApi
-@:coreType
-@:using(haxe.Rest)
 @:semantics(value)
-abstract Rest<T> to NativeIndexedArray<T> to NativeArray {
+abstract Rest<T>(NativeRest<T>) {
 	public var length(get,never):Int;
 	inline function get_length():Int
 		return Global.count(this);
 
 	@:from
 	static public inline function of<T>(array:Array<T>):Rest<T>
-		return cast @:privateAccess array.arr;
+		return new Rest(@:privateAccess array.arr);
 
-	@:arrayAccess function get(index:Int):T;
+	inline function new(a:NativeIndexedArray<T>):Void
+		this = a;
 
-	@:to public inline function toArray():Array<T> {
+	@:arrayAccess inline function get(index:Int):T
+		return this[index];
+
+	@:to public inline function toArray():Array<T>
 		return [for(i in 0...length) this[i]];
-	}
 
-	public inline function iterator():RestIterator<T> {
-		return new RestIterator(this);
-	}
+	public inline function iterator():RestIterator<T>
+		return new RestIterator<T>(this);
 
-	public inline function keyValueIterator():RestKeyValueIterator<T> {
-		return new RestKeyValueIterator(this);
-	}
+	public inline function keyValueIterator():RestKeyValueIterator<T>
+		return new RestKeyValueIterator<T>(this);
 
 	public inline function append(item:T):Rest<T> {
-		var result:NativeIndexedArray<T> = this;
+		var result = this;
 		result.push(item);
-		return cast result;
+		return new Rest(result);
 	}
 
 	public inline function prepend(item:T):Rest<T> {
-		var result:NativeIndexedArray<T> = this;
+		var result = this;
 		Global.array_unshift(result, item);
-		return cast result;
+		return new Rest(result);
 	}
 }

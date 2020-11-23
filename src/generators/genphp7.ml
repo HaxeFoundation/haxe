@@ -318,7 +318,7 @@ let is_array_type t = match follow t with TInst ({ cl_path = ([], "Array") }, _)
 (**
 	Check if specified type is haxe.Rest
 *)
-let is_rest_type t = ExtType.is_rest (follow t)
+let is_rest_type t = ExtType.is_rest (Type.follow t)
 
 (**
 	Check if specified type represents a function
