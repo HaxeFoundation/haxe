@@ -33,8 +33,11 @@ abstract Rest<T>(NativeRest<T>) {
 	@:arrayAccess inline function get(index:Int):T
 		return this[index];
 
+	/**
+		Creates an array containing all the values of rest arguments.
+	**/
 	@:to public inline function toArray():Array<T>
-		return [for(i in 0...length) get(i)];
+		return this.copy();
 
 	public inline function iterator():RestIterator<T>
 		return new RestIterator<T>(this);

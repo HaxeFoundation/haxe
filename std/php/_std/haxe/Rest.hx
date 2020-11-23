@@ -24,7 +24,7 @@ abstract Rest<T>(NativeRest<T>) {
 		return this[index];
 
 	@:to public inline function toArray():Array<T>
-		return [for(i in 0...length) this[i]];
+		return @:privateAccess Array.wrap(this);
 
 	public inline function iterator():RestIterator<T>
 		return new RestIterator<T>(this);
