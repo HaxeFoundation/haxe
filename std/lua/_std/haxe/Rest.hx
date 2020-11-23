@@ -1,73 +1,51 @@
 package haxe;
 
 import lua.Lua.select;
+import lua.Table;
+import lua.PairTools.copy;
 import lua.TableTools.maxn;
 import lua.TableTools.pack;
-import lua.Table;
+import lua.TableTools.unpack;
+import haxe.iterators.RestIterator;
+import haxe.iterators.RestKeyValueIterator;
 
-@:coreType
-abstract Rest<T> {
-    public var length(get, never):Int;
+private typedef NativeRest<T> = Table<Int,T>;
 
-    inline function get_length():Int {
-        return maxn(cast this);
-    }
+@:coreApi
+abstract Rest<T>(NativeRest<T>) {
+	public var length(get, never):Int;
+	inline function get_length():Int
+		return maxn(this);
 
-    @:arrayAccess inline function get(index:Int):T {
-        return select(index + 1, this);
-    }
+	@:from static public function of<T>(array:Array<T>):Rest<T> {
+		return new Rest(Table.fromArray(array));
+	}
 
-    @:to public inline function toArray():Array<T> {
-        return [for (i in 0...length) get(i)];
-    }
+	inline function new(table:Table<Int,T>):Void
+		this = table;
 
-    public inline function toString():String {
-        return this.toArray().toString();
-    }
+	@:arrayAccess inline function get(index:Int):T
+		return this[index + 1];
 
-    public inline function iterator():RestIterator<T> {
-        return new RestIterator<T>(cast this);
-    }
+	@:to public function toArray():Array<T> {
+		return Table.toArray(this);
+	}
 
-    public inline function keyValueIterator():RestKeyValueIterator<T> {
-        return new RestKeyValueIterator<T>(cast this);
-    }
-}
+	public inline function iterator():RestIterator<T>
+		return new RestIterator<T>(this);
 
-private class RestIterator<T> {
-    final args:Table<Int, T>;
-    var current:Int = 0;
+	public inline function keyValueIterator():RestKeyValueIterator<T>
+		return new RestKeyValueIterator<T>(this);
 
-    public inline function new(args:Table<Int, T>) {
-        this.args = args;
-    }
+	public inline function append(item:T):Rest<T> {
+		var result = copy(this);
+		Table.insert(result, item);
+		return new Rest(result);
+	}
 
-    public inline function hasNext():Bool {
-        return current < maxn(args);
-    }
-
-    public inline function next():T {
-        var old = current;
-        current = current + 1;
-        return args[old + 1];
-    }
-}
-
-private class RestKeyValueIterator<T> {
-    final args:Table<Int, T>;
-    var current:Int = 0;
-
-    public inline function new(args:Table<Int, T>) {
-        this.args = args;
-    }
-
-    public inline function hasNext():Bool {
-        return current < maxn(args);
-    }
-
-    public inline function next():{key:Int, value:T} {
-        var old = current;
-        current = current + 1;
-        return {key: old, value: args[old + 1]};
-    }
+	public inline function prepend(item:T):Rest<T> {
+		var result = copy(this);
+		Table.insert(result, 1, item);
+		return new Rest(result);
+	}
 }
