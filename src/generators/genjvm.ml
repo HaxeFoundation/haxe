@@ -1360,7 +1360,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				(fun () -> code#bconst false)
 				(fun () -> code#bconst true)
 		| Spread, _ ->
-			die "todo" __LOC__
+			self#texpr (rvalue_type gctx e.etype) e
 		| NegBits,_ ->
 			let jsig = jsignature_of_type gctx (follow e.etype) in
 			self#texpr rvalue_any e;
@@ -1391,7 +1391,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				let jsig = jsignature_of_type gctx t in
 				begin match tl,Type.follow t with
 				| [],(TAbstract({a_path = ["haxe"],"Rest"},[t])) ->
-					self#new_native_array (jsignature_of_type gctx t) (e :: el);
+					(match e.eexpr with
+					| TUnop (Spread,_,e) ->
+						self#texpr (rvalue_sig jsig) e
+					| _ ->
+						self#new_native_array (get_boxed_type (jsignature_of_type gctx t)) (e :: el)
+					);
 					List.rev (jsig :: acc)
 				| _ ->
 					self#texpr (rvalue_sig jsig) e;
