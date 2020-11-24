@@ -87,7 +87,7 @@ object(self)
 			l
 
 	method private check_rest (is_last : bool) (eo : expr option) (opt : bool) (t : Type.t) (pn : pos) =
-		if ExtType.is_rest t then begin
+		if ExtType.is_rest (follow t) then begin
 			if opt then error "Rest argument cannot be optional" pn;
 			begin match eo with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
 			if not is_last then error "Rest should only be used for the last function argument" pn;

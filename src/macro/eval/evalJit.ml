@@ -59,6 +59,36 @@ let is_const_int_pattern (el,_) =
 
 open EvalJitContext
 
+let handle_rest_args (jit:t) fun_type el p =
+	match follow fun_type with
+	| TFun (args,_) ->
+		let rec loop args el =
+			match args, el with
+			| [(_,_,t)], el when ExtType.is_rest (follow t) ->
+				(match el with
+				(* In case of `...rest` just use `rest` *)
+				| [{ eexpr = TUnop(Spread,Prefix,e) }] ->
+					[e]
+				(* In other cases: `[param1, param2, ...]` *)
+				| _ ->
+					match follow t with
+					| TAbstract (_, [t]) ->
+						let p = punion_el (List.map (fun e -> (),e.epos) el)
+						and t = (jit.ctx.curapi.MacroApi.get_com()).Common.basic.tarray t in
+						[mk (TArrayDecl el) t p]
+					| _ ->
+						die ~p "Unexpected type for rest arguments" __LOC__
+				)
+			| [], el ->
+				el
+			| _ :: _, [] ->
+				[]
+			| a :: args, e :: el ->
+				e :: loop args el
+		in
+		loop args el
+	| _ -> el
+
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr jit false e2 in
@@ -172,7 +202,10 @@ and unop jit op flag e1 p =
 		end
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
-	| Spread -> die "todo" __LOC__
+	| Spread ->
+		match flag with
+		| Postfix -> die ~p:p "Postfix spread operator is not supported" __LOC__
+		| Prefix -> jit_expr jit false e1
 
 and jit_default jit return def =
 	match def with
@@ -399,6 +432,7 @@ and jit_expr jit return e =
 		emit_safe_cast exec (hash (rope_path t)) e.epos
 	(* calls *)
 	| TCall(e1,el) ->
+		let el = handle_rest_args jit e1.etype el e1.epos in
 		begin match e1.eexpr with
 		| TField({eexpr = TConst TSuper;epos=pv},FInstance(c,_,cf)) ->
 			let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
@@ -509,7 +543,14 @@ and jit_expr jit return e =
 				let exec1 = jit_expr jit false e1 in
 				emit_new_vector exec1 e1.epos
 		end
-	| TNew(c,_,el) ->
+	| TNew(c,tl,el) ->
+		let el =
+			try
+				let cf,c,tl = get_constructor_class c tl in
+				handle_rest_args jit (apply_params c.cl_params tl cf.cf_type) el e.epos
+			with Not_found ->
+				el
+		in
 		let execs = List.map (jit_expr jit false) el in
 		let key = path_hash c.cl_path in
 		begin try

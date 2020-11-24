@@ -95,7 +95,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 				| name :: _ -> call_error (Cannot_skip_non_nullable name) callp;
 			end;
 			[]
-		| _,[name,false,t] when ExtType.is_rest t ->
+		| _,[name,false,t] when ExtType.is_rest (follow t) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe"],"Rest")},[arg_t]) ->
 					(match el with

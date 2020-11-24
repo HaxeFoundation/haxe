@@ -13,7 +13,7 @@ let unify_cf map_type c cf el =
 						Type.unify e.etype t;
 						loop2 (e :: acc) el tl
 					with _ ->
-						if Type.ExtType.is_rest t then
+						if Type.ExtType.is_rest (follow t) then
 							match follow t,tl with
 							| TAbstract({a_path=["haxe"],"Rest"},[t]),[] ->
 								begin try
