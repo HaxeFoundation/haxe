@@ -96,6 +96,23 @@ class TestRest extends Test {
 		}
 		eq(3, rest(1, 2, 3, 4));
 	}
+
+	@:depends(testToArray)
+	function testClosure() {
+		var fn:(...r:Int)->Array<Int>;
+		fn = staticRest;
+		aeq([1, 2, 3], fn(1, 2, 3));
+		aeq([1, 2, 3], fn(...[1, 2, 3]));
+		fn = instanceRest;
+		aeq([3, 2, 1], fn(3, 2, 1));
+		aeq([3, 2, 1], fn(...[3, 2, 1]));
+	}
+	function instanceRest(...r:Int):Array<Int> {
+		return r.toArray();
+	}
+	static function staticRest(...r:Int):Array<Int> {
+		return r.toArray();
+	}
 }
 
 private class Parent {
