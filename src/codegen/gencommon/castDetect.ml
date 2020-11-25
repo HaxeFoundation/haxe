@@ -648,11 +648,16 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 
 let change_rest tfun elist =
 	let rec loop acc arglist elist = match arglist, elist with
-		| (_,_,t) :: [], elist when ExtType.is_rest t ->
-			(match follow t with
-			| TAbstract({ a_path = (["haxe"],"Rest") },[t]) ->
-			List.rev (List.map (fun _ -> "rest",false,t) elist @ acc)
-			| _ -> die "" __LOC__)
+		| (_,_,t) as arg :: [], elist when ExtType.is_rest t ->
+			(match elist with
+			| [{ eexpr = TUnop (Spread,Prefix,e) }] ->
+				List.rev (arg :: acc)
+			| _ ->
+				(match follow t with
+				| TAbstract({ a_path = (["haxe"],"Rest") },[t]) ->
+				List.rev (List.map (fun _ -> "rest",false,t) elist @ acc)
+				| _ -> die "" __LOC__)
+			)
 		| (n,o,t) :: arglist, _ :: elist ->
 			loop ((n,o,t) :: acc) arglist elist
 		| _, _ ->

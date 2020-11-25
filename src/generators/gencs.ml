@@ -1638,6 +1638,8 @@ let generate con =
 						(match flag with
 							| Ast.Prefix -> write w ( " " ^ (Ast.s_unop op) ^ " " ); expr_s w e
 							| Ast.Postfix -> expr_s w e; write w (Ast.s_unop op))
+					| TUnop (Spread, Prefix, e) ->
+						expr_s w e
 					| TUnop (op, flag, e) ->
 						(match flag with
 							| Ast.Prefix -> write w ( " " ^ (Ast.s_unop op) ^ " (" ); expr_s w e; write w ") "
@@ -1956,6 +1958,7 @@ let generate con =
 				| TAbstract ({ a_path = (["cs"], "Ref") },[t]) -> "ref " ^ t_s t
 				| TType ({ t_path = (["cs"], "Out") }, [t])
 				| TAbstract ({ a_path = (["cs"], "Out") },[t]) -> "out " ^ t_s t
+				| _ when ExtType.is_rest (Type.follow t) -> "params " ^ (t_s (Abstract.follow_with_abstracts t))
 				| t -> t_s t
 			in
 			let c = contents w in
