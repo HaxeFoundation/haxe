@@ -991,6 +991,9 @@ and parse_fun_param s =
 	match s with parser
 	| [< '(Question,_); name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),true,meta,t,c)
 	| [< name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),false,meta,t,c)
+	| [< '(Spread,_); name, pn = dollar_ident; t = parse_type_hint; c = parse_fun_param_value >] ->
+		let t = CTPath (mk_type_path ~params:[TPType t] (["haxe"],"Rest")), snd t in
+		((name,pn),false,meta,Some t,c)
 
 and parse_fun_param_value = parser
 	| [< '(Binop OpAssign,_); e = expr >] -> Some e

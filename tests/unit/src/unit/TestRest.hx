@@ -4,21 +4,21 @@ import haxe.Rest;
 
 class TestRest extends Test {
 	function testArrayAccess() {
-		function rest(a:Int, b:Int, r:Rest<Int>) {
+		function rest(a:Int, b:Int, ...r:Int) {
 			return r[2];
 		}
 		eq(123, rest(1, 2, 0, 0, 123, 0));
 	}
 
 	function testLength() {
-		function rest(r:Rest<Int>) {
+		function rest(...r:Int) {
 			return r.length;
 		}
 		eq(4, rest(1, 2, 3, 4));
 	}
 
 	function testToArray() {
-		function rest(r:Rest<Int>):Array<Int> {
+		function rest(...r:Int):Array<Int> {
 			var a = r.toArray();
 			a[0] = 999; //make sure array modification doesn't affect rest arguments object
 			return r.toArray();
@@ -28,21 +28,21 @@ class TestRest extends Test {
 
 	@:depends(testToArray)
 	function testRestReturn() {
-		function rest(r:Rest<Int>):Rest<Int> {
+		function rest(...r:Int):Rest<Int> {
 			return r;
 		}
 		aeq([1, 2, 3, 4], rest(1, 2, 3, 4).toArray());
 	}
 
 	function testIterator() {
-		function rest(r:Rest<Int>):Array<Int> {
+		function rest(...r:Int):Array<Int> {
 			return [for(i in r) i];
 		}
 		aeq([3, 2, 1], rest(3, 2, 1));
 	}
 
 	function testKeyValueIterator() {
-		function rest(r:Rest<Int>):{keys:Array<Int>, values:Array<Int>} {
+		function rest(...r:Int):{keys:Array<Int>, values:Array<Int>} {
 			var keys = [];
 			var values = [];
 			for(k => v in r) {
@@ -58,7 +58,7 @@ class TestRest extends Test {
 
 	@:depends(testToArray)
 	function testAppend() {
-		function rest(r:Rest<Int>) {
+		function rest(...r:Int) {
 			var appended = r.append(9);
 			return {initial:r.toArray(), appended:appended.toArray()}
 		}
@@ -69,10 +69,10 @@ class TestRest extends Test {
 
 	@:depends(testToArray)
 	function testSpread() {
-		function rest(r:Rest<Int>) {
+		function rest(...r:Int) {
 			return r.toArray();
 		}
-		function spreadRest(r:Rest<Int>) {
+		function spreadRest(...r:Int) {
 			return rest(...r);
 		}
 		aeq([1, 2, 3], rest(...[1, 2, 3]));
