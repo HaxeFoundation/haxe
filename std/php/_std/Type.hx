@@ -59,7 +59,11 @@ enum ValueType {
 	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
 		if (c == null)
 			return null;
-		var parentClass = Global.get_parent_class((cast c).phpClassName);
+		var parentClass = try {
+			Global.get_parent_class((cast c).phpClassName);
+		} catch(e) {
+			return null;
+		}
 		if (!parentClass)
 			return null;
 		return cast Boot.getClass(parentClass);

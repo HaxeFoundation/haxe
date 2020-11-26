@@ -968,6 +968,11 @@ extern class Global {
 	static function spl_object_hash(obj:{}):String;
 
 	/**
+		@see http://php.net/manual/en/function.spl-object-id.php
+	**/
+	static function spl_object_id(obj:{}):Int;
+
+	/**
 		@see http://php.net/manual/en/function.spl-autoload-call.php
 	**/
 	static function spl_autoload_call(class_name:String):Void;

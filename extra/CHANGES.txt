@@ -3,6 +3,7 @@
 	General improvements:
 
 	all : added an argument to `haxe.CallStack.exceptionStack` to return full stack up to the topmost call (#9947)
+	php : compatibility with PHP 8
 
 	Bugfixes:
 
