@@ -84,13 +84,6 @@ type php_generator_context = {
 }
 
 (**
-	Generate a (zero-based) number to be used for an anon structure declaration.
-*)
-(* let get_anon_num ctx fields_names =
-
-	string_of_int (Hashtbl.length ctx.pgc_anons) *)
-
-(**
 	Reset the state of the context between before a generating a php file.
 *)
 let reset_context ctx =
@@ -560,6 +553,36 @@ let rec write_args (str_writer:string->unit) arg_writer (args:'a list) =
 			write_args str_writer arg_writer rest
 
 (**
+	PHP 8 doesn't allow mandatory arguments after optional arguments.
+	This function makes optional arguments mandatory from left to right
+	unless there are no more mandatory arguments left to the end of args list.
+
+	E.g `(a:String = null, b:Int, c:Bool = false)` is changed into `(a:String, b:Int, c:Bool = false)`
+*)
+let fix_optional_args is_optional to_mandatory args =
+	let rec find_last_mandatory args i result =
+		match args with
+		| [] ->
+			result
+		| a :: args ->
+			find_last_mandatory args (i + 1) (if is_optional a then result else i)
+	in
+	let last_mandatory = find_last_mandatory args 0 (-1) in
+	List.mapi (fun i a -> if i <= last_mandatory && is_optional a then to_mandatory a else a ) args
+
+let fix_tfunc_args args =
+	fix_optional_args
+		(fun a -> Option.is_some (snd a))
+		(fun (v,_) -> (v,None))
+		args
+
+let fix_tsignature_args args =
+	fix_optional_args
+		(fun (_,optional,_) -> optional)
+		(fun (name,_,t) -> (name,false,t))
+		args
+
+(**
 	Escapes all "$" chars and encloses `str` into double quotes
 *)
 let quote_string str =
@@ -632,6 +655,18 @@ let is_constant expr =
 	match expr.eexpr with
 		| TConst _ -> true
 		| _ -> false
+
+(**
+	Check if `expr` is a constant zero
+*)
+let is_constant_zero expr =
+	try
+		match expr.eexpr with
+			| TConst (TInt i) when i = Int32.zero -> true
+			| TConst (TFloat s) when float_of_string s = 0.0 -> true
+			| _ -> false
+	with _ ->
+		false
 
 (**
 	Check if `expr` is a concatenation
@@ -1706,7 +1741,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_closure_declaration func write_arg =
 			vars#dive;
 			self#write "function (";
-			write_args self#write write_arg func.tf_args;
+			write_args self#write write_arg (fix_tfunc_args func.tf_args);
 			self#write ")";
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
@@ -2073,6 +2108,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					write_method ((self#use boot_type_path) ^ "::shiftRightUnsigned")
 				| OpGt | OpGte | OpLt | OpLte ->
 					compare (" " ^ (Ast.s_binop operation) ^ " ")
+				| OpDiv when is_constant_zero (reveal_expr_with_parenthesis expr2) ->
+					write_method ((self#use boot_type_path) ^ "::divByZero")
 				| _ ->
 					write_binop (" " ^ (Ast.s_binop operation) ^ " ")
 		(**
@@ -3082,7 +3119,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 		method private write_constructor_declaration func =
 			if self#extends_no_constructor then writer#extends_no_constructor;
 			writer#write ("function __construct (");
-			write_args writer#write writer#write_function_arg func.tf_args;
+			write_args writer#write writer#write_function_arg (fix_tfunc_args func.tf_args);
 			writer#write ") {\n";
 			writer#indent_more;
 			self#write_instance_initialization;
@@ -3104,7 +3141,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 				else
 					func.tf_args
 			in
-			write_args writer#write writer#write_function_arg args;
+			write_args writer#write writer#write_function_arg (fix_tfunc_args args);
 			writer#write ") ";
 			if not (self#write_body_if_special_method name) then
 				writer#write_expr (inject_defaults ctx func)
@@ -3221,7 +3258,7 @@ class enum_builder ctx (enm:tenum) =
 			writer#indent 1;
 			self#write_doc (DocMethod (args, TEnum (enm, []), (gen_doc_text_opt field.ef_doc)));
 			writer#write_with_indentation ("static public function " ^ name ^ " (");
-			write_args writer#write (writer#write_arg true) args;
+			write_args writer#write (writer#write_arg true) (fix_tsignature_args args);
 			writer#write ") {\n";
 			writer#indent_more;
 			let index_str = string_of_int field.ef_index in
@@ -3693,7 +3730,7 @@ class class_builder ctx (cls:tclass) =
 				| None ->
 					if is_static then writer#write "static ";
 					writer#write ("function " ^ (field_name field) ^ " (");
-					write_args writer#write (writer#write_arg true) args;
+					write_args writer#write (writer#write_arg true) (fix_tsignature_args args);
 					writer#write ")";
 					writer#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
@@ -3716,11 +3753,11 @@ class class_builder ctx (cls:tclass) =
 			(match field.cf_expr with
 				| None -> (* interface *)
 					writer#write " (";
-					write_args writer#write (writer#write_arg true) args;
+					write_args writer#write (writer#write_arg true) (fix_tsignature_args args);
 					writer#write ");\n";
 				| Some { eexpr = TFunction fn } -> (* normal class *)
 					writer#write " (";
-					write_args writer#write writer#write_function_arg fn.tf_args;
+					write_args writer#write writer#write_function_arg (fix_tfunc_args fn.tf_args);
 					writer#write ")\n";
 					writer#write_line "{";
 					writer#indent_more;
