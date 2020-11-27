@@ -77,6 +77,7 @@ class TestRest extends Test {
 		}
 		aeq([1, 2, 3], rest(...[1, 2, 3]));
 		aeq([3, 2, 1], spreadRest(3, 2, 1));
+		aeq([1, 2, 3], new Parent(...[1, 2, 3]).ctorArgs.toArray());
 	}
 
 	@:depends(testToArray, testRestReturn)

@@ -5,7 +5,7 @@ import haxe.iterators.RestKeyValueIterator;
 import cs.NativeArray;
 import cs.system.Array as CsArray;
 
-private typedef NativeRest<T> = NativeArray<T>;
+private typedef NativeRest<T> = #if erase_generics NativeArray<Dynamic> #else NativeArray<T> #end;
 
 @:coreApi
 abstract Rest<T>(NativeRest<T>) {
@@ -23,7 +23,7 @@ abstract Rest<T>(NativeRest<T>) {
 		return this[index];
 
 	@:to public function toArray():Array<T> {
-		var result = new NativeArray(this.Length);
+		var result = new NativeRest(this.Length);
 		CsArray.Copy(this, 0, result, 0, this.Length);
 		return @:privateAccess Array.ofNative(result);
 	}
@@ -35,16 +35,16 @@ abstract Rest<T>(NativeRest<T>) {
 		return new RestKeyValueIterator<T>(this);
 
 	public function append(item:T):Rest<T> {
-		var result = new NativeArray(this.Length + 1);
+		var result = new NativeRest(this.Length + 1);
 		CsArray.Copy(this, 0, result, 0, this.Length);
 		result[this.Length] = item;
-		return @:privateAccess Array.ofNative(result);
+		return new Rest(result);
 	}
 
 	public function prepend(item:T):Rest<T> {
-		var result = new NativeArray(this.Length + 1);
+		var result = new NativeRest(this.Length + 1);
 		CsArray.Copy(this, 0, result, 1, this.Length);
 		result[0] = item;
-		return @:privateAccess Array.ofNative(result);
+		return new Rest(result);
 	}
 }
