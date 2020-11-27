@@ -653,6 +653,39 @@ let configure gen ft =
 	in
 	gen.gexpr_filters#add name (PCustom priority) run
 
+(**
+	Wraps rest arguments into a native array.
+	E.g. transforms params from `callee(param, rest1, rest2, ..., restN)` into
+	`callee(param, untyped __array__(rest1, rest2, ..., restN))`
+*)
+let wrap_rest_args gen callee_type params p =
+	match follow callee_type with
+	| TFun(args, _) ->
+		let rec loop args params =
+			match args, params with
+			(* last argument expects rest parameters *)
+			| [(_,_,t)], params when ExtType.is_rest (follow t) ->
+				(match params with
+				(* In case of `...rest` just use `rest` *)
+				| [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
+				(* In other cases: `untyped __array__(param1, param2, ...)` *)
+				| _ ->
+					match follow t with
+					| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]) ->
+						let pos = punion_el (List.map (fun e -> ((),e.epos)) params) in
+						[mk_nativearray_decl gen t1 params pos]
+					| _ ->
+						die ~p "Unexpected rest arguments type" __LOC__
+				)
+			| a :: args, e :: params ->
+				e :: loop args params
+			| [], params ->
+				params
+			| _ :: _, [] ->
+				[]
+		in
+		loop args params
+	| _ -> params
 
 (*
 	this submodule will provide the default implementation for the C# and Java targets.
@@ -853,7 +886,7 @@ struct
 
 		let dynamic_fun_call call_expr =
 			let tc, params = match call_expr.eexpr with
-				| TCall(tc, params) -> tc, params
+				| TCall(tc, params) -> tc,wrap_rest_args gen tc.etype params tc.epos
 				| _ -> die "" __LOC__
 			in
 			let ct = gen.greal_type call_expr.etype in
