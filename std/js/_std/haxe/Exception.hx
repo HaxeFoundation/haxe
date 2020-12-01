@@ -97,6 +97,7 @@ class Exception extends NativeException {
 		return __nativeException;
 	}
 
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
