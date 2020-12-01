@@ -16,7 +16,7 @@ abstract Rest<T>(NativeRest<T>) {
 
 	@:from static public function of<T>(array:Array<T>):Rest<T> {
 		var native = @:privateAccess array.__a;
-		return new Rest((cast native:Object).clone());
+		return new Rest((cast native).clone());
 	}
 
 	inline function new(a:NativeRest<T>):Void

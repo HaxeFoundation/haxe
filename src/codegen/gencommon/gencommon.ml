@@ -1014,8 +1014,8 @@ let wrap_rest_args gen callee_type params p =
 				| [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
 				(* In other cases: `untyped __array__(param1, param2, ...)` *)
 				| _ ->
-					match follow t with
-					| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]) ->
+					match Abstract.follow_with_abstracts t with
+					| TInst ({ cl_path = _,"NativeArray" }, [t1]) ->
 						let pos = punion_el (List.map (fun e -> ((),e.epos)) params) in
 						let t1 = if Common.defined gen.gcon Define.EraseGenerics then t_dynamic else t1 in
 						[mk_nativearray_decl gen t1 params pos]
