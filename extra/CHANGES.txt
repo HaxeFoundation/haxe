@@ -13,6 +13,7 @@
 	macro : added return type hint to haxe.macro.MacroStringTools.formatString (#9928)
 	cs : fixed catching exceptions from static closures (#9957)
 	eval : fixed `Std.random(arg)` for `arg` values of more than 30 bits (#9974)
+	js : fixed `haxe.CallStack.exceptionStack` (#9968)
 
 2020-09-11 4.1.4:
 
