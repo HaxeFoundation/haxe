@@ -5,6 +5,7 @@ import haxe.iterators.RestKeyValueIterator;
 import java.NativeArray;
 import java.lang.System;
 import java.lang.Object;
+import java.util.Arrays;
 
 private typedef NativeRest<T> = NativeArray<Object>;
 
@@ -16,7 +17,15 @@ abstract Rest<T>(NativeRest<T>) {
 
 	@:from static public function of<T>(array:Array<T>):Rest<T> {
 		var native = @:privateAccess array.__a;
-		return new Rest((cast native).clone());
+		var result:NativeRest<T>;
+		#if jvm
+			result = (cast native:Object).clone();
+		#else
+			result = new NativeRest<T>(native.length);
+			for(i in 0...native.length)
+				result[i] = cast native[i];
+		#end
+		return new Rest(result);
 	}
 
 	inline function new(a:NativeRest<T>):Void
