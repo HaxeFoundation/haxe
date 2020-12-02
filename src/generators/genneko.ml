@@ -189,9 +189,50 @@ and gen_unop ctx p op flag e =
 	| Not -> call p (builtin p "not") [gen_expr ctx e]
 	| Neg -> (EBinop ("-",int p 0, gen_expr ctx e),p)
 	| NegBits -> (EBinop ("-",int p (-1), gen_expr ctx e),p)
-	| Spread -> die "todo" __LOC__
+	| Spread -> die ~p:e.epos "Unhandled spread operator" __LOC__
+
+(**
+	Wraps rest arguments into an array.
+	E.g. transforms params from `callee(param, rest1, rest2, ..., restN)` into
+	`callee(param, [rest1, rest2, ..., restN])`
+*)
+and wrap_rest_args callee params p =
+	let callee_type =
+		match callee with
+		| { eexpr = TNew (c,tl,_) }
+		| { eexpr = TConst TSuper; etype = TInst (c,tl) } ->
+			let cf,c,tl = get_constructor_class c tl in
+			apply_params c.cl_params tl cf.cf_type
+		| _ -> callee.etype
+	in
+	match follow callee_type with
+	| TFun(args, _) ->
+		let rec loop args params =
+			match args, params with
+			(* last argument expects rest parameters *)
+			| [(_,_,t)], params when ExtType.is_rest (follow t) ->
+				(match (follow t), params with
+				(* In case of `...rest` just use `rest` *)
+				| _, [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
+				(* In other cases: `[param1, param2, ...]` *)
+				| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]), _ ->
+					let pos = punion_el (List.map (fun e -> ((),e.epos)) params) in
+					[mk (TArrayDecl params) (Abstract.follow_with_abstracts t) pos]
+				| _ ->
+					die "" __LOC__
+				)
+			| a :: args, e :: params ->
+				e :: loop args params
+			| [], params ->
+				params
+			| _ :: _, [] ->
+				[]
+		in
+		loop args params
+	| _ -> params
 
 and gen_call ctx p e el =
+	let el = wrap_rest_args e el e.epos in
 	match e.eexpr , el with
 	| TConst TSuper , _ ->
 		let c = (match follow e.etype with TInst (c,_) -> c | _ -> die "" __LOC__) in
@@ -267,7 +308,8 @@ and gen_expr ctx e =
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
 		gen_call ctx p e el
-	| TNew (c,_,params) ->
+	| TNew (c,tl,params) ->
+		let params = wrap_rest_args e params e.epos in
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
