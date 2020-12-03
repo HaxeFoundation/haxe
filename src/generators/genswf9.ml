@@ -87,7 +87,7 @@ type context = {
 	swf_protected : bool;
 	need_ctor_skip : bool;
 	(*
-		Takes an argument list of `call(arg1, arg2, ...)` and if there is a trailing argument `...rest` returns
+		Takes an argument list of `call(arg1, arg2, ...)` and if there is a trailing argument `...rest` then returns
 		```
 		if(rest.length == 0) call(arg1, arg2)
 		else if(rest.length == 1) call(arg1, arg2, rest[0])
@@ -1426,8 +1426,27 @@ let rec gen_expr_content ctx retval e =
 		end
 	| TIdent s ->
 		abort ("Unbound variable " ^ s) e.epos
+and args_as_array ctx mandatory_args spread_arg =
+	match mandatory_args with
+	| [] ->
+		spread_arg
+	| _ ->
+		let p = punion_el (List.map (fun e -> ((),e.epos)) mandatory_args) in
+		let array = mk (TArrayDecl mandatory_args) (ctx.com.basic.tarray t_dynamic) p in
+		let concat = mk (TField (array,FDynamic "concat")) t_dynamic spread_arg.epos in
+		mk (TCall (concat,[spread_arg])) (ctx.com.basic.tarray t_dynamic) (punion p spread_arg.epos)
 
 and gen_call ctx retval e el r =
+	match List.rev el with
+	(* generate a call with `...rest` as `callee.apply(null, [param1, param2].concat(rest))` *)
+	| { eexpr = TUnop (Spread, Prefix, rest) } :: el_rev ->
+		let null = mk (TConst TNull) t_dynamic null_pos
+		and t_array_dyn = ctx.com.basic.tarray t_dynamic in
+		let t = TFun (["thisArg",false,t_dynamic; "argArray",false,t_array_dyn],r) in
+		let apply = mk (TField (e,FDynamic "apply")) t e.epos in
+		gen_call ctx retval apply [null; args_as_array ctx (List.rev el_rev) rest] r
+	(* normal call without `...rest` *)
+	| _ ->
 	match e.eexpr , el with
 	| TIdent "__is__", [e;t] ->
 		gen_expr ctx true e;
