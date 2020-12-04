@@ -114,6 +114,22 @@ class TestRest extends Test {
 	static function staticRest(...r:Int):Array<Int> {
 		return r.toArray();
 	}
+
+	@:depends(testToArray)
+	function testRestOfArrays() {
+		function rest(...r:Array<Int>) {
+			return r.toArray();
+		}
+		aeq([[1, 2, 3], [6, 5, 4]], rest([1, 2, 3], [6, 5, 4]));
+	}
+
+	@:depends(testToArray)
+	function testRestOfObjects() {
+		function rest(...r:{f:Int}) {
+			return r.toArray();
+		}
+		aeq([{f:2}, {f:1}], rest({f:2}, {f:1}));
+	}
 }
 
 private class Parent {
