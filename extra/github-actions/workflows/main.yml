@@ -15,7 +15,7 @@ jobs:
           access_token: ${{ github.token }}
 
   windows64-build:
-    runs-on: windows-latest
+    runs-on: windows-2016
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
@@ -34,7 +34,7 @@ jobs:
       @import build-windows.yml
 
   windows-build:
-    runs-on: windows-latest
+    runs-on: windows-2016
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
@@ -79,7 +79,7 @@ jobs:
 
   windows64-test:
     needs: windows64-build
-    runs-on: windows-latest
+    runs-on: windows-2016
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
@@ -104,7 +104,7 @@ jobs:
 
   windows-test:
     needs: windows-build
-    runs-on: windows-latest
+    runs-on: windows-2016
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
