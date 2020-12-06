@@ -86,7 +86,8 @@ jobs:
       
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+        shell: pwsh
+        run: echo "ADD_REVISION=1" >> $Env:GITHUB_ENV
       
       - name: Build Haxe
         shell: pwsh
@@ -178,7 +179,8 @@ jobs:
       
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+        shell: pwsh
+        run: echo "ADD_REVISION=1" >> $Env:GITHUB_ENV
       
       - name: Build Haxe
         shell: pwsh
