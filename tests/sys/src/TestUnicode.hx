@@ -291,7 +291,7 @@ class TestUnicode extends utest.Test {
 	}
 
 	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
-	#if (azure || github)
+	#if github
 	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {
