@@ -43,7 +43,7 @@ class Hl {
         }
 
         FileSystem.createDirectory(hlBuild);
-        var generator = systemName == "Windows" ? [] : ["-GNinja"];
+        var generator = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
         runCommand("cmake", generator.concat([
             "-DBUILD_TESTING=OFF",
             "-DWITH_BULLET=OFF",
