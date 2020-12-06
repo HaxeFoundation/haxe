@@ -230,6 +230,12 @@ jobs:
           ldd -v ./haxe
           ldd -v ./haxelib
       
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      
       - name: Build xmldoc
         run: |
           set -ex
@@ -237,9 +243,15 @@ jobs:
           cat >extra/doc/info.json <<EOL
             {
               "commit": "$GITHUB_SHA",
-              "branch": "$GITHUB_REF"
+              "branch": "${{ steps.extract_branch.outputs.branch }}"
             }
           EOL
+      
+      - name: Upload xmldoc artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: xmldoc
+          path: extra/doc
       
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
@@ -715,3 +727,41 @@ jobs:
           aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows64-choco/${FILE_NAME} ${HXBUILDS_S3ADDR}/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
           [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
           aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows-choco/${FILE_NAME}   ${HXBUILDS_S3ADDR}/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
+
+  deploy_apidoc:
+    if: github.event_name != 'pull_request' # TODO: also only when `GHP_REMOTE` is present
+    needs: [linux-test, mac-test, windows-test, windows64-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Haxe
+        uses: actions/download-artifact@v2
+        with:
+          name: linuxBinaries
+          path: linuxBinaries
+
+      - name: Setup Haxe
+        run: |
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Download xmldoc artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: xmldoc
+          path: xmldoc
+
+      - name: Deploy to api.haxe.org
+        env:
+          GHP_EMAIL: haxe-ci@onthewings.net
+          GHP_USERNAME: Haxe CI Bot
+          GHP_REMOTE: ${{ secrets.GHP_REMOTE }}
+        run: |
+          set -ex
+          LOCAL="`pwd`/extra/api.haxe.org"
+          git clone "${GHP_REMOTE}" "${LOCAL}"
+          haxe --cwd "${LOCAL}" --run ImportXml "`pwd`/xmldoc"
