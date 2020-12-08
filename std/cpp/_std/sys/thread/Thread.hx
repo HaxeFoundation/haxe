@@ -167,15 +167,15 @@ private class HaxeThread {
 		messages.add(msg);
 	}
 
-	static inline function currentHandle():ThreadHandle {
+	static #if !scriptable inline #end function currentHandle():ThreadHandle {
 		return untyped __global__.__hxcpp_thread_current();
 	}
 
-	static inline function createHandle(callb:Void->Void):ThreadHandle {
+	static #if !scriptable inline #end function createHandle(callb:Void->Void):ThreadHandle {
 		return untyped __global__.__hxcpp_thread_create(callb);
 	}
 
-	public static inline function readMessage(block:Bool):Dynamic {
+	public static #if !scriptable inline #end function readMessage(block:Bool):Dynamic {
 		return current().messages.pop(block);
 	}
 }
