@@ -302,6 +302,7 @@ and tabstract = {
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
+	mutable a_is : (t * tclass_field) option; (* should this be a list to support overloads? *)
 	mutable a_impl : tclass option;
 	mutable a_this : t;
 	mutable a_from : t list;

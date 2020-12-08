@@ -579,6 +579,7 @@ module Printer = struct
 			"a_params",s_type_params a.a_params;
 			"a_ops",s_list ", " (fun (op,cf) -> Printf.sprintf "%s: %s" (s_binop op) cf.cf_name) a.a_ops;
 			"a_unops",s_list ", " (fun (op,flag,cf) -> Printf.sprintf "%s (%s): %s" (s_unop op) (if flag = Postfix then "postfix" else "prefix") cf.cf_name) a.a_unops;
+			"a_is",s_opt (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_is;
 			"a_impl",s_opt (fun c -> s_type_path c.cl_path) a.a_impl;
 			"a_this",s_type_kind a.a_this;
 			"a_from",s_list ", " s_type_kind a.a_from;

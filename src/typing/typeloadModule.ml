@@ -325,6 +325,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_to_field = [];
 				a_ops = [];
 				a_unops = [];
+				a_is = None;
 				a_impl = None;
 				a_array = [];
 				a_this = mk_mono();

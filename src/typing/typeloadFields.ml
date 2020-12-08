@@ -1070,6 +1070,20 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					error (cf.cf_name ^ ": Assignment overloading is not supported") p;
 				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
 					error (cf.cf_name ^ ": Ternary overloading is not supported") p;
+				| (Meta.Op,[EIs(_,_),_],_) :: _ ->
+					if a.a_is <> None then error "Multiple `is` overloads are not supported" cf.cf_pos;
+					if fctx.is_abstract_member then error "`is` overloads must be static" cf.cf_pos;
+					begin match follow t with
+						| TFun ([(_,false,t)], tr) ->
+							delay ctx PCheckConstraint (fun () ->
+								match follow tr with
+								| TAbstract ({ a_path = [],"Bool" },_) -> ()
+								| _ -> error "`is` overloads must return Bool" cf.cf_pos
+							);
+							a.a_is <- Some (t,cf);
+						| _ ->
+							error ("`is` overloads must be a function that takes a single non-optional argument and returns Bool") cf.cf_pos
+					end
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in

@@ -203,6 +203,7 @@ let null_abstract = {
 	a_using = [];
 	a_ops = [];
 	a_unops = [];
+	a_is = None;
 	a_impl = None;
 	a_this = t_dynamic;
 	a_from = [];

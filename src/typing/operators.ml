@@ -921,3 +921,38 @@ let type_unop ctx op flag e with_type p =
 			end
 		| AKUsingField _ | AKResolve _ ->
 			error "Invalid operation" p
+
+let type_is ctx e t p_t p =
+	match t with
+	| CTPath tp ->
+		if tp.tparams <> [] then display_error ctx "Type parameters are not supported for the `is` operator" p_t;
+
+		let e = type_expr ctx e WithType.value in
+
+		let t = Typeload.load_type_def ctx p_t tp in
+		begin
+			match t with
+			| TAbstractDecl { a_impl = Some c; a_is = Some (arg_t,cf) } ->
+				(* abstract with @:op(v is T) -> generate static call *)
+				let e_method = Texpr.Builder.make_static_field c cf (mk_zero_range_pos p) in
+				let e = AbstractCast.cast_or_unify ctx arg_t e p in
+				mk (TCall (e_method, [e])) ctx.com.basic.tbool p
+
+			| _ ->
+				(* everything else - generate Std.isOfType(v, T) *)
+				let e_t = type_module_type ctx t None p_t in
+				let e_Std_isOfType =
+					match Typeload.load_type_raise ctx ([],"Std") "Std" p with
+					| TClassDecl c ->
+						let cf =
+							try PMap.find "isOfType" c.cl_statics
+							with Not_found -> die "" __LOC__
+						in
+						Texpr.Builder.make_static_field c cf (mk_zero_range_pos p)
+					| _ -> die "" __LOC__
+				in
+				mk (TCall (e_Std_isOfType, [e; e_t])) ctx.com.basic.tbool p
+		end
+	| _ ->
+		display_error ctx "Unsupported type for `is` operator" p_t;
+		Texpr.Builder.make_bool ctx.com.basic false p
