@@ -46,7 +46,6 @@ class HostClasses {
 		"sys.thread.Mutex",
 		"sys.thread.Thread",
 		"sys.thread.Tls",
-		"sys.thread._Thread.HaxeThread",
 		"cpp.vm.ExecutionTrace",
 		"cpp.vm.Gc",
 		"cpp.vm.Profiler",
@@ -185,6 +184,7 @@ class HostClasses {
 		externs.set("sys.net._Socket.SocketOutput", true);
 		externs.set("sys.ssl._Socket.SocketInput", true);
 		externs.set("sys.ssl._Socket.SocketOutput", true);
+		externs.set("sys.thread._Thread.HaxeThread",true);
 		externs.set("haxe.ds.TreeNode", true);
 		externs.set("haxe.xml.XmlParserException", true);
 		for (e in classes)
