@@ -1,10 +1,18 @@
-- name: Install Neko using homebrew (Mac)
-  if: (startsWith(env.PLATFORM, 'mac'))
+- name: Install Neko using snapshot from S3
   run: |
     set -ex
-    HOMEBREW_NO_AUTO_UPDATE=1
-    brew install neko
+
+    curl -sSL https://build.haxe.org/builds/neko/mac/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+    tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+    NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+    sudo mkdir -p /usr/local/bin
+    sudo mkdir -p /usr/local/lib/neko
+    sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+    sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+    sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+    set +x
+    echo "$NEKOPATH" >> $GITHUB_PATH
+    echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
 
 - name: Print Neko version
   run: neko -version 2>&1
-
