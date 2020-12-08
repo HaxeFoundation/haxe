@@ -1078,7 +1078,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							delay ctx PCheckConstraint (fun () ->
 								match follow tr with
 								| TAbstract ({ a_path = [],"Bool" },_) -> ()
-								| _ -> error "`is` overloads must return Bool" cf.cf_pos
+								| _ -> error "`is` overload must return Bool" cf.cf_pos
 							);
 							a.a_is <- Some (t,cf);
 						| _ ->
