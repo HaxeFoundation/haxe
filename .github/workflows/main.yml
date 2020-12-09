@@ -31,21 +31,33 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
+        run: |
+          set -ex
+      
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
       - name: Install Neko using snapshot from S3 (Windows)
-        if: startsWith(env.PLATFORM, 'windows')
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
         shell: pwsh
         run: |
-          $DOWNLOADDIR="./temp"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
-          Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
-          $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
-          Write-Host "::add-path::$NEKOPATH"
-          Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
       
       - name: Print Neko version
         run: neko -version 2>&1
-      
       
       - name: choco install nsis
         uses: nick-invision/retry@v1
@@ -124,21 +136,33 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
+        run: |
+          set -ex
+      
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
       - name: Install Neko using snapshot from S3 (Windows)
-        if: startsWith(env.PLATFORM, 'windows')
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
         shell: pwsh
         run: |
-          $DOWNLOADDIR="./temp"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
-          Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
-          $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
-          Write-Host "::add-path::$NEKOPATH"
-          Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
       
       - name: Print Neko version
         run: neko -version 2>&1
-      
       
       - name: choco install nsis
         uses: nick-invision/retry@v1
@@ -211,13 +235,41 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
+        run: |
+          set -ex
+      
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
+      - name: Install Neko using snapshot from S3 (Windows)
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
+      
+      - name: Print Neko version
+        run: neko -version 2>&1
+      
       - name: Install dependencies
         run: |
           set -ex
           sudo add-apt-repository ppa:avsm/ppa -y # provides OPAM 2
           sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
           sudo apt-get update -qqy
-          sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build neko neko-dev
+          sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
       
       - name: Install OCaml libraries
         run: |
@@ -284,11 +336,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Neko using snapshot from S3
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/mac/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -296,9 +349,17 @@ jobs:
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          set +x
-          echo "$NEKOPATH" >> $GITHUB_PATH
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
+      - name: Install Neko using snapshot from S3 (Windows)
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
       
       - name: Print Neko version
         run: neko -version 2>&1
@@ -368,21 +429,33 @@ jobs:
         with:
           name: win${{env.ARCH}}Binaries
 
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
+        run: |
+          set -ex
+      
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
       - name: Install Neko using snapshot from S3 (Windows)
-        if: startsWith(env.PLATFORM, 'windows')
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
         shell: pwsh
         run: |
-          $DOWNLOADDIR="./temp"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
-          Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
-          $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
-          Write-Host "::add-path::$NEKOPATH"
-          Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
       
       - name: Print Neko version
         run: neko -version 2>&1
-      
       
       # - name: Quick test
       #   shell: pwsh
@@ -457,21 +530,33 @@ jobs:
         with:
           name: win${{env.ARCH}}Binaries
 
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
+        run: |
+          set -ex
+      
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
       - name: Install Neko using snapshot from S3 (Windows)
-        if: startsWith(env.PLATFORM, 'windows')
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
         shell: pwsh
         run: |
-          $DOWNLOADDIR="./temp"
-          new-item -Name $DOWNLOADDIR -ItemType directory
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $DOWNLOADDIR/neko_latest.zip
-          Expand-Archive $DOWNLOADDIR/neko_latest.zip -DestinationPath $DOWNLOADDIR
-          $NEKOPATH = Get-ChildItem $DOWNLOADDIR/neko-*-*
-          Write-Host "::add-path::$NEKOPATH"
-          Write-Host "::set-env name=NEKOPATH::$NEKOPATH"
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
       
       - name: Print Neko version
         run: neko -version 2>&1
-      
       
       # - name: Quick test
       #   shell: pwsh
@@ -555,17 +640,33 @@ jobs:
         with:
           name: linuxBinaries
 
-      - name: Install Neko using apt-get (Linux)
-        if: (startsWith(env.PLATFORM, 'linux'))
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
         run: |
           set -ex
-          sudo add-apt-repository ppa:haxe/snapshots -y
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy neko
+      
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
+      - name: Install Neko using snapshot from S3 (Windows)
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
       
       - name: Print Neko version
         run: neko -version 2>&1
-      
       
       - name: Setup Haxe
         run: |
@@ -637,11 +738,12 @@ jobs:
         with:
           name: macBinaries
 
-      - name: Install Neko using snapshot from S3
+      - name: Install Neko using snapshot from S3 (Unix)
+        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/mac/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -649,9 +751,17 @@ jobs:
           sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
           sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
           sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          set +x
-          echo "$NEKOPATH" >> $GITHUB_PATH
           echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+      
+      - name: Install Neko using snapshot from S3 (Windows)
+        if: ${{ startsWith(env.PLATFORM, 'windows') }}
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+          echo "$NEKOPATH" >> $env:GITHUB_PATH
+          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
       
       - name: Print Neko version
         run: neko -version 2>&1

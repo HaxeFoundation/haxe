@@ -30,7 +30,7 @@ jobs:
         with:
           submodules: recursive
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import build-windows.yml
 
   windows-build:
@@ -49,7 +49,7 @@ jobs:
         with:
           submodules: recursive
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import build-windows.yml
 
   linux-build:
@@ -62,6 +62,7 @@ jobs:
         with:
           submodules: recursive
 
+      @import install-neko.yml
       @import build-linux.yml
 
   mac-build:
@@ -74,7 +75,7 @@ jobs:
         with:
           submodules: recursive
 
-      @import install-neko-mac.yml
+      @import install-neko.yml
       @import build-mac.yml
 
   windows64-test:
@@ -99,7 +100,7 @@ jobs:
         with:
           name: win${{env.ARCH}}Binaries
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import test-windows.yml
 
   windows-test:
@@ -125,7 +126,7 @@ jobs:
         with:
           name: win${{env.ARCH}}Binaries
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import test-windows.yml
 
   linux-test:
@@ -160,7 +161,7 @@ jobs:
         with:
           name: linuxBinaries
 
-      @import install-neko-linux.yml
+      @import install-neko.yml
       @import test-linux.yml
 
   mac-test:
@@ -185,7 +186,7 @@ jobs:
         with:
           name: macBinaries
 
-      @import install-neko-mac.yml
+      @import install-neko.yml
       @import test-mac.yml
 
   deploy:
