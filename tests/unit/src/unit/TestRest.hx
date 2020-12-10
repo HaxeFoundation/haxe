@@ -96,6 +96,7 @@ class TestRest extends Test {
 			return args[2];
 		}
 		eq(3, rest(1, 2, 3, 4));
+		eq(7, rest(...[5, 6, 7, 8]));
 	}
 
 	@:depends(testToArray)
