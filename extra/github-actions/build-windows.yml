@@ -35,6 +35,11 @@
   shell: pwsh
   run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
 
+- name: Set ADD_REVISION=1 for non-release
+  if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  shell: pwsh
+  run: echo "ADD_REVISION=1" >> $Env:GITHUB_ENV
+
 - name: Build Haxe
   shell: pwsh
   run: |

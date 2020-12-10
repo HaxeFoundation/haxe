@@ -7416,7 +7416,7 @@ class script_writer ctx filename asciiOut =
       this#write ( (this#op IaFunction) ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
       this#write ((this#typeTextString "Void") ^ "0\n");
          this#gen_expression fieldExpression
-   method func isStatic isDynamic funcName ret args isInterface fieldExpression =
+   method func isStatic isDynamic funcName ret args isInterface fieldExpression abstractPos =
       this#comment funcName;
       this#write ( (this#op IaFunction) ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
       this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
@@ -7437,7 +7437,12 @@ class script_writer ctx filename asciiOut =
                close()
             end else
                this#gen_expression e
-         | _ -> print_endline ("Missing function body for " ^ funcName );
+         | _ ->
+            (* Abstract function - dummp implementation that (should) not get called *)
+            this#begin_expr;
+            this#wpos abstractPos;
+            this#writeOpLine IaReturn;
+            this#end_expr;
       end
    method var readAcc writeAcc isExtern isStatic name varType varExpr =
       this#write ( (this#op IaVar) ^ (this#staticText isStatic) ^ " " ^ (this#op readAcc) ^ (this#op writeAcc) ^
@@ -8204,16 +8209,18 @@ let generate_script_class common_ctx script class_def =
    List.iter (fun(c,_) -> script#instName c) class_def.cl_implements;
    script#write "\n";
    (* Looks like some map impl classes have their bodies discarded - not sure best way to filter *)
-   let non_dodgy_function field =
+   let non_dodgy_function allow_empty field =
       (has_class_flag class_def CInterface) ||
       match field.cf_kind, field.cf_expr with
       | Var _, _ -> true
       | Method MethDynamic, _ -> true
+      | Method MethNormal, None when allow_empty -> true
       | Method _, Some _ -> true
-      | _ -> false
+      | _ ->
+          false
    in
-   let ordered_statics = List.filter non_dodgy_function class_def.cl_ordered_statics in
-   let ordered_fields = List.filter non_dodgy_function class_def.cl_ordered_fields in
+   let ordered_statics = List.filter (non_dodgy_function false) class_def.cl_ordered_statics in
+   let ordered_fields = List.filter (non_dodgy_function true) class_def.cl_ordered_fields in
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
@@ -8239,11 +8246,11 @@ let generate_script_class common_ctx script class_def =
          let isExtern = not (is_physical_field field) in
          script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name field.cf_type field.cf_expr
       | Method MethDynamic, TFun(args,ret) ->
-         script#func isStatic true field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr
+         script#func isStatic true field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr field.cf_pos
       | Method _, TFun(args,ret) when field.cf_name="new" ->
-         script#func true false "new" (TInst(class_def,[])) args false field.cf_expr
+         script#func true false "new" (TInst(class_def,[])) args false field.cf_expr field.cf_pos
       | Method _, TFun (args,ret) ->
-         script#func isStatic false field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr
+         script#func isStatic false field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr field.cf_pos
       | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." )
                      ^ "." ^field.cf_name )
    in
