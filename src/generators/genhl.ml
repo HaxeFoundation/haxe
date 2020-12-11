@@ -1545,6 +1545,46 @@ and eval_var ctx v =
 		op ctx (OEnumField (r,ctx.m.mcaptreg,0,idx));
 		r
 
+(**
+	Wraps rest arguments into an array.
+	E.g. transforms params from `callee(param, rest1, rest2, ..., restN)` into
+	`callee(param, [rest1, rest2, ..., restN])`
+*)
+and wrap_rest_args callee params p =
+	let callee_type =
+		match callee with
+		| { eexpr = TNew (c,tl,_) }
+		| { eexpr = TConst TSuper; etype = TInst (c,tl) } ->
+			let cf,c,tl = get_constructor_class c tl in
+			apply_params c.cl_params tl cf.cf_type
+		| _ -> callee.etype
+	in
+	match follow callee_type with
+	| TFun(args, _) ->
+		let rec loop args params =
+			match args, params with
+			(* last argument expects rest parameters *)
+			| [(_,_,t)], params when ExtType.is_rest (follow t) ->
+				(match (follow t), params with
+				(* In case of `...rest` just use `rest` *)
+				| _, [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
+				(* In other cases: `[param1, param2, ...]` *)
+				| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]), _ ->
+					let pos = punion_el (List.map (fun e -> ((),e.epos)) params) in
+					[mk (TArrayDecl params) (Abstract.follow_with_abstracts t) pos]
+				| _ ->
+					die "" __LOC__
+				)
+			| a :: args, e :: params ->
+				e :: loop args params
+			| [], params ->
+				params
+			| _ :: _, [] ->
+				[]
+		in
+		loop args params
+	| _ -> params
+
 and eval_expr ctx e =
 	set_curpos ctx e.epos;
 	match e.eexpr with
@@ -2077,6 +2117,7 @@ and eval_expr ctx e =
 		free ctx c;
 		rv
 	| TCall (ec,args) ->
+		let args = wrap_rest_args ec args e.epos in
 		let tfun = real_type ctx ec in
 		let el() = eval_args ctx args tfun e.epos in
 		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn) in
@@ -2240,6 +2281,7 @@ and eval_expr ctx e =
 			free ctx r;
 			cast_to ctx r (to_type ctx e.etype) e.epos)
 	| TNew (c,pl,el) ->
+		let el = wrap_rest_args e el e.epos in
 		let c = resolve_class ctx c pl false in
 		let r = alloc_tmp ctx (class_type ctx c pl false) in
 		op ctx (ONew r);
@@ -2497,8 +2539,10 @@ and eval_expr ctx e =
 		let r = eval_to ctx v t in
 		op ctx (ONeg (tmp,r));
 		tmp
+	| TUnop (Spread,Prefix,e) ->
+		eval_expr ctx e
 	| TUnop (Spread,_,_) ->
-		die "todo" __LOC__
+		die ~p:e.epos "Unexpected spread operator" __LOC__
 	| TUnop (NegBits,_,v) ->
 		let t = to_type ctx e.etype in
 		let tmp = alloc_tmp ctx t in
