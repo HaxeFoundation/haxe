@@ -95,6 +95,9 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 				| name :: _ -> call_error (Cannot_skip_non_nullable name) callp;
 			end;
 			[]
+		| _,[name,false,TAbstract({ a_path = ["cpp"],"Rest" },[t])] ->
+			(try List.map (fun e -> type_against name t e) el
+			with WithTypeError(ul,p) -> arg_error ul name false p)
 		| _,[name,false,t] when ExtType.is_rest (follow t) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe"],"Rest")},[arg_t]) ->

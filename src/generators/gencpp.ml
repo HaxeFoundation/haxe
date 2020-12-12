@@ -1819,7 +1819,7 @@ let rec cpp_type_of stack ctx haxe_type =
       | (("cpp"::["objc"]),"ObjcBlock"), [function_type] ->
             let args,ret = (cpp_function_type_of_args_ret stack ctx function_type) in
             TCppObjCBlock(args,ret)
-      | ((["haxe";"extern"]|["haxe"]), "Rest"),[rest] ->
+      | ((["cpp"]), "Rest"),[rest] ->
             TCppRest(cpp_type_of stack ctx rest)
       | (("cpp"::["objc"]),"Protocol"), [interface_type] ->
             (match follow interface_type with
@@ -2986,7 +2986,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                | Neg -> CppUnop(CppNeg,e1)
                | Not -> CppUnop(CppNot,e1)
                | NegBits -> CppUnop(CppNegBits,e1)
-               | Spread -> die "todo" __LOC__
+               | Spread -> die ~p:expr.epos "Unexpected spread operator" __LOC__
             in reference, cpp_type_of expr.etype
 
          | TFor (v,init,block) ->
@@ -7732,7 +7732,7 @@ class script_writer ctx filename asciiOut =
       | Decrement, _ -> IaMinusMinusPost
       | Not, _ -> IaLogicNot
       | Neg, _ -> IaNeg
-      | Spread, _ -> die "todo" __LOC__
+      | Spread, _ -> die ~p:e.epos "Unexpected spread operator" __LOC__
       | NegBits, _ -> IaBitNot );
       this#gen_expression e;
    (* TODO - lval op-assign local/member/array *)
