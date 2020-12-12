@@ -178,6 +178,8 @@ type platform_config = {
 	pf_supports_threads : bool;
 	(** target supports Unicode **)
 	pf_supports_unicode : bool;
+	(** target supports rest arguments **)
+	pf_supports_rest_args : bool;
 	(** exceptions handling config **)
 	pf_exceptions : exceptions_config;
 	(** the scoping of local variables *)
@@ -411,6 +413,7 @@ let default_config =
 		pf_this_before_super = true;
 		pf_supports_threads = false;
 		pf_supports_unicode = true;
+		pf_supports_rest_args = false;
 		pf_exceptions = {
 			ec_native_throws = [];
 			ec_native_catches = [];
@@ -438,6 +441,7 @@ let get_config com =
 			pf_capture_policy = if es6 then CPNone else CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 			pf_this_before_super = not es6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_supports_rest_args = true;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["js";"lib"],"Error";
@@ -457,6 +461,7 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_supports_rest_args = true;
 		}
 	| Neko ->
 		{
@@ -477,6 +482,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_supports_rest_args = true;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["flash";"errors"],"Error";
@@ -497,6 +503,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
+			pf_supports_rest_args = true;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["php"],"Throwable";
@@ -533,6 +540,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_supports_rest_args = true;
 			pf_exceptions = {
 				ec_native_throws = [
 					["cs";"system"],"Exception";
@@ -558,6 +566,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_supports_rest_args = true;
 			pf_this_before_super = false;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
@@ -587,6 +596,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
+			pf_supports_rest_args = true;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["python";"Exceptions"],"BaseException";

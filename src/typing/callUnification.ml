@@ -98,21 +98,45 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| _,[name,false,t] when ExtType.is_rest (follow t) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe"],"Rest")},[arg_t]) ->
-					(match el with
-					| [(EUnop (Spread,Prefix,e),p)] ->
-						(try [mk (TUnop (Spread, Prefix, type_against name t e)) t p]
-						with WithTypeError(ul,p) -> arg_error ul name false p)
-					| _ ->
-						(try
-							List.map (fun e ->
-								match e with
-								| (EUnop (Spread,Prefix,_),p) ->
-									arg_error (Custom "Cannot spread arguments with additional rest arguments") name false p
-								| _ -> type_against name arg_t e
-							) el
-						with WithTypeError(ul,p) ->
-							arg_error ul name false p)
-					)
+					let unexpected_spread p =
+						arg_error (Custom "Cannot spread arguments with additional rest arguments") name false p
+					in
+					(* these platforms deal with rest args on their own *)
+					if ctx.com.config.pf_supports_rest_args then
+						match el with
+						| [(EUnop (Spread,Prefix,e),p)] ->
+							(try [mk (TUnop (Spread, Prefix, type_against name t e)) t p]
+							with WithTypeError(ul,p) -> arg_error ul name false p)
+						| _ ->
+							(try
+								List.map (fun e ->
+									match e with
+									| (EUnop (Spread,Prefix,_),p) ->
+										unexpected_spread p
+									| _ -> type_against name arg_t e
+								) el
+							with WithTypeError(ul,p) ->
+								arg_error ul name false p)
+					(* for other platforms make sure rest arguments are wrapped in an array *)
+					else begin
+						match el with
+						| [(EUnop (Spread,Prefix,e),p)] ->
+							(try [type_against name t e]
+							with WithTypeError(ul,p) -> arg_error ul name false p)
+						| [] ->
+							(try [type_against name t (EArrayDecl [],callp)]
+							with WithTypeError(ul,p) -> arg_error ul name false p)
+						| (_,p1) :: _ ->
+							let p =
+								List.fold_left (fun p (e1,p2) ->
+									match e1 with
+									| EUnop (Spread,Prefix,_) -> unexpected_spread p2
+									| _ -> punion p p2
+								) p1 el
+							in
+							(try [type_against name t (EArrayDecl el,p)]
+							with WithTypeError(ul,p) -> arg_error ul name false p)
+					end
 				| _ ->
 					die "" __LOC__
 			end
