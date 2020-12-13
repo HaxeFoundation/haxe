@@ -1075,14 +1075,9 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if fctx.is_abstract_member then error "`is` overloads must be static" cf.cf_pos;
 					begin match follow t with
 						| TFun ([(_,false,t)], tr) ->
-							delay ctx PCheckConstraint (fun () ->
-								match follow tr with
-								| TAbstract ({ a_path = [],"Bool" },_) -> ()
-								| _ -> error "`is` overload must return Bool" cf.cf_pos
-							);
 							a.a_is <- Some (t,cf);
 						| _ ->
-							error ("`is` overload must be a function that takes a single non-optional argument and returns Bool") cf.cf_pos
+							error ("`is` overload must be a function that takes a single non-optional argument") cf.cf_pos
 					end
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;

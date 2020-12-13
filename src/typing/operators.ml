@@ -936,7 +936,8 @@ let type_is ctx e t p_t p =
 				(* abstract with @:op(v is T) -> generate static call *)
 				let e_method = Texpr.Builder.make_static_field c cf (mk_zero_range_pos p) in
 				let e = AbstractCast.cast_or_unify ctx arg_t e p in
-				mk (TCall (e_method, [e])) ctx.com.basic.tbool p
+				let t_ret = match cf.cf_type with TFun (_, t) -> t | _ -> die ~p "unexpected @:op(v is T) type" __LOC__ in
+				mk (TCall (e_method, [e])) t_ret p
 
 			| _ ->
 				(* everything else - generate Std.isOfType(v, T) *)
