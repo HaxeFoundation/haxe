@@ -41,7 +41,7 @@ abstract Rest<T>(NativeRest<T>) {
 	/**
 		Creates an array containing all the values of rest arguments.
 	**/
-	@:to public inline function toArray():Array<T>
+	@:to public #if !cppia inline #end function toArray():Array<T>
 		return this.copy();
 
 	public inline function iterator():RestIterator<T>
