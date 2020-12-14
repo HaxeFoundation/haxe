@@ -8,6 +8,22 @@ class InlineClass {
 	public inline function method() {
 		return a + b + c;
 	}
+
+	public inline function cancelThis() {
+		noInline(this);
+		return [1,2];
+	}
+
+	// Used to ensure the cancelation of inlining of the object passed as argument
+	public static function noInline(a : InlineClass) {
+	}
+}
+
+class InlineIterator {
+	public var i = 0;
+	public inline function new() {};
+	public inline function hasNext() return i < 10;
+	public inline function next() return i++;
 }
 
 class NestedInlineClass {
@@ -96,5 +112,22 @@ class TestInlineConstructors extends TestBase {
 		var a : {function method(arg : Int) : String;} = cast new InlineClass();
 		var b : Dynamic = new InlineClass();
 		return [a.method(1), b.method(2)];
+	}
+
+	@:js('var arr = new InlineClass().cancelThis();return [arr[0],arr[1]];')
+	static function testCancelOfReturnedObject() {
+		var a : {function cancelThis() : Array<Int>;} = new InlineClass();
+		var arr = a.cancelThis();
+		return [arr[0], arr[1]];
+	}
+
+	@:js('var v_i = 0;var acc = 0;while(v_i < 10) acc += v_i++;return acc;')
+	static function testIteratorMethodInliningInForLoop() {
+		var iter : Iterator<Int> = new InlineIterator();
+		var acc = 0;
+		for ( v in iter ) {
+			acc += v;
+		}
+		return acc;
 	}
 }

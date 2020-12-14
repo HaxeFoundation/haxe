@@ -75,7 +75,7 @@ let collect_statistics ctx pos_filters with_expressions =
 		let rec loop c1 =
 			if not (Hashtbl.mem memo c1.cl_path) then begin
 				Hashtbl.add memo c1.cl_path true;
-				if c1.cl_interface then
+				if (has_class_flag c1 CInterface) then
 					add_relation c.cl_name_pos (Extended,c1.cl_name_pos)
 				else begin
 					add_relation c.cl_name_pos (Implemented,c1.cl_name_pos);
@@ -222,7 +222,7 @@ let collect_statistics ctx pos_filters with_expressions =
 	let f = function
 		| TClassDecl c ->
 			check_module c.cl_module;
-			declare (if c.cl_interface then (SKInterface c) else (SKClass c)) c.cl_name_pos;
+			declare (if (has_class_flag c CInterface) then (SKInterface c) else (SKClass c)) c.cl_name_pos;
 			begin match c.cl_super with
 				| None -> ()
 				| Some (c',_) ->
@@ -232,7 +232,7 @@ let collect_statistics ctx pos_filters with_expressions =
 					in
 					loop c'
 			end;
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				collect_implementations c;
 			let field cf =
 				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField (cf,Some c.cl_path)) cf.cf_name_pos;

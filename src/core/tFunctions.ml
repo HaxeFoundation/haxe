@@ -20,6 +20,18 @@ let set_flag flags flag =
 let unset_flag flags flag =
 	flags land (lnot (1 lsl flag))
 
+let int_of_class_flag (flag : flag_tclass) =
+	Obj.magic flag
+
+let add_class_flag c (flag : flag_tclass) =
+	c.cl_flags <- set_flag c.cl_flags (int_of_class_flag flag)
+
+let remove_class_flag c (flag : flag_tclass) =
+	c.cl_flags <- unset_flag c.cl_flags (int_of_class_flag flag)
+
+let has_class_flag c (flag : flag_tclass) =
+	has_flag c.cl_flags (int_of_class_flag flag)
+
 let int_of_class_field_flag (flag : flag_tclass_field) =
 	Obj.magic flag
 
@@ -105,9 +117,7 @@ let mk_class m path pos name_pos =
 		cl_meta = [];
 		cl_private = false;
 		cl_kind = KNormal;
-		cl_extern = false;
-		cl_final = false;
-		cl_interface = false;
+		cl_flags = 0;
 		cl_params = [];
 		cl_using = [];
 		cl_super = None;
@@ -202,6 +212,7 @@ let null_abstract = {
 	a_array = [];
 	a_read = None;
 	a_write = None;
+	a_enum = false;
 }
 
 let add_dependency m mdep =
@@ -243,7 +254,7 @@ let map loop t =
 		(match r.tm_type with
 		| None -> t
 		| Some t -> loop t) (* erase*)
-	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) ->
+	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) | TAbstract (_,[]) ->
 		t
 	| TEnum (e,tl) ->
 		TEnum (e, List.map loop tl)
@@ -481,28 +492,22 @@ let rec follow_without_null t =
 		follow_without_null (apply_params t.t_params tl t.t_type)
 	| _ -> t
 
-(** Assumes `follow` has already been applied *)
-let rec ambiguate_funs t =
+let rec follow_without_type t =
 	match t with
-	| TFun _ -> TFun ([], t_dynamic)
 	| TMono r ->
 		(match r.tm_type with
-		| Some _ -> die "" __LOC__
+		| Some t -> follow_without_type t
 		| _ -> t)
-	| TInst (a, pl) ->
-	    TInst (a, List.map ambiguate_funs pl)
-	| TEnum (a, pl) ->
-	    TEnum (a, List.map ambiguate_funs pl)
-	| TAbstract (a, pl) ->
-	    TAbstract (a, List.map ambiguate_funs pl)
-	| TType (a, pl) ->
-	    TType (a, List.map ambiguate_funs pl)
-	| TDynamic _ -> t
-	| TAnon a ->
-	    TAnon { a with a_fields =
-		    PMap.map (fun af -> { af with cf_type =
-				ambiguate_funs af.cf_type }) a.a_fields }
-	| TLazy _ -> die "" __LOC__
+	| TLazy f ->
+		follow_without_type (lazy_type f)
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		follow_without_type t
+	| _ -> t
+
+let rec ambiguate_funs t =
+	match follow t with
+	| TFun _ -> TFun ([], t_dynamic)
+	| _ -> map ambiguate_funs t
 
 let rec is_nullable ?(no_lazy=false) = function
 	| TMono r ->
@@ -692,7 +697,7 @@ let rec raw_class_field build_type c tl i =
 			in
 			loop tl
 		| _ ->
-			if not c.cl_interface then raise Not_found;
+			if not (has_class_flag c CInterface) then raise Not_found;
 			(*
 				an interface can implements other interfaces without
 				having to redeclare its fields
@@ -744,17 +749,21 @@ let quick_field_dynamic t s =
 	try quick_field t s
 	with Not_found -> FDynamic s
 
-let rec get_constructor build_type c =
+let rec get_constructor_class c tl =
 	match c.cl_constructor, c.cl_super with
-	| Some c, _ -> build_type c, c
+	| Some cf, _ -> (cf,c,tl)
 	| None, None -> raise Not_found
-	| None, Some (csup,cparams) ->
-		let t, c = get_constructor build_type csup in
-		apply_params csup.cl_params cparams t, c
+	| None, Some (csup,tlsup) -> get_constructor_class csup (List.map (apply_params c.cl_params tl) tlsup)
+
+let rec get_constructor c =
+	match c.cl_constructor, c.cl_super with
+	| Some c, _ -> c
+	| None, None -> raise Not_found
+	| None, Some (csup,_) -> get_constructor csup
 
 let has_constructor c =
 	try
-		ignore(get_constructor (fun cf -> cf.cf_type) c);
+		ignore(get_constructor c);
 		true
 	with Not_found -> false
 

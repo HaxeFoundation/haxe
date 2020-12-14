@@ -67,5 +67,5 @@ extern class Package {
 	/**
 		Dynamically links the host program with the C library `libname`.
 	**/
-	static function loadlib(libname:String, funcname:String):Void;
+	static function loadlib(libname:String, funcname:String):Dynamic;
 }

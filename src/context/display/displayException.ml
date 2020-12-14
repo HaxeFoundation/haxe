@@ -5,34 +5,7 @@ open CompletionItem
 open Type
 open Genjson
 
-type hover_result = {
-	hitem : CompletionItem.t;
-	hpos : pos;
-	hexpected : WithType.t option;
-}
-
-type fields_result = {
-	fitems : CompletionItem.t list;
-	fkind : CompletionResultKind.t;
-	fsubject : completion_subject;
-}
-
-type signature_kind =
-	| SKCall
-	| SKArrayAccess
-
-type kind =
-	| DisplayDiagnostics of DiagnosticsTypes.diagnostics_context
-	| Statistics of string
-	| ModuleSymbols of string
-	| Metadata of string
-	| DisplaySignatures of (((tsignature * CompletionType.ct_function) * documentation) list * int * int * signature_kind) option
-	| DisplayHover of hover_result option
-	| DisplayPositions of pos list
-	| DisplayFields of fields_result option
-	| DisplayPackage of string list
-
-exception DisplayException of kind
+exception DisplayException of display_exception_kind
 
 let raise_diagnostics s = raise (DisplayException(DisplayDiagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))
@@ -207,10 +180,11 @@ let to_json ctx de =
 		in
 		let ctx = Genjson.create_context GMFull in
 		let generate_name kind =
-			let i, name = named_source_kind kind in
+			let i,si = named_source_kind kind in
 			jobject [
-				"name",jstring name;
+				"name",jstring si.si_name;
 				"kind",jint i;
+				"doc",(match si.si_doc with None -> jnull | Some s -> jstring s);
 			]
 		in
 		let expected = match hover.hexpected with
@@ -219,10 +193,14 @@ let to_json ctx de =
 				:: (match src with
 					| None -> []
 					| Some ImplicitReturn -> []
-					| Some src -> ["name",generate_name src])
+					| Some src -> [
+							"name",generate_name src;
+						])
 				)
 			| Some(Value(Some ((FunctionArgument name | StructureField name) as src))) ->
-				jobject ["name",generate_name src]
+				jobject [
+					"name",generate_name src;
+				]
 			| _ -> jnull
 		in
 		jobject [

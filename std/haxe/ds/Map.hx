@@ -46,6 +46,7 @@ import haxe.Constraints.IMap;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
+@:transitive
 @:multiType(@:followWithAbstracts K)
 abstract Map<K, V>(IMap<K, V>) {
 	/**

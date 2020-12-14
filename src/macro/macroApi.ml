@@ -314,6 +314,8 @@ and encode_access a =
 		| AMacro -> 6
 		| AFinal -> 7
 		| AExtern -> 8
+		| AAbstract -> 9
+		| AOverload -> 10
 	in
 	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
@@ -500,6 +502,8 @@ and encode_expr e =
 				27, [loop e; encode_ctype t]
 			| EMeta (m,e) ->
 				28, [encode_meta_entry m;loop e]
+			| EIs (e,t) ->
+				29, [loop e;encode_ctype t]
 		in
 		encode_obj [
 			"pos", encode_pos p;
@@ -664,6 +668,8 @@ and decode_access v =
 	| 6 -> AMacro
 	| 7 -> AFinal
 	| 8 -> AExtern
+	| 9 -> AAbstract
+	| 10 -> AOverload
 	| _ -> raise Invalid_expr
 	in
 	a,p
@@ -823,8 +829,8 @@ and decode_expr v =
 			ECheckType (loop e, (decode_ctype t))
 		| 28, [m;e] ->
 			EMeta (decode_meta_entry m,loop e)
-		| 29, [e;f] ->
-			EField (loop e, decode_string f) (*** deprecated EType, keep until haxe 3 **)
+		| 29, [e;t] ->
+			EIs (loop e,decode_ctype t)
 		| _ ->
 			raise Invalid_expr
 	in
@@ -961,7 +967,6 @@ and encode_var_access a =
 		| AccNormal -> 0, []
 		| AccNo -> 1, []
 		| AccNever -> 2, []
-		| AccResolve -> 3, []
 		| AccCall -> 4, []
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
@@ -996,10 +1001,10 @@ and encode_tclass c =
 	ignore(c.cl_build());
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
-		"isExtern", vbool c.cl_extern;
-		"exclude", vfun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; vnull);
-		"isInterface", vbool c.cl_interface;
-		"isFinal", vbool c.cl_final;
+		"isExtern", vbool (has_class_flag c CExtern);
+		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
+		"isInterface", vbool (has_class_flag c CInterface);
+		"isFinal", vbool (has_class_flag c CFinal);
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
@@ -1285,7 +1290,6 @@ let decode_var_access v =
 	| 0, [] -> AccNormal
 	| 1, [] -> AccNo
 	| 2, [] -> AccNever
-	| 3, [] -> AccResolve
 	| 4, [] -> AccCall
 	| 5, [] -> AccInline
 	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
@@ -1330,16 +1334,18 @@ let decode_cfield v =
 	cf
 
 let decode_efield v =
-	{
-		ef_name = decode_string (field v "name");
-		ef_type = decode_type (field v "type");
-		ef_pos = decode_pos (field v "pos");
-		ef_name_pos = decode_pos (field v "namePos");
-		ef_index = decode_int (field v "index");
-		ef_meta = []; (* TODO *)
-		ef_doc = decode_doc (field v "doc");
-		ef_params = decode_type_params (field v "params")
-	}
+	let rec get_enum t =
+		match follow t with
+		| TEnum (enm,_) -> enm
+		| TFun (_,t) -> get_enum t
+		| _ -> raise Not_found
+	in
+	let name = decode_string (field v "name") in
+	try
+		let enm = get_enum (decode_type (field v "type")) in
+		PMap.find name enm.e_constrs
+	with Not_found ->
+		raise Invalid_expr
 
 let decode_field_access v =
 	match decode_enum v with
@@ -1458,10 +1464,11 @@ let decode_type_def v =
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,Globals.null_pos))
-	| 2, [ext;impl;interf;final] ->
+	| 2, [ext;impl;interf;final;abstract] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
 		let is_final = decode_opt_bool final in
+		let is_abstract = decode_opt_bool abstract in
 		let interfaces = (match opt (fun v -> List.map decode_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
 		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = if is_interface then begin
@@ -1472,6 +1479,7 @@ let decode_type_def v =
 			end
 		in
 		let flags = if is_final then HFinal :: flags else flags in
+		let flags = if is_abstract then HAbstract :: flags else flags in
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
@@ -1767,7 +1775,9 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
-			encode_string_map encode_string (Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty)
+			let pmap_resources = Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty in
+			let encode_string_to_bytes s = encode_bytes (Bytes.of_string s) in
+			encode_string_map encode_string_to_bytes pmap_resources
 		);
 		"get_local_module", vfun0 (fun() ->
 			let m = (get_api()).current_module() in

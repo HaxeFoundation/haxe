@@ -53,6 +53,6 @@ class SslSocket extends sys.net.Socket {
 	}
 
 	public override function bind(host:Host, port:Int):Void {
-		throw "not implemented";
+		throw new haxe.exceptions.NotImplementedException();
 	}
 }

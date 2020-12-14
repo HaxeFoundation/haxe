@@ -1,0 +1,19 @@
+{
+	"haxe.configurations": [
+		{"label": "Java", "args": ["compile-java.hxml", "-cmd", "java -jar bin/java/TestMain-debug.jar"]},
+		{"label": "JavaScript", "args": ["compile-js.hxml", "-cmd", "node -e \"require('./bin/unit.js').unit.TestMain.main()\""]},
+		{"label": "JVM", "args": ["compile-jvm-only.hxml", "-cmd", "java -jar bin/unit.jar"]},
+		{"label": "Interp", "args": ["compile-macro.hxml"]},
+	],
+	"[haxe]": {
+		"editor.formatOnSave": true,
+		"editor.formatOnPaste": true
+	},
+	"editor.codeActionsOnSave": {
+		"source.sortImports": true
+	},
+	"haxe.displayServer": {
+		"arguments": ["-v"]
+	},
+	"haxe.enableCompilationServer": false
+}

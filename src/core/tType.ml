@@ -15,7 +15,6 @@ and var_access =
 	| AccNo             (* can't be accessed outside of the class itself and its subclasses *)
 	| AccNever          (* can't be accessed, even in subclasses *)
 	| AccCtor           (* can only be accessed from the constructor *)
-	| AccResolve        (* call resolve("field") when accessed *)
 	| AccCall           (* perform a method call when accessed *)
 	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
@@ -227,9 +226,7 @@ and tclass = {
 	mutable cl_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
-	mutable cl_extern : bool;
-	mutable cl_final : bool;
-	mutable cl_interface : bool;
+	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string, tclass_field) PMap.t;
@@ -251,11 +248,11 @@ and tclass = {
 }
 
 and tenum_field = {
-	ef_name : string;
+	mutable ef_name : string;
 	mutable ef_type : t;
 	ef_pos : pos;
 	ef_name_pos : pos;
-	ef_doc : Ast.documentation;
+	mutable ef_doc : Ast.documentation;
 	ef_index : int;
 	mutable ef_params : type_params;
 	mutable ef_meta : metadata;
@@ -267,7 +264,7 @@ and tenum = {
 	e_pos : pos;
 	e_name_pos : pos;
 	e_private : bool;
-	e_doc : Ast.documentation;
+	mutable e_doc : Ast.documentation;
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
 	mutable e_using : (tclass * pos) list;
@@ -298,7 +295,7 @@ and tabstract = {
 	a_pos : pos;
 	a_name_pos : pos;
 	a_private : bool;
-	a_doc : Ast.documentation;
+	mutable a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;
@@ -314,6 +311,7 @@ and tabstract = {
 	mutable a_array : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
+	a_enum : bool;
 }
 
 and module_type =
@@ -380,6 +378,12 @@ type class_field_scope =
 	| CFSMember
 	| CFSConstructor
 
+type flag_tclass =
+	| CExtern
+	| CFinal
+	| CInterface
+	| CAbstract
+
 type flag_tclass_field =
 	| CfPublic
 	| CfStatic
@@ -387,6 +391,11 @@ type flag_tclass_field =
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 	| CfOverride
+	| CfAbstract
+	| CfOverload
+	| CfImpl
+	| CfEnum
+	| CfGeneric
 
 type flag_tvar =
 	| VCaptured

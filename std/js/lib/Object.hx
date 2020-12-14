@@ -99,7 +99,16 @@ extern class Object {
 		(which differs from both Abstract Equality Comparison and
 		Strict Equality Comparison).
 	**/
+	@:deprecated('js.lib.Object.is is deprecated. Use js.lib.Object.isSame instead.')
 	@:pure static function is<T>(value1:T, value2:T):Bool;
+
+	/**
+		Compares if two values are the same value. Equates all NaN values
+		(which differs from both Abstract Equality Comparison and
+		Strict Equality Comparison).
+	**/
+	@:native('is')
+	@:pure static function isSame<T>(value1:T, value2:T):Bool;
 
 	/**
 		Determines if extending of an object is allowed.

@@ -11,6 +11,9 @@ import runci.System.*;
 import runci.Config.*;
 
 class Flash {
+	static var miscFlashDir(get,never):String;
+	static inline function get_miscFlashDir() return miscDir + 'flash/';
+
 	static public function getLatestFPVersion():Array<Int> {
 		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
 		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
@@ -64,7 +67,7 @@ class Flash {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				}
 				switch (ci) {
-					case AzurePipelines | GithubActions:
+					case GithubActions:
 						runCommand("xvfb-run", ["-a", playerCmd, "-v"]);
 					case _:
 						runCommand(playerCmd, ["-v"]);
@@ -73,6 +76,10 @@ class Flash {
 				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
 					return;
 				}
+				runCommand("brew", ["uninstall", "openssl@1.0.2t"]);
+				runCommand("brew", ["uninstall", "python@2.7.17"]);
+				runCommand("brew", ["untap", "local/openssl"]);
+				runCommand("brew", ["untap", "local/python2"]);
 				runCommand("brew", ["update"]);
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
 
@@ -101,7 +108,7 @@ class Flash {
 		switch (systemName) {
 			case "Linux":
 				switch (ci) {
-					case AzurePipelines | GithubActions:
+					case GithubActions:
 						new Process("xvfb-run", ["-a", playerCmd, swf]);
 					case _:
 						new Process(playerCmd, [swf]);
@@ -161,6 +168,10 @@ class Flash {
 				success = false;
 			}
 		}
+
+		changeDirectory(miscFlashDir);
+		runCommand("haxe", ["run.hxml"]);
+
 		if (!success)
 			fail();
 	}

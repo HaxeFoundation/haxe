@@ -74,7 +74,7 @@ function main() {
 		new TestNull(),
 		new TestNumericCasts(),
 		new TestHashMap(),
-		#if (!no_http && (!(azure || github) || !(php && Windows)))
+		#if (!no_http && (!github || !(php && Windows)))
 		new TestHttp(),
 		#end
 		#if !no_pattern_matching
@@ -101,6 +101,7 @@ function main() {
 		#if (java || cs)
 		new TestOverloads(),
 		#end
+		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
 		#if ((dce == "full") && !interp)
@@ -112,7 +113,6 @@ function main() {
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs()
 		//new TestUnspecified(),
-		//new TestRemoting(),
 	];
 
 	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {

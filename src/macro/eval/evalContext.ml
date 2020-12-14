@@ -319,8 +319,15 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-    let id = Thread.id (Thread.self()) in
-    if id = 0 then ctx.eval else IntMap.find id ctx.evals
+	let id = Thread.id (Thread.self()) in
+	if id = 0 then
+		ctx.eval
+	else
+		try
+			IntMap.find id ctx.evals
+		with Not_found ->
+			die "Cannot run Haxe code in a non-Haxe thread" __LOC__
+
 
 let rec kind_name eval kind =
 	let rec loop kind env = match kind with
@@ -524,3 +531,34 @@ let get_instance_field_index_raise proto name =
 let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
 	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
+
+let is v path =
+	if path = key_Dynamic then
+		v <> vnull
+	else match v with
+	| VInt32 _ -> path = key_Int || path = key_Float
+	| VFloat f -> path = key_Float || (path = key_Int && f = (float_of_int (int_of_float f)) && f <= 2147483647. && f >= -2147483648.)
+	| VTrue | VFalse -> path = key_Bool
+	| VPrototype {pkind = PClass _} -> path = key_Class
+	| VPrototype {pkind = PEnum _} -> path = key_Enum
+	| VEnumValue ve -> path = key_EnumValue || path = ve.epath
+	| VString _ -> path = key_String
+	| VArray _ -> path = key_Array
+	| VVector _ -> path = key_eval_Vector
+	| VInstance vi ->
+		let has_interface path' =
+			try begin match (get_static_prototype_raise (get_ctx()) path').pkind with
+				| PClass interfaces -> List.mem path interfaces
+				| _ -> false
+			end with Not_found ->
+				false
+		in
+		let rec loop proto =
+			if path = proto.ppath || has_interface proto.ppath then true
+			else begin match proto.pparent with
+				| Some proto -> loop proto
+				| None -> false
+			end
+		in
+		loop vi.iproto
+	| _ -> false

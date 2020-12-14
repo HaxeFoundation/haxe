@@ -34,6 +34,7 @@ extern class Std {
 
 		If `t` is a class or interface with `@:generic` meta, the result is `false`.
 	**/
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	static function is(v:Dynamic, t:Dynamic):Bool;
 
 	/**

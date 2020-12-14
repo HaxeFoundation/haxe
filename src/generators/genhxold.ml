@@ -142,7 +142,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum | Meta.Impl -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (Meta.to_string m)
@@ -202,18 +202,18 @@ let generate_type com t =
 			p "function %s%s(%s) : %s" name tparams (String.concat ", " (List.map sparam params)) (stype ret);
 		);
 		p ";\n";
-		if Meta.has Meta.Overload f.cf_meta then List.iter (fun f -> print_field stat f) f.cf_overloads
+		if has_class_field_flag f CfOverload then List.iter (fun f -> print_field stat f) f.cf_overloads
 	in
 	(match t with
 	| TClassDecl c ->
 		print_meta c.cl_meta;
-		let finalmod = if c.cl_final then "final " else "" in
-		p "extern %s%s %s" finalmod (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
+		let finalmod = if (has_class_flag c CFinal) then "final " else "" in
+		p "extern %s%s %s" finalmod (if (has_class_flag c CInterface) then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
 		let ext = (match c.cl_super with
 		| None -> []
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
-		let ext = List.fold_left (fun acc (i,pl) -> ((if c.cl_interface then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
+		let ext = List.fold_left (fun acc (i,pl) -> ((if (has_class_flag c CInterface) then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
 		let ext = (match c.cl_dynamic with
 			| None -> ext
 			| Some t ->
@@ -268,7 +268,7 @@ let generate_type com t =
 		print_meta a.a_meta;
 		Option.may (fun c -> try print_meta [Meta.get Meta.Require c.cl_meta] with Not_found -> ()) a.a_impl;
 		p "extern ";
-		let is_enum = Meta.has Meta.Enum a.a_meta in
+		let is_enum = a.a_enum in
 		if is_enum then p "enum ";
 		p "abstract %s" (stype (TAbstract (a,List.map snd a.a_params)));
 		if not (Meta.has Meta.CoreType a.a_meta) then p "(%s)" (stype a.a_this);
@@ -288,8 +288,8 @@ let generate_type com t =
 			in
 
 			List.iter (fun f ->
-				let static = not (Meta.has Meta.Impl f.cf_meta) in
-				if not static && is_enum && Meta.has Meta.Enum f.cf_meta then begin
+				let static = not (has_class_field_flag f CfImpl) in
+				if not static && is_enum && has_class_field_flag f CfEnum then begin
 					p "\tvar %s;\n" f.cf_name;
 				end else
 					print_field static f

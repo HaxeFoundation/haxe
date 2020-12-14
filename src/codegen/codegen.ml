@@ -197,7 +197,7 @@ let fix_override com c f fd =
 			let fde = (match f.cf_expr with None -> die "" __LOC__ | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
 			f.cf_type <- TFun(targs,tret);
-		| Some(f2), None when c.cl_interface ->
+		| Some(f2), None when (has_class_flag c CInterface) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
 			f.cf_type <- TFun(targs,tret)
 		| _ ->
@@ -207,7 +207,7 @@ let fix_overrides com t =
 	match t with
 	| TClassDecl c ->
 		(* overrides can be removed from interfaces *)
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			c.cl_ordered_fields <- List.filter (fun f ->
 				try
 					if find_field com c f == f then raise Not_found;
@@ -220,7 +220,7 @@ let fix_overrides com t =
 			match f.cf_expr, f.cf_kind with
 			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
 				fix_override com c f (Some fd)
-			| None, Method (MethNormal | MethInline) when c.cl_interface ->
+			| None, Method (MethNormal | MethInline) when (has_class_flag c CInterface) ->
 				fix_override com c f None
 			| _ ->
 				()
@@ -234,7 +234,7 @@ let fix_overrides com t =
 *)
 let fix_abstract_inheritance com t =
 	match t with
-	| TClassDecl c when c.cl_interface ->
+	| TClassDecl c when (has_class_flag c CInterface) ->
 		c.cl_ordered_fields <- List.filter (fun f ->
 			let b = try (find_field com c f) == f
 			with Not_found -> false in
@@ -308,7 +308,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if (has_class_field_flag f CfPublic && not (c.cl_extern || c.cl_interface)) then "public " else "")
+						(if (has_class_field_flag f CfPublic && not ((has_class_flag c CExtern) || (has_class_flag c CInterface))) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v when (is_inline_var f.cf_kind) -> "inline "
@@ -331,7 +331,7 @@ module Dump = struct
 							(match f.cf_expr with
 							| None -> ""
 							| Some e -> " = " ^ (s_cf_expr f));
-						| Method m -> if (c.cl_extern || c.cl_interface) then (
+						| Method m -> if ((has_class_flag c CExtern) || (has_class_flag c CInterface)) then (
 							match f.cf_type with
 							| TFun(al,t) -> print "(%s):%s;" (String.concat ", " (
 								List.map (fun (n,o,t) -> n ^ ":" ^ (s_type t)) al))
@@ -341,7 +341,7 @@ module Dump = struct
 					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				in
-				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
+				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if (has_class_flag c CExtern) then "extern " else "") (if (has_class_flag c CInterface) then "interface" else "class") (s_type_path path) (params c.cl_params);
 				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
 				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
@@ -487,8 +487,6 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
-	let tf_stack = new_rec_stack()
-
 	let check_call_params f el tl =
 		let rec loop acc el tl = match el,tl with
 			| e :: el, (n,_,t) :: tl ->
@@ -507,66 +505,6 @@ module UnificationCallback = struct
 			check_call_params f el args
 		| _ ->
 			List.map (fun e -> f e t_dynamic) el
-
-	let rec run ff e =
-		let f e t =
-			if not (type_iseq e.etype t) then
-				ff e t
-			else
-				e
-		in
-		let check e = match e.eexpr with
-			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
-				die "" __LOC__; (* this trigger #4347, to be fixed before enabling
-				let e2 = f e2 e1.etype in
-				{e with eexpr = TBinop(op,e1,e2)} *)
-			| TVar(v,Some ev) ->
-				let eo = Some (f ev v.v_type) in
-				{ e with eexpr = TVar(v,eo) }
-			| TCall(e1,el) ->
-				let el = check_call f el e1.etype in
-				{e with eexpr = TCall(e1,el)}
-			| TNew(c,tl,el) ->
-				begin try
-					let tcf,_ = get_constructor (fun cf -> apply_params c.cl_params tl cf.cf_type) c in
-					let el = check_call f el tcf in
-					{e with eexpr = TNew(c,tl,el)}
-				with Not_found ->
-					e
-				end
-			| TArrayDecl el ->
-				begin match follow e.etype with
-					| TInst({cl_path=[],"Array"},[t]) -> {e with eexpr = TArrayDecl(List.map (fun e -> f e t) el)}
-					| _ -> e
-				end
-			| TObjectDecl fl ->
-				begin match follow e.etype with
-					| TAnon an ->
-						let fl = List.map (fun ((n,p,qs),e) ->
-							let e = try
-								let t = (PMap.find n an.a_fields).cf_type in
-								f e t
-							with Not_found ->
-								e
-							in
-							(n,p,qs),e
-						) fl in
-						{ e with eexpr = TObjectDecl fl }
-					| _ -> e
-				end
-			| TReturn (Some e1) ->
-				begin match tf_stack.rec_stack with
-					| tf :: _ -> { e with eexpr = TReturn (Some (f e1 tf.tf_type))}
-					| _ -> e
-				end
-			| _ ->
-				e
-		in
-		match e.eexpr with
-			| TFunction tf ->
-				rec_stack_loop tf_stack tf (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
-			| _ ->
-				check (Type.map_expr (run ff) e)
 end;;
 
 let interpolate_code com code tl f_string f_expr p =

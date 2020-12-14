@@ -25,7 +25,7 @@ package haxe.zip;
 @:coreApi
 class Uncompress {
 	public function new(?windowBits:Int):Void {
-		throw "Not implemented for this platform";
+		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform");
 	}
 
 	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {

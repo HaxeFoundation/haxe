@@ -97,6 +97,31 @@ class TestPhp extends Test
 		});
 	}
 
+	@:analyzer(ignore)
+	function testIssue9924() {
+		var v = Std.random(10);
+
+		var GLOBALS = v;
+		var _SERVER = v;
+		var _GET = v;
+		var _POST = v;
+		var _FILES = v;
+		var _COOKIE = v;
+		var _REQUEST = v;
+		var _ENV = v;
+		// var _SESSION = v; //not defined in CLI
+
+		utest.Assert.notEquals(GLOBALS, SuperGlobal.GLOBALS);
+		utest.Assert.notEquals(_SERVER, SuperGlobal._SERVER);
+		utest.Assert.notEquals(_GET, SuperGlobal._GET);
+		utest.Assert.notEquals(_POST, SuperGlobal._POST);
+		utest.Assert.notEquals(_FILES, SuperGlobal._FILES);
+		utest.Assert.notEquals(_COOKIE, SuperGlobal._COOKIE);
+		utest.Assert.notEquals(_REQUEST, SuperGlobal._REQUEST);
+		utest.Assert.notEquals(_ENV, SuperGlobal._ENV);
+		// utest.Assert.notEquals(_SESSION, SuperGlobal._SESSION);
+	}
+
 	inline static function make():FunctionCallerWrapper {
 		return new FunctionCaller(function(f) f());
 	}

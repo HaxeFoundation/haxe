@@ -6,6 +6,10 @@ open Common
 open Typecore
 open Error
 
+let needs_inline ctx is_extern_class cf =
+	cf.cf_kind = Method MethInline
+	&& (ctx.g.doinline || is_extern_class || has_class_field_flag cf CfExtern)
+
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
@@ -163,14 +167,14 @@ let api_inline ctx c field params p =
 				Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
 			end
 		| TTypeExpr (TClassDecl cls) ->
-			if cls.cl_interface then
+			if (has_class_flag cls CInterface) then
 				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
 			else
 				Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
 	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
-		if cls.cl_interface then
+		if (has_class_flag cls CInterface) then
 			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
@@ -246,7 +250,7 @@ let inline_default_config cf t =
 
 let inline_config cls_opt cf call_args return_type =
 	match cls_opt with
-	| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl cf.cf_meta ->
+	| Some ({cl_kind = KAbstractImpl _}) when has_class_field_flag cf CfImpl ->
 		let t = if cf.cf_name = "_new" then
 			return_type
 		else if call_args = [] then
@@ -268,6 +272,7 @@ let inline_config cls_opt cf call_args return_type =
 
 let inline_metadata e meta =
 	let inline_meta e meta = match meta with
+		| Meta.Pure,[EConst(Ident "inferredPure"),_],_ -> e
 		| (Meta.Deprecated | Meta.Pure),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
 		| _ -> e
 	in
@@ -582,7 +587,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			let unify_func () = unify_raise ctx mt (TFun (tl,tret)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a } when Meta.has Meta.Impl cf.cf_meta ->
+				| Statics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
 					if cf.cf_name <> "_new" then begin
 						(* the first argument must unify with a_this for abstract implementation functions *)
 						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
@@ -614,7 +619,8 @@ class inline_state ctx ethis params cf f p = object(self)
 				if List.memq e params then (fun t -> t)
 				else map_type
 			in
-			Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e
+			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
+			CallUnification.maybe_reapply_overload_call ctx e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =

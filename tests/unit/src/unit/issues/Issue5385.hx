@@ -23,4 +23,5 @@ private abstract MyIterator<T>(Iterator<T>) from Iterator<T> to Iterator<T> {
 }
 
 @:forward
+@:transitive
 private abstract Refs(Array<String>) from Array<String> to Array<String> {}

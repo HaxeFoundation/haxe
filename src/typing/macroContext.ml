@@ -415,10 +415,10 @@ and flush_macro_context mint ctx =
 	mctx.com.Common.modules <- modules;
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [
-		VarLazifier.apply mctx.com;
-		AbstractCast.handle_abstract_casts mctx;
-		Exceptions.filter mctx;
-		CapturedVars.captured_vars mctx.com;
+		"VarLazifier",VarLazifier.apply mctx.com;
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
+		"Exceptions",Exceptions.filter mctx;
+		"captured_vars",CapturedVars.captured_vars mctx.com;
 	] in
 	(*
 		some filters here might cause side effects that would break compilation server.
@@ -685,7 +685,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt = fst (Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false) in
+		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false) in
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
@@ -734,7 +734,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| MMacroType ->
 					"ComplexType",(fun () ->
 						let t = if v = Interp.vnull then
-							mk_mono()
+							spawn_monomorph ctx p
 						else try
 							let ct = Interp.decode_ctype v in
 							Typeload.load_complex_type ctx false ct;
@@ -757,7 +757,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
 	mctx.curclass <- null_class;
-	let el, _ = Calls.unify_call_args mctx args margs t_dynamic p false false in
+	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =

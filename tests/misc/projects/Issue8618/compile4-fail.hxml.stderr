@@ -1,2 +1,2 @@
-Main4.hx:3: characters 9-51 : Method noClosureInstanceMethod cannot be used as a value
-Main4.hx:3: characters 9-51 : ... For function argument 'v'
+Main4.hx:3: characters 28-51 : Method noClosureInstanceMethod cannot be used as a value
+Main4.hx:3: characters 28-51 : ... For function argument 'v'

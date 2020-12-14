@@ -102,7 +102,7 @@ and inline_var = {
 	mutable iv_closed : bool (* Inline variables are marked as closed when the scope they were first assigned on ends, any appearance of this variable after it has been closed causes cancellation *)
 }
 
-and inline_object_field = 
+and inline_object_field =
 	| IOFInlineMethod of inline_object * inline_var * tclass * Type.tparams * tclass_field * tfunc
 	| IOFInlineVar of inline_var
 	| IOFNone
@@ -189,7 +189,7 @@ let inline_constructors ctx original_e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
+	let is_extern_ctor c cf = (has_class_flag c CExtern) || has_class_field_flag cf CfExtern in
 	let make_expr_for_list (el:texpr list) (t:t) (p:pos): texpr = match el with
 		| [] -> mk (TBlock[]) ctx.t.tvoid p
 		| [e] -> e
@@ -203,15 +203,16 @@ let inline_constructors ctx original_e =
 		Returns true if there are any potential inline objects in the expression.
 		It is used to save work before running mark_ctors and analyze_aliases.
 	*)
-	let rec check_for_ctors ?(force_inline=false) e = 
+	let rec check_for_ctors ?(force_inline=false) e =
 		let is_ctor, is_meta_inline = match e.eexpr, force_inline with
 			| TMeta((Meta.Inline,_,_),_), _ ->
 				false, true
 			| TObjectDecl _, _
 			| TArrayDecl _, _
-			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})})},_,_), _
 			| TNew _, true ->
 				true, false
+			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
+				Inline.needs_inline ctx (has_class_flag c CExtern) cf, false
 			| _ -> false, false
 		in
 		is_ctor || Type.check_expr (check_for_ctors ~force_inline:is_meta_inline) e
@@ -224,15 +225,20 @@ let inline_constructors ctx original_e =
 	let rec mark_ctors ?(force_inline=false) e : texpr =
 		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
 		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
+		let mark() =
+			incr curr_io_id;
+			let id_expr = (EConst(Int (string_of_int !curr_io_id)), e.epos) in
+			let meta = (Meta.InlineObject, [id_expr], e.epos) in
+			mk (TMeta(meta, e)) e.etype e.epos
+		in
 		match e.eexpr, force_inline with
 			| TObjectDecl _, _
 			| TArrayDecl _, _
-			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})})},_,_), _
 			| TNew _, true ->
-				incr curr_io_id;
-				let id_expr = (EConst(Int (string_of_int !curr_io_id)), e.epos) in
-				let meta = (Meta.InlineObject, [id_expr], e.epos) in
-				mk (TMeta(meta, e)) e.etype e.epos
+				mark()
+			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
+				if Inline.needs_inline ctx (has_class_flag c CExtern) cf then mark()
+				else e
 			| _ -> e
 	in
 
@@ -242,7 +248,7 @@ let inline_constructors ctx original_e =
 		The expression being analyzed should have been processed with mark_ctors before hand.
 
 		returns: Some(inline variable) if the expression being analyzed returns an inline variable. None otherwise.
-		
+
 		seen_ctors: used to avoid infinite constructor inlining loops.
 
 		captured: Wether the caller is ready to accept an inline variable. If analysis results in an inline
@@ -272,13 +278,17 @@ let inline_constructors ctx original_e =
 		let analyze_aliases_in_lvalue e = analyze_aliases seen_ctors captured true e in
 		let analyze_aliases_in_ctor cf captured e = analyze_aliases (cf::seen_ctors) captured false e in
 		let analyze_aliases captured e = analyze_aliases seen_ctors captured false e in
-		let get_io_inline_method io fname = 
+		let get_io_inline_method io fname =
 			begin match io.io_kind with
 			| IOKCtor(ctor) ->
 				begin try
 					let f = PMap.find fname ctor.ioc_class.cl_fields in
 					begin match f.cf_params, f.cf_kind, f.cf_expr with
-					| [], Method MethInline, Some({eexpr = TFunction tf}) -> Some (ctor.ioc_class, ctor.ioc_tparams, f, tf)
+					| [], Method MethInline, Some({eexpr = TFunction tf}) ->
+						if Inline.needs_inline ctx (has_class_flag ctor.ioc_class CExtern) f then
+							Some (ctor.ioc_class, ctor.ioc_tparams, f, tf)
+						else
+							None
 					| _ -> None
 					end
 				with Not_found -> None
@@ -481,7 +491,7 @@ let inline_constructors ctx original_e =
 		| TCall(({eexpr=TField(ethis,fa)} as efield),call_args) ->
 			let fname = field_name fa in
 			let fiv = handle_field_case efield ethis fname (fun _ -> true) in
-			begin match fiv with 
+			begin match fiv with
 			| IOFInlineMethod(io,io_var,c,tl,cf,tf) ->
 				let argvs, pl = analyze_call_args call_args in
 				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
@@ -492,8 +502,18 @@ let inline_constructors ctx original_e =
 					io.io_inline_methods <- io.io_inline_methods @ [e];
 					begin match analyze_aliases captured e with
 						| Some(iv) ->
-							io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
-							Some(iv)
+							(*
+								The parent inline object might have been cancelled while analyzing the inlined method body
+								If the parent inline object is cancelled the inlining of this method will no longer happen,
+								so the return value must be cancelled.
+							*)
+							if io.io_cancelled then begin
+								cancel_iv iv e.epos;
+								None
+							end else begin
+								io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
+								Some(iv)
+							end
 						| None -> None
 					end
 				| None ->

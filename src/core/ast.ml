@@ -219,6 +219,7 @@ and expr_def =
 	| EUntyped of expr
 	| EThrow of expr
 	| ECast of expr * type_hint option
+	| EIs of expr * type_hint
 	| EDisplay of expr * display_kind
 	| EDisplayNew of placed_type_path
 	| ETernary of expr * expr * expr
@@ -234,9 +235,44 @@ and type_param = {
 	tp_meta : metadata;
 }
 
+(**
+	This structure represents a documentation comment of a symbol.
+
+	Use `Ast.get_doc_text` to generate a final user-readable text for a doc_block.
+*)
 and doc_block = {
+	(** Contains own docs written nearby the symbol in Haxe code *)
 	doc_own: string option;
-	mutable doc_inherited: (unit -> (string option)) list
+	(**
+		This field is for docs pointed by @:inheritDoc meta.
+
+		It's populated with `InheritDoc.build_*` functions.
+		Each string in this list is compiled of a doc a single @:inheritDoc points to.
+
+		E.g. calling `InheritDoc.build_class_field_doc` for `field4` (from sample below)
+		will produce `doc_inherited = ["Own field3 doc"; "Own field2 doc\nOwn field1 doc"]`.
+
+		Sample:
+		```
+		class MyClass {
+
+			/** Own field1 doc */
+			function field1();
+
+			/** Own field2 doc */
+			@:inheritDoc(MyClass.field1) function field2();
+
+			/** Own field3 doc */
+			function field2();
+
+			/** Own field4 doc */
+			@:inheritDoc(MyClass.field3)
+			@:inheritDoc(MyClass.field2)
+			function field4();
+		}
+		```
+	*)
+	mutable doc_inherited: string list;
 }
 
 and documentation = doc_block option
@@ -254,6 +290,8 @@ and access =
 	| AMacro
 	| AFinal
 	| AExtern
+	| AAbstract
+	| AOverload
 
 and placed_access = access * pos
 
@@ -290,6 +328,7 @@ type class_flag =
 	| HExtends of placed_type_path
 	| HImplements of placed_type_path
 	| HFinal
+	| HAbstract
 
 type abstract_flag =
 	| AbPrivate
@@ -297,6 +336,7 @@ type abstract_flag =
 	| AbTo of type_hint
 	| AbOver of type_hint
 	| AbExtern
+	| AbEnum
 
 type enum_constructor = {
 	ec_name : placed_name;
@@ -369,9 +409,16 @@ let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
 
 let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
 
+(**
+	Generates full doc block text out of `doc_block` structure
+	by concatenating `d.doc_own` and all entries of `d.doc_inherited` with new lines
+	in between.
+*)
 let gen_doc_text d =
 	let docs =
-		match d.doc_own with Some s -> [s] | None -> []
+		match d.doc_own with
+		| Some s -> s :: d.doc_inherited
+		| None -> d.doc_inherited
 	in
 	String.concat "\n" docs
 
@@ -431,6 +478,8 @@ let s_access = function
 	| AMacro -> "macro"
 	| AFinal -> "final"
 	| AExtern -> "extern"
+	| AAbstract -> "abstract"
+	| AOverload -> "overload"
 
 let s_placed_access (a,_) = s_access a
 
@@ -726,6 +775,10 @@ let map_expr loop (e,p) =
 		let e = loop e in
 		let t = opt type_hint t in
 		ECast (e,t)
+	| EIs (e,t) ->
+		let e = loop e in
+		let t = type_hint t in
+		EIs (e,t)
 	| EDisplay (e,f) -> EDisplay (loop e,f)
 	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) ->
@@ -747,7 +800,7 @@ let iter_expr loop (e,p) =
 	match e with
 	| EConst _ | EContinue | EBreak | EDisplayNew _ | EReturn None -> ()
 	| EParenthesis e1 | EField(e1,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
-	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EUntyped e1 -> loop e1;
+	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EIs(e1,_) | EUntyped e1 -> loop e1;
 	| EArray(e1,e2) | EBinop(_,e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
 	| ETernary(e1,e2,e3) | EIf(e1,e2,Some e3) -> loop e1; loop e2; loop e3;
 	| EArrayDecl el | ENew(_,el) | EBlock el -> List.iter loop el
@@ -816,6 +869,7 @@ module Printer = struct
 		| EThrow e -> "throw " ^ s_expr_inner tabs e
 		| ECast (e,Some (t,_)) -> "cast (" ^ s_expr_inner tabs e ^ ", " ^ s_complex_type tabs t ^ ")"
 		| ECast (e,None) -> "cast " ^ s_expr_inner tabs e
+		| EIs (e,(t,_)) -> s_expr_inner tabs e ^ " is " ^ s_complex_type tabs t
 		| ETernary (e1,e2,e3) -> s_expr_inner tabs e1 ^ " ? " ^ s_expr_inner tabs e2 ^ " : " ^ s_expr_inner tabs e3
 		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
@@ -1112,6 +1166,9 @@ module Expr = struct
 			| ECast(e1,_) ->
 				add "ECast";
 				loop e1;
+			| EIs(e1,_) ->
+				add "EIs";
+				loop e1;
 			| EDisplay(e1,dk) ->
 				add ("EDisplay " ^ (s_display_kind dk));
 				loop e1
@@ -1131,6 +1188,20 @@ module Expr = struct
 		in
 		loop' "" e;
 		Buffer.contents buf
+
+	let find_ident e =
+		let rec loop e = match fst e with
+			| EConst ct ->
+				begin match ct with
+				| Ident s ->
+					Some s
+				| _ ->
+					None
+				end
+			| _ ->
+				None
+		in
+		loop e
 end
 
 let has_meta_option metas meta s =

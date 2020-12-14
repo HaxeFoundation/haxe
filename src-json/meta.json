@@ -395,12 +395,24 @@
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
+		"name": "ForwardNew",
+		"metadata": ":forward.new",
+		"doc": "Forwards constructor call to underlying type.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "ForwardStatics",
 		"metadata": ":forwardStatics",
 		"doc": "Forwards static field access to underlying type.",
 		"params": ["List of field names"],
 		"targets": ["TAbstract"],
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
+	},
+	{
+		"name": "ForwardVariance",
+		"metadata": ":forward.variance",
+		"doc": "Forwards variance unification to underlying type.",
+		"targets": ["TAbstract"]
 	},
 	{
 		"name": "From",
@@ -521,13 +533,6 @@
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
-		"name": "Impl",
-		"metadata": ":impl",
-		"doc": "Used internally to mark abstract implementation fields.",
-		"targets": ["TAbstractField"],
-		"internal": true
-	},
-	{
 		"name": "PythonImport",
 		"metadata": ":pythonImport",
 		"doc": "Generates python import statement for extern classes.",
@@ -553,6 +558,12 @@
 		"metadata": ":include",
 		"doc": "",
 		"platforms": ["cpp"]
+	},
+	{
+		"name": "InheritDoc",
+		"metadata": ":inheritDoc",
+		"doc": "Append documentation from a parent field or class (if used without an argument) or from a specified class or field (if used like @:inheritDoc(pack.Some.field)).",
+		"targets": ["TClass", "TClass", "TEnum", "TAbstract", "TAnyField"]
 	},
 	{
 		"name": "InitPackage",
@@ -787,7 +798,7 @@
 	{
 		"name": "NoDoc",
 		"metadata": ":noDoc",
-		"doc": "Prevents a type from being included in documentation generation."
+		"doc": "Prevents a type or field from being included in documentation generation."
 	},
 	{
 		"name": "NoExpr",
@@ -1007,12 +1018,6 @@
 		"links": ["https://haxe.org/manual/lf-condition-compilation.html"]
 	},
 	{
-		"name": "RequiresAssign",
-		"metadata": ":requiresAssign",
-		"doc": "Used internally to mark certain abstract operator overloads.",
-		"internal": true
-	},
-	{
 		"name": "Resolve",
 		"metadata": ":resolve",
 		"doc": "Abstract fields marked with this metadata can be used to resolve unknown fields.",
@@ -1195,6 +1200,12 @@
 		"doc": "Adds the `transient` flag to the class field.",
 		"platforms": ["java"],
 		"targets": ["TClassField"]
+	},
+	{
+		"name": "Transitive",
+		"metadata": ":transitive",
+		"doc": "Allows transitive casts with an abstract.",
+		"targets": ["TAbstract"]
 	},
 	{
 		"name": "ValueUsed",

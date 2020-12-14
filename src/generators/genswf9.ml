@@ -247,7 +247,7 @@ let rec type_id ctx t =
 
 let type_opt ctx t =
 	match follow_basic t with
-	| TDynamic _ | TMono _ -> None
+	| TDynamic _ | TMono _ | TAbstract ({a_path = [],"Void"},_) -> None
 	| _ -> Some (type_id ctx t)
 
 let type_void ctx t =
@@ -364,7 +364,7 @@ let property ctx fa t =
 			| "ffloor" | "fceil" | "fround" -> ident (String.sub p 1 (String.length p - 1)), None, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
-	| TInst ({ cl_interface = true } as c,_) ->
+	| TInst (c,_) when (has_class_flag c CInterface) ->
 		(* lookup the interface in which the field was actually declared *)
 		let rec loop c =
 			try
@@ -935,7 +935,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
 			let requires_cast = match fa with
-				| FInstance({cl_interface=true},_,{cf_kind = Var _}) ->
+				| FInstance(c,_,{cf_kind = Var _}) when (has_class_flag c CInterface) ->
 					(* we have to cast var access on interfaces *)
 					true
 				| FInstance(_,_,cf) ->
@@ -1927,12 +1927,12 @@ let generate_class_statics ctx c const =
 	) c.cl_ordered_statics
 
 let need_init ctx c =
-	not ctx.swc && not c.cl_extern && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) c.cl_ordered_statics
+	not ctx.swc && not (has_class_flag c CExtern) && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) c.cl_ordered_statics
 
 let generate_extern_inits ctx =
 	List.iter (fun t ->
 		match t with
-		| TClassDecl c when c.cl_extern ->
+		| TClassDecl c when (has_class_flag c CExtern) ->
 			(match c.cl_init with
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
@@ -1966,7 +1966,7 @@ let generate_inits ctx =
 
 let generate_class_init ctx c hc =
 	write ctx HGetGlobalScope;
-	if c.cl_interface then
+	if (has_class_flag c CInterface) then
 		write ctx HNull
 	else begin
 		let path = (match c.cl_super with None -> ([],"Object") | Some (sup,_) -> sup.cl_path) in
@@ -1983,7 +1983,7 @@ let generate_class_init ctx c hc =
 			write ctx (HInitProp (ident f.cf_name));
 		| _ -> ()
 	) c.cl_ordered_statics;
-	if not c.cl_interface then write ctx HPopScope;
+	if not (has_class_flag c CInterface) then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
 	(match c.cl_init with
@@ -2090,7 +2090,7 @@ let generate_field_kind ctx f c stat =
 				hlm_kind = kind;
 			})
 		);
-	| _ when c.cl_interface && not stat ->
+	| _ when (has_class_flag c CInterface || has_class_field_flag f CfAbstract) && not stat ->
 		(match follow f.cf_type, f.cf_kind with
 		| TFun (args,tret), Method (MethNormal | MethInline) ->
 			let dparams = ref None in
@@ -2147,7 +2147,8 @@ let mark_has_protected c = c.cl_meta <- (has_protected_meta,[],null_pos) :: c.cl
 let find_first_nonextern_accessor_implementor cl name =
 	let rec loop cl cl_found =
 		match cl.cl_super with
-		| Some ({ cl_extern = true }, _) | None -> cl_found
+		| None -> cl_found
+		| Some (c, _) when (has_class_flag c CExtern) -> cl_found
 		| Some (cl_super, _) ->
 			let has_field = PMap.exists name cl_super.cl_fields in
 			let cl_found = if has_field then cl_super else cl_found in
@@ -2163,7 +2164,7 @@ let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl
 			let was_override = has_class_field_flag accessor_cf CfOverride in
 			if was_override then remove_class_field_flag accessor_cf CfOverride;
 			let name, mtype =
-				if cl.cl_interface then begin
+				if (has_class_flag cl CInterface) then begin
 					let (args,tret) = f_iface prop_cf in
 					let mtype = end_fun ctx args None tret in
 					HMName (reserved prop_cf.cf_name, HNNamespace (make_class_ns cl)), mtype
@@ -2323,7 +2324,7 @@ let realize_required_accessors ctx cl =
 	let rec has_nonextern_field cl name =
 		if PMap.exists name cl.cl_fields then true
 		else match cl.cl_super with
-		| Some ({ cl_extern = false } as csup, _) -> has_nonextern_field csup name
+		| Some (csup, _) when not (has_class_flag csup CExtern) -> has_nonextern_field csup name
 		| _ -> false
 	in
 
@@ -2336,7 +2337,7 @@ let realize_required_accessors ctx cl =
 				if not (is_flash_property cf) then
 					abort (Printf.sprintf "Interface %s requires property %s to be marked with @:flash.property" (s_type_path iface.cl_path) cf.cf_name) cf.cf_pos
 			) native;
-			if actual_cl.cl_extern then begin
+			if (has_class_flag actual_cl CExtern) then begin
 				let mk_field_access () =
 					let ethis = mk (TConst TThis) (TInst (cl,tl)) null_pos in
 					mk (TField (ethis, FInstance (actual_cl, actual_tl, cf))) cf.cf_type null_pos
@@ -2401,7 +2402,7 @@ let generate_class ctx c =
 	ctx.cur_class <- c;
 	let cid , cnargs = (match c.cl_constructor with
 		| None ->
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				{ (empty_method ctx null_pos) with hlmt_function = None }, 0
 			else
 				generate_construct ctx {
@@ -2454,7 +2455,7 @@ let generate_class ctx c =
 				| (Meta.Protected,[],_) -> protect()
 				| _ -> loop_meta l
 		in
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			HMName (reserved f.cf_name, HNNamespace (make_class_ns c))
 		else
 			loop_meta (find_meta c)
@@ -2471,7 +2472,7 @@ let generate_class ctx c =
 				maybe_gen_instance_setter ctx c f acc alloc_slot
 			else
 				maybe_gen_static_setter ctx c f acc alloc_slot
-		| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } when not c.cl_interface && not (Meta.has Meta.IsVar f.cf_meta) ->
+		| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } when not (has_class_flag c CInterface) && not (Meta.has Meta.IsVar f.cf_meta) ->
 			(* if the accessor methods were defined in super classes, we still need to generate native getter/setter *)
 			let acc =
 				if read = AccCall then begin
@@ -2554,7 +2555,7 @@ let generate_class ctx c =
 			hlf_metas = None;
 		} :: fields
 	end in
-	let fields = if not c.cl_interface then fields @ realize_required_accessors ctx c else fields in
+	let fields = if not (has_class_flag c CInterface) then fields @ realize_required_accessors ctx c else fields in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
 	let statics = List.rev (List.fold_left (fun acc f ->
@@ -2591,7 +2592,7 @@ let generate_class ctx c =
 		if Meta.has has_protected_meta csup.cl_meta then begin
 			has_protected := Some (make_class_ns c);
 			mark_has_protected c (* also mark this class with the meta for further child classes *)
-		end else if csup.cl_extern then begin
+		end else if (has_class_flag csup CExtern) then begin
 			let rec loop csup =
 				if List.exists is_cf_protected csup.cl_ordered_fields then begin
 					has_protected := Some (make_class_ns c);
@@ -2606,13 +2607,13 @@ let generate_class ctx c =
 	{
 		hlc_index = 0;
 		hlc_name = name;
-		hlc_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
+		hlc_super = (if (has_class_flag c CInterface) then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
 		hlc_sealed = not (is_dynamic c);
-		hlc_final = c.cl_final;
-		hlc_interface = c.cl_interface;
+		hlc_final = has_class_flag c CFinal;
+		hlc_interface = (has_class_flag c CInterface);
 		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
-			if not c.cl_interface then abort "Can't implement class in Flash9" c.cl_pos;
+			if not (has_class_flag c CInterface) then abort "Can't implement class in Flash9" c.cl_pos;
 			let pack, name = real_path c.cl_path in
 			HMMultiName (Some name,[HNPublic (Some (String.concat "." pack))])
 		) c.cl_implements);
@@ -2734,7 +2735,7 @@ let rec generate_type ctx t =
 	match t with
 	| TClassDecl c ->
 		if c.cl_path = (["flash";"_Boot"],"RealBoot") then c.cl_path <- ctx.boot;
-		if c.cl_extern && (c.cl_path <> ([],"Dynamic") || Meta.has Meta.RealPath c.cl_meta) then
+		if (has_class_flag c CExtern) && (c.cl_path <> ([],"Dynamic") || Meta.has Meta.RealPath c.cl_meta) then
 			None
 		else
 			let debug = do_debug ctx c.cl_meta in

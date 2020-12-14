@@ -21,7 +21,7 @@ class Exception extends PyException {
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static function caught(value:Any):Exception {
-		if(Std.is(value, Exception)) {
+		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, BaseException)) {
 			return new Exception(UBuiltins.str(value), null, value);

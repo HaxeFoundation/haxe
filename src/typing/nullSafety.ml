@@ -1391,19 +1391,20 @@ class expr_checker mode immediate_execution report =
 				| TNew (cls, params, args) ->
 					let ctor =
 						try
-							Some (get_constructor (fun ctor -> apply_params cls.cl_params params ctor.cf_type) cls)
+							Some (get_constructor cls)
 						with
 							| Not_found -> None
 					in
 					(match ctor with
 						| None ->
 							List.iter self#check_expr args
-						| Some (ctor_type, _) ->
+						| Some cf ->
 							let rec traverse t =
 								match follow t with
 									| TFun (types, _) -> self#check_args e_new args types
 									| _ -> fail ~msg:"Unexpected constructor type." e_new.epos __POS__
 							in
+							let ctor_type = apply_params cls.cl_params params cf.cf_type in
 							traverse ctor_type
 					)
 				| _ -> fail ~msg:"TNew expected" e_new.epos __POS__
@@ -1486,7 +1487,7 @@ class class_checker cls immediate_execution report =
 		*)
 		method check =
 			validate_safety_meta report cls_meta;
-			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
+			if is_safe_class && (not (has_class_flag cls CExtern)) && (not (has_class_flag cls CInterface)) then
 				self#check_var_fields;
 			let check_field is_static f =
 				validate_safety_meta report f.cf_meta;

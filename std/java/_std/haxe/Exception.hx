@@ -19,7 +19,7 @@ class Exception extends NativeException {
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static function caught(value:Any):Exception {
-		if(Std.is(value, Exception)) {
+		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else if(Std.isOfType(value, Throwable)) {
 			return new Exception((value:Throwable).getMessage(), null, value);

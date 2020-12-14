@@ -43,6 +43,7 @@ type decl_flag =
 	| DInline
 	| DPublic
 	| DStatic
+	| DOverload
 
 type type_decl_completion_mode =
 	| TCBeforePackage
@@ -101,6 +102,7 @@ let s_decl_flag = function
 	| DInline -> "inline"
 	| DPublic -> "public"
 	| DStatic -> "static"
+	| DOverload -> "overload"
 
 let syntax_completion kind so p =
 	raise (SyntaxCompletion(kind,DisplayTypes.make_subject so p))
@@ -204,23 +206,24 @@ let decl_flag_to_class_flag (flag,p) = match flag with
 	| DPrivate -> Some HPrivate
 	| DExtern -> Some HExtern
 	| DFinal -> Some HFinal
-	| DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_class flag p
+	| DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_class flag p
 
 let decl_flag_to_enum_flag (flag,p) = match flag with
 	| DPrivate -> Some EPrivate
 	| DExtern -> Some EExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_enum flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_enum flag p
 
 let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DPrivate -> Some AbPrivate
 	| DExtern -> Some AbExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic -> unsupported_decl_flag_abstract flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p
 
 let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)
 	| DMacro -> Some (AMacro,p)
 	| DDynamic -> Some (ADynamic,p)
 	| DInline -> Some (AInline,p)
+	| DOverload -> Some (AOverload,p)
 	| DExtern | DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
 
 let serror() = raise (Stream.Error "")
@@ -296,6 +299,7 @@ let rec make_unop op ((v,p2) as e) p1 =
 	match v with
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
+	| EIs (e, t) -> EIs (make_unop op e p1, t), punion p1 p2
 	| EConst (Int i) when op = Neg -> EConst (Int (neg i)),punion p1 p2
 	| EConst (Float j) when op = Neg -> EConst (Float (neg j)),punion p1 p2
 	| _ -> EUnop (op,Prefix,e), punion p1 p2
@@ -306,11 +310,6 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| EBinop (bop,e,e2) -> EBinop (bop, make_meta name params e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
-
-let make_is e (t,p_t) p p_is =
-	let e_is = EField((EConst(Ident "Std"),null_pos),"isOfType"),p_is in
-	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
-	ECall(e_is,[e;e2]),p
 
 let handle_xml_literal p1 =
 	Lexer.reset();
@@ -417,3 +416,6 @@ let check_signature_mark e p1 p2 =
 			else e
 		end
 	end
+
+let convert_abstract_flags flags =
+	ExtList.List.filter_map decl_flag_to_abstract_flag flags

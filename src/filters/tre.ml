@@ -99,7 +99,7 @@ let is_recursive_named_local_call fn_var callee args =
 let is_recursive_method_call cls field callee args =
 	match callee.eexpr, args with
 	(* member abstract function*)
-	| TField (_, FStatic (_, cf)), { eexpr = TLocal v } :: _ when has_meta Meta.Impl cf.cf_meta ->
+	| TField (_, FStatic (_, cf)), { eexpr = TLocal v } :: _ when has_class_field_flag cf CfImpl ->
 		cf == field && has_meta Meta.This v.v_meta
 	(* static method *)
 	| TField (_, FStatic (_, cf)), _ ->

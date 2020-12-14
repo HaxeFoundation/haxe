@@ -20,6 +20,7 @@ and error_msg =
 	| Stack of error_msg * error_msg
 	| Call_error of call_error
 	| No_constructor of module_type
+	| Abstract_class of module_type
 
 and type_not_found_reason =
 	| Private_type
@@ -277,6 +278,7 @@ let rec error_msg = function
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Call_error err -> s_call_error err
 	| No_constructor mt -> (s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
+	| Abstract_class mt -> (s_type_path (t_infos mt).mt_path) ^ " is abstract and cannot be constructed"
 
 and s_call_error = function
 	| Not_enough_arguments tl ->

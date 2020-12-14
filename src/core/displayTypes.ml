@@ -86,6 +86,7 @@ module DiagnosticsKind = struct
 		| DKParserError
 		| DKDeprecationWarning
 		| DKInactiveBlock
+		| DKMissingFields
 
 	let to_int = function
 		| DKUnusedImport -> 0
@@ -95,13 +96,20 @@ module DiagnosticsKind = struct
 		| DKParserError -> 4
 		| DKDeprecationWarning -> 5
 		| DKInactiveBlock -> 6
+		| DKMissingFields -> 7
 end
 
 module CompletionResultKind = struct
+	type expected_type_completion = {
+		expected_type : CompletionItem.CompletionType.t;
+		expected_type_followed : CompletionItem.CompletionType.t;
+		compatible_types : CompletionItem.CompletionType.t list;
+	}
+
 	type t =
 		| CRField of CompletionItem.t * pos * Type.t option * (Type.t * Type.t) option
 		| CRStructureField
-		| CRToplevel of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option
+		| CRToplevel of expected_type_completion option
 		| CRMetadata
 		| CRTypeHint
 		| CRExtends
@@ -110,7 +118,7 @@ module CompletionResultKind = struct
 		| CRImport
 		| CRUsing
 		| CRNew
-		| CRPattern of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option * bool
+		| CRPattern of expected_type_completion option * bool
 		| CROverride
 		| CRTypeRelation
 		| CRTypeDecl
@@ -118,9 +126,10 @@ module CompletionResultKind = struct
 	let to_json ctx kind =
 		let expected_type_fields t = match t with
 			| None -> []
-			| Some(ct1,ct2) -> [
-					"expectedType",CompletionItem.CompletionType.to_json ctx ct1;
-					"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ct2;
+			| Some ext -> [
+					"expectedType",CompletionItem.CompletionType.to_json ctx ext.expected_type;
+					"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ext.expected_type_followed;
+					"compatibleTypes",jarray (List.map (CompletionItem.CompletionType.to_json ctx) ext.compatible_types);
 				]
 		in
 		let i,args = match kind with
@@ -342,3 +351,58 @@ let string_of_symbol = function
 	| SKEnumField ef -> ef.ef_name
 	| SKVariable v -> v.v_name
 	| SKOther -> ""
+
+type hover_result = {
+	hitem : CompletionItem.t;
+	hpos : pos;
+	hexpected : WithType.t option;
+}
+
+type fields_result = {
+	fitems : CompletionItem.t list;
+	fkind : CompletionResultKind.t;
+	fsubject : completion_subject;
+}
+
+type signature_kind =
+	| SKCall
+	| SKArrayAccess
+
+(* diagnostics *)
+
+type missing_field_cause =
+	| AbstractParent of tclass * tparams
+	| ImplementedInterface of tclass * tparams
+	| PropertyAccessor of tclass_field * bool (* true = getter *)
+	| FieldAccess
+	| FinalFields of tclass_field list
+
+and missing_fields_diagnostics = {
+	mf_pos : pos;
+	mf_on : module_type;
+	mf_fields : (tclass_field * Type.t * CompletionItem.CompletionType.t) list;
+	mf_cause : missing_field_cause;
+}
+
+and module_diagnostics =
+	| MissingFields of missing_fields_diagnostics
+
+type diagnostics_context = {
+	mutable removable_code : (string * pos * pos) list;
+	mutable import_positions : (pos,bool ref) PMap.t;
+	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
+	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
+	mutable diagnostics_messages : (string * pos * DiagnosticsKind.t * DiagnosticsSeverity.t) list;
+	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
+}
+
+type display_exception_kind =
+	| DisplayDiagnostics of diagnostics_context
+	| Statistics of string
+	| ModuleSymbols of string
+	| Metadata of string
+	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind) option
+	| DisplayHover of hover_result option
+	| DisplayPositions of pos list
+	| DisplayFields of fields_result option
+	| DisplayPackage of string list

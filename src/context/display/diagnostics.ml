@@ -7,7 +7,6 @@ open Display
 open DisplayTypes.DisplayMode
 open DisplayTypes
 open DisplayException
-open DiagnosticsTypes
 
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
@@ -105,6 +104,7 @@ let prepare com =
 		dead_blocks = Hashtbl.create 0;
 		diagnostics_messages = [];
 		unresolved_identifiers = [];
+		missing_fields = PMap.empty;
 	} in
 	List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get c.cl_pos.pfile) ->
@@ -147,8 +147,18 @@ let prepare com =
 					let b' = PMap.find p dctx.import_positions in
 					b' := true
 				end
-			) m.m_extra.m_display.m_import_positions
-		) com.modules
+			) m.m_extra.m_display.m_import_positions;
+		) com.modules;
+		List.iter (function
+			| MissingFields mf ->
+				let p = mf.mf_pos in
+				begin try
+					let _,l = PMap.find p dctx.missing_fields in
+					l := mf :: !l
+				with Not_found ->
+					dctx.missing_fields <- PMap.add p (mf.mf_on,ref [mf]) dctx.missing_fields
+				end
+		) com.display_information.module_diagnostics
 	in
 	process_modules com;
 	begin match com.get_macros() with

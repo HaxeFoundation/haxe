@@ -137,12 +137,10 @@ private class SqliteConnection implements Connection {
 
 	public function commit():Void {
 		request("COMMIT");
-		startTransaction(); // match mysql usage
 	}
 
 	public function rollback():Void {
 		request("ROLLBACK");
-		startTransaction(); // match mysql usage
 	}
 }
 

@@ -342,6 +342,7 @@ enum abstract KeywordKind(String) to String {
 	var Extern = "extern";
 	var Dynamic = "dynamic";
 	var Override = "override";
+	var Overload = "overload";
 	var Class = "class";
 	var Interface = "interface";
 	var Enum = "enum";
@@ -412,6 +413,7 @@ typedef FieldCompletionSubject<T> = DisplayItemOccurrence<T> & {
 typedef ToplevelCompletion<T> = {
 	var ?expectedType:JsonType<T>;
 	var ?expectedTypeFollowed:JsonType<T>;
+	var ?compatibleTypes:Array<JsonType<Dynamic>>;
 }
 
 typedef StructExtensionCompletion = {
@@ -475,10 +477,12 @@ enum abstract FindReferencesKind(String) to String {
 		Does not look for references to parent or overriding methods.
 	**/
 	var Direct = "direct";
+
 	/**
 		Find references to the base field and all the overidding fields in the inheritance chain.
 	**/
 	var WithBaseAndDescendants = "withBaseAndDescendants";
+
 	/**
 		Find references to the requested field and references to all
 		descendants of the requested field.
@@ -501,6 +505,7 @@ typedef HoverDisplayItemOccurence<T> = DisplayItemOccurrence<T> & {
 		var ?name:{
 			var name:String;
 			var kind:HoverExpectedNameKind;
+			var ?doc:String;
 		};
 	};
 }

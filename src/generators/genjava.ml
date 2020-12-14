@@ -1918,7 +1918,7 @@ let generate con =
 	in
 
 	let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
-		let is_interface = cl.cl_interface in
+		let is_interface = (has_class_flag cl CInterface) in
 		let name, is_new, is_explicit_iface = match cf.cf_name with
 			| "new" -> snd cl.cl_path, true, false
 			| name when String.contains name '.' ->
@@ -1943,13 +1943,13 @@ let generate con =
 					)
 				end (* TODO see how (get,set) variable handle when they are interfaces *)
 			| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
-				List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
+				List.iter (fun cf -> if (has_class_flag cl CInterface) || cf.cf_expr <> None then
 					gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads
 			| Var _ | Method MethDynamic -> ()
 			| Method mkind ->
 				List.iter (fun cf ->
-					if cl.cl_interface || cf.cf_expr <> None then
+					if (has_class_flag cl CInterface) || (has_class_flag cl CAbstract) || cf.cf_expr <> None then
 						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads;
 				let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
@@ -1987,9 +1987,11 @@ let generate con =
 				let visibility = if is_interface then "" else "public" in
 
 				let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
+				let is_abstract = has_class_field_flag cf CfAbstract in
+				let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 				let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
 				let v_n = if is_static then "static" else if is_override && not is_interface then "" else if not is_virtual then "final" else "" in
-				let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 
 				let params = List.map snd cl.cl_params in
 				let ret_type, args = match follow cf_type, follow cf.cf_type with
@@ -2012,7 +2014,7 @@ let generate con =
 					| _ ->
 							print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
 				);
-				if is_interface || List.mem "native" modifiers then
+				if is_interface || List.mem "native" modifiers || is_abstract then
 					write w ";"
 				else begin
 					let rec loop meta =
@@ -2107,9 +2109,11 @@ let generate con =
 		newline w;
 		gen_annotations w cl.cl_meta;
 
-		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-		let modifiers = if cl.cl_final then "final" :: modifiers else modifiers in
-		let is_final = cl.cl_final in
+		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if (has_class_flag cl CInterface) then "interface" else "class") "public" [] in
+		let is_final = has_class_flag cl CFinal in
+		let is_abstract = has_class_flag cl CAbstract in
+		let modifiers = if is_final then "final" :: modifiers else modifiers in
+		let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 
 		write_parts w (access :: modifiers @ [clt; (change_clname (snd cl.cl_path))]);
 
@@ -2126,7 +2130,7 @@ let generate con =
 		(if is_some cl.cl_super then print w " extends %s" (cl_p_to_string (get cl.cl_super)));
 		(match cl.cl_implements with
 			| [] -> ()
-			| _ -> print w " %s %s" (if cl.cl_interface then "extends" else "implements") (String.concat ", " (List.map cl_p_to_string cl.cl_implements))
+			| _ -> print w " %s %s" (if (has_class_flag cl CInterface) then "extends" else "implements") (String.concat ", " (List.map cl_p_to_string cl.cl_implements))
 		);
 		(* class head ok: *)
 		(* public class Test<A> : X, Y, Z where A : Y *)
@@ -2181,7 +2185,7 @@ let generate con =
 		);
 
 		(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-		(if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
+		(if not (has_class_flag cl CInterface) then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
 		List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
 
 		end_block w;
@@ -2222,12 +2226,12 @@ let generate con =
 		Codegen.map_source_header gen.gcon (fun s -> print w "// %s\n" s);
 		match md_tp with
 			| TClassDecl cl ->
-				if not cl.cl_extern then begin
+				if not (has_class_flag cl CExtern) then begin
 					gen_class w cl;
 					newline w;
 					newline w
 				end;
-				(not cl.cl_extern)
+				(not (has_class_flag cl CExtern))
 			| TEnumDecl e ->
 				if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 					gen_enum w e;

@@ -556,7 +556,7 @@ let gen_type ctx t acc =
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
-		if c.cl_extern then
+		if (has_class_flag c CExtern) then
 			acc
 		else
 			gen_class ctx c :: acc
@@ -572,7 +572,7 @@ let gen_static_vars ctx t =
 	match t with
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ -> []
 	| TClassDecl c ->
-		if c.cl_extern then
+		if (has_class_flag c CExtern) then
 			[]
 		else
 			List.fold_right (fun f acc ->
@@ -641,7 +641,7 @@ let gen_name ctx acc t =
 		in
 		setname :: setconstrs :: meta @ acc
 	| TClassDecl c ->
-		if c.cl_extern || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
+		if (has_class_flag c CExtern) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
 			acc
 		else
 			let p = pos ctx c.cl_pos in

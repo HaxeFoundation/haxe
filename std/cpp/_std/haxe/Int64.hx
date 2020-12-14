@@ -136,6 +136,7 @@ private extern class ___Int64 {
 private typedef __Int64 = ___Int64;
 
 @:coreApi
+@:transitive
 abstract Int64(__Int64) from __Int64 to __Int64 {
 	public #if !cppia inline #end function copy():Int64
 		return this;

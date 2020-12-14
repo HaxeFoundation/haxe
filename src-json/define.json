@@ -46,7 +46,8 @@
 		"name": "CsVer",
 		"define": "cs_ver",
 		"doc": "The C# version to target.",
-		"platforms": ["cs"]
+		"platforms": ["cs"],
+		"params": ["version"]
 	},
 	{
 		"name": "NoCppiaAst",
@@ -114,7 +115,8 @@
 	{
 		"name": "DumpPath",
 		"define": "dump_path",
-		"doc": "Path to generate dumps to (default: \"dump\")."
+		"doc": "Path to generate dumps to (default: \"dump\").",
+		"params": ["path"]
 	},
 	{
 		"name": "DumpDependencies",
@@ -251,7 +253,8 @@
 		"name": "HxcppApiLevel",
 		"define": "hxcpp_api_level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",
-		"platforms": ["cpp"]
+		"platforms": ["cpp"],
+		"reserved": true
 	},
 	{
 		"name": "HxcppGcGenerational",
@@ -337,6 +340,18 @@
 		"name": "Jvm",
 		"define": "jvm",
 		"doc": "Generate jvm directly.",
+		"platforms": ["java"]
+	},
+	{
+		"name": "JvmCompressionLevel",
+		"define": "jvm.compression-level",
+		"doc": "Set the compression level of the generated file between 0 (no compression) and 9 (highest compression). Default: 6",
+		"platforms": ["java"]
+	},
+	{
+		"name": "JvmDynamicLevel",
+		"define": "jvm.dynamic-level",
+		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures",
 		"platforms": ["java"]
 	},
 	{
@@ -428,11 +443,6 @@
 		"platforms": ["cs", "java", "cpp", "hl"]
 	},
 	{
-		"name": "NoCOpt",
-		"define": "no_copt",
-		"doc": "Disable completion optimization (for debug purposes)."
-	},
-	{
 		"name": "NoDebug",
 		"define": "no_debug",
 		"doc": "Remove all debug macros from cpp output."
@@ -492,11 +502,6 @@
 		"define": "objc",
 		"doc": "Sets the hxcpp output to Objective-C++ classes. Must be defined for interop.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "OldConstructorInline",
-		"define": "old-constructor-inline",
-		"doc": "Use old constructor inlining logic (from Haxe 3.4.2) instead of the reworked version."
 	},
 	{
 		"name": "OldErrorFormat",

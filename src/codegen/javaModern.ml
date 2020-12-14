@@ -758,7 +758,7 @@ module Converter = struct
 			PMap.add s (ct_type_param s) acc
 		) acc params
 
-	let convert_field ctx is_method (jc : jclass) (jf : jfield) p =
+	let convert_field ctx is_method (jc : jclass) (is_interface : bool) (jf : jfield) p =
 		let ctx = {
 			type_params = type_param_lut ctx.type_params jf.jf_types;
 		} in
@@ -796,8 +796,9 @@ module Converter = struct
 				add_native_meta();
 				String.concat "_" parts
 		in
-		if is_method then add_meta (Meta.Overload,[],p);
+		if is_method then add_access (AOverload,p);
 		if AccessFlags.has_flag jf.jf_flags MFinal then add_access (AFinal,p);
+		if not is_interface && AccessFlags.has_flag jf.jf_flags MAbstract then add_access (AAbstract,p);
 		let extract_local_names () =
 			let default i =
 				"param" ^ string_of_int i
@@ -881,7 +882,8 @@ module Converter = struct
 		let add_meta m = meta := m :: !meta in
 		add_meta (Meta.LibType,[],p);
 		let is_interface = AccessFlags.has_flag jc.jc_flags MInterface in
-		if is_interface then add_flag HInterface;
+		if is_interface then add_flag HInterface
+		else if AccessFlags.has_flag jc.jc_flags MAbstract then add_flag HAbstract;
 		begin match jc.jc_super with
 			| TObject(([],""),_)
 			| TObject((["java";"lang"],"Object"),_) ->
@@ -913,7 +915,7 @@ module Converter = struct
 					let key = (jf.jf_name,sig_key) in
 					if not (Hashtbl.mem known_sigs key) then begin
 						Hashtbl.add known_sigs key jf;
-						DynArray.add fields (convert_field ctx true jc jf p)
+						DynArray.add fields (convert_field ctx true jc is_interface jf p)
 					end
 				end
 			) jc.jc_methods;
@@ -921,7 +923,7 @@ module Converter = struct
 				if should_generate jf then begin
 					if not (Hashtbl.mem known_names jf.jf_name) then begin
 						Hashtbl.add known_names jf.jf_name jf;
-						DynArray.add fields (convert_field ctx false jc jf p)
+						DynArray.add fields (convert_field ctx false jc is_interface jf p)
 					end
 				end
 			) jc.jc_fields;

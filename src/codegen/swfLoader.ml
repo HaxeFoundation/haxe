@@ -71,7 +71,7 @@ let rec make_tpath = function
 			| [] , "QName" -> ["flash";"utils"], "QName"
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
-			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
+			| ["__AS3__";"vec"] , "Vector" -> pdyn := true; ["flash"], "Vector"
 			| _ -> lowercase_pack pack, name
 		in
 		{
@@ -423,8 +423,8 @@ let build_class com c file =
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
-			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
+			d_meta = [(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
+			d_flags = [AbEnum;AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
 		(path.tpackage, [(EAbstract abstract_data,pos)])

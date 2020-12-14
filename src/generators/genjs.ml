@@ -142,7 +142,7 @@ let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s 
 let static_field ctx c f =
 	let s = f.cf_name in
 	match s with
-	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta ->
+	| "length" | "name" when not (has_class_flag c CExtern) || Meta.has Meta.HxGen c.cl_meta ->
 		(match f.cf_kind with
 		| Method _ when ctx.es_version >= 6 ->
 			"." ^ s
@@ -1180,7 +1180,7 @@ let generate_class___name__ ctx cl_path =
 	end
 
 let generate_class___isInterface__ ctx c =
-	if c.cl_interface && has_feature ctx "js.Boot.isInterface" then begin
+	if (has_class_flag c CInterface) && has_feature ctx "js.Boot.isInterface" then begin
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__isInterface__ = true" p;
 		newline ctx;
@@ -1435,7 +1435,7 @@ let generate_class_es6 ctx c =
 	let props_to_generate = if has_property_reflection then Codegen.get_properties c.cl_ordered_fields else [] in
 	let fields_to_generate =
 		if has_feature ctx "Type.getInstanceFields" then
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.filter is_physical_field c.cl_ordered_fields
 			else
 				List.filter is_physical_var_field nonmethod_fields
@@ -1634,8 +1634,8 @@ let generate_type ctx = function
 		(* Another special case for Std because we do not want to generate it if it's empty. *)
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
-		else if not c.cl_extern then begin
-			if (not c.cl_interface) || (need_to_generate_interface ctx c) then
+		else if not (has_class_flag c CExtern) then begin
+			if (not (has_class_flag c CInterface)) || (need_to_generate_interface ctx c) then
 				generate_class ctx c
 		end else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
 			generate_require ctx (get_generated_class_path c) c.cl_meta
@@ -1698,7 +1698,7 @@ let alloc_ctx com es_version =
 			dot_path e.e_path
 		| TClassDecl c ->
 			let p = get_generated_class_path c in
-			if c.cl_extern && not (Meta.has Meta.JsRequire c.cl_meta) then
+			if (has_class_flag c CExtern) && not (Meta.has Meta.JsRequire c.cl_meta) then
 				dot_path p
 			else
 				s_path ctx p
@@ -1887,7 +1887,7 @@ let generate com =
 		ctx.separator <- true;
 		newline ctx
 	);
-	if ctx.es_version < 6 && List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
+	if ctx.es_version < 6 && List.exists (function TClassDecl ({ cl_super = Some _ } as c) -> not (has_class_flag c CExtern) | _ -> false) com.types then begin
 		let extend_code =
 			"function $extend(from, fields) {\n" ^
 			(

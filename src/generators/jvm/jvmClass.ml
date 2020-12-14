@@ -48,7 +48,7 @@ class builder path_this path_super = object(self)
 		interface_offsets <- (pool#add_path path) :: interface_offsets;
 		interfaces <- (path,params) :: interfaces
 
-	method set_type_parameters (sl : string list) =
+	method set_type_parameters (sl : (string * jsignature list) list) =
 		type_parameters <- sl
 
 	method set_super_parameters (params : jtype_argument list) =
@@ -153,8 +153,15 @@ class builder path_this path_super = object(self)
 		let stl = match type_parameters with
 			| [] -> ""
 			| params ->
-				let stl = String.concat "" (List.map (fun n ->
-					Printf.sprintf "%s:Ljava/lang/Object;" n
+				let stl = String.concat "" (List.map (fun (n,jsigs) ->
+					let jsigs = match jsigs with
+						| [] -> [object_sig]
+						| _ -> jsigs
+					in
+					let s = String.concat "" (List.map (fun jsig ->
+						Printf.sprintf ":%s" (generate_signature true jsig)
+					) jsigs) in
+					Printf.sprintf "%s%s" n s
 				) params) in
 				Printf.sprintf "<%s>" stl
 		in

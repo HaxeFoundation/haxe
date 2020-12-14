@@ -240,7 +240,7 @@ extern class Syntax {
 	/**
 		Generates instance field access for reading on `object`
 	**/
-	@:deprecated("php.Syntax.getFiled() is deprecated. Use php.Syntax.field() instead.")
+	@:deprecated("php.Syntax.getField() is deprecated. Use php.Syntax.field() instead.")
 	static function getField<T>(object:AsVar<T>, fieldName:String):Dynamic;
 
 	/**

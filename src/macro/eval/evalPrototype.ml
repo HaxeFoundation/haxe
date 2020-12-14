@@ -41,7 +41,7 @@ let eval_expr ctx kind e =
 (* Creates constructor function for class [c], if it has a constructor. *)
 let create_constructor ctx c =
 	match c.cl_constructor with
-	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not c.cl_extern ->
+	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not (has_class_flag c CExtern) ->
 		let key = path_hash c.cl_path in
 		let v = lazy (vfunction (jit_tfunction ctx key key_new tf false pos)) in
 		ctx.constructors <- IntMap.add key v ctx.constructors;
@@ -170,7 +170,7 @@ module PrototypeBuilder = struct
 end
 
 let is_removable_field cf =
-	has_class_field_flag cf CfExtern || Meta.has Meta.Generic cf.cf_meta
+	has_class_field_flag cf CfExtern || has_class_field_flag cf CfGeneric
 
 let is_persistent cf =
 	Meta.has Meta.Persistent cf.cf_meta
@@ -194,7 +194,7 @@ let create_static_prototype ctx mt =
 		let pctx = PrototypeBuilder.create ctx key pparent (PClass interfaces) meta in
 		let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_statics in
 		let delays = DynArray.create() in
-		if not c.cl_extern then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
+		if not (has_class_flag c CExtern) then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
 				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy (vstatic_function (jit_tfunction ctx key name tf true pos)));
@@ -267,7 +267,7 @@ let create_instance_prototype ctx c =
 	let key = path_hash c.cl_path in
 	let pctx = PrototypeBuilder.create ctx key pparent PInstance None in
 	let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_fields in
-	if c.cl_extern && c.cl_path <> ([],"String") then
+	if (has_class_flag c CExtern) && c.cl_path <> ([],"String") then
 		()
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
@@ -278,7 +278,11 @@ let create_instance_prototype ctx c =
 		| Var _,_ when is_physical_field cf ->
 			let name = hash cf.cf_name in
 			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
-		|  _ ->
+		| Method meth,None when has_class_field_flag cf CfAbstract ->
+			let name = hash cf.cf_name in
+			let v = lazy vnull in
+			PrototypeBuilder.add_proto_field pctx name v
+		| _ ->
 			()
 	) fields;
 	PrototypeBuilder.finalize pctx
