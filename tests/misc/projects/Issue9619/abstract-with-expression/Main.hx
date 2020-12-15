@@ -1,5 +1,5 @@
 abstract class Abstract {
-	abstract function abstractFunction() {}
+	abstract function abstractFunction():Void {}
 }
 
 class Main {
