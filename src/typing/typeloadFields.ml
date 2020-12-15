@@ -1209,7 +1209,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api p fd.f_type in
+	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p fd.f_type in
 	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			Some a.a_this
@@ -1217,7 +1217,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			None
 	in
 	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
-	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api p t in
+	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
