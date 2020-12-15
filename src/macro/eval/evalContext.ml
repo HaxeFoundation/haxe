@@ -290,7 +290,7 @@ and context = {
 }
 
 module GlobalState = struct
-	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "" __LOC__)
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "GlobalState.get_ctx_ref called before initialization" __LOC__)
 
 	let sid : int ref = ref (-1)
 
