@@ -309,6 +309,11 @@ let is_string expr = ExtType.is_string (follow expr.etype)
 let is_array_type t = match follow t with TInst ({ cl_path = ([], "Array") }, _) -> true | _ -> false
 
 (**
+	Check if specified type is haxe.Rest
+*)
+let is_rest_type t = ExtType.is_rest (Type.follow t)
+
+(**
 	Check if specified type represents a function
 *)
 let is_function_type t = match follow t with TFun _ -> true | _ -> false
@@ -700,6 +705,15 @@ let is_binop_assign expr =
 let is_access expr =
 	match expr.eexpr with
 		| TField _ | TArray _ -> true
+		| _ -> false
+
+(**
+	Check if specified field access is an access to the field `Array.arr`
+	It's a private field of the php-specific implementation of Haxe Array.
+*)
+let is_array_arr faccess =
+	match faccess with
+		| FInstance ({ cl_path = [],"Array" }, _, { cf_name = "arr" }) -> true
 		| _ -> false
 
 (**
@@ -1441,6 +1455,30 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| Some { eexpr = TCall _ } -> true
 				| _ -> false
 		(**
+			Indicates if current expression is passed to `php.Ref<T>`
+		*)
+		method current_expr_is_for_ref =
+			match expr_hierarchy with
+				| [] -> false
+				| current :: _ ->
+					match self#parent_expr with
+						| Some { eexpr = TCall (target, params) } when current != (reveal_expr target) ->
+							(match follow target.etype with
+								| TFun (args,_) ->
+									let rec check args params =
+										match args, params with
+										| (_, _, t) :: _, param :: _ when current == (reveal_expr param) ->
+											is_ref t
+										| _, [] | [], _ ->
+											false
+										| _ :: args, _ :: params ->
+											check args params
+									in
+									check args params
+								| _ -> false
+							)
+						| _ -> false
+		(**
 			Check if currently generated expression is located in a left part of assignment.
 		*)
 		method is_in_write_context =
@@ -1579,6 +1617,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TBinop (operation, expr1, expr2) when needs_dereferencing (is_assignment_binop operation) expr1 ->
 					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
+				| TField ({ eexpr = TArrayDecl exprs }, faccess) when is_array_arr faccess && not self#current_expr_is_for_ref ->
+					self#write_native_array_decl exprs
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
 				| TField (fexpr, access) when needs_dereferencing (self#is_in_write_context) expr -> self#write_expr (self#dereference expr)
@@ -1660,16 +1700,27 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| _ ->
 							decl()
 					)
-				| [expr] ->
-					self#write ((self#use array_type_path) ^ "::wrap([");
-					self#write_expr expr;
-					self#write "])"
 				| _ ->
-					self#write ((self#use array_type_path) ^ "::wrap([\n");
+					self#write ((self#use array_type_path) ^ "::wrap(");
+					self#write_native_array_decl exprs;
+					self#write ")"
+		(**
+			Writes native array declaration to output buffer
+		*)
+		method write_native_array_decl exprs =
+			match exprs with
+				| [] ->
+					self#write "[]";
+				| [expr] ->
+					self#write "[";
+					self#write_expr expr;
+					self#write "]"
+				| _ ->
+					self#write "[\n";
 					self#indent_more;
 					List.iter (fun expr -> self#write_array_item ~separate_line:true expr) exprs;
 					self#indent_less;
-					self#write_with_indentation "])"
+					self#write_with_indentation "]"
 		(**
 			Write associative array declaration
 		*)
@@ -2123,6 +2174,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| Postfix ->
 					self#write_expr expr;
 					self#write (Ast.s_unop operation)
+
 		method private write_expr_for_field_access expr access_str field_str =
 			let access_str = ref access_str in
 			(match (reveal_expr expr).eexpr with
@@ -2845,6 +2897,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match arg with
 				| ({ v_name = arg_name; v_type = arg_type }, default_value) ->
 					vars#declared (vname arg_name);
+					if is_rest_type arg_type then self#write "...";
 					if is_ref arg_type then self#write "&";
 					self#write ("$" ^ (vname arg_name));
 					match default_value with

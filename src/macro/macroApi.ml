@@ -270,6 +270,7 @@ let encode_unop op =
 	| Not -> 2
 	| Neg -> 3
 	| NegBits -> 4
+	| Spread -> 5
 	in
 	encode_enum IUnop tag []
 
@@ -591,6 +592,7 @@ let decode_unop op =
 	| 2, [] -> Not
 	| 3, [] -> Neg
 	| 4, [] -> NegBits
+	| 5, [] -> Spread
 	| _ -> raise Invalid_expr
 
 let decode_import_mode t =

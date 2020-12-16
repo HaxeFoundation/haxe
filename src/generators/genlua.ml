@@ -185,13 +185,32 @@ let rec concat ctx s f = function
         spr ctx s;
         concat ctx s f l
 
+(* create a __lua__ call *)
+let mk_lua_code com code args t pos =
+    let lua_local = mk (TIdent "__lua__") t_dynamic pos in
+    let code_const = Texpr.Builder.make_string com code pos in
+    mk (TCall (lua_local, code_const :: args)) t pos
+
+let inject_rest_args ctx args e =
+    match List.rev args with
+    | (v,_) :: _ when ExtType.is_rest (follow v.v_type) ->
+        let rest = mk (TLocal v) v.v_type v.v_pos in
+        let init_rest = mk_lua_code ctx.com.basic "local {0} = {...}" [rest] ctx.com.basic.tvoid v.v_pos in
+        (match e.eexpr with
+        | TBlock el ->
+            { e with eexpr = TBlock (init_rest :: el) }
+        | _ ->
+            { e with eexpr = TBlock [init_rest; e] }
+        )
+    | _ -> e
+
 let fun_block ctx f p =
-    let e = List.fold_left (fun e (a,c) ->
+    let fn_body = inject_rest_args ctx f.tf_args f.tf_expr in
+    List.fold_left (fun e (a,c) ->
         match c with
         | None | Some {eexpr = TConst TNull} -> e
         | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
-    ) f.tf_expr f.tf_args in
-    e
+    ) fn_body f.tf_args
 
 let open_block ctx =
     let oldt = ctx.tabs in
@@ -222,12 +241,6 @@ let index_of f l =
                 find rest (idx + 1)
     in
     find l 0
-
-(* create a __lua__ call *)
-let mk_lua_code com code args t pos =
-    let lua_local = mk (TIdent "__lua__") t_dynamic pos in
-    let code_const = Texpr.Builder.make_string com code pos in
-    mk (TCall (lua_local, code_const :: args)) t pos
 
 (* create a multi-return boxing call for given expr *)
 let mk_mr_box ctx e =
@@ -618,13 +631,25 @@ and check_multireturn_param ctx t pos =
         | _ ->
                 ();
 
+(* for declaring identifiers in values/blocks *)
+and lua_ident_name a =
+    match a.v_name, a.v_kind, a.v_type with
+        | "this", _, _ -> "self";
+        | _, _, _ ->  ident a.v_name;
+
+
+(* for declaring arguments in function defintions *)
+and lua_arg_name(a,_) =
+    match a.v_name, a.v_kind, a.v_type with
+        | "this", _, _ -> "self";
+        | _, _, TAbstract({a_path=["haxe"],"Rest" },_) -> "...";
+        | _, _, _ ->  ident a.v_name;
+
 and gen_expr ?(local=true) ctx e = begin
     match e.eexpr with
       TConst c ->
         gen_constant ctx e.epos c;
-    | TLocal v when v.v_name = "this" ->
-        spr ctx "self";
-    | TLocal v -> spr ctx (ident v.v_name)
+    | TLocal v -> spr ctx (lua_ident_name v);
     | TArray (e1,{ eexpr = TConst (TString s) }) when valid_lua_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
         gen_value ctx e1;
         spr ctx (field s)
@@ -724,7 +749,7 @@ and gen_expr ?(local=true) ctx e = begin
         let old = ctx.in_value, ctx.in_loop in
         ctx.in_value <- None;
         ctx.in_loop <- false;
-        print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+        print ctx "function(%s) " (String.concat "," (List.map lua_arg_name f.tf_args));
         let fblock = fun_block ctx f e.epos in
         (match fblock.eexpr with
          | TBlock el ->
@@ -906,6 +931,11 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "_hx_bit.bnot(";
         gen_value ctx e;
         spr ctx ")";
+    | TUnop (Spread,Prefix,e) ->
+        add_feature ctx "use._hx_table";
+        spr ctx "_hx_table.unpack(";
+        gen_value ctx e;
+        spr ctx ")";
     | TUnop (op,Ast.Prefix,e) ->
         spr ctx (Ast.s_unop op);
         gen_value ctx e
@@ -1079,7 +1109,7 @@ and gen_anon_value ctx e =
         let old = ctx.in_value, ctx.in_loop in
         ctx.in_value <- None;
         ctx.in_loop <- false;
-        print ctx "function(%s) " (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+        print ctx "function(%s) " (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
         let fblock = fun_block ctx f e.epos in
         (match fblock.eexpr with
          | TBlock el ->
@@ -1510,7 +1540,7 @@ let gen_class_field ctx c f =
              ctx.in_value <- None;
              ctx.in_loop <- false;
              print ctx " = function";
-             print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
+             print ctx "(%s) " (String.concat "," ("self" ::(List.map lua_arg_name f2.tf_args)));
              let fblock = fun_block ctx f2 e.epos in
              (match fblock.eexpr with
               | TBlock el ->
@@ -1572,7 +1602,7 @@ let generate_class ctx c =
                    let old = ctx.in_value, ctx.in_loop in
                    ctx.in_value <- None;
                    ctx.in_loop <- false;
-                   print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+                   print ctx "function(%s) " (String.concat "," (List.map lua_arg_name f.tf_args));
                    let fblock = fun_block ctx f e.epos in
                    (match fblock.eexpr with
                     | TBlock el ->
@@ -1580,13 +1610,13 @@ let generate_class ctx c =
                         newline ctx;
                         if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
                             println ctx "local self = _hx_new(%s.prototype)" p;
-                        println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+                        println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
                         if p = "String" then println ctx "self = string";
                         spr ctx "return self";
                         bend(); newline ctx;
                         spr ctx "end"; newline ctx;
                         let bend = open_block ctx in
-                        print ctx "%s.super = function(%s) " p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+                        print ctx "%s.super = function(%s) " p (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
                         List.iter (gen_block_element ctx) el;
                         bend();
                         newline ctx;

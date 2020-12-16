@@ -158,6 +158,7 @@ let generate_unop ctx op =
 		| Not -> "OpNot"
 		| Neg -> "OpNeg"
 		| NegBits -> "OpNegBits"
+		| Spread -> "OpSpread"
 	in
 	jstring name
 

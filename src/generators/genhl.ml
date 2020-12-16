@@ -2497,6 +2497,8 @@ and eval_expr ctx e =
 		let r = eval_to ctx v t in
 		op ctx (ONeg (tmp,r));
 		tmp
+	| TUnop (Spread,_,_) ->
+		die ~p:e.epos "Unexpected spread operator" __LOC__
 	| TUnop (NegBits,_,v) ->
 		let t = to_type ctx e.etype in
 		let tmp = alloc_tmp ctx t in

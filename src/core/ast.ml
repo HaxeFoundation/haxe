@@ -98,6 +98,7 @@ type unop =
 	| Not
 	| Neg
 	| NegBits
+	| Spread
 
 type string_literal_kind =
 	| SDoubleQuotes
@@ -135,6 +136,7 @@ type token =
 	| Question
 	| At
 	| Dollar of string
+	| Spread
 
 type unop_flag =
 	| Prefix
@@ -429,11 +431,7 @@ let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
 let rec is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
-	| Neg | NegBits -> false
-
-let is_prefix = function
-	| Increment | Decrement -> true
-	| Not | Neg | NegBits -> true
+	| Neg | NegBits | Spread -> false
 
 let base_class_name = snd
 
@@ -562,6 +560,7 @@ let s_unop = function
 	| Not -> "!"
 	| Neg -> "-"
 	| NegBits -> "~"
+	| Spread -> "..."
 
 let s_token = function
 	| Eof -> "<end of file>"
@@ -587,6 +586,7 @@ let s_token = function
 	| Question -> "?"
 	| At -> "@"
 	| Dollar v -> "$" ^ v
+	| Spread -> "..."
 
 exception Invalid_escape_sequence of char * int * (string option)
 

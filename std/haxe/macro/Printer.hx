@@ -47,6 +47,7 @@ class Printer {
 			case OpNot: "!";
 			case OpNeg: "-";
 			case OpNegBits: "~";
+			case OpSpread: "...";
 		}
 
 	public function printBinop(op:Binop)

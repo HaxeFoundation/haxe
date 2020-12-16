@@ -650,6 +650,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| None -> raise Exit
 		| Some e -> Some e)
 	with Exit ->
+	let params = inline_rest_params ctx f params p in
 	let state = new inline_state ctx ethis params cf f p in
 	let vthis_opt = state#initialize in
 	let opt f = function
@@ -882,3 +883,38 @@ and type_inline_ctor ctx c cf tf ethis el po =
 			{tf with tf_expr = mk (TBlock (field_inits @ bl)) ctx.t.tvoid c.cl_pos}
 	in
 	type_inline ctx cf tf ethis el ctx.t.tvoid None po true
+
+and inline_rest_params ctx f params p =
+	if not ctx.com.config.pf_supports_rest_args then
+		params
+	else
+		let rec loop args params =
+			match args, params with
+			(* last argument expects rest parameters *)
+			| [(v,_)], params when ExtType.is_rest (follow v.v_type) ->
+				(match params with
+				(* In case of `...rest` just use `rest` *)
+				| [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
+				(* In other cases: `haxe.Rest.of([param1, param2, ...])` *)
+				| _ ->
+					match follow v.v_type with
+					| TAbstract ({ a_path = ["haxe"],"Rest"; a_impl = Some c } as a, [t]) as rest_t ->
+						let cf =
+							try PMap.find "of" c.cl_statics
+							with Not_found -> die ~p:c.cl_name_pos "Can't find haxe.Rest.of function" __LOC__
+						and p = punion_el (List.map (fun e -> (),e.epos) params) in
+						(* [param1, param2, ...] *)
+						let array = mk (TArrayDecl params) (ctx.t.tarray t) p in
+						(* haxe.Rest.of(array) *)
+						[make_static_call ctx c cf (apply_params a.a_params [t]) [array] rest_t p]
+					| _ ->
+						die ~p:v.v_pos "Unexpected rest arguments type" __LOC__
+				)
+			| a :: args, e :: params ->
+				e :: loop args params
+			| [], params ->
+				params
+			| _ :: _, [] ->
+				[]
+		in
+		loop f.tf_args params

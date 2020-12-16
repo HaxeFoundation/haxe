@@ -801,6 +801,9 @@ let type_unop ctx op flag e with_type p =
 		| _ ->
 			raise Not_found
 	in
+	let unexpected_spread p =
+		error "Spread unary operator is only allowed for unpacking the last argument in a call with rest arguments" p
+	in
 	let make e =
 		let check_int () =
 			match classify e.etype with
@@ -825,6 +828,8 @@ let type_unop ctx op flag e with_type p =
 				check_int()
 			| Neg ->
 				check_int()
+			| Spread ->
+				unexpected_spread p
 		in
 		mk (TUnop (op,flag,e)) t p
 	in
@@ -835,6 +840,8 @@ let type_unop ctx op flag e with_type p =
 			make e
 	in
 	match op with
+	| Spread ->
+		unexpected_spread p
 	| Not | Neg | NegBits ->
 		let access_get = !type_access_ref ctx (fst e) (snd e) MGet WithType.value (* WITHTYPETODO *) in
 		let e = acc_get ctx access_get p in

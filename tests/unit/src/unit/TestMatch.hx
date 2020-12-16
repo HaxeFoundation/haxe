@@ -327,6 +327,7 @@ class TestMatch extends Test {
 			case OpIncrement:
 			case OpDecrement:
 			case OpNot:
+			case OpSpread:
 		}));
 		eq("Unmatched patterns: Node(Node, _)", getErrorMessage(switch(Leaf("foo")) {
 			case Node(Leaf("foo"), _):
