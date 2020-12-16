@@ -556,6 +556,7 @@ and generate_class_field' ctx cfs cf =
 		"type",generate_type ctx cf.cf_type;
 		"isPublic",jbool (has_class_field_flag cf CfPublic);
 		"isFinal",jbool (has_class_field_flag cf CfFinal);
+		"isAbstract",jbool (has_class_field_flag cf CfAbstract);
 		"params",jlist (generate_type_parameter ctx) cf.cf_params;
 		"meta",generate_metadata ctx cf.cf_meta;
 		"kind",generate_class_kind ();
@@ -627,6 +628,7 @@ let generate_class ctx c =
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);
+		"isAbstract",jbool (has_class_flag c CAbstract);
 	]
 
 let generate_enum ctx e =
