@@ -1762,6 +1762,8 @@ let generate con =
 					| TContinue -> write w "continue"
 					| TThrow { eexpr = TIdent "__rethrow__" } ->
 						write w "throw"
+					| TThrow { eexpr = TLocal(v) } when (has_var_flag v VCaught) ->
+						write w "throw";
 					| TThrow e ->
 						write w "throw ";
 						expr_s w e
