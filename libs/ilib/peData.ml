@@ -52,6 +52,8 @@ type machine_type =
 	| TTriCore (* 0x0520 Infineon *)
 	| TAmd64 (* 0x8664 AMD x64 and Intel E64T *)
 	| TM32R (* 0x9041 M32R *)
+	| TOSXAmd64 (* 0xC020 = 0x8664 xor 0x4644 OSX AMD x64 *)
+	| TLinuxAmd64 (* 0xFD1D = 0x8664 xor 0x7B79 Linux AMD x64 *)
 
 type coff_prop =
 	| RelocsStripped (* 0x1 *)
