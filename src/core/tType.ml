@@ -401,3 +401,4 @@ type flag_tvar =
 	| VCaptured
 	| VFinal
 	| VUsed (* used by the analyzer *)
+	| VCaught
