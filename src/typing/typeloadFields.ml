@@ -590,7 +590,7 @@ let create_field_context (ctx,cctx) c cff =
 			()
 	) cff.cff_meta;
 	let is_inline = List.mem_assoc AInline cff.cff_access in
-	if is_abstract then begin
+	if (is_abstract && not (has_meta Meta.LibType c.cl_meta)) then begin
 		if is_static then
 			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
 		else if !is_final then
