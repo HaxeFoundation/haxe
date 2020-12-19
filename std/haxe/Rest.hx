@@ -6,10 +6,23 @@ import haxe.iterators.RestKeyValueIterator;
 private typedef NativeRest<T> = Array<T>;
 
 /**
-	A special type that represents "rest" function argument.
+	A special type that represents a "rest" function argument.
+	
+	The special `...` syntax can be used for convenience and improved readability:
 
-	Should be used as a type for the last argument of a method, representing that
-	arbitrary number of arguments of given type can be passed to that method.
+	```haxe
+	function f(...rest:Int) {
+		$type(rest); // haxe.Rest<Int>
+	}
+
+	f(1, 2, 3);
+
+	final array = [1, 2, 3];
+	f(...array);
+	```
+
+	Should be used as a type for the last argument of a method, indicating that
+	an arbitrary number of arguments of the given type can be passed to that method.
 
 	Allows to use array access by index to get values of rest arguments.
 	If the index exceeds the amount of rest arguments passed, the result is unspecified.
