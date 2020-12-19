@@ -546,11 +546,6 @@ enum ExprDef {
 	EDisplay(e:Expr, displayKind:DisplayKind);
 
 	/**
-		Used internally to provide completion.
-	**/
-	EDisplayNew(t:TypePath);
-
-	/**
 		A `(econd) ? eif : eelse` expression.
 	**/
 	ETernary(econd:Expr, eif:Expr, eelse:Expr);
