@@ -1418,6 +1418,7 @@ let generate_class_es6 ctx c =
 		end else
 			p
 	in
+	if (has_meta Meta.Expose c.cl_meta) then print ctx "export ";
 	print ctx "class %s" cls_name;
 
 	Option.may (fun (csup,_) ->
