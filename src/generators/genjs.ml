@@ -1418,7 +1418,16 @@ let generate_class_es6 ctx c =
 		end else
 			p
 	in
-	if (has_meta Meta.Expose c.cl_meta) then print ctx "export ";
+
+	if not ctx.js_modern then
+		(try
+			let (_, args, pos) = Meta.get Meta.Expose c.cl_meta in
+			match args with
+			| [ EConst (String("default",_)), _ ] -> print ctx "export default ";
+			| [] -> print ctx "export ";
+			| _ -> abort "Invalid @:expose parameters" pos
+		with Not_found -> ());
+
 	print ctx "class %s" cls_name;
 
 	Option.may (fun (csup,_) ->
