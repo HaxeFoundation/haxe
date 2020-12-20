@@ -131,6 +131,13 @@ class TestRest extends Test {
 		}
 		aeq([{f:2}, {f:1}], rest({f:2}, {f:1}));
 	}
+
+	function testInferred() {
+		function rest(...r) {
+			(r[0] : Int);
+		}
+		HelperMacros.typedAs(rest, (null : (r : Rest<Int>)->Void));
+	}
 }
 
 private class Parent {
