@@ -1238,10 +1238,11 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			add_class_field_flag cf CfOverload
 		else if fctx.field_kind = FKConstructor then
 			display_error ctx "Constructors cannot be overloaded on this target" p
-		else if (has_class_flag c CExtern || fctx.is_extern) then
-			add_class_field_flag cf CfOverload
-		else
-			display_error ctx "Only extern functions may be overloaded on this target" p
+		else begin
+			add_class_field_flag cf CfOverload;
+			if not (has_class_flag c CExtern || fctx.is_extern) then
+				display_error ctx "Only extern functions may be overloaded on this target" p
+		end
 	| None ->
 		()
 	end;
@@ -1616,7 +1617,7 @@ let init_class ctx c p context_init herits fields =
 					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
 						ctor.cf_overloads <- cf :: ctor.cf_overloads
 					else
-						display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+						display_error ctx ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
 							display_error ctx "Duplicate constructor" p
 				end
@@ -1632,7 +1633,7 @@ let init_class ctx c p context_init herits fields =
 					if has_class_field_flag cf CfOverload && not (is_var cf) then
 						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
 						if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
-						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
+						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
 						mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
 					else
 						let type_kind,path = match c.cl_kind with
