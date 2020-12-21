@@ -143,6 +143,20 @@ let fields_to_json ctx fields kind subj =
 	in
 	jobject fl
 
+let arg_index signatures signature_index param_index =
+	try
+		let args,_ = fst (fst (List.nth signatures signature_index)) in
+		let rec loop args index =
+			match args with
+			| [] -> param_index
+			| [_,_,t] when index < param_index && ExtType.is_rest (follow t) -> index
+			| arg :: _ when index = param_index -> param_index
+			| _ :: args -> loop args (index + 1)
+		in
+		loop args 0
+	with Invalid_argument _ ->
+		param_index
+
 let to_json ctx de =
 	match de with
 	| Statistics _
@@ -166,7 +180,7 @@ let to_json ctx de =
 		in
 		jobject [
 			"activeSignature",jint isig;
-			"activeParameter",jint iarg;
+			"activeParameter",jint (arg_index sigs isig iarg);
 			"signatures",jlist fsig sigs;
 			"kind",jint sigkind;
 		]
