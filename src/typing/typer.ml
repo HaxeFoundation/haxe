@@ -1554,7 +1554,17 @@ and type_call_target ctx e el with_type inline p =
 and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	let def () =
 		let e = type_call_target ctx e el with_type inline p in
-		build_call ~mode ctx e el with_type p;
+		let ecall = build_call ~mode ctx e el with_type p in
+		(* TEMPORARY HACK *) begin
+			match ctx.com.platform with
+			| Js | Eval -> ecall
+			| _ ->
+				if ExtType.is_void (follow ecall.etype) && with_type <> NoValue then
+					let enull = mk (TTypeExpr (match ctx.com.basic.tvoid with TAbstract (a,_) -> TAbstractDecl a | _ -> assert false)) ctx.com.basic.tvoid p in
+					{ ecall with eexpr = TBlock [ecall; enull] }
+				else
+					ecall
+		(* TEMPORARY HACK *) end
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->

@@ -1780,8 +1780,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			load()
 		| TTypeExpr mt ->
 			let t = type_of_module_type mt in
-			if ExtType.is_void (follow t) then jm#get_basic_type_class "Void"
-			else jm#get_class (jsignature_of_type gctx t)
+			if ExtType.is_void (follow t) then
+				code#aconst_null (jsignature_of_type gctx t)
+			else
+				jm#get_class (jsignature_of_type gctx t)
 		| TUnop(op,flag,e1) ->
 			begin match op with
 			| Not | Neg | NegBits when not (need_val ret) -> self#texpr ret e1
