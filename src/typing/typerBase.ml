@@ -102,6 +102,8 @@ let rec type_module_type ctx t tparams p =
 			error (s_type_path s.t_path ^ " is not a value") p)
 	| TAbstractDecl { a_impl = Some c } ->
 		type_module_type ctx (TClassDecl c) tparams p
+	| TAbstractDecl { a_path = [],"Void" } ->
+		mk (TTypeExpr t) ctx.com.basic.tvoid p
 	| TAbstractDecl a ->
 		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = abstract_module_type a [] in

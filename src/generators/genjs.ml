@@ -1797,6 +1797,8 @@ let alloc_ctx com es_version =
 				dot_path p
 			else
 				s_path ctx p
+		| TAbstractDecl { a_path = [],"Void" } ->
+			"undefined"
 		| _ ->
 			s_path ctx (t_path t)
 	);

@@ -219,6 +219,8 @@ and jit_expr jit return e =
 		let execs = List.map (jit_expr jit false) el in
 		let execs = Array.of_list execs in
 		emit_array_declaration execs
+	| TTypeExpr (TAbstractDecl { a_path = [],"Void" }) ->
+		emit_const vnull
 	| TTypeExpr mt ->
 		let key = path_hash (t_infos mt).mt_path in
 		let proto = get_static_prototype_as_value jit.ctx key e.epos in

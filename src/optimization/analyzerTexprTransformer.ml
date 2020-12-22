@@ -88,9 +88,6 @@ let rec func ctx bb tf t p =
 		end;
 		if is_unbound_call_that_might_have_side_effects s el then ctx.has_unbound <- true;
 	in
-	let no_void t p =
-		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p
-	in
 	let push_name s =
 		ctx.name_stack <- s :: ctx.name_stack;
 		(fun () -> ctx.name_stack <- List.tl ctx.name_stack)
@@ -182,7 +179,6 @@ let rec func ctx bb tf t p =
 			Error.error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in
-		no_void e.etype e.epos;
 		bb,e
 	and ordered_value_list bb el =
 		let might_be_affected,collect_modified_locals = create_affection_checker() in
@@ -247,7 +243,6 @@ let rec func ctx bb tf t p =
 		let e = List.fold_left (fun e f -> f e) e fl in
 		bb,e
 	and declare_var_and_assign bb v e p =
-		no_void v.v_type p;
 		(* TODO: this section shouldn't be here because it can be handled as part of the normal value processing *)
 		let rec loop bb e = match e.eexpr with
 			| TParenthesis e1 ->

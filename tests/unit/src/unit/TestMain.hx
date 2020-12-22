@@ -75,6 +75,7 @@ function main() {
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
+		new TestVoid(),
 		#if (!no_http && (!github || !(php && Windows)))
 		new TestHttp(),
 		#end
