@@ -319,6 +319,9 @@ and evar = {
 	ev_meta : metadata;
 }
 
+(* TODO: should we introduce CTMono instead? *)
+let ct_mono = CTPath { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
+
 type enum_flag =
 	| EPrivate
 	| EExtern
