@@ -1642,6 +1642,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
 				| TField (fexpr, access) when needs_dereferencing (self#is_in_write_context) expr -> self#write_expr (self#dereference expr)
 				| TField (fexpr, access) -> self#write_expr_field fexpr access
+				| TTypeExpr (TAbstractDecl { a_path = [],"Void" }) -> self#write "null"
 				| TTypeExpr mtype -> self#write_expr_type mtype
 				| TParenthesis expr ->
 					self#write "(";
