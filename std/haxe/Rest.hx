@@ -69,6 +69,10 @@ abstract Rest<T>(NativeRest<T>) {
 	}
 
 	public inline function toString():String {
-		return this.toString();
+		#if flash
+			return '[${this.toString()}]';
+		#else
+			return this.toString();
+		#end
 	}
 }
