@@ -48,4 +48,8 @@ abstract Rest<T>(NativeRest<T>) {
 		Table.insert(result, 1, item);
 		return new Rest(result);
 	}
+
+	public function toString():String {
+		return toArray().toString();
+	}
 }

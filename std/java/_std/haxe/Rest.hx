@@ -57,4 +57,8 @@ abstract Rest<T>(NativeRest<T>) {
 		result[0] = cast item;
 		return new Rest(result);
 	}
+
+	public function toString():String {
+		return toArray().toString();
+	}
 }

@@ -43,4 +43,8 @@ abstract Rest<T>(NativeRest<T>) {
 		Global.array_unshift(result, item);
 		return new Rest(result);
 	}
+
+	public function toString():String {
+		return inline Boot.stringifyNativeIndexedArray(this);
+	}
 }

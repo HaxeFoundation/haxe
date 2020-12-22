@@ -137,6 +137,12 @@ class TestRest extends Test {
 			(r[0] : Int);
 		}
 		HelperMacros.typedAs(rest, (null : (r : Rest<Int>)->Void));
+
+	function testToString() {
+		function rest(...r:Int) {
+			return r.toString();
+		}
+		eq('[1,2,3]', rest(1, 2, 3));
 	}
 }
 

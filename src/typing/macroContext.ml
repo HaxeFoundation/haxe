@@ -600,6 +600,18 @@ type macro_arg_type =
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx (mode = MDisplay) cpath f p in
+	let margs =
+		(*
+			Replace "rest:haxe.Rest<Expr>" in macro signatures with "rest:Array<Expr>".
+			This allows to avoid handling special cases for rest args in macros during typing.
+		*)
+		match List.rev margs with
+		| (n,o,t) :: margs_rev ->
+			(match follow t with
+			| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]) -> List.rev ((n,o,mctx.t.tarray t1) :: margs_rev)
+			| _ -> margs)
+		| _ -> margs
+	in
 	let mpos = mfield.cf_pos in
 	let ctexpr = mk_type_path (["haxe";"macro"],"Expr") in
 	let expr = Typeload.load_instance mctx (ctexpr,p) false in
