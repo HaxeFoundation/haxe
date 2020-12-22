@@ -336,27 +336,12 @@ let rec concat ctx s f = function
 	It's the only way to avoid disabling javascript VM optimizations of functions
 	with rest arguments.
 *)
-let declare_rest_args_legacy com args rest_arg =
-	let arguments = mk (TIdent "arguments") t_dynamic null_pos
-	and index i = mk (TConst (TInt (Int32.of_int i))) com.basic.tint null_pos in
-	let rec loop args i =
-		match args with
-		| [] -> []
-		| (v,e_opt) :: rest ->
-			(* var v = arguments[i]; *)
-			let value = mk (TArray (arguments,index i)) v.v_type null_pos in
-			let decl = mk (TVar (v,Some value)) com.basic.tvoid v.v_pos in
-
-			match e_opt with
-			| None -> decl :: loop rest (i + 1)
-			| Some e -> decl :: Texpr.set_default com.basic v e v.v_pos :: loop rest (i + 1)
-	in
-	let i = string_of_int (List.length args) in
+let declare_rest_args_legacy com offset rest_arg =
+	let i = string_of_int offset in
 	let new_array = mk (TIdent ("new Array($l-"^ i ^")")) t_dynamic rest_arg.v_pos
 	and populate = mk (TIdent ("for(var $i=" ^ i ^ ";$i<$l;++$i){" ^ (ident rest_arg.v_name) ^ "[$i-" ^ i ^ "]=arguments[$i];}")) com.basic.tvoid rest_arg.v_pos
 	in
-	loop args 0
-	@ [
+	[
 		mk (TIdent ("var $l=arguments.length")) com.basic.tvoid rest_arg.v_pos;
 		mk (TVar (rest_arg,Some new_array)) com.basic.tvoid rest_arg.v_pos;
 		populate
@@ -902,6 +887,12 @@ and gen_function ?(keyword="function") ctx f pos =
 	let old = ctx.in_value, ctx.in_loop in
 	ctx.in_value <- None;
 	ctx.in_loop <- false;
+	let mk_non_rest_arg_names =
+		List.map (fun (v,_) ->
+			check_var_declaration v;
+			ident v.v_name
+		)
+	in
 	let f,args =
 		match List.rev f.tf_args with
 		| (v,None) :: args_rev when ExtType.is_rest (follow v.v_type) ->
@@ -913,8 +904,10 @@ and gen_function ?(keyword="function") ctx f pos =
 					else ident a.v_name
 				) f.tf_args
 			(* Resort to `arguments` special object for ES < 6 *)
-			else
-				let args_decl = declare_rest_args_legacy ctx.com (List.rev args_rev) v in
+			else begin
+				check_var_declaration v;
+				let non_rest_args = List.rev args_rev in
+				let args_decl = declare_rest_args_legacy ctx.com (List.length non_rest_args) v in
 				let body =
 					let el =
 						match f.tf_expr.eexpr with
@@ -923,12 +916,10 @@ and gen_function ?(keyword="function") ctx f pos =
 					in
 					mk (TBlock el) f.tf_expr.etype f.tf_expr.epos
 				in
-				{ f with tf_args = []; tf_expr = body }, []
+				{ f with tf_args = non_rest_args; tf_expr = body }, mk_non_rest_arg_names non_rest_args
+			end
 		| _ ->
-			f, List.map (fun (v,_) ->
-				check_var_declaration v;
-				ident v.v_name
-			) f.tf_args
+			f, mk_non_rest_arg_names f.tf_args
 	in
 	print ctx "%s(%s) " keyword (String.concat "," args);
 	gen_expr ctx (fun_block ctx f pos);
