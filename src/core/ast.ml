@@ -320,7 +320,7 @@ and evar = {
 }
 
 (* TODO: should we introduce CTMono instead? *)
-let ct_mono = CTPath { tpackage = []; tname = "$mono"; tparams = []; tsub = None }
+let ct_mono = CTPath { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
 
 type enum_flag =
 	| EPrivate
