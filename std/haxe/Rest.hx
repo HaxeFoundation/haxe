@@ -67,4 +67,8 @@ abstract Rest<T>(NativeRest<T>) {
 		result.unshift(item);
 		return new Rest(result);
 	}
+
+	public inline function toString():String {
+		return this.toString();
+	}
 }

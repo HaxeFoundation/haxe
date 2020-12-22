@@ -131,6 +131,13 @@ class TestRest extends Test {
 		}
 		aeq([{f:2}, {f:1}], rest({f:2}, {f:1}));
 	}
+
+	function testToString() {
+		function rest(...r:Int) {
+			return r.toString();
+		}
+		eq('[1,2,3]', rest(1, 2, 3));
+	}
 }
 
 private class Parent {
