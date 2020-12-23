@@ -588,6 +588,25 @@ let fix_tsignature_args args =
 		args
 
 (**
+	Inserts `null`s if there are missing optional args before empty rest arguments.
+*)
+let fix_call_args callee_type exprs =
+	match follow callee_type with
+	| TFun (args,_) ->
+		(match List.rev args with
+		| (_,_,t) :: args_rev when is_rest_type t && List.length args_rev > List.length exprs ->
+			let rec loop args exprs =
+				match args, exprs with
+				| [], _ | [_], _ -> exprs
+				| (_,_,t) :: args, [] -> (mk (TConst TNull) t null_pos) :: loop args exprs
+				| _ :: args, e :: exprs -> e :: loop args exprs
+			in
+			loop args exprs
+		| _ -> exprs
+		)
+	| _ -> exprs
+
+(**
 	Escapes all "$" chars and encloses `str` into double quotes
 *)
 let quote_string str =
@@ -2278,7 +2297,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| FInstance (_, _, ({ cf_kind = Method _ } as field))
 				| FClosure (_, ({ cf_kind = Method _ } as field)) ->
 					self#write ((self#use hxstring_type_path) ^ "::" ^ (field_name field) ^ "(");
-					write_args self#write self#write_expr (expr :: args);
+					write_args self#write self#write_expr (fix_call_args field.cf_type (expr :: args));
 					self#write ")"
 				| _ ->
 					let msg =
@@ -2675,7 +2694,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			if not !no_call then
 				begin
 					self#write "(";
-					write_args self#write self#write_expr args;
+					write_args self#write self#write_expr (fix_call_args target_expr.etype args);
 					self#write ")"
 				end
 		(**
@@ -2740,6 +2759,11 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_expr_new inst_class args =
 			let needs_php_prefix = not (has_class_flag inst_class CExtern) in
 			self#write ("new " ^ (self#use ~prefix:needs_php_prefix inst_class.cl_path) ^ "(");
+			let args =
+				match inst_class.cl_constructor with
+				| Some field -> fix_call_args field.cf_type args
+				| None -> args
+			in
 			write_args self#write self#write_expr args;
 			self#write ")"
 		(**
@@ -2889,7 +2913,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			Writes argument for function declarations or calls
 		*)
 		method write_arg with_optionals (arg_name, optional, (arg_type:Type.t)) =
-			self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
+			let rest = if is_rest_type arg_type then "..." else ""
+			and opt = if with_optionals && optional then " = null" else "" in
+			self#write (rest ^ "$" ^ arg_name ^ opt);
 		(**
 			Writes argument with optional value for function declarations
 		*)
