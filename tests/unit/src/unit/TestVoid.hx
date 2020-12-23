@@ -42,6 +42,25 @@ class TestVoid extends Test {
 		HelperMacros.typedAs(v, (null : Void));
 		eq(Void, v);
 	}
+
+	function testField() {
+		var c = new C();
+		eq(Void, c.field);
+		c.field = Void;
+		eq(Void, c.field);
+	}
+
+	function testStructField() {
+		var c = {field: Void}
+		eq(Void, c.field);
+		c.field = Void;
+		eq(Void, c.field);
+
+		var c:{field:Void} = {field: Void}
+		eq(Void, c.field);
+		c.field = Void;
+		eq(Void, c.field);
+	}
 }
 
 private function voidReturn() {}
@@ -67,4 +86,9 @@ private class Signal<T> {
 	public function trigger(payload:T):T {
 		return payload;
 	}
+}
+
+private class C {
+	public var field:Void;
+	public function new() {}
 }

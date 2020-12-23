@@ -609,17 +609,6 @@ let check_remove_metadata ctx t = match t with
 	| _ ->
 		()
 
-(* Checks for Void class fields *)
-let check_void_field ctx t = match t with
-	| TClassDecl c ->
-		let check f =
-			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
-		in
-		List.iter check c.cl_ordered_fields;
-		List.iter check c.cl_ordered_statics;
-	| _ ->
-		()
-
 (* Interfaces have no 'super', but can extend many other interfaces.
    This makes the first extended (implemented) interface the super for efficiency reasons (you can get one for 'free')
    and leaves the remaining ones as 'implemented' *)
@@ -842,7 +831,6 @@ let run com tctx main =
 		add_rtti;
 		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits locals);
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
-		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
 		commit_features;
 		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths else (fun _ _ -> ()));

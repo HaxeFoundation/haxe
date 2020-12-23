@@ -552,8 +552,6 @@ and load_complex_type' ctx allow_display (t,p) =
 					no_expr e;
 					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx allow_display t, Var { v_read = AccNormal; v_write = AccNever }
-				| FVar (Some (CTPath({tpackage=[];tname="Void"}),_), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"}),_),_) ->
-					error "Fields of type Void are not allowed in structures" p
 				| FVar (t, e) ->
 					no_expr e;
 					topt t, Var { v_read = AccNormal; v_write = AccNormal }
