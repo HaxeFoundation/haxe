@@ -1117,6 +1117,8 @@ let rec gen_expr_content ctx retval e =
 		write ctx HRet;
 		ctx.infos.icond <- true;
 		no_value ctx retval
+	| TTypeExpr (TAbstractDecl { a_path = [],"Void" }) ->
+		write ctx HUndefined
 	| TField _
 	| TLocal _
 	| TEnumIndex _
