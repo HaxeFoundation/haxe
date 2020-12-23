@@ -371,6 +371,7 @@ type basic_types = {
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
+	mutable evoid : pos -> texpr;
 }
 
 type class_field_scope =

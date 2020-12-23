@@ -249,6 +249,44 @@ let check_unification ctx e t =
 	end;
 	e
 
+let is_evoid e = match e.eexpr with
+	| TTypeExpr (TAbstractDecl { a_path = [],"Void" }) -> true
+	| _ -> false
+
+let eliminate_void ctx e =
+	let is_void t = ExtType.is_void (follow t) in
+	let evoid = ctx.com.basic.evoid in
+	let value e =
+		if is_void e.etype && not (is_evoid e) then
+			let el = [ e; evoid e.epos ] in
+			{ e with eexpr = TMeta ((Meta.MergeBlock,[],null_pos), { e with eexpr = TBlock el }) }
+		else
+			e
+	in
+	let rec loop e =
+		match e.eexpr with
+		| TLocal v when is_void v.v_type ->
+			evoid e.epos
+		| TVar (v,eo) when is_void v.v_type ->
+			begin match eo with
+			| Some e -> loop e
+			| None -> evoid e.epos (* TODO: make fix_void return None/Some? *)
+			end
+		| TCall (eobj, args) ->
+			let eobj = loop eobj in
+			let args = List.map (fun e -> value (loop e)) args in
+			{ e with eexpr = TCall (eobj, args)}
+		| TBlock el ->
+			let el = ExtList.List.filter_map (fun e ->
+				let e = loop e in
+				if is_evoid e then None else Some e (* TODO: check last element to avoid work? *)
+			) el in
+			{ e with eexpr = TBlock el }
+		| _ ->
+			Type.map_expr loop e
+	in
+	loop e
+
 let rec fix_return_dynamic_from_void_function ctx return_is_void e =
 	match e.eexpr with
 	| TFunction fn ->
@@ -730,6 +768,7 @@ let run com tctx main =
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
 	let filters = [
+		"eliminate_void",eliminate_void tctx;
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
 		"check_local_vars_init",check_local_vars_init tctx.com;
 		"check_abstract_as_value",check_abstract_as_value;
