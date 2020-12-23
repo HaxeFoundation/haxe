@@ -158,8 +158,11 @@ let ctype t =
 	let t, nptr = ctype_no_ptr t in
 	if nptr = 0 then t else t ^ String.make nptr '*'
 
+let val_type t =
+	ctype (if t = HVoid then HDyn else t)
+
 let args_repr args =
-	if args = [] then "void" else String.concat "," (List.map ctype args)
+	if args = [] then "void" else String.concat "," (List.map val_type args)
 
 let cast_fun s args t =
 	sprintf "((%s (*)(%s))%s)" (ctype t) (args_repr args) s
@@ -201,7 +204,7 @@ let type_id t =
 	| HStruct _  -> "HSTRUCT"
 
 let var_type n t =
-	ctype t ^ " " ^ ident n
+	val_type t ^ " " ^ ident n
 
 let block ctx =
 	ctx.tabs <- ctx.tabs ^ "\t"
@@ -535,8 +538,10 @@ let generate_function ctx f =
 	let funname fid = define_function ctx fid in
 
 	let rcast r t =
-		if tsame (rtype r) t then (reg r)
-		else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
+		let tr = rtype r in
+		let r = if tr = HVoid then "NULL" else reg r in
+		if tsame tr t then r
+		else Printf.sprintf "((%s)%s)" (ctype t) r
 	in
 
 	let rfun r args t =

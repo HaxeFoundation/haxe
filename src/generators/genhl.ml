@@ -2901,6 +2901,8 @@ and eval_expr ctx e =
 		List.iter (fun j -> j()) (loop catches);
 		j();
 		result
+	| TTypeExpr (TAbstractDecl { a_path = [],"Void" }) ->
+		alloc_tmp ctx HVoid
 	| TTypeExpr t ->
 		type_value ctx t e.epos
 	| TCast (ev,Some _) ->
