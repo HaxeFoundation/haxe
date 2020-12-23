@@ -63,26 +63,32 @@ class TestVoid extends Test {
 	}
 }
 
+@:pure(false)
 private function voidReturn() {}
 
+@:pure(false)
 private function explicitVoidReturn() {
 	return Void;
 }
 
+@:pure(false)
 private function generic<T>(v:T):T {
 	return v;
 }
 
+@:pure(false)
 private function genericCallback<T>(f:()->T):T {
 	return f();
 }
 
+@:pure(false)
 private function voidArg(arg:Void):Void {
 	return arg;
 }
 
 private class Signal<T> {
 	public function new() {}
+	@:pure(false)
 	public function trigger(payload:T):T {
 		return payload;
 	}
