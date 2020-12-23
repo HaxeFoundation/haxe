@@ -56,7 +56,7 @@ abstract class AbstractThatImplementsInterfaceNO implements InterfaceToBeImpleme
 }
 
 class ConcreteChildThatImplementsNO extends AbstractThatImplementsInterfaceNO {
-	public override function toBeImplemented() {
+	public function toBeImplemented() {
 		return true;
 	}
 }
@@ -72,7 +72,7 @@ private class ConcreteChild extends AbstractParent {
 		super();
 	}
 
-	override public function abstractFunction():Bool {
+	public function abstractFunction():Bool {
 		return true;
 	}
 }
