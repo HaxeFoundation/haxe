@@ -1215,6 +1215,8 @@ module Printer = struct
 		match e.eexpr with
 			| TConst ct ->
 				print_constant ct
+			| TTypeExpr (TAbstractDecl { a_path = [],"Void" }) ->
+				"None"
 			| TTypeExpr mt ->
 				print_module_type mt
 			| (TLocal v | TParenthesis({ eexpr = (TLocal v) })) ->
