@@ -256,10 +256,10 @@ let is_evoid e = match e.eexpr with
 let eliminate_void ctx e =
 	let is_void t = ExtType.is_void (follow t) in
 	let evoid = ctx.com.basic.evoid in
+	let mergeblock e = { e with eexpr = TMeta ((Meta.MergeBlock,[],null_pos), e) } in
 	let value e =
 		if is_void e.etype && not (is_evoid e) then
-			let el = [ e; evoid e.epos ] in
-			{ e with eexpr = TMeta ((Meta.MergeBlock,[],null_pos), { e with eexpr = TBlock el }) }
+			mergeblock { e with eexpr = TBlock [ e; evoid e.epos ] }
 		else
 			e
 	in
@@ -280,7 +280,7 @@ let eliminate_void ctx e =
 			let e1 = loop e1 in
 			let e2 = loop e2 in
 			if is_void e1.etype then
-				{ e with eexpr = TBlock [e1; e2] }
+				mergeblock { e with eexpr = TBlock [e1; e2] }
 			else
 				{ e with eexpr = TBinop (OpAssign, e1, e2) }
 		| TBlock el ->
