@@ -2833,12 +2833,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
             )
 
          | TNew (class_def,params,args) ->
-            let rec find_constructor c = (match c.cl_constructor, c.cl_super with
-            | (Some constructor), _  -> constructor.cf_type
-            | _ , Some (super,_)  -> find_constructor super
-            | _ -> abort "TNew without constructor " expr.epos
-            ) in
-            let constructor_type = find_constructor class_def in
+            let constructor_type = match OverloadResolution.maybe_resolve_constructor_overload class_def params args with
+               | None -> abort "Could not find overload" expr.epos
+               | Some (_,constructor,_) -> constructor.cf_type
+            in
             let arg_types, _ = cpp_function_type_of_args_ret ctx constructor_type in
             let retypedArgs = retype_function_args args arg_types in
             let created_type = cpp_type_of expr.etype in
@@ -7817,21 +7815,14 @@ class script_writer ctx filename asciiOut =
                      this#checkCast tvar.v_type init false false);
    | TNew (clazz,params,arg_list) ->
       this#write ((this#op IaNew) ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
-      let rec matched_args clazz = match clazz.cl_constructor, clazz.cl_super with
-         | None, Some super -> matched_args (fst super)
-         | None, _ -> false
-         | Some ctr, _ ->
-            (match ctr.cf_type with
-            | TFun(args,_) ->
-               ( try (
-                  List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false false)  args arg_list;
-                  true; )
-                 with Invalid_argument _ -> (*print_endline "Bad count?";*) false )
-            | _ -> false
-            )
-      in
-      if not (matched_args clazz) then
-         List.iter this#gen_expression arg_list;
+      (try
+         match OverloadResolution.maybe_resolve_constructor_overload clazz params arg_list with
+         | Some (_,{ cf_type = TFun(args,_) },_) ->
+            List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false false) args arg_list;
+         | _ ->
+            raise (Invalid_argument "")
+      with Invalid_argument _ ->
+         List.iter this#gen_expression arg_list)
 
    | TReturn optval -> (match optval with
          | None -> this#writeOpLine IaReturn;

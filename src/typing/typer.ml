@@ -567,10 +567,14 @@ and type_access ctx e p mode with_type =
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
-				let ec,t = match c.cl_kind with
-					| KAbstractImpl a ->
+				let ec,t = match c.cl_kind, fa.fa_host with
+					| KAbstractImpl a, FHAbstract _ ->
 						let t = TAbstract(a,monos) in
 						(new call_dispatcher ctx (MCall []) WithType.value p)#field_call fa el [],t
+					| KAbstractImpl a, FHInstance (c,pl) ->
+						let e_new = mk (TNew(c,monos,el)) (TInst(c,pl)) p in
+						let t = TAbstract(a,monos) in
+						mk_cast e_new t p, t
 					| _ ->
 						let t = TInst(c,monos) in
 						mk (TNew(c,monos,el)) t p,t

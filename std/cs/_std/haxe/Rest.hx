@@ -20,7 +20,7 @@ abstract Rest<T>(NativeRest<T>) {
 		this = a;
 
 	@:arrayAccess inline function get(index:Int):T
-		return this[index];
+		return (this[index] : T); // typecheck, otherwise it will be inlined as Dynamic with `-D erase-generics`
 
 	@:to public function toArray():Array<T> {
 		var result = new NativeRest(this.Length);
@@ -46,5 +46,9 @@ abstract Rest<T>(NativeRest<T>) {
 		CsArray.Copy(this, 0, result, 1, this.Length);
 		result[0] = item;
 		return new Rest(result);
+	}
+
+	public function toString():String {
+		return toArray().toString();
 	}
 }

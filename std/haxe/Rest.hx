@@ -80,4 +80,12 @@ abstract Rest<T>(NativeRest<T>) {
 		result.unshift(item);
 		return new Rest(result);
 	}
+
+	public inline function toString():String {
+		#if (flash || js)
+			return '[${this.toString()}]';
+		#else
+			return this.toString();
+		#end
+	}
 }
