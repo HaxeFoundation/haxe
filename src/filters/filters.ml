@@ -276,6 +276,13 @@ let eliminate_void ctx e =
 			let eobj = loop eobj in
 			let args = List.map (fun e -> value (loop e)) args in
 			{ e with eexpr = TCall (eobj, args)}
+		| TBinop (OpAssign, e1, e2) ->
+			let e1 = loop e1 in
+			let e2 = loop e2 in
+			if is_void e1.etype then
+				{ e with eexpr = TBlock [e1; e2] }
+			else
+				{ e with eexpr = TBinop (OpAssign, e1, e2) }
 		| TBlock el ->
 			let el = ExtList.List.filter_map (fun e ->
 				let e = loop e in
