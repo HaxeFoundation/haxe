@@ -2908,6 +2908,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
             else
                arrayExpr, elemType
 
+         | TTypeExpr (TAbstractDecl { a_path = [],"Void" }) ->
+            CppNull, TCppNull
+
          | TTypeExpr module_type ->
             let path = t_path module_type in
             CppClassOf(path, is_native_gen_module module_type), TCppClass
