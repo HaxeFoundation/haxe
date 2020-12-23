@@ -2115,7 +2115,10 @@ let is_instance_compare =  function
 
 let ctx_arg_type_name ctx name default_val arg_type prefix =
    let remap_name = keyword_remap name in
-   let type_str = (ctx_type_string ctx arg_type) in
+   let type_str =
+      if ExtType.is_void (follow arg_type) then (tcpp_to_string TCppNull)
+      else (ctx_type_string ctx arg_type)
+   in
    match default_val with
    | Some {eexpr = TConst TNull}  -> (type_str,remap_name)
    | Some constant when (ctx_cant_be_null ctx arg_type) -> ("::hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
@@ -7529,7 +7532,7 @@ class script_writer ctx filename asciiOut =
       this#ident v.v_name;
       this#wint v.v_id;
       this#writeBool (has_var_flag v VCaptured);
-      this#writeType v.v_type;
+         this#writeType v.v_type;
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
    method wpos p = if debug then
       this#write ( (this#fileText p.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line p) ) ^ indent);
