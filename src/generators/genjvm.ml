@@ -1409,6 +1409,13 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					in
 					loop acc tl el
 				end
+			| [(_,_,t)],[] ->
+				(match Type.follow t with
+				| TAbstract({a_path = ["haxe"],"Rest"},[t1]) ->
+					let jsig = jsignature_of_type gctx t in
+					self#new_native_array (get_boxed_type (jsignature_of_type gctx t1)) [];
+					List.rev (jsig :: acc)
+				| _ -> List.rev acc)
 			| _,[] -> List.rev acc
 			| [],e :: el ->
 				(* TODO: this sucks *)
