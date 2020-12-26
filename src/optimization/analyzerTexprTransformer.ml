@@ -256,7 +256,8 @@ let rec func ctx bb tf t p =
 						if bb == g.g_unreachable then raise Exit;
 						loop2 bb el
 					| [] ->
-						die "" __LOC__
+						(* TODO: is this correct? *)
+						bb,ctx.com.basic.evoid e.epos
 				in
 				let bb,e = loop2 bb el in
 				loop bb e
