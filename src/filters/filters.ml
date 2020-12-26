@@ -263,6 +263,12 @@ let eliminate_void ctx e =
 		else
 			e
 	in
+	(* TODO: horrible hack, gotta think about this *)
+	let accepts_void_arg eobj =
+		match eobj.eexpr with
+		| TIdent "__fixed__" when ctx.com.platform = Cs -> true
+		| _ -> false
+	in
 	let rec loop e =
 		match e.eexpr with
 		| TLocal v when is_void v.v_type ->
@@ -274,7 +280,8 @@ let eliminate_void ctx e =
 			end
 		| TCall (eobj, args) ->
 			let eobj = loop eobj in
-			let args = List.map (fun e -> value (loop e)) args in
+			let f = if accepts_void_arg eobj then loop else (fun e -> value (loop e)) in
+			let args = List.map f args in
 			{ e with eexpr = TCall (eobj, args)}
 		| TBinop (OpAssign, e1, e2) ->
 			let e1 = loop e1 in
