@@ -22,6 +22,11 @@
 
 package haxe;
 
+#if (target.threaded && !cppia)
+import sys.thread.Thread;
+import sys.thread.EventLoop;
+#end
+
 /**
 	The `Timer` class allows you to create asynchronous timers on platforms that
 	support events.
@@ -39,9 +44,9 @@ package haxe;
 class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
-	#elseif java
-	private var timer:java.util.Timer;
-	private var task:java.util.TimerTask;
+	#elseif (target.threaded && !cppia)
+	var thread:Thread;
+	var eventHandler:EventHandler;
 	#else
 	private var event:MainLoop.MainEvent;
 	#end
@@ -66,9 +71,9 @@ class Timer {
 		#elseif js
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
-		#elseif java
-		timer = new java.util.Timer();
-		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
+		#elseif (target.threaded && !cppia)
+		thread = Thread.current();
+		eventHandler = thread.events.repeat(() -> this.run(), time_ms);
 		#else
 		var dt = time_ms / 1000;
 		event = MainLoop.add(function() {
@@ -97,12 +102,8 @@ class Timer {
 		untyped clearInterval(id);
 		#end
 		id = null;
-		#elseif java
-		if (timer != null) {
-			timer.cancel();
-			timer = null;
-		}
-		task = null;
+		#elseif (target.threaded && !cppia)
+		thread.events.cancel(eventHandler);
 		#else
 		if (event != null) {
 			event.stop();
@@ -121,7 +122,7 @@ class Timer {
 		var timer = new haxe.Timer(1000); // 1000ms delay
 		timer.run = function() { ... }
 		```
-		
+
 		Once bound, it can still be rebound to different functions until `this`
 		Timer is stopped through a call to `this.stop`.
 	**/
@@ -172,10 +173,13 @@ class Timer {
 	public static inline function stamp():Float {
 		#if flash
 		return flash.Lib.getTimer() / 1000;
-		#elseif (neko || php)
-		return Sys.time();
 		#elseif js
-		return js.lib.Date.now() / 1000;
+		#if nodejs
+		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
+		return hrtime[0] + hrtime[1] / 1e9;
+		#else
+		return @:privateAccess HxOverrides.now() / 1000;
+		#end
 		#elseif cpp
 		return untyped __global__.__time_stamp();
 		#elseif python
@@ -187,19 +191,3 @@ class Timer {
 		#end
 	}
 }
-
-#if java
-@:nativeGen
-private class TimerTask extends java.util.TimerTask {
-	var timer:Timer;
-
-	public function new(timer:Timer):Void {
-		super();
-		this.timer = timer;
-	}
-
-	@:overload override public function run():Void {
-		timer.run();
-	}
-}
-#end

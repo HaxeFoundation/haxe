@@ -596,4 +596,11 @@ class TestMisc extends Test {
 		var s = try test() catch(e:String) e;
 		eq(s,"never call me");
 	}
+
+	static var nf1:Base = null;
+	static var nf2:{s:String} = null;
+	function testNullFieldAccess() {
+		eq("NPE", try nf1.s catch (e:Any) "NPE");
+		eq("NPE", try nf2.s catch (e:Any) "NPE");
+	}
 }

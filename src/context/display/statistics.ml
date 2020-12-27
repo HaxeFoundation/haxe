@@ -18,25 +18,28 @@ type statistics_filter =
 	| SFPos of pos
 	| SFFile of string
 
-let collect_statistics ctx pfilter with_expressions =
+let collect_statistics ctx pos_filters with_expressions =
 	let relations = Hashtbl.create 0 in
 	let symbols = Hashtbl.create 0 in
 	let handled_modules = Hashtbl.create 0 in
-	let full_path =
+	let path_key =
 		let paths = Hashtbl.create 0 in
 		(fun path ->
 			try
 				Hashtbl.find paths path
 			with Not_found ->
-				let unique = Path.unique_full_path path in
+				let unique = ctx.com.file_keys#get path in
 				Hashtbl.add paths path unique;
 				unique
 		)
 	in
-	let check_pos = match pfilter with
-		| SFNone -> (fun p -> p <> null_pos)
-		| SFPos p -> (fun p' -> p.pmin = p'.pmin && p.pmax = p'.pmax && p.pfile = full_path p'.pfile)
-		| SFFile s -> (fun p -> full_path p.pfile = s)
+	let check_pos p =
+		List.exists (fun pfilter ->
+			match pfilter with
+			| SFNone -> p <> null_pos
+			| SFPos p1 -> p1.pmin = p.pmin && p1.pmax = p.pmax && path_key p1.pfile = path_key p.pfile
+			| SFFile s -> path_key p.pfile = path_key s
+		) pos_filters
 	in
 	let add_relation p r =
 		if check_pos p then try
@@ -52,39 +55,40 @@ let collect_statistics ctx pfilter with_expressions =
 			Hashtbl.replace symbols p kind;
 		end
 	in
-	let collect_overrides c =
-		List.iter (fun cf ->
-			let rec loop c = match c.cl_super with
-				| Some (c,_) ->
-					begin try
-						let cf' = PMap.find cf.cf_name c.cl_fields in
-						add_relation cf'.cf_name_pos (Overridden,cf.cf_name_pos)
-					with Not_found ->
-						()
-					end;
-					loop c
-				| _ ->
-					()
-			in
-			loop c
-		) c.cl_overrides
-	in
-	let collect_implementations c =
-		List.iter (fun cf ->
-			let rec loop c =
+	let check_override c cf =
+		let rec loop c = match c.cl_super with
+			| Some (c,_) ->
 				begin try
 					let cf' = PMap.find cf.cf_name c.cl_fields in
-					add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
+					add_relation cf'.cf_name_pos (Overridden,cf.cf_name_pos)
 				with Not_found ->
 					()
 				end;
-				List.iter loop c.cl_descendants
-			in
-			List.iter loop c.cl_descendants
-		) c.cl_ordered_fields;
-		let rec loop c' =
-			add_relation c.cl_name_pos ((if c'.cl_interface then Extended else Implemented),c'.cl_name_pos);
-			List.iter loop c'.cl_descendants
+				loop c
+			| _ ->
+				()
+		in
+		loop c
+	in
+	let collect_implementations c =
+		let memo = Hashtbl.create 0 in
+		let rec loop c1 =
+			if not (Hashtbl.mem memo c1.cl_path) then begin
+				Hashtbl.add memo c1.cl_path true;
+				if (has_class_flag c1 CInterface) then
+					add_relation c.cl_name_pos (Extended,c1.cl_name_pos)
+				else begin
+					add_relation c.cl_name_pos (Implemented,c1.cl_name_pos);
+					List.iter (fun cf ->
+						try
+							let cf' = PMap.find cf.cf_name c1.cl_fields in
+							add_relation cf.cf_name_pos (Implemented,cf'.cf_name_pos)
+						with Not_found ->
+							()
+					) c.cl_ordered_fields
+				end;
+				List.iter loop c1.cl_descendants
+			end
 		in
 		List.iter loop c.cl_descendants
 	in
@@ -98,21 +102,21 @@ let collect_statistics ctx pfilter with_expressions =
 	let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
 	let related_fields = Hashtbl.create 0 in
 	let field_reference co cf p =
-		let p' = patch_string_pos p cf.cf_name in
-		add_relation cf.cf_name_pos (Referenced,p');
+		let p1 = patch_string_pos p cf.cf_name in
+		add_relation cf.cf_name_pos (Referenced,p1);
 		(* extend to related classes for instance fields *)
 		if check_pos cf.cf_name_pos then match co with
 		| Some c ->
 			let id = (c.cl_path,cf.cf_name) in
 			begin try
 				let cfl = Hashtbl.find related_fields id in
-				List.iter (fun cf -> add_relation cf.cf_name_pos (Referenced,p')) cfl
+				List.iter (fun cf -> add_relation cf.cf_name_pos (Referenced,p1)) cfl
 			with Not_found ->
 				let cfl = ref [] in
 				let check c =
 					try
 						let cf = PMap.find cf.cf_name c.cl_fields in
-						add_relation cf.cf_name_pos (Referenced,p');
+						add_relation cf.cf_name_pos (Referenced,p1);
 						cfl := cf :: !cfl
 					with Not_found ->
 						()
@@ -153,7 +157,7 @@ let collect_statistics ctx pfilter with_expressions =
 					| FInstance(c,_,cf) | FClosure(Some(c,_),cf) ->
 						field_reference (Some c) cf e.epos
 					| FAnon cf ->
-						declare  (SKField cf) cf.cf_name_pos;
+						declare  (SKField (cf,None)) cf.cf_name_pos;
 						field_reference None cf e.epos
 					| FEnum(_,ef) ->
 						add_relation ef.ef_name_pos (Referenced,patch_string_pos e.epos ef.ef_name)
@@ -218,7 +222,7 @@ let collect_statistics ctx pfilter with_expressions =
 	let f = function
 		| TClassDecl c ->
 			check_module c.cl_module;
-			declare (if c.cl_interface then (SKInterface c) else (SKClass c)) c.cl_name_pos;
+			declare (if (has_class_flag c CInterface) then (SKInterface c) else (SKClass c)) c.cl_name_pos;
 			begin match c.cl_super with
 				| None -> ()
 				| Some (c',_) ->
@@ -228,18 +232,20 @@ let collect_statistics ctx pfilter with_expressions =
 					in
 					loop c'
 			end;
-			collect_overrides c;
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				collect_implementations c;
 			let field cf =
-				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField cf) cf.cf_name_pos;
+				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField (cf,Some c.cl_path)) cf.cf_name_pos;
 				if with_expressions then begin
 					let _ = follow cf.cf_type in
 					match cf.cf_expr with None -> () | Some e -> collect_references c e
 				end
 			in
 			Option.may field c.cl_constructor;
-			List.iter field c.cl_ordered_fields;
+			List.iter (fun cf ->
+				if has_class_field_flag cf CfOverride then check_override c cf;
+				field cf;
+			) c.cl_ordered_fields;
 			List.iter field c.cl_ordered_statics;
 		| TEnumDecl en ->
 			check_module en.e_module;

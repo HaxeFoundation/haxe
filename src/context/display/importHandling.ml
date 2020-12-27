@@ -21,7 +21,7 @@ let convert_import_to_something_usable pt path =
 			let is_display_pos = encloses_position pt p in
 			begin match is_lower,m,t with
 				| _,None,Some _ ->
-					assert false (* impossible, I think *)
+					die "" __LOC__ (* impossible, I think *)
 				| true,Some m,None ->
 					if is_display_pos then (IDKModuleField(List.rev pack,m,s),p)
 					else (IDK,p) (* assume that we're done *)

@@ -22,47 +22,154 @@
 
 package sys.thread;
 
-typedef ThreadHandle = hl.Abstract<"hl_thread">;
+abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
+	public var events(get,never):EventLoop;
 
-abstract Thread(ThreadHandle) {
-	public function sendMessage(msg:Dynamic) {
-		getQueue(this).add(msg);
+	public inline function sendMessage(msg:Dynamic) {
+		this.sendMessage(msg);
 	}
 
-	public static function readMessage(block = true):Dynamic {
-		return getQueue(cast current()).pop(block);
+	public static inline function readMessage(block = true):Dynamic {
+		return HaxeThread.current().readMessage(block);
 	}
 
-	static var queue_mutex:Mutex = null;
-	static var threads_queues:Array<{t:ThreadHandle, q:Deque<Dynamic>}> = null;
-
-	static function getQueue(t:ThreadHandle) {
-		if (queue_mutex == null) {
-			queue_mutex = new Mutex();
-			threads_queues = [];
-		}
-		queue_mutex.acquire();
-		var q = null;
-		for (tq in threads_queues)
-			if (tq.t == t) {
-				q = tq.q;
-				break;
-			}
-		if (q == null) {
-			q = new Deque<Dynamic>();
-			threads_queues.push({t: t, q: q});
-		}
-		queue_mutex.release();
-		return q;
+	public static inline function create(job:()->Void):Thread {
+		return HaxeThread.create(job, false);
 	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
+		return HaxeThread.create(job, true);
+	}
+
+	public static function current():Thread {
+		return HaxeThread.current();
+	}
+
+	function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
+		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		@:privateAccess HaxeThread.current().events = new EventLoop();
+	}
+
+	@:keep
+	static public function processEvents() {
+		HaxeThread.current().events.loop();
+	}
+}
+
+private typedef ThreadHandle = hl.Abstract<"hl_thread">;
+
+private class HaxeThread {
+	static final mainThreadHandle:ThreadHandle = currentHandle();
+	static final mainThread:HaxeThread = new HaxeThread();
+	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
+	static final threadsMutex = new Mutex();
+
+	public var events(default,null):Null<EventLoop>;
+	final messages = new Deque();
+
+	static var ids = 0;
+	var id = ids++;
 
 	@:hlNative("std", "thread_create")
-	public static function create(callb:Void->Void):Thread {
+	static function createHandle(callb:Void->Void):ThreadHandle {
 		return null;
 	}
 
 	@:hlNative("std", "thread_current")
-	public static function current():Thread {
+	static function currentHandle():ThreadHandle {
 		return null;
+	}
+
+	static public function current():HaxeThread {
+		var handle = currentHandle();
+		if(handle == mainThreadHandle) {
+			return mainThread;
+		}
+		threadsMutex.acquire();
+		var thread = null;
+		for(item in threads) {
+			if(item.handle == handle) {
+				thread = item.thread;
+				break;
+			}
+		}
+		if(thread == null) {
+			thread = new HaxeThread();
+			threads.push({thread:thread, handle:handle});
+		}
+		threadsMutex.release();
+		return thread;
+	}
+
+	public static function create(callb:()->Void, withEventLoop:Bool):Thread {
+		var item = {handle:null, thread:new HaxeThread()};
+		threadsMutex.acquire();
+		threads.push(item);
+		threadsMutex.release();
+		if(withEventLoop)
+			item.thread.events = new EventLoop();
+		item.handle = createHandle(() -> {
+			if(item.handle == null) {
+				item.handle = currentHandle();
+			}
+			try {
+				callb();
+				if(withEventLoop)
+					item.thread.events.loop();
+			} catch(e) {
+				dropThread(item);
+				throw e;
+			}
+			dropThread(item);
+		});
+		return item.thread;
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = current();
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
+	}
+
+	static function dropThread(deleteItem) {
+		threadsMutex.acquire();
+		for(i => item in threads) {
+			if(item == deleteItem) {
+				threads.splice(i, 1);
+				break;
+			}
+		}
+		threadsMutex.release();
+	}
+
+	public function readMessage(block:Bool):Dynamic {
+		return messages.pop(block);
+	}
+
+	public function new() {}
+
+	public function sendMessage(msg:Dynamic) {
+		messages.add(msg);
 	}
 }

@@ -146,8 +146,6 @@ class TestFileSystem extends utest.Test {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
-			if (!properCase)
-				p = p.toLowerCase();
 		}
 		return p;
 	}

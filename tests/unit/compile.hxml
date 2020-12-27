@@ -1,8 +1,5 @@
 # unittest helpers
 
-# remoting
-compile-remoting.hxml
-
 # exe-runner
 --next
 compile-exe-runner.hxml

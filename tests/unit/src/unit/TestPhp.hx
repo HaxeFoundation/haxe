@@ -45,6 +45,18 @@ class TestPhp extends Test
 		t(result);
 	}
 
+	function testCustomArrayDecl() {
+		var a = Syntax.customArrayDecl([1 => 'hello', 'world' => true]);
+		var keys:Array<Dynamic> = [];
+		var values:Array<Dynamic> = [];
+		for(k => v in a) {
+			keys.push(k);
+			values.push(v);
+		}
+		aeq(([1, 'world']:Array<Dynamic>), keys);
+		aeq((['hello', true]:Array<Dynamic>), values);
+	}
+
 	function testIssue1828() {
 		var x = try {
 			throw "foo";
@@ -83,6 +95,31 @@ class TestPhp extends Test
 		f.handle( function() {
 			eq("ok", "ok");
 		});
+	}
+
+	@:analyzer(ignore)
+	function testIssue9924() {
+		var v = Std.random(10);
+
+		var GLOBALS = v;
+		var _SERVER = v;
+		var _GET = v;
+		var _POST = v;
+		var _FILES = v;
+		var _COOKIE = v;
+		var _REQUEST = v;
+		var _ENV = v;
+		// var _SESSION = v; //not defined in CLI
+
+		utest.Assert.notEquals(GLOBALS, SuperGlobal.GLOBALS);
+		utest.Assert.notEquals(_SERVER, SuperGlobal._SERVER);
+		utest.Assert.notEquals(_GET, SuperGlobal._GET);
+		utest.Assert.notEquals(_POST, SuperGlobal._POST);
+		utest.Assert.notEquals(_FILES, SuperGlobal._FILES);
+		utest.Assert.notEquals(_COOKIE, SuperGlobal._COOKIE);
+		utest.Assert.notEquals(_REQUEST, SuperGlobal._REQUEST);
+		utest.Assert.notEquals(_ENV, SuperGlobal._ENV);
+		// utest.Assert.notEquals(_SESSION, SuperGlobal._SESSION);
 	}
 
 	inline static function make():FunctionCallerWrapper {
@@ -173,8 +210,8 @@ class TestPhp extends Test
 	}
 
 	function testClosureComparison() {
-		var fn1:Void->Void;
-		var fn2:Void->Void;
+		var fn1:()->Void;
+		var fn2:()->Void;
 		eq(ClosureDummy.testStatic, ClosureDummy.testStatic);
 		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
 		// t(ClosureDummy.testStatic == ClosureDummy.testStatic);
@@ -345,7 +382,7 @@ enum Annotation {
 	Const(i:String);
 }
 
-private typedef Func = Void->Void;
+private typedef Func = ()->Void;
 
 private abstract FunctionCaller(Func->Void) to Func->Void {
 	public function new(f:Func->Void) this = f;

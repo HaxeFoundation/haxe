@@ -22,7 +22,7 @@
 
 package php;
 
-import haxe.extern.Rest;
+import haxe.Rest;
 import haxe.extern.AsVar;
 import haxe.extern.EitherType;
 
@@ -240,7 +240,7 @@ extern class Syntax {
 	/**
 		Generates instance field access for reading on `object`
 	**/
-	@:deprecated("php.Syntax.getFiled() is deprecated. Use php.Syntax.field() instead.")
+	@:deprecated("php.Syntax.getField() is deprecated. Use php.Syntax.field() instead.")
 	static function getField<T>(object:AsVar<T>, fieldName:String):Dynamic;
 
 	/**
@@ -278,6 +278,17 @@ extern class Syntax {
 		```
 	**/
 	static function arrayDecl<T>(args:Rest<T>):NativeIndexedArray<T>;
+
+	/**
+		```haxe
+		Syntax.customArrayDecl([v1 => v2, v3 => v4]);
+		```
+		Generates native array declaration:
+		```haxe
+		[$v1 => $v2, $v3 => $v4]
+		```
+	**/
+	macro static function customArrayDecl<T>(decl:haxe.macro.Expr):haxe.macro.Expr.ExprOf<php.NativeArray>;
 
 	/**
 		```haxe

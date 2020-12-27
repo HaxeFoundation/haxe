@@ -2,10 +2,10 @@ import cs.Constraints;
 import haxe.Constraints.Constructible;
 
 @:nativeGen
-class StructAndConstructible<T:CsStruct & Constructible<Void->Void>> {}
+class StructAndConstructible<T:CsStruct & Constructible<()->Void>> {}
 
 @:nativeGen
-class ConstructibleAndStruct<T:Constructible<Void->Void> & CsStruct> {}
+class ConstructibleAndStruct<T:Constructible<()->Void> & CsStruct> {}
 
 @:nativeGen
 class StructAndClass<T:CsStruct & CsClass> {}
@@ -21,8 +21,8 @@ class UnmanagedAndStruct<T:CsUnmanaged & CsStruct> {}
 class StructAndUnmanaged<T:CsStruct & CsUnmanaged> {}
 
 @:nativeGen
-class UnmanagedAndConstructible<T:CsUnmanaged & Constructible<Void->Void>> {}
+class UnmanagedAndConstructible<T:CsUnmanaged & Constructible<()->Void>> {}
 
 @:nativeGen
-class ConstructibleAndUnmanaged<T:Constructible<Void->Void> & CsUnmanaged> {}
+class ConstructibleAndUnmanaged<T:Constructible<()->Void> & CsUnmanaged> {}
 #end

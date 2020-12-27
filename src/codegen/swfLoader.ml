@@ -16,6 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
+open Extlib_leftovers
 open Swf
 open As3
 open As3hl
@@ -46,7 +47,7 @@ let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
 let ct_dyn = CTPath tp_dyn
 
 let ct_rest = CTPath {
-	tpackage = ["haxe"; "extern"];
+	tpackage = ["haxe"];
 	tname = "Rest";
 	tparams = [TPType (ct_dyn,null_pos)];
 	tsub = None;
@@ -70,7 +71,7 @@ let rec make_tpath = function
 			| [] , "QName" -> ["flash";"utils"], "QName"
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
-			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
+			| ["__AS3__";"vec"] , "Vector" -> pdyn := true; ["flash"], "Vector"
 			| _ -> lowercase_pack pack, name
 		in
 		{
@@ -102,17 +103,17 @@ let rec make_tpath = function
 			tsub = None;
 		}
 	| HMMultiName _ ->
-		assert false
+		die "" __LOC__
 	| HMRuntimeName _ ->
-		assert false
+		die "" __LOC__
 	| HMRuntimeNameLate ->
-		assert false
+		die "" __LOC__
 	| HMMultiNameLate _ ->
-		assert false
+		die "" __LOC__
 	| HMAttrib _ ->
-		assert false
+		die "" __LOC__
 	| HMAny ->
-		assert false
+		die "" __LOC__
 	| HMParams (t,params) ->
 		let params = List.map (fun t -> TPType (CTPath (make_tpath t),null_pos)) params in
 		{ (make_tpath t) with tparams = params }
@@ -173,7 +174,7 @@ let build_class com c file =
 				in
 				loop ns
 			| HMPath _ -> i
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		) in
 		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
 	) (Array.to_list c.hlc_implements) @ flags in
@@ -260,9 +261,12 @@ let build_class com c file =
 						| None -> None
 						| Some v ->
 							let v = (match v with
-							| HVNone | HVNull | HVNamespace _ | HVString _ ->
+							| HVNone | HVNull | HVNamespace _ ->
 								is_opt := true;
 								None
+							| HVString s ->
+								is_opt := true;
+								Some (String (s,SDoubleQuotes))
 							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
 							| HVInt i | HVUInt i ->
@@ -295,7 +299,7 @@ let build_class com c file =
 				Hashtbl.add getters (name,stat) (m.hlm_type.hlmt_ret,mk_meta());
 				acc
 			| MK3Setter ->
-				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false),mk_meta());
+				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> die "" __LOC__),mk_meta());
 				acc
 			)
 		| _ -> acc
@@ -315,7 +319,7 @@ let build_class com c file =
 	let fields = Array.fold_left (make_field true) fields c.hlc_static_fields in
 	let make_get_set name stat tget tset =
 		let get, set, t, meta = (match tget, tset with
-			| None, None -> assert false
+			| None, None -> die "" __LOC__
 			| Some (t,meta), None -> true, false, t, meta
 			| None, Some (t,meta) -> false, true, t, meta
 			| Some (t1,meta1), Some (t2,meta2) -> true, true, (if t1 <> t2 then None else t1), meta1 @ (List.filter (fun m -> not (List.mem m meta1)) meta2)
@@ -419,8 +423,8 @@ let build_class com c file =
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
-			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
+			d_meta = [(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
+			d_flags = [AbEnum;AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
 		(path.tpackage, [(EAbstract abstract_data,pos)])

@@ -129,7 +129,7 @@ module Ssa = struct
 						add_ssa_edge ctx.graph v' bb true i;
 						{e with eexpr = TLocal v'}
 					| _ ->
-						assert false
+						die "" __LOC__
 				) el edge.cfg_to.bb_incoming in
 				let ephi = {ecall with eexpr = TCall(ephi,el)} in
 				set_var_value ctx.graph v0 bb true i;
@@ -145,7 +145,7 @@ module Ssa = struct
 			let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 			declare_var ctx.graph v' bb;
 			v'.v_meta <- v.v_meta;
-			v'.v_capture <- v.v_capture;
+			if has_var_flag v VCaptured then add_var_flag v' VCaptured;
 			add_var_def ctx.graph bb v';
 			set_reaching_def ctx.graph v' (get_reaching_def ctx.graph v);
 			set_reaching_def ctx.graph v (Some v');
@@ -302,7 +302,7 @@ module DataFlow (M : DataFlowApi) = struct
 				match e.eexpr with
 					| TBinop(OpAssign,{eexpr = TLocal v},{eexpr = TCall({eexpr = TConst (TString "phi")},el)}) ->
 						set_lattice_cell v (visit_phi bb v el)
-					| _ -> assert false
+					| _ -> die "" __LOC__
 			) bb.bb_phi
 		in
 		let rec loop () = match !cfg_work_list,!ssa_work_list with
@@ -369,7 +369,7 @@ module ConstPropagation = DataFlow(struct
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
 		| Null t1,Null t2 -> t1 == t2
-		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && List.for_all2 equals tl1 tl2
+		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && safe_for_all2 equals tl1 tl2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
@@ -394,7 +394,7 @@ module ConstPropagation = DataFlow(struct
 			| TTypeExpr mt ->
 				ModuleType(mt,e.etype)
 			| TLocal v ->
-				if (follow v.v_type) == t_dynamic || v.v_capture then
+				if (follow v.v_type) == t_dynamic || has_var_flag v VCaptured then
 					Bottom
 				else
 					get_cell v.v_id
@@ -486,7 +486,7 @@ module ConstPropagation = DataFlow(struct
 				if not (type_change_ok ctx.com t e.etype) then raise Not_found;
 				mk (TTypeExpr mt) t e.epos
 		in
-		let is_special_var v = v.v_capture || ExtType.has_variable_semantics v.v_type in
+		let is_special_var v = has_var_flag v VCaptured || ExtType.has_variable_semantics v.v_type in
 		let rec commit e = match e.eexpr with
 			| TLocal v when not (is_special_var v) ->
 				begin try
@@ -527,11 +527,13 @@ module CopyPropagation = DataFlow(struct
 		| Top
 		| Bottom
 		| Local of tvar
+		| This of Type.t
 
 	let to_string = function
 		| Top -> "Top"
 		| Bottom -> "Bottom"
 		| Local v -> Printf.sprintf "%s<%i>" v.v_name v.v_id
+		| This _ -> "this"
 
 	let conditional = false
 	let flag = FlagCopyPropagation
@@ -547,12 +549,15 @@ module CopyPropagation = DataFlow(struct
 		| Top,Top -> true
 		| Bottom,Bottom -> true
 		| Local v1,Local v2 -> v1.v_id = v2.v_id
+		| This t1,This t2 -> t1 == t2
 		| _ -> false
 
 	let transfer ctx bb e =
 		let rec loop e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				Local v
+			| TConst TThis ->
+				This e.etype
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				loop e1
 			| _ ->
@@ -565,25 +570,32 @@ module CopyPropagation = DataFlow(struct
 
 	let commit ctx =
 		let rec commit bb e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				begin try
 					let lat = get_cell v.v_id in
 					let leave () =
 						Hashtbl.remove lattice v.v_id;
 						raise Not_found
 					in
-					let v' = match lat with Local v -> v | _ -> leave() in
-					if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
-					let v'' = get_var_origin ctx.graph v' in
-					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
-					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
-					   considering variables whose origin-variables are assigned to at most once. *)
-					let writes = (get_var_info ctx.graph v'').vi_writes in
-					begin match writes with
-						| [bb'] when in_scope bb bb' -> ()
-						| _ -> leave()
+					begin match lat with
+					| Local v' ->
+						if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
+						let v'' = get_var_origin ctx.graph v' in
+						(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
+						the same origin var, which creates interference that is not tracked in the analysis. We address this by only
+						considering variables whose origin-variables are assigned to at most once. *)
+						let writes = (get_var_info ctx.graph v'').vi_writes in
+						begin match writes with
+							| [bb'] when in_scope bb bb' -> ()
+							| _ -> leave()
+						end;
+						commit bb {e with eexpr = TLocal v'}
+					| This t ->
+						if not (type_change_ok ctx.com t v.v_type) then leave();
+						mk (TConst TThis) t e.epos
+					| Top | Bottom ->
+						leave()
 					end;
-					commit bb {e with eexpr = TLocal v'}
 				with Not_found ->
 					e
 				end
@@ -637,14 +649,14 @@ module LocalDce = struct
 
 	let rec apply ctx =
 		let is_used v =
-			Meta.has Meta.Used v.v_meta
+			has_var_flag v VUsed
 		in
 		let keep v =
-			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || v.v_capture || Meta.has Meta.This v.v_meta
+			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				v.v_meta <- (Meta.Used,[],null_pos) :: v.v_meta;
+				add_var_flag v VUsed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
 					| None -> use (get_var_origin ctx.graph v)
@@ -1005,7 +1017,7 @@ module Run = struct
 				in
 				(try loop tf.tf_expr with Exit -> mk (TCall(e,[])) tf.tf_type e.epos)
 			| _ ->
-				assert false
+				die "" __LOC__
 		end in
 		e
 
@@ -1081,7 +1093,7 @@ module Run = struct
 				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				c.cl_init <- Some e
 		end

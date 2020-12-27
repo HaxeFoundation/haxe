@@ -253,6 +253,13 @@ extern class Const {
 	static final PHP_BINARY_READ:Int;
 
 	/**
+		@see http://php.net/manual/en/function.session-status.php
+	**/
+	static final PHP_SESSION_DISABLED:Int;
+	static final PHP_SESSION_NONE:Int;
+	static final PHP_SESSION_ACTIVE:Int;
+
+	/**
 		@see http://php.net/manual/en/json.constants.php
 	**/
 	static final JSON_ERROR_NONE:Int;
@@ -424,4 +431,116 @@ extern class Const {
 	static final ZLIB_SYNC_FLUSH:Int;
 	static final ZLIB_FULL_FLUSH:Int;
 	static final ZLIB_FINISH:Int;
+
+	/**
+		@see http://php.net/manual/en/outcontrol.constants.php
+	**/
+	static final PHP_OUTPUT_HANDLER_CLEAN:Int;
+	static final PHP_OUTPUT_HANDLER_CLEANABLE:Int;
+	static final PHP_OUTPUT_HANDLER_CONT:Int;
+	static final PHP_OUTPUT_HANDLER_END:Int;
+	static final PHP_OUTPUT_HANDLER_FINAL:Int;
+	static final PHP_OUTPUT_HANDLER_FLUSH:Int;
+	static final PHP_OUTPUT_HANDLER_FLUSHABLE:Int;
+	static final PHP_OUTPUT_HANDLER_REMOVABLE:Int;
+	static final PHP_OUTPUT_HANDLER_START:Int;
+	static final PHP_OUTPUT_HANDLER_STDFLAGS:Int;
+	static final PHP_OUTPUT_HANDLER_WRITE:Int;
+
+	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static final LOCK_EX:Int;
+	static final LOCK_NB:Int;
+	static final LOCK_SH:Int;
+	static final LOCK_UN:Int;
+
+	/**
+		@see http://php.net/manual/en/function.fnmatch.php
+	**/
+	static final FNM_CASEFOLD:Int;
+	static final FNM_NOESCAPE:Int;
+	static final FNM_PATHNAME:Int;
+	static final FNM_PERIOD:Int;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-file.php
+	**/
+	static final INI_SCANNER_NORMAL:Int;
+	static final INI_SCANNER_RAW:Int;
+	static final INI_SCANNER_TYPED:Int;
+
+	/**
+		@see http://php.net/manual/en/function.pathinfo.php
+	**/
+	static final PATHINFO_BASENAME:Int;
+	static final PATHINFO_DIRNAME:Int;
+	static final PATHINFO_EXTENSION:Int;
+	static final PATHINFO_FILENAME:Int;
+
+	/**
+		@see http://php.net/manual/en/function.dns-get-record.php
+	**/
+	static final DNS_A:Int;
+	static final DNS_AAAA:Int;
+	static final DNS_ALL:Int;
+	static final DNS_ANY:Int;
+	static final DNS_CAA:Int;
+	static final DNS_CNAME:Int;
+	static final DNS_HINFO:Int;
+	static final DNS_MX:Int;
+	static final DNS_NS:Int;
+	static final DNS_PTR:Int;
+	static final DNS_SOA:Int;
+	static final DNS_TXT:Int;
+
+	/**
+		@see http://php.net/manual/en/intl.constants.php
+	**/
+	static final IDNA_ALLOW_UNASSIGNED:Int;
+	static final IDNA_CHECK_BIDI:Int;
+	static final IDNA_CHECK_CONTEXTJ:Int;
+	static final IDNA_DEFAULT:Int;
+	static final IDNA_ERROR_BIDI:Int;
+	static final IDNA_ERROR_CONTEXTJ:Int;
+	static final IDNA_ERROR_DISALLOWED:Int;
+	static final IDNA_ERROR_DOMAIN_NAME_TOO_LONG:Int;
+	static final IDNA_ERROR_EMPTY_LABEL:Int;
+	static final IDNA_ERROR_HYPHEN_3_4:Int;
+	static final IDNA_ERROR_INVALID_ACE_LABEL:Int;
+	static final IDNA_ERROR_LABEL_HAS_DOT:Int;
+	static final IDNA_ERROR_LABEL_TOO_LONG:Int;
+	static final IDNA_ERROR_LEADING_COMBINING_MARK:Int;
+	static final IDNA_ERROR_LEADING_HYPHEN:Int;
+	static final IDNA_ERROR_PUNYCODE:Int;
+	static final IDNA_ERROR_TRAILING_HYPHEN:Int;
+	static final IDNA_NONTRANSITIONAL_TO_ASCII:Int;
+	static final IDNA_NONTRANSITIONAL_TO_UNICODE:Int;
+	static final IDNA_USE_STD3_RULES:Int;
+	static final INTL_ICU_VERSION:String;
+	static final INTL_IDNA_VARIANT_2003:Int;
+	static final INTL_IDNA_VARIANT_UTS46:Int;
+	static final INTL_MAX_LOCALE_LEN:Int;
+
+	/**
+		@see http://php.net/manual/en/array.constants.php
+	**/
+	static final CASE_LOWER:Int;
+	static final CASE_UPPER:Int;
+	static final EXTR_IF_EXISTS:Int;
+	static final EXTR_OVERWRITE:Int;
+	static final EXTR_PREFIX_ALL:Int;
+	static final EXTR_PREFIX_IF_EXISTS:Int;
+	static final EXTR_PREFIX_INVALID:Int;
+	static final EXTR_PREFIX_SAME:Int;
+	static final EXTR_REFS:Int;
+	static final EXTR_SKIP:Int;
+	static final SORT_ASC:Int;
+	static final SORT_DESC:Int;
+	static final SORT_FLAG_CASE:Int;
+	static final SORT_LOCALE_STRING:Int;
+	static final SORT_NATURAL:Int;
+	static final SORT_NUMERIC:Int;
+	static final SORT_REGULAR:Int;
+	static final SORT_STRING:Int;
 }

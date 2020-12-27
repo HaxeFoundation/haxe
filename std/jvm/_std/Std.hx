@@ -24,6 +24,7 @@ import jvm.Jvm;
 
 @:coreApi
 class Std {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -62,43 +63,102 @@ class Std {
 		return cast x;
 	}
 
-	static var integerFormatter = java.text.NumberFormat.getIntegerInstance(java.util.Locale.US);
-	static var doubleFormatter = {
-		var fmt = new java.text.DecimalFormat();
-		fmt.setParseBigDecimal(true);
-		fmt.setDecimalFormatSymbols(new java.text.DecimalFormatSymbols(java.util.Locale.US));
-		fmt;
-	};
-
 	public static function parseInt(x:String):Null<Int> {
-		try {
-			x = StringTools.trim(x);
-			var signChars = switch (cast x : java.NativeString).codePointAt(0) {
-				case '-'.code | '+'.code: 1;
-				case _: 0;
-			}
-			if (x.length < 2 + signChars) {
-				return integerFormatter.parse(x).intValue();
-			}
-			switch ((cast x : java.NativeString).codePointAt(1 + signChars)) {
-				case 'x'.code | 'X'.code:
-					return java.lang.Integer.decode(x).intValue();
-				case _:
-					return integerFormatter.parse(x).intValue();
-			}
-		} catch (_:Dynamic) {
+		if (x == null) {
 			return null;
 		}
+
+		var base = 10;
+		var len = x.length;
+		var foundCount = 0;
+		var sign = 0;
+		var firstDigitIndex = 0;
+		var lastDigitIndex = -1;
+		var previous = 0;
+
+		for (i in 0...len) {
+			var c = StringTools.fastCodeAt(x, i);
+			switch c {
+				case _ if ((c > 8 && c < 14) || c == 32):
+					if (foundCount > 0) {
+						return null;
+					}
+					continue;
+				case '-'.code if (foundCount == 0):
+					sign = -1;
+				case '+'.code if (foundCount == 0):
+					sign = 1;
+				case '0'.code if (foundCount == 0 || (foundCount == 1 && sign != 0)):
+				case 'x'.code | 'X'.code if (previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+					base = 16;
+				case _ if ('0'.code <= c && c <= '9'.code):
+				case _ if (base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
+				case _:
+					break;
+			}
+			if ((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+				firstDigitIndex = i;
+			}
+			foundCount++;
+			lastDigitIndex = i;
+			previous = c;
+		}
+		if (firstDigitIndex <= lastDigitIndex) {
+			var digits = x.substring(firstDigitIndex + (base == 16 ? 2 : 0), lastDigitIndex + 1);
+			return try {
+				(sign == -1 ? -1 : 1) * java.lang.Integer.parseInt(digits, base);
+			} catch (e:java.lang.NumberFormatException) {
+				null;
+			}
+		}
+		return null;
 	}
 
 	public static function parseFloat(x:String):Float {
-		try {
-			x = StringTools.trim(x);
-			x = x.split("+").join(""); // TODO: stupid
-			return doubleFormatter.parse(x.toUpperCase()).doubleValue();
-		} catch (_:Dynamic) {
+		if (x == null) {
 			return Math.NaN;
 		}
+		x = StringTools.ltrim(x);
+		var xn:java.NativeString = cast x;
+		var found = false,
+			hasDot = false,
+			hasSign = false,
+			hasE = false,
+			hasESign = false,
+			hasEData = false;
+		var i = -1;
+
+		while (++i < x.length) {
+			var chr:Int = cast xn.charAt(i);
+			if (chr >= '0'.code && chr <= '9'.code) {
+				if (hasE) {
+					hasEData = true;
+				}
+				found = true;
+			} else
+				switch (chr) {
+					case 'e'.code | 'E'.code if (!hasE):
+						hasE = true;
+					case '.'.code if (!hasDot):
+						hasDot = true;
+					case '-'.code, '+'.code if (!found && !hasSign):
+						hasSign = true;
+					case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
+						hasESign = true;
+					case _:
+						break;
+				}
+		}
+		if (hasE && !hasEData) {
+			i--;
+			if (hasESign)
+				i--;
+		}
+
+		if (i != x.length) {
+			x = x.substr(0, i);
+		}
+		return try java.lang.Double.DoubleClass.parseDouble(x) catch (e:Dynamic) Math.NaN;
 	}
 
 	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {

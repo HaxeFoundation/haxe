@@ -22,9 +22,9 @@
 
 package java.db;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import haxe.io.Bytes;
 import java.sql.Types;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @:native('haxe.java.db.Jdbc')
 class Jdbc {
@@ -143,7 +143,8 @@ private class JdbcConnection implements sys.db.Connection {
 				s = r.matchedRight();
 			}
 			newst.add(s);
-			var stmt = cnx.prepareStatement(newst.toString(), java.sql.Statement.Statement_Statics.RETURN_GENERATED_KEYS);
+			var stmt = cnx.prepareStatement(newst.toString(),
+				#if jvm java.sql.Statement.RETURN_GENERATED_KEYS #else java.sql.Statement.Statement_Statics.RETURN_GENERATED_KEYS #end);
 			for (i in 0...sentArray.length) {
 				stmt.setObject(i + 1, sentArray[i]);
 			}
@@ -266,7 +267,7 @@ private class JdbcResultSet implements sys.db.ResultSet {
 					if (b != null)
 						val = Bytes.ofData(b);
 				} else {
-					untyped __java__("val = rs.getObject(i + 1)"); // type parameter constraint + overloads
+					val = rs.getObject(i + 1);
 				}
 				Reflect.setField(ret, name, val);
 			}

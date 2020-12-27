@@ -1,2 +1,2 @@
 Main.hx:3: characters 57-58 : Int should be { test : String }
-Main.hx:3: characters 57-58 : For function argument 'a'
+Main.hx:3: characters 57-58 : ... For function argument 'a'

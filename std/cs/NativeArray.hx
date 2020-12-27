@@ -36,17 +36,17 @@ extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T> {
 		var elements = NativeArray.make(1,2,3,4,5,6);
 		```
 	**/
-	public static function make<T>(elements:Rest<T>):NativeArray<T>;
+	static function make<T>(elements:Rest<T>):NativeArray<T>;
 
 	/**
 		Allocates a new array with size `len`
 	**/
-	public function new(len:Int):Void;
+	function new(len:Int):Void;
 
 	/**
 		Alias to array's `Length` property. Returns the size of the array
 	**/
-	public var length(get, never):Int;
+	var length(get, never):Int;
 
 	extern inline private function get_length():Int
 		return this.Length;
@@ -56,7 +56,7 @@ extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T> {
 	/**
 		Returns an iterator so it's possible to use `for` with C#'s `NativeArray`
 	**/
-	extern inline public function iterator():NativeArrayIterator<T>
+	extern inline function iterator():NativeArrayIterator<T>
 		return new NativeArrayIterator(this);
 }
 

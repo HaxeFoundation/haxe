@@ -36,27 +36,27 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	/**
 		Creates a new ObjectMap.
 	**/
-	public function new():Void;
+	function new():Void;
 
 	/**
 		See `Map.set`
 	**/
-	public function set(key:K, value:V):Void;
+	function set(key:K, value:V):Void;
 
 	/**
 		See `Map.get`
 	**/
-	public function get(key:K):Null<V>;
+	function get(key:K):Null<V>;
 
 	/**
 		See `Map.exists`
 	**/
-	public function exists(key:K):Bool;
+	function exists(key:K):Bool;
 
 	/**
 		See `Map.remove`
 	**/
-	public function remove(key:K):Bool;
+	function remove(key:K):Bool;
 
 	/**
 		See `Map.keys`
@@ -64,7 +64,7 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		(cs, java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
-	public function keys():Iterator<K>;
+	function keys():Iterator<K>;
 
 	/**
 		See `Map.iterator`
@@ -72,31 +72,31 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		(cs, java) Implementation detail: Do not `set()` any new value while
 		iterating, as it may cause a resize, which will break iteration.
 	**/
-	public function iterator():Iterator<V>;
+	function iterator():Iterator<V>;
 
 	/**
 		See `Map.keyValueIterator`
 	**/
 	#if eval
-	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
+	@:runtime inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 	#else
-	public function keyValueIterator():KeyValueIterator<K, V>;
+	function keyValueIterator():KeyValueIterator<K, V>;
 	#end
 
 	/**
 		See `Map.copy`
 	**/
-	public function copy():ObjectMap<K, V>;
+	function copy():ObjectMap<K, V>;
 
 	/**
 		See `Map.toString`
 	**/
-	public function toString():String;
+	function toString():String;
 
 	/**
 		See `Map.clear`
 	**/
-	public function clear():Void;
+	function clear():Void;
 }

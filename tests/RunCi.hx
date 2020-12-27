@@ -1,3 +1,4 @@
+import haxe.Exception;
 import runci.TestTarget;
 import runci.System;
 import runci.System.*;
@@ -6,17 +7,6 @@ import runci.Deployment.*;
 
 using StringTools;
 
-/**
-	Will be run by CI services, currently TravisCI and AppVeyor.
-
-	TravisCI:
-	Setting file: ".travis.yml".
-	Build result: https://travis-ci.org/HaxeFoundation/haxe
-
-	AppVeyor:
-	Setting file: "appveyor.yml".
-	Build result: https://ci.appveyor.com/project/HaxeFoundation/haxe
-*/
 class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
@@ -38,13 +28,6 @@ class RunCi {
 		}
 
 		for (test in tests) {
-			switch (ci) {
-				case TravisCI:
-					Sys.println('travis_fold:start:test-${test}');
-				case _:
-					//pass
-			}
-
 			switch (systemName) {
 				case "Windows":
 					// change codepage to UTF-8
@@ -65,12 +48,8 @@ class RunCi {
 				var args = switch (ci) {
 					case null:
 						[];
-					case TravisCI:
-						["-D","travis"];
-					case AppVeyor:
-						["-D","appveyor"];
-					case AzurePipelines:
-						["-D","azure"];
+					case GithubActions:
+						["-D","github"];
 				}
 				args = args.concat(["-D", systemName]);
 				switch (test) {
@@ -101,23 +80,17 @@ class RunCi {
 					case Hl:
 						runci.targets.Hl.run(args);
 					case t:
-						throw "unknown target: " + t;
+						throw new Exception("unknown target: " + t);
 				}
 			} catch(f:Failure) {
 				success = false;
-			}
-
-			switch (ci) {
-				case TravisCI:
-					Sys.println('travis_fold:end:test-${test}');
-				case _:
-					//pass
 			}
 
 			if (success) {
 				successMsg('test ${test} succeeded');
 			} else {
 				failMsg('test ${test} failed');
+				break;
 			}
 
 			echoServer.kill();

@@ -15,12 +15,14 @@ open Type
 open Typecore
 open TyperBase
 open Fields
+open CallUnification
 open Calls
 open Error
+open FieldAccess
 
 let convert_function_signature ctx values (args,ret) = match CompletionType.from_type (get_import_status ctx) ~values (TFun(args,ret)) with
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let completion_item_of_expr ctx e =
 	let retype e s t =
@@ -49,19 +51,21 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
+			let te,c,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
 			Display.merge_core_doc ctx (TClassDecl c);
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
-				| KAbstractImpl _,_ when Meta.has Meta.Impl cf.cf_meta -> Self decl
+				| KAbstractImpl _,_ when has_class_field_flag cf CfImpl -> Self decl
 				| _,TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension decl
 				| _ -> Self decl
 			in
 			let make_ci = match c.cl_kind with
-				| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta -> make_ci_enum_abstract_field a
+				| KAbstractImpl a when has_class_field_flag cf CfEnum -> make_ci_enum_abstract_field a
 				| _ -> make_ci_class_field
 			in
-			of_field e origin cf CFSStatic make_ci
+			of_field {e with etype = te} origin cf CFSStatic make_ci
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
+			let te,c,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
 			Display.merge_core_doc ctx (TClassDecl c);
 			let origin = match follow e1.etype with
 			| TInst(c',_) when c != c' ->
@@ -69,7 +73,7 @@ let completion_item_of_expr ctx e =
 			| _ ->
 				Self (TClassDecl c)
 			in
-			of_field e origin cf CFSMember make_ci_class_field
+			of_field {e with etype = te} origin cf CFSMember make_ci_class_field
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
 		| TField(e1,(FAnon cf | FClosure(None,cf))) ->
 			begin match follow e1.etype with
@@ -97,7 +101,7 @@ let completion_item_of_expr ctx e =
 				| TAnon an -> make_ci_anon an (tpair e.etype)
 				| _ -> itexpr e
 			end
-		| TNew(c,tl,_) ->
+		| TNew(c,tl,el) ->
 			Display.merge_core_doc ctx (TClassDecl c);
 			(* begin match fst e_ast with
 			| EConst (Regexp (r,opt)) ->
@@ -109,7 +113,7 @@ let completion_item_of_expr ctx e =
 					| 'm' -> doc c "multiline matching"
 					| 's' -> doc c "dot also match newlines"
 					| 'u' -> doc c "use UTF-8 matching"
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				let present = List.map f present in
 				let present = match present with [] -> [] | _ -> "\n\nActive flags:\n\n" :: present in
@@ -117,10 +121,12 @@ let completion_item_of_expr ctx e =
 				let absent = match absent with [] -> [] | _ -> "\n\nInactive flags:\n\n" :: absent in
 				(TInst(c,tl)),Some ("Regular expression\n\n" ^ (String.concat "\n" (present @ absent)))
 			| _ -> *)
-				let t,cf = get_constructor ctx c tl e.epos in
-				let t = match follow t with
+				let fa = get_constructor_access c tl e.epos in
+				let fcc = unify_field_call ctx fa el [] e.epos false in
+				let cf = fcc.fc_field in
+				let t = match follow (FieldAccess.get_map_function fa cf.cf_type) with
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
-					| _ -> t
+					| t -> t
 				in
 				make_ci_class_field (CompletionClassField.make cf CFSConstructor (Self (decl_of_class c)) true) (tpair ~values:(get_value_meta cf.cf_meta) t)
 			(* end *)
@@ -141,14 +147,27 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t ->
 			let from_type = CompletionType.from_type (get_import_status ctx) in
-			Some (from_type t,from_type (follow t))
+			let t_followed = Type.map follow (follow t) in
+			let compatible = match t_followed with
+					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
+						let fields = Some (get_struct_init_anon_fields c tl) in
+						let ta = mk_anon ?fields (ref Closed) in
+						[from_type ta]
+					| _ ->
+						[]
+			in
+			Some {
+				expected_type = from_type t;
+				expected_type_followed = from_type t_followed;
+				compatible_types = compatible;
+			}
 
 let raise_toplevel ctx dk with_type (subject,psubject) =
 	let expected_type = get_expected_type ctx with_type in
 	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern psubject | _ -> TKExpr psubject) with_type (CRToplevel expected_type) (subject,psubject) psubject
 
 let display_dollar_type ctx p make_type =
-	let mono = mk_mono() in
+	let mono = spawn_monomorph ctx p in
 	let doc = doc_from_string "Outputs type of argument as a warning and uses argument as value" in
 	let arg = ["expression",false,mono] in
 	begin match ctx.com.display.dms_kind with
@@ -190,7 +209,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			| (t,doc,values) :: tl ->
 				let keep (args,r) =
 					begin try
-						let _ = unify_call_args' ctx el args r p false false in
+						let _ = unify_call_args ctx el args r p false false false in
 						true
 					with
 					| Error(Call_error (Not_enough_arguments _),_) -> true
@@ -216,9 +235,15 @@ let rec handle_signature_display ctx e_ast with_type =
 			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			Display.merge_core_doc ctx (TClassDecl c);
-			let ct,cf = get_constructor ctx c tl p in
-			let tl = (ct,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads in
-			tl
+			let fa = get_constructor_access c tl p in
+			let is_wacky_overload = not (has_class_field_flag fa.fa_field CfOverload) in
+			let map = FieldAccess.get_map_function fa in
+			let map_cf cf =
+				(* Ghetto overloads have their documentation on the main field. *)
+				let doc = if is_wacky_overload then fa.fa_field.cf_doc else cf.cf_doc in
+				map cf.cf_type,doc,get_value_meta cf.cf_meta
+			in
+			List.map map_cf (fa.fa_field :: fa.fa_field.cf_overloads)
 		| _ ->
 			[]
 	in
@@ -226,7 +251,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		| ECall(e1,el) ->
 			let def () =
 				try
-					acc_get ctx (!type_call_target_ref ctx e1 with_type false (pos e1)) (pos e1)
+					acc_get ctx (!type_call_target_ref ctx e1 el with_type false (pos e1)) (pos e1)
 				with
 				| Error (Unknown_ident "trace",_) ->
 					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
@@ -244,10 +269,14 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			let tl = match e1.eexpr with
 				| TField(_,fa) ->
-					begin match extract_field fa with
-						| Some cf -> (e1.etype,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads
-						| None -> [e1.etype,None,PMap.empty]
-					end
+					let f (t,_,cf) =
+						(t,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads
+					in
+					begin match fa with
+						| FStatic(c,cf) | FInstance(c,_,cf) -> f (DisplayToplevel.maybe_resolve_macro_field ctx e1.etype c cf)
+						| FAnon cf | FClosure(_,cf) -> f (e1.etype,null_class,cf)
+						| _ -> [e1.etype,None,PMap.empty]
+					end;
 				| TConst TSuper ->
 					find_constructor_types e1.etype
 				| TLocal v ->
@@ -256,7 +285,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			handle_call tl el e1.epos
 		| ENew(tpath,el) ->
-			let t = Typeload.load_instance ctx tpath true in
+			let t = Abstract.follow_with_forward_ctor (Typeload.load_instance ctx tpath true) in
 			handle_call (find_constructor_types t) el (pos tpath)
 		| EArray(e1,e2) ->
 			let e1 = type_expr ctx e1 WithType.value in
@@ -285,16 +314,32 @@ let rec handle_signature_display ctx e_ast with_type =
 			end
 		| _ -> error "Call expected" p
 
-and display_expr ctx e_ast e dk with_type p =
+and display_expr ctx e_ast e dk mode with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let _, f = get_constructor ctx c params p in
-			f
+			let fa = get_constructor_access c params p in
+			fa.fa_field,c
+	in
+	let maybe_expand_overload e e_on host cf = match mode with
+		| MCall el when cf.cf_overloads <> [] ->
+			let fa = FieldAccess.create e_on cf host false p in
+			let fcc = unify_field_call ctx fa [] el p false in
+			FieldAccess.get_field_expr {fa with fa_field = fcc.fc_field} FCall
+		| _ ->
+			e
+	in
+	(* If we display on a TField node that points to an overloaded field, let's try to unify the field call
+	   in order to resolve the correct overload (issue #7753). *)
+	let e = match e.eexpr with
+		| TField(e1,FStatic(c,cf)) -> maybe_expand_overload e e1 (FHStatic c) cf
+		| TField(e1,(FInstance(c,tl,cf) | FClosure(Some(c,tl),cf))) -> maybe_expand_overload e e1 (FHInstance(c,tl)) cf
+		| TField(e1,(FAnon cf | FClosure(None,cf))) -> maybe_expand_overload e e1 FHAnon cf
+		| _ -> e
 	in
 	match ctx.com.display.dms_kind with
 	| DMResolve _ | DMPackage ->
-		assert false
+		die "" __LOC__
 	| DMSignature ->
 		handle_signature_display ctx e_ast with_type
 	| DMHover ->
@@ -304,8 +349,10 @@ and display_expr ctx e_ast e dk with_type p =
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
 			Display.ReferencePosition.set (ef.ef_name,ef.ef_name_pos,SKEnumField ef);
-		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
-			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField cf);
+		| TField(_,(FAnon cf | FClosure (None,cf))) ->
+			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,None));
+		| TField(_,(FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some (c,_),cf))) ->
+			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
 		| TLocal v | TVar(v,_) ->
 			Display.ReferencePosition.set (v.v_name,v.v_pos,SKVariable v);
 		| TTypeExpr mt ->
@@ -313,15 +360,16 @@ and display_expr ctx e_ast e dk with_type p =
 			Display.ReferencePosition.set (snd ti.mt_path,ti.mt_name_pos,symbol_of_module_type mt);
 		| TNew(c,tl,_) ->
 			begin try
-				let _,cf = get_constructor ctx c tl p in
+				let fa = get_constructor_access c tl p in
+				let cf = fa.fa_field in
 				Display.ReferencePosition.set (snd c.cl_path,cf.cf_name_pos,SKConstructor cf);
 			with Not_found ->
 				()
 			end
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
-				let cf = get_super_constructor() in
-				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField cf);
+				let cf,c = get_super_constructor() in
+				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
 			with Not_found ->
 				()
 			end
@@ -360,7 +408,8 @@ and display_expr ctx e_ast e dk with_type p =
 		| TTypeExpr mt -> [(t_infos mt).mt_name_pos]
 		| TNew(c,tl,_) ->
 			begin try
-				let _,cf = get_constructor ctx c tl p in
+				let fa = get_constructor_access c tl p in
+				let cf = fa.fa_field in
 				if Meta.has Meta.CoreApi c.cl_meta then begin
 					let c' = ctx.g.do_load_core_class ctx c in
 					begin match c'.cl_constructor with
@@ -374,7 +423,7 @@ and display_expr ctx e_ast e dk with_type p =
 			end
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
-				let cf = get_super_constructor() in
+				let cf,_ = get_super_constructor() in
 				[cf.cf_name_pos]
 			with Not_found ->
 				[]
@@ -483,7 +532,7 @@ let handle_structure_display ctx e fields origin =
 	| _ ->
 		error "Expected object expression" p
 
-let handle_display ?resume_typing ctx e_ast dk with_type =
+let handle_display ctx e_ast dk mode with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
@@ -513,13 +562,11 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
-		match resume_typing with
-		| None -> type_expr ctx e_ast with_type
-		| Some fn -> fn ctx e_ast with_type
+		type_expr ~mode ctx e_ast with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (n,p)
-	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
+	| Error ((Type_not_found (path,_,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if is_legacy_completion ctx.com then begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
 		with Not_found ->
@@ -562,10 +609,11 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 					begin try
 						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
 						begin match resolve_typedef mt with
-						| TClassDecl c when has_constructor c -> true
-						| TAbstractDecl {a_impl = Some c} ->
-							ignore(c.cl_build());
-							PMap.mem "_new" c.cl_statics
+						| TClassDecl c -> has_constructor c
+						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,List.map snd a.a_params)) with
+							| TInst(c,_) -> has_constructor c
+							| TAbstract({a_impl = Some c},_) -> PMap.mem "_new" c.cl_statics
+							| _ -> false)
 						| _ -> false
 						end
 					with _ ->
@@ -603,13 +651,19 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 	end;
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
-	display_expr ctx e_ast e dk with_type p
+	let f () = display_expr ctx e_ast e dk mode with_type p in
+	if ctx.in_overload_call_args then begin
+		try
+			f()
+		with DisplayException de ->
+			ctx.delayed_display <- Some de;
+			e
+	end else
+		f()
 
-let handle_edisplay ?resume_typing ctx e dk with_type =
+let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =
-		match resume_typing with
-		| Some resume_typing -> handle_display ~resume_typing ctx e dk with_type
-		| None -> handle_display ctx e dk with_type
+		handle_display ctx e dk mode with_type
 	in
 	match dk,ctx.com.display.dms_kind with
 	| DKCall,(DMSignature | DMDefault) -> handle_signature_display ctx e with_type
@@ -624,7 +678,7 @@ let handle_edisplay ?resume_typing ctx e dk with_type =
 						in
 						handle_structure_display ctx e an.a_fields origin
 					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
-						let fields = PMap.map (fun cf -> {cf with cf_type = apply_params c.cl_params tl cf.cf_type}) c.cl_fields in
+						let fields = get_struct_init_anon_fields c tl in
 						handle_structure_display ctx e fields (Self (TClassDecl c))
 					| _ -> handle_display ctx e dk with_type
 				end

@@ -50,6 +50,7 @@ import python.Syntax;
 	}
 
 	@:ifFeature("typed_cast")
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}

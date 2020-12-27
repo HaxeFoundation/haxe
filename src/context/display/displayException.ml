@@ -5,34 +5,7 @@ open CompletionItem
 open Type
 open Genjson
 
-type hover_result = {
-	hitem : CompletionItem.t;
-	hpos : pos;
-	hexpected : WithType.t option;
-}
-
-type fields_result = {
-	fitems : CompletionItem.t list;
-	fkind : CompletionResultKind.t;
-	fsubject : completion_subject;
-}
-
-type signature_kind =
-	| SKCall
-	| SKArrayAccess
-
-type kind =
-	| DisplayDiagnostics of DiagnosticsTypes.diagnostics_context
-	| Statistics of string
-	| ModuleSymbols of string
-	| Metadata of string
-	| DisplaySignatures of (((tsignature * CompletionType.ct_function) * documentation) list * int * int * signature_kind) option
-	| DisplayHover of hover_result option
-	| DisplayPositions of pos list
-	| DisplayFields of fields_result option
-	| DisplayPackage of string list
-
-exception DisplayException of kind
+exception DisplayException of display_exception_kind
 
 let raise_diagnostics s = raise (DisplayException(DisplayDiagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))
@@ -170,11 +143,25 @@ let fields_to_json ctx fields kind subj =
 	in
 	jobject fl
 
+let arg_index signatures signature_index param_index =
+	try
+		let args,_ = fst (fst (List.nth signatures signature_index)) in
+		let rec loop args index =
+			match args with
+			| [] -> param_index
+			| [_,_,t] when index < param_index && ExtType.is_rest (follow t) -> index
+			| arg :: _ when index = param_index -> param_index
+			| _ :: args -> loop args (index + 1)
+		in
+		loop args 0
+	with Invalid_argument _ ->
+		param_index
+
 let to_json ctx de =
 	match de with
 	| Statistics _
 	| ModuleSymbols _
-	| Metadata _ -> assert false
+	| Metadata _ -> die "" __LOC__
 	| DisplaySignatures None ->
 		jnull
 	| DisplayDiagnostics dctx ->
@@ -193,7 +180,7 @@ let to_json ctx de =
 		in
 		jobject [
 			"activeSignature",jint isig;
-			"activeParameter",jint iarg;
+			"activeParameter",jint (arg_index sigs isig iarg);
 			"signatures",jlist fsig sigs;
 			"kind",jint sigkind;
 		]
@@ -203,14 +190,15 @@ let to_json ctx de =
 		let named_source_kind = function
 			| WithType.FunctionArgument name -> (0, name)
 			| WithType.StructureField name -> (1, name)
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		let ctx = Genjson.create_context GMFull in
 		let generate_name kind =
-			let i, name = named_source_kind kind in
+			let i,si = named_source_kind kind in
 			jobject [
-				"name",jstring name;
+				"name",jstring si.si_name;
 				"kind",jint i;
+				"doc",(match si.si_doc with None -> jnull | Some s -> jstring s);
 			]
 		in
 		let expected = match hover.hexpected with
@@ -219,10 +207,14 @@ let to_json ctx de =
 				:: (match src with
 					| None -> []
 					| Some ImplicitReturn -> []
-					| Some src -> ["name",generate_name src])
+					| Some src -> [
+							"name",generate_name src;
+						])
 				)
 			| Some(Value(Some ((FunctionArgument name | StructureField name) as src))) ->
-				jobject ["name",generate_name src]
+				jobject [
+					"name",generate_name src;
+				]
 			| _ -> jnull
 		in
 		jobject [

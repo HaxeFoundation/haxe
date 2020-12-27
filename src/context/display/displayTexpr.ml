@@ -54,6 +54,7 @@ let check_display_field ctx sc c cf =
 	let cff = find_field_by_position sc cf.cf_name_pos in
 	let context_init = new TypeloadFields.context_init in
 	let ctx,cctx = TypeloadFields.create_class_context ctx c context_init cf.cf_pos in
+	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
 	let ctx,fctx = TypeloadFields.create_field_context (ctx,cctx) c cff in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
 	flush_pass ctx PTypeField "check_display_field";
@@ -64,6 +65,10 @@ let check_display_class ctx cc cfile c =
 		if display_position#enclosed_in cf.cf_pos then
 			check_display_field ctx sc c cf;
 		DisplayEmitter.check_display_metadata ctx cf.cf_meta
+	in
+	let check_field sc cf =
+		check_field sc cf;
+		List.iter (check_field sc) cf.cf_overloads
 	in
 	match c.cl_kind with
 	| KAbstractImpl a ->
@@ -109,6 +114,16 @@ let check_display_abstract ctx cc cfile a =
 			()
 	) sa.d_flags
 
+let check_display_module_fields ctx cfile m =
+	Option.may (fun c ->
+		let sc = find_class_by_position cfile c.cl_name_pos in
+		List.iter (fun cf ->
+			if display_position#enclosed_in cf.cf_pos then
+				check_display_field ctx sc c cf;
+			DisplayEmitter.check_display_metadata ctx cf.cf_meta
+		) c.cl_ordered_statics
+	) m.m_statics
+
 let check_display_module ctx cc cfile m =
 	let imports = List.filter (function
 		| (EImport _ | EUsing _),_ -> true
@@ -131,14 +146,15 @@ let check_display_module ctx cc cfile m =
 			check_display_abstract ctx cc cfile a
 		end;
 		DisplayEmitter.check_display_metadata ctx infos.mt_meta
-	) m.m_types
+	) m.m_types;
+	check_display_module_fields ctx cfile m
 
 let check_display_file ctx cs =
 	match ctx.com.cache with
 	| Some cc ->
 		begin try
 			let p = DisplayPosition.display_position#get in
-			let cfile = cc#find_file (Path.unique_full_path p.pfile) in
+			let cfile = cc#find_file (ctx.com.file_keys#get p.pfile) in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
@@ -149,10 +165,10 @@ let check_display_file ctx cs =
 			end
 		with Not_found ->
 			if ctx.com.display.dms_display then begin
-				let file = (DisplayPosition.display_position#get).pfile in
+				let fkey = DisplayPosition.display_position#get_file_key in
 				(* force parsing again : if the completion point have been changed *)
-				cs#remove_files file;
-				cs#taint_modules file;
+				cs#remove_files fkey;
+				cs#taint_modules fkey;
 			end;
 		end
 	| None ->

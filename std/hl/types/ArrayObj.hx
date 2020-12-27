@@ -23,6 +23,7 @@
 package hl.types;
 
 import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
 
 class ArrayObjIterator<T> extends ArrayIterator<T> {
 	var arr:ArrayObj<T>;
@@ -32,12 +33,30 @@ class ArrayObjIterator<T> extends ArrayIterator<T> {
 		this.arr = arr;
 	}
 
-	override public function hasNext() {
+	override public function hasNext():Bool {
 		return current < arr.length;
 	}
 
-	override public function next() {
+	override public function next():T {
 		return @:privateAccess arr.array[current++];
+	}
+}
+
+class ArrayObjKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
+	var arr:ArrayObj<T>;
+
+	public inline function new(arr:ArrayObj<T>) {
+		super((null:Dynamic));
+		this.arr = arr;
+	}
+
+	override public function hasNext():Bool {
+		return current < arr.length;
+	}
+
+	override public function next():{key:Int, value:T} {
+		var v = @:privateAccess arr.array[current];
+		return {key:current++, value:v};
 	}
 }
 
@@ -208,6 +227,10 @@ class ArrayObj<T> extends ArrayBase {
 		array[pos] = x;
 	}
 
+	public function contains(x:T):Bool {
+		return indexOf(x) != -1;
+	}
+
 	public function remove(x:T):Bool {
 		var i = indexOf(x);
 		if (i < 0)
@@ -265,6 +288,10 @@ class ArrayObj<T> extends ArrayBase {
 
 	public function iterator():ArrayIterator<T> {
 		return new ArrayObjIterator(this);
+	}
+
+	public function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayObjKeyValueIterator<T>(this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn {
@@ -342,6 +369,9 @@ class ArrayObj<T> extends ArrayBase {
 
 	override function insertDyn(pos:Int, v:Dynamic)
 		insert(pos, v);
+
+	override function containsDyn(v:Dynamic)
+		return contains(v);
 
 	override function removeDyn(v:Dynamic)
 		return remove(v);

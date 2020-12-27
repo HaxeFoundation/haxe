@@ -23,6 +23,7 @@
 package js.lib;
 
 import js.lib.Object;
+import haxe.extern.EitherType;
 
 /**
 	The `Proxy` object is used to define custom behavior for fundamental operations
@@ -64,32 +65,32 @@ typedef ProxyHandler<T:{}> = {
 	/**
 		A trap for `Object.getOwnPropertyDescriptor`.
 	**/
-	var ?getOwnPropertyDescriptor:(target:T, prop:String) -> Null<ObjectPropertyDescriptor>;
+	var ?getOwnPropertyDescriptor:(target:T, prop:EitherType<String, Symbol>) -> Null<ObjectPropertyDescriptor>;
 
 	/**
 		A trap for `Object.defineProperty`.
 	**/
-	var ?defineProperty:(target:T, property:String, descriptor:ObjectPropertyDescriptor) -> Bool;
+	var ?defineProperty:(target:T, property:EitherType<String, Symbol>, descriptor:ObjectPropertyDescriptor) -> Bool;
 
 	/**
 		A trap for the `in` operator.
 	**/
-	var ?has:(target:T, prop:String) -> Bool;
+	var ?has:(target:T, prop:EitherType<String, EitherType<Int, Symbol>>) -> Bool;
 
 	/**
 		A trap for getting property values.
 	**/
-	var ?get:(target:T, property:String, receiver:Null<{}>) -> Any;
+	var ?get:(target:T, property:EitherType<String, EitherType<Int, Symbol>>, receiver:Null<{}>) -> Any;
 
 	/**
 		A trap for setting property values.
 	**/
-	var ?set:(target:T, property:String, value:Any, receiver:Null<{}>) -> Bool;
+	var ?set:(target:T, property:EitherType<String, EitherType<Int, Symbol>>, value:Any, receiver:Null<{}>) -> Bool;
 
 	/**
 		A trap for the `delete` operator.
 	**/
-	var ?deleteProperty:(target:T, property:String) -> Bool;
+	var ?deleteProperty:(target:T, property:EitherType<String, EitherType<Int, Symbol>>) -> Bool;
 
 	/**
 		A trap for `Object.getOwnPropertyNames` and `Object.getOwnPropertySymbols`.

@@ -37,7 +37,7 @@ class Host {
 	}
 	#end
 
-	@:native("hx::EnableJit")
+	@:native("::hx::EnableJit")
 	extern public static function enableJit(enable:Bool):Void;
 
 	public static function runFile(filename:String) {

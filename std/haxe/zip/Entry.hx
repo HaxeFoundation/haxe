@@ -38,5 +38,5 @@ typedef Entry = {
 	var dataSize:Int;
 	var data:Null<haxe.io.Bytes>;
 	var crc32:Null<Int>;
-	var ?extraFields:Null<List<ExtraField>>;
+	var ?extraFields:List<ExtraField>;
 }

@@ -38,7 +38,7 @@ let thread_safe_value_string env v =
 	let ctx = get_ctx() in
 	match handle_in_temp_thread ctx env (fun () -> VString (EvalPrinting.s_value 0 v)) with
 	| VString s -> s.sstring
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let var_to_json name value vio env =
 	let jv t v num_children =
@@ -62,12 +62,14 @@ let var_to_json name value vio env =
 		in
 		JObject fields
 	in
-	let string_repr s = "\"" ^ (StringHelper.s_escape s.sstring) ^ "\"" in
+	let string_repr s = "\"" ^ (StringHelper.s_escape s) ^ "\"" in
 	let rec level2_value_repr = function
 		| VNull -> "null"
 		| VTrue -> "true"
 		| VFalse -> "false"
 		| VInt32 i -> Int32.to_string i
+		| VInt64 i -> Signed.Int64.to_string i
+		| VUInt64 u -> Unsigned.UInt64.to_string u
 		| VFloat f -> string_of_float f
 		| VEnumValue ve ->
 			let name = EvalPrinting.s_enum_ctor_name ve in
@@ -76,12 +78,14 @@ let var_to_json name value vio env =
 				| vl -> name ^ "(...)"
 			end
 		| VObject o -> "{...}"
-		| VString s -> string_repr s
+		| VString s -> string_repr s.sstring
 		| VArray _ | VVector _ -> "[...]"
 		| VInstance vi -> (rev_hash vi.iproto.ppath) ^ " {...}"
 		| VPrototype proto -> (s_proto_kind proto).sstring
 		| VFunction _ | VFieldClosure _ -> "<fun>"
 		| VLazy f -> level2_value_repr (!f())
+		| VNativeString s -> string_repr s
+		| VHandle _ -> "<handle>"
 	in
 	let fields_string fields =
 		let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash name) (level2_value_repr value)) fields in
@@ -96,6 +100,8 @@ let var_to_json name value vio env =
 		| VTrue -> jv "Bool" "true" 0
 		| VFalse -> jv "Bool" "false" 0
 		| VInt32 i -> jv "Int" (Int32.to_string i) 0
+		| VInt64 i -> jv "Int64" (Signed.Int64.to_string i) 0
+		| VUInt64 u -> jv "UInt64" (Unsigned.UInt64.to_string u) 0
 		| VFloat f -> jv "Float" (string_of_float f) 0
 		| VEnumValue ve ->
 			let type_s = rev_hash ve.epath in
@@ -117,7 +123,7 @@ let var_to_json name value vio env =
 				jv "Anonymous" (fields_string fields) (List.length fields)
 			end
 		| VString s ->
-			jv "String" (string_repr s) 2
+			jv "String" (string_repr s.sstring) 2
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
@@ -143,6 +149,9 @@ let var_to_json name value vio env =
 			jv "Anonymous" (s_proto_kind proto).sstring (List.length fields)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" 0
 		| VLazy f -> value_string (!f())
+		| VNativeString s ->
+			jv "NativeString" (string_repr s) 0
+		| VHandle _ -> jv "Handle" "<handle>" 0
 	in
 	value_string value
 
@@ -262,7 +271,8 @@ let output_scope_vars env scope =
 
 let output_inner_vars v env =
 	let rec loop v = match v with
-		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
+		| VNull | VTrue | VFalse | VInt32 _ | VInt64 _ | VUInt64 _ | VFloat _
+		| VFunction _ | VFieldClosure _ | VNativeString _ | VHandle _ -> []
 		| VEnumValue ve ->
 			begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
 				| PEnum names ->
@@ -424,7 +434,8 @@ module ValueCompletion = struct
 			| _ -> "field"
 		in
 		let rec loop v = match v with
-			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ ->
+			| VNull | VTrue | VFalse | VInt32 _ | VInt64 _ | VUInt64 _ | VFloat _
+			| VFunction _ | VFieldClosure _ | VNativeString _ | VHandle _->
 				[]
 			| VObject o ->
 				let fields = object_fields o in
@@ -630,7 +641,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let bps = hctx.jsonrpc#get_array_param "breakpoints" in
 			let bps = List.map (parse_breakpoint hctx) bps in
-			let hash = hash (Path.unique_full_path (Common.find_file (hctx.ctx.curapi.get_com()) file)) in
+			let hash = hash (Path.UniqueKey.to_string (hctx.ctx.file_keys#get (Common.find_file (hctx.ctx.curapi.get_com()) file))) in
 			let h =
 				try
 					let h = Hashtbl.find hctx.ctx.debug.breakpoints hash in

@@ -62,6 +62,18 @@ extern class Promise<T> {
 	static function all(iterable:Array<Dynamic>):Promise<Array<Dynamic>>;
 
 	/**
+		Returns a promise that resolves after all of the given promises have either fulfilled or rejected,
+		with an array of objects that each describes the outcome of each promise.
+
+		It is typically used when you have multiple asynchronous tasks that are not dependent on one another
+		to complete successfully, or you'd always like to know the result of each promise.
+
+		In comparison, the Promise returned by `Promise.all` may be more appropriate if the tasks are dependent
+		on each other / if you'd like to immediately reject upon any of them rejecting.
+	**/
+	static function allSettled(iterable:Array<Dynamic>):Promise<Array<PromiseSettleOutcome>>;
+
+	/**
 		Returns a promise that fulfills or rejects as soon as one of the
 		promises in the iterable fulfills or rejects, with the value or reason
 		from that promise.
@@ -85,25 +97,45 @@ extern class Promise<T> {
 		or to its original fulfillment value if the promise is instead fulfilled.
 	**/
 	@:native("catch")
-	function catchError<TOut>(onRejected:PromiseHandler<Dynamic, TOut>):Promise<TOut>;
+	@:overload(function<TOut>(onRejected:PromiseHandler<Dynamic, TOut>):Promise<EitherType<T, TOut>> {})
+	function catchError(onRejected:PromiseHandler<Dynamic, T>):Promise<T>;
+
+	/**
+		Returns a Promise. When the promise is settled, i.e either fulfilled or rejected,
+		the specified callback function is executed. This provides a way for code to be run
+		whether the promise was fulfilled successfully or rejected once the Promise has been dealt with.
+	**/
+	function finally(onFinally:() -> Void):Promise<T>;
 }
 
 /**
 	Handler type for the Promise object.
 **/
 abstract PromiseHandler<T, TOut>(T->Dynamic) // T->Dynamic, so the compiler always knows the type of the argument and can infer it for then/catch callbacks
-	from T->TOut // order is important, because Promise<TOut> return must have priority
-	from T->Thenable<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
 	from T->Promise<TOut> // support Promise explicitly as it doesn't work transitively through Thenable at the moment
+	from T->Thenable<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
+	from T->TOut // order is important, because Promise<TOut> return must have priority
 {}
 
 /**
 	A value with a `then` method.
 **/
 @:forward
+@:transitive
 abstract Thenable<T>(ThenableStruct<T>)
 	from ThenableStruct<T> {} // abstract wrapping prevents compiler hanging, see https://github.com/HaxeFoundation/haxe/issues/5785
 
 typedef ThenableStruct<T> = {
 	function then<TOut>(onFulfilled:Null<PromiseHandler<T, TOut>>, ?onRejected:PromiseHandler<Dynamic, TOut>):Thenable<TOut>;
+}
+
+typedef PromiseSettleOutcome = {
+	var status:PromiseSettleStatus;
+	var ?value:Dynamic;
+	var ?reason:Dynamic;
+}
+
+enum abstract PromiseSettleStatus(String) to String {
+	var Fulfilled = "fulfilled";
+	var Rejected = "rejected";
 }

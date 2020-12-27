@@ -1,1 +1,2 @@
 Main.hx:3: characters 21-24 : Cannot access non-static abstract field statically
+Main.hx:3: characters 15-24 : Not enough arguments, expected this:Int

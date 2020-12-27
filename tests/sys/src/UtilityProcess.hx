@@ -16,7 +16,7 @@ class UtilityProcess {
 		Path.join(["bin", "hl"]);
 #elseif lua
 		Path.join(["bin", "lua"]);
-#elseif (java && jvm)
+#elseif jvm
 		Path.join(["bin", "jvm"]);
 #elseif java
 		Path.join(["bin", "java"]);
@@ -48,6 +48,8 @@ class UtilityProcess {
 		"UtilityProcess.hl";
 #elseif lua
 		"UtilityProcess.lua";
+#elseif jvm
+		"UtilityProcess.jar";
 #elseif java
 		#if debug
 			"UtilityProcess-Debug.jar";

@@ -28,114 +28,115 @@ import haxe.Int64Helper;
 @:include("cpp/Int64.h")
 @:native("cpp::Int64Struct")
 private extern class ___Int64 {
-	public function get():cpp.Int64;
+	function get():cpp.Int64;
 
 	@:native("_hx_int64_make")
-	public static function make(high:Int32, low:Int32):__Int64;
+	static function make(high:Int32, low:Int32):__Int64;
 
 	@:native(" ::cpp::Int64Struct")
-	public static function ofInt(value:Int):__Int64;
+	static function ofInt(value:Int):__Int64;
 
 	@:native(" ::cpp::Int64Struct::is")
-	public static function isInt64(d:Dynamic):Bool;
+	static function isInt64(d:Dynamic):Bool;
 
 	@:native("_hx_int64_is_neg")
-	public static function isNeg(a:__Int64):Bool;
+	static function isNeg(a:__Int64):Bool;
 
 	@:native("_hx_int64_is_zero")
-	public static function isZero(a:__Int64):Bool;
+	static function isZero(a:__Int64):Bool;
 
 	@:native("_hx_int64_compare")
-	public static function compare(a:__Int64, b:__Int64):Int;
+	static function compare(a:__Int64, b:__Int64):Int;
 
 	@:native("_hx_int64_ucompare")
-	public static function ucompare(a:__Int64, b:__Int64):Int;
+	static function ucompare(a:__Int64, b:__Int64):Int;
 
 	@:native("_hx_int64_to_string")
-	public static function toString(a:__Int64):String;
+	static function toString(a:__Int64):String;
 
 	@:native("_hx_int64_neg")
-	public static function neg(a:__Int64):__Int64;
+	static function neg(a:__Int64):__Int64;
 
 	@:native("_hx_int64_pre_increment")
-	public static function preIncrement(a:__Int64):__Int64;
+	static function preIncrement(a:__Int64):__Int64;
 
 	@:native("_hx_int64_post_increment")
-	public static function postIncrement(a:__Int64):__Int64;
+	static function postIncrement(a:__Int64):__Int64;
 
 	@:native("_hx_int64_pre_decrement")
-	public static function preDecrement(a:__Int64):__Int64;
+	static function preDecrement(a:__Int64):__Int64;
 
 	@:native("_hx_int64_post_decrement")
-	public static function postDecrement(a:__Int64):__Int64;
+	static function postDecrement(a:__Int64):__Int64;
 
 	@:native("_hx_int64_add")
-	public static function add(a:__Int64, b:__Int64):__Int64;
+	static function add(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_add")
-	public static function addInt(a:__Int64, b:Int):__Int64;
+	static function addInt(a:__Int64, b:Int):__Int64;
 
 	@:native("_hx_int64_sub")
-	public static function sub(a:__Int64, b:__Int64):__Int64;
+	static function sub(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_sub")
-	public static function subInt(a:__Int64, b:Int):__Int64;
+	static function subInt(a:__Int64, b:Int):__Int64;
 
 	@:native("_hx_int64_sub")
-	public static function intSub(a:Int, b:__Int64):__Int64;
+	static function intSub(a:Int, b:__Int64):__Int64;
 
 	@:native("_hx_int64_mul")
-	public static function mul(a:__Int64, b:__Int64):__Int64;
+	static function mul(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_div")
-	public static function div(a:__Int64, b:__Int64):__Int64;
+	static function div(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_mod")
-	public static function mod(a:__Int64, b:__Int64):__Int64;
+	static function mod(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_eq")
-	public static function eq(a:__Int64, b:__Int64):Bool;
+	static function eq(a:__Int64, b:__Int64):Bool;
 
 	@:native("_hx_int64_eq")
-	public static function eqInt(a:__Int64, b:Int):Bool;
+	static function eqInt(a:__Int64, b:Int):Bool;
 
 	@:native("_hx_int64_neq")
-	public static function neq(a:__Int64, b:__Int64):Bool;
+	static function neq(a:__Int64, b:__Int64):Bool;
 
 	@:native("_hx_int64_neq")
-	public static function neqInt(a:__Int64, b:Int):Bool;
+	static function neqInt(a:__Int64, b:Int):Bool;
 
 	@:native("_hx_int64_complement")
-	public static function complement(a:__Int64):__Int64;
+	static function complement(a:__Int64):__Int64;
 
 	@:native("_hx_int64_and")
-	public static function bitAnd(a:__Int64, b:__Int64):__Int64;
+	static function bitAnd(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_or")
-	public static function bitOr(a:__Int64, b:__Int64):__Int64;
+	static function bitOr(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_xor")
-	public static function bitXor(a:__Int64, b:__Int64):__Int64;
+	static function bitXor(a:__Int64, b:__Int64):__Int64;
 
 	@:native("_hx_int64_shl")
-	public static function shl(a:__Int64, b:Int):__Int64;
+	static function shl(a:__Int64, b:Int):__Int64;
 
 	@:native("_hx_int64_shr")
-	public static function shr(a:__Int64, b:Int):__Int64;
+	static function shr(a:__Int64, b:Int):__Int64;
 
 	@:native("_hx_int64_ushr")
-	public static function ushr(a:__Int64, b:Int):__Int64;
+	static function ushr(a:__Int64, b:Int):__Int64;
 
 	@:native("_hx_int64_high")
-	public static function high(a:__Int64):Int32;
+	static function high(a:__Int64):Int32;
 
 	@:native("_hx_int64_low")
-	public static function low(a:__Int64):Int32;
+	static function low(a:__Int64):Int32;
 }
 
 private typedef __Int64 = ___Int64;
 
 @:coreApi
+@:transitive
 abstract Int64(__Int64) from __Int64 to __Int64 {
 	public #if !cppia inline #end function copy():Int64
 		return this;

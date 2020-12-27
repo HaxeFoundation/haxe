@@ -41,14 +41,14 @@ class HostClasses {
 		"cpp.NativeArray",
 		"cpp.NativeString",
 		"cpp.vm.Debugger",
-		"cpp.vm.Deque",
+		"sys.thread.Deque",
+		"sys.thread.Lock",
+		"sys.thread.Mutex",
+		"sys.thread.Thread",
+		"sys.thread.Tls",
 		"cpp.vm.ExecutionTrace",
 		"cpp.vm.Gc",
-		"cpp.vm.Lock",
-		"cpp.vm.Mutex",
 		"cpp.vm.Profiler",
-		"cpp.vm.Thread",
-		"cpp.vm.Tls",
 		"cpp.vm.Unsafe",
 		"cpp.vm.WeakRef",
 		"cpp.Object",
@@ -85,7 +85,7 @@ class HostClasses {
 		"haxe.ds.ObjectMap",
 		"haxe.ds.StringMap",
 		"haxe.ds.BalancedTree",
-		"haxe.CallStack",
+		"haxe.NativeStackTrace",
 		"haxe.Serializer",
 		"haxe.Unserializer",
 		"haxe.Resource",
@@ -117,7 +117,7 @@ class HostClasses {
 		"haxe.io.StringInput",
 		"haxe.xml.Parser",
 		"haxe.Json",
-		"haxe.CallStack",
+		"haxe.NativeStackTrace",
 		"haxe.Resource",
 		"haxe.Utf8",
 		"haxe.Int64",
@@ -184,6 +184,7 @@ class HostClasses {
 		externs.set("sys.net._Socket.SocketOutput", true);
 		externs.set("sys.ssl._Socket.SocketInput", true);
 		externs.set("sys.ssl._Socket.SocketOutput", true);
+		externs.set("sys.thread._Thread.HaxeThread",true);
 		externs.set("haxe.ds.TreeNode", true);
 		externs.set("haxe.xml.XmlParserException", true);
 		for (e in classes)
