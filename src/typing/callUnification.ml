@@ -137,8 +137,20 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 									| _ -> punion p p2
 								) p1 el
 							in
-							(try [type_against name t (EArrayDecl el,p)]
-							with WithTypeError(ul,p) -> arg_error ul name false p)
+							(try
+								let do_type e = [type_against name t e] in
+								let e = EArrayDecl el,p in
+								(* typer requires dynamic arrays to be explicitly declared as Array<Dynamic> *)
+								if follow arg_t == t_dynamic then begin
+									let dynamic = CTPath(mk_type_path ([],"Dynamic")),p in
+									let params = [TPType dynamic] in
+									let tp = mk_type_path ~params ([],"Array") in
+									do_type (ECheckType(e,(CTPath tp, p)),p) (* ([arg1, arg2...]:Array<Dynamic>) *)
+								end else
+									do_type e
+							with WithTypeError(ul,p) ->
+								arg_error ul name false p
+							)
 					end
 				| _ ->
 					die "" __LOC__
