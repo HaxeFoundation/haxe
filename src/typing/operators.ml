@@ -235,55 +235,60 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
-let compare_functions_with_reflect ctx op e1 e2 p =
+let compare_functions_by_reflect ctx op e1 e2 p =
 	let reflect_cls =
 		match Typeload.load_type_raise ctx ([],"Reflect") "Reflect" p with
 		| TClassDecl cls -> cls
 		| _ -> error "Reflect is expected to be a class" p
 	in
-	let isFunction_field =
-		try PMap.find "isFunction" reflect_cls.cl_statics
-		with Not_found -> error ("Reflect has no field isFunction") p
-	and compareMethods_field =
+	let compareMethods_field =
 		try PMap.find "compareMethods" reflect_cls.cl_statics
 		with Not_found -> error ("Reflect has no field compareMethods") p
 	in
-	let mk_tmp e =
-		match e.eexpr with
-		| TLocal _ ->
-			None, e
-		| _ ->
-			let v = alloc_var VGenerated "`" e.etype e.epos in
-			let declare = mk (TVar (v,Some e)) ctx.t.tvoid e.epos
-			and local = mk (TLocal v) e.etype e.epos in
-			Some declare, local
+	let compareMethods e1 e2 =
+		make_static_call ctx reflect_cls compareMethods_field (fun t -> t) [e1; e2] ctx.t.tbool p
 	in
-	let declare_tmp_e1, tmp_e1 = mk_tmp e1
-	and declare_tmp_e2, tmp_e2 = mk_tmp e2 in
-	let compareMethods_e1_e2 =
-		make_static_call ctx reflect_cls compareMethods_field (fun t -> t) [tmp_e1; tmp_e2] ctx.t.tbool p
-	in
-	let comparison =
+	let declarations,comparison =
 		match follow e1.etype, follow e2.etype with
 		| TFun _, TFun _ ->
-			compareMethods_e1_e2
+			[],compareMethods e1 e2
 		| _ ->
+			let mk_tmp e =
+				match e.eexpr with
+				| TLocal _ ->
+					None, e
+				| _ ->
+					let v = alloc_var VGenerated "`" e.etype e.epos in
+					let declare = mk (TVar (v,Some e)) ctx.t.tvoid e.epos
+					and local = mk (TLocal v) e.etype e.epos in
+					Some declare, local
+			in
+			let declare_tmp_e1, tmp_e1 = mk_tmp e1
+			and declare_tmp_e2, tmp_e2 = mk_tmp e2
+			and isFunction_field =
+				try PMap.find "isFunction" reflect_cls.cl_statics
+				with Not_found -> error ("Reflect has no field isFunction") p
+			in
 			let isFunction_e1, isFunction_e2 =
 				make_static_call ctx reflect_cls isFunction_field (fun t -> t) [tmp_e1] ctx.t.tbool p,
 				make_static_call ctx reflect_cls isFunction_field (fun t -> t) [tmp_e2] ctx.t.tbool p
 			in
 			let are_functions = mk (TBinop (OpBoolAnd,isFunction_e1,isFunction_e2)) ctx.t.tbool p
 			and compare_as_not_functions = mk (TBinop (op,tmp_e1,tmp_e2)) ctx.t.tbool p in
-			mk (TIf (are_functions,compareMethods_e1_e2,Some compare_as_not_functions)) ctx.t.tbool p
+			let declarations =
+				match declare_tmp_e1, declare_tmp_e2 with
+				| None, None -> []
+				| Some e1, Some e2 -> [e1; e2]
+				| Some e, _ | _, Some e -> [e]
+			and comparison =
+				mk (TIf (are_functions,compareMethods tmp_e1 tmp_e2,Some compare_as_not_functions)) ctx.t.tbool p
+			in
+			declarations,comparison
 	in
 	let e =
-		match declare_tmp_e1, declare_tmp_e2 with
-		| None, None ->
-			comparison
-		| Some declare_tmp, None | None, Some declare_tmp ->
-			mk (TBlock [declare_tmp;comparison]) comparison.etype comparison.epos
-		| Some declare_tmp1, Some declare_tmp2 ->
-			mk (TBlock [declare_tmp1;declare_tmp2;comparison]) comparison.etype comparison.epos
+		match declarations with
+		| [] -> comparison
+		| _ -> mk (TBlock (declarations @ [comparison])) comparison.etype comparison.epos
 	in
 	BinopResult.create_special e false
 
@@ -445,7 +450,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 				match follow e1.etype, follow e2.etype with
 				| TFun _ , _ | _, TFun _
 				| TInst ({ cl_kind = KTypeParameter _ },_), _ | _, TInst ({ cl_kind = KTypeParameter _ },_) ->
-					compare_functions_with_reflect ctx op e1 e2 p
+					compare_functions_by_reflect ctx op e1 e2 p
 				| _ ->
 					default()
 		end
