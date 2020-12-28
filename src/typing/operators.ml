@@ -235,7 +235,7 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
-let compare_functions_with_reflect ctx op e1 e2 p =
+let compare_functions_with_reflect ctx op e1 e2 p needs_isFunction_checks =
 	let reflect_cls =
 		match Typeload.load_type_raise ctx ([],"Reflect") "Reflect" p with
 		| TClassDecl cls -> cls
@@ -260,16 +260,21 @@ let compare_functions_with_reflect ctx op e1 e2 p =
 	in
 	let declare_tmp_e1, tmp_e1 = mk_tmp e1
 	and declare_tmp_e2, tmp_e2 = mk_tmp e2 in
-	let isFunction_e1, isFunction_e2 =
-		make_static_call ctx reflect_cls isFunction_field (fun t -> t) [tmp_e1] ctx.t.tbool p,
-		make_static_call ctx reflect_cls isFunction_field (fun t -> t) [tmp_e2] ctx.t.tbool p
-	in
 	let compareMethods_e1_e2 =
 		make_static_call ctx reflect_cls compareMethods_field (fun t -> t) [tmp_e1; tmp_e2] ctx.t.tbool p
 	in
-	let are_functions = mk (TBinop (OpBoolAnd,isFunction_e1,isFunction_e2)) ctx.t.tbool p
-	and compare_as_not_functions = mk (TBinop (op,tmp_e1,tmp_e2)) ctx.t.tbool p in
-	let comparison = mk (TIf (are_functions,compareMethods_e1_e2,Some compare_as_not_functions)) ctx.t.tbool p in
+	let comparison =
+		if needs_isFunction_checks then
+			let isFunction_e1, isFunction_e2 =
+				make_static_call ctx reflect_cls isFunction_field (fun t -> t) [tmp_e1] ctx.t.tbool p,
+				make_static_call ctx reflect_cls isFunction_field (fun t -> t) [tmp_e2] ctx.t.tbool p
+			in
+			let are_functions = mk (TBinop (OpBoolAnd,isFunction_e1,isFunction_e2)) ctx.t.tbool p
+			and compare_as_not_functions = mk (TBinop (op,tmp_e1,tmp_e2)) ctx.t.tbool p in
+			mk (TIf (are_functions,compareMethods_e1_e2,Some compare_as_not_functions)) ctx.t.tbool p
+		else
+			compareMethods_e1_e2
+	in
 	let e =
 		match declare_tmp_e1, declare_tmp_e2 with
 		| None, None ->
@@ -437,9 +442,11 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 			| TConst TNull , _ | _ , TConst TNull -> default()
 			| _ ->
 				match follow e1.etype, follow e2.etype with
+				| TFun _, TFun _ ->
+					compare_functions_with_reflect ctx op e1 e2 p false
 				| TFun _ , _ | _, TFun _
 				| TInst ({ cl_kind = KTypeParameter _ },_), _ | _, TInst ({ cl_kind = KTypeParameter _ },_) ->
-					compare_functions_with_reflect ctx op e1 e2 p
+					compare_functions_with_reflect ctx op e1 e2 p true
 				| _ ->
 					default()
 		end
