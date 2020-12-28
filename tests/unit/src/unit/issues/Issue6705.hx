@@ -97,10 +97,11 @@ class Issue6705 extends unit.Test {
 		eq(1, array.indexOf(memberFunction1));
 		eq(2, array.indexOf(staticFunction1));
 	}
-
+#if !hl
 	function testTypeChange() {
 		function f1(x:Float) { }
 		var f2:Int -> Void = f1;
 		t(f1 == f2);
 	}
+#end
 }
