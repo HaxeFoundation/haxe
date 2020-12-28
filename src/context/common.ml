@@ -471,6 +471,7 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
+			pf_supports_function_equality = false;
 			pf_scoping = { default_config.pf_scoping with
 				vs_flags = [ReserveAllTopLevelSymbols];
 			}
@@ -541,6 +542,7 @@ let get_config com =
 			pf_overload = true;
 			pf_supports_threads = true;
 			pf_supports_rest_args = true;
+			pf_supports_function_equality = false;
 			pf_exceptions = {
 				ec_native_throws = [
 					["cs";"system"],"Exception";
@@ -568,6 +570,7 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_rest_args = true;
 			pf_this_before_super = false;
+			pf_supports_function_equality = false;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["java";"lang"],"RuntimeException";
