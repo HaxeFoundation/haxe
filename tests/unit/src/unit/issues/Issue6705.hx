@@ -97,7 +97,7 @@ class Issue6705 extends unit.Test {
 		eq(1, array.indexOf(memberFunction1));
 		eq(2, array.indexOf(staticFunction1));
 	}
-#if !hl
+#if !hl // @see https://github.com/HaxeFoundation/haxe/issues/10031
 	function testTypeChange() {
 		function f1(x:Float) { }
 		var f2:Int -> Void = f1;
