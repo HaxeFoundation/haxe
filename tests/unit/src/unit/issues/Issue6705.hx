@@ -97,6 +97,17 @@ class Issue6705 extends unit.Test {
 		eq(1, array.indexOf(memberFunction1));
 		eq(2, array.indexOf(staticFunction1));
 	}
+
+	function testCallsEqualityCheck_tempvarCallExprs() {
+		var callCount = 0;
+		function getFn():()->Void {
+			callCount++;
+			return memberFunction;
+		}
+		t(getFn() == getFn());
+		eq(2, callCount);
+	}
+
 #if !hl // @see https://github.com/HaxeFoundation/haxe/issues/10031
 	function testTypeChange() {
 		function f1(x:Float) { }
