@@ -51,7 +51,7 @@ class EventLoop {
 	}
 
 	/**
-		Prevent execution of a previousely scheduled event in current loop.
+		Prevent execution of a previously scheduled event in current loop.
 	**/
 	public function cancel(eventHandler:EventHandler):Void {
 		mutex.acquire();
@@ -162,7 +162,7 @@ class EventLoop {
 	}
 
 	/**
-		`.pogress` implementation with a resuable array for internal usage.
+		`.progress` implementation with a reusable array for internal usage.
 		The `nextEventAt` field of the return value denotes when the next event
 		is expected to run:
 		* -1 - never
