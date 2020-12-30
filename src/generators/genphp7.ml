@@ -57,6 +57,14 @@ let copy_file src dst =
 	copy_loop ();
 	Unix.close fd_in;
 	Unix.close fd_out
+(**
+	Splits `"path/to/file"` into `["path"; "to"; "file"]`
+*)
+let split_file_path path =
+	if Globals.is_windows then
+		(Str.split (Str.regexp "[/\\]") path)
+	else
+		(Str.split (Str.regexp "/") path)
 
 type used_type = {
 	ut_alias : string;
@@ -3889,11 +3897,18 @@ class generator (ctx:php_generator_context) =
 				| None -> ()
 				| Some (uses, entry_point) ->
 					let filename = Common.defined_value_safe ~default:"index.php" ctx.pgc_common Define.PhpFront in
+					let front_dirs = split_file_path (Filename.dirname filename) in
+					if front_dirs <> [] then
+						ignore(create_dir_recursive (root_dir :: front_dirs));
+					let lib_path =
+						(String.concat "" (List.fold_left (fun acc s -> if s <> "." then "../" :: acc else acc) [] front_dirs))
+						^ (String.concat "/" self#get_lib_path)
+					in
 					let channel = open_out (root_dir ^ "/" ^ filename) in
 					output_string channel "<?php\n";
 					output_string channel uses;
 					output_string channel "\n";
-					output_string channel ("set_include_path(get_include_path().PATH_SEPARATOR.__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
+					output_string channel ("set_include_path(get_include_path().PATH_SEPARATOR.__DIR__.'/" ^ lib_path ^ "');\n");
 					output_string channel "spl_autoload_register(\n";
 					output_string channel "	function($class){\n";
 					output_string channel "		$file = stream_resolve_include_path(str_replace('\\\\', '/', $class) .'.php');\n";
@@ -3921,7 +3936,7 @@ class generator (ctx:php_generator_context) =
 		*)
 		method private get_lib_path : string list =
 			let path = Common.defined_value_safe ~default:"lib" ctx.pgc_common Define.PhpLib in
-			(Str.split (Str.regexp "/")  path)
+			split_file_path path
 		(**
 			Returns PHP code for entry point
 		*)
