@@ -457,7 +457,7 @@ let get_all_meta_string_path meta_list key =
    let extract_meta meta =
       match meta with
       | (k, exprs, pos) when k = key ->
-         List.filter_map (extract_path pos) exprs
+         ExtList.List.filter_map (extract_path pos) exprs
       | _ ->
          [] in
    let all_includes meta key = List.map extract_meta meta in
