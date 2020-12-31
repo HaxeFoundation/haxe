@@ -81,7 +81,7 @@ class Flash {
 				// runCommand("brew", ["untap", "local/openssl"]);
 				// runCommand("brew", ["untap", "local/python2"]);
 				runCommand("brew", ["update"]);
-				runCommand("brew", ["--cask", "install", "flash-player-debugger"]);
+				runCommand("brew", ["install", "--cask", "flash-player-debugger"]);
 
 				// Disable the "application downloaded from Internet" warning
 				runCommand("xattr", ["-d", "-r", "com.apple.quarantine", "/Applications/Flash Player Debugger.app"]);
