@@ -1432,7 +1432,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.gethostbyname.php
 	**/
-	static function gethostbyname(hostname:String):String;
+	static function gethostbyname(hostname:String):String;	
+
+	/**
+		@see http://php.net/manual/en/function.gethostname.php
+	**/
+	static function gethostname():String;	
 
 	/**
 		@see http://php.net/manual/en/function.gethostbyaddr.php
