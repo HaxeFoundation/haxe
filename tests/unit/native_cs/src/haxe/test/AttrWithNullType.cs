@@ -1,12 +1,17 @@
 using System;
 
 namespace haxe.test {
-	public class Class1 {
-		[MyAttr(null)]
-		public static int test;
-	}
+	[MyAttr(null)]
+	public class AttrWithNullType {}
 
-	class MyAttrAttribute : Attribute {
-		public MyAttrAttribute(System.Type t) {}
+	[MyAttr(typeof(AttrWithNullType))]
+	public class AttrWithNonNullType {}
+
+	public class MyAttrAttribute : Attribute {
+		public bool check;
+
+		public MyAttrAttribute(System.Type t) {
+			check = (t == null);
+		}
 	}
 }
