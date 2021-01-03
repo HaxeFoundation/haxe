@@ -2,12 +2,14 @@
 package unit.issues;
 
 import cs.system.Attribute;
+import haxe.test.AttrWithNullType;
+import haxe.test.AttrWithNonNullType;
 import haxe.test.MyAttrAttribute;
 
 class Issue9946 extends unit.Test {
 	function test() {
-		eq(hasNullArg(untyped __cs__('typeof(haxe.test.AttrWithNullType)')), true);
-		eq(hasNullArg(untyped __cs__('typeof(haxe.test.AttrWithNonNullType)')), false);
+		eq(hasNullArg(cs.Lib.toNativeType(AttrWithNullType)), true);
+		eq(hasNullArg(cs.Lib.toNativeType(AttrWithNonNullType)), false);
 	}
 
 	static function hasNullArg(cls:cs.system.Type):Null<Bool> {
