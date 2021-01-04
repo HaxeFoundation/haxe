@@ -367,12 +367,8 @@ jobs:
       - name: Install dependencies
         run: |
           set -ex
-          brew uninstall openssl@1.0.2t || echo
-          brew uninstall python@2.7.17 || echo
-          brew untap local/openssl || echo
-          brew untap local/python2 || echo
           brew update
-          # brew unlink python@2
+          brew install python@3.9 || brew link --overwrite python@3.9
           brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
       
       - name: Install OCaml libraries
