@@ -1803,4 +1803,29 @@ extern class Global {
 		@see http://php.net/manual/en/function.intl-is-failure.php
 	**/
 	static function intl_is_failure(error_code:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-has-var.php
+	**/
+	static function filter_has_var(input_type:Int, var_name:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-id.php
+	**/
+	static function filter_id(name:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-input.php
+	**/
+	static function filter_input(type:Int, var_name:String, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.filter-list.php
+	**/
+	static function filter_list():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-var.php
+	**/
+	static function filter_var(value: Any, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
 }
