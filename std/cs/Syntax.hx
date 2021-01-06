@@ -37,11 +37,11 @@ extern class Syntax {
 
 		Additional `args` are supported to provide code interpolation, for example:
 		```haxe
-		Syntax.code("System.Console.WriteLine({0}, {1})", "hi", 42);
+		Syntax.code("System.Console.WriteLine({0} + {1})", "hi", 42);
 		```
 		will generate
 		```haxe
-		System.Console.WriteLine("hi", 42);
+		System.Console.WriteLine("hi" + 42);
 		```
 
 		Emits a compilation error if the count of `args` does not match the count of placeholders in `code`.
