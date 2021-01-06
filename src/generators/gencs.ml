@@ -1507,6 +1507,8 @@ let generate con =
 						write w " as ";
 						write w (t_s e.etype);
 						write w " )";
+					| TCall({ eexpr = TField (_, FStatic ({ cl_path = ["cs"],"Syntax" }, { cf_name = meth })) }, args) ->
+						gen_syntax meth args e.epos
 					| TCall ({ eexpr = TIdent "__cs__" }, [ { eexpr = TConst(TString(s)) } ] ) ->
 						write w s
 					| TCall ({ eexpr = TIdent "__cs__" }, { eexpr = TConst(TString(s)) } :: tl ) ->
@@ -1789,7 +1791,40 @@ let generate con =
 					| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then die "" __LOC__
 					| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then die "" __LOC__
 					| TIdent s -> write w "[ ident not supported ]"; if !strict_mode then die "" __LOC__
-			)
+				)
+			and gen_syntax meth args pos =
+				match meth, args with
+				| "code", code :: args ->
+					let code, code_pos =
+						match code.eexpr with
+						| TConst (TString s) -> s, code.epos
+						| _ -> abort "The `code` argument for cs.Syntax.code must be a string constant" code.epos
+					in
+					begin
+						let rec reveal_expr expr =
+							match expr.eexpr with
+								| TCast (e, _) | TMeta (_, e) -> reveal_expr e
+								| _ -> expr
+						in
+						let args = List.map
+							(fun arg ->
+								match (reveal_expr arg).eexpr with
+									| TIf _ | TBinop _ | TUnop _ -> { arg with eexpr = TParenthesis arg }
+									| _ -> arg
+							)
+							args
+						in
+						Codegen.interpolate_code gen.gcon code args (write w) (expr_s w) code_pos
+					end
+				| "plainCode", [code] ->
+					let code =
+						match code.eexpr with
+						| TConst (TString s) -> s
+						| _ -> abort "The `code` argument for cs.Syntax.plainCode must be a string constant" code.epos
+					in
+					write w (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+				| _ ->
+					abort (Printf.sprintf "Unknown cs.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 			and do_call w e el =
 				let params, el = extract_tparams [] el in
 				let params = List.rev params in
