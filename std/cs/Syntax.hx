@@ -22,7 +22,7 @@
 
 package cs;
 
-import haxe.extern.Rest;
+import haxe.Rest;
 
 /**
 	Generate C# syntax not directly supported by Haxe.
