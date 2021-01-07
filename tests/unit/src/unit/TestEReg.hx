@@ -63,7 +63,7 @@ class TestEReg extends Test {
 		test = "g r u n";
 		var binary:haxe.io.Bytes = haxe.io.Bytes.ofString(test);
 		binary.set(4, 252);
-		test = binary.toString();
+		test = binary.getString(0, binary.length, RawNative);
 		block = ~/\s/gm;
 		eq( block.split(test).join(" "), test );
 
