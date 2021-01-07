@@ -643,7 +643,7 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 		type_binop2 ctx op e1 e2 is_assign_op wt p
 	in
 	let vr = new value_reference ctx in
-	let e = BinopResult.to_texpr vr result (fun _ -> assert false) in
+	let e = BinopResult.to_texpr vr result (fun _ -> die "" __LOC__) in
 	vr#to_texpr e
 
 let process_lhs_expr ctx name e_lhs =
