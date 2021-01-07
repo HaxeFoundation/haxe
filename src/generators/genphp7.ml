@@ -3052,27 +3052,31 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 				if wrapper#needs_initialization then self#write_hx_init;
 				writer#indent 0;
 				writer#write_line "}"; (** closing bracket for a class *)
-				writer#write_empty_lines;
-				let boot_class = writer#use boot_type_path in
-				(* Boot initialization *)
-				if boot_type_path = self#get_type_path then begin
-					writer#write_statement ("require_once __DIR__.'/" ^ polyfills_file ^ "'");
-					writer#write_statement (boot_class ^ "::__hx__init()")
-				end;
-				let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
-				writer#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
-				self#write_rtti_meta;
-				self#write_pre_hx_init;
-				(* Current class initialization *)
-				if wrapper#needs_initialization && boot_type_path <> self#get_type_path then
-					writer#write_statement (self#get_name ^ "::__hx__init()");
 				let body = writer#get_contents in
+				writer#clear_contents;
+				let footer =
+					writer#write "\n";
+					let boot_class = writer#use boot_type_path in
+					(* Boot initialization *)
+					if boot_type_path = self#get_type_path then begin
+						writer#write_statement ("require_once __DIR__.'/" ^ polyfills_file ^ "'");
+						writer#write_statement (boot_class ^ "::__hx__init()")
+					end;
+					let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
+					writer#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
+					self#write_rtti_meta;
+					self#write_pre_hx_init;
+					(* Current class initialization *)
+					if wrapper#needs_initialization && boot_type_path <> self#get_type_path then
+						writer#write_statement (self#get_name ^ "::__hx__init()");
+					writer#get_contents
+				in
 				Option.may (fun smap -> smap#rewind) self#get_sourcemap_generator;
 				writer#clear_contents;
 				self#write_header;
 				writer#write "\n";
 				let header = writer#get_contents in
-				contents <- header ^ body ^ (Buffer.contents ctx.pgc_bottom_buffer)
+				contents <- header ^ body ^ (Buffer.contents ctx.pgc_bottom_buffer) ^ footer
 			end;
 			contents
 		(**
