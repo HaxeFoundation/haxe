@@ -378,7 +378,7 @@ jobs:
           brew update
           # brew unlink python@2
           brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
-          curl -L https://cpanmin.us | perl - App::cpanminus
+          brew install cpanminus
           cpanm IPC::System::Simple
           cpanm String::ShellQuote
       
