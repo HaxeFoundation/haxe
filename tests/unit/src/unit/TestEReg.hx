@@ -59,6 +59,14 @@ class TestEReg extends Test {
 		eq( block.split(test).length, 5 );
 		eq( '"' + block.split(test).join('","') + '"', '"","test",".blah","something:someval",""' );
 
+		// test split with malformed utf8
+		test = "g r u n";
+		var binary:haxe.io.Bytes = haxe.io.Bytes.ofString(test);
+		binary.set(4, 252);
+		test = binary.toString();
+		block = ~/\s/gm;
+		eq( block.split(test).join(" "), test );
+
 		// test custom replace
 		eq( ~/a+/g.map("aaabacx", function(r) return "[" + r.matched(0).substr(1) + "]") , "[aa]b[]cx" );
 		eq( ~/a+/.map("aaabacx", function(r) return "[" + r.matched(0).substr(1) + "]") , "[aa]bacx" ); // same without 'g'
