@@ -604,4 +604,19 @@ extern class Const {
 	static final INPUT_REQUEST:Int;
 	static final INPUT_SERVER:Int;
 	static final INPUT_SESSION:Int;
+
+	/**
+		@see http://php.net/manual/en/fileinfo.constants.php
+	**/
+	static final FILEINFO_COMPRESS: Int;
+	static final FILEINFO_CONTINUE: Int;
+	static final FILEINFO_DEVICES: Int;
+	static final FILEINFO_EXTENSION: Int;
+	static final FILEINFO_MIME: Int;
+	static final FILEINFO_MIME_ENCODING: Int;
+	static final FILEINFO_MIME_TYPE: Int;
+	static final FILEINFO_NONE: Int;
+	static final FILEINFO_PRESERVE_ATIME: Int;
+	static final FILEINFO_RAW: Int;
+	static final FILEINFO_SYMLINK: Int;
 }
