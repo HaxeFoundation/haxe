@@ -391,6 +391,10 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	in
 	let type_field_by_extension f t e =
 		let check_constant_struct = ref false in
+		let e = match t with
+			| TInst _ when e.eexpr = TConst TSuper -> { e with eexpr = TCast(mk (TConst TThis) (mk_mono()) e.epos,None) }
+			| _ -> e
+		in
 		let loop = type_field_by_list (fun (c,pc) ->
 			let cf0 = PMap.find i c.cl_statics in
 			let rec check cfl = match cfl with
@@ -449,7 +453,6 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found ->
 				type_field_by_typedef type_field_by_type_extension e td tl
 			)
-		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
 		| TMono _ -> raise Not_found
 		| TAbstract (a,tl) ->
 			(try
@@ -473,7 +476,6 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		) t e in
 		match t with
 		| TType (td,tl) -> type_field_by_typedef type_field_by_module_extension e td tl
-		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
 		| TMono r ->
 			(match Monomorph.classify_constraints r with
 			| CStructural (_,is_open) when not is_open -> type_field_by_extension()
