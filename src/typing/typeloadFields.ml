@@ -1008,6 +1008,10 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 			let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
 			let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
 			let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
+			let allow_no_expr () = if not (has_class_field_flag cf CfExtern) then begin
+				allows_no_expr := true;
+				fctx.expr_presence_matters <- true;
+			end in
 			let rec loop ml =
 				(match ml with
 				| (Meta.From,_,_) :: _ ->
@@ -1065,7 +1069,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
 					a.a_array <- cf :: a.a_array;
-					fctx.expr_presence_matters <- true;
+					allow_no_expr();
 				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
 					error (cf.cf_name ^ ": Assignment overloading is not supported") p;
 				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
@@ -1085,15 +1089,13 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if not (left_eq || right_eq) then error (cf.cf_name ^ ": The left or right argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
 					if right_eq && Meta.has Meta.Commutative cf.cf_meta then error (cf.cf_name ^ ": @:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) cf.cf_pos;
 					a.a_ops <- (op,cf) :: a.a_ops;
-					allows_no_expr := true;
-					fctx.expr_presence_matters <- true;
+					allow_no_expr();
 				| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),cf.cf_pos)));
 					a.a_unops <- (op,flag,cf) :: a.a_unops;
-					allows_no_expr := true;
-					fctx.expr_presence_matters <- true;
+					allow_no_expr();
 				| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					let check_fun t1 t2 =
@@ -1120,20 +1122,16 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| [] -> ()
 			in
 			loop cf.cf_meta;
-			let check_bind () =
-				if fd.f_expr = None then begin
-					if fctx.is_inline then error (cf.cf_name ^ ": Inline functions must have an expression") cf.cf_pos;
-					begin match fd.f_type with
-						| None -> error (cf.cf_name ^ ": Functions without expressions must have an explicit return type") cf.cf_pos
-						| Some _ -> ()
-					end;
+			if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
+			if fd.f_expr = None then begin
+				if fctx.is_inline then error (cf.cf_name ^ ": Inline functions must have an expression") cf.cf_pos;
+				if fd.f_type = None then error (cf.cf_name ^ ": Functions without expressions must have an explicit return type") cf.cf_pos;
+				if !allows_no_expr then begin
 					cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
 					fctx.do_bind <- false;
 					if not (Meta.has Meta.CoreType a.a_meta) then fctx.do_add <- false;
 				end
-			in
-			if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
-			if !allows_no_expr then check_bind()
+			end
 		| _ ->
 			()
 
