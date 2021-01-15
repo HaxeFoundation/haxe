@@ -6,7 +6,9 @@ import haxe.Constraints.IMap;
 
 class Issue9874 extends unit.Test {
 	function test() {
-		var m:ArrayMap<String, String> = new Map();
+		// @see https://github.com/HaxeFoundation/haxe/issues/9874#issuecomment-760902714
+		// var m:ArrayMap<String, String> = new Map();
+
 		var m2:ArrayMap<String, String> = new Map<String, Array<String>>();
 		var m3:ArrayMap<String, String> = new haxe.ds.StringMap<Array<String>>();
 		utest.Assert.pass();
