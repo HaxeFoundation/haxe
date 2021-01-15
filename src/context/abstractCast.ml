@@ -166,8 +166,8 @@ let find_array_access ctx a tl e1 e2o p =
 let find_multitype_specialization com a pl p =
 	let uctx = default_unification_context in
 	let m = mk_mono() in
-	let tl = match Meta.get Meta.MultiType a.a_meta with
-		| _,[],_ -> pl
+	let tl,definitive_types = match Meta.get Meta.MultiType a.a_meta with
+		| _,[],_ -> pl,pl
 		| _,el,_ ->
 			let relevant = Hashtbl.create 0 in
 			List.iter (fun e ->
@@ -181,9 +181,12 @@ let find_multitype_specialization com a pl p =
 				in
 				loop (fun t -> t) e
 			) el;
+			let definitive_types = ref [] in
 			let tl = List.map2 (fun (n,_) t ->
 				try
-					(Hashtbl.find relevant n) t
+					let t = (Hashtbl.find relevant n) t in
+					definitive_types := t :: !definitive_types;
+					t
 				with Not_found ->
 					if not (has_mono t) then t
 					else t_dynamic
@@ -209,11 +212,17 @@ let find_multitype_specialization com a pl p =
 					ignore(loop t1)
 				| _ -> die "" __LOC__
 			end;
-			tl
+			tl,!definitive_types
 	in
 	let _,cf =
 		try
-			Abstract.find_to uctx m a tl
+			let t = Abstract.find_to uctx m a tl in
+			if List.exists (fun t -> has_mono t) definitive_types then begin
+				let at = apply_params a.a_params pl a.a_this in
+				let st = s_type (print_context()) at in
+				error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+			end;
+			t
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in
