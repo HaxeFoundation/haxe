@@ -69,7 +69,9 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 
 @:callable
 @:coreType
-private abstract ThreadHandle {}
+private abstract NativeThreadHandle {}
+
+private typedef ThreadHandle = NativeThreadHandle;
 
 private class HaxeThread {
 	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadHandle = neko.Lib.load("std", "thread_create", 2);

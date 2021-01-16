@@ -68,7 +68,10 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 
 @:callable
 @:coreType
-private abstract ThreadHandle {}
+private abstract NativeThreadHandle {}
+
+private typedef ThreadHandle = NativeThreadHandle;
+
 
 private class HaxeThread {
 	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
