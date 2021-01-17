@@ -452,16 +452,13 @@ let get_meta_string_path meta key =
 let get_all_meta_string_path meta_list key =
    let extract_path pos expr =
       match expr with
-      | (Ast.EConst (Ast.String(name, _)), _) -> Some (make_path_absolute name pos)
-      | _ -> None in
+      | (Ast.EConst (Ast.String(name, _)), _) -> make_path_absolute name pos
+      | _ -> "" in
    let extract_meta meta =
       match meta with
-      | (k, exprs, pos) when k = key ->
-         ExtList.List.filter_map (extract_path pos) exprs
-      | _ ->
-         [] in
-   let all_includes meta key = List.map extract_meta meta in
-   List.flatten (all_includes meta_list key)
+      | (k, exprs, pos) when k = key -> Some (extract_path pos (List.hd exprs))
+      | _ -> None in
+   ExtList.List.filter_map extract_meta meta_list
 ;;
 
 let get_meta_string_full_filename meta key =
