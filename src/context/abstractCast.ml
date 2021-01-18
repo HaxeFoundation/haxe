@@ -166,54 +166,28 @@ let find_array_access ctx a tl e1 e2o p =
 let find_multitype_specialization com a pl p =
 	let uctx = default_unification_context in
 	let m = mk_mono() in
-	let tl,definitive_types = match Meta.get Meta.MultiType a.a_meta with
-		| _,[],_ -> pl,pl
-		| _,el,_ ->
-			let relevant = Hashtbl.create 0 in
-			List.iter (fun e ->
-				let rec loop f e = match fst e with
-					| EConst(Ident s) ->
-						Hashtbl.replace relevant s f
-					| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
-						loop Abstract.follow_with_abstracts e1;
-					| _ ->
-						error "Type parameter expected" (pos e)
-				in
-				loop (fun t -> t) e
-			) el;
-			let definitive_types = ref [] in
-			let tl = List.map2 (fun (n,_) t ->
-				try
-					let t = (Hashtbl.find relevant n) t in
-					definitive_types := t :: !definitive_types;
+	let tl,definitive_types = Abstract.find_multitype_params a pl in
+	if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
+		| t1 :: _ ->
+			let stack = ref [] in
+			let rec loop t =
+				if List.exists (fun t2 -> fast_eq t t2) !stack then
 					t
-				with Not_found ->
-					if not (has_mono t) then t
-					else t_dynamic
-			) a.a_params pl in
-			if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
-				| t1 :: _ ->
-					let stack = ref [] in
-					let rec loop t =
-						if List.exists (fun t2 -> fast_eq t t2) !stack then
-							t
-						else begin
-							stack := t :: !stack;
-							match follow t with
-							| TAbstract ({ a_path = [],"Class" },_) ->
-								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
-							| TEnum(en,tl) ->
-								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
-								Type.map loop t
-							| t ->
-								Type.map loop t
-						end
-					in
-					ignore(loop t1)
-				| _ -> die "" __LOC__
-			end;
-			tl,!definitive_types
-	in
+				else begin
+					stack := t :: !stack;
+					match follow t with
+					| TAbstract ({ a_path = [],"Class" },_) ->
+						error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
+					| TEnum(en,tl) ->
+						PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
+						Type.map loop t
+					| t ->
+						Type.map loop t
+				end
+			in
+			ignore(loop t1)
+		| _ -> die "" __LOC__
+	end;
 	let _,cf =
 		try
 			let t = Abstract.find_to uctx m a tl in
