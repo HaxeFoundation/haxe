@@ -44,7 +44,7 @@ class HxOverrides {
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
 				return new Date(cast k[0], (cast k[1]) - 1, cast k[2], 0, 0, 0);
-			case 19, 23: // YYYY-MM-DD hh:mm:ss
+			case 19: // YYYY-MM-DD hh:mm:ss
 				var k = s.split(" ");
 				var y = k[0].split("-");
 				var t = k[1].split(":");
