@@ -307,9 +307,11 @@ class TestStrict {
 		shouldFail(a[idx]);
 	}
 
-	static function if_nullableCondition_shouldFail() {
+	static function if_nullableCondition_shouldPass() {
 		var s:Null<Bool> = null;
-		shouldFail(if(s) {});
+		if (s) {
+			if (s == null) {}
+		}
 	}
 
 	static function typeInference_arrayAccess_fieldOnNullableItem_shouldFail() {

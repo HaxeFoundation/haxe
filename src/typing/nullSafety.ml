@@ -1067,6 +1067,11 @@ class expr_checker mode immediate_execution report =
 					!nullable
 				| _ ->
 					is_nullable_type e.etype && not (local_safety#is_safe e)
+
+		method private is_nullable_bool e =
+			match (follow e.etype) with
+				| TAbstract ({ a_path = [],"Bool" }, []) -> true
+				| _ -> false
 		(**
 			Check if `expr` can be passed to a place where `to_type` is expected.
 			This method has side effect: it logs an error if `expr` has a type parameter incompatible with the type parameter of `to_type`.
@@ -1307,7 +1312,8 @@ class expr_checker mode immediate_execution report =
 		*)
 		method private check_if expr =
 			let check_condition e =
-				if self#is_nullable_expr e then
+				if self#is_nullable_expr e &&
+				not (self#is_nullable_bool e) then
 					self#error "Cannot use nullable value as condition in \"if\"." [e.epos; expr.epos];
 				self#check_expr e
 			in
