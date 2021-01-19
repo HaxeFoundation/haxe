@@ -79,6 +79,8 @@ extern class Exception {
 	/**
 		Create a new Exception instance.
 
+		The `previous` argument could be used for exception chaining.
+
 		The `native` argument is for internal usage only.
 		There is no need to provide `native` argument manually and no need to keep it
 		upon extending `haxe.Exception` unless you know what you're doing.
@@ -94,11 +96,16 @@ extern class Exception {
 	private function unwrap():Any;
 
 	/**
-		Exception description.
-
-		Includes message, stack and the previous exception (if set).
+		Returns exception message.
 	**/
 	public function toString():String;
+
+	/**
+		Detailed exception description.
+
+		Includes message, stack and the chain of previous exceptions (if set).
+	**/
+	public function details():String;
 
 	/**
 		If this field is defined in a target implementation, then a call to this

@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "haxe"
-version: "4.0.0"
+version: "4.1.5"
 synopsis: "Multi-target universal programming language"
 description: """
 Haxe is an open source toolkit based on a modern,
@@ -19,16 +19,18 @@ build: [
 install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
-  "ocaml"               {>= "4.02"}
-  "ocamlfind"           {build}
-  "camlp5"              {build}
-  "sedlex"              {build}
-  "ppx_tools_versioned" {build & != "5.2.1"} #https://github.com/alainfrisch/sedlex/issues/64
-  "xml-light"           {build}
-  "extlib"              {build & >= "1.7.6"}
-  "ptmap"               {build}
-  "sha"                 {build}
+  "ocaml" {>= "4.02"}
+  "ocamlfind" {build}
+  "dune" {>= "1.11"}
+  "camlp5" {build}
+  "sedlex" {>= "2.0"}
+  "xml-light"
+  "extlib" {>= "1.7.6"}
+  "ptmap" {>= "2.0.0"}
+  "sha"
   "conf-libpcre"
   "conf-zlib"
+  "conf-mbedtls"
   "conf-neko"
+  "luv"
 ]

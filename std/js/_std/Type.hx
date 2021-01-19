@@ -158,7 +158,14 @@ enum ValueType {
 	}
 
 	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
+		#if js_enums_as_arrays
 		var c:String = (untyped e.__constructs__)[index];
+		#else
+		var c:String = switch (untyped e.__constructs__)[index] {
+			case null: null;
+			case ctor: ctor._hx_name;
+		}
+		#end
 		if (c == null)
 			throw index + " is not a valid enum constructor index";
 		return createEnum(e, c, params);
@@ -220,7 +227,11 @@ enum ValueType {
 	#end
 
 	public static inline function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
-		return ((cast e).__constructs__ : Array<String>).copy();
+		#if js_enums_as_arrays
+			return ((cast e).__constructs__ : Array<String>).copy();
+		#else
+			return ((cast e).__constructs__ : Array<{_hx_name:String}>).map(c -> c._hx_name);
+		#end
 	}
 
 	@:access(js.Boot)
@@ -279,8 +290,7 @@ enum ValueType {
 				if (a._hx_index != b._hx_index)
 					return false;
 				var enm = $hxEnums[e];
-				var ctorName = enm.__constructs__[a._hx_index];
-				var params:Array<String> = enm[ctorName].__params__;
+				var params:Array<String> = enm.__constructs__[a._hx_index].__params__;
 				for (f in params) {
 					if (!enumEq(a[f], b[f])) {
 						return false;
@@ -297,7 +307,7 @@ enum ValueType {
 		#if js_enums_as_arrays
 		return untyped e[0];
 		#else
-		return untyped $hxEnums[e.__enum__].__constructs__[e._hx_index];
+		return untyped $hxEnums[e.__enum__].__constructs__[e._hx_index]._hx_name;
 		#end
 	}
 
@@ -309,8 +319,7 @@ enum ValueType {
 	public static function enumParameters(e:EnumValue):Array<Dynamic>
 		untyped {
 			var enm:Enum<Dynamic> = $hxEnums[e.__enum__];
-			var ctorName:String = enm.__constructs__[e._hx_index];
-			var params:Array<String> = enm[ctorName].__params__;
+			var params:Array<String> = enm.__constructs__[e._hx_index].__params__;
 			return params != null ? [for (p in params) e[p]] : [];
 		}
 	#end

@@ -202,13 +202,12 @@ class JsonPrinter {
 		#end
 		addChar('"'.code);
 		var i = 0;
+		var length = s.length;
 		#if hl
 		var prev = -1;
 		#end
-		while (true) {
-			var c = StringTools.fastCodeAt(s, i++);
-			if (StringTools.isEof(c))
-				break;
+		while (i < length) {
+			var c = StringTools.unsafeCodeAt(s, i++);
 			switch (c) {
 				case '"'.code:
 					add('\\"');

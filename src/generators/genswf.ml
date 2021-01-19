@@ -133,7 +133,7 @@ let build_dependencies t =
 		List.iter add_type pl;
 	in
 	(match t with
-	| TClassDecl c when not c.cl_extern ->
+	| TClassDecl c when not (has_class_flag c CExtern) ->
 		List.iter add_field c.cl_ordered_fields;
 		List.iter add_field c.cl_ordered_statics;
 		(match c.cl_constructor with
@@ -580,7 +580,7 @@ let generate swf_header com =
 				List.iter (fun e ->
 					if e.f9_cid <> None then List.iter (fun t ->
 						let extern = (match t with
-							| TClassDecl c -> c.cl_extern
+							| TClassDecl c -> (has_class_flag c CExtern)
 							| TEnumDecl e -> e.e_extern
 							| TAbstractDecl a -> false
 							| TTypeDecl t -> false

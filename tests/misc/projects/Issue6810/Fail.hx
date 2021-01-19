@@ -10,5 +10,5 @@ class Fail {
 
 	static function void():Void {}
 	static function fakeVoid():FakeVoid {}
-	static function test<T:NotVoid>(f:Void->T):T return f();
+	static function test<T:NotVoid>(f:()->T):T return f();
 }

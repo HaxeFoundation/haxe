@@ -1,0 +1,2 @@
+Main.hx:3: characters 9-14 : Warning : (p1 : flash.Vector<Dynamic>) -> Void
+Main.hx:4: characters 9-16 : Warning : (p1 : flash.Vector<Int>) -> Void

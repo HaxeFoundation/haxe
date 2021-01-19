@@ -69,8 +69,8 @@ class Boot {
 					#if !js_enums_as_arrays
 					__feature__("has_enum", if (o.__enum__) {
 						var e = $hxEnums[o.__enum__];
-						var n = e.__constructs__[o._hx_index];
-						var con = e[n];
+						var con = e.__constructs__[o._hx_index];
+						var n = con._hx_name;
 						if (con.__params__) {
 							s += "\t";
 							return n + "(" + [for (p in (con.__params__ : Array<String>)) __string_rec(o[p], s)].join(",") + ")";

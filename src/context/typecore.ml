@@ -46,8 +46,8 @@ type macro_mode =
 
 type access_mode =
 	| MGet
-	| MSet
-	| MCall
+	| MSet of Ast.expr option (* rhs, if exists *)
+	| MCall of Ast.expr list (* call arguments *)
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
@@ -122,6 +122,7 @@ and typer = {
 	(* per-function *)
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
+	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
 	mutable in_macro : bool;
@@ -132,22 +133,79 @@ and typer = {
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
+	mutable in_overload_call_args : bool;
+	mutable delayed_display : DisplayTypes.display_exception_kind option;
+	mutable monomorphs : monomorphs;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 	memory_marker : float array;
 }
+
+and monomorphs = {
+	mutable perfunction : (tmono * pos) list;
+}
+
+(* This record holds transient information about an (attempted) call on a field. It is created when resolving
+   field calls and is passed to overload filters. *)
+type 'a field_call_candidate = {
+	(* The argument expressions for this call and whether or not the argument is optional on the
+	   target function. *)
+	fc_args  : texpr list;
+	(* The applied return type. *)
+	fc_ret   : Type.t;
+	(* The applied function type. *)
+	fc_type  : Type.t;
+	(* The class field being called. *)
+	fc_field : tclass_field;
+	(* The field monomorphs that were created for this call. *)
+	fc_monos : Type.t list;
+	(* The custom data associated with this call. *)
+	fc_data  : 'a;
+}
+
+type field_host =
+	| FHStatic of tclass
+	| FHInstance of tclass * tparams
+	| FHAbstract of tabstract * tparams * tclass
+	| FHAnon
+
+type field_access = {
+	(* The expression on which the field is accessed. For abstracts, this is a type expression
+	   to the implementation class. *)
+	fa_on     : texpr;
+	(* The field being accessed. *)
+	fa_field  : tclass_field;
+	(* The host of the field. *)
+	fa_host   : field_host;
+	(* Whether or not to inline the access. This can be set for non-inline fields via `inline call()` syntax. *)
+	fa_inline : bool;
+	(* The position of the field access expression in syntax. *)
+	fa_pos    : pos;
+}
+
+type static_extension_access = {
+	(* The `this` expression which should be passed as first argument. *)
+	se_this   : texpr;
+	(* The field access information. *)
+	se_access : field_access;
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
 
 let memory_marker = [|Unix.time()|]
 
-let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
-let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> assert false)
-let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
-let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> assert false)
-let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
+let locate_macro_error = ref true
+
+let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> die "" __LOC__)
+let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) ref = ref (fun ?(mode=MGet) _ _ _ -> die "" __LOC__)
+let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> die "" __LOC__)
+let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LOC__)
+let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
+let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
+let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
+let type_generic_function_ref : (typer -> field_access -> texpr list -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -169,6 +227,14 @@ let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_t
 let unify_min ctx el = (!unify_min_ref) ctx el
 let unify_min_for_type_source ctx el src = (!unify_min_for_type_source_ref) ctx el src
 
+let spawn_monomorph' ctx p =
+	let mono = Monomorph.create () in
+	ctx.monomorphs.perfunction <- (mono,p) :: ctx.monomorphs.perfunction;
+	mono
+
+let spawn_monomorph ctx p =
+	TMono (spawn_monomorph' ctx p)
+
 let make_static_this c p =
 	let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
 	mk (TTypeExpr (TClassDecl c)) ta p
@@ -178,7 +244,7 @@ let make_static_field_access c cf t p =
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
 let make_static_call ctx c cf map args t p =
-	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 	let map t = map (apply_params cf.cf_params monos t) in
 	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
@@ -199,13 +265,15 @@ let unify ctx t1 t2 p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let unify_raise ctx t1 t2 p =
+let unify_raise_custom uctx (ctx : typer) t1 t2 p =
 	try
-		Type.unify t1 t2
+		Type.unify_custom uctx t1 t2
 	with
 		Unify_error l ->
 			(* no untyped check *)
 			raise (Error (Unify l,p))
+
+let unify_raise = unify_raise_custom default_unification_context
 
 let save_locals ctx =
 	let locals = ctx.locals in
@@ -219,7 +287,7 @@ let add_local ctx k n t p =
 			(* ignore std lib *)
 			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
 				ctx.com.warning "This variable shadows a previously declared variable" p;
-				ctx.com.warning "Previous variable was here" v'.v_pos
+				ctx.com.warning (compl_msg "Previous variable was here") v'.v_pos
 			end
 		with Not_found ->
 			()
@@ -227,28 +295,32 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let check_identifier_name ctx name kind p =
+let display_identifier_error ctx ?prepend_msg msg p =
+	let prepend = match prepend_msg with Some s -> s ^ " " | _ -> "" in
+	display_error ctx (prepend ^ msg) p
+
+let check_identifier_name ?prepend_msg ctx name kind p =
 	if starts_with name '$' then
-		display_error ctx ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
+		display_identifier_error ctx ?prepend_msg ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
 	else if not (Lexer.is_valid_identifier name) then
-		display_error ctx ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name") p
+		display_identifier_error ctx ?prepend_msg ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name.") p
 
 let check_field_name ctx name p =
 	match name with
 	| "new" -> () (* the only keyword allowed in field names *)
 	| _ -> check_identifier_name ctx name "field" p
 
-let check_uppercase_identifier_name ctx name kind p =
+let check_uppercase_identifier_name ?prepend_msg ctx name kind p =
 	if String.length name = 0 then
-		display_error ctx ((StringHelper.capitalize kind) ^ " name must not be empty") p
+		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name must not be empty.") p
 	else if Ast.is_lower_ident name then
-		display_error ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
+		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
 	else
-		check_identifier_name ctx name kind p
+		check_identifier_name ?prepend_msg ctx name kind p
 
-let check_module_path ctx path p =
-	check_uppercase_identifier_name ctx (snd path) "module" p;
-	let pack = fst path in
+let check_module_path ctx (pack,name) p =
+	let full_path = StringHelper.s_escape (if pack = [] then name else (String.concat "." pack) ^ "." ^ name) in
+	check_uppercase_identifier_name ~prepend_msg:("Module \"" ^ full_path ^ "\" does not have a valid name.") ctx name "module" p;
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
@@ -348,15 +420,17 @@ let exc_protect ?(force=true) ctx f (where:string) =
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let file = Path.unique_full_path file in
-	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
+	let key = ctx.com.file_keys#get file in
+	let file = Path.get_full_path file in
+	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();
 			m_path = (["$DEP"],file);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra file (Define.get_signature ctx.com.defines) (file_time file) MFake [];
 		} in
-		Hashtbl.add fake_modules file mdep;
+		Hashtbl.add fake_modules key mdep;
 		mdep
 	) in
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
@@ -371,21 +445,24 @@ let push_this ctx e = match e.eexpr with
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
 let is_removable_field ctx f =
-	has_class_field_flag f CfExtern || Meta.has Meta.Generic f.cf_meta
-	|| (match f.cf_kind with
-		| Var {v_read = AccRequire (s,_)} -> true
-		| Method MethMacro -> not ctx.in_macro
-		| _ -> false)
+	not (has_class_field_flag f CfOverride) && (
+		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
+		|| (match f.cf_kind with
+			| Var {v_read = AccRequire (s,_)} -> true
+			| Method MethMacro -> not ctx.in_macro
+			| _ -> false)
+	)
 
 (** checks if we can access to a given class field using current context *)
-let rec can_access ctx ?(in_overload=false) c cf stat =
+let rec can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
-		true
-	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true
 	else if c == ctx.curclass then
 		true
-	else
+	else match ctx.m.curmod.m_statics with
+		| Some c' when c == c' ->
+			true
+		| _ ->
 	(* has metadata path *)
 	let rec make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
@@ -449,7 +526,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
-				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
+				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr
 				then (match c.cl_constructor with
 					| Some cf ->
@@ -472,6 +549,10 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
 	|| (Meta.has Meta.PrivateAccess ctx.meta)
+
+let check_field_access ctx c f stat p =
+	if not ctx.untyped && not (can_access ctx c f stat) then
+		display_error ctx ("Cannot access private field " ^ f.cf_name) p
 
 (** removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match follow cf.cf_type with
@@ -504,6 +585,32 @@ let merge_core_doc ctx mt =
 			| _ -> ()
 		end
 	| _ -> ())
+
+let safe_mono_close ctx m p =
+	try
+		Monomorph.close m
+	with
+		Unify_error l ->
+			raise_or_display ctx l p
+
+let make_field_call_candidate args ret monos t cf data = {
+	fc_args  = args;
+	fc_type  = t;
+	fc_field = cf;
+	fc_data  = data;
+	fc_ret   = ret;
+	fc_monos = monos;
+}
+
+let s_field_call_candidate fcc =
+	let pctx = print_context() in
+	let se = s_expr_pretty false "" false (s_type pctx) in
+	let sl_args = List.map se fcc.fc_args in
+	Printer.s_record_fields "" [
+		"fc_args",String.concat ", " sl_args;
+		"fc_type",s_type pctx fcc.fc_type;
+		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
+	]
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

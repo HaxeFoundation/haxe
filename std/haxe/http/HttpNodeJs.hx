@@ -47,10 +47,10 @@ class HttpNodeJs extends haxe.http.HttpBase {
 	public override function request(?post:Bool) {
 		responseAsString = null;
 		responseBytes = null;
-		var parsedUrl = js.node.Url.parse(url);
+		var parsedUrl = new js.node.url.URL(url);
 		var secure = (parsedUrl.protocol == "https:");
 		var host = parsedUrl.hostname;
-		var path = parsedUrl.path;
+		var path = parsedUrl.pathname;
 		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
 		var h:Dynamic = {};
 		for (i in headers) {

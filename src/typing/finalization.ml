@@ -12,35 +12,78 @@ open Typecore
 let get_main ctx types =
 	match ctx.com.main_class with
 	| None -> None
-	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
-		let fmode, ft, r = (match t with
-		| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
-			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
-		| TClassDecl c ->
+	| Some path ->
+		let p = null_pos in
+		let pack,name = path in
+		let m = Typeload.load_module ctx (pack,name) p in
+		let c,f =
+			let p = ref p in
 			try
-				let f = PMap.find "main" c.cl_statics in
-				let t = Type.field_type f in
-				(match follow t with
-				| TFun ([],r) -> FStatic (c,f), t, r
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") c.cl_pos);
-			with
-				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") c.cl_pos
-		) in
-		let emain = type_type ctx cl null_pos in
+				match m.m_statics with
+				| None ->
+					raise Not_found
+				| Some c ->
+					p := c.cl_pos;
+					c, PMap.find "main" c.cl_statics
+			with Not_found -> try
+				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
+				match t with
+				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
+					error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
+				| TClassDecl c ->
+					p := c.cl_pos;
+					c, PMap.find "main" c.cl_statics
+			with Not_found ->
+				error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
+		in
+		let ft = Type.field_type f in
+		let fmode, r =
+			match follow ft with
+			| TFun ([],r) -> FStatic (c,f), r
+			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
+		in
+		if not (ExtType.is_void (follow r)) then error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
+		f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
+		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
+		let call_static path method_name =
+			let et = List.find (fun t -> t_path t = path) types in
+			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
+			let ef = PMap.find method_name ec.cl_statics in
+			let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) null_pos in
+			mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type null_pos,[])) ctx.t.tvoid null_pos
+		in
 		(* add haxe.EntryPoint.run() call *)
-		let main = (try
-			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
-			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
-			let ef = PMap.find "run" ec.cl_statics in
-			let p = null_pos in
-			let et = mk (TTypeExpr et) (mk_anon (ref (Statics ec))) p in
-			let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
-			mk (TBlock [main;call]) ctx.t.tvoid p
-		with Not_found ->
-			main
-		) in
+		let add_entry_point_run main =
+			try
+				[main; call_static (["haxe"],"EntryPoint") "run"]
+			with Not_found ->
+				[main]
+		and add_entry_point_init main =
+			try
+				[call_static (["haxe"],"EntryPoint") "init"; main]
+			with Not_found ->
+				[main]
+		in
+		(* add calls for event loop *)
+		let add_event_loop main =
+			(try
+				let thread = (["sys";"thread";"_Thread"],"Thread_Impl_") in
+				call_static thread "initEventLoop" :: add_entry_point_init main @ [call_static thread "processEvents"]
+			with Not_found ->
+				[main]
+			)
+		in
+		let main =
+			(* Threaded targets run event loops per thread *)
+			let exprs =
+				if ctx.com.config.pf_supports_threads then add_event_loop main
+				else add_entry_point_run main
+			in
+			match exprs with
+			| [e] -> e
+			| _ -> mk (TBlock exprs) ctx.t.tvoid p
+		in
 		Some main
 
 let finalize ctx =
@@ -117,7 +160,7 @@ let sort_types com modules =
 			| TClassDecl c -> loop_class p c
 			| TEnumDecl e -> loop_enum p e
 			| TAbstractDecl a -> loop_abstract p a
-			| TTypeDecl _ -> assert false)
+			| TTypeDecl _ -> die "" __LOC__)
 		| TNew (c,_,_) ->
 			iter (walk_expr p) e;
 			loop_class p c;

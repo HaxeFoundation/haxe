@@ -470,7 +470,7 @@ module Builder = struct
 			| TClassDecl c -> mk_anon ~fields:c.cl_statics (ref (Statics c))
 			| TEnumDecl e -> mk_anon (ref (EnumStatics e))
 			| TAbstractDecl a -> mk_anon (ref (AbstractStatics a))
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		mk (TTypeExpr mt) t pos
 
@@ -508,7 +508,14 @@ module Builder = struct
 		| _ -> error "Unsupported constant" p
 
 	let field e name t p =
-		mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
+		let f =
+			try
+				quick_field e.etype name
+			with Not_found ->
+				let field = (s_type (print_context()) e.etype) ^ "." ^ name in
+				die ("Field " ^ field ^ " requested but not found") __LOC__
+		in
+		mk (TField (e,f)) t p
 
 	let fcall e name el ret p =
 		let ft = tfun (List.map (fun e -> e.etype) el) ret in
@@ -585,6 +592,9 @@ let rec type_constant_value basic (e,p) =
 		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->
 		error "Constant value expected" p
+
+let is_constant_value basic e =
+	try (ignore (type_constant_value basic e); true) with Error (Custom _,_) -> false
 
 let for_remap basic v e1 e2 p =
 	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
@@ -759,8 +769,8 @@ let collect_captured_vars e =
 	let accesses_this = ref false in
 	let declare v = Hashtbl.add known v.v_id () in
 	let rec loop e = match e.eexpr with
-		| TLocal ({v_capture = true; v_id = id} as v) when not (Hashtbl.mem known id) ->
-			Hashtbl.add known id ();
+		| TLocal v when has_var_flag v VCaptured &&  not (Hashtbl.mem known v.v_id) ->
+			Hashtbl.add known v.v_id ();
 			unknown := v :: !unknown
 		| TConst (TThis | TSuper) ->
 			accesses_this := true;

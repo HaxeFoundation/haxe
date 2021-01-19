@@ -7,12 +7,11 @@ open Display
 open DisplayTypes.DisplayMode
 open DisplayTypes
 open DisplayException
-open DiagnosticsTypes
 
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
-let is_diagnostics_run p = DiagnosticsPrinter.is_diagnostics_file p.pfile
+let is_diagnostics_run com p = DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get p.pfile)
 
 let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
@@ -105,9 +104,10 @@ let prepare com =
 		dead_blocks = Hashtbl.create 0;
 		diagnostics_messages = [];
 		unresolved_identifiers = [];
+		missing_fields = PMap.empty;
 	} in
 	List.iter (function
-		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file c.cl_pos.pfile ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get c.cl_pos.pfile) ->
 			List.iter (prepare_field dctx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx com) c.cl_ordered_statics;
 			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
@@ -121,17 +121,17 @@ let prepare com =
 			let is_true defines e =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
-			Hashtbl.iter (fun file cfile ->
-				if DisplayPosition.display_position#is_in_file file then begin
+			Hashtbl.iter (fun file_key cfile ->
+				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.CompilationServer.c_file_path) then begin
 					let dead_blocks = cfile.CompilationServer.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try
-						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file in
+						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file_key in
 						(* Intersect *)
 						let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
-						Hashtbl.replace dctx.dead_blocks file dead_blocks2
+						Hashtbl.replace dctx.dead_blocks file_key dead_blocks2
 					with Not_found ->
-						Hashtbl.add dctx.dead_blocks file dead_blocks
+						Hashtbl.add dctx.dead_blocks file_key dead_blocks
 				end
 			) cc#get_files
 		| None ->
@@ -147,8 +147,18 @@ let prepare com =
 					let b' = PMap.find p dctx.import_positions in
 					b' := true
 				end
-			) m.m_extra.m_display.m_import_positions
-		) com.modules
+			) m.m_extra.m_display.m_import_positions;
+		) com.modules;
+		List.iter (function
+			| MissingFields mf ->
+				let p = mf.mf_pos in
+				begin try
+					let _,l = PMap.find p dctx.missing_fields in
+					l := mf :: !l
+				with Not_found ->
+					dctx.missing_fields <- PMap.add p (mf.mf_on,ref [mf]) dctx.missing_fields
+				end
+		) com.display_information.module_diagnostics
 	in
 	process_modules com;
 	begin match com.get_macros() with
@@ -161,7 +171,7 @@ let prepare com =
 	dctx
 
 let secure_generated_code ctx e =
-	if is_diagnostics_run e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
+	if is_diagnostics_run ctx.com e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
 
 let print com =
 	let dctx = prepare com in

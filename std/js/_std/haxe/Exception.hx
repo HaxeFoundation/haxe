@@ -72,6 +72,10 @@ class Exception extends NativeException {
 	}
 
 	public function toString():String {
+		return message;
+	}
+
+	public function details():String {
 		return inline CallStack.exceptionToString(this);
 	}
 
@@ -93,6 +97,7 @@ class Exception extends NativeException {
 		return __nativeException;
 	}
 
+	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	function get_stack():CallStack {
 		return switch __exceptionStack {
 			case null:
@@ -101,6 +106,7 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:noCompletion
 	function setProperty(name:String, value:Any):Void {
 		try {
 			js.lib.Object.defineProperty(this, name, {value:value});
@@ -109,37 +115,45 @@ class Exception extends NativeException {
 		}
 	}
 
+	@:noCompletion
 	inline function get___exceptionStack():CallStack {
 		return (cast this).__exceptionStack;
 	}
 
+	@:noCompletion
 	inline function set___exceptionStack(value:CallStack):CallStack {
 		setProperty('__exceptionStack', value);
 		return value;
 	}
 
+	@:noCompletion
 	inline function get___skipStack():Int {
 		return (cast this).__skipStack;
 	}
 
+	@:noCompletion
 	inline function set___skipStack(value:Int):Int {
 		setProperty('__skipStack', value);
 		return value;
 	}
 
+	@:noCompletion
 	inline function get___nativeException():Any {
 		return (cast this).__nativeException;
 	}
 
+	@:noCompletion
 	inline function set___nativeException(value:Any):Any {
 		setProperty('__nativeException', value);
 		return value;
 	}
 
+	@:noCompletion
 	inline function get___previousException():Null<Exception> {
 		return (cast this).__previousException;
 	}
 
+	@:noCompletion
 	inline function set___previousException(value:Null<Exception>):Null<Exception> {
 		setProperty('__previousException', value);
 		return value;
@@ -151,8 +165,7 @@ class Exception extends NativeException {
 @:native('Error')
 private extern class NativeException {
 	// private var message:String; //redefined in haxe.Exception
-	@:noCompletion private var name:String;
 	// private var stack(default, null):String; //redefined in haxe.Exception
 
-	private function new(?message:String):Void;
+	function new(?message:String);
 }

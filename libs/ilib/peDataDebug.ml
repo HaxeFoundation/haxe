@@ -48,6 +48,8 @@ let machine_type_s m = match m with
 	| TTriCore -> "TTriCore"
 	| TAmd64 -> "TAmd64"
 	| TM32R -> "TM32R"
+	| TOSXAmd64 -> "TOSXAmd64"
+	| TLinuxAmd64 -> "TLinuxAmd64"
 
 let coff_prop_s p = match p with
 	| RelocsStripped -> "RelocsStripped"

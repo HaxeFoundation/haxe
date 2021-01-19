@@ -1,6 +1,10 @@
 package haxe;
 
 import haxe.EntryPoint;
+#if (target.threaded && !cppia)
+import sys.thread.EventLoop;
+import sys.thread.Thread;
+#end
 
 class MainEvent {
 	var f:Void->Void;
@@ -56,6 +60,14 @@ class MainEvent {
 
 @:access(haxe.MainEvent)
 class MainLoop {
+	#if (target.threaded && !cppia)
+	static var eventLoopHandler:Null<EventHandler>;
+	static var mutex = new sys.thread.Mutex();
+	static var mainThread(get,never):Thread;
+	static inline function get_mainThread():Thread
+		return @:privateAccess EntryPoint.mainThread;
+	#end
+
 	static var pending:MainEvent;
 
 	public static var threadCount(get, never):Int;
@@ -93,7 +105,27 @@ class MainLoop {
 			head.prev = e;
 		e.next = head;
 		pending = e;
+		injectIntoEventLoop(0);
 		return e;
+	}
+
+	static function injectIntoEventLoop(waitMs:Int) {
+		#if (target.threaded && !cppia)
+			mutex.acquire();
+			if(eventLoopHandler != null) {
+				mainThread.events.cancel(eventLoopHandler);
+			}
+			eventLoopHandler = mainThread.events.repeat(
+				() -> {
+					var wait = tick();
+					if(hasEvents()) {
+						injectIntoEventLoop(Std.int(wait * 1000));
+					}
+				},
+				waitMs
+			);
+			mutex.release();
+		#end
 	}
 
 	static function sortEvents() {

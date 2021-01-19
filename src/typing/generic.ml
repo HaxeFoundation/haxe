@@ -31,7 +31,7 @@ let make_generic ctx ps pt p =
 		| (_,t1) :: l1 , t2 :: l2 ->
 			let t,eo = generic_check_const_expr ctx t2 in
 			(t1,(t,eo)) :: loop l1 l2
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	let name =
 		String.concat "_" (List.map2 (fun (s,_) t ->
@@ -99,7 +99,7 @@ let generic_substitute_expr gctx e =
 			v2
 	in
 	let rec build_expr e =
-		match e.eexpr with
+		let e = match e.eexpr with
 		| TField(e1, FInstance({cl_kind = KGeneric} as c,tl,cf)) ->
 			let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c) gctx.p in
 			let t = f (List.map (generic_substitute_type gctx) tl) in
@@ -135,6 +135,8 @@ let generic_substitute_expr gctx e =
 			end
 		| _ ->
 			map_expr_type build_expr (generic_substitute_type gctx) build_var e
+		in
+		CallUnification.maybe_reapply_overload_call gctx.ctx e
 	in
 	build_expr e
 
@@ -150,20 +152,21 @@ let static_method_container gctx c cf p =
 	let pack = fst c.cl_path in
 	let name = (snd c.cl_path) ^ "_" ^ cf.cf_name ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) true in
+		let t = Typeload.load_instance ctx (mk_type_path (pack,name),p) true in
 		match t with
 		| TInst(cg,_) -> cg
 		| _ -> error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
+		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> die "" __LOC__) in
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
-		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -193,22 +196,23 @@ let rec build_generic ctx c p tl =
 	let gctx = make_generic ctx c.cl_params tl p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
-		let t = Typeload.load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) false in
+		let t = Typeload.load_instance ctx (mk_type_path (pack,name),p) false in
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
+		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> die "" __LOC__) in
 		(* let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in *)
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
+			m_statics = None;
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
-		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -249,7 +253,7 @@ let rec build_generic ctx c p tl =
 				| TInst(c,tl) as t ->
 					let t2 = TInst({c with cl_module = mg;},tl) in
 					(t,(t2,None)) :: subst,(s,t2) :: params
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
@@ -259,7 +263,7 @@ let rec build_generic ctx c p tl =
 					let tl1 = List.map (generic_substitute_type gctx) tl1 in
 					c.cl_kind <- KTypeParameter tl1;
 					s,t
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			) params;
 			let f () =
 				let t = generic_substitute_type gctx cf_old.cf_type in
@@ -267,7 +271,7 @@ let rec build_generic ctx c p tl =
 				begin try (match cf_old.cf_expr with
 					| None ->
 						begin match cf_old.cf_kind with
-							| Method _ when not c.cl_interface && not c.cl_extern ->
+							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
 								display_error ctx (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
@@ -281,7 +285,7 @@ let rec build_generic ctx c p tl =
 				t
 			in
 			let r = exc_protect ctx (fun r ->
-				let t = mk_mono() in
+				let t = spawn_monomorph ctx p in
 				r := lazy_processing (fun() -> t);
 				let t0 = f() in
 				unify_raise ctx t0 t p;
@@ -305,14 +309,14 @@ let rec build_generic ctx c p tl =
 				| KGeneric ->
 					(match build_generic ctx cs p pl with
 					| TInst (cs,pl) -> Some (cs,pl)
-					| _ -> assert false)
+					| _ -> die "" __LOC__)
 				| _ -> Some(cs,pl)
 		);
 		TypeloadFunction.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
-		cg.cl_interface <- c.cl_interface;
+		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor
@@ -322,16 +326,13 @@ let rec build_generic ctx c p tl =
 		cg.cl_implements <- List.map (fun (i,tl) ->
 			(match follow (generic_substitute_type gctx (TInst (i, List.map (generic_substitute_type gctx) tl))) with
 			| TInst (i,tl) -> i, tl
-			| _ -> assert false)
+			| _ -> die "" __LOC__)
 		) c.cl_implements;
 		cg.cl_ordered_fields <- List.map (fun f ->
 			let f = build_field f in
 			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
 			f
 		) c.cl_ordered_fields;
-		cg.cl_overrides <- List.map (fun f ->
-			try PMap.find f.cf_name cg.cl_fields with Not_found -> assert false
-		) c.cl_overrides;
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in
@@ -339,3 +340,116 @@ let rec build_generic ctx c p tl =
 		end;
 		TInst (cg,[])
 	end
+
+let type_generic_function ctx fa el_typed el with_type p =
+	let c,stat = match fa.fa_host with
+		| FHInstance(c,tl) -> c,false
+		| FHStatic c -> c,true
+		| FHAbstract(a,tl,c) -> c,true
+		| _ -> die "" __LOC__
+	in
+	let cf = fa.fa_field in
+	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
+	let fcc = CallUnification.unify_field_call ctx fa el_typed el p false in
+	begin match with_type with
+		| WithType.WithType(t,_) -> unify ctx fcc.fc_ret t p
+		| _ -> ()
+	end;
+	let monos = fcc.fc_monos in
+	List.iter (fun t -> match follow t with
+		| TMono m -> safe_mono_close ctx m p
+		| _ -> ()
+	) monos;
+	let el = fcc.fc_args in
+	(try
+		let gctx = make_generic ctx cf.cf_params monos p in
+		let name = cf.cf_name ^ "_" ^ gctx.name in
+		let unify_existing_field tcf pcf = try
+			unify_raise ctx tcf fcc.fc_type p
+		with Error(Unify _,_) as err ->
+			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
+			display_error ctx (compl_msg "Conflicting field was defined here") pcf;
+			raise err
+		in
+		let fa = try
+			let cf2 = if stat then
+				let cf2 = PMap.find name c.cl_statics in
+				unify_existing_field cf2.cf_type cf2.cf_pos;
+				cf2
+			else
+				let cf2 = PMap.find name c.cl_fields in
+				unify_existing_field cf2.cf_type cf2.cf_pos;
+				cf2
+			in
+			{fa with fa_field = cf2}
+			(*
+				java.Lib.array() relies on the ability to shadow @:generic function for certain types
+				see https://github.com/HaxeFoundation/haxe/issues/8393#issuecomment-508685760
+			*)
+			(* if cf.cf_name_pos = cf2.cf_name_pos then
+				cf2
+			else
+				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
+		with Not_found ->
+			let finalize_field c cf2 =
+				ignore(follow cf.cf_type);
+				let rec check e = match e.eexpr with
+					| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
+						display_error ctx "Only generic type parameters can be constructed" e.epos;
+						display_error ctx "While specializing this call" p;
+					| _ ->
+						Type.iter check e
+				in
+				cf2.cf_expr <- (match cf.cf_expr with
+					| None ->
+						display_error ctx "Recursive @:generic function" p; None;
+					| Some e ->
+						let e = generic_substitute_expr gctx e in
+						check e;
+						Some e
+				);
+				cf2.cf_kind <- cf.cf_kind;
+				if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
+				cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: cf.cf_meta
+			in
+			let mk_cf2 name =
+				mk_field ~static:stat name fcc.fc_type cf.cf_pos cf.cf_name_pos
+			in
+			if stat then begin
+				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
+					let c = static_method_container gctx c cf p in
+					let cf2 = try
+						let cf2 = PMap.find cf.cf_name c.cl_statics in
+						unify_existing_field cf2.cf_type cf2.cf_pos;
+						cf2
+					with Not_found ->
+						let cf2 = mk_cf2 cf.cf_name in
+						c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
+						c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
+						finalize_field c cf2;
+						cf2
+					in
+					{fa with fa_host = FHStatic c;fa_field = cf2;fa_on = Builder.make_static_this c p}
+				end else begin
+					let cf2 = mk_cf2 name in
+					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
+					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
+					finalize_field c cf2;
+					{fa with fa_field = cf2}
+				end
+			end else begin
+				let cf2 = mk_cf2 name in
+				if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
+				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
+				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
+				finalize_field c cf2;
+				{fa with fa_field = cf2}
+			end
+		in
+		let e = FieldAccess.get_field_expr fa FCall in
+		make_call ctx e el fcc.fc_ret p
+	with Generic_Exception (msg,p) ->
+		error msg p)
+
+;;
+Typecore.type_generic_function_ref := type_generic_function

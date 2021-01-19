@@ -24,6 +24,7 @@ StringTools.endsWith("foo", "foo") == true;
 StringTools.endsWith("foo", "fooo") == false;
 StringTools.endsWith("foo", "") == true;
 StringTools.endsWith("", "") == true;
+StringTools.endsWith("μου\n","\n") == true;
 
 // isSpace
 StringTools.isSpace("", 0) == false;

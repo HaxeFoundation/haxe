@@ -3,9 +3,7 @@ package runci;
 import sys.FileSystem;
 
 enum Ci {
-	TravisCI;
-	AppVeyor;
-	AzurePipelines;
+	GithubActions;
 }
 
 class Config {
@@ -23,12 +21,8 @@ class Config {
 	static public final threadsDir = cwd + "threads/";
 
 	static public final ci:Null<Ci> =
-		if (Sys.getEnv("TRAVIS") == "true")
-			TravisCI;
-		else if (Sys.getEnv("APPVEYOR") == "True")
-			AppVeyor;
-		else if (Sys.getEnv("TF_BUILD") == "True")
-			AzurePipelines;
+		if (Sys.getEnv("GITHUB_WORKSPACE") != null)
+			GithubActions;
 		else
 			null;
 
@@ -37,8 +31,7 @@ class Config {
 	}
 
 	static public final colorSupported = switch [ci, systemName] {
-		case [AzurePipelines, _]: true; // not sure
-		case [TravisCI | AppVeyor, _]: true;
+		case [GithubActions, _]: true;
 		case [_, "Linux" | "Mac"]: true;
 		case [_, "Windows"]: false;
 		case _: false;

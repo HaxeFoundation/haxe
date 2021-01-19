@@ -353,7 +353,7 @@ let emit_special_super_call fnew execs env =
 	(* This isn't very elegant, but it's probably a rare case to extend these types. *)
 	begin match vthis,vi' with
 		| VInstance vi,VInstance vi' -> vi.ikind <- vi'.ikind
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	end;
 	vnull
 
@@ -440,6 +440,11 @@ let emit_string_cca exec1 exec2 p env =
 	let index = decode_int_p (exec2 env) p in
 	if index < 0 || index >= s.slength then vnull
 	else vint (EvalString.char_at s index)
+
+let emit_string_cca_unsafe exec1 exec2 p env =
+	let s = decode_vstring (exec1 env) in
+	let index = decode_int_p (exec2 env) p in
+	vint (EvalString.char_at s index)
 
 (* Write *)
 

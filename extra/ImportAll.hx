@@ -73,7 +73,7 @@ class ImportAll {
 		case "tools", "build-tool", "jar-tool": return;
 		}
 		for( p in Context.getClassPath() ) {
-			if( p == "/" )
+			if( p == "/" || p == "" )
 				continue;
 			// skip if we have a classpath to haxe
 			if( pack.length == 0 && sys.FileSystem.exists(p+"std") )

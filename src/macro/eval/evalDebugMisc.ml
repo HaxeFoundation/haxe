@@ -43,7 +43,7 @@ let iter_breakpoints ctx f =
 	) ctx.debug.breakpoints
 
 let add_breakpoint ctx file line column condition =
-	let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file (ctx.curapi.get_com()) file))) in
 	let h = try
 		Hashtbl.find ctx.debug.breakpoints hash
 	with Not_found ->
@@ -56,7 +56,7 @@ let add_breakpoint ctx file line column condition =
 	breakpoint
 
 let delete_breakpoint ctx file line =
-	let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file (ctx.curapi.get_com()) file))) in
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
 
@@ -72,7 +72,7 @@ let find_breakpoint ctx sid =
 		);
 		raise Not_found
 	with Exit ->
-		match !found with None -> assert false | Some breakpoint -> breakpoint
+		match !found with None -> die "" __LOC__ | Some breakpoint -> breakpoint
 
 (* Helper *)
 
@@ -114,7 +114,7 @@ let get_capture_slot_by_name capture_infos name =
 		) capture_infos;
 		raise Not_found
 	with Exit ->
-		match !ret with None -> assert false | Some name -> name
+		match !ret with None -> die "" __LOC__ | Some name -> name
 
 let get_variable env capture_infos scopes name env =
 	try
@@ -142,7 +142,7 @@ let resolve_ident ctx env s =
 		let rec loop env = match env.env_info.kind with
 			| EKLocalFunction _ ->
 				begin match env.env_parent with
-					| None -> assert false
+					| None -> die "" __LOC__
 					| Some env -> loop env
 				end
 			| EKMethod _ -> env
@@ -285,7 +285,7 @@ let rec expr_to_value ctx env e =
 				end
 			| NegBits ->
 				op_sub (pos e) (vint32 (Int32.minus_one)) (loop e1)
-			| Increment | Decrement ->
+			| Increment | Decrement | Spread ->
 				raise Exit
 			end
 		| ECall(e1,el) ->
@@ -329,10 +329,10 @@ let rec expr_to_value ctx env e =
 			let v1 = loop e1 in
 			throw v1 (pos e)
 		| EVars vl ->
-			List.iter (fun ((n,_),_,_,eo) ->
-				match eo with
+			List.iter (fun v ->
+				match v.ev_expr with
 				| Some e ->
-					env.env_extra_locals <- IntMap.add (hash n) (loop e) env.env_extra_locals
+					env.env_extra_locals <- IntMap.add (hash (fst v.ev_name)) (loop e) env.env_extra_locals
 				| _ ->
 					()
 			) vl;
@@ -359,7 +359,7 @@ let rec expr_to_value ctx env e =
 			let vc = loop2 ctx.toplevel ["Type";"createInstance"] in
 			safe_call env.env_eval (call_value vc) [v1;encode_array vl]
 		| ETry _ | ESwitch _ | EFunction _ | EFor _ | EDisplay _
-		| EDisplayNew _ | ECast(_,Some _) ->
+		| EDisplayNew _ | ECast(_,Some _) | EIs _ ->
 			raise Exit
 	in
 	loop e

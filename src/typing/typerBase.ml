@@ -5,64 +5,31 @@ open Typecore
 open Error
 
 type access_kind =
+	(* Access is not possible or allowed. *)
 	| AKNo of string
+	(* Access on arbitrary expression. *)
 	| AKExpr of texpr
-	| AKSet of texpr * t * tclass_field
-	| AKInline of texpr * tclass_field * tfield_access * t
-	| AKMacro of texpr * tclass_field
-	| AKUsing of texpr * tclass * tclass_field * texpr * bool (* forced inline *)
+	(* Access on non-property field. *)
+	| AKField of field_access
+	(* Access on property field. The field is the property, not the accessor. *)
+	| AKAccessor of field_access
+	(* Access via static extension. *)
+	| AKUsingField of static_extension_access
+	(* Access via static extension on property field. The field is the property, not the accessor.
+	   This currently only happens on abstract properties. *)
+	| AKUsingAccessor of static_extension_access
+	(* Access on abstract via array overload. *)
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
-	| AKFieldSet of texpr * texpr * string * t
+	(* Access on abstract via resolve method. *)
+	| AKResolve of static_extension_access * string
 
 type object_decl_kind =
 	| ODKWithStructure of tanon
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
 
-let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
-let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
-
-let relative_path ctx file =
-	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
-	let fpath = slashes (Path.get_full_path file) in
-	let fpath_lower = String.lowercase fpath in
-	let flen = String.length fpath_lower in
-	let rec loop = function
-		| [] -> file
-		| path :: l ->
-			let spath = String.lowercase (slashes path) in
-			let slen = String.length spath in
-			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
-	in
-	loop ctx.com.Common.class_path
-
-let mk_infos ctx p params =
-	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
-	(EObjectDecl (
-		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
-		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
-		if ctx.curfield.cf_name = "" then
-			params
-		else
-			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
-	) ,p)
-
-let rec is_pos_infos = function
-	| TMono r ->
-		(match r.tm_type with
-		| Some t -> is_pos_infos t
-		| _ -> false)
-	| TLazy f ->
-		is_pos_infos (lazy_type f)
-	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
-		true
-	| TType (t,tl) ->
-		is_pos_infos (apply_params t.t_params tl t.t_type)
-	| TAbstract({a_path=[],"Null"},[t]) ->
-		is_pos_infos t
-	| _ ->
-		false
+let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let is_lower_ident s p =
 	try Ast.is_lower_ident s
@@ -88,7 +55,7 @@ let get_this ctx p =
 		in
 		mk (TLocal v) ctx.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> assert false) in
+		let v = (try PMap.find "this" ctx.locals with Not_found -> die "" __LOC__) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
@@ -111,7 +78,7 @@ let rec type_module_type ctx t tparams p =
 		let mt = try
 			module_type_of_type t
 		with Exit ->
-			if follow t == t_dynamic then Typeload.load_type_def ctx p { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+			if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
 			else error "Invalid module type" p
 		in
 		type_module_type ctx mt None p
@@ -119,10 +86,10 @@ let rec type_module_type ctx t tparams p =
 		let t_tmp = class_module_type c in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
-		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
+		let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
-		let t = apply_params s.t_params (List.map (fun _ -> mk_mono()) s.t_params) s.t_type in
+		let t = apply_params s.t_params (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) s.t_type in
 		DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
@@ -141,25 +108,45 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 
 let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
+	type_module_type ctx (Typeload.load_type_def ctx p (mk_type_path tpath)) None p
 
-let mk_module_type_access ctx t p : access_mode -> access_kind =
-	let e = type_module_type ctx t None p in
-	(fun _ -> AKExpr e)
+let mk_module_type_access ctx t p =
+	AKExpr (type_module_type ctx t None p)
+
+let s_field_access tabs fa =
+	let st = s_type (print_context()) in
+	let se = s_expr_pretty true "" false st in
+	let sfa = function
+		| FHStatic c -> Printf.sprintf "FHStatic(%s)" (s_type_path c.cl_path)
+		| FHInstance(c,tl) -> Printf.sprintf "FHInstance(%s, %s)" (s_type_path c.cl_path) (s_types tl)
+		| FHAbstract(a,tl,c) -> Printf.sprintf "FHAbstract(%s, %s, %s)" (s_type_path a.a_path) (s_types tl) (s_type_path c.cl_path)
+		| FHAnon -> Printf.sprintf "FHAnon"
+	in
+	Printer.s_record_fields tabs [
+		"fa_on",se fa.fa_on;
+		"fa_field",fa.fa_field.cf_name;
+		"fa_host",sfa fa.fa_host;
+		"fa_inline",string_of_bool fa.fa_inline
+	]
+
+let s_static_extension_access sea =
+	Printer.s_record_fields "" [
+		"se_this",s_expr_pretty true "" false (s_type (print_context())) sea.se_this;
+		"se_access",s_field_access "\t" sea.se_access
+	]
 
 let s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
-	let sfa = s_field_access st in
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
-	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
-	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
-	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing(e1,c,cf,e2,b) -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2) b
+	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
+	| AKAccessor fa -> Printf.sprintf "AKAccessor(%s)" (s_field_access "" fa)
+	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
+	| AKUsingAccessor sea -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
-	| AKFieldSet(_) -> ""
+	| AKResolve(_) -> ""
 
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
@@ -200,7 +187,7 @@ let unify_static_extension ctx e t p =
 	if multitype_involed e.etype t then
 		AbstractCast.cast_or_unify_raise ctx t e p
 	else begin
-		Type.unify e.etype t;
+		Type.unify_custom {default_unification_context with allow_dynamic_to_cast = false} e.etype t;
 		e
 	end
 

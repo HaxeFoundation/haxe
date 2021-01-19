@@ -9,8 +9,8 @@ class Issue7023 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		// eq("Void -> String", type(pos(1)));
-		eq("Void -> String", type(pos(2)));
-		eq("Void -> String", type(pos(3)));
+		// eq("() -> String", type(pos(1)));
+		eq("() -> String", type(pos(2)));
+		eq("() -> String", type(pos(3)));
 	}
 }

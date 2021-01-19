@@ -38,6 +38,9 @@ class Reflect {
 	}
 
 	public static function field(o:Dynamic, field:String):Dynamic {
+		if (o == null) {
+			return null;
+		}
 		return Jvm.readField(o, field);
 	}
 
@@ -120,8 +123,8 @@ class Reflect {
 		if (c1 != (f2 : java.lang.Object).getClass()) {
 			return false;
 		}
-		if (Std.is(f1, jvm.Function)) {
-			if (!Std.is(f2, jvm.Function)) {
+		if (Std.isOfType(f1, jvm.Function)) {
+			if (!Std.isOfType(f2, jvm.Function)) {
 				return false;
 			}
 			return (f1 : jvm.Function).equals(f2);

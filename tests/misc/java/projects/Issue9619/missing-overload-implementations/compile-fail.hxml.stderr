@@ -1,0 +1,4 @@
+Main.hx:12: characters 7-11 : This class extends abstract class Abstract but doesn't implement the following methods
+Main.hx:12: characters 7-11 : Implement them or make Main abstract as well
+Main.hx:5: characters 11-27 : ... abstractFunction()
+Main.hx:9: characters 11-27 : ... abstractFunction(i:Int)

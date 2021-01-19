@@ -76,4 +76,7 @@ extern class NativeThread {
 	static function readMessage<T>(block:Bool):T;
 
 	function sendMessage<T>(msg:T):Void;
+
+	@:allow(sys.thread.Thread)
+	private var events(get,set):Null<sys.thread.EventLoop>;
 }

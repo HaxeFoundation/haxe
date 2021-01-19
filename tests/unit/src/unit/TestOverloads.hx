@@ -67,7 +67,7 @@ class TestOverloads extends Test
 		eq(t.m1(dyn), "Bool");
 		eq(UsingTest1.m2(true), "Dynamic");
 
-		//using won't be influenced by @:overload or @:overload resolution
+		//using won't be influenced by overload or overload resolution
 		eq(t.m3(1.0,1), "Float,Int");
 		// t(typeError(t.m3(1,1.0))); //typeError doesn't work with using statements
 		// t(typeError(t.m3(dyn)));
@@ -210,58 +210,58 @@ class TestOverloads extends Test
 
 private class Primitives
 {
-	@:overload public static function prim(v:Dynamic):String
+	overload public static function prim(v:Dynamic):String
 	{
 		return "Dynamic";
 	}
 
-	@:overload public static function prim(v:Dynamic, ?nothing:Dynamic):String
+	overload public static function prim(v:Dynamic, ?nothing:Dynamic):String
 	{
 		return "Dynamic,?";
 	}
 
-	@:overload public static function prim(v:Null<Float>, ?nothing:String):String
+	overload public static function prim(v:Null<Float>, ?nothing:String):String
 	{
 		return "Null<Float>";
 	}
 
-	@:overload public static function prim(v:Float, ?nothing:Dynamic):String
+	overload public static function prim(v:Float, ?nothing:Dynamic):String
 	{
 		return "Float,?";
 	}
 
-	@:overload public static function prim(v:Float):String
+	overload public static function prim(v:Float):String
 	{
 		return "Float";
 	}
 
-	@:overload public static function prim(v:Int):String
+	overload public static function prim(v:Int):String
 	{
 		return "Int";
 	}
 
-	@:overload public static function prim(v:Int, ?nothing:Dynamic):String
+	overload public static function prim(v:Int, ?nothing:Dynamic):String
 	{
 		return "Int,?";
 	}
 
-	@:overload public static function prim(v:Null<Int>, ?nothing:haxe.io.Bytes):String
+	overload public static function prim(v:Null<Int>, ?nothing:haxe.io.Bytes):String
 	{
 		return "Null<Int>";
 	}
 
 #if (java || cs)
-	@:overload public static function prim(v:Single):String
+	overload public static function prim(v:Single):String
 	{
 		return "Single";
 	}
 
-	@:overload public static function prim(v:Single, ?nothing:haxe.io.Bytes):String
+	overload public static function prim(v:Single, ?nothing:haxe.io.Bytes):String
 	{
 		return "Single,?";
 	}
 
-	@:overload public static function prim(v:Null<Single>, ?nothing:I0):String
+	overload public static function prim(v:Null<Single>, ?nothing:I0):String
 	{
 		return "Null<Single>";
 	}
@@ -274,12 +274,12 @@ private interface I0
 
 private interface I1 extends I0
 {
-	@:overload function m(obj:Dynamic):String;
+	overload function m(obj:Dynamic):String;
 }
 
 private interface I2 extends I1
 {
-	@:overload function m(i:Int):String;
+	overload function m(i:Int):String;
 }
 
 private class InterfaceTest implements I2
@@ -289,12 +289,12 @@ private class InterfaceTest implements I2
 
 	}
 
-	@:overload public function m(obj:Dynamic):String
+	overload public function m(obj:Dynamic):String
 	{
 		return "Dynamic";
 	}
 
-	@:overload public function m(i:Int):String
+	overload public function m(i:Int):String
 	{
 		return "Int";
 	}
@@ -306,42 +306,42 @@ private class Ambiguous
 
 	}
 
-	@:overload public function amb1(i:Int, f:Float):String
+	overload public function amb1(i:Int, f:Float):String
 	{
 		return "Int,Float";
 	}
 
-	@:overload public function amb1(f:Float, i:Int):String
+	overload public function amb1(f:Float, i:Int):String
 	{
 		return "Float,Int";
 	}
 
-	@:overload public function amb1(i:Int, d:Dynamic):String
+	overload public function amb1(i:Int, d:Dynamic):String
 	{
 		return "Int,Dynamic";
 	}
 
-	@:overload public function amb1(i:Null<Int>, d:Dynamic, ?a:Bool):String
+	overload public function amb1(i:Null<Int>, d:Dynamic, ?a:Bool):String
 	{
 		return "Null<Int>,Dynamic,Bool";
 	}
 
-	@:overload public function amb1(i:Int, d:Dynamic, ?a:String):String
+	overload public function amb1(i:Int, d:Dynamic, ?a:String):String
 	{
 		return "Int,Dynamic,String";
 	}
 
-	@:overload public static function amb2(i:Int, f:Float):String
+	overload public static function amb2(i:Int, f:Float):String
 	{
 		return "Int,Float";
 	}
 
-	@:overload public static function amb2(f:Float, i:Int):String
+	overload public static function amb2(f:Float, i:Int):String
 	{
 		return "Float,Int";
 	}
 
-	@:overload public static function amb2(i:Int, d:Dynamic):String
+	overload public static function amb2(i:Int, d:Dynamic):String
 	{
 		return "Int,Dynamic";
 	}
@@ -349,12 +349,12 @@ private class Ambiguous
 
 private class AmbiguousChild extends Ambiguous
 {
-	@:overload override public function amb1(i:Int, d:Dynamic):String
+	overload override public function amb1(i:Int, d:Dynamic):String
 	{
 		return "Int,Dynamic-2";
 	}
 
-	@:overload public function amb1(i:Int, b:Bool):String
+	overload public function amb1(i:Int, b:Bool):String
 	{
 		return "Int,Bool-2";
 	}
@@ -367,17 +367,17 @@ class UsingTest1
 
 	}
 
-	@:overload public function m1(i:Int, f:Float):String
+	overload public function m1(i:Int, f:Float):String
 	{
 		return "Int,Float";
 	}
 
-	@:overload public function m1(b:Bool):String
+	overload public function m1(b:Bool):String
 	{
 		return "Bool";
 	}
 
-	@:overload public static function m2(d:Dynamic):String
+	overload public static function m2(d:Dynamic):String
 	{
 		return "Dynamic";
 	}
@@ -385,37 +385,37 @@ class UsingTest1
 
 class UsingTest2
 {
-	@:overload public static function m1(me:UsingTest1, f:Float, i:Int):String
+	overload public static function m1(me:UsingTest1, f:Float, i:Int):String
 	{
 		return "Float,Int";
 	}
 
-	@:overload public static function m1(me:UsingTest1, d:Dynamic):String
+	overload public static function m1(me:UsingTest1, d:Dynamic):String
 	{
 		return "Dynamic";
 	}
 
-	@:overload public static function m2(me:Class<UsingTest1>, b:Bool):String
+	overload public static function m2(me:Class<UsingTest1>, b:Bool):String
 	{
 		return "Bool";
 	}
 
-	@:overload public static function m3(me:UsingTest1, f:Float, i:Int):String
+	overload public static function m3(me:UsingTest1, f:Float, i:Int):String
 	{
 		return "Float,Int";
 	}
 
-	@:overload public static function m3(me:UsingTest1, i:Int, f:Float):String
+	overload public static function m3(me:UsingTest1, i:Int, f:Float):String
 	{
 		return "Int,Float";
 	}
 
-	@:overload public static function m3(me:UsingTest1, b:Bool):String
+	overload public static function m3(me:UsingTest1, b:Bool):String
 	{
 		return "Bool";
 	}
 
-	@:overload public static function m4(me:UsingTest1, i:Int, f:Float):String
+	overload public static function m4(me:UsingTest1, i:Int, f:Float):String
 	{
 		return "Int,Float";
 	}
@@ -423,7 +423,7 @@ class UsingTest2
 
 class UsingTest3
 {
-	@:overload public static function m4(me:UsingTest1, f:Float, i:Int):String
+	overload public static function m4(me:UsingTest1, f:Float, i:Int):String
 	{
 		return "Float,Int";
 	}
@@ -436,17 +436,17 @@ private class A<T>
 
 	}
 
-	@:overload public function foo(t:T):String
+	overload public function foo(t:T):String
 	{
 		return "T";
 	}
 
-	@:overload public function foo(t:String):String
+	overload public function foo(t:String):String
 	{
 		return "String";
 	}
 
-	@:overload public function bar(t:T):String
+	overload public function bar(t:T):String
 	{
 		return "T";
 	}
@@ -454,7 +454,7 @@ private class A<T>
 
 private class B<T : I1> extends A<T>
 {
-	@:overload override public function foo(t:T):String
+	overload override public function foo(t:T):String
 	{
 		return "T-2";
 	}
@@ -462,22 +462,22 @@ private class B<T : I1> extends A<T>
 
 private class C extends B<InterfaceTest>
 {
-	@:overload override public function foo(t:InterfaceTest):String
+	overload override public function foo(t:InterfaceTest):String
 	{
 		return "InterfaceTest";
 	}
 
-	@:overload public function foo(t:I0):String
+	overload public function foo(t:I0):String
 	{
 		return "I0";
 	}
 
-	@:overload public function bar(notChosen:I0):String
+	overload public function bar(notChosen:I0):String
 	{
 		return "I0";
 	}
 
-	@:overload public function bar(unrelated:String):String
+	overload public function bar(unrelated:String):String
 	{
 		return "String";
 	}
@@ -492,37 +492,37 @@ class BaseJava implements NormalInterface
 	public var s:String;
 	public var f:Float;
 
-	@:overload public function new(i:Int):Void
+	overload public function new(i:Int):Void
 	{
 		this.i = i;
 	}
 
-	@:overload public function new(s:String):Void
+	overload public function new(s:String):Void
 	{
 		this.s = s;
 	}
 
-	@:overload public function new(f:Float):Void
+	overload public function new(f:Float):Void
 	{
 		this.f = f;
 	}
 
-	@:overload public function someField(b:haxe.io.Bytes):Int
+	overload public function someField(b:haxe.io.Bytes):Int
 	{
 		return 0;
 	}
 
-	@:overload public function someField(i:Int):Int
+	overload public function someField(i:Int):Int
 	{
 		return 1;
 	}
 
-	@:overload public function someField(s:String):Int
+	overload public function someField(s:String):Int
 	{
 		return 2;
 	}
 
-	@:overload public function someField(s:Bool):Int
+	overload public function someField(s:Bool):Int
 	{
 		return -1;
 	}
@@ -532,22 +532,22 @@ class ChildJava extends BaseJava implements OverloadedInterface
 {
 	public var initialized = 10;
 
-	@:overload public function new(b:haxe.io.Bytes)
+	overload public function new(b:haxe.io.Bytes)
 	{
 		super(b.toString());
 	}
 
-	@:overload public function new(i:Int)
+	overload public function new(i:Int)
 	{
 		super(i + 1);
 	}
 
-	@:overload public function someField(f:Float):Int
+	overload public function someField(f:Float):Int
 	{
 		return 3;
 	}
 
-	@:overload override public function someField(b:haxe.io.Bytes)
+	overload override public function someField(b:haxe.io.Bytes)
 	{
 		return 2;
 	}
@@ -557,26 +557,26 @@ class ChildJava2<T> extends ChildJava
 {
 	public var initialized2 = "20";
 
-	@:overload public function new(x:Float)
+	overload public function new(x:Float)
 	{
 		super(Std.int(x));
 	}
-	@:overload public function new(b:haxe.io.Bytes)
+	overload public function new(b:haxe.io.Bytes)
 	{
 		super(b);
 	}
 
-	@:overload override public function someField(f:Float):Int
+	overload override public function someField(f:Float):Int
 	{
 		return 50;
 	}
 
-	@:overload public function someField(t:T):T
+	overload public function someField(t:T):T
 	{
 		return t;
 	}
 
-	@:overload public function someField(c:Class<T>):Int
+	overload public function someField(c:Class<T>):Int
 	{
 		return 51;
 	}
@@ -586,17 +586,17 @@ class ChildJava3<A, T : BaseJava> extends ChildJava2<T>
 {
 	public var initialized3 = true;
 
-	@:overload override public function someField(t:T):T
+	overload override public function someField(t:T):T
 	{
 		return null;
 	}
 
-	@:overload public function someField<Z>(a:A, t:T, z:Z):Z
+	overload public function someField<Z>(a:A, t:T, z:Z):Z
 	{
 		return z;
 	}
 
-	@:overload public function someField(a:A, c:Int):Int
+	overload public function someField(a:A, c:Int):Int
 	{
 		return 52;
 	}
@@ -613,7 +613,7 @@ interface NormalInterface
 
 interface OverloadedInterface extends NormalInterface
 {
-	@:overload function someField(s:String):Int;
-	@:overload function someField(f:Float):Int;
+	overload function someField(s:String):Int;
+	overload function someField(f:Float):Int;
 }
 

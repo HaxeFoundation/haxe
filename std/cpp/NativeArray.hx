@@ -65,6 +65,9 @@ extern class NativeArray {
 	static function zero<T>(ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int):Void;
 
 	@:nativeStaticExtension
+	static function removeAt<T>(ioDestArray:Array<T>, inIndex:Int):Void;
+
+	@:nativeStaticExtension
 	static function memcmp<T>(inArrayA:Array<T>, inArrayB:Array<T>):Int;
 
 	@:native("_hx_reslove_virtual_array")

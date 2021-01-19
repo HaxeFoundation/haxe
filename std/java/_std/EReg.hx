@@ -116,11 +116,26 @@ using StringTools;
 	public function split(s:String):Array<String> {
 		if (isGlobal) {
 			var ret = [];
-			while (this.match(s)) {
-				ret.push(matchedLeft());
-				s = matchedRight();
+			matcher.reset(s);
+			matcher = matcher.useAnchoringBounds(false).useTransparentBounds(true);
+			var copyOffset = 0;
+			while (true) {
+				if (!matcher.find()) {
+					ret.push(s.substring(copyOffset, s.length));
+					break;
+				}
+				ret.push(s.substring(copyOffset, matcher.start()));
+				var nextStart = matcher.end();
+				copyOffset = nextStart;
+				if (nextStart == matcher.regionStart()) {
+					nextStart++; // zero-length match - shift region one forward
+				}
+				if (nextStart >= s.length) {
+					ret.push("");
+					break;
+				}
+				matcher.region(nextStart, s.length);
 			}
-			ret.push(s);
 			return ret;
 		} else {
 			var m = matcher;

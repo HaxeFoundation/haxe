@@ -69,17 +69,17 @@ class TestType extends Test {
 		var c = Type.getEnumConstructs(MyEnum);
 		var old = c[0];
 		c[0] = "modified";
-		eq( Type.getEnumConstructs(MyEnum)[0], old );
+		t(Type.getEnumConstructs(MyEnum).contains(old));
 
 		var i = Type.getInstanceFields(TestType);
 		var old = i[0];
 		i[0] = "modified";
-		eq( Type.getInstanceFields(TestType)[0], old );
+		t(Type.getInstanceFields(TestType).contains(old));
 
 		var i = Type.getClassFields(TestType);
 		var old = i[0];
 		i[0] = "modified";
-		eq( Type.getClassFields(TestType)[0], old );
+		t(Type.getClassFields(TestType).contains(old));
 
 		// we don't check for Type.enumParameters modifications :
 		// we want it to be as fast as possible even if it references
@@ -249,7 +249,7 @@ class TestType extends Test {
 		eq(7, optfunc.bind(_, 2, _)(1, 4));
 
 		var foo = function ( x : Int, ?p : haxe.PosInfos ) { return "foo" + x; }
-		var f : Void -> String = foo.bind(0);
+		var f : () -> String = foo.bind(0);
  		eq("foo0", f());
 
 		var foo = function(bar = 2) { return bar; };
@@ -799,7 +799,7 @@ class TestType extends Test {
 	}
 
 	function testGADTEnumAbstract() {
-		var expectedA:unit.MyAbstract.GADTEnumAbstract<Void->Void>;
+		var expectedA:unit.MyAbstract.GADTEnumAbstract<()->Void>;
 		var expectedB:unit.MyAbstract.GADTEnumAbstract<Int->Void>;
 		typedAs(unit.MyAbstract.GADTEnumAbstract.A, expectedA);
 		typedAs(unit.MyAbstract.GADTEnumAbstract.B, expectedB);

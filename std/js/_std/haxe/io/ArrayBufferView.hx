@@ -44,7 +44,7 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 	}
 
 	public inline function sub(begin:Int, ?length:Int) {
-		return fromData(new js.lib.Uint8Array(this.buffer.slice(begin, length == null ? null : begin + length)));
+		return fromData(new js.lib.Uint8Array(this.buffer, begin, length == null ? this.buffer.byteLength - begin : length));
 	}
 
 	public inline function getData():ArrayBufferViewData {

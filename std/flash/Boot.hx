@@ -58,7 +58,7 @@ class Boot extends flash.display.MovieClip {
 		var c = flash.Lib.current;
 		try {
 			untyped if (c == this && c.stage != null && c.stage.align == "")
-				c.stage.align = "TOP_LEFT";
+				c.stage.align = cast "TOP_LEFT";
 		} catch (e:Dynamic) {
 			// security error when loading from different domain
 		}
@@ -316,6 +316,9 @@ class Boot extends flash.display.MovieClip {
 			aproto.iterator = function() {
 				return new haxe.iterators.ArrayIterator(cast __this__);
 			};
+			aproto.keyValueIterator = function() {
+				return new haxe.iterators.ArrayKeyValueIterator(untyped __this__);
+			};
 			aproto.resize = function(len) {
 				__this__.length = len;
 			};
@@ -324,6 +327,7 @@ class Boot extends flash.display.MovieClip {
 			aproto.setPropertyIsEnumerable("contains", false);
 			aproto.setPropertyIsEnumerable("remove", false);
 			aproto.setPropertyIsEnumerable("iterator", false);
+			aproto.setPropertyIsEnumerable("keyValueIterator", false);
 			aproto.setPropertyIsEnumerable("resize", false);
 			#if no_flash_override
 			aproto.filterHX = function(f) {

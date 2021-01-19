@@ -36,6 +36,20 @@ extern class NativeString {
 		return untyped __global__.String(inPtr.ptr, inLen);
 	}
 
+	@:native("__hxcpp_parse_float")
+	public static function parseFloat(inString:String):Float;
+
+	@:native("__hxcpp_parse_substr_float")
+	public static function parseSubstrFloat(inString:String,start:Int, length:Int):Float;
+
+	// Will return 0 for invalid string
+	@:native("__hxcpp_parse_substr_int")
+	public static function parseInt(inString:String):Int;
+
+	// Will return 0 for invalid string
+	@:native("__hxcpp_parse_substr_int")
+	public static function parseSubstrInt(inString:String,start:Int, length:Int):Int;
+
 	@:native("_hx_string_compare")
 	static function compare(inString0:String, inString1:String):Int;
 

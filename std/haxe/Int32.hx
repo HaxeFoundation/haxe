@@ -26,6 +26,7 @@ package haxe;
 	Int32 provides a 32-bit integer with consistent overflow behavior across
 	all platforms.
 **/
+@:transitive
 abstract Int32(Int) from Int to Int {
 	@:op(-A) private inline function negate():Int32
 		return clamp(~this + 1);

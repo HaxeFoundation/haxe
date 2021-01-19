@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open Ast
 open Type
@@ -47,7 +47,7 @@ module Utils = struct
 		let ef = mk_static_field c cf p in
 		let tr = match follow ef.etype with
 			| TFun(args,tr) -> tr
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		in
 		mk (TCall(ef,el)) tr p
 
@@ -221,7 +221,7 @@ module Transformer = struct
 		let op = match unop with
 		| Increment -> OpAdd
 		| Decrement -> OpSub
-		| _ -> assert false
+		| _ -> die "" __LOC__
 		in
 		let one = mk (TConst(TInt(Int32.of_int(1)))) t p in
 
@@ -299,7 +299,7 @@ module Transformer = struct
 			let tf = { tf with tf_expr = { tf.tf_expr with eexpr = TBlock(List.rev el)}} in
 			{e with eexpr = TFunction tf}
 		| _ ->
-			assert false
+			die "" __LOC__
 
 	let rec transform_function tf ae is_value =
 		let p = tf.tf_expr.epos in
@@ -391,7 +391,7 @@ module Transformer = struct
 			let mk_eq e = mk (TBinop(OpEq,e1,e)) !t_bool (punion e1.epos e.epos) in
 			let cond = match val_reversed with
 				| [] ->
-					assert false
+					die "" __LOC__
 				| [e] ->
 					mk_eq e
 				| e :: el ->
@@ -420,7 +420,7 @@ module Transformer = struct
 				edef
 			| [],None ->
 				(* I don't think that can happen? *)
-				assert false
+				die "" __LOC__
 			| [case],_ ->
 				case_to_if case edef
 			| case :: cases,_ ->
@@ -463,10 +463,10 @@ module Transformer = struct
 			in
 			let cases = Hashtbl.fold (fun i el acc ->
 				let eint = mk (TConst (TInt (Int32.of_int i))) !t_int e1.epos in
-				let fs = match List.fold_left (fun eacc ec -> Some (mk_if ec eacc)) edef !el with Some e -> e | None -> assert false in
+				let fs = match List.fold_left (fun eacc ec -> Some (mk_if ec eacc)) edef !el with Some e -> e | None -> die "" __LOC__ in
 				([eint],fs) :: acc
 			) length_map [] in
-			let c_string = match !t_string with TInst(c,_) -> c | _ -> assert false in
+			let c_string = match !t_string with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			let cf_length = PMap.find "length" c_string.cl_fields in
 			let ef = mk (TField(e1,FInstance(c_string,[],cf_length))) !t_int e1.epos in
 			let res_var = alloc_var (ae.a_next_id()) ef.etype ef.epos in
@@ -552,7 +552,7 @@ module Transformer = struct
 					transform_exprs_to_block block ae.a_expr.etype false ae.a_expr.epos ae.a_next_id
 			| _ ->
 				debug_expr e1_.a_expr;
-				assert false
+				die "" __LOC__
 
 	and var_to_treturn_expr ?(capture = false) n t p =
 		let x = mk (TLocal (to_tvar ~capture:capture n t p)) t p in
@@ -576,17 +576,17 @@ module Transformer = struct
 		in
 		let def =
 			(let ex = match exprs with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| [x] ->
 				(let exs = convert_return_expr x in
 				match exs with
-				| [] -> assert false
+				| [] -> die "" __LOC__
 				| [x] -> x
 				| x ->
 					match List.rev x with
 					| x::xs ->
 						mk (TBlock exs) x.etype base.a_expr.epos
-					| _ -> assert false)
+					| _ -> die "" __LOC__)
 
 			| x ->
 				match List.rev x with
@@ -597,8 +597,8 @@ module Transformer = struct
 					match List.rev block with
 					| x::_ ->
 						mk (TBlock block) x.etype base.a_expr.epos
-					| _ -> assert false)
-				| _ -> assert false
+					| _ -> die "" __LOC__)
+				| _ -> die "" __LOC__
 			in
 			let f1 = { tf_args = []; tf_type = TFun([],ex.etype); tf_expr = ex} in
 			let fexpr = mk (TFunction f1) ex.etype ex.epos in
@@ -653,7 +653,7 @@ module Transformer = struct
 				| e :: el ->
 					List.rev ((mk (TReturn (Some e)) t_dynamic e.epos) :: el),e.etype
 				| [] ->
-					assert false
+					die "" __LOC__
 			in
 			let my_block = transform_exprs_to_block block tr false ae.a_expr.epos ae.a_next_id in
 			let fn = mk (TFunction {
@@ -861,7 +861,7 @@ module Transformer = struct
 			let op = match unop with
 			| Increment -> OpAdd
 			| Decrement -> OpSub
-			| _ -> assert false in
+			| _ -> die "" __LOC__ in
 			transform_op_assign_op ae e op one is_value is_postfix
 		| (_, TUnop(op, Prefix, e)) ->
 			let e1 = trans true [] e in
@@ -954,7 +954,7 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TArrayDecl exprs } in
 			lift_expr ae.a_next_id ~blocks:blocks r
 		| (is_value, TCast(e1,Some mt)) ->
-			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) (match !como with Some com -> com | None -> assert false) e1 mt ae.a_expr.etype ae.a_expr.epos in
+			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) (match !como with Some com -> com | None -> die "" __LOC__) e1 mt ae.a_expr.etype ae.a_expr.epos in
 			transform_expr ae.a_next_id ~is_value:is_value e
 		| (is_value, TCast(e,None)) ->
 			let e = trans is_value [] e in
@@ -972,7 +972,7 @@ module Transformer = struct
 
 		| ( _, TConst _ ) -> lift_expr ae.a_next_id a_expr
 		| ( _, TTypeExpr _ ) -> lift_expr ae.a_next_id a_expr
-		| ( _, TUnop _ ) -> assert false
+		| ( _, TUnop _ ) -> die "" __LOC__
 		| ( true, TWhile(econd, ebody, DoWhile) ) ->
 			let new_expr = trans false [] a_expr in
 			let f = exprs_to_func (new_expr.a_blocks @ [new_expr.a_expr]) (ae.a_next_id()) ae in
@@ -1054,10 +1054,11 @@ module Printer = struct
 		KeywordHandler.handle_keywords s
 
 	let print_unop = function
-		| Increment | Decrement -> assert false
+		| Increment | Decrement -> die "" __LOC__
 		| Not -> "not "
 		| Neg -> "-";
 		| NegBits -> "~"
+		| Spread -> "*"
 
 	let print_binop = function
 		| OpAdd -> "+"
@@ -1080,7 +1081,7 @@ module Printer = struct
 		| OpShr -> ">>"
 		| OpUShr -> ">>"
 		| OpMod -> "%"
-		| OpInterval | OpArrow | OpIn | OpAssignOp _ -> assert false
+		| OpInterval | OpArrow | OpIn | OpAssignOp _ -> die "" __LOC__
 
 	let print_string s =
 		Printf.sprintf "\"%s\"" (StringHelper.s_escape s)
@@ -1128,7 +1129,7 @@ module Printer = struct
 					if !had_kw_args then abort "Arguments after KwArgs are not allowed" p;
 					had_kw_args := true;
 					"**" ^ name
-				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
+				| TAbstract({a_path = (["python"],"VarArgs" | ["haxe"],"Rest")},_) ->
 					check_err ();
 					had_var_args := true;
 					"*" ^ name
@@ -1247,10 +1248,10 @@ module Printer = struct
 							| "string" -> Printf.sprintf "Std._hx_is(%s, str)" (print_expr pctx e1)
 							| "boolean" -> Printf.sprintf "Std._hx_is(%s, bool)" (print_expr pctx e1)
 							| "number" -> Printf.sprintf "Std._hx_is(%s, float)" (print_expr pctx e1)
-							| _ -> assert false
+							| _ -> die "" __LOC__
 						end
 					| _ ->
-						assert false
+						die "" __LOC__
 				end
 			| TBinop(OpEq,e1,({eexpr = TConst TNull} as e2)) ->
 				Printf.sprintf "(%s is %s)" (print_expr pctx e1) (print_expr pctx e2)
@@ -1260,7 +1261,7 @@ module Printer = struct
 				let ops = match op with
 					| OpEq -> "is", "==", "HxOverrides.eq"
 					| OpNotEq -> "is not", "!=", "not HxOverrides.eq"
-					| _ -> assert false
+					| _ -> die "" __LOC__
 				in
 				let third (_,_,x) = x in
 				let fst (x,_,_) = x in
@@ -1403,7 +1404,7 @@ module Printer = struct
 			| TIdent s ->
 				s
 			| TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
-				assert false
+				die "" __LOC__
 
 	and print_if_else pctx econd eif eelse as_elif =
 		let econd1 = match econd.eexpr with
@@ -1427,8 +1428,8 @@ module Printer = struct
 		in
 		let name = field_name fa in
 		let is_extern = (match fa with
-		| FInstance(c,_,_) -> c.cl_extern
-		| FStatic(c,_) -> c.cl_extern
+		| FInstance(c,_,_) -> (has_class_flag c CExtern)
+		| FStatic(c,_) -> (has_class_flag c CExtern)
 		| _ -> false)
 		in
 		let do_default () =
@@ -1436,7 +1437,7 @@ module Printer = struct
 		in
 		let call_override s =
 			match s with
-			| "iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift" | "join" | "push" | "map" | "filter" -> true
+			| "iterator" | "keyValueIterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift" | "join" | "push" | "map" | "filter" -> true
 			| _ -> false
 		in
 		match fa with
@@ -1459,6 +1460,8 @@ module Printer = struct
 				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
 			| FInstance (c,_,cf) when ((is_type "" "str")(TClassDecl c)) ->
 				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
+			| FStatic (c,cf) when (has_class_flag c CExtern) && c.cl_path = ([],"") ->
+				Printf.sprintf "%s" name
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when is_assign && call_override(name) ->
@@ -1515,7 +1518,7 @@ module Printer = struct
 					| {eexpr = TObjectDecl fields} :: el ->
 						List.rev el,fields
 					| _ ->
-						assert false
+						die "" __LOC__
 				in
 				begin match res with
 					| e1 :: [] ->
@@ -1602,12 +1605,12 @@ module Printer = struct
 					"print(str(" ^ (print_expr pctx e) ^ "))"
 			| TField(e1,((FAnon {cf_name = (("split" | "join" | "push" | "map" | "filter") as s)}) | FDynamic (("split" | "join" | "push" | "map" | "filter") as s))), [x] ->
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
-			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
+			| TField(e1,((FAnon {cf_name = (("iterator" | "keyValueIterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "keyValueIterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
 			| TField(_, (FStatic({cl_path = ["python"; "_KwArgs"], "KwArgs_Impl_"},{ cf_name="fromT" }))), [e2]  ->
 				let t = match follow call_expr.etype with
 				| TAbstract(_, [t]) -> t
-				| _ -> assert false
+				| _ -> die "" __LOC__
 				in
 				let native_fields = get_native_fields t in
 				if PMap.is_empty native_fields then
@@ -1634,8 +1637,8 @@ module Printer = struct
 			in
 			let prefix = match e1.eexpr, follow x.etype with
 				(* the should not apply for the instance methods of the abstract itself *)
-				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
-				| TField(_, FStatic({cl_path = ["python"; "_VarArgs"],"VarArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
+				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && has_class_field_flag f CfImpl -> ""
+				| TField(_, FStatic({cl_path = ["python"; "_VarArgs"],"VarArgs_Impl_"},f)), _ when i == 0 && has_class_field_flag f CfImpl -> ""
 				| _, TAbstract({a_path = ["python"],"KwArgs"},_) -> "**"
 				| _, TAbstract({a_path = ["python"],"VarArgs"},_) -> "*"
 				| _, _ -> ""
@@ -1715,11 +1718,9 @@ module Generator = struct
 	(* Transformer interface *)
 
 	let transform_expr e =
-		(* let e = Codegen.UnificationCallback.run Transformer.check_unification e in *)
 		Transformer.transform e
 
 	let transform_to_value e =
-		(* let e = Codegen.UnificationCallback.run Transformer.check_unification e in *)
 		Transformer.transform_to_value e
 
 	(* Printer interface *)
@@ -1748,8 +1749,6 @@ module Generator = struct
 		let methods = DynArray.create () in
 		List.iter (fun cf ->
 			match cf.cf_kind with
-				| Var({v_read = AccResolve}) ->
-					()
 				| Var _ when not (is_physical_field cf) ->
 					()
 				| Var({v_read = AccCall}) ->
@@ -1836,7 +1835,7 @@ module Generator = struct
 						let call_f = mk (TCall(f_name,[])) e_last.etype e_last.epos in
 						Some new_block,call_f
 					| _ ->
-						assert false
+						die "" __LOC__
 				end
 			| _ ->
 				None,expr2
@@ -1928,7 +1927,7 @@ module Generator = struct
 				newline ctx;
 				gen_func_expr ctx ef c "__init__" py_metas true "    " false cf.cf_pos
 			| _ ->
-				assert false
+				die "" __LOC__
 		end
 
 	let gen_class_field ctx c p cf =
@@ -1956,7 +1955,7 @@ module Generator = struct
 			print ctx "    @staticmethod\n    def _hx_empty_init(_hx_o):";
 			let found_fields = ref false in
 			List.iter (fun cf -> match cf.cf_kind with
-					| Var ({v_read = AccResolve | AccCall}) ->
+					| Var ({v_read = AccCall}) ->
 						()
 					| Var _ ->
 						found_fields := true;
@@ -2002,7 +2001,7 @@ module Generator = struct
 			has_static_methods := true;
 			let field = handle_keywords cf.cf_name in
 			let py_metas = filter_py_metas cf.cf_meta in
-			let e = match cf.cf_expr with Some e -> e | _ -> assert false in
+			let e = match cf.cf_expr with Some e -> e | _ -> die "" __LOC__ in
 			newline ctx;
 			gen_func_expr ctx e c field py_metas false "    " true cf.cf_pos;
 		) methods;
@@ -2026,7 +2025,7 @@ module Generator = struct
 				ctx.class_inits <- f :: ctx.class_inits
 
 	let gen_class ctx c =
-		if not c.cl_extern then begin
+		if not (has_class_flag c CExtern) then begin
 			let is_nativegen = Meta.has Meta.NativeGen c.cl_meta in
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
@@ -2059,7 +2058,7 @@ module Generator = struct
 					print ctx "\n    _hx_class_name = \"%s\"" p_name
 				end;
 				if has_feature ctx "python._hx_is_interface" then begin
-					let value = if c.cl_interface then "True" else "False" in
+					let value = if (has_class_flag c CInterface) then "True" else "False" in
 					print ctx "\n    _hx_is_interface = \"%s\"" value
 				end;
 
@@ -2119,7 +2118,7 @@ module Generator = struct
 
 			let has_inner_static = gen_class_statics ctx c p in
 
-			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || c.cl_interface), c.cl_ordered_fields with
+			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || (has_class_flag c CInterface)), c.cl_ordered_fields with
 				| true,_
 				| _, [] ->
 					false
@@ -2130,7 +2129,7 @@ module Generator = struct
 
 			let use_pass = !use_pass && (not has_inner_static) && (not has_empty_constructor) && match x.cfd_methods with
 				| [] -> c.cl_constructor = None
-				| _ -> c.cl_interface
+				| _ -> (has_class_flag c CInterface)
 			in
 			if use_pass then spr ctx "\n    pass";
 
@@ -2213,7 +2212,7 @@ module Generator = struct
 				newline ctx;
 				print ctx "    @staticmethod\n    def %s(%s):\n" f param_str;
 				print ctx "        return %s(\"%s\", %i, (%s))" p ef.ef_name ef.ef_index args_str;
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		) param_constructors;
 
 		List.iter (fun ef ->
@@ -2347,7 +2346,7 @@ module Generator = struct
 		in
 		List.iter (fun mt ->
 			match mt with
-			| TClassDecl c when c.cl_extern -> import c.cl_path c.cl_meta
+			| TClassDecl c when (has_class_flag c CExtern) -> import c.cl_path c.cl_meta
 			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types

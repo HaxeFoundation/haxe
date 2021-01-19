@@ -192,110 +192,6 @@ let check_local_vars_init com e =
 	loop (ref PMap.empty) e;
 	e
 
-(* -------------------------------------------------------------------------- *)
-(* RENAME LOCAL VARS *)
-
-let collect_reserved_local_names com =
-	match com.platform with
-	| Js ->
-		let h = ref StringMap.empty in
-		let add name = h := StringMap.add name true !h in
-		List.iter (fun mt ->
-			let tinfos = t_infos mt in
-			let native_name = try fst (get_native_name tinfos.mt_meta) with Not_found -> Path.flat_path tinfos.mt_path in
-			if native_name = "" then
-				match mt with
-				| TClassDecl c ->
-					List.iter (fun cf ->
-						let native_name = try fst (get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
-						add native_name
-					) c.cl_ordered_statics;
-				| _ -> ()
-			else
-				add native_name
-		) com.types;
-		!h
-	| _ -> StringMap.empty
-
-let rename_local_vars ctx reserved e =
-	let vars = ref [] in
-	let declare v =
-		vars := v :: !vars
-	in
-	let reserved = ref reserved in
-	let reserve name =
-		reserved := StringMap.add name true !reserved
-	in
-	let check t =
-		match (t_infos t).mt_path with
-		| [], name | name :: _, _ -> reserve name
-	in
-	let check_type t =
-		match follow t with
-		| TInst (c,_) -> check (TClassDecl c)
-		| TEnum (e,_) -> check (TEnumDecl e)
-		| TType (t,_) -> check (TTypeDecl t)
-		| TAbstract (a,_) -> check (TAbstractDecl a)
-		| TMono _ | TLazy _ | TAnon _ | TDynamic _ | TFun _ -> ()
-	in
-	let rec collect e = match e.eexpr with
- 		| TVar(v,eo) ->
-			declare v;
-			(match eo with None -> () | Some e -> collect e)
-		| TFor(v,e1,e2) ->
-			declare v;
-			collect e1;
-			collect e2;
-		| TTry(e1,catches) ->
-			collect e1;
-			List.iter (fun (v,e) ->
-				declare v;
-				check_type v.v_type;
-				collect e
-			) catches
-		| TFunction tf ->
-			List.iter (fun (v,_) -> declare v) tf.tf_args;
-			collect tf.tf_expr
-		| TTypeExpr t ->
-			check t
-		| TNew (c,_,_) ->
-			Type.iter collect e;
-			check (TClassDecl c);
-		| TCast (e,Some t) ->
-			collect e;
-			check t;
-		| TConst TSuper ->
-			check_type e.etype
-		| _ ->
-			Type.iter collect e
-	in
-	(* Pass 1: Collect used identifiers and variables. *)
-	reserve "this";
-	if ctx.com.platform = Java then reserve "_";
-	begin match ctx.curclass.cl_path with
-		| s :: _,_ | [],s -> reserve s
-	end;
-	collect e;
-	(* Pass 2: Check and rename variables. *)
-	let count_table = Hashtbl.create 0 in
-	let maybe_rename v =
-		(* chop escape char for all local variables generated *)
-		if is_gen_local v then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
-		let name = ref v.v_name in
-		let count = ref (try Hashtbl.find count_table v.v_name with Not_found -> 0) in
-		while StringMap.mem !name !reserved do
-			incr count;
-			name := v.v_name ^ (string_of_int !count);
-		done;
-		reserve !name;
-		Hashtbl.replace count_table v.v_name !count;
-		if not (Meta.has Meta.RealPath v.v_meta) then
-			v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),e.epos],e.epos) :: v.v_meta;
-		v.v_name <- !name;
-	in
-	List.iter maybe_rename (List.rev !vars);
-	e
-
 let mark_switch_break_loops e =
 	let add_loop_label n e =
 		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n)),e.epos)],e.epos), e) }
@@ -347,7 +243,7 @@ let check_unification ctx e t =
 	begin match e.eexpr,t with
 		| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
 			(* TODO: this smells of hack, but we have to deal with it somehow *)
-			v.v_capture <- true
+			add_var_flag v VCaptured;
 		| _ ->
 			()
 	end;
@@ -422,7 +318,7 @@ let save_class_state ctx t = match t with
 			List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
 		in
 
-		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern and over = c.cl_overrides in
+		let meta = c.cl_meta and path = c.cl_path and ext = (has_class_flag c CExtern) in
 		let sup = c.cl_super and impl = c.cl_implements in
 		let csr = Option.map (mk_field_restore) c.cl_constructor in
 		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
@@ -433,7 +329,7 @@ let save_class_state ctx t = match t with
 			c.cl_super <- sup;
 			c.cl_implements <- impl;
 			c.cl_meta <- meta;
-			c.cl_extern <- ext;
+			if ext then add_class_flag c CExtern else remove_class_flag c CExtern;
 			c.cl_path <- path;
 			c.cl_init <- init;
 			c.cl_ordered_fields <- List.map restore_field ofr;
@@ -441,7 +337,6 @@ let save_class_state ctx t = match t with
 			c.cl_fields <- mk_pmap c.cl_ordered_fields;
 			c.cl_statics <- mk_pmap c.cl_ordered_statics;
 			c.cl_constructor <- Option.map restore_field csr;
-			c.cl_overrides <- over;
 			c.cl_descendants <- [];
 			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)
@@ -452,7 +347,7 @@ let save_class_state ctx t = match t with
 
 let remove_generic_base ctx t = match t with
 	| TClassDecl c when is_removable_class c ->
-		c.cl_extern <- true
+		add_class_flag c CExtern;
 	| _ ->
 		()
 
@@ -524,6 +419,26 @@ let apply_native_paths ctx t =
 			c.cl_meta <- meta :: c.cl_meta;
 			c.cl_path <- path;
 		| TEnumDecl e ->
+			let did_change = ref false in
+			let field _ ef = try
+				let meta,name = get_real_name ef.ef_meta ef.ef_name in
+				ef.ef_name <- name;
+				ef.ef_meta <- meta :: ef.ef_meta;
+				did_change := true;
+			with Not_found ->
+				()
+			in
+			PMap.iter field e.e_constrs;
+			if !did_change then begin
+				let names = ref [] in
+				e.e_constrs <- PMap.fold
+					(fun ef map ->
+						names := ef.ef_name :: !names;
+						PMap.add ef.ef_name ef map
+					)
+					e.e_constrs PMap.empty;
+				e.e_names <- !names;
+			end;
 			let meta,path = get_real_path e.e_meta e.e_path in
 			e.e_meta <- meta :: e.e_meta;
 			e.e_path <- path;
@@ -539,7 +454,7 @@ let add_rtti ctx t =
 	in
 	match t with
 	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
-		let f = mk_field "__rtti" ctx.t.tstring c.cl_pos null_pos in
+		let f = mk_field ~static:true "__rtti" ctx.t.tstring c.cl_pos null_pos in
 		let str = Genxml.gen_type_string ctx.com t in
 		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
@@ -548,7 +463,7 @@ let add_rtti ctx t =
 		()
 
 (* Adds member field initializations as assignments to the constructor *)
-let add_field_inits reserved ctx t =
+let add_field_inits locals ctx t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -565,7 +480,7 @@ let add_field_inits reserved ctx t =
 		| _ ->
 			let el = List.map (fun cf ->
 				match cf.cf_expr with
-				| None -> assert false
+				| None -> die "" __LOC__
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
@@ -590,14 +505,14 @@ let add_field_inits reserved ctx t =
 					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
 					{cf with cf_expr = Some ce };
 				| _ ->
-					assert false
+					die "" __LOC__
 			in
 			let config = AnalyzerConfig.get_field_config ctx.com c cf in
 			Analyzer.Run.run_on_field ctx config c cf;
 			(match cf.cf_expr with
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
-				let e = rename_local_vars ctx reserved e in
+				let e = RenameVars.run ctx locals e in
 				let e = Optimizer.sanitize ctx.com e in
 				cf.cf_expr <- Some e
 			| _ ->
@@ -617,13 +532,13 @@ let add_meta_field ctx t = match t with
 		| None -> ()
 		| Some e ->
 			add_feature ctx.com "has_metadata";
-			let cf = mk_field "__meta__" e.etype e.epos null_pos in
+			let cf = mk_field ~static:true "__meta__" e.etype e.epos null_pos in
 			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
 				| Cs | Java -> false
 				| _ -> true
 			in
-			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin
+			if (has_class_flag c CInterface) && not (can_deal_with_interface_metadata()) then begin
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
 				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
@@ -644,7 +559,7 @@ let add_meta_field ctx t = match t with
 	this filter checks for their existence and also adds some metadata for analyzer and C# generator
 *)
 let check_cs_events com t = match t with
-	| TClassDecl cl when not cl.cl_extern ->
+	| TClassDecl cl when not (has_class_flag cl CExtern) ->
 		let check fields f =
 			match f.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
@@ -709,7 +624,7 @@ let check_void_field ctx t = match t with
    This makes the first extended (implemented) interface the super for efficiency reasons (you can get one for 'free')
    and leaves the remaining ones as 'implemented' *)
 let promote_first_interface_to_super ctx t = match t with
-	| TClassDecl c when c.cl_interface ->
+	| TClassDecl c when (has_class_flag c CInterface) ->
 		begin match c.cl_implements with
 		| ({ cl_path = ["cpp";"rtti"],_ },_ ) :: _ -> ()
 		| first_interface  :: remaining ->
@@ -732,7 +647,7 @@ let check_reserved_type_paths ctx t =
 			ctx.com.warning ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
 	in
 	match t with
-	| TClassDecl c when not c.cl_extern -> check c.cl_path c.cl_pos
+	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos
 	| TEnumDecl e when not e.e_extern -> check e.e_path e.e_pos
 	| _ -> ()
 
@@ -746,7 +661,7 @@ let is_cached t =
 	m.m_processed <> !pp_counter
 
 let apply_filters_once ctx filters t =
-	if not (is_cached t) then run_expression_filters ctx filters t
+	if not (is_cached t) then run_expression_filters None ctx filters t
 
 let next_compilation() =
 	incr pp_counter
@@ -767,6 +682,10 @@ let iter_expressions fl mt =
 let filter_timer detailed s =
 	Timer.timer (if detailed then "filters" :: s else ["filters"])
 
+let timer_label detailed s =
+	if detailed then Some ("filters" :: s)
+	else None
+
 module ForRemap = struct
 	let apply ctx e =
 		let rec loop e = match e.eexpr with
@@ -777,7 +696,10 @@ module ForRemap = struct
 			let restore = save_locals ctx in
 			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
 			restore();
-			e
+			begin match e.eexpr with
+			| TFor _ -> for_remap ctx.com.basic v e1 e2 e.epos
+			| _ -> e
+			end
 		| _ ->
 			Type.map_expr loop e
 		in
@@ -813,22 +735,20 @@ let run com tctx main =
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		ForRemap.apply tctx;
-		VarLazifier.apply com;
-		AbstractCast.handle_abstract_casts tctx;
+		"ForRemap",ForRemap.apply tctx;
+		"VarLazifier",VarLazifier.apply com;
+		"handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
 	] in
-	let t = filter_timer detail_times ["expr 0"] in
-	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
 	let filters = [
-		fix_return_dynamic_from_void_function tctx true;
-		check_local_vars_init tctx.com;
-		check_abstract_as_value;
-		if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
-		Optimizer.reduce_expression tctx;
-		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
-		Exceptions.filter tctx;
-		CapturedVars.captured_vars com;
+		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
+		"check_local_vars_init",check_local_vars_init tctx.com;
+		"check_abstract_as_value",check_abstract_as_value;
+		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
+		"reduce_expression",Optimizer.reduce_expression tctx;
+		"inline_constructors",InlineConstructors.inline_constructors tctx;
+		"Exceptions_filter",Exceptions.filter tctx;
+		"captured_vars",CapturedVars.captured_vars com;
 	] in
 	let filters =
 		match com.platform with
@@ -840,9 +760,7 @@ let run com tctx main =
 			filters
 		| _ -> filters
 	in
-	let t = filter_timer detail_times ["expr 1"] in
-	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	List.iter (run_expression_filters (timer_label detail_times ["expr 1"]) tctx filters) new_types;
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
@@ -864,18 +782,16 @@ let run com tctx main =
 	com.stage <- CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
 	com.stage <- CAnalyzerDone;
-	let reserved = collect_reserved_local_names com in
+	let locals = RenameVars.init com in
 	let filters = [
-		Optimizer.sanitize com;
-		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-		(match com.platform with
+		"sanitize",Optimizer.sanitize com;
+		"add_final_return",if com.config.pf_add_final_return then add_final_return else (fun e -> e);
+		"RenameVars",(match com.platform with
 		| Eval -> (fun e -> e)
-		| _ -> rename_local_vars tctx reserved);
-		mark_switch_break_loops;
+		| _ -> RenameVars.run tctx locals);
+		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
-	let t = filter_timer detail_times ["expr 2"] in
-	List.iter (run_expression_filters tctx filters) new_types;
-	t();
+	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
 	next_compilation();
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
@@ -912,13 +828,19 @@ let run com tctx main =
 	t();
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
-	List.iter (run_expression_filters tctx [Exceptions.insert_save_stacks tctx]) new_types;
+	List.iter
+		(run_expression_filters
+			(timer_label detail_times [])
+			tctx
+			["insert_save_stacks",Exceptions.insert_save_stacks tctx]
+		)
+		new_types;
 	let type_filters = [
 		Exceptions.patch_constructors;
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
-		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits reserved);
+		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits locals);
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );

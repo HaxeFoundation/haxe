@@ -11,10 +11,10 @@ class Issue5436 {
         inlineMe(function() { });
     }
 
-    static inline function inlineMe(f:Void -> Void) {
+    static inline function inlineMe(f:() -> Void) {
         call(f);
         call(f);
     }
 
-	static function call(f:Void -> Void) { }
+	static function call(f:() -> Void) { }
 }

@@ -1,3 +1,5 @@
+open Globals
+open Ast
 open Meta
 open TType
 open TFunctions
@@ -9,50 +11,103 @@ let build_abstract a = match a.a_impl with
 	| Some c -> ignore(c.cl_build())
 	| None -> ()
 
-let has_direct_to ab pl b =
-	List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to
+let find_cast_field uctx find =
+	let found = try
+		find {uctx with allow_transitive_cast = false}
+	with Not_found ->
+		find uctx
+	in
+	match found with
+		| Some value -> value
+		| None -> raise Not_found
 
-let has_direct_from ab pl a b =
-	List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from
+let find_field_from uctx a b ab tl =
+	List.find (unifies_from_field uctx a b ab tl) ab.a_from_field
 
-let find_field_to ab pl b =
-	build_abstract ab;
-	List.find (unify_to_field ab pl b) ab.a_to_field
+let find_field_to uctx a b ab tl =
+	List.find (unifies_to_field uctx a b ab tl) ab.a_to_field
 
-let find_field_from ab pl a b =
-	build_abstract ab;
-	List.find (unify_from_field ab pl a b) ab.a_from_field
+let find_to_from uctx a b a1 tl1 a2 tl2 =
+	build_abstract a1;
+	build_abstract a2;
+	find_cast_field uctx (fun uctx ->
+		if unifies_abstracts uctx a b a1 tl1 a2 tl2 then
+			None
+		else try
+			Some((a1,tl1,(find_field_to uctx a b a1 tl1)))
+		with Not_found ->
+			Some((a2,tl2,(find_field_from uctx a b a2 tl2)))
+	)
 
-let find_to_from f ab_left tl_left ab_right tl_right tleft tright =
-	build_abstract ab_left;
-	build_abstract ab_right;
-	if has_direct_to ab_right tl_right tleft || has_direct_from ab_left tl_left tright tleft then
-		raise Not_found
-	else
-		try f ab_right tl_right (fun () -> find_field_to ab_right tl_right tleft)
-		with Not_found -> f ab_left tl_left (fun () -> find_field_from ab_left tl_left tright tleft)
-
-let find_to ab pl b =
-	build_abstract ab;
-	if follow b == t_dynamic then
-		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
-	else if has_direct_to ab pl b then
-		raise Not_found (* legacy compatibility *)
-	else
-		find_field_to ab pl b
-
-let find_from ab pl a b =
+let find_from uctx a ab tl =
 	build_abstract ab;
 	if follow a == t_dynamic then
 		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
-	else if has_direct_from ab pl a b then
-		raise Not_found (* legacy compatibility *)
 	else
-		find_field_from ab pl a b
+		let b = TAbstract(ab,tl) in
+		find_cast_field uctx (fun uctx ->
+			if unifies_from uctx a b ab tl then
+				None
+			else
+				Some(find_field_from uctx a b ab tl)
+		)
+
+let find_to uctx b ab tl =
+	build_abstract ab;
+	if follow b == t_dynamic then
+		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
+	else
+		let a = TAbstract(ab,tl) in
+		find_cast_field uctx (fun uctx ->
+			if unifies_to uctx a b ab tl then
+				None
+			else
+				Some(find_field_to uctx a b ab tl)
+		)
 
 let underlying_type_stack = new_rec_stack()
 
-let rec get_underlying_type ?(return_first=false) a pl =
+(**
+	Returns type parameters and the list of types, which should be known at compile time
+	to be able to choose multitype specialization.
+*)
+let rec find_multitype_params a pl =
+	match Meta.get Meta.MultiType a.a_meta with
+	| _,[],_ -> pl,pl
+	| _,el,_ ->
+		let relevant = Hashtbl.create 0 in
+		List.iter (fun e ->
+			let rec loop f e = match fst e with
+				| EConst(Ident s) ->
+					Hashtbl.replace relevant s f
+				| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
+					loop follow_with_abstracts e1;
+				| _ ->
+					error "Type parameter expected" (pos e)
+			in
+			loop (fun t -> t) e
+		) el;
+		let definitive_types = ref [] in
+		let tl = List.map2 (fun (n,_) t ->
+			try
+				let t = (Hashtbl.find relevant n) t in
+				definitive_types := t :: !definitive_types;
+				t
+			with Not_found ->
+				if not (has_mono t) then t
+				else t_dynamic
+		) a.a_params pl in
+		tl,!definitive_types
+
+and find_multitype_specialization_type a pl =
+	let uctx = default_unification_context in
+	let m = mk_mono() in
+	let tl,definitive_types = find_multitype_params a pl in
+	ignore(find_to uctx m a tl);
+	if List.exists (fun t -> has_mono t) definitive_types then raise Not_found;
+	follow m
+
+and get_underlying_type ?(return_first=false) a pl =
 	let maybe_recurse t =
 		let rec loop t = match t with
 			| TMono r ->
@@ -85,22 +140,29 @@ let rec get_underlying_type ?(return_first=false) a pl =
 	in
 	try
 		if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
-		(* TODO:
-			Look into replacing `mk_mono` & `find_to` with `build_abstract a` & `TAbstract(a, pl)`.
-			`find_to` is probably needed for `@:multiType`
-		*)
-		let m = mk_mono() in
-		let _ = find_to a pl m in
-		maybe_recurse (follow m)
+		find_multitype_specialization_type a pl
 	with Not_found ->
 		if Meta.has Meta.CoreType a.a_meta then
 			t_dynamic
 		else
 			maybe_recurse (apply_params a.a_params pl a.a_this)
 
-let rec follow_with_abstracts t = match follow t with
+and follow_with_abstracts t = match follow t with
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		follow_with_abstracts (get_underlying_type a tl)
+	| t ->
+		t
+
+let rec follow_with_forward_ctor ?(build=false) t = match follow t with
+	| TAbstract(a,tl) as t ->
+		if build then build_abstract a;
+		if Meta.has Meta.ForwardNew a.a_meta && not (match a.a_impl with
+			| Some c -> PMap.mem "_new" c.cl_statics
+			| None -> false
+		) then
+			follow_with_forward_ctor (get_underlying_type ~return_first:true a tl)
+		else
+			t
 	| t ->
 		t
 
