@@ -1365,7 +1365,8 @@ class expr_checker mode immediate_execution report =
 			Don't perform unops on nullable values
 		*)
 		method private check_unop e p =
-			if self#is_nullable_expr e then
+			if self#is_nullable_expr e &&
+			not (self#is_nullable_bool e) then
 				self#error "Cannot perform unary operation on nullable value." [p; e.epos];
 			self#check_expr e
 		(**
