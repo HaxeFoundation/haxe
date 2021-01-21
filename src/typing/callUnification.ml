@@ -600,7 +600,10 @@ let maybe_reapply_overload_call ctx e =
 			let recall fh cf =
 				let fa = FieldAccess.create e1 cf fh false ef.epos in
 				let fcc = unify_field_call ctx fa el [] e.epos false in
-				fcc.fc_data()
+				let e1 = fcc.fc_data() in
+				(try Type.unify e1.etype e.etype
+				with Unify_error _ -> die ~p:e.epos "Failed to reapply overload call" __LOC__);
+				e1
 			in
 			begin match fa with
 			| FStatic(c,cf) when has_class_field_flag cf CfOverload ->
