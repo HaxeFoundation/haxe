@@ -22,7 +22,6 @@ class HashMapKeyValueIterator<K:{function hashCode():Int;}, V> {
 		See `Iterator.next`
 	**/
 	public inline function next():{key:K, value:V} {
-		var key = keys.next();
-		return {value: map.get(key), key: key};
+		var key = keys.next(); @:nullSafety(Off) return {value: map.get(key), key: key};
 	}
 }

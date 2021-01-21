@@ -32,7 +32,7 @@ package haxe.ds;
 #end
 class GenericCell<T> {
 	public var elt:T;
-	public var next:GenericCell<T>;
+	public var next:Null<GenericCell<T>>;
 
 	public function new(elt, next) {
 		this.elt = elt;
@@ -99,7 +99,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 @:generic
 #end
 class GenericStack<T> {
-	public var head:GenericCell<T>;
+	public var head:Null<GenericCell<T>>;
 
 	/**
 		Creates a new empty GenericStack.
@@ -119,6 +119,7 @@ class GenericStack<T> {
 		If the stack is empty, null is returned.
 	**/
 	public inline function first():Null<T> {
+		final head = head;
 		return if (head == null) null else head.elt;
 	}
 
@@ -154,7 +155,7 @@ class GenericStack<T> {
 		If no matching element is found, false is returned.
 	**/
 	public function remove(v:T):Bool {
-		var prev:GenericCell<T> = null;
+		var prev:Null<GenericCell<T>> = null;
 		var l = head;
 		while (l != null) {
 			if (l.elt == v) {
@@ -190,8 +191,10 @@ class GenericStack<T> {
 			},
 			next: function() {
 				var k = l;
-				l = k.next;
-				return k.elt;
+				@:nullSafety(Off) {
+					l = k.next;
+					return k.elt;
+				}
 			}
 		};
 	}

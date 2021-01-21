@@ -179,7 +179,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 				b.add(meth);
 			case LocalFunction(n):
 				b.add("local function #");
-				b.add(n);
+				b.add(n == null ? "<unknown>" : '$n');
 		}
 	}
 }

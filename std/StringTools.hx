@@ -165,9 +165,9 @@ class StringTools {
 					buf.add("&lt;");
 				case '>'.code:
 					buf.add("&gt;");
-				case '"'.code if (quotes):
+				case '"'.code if (quotes == true):
 					buf.add("&quot;");
-				case '\''.code if (quotes):
+				case '\''.code if (quotes == true):
 					buf.add("&#039;");
 				case _:
 					buf.addChar(code);
@@ -211,7 +211,7 @@ class StringTools {
 	public static inline function contains(s:String, value:String):Bool {
 		#if (js && js_es >= 6)
 		return (cast s).includes(value);
-		#else 
+		#else
 		return s.indexOf(value) != -1;
 		#end
 	}
@@ -281,6 +281,8 @@ class StringTools {
 			return false;
 		#end
 		var c = s.charCodeAt(pos);
+		if (c == null)
+			return false;
 		return (c > 8 && c < 14) || c == 32;
 	}
 

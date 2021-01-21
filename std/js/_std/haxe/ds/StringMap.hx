@@ -22,16 +22,16 @@
 
 package haxe.ds;
 
-import js.lib.Object;
 import haxe.Constraints.IMap;
 import haxe.DynamicAccess;
+import js.lib.Object;
 
 #if (js_es >= 5)
 @:coreApi class StringMap<T> implements IMap<String, T> {
 	var h:Dynamic;
 
 	public inline function new() {
-		h = Object.create(null);
+		h = Object.create(cast null);
 	}
 
 	public inline function exists(key:String):Bool {
@@ -48,7 +48,8 @@ import haxe.DynamicAccess;
 
 	public inline function remove(key:String):Bool {
 		return if (exists(key)) {
-			js.Syntax.delete(h, key); true;
+			js.Syntax.delete(h, key);
+			true;
 		} else {
 			false;
 		}
@@ -71,7 +72,7 @@ import haxe.DynamicAccess;
 	}
 
 	public inline function clear():Void {
-		h = Object.create(null);
+		h = Object.create(cast null);
 	}
 
 	public inline function toString():String {
@@ -259,13 +260,14 @@ private class StringMapIterator<T> {
 				out.push(key);
 			js.Syntax.code("}");
 		}
-		if (rh != null)
+		if (rh != null) {
 			untyped {
 				js.Syntax.code("for( var key in this.rh ) {");
 				if (key.charCodeAt(0) == "$".code)
 					out.push(key.substr(1));
 				js.Syntax.code("}");
 			}
+		}
 		return out;
 	}
 

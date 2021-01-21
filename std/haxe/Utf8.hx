@@ -55,6 +55,7 @@ class Utf8 {
 		Call the `chars` function for each UTF8 char of the string.
 	**/
 	public static function iter(s:String, chars:Int->Void) {
+		@:nullSafety(Off)
 		for (i in 0...s.length)
 			chars(s.charCodeAt(i));
 	}
@@ -77,7 +78,7 @@ class Utf8 {
 	/**
 		Similar to `String.charCodeAt` but uses the UTF8 character position.
 	**/
-	public static inline function charCodeAt(s:String, index:Int):Int {
+	public static inline function charCodeAt(s:String, index:Int):Int {@:nullSafety(Off)
 		return s.charCodeAt(index);
 	}
 

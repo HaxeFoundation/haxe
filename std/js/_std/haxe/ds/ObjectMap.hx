@@ -22,12 +22,12 @@
 
 package haxe.ds;
 
-import js.Syntax;
 import js.Lib;
+import js.Syntax;
 
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	static var count:Int;
+	static var count:Null<Int>;
 
 	// initialize count through __init__ magic, because these are generated
 	// before normal static initializations for which ObjectMap should be ready to use
@@ -51,7 +51,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 
 	public function set(key:K, value:V):Void {
 		var id = getId(key);
-		if(id == null) {
+		if (id == null) {
 			id = assignId(key);
 		}
 		Syntax.code('{0}[{1}] = {2}', h, id, value);
@@ -108,7 +108,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		var copied = new ObjectMap();
 		for (key in keys())
 			copied.set(key, get(key));
-		return copied;
+		return cast copied;
 	}
 
 	public function toString():String {

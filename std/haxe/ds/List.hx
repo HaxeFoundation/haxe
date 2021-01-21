@@ -30,8 +30,8 @@ package haxe.ds;
 	@see https://haxe.org/manual/std-List.html
 **/
 class List<T> {
-	private var h:ListNode<T>;
-	private var q:ListNode<T>;
+	private var h:Null<ListNode<T>>;
+	private var q:Null<ListNode<T>>;
 
 	/**
 		The length of `this` List.
@@ -54,7 +54,7 @@ class List<T> {
 		var x = ListNode.create(item, null);
 		if (h == null)
 			h = x;
-		else
+		else @:nullSafety(Off)
 			q.next = x;
 		q = x;
 		length++;
@@ -79,6 +79,7 @@ class List<T> {
 		This function does not modify `this` List.
 	**/
 	public function first():Null<T> {
+		final h = h;
 		return if (h == null) null else h.item;
 	}
 
@@ -88,6 +89,7 @@ class List<T> {
 		This function does not modify `this` List.
 	**/
 	public function last():Null<T> {
+		final q = q;
 		return if (q == null) null else q.item;
 	}
 
@@ -99,7 +101,9 @@ class List<T> {
 	public function pop():Null<T> {
 		if (h == null)
 			return null;
+		@:nullSafety(Off)
 		var x = h.item;
+		@:nullSafety(Off)
 		h = h.next;
 		if (h == null)
 			q = null;
@@ -135,7 +139,7 @@ class List<T> {
 		Otherwise, false is returned.
 	**/
 	public function remove(v:T):Bool {
-		var prev:ListNode<T> = null;
+		var prev:Null<ListNode<T>> = null;
 		var l = h;
 		while (l != null) {
 			if (l.item == v) {
@@ -261,23 +265,23 @@ private extern class ListNode<T> extends neko.NativeArray<Dynamic> {
 #else
 private class ListNode<T> {
 	public var item:T;
-	public var next:ListNode<T>;
+	public var next:Null<ListNode<T>>;
 
-	public function new(item:T, next:ListNode<T>) {
+	public function new(item:T, next:Null<ListNode<T>>) {
 		this.item = item;
 		this.next = next;
 	}
 
-	extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
+	extern public inline static function create<T>(item:T, next:Null<ListNode<T>>):ListNode<T> {
 		return new ListNode(item, next);
 	}
 }
 #end
 
 private class ListIterator<T> {
-	var head:ListNode<T>;
+	var head:Null<ListNode<T>>;
 
-	public inline function new(head:ListNode<T>) {
+	public inline function new(head:Null<ListNode<T>>) {
 		this.head = head;
 	}
 
@@ -286,17 +290,19 @@ private class ListIterator<T> {
 	}
 
 	public inline function next():T {
-		var val = head.item;
-		head = head.next;
-		return val;
+		@:nullSafety(Off) {
+			var val = head.item;
+			head = head.next;
+			return val;
+		}
 	}
 }
 
 private class ListKeyValueIterator<T> {
 	var idx:Int;
-	var head:ListNode<T>;
+	var head:Null<ListNode<T>>;
 
-	public inline function new(head:ListNode<T>) {
+	public inline function new(head:Null<ListNode<T>>) {
 		this.head = head;
 		this.idx = 0;
 	}
@@ -306,8 +312,10 @@ private class ListKeyValueIterator<T> {
 	}
 
 	public inline function next():{key:Int, value:T} {
-		var val = head.item;
-		head = head.next;
-		return {value: val, key: idx++};
+		@:nullSafety(Off) {
+			var val = head.item;
+			head = head.next;
+			return {value: val, key: idx++};
+		}
 	}
 }

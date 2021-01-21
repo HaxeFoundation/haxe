@@ -32,7 +32,7 @@ class Printer {
 
 		Set `pretty` to `true` to prettify the result.
 	**/
-	static public function print(xml:Xml, ?pretty = false) {
+	static public function print(xml:Xml, pretty = false) {
 		var printer = new Printer(pretty);
 		printer.writeNode(xml, "");
 		return printer.output.toString();
@@ -69,7 +69,7 @@ class Printer {
 				write(value.nodeName);
 				for (attribute in value.attributes()) {
 					write(" " + attribute + "=\"");
-					write(StringTools.htmlEscape(value.get(attribute), true));
+					write(StringTools.htmlEscape(cast value.get(attribute), true));
 					write("\"");
 				}
 				if (hasChildren(value)) {

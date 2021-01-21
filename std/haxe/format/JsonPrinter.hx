@@ -48,13 +48,15 @@ class JsonPrinter {
 	}
 
 	var buf:#if flash flash.utils.ByteArray #else StringBuf #end;
-	var replacer:(key:Dynamic, value:Dynamic) -> Dynamic;
+	var replacer:Null<(key:Dynamic, value:Dynamic) -> Dynamic>;
+	@:nullSafety(Off)
 	var indent:String;
 	var pretty:Bool;
 	var nind:Int;
 
-	function new(replacer:(key:Dynamic, value:Dynamic) -> Dynamic, space:String) {
+	function new(replacer:Null<(key:Dynamic, value:Dynamic) -> Dynamic>, space:Null<String>) {
 		this.replacer = replacer;
+		@:nullSafety(Off)
 		this.indent = space;
 		this.pretty = space != null;
 		this.nind = 0;
@@ -79,6 +81,7 @@ class JsonPrinter {
 	}
 
 	function write(k:Dynamic, v:Dynamic) {
+		final replacer = replacer;
 		if (replacer != null)
 			v = replacer(k, v);
 		switch (Type.typeof(v)) {
@@ -155,7 +158,7 @@ class JsonPrinter {
 	}
 
 	function classString(v:Dynamic) {
-		fieldsString(v, Type.getInstanceFields(Type.getClass(v)));
+		fieldsString(v, Type.getInstanceFields(cast Type.getClass(v)));
 	}
 
 	inline function objString(v:Dynamic) {
@@ -169,7 +172,8 @@ class JsonPrinter {
 		var first = true;
 		for (i in 0...len) {
 			var f = fields[i];
-			var value = Reflect.field(v, f);
+			@:nullSafety(Off)
+			var value:Any = Reflect.field(v, f);
 			if (Reflect.isFunction(value))
 				continue;
 			if (first) {

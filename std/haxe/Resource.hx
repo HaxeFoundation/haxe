@@ -32,7 +32,12 @@ package haxe;
 	A list of all available resource names can be obtained from `listNames()`.
 **/
 class Resource {
+	@:nullSafety(Off)
 	static var content:Array<{name:String, data:String, str:String}>;
+
+	static function __init__() {
+		content = untyped __resources__();
+	}
 
 	/**
 		Lists all available resource names. The resource name is the name part
@@ -47,7 +52,7 @@ class Resource {
 
 		If `name` does not match any resource name, `null` is returned.
 	**/
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		for (x in content)
 			if (x.name == name) {
 				if (x.str != null)
@@ -64,7 +69,7 @@ class Resource {
 
 		If `name` does not match any resource name, `null` is returned.
 	**/
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		for (x in content)
 			if (x.name == name) {
 				if (x.str != null)
@@ -72,9 +77,5 @@ class Resource {
 				return haxe.crypto.Base64.decode(x.data);
 			}
 		return null;
-	}
-
-	static function __init__() {
-		content = untyped __resources__();
 	}
 }

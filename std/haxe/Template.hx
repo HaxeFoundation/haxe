@@ -29,7 +29,7 @@ using StringTools;
 private enum TemplateExpr {
 	OpVar(v:String);
 	OpExpr(expr:Void->Dynamic);
-	OpIf(expr:Void->Dynamic, eif:TemplateExpr, eelse:TemplateExpr);
+	OpIf(expr:Void->Dynamic, eif:TemplateExpr, ?eelse:TemplateExpr);
 	OpStr(str:String);
 	OpBlock(l:List<TemplateExpr>);
 	OpForeach(expr:Void->Dynamic, loop:TemplateExpr);
@@ -70,10 +70,15 @@ class Template {
 	// To avoid issues with DCE, keep the array iterator.
 	@:ifFeature("haxe.Template.run") static var hxKeepArrayIterator = [].iterator();
 
+	@:nullSafety(Off)
 	var expr:TemplateExpr;
+	@:nullSafety(Off)
 	var context:Dynamic;
+	@:nullSafety(Off)
 	var macros:Dynamic;
+	@:nullSafety(Off)
 	var stack:List<Dynamic>;
+	@:nullSafety(Off)
 	var buf:StringBuf;
 
 	/**
@@ -86,6 +91,7 @@ class Template {
 
 		If `str` is `null`, the result is unspecified.
 	**/
+	@:nullSafety(Off)
 	public function new(str:String) {
 		var tokens = parseTokens(str);
 		expr = parseBlock(tokens);
@@ -131,7 +137,7 @@ class Template {
 			if (value != null || Reflect.hasField(ctx, v))
 				return value;
 		}
-		return Reflect.field(globals, v);
+		return cast Reflect.field(globals, v);
 	}
 
 	function parseTokens(data:String) {
@@ -169,6 +175,7 @@ class Template {
 					params.push(part);
 					part = "";
 				} else {
+					@:nullSafety(Off)
 					part += String.fromCharCode(c);
 				}
 			}
@@ -191,13 +198,15 @@ class Template {
 				break;
 			l.add(parse(tokens));
 		}
+		@:nullSafety(Off)
 		if (l.length == 1)
 			return l.first();
 		return OpBlock(l);
 	}
 
 	function parse(tokens:List<Token>) {
-		var t = tokens.pop();
+		@:nullSafety(Off)
+		var t:Token = tokens.pop();
 		var p = t.p;
 		if (t.s)
 			return OpStr(p);
@@ -215,8 +224,10 @@ class Template {
 				pos = length;
 				for (c in p.substr(length)) {
 					switch c {
-						case ' '.code: pos++;
-						case _: break;
+						case ' '.code:
+							pos++;
+						case _:
+							break;
 					}
 				}
 			}
@@ -229,7 +240,7 @@ class Template {
 			var e = parseExpr(p);
 			var eif = parseBlock(tokens);
 			var t = tokens.first();
-			var eelse;
+			var eelse:Null<TemplateExpr> = null;
 			if (t == null)
 				throw "Unclosed 'if'";
 			if (t.p == "end") {
@@ -287,6 +298,7 @@ class Template {
 		var e:Void->Dynamic;
 		try {
 			e = makeExpr(l);
+			@:nullSafety(Off)
 			if (!l.isEmpty())
 				throw l.first().p;
 		} catch (s:String) {
@@ -309,7 +321,8 @@ class Template {
 			return function() return str;
 		}
 		if (expr_int.match(v)) {
-			var i = Std.parseInt(v);
+			@:nullSafety(Off)
+			var i:Int = Std.parseInt(v);
 			return function() {
 				return i;
 			};
@@ -333,12 +346,14 @@ class Template {
 		l.pop();
 		var field = l.pop();
 		if (field == null || !field.s)
-			throw field.p;
+			@:nullSafety(Off) throw field.p;
 		var f = field.p;
 		expr_trim.match(f);
 		f = expr_trim.matched(1);
 		return makePath(function() {
-			return Reflect.field(e(), f);
+			@:nullSafety(Off)
+			final value:Dynamic = Reflect.field(e(), f);
+			return value;
 		}, l);
 	}
 
@@ -374,7 +389,7 @@ class Template {
 				skipSpaces(l);
 				var p = l.pop();
 				if (p == null || p.s)
-					throw p;
+					@:nullSafety(Off) throw p;
 				if (p.p == ")")
 					return e1;
 				skipSpaces(l);
@@ -382,6 +397,7 @@ class Template {
 				skipSpaces(l);
 				var p2 = l.pop();
 				skipSpaces(l);
+				@:nullSafety(Off)
 				if (p2 == null || p2.p != ")")
 					throw p2;
 				return switch (p.p) {
@@ -461,12 +477,12 @@ class Template {
 				try {
 					var x:Dynamic = v.iterator();
 					if (x.hasNext == null)
-						throw null;
+						throw cast null;
 					v = x;
 				} catch (e:Dynamic)
 					try {
 						if (v.hasNext == null)
-							throw null;
+							throw cast null;
 					} catch (e:Dynamic) {
 						throw "Cannot iter on " + v;
 					}
@@ -476,9 +492,9 @@ class Template {
 					context = ctx;
 					run(loop);
 				}
-				context = stack.pop();
+				context = cast stack.pop();
 			case OpMacro(m, params):
-				var v:Dynamic = Reflect.field(macros, m);
+				var v:Dynamic = cast Reflect.field(macros, m);
 				var pl = new Array<Dynamic>();
 				var old = buf;
 				pl.push(resolve);

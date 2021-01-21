@@ -76,7 +76,7 @@ package haxe.ds;
 		var copied = new IntMap();
 		for (key in keys())
 			copied.set(key, get(key));
-		return copied;
+		return cast copied;
 	}
 
 	public function toString():String {

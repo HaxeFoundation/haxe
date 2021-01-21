@@ -342,6 +342,7 @@ abstract UnicodeString(String) from String to String {
 					fromOffset = nativeOffset;
 				}
 				subLength++;
+				@:nullSafety(Off)
 				if (subLength >= len) {
 					var lastOffset = (c < StringTools.MIN_SURROGATE_CODE_POINT ? nativeOffset : nativeOffset + 1);
 					return this.substr(fromOffset, lastOffset - fromOffset + 1);
@@ -400,6 +401,7 @@ abstract UnicodeString(String) from String to String {
 					fromOffset = nativeOffset;
 				}
 				subLength++;
+				@:nullSafety(Off)
 				if (subLength >= endIndex - startIndex) {
 					var lastOffset = (c < StringTools.MIN_SURROGATE_CODE_POINT ? nativeOffset : nativeOffset + 1);
 					return this.substr(fromOffset, lastOffset - fromOffset + 1);

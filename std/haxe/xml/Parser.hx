@@ -92,7 +92,7 @@ class XmlParserException {
 	}
 
 	public function toString():String {
-		return Type.getClassName(Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
+		return Type.getClassName(cast Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
 	}
 }
 
@@ -119,10 +119,10 @@ class Parser {
 	}
 
 	static function doParse(str:String, strict:Bool, p:Int = 0, ?parent:Xml):Int {
-		var xml:Xml = null;
+		var xml:Null<Xml> = null;
 		var state = S.BEGIN;
 		var next = S.BEGIN;
-		var aname = null;
+		var aname:Null<String> = null;
 		var start = 0;
 		var nsubs = 0;
 		var nbrackets = 0;
@@ -239,7 +239,7 @@ class Parser {
 							throw new XmlParserException("Expected attribute name", str, p);
 						tmp = str.substr(start, p - start);
 						aname = tmp;
-						if (xml.exists(aname))
+						if ((cast xml : Xml).exists(tmp))
 							throw new XmlParserException("Duplicate attribute [" + aname + "]", str, p);
 						state = S.IGNORE_SPACES;
 						next = S.EQUALS;
@@ -277,7 +277,7 @@ class Parser {
 							buf.addSub(str, start, p - start);
 							var val = buf.toString();
 							buf = new StringBuf();
-							xml.set(aname, val);
+							(cast xml : Xml).set(cast aname, val);
 							state = S.IGNORE_SPACES;
 							next = S.BODY;
 					}
@@ -363,7 +363,7 @@ class Parser {
 									throw new XmlParserException("Cannot encode UTF8-char " + c, str, p);
 							} else
 							#end
-							buf.addChar(c);
+							buf.addChar(cast c);
 						} else if (!escapes.exists(s)) {
 							if (strict)
 								throw new XmlParserException("Undefined entity: " + s, str, p);

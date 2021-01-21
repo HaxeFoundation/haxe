@@ -50,7 +50,7 @@ class Path {
 		If there is no file name, e.g. for `".htaccess"` or `"/dir/"`, the value
 		is the empty String `""`.
 	**/
-	public var file:String;
+	public var file:String = "";
 
 	/**
 		The file extension.
@@ -65,7 +65,7 @@ class Path {
 	/**
 		`true` if the last directory separator is a backslash, `false` otherwise.
 	**/
-	public var backslash:Bool;
+	public var backslash:Bool = false;
 
 	/**
 		Creates a new `Path` instance by parsing `path`.
@@ -146,9 +146,10 @@ class Path {
 	**/
 	public static function directory(path):String {
 		var s = new Path(path);
-		if (s.dir == null)
+		final dir = s.dir;
+		if (dir == null)
 			return "";
-		return s.dir;
+		return dir;
 	}
 
 	/**
@@ -160,9 +161,10 @@ class Path {
 	**/
 	public static function extension(path):String {
 		var s = new Path(path);
-		if (s.ext == null)
+		final ext = s.ext;
+		if (ext == null)
 			return "";
-		return s.ext;
+		return ext;
 	}
 
 	/**
@@ -323,6 +325,7 @@ class Path {
 
 	private static function unescape(path:String):String {
 		var regex = ~/-x([0-9][0-9])/g;
+		@:nullSafety(Off)
 		return regex.map(path, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
 	}
 

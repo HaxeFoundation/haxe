@@ -28,7 +28,7 @@ package haxe.crypto;
 class BaseCode {
 	var base:haxe.io.Bytes;
 	var nbits:Int;
-	var tbl:Array<Int>;
+	var tbl:Null<Array<Int>>;
 
 	public function new(base:haxe.io.Bytes) {
 		var len = base.length;
@@ -86,7 +86,7 @@ class BaseCode {
 		var base = this.base;
 		if (this.tbl == null)
 			initTable();
-		var tbl = this.tbl;
+		var tbl:Array<Int> = cast this.tbl;
 		var size = (b.length * nbits) >> 3;
 		var out = haxe.io.Bytes.alloc(size);
 		var buf = 0;

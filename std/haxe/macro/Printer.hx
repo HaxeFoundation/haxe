@@ -37,7 +37,8 @@ class Printer {
 
 	public function new(?tabString = "\t") {
 		tabs = "";
-		this.tabString = tabString;
+		// TODO tabString arg should be non-nullable
+		this.tabString = cast tabString;
 	}
 
 	public function printUnop(op:Unop)
@@ -111,6 +112,7 @@ class Printer {
 			case TPExpr(e): printExpr(e);
 		}
 
+	@:nullSafety(Off)
 	public function printTypePath(tp:TypePath)
 		return (tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 			+ tp.name
@@ -146,6 +148,7 @@ class Printer {
 			case TIntersection(tl): tl.map(printComplexType).join(" & ");
 		}
 
+	@:nullSafety(Off)
 	public function printMetadata(meta:MetadataEntry)
 		return '@${meta.name}' + ((meta.params != null && meta.params.length > 0) ? '(${printExprs(meta.params, ", ")})' : "");
 
@@ -164,6 +167,7 @@ class Printer {
 			case AOverload: "overload";
 		}
 
+	@:nullSafety(Off)
 	public function printField(field:Field) {
 		inline function orderAccess(access: Array<Access>) {
 			// final should always be printed last
@@ -188,15 +192,18 @@ class Printer {
 			}
 	}
 
+	@:nullSafety(Off)
 	public function printTypeParamDecl(tpd:TypeParamDecl)
 		return (tpd.meta != null && tpd.meta.length > 0 ? tpd.meta.map(printMetadata).join(" ") + " " : "")
 			+ tpd.name
 			+ (tpd.params != null && tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(", ") + ">" : "")
 			+ (tpd.constraints != null && tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(", ") + ")" : "");
 
+	@:nullSafety(Off)
 	public function printFunctionArg(arg:FunctionArg)
 		return (arg.opt ? "?" : "") + arg.name + opt(arg.type, printComplexType, ":") + opt(arg.value, printExpr, " = ");
 
+	@:nullSafety(Off)
 	public function printFunction(func:Function, ?kind:FunctionKind) {
 		var skipParentheses = switch func.args {
 			case [{ type:null }]: kind == FArrow;
@@ -211,6 +218,7 @@ class Printer {
 			+ opt(func.expr, printExpr, " ");
 	}
 
+	@:nullSafety(Off)
 	public function printVar(v:Var) {
 		var s = v.name + opt(v.type, printComplexType, ":") + opt(v.expr, printExpr, " = ");
 		return switch v.meta {
@@ -230,6 +238,7 @@ class Printer {
 		return '${printObjectFieldKey(of)} : ${printExpr(of.expr)}';
 	}
 
+	@:nullSafety(Off)
 	public function printExpr(e:Expr)
 		return e == null ? "#NULL" : switch (e.expr) {
 			case EConst(c): printConstant(c);
@@ -303,6 +312,7 @@ class Printer {
 		return fields.length == 0 ? "{ }" : '{\n$tabs' + fields.map(printField).join(';\n$tabs') + ";\n}";
 	}
 
+	@:nullSafety(Off)
 	public function printTypeDefinition(t:TypeDefinition, printPackage = true):String {
 		var old = tabs;
 		tabs = tabString;
@@ -473,12 +483,14 @@ class Printer {
 					for (v in vars) {
 						if (v.expr != null) {
 							add(v.name);
+							@:nullSafety(Off)
 							loopI(v.expr);
 						}
 					}
 				case EFunction(_, f):
 					add("EFunction");
 					if (f.expr != null) {
+						@:nullSafety(Off)
 						loopI(f.expr);
 					}
 				case EBlock(exprs):
@@ -507,6 +519,7 @@ class Printer {
 							loop(tabs + tabString + tabString, pat);
 						}
 						if (c.expr != null) {
+							@:nullSafety(Off)
 							loop(tabs + tabString + tabString + tabString, c.expr);
 						}
 					}

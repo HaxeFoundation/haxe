@@ -37,6 +37,7 @@ using Lambda;
 @:hlNative("macro")
 #end
 class TypeTools {
+	@:nullSafety(Off)
 	static function nullable(complexType:ComplexType):ComplexType
 		return macro:Null<$complexType>;
 
@@ -123,6 +124,7 @@ class TypeTools {
 				case TType(_.get() => baseType, params):
 					TPath(toTypePath(baseType, params));
 				case TFun(args, ret):
+					@:nullSafety(Off)
 					TFunction([for (a in args) a.opt ? nullable(toComplexType(a.t)) : toComplexType(a.t)], toComplexType(ret));
 				case TAnonymous(_.get() => {fields: fields}):
 					TAnonymous([for (cf in fields) toField(cf)]);
@@ -131,6 +133,7 @@ class TypeTools {
 						macro:Dynamic;
 					} else {
 						var ct = toComplexType(t);
+						@:nullSafety(Off)
 						macro:Dynamic<$ct>;
 					}
 				case TLazy(f):
@@ -147,7 +150,7 @@ class TypeTools {
 		return {
 			switch (type) {
 				case TInst(_.get() => {kind: KExpr(e)}, _): TPExpr(e);
-				case _: TPType(toComplexType(type));
+				case _: @:nullSafety(Off) TPType(toComplexType(type));
 			}
 		}
 
@@ -379,6 +382,14 @@ class TypeTools {
 	**/
 	static public function findField(c:ClassType, name:String, isStatic:Bool = false):Null<ClassField> {
 		var field = (isStatic ? c.statics : c.fields).get().find(function(field) return field.name == name);
-		return if (field != null) field; else if (c.superClass != null) findField(c.superClass.t.get(), name, isStatic); else null;
+		if (field != null)
+			return field;
+		else {
+			final superClass = c.superClass;
+			if (superClass != null) {
+				return findField(superClass.t.get(), name, isStatic);
+			} else
+				return null;
+		}
 	}
 }

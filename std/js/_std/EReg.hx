@@ -29,7 +29,7 @@
 	public function match(s:String):Bool {
 		if (r.global)
 			r.lastIndex = 0;
-		r.m = r.exec(s);
+		@:nullSafety(Off) r.m = r.exec(s);
 		r.s = s;
 		return (r.m != null);
 	}
@@ -60,7 +60,7 @@
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		return if (r.global) {
 			r.lastIndex = pos;
-			r.m = r.exec(len < 0 ? s : s.substr(0, pos + len));
+			@:nullSafety(Off) r.m = r.exec(len < 0 ? s : s.substr(0, pos + len));
 			var b = r.m != null;
 			if (b) {
 				r.s = s;

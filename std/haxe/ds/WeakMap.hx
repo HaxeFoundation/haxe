@@ -69,35 +69,35 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		See `Map.keys`
 	**/
 	public function keys():Iterator<K> {
-		return null;
+		return cast null;
 	}
 
 	/**
 		See `Map.iterator`
 	**/
 	public function iterator():Iterator<V> {
-		return null;
+		return cast null;
 	}
 
 	/**
 		See `Map.keyValueIterator`
 	**/
 	public inline function keyValueIterator():KeyValueIterator<K, V> {
-		return null;
+		return cast null;
 	}
 
 	/**
 		See `Map.copy`
 	**/
 	public function copy():WeakMap<K, V> {
-		return null;
+		return cast null;
 	}
 
 	/**
 		See `Map.toString`
 	**/
 	public function toString():String {
-		return null;
+		return cast null;
 	}
 
 	/**

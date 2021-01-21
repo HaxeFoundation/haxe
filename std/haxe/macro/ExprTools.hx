@@ -83,7 +83,7 @@ class ExprTools {
 				f(e);
 				for (c in cl)
 					f(c.expr);
-			case ETernary(e1, e2, e3) | EIf(e1, e2, e3):
+			case EIf(e1, e2, e3) | ETernary(e1, e2, e3):
 				f(e1);
 				f(e2);
 				opt2(e3, f);
@@ -201,7 +201,7 @@ class ExprTools {
 						args: ret,
 						ret: func.ret,
 						params: func.params,
-						expr: f(func.expr)
+						expr: @:nullSafety(Off) f(func.expr)
 					});
 				case EMeta(m, e): EMeta(m, f(e));
 			}
@@ -287,6 +287,7 @@ class ExprTools {
 		}
 	}
 
+	@:nullSafety(Off)
 	static inline function opt(e:Null<Expr>, f:Expr->Expr):Expr
 		return e == null ? null : f(e);
 

@@ -34,7 +34,7 @@ class Output {
 
 		If `true`, big-endian is used, otherwise `little-endian` is used.
 	**/
-	public var bigEndian(default, set):Bool;
+	public var bigEndian(default, set):Null<Bool>;
 
 	#if java
 	private var helper:java.nio.ByteBuffer;
@@ -141,7 +141,7 @@ class Output {
 	**/
 	public function writeDouble(x:Float) {
 		var i64 = FPHelper.doubleToI64(x);
-		if (bigEndian) {
+		if (bigEndian == true) {
 			writeInt32(i64.high);
 			writeInt32(i64.low);
 		} else {
@@ -178,7 +178,7 @@ class Output {
 	public function writeUInt16(x:Int) {
 		if (x < 0 || x >= 0x10000)
 			throw Error.Overflow;
-		if (bigEndian) {
+		if (bigEndian == true) {
 			writeByte(x >> 8);
 			writeByte(x & 0xFF);
 		} else {
@@ -206,7 +206,7 @@ class Output {
 	public function writeUInt24(x:Int) {
 		if (x < 0 || x >= 0x1000000)
 			throw Error.Overflow;
-		if (bigEndian) {
+		if (bigEndian == true) {
 			writeByte(x >> 16);
 			writeByte((x >> 8) & 0xFF);
 			writeByte(x & 0xFF);
@@ -223,7 +223,7 @@ class Output {
 		Endianness is specified by the `bigEndian` property.
 	**/
 	public function writeInt32(x:Int) {
-		if (bigEndian) {
+		if (bigEndian == true) {
 			writeByte(x >>> 24);
 			writeByte((x >> 16) & 0xFF);
 			writeByte((x >> 8) & 0xFF);
@@ -285,9 +285,8 @@ class Output {
 	}
 
 	#if neko
-	static function __init__()
-		untyped {
-			Output.prototype.bigEndian = false;
-		}
+	static function __init__() untyped {
+		Output.prototype.bigEndian = false;
+	}
 	#end
 }

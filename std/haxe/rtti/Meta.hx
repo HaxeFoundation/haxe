@@ -38,8 +38,11 @@ class Meta {
 		Returns the metadata that were declared for the given type (class or enum)
 	**/
 	public static function getType(t:Dynamic):Dynamic<Array<Dynamic>> {
-		var meta = getMeta(t);
-		return (meta == null || meta.obj == null) ? {} : meta.obj;
+		final meta = getMeta(t);
+		if (meta == null)
+			return {};
+		final metaObj = meta.obj;
+		return metaObj == null ? {} : metaObj;
 	}
 
 	// Could move this to Type.hx?
@@ -80,7 +83,10 @@ class Meta {
 	**/
 	public static function getStatics(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta = getMeta(t);
-		return (meta == null || meta.statics == null) ? {} : meta.statics;
+		if (meta == null)
+			return {};
+		final metaStatics = meta.statics;
+		return metaStatics == null ? {} : metaStatics;
 	}
 
 	/**
@@ -88,6 +94,9 @@ class Meta {
 	**/
 	public static function getFields(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta = getMeta(t);
-		return (meta == null || meta.fields == null) ? {} : meta.fields;
+		if (meta == null)
+			return {};
+		final metaFields = meta.fields;
+		return metaFields == null ? {} : metaFields;
 	}
 }

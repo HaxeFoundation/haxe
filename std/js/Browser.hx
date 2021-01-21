@@ -99,7 +99,7 @@ class Browser {
 	 * Safely gets the browser's session storage, or returns null if sessionStorage is unsupported
 	 * or disabled.
 	 */
-	public static function getSessionStorage():Storage {
+	public static function getSessionStorage():Null<Storage> {
 		try {
 			var s = window.sessionStorage;
 			s.getItem("");
