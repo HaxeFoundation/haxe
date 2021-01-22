@@ -114,10 +114,10 @@ let api_inline ctx c field params p =
 	let mk_typeexpr path =
 		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
-		ExtList.List.find_map (function
+		Option.get (ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
 			| _ -> None
-		) m.m_types
+		) m.m_types)
 	in
 
 	let eJsSyntax () = mk_typeexpr (["js"],"Syntax") in
