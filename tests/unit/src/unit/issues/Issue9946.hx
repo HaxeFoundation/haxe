@@ -1,12 +1,14 @@
-#if cs
 package unit.issues;
 
+#if cs
 import cs.system.Attribute;
 import haxe.test.AttrWithNullType;
 import haxe.test.AttrWithNonNullType;
 import haxe.test.MyAttrAttribute;
+#end
 
 class Issue9946 extends unit.Test {
+	#if cs
 	function test() {
 		eq(hasNullArg(cs.Lib.toNativeType(AttrWithNullType)), true);
 		eq(hasNullArg(cs.Lib.toNativeType(AttrWithNonNullType)), false);
@@ -24,5 +26,5 @@ class Issue9946 extends unit.Test {
 
 		return null;
 	}
+	#end
 }
-#end
