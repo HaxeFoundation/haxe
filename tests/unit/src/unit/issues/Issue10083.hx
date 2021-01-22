@@ -17,7 +17,7 @@ class Issue10083 extends Test {
           hasFoo = true;
 
         case Bar:
-          tasks.push(() -> eq(hasFoo, true));
+          tasks.push(() -> eq(true, hasFoo));
       }
     }
 
