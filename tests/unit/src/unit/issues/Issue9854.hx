@@ -1,4 +1,8 @@
-class Main {
+package unit.issues;
+
+class Issue9854 extends Test {
+#if (cs || java)
+
 	overload
 	static function infer<T>(s:String):T {
 		return null;
@@ -8,8 +12,9 @@ class Main {
 		return infer("foo");
 	}
 
-	static function main() {
+	function test() {
 		var x = inlineMe();
-		$type(x); // Unknown<0>
+		eq('String', HelperMacros.typeString(x));
 	}
+#end
 }
