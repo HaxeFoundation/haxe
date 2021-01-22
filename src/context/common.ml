@@ -1102,7 +1102,7 @@ let get_entry_point com =
 		let c =
 			match m.m_statics with
 			| Some c when (PMap.mem "main" c.cl_statics) -> c
-			| _ -> ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types
+			| _ -> Option.get (ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types)
 		in
 		let e = Option.get com.main in (* must be present at this point *)
 		(snd path, c, e)

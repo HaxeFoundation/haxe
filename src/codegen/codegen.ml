@@ -22,6 +22,7 @@ open Type
 open Common
 open Error
 open Globals
+open Extlib_leftovers
 
 (* -------------------------------------------------------------------------- *)
 (* TOOLS *)
