@@ -27,27 +27,25 @@ package js.lib;
 	It can be used directly: `new HaxeIterator(jsIterator)` or via using: `using HaxeIterator`.
 **/
 class HaxeIterator<T> {
+	final jsIterator:js.lib.Iterator<T>;
+	var lastStep:js.lib.Iterator.IteratorStep<T>;
 
-	final jsIterator: js.lib.Iterator<T>;
-	var lastStep: js.lib.Iterator.IteratorStep<T>;
-
-	public inline function new(jsIterator: js.lib.Iterator<T>) {
+	public inline function new(jsIterator:js.lib.Iterator<T>) {
 		this.jsIterator = jsIterator;
 		lastStep = jsIterator.next();
 	}
 
-	public inline function hasNext(): Bool {
+	public inline function hasNext():Bool {
 		return !lastStep.done;
 	}
 
-	public inline function next(): T {
+	public inline function next():T {
 		var v = lastStep.value;
-		lastStep = jsIterator.next();
+		lastStep = jsIterator.next(); @:nullSafety(Off)
 		return v;
 	}
 
-	public static inline function iterator<T>(jsIterator: js.lib.Iterator<T>) {
+	public static inline function iterator<T>(jsIterator:js.lib.Iterator<T>) {
 		return new HaxeIterator(jsIterator);
 	}
-
 }

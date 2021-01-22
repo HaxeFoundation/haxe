@@ -116,6 +116,7 @@ class Check {
 							case Att(name, filter, _):
 								if (xatt != name)
 									continue;
+								@:nullSafety(Off)
 								if (filter != null && !filterMatch(x.get(xatt), filter))
 									return CInvalidAttrib(name, x, filter);
 								attribs.remove(att);
@@ -128,8 +129,7 @@ class Check {
 				for (att in attribs)
 					switch (att) {
 						case Att(name, _, defvalue):
-							if (defvalue == null)
-								return CMissingAttrib(name, x);
+							if (defvalue == null) return CMissingAttrib(name, x);
 					}
 				// check childs
 				if (childs == null)
@@ -141,6 +141,7 @@ class Check {
 				for (att in attribs)
 					switch (att) {
 						case Att(name, _, defvalue):
+							@:nullSafety(Off)
 							x.set(name, defvalue);
 					}
 				return CMatch;
@@ -180,7 +181,7 @@ class Check {
 							found = true;
 							switch (r) {
 								case RMulti(rsub, one):
-									if (one) {
+									if (one == true) {
 										var i;
 										for (i in 0...rules.length)
 											if (rules[i] == r)

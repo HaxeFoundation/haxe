@@ -155,7 +155,7 @@ class StringTools {
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
-	public static function htmlEscape(s:String, ?quotes:Bool):String {
+	public static function htmlEscape(s:String, quotes = false):String {
 		var buf = new StringBuf();
 		for (code in #if neko iterator(s) #else new haxe.iterators.StringIteratorUnicode(s) #end) {
 			switch (code) {
@@ -165,9 +165,9 @@ class StringTools {
 					buf.add("&lt;");
 				case '>'.code:
 					buf.add("&gt;");
-				case '"'.code if (quotes == true):
+				case '"'.code if (quotes):
 					buf.add("&quot;");
-				case '\''.code if (quotes == true):
+				case '\''.code if (quotes):
 					buf.add("&#039;");
 				case _:
 					buf.addChar(code);

@@ -182,7 +182,7 @@ class HttpBase {
 		[js] If `this.async` is false, the callback functions are called before
 		this method returns.
 	**/
-	public function request(?post:Bool):Void {
+	public function request(post = false):Void {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 

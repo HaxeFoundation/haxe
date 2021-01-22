@@ -76,6 +76,7 @@ class HuffTools {
 		if (len > maxbits)
 			throw "Invalid huffman";
 		var idx = (v << 5) | len;
+		@:nullSafety(Off)
 		if (bits.exists(idx))
 			return Found(bits.get(idx));
 		v <<= 1;

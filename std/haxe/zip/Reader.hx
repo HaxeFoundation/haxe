@@ -22,8 +22,10 @@
 
 package haxe.zip;
 
-import haxe.zip.Entry;
 import haxe.ds.List;
+import haxe.io.BufferInput;
+import haxe.io.Bytes;
+import haxe.zip.Entry;
 
 // see http://www.pkware.com/documents/casestudies/APPNOTE.TXT
 class Reader {
@@ -75,7 +77,7 @@ class Reader {
 		return fields;
 	}
 
-	public function readEntryHeader():Entry {
+	public function readEntryHeader():Null<Entry> {
 		var i = this.i;
 		var h = i.readInt32();
 		if (h == 0x02014B50 || h == 0x06054B50)
@@ -120,8 +122,8 @@ class Reader {
 
 	public function read():List<Entry> {
 		var l = new List();
-		var buf = null;
-		var tmp = null;
+		var buf:Null<BufferInput> = null;
+		var tmp:Null<Bytes> = null;
 		while (true) {
 			var e = readEntryHeader();
 			if (e == null)
@@ -136,8 +138,8 @@ class Reader {
 					// that needs to be processed
 					var bufSize = 65536;
 					if (buf == null) {
-						buf = new haxe.io.BufferInput(i, haxe.io.Bytes.alloc(bufSize));
-						tmp = haxe.io.Bytes.alloc(bufSize);
+						buf = new BufferInput(i, Bytes.alloc(bufSize));
+						tmp = Bytes.alloc(bufSize);
 						i = buf;
 					}
 					var out = new haxe.io.BytesBuffer();
@@ -163,7 +165,7 @@ class Reader {
 					#else
 					var bufSize = 65536;
 					if (tmp == null)
-						tmp = haxe.io.Bytes.alloc(bufSize);
+						tmp = Bytes.alloc(bufSize);
 					var out = new haxe.io.BytesBuffer();
 					var z = new InflateImpl(i, false, false);
 					while (true) {
@@ -187,7 +189,7 @@ class Reader {
 			} else
 				e.data = i.read(e.dataSize);
 			l.add(e);
-		}
+		} @:nullSafety(Off)
 		return l;
 	}
 
@@ -200,7 +202,8 @@ class Reader {
 		if (!f.compressed)
 			return f.data;
 		var c = new haxe.zip.Uncompress(-15);
-		var s = haxe.io.Bytes.alloc(f.fileSize);
+		var s = Bytes.alloc(f.fileSize);
+		@:nullSafety(Off)
 		var r = c.execute(f.data, 0, s, 0);
 		c.close();
 		if (!r.done || r.read != f.data.length || r.write != f.fileSize)

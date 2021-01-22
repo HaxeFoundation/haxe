@@ -39,6 +39,7 @@ class ListSort {
 
 		If `list` or `cmp` are null, the result is unspecified.
 	**/
+	@:nullSafety(Off)
 	public static inline function sort<T:{prev:T, next:T}>(list:T, cmp:T->T->Int):T {
 		// ported from http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
 		if (list == null)
@@ -96,6 +97,7 @@ class ListSort {
 	/**
 		Same as `sort` but on single linked list.
 	**/
+	@:nullSafety(Off)
 	public static inline function sortSingleLinked<T:{next:T}>(list:T, cmp:T->T->Int):T {
 		if (list == null)
 			return null;

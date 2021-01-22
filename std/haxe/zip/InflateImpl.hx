@@ -22,8 +22,8 @@
 
 package haxe.zip;
 
-import haxe.zip.Huffman;
 import haxe.crypto.Adler32;
+import haxe.zip.Huffman;
 
 private class Window {
 	public static inline var SIZE = 1 << 15;
@@ -32,6 +32,7 @@ private class Window {
 	public var buffer:haxe.io.Bytes;
 	public var pos:Int;
 
+	@:nullSafety(Off)
 	var crc:Adler32;
 
 	public function new(hasCrc) {
@@ -118,18 +119,19 @@ class InflateImpl {
 	var len:Int;
 	var dist:Int;
 	var needed:Int;
+	@:nullSafety(Off)
 	var output:haxe.io.Bytes;
 	var outpos:Int;
 	var input:haxe.io.Input;
 	var lengths:Array<Int>;
 	var window:Window;
 
-	static var FIXED_HUFFMAN = null;
+	@:nullSafety(Off)
+	static var FIXED_HUFFMAN:Huffman;
 
-	public function new(i, ?header = true, ?crc = true) {
+	public function new(i, header = true, crc = true) {
 		isFinal = false;
 		htools = new HuffTools();
-		huffman = buildFixedHuffman();
 		huffdist = null;
 		len = 0;
 		dist = 0;
@@ -138,22 +140,25 @@ class InflateImpl {
 		bits = 0;
 		nbits = 0;
 		needed = 0;
+		@:nullSafety(Off)
 		output = null;
 		outpos = 0;
 		lengths = new Array();
 		for (i in 0...19)
 			lengths.push(-1);
 		window = new Window(crc);
+		huffman = buildFixedHuffman();
 	}
 
-	function buildFixedHuffman() {
+	function buildFixedHuffman():Huffman {
 		if (FIXED_HUFFMAN != null)
 			return FIXED_HUFFMAN;
 		var a = new Array();
 		for (n in 0...288)
 			a.push(if (n <= 143) 8 else if (n <= 255) 9 else if (n <= 279) 7 else 8);
-		FIXED_HUFFMAN = htools.make(a, 0, 288, 10);
-		return FIXED_HUFFMAN;
+		final huffman = htools.make(a, 0, 288, 10);
+		FIXED_HUFFMAN = huffman;
+		return huffman;
 	}
 
 	public function readBytes(b, pos, len) {
@@ -188,12 +193,7 @@ class InflateImpl {
 	}
 
 	function getRevBits(n) {
-		return if (n == 0)
-			0
-		else if (getBit())
-			(1 << (n - 1)) | getRevBits(n - 1)
-		else
-			getRevBits(n - 1);
+		return if (n == 0) 0 else if (getBit()) (1 << (n - 1)) | getRevBits(n - 1) else getRevBits(n - 1);
 	}
 
 	function resetBits() {
@@ -303,7 +303,8 @@ class InflateImpl {
 					case 0: // no compression
 						len = input.readUInt16();
 						var nlen = input.readUInt16();
-						if (nlen != 0xFFFF - len) throw "Invalid data";
+						if (nlen != 0xFFFF - len)
+							throw "Invalid data";
 						state = Flat;
 						var r = inflateLoop();
 						resetBits();
@@ -372,6 +373,7 @@ class InflateImpl {
 					if (extra_bits == -1)
 						throw "Invalid data";
 					len = LEN_BASE_VAL_TBL[n] + getBits(extra_bits);
+					@:nullSafety(Off)
 					var dist_code = if (huffdist == null) getRevBits(5) else applyHuffman(huffdist);
 					extra_bits = DIST_EXTRA_BITS_TBL[dist_code];
 					if (extra_bits == -1)
@@ -385,7 +387,7 @@ class InflateImpl {
 		}
 	}
 
-	public static function run(i:haxe.io.Input, ?bufsize = 65536) {
+	public static function run(i:haxe.io.Input, bufsize = 65536) {
 		var buf = haxe.io.Bytes.alloc(bufsize);
 		var output = new haxe.io.BytesBuffer();
 		var inflate = new InflateImpl(i);

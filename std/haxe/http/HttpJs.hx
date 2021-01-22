@@ -51,7 +51,7 @@ class HttpJs extends haxe.http.HttpBase {
 		req = null;
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		this.responseAsString = null;
 		this.responseBytes = null;
 		var r = js.Browser.createXMLHttpRequest();
@@ -112,7 +112,7 @@ class HttpJs extends haxe.http.HttpBase {
 				uri = uri + StringTools.urlEncode(p.name) + "=" + StringTools.urlEncode(p.value);
 			}
 		try {
-			if (post == true)
+			if (post)
 				r.open("POST", url, async);
 			else if (uri != null) {
 				var question = url.split("?").length <= 1;

@@ -44,7 +44,7 @@ class HttpNodeJs extends haxe.http.HttpBase {
 		req = null;
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		responseAsString = null;
 		responseBytes = null;
 		var parsedUrl = new js.node.url.URL(url);
