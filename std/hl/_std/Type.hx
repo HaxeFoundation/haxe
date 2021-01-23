@@ -73,7 +73,7 @@ class Type {
 		allTypes.set(b, t);
 	}
 
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		var t = hl.Type.getDynamic(o);
 		if (t.kind == HVirtual) {
 			o = hl.Api.getVirtualValue(o);
@@ -91,7 +91,7 @@ class Type {
 		return null;
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>@:privateAccess {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> @:privateAccess {
 		var c:hl.BaseType.Class = cast c;
 		var t = c.__type__.getSuper();
 		return t == hl.Type.void() ? null : t.getGlobal();
@@ -107,14 +107,14 @@ class Type {
 		return e.__ename__;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		var t:hl.BaseType = allTypes.get(@:privateAccess name.bytes);
 		if (t == null || !Std.isOfType(t, hl.BaseType.Class))
 			return null;
 		return cast t;
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		var t:hl.BaseType = allTypes.get(@:privateAccess name.bytes);
 		if (t == null || !Std.isOfType(t, hl.BaseType.Enum))
 			return null;

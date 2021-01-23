@@ -37,7 +37,7 @@
 		o[cast field] = value;
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		untyped {
 			var tmp; @:nullSafety(Off)
 			return if (o == null) __define_feature__("Reflect.getProperty",

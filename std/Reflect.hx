@@ -48,7 +48,7 @@ extern class Reflect {
 
 		If `field` is null, the result is unspecified.
 	**/
-	static function field(o:Dynamic, field:String):Dynamic;
+	static function field(o:Dynamic, field:String):Null<Dynamic>;
 
 	/**
 		Sets the field named `field` of object `o` to value `value`.
@@ -69,7 +69,7 @@ extern class Reflect {
 
 		If `o` or `field` are null, the result is unspecified.
 	**/
-	static function getProperty(o:Dynamic, field:String):Dynamic;
+	static function getProperty(o:Dynamic, field:String):Null<Dynamic>;
 
 	/**
 		Sets the field named `field` of object `o` to value `value`, taking

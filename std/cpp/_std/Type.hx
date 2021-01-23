@@ -32,7 +32,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		untyped {
 			if (o == null || !Reflect.isObject(o))
 				return null;
@@ -45,6 +45,7 @@ enum ValueType {
 			}
 			return c;
 		}
+	}
 
 	public static function getEnum(o:EnumValue):Enum<Dynamic>
 		untyped {
@@ -53,10 +54,11 @@ enum ValueType {
 			return untyped o.__GetClass();
 		}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		untyped {
 			return c.GetSuper();
 		}
+	}
 
 	public static function getClassName(c:Class<Dynamic>):String {
 		if (c == null)
@@ -68,7 +70,7 @@ enum ValueType {
 		return untyped e.__ToString();
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>>
 		untyped {
 			var result:Class<Dynamic> = Class.Resolve(name);
 			if (result != null && result.__IsEnum())
@@ -76,7 +78,7 @@ enum ValueType {
 			return result;
 		}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			var result:Class<Dynamic> = Class.Resolve(name);
 			if (result != null && !result.__IsEnum())

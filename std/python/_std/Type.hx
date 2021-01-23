@@ -40,7 +40,7 @@ enum ValueType {
 
 @:access(python.Boot)
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null)
 			return null;
 
@@ -66,7 +66,7 @@ enum ValueType {
 		return Syntax.field(o, "__class__");
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		return python.Boot.getSuperClass(c);
 	}
 
@@ -94,7 +94,7 @@ enum ValueType {
 		return Internal.fieldClassName(e);
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name == "Array")
 			return Array;
 		if (name == "Math")
@@ -109,7 +109,7 @@ enum ValueType {
 		return cl;
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name == "Bool")
 			return cast Bool;
 		var o = resolveClass(name);

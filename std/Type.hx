@@ -108,7 +108,7 @@ extern class Type {
 
 		The class name must not include any type parameters.
 	**/
-	static function resolveClass(name:String):Class<Dynamic>;
+	static function resolveClass(name:String):Null<Class<Dynamic>>;
 
 	/**
 		Resolves an enum by name.
@@ -123,7 +123,7 @@ extern class Type {
 
 		The enum name must not include any type parameters.
 	**/
-	static function resolveEnum(name:String):Enum<Dynamic>;
+	static function resolveEnum(name:String):Null<Enum<Dynamic>>;
 
 	/**
 		Creates an instance of class `cl`, using `args` as arguments to the

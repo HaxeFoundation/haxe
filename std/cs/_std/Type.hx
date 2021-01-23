@@ -43,7 +43,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (Object.ReferenceEquals(o, null) || Std.isOfType(o, DynamicObject) || Std.isOfType(o, cs.system.Type))
 			return null;
 
@@ -58,7 +58,7 @@ enum ValueType {
 		return null;
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		var base = Lib.toNativeType(c).BaseType;
 		if (Object.ReferenceEquals(base, null) || base.ToString() == "haxe.lang.HxObject" || base.ToString() == "System.Object")
 			return null;
@@ -93,7 +93,7 @@ enum ValueType {
 		return ret;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		#if no_root
 		if (name.indexOf(".") == -1)
 			name = "haxe.root." + name;
@@ -143,7 +143,7 @@ enum ValueType {
 		}
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		var t = Lib.toNativeType(resolveClass(name));
 		if (!Object.ReferenceEquals(t, null)
 			&& untyped t.BaseType.Equals(Lib.toNativeType(cs.system.Enum)) || Lib.toNativeType(HxEnum).IsAssignableFrom(t))

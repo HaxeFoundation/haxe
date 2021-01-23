@@ -34,7 +34,7 @@ import java.Boot;
 	}
 
 	@:keep
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		if (Std.isOfType(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, false, false);
 		}
@@ -50,7 +50,7 @@ import java.Boot;
 		}
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		if (o == null || field == null) {
 			return null;
 		}

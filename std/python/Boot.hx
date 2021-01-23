@@ -283,7 +283,7 @@ class Boot {
 		return UBuiltins.hasattr(o, handleKeywords(field));
 	}
 
-	static function field(o:Dynamic, field:String):Dynamic {
+	static function field(o:Dynamic, field:String):Null<Dynamic> {
 		if (field == null)
 			return null;
 

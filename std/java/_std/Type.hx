@@ -37,7 +37,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null || Std.isOfType(o, DynamicObject) || Std.isOfType(o, java.lang.Class)) {
 			return null;
 		}
@@ -51,7 +51,7 @@ enum ValueType {
 		return null;
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		var c = java.Lib.toNativeType(c);
 		var cl:java.lang.Class<Dynamic> = c == null ? null : untyped c.getSuperclass();
 		if (cl != null && cl.getName() != "haxe.lang.HxObject" && cl.getName() != "java.lang.Object") {
@@ -85,7 +85,7 @@ enum ValueType {
 		return ret;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		try {
 			if (name.indexOf(".") == -1) {
 				name = "haxe.root." + name;
@@ -111,7 +111,7 @@ enum ValueType {
 			return r;
 		return null;
 	')
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			if (name == "Bool")
 				return Bool;

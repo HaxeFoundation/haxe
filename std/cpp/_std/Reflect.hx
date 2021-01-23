@@ -30,7 +30,7 @@ class Reflect {
 			return o != null && o.__HasField(field);
 		}
 
-	public static function field(o:Dynamic, field:String):Dynamic
+	public static function field(o:Dynamic, field:String):Null<Dynamic>
 		untyped {
 			return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccNever"));
 		}
@@ -41,7 +41,7 @@ class Reflect {
 				o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
 		}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		return (o == null) ? null : o.__Field(field, untyped __cpp__("::hx::paccAlways"));
 	}
 

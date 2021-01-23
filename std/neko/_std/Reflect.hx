@@ -25,7 +25,7 @@
 			return $typeof(o) == $tobject && $objfield(o, $fasthash(field.__s));
 		}
 
-	public inline static function field(o:Dynamic, field:String):Dynamic
+	public inline static function field(o:Dynamic, field:String):Null<Dynamic>
 		untyped {
 			return if ($typeof(o) != $tobject) null else $objget(o, $fasthash(field.__s));
 		}
@@ -36,7 +36,7 @@
 				$objset(o, $hash(field.__s), value);
 		}
 
-	public static inline function getProperty(o:Dynamic, field:String):Dynamic
+	public static inline function getProperty(o:Dynamic, field:String):Null<Dynamic>
 		untyped {
 			var tmp;
 			return if ($typeof(o) != $tobject) null else if (o.__properties__ != null

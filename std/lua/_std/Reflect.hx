@@ -32,7 +32,7 @@ import lua.Boot;
 			return untyped o.__fields__ != null ? o.__fields__[field] != null : o[field] != null;
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic
+	public static function field(o:Dynamic, field:String):Null<Dynamic>
 		untyped {
 			if (Lua.type(o) == "string") {
 				if (field == "length") {
@@ -49,7 +49,7 @@ import lua.Boot;
 			o[field] = value;
 		}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		return if (o == null) {
 			untyped __define_feature__("Reflect.getProperty", null);
 		} else if (o.__properties__ != null && Reflect.field(o, "get_" + field) != null) {

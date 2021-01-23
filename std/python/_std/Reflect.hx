@@ -39,7 +39,7 @@ class Reflect {
 	}
 
 	@:ifFeature("dynamic_read", "anon_optional_read")
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		return Boot.field(o, field);
 	}
 
@@ -48,7 +48,7 @@ class Reflect {
 		UBuiltins.setattr(o, handleKeywords(field), value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		if (o == null)
 			return null;
 

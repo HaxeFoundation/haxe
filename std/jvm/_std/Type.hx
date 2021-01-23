@@ -32,7 +32,7 @@ class Type {
 		return c.isAnnotationPresent(cast EnumValueReflectionInformation);
 	}
 
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null) {
 			return null;
 		}
@@ -60,7 +60,7 @@ class Type {
 		return c.haxeEnum();
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		if (c == String) {
 			return null;
 		}
@@ -92,7 +92,7 @@ class Type {
 		}
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name.indexOf(".") == -1) {
 			name = "haxe.root." + name;
 		}
@@ -107,7 +107,7 @@ class Type {
 		}
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name.indexOf(".") == -1) {
 			name = "haxe.root." + name;
 		}

@@ -31,7 +31,7 @@ import python.Syntax;
 @:keepInit
 @:coreApi class Std {
 	@:access(python.Boot)
-	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		try {
 			return UBuiltins.isinstance(value, c) || (Inspect.isInterface(c) && Boot.implementsInterface(value, c)) ? cast value : null;
 		} catch (e:Dynamic) {
@@ -40,7 +40,7 @@ import python.Syntax;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 
@@ -118,7 +118,7 @@ import python.Syntax;
 	}
 
 	@:access(python.Boot)
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return python.Boot.toString(s);
 	}
 

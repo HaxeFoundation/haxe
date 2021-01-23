@@ -40,7 +40,7 @@ import cs.system.reflection.*;
 	}
 
 	@:keep
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		var ihx:IHxObject = Lib.as(o, IHxObject);
 		if (ihx != null)
 			return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, false);
@@ -57,7 +57,7 @@ import cs.system.reflection.*;
 			Runtime.slowSetField(o, field, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		var ihx:IHxObject = Lib.as(o, IHxObject);
 		if (ihx != null)
 			return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, true);

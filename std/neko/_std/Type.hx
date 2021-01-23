@@ -34,7 +34,7 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped {
+	public static function getClass<T>( o : T ) : Null<Class<T>> untyped {
 		if( __dollar__typeof(o) != __dollar__tobject )
 			return null;
 		var p = __dollar__objgetproto(o);
@@ -50,7 +50,7 @@ enum ValueType {
 	}
 
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
+	public static function getSuperClass( c : Class<Dynamic> ) : Null<Class<Dynamic>> untyped {
 		return c.__super__;
 	}
 
@@ -67,7 +67,7 @@ enum ValueType {
 		return a.join(".");
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
+	public static function resolveClass( name : String ) : Null<Class<Dynamic>> untyped {
 		var path = name.split(".");
 		var cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
 		var i = 1;
@@ -82,7 +82,7 @@ enum ValueType {
 	}
 
 
-	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
+	public static function resolveEnum( name : String ) : Null<Enum<Dynamic>> untyped {
 		var path = name.split(".");
 		var e = Reflect.field(neko.Boot.__classes,path[0]);
 		var i = 1;

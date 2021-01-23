@@ -28,7 +28,7 @@ class Reflect {
 		return hl.Api.hasField(o, hash);
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		if (field == null)
 			return null;
 		var hash = @:privateAccess field.bytes.hash();
@@ -40,7 +40,7 @@ class Reflect {
 		hl.Api.setField(o, hash, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		var f:Dynamic = Reflect.field(o, "get_" + field);
 		if (f != null)
 			return f();
