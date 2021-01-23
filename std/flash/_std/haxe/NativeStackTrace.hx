@@ -11,8 +11,7 @@ import haxe.CallStack.StackItem;
 @:allow(haxe.Exception)
 class NativeStackTrace {
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
-	static public inline function saveStack(e:Any):Void {
-	}
+	static public inline function saveStack(e:Any):Void {}
 
 	static public inline function callStack():String {
 		return normalize(new Error().getStackTrace(), 1);
@@ -30,7 +29,7 @@ class NativeStackTrace {
 		var cnt = 0;
 		while (r.match(native)) {
 			native = r.matchedRight();
-			if(skip > cnt++) {
+			if (skip > cnt++) {
 				continue;
 			}
 			var cl = r.matched(1).split("::").join(".");
@@ -44,6 +43,7 @@ class NativeStackTrace {
 			} else
 				item = Method(cl, meth.substring(1));
 			if (r.matched(3) != null)
+				@:nullSafety(Off)
 				item = FilePos(item, r.matched(4), Std.parseInt(r.matched(5)));
 			a.push(item);
 		}
@@ -51,15 +51,16 @@ class NativeStackTrace {
 	}
 
 	static function normalize(stack:String, skipItems:Int = 0):String {
-		switch (stack:String).substring(0, 6) {
-			case 'Error:' | 'Error\n': skipItems += 1;
+		switch (stack : String).substring(0, 6) {
+			case 'Error:' | 'Error\n':
+				skipItems += 1;
 			case _:
 		}
 		return skipLines(stack, skipItems);
 	}
 
 	static function skipLines(stack:String, skip:Int, pos:Int = 0):String {
-		return if(skip > 0) {
+		return if (skip > 0) {
 			pos = stack.indexOf('\n', pos);
 			return pos < 0 ? '' : skipLines(stack, --skip, pos + 1);
 		} else {

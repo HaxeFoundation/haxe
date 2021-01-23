@@ -27,6 +27,7 @@ package flash;
 	functions for the Flash target.
 **/
 class Lib {
+	@:nullSafety(Off)
 	public static var current:flash.display.MovieClip;
 
 	public inline static function getTimer():Int {
@@ -36,6 +37,7 @@ class Lib {
 	public static function eval(path:String):Dynamic {
 		var p = path.split(".");
 		var fields = new Array();
+		@:nullSafety(Off)
 		var o:Dynamic = null;
 		while (p.length > 0) {
 			try {
@@ -47,8 +49,10 @@ class Lib {
 				break;
 		}
 		for (f in fields) {
+			@:nullSafety(Off)
 			if (o == null)
 				return null;
+			@:nullSafety(Off)
 			o = untyped o[f];
 		}
 		return o;
@@ -89,6 +93,7 @@ class Lib {
 	}
 
 	static function traceToConsole(v:Dynamic, ?inf:haxe.PosInfos) {
+		@:nullSafety(Off)
 		var type = if (inf != null && inf.customParams != null) inf.customParams[0] else null;
 		if (type != "warn" && type != "info" && type != "debug" && type != "error")
 			type = if (inf == null) "error" else "log";

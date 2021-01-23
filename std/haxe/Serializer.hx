@@ -205,6 +205,7 @@ class Serializer {
 			if (!v.hasOwnProperty(f))
 				continue;
 			serializeString(f);
+			@:nullSafety(Off)
 			serialize(Reflect.field(v, f));
 		}
 		buf.add("g");

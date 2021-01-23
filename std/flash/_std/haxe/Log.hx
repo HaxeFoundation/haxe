@@ -29,6 +29,7 @@ package haxe;
 			return str;
 		var pstr = infos.fileName + ":" + infos.lineNumber;
 		if (infos != null && infos.customParams != null)
+			@:nullSafety(Off)
 			for (v in infos.customParams)
 				str += ", " + Std.string(v);
 		return pstr + ": " + str;
@@ -39,6 +40,7 @@ package haxe;
 		var str = formatOutput(v, infos);
 		untyped __global__["trace"](str);
 		#else
+		@:nullSafety(Off)
 		flash.Boot.__trace(v, infos);
 		#end
 	}

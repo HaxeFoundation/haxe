@@ -89,6 +89,7 @@ class JsonParser {
 							case ':'.code:
 								if (field == null)
 									invalidChar();
+								@:nullSafety(Off)
 								Reflect.setField(obj, field, parseRec());
 								field = null;
 								comma = true;

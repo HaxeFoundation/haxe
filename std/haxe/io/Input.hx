@@ -91,7 +91,7 @@ class Input {
 	**/
 	public function close():Void {}
 
-	function set_bigEndian(b:Bool):Bool {
+	function set_bigEndian(b:Null<Bool>):Null<Bool> {
 		bigEndian = b;
 		return b;
 	}

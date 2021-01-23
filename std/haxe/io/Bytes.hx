@@ -178,7 +178,7 @@ class Bytes {
 		return new Bytes(len, b.slice(pos, pos + len));
 		#end
 	}
-	
+
 	/**
 		Returns `0` if the bytes of `this` instance and the bytes of `other` are
 		identical.
@@ -529,8 +529,10 @@ class Bytes {
 			chars.push(str.charCodeAt(i));
 		for (i in 0...length) {
 			var c = get(i);
-			s.addChar(chars[c >> 4]);
-			s.addChar(chars[c & 15]);
+			@:nullSafety(Off) {
+				s.addChar(chars[c >> 4]);
+				s.addChar(chars[c & 15]);
+			}
 		}
 		return s.toString();
 	}

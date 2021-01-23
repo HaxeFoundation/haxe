@@ -21,6 +21,7 @@
  */
 @:coreApi class EReg {
 	var r:flash.utils.RegExp;
+	@:nullSafety(Off)
 	var result:Dynamic;
 
 	public function new(r:String, opt:String):Void {

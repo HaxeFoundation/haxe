@@ -29,7 +29,7 @@ class Compress {
 	}
 
 	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
-		return null;
+		return cast null;
 	}
 
 	public function setFlushMode(f:FlushMode):Void {}

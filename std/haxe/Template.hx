@@ -129,11 +129,13 @@ class Template {
 			return context;
 		if (Reflect.isObject(context)) {
 			var value = Reflect.getProperty(context, v);
+			@:nullSafety(Off)
 			if (value != null || Reflect.hasField(context, v))
 				return value;
 		}
 		for (ctx in stack) {
 			var value = Reflect.getProperty(ctx, v);
+			@:nullSafety(Off)
 			if (value != null || Reflect.hasField(ctx, v))
 				return value;
 		}

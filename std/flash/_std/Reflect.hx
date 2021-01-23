@@ -20,22 +20,25 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi class Reflect {
-	public static function hasField(o:Dynamic, field:String):Bool
+	public static function hasField(o:Dynamic, field:String):Bool {
 		untyped {
 			return o.hasOwnProperty(field);
 		}
+	}
 
-	public static function field(o:Dynamic, field:String):Dynamic
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		untyped {
 			return o != null && __in__(field, o) ? o[field] : null;
 		}
+	}
 
-	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void
+	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void {
 		untyped {
 			o[field] = value;
 		}
+	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		untyped {
 			if (o == null)
 				return null;
@@ -45,8 +48,9 @@
 			}
 			return __in__(field, o) ? o[field] : null;
 		}
+	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
 		untyped {
 			var setter = 'set_$field';
 			if (__in__(setter, o)) {
@@ -55,13 +59,15 @@
 				o[field] = value;
 			}
 		}
+	}
 
-	public inline static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic
+	public inline static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		untyped {
 			return func.apply(o, args);
 		}
+	}
 
-	public static function fields(o:Dynamic):Array<String>
+	public static function fields(o:Dynamic):Array<String> {
 		untyped {
 			if (o == null)
 				return new Array();
@@ -74,11 +80,13 @@
 			}
 			return a;
 		}
+	}
 
-	public static function isFunction(f:Dynamic):Bool
+	public static function isFunction(f:Dynamic):Bool {
 		untyped {
 			return __typeof__(f) == "function";
 		}
+	}
 
 	public static function compare<T>(a:T, b:T):Int {
 		var a:Dynamic = a;
@@ -90,7 +98,7 @@
 		return f1 == f2; // VM-level closures
 	}
 
-	public static function isObject(v:Dynamic):Bool
+	public static function isObject(v:Dynamic):Bool {
 		untyped {
 			if (v == null)
 				return false;
@@ -100,23 +108,26 @@
 			}
 			return (t == "string");
 		}
+	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
 		return try v.__enum__ == true catch (e:Dynamic) false;
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool
+	public static function deleteField(o:Dynamic, field:String):Bool {
 		untyped {
 			if (o.hasOwnProperty(field) != true)
 				return false;
 			__delete__(o, field);
 			return true;
 		}
+	}
 
 	public static function copy<T>(o:Null<T>):Null<T> {
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
+		@:nullSafety(Off)
 		for (f in Reflect.fields(o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return o2;

@@ -45,8 +45,11 @@ package flash;
 @:dox(hide)
 @:keep
 class Boot extends flash.display.MovieClip {
+	@:nullSafety(Off)
 	static var tf:flash.text.TextField;
+	@:nullSafety(Off)
 	static var lines:Array<String>;
+	@:nullSafety(Off)
 	static var lastError:flash.errors.Error;
 
 	public static var skip_constructor = false;
@@ -110,7 +113,9 @@ class Boot extends flash.display.MovieClip {
 		if (tf == null)
 			return;
 		tf.parent.removeChild(tf);
+		@:nullSafety(Off)
 		tf = null;
+		@:nullSafety(Off)
 		lines = null;
 	}
 
@@ -155,6 +160,7 @@ class Boot extends flash.display.MovieClip {
 			lines = [];
 		var str = pstr + ": " + __string_rec(v, "");
 		if (pos != null && pos.customParams != null)
+			@:nullSafety(Off)
 			for (v in pos.customParams)
 				str += "," + __string_rec(v, "");
 		lines = lines.concat(str.split("\n"));
@@ -247,7 +253,7 @@ class Boot extends flash.display.MovieClip {
 		}
 	}
 
-	static function __init__()
+	static function __init__() {
 		untyped {
 			var d:Dynamic = Date;
 			d.now = function() {
@@ -307,7 +313,7 @@ class Boot extends flash.display.MovieClip {
 				#if flash19
 				// removeAt is only available through as3 namespace and genswf9 will only generate it for a known Array,
 				// so we have to type it properly (thus the typecheck). See https://github.com/HaxeFoundation/haxe/issues/8612
-				(__this__:Array<Dynamic>).removeAt(idx);
+				(__this__ : Array<Dynamic>).removeAt(idx);
 				#else
 				__this__.splice(idx, 1);
 				#end
@@ -386,5 +392,6 @@ class Boot extends flash.display.MovieClip {
 					return null;
 				return Std.int(x);
 			};
+		}
 	}
 }

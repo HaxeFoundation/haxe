@@ -198,7 +198,7 @@ class BytesBuffer {
 		Returns either a copy or a reference of the current bytes.
 		Once called, the buffer should no longer be used.
 	**/
-	public function getBytes():Bytes
+	public function getBytes():Bytes {
 		untyped {
 			#if neko
 			var str = StringBuf.__to_string(b);
@@ -219,7 +219,9 @@ class BytesBuffer {
 			#else
 			var bytes = new Bytes(b.length, b);
 			#end
+			@:nullSafety(Off)
 			b = null;
 			return bytes;
 		}
+	}
 }

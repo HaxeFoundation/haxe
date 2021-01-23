@@ -122,6 +122,7 @@ class JsonPrinter {
 				} else if (c == haxe.ds.StringMap) {
 					var v:haxe.ds.StringMap<Dynamic> = v;
 					var o = {};
+					@:nullSafety(Off)
 					for (k in v.keys())
 						Reflect.setField(o, k, v.get(k));
 					objString(o);
