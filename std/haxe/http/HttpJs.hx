@@ -132,9 +132,11 @@ class HttpJs extends haxe.http.HttpBase {
 
 		for (h in headers)
 			r.setRequestHeader(h.name, h.value);
-		r.send(cast uri);
-		if (!async)
-			onreadystatechange(cast null);
+		@:nullSafety(Off) {
+			r.send(uri);
+			if (!async)
+				onreadystatechange(null);
+		}
 	}
 
 	/**
@@ -155,8 +157,8 @@ class HttpJs extends haxe.http.HttpBase {
 		h.onError = function(e) {
 			throw e;
 		}
-		h.request(false);
-		return cast r;
+		h.request(false); @:nullSafety(Off)
+		return r;
 	}
 }
 #end

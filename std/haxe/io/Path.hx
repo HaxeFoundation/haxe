@@ -146,10 +146,11 @@ class Path {
 	**/
 	public static function directory(path):String {
 		var s = new Path(path);
-		final dir = s.dir;
-		if (dir == null)
-			return "";
-		return dir;
+		@:nullSafety(Off) {
+			if (s.dir == null)
+				return "";
+			return s.dir;
+		}
 	}
 
 	/**
@@ -161,10 +162,11 @@ class Path {
 	**/
 	public static function extension(path):String {
 		var s = new Path(path);
-		final ext = s.ext;
-		if (ext == null)
-			return "";
-		return ext;
+		@:nullSafety(Off) {
+			if (s.ext == null)
+				return "";
+			return s.ext;
+		}
 	}
 
 	/**
@@ -234,25 +236,24 @@ class Path {
 		var colon = false;
 		var slashes = false;
 		#if utf16
-		for (c in haxe.iterators.StringIteratorUnicode.unicodeIterator(tmp)) {
-			switch (c) {
+		for (c in haxe.iterators.StringIteratorUnicode.unicodeIterator(tmp))
+			switch (c)
 		#else
-		for (i in 0...tmp.length) {
-			switch (StringTools.fastCodeAt(tmp, i)) {
-		#end
-				case ":".code:
-					acc.add(":");
-					colon = true;
-				case "/".code if (!colon):
-					slashes = true;
-				case var i:
-					colon = false;
-					if (slashes) {
-						acc.add("/");
-						slashes = false;
-					}
-					acc.addChar(i);
-			}
+		for (i in 0...tmp.length)
+			switch (StringTools.fastCodeAt(tmp, i))
+		#end {
+			case ":".code:
+				acc.add(":");
+				colon = true;
+			case "/".code if (!colon):
+				slashes = true;
+			case var i:
+				colon = false;
+				if (slashes) {
+					acc.add("/");
+					slashes = false;
+				}
+				acc.addChar(i);
 		}
 
 		return acc.toString();
@@ -324,8 +325,7 @@ class Path {
 	}
 
 	private static function unescape(path:String):String {
-		var regex = ~/-x([0-9][0-9])/g;
-		@:nullSafety(Off)
+		var regex = ~/-x([0-9][0-9])/g; @:nullSafety(Off)
 		return regex.map(path, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
 	}
 

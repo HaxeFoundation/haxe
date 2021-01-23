@@ -78,8 +78,7 @@ class List<T> {
 
 		This function does not modify `this` List.
 	**/
-	public function first():Null<T> {
-		final h = h;
+	public function first():Null<T> {@:nullSafety(Off)
 		return if (h == null) null else h.item;
 	}
 
@@ -88,8 +87,7 @@ class List<T> {
 
 		This function does not modify `this` List.
 	**/
-	public function last():Null<T> {
-		final q = q;
+	public function last():Null<T> {@:nullSafety(Off)
 		return if (q == null) null else q.item;
 	}
 

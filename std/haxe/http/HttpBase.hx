@@ -232,14 +232,16 @@ class HttpBase {
 	function success(data:Bytes) {
 		responseBytes = data;
 		responseAsString = null;
-		if (hasOnData()) {
-			onData(cast responseData);
+		@:nullSafety(Off) {
+			if (hasOnData()) {
+				onData(responseData);
+			}
+			onBytes(responseBytes);
 		}
-		onBytes(cast responseBytes);
 	}
 
 	function get_responseData() {
-		final responseBytes = responseBytes;
+		@:nullSafety(Off)
 		if (responseAsString == null && responseBytes != null) {
 			#if neko
 			responseAsString = neko.Lib.stringReference(responseBytes);

@@ -81,7 +81,7 @@ class JsonPrinter {
 	}
 
 	function write(k:Dynamic, v:Dynamic) {
-		final replacer = replacer;
+		@:nullSafety(Off)
 		if (replacer != null)
 			v = replacer(k, v);
 		switch (Type.typeof(v)) {
@@ -159,7 +159,8 @@ class JsonPrinter {
 	}
 
 	function classString(v:Dynamic) {
-		fieldsString(v, Type.getInstanceFields(cast Type.getClass(v)));
+		@:nullSafety(Off)
+		fieldsString(v, Type.getInstanceFields(Type.getClass(v)));
 	}
 
 	inline function objString(v:Dynamic) {

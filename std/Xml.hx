@@ -354,9 +354,9 @@ class Xml {
 	**/
 	public function addChild(x:Xml):Void {
 		ensureElementType();
-		final xParent = x.parent;
-		if (xParent != null) {
-			xParent.removeChild(x);
+		@:nullSafety(Off)
+		if (x.parent != null) {
+			x.parent.removeChild(x);
 		}
 		children.push(x);
 		x.parent = this;
@@ -383,9 +383,9 @@ class Xml {
 	**/
 	public function insertChild(x:Xml, pos:Int):Void {
 		ensureElementType();
-		final xParent = x.parent;
-		if (xParent != null) {
-			xParent.children.remove(x);
+		@:nullSafety(Off)
+		if (x.parent != null) {
+			x.parent.children.remove(x);
 		}
 		children.insert(pos, x);
 		x.parent = this;

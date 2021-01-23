@@ -35,10 +35,6 @@ class Resource {
 	@:nullSafety(Off)
 	static var content:Array<{name:String, data:String, str:String}>;
 
-	static function __init__() {
-		content = untyped __resources__();
-	}
-
 	/**
 		Lists all available resource names. The resource name is the name part
 		of the `--resource file@name` command line parameter.
@@ -77,5 +73,9 @@ class Resource {
 				return haxe.crypto.Base64.decode(x.data);
 			}
 		return null;
+	}
+
+	static function __init__() {
+		content = untyped __resources__();
 	}
 }

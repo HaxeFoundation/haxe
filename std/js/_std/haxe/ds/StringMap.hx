@@ -31,7 +31,8 @@ import js.lib.Object;
 	var h:Dynamic;
 
 	public inline function new() {
-		h = Object.create(cast null);
+		@:nullSafety(Off)
+		h = Object.create(null);
 	}
 
 	public inline function exists(key:String):Bool {
@@ -72,7 +73,8 @@ import js.lib.Object;
 	}
 
 	public inline function clear():Void {
-		h = Object.create(cast null);
+		@:nullSafety(Off)
+		h = Object.create(null);
 	}
 
 	public inline function toString():String {

@@ -138,8 +138,8 @@ class Template {
 			@:nullSafety(Off)
 			if (value != null || Reflect.hasField(ctx, v))
 				return value;
-		}
-		return cast Reflect.field(globals, v);
+		} @:nullSafety(Off)
+		return Reflect.field(globals, v);
 	}
 
 	function parseTokens(data:String) {
@@ -352,10 +352,8 @@ class Template {
 		var f = field.p;
 		expr_trim.match(f);
 		f = expr_trim.matched(1);
-		return makePath(function() {
-			@:nullSafety(Off)
-			final value:Dynamic = Reflect.field(e(), f);
-			return value;
+		return makePath(function():Dynamic {@:nullSafety(Off)
+			return Reflect.field(e(), f);
 		}, l);
 	}
 
@@ -478,13 +476,15 @@ class Template {
 				var v:Dynamic = e();
 				try {
 					var x:Dynamic = v.iterator();
+					@:nullSafety(Off)
 					if (x.hasNext == null)
-						throw cast null;
+						throw null;
 					v = x;
 				} catch (e:Dynamic)
 					try {
+						@:nullSafety(Off)
 						if (v.hasNext == null)
-							throw cast null;
+							throw null;
 					} catch (e:Dynamic) {
 						throw "Cannot iter on " + v;
 					}
@@ -494,9 +494,11 @@ class Template {
 					context = ctx;
 					run(loop);
 				}
-				context = cast stack.pop();
+				@:nullSafety(Off)
+				context = stack.pop();
 			case OpMacro(m, params):
-				var v:Dynamic = cast Reflect.field(macros, m);
+				@:nullSafety(Off)
+				var v:Dynamic = Reflect.field(macros, m);
 				var pl = new Array<Dynamic>();
 				var old = buf;
 				pl.push(resolve);

@@ -118,8 +118,7 @@ class GenericStack<T> {
 
 		If the stack is empty, null is returned.
 	**/
-	public inline function first():Null<T> {
-		final head = head;
+	public inline function first():Null<T> {@:nullSafety(Off)
 		return if (head == null) null else head.elt;
 	}
 

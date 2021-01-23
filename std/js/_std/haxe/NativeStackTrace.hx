@@ -73,14 +73,12 @@ class NativeStackTrace {
 						path.shift();
 					}
 					var meth = path.pop();
-					if (meth == null)
-						meth = "null";
 					var file = matched[2];
 					var line = Std.parseInt(matched[3]);
-					if (line == null)
-						line = 0;
 					var column = Std.parseInt(matched[4]);
+					@:nullSafety(Off)
 					final item:Null<StackItem> = meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."), meth);
+					@:nullSafety(Off)
 					m.push(FilePos(item, file, line, column));
 				} else {
 					m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
@@ -109,9 +107,9 @@ class NativeStackTrace {
 	static function prepareHxStackTrace(e:Error, callsites:Array<V8CallSite>):Any {
 		var stack = [];
 		for (site in callsites) {
-			final wrapCallSiteFunc = wrapCallSite;
-			if (wrapCallSiteFunc != null)
-				site = wrapCallSiteFunc(site);
+			if (wrapCallSite != null)
+				@:nullSafety(Off)
+				site = wrapCallSite(site);
 			var method:Null<StackItem> = null;
 			var fullName = site.getFunctionName();
 			if (fullName != null) {

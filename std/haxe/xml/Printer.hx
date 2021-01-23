@@ -69,7 +69,8 @@ class Printer {
 				write(value.nodeName);
 				for (attribute in value.attributes()) {
 					write(" " + attribute + "=\"");
-					write(StringTools.htmlEscape(cast value.get(attribute), true));
+					@:nullSafety(Off)
+					write(StringTools.htmlEscape(value.get(attribute), true));
 					write("\"");
 				}
 				if (hasChildren(value)) {

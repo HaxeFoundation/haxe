@@ -91,8 +91,8 @@ class XmlParserException {
 		}
 	}
 
-	public function toString():String {
-		return Type.getClassName(cast Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
+	public function toString():String {@:nullSafety(Off)
+		return Type.getClassName(Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
 	}
 }
 
@@ -239,7 +239,8 @@ class Parser {
 							throw new XmlParserException("Expected attribute name", str, p);
 						tmp = str.substr(start, p - start);
 						aname = tmp;
-						if ((cast xml : Xml).exists(tmp))
+						@:nullSafety(Off)
+						if (xml.exists(tmp))
 							throw new XmlParserException("Duplicate attribute [" + aname + "]", str, p);
 						state = S.IGNORE_SPACES;
 						next = S.EQUALS;
@@ -277,7 +278,8 @@ class Parser {
 							buf.addSub(str, start, p - start);
 							var val = buf.toString();
 							buf = new StringBuf();
-							(cast xml : Xml).set(cast aname, val);
+							@:nullSafety(Off)
+							xml.set(aname, val);
 							state = S.IGNORE_SPACES;
 							next = S.BODY;
 					}
@@ -363,7 +365,8 @@ class Parser {
 									throw new XmlParserException("Cannot encode UTF8-char " + c, str, p);
 							} else
 							#end
-							buf.addChar(cast c);
+							@:nullSafety(Off)
+							buf.addChar(c);
 						} else if (!escapes.exists(s)) {
 							if (strict)
 								throw new XmlParserException("Undefined entity: " + s, str, p);

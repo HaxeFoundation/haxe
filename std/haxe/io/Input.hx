@@ -35,7 +35,8 @@ class Input {
 
 		If `true`, big-endian is used, otherwise `little-endian` is used.
 	**/
-	public var bigEndian(default, set):Null<Bool>;
+	@:nullSafety(Off)
+	public var bigEndian(default, set):Bool;
 
 	#if cs
 	private var helper:BytesData;
@@ -91,7 +92,7 @@ class Input {
 	**/
 	public function close():Void {}
 
-	function set_bigEndian(b:Null<Bool>):Null<Bool> {
+	function set_bigEndian(b:Bool):Bool {
 		bigEndian = b;
 		return b;
 	}
@@ -208,7 +209,7 @@ class Input {
 	public function readDouble():Float {
 		var i1 = readInt32();
 		var i2 = readInt32();
-		return bigEndian == true ? FPHelper.i64ToDouble(i2, i1) : FPHelper.i64ToDouble(i1, i2);
+		return bigEndian ? FPHelper.i64ToDouble(i2, i1) : FPHelper.i64ToDouble(i1, i2);
 	}
 
 	/**
@@ -229,7 +230,7 @@ class Input {
 	public function readInt16():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
-		var n = bigEndian == true ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
+		var n = bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
 		if (n & 0x8000 != 0)
 			return n - 0x10000;
 		return n;
@@ -243,7 +244,7 @@ class Input {
 	public function readUInt16():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
-		return bigEndian == true ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
+		return bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
 	}
 
 	/**
@@ -255,7 +256,7 @@ class Input {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
-		var n = bigEndian == true ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
+		var n = bigEndian ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
 		if (n & 0x800000 != 0)
 			return n - 0x1000000;
 		return n;
@@ -270,7 +271,7 @@ class Input {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
-		return bigEndian == true ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
+		return bigEndian ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
 	}
 
 	/**
@@ -285,16 +286,16 @@ class Input {
 		var ch4 = readByte();
 		#if (php || python)
 		// php will overflow integers.  Convert them back to signed 32-bit ints.
-		var n = bigEndian == true ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		if (n & 0x80000000 != 0)
 			return (n | 0x80000000);
 		else
 			return n;
 		#elseif lua
-		var n = bigEndian == true ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		return lua.Boot.clampInt32(n);
 		#else
-		return bigEndian == true ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		#end
 	}
 
@@ -315,8 +316,10 @@ class Input {
 	static var _float_of_bytes = neko.Lib.load("std", "float_of_bytes", 2);
 	static var _double_of_bytes = neko.Lib.load("std", "double_of_bytes", 2);
 
-	static function __init__() untyped {
-		Input.prototype.bigEndian = false;
+	static function __init__() {
+		untyped {
+			Input.prototype.bigEndian = false;
+		}
 	}
 	#end
 

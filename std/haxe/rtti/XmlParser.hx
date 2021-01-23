@@ -377,7 +377,8 @@ class XmlParser {
 				case "implements":
 					interfaces.push(xpath(c));
 				case "haxe_dynamic":
-					tdynamic = xtype(new Access(cast c.x.firstElement()));
+					@:nullSafety(Off)
+					tdynamic = xtype(new Access(c.x.firstElement()));
 				case "meta":
 					meta = xmeta(c);
 				default:
@@ -509,18 +510,21 @@ class XmlParser {
 				case "meta":
 					meta = xmeta(c);
 				case "to":
+					@:nullSafety(Off)
 					for (t in c.elements)
-						to.push({t: xtype(new Access(cast t.x.firstElement())), field: t.has.field ? t.att.field : null});
+						to.push({t: xtype(new Access(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 				case "from":
+					@:nullSafety(Off)
 					for (t in c.elements)
-						from.push({t: xtype(new Access(cast t.x.firstElement())), field: t.has.field ? t.att.field : null});
+						from.push({t: xtype(new Access(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 				case "impl":
 					impl = xclass(c.node.resolve("class"));
 				case "this":
-					athis = xtype(new Access(cast c.x.firstElement()));
+					@:nullSafety(Off)
+					athis = xtype(new Access(c.x.firstElement()));
 				default:
 					xerror(c);
-			}
+			} @:nullSafety(Off)
 		return {
 			file: if (x.has.file) x.att.file else null,
 			path: mkPath(x.att.path),
@@ -530,10 +534,10 @@ class XmlParser {
 			params: mkTypeParams(x.att.params),
 			platforms: defplat(),
 			meta: meta,
-			athis: cast athis,
+			athis: athis,
 			to: to,
 			from: from,
-			impl: cast impl
+			impl: impl
 		};
 	}
 
@@ -550,7 +554,7 @@ class XmlParser {
 				t = xtype(c);
 		var types = new haxe.ds.StringMap();
 		if (curplatform != null)
-			types.set(curplatform, t);
+			types.set(curplatform, t); @:nullSafety(Off)
 		return {
 			file: if (x.has.file) x.att.file else null,
 			path: mkPath(x.att.path),
@@ -558,10 +562,10 @@ class XmlParser {
 			doc: doc,
 			isPrivate: x.x.exists("private"),
 			params: mkTypeParams(x.att.params),
-			type: cast t,
+			type: t,
 			types: types,
 			platforms: defplat(),
-			meta: cast meta,
+			meta: meta,
 		};
 	}
 
@@ -585,12 +589,14 @@ class XmlParser {
 				for (e in x.elements) {
 					var opt = false;
 					var a = eargs.hasNext() ? eargs.next() : null;
-					var a:String = a == null ? "" : a;
+					if (a == null)
+						a = "";
 					if (a.charAt(0) == "?") {
 						opt = true;
 						a = a.substr(1);
 					}
 					var v = evalues == null || !evalues.hasNext() ? null : evalues.next();
+					@:nullSafety(Off)
 					args.push({
 						name: a,
 						opt: opt,

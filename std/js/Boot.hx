@@ -119,14 +119,16 @@ class Boot {
 					s += "\t";
 					var hasp = (o.hasOwnProperty != null);
 					var k:Null<String> = null;
-					js.Syntax.code("for( {0} in {1} ) {", cast k, o);
+					@:nullSafety(Off)
+					js.Syntax.code("for( {0} in {1} ) {", k, o);
 					if (hasp && !o.hasOwnProperty(k))
 						js.Syntax.code("continue");
 					if (k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__")
 						js.Syntax.code("continue");
 					if (str.length != 2)
 						str += ", \n";
-					str += s + k + " : " + __string_rec(o[cast k], s);
+					@:nullSafety(Off)
+					str += s + k + " : " + __string_rec(o[k], s);
 					js.Syntax.code("}");
 					s = s.substring(1);
 					str += "\n" + s + "}";

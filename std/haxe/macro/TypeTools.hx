@@ -385,9 +385,9 @@ class TypeTools {
 		if (field != null)
 			return field;
 		else {
-			final superClass = c.superClass;
-			if (superClass != null) {
-				return findField(superClass.t.get(), name, isStatic);
+			@:nullSafety(Off)
+			if (c.superClass != null) {
+				return findField(c.superClass.t.get(), name, isStatic);
 			} else
 				return null;
 		}

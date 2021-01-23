@@ -35,9 +35,9 @@ class Log {
 		if (infos == null)
 			return str;
 		var pstr = infos.fileName + ":" + infos.lineNumber;
-		final customParams = infos.customParams;
-		if (customParams != null)
-			for (v in customParams)
+		@:nullSafety(Off)
+		if (infos.customParams != null)
+			for (v in infos.customParams)
 				str += ", " + Std.string(v);
 		return pstr + ": " + str;
 	}

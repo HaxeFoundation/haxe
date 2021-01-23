@@ -148,8 +148,9 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	function setLoop(k:K, v:V, node:Null<TreeNode<K, V>>) {
-		if (node == null)
-			return new TreeNode<K, V>(cast null, k, v, cast null);
+		if (node == null) {@:nullSafety(Off)
+			return new TreeNode<K, V>(null, k, v, null);
+		}
 		var c = compare(k, node.key);
 		return if (c == 0) new TreeNode<K, V>(node.left, k, v, node.right, node.get_height()); else if (c < 0) {
 			var nl = setLoop(k, v, node.left);
@@ -169,7 +170,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 			node.right); else balance(node.left, node.key, node.value, removeLoop(k, node.right));
 	}
 
-	static function iteratorLoop<K,V>(?node:TreeNode<K, V>, acc:Array<V>) {
+	static function iteratorLoop<K, V>(node:Null<TreeNode<K, V>>, acc:Array<V>) {
 		if (node != null) {
 			iteratorLoop(node.left, acc);
 			acc.push(node.value);
@@ -226,9 +227,8 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 		return Reflect.compare(k1, k2);
 	}
 
-	public function toString() {
-		var r = root;
-		return r == null ? '{}' : '{${r.toString()}}';
+	public function toString() {@:nullSafety(Off)
+		return root == null ? '{}' : '{${root.toString()}}';
 	}
 
 	/**
