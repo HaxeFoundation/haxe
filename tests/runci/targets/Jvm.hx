@@ -5,20 +5,21 @@ import runci.Config.*;
 
 class Jvm {
 	static public function run(args:Array<String>) {
-		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
-		runCommand("java", ["-jar", "bin/jvm/TestMain-Debug.jar"]);
+		for (level in 0...3) {
+			var args = args.concat(["-D", "jvm.dynamic-level=" + level]);
+			runCommand("haxe", ["compile-jvm.hxml"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
 
-		runCommand("haxe", ["compile-jvm.hxml","-dce","no"].concat(args));
-		runCommand("java", ["-jar", "bin/jvm/TestMain-Debug.jar"]);
+			runCommand("haxe", ["compile-jvm.hxml","-dce","no"].concat(args));
+			runCommand("java", ["-jar", "bin/unit.jar"]);
+		}
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-jvm.hxml"]);
-		runCommand("java", ["-jar", "bin/jvm/Main-Debug.jar"]);
+		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
+		runCommand("java", ["-jar", "bin/jvm/sys.jar"]);
 
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-java", "export/jvm", "-D", "jvm"]);
-		if (systemName != "Windows") { // #8154
-			runCommand("java", ["-jar", "export/jvm/Main.jar"]);
-		}
+		runCommand("haxe", ["build.hxml", "--jvm", "export/threads.jar"].concat(args));
+		runCommand("java", ["-jar", "export/threads.jar"]);
 	}
 }

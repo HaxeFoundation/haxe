@@ -353,7 +353,7 @@ let emit_special_super_call fnew execs env =
 	(* This isn't very elegant, but it's probably a rare case to extend these types. *)
 	begin match vthis,vi' with
 		| VInstance vi,VInstance vi' -> vi.ikind <- vi'.ikind
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	end;
 	vnull
 
@@ -440,6 +440,11 @@ let emit_string_cca exec1 exec2 p env =
 	let index = decode_int_p (exec2 env) p in
 	if index < 0 || index >= s.slength then vnull
 	else vint (EvalString.char_at s index)
+
+let emit_string_cca_unsafe exec1 exec2 p env =
+	let s = decode_vstring (exec1 env) in
+	let index = decode_int_p (exec2 env) p in
+	vint (EvalString.char_at s index)
 
 (* Write *)
 
@@ -714,12 +719,6 @@ let emit_neg exec p env = match exec env with
 
 (* Function *)
 
-type env_creation = {
-	ec_info : env_info;
-	ec_num_locals : int;
-	ec_num_captures : int;
-}
-
 let execute_set_local i env v =
 	env.env_locals.(i) <- v
 
@@ -743,21 +742,21 @@ let process_arguments fl vl env =
 [@@inline]
 
 let create_function_noret ctx eci exec fl vl =
-	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	let env = push_environment ctx eci in
 	process_arguments fl vl env;
 	let v = exec env in
 	pop_environment ctx env;
 	v
 
 let create_function ctx eci exec fl vl =
-	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	let env = push_environment ctx eci in
 	process_arguments fl vl env;
 	let v = try exec env with Return v -> v in
 	pop_environment ctx env;
 	v
 
 let create_closure_noret ctx eci refs exec fl vl =
-	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	let env = push_environment ctx eci in
 	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
 	process_arguments fl vl env;
 	let v = exec env in
@@ -765,7 +764,7 @@ let create_closure_noret ctx eci refs exec fl vl =
 	v
 
 let create_closure refs ctx eci exec fl vl =
-	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	let env = push_environment ctx eci in
 	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
 	process_arguments fl vl env;
 	let v = try exec env with Return v -> v in
@@ -774,7 +773,7 @@ let create_closure refs ctx eci exec fl vl =
 
 let emit_closure ctx mapping eci hasret exec fl env =
 	let refs = Array.map (fun (i,slot) -> i,emit_capture_read slot env) mapping in
-	let create = match hasret,eci.ec_num_captures with
+	let create = match hasret,eci.num_captures with
 		| true,0 -> create_function
 		| false,0 -> create_function_noret
 		| _ -> create_closure refs

@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 class FileOutput extends cs.io.NativeOutput {
-	public function new(stream:cs.system.io.FileStream)
-	{
+	function new(stream:cs.system.io.FileStream) {
 		super(stream);
 	}
 }

@@ -1,10 +1,10 @@
-Main.hx:15: characters 4-14 : Warning : This case is unused
-Main.hx:20: characters 4-13 : Warning : This case is unused
-Main.hx:21: characters 4-14 : Warning : This case is unused
+Main.hx:15: characters 4-15 : Warning : This case is unused
+Main.hx:20: characters 4-14 : Warning : This case is unused
+Main.hx:21: characters 4-15 : Warning : This case is unused
 Main.hx:26: characters 6-11 : Warning : This pattern is unused
 Main.hx:32: characters 7-18 : Warning : This pattern is unused
-Main.hx:44: characters 4-31 : Warning : This case is unused
-Main.hx:50: characters 4-18 : Warning : This case is unused
-Main.hx:55: characters 4-14 : Warning : This case is unused
-Main.hx:60: characters 4-15 : Warning : This case is unused
+Main.hx:44: characters 4-32 : Warning : This case is unused
+Main.hx:50: characters 4-19 : Warning : This case is unused
+Main.hx:55: characters 4-15 : Warning : This case is unused
+Main.hx:60: characters 4-16 : Warning : This case is unused
 Main.hx:66: characters 9-15 : Warning : This pattern is unused

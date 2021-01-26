@@ -19,15 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 /**
-	API for reading and writing to files.
+	API for reading and writing files.
 
 	See `sys.FileSystem` for the complementary file system API.
 **/
 extern class File {
-
 	/**
 		Retrieves the content of the file specified by `path` as a String.
 
@@ -37,7 +37,7 @@ extern class File {
 
 		If `path` is null, the result is unspecified.
 	**/
-	static function getContent( path : String ) : String;
+	static function getContent(path:String):String;
 
 	/**
 		Stores `content` in the file specified by `path`.
@@ -46,7 +46,7 @@ extern class File {
 
 		If `path` or `content` are null, the result is unspecified.
 	**/
-	static function saveContent( path : String, content : String ) : Void;
+	static function saveContent(path:String, content:String):Void;
 
 	/**
 		Retrieves the binary content of the file specified by `path`.
@@ -57,7 +57,7 @@ extern class File {
 
 		If `path` is null, the result is unspecified.
 	**/
-	static function getBytes( path : String ) : haxe.io.Bytes;
+	static function getBytes(path:String):haxe.io.Bytes;
 
 	/**
 		Stores `bytes` in the file specified by `path` in binary mode.
@@ -66,7 +66,7 @@ extern class File {
 
 		If `path` or `bytes` are null, the result is unspecified.
 	**/
-	static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void;
+	static function saveBytes(path:String, bytes:haxe.io.Bytes):Void;
 
 	/**
 		Returns an `FileInput` handle to the file specified by `path`.
@@ -83,7 +83,7 @@ extern class File {
 
 		If `path` is null, the result is unspecified.
 	**/
-	static function read( path : String, binary : Bool = true ) : FileInput;
+	static function read(path:String, binary:Bool = true):FileInput;
 
 	/**
 		Returns an `FileOutput` handle to the file specified by `path`.
@@ -101,13 +101,13 @@ extern class File {
 
 		If `path` is null, the result is unspecified.
 	**/
-	static function write( path : String, binary : Bool = true ) : FileOutput;
+	static function write(path:String, binary:Bool = true):FileOutput;
 
 	/**
 		Similar to `sys.io.File.write`, but appends to the file if it exists
 		instead of overwriting its contents.
 	**/
-	static function append( path : String, binary : Bool = true ) : FileOutput;
+	static function append(path:String, binary:Bool = true):FileOutput;
 
 	/**
 		Similar to `sys.io.File.append`. While `append` can only seek or write
@@ -115,7 +115,7 @@ extern class File {
 		seek to any position, so the file's previous contents can be
 		selectively overwritten.
 	**/
-	static function update (path : String, binary : Bool = true ) : FileOutput;
+	static function update(path:String, binary:Bool = true):FileOutput;
 
 	/**
 		Copies the contents of the file specified by `srcPath` to the file
@@ -128,5 +128,5 @@ extern class File {
 
 		If `srcPath` or `dstPath` are null, the result is unspecified.
 	**/
-	static function copy( srcPath : String, dstPath : String ) : Void;
+	static function copy(srcPath:String, dstPath:String):Void;
 }

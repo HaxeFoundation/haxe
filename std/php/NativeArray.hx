@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 import haxe.extern.EitherType;
@@ -33,12 +34,19 @@ using php.Global;
 		this = Syntax.arrayDecl();
 
 	@:arrayAccess function getByInt(key:Int):Dynamic;
+
 	@:arrayAccess function setByInt(key:Int, val:Dynamic):Dynamic;
+
 	@:arrayAccess function getByFloat(key:Float):Dynamic;
+
 	@:arrayAccess function setByFloat(key:Float, val:Dynamic):Dynamic;
+
 	@:arrayAccess function getByString(key:String):Dynamic;
+
 	@:arrayAccess function setByString(key:String, val:Dynamic):Dynamic;
+
 	@:arrayAccess function getByBool(key:Bool):Dynamic;
+
 	@:arrayAccess function setByBool(key:Bool, val:Dynamic):Dynamic;
 
 	public inline function iterator()
@@ -51,7 +59,7 @@ using php.Global;
 private class NativeArrayKeyValueIterator {
 	var length:Int;
 	var current:Int = 0;
-	var keys:NativeIndexedArray<EitherType<String,Int>>;
+	var keys:NativeIndexedArray<EitherType<String, Int>>;
 	var values:NativeIndexedArray<Dynamic>;
 
 	public inline function new(data:NativeArray) {
@@ -64,7 +72,7 @@ private class NativeArrayKeyValueIterator {
 		return current < length;
 	}
 
-	public inline function next():{key:EitherType<String,Int>, value:Dynamic} {
-		return {key:keys[current], value:values[current++]};
+	public inline function next():{key:EitherType<String, Int>, value:Dynamic} {
+		return {key: keys[current], value: values[current++]};
 	}
 }

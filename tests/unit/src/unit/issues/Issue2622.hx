@@ -20,7 +20,7 @@ class Issue2622 extends Test {
 		return test(v);
 	}
 
-	static function bar(test:Void->Void) {
+	static function bar(test:()->Void) {
 
 	}
 }

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 @:native("Symbol")
@@ -50,12 +51,18 @@ extern class Symbol {
 	/**
 		A method returning the default iterator for an object.
 	**/
-	static var iterator(default,null):Symbol;
+	static var iterator(default, null):Symbol;
+
+	/**
+		A method that returns the default AsyncIterator for an object.
+	**/
+	static var asyncIterator(default, null):Symbol;
 
 	/**
 		Retrieve symbol from a given `object`.
 
 		NOTE: This is a Haxe-specific method that generates an `object[symbol]` expression.
 	**/
-	inline function ofObject<T>(object:{}):Null<T> return (cast object)[cast this];
+	inline function ofObject<T>(object:{}):Null<T>
+		return (cast object)[cast this];
 }

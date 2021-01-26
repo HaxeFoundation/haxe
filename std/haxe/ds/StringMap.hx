@@ -29,62 +29,71 @@ package haxe.ds;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
-extern class StringMap<T> implements haxe.Constraints.IMap<String,T> {
-
+extern class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	/**
 		Creates a new StringMap.
 	**/
-	public function new() : Void;
+	function new():Void;
 
 	/**
 		See `Map.set`
 	**/
-	public function set( key : String, value : T ) : Void;
+	function set(key:String, value:T):Void;
 
 	/**
 		See `Map.get`
 	**/
-	public function get( key : String ) : Null<T>;
+	function get(key:String):Null<T>;
 
 	/**
 		See `Map.exists`
 	**/
-	public function exists( key : String ) : Bool;
+	function exists(key:String):Bool;
 
 	/**
 		See `Map.remove`
 	**/
-	public function remove( key : String ) : Bool;
+	function remove(key:String):Bool;
 
 	/**
 		See `Map.keys`
+
+		(cs, java) Implementation detail: Do not `set()` any new value while
+		iterating, as it may cause a resize, which will break iteration.
 	**/
-	public function keys() : Iterator<String>;
+	function keys():Iterator<String>;
 
 	/**
 		See `Map.iterator`
+
+		(cs, java) Implementation detail: Do not `set()` any new value while
+		iterating, as it may cause a resize, which will break iteration.
 	**/
-	public function iterator() : Iterator<T>;
+	function iterator():Iterator<T>;
 
 	/**
 		See `Map.keyValueIterator`
 	**/
-#if eval
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	#if eval
+	@:runtime inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
-#else
-	public function keyValueIterator() : KeyValueIterator<String, T>;
-#end
+	#else
+	function keyValueIterator():KeyValueIterator<String, T>;
+	#end
 
 	/**
 		See `Map.copy`
 	**/
-	public function copy() : StringMap<T>;
-	
+	function copy():StringMap<T>;
+
 	/**
 		See `Map.toString`
 	**/
-	public function toString() : String;
+	function toString():String;
 
+	/**
+		See `Map.clear`
+	**/
+	function clear():Void;
 }

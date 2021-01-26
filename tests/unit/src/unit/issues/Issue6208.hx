@@ -4,8 +4,8 @@ package unit.issues;
 class Issue6208 extends unit.Test implements IBase implements IChild {
 
     function test() {
-        t(Std.is(this, IChild));
-        t(Std.is(this, IBase));
+        t(Std.isOfType(this, IChild));
+        t(Std.isOfType(this, IBase));
     }
 
     public function base() {}

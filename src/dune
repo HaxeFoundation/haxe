@@ -1,0 +1,34 @@
+(include_subdirs unqualified)
+
+(env
+	(_
+		(flags (:standard -w -3 -w -23 -thread))
+	)
+)
+
+(library
+	(name haxe)
+	(libraries
+		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre swflib ttflib ziplib
+		json
+		unix str threads dynlink
+		xml-light extlib ptmap sha
+		luv
+	)
+	(modules (:standard \ haxe))
+	(preprocess (per_module
+		((pps sedlex.ppx) json lexer)
+	))
+	(wrapped false)
+)
+
+(executable
+	(name haxe)
+	(public_name haxe)
+	(package haxe)
+	(libraries haxe)
+	(modules haxe)
+	(link_flags (:include ../lib.sexp))
+	; Uncomment to enable bytecode output for ocamldebug support
+	; (modes byte)
+)

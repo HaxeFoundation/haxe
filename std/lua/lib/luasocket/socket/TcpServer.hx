@@ -25,7 +25,7 @@ package lua.lib.luasocket.socket;
 import lua.*;
 
 extern class TcpServer extends Socket {
-	public function accept() : Result<TcpClient>;
-	public function settimeout(value  : Int, ?mode : TimeoutMode) : Void;
-	public function setoption(option : String , value : TcpOption) : Void;
+	function accept():Result<TcpClient>;
+	function settimeout(value:Int, ?mode:TimeoutMode):Void;
+	function setoption(option:String, value:TcpOption):Void;
 }

@@ -766,13 +766,13 @@ private class TestMyClass extends haxe.test.MyClass
 		this.dynamicCalled = true;
 	}
 
-	@:overload override private function get_SomeProp():Int
+	@:overload override public function get_SomeProp():Int
 	{
 		getCalled = true;
 		return 21;
 	}
 
-	@:overload override private function get_SomeProp2():Int
+	@:overload override public function get_SomeProp2():Int
 	{
 		return Std.int(super.get_SomeProp2() / 2);
 	}

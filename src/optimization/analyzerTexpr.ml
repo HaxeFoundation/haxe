@@ -154,14 +154,14 @@ let type_change_ok com t1 t2 =
 		true
 	else begin
 		let rec map t = match t with
-			| TMono r -> (match !r with None -> t_dynamic | Some t -> map t)
+			| TMono r -> (match r.tm_type with None -> t_dynamic | Some t -> map t)
 			| _ -> Type.map map t
 		in
 		let t1 = map t1 in
 		let t2 = map t2 in
 		let rec is_nullable_or_whatever = function
 			| TMono r ->
-				(match !r with None -> false | Some t -> is_nullable_or_whatever t)
+				(match r.tm_type with None -> false | Some t -> is_nullable_or_whatever t)
 			| TAbstract ({ a_path = ([],"Null") },[_]) ->
 				true
 			| TLazy f ->
@@ -192,122 +192,6 @@ let dynarray_map f d =
 
 let dynarray_mapi f d =
 	DynArray.iteri (fun i e -> DynArray.unsafe_set d i (f i e)) d
-
-module TexprKindMapper = struct
-	type kind =
-		| KRead         (* Expression is read. *)
-		| KAccess       (* Structure of expression is accessed. *)
-		| KWrite        (* Expression is lhs of =. *)
-		| KReadWrite    (* Expression is lhs of += .*)
-		| KStore        (* Expression is stored (via =, += or in array/object declaration). *)
-		| KEq           (* Expression is lhs or rhs of == or != *)
-		| KEqNull       (* Expression is lhs or rhs of == null or != null *)
-		| KCalled       (* Expression is being called. *)
-		| KCallArgument (* Expression is call argument (leaves context). *)
-		| KReturn       (* Expression is returned (leaves context). *)
-		| KThrow        (* Expression is thrown (leaves context). *)
-
-	let rec map kind f e = match e.eexpr with
-		| TConst _
-		| TLocal _
-		| TBreak
-		| TContinue
-		| TTypeExpr _
-		| TIdent _ ->
-			e
-		| TArray(e1,e2) ->
-			let e1 = f KAccess e1 in
-			let e2 = f KRead e2 in
-			{ e with eexpr = TArray (e1,e2) }
-		| TBinop(OpAssign,e1,e2) ->
-			let e1 = f KWrite e1 in
-			let e2 = f KStore e2 in
-			{ e with eexpr = TBinop(OpAssign,e1,e2) }
-		| TBinop(OpAssignOp op,e1,e2) ->
-			let e1 = f KReadWrite e1 in
-			let e2 = f KStore e2 in
-			{ e with eexpr = TBinop(OpAssignOp op,e1,e2) }
-		| TBinop((OpEq | OpNotEq) as op,e1,e2) ->
-			let e1,e2 = match (Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
-				| TConst TNull,TConst TNull ->
-					let e1 = f KRead e1 in
-					let e2 = f KRead e2 in
-					e1,e2
-				| TConst TNull,_ ->
-					let e1 = f KRead e1 in
-					let e2 = f KEqNull e2 in
-					e1,e2
-				| _,TConst TNull ->
-					let e1 = f KEqNull e1 in
-					let e2 = f KRead e2 in
-					e1,e2
-				| _ ->
-					let e1 = f KEq e1 in
-					let e2 = f KEq e2 in
-					e1,e2
-			in
-			{e with eexpr = TBinop(op,e1,e2)}
-		| TBinop(op,e1,e2) ->
-			let e1 = f KRead e1 in
-			let e2 = f KRead e2 in
-			{ e with eexpr = TBinop(op,e1,e2) }
-		| TFor (v,e1,e2) ->
-			let e1 = f KRead e1 in
-			{ e with eexpr = TFor (v,e1,f KRead e2) }
-		| TWhile (e1,e2,flag) ->
-			let e1 = f KRead e1 in
-			{ e with eexpr = TWhile (e1,f KRead e2,flag) }
-		| TThrow e1 ->
-			{ e with eexpr = TThrow (f KThrow e1) }
-		| TEnumParameter (e1,ef,i) ->
-			{ e with eexpr = TEnumParameter(f KAccess e1,ef,i) }
-		| TEnumIndex e1 ->
-			{ e with eexpr = TEnumIndex (f KAccess e1) }
-		| TField (e1,v) ->
-			{ e with eexpr = TField (f KAccess e1,v) }
-		| TParenthesis e1 ->
-			{ e with eexpr = TParenthesis (f kind e1) }
-		| TUnop (op,pre,e1) ->
-			{ e with eexpr = TUnop (op,pre,f KRead e1) }
-		| TArrayDecl el ->
-			{ e with eexpr = TArrayDecl (List.map (f KStore) el) }
-		| TNew (t,pl,el) ->
-			{ e with eexpr = TNew (t,pl,List.map (f KCallArgument) el) }
-		| TBlock el ->
-			let rec loop acc el = match el with
-				| [e] -> f kind e :: acc
-				| e1 :: el -> loop (f KRead e1 :: acc) el
-				| [] -> []
-			in
-			let el = List.rev (loop [] el) in
-			{ e with eexpr = TBlock el }
-		| TObjectDecl el ->
-			{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f KStore e) el) }
-		| TCall (e1,el) ->
-			let e1 = f KCalled e1 in
-			{ e with eexpr = TCall (e1, List.map (f KCallArgument) el) }
-		| TVar (v,eo) ->
-			{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f KStore e)) }
-		| TFunction fu ->
-			{ e with eexpr = TFunction { fu with tf_expr = f KRead fu.tf_expr } }
-		| TIf (ec,e1,e2) ->
-			let ec = f KRead ec in
-			let e1 = f kind e1 in
-			{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f kind e)) }
-		| TSwitch (e1,cases,def) ->
-			let e1 = f KRead e1 in
-			let cases = List.map (fun (el,e2) -> List.map (f KRead) el, f kind e2) cases in
-			{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f kind e)) }
-		| TTry (e1,catches) ->
-			let e1 = f kind e1 in
-			{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f kind e) catches) }
-		| TReturn eo ->
-			{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f KReturn e)) }
-		| TCast (e1,t) ->
-			{ e with eexpr = TCast (f kind e1,t) }
-		| TMeta (m,e1) ->
-			{e with eexpr = TMeta(m,f kind e1)}
-end
 
 (*
 	This module rewrites some expressions to reduce the amount of special cases for subsequent analysis. After analysis
@@ -427,15 +311,15 @@ module InterferenceReport = struct
 			(* vars *)
 			| TLocal v ->
 				set_var_read ir v;
-				if v.v_capture then set_state_read ir;
+				if has_var_flag v VCaptured then set_state_read ir;
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
 				set_var_write ir v;
-				if v.v_capture then set_state_write ir;
+				if has_var_flag v VCaptured then set_state_write ir;
 				loop e2
 			| TBinop(OpAssignOp _,{eexpr = TLocal v},e2) ->
 				set_var_read ir v;
 				set_var_write ir v;
-				if v.v_capture then begin
+				if has_var_flag v VCaptured then begin
 					set_state_read ir;
 					set_state_write ir;
 				end;
@@ -638,8 +522,12 @@ module Fusion = struct
 		let state = new fusion_state in
 		state#infer_from_texpr e;
 		(* Handles block-level expressions, e.g. by removing side-effect-free ones and recursing into compound constructs like
-		   array or object declarations. The resulting element list is reversed. *)
-		let rec block_element acc el = match el with
+		   array or object declarations. The resulting element list is reversed.
+		   INFO: `el` is a reversed list of expressions in a block.
+		*)
+		let rec block_element ?(loop_bottom=false) acc el = match el with
+			| {eexpr = TBinop(OpAssign, { eexpr = TLocal v1 }, { eexpr = TLocal v2 })} :: el when v1 == v2 ->
+				block_element acc el
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
 			| {eexpr = TLocal _} as e1 :: el when not config.local_dce ->
@@ -667,6 +555,11 @@ module Fusion = struct
 					| Some e ->
 						block_element acc (e :: el)
 				end
+			| ({eexpr = TSwitch(e1,cases,def)} as e) :: el ->
+				begin match Optimizer.check_constant_switch e1 cases def with
+				| Some e -> block_element acc (e :: el)
+				| None -> block_element (e :: acc) el
+				end
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
 				block_element acc (e1 :: el)
@@ -684,6 +577,8 @@ module Fusion = struct
 				block_element acc (e1 :: el)
 			| {eexpr = TBlock []} :: el ->
 				block_element acc el
+			| { eexpr = TContinue } :: el when loop_bottom ->
+				block_element [] el
 			| e1 :: el ->
 				block_element (e1 :: acc) el
 			| [] ->
@@ -694,11 +589,14 @@ module Fusion = struct
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
-			let has_type_params = match v.v_extra with Some (tl,_) when tl <> [] -> true | _ -> false in
+			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
-					not (ExtType.has_variable_semantics v.v_type) &&
+					not (
+						ExtType.has_variable_semantics v.v_type &&
+						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
+					) &&
 			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
@@ -738,7 +636,7 @@ module Fusion = struct
 					in
 					let e,_ = map_values check_assign e1 in
 					let e = match !e' with
-						| None -> assert false
+						| None -> die "" __LOC__
 						| Some(e1,f) ->
 							begin match e1.eexpr with
 								| TLocal v -> state#change_writes v (- !i + 1)
@@ -753,7 +651,7 @@ module Fusion = struct
 				end
 			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && state#get_reads v1 = 0 && state#get_writes v1 = 0 ->
 				fuse acc (e1 :: el)
-			| ({eexpr = TVar(v1,None)} as ev) :: el when not v1.v_capture ->
+			| ({eexpr = TVar(v1,None)} as ev) :: el when not (has_var_flag v1 VCaptured) ->
 				let found = ref false in
 				let rec replace deep e = match e.eexpr with
 					| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 ->
@@ -850,7 +748,7 @@ module Fusion = struct
 							found := true;
 							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
 						| TLocal v ->
-							if has_var_write ir v || ((v.v_capture || ExtType.has_reference_semantics v.v_type) && (has_state_write ir)) then raise Exit;
+							if has_var_write ir v || ((has_var_flag v VCaptured || ExtType.has_reference_semantics v.v_type) && (has_state_write ir)) then raise Exit;
 							e
 						| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
@@ -1042,31 +940,35 @@ module Fusion = struct
 				acc
 		in
 		let rec loop e = match e.eexpr with
+			| TWhile(condition,{ eexpr = TBlock el; etype = t; epos = p },flag) ->
+				let condition = loop condition
+				and body = block true el t p in
+				{ e with eexpr = TWhile(condition,body,flag) }
 			| TBlock el ->
-				let el = List.rev_map loop el in
-				let el = block_element [] el in
-				(* fuse flips element order, but block_element doesn't care and flips it back *)
-				let el = fuse [] el in
-				let el = block_element [] el in
-				let rec fuse_loop el =
-					state#reset;
-					let el = fuse [] el in
-					let el = block_element [] el in
-					if state#did_change then fuse_loop el else el
-				in
-				let el = fuse_loop el in
-				{e with eexpr = TBlock el}
+				block false el e.etype e.epos
 			| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 				e
 			| _ ->
 				Type.map_expr loop e
+		and block loop_body el t p =
+			let el = List.rev_map loop el in
+			let el = block_element ~loop_bottom:loop_body [] el in
+			(* fuse flips element order, but block_element doesn't care and flips it back *)
+			let el = fuse [] el in
+			let el = block_element [] el in
+			let rec fuse_loop el =
+				state#reset;
+				let el = fuse [] el in
+				let el = block_element [] el in
+				if state#did_change then fuse_loop el else el
+			in
+			let el = fuse_loop el in
+			mk (TBlock el) t p
 		in
 		loop e
 end
 
 module Cleanup = struct
-	open TexprKindMapper
-
 	let apply com e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
 			| TUnop(Not,Prefix,e1),TConst (TBool true) -> optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
@@ -1133,15 +1035,7 @@ module Cleanup = struct
 			| _ ->
 				Type.map_expr loop e
 		in
-		let e = loop e in
-		let rec loop kind e = match kind,e.eexpr with
-			| KEqNull,TField(e1,FClosure(Some(c,tl),cf)) ->
-				let e1 = loop KAccess e1 in
-				{e with eexpr = TField(e1,FInstance(c,tl,cf))}
-			| _ ->
-				TexprKindMapper.map kind loop e
-		in
-		TexprKindMapper.map KRead loop e
+		loop e
 end
 
 module Purity = struct
@@ -1176,7 +1070,7 @@ module Purity = struct
 	let rec taint node = match node.pn_purity with
 		| Impure -> ()
 		| ExpectPure p -> raise (Purity_conflict(node,p));
-		| MaybePure | Pure ->
+		| MaybePure | Pure | InferredPure ->
 			node.pn_purity <- Impure;
 			List.iter taint node.pn_dependents;
 			let rec loop c = match c.cl_super with
@@ -1196,12 +1090,12 @@ module Purity = struct
 		taint node;
 		raise Exit
 
-	let apply_to_field com is_ctor c cf =
+	let apply_to_field com is_ctor is_static c cf =
 		let node = get_node c cf in
 		let check_field c cf =
 			let node' = get_node c cf in
 			match node'.pn_purity with
-				| Pure | ExpectPure _ -> ()
+				| Pure | InferredPure | ExpectPure _ -> ()
 				| Impure -> taint_raise node;
 				| MaybePure -> node'.pn_dependents <- node :: node'.pn_dependents
 		in
@@ -1216,8 +1110,9 @@ module Purity = struct
 					taint_raise node
 			end
 		and loop e = match e.eexpr with
-			| TMeta((Meta.Pure,_,_),_) ->
-				()
+			| TMeta((Meta.Pure,_,_) as m,_) ->
+				if get_purity_from_meta [m] = Impure then taint_raise node
+				else ()
 			| TThrow _ ->
 				taint_raise node;
 			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
@@ -1252,6 +1147,8 @@ module Purity = struct
 		match cf.cf_kind with
 			| Method MethDynamic | Var _ ->
 				taint node;
+			| Method MethNormal when not (is_static || is_ctor || has_class_field_flag cf CfFinal) ->
+				taint node
 			| _ ->
 				match cf.cf_expr with
 				| None ->
@@ -1270,9 +1167,9 @@ module Purity = struct
 						()
 
 	let apply_to_class com c =
-		List.iter (apply_to_field com false c) c.cl_ordered_fields;
-		List.iter (apply_to_field com false c) c.cl_ordered_statics;
-		(match c.cl_constructor with Some cf -> apply_to_field com true c cf | None -> ())
+		List.iter (apply_to_field com false false c) c.cl_ordered_fields;
+		List.iter (apply_to_field com false true c) c.cl_ordered_statics;
+		(match c.cl_constructor with Some cf -> apply_to_field com true false c cf | None -> ())
 
 	let infer com =
 		Hashtbl.clear node_lut;
@@ -1282,16 +1179,14 @@ module Purity = struct
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
 					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					Error.error "Pure field is here" p;
+					Error.error (Error.compl_msg "Pure field is here") p;
 				end
 			| _ -> ()
 		) com.types;
-		Hashtbl.fold (fun _ node acc ->
+		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
-			| Pure | MaybePure ->
-				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
-				node.pn_field :: acc
-			| _ ->
-				acc
-		) node_lut [];
+			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
+				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "inferredPure"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta
+			| _ -> ()
+		) node_lut;
 end

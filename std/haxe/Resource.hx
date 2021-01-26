@@ -19,44 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 /**
 	Resource can be used to access resources that were added through the
-	-resource file@name command line parameter.
+	`--resource file@name` command line parameter.
 
-	Depending on their type they can be obtained as String through
-	getString(name), or as binary data through getBytes(name).
+	Depending on their type they can be obtained as `String` through
+	`getString(name)`, or as binary data through `getBytes(name)`.
 
-	A list of all available resource names can be obtained from listNames().
+	A list of all available resource names can be obtained from `listNames()`.
 **/
 class Resource {
-
-	static var content : Array<{ name : String, data : String, str : String }>;
+	static var content:Array<{name:String, data:String, str:String}>;
 
 	/**
 		Lists all available resource names. The resource name is the name part
-		of the -resource file@name command line parameter.
+		of the `--resource file@name` command line parameter.
 	**/
-	public static function listNames() : Array<String> {
+	public static function listNames():Array<String> {
 		return [for (x in content) x.name];
 	}
 
 	/**
-		Retrieves the resource identified by `name` as a String.
+		Retrieves the resource identified by `name` as a `String`.
 
-		If `name` does not match any resource name, null is returned.
+		If `name` does not match any resource name, `null` is returned.
 	**/
-	public static function getString( name : String ) : String {
-		for( x in content )
-			if( x.name == name ) {
-				#if neko
-				return new String(x.data);
-				#else
-				if( x.str != null ) return x.str;
-				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(x.data);
+	public static function getString(name:String):String {
+		for (x in content)
+			if (x.name == name) {
+				if (x.str != null)
+					return x.str;
+				var b:haxe.io.Bytes = haxe.crypto.Base64.decode(x.data);
 				return b.toString();
-				#end
 			}
 		return null;
 	}
@@ -65,30 +62,19 @@ class Resource {
 		Retrieves the resource identified by `name` as an instance of
 		haxe.io.Bytes.
 
-		If `name` does not match any resource name, null is returned.
+		If `name` does not match any resource name, `null` is returned.
 	**/
-	public static function getBytes( name : String ) : haxe.io.Bytes {
-		for( x in content )
-			if( x.name == name ) {
-				#if neko
-				return haxe.io.Bytes.ofData(cast x.data);
-				#else
-				if( x.str != null ) return haxe.io.Bytes.ofString(x.str);
+	public static function getBytes(name:String):haxe.io.Bytes {
+		for (x in content)
+			if (x.name == name) {
+				if (x.str != null)
+					return haxe.io.Bytes.ofString(x.str);
 				return haxe.crypto.Base64.decode(x.data);
-				#end
 			}
 		return null;
 	}
 
 	static function __init__() {
-		#if neko
-		var tmp = untyped __resources__();
-		content = untyped Array.new1(tmp,__dollar__asize(tmp));
-		#elseif as3
-		null;
-		#else
 		content = untyped __resources__();
-		#end
 	}
-
 }

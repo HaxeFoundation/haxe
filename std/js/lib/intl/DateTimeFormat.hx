@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.intl;
 
 /**
@@ -44,7 +45,7 @@ extern class DateTimeFormat {
 		for custom locale-aware formatting.
 	**/
 	@:overload(function(date:js.lib.Date):Array<DateTimeFormatPart> {})
-	@:pure function formatToParts(date:Date):Array<DateTimeFormatPart>; 
+	@:pure function formatToParts(date:Date):Array<DateTimeFormatPart>;
 
 	/**
 		Returns a new object with properties reflecting the locale and formatting options
@@ -121,7 +122,7 @@ typedef DateTimeFormatOptions = {
 	var ?day:DayRepresentation;
 
 	/**
-		The representation of the hour. 
+		The representation of the hour.
 	**/
 	var ?hour:HourRepresentation;
 
@@ -136,7 +137,7 @@ typedef DateTimeFormatOptions = {
 	var ?second:SecondRepresentation;
 
 	/**
-		The representation of the time zone name. 
+		The representation of the time zone name.
 	**/
 	var ?timeZoneName:TimeZoneName;
 }
@@ -173,19 +174,12 @@ typedef DateTimeFormatResolvedOptions = {
 	final hour12:Bool;
 
 	final weekday:WeekdayRepresentation;
-
 	final era:EraRepresentation;
-
 	final year:YearRepresentation;
-
 	final month:MonthRepresentation;
-
 	final day:DayRepresentation;
-
 	final hour:HourRepresentation;
-
 	final minute:MinuteRepresentation;
-
 	final second:SecondRepresentation;
 
 	/**
@@ -213,17 +207,17 @@ enum abstract WeekdayRepresentation(String) {
 	/**
 		(e.g., Thursday)
 	 */
-    var Long = "long";
+	var Long = "long";
 
 	/**
 		(e.g., Thu)
 	 */
-    var Short = "short";
+	var Short = "short";
 
 	/**
 		(e.g., T). Two weekdays may have the same narrow style for some locales (e.g. Tuesday's narrow style is also T).
 	 */
-    var Narrow = "narrow";
+	var Narrow = "narrow";
 }
 
 enum abstract EraRepresentation(String) {
@@ -259,27 +253,27 @@ enum abstract MonthRepresentation(String) {
 	/**
 		(e.g., 2)
 	**/
-    var Numeric = "numeric";
+	var Numeric = "numeric";
 
 	/**
 		(e.g., 02)
 	**/
-    var TwoDigit = "2-digit";
+	var TwoDigit = "2-digit";
 
 	/**
 		(e.g., March)
 	**/
-    var Long = "long";
+	var Long = "long";
 
 	/**
 		(e.g., Mar)
 	**/
-    var Short = "short";
+	var Short = "short";
 
 	/**
 		(e.g., M). Two months may have the same narrow style for some locales (e.g. May's narrow style is also M).
 	**/
-    var Narrow = "narrow";
+	var Narrow = "narrow";
 }
 
 enum abstract DayRepresentation(String) {
@@ -313,17 +307,17 @@ enum abstract TimeZoneName(String) {
 	/**
 		(e.g., British Summer Time)
 	**/
-    var Long = "long";
+	var Long = "long";
 
 	/**
 		(e.g., GMT+1)
 	**/
-    var Short = "short";
+	var Short = "short";
 }
 
 typedef DateTimeFormatPart = {
-	var type(default,never):DateTimeFormatPartType;
-	var value(default,never):String;
+	var type(default, never):DateTimeFormatPartType;
+	var value(default, never):String;
 }
 
 enum abstract DateTimeFormatPartType(String) {
@@ -378,7 +372,7 @@ enum abstract DateTimeFormatPartType(String) {
 	var Weekday = "weekday";
 
 	/**
-		The string used for the year, for example "2012" or "96". 
+		The string used for the year, for example "2012" or "96".
 	**/
 	var Year = "year";
 }

@@ -147,7 +147,7 @@ class TestMatch extends Test {
 		eq("[]", switchArray(macro []));
 		eq("_", switchArray(macro 2));
 		eq("[EConst(CInt(22))]", switchArray(macro [22]));
-		eq("[EConst(CInt(22)),EConst(CString(foo))]", switchArray(macro [22,"foo"]));
+		eq("[EConst(CInt(22)),EConst(CString(foo,DoubleQuotes))]", switchArray(macro [22,"foo"]));
 		eq("_", switchArray(macro [22, "foo", "bar"]));
 
 		eq("0", switchArray2(["a", "b"]));
@@ -160,7 +160,7 @@ class TestMatch extends Test {
 		eq("6", switchArray2([]));
 		eq("7", switchArray2(["a", "a", "a", "b"]));
 
-		eq("EConst(CString(foobar)):12", switchCrazy(macro untyped ("foobar"[12])));
+		eq("EConst(CString(foobar,DoubleQuotes)):12", switchCrazy(macro untyped ("foobar"[12])));
 
 		eq("1", switchGuard(macro "foobar"));
 		eq("2", switchGuard(macro "barfoo"));
@@ -327,6 +327,7 @@ class TestMatch extends Test {
 			case OpIncrement:
 			case OpDecrement:
 			case OpNot:
+			case OpSpread:
 		}));
 		eq("Unmatched patterns: Node(Node, _)", getErrorMessage(switch(Leaf("foo")) {
 			case Node(Leaf("foo"), _):
@@ -534,7 +535,7 @@ class TestMatch extends Test {
 		eq(3, check(3));
 		eq(4, check(4));
 
-		function is<T>(pred : T -> Bool) return function (x : T) {
+		function isTrue<T>(pred : T -> Bool) return function (x : T) {
 			return pred(x)?Some(x):None;
 		}
 
@@ -549,7 +550,7 @@ class TestMatch extends Test {
 			return switch(i) {
 				case [x]: 1;
 				case isPair(_) => Some({ a : a, b : b }) if (a < 0): 42;
-				case isPair(_) => Some({ a : is(even)(_) => Some(a), b : b }) : a+b;
+				case isPair(_) => Some({ a : isTrue(even)(_) => Some(a), b : b }) : a+b;
 				case isPair(_) => Some({ a : isNot(even)(_) => Some(a), b : b }) : a*b;
 				case testArgs(1, "foo", _) => "[99,98,97]": 99;
 				case var arr: 3;

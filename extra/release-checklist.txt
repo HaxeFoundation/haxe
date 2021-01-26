@@ -3,14 +3,16 @@
 - Check that haxelib is working
 - Make sure to update the haxelib submodule
 - Check that the run-time haxelibs are ready for release: hxcpp, hxjava, hxcs
+- Check that the osx & windows installers has the latest neko release in "Makefile" and "Makefile.win" files
 
 # Making the release
 
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in globals.ml has the correct value
+- Update `version` in `./opam`
 - Check if the protocolVersion in displayJson.ml has to be updated
 - Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases (do this first because we need the tag for the builds)
-- Wait for the CI to build (check https://builds.haxe.org)
+- Wait for the CI to build (check https://build.haxe.org/builds/haxe/)
 - Get https://github.com/simn/hxgithub
 - Store your GitHub personal access token in .github-token
 - Run something like this: `neko release.n -h 4.0.0-rc.1 -u -uw -ur -d haxe_2019-02-01_development_1fdd3d5.zip --dry`
@@ -18,6 +20,10 @@
 - Write the announcement to `./haxe-version/RELEASE.md`
 - If everything was working, run the command again without `--dry` (and probably without the `-d`)
 - Update https://github.com/HaxeFoundation/haxe.org/blob/staging/downloads/versions.json
+
+# Cleanup
+
+- Remove issues with released fixes from the "Hotfix" milestone: https://github.com/HaxeFoundation/haxe/milestone/18
 
 # Announcing the release
 

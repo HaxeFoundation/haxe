@@ -19,14 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.lib.io.IOBase;
 
 @:pythonImport("io")
 extern class Io {
+	static var DEFAULT_BUFFER_SIZE:Int;
 
-	public static var DEFAULT_BUFFER_SIZE:Int;
-
-	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):IOBase;
+	static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors:String, ?newline:String, ?closefd:Bool,
+		?opener:String->Int->FileDescriptor):IOBase;
 }

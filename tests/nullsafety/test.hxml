@@ -1,10 +1,12 @@
 -cp src
 -D analyzer-optimize
 cases.TestStrict
+cases.TestStrictThreaded
 cases.TestLoose
 cases.TestSafeFieldInUnsafeClass
 cases.TestAbstract
 
---macro nullSafety('cases.TestStrict', Strict)
 --macro nullSafety('cases.TestLoose', Loose)
+--macro nullSafety('cases.TestStrict', Strict)
+--macro nullSafety('cases.TestStrictThreaded', StrictThreaded)
 --macro Validator.register()

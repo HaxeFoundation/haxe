@@ -57,14 +57,7 @@ let config = {
 let sign_string com =
 	let sign = Define.get_signature com.defines in
 	let cs = CompilationServer.force () in
-	let	sign_id =
-		try
-			(CompilationServer.get_sign cs sign).cs_index
-		with Not_found ->
-			let i = CompilationServer.add_sign cs sign "message" com in
-			if config.print_new_context then print_endline (Printf.sprintf "Found context %i:\n%s" i (dump_context com));
-			i
-	in
+	let	sign_id = (cs#get_context sign)#get_index in
 	Printf.sprintf "%2i,%3s: " sign_id (short_platform_name com.platform)
 
 let added_directory com tabs dir =
@@ -78,7 +71,7 @@ let changed_directories com tabs dirs =
 
 let module_path_changed com tabs (m,time,file) =
 	if config.print_module_path_changed then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
-		(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file)
+		(sign_string com) (s_type_path m.m_path) m.m_extra.m_time (Path.UniqueKey.lazy_path m.m_extra.m_file) time file)
 
 let not_cached com tabs m =
 	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) "modified")
@@ -92,8 +85,8 @@ let removed_directory com tabs dir =
 let reusing com tabs m =
 	if config.print_reusing then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path))
 
-let skipping_dep com tabs (m,m') =
-	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)))
+let skipping_dep com tabs (m,path) =
+	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com) (s_type_path m.m_path) (if m.m_path = path then "" else Printf.sprintf "(%s)" (s_type_path path)))
 
 let unchanged_content com tabs file =
 	if config.print_unchanged_content then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com) file)
@@ -131,11 +124,16 @@ let stats stats time =
 let message s =
 	if config.print_message then print_endline ("> " ^ s)
 
-let gc_stats time =
+let gc_stats time stats_before did_compact space_overhead =
 	if config.print_stats then begin
-		let stat = Gc.quick_stat() in
-		let size = (float_of_int stat.Gc.heap_words) *. 4. in
-		print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" time (size /. (1024. *. 1024.)));
+		let stats = Gc.quick_stat() in
+		print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s"
+			(if did_compact then "compaction" else "collection")
+			time
+			space_overhead
+			(Memory.fmt_word (float_of_int stats_before.Gc.heap_words))
+			(Memory.fmt_word (float_of_int stats.heap_words))
+		)
 	end
 
 let socket_message s =

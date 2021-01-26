@@ -19,23 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.json;
 
 import python.Tuple;
 
 typedef JSONDecoderOptions = {
-	var ?object_hook : Dict<String, Dynamic>->Dynamic;
-	var ?parse_float : String->Float;
-	var ?parse_int : String->Int;
-	var ?parse_constant : String->Dynamic;
+	var ?object_hook:Dict<String, Dynamic>->Dynamic;
+	var ?parse_float:String->Float;
+	var ?parse_int:String->Int;
+	var ?parse_constant:String->Dynamic;
 	var ?strict:Bool;
-	var ?object_pairs_hook : Array<Tuple2<String,String>>->Dict<String,Dynamic>;
+	var ?object_pairs_hook:Array<Tuple2<String, String>>->Dict<String, Dynamic>;
 }
 
 @:pythonImport("json", "JSONDecoder")
 extern class JSONDecoder {
-	public function new (?options:KwArgs<JSONDecoderOptions>):Void;
+	function new(?options:KwArgs<JSONDecoderOptions>):Void;
 
-	public function decode (o:String):Dynamic;
-	public function raw_decode (o:String):Tuple2<Dynamic, Int>;
+	function decode(o:String):Dynamic;
+	function raw_decode(o:String):Tuple2<Dynamic, Int>;
 }

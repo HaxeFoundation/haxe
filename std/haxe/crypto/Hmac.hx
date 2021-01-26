@@ -19,11 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.crypto;
 
 /**
-    Hash methods for Hmac calculation.
-*/
+	Hash methods for Hmac calculation.
+**/
 enum HashMethod {
 	MD5;
 	SHA1;
@@ -31,47 +32,46 @@ enum HashMethod {
 }
 
 /**
-    Calculates a Hmac of the given Bytes using a HashMethod.
-*/
+	Calculates a Hmac of the given Bytes using a HashMethod.
+**/
 class Hmac {
-	
-	var method : HashMethod;
-	var blockSize : Int;
-	var length : Int;
-	
-	public function new( hashMethod : HashMethod ) {
+	var method:HashMethod;
+	var blockSize:Int;
+	var length:Int;
+
+	public function new(hashMethod:HashMethod) {
 		method = hashMethod;
-		blockSize = switch ( hashMethod ) {
+		blockSize = switch (hashMethod) {
 			case MD5, SHA1, SHA256: 64;
 		}
-		length = switch ( hashMethod ) {
+		length = switch (hashMethod) {
 			case MD5: 16;
 			case SHA1: 20;
 			case SHA256: 32;
 		}
 	}
-	
-	inline function doHash( b : haxe.io.Bytes ) : haxe.io.Bytes {
-		return switch ( method ) {
+
+	inline function doHash(b:haxe.io.Bytes):haxe.io.Bytes {
+		return switch (method) {
 			case MD5: Md5.make(b);
 			case SHA1: Sha1.make(b);
 			case SHA256: Sha256.make(b);
 		}
 	}
-	
-	function nullPad( s : haxe.io.Bytes, chunkLen : Int ) : haxe.io.Bytes {
+
+	function nullPad(s:haxe.io.Bytes, chunkLen:Int):haxe.io.Bytes {
 		var r = chunkLen - (s.length % chunkLen);
-		if(r == chunkLen && s.length != 0)
+		if (r == chunkLen && s.length != 0)
 			return s;
 		var sb = new haxe.io.BytesBuffer();
 		sb.add(s);
-		for(x in 0...r)
+		for (x in 0...r)
 			sb.addByte(0);
 		return sb.getBytes();
 	}
-	
-	public function make( key : haxe.io.Bytes, msg : haxe.io.Bytes ) : haxe.io.Bytes {
-		if(key.length > blockSize) {
+
+	public function make(key:haxe.io.Bytes, msg:haxe.io.Bytes):haxe.io.Bytes {
+		if (key.length > blockSize) {
 			key = doHash(key);
 		}
 		key = nullPad(key, blockSize);
@@ -87,5 +87,4 @@ class Hmac {
 		Ko.add(doHash(Ki.getBytes()));
 		return doHash(Ko.getBytes());
 	}
-	
 }

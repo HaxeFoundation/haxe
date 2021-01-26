@@ -1,5 +1,4 @@
 import php.Boot;
-
 /*
  * Copyright (C)2005-2019 Haxe Foundation
  *
@@ -21,35 +20,38 @@ import php.Boot;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 import php.Global;
 import php.Const;
 import php.Syntax;
 
 @:coreApi class Std {
-
-	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return Boot.is(v, t);
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
 	}
 
-	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Boot.is(value, cast c) ? cast value : null;
+	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
+		return Boot.isOfType(v, t);
+	}
+
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+		return Boot.isOfType(value, cast c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Boot.is(value, cast c) ? cast value : null;
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+		return Boot.isOfType(value, cast c) ? cast value : null;
 	}
 
-	public static function string( s : Dynamic ) : String {
+	public static function string(s:Dynamic):String {
 		return Boot.stringify(s);
 	}
 
-	public static inline function int( x : Float ) : Int {
+	public static inline function int(x:Float):Int {
 		return Syntax.int(x);
 	}
 
-	public static function parseInt( x : String ) : Null<Int> {
+	public static function parseInt(x:String):Null<Int> {
 		if (Global.is_numeric(x)) {
 			return Global.intval(x, 10);
 		} else {
@@ -68,9 +70,10 @@ import php.Syntax;
 		}
 	}
 
-	public static function parseFloat( x : String ) : Float {
+	public static function parseFloat(x:String):Float {
 		var result = Global.floatval(x);
-		if (result != 0) return result;
+		if (result != 0)
+			return result;
 
 		x = Global.ltrim(x);
 		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
@@ -87,12 +90,11 @@ import php.Syntax;
 		}
 	}
 
-	public static inline function random( x : Int ) : Int {
+	public static inline function random(x:Int):Int {
 		return x <= 1 ? 0 : Global.mt_rand(0, x - 1);
 	}
 
-	static inline function isDigitCode( charCode:Null<Int> ) : Bool {
+	static inline function isDigitCode(charCode:Null<Int>):Bool {
 		return charCode != null && charCode >= '0'.code && charCode <= '9'.code;
 	}
-
 }

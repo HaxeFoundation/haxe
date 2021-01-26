@@ -19,21 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.crypto;
 
 class Md5 {
-
-	public static function encode( s:String ) : String {
+	public static function encode(s:String):String {
 		var out = haxe.io.Bytes.alloc(16);
-		@:privateAccess hl.Format.digest(out.b,s.bytes,s.length,256);
+		@:privateAccess hl.Format.digest(out.b, s.bytes, s.length, 256);
 		return out.toHex();
 	}
 
-	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
+	public static function make(b:haxe.io.Bytes):haxe.io.Bytes {
 		var out = haxe.io.Bytes.alloc(16);
-		@:privateAccess hl.Format.digest(out.b,b.b,b.length,0);
+		@:privateAccess hl.Format.digest(out.b, b.b, b.length, 0);
 		return out;
 	}
-
-
 }

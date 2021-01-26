@@ -19,71 +19,68 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 import php.*;
+import haxe.io.Error;
 
 class BytesBuffer {
-	var b : NativeString;
+	var b:NativeString;
 
-	/** The length of the buffer in bytes. **/
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 
 	public function new() {
 		b = "";
 	}
 
-	public inline function addByte( byte : Int ) {
+	public inline function addByte(byte:Int) {
 		b = Syntax.concat(b, Global.chr(byte));
 	}
 
-	public inline function add( src : Bytes ) {
+	public inline function add(src:Bytes) {
 		b = Syntax.concat(b, src.getData().toNativeString());
 	}
 
-	public inline function addString( v : String, ?encoding : Encoding ) {
+	public inline function addString(v:String, ?encoding:Encoding) {
 		b = Syntax.concat(b, v);
 	}
 
-	public function addInt32( v : Int ) {
-		addByte(v&0xFF);
-		addByte((v>>8)&0xFF);
-		addByte((v>>16)&0xFF);
-		addByte(v>>>24);
+	public function addInt32(v:Int) {
+		addByte(v & 0xFF);
+		addByte((v >> 8) & 0xFF);
+		addByte((v >> 16) & 0xFF);
+		addByte(v >>> 24);
 	}
 
-	public function addInt64( v : haxe.Int64 ) {
+	public function addInt64(v:haxe.Int64) {
 		addInt32(v.low);
 		addInt32(v.high);
 	}
 
-	public inline function addFloat( v : Float ) {
+	public inline function addFloat(v:Float) {
 		addInt32(FPHelper.floatToI32(v));
 	}
 
-	public inline function addDouble( v : Float ) {
+	public inline function addDouble(v:Float) {
 		addInt64(FPHelper.doubleToI64(v));
 	}
 
-	public inline function addBytes( src : Bytes, pos : Int, len : Int ) {
-		if( pos < 0 || len < 0 || pos + len > src.length ) {
+	public inline function addBytes(src:Bytes, pos:Int, len:Int) {
+		if (pos < 0 || len < 0 || pos + len > src.length) {
 			throw Error.OutsideBounds;
 		} else {
 			b = Syntax.concat(b, src.getData().sub(pos, len).toString());
 		}
 	}
 
-	/**
-		Returns either a copy or a reference of the current bytes.
-		Once called, the buffer can no longer be used.
-	**/
-	public function getBytes() : Bytes {
+	public function getBytes():Bytes {
 		var bytes = @:privateAccess new Bytes(length, b);
 		b = null;
 		return bytes;
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return Global.strlen(b);
 	}
 }

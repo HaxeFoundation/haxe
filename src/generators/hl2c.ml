@@ -87,6 +87,8 @@ let keywords =
 	"auto";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
 	"if";"int";"long";"register";"return";"short";"signed";"sizeof";"static";"struct";"switch";"typedef";"union";"unsigned";
 	"void";"volatile";"while";
+	(* Values *)
+	"NULL";"true";"false";
 	(* MS specific *)
 	"__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
 	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
@@ -221,7 +223,7 @@ let hash ctx sid =
 		h
 
 let type_name ctx t =
-	try PMap.find t ctx.htypes with Not_found -> assert false
+	try PMap.find t ctx.htypes with Not_found -> Globals.die "" __LOC__
 
 let define ctx s =
 	if not (Hashtbl.mem ctx.hdefines s) then begin
@@ -239,7 +241,7 @@ let rec define_type ctx t =
 		define_type ctx ret
 	| HEnum _ | HObj _ | HStruct _ when not (PMap.exists t ctx.defined_types) ->
 		ctx.defined_types <- PMap.add t () ctx.defined_types;
-		define ctx (sprintf "#include <%s.h>" (try PMap.find t ctx.type_module with Not_found -> assert false).m_name)
+		define ctx (sprintf "#include <%s.h>" (try PMap.find t ctx.type_module with Not_found -> Globals.die "" __LOC__).m_name)
 	| HVirtual vp when not (PMap.exists t ctx.defined_types) ->
 		ctx.defined_types <- PMap.add t () ctx.defined_types;
 		Array.iter (fun (_,_,t) -> define_type ctx t) vp.vfields
@@ -258,7 +260,7 @@ let enum_constr_type ctx e i =
 		"venum"
 	else
 	let name = if e.eid = 0 then
-		let name = (try PMap.find (HEnum e) ctx.htypes with Not_found -> assert false) in
+		let name = (try PMap.find (HEnum e) ctx.htypes with Not_found -> Globals.die "" __LOC__) in
 		"Enum" ^ name
 	else
 		String.concat "_" (ExtString.String.nsplit e.ename ".")
@@ -546,7 +548,7 @@ let generate_function ctx f =
 		if t = HVoid then "" else
 		let assign = reg r ^ " = " in
 		if tsame t rt then assign else
-		if not (safe_cast t rt) then assert false
+		if not (safe_cast t rt) then Globals.die "" __LOC__
 		else assign ^ "(" ^ ctype rt ^ ")"
 	in
 
@@ -591,7 +593,7 @@ let generate_function ctx f =
 	in
 
 	let mcall r fid = function
-		| [] -> assert false
+		| [] -> Globals.die "" __LOC__
 		| o :: args ->
 			match rtype o with
 			| HObj _ | HStruct _ ->
@@ -618,7 +620,7 @@ let generate_function ctx f =
 				unblock();
 				sline "}"
 			| _ ->
-				assert false
+				Globals.die "" __LOC__
 	in
 
 	let set_field obj fid v =
@@ -631,7 +633,7 @@ let generate_function ctx f =
 			let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash ctx nid) name (type_value_opt (rtype v)) (reg v) in
 			sexpr "if( hl_vfields(%s)[%d] ) *(%s*)(hl_vfields(%s)[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) fid (ctype t) (reg v) dset
 		| _ ->
-			assert false
+			Globals.die "" __LOC__
 	in
 
 	let get_field r obj fid =
@@ -644,7 +646,7 @@ let generate_function ctx f =
 			let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash ctx nid) name (type_value_opt t) in
 			sexpr "%shl_vfields(%s)[%d] ? (*(%s*)(hl_vfields(%s)[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) fid dget
 		| _ ->
-			assert false
+			Globals.die "" __LOC__
 	in
 
 	let fret = (match f.ftype with
@@ -652,7 +654,7 @@ let generate_function ctx f =
 		sline "%s %s(%s) {" (ctype t) (funname f.findex) (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args));
 		t
 	| _ ->
-		assert false
+		Globals.die "" __LOC__
 	) in
 	block();
 	let var_map = Hashtbl.create 0 in
@@ -768,7 +770,7 @@ let generate_function ctx f =
 				else if op = CNeq then
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
-					assert false
+					Globals.die "" __LOC__
 			| HEnum _, HEnum _ | HDynObj, HDynObj | HAbstract _, HAbstract _ ->
 				phys_compare()
 			| HVirtual _, HObj _->
@@ -777,7 +779,7 @@ let generate_function ctx f =
 				else if op = CNeq then
 					sexpr "if( %s ? (%s == NULL || %s->value != (vdynamic*)%s) : (%s != NULL) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (label d)
 				else
-					assert false
+					Globals.die "" __LOC__
 			| HObj _, HVirtual _ ->
 				compare_op op b a d
 			| ta, tb ->
@@ -826,7 +828,7 @@ let generate_function ctx f =
 			| HF64 ->
 				sexpr "%s = fmod(%s,%s)" (reg r) (reg a) (reg b)
 			| _ ->
-				assert false)
+				Globals.die "" __LOC__)
 		| OUMod (r,a,b) ->
 			sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) %% ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
 		| OShl (r,a,b) ->
@@ -873,7 +875,7 @@ let generate_function ctx f =
 				let sargs = String.concat "," (List.map2 rcast pl args) in
 				sexpr "%s%s->hasValue ? %s((vdynamic*)%s->value%s) : %s(%s)" (rassign r ret) (reg cl) (rfun cl (HDyn :: args) ret) (reg cl) (if sargs = "" then "" else "," ^ sargs) (rfun cl args ret) sargs
 			| _ ->
-				assert false)
+				Globals.die "" __LOC__)
 		| OStaticClosure (r,fid) ->
 			sexpr "%s = &cl$%d" (reg r) (!cl_id);
 			incr cl_id
@@ -958,7 +960,7 @@ let generate_function ctx f =
 			| HObj o | HStruct o -> sexpr "%s = (%s)hl_alloc_obj(%s)" (reg r) (tname o.pname) (type_value (rtype r))
 			| HDynObj -> sexpr "%s = hl_alloc_dynobj()" (reg r)
 			| HVirtual _ as t -> sexpr "%s = hl_alloc_virtual(%s)" (reg r) (type_value t)
-			| _ -> assert false)
+			| _ -> Globals.die "" __LOC__)
 		| OField (r,obj,fid) ->
 			get_field r obj fid
 		| OSetField (obj,fid,v) ->
@@ -1020,7 +1022,7 @@ let generate_function ctx f =
 			let h = hash ctx sid in
 			sexpr "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix (rtype v)) (reg o) h code.strings.(sid) (type_value_opt (rtype v)) (reg v)
 		| OMakeEnum (r,cid,rl) ->
-			let e, et = (match rtype r with HEnum e -> e, enum_constr_type ctx e cid | _ -> assert false) in
+			let e, et = (match rtype r with HEnum e -> e, enum_constr_type ctx e cid | _ -> Globals.die "" __LOC__) in
 			let need_tmp = List.mem r rl in
 			let tmp = if not need_tmp then reg r else begin
 				sexpr "{ venum *tmp";
@@ -1037,10 +1039,10 @@ let generate_function ctx f =
 		| OEnumIndex (r,v) ->
 			sexpr "%s = HL__ENUM_INDEX__(%s)" (reg r) (reg v)
 		| OEnumField (r,e,cid,pid) ->
-			let tname,(_,_,tl) = (match rtype e with HEnum e -> enum_constr_type ctx e cid, e.efields.(cid) | _ -> assert false) in
+			let tname,(_,_,tl) = (match rtype e with HEnum e -> enum_constr_type ctx e cid, e.efields.(cid) | _ -> Globals.die "" __LOC__) in
 			sexpr "%s((%s*)%s)->p%d" (rassign r tl.(pid)) tname (reg e) pid
 		| OSetEnumField (e,pid,r) ->
-			let tname, (_,_,tl) = (match rtype e with HEnum e -> enum_constr_type ctx e 0, e.efields.(0) | _ -> assert false) in
+			let tname, (_,_,tl) = (match rtype e with HEnum e -> enum_constr_type ctx e 0, e.efields.(0) | _ -> Globals.die "" __LOC__) in
 			sexpr "((%s*)%s)->p%d = (%s)%s" tname (reg e) pid (ctype tl.(pid)) (reg r)
 		| OSwitch (r,idx,eend) ->
 			sline "switch(%s) {" (reg r);
@@ -1072,7 +1074,7 @@ let generate_function ctx f =
 			| HArray ->
 				sexpr "%s = (%s)hl_aptr(%s,void*)" (reg r) (ctype (rtype r)) (reg d)
 			| _ ->
-				assert false)
+				Globals.die "" __LOC__)
 		| ORefOffset (r,r2,off) ->
 			sexpr "%s = %s + %s" (reg r) (reg r2) (reg off)
 		| ONop _ ->
@@ -1190,7 +1192,7 @@ let make_function_table code =
 			ft.fe_args <- args;
 			ft.fe_ret <- t
 		| _ ->
-			assert false
+			Globals.die "" __LOC__
 	) code.natives;
 	Array.iter (fun f ->
 		let fname = String.concat "_" (ExtString.String.nsplit (fundecl_name f) ".") in
@@ -1201,7 +1203,7 @@ let make_function_table code =
 			ft.fe_args <- args;
 			ft.fe_ret <- t;
 		| _ ->
-			assert false);
+			Globals.die "" __LOC__);
 		ft.fe_decl <- Some f;
 		Array.iter (fun op ->
 			match op with
@@ -1242,7 +1244,7 @@ let make_modules ctx all_types =
 	in
 	let add m fid =
 		let f = ctx.ftable.(fid) in
-		if f.fe_module <> None then assert false;
+		if f.fe_module <> None then Globals.die "" __LOC__;
 		f.fe_module <- Some m;
 		m.m_functions <- f :: m.m_functions;
 	in
@@ -1305,7 +1307,7 @@ let make_modules ctx all_types =
 	) !all_modules;
 	let contexts = ref PMap.empty in
 	Array.iter (fun f ->
-		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> assert false | Some f -> f.ftype);
+		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> Globals.die "" __LOC__ | Some f -> f.ftype);
 		(* assign context to function module *)
 		match f.fe_args with
 		| (HEnum e) as t :: _ when e.ename = "" ->
@@ -1478,14 +1480,14 @@ let write_c com file (code:code) gnames =
 			| HBytes ->
 				"(vbyte*)" ^ string ctx idx
 			| _ ->
-				assert false
+				Globals.die "" __LOC__
 		in
 		let fields = match t with
 			| HObj o | HStruct o ->
 				let fields = List.map2 field_value (List.map (fun (_,_,t) -> t) (Array.to_list o.pfields)) (Array.to_list fields) in
 				if is_struct t then fields else type_value ctx t :: fields
 			| _ ->
-				assert false
+				Globals.die "" __LOC__
 		in
 		sexpr "static struct _%s %s = {%s}" (ctype t) name (String.concat "," fields);
 	) code.constants;

@@ -87,10 +87,18 @@ let parse_constant max idx ch =
     KMethodHandle (reft, dynref)
   | 16 ->
     KMethodType (index())
+  | 17 ->
+    let bootstrapref = read_ui16 ch in (* not index *)
+    let nametyperef = index() in
+    KDynamic (bootstrapref, nametyperef)
   | 18 ->
     let bootstrapref = read_ui16 ch in (* not index *)
     let nametyperef = index() in
     KInvokeDynamic (bootstrapref, nametyperef)
+  | 19 ->
+    KModule (index())
+  | 20 ->
+    KPackage (index())
   | n ->
     error()
 
@@ -328,9 +336,16 @@ let rec expand_constant consts i =
     ConstMethodHandle (reference_type, expand_constant consts dynref)
   | KMethodType utf8ref ->
     ConstMethodType (parse_method_signature (expand_string utf8ref))
+  | KDynamic(bootstrapref, nametyperef) ->
+    let n, t = expand_nametype nametyperef in
+    ConstDynamic(bootstrapref, n, t)
   | KInvokeDynamic (bootstrapref, nametyperef) ->
     let n, t = expand_nametype nametyperef in
     ConstInvokeDynamic(bootstrapref, n, t)
+  | KModule n ->
+    ConstModule (expand_string n)
+  | KPackage n ->
+    ConstPackage (expand_string n)
   | KUnusable ->
     ConstUnusable
 
@@ -416,6 +431,31 @@ let parse_attribute on_special consts ch =
   | "Deprecated" ->
     if alen <> 0 then error();
     Some (AttrDeprecated)
+  | "LocalVariableTable" ->
+	let len = read_ui16 ch in
+	let locals = List.init len (fun _ ->
+		let start_pc = read_ui16 ch in
+		let length = read_ui16 ch in
+		let name = get_string consts ch in
+		let descriptor = get_string consts ch in
+		let index = read_ui16 ch in
+		{
+			ld_start_pc = start_pc;
+			ld_length = length;
+			ld_name = name;
+			ld_descriptor = descriptor;
+			ld_index = index
+		}
+	) in
+	Some (AttrLocalVariableTable locals)
+  | "MethodParameters" ->
+	let len = IO.read_byte ch in
+	let parameters = List.init len (fun _ ->
+		let name = get_string consts ch in
+		let flags = read_ui16 ch in
+		(name,flags)
+	) in
+	Some (AttrMethodParameters parameters)
   | "RuntimeVisibleAnnotations" ->
     let anncount = read_ui16 ch in
     Some (AttrVisibleAnnotations (List.init anncount (fun _ -> parse_annotation consts ch)))
@@ -469,8 +509,19 @@ let parse_field kind consts ch =
       let s = get_string consts ch in
       jsig := parse_signature s;
       None
-    | JKMethod, "Code" -> (* TODO *)
-      do_default()
+    | JKMethod, "Code" ->
+	  ignore(read_ui16 ch); (* max stack *)
+	  ignore(read_ui16 ch); (* max locals *)
+	  let len = read_i32 ch in
+	  ignore(IO.nread_string ch len); (* code *)
+	  let len = read_ui16 ch in
+	  for i = 0 to len - 1 do
+	  	ignore(IO.nread_string ch 8);
+	  done; (* exceptions *)
+      let attrib_count = read_ui16 ch in
+	  let attribs = parse_attributes consts ch attrib_count in
+	  code := Some attribs;
+	  None
     | JKMethod, "Exceptions" ->
       let num = read_ui16 ch in
       throws := List.init num (fun _ -> TObject(get_class consts ch,[]));
@@ -515,7 +566,7 @@ let parse_class ch =
       c
   ) in
   let consts = Array.mapi (fun i _ -> expand_constant consts i) consts in
-  let flags = parse_access_flags ch [JPublic; JUnusable; JUnusable; JUnusable; JFinal; JSuper; JUnusable; JUnusable; JUnusable; JInterface; JAbstract; JUnusable; JSynthetic; JAnnotation; JEnum] in
+  let flags = parse_access_flags ch [JPublic; JUnusable; JUnusable; JUnusable; JFinal; JSuper; JUnusable; JUnusable; JUnusable; JInterface; JAbstract; JUnusable; JSynthetic; JAnnotation; JEnum; JModule] in
   let this = get_class consts ch in
   let super_idx = read_ui16 ch in
   let super = match super_idx with

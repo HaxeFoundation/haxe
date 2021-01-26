@@ -11,7 +11,7 @@ class Issue5796 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(1)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(1)));
 		eq("Int", type(pos(2)));
 	}
 }

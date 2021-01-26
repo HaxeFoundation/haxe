@@ -19,15 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 /**
 	Use `sys.io.File.read` to create a `FileInput`.
 **/
 extern class FileInput extends haxe.io.Input {
-
-	function seek( p : Int, pos : FileSeek ) : Void;
-	function tell() : Int;
-	function eof() : Bool;
-
+	function seek(p:Int, pos:FileSeek):Void;
+	function tell():Int;
+	function eof():Bool;
 }

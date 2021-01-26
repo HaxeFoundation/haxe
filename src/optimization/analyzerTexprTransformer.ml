@@ -83,7 +83,7 @@ let rec func ctx bb tf t p =
 	in
 	let check_unbound_call s el =
 		if s = "$ref" then begin match el with
-			| [{eexpr = TLocal v}] -> v.v_capture <- true
+			| [{eexpr = TLocal v}] -> add_var_flag v VCaptured
 			| _ -> ()
 		end;
 		if is_unbound_call_that_might_have_side_effects s el then ctx.has_unbound <- true;
@@ -120,7 +120,7 @@ let rec func ctx bb tf t p =
 		| TBinop(op,e1,e2) ->
 			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
 				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			bb,{e with eexpr = TBinop(op,e1,e2)}
 		| TUnop(op,flag,e1) ->
@@ -141,7 +141,7 @@ let rec func ctx bb tf t p =
 		| TArray(e1,e2) ->
 			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
 				| bb,[e1;e2] -> bb,e1,e2
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			bb,{e with eexpr = TArray(e1,e2)}
 		| TMeta(m,e1) ->
@@ -173,8 +173,6 @@ let rec func ctx bb tf t p =
 			close_node g bb;
 			add_cfg_edge bb_func_end bb_next CFGGoto;
 			bb_next,ec
-		(*| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-			error "Cannot use abstract as value" e.epos*)
 		| TConst _ | TTypeExpr _ ->
 			bb,e
 		| TThrow _ | TReturn _ | TBreak | TContinue ->
@@ -204,8 +202,12 @@ let rec func ctx bb tf t p =
 			end
 		) (false,[]) (List.rev el) in
 		let bb,values = List.fold_left (fun (bb,acc) (aff,opt,e) ->
-			let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
-			bb,(value :: acc)
+			if bb == g.g_unreachable then
+				bb,acc
+			else begin
+				let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
+				bb,(value :: acc)
+			end
 		) (bb,[]) el in
 		bb,List.rev values
 	and bind_to_temp ?(v=None) bb sequential e =
@@ -245,6 +247,7 @@ let rec func ctx bb tf t p =
 		let e = List.fold_left (fun e f -> f e) e fl in
 		bb,e
 	and declare_var_and_assign bb v e p =
+		no_void v.v_type p;
 		(* TODO: this section shouldn't be here because it can be handled as part of the normal value processing *)
 		let rec loop bb e = match e.eexpr with
 			| TParenthesis e1 ->
@@ -258,7 +261,7 @@ let rec func ctx bb tf t p =
 						if bb == g.g_unreachable then raise Exit;
 						loop2 bb el
 					| [] ->
-						assert false
+						die "" __LOC__
 				in
 				let bb,e = loop2 bb el in
 				loop bb e
@@ -266,7 +269,6 @@ let rec func ctx bb tf t p =
 				bb,e
 		in
 		let generate bb e =
-			no_void v.v_type p;
 			let ev = mk (TLocal v) v.v_type p in
 			let was_assigned = ref false in
 			let assign e =
@@ -306,7 +308,7 @@ let rec func ctx bb tf t p =
 		let bb = ref bb in
 		let check e t = match e.eexpr with
 			| TLocal v when ExtType.has_reference_semantics t ->
-				v.v_capture <- true;
+				add_var_flag v VCaptured;
 				e
 			| _ ->
 				if ExtType.has_variable_semantics t then begin
@@ -321,7 +323,7 @@ let rec func ctx bb tf t p =
 		let bb,el = ordered_value_list !bb (e1 :: el) in
 		match el with
 			| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
-			| _ -> assert false
+			| _ -> die "" __LOC__
 	and array_assign_op bb op e ea e1 e2 e3 =
 		let bb,e1 = bind_to_temp bb false e1 in
 		let bb,e2 = bind_to_temp bb false e2 in
@@ -477,7 +479,7 @@ let rec func ctx bb tf t p =
 			let bb_next = if bb_breaks = [] then begin
 				(* The loop appears to be infinite, let's assume that something within it throws.
 				   Otherwise DCE's mark-pass won't see its body and removes everything. *)
-				add_cfg_edge bb_loop_body_next bb_exit CFGMaybeThrow;
+				add_cfg_edge bb_loop_body bb_exit CFGMaybeThrow;
 				g.g_unreachable
 			end else
 				create_node BKNormal bb.bb_type bb.bb_pos
@@ -486,7 +488,7 @@ let rec func ctx bb tf t p =
 			set_syntax_edge bb_loop_pre (SEWhile(bb_loop_head,bb_loop_body,bb_next));
 			close_node g bb_loop_pre;
 			add_texpr bb_loop_pre {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
-			add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
+			if bb_loop_body_next != g.g_unreachable then add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
 			add_cfg_edge bb_loop_head bb_loop_body CFGGoto;
 			close_node g bb_loop_body_next;
 			close_node g bb_loop_head;
@@ -542,7 +544,7 @@ let rec func ctx bb tf t p =
 		| TContinue ->
 			begin match !bb_continue with
 				| Some bb_continue -> add_cfg_edge bb bb_continue CFGGoto
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			end;
 			add_terminator bb e
 		| TThrow e1 ->
@@ -585,7 +587,7 @@ let rec func ctx bb tf t p =
 		| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
 			let bb,e1,e2,e3 = match ordered_value_list bb [e1;e2;e3] with
 				| bb,[e1;e2;e3] -> bb,e1,e2,e3
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
 			add_texpr bb {e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)};
 			bb
@@ -619,7 +621,7 @@ let rec func ctx bb tf t p =
 		| TObjectDecl fl ->
 			block_el bb (List.map snd fl)
 		| TFor _ | TWhile(_,_,DoWhile) ->
-			assert false
+			die "" __LOC__
 	and block_el bb el =
 		match !b_try_stack with
 		| [] ->
@@ -735,10 +737,15 @@ and func ctx i =
 					false
 			in
 			begin match e1.eexpr,e2.eexpr with
-				| TLocal v1,TLocal v2 when v1 == v2 && not v1.v_capture && is_valid_assign_op op ->
+				| TLocal v1,TLocal v2 when v1 == v2 && not (has_var_flag v1 VCaptured) && is_valid_assign_op op ->
 					begin match op,e3.eexpr with
-						| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Increment,Prefix,e1)}
-						| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
+						| (OpAdd|OpSub) as op,TConst (TInt i32) when Int32.to_int i32 = 1 && ExtType.is_numeric (Abstract.follow_with_abstracts v1.v_type) ->
+							let op = match op with
+								| OpAdd -> Increment
+								| OpSub -> Decrement
+								| _ -> die "" __LOC__
+							in
+							{e with eexpr = TUnop(op,Prefix,e1)}
 						| _ -> {e with eexpr = TBinop(OpAssignOp op,e1,e3)}
 					end
 				| _ ->

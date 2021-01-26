@@ -19,72 +19,82 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	private var h:Dynamic;
 
-	private var h : Dynamic;
-
-	public inline function new() : Void {
+	public inline function new():Void {
 		h = {};
 	}
 
-	public inline function set( key : Int, value : T ) : Void {
+	public inline function set(key:Int, value:T):Void {
 		h[key] = value;
 	}
 
-	public inline function get( key : Int ) : Null<T> {
+	public inline function get(key:Int):Null<T> {
 		return h[key];
 	}
 
-	public inline function exists( key : Int ) : Bool {
+	public inline function exists(key:Int):Bool {
 		return (cast h).hasOwnProperty(key);
 	}
 
-	public function remove( key : Int ) : Bool {
-		if( !(cast h).hasOwnProperty(key) ) return false;
+	public function remove(key:Int):Bool {
+		if (!(cast h).hasOwnProperty(key))
+			return false;
 		js.Syntax.delete(h, key);
 		return true;
 	}
 
-	public function keys() : Iterator<Int> {
+	public function keys():Iterator<Int> {
 		var a = [];
-		untyped __js__("for( var key in {0} ) {1}", h, if( h.hasOwnProperty(key) ) a.push(key|0));
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}.push(key | 0)", h, a);
 		return a.iterator();
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
+			ref: h,
+			it: keys(),
+			hasNext: function() {
+				return __this__.it.hasNext();
+			},
+			next: function() {
+				var i = __this__.it.next();
+				return __this__.ref[i];
+			}
 		};
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : IntMap<T> {
+	public function copy():IntMap<T> {
 		var copied = new IntMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
+	public inline function clear():Void {
+		h = {};
+	}
 }

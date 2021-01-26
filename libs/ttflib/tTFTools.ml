@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *)
-
+open Extlib_leftovers
 open TTFData
 
 type glyf_transformation_matrix = {
@@ -210,7 +210,7 @@ let parse_range_str str =
 	let range = ref false in
 	let lut = Hashtbl.create 0 in
 	UTF8.iter (fun code ->
-		let code = UChar.code code in
+		let code = UCharExt.code code in
 		if code = Char.code '-' && !last <> Char.code '\\' then
 			range := true
 		else if !range then begin

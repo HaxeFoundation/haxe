@@ -19,25 +19,27 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.json;
 
 import python.Tuple;
 
 typedef JSONEncoderOptions = {
-	var ?skipkeys : Bool;
-	var ?ensure_ascii : Bool;
-	var ?check_circular : Bool;
-	var ?allow_nan : Bool;
+	var ?skipkeys:Bool;
+	var ?ensure_ascii:Bool;
+	var ?check_circular:Bool;
+	var ?allow_nan:Bool;
 	var ?sort_keys:Bool;
-	var ?indent : String;
-	var ?separators:Tuple2<String,String>;
+	var ?indent:String;
+	var ?separators:Tuple2<String, String>;
 	@:native("default") var ?def:Dynamic->String;
 }
+
 @:pythonImport("json", "JSONEncoder")
 extern class JSONEncoder {
-	public function new (?options:KwArgs<JSONEncoderOptions>):Void;
+	function new(?options:KwArgs<JSONEncoderOptions>):Void;
 
-	@:native("default") public function def (o:Dynamic):Dynamic;
+	@:native("default") function def(o:Dynamic):Dynamic;
 
-	public function encode (o:Dynamic):String;
+	function encode(o:Dynamic):String;
 }

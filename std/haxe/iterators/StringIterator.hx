@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.iterators;
 
 /**
@@ -49,6 +50,6 @@ class StringIterator {
 		See `Iterator.next`
 	**/
 	public inline function next() {
-		return StringTools.fastCodeAt(s, offset++);
+		return StringTools.unsafeCodeAt(s, offset++);
 	}
 }

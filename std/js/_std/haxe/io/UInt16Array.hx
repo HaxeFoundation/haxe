@@ -19,68 +19,70 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 typedef UInt16ArrayData = js.lib.Uint16Array;
 
 @:coreApi
 abstract UInt16Array(UInt16ArrayData) {
-
 	public static inline var BYTES_PER_ELEMENT = 2;
-	public var length(get,never) : Int;
-	public var view(get,never) : ArrayBufferView;
 
-	public inline function new( elements : Int ) {
+	public var length(get, never):Int;
+	public var view(get, never):ArrayBufferView;
+
+	public inline function new(elements:Int) {
 		this = new UInt16ArrayData(elements);
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return this.length;
 	}
 
-	public inline function get_view() : ArrayBufferView {
+	public inline function get_view():ArrayBufferView {
 		return ArrayBufferView.fromData(this);
 	}
 
-	@:arrayAccess public inline function get( index : Int ) : Int {
+	@:arrayAccess public inline function get(index:Int):Int {
 		return this[index];
 	}
 
-	@:arrayAccess public inline function set( index : Int, value : Int ) : Int {
-		return this[index] = value & 0xFFFF; // &0xFFFF necessary for html compat
+	@:arrayAccess public inline function set(index:Int, value:Int):Int {
+		return this[index] = value;
 	}
 
-	public inline function sub( begin : Int, ?length : Int ) : UInt16Array {
-		return fromData(this.subarray(begin, length == null ? this.length : begin+length));
+	public inline function sub(begin:Int, ?length:Int):UInt16Array {
+		return fromData(this.subarray(begin, length == null ? this.length : begin + length));
 	}
 
-	public inline function subarray( ?begin : Int, ?end : Int ) : UInt16Array {
+	public inline function subarray(?begin:Int, ?end:Int):UInt16Array {
 		return fromData(this.subarray(begin, end));
 	}
 
-	public inline function getData() : UInt16ArrayData {
+	public inline function getData():UInt16ArrayData {
 		return this;
 	}
 
-	public static inline function fromData( d : UInt16ArrayData ) : UInt16Array {
+	public static inline function fromData(d:UInt16ArrayData):UInt16Array {
 		return cast d;
 	}
 
-	public static function fromArray( a : Array<Int>, pos : Int = 0, ?length : Int ) : UInt16Array {
-		if( length == null ) length = a.length - pos;
-		if( pos < 0 || length < 0 || pos + length > a.length ) throw Error.OutsideBounds;
-		if( pos == 0 && length == a.length )
+	public static function fromArray(a:Array<Int>, pos:Int = 0, ?length:Int):UInt16Array {
+		if (length == null)
+			length = a.length - pos;
+		if (pos < 0 || length < 0 || pos + length > a.length)
+			throw Error.OutsideBounds;
+		if (pos == 0 && length == a.length)
 			return fromData(new UInt16ArrayData(a));
 		var i = new UInt16Array(a.length);
-		for( idx in 0...length )
+		for (idx in 0...length)
 			i[idx] = a[idx + pos];
 		return i;
 	}
 
-	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : UInt16Array {
-		if( length == null ) length = (bytes.length - bytePos) >> 1;
+	public static function fromBytes(bytes:haxe.io.Bytes, bytePos:Int = 0, ?length:Int):UInt16Array {
+		if (length == null)
+			length = (bytes.length - bytePos) >> 1;
 		return fromData(new UInt16ArrayData(bytes.getData(), bytePos, length));
 	}
-
 }
-

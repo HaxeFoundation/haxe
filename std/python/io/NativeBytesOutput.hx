@@ -19,36 +19,32 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.io;
 
 import haxe.io.Output;
-
 import python.Bytearray;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 
-class NativeBytesOutput extends NativeOutput<RawIOBase>{
-
-	public function new (stream:RawIOBase) {
+class NativeBytesOutput extends NativeOutput<RawIOBase> {
+	public function new(stream:RawIOBase) {
 		super(stream);
 	}
 
-	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
-	{
+	public function seek(p:Int, pos:sys.io.FileSeek):Void {
 		return IoTools.seekInBinaryMode(stream, p, pos);
 	}
 
-	override public function prepare(nbytes:Int):Void
-	{
+	override public function prepare(nbytes:Int):Void {
 		stream.truncate(nbytes);
 	}
 
-	override public function writeByte(c:Int):Void
-	{
+	override public function writeByte(c:Int):Void {
 		stream.write(new Bytearray([c]));
 	}
 
-	override function writeBytes( s : haxe.io.Bytes, pos : Int, len : Int ) : Int {
+	override function writeBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int {
 		return stream.write(python.Syntax.code("{0}[{1}:{2}]", s.getData(), pos, pos + len));
 	}
 }

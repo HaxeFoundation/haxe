@@ -30,11 +30,11 @@ let add_static c cf =
 let add_field c cf override =
 	c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 	c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-	if override then c.cl_overrides <- cf :: c.cl_overrides
+	if override then add_class_field_flag cf CfOverride
 
 let add_meta com en cl_enum =
 	Option.may (fun expr ->
-		let cf_meta = mk_field "__meta__" expr.etype expr.epos expr.epos in
+		let cf_meta = mk_field ~static:true "__meta__" expr.etype expr.epos expr.epos in
 		cf_meta.cf_expr <- Some expr;
 		add_static cl_enum cf_meta;
 	) (Texpr.build_metadata com.basic (TEnumDecl en));
@@ -54,7 +54,7 @@ module EnumToClass2Modf = struct
 		(* create the class *)
 		let cl_enum = mk_class en.e_module en.e_path pos in
 		cl_enum.cl_super <- Some (base_class,[]);
-		cl_enum.cl_extern <- en.e_extern;
+		if en.e_extern then add_class_flag cl_enum CExtern;
 		cl_enum.cl_meta <- [(Meta.Enum,[],pos); (Meta.NativeGen,[],pos)] @ cl_enum.cl_meta;
 
 		(* mark the enum that it's generated as a class *)
@@ -69,7 +69,7 @@ module EnumToClass2Modf = struct
 		(* add constructs field (for reflection) *)
 		if has_feature gen.gcon "Type.getEnumConstructs" then begin
 			let e_constructs = mk_array_decl basic.tstring (List.map (fun s -> make_string gen.gcon.basic s pos) en.e_names) pos in
-			let cf_constructs = mk_field "__hx_constructs" e_constructs.etype pos pos in
+			let cf_constructs = mk_field ~static:true "__hx_constructs" e_constructs.etype pos pos in
 			cf_constructs.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
 			cf_constructs.cf_meta <- (Meta.ReadOnly,[],pos) :: (Meta.Protected,[],pos) :: cf_constructs.cf_meta;
 			cf_constructs.cf_expr <- Some e_constructs;
@@ -85,7 +85,7 @@ module EnumToClass2Modf = struct
 		let e_pack, e_name = en.e_path in
 		let cl_enum_t = TInst (cl_enum, []) in
 		let cf_getTag_t = tfun [] basic.tstring in
-		let cf_getParams_ret = basic.tarray (mk_anon PMap.empty) in
+		let cf_getParams_ret = basic.tarray (mk_anon (ref Closed)) in
 		let cf_getParams_t = tfun [] cf_getParams_ret in
 		let static_ctors = ref [] in
 		let ctors_map = ref PMap.empty in
@@ -94,7 +94,7 @@ module EnumToClass2Modf = struct
 			let pos = ef.ef_pos in
 
 			let cl_ctor = mk_class en.e_module (e_pack, e_name ^ "_" ^ name) pos in
-			cl_ctor.cl_final <- true;
+			add_class_flag cl_ctor CFinal;
 			cl_ctor.cl_super <- Some (cl_enum, []);
 			cl_ctor.cl_meta <- [
 				(Meta.Enum,[],pos);
@@ -192,7 +192,7 @@ module EnumToClass2Modf = struct
 					};
 					add_field cl_ctor cf_toString true;
 
-					let cf_static_ctor = mk_class_field name ef_type true pos (Method MethNormal) [] in
+					let cf_static_ctor = mk_class_field ~static:true name ef_type true pos (Method MethNormal) [] in
 					cf_static_ctor.cf_expr <- Some {
 						eexpr = TFunction {
 							tf_args = !static_ctor_args;
@@ -273,7 +273,7 @@ module EnumToClass2Modf = struct
 					};
 					cl_ctor.cl_constructor <- Some cf_ctor;
 
-					let cf_static_inst = mk_class_field name cl_enum_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+					let cf_static_inst = mk_class_field ~static:true name cl_enum_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					cf_static_inst.cf_meta <- [Meta.ReadOnly,[],pos];
 					cf_static_inst.cf_expr <- Some {
 						eexpr = TNew(cl_ctor, [], []);
@@ -379,7 +379,7 @@ module EnumToClass2Exprf = struct
 				| TFun (params, _) ->
 					let fname, _, _ = List.nth params i in
 					field ecast fname e.etype e.epos
-				| _ -> assert false)
+				| _ -> Globals.die "" __LOC__)
 			| _ ->
 				Type.map_expr run e
 		in

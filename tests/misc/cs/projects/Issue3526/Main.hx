@@ -10,8 +10,8 @@ import haxe.Constraints.Constructible;
 class TestCs {
     extern public static function testClass<T:CsClass>(t:T):Void;
     extern public static function testStruct<T:CsStruct>(t:T):Void;
-    extern public static function testConstructible<T:Constructible<Void->Void>>(t:T):Void;
-    extern public static function testConstructibleClass<T:Constructible<Void->Void> & CsClass>(t:T):Void;
+    extern public static function testConstructible<T:Constructible<()->Void>>(t:T):Void;
+    extern public static function testConstructibleClass<T:Constructible<()->Void> & CsClass>(t:T):Void;
 }
 
 @:nativeGen
@@ -32,8 +32,8 @@ class Main {
 
     static function testClass<T:CsClass>(value:T) TestCs.testClass(value);
     static function testStruct<T:CsStruct>(value:T) TestCs.testStruct(value);
-    static function testConstructible<T:Constructible<Void->Void>>(value:T) TestCs.testConstructible(value);
-    static function testConstructibleClass<T:Constructible<Void->Void> & CsClass>(value:T) TestCs.testConstructibleClass(value);
+    static function testConstructible<T:Constructible<()->Void>>(value:T) TestCs.testConstructible(value);
+    static function testConstructibleClass<T:Constructible<()->Void> & CsClass>(value:T) TestCs.testConstructibleClass(value);
 }
 
 @:nativeGen
@@ -49,13 +49,13 @@ class Struct<T:CsStruct> {
 }
 
 @:nativeGen
-class Constructible_<T:Constructible<Void->Void>> {
+class Constructible_<T:Constructible<()->Void>> {
     public var value:T;
     public function new(value:T) this.value = value;
 }
 
 @:nativeGen
-class ConstructibleClass<T:Constructible<Void->Void> & CsClass> {
+class ConstructibleClass<T:Constructible<()->Void> & CsClass> {
     public var value:T;
     public function new(value:T) this.value = value;
 }

@@ -125,14 +125,14 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 			| _ -> ())
 		| _ -> ()) ctor_types;
 		let me = alloc_var "__hx_this" (TInst(cl, List.map snd ctor_types)) in
-		me.v_capture <- true;
+		add_var_flag me VCaptured;
 
 		let fn_args, _ = get_fun ctor.cf_type in
 		let ctor_params = List.map snd ctor_types in
 		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, com.basic.tvoid) in
 		let cur_tf_args = match ctor.cf_expr with
 		| Some { eexpr = TFunction(tf) } -> tf.tf_args
-		| _ -> assert false
+		| _ -> Globals.die "" __LOC__
 		in
 
 		let changed_tf_args = List.map (fun (v,_) -> (v,None)) cur_tf_args in
@@ -140,13 +140,13 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let local_map = Hashtbl.create (List.length cur_tf_args) in
 		let static_tf_args = (me, None) :: List.map (fun (v,b) ->
 			let new_v = alloc_var v.v_name (apply_params cl.cl_params ctor_params v.v_type) in
-			new_v.v_capture <- v.v_capture;
+			add_var_flag new_v VCaptured;
 			Hashtbl.add local_map v.v_id new_v;
 			(new_v, b)
 		) cur_tf_args in
 
-		let static_ctor = mk_class_field static_ctor_name fn_type false ctor.cf_pos (Method MethNormal) ctor_types in
-		let static_ctor_meta = if cl.cl_final then Meta.Private else Meta.Protected in
+		let static_ctor = mk_class_field ~static:true static_ctor_name fn_type false ctor.cf_pos (Method MethNormal) ctor_types in
+		let static_ctor_meta = if has_class_flag cl CFinal then Meta.Private else Meta.Protected in
 		static_ctor.cf_meta <- (static_ctor_meta,[],ctor.cf_pos) :: static_ctor.cf_meta;
 
 		(* change ctor contents to reference the 'me' var instead of 'this' *)
@@ -185,7 +185,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let expr = match expr.eexpr with
 		| TFunction(tf) ->
 			{ expr with etype = fn_type; eexpr = TFunction({ tf with tf_args = static_tf_args }) }
-		| _ -> assert false in
+		| _ -> Globals.die "" __LOC__ in
 		static_ctor.cf_expr <- Some expr;
 		(* add to the statics *)
 		(try
@@ -217,7 +217,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 				epos = p
 			}] in
 			ctor.cf_expr <- Some { e with eexpr = TFunction({ tf with tf_expr = { tf.tf_expr with eexpr = TBlock block_contents }; tf_args = changed_tf_args }) }
-		| _ -> assert false
+		| _ -> Globals.die "" __LOC__
 
 (* makes constructors that only call super() for the 'ctor' argument *)
 let clone_ctors com ctor sup stl cl =
@@ -257,10 +257,10 @@ let clone_ctors com ctor sup stl cl =
 	match clones with
 	| [] ->
 		(* raise Not_found *)
-		assert false (* should never happen *)
+		Globals.die "" __LOC__ (* should never happen *)
 	| cf :: [] -> cf
 	| cf :: overl ->
-		cf.cf_meta <- (Meta.Overload,[],cf.cf_pos) :: cf.cf_meta;
+		add_class_field_flag cf CfOverload;
 		cf.cf_overloads <- overl; cf
 
 let rec descends_from_native_or_skipctor cl =
@@ -284,7 +284,7 @@ let ensure_super_is_first com cf =
 
 let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t -> t) =
 	let basic = com.basic in
-	let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
+	let should_change cl = not (has_class_flag cl CInterface) && (not (has_class_flag cl CExtern) || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) in
 	let msize = List.length com.types in
 	let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
 
@@ -331,15 +331,22 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 							cl.cl_constructor <- Some ctor;
 							ctor
 				in
+
+				let has_super_constructor =
+					match cl.cl_super with
+						| None -> false
+						| Some (csup,_) -> has_constructor csup
+				in
+
 				(* now that we made sure we have a constructor, exit if native gen *)
 				if not (is_hxgen (TClassDecl cl)) || Meta.has Meta.SkipCtor cl.cl_meta then begin
-					if descends_from_native_or_skipctor cl && is_some cl.cl_super then
+					if descends_from_native_or_skipctor cl && has_super_constructor then
 						List.iter (fun cf -> ensure_super_is_first com cf) (ctor :: ctor.cf_overloads);
 					raise Exit
 				end;
 
 				(* if cl descends from a native class, we cannot use the static constructor strategy *)
-				if descends_from_native_or_skipctor cl && is_some cl.cl_super then
+				if descends_from_native_or_skipctor cl && has_super_constructor then
 					List.iter (fun cf -> ensure_super_is_first com cf) (ctor :: ctor.cf_overloads)
 				else
 					(* now that we have a current ctor, create the static counterparts *)

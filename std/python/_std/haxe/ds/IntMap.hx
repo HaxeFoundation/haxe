@@ -19,67 +19,73 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import python.Dict;
 import python.Syntax;
 
 class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
-	private var h : Dict<Int, T>;
+	private var h:Dict<Int, T>;
 
-	public function new() : Void {
+	public function new():Void {
 		h = new Dict();
 	}
 
-	public function set( key : Int, value : T ) : Void {
+	public function set(key:Int, value:T):Void {
 		h.set(key, value);
 	}
 
-	public inline function get( key : Int ) : Null<T> {
+	public inline function get(key:Int):Null<T> {
 		return h.get(key, null);
 	}
 
-	public inline function exists( key : Int ) : Bool {
+	public inline function exists(key:Int):Bool {
 		return h.hasKey(key);
 	}
 
-	public function remove( key : Int ) : Bool
-	{
-		if(!h.hasKey(key)) return false;
+	public function remove(key:Int):Bool {
+		if (!h.hasKey(key))
+			return false;
 		Syntax.delete(Syntax.arrayAccess(h, key));
 		return true;
 	}
 
-	public function keys() : Iterator<Int> {
+	public function keys():Iterator<Int> {
 		return h.keys().iter();
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		return h.values().iter();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : IntMap<T> {
+	public function copy():IntMap<T> {
 		var copied = new IntMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	public inline function clear():Void {
+		h.clear();
 	}
 }

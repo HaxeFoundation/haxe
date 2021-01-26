@@ -21,68 +21,66 @@
  */
 
 package lua.lib.lrexlib;
+
 import haxe.extern.EitherType;
 
 @:luaRequire("rex_pcre")
 extern class Rex {
-
-	inline public static function create(expr : String, flag : EitherType<Int,String>) : Rex{
+	inline static function create(expr:String, flag:EitherType<Int, String>):Rex {
 		return untyped Rex['new'](expr, flag);
 	}
 
 	/**
-	  The function searches for the first match of the regexp `patt` in the
-	  string `subj`, starting from offset `init`, subject to flags `cf` and `ef`.
+		The function searches for the first match of the regexp `patt` in the
+		string `subj`, starting from offset `init`, subject to flags `cf` and `ef`.
 
-	  @return matched string, or array of strings.
-	 **/
-	public static function match(patt : EitherType<Rex,String>, subj : String, ?init : Int, ?ef : Int) : Dynamic;
-
-	/**
-	 The function searches for the first match of the regexp patt in the string
-	 `subj`, starting from offset `init`, subject to flags `cf` and `ef`.
-	 **/
-	public static function find(patt : EitherType<Rex,String>, subj : String, ?init : Int, ?ef : Int) : Dynamic;
-
-
-	/**
-	 The function is intended for use in the generic for Lua construct. It is
-	 used for splitting a subject string `subj` into parts (sections). The `sep`
-	 parameter is a regular expression pattern representing separators between
-	 the sections.
-	 **/
-	public static function split( subj : String, sep : EitherType<Rex,String>, ?cf : Int, ?ef : Int) : Void->String;
-
-
-	/**
-	  This function counts matches of the pattern `patt` in the string `subj`.
+		@return matched string, or array of strings.
 	**/
-	public static function count(subj : String, patt : EitherType<Rex,String>, cf : Int, ef : Int) : Dynamic;
-	public static function flags(?tb:Dynamic) : Dynamic;
-
-  /**
-    The function searches for the first match of the regexp in the string
-    `subj`, starting from offset `init`, subject to execution flags `ef`.
-  **/
-	public function tfind(subj : String, ?init : Int, ?ef : Int) : Dynamic;
+	static function match(patt:EitherType<Rex, String>, subj:String, ?init:Int, ?ef:Int):Dynamic;
 
 	/**
-	  This function searches for the first match of the regexp in the string
-	  `subj`, starting from offset `init`, subject to execution flags `ef`.
+		The function searches for the first match of the regexp patt in the string
+		`subj`, starting from offset `init`, subject to flags `cf` and `ef`.
 	**/
-	public function exec(subj : String, ?init : Int, ?ef : Int) : Dynamic;
+	static function find(patt:EitherType<Rex, String>, subj:String, ?init:Int, ?ef:Int):Dynamic;
 
 	/**
-	 The function is intended for use in the generic for Lua construct. It
-	 returns an iterator for repeated matching of the pattern patt in the
-	 string `subj`, subject to flags `cf` and `ef`.
-	 **/
-	public static function gmatch(subj : String, patt : EitherType<Rex,String>, ?cf : Int, ?ef : Int) : Void->String;
+		The function is intended for use in the generic for Lua construct. It is
+		used for splitting a subject string `subj` into parts (sections). The `sep`
+		parameter is a regular expression pattern representing separators between
+		the sections.
+	**/
+	static function split(subj:String, sep:EitherType<Rex, String>, ?cf:Int, ?ef:Int):Void->String;
 
 	/**
-	  This function searches for all matches of the pattern `patt` in the string
-    `subj` and replaces them according to the parameters `repl` and `n`.
-	 **/
-	public static function gsub(subj : String, patt : EitherType<Rex,String>, repl: Dynamic, ?n: Int, ?cf : Int, ?ef : Int) : String;
+		This function counts matches of the pattern `patt` in the string `subj`.
+	**/
+	static function count(subj:String, patt:EitherType<Rex, String>, cf:Int, ef:Int):Dynamic;
+
+	static function flags(?tb:Dynamic):Dynamic;
+
+	/**
+		The function searches for the first match of the regexp in the string
+		`subj`, starting from offset `init`, subject to execution flags `ef`.
+	**/
+	function tfind(subj:String, ?init:Int, ?ef:Int):Dynamic;
+
+	/**
+		This function searches for the first match of the regexp in the string
+		`subj`, starting from offset `init`, subject to execution flags `ef`.
+	**/
+	function exec(subj:String, ?init:Int, ?ef:Int):Dynamic;
+
+	/**
+		The function is intended for use in the generic for Lua construct. It
+		returns an iterator for repeated matching of the pattern patt in the
+		string `subj`, subject to flags `cf` and `ef`.
+	**/
+	static function gmatch(subj:String, patt:EitherType<Rex, String>, ?cf:Int, ?ef:Int):Void->String;
+
+	/**
+		  This function searches for all matches of the pattern `patt` in the string
+		`subj` and replaces them according to the parameters `repl` and `n`.
+	**/
+	static function gsub(subj:String, patt:EitherType<Rex, String>, repl:Dynamic, ?n:Int, ?cf:Int, ?ef:Int):String;
 }
-

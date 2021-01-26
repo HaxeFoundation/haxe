@@ -19,71 +19,72 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys;
 
 import lua.Io;
-import lua.Os;
-import lua.Lib;
-import lua.Table;
 import haxe.io.Path;
 import lua.lib.luv.fs.FileSystem as LFileSystem;
 
 class FileSystem {
-	public static function exists( path : String ) : Bool {
-		if (path == null) return false;
-		else{
+	public static function exists(path:String):Bool {
+		if (path == null)
+			return false;
+		else {
 			var res = LFileSystem.stat(path);
 			return res.result != null;
 		}
 	}
 
-	public inline static function rename( path : String, newPath : String ) : Void {
-		var ret = Os.rename(path, newPath);
-		if (!ret.success){
+	public inline static function rename(path:String, newPath:String):Void {
+		var ret = lua.Os.rename(path, newPath);
+		if (!ret.success) {
 			throw ret.message;
 		}
 	}
 
-	public inline static function stat( path : String ) : FileStat {
-		var ls =  LFileSystem.stat(path);
-		if (ls.result == null) throw ls.message;
+	public inline static function stat(path:String):FileStat {
+		var ls = LFileSystem.stat(path);
+		if (ls.result == null)
+			throw ls.message;
 		var l = ls.result;
 		return {
-			gid   : l.gid,
-			uid   : l.uid,
-			rdev  : l.rdev,
-			size  : l.size,
-			nlink : l.nlink,
-			mtime : Date.fromTime(l.mtime.sec + l.mtime.nsec/1000000),
-			mode  : l.mode,
-			ino   : l.ino,
-			dev   : l.dev,
-			ctime : Date.fromTime(l.ctime.sec + l.ctime.nsec/1000000),
-			atime : Date.fromTime(l.atime.sec + l.atime.nsec/1000000)
+			gid: l.gid,
+			uid: l.uid,
+			rdev: l.rdev,
+			size: l.size,
+			nlink: l.nlink,
+			mtime: Date.fromTime(l.mtime.sec + l.mtime.nsec / 1000000),
+			mode: l.mode,
+			ino: l.ino,
+			dev: l.dev,
+			ctime: Date.fromTime(l.ctime.sec + l.ctime.nsec / 1000000),
+			atime: Date.fromTime(l.atime.sec + l.atime.nsec / 1000000)
 		};
 	}
 
-	public inline static function fullPath( relPath : String ) : String {
+	public inline static function fullPath(relPath:String):String {
 		return LFileSystem.realpath(Path.normalize(absolutePath(relPath)));
 	}
 
-	public inline static function absolutePath( relPath : String ) : String {
+	public inline static function absolutePath(relPath:String):String {
 		if (haxe.io.Path.isAbsolute(relPath)) {
 			return relPath;
 		}
 		var pwd = lua.lib.luv.Misc.cwd();
-		if (pwd == null) return relPath;
+		if (pwd == null)
+			return relPath;
 		return Path.join([pwd, relPath]);
 	}
 
-	public inline static function deleteFile( path : String ) : Void {
+	public inline static function deleteFile(path:String):Void {
 		var ret = lua.Os.remove(path);
-		if (!ret.success){
+		if (!ret.success) {
 			throw ret.message;
 		}
 	}
 
-	public inline static function readDirectory( path : String ) : Array<String> {
+	public inline static function readDirectory(path:String):Array<String> {
 		var scandir = LFileSystem.scandir(path);
 
 		var itr = function() {
@@ -93,21 +94,22 @@ class FileSystem {
 		return lua.Lib.fillArray(itr);
 	}
 
-	public inline static function isDirectory( path : String ) : Bool {
+	public inline static function isDirectory(path:String):Bool {
 		var result = LFileSystem.stat(path).result;
-		if (result == null) return false;
-		else return result.type ==  "directory";
+		if (result == null)
+			return false;
+		else
+			return result.type == "directory";
 	}
 
-	public inline static function deleteDirectory( path : String ) : Void {
+	public inline static function deleteDirectory(path:String):Void {
 		var ret = LFileSystem.rmdir(path);
-		if (ret.result == null){
+		if (ret.result == null) {
 			throw ret.message;
 		}
 	}
 
-	public static function createDirectory( path : String ) : Void {
-
+	public static function createDirectory(path:String):Void {
 		var path = haxe.io.Path.addTrailingSlash(path);
 		var _p = null;
 		var parts = [];
@@ -116,7 +118,7 @@ class FileSystem {
 			path = _p;
 		}
 		for (part in parts) {
-			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !LFileSystem.mkdir( part, 511 ).result)
+			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !LFileSystem.mkdir(part, 511).result)
 				throw "Could not create directory:" + part;
 		}
 	}

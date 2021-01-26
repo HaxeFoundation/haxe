@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 private class SqliteConnection implements Connection {
+	var c:Dynamic;
 
-	var c : Dynamic;
-
-	public function new( file : String ) {
+	public function new(file:String) {
 		c = _connect(file);
 	}
 
@@ -33,47 +33,45 @@ private class SqliteConnection implements Connection {
 		_close(c);
 	}
 
-	public function request( s : String ) : ResultSet {
+	public function request(s:String):ResultSet {
 		try {
-			return new SqliteResultSet(_request(c,s));
-		} catch( e : String ) {
-			throw "Error while executing "+s+" ("+e+")";
+			return new SqliteResultSet(_request(c, s));
+		} catch (e:String) {
+			throw "Error while executing " + s + " (" + e + ")";
 		}
 	}
 
-	public function escape( s : String ) {
+	public function escape(s:String) {
 		return s.split("'").join("''");
 	}
 
-	public function quote( s : String ) {
-		if( s.indexOf("\000") >= 0 )
-      {
-         var hexChars = new Array<String>();
-         for(i in 0...s.length)
-           hexChars.push( StringTools.hex( StringTools.fastCodeAt(s,i),2 ) );
-			return "x'"+ hexChars.join("") +"'";
-      }
-		return "'"+s.split("'").join("''")+"'";
+	public function quote(s:String) {
+		if (s.indexOf("\000") >= 0) {
+			var hexChars = new Array<String>();
+			for (i in 0...s.length)
+				hexChars.push(StringTools.hex(StringTools.fastCodeAt(s, i), 2));
+			return "x'" + hexChars.join("") + "'";
+		}
+		return "'" + s.split("'").join("''") + "'";
 	}
 
-	public function addValue( s : StringBuf, v : Dynamic ) {
+	public function addValue(s:StringBuf, v:Dynamic) {
 		if (v == null) {
 			s.add(v);
-      }
-      else if (Std.is(v,Bool)) {
-				s.add( v ? 1 : 0 );
-			} else {
+		} else if (Std.isOfType(v, Bool)) {
+			s.add(v ? 1 : 0);
+		} else {
 			var t:Int = untyped v.__GetType();
-			if( t == 0xff )
+			if (t == 0xff)
 				s.add(v);
-			else if( t == 2 )
-				s.add( untyped v.__GetInt() );
+			else if (t == 2)
+				s.add(untyped v.__GetInt());
 			else
 				s.add(quote(Std.string(v)));
 		}
 	}
 
-	public function lastInsertId() : Int{
+	public function lastInsertId():Int {
 		return _last_id(c);
 	}
 
@@ -87,45 +85,43 @@ private class SqliteConnection implements Connection {
 
 	public function commit() {
 		request("COMMIT");
-		startTransaction(); // match mysql usage
 	}
 
 	public function rollback() {
 		request("ROLLBACK");
-		startTransaction(); // match mysql usage
 	}
 
-
-   @:native("_hx_sqlite_connect")
+	@:native("_hx_sqlite_connect")
 	extern public static function _connect(filename:String):Dynamic;
-   @:native("_hx_sqlite_request")
-	extern public static function _request(handle:Dynamic,req:String):Dynamic;
-   @:native("_hx_sqlite_close")
-	extern public static function _close(handle:Dynamic):Void;
-   @:native("_hx_sqlite_last_insert_id")
-	extern public static function _last_id(handle:Dynamic):Int;
 
+	@:native("_hx_sqlite_request")
+	extern public static function _request(handle:Dynamic, req:String):Dynamic;
+
+	@:native("_hx_sqlite_close")
+	extern public static function _close(handle:Dynamic):Void;
+
+	@:native("_hx_sqlite_last_insert_id")
+	extern public static function _last_id(handle:Dynamic):Int;
 }
 
-
 private class SqliteResultSet implements ResultSet {
+	public var length(get, null):Int;
+	public var nfields(get, null):Int;
 
-	public var length(get,null) : Int;
-	public var nfields(get,null) : Int;
-	var r : Dynamic;
-	var cache : List<Dynamic>;
+	var r:Dynamic;
+	var cache:List<Dynamic>;
 
-	public function new( r:Dynamic ) {
+	public function new(r:Dynamic) {
 		cache = new List();
 		this.r = r;
 		hasNext(); // execute the request
 	}
 
 	function get_length() {
-		if( nfields != 0 ) {
-			while( true ) {
+		if (nfields != 0) {
+			while (true) {
 				var c = result_next(r);
-				if( c == null )
+				if (c == null)
 					break;
 				cache.add(c);
 			}
@@ -140,68 +136,68 @@ private class SqliteResultSet implements ResultSet {
 
 	public function hasNext() {
 		var c = next();
-		if( c == null )
+		if (c == null)
 			return false;
 		cache.push(c);
 		return true;
 	}
 
-	public function next() : Dynamic {
+	public function next():Dynamic {
 		var c = cache.pop();
-		if( c != null )
+		if (c != null)
 			return c;
 		return result_next(r);
 	}
 
-	public function results() : List<Dynamic> {
+	public function results():List<Dynamic> {
 		var l = new List();
-		while( true ) {
+		while (true) {
 			var c = next();
-			if( c == null )
+			if (c == null)
 				break;
 			l.add(c);
 		}
 		return l;
 	}
 
-	public function getResult( n : Int ) {
-		return new String(result_get(r,n));
+	public function getResult(n:Int) {
+		return new String(result_get(r, n));
 	}
 
-	public function getIntResult( n : Int ) : Int {
-		return result_get_int(r,n);
+	public function getIntResult(n:Int):Int {
+		return result_get_int(r, n);
 	}
 
-	public function getFloatResult( n : Int ) : Float {
-		return result_get_float(r,n);
+	public function getFloatResult(n:Int):Float {
+		return result_get_float(r, n);
 	}
 
-	public function getFieldsNames() : Array<String> {
-		return null;
+	public function getFieldsNames():Array<String> {
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
-
-
-    @:native("_hx_sqlite_result_next")
+	@:native("_hx_sqlite_result_next")
 	extern public static function result_next(handle:Dynamic):Dynamic;
-    @:native("_hx_sqlite_result_get_length")
-	extern public static function result_get_length(handle:Dynamic):Int;
-    @:native("_hx_sqlite_result_get_nfields")
-	extern public static function result_get_nfields(handle:Dynamic):Int;
-    @:native("_hx_sqlite_result_get")
-	extern public static function result_get(handle:Dynamic,i:Int) : String;
-    @:native("_hx_sqlite_result_get_int")
-	extern public static function result_get_int(handle:Dynamic,i:Int) : Int;
-    @:native("_hx_sqlite_result_get_float")
-	extern public static function result_get_float(handle:Dynamic,i:Int):Float;
 
+	@:native("_hx_sqlite_result_get_length")
+	extern public static function result_get_length(handle:Dynamic):Int;
+
+	@:native("_hx_sqlite_result_get_nfields")
+	extern public static function result_get_nfields(handle:Dynamic):Int;
+
+	@:native("_hx_sqlite_result_get")
+	extern public static function result_get(handle:Dynamic, i:Int):String;
+
+	@:native("_hx_sqlite_result_get_int")
+	extern public static function result_get_int(handle:Dynamic, i:Int):Int;
+
+	@:native("_hx_sqlite_result_get_float")
+	extern public static function result_get_float(handle:Dynamic, i:Int):Float;
 }
 
 @:buildXml('<include name="${HXCPP}/src/hx/libs/sqlite/Build.xml"/>')
 @:coreApi class Sqlite {
-
-	public static function open( file : String ) : Connection {
+	public static function open(file:String):Connection {
 		return new SqliteConnection(file);
 	}
-
 }

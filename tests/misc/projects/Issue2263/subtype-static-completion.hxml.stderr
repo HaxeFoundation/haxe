@@ -1,4 +1,4 @@
 <list>
 <i n="pubV" k="var"><t>Int</t><d></d></i>
-<i n="pubM" k="method"><t>Void -&gt; Void</t><d></d></i>
+<i n="pubM" k="method"><t>() -&gt; Void</t><d></d></i>
 </list>

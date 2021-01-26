@@ -19,107 +19,168 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package sys.thread;
-import java.Lib;
 
-abstract Thread(NativeThread) {
-	inline function new(t:NativeThread)
-	{
+package sys.thread;
+
+import java.Lib;
+import java.lang.Runnable;
+import java.util.WeakHashMap;
+import java.util.Collections;
+import java.lang.Thread as JavaThread;
+import java.lang.System;
+import java.StdTypes.Int64 as Long;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.LinkedBlockingDeque;
+
+abstract Thread(HaxeThread) from HaxeThread {
+	public var events(get,never):EventLoop;
+
+	inline function new(t:HaxeThread) {
 		this = t;
 	}
 
-	public static function create(callb:Void->Void):Thread
-	{
-		var ret = new NativeThread();
-		var t = new HaxeThread(ret, callb);
-		t.start();
-		return new Thread(ret);
+	public static inline function create(job:()->Void):Thread {
+		return HaxeThread.create(job, false);
 	}
 
-	public static function current():Thread
-	{
-		return new Thread(NativeThread.getThread( java.lang.Thread.currentThread() ));
+	public static inline function current():Thread {
+		return HaxeThread.get(JavaThread.currentThread());
 	}
 
-	public static function readMessage(block : Bool) : Dynamic
-	{
-		return current().getHandle().messages.pop(block);
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
 	}
 
-	public inline function sendMessage(msg:Dynamic):Void
-	{
+	public static inline function createWithEventLoop(job:()->Void):Thread {
+		return HaxeThread.create(job, true);
+	}
+
+	public static inline function readMessage(block:Bool):Dynamic {
+		return current().getHandle().readMessage(block);
+	}
+
+	public inline function sendMessage(msg:Dynamic):Void {
 		this.sendMessage(msg);
 	}
 
-	private inline function getHandle():NativeThread {
+	inline function getHandle():HaxeThread {
 		return this;
 	}
+
+	function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
+		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		@:privateAccess HaxeThread.get(JavaThread.currentThread()).events = new EventLoop();
+	}
+
+	@:keep //TODO: keep only if events are actually used
+	static function processEvents():Void {
+		current().getHandle().events.loop();
+	}
 }
 
-@:native('haxe.java.vm.Thread') private class NativeThread
-{
-	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, NativeThread>();
-	@:private static var mainJavaThread = java.lang.Thread.currentThread();
-	@:private static var mainHaxeThread = {
-		var ret = new NativeThread();
-		javaThreadToHaxe.set(mainJavaThread, ret);
-		ret;
-	};
+private class HaxeThread {
+	static final nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread,HaxeThread>());
+	static final mainJavaThread = JavaThread.currentThread();
+	static final mainHaxeThread = new HaxeThread();
 
-	public static function getThread(jt:java.lang.Thread):NativeThread
-	{
-		if (Std.is(jt, HaxeThread))
-		{
-			var t:HaxeThread = cast jt;
-			return t.threadObject;
-		}
-		else if (jt == mainJavaThread)
-		{
+	public final messages = new LinkedBlockingDeque<Dynamic>();
+
+	public var events(default,null):Null<EventLoop>;
+
+	public static function create(job:()->Void, withEventLoop:Bool):HaxeThread {
+		var hx = new HaxeThread();
+		if(withEventLoop)
+			hx.events = new EventLoop();
+		var thread = new NativeHaxeThread(hx, job, withEventLoop);
+		thread.setDaemon(true);
+		thread.start();
+		return hx;
+	}
+
+	public static function get(javaThread:JavaThread):HaxeThread {
+		if(javaThread == mainJavaThread) {
 			return mainHaxeThread;
-		}
-		else
-		{
-			var ret = null;
-			untyped __lock__(javaThreadToHaxe, {
-				ret = javaThreadToHaxe.get(jt);
-				if (ret == null)
-				{
-					ret = new NativeThread();
-					javaThreadToHaxe.set(jt, ret);
-				}
-
-			});
-			return ret;
+		} else if(javaThread is NativeHaxeThread) {
+			return (cast javaThread:NativeHaxeThread).haxeThread;
+		} else {
+			switch nativeThreads.get(javaThread) {
+				case null:
+					var hx = new HaxeThread();
+					nativeThreads.put(javaThread, hx);
+					return hx;
+				case hx:
+					return hx;
+			}
 		}
 	}
 
-	public var messages:Deque<Dynamic>;
-
-	public function new()
-	{
-		this.messages = new Deque();
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = get(JavaThread.currentThread());
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
 	}
 
-	public function sendMessage(msg:Dynamic):Void
-	{
+	function new() {}
+
+	public function sendMessage(msg:Dynamic):Void {
 		messages.add(msg);
 	}
+
+	public function readMessage(block:Bool):Dynamic {
+		return block ? messages.take() : messages.poll();
+	}
 }
 
-@:native('haxe.java.vm.HaxeThread')
-private class HaxeThread extends java.lang.Thread
-{
-	public var threadObject(default, null):NativeThread;
-	private var runFunction:Void->Void;
-	@:overload override public function run():Void
-	{
-		runFunction();
+private class NativeHaxeThread extends java.lang.Thread {
+	public final haxeThread:HaxeThread;
+	final withEventLoop:Bool;
+
+	public function new(haxeThread:HaxeThread, job:()->Void, withEventLoop:Bool) {
+		super(new Job(job));
+		this.haxeThread = haxeThread;
+		this.withEventLoop = withEventLoop;
 	}
-	public function new(hxThread:NativeThread, run:Void->Void)
-	{
-		super();
-		threadObject = hxThread;
-		runFunction = run;
-		setDaemon(true);
+
+	override overload public function run() {
+		super.run();
+		if(withEventLoop)
+			haxeThread.events.loop();
 	}
 }
+
+#if jvm
+private abstract Job(Runnable) from Runnable to Runnable {
+	public inline function new(job:()->Void) {
+		this = cast job;
+	}
+}
+#else
+private class Job implements Runnable {
+	final job:()->Void;
+
+	public function new(job:()->Void) {
+		this.job = job;
+	}
+
+	public function run() {
+		job();
+	}
+}
+#end

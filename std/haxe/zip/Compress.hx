@@ -19,27 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 class Compress {
-
-	public function new( level : Int ) {
-		throw "Not implemented for this platform";
+	public function new(level:Int) {
+		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform");
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
 		return null;
 	}
 
-	public function setFlushMode( f : FlushMode ) {
-	}
+	public function setFlushMode(f:FlushMode) {}
 
-	public function close() {
-	}
+	public function close() {}
 
-	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
-		throw "Not implemented for this platform";
+	public static function run(s:haxe.io.Bytes, level:Int):haxe.io.Bytes {
+		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform");
 		return null;
 	}
-
 }

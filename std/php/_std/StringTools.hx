@@ -25,59 +25,59 @@ import haxe.iterators.StringIterator;
 import haxe.iterators.StringKeyValueIterator;
 
 @:coreApi class StringTools {
-
-	public inline static function urlEncode( s : String ) : String {
+	public inline static function urlEncode(s:String):String {
 		return Global.rawurlencode(s);
 	}
 
-	public inline static function urlDecode( s : String ) : String {
+	public inline static function urlDecode(s:String):String {
 		return Global.urldecode(s);
 	}
 
-	public inline static function htmlEscape( s : String, ?quotes : Bool ) : String {
+	public inline static function htmlEscape(s:String, ?quotes:Bool):String {
 		return Global.htmlspecialchars(s, (quotes ? Const.ENT_QUOTES | Const.ENT_HTML401 : Const.ENT_NOQUOTES));
 	}
 
-	public inline static function htmlUnescape( s : String ) : String {
+	public inline static function htmlUnescape(s:String):String {
 		return Global.htmlspecialchars_decode(s, Const.ENT_QUOTES);
 	}
 
-	public inline static function contains(s : String, value : String) : Bool {
+	public inline static function contains(s:String, value:String):Bool {
 		return s.indexOf(value) != -1;
 	}
 
-	public static function startsWith( s : String, start : String ) : Bool {
+	public static function startsWith(s:String, start:String):Bool {
 		return start == '' || Global.substr(s, 0, Global.strlen(start)) == start;
 	}
 
-	public static function endsWith( s : String, end : String ) : Bool {
+	public static function endsWith(s:String, end:String):Bool {
 		return end == '' || Global.substr(s, -Global.strlen(end)) == end;
 	}
 
-	public static function isSpace( s : String, pos : Int ) : Bool {
-		var c = s.charCodeAt( pos );
+	public static function isSpace(s:String, pos:Int):Bool {
+		var c = s.charCodeAt(pos);
 		return (c >= 9 && c <= 13) || c == 32;
 	}
 
-	public inline static function ltrim( s : String ) : String {
+	public inline static function ltrim(s:String):String {
 		return Global.ltrim(s);
 	}
 
-	public inline static function rtrim( s : String ) : String {
+	public inline static function rtrim(s:String):String {
 		return Global.rtrim(s);
 	}
 
-	public inline static function trim( s : String ) : String {
+	public inline static function trim(s:String):String {
 		return Global.trim(s);
 	}
 
-	public static function rpad( s : String, c : String, l : Int ) : String {
+	public static function rpad(s:String, c:String, l:Int):String {
 		var cLength = c.length;
 		var sLength = s.length;
-		if (cLength == 0 || sLength >= l) return s;
+		if (cLength == 0 || sLength >= l)
+			return s;
 		var padLength = l - sLength;
 		var padCount = Syntax.int(padLength / cLength);
-		if(padCount > 0) {
+		if (padCount > 0) {
 			var result = Global.str_pad(s, Global.strlen(s) + padCount * Global.strlen(c), c, Const.STR_PAD_RIGHT);
 			return (padCount * cLength >= padLength) ? result : Syntax.concat(result, c);
 		} else {
@@ -85,13 +85,14 @@ import haxe.iterators.StringKeyValueIterator;
 		}
 	}
 
-	public static function lpad( s : String, c : String, l : Int ) : String {
+	public static function lpad(s:String, c:String, l:Int):String {
 		var cLength = c.length;
 		var sLength = s.length;
-		if (cLength == 0 || sLength >= l) return s;
+		if (cLength == 0 || sLength >= l)
+			return s;
 		var padLength = l - sLength;
 		var padCount = Syntax.int(padLength / cLength);
-		if(padCount > 0) {
+		if (padCount > 0) {
 			var result = Global.str_pad(s, Global.strlen(s) + padCount * Global.strlen(c), c, Const.STR_PAD_LEFT);
 			return (padCount * cLength >= padLength) ? result : Syntax.concat(c, result);
 		} else {
@@ -99,52 +100,44 @@ import haxe.iterators.StringKeyValueIterator;
 		}
 	}
 
-	public static function replace( s : String, sub : String, by : String ) : String {
+	public static function replace(s:String, sub:String, by:String):String {
 		if (sub == '') {
 			return Global.implode(by, Global.preg_split('//u', s, -1, Const.PREG_SPLIT_NO_EMPTY));
 		}
 		return Global.str_replace(sub, by, s);
 	}
 
-	public static function hex( n : Int, ?digits : Int ) : String {
+	public static function hex(n:Int, ?digits:Int):String {
 		var s = Global.dechex(n);
 		var len = 8;
 		if (Global.strlen(s) > (null == digits ? len : (len = digits > len ? digits : len)))
 			s = s.substr(-len);
-		else if ( digits != null )
+		else if (digits != null)
 			s = lpad(s, '0', digits);
 		return s.toUpperCase();
 	}
 
-	public static function fastCodeAt( s : String, index : Int ) : Int {
+	public static function fastCodeAt(s:String, index:Int):Int {
 		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
-		if(char == '') return 0;
+		if (char == '')
+			return 0;
 		return Boot.unsafeOrd(char);
 	}
 
-	/**
-		Returns an iterator of the char codes.
+	public static function unsafeCodeAt(s:String, index:Int):Int {
+		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
+		return Boot.unsafeOrd(char);
+	}
 
-		Note that char codes may differ across platforms because of different
-		internal encoding of strings in different runtimes.
-		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
-	**/
-	public static inline function iterator( s : String ) : StringIterator {
+	public static inline function iterator(s:String):StringIterator {
 		return new StringIterator(s);
 	}
 
-	/**
-		Returns an iterator of the char indexes and codes.
-
-		Note that char codes may differ across platforms because of different
-		internal encoding of strings in different of runtimes.
-		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
-	**/
-	public static inline function keyValueIterator( s : String ) : StringKeyValueIterator {
+	public static inline function keyValueIterator(s:String):StringKeyValueIterator {
 		return new StringKeyValueIterator(s);
 	}
 
-	@:noUsing public static inline function isEof( c : Int ) : Bool {
+	@:noUsing public static inline function isEof(c:Int):Bool {
 		return c == 0;
 	}
 
@@ -156,7 +149,7 @@ import haxe.iterators.StringKeyValueIterator;
 
 	@:noCompletion
 	@:deprecated('StringTools.winMetaCharacters is deprecated. Use haxe.SysTools.winMetaCharacters instead.')
-	public static var winMetaCharacters:Array<Int> =  cast haxe.SysTools.winMetaCharacters;
+	public static var winMetaCharacters:Array<Int> = cast haxe.SysTools.winMetaCharacters;
 
 	@:noCompletion
 	@:deprecated('StringTools.quoteWinArg() is deprecated. Use haxe.SysTools.quoteWinArg() instead.')

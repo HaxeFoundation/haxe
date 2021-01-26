@@ -1,4 +1,5 @@
 package lua.lib.luautf8;
+
 /**
 	These are all externs for the lua-utf8 library, which functions
 	as an additional set of string tools.
@@ -11,7 +12,7 @@ extern class Utf8 {
 		Receives a string and returns its length. The empty string `""` has
 		length `0`. Embedded zeros are counted, so `"a\000bc\000"` has length `5`.
 	**/
-	public static function len(str : String): Int;
+	static function len(str:String):Int;
 
 	/**
 		Receives zero or more integers. Returns a string with length equal to the
@@ -19,8 +20,7 @@ extern class Utf8 {
 		code equal to its corresponding argument.
 		Note that numerical codes are not necessarily portable across platforms.
 	**/
-	public static function char(codes: haxe.extern.Rest<Int>): String;
-
+	static function char(codes:haxe.extern.Rest<Int>):String;
 
 	/**
 		Returns the substring of `str` that starts at `start` and continues until `end`;
@@ -30,12 +30,12 @@ extern class Utf8 {
 		with length `end`, and `sub(str, -end)` returns a suffix of `str` with
 		length `start`.
 	**/
-	public static function sub(str : String, start : Int, ?end : Int): StringSub;
+	static function sub(str:String, start:Int, ?end:Int):StringSub;
 
 	/**
 		Returns the character code at position `index` of `str`.
 	**/
-	public static function charCodeAt(str : String, index : Int): Int;
+	static function charCodeAt(str:String, index:Int):Int;
 
 	/**
 		Looks for the first match of pattern in the string `str`.
@@ -43,35 +43,35 @@ extern class Utf8 {
 		occurrence starts and ends.
 
 		@param target If the target has captures, then in a successful match the
-		       captured values are also returned, after the two indices.
+			   captured values are also returned, after the two indices.
 		@param start specifies where to start the search; its default value is `1`
-		       and can be negative.
+			   and can be negative.
 		@param plain turns off the pattern matching facilities, so the function does
-		       a plain "find substring" operation, with no characters in pattern
-		       being considered "magic". Note that if plain is given, then `start` must be given as well.
+			   a plain "find substring" operation, with no characters in pattern
+			   being considered "magic". Note that if plain is given, then `start` must be given as well.
 	**/
-	public static function find(str : String, target : String, ?start : Int, ?plain : Bool): StringFind;
+	static function find(str:String, target:String, ?start:Int, ?plain:Bool):StringFind;
 
 	/**
 		Returns the internal numerical codes of the characters `str[index]`.
 		Note that numerical codes are not necessarily portable across platforms.
 	**/
-	public static function byte(str : String, ?index : Int) : Int;
+	static function byte(str:String, ?index:Int):Int;
 
 	/**
 
 	**/
-	@:overload(   function     (str : String, pattern : String, replace : String->Void,   ?n : Int): String {})
-	@:overload(   function     (str : String, pattern : String, replace : String->String, ?n : Int): String {})
-	public static function gsub(str : String, pattern : String, replace : String,		  ?n : Int): String;
+	@:overload(function(str:String, pattern:String, replace:String->Void, ?n:Int):String {})
+	@:overload(function(str:String, pattern:String, replace:String->String, ?n:Int):String {})
+	static function gsub(str:String, pattern:String, replace:String, ?n:Int):String;
 
 	/**
 		Returns an iterator function that, each time it is called, returns the next
 		captures from pattern over string `str`. If `pattern` specifies no captures,
 		then the whole match is produced in each call.
 	**/
-	@:overload(   function     (str : String, pattern : String, match : Void->String,   ?n : Int): String->Void {})
-	public static function gmatch(str : String, pattern : String): Void->String;
+	@:overload(function(str:String, pattern:String, match:Void->String, ?n:Int):String->Void {})
+	static function gmatch(str:String, pattern:String):Void->String;
 
 	/**
 		Looks for the first match of pattern in the string s. If it finds one,
@@ -80,38 +80,36 @@ extern class Utf8 {
 		The optional argument `n` specifies where to start the search;
 		its default value is `1` and can be negative.
 	**/
-	public static function match(str : String, pattern : String, ?n : Int): String;
+	static function match(str:String, pattern:String, ?n:Int):String;
 
 	/**
 		Receives a string and returns a copy of this string with all lowercase
 		letters changed to uppercase. All other characters are left unchanged.
 		The definition of what a lowercase letter is depends on the current locale.
 	**/
-	public static function upper(str:String) : String;
+	static function upper(str:String):String;
 
 	/**
 		Receives a string and returns a copy of this string with all uppercase
 		letters changed to lowercase. All other characters are left unchanged.
 		The definition of what an uppercase letter is depends on the current locale.
 	**/
-	public static function lower(str:String) : String;
+	static function lower(str:String):String;
 
-
-	public static function codes(str : String) : Void->StringCodePoint;
-
+	static function codes(str:String):String->Int->StringCodePoint;
 }
 
 @:multiReturn extern class StringFind {
-	var begin : Int;
-	var end : Int;
+	var begin:Int;
+	var end:Int;
 }
 
 @:multiReturn extern class StringSub {
-	var match : String;
-	var count : Int;
+	var match:String;
+	var count:Int;
 }
 
 @:multiReturn extern class StringCodePoint {
-	var position : Int;
-	var codepoint : Int;
+	var position:Int;
+	var codepoint:Int;
 }

@@ -82,7 +82,7 @@ struct
 
 		(match Texpr.build_metadata gen.gcon.basic (TEnumDecl en) with
 			| Some expr ->
-				let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+				let cf = mk_class_field ~static:true "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
 				cf.cf_expr <- Some expr;
 				cl.cl_statics <- PMap.add "__meta__" cf cl.cl_statics;
 				cl.cl_ordered_statics <- cf :: cl.cl_ordered_statics
@@ -92,7 +92,7 @@ struct
 		let super, has_params = if Meta.has Meta.FlatEnum en.e_meta then base_class, false else base_param_class, true in
 
 		cl.cl_super <- Some(super,[]);
-		cl.cl_extern <- en.e_extern;
+		if en.e_extern then add_class_flag cl CExtern;
 		en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 		cl.cl_module <- en.e_module;
 		cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;
@@ -154,7 +154,7 @@ struct
 				| _ ->
 					let actual_t = match follow ef.ef_type with
 						| TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_dynamic) p)
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					in
 					let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					let args = if has_params then
@@ -173,7 +173,7 @@ struct
 			cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
 			cf
 		) en.e_names in
-		let constructs_cf = mk_class_field "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+		let constructs_cf = mk_class_field ~static:true "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 		constructs_cf.cf_meta <- [Meta.ReadOnly,[],pos];
 		constructs_cf.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
 
@@ -204,7 +204,7 @@ struct
 
 		cl.cl_ordered_fields <- getTag_cf :: cl.cl_ordered_fields ;
 		cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
-		cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
+		add_class_field_flag getTag_cf CfOverride;
 		cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
 		gen.gadd_to_module (TClassDecl cl) (max_dep);
 

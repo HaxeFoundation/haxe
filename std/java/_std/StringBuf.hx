@@ -19,34 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi
 class StringBuf {
+	private var b:java.lang.StringBuilder;
 
-	private var b : java.lang.StringBuilder;
+	public var length(get, never):Int;
 
-	public var length(get,never) : Int;
-
-	public function new() : Void {
+	public function new():Void {
 		b = new java.lang.StringBuilder();
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return b.length();
 	}
 
-	#if jvm
-	public function add<T>( x : T ) : Void {
-		if (jvm.Jvm.instanceof(x, java.lang.Double.DoubleClass)) {
-			b.append(jvm.Jvm.toString(cast x));
-		} else {
-			b.append(x);
-		}
-	}
-	#else
-	public function add<T>( x : T ) : Void {
-		if (Std.is(x, Int))
-		{
+	public function add<T>(x:T):Void {
+		if (Std.isOfType(x, Int)) {
 			var x:Int = cast x;
 			var xd:Dynamic = x;
 			b.append(xd);
@@ -54,19 +42,18 @@ class StringBuf {
 			b.append(x);
 		}
 	}
-	#end
 
-	public function addSub( s : String, pos : Int, ?len : Int ) : Void {
+	public function addSub(s:String, pos:Int, ?len:Int):Void {
 		var l:Int = (len == null) ? s.length - pos : len;
 		b.append(s, pos, pos + l);
 	}
 
-	public function addChar( c : Int ) : Void untyped {
-		b.appendCodePoint(c);
-	}
+	public function addChar(c:Int):Void
+		untyped {
+			b.appendCodePoint(c);
+		}
 
-	public function toString() : String {
+	public function toString():String {
 		return b.toString();
 	}
-
 }

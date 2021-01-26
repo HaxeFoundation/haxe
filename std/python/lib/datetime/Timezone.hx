@@ -19,10 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.datetime;
 
 @:pythonImport("datetime", "timezone")
 extern class Timezone extends Tzinfo {
-
-	public static var utc(default, never):Tzinfo;
+	static var utc(default, never):Tzinfo;
 }

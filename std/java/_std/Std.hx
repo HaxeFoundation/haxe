@@ -22,11 +22,14 @@
 
 import java.Boot;
 import java.Lib;
-import java.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static function is( v : Dynamic, t : Dynamic ) : Bool
-	{
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null)
 			return false;
 		if (t == null)
@@ -36,8 +39,7 @@ import java.internal.Exceptions;
 			return false;
 		var name:String = clt.getName();
 
-		switch(name)
-		{
+		switch (name) {
 			case "double", "java.lang.Double":
 				return untyped __java__('haxe.lang.Runtime.isDouble(v)');
 			case "int", "java.lang.Integer":
@@ -53,148 +55,123 @@ import java.internal.Exceptions;
 		return clt.isAssignableFrom(clv);
 	}
 
-	public static function string( s : Dynamic ) : String {
+	public static function string(s:Dynamic):String {
 		return cast(s, String) + "";
 	}
 
-	public static function int( x : Float ) : Int {
+	public static function int(x:Float):Int {
 		return cast x;
 	}
 
-	@:functionCode('
-		if (x == null) return null;
-
-		int ret = 0;
-		int base = 10;
-		int i = 0;
-		int len = x.length();
-
-		if (x.startsWith("0") && len > 2)
-		{
-			char c = x.charAt(1);
-			if (c == \'x\' || c == \'X\')
-			{
-				i = 2;
-				base = 16;
-			}
-		}
-
-		boolean foundAny = i != 0;
-		boolean isNeg = false;
-		for (; i < len; i++)
-		{
-			char c = x.charAt(i);
-			if (!foundAny)
-			{
-				switch(c)
-				{
-					case \'-\':
-						isNeg = true;
-						continue;
-					case \'+\':
-					case \'\\n\':
-					case \'\\t\':
-					case \'\\r\':
-					case \' \':
-						if (isNeg) return null;
-						continue;
-				}
-			}
-
-			if (c >= \'0\' && c <= \'9\')
-			{
-				if (!foundAny && c == \'0\')
-				{
-					foundAny = true;
-					continue;
-				}
-				ret *= base; foundAny = true;
-
-				ret += ((int) (c - \'0\'));
-			} else if (base == 16) {
-				if (c >= \'a\' && c <= \'f\') {
-					ret *= base; foundAny = true;
-					ret += ((int) (c - \'a\')) + 10;
-				} else if (c >= \'A\' && c <= \'F\') {
-					ret *= base; foundAny = true;
-					ret += ((int) (c - \'A\')) + 10;
-				} else {
-					break;
-				}
-			} else {
-				break;
-			}
-		}
-
-		if (foundAny)
-			return isNeg ? -ret : ret;
-		else
+	public static function parseInt(x:String):Null<Int> {
+		if (x == null)
 			return null;
-	')
-	public static function parseInt( x : String ) : Null<Int> {
-		return null;
-	}
 
-	public static function parseFloat( x : String ) : Float {
-		if (x == null) return Math.NaN;
-		x = StringTools.ltrim(x);
-		var found = false, hasDot = false, hasSign = false,
-		    hasE = false, hasESign = false, hasEData = false;
-		var i = -1;
-		inline function getch(i:Int):Int return cast (untyped x._charAt(i) : java.StdTypes.Char16);
+		var base = 10;
+		var len = x.length;
+		var foundCount = 0;
+		var sign = 0;
+		var firstDigitIndex = 0;
+		var lastDigitIndex = -1;
+		var previous = 0;
 
-		while (++i < x.length)
-		{
-			var chr = getch(i);
-			if (chr >= '0'.code && chr <= '9'.code)
-			{
-				if (hasE)
-				{
-					hasEData = true;
-				}
-				found = true;
-			} else switch (chr) {
-				case 'e'.code | 'E'.code if(!hasE):
-					hasE = true;
-				case '.'.code if (!hasDot):
-					hasDot = true;
-				case '-'.code, '+'.code if (!found && !hasSign):
-					hasSign = true;
-				case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
-					hasESign = true;
+		for(i in 0...len) {
+			var c = StringTools.fastCodeAt(x, i);
+			switch c {
+				case _ if((c > 8 && c < 14) || c == 32):
+					if(foundCount > 0) {
+						return null;
+					}
+					continue;
+				case '-'.code if(foundCount == 0):
+					sign = -1;
+				case '+'.code if(foundCount == 0):
+					sign = 1;
+				case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
+				case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+					base = 16;
+				case _ if('0'.code <= c && c <= '9'.code):
+				case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
 				case _:
 					break;
 			}
+			if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+				firstDigitIndex = i;
+			}
+			foundCount++;
+			lastDigitIndex = i;
+			previous = c;
 		}
-		if (hasE && !hasEData)
-		{
+		if(firstDigitIndex <= lastDigitIndex) {
+			var digits = x.substring(firstDigitIndex + (base == 16 ? 2 : 0), lastDigitIndex + 1);
+			return try {
+				(sign == -1 ? -1 : 1) * java.lang.Integer.parseInt(digits, base);
+			} catch(e:java.lang.NumberFormatException) {
+				null;
+			}
+		}
+		return null;
+	}
+
+	public static function parseFloat(x:String):Float {
+		if (x == null)
+			return Math.NaN;
+		x = StringTools.ltrim(x);
+		var found = false,
+			hasDot = false,
+			hasSign = false,
+			hasE = false,
+			hasESign = false,
+			hasEData = false;
+		var i = -1;
+		inline function getch(i:Int):Int
+			return cast(untyped x._charAt(i) : java.StdTypes.Char16);
+
+		while (++i < x.length) {
+			var chr = getch(i);
+			if (chr >= '0'.code && chr <= '9'.code) {
+				if (hasE) {
+					hasEData = true;
+				}
+				found = true;
+			} else
+				switch (chr) {
+					case 'e'.code | 'E'.code if (!hasE):
+						hasE = true;
+					case '.'.code if (!hasDot):
+						hasDot = true;
+					case '-'.code, '+'.code if (!found && !hasSign):
+						hasSign = true;
+					case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
+						hasESign = true;
+					case _:
+						break;
+				}
+		}
+		if (hasE && !hasEData) {
 			i--;
 			if (hasESign)
 				i--;
 		}
 
-		if (i != x.length)
-		{
-			x = x.substr(0,i);
+		if (i != x.length) {
+			x = x.substr(0, i);
 		}
-		return try
-			java.lang.Double.DoubleClass.parseDouble(x)
-		catch(e:Dynamic)
-			Math.NaN;
+		return try java.lang.Double.DoubleClass.parseDouble(x) catch (e:Dynamic) Math.NaN;
 	}
 
-	inline public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Std.is(value, c) ? cast value : null;
+	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
 		return downcast(value, c);
 	}
 
-	public static function random( x : Int ) : Int {
-		if (x <= 0) return 0;
+	public static function random(x:Int):Int {
+		if (x <= 0)
+			return 0;
 		return Std.int(Math.random() * x);
 	}
-
 }

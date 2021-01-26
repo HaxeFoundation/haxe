@@ -19,145 +19,145 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 private typedef ERegValue = hl.Abstract<"ereg">;
 
 @:access(String)
 @:coreApi final class EReg {
+	var r:ERegValue;
+	var last:String;
+	var global:Bool;
 
-	var r : ERegValue;
-	var last : String;
-	var global : Bool;
-
-	public function new( r : String, opt : String ) : Void {
+	public function new(r:String, opt:String):Void {
 		var a = opt.split("g");
 		global = a.length > 1;
-		if( global )
+		if (global)
 			opt = a.join("");
 		this.r = regexp_new_options(r.bytes, opt.bytes);
 	}
 
-	public function match( s : String ) : Bool {
-		var p = regexp_match(r,s.bytes,0,s.length);
-		if( p )
+	public function match(s:String):Bool {
+		var p = regexp_match(r, s.bytes, 0, s.length);
+		if (p)
 			last = s;
 		else
 			last = null;
 		return p;
 	}
 
-	public function matched( n : Int ) : String {
+	public function matched(n:Int):String {
 		var len = 0;
-		var m = regexp_matched_pos(r,n,len);
+		var m = regexp_matched_pos(r, n, len);
 		return m < 0 ? null : last.substr(m, len);
 	}
 
-	public function matchedLeft() : String {
-		var p = regexp_matched_pos(r,0,null);
-		return last.substr(0,p);
+	public function matchedLeft():String {
+		var p = regexp_matched_pos(r, 0, null);
+		return last.substr(0, p);
 	}
 
-	public function matchedRight() : String {
+	public function matchedRight():String {
 		var len = 0;
-		var p = regexp_matched_pos(r,0,len);
+		var p = regexp_matched_pos(r, 0, len);
 		return last.substr(p + len);
 	}
 
-	public function matchedPos() : { pos : Int, len : Int } {
+	public function matchedPos():{pos:Int, len:Int} {
 		var len = 0;
 		var p = regexp_matched_pos(r, 0, len);
-		if( p < 0 ) return null;
-		return { pos : p, len : len };
+		if (p < 0)
+			return null;
+		return {pos: p, len: len};
 	}
 
-	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		var p = regexp_match(r, s.bytes, pos, len < 0 ? s.length - pos : len);
-		if( p )
+		if (p)
 			last = s;
 		else
 			last = null;
 		return p;
 	}
 
-	public function split( s : String ) : Array<String> {
+	public function split(s:String):Array<String> {
 		var pos = 0;
 		var len = s.length;
 		var a = new Array();
 		var first = true;
 		do {
-			if( !regexp_match(r,s.bytes,pos,len) )
+			if (!regexp_match(r, s.bytes, pos, len))
 				break;
 			var plen = 0;
-			var p = regexp_matched_pos(r,0,plen);
-			if( plen == 0 && !first ) {
-				if( p == s.length )
+			var p = regexp_matched_pos(r, 0, plen);
+			if (plen == 0 && !first) {
+				if (p == s.length)
 					break;
 				p++;
 			}
-			a.push(s.substr(pos,p - pos));
+			a.push(s.substr(pos, p - pos));
 			var tot = p + plen - pos;
 			pos += tot;
 			len -= tot;
 			first = false;
-		} while( global );
-		a.push(s.substr(pos,len));
+		} while (global);
+		a.push(s.substr(pos, len));
 		return a;
 	}
 
-	public function replace( s : String, by : String ) : String {
+	public function replace(s:String, by:String):String {
 		var b = new StringBuf();
 		var pos = 0;
 		var len = s.length;
 		var a = by.split("$");
 		var first = true;
 		do {
-			if( !regexp_match(r,s.bytes,pos,len) )
+			if (!regexp_match(r, s.bytes, pos, len))
 				break;
 			var plen = 0;
-			var p = regexp_matched_pos(r,0, plen);
-			if( plen == 0 && !first ) {
-				if( p == s.length )
+			var p = regexp_matched_pos(r, 0, plen);
+			if (plen == 0 && !first) {
+				if (p == s.length)
 					break;
 				p++;
 			}
-			b.addSub(s,pos,p-pos);
-			if( a.length > 0 )
+			b.addSub(s, pos, p - pos);
+			if (a.length > 0)
 				b.add(a[0]);
 			var i = 1;
-			while( i < a.length ) {
+			while (i < a.length) {
 				var k = a[i];
 				var c = StringTools.fastCodeAt(k, 0);
 				// 1...9
-				if( c >= 49 && c <= 57 ) {
+				if (c >= 49 && c <= 57) {
 					var plen = 0;
-					var p = try regexp_matched_pos(r,Std.int(c)-48,plen) catch( e : String ) -1;
-					if( p < 0 ){
+					var p = try regexp_matched_pos(r, Std.int(c) - 48, plen) catch (e:String) -1;
+					if (p < 0) {
 						b.add("$");
 						b.add(k);
 					} else {
-						if( p >= 0 ) b.addSub(s,p,plen);
-						b.addSub(k,1,k.length - 1);
+						if (p >= 0)
+							b.addSub(s, p, plen);
+						b.addSub(k, 1, k.length - 1);
 					}
-				} else if( c == 0 ) {
+				} else if (c == 0) {
 					b.add("$");
 					i++;
 					var k2 = a[i];
-					if( k2 != null && k2.length > 0 )
+					if (k2 != null && k2.length > 0)
 						b.add(k2);
 				} else
-					b.add("$"+k);
+					b.add("$" + k);
 				i++;
 			}
 			var tot = p + plen - pos;
 			pos += tot;
 			len -= tot;
 			first = false;
-		} while( global );
-		b.addSub(s,pos,len);
+		} while (global);
+		b.addSub(s, pos, len);
 		return b.toString();
 	}
 
-	public function map( s : String, f : EReg -> String ) : String {
+	public function map(s:String, f:EReg->String):String {
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
@@ -168,14 +168,13 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 				break;
 			}
 			var plen = 0;
-			var p = regexp_matched_pos(r,0,plen);
+			var p = regexp_matched_pos(r, 0, plen);
 			buf.add(s.substr(offset, p - offset));
 			buf.add(f(this));
 			if (plen == 0) {
 				buf.add(s.substr(p, 1));
 				offset = p + 1;
-			}
-			else
+			} else
 				offset = p + plen;
 		} while (global);
 		if (!global && offset > 0 && offset < s.length)
@@ -183,22 +182,21 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 		return buf.toString();
 	}
 
-	public static function escape( s : String ) : String {
+	public static function escape(s:String):String {
 		return escapeRegExpRe.map(s, function(r) return "\\" + r.matched(0));
 	}
+
 	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
 
-	@:hlNative("std", "regexp_new_options") static function regexp_new_options( bytes : hl.Bytes, options : hl.Bytes ) : ERegValue {
+	@:hlNative("std", "regexp_new_options") static function regexp_new_options(bytes:hl.Bytes, options:hl.Bytes):ERegValue {
 		return null;
 	}
 
-	@:hlNative("std", "regexp_match") static function regexp_match( r : ERegValue, str : hl.Bytes, pos : Int, size : Int ) : Bool {
+	@:hlNative("std", "regexp_match") static function regexp_match(r:ERegValue, str:hl.Bytes, pos:Int, size:Int):Bool {
 		return false;
 	}
 
-	@:hlNative("std", "regexp_matched_pos") static function regexp_matched_pos( r : ERegValue, n : Int, size : hl.Ref<Int> ) : Int {
+	@:hlNative("std", "regexp_matched_pos") static function regexp_matched_pos(r:ERegValue, n:Int, size:hl.Ref<Int>):Int {
 		return 0;
 	}
-
-
 }

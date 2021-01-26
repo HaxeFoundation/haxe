@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import haxe.extern.Rest;
@@ -32,7 +33,7 @@ extern class Set<T> {
 	@:overload(function(?array:Array<T>):Void {})
 	function new(?iterable:NativeIterable<T>):Void;
 
-	var length(get,never):Int;
+	var length(get, never):Int;
 	private inline function get_length():Int {
 		return UBuiltins.len(this);
 	}

@@ -19,12 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 extern class Uncompress {
-	public function new(?windowBits:Int):Void;
-	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{ done:Bool, read:Int, write:Int };
-	public function setFlushMode(f:FlushMode):Void;
-	public function close():Void;
-	public static function run(src:haxe.io.Bytes, ?bufsize:Int):haxe.io.Bytes;
+	function new(?windowBits:Int):Void;
+	function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int};
+	function setFlushMode(f:FlushMode):Void;
+	function close():Void;
+	static function run(src:haxe.io.Bytes, ?bufsize:Int):haxe.io.Bytes;
 }

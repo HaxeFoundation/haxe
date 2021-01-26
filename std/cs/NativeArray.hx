@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs;
 
 import haxe.extern.Rest;
@@ -26,8 +27,7 @@ import haxe.extern.Rest;
 /**
 	Represents a C# fixed-size Array (`T[]`)
 **/
-extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
-{
+extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T> {
 	/**
 		Creates a new array with the specified elements.
 
@@ -35,37 +35,36 @@ extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
 		```haxe
 		var elements = NativeArray.make(1,2,3,4,5,6);
 		```
-	 **/
-	public static function make<T>(elements:Rest<T>):NativeArray<T>;
+	**/
+	static function make<T>(elements:Rest<T>):NativeArray<T>;
 
 	/**
 		Allocates a new array with size `len`
-	 **/
-	public function new(len:Int):Void;
+	**/
+	function new(len:Int):Void;
 
 	/**
 		Alias to array's `Length` property. Returns the size of the array
-	 **/
-	public var length(get,never):Int;
+	**/
+	var length(get, never):Int;
 
-	extern inline private function get_length():Int return this.Length;
+	extern inline private function get_length():Int
+		return this.Length;
 
 	static function Reverse(arr:cs.system.Array):Void;
 
 	/**
 		Returns an iterator so it's possible to use `for` with C#'s `NativeArray`
-	 **/
-	extern inline public function iterator():NativeArrayIterator<T>
+	**/
+	extern inline function iterator():NativeArrayIterator<T>
 		return new NativeArrayIterator(this);
 }
 
-@:dce private class NativeArrayIterator<T>
-{
-	public var arr(default,null):NativeArray<T>;
-	public var idx(default,null):UInt;
+@:dce private class NativeArrayIterator<T> {
+	public var arr(default, null):NativeArray<T>;
+	public var idx(default, null):UInt;
 
-	inline public function new(arr)
-	{
+	inline public function new(arr) {
 		this.arr = arr;
 		this.idx = 0;
 	}
@@ -73,8 +72,7 @@ extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
 	inline public function hasNext():Bool
 		return this.idx < this.arr.Length;
 
-	inline public function next():T
-	{
+	inline public function next():T {
 		return this.arr[this.idx++];
 	}
 }

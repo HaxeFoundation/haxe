@@ -24,10 +24,20 @@ class Macro {
 		changeDirectory(miscDir);
 		runCommand("haxe", ["compile.hxml"]);
 
-		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-macro.hxml"]);
+		changeDirectory(miscDir + "resolution");
+		runCommand("haxe", ["run.hxml"]);
 
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "--interp"]);
+		changeDirectory(sysDir);
+		runCommand("haxe", ["compile-macro.hxml"].concat(args));
+
+		switch Sys.systemName() {
+			case 'Linux':
+				changeDirectory(miscDir + 'compiler_loops');
+				runCommand("haxe", ["run.hxml"]);
+			case _: // TODO
+		}
+
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "--interp"]);
 	}
 }

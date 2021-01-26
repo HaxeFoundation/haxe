@@ -6,8 +6,8 @@ abstract W(Int) from Int {
 
 class TestArrowFunctions extends Test {
 
-	var f0_0: Void -> Int;
-	var f0_1: Void -> W;
+	var f0_0: () -> Int;
+	var f0_1: () -> W;
 
 	var f1_0: Int->Int;
 	var f1_1: ?Int->Int;
@@ -34,8 +34,6 @@ class TestArrowFunctions extends Test {
 
 	var maybe : Void -> Bool;
 
-	#if !as3
-
 	function testSyntax(){
 		maybe = () -> Math.random() > 0.5;
 
@@ -46,8 +44,8 @@ class TestArrowFunctions extends Test {
 		f0_0 = () -> 1;
 
 		f0_0 = (() -> 1);
-		f0_0 = (() -> 1:Void->Int);
-		f0_0 = cast (() -> 1:Void->Int);
+		f0_0 = (() -> 1:()->Int);
+		f0_0 = cast (() -> 1:()->Int);
 
 		v0 = f0_0();
 
@@ -145,5 +143,4 @@ class TestArrowFunctions extends Test {
 
 		obj = { f : a -> a + a };
 	}
-	#end
 }

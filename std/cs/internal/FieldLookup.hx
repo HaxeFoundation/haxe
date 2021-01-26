@@ -19,15 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs.internal;
 
 @:native('haxe.lang.FieldHashConflict')
 @:nativeGen @:keep
 final class FieldHashConflict {
-	@:readOnly public var hash(default,never):Int;
-	@:readOnly public var name(default,never):String;
+	@:readOnly public var hash(default, never):Int;
+	@:readOnly public var name(default, never):String;
 	public var value:Dynamic;
 	public var next:FieldHashConflict;
+
 	public function new(hash, name, value:Dynamic, next) {
 		untyped this.hash = hash;
 		untyped this.name = name;
@@ -38,50 +40,42 @@ final class FieldHashConflict {
 
 @:native('haxe.lang.FieldLookup')
 @:classCode("#pragma warning disable 628\n")
-@:nativeGen @:keep @:static 
-final class FieldLookup
-{
+@:nativeGen @:keep @:static
+final class FieldLookup {
 	@:protected private static var fieldIds:cs.NativeArray<Int>;
 	@:protected private static var fields:cs.NativeArray<String>;
 	@:protected private static var length:Int;
 
-	static function __init__()
-	{
+	static function __init__() {
 		length = fieldIds.Length;
 	}
 
-	private static function addFields(nids:cs.NativeArray<Int>, nfields:cs.NativeArray<String>):Void
-	{
+	private static function addFields(nids:cs.NativeArray<Int>, nfields:cs.NativeArray<String>):Void {
 		// first see if we need to add anything
-		var cids = fieldIds,
-		    cfields = fields;
+		var cids = fieldIds, cfields = fields;
 		var nlen = nids.Length;
 		var clen = length;
-		if (nfields.Length != nlen) throw 'Different fields length: $nlen and ${nfields.Length}';
+		if (nfields.Length != nlen)
+			throw 'Different fields length: $nlen and ${nfields.Length}';
 
-		//TODO optimize
+		// TODO optimize
 		var needsChange = false;
-		for (i in nids)
-		{
-			if (findHash(i, cids, clen) < 0)
-			{
+		for (i in nids) {
+			if (findHash(i, cids, clen) < 0) {
 				needsChange = true;
 				break;
 			}
 		}
 
 		// if we do, lock and merge
-		if (needsChange)
-		{
+		if (needsChange) {
 			cs.Lib.lock(FieldLookup, {
 				// trace(cs.Lib.array(nids), cs.Lib.array(cids));
 				var ansIds = new cs.NativeArray(clen + nlen),
-				    ansFields = new cs.NativeArray(clen + nlen);
+					ansFields = new cs.NativeArray(clen + nlen);
 				var ci = 0, ni = 0, ansi = 0;
-				while (ci < clen && ni < nlen)
-				{
-					if (cids[ci] < nids[ni])
-					{
+				while (ci < clen && ni < nlen) {
+					if (cids[ci] < nids[ni]) {
 						ansIds[ansi] = cids[ci];
 						ansFields[ansi] = cfields[ci];
 						++ci;
@@ -93,15 +87,13 @@ final class FieldLookup
 					++ansi;
 				}
 
-				if (ci < clen)
-				{
+				if (ci < clen) {
 					cs.system.Array.Copy(cids, ci, ansIds, ansi, clen - ci);
 					cs.system.Array.Copy(cfields, ci, ansFields, ansi, clen - ci);
 					ansi += clen - ci;
 				}
 
-				if (ni < nlen)
-				{
+				if (ni < nlen) {
 					cs.system.Array.Copy(nids, ni, ansIds, ansi, nlen - ni);
 					cs.system.Array.Copy(nfields, ni, ansFields, ansi, nlen - ni);
 					ansi += nlen - ni;
@@ -115,30 +107,25 @@ final class FieldLookup
 		}
 	}
 
-	//s cannot be null here
-	private static inline function doHash(s:String):Int
-	{
-		var acc = 0; //alloc_int
-		for (i in 0...s.length)
-		{
-			acc = (( 223 * (acc >> 1) + cast(s[i], Int)) << 1);
+	// s cannot be null here
+	private static inline function doHash(s:String):Int {
+		var acc = 0; // alloc_int
+		for (i in 0...s.length) {
+			acc = ((223 * (acc >> 1) + cast(s[i], Int)) << 1);
 		}
 
-		return acc >>> 1; //always positive
+		return acc >>> 1; // always positive
 	}
 
-	public static function lookupHash(key:Int):String
-	{
+	public static function lookupHash(key:Int):String {
 		var ids = fieldIds;
 		var min = 0;
 		var max = length;
 
-		while (min < max)
-		{
+		while (min < max) {
 			var mid = min + Std.int((max - min) / 2);
 			var imid = ids[mid];
-			if (key < imid)
-			{
+			if (key < imid) {
 				max = mid;
 			} else if (key > imid) {
 				min = mid + 1;
@@ -146,45 +133,42 @@ final class FieldLookup
 				return fields[mid];
 			}
 		}
-		//if not found, it's definitely an error
+		// if not found, it's definitely an error
 		throw "Field not found for hash " + key;
 	}
 
-	public static function hash(s:String):Int
-	{
-		if (s == null) return 0;
+	public static function hash(s:String):Int {
+		if (s == null)
+			return 0;
 
 		var key = doHash(s);
 
-		var ids = fieldIds,
-		    fld = fields;
+		var ids = fieldIds, fld = fields;
 		var min = 0;
 		var max = length;
 
 		var len = length;
 
-		while (min < max)
-		{
-			var mid = Std.int(min + (max - min) / 2); //overflow safe
+		while (min < max) {
+			var mid = Std.int(min + (max - min) / 2); // overflow safe
 			var imid = ids[mid];
-			if (key < imid)
-			{
+			if (key < imid) {
 				max = mid;
 			} else if (key > imid) {
 				min = mid + 1;
 			} else {
 				var field = fld[mid];
 				if (field != s)
-					return ~key; //special case
+					return ~key; // special case
 				return key;
 			}
 		}
 
-		//if not found, min holds the value where we should insert the key
-		//ensure thread safety:
+		// if not found, min holds the value where we should insert the key
+		// ensure thread safety:
 		cs.Lib.lock(FieldLookup, {
-			if (len != length) //race condition which will very rarely happen - other thread modified sooner.
-				return hash(s); //since we already own the lock, this second try will always succeed
+			if (len != length) // race condition which will very rarely happen - other thread modified sooner.
+				return hash(s); // since we already own the lock, this second try will always succeed
 
 			fieldIds = insertInt(fieldIds, length, min, key);
 			fields = insertString(fields, length, min, s);
@@ -193,17 +177,14 @@ final class FieldLookup
 		return key;
 	}
 
-	public static function findHash(hash:Int, hashs:cs.NativeArray<Int>, length:Int):Int
-	{
+	public static function findHash(hash:Int, hashs:cs.NativeArray<Int>, length:Int):Int {
 		var min = 0;
 		var max = length;
 
-		while (min < max)
-		{
+		while (min < max) {
 			var mid = Std.int((max + min) / 2);
 			var imid = hashs[mid];
-			if (hash < imid)
-			{
+			if (hash < imid) {
 				max = mid;
 			} else if (hash > imid) {
 				min = mid + 1;
@@ -211,63 +192,48 @@ final class FieldLookup
 				return mid;
 			}
 		}
-		//if not found, return a negative value of where it should be inserted
+		// if not found, return a negative value of where it should be inserted
 		return ~min;
 	}
 
-	public static function removeInt(a:cs.NativeArray<Int>, length:Int, pos:Int)
-	{
+	public static function removeInt(a:cs.NativeArray<Int>, length:Int, pos:Int) {
 		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = 0;
 	}
-	public static function removeFloat(a:cs.NativeArray<Float>, length:Int, pos:Int)
-	{
+
+	public static function removeFloat(a:cs.NativeArray<Float>, length:Int, pos:Int) {
 		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = 0;
 	}
-	public static function removeDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int)
-	{
+
+	public static function removeDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int) {
 		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = null;
 	}
 
-	extern
-	static inline function __insert<T>(a:cs.NativeArray<T>, length:Int, pos:Int, x:T):cs.NativeArray<T>
-	{
+	extern static inline function __insert<T>(a:cs.NativeArray<T>, length:Int, pos:Int, x:T):cs.NativeArray<T> {
 		var capacity = a.Length;
-		if (pos == length)
-		{
-			if (capacity == length)
-			{
+		if (pos == length) {
+			if (capacity == length) {
 				var newarr = new NativeArray((length << 1) + 1);
 				a.CopyTo(newarr, 0);
 				a = newarr;
 			}
-		}
-		else if (pos == 0)
-		{
-			if (capacity == length)
-			{
+		} else if (pos == 0) {
+			if (capacity == length) {
 				var newarr = new NativeArray((length << 1) + 1);
 				cs.system.Array.Copy(a, 0, newarr, 1, length);
 				a = newarr;
-			}
-			else
-			{
+			} else {
 				cs.system.Array.Copy(a, 0, a, 1, length);
 			}
-		}
-		else
-		{
-			if (capacity == length)
-			{
+		} else {
+			if (capacity == length) {
 				var newarr = new NativeArray((length << 1) + 1);
 				cs.system.Array.Copy(a, 0, newarr, 0, pos);
 				cs.system.Array.Copy(a, pos, newarr, pos + 1, length - pos);
 				a = newarr;
-			}
-			else
-			{
+			} else {
 				cs.system.Array.Copy(a, pos, a, pos + 1, length - pos);
 				cs.system.Array.Copy(a, 0, a, 0, pos);
 			}
@@ -276,10 +242,17 @@ final class FieldLookup
 		return a;
 	}
 
-	public static function insertInt(a:cs.NativeArray<Int>, length:Int, pos:Int, x:Int):cs.NativeArray<Int> return __insert(a, length, pos, x);
-	public static function insertFloat(a:cs.NativeArray<Float>, length:Int, pos:Int, x:Float):cs.NativeArray<Float> return __insert(a, length, pos, x);
-	public static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic> return __insert(a, length, pos, x);
-	public static function insertString(a:cs.NativeArray<String>, length:Int, pos:Int, x:String):cs.NativeArray<String> return __insert(a, length, pos, x);
+	public static function insertInt(a:cs.NativeArray<Int>, length:Int, pos:Int, x:Int):cs.NativeArray<Int>
+		return __insert(a, length, pos, x);
+
+	public static function insertFloat(a:cs.NativeArray<Float>, length:Int, pos:Int, x:Float):cs.NativeArray<Float>
+		return __insert(a, length, pos, x);
+
+	public static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic>
+		return __insert(a, length, pos, x);
+
+	public static function insertString(a:cs.NativeArray<String>, length:Int, pos:Int, x:String):cs.NativeArray<String>
+		return __insert(a, length, pos, x);
 
 	public static function getHashConflict(head:FieldHashConflict, hash:Int, name:String):FieldHashConflict {
 		while (head != null) {

@@ -19,21 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.vm;
 
-class Profiler
-{
+class Profiler {
+	static public function start(?inDumpFile:String):Void {
+		untyped __global__.__hxcpp_start_profiler(inDumpFile);
+	}
 
-   static public function start(?inDumpFile:String) : Void
-   {
-      untyped __global__.__hxcpp_start_profiler(inDumpFile);
-   }
-
-   static public function stop() : Void
-   {
-      untyped __global__.__hxcpp_stop_profiler();
-   }
-
+	static public function stop():Void {
+		untyped __global__.__hxcpp_stop_profiler();
+	}
 }
-
-

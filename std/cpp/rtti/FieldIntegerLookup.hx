@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.rtti;
 
 /**
 	If you implement this interface, then the backend will generate code that
 	allows fast dynamic access to fields by integer id.  This should speed up the CFFI.
 **/
-interface FieldIntegerLookup {
-}
+interface FieldIntegerLookup {}

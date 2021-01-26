@@ -100,6 +100,15 @@ class TestJson extends Test {
 		eq( parsed.y, 1.456 );
 	}
 
+	function test8593_stringifyNestedObjects() {
+		var src = {
+			one: {
+				two: "three"
+			}
+		};
+		eq('{"one":{"two":"three"}}', haxe.Json.stringify(src));
+	}
+
 	#if (!neko && (cpp && !cppia && !hxcpp_smart_strings))
 	function test8228() {
 		var strJson = haxe.Json.stringify("👽");

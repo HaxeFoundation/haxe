@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 import php.*;
@@ -27,36 +28,37 @@ import haxe.crypto.Base64;
 
 @:coreApi
 class Resource {
-
-	static function cleanName(name : String) : String {
+	static function cleanName(name:String):String {
 		return ~/[\\\/:?"*<>|]/.replace(name, '_');
 	}
 
-	static function getDir() : String {
+	static function getDir():String {
 		var pathToRoot = '/../..';
 		#if php_prefix
+		pathToRoot += '/..';
+		for (i in 0...Global.substr_count(Boot.getPrefix(), '\\')) {
 			pathToRoot += '/..';
-			for(i in 0...Global.substr_count(Boot.getPrefix(), '\\')) {
-				pathToRoot += '/..';
-			}
+		}
 		#end
 		return Global.dirname(Const.__FILE__) + pathToRoot + "/res";
 	}
 
 	@:access(haxe.io.Path.escape)
-	static function getPath(name : String) : String {
-		return getDir()+'/'+haxe.io.Path.escape(name);
+	static function getPath(name:String):String {
+		return getDir() + '/' + haxe.io.Path.escape(name);
 	}
 
 	@:access(haxe.io.Path.unescape)
-	public static function listNames() : Array<String> {
+	public static function listNames():Array<String> {
 		var a = sys.FileSystem.readDirectory(getDir());
-		if(a[0] == '.') a.shift();
-		if(a[0] == '..') a.shift();
+		if (a[0] == '.')
+			a.shift();
+		if (a[0] == '..')
+			a.shift();
 		return a.map(function(s) return haxe.io.Path.unescape(s));
 	}
 
-	public static function getString( name : String ) : String {
+	public static function getString(name:String):String {
 		var path = getPath(name);
 		return if (!sys.FileSystem.exists(path))
 			null;
@@ -64,12 +66,11 @@ class Resource {
 			sys.io.File.getContent(path);
 	}
 
-	public static function getBytes( name : String ) : haxe.io.Bytes {
+	public static function getBytes(name:String):haxe.io.Bytes {
 		var path = getPath(name);
 		return if (!sys.FileSystem.exists(path))
 			null;
 		else
 			sys.io.File.getBytes(path);
 	}
-
 }

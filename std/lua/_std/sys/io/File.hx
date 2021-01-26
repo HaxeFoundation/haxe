@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 import haxe.SysTools;
@@ -30,65 +31,65 @@ import lua.Boot;
 
 @:coreApi
 class File {
-	public static function getContent( path : String ) : String {
+	public static function getContent(path:String):String {
 		var f = Io.open(path, "r");
-		if (f == null) throw 'Invalid path : $path';
+		if (f == null)
+			throw 'Invalid path : $path';
 		var s = f.read("*all");
 		f.close();
 		return s;
 	}
 
-	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		return new FileOutput(Io.open(path, "a"));
+	public static function append(path:String, binary:Bool = true):FileOutput {
+		return @:privateAccess new FileOutput(Io.open(path, "a"));
 	}
 
-	public static function update( path : String, binary : Bool = true ) : FileOutput {
+	public static function update(path:String, binary:Bool = true):FileOutput {
 		if (!FileSystem.exists(path)) {
 			write(path).close();
 		}
-		return new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
+		return @:privateAccess new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
 	}
 
-	public static function copy( srcPath : String, dstPath : String ) : Void {
+	public static function copy(srcPath:String, dstPath:String):Void {
 		var result = switch (Sys.systemName()) {
-			case "Windows" : Os.execute('copy ${SysTools.quoteWinArg(srcPath, true)} ${SysTools.quoteWinArg(dstPath,true)}');
-			default : Os.execute('cp ${SysTools.quoteUnixArg(srcPath)} ${SysTools.quoteUnixArg(dstPath)}');
+			case "Windows": Os.execute('copy ${SysTools.quoteWinArg(srcPath, true)} ${SysTools.quoteWinArg(dstPath, true)}');
+			default: Os.execute('cp ${SysTools.quoteUnixArg(srcPath)} ${SysTools.quoteUnixArg(dstPath)}');
 		};
-		if(
-			#if (lua_ver >= 5.2) !result.success
-			#elseif (lua_ver < 5.2) result != 0
-			#else ((result:Dynamic) != true && (result:Dynamic) != 0) #end
+		if (#if (lua_ver >= 5.2) !result.success #elseif (lua_ver < 5.2) result != 0 #else ((result : Dynamic) != true && (result : Dynamic) != 0) #end
 		) {
 			throw 'Failed to copy $srcPath to $dstPath';
 		}
 	}
 
-	public static function getBytes( path : String ) : haxe.io.Bytes {
+	public static function getBytes(path:String):haxe.io.Bytes {
 		var finput = read(path, true);
 		var res = finput.readAll();
 		finput.close();
 		return res;
 	}
 
-	public static function read( path : String, binary : Bool = true ) : FileInput {
+	public static function read(path:String, binary:Bool = true):FileInput {
 		var fh = Io.open(path, binary ? 'rb' : 'r');
-		if (fh == null) throw 'Invalid path : $path';
-		return new FileInput(fh);
+		if (fh == null)
+			throw 'Invalid path : $path';
+		return @:privateAccess new FileInput(fh);
 	}
 
-	public static function write( path : String, binary : Bool = true ) : FileOutput {
+	public static function write(path:String, binary:Bool = true):FileOutput {
 		var fh = Io.open(path, binary ? 'wb' : 'w');
-		if (fh == null) throw 'Invalid path : $path';
-		return new FileOutput(fh);
+		if (fh == null)
+			throw 'Invalid path : $path';
+		return @:privateAccess new FileOutput(fh);
 	}
 
-	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {
+	public static function saveBytes(path:String, bytes:haxe.io.Bytes):Void {
 		var f = write(path, true);
 		f.writeBytes(bytes, 0, bytes.length);
 		f.close();
 	}
 
-	public static function saveContent( path : String, content : String ) : Void {
+	public static function saveContent(path:String, content:String):Void {
 		var f = write(path, true);
 		f.writeString(content);
 		f.close();

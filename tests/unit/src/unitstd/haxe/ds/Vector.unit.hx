@@ -19,13 +19,10 @@ vec.get(1) == vNullFloat;
 vec.get(2) == vNullFloat;
 
 // bool init
-// Adobe's compilers seem to have a bug here that gives null instead of false
-#if !as3
 var vec = new haxe.ds.Vector<Bool>(3);
 vec.get(0) == vNullBool;
 vec.get(1) == vNullBool;
 vec.get(2) == vNullBool;
-#end
 
 // fromArray
 var arr = ["1", "2", "3"];
@@ -44,9 +41,7 @@ vec.set(1, 2);
 var arr = vec.toArray();
 arr[0] == vNullInt;
 arr[1] == 2;
-#if !as3
 arr[3] == vNullInt;
-#end
 
 // objects
 var tpl = new C();

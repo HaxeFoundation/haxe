@@ -3,7 +3,7 @@ OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
 
 MODULES = \
- multiArray rbuffer uChar uTF8
+ multiArray rbuffer uCharExt uTF8
 
 # the list is topologically sorted
 

@@ -19,20 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package lua;
+
 import haxe.extern.EitherType;
 import haxe.extern.Rest;
 import sys.io.FileInput;
 
 extern class FileHandle extends UserData {
-	public function flush() : Void;
-	public function read(arg : Rest<EitherType<String,Int>>) : String;
-	public function close() : Void;
+	function flush():Void;
+	function read(arg:Rest<EitherType<String, Int>>):String;
+	function close():Void;
 
-	public function write(str : String) : Void;
+	function write(str:String):Void;
 
-	@:overload(function () : Int {})
-	@:overload(function (arg : String) : Int {})
-	public function seek(arg : String, pos : Int) : Void;
+	@:overload(function():Int {})
+	@:overload(function(arg:String):Int {})
+	function seek(arg:String, pos:Int):Void;
 }
-

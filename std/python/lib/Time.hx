@@ -19,15 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.lib.time.StructTime;
 
 @:pythonImport("time")
 extern class Time {
-
-	public static function time ():Float;
-	public static function clock ():Float;
-	public static function sleep (t:Float):Void;
-	public static function mktime(s:StructTime):Float;
+	static function time():Float;
+	static function clock():Float;
+	static function sleep(t:Float):Void;
+	static function mktime(s:StructTime):Float;
 }

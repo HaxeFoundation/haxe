@@ -19,26 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.objc;
 
-@:native("id")  @:objc extern class NSObjectData { }
+@:native("id") @:objc extern class NSObjectData {}
 
 @:objc
-extern abstract NSObject( NSObjectData )
-{
-   @:native("_hx_value_to_objc") extern static function _hx_value_to_objc(obj:Dynamic) : NSObject;
-   @:native("_hx_objc_to_dynamic") extern static function _hx_objc_to_dynamic(d:NSObjectData) : Dynamic;
+extern abstract NSObject(NSObjectData) {
+	@:native("_hx_value_to_objc") extern static function _hx_value_to_objc(obj:Dynamic):NSObject;
 
+	@:native("_hx_objc_to_dynamic") extern static function _hx_objc_to_dynamic(d:NSObjectData):Dynamic;
 
-   inline function new(d:NSObjectData) this = d;
+	inline function new(d:NSObjectData)
+		this = d;
 
+	@:from extern static public inline function fromHaxe(d:Dynamic):NSObject
+		return _hx_value_to_objc(d);
 
-   @:from extern
-   static public inline function fromHaxe(d:Dynamic):NSObject return _hx_value_to_objc(d);
-
-
-   @:to extern
-   public inline function toHaxe():Dynamic return _hx_objc_to_dynamic(this);
+	@:to extern public inline function toHaxe():Dynamic
+		return _hx_objc_to_dynamic(this);
 }
-
-

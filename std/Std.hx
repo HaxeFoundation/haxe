@@ -27,11 +27,22 @@
 	The Std class provides standard methods for manipulating basic types.
 **/
 extern class Std {
+	/**
+		DEPRECATED. Use `Std.isOfType(v, t)` instead.
+
+		Tells if a value `v` is of the type `t`. Returns `false` if `v` or `t` are null.
+
+		If `t` is a class or interface with `@:generic` meta, the result is `false`.
+	**/
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	static function is(v:Dynamic, t:Dynamic):Bool;
 
 	/**
 		Tells if a value `v` is of the type `t`. Returns `false` if `v` or `t` are null.
+
+		If `t` is a class or interface with `@:generic` meta, the result is `false`.
 	**/
-	public static function is( v : Dynamic, t : Dynamic ) : Bool;
+	static function isOfType(v:Dynamic, t:Dynamic):Bool;
 
 	/**
 		Checks if object `value` is an instance of class or interface `c`.
@@ -49,10 +60,10 @@ extern class Std {
 		If `value` is null, the result is null. If `c` is null, the result is
 		unspecified.
 	**/
-	public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S;
+	static function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S;
+	static function instance<T:{}, S:T>(value:T, c:Class<S>):S;
 
 	/**
 		Converts any value to a String.
@@ -72,14 +83,14 @@ extern class Std {
 
 		If s is null, "null" is returned.
 	**/
-	public static function string( s : Dynamic ) : String;
+	static function string(s:Dynamic):String;
 
 	/**
 		Converts a `Float` to an `Int`, rounded towards 0.
 
 		If `x` is outside of the signed Int32 range, or is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`, the result is unspecified.
 	**/
-	public static function int( x : Float ) : Int;
+	static function int(x:Float):Int;
 
 	/**
 		Converts a `String` to an `Int`.
@@ -102,7 +113,7 @@ extern class Std {
 		If `x` is null, the result is unspecified.
 		If `x` cannot be parsed as integer, the result is `null`.
 	**/
-	public static function parseInt( x : String ) : Null<Int>;
+	static function parseInt(x:String):Null<Int>;
 
 	/**
 		Converts a `String` to a `Float`.
@@ -112,12 +123,12 @@ extern class Std {
 
 		Additionally, decimal notation may contain a single `.` to denote the start of the fractions.
 	**/
-	public static function parseFloat( x : String ) : Float;
+	static function parseFloat(x:String):Float;
 
 	/**
 		Return a random integer between 0 included and `x` excluded.
 
 		If `x <= 1`, the result is always 0.
 	**/
-	public static function random( x : Int ) : Int;
+	static function random(x:Int):Int;
 }

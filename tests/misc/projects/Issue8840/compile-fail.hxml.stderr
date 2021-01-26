@@ -1,0 +1,2 @@
+Main.hx:6: lines 6-7 : static @:to method should have one argument
+Main.hx:9: lines 9-10 : @:to method should have no arguments

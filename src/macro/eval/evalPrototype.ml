@@ -33,15 +33,15 @@ let eval_expr ctx kind e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info true e.epos.pfile kind jit.capture_infos in
-		let env = push_environment ctx info jit.max_num_locals num_captures in
+		let info = create_env_info true e.epos.pfile (ctx.file_keys#get e.epos.pfile) kind jit.capture_infos jit.max_num_locals num_captures in
+		let env = push_environment ctx info in
 		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
 
 (* Creates constructor function for class [c], if it has a constructor. *)
 let create_constructor ctx c =
 	match c.cl_constructor with
-	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not c.cl_extern ->
+	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not (has_class_flag c CExtern) ->
 		let key = path_hash c.cl_path in
 		let v = lazy (vfunction (jit_tfunction ctx key key_new tf false pos)) in
 		ctx.constructors <- IntMap.add key v ctx.constructors;
@@ -159,7 +159,7 @@ module PrototypeBuilder = struct
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)
 		if pctx.is_static then
-			ctx.static_prototypes <- IntMap.add pctx.key proto ctx.static_prototypes
+			ctx.static_prototypes#add proto
 		else begin
 			ctx.instance_prototypes <- IntMap.add pctx.key proto ctx.instance_prototypes;
 			if pctx.key = key_String then ctx.string_prototype <- proto
@@ -170,7 +170,7 @@ module PrototypeBuilder = struct
 end
 
 let is_removable_field cf =
-	has_class_field_flag cf CfExtern || Meta.has Meta.Generic cf.cf_meta
+	has_class_field_flag cf CfExtern || has_class_field_flag cf CfGeneric
 
 let is_persistent cf =
 	Meta.has Meta.Persistent cf.cf_meta
@@ -194,7 +194,7 @@ let create_static_prototype ctx mt =
 		let pctx = PrototypeBuilder.create ctx key pparent (PClass interfaces) meta in
 		let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_statics in
 		let delays = DynArray.create() in
-		if not c.cl_extern then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
+		if not (has_class_flag c CExtern) then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
 				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy (vstatic_function (jit_tfunction ctx key name tf true pos)));
@@ -240,7 +240,7 @@ let create_static_prototype ctx mt =
 		let pctx = PrototypeBuilder.create ctx key None (PClass []) meta in
 		PrototypeBuilder.finalize pctx,[];
 	| _ ->
-		assert false
+		die "" __LOC__
 	in
 	let rec loop v name path = match path with
 		| [] ->
@@ -267,7 +267,7 @@ let create_instance_prototype ctx c =
 	let key = path_hash c.cl_path in
 	let pctx = PrototypeBuilder.create ctx key pparent PInstance None in
 	let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_fields in
-	if c.cl_extern && c.cl_path <> ([],"String") then
+	if (has_class_flag c CExtern) && c.cl_path <> ([],"String") then
 		()
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
@@ -278,7 +278,11 @@ let create_instance_prototype ctx c =
 		| Var _,_ when is_physical_field cf ->
 			let name = hash cf.cf_name in
 			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
-		|  _ ->
+		| Method meth,None when has_class_field_flag cf CfAbstract ->
+			let name = hash cf.cf_name in
+			let v = lazy vnull in
+			PrototypeBuilder.add_proto_field pctx name v
+		| _ ->
 			()
 	) fields;
 	PrototypeBuilder.finalize pctx
@@ -307,12 +311,12 @@ let add_types ctx types ready =
 			false
 		with Not_found ->
 			ctx.instance_prototypes <- IntMap.remove key ctx.instance_prototypes;
-			ctx.static_prototypes <- IntMap.remove key ctx.static_prototypes;
+			ctx.static_prototypes#remove key;
 			ctx.constructors <- IntMap.remove key ctx.constructors;
 			ready mt;
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
 			if ctx.debug.support_debugger then begin
-				let file_key = hash inf.mt_module.m_extra.m_file in
+				let file_key = hash (Path.UniqueKey.lazy_path inf.mt_module.m_extra.m_file) in
 				if not (Hashtbl.mem ctx.debug.breakpoints file_key) then begin
 					Hashtbl.add ctx.debug.breakpoints file_key (Hashtbl.create 0)
 				end
@@ -333,7 +337,7 @@ let add_types ctx types ready =
 				| _ ->
 					false
 			in
-			List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
+			List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			create_constructor ctx c;
 			DynArray.add fl_instance (create_instance_prototype ctx c);
 			DynArray.add fl_static (create_static_prototype ctx mt);
@@ -341,6 +345,9 @@ let add_types ctx types ready =
 			DynArray.add fl_static (create_static_prototype ctx mt);
 		| TAbstractDecl a ->
 			DynArray.add fl_static (create_static_prototype ctx mt);
+			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778). *)
+			if Meta.has Meta.CoreType a.a_meta then
+				DynArray.add fl_instance (create_instance_prototype ctx {null_class with cl_path = a.a_path})
 		| _ ->
 			()
 	) new_types;
@@ -355,7 +362,7 @@ let add_types ctx types ready =
 		| _ ->
 			DynArray.add fl_static_init (proto,delays);
 			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
-			ctx.static_inits <- IntMap.add proto.ppath (proto,non_persistent_delays) ctx.static_inits;
+			ctx.static_prototypes#add_init proto non_persistent_delays;
 	) fl_static;
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;

@@ -19,15 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib;
 
+package python.lib;
 
 import python.NativeIterator;
 
 @:pythonImport("glob")
 extern class Glob {
-
-	public static function glob (pathname:String):Array<String>;
-	public static function iglob (pathname:String):NativeIterator<String>;
-
+	static function glob(pathname:String):Array<String>;
+	static function iglob(pathname:String):NativeIterator<String>;
 }

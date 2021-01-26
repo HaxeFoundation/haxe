@@ -1,3 +1,4 @@
 -p src
-# -D MISC_TEST_FILTER=6790
---run Main
+#-D MISC_TEST_FILTER=9619
+-main Main
+--interp

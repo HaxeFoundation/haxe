@@ -38,9 +38,29 @@ let rec is_removable_class c =
 	| _ ->
 		false
 
-let run_expression_filters ctx filters t =
+(**
+	Check if `field` is overridden in subclasses
+*)
+let is_overridden cls field =
+	let rec loop_inheritance c =
+		(PMap.mem field.cf_name c.cl_fields)
+		|| List.exists (fun d -> loop_inheritance d) c.cl_descendants;
+	in
+	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
+
+let run_expression_filters time_details ctx filters t =
 	let run e =
-		List.fold_left (fun e f -> f e) e filters
+		List.fold_left
+			(fun e (filter_name,f) ->
+				match time_details with
+				| Some timer_label ->
+					let t = Timer.timer (timer_label @ [filter_name]) in
+					let e = f e in
+					t();
+					e
+				| None -> f e
+			)
+			e filters
 	in
 	match t with
 	| TClassDecl c when is_removable_class c -> ()

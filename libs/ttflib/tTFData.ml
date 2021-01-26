@@ -344,7 +344,17 @@ type ttf = {
 	ttf_kern : kern option;
 }
 
+type ttf_font_weight =
+	| TFWRegular
+	| TFWBold
+
+type ttf_font_posture =
+	| TFPNormal
+	| TFPItalic
+
 type ttf_config = {
 	mutable ttfc_range_str : string;
 	mutable ttfc_font_name : string option;
+	mutable ttfc_font_weight : ttf_font_weight;
+	mutable ttfc_font_posture : ttf_font_posture;
 }

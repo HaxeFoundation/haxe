@@ -19,24 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.io;
 
 import haxe.io.Output;
-
 import python.io.IoTools;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 
 class NativeTextOutput extends NativeOutput<TextIOBase> {
-
-	public function new (stream:TextIOBase) {
+	public function new(stream:TextIOBase) {
 		super(stream);
-		if (!stream.writable()) throw "Read only stream";
+		if (!stream.writable())
+			throw "Read only stream";
 	}
 
-	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
-	{
+	public function seek(p:Int, pos:sys.io.FileSeek):Void {
 		IoTools.seekInTextMode(stream, tell, p, pos);
 	}
 
@@ -44,9 +43,7 @@ class NativeTextOutput extends NativeOutput<TextIOBase> {
 		return stream.buffer.write(python.Syntax.arrayAccess(@:privateAccess s.b, pos, pos + len));
 	}
 
-	override public function writeByte(c:Int):Void
-	{
+	override public function writeByte(c:Int):Void {
 		stream.write(String.fromCharCode(c));
 	}
-
 }

@@ -3,7 +3,7 @@ package unit.issues;
 class Issue5466 extends Test {
   function test() {
     var test:Base = (Math.random() > 0.5) ? new A() : new B();
-    t(Std.is(test, A) || Std.is(test, B));
+    t(Std.isOfType(test, A) || Std.isOfType(test, B));
   }
 }
 

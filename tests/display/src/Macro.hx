@@ -7,14 +7,11 @@ using Lambda;
 using StringTools;
 
 class Macro {
+	#if macro
 	static function buildTestCase():Array<Field> {
 		var fields = Context.getBuildFields();
-		var markerRe = ~/{-(\d+)-}/g;
-		var testCases = [];
 		var c = Context.getLocalClass().get();
 		for (field in fields) {
-			var markers = [];
-			var posAcc = 0;
 			if (field.doc == null) {
 				continue;
 			}
@@ -24,15 +21,9 @@ class Macro {
 			} else {
 				doc += field.doc;
 			}
-			var src = markerRe.map(doc, function(r) {
-				var p = r.matchedPos();
-				var name = r.matched(1);
-				var pos = p.pos - posAcc;
-				posAcc += p.len;
-				markers.push(macro $v{Std.parseInt(name)} => $v{pos});
-				return "";
-			});
-			var markers = markers.length > 0 ? macro $a{markers} : macro new Map();
+			doc = StringTools.replace(doc, "**\\/", "**/");
+			var transform = Marker.extractMarkers(doc);
+			var markers = transform.markers.length > 0 ? macro $a{transform.markers} : macro new Map();
 			var filename = Context.getPosInfos(c.pos).file;
 			for (meta in field.meta) {
 				if (meta.name == ":filename") {
@@ -48,7 +39,7 @@ class Macro {
 			switch (field.kind) {
 				case FFun(f) if (f.expr != null):
 					f.expr = macro @:pos(f.expr.pos) {
-						ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers);
+						ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{transform.source}, $markers);
 						${f.expr}
 					};
 				case _:
@@ -57,6 +48,7 @@ class Macro {
 
 		return fields;
 	}
+	#end
 
 	macro static public function getCases(pack:String) {
 		var cases = [];

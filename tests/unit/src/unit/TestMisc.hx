@@ -449,11 +449,9 @@ class TestMisc extends Test {
 		eq( x, 1 );
 		eq( arr[0].v, 4 );
 
-		#if !as3
 		x = 0;
 		eq( arr[x++].v += 3, 7 );
 		eq( arr[0].v, 7 );
-		#end
 
 		x = 0;
 		var arr:Dynamic = [{ v : 3 }];
@@ -461,11 +459,9 @@ class TestMisc extends Test {
 		eq( x, 1 );
 		eq( arr[0].v, 4 );
 
-		#if !as3
 		x = 0;
 		eq( arr[x++].v += 3, 7 );
 		eq( arr[0].v, 7 );
-		#end
 	}
 
 	function testInitOrder() {
@@ -599,5 +595,12 @@ class TestMisc extends Test {
 		function test():String throw "never call me";
 		var s = try test() catch(e:String) e;
 		eq(s,"never call me");
+	}
+
+	static var nf1:Base = null;
+	static var nf2:{s:String} = null;
+	function testNullFieldAccess() {
+		eq("NPE", try nf1.s catch (e:Any) "NPE");
+		eq("NPE", try nf2.s catch (e:Any) "NPE");
 	}
 }

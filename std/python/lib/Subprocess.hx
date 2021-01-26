@@ -19,36 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import haxe.extern.EitherType;
 
 extern class StartupInfo {
-	public var dwFlags : Int;
+	var dwFlags:Int;
 
-	public var wShowWindow:Int;
-
+	var wShowWindow:Int;
 }
 
 @:pythonImport("subprocess")
 extern class Subprocess {
+	static function STARTUPINFO():StartupInfo;
 
-	public static function STARTUPINFO():StartupInfo;
+	static var STD_INPUT_HANDLE:Int;
+	static var STD_OUTPUT_HANDLE:Int;
+	static var STD_ERROR_HANDLE:Int;
+	static var SW_HIDE:Int;
+	static var STARTF_USESTDHANDLES:Int;
+	static var STARTF_USESHOWWINDOW:Int;
 
-	public static var STD_INPUT_HANDLE:Int;
-	public static var STD_OUTPUT_HANDLE:Int;
-	public static var STD_ERROR_HANDLE:Int;
-	public static var SW_HIDE:Int;
-	public static var STARTF_USESTDHANDLES:Int;
-	public static var STARTF_USESHOWWINDOW:Int;
+	static var CREATE_NEW_CONSOLE:Int;
+	static var CREATE_NEW_PROCESS_GROUP:Int;
 
-	public static var CREATE_NEW_CONSOLE:Int;
-	public static var CREATE_NEW_PROCESS_GROUP:Int;
+	static var PIPE:Int;
 
-	public static var PIPE:Int;
+	static var STDOUT:Int;
 
-	public static var STDOUT:Int;
-
-	public static function call(args:EitherType<String,Array<String>>, ?kwArgs:python.KwArgs<Dynamic>):Int;
-
+	static function call(args:EitherType<String, Array<String>>, ?kwArgs:python.KwArgs<Dynamic>):Int;
 }

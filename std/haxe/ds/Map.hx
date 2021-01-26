@@ -30,7 +30,7 @@ import haxe.ds.WeakMap;
 import haxe.ds.EnumValueMap;
 import haxe.Constraints.IMap;
 
- /**
+/**
 	Map allows key to value mapping for arbitrary value types, and many key
 	types.
 
@@ -46,9 +46,9 @@ import haxe.Constraints.IMap;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
+@:transitive
 @:multiType(@:followWithAbstracts K)
-abstract Map<K,V>(IMap<K,V> ) {
-
+abstract Map<K, V>(IMap<K, V>) {
 	/**
 		Creates a new Map.
 
@@ -72,7 +72,8 @@ abstract Map<K,V>(IMap<K,V> ) {
 
 		If `key` is `null`, the result is unspecified.
 	**/
-	public inline function set(key:K, value:V) this.set(key, value);
+	public inline function set(key:K, value:V)
+		this.set(key, value);
 
 	/**
 		Returns the current mapping of `key`.
@@ -89,14 +90,16 @@ abstract Map<K,V>(IMap<K,V> ) {
 
 		If `key` is `null`, the result is unspecified.
 	**/
-	@:arrayAccess public inline function get(key:K) return this.get(key);
+	@:arrayAccess public inline function get(key:K)
+		return this.get(key);
 
 	/**
 		Returns true if `key` has a mapping, false otherwise.
 
 		If `key` is `null`, the result is unspecified.
 	**/
-	public inline function exists(key:K) return this.exists(key);
+	public inline function exists(key:K)
+		return this.exists(key);
 
 	/**
 		Removes the mapping of `key` and returns true if such a mapping existed,
@@ -104,7 +107,8 @@ abstract Map<K,V>(IMap<K,V> ) {
 
 		If `key` is `null`, the result is unspecified.
 	**/
-	public inline function remove(key:K) return this.remove(key);
+	public inline function remove(key:K)
+		return this.remove(key);
 
 	/**
 		Returns an Iterator over the keys of `this` Map.
@@ -122,7 +126,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 	**/
 	public inline function iterator():Iterator<V> {
 		return this.iterator();
-	}	
+	}
 
 	/**
 		Returns an Iterator over the keys and values of `this` Map.
@@ -138,7 +142,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 
 		The order of values is undefined.
 	**/
-	public inline function copy():Map<K,V> {
+	public inline function copy():Map<K, V> {
 		return cast this.copy();
 	}
 
@@ -151,36 +155,43 @@ abstract Map<K,V>(IMap<K,V> ) {
 		return this.toString();
 	}
 
+	/**
+		Removes all keys from `this` Map.
+	**/
+	public inline function clear():Void {
+		this.clear();
+	}
+
 	@:arrayAccess @:noCompletion public inline function arrayWrite(k:K, v:V):V {
 		this.set(k, v);
 		return v;
 	}
 
-	@:to static inline function toStringMap<K:String,V>(t:IMap<K,V>):StringMap<V> {
+	@:to static inline function toStringMap<K:String, V>(t:IMap<K, V>):StringMap<V> {
 		return new StringMap<V>();
 	}
 
-	@:to static inline function toIntMap<K:Int,V>(t:IMap<K,V>):IntMap<V> {
+	@:to static inline function toIntMap<K:Int, V>(t:IMap<K, V>):IntMap<V> {
 		return new IntMap<V>();
 	}
 
-	@:to static inline function toEnumValueMapMap<K:EnumValue,V>(t:IMap<K,V>):EnumValueMap<K,V> {
+	@:to static inline function toEnumValueMapMap<K:EnumValue, V>(t:IMap<K, V>):EnumValueMap<K, V> {
 		return new EnumValueMap<K, V>();
 	}
 
-	@:to static inline function toObjectMap<K:{ },V>(t:IMap<K,V>):ObjectMap<K,V> {
+	@:to static inline function toObjectMap<K:{}, V>(t:IMap<K, V>):ObjectMap<K, V> {
 		return new ObjectMap<K, V>();
 	}
 
-	@:from static inline function fromStringMap<V>(map:StringMap<V>):Map< String, V > {
+	@:from static inline function fromStringMap<V>(map:StringMap<V>):Map<String, V> {
 		return cast map;
 	}
 
-	@:from static inline function fromIntMap<V>(map:IntMap<V>):Map< Int, V > {
+	@:from static inline function fromIntMap<V>(map:IntMap<V>):Map<Int, V> {
 		return cast map;
 	}
 
-	@:from static inline function fromObjectMap<K:{ }, V>(map:ObjectMap<K,V>):Map<K,V> {
+	@:from static inline function fromObjectMap<K:{}, V>(map:ObjectMap<K, V>):Map<K, V> {
 		return cast map;
 	}
 }

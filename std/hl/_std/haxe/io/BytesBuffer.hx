@@ -19,16 +19,16 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 @:coreApi
 class BytesBuffer {
+	var b:hl.Bytes;
+	var pos:Int;
+	var size:Int;
 
-	var b : hl.Bytes;
-	var pos : Int;
-	var size : Int;
-
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 
 	public function new() {
 		pos = 0;
@@ -36,79 +36,96 @@ class BytesBuffer {
 		b = new hl.Bytes(size);
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return pos;
 	}
 
-	public inline function addByte( byte : Int ) : Void {
-		if( pos == size ) __expand(0);
+	public inline function addByte(byte:Int):Void {
+		if (pos == size)
+			__expand(0);
 		b[pos++] = byte;
 	}
 
-	function __expand( req : Int ) : Void {
+	function __expand(req:Int):Void {
 		var nsize = (size * 3) >> 1;
-		if( nsize < req ) nsize = req;
+		if (nsize < req)
+			nsize = req;
 		var b2 = new hl.Bytes(nsize);
 		b2.blit(0, b, 0, pos);
 		b = b2;
 		size = nsize;
 	}
 
-	function __add( b : hl.Bytes, bpos : Int, blen : Int ) : Void {
-		if( pos + blen > size ) __expand(pos+blen);
+	function __add(b:hl.Bytes, bpos:Int, blen:Int):Void {
+		if (pos + blen > size)
+			__expand(pos + blen);
 		this.b.blit(pos, b, bpos, blen);
 		pos += blen;
 	}
 
-	public inline function add( src : Bytes ) : Void {
+	public inline function add(src:Bytes):Void {
 		__add(@:privateAccess src.b, 0, src.length);
 	}
 
-	public inline function addString( v : String, ?encoding : Encoding ) : Void {
+	public inline function addString(v:String, ?encoding:Encoding):Void {
 		var len = 0;
-		@:privateAccess (encoding == RawNative ? __add(v.bytes,0,v.length<<1) : __add(v.bytes.utf16ToUtf8(0, len), 0, len));
+		@:privateAccess (encoding == RawNative ? __add(v.bytes, 0, v.length << 1) : __add(v.bytes.utf16ToUtf8(0, len), 0, len));
 	}
 
-	public inline function addInt32( v : Int ) : Void {
-		if( pos + 4 > size ) __expand(0);
+	public inline function addInt32(v:Int):Void {
+		if (pos + 4 > size)
+			__expand(0);
 		b.setI32(pos, v);
 		pos += 4;
 	}
 
-	public inline function addInt64( v : haxe.Int64 ) : Void {
-		if( pos + 8 > size ) __expand(0);
+	public inline function addInt64(v:haxe.Int64):Void {
+		if (pos + 8 > size)
+			__expand(0);
 		b.setI32(pos, v.low);
 		b.setI32(pos + 4, v.high);
 		pos += 8;
 	}
 
-	public inline function addFloat( v : Float ) : Void { 
-		if( pos + 4 > size ) __expand(0);
+	public inline function addFloat(v:Float):Void {
+		if (pos + 4 > size)
+			__expand(0);
 		#if hl_check_align
-		if( pos & 3 == 0 ) b.setF32(pos, v); else @:privateAccess { haxe.io.Bytes.alignBuffer.setF32(0,v); b.blit(pos,haxe.io.Bytes.alignBuffer,0,4); } 
+		if (pos & 3 == 0)
+			b.setF32(pos, v);
+		else @:privateAccess {
+			haxe.io.Bytes.alignBuffer.setF32(0, v);
+			b.blit(pos, haxe.io.Bytes.alignBuffer, 0, 4);
+		}
 		#else
 		b.setF32(pos, v);
 		#end
-		pos += 4; 
+		pos += 4;
 	}
-	
-	public inline function addDouble( v : Float ) : Void {
-		if( pos + 8 > size ) __expand(0);
+
+	public inline function addDouble(v:Float):Void {
+		if (pos + 8 > size)
+			__expand(0);
 		#if hl_check_align
-		if( pos & 7 == 0 ) b.setF64(pos, v); else @:privateAccess { haxe.io.Bytes.alignBuffer.setF64(0,v); b.blit(pos,haxe.io.Bytes.alignBuffer,0,8); } 
+		if (pos & 7 == 0)
+			b.setF64(pos, v);
+		else @:privateAccess {
+			haxe.io.Bytes.alignBuffer.setF64(0, v);
+			b.blit(pos, haxe.io.Bytes.alignBuffer, 0, 8);
+		}
 		#else
 		b.setF64(pos, v);
 		#end
 		pos += 8;
 	}
 
-	public inline function addBytes( src : Bytes, pos : Int, len : Int ) : Void {
-		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
+	public inline function addBytes(src:Bytes, pos:Int, len:Int):Void {
+		if (pos < 0 || len < 0 || pos + len > src.length)
+			throw Error.OutsideBounds;
 		__add(@:privateAccess src.b, pos, len);
 	}
 
-	public function getBytes() : Bytes {
+	public function getBytes():Bytes {
 		return @:privateAccess new haxe.io.Bytes(b, pos);
 	}
-
 }

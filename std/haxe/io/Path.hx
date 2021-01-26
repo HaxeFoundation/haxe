@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 /**
@@ -29,7 +30,6 @@ package haxe.io;
 	- `directory1\directory2\filename.extension`
 **/
 class Path {
-
 	/**
 		The directory.
 
@@ -40,7 +40,7 @@ class Path {
 
 		If the path has no directory, the value is `null`.
 	**/
-	public var dir : Null<String>;
+	public var dir:Null<String>;
 
 	/**
 		The file name.
@@ -50,7 +50,7 @@ class Path {
 		If there is no file name, e.g. for `".htaccess"` or `"/dir/"`, the value
 		is the empty String `""`.
 	**/
-	public var file : String;
+	public var file:String;
 
 	/**
 		The file extension.
@@ -60,12 +60,12 @@ class Path {
 
 		If the path has no extension, the value is `null`.
 	**/
-	public var ext : Null<String>;
+	public var ext:Null<String>;
 
 	/**
 		`true` if the last directory separator is a backslash, `false` otherwise.
 	**/
-	public var backslash : Bool;
+	public var backslash:Bool;
 
 	/**
 		Creates a new `Path` instance by parsing `path`.
@@ -73,7 +73,7 @@ class Path {
 		Path information can be retrieved by accessing the `dir`, `file` and `ext`
 		properties.
 	**/
-	public function new( path : String ) {
+	public function new(path:String) {
 		switch (path) {
 			case "." | "..":
 				dir = path;
@@ -82,19 +82,19 @@ class Path {
 		}
 		var c1 = path.lastIndexOf("/");
 		var c2 = path.lastIndexOf("\\");
-		if( c1 < c2 ) {
-			dir = path.substr(0,c2);
-			path = path.substr(c2+1);
+		if (c1 < c2) {
+			dir = path.substr(0, c2);
+			path = path.substr(c2 + 1);
 			backslash = true;
-		} else if( c2 < c1 ) {
-			dir = path.substr(0,c1);
-			path = path.substr(c1+1);
+		} else if (c2 < c1) {
+			dir = path.substr(0, c1);
+			path = path.substr(c1 + 1);
 		} else
 			dir = null;
 		var cp = path.lastIndexOf(".");
-		if( cp != -1 ) {
-			ext = path.substr(cp+1);
-			file = path.substr(0,cp);
+		if (cp != -1) {
+			ext = path.substr(cp + 1);
+			file = path.substr(0, cp);
 		} else {
 			ext = null;
 			file = path;
@@ -111,8 +111,8 @@ class Path {
 		If `this.directory` or `this.extension` is `null`, their representation
 		is the empty String `""`.
 	**/
-	public function toString() : String {
-		return (if( dir == null ) "" else dir + if( backslash ) "\\" else "/") + file + (if( ext == null ) "" else "." + ext);
+	public function toString():String {
+		return (if (dir == null) "" else dir + if (backslash) "\\" else "/") + file + (if (ext == null) "" else "." + ext);
 	}
 
 	/**
@@ -120,7 +120,7 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	public static function withoutExtension( path : String ) : String {
+	public static function withoutExtension(path:String):String {
 		var s = new Path(path);
 		s.ext = null;
 		return s.toString();
@@ -131,7 +131,7 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	public static function withoutDirectory( path ) : String {
+	public static function withoutDirectory(path):String {
 		var s = new Path(path);
 		s.dir = null;
 		return s.toString();
@@ -144,9 +144,9 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	public static function directory( path ) : String {
+	public static function directory(path):String {
 		var s = new Path(path);
-		if( s.dir == null )
+		if (s.dir == null)
 			return "";
 		return s.dir;
 	}
@@ -158,9 +158,9 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	public static function extension( path ) : String {
+	public static function extension(path):String {
 		var s = new Path(path);
-		if( s.ext == null )
+		if (s.ext == null)
 			return "";
 		return s.ext;
 	}
@@ -172,7 +172,7 @@ class Path {
 
 		If `path` or `ext` are `null`, the result is unspecified.
 	**/
-	public static function withExtension( path, ext ) : String {
+	public static function withExtension(path, ext):String {
 		var s = new Path(path);
 		s.ext = ext;
 		return s.toString();
@@ -186,7 +186,7 @@ class Path {
 
 		If `paths` is `null`, the result is unspecified.
 	**/
-	public static function join(paths:Array<String>) : String {
+	public static function join(paths:Array<String>):String {
 		var paths = paths.filter(function(s) return s != null && s != "");
 		if (paths.length == 0) {
 			return "";
@@ -207,21 +207,22 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	public static function normalize(path : String) : String {
+	public static function normalize(path:String):String {
 		var slash = "/";
 		path = path.split("\\").join(slash);
-		if (path == slash) return slash;
+		if (path == slash)
+			return slash;
 
 		var target = [];
 
-		for( token in path.split(slash) ) {
-			if(token == '..' && target.length > 0 && target[target.length-1] != "..") {
+		for (token in path.split(slash)) {
+			if (token == '..' && target.length > 0 && target[target.length - 1] != "..") {
 				target.pop();
-			} else if(token == '') {
-				if(target.length > 0 || path.charCodeAt(0) == '/'.code) {
+			} else if (token == '') {
+				if (target.length > 0 || path.charCodeAt(0) == '/'.code) {
 					target.push(token);
 				}
-			} else if(token != '.') {
+			} else if (token != '.') {
 				target.push(token);
 			}
 		}
@@ -251,6 +252,7 @@ class Path {
 					acc.addChar(i);
 			}
 		}
+
 		return acc.toString();
 	}
 
@@ -266,17 +268,21 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	public static function addTrailingSlash( path : String ) : String {
+	public static function addTrailingSlash(path:String):String {
 		if (path.length == 0)
 			return "/";
 		var c1 = path.lastIndexOf("/");
 		var c2 = path.lastIndexOf("\\");
-		return if ( c1 < c2 ) {
-			if (c2 != path.length - 1) path + "\\";
-			else path;
+		return if (c1 < c2) {
+			if (c2 != path.length - 1)
+				path + "\\";
+			else
+				path;
 		} else {
-			if (c1 != path.length - 1) path + "/";
-			else path;
+			if (c1 != path.length - 1)
+				path + "/";
+			else
+				path;
 		}
 	}
 
@@ -290,11 +296,13 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	public static function removeTrailingSlashes ( path : String ) : String {
+	public static function removeTrailingSlashes(path:String):String {
 		while (true) {
-			switch(path.charCodeAt(path.length - 1)) {
-				case '/'.code | '\\'.code: path = path.substr(0, -1);
-				case _: break;
+			switch (path.charCodeAt(path.length - 1)) {
+				case '/'.code | '\\'.code:
+					path = path.substr(0, -1);
+				case _:
+					break;
 			}
 		}
 		return path;
@@ -303,19 +311,22 @@ class Path {
 	/**
 		Returns `true` if the path is an absolute path, and `false` otherwise.
 	**/
-	public static function isAbsolute ( path : String ) : Bool {
-		if (StringTools.startsWith(path, '/')) return true;
-		if (path.charAt(1) == ':') return true;
-		if (StringTools.startsWith(path, '\\\\')) return true;
+	public static function isAbsolute(path:String):Bool {
+		if (StringTools.startsWith(path, '/'))
+			return true;
+		if (path.charAt(1) == ':')
+			return true;
+		if (StringTools.startsWith(path, '\\\\'))
+			return true;
 		return false;
 	}
 
-	private static function unescape( path : String ) : String {
+	private static function unescape(path:String):String {
 		var regex = ~/-x([0-9][0-9])/g;
 		return regex.map(path, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
 	}
 
-	private static function escape( path : String, allowSlashes : Bool = false ) : String {
+	private static function escape(path:String, allowSlashes:Bool = false):String {
 		var regex = allowSlashes ? ~/[^A-Za-z0-9_\/\\\.]/g : ~/[^A-Za-z0-9_\.]/g;
 		return regex.map(path, function(v) return '-x' + v.matched(0).charCodeAt(0));
 	}

@@ -22,102 +22,156 @@
 
 package sys.thread;
 
-@:callable
-@:coreType
-private abstract ThreadHandle {}
+abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 
-abstract Thread(ThreadHandle) {
-	inline function new(h:ThreadHandle):Void {
-		this = h;
-	}
+	public var events(get,never):EventLoop;
 
 	public inline function sendMessage(msg:Dynamic):Void {
-		thread_send(this, msg);
+		this.sendMessage(msg);
 	}
 
 	public static inline function current():Thread {
-		return new Thread(thread_current());
+		return HaxeThread.current();
 	}
 
-	public static inline function create(callb:Void->Void):Thread {
-		return new Thread(thread_create(function(_) {
-			return callb();
-		}, null));
+	public static inline function create(job:()->Void):Thread {
+		return HaxeThread.create(job, false);
+	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
+		return HaxeThread.create(job, true);
+	}
+
+	public static inline function readMessage(block:Bool):Dynamic {
+		return HaxeThread.readMessage(block);
+	}
+
+	function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
+		return this.events;
+	}
+
+	@:keep
+	static function initEventLoop() {
+		@:privateAccess HaxeThread.current().events = new EventLoop();
+	}
+
+	@:keep
+	static function processEvents() {
+		HaxeThread.current().events.loop();
+	}
+}
+
+@:callable
+@:coreType
+private abstract NativeThreadHandle {}
+
+private typedef ThreadHandle = NativeThreadHandle;
+
+private class HaxeThread {
+	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadHandle = neko.Lib.load("std", "thread_create", 2);
+	static var thread_current:()->ThreadHandle = neko.Lib.load("std", "thread_current", 0);
+	static var thread_send:(handle:ThreadHandle, msg:Dynamic)->Void = neko.Lib.load("std", "thread_send", 2);
+	static var thread_read_message:(block:Bool)->Dynamic = neko.Lib.load("std", "thread_read_message", 1);
+
+	static var mainThreadHandle = thread_current();
+	static var mainThread = new HaxeThread(mainThreadHandle);
+
+	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
+	static final threadsMutex = new Mutex();
+
+	public var events(default,null):Null<EventLoop>;
+	public var handle:ThreadHandle;
+
+	static public function current():HaxeThread {
+		var handle = thread_current();
+		if(handle == mainThreadHandle) {
+			return mainThread;
+		}
+		threadsMutex.acquire();
+		var thread = null;
+		for(item in threads) {
+			if(item.handle == handle) {
+				thread = item.thread;
+				break;
+			}
+		}
+		if(thread == null) {
+			thread = new HaxeThread(handle);
+			threads.push({thread:thread, handle:handle});
+		}
+		threadsMutex.release();
+		return thread;
+	}
+
+	public static function create(callb:()->Void, withEventLoop:Bool):Thread {
+		var item = {handle:null, thread:new HaxeThread(null)};
+		threadsMutex.acquire();
+		threads.push(item);
+		threadsMutex.release();
+		if(withEventLoop)
+			item.thread.events = new EventLoop();
+		item.handle = thread_create(_ -> {
+			if(item.thread.handle == null) {
+				item.handle = thread_current();
+				item.thread.handle = item.handle;
+			}
+			try {
+				callb();
+				if(withEventLoop)
+					item.thread.events.loop();
+			} catch(e) {
+				dropThread(item);
+				throw e;
+			}
+			dropThread(item);
+		}, null);
+		item.thread.handle = item.handle;
+		return item.thread;
+	}
+
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = current();
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
+	}
+
+	static function dropThread(deleteItem) {
+		threadsMutex.acquire();
+		for(i => item in threads) {
+			if(item == deleteItem) {
+				threads.splice(i, 1);
+				break;
+			}
+		}
+		threadsMutex.release();
 	}
 
 	public static inline function readMessage(block:Bool):Dynamic {
 		return thread_read_message(block);
 	}
 
-	@:op(A == B)
-	inline function equals(other:Thread):Bool {
-		return getHandle() == other.getHandle();
+	public function new(handle:ThreadHandle) {
+		this.handle = handle;
 	}
 
-	private inline function getHandle():ThreadHandle {
-		return this;
+	public function sendMessage(msg:Dynamic) {
+		thread_send(handle, msg);
 	}
-
-	/**
-			Starts an OS message loop after [osInitialize] has been done.
-			In that state, the UI handled by this thread will be updated and
-			[sync] calls can be performed. The loop returns when [exitLoop] is
-			called for this thread.
-		**
-		public static function osLoop() {
-			if( os_loop == null ) throw "Please call osInitialize() first";
-			os_loop();
-		}
-
-		/**
-			The function [f] will be called by this thread if it's in [osLoop].
-			[sync] returns immediately. See [osInitialize] remarks.
-		**
-		public function sync( f : Void -> Void ) {
-			os_sync(handle,f);
-		}
-
-		/**
-			The function [f] will be called by this thread and the calling thread
-			will wait until the result is available then return its value.
-		**
-		public function syncResult<T>( f : Void -> T ) : T {
-			if( this == current() )
-				return f();
-			var v = new neko.vm.Lock();
-			var r = null;
-			sync(function() {
-				r = f();
-				v.release();
-			});
-			v.wait();
-			return r;
-		}
-
-		/**
-			Exit from [osLoop].
-		**
-		public function exitLoop() {
-			os_loop_stop(handle);
-		}
-
-		/**
-			If you want to use the [osLoop], [sync] and [syncResult] methods, you
-			need to call [osInitialize] before creating any thread or calling [current].
-			This will load [os.ndll] library and initialize UI methods for each thread.
-		**
-		public static function osInitialize() {
-			os_loop = neko.Lib.load("os","os_loop",0);
-			os_loop_stop = neko.Lib.load("os","os_loop_stop",1);
-			os_sync = neko.Lib.load("os","os_sync",2);
-		}
-
-		static var os_loop = null;
-		static var os_loop_stop = null;
-		static var os_sync = null;
-	 */
-	static var thread_create = neko.Lib.load("std", "thread_create", 2);
-	static var thread_current = neko.Lib.load("std", "thread_current", 0);
-	static var thread_send = neko.Lib.load("std", "thread_send", 2);
-	static var thread_read_message = neko.Lib.load("std", "thread_read_message", 1);
 }

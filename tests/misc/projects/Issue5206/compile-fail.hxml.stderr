@@ -1,4 +1,4 @@
 Main.hx:14: characters 29-34 : A should be X
-Main.hx:14: characters 29-34 : { pos : Int, len : Int } has no field x
+Main.hx:14: characters 29-34 : ... { pos : Int, len : Int } has no field x
 Main.hx:14: characters 27-40 : Y should be Z
-Main.hx:14: characters 27-40 : { y : Int, x : Int } has no field len
+Main.hx:14: characters 27-40 : ... { y : Int, x : Int } has no field len

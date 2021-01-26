@@ -24,7 +24,7 @@ private class A {
 private class B extends A {
   public var tasks:Int->Void;
 
-  public function new(task:Void->Void) {
+  public function new(task:()->Void) {
     super();
     tasks = function(i) {
       for (j in 0...i) {

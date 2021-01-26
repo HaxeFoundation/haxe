@@ -19,19 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.Tuple.Tuple2;
 
 @:pythonImport("inspect")
 extern class Inspect {
-	static function getmembers(object:Dynamic, ?predicate:Dynamic->Bool):Array<Tuple2<String,Dynamic>>;
+	static function getmembers(object:Dynamic, ?predicate:Dynamic->Bool):Array<Tuple2<String, Dynamic>>;
 	static function ismethod(object:Dynamic):Bool;
 	static function isclass(object:Dynamic):Bool;
 	static function isfunction(object:Dynamic):Bool;
 	static function getsourcefile(object:Dynamic):String;
 
-	static public inline function isInterface(cls:Class<Dynamic>):Bool {
+	static inline function isInterface(cls:Class<Dynamic>):Bool {
 		return untyped __define_feature__("python._hx_is_interface", c._hx_is_interface);
 	}
 }

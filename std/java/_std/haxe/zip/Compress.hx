@@ -19,24 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
+
 import java.util.zip.Deflater;
 
-class Compress
-{
+class Compress {
 	var deflater:Deflater;
 	var mode:Int;
 	var finish:Bool = false;
 
-	public function new( level : Int )
-	{
-		throw "Not implemented for this platform"; //FIXME: Add unit tests for Compress/Uncompress and check current implementation
+	public function new(level:Int) {
+		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform"); // FIXME: Add unit tests for Compress/Uncompress and check current implementation
 		this.deflater = new Deflater(level);
 		this.mode = Deflater.NO_FLUSH;
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int }
-	{
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
 		deflater.setInput(src.getData(), srcPos, src.length - srcPos);
 		if (finish)
 			deflater.finish();
@@ -44,11 +43,10 @@ class Compress
 
 		var written = deflater.deflate(dst.getData(), dstPos, dst.length - dstPos);
 		var read = deflater.getTotalIn();
-		return { done: deflater.finished(), read: read, write: written };
+		return {done: deflater.finished(), read: read, write: written};
 	}
 
-	public function setFlushMode( f : FlushMode )
-	{
+	public function setFlushMode(f:FlushMode) {
 		this.mode = switch (f) {
 			case NO:
 				Deflater.NO_FLUSH;
@@ -60,17 +58,15 @@ class Compress
 				this.finish = true;
 				Deflater.FULL_FLUSH;
 			case BLOCK:
-				throw "Not Implemented";
+				throw new haxe.exceptions.NotImplementedException();
 		}
 	}
 
-	public function close()
-	{
+	public function close() {
 		deflater.end();
 	}
 
-	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes
-	{
+	public static function run(s:haxe.io.Bytes, level:Int):haxe.io.Bytes {
 		var deflater = new java.util.zip.Deflater(level);
 		deflater.setInput(s.getData());
 		var outputStream = new java.io.ByteArrayOutputStream(s.length);

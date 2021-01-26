@@ -22,6 +22,7 @@ open Globals
 open Ast
 open IlData
 open IlMeta
+open NativeLibraries
 
 (* see http://msdn.microsoft.com/en-us/library/2sk3x8a7(v=vs.71).aspx *)
 let cs_binops =
@@ -126,11 +127,11 @@ let netpath_to_hx std = function
 
 let lookup_ilclass std com ilpath =
 	let path = netpath_to_hx std ilpath in
-	List.fold_right (fun (_,_,_,get_raw_class) acc ->
+	List.fold_right (fun net_lib acc ->
 		match acc with
-		| None -> get_raw_class path
+		| None -> net_lib#lookup path
 		| Some p -> acc
-	) com.net_libs None
+	) com.native_libs.net_libs None
 
 let discard_nested = function
 	| (ns,_),cl -> (ns,[]),cl
@@ -219,10 +220,8 @@ let ilpath_s = function
 let get_cls = function
 	| _,_,c -> c
 
-(* TODO: When possible on Haxe, use this to detect flag enums, and make an abstract with @:op() *)
-(* that behaves like an enum, and with an enum as its underlying type *)
-let enum_is_flag ilcls =
-	let check_flag name ns = name = "FlagsAttribute" && ns = ["System"] in
+let has_attr expected_name expected_ns ilcls =
+	let check_flag name ns = (name = expected_name && ns = expected_ns) in
 	List.exists (fun a ->
 		match a.ca_type with
 			| TypeRef r ->
@@ -245,9 +244,15 @@ let enum_is_flag ilcls =
 				false
 	) ilcls.cattrs
 
+(* TODO: When possible on Haxe, use this to detect flag enums, and make an abstract with @:op() *)
+(* that behaves like an enum, and with an enum as its underlying type *)
+let enum_is_flag = has_attr "FlagsAttribute" ["System"]
+
+let is_compiler_generated = has_attr "CompilerGeneratedAttribute" ["System"; "Runtime"; "CompilerServices"]
+
 let convert_ilenum ctx p ?(is_flag=false) ilcls =
 	let meta = ref [
-		Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p;
+		Meta.Native, [EConst (String (ilpath_s ilcls.cpath,SDoubleQuotes) ), p], p;
 		Meta.CsNative, [], p;
 	] in
 
@@ -331,7 +336,7 @@ let convert_ilfield ctx p field =
 		if String.get cff_name 0 = '%' then
 			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
 			"_" ^ name,
-			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+			(Meta.Native, [EConst (String (name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 		else
 			cff_name, !cff_meta
 	in
@@ -372,7 +377,7 @@ let convert_ilevent ctx p ev =
 		cff_kind = kind;
 	}
 
-let convert_ilmethod ctx p m is_explicit_impl =
+let convert_ilmethod ctx p is_interface m is_explicit_impl =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
 	let force_check = Common.defined ctx.ncom Define.ForceLibCheck in
 	let p = { p with pfile =	p.pfile ^" (" ^m.mname ^")" } in
@@ -389,13 +394,10 @@ let convert_ilmethod ctx p m is_explicit_impl =
 				| _ -> name)
 		| name -> name
 	in
-	let meta = [Meta.Overload, [], p] in
+	let meta = [] in
 	let acc, meta = match m.mflags.mf_access with
 		| FAFamily | FAFamOrAssem ->
 			(APrivate,null_pos), ((Meta.Protected, [], p) :: meta)
-		(* | FAPrivate -> APrivate *)
-		| FAPublic when List.mem SGetter m.msemantics || List.mem SSetter m.msemantics ->
-			(APrivate,null_pos), meta
 		| FAPublic -> (APublic,null_pos), meta
 		| _ ->
 			if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
@@ -409,11 +411,12 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
 	) ([acc],None) m.mflags.mf_contract in
+	let acc = (AOverload,p) :: acc in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
 	let acc = match is_final with
-		| None | Some true when not force_check ->
+		| None | Some true when not force_check && not !is_static ->
 			(AFinal,null_pos) :: acc
 		| _ ->
 			acc
@@ -484,18 +487,19 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		if String.get cff_name 0 = '%' then
 			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
 			"_" ^ name,
-			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: meta
+			(Meta.Native, [EConst (String (name,SDoubleQuotes) ), cff_pos], cff_pos) :: meta
 		else
 			cff_name, meta
 	in
 	let acc = match m.moverride with
-		| None -> acc
+		| None ->
+			if not is_interface && List.mem IAbstract m.mflags.mf_impl then (AAbstract,null_pos) :: acc else acc
 		| _ when cff_name = "new" -> acc
 		| Some (path,s) -> match lookup_ilclass ctx.nstd ctx.ncom path with
 			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
 				(AOverride,null_pos) :: acc
 			| None when ctx.ncom.verbose ->
-				prerr_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
+				print_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
 				acc
 			| _ -> acc
 	in
@@ -572,12 +576,12 @@ let convert_ilprop ctx p prop is_explicit_impl =
 		cff_kind = kind;
 	}
 
-let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
+let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
 
 let is_explicit ctx ilcls i =
 	let s = match i with
 		| LClass(path,_) | LValueType(path,_) -> ilpath_s path
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	in
 	let len = String.length s in
 	List.exists (fun m ->
@@ -718,21 +722,29 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			let sup = sup @ List.map (fun i -> IlMetaDebug.ilsig_s i.ssig) ilcls.cimplements in
 			print_endline ("converting " ^ ilpath_s ilcls.cpath ^ " : " ^ (String.concat ", " sup))
 		end;
-		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
+		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath,SDoubleQuotes) ), p], p] in
 		let force_check = Common.defined ctx.ncom Define.ForceLibCheck in
 		if not force_check then
 			meta := (Meta.LibType,[],p) :: !meta;
 
 		let is_interface = ref false in
+		let is_abstract = ref false in
+		let is_sealed = ref false in
 		List.iter (fun f -> match f with
 			| SSealed ->
-				flags := HFinal :: !flags
+				flags := HFinal :: !flags;
+				is_sealed := true
 			| SInterface ->
 				is_interface := true;
 				flags := HInterface :: !flags
-			| SAbstract -> meta := (Meta.Abstract, [], p) :: !meta
+			| SAbstract ->
+				meta := (Meta.Abstract, [], p) :: !meta;
+				is_abstract := true;
 			| _ -> ()
 		) ilcls.cflags.tdf_semantics;
+
+		(* static class = abstract sealed class - in this case we don't want an abstract flag *)
+		if !is_abstract && not !is_interface && not !is_sealed then flags := HAbstract :: !flags;
 
 		(* (match ilcls.cflags.tdf_vis with *)
 		(*	| VPublic | VNestedFamOrAssem | VNestedFamily -> () *)
@@ -791,7 +803,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 					ilcls.cmethods
 			in
 			run_fields (fun m ->
-				convert_ilmethod ctx p m (List.exists (fun m2 -> m != m2 && String.get m2.mname 0 <> '.' && String.ends_with m2.mname ("." ^ m.mname)) meths)
+				convert_ilmethod ctx p !is_interface m (List.exists (fun m2 -> m != m2 && String.get m2.mname 0 <> '.' && String.ends_with m2.mname ("." ^ m.mname)) meths)
 			) meths;
 			run_fields (convert_ilfield ctx p) ilcls.cfields;
 			run_fields (fun prop ->
@@ -981,7 +993,11 @@ let normalize_ilcls ctx cls =
 	let rec loop cls = try
 		match cls.csuper with
 		| Some { snorm = LClass((["System"],[],"Object"),_) }
-		| Some { snorm = LObject } | None -> ()
+		| Some { snorm = LObject } ->
+			let cls, params = ilcls_from_ilsig ctx LObject in
+			let cls = ilcls_with_params ctx cls params in
+			all_fields := get_all_fields cls @ !all_fields;
+		| None -> ()
 		| Some s ->
 			let cls, params = ilcls_from_ilsig ctx s.snorm in
 			let cls = ilcls_with_params ctx cls params in
@@ -1038,7 +1054,7 @@ let normalize_ilcls ctx cls =
 			List.iter (loop_interface cif) cif.cimplements
 		with | Not_found -> ()
 	in
-	List.iter (loop_interface cls) cls.cimplements;
+	if not (List.mem SAbstract cls.cflags.tdf_semantics) then List.iter (loop_interface cls) cls.cimplements;
 	let added = List.map (function
 		| (IlMethod m,a,name,b) when m.mflags.mf_access <> FAPublic ->
 			(IlMethod { m with mflags = { m.mflags with mf_access = FAPublic } },a,name,b)
@@ -1109,52 +1125,57 @@ let normalize_ilcls ctx cls =
 let add_net_std com file =
 	com.net_std <- file :: com.net_std
 
-let add_net_lib com file std =
-	let ilctx = ref None in
-	let netpath_to_hx = netpath_to_hx std in
-	let real_file = ref file in
-	let get_ctx () =
-		match !ilctx with
-		| Some c ->
-			c
-		| None ->
-			let file = if Sys.file_exists file then
-				file
-			else try Common.find_file com file with
-				| Not_found -> try Common.find_file com (file ^ ".dll") with
-				| Not_found ->
-					failwith (".NET lib " ^ file ^ " not found")
-			in
-			real_file := file;
-			let r = PeReader.create_r (open_in_bin file) com.defines.Define.values in
-			let ctx = PeReader.read r in
-			let clr_header = PeReader.read_clr_header ctx in
-			let cache = IlMetaReader.create_cache () in
-			let meta = IlMetaReader.read_meta_tables ctx clr_header cache in
-			close_in (r.PeReader.ch);
+class net_library com name file_path std = object(self)
+	inherit [net_lib_type,unit] native_library name file_path
+
+	val mutable ilctx = None
+	val cache = Hashtbl.create 0
+
+	method private netpath_to_hx =
+		netpath_to_hx std
+
+	method load =
+		let r = PeReader.create_r (open_in_bin file_path) com.defines.Define.values in
+		let ctx = PeReader.read r in
+		let clr_header = PeReader.read_clr_header ctx in
+		let cache = IlMetaReader.create_cache () in
+		let meta = IlMetaReader.read_meta_tables ctx clr_header cache in
+		close_in (r.PeReader.ch);
+		if PMap.mem "net_loader_debug" com.defines.Define.values then
+			print_endline ("for lib " ^ file_path);
+		let il_typedefs = Hashtbl.copy meta.il_typedefs in
+		Hashtbl.clear meta.il_typedefs;
+
+		Hashtbl.iter (fun _ td ->
+			let path = IlMetaTools.get_path (TypeDef td) in
 			if PMap.mem "net_loader_debug" com.defines.Define.values then
-				print_endline ("for lib " ^ file);
-			let il_typedefs = Hashtbl.copy meta.il_typedefs in
-			Hashtbl.clear meta.il_typedefs;
+				Printf.printf "found %s\n" (s_type_path (self#netpath_to_hx path));
+			Hashtbl.replace com.net_path_map (self#netpath_to_hx path) path;
+			Hashtbl.replace meta.il_typedefs path td
+		) il_typedefs;
+		let meta = { nstd = std; ncom = com; nil = meta } in
+		ilctx <- Some meta
 
-			Hashtbl.iter (fun _ td ->
-				let path = IlMetaTools.get_path (TypeDef td) in
-				if PMap.mem "net_loader_debug" com.defines.Define.values then
-					Printf.printf "found %s\n" (s_type_path (netpath_to_hx path));
-				Hashtbl.replace com.net_path_map (netpath_to_hx path) path;
-				Hashtbl.replace meta.il_typedefs path td
-			) il_typedefs;
-			let meta = { nstd = std; ncom = com; nil = meta } in
-			ilctx := Some meta;
-			meta
-	in
+	method get_ctx = match ilctx with
+		| None ->
+			self#load;
+			self#get_ctx
+		| Some ctx ->
+			ctx
 
-	let cache = Hashtbl.create 0 in
-	let lookup path =
+	method close =
+		()
+
+	method list_modules =
+		Hashtbl.fold (fun path _ acc -> match path with
+			| _,_ :: _, _ -> acc
+			| _ -> self#netpath_to_hx path :: acc) (self#get_ctx).nil.il_typedefs []
+
+	method lookup path : net_lib_type =
 		try
 			Hashtbl.find cache path
 		with | Not_found -> try
-			let ctx = get_ctx() in
+			let ctx = self#get_ctx in
 			let ns, n, cl = hxpath_to_net ctx path in
 			let cls = IlMetaTools.convert_class ctx.nil (ns,n,cl) in
 			let cls = normalize_ilcls ctx cls in
@@ -1163,38 +1184,31 @@ let add_net_lib com file std =
 		with | Not_found ->
 			Hashtbl.add cache path None;
 			None
-	in
 
-	let all_files () =
-		Hashtbl.fold (fun path _ acc -> match path with
-			| _,_ :: _, _ -> acc
-			| _ -> netpath_to_hx path :: acc) (get_ctx()).nil.il_typedefs []
-	in
-
-	let build path =
-		let p = { pfile = !real_file ^ " @ " ^ s_type_path path; pmin = 0; pmax = 0; } in
+	method build (path : path) (p : pos) : Ast.package option =
+		let p = { pfile = file_path ^ " @ " ^ s_type_path path; pmin = 0; pmax = 0; } in
 		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 		let cp = ref [] in
 		let rec build path = try
 			if PMap.mem "net_loader_debug" com.defines.Define.values then
 				Printf.printf "looking up %s\n" (s_type_path path);
-			match lookup path with
+			match self#lookup path with
 			| Some({csuper = Some{snorm = LClass( (["System"],[],("Delegate"|"MulticastDelegate")),_)}} as cls)
 				when List.mem SSealed cls.cflags.tdf_semantics ->
-				let ctx = get_ctx() in
+				let ctx = self#get_ctx in
 				let hxcls = convert_ilclass ctx p ~delegate:true cls in
 				let delegate = convert_delegate ctx p cls in
 				cp := (hxcls,p) :: (delegate,p) :: !cp;
 				List.iter (fun ilpath ->
-					let path = netpath_to_hx ilpath in
+					let path = netpath_to_hx std ilpath in
 					build path
 				) cls.cnested
-			| Some cls ->
-				let ctx = get_ctx() in
+			| Some cls when not (is_compiler_generated cls) ->
+				let ctx = self#get_ctx in
 				let hxcls = convert_ilclass ctx p cls in
 				cp := (hxcls,p) :: !cp;
 				List.iter (fun ilpath ->
-					let path = netpath_to_hx ilpath in
+					let path = netpath_to_hx std ilpath in
 					build path
 				) cls.cnested
 			| _ -> ()
@@ -1204,14 +1218,26 @@ let add_net_lib com file std =
 		build path;
 		match !cp with
 			| [] -> None
-			| cp -> Some (!real_file, (pack,cp))
-	in
-	let build path p =
-		build path
-	in
-	com.load_extern_type <- com.load_extern_type @ [build];
-	com.net_libs <- (file, std, all_files, lookup) :: com.net_libs
+			| cp -> Some (pack,cp)
 
+	method get_data = ()
+
+	initializer
+		if std then self#add_flag FlagIsStd
+end
+
+let add_net_lib com file std extern =
+	let real_file = if Sys.file_exists file then
+		file
+	else try Common.find_file com file with
+		| Not_found -> try Common.find_file com (file ^ ".dll") with
+		| Not_found ->
+			failwith (".NET lib " ^ file ^ " not found")
+	in
+	let net_lib = new net_library com file real_file std in
+	if extern then net_lib#add_flag FlagIsExtern;
+	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
+	CommonCache.handle_native_lib com net_lib
 
 let before_generate com =
 	(* netcore version *)
@@ -1221,7 +1247,7 @@ let before_generate com =
 	let net_ver =
 		try
 			let ver = PMap.find "net_ver" com.defines.Define.values in
-			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45)")
+			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45, 50)")
 		with Not_found when netcore_ver != None ->
 			(* 4.7 was released around .NET core 2.1 *)
 			(* Note: better version mapping should be implemented some day,
@@ -1244,7 +1270,7 @@ let before_generate com =
 			loop acc
 		| _ -> ()
 	in
-	loop [20;21;30;35;40;45];
+	loop [20;21;30;35;40;45;50];
 
 	(* net target *)
 	let net_target = try
@@ -1283,13 +1309,10 @@ let before_generate com =
 				let f = Unix.readdir f in
 				let finsens = String.lowercase f in
 				if String.ends_with finsens ".dll" then
-					add_net_lib com (path ^ "/" ^ f) true;
+					add_net_lib com (path ^ "/" ^ f) true false ();
 				loop()
 			with | End_of_file ->
 				Unix.closedir f
 		in
 		loop()
-	) !matched;
-
-	(* now force all libraries to initialize *)
-	List.iter (function (_,_,_,lookup) -> ignore (lookup ([],""))) com.net_libs
+	) !matched

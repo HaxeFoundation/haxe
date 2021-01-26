@@ -19,14 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 @:pythonImport("pprint")
 extern class Pprint {
+	static function pprint(x:Dynamic):Void;
 
-
-	public static function pprint (x:Dynamic):Void;
-
-	public static function pformat(object:Dynamic, indent:Int=1, width:Int=80, depth:Int=null):String;
-
+	static function pformat(object:Dynamic, indent:Int = 1, width:Int = 80, depth:Int = null):String;
 }

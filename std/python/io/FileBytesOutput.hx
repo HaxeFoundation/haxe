@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.io;
 
 import python.io.IFileOutput;
@@ -26,7 +27,7 @@ import python.io.NativeBytesOutput;
 import python.lib.io.RawIOBase;
 
 class FileBytesOutput extends NativeBytesOutput implements IFileOutput {
-	public function new (stream:RawIOBase) {
+	public function new(stream:RawIOBase) {
 		super(stream);
 	}
 }

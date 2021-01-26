@@ -19,25 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 @:semantics(reference)
 @:coreType abstract Ref<T> {
-
-	@:from extern public static inline function make<T>( v : T ) {
+	@:from extern public static inline function make<T>(v:T) {
 		return new Ref<T>(v);
 	}
 
-	extern public inline function new( v : T ) {
+	extern public inline function new(v:T) {
 		this = untyped $ref(v);
 	}
-	extern public inline function get() : T {
+
+	extern public inline function get():T {
 		return untyped $unref(this);
 	}
-	extern public inline function set( v : T ) : Void {
-		return untyped $setref(this,v);
+
+	extern public inline function set(v:T):Void {
+		return untyped $setref(this, v);
 	}
-	extern public inline function offset( v : Int ) : Ref<T> {
+
+	extern public inline function offset(v:Int):Ref<T> {
 		return untyped $refoffset(this, v);
 	}
 }

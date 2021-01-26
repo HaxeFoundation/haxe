@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.io;
 
 /**
@@ -28,13 +29,12 @@ package haxe.io;
 	Output.
 **/
 class Output {
-
 	/**
 		Endianness (word byte order) used when writing numbers.
 
 		If `true`, big-endian is used, otherwise `little-endian` is used.
 	**/
-	public var bigEndian(default, set) : Bool;
+	public var bigEndian(default, set):Bool;
 
 	#if java
 	private var helper:java.nio.ByteBuffer;
@@ -43,8 +43,8 @@ class Output {
 	/**
 		Write one byte.
 	**/
-	public function writeByte( c : Int ) : Void {
-		throw "Not implemented";
+	public function writeByte(c:Int):Void {
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	/**
@@ -54,24 +54,24 @@ class Output {
 
 		See `writeFullBytes` that tries to write the exact amount of specified bytes.
 	**/
-	public function writeBytes( s : Bytes, pos : Int, len : Int ) : Int {
+	public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
 		#if !neko
-		if( pos < 0 || len < 0 || pos + len > s.length )
+		if (pos < 0 || len < 0 || pos + len > s.length)
 			throw Error.OutsideBounds;
 		#end
 		var b = #if js @:privateAccess s.b #else s.getData() #end;
 		var k = len;
-		while( k > 0 ) {
+		while (k > 0) {
 			#if neko
-				writeByte(untyped __dollar__sget(b,pos));
+			writeByte(untyped __dollar__sget(b, pos));
 			#elseif php
-				writeByte(b.get(pos));
+			writeByte(b.get(pos));
 			#elseif cpp
-				writeByte(untyped b[pos]);
+			writeByte(untyped b[pos]);
 			#elseif hl
-				writeByte(b[pos]);
+			writeByte(b[pos]);
 			#else
-				writeByte(untyped b[pos]);
+			writeByte(untyped b[pos]);
 			#end
 			pos++;
 			k--;
@@ -82,33 +82,31 @@ class Output {
 	/**
 		Flush any buffered data.
 	**/
-	public function flush() {
-	}
+	public function flush() {}
 
 	/**
 		Close the output.
 
 		Behaviour while writing after calling this method is unspecified.
 	**/
-	public function close() {
-	}
+	public function close() {}
 
-	function set_bigEndian( b ) {
+	function set_bigEndian(b) {
 		bigEndian = b;
 		return b;
 	}
 
 	/* ------------------ API ------------------ */
-
 	/**
 		Write all bytes stored in `s`.
 	**/
-	public function write( s : Bytes ) : Void {
+	public function write(s:Bytes):Void {
 		var l = s.length;
 		var p = 0;
-		while( l > 0 ) {
-			var k = writeBytes(s,p,l);
-			if( k == 0 ) throw Error.Blocked;
+		while (l > 0) {
+			var k = writeBytes(s, p, l);
+			if (k == 0)
+				throw Error.Blocked;
 			p += k;
 			l -= k;
 		}
@@ -119,9 +117,9 @@ class Output {
 
 		Unlike `writeBytes`, this method tries to write the exact `len` amount of bytes.
 	**/
-	public function writeFullBytes( s : Bytes, pos : Int, len : Int ) {
-		while( len > 0 ) {
-			var k = writeBytes(s,pos,len);
+	public function writeFullBytes(s:Bytes, pos:Int, len:Int) {
+		while (len > 0) {
+			var k = writeBytes(s, pos, len);
 			pos += k;
 			len -= k;
 		}
@@ -132,7 +130,7 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeFloat( x : Float ) {
+	public function writeFloat(x:Float) {
 		writeInt32(FPHelper.floatToI32(x));
 	}
 
@@ -141,9 +139,9 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeDouble( x : Float ) {
+	public function writeDouble(x:Float) {
 		var i64 = FPHelper.doubleToI64(x);
-		if( bigEndian ) {
+		if (bigEndian) {
 			writeInt32(i64.high);
 			writeInt32(i64.low);
 		} else {
@@ -155,8 +153,8 @@ class Output {
 	/**
 		Write `x` as 8-bit signed integer.
 	**/
-	public function writeInt8( x : Int ) {
-		if( x < -0x80 || x >= 0x80 )
+	public function writeInt8(x:Int) {
+		if (x < -0x80 || x >= 0x80)
 			throw Error.Overflow;
 		writeByte(x & 0xFF);
 	}
@@ -166,8 +164,9 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeInt16( x : Int ) {
-		if( x < -0x8000 || x >= 0x8000 ) throw Error.Overflow;
+	public function writeInt16(x:Int) {
+		if (x < -0x8000 || x >= 0x8000)
+			throw Error.Overflow;
 		writeUInt16(x & 0xFFFF);
 	}
 
@@ -176,9 +175,10 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeUInt16( x : Int ) {
-		if( x < 0 || x >= 0x10000 ) throw Error.Overflow;
-		if( bigEndian ) {
+	public function writeUInt16(x:Int) {
+		if (x < 0 || x >= 0x10000)
+			throw Error.Overflow;
+		if (bigEndian) {
 			writeByte(x >> 8);
 			writeByte(x & 0xFF);
 		} else {
@@ -192,8 +192,9 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeInt24( x : Int ) {
-		if( x < -0x800000 || x >= 0x800000 ) throw Error.Overflow;
+	public function writeInt24(x:Int) {
+		if (x < -0x800000 || x >= 0x800000)
+			throw Error.Overflow;
 		writeUInt24(x & 0xFFFFFF);
 	}
 
@@ -202,9 +203,10 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeUInt24( x : Int ) {
-		if( x < 0 || x >= 0x1000000 ) throw Error.Overflow;
-		if( bigEndian ) {
+	public function writeUInt24(x:Int) {
+		if (x < 0 || x >= 0x1000000)
+			throw Error.Overflow;
+		if (bigEndian) {
 			writeByte(x >> 16);
 			writeByte((x >> 8) & 0xFF);
 			writeByte(x & 0xFF);
@@ -220,17 +222,17 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeInt32( x : Int ) {
-		if( bigEndian ) {
-			writeByte( x >>> 24 );
-			writeByte( (x >> 16) & 0xFF );
-			writeByte( (x >> 8) & 0xFF );
-			writeByte( x & 0xFF );
+	public function writeInt32(x:Int) {
+		if (bigEndian) {
+			writeByte(x >>> 24);
+			writeByte((x >> 16) & 0xFF);
+			writeByte((x >> 8) & 0xFF);
+			writeByte(x & 0xFF);
 		} else {
-			writeByte( x & 0xFF );
-			writeByte( (x >> 8) & 0xFF );
-			writeByte( (x >> 16) & 0xFF );
-			writeByte( x >>> 24 );
+			writeByte(x & 0xFF);
+			writeByte((x >> 8) & 0xFF);
+			writeByte((x >> 16) & 0xFF);
+			writeByte(x >>> 24);
 		}
 	}
 
@@ -241,8 +243,7 @@ class Output {
 		on this information, or simply ignore it. This is not a mandatory call
 		but a tip and is only used in some specific cases.
 	**/
-	public function prepare( nbytes : Int ) {
-	}
+	public function prepare(nbytes:Int) {}
 
 	/**
 		Read all available data from `i` and write it.
@@ -250,44 +251,43 @@ class Output {
 		The `bufsize` optional argument specifies the size of chunks by
 		which data is read and written. Its default value is 4096.
 	**/
-	public function writeInput( i : Input, ?bufsize : Int ) {
-		if( bufsize == null )
+	public function writeInput(i:Input, ?bufsize:Int) {
+		if (bufsize == null)
 			bufsize = 4096;
 		var buf = Bytes.alloc(bufsize);
 		try {
-			while( true ) {
-				var len = i.readBytes(buf,0,bufsize);
-				if( len == 0 )
+			while (true) {
+				var len = i.readBytes(buf, 0, bufsize);
+				if (len == 0)
 					throw Error.Blocked;
 				var p = 0;
-				while( len > 0 ) {
-					var k = writeBytes(buf,p,len);
-					if( k == 0 )
+				while (len > 0) {
+					var k = writeBytes(buf, p, len);
+					if (k == 0)
 						throw Error.Blocked;
 					p += k;
 					len -= k;
 				}
 			}
-		} catch( e : Eof ) {
-		}
+		} catch (e:Eof) {}
 	}
 
 	/**
 		Write `s` string.
 	**/
-	public function writeString( s : String, ?encoding : Encoding ) {
+	public function writeString(s:String, ?encoding:Encoding) {
 		#if neko
-		var b = untyped new Bytes(s.length,s.__s);
+		var b = untyped new Bytes(s.length, s.__s);
 		#else
 		var b = Bytes.ofString(s, encoding);
 		#end
-		writeFullBytes(b,0,b.length);
+		writeFullBytes(b, 0, b.length);
 	}
 
-#if neko
-	static function __init__() untyped {
-		Output.prototype.bigEndian = false;
-	}
-#end
-
+	#if neko
+	static function __init__()
+		untyped {
+			Output.prototype.bigEndian = false;
+		}
+	#end
 }

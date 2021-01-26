@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 import php.Global.*;
@@ -26,19 +27,19 @@ import php.SuperGlobal.*;
 
 @:coreApi
 class Host {
+	public var host(default, null):String;
 
-	public var host(default,null) : String;
+	private var _ip:String;
 
-	private var _ip : String;
-	public var ip(default,null) : Int;
+	public var ip(default, null):Int;
 
-	public function new( name : String ) : Void {
+	public function new(name:String):Void {
 		host = name;
-		if(~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
-		  _ip = name;
+		if (~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
+			_ip = name;
 		} else {
 			_ip = gethostbyname(name);
-			if(_ip == name) {
+			if (_ip == name) {
 				ip = 0;
 				return;
 			}
@@ -47,15 +48,15 @@ class Host {
 		ip = intval(sprintf('%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		return _ip;
 	}
 
-	public function reverse() : String {
+	public function reverse():String {
 		return gethostbyaddr(_ip);
 	}
 
-	public static function localhost() : String {
+	public static function localhost():String {
 		return php.Syntax.coalesce(_SERVER['HTTP_HOST'], "localhost");
 	}
 }

@@ -30,38 +30,41 @@ import python.Syntax;
 
 @:keepInit
 @:coreApi class Std {
-
 	@:access(python.Boot)
-	public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
 		try {
-			return UBuiltins.isinstance(value,c) || (Inspect.isInterface(c) && Boot.implementsInterface(value, c)) ? cast value : null;
+			return UBuiltins.isinstance(value, c) || (Inspect.isInterface(c) && Boot.implementsInterface(value, c)) ? cast value : null;
 		} catch (e:Dynamic) {
 			return null;
 		}
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>( value : T, c : Class<S> ) : S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
 		return downcast(value, c);
 	}
 
 	@:access(python.Boot)
 	static inline function isMetaType(v:Dynamic, t:Dynamic):Bool {
-		return Boot.isMetaType(v,t);
+		return Boot.isMetaType(v, t);
+	}
+
+	@:ifFeature("typed_cast")
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
 	}
 
 	@:access(python.Boot)
 	@:ifFeature("typed_cast")
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null && t == null) {
 			return false;
 		}
 		if (t == null) {
-
 			return false;
 		}
-		if (isMetaType(t,Dynamic)) {
+		if (isMetaType(t, Dynamic)) {
 			return v != null;
 		}
 		var isBool = UBuiltins.isinstance(v, UBuiltins.bool);
@@ -69,32 +72,39 @@ import python.Syntax;
 		if (isMetaType(t, Bool) && isBool) {
 			return true;
 		}
-		if (!isBool && !isMetaType(t, Bool) && isMetaType(t,Int) && UBuiltins.isinstance(v, UBuiltins.int )) {
+		if (!isBool && !isMetaType(t, Bool) && isMetaType(t, Int) && UBuiltins.isinstance(v, UBuiltins.int)) {
 			return true;
 		}
 		var vIsFloat = UBuiltins.isinstance(v, UBuiltins.float);
 
-		if (!isBool && vIsFloat && isMetaType(t,Int) && Math.isFinite(v) && v == Std.int(v) && v <= 2147483647 && v >= -2147483648) {
+		if (!isBool && vIsFloat && isMetaType(t, Int) && Math.isFinite(v) && v == Std.int(v) && v <= 2147483647 && v >= -2147483648) {
 			return true;
 		}
 
-
-		if (!isBool &&  isMetaType(t,Float) && ( UBuiltins.isinstance(v, python.Syntax.tuple(UBuiltins.float, UBuiltins.int)))) {
+		if (!isBool && isMetaType(t, Float) && (UBuiltins.isinstance(v, python.Syntax.tuple(UBuiltins.float, UBuiltins.int)))) {
 			return true;
 		}
 
-		if ( isMetaType(t, UBuiltins.str)) {
+		if (isMetaType(t, UBuiltins.str)) {
 			return UBuiltins.isinstance(v, String);
 		}
-		var isEnumType = isMetaType(t,Enum);
-		if (isEnumType && Inspect.isclass(v) && Internal.hasConstructs(v)) return true;
+		var isEnumType = isMetaType(t, Enum);
+		if (isEnumType && Inspect.isclass(v) && Internal.hasConstructs(v))
+			return true;
 
-		if (isEnumType) return false;
+		if (isEnumType)
+			return false;
 
-		var isClassType = isMetaType(t,Class);
-		if (isClassType && !UBuiltins.isinstance(v, Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
+		var isClassType = isMetaType(t, Class);
+		if (isClassType
+			&& !UBuiltins.isinstance(v, Enum)
+			&& Inspect.isclass(v)
+			&& Internal.hasClassName(v)
+			&& !Internal.hasConstructs(v))
+			return true;
 
-		if (isClassType) return false;
+		if (isClassType)
+			return false;
 
 		if (try UBuiltins.isinstance(v, t) catch (e:Dynamic) false) {
 			return true;
@@ -108,13 +118,11 @@ import python.Syntax;
 	}
 
 	@:access(python.Boot)
-	public static function string( s : Dynamic ) : String
-	{
+	public static function string(s:Dynamic):String {
 		return python.Boot.toString(s);
 	}
 
-	public static inline function int( x : Float ) : Int
-	{
+	public static inline function int(x:Float):Int {
 		try {
 			return UBuiltins.int(x);
 		} catch (e:Dynamic) {
@@ -122,64 +130,77 @@ import python.Syntax;
 		}
 	}
 
-	public static function parseInt( x : String ) : Null<Int> {
-		if (x == null) return null;
+	public static function parseInt(x:String):Null<Int> {
+		if (x == null)
+			return null;
 		try {
 			return UBuiltins.int(x);
 		} catch (e:Dynamic) {
-			try {
-				var prefix = x.substr(0,2).toLowerCase();
+			var base = 10;
+			var len = x.length;
+			var foundCount = 0;
+			var sign = 0;
+			var firstDigitIndex = 0;
+			var lastDigitIndex = -1;
+			var previous = 0;
 
-				if (prefix == "0x") {
-					return UBuiltins.int(x,16);
+			for(i in 0...len) {
+				var c = StringTools.fastCodeAt(x, i);
+				switch c {
+					case _ if((c > 8 && c < 14) || c == 32):
+						if(foundCount > 0) {
+							return null;
+						}
+						continue;
+					case '-'.code if(foundCount == 0):
+						sign = -1;
+					case '+'.code if(foundCount == 0):
+						sign = 1;
+					case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
+					case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+						base = 16;
+					case _ if('0'.code <= c && c <= '9'.code):
+					case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
+					case _:
+						break;
 				}
-				throw "fail";
-			} catch (e:Dynamic) {
-
-				var r = int(parseFloat(x));
-
-				if (r == null) {
-					var r1 = shortenPossibleNumber(x);
-					if (r1 != x) {
-						return parseInt(r1);
-					} else {
-						return null;
-					}
+				if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+					firstDigitIndex = i;
 				}
-				return r;
+				foundCount++;
+				lastDigitIndex = i;
+				previous = c;
 			}
+			if(firstDigitIndex <= lastDigitIndex) {
+				var digits = x.substring(firstDigitIndex, lastDigitIndex + 1);
+				return try {
+					(sign == -1 ? -1 : 1) * UBuiltins.int(digits, base);
+				} catch(e:Dynamic) {
+					null;
+				}
+			}
+			return null;
 		}
 	}
 
-	static function shortenPossibleNumber (x:String):String
-	{
+	static function shortenPossibleNumber(x:String):String {
 		var r = "";
 		for (i in 0...x.length) {
 			var c = x.charAt(i);
 			switch (c.charCodeAt(0)) {
-				case "0".code
-				| "1".code
-				| "2".code
-				| "3".code
-				| "4".code
-				| "5".code
-				| "6".code
-				| "7".code
-				| "8".code
-				| "9".code
-				| ".".code : r += c;
-				case _ : break;
+				case "0".code | "1".code | "2".code | "3".code | "4".code | "5".code | "6".code | "7".code | "8".code | "9".code | ".".code:
+					r += c;
+				case _:
+					break;
 			}
 		}
 		return r;
 	}
 
-	public static function parseFloat( x : String ) : Float
-	{
+	public static function parseFloat(x:String):Float {
 		try {
 			return UBuiltins.float(x);
 		} catch (e:Dynamic) {
-
 			if (x != null) {
 				var r1 = shortenPossibleNumber(x);
 				if (r1 != x) {
@@ -190,7 +211,7 @@ import python.Syntax;
 		}
 	}
 
-	public static inline function random( x : Int ) : Int {
+	public static inline function random(x:Int):Int {
 		return if (x <= 0) 0 else python.internal.UBuiltins.int(Math.random() * x);
 	}
 }

@@ -35,9 +35,6 @@ class TestType extends Test {
 		fl.sort(Reflect.compare);
 		eq( fl.join("|"), fields.join("|") );
 
-		// AS3 generator will create native properties
-		#if !as3
-
 		// x should not be listed since it's not a variable
 		var fl = Type.getInstanceFields(VarProps);
 		var fields = ["get_x","get_y","set_x","set_y","set_z","y","z"];
@@ -49,8 +46,6 @@ class TestType extends Test {
 		var fields = ["SY", "get_SX", "get_SY", "set_SX", "set_SY"];
 		fl.sort(Reflect.compare);
 		eq( fl.join("|"), fields.join("|"));
-
-		#end
 	}
 
 	public function testEnumEq() {
@@ -74,17 +69,17 @@ class TestType extends Test {
 		var c = Type.getEnumConstructs(MyEnum);
 		var old = c[0];
 		c[0] = "modified";
-		eq( Type.getEnumConstructs(MyEnum)[0], old );
+		t(Type.getEnumConstructs(MyEnum).contains(old));
 
 		var i = Type.getInstanceFields(TestType);
 		var old = i[0];
 		i[0] = "modified";
-		eq( Type.getInstanceFields(TestType)[0], old );
+		t(Type.getInstanceFields(TestType).contains(old));
 
 		var i = Type.getClassFields(TestType);
 		var old = i[0];
 		i[0] = "modified";
-		eq( Type.getClassFields(TestType)[0], old );
+		t(Type.getClassFields(TestType).contains(old));
 
 		// we don't check for Type.enumParameters modifications :
 		// we want it to be as fast as possible even if it references
@@ -99,11 +94,8 @@ class TestType extends Test {
 		var c = new MyClass.MyChild1();
 		eq(12, c.a());
 
-		// TODO: this is also a problem
-		#if !as3
 		var mc2 = new MyChild2();
 		eq(21, mc2.test1(new MyChild1()));
-		#end
 	}
 
 	function testUnifyMin() {
@@ -257,7 +249,7 @@ class TestType extends Test {
 		eq(7, optfunc.bind(_, 2, _)(1, 4));
 
 		var foo = function ( x : Int, ?p : haxe.PosInfos ) { return "foo" + x; }
-		var f : Void -> String = foo.bind(0);
+		var f : () -> String = foo.bind(0);
  		eq("foo0", f());
 
 		var foo = function(bar = 2) { return bar; };
@@ -306,8 +298,8 @@ class TestType extends Test {
 
 		var c = new Cov2();
 		typedAs(c.covariant(), c1);
-		t(Std.is(c.covariant(), Child1));
-		t(Std.is(cast(c, Cov1).covariant(), Child1));
+		t(Std.isOfType(c.covariant(), Child1));
+		t(Std.isOfType(cast(c, Cov1).covariant(), Child1));
 
 		// base class reference
 		var br:Cov1 = c;
@@ -538,6 +530,7 @@ class TestType extends Test {
 		gf1("foo");
 		gf1(true);
 		gf1({foo: 1});
+		gf1(function(i:Int):String return '$i');
 
 		gf1(new haxe.Template("foo"));
 
@@ -550,6 +543,7 @@ class TestType extends Test {
 
 		hsf(TestType, "gf1_haxe_ds_GenericStack_Int");
 		hsf(TestType, "gf1_anon_foo_Int");
+		hsf(TestType, "gf1_func_Int_String");
 		t(typeError(gf1(null))); // monos don't work
 
 		eq("foo[1,2]", gf2("foo", [1, 2]));
@@ -777,8 +771,7 @@ class TestType extends Test {
 		eq(mr["hhh"], 2);
 		eq(v, "hhhh");
 
-		// note for later: As3 compilation fails if the function name is removed
-		mr["101"] = function n(x) return 9 + x;
+		mr["101"] = function(x) return 9 + x;
 		eq(mr["101"](1), 10);
 	}
 
@@ -806,7 +799,7 @@ class TestType extends Test {
 	}
 
 	function testGADTEnumAbstract() {
-		var expectedA:unit.MyAbstract.GADTEnumAbstract<Void->Void>;
+		var expectedA:unit.MyAbstract.GADTEnumAbstract<()->Void>;
 		var expectedB:unit.MyAbstract.GADTEnumAbstract<Int->Void>;
 		typedAs(unit.MyAbstract.GADTEnumAbstract.A, expectedA);
 		typedAs(unit.MyAbstract.GADTEnumAbstract.B, expectedB);

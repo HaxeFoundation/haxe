@@ -19,12 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.net;
 
 /**
-    A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
+	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
 **/
-
 @:deprecated("Use python.lib.socket.Socket instead")
 typedef Socket = python.lib.socket.Socket;
 

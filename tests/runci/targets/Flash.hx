@@ -11,6 +11,9 @@ import runci.System.*;
 import runci.Config.*;
 
 class Flash {
+	static var miscFlashDir(get,never):String;
+	static inline function get_miscFlashDir() return miscDir + 'flash/';
+
 	static public function getLatestFPVersion():Array<Int> {
 		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
 		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
@@ -64,7 +67,7 @@ class Flash {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				}
 				switch (ci) {
-					case AzurePipelines:
+					case GithubActions:
 						runCommand("xvfb-run", ["-a", playerCmd, "-v"]);
 					case _:
 						runCommand(playerCmd, ["-v"]);
@@ -73,8 +76,12 @@ class Flash {
 				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
 					return;
 				}
+				runCommand("brew", ["uninstall", "openssl@1.0.2t"], false, true);
+				runCommand("brew", ["uninstall", "python@2.7.17"], false, true);
+				runCommand("brew", ["untap", "local/openssl"], false, true);
+				runCommand("brew", ["untap", "local/python2"], false, true);
 				runCommand("brew", ["update"]);
-				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
+				runCommand("brew", ["install", "--cask", "flash-player-debugger"]);
 
 				// Disable the "application downloaded from Internet" warning
 				runCommand("xattr", ["-d", "-r", "com.apple.quarantine", "/Applications/Flash Player Debugger.app"]);
@@ -101,7 +108,7 @@ class Flash {
 		switch (systemName) {
 			case "Linux":
 				switch (ci) {
-					case AzurePipelines:
+					case GithubActions:
 						new Process("xvfb-run", ["-a", playerCmd, swf]);
 					case _:
 						new Process(playerCmd, [swf]);
@@ -144,6 +151,8 @@ class Flash {
 				break;
 			}
 		}
+		traceProcess.kill();
+		traceProcess.close();
 		Sys.command("cat", [flashlogPath]);
 		return success;
 	}
@@ -151,8 +160,18 @@ class Flash {
 	static public function run(args:Array<String>) {
 		setupFlashPlayerDebugger();
 		setupFlexSdk();
-		runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
-		var success = runFlash("bin/unit9.swf");
+		var success = true;
+		for (argsVariant in [[], ["--swf-version", "32"]]) {
+			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args).concat(argsVariant));
+			var runSuccess = runFlash("bin/unit9.swf");
+			if (!runSuccess) {
+				success = false;
+			}
+		}
+
+		changeDirectory(miscFlashDir);
+		runCommand("haxe", ["run.hxml"]);
+
 		if (!success)
 			fail();
 	}

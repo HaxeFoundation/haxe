@@ -1,0 +1,7 @@
+(include_subdirs no)
+
+(library
+	(name extlib_leftovers)
+	(libraries extlib)
+	; (wrapped false)
+)

@@ -17,7 +17,7 @@ class Issue7061 extends DisplayTestCase {
 			static function main() {}
 			function new() f{-6-}oo(b{-1-}ar);
 			function notNew() foo(b{-7-}ar2);
-			function {-2-}foo{-3-}<T>(value:Either<Void->T,Void->Void>) {}
+			function {-2-}foo{-3-}<T>(value:Either<()->T,()->Void>) {}
 			function {-4-}bar{-5-}() {}
 			function bar2() return 1;
 		}
@@ -25,7 +25,7 @@ class Issue7061 extends DisplayTestCase {
 	function test() {
 		eq(range(4, 5), position(pos(1)));
 		eq(range(2, 3), position(pos(6)));
-		eq("Void -> Void", type(pos(1)));
-		eq("Void -> Int", type(pos(7)));
+		eq("() -> Void", type(pos(1)));
+		eq("() -> Int", type(pos(7)));
 	}
 }

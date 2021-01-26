@@ -1,6 +1,6 @@
 package unit.issues;
 
-#if (flash && !as3)
+#if flash
 private class PropClassChild extends PropClass {
 	override function get_x():Int {
 		return super.get_x() + 1;
@@ -28,7 +28,7 @@ private class HaxePropIfaceImpl extends PropClass implements HaxePropIface {}
 #end
 
 class Issue8241 extends unit.Test {
-	#if (flash && !as3)
+	#if flash
 	function test() {
 		var p = new PropClass();
 		eq(42, p.x);

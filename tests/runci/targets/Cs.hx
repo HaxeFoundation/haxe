@@ -23,13 +23,7 @@ class Cs {
 					runCommand("brew", ["install", "mono"], true);
 				runCommand("mono", ["--version"]);
 			case "Windows":
-				switch (ci) {
-					case AppVeyor:
-						addToPATH("C:\\Program Files (x86)\\Mono\\bin");
-						runCommand("mono", ["--version"]);
-					case _:
-						//pass
-				}
+				//pass
 		}
 
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
@@ -49,35 +43,28 @@ class Cs {
 	static public function run(args:Array<String>) {
 		getCsDependencies();
 
-		var compl = switch [ci, systemName] {
-			case [TravisCI, "Linux"]:
-				"-travis";
-			case _:
-				"";
-		};
-
 		for (fastcast in      [[], ["-D", "fast_cast"]])
 		for (noroot in        [[], ["-D", "no_root"]])
 		for (erasegenerics in [[], ["-D", "erase_generics"]])
 		{
 			var extras = fastcast.concat(erasegenerics).concat(noroot);
-			runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras));
+			runCommand("haxe", ['compile-cs.hxml'].concat(extras).concat(args));
 			runCs("bin/cs/bin/TestMain-Debug.exe");
 
-			runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras));
+			runCommand("haxe", ['compile-cs-unsafe.hxml'].concat(extras).concat(args));
 			runCs("bin/cs_unsafe/bin/TestMain-Debug.exe");
 		}
 
-		runCommand("haxe", ['compile-cs$compl.hxml','-dce','no']);
+		runCommand("haxe", ['compile-cs.hxml','-dce','no'].concat(args));
 		runCs("bin/cs/bin/TestMain-Debug.exe");
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
+		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
 		runCs("bin/cs/bin/Main-Debug.exe", []);
 
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
-		// runCs("export/cs/bin/Main.exe");
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
+		runCs("export/cs/bin/Main.exe");
 
 		changeDirectory(miscCsDir);
 		runCommand("haxe", ["run.hxml"]);

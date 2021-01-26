@@ -19,67 +19,75 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	private var h:Dynamic;
 
-	private var h : Dynamic;
-
-	public function new() : Void {
+	public function new():Void {
 		h = untyped __dollar__hnew(0);
 	}
 
-	public inline function set( key : String, value : T ) : Void {
-		untyped __dollar__hset(h,key.__s,value,null);
+	public inline function set(key:String, value:T):Void {
+		untyped __dollar__hset(h, key.__s, value, null);
 	}
 
-	public inline function get( key : String ) : Null<T> {
-		return untyped __dollar__hget(h,key.__s,null);
+	public inline function get(key:String):Null<T> {
+		return untyped __dollar__hget(h, key.__s, null);
 	}
 
-	public inline function exists( key : String ) : Bool {
-		return untyped __dollar__hmem(h,key.__s,null);
+	public inline function exists(key:String):Bool {
+		return untyped __dollar__hmem(h, key.__s, null);
 	}
 
-	public inline function remove( key : String ) : Bool {
-		return untyped __dollar__hremove(h,key.__s,null);
+	public inline function remove(key:String):Bool {
+		return untyped __dollar__hremove(h, key.__s, null);
 	}
 
-	public function keys() : Iterator<String> {
+	public function keys():Iterator<String> {
 		var l = new List<String>();
-		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
+		untyped __dollar__hiter(h, function(k, _) {
+			l.push(new String(k));
+		});
 		return l.iterator();
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator():Iterator<T> {
 		var l = new List<T>();
-		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
+		untyped __dollar__hiter(h, function(_, v) {
+			l.push(v);
+		});
 		return l.iterator();
 	}
 
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator():KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
-	public function copy() : StringMap<T> {
+	public function copy():StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		for (key in keys())
+			copied.set(key, get(key));
 		return copied;
 	}
 
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(i);
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
+	public inline function clear():Void {
+		h = untyped __dollar__hnew(0);
+	}
 }

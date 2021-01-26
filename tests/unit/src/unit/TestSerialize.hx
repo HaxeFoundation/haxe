@@ -116,6 +116,7 @@ class TestSerialize extends Test {
 		for( i in 0...b.length )
 			b.set(i,i%10);
 		doTestBytes(b);
+		doTestBytesCrossPlatform();
 
 		// recursivity
 		c.ref = c;
@@ -173,6 +174,24 @@ class TestSerialize extends Test {
 		eq( b2.length, b.length );
 		for( i in 0...b.length )
 			eq( b2.get(i), b.get(i) );
+	}
+
+	function doTestBytesCrossPlatform() {
+		var sample = 's340:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0%P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn%AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq%wsbKztLW2t7i5uru8vb6:wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t:g4eLj5OXm5%jp6uvs7e7v8PHy8:T19vf4%fr7:P3%';
+
+		//serialization
+		var b = haxe.io.Bytes.alloc(255);
+		for(i in 0...255) b.set(i, i);
+		eq(sample, haxe.Serializer.run(b));
+
+		//de-serialization
+		var b:haxe.io.Bytes = haxe.Unserializer.run(sample);
+		eq(255, b.length);
+		for(i in 0...b.length) {
+			var byte = b.get(i);
+			eq(i, byte);
+			if(i != byte) break;
+		}
 	}
 
 }

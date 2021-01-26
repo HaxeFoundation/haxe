@@ -48,6 +48,19 @@
 			"devcomment": {
 				"type": "string",
 				"markdownDescription": "Internal comment that is not exposed."
+			},
+			"links": {
+				"type": "array",
+				"markdownDescription": "Relevant URLs.",
+				"minItems": 1,
+				"items": {
+					"type": "string",
+					"format": "uri"
+				}
+			},
+			"reserved": {
+				"type": "boolean",
+				"markdownDescription": "Reserved defines may not be defined from the command line."
 			}
 		},
 		"required": [

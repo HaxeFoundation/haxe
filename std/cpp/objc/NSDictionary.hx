@@ -19,26 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.objc;
 
-@:native("NSDictionary<NSString *, id>") @:objc extern class DictionaryData { }
+@:native("NSDictionary<NSString *, id>") @:objc extern class DictionaryData {}
 
 @:objc
-extern abstract NSDictionary( DictionaryData )
-{
-   @:native("_hx_obj_to_nsdictionary") extern static function _hx_obj_to_nsdictionary(obj:Dynamic) : DictionaryData;
-   @:native("_hx_nsdictionary_to_obj") extern static function _hx_nsdictionary_to_obj(d:DictionaryData) : Dynamic;
+extern abstract NSDictionary(DictionaryData) {
+	@:native("_hx_obj_to_nsdictionary") extern static function _hx_obj_to_nsdictionary(obj:Dynamic):DictionaryData;
 
+	@:native("_hx_nsdictionary_to_obj") extern static function _hx_nsdictionary_to_obj(d:DictionaryData):Dynamic;
 
-   inline function new(dict:DictionaryData) this = dict;
+	inline function new(dict:DictionaryData)
+		this = dict;
 
-   @:from extern
-   static public inline function fromDynamic(o:Dynamic):NSDictionary return new NSDictionary( _hx_obj_to_nsdictionary(o) );
+	@:from extern static public inline function fromDynamic(o:Dynamic):NSDictionary
+		return new NSDictionary(_hx_obj_to_nsdictionary(o));
 
-   @:to extern
-   public inline function toDynamic():Dynamic return _hx_nsdictionary_to_obj(this);
+	@:to extern public inline function toDynamic():Dynamic
+		return _hx_nsdictionary_to_obj(this);
 
-   @:to extern public inline function toNSObject():NSObject return cast this;
-
+	@:to extern public inline function toNSObject():NSObject
+		return cast this;
 }
-

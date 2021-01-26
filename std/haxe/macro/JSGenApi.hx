@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.macro;
+
 import haxe.macro.Type;
 
 /**
@@ -27,27 +29,38 @@ import haxe.macro.Type;
 **/
 typedef JSGenApi = {
 	/** the file in which the JS code can be generated **/
-	var outputFile : String;
+	var outputFile:String;
+
 	/** all the types that were compiled by Haxe **/
-	var types : Array<Type>;
+	var types:Array<Type>;
+
 	/** the main call expression, if a -main class is defined **/
-	var main : Null<TypedExpr>;
+	var main:Null<TypedExpr>;
+
 	/** generate the JS code for any given typed expression **/
-	function generateStatement( e : TypedExpr ) : String;
+	function generateStatement(e:TypedExpr):String;
+
 	/** generate the JS code for a given typed expression-value **/
-	function generateValue( e : TypedExpr ) : String;
+	function generateValue(e:TypedExpr):String;
+
 	/** define the JS code that gets generated when a class or enum is accessed in a typed expression **/
-	function setTypeAccessor( callb : Type -> String ) : Void;
+	function setTypeAccessor(callb:Type->String):Void;
+
 	/** tells if the given identifier is a JS keyword **/
-	function isKeyword( ident : String ) : Bool;
+	function isKeyword(ident:String):Bool;
+
 	/** add a feature **/
-	function addFeature( f : String ) : Bool;
+	function addFeature(f:String):Bool;
+
 	/** check if a feature is used **/
-	function hasFeature( f : String ) : Bool;
+	function hasFeature(f:String):Bool;
+
 	/** quote and escape the given string constant **/
-	function quoteString( s : String ) : String;
+	function quoteString(s:String):String;
+
 	/** create the metadata expression for the given type **/
-	function buildMetaData( t : BaseType ) : Null<TypedExpr>;
+	function buildMetaData(t:BaseType):Null<TypedExpr>;
+
 	/** select the current classe **/
-	function setCurrentClass( c : ClassType ) : Void;
+	function setCurrentClass(c:ClassType):Void;
 }

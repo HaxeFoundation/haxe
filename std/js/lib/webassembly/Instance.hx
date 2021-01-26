@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib.webassembly;
 
 import haxe.Constraints.Function;
@@ -36,7 +37,7 @@ extern class Instance {
 		Returns an object containing as its members all the functions exported from
 		the WebAssembly module instance, to allow them to be accessed and used by JavaScript.
 	**/
-	var exports(default,never):Dynamic<Function>;
+	var exports(default, never):Dynamic<Function>;
 
 	@:pure function new(module:Module, ?importObject:{}):Void;
 }

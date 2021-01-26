@@ -10,7 +10,7 @@ open Typecore
 open Globals
 open Genjson
 open DisplayPosition
-
+open ImportStatus
 
 let merge_core_doc ctx mtype =
 	display_position#run_outside (fun () -> Typecore.merge_core_doc ctx mtype)
@@ -22,14 +22,19 @@ let parse_module ctx m p =
 	display_position#run_outside (fun () -> TypeloadParse.parse_module ctx m p)
 
 module ReferencePosition = struct
-	let reference_position = ref ("",null_pos,KVar)
-	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
+	let reference_position = ref ("",null_pos,SKOther)
+	let set (s,p,k) =
+		let p =
+			if p = null_pos then p
+			else {p with pfile = Path.get_full_path p.pfile}
+		in
+		reference_position := (s,p,k)
 	let get () = !reference_position
+	let reset () = reference_position := ("",null_pos,SKOther)
 end
 
 module ExprPreprocessing = struct
 	let find_before_pos dm e =
-
 		let display_pos = ref (DisplayPosition.display_position#get) in
 		let was_annotated = ref false in
 		let is_annotated,is_completion = match dm with
@@ -44,7 +49,7 @@ module ExprPreprocessing = struct
 		let annotate_marked e = annotate e DKMarked in
 		let mk_null p = annotate_marked ((EConst(Ident "null")),p) in
 		let loop_el el =
-			let pr = DisplayPosition.display_position#get in
+			let pr = DisplayPosition.display_position#with_pos (pos e) in
 			let rec loop el = match el with
 				| [] -> [mk_null pr]
 				| e :: el ->
@@ -67,13 +72,13 @@ module ExprPreprocessing = struct
 			match fst e with
 			| EVars vl when is_annotated (pos e) && is_completion ->
 				let rec loop2 acc mark vl = match vl with
-					| ((s,pn),final,tho,eo) as v :: vl ->
+					| v :: vl ->
 						if mark then
 							loop2 (v :: acc) mark vl
-						else if is_annotated pn then
+						else if is_annotated (snd v.ev_name) then
 							(* If the name is the display position, mark the expression *)
 							loop2 (v :: acc) true vl
-						else begin match eo with
+						else begin match v.ev_expr with
 							| None ->
 								(* If there is no expression, we don't have to do anything.
 								   Should the display position be on the type-hint, it will
@@ -85,13 +90,13 @@ module ExprPreprocessing = struct
 								   we cannot determine that correctly without knowing its position.
 								   Note: We know `e` itself isn't the display position because this entire
 								   algorithm is bottom-up and it would be marked already if it was. *)
-								let p0 = match tho with
+								let p0 = match v.ev_type with
 									| Some (_,pt) -> pt
-									| None -> pn
+									| None -> snd v.ev_name
 								in
 								let p = {p0 with pmax = (pos e).pmin} in
 								let e = if is_annotated p then annotate_marked e else e in
-								loop2 (((s,pn),final,tho,(Some e)) :: acc) mark vl
+								loop2 ({ v with ev_expr = Some e } :: acc) mark vl
 						end
 					| [] ->
 						List.rev acc,mark
@@ -135,18 +140,63 @@ module ExprPreprocessing = struct
 				EArrayDecl el,(pos e)
 			| EObjectDecl fl when is_annotated (pos e) && is_completion ->
 				annotate e DKStructure
+			| ESwitch(e1,cases,def) when is_annotated (pos e) ->
+				(* We must be "between" two cases, or at the end of the last case.
+				   Let's find the last case which has a position that is < the display
+				   position and mark it. *)
+				let did_mark = ref false in
+				let mark_case ec p =
+					did_mark := true;
+					let ep = mk_null p in
+					match ec with
+					| Some ec ->
+						let ec = match fst ec with
+							| EBlock el -> (EBlock (el @ [ep]),p)
+							| _ -> (EBlock [ec;ep],p)
+						in
+						Some ec
+					| None ->
+						Some (mk_null p)
+				in
+				let rec loop cases = match cases with
+					| [el,eg,ec,p1] ->
+						let ec = match def with
+						| None when (pos e).pmax > !display_pos.pmin -> (* this is so we don't trigger if we're on the } *)
+							mark_case ec p1 (* no default, must be the last case *)
+						| Some (_,p2) when p1.pmax <= !display_pos.pmin && p2.pmin >= !display_pos.pmax ->
+							mark_case ec p1 (* default is beyond display position, mark *)
+						| _ ->
+							ec (* default contains display position, don't mark *)
+						in
+						[el,eg,ec,p1]
+					| (el1,eg1,ec1,p1) :: (el2,eg2,ec2,p2) :: cases ->
+						if p1.pmax <= !display_pos.pmin && p2.pmin >= !display_pos.pmax then
+							(el1,eg1,mark_case ec1 p1,p1) :: (el2,eg2,ec2,p2) :: cases
+						else
+							(el1,eg1,ec1,p1) :: loop ((el2,eg2,ec2,p2) :: cases)
+					| [] ->
+						[]
+				in
+				let cases = loop cases in
+				let def = if !did_mark then
+					def
+				else match def with
+					| Some(eo,p) when (pos e).pmax > !display_pos.pmin -> Some (mark_case eo p,p)
+					| _ -> def
+				in
+				ESwitch(e1,cases,def),pos e
 			| EDisplay _ ->
 				raise Exit
 			| EMeta((Meta.Markup,_,_),(EConst(String _),p)) when is_annotated p ->
 				annotate_marked e
-			| EConst (String _) when (not (Lexer.is_fmt_string (pos e)) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
+			| EConst (String (_,q)) when ((q <> SSingleQuotes) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
 				(* TODO: check if this makes any sense *)
 				raise Exit
 			| EConst(Regexp _) when is_annotated (pos e) && is_completion ->
 				raise Exit
 			| EVars vl when is_annotated (pos e) ->
 				(* We only want to mark EVars if we're on a var name. *)
-				if List.exists (fun ((_,pn),_,_,_) -> is_annotated pn) vl then
+				if List.exists (fun v -> is_annotated (snd v.ev_name)) vl then
 					annotate_marked e
 				else
 					raise Exit
@@ -204,7 +254,74 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com.display.dms_kind e
+		| DMDefinition | DMTypeDefinition | DMUsage _ | DMImplementation | DMHover | DMDefault -> find_before_pos com.display.dms_kind e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end
+
+let get_expected_name with_type = match with_type with
+	| WithType.Value (Some src) | WithType.WithType(_,Some src) ->
+		(match src with
+		| WithType.FunctionArgument si -> Some si.si_name
+		| WithType.StructureField si -> Some si .si_name
+		| WithType.ImplicitReturn -> None
+		)
+	| _ -> None
+
+let sort_fields l with_type tk =
+	let p = match tk with
+		| TKExpr p | TKField p -> Some p
+		| _ -> None
+	in
+	let expected_name = get_expected_name with_type in
+	let l = List.map (fun ci ->
+		let i = get_sort_index tk ci (Option.default Globals.null_pos p) expected_name in
+		ci,i
+	) l in
+	let sort l =
+		List.map fst (List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l)
+	in
+	(* This isn't technically accurate, but I don't think it matters. *)
+	let rec dynamify_type_params t = match follow t with
+		| TInst({cl_kind = KTypeParameter _},_) -> mk_mono()
+		| _ -> Type.map dynamify_type_params t
+	in
+	let l = match with_type with
+		| WithType.WithType(t,_) when (match follow t with TMono _ -> false | _ -> true) ->
+			let rec comp item = match item.ci_type with
+				| None -> 9
+				| Some (t',_) ->
+				(* For enum constructors, we consider the return type of the constructor function
+				   so it has the same priority as argument-less constructors. *)
+				let t' = match item.ci_kind,follow t' with
+					| ITEnumField _,TFun(_,r) -> r
+					| _ -> t'
+				in
+				let t' = dynamify_type_params t' in
+				if type_iseq t' t then 0 (* equal types - perfect *)
+				else if t' == t_dynamic then 5 (* dynamic isn't good, but better than incompatible *)
+				else try Type.unify t' t; 1 (* assignable - great *)
+				with Unify_error _ -> match follow t' with
+					| TFun(_,tr) ->
+						if type_iseq tr t then 2 (* function returns our exact type - alright *)
+						else (try Type.unify tr t; 3 (* function returns compatible type - okay *)
+						with Unify_error _ -> 7) (* incompatible function - useless *)
+					| _ ->
+						6 (* incompatible type - probably useless *)
+			in
+			let l = List.map (fun (item,i1) ->
+				let i2 = comp item in
+				item,(i2,i1)
+			) l in
+			sort l
+		| _ ->
+			sort l
+	in
+	l
+
+let get_import_status ctx path =
+	try
+		let mt' = ctx.g.do_load_type_def ctx null_pos (mk_type_path ([],snd path)) in
+		if path <> (t_infos mt').mt_path then Shadowed else Imported
+	with _ ->
+		Unimported

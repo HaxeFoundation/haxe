@@ -1,4 +1,5 @@
--cp src
+--class-path src
+--main Main
+--library utest
+--dce full
 -D analyzer-optimize
--main Main
--lib utest

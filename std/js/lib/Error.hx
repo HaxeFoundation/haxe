@@ -19,50 +19,44 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 @:native("Error")
-extern class Error
-{
-	var message : String;
-	var name : String;
-	var stack(default,null) : String;
+extern class Error {
+	var message:String;
+	var name:String;
+	var stack(default, null):String;
 
-	function new(?message : String) : Void;
+	function new(?message:String):Void;
 }
 
 @:native("EvalError")
-extern class EvalError extends Error
-{
-	function new(?message : String) : Void;
+extern class EvalError extends Error {
+	function new(?message:String):Void;
 }
 
 @:native("RangeError")
-extern class RangeError extends Error
-{
-	function new(?message : String) : Void;
+extern class RangeError extends Error {
+	function new(?message:String):Void;
 }
 
 @:native("ReferenceError")
-extern class ReferenceError extends Error
-{
-	function new(?message : String) : Void;
+extern class ReferenceError extends Error {
+	function new(?message:String):Void;
 }
 
 @:native("SyntaxError")
-extern class SyntaxError extends Error
-{
-	function new(?message : String) : Void;
+extern class SyntaxError extends Error {
+	function new(?message:String):Void;
 }
 
 @:native("TypeError")
-extern class TypeError extends Error
-{
-	function new(?message : String) : Void;
+extern class TypeError extends Error {
+	function new(?message:String):Void;
 }
 
 @:native("URIError")
-extern class URIError extends Error
-{
-	function new(?message : String) : Void;
+extern class URIError extends Error {
+	function new(?message:String):Void;
 }

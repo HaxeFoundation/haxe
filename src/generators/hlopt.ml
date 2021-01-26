@@ -502,14 +502,13 @@ type rctx = {
 	r_reg_map : int array;
 }
 
-let remap_fun ctx f dump get_str =
+let remap_fun ctx f dump get_str old_code =
 	let op index = Array.unsafe_get f.code index in
 	let nregs = Array.length f.regs in
 	let reg_remap = ctx.r_used_regs <> nregs in
 	let assigns = ref f.assigns in
-	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
 	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (Bytes.unsafe_of_string (str ^ "\n")) in
-	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> assert false) in
+	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> Globals.die "" __LOC__) in
 
 	let live_bits = ctx.r_live_bits in
 	let reg_map = ctx.r_reg_map in
@@ -551,7 +550,7 @@ let remap_fun ctx f dump get_str =
 							if bp.bstart > b.bstart then acc else
 							try
 								let wp = PMap.find reg bp.bwrite in
-								if wp > p then assert false;
+								if wp > p then Globals.die "" __LOC__;
 								loop wp @ acc
 							with Not_found ->
 								gather bp @ acc
@@ -683,7 +682,7 @@ let remap_fun ctx f dump get_str =
 			| OJAlways d -> OJAlways (pos d)
 			| OSwitch (r,cases,send) -> OSwitch (r, Array.map pos cases, pos send)
 			| OTrap (r,d) -> OTrap (r,pos d)
-			| _ -> assert false)
+			| _ -> Globals.die "" __LOC__)
 		) !jumps;
 
 		let assigns = !assigns in
@@ -727,7 +726,7 @@ let _optimize (f:fundecl) =
 	let set_live r min max =
 		let offset = r / bit_regs in
 		let mask = 1 lsl (r - offset * bit_regs) in
-		if min < 0 || max >= Array.length f.code then assert false;
+		if min < 0 || max >= Array.length f.code then Globals.die "" __LOC__;
 		for i=min to max do
 			let p = i * stride + offset in
 			Array.unsafe_set live_bits p ((Array.unsafe_get live_bits p) lor mask);
@@ -765,7 +764,7 @@ let _optimize (f:fundecl) =
 		| b2 :: l ->
 			let s = get_state b2 in
 			let s = (match b2.bnext with
-			| [] -> assert false
+			| [] -> Globals.die "" __LOC__
 			| [_] -> s (* reuse *)
 			| _ :: l ->
 				let s2 = empty_state() in
@@ -965,7 +964,7 @@ let _optimize (f:fundecl) =
 
 	let used_regs = ref 0 in
 	let reg_map = read_counts in
-	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> assert false) in
+	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> Globals.die "" __LOC__) in
 	for i=0 to nregs-1 do
 		if read_counts.(i) > 0 || write_counts.(i) > 0 || i < nargs then begin
 			reg_map.(i) <- !used_regs;
@@ -994,10 +993,11 @@ let opt_cache = ref PMap.empty
 let used_mark = ref 0
 
 let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
+	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
 	try
 		let c = PMap.find hxf (!opt_cache) in
 		c.c_last_used <- !used_mark;
-		if Array.length f.code <> Array.length c.c_code then assert false;
+		if Array.length f.code <> Array.length c.c_code then Globals.die "" __LOC__;
 		let code = c.c_code in
 		Array.iter (fun i ->
 			let op = (match Array.unsafe_get code i, Array.unsafe_get f.code i with
@@ -1018,14 +1018,14 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 			| ODynGet (r,o,_), ODynGet (_,_,idx) -> ODynGet (r,o,idx)
 			| ODynSet (o,_,v), ODynSet (_,idx,_) -> ODynSet (o,idx,v)
 			| OType (r,_), OType (_,t) -> OType (r,t)
-			| _ -> assert false) in
+			| _ -> Globals.die "" __LOC__) in
 			Array.unsafe_set code i op
 		) c.c_remap_indexes;
-		remap_fun c.c_rctx { f with code = code } dump get_str
+		remap_fun c.c_rctx { f with code = code } dump get_str old_code
 	with Not_found ->
 		let rctx = _optimize f in
-		let old_code = f.code in
-		let fopt = remap_fun rctx f dump get_str in
+		let old_ops = f.code in
+		let fopt = remap_fun rctx f dump get_str old_code in
 		Hashtbl.iter (fun _ b ->
 			b.bstate <- None;
 			if dump = None then begin
@@ -1041,9 +1041,9 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 			| OInstanceClosure _ | OGetGlobal _	| OSetGlobal _ | ODynGet _ | ODynSet _	| OType _ ->
 				DynArray.add idxs i
 			| _ -> ()
-		) old_code;
+		) old_ops;
 		(*opt_cache := PMap.add hxf {
-			c_code = old_code;
+			c_code = old_ops;
 			c_rctx = rctx;
 			c_last_used = !used_mark;
 			c_remap_indexes = DynArray.to_array idxs;

@@ -19,10 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi
+@:transitive
 abstract UInt(Int) from Int to Int {
-
 	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();
 	}
@@ -102,14 +101,16 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:commutative @:op(A == B) private static function equalsInt<T:Int>(a:UInt, b:T):Bool;
+
 	@:commutative @:op(A != B) private static function notEqualsInt<T:Int>(a:UInt, b:T):Bool;
+
 	@:commutative @:op(A == B) private static function equalsFloat<T:Float>(a:UInt, b:T):Bool;
-    @:commutative @:op(A != B) private static function notEqualsFloat<T:Float>(a:UInt, b:T):Bool;
+
+	@:commutative @:op(A != B) private static function notEqualsFloat<T:Float>(a:UInt, b:T):Bool;
 
 	@:op(A >= B) private static inline function gteFloat(a:UInt, b:Float):Bool {
 		return a.toFloat() >= b;
 	}
-
 
 	@:op(A > B) private static inline function floatGt(a:Float, b:UInt):Bool {
 		return a > b.toFloat();
@@ -173,7 +174,6 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:to private inline function toFloat():Float {
-		return cast (this:UInt);
+		return cast(this : UInt);
 	}
 }
-

@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open Type
 open EvalValue
@@ -25,7 +25,6 @@ open EvalField
 open EvalHash
 open EvalString
 
-let rempty = create_ascii ""
 let rbropen = create_ascii "{"
 let rbrclose = create_ascii "}"
 let rbkopen = create_ascii "["
@@ -41,6 +40,7 @@ let rtrue = create_ascii "true"
 let rfalse = create_ascii "false"
 let rfun = create_ascii "#fun"
 let rclosure = create_ascii "#closure"
+let rhandle = create_ascii "#handle"
 
 let s_date d =
 	let open Unix in
@@ -64,14 +64,14 @@ let rec s_object depth o =
 	create_with_length s (try UTF8.length s with _ -> String.length s)
 
 and s_array depth va =
-	join rempty [
+	join empty_string [
 		rbkopen;
 		EvalArray.join va (s_value depth) rcomma;
 		rbkclose;
 	]
 
 and s_vector depth vv =
-	join rempty [
+	join empty_string [
 		rbkopen;
 		EvalArray.join (EvalArray.create vv) (s_value depth) rcomma;
 		rbkclose;
@@ -90,7 +90,7 @@ and s_enum_value depth ve =
 	match ve.eargs with
 	| [||] -> create_ascii name
 	| vl ->
-		join rempty [
+		join empty_string [
 			create_ascii name;
 			rpopen;
 			join rcomma (Array.to_list (Array.map (s_value (depth + 1)) vl));
@@ -98,9 +98,9 @@ and s_enum_value depth ve =
 		]
 
 and s_proto_kind proto = match proto.pkind with
-	| PClass _ -> join rempty [create_ascii "Class<"; s_hash proto.ppath; rgt]
-	| PEnum _ -> join rempty [create_ascii "Enum<"; s_hash proto.ppath; rgt]
-	| PInstance | PObject -> assert false
+	| PClass _ -> join empty_string [create_ascii "Class<"; s_hash proto.ppath; rgt]
+	| PEnum _ -> join empty_string [create_ascii "Enum<"; s_hash proto.ppath; rgt]
+	| PInstance | PObject -> die "" __LOC__
 
 and s_value depth v =
 	let call_to_string () =
@@ -111,6 +111,8 @@ and s_value depth v =
 	else match v with
 	| VNull -> rnull
 	| VInt32 i32 -> create_ascii(Int32.to_string i32)
+	| VInt64 i -> create_ascii(Signed.Int64.to_string i)
+	| VUInt64 u -> create_ascii(Unsigned.UInt64.to_string u)
 	| VTrue -> rtrue
 	| VFalse -> rfalse
 	| VFloat f ->
@@ -119,8 +121,10 @@ and s_value depth v =
 		create_ascii (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
 	| VFunction (f,_) -> rfun
 	| VFieldClosure _ -> rclosure
+	| VHandle _ -> rhandle
 	| VEnumValue ve -> s_enum_value depth ve
 	| VString s -> s
+	| VNativeString s -> create_unknown_vstring s
 	| VArray va -> s_array (depth + 1) va
 	| VVector vv -> s_vector (depth + 1) vv
 	| VInstance {ikind=IDate d} -> s_date d

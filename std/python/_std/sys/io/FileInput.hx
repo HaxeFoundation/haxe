@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 import haxe.io.Bytes;
@@ -26,15 +27,10 @@ import haxe.io.Encoding;
 import haxe.io.Input;
 import python.io.IFileInput;
 
-
-
-class FileInput extends Input
-{
+class FileInput extends Input {
 	var impl:IFileInput;
 
-
-
-	public function new (impl:IFileInput) {
+	function new(impl:IFileInput) {
 		this.impl = impl;
 	}
 
@@ -42,21 +38,23 @@ class FileInput extends Input
 		return impl.bigEndian = b;
 	}
 
-	public function seek( p : Int, pos : FileSeek ) : Void {
+	public function seek(p:Int, pos:FileSeek):Void {
 		return impl.seek(p, pos);
 	}
-	public function tell() : Int {
+
+	public function tell():Int {
 		return impl.tell();
 	}
-	public function eof() : Bool {
+
+	public function eof():Bool {
 		return impl.eof();
 	}
 
-	override public function readByte() : Int {
+	override public function readByte():Int {
 		return impl.readByte();
 	}
 
-	override public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
 		return impl.readBytes(s, pos, len);
 	}
 
@@ -64,31 +62,31 @@ class FileInput extends Input
 		impl.close();
 	}
 
-	override public function readAll( ?bufsize : Int ) : Bytes {
+	override public function readAll(?bufsize:Int):Bytes {
 		return impl.readAll(bufsize);
 	}
 
-	override public function readFullBytes( s : Bytes, pos : Int, len : Int ):Void {
+	override public function readFullBytes(s:Bytes, pos:Int, len:Int):Void {
 		impl.readFullBytes(s, pos, len);
 	}
 
-	override public function read( nbytes : Int ) : Bytes {
+	override public function read(nbytes:Int):Bytes {
 		return impl.read(nbytes);
 	}
 
-	override public function readUntil( end : Int ) : String {
+	override public function readUntil(end:Int):String {
 		return impl.readUntil(end);
 	}
 
-	override public function readLine() : String {
+	override public function readLine():String {
 		return impl.readLine();
 	}
 
-	override public function readFloat() : Float {
+	override public function readFloat():Float {
 		return impl.readFloat();
 	}
 
-	override public function readDouble() : Float {
+	override public function readDouble():Float {
 		return impl.readDouble();
 	}
 
@@ -116,11 +114,7 @@ class FileInput extends Input
 		return impl.readInt32();
 	}
 
-	override public function readString( len : Int, ?encoding : Encoding ) : String {
+	override public function readString(len:Int, ?encoding:Encoding):String {
 		return impl.readString(len);
 	}
-
-
-
-
 }

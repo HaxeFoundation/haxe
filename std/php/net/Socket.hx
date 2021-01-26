@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php.net;
 
 import php.*;
@@ -29,36 +30,48 @@ import sys.io.FileOutput;
 import sys.net.Host;
 
 class Socket extends sys.net.Socket {
+	var connected = false;
+	var timeout:Null<Float> = null;
 
-	public function new() : Void {
+	public function new():Void {
 		super();
 		protocol = "tcp";
 	}
 
-	override private function assignHandler() : Void {
-		@:privateAccess (cast input:FileInput).__f = __s;
-		@:privateAccess (cast output:FileOutput).__f = __s;
+	override function initSocket():Void {
+		// do not init socket with `socket_*` functions, because we will use streams instead.
 	}
 
-	override public function close() : Void {
+	override function assignHandler():Void {
+		@:privateAccess (cast input : FileInput).__f = __s;
+		@:privateAccess (cast output : FileOutput).__f = __s;
+		connected = true;
+		if (timeout != null) {
+			setTimeout(timeout);
+		}
+	}
+
+	override public function close():Void {
+		connected = false;
 		fclose(__s);
-		@:privateAccess (cast input:FileInput).__f = null;
-		@:privateAccess (cast output:FileOutput).__f = null;
+		@:privateAccess (cast input : FileInput).__f = null;
+		@:privateAccess (cast output : FileOutput).__f = null;
 		input.close();
 		output.close();
 	}
 
-	override public function read() : String {
+	override public function read():String {
 		var b = '';
-		while(!feof(__s)) b += fgets(__s);
+		while (!feof(__s))
+			b += fgets(__s);
 		return b;
 	}
 
-	override public function write( content : String ) : Void {
+	override public function write(content:String):Void {
 		fwrite(__s, content);
 	}
 
-	override public function connect(host : Host, port : Int) : Void {
+	override public function connect(host:Host, port:Int):Void {
 		var errs = null;
 		var errn = null;
 		var r = stream_socket_client(protocol + '://' + host.host + ':' + port, errn, errs);
@@ -67,35 +80,31 @@ class Socket extends sys.net.Socket {
 		assignHandler();
 	}
 
-	override public function listen(connections : Int) : Void {
-		throw "Not implemented";
-/* TODO: ??????
-		var r = socket_listen(__s, connections);
-		checkError(r);
-*/
+	override public function listen(connections:Int):Void {
+		throw new haxe.exceptions.NotImplementedException();
+		/* TODO: ??????
+			var r = socket_listen(__s, connections);
+			checkError(r);
+		 */
 	}
 
-	override public function shutdown( read : Bool, write : Bool ) : Void {
+	override public function shutdown(read:Bool, write:Bool):Void {
 		var rw = read && write ? 2 : (write ? 1 : (read ? 0 : 2));
 		var r = stream_socket_shutdown(__s, rw);
 		checkError(r, 0, 'Unable to Shutdown');
 	}
 
-	override public function bind(host : Host, port : Int) : Void {
+	override public function bind(host:Host, port:Int):Void {
 		var errs = Boot.deref(null);
 		var errn = Boot.deref(null);
-		var r = stream_socket_server(
-			protocol + '://' + host.host + ':' + port,
-			errn,
-			errs,
-			(protocol == "udp" ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN)
-		);
+		var r = stream_socket_server(protocol + '://' + host.host + ':' + port, errn, errs,
+			(protocol == "udp" ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN));
 		Socket.checkError(r, errn, errs);
 		__s = cast r;
 		assignHandler();
 	}
 
-	override public function accept() : Socket {
+	override public function accept():Socket {
 		var r = stream_socket_accept(__s);
 		checkError(r, 0, 'Unable to accept connections on socket');
 		var s = new Socket();
@@ -104,50 +113,53 @@ class Socket extends sys.net.Socket {
 		return s;
 	}
 
-	private function hpOfString(s : String) : { host : Host, port : Int } {
+	private function hpOfString(s:String):{host:Host, port:Int} {
 		var parts = s.split(':');
-		if(parts.length == 2) {
-				return { host : new Host(parts[0]), port : Std.parseInt(parts[1]) };
+		if (parts.length == 2) {
+			return {host: new Host(parts[0]), port: Std.parseInt(parts[1])};
 		} else {
-				return { host : new Host(parts[1].substr(2)), port : Std.parseInt(parts[2]) };
+			return {host: new Host(parts[1].substr(2)), port: Std.parseInt(parts[2])};
 		}
 	}
 
-	override public function peer() : { host : Host, port : Int } {
+	override public function peer():{host:Host, port:Int} {
 		var r = stream_socket_get_name(__s, true);
 		checkError(r, 0, 'Unable to retrieve the peer name');
 		return hpOfString(r);
 	}
 
-	override public function host() : { host : Host, port : Int } {
+	override public function host():{host:Host, port:Int} {
 		var r = stream_socket_get_name(__s, false);
 		checkError(r, 0, 'Unable to retrieve the host name');
 		return hpOfString(r);
 	}
 
-	override public function setTimeout( timeout : Float ) : Void {
+	override public function setTimeout(timeout:Float):Void {
+		if (!connected) {
+			this.timeout = timeout;
+			return;
+		}
 		var s = Std.int(timeout);
 		var ms = Std.int((timeout - s) * 1000000);
 		var r = stream_set_timeout(__s, s, ms);
 		checkError(r, 0, 'Unable to set timeout');
 	}
 
-	private static function getType(isUdp : Bool) : Int {
+	private static function getType(isUdp:Bool):Int {
 		return isUdp ? SOCK_DGRAM : SOCK_STREAM;
 	}
 
-	private static function getProtocol(protocol : String) : Int {
+	private static function getProtocol(protocol:String):Int {
 		return getprotobyname(protocol);
 	}
 
-	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
-	{
-		throw "Not implemented";
+	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
+			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
+		throw new haxe.exceptions.NotImplementedException();
 		return null;
 	}
 
-	private static inline function checkError(r : Bool, code : Int, msg : String) : Void {
+	private static inline function checkError(r:Bool, code:Int, msg:String):Void {
 		return sys.net.Socket.checkError(r, code, msg);
 	}
-
 }

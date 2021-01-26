@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package eval.vm;
 
 extern class NativeThread {
@@ -75,4 +76,7 @@ extern class NativeThread {
 	static function readMessage<T>(block:Bool):T;
 
 	function sendMessage<T>(msg:T):Void;
+
+	@:allow(sys.thread.Thread)
+	private var events(get,set):Null<sys.thread.EventLoop>;
 }

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.Bytes;
@@ -30,13 +31,14 @@ extern class Hashlib {
 		A set containing the names of the hash algorithms guaranteed to be supported by this module on all platforms.
 		Note that ‘md5’ is in this list despite some upstream vendors offering an odd “FIPS compliant” Python build that excludes it.
 	**/
-	static var algorithms_guaranteed(default,null):Set<String>;
+	static var algorithms_guaranteed(default, null):Set<String>;
+
 	/**
 		A set containing the names of the hash algorithms that are available in the running Python interpreter.
 		These names will be recognized when passed to new(). algorithms_guaranteed will always be a subset.
 		The same algorithm may appear multiple times in this set under different names (thanks to OpenSSL).
 	**/
-	static var algorithms_available(default,null):Set<String>;
+	static var algorithms_available(default, null):Set<String>;
 
 	/**
 		A generic constructor that takes the string name of the desired algorithm as its first parameter.
@@ -66,12 +68,12 @@ extern class HashlibHash {
 	/**
 		The size of the resulting hash in bytes.
 	**/
-	var digest_size(default,null):Int;
+	var digest_size(default, null):Int;
 
 	/**
 		The internal block size of the hash algorithm in bytes.
 	**/
-	var block_size(default,null):Int;
+	var block_size(default, null):Int;
 
 	/**
 		The canonical name of this hash, always lowercase and always suitable as a parameter to new() to create another hash of this type.

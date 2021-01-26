@@ -1,5 +1,9 @@
 open Globals
-open Type
+open TType
+open TUnification
+open TFunctions
+open TPrinting
+open TOther
 
 type call_error =
 	| Not_enough_arguments of (string * bool * t) list
@@ -9,13 +13,18 @@ type call_error =
 
 and error_msg =
 	| Module_not_found of path
-	| Type_not_found of path * string
+	| Type_not_found of path * string * type_not_found_reason
 	| Unify of unify_error list
 	| Custom of string
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 	| Call_error of call_error
 	| No_constructor of module_type
+	| Abstract_class of module_type
+
+and type_not_found_reason =
+	| Private_type
+	| Not_defined
 
 exception Fatal_error of string * Globals.pos
 exception Error of error_msg * Globals.pos
@@ -30,7 +39,12 @@ let short_type ctx t =
 	let tstr = s_type ctx t in
 	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
 
-let unify_error_msg ctx = function
+(**
+	Should be called for each complementary error message.
+*)
+let compl_msg s = "... " ^ s
+
+let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Invalid_field_type s ->
@@ -85,8 +99,8 @@ module BetterErrors = struct
 
 	type access = {
 		acc_kind : access_kind;
-		mutable acc_expected : Type.t;
-		mutable acc_actual : Type.t;
+		mutable acc_expected : TType.t;
+		mutable acc_actual : TType.t;
 		mutable acc_messages : unify_error list;
 		mutable acc_next : access option;
 	}
@@ -138,7 +152,7 @@ module BetterErrors = struct
 	let rec s_type ctx t =
 		match t with
 		| TMono r ->
-			(match !r with
+			(match r.tm_type with
 			| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
 			| Some t -> s_type ctx t)
 		| TEnum (e,tl) ->
@@ -152,7 +166,7 @@ module BetterErrors = struct
 		| TAbstract (a,tl) ->
 			s_type_path a.a_path ^ s_type_params ctx tl
 		| TFun ([],_) ->
-			"Void -> ..."
+			"() -> ..."
 		| TFun (l,t) ->
 			let args = match l with
 				| [] -> "()"
@@ -172,7 +186,7 @@ module BetterErrors = struct
 				| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 				| _ ->
 					let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name) :: acc) a.a_fields [] in
-					"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
+					"{" ^ String.concat "," fl ^ " }"
 			end
 		| TDynamic t2 ->
 			"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
@@ -234,7 +248,7 @@ module BetterErrors = struct
 					| TInst({cl_path = path},params) | TEnum({e_path = path},params) | TAbstract({a_path = path},params) | TType({t_path = path},params) ->
 						path,params
 					| _ ->
-						assert false
+						die "" __LOC__
 				in
 				let s1,s2 = loop() in
 				let path1,params1 = get_params access_prev.acc_actual in
@@ -251,18 +265,20 @@ module BetterErrors = struct
 			String.concat "\n" (List.rev_map (unify_error_msg ctx) access.acc_messages)
 		| Some access_next ->
 			let slhs,srhs = loop access_next access  in
-			Printf.sprintf "error: %s\n have: %s\n want: %s" (Buffer.contents message_buffer) slhs srhs
+			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
 end
 
 let rec error_msg = function
 	| Module_not_found m -> "Type not found : " ^ s_type_path m
-	| Type_not_found (m,t) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
+	| Type_not_found (m,t,Private_type) -> "Cannot access private type " ^ t ^ " in module " ^ s_type_path m
+	| Type_not_found (m,t,Not_defined) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
 	| Unify l -> BetterErrors.better_error_message l
 	| Unknown_ident s -> "Unknown identifier : " ^ s
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Call_error err -> s_call_error err
 	| No_constructor mt -> (s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
+	| Abstract_class mt -> (s_type_path (t_infos mt).mt_path) ^ " is abstract and cannot be constructed"
 
 and s_call_error = function
 	| Not_enough_arguments tl ->
@@ -290,3 +306,5 @@ let error_require r p =
 		"'" ^ r ^ "' to be enabled"
 	in
 	error ("Accessing this field requires " ^ r) p
+
+let invalid_assign p = error "Invalid assign" p

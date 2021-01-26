@@ -33,22 +33,22 @@ enum ValueType {
 	TBool;
 	TObject;
 	TFunction;
-	TClass( c : Class<Dynamic> );
-	TEnum( e : Enum<Dynamic> );
+	TClass(c:Class<Dynamic>);
+	TEnum(e:Enum<Dynamic>);
 	TUnknown;
 }
 
 @:access(python.Boot)
 @:coreApi class Type {
-
-	public static function getClass<T>( o : T ) : Class<T> {
-
-		if( o == null )
+	public static function getClass<T>(o:T):Class<T> {
+		if (o == null)
 			return null;
 
-		if (python.Boot.isClass(o)) return null;
+		if (python.Boot.isClass(o))
+			return null;
 
-		if (python.Boot.isAnonObject(o)) return null;
+		if (python.Boot.isAnonObject(o))
+			return null;
 
 		if (Internal.hasClass(o)) {
 			return Internal.fieldClass(o);
@@ -60,25 +60,27 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
-		if( o == null )
+	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+		if (o == null)
 			return null;
 		return Syntax.field(o, "__class__");
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
 		return python.Boot.getSuperClass(c);
-
 	}
 
-	public static function getClassName( c : Class<Dynamic> ) : String {
+	public static function getClassName(c:Class<Dynamic>):String {
 		if (Internal.hasClassName(c)) {
 			return Internal.fieldClassName(c);
 		} else {
 			// it's not a Haxe class
-			if (c == Array) return "Array";
-			if (c == Math) return "Math";
-			if (c == String) return "String";
+			if (c == Array)
+				return "Array";
+			if (c == Math)
+				return "Math";
+			if (c == String)
+				return "String";
 
 			try {
 				return Syntax.field(c, "__name__");
@@ -88,39 +90,40 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnumName( e : Enum<Dynamic> ) : String {
+	public static function getEnumName(e:Enum<Dynamic>):String {
 		return Internal.fieldClassName(e);
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic>
-	{
-		if (name == "Array") return Array;
-		if (name == "Math") return Math;
-		if (name == "String") return String;
+	public static function resolveClass(name:String):Class<Dynamic> {
+		if (name == "Array")
+			return Array;
+		if (name == "Math")
+			return Math;
+		if (name == "String")
+			return String;
 
-		var cl : Class<Dynamic> = Internal.classRegistry().get(name, null);
+		var cl:Class<Dynamic> = Internal.classRegistry().get(name, null);
 		// ensure that this is a class
-		if( cl == null || !python.Boot.isClass(cl) )
+		if (cl == null || !python.Boot.isClass(cl))
 			return null;
 		return cl;
 	}
 
-	public static function resolveEnum( name : String ) : Enum<Dynamic> {
-		if (name == "Bool") return cast Bool;
+	public static function resolveEnum(name:String):Enum<Dynamic> {
+		if (name == "Bool")
+			return cast Bool;
 		var o = resolveClass(name);
 		return if (Internal.hasConstructs(o)) cast o else null;
 	}
 
-	public static inline function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
-	{
+	public static inline function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		return Syntax.construct(cl, Syntax.varArgs(args));
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T
-	{
+	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var i = Syntax.callField(cl, "__new__", cl);
 
-		function callInit (cl) {
+		function callInit(cl) {
 			var sc = getSuperClass(cl);
 			if (sc != null) {
 				callInit(sc);
@@ -134,36 +137,37 @@ enum ValueType {
 		return i;
 	}
 
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
-	{
-		var f:Dynamic = Reflect.field(e,constr);
-		if( f == null ) throw "No such constructor "+constr;
-		if( Reflect.isFunction(f) ) {
-			if( params == null ) throw "Constructor "+constr+" need parameters";
+	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		var f:Dynamic = Reflect.field(e, constr);
+		if (f == null)
+			throw "No such constructor " + constr;
+		if (Reflect.isFunction(f)) {
+			if (params == null)
+				throw "Constructor " + constr + " need parameters";
 
-			return Reflect.callMethod(e,f,params);
+			return Reflect.callMethod(e, f, params);
 		}
-		if( params != null && params.length != 0 )
-			throw "Constructor "+constr+" does not need parameters";
+		if (params != null && params.length != 0)
+			throw "Constructor " + constr + " does not need parameters";
 		return f;
 	}
 
-	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
-
-		var c : String = Internal.fieldConstructs(e)[index];
-		if( c == null ) throw index+" is not a valid enum constructor index";
-		return createEnum(e,c,params);
+	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
+		var c:String = Internal.fieldConstructs(e)[index];
+		if (c == null)
+			throw index + " is not a valid enum constructor index";
+		return createEnum(e, c, params);
 	}
 
-	public static inline function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
+	public static inline function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		return python.Boot.getInstanceFields(c);
 	}
 
-	public static inline function getClassFields( c : Class<Dynamic> ) : Array<String> {
+	public static inline function getClassFields(c:Class<Dynamic>):Array<String> {
 		return python.Boot.getClassFields(c);
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
+	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		if (UBuiltins.hasattr(e, Internal.constructsVal())) {
 			var x:Array<String> = Internal.fieldConstructs(e);
 			return x.copy();
@@ -172,12 +176,10 @@ enum ValueType {
 		}
 	}
 
-
-
-	public static function typeof( v : Dynamic ) : ValueType {
+	public static function typeof(v:Dynamic):ValueType {
 		if (v == null) {
 			return TNull;
-		} else if (UBuiltins.isinstance(v, UBuiltins.bool )) {
+		} else if (UBuiltins.isinstance(v, UBuiltins.bool)) {
 			return TBool;
 		} else if (UBuiltins.isinstance(v, UBuiltins.int)) {
 			return TInt;
@@ -189,11 +191,9 @@ enum ValueType {
 			return TClass(Array);
 		} else if (UBuiltins.isinstance(v, AnonObject) || python.lib.Inspect.isclass(v)) {
 			return TObject;
-		}
-		else if (UBuiltins.isinstance(v, Enum)) {
+		} else if (UBuiltins.isinstance(v, Enum)) {
 			return TEnum(Syntax.field(v, "__class__"));
-		}
-		else if (UBuiltins.isinstance(v, UBuiltins.type) || Internal.hasClass(v)) {
+		} else if (UBuiltins.isinstance(v, UBuiltins.type) || Internal.hasClass(v)) {
 			return TClass(Syntax.field(v, "__class__"));
 		} else if (UBuiltins.callable(v)) {
 			return TFunction;
@@ -202,57 +202,56 @@ enum ValueType {
 		}
 	}
 
-	static inline function asEnumImpl (x:Dynamic):EnumImpl {
-		return (cast x:EnumImpl);
+	static inline function asEnumImpl(x:Dynamic):EnumImpl {
+		return (cast x : EnumImpl);
 	}
 
-	public static function enumEq<T>( a : T, b : T ) : Bool {
-		if( a == b )
+	public static function enumEq<T>(a:T, b:T):Bool {
+		if (a == b)
 			return true;
 		try {
-			if (b == null && a != b) return false;
-			if( asEnumImpl(a).tag != asEnumImpl(b).tag )
+			if (b == null && a != b)
+				return false;
+			if (asEnumImpl(a).tag != asEnumImpl(b).tag)
 				return false;
 			var p1 = asEnumImpl(a).params;
 			var p2 = asEnumImpl(b).params;
-			if (p1.length != p2.length) return false;
+			if (p1.length != p2.length)
+				return false;
 
-			for( i in 0...p1.length )
-				if( !enumEq(p1[i],p2[i]) )
+			for (i in 0...p1.length)
+				if (!enumEq(p1[i], p2[i]))
 					return false;
 
-			if( Internal.fieldClass(a) != Internal.fieldClass(b))
+			if (Internal.fieldClass(a) != Internal.fieldClass(b))
 				return false;
-		} catch( e : Dynamic ) {
+		} catch (e:Dynamic) {
 			return false;
 		}
 		return true;
 	}
 
-	public static inline function enumConstructor( e : EnumValue ) : String {
+	public static inline function enumConstructor(e:EnumValue):String {
 		return asEnumImpl(e).tag;
 	}
 
-	public static inline function enumParameters( e : EnumValue ) : Array<Dynamic> {
+	public static inline function enumParameters(e:EnumValue):Array<Dynamic> {
 		return asEnumImpl(e).params.toArray();
 	}
 
-	public static inline function enumIndex( e : EnumValue ) : Int {
+	public static inline function enumIndex(e:EnumValue):Int {
 		return asEnumImpl(e).index;
 	}
 
-	public static function allEnums<T>( e : Enum<T> ) : Array<T>
-	{
-			var ctors = getEnumConstructs(e);
-			var ret = [];
-			for (ctor in ctors)
-			{
-					var v = Reflect.field(e, ctor);
-					if (Std.is(v, e))
-							ret.push(v);
-			}
+	public static function allEnums<T>(e:Enum<T>):Array<T> {
+		var ctors = getEnumConstructs(e);
+		var ret = [];
+		for (ctor in ctors) {
+			var v = Reflect.field(e, ctor);
+			if (Std.isOfType(v, e))
+				ret.push(v);
+		}
 
-			return ret;
+		return ret;
 	}
-
 }

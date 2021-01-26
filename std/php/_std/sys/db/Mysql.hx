@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 import php.*;
@@ -27,43 +28,43 @@ import php.db.*;
 import php.db.Mysqli_result;
 
 @:coreApi class Mysql {
-	public static function connect(
-		params : {
-			host : String,
-			?port : Int,
-			user : String,
-			pass : String,
-			?socket : String,
-			?database : String
-		}
-	) : Connection {
+	public static function connect(params:{
+		host:String,
+		?port:Int,
+		user:String,
+		pass:String,
+		?socket:String,
+		?database:String
+	}):Connection {
 		return new MysqlConnection(params);
 	}
 }
 
 private class MysqlConnection implements Connection {
-	var db : Mysqli;
+	var db:Mysqli;
 
-	public function new(
-		params : {
-			host : String,
-			?port : Int,
-			user : String,
-			pass : String,
-			?socket : String,
-			?database : String
-		}
-	) : Void {
-		if (params.port == null) params.port = Std.parseInt(Global.ini_get('mysqli.default_port'));
-		if (params.socket == null) params.socket = Global.ini_get('mysqli.default_socket');
-		if (params.database == null) params.database = "";
+	public function new(params:{
+		host:String,
+		?port:Int,
+		user:String,
+		pass:String,
+		?socket:String,
+		?database:String
+	}):Void {
+		if (params.port == null)
+			params.port = Std.parseInt(Global.ini_get('mysqli.default_port'));
+		if (params.socket == null)
+			params.socket = Global.ini_get('mysqli.default_socket');
+		if (params.database == null)
+			params.database = "";
 
 		db = new Mysqli(params.host, params.user, params.pass, params.database, params.port, params.socket);
 	}
 
-	public function request( s : String ) : ResultSet {
+	public function request(s:String):ResultSet {
 		var result = db.query(s);
-		if (result == false) throw 'Failed to perform db query: ' + db.error;
+		if (result == false)
+			throw 'Failed to perform db query: ' + db.error;
 		if (result == true) {
 			return new WriteMysqlResultSet(db.affected_rows);
 		}
@@ -71,22 +72,22 @@ private class MysqlConnection implements Connection {
 		return new MysqlResultSet(result);
 	}
 
-	public function close() : Void {
+	public function close():Void {
 		db.close();
 	}
 
-	public function escape( s : String ) : String {
+	public function escape(s:String):String {
 		return db.escape_string(s);
 	}
 
-	public function quote( s : String ) : String {
-		if (s.indexOf("\000") >= 0) return "x'" + Global.bin2hex(s) + "'";
+	public function quote(s:String):String {
+		if (s.indexOf("\000") >= 0)
+			return "x'" + Global.bin2hex(s) + "'";
 		return "'" + db.escape_string(s) + "'";
 	}
 
-	public function addValue( s : StringBuf, v : Dynamic ) : Void {
-		if (Global.is_int(v)
-		|| Global.is_null(v)) {
+	public function addValue(s:StringBuf, v:Dynamic):Void {
+		if (Global.is_int(v) || Global.is_null(v)) {
 			s.add(v);
 		} else if (Global.is_bool(v)) {
 			s.add(v ? 1 : 0);
@@ -95,56 +96,60 @@ private class MysqlConnection implements Connection {
 		}
 	}
 
-	public function lastInsertId() : Int {
+	public function lastInsertId():Int {
 		return db.insert_id;
 	}
 
-	public function dbName() : String {
+	public function dbName():String {
 		return 'MySQL';
 	}
 
-	public function startTransaction() : Void {
+	public function startTransaction():Void {
 		var success = db.begin_transaction();
-		if (!success) throw 'Failed to start transaction: ' + db.error;
+		if (!success)
+			throw 'Failed to start transaction: ' + db.error;
 	}
 
-	public function commit() : Void {
+	public function commit():Void {
 		var success = db.commit();
-		if (!success) throw 'Failed to commit transaction: ' + db.error;
+		if (!success)
+			throw 'Failed to commit transaction: ' + db.error;
 	}
 
-	public function rollback() : Void {
+	public function rollback():Void {
 		var success = db.rollback();
-		if (!success) throw 'Failed to rollback transaction: ' + db.error;
+		if (!success)
+			throw 'Failed to rollback transaction: ' + db.error;
 	}
-
 }
 
 private class MysqlResultSet implements ResultSet {
 	static var hxAnonClassName = Boot.getHxAnon().phpClassName;
 
-	public var length(get,null) : Int;
-	public var nfields(get,null) : Int;
+	public var length(get, null):Int;
+	public var nfields(get, null):Int;
 
 	var result:Mysqli_result;
 	var fetchedRow:NativeAssocArray<Scalar>;
 	var fieldsInfo:NativeAssocArray<MysqliFieldInfo>;
 
-	public function new( result:Mysqli_result ) {
+	public function new(result:Mysqli_result) {
 		this.result = result;
 	}
 
-	public function hasNext() : Bool {
-		if (fetchedRow == null) fetchNext();
+	public function hasNext():Bool {
+		if (fetchedRow == null)
+			fetchNext();
 		return fetchedRow != null;
 	}
 
-	public function next() : Dynamic {
-		if (fetchedRow == null) fetchNext();
+	public function next():Dynamic {
+		if (fetchedRow == null)
+			fetchNext();
 		return withdrawFetched();
 	}
 
-	public function results() : List<Dynamic> {
+	public function results():List<Dynamic> {
 		var list = new List();
 
 		result.data_seek(0);
@@ -158,31 +163,34 @@ private class MysqlResultSet implements ResultSet {
 		return list;
 	}
 
-	public function getResult( n : Int ) : String {
-		if (fetchedRow == null) fetchNext();
+	public function getResult(n:Int):String {
+		if (fetchedRow == null)
+			fetchNext();
 		return Global.array_values(fetchedRow)[n];
 	}
 
-	public function getIntResult( n : Int ) : Int {
+	public function getIntResult(n:Int):Int {
 		return Syntax.int(getResult(n));
 	}
 
-	public function getFloatResult( n : Int ) : Float {
+	public function getFloatResult(n:Int):Float {
 		return Syntax.float(getResult(n));
 	}
 
-	public function getFieldsNames() : Null<Array<String>> {
+	public function getFieldsNames():Null<Array<String>> {
 		var fields = result.fetch_fields();
 		return [for (field in fields) field.name];
 	}
 
 	function fetchNext() {
 		var row = result.fetch_assoc();
-		if (row != null) fetchedRow = correctArrayTypes(row);
+		if (row != null)
+			fetchedRow = correctArrayTypes(row);
 	}
 
-	function withdrawFetched() : Dynamic {
-		if (fetchedRow == null) return null;
+	function withdrawFetched():Dynamic {
+		if (fetchedRow == null)
+			return null;
 		var row = fetchedRow;
 		fetchedRow = null;
 		return Boot.createAnon(row);
@@ -216,30 +224,26 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	function correctType(value:String, type:Int):Scalar {
-		if (value == null) return null;
-		if (
-			type == Const.MYSQLI_TYPE_BIT
-			|| type == Const.MYSQLI_TYPE_TINY
-			|| type == Const.MYSQLI_TYPE_SHORT
-			|| type == Const.MYSQLI_TYPE_LONG
-			|| type == Const.MYSQLI_TYPE_INT24
-			|| type == Const.MYSQLI_TYPE_CHAR
-		) {
+		if (value == null)
+			return null;
+		if (type == Const.MYSQLI_TYPE_BIT || type == Const.MYSQLI_TYPE_TINY || type == Const.MYSQLI_TYPE_SHORT || type == Const.MYSQLI_TYPE_LONG
+			|| type == Const.MYSQLI_TYPE_INT24 || type == Const.MYSQLI_TYPE_CHAR) {
 			return Syntax.int(value);
 		}
-		if (
-			type == Const.MYSQLI_TYPE_DECIMAL
+		if (type == Const.MYSQLI_TYPE_DECIMAL
 			|| type == Const.MYSQLI_TYPE_NEWDECIMAL
 			|| type == Const.MYSQLI_TYPE_FLOAT
-			|| type == Const.MYSQLI_TYPE_DOUBLE
-		) {
+			|| type == Const.MYSQLI_TYPE_DOUBLE) {
 			return Syntax.float(value);
 		}
 		return value;
 	}
 
-	function get_length() return result.num_rows;
-	function get_nfields() return result.field_count;
+	function get_length()
+		return result.num_rows;
+
+	function get_nfields()
+		return result.field_count;
 }
 
 private class WriteMysqlResultSet extends MysqlResultSet {
@@ -250,12 +254,15 @@ private class WriteMysqlResultSet extends MysqlResultSet {
 		this.affectedRows = affectedRows;
 	}
 
-	override public function hasNext() : Bool {
+	override public function hasNext():Bool {
 		return false;
 	}
 
 	override function fetchNext() {}
 
-	override function get_length() return affectedRows;
-	override function get_nfields() return 0;
+	override function get_length()
+		return affectedRows;
+
+	override function get_nfields()
+		return 0;
 }

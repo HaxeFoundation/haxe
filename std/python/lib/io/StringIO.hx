@@ -19,14 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.io;
 
 import python.lib.io.TextIOBase;
 import python.Syntax;
 
 @:pythonImport("io", "StringIO")
-extern class StringIO extends TextIOBase
-{
-	public function new (?s:String):Void;
-	public function getvalue():String;
+extern class StringIO extends TextIOBase {
+	function new(?s:String):Void;
+	function getvalue():String;
 }

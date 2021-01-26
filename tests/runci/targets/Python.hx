@@ -21,10 +21,10 @@ class Python {
 				if (commandSucceed(pypy, ["-V"])) {
 					infoMsg('pypy3 has already been installed.');
 				} else {
-					var pypyVersion = "pypy3-2.4.0-linux64";
+					var pypyVersion = "pypy3.6-v7.3.1-linux64";
 					var file = '${pypyVersion}.tar.bz2';
 					if(!FileSystem.exists(file)) {
-						runCommand("wget", ["-nv", 'https://bitbucket.org/pypy/pypy/downloads/$file'], true);
+						runCommand("wget", ["-nv", 'https://downloads.python.org/pypy/$file'], true);
 					}
 					runCommand("tar", ["-xf", file]);
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
@@ -66,7 +66,7 @@ class Python {
 		}
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-python.hxml"]);
+		runCommand("haxe", ["compile-python.hxml"].concat(args));
 		for (py in pys) {
 			runCommand(py, ["bin/python/sys.py"]);
 		}
@@ -78,6 +78,12 @@ class Python {
 		runCommand("haxe", ["compile.hxml"]);
 		for (py in pys) {
 			runCommand(py, ["test.py"]);
+		}
+
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "--python", "export/threads.py"].concat(args));
+		for (py in pys) {
+			runCommand(py, ["export/threads.py"]);
 		}
 	}
 }

@@ -19,12 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 @:generic class NativeArrayIterator<T> {
-	var arr : NativeArray<T>;
-	var pos : Int;
-	var length : Int;
+	var arr:NativeArray<T>;
+	var pos:Int;
+	var length:Int;
 
 	public inline function new(arr:NativeArray<T>) {
 		this.arr = arr;
@@ -41,42 +42,57 @@ package hl;
 	}
 }
 
+@:generic class NativeArrayKeyValueIterator<T> {
+	var arr : NativeArray<T>;
+	var pos : Int;
+	var length : Int;
+ 	public inline function new(arr:NativeArray<T>) {
+		this.arr = arr;
+		pos = 0;
+		length = arr.length;
+	}
+ 	public inline function hasNext() {
+		return pos < length;
+	}
+ 	public inline function next() {
+		var v = arr[pos];
+		return {key:pos++, value:v};
+	}
+}
+
 @:coreType abstract NativeArray<T> {
+	public var length(get, never):Int;
 
-	public var length(get,never):Int;
-
-	extern public inline function new( length : Int ) {
+	extern public inline function new(length:Int) {
 		this = untyped $aalloc(length);
 	}
 
-	extern inline function get_length() : Int {
+	extern inline function get_length():Int {
 		return untyped $asize(this);
 	}
 
-	@:arrayAccess extern inline function get( pos : Int ) : T {
-		return untyped ($aget(this,pos):T);
+	@:arrayAccess extern inline function get(pos:Int):T {
+		return untyped ($aget(this, pos) : T);
 	}
 
-	@:arrayAccess extern inline function set( pos : Int, value : T ) : T {
-		untyped $aset(this,pos,value);
+	@:arrayAccess extern inline function set(pos:Int, value:T):T {
+		untyped $aset(this, pos, value);
 		return value;
 	}
 
-	extern public inline function sub( pos : Int, len : Int ) {
+	extern public inline function sub(pos:Int, len:Int) {
 		var n = new NativeArray<T>(len);
 		n.blit(0, this, pos, len);
 		return n;
 	}
 
-	@:to extern public inline function getRef() : Ref<T> {
+	@:to extern public inline function getRef():Ref<T> {
 		return untyped $refdata(this);
 	}
 
-	@:hlNative("std","array_type") public function getType() : Type {
+	@:hlNative("std", "array_type") public function getType():Type {
 		return null;
 	}
 
- 	@:hlNative("std","array_blit") public function blit( pos : Int, src : NativeArray<T>, srcPos : Int, srcLen : Int ) : Void {
-	}
-
+	@:hlNative("std", "array_blit") public function blit(pos:Int, src:NativeArray<T>, srcPos:Int, srcLen:Int):Void {}
 }

@@ -1,6 +1,6 @@
 package haxe;
 
-#if target.threaded
+#if (target.threaded && !cppia)
 import sys.thread.Lock;
 import sys.thread.Mutex;
 import sys.thread.Thread;
@@ -29,32 +29,43 @@ private class Thread {
 #end
 
 /**
-	If haxe.MainLoop is kept from DCE, then we will insert an haxe.EntryPoint.run() call just at then end of main().
+	If `haxe.MainLoop` is kept from DCE, then we will insert an `haxe.EntryPoint.run()` call just at then end of `main()`.
 	This class can be redefined by custom frameworks so they can handle their own main loop logic.
 **/
 class EntryPoint {
 	#if sys
-	static var sleepLock = new Lock();
-	static var mutex = new Mutex();
+		static var mutex = new Mutex();
+		#if (target.threaded && !cppia)
+			static var mainThread:Thread;
+			@:keep static function init() {
+				mainThread = Thread.current();
+			}
+		#else
+			static var sleepLock = new Lock();
+		#end
 	#end
 	static var pending = new Array<Void->Void>();
 	public static var threadCount(default, null):Int = 0;
 
 	/**
-		Wakeup a sleeping run()
+		Wakeup a sleeping `run()`
 	**/
 	public static function wakeup() {
-		#if sys
+		#if (sys && !(target.threaded && !cppia))
 		sleepLock.release();
 		#end
 	}
 
 	public static function runInMainThread(f:Void->Void) {
 		#if sys
-		mutex.acquire();
-		pending.push(f);
-		mutex.release();
-		wakeup();
+			#if (target.threaded && !cppia)
+				mainThread.events.run(f);
+			#else
+				mutex.acquire();
+				pending.push(f);
+				mutex.release();
+				wakeup();
+			#end
 		#else
 		pending.push(f);
 		#end
@@ -65,6 +76,9 @@ class EntryPoint {
 		mutex.acquire();
 		threadCount++;
 		mutex.release();
+		#if (target.threaded && !cppia)
+			mainThread.events.promise();
+		#end
 		Thread.create(function() {
 			f();
 			mutex.acquire();
@@ -72,6 +86,9 @@ class EntryPoint {
 			if (threadCount == 0)
 				wakeup();
 			mutex.release();
+			#if (target.threaded && !cppia)
+				mainThread.events.runPromised(() -> {});
+			#end
 		});
 		#else
 		threadCount++;
@@ -83,6 +100,9 @@ class EntryPoint {
 	}
 
 	static function processEvents():Float {
+		#if (target.threaded && !cppia)
+		return -1;
+		#else
 		// flush all pending calls
 		while (true) {
 			#if sys
@@ -100,6 +120,7 @@ class EntryPoint {
 		if (!MainLoop.hasEvents() && threadCount == 0)
 			return -1;
 		return time;
+		#end
 	}
 
 	/**
@@ -108,18 +129,30 @@ class EntryPoint {
 	@:keep public static function run() @:privateAccess {
 		#if js
 		var nextTick = processEvents();
-
+		inline function setTimeoutNextTick() {
+			if (nextTick >= 0) {
+				(untyped setTimeout)(run, nextTick * 1000);
+			}
+		}
 		#if nodejs
-		if (nextTick < 0)
-			return;
-		(untyped setTimeout) (run, nextTick);
+		setTimeoutNextTick();
 		#else
-		var window:Dynamic = js.Browser.window;
-		var rqf:Dynamic = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
-		rqf(run);
+		if(js.Lib.typeof(js.Browser.window) != 'undefined') {
+			var window:Dynamic = js.Browser.window;
+			var rqf:Dynamic = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
+			if(rqf != null) {
+				rqf(run);
+			} else {
+				setTimeoutNextTick();
+			}
+		} else {
+			setTimeoutNextTick();
+		}
 		#end
 		#elseif flash
 		flash.Lib.current.stage.addEventListener(flash.events.Event.ENTER_FRAME, function(_) processEvents());
+		#elseif (target.threaded && !cppia)
+		//everything is delegated to sys.thread.EventLoop
 		#elseif sys
 		while (true) {
 			var nextTick = processEvents();

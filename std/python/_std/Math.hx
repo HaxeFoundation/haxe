@@ -19,39 +19,37 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import python.internal.UBuiltins;
 
 @:pythonImport("math")
 @:coreApi
-extern class Math
-{
-	static var PI(default,null) : Float;
+extern class Math {
+	static var PI(default, null):Float;
 
-	static var NEGATIVE_INFINITY(default, null) : Float;
+	static var NEGATIVE_INFINITY(default, null):Float;
 
-	static var POSITIVE_INFINITY(default,null) : Float;
+	static var POSITIVE_INFINITY(default, null):Float;
 
-	static var NaN(default, null) : Float;
+	static var NaN(default, null):Float;
 
-	public static inline function abs(v:Float):Float
-	{
-		return (Math:Dynamic).fabs(v);
+	static inline function abs(v:Float):Float {
+		return (Math : Dynamic).fabs(v);
 	}
 
-	public static inline function min(a:Float, b:Float):Float {
-		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.min(a,b);
+	static inline function min(a:Float, b:Float):Float {
+		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.min(a, b);
 	}
 
-	public static inline function max(a:Float, b:Float):Float
-	{
-		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.max(a,b);
+	static inline function max(a:Float, b:Float):Float {
+		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.max(a, b);
 	}
 
-	public static inline function sin(v:Float):Float {
+	static inline function sin(v:Float):Float {
 		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.sin(v);
 	}
 
-	public static inline function cos(v:Float):Float {
+	static inline function cos(v:Float):Float {
 		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.cos(v);
 	}
 
@@ -61,29 +59,27 @@ extern class Math
 	static function atan(v:Float):Float;
 	static function atan2(y:Float, x:Float):Float;
 
-	public static inline function exp(v:Float):Float
-	{
+	static inline function exp(v:Float):Float {
 		if (v == NEGATIVE_INFINITY) {
 			return 0.0;
 		} else if (v == POSITIVE_INFINITY) {
 			return POSITIVE_INFINITY;
 		} else {
-			return (Math:Dynamic).exp(v);
+			return (Math : Dynamic).exp(v);
 		}
 	}
 
-	public static inline function log(v:Float):Float {
+	static inline function log(v:Float):Float {
 		return if (v == 0.0) NEGATIVE_INFINITY else if (v < 0.0) NaN else python.lib.Math.log(v);
 	}
 
 	static function pow(v:Float, exp:Float):Float;
 
-	public static inline function sqrt(v:Float):Float
-	{
+	static inline function sqrt(v:Float):Float {
 		return if (v < 0) NaN else python.lib.Math.sqrt(v);
 	}
 
-	public static inline function round(v:Float):Int {
+	static inline function round(v:Float):Int {
 		return Math.floor(v + 0.5);
 	}
 
@@ -91,33 +87,38 @@ extern class Math
 
 	static function ceil(v:Float):Int;
 
-	inline static function random() : Float {
+	inline static function random():Float {
 		return python.lib.Random.random();
 	}
 
-	static inline function ffloor( v : Float ) : Float {
-		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) return v;
-		if (isNaN(v)) return NaN;
+	static inline function ffloor(v:Float):Float {
+		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY)
+			return v;
+		if (isNaN(v))
+			return NaN;
 		return floor(v);
 	}
 
-	static inline function fceil( v : Float ) : Float
-	{
-		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) return v;
-		if (isNaN(v)) return NaN;
+	static inline function fceil(v:Float):Float {
+		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY)
+			return v;
+		if (isNaN(v))
+			return NaN;
 		return ceil(v);
 	}
 
-	static inline function fround( v : Float ) : Float {
-		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) return v;
-		if (isNaN(v)) return NaN;
+	static inline function fround(v:Float):Float {
+		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY)
+			return v;
+		if (isNaN(v))
+			return NaN;
 		return round(v);
 	}
 
-	static inline function isFinite( f : Float ) : Bool return f != POSITIVE_INFINITY && f != NEGATIVE_INFINITY && !isNaN(f);
+	static inline function isFinite(f:Float):Bool
+		return f != POSITIVE_INFINITY && f != NEGATIVE_INFINITY && !isNaN(f);
 
-	static inline function isNaN( f : Float ) : Bool {
-
+	static inline function isNaN(f:Float):Bool {
 		return python.lib.Math.isnan(f);
 	}
 
@@ -127,5 +128,4 @@ extern class Math
 		NaN = UBuiltins.float("nan");
 		PI = python.lib.Math.pi;
 	}
-
 }

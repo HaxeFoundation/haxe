@@ -7,3 +7,4 @@ compile-each.hxml
 --swf-version 11
 -swf bin/unit9.swf
 -swf-lib native_swf/lib.swc
+-D network-sandbox

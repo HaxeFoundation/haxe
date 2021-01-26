@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp;
 
 #if macro
@@ -29,94 +30,88 @@ import haxe.macro.Expr;
 
 @:noPackageRestrict
 class Prime {
-
-   #if (!macro && cpp)
-
-	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
-		var factory:Callable< ConstCharStar -> Object > =
-               untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
-      if (factory!=null)
-      {
-         var func:Dynamic = factory.call(signature);
-         if (func==null && !quietFail)
-            throw '$prim does not have signature $signature';
-         return func;
-      }
-      return null;
+	#if (!macro && cpp)
+	public static function _loadPrime(lib:String, prim:String, signature:String, quietFail = false):Dynamic {
+		var factory:Callable<ConstCharStar->Object> = untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
+		if (factory != null) {
+			var func:Dynamic = factory.call(signature);
+			if (func == null && !quietFail)
+				throw '$prim does not have signature $signature';
+			return func;
+		}
+		return null;
 	}
-   #end
+	#end
 
-   #if (macro)
-   static function codeToType(code:String,forCpp:Bool) : String
-   {
-      if (code=="c" && !forCpp)
-         throw "const char * type only supported in cpp mode";
+	#if (macro)
+	static function codeToType(code:String, forCpp:Bool):String {
+		if (code == "c" && !forCpp)
+			throw "const char * type only supported in cpp mode";
 
-      switch(code)
-      {
-         case "b" : return "Bool";
-         case "i" : return "Int";
-         case "d" : return "Float";
-         case "s" : return "String";
-         case "f" : return forCpp ? "cpp.Float32" : "Float";
-         case "o" : return forCpp ? "cpp.Object" : "Dynamic";
-         case "v" : return forCpp ? "cpp.Void" : "Dynamic";
-         case "c" : return "cpp.ConstCharStar";
-         default:
-            throw "Unknown signature type :" + code;
-      }
-   }
-   #end
+		switch (code) {
+			case "b":
+				return "Bool";
+			case "i":
+				return "Int";
+			case "d":
+				return "Float";
+			case "s":
+				return "String";
+			case "f":
+				return forCpp ? "cpp.Float32" : "Float";
+			case "o":
+				return forCpp ? "cpp.Object" : "Dynamic";
+			case "v":
+				return forCpp ? "cpp.Void" : "Dynamic";
+			case "c":
+				return "cpp.ConstCharStar";
+			default:
+				throw "Unknown signature type :" + code;
+		}
+	}
+	#end
 
-   public static function nekoInit(inModuleName:String) : Bool
-   {
-      #if neko
-      var init = neko.Lib.load(inModuleName, "neko_init", 5);
+	public static function nekoInit(inModuleName:String):Bool {
+		#if neko
+		var init = neko.Lib.load(inModuleName, "neko_init", 5);
 
-      if (init != null)
-      {
-         init( function(s) return new String(s),
-               function(len:Int) { var r = []; if (len > 0) r[len - 1] = null; return r; },
-               null,
-               true,
-               false);
-         return true;
+		if (init != null) {
+			init(function(s) return new String(s), function(len:Int) {
+				var r = [];
+				if (len > 0)
+					r[len - 1] = null;
+				return r;
+			}, null, true, false);
+			return true;
+		}
+		#end
+		return false;
+	}
 
-      }
-      #end
-      return false;
-   }
+	public static macro function load(inModule:String, inName:String, inSig:String, inAllowFail:Bool = false) {
+		var parts = inSig.split("");
+		if (parts.length < 1)
+			throw "Invalid function signature " + inSig;
+		var argCount = parts.length - 1;
 
+		var cppiaMode = Context.defined("cppia");
+		var cppMode = Context.defined("cpp") && !cppiaMode;
 
-   public static macro function load(inModule:String, inName:String, inSig:String,inAllowFail:Bool = false)
-   {
-      var parts = inSig.split("");
-      if (parts.length<1)
-         throw "Invalid function signature " + inSig;
-      var argCount = parts.length-1;
+		var typeString = parts.length == 1 ? "Void" : codeToType(parts.shift(), cppMode);
+		for (p in parts)
+			typeString += "->" + codeToType(p, cppMode);
 
-      var cppiaMode = Context.defined("cppia");
-      var cppMode = Context.defined("cpp") && !cppiaMode;
-
-      var typeString = parts.length==1 ? "Void" : codeToType(parts.shift(),cppMode);
-      for(p in parts)
-         typeString += "->" + codeToType(p,cppMode);
-
-      if (cppMode)
-      {
-         typeString = "cpp.Callable<" + typeString + ">";
-         var expr = 'new $typeString(cpp.Prime._loadPrime("$inModule","$inName","$inSig",$inAllowFail))';
-         return Context.parse( expr, Context.currentPos() );
-      }
-      else
-      {
-         if (argCount>5)
-            argCount = -1;
-         var lazy = inAllowFail ? "loadLazy" : "load";
-         var lib = cppiaMode ? "cpp" : "neko";
-         var expr = 'new cpp.Callable<$typeString>($lib.Lib.$lazy("$inModule","$inName",$argCount))';
-         return Context.parse( expr, Context.currentPos() );
-      }
-   }
-
+		if (cppMode) {
+			typeString = "cpp.Callable<" + typeString + ">";
+			var expr = 'new $typeString(cpp.Prime._loadPrime("$inModule","$inName","$inSig",$inAllowFail))';
+			return Context.parse(expr, Context.currentPos());
+		} else {
+			if (argCount > 5)
+				argCount = -1;
+			var lazy = inAllowFail ? "loadLazy" : "load";
+			var lib = cppiaMode ? "cpp" : "neko";
+			var expr = 'new cpp.Callable<$typeString>($lib.Lib.$lazy("$inModule","$inName",$argCount))';
+			return Context.parse(expr, Context.currentPos());
+		}
+	}
 }

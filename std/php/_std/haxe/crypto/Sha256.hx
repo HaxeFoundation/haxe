@@ -19,21 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.crypto;
 
 import php.Global;
 import haxe.io.Bytes;
 
-/**
-	Creates a Sha256 of a String.
-*/
 class Sha256 {
-
-	public static inline function encode( s:String ) : String {
+	public static inline function encode(s:String):String {
 		return Global.hash('sha256', s);
 	}
 
-	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
+	public static function make(b:haxe.io.Bytes):haxe.io.Bytes {
 		return Bytes.ofData(Global.hash('sha256', b.getData(), true));
 	}
 }

@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package hl;
 
 import hl.types.ArrayDyn;
 import hl.BaseType;
 
 @:dox(hide)
-extern class Boot {
-}
+extern class Boot {}

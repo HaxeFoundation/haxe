@@ -19,94 +19,93 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import cs.system.text.regularexpressions.Regex;
 import cs.system.text.regularexpressions.Match;
 import cs.system.text.regularexpressions.RegexOptions;
 import cs.system.text.regularexpressions.*;
 
 @:coreApi final class EReg {
+	private var regex:Regex;
+	private var m:Match;
+	private var isGlobal:Bool;
+	private var cur:String;
 
-	private var regex : Regex;
-	private var m : Match;
-	private var isGlobal : Bool;
-	private var cur : String;
-
-	public function new( r : String, opt : String ) : Void {
+	public function new(r:String, opt:String):Void {
 		var opts:Int = cast CultureInvariant;
-		for (i in 0...opt.length) untyped {
-			switch(cast(opt[i], Int))
-			{
-				case 'i'.code:
-					opts |= cast(IgnoreCase, Int);
-				case 'g'.code:
-					isGlobal = true;
-				case 'm'.code:
-					opts |= cast(Multiline, Int);
-#if (!unity && !unity_std_target)
-				case 'c'.code:
-					opts |= cast(Compiled, Int);
-#end
+		for (i in 0...opt.length)
+			untyped {
+				switch (cast(opt[i], Int)) {
+					case 'i'.code:
+						opts |= cast(IgnoreCase, Int);
+					case 'g'.code:
+						isGlobal = true;
+					case 'm'.code:
+						opts |= cast(Multiline, Int);
+					#if (!unity && !unity_std_target)
+					case 'c'.code:
+						opts |= cast(Compiled, Int);
+					#end
+				}
 			}
-		}
 
 		this.regex = new Regex(r, cast(opts, RegexOptions));
 	}
 
-	public function match( s : String ) : Bool {
+	public function match(s:String):Bool {
 		m = regex.Match(s);
 		cur = s;
 		return m.Success;
 	}
 
-	public function matched( n : Int ) : String {
+	public function matched(n:Int):String {
 		if (m == null || cast(n, UInt) > m.Groups.Count)
 			throw "EReg::matched";
-		if (!m.Groups[n].Success) return null;
+		if (!m.Groups[n].Success)
+			return null;
 		return m.Groups[n].Value;
 	}
 
-	public function matchedLeft() : String {
+	public function matchedLeft():String {
 		return untyped cur.Substring(0, m.Index);
 	}
 
-	public function matchedRight() : String {
+	public function matchedRight():String {
 		return untyped cur.Substring(m.Index + m.Length);
 	}
 
-	public function matchedPos() : { pos : Int, len : Int } {
-		return { pos : m.Index, len : m.Length };
+	public function matchedPos():{pos:Int, len:Int} {
+		return {pos: m.Index, len: m.Length};
 	}
 
-	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		m= if (len<0) regex.Match(s,pos) else regex.Match(s, pos, len);
+	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
+		m = if (len < 0) regex.Match(s, pos) else regex.Match(s, pos, len);
 		cur = s;
 		return m.Success;
 	}
 
-	public function split( s : String ) : Array<String> {
+	public function split(s:String):Array<String> {
 		if (isGlobal)
 			return cs.Lib.array(regex.Split(s));
 		var m = regex.Match(s);
-		if (!m.Success) return [s];
+		if (!m.Success)
+			return [s];
 		return untyped [s.Substring(0, m.Index), s.Substring(m.Index + m.Length)];
 	}
 
-	inline function start(group:Int) : Int
-	{
+	inline function start(group:Int):Int {
 		return m.Groups[group].Index;
 	}
 
-	inline function len(group:Int) : Int
-	{
+	inline function len(group:Int):Int {
 		return m.Groups[group].Length;
 	}
 
-	public function replace( s : String, by : String ) : String
-	{
-      return (isGlobal) ? regex.Replace(s, by): regex.Replace(s,by,1);
+	public function replace(s:String, by:String):String {
+		return (isGlobal) ? regex.Replace(s, by) : regex.Replace(s, by, 1);
 	}
 
-	public function map( s : String, f : EReg -> String ) : String {
+	public function map(s:String, f:EReg->String):String {
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
@@ -122,8 +121,7 @@ import cs.system.text.regularexpressions.*;
 			if (p.len == 0) {
 				buf.add(s.substr(p.pos, 1));
 				offset = p.pos + 1;
-			}
-			else
+			} else
 				offset = p.pos + p.len;
 		} while (isGlobal);
 		if (!isGlobal && offset > 0 && offset < s.length)
@@ -131,7 +129,7 @@ import cs.system.text.regularexpressions.*;
 		return buf.toString();
 	}
 
-	public static inline function escape( s : String ) : String {
+	public static inline function escape(s:String):String {
 		return Regex.Escape(s);
 	}
 }

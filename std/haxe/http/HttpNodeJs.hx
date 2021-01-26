@@ -19,9 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.http;
 
 #if nodejs
+import js.node.Buffer;
+import haxe.io.Bytes;
 
 class HttpNodeJs extends haxe.http.HttpBase {
 	var req:js.node.http.ClientRequest;
@@ -34,19 +37,20 @@ class HttpNodeJs extends haxe.http.HttpBase {
 		Cancels `this` Http request if `request` has been called and a response
 		has not yet been received.
 	**/
-	public function cancel()
-	{
-		if (req == null) return;
+	public function cancel() {
+		if (req == null)
+			return;
 		req.abort();
 		req = null;
 	}
 
 	public override function request(?post:Bool) {
-		responseData = null;
-		var parsedUrl = js.node.Url.parse(url);
+		responseAsString = null;
+		responseBytes = null;
+		var parsedUrl = new js.node.url.URL(url);
 		var secure = (parsedUrl.protocol == "https:");
 		var host = parsedUrl.hostname;
-		var path = parsedUrl.path;
+		var path = parsedUrl.pathname;
 		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
 		var h:Dynamic = {};
 		for (i in headers) {
@@ -58,18 +62,19 @@ class HttpNodeJs extends haxe.http.HttpBase {
 
 			arr.push(i.value);
 		}
-		if( postData != null )
+		if (postData != null || postBytes != null)
 			post = true;
 		var uri = null;
-		for( p in params ) {
-			if( uri == null )
+		for (p in params) {
+			if (uri == null)
 				uri = "";
 			else
 				uri += "&";
-			uri += StringTools.urlEncode(p.name)+"="+StringTools.urlEncode(p.value);
+			uri += StringTools.urlEncode(p.name) + "=" + StringTools.urlEncode(p.value);
 		}
 		var question = path.split("?").length <= 1;
-		if (uri != null) path += (if( question ) "?" else "&") + uri;
+		if (uri != null)
+			path += (if (question) "?" else "&") + uri;
 
 		var opts = {
 			protocol: parsedUrl.protocol,
@@ -79,28 +84,36 @@ class HttpNodeJs extends haxe.http.HttpBase {
 			path: path,
 			headers: h
 		};
-		function httpResponse (res) {
+		function httpResponse(res) {
+			res.setEncoding('binary');
 			var s = res.statusCode;
 			if (s != null)
 				onStatus(s);
-			var body = '';
-			res.on('data', function (d) {
-				body += d;
+			var data = [];
+			res.on('data', function(chunk:String) {
+				data.push(Buffer.from(chunk, 'binary'));
 			});
-			res.on('end', function (_) {
-				responseData = body;
+			res.on('end', function(_) {
+				var buf = (data.length == 1 ? data[0] : Buffer.concat(data));
+				responseBytes = Bytes.ofData(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 				req = null;
 				if (s != null && s >= 200 && s < 400) {
-					onData(body);
+					success(responseBytes);
 				} else {
-					onError("Http Error #"+s);
+					onError("Http Error #" + s);
 				}
 			});
 		}
 		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
-		if (post) req.write(postData);
+		if (post)
+			if (postData != null) {
+				req.write(postData);
+			} else if(postBytes != null) {
+				req.setHeader("Content-Length", '${postBytes.length}');
+				req.write(Buffer.from(postBytes.getData()));
+			}
+
 		req.end();
 	}
 }
-
 #end

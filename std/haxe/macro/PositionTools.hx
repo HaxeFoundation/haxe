@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package haxe.macro;
+
+package haxe.macro;
 
 import haxe.display.Position.Location;
 import haxe.macro.Expr;
 
 class PositionTools {
-
 	/**
 		Returns the `Position` where the caller of `here` is.
 	**/
@@ -41,7 +41,7 @@ class PositionTools {
 	/**
 		Like `Context.getPosInfos`, except this method is available on all platforms.
 	**/
-	public static function getInfos( p : Position ) : { min : Int, max : Int, file : String } {
+	public static function getInfos(p:Position):{min:Int, max:Int, file:String} {
 		#if macro
 		return Context.getPosInfos(p);
 		#else
@@ -52,7 +52,7 @@ class PositionTools {
 	/**
 		Like `Context.makePosition`, except this method is available on all platforms.
 	**/
-	public static function make( inf : { min : Int, max : Int, file : String } ) : Position {
+	public static function make(inf:{min:Int, max:Int, file:String}):Position {
 		#if macro
 		return Context.makePosition(inf);
 		#else

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 import haxe.io.Eof;
@@ -30,59 +31,70 @@ import php.Const.*;
 
 @:coreApi
 class FileInput extends haxe.io.Input {
+	private var __f:Resource;
 
-	private var __f : Resource;
-
-	function new(f:Resource) : Void {
+	function new(f:Resource):Void {
 		__f = f;
 	}
 
-	public override function readByte() : Int {
+	public override function readByte():Int {
 		var r = fread(__f, 1);
-		if(feof(__f)) throw new Eof();
-		if(r == false) throw Custom('An error occurred');
+		if (feof(__f))
+			throw new Eof();
+		if (r == false)
+			throw Custom('An error occurred');
 		return ord(r);
 	}
 
-	public override function readBytes( s : Bytes, p : Int, l : Int ) : Int {
-		if(feof(__f)) throw new Eof();
+	public override function readBytes(s:Bytes, p:Int, l:Int):Int {
+		if (feof(__f))
+			throw new Eof();
 		var r = fread(__f, l);
-		if(r == false) throw Custom('An error occurred');
-		if(strlen(r) == 0) throw new Eof();
+		if (r == false)
+			throw Custom('An error occurred');
+		if (strlen(r) == 0)
+			throw new Eof();
 		var b = Bytes.ofString(r);
 		s.blit(p, b, 0, strlen(r));
 		return strlen(r);
 	}
 
-	public override function close() : Void {
+	public override function close():Void {
 		super.close();
-		if(__f != null)	fclose(__f);
+		if (__f != null)
+			fclose(__f);
 	}
 
-	public function seek( p : Int, pos : FileSeek ) : Void {
+	public function seek(p:Int, pos:FileSeek):Void {
 		var w;
-		switch( pos ) {
-			case SeekBegin: w = SEEK_SET;
-			case SeekCur  : w = SEEK_CUR;
-			case SeekEnd  : w = SEEK_END;
+		switch (pos) {
+			case SeekBegin:
+				w = SEEK_SET;
+			case SeekCur:
+				w = SEEK_CUR;
+			case SeekEnd:
+				w = SEEK_END;
 		}
 		var r = fseek(__f, p, w);
-		if(r == false) throw Custom('An error occurred');
+		if (r == -1)
+			throw Custom('An error occurred');
 	}
 
-	public function tell() : Int {
+	public function tell():Int {
 		var r = ftell(__f);
-		if(r == false) throw Custom('An error occurred');
+		if (r == false)
+			throw Custom('An error occurred');
 		return cast r;
 	}
 
-	public function eof() : Bool {
+	public function eof():Bool {
 		return feof(__f);
 	}
 
-	override function readLine() : String {
+	override function readLine():String {
 		var r = fgets(__f);
-		if (false == r) throw new Eof();
+		if (false == r)
+			throw new Eof();
 		return rtrim(r, "\r\n");
 	}
 }
