@@ -56,7 +56,7 @@ class Socket {
 		init();
 	}
 
-	public function init():Void {
+	private function init():Void {
 		sock = new NativeSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 		sock.Blocking = true;
 	}

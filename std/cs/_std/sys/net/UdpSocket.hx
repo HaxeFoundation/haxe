@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 import haxe.extern.Rest;
@@ -45,25 +46,24 @@ import haxe.io.Output;
 
 @:coreapi
 class UdpSocket extends Socket {
-
 	public function new() {
 		super();
 	}
 
-	override function init() : Void {
-		sock = new NativeSocket( AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp );
+	override private function init():Void {
+		sock = new NativeSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 	}
-	
-	override public function bind( host : Host, port : Int ) : Void {
-		sock = new NativeSocket( AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp );
+
+	override public function bind(host:Host, port:Int):Void {
+		sock = new NativeSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 		var endpoint:IPEndPoint = new IPEndPoint(host.ipAddress, port);
-		sock.Bind( endpoint );
+		sock.Bind(endpoint);
 	}
-	
-	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
+
+	public function sendTo(buf:haxe.io.Bytes, pos:Int, len:Int, addr:Address):Int {
 		var data = new NativeArray<UInt8>(len);
 		var indices:NativeArray<Int>;
-		for (i in 0...len){
+		for (i in 0...len) {
 			indices = NativeArray.make(i);
 			data.SetValue(cast buf.get(pos + i), indices);
 		}
@@ -73,27 +73,27 @@ class UdpSocket extends Socket {
 		return this.sock.SendTo(data, endpoint);
 	}
 
-	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
+	public function readFrom(buf:haxe.io.Bytes, pos:Int, len:Int, addr:Address):Int {
 		var endpoint:EndPoint = cast new IPEndPoint(IPAddress.Any, 0);
 		var data:NativeArray<UInt8> = new NativeArray(len);
 		var length:Int = -1;
-		try{
+		try {
 			length = this.sock.ReceiveFrom(data, endpoint);
-		}catch (e:Dynamic){
+		} catch (e:Dynamic) {
 			return length;
 		}
 		var ipEndpoint:IPEndPoint = cast endpoint;
 		addr.host = ipEndpoint.Address.Address.high;
 		addr.port = ipEndpoint.Port;
 		var i:Int = 0;
-		for (each in data.iterator()){
+		for (each in data.iterator()) {
 			buf.set(pos + i, each);
 			i += 1;
 		}
 		return length;
 	}
 
-	public function setBroadcast( b : Bool ) : Void {
+	public function setBroadcast(b:Bool):Void {
 		sock.EnableBroadcast = b;
 	}
 }
