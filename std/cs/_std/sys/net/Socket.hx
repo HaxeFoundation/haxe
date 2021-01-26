@@ -52,11 +52,11 @@ class Socket {
 	/**
 		Creates a new unconnected socket.
 	**/
-	public function new() : Void {
+	public function new():Void {
 		init();
 	}
-	
-	public function new():Void {
+
+	public function init():Void {
 		sock = new NativeSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 		sock.Blocking = true;
 	}
