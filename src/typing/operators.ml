@@ -488,10 +488,8 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 		| _ ->
 			()
 	end;
-	let rec loop ol = match ol with
-		| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op)) ->
-			loop ol
-		| (op_cf,cf) :: ol ->
+	let rec loop find_op ol = match ol with
+		| (op_cf,cf) :: ol when op_cf = find_op ->
 			let is_impl = has_class_field_flag cf CfImpl in
 			begin match follow cf.cf_type with
 				| TFun([(_,_,t1);(_,_,t2)],tret) ->
@@ -533,21 +531,30 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 						if not (Meta.has Meta.Commutative cf.cf_meta) then raise Not_found;
 						check e2 e1 true
 					with Not_found | Error (Unify _,_) | Unify_error _ ->
-						loop ol
+						loop find_op ol
 					end
 				| _ ->
 					die "" __LOC__
 			end
 		| [] ->
 			raise Not_found
+		| _ :: ol ->
+			loop find_op ol
 	in
-	if left then
-		loop a.a_ops
+	let find loop =
+		if left then
+			loop a.a_ops
+		else
+			let not_impl_or_is_commutative (_, cf) =
+				not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
+			in
+			loop (List.filter not_impl_or_is_commutative a.a_ops)
+	in
+	if is_assign_op then
+		try find (loop (OpAssignOp op))
+		with Not_found -> find (loop op)
 	else
-		let not_impl_or_is_commutative (_, cf) =
-			not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
-		in
-		loop (List.filter not_impl_or_is_commutative a.a_ops)
+		find (loop op)
 
 let try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p =
 	try
@@ -643,7 +650,7 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 		type_binop2 ctx op e1 e2 is_assign_op wt p
 	in
 	let vr = new value_reference ctx in
-	let e = BinopResult.to_texpr vr result (fun _ -> die "" __LOC__) in
+	let e = BinopResult.to_texpr vr result (fun _ -> raise Not_found) in
 	vr#to_texpr e
 
 let process_lhs_expr ctx name e_lhs =
@@ -768,7 +775,12 @@ let type_binop ctx op e1 e2 is_assign_op with_type p =
 	| OpAssignOp op ->
 		type_assign_op ctx op e1 e2 with_type p
 	| _ ->
-		type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
+		try
+			type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
+		with Not_found ->
+			let op = if is_assign_op then OpAssignOp op else op in
+			die ~p ("Failed to type binary operation " ^ (s_binop op)) __LOC__
+
 
 let type_unop ctx op flag e with_type p =
 	let try_abstract_unop_overloads e = match follow e.etype with
