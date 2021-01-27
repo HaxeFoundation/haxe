@@ -59,6 +59,7 @@ class TestEReg extends Test {
 		eq( block.split(test).length, 5 );
 		eq( '"' + block.split(test).join('","') + '"', '"","test",".blah","something:someval",""' );
 
+		#if php
 		// test split with malformed utf8
 		test = "g r u n";
 		var binary:haxe.io.Bytes = haxe.io.Bytes.ofString(test);
@@ -66,6 +67,7 @@ class TestEReg extends Test {
 		test = binary.getString(0, binary.length, RawNative);
 		block = ~/\s/gm;
 		eq( block.split(test).join(" "), test );
+		#end
 
 		// test custom replace
 		eq( ~/a+/g.map("aaabacx", function(r) return "[" + r.matched(0).substr(1) + "]") , "[aa]b[]cx" );
