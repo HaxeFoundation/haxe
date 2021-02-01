@@ -369,9 +369,18 @@ let build_enum_abstract ctx c a fields p =
 		else if does_unify a.a_this ctx.t.tstring then EAString
 		else EAOther
 	in
+	let set_field field ct e =
+		field.cff_access <- (AInline,null_pos) :: field.cff_access;
+		let e = (ECast(e,None),(pos e)) in
+		field.cff_kind <- FVar(ct,Some e)
+	and field_is_set field =
+		match field.cff_kind with
+		| FVar(Some _, Some ((ECast _),_)) -> List.exists (fun (access,_) -> access = AInline) field.cff_access
+		| _ -> false
+	in
 	List.iter (fun field ->
 		match field.cff_kind with
-		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) ->
+		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) && not (field_is_set field) ->
 			let check_visibility_conflict visibility p1 =
 				match visibility with
 				| VUnknown ->
@@ -402,18 +411,13 @@ let build_enum_abstract ctx c a fields p =
 				| Some _ -> ct
 				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
 			in
-			let set_field e =
-				field.cff_access <- (AInline,null_pos) :: field.cff_access;
-				let e = (ECast(e,None),(pos e)) in
-				field.cff_kind <- FVar(ct,Some e)
-			in
 			begin match eo with
 				| None ->
 					if not (has_class_flag c CExtern) then begin match mode with
 						| EAString ->
-							set_field (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
+							set_field field ct (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
-							set_field (EConst (Int (string_of_int !i)),null_pos);
+							set_field field ct (EConst (Int (string_of_int !i)),null_pos);
 							incr i;
 						| EAOther ->
 							error "Value required" field.cff_pos
@@ -429,7 +433,7 @@ let build_enum_abstract ctx c a fields p =
 							end
 						| _ -> ()
 					end;
-					set_field e
+					set_field field ct e
 			end
 		| _ ->
 			()
