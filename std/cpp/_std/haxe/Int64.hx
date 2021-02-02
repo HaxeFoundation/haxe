@@ -27,6 +27,7 @@ import haxe.Int64Helper;
 @:notNull
 @:include("cpp/Int64.h")
 @:native("cpp::Int64Struct")
+@:structAccess
 private extern class ___Int64 {
 	function get():cpp.Int64;
 
@@ -143,6 +144,16 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	public static #if !cppia inline #end function make(high:Int32, low:Int32):Int64 {
 		return __Int64.make(high, low);
+	}
+
+	@:to
+	#if !cppia inline #end function toInt64():cpp.Int64 {
+		return this.get();
+	}
+
+	@:from
+	static #if !cppia inline #end function ofInt64(x:cpp.Int64):Int64 {
+		return cast x;
 	}
 
 	@:from
