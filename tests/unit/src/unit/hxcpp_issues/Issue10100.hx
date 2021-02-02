@@ -1,7 +1,7 @@
 package unit.hxcpp_issues;
 
 class Issue10100 extends Test {
-	#if cpp
+	#if (cpp && !cppia)
 	@:analyzer(no_optimize)
 	function test() {
 		var cpp64:cpp.Int64 = untyped __cpp__('12345678944444');
