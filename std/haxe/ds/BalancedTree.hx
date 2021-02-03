@@ -73,6 +73,195 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	/**
+		Returns the key and bound value of the largest key in this map less
+		than or equal to `key`.
+		
+		If `key` is present in this map, returns it and its bound value.
+		If `key` is not present, the key immediately _before_ this key is found,
+		and it and the corresponding bound value are returned.
+
+		If there is no such key in this map, both the returned key and value
+		will be `null`.
+
+		If `key` is omitted or `null`, returns the minimum key and its bound value
+		(equivalent to `min()`).
+
+		If the map is empty, both the returned key and value will be `null`.
+		
+		The returned struct is guaranteed non-null (only the fields may be null).
+	**/
+	public function floor(?key:K): {key:Null<K>, value:Null<V>} {
+		var node = root;
+		var floor = new TreeNode<K, V>(null, null, null, null, 0);
+
+		if (key == null) {
+			return min();
+		}
+
+		while (node != null) {
+			var c = compare(key, node.key);
+			if (c == 0)
+				return {key:node.key, value:node.value};
+			if (c < 0) {
+				node = node.left;
+			} else {
+				floor = node; // biggest node we've found that's smaller than the key
+				node = node.right;
+			}
+		}
+		return {key:floor.key, value:floor.value};
+	}
+
+	/**
+		Returns the key and bound value of the smallest key in this map greater
+		than or equal to `key`.
+		
+		If `key` is present in this map, returns it and its bound value.
+		If `key` is not present, the key immediately _after_ this key is found,
+		and it and the corresponding bound value are returned.
+
+		If there is no such key in this map, both the returned key and value
+		will be `null`.
+
+		If `key` is omitted or `null`, returns the maximum key and its bound value
+		(eqivalent to `max()`).
+
+		If the map is empty, both the returned key and value will be `null`.
+		
+		The returned struct is guaranteed non-null (only the fields may be null).
+	**/
+	public function ceil(?key:K): {key:Null<K>, value:Null<V>} {
+		var node = root;
+		var ceil = new TreeNode<K, V>(null, null, null, null, 0);
+
+		if (key == null) {
+			return max();
+		}
+
+		while (node != null) {
+			var c = compare(key, node.key);
+			if (c == 0)
+				return {key:node.key, value:node.value};
+			if (c < 0) {
+				ceil = node; // biggest node we've found that's smaller than the key
+				node = node.left;
+			} else {
+				node = node.right;
+			}
+		}
+		return {key:ceil.key, value:ceil.value};
+	}
+
+	/**
+		Returns the first / minimal key and the corresponding bound value.
+
+		If the map is empty, both the returned key and value will be `null`.
+		
+		The returned struct is guaranteed non-null (only the fields may be null).
+	**/
+	public function min(): {key:Null<K>, value:Null<V>} {
+		var node = minChild(root);
+		if (node == null) {
+			return {key:null, value:null};
+		} else {
+			return {key:node.key, value:node.value};
+		}
+	}
+
+	/**
+		Returns the last / maximal key and the corresponding bound value.
+		
+		If the map is empty, both the returned key and value will be `null`.
+		
+		The returned struct is guaranteed non-null (only the fields may be null).
+	**/
+	public function max(): {key:Null<K>, value:Null<V>} {
+		var node = maxChild(root);
+		if (node == null) {
+			return {key:null, value:null};
+		} else {
+			return {key:node.key, value:node.value};
+		}
+	}
+
+	/**
+		Returns the key and bound value of the specified key (if present)
+		and the keys and values that are immediately before and after it in
+		order (if there is another key in that direction).
+		
+		If `key` is present in this map, `ident` in the return struct is
+		that key and its value, otherwise both `ident.key` and `ident.value`
+		are `null`.
+
+		If there is a key in this map before `key`, `prev` in the return
+		struct is the key and value of the key immediately before `key`,
+		otherwise both `prev.key` and `prev.value` are `null`.
+		If `key` is omitted or `null`, `prev` is instead the minimum key
+		and bound value (equivalent to the value returned by `min()`).
+
+		If there is a key this map after `key`, `next` in the return
+		struct is the key and value of the key immediately after `key`,
+		otherwise both `next.key` and `next.value` are `null`.
+		If `key` is omitted or `null`, `next` is instead the minimum key
+		and bound value (equivalent to the value returned by `max()`).
+
+		Note that if the map is empty, all returned keys and values will
+		be `null`.
+		
+		The returned struct and the sub-structs `prev`, `ident`, and `next`
+		are guaranteed non-null (only the `key` and `value` fields may be null).
+	**/
+	public function neighborhood(?key:K): {prev:{key:Null<K>, value:Null<V>}, ident:{key:Null<K>, value:Null<V>}, next:{key:Null<K>, value:Null<V>}} {
+		var node = root;
+		var prev, ident, next;
+		prev = ident = next = new TreeNode<K, V>(null, null, null, null, 0);
+
+		if (key == null) {
+			prev = minChild(node);
+			next = maxChild(node);
+		} else {
+			while (node != null) {
+				var c = compare(key, node.key);
+				if (c == 0) {
+					ident = node;
+					prev = maxChild(node.left);
+					next = minChild(node.right);
+					break;
+				}
+				if (c < 0) {
+					next = node; // smallest node we've found that's bigger than the key
+					node = node.left;
+				} else {
+					prev = node; // biggest node we've found that's smaller than the key
+					node = node.right;
+				}
+			}
+		}
+		return {prev:{key:prev.key, value:prev.value}, ident:{key:ident.key, value:ident.value}, next:{key:next.key, value:next.value}};
+	}
+
+	/**
+		Seek along the right branch to the last non-null child.
+		Returns a `null` only if passed a `null`.
+	**/
+	function maxChild(node:TreeNode<K, V>): TreeNode<K, V> {
+		if (node != null)
+			while (node.right != null)
+				node = node.right;
+		return node;
+	}
+	/**
+		Seek along the left branch to the last non-null child.
+		Returns a `null` only if passed a `null`.
+	**/
+	function minChild(node:TreeNode<K, V>): TreeNode<K, V> {
+		if (node != null)
+			while (node.left != null)
+				node = node.left;
+		return node;
+	}
+
+	/**
 		Removes the current binding of `key`.
 
 		If `key` has no binding, `this` BalancedTree is unchanged and false is
