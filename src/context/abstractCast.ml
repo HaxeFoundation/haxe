@@ -258,21 +258,33 @@ let handle_abstract_casts ctx e =
 						begin try
 							let fa = quick_field m fname in
 							let get_fun_type t = match follow t with
-								| TFun(_,tr) as tf -> tf,tr
+								| TFun(args,tr) as tf -> tf,args,tr
 								| _ -> raise Not_found
 							in
-							let tf,tr = match fa with
+							let tf,args,tr = match fa with
 								| FStatic(_,cf) -> get_fun_type cf.cf_type
 								| FInstance(c,tl,cf) -> get_fun_type (apply_params c.cl_params tl cf.cf_type)
 								| FAnon cf -> get_fun_type cf.cf_type
 								| _ -> raise Not_found
 							in
+							let maybe_cast e t p =
+								if type_iseq e.etype t then e
+								else mk (TCast(e,None)) t p
+							in
 							let ef = mk (TField({e2 with etype = m},fa)) tf e2.epos in
+							let el =
+								if has_meta Meta.MultiType a.a_meta then
+									let rec add_casts args el =
+										match args, el with
+										| [], _ | _, [] -> el
+										| (_,_,t) :: args, e :: el -> maybe_cast e t e.epos :: add_casts args el
+									in
+									add_casts args el
+								else
+									el
+							in
 							let ecall = make_call ctx ef el tr e.epos in
-							if not (type_iseq ecall.etype e.etype) then
-								mk (TCast(ecall,None)) e.etype e.epos
-							else
-								ecall
+							maybe_cast ecall e.etype e.epos
 						with Not_found ->
 							(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 							match follow m with
