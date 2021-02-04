@@ -958,7 +958,13 @@ let find_file ctx f =
 						loop (had_empty || p = "") l
 				end
 		in
-		let r = try Some (loop false ctx.class_path) with Not_found -> None in
+		let r =
+			try
+				Some (loop false ctx.class_path)
+			with Not_found ->
+				if Sys.file_exists f then Some f
+				else None
+		in
 		Hashtbl.add ctx.file_lookup_cache f r;
 		match r with
 		| None -> raise Not_found
