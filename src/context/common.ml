@@ -932,8 +932,12 @@ let find_file ctx f =
 		match Hashtbl.find ctx.file_lookup_cache f with
 		| None -> raise Exit
 		| Some f -> f
-	with Exit ->
+	with
+	| Exit ->
 		raise Not_found
+	| Not_found when Path.is_absolute_path f ->
+		Hashtbl.add ctx.file_lookup_cache f (Some f);
+		f
 	| Not_found ->
 		let f_dir = Filename.dirname f in
 		let rec loop had_empty = function
@@ -958,13 +962,7 @@ let find_file ctx f =
 						loop (had_empty || p = "") l
 				end
 		in
-		let r =
-			try
-				Some (loop false ctx.class_path)
-			with Not_found ->
-				if Sys.file_exists f then Some f
-				else None
-		in
+		let r = try Some (loop false ctx.class_path) with Not_found -> None in
 		Hashtbl.add ctx.file_lookup_cache f r;
 		match r with
 		| None -> raise Not_found
