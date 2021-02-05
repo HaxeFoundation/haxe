@@ -258,10 +258,10 @@ let handle_abstract_casts ctx e =
 						begin try
 							let fa = quick_field m fname in
 							let get_fun_type t = match follow t with
-								| TFun(args,tr) as tf -> tf,tr
+								| TFun(args,tr) as tf -> tf,args,tr
 								| _ -> raise Not_found
 							in
-							let tf,tr = match fa with
+							let tf,args,tr = match fa with
 								| FStatic(_,cf) -> get_fun_type cf.cf_type
 								| FInstance(c,tl,cf) -> get_fun_type (apply_params c.cl_params tl cf.cf_type)
 								| FAnon cf -> get_fun_type cf.cf_type
@@ -274,13 +274,21 @@ let handle_abstract_casts ctx e =
 							let ef = mk (TField({e2 with etype = m},fa)) tf e2.epos in
 							let el =
 								if has_meta Meta.MultiType a.a_meta then
-									let rec add_casts args el =
-										match args, el with
-										| [], _ | _, [] -> el
-										| (_,_,t) :: args, e :: el -> maybe_cast e t e.epos :: add_casts args el
+									let rec add_casts orig_args args el =
+										match orig_args, args, el with
+										| _, [], _ | _, _, [] -> el
+										| [], (_,_,t) :: args, e :: el ->
+											maybe_cast e t e.epos :: add_casts orig_args args el
+										| (_,_,orig_t) :: orig_args, (_,_,t) :: args, e :: el ->
+											let t =
+												match follow t with
+												| TMono _ -> (match follow orig_t with TDynamic _ -> orig_t | _ -> t)
+												| _ -> t
+											in
+											maybe_cast e t e.epos :: add_casts orig_args args el
 									in
 									match follow e1.etype with
-									| TFun (args,_) -> add_casts args el
+									| TFun (orig_args,_) -> add_casts orig_args args el
 									| _ -> el
 								else
 									el
