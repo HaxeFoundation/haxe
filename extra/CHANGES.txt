@@ -36,6 +36,7 @@
 	all : improved type inference with constrained monomorphs (#9549)
 	all : print no-argument function types as `()->...` instead of `Void->...` (#8148)
 	all : allow `function` as package name
+	all : improved object inlining (#9599)
 	display : narrow range for hover on parametrized types (#8073)
 	cs : added .NET 5.0 support (#10043)
 	cpp : support native constructors on extern classes (#9516)
