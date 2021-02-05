@@ -258,10 +258,10 @@ let handle_abstract_casts ctx e =
 						begin try
 							let fa = quick_field m fname in
 							let get_fun_type t = match follow t with
-								| TFun(args,tr) as tf -> tf,args,tr
+								| TFun(args,tr) as tf -> tf,tr
 								| _ -> raise Not_found
 							in
-							let tf,args,tr = match fa with
+							let tf,tr = match fa with
 								| FStatic(_,cf) -> get_fun_type cf.cf_type
 								| FInstance(c,tl,cf) -> get_fun_type (apply_params c.cl_params tl cf.cf_type)
 								| FAnon cf -> get_fun_type cf.cf_type
@@ -279,7 +279,9 @@ let handle_abstract_casts ctx e =
 										| [], _ | _, [] -> el
 										| (_,_,t) :: args, e :: el -> maybe_cast e t e.epos :: add_casts args el
 									in
-									add_casts args el
+									match follow e1.etype with
+									| TFun (args,_) -> add_casts args el
+									| _ -> el
 								else
 									el
 							in
