@@ -28,7 +28,7 @@ let version = 4200
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_pre = Some "rc.1"
+let version_pre = None
 
 let macro_platform = ref Neko
 
