@@ -26,7 +26,9 @@ import cs.system.threading.Thread as NativeThread;
 import cs.system.WeakReference;
 import cs.Lib;
 
-abstract Thread(HaxeThread) {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 	public var events(get,never):EventLoop;
 
 	inline function new(thread:HaxeThread) {

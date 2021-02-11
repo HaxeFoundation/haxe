@@ -26,7 +26,9 @@ package sys.thread;
 #error "This class is not available on this target"
 #end
 
-extern abstract Thread({}) {
+private typedef ThreadImpl = {};
+
+extern abstract Thread(ThreadImpl) from ThreadImpl {
 	/**
 		Event loop of this thread (if available).
 

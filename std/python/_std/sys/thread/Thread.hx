@@ -22,7 +22,9 @@
 
 package sys.thread;
 
-abstract Thread(HxThread) from HxThread {
+private typedef ThreadImpl = HxThread;
+
+abstract Thread(HxThread) from ThreadImpl {
 	public var events(get,never):EventLoop;
 
 	public static inline function current():Thread {
