@@ -22,7 +22,9 @@
 
 package sys.thread;
 
-abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 
 	public var events(get,never):EventLoop;
 

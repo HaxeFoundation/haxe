@@ -32,7 +32,9 @@ import java.StdTypes.Int64 as Long;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.LinkedBlockingDeque;
 
-abstract Thread(HaxeThread) from HaxeThread {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 	public var events(get,never):EventLoop;
 
 	inline function new(t:HaxeThread) {
