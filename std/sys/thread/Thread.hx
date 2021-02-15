@@ -77,11 +77,6 @@ extern abstract Thread(ThreadImpl) from ThreadImpl {
 	public static function readMessage(block:Bool):Dynamic;
 
 	/**
-		Initialize event loop in this thread
-	**/
-	private static function initEventLoop():Void;
-
-	/**
 		Run event loop of the current thread
 	**/
 	private static function processEvents():Void;

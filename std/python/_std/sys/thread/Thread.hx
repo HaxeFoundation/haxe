@@ -22,6 +22,8 @@
 
 package sys.thread;
 
+import haxe.ds.ObjectMap;
+
 private typedef ThreadImpl = HxThread;
 
 abstract Thread(ThreadImpl) from ThreadImpl {
@@ -58,11 +60,6 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 	}
 
 	@:keep
-	static function initEventLoop() {
-		@:privateAccess HxThread.current().events = new EventLoop();
-	}
-
-	@:keep
 	static public function processEvents() {
 		HxThread.current().events.loop();
 	}
@@ -74,9 +71,16 @@ private class HxThread {
 	final nativeThread:NativeThread;
 	final messages = new Deque<Dynamic>();
 
-	static var threads = new haxe.ds.ObjectMap<NativeThread, HxThread>();
-	static var threadsMutex: Mutex = new Mutex();
-	static var mainThread: HxThread;
+	static var threads:ObjectMap<NativeThread, HxThread>;
+	static var threadsMutex:Mutex;
+	static var mainThread:HxThread;
+
+	static function __init__() {
+		threads = new ObjectMap();
+		threadsMutex = new Mutex();
+		mainThread = new HxThread(PyThreadingAPI.current_thread());
+		mainThread.events = new EventLoop();
+	}
 
 	private function new(t:NativeThread) {
 		nativeThread = t;
@@ -90,7 +94,6 @@ private class HxThread {
 		threadsMutex.acquire();
 		var ct = PyThreadingAPI.current_thread();
 		if (ct == PyThreadingAPI.main_thread()) {
-			if (mainThread == null) mainThread = new HxThread(ct);
 			threadsMutex.release();
 			return mainThread;
 		}
