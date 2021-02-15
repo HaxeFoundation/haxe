@@ -75,11 +75,6 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		return this.events;
 	}
 
-	@:keep
-	static function initEventLoop() {
-		@:privateAccess HaxeThread.get(JavaThread.currentThread()).events = new EventLoop();
-	}
-
 	@:keep //TODO: keep only if events are actually used
 	static function processEvents():Void {
 		current().getHandle().events.loop();
@@ -87,9 +82,16 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 }
 
 private class HaxeThread {
-	static final nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread,HaxeThread>());
-	static final mainJavaThread = JavaThread.currentThread();
-	static final mainHaxeThread = new HaxeThread();
+	static var nativeThreads:java.util.Map<JavaThread,HaxeThread>;
+	static var mainJavaThread:JavaThread;
+	static var mainHaxeThread:HaxeThread;
+
+	static function __init__() {
+		nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread,HaxeThread>());
+		mainJavaThread = JavaThread.currentThread();
+		mainHaxeThread = new HaxeThread();
+		mainHaxeThread.events = new EventLoop();
+	}
 
 	public final messages = new LinkedBlockingDeque<Dynamic>();
 
