@@ -1,8 +1,12 @@
 2021-XX-XX 4.2.1:
 
-	Bugfixes:
+	General improvements:
 
 	threads : changed main thread initialization to make main event loop available during static initialization (#10114)
+	php : added extern for `number_format` function (#10115)
+	python : rewrote `sys.thread.Thread`, `Mutex` and `Lock` as classes instead of abstracts.
+
+	Bugfixes:
 
 2021-02-09 4.2.0:
 
