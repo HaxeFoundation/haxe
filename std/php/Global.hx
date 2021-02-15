@@ -1838,4 +1838,10 @@ extern class Global {
 		@see http://php.net/manual/en/function.filter-var.php
 	**/
 	static function filter_var(value: Any, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.number-format.php
+	**/
+	static function number_format(num:Float, ?decimals:Int, ?decimal_separator:String, ?thousands_separator:String):String;
+
 }
