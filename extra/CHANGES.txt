@@ -8,6 +8,7 @@
 
 	Bugfixes:
 
+	all : fixed compiler hanging on `switch` for abstracts with implicit casts involving type parameters and constraints (#10082)
 	cpp : fixed handling of `cpp.ConstCharStar` with analyzer enabled (#9733)
 
 2021-02-09 4.2.0:
