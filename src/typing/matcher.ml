@@ -383,7 +383,7 @@ module Pattern = struct
 					| Bad_pattern s -> error s p
 				end
 			| EArrayDecl el ->
-				let rec pattern t = match follow t with
+				let rec pattern seen t = match follow t with
 					| TFun(tl,tr) when tr == fake_tuple_type ->
 						let rec loop el tl = match el,tl with
 							| e :: el,(_,_,t) :: tl ->
@@ -400,15 +400,15 @@ module Pattern = struct
 							make pctx false t2 e
 						) el in
 						PatConstructor(con_array (List.length patterns) (pos e),patterns)
-					| TAbstract(a,tl) ->
+					| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 						begin match TyperBase.get_abstract_froms a tl with
-							| [t2] -> pattern t2
+							| [t2] -> pattern (t :: seen) t2
 							| _ -> fail()
 						end
 					| _ ->
 						fail()
 				in
-				pattern t
+				pattern [] t
 			| EObjectDecl fl ->
 				let known_fields = ref [] in
 				let collect_field cf t filter =	match filter with
