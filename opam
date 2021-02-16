@@ -32,5 +32,5 @@ depends: [
   "conf-zlib"
   "conf-mbedtls"
   "conf-neko"
-  "luv" {>= "0.5.7"}
+  "luv"
 ]
