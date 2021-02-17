@@ -330,6 +330,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_this = mk_mono();
 				a_read = None;
 				a_write = None;
+				a_call = None;
 				a_enum = List.mem AbEnum d.d_flags || Meta.has Meta.Enum d.d_meta;
 			} in
 			if a.a_enum && not (Meta.has Meta.Enum a.a_meta) then a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta;

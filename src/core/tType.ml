@@ -311,6 +311,7 @@ and tabstract = {
 	mutable a_array : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
+	mutable a_call : tclass_field option;
 	a_enum : bool;
 }
 

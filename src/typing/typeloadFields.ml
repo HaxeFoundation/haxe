@@ -1100,6 +1100,14 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),cf.cf_pos)));
 					a.a_unops <- (op,flag,cf) :: a.a_unops;
 					allow_no_expr();
+				| (Meta.Op,[ECall _,_],_) :: _ ->
+					begin match a.a_call with
+					| None ->
+						a.a_call <- Some cf
+					| Some cf' ->
+						cf'.cf_overloads <- cf :: cf'.cf_overloads
+					end;
+					allow_no_expr();
 				| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					let check_fun t1 t2 =

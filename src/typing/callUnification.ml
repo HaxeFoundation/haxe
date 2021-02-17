@@ -505,19 +505,7 @@ object(self)
 	   used with actual expression calls and not with something like field calls. *)
 	method expr_call (e : texpr) (el : expr list) =
 		check_assign();
-		let rec loop t = match follow t with
-		| TFun (args,r) ->
-			let el, tfunc = unify_call_args ctx el args r p false false false in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
-			mk (TCall (e,el)) r p
-		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
-			loop (Abstract.get_underlying_type a tl)
-		| TMono _ ->
-			let t = mk_mono() in
-			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
-			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
-			mk (TCall (e,el)) t p
-		| t ->
+		let default t =
 			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 			let t = if t == t_dynamic then
 				t_dynamic
@@ -527,6 +515,34 @@ object(self)
 				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
 			in
 			mk (TCall (e,el)) t p
+		in
+		let rec loop t = match follow t with
+		| TFun (args,r) ->
+			let el, tfunc = unify_call_args ctx el args r p false false false in
+			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
+			mk (TCall (e,el)) r p
+		| TAbstract(a,tl) as t ->
+			let check_callable () =
+				if Meta.has Meta.Callable a.a_meta then
+					loop (Abstract.get_underlying_type a tl)
+				else
+					default t
+				in
+			begin match a.a_call,a.a_impl with
+			| Some cf,Some c ->
+				let e_static = Builder.make_static_this c e.epos in
+				let fa = FieldAccess.create e_static cf (FHAbstract(a,tl,c)) false e.epos in
+				self#field_call fa [e] el
+			| _ ->
+				check_callable();
+			end
+		| TMono _ ->
+			let t = mk_mono() in
+			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
+			mk (TCall (e,el)) t p
+		| t ->
+			default t
 		in
 		loop e.etype
 
