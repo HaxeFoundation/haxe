@@ -50,6 +50,7 @@ type 'value compiler_api = {
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
+	display_error : (string -> pos -> unit);
 }
 
 
@@ -1571,6 +1572,12 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			raise (Error.Fatal_error (msg,p))
+		);
+		"report_error", vfun2 (fun msg p ->
+			let msg = decode_string msg in
+			let p = decode_pos p in
+			(get_api()).display_error msg p;
+			vnull
 		);
 		"warning", vfun2 (fun msg p ->
 			let msg = decode_string msg in
