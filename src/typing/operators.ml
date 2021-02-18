@@ -662,7 +662,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 	let field_rhs_by_name op name ev with_type =
 		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
 		let e_get = acc_get ctx access_get p in
-		e_get.etype,type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
+		e_get.etype,type_binop2 ctx op e_get e2 true WithType.value p
 	in
 	let field_rhs op cf ev =
 		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
@@ -698,7 +698,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		error "Invalid operation" p
 	| AKExpr e ->
 		let e,vr = process_lhs_expr ctx "lhs" e in
-		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
+		let e_rhs = type_binop2 ctx op e e2 true WithType.value p in
 		assign vr e e_rhs
 	| AKField fa ->
 		let vr = new value_reference ctx in
@@ -730,7 +730,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let ekey,ekey' = maybe_bind_to_temp ekey in
 		let ebase,ebase' = maybe_bind_to_temp ebase in
 		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
-		let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
+		let eget = type_binop2 ctx op eget e2 true WithType.value p in
 		let vr = new value_reference ctx in
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
