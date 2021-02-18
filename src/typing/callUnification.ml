@@ -437,11 +437,15 @@ object(self)
 
 	method private make_field_call (fa : field_access) (el_typed : texpr list) (el : expr list) =
 		let fcc = unify_field_call ctx fa el_typed el p fa.fa_inline in
-		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
-			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
-			| _ -> ()
-		end;
-		fcc.fc_data()
+		if has_class_field_flag fcc.fc_field CfGeneric then begin
+			!type_generic_function_ref ctx fa fcc with_type p
+		end else begin
+			if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
+				| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+				| _ -> ()
+			end;
+			fcc.fc_data()
+		end
 
 	method private macro_call (ethis : texpr) (cf : tclass_field) (el : expr list) =
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
@@ -577,7 +581,6 @@ object(self)
 
 	   This function inspects the nature of the field being called and dispatches the call accordingly:
 
-	   * If the field is `@:generic`, call `type_generic_function`.
 	   * If the field is a non-macro method, call it via `make_field_call`.
 	   * If the field is a property, resolve the accessor (depending on `mode`) and recurse onto it.
 	   * Otherwise, call the field as a normal expression via `expr_call`.
@@ -586,10 +589,7 @@ object(self)
 		match fa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline | MethDynamic) ->
 			check_assign();
-			 if has_class_field_flag fa.fa_field CfGeneric then begin
-				!type_generic_function_ref ctx fa el_typed el with_type p
-			end else
-				self#make_field_call fa el_typed el
+			self#make_field_call fa el_typed el
 		| Method MethMacro ->
 			begin match el_typed with
 			| [] ->
