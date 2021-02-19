@@ -1202,6 +1202,8 @@ and type_local_function ctx kind f with_type p =
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
+			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
+				loop ft
 			| TAbstract(a,tl) ->
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> ())
