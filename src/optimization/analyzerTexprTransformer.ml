@@ -771,8 +771,11 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 		fun () -> (let id = !counter in incr counter; id)
 	in
 
+	(* TODO: maybe merge this into block_to_texpr somehow, and only introduce new states when there is a suspension point *)
+
 	let rec loop bb state_id back_state_id statecases current_el =
 		let p = bb.bb_pos in
+		(* TODO: only do this in the end, avoid unnecessary List.rev *)
 		let el = DynArray.to_list bb.bb_el in
 		let set_state id = mk (TBinop (OpAssign,estate,make_int com.basic id p)) com.basic.tint p in
 		let ereturn = mk (TReturn None) com.basic.tvoid p in
@@ -821,24 +824,67 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 			loop bb_next state_id back_state_id statecases (current_el @ el)
 
 		| SESubBlock (bb_sub,bb_next) ->
-			(* TODO: only do this if there's a suspension, otherwise merge (same for all other blocks actually) *)
 			let sub_state_id = get_next_state_id () in
 			let next_state_id = get_next_state_id () in
 			let statecases = loop bb_next next_state_id back_state_id statecases [] in
 			let statecases = loop bb_sub sub_state_id next_state_id statecases [] in
 			mk_case (current_el @ el @ [set_state sub_state_id]) :: statecases
 
-		| SEIfThen _ ->
-			failwith "TODO SEIfThen"
-		| SEIfThenElse _ ->
-			failwith "TODO SEIfThenElse"
-		| SESwitch _ ->
-			failwith "TODO SESwitch"
+		| SEIfThen (bb_then,bb_next,p) ->
+			(match List.rev el with
+			| econd :: el ->
+				let then_state_id = get_next_state_id () in
+				let next_state_id = get_next_state_id () in
+				let statecases = loop bb_then then_state_id next_state_id statecases [] in
+				let statecases = loop bb_next next_state_id back_state_id statecases [] in
+				let eif = mk (TIf (econd, set_state then_state_id, Some (set_state next_state_id))) com.basic.tint p in
+				mk_case (current_el @ (List.rev el) @ [eif]) :: statecases
+			| _ -> die "" __LOC__)
+
+		| SEIfThenElse (bb_then,bb_else,bb_next,t,p) ->
+			(match List.rev el with
+			| econd :: el ->
+				let then_state_id = get_next_state_id () in
+				let else_state_id = get_next_state_id () in
+				let next_state_id = get_next_state_id () in
+				let statecases = loop bb_then then_state_id next_state_id statecases [] in
+				let statecases = loop bb_else else_state_id next_state_id statecases [] in
+				let statecases = loop bb_next next_state_id back_state_id statecases [] in
+				let eif = mk (TIf (econd, set_state then_state_id, Some (set_state else_state_id))) com.basic.tint p in
+				mk_case (current_el @ (List.rev el) @ [eif]) :: statecases
+			| _ -> die "" __LOC__)
+
+		| SESwitch (cases,bb_default,bb_next,p) ->
+			(match List.rev el with
+			| esubj :: el ->
+				let next_state_id = get_next_state_id () in
+				let statecases = ref statecases in
+				let ecases = List.map (fun (patterns,bb) ->
+					(* TODO: variable capture and other fancy things O_o *)
+					let case_state_id = get_next_state_id () in
+					statecases := loop bb case_state_id next_state_id !statecases [];
+					patterns, set_state case_state_id
+				) cases in
+				let default_state_id = match bb_default with
+					| Some bb ->
+						let default_state_id = get_next_state_id () in
+						statecases := loop bb default_state_id next_state_id !statecases [];
+						default_state_id
+					| None ->
+						next_state_id
+				in
+				let eswitch = mk (TSwitch (esubj,ecases,Some (set_state default_state_id))) com.basic.tvoid p in
+				let statecases = loop bb_next next_state_id back_state_id !statecases [] in
+				mk_case (current_el @ (List.rev el) @ [eswitch]) :: statecases
+			| _ -> die "" __LOC__)
+
+		| SEWhile _ ->
+			(* this needs some extra state id bookkeeping and processing break/continue properly *)
+			failwith "TODO SEWhile"
+
 		| SETry _ ->
 			failwith "TODO SETry"
-		| SEWhile _ ->
-			failwith "TODO SEWhile"
-		in
+	in
 	let statecases = loop bb (get_next_state_id ()) (-1) [] [] in
 
 	(* TODO:
