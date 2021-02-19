@@ -762,35 +762,39 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
 	let estatemachine = make_local vstatemachine p in
 
-	let statecases = ref [] in
-
-	let rec loop bb state_id back_state_id =
+	let rec loop bb state_id back_state_id statecases current_el =
 		let p = bb.bb_pos in
 		let el = DynArray.to_list bb.bb_el in
 		let set_state id = mk (TBinop (OpAssign,estate,make_int com.basic id p)) com.basic.tint p in
 		let ereturn = mk (TReturn None) com.basic.tvoid p in
-		let el = match bb.bb_syntax_edge with
-			| SESuspend (call, bb_next) ->
-				let next_state_id = state_id + 1 in
-				loop bb_next next_state_id back_state_id;
-				let args = call.args @ [ estatemachine ] in
 
-				(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
-				let tcoroutine = tfun [t_dynamic] com.basic.tvoid in
-				let tfun = match follow call.efun.etype with
-					| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
-						let tcontinuation = tfun [ret] com.basic.tvoid in
-						let args = args @ [("",false,tcontinuation)] in
-						TFun (args, com.basic.tvoid)
-					| _ -> die "" __LOC__
-				in
-				let efun = { call.efun with etype = tfun } in
-				let ecreatecoroutine = mk (TCall (efun, args)) tcoroutine call.pos in
-				let ecallcoroutine = mk (TCall (ecreatecoroutine, [make_null t_dynamic p])) com.basic.tvoid call.pos in
-				let esetstate = set_state next_state_id in
-				el @ [esetstate; ecallcoroutine; ereturn]
-			| SENone ->
-				let esetstate = set_state back_state_id in
+		let mk_case el = [make_int com.basic state_id p], mk (TBlock el) com.basic.tvoid p in
+
+		match bb.bb_syntax_edge with
+		| SESuspend (call, bb_next) ->
+			let next_state_id = state_id + 1 in
+			let statecases = loop bb_next next_state_id back_state_id statecases [] in
+			let args = call.args @ [ estatemachine ] in
+
+			(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
+			let tcoroutine = tfun [t_dynamic] com.basic.tvoid in
+			let tfun = match follow call.efun.etype with
+				| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+					let tcontinuation = tfun [ret] com.basic.tvoid in
+					let args = args @ [("",false,tcontinuation)] in
+					TFun (args, com.basic.tvoid)
+				| _ -> die "" __LOC__
+			in
+			let efun = { call.efun with etype = tfun } in
+			let ecreatecoroutine = mk (TCall (efun, args)) tcoroutine call.pos in
+			let ecallcoroutine = mk (TCall (ecreatecoroutine, [make_null t_dynamic p])) com.basic.tvoid call.pos in
+			let esetstate = set_state next_state_id in
+			mk_case (current_el @ el @ [esetstate; ecallcoroutine; ereturn]) :: statecases
+
+		| SENone ->
+			let esetstate = set_state back_state_id in
+			if back_state_id = -1 then begin
+				(* function exit *)
 				let el_rev,eresult = match List.rev el with
 				| { eexpr = TReturn (Some e) } :: el ->
 					el, e
@@ -799,34 +803,43 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 				in
 				let econtinuation = make_local vcontinuation p in
 				let ecallcontinuation = mk (TCall (econtinuation, [eresult])) com.basic.tvoid p in
-				List.rev (ereturn :: ecallcontinuation :: esetstate :: el_rev)
-			| SEIfThen _ ->
-				failwith "TODO SEIfThen"
-			| SEIfThenElse _ ->
-				failwith "TODO SEIfThenElse"
-			| SESwitch _ ->
-				failwith "TODO SESwitch"
-			| SETry _ ->
-				failwith "TODO SETry"
-			| SEWhile _ ->
-				failwith "TODO SEWhile"
-			| SESubBlock _ ->
-				failwith "TODO SESubBlock"
-			| SEMerge _ ->
-				failwith "TODO SEMerge"
+				mk_case (current_el @ List.rev (ereturn :: ecallcontinuation :: esetstate :: el_rev)) :: statecases
+			end else begin
+				mk_case (current_el @ el @ [esetstate]) :: statecases
+			end
+
+		| SEMerge bb_next ->
+			loop bb_next state_id back_state_id statecases (current_el @ el)
+
+		| SESubBlock (bb_sub,bb_next) ->
+			(* TODO: only do this if there's a suspension *)
+			let sub_state_id = state_id + 1 in
+			let next_state_id = sub_state_id + 1 in
+			let statecases = loop bb_next next_state_id back_state_id statecases [] in
+			let statecases = loop bb_sub sub_state_id next_state_id statecases [] in
+			mk_case (current_el @ el @ [set_state sub_state_id]) :: statecases
+
+		| SEIfThen _ ->
+			failwith "TODO SEIfThen"
+		| SEIfThenElse _ ->
+			failwith "TODO SEIfThenElse"
+		| SESwitch _ ->
+			failwith "TODO SESwitch"
+		| SETry _ ->
+			failwith "TODO SETry"
+		| SEWhile _ ->
+			failwith "TODO SEWhile"
 		in
-		let case = [make_int com.basic state_id p], mk (TBlock el) com.basic.tvoid p in
-		statecases := case :: !statecases;
-	in
-	loop bb 0 (-1);
+	let statecases = loop bb 0 (-1) [] [] in
 
 	let ethrow = mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p in
-	let eswitch = mk (TSwitch (estate, !statecases, Some ethrow)) com.basic.tvoid p in
+	let eswitch = mk (TSwitch (estate, statecases, Some ethrow)) com.basic.tvoid p in
+	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, DoWhile)) com.basic.tvoid p in
 
 	let estatemachine_def = mk (TFunction {
 		tf_args = [(vresult,None)];
 		tf_type = com.basic.tvoid;
-		tf_expr = eswitch;
+		tf_expr = eloop;
 	}) tstatemachine p in
 
 	mk (TBlock [
