@@ -755,11 +755,15 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 	let open Texpr.Builder in
 	let com = ctx.com in
 
+	declare_var ctx.graph vresult bb;
+
 	let vstate = alloc_var VGenerated "_hx_state" com.basic.tint p in
+	declare_var ctx.graph vstate bb;
 	let estate = make_local vstate p in
 
 	let tstatemachine = tfun [t_dynamic] com.basic.tvoid in
 	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
+	declare_var ctx.graph vstatemachine bb;
 	let estatemachine = make_local vstatemachine p in
 
 	let rec loop bb state_id back_state_id statecases current_el =
@@ -854,6 +858,7 @@ and func ctx i =
 		match ctx.coroutine with
 		| Some vresult ->
 			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [t_dynamic] ctx.com.basic.tvoid) p in
+			declare_var ctx.graph vcontinuation bb;
 			let e = block_to_texpr_coroutine ctx bb vcontinuation vresult p in
 			let tf_args = tf.tf_args @ [(vcontinuation,None)] in
 			e, tf_args, tf.tf_type
