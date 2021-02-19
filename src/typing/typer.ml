@@ -1235,7 +1235,16 @@ and type_local_function ctx kind f with_type p =
 	} in
 	let e = mk (TFunction tf) ft p in
 	match v with
-	| None -> e
+	| None ->
+		(match with_type with
+		| WithType.WithType (texpected, _) ->
+			(match follow texpected with
+			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
+				(* TODO: check original type against the coroutine ft *)
+				{ e with etype = texpected }
+			| _ -> e)
+		| _ ->
+			e)
 	| Some v ->
 		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
