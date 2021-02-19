@@ -764,15 +764,15 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 
 	let statecases = ref [] in
 
-	let rec loop bb back_state_id =
+	let rec loop bb state_id back_state_id =
 		let p = bb.bb_pos in
-		let e_bb_id = make_int com.basic bb.bb_id p in
 		let el = DynArray.to_list bb.bb_el in
 		let set_state id = mk (TBinop (OpAssign,estate,make_int com.basic id p)) com.basic.tint p in
 		let ereturn = mk (TReturn None) com.basic.tvoid p in
 		let el = match bb.bb_syntax_edge with
 			| SESuspend (call, bb_next) ->
-				loop bb_next back_state_id;
+				let next_state_id = state_id + 1 in
+				loop bb_next next_state_id back_state_id;
 				let args = call.args @ [ estatemachine ] in
 
 				(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
@@ -787,7 +787,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 				let efun = { call.efun with etype = tfun } in
 				let ecreatecoroutine = mk (TCall (efun, args)) tcoroutine call.pos in
 				let ecallcoroutine = mk (TCall (ecreatecoroutine, [make_null t_dynamic p])) com.basic.tvoid call.pos in
-				let esetstate = set_state bb_next.bb_id in
+				let esetstate = set_state next_state_id in
 				el @ [esetstate; ecallcoroutine; ereturn]
 			| SENone ->
 				let esetstate = set_state back_state_id in
@@ -815,10 +815,10 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 			| SEMerge _ ->
 				failwith "TODO SEMerge"
 		in
-		let case = [e_bb_id], mk (TBlock el) com.basic.tvoid p in
+		let case = [make_int com.basic state_id p], mk (TBlock el) com.basic.tvoid p in
 		statecases := case :: !statecases;
 	in
-	loop bb (-1);
+	loop bb 0 (-1);
 
 	let ethrow = mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p in
 	let eswitch = mk (TSwitch (estate, !statecases, Some ethrow)) com.basic.tvoid p in
@@ -830,7 +830,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 	}) tstatemachine p in
 
 	mk (TBlock [
-		mk (TVar (vstate, Some (make_int com.basic bb.bb_id p))) com.basic.tvoid p;
+		mk (TVar (vstate, Some (make_int com.basic 0 p))) com.basic.tvoid p;
 		mk (TVar (vstatemachine, Some estatemachine_def)) com.basic.tvoid p;
 		mk (TReturn (Some estatemachine)) com.basic.tvoid p;
 	]) com.basic.tvoid p
