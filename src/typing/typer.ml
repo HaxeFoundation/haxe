@@ -1225,7 +1225,19 @@ and type_local_function ctx kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr false (* TODO: support local coroutines *) ctx.in_display p in
+	let maybe_coroutine = match v, with_type with
+		(* TODO: named local coroutines *)
+		| None, WithType.WithType (texpected,_) ->
+			(match follow texpected with
+			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
+				(* TODO: check original type against the coroutine ft *)
+				Some texpected
+			| _ ->
+				None)
+		| _ -> None
+	in
+	(* TODO: make type_function return Coroutine<T> type *)
+	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr (Option.is_some maybe_coroutine) ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
 	let tf = {
@@ -1234,17 +1246,10 @@ and type_local_function ctx kind f with_type p =
 		tf_expr = e;
 	} in
 	let e = mk (TFunction tf) ft p in
+	let e = Option.map_default (fun tcoro -> { e with etype = tcoro }) e maybe_coroutine in
 	match v with
 	| None ->
-		(match with_type with
-		| WithType.WithType (texpected, _) ->
-			(match follow texpected with
-			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
-				(* TODO: check original type against the coroutine ft *)
-				{ e with etype = texpected }
-			| _ -> e)
-		| _ ->
-			e)
+		e
 	| Some v ->
 		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
