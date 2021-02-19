@@ -1,5 +1,6 @@
 --class-path src
 --library utest
 --main Main
+--debug
 --js test.js
 --cmd node test.js
