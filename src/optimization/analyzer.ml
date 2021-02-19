@@ -941,7 +941,7 @@ module Run = struct
 		timer();
 		r
 
-	let create_analyzer_context com config e is_coroutine =
+	let create_analyzer_context com config e =
 		let g = Graph.create e.etype e.epos in
 		let ctx = {
 			com = com;
@@ -951,7 +951,6 @@ module Run = struct
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
 			entry = g.g_unreachable;
-			coroutine = if is_coroutine then Some (alloc_var VGenerated "_hx_result" t_dynamic e.epos) else None;
 			has_unbound = false;
 			loop_counter = 0;
 			loop_stack = [];
@@ -1063,7 +1062,7 @@ module Run = struct
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
-			let actx = create_analyzer_context ctx.Typecore.com config e (Meta.has Meta.Coroutine cf.cf_meta) in
+			let actx = create_analyzer_context ctx.Typecore.com config e in
 			let debug() =
 				print_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
@@ -1117,7 +1116,7 @@ module Run = struct
 			| Some e ->
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
 				let e = mk (TFunction tf) (tfun [] e.etype) e.epos in
-				let actx = create_analyzer_context ctx.Typecore.com {config with optimize = false} e false in
+				let actx = create_analyzer_context ctx.Typecore.com {config with optimize = false} e in
 				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
@@ -1149,6 +1148,6 @@ Typecore.analyzer_run_on_expr_ref := (fun com e ->
 	(* We always want to optimize because const propagation might be required to obtain
 	   a constant expression for inline field initializations (see issue #4977). *)
 	let config = {config with AnalyzerConfig.optimize = true} in
-	let actx = Run.create_analyzer_context com config e false in
+	let actx = Run.create_analyzer_context com config e in
 	Run.run_on_expr actx e
 )

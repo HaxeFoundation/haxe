@@ -44,7 +44,11 @@ let rec func ctx bb tf t p =
 	in
 	let bb_root = create_node (BKFunctionBegin tf) tf.tf_expr.etype tf.tf_expr.epos in
 	let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
-	add_function g tf t p bb_root;
+	let coroutine = match follow t with
+		| TAbstract ({a_path=[],"Coroutine"}, _) -> Some (alloc_var VGenerated "_hx_result" t_dynamic p)
+		| _ -> None
+	in
+	add_function g tf t p bb_root coroutine;
 	add_cfg_edge bb bb_root CFGFunction;
 	let bb_breaks = ref [] in
 	let bb_continue = ref None in
@@ -324,7 +328,7 @@ let rec func ctx bb tf t p =
 					| TAbstract ({ a_path = [], "Coroutine"}, _) -> true
 					| _ -> false
 				in
-				(match ctx.coroutine with
+				(match coroutine with
 					| Some vresult when is_coroutine efun ->
 						let bb_next = create_node BKNormal e1.etype e1.epos in
 						add_cfg_edge bb bb_next CFGGoto;
@@ -909,9 +913,9 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 	]) com.basic.tvoid p
 
 and func ctx i =
-	let bb,t,p,tf = Hashtbl.find ctx.graph.g_functions i in
+	let bb,t,p,tf,coroutine = Hashtbl.find ctx.graph.g_functions i in
 	let e,tf_args,tf_type =
-		match ctx.coroutine with
+		match coroutine with
 		| Some vresult ->
 			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [t_dynamic] ctx.com.basic.tvoid) p in
 			declare_var ctx.graph vcontinuation bb;
@@ -956,8 +960,7 @@ and func ctx i =
 					{e with eexpr = TBinop(OpAssign,e1,{e4 with eexpr = TBinop(op,e2,e3)})}
 			end
 		| TCall({eexpr = TConst (TString "fun")},[{eexpr = TConst (TInt i32)}]) ->
-			(* TODO: coroutine-ness of a function must be per-function, not a context field *)
-			func { ctx with coroutine = None } (Int32.to_int i32)
+			func ctx (Int32.to_int i32)
 		| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 			e
 		| _ ->
