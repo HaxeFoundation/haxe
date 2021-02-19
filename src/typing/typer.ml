@@ -1230,6 +1230,7 @@ and type_local_function ctx kind f with_type p =
 		| None, WithType.WithType (texpected,_) ->
 			(match follow texpected with
 			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
+				(* TODO: type signature against ft *)
 				(* TODO: check original type against the coroutine ft *)
 				Some texpected
 			| _ ->
