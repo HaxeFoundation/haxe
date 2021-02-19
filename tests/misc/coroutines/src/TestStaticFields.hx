@@ -1,6 +1,3 @@
-import utest.Assert;
-import utest.Async;
-
 class TestStaticFields extends utest.Test {
 	function testSimpleStart(async:Async) {
 		simple.start(42, result -> {
@@ -20,10 +17,4 @@ class TestStaticFields extends utest.Test {
 	@:coroutine static function simple(arg:Int):Int {
 		return arg;
 	}
-}
-
-function main() {
-	utest.UTest.run([
-		new TestStaticFields(),
-	]);
 }
