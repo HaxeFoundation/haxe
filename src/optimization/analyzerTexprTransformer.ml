@@ -766,6 +766,11 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 	declare_var ctx.graph vstatemachine bb;
 	let estatemachine = make_local vstatemachine p in
 
+	let get_next_state_id =
+		let counter = ref 0 in
+		fun () -> (let id = !counter in incr counter; id)
+	in
+
 	let rec loop bb state_id back_state_id statecases current_el =
 		let p = bb.bb_pos in
 		let el = DynArray.to_list bb.bb_el in
@@ -776,7 +781,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 
 		match bb.bb_syntax_edge with
 		| SESuspend (call, bb_next) ->
-			let next_state_id = state_id + 1 in
+			let next_state_id = get_next_state_id () in
 			let statecases = loop bb_next next_state_id back_state_id statecases [] in
 			let args = call.args @ [ estatemachine ] in
 
@@ -817,8 +822,8 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 
 		| SESubBlock (bb_sub,bb_next) ->
 			(* TODO: only do this if there's a suspension *)
-			let sub_state_id = state_id + 1 in
-			let next_state_id = sub_state_id + 1 in
+			let sub_state_id = get_next_state_id () in
+			let next_state_id = get_next_state_id () in
 			let statecases = loop bb_next next_state_id back_state_id statecases [] in
 			let statecases = loop bb_sub sub_state_id next_state_id statecases [] in
 			mk_case (current_el @ el @ [set_state sub_state_id]) :: statecases
@@ -834,7 +839,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 		| SEWhile _ ->
 			failwith "TODO SEWhile"
 		in
-	let statecases = loop bb 0 (-1) [] [] in
+	let statecases = loop bb (get_next_state_id ()) (-1) [] [] in
 
 	let ethrow = mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p in
 	let eswitch = mk (TSwitch (estate, statecases, Some ethrow)) com.basic.tvoid p in
