@@ -1225,7 +1225,7 @@ and type_local_function ctx kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr ctx.in_display p in
+	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr false (* TODO: support local coroutines *) ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
 	let tf = {
@@ -1564,6 +1564,12 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		let e = type_call_target ctx e el with_type inline p in
 		build_call ~mode ctx e el with_type p;
 	in
+	let create_coroutine e args ret p =
+		let args = args @ [("_hx_continuation",false,(tfun [ret] ctx.com.basic.tvoid))] in
+		let ret = ctx.com.basic.tvoid in
+		let el, _ = unify_call_args ctx el args ret p false false false in
+		mk (TCall (e, el)) (tfun [t_dynamic] ctx.com.basic.tvoid) p
+	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
 		if Common.defined ctx.com Define.NoTraces then
@@ -1596,6 +1602,19 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
 			| TFun signature -> type_bind ctx e signature args p
+			| _ -> def ())
+	| (EField (e,"start"),_), args ->
+		let e = type_expr ctx e WithType.value in
+		(match follow e.etype with
+			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+				let ecoro = create_coroutine e args ret p in
+				mk (TCall (ecoro, [Builder.make_null t_dynamic p])) ctx.com.basic.tvoid p
+			| _ -> def ())
+	| (EField (e,"create"),_), args ->
+		let e = type_expr ctx e WithType.value in
+		(match follow e.etype with
+			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+				create_coroutine e args ret p
 			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e WithType.value in
@@ -1877,6 +1896,7 @@ let rec create com =
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;
+		is_coroutine = false;
 		curfun = FunStatic;
 		in_function = false;
 		in_loop = false;
@@ -1921,6 +1941,7 @@ let rec create com =
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
 			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
+			| "Coroutine" -> ctx.t.tcoroutine <- fun t -> TAbstract (a,[t]);
 			| "Null" ->
 				let mk_null t =
 					try

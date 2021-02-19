@@ -73,6 +73,7 @@ module BasicBlock = struct
 		| SEWhile of t * t * pos                                 (* `while` with "body" and "next" *)
 		| SESubBlock of t * t                                    (* "sub" with "next" *)
 		| SEMerge of t                                           (* Merge to same block *)
+		| SESuspend of (suspend_call * t)                        (* Suspension point *)
 		| SENone                                                 (* No syntax exit *)
 
 	and suspend_call = {
@@ -582,6 +583,8 @@ module Graph = struct
 					loop scopes bb_next
 				| SEMerge bb ->
 					loop scopes bb
+				| SESuspend (_, bb) ->
+					loop scopes bb
 				| SENone ->
 					()
 			end
@@ -594,6 +597,7 @@ type analyzer_context = {
 	config : AnalyzerConfig.t;
 	graph : Graph.t;
 	temp_var_name : string;
+	coroutine : tvar option; (* if we're in a coroutine, this field will contain a tvar allocated for reentrancy result *)
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;

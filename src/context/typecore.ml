@@ -127,6 +127,7 @@ and typer = {
 	mutable in_display : bool;
 	mutable in_macro : bool;
 	mutable macro_depth : int;
+	mutable is_coroutine : bool;
 	mutable curfun : current_fun;
 	mutable ret : t;
 	mutable locals : (string, tvar) PMap.t;

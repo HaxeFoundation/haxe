@@ -170,3 +170,9 @@ typedef KeyValueIterable<K, V> = {
 	@see https://haxe.org/manual/types-abstract-array-access.html
 **/
 extern interface ArrayAccess<T> {}
+
+/**
+	Coroutine function.
+**/
+@:coreType
+abstract Coroutine<T> {}
