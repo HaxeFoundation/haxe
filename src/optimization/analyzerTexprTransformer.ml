@@ -841,6 +841,11 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 		in
 	let statecases = loop bb (get_next_state_id ()) (-1) [] [] in
 
+	(* TODO:
+		we can optimize while and switch in some cases:
+		 - if there's only one state (no suspensions) - don't wrap into while/switch, don't introduce state var
+		 - if there's no non-suspending state changes, we don't need while, because all suspensions exit the function with return
+	*)
 	let ethrow = mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p in
 	let eswitch = mk (TSwitch (estate, statecases, Some ethrow)) com.basic.tvoid p in
 	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, DoWhile)) com.basic.tvoid p in
