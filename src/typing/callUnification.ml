@@ -300,41 +300,63 @@ let unify_field_call ctx fa el_typed el p inline =
 	let attempt_call cf in_overload =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
-		match follow t with
-		| TFun(args,ret) ->
-			let rec loop acc_el acc_args tmap args el_typed = match args,el_typed with
-				| ((_,opt,t0) as arg) :: args,e :: el_typed ->
-					begin try
-						unify_raise ctx (tmap e.etype) t0 e.epos;
-					with Error(Unify _ as msg,p) ->
-						let call_error = Call_error(Could_not_unify msg) in
+		let f t =
+			match follow t with
+			| TFun(args,ret) ->
+				let rec loop acc_el acc_args tmap args el_typed = match args,el_typed with
+					| ((_,opt,t0) as arg) :: args,e :: el_typed ->
+						begin try
+							unify_raise ctx (tmap e.etype) t0 e.epos;
+						with Error(Unify _ as msg,p) ->
+							let call_error = Call_error(Could_not_unify msg) in
+							raise(Error(call_error,p))
+						end;
+						loop (e :: acc_el) (arg :: acc_args) (fun t -> t) args el_typed
+					| [],_ :: _ ->
+						let call_error = Call_error(Too_many_arguments) in
 						raise(Error(call_error,p))
-					end;
-					loop (e :: acc_el) (arg :: acc_args) (fun t -> t) args el_typed
-				| [],_ :: _ ->
-					let call_error = Call_error(Too_many_arguments) in
-					raise(Error(call_error,p))
-				| _ ->
-					List.rev acc_el,List.rev acc_args,args
-			in
-			let el_typed,args_typed,args = loop [] [] tmap args el_typed in
-			let el,_ =
-				try
-					unify_call_args ctx el args ret p inline is_forced_inline in_overload
-				with DisplayException.DisplayException de ->
-					raise_augmented_display_exception cf de;
-			in
-			(* here *)
-			let el = el_typed @ el in
-			let tf = TFun(args_typed @ args,ret) in
-			let mk_call () =
-				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
-				!make_call_ref ctx ef el ret ~force_inline:inline p
-			in
-			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
+					| _ ->
+						List.rev acc_el,List.rev acc_args,args
+				in
+				let el_typed,args_typed,args = loop [] [] tmap args el_typed in
+				let el,_ =
+					try
+						unify_call_args ctx el args ret p inline is_forced_inline in_overload
+					with DisplayException.DisplayException de ->
+						raise_augmented_display_exception cf de;
+				in
+				(* here *)
+				let el = el_typed @ el in
+				let tf = TFun(args_typed @ args,ret) in
+				let mk_call () =
+					let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
+					!make_call_ref ctx ef el ret ~force_inline:inline p
+				in
+				make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
+			| t ->
+				error (s_type (print_context()) t ^ " cannot be called") p
+		in
+		match follow t with
+		| TAbstract({ a_path = [],"Coroutine" } as ab, [ft]) ->
+			if ctx.is_coroutine then
+				let candidate = f ft in
+				(* preserve Coroutine<T> type so we can detect suspending calls when building CFG *)
+				let mk_call, display_thing = candidate.fc_data in
+				let mk_call () =
+					match mk_call () with
+					| { eexpr = TCall (efun, args) } as e ->
+						let efun = { efun with etype = TAbstract (ab, [efun.etype]) } in
+						{ e with eexpr = TCall (efun, args) }
+					| _ -> die "" __LOC__
+				in
+				{ candidate with
+					fc_type = TAbstract (ab, [candidate.fc_type]);
+					fc_data = (mk_call,display_thing)
+				}
+			else
+				error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
 		| t ->
-			(* TODO: field coroutine functions *)
-			error (s_type (print_context()) t ^ " cannot be called") p
+			f t
 	in
 	let maybe_raise_unknown_ident cerr p =
 		let rec loop err =

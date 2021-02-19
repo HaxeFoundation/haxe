@@ -800,8 +800,20 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 				let econtinuation = make_local vcontinuation p in
 				let ecallcontinuation = mk (TCall (econtinuation, [eresult])) com.basic.tvoid p in
 				List.rev (ereturn :: ecallcontinuation :: esetstate :: el_rev)
-			| _ ->
-				die "TODO" __LOC__
+			| SEIfThen _ ->
+				failwith "TODO SEIfThen"
+			| SEIfThenElse _ ->
+				failwith "TODO SEIfThenElse"
+			| SESwitch _ ->
+				failwith "TODO SESwitch"
+			| SETry _ ->
+				failwith "TODO SETry"
+			| SEWhile _ ->
+				failwith "TODO SEWhile"
+			| SESubBlock _ ->
+				failwith "TODO SESubBlock"
+			| SEMerge _ ->
+				failwith "TODO SEMerge"
 		in
 		let case = [e_bb_id], mk (TBlock el) com.basic.tvoid p in
 		statecases := case :: !statecases;
