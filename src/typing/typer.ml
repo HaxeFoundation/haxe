@@ -1167,7 +1167,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx kind f with_type p =
+and type_local_function ctx kind f with_type p want_coroutine =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
@@ -1214,6 +1214,17 @@ and type_local_function ctx kind f with_type p =
 	| _ ->
 		());
 	let ft = TFun (targs,rt) in
+	let ft,is_coroutine = match v, with_type with
+		| None, WithType.WithType (texpected,_) ->
+			(match follow texpected with
+			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
+				(* TODO: check original type against the coroutine ft *)
+				texpected, true
+			| _ ->
+				ft, false)
+		| _ ->
+			if want_coroutine then (ctx.com.basic.tcoroutine ft, true) else (ft, false)
+	in
 	let v = (match v with
 		| None -> None
 		| Some v ->
@@ -1227,20 +1238,7 @@ and type_local_function ctx kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let maybe_coroutine = match v, with_type with
-		(* TODO: named local coroutines *)
-		| None, WithType.WithType (texpected,_) ->
-			(match follow texpected with
-			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
-				(* TODO: type signature against ft *)
-				(* TODO: check original type against the coroutine ft *)
-				Some texpected
-			| _ ->
-				None)
-		| _ -> None
-	in
-	(* TODO: make type_function return Coroutine<T> type *)
-	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr (Option.is_some maybe_coroutine) ctx.in_display p in
+	let e = TypeloadFunction.type_function ctx args rt curfun f.f_expr is_coroutine ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
 	let tf = {
@@ -1249,7 +1247,6 @@ and type_local_function ctx kind f with_type p =
 		tf_expr = e;
 	} in
 	let e = mk (TFunction tf) ft p in
-	let e = Option.map_default (fun tcoro -> { e with etype = tcoro }) e maybe_coroutine in
 	match v with
 	| None ->
 		e
@@ -1551,6 +1548,12 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
 			| _ -> e()
 			end
+		| (Meta.Coroutine,_,_) ->
+			begin match fst e1 with
+			| EFunction (kind, f) ->
+				type_local_function ctx kind f with_type p true
+			| _ -> e()
+			end
 		| _ -> e()
 	in
 	ctx.meta <- old;
@@ -1811,7 +1814,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e with_type p
 	| EFunction (kind,f) ->
-		type_local_function ctx kind f with_type p
+		type_local_function ctx kind f with_type p false
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
