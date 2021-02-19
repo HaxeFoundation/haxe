@@ -57,6 +57,10 @@ class Js {
 		changeDirectory(miscDir + "es6");
 		runCommand("haxe", ["run.hxml"]);
 
+		infoMsg("Test coroutines:");
+		changeDirectory(miscDir + "coroutines");
+		runCommand("haxe", ["build.hxml"]);
+
 		haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		var env = Sys.environment();
 		if (

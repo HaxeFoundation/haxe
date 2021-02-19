@@ -1,0 +1,5 @@
+--class-path .
+--library utest
+--main Test
+--js test.js
+--cmd node test.js
