@@ -956,7 +956,8 @@ and func ctx i =
 					{e with eexpr = TBinop(OpAssign,e1,{e4 with eexpr = TBinop(op,e2,e3)})}
 			end
 		| TCall({eexpr = TConst (TString "fun")},[{eexpr = TConst (TInt i32)}]) ->
-			func ctx (Int32.to_int i32)
+			(* TODO: coroutine-ness of a function must be per-function, not a context field *)
+			func { ctx with coroutine = None } (Int32.to_int i32)
 		| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 			e
 		| _ ->
