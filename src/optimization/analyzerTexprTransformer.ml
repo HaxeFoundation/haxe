@@ -318,8 +318,34 @@ let rec func ctx bb tf t p =
 		let el = Codegen.UnificationCallback.check_call check el e1.etype in
 		let bb,el = ordered_value_list !bb (e1 :: el) in
 		match el with
-			| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
-			| _ -> die "" __LOC__
+			| efun :: el ->
+				let is_coroutine efun =
+					match follow efun.etype with
+					| TAbstract ({ a_path = [], "Coroutine"}, _) -> true
+					| _ -> false
+				in
+				(match ctx.coroutine with
+					| Some vresult when is_coroutine efun ->
+						let bb_next = create_node BKNormal e1.etype e1.epos in
+						add_cfg_edge bb bb_next CFGGoto;
+						let syntax_edge = SESuspend (
+							{
+								efun = efun;
+								args = el;
+								pos = e.epos;
+							},
+							bb_next
+						) in
+						set_syntax_edge bb syntax_edge;
+						close_node bb;
+						let eresult = Texpr.Builder.make_local vresult e.epos in
+						let eresult = mk_cast eresult e.etype e.epos in
+						bb_next,eresult
+					| _ ->
+						bb,{e with eexpr = TCall (efun,el)}
+				)
+			| _ ->
+				die "" __LOC__
 	and array_assign_op bb op e ea e1 e2 e3 =
 		let bb,e1 = bind_to_temp bb false e1 in
 		let bb,e2 = bind_to_temp bb false e2 in
@@ -723,9 +749,92 @@ and block_to_texpr ctx bb =
 	let e = mk (TBlock el) bb.bb_type bb.bb_pos in
 	e
 
+and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
+	assert(bb.bb_closed);
+
+	let open Texpr.Builder in
+	let com = ctx.com in
+
+	let vstate = alloc_var VGenerated "_hx_state" com.basic.tint p in
+	let estate = make_local vstate p in
+
+	let tstatemachine = tfun [t_dynamic] com.basic.tvoid in
+	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
+	let estatemachine = make_local vstatemachine p in
+
+	let statecases = ref [] in
+
+	let rec loop bb back_state_id =
+		let p = bb.bb_pos in
+		let e_bb_id = make_int com.basic bb.bb_id p in
+		let el = DynArray.to_list bb.bb_el in
+		let set_state id = mk (TBinop (OpAssign,estate,make_int com.basic id p)) com.basic.tint p in
+		let ereturn = mk (TReturn None) com.basic.tvoid p in
+		let el = match bb.bb_syntax_edge with
+			| SESuspend (call, bb_next) ->
+				loop bb_next back_state_id;
+				let args = call.args @ [ estatemachine ] in
+
+				(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
+				let tcoroutine = tfun [t_dynamic] com.basic.tvoid in
+				let tfun = match follow call.efun.etype with
+					| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+						let tcontinuation = tfun [ret] com.basic.tvoid in
+						let args = args @ [("",false,tcontinuation)] in
+						TFun (args, com.basic.tvoid)
+					| _ -> die "" __LOC__
+				in
+				let efun = { call.efun with etype = tfun } in
+				let ecreatecoroutine = mk (TCall (efun, args)) tcoroutine call.pos in
+				let ecallcoroutine = mk (TCall (ecreatecoroutine, [make_null t_dynamic p])) com.basic.tvoid call.pos in
+				let esetstate = set_state bb_next.bb_id in
+				el @ [esetstate; ecallcoroutine; ereturn]
+			| SENone ->
+				let esetstate = set_state back_state_id in
+				let el_rev,eresult = match List.rev el with
+				| { eexpr = TReturn (Some e) } :: el ->
+					el, e
+				| ({ eexpr = TReturn None } :: el) | el ->
+					el, make_null t_dynamic p
+				in
+				let econtinuation = make_local vcontinuation p in
+				let ecallcontinuation = mk (TCall (econtinuation, [eresult])) com.basic.tvoid p in
+				List.rev (ereturn :: ecallcontinuation :: esetstate :: el_rev)
+			| _ ->
+				die "TODO" __LOC__
+		in
+		let case = [e_bb_id], mk (TBlock el) com.basic.tvoid p in
+		statecases := case :: !statecases;
+	in
+	loop bb (-1);
+
+	let ethrow = mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p in
+	let eswitch = mk (TSwitch (estate, !statecases, Some ethrow)) com.basic.tvoid p in
+
+	let estatemachine_def = mk (TFunction {
+		tf_args = [(vresult,None)];
+		tf_type = com.basic.tvoid;
+		tf_expr = eswitch;
+	}) tstatemachine p in
+
+	mk (TBlock [
+		mk (TVar (vstate, Some (make_int com.basic bb.bb_id p))) com.basic.tvoid p;
+		mk (TVar (vstatemachine, Some estatemachine_def)) com.basic.tvoid p;
+		mk (TReturn (Some estatemachine)) com.basic.tvoid p;
+	]) com.basic.tvoid p
+
 and func ctx i =
 	let bb,t,p,tf = Hashtbl.find ctx.graph.g_functions i in
-	let e = block_to_texpr ctx bb in
+	let e,tf_args,tf_type =
+		match ctx.coroutine with
+		| Some vresult ->
+			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [t_dynamic] ctx.com.basic.tvoid) p in
+			let e = block_to_texpr_coroutine ctx bb vcontinuation vresult p in
+			let tf_args = tf.tf_args @ [(vcontinuation,None)] in
+			e, tf_args, tf.tf_type
+		| None ->
+			block_to_texpr ctx bb, tf.tf_args, tf.tf_type
+	in
 	let rec loop e = match e.eexpr with
 		| TLocal v ->
 			{e with eexpr = TLocal (get_var_origin ctx.graph v)}
@@ -768,7 +877,7 @@ and func ctx i =
 			Type.map_expr loop e
 	in
 	let e = loop e in
-	mk (TFunction {tf with tf_expr = e}) t p
+	mk (TFunction {tf with tf_args = tf_args; tf_type = tf_type; tf_expr = e}) t p
 
 let to_texpr ctx =
 	func ctx ctx.entry.bb_id

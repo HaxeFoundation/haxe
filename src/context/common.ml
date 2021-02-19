@@ -710,6 +710,7 @@ let create version s_version args =
 			tnull = (fun _ -> die "" __LOC__);
 			tstring = m;
 			tarray = (fun _ -> die "" __LOC__);
+			tcoroutine = (fun _ -> die "" __LOC__);
 		};
 		file_lookup_cache = Hashtbl.create 0;
 		file_keys = new file_keys;

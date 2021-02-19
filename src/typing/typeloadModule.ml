@@ -984,6 +984,7 @@ let type_types_into_module ctx m tdecls p =
 		ret = ctx.ret;
 		locals = PMap.empty;
 		type_params = [];
+		is_coroutine = false;
 		curfun = FunStatic;
 		untyped = false;
 		in_macro = ctx.in_macro;

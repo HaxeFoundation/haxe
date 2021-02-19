@@ -905,7 +905,7 @@ module TypeBinding = struct
 		| Some e ->
 			bind_var_expression ctx cctx fctx cf e
 
-	let bind_method ctx cctx fctx cf t args ret e p =
+	let bind_method ctx cctx fctx cf t args ret e p is_coroutine =
 		let c = cctx.tclass in
 		let bind r =
 			r := lazy_processing (fun() -> t);
@@ -926,7 +926,7 @@ module TypeBinding = struct
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let e = TypeloadFunction.type_function ctx args ret fmode e fctx.is_display_field p in
+					let e = TypeloadFunction.type_function ctx args ret fmode e is_coroutine fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
 					| _ -> ()
@@ -1230,6 +1230,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
+	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
+	let t = if is_coroutine then ctx.com.basic.tcoroutine t else t in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
@@ -1273,7 +1275,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
 	if fctx.do_bind then
-		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_coroutine
 	else begin
 		if fctx.is_display_field then begin
 			delay ctx PTypeField (fun () ->

@@ -184,6 +184,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-core-type.html"]
 	},
 	{
+		"name": "Coroutine",
+		"metadata": ":coroutine",
+		"doc": "Transform function into a coroutine",
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "CppFileCode",
 		"metadata": ":cppFileCode",
 		"doc": "Code to be injected into generated cpp file.",

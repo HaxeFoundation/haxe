@@ -333,6 +333,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			in
 			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
 		| t ->
+			(* TODO: field coroutine functions *)
 			error (s_type (print_context()) t ^ " cannot be called") p
 	in
 	let maybe_raise_unknown_ident cerr p =
@@ -535,6 +536,17 @@ object(self)
 			mk (TCall (e,el)) t p
 		in
 		let rec loop t = match follow t with
+		| TAbstract({ a_path = [],"Coroutine" }, [ft]) ->
+			if ctx.is_coroutine then
+				match loop ft with
+				| { eexpr = TCall (efun, eargs) } as e ->
+					(* preserve Coroutine<T> type so we can detect suspending calls when building CFG *)
+					let efun = { efun with etype = t } in
+					{ e with eexpr = TCall (efun, eargs) }
+				| _ ->
+					die "" __LOC__
+			else
+				error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
 		| TFun (args,r) ->
 			let el, tfunc = unify_call_args ctx el args r p false false false in
 			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
