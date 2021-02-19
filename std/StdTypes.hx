@@ -175,4 +175,18 @@ extern interface ArrayAccess<T> {}
 	Coroutine function.
 **/
 @:coreType
-abstract Coroutine<T> {}
+abstract Coroutine<T> {
+	/**
+		Suspend running coroutine and expose the continuation callback
+		for resuming coroutine execution.
+	**/
+	@:coroutine
+	public static extern function suspend<T>(f:(cont:T->Void)->Void):T;
+
+	#if js
+	// TODO: handle this somehow better
+	static function __init__():Void {
+		js.Syntax.code("{0} = {1}", Coroutine.suspend, cast function(f, cont) return _ -> f(cont));
+	}
+	#end
+}
