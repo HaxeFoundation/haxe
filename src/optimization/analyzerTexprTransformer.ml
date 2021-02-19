@@ -821,7 +821,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 			loop bb_next state_id back_state_id statecases (current_el @ el)
 
 		| SESubBlock (bb_sub,bb_next) ->
-			(* TODO: only do this if there's a suspension *)
+			(* TODO: only do this if there's a suspension, otherwise merge (same for all other blocks actually) *)
 			let sub_state_id = get_next_state_id () in
 			let next_state_id = get_next_state_id () in
 			let statecases = loop bb_next next_state_id back_state_id statecases [] in
