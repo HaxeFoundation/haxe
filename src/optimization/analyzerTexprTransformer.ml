@@ -775,6 +775,11 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 		fun () -> (let id = !counter in incr counter; id)
 	in
 
+	let mk_continuation_call eresult p =
+		let econtinuation = make_local vcontinuation p in
+		mk (TCall (econtinuation, [eresult])) com.basic.tvoid p
+	in
+
 	(* TODO: maybe merge this into block_to_texpr somehow, and only introduce new states when there is a suspension point *)
 
 	print_endline "---";
@@ -811,22 +816,21 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 
 		| SENone ->
 			print_endline (Printf.sprintf "none cur:%d,back:%d" state_id back_state_id);
-			let esetstate = set_state back_state_id in
-			if back_state_id = -1 then begin
-				(* function exit *)
-				let el_rev,eresult = match List.rev el with
-				| { eexpr = TReturn (Some e) } :: el ->
-					el, e
-				| ({ eexpr = TReturn None } :: el) | el ->
-					el, make_null t_dynamic p
+			(match List.rev el with
+			| { eexpr = TReturn ret } :: el_rev ->
+				let esetstate = set_state (-1) in
+				let eresult = match ret with
+					| Some e -> e
+					| None -> make_null t_dynamic p
 				in
-				let econtinuation = make_local vcontinuation p in
-				let ecallcontinuation = mk (TCall (econtinuation, [eresult])) com.basic.tvoid p in
+				let ecallcontinuation = mk_continuation_call eresult p in
 				mk_case (current_el @ List.rev (ereturn :: ecallcontinuation :: esetstate :: el_rev)) :: statecases
-			end else begin
-				mk_case (current_el @ el @ [esetstate]) :: statecases
-			end
-
+			| _ when back_state_id = -1 ->
+				let esetstate = set_state (-1) in
+				let ecallcontinuation = mk_continuation_call (make_null t_dynamic p) p in
+				mk_case (current_el @ el @ [esetstate; ecallcontinuation; ereturn]) :: statecases
+			| _ ->
+				mk_case (current_el @ el @ [set_state back_state_id]) :: statecases)
 		| SEMerge bb_next ->
 			print_endline (Printf.sprintf "merge cur:%d,back:%d" state_id back_state_id);
 			loop bb_next state_id back_state_id statecases (current_el @ el)
