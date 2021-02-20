@@ -900,8 +900,8 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 			(* this needs some extra state id bookkeeping and processing break/continue properly *)
 			failwith "TODO SEWhile"
 
-		| SETry _ ->
-			failwith "TODO SETry"
+		| SETry (_,_,_,_,p) ->
+			Error.error "try/catch is currently not supported in coroutines" p
 	in
 	let statecases = loop bb (get_next_state_id ()) (-1) [] [] in
 
