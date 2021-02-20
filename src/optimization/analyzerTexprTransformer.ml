@@ -791,6 +791,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 		let ereturn = mk (TReturn None) com.basic.tvoid p in
 
 		let mk_case el = [make_int com.basic state_id p], mk (TBlock el) com.basic.tvoid p in
+		let get_cond_branch () = match bb.bb_terminator with TermCondBranch e -> e | _ -> die "" __LOC__ in
 
 		match bb.bb_syntax_edge with
 		| SESuspend (call, bb_next) ->
@@ -816,29 +817,34 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 
 		| SENone ->
 			print_endline (Printf.sprintf "none cur:%d,back:%d" state_id back_state_id);
-			(match List.rev el with
-			| { eexpr = TBreak } :: el_rev ->
+			(match bb.bb_terminator with
+			| TermBreak _ -> (* todo use pos *)
 				let _,next_state_id = Option.get while_loop in
 				let esetstate = set_state next_state_id in
-				mk_case (current_el @ (List.rev (esetstate :: el_rev))) :: statecases
-			| { eexpr = TContinue } :: el_rev ->
+				mk_case (current_el @ el @ [esetstate]) :: statecases
+			| TermContinue _ -> (* todo use pos *)
 				let body_state_id,_ = Option.get while_loop in
 				let esetstate = set_state body_state_id in
-				mk_case (current_el @ (List.rev (esetstate :: el_rev))) :: statecases
-			| { eexpr = TReturn ret } :: el_rev ->
+				mk_case (current_el @ el @ [esetstate]) :: statecases
+			| TermReturn _ | TermReturnValue _ -> (* todo use pos *)
 				let esetstate = set_state (-1) in
-				let eresult = match ret with
-					| Some e -> e
-					| None -> make_null t_dynamic p
+				let eresult = match bb.bb_terminator with
+					| TermReturnValue (e,_) -> e
+					| _ -> make_null t_dynamic p
 				in
 				let ecallcontinuation = mk_continuation_call eresult p in
-				mk_case (current_el @ List.rev (ereturn :: ecallcontinuation :: esetstate :: el_rev)) :: statecases
-			| _ when back_state_id = -1 ->
+				mk_case (current_el @ el @ [esetstate; ecallcontinuation; ereturn]) :: statecases
+			| TermNone when back_state_id = -1 ->
 				let esetstate = set_state (-1) in
 				let ecallcontinuation = mk_continuation_call (make_null t_dynamic p) p in
 				mk_case (current_el @ el @ [esetstate; ecallcontinuation; ereturn]) :: statecases
-			| _ ->
-				mk_case (current_el @ el @ [set_state back_state_id]) :: statecases)
+			| TermNone ->
+				mk_case (current_el @ el @ [set_state back_state_id]) :: statecases
+			| TermThrow (_,p) ->
+				Error.error "throw is currently not supported in coroutines" p
+			| TermCondBranch _ ->
+				die "unexpected TermCondBranch" __LOC__)
+
 		| SEMerge bb_next ->
 			print_endline (Printf.sprintf "merge cur:%d,back:%d" state_id back_state_id);
 			loop bb_next state_id back_state_id statecases (current_el @ el) while_loop
@@ -852,70 +858,61 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 			mk_case (current_el @ el @ [set_state sub_state_id]) :: statecases
 
 		| SEIfThen (bb_then,bb_next,p) ->
-			(match List.rev el with
-			| econd :: el_rev ->
-				let then_state_id = get_next_state_id () in
-				let next_state_id = get_next_state_id () in
-				print_endline (Printf.sprintf "if-then cur:%d,then:%d,next:%d,back:%d" state_id then_state_id next_state_id back_state_id);
-				let statecases = loop bb_then then_state_id next_state_id statecases [] while_loop in
-				let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
-				let eif = mk (TIf (econd, set_state then_state_id, Some (set_state next_state_id))) com.basic.tint p in
-				mk_case (current_el @ (List.rev el_rev) @ [eif]) :: statecases
-			| _ -> die "" __LOC__)
+			let econd = get_cond_branch () in
+			let then_state_id = get_next_state_id () in
+			let next_state_id = get_next_state_id () in
+			print_endline (Printf.sprintf "if-then cur:%d,then:%d,next:%d,back:%d" state_id then_state_id next_state_id back_state_id);
+			let statecases = loop bb_then then_state_id next_state_id statecases [] while_loop in
+			let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
+			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state next_state_id))) com.basic.tint p in
+			mk_case (current_el @ el @ [eif]) :: statecases
 
 		| SEIfThenElse (bb_then,bb_else,bb_next,t,p) ->
-			(match List.rev el with
-			| econd :: el_rev ->
-				let then_state_id = get_next_state_id () in
-				let else_state_id = get_next_state_id () in
-				let next_state_id = get_next_state_id () in
-				print_endline (Printf.sprintf "if-then cur:%d,then:%d,else:%d,next:%d,back:%d" state_id then_state_id else_state_id next_state_id back_state_id);
-				let statecases = loop bb_then then_state_id next_state_id statecases [] while_loop in
-				let statecases = loop bb_else else_state_id next_state_id statecases [] while_loop in
-				let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
-				let eif = mk (TIf (econd, set_state then_state_id, Some (set_state else_state_id))) com.basic.tint p in
-				mk_case (current_el @ (List.rev el_rev) @ [eif]) :: statecases
-			| _ -> die "" __LOC__)
+			let econd = get_cond_branch () in
+			let then_state_id = get_next_state_id () in
+			let else_state_id = get_next_state_id () in
+			let next_state_id = get_next_state_id () in
+			print_endline (Printf.sprintf "if-then-else cur:%d,then:%d,else:%d,next:%d,back:%d" state_id then_state_id else_state_id next_state_id back_state_id);
+			let statecases = loop bb_then then_state_id next_state_id statecases [] while_loop in
+			let statecases = loop bb_else else_state_id next_state_id statecases [] while_loop in
+			let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
+			let eif = mk (TIf (econd, set_state then_state_id, Some (set_state else_state_id))) com.basic.tint p in
+			mk_case (current_el @ el @ [eif]) :: statecases
 
 		| SESwitch (cases,bb_default,bb_next,p) ->
-			(match List.rev el with
-			| esubj :: el ->
-				let next_state_id = get_next_state_id () in
-				print_endline (Printf.sprintf "switch cur:%d,next:%d,back:%d" state_id next_state_id back_state_id);
-				let statecases = ref statecases in
-				let ecases = List.map (fun (patterns,bb) ->
-					(* TODO: variable capture and other fancy things O_o *)
-					let case_state_id = get_next_state_id () in
-					print_endline (Printf.sprintf "  case %d" case_state_id);
-					statecases := loop bb case_state_id next_state_id !statecases [] while_loop;
-					patterns, set_state case_state_id
-				) cases in
-				let default_state_id = match bb_default with
-					| Some bb ->
-						let default_state_id = get_next_state_id () in
-						statecases := loop bb default_state_id next_state_id !statecases [] while_loop;
-						default_state_id
-					| None ->
-						next_state_id
-				in
-				print_endline (Printf.sprintf "  default %d" default_state_id);
-				let eswitch = mk (TSwitch (esubj,ecases,Some (set_state default_state_id))) com.basic.tvoid p in
-				let statecases = loop bb_next next_state_id back_state_id !statecases [] while_loop in
-				mk_case (current_el @ (List.rev el) @ [eswitch]) :: statecases
-			| _ -> die "" __LOC__)
+			let esubj = get_cond_branch () in
+			let next_state_id = get_next_state_id () in
+			print_endline (Printf.sprintf "switch cur:%d,next:%d,back:%d" state_id next_state_id back_state_id);
+			let statecases = ref statecases in
+			let ecases = List.map (fun (patterns,bb) ->
+				(* TODO: variable capture and other fancy things O_o *)
+				let case_state_id = get_next_state_id () in
+				print_endline (Printf.sprintf "  case %d" case_state_id);
+				statecases := loop bb case_state_id next_state_id !statecases [] while_loop;
+				patterns, set_state case_state_id
+			) cases in
+			let default_state_id = match bb_default with
+				| Some bb ->
+					let default_state_id = get_next_state_id () in
+					statecases := loop bb default_state_id next_state_id !statecases [] while_loop;
+					default_state_id
+				| None ->
+					next_state_id
+			in
+			print_endline (Printf.sprintf "  default %d" default_state_id);
+			let eswitch = mk (TSwitch (esubj,ecases,Some (set_state default_state_id))) com.basic.tvoid p in
+			let statecases = loop bb_next next_state_id back_state_id !statecases [] while_loop in
+			mk_case (current_el @ el @ [eswitch]) :: statecases
 
-		| SEWhile (_, bb_body, bb_next) ->
-			(match List.rev el with
-			| { eexpr = TWhile _} :: el_rev ->
-				let body_state_id = get_next_state_id () in
-				let next_state_id = get_next_state_id () in
-				print_endline (Printf.sprintf "while cur:%d,body:%d,next:%d,back:%d" state_id body_state_id next_state_id back_state_id);
-				let new_while_loop = Some (body_state_id,next_state_id) in
-				(* TODO: next is empty? *)
-				let statecases = loop bb_body body_state_id body_state_id statecases [] new_while_loop in
-				let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
-				mk_case (current_el @ (List.rev (set_state body_state_id :: el_rev))) :: statecases
-			| _ -> die "" __LOC__)
+		| SEWhile (_, bb_body, bb_next, p) ->
+			let body_state_id = get_next_state_id () in
+			let next_state_id = get_next_state_id () in
+			print_endline (Printf.sprintf "while cur:%d,body:%d,next:%d,back:%d" state_id body_state_id next_state_id back_state_id);
+			let new_while_loop = Some (body_state_id,next_state_id) in
+			(* TODO: next is empty? *)
+			let statecases = loop bb_body body_state_id body_state_id statecases [] new_while_loop in
+			let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
+			mk_case (current_el @ el @ [set_state body_state_id]) :: statecases
 
 		| SETry (_,_,_,_,p) ->
 			Error.error "try/catch is currently not supported in coroutines" p
