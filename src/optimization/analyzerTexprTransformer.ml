@@ -979,7 +979,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 				end in
 				loop rest ((patterns,expr) :: cases_acc) !decls
 			| [] ->
-				cases_acc, decls
+				List.rev cases_acc, decls
 		in
 		loop statecases [] []
 	end in
