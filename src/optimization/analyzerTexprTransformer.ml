@@ -922,6 +922,68 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 	in
 	let statecases = loop bb (get_next_state_id ()) (-1) [] [] None in
 
+	(* TODO: this (and the coroutine transform in general) should probably be run before captured vars handling *)
+	(* very ugly, but seems to work: extract locals that are used across states *)
+	let var_usages = Hashtbl.create 5 in
+	begin
+		let use v state_id =
+			let m = try
+				Hashtbl.find var_usages v.v_id
+			with Not_found ->
+				let m = Hashtbl.create 1 in
+				Hashtbl.add var_usages v.v_id m;
+				m
+			in
+			Hashtbl.replace m state_id true
+		in
+		List.iter (fun (patterns, expr) ->
+			let state_id = match patterns with
+				| [{eexpr = TConst (TInt state_id)}] -> state_id
+				| _ -> die "" __LOC__ (* TODO: use proper data structure :) *)
+			in
+			let rec loop e =
+				match e.eexpr with
+				| TVar (v, eo) ->
+					Option.may loop eo;
+					use v state_id;
+				| TLocal v ->
+					use v state_id;
+				| _ ->
+					Type.iter loop e
+			in
+			loop expr
+		) statecases;
+	end;
+	let statecases, decls = begin
+		let is_used_across_states v_id =
+			let m = Hashtbl.find var_usages v_id in
+			(Hashtbl.length m) > 1
+		in
+		let rec loop cases cases_acc decls =
+			match cases with
+			| (patterns,expr) :: rest ->
+				let decls = ref decls in
+				let expr = begin
+					let rec loop e =
+						match e.eexpr with
+						| TVar (v, eo) when is_used_across_states v.v_id ->
+							decls := v :: !decls;
+							let elocal = make_local v e.epos in
+							(match eo with
+							| None -> elocal
+							| Some einit -> mk (TBinop (OpAssign,elocal,einit)) v.v_type e.epos)
+						| _ ->
+							Type.map_expr loop e
+					in
+					loop expr
+				end in
+				loop rest ((patterns,expr) :: cases_acc) !decls
+			| [] ->
+				cases_acc, decls
+		in
+		loop statecases [] []
+	end in
+
 	(* TODO:
 		we can optimize while and switch in some cases:
 		 - if there's only one state (no suspensions) - don't wrap into while/switch, don't introduce state var
@@ -937,11 +999,14 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 		tf_expr = eloop;
 	}) tstatemachine p in
 
-	mk (TBlock [
-		mk (TVar (vstate, Some (make_int com.basic 0 p))) com.basic.tvoid p;
+	let state_var = mk (TVar (vstate, Some (make_int com.basic 0 p))) com.basic.tvoid p in
+	let shared_vars = List.map (fun v -> mk (TVar (v,None)) com.basic.tvoid null_pos) decls in
+	let shared_vars = List.rev (state_var :: shared_vars) in
+
+	mk (TBlock (shared_vars @ [
 		mk (TVar (vstatemachine, Some estatemachine_def)) com.basic.tvoid p;
 		mk (TReturn (Some estatemachine)) com.basic.tvoid p;
-	]) com.basic.tvoid p
+	])) com.basic.tvoid p
 
 and func ctx i =
 	let bb,t,p,tf,coroutine = Hashtbl.find ctx.graph.g_functions i in
