@@ -1,4 +1,4 @@
-class TestStaticFields extends utest.Test {
+class TestBasic extends utest.Test {
 	function testSimpleStart(async:Async) {
 		simple.start(42, result -> {
 			Assert.equals(42, result);
