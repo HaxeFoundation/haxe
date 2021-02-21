@@ -138,7 +138,8 @@ class Template {
 			@:nullSafety(Off)
 			if (value != null || Reflect.hasField(ctx, v))
 				return value;
-		} @:nullSafety(Off)
+		}
+		@:nullSafety(Off)
 		return Reflect.field(globals, v);
 	}
 

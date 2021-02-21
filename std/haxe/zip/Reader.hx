@@ -189,7 +189,8 @@ class Reader {
 			} else
 				e.data = i.read(e.dataSize);
 			l.add(e);
-		} @:nullSafety(Off)
+		}
+		@:nullSafety(Off)
 		return l;
 	}
 

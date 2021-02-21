@@ -75,7 +75,8 @@ package haxe.ds;
 	public function copy():IntMap<T> {
 		var copied = new IntMap();
 		for (key in keys())
-			copied.set(key, get(key)); @:nullSafety(Off)
+			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

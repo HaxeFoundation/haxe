@@ -157,7 +157,8 @@ class HttpJs extends haxe.http.HttpBase {
 		h.onError = function(e) {
 			throw e;
 		}
-		h.request(false); @:nullSafety(Off)
+		h.request(false);
+		@:nullSafety(Off)
 		return r;
 	}
 }

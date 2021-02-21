@@ -38,7 +38,8 @@ class Meta {
 		Returns the metadata that were declared for the given type (class or enum)
 	**/
 	public static function getType(t:Dynamic):Dynamic<Array<Dynamic>> {
-		var meta = getMeta(t); @:nullSafety(Off)
+		var meta = getMeta(t);
+		@:nullSafety(Off)
 		return (meta == null || meta.obj == null) ? {} : meta.obj;
 	}
 
@@ -79,7 +80,8 @@ class Meta {
 		Returns the metadata that were declared for the given class static fields
 	**/
 	public static function getStatics(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
-		var meta = getMeta(t); @:nullSafety(Off)
+		var meta = getMeta(t);
+		@:nullSafety(Off)
 		return (meta == null || meta.statics == null) ? {} : meta.statics;
 	}
 
@@ -87,7 +89,8 @@ class Meta {
 		Returns the metadata that were declared for the given class fields or enum constructors
 	**/
 	public static function getFields(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
-		var meta = getMeta(t); @:nullSafety(Off)
+		var meta = getMeta(t);
+		@:nullSafety(Off)
 		return (meta == null || meta.fields == null) ? {} : meta.fields;
 	}
 }

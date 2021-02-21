@@ -489,7 +489,8 @@ class TypeApi {
 				switch (t2) {
 					case CDynamic(t2):
 						if ((t == null) != (t2 == null))
-							return false; @:nullSafety(Off)
+							return false;
+						@:nullSafety(Off)
 						return t == null || typeEq(t, t2);
 					default:
 				}

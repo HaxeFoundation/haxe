@@ -62,7 +62,8 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 		var copied = new ObjectMap();
 		@:nullSafety(Off)
 		for (key in keys())
-			copied.set(key, get(key)); @:nullSafety(Off)
+			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

@@ -273,7 +273,8 @@ enum ValueType {
 							return TFunction;
 						return if (c == null) TFunction else TClass(c);
 					}
-			} @:nullSafety(Off)
+			}
+			@:nullSafety(Off)
 			return null;
 		}
 	}

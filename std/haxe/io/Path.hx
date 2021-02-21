@@ -325,7 +325,8 @@ class Path {
 	}
 
 	private static function unescape(path:String):String {
-		var regex = ~/-x([0-9][0-9])/g; @:nullSafety(Off)
+		var regex = ~/-x([0-9][0-9])/g;
+		@:nullSafety(Off)
 		return regex.map(path, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
 	}
 

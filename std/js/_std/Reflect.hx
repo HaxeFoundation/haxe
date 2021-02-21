@@ -39,7 +39,8 @@
 
 	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		untyped {
-			var tmp; @:nullSafety(Off)
+			var tmp;
+			@:nullSafety(Off)
 			return if (o == null) __define_feature__("Reflect.getProperty",
 				null) else if (o.__properties__ && (tmp = o.__properties__["get_" + field])) o[tmp]() else o[field];
 		}

@@ -524,7 +524,8 @@ class XmlParser {
 					athis = xtype(new Access(c.x.firstElement()));
 				default:
 					xerror(c);
-			} @:nullSafety(Off)
+			}
+		@:nullSafety(Off)
 		return {
 			file: if (x.has.file) x.att.file else null,
 			path: mkPath(x.att.path),
@@ -554,7 +555,8 @@ class XmlParser {
 				t = xtype(c);
 		var types = new haxe.ds.StringMap();
 		if (curplatform != null)
-			types.set(curplatform, t); @:nullSafety(Off)
+			types.set(curplatform, t);
+		@:nullSafety(Off)
 		return {
 			file: if (x.has.file) x.att.file else null,
 			path: mkPath(x.att.path),

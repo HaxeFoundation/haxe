@@ -95,7 +95,8 @@ class MacroStringTools {
 	}
 
 	static public function toComplex(path:String):ComplexType {
-		var pack = path.split("."); @:nullSafety(Off)
+		var pack = path.split(".");
+		@:nullSafety(Off)
 		return TPath({pack: pack, name: pack.pop(), params: []});
 	}
 }

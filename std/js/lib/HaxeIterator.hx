@@ -41,7 +41,8 @@ class HaxeIterator<T> {
 
 	public inline function next():T {
 		var v = lastStep.value;
-		lastStep = jsIterator.next(); @:nullSafety(Off)
+		lastStep = jsIterator.next();
+		@:nullSafety(Off)
 		return v;
 	}
 
