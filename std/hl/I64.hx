@@ -22,4 +22,4 @@
 
 package hl;
 
-@:coreType @:notNull @:runtimeValue abstract I64 to Int from Int {}
+@:coreType @:notNull @:runtimeValue abstract I64 from Int {}
