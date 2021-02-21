@@ -58,7 +58,7 @@ import neko.Lib;
 		return date_get_hour(__t).s;
 	}
 
-	public function getDay():Int {
+	public function getDay():Int {@:nullSafety(Off)
 		return Std.parseInt(new String(date_format(__t, untyped "%w".__s)));
 	}
 
@@ -86,7 +86,7 @@ import neko.Lib;
 		return date_get_utc_hour(__t).s;
 	}
 
-	public function getUTCDay():Int {
+	public function getUTCDay():Int {@:nullSafety(Off)
 		return Std.parseInt(new String(date_utc_format(__t, untyped "%w".__s)));
 	}
 
@@ -94,7 +94,7 @@ import neko.Lib;
 		return -date_get_tz(__t);
 	}
 
-	@:keep public function toString():String {
+	@:keep public function toString():String {@:nullSafety(Off)
 		return new String(date_format(__t, null));
 	}
 

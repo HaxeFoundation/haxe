@@ -31,8 +31,7 @@ import js.lib.Object;
 	var h:Dynamic;
 
 	public inline function new() {
-		@:nullSafety(Off)
-		h = Object.create(null);
+		h = @:nullSafety(Off) Object.create(null);
 	}
 
 	public inline function exists(key:String):Bool {

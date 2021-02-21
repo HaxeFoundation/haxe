@@ -6,13 +6,16 @@ package sys.thread;
 enum NextEventTime {
 	/** There's already an event waiting to be executed */
 	Now;
+
 	/** No new events are expected. */
 	Never;
+
 	/**
 		An event is expected to arrive at any time.
 		If `time` is specified, then the event will be ready at that time for sure.
-	*/
+	 */
 	AnyTime(time:Null<Float>);
+
 	/** An event is expected to be ready for execution at `time`. */
 	At(time:Float);
 }
@@ -23,7 +26,7 @@ enum NextEventTime {
 @:coreApi
 class EventLoop {
 	final mutex = new Mutex();
-	final oneTimeEvents = new Array<Null<()->Void>>();
+	final oneTimeEvents = new Array<Null<() -> Void>>();
 	var oneTimeEventsIdx = 0;
 	final waitLock = new Lock();
 	var promisedEventsCount = 0;
@@ -34,7 +37,7 @@ class EventLoop {
 	/**
 		Schedule event for execution every `intervalMs` milliseconds in current loop.
 	**/
-	public function repeat(event:()->Void, intervalMs:Int):EventHandler {
+	public function repeat(event:() -> Void, intervalMs:Int):EventHandler {
 		mutex.acquire();
 		var interval = 0.001 * intervalMs;
 		var event = new RegularEvent(event, Sys.time() + interval, interval);
@@ -56,16 +59,18 @@ class EventLoop {
 	public function cancel(eventHandler:EventHandler):Void {
 		mutex.acquire();
 		var event:RegularEvent = eventHandler;
-		if(regularEvents == event) {
+		if (regularEvents == event) {
 			regularEvents = event.next;
 		}
 		switch event.next {
 			case null:
-			case e: e.previous = event.previous;
+			case e:
+				e.previous = event.previous;
 		}
 		switch event.previous {
 			case null:
-			case e: e.next = event.next;
+			case e:
+				e.next = event.next;
 		}
 		mutex.release();
 	}
@@ -84,7 +89,7 @@ class EventLoop {
 	/**
 		Execute `event` as soon as possible.
 	**/
-	public function run(event:()->Void):Void {
+	public function run(event:() -> Void):Void {
 		mutex.acquire();
 		oneTimeEvents[oneTimeEventsIdx++] = event;
 		waitLock.release();
@@ -94,7 +99,7 @@ class EventLoop {
 	/**
 		Add previously promised `event` for execution.
 	**/
-	public function runPromised(event:()->Void):Void {
+	public function runPromised(event:() -> Void):Void {
 		mutex.acquire();
 		oneTimeEvents[oneTimeEventsIdx++] = event;
 		--promisedEventsCount;
@@ -110,13 +115,13 @@ class EventLoop {
 		Depending on a target platform this method may be non-reentrant. It must
 		not be called from event callbacks.
 	**/
-	public function progress():NextEventTime {
+	public function progress():NextEventTime {@:nullSafety(Off)
 		return switch __progress(Sys.time(), []) {
-			case {nextEventAt:-2}: Now;
-			case {nextEventAt:-1, anyTime:false}: Never;
-			case {nextEventAt:-1, anyTime:true}: AnyTime(null);
-			case {nextEventAt:time, anyTime:true}: AnyTime(time);
-			case {nextEventAt:time, anyTime:false}: At(time);
+			case {nextEventAt: -2}: Now;
+			case {nextEventAt: -1, anyTime: false}: Never;
+			case {nextEventAt: -1, anyTime: true}: AnyTime(null);
+			case {nextEventAt: time, anyTime: true}: AnyTime(time);
+			case {nextEventAt: time, anyTime: false}: At(time);
 		}
 	}
 
@@ -146,15 +151,16 @@ class EventLoop {
 	**/
 	public function loop():Void {
 		var events = [];
-		while(true) {
+		while (true) {
+			@:nullSafety(Off)
 			var r = __progress(Sys.time(), events);
 			switch r {
-				case {nextEventAt:-2}:
-				case {nextEventAt:-1, anyTime:false}:
+				case {nextEventAt: -2}:
+				case {nextEventAt: -1, anyTime: false}:
 					break;
-				case {nextEventAt:-1, anyTime:true}:
+				case {nextEventAt: -1, anyTime: true}:
 					waitLock.wait();
-				case {nextEventAt:time}:
+				case {nextEventAt: time}:
 					var timeout = time - Sys.time();
 					waitLock.wait(Math.max(0, timeout));
 			}
@@ -169,23 +175,23 @@ class EventLoop {
 		* -2 - now
 		* other values - at specified time
 	**/
-	inline function __progress(now:Float, recycle:Array<()->Void>):{nextEventAt:Float, anyTime:Bool} {
+	inline function __progress(now:Float, recycle:Array<() -> Void>):{nextEventAt:Float, anyTime:Bool} {
 		var eventsToRun = recycle;
 		var eventsToRunIdx = 0;
 		// When the next event is expected to run
 		var nextEventAt:Float = -1;
 
 		mutex.acquire();
-		//reset waitLock
-		while(waitLock.wait(0.0)) {}
+		// reset waitLock
+		while (waitLock.wait(0.0)) {}
 		// Collect regular events to run
 		var current = regularEvents;
-		while(current != null) {
-			if(current.nextRunTime <= now) {
+		while (current != null) {
+			if (current.nextRunTime <= now) {
 				eventsToRun[eventsToRunIdx++] = current.run;
 				current.nextRunTime += current.interval;
 				nextEventAt = -2;
-			} else if(nextEventAt == -1 || current.nextRunTime < nextEventAt) {
+			} else if (nextEventAt == -1 || current.nextRunTime < nextEventAt) {
 				nextEventAt = current.nextRunTime;
 			}
 			current = current.next;
@@ -193,15 +199,16 @@ class EventLoop {
 		mutex.release();
 
 		// Run regular events
-		for(i in 0...eventsToRunIdx) {
+		for (i in 0...eventsToRunIdx) {
 			eventsToRun[i]();
+			@:nullSafety(Off)
 			eventsToRun[i] = null;
 		}
 		eventsToRunIdx = 0;
 
 		// Collect pending one-time events
 		mutex.acquire();
-		for(i => event in oneTimeEvents) {
+		for (i => event in oneTimeEvents) {
 			switch event {
 				case null:
 					break;
@@ -214,17 +221,18 @@ class EventLoop {
 		var hasPromisedEvents = promisedEventsCount > 0;
 		mutex.release();
 
-		//run events
-		for(i in 0...eventsToRunIdx) {
+		// run events
+		for (i in 0...eventsToRunIdx) {
 			eventsToRun[i]();
+			@:nullSafety(Off)
 			eventsToRun[i] = null;
 		}
 
 		// Some events were executed. They could add new events to run.
-		if(eventsToRunIdx > 0) {
+		if (eventsToRunIdx > 0) {
 			nextEventAt = -2;
 		}
-		return {nextEventAt:nextEventAt, anyTime:hasPromisedEvents}
+		return {nextEventAt: nextEventAt, anyTime: hasPromisedEvents}
 	}
 }
 
@@ -233,11 +241,11 @@ abstract EventHandler(RegularEvent) from RegularEvent to RegularEvent {}
 private class RegularEvent {
 	public var nextRunTime:Float;
 	public final interval:Float;
-	public final run:()->Void;
+	public final run:() -> Void;
 	public var next:Null<RegularEvent>;
 	public var previous:Null<RegularEvent>;
 
-	public function new(run:()->Void, nextRunTime:Float, interval:Float) {
+	public function new(run:() -> Void, nextRunTime:Float, interval:Float) {
 		this.run = run;
 		this.nextRunTime = nextRunTime;
 		this.interval = interval;

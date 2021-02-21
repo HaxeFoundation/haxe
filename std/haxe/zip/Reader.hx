@@ -154,7 +154,9 @@ class Reader {
 							buf.buf.blit(p, buf.buf, buf.pos, buf.available);
 							buf.pos = p;
 						}
+						@:nullSafety(Off)
 						var r = z.execute(buf.buf, buf.pos, tmp, 0);
+						@:nullSafety(Off)
 						out.addBytes(tmp, 0, r.write);
 						buf.pos += r.read;
 						buf.available -= r.read;

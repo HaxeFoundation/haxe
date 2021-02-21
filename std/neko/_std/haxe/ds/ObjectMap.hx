@@ -44,24 +44,29 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		k = untyped __dollar__hnew(0);
 	}
 
-	public inline function set(key:K, value:V):Void
+	public inline function set(key:K, value:V):Void {
 		untyped {
 			var id = key.__id__ != null ? key.__id__ : assignId(key);
+			@:nullSafety(Off)
 			untyped __dollar__hset(h, id, value, null);
+			@:nullSafety(Off)
 			untyped __dollar__hset(k, id, key, null);
 		}
+	}
 
-	public function get(key:K):Null<V> {
+	public function get(key:K):Null<V> {@:nullSafety(Off)
 		return untyped __dollar__hget(h, getId(key), null);
 	}
 
-	public inline function exists(key:K):Bool {
+	public inline function exists(key:K):Bool {@:nullSafety(Off)
 		return untyped __dollar__hmem(h, getId(key), null);
 	}
 
 	public function remove(key:K):Bool {
 		var id = getId(key);
+		@:nullSafety(Off)
 		untyped __dollar__hremove(h, id, null);
+		@:nullSafety(Off)
 		return untyped __dollar__hremove(k, id, null);
 	}
 
@@ -89,6 +94,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		var copied = new ObjectMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

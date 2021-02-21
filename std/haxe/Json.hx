@@ -40,7 +40,7 @@ class Json {
 
 		@see https://haxe.org/manual/std-Json-parsing.html
 	**/
-	public static inline function parse(text:String):Dynamic {
+	public static inline function parse(text:String):Dynamic {@:nullSafety(Off)
 		return haxe.format.JsonParser.parse(text);
 	}
 

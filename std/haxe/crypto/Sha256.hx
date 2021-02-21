@@ -121,6 +121,7 @@ class Sha256 {
 			blks[i] = 0;
 		for (i in 0...s.length) {
 			var p = i >> 2;
+			@:nullSafety(Off)
 			blks[p] |= #if target.unicode s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;

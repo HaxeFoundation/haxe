@@ -28,6 +28,7 @@ import haxe.ds.List;
 	This class is used for accessing the local Web server and the current
 	client request and information.
 **/
+@:nullSafety(Off)
 class Web {
 	/**
 		Returns the GET and POST parameters.

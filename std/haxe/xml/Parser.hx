@@ -345,7 +345,8 @@ class Parser {
 					if (c == ';'.code) {
 						var s = str.substr(start, p - start);
 						if (s.fastCodeAt(0) == '#'.code) {
-							var c = s.fastCodeAt(1) == 'x'.code ? Std.parseInt("0" + s.substr(1, s.length - 1)) : Std.parseInt(s.substr(1, s.length - 1));
+							@:nullSafety(Off)
+							var c:Int = s.fastCodeAt(1) == 'x'.code ? Std.parseInt("0" + s.substr(1, s.length - 1)) : Std.parseInt(s.substr(1, s.length - 1));
 							#if !(target.unicode)
 							if (c >= 128) {
 								// UTF8-encode it

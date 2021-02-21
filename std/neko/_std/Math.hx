@@ -25,6 +25,7 @@ import neko.Lib;
 @:native("Math")
 @:keep
 private class MathImpl {
+	@:nullSafety(Off)
 	static var __rnd:Dynamic;
 	static var _rand_float = Lib.load("std", "random_float", 1);
 	static var _rand_int = Lib.load("std", "random_int", 2);

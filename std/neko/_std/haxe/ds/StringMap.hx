@@ -30,18 +30,19 @@ package haxe.ds;
 	}
 
 	public inline function set(key:String, value:T):Void {
+		@:nullSafety(Off)
 		untyped __dollar__hset(h, key.__s, value, null);
 	}
 
-	public inline function get(key:String):Null<T> {
+	public inline function get(key:String):Null<T> {@:nullSafety(Off)
 		return untyped __dollar__hget(h, key.__s, null);
 	}
 
-	public inline function exists(key:String):Bool {
+	public inline function exists(key:String):Bool {@:nullSafety(Off)
 		return untyped __dollar__hmem(h, key.__s, null);
 	}
 
-	public inline function remove(key:String):Bool {
+	public inline function remove(key:String):Bool {@:nullSafety(Off)
 		return untyped __dollar__hremove(h, key.__s, null);
 	}
 
@@ -69,6 +70,7 @@ package haxe.ds;
 		var copied = new StringMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

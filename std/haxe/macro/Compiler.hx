@@ -253,7 +253,8 @@ class Compiler {
 			found = true;
 			for (file in sys.FileSystem.readDirectory(path)) {
 				if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
-					if( file == "import.hx" ) continue;
+					if (file == "import.hx")
+						continue;
 					var cl = prefix + file.substr(0, file.length - 3);
 					if (skip(cl))
 						continue;
@@ -357,6 +358,7 @@ class Compiler {
 						r = r.substr(7);
 					var p = r.split(".");
 					var field = p.pop();
+					@:nullSafety(Off)
 					removeField(p.join("."), field, isStatic);
 					continue;
 				}
@@ -367,6 +369,7 @@ class Compiler {
 					if (isStatic)
 						rp.pop();
 					var meta = rp.join(" ");
+					@:nullSafety(Off)
 					var p = type.split(".");
 					var field = if (p.length > 1 && p[p.length - 2].charAt(0) >= "a") null else p.pop();
 					addMetadata(meta, p.join("."), field, isStatic);
@@ -378,12 +381,14 @@ class Compiler {
 				}
 				var rp = r.split(" : ");
 				if (rp.length > 1) {
+					@:nullSafety(Off)
 					r = rp.shift();
 					var isStatic = StringTools.startsWith(r, "static ");
 					if (isStatic)
 						r = r.substr(7);
 					var p = r.split(".");
 					var field = p.pop();
+					@:nullSafety(Off)
 					setFieldType(p.join("."), field, rp.join(" : "), isStatic);
 					continue;
 				}
@@ -473,7 +478,6 @@ class Compiler {
 		load("flush_disk_cache", 0)();
 		#end
 	}
-
 	#end
 
 	#if (js || lua || macro)
@@ -488,7 +492,7 @@ class Compiler {
 
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch (e:Dynamic) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
-				if(Context.defined("js")) {
+				if (Context.defined("js")) {
 					macro @:pos(p) js.Syntax.plainCode($v{f});
 				} else {
 					macro @:pos(p) untyped __lua__($v{f});

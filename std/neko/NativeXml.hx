@@ -25,6 +25,7 @@ package neko;
 enum abstract XmlType(String) {}
 typedef NativeXml = Xml;
 
+@:nullSafety(Off)
 class Xml {
 	public static var Element(default, never):XmlType;
 	public static var PCData(default, never):XmlType;
@@ -411,14 +412,13 @@ class Xml {
 		}
 	}
 
-	static function __init__():Void
-		untyped {
-			Xml.Element = "element";
-			Xml.PCData = "pcdata";
-			Xml.CData = "cdata";
-			Xml.Comment = "comment";
-			Xml.DocType = "doctype";
-			Xml.ProcessingInstruction = "processingInstruction";
-			Xml.Document = "document";
-		}
+	static function __init__():Void untyped {
+		Xml.Element = "element";
+		Xml.PCData = "pcdata";
+		Xml.CData = "cdata";
+		Xml.Comment = "comment";
+		Xml.DocType = "doctype";
+		Xml.ProcessingInstruction = "processingInstruction";
+		Xml.Document = "document";
+	}
 }

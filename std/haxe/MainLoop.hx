@@ -115,6 +115,7 @@ class MainLoop {
 		#if (target.threaded && !cppia)
 		mutex.acquire();
 		if (eventLoopHandler != null) {
+			@:nullSafety(Off)
 			mainThread.events.cancel(eventLoopHandler);
 		}
 		eventLoopHandler = mainThread.events.repeat(() -> {

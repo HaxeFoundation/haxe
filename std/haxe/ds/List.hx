@@ -66,6 +66,7 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function push(item:T) {
+		@:nullSafety(Off)
 		var x = ListNode.create(item, h);
 		h = x;
 		if (q == null)

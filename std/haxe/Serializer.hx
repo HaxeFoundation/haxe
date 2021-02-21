@@ -333,6 +333,7 @@ class Serializer {
 							var id = Reflect.field(k, "__id__");
 							Reflect.deleteField(k, "__id__");
 							serialize(k);
+							@:nullSafety(Off)
 							Reflect.setField(k, "__id__", id);
 							#else
 							serialize(k);

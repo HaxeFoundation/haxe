@@ -40,7 +40,7 @@ class Utf8 {
 
 	public static function encode(s:String):String {
 		s = untyped s.__s;
-		var sl = untyped __dollar__ssize(s);
+		var sl:Int = untyped __dollar__ssize(s);
 		var buf:Dynamic = utf8_buf_alloc(sl);
 		var i = 0;
 		while (i < sl) {

@@ -173,7 +173,7 @@ class BytesInput extends Input {
 
 	#if flash
 	@:dox(hide)
-	override function set_bigEndian(e:Null<Bool>):Null<Bool> {
+	override function set_bigEndian(e) {
 		bigEndian = e;
 		b.endian = e == true ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
 		return e;

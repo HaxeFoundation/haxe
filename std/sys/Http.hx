@@ -22,12 +22,13 @@
 
 package sys;
 
-import haxe.io.BytesOutput;
 import haxe.io.Bytes;
+import haxe.io.BytesOutput;
 import haxe.io.Input;
 import sys.net.Host;
 import sys.net.Socket;
 
+@:nullSafety(Off)
 class Http extends haxe.http.HttpBase {
 	public var noShutdown:Bool;
 	public var cnxTimeout:Float;
