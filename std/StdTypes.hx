@@ -182,10 +182,10 @@ abstract Coroutine<T> {
 		for resuming coroutine execution.
 	**/
 	@:coroutine
-	public static extern function suspend<T>(f:(cont:T->Void)->Void):T;
+	public static extern function suspend<T>(f:(cont:(T,Null<Dynamic>)->Void)->Void):T;
 
 	static function __init__():Void {
-		js.Syntax.code("{0} = {1}", Coroutine.suspend, cast function(f, cont) return _ -> f(cont));
+		js.Syntax.code("{0} = {1}", Coroutine.suspend, cast function(f, cont) return (_,_) -> f(cont));
 	}
 	#end
 }

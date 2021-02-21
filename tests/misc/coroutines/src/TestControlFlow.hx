@@ -4,7 +4,7 @@ class TestControlFlow extends utest.Test {
 			if (x) return 1;
 			return 2;
 		}
-		mapCalls.start([true, false], f, result -> {
+		mapCalls.start([true, false], f, (result,error) -> {
 			Assert.same([1, 2], result);
 			async.done();
 		});
@@ -20,7 +20,7 @@ class TestControlFlow extends utest.Test {
 			v = 2;
 		}
 		@:coroutine function f2(x) { f(x); return v; }
-		mapCalls.start([true, false], f2, result -> {
+		mapCalls.start([true, false], f2, (result,error) -> {
 			Assert.same([1, 2], result);
 			async.done();
 		});
@@ -30,7 +30,7 @@ class TestControlFlow extends utest.Test {
 		@:coroutine function f(x) {
 			return if (x) 1 else 2;
 		}
-		mapCalls.start([true, false], f, result -> {
+		mapCalls.start([true, false], f, (result,error) -> {
 			Assert.same([1, 2], result);
 			async.done();
 		});
@@ -45,7 +45,7 @@ class TestControlFlow extends utest.Test {
 			}
 			return "d";
 		}
-		mapCalls.start([1, 2, 3, 4], f, result -> {
+		mapCalls.start([1, 2, 3, 4], f, (result,error) -> {
 			Assert.same(["a", "b", "c", "d"], result);
 			async.done();
 		});
@@ -61,7 +61,7 @@ class TestControlFlow extends utest.Test {
 			}
 			return "e";
 		}
-		mapCalls.start([1, 2, 3, 4], f, result -> {
+		mapCalls.start([1, 2, 3, 4], f, (result,error) -> {
 			Assert.same(["a", "b", "c", "d"], result);
 			async.done();
 		});
@@ -79,7 +79,7 @@ class TestControlFlow extends utest.Test {
 			}
 			return results;
 		}
-		mapCalls.start([0, 1, 2], f, result -> {
+		mapCalls.start([0, 1, 2], f, (result,error) -> {
 			Assert.same([
 				[0,1,2,3,4,5,6,7,8,9],
 				[0,1,2,3,4],

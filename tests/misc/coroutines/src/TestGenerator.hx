@@ -44,7 +44,7 @@ private function sequence<T>(f:Coroutine<Yield<T>->Void>):Iterator<T> {
 
 	var nextStep = null;
 
-	function finish(_) {
+	function finish(_, _) {
 		finished = true;
 	}
 
@@ -56,14 +56,14 @@ private function sequence<T>(f:Coroutine<Yield<T>->Void>):Iterator<T> {
 	function hasNext():Bool {
 		if (nextStep == null) {
 			nextStep = f.create(yield, finish);
-			nextStep(null);
+			nextStep(null, null);
 		}
 		return !finished;
 	}
 
 	function next():T {
 		var value = nextValue;
-		nextStep(null);
+		nextStep(null, null);
 		return value;
 	}
 
