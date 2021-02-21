@@ -24,6 +24,9 @@ package hl;
 
 @:coreType @:notNull @:runtimeValue abstract I64 from Int {
 
+	/**
+		Destructively cast to Int
+	**/
 	public inline function toInt():Int {
 		return cast this;
 	}

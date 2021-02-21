@@ -24,6 +24,9 @@ package cpp;
 
 @:coreType @:notNull @:runtimeValue abstract UInt64 from Int {
 
+	/**
+		Destructively cast to Int
+	**/
 	public inline function toInt():Int {
 		return cast this;
 	}
