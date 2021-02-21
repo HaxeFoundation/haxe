@@ -46,7 +46,7 @@ class Sys {
 		return _args.copy();
 	}
 
-	public static inline function getEnv(s:String):String {
+	public static inline function getEnv(s:String):Null<String> {
 		return Environment.GetEnvironmentVariable(s);
 	}
 

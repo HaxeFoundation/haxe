@@ -94,7 +94,7 @@ class Sys {
 	public inline static function setCwd(s:String):Void
 		Misc.chdir(s);
 
-	public inline static function getEnv(s:String):String {
+	public inline static function getEnv(s:String):Null<String> {
 		return Os.getenv(s);
 	}
 

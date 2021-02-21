@@ -19,81 +19,81 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import haxe.SysTools;
 
 @:coreApi class Sys {
-
-	public static function print( v : Dynamic ) : Void {
+	public static function print(v:Dynamic):Void {
 		untyped __dollar__print(v);
 	}
 
-	public static function println( v : Dynamic ) : Void {
-		untyped __dollar__print(v,"\n");
+	public static function println(v:Dynamic):Void {
+		untyped __dollar__print(v, "\n");
 	}
 
-	public static function getChar( echo : Bool ) : Int {
+	public static function getChar(echo:Bool):Int {
 		return getch(echo);
 	}
 
-	public static function stdin() : haxe.io.Input {
+	public static function stdin():haxe.io.Input {
 		return untyped new sys.io.FileInput(file_stdin());
 	}
 
-	public static function stdout() : haxe.io.Output {
+	public static function stdout():haxe.io.Output {
 		return untyped new sys.io.FileOutput(file_stdout());
 	}
 
-	public static function stderr() : haxe.io.Output {
+	public static function stderr():haxe.io.Output {
 		return untyped new sys.io.FileOutput(file_stderr());
 	}
 
-	public static function args() : Array<String> untyped {
+	public static function args():Array<String> untyped {
 		var a = __dollar__loader.args;
-		if( __dollar__typeof(a) != __dollar__tarray )
+		if (__dollar__typeof(a) != __dollar__tarray)
 			return [];
 		var r = new Array();
 		var i = 0;
 		var l = __dollar__asize(a);
-		while( i <  l ) {
-			if( __dollar__typeof(a[i]) == __dollar__tstring )
+		while (i < l) {
+			if (__dollar__typeof(a[i]) == __dollar__tstring)
 				r.push(new String(a[i]));
 			i += 1;
 		}
 		return r;
 	}
 
-	public static function getEnv( s : String ) : String {
+	public static function getEnv(s:String):Null<String> {
 		var v = get_env(untyped s.__s);
-		if( v == null )
+		if (v == null)
 			return null;
 		return new String(v);
 	}
 
-	public static function putEnv( s : String, v : String ) : Void {
-		untyped put_env(s.__s,if( v == null ) null else v.__s);
+	public static function putEnv(s:String, v:String):Void {
+		untyped put_env(s.__s, if (v == null) null else v.__s);
 	}
 
-	public static function sleep( seconds : Float ) : Void {
+	public static function sleep(seconds:Float):Void {
 		_sleep(seconds);
 	}
 
-	public static function setTimeLocale( loc : String ) : Bool {
+	public static function setTimeLocale(loc:String):Bool {
 		return set_time_locale(untyped loc.__s);
 	}
 
-	public static function getCwd() : String {
+	public static function getCwd():String {
 		return new String(get_cwd());
 	}
 
-	public static function setCwd( s : String ) : Void {
+	public static function setCwd(s:String):Void {
 		set_cwd(untyped s.__s);
 	}
 
-	public static function systemName() : String {
+	public static function systemName():String {
 		return new String(sys_string());
 	}
 
-	public static function command( cmd : String, ?args : Array<String> ) : Int {
+	public static function command(cmd:String, ?args:Array<String>):Int {
 		if (args == null) {
 			return sys_command(untyped cmd.__s);
 		} else {
@@ -101,7 +101,7 @@ import haxe.SysTools;
 				case "Windows":
 					cmd = [
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						SysTools.quoteWinArg(a, true)
+							SysTools.quoteWinArg(a, true)
 					].join(" ");
 					return sys_command(untyped cmd.__s);
 				case _:
@@ -111,23 +111,23 @@ import haxe.SysTools;
 		}
 	}
 
-	public static function exit( code : Int ) : Void {
+	public static function exit(code:Int):Void {
 		sys_exit(code);
 	}
 
-	public static function time() : Float {
+	public static function time():Float {
 		return sys_time();
 	}
 
-	public static function cpuTime() : Float {
+	public static function cpuTime():Float {
 		return sys_cpu_time();
 	}
 
-	@:deprecated("Use programPath instead") public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath():String {
 		return new String(sys_exe_path());
 	}
 
-	public static function programPath() : String {
+	public static function programPath():String {
 		#if macro
 		return null;
 		#elseif interp
@@ -137,30 +137,30 @@ import haxe.SysTools;
 		#end
 	}
 
-	public static function environment() : Map<String,String> {
-		var l : Array<Dynamic> = sys_env();
+	public static function environment():Map<String, String> {
+		var l:Array<Dynamic> = sys_env();
 		var h = new haxe.ds.StringMap();
-		while( l != null ) {
-			h.set(new String(l[0]),new String(l[1]));
+		while (l != null) {
+			h.set(new String(l[0]), new String(l[1]));
 			l = l[2];
 		}
 		return h;
 	}
 
-	private static var get_env = neko.Lib.load("std","get_env",1);
-	private static var put_env = neko.Lib.load("std","put_env",2);
-	private static var _sleep = neko.Lib.load("std","sys_sleep",1);
-	private static var set_time_locale = neko.Lib.load("std","set_time_locale",1);
-	private static var get_cwd = neko.Lib.load("std","get_cwd",0);
-	private static var set_cwd = neko.Lib.load("std","set_cwd",1);
-	private static var sys_string = neko.Lib.load("std","sys_string",0);
-	private static var sys_command = neko.Lib.load("std","sys_command",1);
-	private static var sys_exit = neko.Lib.load("std","sys_exit",1);
-	private static var sys_time = neko.Lib.load("std","sys_time",0);
-	private static var sys_cpu_time = neko.Lib.load("std","sys_cpu_time",0);
-	private static var sys_exe_path = neko.Lib.load("std","sys_exe_path",0);
+	private static var get_env = neko.Lib.load("std", "get_env", 1);
+	private static var put_env = neko.Lib.load("std", "put_env", 2);
+	private static var _sleep = neko.Lib.load("std", "sys_sleep", 1);
+	private static var set_time_locale = neko.Lib.load("std", "set_time_locale", 1);
+	private static var get_cwd = neko.Lib.load("std", "get_cwd", 0);
+	private static var set_cwd = neko.Lib.load("std", "set_cwd", 1);
+	private static var sys_string = neko.Lib.load("std", "sys_string", 0);
+	private static var sys_command = neko.Lib.load("std", "sys_command", 1);
+	private static var sys_exit = neko.Lib.load("std", "sys_exit", 1);
+	private static var sys_time = neko.Lib.load("std", "sys_time", 0);
+	private static var sys_cpu_time = neko.Lib.load("std", "sys_cpu_time", 0);
+	private static var sys_exe_path = neko.Lib.load("std", "sys_exe_path", 0);
 	#if interp
-	private static var sys_program_path = neko.Lib.load("std","sys_program_path",0);
+	private static var sys_program_path = neko.Lib.load("std", "sys_program_path", 0);
 	#elseif !macro
 	// It has to be initialized before any call to loadModule or Sys.setCwd()...
 	private static var sys_program_path = {
@@ -190,11 +190,10 @@ import haxe.SysTools;
 		}
 	}
 	#end
-	private static var sys_env = neko.Lib.load("std","sys_env",0);
+	private static var sys_env = neko.Lib.load("std", "sys_env", 0);
 
-	private static var file_stdin = neko.Lib.load("std","file_stdin",0);
-	private static var file_stdout = neko.Lib.load("std","file_stdout",0);
-	private static var file_stderr = neko.Lib.load("std","file_stderr",0);
-	private static var getch = neko.Lib.load("std","sys_getch",1);
-
+	private static var file_stdin = neko.Lib.load("std", "file_stdin", 0);
+	private static var file_stdout = neko.Lib.load("std", "file_stdout", 0);
+	private static var file_stderr = neko.Lib.load("std", "file_stderr", 0);
+	private static var getch = neko.Lib.load("std", "sys_getch", 1);
 }

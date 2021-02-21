@@ -44,7 +44,7 @@ using haxe.Int64;
 		return java.Lib.array(_args);
 	}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		return java.lang.System.getenv(s);
 	}
 

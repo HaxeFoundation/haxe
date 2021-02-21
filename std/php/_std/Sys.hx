@@ -45,7 +45,7 @@ import haxe.SysTools;
 		}
 	}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		var value = Global.getenv(s);
 		return value == false ? null : value;
 	}

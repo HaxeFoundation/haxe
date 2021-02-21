@@ -31,7 +31,7 @@ class Sys {
 
 	extern static public function args():Array<String>;
 
-	extern static public function getEnv(s:String):String;
+	extern static public function getEnv(s:String):Null<String>;
 
 	extern static public function putEnv(s:String, v:String):Void;
 
