@@ -733,7 +733,16 @@ module Debug = struct
 	let dot_debug_node g ch nil bb =
 		let s = Printf.sprintf "(%i)" bb.bb_id in
 		let s = List.fold_left (fun s ni -> s ^ match ni with
-			| NIExpr -> if DynArray.length bb.bb_el = 0 then "" else "\n" ^  String.concat "\n" (DynArray.to_list (DynArray.map s_expr_pretty bb.bb_el))
+			| NIExpr ->
+				let sl = DynArray.to_list (DynArray.map s_expr_pretty bb.bb_el) in
+				let sl = match terminator_to_texpr_maybe bb.bb_terminator with
+					| None -> sl
+					| Some e -> sl @ [s_expr_pretty e]
+				in
+				begin match sl with
+					| [] -> ""
+					| _ -> "\n" ^  String.concat "\n" sl
+				end
 			| NIPhi -> if DynArray.length bb.bb_phi = 0 then "" else "\n" ^ String.concat "\n" (DynArray.to_list (DynArray.map (fun e -> s_expr_pretty e) bb.bb_phi))
 			| NIVars -> if bb.bb_var_writes = [] then "" else "\n" ^ String.concat ", " (List.map (fun v -> s_var v) bb.bb_var_writes)
 			| NILoopGroups -> if bb.bb_loop_groups = [] then "" else "\nLoops: " ^ (String.concat ", " (List.map string_of_int bb.bb_loop_groups))

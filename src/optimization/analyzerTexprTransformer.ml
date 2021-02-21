@@ -694,15 +694,6 @@ let from_tfunction ctx tf t p =
 	close_node g.g_root;
 	g.g_exit <- bb_exit
 
-let terminator_to_texpr_maybe = function
-	| TermReturn p -> Some (mk (TReturn None) t_dynamic p)
-	| TermBreak p -> Some (mk TBreak t_dynamic p)
-	| TermContinue p -> Some (mk TContinue t_dynamic p)
-	| TermReturnValue(e1,p) -> Some (mk (TReturn (Some e1)) t_dynamic p)
-	| TermThrow(e1,p) -> Some (mk (TThrow e1) t_dynamic p)
-	| TermCondBranch e1 -> Some e1 (* TODO: this shouldn't be here *)
-	| _ -> None
-
 let rec block_to_texpr_el ctx bb =
 	if bb.bb_dominator == ctx.graph.g_unreachable then
 		[]
