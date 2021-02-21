@@ -89,7 +89,9 @@ private class SqliteConnection implements Connection {
 }
 
 private class SqliteResultSet implements ResultSet {
+	@:nullSafety(Off)
 	public var length(get, null):Int;
+	@:nullSafety(Off)
 	public var nfields(get, null):Int;
 
 	var r:Dynamic;
@@ -98,6 +100,7 @@ private class SqliteResultSet implements ResultSet {
 	public function new(r) {
 		cache = new List();
 		this.r = r;
+		@:nullSafety(Off)
 		hasNext(); // execute the request
 	}
 
@@ -135,6 +138,7 @@ private class SqliteResultSet implements ResultSet {
 
 	private function doNext():Dynamic {
 		var c = result_next(r);
+		@:nullSafety(Off)
 		if (c == null)
 			return null;
 		untyped {
@@ -175,12 +179,13 @@ private class SqliteResultSet implements ResultSet {
 	}
 
 	public function getFieldsNames():Array<String> {
-		if(hasNext()) {
+		if (hasNext()) {@:nullSafety(Off)
 			return switch cache.first() {
 				case null: null;
 				case row: Reflect.fields(row);
 			}
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 

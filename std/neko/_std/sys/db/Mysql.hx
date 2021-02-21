@@ -47,10 +47,13 @@ private class D {
 }
 
 private class MysqlResultSet implements sys.db.ResultSet {
+	@:nullSafety(Off)
 	public var length(get, null):Int;
+	@:nullSafety(Off)
 	public var nfields(get, null):Int;
 
 	private var __r:Dynamic;
+	@:nullSafety(Off)
 	private var cache:Dynamic;
 
 	public function new(r) {
@@ -74,6 +77,7 @@ private class MysqlResultSet implements sys.db.ResultSet {
 	public function next():Dynamic {
 		var c = cache;
 		if (c != null) {
+			@:nullSafety(Off)
 			cache = null;
 			return c;
 		}
@@ -131,6 +135,7 @@ private class MysqlConnection implements sys.db.Connection {
 			untyped if (__dollar__typeof(e) == __dollar__tobject && __dollar__typeof(e.msg) == __dollar__tstring)
 				e = e.msg;
 			untyped __dollar__rethrow(e);
+			@:nullSafety(Off)
 			return null;
 		}
 	}
@@ -192,6 +197,7 @@ private class MysqlConnection implements sys.db.Connection {
 		?socket:String,
 		?database:String
 	}):sys.db.Connection {
+		@:nullSafety(Off)
 		var o = untyped {
 			host: params.host.__s,
 			port: if (params.port == null) 3306 else params.port,
@@ -202,6 +208,7 @@ private class MysqlConnection implements sys.db.Connection {
 		var c = D.connect(o);
 		if (params.database != null) {
 			try {
+				@:nullSafety(Off)
 				D.select_db(c, untyped params.database.__s);
 			} catch (e:Dynamic) {
 				D.close(c);

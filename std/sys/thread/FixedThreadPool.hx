@@ -25,7 +25,6 @@ package sys.thread;
 #if (!target.threaded)
 #error "This class is not available on this target"
 #end
-
 import haxe.Exception;
 
 /**
@@ -35,26 +34,31 @@ import haxe.Exception;
 @:coreApi
 class FixedThreadPool implements IThreadPool {
 	/* Amount of threads in this pool. */
-	public var threadsCount(get,null):Int;
-	function get_threadsCount():Int return threadsCount;
+	public var threadsCount(get, null):Int;
+
+	function get_threadsCount():Int
+		return threadsCount;
 
 	/** Indicates if `shutdown` method of this pool has been called. */
-	public var isShutdown(get,never):Bool;
+	public var isShutdown(get, never):Bool;
+
 	var _isShutdown = false;
-	function get_isShutdown():Bool return _isShutdown;
+
+	function get_isShutdown():Bool
+		return _isShutdown;
 
 	final pool:Array<Worker>;
 	final poolMutex = new Mutex();
-	final queue = new Deque<()->Void>();
+	final queue = new Deque<() -> Void>();
 
 	/**
 		Create a new thread pool with `threadsCount` threads.
 	**/
 	public function new(threadsCount:Int):Void {
-		if(threadsCount < 1)
+		if (threadsCount < 1)
 			throw new ThreadPoolException('FixedThreadPool needs threadsCount to be at least 1.');
 		this.threadsCount = threadsCount;
-		pool = [for(i in 0...threadsCount) new Worker(queue)];
+		pool = [for (i in 0...threadsCount) new Worker(queue)];
 	}
 
 	/**
@@ -62,10 +66,10 @@ class FixedThreadPool implements IThreadPool {
 
 		Throws an exception if the pool is shut down.
 	**/
-	public function run(task:()->Void):Void {
-		if(_isShutdown)
+	public function run(task:() -> Void):Void {
+		if (_isShutdown)
 			throw new ThreadPoolException('Task is rejected. Thread pool is shut down.');
-		if(task == null)
+		if (task == null)
 			throw new ThreadPoolException('Task to run must not be null.');
 		queue.add(task);
 	}
@@ -78,9 +82,10 @@ class FixedThreadPool implements IThreadPool {
 		Multiple calls to this method have no effect.
 	**/
 	public function shutdown():Void {
-		if(_isShutdown) return;
+		if (_isShutdown)
+			return;
 		_isShutdown = true;
-		for(_ in pool) {
+		for (_ in pool) {
 			queue.add(shutdownTask);
 		}
 	}
@@ -94,21 +99,21 @@ private class ShutdownException extends Exception {}
 
 private class Worker {
 	var thread:Thread;
-	final queue:Deque<Null<()->Void>>;
+	final queue:Deque<Null<() -> Void>>;
 
-	public function new(queue:Deque<Null<()->Void>>) {
+	public function new(queue:Deque<Null<() -> Void>>) {
 		this.queue = queue;
 		thread = Thread.create(loop);
 	}
 
 	function loop() {
 		try {
-			while(true) {
+			while (true) {
 				var task = queue.pop(true);
+				@:nullSafety(Off)
 				task();
 			}
-		} catch(_:ShutdownException) {
-		} catch(e) {
+		} catch (_:ShutdownException) {} catch (e) {
 			thread = Thread.create(loop);
 			throw e;
 		}
