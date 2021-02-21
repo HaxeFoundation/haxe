@@ -96,6 +96,16 @@ let can_throw e =
 	with Exit ->
 		true
 
+
+let terminator_to_texpr_maybe = function
+| AnalyzerTypes.BasicBlock.TermReturn p -> Some (mk (TReturn None) t_dynamic p)
+| TermBreak p -> Some (mk TBreak t_dynamic p)
+| TermContinue p -> Some (mk TContinue t_dynamic p)
+| TermReturnValue(e1,p) -> Some (mk (TReturn (Some e1)) t_dynamic p)
+| TermThrow(e1,p) -> Some (mk (TThrow e1) t_dynamic p)
+| TermCondBranch e1 -> Some e1 (* TODO: this shouldn't be here *)
+| _ -> None
+
 let rec can_be_inlined e = match e.eexpr with
 	| TConst _ -> true
 	| TParenthesis e1 | TMeta(_,e1) -> can_be_inlined e1
