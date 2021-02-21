@@ -22,4 +22,10 @@
 
 package cpp;
 
-@:coreType @:notNull @:runtimeValue abstract UInt64 from Int {}
+@:coreType @:notNull @:runtimeValue abstract UInt64 from Int {
+
+	public inline function toInt():Int {
+		return cast this;
+	}
+
+}

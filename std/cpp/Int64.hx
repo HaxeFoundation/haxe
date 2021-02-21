@@ -23,6 +23,11 @@
 package cpp;
 
 @:coreType @:notNull @:runtimeValue abstract Int64 from Int {
+
+	public inline function toInt():Int {
+		return cast this;
+	}
+
 	@:to
 	#if !cppia inline #end function toInt64():haxe.Int64 {
 		return cast this;
