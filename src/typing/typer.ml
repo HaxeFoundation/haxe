@@ -1585,10 +1585,10 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		build_call ~mode ctx e el with_type p;
 	in
 	let create_coroutine e args ret p =
-		let args = args @ [("_hx_continuation",false,(tfun [ret] ctx.com.basic.tvoid))] in
+		let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] ctx.com.basic.tvoid))] in
 		let ret = ctx.com.basic.tvoid in
 		let el, _ = unify_call_args ctx el args ret p false false false in
-		mk (TCall (e, el)) (tfun [t_dynamic] ctx.com.basic.tvoid) p
+		mk (TCall (e, el)) (tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid) p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -1628,7 +1628,8 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		(match follow e.etype with
 			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
 				let ecoro = create_coroutine e args ret p in
-				mk (TCall (ecoro, [Builder.make_null t_dynamic p])) ctx.com.basic.tvoid p
+				let enull = Builder.make_null t_dynamic p in
+				mk (TCall (ecoro, [enull; enull])) ctx.com.basic.tvoid p
 			| _ -> def ())
 	| (EField (e,"create"),_), args ->
 		let e = type_expr ctx e WithType.value in

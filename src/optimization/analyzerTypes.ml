@@ -246,7 +246,7 @@ end
 module Graph = struct
 	open BasicBlock
 
-	type tfunc_info = BasicBlock.t * Type.t * pos * tfunc * tvar option
+	type tfunc_info = BasicBlock.t * Type.t * pos * tfunc * (tvar * tvar) option
 	type texpr_lookup = BasicBlock.t * texpr_lookup_target
 	type var_write = BasicBlock.t list
 	type 'a itbl = (int,'a) Hashtbl.t

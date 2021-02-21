@@ -45,7 +45,10 @@ let rec func ctx bb tf t p =
 	let bb_root = create_node (BKFunctionBegin tf) tf.tf_expr.etype tf.tf_expr.epos in
 	let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
 	let coroutine = match follow t with
-		| TAbstract ({a_path=[],"Coroutine"}, _) -> Some (alloc_var VGenerated "_hx_result" t_dynamic p)
+		| TAbstract ({a_path=[],"Coroutine"}, _) -> Some (
+			alloc_var VGenerated "_hx_result" t_dynamic p,
+			alloc_var VGenerated "_hx_error" t_dynamic p
+		)
 		| _ -> None
 	in
 	add_function g tf t p bb_root coroutine;
@@ -329,7 +332,7 @@ let rec func ctx bb tf t p =
 					| _ -> false
 				in
 				(match coroutine with
-					| Some vresult when is_coroutine efun ->
+					| Some (vresult,_) when is_coroutine efun ->
 						let bb_next = create_node BKNormal e1.etype e1.epos in
 						add_cfg_edge bb bb_next CFGGoto;
 						let syntax_edge = SESuspend (
@@ -744,13 +747,14 @@ and block_to_texpr ctx bb =
 	let e = mk (TBlock el) bb.bb_type bb.bb_pos in
 	e
 
-and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
+and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	assert(bb.bb_closed);
 
 	let open Texpr.Builder in
 	let com = ctx.com in
 
 	declare_var ctx.graph vresult bb;
+	declare_var ctx.graph verror bb;
 
 	let vstate = alloc_var VGenerated "_hx_state" com.basic.tint p in
 	declare_var ctx.graph vstate bb;
@@ -768,7 +772,11 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 
 	let mk_continuation_call eresult p =
 		let econtinuation = make_local vcontinuation p in
-		mk (TCall (econtinuation, [eresult])) com.basic.tvoid p
+		mk (TCall (econtinuation, [eresult; make_null t_dynamic p])) com.basic.tvoid p
+	in
+	let mk_continuation_call_error eerror p =
+		let econtinuation = make_local vcontinuation p in
+		mk (TCall (econtinuation, [make_null t_dynamic p; eerror])) com.basic.tvoid p
 	in
 
 	(* TODO: maybe merge this into block_to_texpr somehow, and only introduce new states when there is a suspension point *)
@@ -831,8 +839,8 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 				mk_case (current_el @ el @ [esetstate; ecallcontinuation; ereturn]) :: statecases
 			| TermNone ->
 				mk_case (current_el @ el @ [set_state back_state_id]) :: statecases
-			| TermThrow (_,p) ->
-				Error.error "throw is currently not supported in coroutines" p
+			| TermThrow (e,p) ->
+				mk_case (current_el @ el @ [set_state (-1); mk_continuation_call_error e p; ereturn]) :: statecases
 			| TermCondBranch _ ->
 				die "unexpected TermCondBranch" __LOC__)
 
@@ -981,10 +989,25 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult p =
 	let eswitch = mk (TSwitch (estate, statecases, Some ethrow)) com.basic.tvoid p in
 	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, DoWhile)) com.basic.tvoid p in
 
+	(* TODO: this has to be much more complicated, unfortunately, we need a try/catch around the state machine to catch errors from
+	   synchronous throws and then we need to propagate properly and then we need to support try/catch inside coroutines etc etc.
+	   maybe while implementing support for all this, we can as well look into adding COROUTINE_SUSPEND markers and separate coroutine
+	   and non-coroutine worlds a bit more *)
+	let eerror = make_local verror p in
+	let eif = mk (TIf (
+		mk (TBinop (
+			OpNotEq,
+			eerror,
+			make_null verror.v_type p (* TODO: throw null should work *)
+		)) com.basic.tbool p,
+		mk_continuation_call_error eerror p,
+		Some eloop
+	)) com.basic.tvoid p in
+
 	let estatemachine_def = mk (TFunction {
-		tf_args = [(vresult,None)];
+		tf_args = [(vresult,None); (verror,None)];
 		tf_type = com.basic.tvoid;
-		tf_expr = eloop;
+		tf_expr = eif;
 	}) tstatemachine p in
 
 	let state_var = mk (TVar (vstate, Some (make_int com.basic 0 p))) com.basic.tvoid p in
@@ -1000,10 +1023,10 @@ and func ctx i =
 	let bb,t,p,tf,coroutine = Hashtbl.find ctx.graph.g_functions i in
 	let e,tf_args,tf_type =
 		match coroutine with
-		| Some vresult ->
+		| Some (vresult,verror) ->
 			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [t_dynamic] ctx.com.basic.tvoid) p in
 			declare_var ctx.graph vcontinuation bb;
-			let e = block_to_texpr_coroutine ctx bb vcontinuation vresult p in
+			let e = block_to_texpr_coroutine ctx bb vcontinuation vresult verror p in
 			let tf_args = tf.tf_args @ [(vcontinuation,None)] in
 			e, tf_args, tf.tf_type
 		| None ->

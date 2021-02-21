@@ -2,11 +2,11 @@ import js.lib.Promise;
 
 @:coroutine
 private function await<T>(p:Promise<T>):T {
-	return Coroutine.suspend(cont -> p.then(cont));
+	return Coroutine.suspend(cont -> p.then(r -> cont(r, null), e -> cont(null, e)));
 }
 
 private function promise<T>(c:Coroutine<()->T>):Promise<T> {
-	return new Promise((resolve,_) -> c.start(resolve));
+	return new Promise((resolve,reject) -> c.start((result, error) -> if (error != null) reject(error) else resolve(result)));
 }
 
 class TestJsPromise extends utest.Test {
@@ -18,7 +18,7 @@ class TestJsPromise extends utest.Test {
 			return x + 1;
 		}
 
-		awaiting.start(result -> {
+		awaiting.start((result,error) -> {
 			Assert.equals(42, result);
 			async.done();
 		});
