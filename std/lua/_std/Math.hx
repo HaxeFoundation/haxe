@@ -22,6 +22,7 @@
 
 package;
 
+@:nullSafety(Off)
 class Math {
 	public static var PI(get, null):Float;
 

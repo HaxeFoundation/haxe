@@ -20,9 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import lua.Boot;
 import lua.Lua;
 import lua.Table;
-import lua.Boot;
 
 #if lua_vanilla
 private typedef BaseString = lua.NativeStringTools;
@@ -36,8 +36,7 @@ class String {
 
 	public var length(default, null):Int;
 
-	public inline function new(string:String)
-		untyped {}
+	public inline function new(string:String) untyped {}
 
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic):Dynamic {
@@ -79,9 +78,10 @@ class String {
 
 	static function indexOfEmpty(s:String, startIndex:Int):Int {
 		var length = BaseString.len(s);
-		if(startIndex < 0) {
+		if (startIndex < 0) {
 			startIndex = length + startIndex;
-			if(startIndex < 0) startIndex = 0;
+			if (startIndex < 0)
+				startIndex = 0;
 		}
 		return startIndex > length ? length : startIndex;
 	}
@@ -100,10 +100,10 @@ class String {
 	}
 
 	public inline function split(delimiter:String):Array<String> {
-		var idx = 1;
+		var idx:Null<Int> = 1;
 		var ret = [];
 		while (idx != null) {
-			var newidx = 0;
+			var newidx:Null<Int> = 0;
 			if (delimiter.length > 0) {
 				newidx = BaseString.find(this, delimiter, idx, true).begin;
 			} else if (idx >= this.length) {

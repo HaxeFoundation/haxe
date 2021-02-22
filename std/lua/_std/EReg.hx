@@ -20,17 +20,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import lua.Table;
 import lua.Lib;
-import lua.lib.lrexlib.Rex;
-// Note - lrexlib gives ascii-based offsets.  Use native string tools.
 import lua.NativeStringTools.*;
+import lua.Table;
+import lua.lib.lrexlib.Rex;
 
+// Note - lrexlib gives ascii-based offsets.  Use native string tools.
 @:coreApi
 class EReg {
 	var r:Rex; // the Rex extern instance.
+	@:nullSafety(Off)
 	var global:Bool; // whether the regex is in global mode.
+	@:nullSafety(Off)
 	var s:String; // the last matched string
+	@:nullSafety(Off)
 	var m:Table<Int, Int>; // the [start:Int, end:Int, and submatches:String (matched groups)] as a single table.
 
 	static var FLAGS:Table<String, Int> = Rex.flags();
@@ -80,6 +83,7 @@ class EReg {
 			return k;
 		} else if (Std.isOfType(m[3], lua.Table)) {
 			var mn = 2 * (n - 1);
+			@:nullSafety(Off)
 			if (Std.isOfType(untyped m[3][mn + 1], Bool))
 				return null;
 			return sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]).match;

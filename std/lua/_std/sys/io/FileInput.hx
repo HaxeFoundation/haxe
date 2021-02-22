@@ -22,14 +22,14 @@
 
 package sys.io;
 
+import haxe.io.Bytes;
+import haxe.io.Eof;
+import haxe.io.Error;
+import lua.Boot;
 import lua.FileHandle;
 import lua.Io;
 import lua.NativeStringTools;
-import lua.Boot;
 import lua.Os;
-import haxe.io.Bytes;
-import haxe.io.Error;
-import haxe.io.Eof;
 
 class FileInput extends haxe.io.Input {
 	var f:FileHandle;
@@ -38,6 +38,7 @@ class FileInput extends haxe.io.Input {
 	function new(f:FileHandle) {
 		if (f == null)
 			throw 'Invalid filehandle : $f';
+		@:nullSafety(Off)
 		this.bigEndian = Boot.platformBigEndian;
 		this.f = f;
 		this._eof = false;

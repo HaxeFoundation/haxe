@@ -22,13 +22,13 @@
 
 package sys.net;
 
-import lua.lib.luasocket.Socket as LuaSocket;
-import lua.lib.luasocket.socket.*;
-import lua.*;
-
 import haxe.io.Bytes;
 import haxe.io.Error;
+import lua.*;
+import lua.lib.luasocket.Socket as LuaSocket;
+import lua.lib.luasocket.socket.*;
 
+@:nullSafety(Off)
 class Socket {
 	public var input(default, null):haxe.io.Input;
 
@@ -170,10 +170,9 @@ private class SocketInput extends haxe.io.Input {
 
 	override public function readByte():Int {
 		var res = tcp.receive(1);
-		if (res.message == "closed"){
+		if (res.message == "closed") {
 			throw new haxe.io.Eof();
-		}
-		else if (res.message != null)
+		} else if (res.message != null)
 			throw 'Error : ${res.message}';
 		return res.result.charCodeAt(0);
 	}
@@ -198,7 +197,6 @@ private class SocketInput extends haxe.io.Input {
 		}
 		return readCount;
 	}
-
 }
 
 private class SocketOutput extends haxe.io.Output {
@@ -211,7 +209,7 @@ private class SocketOutput extends haxe.io.Output {
 	override public function writeByte(c:Int):Void {
 		var char = NativeStringTools.char(c);
 		var res = tcp.send(char);
-		if (res.message != null){
+		if (res.message != null) {
 			throw 'Error : Socket writeByte : ${res.message}';
 		}
 	}
@@ -219,16 +217,15 @@ private class SocketOutput extends haxe.io.Output {
 	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
 		if (pos < 0 || len < 0 || pos + len > s.length)
 			throw Error.OutsideBounds;
-		var b = s.getData().slice(pos, pos +len).map(function(byte){
+		var b = s.getData().slice(pos, pos + len).map(function(byte) {
 			return lua.NativeStringTools.char(byte);
 		});
 		var encoded = Table.concat(cast b, 0);
 		var res = tcp.send(encoded);
-		if (res.message != null){
+		if (res.message != null) {
 			throw 'Error : Socket writeByte : ${res.message}';
 		}
 
 		return len;
 	}
-
 }

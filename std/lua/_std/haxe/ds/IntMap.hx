@@ -44,6 +44,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	public inline function get(key:Int):Null<T> {
 		var ret = h[key];
 		if (ret == tnull) {
+			@:nullSafety(Off)
 			ret = null;
 		}
 		return ret;
@@ -57,6 +58,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		if (h[key] == null) {
 			return false;
 		} else {
+			@:nullSafety(Off)
 			h[key] = null;
 			return true;
 		}
@@ -91,6 +93,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		var copied = new IntMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

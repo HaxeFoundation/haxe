@@ -24,11 +24,9 @@ package sys.net;
 
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
-
 import lua.NativeStringTools.find;
-
-import lua.lib.luv.net.Dns;
 import lua.lib.luv.Os;
+import lua.lib.luv.net.Dns;
 
 @:coreapi
 class Host {
@@ -36,6 +34,7 @@ class Host {
 
 	public var ip(default, null):Int;
 
+	@:nullSafety(Off)
 	var _ip:String;
 
 	public function new(name:String):Void {
@@ -46,6 +45,7 @@ class Host {
 			var res = lua.lib.luv.net.Dns.getaddrinfo(name);
 			if (res.result == null)
 				throw "Unrecognized node name";
+			@:nullSafety(Off)
 			_ip = res.result[1].addr;
 			if (_ip == "::1")
 				_ip = "127.0.0.0";
@@ -66,6 +66,6 @@ class Host {
 	}
 
 	static public function localhost():String {
-        return Os.gethostname();
+		return Os.gethostname();
 	}
 }

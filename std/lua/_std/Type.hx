@@ -63,6 +63,7 @@ enum ValueType {
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
+		@:nullSafety(Off)
 		if (untyped e.__ename__ == null)
 			return null;
 		return untyped e.__ename__;
@@ -105,12 +106,14 @@ enum ValueType {
 	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		@:nullSafety(Off)
 		var f:Dynamic = Reflect.field(e, constr);
 		if (f == null)
 			throw "No such constructor " + constr;
 		if (Reflect.isFunction(f)) {
 			if (params == null)
 				throw "Constructor " + constr + " need parameters";
+			@:nullSafety(Off)
 			return Reflect.callMethod(null, f, params);
 		}
 		if (params != null && params.length != 0)
@@ -137,7 +140,7 @@ enum ValueType {
 			var mt = lua.Lua.getmetatable(p);
 			if (mt != null && mt.__index != null)
 				p = mt.__index;
-			else
+			else @:nullSafety(Off)
 				p = null;
 		}
 		return a;

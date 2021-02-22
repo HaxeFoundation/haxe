@@ -22,14 +22,12 @@
 
 package lua;
 
-import lua.PairTools;
-
 import haxe.ds.ObjectMap;
+import lua.PairTools;
 
 /**
 	This library provides generic functions for table manipulation.
 **/
-
 @:native("_G.table")
 extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 	@:pure static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
@@ -51,21 +49,21 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 	}
 
 	inline static function fromDynamic<A, B>(dyn:Dynamic):Table<A, B> {
-		var ret = Table.create();
+		var ret:Table<A, B> = Table.create();
 		for (f in Reflect.fields(dyn)) {
 			ret[untyped f] = Reflect.field(dyn, f);
 		}
 		return ret;
 	}
 
-    inline static function toMap<A,B>(tbl : Table<A,B>) : Map<A,B> {
-        var obj = new ObjectMap();
-        PairTools.pairsFold(tbl, (k,v,m) ->{
-            obj.set(k,v);
-            return obj;
-        }, obj);
-        return cast obj;
-    }
+	inline static function toMap<A, B>(tbl:Table<A, B>):Map<A, B> {
+		var obj = new ObjectMap();
+		PairTools.pairsFold(tbl, (k, v, m) -> {
+			obj.set(k, v);
+			return obj;
+		}, obj);
+		return cast obj;
+	}
 
 	/**
 		Copies the table argument and converts it to an Object.
@@ -74,18 +72,17 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 		return Boot.tableToObject(PairTools.copy(t));
 	}
 
-
-    inline static function toArray<T>(tbl : Table<Int,T>, ?length:Int) : Array<T> {
+	inline static function toArray<T>(tbl:Table<Int, T>, ?length:Int):Array<T> {
 		return Boot.defArray(PairTools.copy(tbl), length);
-    }
+	}
 
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
 	static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;
 
-    #if (lua_ver == 5.1)
+	#if (lua_ver == 5.1)
 	static function foreach<A, B>(table:Table<A, B>, f:A->B->Void):Void;
 	static function foreachi<A, B>(table:Table<A, B>, f:A->B->Int->Void):Void;
-    #end
+	#end
 
 	static function sort<A, B>(table:Table<A, B>, ?order:A->A->Bool):Void;
 

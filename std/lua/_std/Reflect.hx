@@ -20,9 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import lua.Boot;
 import lua.Lua;
 import lua.TableTools;
-import lua.Boot;
 
 @:coreApi class Reflect {
 	public inline static function hasField(o:Dynamic, field:String):Bool {
@@ -32,7 +32,7 @@ import lua.Boot;
 			return untyped o.__fields__ != null ? o.__fields__[field] != null : o[field] != null;
 	}
 
-	public static function field(o:Dynamic, field:String):Null<Dynamic>
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		untyped {
 			if (Lua.type(o) == "string") {
 				if (field == "length") {
@@ -43,31 +43,37 @@ import lua.Boot;
 				return try o[field] catch (e:Dynamic) null;
 			}
 		}
+	}
 
-	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void
+	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void {
 		untyped {
 			o[field] = value;
 		}
+	}
 
 	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		return if (o == null) {
+			@:nullSafety(Off)
 			untyped __define_feature__("Reflect.getProperty", null);
 		} else if (o.__properties__ != null && Reflect.field(o, "get_" + field) != null) {
+			@:nullSafety(Off)
 			callMethod(o, Reflect.field(o, "get_" + field), []);
 		} else {
 			Reflect.field(o, field);
 		}
 	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
 		untyped {
 			if (o.__properties__ != null && o.__properties__["set_" + field]) {
 				var tmp:String = o.__properties__["set_" + field];
+				@:nullSafety(Off)
 				callMethod(o, Reflect.field(o, tmp), [value]);
 			} else {
 				o[field] = __define_feature__("Reflect.setProperty", value);
 			}
 		}
+	}
 
 	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		if (args == null || args.length == 0) {
@@ -112,7 +118,7 @@ import lua.Boot;
 		return f1 == f2;
 	}
 
-	public static function isObject(v:Dynamic):Bool
+	public static function isObject(v:Dynamic):Bool {
 		untyped {
 			if (v == null)
 				return false;
@@ -120,24 +126,29 @@ import lua.Boot;
 			return (t == "string" || (t == "table" && v.__enum__ == null))
 				|| (t == "function" && (lua.Boot.isClass(v) || lua.Boot.isEnum(v)) != null);
 		}
+	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
 		return v != null && Std.isOfType(v, lua.Table) && v.__enum__ != null;
 	}
 
-	public static function deleteField(o:Dynamic, field:String):Bool
+	public static function deleteField(o:Dynamic, field:String):Bool {
 		untyped {
 			if (!hasField(o, field))
 				return false;
+			@:nullSafety(Off)
 			o[field] = null;
+			@:nullSafety(Off)
 			o.__fields__[field] = null;
 			return true;
 		}
+	}
 
 	public static function copy<T>(o:Null<T>):Null<T> {
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
+		@:nullSafety(Off)
 		for (f in Reflect.fields(o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return o2;

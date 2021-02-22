@@ -74,7 +74,9 @@ class JsonParser {
 				case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 				// loop
 				case '{'.code:
-					var obj = {}, field = null, comma:Null<Bool> = null;
+					var obj = {};
+					var field:Null<String> = null;
+					var comma:Null<Bool> = null;
 					while (true) {
 						var c = nextChar();
 						switch (c) {
@@ -91,9 +93,10 @@ class JsonParser {
 								field = null;
 								comma = true;
 							case ','.code:
-								if (comma) comma = false else invalidChar();
+								if (comma == true) comma = false else invalidChar();
 							case '"'.code:
-								if (field != null || comma) invalidChar();
+								if (field != null || comma)
+									invalidChar();
 								field = parseString();
 							default:
 								invalidChar();
@@ -107,12 +110,14 @@ class JsonParser {
 							case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 							// loop
 							case ']'.code:
-								if (comma == false) invalidChar();
+								if (comma == false)
+									invalidChar();
 								return arr;
 							case ','.code:
-								if (comma) comma = false else invalidChar();
+								if (comma == true) comma = false else invalidChar();
 							default:
-								if (comma) invalidChar();
+								if (comma == true)
+									invalidChar();
 								pos--;
 								arr.push(parseRec());
 								comma = true;
@@ -138,6 +143,7 @@ class JsonParser {
 						pos = save;
 						invalidChar();
 					}
+					@:nullSafety(Off)
 					return null;
 				case '"'.code:
 					return parseString();
@@ -152,7 +158,7 @@ class JsonParser {
 	function parseString() {
 		// eq( haxe.format.JsonParser.parse('"\\u00E9"'), "é" );
 		var start = pos;
-		var buf:StringBuf = null;
+		var buf:Null<StringBuf> = null;
 		var prev = -1;
 		inline function cancelSurrogate() {
 			// invalid high surrogate (not followed by low surrogate)
@@ -183,6 +189,7 @@ class JsonParser {
 					case "/".code, '\\'.code, '"'.code:
 						buf.addChar(c);
 					case 'u'.code:
+						@:nullSafety(Off)
 						var uc:Int = Std.parseInt("0x" + str.substr(pos, 4));
 						pos += 4;
 						if (prev != -1) {
@@ -212,9 +219,8 @@ class JsonParser {
 					pos += 2;
 				else if (c >= 0xE0)
 					pos++;
-			}
-		else if (StringTools.isEof(c))
-			throw "Unclosed string";
+			} else if (StringTools.isEof(c))
+				throw "Unclosed string";
 		}
 		if (buf == null) {
 			return str.substr(start, pos - start - 1);
@@ -276,9 +282,9 @@ class JsonParser {
 		return if (i == f) i else f;
 	}
 
-    function nextChar() {
-        pos++;
-        return lua.NativeStringTools.byte(str, pos);
+	function nextChar() {
+		pos++;
+		return lua.NativeStringTools.byte(str, pos);
 	}
 
 	function invalidChar() {
