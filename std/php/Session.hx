@@ -42,6 +42,7 @@ class Session {
 			case "private_no_expire":
 				return PrivateNoExpire;
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 
@@ -116,6 +117,7 @@ class Session {
 
 	public static function get(name:String):Dynamic {
 		start();
+		@:nullSafety(Off)
 		if (!isset(_SESSION[name]))
 			return null;
 		return _SESSION[name];
@@ -129,6 +131,7 @@ class Session {
 	public static function setCookieParams(?lifetime:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool) {
 		if (started)
 			throw "You can't set the cookie params while the session is already in use";
+		@:nullSafety(Off)
 		session_set_cookie_params(lifetime, path, domain, secure, httponly);
 	}
 
@@ -157,6 +160,7 @@ class Session {
 		unset(_SESSION[name]);
 	}
 
+	@:nullSafety(Off)
 	public static var started(default, null):Bool;
 
 	public static function start() {
