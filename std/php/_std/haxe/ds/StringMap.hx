@@ -22,11 +22,11 @@
 
 package haxe.ds;
 
-import php.Syntax;
+import haxe.Constraints;
 import php.Global;
 import php.NativeArray;
 import php.NativeAssocArray;
-import haxe.Constraints;
+import php.Syntax;
 
 @:coreApi class StringMap<T> implements IMap<String, T> {
 	private var data:NativeAssocArray<T>;
@@ -39,7 +39,7 @@ import haxe.Constraints;
 		data[key] = value;
 	}
 
-	public inline function get(key:String):Null<T> {
+	public inline function get(key:String):Null<T> {@:nullSafety(Off)
 		return Syntax.coalesce(data[key], null);
 	}
 

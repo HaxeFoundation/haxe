@@ -20,9 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php.*;
 import haxe.iterators.StringIterator;
 import haxe.iterators.StringKeyValueIterator;
+import php.*;
 
 @:coreApi class StringTools {
 	public inline static function urlEncode(s:String):String {
@@ -34,7 +34,7 @@ import haxe.iterators.StringKeyValueIterator;
 	}
 
 	public inline static function htmlEscape(s:String, ?quotes:Bool):String {
-		return Global.htmlspecialchars(s, (quotes ? Const.ENT_QUOTES | Const.ENT_HTML401 : Const.ENT_NOQUOTES));
+		return Global.htmlspecialchars(s, (quotes == true ? Const.ENT_QUOTES | Const.ENT_HTML401 : Const.ENT_NOQUOTES));
 	}
 
 	public inline static function htmlUnescape(s:String):String {
@@ -54,7 +54,8 @@ import haxe.iterators.StringKeyValueIterator;
 	}
 
 	public static function isSpace(s:String, pos:Int):Bool {
-		var c = s.charCodeAt(pos);
+		@:nullSafety(Off)
+		var c:Int = s.charCodeAt(pos);
 		return (c >= 9 && c <= 13) || c == 32;
 	}
 

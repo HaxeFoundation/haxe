@@ -1,7 +1,7 @@
 package haxe;
 
-import php.*;
 import haxe.CallStack.StackItem;
+import php.*;
 
 private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
 
@@ -17,6 +17,7 @@ class NativeStackTrace {
 		@param String - generated php file name.
 		@param Int - Line number in generated file.
 	**/
+	@:nullSafety(Off)
 	static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
 
 	static var lastExceptionTrace:Null<NativeTrace>;
@@ -54,7 +55,7 @@ class NativeStackTrace {
 		return Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
 	}
 
-	static public function exceptionStack():NativeTrace {
+	static public function exceptionStack():NativeTrace {@:nullSafety(Off)
 		return lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace;
 	}
 
@@ -63,12 +64,12 @@ class NativeStackTrace {
 		var count = Global.count(native);
 
 		for (i in 0...count) {
-			if(skip > i) {
+			if (skip > i) {
 				continue;
 			}
 
 			var entry = native[i];
-			var item = null;
+			var item:Null<StackItem> = null;
 
 			if (i + 1 < count) {
 				var next = native[i + 1];
@@ -89,7 +90,9 @@ class NativeStackTrace {
 				if (mapPosition != null) {
 					var pos = mapPosition(entry['file'], entry['line']);
 					if (pos != null && pos.source != null && pos.originalLine != null) {
+						@:nullSafety(Off)
 						entry['file'] = pos.source;
+						@:nullSafety(Off)
 						entry['line'] = pos.originalLine;
 					}
 				}

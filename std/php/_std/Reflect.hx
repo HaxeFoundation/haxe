@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import haxe.Constraints;
 import php.Boot;
-import php.Syntax;
 import php.Closure;
 import php.Const;
 import php.NativeAssocArray;
-import haxe.Constraints;
+import php.Syntax;
 
 using php.Global;
 
@@ -164,6 +164,7 @@ using php.Global;
 	}
 
 	public static function copy<T>(o:Null<T>):Null<T> {
+		@:nullSafety(Off)
 		if (Boot.isAnon(o)) {
 			return Syntax.clone(o);
 		} else {

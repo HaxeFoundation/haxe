@@ -20,9 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import haxe.extern.EitherType;
 import php.*;
 import php.reflection.*;
-import haxe.extern.EitherType;
 
 using php.Global;
 
@@ -61,7 +61,7 @@ enum ValueType {
 			return null;
 		var parentClass = try {
 			Global.get_parent_class((cast c).phpClassName);
-		} catch(e) {
+		} catch (e) {
 			return null;
 		}
 		if (!parentClass)
@@ -70,8 +70,10 @@ enum ValueType {
 	}
 
 	public static function getClassName(c:Class<Dynamic>):String {
+		@:nullSafety(Off)
 		if (c == null)
 			return null;
+		@:nullSafety(Off)
 		return Boot.getHaxeName(cast c);
 	}
 
@@ -100,9 +102,11 @@ enum ValueType {
 		}
 
 		var phpClass = Boot.getPhpName(name);
+		@:nullSafety(Off)
 		if (!Global.class_exists(phpClass) && !Global.interface_exists(phpClass))
 			return null;
 
+		@:nullSafety(Off)
 		var hxClass = Boot.getClass(phpClass);
 
 		return cast hxClass;
@@ -115,9 +119,11 @@ enum ValueType {
 			return cast Bool;
 
 		var phpClass = Boot.getPhpName(name);
+		@:nullSafety(Off)
 		if (!Global.class_exists(phpClass))
 			return null;
 
+		@:nullSafety(Off)
 		var hxClass = Boot.getClass(phpClass);
 
 		return cast hxClass;
@@ -142,6 +148,7 @@ enum ValueType {
 	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		@:nullSafety(Off)
 		if (e == null || constr == null)
 			return null;
 
@@ -165,6 +172,7 @@ enum ValueType {
 	}
 
 	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
+		@:nullSafety(Off)
 		if (e == null || index == null)
 			return null;
 
@@ -190,6 +198,7 @@ enum ValueType {
 	}
 
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
+		@:nullSafety(Off)
 		if (c == null)
 			return null;
 		if (c == String) {
@@ -227,6 +236,7 @@ enum ValueType {
 	}
 
 	public static function getClassFields(c:Class<Dynamic>):Array<String> {
+		@:nullSafety(Off)
 		if (c == null)
 			return null;
 		if (c == String)
@@ -258,6 +268,7 @@ enum ValueType {
 	}
 
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
+		@:nullSafety(Off)
 		if (e == null)
 			return null;
 		return @:privateAccess Array.wrap(Syntax.call(e, '__hx__list'));
@@ -300,7 +311,7 @@ enum ValueType {
 			return false;
 
 		try {
-			if (!Syntax.instanceof(a, (Global.get_class(cast b):String)))
+			if (!Syntax.instanceof(a, (Global.get_class(cast b) : String)))
 				return false;
 			if (enumIndex(a) != enumIndex(b))
 				return false;
@@ -313,7 +324,7 @@ enum ValueType {
 					if (!enumEq(aParams[i], bParams[i])) {
 						return false;
 					}
-				// everything else
+					// everything else
 				} else if (!inline Boot.equal(aParams[i], bParams[i])) {
 					return false;
 				}
@@ -338,6 +349,7 @@ enum ValueType {
 	}
 
 	public static function allEnums<T>(e:Enum<T>):Array<T> {
+		@:nullSafety(Off)
 		if (e == null)
 			return null;
 
@@ -348,6 +360,7 @@ enum ValueType {
 		for (name in getEnumConstructs(e)) {
 			var reflection = new ReflectionMethod(phpName, name);
 			if (reflection.getNumberOfParameters() == 0) {
+				@:nullSafety(Off)
 				result.push(reflection.invoke(null));
 			}
 		}

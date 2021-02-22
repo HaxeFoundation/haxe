@@ -22,9 +22,9 @@
 
 package haxe.format;
 
-import php.Syntax;
 import php.Global;
 import php.NativeString;
+import php.Syntax;
 
 using haxe.format.JsonParser;
 
@@ -62,7 +62,9 @@ class JsonParser {
 				case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 				// loop
 				case '{'.code:
-					var obj = {}, field = null, comma:Null<Bool> = null;
+					var obj = {};
+					var field:Null<NativeString> = null;
+					var comma:Null<Bool> = null;
 					while (true) {
 						var c = nextChar();
 						switch (c) {
@@ -79,9 +81,10 @@ class JsonParser {
 								field = null;
 								comma = true;
 							case ','.code:
-								if (comma) comma = false else invalidChar();
+								if (comma == true) comma = false else invalidChar();
 							case '"'.code:
-								if (field != null || comma) invalidChar();
+								if (field != null || comma)
+									invalidChar();
 								field = parseString();
 							default:
 								invalidChar();
@@ -95,12 +98,14 @@ class JsonParser {
 							case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 							// loop
 							case ']'.code:
-								if (comma == false) invalidChar();
+								if (comma == false)
+									invalidChar();
 								return arr;
 							case ','.code:
-								if (comma) comma = false else invalidChar();
+								if (comma == true) comma = false else invalidChar();
 							default:
-								if (comma) invalidChar();
+								if (comma == true)
+									invalidChar();
 								pos--;
 								arr.push(parseRec());
 								comma = true;
@@ -126,6 +131,7 @@ class JsonParser {
 						pos = save;
 						invalidChar();
 					}
+					@:nullSafety(Off)
 					return null;
 				case '"'.code:
 					return parseString();
@@ -139,7 +145,7 @@ class JsonParser {
 
 	function parseString() {
 		var start = pos;
-		var buf:NativeString = null;
+		var buf:Null<NativeString> = null;
 		while (true) {
 			var c = nextChar();
 			if (c == '"'.code)
@@ -164,7 +170,8 @@ class JsonParser {
 					case "/".code, '\\'.code, '"'.code:
 						buf = Syntax.concat(buf, Global.mb_chr(c));
 					case 'u'.code:
-						var uc = Std.parseInt("0x" + str.substr(pos, 4));
+						@:nullSafety(Off)
+						var uc:Int = Std.parseInt("0x" + str.substr(pos, 4));
 						pos += 4;
 						buf = Syntax.concat(buf, Global.mb_chr(uc));
 					default:

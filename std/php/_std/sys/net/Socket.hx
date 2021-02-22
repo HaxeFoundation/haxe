@@ -23,11 +23,12 @@
 package sys.net;
 
 import php.*;
-import php.Global.*;
 import php.Const.*;
+import php.Global.*;
 import sys.io.FileInput;
 import sys.io.FileOutput;
 
+@:nullSafety(Off)
 @:coreApi
 class Socket {
 	private var __s:Resource;
@@ -152,13 +153,12 @@ class Socket {
 		throw haxe.io.Error.Custom('Error [$code]: $msg');
 	}
 
-
 	/**
 		Since PHP 8 sockets are represented as instances of class \Socket
 
 		TODO:
 			rewrite without `cast` after resolving https://github.com/HaxeFoundation/haxe/issues/9964
-	*/
+	 */
 	static inline function getSocketId(s:Resource):Int {
 		return PHP_VERSION_ID < 80000 ? Syntax.int(s) : spl_object_id(cast s);
 	}

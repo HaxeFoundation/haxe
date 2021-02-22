@@ -31,6 +31,7 @@ class Host {
 
 	private var _ip:String;
 
+	@:nullSafety(Off)
 	public var ip(default, null):Int;
 
 	public function new(name:String):Void {

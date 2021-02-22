@@ -1,4 +1,8 @@
 import php.Boot;
+import php.Const;
+import php.Global;
+import php.Syntax;
+
 /*
  * Copyright (C)2005-2019 Haxe Foundation
  *
@@ -20,10 +24,6 @@ import php.Boot;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import php.Global;
-import php.Const;
-import php.Syntax;
-
 @:coreApi class Std {
 	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
@@ -43,7 +43,7 @@ import php.Syntax;
 		return Boot.isOfType(value, cast c) ? cast value : null;
 	}
 
-	public static function string(s:Null<Dynamic>):String {
+	public static function string(s:Null<Dynamic>):String {@:nullSafety(Off)
 		return Boot.stringify(s);
 	}
 

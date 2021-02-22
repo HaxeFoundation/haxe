@@ -55,7 +55,7 @@ class Meta {
 	}
 
 	private static function getMeta(t:Dynamic):MetaObject {
-		#if php
+		#if php @:nullSafety(Off)
 		return php.Boot.getMeta(t.phpClassName);
 		#elseif (java || cs)
 		var ret = Reflect.field(t, "__meta__");

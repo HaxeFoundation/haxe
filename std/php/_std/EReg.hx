@@ -23,6 +23,7 @@
 import haxe.extern.EitherType;
 import php.*;
 
+@:nullSafety(Off)
 @:coreApi final class EReg {
 	var r:Dynamic;
 	var last:String;
@@ -84,7 +85,7 @@ import php.*;
 		// that have not been matched and invalid groups
 		if (n >= Global.count(matches))
 			return null;
-		if ((matches[n][1] : Int) < 0)
+		if ((matches[n][1]:Int) < 0)
 			return null;
 		return matches[n][0];
 	}
@@ -98,7 +99,7 @@ import php.*;
 	public function matchedRight():String {
 		if (Global.count(matches) == 0)
 			throw "No string matched";
-		var x:Int = (matches[0][1] : Int) + Global.strlen(matches[0][0]);
+		var x:Int = (matches[0][1]:Int) + Global.strlen(matches[0][0]);
 		return Global.substr(last, x);
 	}
 
@@ -148,7 +149,7 @@ import php.*;
 	}
 
 	public function map(s:String, f:EReg->String):String {
-		if(!matchFromByte(s, 0)) {
+		if (!matchFromByte(s, 0)) {
 			return s;
 		}
 		var result = '';
@@ -158,13 +159,13 @@ import php.*;
 			result += Global.substr(s, bytesOffset, matches[0][1] - bytesOffset);
 			result += f(this);
 			bytesOffset = matches[0][1];
-			if(matches[0][0] == '') {
+			if (matches[0][0] == '') {
 				result += Global.mb_substr(Global.substr(s, bytesOffset), 0, 1);
 				bytesOffset++;
 			} else {
 				bytesOffset += Global.strlen(matches[0][0]);
 			}
-		} while(global && bytesOffset < bytesTotal && matchFromByte(s, bytesOffset));
+		} while (global && bytesOffset < bytesTotal && matchFromByte(s, bytesOffset));
 		result += Global.substr(s, bytesOffset);
 		return result;
 	}

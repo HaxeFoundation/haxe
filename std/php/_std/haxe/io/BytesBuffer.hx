@@ -22,8 +22,8 @@
 
 package haxe.io;
 
-import php.*;
 import haxe.io.Error;
+import php.*;
 
 class BytesBuffer {
 	var b:NativeString;
@@ -76,6 +76,7 @@ class BytesBuffer {
 
 	public function getBytes():Bytes {
 		var bytes = @:privateAccess new Bytes(length, b);
+		@:nullSafety(Off)
 		b = null;
 		return bytes;
 	}

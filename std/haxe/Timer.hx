@@ -23,8 +23,8 @@
 package haxe;
 
 #if (target.threaded && !cppia)
-import sys.thread.Thread;
 import sys.thread.EventLoop;
+import sys.thread.Thread;
 #end
 
 /**
@@ -107,6 +107,7 @@ class Timer {
 		#else
 		if (event != null) {
 			event.stop();
+			@:nullSafety(Off)
 			event = null;
 		}
 		#end

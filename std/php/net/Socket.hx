@@ -23,8 +23,8 @@
 package php.net;
 
 import php.*;
-import php.Global.*;
 import php.Const.*;
+import php.Global.*;
 import sys.io.FileInput;
 import sys.io.FileOutput;
 import sys.net.Host;
@@ -47,6 +47,7 @@ class Socket extends sys.net.Socket {
 		@:privateAccess (cast output : FileOutput).__f = __s;
 		connected = true;
 		if (timeout != null) {
+			@:nullSafety(Off)
 			setTimeout(timeout);
 		}
 	}
@@ -54,7 +55,9 @@ class Socket extends sys.net.Socket {
 	override public function close():Void {
 		connected = false;
 		fclose(__s);
+		@:nullSafety(Off)
 		@:privateAccess (cast input : FileInput).__f = null;
+		@:nullSafety(Off)
 		@:privateAccess (cast output : FileOutput).__f = null;
 		input.close();
 		output.close();
@@ -75,6 +78,7 @@ class Socket extends sys.net.Socket {
 		var errs = null;
 		var errn = null;
 		var r = stream_socket_client(protocol + '://' + host.host + ':' + port, errn, errs);
+		@:nullSafety(Off)
 		checkError(r, errn, errs);
 		__s = r;
 		assignHandler();
@@ -95,10 +99,13 @@ class Socket extends sys.net.Socket {
 	}
 
 	override public function bind(host:Host, port:Int):Void {
+		@:nullSafety(Off)
 		var errs = Boot.deref(null);
+		@:nullSafety(Off)
 		var errn = Boot.deref(null);
 		var r = stream_socket_server(protocol + '://' + host.host + ':' + port, errn, errs,
 			(protocol == "udp" ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN));
+		@:nullSafety(Off)
 		Socket.checkError(r, errn, errs);
 		__s = cast r;
 		assignHandler();
@@ -115,6 +122,7 @@ class Socket extends sys.net.Socket {
 
 	private function hpOfString(s:String):{host:Host, port:Int} {
 		var parts = s.split(':');
+		@:nullSafety(Off)
 		if (parts.length == 2) {
 			return {host: new Host(parts[0]), port: Std.parseInt(parts[1])};
 		} else {
@@ -156,6 +164,7 @@ class Socket extends sys.net.Socket {
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
 		throw new haxe.exceptions.NotImplementedException();
+		@:nullSafety(Off)
 		return null;
 	}
 

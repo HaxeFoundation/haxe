@@ -20,10 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php.*;
-import sys.io.FileOutput;
-import sys.io.FileInput;
 import haxe.SysTools;
+import php.*;
+import sys.io.FileInput;
+import sys.io.FileOutput;
 
 @:coreApi class Sys {
 	/** Environment variables set by `Sys.putEnv()` */
@@ -65,6 +65,7 @@ import haxe.SysTools;
 
 	public static function getCwd():String {
 		var cwd = Global.getcwd();
+		@:nullSafety(Off)
 		if (cwd == false)
 			return null;
 		var l = (cwd : String).substr(-1);

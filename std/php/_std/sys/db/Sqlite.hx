@@ -91,6 +91,7 @@ private class SQLiteConnection implements Connection {
 	}
 }
 
+@:nullSafety(Off)
 private class SQLiteResultSet implements ResultSet {
 	public var length(get, null):Int;
 	public var nfields(get, null):Int;
@@ -133,7 +134,7 @@ private class SQLiteResultSet implements ResultSet {
 
 	public function cacheAll():NativeIndexedArray<{}> {
 		var row = fetchNext();
-		while(row != null) {
+		while (row != null) {
 			cache.push(row);
 			row = fetchNext();
 		}
@@ -142,7 +143,7 @@ private class SQLiteResultSet implements ResultSet {
 
 	public function results():List<Dynamic> {
 		var list = new List();
-		for(row in cacheAll()) {
+		for (row in cacheAll()) {
 			list.add(row);
 		}
 		return list;

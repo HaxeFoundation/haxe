@@ -22,8 +22,8 @@
 
 package haxe;
 
-import php.*;
 import haxe.format.JsonPrinter;
+import php.*;
 
 @:coreApi
 class Json {
@@ -105,7 +105,7 @@ class Json {
 			return result;
 		}
 
-		if (Global.is_float(value) && !Global.is_finite(value)) {
+		if (Global.is_float(value) && !Global.is_finite(value)) {@:nullSafety(Off)
 			return null;
 		}
 

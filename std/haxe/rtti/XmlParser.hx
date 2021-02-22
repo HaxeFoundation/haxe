@@ -554,6 +554,9 @@ class XmlParser {
 			else
 				t = xtype(c);
 		var types = new haxe.ds.StringMap();
+		#if php
+		@:nullSafety(Off)
+		#end
 		if (curplatform != null)
 			types.set(curplatform, t);
 		@:nullSafety(Off)
