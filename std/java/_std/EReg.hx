@@ -27,7 +27,9 @@ using StringTools;
 @:coreApi class EReg {
 	private var pattern:String;
 	private var matcher:Matcher;
+	@:nullSafety(Off)
 	private var cur:String;
+	@:nullSafety(Off)
 	private var isGlobal:Bool;
 
 	public function new(r:String, opt:String) {

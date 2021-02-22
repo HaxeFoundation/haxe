@@ -20,10 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import java.Boot;
 import java.internal.Function;
 import java.internal.HxObject;
 import java.internal.Runtime;
-import java.Boot;
 
 @:coreApi class Reflect {
 	public static function hasField(o:Dynamic, field:String):Bool {
@@ -57,7 +57,7 @@ import java.Boot;
 		if (Std.isOfType(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, false, true);
 		}
-		if (Runtime.slowHasField(o, "get_" + field)) {
+		if (Runtime.slowHasField(o, "get_" + field)) {@:nullSafety(Off)
 			return Runtime.slowCallField(o, "get_" + field, null);
 		}
 		return Runtime.slowGetField(o, field, false);
@@ -133,6 +133,7 @@ import java.Boot;
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
+		@:nullSafety(Off)
 		for (f in Reflect.fields(o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return cast o2;

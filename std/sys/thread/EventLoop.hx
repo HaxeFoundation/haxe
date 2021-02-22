@@ -152,7 +152,6 @@ class EventLoop {
 	public function loop():Void {
 		var events = [];
 		while (true) {
-			@:nullSafety(Off)
 			var r = __progress(Sys.time(), events);
 			switch r {
 				case {nextEventAt: -2}:

@@ -55,7 +55,7 @@ import java.Lib;
 		return clt.isAssignableFrom(clv);
 	}
 
-	public static function string(s:Null<Dynamic>):String {
+	public static function string(s:Null<Dynamic>):String {@:nullSafety(Off)
 		return cast(s, String) + "";
 	}
 
@@ -75,38 +75,38 @@ import java.Lib;
 		var lastDigitIndex = -1;
 		var previous = 0;
 
-		for(i in 0...len) {
+		for (i in 0...len) {
 			var c = StringTools.fastCodeAt(x, i);
 			switch c {
-				case _ if((c > 8 && c < 14) || c == 32):
-					if(foundCount > 0) {
+				case _ if ((c > 8 && c < 14) || c == 32):
+					if (foundCount > 0) {
 						return null;
 					}
 					continue;
-				case '-'.code if(foundCount == 0):
+				case '-'.code if (foundCount == 0):
 					sign = -1;
-				case '+'.code if(foundCount == 0):
+				case '+'.code if (foundCount == 0):
 					sign = 1;
-				case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
-				case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+				case '0'.code if (foundCount == 0 || (foundCount == 1 && sign != 0)):
+				case 'x'.code | 'X'.code if (previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
 					base = 16;
-				case _ if('0'.code <= c && c <= '9'.code):
-				case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
+				case _ if ('0'.code <= c && c <= '9'.code):
+				case _ if (base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
 				case _:
 					break;
 			}
-			if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+			if ((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
 				firstDigitIndex = i;
 			}
 			foundCount++;
 			lastDigitIndex = i;
 			previous = c;
 		}
-		if(firstDigitIndex <= lastDigitIndex) {
+		if (firstDigitIndex <= lastDigitIndex) {
 			var digits = x.substring(firstDigitIndex + (base == 16 ? 2 : 0), lastDigitIndex + 1);
 			return try {
 				(sign == -1 ? -1 : 1) * java.lang.Integer.parseInt(digits, base);
-			} catch(e:java.lang.NumberFormatException) {
+			} catch (e:java.lang.NumberFormatException) {
 				null;
 			}
 		}
