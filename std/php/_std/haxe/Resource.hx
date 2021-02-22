@@ -58,7 +58,7 @@ class Resource {
 		return a.map(function(s) return haxe.io.Path.unescape(s));
 	}
 
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		var path = getPath(name);
 		return if (!sys.FileSystem.exists(path))
 			null;
@@ -66,7 +66,7 @@ class Resource {
 			sys.io.File.getContent(path);
 	}
 
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		var path = getPath(name);
 		return if (!sys.FileSystem.exists(path))
 			null;

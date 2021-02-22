@@ -36,14 +36,14 @@ class Resource {
 		return [for (x in content) @:privateAccess String.fromUCS2(x.name)];
 	}
 
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		for (x in content)
 			if (x.name.compare(0, @:privateAccess name.bytes, 0, (name.length + 1) << 1) == 0)
 				return @:privateAccess String.fromUTF8(x.data);
 		return null;
 	}
 
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		for (x in content)
 			if (x.name.compare(0, @:privateAccess name.bytes, 0, (name.length + 1) << 1) == 0)
 				return @:privateAccess new haxe.io.Bytes(x.data, x.dataLen);
