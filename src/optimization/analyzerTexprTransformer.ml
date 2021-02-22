@@ -679,7 +679,13 @@ let rec block_to_texpr_el ctx bb =
 		[]
 	else begin
 		let block bb = block_to_texpr ctx bb in
+		let live bb = not ctx.did_optimize || not ctx.config.local_dce || has_block_flag bb BlockDce in
+		let if_live bb = if live bb then Some bb else None in
 		let rec loop bb se =
+			let get_terminator() = match bb.bb_terminator with
+				| TermCondBranch e1 -> e1
+				| _ -> die "" __LOC__
+			in
 			match se with
 			| SESubBlock(bb_sub,bb_next) ->
 				Some bb_next,Some (block bb_sub)
@@ -688,22 +694,16 @@ let rec block_to_texpr_el ctx bb =
 			| SENone ->
 				None,terminator_to_texpr_maybe bb.bb_terminator
 			| SETry(bb_try,_,bbl,bb_next,p) ->
-				Some bb_next,Some (mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid p)
-			| se ->
-				let e1 = match bb.bb_terminator with
-					| TermCondBranch e1 -> e1
-					| _ -> die "" __LOC__
-				in
-				let bb_next,e1_def,t,p = match se with
-					| SEIfThen(bb_then,bb_next,p) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid,p
-					| SEIfThenElse(bb_then,bb_else,bb_next,t,p) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t,p
-					| SESwitch(bbl,bo,bb_next,p) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid,p
-					| SEWhile(_,bb_body,bb_next,p) ->
-						let e2 = block bb_body in
-						Some bb_next,TWhile(e1,e2,NormalWhile),ctx.com.basic.tvoid,p
-					| _ -> abort (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
-				in
-				bb_next,Some (mk e1_def t p)
+				if_live bb_next,Some (mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid p)
+			| SEIfThen(bb_then,bb_next,p) ->
+				if_live bb_next,Some (mk (TIf(get_terminator(),block bb_then,None)) ctx.com.basic.tvoid p)
+			| SEIfThenElse(bb_then,bb_else,bb_next,t,p) ->
+				if_live bb_next,Some (mk (TIf(get_terminator(),block bb_then,Some (block bb_else))) t p)
+			| SEWhile(_,bb_body,bb_next,p) ->
+				let e2 = block bb_body in
+				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
+			| SESwitch(bbl,bo,bb_next,p) ->
+				Some bb_next,Some (mk (TSwitch(get_terminator(),List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)) ctx.com.basic.tvoid p)
 		in
 		let bb_next,e_term = loop bb bb.bb_syntax_edge in
 		let el = DynArray.to_list bb.bb_el in

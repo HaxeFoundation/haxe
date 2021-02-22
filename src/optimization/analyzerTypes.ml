@@ -43,6 +43,9 @@ module BasicBlock = struct
 		| BKUnreachable             (* The unique unreachable block *)
 		| BKCatch of tvar           (* A catch block *)
 
+	type flag_block =
+		| BlockDce
+
 	type cfg_edge_Flag =
 		| FlagExecutable      (* Used by constant propagation to handle live edges *)
 		| FlagDce             (* Used by DCE to keep track of handled edges *)
@@ -93,6 +96,7 @@ module BasicBlock = struct
 		bb_pos : pos;                         (* The block position *)
 		bb_kind : block_kind;                 (* The block kind *)
 		mutable bb_closed : bool;             (* Whether or not the block has been closed *)
+		mutable bb_flags : int;
 		(* elements *)
 		bb_el : texpr DynArray.t;             (* The block expressions *)
 		bb_phi : texpr DynArray.t;            (* SSA-phi expressions *)
@@ -114,6 +118,18 @@ module BasicBlock = struct
 		| LUPhi of int
 		| LUEl of int
 		| LUTerm
+
+	let int_of_block_flag (flag : flag_block) =
+		Obj.magic flag
+
+	let add_block_flag bb (flag : flag_block) =
+		bb.bb_flags <- set_flag bb.bb_flags (int_of_block_flag flag)
+
+	let remove_block_flag bb (flag : flag_block) =
+		bb.bb_flags <- unset_flag bb.bb_flags (int_of_block_flag flag)
+
+	let has_block_flag bb (flag : flag_block) =
+		has_flag bb.bb_flags (int_of_block_flag flag)
 
 	let s_block_kind = function
 		| BKRoot -> "BKRoot"
@@ -177,6 +193,7 @@ module BasicBlock = struct
 			bb_type = t;
 			bb_pos = p;
 			bb_closed = false;
+			bb_flags = 0;
 			bb_el = DynArray.create();
 			bb_phi = DynArray.create();
 			bb_terminator = TermNone;
@@ -584,4 +601,5 @@ type analyzer_context = {
 	mutable loop_stack : int list;
 	mutable debug_exprs : (string * texpr) list;
 	mutable name_stack : string list;
+	mutable did_optimize : bool;
 }
