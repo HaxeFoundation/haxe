@@ -684,9 +684,8 @@ module LocalDce = struct
 			| _ ->
 				Type.iter expr e
 		in
-		let bb_marked = ref [] in
 		let rec mark bb =
-			bb_marked := bb :: !bb_marked;
+			add_block_flag bb BlockDce;
 			DynArray.iter expr bb.bb_el;
 			DynArray.iter expr bb.bb_phi;
 			terminator_iter expr bb.bb_terminator;
@@ -694,11 +693,11 @@ module LocalDce = struct
 				if not (has_flag edge FlagDce) then begin
 					edge.cfg_flags <- FlagDce :: edge.cfg_flags;
 					if not ctx.config.const_propagation || has_flag edge FlagExecutable then
-						mark edge.cfg_from;
+						mark edge.cfg_to;
 				end
-			) bb.bb_incoming
+			) bb.bb_outgoing
 		in
-		mark ctx.graph.g_exit;
+		mark ctx.graph.g_root;
 		let rec sweep e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) when not (keep v) ->
 				if has_side_effect e2 then
@@ -710,10 +709,12 @@ module LocalDce = struct
 			| _ ->
 				Type.map_expr sweep e
 		in
-		List.iter (fun bb ->
-			dynarray_map sweep bb.bb_el;
-			bb.bb_terminator <- terminator_map sweep bb.bb_terminator;
-		) !bb_marked;
+		Graph.iter_dom_tree ctx.graph (fun bb ->
+			if has_block_flag bb BlockDce then begin
+				dynarray_map sweep bb.bb_el;
+				bb.bb_terminator <- terminator_map sweep bb.bb_terminator;
+			end
+		)
 end
 
 module Debug = struct
@@ -952,6 +953,7 @@ module Run = struct
 			loop_stack = [];
 			debug_exprs = [];
 			name_stack = [];
+			did_optimize = false;
 		} in
 		ctx
 
@@ -1042,6 +1044,7 @@ module Run = struct
 		with_timer actx.config.detail_times ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
 		if actx.com.debug then Graph.check_integrity actx.graph;
 		if actx.config.optimize && not actx.has_unbound then begin
+			actx.did_optimize <- true;
 			with_timer actx.config.detail_times ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
 			if actx.config.const_propagation then with_timer actx.config.detail_times ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
 			if actx.config.copy_propagation then with_timer actx.config.detail_times ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);
