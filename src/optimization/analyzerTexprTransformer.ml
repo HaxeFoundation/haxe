@@ -1020,9 +1020,12 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	])) com.basic.tvoid p
 
 and func ctx i =
-	let bb,t,p,tf,coroutine = Hashtbl.find ctx.graph.g_functions i in
+	let tfi = Hashtbl.find ctx.graph.g_functions i in
+	let tf = tfi.tf_tf in
+	let bb = tfi.tf_bb in
+	let p = tfi.tf_pos in
 	let e,tf_args,tf_type =
-		match coroutine with
+		match tfi.tf_coroutine with
 		| Some (vresult,verror) ->
 			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [t_dynamic] ctx.com.basic.tvoid) p in
 			declare_var ctx.graph vcontinuation bb;
@@ -1074,7 +1077,7 @@ and func ctx i =
 			Type.map_expr loop e
 	in
 	let e = loop e in
-	mk (TFunction {tf with tf_args = tf_args; tf_type = tf_type; tf_expr = e}) t p
+	mk (TFunction {tf with tf_args = tf_args; tf_type = tf_type; tf_expr = e}) tfi.tf_t p
 
 let to_texpr ctx =
 	func ctx ctx.entry.bb_id

@@ -246,7 +246,14 @@ end
 module Graph = struct
 	open BasicBlock
 
-	type tfunc_info = BasicBlock.t * Type.t * pos * tfunc * (tvar * tvar) option
+	type tfunc_info = {
+		tf_bb : BasicBlock.t;
+		tf_t : Type.t;
+		tf_pos : pos;
+		tf_tf : tfunc;
+		tf_coroutine : (tvar * tvar) option;
+	}
+
 	type texpr_lookup = BasicBlock.t * texpr_lookup_target
 	type var_write = BasicBlock.t list
 	type 'a itbl = (int,'a) Hashtbl.t
@@ -332,8 +339,8 @@ module Graph = struct
 
 	(* nodes *)
 
-	let add_function g tf t p bb coroutine =
-		Hashtbl.add g.g_functions bb.bb_id (bb,t,p,tf,coroutine)
+	let add_function g tf_tf tf_t tf_pos tf_bb tf_coroutine =
+		Hashtbl.add g.g_functions tf_bb.bb_id ({tf_bb;tf_t;tf_pos;tf_tf;tf_coroutine})
 
 	let alloc_id =
 		let r = ref 1 in
@@ -589,7 +596,7 @@ module Graph = struct
 					()
 			end
 		in
-		Hashtbl.iter (fun _ (bb,_,_,_,_) -> loop [0] bb) g.g_functions
+		Hashtbl.iter (fun _ tfi -> loop [0] tfi.tf_bb) g.g_functions
 end
 
 type analyzer_context = {
