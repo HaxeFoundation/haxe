@@ -70,7 +70,7 @@ module BasicBlock = struct
 		| SEIfThenElse of t * t * t * Type.t * pos               (* `if` with "then", "else" and "next" *)
 		| SESwitch of (texpr list * t) list * t option * t * pos (* `switch` with cases, "default" and "next" *)
 		| SETry of t * t * (tvar * t) list * t *  pos            (* `try` with "exc", catches and "next" *)
-		| SEWhile of t * t * t * pos                             (* `while` with "head", "body" and "next" *)
+		| SEWhile of t * t * pos                                 (* `while` with "body" and "next" *)
 		| SESubBlock of t * t                                    (* "sub" with "next" *)
 		| SEMerge of t                                           (* Merge to same block *)
 		| SENone                                                 (* No syntax exit *)
@@ -573,9 +573,8 @@ module Graph = struct
 					loop scopes' bb_exc;
 					List.iter (fun (_,bb_catch) -> loop (next_scope scopes) bb_catch) catches;
 					loop scopes bb_next
-				| SEWhile(bb_head,bb_body,bb_next,_) ->
+				| SEWhile(bb_body,bb_next,_) ->
 					let scopes' = next_scope scopes in
-					loop scopes' bb_head;
 					loop scopes' bb_body;
 					loop scopes bb_next;
 				| SESubBlock(bb_sub,bb_next) ->
