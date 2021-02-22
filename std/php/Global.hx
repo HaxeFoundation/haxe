@@ -1177,7 +1177,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.mb-strlen.php
 	**/
-	static function mb_strlen(str:String, ?encoding:String):EitherType<Int, Bool>;
+	static function mb_strlen(str:String, ?encoding:String):Int;
 
 	/**
 		@see http://php.net/manual/en/function.mb-substr.php
