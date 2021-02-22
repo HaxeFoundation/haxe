@@ -727,6 +727,8 @@ let rec block_to_texpr_el ctx bb =
 				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
 			| SESwitch(bbl,bo,bb_next,p) ->
 				Some bb_next,Some (mk (TSwitch(get_terminator(),List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)) ctx.com.basic.tvoid p)
+			| SESuspend _ ->
+				assert false
 		in
 		let bb_next,e_term = loop bb bb.bb_syntax_edge in
 		let el = DynArray.to_list bb.bb_el in
@@ -903,7 +905,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			let statecases = loop bb_next next_state_id back_state_id !statecases [] while_loop in
 			mk_case (current_el @ el @ [eswitch]) :: statecases
 
-		| SEWhile (_, bb_body, bb_next, p) ->
+		| SEWhile (bb_body, bb_next, p) ->
 			let body_state_id = get_next_state_id () in
 			let next_state_id = get_next_state_id () in
 			print_endline (Printf.sprintf "while cur:%d,body:%d,next:%d,back:%d" state_id body_state_id next_state_id back_state_id);
