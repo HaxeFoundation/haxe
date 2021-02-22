@@ -40,6 +40,7 @@ private class JdbcConnection implements sys.db.Connection {
 	private var id:Int;
 
 	private var cnx:java.sql.Connection;
+	@:nullSafety(Off)
 	private var _lastInsertId:Int;
 	// escape handling
 	private var escapeRegex:EReg;
@@ -149,7 +150,8 @@ private class JdbcConnection implements sys.db.Connection {
 				stmt.setObject(i + 1, sentArray[i]);
 			}
 
-			var ret = null, dbName = dbName();
+			var ret:Null<JdbcResultSet> = null;
+			var dbName = dbName();
 			if (stmt.execute()) {
 				// is a result set
 				var rs = stmt.getResultSet();
@@ -163,12 +165,14 @@ private class JdbcConnection implements sys.db.Connection {
 						this._lastInsertId = autogen.getInt(1);
 					}
 				}
+				@:nullSafety(Off)
 				ret = new JdbcResultSet(null, dbName, null);
 			}
 
 			if (escapes.length != 0)
 				escapes = [];
 			this.id = ids.getAndIncrement();
+			@:nullSafety(Off)
 			return ret;
 		} catch (e:Dynamic) {
 			if (escapes.length != 0)
@@ -179,6 +183,7 @@ private class JdbcConnection implements sys.db.Connection {
 	}
 }
 
+@:nullSafety(Off)
 @:native('haxe.java.db.JdbcResultSet')
 private class JdbcResultSet implements sys.db.ResultSet {
 	@:isVar public var length(get, null):Int;

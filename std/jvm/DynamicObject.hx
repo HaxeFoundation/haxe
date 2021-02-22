@@ -20,6 +20,7 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 		_hx_initReflection();
 		if (_hx_hasField("toString")) {
 			--__hx_toString_depth;
+			@:nullSafety(Off)
 			return _hx_getField("toString")();
 		}
 		var buf = new StringBuf();
@@ -33,6 +34,7 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 					buf.add(", ");
 				buf.add(key);
 				buf.add(": ");
+				@:nullSafety(Off)
 				buf.add(_hx_fields.get(key));
 			}
 		} catch (e:Dynamic) {
@@ -48,8 +50,10 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 		_hx_initReflection();
 		_hx_deletedAField = true;
 		try {
+			@:nullSafety(Off)
 			Jvm.writeFieldNoObject(this, name, null);
 		} catch (_:Dynamic) {}
+		@:nullSafety(Off)
 		return _hx_fields.remove(name);
 	}
 
@@ -60,22 +64,26 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 
 	@:jvm.synthetic override public function _hx_getField<T>(name:String) {
 		_hx_initReflection();
+		@:nullSafety(Off)
 		return _hx_fields.get(name);
 	}
 
 	@:jvm.synthetic final public function _hx_hasField(name:String) {
 		_hx_initReflection();
+		@:nullSafety(Off)
 		return _hx_fields.exists(name);
 	}
 
 	@:jvm.synthetic override public function _hx_setField(name:String, value:Dynamic) {
 		_hx_initReflection();
+		@:nullSafety(Off)
 		_hx_fields.set(name, value);
 	}
 
 	@:jvm.synthetic final public function _hx_clone() {
 		var clone:DynamicObject = (cast this : java.lang.Object).clone();
 		if (_hx_fields != null) {
+			@:nullSafety(Off)
 			clone._hx_fields = this._hx_fields.copy();
 		}
 		return clone;

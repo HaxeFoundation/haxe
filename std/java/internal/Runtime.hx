@@ -56,6 +56,7 @@ package java.internal;
 		return obj.__hx_invokeField(field, args);
 	}
 ')
+@:nullSafety(Off)
 @:keep class Runtime {
 	public static var undefined:Dynamic = {};
 

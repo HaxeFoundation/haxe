@@ -23,25 +23,25 @@
 package sys.thread;
 
 import java.Lib;
-import java.lang.Runnable;
-import java.util.WeakHashMap;
-import java.util.Collections;
-import java.lang.Thread as JavaThread;
-import java.lang.System;
 import java.StdTypes.Int64 as Long;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.lang.Runnable;
+import java.lang.System;
+import java.lang.Thread as JavaThread;
+import java.util.Collections;
+import java.util.WeakHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
 private typedef ThreadImpl = HaxeThread;
 
 abstract Thread(ThreadImpl) from ThreadImpl {
-	public var events(get,never):EventLoop;
+	public var events(get, never):EventLoop;
 
 	inline function new(t:HaxeThread) {
 		this = t;
 	}
 
-	public static inline function create(job:()->Void):Thread {
+	public static inline function create(job:() -> Void):Thread {
 		return HaxeThread.create(job, false);
 	}
 
@@ -49,11 +49,11 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		return HaxeThread.get(JavaThread.currentThread());
 	}
 
-	public static inline function runWithEventLoop(job:()->Void):Void {
+	public static inline function runWithEventLoop(job:() -> Void):Void {
 		HaxeThread.runWithEventLoop(job);
 	}
 
-	public static inline function createWithEventLoop(job:()->Void):Thread {
+	public static inline function createWithEventLoop(job:() -> Void):Thread {
 		return HaxeThread.create(job, true);
 	}
 
@@ -70,24 +70,29 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 	}
 
 	function get_events():EventLoop {
-		if(this.events == null)
+		if (this.events == null)
 			throw new NoEventLoopException();
+		@:nullSafety(Off)
 		return this.events;
 	}
 
-	@:keep //TODO: keep only if events are actually used
+	@:keep // TODO: keep only if events are actually used
 	static function processEvents():Void {
+		@:nullSafety(Off)
 		current().getHandle().events.loop();
 	}
 }
 
 private class HaxeThread {
-	static var nativeThreads:java.util.Map<JavaThread,HaxeThread>;
+	@:nullSafety(Off)
+	static var nativeThreads:java.util.Map<JavaThread, HaxeThread>;
+	@:nullSafety(Off)
 	static var mainJavaThread:JavaThread;
+	@:nullSafety(Off)
 	static var mainHaxeThread:HaxeThread;
 
 	static function __init__() {
-		nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread,HaxeThread>());
+		nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread, HaxeThread>());
 		mainJavaThread = JavaThread.currentThread();
 		mainHaxeThread = new HaxeThread();
 		mainHaxeThread.events = new EventLoop();
@@ -95,11 +100,11 @@ private class HaxeThread {
 
 	public final messages = new LinkedBlockingDeque<Dynamic>();
 
-	public var events(default,null):Null<EventLoop>;
+	public var events(default, null):Null<EventLoop>;
 
-	public static function create(job:()->Void, withEventLoop:Bool):HaxeThread {
+	public static function create(job:() -> Void, withEventLoop:Bool):HaxeThread {
 		var hx = new HaxeThread();
-		if(withEventLoop)
+		if (withEventLoop)
 			hx.events = new EventLoop();
 		var thread = new NativeHaxeThread(hx, job, withEventLoop);
 		thread.setDaemon(true);
@@ -108,10 +113,10 @@ private class HaxeThread {
 	}
 
 	public static function get(javaThread:JavaThread):HaxeThread {
-		if(javaThread == mainJavaThread) {
+		if (javaThread == mainJavaThread) {
 			return mainHaxeThread;
-		} else if(javaThread is NativeHaxeThread) {
-			return (cast javaThread:NativeHaxeThread).haxeThread;
+		} else if (javaThread is NativeHaxeThread) {
+			return (cast javaThread : NativeHaxeThread).haxeThread;
 		} else {
 			switch nativeThreads.get(javaThread) {
 				case null:
@@ -124,15 +129,16 @@ private class HaxeThread {
 		}
 	}
 
-	public static function runWithEventLoop(job:()->Void):Void {
+	public static function runWithEventLoop(job:() -> Void):Void {
 		var thread = get(JavaThread.currentThread());
-		if(thread.events == null) {
+		if (thread.events == null) {
 			thread.events = new EventLoop();
 			try {
 				job();
+				@:nullSafety(Off)
 				thread.events.loop();
 				thread.events = null;
-			} catch(e) {
+			} catch (e) {
 				thread.events = null;
 				throw e;
 			}
@@ -154,32 +160,35 @@ private class HaxeThread {
 
 private class NativeHaxeThread extends java.lang.Thread {
 	public final haxeThread:HaxeThread;
+
 	final withEventLoop:Bool;
 
-	public function new(haxeThread:HaxeThread, job:()->Void, withEventLoop:Bool) {
+	public function new(haxeThread:HaxeThread, job:() -> Void, withEventLoop:Bool) {
 		super(new Job(job));
 		this.haxeThread = haxeThread;
 		this.withEventLoop = withEventLoop;
 	}
 
-	override overload public function run() {
+	override
+	overload public function run() {
 		super.run();
-		if(withEventLoop)
+		@:nullSafety(Off)
+		if (withEventLoop)
 			haxeThread.events.loop();
 	}
 }
 
 #if jvm
 private abstract Job(Runnable) from Runnable to Runnable {
-	public inline function new(job:()->Void) {
+	public inline function new(job:() -> Void) {
 		this = cast job;
 	}
 }
 #else
 private class Job implements Runnable {
-	final job:()->Void;
+	final job:() -> Void;
 
-	public function new(job:()->Void) {
+	public function new(job:() -> Void) {
 		this.job = job;
 	}
 

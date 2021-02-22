@@ -26,6 +26,7 @@ import java.internal.Function;
 
 private typedef NativeString = String;
 
+@:nullSafety(Off)
 @:keep @:nativeGen @:native("haxe.lang.StringExt") private class StringExt {
 	@:functionCode('
 			if ( index >= me.length() || index < 0 )
@@ -212,6 +213,7 @@ private typedef NativeString = String;
 			case "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring":
 				return new Closure(str, f);
 			default:
+				@:nullSafety(Off)
 				if (throwErrors)
 					throw "Field not found: '" + f + "' in String";
 				else

@@ -37,6 +37,7 @@ class Output {
 	public var bigEndian(default, set):Null<Bool>;
 
 	#if java
+	@:nullSafety(Off)
 	private var helper:java.nio.ByteBuffer;
 	#end
 

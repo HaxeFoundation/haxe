@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 @:nativeGen
 @:keep
 class Closure extends ClosureDispatch {
+	@:nullSafety(Off)
 	public var context:Dynamic;
 	public var method:Method;
 
@@ -15,6 +16,7 @@ class Closure extends ClosureDispatch {
 
 	public function new(context:Null<Dynamic>, method:Method) {
 		super();
+		@:nullSafety(Off)
 		this.context = context;
 		this.method = method;
 		isStatic = method.getModifiers() & java.lang.reflect.Modifier.STATIC != 0;

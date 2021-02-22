@@ -41,6 +41,7 @@ class Input {
 	#if cs
 	private var helper:BytesData;
 	#elseif java
+	@:nullSafety(Off)
 	private var helper:java.nio.ByteBuffer;
 	#end
 
@@ -187,7 +188,8 @@ class Input {
 		} catch (e:Eof) {
 			s = buf.getBytes().toString();
 			if (s.length == 0)
-				#if neko neko.Lib.rethrow #else throw #end (e);
+				#if neko neko.Lib.rethrow #else throw #end
+			(e);
 		}
 		return s;
 	}

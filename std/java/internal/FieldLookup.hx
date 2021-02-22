@@ -55,6 +55,7 @@ import java.lang.System;
 
 	public static function removeString(a:java.NativeArray<String>, length:Int, pos:Int) {
 		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
+		@:nullSafety(Off)
 		a[length - 1] = null;
 	}
 
@@ -65,6 +66,7 @@ import java.lang.System;
 
 	public static function removeDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int) {
 		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
+		@:nullSafety(Off)
 		a[length - 1] = null;
 	}
 

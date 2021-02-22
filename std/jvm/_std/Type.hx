@@ -125,6 +125,7 @@ class Type {
 
 	static final emptyArg = {
 		var a = new java.NativeArray(1);
+		@:nullSafety(Off)
 		a[0] = (null : jvm.EmptyConstructor);
 		a;
 	}
@@ -172,6 +173,7 @@ class Type {
 				}
 			}
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 
@@ -191,7 +193,7 @@ class Type {
 				throw 'Could not create enum value ${getEnumName(e)}.$constr: Unexpected value $v';
 			}
 			return v;
-		} else {
+		} else {@:nullSafety(Off)
 			return Reflect.callMethod(null, Jvm.readField(e, constr), params);
 		}
 	}
@@ -201,7 +203,7 @@ class Type {
 		var annotation = e.native().getAnnotation(clInfo);
 		if (params == null || params.length == 0) {
 			return Jvm.readField(e, annotation.constructorNames()[index]);
-		} else {
+		} else {@:nullSafety(Off)
 			return Reflect.callMethod(null, Jvm.readField(e, annotation.constructorNames()[index]), params);
 		}
 	}
@@ -229,6 +231,7 @@ class Type {
 					fields.push(field);
 				}
 			}
+			@:nullSafety(Off)
 			c = getSuperClass(c);
 		};
 		return fields;

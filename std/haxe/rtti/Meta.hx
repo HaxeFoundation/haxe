@@ -63,10 +63,12 @@ class Meta {
 			if (isInterface(t)) {
 				var name = Type.getClassName(t),
 					cls = Type.resolveClass(name + '_HxMeta');
+				@:nullSafety(Off)
 				if (cls != null)
 					return Reflect.field(cls, "__meta__");
 			}
 		}
+		@:nullSafety(Off)
 		return ret;
 		#elseif hl
 		var t:hl.BaseType = t;
