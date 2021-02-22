@@ -34,7 +34,8 @@ class Output {
 
 		If `true`, big-endian is used, otherwise `little-endian` is used.
 	**/
-	public var bigEndian(default, set):Null<Bool>;
+	@:nullSafety(Off)
+	public var bigEndian(default, set):Bool;
 
 	#if java
 	@:nullSafety(Off)

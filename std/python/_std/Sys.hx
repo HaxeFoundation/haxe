@@ -20,15 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import python.lib.Time;
+import haxe.ds.StringMap;
 import python.lib.Os;
+import python.lib.Time;
 import sys.io.FileInput;
 import sys.io.FileOutput;
-import haxe.ds.StringMap;
 
 @:coreApi
 class Sys {
-	static var environ(get,default):StringMap<String>;
+	@:nullSafety(Off)
+	static var environ(get, default):StringMap<String>;
+
 	static function get_environ():StringMap<String> {
 		return switch environ {
 			case null:
@@ -60,6 +62,7 @@ class Sys {
 
 	public static function args():Array<String> {
 		var argv = python.lib.Sys.argv;
+		@:nullSafety(Off)
 		return argv.slice(1);
 	}
 
@@ -104,10 +107,7 @@ class Sys {
 	}
 
 	public static function command(cmd:String, ?args:Array<String>):Int {
-		return if (args == null)
-			python.lib.Subprocess.call(cmd, {shell: true});
-		else
-			python.lib.Subprocess.call([cmd].concat(args));
+		return if (args == null) python.lib.Subprocess.call(cmd, {shell: true}); else python.lib.Subprocess.call([cmd].concat(args));
 	}
 
 	public static inline function cpuTime():Float {
@@ -150,8 +150,10 @@ class Sys {
 				throw "platform " + x + " not supported";
 		}
 		if (echo) {
+			@:nullSafety(Off)
 			python.Lib.print(String.fromCharCode(ch));
 		}
+		@:nullSafety(Off)
 		return ch;
 	}
 

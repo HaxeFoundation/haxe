@@ -22,9 +22,9 @@
 
 package python;
 
-import python.internal.AnonObject;
 import python.Dict;
 import python.NativeStringTools;
+import python.internal.AnonObject;
 
 typedef PySys = python.lib.Sys;
 
@@ -71,7 +71,7 @@ class Lib {
 		Returns a flat copy of the underlying Dictionary of `o`.
 	**/
 	@:access(python.Boot.isAnonObject)
-	public static function anonToDict(o:{}):Dict<String, Dynamic> {
+	public static function anonToDict(o:{}):Dict<String, Dynamic> {@:nullSafety(Off)
 		return if (Boot.isAnonObject(o)) {
 			(Syntax.field(o, "__dict__") : Dict<String, Dynamic>).copy();
 		} else null;
@@ -82,7 +82,7 @@ class Lib {
 		Modifications to this dictionary are reflected in the anonymous Object too.
 	**/
 	@:access(python.Boot.isAnonObject)
-	public static function anonAsDict(o:{}):Dict<String, Dynamic> {
+	public static function anonAsDict(o:{}):Dict<String, Dynamic> {@:nullSafety(Off)
 		return if (Boot.isAnonObject(o)) {
 			(Syntax.field(o, "__dict__") : Dict<String, Dynamic>);
 		} else null;
@@ -103,6 +103,7 @@ class Lib {
 		return {
 			__iter__: function() {
 				var it1 = it.iterator();
+				@:nullSafety(Off)
 				var self:NativeIterator<T> = null;
 				self = new NativeIterator({
 					__next__: function():T {

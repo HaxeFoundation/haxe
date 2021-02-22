@@ -22,8 +22,8 @@
 
 package python.internal;
 
-import python.Syntax;
 import python.Syntax.code in py;
+import python.Syntax;
 
 @:noDoc
 @:native("HxOverrides")
@@ -43,7 +43,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
 	static public function keyValueIterator(x) {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).keyValueIterator();
+			return (x : Array<Dynamic>).keyValueIterator();
 		}
 		return Syntax.callField(x, "keyValueIterator");
 	}
@@ -150,15 +150,15 @@ class HxOverrides {
 
 	@:ifFeature("binop_%")
 	static public function modf(a:Float, b:Float) {
-		if(b == 0.0) {
+		if (b == 0.0) {
 			return Syntax.code("float('nan')");
-		} else if(a < 0) {
-			if(b < 0) {
+		} else if (a < 0) {
+			if (b < 0) {
 				return Syntax.code("-(-{0} % (-{1}))", a, b);
 			} else {
 				return Syntax.code("-(-{0} % {1})", a, b);
 			}
-		} else if(b < 0) {
+		} else if (b < 0) {
 			return Syntax.code("{0} % (-{1})", a, b);
 		} else {
 			return Syntax.code("{0} % {1}", a, b);
@@ -167,13 +167,13 @@ class HxOverrides {
 
 	@:ifFeature("binop_%")
 	static public function mod(a:Int, b:Int) {
-		if(a < 0) {
-			if(b < 0) {
+		if (a < 0) {
+			if (b < 0) {
 				return Syntax.code("-(-{0} % (-{1}))", a, b);
 			} else {
 				return Syntax.code("-(-{0} % {1})", a, b);
 			}
-		} else if(b < 0) {
+		} else if (b < 0) {
 			return Syntax.code("{0} % (-{1})", a, b);
 		} else {
 			return Syntax.code("{0} % {1}", a, b);
@@ -182,7 +182,7 @@ class HxOverrides {
 
 	@:ifFeature("dynamic_array_read")
 	static public function arrayGet<T>(a:Dynamic, i:Int):Dynamic {
-		if (Boot.isArray(a)) {
+		if (Boot.isArray(a)) {@:nullSafety(Off)
 			return ArrayImpl._get(a, i);
 		} else {
 			return Syntax.arrayAccess(a, i);

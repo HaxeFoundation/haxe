@@ -26,6 +26,7 @@ import haxe.io.Bytes;
 import haxe.io.BytesData;
 
 @:coreApi class Resource {
+	@:nullSafety(Off)
 	static var content:python.Dict<String, BytesData>;
 
 	static function getContent():python.Dict<String, BytesData> {

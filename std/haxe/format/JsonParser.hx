@@ -120,6 +120,9 @@ class JsonParser {
 								if (comma == true)
 									invalidChar();
 								pos--;
+								#if python
+								@:nullSafety(Off)
+								#end
 								arr.push(parseRec());
 								comma = true;
 						}

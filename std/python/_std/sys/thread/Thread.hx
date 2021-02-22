@@ -27,7 +27,7 @@ import haxe.ds.ObjectMap;
 private typedef ThreadImpl = HxThread;
 
 abstract Thread(ThreadImpl) from ThreadImpl {
-	public var events(get,never):EventLoop;
+	public var events(get, never):EventLoop;
 
 	public static inline function current():Thread {
 		return HxThread.current();
@@ -37,11 +37,11 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		return HxThread.create(callb, false);
 	}
 
-	public static inline function runWithEventLoop(job:()->Void):Void {
+	public static inline function runWithEventLoop(job:() -> Void):Void {
 		HxThread.runWithEventLoop(job);
 	}
 
-	public static inline function createWithEventLoop(job:()->Void):Thread {
+	public static inline function createWithEventLoop(job:() -> Void):Thread {
 		return HxThread.create(job, true);
 	}
 
@@ -54,19 +54,22 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 	}
 
 	function get_events():EventLoop {
-		if(this.events == null)
+		if (this.events == null)
 			throw new NoEventLoopException();
+		@:nullSafety(Off)
 		return this.events;
 	}
 
 	@:keep
 	static public function processEvents() {
+		@:nullSafety(Off)
 		HxThread.current().events.loop();
 	}
 }
 
+@:nullSafety(Off)
 private class HxThread {
-	public var events(default,null):Null<EventLoop>;
+	public var events(default, null):Null<EventLoop>;
 
 	final nativeThread:NativeThread;
 	final messages = new Deque<Dynamic>();
@@ -113,9 +116,9 @@ private class HxThread {
 		var wrappedCallB = () -> {
 			try {
 				callb();
-				if(withEventLoop)
+				if (withEventLoop)
 					t.events.loop();
-			} catch(e) {
+			} catch (e) {
 				dropThread(nt);
 				throw e;
 			}
@@ -123,7 +126,7 @@ private class HxThread {
 		}
 		nt = new NativeThread(null, wrappedCallB);
 		t = new HxThread(nt);
-		if(withEventLoop)
+		if (withEventLoop)
 			t.events = new EventLoop();
 		threadsMutex.acquire();
 		threads.set(nt, t);
@@ -132,15 +135,15 @@ private class HxThread {
 		return t;
 	}
 
-	public static function runWithEventLoop(job:()->Void):Void {
+	public static function runWithEventLoop(job:() -> Void):Void {
 		var thread = current();
-		if(thread.events == null) {
+		if (thread.events == null) {
 			thread.events = new EventLoop();
 			try {
 				job();
 				thread.events.loop();
 				thread.events = null;
-			} catch(e) {
+			} catch (e) {
 				thread.events = null;
 				throw e;
 			}

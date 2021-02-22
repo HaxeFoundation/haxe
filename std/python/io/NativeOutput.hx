@@ -35,6 +35,7 @@ class NativeOutput<T:IOBase> extends Output {
 		return stream.seekable();
 
 	public function new(stream:T) {
+		@:nullSafety(Off)
 		this.bigEndian = false;
 		this.stream = stream;
 		if (!stream.writable())

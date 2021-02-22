@@ -22,8 +22,8 @@
 
 package haxe.ds;
 
-import python.Syntax;
 import python.Dict;
+import python.Syntax;
 
 class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	private var h:Dict<String, T>;
@@ -67,6 +67,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		var copied = new StringMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

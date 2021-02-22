@@ -557,6 +557,7 @@ class XmlParser {
 		#if php
 		@:nullSafety(Off)
 		#end
+		@:nullSafety(Off)
 		if (curplatform != null)
 			types.set(curplatform, t);
 		@:nullSafety(Off)

@@ -23,10 +23,10 @@
 package sys.io;
 
 import python.io.IoTools;
+import python.lib.Subprocess;
 import python.lib.io.BufferedReader;
 import python.lib.io.BufferedWriter;
 import python.lib.io.TextIOWrapper;
-import python.lib.Subprocess;
 import python.lib.subprocess.Popen;
 
 class Process {
@@ -37,7 +37,7 @@ class Process {
 	var p:Popen;
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
-		if (detached)
+		if (detached == true)
 			throw "Detached process is not supported on this platform";
 		p = Popen.create(args == null ? cmd : [cmd].concat(args), {
 			shell: args == null,

@@ -24,6 +24,7 @@ package sys.net;
 
 class Host {
 	public var host(default, null):String;
+	@:nullSafety(Off)
 	public var ip(default, null):Int;
 
 	var name:String;

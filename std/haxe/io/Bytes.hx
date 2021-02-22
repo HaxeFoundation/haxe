@@ -25,6 +25,7 @@ package haxe.io;
 #if cpp
 using cpp.NativeArray;
 #end
+using StringTools;
 
 class Bytes {
 	public var length(default, null):Int;
@@ -525,8 +526,8 @@ class Bytes {
 		var s = new StringBuf();
 		var chars = [];
 		var str = "0123456789abcdef";
-		for (i in 0...str.length)
-			chars.push(str.charCodeAt(i));
+		for (char in str)
+			chars.push(char);
 		for (i in 0...length) {
 			var c = get(i);
 			@:nullSafety(Off) {

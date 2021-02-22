@@ -588,7 +588,7 @@ class StringTools {
 	**/
 	@:noCompletion
 	@:deprecated('StringTools.quoteUnixArg() is deprecated. Use haxe.SysTools.quoteUnixArg() instead.')
-	public static function quoteUnixArg(argument:String):String {
+	public static function quoteUnixArg(argument:String):String {@:nullSafety(Off)
 		return inline haxe.SysTools.quoteUnixArg(argument);
 	}
 
@@ -614,7 +614,7 @@ class StringTools {
 	**/
 	@:noCompletion
 	@:deprecated('StringTools.quoteWinArg() is deprecated. Use haxe.SysTools.quoteWinArg() instead.')
-	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
+	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {@:nullSafety(Off)
 		return inline haxe.SysTools.quoteWinArg(argument, escapeMetaCharacters);
 	}
 

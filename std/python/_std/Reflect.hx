@@ -20,16 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import python.internal.AnonObject;
-import python.internal.StringImpl;
-import python.internal.ArrayImpl;
-import python.internal.UBuiltins;
-import python.internal.MethodClosure;
-import python.lib.Inspect;
+import python.Boot.handleKeywords;
+import python.Boot;
 import python.Syntax;
 import python.VarArgs;
-import python.Boot;
-import python.Boot.handleKeywords;
+import python.internal.AnonObject;
+import python.internal.ArrayImpl;
+import python.internal.MethodClosure;
+import python.internal.StringImpl;
+import python.internal.UBuiltins;
+import python.lib.Inspect;
 
 @:access(python.Boot)
 @:coreApi
@@ -72,7 +72,7 @@ class Reflect {
 			UBuiltins.setattr(o, field, value);
 	}
 
-	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
+	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {@:nullSafety(Off)
 		return if (UBuiltins.callable(func)) func(python.Syntax.varArgs(args)) else null;
 	}
 
@@ -131,6 +131,7 @@ class Reflect {
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
+		@:nullSafety(Off)
 		for (f in Reflect.fields(o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return o2;

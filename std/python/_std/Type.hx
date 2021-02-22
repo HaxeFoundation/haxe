@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import python.Syntax;
 import python.internal.AnonObject;
 import python.internal.EnumImpl;
 import python.internal.Internal;
 import python.internal.UBuiltins;
-import python.Syntax;
 
 enum ValueType {
 	TNull;
@@ -84,7 +84,7 @@ enum ValueType {
 
 			try {
 				return Syntax.field(c, "__name__");
-			} catch (e:Dynamic) {
+			} catch (e:Dynamic) {@:nullSafety(Off)
 				return null;
 			}
 		}
@@ -112,7 +112,8 @@ enum ValueType {
 	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name == "Bool")
 			return cast Bool;
-		var o = resolveClass(name);
+		@:nullSafety(Off)
+		var o:Class<Dynamic> = resolveClass(name);
 		return if (Internal.hasConstructs(o)) cast o else null;
 	}
 
@@ -138,7 +139,7 @@ enum ValueType {
 	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
-		var f:Dynamic = Reflect.field(e, constr);
+		var f = Reflect.field(e, constr);
 		if (f == null)
 			throw "No such constructor " + constr;
 		if (Reflect.isFunction(f)) {
@@ -245,9 +246,10 @@ enum ValueType {
 
 	public static function allEnums<T>(e:Enum<T>):Array<T> {
 		var ctors = getEnumConstructs(e);
-		var ret = [];
+		var ret:Array<T> = [];
 		for (ctor in ctors) {
 			var v = Reflect.field(e, ctor);
+			@:nullSafety(Off)
 			if (Std.isOfType(v, e))
 				ret.push(v);
 		}
