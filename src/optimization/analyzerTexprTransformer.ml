@@ -462,13 +462,11 @@ let rec func ctx bb tf t p =
 				bb_next
 			end
 		| TWhile(e1,e2,NormalWhile) ->
-			let bb_loop_pre = create_node BKNormal e1.etype e1.epos in
+			let bb_loop_pre = create_node BKLoopHead e1.etype e1.epos in
 			add_cfg_edge bb bb_loop_pre CFGGoto;
 			set_syntax_edge bb (SEMerge bb_loop_pre);
 			close_node bb;
-			let bb_loop_head = create_node BKLoopHead e1.etype e1.epos in
-			add_cfg_edge bb_loop_pre bb_loop_head CFGGoto;
-			let close = begin_loop bb bb_loop_head in
+			let close = begin_loop bb bb_loop_pre in
 			let bb_loop_body = create_node BKNormal e2.etype e2.epos in
 			let bb_loop_body_next = block bb_loop_body e2 in
 			let bb_breaks = close() in
@@ -481,13 +479,12 @@ let rec func ctx bb tf t p =
 				create_node BKNormal bb.bb_type bb.bb_pos
 			in
 			List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) bb_breaks;
-			set_syntax_edge bb_loop_pre (SEWhile(bb_loop_head,bb_loop_body,bb_next,e.epos));
-			close_node bb_loop_pre;
+			set_syntax_edge bb_loop_pre (SEWhile(bb_loop_body,bb_next,e.epos));
 			bb_loop_pre.bb_terminator <- TermCondBranch e1;
-			if bb_loop_body_next != g.g_unreachable then add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
-			add_cfg_edge bb_loop_head bb_loop_body CFGGoto;
+			if bb_loop_body_next != g.g_unreachable then add_cfg_edge bb_loop_body_next bb_loop_pre CFGGoto;
+			add_cfg_edge bb_loop_pre bb_loop_body CFGGoto;
 			close_node bb_loop_body_next;
-			close_node bb_loop_head;
+			close_node bb_loop_pre;
 			bb_next;
 		| TTry(e1,catches) ->
 			let bb_try = create_node BKNormal e1.etype e1.epos in
@@ -699,7 +696,7 @@ let rec block_to_texpr_el ctx bb =
 				if_live bb_next,Some (mk (TIf(get_terminator(),block bb_then,None)) ctx.com.basic.tvoid p)
 			| SEIfThenElse(bb_then,bb_else,bb_next,t,p) ->
 				if_live bb_next,Some (mk (TIf(get_terminator(),block bb_then,Some (block bb_else))) t p)
-			| SEWhile(_,bb_body,bb_next,p) ->
+			| SEWhile(bb_body,bb_next,p) ->
 				let e2 = block bb_body in
 				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
 			| SESwitch(bbl,bo,bb_next,p) ->

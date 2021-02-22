@@ -782,8 +782,7 @@ module Debug = struct
 			edge bb_then "then";
 			edge bb_else "else";
 			edge bb_next "next";
-		| SEWhile(bb_head,bb_body,bb_next,_) ->
-			edge bb_head "loop-head";
+		| SEWhile(bb_body,bb_next,_) ->
 			edge bb_body "loop-body";
 			edge bb_next "next";
 		| SEMerge bb_next ->
