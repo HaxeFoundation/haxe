@@ -30,7 +30,6 @@ package sys.thread;
 	function pop(block:Bool):Null<T>;
 }
 #else
-
 @:hlNative("std", "deque_")
 abstract Deque<T>(hl.Abstract<"hl_deque">) {
 	public function new() {
@@ -45,6 +44,7 @@ abstract Deque<T>(hl.Abstract<"hl_deque">) {
 		return null;
 	}
 
+	@:nullSafety(Off)
 	static function alloc() {
 		return null;
 	}

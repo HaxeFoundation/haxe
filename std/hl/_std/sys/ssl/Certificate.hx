@@ -55,6 +55,7 @@ class Certificate {
 		if (x != null)
 			return new Certificate(x);
 
+		@:nullSafety(Off)
 		var defPaths = null;
 		switch (Sys.systemName()) {
 			case "Linux":
@@ -86,12 +87,16 @@ class Certificate {
 				}
 			}
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 
 	public var commonName(get, null):Null<String>;
+	@:nullSafety(Off)
 	public var altNames(get, null):Array<String>;
+	@:nullSafety(Off)
 	public var notBefore(get, null):Date;
+	@:nullSafety(Off)
 	public var notAfter(get, null):Date;
 
 	function get_commonName():Null<String> {
@@ -137,35 +142,35 @@ class Certificate {
 	}
 
 	@:hlNative("ssl", "cert_load_defaults") static function cert_load_defaults():CertificatePtr {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_load_file") static function cert_load_file(file:hl.Bytes):CertificatePtr {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_load_path") static function cert_load_path(path:hl.Bytes):CertificatePtr {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_get_subject") static function cert_get_subject(cert:CertificatePtr, obj:hl.Bytes):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_get_issuer") static function cert_get_issuer(cert:CertificatePtr, obj:hl.Bytes):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_get_altnames") static function cert_get_altnames(cert:CertificatePtr):hl.NativeArray<hl.Bytes> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_get_notbefore") static function cert_get_notbefore(cert:CertificatePtr):hl.NativeArray<Int> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_get_notafter") static function cert_get_notafter(cert:CertificatePtr):hl.NativeArray<Int> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_get_next") static function cert_get_next(cert:CertificatePtr):Null<CertificatePtr> {
@@ -173,10 +178,10 @@ class Certificate {
 	}
 
 	@:hlNative("ssl", "cert_add_pem") static function cert_add_pem(cert:Null<CertificatePtr>, data:hl.Bytes):CertificatePtr {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "cert_add_der") static function cert_add_der(cert:Null<CertificatePtr>, data:hl.Bytes, len:Int):CertificatePtr {
-		return null;
+		return cast null;
 	}
 }

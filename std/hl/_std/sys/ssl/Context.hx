@@ -55,6 +55,7 @@ abstract Context(ContextPtr) {
 		return 0;
 	}
 
+	@:nullSafety(Off)
 	public function getPeerCertificate():Certificate.CertificatePtr {
 		return null;
 	}
@@ -72,7 +73,7 @@ abstract Context(ContextPtr) {
 	public function setHostname(name:hl.Bytes):Void {}
 
 	@:hlNative("ssl", "ssl_new") static function ssl_new(conf:Config):ContextPtr {
-		return null;
+		return cast null;
 	}
 }
 
@@ -93,6 +94,6 @@ abstract Config(ConfigPtr) {
 	public function setServernameCallback(cb:hl.Bytes->SNICbResult):Void {}
 
 	@:hlNative("ssl", "conf_new") static function conf_new(server:Bool):ConfigPtr {
-		return null;
+		return cast null;
 	}
 }

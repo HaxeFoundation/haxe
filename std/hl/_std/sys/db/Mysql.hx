@@ -22,6 +22,7 @@
 
 package sys.db;
 
+@:nullSafety(Off)
 private class MysqlParams {
 	public var host:hl.Bytes;
 	public var user:hl.Bytes;
@@ -35,6 +36,7 @@ private class MysqlParams {
 private typedef ConnectionHandler = hl.Abstract<"mysql_cnx">;
 private typedef ResultHandler = hl.Abstract<"mysql_result">;
 
+@:nullSafety(Off)
 @:hlNative("mysql")
 private class MysqlResultSet implements sys.db.ResultSet {
 	public var length(get, null):Int;
@@ -138,6 +140,7 @@ private class MysqlConnection implements Connection {
 	public function close() {
 		if (h != null)
 			close_wrap(h);
+		@:nullSafety(Off)
 		h = null;
 	}
 
@@ -159,6 +162,7 @@ private class MysqlConnection implements Connection {
 
 	public function addValue(s:StringBuf, v:Dynamic) {
 		if (v == null) {
+			@:nullSafety(Off)
 			s.add(null);
 			return;
 		}
@@ -197,7 +201,7 @@ private class MysqlConnection implements Connection {
 	static function close_wrap(h:ConnectionHandler) {}
 
 	static function connect_wrap(p:MysqlParams):ConnectionHandler {
-		return null;
+		return cast null;
 	}
 
 	static function select_db_wrap(h:ConnectionHandler, db:hl.Bytes):Bool {
@@ -206,17 +210,18 @@ private class MysqlConnection implements Connection {
 
 	@:hlNative("mysql", "request")
 	static function request_wrap(h:ConnectionHandler, rq:hl.Bytes, rqLen:Int):ResultHandler {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("mysql", "escape")
 	static function escape_wrap(h:ConnectionHandler, str:hl.Bytes, len:Int):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	static function setConvFuns(fstring:Dynamic, fbytes:Dynamic, fdate:Dynamic, fjson:Dynamic) {};
 }
 
+@:nullSafety(Off)
 class Mysql {
 	static var INIT_DONE = false;
 
@@ -227,12 +232,12 @@ class Mysql {
 		pass:String,
 		?socket:String,
 		?database:String
-	}):sys.db.Connection@:privateAccess {
+	}):sys.db.Connection @:privateAccess {
 		if (!INIT_DONE) {
 			INIT_DONE = true;
 			MysqlConnection.setConvFuns(function(v:hl.Bytes) return @:privateAccess String.fromUTF8(v),
-			function(v:hl.Bytes, len:Int) return new haxe.io.Bytes(v, len), function(t) return Date.fromTime(1000. * t),
-			function(v:hl.Bytes) return haxe.Json.parse(@:privateAccess String.fromUTF8(v)));
+				function(v:hl.Bytes, len:Int) return new haxe.io.Bytes(v, len), function(t) return Date.fromTime(1000. * t),
+				function(v:hl.Bytes) return haxe.Json.parse(@:privateAccess String.fromUTF8(v)));
 		}
 		var p = new MysqlParams();
 		p.host = params.host == null ? null : params.host.toUtf8();

@@ -50,6 +50,7 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 				// if no more things to process, stop
 				if (def.run(NoWait) == 0) {
 					loopEvent.stop();
+					@:nullSafety(Off)
 					loopEvent = null;
 				}
 			});
@@ -57,8 +58,9 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	}
 
 	@:hlNative("uv", "default_loop") static function default_loop():Loop {
-		return null;
+		return cast null;
 	}
 
+	@:nullSafety(Off)
 	static var loopEvent:haxe.MainLoop.MainEvent;
 }

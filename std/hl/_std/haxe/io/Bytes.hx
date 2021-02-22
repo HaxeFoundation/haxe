@@ -197,7 +197,9 @@ class Bytes {
 			chars.push(str.charCodeAt(i));
 		for (i in 0...length) {
 			var c = get(i);
+			@:nullSafety(Off)
 			s.addChar(chars[c >> 4]);
+			@:nullSafety(Off)
 			s.addChar(chars[c & 15]);
 		}
 		return s.toString();
@@ -213,7 +215,7 @@ class Bytes {
 		return new Bytes(b, length);
 	}
 
-	public static function ofString(s:String, ?encoding:Encoding):Bytes@:privateAccess {
+	public static function ofString(s:String, ?encoding:Encoding):Bytes @:privateAccess {
 		if (encoding == null)
 			encoding = UTF8;
 		return switch (encoding) {
@@ -239,8 +241,11 @@ class Bytes {
 		for (i in 0...l) {
 			var high = s.charCodeAt(i * 2);
 			var low = s.charCodeAt(i * 2 + 1);
+			@:nullSafety(Off)
 			high = (high & 0xf) + ((high & 0x40) >> 6) * 9;
+			@:nullSafety(Off)
 			low = (low & 0xf) + ((low & 0x40) >> 6) * 9;
+			@:nullSafety(Off)
 			b.setUI8(i, ((high << 4) | low) & 0xff);
 		}
 

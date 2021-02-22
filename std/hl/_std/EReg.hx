@@ -24,6 +24,7 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 @:access(String)
 @:coreApi final class EReg {
 	var r:ERegValue;
+	@:nullSafety(Off)
 	var last:String;
 	var global:Bool;
 
@@ -39,7 +40,7 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 		var p = regexp_match(r, s.bytes, 0, s.length);
 		if (p)
 			last = s;
-		else
+		else @:nullSafety(Off)
 			last = null;
 		return p;
 	}
@@ -47,10 +48,12 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 	public function matched(n:Int):String {
 		var len = 0;
 		var m = regexp_matched_pos(r, n, len);
+		@:nullSafety(Off)
 		return m < 0 ? null : last.substr(m, len);
 	}
 
 	public function matchedLeft():String {
+		@:nullSafety(Off)
 		var p = regexp_matched_pos(r, 0, null);
 		return last.substr(0, p);
 	}
@@ -64,6 +67,7 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 	public function matchedPos():{pos:Int, len:Int} {
 		var len = 0;
 		var p = regexp_matched_pos(r, 0, len);
+		@:nullSafety(Off)
 		if (p < 0)
 			return null;
 		return {pos: p, len: len};
@@ -73,7 +77,7 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 		var p = regexp_match(r, s.bytes, pos, len < 0 ? s.length - pos : len);
 		if (p)
 			last = s;
-		else
+		else @:nullSafety(Off)
 			last = null;
 		return p;
 	}
@@ -189,7 +193,7 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
 
 	@:hlNative("std", "regexp_new_options") static function regexp_new_options(bytes:hl.Bytes, options:hl.Bytes):ERegValue {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "regexp_match") static function regexp_match(r:ERegValue, str:hl.Bytes, pos:Int, size:Int):Bool {

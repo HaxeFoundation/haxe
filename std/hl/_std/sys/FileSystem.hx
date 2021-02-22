@@ -69,7 +69,7 @@ class FileSystem {
 
 	public static function createDirectory(path:String):Void {
 		var path = haxe.io.Path.addTrailingSlash(path);
-		var _p = null;
+		var _p:Null<String> = null;
 		var parts = [];
 		while (path != (_p = haxe.io.Path.directory(path))) {
 			parts.unshift(path);
@@ -110,7 +110,7 @@ class FileSystem {
 	}
 
 	@:hlNative("std", "sys_read_dir") static function sys_read_dir(path:hl.Bytes):hl.NativeArray<hl.Bytes> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_create_dir") static function sys_create_dir(path:hl.Bytes, rights:Int):Bool {
@@ -122,7 +122,7 @@ class FileSystem {
 	}
 
 	@:hlNative("std", "sys_stat") static function sys_stat(path:hl.Bytes):hl.NativeArray<Int> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_rename") static function sys_rename(path:hl.Bytes, to:hl.Bytes):Bool {
@@ -134,7 +134,7 @@ class FileSystem {
 	};
 
 	@:hlNative("std", "sys_full_path") static function sys_full_path(path:hl.Bytes):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_remove_dir") static function sys_remove_dir(path:hl.Bytes):Bool {

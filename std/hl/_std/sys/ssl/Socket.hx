@@ -22,10 +22,10 @@
 
 package sys.ssl;
 
-import sys.ssl.Lib;
-import sys.ssl.Key.KeyPtr;
-import sys.ssl.Certificate.CertificatePtr;
 import sys.net.Socket.SocketHandle;
+import sys.ssl.Certificate.CertificatePtr;
+import sys.ssl.Key.KeyPtr;
+import sys.ssl.Lib;
 
 private class SocketInput extends haxe.io.Input {
 	@:allow(sys.ssl.Socket) private var __s:Socket;
@@ -98,6 +98,7 @@ private class SocketOutput extends haxe.io.Output {
 	}
 }
 
+@:nullSafety(Off)
 @:coreApi @:access(sys.net.Socket)
 class Socket extends sys.net.Socket {
 	public static var DEFAULT_VERIFY_CERT:Null<Bool> = true;
@@ -206,7 +207,7 @@ class Socket extends sys.net.Socket {
 
 	public override function accept():Socket {
 		var c = sys.net.Socket.socket_accept(__s);
-		if(c == null)
+		if (c == null)
 			throw "Blocking";
 		var cssl = new Context(conf);
 		cssl.setSocket(c);

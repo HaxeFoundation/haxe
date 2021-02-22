@@ -30,7 +30,7 @@ abstract IntMap(IntMapData) {
 	}
 
 	@:hlNative("std", "hialloc") static function alloc():IntMapData {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hiset")
@@ -43,7 +43,7 @@ abstract IntMap(IntMapData) {
 
 	@:hlNative("std", "higet")
 	public function get(key:Int):Dynamic {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hiremove")
@@ -53,12 +53,12 @@ abstract IntMap(IntMapData) {
 
 	@:hlNative("std", "hikeys")
 	public function keysArray():NativeArray<Int> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hivalues")
 	public function valuesArray():NativeArray<Dynamic> {
-		return null;
+		return cast null;
 	}
 
 	#if (hl_ver >= version("1.11.0"))

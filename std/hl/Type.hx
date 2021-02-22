@@ -53,7 +53,7 @@ enum abstract TypeKind(Int) {
 	}
 
 	@:hlNative("std", "type_name") function getNameBytes():Bytes {
-		return null;
+		return cast null;
 	}
 
 	extern public static inline function getDynamic(v:Dynamic):Type {
@@ -64,10 +64,11 @@ enum abstract TypeKind(Int) {
 		return untyped $ttype(v);
 	}
 
-	extern public static inline function void():Type {
-		return untyped $ttype((null:Void));
+	extern public static inline function void():Type {@:nullSafety(Off)
+		return untyped $ttype((null : Void));
 	}
 
+	@:nullSafety(Off)
 	extern public inline function getTypeName():String {
 		var s = getNameBytes();
 		if (s == null)
@@ -80,11 +81,11 @@ enum abstract TypeKind(Int) {
 	}
 
 	@:hlNative("std", "type_instance_fields") public function getInstanceFields():NativeArray<Bytes> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "type_get_global") public function getGlobal():Dynamic {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "type_set_global") public function setGlobal(v:Dynamic):Bool {
@@ -96,22 +97,22 @@ enum abstract TypeKind(Int) {
 	}
 
 	@:hlNative("std", "type_super") public function getSuper():Type {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "type_enum_fields") public function getEnumFields():NativeArray<Bytes> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "type_enum_values") public function getEnumValues():NativeArray<Dynamic> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "alloc_obj") public function allocObject():Dynamic {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "alloc_enum_dyn") public function allocEnum(index:Int, args:NativeArray<Dynamic>, nargs:Int):Dynamic {
-		return null;
+		return cast null;
 	}
 }

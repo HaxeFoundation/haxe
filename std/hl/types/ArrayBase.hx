@@ -40,6 +40,7 @@ class ArrayAccess {
 
 @:keep
 class ArrayBase extends ArrayAccess {
+	@:nullSafety(Off)
 	public var length(default, null):Int;
 
 	public function pushDyn(v:Dynamic):Int {
@@ -81,16 +82,19 @@ class ArrayBase extends ArrayAccess {
 
 	public function slice(pos:Int, ?end:Int):ArrayBase {
 		throw new haxe.exceptions.NotImplementedException();
+		@:nullSafety(Off)
 		return null;
 	}
 
 	public function splice(pos:Int, len:Int):ArrayBase {
 		throw new haxe.exceptions.NotImplementedException();
+		@:nullSafety(Off)
 		return null;
 	}
 
 	public function join(sep:String):String {
 		throw new haxe.exceptions.NotImplementedException();
+		@:nullSafety(Off)
 		return null;
 	}
 
@@ -104,12 +108,14 @@ class ArrayBase extends ArrayAccess {
 
 	public function toString():String {
 		throw new haxe.exceptions.NotImplementedException();
+		@:nullSafety(Off)
 		return null;
 	}
 
 	function __cast(t:Type):Dynamic {
 		if (t == Type.get((null : ArrayDyn)))
 			return ArrayDyn.alloc(this, false);
+		@:nullSafety(Off)
 		return null;
 	}
 

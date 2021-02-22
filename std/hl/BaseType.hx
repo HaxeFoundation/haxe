@@ -22,6 +22,7 @@
 
 package hl;
 
+@:nullSafety(Off)
 @:keep
 class BaseType {
 	public var __type__:Type;
@@ -47,12 +48,14 @@ class BaseType {
 	}
 }
 
+@:nullSafety(Off)
 @:keep
 class Class extends BaseType {
 	public var __name__:String;
 	public var __constructor__:Dynamic;
 }
 
+@:nullSafety(Off)
 @:keep
 class Enum extends BaseType {
 	public var __ename__:String;

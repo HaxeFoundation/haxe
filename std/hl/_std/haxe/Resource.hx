@@ -22,6 +22,7 @@
 
 package haxe;
 
+@:nullSafety(Off)
 private class ResourceContent {
 	public var name:hl.Bytes;
 	public var data:hl.Bytes;
@@ -30,6 +31,7 @@ private class ResourceContent {
 
 @:coreApi
 class Resource {
+	@:nullSafety(Off)
 	static var content:hl.NativeArray<ResourceContent>;
 
 	public static function listNames():Array<String> {

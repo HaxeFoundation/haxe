@@ -53,10 +53,10 @@ class Key {
 	}
 
 	@:hlNative("ssl", "key_from_pem") static function key_from_pem(data:hl.Bytes, pub:Bool, pass:Null<hl.Bytes>):KeyPtr {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "key_from_der") static function key_from_der(data:hl.Bytes, len:Int, pub:Bool):KeyPtr {
-		return null;
+		return cast null;
 	}
 }

@@ -30,7 +30,7 @@ abstract ObjectMap(ObjectMapData) {
 	}
 
 	@:hlNative("std", "hoalloc") static function alloc():ObjectMapData {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hoset")
@@ -43,7 +43,7 @@ abstract ObjectMap(ObjectMapData) {
 
 	@:hlNative("std", "hoget")
 	public function get(key:Dynamic):Dynamic {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "horemove")
@@ -53,12 +53,12 @@ abstract ObjectMap(ObjectMapData) {
 
 	@:hlNative("std", "hokeys")
 	public function keysArray():NativeArray<Dynamic> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hovalues")
 	public function valuesArray():NativeArray<Dynamic> {
-		return null;
+		return cast null;
 	}
 
 	#if (hl_ver >= version("1.11.0"))

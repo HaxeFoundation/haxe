@@ -22,15 +22,16 @@
 
 package hl.types;
 
-import hl.types.ArrayBase;
 import haxe.iterators.ArrayIterator;
 import haxe.iterators.ArrayKeyValueIterator;
+import hl.types.ArrayBase;
 
 class ArrayDynIterator extends ArrayIterator<Dynamic> {
 	var a:ArrayBase;
 
 	public function new(a) {
-		super((null:Dynamic));
+		@:nullSafety(Off)
+		super((null : Dynamic));
 		this.a = a;
 	}
 
@@ -44,10 +45,11 @@ class ArrayDynIterator extends ArrayIterator<Dynamic> {
 }
 
 class ArrayDynKeyValueIterator extends ArrayKeyValueIterator<Dynamic> {
-	var a : ArrayBase;
+	var a:ArrayBase;
 
 	public function new(a) {
-		super((null:Dynamic));
+		@:nullSafety(Off)
+		super((null : Dynamic));
 		this.a = a;
 	}
 
@@ -57,7 +59,7 @@ class ArrayDynKeyValueIterator extends ArrayKeyValueIterator<Dynamic> {
 
 	override public function next() {
 		var v = a.getDyn(current);
-		return {key:current++, value:v};
+		return {key: current++, value: v};
 	}
 }
 
@@ -157,6 +159,7 @@ class ArrayDyn extends ArrayAccess {
 	}
 
 	public function indexOf(x:Dynamic, ?fromIndex:Int):Int {
+		@:nullSafety(Off)
 		var i:Int = fromIndex;
 		var length = length;
 		var array = array;
@@ -194,7 +197,7 @@ class ArrayDyn extends ArrayAccess {
 		return new ArrayDynIterator(array);
 	}
 
-	public function keyValueIterator() : ArrayKeyValueIterator<Dynamic> {
+	public function keyValueIterator():ArrayKeyValueIterator<Dynamic> {
 		return new ArrayDynKeyValueIterator(array);
 	}
 
@@ -218,15 +221,18 @@ class ArrayDyn extends ArrayAccess {
 	function __get_field(fid:Int):Dynamic {
 		if (fid == untyped $hash("length"))
 			return length;
+		@:nullSafety(Off)
 		return null;
 	}
 
 	function __cast(t:Type):Dynamic {
 		if (t == Type.getDynamic(array))
 			return array;
+		@:nullSafety(Off)
 		if (!allowReinterpret)
 			return null;
 		if (t == Type.get((null : ArrayBytes.ArrayI32))) {
+			@:nullSafety(Off)
 			var a:BytesAccess<Int> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for (i in 0...array.length)
@@ -237,6 +243,7 @@ class ArrayDyn extends ArrayAccess {
 			return arr;
 		}
 		if (t == Type.get((null : ArrayBytes.ArrayF64))) {
+			@:nullSafety(Off)
 			var a:BytesAccess<Float> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for (i in 0...array.length)
@@ -246,6 +253,7 @@ class ArrayDyn extends ArrayAccess {
 			allowReinterpret = false;
 			return arr;
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 

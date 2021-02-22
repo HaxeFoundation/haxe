@@ -29,7 +29,6 @@ extern class Tls<T> {
 	function new():Void;
 }
 #else
-
 @:hlNative("std")
 abstract Tls<T>(hl.Abstract<"hl_tls">) {
 	public var value(get, set):T;
@@ -48,10 +47,10 @@ abstract Tls<T>(hl.Abstract<"hl_tls">) {
 	}
 
 	static function tls_alloc(gcValue:Bool)
-		return null;
+		return cast null;
 
 	static function tls_get(t):Dynamic
-		return null;
+		return cast null;
 
 	static function tls_set(t, v:Dynamic) {}
 }

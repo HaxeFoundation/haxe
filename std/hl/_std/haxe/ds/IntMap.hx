@@ -62,6 +62,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		var copied = new IntMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

@@ -42,7 +42,7 @@ class Type {
 		untyped $allTypes(new hl.types.BytesMap());
 	}
 
-	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class@:privateAccess {
+	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class @:privateAccess {
 		var c:hl.BaseType.Class = ct.allocObject();
 		t.setGlobal(c);
 		c.__type__ = t;
@@ -51,10 +51,11 @@ class Type {
 		return c;
 	}
 
-	@:keep static function initEnum(et:hl.Type, t:hl.Type):hl.BaseType.Enum@:privateAccess {
+	@:keep static function initEnum(et:hl.Type, t:hl.Type):hl.BaseType.Enum @:privateAccess {
 		var e:hl.BaseType.Enum = et.allocObject();
 		e.__type__ = t;
 		e.__evalues__ = t.getEnumValues();
+		@:nullSafety(Off)
 		e.__ename__ = t.getTypeName();
 		e.__emap__ = new hl.types.BytesMap();
 		e.__constructs__ = new Array();
@@ -131,6 +132,7 @@ class Type {
 			var v:Dynamic = hl.Api.noClosure(c.__constructor__);
 			var args = args.copy();
 			args.unshift(o);
+			@:nullSafety(Off)
 			Reflect.callMethod(null, v, args);
 		}
 		return o;
@@ -175,7 +177,7 @@ class Type {
 		return v;
 	}
 
-	public static function getInstanceFields(c:Class<Dynamic>):Array<String>@:privateAccess {
+	public static function getInstanceFields(c:Class<Dynamic>):Array<String> @:privateAccess {
 		var c:hl.BaseType.Class = cast c;
 		var fields = c.__type__.getInstanceFields();
 		return [for (f in fields) String.fromUCS2(f)];
@@ -206,17 +208,18 @@ class Type {
 			case HUI8, HUI16, HI32:
 				return TInt;
 			case HF32, HF64:
-				return (v : Int) == (v:Float) ? TInt : TFloat;
+				return (v : Int) == (v : Float) ? TInt : TFloat;
 			case HBool:
 				return TBool;
 			case HDynObj:
 				return TObject;
 			case HObj:
+				@:nullSafety(Off)
 				var c:Dynamic = Type.getClass(v);
 				if (c == Class || c == null)
 					return TObject;
 				return TClass(c);
-			case HEnum:
+			case HEnum: @:nullSafety(Off)
 				return TEnum(Type.getEnum(v));
 			case HFun:
 				return TFunction;
@@ -242,7 +245,7 @@ class Type {
 
 	@:hlNative("std", "enum_parameters")
 	static function _enumParameters(e:EnumValue):hl.NativeArray<Dynamic> {
-		return null;
+		return cast null;
 	}
 
 	public static function enumParameters(e:EnumValue):Array<Dynamic> {

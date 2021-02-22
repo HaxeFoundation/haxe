@@ -27,6 +27,7 @@ import haxe.crypto.BaseCode;
 private typedef SqliteConnectionHandle = hl.Abstract<"sqlite_database">;
 private typedef SqliteResultHandle = hl.Abstract<"sqlite_result">;
 
+@:nullSafety(Off)
 @:hlNative("sqlite")
 private class SqliteLib {
 	public static function connect(path:hl.Bytes):SqliteConnectionHandle {
@@ -94,6 +95,7 @@ private class SqliteConnection implements Connection {
 			throw 'Error while executing $s ($e)';
 		}
 
+		@:nullSafety(Off)
 		return null;
 	}
 
@@ -144,6 +146,7 @@ private class SqliteConnection implements Connection {
 	}
 }
 
+@:nullSafety(Off)
 @:access(String)
 private class SqliteResultSet implements ResultSet {
 	public var length(get, null):Int;

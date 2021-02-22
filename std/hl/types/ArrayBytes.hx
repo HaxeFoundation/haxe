@@ -31,7 +31,8 @@ class BytesIterator<T> extends ArrayIterator<T> {
 	var a:ArrayBytes<T>;
 
 	public function new(a) {
-		super((null:Dynamic));
+		@:nullSafety(Off)
+		super((null : Dynamic));
 		this.a = a;
 	}
 
@@ -47,10 +48,11 @@ class BytesIterator<T> extends ArrayIterator<T> {
 @:keep
 @:generic
 class BytesKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
-	var a : ArrayBytes<T>;
+	var a:ArrayBytes<T>;
 
 	public function new(a) {
-		super((null:Dynamic));
+		@:nullSafety(Off)
+		super((null : Dynamic));
 		this.a = a;
 	}
 
@@ -60,17 +62,19 @@ class BytesKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
 
 	override public function next():{key:Int, value:T} {
 		var v = @:privateAccess a.bytes.get(current);
-		return {key:current++, value:v};
+		return {key: current++, value: v};
 	}
 }
 
 @:keep
 @:generic class ArrayBytes<T> extends ArrayBase {
+	@:nullSafety(Off)
 	var bytes:hl.BytesAccess<T>;
 	var size:Int;
 
 	public function new() {
 		size = length = 0;
+		@:nullSafety(Off)
 		bytes = null;
 	}
 
@@ -284,11 +288,11 @@ class BytesKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
 		return new BytesIterator(this);
 	}
 
-	public function keyValueIterator() : ArrayKeyValueIterator<T> {
+	public function keyValueIterator():ArrayKeyValueIterator<T> {
 		return new BytesKeyValueIterator<T>(this);
 	}
 
-	public function map<S>(f:T->S):ArrayDyn@:privateAccess {
+	public function map<S>(f:T->S):ArrayDyn @:privateAccess {
 		var a = new ArrayObj();
 		if (length > 0)
 			a.__expand(length - 1);

@@ -30,6 +30,7 @@ class Handle {
 		handle = h;
 	}
 
+	@:nullSafety(Off)
 	public function close(?callb) {
 		if (handle != null)
 			close_handle(handle, callb);

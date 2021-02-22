@@ -57,6 +57,7 @@ class Gc {
 		Dump whole memory into target filename for analysis.
 	**/
 	public static function dumpMemory(?fileName:String = "hlmemory.dump") {
+		@:nullSafety(Off)
 		_dump(@:privateAccess fileName.toUtf8());
 	}
 

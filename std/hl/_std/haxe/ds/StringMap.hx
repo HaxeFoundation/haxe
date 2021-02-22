@@ -89,6 +89,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		var copied = new StringMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

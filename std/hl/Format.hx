@@ -84,6 +84,7 @@ class Format {
 	public static function digest(out:hl.Bytes, src:hl.Bytes, srcLen:Int, algorithm:Int) {}
 }
 
+@:nullSafety(Off)
 class Mikktspace {
 	public var buffer:hl.BytesAccess<Single>;
 	public var stride:Int;

@@ -33,9 +33,11 @@ enum TrackKind {
 
 class Result {
 	public var t:hl.Type;
+	@:nullSafety(Off)
 	public var kind:TrackKind;
 	public var count:Int;
 	public var info:Int;
+	@:nullSafety(Off)
 	public var stack:Array<String>;
 
 	public function new(t, count, info) {
@@ -54,6 +56,7 @@ class Profile {
 	public static var threadBits(get, set):haxe.EnumFlags<TrackKind>;
 	public static var globalBits(get, set):haxe.EnumFlags<TrackKind>;
 
+	@:nullSafety(Off)
 	static var KINDS = null;
 
 	public static function getData(sortBySize = false, reset = true) {
@@ -69,7 +72,9 @@ class Profile {
 		if (KINDS == null)
 			KINDS = TrackKind.createAll();
 		for (i in 0...count) {
-			var t:hl.Type = null, count = 0, info = 0;
+			@:nullSafety(Off)
+			var t:hl.Type = null;
+			var count = 0, info = 0;
 			var k = track_entry(i, t, count, info, arr);
 			if (count == 0)
 				continue;
@@ -175,6 +180,7 @@ class Profile {
 	}
 
 	static var BUFSIZE = 512;
+	@:nullSafety(Off)
 	static var buf:hl.Bytes;
 
 	static function resolveSymbol(s:Symbol) {
@@ -187,6 +193,7 @@ class Profile {
 		return @:privateAccess String.fromUCS2(bytes.sub(0, (size + 1) * 2));
 	}
 
+	@:nullSafety(Off)
 	static function resolve_symbol(s:Symbol, buf:hl.Bytes, bufSize:hl.Ref<Int>):hl.Bytes {
 		return null;
 	}
@@ -216,16 +223,19 @@ class Profile {
 
 	@:hlNative("std", "field_name")
 	public static function getFieldName(hash:Int):Bytes {
-		return null;
+		return cast null;
 	}
-	
+
 	@:hlNative(1.11)
-	static function sys_profile_event( code : Int, data : hl.Bytes, dataLen : Int ) : Void {}
-	public static function event( code : Int, ?data : String ) @:privateAccess {
-		sys_profile_event(code,data == null ? null : data.bytes, data == null ? 0 : (data.length<<1));
+	static function sys_profile_event(code:Int, data:hl.Bytes, dataLen:Int):Void {}
+
+	@:nullSafety(Off)
+	public static function event(code:Int, ?data:String) @:privateAccess {
+		sys_profile_event(code, data == null ? null : data.bytes, data == null ? 0 : (data.length << 1));
 	}
-	public static function eventBytes( code : Int, data : haxe.io.Bytes ) @:privateAccess {
-		sys_profile_event(code,data == null ? null : data, data == null ? 0 : data.length);
+
+	@:nullSafety(Off)
+	public static function eventBytes(code:Int, data:haxe.io.Bytes) @:privateAccess {
+		sys_profile_event(code, data == null ? null : data, data == null ? 0 : data.length);
 	}
-	
 }

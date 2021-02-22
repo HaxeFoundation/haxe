@@ -26,6 +26,7 @@ private typedef Rand = hl.Abstract<"hl_random">;
 
 @:coreApi
 class Std {
+	@:nullSafety(Off)
 	static var rnd:Rand;
 	static var toStringDepth:Int = 0;
 
@@ -34,7 +35,7 @@ class Std {
 	}
 
 	@:hlNative("std", "rnd_init_system") static function rnd_sys():Rand {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "rnd_int") static function rnd_int(r:Rand):Int {
@@ -92,6 +93,7 @@ class Std {
 
 	@:keep public static function string(s:Null<Dynamic>):String {
 		var len = 0;
+		@:nullSafety(Off)
 		var bytes = hl.Bytes.fromValue(s, new hl.Ref(len));
 		return @:privateAccess String.__alloc__(bytes, len);
 	}
@@ -141,6 +143,7 @@ class Std {
 			default:
 		}
 		throw "Can't add " + a + "(" + ta + ") and " + b + "(" + tb + ")";
+		@:nullSafety(Off)
 		return null;
 	}
 }
