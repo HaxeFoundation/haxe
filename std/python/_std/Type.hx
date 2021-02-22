@@ -60,7 +60,7 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (o == null)
 			return null;
 		return Syntax.field(o, "__class__");

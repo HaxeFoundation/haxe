@@ -84,7 +84,7 @@ class Type {
 		return null;
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		var t = hl.Type.getDynamic(o);
 		if (t.kind == HEnum)
 			return t.getGlobal();

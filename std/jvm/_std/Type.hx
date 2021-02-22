@@ -49,7 +49,7 @@ class Type {
 		return c.haxe();
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (o == null) {
 			return null;
 		}
@@ -87,7 +87,7 @@ class Type {
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
 		return switch e.native().getName() {
-			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s if (s.indexOf("haxe.root.") == 0): s.substr(10);
 			case s: s;
 		}
 	}

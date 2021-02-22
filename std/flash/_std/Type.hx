@@ -46,8 +46,7 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
-		@:nullSafety(Off)
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname.substr(0, 8) == "builtin.")

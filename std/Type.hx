@@ -49,7 +49,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	static function getEnum(o:EnumValue):Enum<Dynamic>;
+	static function getEnum(o:EnumValue):Null<Enum<Dynamic>>;
 
 	/**
 		Returns the super-class of class `c`.

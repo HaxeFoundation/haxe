@@ -50,7 +50,7 @@ enum ValueType {
 		return cast cs.Lib.getNativeType(o);
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (Std.isOfType(o, HxEnum))
 			return cast cs.Lib.getNativeType(o).BaseType; // enum constructors are subclasses of an enum type
 		else if (Std.isOfType(o, cs.system.Enum))

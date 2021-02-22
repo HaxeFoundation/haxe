@@ -41,8 +41,7 @@ enum ValueType {
 		return p.__class__;
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> untyped {
-		@:nullSafety(Off)
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> untyped {
 		if (__dollar__typeof(o) != __dollar__tobject)
 			return null;
 		return o.__enum__;
