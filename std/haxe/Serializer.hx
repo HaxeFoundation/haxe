@@ -25,8 +25,6 @@ package haxe;
 import haxe.ds.List;
 import haxe.ds.Vector;
 
-using StringTools;
-
 /**
 	The Serializer class can be used to encode values and objects into a `String`,
 	from which the `Unserializer` class can recreate the original representation.
@@ -367,9 +365,9 @@ class Serializer {
 						var b64 = BASE64_CODES;
 						if (b64 == null) {
 							b64 = new Vector(BASE64.length);
-							for (code in BASE64)
-								b64[i] = code;
-							BASE64_CODES = b64;
+							@:nullSafety(Off)
+							for (i in 0...BASE64.length)
+								b64[i] = BASE64.charCodeAt(i);
 						}
 						while (i < max) {
 							var b1 = v.get(i++);
