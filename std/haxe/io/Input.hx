@@ -39,6 +39,7 @@ class Input {
 	public var bigEndian(default, set):Bool;
 
 	#if cs
+	@:nullSafety(Off)
 	private var helper:BytesData;
 	#elseif java
 	@:nullSafety(Off)
@@ -188,7 +189,11 @@ class Input {
 		} catch (e:Eof) {
 			s = buf.getBytes().toString();
 			if (s.length == 0)
-				#if neko neko.Lib.rethrow #else throw #end
+				#if neko
+				neko.Lib.rethrow
+				#else
+				throw
+				#end
 			(e);
 		}
 		return s;

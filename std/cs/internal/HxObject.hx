@@ -22,9 +22,9 @@
 
 package cs.internal;
 
+import cs.internal.FieldLookup;
 import cs.system.Type;
 import haxe.ds.Vector;
-import cs.internal.FieldLookup;
 
 private typedef StdType = std.Type;
 
@@ -49,8 +49,11 @@ class DynamicObject extends HxObject {
 	@:skipReflection var __hx_hashes_f:NativeArray<Int>;
 	@:skipReflection var __hx_dynamics_f:NativeArray<Float>;
 
+	@:nullSafety(Off)
 	@:skipReflection var __hx_length:Int;
+	@:nullSafety(Off)
 	@:skipReflection var __hx_length_f:Int;
+	@:nullSafety(Off)
 	@:skipReflection var __hx_conflicts:FieldHashConflict;
 
 	@:skipReflection static var __hx_toString_depth = 0;
@@ -60,6 +63,7 @@ class DynamicObject extends HxObject {
 		this.__hx_dynamics = new NativeArray(0);
 		this.__hx_hashes_f = new NativeArray(0);
 		this.__hx_dynamics_f = new NativeArray(0);
+		@:nullSafety(Off)
 		this.__hx_conflicts = null;
 	}
 
@@ -112,6 +116,7 @@ class DynamicObject extends HxObject {
 			return this.__hx_dynamics_f[res];
 		}
 
+		@:nullSafety(Off)
 		return isCheck ? Runtime.undefined : null;
 	}
 

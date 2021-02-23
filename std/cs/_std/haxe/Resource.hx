@@ -23,7 +23,9 @@
 package haxe;
 
 @:coreApi class Resource {
+	@:nullSafety(Off)
 	@:keep static var content:Array<String>;
+	@:nullSafety(Off)
 	static var paths:Map<String, String>;
 
 	@:keep static function getPaths():Map<String, String> {

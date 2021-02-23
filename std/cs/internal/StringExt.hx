@@ -45,10 +45,11 @@ private typedef NativeString = cs.system.String;
 
 	public static function indexOf(me:NativeString, str:String, ?startIndex:Int):Int {
 		var sIndex:Int = startIndex != null ? startIndex : 0;
-		if(str == '') {
-			if(sIndex < 0) {
+		if (str == '') {
+			if (sIndex < 0) {
 				sIndex = me.Length + sIndex;
-				if(sIndex < 0) sIndex = 0;
+				if (sIndex < 0)
+					sIndex = 0;
 			}
 			return sIndex > me.Length ? me.Length : sIndex;
 		}
@@ -203,7 +204,7 @@ private typedef NativeString = cs.system.String;
 			default:
 				if (throwErrors)
 					throw "Field not found: '" + f + "' in String";
-				else
+				else @:nullSafety(Off)
 					return null;
 		}
 	}

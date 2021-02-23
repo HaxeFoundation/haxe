@@ -60,6 +60,7 @@ package cs.internal;
 	@:readOnly public var hasValue(default, never):Bool;
 
 	public function new(v:T, hasValue:Bool) {
+		@:nullSafety(Off)
 		if (hasValue && cs.system.Object.ReferenceEquals(v, null)) {
 			hasValue = false;
 		}
@@ -67,6 +68,7 @@ package cs.internal;
 		untyped this.hasValue = hasValue;
 	}
 
+	@:nullSafety(Off)
 	@:functionCode('if (obj == null) {
 				return new haxe.lang.Null<D>(default(D), false);
 			} else if (typeof(D).Equals(typeof(double))) {
@@ -80,6 +82,7 @@ package cs.internal;
 		return null;
 	}
 
+	@:nullSafety(Off)
 	public function toDynamic():Dynamic {
 		if (this.hasValue)
 			return value;

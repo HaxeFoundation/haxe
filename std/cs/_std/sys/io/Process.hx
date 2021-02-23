@@ -22,11 +22,11 @@
 
 package sys.io;
 
-import haxe.io.BytesInput;
-import cs.system.io.StreamReader;
-import cs.system.io.StreamWriter;
 import cs.system.diagnostics.Process as NativeProcess;
 import cs.system.diagnostics.ProcessStartInfo as NativeStartInfo;
+import cs.system.io.StreamReader;
+import cs.system.io.StreamWriter;
+import haxe.io.BytesInput;
 
 @:coreApi
 class Process {
@@ -37,7 +37,7 @@ class Process {
 	private var native:NativeProcess;
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
-		if (detached)
+		if (detached == true)
 			throw "Detached process is not supported on this platform";
 		this.native = createNativeProcess(cmd, args);
 		native.Start();
@@ -62,6 +62,7 @@ class Process {
 		} else {
 			switch (Sys.systemName()) {
 				case "Windows":
+					@:nullSafety(Off)
 					native.StartInfo.FileName = switch (Sys.getEnv("COMSPEC")) {
 						case null: "cmd.exe";
 						case var comspec: comspec;
@@ -97,6 +98,7 @@ class Process {
 									b.addChar('\\'.code);
 								case _: // pass
 							}
+							@:nullSafety(Off)
 							b.addChar(c);
 						}
 						b.add('"');

@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import cs.Flags;
 import cs.Lib;
+import cs.internal.Function;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
-import cs.internal.Function;
-import cs.Flags;
 import cs.system.Object;
 import cs.system.reflection.*;
 
@@ -44,6 +44,7 @@ enum ValueType {
 
 @:coreApi class Type {
 	public static function getClass<T>(o:T):Null<Class<T>> {
+		@:nullSafety(Off)
 		if (Object.ReferenceEquals(o, null) || Std.isOfType(o, DynamicObject) || Std.isOfType(o, cs.system.Type))
 			return null;
 
@@ -60,6 +61,7 @@ enum ValueType {
 
 	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		var base = Lib.toNativeType(c).BaseType;
+		@:nullSafety(Off)
 		if (Object.ReferenceEquals(base, null) || base.ToString() == "haxe.lang.HxObject" || base.ToString() == "System.Object")
 			return null;
 		return Lib.fromNativeType(base);
@@ -100,6 +102,7 @@ enum ValueType {
 		#end
 		var t = cs.system.Type._GetType(name);
 		#if !CF
+		@:nullSafety(Off)
 		if (Object.ReferenceEquals(t, null)) {
 			var all = cs.system.AppDomain.CurrentDomain.GetAssemblies().GetEnumerator();
 			while (all.MoveNext()) {
@@ -110,6 +113,7 @@ enum ValueType {
 			}
 		}
 		#end
+		@:nullSafety(Off)
 		if (Object.ReferenceEquals(t, null)) {
 			switch (name) {
 				case #if no_root "haxe.root.Int" #else "Int" #end:
@@ -144,7 +148,9 @@ enum ValueType {
 	}
 
 	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
+		@:nullSafety(Off)
 		var t = Lib.toNativeType(resolveClass(name));
+		@:nullSafety(Off)
 		if (!Object.ReferenceEquals(t, null)
 			&& untyped t.BaseType.Equals(Lib.toNativeType(cs.system.Enum)) || Lib.toNativeType(HxEnum).IsAssignableFrom(t))
 			return cast t;
@@ -157,9 +163,11 @@ enum ValueType {
 		var t = Lib.toNativeType(cl);
 		if (t.IsInterface) {
 			// may be generic
+			@:nullSafety(Off)
 			t = Lib.toNativeType(resolveClass(getClassName(cl)));
 		}
 		var ctors = t.GetConstructors();
+		@:nullSafety(Off)
 		return Runtime.callMethod(null, cast ctors, ctors.Length, cs.Lib.nativeArray(args, true));
 	}
 
@@ -208,6 +216,7 @@ enum ValueType {
 
 		var c = cs.Lib.toNativeType(c);
 		var ret = [];
+		@:nullSafety(Off)
 		var mis = c.GetMembers(new cs.Flags(BindingFlags.Public) | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
 		for (i in 0...mis.Length) {
 			var i = mis[i];
@@ -245,6 +254,7 @@ enum ValueType {
 		var t = cs.Lib.as(e, cs.system.Type);
 		var f = t.GetField("__hx_constructs", new cs.Flags(BindingFlags.Static) | BindingFlags.NonPublic);
 		if (f != null) {
+			@:nullSafety(Off)
 			var values:cs.system.Array = f.GetValue(null);
 			var copy = new cs.NativeArray(values.Length);
 			cs.system.Array.Copy(values, copy, values.Length);
@@ -258,6 +268,7 @@ enum ValueType {
 			return ValueType.TNull;
 
 		var t = cs.Lib.as(v, cs.system.Type);
+		@:nullSafety(Off)
 		if (!Object.ReferenceEquals(t, null)) {
 			// class type
 			return ValueType.TObject;
@@ -275,7 +286,9 @@ enum ValueType {
 					case cs.system.TypeCode.Boolean:
 						return ValueType.TBool;
 					case cs.system.TypeCode.Double:
+						@:nullSafety(Off)
 						var d:Float = vc.ToDouble(null);
+						@:nullSafety(Off)
 						if (d >= cs.system.Int32.MinValue && d <= cs.system.Int32.MaxValue && d == vc.ToInt32(null))
 							return ValueType.TInt;
 						else
@@ -332,9 +345,10 @@ enum ValueType {
 
 	public static function allEnums<T>(e:Enum<T>):Array<T> {
 		var ctors = getEnumConstructs(e);
-		var ret = [];
+		var ret:Array<T> = [];
 		for (ctor in ctors) {
 			var v = Reflect.field(e, ctor);
+			@:nullSafety(Off)
 			if (Std.isOfType(v, e))
 				ret.push(v);
 		}

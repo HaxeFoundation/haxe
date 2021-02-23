@@ -22,18 +22,18 @@
 
 package cs.internal;
 
-import cs.Lib;
 import cs.Lib.*;
+import cs.Lib;
 import cs.NativeArray;
 import cs.StdTypes;
 import cs.system.Activator;
-import cs.system.IConvertible;
 import cs.system.IComparable;
+import cs.system.IConvertible;
+import cs.system.Object;
+import cs.system.Type;
+import cs.system.reflection.*;
 import cs.system.reflection.MethodBase;
 import cs.system.reflection.MethodInfo;
-import cs.system.reflection.*;
-import cs.system.Type;
-import cs.system.Object;
 
 /**
 	This class is meant for internal compiler use only. It provides the Haxe runtime
@@ -77,6 +77,7 @@ import cs.system.Object;
 		return new cs.internal.Function.Closure(obj, field, hash);
 	}
 
+	@:nullSafety(Off)
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool {
 		if (Object.ReferenceEquals(v1, v2))
 			return true;
@@ -138,10 +139,12 @@ import cs.system.Object;
 		return Object.ReferenceEquals(v1, v2);
 	}
 
+	@:nullSafety(Off)
 	public static function toDouble(obj:Dynamic):Float {
 		return (obj == null) ? .0 : Std.isOfType(obj, Float) ? cast obj : Lib.as(obj, IConvertible).ToDouble(null);
 	}
 
+	@:nullSafety(Off)
 	public static function toInt(obj:Dynamic):Int {
 		return (obj == null) ? 0 : Std.isOfType(obj, Int) ? cast obj : Lib.as(obj, IConvertible).ToInt32(null);
 	}
@@ -184,6 +187,7 @@ import cs.system.Object;
 		return false;
 	}
 
+	@:nullSafety(Off)
 	public static function compare(v1:Dynamic, v2:Dynamic):Int {
 		if (Object.ReferenceEquals(v1, v2))
 			return 0;
@@ -231,6 +235,7 @@ import cs.system.Object;
 		if (Std.isOfType(v1, String) || Std.isOfType(v2, String))
 			return Std.string(v1) + Std.string(v2);
 
+		@:nullSafety(Off)
 		if (v1 == null) {
 			if (v2 == null)
 				return null;
@@ -245,12 +250,14 @@ import cs.system.Object;
 				throw new cs.system.ArgumentException("Cannot dynamically add " + cs.Lib.getNativeType(v1).ToString() + " and "
 					+ cs.Lib.getNativeType(v2).ToString());
 			}
+			@:nullSafety(Off)
 			return cv1.ToDouble(null) + cv2.ToDouble(null);
 		}
 
 		throw new cs.system.ArgumentException("Cannot dynamically add " + v1 + " and " + v2);
 	}
 
+	@:nullSafety(Off)
 	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic {
 		if (obj == null)
 			if (throwErrors)
@@ -305,6 +312,7 @@ import cs.system.Object;
 		}
 	}
 
+	@:nullSafety(Off)
 	public static function slowHasField(obj:Dynamic, field:String):Bool {
 		if (obj == null)
 			return false;
@@ -325,6 +333,7 @@ import cs.system.Object;
 		return mi != null && mi.length > 0;
 	}
 
+	@:nullSafety(Off)
 	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic {
 		if (obj == null)
 			throw new cs.system.NullReferenceException("Cannot access field \'" + field + "\' of null.");
@@ -463,6 +472,7 @@ import cs.system.Object;
 					if (param.IsValueType)
 						oargs[i] = Activator.CreateInstance(param);
 				} else if (!cs.Lib.getNativeType(arg).IsAssignableFrom(param)) {
+					@:nullSafety(Off)
 					oargs[i] = cast(arg, IConvertible).ToType(param, null);
 				}
 			}
@@ -475,26 +485,17 @@ import cs.system.Object;
 				tgs[i] = untyped __typeof__(Dynamic);
 			}
 			m = m.MakeGenericMethod(tgs);
-			var retg = try
-				m.Invoke(obj, oargs)
-			catch(e:TargetInvocationException)
-				throw e.InnerException;
+			var retg = try m.Invoke(obj, oargs) catch (e:TargetInvocationException) throw e.InnerException;
 			return cs.internal.Runtime.unbox(retg);
 		}
 
 		var m = methods[0];
 		if (obj == null && Std.isOfType(m, cs.system.reflection.ConstructorInfo)) {
-			var ret = try
-				cast(m, cs.system.reflection.ConstructorInfo).Invoke(oargs)
-			catch(e:TargetInvocationException)
-				throw e.InnerException;
+			var ret = try cast(m, cs.system.reflection.ConstructorInfo).Invoke(oargs) catch (e:TargetInvocationException) throw e.InnerException;
 			return unbox(ret);
 		}
 
-		var ret = try
-			m.Invoke(obj, oargs)
-		catch(e:TargetInvocationException)
-			throw e.InnerException;
+		var ret = try m.Invoke(obj, oargs) catch (e:TargetInvocationException) throw e.InnerException;
 		return unbox(ret);
 	}
 
@@ -507,6 +508,7 @@ import cs.system.Object;
 	}
 
 	#if !erase_generics
+	@:nullSafety(Off)
 	@:functionCode('
 		if (nullableType.ContainsGenericParameters)
 			return haxe.lang.Null<object>.ofDynamic<object>(obj);
@@ -535,10 +537,12 @@ import cs.system.Object;
 			if (s != null)
 				return cs.internal.StringExt.StringRefl.handleCallField(untyped s, untyped field, args);
 			t = untyped obj.GetType();
+			@:nullSafety(Off)
 			bf = new Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
 		} else {
 			if (t == Lib.toNativeType(String) && field == 'fromCharCode')
 				return cs.internal.StringExt.fromCharCode(toInt(args[0]));
+			@:nullSafety(Off)
 			obj = null;
 			bf = new Flags(BindingFlags.Static) | BindingFlags.Public;
 		}
@@ -561,6 +565,7 @@ import cs.system.Object;
 			}
 		}
 
+		@:nullSafety(Off)
 		if (last == 0 && t.IsCOMObject)
 			return t.InvokeMember(field, BindingFlags.InvokeMethod, null, obj, args);
 
@@ -611,6 +616,7 @@ import cs.system.Object;
 	}
 
 	public static function toString(obj:Dynamic):String {
+		@:nullSafety(Off)
 		if (obj == null)
 			return null;
 		if (Std.isOfType(obj, Bool))
@@ -654,11 +660,13 @@ import cs.system.Object;
 		for (attr in t.GetCustomAttributes(true))
 			if (Std.isOfType(attr, cs.internal.HxObject.GenericInterface))
 				return cast attr;
+		@:nullSafety(Off)
 		return null;
 	}
 	#end
 
 	#if !erase_generics
+	@:nullSafety(Off)
 	@:functionCode('
 		if (obj is To)
 			return (To) obj;
@@ -680,6 +688,7 @@ import cs.system.Object;
 	}
 	#end
 
+	@:nullSafety(Off)
 	@:functionCode('
 		return (s1 == null ? "null" : s1) + (s2 == null ? "null" : s2);
 	')

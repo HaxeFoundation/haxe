@@ -30,6 +30,7 @@ import cs.system.net.sockets.AddressFamily;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 
+@:nullSafety(Off)
 @:coreapi
 class Host {
 	public var hostEntry(default, null):IPHostEntry;
@@ -45,7 +46,7 @@ class Host {
 
 	public function new(name:String):Void {
 		host = name;
-		try{
+		try {
 			hostEntry = Dns.GetHostEntry(host);
 			for (i in 0...hostEntry.AddressList.Length) {
 				if (hostEntry.AddressList[i].AddressFamily == InterNetwork) {
@@ -53,9 +54,9 @@ class Host {
 					break;
 				}
 			}
-		}catch (e:Dynamic){
+		} catch (e:Dynamic) {
 			ipAddress = IPAddress.Any;
-			if (!IPAddress.TryParse(host, ipAddress)){
+			if (!IPAddress.TryParse(host, ipAddress)) {
 				throw "Unknown host.";
 			}
 		}
