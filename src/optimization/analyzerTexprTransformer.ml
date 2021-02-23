@@ -758,9 +758,23 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	declare_var ctx.graph vresult bb;
 	declare_var ctx.graph verror bb;
 
+	let eerror = make_local verror null_pos in
+
+	let mk_int i = make_int com.basic i null_pos in
+
+	let mk_assign estate eid =
+		mk (TBinop (OpAssign,estate,eid)) eid.etype null_pos
+	in
+
 	let vstate = alloc_var VGenerated "_hx_state" com.basic.tint p in
 	declare_var ctx.graph vstate bb;
 	let estate = make_local vstate p in
+	let set_state id = mk_assign estate (mk_int id) in
+
+	let vexcstate = alloc_var VGenerated "_hx_exceptionState" com.basic.tint p in
+	declare_var ctx.graph vexcstate bb;
+	let eexcstate = make_local vexcstate p in
+	let set_excstate id = mk_assign eexcstate (mk_int id) in
 
 	let tstatemachine = tfun [t_dynamic] com.basic.tvoid in
 	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
@@ -781,14 +795,20 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 		mk (TCall (econtinuation, [make_null t_dynamic p; eerror])) com.basic.tvoid p
 	in
 
-	(* TODO: maybe merge this into block_to_texpr somehow, and only introduce new states when there is a suspension point *)
+	let exc_cases = ref [] in
 
+	(* TODO: maybe merge this into block_to_texpr somehow, and only introduce new states when there is a suspension point *)
 	print_endline "---";
-	let rec loop bb state_id back_state_id statecases current_el while_loop =
+	let rec loop ?(exc_state=None) bb state_id back_state_id statecases current_el while_loop =
 		let p = bb.bb_pos in
 		(* TODO: only do this in the end, avoid unnecessary List.rev *)
 		let el = DynArray.to_list bb.bb_el in
-		let set_state id = mk (TBinop (OpAssign,estate,make_int com.basic id p)) com.basic.tint p in
+
+		let el = match exc_state with
+			| Some id -> set_excstate id :: el
+			| None -> el
+		in
+
 		let ereturn = mk (TReturn None) com.basic.tvoid p in
 
 		let mk_case el = [make_int com.basic state_id p], mk (TBlock el) com.basic.tvoid p in
@@ -842,7 +862,8 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			| TermNone ->
 				mk_case (current_el @ el @ [set_state back_state_id]) :: statecases
 			| TermThrow (e,p) ->
-				mk_case (current_el @ el @ [set_state (-1); mk_continuation_call_error e p; ereturn]) :: statecases
+				let ethrow = mk (TThrow e) t_dynamic p in
+				mk_case (current_el @ el @ [ethrow]) :: statecases
 			| TermCondBranch _ ->
 				die "unexpected TermCondBranch" __LOC__)
 
@@ -915,10 +936,32 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
 			mk_case (current_el @ el @ [set_state body_state_id]) :: statecases
 
-		| SETry (_,_,_,_,p) ->
-			Error.error "try/catch is currently not supported in coroutines" p
+		| SETry (bb_try,_,catches,bb_next,p) ->
+			let try_state_id = get_next_state_id () in
+			let new_exc_state_id = get_next_state_id () in
+			let next_state_id = get_next_state_id () in
+			print_endline (Printf.sprintf "try cur:%d,try:%d,catch:%d,next:%d,back:%d" state_id try_state_id new_exc_state_id next_state_id back_state_id);
+			let statecases = loop bb_try try_state_id next_state_id statecases [] while_loop ~exc_state:(Some new_exc_state_id) in
+			let catch_case =
+				let erethrow = mk (TThrow eerror) t_dynamic null_pos in
+(* 				let eif = List.fold_left (fun acc (v,bb) ->
+					failwith "TODO: need to rework loop to return el instead of cases"
+				) erethrow catches in *)
+				let eif = erethrow in
+				(new_exc_state_id, eif)
+			in
+			exc_cases := catch_case :: !exc_cases;
+			let statecases = loop bb_next next_state_id back_state_id statecases [] while_loop in
+			mk_case (current_el @ el @ [set_state try_state_id]) :: statecases
 	in
 	let statecases = loop bb (get_next_state_id ()) (-1) [] [] None in
+
+	let rethrow_state_id = get_next_state_id () in
+	let statecases = statecases @ List.map (fun (id, e) ->
+		let epattern = mk_int id in
+		let ebody = mk (TBlock [set_excstate rethrow_state_id; e]) com.basic.tvoid null_pos in
+		([epattern],ebody)
+	) !exc_cases in
 
 	(* TODO: this (and the coroutine transform in general) should probably be run before captured vars handling *)
 	(* very ugly, but seems to work: extract locals that are used across states *)
@@ -985,36 +1028,61 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	(* TODO:
 		we can optimize while and switch in some cases:
 		 - if there's only one state (no suspensions) - don't wrap into while/switch, don't introduce state var
-		 - if there's no non-suspending state changes, we don't need while, because all suspensions exit the function with return
 	*)
-	let ethrow = mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p in
-	let eswitch = mk (TSwitch (estate, statecases, Some ethrow)) com.basic.tvoid p in
-	let eloop = mk (TWhile (make_bool com.basic true p, eswitch, DoWhile)) com.basic.tvoid p in
 
-	(* TODO: this has to be much more complicated, unfortunately, we need a try/catch around the state machine to catch errors from
-	   synchronous throws and then we need to propagate properly and then we need to support try/catch inside coroutines etc etc.
-	   maybe while implementing support for all this, we can as well look into adding COROUTINE_SUSPEND markers and separate coroutine
-	   and non-coroutine worlds a bit more *)
-	let eerror = make_local verror p in
+	let rethrow_case = ([mk_int rethrow_state_id], mk (TThrow eerror) com.basic.tvoid null_pos) in
+	let statecases = statecases @ [rethrow_case] in
+
+	let ethrow = mk (TBlock [
+		set_state rethrow_state_id;
+		mk (TThrow (make_string com.basic "Invalid coroutine state" p)) com.basic.tvoid p
+	]) com.basic.tvoid null_pos
+	in
+
+	let eswitch = mk (TSwitch (estate, statecases, Some ethrow)) com.basic.tvoid p in
+
+	let etry = mk (TTry (
+		eswitch,
+		[
+			let vcaught = alloc_var VGenerated "e" t_dynamic null_pos in
+			declare_var ctx.graph vcaught bb;
+			(vcaught, mk (TIf (
+				mk (TBinop (OpEq, estate, mk_int rethrow_state_id)) com.basic.tbool null_pos,
+				mk (TBlock [
+					mk_assign eexcstate (mk_int rethrow_state_id);
+					mk_continuation_call_error (make_local vcaught null_pos) null_pos;
+					mk (TReturn None) com.basic.tvoid null_pos;
+				]) com.basic.tvoid null_pos,
+				Some (mk (TBlock [
+					mk_assign estate eexcstate;
+					mk_assign eerror (make_local vcaught null_pos);
+				]) com.basic.tvoid null_pos)
+			)) com.basic.tvoid null_pos)
+		]
+	)) com.basic.tvoid null_pos in
+
+	let eloop = mk (TWhile (make_bool com.basic true p, etry, DoWhile)) com.basic.tvoid p in
+
 	let eif = mk (TIf (
 		mk (TBinop (
 			OpNotEq,
 			eerror,
-			make_null verror.v_type p (* TODO: throw null should work *)
+			make_null verror.v_type p
 		)) com.basic.tbool p,
-		mk_continuation_call_error eerror p,
-		Some eloop
+		mk_assign estate eexcstate,
+		None
 	)) com.basic.tvoid p in
 
 	let estatemachine_def = mk (TFunction {
 		tf_args = [(vresult,None); (verror,None)];
 		tf_type = com.basic.tvoid;
-		tf_expr = eif;
+		tf_expr = mk (TBlock [eif; eloop]) com.basic.tvoid null_pos
 	}) tstatemachine p in
 
 	let state_var = mk (TVar (vstate, Some (make_int com.basic 0 p))) com.basic.tvoid p in
+	let excstate_var = mk (TVar (vexcstate, Some (make_int com.basic rethrow_state_id p))) com.basic.tvoid p in
 	let shared_vars = List.map (fun v -> mk (TVar (v,None)) com.basic.tvoid null_pos) decls in
-	let shared_vars = List.rev (state_var :: shared_vars) in
+	let shared_vars = List.rev (excstate_var :: state_var :: shared_vars) in
 
 	mk (TBlock (shared_vars @ [
 		mk (TVar (vstatemachine, Some estatemachine_def)) com.basic.tvoid p;

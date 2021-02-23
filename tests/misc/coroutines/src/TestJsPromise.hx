@@ -1,3 +1,4 @@
+import js.lib.Error;
 import js.lib.Promise;
 
 @:coroutine
@@ -44,5 +45,33 @@ class TestJsPromise extends utest.Test {
 			Assert.equals(42, result);
 			async.done();
 		});
+	}
+
+	function testAwaitRejected(async:Async) {
+		var p = Promise.reject("oh no");
+
+		@:coroutine function awaiting() {
+			var x = await(p);
+			return x + 1;
+		}
+
+		awaiting.start((result,error) -> {
+			Assert.equals("oh no", error);
+			async.done();
+		});
+	}
+
+	function testThrowInPromise(async:Async) {
+		var p = promise(() -> throw new Error("oh no"));
+		p.then(
+			function(result) {
+				Assert.fail();
+			},
+			function(error) {
+				Assert.isOfType(error, Error);
+				Assert.equals("oh no", (error : Error).message);
+				async.done();
+			}
+		);
 	}
 }
