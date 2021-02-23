@@ -815,21 +815,34 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 		mk (TCall (ecreatecoroutine, [enull; enull])) com.basic.tvoid call.pos
 	in
 
+	(* TODO: stolen from exceptions.ml. we should really figure out the filter ordering here *)
+	let std_is e t =
+		let std_cls =
+			(* TODO: load it? *)
+			match (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> die "" __LOC__) with
+			| TClassDecl cls -> cls
+			| _ -> die "" __LOC__
+		in
+		let isOfType_field =
+			try PMap.find "isOfType" std_cls.cl_statics
+			with Not_found -> die "" __LOC__
+		in
+		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic null_pos in
+		let isOfType_expr = Typecore.make_static_field_access std_cls isOfType_field isOfType_field.cf_type null_pos in
+		mk (TCall (isOfType_expr, [e; type_expr])) com.basic.tbool null_pos
+	in
+
+
 	let states = ref [] in
 
 	let exc_states = ref [] in
 
 	(* TODO: maybe merge this into block_to_texpr somehow, and only introduce new states when there is a suspension point *)
 	print_endline "---";
-	let rec loop ?(exc_state=None) bb state_id back_state_id current_el while_loop =
+	let rec loop bb state_id back_state_id current_el while_loop =
 		let p = bb.bb_pos in
 		(* TODO: only do this in the end, avoid unnecessary List.rev *)
 		let el = DynArray.to_list bb.bb_el in
-
-		let el = match exc_state with
-			| Some id -> set_excstate id :: el
-			| None -> el
-		in
 
 		let ereturn = mk (TReturn None) com.basic.tvoid p in
 
@@ -951,17 +964,28 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			let new_exc_state_id = get_next_state_id () in
 			let next_state_id = get_next_state_id () in
 			print_endline (Printf.sprintf "try cur:%d,try:%d,catch:%d,next:%d,back:%d" state_id try_state_id new_exc_state_id next_state_id back_state_id);
-			loop bb_try try_state_id next_state_id [] while_loop ~exc_state:(Some new_exc_state_id);
+			loop bb_try try_state_id next_state_id [set_excstate new_exc_state_id] while_loop;
 			let catch_case =
 				let erethrow = mk (TThrow eerror) t_dynamic null_pos in
-(* 				let eif = List.fold_left (fun acc (v,bb) ->
-					failwith "TODO: need to rework loop to return el instead of cases"
-				) erethrow catches in *)
-				let eif = erethrow in
+				let eif =
+					List.fold_left (fun enext (vcatch,bb_catch) ->
+						let catch_state_id = get_next_state_id () in
+						let ecatchvar = mk (TVar (vcatch, Some eerror)) com.basic.tvoid null_pos in
+						loop bb_catch catch_state_id next_state_id [ecatchvar] while_loop;
+
+						(* TODO: exceptions filter... *)
+						match follow vcatch.v_type with
+						| TDynamic _ ->
+							set_state catch_state_id (* no next *)
+						| t ->
+							let etypecheck = std_is (make_local verror null_pos) vcatch.v_type in
+							mk (TIf (etypecheck, set_state catch_state_id, Some enext)) com.basic.tvoid null_pos
+					) erethrow catches
+				in
 				(new_exc_state_id, eif)
 			in
 			exc_states := catch_case :: !exc_states;
-			loop bb_next next_state_id back_state_id [] while_loop;
+			loop bb_next next_state_id back_state_id [(* TODO: set back to previous exc_state_id, which is not know atm *)] while_loop;
 			add_state (current_el @ el @ [set_state try_state_id])
 	in
 	loop bb (get_next_state_id ()) (-1) [] None;
