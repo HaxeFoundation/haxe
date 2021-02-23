@@ -85,6 +85,7 @@ private class Stdout extends haxe.io.Input {
 
 @:coreApi
 class Process {
+	@:nullSafety(Off)
 	var p:Dynamic;
 
 	public var stdout(default, null):haxe.io.Input;
@@ -92,8 +93,9 @@ class Process {
 	public var stdin(default, null):haxe.io.Output;
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
-		if (detached)
+		if (detached == true)
 			throw "Detached process is not supported on this platform";
+		@:nullSafety(Off)
 		p = try NativeProcess.process_run(cmd, args) catch (e:Dynamic) throw "Process creation failure : " + cmd;
 		stdin = new Stdin(p);
 		stdout = new Stdout(p, true);

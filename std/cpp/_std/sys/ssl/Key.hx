@@ -43,6 +43,7 @@ class Key {
 			return readDER(data, isPublic == true);
 	}
 
+	@:nullSafety(Off)
 	public static function readPEM(data:String, isPublic:Bool, ?pass:String):Key {
 		return new Key(NativeSsl.key_from_pem(data, isPublic, pass));
 	}

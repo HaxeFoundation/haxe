@@ -26,10 +26,12 @@ using cpp.NativeArray;
 
 @:coreApi
 class StringBuf {
+	@:nullSafety(Off)
 	private var b:Array<String>;
 
 	public var length(get, never):Int;
 
+	@:nullSafety(Off)
 	var charBuf:Array<cpp.Char>;
 
 	public function new():Void {}
@@ -45,6 +47,7 @@ class StringBuf {
 			b = [charBufAsString()];
 		else
 			b.push(charBufAsString());
+		@:nullSafety(Off)
 		charBuf = null;
 	}
 

@@ -52,6 +52,7 @@ private class GenericStackIterator<T> {
 
 	public function next():T {
 		var result = current.elt;
+		@:nullSafety(Off)
 		current = current.next;
 		return result;
 	}
@@ -70,6 +71,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	override public function next():T {
 		var result = current.elt;
+		@:nullSafety(Off)
 		current = current.next;
 		return result;
 	}
@@ -174,6 +176,7 @@ class GenericStack<T> {
 	/**
 		Returns an iterator over the elements of `this` GenericStack.
 	**/
+	@:nullSafety(Off)
 	public function iterator():Iterator<T> {
 		return new GenericStackIterator<T>(head);
 	}

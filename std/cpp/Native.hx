@@ -90,6 +90,7 @@ extern class Native {
 	}
 	static inline function get<T>(ptr:cpp.Star<T>):T {
 		throw "Native.get not available in cppia";
+		@:nullSafety(Off)
 		var d:Dynamic = null;
 		return d;
 	}

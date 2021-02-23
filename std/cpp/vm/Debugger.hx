@@ -75,6 +75,7 @@ class ThreadInfo {
 	public var breakpoint(default, null):Int;
 
 	/** If status is "critical error", this describes the error **/
+	@:nullSafety(Off)
 	public var criticalErrorDescription(default, null):String;
 
 	/** Stack will be listed with the lowest frame first **/
@@ -84,6 +85,7 @@ class ThreadInfo {
 		this.number = number;
 		this.status = status;
 		this.breakpoint = breakpoint;
+		@:nullSafety(Off)
 		this.criticalErrorDescription = criticalErrorDescription;
 		this.stack = new Array<StackFrame>();
 	}

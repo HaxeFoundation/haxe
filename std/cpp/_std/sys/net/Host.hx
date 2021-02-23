@@ -28,8 +28,10 @@ import cpp.NativeSocket;
 class Host {
 	public var host(default, null):String;
 
+	@:nullSafety(Off)
 	public var ip(default, null):Int;
 
+	@:nullSafety(Off)
 	private var ipv6(default, null):haxe.io.BytesData;
 
 	public function new(name:String):Void {

@@ -47,12 +47,13 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		untyped {
 			if (o == null)
 				return null;
 			return untyped o.__GetClass();
 		}
+	}
 
 	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		untyped {
@@ -61,6 +62,7 @@ enum ValueType {
 	}
 
 	public static function getClassName(c:Class<Dynamic>):String {
+		@:nullSafety(Off)
 		if (c == null)
 			return null;
 		return untyped c.mName;
@@ -70,33 +72,38 @@ enum ValueType {
 		return untyped e.__ToString();
 	}
 
-	public static function resolveClass(name:String):Null<Class<Dynamic>>
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		untyped {
 			var result:Class<Dynamic> = Class.Resolve(name);
 			if (result != null && result.__IsEnum())
 				return null;
 			return result;
 		}
+	}
 
-	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		untyped {
 			var result:Class<Dynamic> = Class.Resolve(name);
 			if (result != null && !result.__IsEnum())
 				return null;
 			return result;
 		}
+	}
 
-	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		untyped {
 			if (cl != null)
 				return cl.ConstructArgs(args);
+			@:nullSafety(Off)
 			return null;
 		}
+	}
 
-	public static function createEmptyInstance<T>(cl:Class<T>):T
+	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		untyped {
 			return cl.ConstructEmpty();
 		}
+	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		return untyped e.ConstructEnum(constr, params);
@@ -117,12 +124,13 @@ enum ValueType {
 		return untyped c.GetClassFields();
 	}
 
-	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String>
+	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		untyped {
 			return untyped e.GetClassFields();
 		}
+	}
 
-	public static function typeof(v:Dynamic):ValueType
+	public static function typeof(v:Dynamic):ValueType {
 		untyped {
 			if (v == null)
 				return TNull;
@@ -144,13 +152,16 @@ enum ValueType {
 					return untyped TClass(v.__GetClass());
 			}
 		}
+	}
 
 	@:native("__hxcpp_enum_eq")
 	extern private static function nativeEnumEq(a:Dynamic, b:Dynamic):Bool;
 
-   #if !cppia inline #end
+	#if !cppia
+	inline
+	#end
 	public static function enumEq<T>(a:T, b:T):Bool
-		return nativeEnumEq(a,b);
+		return nativeEnumEq(a, b);
 
 	public static function enumConstructor(e:EnumValue):String {
 		var value:cpp.EnumBase = cast e;
@@ -174,6 +185,7 @@ enum ValueType {
 		var enums = new Array<T>();
 		for (name in names) {
 			try {
+				@:nullSafety(Off)
 				var result:T = untyped e.ConstructEnum(name, null);
 				if (result != null)
 					enums.push(result);

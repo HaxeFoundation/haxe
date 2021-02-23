@@ -55,6 +55,7 @@ class Lib {
 				throw '$prim does not have signature $signature';
 			return func;
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 
@@ -75,6 +76,7 @@ class Lib {
 				default: _ -> throw e;
 			};
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 

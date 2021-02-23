@@ -24,9 +24,11 @@ package haxe.zip;
 
 @:coreApi @:buildXml('<include name="${HXCPP}/src/hx/libs/zlib/Build.xml"/>')
 class Uncompress {
+	@:nullSafety(Off)
 	var s:Dynamic;
 
 	public function new(?windowBits:Int):Void {
+		@:nullSafety(Off)
 		s = _inflate_init(windowBits);
 	}
 

@@ -105,7 +105,9 @@ private class SqliteConnection implements Connection {
 }
 
 private class SqliteResultSet implements ResultSet {
+	@:nullSafety(Off)
 	public var length(get, null):Int;
+	@:nullSafety(Off)
 	public var nfields(get, null):Int;
 
 	var r:Dynamic;
