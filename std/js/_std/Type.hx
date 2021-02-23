@@ -191,6 +191,7 @@ enum ValueType {
 							result.push(name);
 				}
 			}
+			@:nullSafety(Off)
 			c = getSuperClass(c);
 		}
 		return result;

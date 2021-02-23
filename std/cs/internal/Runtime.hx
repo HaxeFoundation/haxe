@@ -150,6 +150,7 @@ import cs.system.reflection.MethodInfo;
 	}
 
 	#if erase_generics
+	@:nullSafety(Off)
 	public static function toLong(obj:Dynamic):Int64 {
 		return (obj == null) ? 0 : Std.isOfType(obj, Int64) ? cast obj : Lib.as(obj, IConvertible).ToInt64(null);
 	}
