@@ -795,6 +795,26 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 		mk (TCall (econtinuation, [make_null t_dynamic p; eerror])) com.basic.tvoid p
 	in
 
+	let mk_suspending_call call =
+		let p = call.pos in
+
+		(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
+		let tcoroutine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in
+		let tfun = match follow call.efun.etype with
+			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+				let tcontinuation = tfun [ret; t_dynamic] com.basic.tvoid in
+				let args = args @ [("",false,tcontinuation)] in
+				TFun (args, tcoroutine)
+			| _ ->
+				die "Unexpected coroutine type" __LOC__
+		in
+		let efun = { call.efun with etype = tfun } in
+		let args = call.args @ [ estatemachine ] in
+		let ecreatecoroutine = mk (TCall (efun, args)) tcoroutine call.pos in
+		let enull = make_null t_dynamic p in
+		mk (TCall (ecreatecoroutine, [enull; enull])) com.basic.tvoid call.pos
+	in
+
 	let states = ref [] in
 
 	let exc_states = ref [] in
@@ -823,20 +843,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 			let next_state_id = get_next_state_id () in
 			print_endline (Printf.sprintf "suspend cur:%d,next:%d,back:%d" state_id next_state_id back_state_id);
 			loop bb_next next_state_id back_state_id [] while_loop;
-			let args = call.args @ [ estatemachine ] in
-
-			(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
-			let tcoroutine = tfun [t_dynamic] com.basic.tvoid in
-			let tfun = match follow call.efun.etype with
-				| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
-					let tcontinuation = tfun [ret] com.basic.tvoid in
-					let args = args @ [("",false,tcontinuation)] in
-					TFun (args, com.basic.tvoid)
-				| _ -> die "" __LOC__
-			in
-			let efun = { call.efun with etype = tfun } in
-			let ecreatecoroutine = mk (TCall (efun, args)) tcoroutine call.pos in
-			let ecallcoroutine = mk (TCall (ecreatecoroutine, [make_null t_dynamic p])) com.basic.tvoid call.pos in
+			let ecallcoroutine = mk_suspending_call call in
 			let esetstate = set_state next_state_id in
 			add_state (current_el @ el @ [esetstate; ecallcoroutine; ereturn])
 
