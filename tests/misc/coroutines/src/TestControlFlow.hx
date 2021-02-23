@@ -88,9 +88,45 @@ class TestControlFlow extends utest.Test {
 			async.done();
 		});
 	}
+
+	function testTryCatch(async:Async) {
+		mapCalls.start([new E1(), new E2()], tryCatch, (result,error) -> {
+			Assert.same(["e1", "e2"], result);
+			async.done();
+		});
+	}
+
+	function testTryCatchFail(async:Async) {
+		tryCatch.start(new E3(), (result,error) -> {
+			Assert.isOfType(error, E3);
+			async.done();
+		});
+	}
+
+	@:coroutine function tryCatch(e:haxe.Exception) {
+		try {
+			throw e;
+		} catch (e:E1) {
+			return "e1";
+		} catch (e:E2) {
+			return "e2";
+		}
+		return "none";
+	}
 }
 
 @:coroutine
 private function mapCalls<TArg,TRet>(args:Array<TArg>, f:Coroutine<TArg->TRet>):Array<TRet> {
 	return [for (arg in args) f(arg)];
+}
+
+private class E1 extends haxe.Exception {
+	public function new() super("E1");
+}
+
+private class E2 extends haxe.Exception {
+	public function new() super("E1");
+}
+private class E3 extends haxe.Exception {
+	public function new() super("E1");
 }
