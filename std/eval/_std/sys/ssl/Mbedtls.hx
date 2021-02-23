@@ -1,9 +1,9 @@
 package sys.ssl;
 
 import eval.vm.NativeSocket;
-import mbedtls.Ssl;
-import mbedtls.Entropy;
 import mbedtls.CtrDrbg;
+import mbedtls.Entropy;
+import mbedtls.Ssl;
 import mbedtls.X509Crt;
 
 class Mbedtls {
@@ -20,6 +20,7 @@ class Mbedtls {
 	static public function getDefaultCtrDrbg() {
 		if (ctr == null) {
 			ctr = new CtrDrbg();
+			@:nullSafety(Off)
 			ctr.seed(getDefaultEntropy());
 		}
 		return ctr;

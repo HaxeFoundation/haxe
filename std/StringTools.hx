@@ -66,6 +66,8 @@ class StringTools {
 		s = lua.NativeStringTools.gsub(s, " ", "+");
 		return s;
 		#else
+		// TODO not implemented exception?
+		@:nullSafety(Off)
 		return null;
 		#end
 	}
@@ -137,6 +139,8 @@ class StringTools {
 		s = lua.NativeStringTools.gsub(s, "\r\n", "\n");
 		return s;
 		#else
+		// TODO not implemented exception?
+		@:nullSafety(Off)
 		return null;
 		#end
 	}

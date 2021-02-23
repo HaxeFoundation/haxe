@@ -1,7 +1,7 @@
 package sys.ssl;
 
-import haxe.io.Bytes;
 import eval.vm.NativeSocket;
+import haxe.io.Bytes;
 import mbedtls.Config;
 import mbedtls.Ssl;
 
@@ -81,6 +81,7 @@ private class SocketOutput extends haxe.io.Output {
 	}
 }
 
+@:nullSafety(Off)
 @:coreApi
 class Socket extends sys.net.Socket {
 	public static var DEFAULT_VERIFY_CERT:Null<Bool> = true;

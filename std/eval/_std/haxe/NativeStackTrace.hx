@@ -9,19 +9,22 @@ import haxe.CallStack.StackItem;
 @:noCompletion
 class NativeStackTrace {
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
-	static public inline function saveStack(exception:Any):Void {
-	}
+	static public inline function saveStack(exception:Any):Void {}
 
 	static public function callStack():Array<StackItem> {
 		return _callStack();
 	}
 
-	//implemented in the compiler
+	// implemented in the compiler
+
+	@:nullSafety(Off)
 	static function _callStack():Array<StackItem> {
 		return null;
 	}
 
-	//implemented in the compiler
+	// implemented in the compiler
+
+	@:nullSafety(Off)
 	static public function exceptionStack():Array<StackItem> {
 		return null;
 	}

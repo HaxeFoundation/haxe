@@ -104,7 +104,7 @@ class Process {
 	var proc:NativeProcess;
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
-		if (detached) {
+		if (detached == true) {
 			throw "Detached process is not supported on this platform";
 		}
 		proc = new NativeProcess(cmd, args);

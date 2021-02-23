@@ -1,7 +1,7 @@
 package sys.thread;
 
-import eval.luv.Loop;
 import eval.luv.Async;
+import eval.luv.Loop;
 import eval.luv.Timer as LuvTimer;
 
 @:coreApi
@@ -16,9 +16,9 @@ abstract EventHandler(RegularEvent) from RegularEvent to RegularEvent {}
 
 private class RegularEvent {
 	public var timer:Null<LuvTimer>;
-	public var event:()->Void;
+	public var event:() -> Void;
 
-	public function new(e:()->Void) {
+	public function new(e:() -> Void) {
 		event = e;
 	}
 
@@ -33,11 +33,11 @@ class EventLoop {
 	final handle:Loop;
 
 	final mutex = new Mutex();
-	final oneTimeEvents = new Array<Null<()->Void>>();
+	final oneTimeEvents = new Array<Null<() -> Void>>();
 	var oneTimeEventsIdx = 0;
 	final wakeup:Async;
 	var promisedEventsCount = 0;
-	var pending:Array<()->Void> = [];
+	var pending:Array<() -> Void> = [];
 	var looping = false;
 
 	public function new():Void {
@@ -46,11 +46,12 @@ class EventLoop {
 		wakeup.unref();
 	}
 
-	public function repeat(event:()->Void, intervalMs:Int):EventHandler {
+	public function repeat(event:() -> Void, intervalMs:Int):EventHandler {
 		var e = new RegularEvent(event);
 		mutex.acquire();
 		pending.push(() -> {
 			e.timer = LuvTimer.init(handle).resolve();
+			@:nullSafety(Off)
 			e.timer.start(e.run, intervalMs, intervalMs < 1 ? 1 : intervalMs).resolve();
 		});
 		mutex.release();
@@ -60,15 +61,17 @@ class EventLoop {
 
 	public function cancel(eventHandler:EventHandler):Void {
 		mutex.acquire();
-		(eventHandler:RegularEvent).event = noop;
+		(eventHandler : RegularEvent).event = noop;
 		pending.push(() -> {
-			var timer = (eventHandler:RegularEvent).timer;
+			@:nullSafety(Off)
+			var timer:LuvTimer = (eventHandler : RegularEvent).timer;
 			timer.stop().resolve();
 			timer.close(noop);
 		});
 		mutex.release();
 		wakeup.send();
 	}
+
 	static final noop = function() {}
 
 	public function promise():Void {
@@ -79,14 +82,14 @@ class EventLoop {
 		wakeup.send();
 	}
 
-	public function run(event:()->Void):Void {
+	public function run(event:() -> Void):Void {
 		mutex.acquire();
 		pending.push(event);
 		mutex.release();
 		wakeup.send();
 	}
 
-	public function runPromised(event:()->Void):Void {
+	public function runPromised(event:() -> Void):Void {
 		mutex.acquire();
 		--promisedEventsCount;
 		pending.push(refUnref);
@@ -96,7 +99,7 @@ class EventLoop {
 	}
 
 	function refUnref():Void {
-		if(promisedEventsCount > 0) {
+		if (promisedEventsCount > 0) {
 			wakeup.ref();
 		} else {
 			wakeup.unref();
@@ -104,8 +107,8 @@ class EventLoop {
 	}
 
 	public function progress():NextEventTime {
-		//TODO: throw if loop is already running
-		if((handle:Loop).run(NOWAIT)) {
+		// TODO: throw if loop is already running
+		if ((handle : Loop).run(NOWAIT)) {
 			return AnyTime(null);
 		} else {
 			return Never;
@@ -113,28 +116,30 @@ class EventLoop {
 	}
 
 	public function wait(?timeout:Float):Bool {
-		//TODO: throw if loop is already running
-		if(timeout == null) {
+		// TODO: throw if loop is already running
+		if (timeout == null) {
 			var timer = LuvTimer.init(handle).resolve();
+			@:nullSafety(Off)
 			timer.start(() -> {
 				timer.stop().resolve();
 				timer.close(() -> {});
 			}, Std.int(timeout * 1000));
-			return (handle:Loop).run(ONCE);
+			return (handle : Loop).run(ONCE);
 		} else {
-			return (handle:Loop).run(ONCE);
+			return (handle : Loop).run(ONCE);
 		}
 	}
 
 	public function loop():Void {
-		//TODO: throw if loop is already running
+		// TODO: throw if loop is already running
 		consumePending();
-		(handle:Loop).run(DEFAULT);
+		(handle : Loop).run(DEFAULT);
 	}
 
 	function consumePending(?_:Async):Void {
 		var p = pending;
 		pending = [];
-		for(fn in p) fn();
+		for (fn in p)
+			fn();
 	}
 }

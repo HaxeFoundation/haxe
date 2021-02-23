@@ -90,7 +90,9 @@ class Sys {
 	static function __init__():Void {
 		// This nonsense causes the classes to be loaded. Otherwise they might not make
 		// it into the interpreter, and then stderr() et. al. don't work.
+		@:nullSafety(Off)
 		var _ = (null : sys.io.FileOutput);
+		@:nullSafety(Off)
 		var _ = (null : sys.io.FileInput);
 	}
 }

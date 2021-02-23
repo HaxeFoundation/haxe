@@ -27,7 +27,7 @@ import eval.vm.NativeThread;
 private typedef ThreadImpl = NativeThread;
 
 abstract Thread(ThreadImpl) from ThreadImpl {
-	public var events(get,never):EventLoop;
+	public var events(get, never):EventLoop;
 
 	static function __init__() {
 		NativeThread.self().events = new EventLoop();
@@ -45,19 +45,20 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		return new Thread(NativeThread.self());
 	}
 
-	public static inline function create(job:()->Void):Thread {
+	public static inline function create(job:() -> Void):Thread {
 		return new Thread(new NativeThread(job));
 	}
 
-	public static function runWithEventLoop(job:()->Void):Void {
+	@:nullSafety(Off)
+	public static function runWithEventLoop(job:() -> Void):Void {
 		var thread = NativeThread.self();
-		if(thread.events == null) {
+		if (thread.events == null) {
 			thread.events = new EventLoop();
 			try {
 				job();
 				thread.events.loop();
 				thread.events = null;
-			} catch(e) {
+			} catch (e) {
 				thread.events = null;
 				throw e;
 			}
@@ -66,11 +67,12 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		}
 	}
 
-	public static inline function createWithEventLoop(job:()->Void):Thread {
+	public static inline function createWithEventLoop(job:() -> Void):Thread {
 		return new Thread(new NativeThread(() -> {
 			var thread = NativeThread.self();
 			thread.events = new EventLoop();
 			job();
+			@:nullSafety(Off)
 			thread.events.loop();
 		}));
 	}
@@ -93,13 +95,15 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 	}
 
 	function get_events():EventLoop {
-		if(this.events == null)
+		if (this.events == null)
 			throw new NoEventLoopException();
+		@:nullSafety(Off)
 		return this.events;
 	}
 
 	@:keep
 	static function processEvents():Void {
+		@:nullSafety(Off)
 		NativeThread.self().events.loop();
 	}
 }

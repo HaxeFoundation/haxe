@@ -23,8 +23,8 @@
 package sys.ssl;
 
 import haxe.io.Bytes;
-import sys.ssl.Mbedtls;
 import mbedtls.X509Crt;
+import sys.ssl.Mbedtls;
 
 @:coreApi
 class Certificate {
@@ -60,10 +60,13 @@ class Certificate {
 
 	public var commonName(get, null):Null<String>;
 
+	@:nullSafety(Off)
 	public var altNames(get, null):Array<String>;
 
+	@:nullSafety(Off)
 	public var notBefore(get, null):Date;
 
+	@:nullSafety(Off)
 	public var notAfter(get, null):Date;
 
 	extern public function subject(field:String):Null<String>;
