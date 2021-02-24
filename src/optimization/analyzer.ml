@@ -744,6 +744,8 @@ module Debug = struct
 			| BKFunctionBegin _ -> "<function-begin>\n"
 			| BKFunctionEnd -> "<function-end>\n"
 			| BKLoopHead -> "<loop-head>\n"
+			| BKCatch v -> Printf.sprintf "<catch %s<%i>>" v.v_name v.v_id
+			| BKException -> "<exc>"
 			| _ -> ""
 		in
 		Printf.fprintf ch "n%i [shape=box,label=\"%s%s\"];\n" bb.bb_id s_kind (s_escape s)

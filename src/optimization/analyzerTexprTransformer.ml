@@ -364,6 +364,8 @@ let rec func ctx bb tf t p =
 		(* branching *)
 		| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
 			block_el bb el
+		| TBlock [] when (ExtType.is_void (follow e.etype)) ->
+			bb
 		| TBlock el ->
 			let bb_sub = create_node BKSub e.etype e.epos in
 			add_cfg_edge bb bb_sub CFGGoto;
