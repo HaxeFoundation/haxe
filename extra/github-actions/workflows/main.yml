@@ -70,6 +70,7 @@ jobs:
     env:
       PLATFORM: mac
       OPAMYES: 1
+      MACOSX_DEPLOYMENT_TARGET: 10.13
     steps:
       - uses: actions/checkout@main
         with:
