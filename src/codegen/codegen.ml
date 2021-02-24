@@ -90,7 +90,7 @@ let update_cache_dependencies t =
 		| TAbstract(a,tl) ->
 			add_dependency m a.a_module;
 			List.iter (check_t m) tl;
-		| TFun(targs,tret) ->
+		| TFun(targs,tret,_) ->
 			List.iter (fun (_,_,t) -> check_t m t) targs;
 			check_t m tret;
 		| TAnon an ->
@@ -157,9 +157,13 @@ let rec find_field com c f =
 
 let fix_override com c f fd =
 	let f2 = (try Some (find_field com c f) with Not_found -> None) in
+	let extract_fun f2 = match follow f2.cf_type with
+		| TFun (args,ret,coro) -> args, ret, coro
+		| _ -> die "" __LOC__
+	in
 	match f2,fd with
 		| Some (f2), Some(fd) ->
-			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
+			let targs, tret, coro = extract_fun f2 in
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
 			let nargs = List.map2 (fun ((v,ct) as cur) (_,_,t2) ->
@@ -197,10 +201,10 @@ let fix_override com c f fd =
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> die "" __LOC__ | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
-			f.cf_type <- TFun(targs,tret);
+			f.cf_type <- TFun(targs,tret,coro);
 		| Some(f2), None when (has_class_flag c CInterface) ->
-			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
-			f.cf_type <- TFun(targs,tret)
+			let targs, tret, coro = extract_fun f2 in
+			f.cf_type <- TFun(targs,tret,coro)
 		| _ ->
 			()
 
@@ -334,7 +338,7 @@ module Dump = struct
 							| Some e -> " = " ^ (s_cf_expr f));
 						| Method m -> if ((has_class_flag c CExtern) || (has_class_flag c CInterface)) then (
 							match f.cf_type with
-							| TFun(al,t) -> print "(%s):%s;" (String.concat ", " (
+							| TFun(al,t,_) -> print "(%s):%s;" (String.concat ", " (
 								List.map (fun (n,o,t) -> n ^ ":" ^ (s_type t)) al))
 								(s_type t)
 							| _ -> ()
@@ -365,7 +369,7 @@ module Dump = struct
 					let f = PMap.find n e.e_constrs in
 					print "\t%s%s;\n" f.ef_name (
 						match f.ef_type with
-						| TFun (al,t) -> Printf.sprintf "(%s)" (String.concat ", "
+						| TFun (al,t,_) -> Printf.sprintf "(%s)" (String.concat ", "
 							(List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ ":" ^ (s_type t)) al))
 						| _ -> "")
 				) e.e_names;
@@ -502,7 +506,7 @@ module UnificationCallback = struct
 		List.rev (loop [] el tl)
 
 	let check_call f el t = match follow t with
-		| TFun(args,_) ->
+		| TFun(args,_,_) ->
 			check_call_params f el args
 		| _ ->
 			List.map (fun e -> f e t_dynamic) el

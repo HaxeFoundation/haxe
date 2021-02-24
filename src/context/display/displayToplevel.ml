@@ -31,7 +31,7 @@ let maybe_resolve_macro_field ctx t c cf =
 	try
 		if cf.cf_kind <> Method MethMacro then raise Exit;
 		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
-		(TFun(tl,tr)),c,cf
+		(TFun(tl,tr,false)),c,cf
 	with _ ->
 		t,c,cf
 
@@ -425,7 +425,7 @@ let collect ctx tk with_type sort =
 			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
 			(* builtins *)
-			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
+			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid,false)))) (Some "trace")
 		end
 	end;
 

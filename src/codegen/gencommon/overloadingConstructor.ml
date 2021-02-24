@@ -129,7 +129,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 
 		let fn_args, _ = get_fun ctor.cf_type in
 		let ctor_params = List.map snd ctor_types in
-		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, com.basic.tvoid) in
+		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, com.basic.tvoid, false) in
 		let cur_tf_args = match ctor.cf_expr with
 		| Some { eexpr = TFunction(tf) } -> tf.tf_args
 		| _ -> Globals.die "" __LOC__
@@ -318,7 +318,7 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 							cl.cl_constructor <- Some ctor;
 							ctor
 						with Not_found -> (* create default constructor *)
-							let ctor = mk_class_field "new" (TFun ([], basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
+							let ctor = mk_class_field "new" (TFun ([], basic.tvoid, false)) false cl.cl_pos (Method MethNormal) [] in
 							ctor.cf_expr <- Some {
 								eexpr = TFunction {
 									tf_args = [];
@@ -359,7 +359,7 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 				if not (is_hxgen (TClassDecl cl)) then raise Exit;
 
 				(* get first *)
-				let empty_type = TFun (["empty",false,empty_ctor_type],basic.tvoid) in
+				let empty_type = TFun (["empty",false,empty_ctor_type],basic.tvoid,false) in
 				let super =
 					match cl.cl_super with
 					| None -> (* implement empty *)

@@ -94,7 +94,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 							if List.length f.cf_params <> List.length f2.cf_params then raise Not_found;
 							replace_mono t2;
 							match follow (apply_params f2.cf_params (List.map snd f.cf_params) t2), follow real_ftype with
-							| TFun(a1,r1), TFun(a2,r2) when not implement_explicitly && not (type_iseq r1 r2) && Overloads.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
+							| TFun(a1,r1,coro1), TFun(a2,r2,coro2) when not implement_explicitly && not (type_iseq r1 r2) && Overloads.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
 								(* different return types are the trickiest cases to deal with *)
 								(* check for covariant return type *)
 								let is_covariant = match follow r1, follow r2 with
@@ -108,16 +108,16 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								if not is_covariant then begin
 									(* override return type and cast implemented function *)
 									let args, newr = match follow t2, follow (apply_params f.cf_params (List.map snd f2.cf_params) real_ftype) with
-										| TFun(a,_), TFun(_,r) -> a,r
+										| TFun(a,_,_), TFun(_,r,_) -> a,r
 										| _ -> Globals.die "" __LOC__
 									in
-									f2.cf_type <- TFun(args,newr);
+									f2.cf_type <- TFun(args,newr,coro1);
 									(match f2.cf_expr with
 									| Some ({ eexpr = TFunction tf } as e) ->
 											f2.cf_expr <- Some { e with eexpr = TFunction { tf with tf_type = newr } }
 									| _ -> ())
 								end
-							| TFun(a1,r1), TFun(a2,r2) ->
+							| TFun(a1,r1,coro1), TFun(a2,r2,coro2) ->
 								(* just implement a function that will call the main one *)
 								let name, is_explicit = match explicit_fn_name with
 									| Some fn when not (type_iseq r1 r2) && Overloads.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
@@ -133,7 +133,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								let vars = List.map (fun (n,_,t) -> alloc_var n t) a2 in
 
 								let args = List.map2 (fun v (_,_,t) -> mk_cast t (mk_local v f2.cf_pos)) vars a1 in
-								let field = { eexpr = TField(this, FInstance(c,List.map snd c.cl_params,f2)); etype = TFun(a1,r1); epos = p } in
+								let field = { eexpr = TField(this, FInstance(c,List.map snd c.cl_params,f2)); etype = TFun(a1,r1,coro1); epos = p } in
 								let call = { eexpr = TCall(field, args); etype = r1; epos = p } in
 								(* let call = gen.gparam_func_call call field (List.map snd f.cf_params) args in *)
 								let is_void = ExtType.is_void r2 in
@@ -192,7 +192,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								epos = tf.tf_expr.epos
 							} in
 							let has_contravariant_args = match (get_real_fun gen f.cf_type, actual_t) with
-								| TFun(current_args,_), TFun(original_args,_) ->
+								| TFun(current_args,_,_), TFun(original_args,_,_) ->
 										List.exists2 (fun (_,_,cur_arg) (_,_,orig_arg) -> try
 											unify orig_arg cur_arg;
 											try

@@ -561,7 +561,7 @@ let load_macro' ctx display cpath f p =
 				| _ -> error "Macro should be called on a class" p
 		in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
-		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
+		let meth = (match follow meth.cf_type with TFun (args,ret,_) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
 		restore();
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;

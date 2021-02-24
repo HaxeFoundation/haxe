@@ -41,7 +41,7 @@ let get_iterator_param t =
 	| TAnon a ->
 		if !(a.a_status) <> Closed then raise Not_found;
 		(match follow (PMap.find "hasNext" a.a_fields).cf_type, follow (PMap.find "next" a.a_fields).cf_type with
-		| TFun ([],tb), TFun([],t) when (match follow tb with TAbstract ({ a_path = [],"Bool" },[]) -> true | _ -> false) ->
+		| TFun ([],tb,_), TFun([],t,_) when (match follow tb with TAbstract ({ a_path = [],"Bool" },[]) -> true | _ -> false) ->
 			if PMap.fold (fun _ acc -> acc + 1) a.a_fields 0 <> 2 then raise Not_found;
 			t
 		| _ ->
@@ -54,7 +54,7 @@ let get_iterable_param t =
 	| TAnon a ->
 		if !(a.a_status) <> Closed then raise Not_found;
 		(match follow (PMap.find "iterator" a.a_fields).cf_type with
-		| TFun ([],it) ->
+		| TFun ([],it,_) ->
 			let t = get_iterator_param it in
 			if PMap.fold (fun _ acc -> acc + 1) a.a_fields 0 <> 1 then raise Not_found;
 			t
@@ -103,7 +103,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			begin match e with
 				| AKExpr e ->
 					begin match follow e.etype with
-						| TFun(_,t') when is_enum ->
+						| TFun(_,t',_) when is_enum ->
 							(* TODO: this is a dodge for #7603 *)
 							(try Type.unify t' t with Unify_error _ -> ());
 							AKExpr e
@@ -197,14 +197,14 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				| _ -> raise Exit
 			in
 			let args,tr0 = match follow e0.etype with
-				| TFun(tl,tr) ->
+				| TFun(tl,tr,_) ->
 					Array.of_list tl,tr
 				| _ ->
 					raise Exit
 			in
 			let arity = Array.length args in
 			let rets = List.map (fun e -> match follow e.etype with
-				| TFun(tl,tr) ->
+				| TFun(tl,tr,_) ->
 					let ta = Array.of_list tl in
 					if Array.length ta <> arity then raise Exit;
 					for i = 0 to arity - 1 do
@@ -226,7 +226,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			| UnifyMinError(l,index) ->
 				raise Exit
 			in
-			TFun(Array.to_list args,tr)
+			TFun(Array.to_list args,tr,false (* corotodo *))
 		with Exit ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
@@ -563,7 +563,7 @@ and type_access ctx e p mode with_type =
 				let cf = fa.fa_field in
 				no_abstract_constructor c p;
 				check_constructor_access ctx c cf p;
-				let args = match follow (FieldAccess.get_map_function fa cf.cf_type) with TFun(args,ret) -> args | _ -> die "" __LOC__ in
+				let args = match follow (FieldAccess.get_map_function fa cf.cf_type) with TFun(args,ret,_) -> args | _ -> die "" __LOC__ in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
@@ -583,7 +583,7 @@ and type_access ctx e p mode with_type =
 					tf_args = List.map (fun v -> v,None) vl;
 					tf_type = t;
 					tf_expr = mk (TReturn (Some ec)) t p;
-				}) (TFun ((List.map (fun v -> v.v_name,false,v.v_type) vl),t)) p)
+				}) (TFun ((List.map (fun v -> v.v_name,false,v.v_type) vl),t,false)) p)
 			| _ -> error "Binding new is only allowed on class types" p
 		end;
 	| EField _ ->
@@ -864,7 +864,7 @@ and type_object_decl ctx fl with_type p =
 		let fa = FieldAccess.get_constructor_access c tl p in
 		let ctor = fa.fa_field in
 		let args = match follow (FieldAccess.get_map_function fa ctor.cf_type) with
-			| TFun(args,_) -> args
+			| TFun(args,_,_) -> args
 			| _ -> die "" __LOC__
 		in
 		let fields = List.fold_left (fun acc (n,opt,t) ->
@@ -1189,7 +1189,7 @@ and type_local_function ctx kind f with_type p want_coroutine =
 	| WithType.WithType(t,_) ->
 		let rec loop t =
 			(match follow t with
-			| TFun (args2,tr) when List.length args2 = List.length targs ->
+			| TFun (args2,tr,corotodo) when List.length args2 = List.length targs ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
 					match follow t1 with
 					| TMono _ -> unify ctx t2 t1 p
@@ -1202,8 +1202,6 @@ and type_local_function ctx kind f with_type p want_coroutine =
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
-			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
-				loop ft
 			| TAbstract(a,tl) ->
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> ())
@@ -1213,18 +1211,18 @@ and type_local_function ctx kind f with_type p want_coroutine =
 		if name = None then display_error ctx "Unnamed lvalue functions are not supported" p
 	| _ ->
 		());
-	let ft = TFun (targs,rt) in
-	let ft,is_coroutine = match v, with_type with
+	let is_coroutine = match v, with_type with
 		| None, WithType.WithType (texpected,_) ->
 			(match follow texpected with
-			| TAbstract ({ a_path = [],"Coroutine" }, [ft]) ->
-				(* TODO: check original type against the coroutine ft *)
-				texpected, true
+			| TFun(_,_,true) ->
+				true
 			| _ ->
-				ft, false)
+				false)
 		| _ ->
-			if want_coroutine then (ctx.com.basic.tcoroutine ft, true) else (ft, false)
+			want_coroutine
 	in
+	let ft = TFun (targs,rt,is_coroutine) in
+
 	let v = (match v with
 		| None -> None
 		| Some v ->
@@ -1626,7 +1624,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	| (EField (e,"start"),_), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
-			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+			| TFun (args, ret, true) ->
 				let ecoro = create_coroutine e args ret p in
 				let enull = Builder.make_null t_dynamic p in
 				mk (TCall (ecoro, [enull; enull])) ctx.com.basic.tvoid p
@@ -1634,7 +1632,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	| (EField (e,"create"),_), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
-			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+			| TFun (args, ret, true) ->
 				create_coroutine e args ret p
 			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
@@ -1962,7 +1960,6 @@ let rec create com =
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
 			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
-			| "Coroutine" -> ctx.t.tcoroutine <- fun t -> TAbstract (a,[t]);
 			| "Null" ->
 				let mk_null t =
 					try

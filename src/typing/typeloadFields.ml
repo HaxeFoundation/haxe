@@ -223,7 +223,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 			tf_type = ctx.t.tvoid;
 			tf_expr = mk (TBlock el) ctx.t.tvoid p
 		} in
-		let e = mk (TFunction tf) (TFun(tl @ super_tl,ctx.t.tvoid)) p in
+		let e = mk (TFunction tf) (TFun(tl @ super_tl,ctx.t.tvoid,false)) p in
 		let cf = mk_field "new" e.etype p null_pos in
 		cf.cf_doc <- doc_from_string (Buffer.contents doc_buf);
 		cf.cf_expr <- Some e;
@@ -736,7 +736,7 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let rec is_full_type t =
 			match t with
-			| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
+			| TFun (args,ret,_) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
 			| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 		in
@@ -1024,7 +1024,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						(* the return type of a from-function must be the abstract, not the underlying type *)
 						if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
 						match t with
-							| TFun([_,_,t],_) -> t
+							| TFun([_,_,t],_,corotodo) -> t
 							| _ -> error (cf.cf_name ^ ": @:from cast functions must accept exactly one argument") p
 					) "@:from" in
 					a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
@@ -1033,10 +1033,10 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					(match cf.cf_kind, cf.cf_type with
 					| Var _, _ ->
 						error "@:to meta should be used on methods" p
-					| Method _, TFun(args, _) when not fctx.is_abstract_member && List.length args <> 1 ->
+					| Method _, TFun(args, _, corotodo) when not fctx.is_abstract_member && List.length args <> 1 ->
 						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
 						error ("static @:to method should have one argument") p
-					| Method _, TFun(args, _) when fctx.is_abstract_member && List.length args <> 1 ->
+					| Method _, TFun(args, _, corotodo) when fctx.is_abstract_member && List.length args <> 1 ->
 						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
 						error "@:to method should have no arguments" p
 					| _ -> ()
@@ -1046,7 +1046,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					let resolve_m args =
 						(try unify_raise ctx t (tfun (tthis :: args) m) cf.cf_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						match follow m with
-							| TMono _ when (match t with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
+							| TMono _ when (match t with TFun(_,r,_) -> r == t_dynamic | _ -> false) -> t_dynamic
 							| m -> m
 					in
 					let r = exc_protect ctx (fun r ->
@@ -1059,7 +1059,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							in
 							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 							let args = match follow (monomorphs a.a_params ctor.cf_type) with
-								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
+								| TFun(args,_,_) -> List.map (fun (_,_,t) -> t) args
 								| _ -> die "" __LOC__
 							in
 							args
@@ -1082,7 +1082,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					let left_eq,right_eq = match follow t with
-						| TFun([(_,_,t1);(_,_,t2)],_) ->
+						| TFun([(_,_,t1);(_,_,t2)],_,corotodo) ->
 							type_iseq targ t1,type_iseq targ t2
 						| _ ->
 							if fctx.is_abstract_member then
@@ -1117,11 +1117,11 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						end
 					in
 					begin match follow t with
-						| TFun([(_,_,t1);(_,_,t2)],_) ->
+						| TFun([(_,_,t1);(_,_,t2)],_,corotodo) ->
 							if a.a_read <> None then error "Multiple resolve-read methods are not supported" cf.cf_pos;
 							check_fun t1 t2;
 							a.a_read <- Some cf;
-						| TFun([(_,_,t1);(_,_,t2);(_,_,t3)],_) ->
+						| TFun([(_,_,t1);(_,_,t2);(_,_,t3)],_,corotodo) ->
 							if a.a_write <> None then error "Multiple resolve-write methods are not supported" cf.cf_pos;
 							check_fun t1 t2;
 							a.a_write <- Some cf;
@@ -1229,9 +1229,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
 	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
-	let t = TFun (args#for_type,ret) in
 	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
-	let t = if is_coroutine then ctx.com.basic.tcoroutine t else t in
+	let t = TFun (args#for_type,ret,is_coroutine) in
 	let cf = {
 		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
@@ -1305,7 +1304,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if Meta.has Meta.IsVar f.cff_meta then error (name ^ ": Abstract properties cannot be real variables") f.cff_pos;
 			let ta = apply_params a.a_params (List.map snd a.a_params) a.a_this in
 			tfun [ta] ret, tfun [ta;ret] ret
-		| _ -> tfun [] ret, TFun(["value",false,ret],ret)
+		| _ -> tfun [] ret, TFun(["value",false,ret],ret,false)
 	in
 	let find_accessor m =
 		if fctx.is_static then begin

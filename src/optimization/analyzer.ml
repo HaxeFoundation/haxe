@@ -1101,9 +1101,9 @@ module Run = struct
 
 			(* lose Coroutine<T> type here *)
 			(match cf.cf_type with
-			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+			| TFun (args, ret, true) ->
 				let args = args @ [("",false,tfun [ret; t_dynamic] ctx.com.basic.tvoid)] in
-				cf.cf_type <- TFun (args, ctx.com.basic.tvoid);
+				cf.cf_type <- TFun (args, ctx.com.basic.tvoid, false);
 			| _ -> ())
 		| _ -> ()
 

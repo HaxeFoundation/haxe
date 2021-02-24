@@ -106,9 +106,9 @@ let generate_type com t =
 			stype (lazy_type f)
 		| TDynamic t2 ->
 			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
-		| TFun ([],ret) ->
+		| TFun ([],ret,_) ->
 			"() -> " ^ ftype ret
-		| TFun (args,ret) ->
+		| TFun (args,ret,_) ->
 			String.concat " -> " (List.map (fun (_,_,t) -> ftype t) args) ^ " -> " ^ ftype ret
 	and ftype t =
 		match t with
@@ -174,7 +174,7 @@ let generate_type com t =
 			p " : %s" (stype f.cf_type);
 		| Method m ->
 			let params, ret = (match follow f.cf_type with
-				| TFun (args,ret) ->
+				| TFun (args,ret,_) ->
 					List.map (fun (a,o,t) ->
 						let rec loop = function
 							| [] -> Ident "null"
@@ -254,7 +254,7 @@ let generate_type com t =
 			let c = PMap.find n e.e_constrs in
 			p "\t%s" c.ef_name;
 			(match follow c.ef_type with
-			| TFun (args,_) -> p "(%s)" (String.concat ", " (List.map sparam (List.map (fun (a,o,t) -> a,(if o then Some (Ident "null") else None),t) args)))
+			| TFun (args,_,_) -> p "(%s)" (String.concat ", " (List.map sparam (List.map (fun (a,o,t) -> a,(if o then Some (Ident "null") else None),t) args)))
 			| _ -> ());
 			p ";\n";
 		) e.e_names;

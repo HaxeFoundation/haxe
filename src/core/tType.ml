@@ -64,7 +64,7 @@ and tlazy =
 	| LProcessing of (unit -> t)
 	| LWait of (unit -> t)
 
-and tsignature = (string * bool * t) list * t
+and tsignature = (string * bool * t) list * t * bool (* true = coroutine *)
 
 and tparams = t list
 
@@ -372,7 +372,6 @@ type basic_types = {
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
-	mutable tcoroutine : t -> t;
 }
 
 type class_field_scope =

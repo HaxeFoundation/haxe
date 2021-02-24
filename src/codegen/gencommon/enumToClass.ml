@@ -118,7 +118,7 @@ struct
 			incr i;
 
 			let cf = match follow ef.ef_type with
-				| TFun(params,ret) ->
+				| TFun(params,ret,_) ->
 					let dup_types =
 						if handle_type_params then
 							List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_params

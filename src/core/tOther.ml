@@ -34,7 +34,7 @@ module TExprToExpr = struct
 			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map tparam pl)
 		| TAbstract (a,pl) ->
 			tpath a.a_path a.a_module.m_path (List.map tparam pl)
-		| TFun (args,ret) ->
+		| TFun (args,ret,corotodo) ->
 			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with

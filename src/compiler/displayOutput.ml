@@ -153,11 +153,11 @@ let print_type t p doc =
 
 let print_signatures tl =
 	let b = Buffer.create 0 in
-	List.iter (fun (((args,ret),_),doc) ->
+	List.iter (fun (((args,ret,coro),_),doc) ->
 		Buffer.add_string b "<type";
 		Option.may (fun d -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape (gen_doc_text d)))) doc;
 		Buffer.add_string b ">\n";
-		Buffer.add_string b (htmlescape (s_type (print_context()) (TFun(args,ret))));
+		Buffer.add_string b (htmlescape (s_type (print_context()) (TFun(args,ret,coro))));
 		Buffer.add_string b "\n</type>\n";
 	) tl;
 	Buffer.contents b
@@ -183,7 +183,7 @@ let print_signature tl display_arg =
 	let st = s_type (print_context()) in
 	let s_arg (n,o,t) = Printf.sprintf "%s%s:%s" (if o then "?" else "") n (st t) in
 	let s_fun args ret = Printf.sprintf "(%s):%s" (String.concat ", " (List.map s_arg args)) (st ret) in
-	let siginf = List.map (fun (((args,ret),_),doc) ->
+	let siginf = List.map (fun (((args,ret,_),_),doc) ->
 		let label = s_fun args ret in
 		let parameters =
 			List.map (fun arg ->

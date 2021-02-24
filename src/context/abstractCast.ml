@@ -130,7 +130,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				else TAbstract(a,pl)
 			in
 			match follow (map cf.cf_type) with
-			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r,_) as tf when is_set ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
@@ -140,7 +140,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				with Unify_error _ | Error (Unify _,_) ->
 					loop cfl
 				end
-			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+			| TFun([(_,_,tab);(_,_,ta1)],r,_) as tf when not is_set ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
@@ -258,7 +258,7 @@ let handle_abstract_casts ctx e =
 						begin try
 							let fa = quick_field m fname in
 							let get_fun_type t = match follow t with
-								| TFun(args,tr) as tf -> tf,args,tr
+								| TFun(args,tr,_) as tf -> tf,args,tr
 								| _ -> raise Not_found
 							in
 							let tf,args,tr = match fa with
@@ -288,7 +288,7 @@ let handle_abstract_casts ctx e =
 											maybe_cast e t e.epos :: add_casts orig_args args el
 									in
 									match follow e1.etype with
-									| TFun (orig_args,_) -> add_casts orig_args args el
+									| TFun (orig_args,_,_) -> add_casts orig_args args el
 									| _ -> el
 								else
 									el

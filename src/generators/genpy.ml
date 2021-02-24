@@ -46,7 +46,7 @@ module Utils = struct
 	let mk_static_call c cf el p =
 		let ef = mk_static_field c cf p in
 		let tr = match follow ef.etype with
-			| TFun(args,tr) -> tr
+			| TFun(args,tr,_) -> tr
 			| _ -> die "" __LOC__
 		in
 		mk (TCall(ef,el)) tr p
@@ -600,7 +600,7 @@ module Transformer = struct
 					| _ -> die "" __LOC__)
 				| _ -> die "" __LOC__
 			in
-			let f1 = { tf_args = []; tf_type = TFun([],ex.etype); tf_expr = ex} in
+			let f1 = { tf_args = []; tf_type = TFun([],ex.etype,false); tf_expr = ex} in
 			let fexpr = mk (TFunction f1) ex.etype ex.epos in
 			let fvar = to_tvar name fexpr.etype fexpr.epos in
 			let f = add_non_locals_to_func fexpr in
@@ -1466,7 +1466,7 @@ module Printer = struct
 				do_default ()
 			| FAnon cf when is_assign && call_override(name) ->
 				begin match follow cf.cf_type with
-					| TFun([],_) ->
+					| TFun([],_,_) ->
 						Printf.sprintf "_hx_partial(HxOverrides.%s, %s)" name obj
 					| _ ->
 						do_default()
@@ -2174,13 +2174,13 @@ module Generator = struct
 
 		let const_constructors,param_constructors = List.partition (fun ef ->
 			match follow ef.ef_type with
-			| TFun(_,_) -> false
+			| TFun(_,_,_) -> false
 			| _ -> true
 		) enum_constructs in
 
 		List.iter (fun ef ->
 			match follow ef.ef_type with
-			| TFun(args, _) ->
+			| TFun(args, _, _) ->
 				let arg_name hx_name =
 					let name = handle_keywords hx_name in
 					if name = p_name then p_name ^ "_" ^ name

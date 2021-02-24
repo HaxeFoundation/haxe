@@ -58,8 +58,8 @@ let rec filter_param (stack:t list) t =
 	| TAnon a ->
 		let fields = PMap.map (fun f -> { f with cf_type = filter_param stack f.cf_type }) a.a_fields in
 		mk_anon ~fields a.a_status
-	| TFun(args,ret) ->
-		TFun(List.map (fun (n,o,t) -> (n,o,filter_param stack t)) args, filter_param stack ret)
+	| TFun(args,ret,coro) ->
+		TFun(List.map (fun (n,o,t) -> (n,o,filter_param stack t)) args, filter_param stack ret, coro)
 	| TDynamic _ ->
 		t
 	| TLazy f ->

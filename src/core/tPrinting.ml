@@ -17,7 +17,7 @@ let rec s_type_kind t =
 	| TInst(c,tl) -> Printf.sprintf "TInst(%s, [%s])" (s_type_path c.cl_path) (map tl)
 	| TType(t,tl) -> Printf.sprintf "TType(%s, [%s])" (s_type_path t.t_path) (map tl)
 	| TAbstract(a,tl) -> Printf.sprintf "TAbstract(%s, [%s])" (s_type_path a.a_path) (map tl)
-	| TFun(tl,r) -> Printf.sprintf "TFun([%s], %s)" (String.concat ", " (List.map (fun (n,b,t) -> Printf.sprintf "%s%s:%s" (if b then "?" else "") n (s_type_kind t)) tl)) (s_type_kind r)
+	| TFun(tl,r,coro) -> Printf.sprintf "TFun([%s], %s, %b)" (String.concat ", " (List.map (fun (n,b,t) -> Printf.sprintf "%s%s:%s" (if b then "?" else "") n (s_type_kind t)) tl)) (s_type_kind r) coro
 	| TAnon an -> "TAnon"
 	| TDynamic t2 -> "TDynamic"
 	| TLazy _ -> "TLazy"
@@ -59,9 +59,9 @@ let rec s_type ctx t =
 		s_type_path t.t_path ^ s_type_params ctx tl
 	| TAbstract (a,tl) ->
 		s_type_path a.a_path ^ s_type_params ctx tl
-	| TFun ([],t) ->
+	| TFun ([],t,_) ->
 		"() -> " ^ s_fun ctx t false
-	| TFun (l,t) ->
+	| TFun (l,t,_) ->
 		let args = match l with
 			| [] -> "()"
 			| ["",b,t] -> Printf.sprintf "%s%s" (if b then "?" else "") (s_fun ctx t true)

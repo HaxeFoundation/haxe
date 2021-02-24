@@ -87,7 +87,7 @@ let rec has_type_params t =
 		| TAbstract(_, params)
 		| TEnum(_, params)
 		| TInst(_, params) -> List.exists (fun t -> has_type_params t) params
-		| TFun(args,ret) ->
+		| TFun(args,ret,_) ->
 			List.exists (fun (n,o,t) -> has_type_params t) args || has_type_params ret
 		| _ -> false
 
@@ -251,7 +251,7 @@ let rec set_hxgeneric gen mds isfirst md =
 									| ef :: efs ->
 										let t = follow (gen.greal_type ef.ef_type) in
 										match t with
-											| TFun(args, _) ->
+											| TFun(args, _, _) ->
 												if List.exists (fun (n,o,t) ->
 													let t = follow t in
 													match t with
@@ -405,7 +405,7 @@ struct
 				let name = get_cast_name curcls in
 				if not (PMap.mem name cl.cl_fields) then begin
 					let reverse_params = List.map (apply_params curcls.cl_params params) reverse_params in
-					let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
+					let cfield = mk_class_field name (TFun([], t_dynamic, false)) false cl.cl_pos (Method MethNormal) cparams in
 					let field = { eexpr = TField(this, FInstance(cl,List.map snd cl.cl_params, cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
 					let call =
 					{
@@ -461,7 +461,7 @@ struct
 		reset_temps();
 		let basic = gen.gcon.basic in
 		let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cl.cl_params in
-		let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
+		let cfield = mk_class_field name (TFun([], t_dynamic, false)) false cl.cl_pos (Method MethNormal) cparams in
 		let params = List.map snd cparams in
 
 		let fields = get_fields gen cl (List.map snd cl.cl_params) params [] in
@@ -589,7 +589,7 @@ struct
 		let basic = gen.gcon.basic in
 		let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst (map_param (get_cl_t t), []))) cf.cf_params in
 		let me_type = TInst(iface,[]) in
-		let cfield = mk_class_field ~static:true "__hx_cast" (TFun(["me",false,me_type], t_dynamic)) false iface.cl_pos (Method MethNormal) (cparams) in
+		let cfield = mk_class_field ~static:true "__hx_cast" (TFun(["me",false,me_type], t_dynamic, false)) false iface.cl_pos (Method MethNormal) (cparams) in
 		let params = List.map snd cparams in
 
 		let me = alloc_var "me" me_type in
@@ -635,10 +635,10 @@ struct
 			let name = get_cast_name iface in
 			if not (PMap.mem name cthis.cl_fields) then begin
 				let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst(map_param (get_cl_t t), []))) iface.cl_params in
-				let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
+				let field = mk_class_field name (TFun([],t_dynamic,false)) false iface.cl_pos (Method MethNormal) cparams in
 				let this = { eexpr = TConst TThis; etype = TInst(cthis, List.map snd cthis.cl_params); epos = cthis.cl_pos } in
 				field.cf_expr <- Some {
-					etype = TFun([],t_dynamic);
+					etype = TFun([],t_dynamic,false);
 					epos = this.epos;
 					eexpr = TFunction {
 						tf_type = t_dynamic;

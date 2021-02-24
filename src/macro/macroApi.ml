@@ -1074,7 +1074,7 @@ and encode_type t =
 			2 , [encode_clref c; encode_tparams pl]
 		| TType (t,pl) ->
 			3 , [encode_ref t encode_ttype (fun() -> s_type_path t.t_path); encode_tparams pl]
-		| TFun (pl,ret) ->
+		| TFun (pl,ret,coro) ->
 			let pl = List.map (fun (n,o,t) ->
 				encode_obj [
 					"name",encode_string n;
@@ -1082,7 +1082,7 @@ and encode_type t =
 					"t",encode_type t
 				]
 			) pl in
-			4 , [encode_array pl; encode_type ret]
+			4 , [encode_array pl; encode_type ret; vbool coro]
 		| TAnon a ->
 			5, [encode_ref a encode_tanon (fun() -> "<anonymous>")]
 		| TDynamic tsub as t ->
@@ -1131,7 +1131,7 @@ and decode_type t =
 	| 1, [e; pl] -> TEnum (decode_ref e, List.map decode_type (decode_array pl))
 	| 2, [c; pl] -> TInst (decode_ref c, List.map decode_type (decode_array pl))
 	| 3, [t; pl] -> TType (decode_ref t, List.map decode_type (decode_array pl))
-	| 4, [pl; r] -> TFun (List.map (fun p -> decode_string (field p "name"), decode_bool (field p "opt"), decode_type (field p "t")) (decode_array pl), decode_type r)
+	| 4, [pl; r; coro] -> TFun (List.map (fun p -> decode_string (field p "name"), decode_bool (field p "opt"), decode_type (field p "t")) (decode_array pl), decode_type r, decode_opt_bool coro)
 	| 5, [a] -> TAnon (decode_ref a)
 	| 6, [t] -> if t = vnull then t_dynamic else TDynamic (decode_type t)
 	| 7, [f] -> TLazy (decode_lazytype f)
@@ -1344,7 +1344,7 @@ let decode_efield v =
 	let rec get_enum t =
 		match follow t with
 		| TEnum (enm,_) -> enm
-		| TFun (_,t) -> get_enum t
+		| TFun (_,t,_) -> get_enum t
 		| _ -> raise Not_found
 	in
 	let name = decode_string (field v "name") in

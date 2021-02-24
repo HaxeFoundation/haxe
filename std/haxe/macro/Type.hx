@@ -75,7 +75,7 @@ enum Type {
 
 		@see https://haxe.org/manual/types-function.html
 	**/
-	TFun(args:Array<{name:String, opt:Bool, t:Type}>, ret:Type);
+	TFun(args:Array<{name:String, opt:Bool, t:Type}>, ret:Type, ?coroutine:Bool);
 
 	/**
 		Represents an anonymous structure type.

@@ -235,7 +235,7 @@ and gen_expr ctx e =
 		gen_binop ctx p op e1 e2
 	| TField (e2,FClosure (_,f)) ->
 		(match follow e.etype with
-		| TFun (args,_) ->
+		| TFun (args,_,_) ->
 			let n = List.length args in
 			if n > 5 then abort "Cannot create closure with more than 5 arguments" e.epos;
 			let tmp = ident p "@tmp" in
@@ -261,7 +261,7 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TObjectDecl fl ->
 		let hasToString = ref false in
-		let fl = List.map (fun ((f,_,_),e) -> if f = "toString" then hasToString := (match follow e.etype with TFun ([],_) -> true | _ -> false); f , gen_expr ctx e) fl in
+		let fl = List.map (fun ((f,_,_),e) -> if f = "toString" then hasToString := (match follow e.etype with TFun ([],_,_) -> true | _ -> false); f , gen_expr ctx e) fl in
 		(EObject (if !hasToString then ("__string",ident p "@default__string") :: fl else fl),p)
 	| TArrayDecl el ->
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
@@ -442,7 +442,7 @@ let gen_class ctx c =
 	let fstring = (try
 		let f = PMap.find "toString" c.cl_fields in
 		match follow f.cf_type with
-		| TFun ([],_) -> ["__string",ident p "@default__string"]
+		| TFun ([],_,_) -> ["__string",ident p "@default__string"]
 		| _ -> []
 	with Not_found ->
 		[]
@@ -510,7 +510,7 @@ let gen_enum_constr ctx path c =
 	ctx.curmethod <- c.ef_name;
 	let p = pos ctx c.ef_pos in
 	(EBinop ("=",field p path c.ef_name, match follow c.ef_type with
-		| TFun (params,_) ->
+		| TFun (params,_,_) ->
 			let params = List.map (fun (n,_,_) -> n) params in
 			(EFunction (params,
 				(EBlock [

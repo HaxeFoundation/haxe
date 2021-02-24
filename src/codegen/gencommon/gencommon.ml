@@ -174,7 +174,7 @@ let get_abstract mt = match mt with TAbstractDecl a -> a | _ -> failwith (Printf
 
 let get_fun t =
 	match follow t with
-	| TFun (args, ret) -> args, ret
+	| TFun (args, ret, _) -> args, ret
 	| t -> (trace (debug_type t)); die "" __LOC__
 
 let mk_cast t e = Type.mk_cast e t e.epos
@@ -990,7 +990,7 @@ let mk_paren e =
 
 let get_real_fun gen t =
 	match follow t with
-	| TFun(args,t) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t)
+	| TFun(args,t,coro) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t,coro)
 	| _ -> t
 
 let mk_nativearray_decl gen t el pos =
@@ -1004,7 +1004,7 @@ let mk_nativearray_decl gen t el pos =
 *)
 let wrap_rest_args gen callee_type params p =
 	match follow callee_type with
-	| TFun(args, _) ->
+	| TFun(args, _, _) ->
 		let rec loop args params =
 			match args, params with
 			(* last argument expects rest parameters *)
@@ -1088,7 +1088,7 @@ let rec replace_mono t =
 		| Some _ -> ())
 	| TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
 		List.iter replace_mono p
-	| TFun (args,ret) ->
+	| TFun (args,ret,_) ->
 		List.iter (fun (_,_,t) -> replace_mono t) args;
 		replace_mono ret
 	| TAnon _
@@ -1174,7 +1174,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 		let declared_t = apply_params c.cl_params tl f.cf_type in
 		let params_t = apply_params c.cl_params tlch f.cf_type in
 		let actual_t = match follow params_t with
-		| TFun(args,ret) -> TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret)
+		| TFun(args,ret,coro) -> TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret,coro)
 		| _ -> gen.greal_type params_t in
 		Some(f,actual_t,declared_t,params_t,c,tl,tlch)
 

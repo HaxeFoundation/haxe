@@ -294,7 +294,7 @@ let sort_fields l with_type tk =
 				(* For enum constructors, we consider the return type of the constructor function
 				   so it has the same priority as argument-less constructors. *)
 				let t' = match item.ci_kind,follow t' with
-					| ITEnumField _,TFun(_,r) -> r
+					| ITEnumField _,TFun(_,r,_) -> r
 					| _ -> t'
 				in
 				let t' = dynamify_type_params t' in
@@ -302,7 +302,7 @@ let sort_fields l with_type tk =
 				else if t' == t_dynamic then 5 (* dynamic isn't good, but better than incompatible *)
 				else try Type.unify t' t; 1 (* assignable - great *)
 				with Unify_error _ -> match follow t' with
-					| TFun(_,tr) ->
+					| TFun(_,tr,_) ->
 						if type_iseq tr t then 2 (* function returns our exact type - alright *)
 						else (try Type.unify tr t; 3 (* function returns compatible type - okay *)
 						with Unify_error _ -> 7) (* incompatible function - useless *)
