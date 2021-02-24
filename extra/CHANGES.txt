@@ -8,6 +8,7 @@
 
 	Bugfixes:
 
+	all : fixed compiler compatibility with OS X 10.13 (#10110)
 	all : fixed compiler hanging on `switch` for abstracts with implicit casts involving type parameters and constraints (#10082)
 	all : fixed inlining of `haxe.DynamicAccess.keyValueIterator` (#10118)
 	analyzer : fixed side effect handling for enums (#10032)
