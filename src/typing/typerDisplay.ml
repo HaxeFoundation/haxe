@@ -265,6 +265,11 @@ let rec handle_signature_display ctx e_ast with_type =
 					(match follow e.etype with
 						| TFun signature -> e
 						| _ -> def ())
+				| (EField (e,("start" | "create")),p) ->
+					let e = type_expr ctx e WithType.value in
+					(match follow e.etype with
+						| TFun(args,ret,true) -> {e with etype = coroutine_type ctx args ret}
+						| _ -> def ())
 				| _ ->	def()
 			in
 			let tl = match e1.eexpr with

@@ -286,17 +286,26 @@ let collect ctx e_ast e dk with_type p =
 				end else
 					acc
 			) an.a_fields items
-		| TFun (args,ret,_) ->
-			(* A function has no field except the magic .bind one. *)
-			if is_new_item items "bind" then begin
-				let t = opt_args args ret in
-				let cf = mk_field "bind" (tfun [t] t) p null_pos in
-				cf.cf_kind <- Method MethNormal;
-				let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) t in
-				let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (t,ct) in
-				PMap.add "bind" item items
-			end else
+		| TFun (args,ret,coro) ->
+			let maybe_add_builtin items name t =
+				if is_new_item items name then begin
+					let cf = mk_field name t p null_pos in
+					cf.cf_kind <- Method MethNormal;
+					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) t in
+					let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (t,ct) in
+					PMap.add name item items
+				end else
+					items
+			in
+			let items = if not coro then
 				items
+			else begin
+				let t = coroutine_type ctx args ret in
+				let items = maybe_add_builtin items "start" t in
+				maybe_add_builtin items "create" t
+			end in
+			let t = opt_args args ret in
+			maybe_add_builtin items "bind" t
 		| _ ->
 			items
 	in

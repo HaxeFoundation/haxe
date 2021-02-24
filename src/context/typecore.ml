@@ -614,6 +614,12 @@ let s_field_call_candidate fcc =
 		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
 	]
 
+
+let coroutine_type ctx args ret =
+	let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] ctx.com.basic.tvoid))] in
+	let ret = ctx.com.basic.tvoid in
+	TFun(args,ret,true)
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
