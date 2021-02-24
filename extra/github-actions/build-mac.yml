@@ -24,7 +24,7 @@
     make && make install
     curl -L https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VERSION.tar.gz | tar xz
     cd pcre-$PCRE_VERSION
-    ./configure
+    ./configure --enable-utf8 --enable-pcre8 --enable-pcre16 --enable-pcre32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
     make && make install
 
 
