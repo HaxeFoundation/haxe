@@ -150,7 +150,7 @@ let s_access_kind acc =
 
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
-		| TFun(tl,tr) -> tl,tr
+		| TFun(tl,tr,_) -> tl,tr
 		| _ -> error "Constructible type parameter should be function" p
 	in
 	let rec loop tl = match tl with
@@ -195,7 +195,7 @@ let get_abstract_froms a pl =
 	let l = List.map (apply_params a.a_params pl) a.a_from in
 	List.fold_left (fun acc (t,f) ->
 		match follow (Type.field_type f) with
-		| TFun ([_,_,v],t) ->
+		| TFun ([_,_,v],t,_) ->
 			(try
 				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)
 				v :: acc

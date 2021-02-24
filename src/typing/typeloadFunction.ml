@@ -221,7 +221,7 @@ let add_constructor ctx c force_constructor p =
 				| _ ->
 					let values = get_value_meta cfsup.cf_meta in
 					match follow cfsup.cf_type with
-					| TFun (args,_) ->
+					| TFun (args,_,_) ->
 						List.map (fun (n,o,t) ->
 							let def = try
 								type_function_arg_value ctx t (Some (PMap.find n values)) false
@@ -239,7 +239,7 @@ let add_constructor ctx c force_constructor p =
 				tf_args = vars;
 				tf_type = ctx.t.tvoid;
 				tf_expr = super_call;
-			}) (TFun (List.map (fun (v,c) -> v.v_name, c <> None, v.v_type) vars,ctx.t.tvoid)) p in
+			}) (TFun (List.map (fun (v,c) -> v.v_name, c <> None, v.v_type) vars,ctx.t.tvoid,false)) p in
 			cf.cf_expr <- Some constr;
 			cf.cf_type <- t;
 			unify ctx t constr.etype p;

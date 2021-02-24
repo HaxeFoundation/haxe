@@ -103,7 +103,7 @@ let mk_anon ?fields status =
    how we handle this. *)
 let t_dynamic_def = ref t_dynamic
 
-let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
+let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r,false)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
@@ -265,8 +265,8 @@ let map loop t =
 		TType (t2,List.map loop tl)
 	| TAbstract (a,tl) ->
 		TAbstract (a,List.map loop tl)
-	| TFun (tl,r) ->
-		TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
+	| TFun (tl,r,coro) ->
+		TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r,coro)
 	| TAnon a ->
 		let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
 		mk_anon ~fields a.a_status
@@ -293,7 +293,7 @@ let iter loop t =
 		List.iter loop tl
 	| TAbstract (a,tl) ->
 		List.iter loop tl
-	| TFun (tl,r) ->
+	| TFun (tl,r,_) ->
 		List.iter (fun (_,_,t) -> loop t) tl;
 		loop r
 	| TAnon a ->
@@ -416,8 +416,8 @@ let apply_params ?stack cparams params t =
 				| _ -> TInst (c,List.map loop tl))
 			| _ ->
 				TInst (c,List.map loop tl))
-		| TFun (tl,r) ->
-			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
+		| TFun (tl,r,coro) ->
+			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r,coro)
 		| TAnon a ->
 			let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
 			mk_anon ~fields a.a_status
@@ -507,7 +507,7 @@ let rec follow_without_type t =
 
 let rec ambiguate_funs t =
 	match follow t with
-	| TFun _ -> TFun ([], t_dynamic)
+	| TFun(_,_,coro) -> TFun ([], t_dynamic,coro)
 	| _ -> map ambiguate_funs t
 
 let rec is_nullable ?(no_lazy=false) = function
@@ -577,7 +577,7 @@ let rec has_mono t = match t with
 		List.exists has_mono pl
 	| TDynamic _ ->
 		false
-	| TFun(args,r) ->
+	| TFun(args,r,_) ->
 		has_mono r || List.exists (fun (_,_,t) -> has_mono t) args
 	| TAnon a ->
 		PMap.fold (fun cf b -> has_mono cf.cf_type || b) a.a_fields false

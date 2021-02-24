@@ -563,7 +563,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
 					let args = List.map (fun ((name,_),o,_,t,e) -> no_expr e; name, o, topt t) fd.f_args in
-					let t = TFun (args,topt fd.f_type), Method (if !dyn then MethDynamic else MethNormal) in
+					let t = TFun (args,topt fd.f_type,false), Method (if !dyn then MethDynamic else MethNormal) in
 					ctx.type_params <- old;
 					t
 				| FProp (i1,i2,t,e) ->
@@ -611,13 +611,13 @@ and load_complex_type' ctx allow_display (t,p) =
 	| CTFunction (args,r) ->
 		match args with
 		| [CTPath { tpackage = []; tparams = []; tname = "Void" },_] ->
-			TFun ([],load_complex_type ctx allow_display r)
+			TFun ([],load_complex_type ctx allow_display r,false)
 		| _ ->
 			TFun (List.map (fun t ->
 				let t, opt = (match fst t with CTOptional t | CTParent((CTOptional t,_)) -> t, true | _ -> t,false) in
 				let n,t = (match fst t with CTNamed (n,t) -> (fst n), t | _ -> "", t) in
 				n,opt,load_complex_type ctx allow_display t
-			) args,load_complex_type ctx allow_display r)
+			) args,load_complex_type ctx allow_display r,false)
 
 and load_complex_type ctx allow_display (t,pn) =
 	try
@@ -662,7 +662,7 @@ and init_meta_overloads ctx co cf =
 					)
 					f.f_args
 			in
-			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
+			let cf = { cf with cf_type = TFun (args,topt f.f_type,false); cf_params = params; cf_meta = cf_meta} in
 			generate_args_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;
 			ctx.type_params <- old;
@@ -671,7 +671,7 @@ and init_meta_overloads ctx co cf =
 			add_class_field_flag cf CfOverload;
 			let topt (n,_,t) = match t with | TMono t when t.tm_type = None -> error ("Explicit type required for overload functions\n... For function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
 			(match follow cf.cf_type with
-			| TFun (args,_) -> List.iter topt args
+			| TFun (args,_,_) -> List.iter topt args
 			| _ -> () (* could be a variable *));
 			true
 		| (Meta.Overload,[],p) ->
@@ -894,7 +894,11 @@ let init_core_api ctx c =
 				error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
 		end;
 		(match follow f.cf_type, follow f2.cf_type with
-		| TFun (pl1,_), TFun (pl2,_) ->
+		| TFun (pl1,_,coro1), TFun (pl2,_,coro2) ->
+			if coro1 then begin
+				if not coro2 then error "Method should be coroutine" p
+			end else if coro2 then
+				error "Method should not be coroutine" p;
 			if List.length pl1 != List.length pl2 then error "Argument count mismatch" p;
 			List.iter2 (fun (n1,_,_) (n2,_,_) ->
 				if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;

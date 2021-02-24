@@ -489,7 +489,7 @@ let add_field_inits locals ctx t =
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
 			let cf = match c.cl_constructor with
 			| None ->
-				let ct = TFun([],ctx.com.basic.tvoid) in
+				let ct = TFun([],ctx.com.basic.tvoid,false) in
 				let ce = mk (TFunction {
 					tf_args = [];
 					tf_type = ctx.com.basic.tvoid;

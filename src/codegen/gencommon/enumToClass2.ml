@@ -108,7 +108,7 @@ module EnumToClass2Modf = struct
 			let etag = make_string gen.gcon.basic name pos in
 			let efields = ref [] in
 			(match follow ef.ef_type with
-				| TFun(_, _) ->
+				| TFun(_, _, _) ->
 					(* erase type params *)
 					let ef_type =
 						let t = apply_params en.e_params (List.map (fun _ -> t_dynamic) en.e_params) ef.ef_type in
@@ -162,7 +162,7 @@ module EnumToClass2Modf = struct
 
 					ctor_block := (mk (TCall(esuper,[make_int gen.gcon.basic index pos])) basic.tvoid pos) :: !ctor_block;
 
-					let cf_ctor_t = TFun (params, basic.tvoid) in
+					let cf_ctor_t = TFun (params, basic.tvoid, false) in
 					let cf_ctor = mk_class_field "new" cf_ctor_t true pos (Method MethNormal) [] in
 					cf_ctor.cf_expr <- Some {
 						eexpr = TFunction {
@@ -175,7 +175,7 @@ module EnumToClass2Modf = struct
 					};
 					cl_ctor.cl_constructor <- Some cf_ctor;
 
-					let cf_toString_t = TFun ([],basic.tstring) in
+					let cf_toString_t = TFun ([],basic.tstring,false) in
 					let cf_toString = mk_class_field "toString" cf_toString_t true pos (Method MethNormal) [] in
 
 					let etoString_args = mk_array_decl t_dynamic !efields pos in
@@ -227,7 +227,7 @@ module EnumToClass2Modf = struct
 						equals_exprs := (List.rev !param_equal_checks) @ !equals_exprs;
 						equals_exprs := mk_return (make_bool gen.gcon.basic true pos) :: !equals_exprs;
 
-						let cf_Equals_t = TFun([("other",false,t_dynamic)],basic.tbool) in
+						let cf_Equals_t = TFun([("other",false,t_dynamic)],basic.tbool,false) in
 						let cf_Equals = mk_class_field "Equals" cf_Equals_t true pos (Method MethNormal) [] in
 						cf_Equals.cf_expr <- Some {
 							eexpr = TFunction {
@@ -243,7 +243,7 @@ module EnumToClass2Modf = struct
 
 					(* add GetHashCode field *)
 					begin
-						let cf_GetHashCode_t = TFun([],basic.tint) in
+						let cf_GetHashCode_t = TFun([],basic.tint,false) in
 						let cf_GetHashCode = mk_class_field "GetHashCode" cf_GetHashCode_t true pos (Method MethNormal) [] in
 						cf_GetHashCode.cf_expr <- Some {
 							eexpr = TFunction {
@@ -260,7 +260,7 @@ module EnumToClass2Modf = struct
 					end
 
 				| _ ->
-					let cf_ctor_t = TFun([], basic.tvoid) in
+					let cf_ctor_t = TFun([], basic.tvoid,false) in
 					let cf_ctor = mk_class_field "new" cf_ctor_t true pos (Method MethNormal) [] in
 					cf_ctor.cf_expr <- Some {
 						eexpr = TFunction {
@@ -376,7 +376,7 @@ module EnumToClass2Exprf = struct
 				let ecast = mk (TCall (mk (TIdent "__as__") t_dynamic f.epos, [f])) (TInst (cl_ctor, [])) f.epos in
 
 				(match ef.ef_type with
-				| TFun (params, _) ->
+				| TFun (params, _, _) ->
 					let fname, _, _ = List.nth params i in
 					field ecast fname e.etype e.epos
 				| _ -> Globals.die "" __LOC__)

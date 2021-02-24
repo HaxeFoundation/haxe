@@ -247,7 +247,7 @@ let call_super ctx fn_args ret_t cf cl this_t pos =
 	{
 		eexpr = TCall({
 			eexpr = TField({ eexpr = TConst(TSuper); etype = this_t; epos = pos }, FInstance(cl,List.map snd cl.cl_params,cf));
-			etype = TFun(fun_args fn_args, ret_t);
+			etype = TFun(fun_args fn_args, ret_t, false);
 			epos = pos;
 		}, List.map (fun (v,_) -> mk_local v pos) fn_args);
 		etype = ret_t;
@@ -473,7 +473,7 @@ let get_delete_field ctx cl is_dynamic =
 	let basic = gen.gcon.basic in
 	let tf_args, switch_var = field_type_args ctx pos in
 	let local_switch_var = mk_local switch_var pos in
-	let fun_type = TFun(fun_args tf_args,basic.tbool) in
+	let fun_type = TFun(fun_args tf_args,basic.tbool,false) in
 	let cf = mk_class_field (mk_internal_name "hx" "deleteField") fun_type false pos (Method MethNormal) [] in
 	let body = if is_dynamic then begin
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
@@ -726,7 +726,7 @@ let implement_final_lookup ctx cl =
 					field_args @ [v,None], Some v
 			in
 
-			let fun_t = TFun(fun_args tf_args, ret_t) in
+			let fun_t = TFun(fun_args tf_args, ret_t, false) in
 			let cf = mk_class_field name fun_t false pos (Method MethNormal) [] in
 			let block = callback is_float field_args switch_var throw_errors_opt is_check_opt value_opt in
 			let block = if not is_set then let tl = begin
@@ -811,7 +811,7 @@ let implement_get_set ctx cl =
 			{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t; }, params ); etype = snd (get_fun fun_t); epos = pos }
 		in
 
-		let fun_type = ref (TFun([], basic.tvoid)) in
+		let fun_type = ref (TFun([], basic.tvoid, false)) in
 		let fun_name = mk_internal_name "hx" ( (if is_set then "setField" else "getField") ^ (if is_float then "_f" else "") ) in
 		let cfield = mk_class_field fun_name !fun_type false pos (Method MethNormal) [] in
 
@@ -845,7 +845,7 @@ let implement_get_set ctx cl =
 
 			let do_default =
 					fun () ->
-						mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [value_var,None]),value_var.v_type)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ value_local ] ))
+						mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [value_var,None]),value_var.v_type,false)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ value_local ] ))
 			in
 
 			let do_field cf cf_type =
@@ -879,7 +879,7 @@ let implement_get_set ctx cl =
 					| Var { v_write = AccCall } ->
 						let bl =
 						[
-							mk_this_call_raw ("set_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [ value_local ];
+							mk_this_call_raw ("set_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type, false)) [ value_local ];
 							mk_return value_local
 						] in
 						if not (Type.is_physical_field cf) then
@@ -911,7 +911,7 @@ let implement_get_set ctx cl =
 				let lookup_name = mk_internal_name "hx" "lookupField" in
 				let do_default =
 						fun () ->
-							mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None;is_check,None; ]),t_dynamic)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; is_check_local; ] ))
+							mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None;is_check,None; ]),t_dynamic,false)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; is_check_local; ] ))
 				in
 
 				(do_default, tf_args @ [ is_check,None; handle_prop,None; ])
@@ -921,7 +921,7 @@ let implement_get_set ctx cl =
 				let lookup_name = mk_internal_name "hx" "lookupField_f" in
 				let do_default =
 						fun () ->
-							mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None; ]),basic.tfloat)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; ] ))
+							mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None; ]),basic.tfloat,false)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; ] ))
 				in
 
 				(do_default, tf_args @ [ handle_prop,None; ])
@@ -930,12 +930,12 @@ let implement_get_set ctx cl =
 			let get_field cf cf_type ethis cl name =
 				match cf.cf_kind with
 					| Var { v_read = AccCall } when not (Type.is_physical_field cf) ->
-						mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) []
+						mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type, false)) []
 					| Var { v_read = AccCall } ->
 						{
 							eexpr = TIf(
 								handle_prop_local,
-								mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [],
+								mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type, false)) [],
 								Some { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos }
 							);
 							etype = cf_type;
@@ -984,7 +984,7 @@ let implement_get_set ctx cl =
 
 		(* now we have do_default, do_field and tf_args *)
 		(* so create the switch expr *)
-		fun_type := TFun(List.map (fun (v,_) -> (v.v_name, false, v.v_type)) tf_args, if is_float then basic.tfloat else t_dynamic );
+		fun_type := TFun(List.map (fun (v,_) -> (v.v_name, false, v.v_type)) tf_args, (if is_float then basic.tfloat else t_dynamic), false);
 		let has_fields = ref false in
 
 		let content =
@@ -1054,7 +1054,7 @@ let implement_getFields ctx cl =
 	let base_arr = mk_local v_base_arr pos in
 
 	let tf_args = [(v_base_arr,None)] in
-	let t = TFun(fun_args tf_args, basic.tvoid) in
+	let t = TFun(fun_args tf_args, basic.tvoid, false) in
 	let cf = mk_class_field name t false pos (Method MethNormal) [] in
 
 	let e_pushfield = mk_field_access gen base_arr "push" pos in
@@ -1138,7 +1138,7 @@ let implement_invokeField ctx slow_invoke cl =
 
 	let dynamic_arg = alloc_var "dynargs" (gen.gclasses.nativearray t_dynamic) in
 	let all_args = field_args @ [ dynamic_arg, None ] in
-	let fun_t = TFun(fun_args all_args, t_dynamic) in
+	let fun_t = TFun(fun_args all_args, t_dynamic, false) in
 
 	let this_t = TInst(cl, List.map snd cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
@@ -1218,7 +1218,7 @@ let implement_invokeField ctx slow_invoke cl =
 				let tf_args, args = tf_args @ ["isCheck", false, basic.tbool],          args @ [make_bool gen.gcon.basic false pos] in
 				let tf_args, args = tf_args @ ["handleProperties", false, basic.tbool], args @ [make_bool gen.gcon.basic false pos] in
 
-				mk (TCall ({ (mk_field_access gen this fun_name pos) with etype = TFun(tf_args, t_dynamic) }, args)) t_dynamic pos
+				mk (TCall ({ (mk_field_access gen this fun_name pos) with etype = TFun(tf_args, t_dynamic, false) }, args)) t_dynamic pos
 			end in
 			let field = mk_cast (TInst(ctx.rcf_ft.func_class,[])) field in
 			mk_return {
@@ -1261,7 +1261,7 @@ let implement_invokeField ctx slow_invoke cl =
 				tf_type = t_dynamic;
 				tf_expr = mk_block contents;
 			});
-			etype = TFun(fun_args all_args, t_dynamic);
+			etype = TFun(fun_args all_args, t_dynamic, false);
 			epos = pos;
 		};
 	if !is_override && not (!has_method) then () else begin
@@ -1279,7 +1279,7 @@ let implement_varargs_cl ctx cl =
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
 	let invokedyn = mk_internal_name "hx" "invokeDynamic" in
-	let idyn_t = TFun([mk_internal_name "fn" "dynargs", false, gen.gclasses.nativearray t_dynamic], t_dynamic) in
+	let idyn_t = TFun([mk_internal_name "fn" "dynargs", false, gen.gclasses.nativearray t_dynamic], t_dynamic, false) in
 	let this_idyn = mk_this invokedyn idyn_t in
 
 	let map_fn arity ret vars api =
@@ -1389,7 +1389,7 @@ let implement_closure_cl ctx cl =
 		cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
 	) all_cfs;
 
-	let ctor_t = TFun(fun_args tf_args, basic.tvoid) in
+	let ctor_t = TFun(fun_args tf_args, basic.tvoid, false) in
 	let ctor_cf = mk_class_field "new" ctor_t true pos (Method MethNormal) [] in
 	ctor_cf.cf_expr <- Some {
 		eexpr = TFunction({

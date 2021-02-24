@@ -109,7 +109,7 @@ let rec t_has_type_param t = match follow t with
 	| TEnum(_, params)
 	| TAbstract(_, params)
 	| TInst(_, params) -> List.exists t_has_type_param params
-	| TFun(f,ret) -> t_has_type_param ret || List.exists (fun (_,_,t) -> t_has_type_param t) f
+	| TFun(f,ret,_) -> t_has_type_param ret || List.exists (fun (_,_,t) -> t_has_type_param t) f
 	| _ -> false
 
 let is_dynamic gen t =
@@ -124,7 +124,7 @@ let rec t_has_type_param_shallow last t = match follow t with
 	| TEnum(_, params)
 	| TAbstract(_, params)
 	| TInst(_, params) when not last -> List.exists (t_has_type_param_shallow true) params
-	| TFun(f,ret) when not last -> t_has_type_param_shallow true ret	|| List.exists (fun (_,_,t) -> t_has_type_param_shallow true t) f
+	| TFun(f,ret,_) when not last -> t_has_type_param_shallow true ret	|| List.exists (fun (_,_,t) -> t_has_type_param_shallow true t) f
 	| _ -> false
 
 let rec replace_type_param t = match follow t with
@@ -459,7 +459,7 @@ struct
 		let local_hashcode = ref { local with
 			eexpr = TCall({ local with
 				eexpr = TField(local, FDynamic "hashCode");
-				etype = TFun([], basic.tint);
+				etype = TFun([], basic.tint,false);
 			}, []);
 			etype = basic.tint
 		} in
@@ -530,7 +530,7 @@ struct
 					| TConst(TString s) ->
 						let hashed = java_hash s in
 						let equals_test = {
-							eexpr = TCall({ e with eexpr = TField(local, FDynamic "equals"); etype = TFun(["obj",false,t_dynamic],basic.tbool) }, [ e ]);
+							eexpr = TCall({ e with eexpr = TField(local, FDynamic "equals"); etype = TFun(["obj",false,t_dynamic],basic.tbool,false) }, [ e ]);
 							etype = basic.tbool;
 							epos = e.epos
 						} in
@@ -637,7 +637,7 @@ struct
 
 		let mk_valueof_call boxed_t expr =
 			let box_cl, unboxed_t = get_unboxed_from_boxed boxed_t in
-			let fn = TFun(["param1",false,unboxed_t],boxed_t) in
+			let fn = TFun(["param1",false,unboxed_t],boxed_t,false) in
 			{
 				eexpr = TCall(mk_static_field_access box_cl "valueOf" fn expr.epos, [mk_cast_if_needed unboxed_t expr]);
 				etype = boxed_t;
@@ -907,7 +907,7 @@ let rec handle_throws gen cf =
 			let catch_var = alloc_var "typedException" (TInst(throwable,[])) in
 			let rethrow = mk_local catch_var e.epos in
 			let hx_exception = get_cl (get_type gen (["haxe"], "Exception")) in
-			let wrap_static = mk_static_field_access (hx_exception) "thrown" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
+			let wrap_static = mk_static_field_access (hx_exception) "thrown" (TFun([("obj",false,t_dynamic)], t_dynamic, false)) rethrow.epos in
 			let thrown_value = mk_cast (TInst(cast_cl,[])) { rethrow with eexpr = TCall(wrap_static, [rethrow]) } in
 			let wrapped = { rethrow with eexpr = TThrow thrown_value; } in
 			let map_throws cl =
@@ -979,13 +979,13 @@ let generate con =
 	let cl_cl = get_cl (get_type gen (["java";"lang"],"Class")) in
 	let basic_fns =
 	[
-		mk_class_field "equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true null_pos (Method MethNormal) [];
-		mk_class_field "toString" (TFun([], basic.tstring)) true null_pos (Method MethNormal) [];
-		mk_class_field "hashCode" (TFun([], basic.tint)) true null_pos (Method MethNormal) [];
-		mk_class_field "getClass" (TFun([], (TInst(cl_cl,[t_dynamic])))) true null_pos (Method MethNormal) [];
-		mk_class_field "wait" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
-		mk_class_field "notify" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
-		mk_class_field "notifyAll" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
+		mk_class_field "equals" (TFun(["obj",false,t_dynamic], basic.tbool, false)) true null_pos (Method MethNormal) [];
+		mk_class_field "toString" (TFun([], basic.tstring, false)) true null_pos (Method MethNormal) [];
+		mk_class_field "hashCode" (TFun([], basic.tint, false)) true null_pos (Method MethNormal) [];
+		mk_class_field "getClass" (TFun([], (TInst(cl_cl,[t_dynamic])), false)) true null_pos (Method MethNormal) [];
+		mk_class_field "wait" (TFun([], basic.tvoid, false)) true null_pos (Method MethNormal) [];
+		mk_class_field "notify" (TFun([], basic.tvoid, false)) true null_pos (Method MethNormal) [];
+		mk_class_field "notifyAll" (TFun([], basic.tvoid, false)) true null_pos (Method MethNormal) [];
 	] in
 	List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
 
@@ -1957,7 +1957,7 @@ let generate con =
 				let is_override = match cf.cf_name with
 					| "equals" when not is_static ->
 						(match cf.cf_type with
-							| TFun([_,_,t], ret) ->
+							| TFun([_,_,t], ret, _) ->
 								(match (real_type t, real_type ret) with
 									| TDynamic _, TAbstract ({ a_path = ([], "Bool") },[])
 									| TAnon _, TAbstract ({ a_path = ([], "Bool") },[]) -> true
@@ -1966,7 +1966,7 @@ let generate con =
 							| _ -> has_class_field_flag cf CfOverride)
 					| "toString" when not is_static ->
 						(match cf.cf_type with
-							| TFun([], ret) ->
+							| TFun([], ret, _) ->
 								(match real_type ret with
 									| TInst( { cl_path = ([], "String") }, []) -> true
 									| _ -> gen.gcon.error "A toString() function should return a String!" cf.cf_pos; false
@@ -1975,7 +1975,7 @@ let generate con =
 						)
 					| "hashCode" when not is_static ->
 						(match cf.cf_type with
-							| TFun([], ret) ->
+							| TFun([], ret, _) ->
 								(match real_type ret with
 									| TAbstract ({ a_path = ([], "Int") },[]) ->
 										true
@@ -1996,7 +1996,7 @@ let generate con =
 
 				let params = List.map snd cl.cl_params in
 				let ret_type, args, has_rest_args = match follow cf_type, follow cf.cf_type with
-					| TFun (strbtl, t), TFun(rargs, _) ->
+					| TFun (strbtl, t, _), TFun(rargs, _, _) ->
 						let ret_type = apply_params cl.cl_params params (real_type t)
 						and args =
 							List.map2 (fun(_,_,t) (n,o,_) ->

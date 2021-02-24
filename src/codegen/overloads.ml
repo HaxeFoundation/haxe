@@ -41,7 +41,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	let compare_types () =
 		let t1 = follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1) in
 		match t1,follow t2 with
-		| TFun(tl1,_),TFun(tl2,_) ->
+		| TFun(tl1,_,coro1),TFun(tl2,_,coro2) when coro1 = coro2 ->
 			compare_arguments tl1 tl2
 		| _ ->
 			false
@@ -227,7 +227,7 @@ struct
 
 	let count_optionals t =
 		match follow t with
-		| TFun(args,_) ->
+		| TFun(args,_,_) ->
 			List.fold_left (fun acc (_,is_optional,_) -> if is_optional then acc + 1 else acc) 0 args
 		| _ ->
 			0
@@ -267,7 +267,7 @@ struct
 
 			let rated = ref [] in
 			List.iter (fun fcc -> match fcc.fc_type with
-				| TFun(args,ret) -> (try
+				| TFun(args,ret,_) -> (try
 					rated := ( fcc, mk_rate [] fcc.fc_args args ) :: !rated
 					with | Not_found -> ())
 				| _ -> die "" __LOC__

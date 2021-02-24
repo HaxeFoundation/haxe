@@ -78,7 +78,7 @@ let build_dependencies t =
 			if a.a_path <> ([],"Null") && Meta.has Meta.CoreType a.a_meta then
 				add_path a.a_path DKType;
 			List.iter (add_type_rec (t::l)) pl;
-		| TFun (pl,t2) ->
+		| TFun (pl,t2,_) ->
 			List.iter (fun (_,_,t2) -> add_type_rec (t::l) t2) pl;
 			add_type_rec (t::l) t2;
 		| TAnon a ->

@@ -39,7 +39,7 @@ let get_main ctx types =
 		let ft = Type.field_type f in
 		let fmode, r =
 			match follow ft with
-			| TFun ([],r) -> FStatic (c,f), r
+			| TFun ([],r,_) -> FStatic (c,f), r
 			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
 		in
 		if not (ExtType.is_void (follow r)) then error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;

@@ -145,7 +145,7 @@ let fields_to_json ctx fields kind subj =
 
 let arg_index signatures signature_index param_index =
 	try
-		let args,_ = fst (fst (List.nth signatures signature_index)) in
+		let args,_,_ = fst (fst (List.nth signatures signature_index)) in
 		let rec loop args index =
 			match args with
 			| [] -> param_index

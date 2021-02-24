@@ -203,7 +203,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
-	el,TFun(args,r)
+	el,TFun(args,r,false (* corotodo *))
 
 type overload_kind =
 	| OverloadProper (* @:overload or overload *)
@@ -287,7 +287,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
-		| TFun(args,ret) ->
+		| TFun(args,ret,coro) ->
 			let rec loop acc_el acc_args tmap args el_typed = match args,el_typed with
 				| ((_,opt,t0) as arg) :: args,e :: el_typed ->
 					begin try
@@ -312,7 +312,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			in
 			(* here *)
 			let el = el_typed @ el in
-			let tf = TFun(args_typed @ args,ret) in
+			let tf = TFun(args_typed @ args,ret,coro) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				!make_call_ref ctx ef el ret ~force_inline:inline p
@@ -360,7 +360,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		loop candidates
 	in
 	let fail_fun () =
-		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
+		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic,false) in
 		let call () =
 			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
 			mk (TCall(ef,[])) t_dynamic p
@@ -521,9 +521,9 @@ object(self)
 			mk (TCall (e,el)) t p
 		in
 		let rec loop t = match follow t with
-		| TFun (args,r) ->
+		| TFun (args,r,corotodo) ->
 			let el, tfunc = unify_call_args ctx el args r p false false false in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
+			let r = match tfunc with TFun(_,r,_) -> r | _ -> die "" __LOC__ in
 			mk (TCall (e,el)) r p
 		| TAbstract(a,tl) as t ->
 			let check_callable () =

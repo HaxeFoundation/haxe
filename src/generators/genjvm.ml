@@ -165,7 +165,7 @@ let rec jsignature_of_type gctx stack t =
 	| TEnum(en,tl) ->
 		Hashtbl.replace gctx.enum_paths en.e_path ();
 		TObject(en.e_path,List.map jtype_argument_of_type tl)
-	| TFun(tl,tr) -> method_sig (List.map (fun (_,o,t) ->
+	| TFun(tl,tr,_) -> method_sig (List.map (fun (_,o,t) ->
 		let jsig = jsignature_of_type t in
 		let jsig = if o then get_boxed_type jsig else jsig in
 		jsig
@@ -616,7 +616,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method read cast e1 fa =
 		let read_static_closure path cf =
 			let args,ret = match follow cf.cf_type with
-				| TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+				| TFun(tl,tr,_) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
 				| _ -> die "" __LOC__
 			in
 			self#read_static_closure path cf.cf_name args ret
@@ -1382,7 +1382,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method call_arguments ?(cast=true) t el =
 		let tl,tr = match follow t with
-			| TFun(tl,tr) ->
+			| TFun(tl,tr,_) ->
 				tl,return_of_type gctx tr
 			| _ ->
 				List.map (fun e -> ("",false,e.etype)) el,Some (object_sig)
@@ -1992,7 +1992,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| TEnumParameter(e1,ef,i) ->
 			self#texpr rvalue_any e1;
 			let path,name,jsig_arg = match follow ef.ef_type with
-				| TFun(tl,TEnum(en,_)) ->
+				| TFun(tl,TEnum(en,_),_) ->
 					let n,_,t = List.nth tl i in
 					en.e_path,n,self#vtype t
 				| _ -> die "" __LOC__
@@ -2216,7 +2216,7 @@ class tclass_to_jvm gctx c = object(self)
 		in
 		let find_overload map_type c cf =
 			let tl = match follow (map_type cf.cf_type) with
-				| TFun(tl,_) -> tl
+				| TFun(tl,_,_) -> tl
 				| _ -> die "" __LOC__
 			in
 			OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl)
@@ -2312,7 +2312,7 @@ class tclass_to_jvm gctx c = object(self)
 				DynArray.iter (fun e ->
 					handler#texpr RVoid e;
 				) field_inits;
-				let tl = match follow cf.cf_type with TFun(tl,_) -> tl | _ -> die "" __LOC__ in
+				let tl = match follow cf.cf_type with TFun(tl,_,_) -> tl | _ -> die "" __LOC__ in
 				List.iter (fun (n,_,t) ->
 					let _,load,_ = jm#add_local n (jsignature_of_type gctx t) VarArgument in
 					load();
@@ -2617,7 +2617,7 @@ let generate_enum gctx en =
 	let names = List.map (fun name ->
 		let ef = PMap.find name en.e_constrs in
 		let args = match follow ef.ef_type with
-			| TFun(tl,_) -> List.map (fun (n,_,t) -> n,jsignature_of_type gctx t) tl
+			| TFun(tl,_,_) -> List.map (fun (n,_,t) -> n,jsignature_of_type gctx t) tl
 			| _ -> []
 		in
 		let jsigs = List.map snd args in
@@ -2757,7 +2757,7 @@ let generate_anons gctx =
 				let jsig_cf = jsignature_of_type gctx cf.cf_type in
 				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
 				let tl,tr = match follow cf.cf_type with
-					| TFun(tl,tr) -> tl,tr
+					| TFun(tl,tr,_) -> tl,tr
 					| _ -> die "" __LOC__
 				in
 				let locals = List.map (fun (n,_,t) ->

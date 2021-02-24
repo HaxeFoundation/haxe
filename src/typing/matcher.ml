@@ -103,7 +103,7 @@ module Constructor = struct
 		| _ -> false
 
 	let arity con = match fst con with
-		| ConEnum (_,{ef_type = TFun(args,_)}) -> List.length args
+		| ConEnum (_,{ef_type = TFun(args,_,_)}) -> List.length args
 		| ConEnum _ -> 0
 		| ConConst _ -> 0
 		| ConFields fields -> List.length fields
@@ -330,7 +330,7 @@ module Pattern = struct
 				PatConstructor(con_const ct p,[])
 			| EConst (Ident i) ->
 				begin match follow t with
-					| TFun(ta,tr) when tr == fake_tuple_type ->
+					| TFun(ta,tr,_) when tr == fake_tuple_type ->
 						if i = "_" then PatTuple(List.map (fun (_,_,t) -> (PatAny,pos e)) ta)
 						else error "Cannot bind matched tuple to variable, use _ instead" p
 					| _ ->
@@ -343,13 +343,13 @@ module Pattern = struct
 			| ECall(e1,el) ->
 				let e1 = type_expr ctx e1 (WithType.with_type t) in
 				begin match e1.eexpr,follow e1.etype with
-					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
+					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl),_) ->
 						let map = apply_params en.e_params tl in
 						let monos = Monomorph.spawn_constrained_monos map ef.ef_params in
 						let map t = map (apply_params ef.ef_params monos t) in
 						unify ctx (map ef.ef_type) e1.etype e1.epos;
 						let args = match follow e1.etype with
-							| TFun(args,r) ->
+							| TFun(args,r,_) ->
 								unify_expected r;
 								args
 							| _ -> die "" __LOC__
@@ -384,7 +384,7 @@ module Pattern = struct
 				end
 			| EArrayDecl el ->
 				let rec pattern seen t = match follow t with
-					| TFun(tl,tr) when tr == fake_tuple_type ->
+					| TFun(tl,tr,_) when tr == fake_tuple_type ->
 						let rec loop el tl = match el,tl with
 							| e :: el,(_,_,t) :: tl ->
 								let pat = make pctx false t e in
@@ -965,7 +965,7 @@ module Compile = struct
 			let t_en = TEnum(en,tl) in
 			let e = if not (type_iseq t_en e.etype) then mk (TCast(e,None)) t_en e.epos else e in
 			begin match follow ef.ef_type with
-				| TFun(args,_) ->
+				| TFun(args,_,_) ->
 					let rec combine args positions =
 						match (args, positions) with
 							| (a :: args, p :: positions) -> (a, p) :: combine args positions
@@ -1286,7 +1286,7 @@ module TexprConverter = struct
 				if top then loop false s e1
 				else loop false (Printf.sprintf "{ %s: %s }" (field_name fa) s) e1
 			| TEnumParameter(e1,ef,i) ->
-				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> die "" __LOC__ in
+				let arity = match follow ef.ef_type with TFun(args,_,_) -> List.length args | _ -> die "" __LOC__ in
 				let l = make_offset_list i (arity - i - 1) s "_" in
 				loop false (Printf.sprintf "%s(%s)" ef.ef_name (String.concat ", " l)) e1
 			| TLocal v ->
@@ -1308,7 +1308,7 @@ module TexprConverter = struct
 	let unify_constructor ctx params t con =
 		match fst con with
 		| ConEnum(en,ef) ->
-			let t_ef = match follow ef.ef_type with TFun(_,t) -> t | _ -> ef.ef_type in
+			let t_ef = match follow ef.ef_type with TFun(_,t,_) -> t | _ -> ef.ef_type in
 			let t_ef = apply_params ctx.type_params params (monomorphs en.e_params (monomorphs ef.ef_params t_ef)) in
 			let monos = List.map (fun t -> match follow t with
 				| TInst({cl_kind = KTypeParameter _},_) | TMono _ -> mk_mono()

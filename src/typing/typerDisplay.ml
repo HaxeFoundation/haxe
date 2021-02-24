@@ -20,8 +20,8 @@ open Calls
 open Error
 open FieldAccess
 
-let convert_function_signature ctx values (args,ret) = match CompletionType.from_type (get_import_status ctx) ~values (TFun(args,ret)) with
-	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
+let convert_function_signature ctx values (args,ret,coro) = match CompletionType.from_type (get_import_status ctx) ~values (TFun(args,ret,coro)) with
+	| CompletionType.CTFunction ctf -> ((args,ret,coro),ctf)
 	| _ -> die "" __LOC__
 
 let completion_item_of_expr ctx e =
@@ -125,7 +125,7 @@ let completion_item_of_expr ctx e =
 				let fcc = unify_field_call ctx fa el [] e.epos false in
 				let cf = fcc.fc_field in
 				let t = match follow (FieldAccess.get_map_function fa cf.cf_type) with
-					| TFun(args,_) -> TFun(args,TInst(c,tl))
+					| TFun(args,_,coro) -> TFun(args,TInst(c,tl),coro)
 					| t -> t
 				in
 				make_ci_class_field (CompletionClassField.make cf CFSConstructor (Self (decl_of_class c)) true) (tpair ~values:(get_value_meta cf.cf_meta) t)
@@ -172,9 +172,9 @@ let display_dollar_type ctx p make_type =
 	let arg = ["expression",false,mono] in
 	begin match ctx.com.display.dms_kind with
 	| DMSignature ->
-		raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
+		raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono,false),doc)] 0 0 SKCall
 	| DMHover ->
-		let t = TFun(arg,mono) in
+		let t = TFun(arg,mono,false) in
 		raise_hover (make_ci_expr (mk (TIdent "trace") t p) (make_type t)) (Some (WithType.named_argument "expression")) p
 	| DMDefinition | DMTypeDefinition ->
 		raise_positions []
@@ -188,7 +188,7 @@ let rec handle_signature_display ctx e_ast with_type =
 	let handle_call tl el p0 =
 		let rec follow_with_callable (t,doc,values) = match follow t with
 			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc,values)
-			| TFun(args,ret) -> ((args,ret),doc,values)
+			| TFun(args,ret,coro) -> ((args,ret,coro),doc,values)
 			| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 		in
 		let tl = List.map follow_with_callable tl in
@@ -207,7 +207,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		let el = if el <> [] && display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
 		let rec loop acc tl = match tl with
 			| (t,doc,values) :: tl ->
-				let keep (args,r) =
+				let keep (args,r,coro) =
 					begin try
 						let _ = unify_call_args ctx el args r p false false false in
 						true
@@ -291,19 +291,19 @@ let rec handle_signature_display ctx e_ast with_type =
 			let e1 = type_expr ctx e1 WithType.value in
 			begin match follow e1.etype with
 			| TInst({cl_path=([],"Array")},[t]) ->
-				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t) in
+				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t,false) in
 				raise_signatures [res,doc_from_string "The array index"] 0 0 SKCall
 			| TAbstract(a,tl) ->
 				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
 				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
-					| TFun(_ :: args,r) ->
+					| TFun(_ :: args,r,coro) ->
 						if ExtType.is_void (follow r) && (match with_type with WithType.NoValue -> false | _ -> true) then
 							None
 						else begin
 							let map = apply_params a.a_params tl in
 							let tl = List.map (fun (n,o,t) -> n,o,map t) args in
 							let r = map r in
-							Some (convert_function_signature ctx PMap.empty (tl,r),cf.cf_doc)
+							Some (convert_function_signature ctx PMap.empty (tl,r,coro),cf.cf_doc)
 						end
 					| _ ->
 						None
@@ -550,9 +550,9 @@ let handle_display ctx e_ast dk mode with_type =
 		let p = pos e_ast in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret,false),doc)] 0 0 SKCall
 		| DMHover ->
-			let t = TFun(arg,ret) in
+			let t = TFun(arg,ret,false) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "value")) p
 		| DMDefinition | DMTypeDefinition ->
 			raise_positions []

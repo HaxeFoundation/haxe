@@ -64,7 +64,7 @@ and tlazy =
 	| LProcessing of (unit -> t)
 	| LWait of (unit -> t)
 
-and tsignature = (string * bool * t) list * t
+and tsignature = (string * bool * t) list * t * bool (* true = coroutine *)
 
 and tparams = t list
 

@@ -220,7 +220,7 @@ let create_static_prototype ctx mt =
 		let names = List.map (fun name ->
 			let ef = PMap.find name en.e_constrs in
 			let args = match follow ef.ef_type with
-				| TFun(args,_) ->
+				| TFun(args,_,_) ->
 					List.map (fun (n,_,_) -> hash n) args
 				| _ ->
 					[]
@@ -229,7 +229,7 @@ let create_static_prototype ctx mt =
 		) en.e_names in
 		let pctx = PrototypeBuilder.create ctx key None (PEnum names) meta in
 		let enum_field_value ef = match follow ef.ef_type with
-			| TFun(args,_) ->
+			| TFun(args,_,_) ->
 				let f = (fun vl -> encode_enum_value key ef.ef_index (Array.of_list vl) (Some ef.ef_pos)) in
 				vstatic_function f
 			| _ -> encode_enum_value key ef.ef_index [||] (Some ef.ef_pos)

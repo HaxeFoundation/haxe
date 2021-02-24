@@ -250,7 +250,7 @@ let rec link e a b =
 		| TMono t -> (match t.tm_type with None -> false | Some t -> loop t)
 		| TEnum (_,tl) -> List.exists loop tl
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
-		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
+		| TFun (tl,t,_) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic t2 ->
 			if t == t2 then
 				false
@@ -284,7 +284,7 @@ let fast_eq_check type_param_check a b =
 	if a == b then
 		true
 	else match a , b with
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+	| TFun (l1,r1,coro1) , TFun (l2,r2,coro2) when coro1 = coro2 && List.length l1 = List.length l2 ->
 		List.for_all2 (fun (_,_,t1) (_,_,t2) -> type_param_check t1 t2) l1 l2 && type_param_check r1 r2
 	| TType (t1,l1), TType (t2,l2) ->
 		t1 == t2 && List.for_all2 type_param_check l1 l2
@@ -491,7 +491,7 @@ let rec type_eq uctx a b =
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
 		type_eq_params uctx a b tl1 tl2
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+	| TFun (l1,r1,coro1) , TFun (l2,r2,coro2) when coro1 = coro2 && List.length l1 = List.length l2 ->
 		let i = ref 0 in
 		(try
 			type_eq uctx r1 r2;
@@ -658,7 +658,7 @@ let rec unify (uctx : unification_context) a b =
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+	| TFun (l1,r1,coro1) , TFun (l2,r2,coro2) when coro1 = coro2 && List.length l1 = List.length l2 ->
 		let uctx = get_nested_context uctx in
 		let i = ref 0 in
 		(try
@@ -946,7 +946,7 @@ and unifies_to_direct uctx a b ab tl t =
 and unifies_from_field uctx a b ab tl (t,cf) =
 	does_func_unify (fun() ->
 		match follow cf.cf_type with
-		| TFun(_,r) ->
+		| TFun(_,r,_) ->
 			let map = apply_params ab.a_params tl in
 			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 			let map t = map (apply_params cf.cf_params monos t) in
@@ -959,7 +959,7 @@ and unifies_from_field uctx a b ab tl (t,cf) =
 and unifies_to_field uctx a b ab tl (t,cf) =
 	does_func_unify (fun() ->
 		match follow cf.cf_type with
-		| TFun((_,_,ta) :: _,_) ->
+		| TFun((_,_,ta) :: _,_,_) ->
 			let map = apply_params ab.a_params tl in
 			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 			let map t = map (apply_params cf.cf_params monos t) in
@@ -1024,7 +1024,7 @@ and unify_with_variance uctx f t1 t2 =
 		compare_underlying();
 	| TAnon(a1),TAnon(a2) ->
 		unify_anons uctx t1 t2 a1 a2
-	| TFun(al1,r1),TFun(al2,r2) when List.length al1 = List.length al2 ->
+	| TFun(al1,r1,coro1),TFun(al2,r2,coro2) when coro1 = coro2 && List.length al1 = List.length al2 ->
 		List.iter2 (fun (_,_,t1) (_,_,t2) -> unify_nested t1 t2) al1 al2;
 		unify_nested r1 r2;
 	| _ ->

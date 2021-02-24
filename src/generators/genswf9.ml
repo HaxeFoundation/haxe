@@ -1442,7 +1442,7 @@ and gen_call ctx retval e el r =
 	| { eexpr = TUnop (Spread, Prefix, rest) } :: el_rev ->
 		let null = mk (TConst TNull) t_dynamic null_pos
 		and t_array_dyn = ctx.com.basic.tarray t_dynamic in
-		let t = TFun (["thisArg",false,t_dynamic; "argArray",false,t_array_dyn],r) in
+		let t = TFun (["thisArg",false,t_dynamic; "argArray",false,t_array_dyn],r,false) in
 		let apply = mk (TField (e,FDynamic "apply")) t e.epos in
 		gen_call ctx retval apply [null; args_as_array ctx (List.rev el_rev) rest] r
 	(* normal call without `...rest` *)
@@ -2140,7 +2140,7 @@ let generate_field_kind ctx f c stat =
 		);
 	| _ when (has_class_flag c CInterface || has_class_field_flag f CfAbstract) && not stat ->
 		(match follow f.cf_type, f.cf_kind with
-		| TFun (args,tret), Method (MethNormal | MethInline) ->
+		| TFun (args,tret,_), Method (MethNormal | MethInline) ->
 			let dparams = ref None in
 			List.iter (fun (_,o,t) ->
 				match !dparams with
@@ -2588,7 +2588,7 @@ let generate_class ctx c =
 	) c.cl_fields [] in
 	let fields = if c.cl_path <> ctx.boot then fields else begin
 		let cf = {
-			(mk_field "init" ~public:(ctx.swc && ctx.swf_protected) (TFun ([],t_dynamic)) c.cl_pos null_pos) with
+			(mk_field "init" ~public:(ctx.swc && ctx.swf_protected) (TFun ([],t_dynamic,false)) c.cl_pos null_pos) with
 			cf_kind = Method MethNormal;
 		} in
 		{
@@ -2704,7 +2704,7 @@ let generate_enum ctx e meta =
 			hlf_name = ident f.ef_name;
 			hlf_slot = !st_count;
 			hlf_kind = (match f.ef_type with
-				| TFun (args,_) ->
+				| TFun (args,_,_) ->
 					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> alloc_var VGenerated a t e.e_pos, (if opt then Some (mk (TConst TNull) t_dynamic null_pos) else None)) args) (TEnum (e,[])) [] true f.ef_pos in
 					write ctx (HFindPropStrict name_id);
 					write ctx (HString f.ef_name);

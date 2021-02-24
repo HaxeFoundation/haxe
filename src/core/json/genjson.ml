@@ -224,7 +224,7 @@ let rec generate_type ctx t =
 		| TType(td,tl) -> "TType",Some (generate_type_path_with_params ctx td.t_module.m_path td.t_path tl td.t_meta)
 		| TAbstract(a,tl) -> "TAbstract",Some (generate_type_path_with_params ctx a.a_module.m_path a.a_path tl a.a_meta)
 		| TAnon an -> "TAnonymous", Some(generate_anon ctx an)
-		| TFun(tl,tr) -> "TFun", Some (jobject (generate_function_signature ctx tl tr))
+		| TFun(tl,tr,coro) -> "TFun", Some (jobject (generate_function_signature ctx tl tr coro))
 	in
 	let name,args = loop t in
 	generate_adt ctx None name args
@@ -257,10 +257,11 @@ and generate_function_argument ctx (name,opt,t) =
 		"t",generate_type ctx t;
 	]
 
-and generate_function_signature ctx tl tr =
+and generate_function_signature ctx tl tr coro =
 	[
 		"args",jlist (generate_function_argument ctx) tl;
 		"ret",generate_type ctx tr;
+		"coro",jbool coro;
 	]
 
 and generate_types ctx tl =

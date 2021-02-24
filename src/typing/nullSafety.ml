@@ -290,7 +290,7 @@ class unificator =
 				)
 				b.a_fields
 
-		method private unify_functions (a_args, a_result) (b_args, b_result) =
+		method private unify_functions (a_args, a_result, a_corotodo) (b_args, b_result, b_corotodo) =
 			(* check return type *)
 			(match b_result with
 				| TAbstract ({ a_path = ([], "Void") }, []) -> ()
@@ -1401,7 +1401,7 @@ class expr_checker mode immediate_execution report =
 						| Some cf ->
 							let rec traverse t =
 								match follow t with
-									| TFun (types, _) -> self#check_args e_new args types
+									| TFun (types, _, _) -> self#check_args e_new args types
 									| _ -> fail ~msg:"Unexpected constructor type." e_new.epos __POS__
 							in
 							let ctor_type = apply_params cls.cl_params params cf.cf_type in
@@ -1421,7 +1421,7 @@ class expr_checker mode immediate_execution report =
 					self#check_expr callee
 			);
 			(match follow callee.etype with
-				| TFun (types, _) ->
+				| TFun (types, _, _) ->
 					if is_trace callee then
 						let real_args =
 							match List.rev args with

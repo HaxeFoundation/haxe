@@ -204,7 +204,7 @@ let unify_int ctx e k =
 	in
 	let is_dynamic_return t =
 		match follow t with
-		| TFun (_,r) -> is_dynamic r
+		| TFun (_,r,_) -> is_dynamic r
 		| _ -> true
 	in
 	(*
@@ -492,7 +492,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 		| (op_cf,cf) :: ol when op_cf = find_op ->
 			let is_impl = has_class_field_flag cf CfImpl in
 			begin match follow cf.cf_type with
-				| TFun([(_,_,t1);(_,_,t2)],tret) ->
+				| TFun([(_,_,t1);(_,_,t2)],tret,_) ->
 					let check e1 e2 swapped =
 						let map_arguments () =
 							let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in

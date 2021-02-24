@@ -52,8 +52,8 @@ let collect_static_extensions ctx items e p =
 		let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
 		let map = apply_params f.cf_params monos in
 		match follow (map f.cf_type) with
-		| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
-		| TFun((_,_,t) :: args, ret) ->
+		| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret, coro)
+		| TFun((_,_,t) :: args, ret, coro) ->
 			begin try
 				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
 				List.iter2 (fun m (name,t) -> match follow t with
@@ -65,7 +65,7 @@ let collect_static_extensions ctx items e p =
 					acc
 				else begin
 					let f = prepare_using_field f in
-					let f = { f with cf_params = []; cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic); cf_type = TFun(args,ret) } in
+					let f = { f with cf_params = []; cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic); cf_type = TFun(args,ret,coro) } in
 					let decl = match c.cl_kind with
 						| KAbstractImpl a -> TAbstractDecl a
 						| _ -> TClassDecl c
@@ -108,7 +108,7 @@ let collect_static_extensions ctx items e p =
 		items
 
 let collect ctx e_ast e dk with_type p =
-	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
+	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret,false) in
 	let should_access c cf stat =
 		if Meta.has Meta.NoCompletion cf.cf_meta then false
 		else if c != ctx.curclass && not (has_class_field_flag cf CfPublic) && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
@@ -286,7 +286,7 @@ let collect ctx e_ast e dk with_type p =
 				end else
 					acc
 			) an.a_fields items
-		| TFun (args,ret) ->
+		| TFun (args,ret,_) ->
 			(* A function has no field except the magic .bind one. *)
 			if is_new_item items "bind" then begin
 				let t = opt_args args ret in
@@ -352,7 +352,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 					let e = type_expr ctx e WithType.value in
 					(name,false,e.etype)
 				) el in
-				(TFun(tl,tret),Method MethNormal)
+				(TFun(tl,tret,false),Method MethNormal)
 			with _ ->
 				raise Exit
 			end

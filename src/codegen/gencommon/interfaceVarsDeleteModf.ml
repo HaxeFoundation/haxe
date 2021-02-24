@@ -48,13 +48,13 @@ let configure gen =
 				| Var vkind when Type.is_physical_field cf || not (Meta.has Meta.Property cf.cf_meta) ->
 					(match vkind.v_read with
 						| AccCall ->
-							let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+							let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type,false)) true cf.cf_pos (Method MethNormal) [] in
 							to_add := newcf :: !to_add;
 						| _ -> ()
 					);
 					(match vkind.v_write with
 						| AccCall ->
-							let newcf = mk_class_field ("set_" ^ cf.cf_name) (TFun(["val",false,cf.cf_type],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+							let newcf = mk_class_field ("set_" ^ cf.cf_name) (TFun(["val",false,cf.cf_type],cf.cf_type,false)) true cf.cf_pos (Method MethNormal) [] in
 							to_add := newcf :: !to_add;
 						| _ -> ()
 					);

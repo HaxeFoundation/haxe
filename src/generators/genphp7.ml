@@ -412,7 +412,7 @@ let rec needs_temp_var expr =
 *)
 let get_function_signature (field:tclass_field) : (string * bool * Type.t) list * Type.t =
 	match follow field.cf_type with
-		| TFun (args, return_type) -> (args, return_type)
+		| TFun (args, return_type, _) -> (args, return_type)
 		| _ -> fail field.cf_pos __LOC__
 
 (**
@@ -600,7 +600,7 @@ let fix_tsignature_args args =
 *)
 let fix_call_args callee_type exprs =
 	match follow callee_type with
-	| TFun (args,_) ->
+	| TFun (args,_,_) ->
 		(match List.rev args with
 		| (_,_,t) :: args_rev when is_rest_type t && List.length args_rev > List.length exprs ->
 			let rec loop args exprs =
@@ -1491,7 +1491,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					match self#parent_expr with
 						| Some { eexpr = TCall (target, params) } when current != (reveal_expr target) ->
 							(match follow target.etype with
-								| TFun (args,_) ->
+								| TFun (args,_,_) ->
 									let rec check args params =
 										match args, params with
 										| (_, _, t) :: _, param :: _ when current == (reveal_expr param) ->
@@ -1518,7 +1518,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					| { eexpr = TBinop(OpAssign, left_expr, _) } :: _
 					| { eexpr = TBinop(OpAssignOp _, left_expr, _) } :: _ -> left_expr == current
 					| { eexpr = TUnop(op, _, _) } :: _ -> is_modifying_unop op
-					| { eexpr = TCall({ etype = TFun(types,_) }, args) } :: _ when is_in_ref_arg current types args -> true
+					| { eexpr = TCall({ etype = TFun(types,_,_) }, args) } :: _ when is_in_ref_arg current types args -> true
 					| [] -> false
 					| parent :: rest -> traverse parent rest
 			in
@@ -3342,7 +3342,7 @@ class enum_builder ctx (enm:tenum) =
 		method private write_constructor name (field:tenum_field) =
 			let args =
 				match follow field.ef_type with
-					| TFun (args, _) -> args
+					| TFun (args, _, _) -> args
 					| TEnum _ -> []
 					| _ -> fail field.ef_pos __LOC__
 			in
@@ -3413,7 +3413,7 @@ class enum_builder ctx (enm:tenum) =
 			PMap.iter
 				(fun name field ->
 					let count = match follow field.ef_type with
-						| TFun (params, _) -> List.length params
+						| TFun (params, _, _) -> List.length params
 						| TEnum _ -> 0
 						| _ -> fail field.ef_pos __LOC__
 					in
@@ -3479,7 +3479,7 @@ class class_builder ctx (cls:tclass) =
 					let fields = if is_static then cls.cl_statics else cls.cl_fields in
 					try
 						match (PMap.find name fields).cf_type with
-							| TFun (args,_) ->
+							| TFun (args,_,_) ->
 								let rec count args mandatory total =
 									match args with
 										| [] ->
@@ -3585,7 +3585,7 @@ class class_builder ctx (cls:tclass) =
 						None
 					else
 						Some {
-							(mk_field "new" (TFun ([], ctx.pgc_common.basic.tvoid)) cls.cl_pos cls.cl_pos) with
+							(mk_field "new" (TFun ([], ctx.pgc_common.basic.tvoid, false)) cls.cl_pos cls.cl_pos) with
 							cf_kind = Method MethNormal;
 							cf_expr = Some {
 								eexpr = TFunction {

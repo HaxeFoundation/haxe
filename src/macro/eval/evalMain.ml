@@ -555,7 +555,7 @@ let handle_decoding_error f v t =
 					begin match follow ef.ef_type,Array.to_list ev.eargs with
 						| _,[] ->
 							()
-						| TFun(tl,_),vl ->
+						| TFun(tl,_,_),vl ->
 							 f "(";
 							loop2 true tl vl;
 							f ")"

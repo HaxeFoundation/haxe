@@ -61,7 +61,7 @@ let has_this_before_super e =
 
 let get_num_args cf =
 	match follow cf.cf_type with
-	| TFun (args, _) -> List.length args
+	| TFun (args, _, _) -> List.length args
 	| _ -> die "" __LOC__
 
 (*
