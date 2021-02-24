@@ -367,7 +367,7 @@ let type_bind ctx (e : texpr) (args,ret,coro) params p =
 		tf_type = ret;
 		tf_expr = body;
 	} in
-	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret,false) in
+	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret,coro) in
 	{
 		eexpr = TBlock (var_decls @ [mk (TFunction fn) t p]);
 		etype = t;

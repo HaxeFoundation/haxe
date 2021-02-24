@@ -29,6 +29,9 @@ let s_module_type_kind = function
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
 let rec s_type ctx t =
+	let maybe_coro coro s =
+		if coro then Printf.sprintf "Coroutine<%s>" s else s
+	in
 	match t with
 	| TMono r ->
 		(match r.tm_type with
@@ -59,9 +62,9 @@ let rec s_type ctx t =
 		s_type_path t.t_path ^ s_type_params ctx tl
 	| TAbstract (a,tl) ->
 		s_type_path a.a_path ^ s_type_params ctx tl
-	| TFun ([],t,_) ->
-		"() -> " ^ s_fun ctx t false
-	| TFun (l,t,_) ->
+	| TFun ([],t,coro) ->
+		maybe_coro coro ("() -> " ^ s_fun ctx t false)
+	| TFun (l,t,coro) ->
 		let args = match l with
 			| [] -> "()"
 			| ["",b,t] -> Printf.sprintf "%s%s" (if b then "?" else "") (s_fun ctx t true)
@@ -71,7 +74,7 @@ let rec s_type ctx t =
 				) l) in
 				"(" ^ args ^ ")"
 		in
-		Printf.sprintf "%s -> %s" args (s_fun ctx t false)
+		maybe_coro coro (Printf.sprintf "%s -> %s" args (s_fun ctx t false))
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
