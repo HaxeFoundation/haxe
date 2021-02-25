@@ -106,18 +106,30 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 					in
 					(* these platforms deal with rest args on their own *)
 					if ctx.com.config.pf_supports_rest_args then
+						let type_rest t =
+							List.map (fun e ->
+								match e with
+								| (EUnop (Spread,Prefix,_),p) -> unexpected_spread p
+								| _ -> type_against name (t()) e
+							) el
+						in
 						match el with
 						| [(EUnop (Spread,Prefix,e),p)] ->
 							(try [mk (TUnop (Spread, Prefix, type_against name t e)) t p]
 							with WithTypeError(ul,p) -> arg_error ul name false p)
+						| _ when ExtType.is_mono (follow arg_t) ->
+							(try
+								let el = type_rest mk_mono in
+								try
+									Type.unify arg_t (unify_min ctx el);
+									el
+								with Unify_error _ ->
+									die ~p:callp "Unexpected unification error" __LOC__
+							with WithTypeError(ul,p) ->
+								arg_error ul name false p)
 						| _ ->
 							(try
-								List.map (fun e ->
-									match e with
-									| (EUnop (Spread,Prefix,_),p) ->
-										unexpected_spread p
-									| _ -> type_against name arg_t e
-								) el
+								type_rest (fun() -> arg_t)
 							with WithTypeError(ul,p) ->
 								arg_error ul name false p)
 					(* for other platforms make sure rest arguments are wrapped in an array *)

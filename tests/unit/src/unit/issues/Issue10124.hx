@@ -28,4 +28,13 @@ class Issue10124 extends Test {
 		arr.addFloat(5, 6, 7);
 		Assert.same([1, 3, 4, 5, 6, 7], arr);
 	}
+
+	function test3() {
+		function rest<T>(...values:T):Array<T> {
+			return values.toArray();
+		}
+		var a = rest(5, 6.2, 7);
+		aeq([5, 6.2, 7], a);
+		eq('Array<Float>', HelperMacros.typeString(a));
+	}
 }

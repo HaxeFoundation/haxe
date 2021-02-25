@@ -11,6 +11,7 @@
 	all : fixed compiler compatibility with OS X 10.13 (#10110)
 	all : fixed compiler hanging on `switch` for abstracts with implicit casts involving type parameters and constraints (#10082)
 	all : fixed inlining of `haxe.DynamicAccess.keyValueIterator` (#10118)
+	all : fixed rest arguments typing against type parameters (#10124)
 	analyzer : fixed side effect handling for enums (#10032)
 	cpp : fixed handling of `cpp.ConstCharStar` with analyzer enabled (#9733)
 	php : fixed failure with trailing slash in output dir (#6212)
