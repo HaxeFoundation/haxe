@@ -502,16 +502,16 @@ let rec sure_extends_extern (target:Type.t) =
 *)
 let create_dir_recursive (path:string list) =
 	let rec create dir nested_dirs =
+		let dir = Path.remove_trailing_slash dir in
 		if not (Sys.file_exists dir) then (Unix.mkdir dir 0o755);
 		match nested_dirs with
-			| [] -> ();
+			| [] -> dir
 			| next :: rest -> create (dir ^ "/" ^ next) rest
 	in
 	match path with
 		| [] -> "";
 		| root :: rest ->
-			create root rest;
-			(String.concat "/" path)
+			create root rest
 
 (**
 	@return String representation of specified type path. E.g. returns "\example\Test" for (["example"], "Test")
@@ -3933,7 +3933,7 @@ class class_builder ctx (cls:tclass) =
 class generator (ctx:php_generator_context) =
 	object (self)
 		val mutable build_dir = ""
-		val root_dir = ctx.pgc_common.file
+		val root_dir = Path.remove_trailing_slash ctx.pgc_common.file
 		val mutable init_types = []
 		val mutable boot : (type_builder * string) option  = None
 		val mutable polyfills_source_path : string option = None
