@@ -287,9 +287,9 @@ let collect ctx e_ast e dk with_type p =
 					acc
 			) an.a_fields items
 		| TFun (args,ret,coro) ->
-			let maybe_add_builtin items name t =
+			let maybe_add_builtin items name t thuh =
 				if is_new_item items name then begin
-					let cf = mk_field name t p null_pos in
+					let cf = mk_field name thuh p null_pos in
 					cf.cf_kind <- Method MethNormal;
 					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) t in
 					let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (t,ct) in
@@ -301,11 +301,11 @@ let collect ctx e_ast e dk with_type p =
 				items
 			else begin
 				let t = coroutine_type ctx args ret in
-				let items = maybe_add_builtin items "start" t in
-				maybe_add_builtin items "create" t
+				let items = maybe_add_builtin items "start" t t in
+				maybe_add_builtin items "create" t t
 			end in
 			let t = opt_args args ret in
-			maybe_add_builtin items "bind" t
+			maybe_add_builtin items "bind" t (tfun [t] t) (* TODO: check what this is about (issue #6004 test) *)
 		| _ ->
 			items
 	in
