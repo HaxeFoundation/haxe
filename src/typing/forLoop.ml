@@ -21,7 +21,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 				| TCall ({ eexpr = TField (_, FInstance (c,pl,cf)) }, _) ->
 					let t = apply_params c.cl_params pl cf.cf_type in
 					(match follow t with
-					| TFun (_, t) ->
+					| TFun (_, t, _) ->
 						(match follow t with
 						| TInst (c,pl) -> c,pl
 						| _ -> raise Exit
@@ -37,7 +37,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 	let it_type = TInst(c,tl) in
 	let tmp = gen_local ctx it_type e1.epos in
 	let eit = mk (TLocal tmp) it_type p in
-	let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, tl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
+	let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, tl, fhasnext))) (TFun([],ctx.t.tbool,false)) p) [] ctx.t.tbool p in
 	let fa_next =
 		try
 			match raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "next" with
@@ -45,7 +45,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 		with Not_found ->
 			quick_field_dynamic eit.etype "next"
 	in
-	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,fa_next)) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
+	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,fa_next)) (TFun ([],v.v_type,false)) p) [] v.v_type p))) ctx.t.tvoid p in
 	let eblock = (match e2.eexpr with
 		| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
 		| _ -> mk (TBlock [enext;e2]) ctx.t.tvoid p
@@ -143,7 +143,7 @@ module IterationKind = struct
 				make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
 			in
 			(match follow cf_length.cf_type with
-				| TFun(_,tr) ->
+				| TFun(_,tr,_) ->
 					(match follow tr with
 						| TAbstract({a_path = [],"Int"},_) -> ()
 						| _ -> raise Not_found

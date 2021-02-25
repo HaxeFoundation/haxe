@@ -806,7 +806,7 @@ and type_string_suff suffix haxe_type remap =
          "::cpp::Function< " ^ (cpp_function_signature_params params ) ^ " >"
       | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type) remap
       )
-   | TFun (args,haxe_type) -> "Dynamic" ^ suffix
+   | TFun (args,haxe_type,_) -> "Dynamic" ^ suffix
    | TAnon a -> "Dynamic"
       (*
       (match !(a.a_status) with
@@ -849,7 +849,7 @@ and is_dynamic_array_param haxe_type =
    )
 and cpp_function_signature tfun abi =
    match follow tfun with
-   | TFun(args,ret) -> (type_string ret) ^ " " ^ abi ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
+   | TFun(args,ret,_) -> (type_string ret) ^ " " ^ abi ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
    | _ -> "void *"
 
 and cpp_function_signature_params params = match params with
@@ -1157,7 +1157,7 @@ let is_super expression =
 
 
 let rec is_dynamic_in_cpp ctx expr =
-   let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
+   let expr_type = type_string ( match follow expr.etype with TFun (args,ret,_) -> ret | _ -> expr.etype) in
    if ( expr_type="Dynamic" || expr_type="cpp::ArrayBase") then
       true
    else begin
@@ -1187,7 +1187,7 @@ let rec is_dynamic_in_cpp ctx expr =
             true
          else
             (match follow func.etype with
-            | TFun (args,ret) -> is_dynamic_in_cpp ctx func
+            | TFun (args,ret,_) -> is_dynamic_in_cpp ctx func
             | _ -> true
          );
       | TParenthesis(expr) | TMeta(_,expr) -> is_dynamic_in_cpp ctx expr
@@ -1265,7 +1265,7 @@ let is_matching_interface_type t0 t1 =
 
 let get_nth_type field index =
    match follow field.ef_type with
-      | TFun (args,_) ->
+      | TFun (args,_,_) ->
          let rec nth l index = match l with
          | [] -> raise Not_found
          | (_,_,t)::rest ->
@@ -1909,7 +1909,7 @@ let rec cpp_type_of stack ctx haxe_type =
 
    and cpp_function_type_of_args_ret stack ctx function_type =
       match follow function_type with
-      | TFun(args,ret) ->
+      | TFun(args,ret,_) ->
           (* Optional types are Dynamic if they norally could not be null *)
           let  cpp_arg_type_of = fun(_,optional,haxe_type) ->
              if optional then
@@ -1950,7 +1950,7 @@ and cpp_instance_type ctx = cpp_instance_type [] ctx
 
 let cpp_return_type ctx haxe_type =
   match haxe_type with
-  | TFun (_,ret) -> cpp_type_of ctx ret
+  | TFun (_,ret,_) -> cpp_type_of ctx ret
   | _ -> TCppDynamic
 ;;
 
@@ -2179,7 +2179,7 @@ let cpp_macro_var_type_of ctx var =
 
 let ctx_function_signature ctx include_names tfun abi =
    match follow tfun with
-   | TFun(args,ret) -> (ctx_type_string ctx ret) ^ " " ^ abi ^ "(" ^ (ctx_tfun_arg_list ctx include_names args) ^ ")"
+   | TFun(args,ret,_) -> (ctx_type_string ctx ret) ^ " " ^ abi ^ "(" ^ (ctx_tfun_arg_list ctx include_names args) ^ ")"
    | _ -> "void *"
 
 
@@ -2780,9 +2780,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   *)
 
                (* Other functions ... *)
-               | CppFunction( FuncInstance(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
-               | CppFunction( FuncStatic(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
-               | CppFunction( FuncThis({cf_type=TFun(arg_types,_)},_ ) as func, returnType ) ->
+               | CppFunction( FuncInstance(_,_,{cf_type=TFun(arg_types,_,_)} ) as func, returnType )
+               | CppFunction( FuncStatic(_,_,{cf_type=TFun(arg_types,_,_)} ) as func, returnType )
+               | CppFunction( FuncThis({cf_type=TFun(arg_types,_,_)},_ ) as func, returnType ) ->
                   let arg_types = List.map (fun (_,opt,t) -> cpp_tfun_arg_type_of ctx opt t) arg_types in
                   (* retype args specifically (not just CppDynamic) *)
                   let retypedArgs = retype_function_args args arg_types in
@@ -4346,7 +4346,7 @@ let is_override field =
 let current_virtual_functions_rev clazz base_functions =
    List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
       | _, Method MethDynamic -> result
-      | TFun (args,return_type), Method _  ->
+      | TFun (args,return_type,_), Method _  ->
           if (is_override elem ) then
              List.map (fun (e,a,r) ->  if e.cf_name<>elem.cf_name then (e,a,r) else  (elem,args,return_type) ) result
           else
@@ -4395,7 +4395,7 @@ let all_virtual_functions clazz override_types =
 let rec unreflective_type t =
     match follow t with
        | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-       | TFun (args,ret) ->
+       | TFun (args,ret,_) ->
            List.fold_left (fun result (_,_,t) -> result || (unreflective_type t)) (unreflective_type ret) args;
        | _ -> false
 ;;
@@ -4415,7 +4415,7 @@ let reflective class_def field = not (
 let field_arg_count field =
    match follow field.cf_type, field.cf_kind  with
       | _, Method MethDynamic -> -1
-      | TFun (args,return_type), Method _  -> List.length args
+      | TFun (args,return_type,_), Method _  -> List.length args
       | _,_ -> -1
 ;;
 
@@ -4570,7 +4570,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
       end else if has_class_field_flag field CfAbstract then begin
          let tl,tr = match follow field.cf_type with
-            | TFun(tl,tr) -> tl,tr
+            | TFun(tl,tr,_) -> tl,tr
             | _ -> die "" __LOC__
          in
          let nargs = string_of_int (List.length tl) in
@@ -4635,7 +4635,7 @@ let gen_member_def ctx class_def is_static is_interface field =
    if (is_interface) then begin
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
-      | TFun (args,return_type), Method _  ->
+      | TFun (args,return_type,_), Method _  ->
          let gen_args = ctx_tfun_arg_list ctx true in
          if is_static || nativeGen then begin
             output ( (if (not is_static) then "		virtual " else "		" ) ^ (ctx_type_string ctx return_type) );
@@ -4704,7 +4704,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             String.concat "," (List.map (fun (n,o,t) -> (ctx_arg ctx n None t prefix) ) arg_list)
          in
          let tl,tr = match follow field.cf_type with
-            | TFun(tl,tr) -> tl,tr
+            | TFun(tl,tr,_) -> tl,tr
             | _ -> die "" __LOC__
          in
          let return_type = (ctx_type_string ctx tr) in
@@ -4735,7 +4735,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
          | _ when nativeGen  -> ()
-         | TFun (_,_) ->
+         | TFun (_,_,_) ->
             output (if is_static then "\t\tstatic " else "\t\t");
             output ("Dynamic " ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
          | _ ->  (match field.cf_kind with
@@ -4828,7 +4828,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
             )
          | TAbstract (a,params) when is_scalar_abstract a ->
             add_extern_type (TAbstractDecl a)
-         | TFun (args,haxe_type) -> visit_type haxe_type;
+         | TFun (args,haxe_type,_) -> visit_type haxe_type;
             List.iter (fun (_,_,t) -> visit_type t; ) args;
          | _ -> ()
          end;
@@ -4919,7 +4919,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
       add_type enum_def.e_path;
       PMap.iter (fun _ constructor ->
          (match constructor.ef_type with
-         | TFun (args,_) ->
+         | TFun (args,_,_) ->
             List.iter (fun (_,_,t) -> visit_type t; ) args;
          | _ -> () );
          ) enum_def.e_constrs;
@@ -5175,7 +5175,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    PMap.iter (fun _ constructor ->
       let name = keyword_remap constructor.ef_name in
       match constructor.ef_type with
-      | TFun (args,_) ->
+      | TFun (args,_,_) ->
          output_cpp (remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ "(" ^
             (ctx_tfun_arg_list ctx true args) ^")\n");
 
@@ -5189,7 +5189,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
 
    let constructor_arg_count constructor =
-      (match constructor.ef_type with | TFun(args,_) -> List.length args | _ -> 0 )
+      (match constructor.ef_type with | TFun(args,_,_) -> List.length args | _ -> 0 )
    in
 
    output_cpp ("bool " ^ class_name ^ "::__GetStatic(const ::String &inName, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n");
@@ -5279,7 +5279,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    PMap.iter (fun _ constructor ->
       let name = constructor.ef_name in
       match constructor.ef_type with
-      | TFun (_,_) -> ()
+      | TFun (_,_,_) -> ()
       | _ ->
          output_cpp ( (keyword_remap name) ^ " = ::hx::CreateConstEnum< " ^ class_name ^ " >(" ^ (strq name) ^  "," ^
             (string_of_int constructor.ef_index) ^ ");\n" )
@@ -5326,7 +5326,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       let name = keyword_remap constructor.ef_name in
       output_h ( "\t\tstatic " ^  remap_class_name ^ " " ^ name );
       match constructor.ef_type with
-      | TFun (args,_) ->
+      | TFun (args,_,_) ->
          output_h ( "(" ^ (ctx_tfun_arg_list ctx true args) ^");\n");
          output_h ( "\t\tstatic ::Dynamic " ^ name ^ "_dyn();\n");
       | _ ->
@@ -5483,7 +5483,7 @@ let find_class_implementation ctx class_def name interface =
    with FieldFound field ->
       match follow field.cf_type, field.cf_kind  with
       | _, Method MethDynamic -> ""
-      | TFun (args,return_type), Method _ ->
+      | TFun (args,return_type,_), Method _ ->
          cpp_tfun_signature ctx false args return_type
       | _,_ -> ""
 ;;
@@ -5558,7 +5558,7 @@ let constructor_arg_var_list class_def ctx =
                         function_def.tf_args;
                | _ ->
                   (match follow definition.cf_type with
-                     | TFun (args,_) -> List.map (fun (a,_,t) -> (a, (ctx_type_string ctx t, a)) )  args
+                     | TFun (args,_,_) -> List.map (fun (a,_,t) -> (a, (ctx_type_string ctx t, a)) )  args
                      | _ -> [])
             )
    | _ -> []
@@ -5623,7 +5623,7 @@ let generate_protocol_delegate ctx class_def output =
 
    let dump_delegate field =
       match field.cf_type with
-      |  TFun(args,ret) ->
+      |  TFun(args,ret,_) ->
          let retStr = ctx_type_string ctx ret in
          let nativeName = get_meta_string field.cf_meta Meta.ObjcProtocol in
          let fieldName,argNames = if nativeName<>"" then begin
@@ -5954,7 +5954,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                    let rec gen_interface_funcs interface =
                       let gen_field field = (match follow field.cf_type, field.cf_kind  with
                       | _, Method MethDynamic -> ()
-                      | TFun (args,return_type), Method _ ->
+                      | TFun (args,return_type,_), Method _ ->
                          let cast = cpp_tfun_signature ctx false args return_type in
                          let class_implementation = find_class_implementation ctx class_def field.cf_name interface in
                          let realName= cpp_member_name_of field in
@@ -6331,7 +6331,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let generate_script_function isStatic field scriptName callName =
       match follow field.cf_type  with
-      | TFun (args,return_type) when not (is_data_member field) ->
+      | TFun (args,return_type,_) when not (is_data_member field) ->
          let isTemplated = not isStatic && not (has_class_flag class_def CInterface) in
          if isTemplated then output_cpp ("\ntemplate<bool _HX_SUPER=false>");
          output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(::hx::CppiaCtx *ctx) {\n");
@@ -6745,7 +6745,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          List.iter (fun field ->
             match follow field.cf_type, field.cf_kind with
             | _, Method MethDynamic  -> ()
-            | TFun (args,return_type), _  ->
+            | TFun (args,return_type,_), _  ->
                 let retVal = ctx_type_string ctx return_type in
                 let ret = if retVal="void" then "" else "return " in
                 let name = keyword_remap field.cf_name in
@@ -7734,7 +7734,7 @@ class script_writer ctx filename asciiOut =
                   this#gen_expression func;
          );
          let matched_args = match func.etype with
-            | TFun (args,_) ->
+            | TFun (args,_,_) ->
                ( try (
                   List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false false)  args arg_list;
                   true; )
@@ -7818,7 +7818,7 @@ class script_writer ctx filename asciiOut =
       this#write ((this#op IaNew) ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
       (try
          match OverloadResolution.maybe_resolve_constructor_overload clazz params arg_list with
-         | Some (_,{ cf_type = TFun(args,_) },_) ->
+         | Some (_,{ cf_type = TFun(args,_,_) },_) ->
             List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false false) args arg_list;
          | _ ->
             raise (Invalid_argument "")
@@ -7856,7 +7856,7 @@ class script_writer ctx filename asciiOut =
          this#gen_expression loop;
    | TEnumParameter (expr,ef,i) ->
          let enum = match follow ef.ef_type with
-            | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
+            | TEnum(en,_) | TFun(_,TEnum(en,_),_) -> en
             | _ -> die "" __LOC__
          in
          this#write ( (this#op IaEnumI) ^ (this#typeText (TEnum(enum,[])) ) ^ (string_of_int i) ^ "\n");
@@ -8307,11 +8307,11 @@ let generate_script_class common_ctx script class_def =
          in
          let isExtern = not (is_physical_field field) in
          script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name field.cf_type field.cf_expr
-      | Method MethDynamic, TFun(args,ret) ->
+      | Method MethDynamic, TFun(args,ret,_) ->
          script#func isStatic true field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr field.cf_pos
-      | Method _, TFun(args,ret) when field.cf_name="new" ->
+      | Method _, TFun(args,ret,_) when field.cf_name="new" ->
          script#func true false "new" (TInst(class_def,[])) args false field.cf_expr field.cf_pos
-      | Method _, TFun (args,ret) ->
+      | Method _, TFun (args,ret,_) ->
          script#func isStatic false field.cf_name ret args (has_class_flag class_def CInterface) field.cf_expr field.cf_pos
       | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." )
                      ^ "." ^field.cf_name )
@@ -8336,7 +8336,7 @@ let generate_script_enum common_ctx script enum_def meta =
    List.iter (fun constructor ->
       let name = script#stringText constructor.ef_name in
       match constructor.ef_type with
-      | TFun (args,_) ->
+      | TFun (args,_,_) ->
          script#write ( name ^ " " ^ (string_of_int (List.length args)) );
          List.iter (fun (arg,_,t) -> script#write ( " " ^ (script#stringText arg) ^ " " ^ (script#typeText t) ) ) args;
          script#write "\n";

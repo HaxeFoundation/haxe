@@ -52,8 +52,8 @@ let collect_static_extensions ctx items e p =
 		let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
 		let map = apply_params f.cf_params monos in
 		match follow (map f.cf_type) with
-		| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
-		| TFun((_,_,t) :: args, ret) ->
+		| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret, coro)
+		| TFun((_,_,t) :: args, ret, coro) ->
 			begin try
 				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
 				List.iter2 (fun m (name,t) -> match follow t with
@@ -65,7 +65,7 @@ let collect_static_extensions ctx items e p =
 					acc
 				else begin
 					let f = prepare_using_field f in
-					let f = { f with cf_params = []; cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic); cf_type = TFun(args,ret) } in
+					let f = { f with cf_params = []; cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic); cf_type = TFun(args,ret,coro) } in
 					let decl = match c.cl_kind with
 						| KAbstractImpl a -> TAbstractDecl a
 						| _ -> TClassDecl c
@@ -108,7 +108,7 @@ let collect_static_extensions ctx items e p =
 		items
 
 let collect ctx e_ast e dk with_type p =
-	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
+	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret,false) in
 	let should_access c cf stat =
 		if Meta.has Meta.NoCompletion cf.cf_meta then false
 		else if c != ctx.curclass && not (has_class_field_flag cf CfPublic) && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
@@ -286,17 +286,26 @@ let collect ctx e_ast e dk with_type p =
 				end else
 					acc
 			) an.a_fields items
-		| TFun (args,ret) ->
-			(* A function has no field except the magic .bind one. *)
-			if is_new_item items "bind" then begin
-				let t = opt_args args ret in
-				let cf = mk_field "bind" (tfun [t] t) p null_pos in
-				cf.cf_kind <- Method MethNormal;
-				let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) t in
-				let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (t,ct) in
-				PMap.add "bind" item items
-			end else
+		| TFun (args,ret,coro) ->
+			let maybe_add_builtin items name t thuh =
+				if is_new_item items name then begin
+					let cf = mk_field name thuh p null_pos in
+					cf.cf_kind <- Method MethNormal;
+					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) t in
+					let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (t,ct) in
+					PMap.add name item items
+				end else
+					items
+			in
+			let items = if not coro then
 				items
+			else begin
+				let t = coroutine_type ctx args ret in
+				let items = maybe_add_builtin items "start" t t in
+				maybe_add_builtin items "create" t t
+			end in
+			let t = opt_args args ret in
+			maybe_add_builtin items "bind" t (tfun [t] t) (* TODO: check what this is about (issue #6004 test) *)
 		| _ ->
 			items
 	in
@@ -352,7 +361,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 					let e = type_expr ctx e WithType.value in
 					(name,false,e.etype)
 				) el in
-				(TFun(tl,tret),Method MethNormal)
+				(TFun(tl,tret,false),Method MethNormal)
 			with _ ->
 				raise Exit
 			end

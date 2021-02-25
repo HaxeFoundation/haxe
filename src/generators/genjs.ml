@@ -670,7 +670,7 @@ and gen_expr ctx e =
 	| TEnumParameter (x,f,i) ->
 		gen_value ctx x;
 		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
-			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> die "" __LOC__ ) in
+			let fname = (match f.ef_type with TFun((args,_,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> die "" __LOC__ ) in
 			print ctx ".%s" (ident fname)
 		else
 			print ctx "[%i]" (i + 2)
@@ -1621,7 +1621,7 @@ let generate_enum ctx e =
 		end else
 			print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
-		| TFun (args,_) ->
+		| TFun (args,_,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
 			if as_objects then begin
 				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in

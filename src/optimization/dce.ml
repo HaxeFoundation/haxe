@@ -232,7 +232,7 @@ and mark_t dce p t =
 		| TInst(c,pl) ->
 			mark_class dce c;
 			List.iter (mark_t dce p) pl
-		| TFun(args,ret) ->
+		| TFun(args,ret,_) ->
 			List.iter (fun (_,_,t) -> mark_t dce p t) args;
 			mark_t dce p ret
 		| TEnum(e,pl) ->

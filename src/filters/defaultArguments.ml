@@ -63,7 +63,7 @@ let rec change_func com cl cf =
 	match cf.cf_kind, follow cf.cf_type with
 	| Var _, _ | Method MethDynamic, _ ->
 		()
-	| _, TFun(args, ret) ->
+	| _, TFun(args, ret, coro) ->
 		let is_ctor = cf.cf_name = "new" in
 		let basic = com.basic in
 
@@ -134,7 +134,7 @@ let rec change_func com cl cf =
 
 			args := List.map (fun (v,s) -> (v.v_name, (s <> None), v.v_type)) tf_args;
 
-			let cf_type = TFun (!args, ret) in
+			let cf_type = TFun (!args, ret, coro) in
 			cf.cf_expr <- Some { texpr with
 				eexpr = TFunction { tf with
 					tf_args = tf_args;
@@ -145,7 +145,7 @@ let rec change_func com cl cf =
 			cf.cf_type <- cf_type
 
 		| _ -> ());
-		(if !found then cf.cf_type <- TFun(!args, ret))
+		(if !found then cf.cf_type <- TFun(!args, ret, coro))
 	| _, _ -> Globals.die "" __LOC__
 
 let run com md =

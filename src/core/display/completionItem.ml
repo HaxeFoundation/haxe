@@ -368,6 +368,7 @@ module CompletionType = struct
 	and ct_function = {
 		ct_args : ct_function_argument list;
 		ct_return : t;
+		ct_coro : bool;
 	}
 
 	and ct_anonymous_field = {
@@ -485,16 +486,18 @@ module CompletionType = struct
 				CTTypedef (ppath td.t_module.m_path td.t_path tl)
 			| TAbstract(a,tl) ->
 				CTAbstract (ppath a.a_module.m_path a.a_path tl)
-			| TFun(tl,t) when not (PMap.is_empty values) ->
+			| TFun(tl,t,coro) when not (PMap.is_empty values) ->
 				let get_arg n = try Some (PMap.find n values) with Not_found -> None in
 				CTFunction {
 					ct_args = List.map (fun (n,o,t) -> funarg (get_arg n) (n,o,t)) tl;
 					ct_return = from_type PMap.empty t;
+					ct_coro = coro;
 				}
-			| TFun(tl,t) ->
+			| TFun(tl,t,coro) ->
 				CTFunction {
 					ct_args = List.map (funarg None) tl;
 					ct_return = from_type PMap.empty t;
+					ct_coro = coro;
 				}
 			| TAnon an ->
 				let afield af = {

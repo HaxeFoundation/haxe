@@ -561,7 +561,7 @@ let load_macro' ctx display cpath f p =
 				| _ -> error "Macro should be called on a class" p
 		in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
-		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
+		let meth = (match follow meth.cf_type with TFun (args,ret,_) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
 		restore();
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
@@ -698,7 +698,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false) in
+		let elt = CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false in
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
@@ -770,7 +770,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
 	mctx.curclass <- null_class;
-	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
+	let el = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =

@@ -157,7 +157,7 @@ let get_overloads_for_optional_args gen cl cf is_static =
 	match cf.cf_params,cf.cf_kind with
 	| [],Method (MethNormal | MethDynamic | MethInline) ->
 		(match cf.cf_expr, follow cf.cf_type with
-		| Some ({ eexpr = TFunction fn } as method_expr), TFun (args, return_type) ->
+		| Some ({ eexpr = TFunction fn } as method_expr), TFun (args, return_type, _) ->
 			let type_params = List.map snd cl.cl_params in
 			let rec collect_overloads tf_args_rev args_rev default_values_rev =
 				match tf_args_rev, args_rev with
@@ -194,7 +194,7 @@ let get_overloads_for_optional_args gen cl cf is_static =
 					in
 					{ cf with
 						cf_overloads = [];
-						cf_type = TFun (List.rev rest_args_rev, return_type);
+						cf_type = TFun (List.rev rest_args_rev, return_type, false);
 						cf_expr = Some { method_expr with eexpr = TFunction fn };
 					} :: collect_overloads rest_tf_args_rev rest_args_rev default_values_rev
 				| _ -> []
@@ -541,7 +541,7 @@ struct
 					mk_ret { e with
 						eexpr = TCall({
 							eexpr = TField(run e1, FDynamic "Equals");
-							etype = TFun(["obj1",false,t_dynamic;], basic.tbool);
+							etype = TFun(["obj1",false,t_dynamic;], basic.tbool, false);
 							epos = e1.epos
 						}, [ run e2 ])
 					}
@@ -731,10 +731,10 @@ let generate con =
 		let type_cl = get_cl ( get_type gen (["System"], "Type")) in
 		let basic_fns =
 		[
-			mk_class_field "Equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true null_pos (Method MethNormal) [];
-			mk_class_field "ToString" (TFun([], basic.tstring)) true null_pos (Method MethNormal) [];
-			mk_class_field "GetHashCode" (TFun([], basic.tint)) true null_pos (Method MethNormal) [];
-			mk_class_field "GetType" (TFun([], TInst(type_cl, []))) true null_pos (Method MethNormal) [];
+			mk_class_field "Equals" (TFun(["obj",false,t_dynamic], basic.tbool, false)) true null_pos (Method MethNormal) [];
+			mk_class_field "ToString" (TFun([], basic.tstring, false)) true null_pos (Method MethNormal) [];
+			mk_class_field "GetHashCode" (TFun([], basic.tint, false)) true null_pos (Method MethNormal) [];
+			mk_class_field "GetType" (TFun([], TInst(type_cl, []), false)) true null_pos (Method MethNormal) [];
 		] in
 		List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
 
@@ -1875,7 +1875,7 @@ let generate con =
 				in
 				write w "(";
 				let ft = match follow e.etype with
-					| TFun(args,_) -> args
+					| TFun(args,_,_) -> args
 					| _ -> []
 				in
 
@@ -2045,7 +2045,7 @@ let generate con =
 														| "haxe", "Constructible" ->
 															(match params with
 																(* Only for parameterless constructors *)
-																| [TFun ([],TAbstract({a_path=[],"Void"},_))] ->
+																| [TFun ([],TAbstract({a_path=[],"Void"},_),_)] ->
 																	if (List.memq CsStruct acc) then combination_error CsConstructible CsStruct;
 																	if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsConstructible;
 																	CsConstructible :: acc;
@@ -2309,11 +2309,11 @@ let generate con =
 					let is_virtual = if not is_virtual || (has_class_field_flag cf CfFinal) then false else is_virtual in
 					let is_override = has_class_field_flag cf CfOverride in
 					let is_override = is_override || match cf.cf_name, follow cf.cf_type with
-						| "Equals", TFun([_,_,targ], tret) ->
+						| "Equals", TFun([_,_,targ], tret, _) ->
 							(match follow targ, follow tret with
 								| TDynamic _, TAbstract({ a_path = ([], "Bool") }, []) -> true
 								| _ -> false)
-						| "GetHashCode", TFun([],_) -> true
+						| "GetHashCode", TFun([],_,_) -> true
 						| _ -> false
 					in
 					let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
@@ -2328,7 +2328,7 @@ let generate con =
 					let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
 					let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
 					let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
-					let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> die "" __LOC__ in
+					let ret_type, args = match follow cf_type with | TFun (strbtl, t, _) -> (t, strbtl) | _ -> die "" __LOC__ in
 					gen_nocompletion w cf.cf_meta;
 
 					(* public static void funcName *)
@@ -2475,7 +2475,7 @@ let generate con =
 			(if not (PMap.is_empty !pairs) then try
 				let get = PMap.find "__get" cl.cl_fields in
 				let idx_t, v_t = match follow get.cf_type with
-					| TFun([_,_,arg_t],ret_t) ->
+					| TFun([_,_,arg_t],ret_t,_) ->
 						t_s (run_follow gen arg_t), t_s (run_follow gen ret_t)
 					| _ -> gen.gcon.error "The __get function must be a function with one argument. " get.cf_pos; die "" __LOC__
 				in
@@ -2517,7 +2517,7 @@ let generate con =
 				let cf = PMap.find "toString" cl.cl_fields in
 				(if has_class_field_flag cf CfOverride then raise Not_found);
 				(match cf.cf_type with
-					| TFun([], ret) ->
+					| TFun([], ret, _) ->
 						(match real_type ret with
 							| TInst( { cl_path = ([], "String") }, []) ->
 								write w "public override string ToString()";
@@ -2537,7 +2537,7 @@ let generate con =
 				let cf = PMap.find "finalize" cl.cl_fields in
 				(if has_class_field_flag cf CfOverride then raise Not_found);
 				(match cf.cf_type with
-					| TFun([], ret) ->
+					| TFun([], ret, _) ->
 						(match real_type ret with
 							| TAbstract( { a_path = ([], "Void") }, []) ->
 								write w "~";
@@ -3014,7 +3014,7 @@ let generate con =
 			(fun e ->
 				{
 					eexpr = TCall(
-						{ (mk_field_access gen { (mk_paren e) with etype = real_type e.etype } "toDynamic" e.epos) with etype = TFun([], t_dynamic) },
+						{ (mk_field_access gen { (mk_paren e) with etype = real_type e.etype } "toDynamic" e.epos) with etype = TFun([], t_dynamic, false) },
 						[]);
 					etype = t_dynamic;
 					epos = e.epos

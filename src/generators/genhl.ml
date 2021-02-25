@@ -138,7 +138,7 @@ type access =
 
 let is_to_string t =
 	match follow t with
-	| TFun([],r) -> (match follow r with TInst({ cl_path=[],"String" },[]) -> true | _ -> false)
+	| TFun([],r,_) -> (match follow r with TInst({ cl_path=[],"String" },[]) -> true | _ -> false)
 	| _ -> false
 
 let is_string = function
@@ -293,7 +293,7 @@ let array_class ctx t =
 
 let member_fun c t =
 	match follow t with
-	| TFun (args, ret) -> TFun (("this",false,TInst(c,[])) :: args, ret)
+	| TFun (args, ret, coro) -> TFun (("this",false,TInst(c,[])) :: args, ret, coro)
 	| _ -> die "" __LOC__
 
 let rec unsigned t =
@@ -387,7 +387,7 @@ let rec to_type ?tref ctx t =
 		| _ -> t)
 	| TLazy f ->
 		to_type ?tref ctx (lazy_type f)
-	| TFun (args, ret) ->
+	| TFun (args, ret, _) ->
 		HFun (List.map (fun (_,o,t) ->
 			let pt = to_type ctx t in
 			if o && not (is_nullable pt) then HRef pt else pt
@@ -515,7 +515,7 @@ and real_type ctx e =
 		| TField (_,f) ->
 			let ft = field_type ctx f e.epos in
 			(match ft, e.etype with
-			| TFun (args,ret), TFun (args2,_) ->
+			| TFun (args,ret,coro1), TFun (args2,_,coro2) ->
 				TFun (List.map2 (fun ((name,opt,t) as a) ((_,_,t2) as a2) ->
 					match t, t2 with
 					(*
@@ -532,7 +532,7 @@ and real_type ctx e =
 						(name, opt, TAbstract (fake_tnull,[t]))
 					| _ ->
 						a
-				) args args2, ret)
+				) args args2, ret, coro1)
 			| _ -> ft)
 		| TLocal v -> v.v_type
 		| TParenthesis e -> loop e
@@ -707,7 +707,7 @@ and enum_type ?(tref=None) ctx e =
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
 			let args = (match f.ef_type with
-				| TFun (args,_) -> Array.of_list (List.map (fun (_,_,t) -> to_type ctx t) args)
+				| TFun (args,_,_) -> Array.of_list (List.map (fun (_,_,t) -> to_type ctx t) args)
 				| _ -> [||]
 			) in
 			(f.ef_name, alloc_string ctx f.ef_name, args)
@@ -2133,7 +2133,7 @@ and eval_expr ctx e =
 			let rt = to_type ctx e.etype in
 			let is_valid_method t =
 				match follow t with
-				| TFun (_,rt) ->
+				| TFun (_,rt,_) ->
 					(match follow rt with
 					| TInst({ cl_kind = KTypeParameter tl },_) ->
 						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
@@ -2189,7 +2189,7 @@ and eval_expr ctx e =
 			let fid = alloc_fun_path ctx en.e_path name in
 			if fid = cur_fid then begin
 				let ef = PMap.find name en.e_constrs in
-				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
+				let eargs, et = (match follow ef.ef_type with TFun (args,ret,_) -> args, ret | _ -> die "" __LOC__) in
 				let ct = ctx.com.basic in
 				let p = ef.ef_pos in
 				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some (mk (TConst TNull) t_dynamic null_pos) else None) eargs in
@@ -3370,7 +3370,7 @@ let rec generate_member ctx c f =
 			| Some { eexpr = TFunction f } -> f
 			| None when has_class_field_flag f CfAbstract ->
 				let tl,tr = match follow f.cf_type with
-					| TFun(tl,tr) -> tl,tr
+					| TFun(tl,tr,_) -> tl,tr
 					| _ -> die "" __LOC__
 				in
 				let args = List.map (fun (n,_,t) ->

@@ -93,7 +93,11 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 	match f1.cf_kind,f2.cf_kind with
 	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
 		begin match follow t1, follow t2 with
-		| TFun (args1,r1) , TFun (args2,r2) -> (
+		| TFun (args1,r1,coro1) , TFun (args2,r2,coro2) -> (
+			if coro1 then begin
+				if not coro2 then raise (Unify_error [Unify_custom "Method should be coroutine"])
+			end else if coro2 then
+				if not coro2 then raise (Unify_error [Unify_custom "Method should not be coroutine"]);
 			if not (List.length args1 = List.length args2) then raise (Unify_error [Unify_custom "Different number of function arguments"]);
 			let i = ref 0 in
 			try
@@ -400,7 +404,7 @@ module Inheritance = struct
 					else begin
 						let msg = if !is_overload then
 							let ctx = print_context() in
-							let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
+							let args = match follow f.cf_type with | TFun(args,_,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
 							"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
 						else
 							("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
@@ -477,7 +481,7 @@ module Inheritance = struct
 			let pctx = print_context() in
 			List.iter (fun (cf,_) ->
 				let s = match follow cf.cf_type with
-					| TFun(tl,tr) ->
+					| TFun(tl,tr,_) ->
 						String.concat ", " (List.map (fun (n,o,t) -> Printf.sprintf "%s:%s" n (s_type pctx t)) tl)
 					| t ->
 						s_type pctx t

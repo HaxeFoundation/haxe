@@ -558,18 +558,18 @@ let check_field_access ctx c f stat p =
 
 (** removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match follow cf.cf_type with
-	| TFun((_,_,tf) :: args,ret) ->
+	| TFun((_,_,tf) :: args,ret,coro) ->
 		let rec loop acc overloads = match overloads with
-			| ({cf_type = TFun((_,_,tfo) :: args,ret)} as cfo) :: l ->
+			| ({cf_type = TFun((_,_,tfo) :: args,ret,coro)} as cfo) :: l ->
 				let tfo = apply_params cfo.cf_params (List.map snd cfo.cf_params) tfo in
 				(* ignore overloads which have a different first argument *)
-				if type_iseq tf tfo then loop ({cfo with cf_type = TFun(args,ret)} :: acc) l else loop acc l
+				if type_iseq tf tfo then loop ({cfo with cf_type = TFun(args,ret,coro)} :: acc) l else loop acc l
 			| _ :: l ->
 				loop acc l
 			| [] ->
 				acc
 		in
-		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
+		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret,coro)}
 	| _ -> cf
 
 let merge_core_doc ctx mt =
@@ -613,6 +613,12 @@ let s_field_call_candidate fcc =
 		"fc_type",s_type pctx fcc.fc_type;
 		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
 	]
+
+
+let coroutine_type ctx args ret =
+	let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] ctx.com.basic.tvoid))] in
+	let ret = ctx.com.basic.tvoid in
+	TFun(args,ret,true)
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

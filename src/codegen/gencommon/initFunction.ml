@@ -178,7 +178,7 @@ let handle_class com cl =
 					cl.cl_constructor <- Some ctor;
 					ctor
 				with Not_found ->
-					let ctor = mk_class_field "new" (TFun([], com.basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
+					let ctor = mk_class_field "new" (TFun([], com.basic.tvoid, false)) false cl.cl_pos (Method MethNormal) [] in
 					ctor.cf_expr <- Some
 					{
 						eexpr = TFunction {

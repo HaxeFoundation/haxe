@@ -176,7 +176,7 @@ let rec type_eq gen param a b =
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then Type.error [cannot_unify a b];
 		List.iter2 (type_eq gen param) tl1 tl2
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+	| TFun (l1,r1,coro1) , TFun (l2,r2,coro2) when coro1 = coro2 && List.length l1 = List.length l2 ->
 		(try
 			type_eq gen param r1 r2;
 			List.iter2 (fun (n,o1,t1) (_,o2,t2) ->
@@ -513,7 +513,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 				e
 			else
 				mk_cast true to_t e
-		| TFun(args, ret), TFun(args2, ret2) ->
+		| TFun(args, ret, coro1), TFun(args2, ret2, coro2) when coro1 = coro2 ->
 			let get_args = List.map (fun (_,_,t) -> t) in
 			(try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument _ -> mk_cast true to_t e)
 		| _, _ ->
@@ -611,7 +611,7 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 			let count = ref 0 in
 			let is_empty_call = Type.type_iseq t empty_t in
 			let ret = List.filter (fun cf -> match follow cf.cf_type with
-				| TFun([_,_,t],_) ->
+				| TFun([_,_,t],_,_) ->
 					replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
 				| _ -> false) ctors
 			in
@@ -690,7 +690,7 @@ let change_rest tfun elist =
 			List.rev acc
 	in
 	let args,ret = get_fun tfun in
-	TFun(loop [] args elist, ret)
+	TFun(loop [] args elist, ret, false)
 
 let fastcast_if_needed gen expr real_to_t real_from_t =
 	if Common.defined gen.gcon Define.FastCast then begin
@@ -724,7 +724,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				efield
 			| Some ecall ->
 				match follow efield.etype with
-					| TFun(_,ret) ->
+					| TFun(_,ret,_) ->
 						(* closures will be handled by the closure handler. So we will just hint what's the expected type *)
 						(* FIXME: should closures have also its arguments cast correctly? In the current implementation I think not. TO_REVIEW *)
 						handle_cast gen { ecall with eexpr = TCall(efield, elist) } (gen.greal_type ecall.etype) ret
@@ -741,7 +741,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 			let args_list args = (if not calls_parameters_explicitly then t_dynamic else snd args) :: (List.map (fun (n,o,t) -> t) (fst args)) in
 
 			let monos = List.map (fun _ -> mk_mono()) params in
-			let original = args_list (get_fun (apply_params params monos (TFun(fst original_args,snd original_args)))) in
+			let original = args_list (get_fun (apply_params params monos (TFun(fst original_args,snd original_args,false)))) in
 			let applied = args_list applied_args in
 
 			(try
@@ -865,7 +865,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 			else begin
 				(* infer arguments *)
 				(* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
-				let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)	in (* workaround for issue #1742 *)
+				let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype, false)	in (* workaround for issue #1742 *)
 				let called_t = change_rest called_t elist in
 				let original = (get_fun (apply_params cl.cl_params params actual_t)) in
 				let applied = (get_fun called_t) in
@@ -935,7 +935,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				let pt = match e with | None -> real_type | Some _ -> snd (get_fun e1.etype) in
 				let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; die "" __LOC__ in
 				let args, ret = get_fun efield.ef_type in
-				let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
+				let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret, false) in
 				(*
 					because of differences on how <Dynamic> is handled on the platforms, this is a hack to be able to
 					correctly use class field type parameters with RealTypeParams
@@ -1158,14 +1158,14 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 					let args,rt = get_fun (apply_params sup.cl_params stl cf.cf_type) in
 					let eparams = List.map2 (fun e (_,_,t) ->
 						handle (run e) t e.etype
-					) (wrap_rest_args gen (TFun (args,rt)) eparams e.epos) args in
+					) (wrap_rest_args gen (TFun (args,rt,false)) eparams e.epos) args in
 					{ e with eexpr = TCall(ef, eparams) }
 				with | Not_found ->
 					gen.gcon.warning "No overload found for this constructor call" e.epos;
 					{ e with eexpr = TCall(ef, List.map run eparams) })
 			| TCall (ef, eparams) ->
 				(match ef.etype with
-					| TFun(p, ret) ->
+					| TFun(p, ret, _) ->
 						handle ({ e with eexpr = TCall(run ef, List.map2 (fun param (_,_,t) -> handle (run param) t param.etype) eparams p) }) e.etype ret
 					| _ -> Type.map_expr run e
 				)
@@ -1186,7 +1186,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				let args,rt = get_fun (apply_params sup.cl_params stl cf.cf_type) in
 				let eparams = List.map2 (fun e (_,_,t) ->
 					handle (run e) t e.etype
-				) (wrap_rest_args gen (TFun (args,rt)) eparams e.epos) args in
+				) (wrap_rest_args gen (TFun (args,rt,false)) eparams e.epos) args in
 				{ e with eexpr = TNew(cl, tparams, eparams) }
 			with | Not_found ->
 				gen.gcon.warning "No overload found for this constructor call" e.epos;

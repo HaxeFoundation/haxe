@@ -1716,7 +1716,7 @@ let generate_enum ctx e =
         let f = PMap.find n e.e_constrs in
         print ctx "%s%s = " p (field f.ef_name);
         (match f.ef_type with
-         | TFun (args,_) ->
+         | TFun (args,_,_) ->
              let count = List.length args in
              let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
              print ctx "function(%s) local _x = _hx_tab_array({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
@@ -2124,7 +2124,7 @@ let generate com =
                     tf_expr = mk (TBlock [e]) com.basic.tvoid e.epos;
                 }
             in
-            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) }
+            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid,false) }
         );
         spr ctx ", _hx_error)";
         newline ctx

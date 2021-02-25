@@ -45,7 +45,7 @@ let make_generic ctx ps pt p =
 				| TType (td,tl) -> (s_type_path_underscore td.t_path) ^ (loop_tl top tl)
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl top tl)
 				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false (follow f.cf_type))) :: acc) a.a_fields [])
-				| TFun(args, return_type) -> "func_" ^ (String.concat "_" (List.map (fun (_, _, t) -> loop false t) args)) ^ "_" ^ (loop false return_type)
+				| TFun(args, return_type, _) -> "func_" ^ (String.concat "_" (List.map (fun (_, _, t) -> loop false t) args)) ^ "_" ^ (loop false return_type)
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl top tl)
 				| _ when not top ->
 					follow_or t top (fun() -> "_") (* allow unknown/incompatible types as type parameters to retain old behavior *)
@@ -237,7 +237,7 @@ let rec build_generic ctx c p tl =
 				if t == t2 then () else loop t2
 			| TAnon a ->
 				PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
-			| TFun (args,ret) ->
+			| TFun (args,ret,_) ->
 				List.iter (fun (_,_,t) -> loop t) args;
 				loop ret
 			end

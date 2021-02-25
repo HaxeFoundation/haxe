@@ -177,7 +177,7 @@ let captured_vars com e =
 						tf_args = List.map (fun (_,v) -> v, None) new_vars;
 						tf_type = e.etype;
 						tf_expr = mk_block (mk (TReturn (Some e)) e.etype e.epos);
-					}) (TFun (List.map (fun (_,v) -> v.v_name,false,v.v_type) new_vars,e.etype)) e.epos),
+					}) (TFun (List.map (fun (_,v) -> v.v_name,false,v.v_type) new_vars,e.etype,false)) e.epos),
 					List.map (fun v -> mk (TLocal v) v.v_type e.epos) vars)
 				) e.etype e.epos
 			else

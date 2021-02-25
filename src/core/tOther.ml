@@ -34,8 +34,12 @@ module TExprToExpr = struct
 			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map tparam pl)
 		| TAbstract (a,pl) ->
 			tpath a.a_path a.a_module.m_path (List.map tparam pl)
-		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
+		| TFun (args,ret,coro) ->
+			let ct_fun = CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret)) in
+			if coro then
+				tpath ([],"Coroutine") ([],"Coroutine") [TPType (ct_fun,null_pos)]
+			else
+				ct_fun
 		| TAnon a ->
 			begin match !(a.a_status) with
 			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]

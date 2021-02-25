@@ -6,7 +6,7 @@ open TFunctions
 let unify_cf map_type c cf el =
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 	match follow (apply_params cf.cf_params monos (map_type cf.cf_type)) with
-		| TFun(tl'',ret) as tf ->
+		| TFun(tl'',ret,_) as tf ->
 			let rec loop2 acc el tl = match el,tl with
 				| e :: el,(_,o,t) :: tl ->
 					begin try
@@ -57,7 +57,7 @@ let resolve_instance_overload is_ctor map_type c name el =
 	let candidates = ref [] in
 	let has_function t1 fcc2 =
 		begin match follow t1,fcc2.fc_type with
-		| TFun(tl1,_),TFun(tl2,_) -> type_iseq (TFun(tl1,t_dynamic)) (TFun(tl2,t_dynamic))
+		| TFun(tl1,_,coro1),TFun(tl2,_,coro2) -> type_iseq (TFun(tl1,t_dynamic,coro1)) (TFun(tl2,t_dynamic,coro2))
 		| _ -> false
 		end
 	in

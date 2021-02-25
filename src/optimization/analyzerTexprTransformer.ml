@@ -45,7 +45,7 @@ let rec func ctx bb tf t p =
 	let bb_root = create_node (BKFunctionBegin tf) tf.tf_expr.etype tf.tf_expr.epos in
 	let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
 	let coroutine = match follow t with
-		| TAbstract ({a_path=[],"Coroutine"}, _) -> Some (
+		| TFun(_,_,true) -> Some (
 			alloc_var VGenerated "_hx_result" t_dynamic p,
 			alloc_var VGenerated "_hx_error" t_dynamic p
 		)
@@ -328,7 +328,7 @@ let rec func ctx bb tf t p =
 			| efun :: el ->
 				let is_coroutine efun =
 					match follow efun.etype with
-					| TAbstract ({ a_path = [], "Coroutine"}, _) -> true
+					| TFun(_,_,true) -> true
 					| _ -> false
 				in
 				(match coroutine with
@@ -809,10 +809,10 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 		(* lose Coroutine<T> type for the called function not to confuse further filters and generators *)
 		let tcoroutine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in
 		let tfun = match follow call.efun.etype with
-			| TAbstract ({ a_path = [],"Coroutine" }, [TFun (args, ret)]) ->
+			| TFun (args, ret, true) ->
 				let tcontinuation = tfun [ret; t_dynamic] com.basic.tvoid in
 				let args = args @ [("",false,tcontinuation)] in
-				TFun (args, tcoroutine)
+				TFun (args, tcoroutine, false)
 			| _ ->
 				die "Unexpected coroutine type" __LOC__
 		in

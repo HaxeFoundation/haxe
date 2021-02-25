@@ -97,7 +97,7 @@ let rec gen_type ?(values=None) t =
 	| TInst (c,params) -> gen_type_decl "c" (TClassDecl c) params
 	| TAbstract (a,params) -> gen_type_decl "x" (TAbstractDecl a) params
 	| TType (t,params) -> gen_type_decl "t" (TTypeDecl t) params
-	| TFun (args,r) ->
+	| TFun (args,r,corotodo) ->
 		let names = String.concat ":" (List.map gen_arg_name args) in
 		let values = match values with
 			| None -> []
@@ -179,7 +179,7 @@ and gen_field att f =
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
 	let args, t = (match follow e.ef_type with
-		| TFun (args,_) ->
+		| TFun (args,_,_) ->
 			["a",String.concat ":" (List.map gen_arg_name args)] ,
 			List.map (fun (_,opt,t) -> gen_type (if opt then follow_param t else t)) args @ doc
 		| _ ->

@@ -193,7 +193,7 @@ let rec acc_get ctx g p =
 		(* TODO *)
 		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
 		let t = match follow e_field.etype with
-			| TFun (_ :: args,ret) -> TFun(args,ret)
+			| TFun (_ :: args,ret,coro) -> TFun(args,ret,coro)
 			| t -> t
 		in
 		{e_field with etype = t}
@@ -220,11 +220,11 @@ let rec acc_get ctx g p =
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* build a closure with first parameter applied *)
 		(match follow e_field.etype with
-		| TFun ((_,_,t0) :: args,ret) ->
+		| TFun ((_,_,t0) :: args,ret,coro) ->
 			let te = abstract_using_param_type sea in
 			unify ctx te t0 e.epos;
-			let tcallb = TFun (args,ret) in
-			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
+			let tcallb = TFun (args,ret,false) in
+			let twrap = TFun ([("_e",false,e.etype)],tcallb,coro) in
 			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
 			let args = List.map (fun (n,o,t) ->
 				let t = if o then ctx.t.tnull t else t in
@@ -303,7 +303,7 @@ let call_to_string ctx ?(resume=false) e =
 			mk (TIf (check_null, string_null, Some (gen_to_string e))) ctx.t.tstring e.epos
 	end
 
-let type_bind ctx (e : texpr) (args,ret) params p =
+let type_bind ctx (e : texpr) (args,ret,coro) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
@@ -367,7 +367,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 		tf_type = ret;
 		tf_expr = body;
 	} in
-	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret) in
+	let t = TFun(List.map (fun (v,o) -> v.v_name,o,v.v_type) missing_args,ret,coro) in
 	{
 		eexpr = TBlock (var_decls @ [mk (TFunction fn) t p]);
 		etype = t;

@@ -35,7 +35,7 @@ let haxe_exception_static_call ctx method_name args p =
 	in
 	let return_type =
 		match follow method_field.cf_type with
-		| TFun(_,t) -> t
+		| TFun(_,t,_) -> t
 		| _ -> error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
 	add_dependency ctx.typer.curclass.cl_module ctx.haxe_exception_class.cl_module;
@@ -50,7 +50,7 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 		let efield = { eexpr = TField(haxe_exception,faccess); etype = cf.cf_type; epos = p } in
 		let rt =
 			match follow cf.cf_type with
-			| TFun(_,t) -> t
+			| TFun(_,t,_) -> t
 			| _ ->
 				error ((s_type (print_context()) haxe_exception.etype) ^ "." ^ method_name ^ " is not a function and cannot be called") p
 		in
@@ -73,7 +73,7 @@ let std_is ctx e t p =
 	in
 	let return_type =
 		match follow isOfType_field.cf_type with
-		| TFun(_,t) -> t
+		| TFun(_,t,_) -> t
 		| _ -> error ("Std.isOfType is not a function and cannot be called") p
 	in
 	let type_expr = { eexpr = TTypeExpr(module_type_of_type t); etype = t; epos = p } in
@@ -475,7 +475,7 @@ let insert_save_stacks tctx =
 				in
 				let return_type =
 					match follow method_field.cf_type with
-					| TFun(_,t) -> t
+					| TFun(_,t,_) -> t
 					| _ -> error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
 				in
 				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
@@ -537,7 +537,7 @@ let patch_constructors tctx =
 						let efield = { eexpr = TField(this,faccess); etype = cf.cf_type; epos = p } in
 						let rt =
 							match follow cf.cf_type with
-							| TFun(_,t) -> t
+							| TFun(_,t,_) -> t
 							| _ ->
 								error "haxe.Exception.__shiftStack is not a function and cannot be called" cf.cf_name_pos
 						in

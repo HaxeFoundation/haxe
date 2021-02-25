@@ -413,7 +413,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 						let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 						let cft = follow (apply_params cf.cf_params monos cf.cf_type) in
 						match cft with
-						| TFun ((_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]) | t0)) :: _,_) ->
+						| TFun ((_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]) | t0)) :: _,_,_) ->
 							if t == t_dynamic && follow t0 != t then
 								check()
 							else begin
@@ -572,7 +572,7 @@ let get_struct_init_anon_fields c tl =
 				| None -> None
 			in
 			(match follow cf.cf_type with
-			| TFun (args,_) ->
+			| TFun (args,_,_) ->
 				Some (match cf.cf_expr with
 					| Some { eexpr = TFunction fn } ->
 						List.map (fun (name,_,t) ->

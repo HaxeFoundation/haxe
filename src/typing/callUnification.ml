@@ -217,7 +217,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
-	el,TFun(args,r)
+	el
 
 type overload_kind =
 	| OverloadProper (* @:overload or overload *)
@@ -302,7 +302,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		let f t =
 			match follow t with
-			| TFun(args,ret) ->
+			| TFun(args,ret,coro) ->
 				let rec loop acc_el acc_args tmap args el_typed = match args,el_typed with
 					| ((_,opt,t0) as arg) :: args,e :: el_typed ->
 						begin try
@@ -319,7 +319,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						List.rev acc_el,List.rev acc_args,args
 				in
 				let el_typed,args_typed,args = loop [] [] tmap args el_typed in
-				let el,_ =
+				let el =
 					try
 						unify_call_args ctx el args ret p inline is_forced_inline in_overload
 					with DisplayException.DisplayException de ->
@@ -327,7 +327,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				in
 				(* here *)
 				let el = el_typed @ el in
-				let tf = TFun(args_typed @ args,ret) in
+				let tf = TFun(args_typed @ args,ret,coro) in
 				let mk_call () =
 					let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 					!make_call_ref ctx ef el ret ~force_inline:inline p
@@ -337,24 +337,8 @@ let unify_field_call ctx fa el_typed el p inline =
 				error (s_type (print_context()) t ^ " cannot be called") p
 		in
 		match follow t with
-		| TAbstract({ a_path = [],"Coroutine" } as ab, [ft]) ->
-			if ctx.is_coroutine then
-				let candidate = f ft in
-				(* preserve Coroutine<T> type so we can detect suspending calls when building CFG *)
-				let mk_call, display_thing = candidate.fc_data in
-				let mk_call () =
-					match mk_call () with
-					| { eexpr = TCall (efun, args) } as e ->
-						let efun = { efun with etype = TAbstract (ab, [efun.etype]) } in
-						{ e with eexpr = TCall (efun, args) }
-					| _ -> die "" __LOC__
-				in
-				{ candidate with
-					fc_type = TAbstract (ab, [candidate.fc_type]);
-					fc_data = (mk_call,display_thing)
-				}
-			else
-				error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
+		| TFun(args,ret,true) when not ctx.is_coroutine ->
+			error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
 		| t ->
 			f t
 	in
@@ -397,7 +381,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		loop candidates
 	in
 	let fail_fun () =
-		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic) in
+		let tf = TFun(List.map (fun _ -> ("",false,t_dynamic)) el,t_dynamic,false) in
 		let call () =
 			let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa fa.fa_field fa.fa_host)) tf fa.fa_pos in
 			mk (TCall(ef,[])) t_dynamic p
@@ -558,20 +542,9 @@ object(self)
 			mk (TCall (e,el)) t p
 		in
 		let rec loop t = match follow t with
-		| TAbstract({ a_path = [],"Coroutine" }, [ft]) ->
-			if ctx.is_coroutine then
-				match loop ft with
-				| { eexpr = TCall (efun, eargs) } as e ->
-					(* preserve Coroutine<T> type so we can detect suspending calls when building CFG *)
-					let efun = { efun with etype = t } in
-					{ e with eexpr = TCall (efun, eargs) }
-				| _ ->
-					die "" __LOC__
-			else
-				error "Cannot directly call coroutine from a normal function, use start/create methods instead" p
-		| TFun (args,r) ->
-			let el, tfunc = unify_call_args ctx el args r p false false false in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
+		| TFun (args,r,coro) ->
+			if coro && not ctx.is_coroutine then error "Cannot directly call coroutine from a normal function, use start/create methods instead" p;
+			let el = unify_call_args ctx el args r p false false false in
 			mk (TCall (e,el)) r p
 		| TAbstract(a,tl) as t ->
 			let check_callable () =
