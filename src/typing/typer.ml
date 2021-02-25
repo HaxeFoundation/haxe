@@ -1005,7 +1005,7 @@ and type_new ctx path el with_type force_inline p =
 		| None ->
 			raise_error (No_constructor (TClassDecl c)) p
 		| Some(tl,tr) ->
-			let el,_ = unify_call_args ctx el tl tr p false false false in
+			let el = unify_call_args ctx el tl tr p false false false in
 			mk (TNew (c,params,el)) t p
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
@@ -1587,7 +1587,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	let create_coroutine e args ret p =
 		let args = args @ [("_hx_continuation",false,(tfun [ret; t_dynamic] ctx.com.basic.tvoid))] in
 		let ret = ctx.com.basic.tvoid in
-		let el, _ = unify_call_args ctx el args ret p false false false in
+		let el = unify_call_args ctx el args ret p false false false in
 		mk (TCall (e, el)) (tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid) p
 	in
 	match e, el with

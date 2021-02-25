@@ -203,7 +203,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
-	el,TFun(args,r,false (* corotodo *))
+	el
 
 type overload_kind =
 	| OverloadProper (* @:overload or overload *)
@@ -305,7 +305,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						List.rev acc_el,List.rev acc_args,args
 				in
 				let el_typed,args_typed,args = loop [] [] tmap args el_typed in
-				let el,_ =
+				let el =
 					try
 						unify_call_args ctx el args ret p inline is_forced_inline in_overload
 					with DisplayException.DisplayException de ->
@@ -530,8 +530,7 @@ object(self)
 		let rec loop t = match follow t with
 		| TFun (args,r,coro) ->
 			if coro && not ctx.is_coroutine then error "Cannot directly call coroutine from a normal function, use start/create methods instead" p;
-			let el, tfunc = unify_call_args ctx el args r p false false false in
-			let r = match tfunc with TFun(_,r,_) -> r | _ -> die "" __LOC__ in
+			let el = unify_call_args ctx el args r p false false false in
 			mk (TCall (e,el)) r p
 		| TAbstract(a,tl) as t ->
 			let check_callable () =
