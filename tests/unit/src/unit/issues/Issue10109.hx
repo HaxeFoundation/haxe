@@ -1,6 +1,7 @@
 package unit.issues;
 
 class Issue10109 extends Test {
+#if hl
 	@:pure(false)
 	static function foo( o : String ) {
 		return o.length;
@@ -17,6 +18,7 @@ class Issue10109 extends Test {
 			t(e.stack.length > 0);
 		}
 	}
+#end
 }
 
 private enum Stop {
