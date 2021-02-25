@@ -14,6 +14,7 @@
 	analyzer : fixed side effect handling for enums (#10032)
 	cpp : fixed handling of `cpp.ConstCharStar` with analyzer enabled (#9733)
 	php : fixed failure with trailing slash in output dir (#6212)
+	hl : fixed call stack of rethrown exceptions (#10109)
 
 2021-02-09 4.2.0:
 
