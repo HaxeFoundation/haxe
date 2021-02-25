@@ -2599,6 +2599,11 @@ and eval_expr ctx e =
 			free ctx env;
 			op ctx (OInstanceClosure (r, fid, env)));
 		r
+	(* throwing a catch var means we want to rethrow an exception *)
+	| TThrow ({ eexpr = TLocal v } as e1) when has_var_flag v VCaught ->
+		let r = alloc_tmp ctx HVoid in
+		op ctx (ORethrow (eval_to ctx e1 HDyn));
+		r
 	| TThrow v ->
 		op ctx (OThrow (eval_to ctx v HDyn));
 		alloc_tmp ctx HDyn
