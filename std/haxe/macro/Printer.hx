@@ -81,7 +81,8 @@ class Printer {
 
 	function escapeString(s:String, delim:String) {
 		return delim
-			+ s.replace("\n", "\\n")
+			+ s.replace('\\', '\\\\')
+				.replace("\n", "\\n")
 				.replace("\t", "\\t")
 				.replace("\r", "\\r")
 				.replace("'", "\\'")
