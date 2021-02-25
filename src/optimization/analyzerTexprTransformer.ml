@@ -776,7 +776,7 @@ and block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	let eexcstate = make_local vexcstate p in
 	let set_excstate id = mk_assign eexcstate (mk_int id) in
 
-	let tstatemachine = tfun [t_dynamic] com.basic.tvoid in
+	let tstatemachine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in
 	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
 	declare_var ctx.graph vstatemachine bb;
 	let estatemachine = make_local vstatemachine p in
@@ -1132,11 +1132,12 @@ and func ctx i =
 	let e,tf_args,tf_type =
 		match tfi.tf_coroutine with
 		| Some (vresult,verror) ->
-			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [t_dynamic] ctx.com.basic.tvoid) p in
+			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [tf.tf_type; t_dynamic] ctx.com.basic.tvoid) p in
 			declare_var ctx.graph vcontinuation bb;
 			let e = block_to_texpr_coroutine ctx bb vcontinuation vresult verror p in
 			let tf_args = tf.tf_args @ [(vcontinuation,None)] in
-			e, tf_args, tf.tf_type
+			let sm_type = tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid in
+			e, tf_args, sm_type
 		| None ->
 			block_to_texpr ctx bb, tf.tf_args, tf.tf_type
 	in
