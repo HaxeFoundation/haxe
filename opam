@@ -25,7 +25,7 @@ depends: [
   "camlp5" {build}
   "sedlex" {>= "2.0"}
   "xml-light"
-  "extlib" {>= "1.7.6"}
+  "extlib" {= "1.7.7"}
   "ptmap" {>= "2.0.0"}
   "sha"
   "conf-libpcre"
