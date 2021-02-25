@@ -148,6 +148,9 @@ module BetterErrors = struct
 		) l;
 		root_acc
 
+	let maybe_coro coro s =
+		if coro then Printf.sprintf "Coroutine<%s>" s else s
+
 	(* non-recursive s_type *)
 	let rec s_type ctx t =
 		match t with
@@ -165,9 +168,9 @@ module BetterErrors = struct
 			s_type_path t.t_path ^ s_type_params ctx tl
 		| TAbstract (a,tl) ->
 			s_type_path a.a_path ^ s_type_params ctx tl
-		| TFun ([],_,corotodo) ->
-			"() -> ..."
-		| TFun (l,t,corotodo) ->
+		| TFun ([],_,coro) ->
+			maybe_coro coro "() -> ..."
+		| TFun (l,t,coro) ->
 			let args = match l with
 				| [] -> "()"
 				| ["",b,t] -> ("...")
@@ -177,7 +180,7 @@ module BetterErrors = struct
 					) l) in
 					"(" ^ args ^ ")"
 			in
-			Printf.sprintf "%s -> ..." args
+			maybe_coro coro (Printf.sprintf "%s -> ..." args)
 		| TAnon a ->
 			begin
 				match !(a.a_status) with

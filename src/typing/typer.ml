@@ -203,8 +203,10 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 					raise Exit
 			in
 			let arity = Array.length args in
+			let is_coro = ref false in
 			let rets = List.map (fun e -> match follow e.etype with
-				| TFun(tl,tr,_) ->
+				| TFun(tl,tr,coro) ->
+					is_coro := coro; (* no need for special checks, this will only unify if everything either is or isn't a coro anyway *)
 					let ta = Array.of_list tl in
 					if Array.length ta <> arity then raise Exit;
 					for i = 0 to arity - 1 do
@@ -226,7 +228,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			| UnifyMinError(l,index) ->
 				raise Exit
 			in
-			TFun(Array.to_list args,tr,false (* corotodo *))
+			TFun(Array.to_list args,tr,!is_coro)
 		with Exit ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
@@ -1189,7 +1191,7 @@ and type_local_function ctx kind f with_type p want_coroutine =
 	| WithType.WithType(t,_) ->
 		let rec loop t =
 			(match follow t with
-			| TFun (args2,tr,corotodo) when List.length args2 = List.length targs ->
+			| TFun (args2,tr,_) when List.length args2 = List.length targs ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
 					match follow t1 with
 					| TMono _ -> unify ctx t2 t1 p
