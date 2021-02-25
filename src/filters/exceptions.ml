@@ -275,6 +275,7 @@ let catch_native ctx catches t p =
 		(* Everything else falls into `if(Std.is(e, ExceptionType)`-fest *)
 		| rest ->
 			let catch_var = alloc_var VGenerated "`" ctx.wildcard_catch_type null_pos in
+			catch_var.v_meta <- (Meta.Custom "VCaught",[],null_pos) :: catch_var.v_meta;
 			let catch_local = mk (TLocal catch_var) catch_var.v_type null_pos in
 			let body =
 				let catch = new catch ctx catch_local p in
