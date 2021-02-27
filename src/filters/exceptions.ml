@@ -108,8 +108,8 @@ let rec is_native_throw cfg t =
 (**
 	Check if `t` can be caught without wrapping.
 *)
-let rec is_native_catch ctx t =
-	ctx.typer.com.platform = Eval || is_in_list t ctx.config.ec_native_catches
+let rec is_native_catch cfg t =
+	is_in_list t cfg.ec_native_catches
 
 (**
 	Check if `cls` is or extends (if `check_parent=true`) `haxe.Exception`
@@ -128,7 +128,6 @@ let is_haxe_exception ?(check_parent=true) (t:Type.t) =
 	match Abstract.follow_with_abstracts t with
 		| TInst (cls, _) -> is_haxe_exception_class ~check_parent cls
 		| _ -> false
-
 
 (**
 	Check if `v` variable is used in `e` expression
@@ -187,7 +186,7 @@ let set_needs_exception_stack v =
 	if not (Meta.has Meta.NeedsExceptionStack v.v_meta) then
 		v.v_meta <- (Meta.NeedsExceptionStack,[],null_pos) :: v.v_meta
 
-class catch ctx catch_local =
+class catch ctx catch_local catch_pos =
 	object (self)
 		val mutable hx_exception_var = None
 		val mutable unwrapped_var = None
@@ -259,12 +258,11 @@ class catch ctx catch_local =
 	}
 	```
 *)
-let catch_native ctx catches t =
-	let p = punion_el (List.map (fun (_,e) -> (),e.epos) catches) in
+let catch_native ctx catches t p =
 	let rec transform = function
 		| [] -> []
 		(* Keep catches for native exceptions intact *)
-		| (v,_) as current :: rest when (is_native_catch ctx v.v_type)
+		| (v,_) as current :: rest when (is_native_catch ctx.config v.v_type)
 			(*
 				In case haxe.Exception extends native exception on current target.
 				We don't want it to be generated as a native catch.
@@ -277,7 +275,7 @@ let catch_native ctx catches t =
 			add_var_flag catch_var VCaught;
 			let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 			let body =
-				let catch = new catch ctx catch_local in
+				let catch = new catch ctx catch_local p in
 				let rec transform = function
 					| (v, body) :: rest ->
 						let current_t = Abstract.follow_with_abstracts v.v_type in
@@ -433,7 +431,7 @@ let filter tctx =
 			| TTry(e1,catches) ->
 				let catches =
 					let catches = List.map (fun (v,e) -> (v,run e)) catches in
-					(catch_native ctx catches e.etype)
+					(catch_native ctx catches e.etype e.epos)
 				in
 				{ e with eexpr = TTry(run e1,catches) }
 			| _ ->
