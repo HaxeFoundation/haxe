@@ -18,7 +18,9 @@ class Exception {
 		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else {
-			return new ValueException(value, null, value);
+			var e = new ValueException(value, null, value);
+			e.__skipStack--;
+			return e;
 		}
 	}
 
