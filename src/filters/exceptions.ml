@@ -109,10 +109,7 @@ let rec is_native_throw cfg t =
 	Check if `t` can be caught without wrapping.
 *)
 let rec is_native_catch ctx t =
-	if ctx.typer.com.platform = Eval then
-		true
-	else
-		is_in_list t ctx.config.ec_native_catches
+	ctx.typer.com.platform = Eval || is_in_list t ctx.config.ec_native_catches
 
 (**
 	Check if `cls` is or extends (if `check_parent=true`) `haxe.Exception`

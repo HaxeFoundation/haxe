@@ -80,13 +80,18 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		skipped := (name,ul,p) :: !skipped;
 		default_value name t
 	in
-	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
-	let type_against name t e =
+	let handle_errors fn =
 		try
-			let e = type_expr ctx e (WithType.with_argument t name) in
-			!cast_or_unify_raise_ref ctx t e e.epos
+			fn()
 		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
 			raise (WithTypeError (l,p))
+	in
+	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
+	let type_against name t e =
+		handle_errors (fun() ->
+			let e = type_expr ctx e (WithType.with_argument t name) in
+			!cast_or_unify_raise_ref ctx t e e.epos
+		)
 	in
 	let rec loop el args = match el,args with
 		| [],[] ->
@@ -124,7 +129,9 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 									Type.unify arg_t (unify_min ctx el);
 									el
 								with Unify_error _ ->
-									die ~p:callp "Unexpected unification error" __LOC__
+									handle_errors (fun() ->
+										List.map (fun e -> !cast_or_unify_raise_ref ctx arg_t e e.epos) el
+									)
 							with WithTypeError(ul,p) ->
 								arg_error ul name false p)
 						| _ ->
