@@ -126,7 +126,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 							(try
 								let el = type_rest mk_mono in
 								try
-									Type.unify arg_t (unify_min ctx el);
+									unify ctx (unify_min ctx el) arg_t callp;
 									el
 								with Unify_error _ ->
 									handle_errors (fun() ->
