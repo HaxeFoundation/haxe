@@ -9,7 +9,6 @@ class Issue10143 extends Test {
 		eq('String', HelperMacros.typeString(Win.test('hello')));
 		eq('Bool', HelperMacros.typeString(Win.test({field:'world'})));
 		eq('String', HelperMacros.typeString(Win.test(('hello':AString))));
-		eq('Bool', HelperMacros.typeString(Win.test(({field:'world'}:AObj))));
 	}
 }
 
