@@ -125,7 +125,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 						| _ when ExtType.is_mono (follow arg_t) ->
 							(try
 								let el = type_rest mk_mono in
-								unify ctx (unify_min ctx el) arg_t (punion_el el);
+								unify ctx (unify_min ctx el) arg_t (punion_el callp el);
 								el
 							with WithTypeError(ul,p) ->
 								arg_error ul name false p)
