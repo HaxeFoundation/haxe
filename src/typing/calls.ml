@@ -254,18 +254,18 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		let eparam = sea.se_this in
 		dispatch#field_call sea.se_access [eparam] el
 	| AKResolve(sea,name) ->
-		dispatch#expr_call (dispatch#resolve_call sea name) el
+		dispatch#expr_call (dispatch#resolve_call sea name) [] el
 	| AKNo _ | AKAccess _ ->
 		ignore(acc_get ctx acc p);
 		error ("Unexpected access mode, please report this: " ^ (s_access_kind acc)) p
 	| AKAccessor fa ->
 		let e = dispatch#field_call fa [] [] in
-		dispatch#expr_call e el
+		dispatch#expr_call e [] el
 	| AKUsingAccessor sea ->
 		let e = dispatch#field_call sea.se_access [sea.se_this] [] in
-		dispatch#expr_call e el
+		dispatch#expr_call e [] el
 	| AKExpr e ->
-		dispatch#expr_call e el
+		dispatch#expr_call e [] el
 
 let rec needs_temp_var e =
 	match e.eexpr with

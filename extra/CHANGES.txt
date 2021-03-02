@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	all : fixed rest args typing for overloaded functions (#10143)
+	all : fixed using `var` fields as static extensions (#10144)
 	hl : fixed debugging of `catch` blocks (#10109)
 
 2021-02-26 4.2.1:
