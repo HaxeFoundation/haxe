@@ -1431,7 +1431,7 @@ and args_as_array ctx mandatory_args spread_arg =
 	| [] ->
 		spread_arg
 	| _ ->
-		let p = punion_el (List.map (fun e -> ((),e.epos)) mandatory_args) in
+		let p = punion_el mandatory_args in
 		let array = mk (TArrayDecl mandatory_args) (ctx.com.basic.tarray t_dynamic) p in
 		let concat = mk (TField (array,FDynamic "concat")) t_dynamic spread_arg.epos in
 		mk (TCall (concat,[spread_arg])) (ctx.com.basic.tarray t_dynamic) (punion p spread_arg.epos)

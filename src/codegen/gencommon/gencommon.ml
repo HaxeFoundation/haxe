@@ -1016,9 +1016,8 @@ let wrap_rest_args gen callee_type params p =
 				| _ ->
 					match Abstract.follow_with_abstracts t with
 					| TInst ({ cl_path = _,"NativeArray" }, [t1]) ->
-						let pos = punion_el (List.map (fun e -> ((),e.epos)) params) in
 						let t1 = if Common.defined gen.gcon Define.EraseGenerics then t_dynamic else t1 in
-						[mk_nativearray_decl gen t1 params pos]
+						[mk_nativearray_decl gen t1 params (punion_el params)]
 					| _ ->
 						die ~p "Unexpected rest arguments type" __LOC__
 				)

@@ -818,3 +818,18 @@ let reduce_unsafe_casts ?(require_cast=false) e t =
 	| { eexpr = TCast _ } as result -> result
 	| result when require_cast -> { e with eexpr = TCast(result,None) }
 	| result -> result
+
+let punion_el el =
+	match el with
+	| [] -> null_pos
+	| { epos = p } :: el ->
+		let rec loop pfile pmin pmax el =
+			match el with
+			| [] ->
+				null_pos
+			| { epos = p } :: [] ->
+				{ pfile = pfile; pmin = min pmin p.pmin; pmax = max pmax p.pmax }
+			| { epos = p } :: el ->
+				loop pfile (min pmin p.pmin) (max pmax p.pmax) el
+		in
+		loop p.pfile p.pmin p.pmax el

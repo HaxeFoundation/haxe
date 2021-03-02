@@ -902,7 +902,7 @@ and inline_rest_params ctx f params map_type p =
 						let cf =
 							try PMap.find "of" c.cl_statics
 							with Not_found -> die ~p:c.cl_name_pos "Can't find haxe.Rest.of function" __LOC__
-						and p = punion_el (List.map (fun e -> (),e.epos) params) in
+						and p = punion_el params in
 						(* [param1, param2, ...] *)
 						(* If we don't know the type (e.g. the rest argument is a field type parameter) then we need
 						   to find a common type via unify_min. *)
