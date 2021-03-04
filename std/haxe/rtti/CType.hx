@@ -490,6 +490,7 @@ class TypeApi {
 					case CDynamic(t2):
 						if ((t == null) != (t2 == null))
 							return false;
+						@:nullSafety(Off)
 						return t == null || typeEq(t, t2);
 					default:
 				}
@@ -536,6 +537,7 @@ class TypeApi {
 			return false;
 		if ((c1.args == null) != (c2.args == null))
 			return false;
+		@:nullSafety(Off)
 		if (c1.args != null && !leq(function(a, b) {
 			return a.name == b.name && a.opt == b.opt && typeEq(a.t, b.t);
 		}, c1.args, c2.args))

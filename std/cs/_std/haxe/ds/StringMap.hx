@@ -24,6 +24,7 @@ package haxe.ds;
 
 import cs.NativeArray;
 
+@:nullSafety(Off)
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	extern private static inline var HASH_UPPER = 0.77;
 	extern private static inline var FLAG_EMPTY = 0;
@@ -176,7 +177,7 @@ import cs.NativeArray;
 			if (size >= (newNBuckets * HASH_UPPER + 0.5))
 				/* requested size is too small */ {
 				j = 0;
-			} else { /* hash table size to be changed (shrink or expand); rehash */
+			} else {/* hash table size to be changed (shrink or expand); rehash */
 				var nfSize = newNBuckets;
 				newHash = new NativeArray(nfSize);
 				if (nBuckets < newNBuckets) // expand
@@ -234,14 +235,15 @@ import cs.NativeArray;
 								var tmp = _keys[i];
 								_keys[i] = key;
 								key = tmp;
-							} { // inlined swap
+							}
+							{ // inlined swap
 								var tmp = vals[i];
 								vals[i] = val;
 								val = tmp;
 							}
 
 							hashes[i] = FLAG_DEL; /* mark it as deleted in the old hash table */
-						} else { /* write the element and jump out of the loop */
+						} else {/* write the element and jump out of the loop */
 							_keys[i] = key;
 							vals[i] = val;
 							break;
@@ -256,7 +258,8 @@ import cs.NativeArray;
 					var k = new NativeArray(newNBuckets);
 					arrayCopy(_keys, 0, k, 0, newNBuckets);
 					this._keys = k;
-				} { // inlined swap
+				}
+				{ // inlined swap
 					var v = new NativeArray(newNBuckets);
 					arrayCopy(vals, 0, v, 0, newNBuckets);
 					this.vals = v;

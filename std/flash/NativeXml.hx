@@ -28,6 +28,7 @@ import flash.xml.XMLList;
 extern enum XmlType {}
 typedef NativeXml = Xml;
 
+@:nullSafety(Off)
 class Xml {
 	public static var Element(default, null):XmlType;
 	public static var PCData(default, null):XmlType;
@@ -405,7 +406,7 @@ class Xml {
 		return _node.toXMLString();
 	}
 
-	static function __init__():Void
+	static function __init__():Void {
 		untyped {
 			Element = "element";
 			PCData = "pcdata";
@@ -415,4 +416,5 @@ class Xml {
 			ProcessingInstruction = "processingInstruction";
 			Document = "document";
 		}
+	}
 }

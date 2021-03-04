@@ -29,10 +29,11 @@ package haxe;
 	public static dynamic function trace(v:Dynamic, ?infos:PosInfos):Void {
 		if (infos != null && infos.customParams != null) {
 			var extra:String = "";
+			@:nullSafety(Off)
 			for (v in infos.customParams)
 				extra += "," + v;
 			nativeTrace(v + extra, infos);
-		} else
+		} else @:nullSafety(Off)
 			nativeTrace(v, infos);
 	}
 
@@ -41,6 +42,7 @@ package haxe;
 		if (infos == null)
 			return str;
 		var pstr = infos.fileName + ":" + infos.lineNumber;
+		@:nullSafety(Off)
 		if (infos != null && infos.customParams != null)
 			for (v in infos.customParams)
 				str += ", " + Std.string(v);

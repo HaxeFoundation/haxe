@@ -26,6 +26,7 @@ private typedef Rand = hl.Abstract<"hl_random">;
 
 @:coreApi
 class Std {
+	@:nullSafety(Off)
 	static var rnd:Rand;
 	static var toStringDepth:Int = 0;
 
@@ -34,7 +35,7 @@ class Std {
 	}
 
 	@:hlNative("std", "rnd_init_system") static function rnd_sys():Rand {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "rnd_int") static function rnd_int(r:Rand):Int {
@@ -79,10 +80,10 @@ class Std {
 		return t.check(v);
 	}
 
-	extern public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
+	extern public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S>;
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 
@@ -90,8 +91,9 @@ class Std {
 		return untyped $int(x);
 	}
 
-	@:keep public static function string(s:Dynamic):String {
+	@:keep public static function string(s:Null<Dynamic>):String {
 		var len = 0;
+		@:nullSafety(Off)
 		var bytes = hl.Bytes.fromValue(s, new hl.Ref(len));
 		return @:privateAccess String.__alloc__(bytes, len);
 	}
@@ -141,6 +143,7 @@ class Std {
 			default:
 		}
 		throw "Can't add " + a + "(" + ta + ") and " + b + "(" + tb + ")";
+		@:nullSafety(Off)
 		return null;
 	}
 }

@@ -20,20 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import cs.system.text.regularexpressions.Regex;
-import cs.system.text.regularexpressions.Match;
-import cs.system.text.regularexpressions.RegexOptions;
 import cs.system.text.regularexpressions.*;
+import cs.system.text.regularexpressions.Match;
+import cs.system.text.regularexpressions.Regex;
+import cs.system.text.regularexpressions.RegexOptions;
 
 @:coreApi final class EReg {
 	private var regex:Regex;
+	@:nullSafety(Off)
 	private var m:Match;
+	@:nullSafety(Off)
 	private var isGlobal:Bool;
+	@:nullSafety(Off)
 	private var cur:String;
 
 	public function new(r:String, opt:String):Void {
 		var opts:Int = cast CultureInvariant;
-		for (i in 0...opt.length)
+		for (i in 0...opt.length) {
 			untyped {
 				switch (cast(opt[i], Int)) {
 					case 'i'.code:
@@ -48,6 +51,7 @@ import cs.system.text.regularexpressions.*;
 					#end
 				}
 			}
+		}
 
 		this.regex = new Regex(r, cast(opts, RegexOptions));
 	}
@@ -61,6 +65,7 @@ import cs.system.text.regularexpressions.*;
 	public function matched(n:Int):String {
 		if (m == null || cast(n, UInt) > m.Groups.Count)
 			throw "EReg::matched";
+		@:nullSafety(Off)
 		if (!m.Groups[n].Success)
 			return null;
 		return m.Groups[n].Value;

@@ -31,6 +31,7 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 @:access(Sys)
 @:coreApi class File {
 	public static function getContent(path:String):String {
+		@:nullSafety(Off)
 		var bytes = file_contents(Sys.getPath(path), null);
 		if (bytes == null)
 			throw new Sys.SysError("Can't read " + path);
@@ -97,10 +98,10 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 	}
 
 	@:hlNative("std", "file_open") static function file_open(path:hl.Bytes, mode:Int, binary:Bool):FileHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "file_contents") static function file_contents(path:hl.Bytes, size:hl.Ref<Int>):hl.Bytes {
-		return null;
+		return cast null;
 	}
 }

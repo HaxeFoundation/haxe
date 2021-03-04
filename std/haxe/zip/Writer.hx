@@ -92,14 +92,18 @@ class Writer {
 			if (f.crc32 == null) {
 				if (f.compressed)
 					throw "CRC32 must be processed before compression";
+				@:nullSafety(Off)
 				f.crc32 = haxe.crypto.Crc32.make(f.data);
 			}
-			if (!f.compressed)
-				f.fileSize = f.data.length;
-			f.dataSize = f.data.length;
+			@:nullSafety(Off) {
+				if (!f.compressed)
+					f.fileSize = f.data.length;
+				f.dataSize = f.data.length;
+			}
 		}
 		o.writeUInt16(f.compressed ? 8 : 0);
 		writeZipDate(f.fileTime);
+		@:nullSafety(Off)
 		o.writeInt32(f.crc32);
 		o.writeInt32(f.dataSize);
 		o.writeInt32(f.fileSize);
@@ -127,6 +131,7 @@ class Writer {
 		o.writeUInt16(ebytes.length);
 		o.writeString(f.fileName);
 		o.write(ebytes);
+		@:nullSafety(Off)
 		files.add({
 			name: f.fileName,
 			compressed: f.compressed,
@@ -141,6 +146,7 @@ class Writer {
 	public function write(files:List<Entry>) {
 		for (f in files) {
 			writeEntryHeader(f);
+			@:nullSafety(Off)
 			o.writeFullBytes(f.data, 0, f.data.length);
 		}
 		writeCDR();

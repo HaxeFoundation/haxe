@@ -37,22 +37,23 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null || Std.isOfType(o, DynamicObject) || Std.isOfType(o, java.lang.Class)) {
 			return null;
 		}
 		return cast java.Lib.getNativeType(o);
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (Std.isOfType(o, java.lang.Enum) || Std.isOfType(o, HxEnum)) {
 			return untyped o.getClass();
 		}
 		return null;
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		var c = java.Lib.toNativeType(c);
+		@:nullSafety(Off)
 		var cl:java.lang.Class<Dynamic> = c == null ? null : untyped c.getSuperclass();
 		if (cl != null && cl.getName() != "haxe.lang.HxObject" && cl.getName() != "java.lang.Object") {
 			return cast cl;
@@ -85,7 +86,7 @@ enum ValueType {
 		return ret;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		try {
 			if (name.indexOf(".") == -1) {
 				name = "haxe.root." + name;
@@ -111,12 +112,11 @@ enum ValueType {
 			return r;
 		return null;
 	')
-	public static function resolveEnum(name:String):Enum<Dynamic>
-		untyped {
-			if (name == "Bool")
-				return Bool;
-			return resolveClass(name);
-		}
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> untyped {
+		if (name == "Bool")
+			return Bool;
+		return resolveClass(name);
+	}
 
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		var nargs = args.length,
@@ -142,7 +142,8 @@ enum ValueType {
 
 				if (arg == null || isDynamic || (argType != null && expectedType.isAssignableFrom(java.Lib.toNativeType(argType)))) {
 					callArguments[argNum] = arg;
-				} else if(expectedType.getName() == 'boolean' && (cast argType:java.lang.Class<Dynamic>).getName() == 'java.lang.Boolean') {
+				} else if (expectedType.getName() == 'boolean'
+					&& (cast argType : java.lang.Class<Dynamic>).getName() == 'java.lang.Boolean') {
 					callArguments[argNum] = (cast arg : java.lang.Boolean).booleanValue();
 				} else if (Std.isOfType(arg, java.lang.Number)) {
 					var name = expectedType.getName();
@@ -235,7 +236,7 @@ enum ValueType {
 
 		return ret;
 	')
-	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
+	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {@:nullSafety(Off)
 		return null;
 	}
 
@@ -265,7 +266,7 @@ enum ValueType {
 
 		return ret;
 	')
-	public static function getClassFields(c:Class<Dynamic>):Array<String> {
+	public static function getClassFields(c:Class<Dynamic>):Array<String> {@:nullSafety(Off)
 		return null;
 	}
 
@@ -309,10 +310,12 @@ enum ValueType {
 			return ValueType.TClass(v.getClass());
 		}
 	')
-	public static function typeof(v:Dynamic):ValueType
+	public static function typeof(v:Dynamic):ValueType {
+		@:nullSafety(Off)
 		untyped {
 			return null;
 		}
+	}
 
 	@:functionCode('
 			if (a instanceof haxe.lang.Enum)
@@ -320,10 +323,11 @@ enum ValueType {
 			else
 				return haxe.lang.Runtime.eq(a, b);
 	')
-	public static function enumEq<T>(a:T, b:T):Bool
+	public static function enumEq<T>(a:T, b:T):Bool {
 		untyped {
 			return a == b;
 		}
+	}
 
 	@:functionCode('
 		if (e instanceof java.lang.Enum)
@@ -331,18 +335,22 @@ enum ValueType {
 		else
 			return ((haxe.lang.Enum) e).getTag();
 	')
-	public static function enumConstructor(e:EnumValue):String
+	public static function enumConstructor(e:EnumValue):String {
+		@:nullSafety(Off)
 		untyped {
 			return null;
 		}
+	}
 
 	@:functionCode('
 		return ( e instanceof java.lang.Enum ) ? new haxe.root.Array() : ((haxe.lang.Enum) e).getParams();
 	')
-	public static function enumParameters(e:EnumValue):Array<Dynamic>
+	public static function enumParameters(e:EnumValue):Array<Dynamic> {
+		@:nullSafety(Off)
 		untyped {
 			return null;
 		}
+	}
 
 	@:ifFeature("has_enum")
 	@:functionCode('
@@ -351,16 +359,18 @@ enum ValueType {
 		else
 			return ((haxe.lang.Enum) e).index;
 	')
-	public static function enumIndex(e:EnumValue):Int
+	public static function enumIndex(e:EnumValue):Int {
 		untyped {
 			return e.index;
 		}
+	}
 
 	public static function allEnums<T>(e:Enum<T>):Array<T> {
 		var ctors = getEnumConstructs(e);
-		var ret = [];
+		var ret:Array<T> = [];
 		for (ctor in ctors) {
-			var v = Reflect.field(e, ctor);
+			@:nullSafety(Off)
+			var v:T = Reflect.field(e, ctor);
 			if (Std.isOfType(v, e))
 				ret.push(v);
 		}

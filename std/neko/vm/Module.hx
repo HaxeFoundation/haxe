@@ -161,6 +161,7 @@ class Module {
 		The module is initialized but has not yet been executed.
 	**/
 	public static function readPath(name:String, path:Array<String>, loader:Loader) {
+		@:nullSafety(Off)
 		var p = null;
 		var i = path.length;
 		while (--i >= 0)

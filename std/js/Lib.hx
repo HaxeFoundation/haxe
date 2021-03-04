@@ -140,7 +140,7 @@ class Lib {
 		Calling this is only possible inside a catch statement.
 	**/
 	public static function getOriginalException():Dynamic {
-		return null; // function is implemented in the compiler
+		return cast null; // function is implemented in the compiler
 	}
 
 	/**

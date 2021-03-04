@@ -24,6 +24,7 @@ package sys.net;
 
 import java.net.InetSocketAddress;
 
+@:nullSafety(Off)
 @:coreApi
 class Socket {
 	public var input(default, null):haxe.io.Input;

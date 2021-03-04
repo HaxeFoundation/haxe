@@ -27,7 +27,8 @@ import haxe.io.Bytes;
 typedef Http = HttpFlash;
 
 class HttpFlash extends haxe.http.HttpBase {
-	var req:flash.net.URLLoader;
+	@:nullSafety(Off)
+	var req:Null<flash.net.URLLoader>;
 
 	/**
 		Cancels `this` Http request if `request` has been called and a response
@@ -36,17 +37,19 @@ class HttpFlash extends haxe.http.HttpBase {
 	public function cancel() {
 		if (req == null)
 			return;
+		@:nullSafety(Off)
 		req.close();
 		req = null;
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		responseAsString = null;
 		responseBytes = null;
 		var loader = req = new flash.net.URLLoader();
 		loader.dataFormat = BINARY;
 		loader.addEventListener("complete", function(e) {
 			req = null;
+			@:nullSafety(Off)
 			success(Bytes.ofData(loader.data));
 		});
 		loader.addEventListener("httpStatus", function(e:flash.events.HTTPStatusEvent) {
@@ -56,6 +59,7 @@ class HttpFlash extends haxe.http.HttpBase {
 		});
 		loader.addEventListener("ioError", function(e:flash.events.IOErrorEvent) {
 			req = null;
+			@:nullSafety(Off)
 			responseBytes = Bytes.ofData(loader.data);
 			onError(e.text);
 		});
@@ -75,6 +79,7 @@ class HttpFlash extends haxe.http.HttpBase {
 		if (param && !post) {
 			var k = url.split("?");
 			if (k.length > 1) {
+				@:nullSafety(Off)
 				small_url = k.shift();
 				vars.decode(k.join("?"));
 			}
@@ -87,9 +92,11 @@ class HttpFlash extends haxe.http.HttpBase {
 			request.requestHeaders.push(new flash.net.URLRequestHeader(h.name, h.value));
 
 		if (postData != null) {
+			@:nullSafety(Off)
 			request.data = postData;
 			request.method = "POST";
 		} else if (postBytes != null) {
+			@:nullSafety(Off)
 			request.data = postBytes.getData();
 			request.method = "POST";
 		} else {

@@ -22,10 +22,10 @@
 
 package sys.net;
 
-import haxe.io.Error;
 import cpp.NativeSocket;
 import cpp.NativeString;
 import cpp.Pointer;
+import haxe.io.Error;
 
 private class SocketInput extends haxe.io.Input {
 	var __s:Dynamic;
@@ -111,6 +111,7 @@ private class SocketOutput extends haxe.io.Output {
 	}
 }
 
+@:nullSafety(Off)
 @:coreApi
 class Socket {
 	private var __s:Dynamic;
@@ -267,7 +268,9 @@ class Socket {
 		if (neko_array == null)
 			throw "Select error";
 		return @:fixed {
-			read:neko_array[0], write:neko_array[1], others:neko_array[2]
+			read:neko_array[0],
+			write:neko_array[1],
+			others:neko_array[2]
 		};
 	}
 }

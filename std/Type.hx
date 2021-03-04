@@ -37,7 +37,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	static function getClass<T>(o:T):Class<T>;
+	static function getClass<T>(o:T):Null<Class<T>>;
 
 	/**
 		Returns the enum of enum instance `o`.
@@ -49,7 +49,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	static function getEnum(o:EnumValue):Enum<Dynamic>;
+	static function getEnum(o:EnumValue):Null<Enum<Dynamic>>;
 
 	/**
 		Returns the super-class of class `c`.
@@ -60,7 +60,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>;
+	static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>>;
 
 	/**
 		Returns the name of class `c`, including its path.
@@ -108,7 +108,7 @@ extern class Type {
 
 		The class name must not include any type parameters.
 	**/
-	static function resolveClass(name:String):Class<Dynamic>;
+	static function resolveClass(name:String):Null<Class<Dynamic>>;
 
 	/**
 		Resolves an enum by name.
@@ -123,7 +123,7 @@ extern class Type {
 
 		The enum name must not include any type parameters.
 	**/
-	static function resolveEnum(name:String):Enum<Dynamic>;
+	static function resolveEnum(name:String):Null<Enum<Dynamic>>;
 
 	/**
 		Creates an instance of class `cl`, using `args` as arguments to the

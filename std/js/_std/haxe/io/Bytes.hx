@@ -27,6 +27,7 @@ class Bytes {
 	public var length(default, null):Int;
 
 	var b:js.lib.Uint8Array;
+	@:nullSafety(Off)
 	var data:js.lib.DataView;
 
 	function new(data:BytesData) {
@@ -189,8 +190,10 @@ class Bytes {
 			chars.push(str.charCodeAt(i));
 		for (i in 0...length) {
 			var c = get(i);
-			s.addChar(chars[c >> 4]);
-			s.addChar(chars[c & 15]);
+			@:nullSafety(Off) {
+				s.addChar(chars[c >> 4]);
+				s.addChar(chars[c & 15]);
+			}
 		}
 		return s.toString();
 	}

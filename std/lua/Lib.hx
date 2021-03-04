@@ -22,8 +22,8 @@
 
 package lua;
 
-import lua.Lua;
 import lua.Io;
+import lua.Lua;
 
 /**
 	Platform-specific Lua Library. Provides some platform-specific functions
@@ -59,6 +59,7 @@ class Lib {
 		Fills an array with the result of a simple iterator.
 	**/
 	public static function fillArray<T>(itr:Void->T):Array<T> {
+		@:nullSafety(Off)
 		var i:T = null;
 		var ret:Array<T> = [];
 		while ({

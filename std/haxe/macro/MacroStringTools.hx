@@ -66,9 +66,11 @@ class MacroStringTools {
 		If `sl` is null, the result is unspecified.
 	**/
 	static public function toFieldExpr(sl:Array<String>, ?pos):Expr {
-		if (pos == null)
-			return Lambda.fold(sl, function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
-		var e = null;
+		if (pos == null) @:nullSafety(Off)
+			return Lambda.fold(sl, function(s, e:Null<Expr>) {
+				return e == null ? (macro $i{s}) : (macro $e.$s);
+			}, null);
+		var e:Null<Expr> = null;
 		for (v in sl)
 			if (e == null)
 				e = {expr: EConst(CIdent(v)), pos: pos};
@@ -94,6 +96,7 @@ class MacroStringTools {
 
 	static public function toComplex(path:String):ComplexType {
 		var pack = path.split(".");
+		@:nullSafety(Off)
 		return TPath({pack: pack, name: pack.pop(), params: []});
 	}
 }

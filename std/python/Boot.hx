@@ -22,16 +22,16 @@
 
 package python;
 
-import python.internal.MethodClosure;
+import python.Syntax;
+import python.internal.AnonObject;
 import python.internal.ArrayImpl;
-import python.internal.Internal;
-import python.internal.StringImpl;
 import python.internal.EnumImpl;
 import python.internal.HxOverrides;
-import python.internal.AnonObject;
+import python.internal.Internal;
+import python.internal.MethodClosure;
+import python.internal.StringImpl;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
-import python.Syntax;
 
 @:dox(hide)
 class Boot {
@@ -142,7 +142,7 @@ class Boot {
 
 		if (UBuiltins.hasattr(o, "__class__")) {
 			if (isAnonObject(o)) {
-				var toStr = null;
+				var toStr:Null<String> = null;
 				try {
 					var fields = fields(o);
 					var fieldsStr = [for (f in fields) '$f : ${toString1(simpleField(o, f), s + "\t")}'];
@@ -264,10 +264,13 @@ class Boot {
 	}
 
 	static function simpleField(o:Dynamic, field:String):Dynamic {
+		@:nullSafety(Off)
 		if (field == null)
 			return null;
 
+		@:nullSafety(Off)
 		var field = handleKeywords(field);
+		@:nullSafety(Off)
 		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
 
@@ -283,7 +286,7 @@ class Boot {
 		return UBuiltins.hasattr(o, handleKeywords(field));
 	}
 
-	static function field(o:Dynamic, field:String):Dynamic {
+	static function field(o:Dynamic, field:String):Null<Dynamic> {
 		if (field == null)
 			return null;
 
@@ -396,6 +399,7 @@ class Boot {
 	}
 
 	static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+		@:nullSafety(Off)
 		if (c == null)
 			return null;
 
@@ -403,8 +407,10 @@ class Boot {
 			if (Internal.hasSuper(c)) {
 				return Internal.fieldSuper(c);
 			}
+			@:nullSafety(Off)
 			return null;
 		} catch (e:Dynamic) {}
+		@:nullSafety(Off)
 		return null;
 	}
 
@@ -429,8 +435,7 @@ class Boot {
 			&& unsafeFastCodeAt(name, 1) == "_".code
 			&& unsafeFastCodeAt(name, name.length - 1) != "_".code) {
 			Internal.getPrefixed(name);
-		} else
-			name;
+		} else name;
 	}
 
 	static var prefixLength = Internal.prefix().length;

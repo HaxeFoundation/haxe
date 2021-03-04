@@ -91,7 +91,7 @@ class XmlParserException {
 		}
 	}
 
-	public function toString():String {
+	public function toString():String {@:nullSafety(Off)
 		return Type.getClassName(Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
 	}
 }
@@ -119,10 +119,10 @@ class Parser {
 	}
 
 	static function doParse(str:String, strict:Bool, p:Int = 0, ?parent:Xml):Int {
-		var xml:Xml = null;
+		var xml:Null<Xml> = null;
 		var state = S.BEGIN;
 		var next = S.BEGIN;
-		var aname = null;
+		var aname:Null<String> = null;
 		var start = 0;
 		var nsubs = 0;
 		var nbrackets = 0;
@@ -239,7 +239,8 @@ class Parser {
 							throw new XmlParserException("Expected attribute name", str, p);
 						tmp = str.substr(start, p - start);
 						aname = tmp;
-						if (xml.exists(aname))
+						@:nullSafety(Off)
+						if (xml.exists(tmp))
 							throw new XmlParserException("Duplicate attribute [" + aname + "]", str, p);
 						state = S.IGNORE_SPACES;
 						next = S.EQUALS;
@@ -277,6 +278,7 @@ class Parser {
 							buf.addSub(str, start, p - start);
 							var val = buf.toString();
 							buf = new StringBuf();
+							@:nullSafety(Off)
 							xml.set(aname, val);
 							state = S.IGNORE_SPACES;
 							next = S.BODY;
@@ -343,7 +345,8 @@ class Parser {
 					if (c == ';'.code) {
 						var s = str.substr(start, p - start);
 						if (s.fastCodeAt(0) == '#'.code) {
-							var c = s.fastCodeAt(1) == 'x'.code ? Std.parseInt("0" + s.substr(1, s.length - 1)) : Std.parseInt(s.substr(1, s.length - 1));
+							@:nullSafety(Off)
+							var c:Int = s.fastCodeAt(1) == 'x'.code ? Std.parseInt("0" + s.substr(1, s.length - 1)) : Std.parseInt(s.substr(1, s.length - 1));
 							#if !(target.unicode)
 							if (c >= 128) {
 								// UTF8-encode it
@@ -363,6 +366,7 @@ class Parser {
 									throw new XmlParserException("Cannot encode UTF8-char " + c, str, p);
 							} else
 							#end
+							@:nullSafety(Off)
 							buf.addChar(c);
 						} else if (!escapes.exists(s)) {
 							if (strict)

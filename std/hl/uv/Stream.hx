@@ -29,6 +29,7 @@ class Stream extends Handle {
 			len = bytes.length - pos;
 		if (pos < 0 || len < 0 || pos + len > bytes.length)
 			throw haxe.io.Error.OutsideBounds;
+		@:nullSafety(Off)
 		if (handle == null || !stream_write(handle, (bytes : hl.Bytes).offset(pos), len, onWrite))
 			throw new haxe.io.Eof();
 	}
@@ -39,6 +40,7 @@ class Stream extends Handle {
 	}
 
 	public function readStart(onData:haxe.io.Bytes->Void) {
+		@:nullSafety(Off)
 		readStartRaw(function(b, len) onData(if (len < 0) null else b.toBytes(len)));
 	}
 

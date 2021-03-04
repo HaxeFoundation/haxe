@@ -28,7 +28,7 @@ class Reflect {
 		return hl.Api.hasField(o, hash);
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		if (field == null)
 			return null;
 		var hash = @:privateAccess field.bytes.hash();
@@ -40,7 +40,8 @@ class Reflect {
 		hl.Api.setField(o, hash, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
+		@:nullSafety(Off)
 		var f:Dynamic = Reflect.field(o, "get_" + field);
 		if (f != null)
 			return f();
@@ -48,6 +49,7 @@ class Reflect {
 	}
 
 	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
+		@:nullSafety(Off)
 		var f:Dynamic = Reflect.field(o, "set_" + field);
 		if (f != null)
 			f(value);
@@ -84,7 +86,7 @@ class Reflect {
 	}
 
 	@:hlNative("std", "obj_fields") static function getObjectFields(v:Dynamic):hl.NativeArray<hl.Bytes> {
-		return null;
+		return cast null;
 	}
 
 	public static function fields(o:Dynamic):Array<String> {

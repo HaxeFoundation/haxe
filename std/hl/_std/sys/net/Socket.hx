@@ -113,6 +113,7 @@ private class SocketInput extends haxe.io.Input {
 	}
 }
 
+@:nullSafety(Off)
 @:coreApi
 @:keepInit
 class Socket {
@@ -278,7 +279,7 @@ class Socket {
 	@:hlNative("std", "socket_init") static function socket_init():Void {}
 
 	@:hlNative("std", "socket_new") static function socket_new(udp:Bool):SocketHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "socket_close") static function socket_close(s:SocketHandle):Void {}
@@ -296,7 +297,7 @@ class Socket {
 	}
 
 	@:hlNative("std", "socket_accept") static function socket_accept(s:SocketHandle):SocketHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "socket_peer") static function socket_peer(s:SocketHandle, host:hl.Ref<Int>, port:hl.Ref<Int>):Bool {

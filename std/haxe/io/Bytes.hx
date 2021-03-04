@@ -25,6 +25,7 @@ package haxe.io;
 #if cpp
 using cpp.NativeArray;
 #end
+using StringTools;
 
 class Bytes {
 	public var length(default, null):Int;
@@ -178,7 +179,7 @@ class Bytes {
 		return new Bytes(len, b.slice(pos, pos + len));
 		#end
 	}
-	
+
 	/**
 		Returns `0` if the bytes of `this` instance and the bytes of `other` are
 		identical.
@@ -525,12 +526,14 @@ class Bytes {
 		var s = new StringBuf();
 		var chars = [];
 		var str = "0123456789abcdef";
-		for (i in 0...str.length)
-			chars.push(str.charCodeAt(i));
+		for (char in str)
+			chars.push(char);
 		for (i in 0...length) {
 			var c = get(i);
-			s.addChar(chars[c >> 4]);
-			s.addChar(chars[c & 15]);
+			@:nullSafety(Off) {
+				s.addChar(chars[c >> 4]);
+				s.addChar(chars[c & 15]);
+			}
 		}
 		return s.toString();
 	}

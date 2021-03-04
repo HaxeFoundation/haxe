@@ -22,11 +22,11 @@
 
 package php;
 
-import haxe.io.Bytes;
 import haxe.ds.Map;
-import php.Syntax.*;
+import haxe.io.Bytes;
 import php.Global.*;
 import php.SuperGlobal.*;
+import php.Syntax.*;
 
 /**
 	This class is used for accessing the local Web server and the current
@@ -71,12 +71,13 @@ class Web {
 					var val = StringTools.urlDecode(reg.matched(4));
 					if (idx == "")
 						res.push(val);
-					else
+					else @:nullSafety(Off)
 						res[Std.parseInt(idx)] = val;
 				}
 			}
 		}
 		explore(StringTools.replace(getParamsString(), ";", "&"));
+		@:nullSafety(Off)
 		explore(getPostData());
 
 		if (res.length == 0) {
@@ -89,6 +90,7 @@ class Web {
 			}
 		}
 
+		@:nullSafety(Off)
 		if (res.length == 0)
 			return null;
 		return res;
@@ -227,10 +229,12 @@ class Web {
 	/**
 		Retrieve a client header value sent with the request.
 	**/
+	@:nullSafety(Off)
 	public static function getClientHeader(k:String):String {
 		return loadClientHeaders().get(str_replace('-', '_', strtoupper(k)));
 	}
 
+	@:nullSafety(Off)
 	private static var _clientHeaders:Map<String, String>;
 
 	/**
@@ -287,6 +291,7 @@ class Web {
 		for (key in headers.keys()) {
 			result.push({value: headers.get(key), header: key});
 		}
+		@:nullSafety(Off)
 		return result;
 	}
 
@@ -319,9 +324,10 @@ class Web {
 		var h = fopen("php://input", "r");
 		var bsize = 8192;
 		var max = 32;
-		var data:String = null;
+		var data:Null<String> = null;
 		var counter = 0;
 		while (!feof(h) && counter < max) {
+			@:nullSafety(Off)
 			data = Syntax.concat(data, fread(h, bsize));
 			counter++;
 		}
@@ -358,6 +364,7 @@ class Web {
 		Returns an object with the authorization sent by the client (Basic scheme only).
 	**/
 	public static function getAuthorization():{user:String, pass:String} {
+		@:nullSafety(Off)
 		if (!isset(_SERVER['PHP_AUTH_USER']))
 			return null;
 		return {user: _SERVER['PHP_AUTH_USER'], pass: _SERVER['PHP_AUTH_PW']};
@@ -374,10 +381,11 @@ class Web {
 		Get the multipart parameters as an hashtable. The data
 		cannot exceed the maximum size specified.
 	**/
+	@:nullSafety(Off)
 	public static function getMultipart(maxSize:Int):Map<String, String> {
 		var h = new haxe.ds.StringMap();
-		var buf:StringBuf = null;
-		var curname = null;
+		var buf:Null<StringBuf> = null;
+		var curname:Null<String> = null;
 		parseMultipart(function(p, _) {
 			if (curname != null)
 				h.set(curname, buf.toString());
@@ -470,10 +478,11 @@ class Web {
 	public static function getMethod():String {
 		if (isset(_SERVER['REQUEST_METHOD']))
 			return _SERVER['REQUEST_METHOD'];
-		else
+		else @:nullSafety(Off)
 			return null;
 	}
 
+	@:nullSafety(Off)
 	public static var isModNeko(default, null):Bool;
 
 	static function __init__() {

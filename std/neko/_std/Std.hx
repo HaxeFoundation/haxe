@@ -30,16 +30,16 @@
 		return untyped neko.Boot.__instanceof(v, t);
 	}
 
-	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return inline downcast(value, c);
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return new String(untyped __dollar__string(s));
 	}
 

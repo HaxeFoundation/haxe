@@ -21,13 +21,14 @@
  */
 
 import python.internal.UBuiltins;
-import python.lib.Re;
 import python.lib.Re.MatchObject;
 import python.lib.Re.Pattern;
+import python.lib.Re;
 
 @:coreApi
 class EReg {
 	var pattern:Regex;
+	@:nullSafety(Off)
 	var matchObj:MatchObject;
 	var global:Bool;
 
@@ -51,6 +52,7 @@ class EReg {
 	}
 
 	public inline function match(s:String):Bool {
+		@:nullSafety(Off)
 		matchObj = Re.search(pattern, s);
 		return matchObj != null;
 	}
@@ -73,8 +75,10 @@ class EReg {
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		if (len != -1) {
+			@:nullSafety(Off)
 			matchObj = pattern.search(s, pos, pos + len);
 		} else {
+			@:nullSafety(Off)
 			matchObj = pattern.search(s, pos);
 		}
 
@@ -127,8 +131,10 @@ class EReg {
 		var cur = this;
 		while (pos < s.length) {
 			if (matchObj == null) {
+				@:nullSafety(Off)
 				matchObj = Re.search(pattern, s);
 			} else {
+				@:nullSafety(Off)
 				matchObj = matchObj.re.search(s, pos);
 			}
 

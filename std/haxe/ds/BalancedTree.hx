@@ -33,7 +33,7 @@ package haxe.ds;
 	are in-order.
 **/
 class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
-	var root:TreeNode<K, V>;
+	var root:Null<TreeNode<K, V>>;
 
 	/**
 		Creates a new BalancedTree, which is initially empty.
@@ -147,9 +147,10 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 		return copied;
 	}
 
-	function setLoop(k:K, v:V, node:TreeNode<K, V>) {
-		if (node == null)
+	function setLoop(k:K, v:V, node:Null<TreeNode<K, V>>) {
+		if (node == null) {@:nullSafety(Off)
 			return new TreeNode<K, V>(null, k, v, null);
+		}
 		var c = compare(k, node.key);
 		return if (c == 0) new TreeNode<K, V>(node.left, k, v, node.right, node.get_height()); else if (c < 0) {
 			var nl = setLoop(k, v, node.left);
@@ -160,7 +161,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 		}
 	}
 
-	function removeLoop(k:K, node:TreeNode<K, V>) {
+	function removeLoop(k:K, node:Null<TreeNode<K, V>>) {
 		if (node == null)
 			throw "Not_found";
 		var c = compare(k, node.key);
@@ -169,7 +170,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 			node.right); else balance(node.left, node.key, node.value, removeLoop(k, node.right));
 	}
 
-	static function iteratorLoop<K,V>(node:TreeNode<K, V>, acc:Array<V>) {
+	static function iteratorLoop<K, V>(node:Null<TreeNode<K, V>>, acc:Array<V>) {
 		if (node != null) {
 			iteratorLoop(node.left, acc);
 			acc.push(node.value);
@@ -177,7 +178,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 		}
 	}
 
-	function keysLoop(node:TreeNode<K, V>, acc:Array<K>) {
+	function keysLoop(node:Null<TreeNode<K, V>>, acc:Array<K>) {
 		if (node != null) {
 			keysLoop(node.left, acc);
 			acc.push(node.key);
@@ -226,7 +227,7 @@ class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
 		return Reflect.compare(k1, k2);
 	}
 
-	public function toString() {
+	public function toString() {@:nullSafety(Off)
 		return root == null ? '{}' : '{${root.toString()}}';
 	}
 

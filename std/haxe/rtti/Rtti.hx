@@ -43,7 +43,8 @@ class Rtti {
 		if (rtti == null) {
 			throw 'Class ${Type.getClassName(c)} has no RTTI information, consider adding @:rtti';
 		}
-		var x = Xml.parse(rtti).firstElement();
+		@:nullSafety(Off)
+		var x:Xml = Xml.parse(rtti).firstElement();
 		var infos = new haxe.rtti.XmlParser().processElement(x);
 		switch (infos) {
 			case TClassdecl(c):

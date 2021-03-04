@@ -41,7 +41,7 @@ class Certificate {
 		return new Certificate(cert_load_path(untyped path.__s));
 	}
 
-	public static function fromString(str:String):Certificate {
+	public static function fromString(str:String):Certificate {@:nullSafety(Off)
 		return new Certificate(cert_add_pem(null, untyped str.__s));
 	}
 
@@ -50,7 +50,7 @@ class Certificate {
 		if (x != null)
 			return new Certificate(x);
 
-		var defPaths = null;
+		var defPaths:Null<Array<String>> = null;
 		switch (Sys.systemName()) {
 			case "Linux":
 				defPaths = [
@@ -81,12 +81,16 @@ class Certificate {
 				}
 			}
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 
 	public var commonName(get, null):Null<String>;
+	@:nullSafety(Off)
 	public var altNames(get, null):Array<String>;
+	@:nullSafety(Off)
 	public var notBefore(get, null):Date;
+	@:nullSafety(Off)
 	public var notAfter(get, null):Date;
 
 	function get_commonName():Null<String> {

@@ -38,6 +38,7 @@ final class FieldHashConflict {
 	}
 }
 
+@:nullSafety(Off)
 @:native('haxe.lang.FieldLookup')
 @:classCode("#pragma warning disable 628\n")
 @:nativeGen @:keep @:static

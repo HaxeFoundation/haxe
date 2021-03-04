@@ -22,15 +22,15 @@
 
 package sys.net;
 
-import haxe.io.Error;
 import haxe.io.Bytes;
 import haxe.io.BytesData;
+import haxe.io.Error;
 import python.Exceptions;
 import python.Tuple;
-import python.lib.socket.Socket in PSocket;
+import python.lib.Select;
 import python.lib.Socket in PSocketModule;
 import python.lib.socket.Address in PAddress;
-import python.lib.Select;
+import python.lib.socket.Socket in PSocket;
 
 private class SocketInput extends haxe.io.Input {
 	var __s:PSocket;
@@ -108,15 +108,18 @@ private class SocketOutput extends haxe.io.Output {
 }
 
 @:coreApi class Socket {
+	@:nullSafety(Off)
 	var __s:PSocket;
 
 	public var input(default, null):haxe.io.Input;
 
 	public var output(default, null):haxe.io.Output;
 
+	@:nullSafety(Off)
 	public var custom:Dynamic;
 
 	public function new():Void {
+		@:nullSafety(Off)
 		__initSocket();
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);

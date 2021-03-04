@@ -39,6 +39,7 @@ import sys.io.File;
 	public override function writeBytes(s:haxe.io.Bytes, p:Int, l:Int):Int {
 		if (p < 0 || l < 0 || p + l > s.length)
 			throw haxe.io.Error.OutsideBounds;
+		@:nullSafety(Off)
 		var v = file_write(__f, s.getData(), p, l);
 		if (v <= 0)
 			throw new haxe.io.Eof();
@@ -53,6 +54,7 @@ import sys.io.File;
 	public override function close():Void {
 		super.close();
 		@:privateAccess FileInput.file_close(__f);
+		@:nullSafety(Off)
 		__f = null;
 	}
 

@@ -72,7 +72,7 @@ package hl;
 
 	@:hlNative("std", "alloc_bytes")
 	static function alloc(size:Int):Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "parse_int")
@@ -116,7 +116,7 @@ package hl;
 	**/
 	@:hlNative("std", "bytes_offset")
 	public function offset(delta:Int):Bytes {
-		return null;
+		return cast null;
 	}
 
 	/**
@@ -134,7 +134,7 @@ package hl;
 
 	@:hlNative("std", "bytes_from_address")
 	static function from_address(low:Int, high:Int):Bytes {
-		return null;
+		return cast null;
 	}
 
 	/**
@@ -171,37 +171,37 @@ package hl;
 
 	@:hlNative("std", "utf8_to_utf16")
 	public function utf8ToUtf16(bytePos:Int, outSize:Ref<Int>):Bytes {
-		return null;
+		return cast null;
 	}
 
-	@:hlNative("std","utf16_to_utf8")
-	public function utf16ToUtf8(len:Int, outSize:Ref<Int>) : Bytes {
-		return null;
+	@:hlNative("std", "utf16_to_utf8")
+	public function utf16ToUtf8(len:Int, outSize:Ref<Int>):Bytes {
+		return cast null;
 	}
 
 	@:hlNative("std", "ucs2_upper")
 	function ucs2Upper(bytePos:Int, size:Int):Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "ucs2_lower")
 	function ucs2Lower(bytePos:Int, size:Int):Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "url_encode")
 	function urlEncode(outSize:Ref<Int>):Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "url_decode")
 	function urlDecode(outSize:Ref<Int>):Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "value_to_string")
 	public static function fromValue(v:Dynamic, length:Ref<Int>):Bytes {
-		return null;
+		return cast null;
 	}
 
 	/**

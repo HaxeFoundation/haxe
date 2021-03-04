@@ -29,6 +29,7 @@ import cs.system.Type;
 	such as conversion from haxe types to native types and vice-versa.
 **/
 class Lib {
+	@:nullSafety(Off)
 	private static var decimalSeparator:String;
 
 	/**

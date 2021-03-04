@@ -78,6 +78,7 @@ abstract Vector<T>(VectorData<T>) {
 
 	public inline function map<S>(f:T->S):Vector<S> {
 		var length = length;
+		@:nullSafety(Off)
 		var r = new Vector<S>(length);
 		var i = 0;
 		var len = length;

@@ -70,6 +70,7 @@ private class D {
 		return Date.fromTime(seconds * 1000);
 }
 
+@:nullSafety(Off)
 private class MysqlResultSet implements sys.db.ResultSet {
 	public var length(get, null):Int;
 	public var nfields(get, null):Int;
@@ -217,6 +218,7 @@ private class MysqlConnection implements sys.db.Connection {
 		var c = D.connect(o);
 		if (params.database != null) {
 			try {
+				@:nullSafety(Off)
 				D.select_db(c, params.database);
 			} catch (e:Dynamic) {
 				D.close(c);

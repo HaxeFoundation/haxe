@@ -39,6 +39,7 @@ class Meta {
 	**/
 	public static function getType(t:Dynamic):Dynamic<Array<Dynamic>> {
 		var meta = getMeta(t);
+		@:nullSafety(Off)
 		return (meta == null || meta.obj == null) ? {} : meta.obj;
 	}
 
@@ -54,7 +55,7 @@ class Meta {
 	}
 
 	private static function getMeta(t:Dynamic):MetaObject {
-		#if php
+		#if php @:nullSafety(Off)
 		return php.Boot.getMeta(t.phpClassName);
 		#elseif (java || cs)
 		var ret = Reflect.field(t, "__meta__");
@@ -62,10 +63,12 @@ class Meta {
 			if (isInterface(t)) {
 				var name = Type.getClassName(t),
 					cls = Type.resolveClass(name + '_HxMeta');
+				@:nullSafety(Off)
 				if (cls != null)
 					return Reflect.field(cls, "__meta__");
 			}
 		}
+		@:nullSafety(Off)
 		return ret;
 		#elseif hl
 		var t:hl.BaseType = t;
@@ -80,6 +83,7 @@ class Meta {
 	**/
 	public static function getStatics(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta = getMeta(t);
+		@:nullSafety(Off)
 		return (meta == null || meta.statics == null) ? {} : meta.statics;
 	}
 
@@ -88,6 +92,7 @@ class Meta {
 	**/
 	public static function getFields(t:Dynamic):Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta = getMeta(t);
+		@:nullSafety(Off)
 		return (meta == null || meta.fields == null) ? {} : meta.fields;
 	}
 }

@@ -11,8 +11,8 @@ import eval.integers.Int64;
 	Options for spawning the process.
 **/
 typedef ProcessOptions = {
-	var ?onExit:(p:Process, exitStatus:Int64, termSignal:Int)->Void;
-	var ?environment:Map<String,NativeString>;
+	var ?onExit:(p:Process, exitStatus:Int64, termSignal:Int) -> Void;
+	var ?environment:Map<String, NativeString>;
 	var ?workingDirectory:NativeString;
 	var ?redirect:Array<Redirection>;
 	var ?uid:Int;
@@ -31,8 +31,11 @@ typedef ProcessOptions = {
 **/
 @:using(eval.luv.Handle)
 @:coreType abstract Process to Handle {
+	@:nullSafety(Off)
 	extern static public final stdin:Int;
+	@:nullSafety(Off)
 	extern static public final stdout:Int;
+	@:nullSafety(Off)
 	extern static public final stderr:Int;
 
 	/**

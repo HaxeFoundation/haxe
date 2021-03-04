@@ -147,6 +147,7 @@ class Lib {
 	public static function getClasses():Dynamic {
 		if (!loaded) {
 			loaded = true;
+			@:nullSafety(Off)
 			var reflection = new ReflectionClass(Boot.getPhpName('php.Boot'));
 			loadLib(Global.dirname(reflection.getFileName(), 2));
 		}

@@ -22,8 +22,8 @@
 
 package sys.net;
 
-import haxe.io.Error;
 import eval.vm.NativeSocket;
+import haxe.io.Error;
 
 private class SocketOutput extends haxe.io.Output {
 	var socket:NativeSocket;
@@ -101,6 +101,7 @@ private class SocketInput extends haxe.io.Input {
 	}
 }
 
+@:nullSafety(Off)
 @:coreApi
 class Socket {
 	public var input(default, null):haxe.io.Input;

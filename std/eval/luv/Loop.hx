@@ -3,8 +3,10 @@ package eval.luv;
 enum abstract RunMode(Int) {
 	/** Runs the event loop until there are no more active and referenced handles or requests. */
 	var DEFAULT = 0;
+
 	/** Poll for i/o once. Note that this mode blocks if there are no pending callbacks. */
 	var ONCE = 1;
+
 	/** Poll for i/o once but don't block if there are no pending callbacks. */
 	var NOWAIT = 2;
 }
@@ -14,8 +16,8 @@ enum abstract RunMode(Int) {
 	@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_loop_configure
 **/
 enum abstract LoopOption<T>(Int) {
+	@:nullSafety(Off)
 	extern static public final sigprof:Int;
-
 	var LOOP_BLOCK_SIGNAL:LoopOption<Int> = 0;
 	var METRICS_IDLE_TIME:LoopOption<Result.NoData> = 1;
 }

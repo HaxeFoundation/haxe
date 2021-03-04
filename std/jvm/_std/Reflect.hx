@@ -37,7 +37,7 @@ class Reflect {
 		return (cast o : jvm.DynamicObject)._hx_hasField(field);
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		if (o == null) {
 			return null;
 		}
@@ -48,7 +48,7 @@ class Reflect {
 		Jvm.writeField(o, field, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		var f = Reflect.field(o, "get_" + field);
 		if (f != null) {
 			return f();

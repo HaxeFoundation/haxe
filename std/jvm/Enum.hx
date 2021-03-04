@@ -41,6 +41,7 @@ class Enum<T:EnumValue> extends java.lang.Enum<T> {
 
 	@:overload
 	override public function toString() {
+		@:nullSafety(Off)
 		var baseName = Type.getEnumConstructs(Type.getEnum(cast this))[ordinal()];
 		var parameters = Type.enumParameters(cast this);
 		if (parameters.length == 0) {

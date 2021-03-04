@@ -33,7 +33,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		h = lua.Table.create();
 	}
 
-	public inline function set(key:String, value:T):Void
+	public inline function set(key:String, value:T):Void {
 		untyped {
 			if (value == null) {
 				h[key] = tnull;
@@ -41,8 +41,10 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 				h[key] = value;
 			}
 		}
+	}
 
-	public inline function get(key:String):Null<T>
+	public inline function get(key:String):Null<T> {
+		@:nullSafety(Off)
 		untyped {
 			var ret = h[key];
 			if (ret == tnull) {
@@ -50,21 +52,25 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 			}
 			return ret;
 		}
+	}
 
-	public inline function exists(key:String):Bool
+	public inline function exists(key:String):Bool {
 		untyped {
 			return h[key] != null;
 		}
+	}
 
-	public function remove(key:String):Bool
+	public function remove(key:String):Bool {
 		untyped {
 			if (h[key] == null) {
 				return false;
 			} else {
+				@:nullSafety(Off)
 				h[key] = null;
 				return true;
 			}
 		}
+	}
 
 	public function keys():Iterator<String> {
 		var next = Lua.next;
@@ -95,6 +101,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		var copied = new StringMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

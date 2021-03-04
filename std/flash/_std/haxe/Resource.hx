@@ -24,6 +24,7 @@ package haxe;
 
 @:coreApi
 class Resource {
+	@:nullSafety(Off)
 	static var content:Array<{name:String}>;
 
 	public static function listNames():Array<String> {
@@ -33,22 +34,23 @@ class Resource {
 		return names;
 	}
 
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		var b = resolve(name);
 		return b == null ? null : b.readUTFBytes(b.length);
 	}
 
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		var b = resolve(name);
 		return b == null ? null : haxe.io.Bytes.ofData(b);
 	}
 
-	static function resolve(name:String):flash.utils.ByteArray {
-		try
+	static function resolve(name:String):Null<flash.utils.ByteArray> {
+		try {
 			untyped {
 				var c = __as__(__global__["flash.utils.getDefinitionByName"]("_res._" + name.split(".").join("_")), Class);
 				return __new__(c);
-			} catch (e:Dynamic) {
+			}
+		} catch (e:Dynamic) {
 			return null;
 		}
 	}

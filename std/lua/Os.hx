@@ -69,7 +69,7 @@ extern class Os {
 		Returns the value of the process environment variable `varname`, or `null`
 		if the variable is not defined.
 	**/
-	static function getenv(varname:String):String;
+	static function getenv(varname:String):Null<String>;
 
 	/**
 		Deletes the file or directory with the given name.

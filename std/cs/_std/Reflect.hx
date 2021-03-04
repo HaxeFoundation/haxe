@@ -20,14 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import cs.internal.Function;
-import cs.system.reflection.*;
-import cs.internal.*;
-import cs.internal.HxObject;
-import cs.internal.Runtime;
 import cs.Flags;
 import cs.Lib;
+import cs.internal.*;
+import cs.internal.Function;
+import cs.internal.HxObject;
+import cs.internal.Runtime;
 import cs.system.Object;
+import cs.system.reflection.*;
 import cs.system.reflection.*;
 
 @:coreApi class Reflect {
@@ -40,7 +40,7 @@ import cs.system.reflection.*;
 	}
 
 	@:keep
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		var ihx:IHxObject = Lib.as(o, IHxObject);
 		if (ihx != null)
 			return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, false);
@@ -57,11 +57,12 @@ import cs.system.reflection.*;
 			Runtime.slowSetField(o, field, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		var ihx:IHxObject = Lib.as(o, IHxObject);
 		if (ihx != null)
 			return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, true);
 
+		@:nullSafety(Off)
 		if (Runtime.slowHasField(o, "get_" + field))
 			return Runtime.slowCallField(o, "get_" + field, null);
 
@@ -100,6 +101,7 @@ import cs.system.reflection.*;
 	private static function instanceFields(c:Class<Dynamic>):Array<String> {
 		var c = cs.Lib.toNativeType(c);
 		var ret = [];
+		@:nullSafety(Off)
 		var mis = c.GetFields(new cs.Flags(BindingFlags.Public) | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
 		for (i in 0...mis.Length) {
 			var i = mis[i];
@@ -150,6 +152,7 @@ import cs.system.reflection.*;
 		if (o == null)
 			return null;
 		var o2:Dynamic = {};
+		@:nullSafety(Off)
 		for (f in Reflect.fields(o))
 			Reflect.setField(o2, f, Reflect.field(o, f));
 		return cast o2;

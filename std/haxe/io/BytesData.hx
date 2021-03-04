@@ -59,6 +59,7 @@ abstract BytesDataAbstract(BytesDataImpl) {
 	@:arrayAccess inline function set(i:Int, v:Int)
 		return this.bytes[i] = v;
 
+	@:nullSafety(Off)
 	@:to inline function toBytes():hl.Bytes {
 		return this == null ? null : this.bytes;
 	}

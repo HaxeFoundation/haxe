@@ -77,7 +77,7 @@ class FileSystem {
 
 	public static function createDirectory(path:String):Void {
 		var path = haxe.io.Path.addTrailingSlash(path);
-		var _p = null;
+		var _p:Null<String> = null;
 		var parts = [];
 		while (path != (_p = haxe.io.Path.directory(path))) {
 			parts.unshift(path);

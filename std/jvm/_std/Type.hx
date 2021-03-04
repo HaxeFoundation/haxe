@@ -32,7 +32,7 @@ class Type {
 		return c.isAnnotationPresent(cast EnumValueReflectionInformation);
 	}
 
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null) {
 			return null;
 		}
@@ -49,7 +49,7 @@ class Type {
 		return c.haxe();
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (o == null) {
 			return null;
 		}
@@ -60,7 +60,7 @@ class Type {
 		return c.haxeEnum();
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		if (c == String) {
 			return null;
 		}
@@ -87,12 +87,12 @@ class Type {
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
 		return switch e.native().getName() {
-			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s if (s.indexOf("haxe.root.") == 0): s.substr(10);
 			case s: s;
 		}
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name.indexOf(".") == -1) {
 			name = "haxe.root." + name;
 		}
@@ -107,7 +107,7 @@ class Type {
 		}
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name.indexOf(".") == -1) {
 			name = "haxe.root." + name;
 		}
@@ -125,6 +125,7 @@ class Type {
 
 	static final emptyArg = {
 		var a = new java.NativeArray(1);
+		@:nullSafety(Off)
 		a[0] = (null : jvm.EmptyConstructor);
 		a;
 	}
@@ -172,6 +173,7 @@ class Type {
 				}
 			}
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 
@@ -191,7 +193,7 @@ class Type {
 				throw 'Could not create enum value ${getEnumName(e)}.$constr: Unexpected value $v';
 			}
 			return v;
-		} else {
+		} else {@:nullSafety(Off)
 			return Reflect.callMethod(null, Jvm.readField(e, constr), params);
 		}
 	}
@@ -201,7 +203,7 @@ class Type {
 		var annotation = e.native().getAnnotation(clInfo);
 		if (params == null || params.length == 0) {
 			return Jvm.readField(e, annotation.constructorNames()[index]);
-		} else {
+		} else {@:nullSafety(Off)
 			return Reflect.callMethod(null, Jvm.readField(e, annotation.constructorNames()[index]), params);
 		}
 	}
@@ -229,6 +231,7 @@ class Type {
 					fields.push(field);
 				}
 			}
+			@:nullSafety(Off)
 			c = getSuperClass(c);
 		};
 		return fields;

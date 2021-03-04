@@ -28,7 +28,7 @@ class Compress {
 	}
 
 	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
-		return null;
+		return cast null;
 	}
 
 	public function setFlushMode(f:FlushMode) {}
@@ -37,6 +37,6 @@ class Compress {
 
 	public static function run(s:haxe.io.Bytes, level:Int):haxe.io.Bytes {
 		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform");
-		return null;
+		return cast null;
 	}
 }

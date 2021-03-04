@@ -47,6 +47,9 @@ class DynamicAccessIterator<T> {
 		See `Iterator.next`
 	**/
 	public inline function next():T {
-		return access[keys[index++]];
+		var key = keys[index++];
+		@:nullSafety(Off)
+		var value:T = access[key];
+		return value;
 	}
 }

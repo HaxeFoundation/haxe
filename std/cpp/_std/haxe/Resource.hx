@@ -28,11 +28,11 @@ class Resource {
 		return untyped __global__.__hxcpp_resource_names();
 	}
 
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		return untyped __global__.__hxcpp_resource_string(name);
 	}
 
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		var array:haxe.io.BytesData = untyped __global__.__hxcpp_resource_bytes(name);
 		if (array == null)
 			return null;

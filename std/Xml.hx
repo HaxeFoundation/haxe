@@ -132,18 +132,20 @@ class Xml {
 	/**
 		Returns the node name of an Element.
 	**/
+	@:nullSafety(Off)
 	@:isVar public var nodeName(get, set):String;
 
 	/**
 		Returns the node value. Only works if the Xml node is not an Element or a Document.
 	**/
+	@:nullSafety(Off)
 	@:isVar public var nodeValue(get, set):String;
 
 	/**
 		Returns the parent object in the Xml hierarchy.
 		The parent can be `null`, an Element or a Document.
 	**/
-	public var parent(default, null):Xml;
+	public var parent(default, null):Null<Xml>;
 
 	var children:Array<Xml>;
 	var attributeMap:Map<String, String>;
@@ -241,7 +243,7 @@ class Xml {
 		Get the given attribute of an Element node. Returns `null` if not found.
 		Attributes are case-sensitive.
 	**/
-	public function get(att:String):String {
+	public function get(att:String):Null<String> {
 		if (nodeType != Element) {
 			throw 'Bad node type, expected Element but found $nodeType';
 		}
@@ -334,7 +336,7 @@ class Xml {
 	/**
 		Returns the first child node which is an Element.
 	**/
-	public function firstElement():Xml {
+	public function firstElement():Null<Xml> {
 		ensureElementType();
 		for (child in children) {
 			if (child.nodeType == Element) {
@@ -352,6 +354,7 @@ class Xml {
 	**/
 	public function addChild(x:Xml):Void {
 		ensureElementType();
+		@:nullSafety(Off)
 		if (x.parent != null) {
 			x.parent.removeChild(x);
 		}
@@ -380,6 +383,7 @@ class Xml {
 	**/
 	public function insertChild(x:Xml, pos:Int):Void {
 		ensureElementType();
+		@:nullSafety(Off)
 		if (x.parent != null) {
 			x.parent.children.remove(x);
 		}

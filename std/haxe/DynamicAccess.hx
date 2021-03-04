@@ -102,7 +102,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 	/**
 		Returns a shallow copy of the structure
 	**/
-	public inline function copy():DynamicAccess<T>
+	public inline function copy():Null<DynamicAccess<T>>
 		return Reflect.copy(this);
 
 	/**

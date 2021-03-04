@@ -7,8 +7,10 @@ import sys.thread.Thread;
 #end
 
 class MainEvent {
-	var f:Void->Void;
+	var f:Null<Void->Void>;
+	@:nullSafety(Off)
 	var prev:MainEvent;
+	@:nullSafety(Off)
 	var next:MainEvent;
 
 	/**
@@ -37,6 +39,7 @@ class MainEvent {
 		Call the event. Will do nothing if the event has been stopped.
 	**/
 	public inline function call() {
+		final f = f;
 		if (f != null)
 			f();
 	}
@@ -66,7 +69,7 @@ class MainLoop {
 	static var mainThread = Thread.current();
 	#end
 
-	static var pending:MainEvent;
+	static var pending:Null<MainEvent>;
 
 	public static var threadCount(get, never):Int;
 
@@ -94,13 +97,14 @@ class MainLoop {
 	/**
 		Add a pending event to be run into the main loop.
 	**/
-	public static function add(f:Void->Void, priority = 0):MainEvent@:privateAccess {
+	public static function add(f:Void->Void, priority = 0):MainEvent @:privateAccess {
 		if (f == null)
 			throw "Event function is null";
 		var e = new MainEvent(f, priority);
 		var head = pending;
 		if (head != null)
 			head.prev = e;
+		@:nullSafety(Off)
 		e.next = head;
 		pending = e;
 		injectIntoEventLoop(0);
@@ -109,20 +113,18 @@ class MainLoop {
 
 	static function injectIntoEventLoop(waitMs:Int) {
 		#if (target.threaded && !cppia)
-			mutex.acquire();
-			if(eventLoopHandler != null) {
-				mainThread.events.cancel(eventLoopHandler);
+		mutex.acquire();
+		if (eventLoopHandler != null) {
+			@:nullSafety(Off)
+			mainThread.events.cancel(eventLoopHandler);
+		}
+		eventLoopHandler = mainThread.events.repeat(() -> {
+			var wait = tick();
+			if (hasEvents()) {
+				injectIntoEventLoop(Std.int(wait * 1000));
 			}
-			eventLoopHandler = mainThread.events.repeat(
-				() -> {
-					var wait = tick();
-					if(hasEvents()) {
-						injectIntoEventLoop(Std.int(wait * 1000));
-					}
-				},
-				waitMs
-			);
-			mutex.release();
+		}, waitMs);
+		mutex.release();
 		#end
 	}
 
@@ -130,13 +132,12 @@ class MainLoop {
 		// pending = haxe.ds.ListSort.sort(pending, function(e1, e2) return e1.nextRun > e2.nextRun ? -1 : 1);
 		// we can't use directly ListSort because it requires prev/next to be public, which we don't want here
 		// we do then a manual inline, this also allow use to do a Float comparison of nextRun
-		var list = pending;
-
+		var list:Null<MainEvent> = pending;
 		if (list == null)
 			return;
 
 		var insize = 1, nmerges, psize = 0, qsize = 0;
-		var p, q, e, tail:MainEvent;
+		var p, q, e, tail:Null<MainEvent>;
 
 		while (true) {
 			p = list;
@@ -174,16 +175,19 @@ class MainLoop {
 						tail.next = e;
 					else
 						list = e;
+					@:nullSafety(Off)
 					e.prev = tail;
 					tail = e;
 				}
 				p = q;
 			}
+			@:nullSafety(Off)
 			tail.next = null;
 			if (nmerges <= 1)
 				break;
 			insize *= 2;
 		}
+		@:nullSafety(Off)
 		list.prev = null; // not cycling
 		pending = list;
 	}

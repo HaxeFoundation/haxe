@@ -66,6 +66,8 @@ class StringTools {
 		s = lua.NativeStringTools.gsub(s, " ", "+");
 		return s;
 		#else
+		// TODO not implemented exception?
+		@:nullSafety(Off)
 		return null;
 		#end
 	}
@@ -137,6 +139,8 @@ class StringTools {
 		s = lua.NativeStringTools.gsub(s, "\r\n", "\n");
 		return s;
 		#else
+		// TODO not implemented exception?
+		@:nullSafety(Off)
 		return null;
 		#end
 	}
@@ -155,7 +159,7 @@ class StringTools {
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
-	public static function htmlEscape(s:String, ?quotes:Bool):String {
+	public static function htmlEscape(s:String, quotes = false):String {
 		var buf = new StringBuf();
 		for (code in #if neko iterator(s) #else new haxe.iterators.StringIteratorUnicode(s) #end) {
 			switch (code) {
@@ -211,7 +215,7 @@ class StringTools {
 	public static inline function contains(s:String, value:String):Bool {
 		#if (js && js_es >= 6)
 		return (cast s).includes(value);
-		#else 
+		#else
 		return s.indexOf(value) != -1;
 		#end
 	}
@@ -281,6 +285,8 @@ class StringTools {
 			return false;
 		#end
 		var c = s.charCodeAt(pos);
+		if (c == null)
+			return false;
 		return (c > 8 && c < 14) || c == 32;
 	}
 
@@ -586,7 +592,7 @@ class StringTools {
 	**/
 	@:noCompletion
 	@:deprecated('StringTools.quoteUnixArg() is deprecated. Use haxe.SysTools.quoteUnixArg() instead.')
-	public static function quoteUnixArg(argument:String):String {
+	public static function quoteUnixArg(argument:String):String {@:nullSafety(Off)
 		return inline haxe.SysTools.quoteUnixArg(argument);
 	}
 
@@ -612,7 +618,7 @@ class StringTools {
 	**/
 	@:noCompletion
 	@:deprecated('StringTools.quoteWinArg() is deprecated. Use haxe.SysTools.quoteWinArg() instead.')
-	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
+	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {@:nullSafety(Off)
 		return inline haxe.SysTools.quoteWinArg(argument, escapeMetaCharacters);
 	}
 

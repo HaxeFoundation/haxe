@@ -34,6 +34,7 @@ class Compress {
 
 	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
 		var read = 0, write = 0;
+		@:nullSafety(Off)
 		var done = deflate_buffer(s, src.getData(), srcPos, src.length, dst.getData(), dstPos, dst.length, read, write);
 		return {done: done, read: read, write: write};
 	}
@@ -60,6 +61,7 @@ class Compress {
 		return out;
 	}
 
+	@:nullSafety(Off)
 	static function deflate_init(level:Int):Deflater {
 		return null;
 	}

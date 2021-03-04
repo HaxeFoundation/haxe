@@ -23,11 +23,12 @@
 package python.net;
 
 import python.lib.Ssl;
-import python.lib.ssl.Purpose;
 import python.lib.socket.Socket as PSocket;
+import python.lib.ssl.Purpose;
 import sys.net.Host;
 
 class SslSocket extends sys.net.Socket {
+	@:nullSafety(Off)
 	var hostName:String;
 
 	override function __initSocket():Void {

@@ -43,20 +43,23 @@ package hl;
 }
 
 @:generic class NativeArrayKeyValueIterator<T> {
-	var arr : NativeArray<T>;
-	var pos : Int;
-	var length : Int;
- 	public inline function new(arr:NativeArray<T>) {
+	var arr:NativeArray<T>;
+	var pos:Int;
+	var length:Int;
+
+	public inline function new(arr:NativeArray<T>) {
 		this.arr = arr;
 		pos = 0;
 		length = arr.length;
 	}
- 	public inline function hasNext() {
+
+	public inline function hasNext() {
 		return pos < length;
 	}
- 	public inline function next() {
+
+	public inline function next() {
 		var v = arr[pos];
-		return {key:pos++, value:v};
+		return {key: pos++, value: v};
 	}
 }
 
@@ -91,7 +94,7 @@ package hl;
 	}
 
 	@:hlNative("std", "array_type") public function getType():Type {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "array_blit") public function blit(pos:Int, src:NativeArray<T>, srcPos:Int, srcLen:Int):Void {}

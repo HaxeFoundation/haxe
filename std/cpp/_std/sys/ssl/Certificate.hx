@@ -24,6 +24,7 @@ package sys.ssl;
 
 import cpp.NativeSsl;
 
+@:nullSafety(Off)
 @:coreApi
 class Certificate {
 	var __h:Null<Certificate>;

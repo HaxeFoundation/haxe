@@ -73,7 +73,7 @@ class BytesOutput extends Output {
 	@:dox(hide)
 	override function set_bigEndian(e) {
 		bigEndian = e;
-		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
+		b.endian = e == true ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
 		return e;
 	}
 
@@ -137,6 +137,7 @@ class BytesOutput extends Output {
 	public function getBytes():Bytes {
 		#if flash
 		var bytes = b;
+		@:nullSafety(Off)
 		b = null;
 		return untyped new Bytes(bytes.length, bytes);
 		#else

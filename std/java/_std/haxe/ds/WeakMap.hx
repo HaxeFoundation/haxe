@@ -23,9 +23,10 @@
 package haxe.ds;
 
 import java.NativeArray;
-import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 
+@:nullSafety(Off)
 @:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	extern private static inline var HASH_UPPER = 0.77;
 	extern private static inline var FLAG_EMPTY = 0;
@@ -210,7 +211,7 @@ import java.lang.ref.ReferenceQueue;
 			if (size >= (newNBuckets * HASH_UPPER + 0.5))
 				/* requested size is too small */ {
 				j = 0;
-			} else { /* hash table size to be changed (shrink or expand); rehash */
+			} else {/* hash table size to be changed (shrink or expand); rehash */
 				var nfSize = newNBuckets;
 				newHash = new NativeArray(nfSize);
 				if (nBuckets < newNBuckets) // expand
@@ -260,7 +261,7 @@ import java.lang.ref.ReferenceQueue;
 							}
 
 							hashes[i] = FLAG_DEL; /* mark it as deleted in the old hash table */
-						} else { /* write the element and jump out of the loop */
+						} else {/* write the element and jump out of the loop */
 							entries[i] = entry;
 							break;
 						}
@@ -517,6 +518,7 @@ private final class WeakMapKeyIterator<T:{}, V> {
 	var m:WeakMap<T, V>;
 	var i:Int;
 	var len:Int;
+	@:nullSafety(Off)
 	var lastKey:T;
 
 	public function new(m:WeakMap<T, V>) {
@@ -540,6 +542,7 @@ private final class WeakMapKeyIterator<T:{}, V> {
 				}
 			}
 		}
+		@:nullSafety(Off)
 		lastKey = null;
 		return false;
 	}

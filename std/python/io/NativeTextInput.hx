@@ -24,12 +24,12 @@ package python.io;
 
 import haxe.io.Eof;
 import haxe.io.Input;
+import python.Bytearray;
 import python.io.IInput;
 import python.io.IoTools;
 import python.io.NativeInput;
-import python.Bytearray;
-import python.lib.io.RawIOBase;
 import python.lib.io.IOBase.SeekSet;
+import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 
 class NativeTextInput extends NativeInput<TextIOBase> implements IInput {
@@ -38,7 +38,8 @@ class NativeTextInput extends NativeInput<TextIOBase> implements IInput {
 	}
 
 	override public function readByte():Int {
-		var ret = stream.buffer.read(1);
+		@:nullSafety(Off)
+		var ret:Bytes = stream.buffer.read(1);
 
 		if (ret.length == 0)
 			throwEof();

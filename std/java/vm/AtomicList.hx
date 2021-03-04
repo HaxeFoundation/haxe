@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
 	A lock-free queue implementation
 **/
+@:nullSafety(Off)
 @:native('haxe.java.vm.AtomicList')
 @:nativeGen class AtomicList<T> {
 	@:volatile @:private var head:AtomicNode<T>;

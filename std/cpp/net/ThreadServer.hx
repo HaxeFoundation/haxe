@@ -22,9 +22,9 @@
 
 package cpp.net;
 
-import cpp.vm.Thread;
 import cpp.net.Poll;
 import cpp.vm.Lock;
+import cpp.vm.Thread;
 
 private typedef ThreadInfos = {
 	var id:Int;
@@ -45,6 +45,7 @@ private typedef ClientInfos<Client> = {
 	The ThreadServer can be used to easily create a multithreaded server where each thread polls multiple connections.
 	To use it, at a minimum you must override or rebind clientConnected, readClientMessage, and clientMessage and you must define your Client and Message.
 **/
+@:nullSafety(Off)
 class ThreadServer<Client, Message> {
 	var threads:Array<ThreadInfos>;
 	var sock:sys.net.Socket;

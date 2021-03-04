@@ -23,13 +23,14 @@
 import lua.Boot;
 import lua.Io;
 import lua.Lua;
-import lua.lib.luv.Os;
 import lua.lib.luv.Misc;
+import lua.lib.luv.Os;
 import sys.io.FileInput;
 import sys.io.FileOutput;
 
 @:coreApi
 class Sys {
+	@:nullSafety(Off)
 	static var _system_name:String;
 
 	public static inline function print(v:Dynamic):Void {
@@ -50,6 +51,7 @@ class Sys {
 		var p = new sys.io.Process(cmd, args);
 		var code = p.exitCode();
 		p.close();
+		@:nullSafety(Off)
 		return code;
 	}
 
@@ -94,7 +96,7 @@ class Sys {
 	public inline static function setCwd(s:String):Void
 		Misc.chdir(s);
 
-	public inline static function getEnv(s:String):String {
+	public inline static function getEnv(s:String):Null<String> {
 		return Os.getenv(s);
 	}
 

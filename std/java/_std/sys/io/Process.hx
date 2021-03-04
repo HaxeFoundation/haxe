@@ -26,9 +26,9 @@ import haxe.SysTools;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Eof;
-import java.io.IOException;
-import java.io.EOFException;
 import java.NativeArray;
+import java.io.EOFException;
+import java.io.IOException;
 
 @:coreApi
 class Process {
@@ -36,6 +36,7 @@ class Process {
 	public var stderr(default, null):haxe.io.Input;
 	public var stdin(default, null):haxe.io.Output;
 
+	@:nullSafety(Off)
 	private var proc:java.lang.Process;
 
 	@:allow(Sys)
@@ -47,6 +48,7 @@ class Process {
 			switch (sysName) {
 				case "Windows":
 					pargs = new NativeArray(3);
+					@:nullSafety(Off)
 					pargs[0] = cmd = switch (Sys.getEnv("COMSPEC")) {
 						case null: "cmd.exe";
 						case var comspec: comspec;
@@ -79,7 +81,7 @@ class Process {
 	}
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
-		if (detached)
+		if (detached == true)
 			throw "Detached process is not supported on this platform";
 		var p = proc = createProcessBuilder(cmd, args).start();
 		stderr = new ProcessInput(p.getErrorStream());
@@ -88,6 +90,7 @@ class Process {
 	}
 
 	public function getPid():Int {
+		@:nullSafety(Off)
 		if (Reflect.hasField(proc, "pid"))
 			return Reflect.field(proc, "pid");
 		return -1;
@@ -122,6 +125,7 @@ class Process {
 }
 
 private class ProcessInput extends java.io.NativeInput {
+	@:nullSafety(Off)
 	private var chained:BytesInput;
 
 	public function bufferContents():Void {
@@ -153,7 +157,6 @@ private class ProcessInput extends java.io.NativeInput {
 		try {
 			ret = stream.read(s.getData(), pos, len);
 		} catch (e:EOFException) {
-
 			throw new Eof();
 		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);

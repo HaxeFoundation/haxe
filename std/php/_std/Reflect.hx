@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import haxe.Constraints;
 import php.Boot;
-import php.Syntax;
 import php.Closure;
 import php.Const;
 import php.NativeAssocArray;
-import haxe.Constraints;
+import php.Syntax;
 
 using php.Global;
 
@@ -46,7 +46,7 @@ using php.Global;
 		return false;
 	}
 
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		if (o.is_string()) {
 			return Syntax.field(Boot.dynamicString(o), field);
 		}
@@ -84,7 +84,7 @@ using php.Global;
 		Syntax.setField(o, field, value);
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic {
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		if (o.is_object()) {
 			if (Boot.isClass(o)) {
 				var phpClassName = Boot.castClass(o).phpClassName;
@@ -164,6 +164,7 @@ using php.Global;
 	}
 
 	public static function copy<T>(o:Null<T>):Null<T> {
+		@:nullSafety(Off)
 		if (Boot.isAnon(o)) {
 			return Syntax.clone(o);
 		} else {

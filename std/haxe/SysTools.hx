@@ -2,6 +2,8 @@ package haxe;
 
 import haxe.ds.ReadOnlyArray;
 
+using StringTools;
+
 class SysTools {
 	/**
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
@@ -56,8 +58,8 @@ class SysTools {
 				result.add('"');
 
 			var bs_buf = new StringBuf();
-			for (i in 0...argument.length) {
-				switch (argument.charCodeAt(i)) {
+			for (code in argument) {
+				switch (code) {
 					case "\\".code:
 						// Don't know if we need to double yet.
 						bs_buf.add("\\");
@@ -91,8 +93,7 @@ class SysTools {
 
 		if (escapeMetaCharacters) {
 			var result = new StringBuf();
-			for (i in 0...argument.length) {
-				var c = argument.charCodeAt(i);
+			for (c in argument) {
 				if (winMetaCharacters.indexOf(c) >= 0) {
 					result.addChar("^".code);
 				}

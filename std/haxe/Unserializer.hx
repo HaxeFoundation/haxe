@@ -22,14 +22,14 @@
 
 package haxe;
 
-using haxe.Unserializer;
-
 import haxe.ds.List;
+
+using haxe.Unserializer;
 
 @:noDoc
 typedef TypeResolver = {
-	function resolveClass(name:String):Class<Dynamic>;
-	function resolveEnum(name:String):Enum<Dynamic>;
+	function resolveClass(name:String):Null<Class<Dynamic>>;
+	function resolveEnum(name:String):Null<Enum<Dynamic>>;
 }
 
 /**
@@ -56,7 +56,7 @@ class Unserializer {
 
 		A type resolver must provide two methods:
 
-		1. `resolveClass(name:String):Class<Dynamic>` is called to determine a
+		1. `resolveClass(name:String):Null<Class<Dynamic>>` is called to determine a
 				`Class` from a class name
 		2. `resolveEnum(name:String):Enum<Dynamic>` is called to determine an
 				`Enum` from an enum name
@@ -69,6 +69,7 @@ class Unserializer {
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 
 	#if !neko
+	@:nullSafety(Off)
 	static var CODES = null;
 
 	static function initCodes() {
@@ -236,7 +237,7 @@ class Unserializer {
 	**/
 	public function unserialize():Dynamic {
 		switch (get(pos++)) {
-			case "n".code:
+			case "n".code: @:nullSafety(Off)
 				return null;
 			case "t".code:
 				return true;
@@ -265,7 +266,7 @@ class Unserializer {
 				return Math.POSITIVE_INFINITY;
 			case "a".code:
 				var buf = buf;
-				var a = new Array<Dynamic>();
+				var a:Array<Dynamic> = [];
 				#if cpp
 				var cachePos = cache.length;
 				#end
@@ -279,6 +280,7 @@ class Unserializer {
 					if (c == "u".code) {
 						pos++;
 						var n = readDigits();
+						@:nullSafety(Off)
 						a[a.length + n - 1] = null;
 					} else
 						a.push(unserialize());
@@ -485,15 +487,15 @@ class Unserializer {
 
 	static inline function fastCharCodeAt(s:String, pos:Int):Int {
 		#if php
-		return php.Global.ord((s:php.NativeString)[pos]);
-		#else
+		return php.Global.ord((s : php.NativeString)[pos]);
+		#else @:nullSafety(Off)
 		return s.charCodeAt(pos);
 		#end
 	}
 
 	static inline function fastCharAt(s:String, pos:Int):String {
 		#if php
-		return (s:php.NativeString)[pos];
+		return (s : php.NativeString)[pos];
 		#else
 		return s.charAt(pos);
 		#end
@@ -511,22 +513,23 @@ class Unserializer {
 private class DefaultResolver {
 	public function new() {}
 
-	public inline function resolveClass(name:String):Class<Dynamic>
+	public inline function resolveClass(name:String):Null<Class<Dynamic>>
 		return Type.resolveClass(name);
 
-	public inline function resolveEnum(name:String):Enum<Dynamic>
+	public inline function resolveEnum(name:String):Null<Enum<Dynamic>>
 		return Type.resolveEnum(name);
 }
 
 private class NullResolver {
 	function new() {}
 
-	public inline function resolveClass(name:String):Class<Dynamic>
+	public inline function resolveClass(name:String):Null<Class<Dynamic>> @:nullSafety(Off)
 		return null;
 
-	public inline function resolveEnum(name:String):Enum<Dynamic>
+	public inline function resolveEnum(name:String):Null<Enum<Dynamic>> @:nullSafety(Off)
 		return null;
 
+	@:nullSafety(Off)
 	public static var instance(get, null):NullResolver;
 
 	inline static function get_instance():NullResolver {

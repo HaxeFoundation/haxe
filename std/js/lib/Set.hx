@@ -121,7 +121,7 @@ class SetKeyValueIterator<T> {
 		return values.hasNext();
 	}
 
-	public inline function next():{key:Int, value:T} {
+	public inline function next():{key:Int, value:T} {@:nullSafety(Off)
 		return {
 			key: index++,
 			value: values.next(),

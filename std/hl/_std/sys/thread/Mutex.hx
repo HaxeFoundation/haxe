@@ -31,7 +31,6 @@ extern class Mutex {
 	function release():Void;
 }
 #else
-
 abstract Mutex(hl.Abstract<"hl_mutex">) {
 	public function new() {
 		this = alloc(true);
@@ -46,7 +45,7 @@ abstract Mutex(hl.Abstract<"hl_mutex">) {
 	@:hlNative("std", "mutex_release") public function release() {}
 
 	@:hlNative("std", "mutex_alloc") public static function alloc(b:Bool) {
-		return null;
+		return cast null;
 	}
 }
 #end

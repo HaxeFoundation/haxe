@@ -26,6 +26,7 @@ import haxe.io.Bytes;
 import haxe.io.BytesData;
 
 @:coreApi class Resource {
+	@:nullSafety(Off)
 	static var content:python.Dict<String, BytesData>;
 
 	static function getContent():python.Dict<String, BytesData> {
@@ -38,14 +39,14 @@ import haxe.io.BytesData;
 		return python.internal.UBuiltins.list(getContent().keys());
 	}
 
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		var bytes = getBytes(name);
 		if (bytes != null)
 			return bytes.toString();
 		return null;
 	}
 
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		var data = getContent().get(name, null);
 		if (data == null)
 			return null;

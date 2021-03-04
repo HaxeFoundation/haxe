@@ -24,6 +24,7 @@ package haxe.ds;
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	private var h:Dynamic;
+	@:nullSafety(Off)
 	private var rh:Dynamic;
 
 	static var reserved = {};
@@ -100,8 +101,10 @@ package haxe.ds;
 
 	public function copy():StringMap<T> {
 		var copied = new StringMap();
+		@:nullSafety(Off)
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 
@@ -122,6 +125,7 @@ package haxe.ds;
 
 	public inline function clear():Void {
 		h = {};
+		@:nullSafety(Off)
 		rh = null;
 	}
 }
@@ -150,6 +154,7 @@ private class StringMapKeysIterator {
 		if (!n && rh != null) {
 			h = this.h = rh;
 			index = this.index = 0;
+			@:nullSafety(Off)
 			rh = null;
 			isReserved = true;
 			n = untyped __has_next__(h, index);
@@ -187,6 +192,7 @@ private class StringMapValuesIterator<T> {
 		if (!n && rh != null) {
 			h = this.h = rh;
 			index = this.index = 0;
+			@:nullSafety(Off)
 			rh = null;
 			n = untyped __has_next__(h, index);
 		}

@@ -26,14 +26,17 @@ private typedef Inflater = hl.Abstract<"fmt_zip">;
 
 @:coreApi @:hlNative("fmt")
 class Uncompress {
+	@:nullSafety(Off)
 	var s:Inflater;
 
 	public function new(?windowBits:Int):Void {
+		@:nullSafety(Off)
 		s = inflate_init(windowBits);
 	}
 
 	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
 		var read = 0, write = 0;
+		@:nullSafety(Off)
 		var done = inflate_buffer(s, src.getData(), srcPos, src.length, dst.getData(), dstPos, dst.length, read, write);
 		return {done: done, read: read, write: write};
 	}
@@ -65,6 +68,7 @@ class Uncompress {
 		return b.getBytes();
 	}
 
+	@:nullSafety(Off)
 	static function inflate_init(bits:Int):Inflater {
 		return null;
 	}

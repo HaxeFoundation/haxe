@@ -24,8 +24,11 @@ package haxe.io;
 
 @:coreApi
 class BytesBuffer {
+	@:nullSafety(Off)
 	var buffer:js.lib.ArrayBuffer;
+	@:nullSafety(Off)
 	var view:js.lib.DataView;
+	@:nullSafety(Off)
 	var u8:js.lib.Uint8Array;
 	var pos:Int;
 	var size:Int;
@@ -117,7 +120,7 @@ class BytesBuffer {
 		view = new js.lib.DataView(buffer);
 	}
 
-	public function getBytes():Bytes@:privateAccess {
+	public function getBytes():Bytes @:privateAccess {
 		if (size == 0)
 			return haxe.io.Bytes.alloc(0);
 		var b = new Bytes(buffer);

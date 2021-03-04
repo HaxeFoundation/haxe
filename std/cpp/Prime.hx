@@ -24,8 +24,8 @@ package cpp;
 
 #if macro
 import haxe.macro.Context;
-import haxe.macro.Type;
 import haxe.macro.Expr;
+import haxe.macro.Type;
 #end
 
 @:noPackageRestrict
@@ -39,6 +39,7 @@ class Prime {
 				throw '$prim does not have signature $signature';
 			return func;
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 	#end

@@ -52,7 +52,7 @@ extern class Sys {
 		Returns the value of the given environment variable, or `null` if it
 		doesn't exist.
 	**/
-	static function getEnv(s:String):String;
+	static function getEnv(s:String):Null<String>;
 
 	/**
 		Sets the value of the given environment variable.

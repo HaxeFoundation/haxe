@@ -28,17 +28,18 @@ import cs.system.net.IPEndPoint;
 import cs.system.net.sockets.AddressFamily;
 import cs.system.net.sockets.NetworkStream;
 import cs.system.net.sockets.ProtocolType;
+import cs.system.net.sockets.Socket in NativeSocket;
 import cs.system.net.sockets.SocketFlags;
 import cs.system.net.sockets.SocketShutdown;
 import cs.system.net.sockets.SocketType;
 import cs.system.threading.Thread;
-import cs.system.net.sockets.Socket in NativeSocket;
 import cs.types.UInt8;
 import haxe.io.Bytes;
 import haxe.io.Error;
 import haxe.io.Input;
 import haxe.io.Output;
 
+@:nullSafety(Off)
 @:coreApi
 class Socket {
 	private var sock:NativeSocket = null;

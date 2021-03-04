@@ -53,6 +53,7 @@ package haxe.ds;
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	@:ifFeature("haxe.ds.IntMap.*")
+	@:nullSafety(Off)
 	private var h:Dynamic;
 
 	public function new():Void {}
@@ -91,6 +92,7 @@ package haxe.ds;
 		var copied = new IntMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

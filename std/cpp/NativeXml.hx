@@ -158,6 +158,7 @@ private class NativeXmlIterator {
 				return n;
 			}
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 }
@@ -197,10 +198,12 @@ private class NativeXmlNamedIterator {
 				return n;
 			}
 		}
+		@:nullSafety(Off)
 		return null;
 	}
 }
 
+@:nullSafety(Off)
 @:cppInclude("./NativeXmlImport.cpp")
 @:allow(cpp.NativeXmlState) @:allow(cpp.NativeXmlIterator) @:allow(cpp.NativeXmlNamedIterator)
 class Xml {

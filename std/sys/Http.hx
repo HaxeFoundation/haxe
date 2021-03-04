@@ -22,12 +22,13 @@
 
 package sys;
 
-import haxe.io.BytesOutput;
 import haxe.io.Bytes;
+import haxe.io.BytesOutput;
 import haxe.io.Input;
 import sys.net.Host;
 import sys.net.Socket;
 
+@:nullSafety(Off)
 class Http extends haxe.http.HttpBase {
 	public var noShutdown:Bool;
 	public var cnxTimeout:Float;
@@ -53,7 +54,7 @@ class Http extends haxe.http.HttpBase {
 		super(url);
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		var output = new haxe.io.BytesOutput();
 		var old = onError;
 		var err = false;

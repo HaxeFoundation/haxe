@@ -45,7 +45,7 @@ abstract Sentinel(SentinelHandle) {
 	}
 
 	@:hlNative("ui", "ui_start_sentinel") static function create_sentinel(timeout:Float, callb:Void->Void):SentinelHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ui", "ui_sentinel_tick") static function _tick(h:SentinelHandle):Void {}
@@ -60,6 +60,7 @@ abstract Sentinel(SentinelHandle) {
 typedef WinHandle = hl.Abstract<"ui_window">;
 
 class Window {
+	@:nullSafety(Off)
 	var h:WinHandle;
 
 	public function setText(text:String) {
@@ -93,7 +94,7 @@ class Button extends Window {
 
 	@:hlNative("ui", "ui_button_new")
 	static function button_new(parent:WinHandle, text:hl.Bytes, onClick:Void->Void):WinHandle {
-		return null;
+		return cast null;
 	}
 }
 
@@ -108,7 +109,7 @@ class WinLog extends Window {
 
 	@:hlNative("ui", "ui_winlog_new")
 	static function winlog_new(text:hl.Bytes, width:Int, height:Int):WinHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ui", "ui_winlog_set_text")
@@ -172,6 +173,7 @@ class UI {
 		return chooseFile(true, opts);
 	}
 
+	@:nullSafety(Off)
 	static function chooseFile(save:Bool, opts:FileOptions) @:privateAccess {
 		var out:Dynamic = {};
 		if (opts.fileName != null) {
@@ -212,6 +214,6 @@ class UI {
 
 	@:hlNative("ui", "ui_choose_file")
 	static function _chooseFile(forSave:Bool, obj:Dynamic):hl.Bytes {
-		return null;
+		return cast null;
 	}
 }

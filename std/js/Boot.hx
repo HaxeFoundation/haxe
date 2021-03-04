@@ -22,8 +22,9 @@
 
 package js;
 
-import js.Syntax; // import it here so it's always available in the compiler
+import js.Syntax;
 
+// import it here so it's always available in the compiler
 @:dox(hide)
 class Boot {
 	static inline function isClass(o:Dynamic):Bool {
@@ -55,7 +56,7 @@ class Boot {
 	}
 
 	@:ifFeature("has_enum")
-	private static function __string_rec(o, s:String) {
+	private static function __string_rec(o:Null<Dynamic>, s:String) {
 		untyped {
 			if (o == null)
 				return "null";
@@ -117,7 +118,8 @@ class Boot {
 					var str = "{\n";
 					s += "\t";
 					var hasp = (o.hasOwnProperty != null);
-					var k:String = null;
+					var k:Null<String> = null;
+					@:nullSafety(Off)
 					js.Syntax.code("for( {0} in {1} ) {", k, o);
 					if (hasp && !o.hasOwnProperty(k))
 						js.Syntax.code("continue");
@@ -125,6 +127,7 @@ class Boot {
 						js.Syntax.code("continue");
 					if (str.length != 2)
 						str += ", \n";
+					@:nullSafety(Off)
 					str += s + k + " : " + __string_rec(o[k], s);
 					js.Syntax.code("}");
 					s = s.substring(1);
@@ -140,16 +143,14 @@ class Boot {
 		}
 	}
 
-	@:pure private static function __interfLoop(cc:Dynamic, cl:Dynamic) {
+	@:pure private static function __interfLoop(cc:Null<Dynamic>, cl:Dynamic) {
 		if (cc == null)
 			return false;
 		if (cc == cl)
 			return true;
 		var intf:Dynamic = cc.__interfaces__;
-		if (intf != null
-			// ES6 classes inherit statics, so we want to avoid accessing inherited `__interfaces__`
-			#if (js_es >= 6) && (cc.__super__ == null || cc.__super__.__interfaces__ != intf) #end
-		) {
+		if (intf != null // ES6 classes inherit statics, so we want to avoid accessing inherited `__interfaces__`
+			#if (js_es >= 6) && (cc.__super__ == null || cc.__super__.__interfaces__ != intf) #end) {
 			for (i in 0...intf.length) {
 				var i:Dynamic = intf[i];
 				if (i == cl || __interfLoop(i, cl))
@@ -194,11 +195,7 @@ class Boot {
 				#if js_enums_as_arrays
 				return o.__enum__ == cl;
 				#else
-				return untyped __feature__(
-					"has_enum",
-					if (o.__enum__ != null) ($hxEnums[o.__enum__]) == cl else false,
-					false
-				);
+				return untyped __feature__("has_enum", if (o.__enum__ != null) ($hxEnums[o.__enum__]) == cl else false, false);
 				#end
 		}
 	}
@@ -218,6 +215,7 @@ class Boot {
 			throw "Cannot cast " + Std.string(o) + " to " + Std.string(t);
 	}
 
+	@:nullSafety(Off)
 	static var __toStr:js.lib.Function;
 
 	static function __init__() {
@@ -225,7 +223,7 @@ class Boot {
 	}
 
 	// get native JS [[Class]]
-	static function __nativeClassName(o:Dynamic):String {
+	static function __nativeClassName(o:Dynamic):Null<String> {
 		var name:String = __toStr.call(o).slice(8, -1);
 		// exclude general Object and Function
 		// also exclude Math and JSON, because instanceof cannot be called on them

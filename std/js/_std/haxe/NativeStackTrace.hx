@@ -1,13 +1,14 @@
 package haxe;
 
+import haxe.CallStack.StackItem;
 import js.Syntax;
 import js.lib.Error;
-import haxe.CallStack.StackItem;
 
 // https://v8.dev/docs/stack-trace-api
+
 @:native("Error")
 private extern class V8Error {
-	static var prepareStackTrace:(error:Error, structuredStackTrace:Array<V8CallSite>)->Any;
+	static var prepareStackTrace:(error:Error, structuredStackTrace:Array<V8CallSite>) -> Any;
 }
 
 typedef V8CallSite = {
@@ -24,11 +25,11 @@ typedef V8CallSite = {
 @:noCompletion
 @:allow(haxe.Exception)
 class NativeStackTrace {
-	static var lastError:Error;
+	static var lastError:Null<Error>;
 
 	// support for source-map-support module
 	@:noCompletion
-	public static var wrapCallSite:V8CallSite->V8CallSite;
+	public static var wrapCallSite:Null<V8CallSite->V8CallSite>;
 
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(e:Error):Void {
@@ -38,9 +39,11 @@ class NativeStackTrace {
 	static public function callStack():Any {
 		var e:Null<Error> = new Error('');
 		var stack = tryHaxeStack(e);
-		//Internet Explorer provides call stack only if error was thrown
-		if(Syntax.typeof(stack) == "undefined") {
-			try throw e catch(e:Exception) {}
+		// Internet Explorer provides call stack only if error was thrown
+		if (Syntax.typeof(stack) == "undefined") {
+			try
+				throw e
+			catch (e:Exception) {}
 			stack = e.stack;
 		}
 		return normalize(stack, 2);
@@ -55,32 +58,35 @@ class NativeStackTrace {
 			return [];
 		} else if (Syntax.typeof(s) == "string") {
 			// Return the raw lines in browsers that don't support prepareStackTrace
-			var stack:Array<String> = (s:String).split("\n");
+			var stack:Array<String> = (s : String).split("\n");
 			if (stack[0] == "Error")
 				stack.shift();
 			var m = [];
 			for (i in 0...stack.length) {
-				if(skip > i) continue;
+				if (skip > i)
+					continue;
 				var line = stack[i];
 				var matched:Null<Array<String>> = Syntax.code('{0}.match(/^    at ([A-Za-z0-9_. ]+) \\(([^)]+):([0-9]+):([0-9]+)\\)$/)', line);
 				if (matched != null) {
 					var path = matched[1].split(".");
-					if(path[0] == "$hxClasses") {
+					if (path[0] == "$hxClasses") {
 						path.shift();
 					}
 					var meth = path.pop();
 					var file = matched[2];
 					var line = Std.parseInt(matched[3]);
 					var column = Std.parseInt(matched[4]);
-					m.push(FilePos(meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."), meth), file, line,
-						column));
+					@:nullSafety(Off)
+					final item:Null<StackItem> = meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."), meth);
+					@:nullSafety(Off)
+					m.push(FilePos(item, file, line, column));
 				} else {
 					m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
 				}
 			}
 			return m;
-		} else if(skip > 0 && Syntax.code('Array.isArray({0})', s)) {
-			return (s:Array<StackItem>).slice(skip);
+		} else if (skip > 0 && Syntax.code('Array.isArray({0})', s)) {
+			return (s : Array<StackItem>).slice(skip);
 		} else {
 			return cast s;
 		}
@@ -102,8 +108,9 @@ class NativeStackTrace {
 		var stack = [];
 		for (site in callsites) {
 			if (wrapCallSite != null)
+				@:nullSafety(Off)
 				site = wrapCallSite(site);
-			var method = null;
+			var method:Null<StackItem> = null;
 			var fullName = site.getFunctionName();
 			if (fullName != null) {
 				var idx = fullName.lastIndexOf(".");
@@ -125,22 +132,23 @@ class NativeStackTrace {
 	}
 
 	static function normalize(stack:Any, skipItems:Int = 0):Any {
-		if(Syntax.code('Array.isArray({0})', stack) && skipItems > 0) {
-			return (stack:Array<StackItem>).slice(skipItems);
-		} else if(Syntax.typeof(stack) == "string") {
-			switch (stack:String).substring(0, 6) {
-				case 'Error:' | 'Error\n': skipItems += 1;
+		if (Syntax.code('Array.isArray({0})', stack) && skipItems > 0) {
+			return (stack : Array<StackItem>).slice(skipItems);
+		} else if (Syntax.typeof(stack) == "string") {
+			switch (stack : String).substring(0, 6) {
+				case 'Error:' | 'Error\n':
+					skipItems += 1;
 				case _:
 			}
 			return skipLines(stack, skipItems);
 		} else {
-			//nothing we can do
+			// nothing we can do
 			return stack;
 		}
 	}
 
 	static function skipLines(stack:String, skip:Int, pos:Int = 0):String {
-		return if(skip > 0) {
+		return if (skip > 0) {
 			pos = stack.indexOf('\n', pos);
 			return pos < 0 ? '' : skipLines(stack, --skip, pos + 1);
 		} else {

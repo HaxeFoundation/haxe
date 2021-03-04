@@ -43,7 +43,7 @@ abstract Vector<T>(VectorData<T>) {
 		this = new VectorData(length);
 	}
 
-	@:op([]) public inline function get(index:Int):T {
+	@:op([]) public inline function get(index:Int):T {@:nullSafety(Off)
 		return Syntax.coalesce(this.data[index], null);
 	}
 

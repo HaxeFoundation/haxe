@@ -34,6 +34,7 @@ import haxe.xml.Access;
 class XmlParser {
 	public var root:TypeRoot;
 
+	@:nullSafety(Off)
 	var curplatform:String;
 
 	public function new() {
@@ -127,7 +128,7 @@ class XmlParser {
 			c.isExtern = false;
 
 		for (f2 in c2.fields) {
-			var found = null;
+			var found:Null<ClassField> = null;
 			for (f in c.fields)
 				if (mergeFields(f, f2)) {
 					found = f;
@@ -140,7 +141,7 @@ class XmlParser {
 				found.platforms.push(curplatform);
 		}
 		for (f2 in c2.statics) {
-			var found = null;
+			var found:Null<ClassField> = null;
 			for (f in c.statics)
 				if (mergeFields(f, f2)) {
 					found = f;
@@ -161,7 +162,7 @@ class XmlParser {
 		if (curplatform != null)
 			e.platforms.push(curplatform);
 		for (c2 in e2.constructors) {
-			var found = null;
+			var found:Null<EnumField> = null;
 			for (c in e.constructors)
 				if (TypeApi.constructorEq(c, c2)) {
 					found = c;
@@ -246,31 +247,27 @@ class XmlParser {
 						case TClassdecl(c):
 							switch (t) {
 								case TClassdecl(c2):
-									if (mergeClasses(c, c2))
-										return;
+									if (mergeClasses(c, c2)) return;
 								default:
 									sameType = false;
 							}
 						case TEnumdecl(e):
 							switch (t) {
 								case TEnumdecl(e2):
-									if (mergeEnums(e, e2))
-										return;
+									if (mergeEnums(e, e2)) return;
 								default:
 									sameType = false;
 							}
 						case TTypedecl(td):
 							switch (t) {
 								case TTypedecl(td2):
-									if (mergeTypedefs(td, td2))
-										return;
+									if (mergeTypedefs(td, td2)) return;
 								default:
 							}
 						case TAbstractdecl(a):
 							switch (t) {
 								case TAbstractdecl(a2):
-									if (mergeAbstracts(a, a2))
-										return;
+									if (mergeAbstracts(a, a2)) return;
 								default:
 									sameType = false;
 							}
@@ -279,13 +276,8 @@ class XmlParser {
 					}
 				// we already have a mapping, but which is incompatible
 				var msg = if (tinf.module != inf.module) "module " + inf.module + " should be " + tinf.module; else if (tinf.doc != inf.doc)
-					"documentation is different";
-				else if (tinf.isPrivate != inf.isPrivate)
-					"private flag is different";
-				else if (!sameType)
-					"type kind is different";
-				else
-					"could not merge definition";
+					"documentation is different"; else if (tinf.isPrivate != inf.isPrivate) "private flag is different"; else if (!sameType)
+					"type kind is different"; else "could not merge definition";
 				throw "Incompatibilities between " + tinf.path + " in " + tinf.platforms.join(",") + " and " + curplatform + " (" + msg + ")";
 			}
 		}
@@ -364,9 +356,9 @@ class XmlParser {
 	}
 
 	function xclass(x:Access):Classdef {
-		var csuper = null;
-		var doc = null;
-		var tdynamic = null;
+		var csuper:Null<PathParams> = null;
+		var doc:Null<String> = null;
+		var tdynamic:Null<CType> = null;
 		var interfaces = new Array();
 		var fields = new Array();
 		var statics = new Array();
@@ -385,6 +377,7 @@ class XmlParser {
 				case "implements":
 					interfaces.push(xpath(c));
 				case "haxe_dynamic":
+					@:nullSafety(Off)
 					tdynamic = xtype(new Access(c.x.firstElement()));
 				case "meta":
 					meta = xmeta(c);
@@ -417,9 +410,9 @@ class XmlParser {
 	function xclassfield(x:Access, ?defPublic = false):ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
-		var doc = null;
+		var doc:Null<String> = null;
 		var meta = [];
-		var overloads = null;
+		var overloads:Null<Array<ClassField>> = null;
 		for (c in e)
 			switch (c.name) {
 				case "haxe_doc":
@@ -432,20 +425,26 @@ class XmlParser {
 					xerror(c);
 			}
 		return {
-			name:x.name, type:t, isPublic:x.x.exists("public") || defPublic, isFinal:x.x.exists("final"), isOverride:x.x.exists("override"),
-			line:if (x.has.line) Std.parseInt(x.att.line) else null, doc:doc, get:if (x.has.get) mkRights(x.att.get) else RNormal, set:if (x.has.set)
-				mkRights(x.att.set)
-			else
-				RNormal, params:if (x.has.params) mkTypeParams(x.att.params) else [], platforms:defplat(), meta:meta, overloads:overloads, expr:if (x.has.expr)
-				x.att.expr
-			else
-				null
+			name: x.name,
+			type: t,
+			isPublic: x.x.exists("public") || defPublic,
+			isFinal: x.x.exists("final"),
+			isOverride: x.x.exists("override"),
+			line: if (x.has.line) Std.parseInt(x.att.line) else null,
+			doc: doc,
+			get: if (x.has.get) mkRights(x.att.get) else RNormal,
+			set: if (x.has.set) mkRights(x.att.set) else RNormal,
+			params: if (x.has.params) mkTypeParams(x.att.params) else [],
+			platforms: defplat(),
+			meta: meta,
+			overloads: overloads,
+			expr: if (x.has.expr) x.att.expr else null
 		};
 	}
 
 	function xenum(x:Access):Enumdef {
 		var cl = new Array();
-		var doc = null;
+		var doc:Null<String> = null;
 		var meta = [];
 		for (c in x.elements)
 			if (c.name == "haxe_doc")
@@ -469,7 +468,7 @@ class XmlParser {
 	}
 
 	function xenumfield(x:Access):EnumField {
-		var args = null;
+		var args:Null<Array<{name:String, opt:Bool, t:CType}>> = null;
 		var docElements = x.x.elementsNamed("haxe_doc");
 		var xdoc = if (docElements.hasNext()) docElements.next() else null;
 		var meta = if (x.hasNode.meta) xmeta(x.node.meta) else [];
@@ -500,7 +499,9 @@ class XmlParser {
 	}
 
 	function xabstract(x:Access):Abstractdef {
-		var doc = null, impl = null, athis = null;
+		var doc:Null<String> = null;
+		var impl:Null<Classdef> = null;
+		var athis:Null<CType> = null;
 		var meta = [], to = [], from = [];
 		for (c in x.elements)
 			switch (c.name) {
@@ -509,18 +510,22 @@ class XmlParser {
 				case "meta":
 					meta = xmeta(c);
 				case "to":
+					@:nullSafety(Off)
 					for (t in c.elements)
 						to.push({t: xtype(new Access(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 				case "from":
+					@:nullSafety(Off)
 					for (t in c.elements)
 						from.push({t: xtype(new Access(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 				case "impl":
 					impl = xclass(c.node.resolve("class"));
 				case "this":
+					@:nullSafety(Off)
 					athis = xtype(new Access(c.x.firstElement()));
 				default:
 					xerror(c);
 			}
+		@:nullSafety(Off)
 		return {
 			file: if (x.has.file) x.att.file else null,
 			path: mkPath(x.att.path),
@@ -538,9 +543,9 @@ class XmlParser {
 	}
 
 	function xtypedef(x:Access):Typedef {
-		var doc = null;
-		var t = null;
-		var meta = [];
+		var doc:Null<String> = null;
+		var t:Null<CType> = null;
+		var meta:Null<MetaData> = [];
 		for (c in x.elements)
 			if (c.name == "haxe_doc")
 				doc = c.innerData;
@@ -549,8 +554,13 @@ class XmlParser {
 			else
 				t = xtype(c);
 		var types = new haxe.ds.StringMap();
+		#if php
+		@:nullSafety(Off)
+		#end
+		@:nullSafety(Off)
 		if (curplatform != null)
 			types.set(curplatform, t);
+		@:nullSafety(Off)
 		return {
 			file: if (x.has.file) x.att.file else null,
 			path: mkPath(x.att.path),
@@ -578,7 +588,7 @@ class XmlParser {
 			case "x":
 				CAbstract(mkPath(x.att.path), xtypeparams(x));
 			case "f":
-				var args = new Array();
+				var args:Array<FunctionArgument> = [];
 				var aname = x.att.a.split(":");
 				var eargs = aname.iterator();
 				var evalues = x.has.v ? x.att.v.split(":").iterator() : null;
@@ -592,6 +602,7 @@ class XmlParser {
 						a = a.substr(1);
 					}
 					var v = evalues == null || !evalues.hasNext() ? null : evalues.next();
+					@:nullSafety(Off)
 					args.push({
 						name: a,
 						opt: opt,
@@ -611,7 +622,7 @@ class XmlParser {
 				}
 				CAnonymous(fields);
 			case "d":
-				var t = null;
+				var t:Null<CType> = null;
 				var tx = x.x.firstElement();
 				if (tx != null)
 					t = xtype(new Access(tx));

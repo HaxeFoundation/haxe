@@ -26,8 +26,11 @@ import sys.io.Process;
 using haxe.Int64;
 
 @:coreApi class Sys {
+	@:nullSafety(Off)
 	private static var _args:java.NativeArray<String>;
+	@:nullSafety(Off)
 	private static var _env:haxe.ds.StringMap<String>;
+	@:nullSafety(Off)
 	private static var _sysName:String;
 
 	public static inline function print(v:Dynamic):Void {
@@ -44,7 +47,7 @@ using haxe.Int64;
 		return java.Lib.array(_args);
 	}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		return java.lang.System.getenv(s);
 	}
 
@@ -150,6 +153,7 @@ using haxe.Int64;
 	}
 
 	public static function stdin():haxe.io.Input {
+		@:nullSafety(Off)
 		var _in:java.io.InputStream = Reflect.field(System, "in");
 		return new java.io.NativeInput(_in);
 	}

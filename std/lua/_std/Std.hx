@@ -34,17 +34,17 @@ import lua.NativeStringTools;
 		return untyped lua.Boot.__instanceof(v, t);
 	}
 
-	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return untyped lua.Boot.__instanceof(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 
 	@:keep
-	public static function string(s:Dynamic) : String {
+	public static function string(s:Null<Dynamic>):String {
 		return untyped _hx_tostring(s, 0);
 	}
 

@@ -116,6 +116,7 @@ class Jvm {
 					if (!allowPadding) {
 						return None;
 					}
+					@:nullSafety(Off)
 					callArgs[i] = null;
 				}
 				continue;
@@ -133,6 +134,7 @@ class Jvm {
 						throw 'Unexpected basic type: $paramType';
 					}
 				} else {
+					@:nullSafety(Off)
 					callArgs[i] = null;
 				}
 				continue;
@@ -144,6 +146,7 @@ class Jvm {
 				continue;
 			}
 			if (arg == (cast java.lang.Double.DoubleClass) && argType == cast java.lang.Integer.IntegerClass) {
+				@:nullSafety(Off)
 				callArgs[i] = numberToDouble(args[i]);
 			} else {
 				return None;
@@ -316,8 +319,9 @@ class Jvm {
 		try {
 			var field = cl.getField(name);
 			field.setAccessible(true);
+			@:nullSafety(Off)
 			return field.get(null);
-		} catch (_:java.lang.NoSuchFieldException) {
+		} catch (_:java.lang.NoSuchFieldException) {@:nullSafety(Off)
 			return null;
 		}
 	}
@@ -338,6 +342,7 @@ class Jvm {
 				}
 				cl = cl.getSuperclass();
 			}
+			@:nullSafety(Off)
 			return null;
 		}
 	}
@@ -346,10 +351,10 @@ class Jvm {
 		if (obj == null) {
 			throw new NullPointerException(name);
 		}
-		if (name == null) {
+		if (name == null) {@:nullSafety(Off)
 			return null;
 		}
-		if (instanceof(obj, jvm.Object)) {
+		if (instanceof(obj, jvm.Object)) {@:nullSafety(Off)
 			return (cast obj : jvm.Object)._hx_getField(name);
 		}
 		if (instanceof(obj, java.lang.Class)) {

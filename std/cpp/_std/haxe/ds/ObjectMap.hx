@@ -53,6 +53,7 @@ package haxe.ds;
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	@:ifFeature("haxe.ds.ObjectMap.*")
+	@:nullSafety(Off)
 	private var h:Dynamic;
 
 	public function new():Void {}
@@ -91,6 +92,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		var copied = new ObjectMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

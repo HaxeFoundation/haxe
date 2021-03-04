@@ -86,6 +86,7 @@ class Loader {
 	public function getCache():Map<String, Module> {
 		var h = new haxe.ds.StringMap<Module>();
 		var cache = untyped l.cache;
+		@:nullSafety(Off)
 		for (f in Reflect.fields(cache))
 			h.set(f, new Module(Reflect.field(cache, f)));
 		return h;

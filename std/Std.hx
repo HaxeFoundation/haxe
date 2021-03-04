@@ -60,10 +60,10 @@ extern class Std {
 		If `value` is null, the result is null. If `c` is null, the result is
 		unspecified.
 	**/
-	static function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
+	static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S>;
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	static function instance<T:{}, S:T>(value:T, c:Class<S>):S;
+	static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S>;
 
 	/**
 		Converts any value to a String.
@@ -83,7 +83,7 @@ extern class Std {
 
 		If s is null, "null" is returned.
 	**/
-	static function string(s:Dynamic):String;
+	static function string(s:Null<Dynamic>):String;
 
 	/**
 		Converts a `Float` to an `Int`, rounded towards 0.

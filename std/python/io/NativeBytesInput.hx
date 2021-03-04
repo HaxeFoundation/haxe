@@ -24,11 +24,11 @@ package python.io;
 
 import haxe.io.Eof;
 import haxe.io.Input;
+import python.Bytearray;
 import python.io.IInput;
 import python.io.IoTools;
-import python.Bytearray;
-import python.lib.io.RawIOBase;
 import python.lib.io.IOBase.SeekSet;
+import python.lib.io.RawIOBase;
 
 class NativeBytesInput extends NativeInput<RawIOBase> implements IInput {
 	public function new(stream:RawIOBase) {
@@ -36,7 +36,8 @@ class NativeBytesInput extends NativeInput<RawIOBase> implements IInput {
 	}
 
 	override public function readByte():Int {
-		var ret = stream.read(1);
+		@:nullSafety(Off)
+		var ret:Bytes = stream.read(1);
 
 		if (ret.length == 0)
 			throwEof();
@@ -49,7 +50,7 @@ class NativeBytesInput extends NativeInput<RawIOBase> implements IInput {
 		return IoTools.seekInBinaryMode(stream, p, pos);
 	}
 
-	override function readinto(b:Bytearray):Int {
+	override function readinto(b:Bytearray):Int {@:nullSafety(Off)
 		return stream.readinto(b);
 	}
 }

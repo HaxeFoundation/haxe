@@ -30,7 +30,7 @@ abstract BytesMap(BytesMapData) {
 	}
 
 	@:hlNative("std", "hballoc") static function alloc():BytesMapData {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hbset")
@@ -43,7 +43,7 @@ abstract BytesMap(BytesMapData) {
 
 	@:hlNative("std", "hbget")
 	public function get(key:Bytes):Dynamic {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hbremove")
@@ -53,12 +53,12 @@ abstract BytesMap(BytesMapData) {
 
 	@:hlNative("std", "hbkeys")
 	public function keysArray():NativeArray<Bytes> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "hbvalues")
 	public function valuesArray():NativeArray<Dynamic> {
-		return null;
+		return cast null;
 	}
 
 	#if (hl_ver >= version("1.11.0"))

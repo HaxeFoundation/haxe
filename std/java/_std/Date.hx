@@ -109,8 +109,8 @@ import java.util.TimeZone;
 		var h = getHours();
 		var mi = getMinutes();
 		var s = getSeconds();
-		return getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
-			+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
+		return getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " " + (if (h < 10) "0" + h else "" + h)
+			+ ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
 	}
 
 	static public function now():Date {
@@ -131,14 +131,17 @@ import java.util.TimeZone;
 		switch (s.length) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
+				@:nullSafety(Off)
 				return Date.fromTime(Std.parseInt(k[0]) * 3600000. + Std.parseInt(k[1]) * 60000. + Std.parseInt(k[2]) * 1000.);
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
+				@:nullSafety(Off)
 				return new Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]), 0, 0, 0);
 			case 19: // YYYY-MM-DD hh:mm:ss
 				var k = s.split(" ");
 				var y = k[0].split("-");
 				var t = k[1].split(":");
+				@:nullSafety(Off)
 				return new Date(Std.parseInt(y[0]), Std.parseInt(y[1]) - 1, Std.parseInt(y[2]), Std.parseInt(t[0]), Std.parseInt(t[1]), Std.parseInt(t[2]));
 			default:
 				throw "Invalid date format : " + s;

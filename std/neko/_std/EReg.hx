@@ -21,7 +21,7 @@
  */
 @:coreApi final class EReg {
 	var r:Dynamic;
-	var last:String;
+	var last:Null<String>;
 	var global:Bool;
 
 	public function new(r:String, opt:String):Void {
@@ -43,17 +43,20 @@
 
 	public function matched(n:Int):String {
 		var m = regexp_matched(r, n);
+		@:nullSafety(Off)
 		return (m == null) ? null : new String(m);
 	}
 
 	public function matchedLeft():String {
 		var p = regexp_matched_pos(r, 0);
+		@:nullSafety(Off)
 		return last.substr(0, p.pos);
 	}
 
 	public function matchedRight():String {
 		var p = regexp_matched_pos(r, 0);
 		var sz = p.pos + p.len;
+		@:nullSafety(Off)
 		return last.substr(sz, last.length - sz);
 	}
 
@@ -115,7 +118,8 @@
 			var i = 1;
 			while (i < a.length) {
 				var k = a[i];
-				var c = k.charCodeAt(0);
+				@:nullSafety(Off)
+				var c:Int = k.charCodeAt(0);
 				// 1...9
 				if (c >= 49 && c <= 57) {
 					var p = try regexp_matched_pos(r, Std.int(c) - 48) catch (e:String) null;

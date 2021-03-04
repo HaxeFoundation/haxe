@@ -130,6 +130,7 @@ class Sha224 {
 			blks[i] = 0;
 		for (i in 0...s.length) {
 			var p = i >> 2;
+			@:nullSafety(Off)
 			blks[p] |= s.charCodeAt(i) << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;

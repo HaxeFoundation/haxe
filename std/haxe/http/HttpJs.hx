@@ -23,15 +23,15 @@
 package haxe.http;
 
 #if js
-import js.html.XMLHttpRequestResponseType;
-import js.html.Blob;
 import haxe.io.Bytes;
+import js.html.Blob;
+import js.html.XMLHttpRequestResponseType;
 
 class HttpJs extends haxe.http.HttpBase {
 	public var async:Bool;
 	public var withCredentials:Bool;
 
-	var req:js.html.XMLHttpRequest;
+	var req:Null<js.html.XMLHttpRequest>;
 
 	public function new(url:String) {
 		async = true;
@@ -46,14 +46,16 @@ class HttpJs extends haxe.http.HttpBase {
 	public function cancel() {
 		if (req == null)
 			return;
+		@:nullSafety(Off)
 		req.abort();
 		req = null;
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		this.responseAsString = null;
 		this.responseBytes = null;
-		var r = req = js.Browser.createXMLHttpRequest();
+		var r = js.Browser.createXMLHttpRequest();
+		req = r;
 		var onreadystatechange = function(_) {
 			if (r.readyState != 4)
 				return;
@@ -130,9 +132,11 @@ class HttpJs extends haxe.http.HttpBase {
 
 		for (h in headers)
 			r.setRequestHeader(h.name, h.value);
-		r.send(uri);
-		if (!async)
-			onreadystatechange(null);
+		@:nullSafety(Off) {
+			r.send(uri);
+			if (!async)
+				onreadystatechange(null);
+		}
 	}
 
 	/**
@@ -146,7 +150,7 @@ class HttpJs extends haxe.http.HttpBase {
 	public static function requestUrl(url:String):String {
 		var h = new Http(url);
 		h.async = false;
-		var r = null;
+		var r:Null<String> = null;
 		h.onData = function(d) {
 			r = d;
 		}
@@ -154,6 +158,7 @@ class HttpJs extends haxe.http.HttpBase {
 			throw e;
 		}
 		h.request(false);
+		@:nullSafety(Off)
 		return r;
 	}
 }

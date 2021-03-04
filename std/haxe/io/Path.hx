@@ -50,7 +50,7 @@ class Path {
 		If there is no file name, e.g. for `".htaccess"` or `"/dir/"`, the value
 		is the empty String `""`.
 	**/
-	public var file:String;
+	public var file:String = "";
 
 	/**
 		The file extension.
@@ -65,7 +65,7 @@ class Path {
 	/**
 		`true` if the last directory separator is a backslash, `false` otherwise.
 	**/
-	public var backslash:Bool;
+	public var backslash:Bool = false;
 
 	/**
 		Creates a new `Path` instance by parsing `path`.
@@ -146,9 +146,11 @@ class Path {
 	**/
 	public static function directory(path):String {
 		var s = new Path(path);
-		if (s.dir == null)
-			return "";
-		return s.dir;
+		@:nullSafety(Off) {
+			if (s.dir == null)
+				return "";
+			return s.dir;
+		}
 	}
 
 	/**
@@ -160,9 +162,11 @@ class Path {
 	**/
 	public static function extension(path):String {
 		var s = new Path(path);
-		if (s.ext == null)
-			return "";
-		return s.ext;
+		@:nullSafety(Off) {
+			if (s.ext == null)
+				return "";
+			return s.ext;
+		}
 	}
 
 	/**
@@ -232,25 +236,24 @@ class Path {
 		var colon = false;
 		var slashes = false;
 		#if utf16
-		for (c in haxe.iterators.StringIteratorUnicode.unicodeIterator(tmp)) {
-			switch (c) {
+		for (c in haxe.iterators.StringIteratorUnicode.unicodeIterator(tmp))
+			switch (c)
 		#else
-		for (i in 0...tmp.length) {
-			switch (StringTools.fastCodeAt(tmp, i)) {
-		#end
-				case ":".code:
-					acc.add(":");
-					colon = true;
-				case "/".code if (!colon):
-					slashes = true;
-				case var i:
-					colon = false;
-					if (slashes) {
-						acc.add("/");
-						slashes = false;
-					}
-					acc.addChar(i);
-			}
+		for (i in 0...tmp.length)
+			switch (StringTools.fastCodeAt(tmp, i))
+		#end {
+			case ":".code:
+				acc.add(":");
+				colon = true;
+			case "/".code if (!colon):
+				slashes = true;
+			case var i:
+				colon = false;
+				if (slashes) {
+					acc.add("/");
+					slashes = false;
+				}
+				acc.addChar(i);
 		}
 
 		return acc.toString();
@@ -323,6 +326,7 @@ class Path {
 
 	private static function unescape(path:String):String {
 		var regex = ~/-x([0-9][0-9])/g;
+		@:nullSafety(Off)
 		return regex.map(path, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
 	}
 

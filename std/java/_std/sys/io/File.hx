@@ -101,8 +101,8 @@ class File {
 	}
 
 	public static function copy(srcPath:String, dstPath:String):Void {
-		var r:FileInput = null;
-		var w:FileOutput = null;
+		var r:Null<FileInput> = null;
+		var w:Null<FileOutput> = null;
 		try {
 			r = read(srcPath);
 			w = write(dstPath);

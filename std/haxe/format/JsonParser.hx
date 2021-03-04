@@ -41,7 +41,7 @@ class JsonParser {
 
 		If `str` is null, the result is unspecified.
 	**/
-	static public inline function parse(str:String):Dynamic {
+	static public inline function parse(str:String):Null<Dynamic> {
 		return new JsonParser(str).doParse();
 	}
 
@@ -53,7 +53,7 @@ class JsonParser {
 		this.pos = 0;
 	}
 
-	function doParse():Dynamic {
+	function doParse():Null<Dynamic> {
 		var result = parseRec();
 		var c;
 		while (!StringTools.isEof(c = nextChar())) {
@@ -67,14 +67,16 @@ class JsonParser {
 		return result;
 	}
 
-	function parseRec():Dynamic {
+	function parseRec():Null<Dynamic> {
 		while (true) {
 			var c = nextChar();
 			switch (c) {
 				case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 				// loop
 				case '{'.code:
-					var obj = {}, field = null, comma:Null<Bool> = null;
+					var obj = {},
+						field:Null<String> = null,
+						comma:Null<Bool> = null;
 					while (true) {
 						var c = nextChar();
 						switch (c) {
@@ -87,13 +89,15 @@ class JsonParser {
 							case ':'.code:
 								if (field == null)
 									invalidChar();
+								@:nullSafety(Off)
 								Reflect.setField(obj, field, parseRec());
 								field = null;
 								comma = true;
 							case ','.code:
-								if (comma) comma = false else invalidChar();
+								if (comma == true) comma = false else invalidChar();
 							case '"'.code:
-								if (field != null || comma) invalidChar();
+								if (field != null || comma)
+									invalidChar();
 								field = parseString();
 							default:
 								invalidChar();
@@ -107,13 +111,18 @@ class JsonParser {
 							case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 							// loop
 							case ']'.code:
-								if (comma == false) invalidChar();
+								if (comma == false)
+									invalidChar();
 								return arr;
 							case ','.code:
-								if (comma) comma = false else invalidChar();
+								if (comma == true) comma = false else invalidChar();
 							default:
-								if (comma) invalidChar();
+								if (comma == true)
+									invalidChar();
 								pos--;
+								#if python
+								@:nullSafety(Off)
+								#end
 								arr.push(parseRec());
 								comma = true;
 						}
@@ -151,11 +160,12 @@ class JsonParser {
 
 	function parseString() {
 		var start = pos;
-		var buf:StringBuf = null;
+		var buf:Null<StringBuf> = null;
 		#if target.unicode
 		var prev = -1;
 		inline function cancelSurrogate() {
 			// invalid high surrogate (not followed by low surrogate)
+			@:nullSafety(Off)
 			buf.addChar(0xFFFD);
 			prev = -1;
 		}
@@ -188,6 +198,7 @@ class JsonParser {
 					case "/".code, '\\'.code, '"'.code:
 						buf.addChar(c);
 					case 'u'.code:
+						@:nullSafety(Off)
 						var uc:Int = Std.parseInt("0x" + str.substr(pos, 4));
 						pos += 4;
 						#if !target.unicode
@@ -224,8 +235,7 @@ class JsonParser {
 				}
 				start = pos;
 			}
-			#if !(target.unicode)
-			// ensure utf8 chars are not cut
+			#if !(target.unicode) // ensure utf8 chars are not cut
 			else if (c >= 0x80) {
 				pos++;
 				if (c >= 0xFC)
@@ -301,7 +311,7 @@ class JsonParser {
 		}
 
 		var f = Std.parseFloat(str.substr(start, pos - start));
-		if(point) {
+		if (point) {
 			return f;
 		} else {
 			var i = Std.int(f);

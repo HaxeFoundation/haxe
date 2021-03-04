@@ -38,17 +38,20 @@ class SysError {
 @:keepInit
 @:access(String)
 class Sys {
+	@:nullSafety(Off)
 	static var utf8Path:Bool;
 
 	static function __init__():Void {
 		utf8Path = sys_utf8_path();
 	}
 
+	@:nullSafety(Off)
 	static function getPath(s:String):hl.Bytes {
 		return utf8Path ? s.bytes.utf16ToUtf8(0, null) : s.bytes;
 	}
 
 	static function makePath(b:hl.Bytes):String {
+		@:nullSafety(Off)
 		if (b == null)
 			return null;
 		return utf8Path ? String.fromUTF8(b) : String.fromUCS2(b);
@@ -79,7 +82,7 @@ class Sys {
 		return @:privateAccess new sys.io.FileOutput(file_stderr());
 	}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		var v = get_env(getPath(s));
 		if (v == null)
 			return null;
@@ -87,6 +90,7 @@ class Sys {
 	}
 
 	public static function putEnv(s:String, v:String):Void {
+		@:nullSafety(Off)
 		if (!put_env(getPath(s), if (v == null) null else getPath(v)))
 			throw "putEnv() failure";
 	}
@@ -104,6 +108,7 @@ class Sys {
 	@:hlNative("std", "sys_sleep")
 	public static function sleep(seconds:Float):Void {}
 
+	@:nullSafety(Off)
 	public static function setTimeLocale(loc:String):Bool {
 		return set_time_locale(loc.bytes.utf16ToUtf8(0, null));
 	}
@@ -178,23 +183,23 @@ class Sys {
 	@:hlNative("std", "sys_print") static function sys_print(v:hl.Bytes):Void {};
 
 	@:hlNative("std", "file_stdin") static function file_stdin():sys.io.File.FileHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "file_stdout") static function file_stdout():sys.io.File.FileHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "file_stderr") static function file_stderr():sys.io.File.FileHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_args") static function sys_args():hl.NativeArray<hl.Bytes> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_get_env") static function get_env(key:hl.Bytes):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_put_env") static function put_env(key:hl.Bytes, val:hl.Bytes):Bool {
@@ -202,7 +207,7 @@ class Sys {
 	}
 
 	@:hlNative("std", "sys_env") static function sys_env():hl.NativeArray<hl.Bytes> {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_set_time_locale") static function set_time_locale(loc:hl.Bytes):Bool {
@@ -210,7 +215,7 @@ class Sys {
 	}
 
 	@:hlNative("std", "sys_get_cwd") static function get_cwd():hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_set_cwd") static function set_cwd(path:hl.Bytes):Bool {
@@ -222,14 +227,14 @@ class Sys {
 	}
 
 	@:hlNative("std", "sys_exe_path") static function sys_exe_path():hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_hl_file") static function sys_hl_file():hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "sys_string") static function sys_string():hl.Bytes {
-		return null;
+		return cast null;
 	}
 }

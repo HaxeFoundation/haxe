@@ -31,6 +31,7 @@ import cs.NativeArray;
  * Thanks also to Jonas Malaco Filho for his Haxe-written IntMap code inspired by Python tables.
  * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
+@:nullSafety(Off)
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	private static inline var HASH_UPPER = 0.7;
 
@@ -248,7 +249,7 @@ import cs.NativeArray;
 			if (size >= (newNBuckets * HASH_UPPER + 0.5))
 				/* requested size is too small */ {
 				j = 0;
-			} else { /* hash table size to be changed (shrink or expand); rehash */
+			} else {/* hash table size to be changed (shrink or expand); rehash */
 				var nfSize = flagsSize(newNBuckets);
 				newFlags = new NativeArray(nfSize);
 				for (i in 0...nfSize) {
@@ -307,14 +308,15 @@ import cs.NativeArray;
 								var tmp = _keys[i];
 								_keys[i] = key;
 								key = tmp;
-							} {
+							}
+							{
 								var tmp = vals[i];
 								vals[i] = val;
 								val = tmp;
 							}
 
 							setIsDelTrue(flags, i); /* mark it as deleted in the old hash table */
-						} else { /* write the element and jump out of the loop */
+						} else {/* write the element and jump out of the loop */
 							_keys[i] = key;
 							vals[i] = val;
 							break;
@@ -329,7 +331,8 @@ import cs.NativeArray;
 					var k = new NativeArray(newNBuckets);
 					arrayCopy(_keys, 0, k, 0, newNBuckets);
 					this._keys = k;
-				} {
+				}
+				{
 					var v = new NativeArray(newNBuckets);
 					arrayCopy(vals, 0, v, 0, newNBuckets);
 					this.vals = v;

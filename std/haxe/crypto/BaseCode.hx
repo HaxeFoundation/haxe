@@ -28,6 +28,7 @@ package haxe.crypto;
 class BaseCode {
 	var base:haxe.io.Bytes;
 	var nbits:Int;
+	@:nullSafety(Off)
 	var tbl:Array<Int>;
 
 	public function new(base:haxe.io.Bytes) {

@@ -9,15 +9,14 @@ import haxe.CallStack.StackItem;
 @:noCompletion
 class NativeStackTrace {
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
-	static public inline function saveStack(exception:Any):Void {
-	}
+	static public inline function saveStack(exception:Any):Void {}
 
-	@:noDebug //Do not mess up the exception stack
+	@:noDebug // Do not mess up the exception stack
 	static public function callStack():Array<String> {
 		return untyped __global__.__hxcpp_get_call_stack(true);
 	}
 
-	@:noDebug //Do not mess up the exception stack/
+	@:noDebug // Do not mess up the exception stack/
 	static public function exceptionStack():Array<String> {
 		return untyped __global__.__hxcpp_get_exception_stack();
 	}
@@ -26,7 +25,7 @@ class NativeStackTrace {
 		var stack:Array<String> = native;
 		var m = new Array<StackItem>();
 		for (i in 0...stack.length) {
-			if(skip > i) {
+			if (skip > i) {
 				continue;
 			}
 			var words = stack[i].split("::");
@@ -35,6 +34,7 @@ class NativeStackTrace {
 			else if (words.length == 2)
 				m.push(Method(words[0], words[1]));
 			else if (words.length == 4)
+				@:nullSafety(Off)
 				m.push(FilePos(Method(words[0], words[1]), words[2], Std.parseInt(words[3])));
 		}
 		return m;

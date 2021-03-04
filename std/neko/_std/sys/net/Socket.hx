@@ -118,13 +118,18 @@ private class SocketInput extends haxe.io.Input {
 
 @:coreApi
 class Socket {
+	@:nullSafety(Off)
 	private var __s:SocketHandle;
 
+	@:nullSafety(Off)
 	public var input(default, null):haxe.io.Input;
+	@:nullSafety(Off)
 	public var output(default, null):haxe.io.Output;
+	@:nullSafety(Off)
 	public var custom:Dynamic;
 
 	public function new():Void {
+		@:nullSafety(Off)
 		init();
 	}
 
@@ -137,6 +142,7 @@ class Socket {
 
 	public function close():Void {
 		socket_close(__s);
+		@:nullSafety(Off)
 		untyped {
 			input.__s = null;
 			output.__s = null;
@@ -190,6 +196,7 @@ class Socket {
 
 	public function peer():{host:Host, port:Int} {
 		var a:Dynamic = socket_peer(__s);
+		@:nullSafety(Off)
 		if (a == null) {
 			return null;
 		}
@@ -200,6 +207,7 @@ class Socket {
 
 	public function host():{host:Host, port:Int} {
 		var a:Dynamic = socket_host(__s);
+		@:nullSafety(Off)
 		if (a == null) {
 			return null;
 		}
@@ -213,6 +221,7 @@ class Socket {
 	}
 
 	public function waitForRead():Void {
+		@:nullSafety(Off)
 		select([this], null, null, null);
 	}
 
@@ -228,6 +237,7 @@ class Socket {
 			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
 		var c = untyped __dollar__hnew(1);
 		var f = function(a:Array<Socket>) {
+			@:nullSafety(Off)
 			if (a == null)
 				return null;
 			untyped {
@@ -244,12 +254,14 @@ class Socket {
 		var neko_array = socket_select(f(read), f(write), f(others), timeout);
 
 		var g = function(a):Array<Socket> {
+			@:nullSafety(Off)
 			if (a == null)
 				return null;
 
 			var r = new Array();
 			var i = 0;
 			while (i < untyped __dollar__asize(a)) {
+				@:nullSafety(Off)
 				var t = untyped __dollar__hget(c, a[i], null);
 				if (t == null)
 					throw "Socket object not found.";

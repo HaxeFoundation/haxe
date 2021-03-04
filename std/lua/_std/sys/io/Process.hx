@@ -22,23 +22,25 @@
 
 package sys.io;
 
-import lua.Io;
-import lua.lib.luv.Pipe;
-import lua.lib.luv.Signal;
-import lua.lib.luv.Loop;
-import lua.Boot;
-import lua.Table;
-import lua.NativeStringTools;
 import haxe.SysTools;
 import haxe.io.Bytes;
-import haxe.io.Error;
 import haxe.io.Eof;
+import haxe.io.Error;
+import lua.Boot;
+import lua.Io;
+import lua.NativeStringTools;
+import lua.Table;
+import lua.lib.luv.Loop;
+import lua.lib.luv.Pipe;
+import lua.lib.luv.Signal;
 
 @:coreApi
 class Process {
 	var _pid:Int;
 	var _handle:lua.lib.luv.Process;
+	@:nullSafety(Off)
 	var _code:Int;
+	@:nullSafety(Off)
 	var closef:Int->Signal->Void;
 
 	public var stdout(default, null):haxe.io.Input;
@@ -76,7 +78,7 @@ class Process {
 	}
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool) {
-		if (detached)
+		if (detached == true)
 			throw "Detached process is not supported on this platform";
 
 		var _stdout = new Pipe(false);
@@ -90,14 +92,15 @@ class Process {
 		var opt = {args: setArgs(cmd, args), stdio: stdio};
 
 		var p = lua.lib.luv.Process.spawn(_shell, opt, function(code:Int, signal:Signal) {
+			@:nullSafety(Off)
 			_code = code;
-			if (!_handle.is_closing()){
-			    _handle.close();
-            }
-            _stdin.shutdown(()->_stdin.close());
-            _stderr.shutdown(()->_stderr.close());
-            _stdout.shutdown(()->_stdout.close());
-
+			@:nullSafety(Off)
+			if (!_handle.is_closing()) {
+				_handle.close();
+			}
+			_stdin.shutdown(() -> _stdin.close());
+			_stderr.shutdown(() -> _stderr.close());
+			_stdout.shutdown(() -> _stdout.close());
 		});
 		_handle = p.handle;
 
@@ -112,9 +115,9 @@ class Process {
 	}
 
 	public function close():Void {
-		if (!_handle.is_closing()){
-            _handle.close();
-        }
+		if (!_handle.is_closing()) {
+			_handle.close();
+		}
 	}
 
 	public function exitCode(block:Bool = true):Null<Int> {
@@ -133,7 +136,9 @@ class Process {
 
 private class ProcessInput extends haxe.io.Input {
 	var b:Pipe;
+	@:nullSafety(Off)
 	var buf:String;
+	@:nullSafety(Off)
 	var idx:Int;
 	var _eof:Bool;
 
@@ -153,8 +158,9 @@ private class ProcessInput extends haxe.io.Input {
 	}
 
 	override public function readByte() {
-		var err_str = null;
+		var err_str:Null<String> = null;
 		if (buf == null || idx >= NativeStringTools.len(buf)) {
+			@:nullSafety(Off)
 			buf = null;
 			idx = 0;
 			var pending = true;

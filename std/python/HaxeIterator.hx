@@ -39,6 +39,7 @@ class HaxeIterator<T> {
 		if (!checked)
 			hasNext();
 		checked = false;
+		@:nullSafety(Off)
 		return x;
 	}
 

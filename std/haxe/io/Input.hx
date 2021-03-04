@@ -35,11 +35,14 @@ class Input {
 
 		If `true`, big-endian is used, otherwise `little-endian` is used.
 	**/
+	@:nullSafety(Off)
 	public var bigEndian(default, set):Bool;
 
 	#if cs
+	@:nullSafety(Off)
 	private var helper:BytesData;
 	#elseif java
+	@:nullSafety(Off)
 	private var helper:java.nio.ByteBuffer;
 	#end
 
@@ -186,7 +189,12 @@ class Input {
 		} catch (e:Eof) {
 			s = buf.getBytes().toString();
 			if (s.length == 0)
-				#if neko neko.Lib.rethrow #else throw #end (e);
+				#if neko
+				neko.Lib.rethrow
+				#else
+				throw
+				#end
+			(e);
 		}
 		return s;
 	}
@@ -315,10 +323,11 @@ class Input {
 	static var _float_of_bytes = neko.Lib.load("std", "float_of_bytes", 2);
 	static var _double_of_bytes = neko.Lib.load("std", "double_of_bytes", 2);
 
-	static function __init__()
+	static function __init__() {
 		untyped {
 			Input.prototype.bigEndian = false;
 		}
+	}
 	#end
 
 	#if (flash || js || python)

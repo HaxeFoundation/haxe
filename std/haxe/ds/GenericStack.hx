@@ -32,7 +32,7 @@ package haxe.ds;
 #end
 class GenericCell<T> {
 	public var elt:T;
-	public var next:GenericCell<T>;
+	public var next:Null<GenericCell<T>>;
 
 	public function new(elt, next) {
 		this.elt = elt;
@@ -52,6 +52,7 @@ private class GenericStackIterator<T> {
 
 	public function next():T {
 		var result = current.elt;
+		@:nullSafety(Off)
 		current = current.next;
 		return result;
 	}
@@ -70,6 +71,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	override public function next():T {
 		var result = current.elt;
+		@:nullSafety(Off)
 		current = current.next;
 		return result;
 	}
@@ -99,7 +101,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 @:generic
 #end
 class GenericStack<T> {
-	public var head:GenericCell<T>;
+	public var head:Null<GenericCell<T>>;
 
 	/**
 		Creates a new empty GenericStack.
@@ -118,7 +120,7 @@ class GenericStack<T> {
 
 		If the stack is empty, null is returned.
 	**/
-	public inline function first():Null<T> {
+	public inline function first():Null<T> {@:nullSafety(Off)
 		return if (head == null) null else head.elt;
 	}
 
@@ -154,7 +156,7 @@ class GenericStack<T> {
 		If no matching element is found, false is returned.
 	**/
 	public function remove(v:T):Bool {
-		var prev:GenericCell<T> = null;
+		var prev:Null<GenericCell<T>> = null;
 		var l = head;
 		while (l != null) {
 			if (l.elt == v) {
@@ -174,6 +176,7 @@ class GenericStack<T> {
 	/**
 		Returns an iterator over the elements of `this` GenericStack.
 	**/
+	@:nullSafety(Off)
 	public function iterator():Iterator<T> {
 		return new GenericStackIterator<T>(head);
 	}
@@ -190,8 +193,10 @@ class GenericStack<T> {
 			},
 			next: function() {
 				var k = l;
-				l = k.next;
-				return k.elt;
+				@:nullSafety(Off) {
+					l = k.next;
+					return k.elt;
+				}
 			}
 		};
 	}

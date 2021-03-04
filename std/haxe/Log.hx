@@ -30,11 +30,12 @@ class Log {
 	/**
 		Format the output of `trace` before printing it.
 	**/
-	public static function formatOutput(v:Dynamic, infos:PosInfos):String {
+	public static function formatOutput(v:Dynamic, infos:Null<PosInfos>):String {
 		var str = Std.string(v);
 		if (infos == null)
 			return str;
 		var pstr = infos.fileName + ":" + infos.lineNumber;
+		@:nullSafety(Off)
 		if (infos.customParams != null)
 			for (v in infos.customParams)
 				str += ", " + Std.string(v);

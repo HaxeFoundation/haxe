@@ -60,8 +60,10 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 
 	public function copy():ObjectMap<K, V> {
 		var copied = new ObjectMap();
+		@:nullSafety(Off)
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 
@@ -83,6 +85,7 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 }
 
 private class NativePropertyIterator {
+	@:nullSafety(Off)
 	var collection:Dynamic;
 	var index:Int = 0;
 
@@ -112,6 +115,7 @@ private class NativePropertyIterator {
 }
 
 private class NativeValueIterator {
+	@:nullSafety(Off)
 	var collection:Dynamic;
 	var index:Int = 0;
 

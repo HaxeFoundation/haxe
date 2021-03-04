@@ -23,8 +23,8 @@
 package haxe.xml;
 
 import php.Global;
-import php.Syntax;
 import php.NativeString;
+import php.Syntax;
 
 using haxe.xml.Parser;
 
@@ -80,7 +80,7 @@ class XmlParserException {
 		}
 	}
 
-	public function toString():String {
+	public function toString():String {@:nullSafety(Off)
 		return Type.getClassName(Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
 	}
 }
@@ -103,9 +103,11 @@ class Parser {
 	}
 
 	static function doParse(str:NativeString, strict:Bool, p:Int = 0, ?parent:Xml):Int {
+		@:nullSafety(Off)
 		var xml:Xml = null;
 		var state = S.BEGIN;
 		var next = S.BEGIN;
+		@:nullSafety(Off)
 		var aname = null;
 		var start = 0;
 		var nsubs = 0;
@@ -175,9 +177,8 @@ class Parser {
 								p += 8;
 								state = S.DOCTYPE;
 								start = p + 1;
-							} else if (str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code)
-								throw new XmlParserException("Expected <!--", str, p);
-							else {
+							} else if (str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code) throw new XmlParserException("Expected <!--",
+								str, p); else {
 								p += 2;
 								state = S.COMMENT;
 								start = p + 1;
@@ -328,7 +329,8 @@ class Parser {
 					if (c == ';'.code) {
 						var s = str.substr(start, p - start);
 						if (s.fastCodeAt(0) == '#'.code) {
-							var c = s.fastCodeAt(1) == 'x'.code ? Std.parseInt("0" + s.substr(1,
+							@:nullSafety(Off)
+							var c:Int = s.fastCodeAt(1) == 'x'.code ? Std.parseInt("0" + s.substr(1,
 								Global.strlen(s) - 1)) : Std.parseInt(s.substr(1, Global.strlen(s) - 1));
 							buf = Syntax.concat(buf, Global.mb_chr(c));
 						} else if (!escapes.exists(s)) {

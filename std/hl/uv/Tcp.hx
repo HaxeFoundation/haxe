@@ -53,11 +53,11 @@ class Tcp extends Stream {
 	}
 
 	static function tcp_init_wrap(loop:Loop):HandleData {
-		return null;
+		return cast null;
 	}
 
 	static function tcp_connect_wrap(h:HandleData, host:Int, port:Int, onConnected:Bool->Void):HandleData {
-		return null;
+		return cast null;
 	}
 
 	static function tcp_bind_wrap(h:HandleData, host:Int, port:Int):Bool {
@@ -65,7 +65,7 @@ class Tcp extends Stream {
 	}
 
 	static function tcp_accept_wrap(h:HandleData):HandleData {
-		return null;
+		return cast null;
 	}
 
 	static function tcp_nodelay_wrap(h:HandleData, b:Bool):Void {}

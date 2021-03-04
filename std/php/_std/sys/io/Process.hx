@@ -22,9 +22,13 @@
 
 package sys.io;
 
-import php.*;
-import haxe.io.*;
 import haxe.SysTools;
+import haxe.io.Bytes;
+import haxe.io.Eof;
+import haxe.io.Error;
+import haxe.io.Input;
+import haxe.io.Output;
+import php.*;
 
 using StringTools;
 using php.Global;
@@ -111,6 +115,7 @@ private class WritablePipe extends Output {
 	}
 }
 
+@:nullSafety(Off)
 class Process {
 	public var stdout(default, null):Input;
 
@@ -125,7 +130,7 @@ class Process {
 	var _exitCode:Int = -1;
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
-		if (detached)
+		if (detached == true)
 			throw "Detached process is not supported on this platform";
 		var descriptors = Syntax.arrayDecl(Syntax.arrayDecl('pipe', 'r'), Syntax.arrayDecl('pipe', 'w'), Syntax.arrayDecl('pipe', 'w'));
 		var result = buildCmd(cmd, args).proc_open(descriptors, pipes);
@@ -153,7 +158,7 @@ class Process {
 			var arr = Syntax.arrayDecl(process);
 			try {
 				Syntax.suppress(Global.stream_select(arr, arr, arr, null));
-			} catch(_) {}
+			} catch (_) {}
 			updateStatus();
 		}
 		return _exitCode;

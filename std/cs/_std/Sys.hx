@@ -20,13 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import sys.io.Process;
 import cs.system.Environment;
 import cs.system.threading.Thread;
+import sys.io.Process;
 
 @:coreApi
 class Sys {
+	@:nullSafety(Off)
 	private static var _env:haxe.ds.StringMap<String>;
+	@:nullSafety(Off)
 	private static var _args:Array<String>;
 
 	public static inline function print(v:Dynamic):Void {
@@ -46,7 +48,7 @@ class Sys {
 		return _args.copy();
 	}
 
-	public static inline function getEnv(s:String):String {
+	public static inline function getEnv(s:String):Null<String> {
 		return Environment.GetEnvironmentVariable(s);
 	}
 

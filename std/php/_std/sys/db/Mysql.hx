@@ -23,9 +23,9 @@
 package sys.db;
 
 import php.*;
-import sys.db.*;
 import php.db.*;
 import php.db.Mysqli_result;
+import sys.db.*;
 
 @:coreApi class Mysql {
 	public static function connect(params:{
@@ -123,6 +123,7 @@ private class MysqlConnection implements Connection {
 	}
 }
 
+@:nullSafety(Off)
 private class MysqlResultSet implements ResultSet {
 	static var hxAnonClassName = Boot.getHxAnon().phpClassName;
 

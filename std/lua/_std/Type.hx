@@ -36,36 +36,40 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		untyped {
 			if (o == null)
 				return null;
 			return lua.Boot.getClass(o);
 		}
+	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		untyped {
 			if (o == null)
 				return null;
 			return o.__enum__;
 		}
+	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		untyped {
 			return c.__super__;
 		}
+	}
 
 	public static inline function getClassName(c:Class<Dynamic>):String {
 		return untyped __define_feature__("Type.getClassName", c.__name__);
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
+		@:nullSafety(Off)
 		if (untyped e.__ename__ == null)
 			return null;
 		return untyped e.__ename__;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var cl:Class<Dynamic> = _hxClasses[name];
@@ -74,8 +78,9 @@ enum ValueType {
 				return null;
 			return cl;
 		}
+	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var e:Dynamic = _hxClasses[name];
@@ -84,26 +89,31 @@ enum ValueType {
 				return null;
 			return e;
 		}
+	}
 
-	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		untyped {
 			return __new__(cl, lua.TableTools.unpack(cast args, 0));
 		}
+	}
 
-	public static function createEmptyInstance<T>(cl:Class<T>):T
+	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		untyped {
 			var ret = __lua_table__();
 			Lua.setmetatable(ret, untyped {__index: cl.prototype});
 			return ret;
 		}
+	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		@:nullSafety(Off)
 		var f:Dynamic = Reflect.field(e, constr);
 		if (f == null)
 			throw "No such constructor " + constr;
 		if (Reflect.isFunction(f)) {
 			if (params == null)
 				throw "Constructor " + constr + " need parameters";
+			@:nullSafety(Off)
 			return Reflect.callMethod(null, f, params);
 		}
 		if (params != null && params.length != 0)
@@ -130,7 +140,7 @@ enum ValueType {
 			var mt = lua.Lua.getmetatable(p);
 			if (mt != null && mt.__index != null)
 				p = mt.__index;
-			else
+			else @:nullSafety(Off)
 				p = null;
 		}
 		return a;
@@ -183,7 +193,7 @@ enum ValueType {
 		}
 	}
 
-	public static function enumEq<T>(a:T, b:T):Bool
+	public static function enumEq<T>(a:T, b:T):Bool {
 		untyped {
 			if (a == b)
 				return true;
@@ -201,6 +211,7 @@ enum ValueType {
 			}
 			return true;
 		}
+	}
 
 	public inline static function enumConstructor(e:EnumValue):String {
 		return untyped e[0];

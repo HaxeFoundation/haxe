@@ -22,6 +22,7 @@
 @:buildXml('<include name="${HXCPP}/src/hx/libs/regexp/Build.xml"/>')
 @:coreApi class EReg {
 	var r:Dynamic;
+	@:nullSafety(Off)
 	var last:String;
 	var global:Bool;
 
@@ -37,7 +38,7 @@
 		var p = _hx_regexp_match(r, s, 0, s.length);
 		if (p)
 			last = s;
-		else
+		else @:nullSafety(Off)
 			last = null;
 		return p;
 	}
@@ -66,7 +67,7 @@
 		var p = _hx_regexp_match(r, s, pos, len < 0 ? s.length - pos : len);
 		if (p)
 			last = s;
-		else
+		else @:nullSafety(Off)
 			last = null;
 		return p;
 	}
@@ -118,6 +119,7 @@
 				var k = a[i];
 				var c = k.charCodeAt(0);
 				// 1...9
+				@:nullSafety(Off)
 				if (c >= 49 && c <= 57) {
 					var p = try _hx_regexp_matched_pos(r, Std.int(c) - 48) catch (e:String) null;
 					if (p == null) {

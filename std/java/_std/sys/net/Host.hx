@@ -28,6 +28,7 @@ class Host {
 	public var host(default, null):String;
 	public var ip(default, null):Int;
 
+	@:nullSafety(Off)
 	@:allow(sys.net) private var wrapped:InetAddress;
 
 	public function new(name:String):Void {

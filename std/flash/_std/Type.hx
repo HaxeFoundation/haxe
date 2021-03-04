@@ -32,7 +32,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname == "Object" || cname == "int" || cname == "Number" || cname == "Boolean")
@@ -44,8 +44,9 @@ enum ValueType {
 				return null;
 			return c;
 		}
+	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname.substr(0, 8) == "builtin.")
@@ -58,16 +59,19 @@ enum ValueType {
 				return null;
 			return c;
 		}
+	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if (cname == null || cname == "Object")
 				return null;
 			return __as__(__global__["flash.utils.getDefinitionByName"](cname), Class);
 		}
+	}
 
 	public static function getClassName(c:Class<Dynamic>):String {
+		@:nullSafety(Off)
 		if (c == null)
 			return null;
 		var str:String = untyped __global__["flash.utils.getQualifiedClassName"](c);
@@ -92,7 +96,7 @@ enum ValueType {
 		return getClassName(cast e);
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		untyped {
 			var cl:Class<Dynamic>;
 			try {
@@ -114,8 +118,9 @@ enum ValueType {
 				return null;
 			return cl;
 		}
+	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		untyped {
 			var e:Dynamic;
 			try {
@@ -133,8 +138,9 @@ enum ValueType {
 				return null;
 			return e;
 		}
+	}
 
-	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		untyped {
 			return switch (args.length) {
 				case 0: __new__(cl);
@@ -156,8 +162,10 @@ enum ValueType {
 				default: throw "Too many arguments";
 			}
 		}
+	}
 
-	public static function createEmptyInstance<T>(cl:Class<T>):T
+	public static function createEmptyInstance<T>(cl:Class<T>):T {
+		@:nullSafety(Off)
 		untyped {
 			try {
 				flash.Boot.skip_constructor = true;
@@ -170,6 +178,7 @@ enum ValueType {
 			}
 			return null;
 		}
+	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		var f:Dynamic = untyped e[constr];
@@ -192,7 +201,7 @@ enum ValueType {
 		return createEnum(e, c, params);
 	}
 
-	static function describe(t:Dynamic, fact:Bool):Array<String>
+	static function describe(t:Dynamic, fact:Bool):Array<String> {
 		untyped {
 			var fields = new Array();
 			var xml:flash.xml.XML = __global__["flash.utils.describeType"](t);
@@ -209,6 +218,7 @@ enum ValueType {
 				fields.push(Std.string(accs[i].attribute("name")));
 			return fields;
 		}
+	}
 
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		return describe(c, true);
@@ -226,7 +236,7 @@ enum ValueType {
 		return a.copy();
 	}
 
-	public static function typeof(v:Dynamic):ValueType
+	public static function typeof(v:Dynamic):ValueType {
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](v);
 			switch (cname) {
@@ -248,6 +258,7 @@ enum ValueType {
 				case "Function":
 					return TFunction;
 				default:
+					@:nullSafety(Off)
 					var c:Dynamic = null;
 					try {
 						c = __global__["flash.utils.getDefinitionByName"](cname);
@@ -262,10 +273,12 @@ enum ValueType {
 						return if (c == null) TFunction else TClass(c);
 					}
 			}
+			@:nullSafety(Off)
 			return null;
 		}
+	}
 
-	public static function enumEq<T>(a:T, b:T):Bool
+	public static function enumEq<T>(a:T, b:T):Bool {
 		untyped {
 			if (a == b)
 				return true;
@@ -282,6 +295,7 @@ enum ValueType {
 			}
 			return true;
 		}
+	}
 
 	public static function enumConstructor(e:EnumValue):String {
 		return untyped e.tag;
@@ -296,10 +310,11 @@ enum ValueType {
 	}
 
 	public static function allEnums<T>(e:Enum<T>):Array<T> {
-		var all = [];
+		var all:Array<T> = [];
 		var cst:Array<String> = untyped e.__constructs__;
 		for (c in cst) {
 			var v = Reflect.field(e, c);
+			@:nullSafety(Off)
 			if (!Reflect.isFunction(v))
 				all.push(v);
 		}

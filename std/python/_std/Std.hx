@@ -22,17 +22,17 @@
 
 package;
 
+import python.Boot;
+import python.Syntax;
 import python.internal.Internal;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
-import python.Boot;
-import python.Syntax;
 
 @:keepInit
 @:coreApi class Std {
 	@:access(python.Boot)
-	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
-		try {
+	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
+		try {@:nullSafety(Off)
 			return UBuiltins.isinstance(value, c) || (Inspect.isInterface(c) && Boot.implementsInterface(value, c)) ? cast value : null;
 		} catch (e:Dynamic) {
 			return null;
@@ -40,7 +40,7 @@ import python.Syntax;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 
@@ -110,7 +110,7 @@ import python.Syntax;
 			return true;
 		}
 
-		if (Inspect.isclass(t)) {
+		if (Inspect.isclass(t)) {@:nullSafety(Off)
 			return Boot.implementsInterface(v, t);
 		} else {
 			return false;
@@ -118,14 +118,14 @@ import python.Syntax;
 	}
 
 	@:access(python.Boot)
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {@:nullSafety(Off)
 		return python.Boot.toString(s);
 	}
 
 	public static inline function int(x:Float):Int {
 		try {
 			return UBuiltins.int(x);
-		} catch (e:Dynamic) {
+		} catch (e:Dynamic) {@:nullSafety(Off)
 			return null;
 		}
 	}
@@ -144,38 +144,39 @@ import python.Syntax;
 			var lastDigitIndex = -1;
 			var previous = 0;
 
-			for(i in 0...len) {
+			for (i in 0...len) {
 				var c = StringTools.fastCodeAt(x, i);
 				switch c {
-					case _ if((c > 8 && c < 14) || c == 32):
-						if(foundCount > 0) {
+					case _ if ((c > 8 && c < 14) || c == 32):
+						if (foundCount > 0) {
 							return null;
 						}
 						continue;
-					case '-'.code if(foundCount == 0):
+					case '-'.code if (foundCount == 0):
 						sign = -1;
-					case '+'.code if(foundCount == 0):
+					case '+'.code if (foundCount == 0):
 						sign = 1;
-					case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
-					case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
+					case '0'.code if (foundCount == 0 || (foundCount == 1 && sign != 0)):
+					case 'x'.code | 'X'.code if (previous == '0'.code
+						&& ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
 						base = 16;
-					case _ if('0'.code <= c && c <= '9'.code):
-					case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
+					case _ if ('0'.code <= c && c <= '9'.code):
+					case _ if (base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
 					case _:
 						break;
 				}
-				if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
+				if ((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
 					firstDigitIndex = i;
 				}
 				foundCount++;
 				lastDigitIndex = i;
 				previous = c;
 			}
-			if(firstDigitIndex <= lastDigitIndex) {
+			if (firstDigitIndex <= lastDigitIndex) {
 				var digits = x.substring(firstDigitIndex, lastDigitIndex + 1);
 				return try {
 					(sign == -1 ? -1 : 1) * UBuiltins.int(digits, base);
-				} catch(e:Dynamic) {
+				} catch (e:Dynamic) {
 					null;
 				}
 			}

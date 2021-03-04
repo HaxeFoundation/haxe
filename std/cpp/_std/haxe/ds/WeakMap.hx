@@ -46,6 +46,7 @@ package haxe.ds;
 @:coreApi
 class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	@:ifFeature("haxe.ds.WeakMap.*")
+	@:nullSafety(Off)
 	private var h:Dynamic;
 
 	public function new():Void {}
@@ -84,6 +85,7 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		var copied = new WeakMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 

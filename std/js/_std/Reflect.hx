@@ -26,25 +26,27 @@
 	}
 
 	@:pure
-	public static function field(o:Dynamic, field:String):Dynamic {
+	public static function field(o:Dynamic, field:String):Null<Dynamic> {
 		try
 			return o[cast field]
 		catch (e:Dynamic)
 			return null;
 	}
 
-	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void {
+	public inline static function setField(o:Dynamic, field:String, value:Null<Dynamic>):Void {
 		o[cast field] = value;
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic
+	public static function getProperty(o:Dynamic, field:String):Null<Dynamic> {
 		untyped {
 			var tmp;
+			@:nullSafety(Off)
 			return if (o == null) __define_feature__("Reflect.getProperty",
 				null) else if (o.__properties__ && (tmp = o.__properties__["get_" + field])) o[tmp]() else o[field];
 		}
+	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
 		untyped {
 			var tmp;
 			if (o.__properties__ && (tmp = o.__properties__["set_" + field]))
@@ -52,6 +54,7 @@
 			else
 				o[field] = __define_feature__("Reflect.setProperty", value);
 		}
+	}
 
 	public inline static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		return (cast func : js.lib.Function).apply(o, args);
@@ -59,7 +62,7 @@
 
 	public static function fields(o:Dynamic):Array<String> {
 		var a = [];
-		if (o != null)
+		if (o != null) {
 			untyped {
 				var hasOwnProperty = js.lib.Object.prototype.hasOwnProperty;
 				js.Syntax.code("for( var f in o ) {");
@@ -67,6 +70,7 @@
 					a.push(f);
 				js.Syntax.code("}");
 			}
+		}
 		return a;
 	}
 

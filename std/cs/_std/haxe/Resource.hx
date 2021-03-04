@@ -23,7 +23,9 @@
 package haxe;
 
 @:coreApi class Resource {
+	@:nullSafety(Off)
 	@:keep static var content:Array<String>;
+	@:nullSafety(Off)
 	static var paths:Map<String, String>;
 
 	@:keep static function getPaths():Map<String, String> {
@@ -45,7 +47,7 @@ package haxe;
 	}
 
 	@:access(haxe.io.Path.escape)
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
 		if (path == null)
@@ -57,7 +59,7 @@ package haxe;
 	}
 
 	@:access(haxe.io.Path.escape)
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
 		if (path == null)

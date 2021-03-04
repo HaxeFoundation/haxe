@@ -26,8 +26,11 @@ import jvm.CompiledPattern;
 using StringTools;
 
 @:coreApi class EReg {
+	@:nullSafety(Off)
 	private var matcher:Matcher;
+	@:nullSafety(Off)
 	private var cur:String;
+	@:nullSafety(Off)
 	private var isGlobal:Bool;
 
 	@:overload

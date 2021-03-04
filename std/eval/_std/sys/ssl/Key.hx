@@ -35,7 +35,7 @@ class Key {
 
 	static public function loadFile(file:String, ?isPublic:Bool, ?pass:String):Key {
 		var key = new Key();
-		var code = if (isPublic) {
+		var code = if (isPublic == true) {
 			key.native.parse_public_keyfile(file);
 		} else {
 			key.native.parse_keyfile(file, pass);

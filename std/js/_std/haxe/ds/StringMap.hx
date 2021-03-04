@@ -22,16 +22,16 @@
 
 package haxe.ds;
 
-import js.lib.Object;
 import haxe.Constraints.IMap;
 import haxe.DynamicAccess;
+import js.lib.Object;
 
 #if (js_es >= 5)
 @:coreApi class StringMap<T> implements IMap<String, T> {
 	var h:Dynamic;
 
 	public inline function new() {
-		h = Object.create(null);
+		h = @:nullSafety(Off) Object.create(null);
 	}
 
 	public inline function exists(key:String):Bool {
@@ -48,7 +48,8 @@ import haxe.DynamicAccess;
 
 	public inline function remove(key:String):Bool {
 		return if (exists(key)) {
-			js.Syntax.delete(h, key); true;
+			js.Syntax.delete(h, key);
+			true;
 		} else {
 			false;
 		}
@@ -71,6 +72,7 @@ import haxe.DynamicAccess;
 	}
 
 	public inline function clear():Void {
+		@:nullSafety(Off)
 		h = Object.create(null);
 	}
 
@@ -187,6 +189,7 @@ private class StringMapIterator<T> {
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	private var h:Dynamic;
+	@:nullSafety(Off)
 	private var rh:Dynamic;
 
 	public inline function new():Void {
@@ -259,16 +262,18 @@ private class StringMapIterator<T> {
 				out.push(key);
 			js.Syntax.code("}");
 		}
-		if (rh != null)
+		if (rh != null) {
 			untyped {
 				js.Syntax.code("for( var key in this.rh ) {");
 				if (key.charCodeAt(0) == "$".code)
 					out.push(key.substr(1));
 				js.Syntax.code("}");
 			}
+		}
 		return out;
 	}
 
+	@:nullSafety(Off)
 	public inline function iterator():Iterator<T> {
 		return new StringMapIterator(this, arrayKeys());
 	}
@@ -281,6 +286,7 @@ private class StringMapIterator<T> {
 		var copied = new StringMap();
 		for (key in keys())
 			copied.set(key, get(key));
+		@:nullSafety(Off)
 		return copied;
 	}
 
@@ -302,6 +308,7 @@ private class StringMapIterator<T> {
 
 	public inline function clear():Void {
 		h = {};
+		@:nullSafety(Off)
 		rh = null;
 	}
 

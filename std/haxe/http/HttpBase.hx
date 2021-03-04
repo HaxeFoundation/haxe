@@ -46,8 +46,8 @@ class HttpBase {
 	**/
 	public var url:String;
 
-	public var responseData(get,never):Null<String>;
-	public var responseBytes(default,null):Null<Bytes>;
+	public var responseData(get, never):Null<String>;
+	public var responseBytes(default, null):Null<Bytes>;
 
 	var responseAsString:Null<String>;
 	var postData:Null<String>;
@@ -55,7 +55,7 @@ class HttpBase {
 	var headers:Array<StringKeyValue>;
 	var params:Array<StringKeyValue>;
 
-	final emptyOnData:(String)->Void;
+	final emptyOnData:(String) -> Void;
 
 	/**
 		Creates a new Http instance with `url` as parameter.
@@ -182,7 +182,7 @@ class HttpBase {
 		[js] If `this.async` is false, the callback functions are called before
 		this method returns.
 	**/
-	public function request(?post:Bool):Void {
+	public function request(post = false):Void {
 		throw new haxe.exceptions.NotImplementedException();
 	}
 
@@ -232,13 +232,16 @@ class HttpBase {
 	function success(data:Bytes) {
 		responseBytes = data;
 		responseAsString = null;
-		if (hasOnData()) {
-			onData(responseData);
+		@:nullSafety(Off) {
+			if (hasOnData()) {
+				onData(responseData);
+			}
+			onBytes(responseBytes);
 		}
-		onBytes(responseBytes);
 	}
 
 	function get_responseData() {
+		@:nullSafety(Off)
 		if (responseAsString == null && responseBytes != null) {
 			#if neko
 			responseAsString = neko.Lib.stringReference(responseBytes);

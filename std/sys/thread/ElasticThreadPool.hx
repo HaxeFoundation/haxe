@@ -25,7 +25,6 @@ package sys.thread;
 #if (!target.threaded)
 #error "This class is not available on this target"
 #end
-
 import haxe.Exception;
 
 /**
@@ -37,16 +36,21 @@ import haxe.Exception;
 @:coreApi
 class ElasticThreadPool implements IThreadPool {
 	/* Amount of alive threads in this pool. */
-	public var threadsCount(get,null):Int;
+	@:nullSafety(Off)
+	public var threadsCount(get, null):Int;
 	/* Maximum amount of threads in this pool. */
 	public var maxThreadsCount:Int;
+
 	/** Indicates if `shutdown` method of this pool has been called. */
-	public var isShutdown(get,never):Bool;
+	public var isShutdown(get, never):Bool;
+
 	var _isShutdown = false;
-	function get_isShutdown():Bool return _isShutdown;
+
+	function get_isShutdown():Bool
+		return _isShutdown;
 
 	final pool:Array<Worker> = [];
-	final queue = new Deque<()->Void>();
+	final queue = new Deque<() -> Void>();
 	final mutex = new Mutex();
 	final threadTimeout:Float;
 
@@ -57,7 +61,7 @@ class ElasticThreadPool implements IThreadPool {
 		is terminated.
 	**/
 	public function new(maxThreadsCount:Int, threadTimeout:Float = 60):Void {
-		if(maxThreadsCount < 1)
+		if (maxThreadsCount < 1)
 			throw new ThreadPoolException('ElasticThreadPool needs maxThreadsCount to be at least 1.');
 		this.maxThreadsCount = maxThreadsCount;
 		this.threadTimeout = threadTimeout;
@@ -68,29 +72,30 @@ class ElasticThreadPool implements IThreadPool {
 
 		Throws an exception if the pool is shut down.
 	**/
-	public function run(task:()->Void):Void {
-		if(_isShutdown)
+	public function run(task:() -> Void):Void {
+		if (_isShutdown)
 			throw new ThreadPoolException('Task is rejected. Thread pool is shut down.');
-		if(task == null)
+		if (task == null)
 			throw new ThreadPoolException('Task to run must not be null.');
 
 		mutex.acquire();
 		var submitted = false;
+		@:nullSafety(Off)
 		var deadWorker = null;
-		for(worker in pool) {
-			if(deadWorker == null && worker.dead) {
+		for (worker in pool) {
+			if (deadWorker == null && worker.dead) {
 				deadWorker = worker;
 			}
-			if(worker.task == null) {
+			if (worker.task == null) {
 				submitted = true;
 				worker.wakeup(task);
 				break;
 			}
 		}
-		if(!submitted) {
-			if(deadWorker != null) {
+		if (!submitted) {
+			if (deadWorker != null) {
 				deadWorker.wakeup(task);
-			} else if(pool.length < maxThreadsCount) {
+			} else if (pool.length < maxThreadsCount) {
 				var worker = new Worker(queue, threadTimeout);
 				pool.push(worker);
 				worker.wakeup(task);
@@ -109,10 +114,11 @@ class ElasticThreadPool implements IThreadPool {
 		Multiple calls to this method have no effect.
 	**/
 	public function shutdown():Void {
-		if(_isShutdown) return;
+		if (_isShutdown)
+			return;
 		mutex.acquire();
 		_isShutdown = true;
-		for(worker in pool) {
+		for (worker in pool) {
 			worker.shutdown();
 		}
 		mutex.release();
@@ -120,33 +126,35 @@ class ElasticThreadPool implements IThreadPool {
 
 	function get_threadsCount():Int {
 		var result = 0;
-		for(worker in pool)
-			if(!worker.dead)
+		for (worker in pool)
+			if (!worker.dead)
 				++result;
 		return result;
 	}
 }
 
 private class Worker {
-	public var task(default,null):Null<()->Void>;
-	public var dead(default,null) = false;
+	public var task(default, null):Null<() -> Void>;
+	public var dead(default, null) = false;
 
 	final deathMutex = new Mutex();
 	final waiter = new Lock();
-	final queue:Deque<()->Void>;
+	final queue:Deque<() -> Void>;
 	final timeout:Float;
+	@:nullSafety(Off)
 	var thread:Thread;
 	var isShutdown = false;
 
-	public function new(queue:Deque<()->Void>, timeout:Float) {
+	public function new(queue:Deque<() -> Void>, timeout:Float) {
 		this.queue = queue;
 		this.timeout = timeout;
+		@:nullSafety(Off)
 		start();
 	}
 
-	public function wakeup(task:()->Void) {
+	public function wakeup(task:() -> Void) {
 		deathMutex.acquire();
-		if(dead)
+		if (dead)
 			start();
 		this.task = task;
 		waiter.release();
@@ -165,15 +173,15 @@ private class Worker {
 
 	function loop() {
 		try {
-			while(waiter.wait(timeout)) {
+			while (waiter.wait(timeout)) {
 				switch task {
 					case null:
-						if(isShutdown)
+						if (isShutdown)
 							break;
 					case fn:
 						fn();
-						//if more tasks were added while all threads were busy
-						while(true) {
+						// if more tasks were added while all threads were busy
+						while (true) {
 							switch queue.pop(false) {
 								case null: break;
 								case fn: fn();
@@ -183,13 +191,13 @@ private class Worker {
 				}
 			}
 			deathMutex.acquire();
-			//in case a task was submitted right after the lock timed out
-			if(task != null)
+			// in case a task was submitted right after the lock timed out
+			if (task != null)
 				start()
 			else
 				dead = true;
 			deathMutex.release();
-		} catch(e) {
+		} catch (e) {
 			task = null;
 			start();
 			throw e;

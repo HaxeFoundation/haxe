@@ -22,10 +22,10 @@
 
 package haxe.ds;
 
-import php.Syntax;
 import php.Global;
 import php.NativeArray;
 import php.NativeIndexedArray;
+import php.Syntax;
 
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	var data:NativeIndexedArray<T>;
@@ -38,7 +38,7 @@ import php.NativeIndexedArray;
 		data[key] = value;
 	}
 
-	public inline function get(key:Int):Null<T> {
+	public inline function get(key:Int):Null<T> {@:nullSafety(Off)
 		return Syntax.coalesce(data[key], null);
 	}
 

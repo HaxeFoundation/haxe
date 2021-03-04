@@ -26,10 +26,12 @@ package sys.net;
 class Host {
 	public var host(default, null):String;
 
+	@:nullSafety(Off)
 	public var ip(default, null):Int;
 
 	public function new(name:String):Void {
 		host = name;
+		@:nullSafety(Off)
 		ip = host_resolve(@:privateAccess name.bytes.utf16ToUtf8(0, null));
 		if (ip == -1)
 			throw new Sys.SysError("Unresolved host " + name);
@@ -52,14 +54,14 @@ class Host {
 	}
 
 	@:hlNative("std", "host_reverse") static function host_reverse(host:Int):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "host_to_string") static function host_to_string(host:Int):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "host_local") static function host_local():hl.Bytes {
-		return null;
+		return cast null;
 	}
 }

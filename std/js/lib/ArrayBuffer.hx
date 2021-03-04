@@ -38,17 +38,20 @@ extern class ArrayBuffer {
 @:ifFeature('js.lib.ArrayBuffer.slice')
 private class ArrayBufferCompat {
 	static function sliceImpl(begin, ?end) {
-		var u = new js.lib.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : (end - begin));
+		if (end != null)
+			end -= begin;
+		var u = new js.lib.Uint8Array(js.Lib.nativeThis, begin, end);
 		var resultArray = new js.lib.Uint8Array(u.byteLength);
 		resultArray.set(u);
 		return resultArray.buffer;
 	}
 
-	static function __init__():Void
+	static function __init__():Void {
 		untyped {
 			// IE10 ArrayBuffer.slice polyfill
 			if (js.Syntax.code("ArrayBuffer").prototype.slice == null)
 				js.Syntax.code("ArrayBuffer").prototype.slice = sliceImpl;
 		}
+	}
 }
 #end

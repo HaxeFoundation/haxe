@@ -94,6 +94,7 @@ private class Stdout extends haxe.io.Input {
 
 @:access(Sys)
 @:coreApi class Process {
+	@:nullSafety(Off)
 	var p:ProcessHandle;
 
 	public var stdout(default, null):haxe.io.Input;
@@ -148,13 +149,14 @@ private class Stdout extends haxe.io.Input {
 			runCmd = b.toString();
 		}
 		@:privateAccess {
+			@:nullSafety(Off)
 			var aargs = null;
 			if (args != null) {
 				aargs = new hl.NativeArray<hl.Bytes>(args.length);
 				for (i in 0...args.length)
 					aargs[i] = Sys.getPath(args[i]);
 			}
-			p = _run(Sys.getPath(runCmd), aargs, detached);
+			p = _run(Sys.getPath(runCmd), aargs, detached == true);
 		}
 		if (p == null)
 			throw new Sys.SysError("Process creation failure : " + cmd);
@@ -169,6 +171,7 @@ private class Stdout extends haxe.io.Input {
 
 	public function exitCode(block:Bool = true):Null<Int> {
 		var running = false;
+		@:nullSafety(Off)
 		var code = _exit(p, block == false ? new hl.Ref(running) : null);
 		if (block == false)
 			return running ? null : code;
@@ -184,7 +187,7 @@ private class Stdout extends haxe.io.Input {
 	}
 
 	@:hlNative("std", "process_run") static function _run(cmd:hl.Bytes, args:hl.NativeArray<hl.Bytes>, detached:Bool):ProcessHandle {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("std", "process_exit") static function _exit(p:ProcessHandle, running:hl.Ref<Bool>):Int {

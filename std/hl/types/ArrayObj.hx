@@ -29,7 +29,8 @@ class ArrayObjIterator<T> extends ArrayIterator<T> {
 	var arr:ArrayObj<T>;
 
 	public inline function new(arr:ArrayObj<T>) {
-		super((null:Dynamic));
+		@:nullSafety(Off)
+		super((null : Dynamic));
 		this.arr = arr;
 	}
 
@@ -46,7 +47,8 @@ class ArrayObjKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
 	var arr:ArrayObj<T>;
 
 	public inline function new(arr:ArrayObj<T>) {
-		super((null:Dynamic));
+		@:nullSafety(Off)
+		super((null : Dynamic));
 		this.arr = arr;
 	}
 
@@ -56,7 +58,7 @@ class ArrayObjKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
 
 	override public function next():{key:Int, value:T} {
 		var v = @:privateAccess arr.array[current];
-		return {key:current++, value:v};
+		return {key: current++, value: v};
 	}
 }
 
@@ -95,6 +97,7 @@ class ArrayObj<T> extends ArrayBase {
 			return null;
 		length--;
 		var v = array[length];
+		@:nullSafety(Off)
 		array[length] = null;
 		return v;
 	}
@@ -124,6 +127,7 @@ class ArrayObj<T> extends ArrayBase {
 		length--;
 		var v = array[0];
 		array.blit(0, array, 1, length);
+		@:nullSafety(Off)
 		array[length] = null;
 		return v;
 	}
@@ -176,6 +180,7 @@ class ArrayObj<T> extends ArrayBase {
 		var end = pos + len;
 		a.blit(pos, a, end, this.length - end);
 		this.length -= len;
+		@:nullSafety(Off)
 		while (--len >= 0)
 			a[this.length + len] = null;
 		return ret;
@@ -237,11 +242,13 @@ class ArrayObj<T> extends ArrayBase {
 			return false;
 		length--;
 		array.blit(i, array, i + 1, length - i);
+		@:nullSafety(Off)
 		array[length] = null;
 		return true;
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
+		@:nullSafety(Off)
 		var i:Int = fromIndex;
 		if (i < 0) {
 			i += length;
@@ -318,6 +325,7 @@ class ArrayObj<T> extends ArrayBase {
 			__expand(len - 1);
 		} else if (length > len) {
 			for (i in length...len) {
+				@:nullSafety(Off)
 				array[i] = null;
 			}
 			this.length = len;
@@ -343,6 +351,7 @@ class ArrayObj<T> extends ArrayBase {
 
 	override function getDyn(pos:Int):Dynamic {
 		var pos:UInt = pos;
+		@:nullSafety(Off)
 		if (pos >= length)
 			return null;
 		return array[pos];

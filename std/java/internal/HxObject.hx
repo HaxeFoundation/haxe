@@ -22,8 +22,8 @@
 
 package java.internal;
 
-import java.internal.IEquatable;
 import haxe.ds.Vector;
+import java.internal.IEquatable;
 
 private typedef StdType = Type;
 
@@ -44,7 +44,9 @@ class DynamicObject extends HxObject {
 	@:skipReflection var __hx_fields_f:java.NativeArray<String>;
 	@:skipReflection var __hx_dynamics_f:java.NativeArray<Float>;
 
+	@:nullSafety(Off)
 	@:skipReflection var __hx_length:Int;
+	@:nullSafety(Off)
 	@:skipReflection var __hx_length_f:Int;
 
 	@:skipReflection static var __hx_toString_depth = 0;
@@ -93,6 +95,7 @@ class DynamicObject extends HxObject {
 			return this.__hx_dynamics_f[res];
 		}
 
+		@:nullSafety(Off)
 		return isCheck ? Runtime.undefined : null;
 	}
 
@@ -267,7 +270,9 @@ private class ParamEnum extends HxEnum {
 	public function equals(obj:Dynamic) {
 		if (obj == this) // we cannot use == as .Equals !
 			return true;
+		@:nullSafety(Off)
 		var obj:ParamEnum = Std.isOfType(obj, ParamEnum) ? cast obj : null;
+		@:nullSafety(Off)
 		var ret = obj != null && Std.isOfType(obj, StdType.getEnum(cast this)) && obj.index == this.index;
 		if (!ret)
 			return false;

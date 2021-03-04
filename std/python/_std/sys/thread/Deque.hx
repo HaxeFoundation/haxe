@@ -48,7 +48,7 @@ class Deque<T> {
 	}
 
 	public function pop(block:Bool):Null<T> {
-		var ret = null;
+		var ret:Null<T> = null;
 		lock.acquire();
 		if (block) {
 			lock.wait_for(() -> deque.bool());
@@ -77,7 +77,7 @@ private extern class NativeCondition {
 	function acquire(blocking:Bool = true, timeout:Float = -1):Bool;
 	function release():Void;
 	function wait(?timeout:Float):Bool;
-	function wait_for(predicate:()->Bool, ?timeout:Float):Bool;
+	function wait_for(predicate:() -> Bool, ?timeout:Float):Bool;
 	function notify(n:Int = 1):Void;
 	function notify_all():Void;
 }

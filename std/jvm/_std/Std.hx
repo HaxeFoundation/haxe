@@ -55,7 +55,7 @@ class Std {
 		return clt.isAssignableFrom((v : java.lang.Object).getClass());
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return jvm.Jvm.toString(s);
 	}
 
@@ -161,12 +161,12 @@ class Std {
 		return try java.lang.Double.DoubleClass.parseDouble(x) catch (e:Dynamic) Math.NaN;
 	}
 
-	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 

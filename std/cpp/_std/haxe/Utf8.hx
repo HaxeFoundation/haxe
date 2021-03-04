@@ -59,6 +59,7 @@ class Utf8 {
 		var src = s.c_str();
 		var end = src.add(s.length);
 
+		@:nullSafety(Off)
 		while (src.lt(end))
 			chars(src.ptr.utf8DecodeAdvance());
 	}

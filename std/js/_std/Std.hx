@@ -34,17 +34,17 @@ import js.Syntax;
 		return @:privateAccess js.Boot.__instanceof(v, t);
 	}
 
-	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S@:privateAccess {
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> @:privateAccess {
 		return if (js.Boot.__downcastCheck(value, c)) cast value else null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 
 	@:pure
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return @:privateAccess js.Boot.__string_rec(s, "");
 	}
 
@@ -54,10 +54,10 @@ import js.Syntax;
 
 	@:pure
 	public static function parseInt(x:String):Null<Int> {
-		if(x != null) {
-			for(i in 0...x.length) {
+		if (x != null) {
+			for (i in 0...x.length) {
 				var c = StringTools.fastCodeAt(x, i);
-				if(c <= 8 || (c >= 14 && c != ' '.code && c != '-'.code)) {
+				if (c <= 8 || (c >= 14 && c != ' '.code && c != '-'.code)) {
 					var nc = StringTools.fastCodeAt(x, i + 1);
 					var v = js.Lib.parseInt(x, (nc == "x".code || nc == "X".code) ? 16 : 10);
 					return Math.isNaN(v) ? null : cast v;
@@ -75,7 +75,7 @@ import js.Syntax;
 		return x <= 0 ? 0 : Math.floor(Math.random() * x);
 	}
 
-	static function __init__():Void
+	static function __init__():Void {
 		untyped {
 			__feature__("js.Boot.getClass", String.prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["String"] = String, String));
 			__feature__("js.Boot.isClass", String.__name__ = __feature__("Type.getClassName", "String", true));
@@ -83,7 +83,8 @@ import js.Syntax;
 			__feature__("js.Boot.isClass", Array.__name__ = __feature__("Type.getClassName", "Array", true));
 			__feature__("Date.*", {
 				__feature__("js.Boot.getClass",
-					js.Syntax.code('Date').prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = js.Syntax.code('Date'), js.Syntax.code('Date')));
+					js.Syntax.code('Date')
+						.prototype.__class__ = __feature__("Type.resolveClass", $hxClasses["Date"] = js.Syntax.code('Date'), js.Syntax.code('Date')));
 				__feature__("js.Boot.isClass", js.Syntax.code('Date').__name__ = "Date");
 			});
 			__feature__("Int.*", js.Syntax.code('var Int = { };'));
@@ -110,4 +111,5 @@ import js.Syntax;
 			});
 			#end
 		}
+	}
 }

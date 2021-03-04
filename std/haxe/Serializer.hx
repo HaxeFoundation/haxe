@@ -23,6 +23,7 @@
 package haxe;
 
 import haxe.ds.List;
+import haxe.ds.Vector;
 
 /**
 	The Serializer class can be used to encode values and objects into a `String`,
@@ -69,7 +70,7 @@ class Serializer {
 	public static var USE_ENUM_INDEX = false;
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
-	static var BASE64_CODES = null;
+	static var BASE64_CODES:Null<Vector<Int>>;
 
 	var buf:StringBuf;
 	var cache:Array<Dynamic>;
@@ -202,6 +203,7 @@ class Serializer {
 			if (!v.hasOwnProperty(f))
 				continue;
 			serializeString(f);
+			@:nullSafety(Off)
 			serialize(Reflect.field(v, f));
 		}
 		buf.add("g");
@@ -211,6 +213,7 @@ class Serializer {
 	function serializeFields(v:{}) {
 		for (f in Reflect.fields(v)) {
 			serializeString(f);
+			@:nullSafety(Off)
 			serialize(Reflect.field(v, f));
 		}
 		buf.add("g");
@@ -306,6 +309,7 @@ class Serializer {
 						var v:haxe.ds.StringMap<Dynamic> = v;
 						for (k in v.keys()) {
 							serializeString(k);
+							@:nullSafety(Off)
 							serialize(v.get(k));
 						}
 						buf.add("h");
@@ -315,6 +319,7 @@ class Serializer {
 						for (k in v.keys()) {
 							buf.add(":");
 							buf.add(k);
+							@:nullSafety(Off)
 							serialize(v.get(k));
 						}
 						buf.add("h");
@@ -326,10 +331,12 @@ class Serializer {
 							var id = Reflect.field(k, "__id__");
 							Reflect.deleteField(k, "__id__");
 							serialize(k);
+							@:nullSafety(Off)
 							Reflect.setField(k, "__id__", id);
 							#else
 							serialize(k);
 							#end
+							@:nullSafety(Off)
 							serialize(v.get(k));
 						}
 						buf.add("h");
@@ -357,35 +364,41 @@ class Serializer {
 						var max = v.length - 2;
 						var b64 = BASE64_CODES;
 						if (b64 == null) {
-							b64 = new haxe.ds.Vector(BASE64.length);
+							b64 = new Vector(BASE64.length);
+							@:nullSafety(Off)
 							for (i in 0...BASE64.length)
 								b64[i] = BASE64.charCodeAt(i);
-							BASE64_CODES = b64;
 						}
 						while (i < max) {
 							var b1 = v.get(i++);
 							var b2 = v.get(i++);
 							var b3 = v.get(i++);
-
-							buf.addChar(b64[b1 >> 2]);
-							buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
-							buf.addChar(b64[((b2 << 2) | (b3 >> 6)) & 63]);
-							buf.addChar(b64[b3 & 63]);
+							@:nullSafety(Off) {
+								buf.addChar(b64[b1 >> 2]);
+								buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
+								buf.addChar(b64[((b2 << 2) | (b3 >> 6)) & 63]);
+								buf.addChar(b64[b3 & 63]);
+							}
 						}
 						if (i == max) {
 							var b1 = v.get(i++);
 							var b2 = v.get(i++);
-							buf.addChar(b64[b1 >> 2]);
-							buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
-							buf.addChar(b64[(b2 << 2) & 63]);
+							@:nullSafety(Off) {
+								buf.addChar(b64[b1 >> 2]);
+								buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
+								buf.addChar(b64[(b2 << 2) & 63]);
+							}
 						} else if (i == max + 1) {
 							var b1 = v.get(i++);
-							buf.addChar(b64[b1 >> 2]);
-							buf.addChar(b64[(b1 << 4) & 63]);
+							@:nullSafety(Off) {
+								buf.addChar(b64[b1 >> 2]);
+								buf.addChar(b64[(b1 << 4) & 63]);
+							}
 						}
 						#end
 					default:
-						if (useCache) cache.pop();
+						if (useCache)
+							cache.pop();
 						if (#if flash try
 							v.hxSerialize != null
 						catch (e:Dynamic)

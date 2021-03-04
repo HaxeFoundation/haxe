@@ -115,6 +115,7 @@ private class SocketOutput extends haxe.io.Output {
 	}
 }
 
+@:nullSafety(Off)
 @:coreApi
 class Socket extends sys.net.Socket {
 	public static var DEFAULT_VERIFY_CERT:Null<Bool> = true;
@@ -269,12 +270,14 @@ class Socket extends sys.net.Socket {
 				for (c in altSNIContexts) {
 					if (c.match(servername))
 						return @:privateAccess {
-							key:c.key.__k, cert:c.cert.__x
+							key:c.key.__k,
+							cert:c.cert.__x
 						};
 				}
 				if (ownKey != null && ownCert != null)
 					return @:privateAccess {
-						key:ownKey.__k, cert:ownCert.__x
+						key:ownKey.__k,
+						cert:ownCert.__x
 					};
 				return null;
 			}

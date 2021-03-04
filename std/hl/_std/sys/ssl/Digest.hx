@@ -43,11 +43,11 @@ class Digest {
 	}
 
 	@:hlNative("ssl", "dgst_make") static function dgst_make(data:hl.Bytes, len:Int, alg:hl.Bytes, size:hl.Ref<Int>):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "dgst_sign") static function dgst_sign(data:hl.Bytes, len:Int, key:sys.ssl.Key.KeyPtr, alg:hl.Bytes, size:hl.Ref<Int>):hl.Bytes {
-		return null;
+		return cast null;
 	}
 
 	@:hlNative("ssl", "dgst_verify") static function dgst_verify(data:hl.Bytes, dlen:Int, sign:hl.Bytes, slen:Int, key:sys.ssl.Key.KeyPtr, alg:hl.Bytes):Bool {

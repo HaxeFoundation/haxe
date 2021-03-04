@@ -66,7 +66,7 @@ import cs.Lib;
 		return false;
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		if (s == null)
 			return "null";
 		if (Std.isOfType(s, Bool))
@@ -175,12 +175,12 @@ import cs.Lib;
 		return try cs.system.Double.Parse(x, cs.system.globalization.CultureInfo.InvariantCulture) catch (e:Dynamic) Math.NaN;
 	}
 
-	extern inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+	extern inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return cs.Lib.as(value, c);
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	extern inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	extern inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 

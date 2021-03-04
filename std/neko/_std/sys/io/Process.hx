@@ -83,6 +83,7 @@ private class Stdout extends haxe.io.Input {
 }
 
 @:coreApi class Process {
+	@:nullSafety(Off)
 	var p:Dynamic;
 
 	public var stdout(default, null):haxe.io.Input;
@@ -90,8 +91,9 @@ private class Stdout extends haxe.io.Input {
 	public var stdin(default, null):haxe.io.Output;
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
-		if (detached)
+		if (detached == true)
 			throw "Detached process is not supported on this platform";
+		@:nullSafety(Off)
 		p = try _run(untyped cmd.__s, neko.Lib.haxeToNeko(args)) catch (e:Dynamic) throw "Process creation failure : " + cmd;
 		stdin = new Stdin(p);
 		stdout = new Stdout(p, true);

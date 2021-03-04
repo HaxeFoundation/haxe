@@ -35,84 +35,98 @@ import hl.Ref;
 
 	public function getFullYear():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_inf(t, v, null, null, null, null, null, null);
 		return v;
 	}
 
 	public function getMonth():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_inf(t, null, v, null, null, null, null, null);
 		return v;
 	}
 
 	public function getDate():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_inf(t, null, null, v, null, null, null, null);
 		return v;
 	}
 
 	public function getHours():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_inf(t, null, null, null, v, null, null, null);
 		return v;
 	}
 
 	public function getMinutes():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_inf(t, null, null, null, null, v, null, null);
 		return v;
 	}
 
 	public function getSeconds():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_inf(t, null, null, null, null, null, v, null);
 		return v;
 	}
 
 	public function getDay():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_inf(t, null, null, null, null, null, null, v);
 		return v;
 	}
 
 	public function getUTCFullYear():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, v, null, null, null, null, null, null);
 		return v;
 	}
 
 	public function getUTCMonth():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, null, v, null, null, null, null, null);
 		return v;
 	}
 
 	public function getUTCDate():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, null, null, v, null, null, null, null);
 		return v;
 	}
 
 	public function getUTCHours():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, null, null, null, v, null, null, null);
 		return v;
 	}
 
 	public function getUTCMinutes():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, null, null, null, null, v, null, null);
 		return v;
 	}
 
 	public function getUTCSeconds():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, null, null, null, null, null, v, null);
 		return v;
 	}
 
 	public function getUTCDay():Int {
 		var v = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, null, null, null, null, null, null, v);
 		return v;
 	}
@@ -124,6 +138,7 @@ import hl.Ref;
 		var h = 0;
 		var m = 0;
 		var s = 0;
+		@:nullSafety(Off)
 		date_get_utc_inf(t, y, mo, d, h, m, s, null);
 		return Std.int((date_new(y, mo, d, h, m, s) - t) / 60);
 	}
@@ -187,10 +202,11 @@ import hl.Ref;
 	static function date_get_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
 
 	@:hlNative(1.11)
-	static function date_get_utc_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
+	static function date_get_utc_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>,
+		wday:Ref<Int>):Void {}
 
 	@:hlNative
 	static function date_to_string(t:Int, outLen:Ref<Int>):hl.Bytes {
-		return null;
+		return cast null;
 	}
 }
