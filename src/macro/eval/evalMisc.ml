@@ -167,6 +167,7 @@ let op_add p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
+	| VNativeString s1,VNativeString s2 -> vnative_string (s1 ^ s2)
 	| VString s1,VString s2 -> vstring (concat s1 s2)
 	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
 	| v1,VString s2 -> vstring (concat (s_value 0 v1) s2)
@@ -254,3 +255,37 @@ let get_binop_fun op p = match op with
 	| OpUShr -> op_ushr p
 	| OpMod -> op_mod p
 	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die "" __LOC__
+
+let prepare_callback v n =
+	match v with
+	| VFunction _ | VFieldClosure _ ->
+		let ctx = get_ctx() in
+		(fun args -> match catch_exceptions ctx (fun() -> call_value v args) null_pos with
+			| Some v -> v
+			| None -> vnull)
+	| _ ->
+		raise MacroApi.Invalid_expr
+
+let create_haxe_exception ?stack msg =
+	let vi = encode_instance key_haxe_Exception in
+	match vi with
+	| VInstance i ->
+		let v_msg = create_unknown (msg) in
+		set_instance_field i key_exception_message v_msg;
+		set_instance_field i key_native_exception v_msg;
+		(match stack with
+		| Some stack ->
+			let stack = EvalStackTrace.make_stack stack in
+			set_instance_field i key_native_stack stack;
+		| None ->
+			let ctx = get_ctx() in
+			let eval = get_eval ctx in
+			match eval.env with
+			| Some _ ->
+				let stack = EvalStackTrace.make_stack_value (call_stack eval) in
+				set_instance_field i key_native_stack stack;
+			| None -> ()
+		);
+		vi
+	| _ ->
+		die "" __LOC__

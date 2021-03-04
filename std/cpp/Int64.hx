@@ -22,4 +22,14 @@
 
 package cpp;
 
-@:coreType @:notNull @:runtimeValue abstract Int64 from Int to Int {}
+@:coreType @:notNull @:runtimeValue abstract Int64 from Int to Int {
+	@:to
+	#if !cppia inline #end function toInt64():haxe.Int64 {
+		return cast this;
+	}
+
+	@:from
+	static #if !cppia inline #end function ofInt64(x:haxe.Int64):Int64 {
+		return cast x;
+	}
+}

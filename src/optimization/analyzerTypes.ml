@@ -43,6 +43,9 @@ module BasicBlock = struct
 		| BKUnreachable             (* The unique unreachable block *)
 		| BKCatch of tvar           (* A catch block *)
 
+	type flag_block =
+		| BlockDce
+
 	type cfg_edge_Flag =
 		| FlagExecutable      (* Used by constant propagation to handle live edges *)
 		| FlagDce             (* Used by DCE to keep track of handled edges *)
@@ -67,10 +70,25 @@ module BasicBlock = struct
 		| SEIfThenElse of t * t * t * Type.t * pos               (* `if` with "then", "else" and "next" *)
 		| SESwitch of (texpr list * t) list * t option * t * pos (* `switch` with cases, "default" and "next" *)
 		| SETry of t * t * (tvar * t) list * t *  pos            (* `try` with "exc", catches and "next" *)
-		| SEWhile of t * t * t                                   (* `while` with "head", "body" and "next" *)
+		| SEWhile of t * t * pos                                 (* `while` with "body" and "next" *)
 		| SESubBlock of t * t                                    (* "sub" with "next" *)
 		| SEMerge of t                                           (* Merge to same block *)
 		| SENone                                                 (* No syntax exit *)
+
+	and suspend_call = {
+		efun : texpr;      (* coroutine function expression *)
+		args : texpr list; (* call arguments without the continuation *)
+		pos : pos;         (* call position *)
+	}
+
+	and terminator_kind =
+	| TermNone
+	| TermCondBranch of texpr
+	| TermReturn of pos
+	| TermReturnValue of texpr * pos
+	| TermBreak of pos
+	| TermContinue of pos
+	| TermThrow of texpr * pos
 
 	and t = {
 		bb_id : int;                          (* The unique ID of the block *)
@@ -78,9 +96,11 @@ module BasicBlock = struct
 		bb_pos : pos;                         (* The block position *)
 		bb_kind : block_kind;                 (* The block kind *)
 		mutable bb_closed : bool;             (* Whether or not the block has been closed *)
+		mutable bb_flags : int;
 		(* elements *)
 		bb_el : texpr DynArray.t;             (* The block expressions *)
 		bb_phi : texpr DynArray.t;            (* SSA-phi expressions *)
+		mutable bb_terminator : terminator_kind;
 		(* relations *)
 		mutable bb_outgoing : cfg_edge list;  (* Outgoing edges *)
 		mutable bb_incoming : cfg_edge list;  (* Incoming edges *)
@@ -93,6 +113,23 @@ module BasicBlock = struct
 		(* variables *)
 		mutable bb_var_writes : tvar list;    (* List of assigned variables *)
 	}
+
+	type texpr_lookup_target =
+		| LUPhi of int
+		| LUEl of int
+		| LUTerm
+
+	let int_of_block_flag (flag : flag_block) =
+		Obj.magic flag
+
+	let add_block_flag bb (flag : flag_block) =
+		bb.bb_flags <- set_flag bb.bb_flags (int_of_block_flag flag)
+
+	let remove_block_flag bb (flag : flag_block) =
+		bb.bb_flags <- unset_flag bb.bb_flags (int_of_block_flag flag)
+
+	let has_block_flag bb (flag : flag_block) =
+		has_flag bb.bb_flags (int_of_block_flag flag)
 
 	let s_block_kind = function
 		| BKRoot -> "BKRoot"
@@ -121,8 +158,21 @@ module BasicBlock = struct
 	let add_texpr bb e =
 		DynArray.add bb.bb_el e
 
-	let get_texpr bb is_phi i =
-		DynArray.get (if is_phi then bb.bb_phi else bb.bb_el) i
+	let get_texpr bb luk = match luk with
+		| LUPhi i ->
+			DynArray.get bb.bb_phi i
+		| LUEl i ->
+			DynArray.get bb.bb_el i
+		| LUTerm -> match bb.bb_terminator with
+			| TermCondBranch e1
+			| TermReturnValue(e1,_)
+			| TermThrow(e1,_) ->
+					e1
+			| TermNone
+			| TermReturn _
+			| TermBreak _
+			| TermContinue _ ->
+				die "" __LOC__
 
 	(* edges *)
 
@@ -143,8 +193,10 @@ module BasicBlock = struct
 			bb_type = t;
 			bb_pos = p;
 			bb_closed = false;
+			bb_flags = 0;
 			bb_el = DynArray.create();
 			bb_phi = DynArray.create();
+			bb_terminator = TermNone;
 			bb_outgoing = [];
 			bb_incoming = [];
 			bb_dominator = bb;
@@ -160,6 +212,30 @@ module BasicBlock = struct
 	let in_scope bb bb' = match bb'.bb_scopes with
 		| [] -> abort (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
 		| scope :: _ -> List.mem scope bb.bb_scopes
+
+	let terminator_map f term = match term with
+		| TermCondBranch e1 ->
+			TermCondBranch (f e1)
+		| TermReturnValue(e1,p) ->
+			TermReturnValue (f e1,p)
+		| TermThrow(e1,p) ->
+			TermThrow (f e1,p)
+		| TermNone
+		| TermReturn _
+		| TermBreak _
+		| TermContinue _ ->
+			term
+
+	let terminator_iter f term = match term with
+			| TermCondBranch e1
+			| TermReturnValue(e1,_)
+			| TermThrow(e1,_) ->
+				f e1
+			| TermNone
+			| TermReturn _
+			| TermBreak _
+			| TermContinue _ ->
+				()
 end
 
 (*
@@ -169,8 +245,8 @@ end
 module Graph = struct
 	open BasicBlock
 
-	type texpr_lookup = BasicBlock.t * bool * int
 	type tfunc_info = BasicBlock.t * Type.t * pos * tfunc
+	type texpr_lookup = BasicBlock.t * texpr_lookup_target
 	type var_write = BasicBlock.t list
 	type 'a itbl = (int,'a) Hashtbl.t
 
@@ -230,16 +306,16 @@ module Graph = struct
 			vi.vi_writes <- bb :: vi.vi_writes;
 		end
 
-	let set_var_value g v bb is_phi i =
-		(get_var_info g v).vi_value <- Some (bb,is_phi,i)
+	let set_var_value g v bb luk =
+		(get_var_info g v).vi_value <- Some (bb,luk)
 
 	let get_var_value g v =
 		let value = (get_var_info g v).vi_value in
-		let bb,is_phi,i = match value with
+		let bb,luk = match value with
 			| None -> raise Not_found
 			| Some l -> l
 		in
-		match (get_texpr bb is_phi i).eexpr with
+		match (get_texpr bb luk).eexpr with
 		| TVar(_,Some e) | TBinop(OpAssign,_,e) -> e
 		| _ -> die "" __LOC__
 
@@ -249,9 +325,9 @@ module Graph = struct
 	let get_var_origin g v =
 		(get_var_info g v).vi_origin
 
-	let add_ssa_edge g v bb is_phi i =
+	let add_ssa_edge g v bb luk =
 		let vi = get_var_info g v in
-		vi.vi_ssa_edges <- (bb,is_phi,i) :: vi.vi_ssa_edges
+		vi.vi_ssa_edges <- (bb,luk) :: vi.vi_ssa_edges
 
 	(* nodes *)
 
@@ -270,7 +346,7 @@ module Graph = struct
 		g.g_nodes <- bb :: g.g_nodes;
 		bb
 
-	let close_node g bb =
+	let close_node bb =
 		if bb.bb_id > 0 then begin
 			assert(not bb.bb_closed);
 			bb.bb_closed <- true
@@ -456,15 +532,17 @@ module Graph = struct
 				| _ ->
 					()
 			end;
-			DynArray.iter (fun e -> match e.eexpr with
-				| TVar(v,eo) ->
-					declare_var g v bb;
-					if eo <> None then add_var_def g bb v;
-				| TBinop(OpAssign,{eexpr = TLocal v},_) ->
-					add_var_def g bb v
-				| _ ->
-					()
-			) bb.bb_el
+			let infer e = match e.eexpr with
+			| TVar(v,eo) ->
+				declare_var g v bb;
+				if eo <> None then add_var_def g bb v;
+			| TBinop(OpAssign,{eexpr = TLocal v},_) ->
+				add_var_def g bb v
+			| _ ->
+				()
+			in
+			DynArray.iter infer bb.bb_el;
+			terminator_iter infer bb.bb_terminator;
 		)
 
 	(* Infers the scopes of all reachable blocks. This function can be run multiple times
@@ -495,9 +573,8 @@ module Graph = struct
 					loop scopes' bb_exc;
 					List.iter (fun (_,bb_catch) -> loop (next_scope scopes) bb_catch) catches;
 					loop scopes bb_next
-				| SEWhile(bb_head,bb_body,bb_next) ->
+				| SEWhile(bb_body,bb_next,_) ->
 					let scopes' = next_scope scopes in
-					loop scopes' bb_head;
 					loop scopes' bb_body;
 					loop scopes bb_next;
 				| SESubBlock(bb_sub,bb_next) ->
@@ -523,4 +600,5 @@ type analyzer_context = {
 	mutable loop_stack : int list;
 	mutable debug_exprs : (string * texpr) list;
 	mutable name_stack : string list;
+	mutable did_optimize : bool;
 }

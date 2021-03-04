@@ -245,6 +245,11 @@ enum Unop {
 		`~`
 	**/
 	OpNegBits;
+
+	/**
+		`...`
+	**/
+	OpSpread;
 }
 
 /**

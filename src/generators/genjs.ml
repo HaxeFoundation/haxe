@@ -326,6 +326,27 @@ let rec concat ctx s f = function
 		spr ctx s;
 		concat ctx s f l
 
+(**
+	Produce expressions to declare arguments of a function with `Rest<T>` trailing argument.
+	Used for ES5 and older standards, which don't support "rest parameters" syntax.
+	`args` is a list of explicitly defined arguments.
+	`rest_arg` is the argument of `Rest<T>` type.
+
+	This implementation copies rest arguments into a new array in a loop.
+	It's the only way to avoid disabling javascript VM optimizations of functions
+	with rest arguments.
+*)
+let declare_rest_args_legacy com offset rest_arg =
+	let i = string_of_int offset in
+	let new_array = mk (TIdent ("new Array($l>" ^ i ^ "?$l-"^ i ^":0)")) t_dynamic rest_arg.v_pos
+	and populate = mk (TIdent ("for(var $i=" ^ i ^ ";$i<$l;++$i){" ^ (ident rest_arg.v_name) ^ "[$i-" ^ i ^ "]=arguments[$i];}")) com.basic.tvoid rest_arg.v_pos
+	in
+	[
+		mk (TIdent ("var $l=arguments.length")) com.basic.tvoid rest_arg.v_pos;
+		mk (TVar (rest_arg,Some new_array)) com.basic.tvoid rest_arg.v_pos;
+		populate
+	]
+
 let fun_block ctx f p =
 	let e = List.fold_left (fun e (a,c) ->
 		match c with
@@ -396,12 +417,28 @@ let var ctx =
 	if ctx.es_version >= 6 then "let" else "var"
 
 let rec gen_call ctx e el in_value =
+	let apply,el =
+		if ctx.es_version < 6 then
+			match List.rev el with
+			| [{ eexpr = TUnop (Spread,Ast.Prefix,rest) }] ->
+				true,[rest]
+			| { eexpr = TUnop (Spread,Ast.Prefix,rest) } :: args_rev ->
+				(* [arg1, arg2, ..., argN].concat(rest) *)
+				let arr = mk (TArrayDecl (List.rev args_rev)) t_dynamic null_pos in
+				let concat = mk (TField (arr, FDynamic "concat")) t_dynamic null_pos in
+				true,[mk (TCall (concat, [rest])) t_dynamic null_pos]
+			| _ ->
+				false,el
+		else
+			false,el
+	in
 	match e.eexpr , el with
 	| TConst TSuper , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
 		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "%s.call(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			let call = if apply then "apply" else "call" in
+			print ctx "%s.%s(%s" (ctx.type_accessor (TClassDecl c)) call (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -410,17 +447,22 @@ let rec gen_call ctx e el in_value =
 		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
-			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
+			let call = if apply then "apply" else "call" in
+			print ctx "%s.prototype%s.%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) call (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
 	| TCall (x,_) , el when not (is_code_injection_function x) ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
+		if apply then
+			gen_call_with_apply ctx e el
+		else begin
+			spr ctx "(";
+			gen_value ctx e;
+			spr ctx ")";
+			spr ctx "(";
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")";
+		end
 	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
 		gen_syntax ctx meth args e.epos
 	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "rethrow" })), [] ->
@@ -507,9 +549,32 @@ let rec gen_call ctx e el in_value =
 		gen_value ctx x;
 		print ctx ")";
 	| _ ->
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
+		if apply then
+			gen_call_with_apply ctx e el
+		else begin
+			gen_value ctx e;
+			spr ctx "(";
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")"
+		end
+
+and gen_call_with_apply ctx target args =
+	(match args with
+	| [_] -> ()
+	| _ -> die ~p:target.epos "`args` for `gen_call_with_apply` must contain exactly one item" __LOC__
+	);
+	match target.eexpr with
+	| TField (this, (FInstance (_,_,{ cf_name = field }) | FAnon { cf_name = field } | FDynamic field | FClosure (_,{ cf_name = field }))) ->
+		add_feature ctx "thisForCallWithRestArgs";
+		spr ctx "($_=";
+		gen_value ctx this;
+		spr ctx (",$_." ^ field ^ ".apply($_,");
+		concat ctx "," (gen_value ctx) args;
+		spr ctx "))"
+	| _ ->
+		gen_value ctx target;
+		spr ctx ".apply(null,";
+		concat ctx "," (gen_value ctx) args;
 		spr ctx ")"
 
 (*
@@ -822,10 +887,40 @@ and gen_function ?(keyword="function") ctx f pos =
 	let old = ctx.in_value, ctx.in_loop in
 	ctx.in_value <- None;
 	ctx.in_loop <- false;
-	let args = List.map (fun (v,_) ->
-		check_var_declaration v;
-		ident v.v_name
-	) f.tf_args in
+	let mk_non_rest_arg_names =
+		List.map (fun (v,_) ->
+			check_var_declaration v;
+			ident v.v_name
+		)
+	in
+	let f,args =
+		match List.rev f.tf_args with
+		| (v,None) :: args_rev when ExtType.is_rest (follow v.v_type) ->
+			(* Use ES6 rest args syntax: `...arg` *)
+			if ctx.es_version >= 6 then
+				f, List.map (fun (a,_) ->
+					check_var_declaration a;
+					if a == v then ("..." ^ ident a.v_name)
+					else ident a.v_name
+				) f.tf_args
+			(* Resort to `arguments` special object for ES < 6 *)
+			else begin
+				check_var_declaration v;
+				let non_rest_args = List.rev args_rev in
+				let args_decl = declare_rest_args_legacy ctx.com (List.length non_rest_args) v in
+				let body =
+					let el =
+						match f.tf_expr.eexpr with
+						| TBlock el -> args_decl @ el
+						| _ -> args_decl @ [f.tf_expr]
+					in
+					mk (TBlock el) f.tf_expr.etype f.tf_expr.epos
+				in
+				{ f with tf_args = non_rest_args; tf_expr = body }, mk_non_rest_arg_names non_rest_args
+			end
+		| _ ->
+			f, mk_non_rest_arg_names f.tf_args
+	in
 	print ctx "%s(%s) " keyword (String.concat "," args);
 	gen_expr ctx (fun_block ctx f pos);
 	ctx.in_value <- fst old;
@@ -1876,9 +1971,9 @@ let generate com =
 	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then "$hxEnums = $hxEnums || {}" :: vars else vars in
 	let vars,has_dollar_underscore =
 		if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then
-			"$_" :: vars,true
+			"$_" :: vars,ref true
 		else
-			vars,false
+			vars,ref false
 	in
 	(match List.rev vars with
 	| [] -> ()
@@ -1938,9 +2033,10 @@ let generate com =
 	end;
 	if has_feature ctx "use.$bind" then begin
 		add_feature ctx "$global.$haxeUID";
-		if not has_dollar_underscore then begin
+		if not !has_dollar_underscore then begin
 			print ctx "var $_";
 			newline ctx;
+			has_dollar_underscore := true
 		end;
 		(if ctx.es_version < 5 then
 			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
@@ -1956,6 +2052,11 @@ let generate com =
 	if has_feature ctx "$global.$haxeUID" then begin
 		add_feature ctx "js.Lib.global";
 		print ctx "$global.$haxeUID |= 0;\n";
+	end;
+	if not !has_dollar_underscore && has_feature ctx "thisForCallWithRestArgs" then begin
+		print ctx "var $_";
+		newline ctx;
+		has_dollar_underscore := true
 	end;
 	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);

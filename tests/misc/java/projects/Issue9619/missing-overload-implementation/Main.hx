@@ -15,5 +15,5 @@ class Main extends Abstract {
 	}
 
 	@:overload
-	override function abstractFunction():Void {}
+	function abstractFunction():Void {}
 }

@@ -22,6 +22,17 @@ let apply com e =
 			let _,e2 = loop var_inits e2 in
 			let eo = match eo with None -> None | Some e -> Some (snd (loop var_inits e)) in
 			var_inits,{e with eexpr = TIf(e1,e2,eo)}
+		| TWhile(e1,e2,flag) ->
+			let var_inits,e1 = loop var_inits e1 in
+			let _,e2 = loop var_inits e2 in
+			var_inits,{e with eexpr = TWhile(e1,e2,flag)}
+		| TTry(e1,catches) ->
+			let _,e1 = loop var_inits e1 in
+			let catches = List.map (fun (v,e) ->
+				let _,e = loop var_inits e in
+				(v,e)
+			) catches in
+			var_inits,{e with eexpr = TTry(e1,catches)}
 		| TSwitch(e1,cases,edef) ->
 			let var_inits,e1 = loop var_inits e1 in
 			let cases = List.map (fun (el,e) ->

@@ -133,6 +133,8 @@ and typer = {
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
+	mutable in_overload_call_args : bool;
+	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	mutable monomorphs : monomorphs;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
@@ -148,7 +150,7 @@ and monomorphs = {
 type 'a field_call_candidate = {
 	(* The argument expressions for this call and whether or not the argument is optional on the
 	   target function. *)
-	fc_args  : (texpr * bool) list;
+	fc_args  : texpr list;
 	(* The applied return type. *)
 	fc_ret   : Type.t;
 	(* The applied function type. *)
@@ -171,7 +173,8 @@ type field_access = {
 	(* The expression on which the field is accessed. For abstracts, this is a type expression
 	   to the implementation class. *)
 	fa_on     : texpr;
-	(* The field being accessed. *)
+	(* The field being accessed. Note that in case of overloads, this might refer to the main field which
+	   hosts other overloads in its cf_overloads. *)
 	fa_field  : tclass_field;
 	(* The host of the field. *)
 	fa_host   : field_host;
@@ -203,7 +206,7 @@ let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LO
 let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
-let type_generic_function_ref : (typer -> field_access -> texpr list -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
+let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -603,7 +606,7 @@ let make_field_call_candidate args ret monos t cf data = {
 let s_field_call_candidate fcc =
 	let pctx = print_context() in
 	let se = s_expr_pretty false "" false (s_type pctx) in
-	let sl_args = List.map (fun (e,_) -> se e) fcc.fc_args in
+	let sl_args = List.map se fcc.fc_args in
 	Printer.s_record_fields "" [
 		"fc_args",String.concat ", " sl_args;
 		"fc_type",s_type pctx fcc.fc_type;

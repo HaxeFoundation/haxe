@@ -20,8 +20,6 @@ class Jvm {
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--jvm", "export/threads.jar"].concat(args));
-		if (systemName != "Windows") { // #8154
-			runCommand("java", ["-jar", "export/threads.jar"]);
-		}
+		runCommand("java", ["-jar", "export/threads.jar"]);
 	}
 }

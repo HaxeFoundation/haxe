@@ -13,18 +13,8 @@ class Deployment {
 	static var gitInfo(get, null):{repo:String, branch:String, commit:String, timestamp:Float, date:String};
 
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
-		repo: switch (ci) {
-			case AzurePipelines:
-				Sys.getEnv("AZURE_PIPELINES_REPO_URL");
-			case _:
-				commandResult("git", ["config", "--get", "remote.origin.url"]).stdout.trim();
-		},
-		branch: switch (ci) {
-			case AzurePipelines:
-				Sys.getEnv("AZURE_PIPELINES_BRANCH");
-			case _:
-				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
-		},
+		repo: commandResult("git", ["config", "--get", "remote.origin.url"]).stdout.trim(),
+		branch: commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim(),
 		commit: commandResult("git", ["rev-parse", "HEAD"]).stdout.trim(),
 		timestamp: Std.parseFloat(commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout),
 		date: {

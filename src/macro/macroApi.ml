@@ -50,6 +50,7 @@ type 'value compiler_api = {
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
+	display_error : (string -> pos -> unit);
 }
 
 
@@ -270,6 +271,7 @@ let encode_unop op =
 	| Not -> 2
 	| Neg -> 3
 	| NegBits -> 4
+	| Spread -> 5
 	in
 	encode_enum IUnop tag []
 
@@ -591,6 +593,7 @@ let decode_unop op =
 	| 2, [] -> Not
 	| 3, [] -> Neg
 	| 4, [] -> NegBits
+	| 5, [] -> Spread
 	| _ -> raise Invalid_expr
 
 let decode_import_mode t =
@@ -953,6 +956,7 @@ and encode_cfield f =
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
 		"isExtern", vbool (has_class_field_flag f CfExtern);
 		"isFinal", vbool (has_class_field_flag f CfFinal);
+		"isAbstract", vbool (has_class_field_flag f CfAbstract);
 	]
 
 and encode_field_kind k =
@@ -1005,6 +1009,7 @@ and encode_tclass c =
 		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
+		"isAbstract", vbool (has_class_flag c CAbstract);
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
@@ -1314,6 +1319,7 @@ let decode_cfield v =
 	let public = decode_bool (field v "isPublic") in
 	let extern = decode_bool (field v "isExtern") in
 	let final = decode_bool (field v "isFinal") in
+	let abstract = decode_bool (field v "isAbstract") in
 	let cf = {
 		cf_name = decode_string (field v "name");
 		cf_type = decode_type (field v "type");
@@ -1331,6 +1337,7 @@ let decode_cfield v =
 	if public then add_class_field_flag cf CfPublic;
 	if extern then add_class_field_flag cf CfExtern;
 	if final then add_class_field_flag cf CfFinal;
+	if abstract then add_class_field_flag cf CfAbstract;
 	cf
 
 let decode_efield v =
@@ -1565,6 +1572,12 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			raise (Error.Fatal_error (msg,p))
+		);
+		"report_error", vfun2 (fun msg p ->
+			let msg = decode_string msg in
+			let p = decode_pos p in
+			(get_api()).display_error msg p;
+			vnull
 		);
 		"warning", vfun2 (fun msg p ->
 			let msg = decode_string msg in

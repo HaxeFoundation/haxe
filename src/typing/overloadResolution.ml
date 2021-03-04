@@ -11,18 +11,21 @@ let unify_cf map_type c cf el =
 				| e :: el,(_,o,t) :: tl ->
 					begin try
 						Type.unify e.etype t;
-						loop2 ((e,o) :: acc) el tl
+						loop2 (e :: acc) el tl
 					with _ ->
-						match t,tl with
-						| TAbstract({a_path=["haxe";"extern"],"Rest"},[t]),[] ->
-							begin try
-								let el = List.map (fun e -> unify t e.etype; e,o) el in
-								let fcc = make_field_call_candidate ((List.rev acc) @ el) ret monos tf cf (c,cf,monos) in
-								Some fcc
-							with _ ->
-								None
-							end
-						| _ ->
+						if Type.ExtType.is_rest (follow t) then
+							match follow t,tl with
+							| TAbstract({a_path=["haxe"],"Rest"},[t]),[] ->
+								begin try
+									let el = List.map (fun e -> unify t e.etype; e) el in
+									let fcc = make_field_call_candidate ((List.rev acc) @ el) ret monos tf cf (c,cf,monos) in
+									Some fcc
+								with _ ->
+									None
+								end
+							| _ ->
+								Globals.die "" __LOC__
+						else
 							None
 					end
 				| [],[] ->

@@ -42,7 +42,7 @@ class JsonParser {
 		If `str` is null, the result is unspecified.
 	**/
 	static public inline function parse(str:String):Dynamic {
-		return new JsonParser(str).doParse();
+		return lua.lib.hxluasimdjson.Json.parse(str);
 	}
 
 	var str:String;

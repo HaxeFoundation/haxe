@@ -212,6 +212,11 @@ typedef ClassField = {
 	var isFinal:Bool;
 
 	/**
+		Whether or not the class field is abstract.
+	**/
+	var isAbstract:Bool;
+
+	/**
 		The type parameters of the class field.
 	**/
 	var params:Array<TypeParameter>;
@@ -416,6 +421,11 @@ typedef ClassType = BaseType & {
 		If true the class is final and cannot be extended.
 	**/
 	var isFinal:Bool;
+
+	/**
+		If true the class is abstract and cannot be instantiated directly.
+	**/
+	var isAbstract:Bool;
 
 	/**
 		The parent class and its type parameters, if available.

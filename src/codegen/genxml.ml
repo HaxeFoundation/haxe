@@ -173,6 +173,7 @@ and gen_field att f =
 	in
 	let att = if has_class_field_flag f CfPublic then ("public","1") :: att else att in
 	let att = if has_class_field_flag f CfFinal then ("final","1") :: att else att in
+	let att = if has_class_field_flag f CfAbstract then ("abstract","1") :: att else att in
 	node (field_name f) att (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
@@ -219,7 +220,7 @@ let rec gen_type_decl com pos t =
 		) c.cl_ordered_statics in
 		let stats = List.map (gen_field ["static","1"]) stats in
 		let fields = List.filter (fun cf ->
-			not (Meta.has Meta.GenericInstance cf.cf_meta)
+			not (Meta.has Meta.GenericInstance cf.cf_meta) && not (Meta.has Meta.NoDoc cf.cf_meta)
 		) c.cl_ordered_fields in
 		let fields = (match c.cl_super with
 			| None -> List.map (fun f -> f,[]) fields
@@ -237,7 +238,8 @@ let rec gen_type_decl com pos t =
 		let ext = (if (has_class_flag c CExtern) then [("extern","1")] else []) in
 		let interf = (if (has_class_flag c CInterface) then [("interface","1")] else []) in
 		let final = (if has_class_flag c CFinal then [("final","1")] else []) in
-		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf @ final) (tree @ stats @ fields @ constr @ doc @ meta)
+		let abstract = (if has_class_flag c CAbstract then [("abstract","1")] else []) in
+		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf @ final @ abstract) (tree @ stats @ fields @ constr @ doc @ meta)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		let meta = gen_meta e.e_meta in

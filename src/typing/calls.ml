@@ -76,10 +76,10 @@ let make_call ctx e params t ?(force_inline=false) p =
 		mk (TCall (e,params)) t p
 
 let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
-	| None ->
+	| None when not (has_class_field_flag cf CfExtern) ->
 		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
-	| Some _ ->
+	| _ ->
 		let et = type_module_type ctx (TClassDecl c) None p in
 		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 		make_call ctx ef [ebase;e1] r p
@@ -87,11 +87,11 @@ let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 	let evalue = match e2o with None -> die "" __LOC__ | Some e -> e in
 	match cf.cf_expr with
-		| None ->
+		| None when not (has_class_field_flag cf CfExtern) ->
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
-		| Some _ ->
+		| _ ->
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 			make_call ctx ef [ebase;e1;evalue] r p
@@ -254,18 +254,18 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		let eparam = sea.se_this in
 		dispatch#field_call sea.se_access [eparam] el
 	| AKResolve(sea,name) ->
-		dispatch#expr_call (dispatch#resolve_call sea name) el
+		dispatch#expr_call (dispatch#resolve_call sea name) [] el
 	| AKNo _ | AKAccess _ ->
 		ignore(acc_get ctx acc p);
 		error ("Unexpected access mode, please report this: " ^ (s_access_kind acc)) p
 	| AKAccessor fa ->
 		let e = dispatch#field_call fa [] [] in
-		dispatch#expr_call e el
+		dispatch#expr_call e [] el
 	| AKUsingAccessor sea ->
 		let e = dispatch#field_call sea.se_access [sea.se_this] [] in
-		dispatch#expr_call e el
+		dispatch#expr_call e [] el
 	| AKExpr e ->
-		dispatch#expr_call e el
+		dispatch#expr_call e [] el
 
 let rec needs_temp_var e =
 	match e.eexpr with

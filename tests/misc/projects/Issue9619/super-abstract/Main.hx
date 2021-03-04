@@ -7,7 +7,7 @@ class Main extends Abstract {
 
 	}
 
-	override function abstractFunction() {
+	function abstractFunction() {
 		super.abstractFunction();
 	}
 }

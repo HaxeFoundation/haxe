@@ -262,8 +262,8 @@ end
 let get_expected_name with_type = match with_type with
 	| WithType.Value (Some src) | WithType.WithType(_,Some src) ->
 		(match src with
-		| WithType.FunctionArgument name -> Some name
-		| WithType.StructureField name -> Some name
+		| WithType.FunctionArgument si -> Some si.si_name
+		| WithType.StructureField si -> Some si .si_name
 		| WithType.ImplicitReturn -> None
 		)
 	| _ -> None

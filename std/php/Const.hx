@@ -431,4 +431,192 @@ extern class Const {
 	static final ZLIB_SYNC_FLUSH:Int;
 	static final ZLIB_FULL_FLUSH:Int;
 	static final ZLIB_FINISH:Int;
+
+	/**
+		@see http://php.net/manual/en/outcontrol.constants.php
+	**/
+	static final PHP_OUTPUT_HANDLER_CLEAN:Int;
+	static final PHP_OUTPUT_HANDLER_CLEANABLE:Int;
+	static final PHP_OUTPUT_HANDLER_CONT:Int;
+	static final PHP_OUTPUT_HANDLER_END:Int;
+	static final PHP_OUTPUT_HANDLER_FINAL:Int;
+	static final PHP_OUTPUT_HANDLER_FLUSH:Int;
+	static final PHP_OUTPUT_HANDLER_FLUSHABLE:Int;
+	static final PHP_OUTPUT_HANDLER_REMOVABLE:Int;
+	static final PHP_OUTPUT_HANDLER_START:Int;
+	static final PHP_OUTPUT_HANDLER_STDFLAGS:Int;
+	static final PHP_OUTPUT_HANDLER_WRITE:Int;
+
+	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static final LOCK_EX:Int;
+	static final LOCK_NB:Int;
+	static final LOCK_SH:Int;
+	static final LOCK_UN:Int;
+
+	/**
+		@see http://php.net/manual/en/function.fnmatch.php
+	**/
+	static final FNM_CASEFOLD:Int;
+	static final FNM_NOESCAPE:Int;
+	static final FNM_PATHNAME:Int;
+	static final FNM_PERIOD:Int;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-file.php
+	**/
+	static final INI_SCANNER_NORMAL:Int;
+	static final INI_SCANNER_RAW:Int;
+	static final INI_SCANNER_TYPED:Int;
+
+	/**
+		@see http://php.net/manual/en/function.pathinfo.php
+	**/
+	static final PATHINFO_BASENAME:Int;
+	static final PATHINFO_DIRNAME:Int;
+	static final PATHINFO_EXTENSION:Int;
+	static final PATHINFO_FILENAME:Int;
+
+	/**
+		@see http://php.net/manual/en/function.dns-get-record.php
+	**/
+	static final DNS_A:Int;
+	static final DNS_AAAA:Int;
+	static final DNS_ALL:Int;
+	static final DNS_ANY:Int;
+	static final DNS_CAA:Int;
+	static final DNS_CNAME:Int;
+	static final DNS_HINFO:Int;
+	static final DNS_MX:Int;
+	static final DNS_NS:Int;
+	static final DNS_PTR:Int;
+	static final DNS_SOA:Int;
+	static final DNS_TXT:Int;
+
+	/**
+		@see http://php.net/manual/en/intl.constants.php
+	**/
+	static final IDNA_ALLOW_UNASSIGNED:Int;
+	static final IDNA_CHECK_BIDI:Int;
+	static final IDNA_CHECK_CONTEXTJ:Int;
+	static final IDNA_DEFAULT:Int;
+	static final IDNA_ERROR_BIDI:Int;
+	static final IDNA_ERROR_CONTEXTJ:Int;
+	static final IDNA_ERROR_DISALLOWED:Int;
+	static final IDNA_ERROR_DOMAIN_NAME_TOO_LONG:Int;
+	static final IDNA_ERROR_EMPTY_LABEL:Int;
+	static final IDNA_ERROR_HYPHEN_3_4:Int;
+	static final IDNA_ERROR_INVALID_ACE_LABEL:Int;
+	static final IDNA_ERROR_LABEL_HAS_DOT:Int;
+	static final IDNA_ERROR_LABEL_TOO_LONG:Int;
+	static final IDNA_ERROR_LEADING_COMBINING_MARK:Int;
+	static final IDNA_ERROR_LEADING_HYPHEN:Int;
+	static final IDNA_ERROR_PUNYCODE:Int;
+	static final IDNA_ERROR_TRAILING_HYPHEN:Int;
+	static final IDNA_NONTRANSITIONAL_TO_ASCII:Int;
+	static final IDNA_NONTRANSITIONAL_TO_UNICODE:Int;
+	static final IDNA_USE_STD3_RULES:Int;
+	static final INTL_ICU_VERSION:String;
+	static final INTL_IDNA_VARIANT_2003:Int;
+	static final INTL_IDNA_VARIANT_UTS46:Int;
+	static final INTL_MAX_LOCALE_LEN:Int;
+
+	/**
+		@see http://php.net/manual/en/array.constants.php
+	**/
+	static final CASE_LOWER:Int;
+	static final CASE_UPPER:Int;
+	static final EXTR_IF_EXISTS:Int;
+	static final EXTR_OVERWRITE:Int;
+	static final EXTR_PREFIX_ALL:Int;
+	static final EXTR_PREFIX_IF_EXISTS:Int;
+	static final EXTR_PREFIX_INVALID:Int;
+	static final EXTR_PREFIX_SAME:Int;
+	static final EXTR_REFS:Int;
+	static final EXTR_SKIP:Int;
+	static final SORT_ASC:Int;
+	static final SORT_DESC:Int;
+	static final SORT_FLAG_CASE:Int;
+	static final SORT_LOCALE_STRING:Int;
+	static final SORT_NATURAL:Int;
+	static final SORT_NUMERIC:Int;
+	static final SORT_REGULAR:Int;
+	static final SORT_STRING:Int;
+
+	/**
+		@see http://php.net/manual/en/filter.constants.php
+	**/
+	static final FILTER_CALLBACK:Int;
+	static final FILTER_DEFAULT:Int;
+	static final FILTER_FLAG_ALLOW_FRACTION:Int;
+	static final FILTER_FLAG_ALLOW_HEX:Int;
+	static final FILTER_FLAG_ALLOW_OCTAL:Int;
+	static final FILTER_FLAG_ALLOW_SCIENTIFIC:Int;
+	static final FILTER_FLAG_ALLOW_THOUSAND:Int;
+	static final FILTER_FLAG_EMAIL_UNICODE:Int;
+	static final FILTER_FLAG_EMPTY_STRING_NULL:Int;
+	static final FILTER_FLAG_ENCODE_AMP:Int;
+	static final FILTER_FLAG_ENCODE_HIGH:Int;
+	static final FILTER_FLAG_ENCODE_LOW:Int;
+	static final FILTER_FLAG_HOST_REQUIRED:Int;
+	static final FILTER_FLAG_HOSTNAME:Int;
+	static final FILTER_FLAG_IPV4:Int;
+	static final FILTER_FLAG_IPV6:Int;
+	static final FILTER_FLAG_NO_ENCODE_QUOTES:Int;
+	static final FILTER_FLAG_NO_PRIV_RANGE:Int;
+	static final FILTER_FLAG_NO_RES_RANGE:Int;
+	static final FILTER_FLAG_NONE:Int;
+	static final FILTER_FLAG_PATH_REQUIRED:Int;
+	static final FILTER_FLAG_QUERY_REQUIRED:Int;
+	static final FILTER_FLAG_SCHEME_REQUIRED:Int;
+	static final FILTER_FLAG_STRIP_BACKTICK:Int;
+	static final FILTER_FLAG_STRIP_HIGH:Int;
+	static final FILTER_FLAG_STRIP_LOW:Int;
+	static final FILTER_FORCE_ARRAY:Int;
+	static final FILTER_NULL_ON_FAILURE:Int;
+	static final FILTER_REQUIRE_ARRAY:Int;
+	static final FILTER_REQUIRE_SCALAR:Int;
+	static final FILTER_SANITIZE_ADD_SLASHES:Int;
+	static final FILTER_SANITIZE_EMAIL:Int;
+	static final FILTER_SANITIZE_ENCODED:Int;
+	static final FILTER_SANITIZE_MAGIC_QUOTES:Int;
+	static final FILTER_SANITIZE_NUMBER_FLOAT:Int;
+	static final FILTER_SANITIZE_NUMBER_INT:Int;
+	static final FILTER_SANITIZE_SPECIAL_CHARS:Int;
+	static final FILTER_SANITIZE_STRING:Int;
+	static final FILTER_SANITIZE_STRIPPED:Int;
+	static final FILTER_SANITIZE_URL:Int;
+	static final FILTER_UNSAFE_RAW:Int;
+	static final FILTER_VALIDATE_BOOLEAN:Int;
+	static final FILTER_VALIDATE_DOMAIN:Int;
+	static final FILTER_VALIDATE_EMAIL:Int;
+	static final FILTER_VALIDATE_FLOAT:Int;
+	static final FILTER_VALIDATE_INT:Int;
+	static final FILTER_VALIDATE_IP:Int;
+	static final FILTER_VALIDATE_MAC:Int;
+	static final FILTER_VALIDATE_REGEXP:Int;
+	static final FILTER_VALIDATE_URL:Int;
+	static final INPUT_COOKIE:Int;
+	static final INPUT_ENV:Int;
+	static final INPUT_GET:Int;
+	static final INPUT_POST:Int;
+	static final INPUT_REQUEST:Int;
+	static final INPUT_SERVER:Int;
+	static final INPUT_SESSION:Int;
+
+	/**
+		@see http://php.net/manual/en/fileinfo.constants.php
+	**/
+	static final FILEINFO_COMPRESS: Int;
+	static final FILEINFO_CONTINUE: Int;
+	static final FILEINFO_DEVICES: Int;
+	static final FILEINFO_EXTENSION: Int;
+	static final FILEINFO_MIME: Int;
+	static final FILEINFO_MIME_ENCODING: Int;
+	static final FILEINFO_MIME_TYPE: Int;
+	static final FILEINFO_NONE: Int;
+	static final FILEINFO_PRESERVE_ATIME: Int;
+	static final FILEINFO_RAW: Int;
+	static final FILEINFO_SYMLINK: Int;
 }

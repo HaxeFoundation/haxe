@@ -5,7 +5,7 @@ private abstract class AbstractClass {
 }
 
 private class ConcreteClass extends AbstractClass {
-	override function test<T>():Void {}
+	function test<T>():Void {}
 }
 
 class Issue9797 extends unit.Test {

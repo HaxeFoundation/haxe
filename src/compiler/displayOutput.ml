@@ -201,7 +201,7 @@ let print_signature tl display_arg =
 	) tl in
 	let jo = JObject [
 		"signatures",JArray siginf;
-		"activeParameter",JInt display_arg;
+		"activeParameter",JInt (arg_index tl 0 display_arg);
 		"activeSignature",JInt 0;
 	] in
 	string_of_json jo

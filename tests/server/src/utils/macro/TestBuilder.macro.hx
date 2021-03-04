@@ -37,7 +37,7 @@ class TestBuilder {
 							var pos = Context.makePosition({min: posInfos.max, max: posInfos.max, file: posInfos.file});
 							el.push(macro @:pos(pos) $i{asyncName}.done());
 							f.expr = macro {
-								$i{asyncName}.setTimeout(10000);
+								$i{asyncName}.setTimeout(20000);
 								${transformHaxeCalls(asyncName, el)};
 							}
 						case _:
@@ -76,7 +76,7 @@ class TestBuilder {
 	}
 
 	static function failOnException(asyncName:String, e:Expr):Expr {
-		return macro try {
+		return macro @:pos(e.pos) try {
 			$e;
 		} catch(e) {
 			Assert.fail(e.details());

@@ -127,11 +127,19 @@ class Main {
 
 		if (result && expectStderr != null) {
 			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n").trim();
-			if (stderr != expectStderr.trim()) {
-				println("Actual stderr output doesn't match the expected one");
-				println('Expected:\n"$expectStderr"');
-				println('Actual:\n"$stderr"');
-				result = false;
+			var expected = expectStderr.trim();
+			if (stderr != expected) {
+				// "Picked up JAVA_TOOL_OPTIONS: <...>" is printed by JVM sometimes.
+				// @see https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars002.html
+				stderr = stderr.split('\n')
+					.filter(s -> 0 != s.indexOf('Picked up JAVA_TOOL_OPTIONS:'))
+					.join('\n');
+				if(stderr != expected) {
+					println("Actual stderr output doesn't match the expected one");
+					println('Expected:\n"$expectStderr"');
+					println('Actual:\n"$stderr"');
+					result = false;
+				}
 			}
 		}
 		proc.close();

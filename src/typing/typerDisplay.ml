@@ -147,7 +147,20 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t ->
 			let from_type = CompletionType.from_type (get_import_status ctx) in
-			Some (from_type t,from_type (Type.map follow (follow t)))
+			let t_followed = Type.map follow (follow t) in
+			let compatible = match t_followed with
+					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
+						let fields = Some (get_struct_init_anon_fields c tl) in
+						let ta = mk_anon ?fields (ref Closed) in
+						[from_type ta]
+					| _ ->
+						[]
+			in
+			Some {
+				expected_type = from_type t;
+				expected_type_followed = from_type t_followed;
+				compatible_types = compatible;
+			}
 
 let raise_toplevel ctx dk with_type (subject,psubject) =
 	let expected_type = get_expected_type ctx with_type in
@@ -196,7 +209,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			| (t,doc,values) :: tl ->
 				let keep (args,r) =
 					begin try
-						let _ = unify_call_args' ctx el args r p false false in
+						let _ = unify_call_args ctx el args r p false false false in
 						true
 					with
 					| Error(Call_error (Not_enough_arguments _),_) -> true
@@ -638,7 +651,15 @@ let handle_display ctx e_ast dk mode with_type =
 	end;
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
-	display_expr ctx e_ast e dk mode with_type p
+	let f () = display_expr ctx e_ast e dk mode with_type p in
+	if ctx.in_overload_call_args then begin
+		try
+			f()
+		with DisplayException de ->
+			ctx.delayed_display <- Some de;
+			e
+	end else
+		f()
 
 let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =
