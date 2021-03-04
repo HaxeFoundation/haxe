@@ -31,4 +31,10 @@ package hl;
 		return cast this;
 	}
 
+	@:to
+	@:deprecated("Implicit cast from I64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.")
+	inline function implicitToInt(): Int {
+		return toInt();
+	}
+
 }
