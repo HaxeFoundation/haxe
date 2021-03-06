@@ -2924,7 +2924,7 @@ let generate jvm_flag com =
 			output_string ch_out b;
 			close_in ch_in;
 			close_out ch_out;
-			Some (Printf.sprintf "lib/%s" name)
+			Some (Printf.sprintf "lib/%s \n" name)
 		end
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
@@ -2945,10 +2945,9 @@ let generate jvm_flag com =
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^
-		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
 		"Created-By: Haxe (Haxe Foundation)" ^
 		(Option.map_default (fun (cl,_) ->  "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
-		"\n\n"
+		(match class_paths with [] -> "" | _ -> "\nClass-Path: " ^ (String.concat " " class_paths))
 	in
 	Zip.add_entry ~level:gctx.jar_compression_level manifest_content gctx.jar "META-INF/MANIFEST.MF";
 
