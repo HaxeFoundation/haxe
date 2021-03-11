@@ -21,7 +21,6 @@ type 'value compiler_api = {
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
-	type_macro_expr : Ast.expr -> Type.texpr;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;

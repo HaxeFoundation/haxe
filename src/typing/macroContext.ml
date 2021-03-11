@@ -203,15 +203,6 @@ let make_macro_api ctx p =
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
 		);
-		MacroApi.type_macro_expr = (fun e ->
-			let e = typing_timer ctx true (fun() -> type_expr ctx e WithType.value) in
-			let rec loop e = match e.eexpr with
-				| TField(_,FStatic(c,({cf_kind = Method _} as cf))) -> ignore(!load_macro_ref ctx false c.cl_path cf.cf_name e.epos)
-				| _ -> Type.iter loop e
-			in
-			loop e;
-			e
-		);
 		MacroApi.flush_context = (fun f ->
 			typing_timer ctx true f
 		);
@@ -712,7 +703,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			| MAExpr ->
 				Interp.encode_expr e
 			| MAFunction ->
-				let e = ictx.Interp.curapi.MacroApi.type_macro_expr e in
+				let e = type_expr mctx e WithType.value in
 				begin match Interp.eval_expr ictx e with
 				| Some v -> v
 				| None -> Interp.vnull
