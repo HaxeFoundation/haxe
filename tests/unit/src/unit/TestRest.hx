@@ -68,6 +68,17 @@ class TestRest extends Test {
 	}
 
 	@:depends(testToArray)
+	function testPrepend() {
+		function rest(...r:Int) {
+			var prepended = r.prepend(9);
+			return {initial:r.toArray(), prepended:prepended.toArray()}
+		}
+		var result = rest(1, 2);
+		aeq([1, 2], result.initial);
+		aeq([9, 1, 2], result.prepended);
+	}
+
+	@:depends(testToArray)
 	function testSpread() {
 		function rest(...r:Int) {
 			return r.toArray();
@@ -80,7 +91,7 @@ class TestRest extends Test {
 		aeq([1, 2, 3], new Parent(...[1, 2, 3]).ctorArgs.toArray());
 	}
 
-	@:depends(testToArray, testRestReturn)
+	@:depends(testToArray, testRestReturn, testAppend)
 	function testInheritance() {
 		var p = new Parent(1, 2, 3);
 		var c = new Child(4, 5, 6);

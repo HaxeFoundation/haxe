@@ -997,6 +997,30 @@ let mk_nativearray_decl gen t el pos =
 	mk (TCall (mk (TIdent "__array__") t_dynamic pos, el)) (gen.gclasses.nativearray t) pos
 
 
+let get_boxed gen t =
+	let get path =
+		try type_of_module_type (Hashtbl.find gen.gtypes path)
+		with Not_found -> t
+	in
+	match follow t with
+	| TAbstract({ a_path = ([],"Bool") }, []) ->
+		get (["java";"lang"], "Boolean")
+	| TAbstract({ a_path = ([],"Float") }, []) ->
+		get (["java";"lang"], "Double")
+	| TAbstract({ a_path = ([],"Int") }, []) ->
+		get (["java";"lang"], "Integer")
+	| TAbstract({ a_path = (["java"],"Int8") }, []) ->
+		get (["java";"lang"], "Byte")
+	| TAbstract({ a_path = (["java"],"Int16") }, []) ->
+		get (["java";"lang"], "Short")
+	| TAbstract({ a_path = (["java"],"Char16") }, []) ->
+		get (["java";"lang"], "Character")
+	| TAbstract({ a_path = ([],"Single") }, []) ->
+		get (["java";"lang"], "Float")
+	| TAbstract({ a_path = (["java"],"Int64") }, []) ->
+		get (["java";"lang"], "Long")
+	| _ -> t
+
 (**
 	Wraps rest arguments into a native array.
 	E.g. transforms params from `callee(param, rest1, rest2, ..., restN)` into
@@ -1016,7 +1040,7 @@ let wrap_rest_args gen callee_type params p =
 				| _ ->
 					match Abstract.follow_with_abstracts t with
 					| TInst ({ cl_path = _,"NativeArray" }, [t1]) ->
-						let t1 = if Common.defined gen.gcon Define.EraseGenerics then t_dynamic else t1 in
+						let t1 = if Common.defined gen.gcon Define.EraseGenerics then t_dynamic else get_boxed gen t1 in
 						[mk_nativearray_decl gen t1 params (punion_el p params)]
 					| _ ->
 						die ~p "Unexpected rest arguments type" __LOC__
