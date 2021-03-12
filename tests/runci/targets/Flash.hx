@@ -56,7 +56,7 @@ class Flash {
 				playerCmd = "flashplayerdebugger";
 				if(Sys.command("type", [playerCmd]) != 0) {
 					Linux.requireAptPackages([
-						"libglib2.0", "libfreetype6"
+						"libglib2.0-0", "libfreetype6"
 					]);
 					var majorVersion = getLatestFPVersion()[0];
 					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
