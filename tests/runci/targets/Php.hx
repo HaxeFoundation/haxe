@@ -76,7 +76,7 @@ class Php {
 	static function runThroughPhpVersions(fn:(phpCmd:String)->Void) {
 		switch [ci, systemName] {
 			case [GithubActions, "Linux"]:
-				for(version in ['7.1', '7.2', '7.3', '7.4']) {
+				for(version in ['7.4', '8.0']) {
 					fn('php$version');
 				}
 			case _:
