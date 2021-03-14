@@ -215,6 +215,17 @@ let show_in_completion ctx jc =
 		| ("java" | "javax" | "org") :: _ -> true
 		| _ -> false
 
+(**
+	`haxe.Rest<T>` auto-boxes primitive types.
+	That means we can't use it as varargs for extern methods.
+	E.g externs with `int` varargs are represented as `int[]` at run time
+	while `haxe.Rest<Int>` is actually `java.lang.Integer[]`.
+*)
+let is_eligible_for_haxe_rest_args arg_type =
+	match arg_type with
+	| TByte | TChar | TDouble | TFloat | TInt | TLong | TShort | TBool -> false
+	| _ -> true
+
 let convert_java_enum ctx p pe =
 	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath,SDoubleQuotes) ), p], p ]) in
 	let data = ref [] in
@@ -347,8 +358,8 @@ let convert_java_enum ctx p pe =
 						incr i;
 						let hx_sig =
 							match s with
-							| TArray (s1,_) when !is_varargs && !i = args_count ->
-								mk_type_path ctx (["haxe";"extern"], "Rest") [TPType (convert_signature ctx p s1,null_pos)]
+							| TArray (s1,_) when !is_varargs && !i = args_count && is_eligible_for_haxe_rest_args s1 ->
+								mk_type_path ctx (["haxe"], "Rest") [TPType (convert_signature ctx p s1,null_pos)]
 							| _ ->
 								convert_signature ctx null_pos s
 						in

@@ -1017,7 +1017,8 @@ let get_boxed gen t =
 		get (["java";"lang"], "Character")
 	| TAbstract({ a_path = ([],"Single") }, []) ->
 		get (["java";"lang"], "Float")
-	| TAbstract({ a_path = (["java"],"Int64") }, []) ->
+	| TAbstract({ a_path = (["java"],"Int64") }, [])
+	| TAbstract({ a_path = (["haxe"],"Int64") }, []) ->
 		get (["java";"lang"], "Long")
 	| _ -> t
 

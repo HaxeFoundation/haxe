@@ -142,7 +142,7 @@ class Type {
 			switch (Jvm.unifyCallArguments(args, params, true)) {
 				case Some(args):
 					ctor.setAccessible(true);
-					return ctor.newInstance(args);
+					return ctor.newInstance(...args);
 				case None:
 			}
 		}
@@ -158,7 +158,7 @@ class Type {
 					case Some(args):
 						var obj = emptyCtor.newInstance(emptyArg);
 						method.setAccessible(true);
-						method.invoke(obj, args);
+						method.invoke(obj, ...args);
 						return obj;
 					case None:
 				}
