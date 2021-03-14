@@ -129,7 +129,12 @@ let rec jsignature_of_type gctx stack t =
 				| [t] -> TArray(jsignature_of_type t,None)
 				| _ -> die "" __LOC__
 				end
-			| ["haxe"],"Rest" -> TArray(object_sig,None)
+			| ["haxe"],"Rest" ->
+				begin match tl with
+				| [t] -> TArray(get_boxed_type (jsignature_of_type t),None)
+				| _ -> die "" __LOC__
+				end
+			(* | ["haxe"],"Rest" -> TArray(object_sig,None) *)
 			| [],"Dynamic" ->
 				object_sig
 			| [],("Class" | "Enum") ->
@@ -171,6 +176,8 @@ let rec jsignature_of_type gctx stack t =
 		jsig
 	) tl) (return_of_type gctx stack tr)
 	| TAnon an -> object_sig
+	| TType({ t_path = ["haxe"],"Rest$NativeRest" },[t]) ->
+		TArray(get_boxed_type (jsignature_of_type t),None)
 	| TType(td,tl) ->
 		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
 		| Some c -> TObject(c.cl_path,[])
@@ -1514,6 +1521,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| _ ->
 				Error.error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
+		| TField(_,FStatic({cl_path = (["haxe"],"Rest$Rest_Impl_")},{cf_name = "createNative"})) ->
+			begin match tr, el with
+			| TType({ t_path = ["haxe"],"Rest$NativeRest" },[t]), [e2] ->
+				self#texpr (if need_val ret then rvalue_any else RVoid) e2;
+				let jsig = get_boxed_type (self#vtype t) in
+				ignore(NativeArray.create jm#get_code jc#get_pool jsig);
+				Some (array_sig jsig)
+			| _ ->
+				Error.error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
+			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
@@ -1948,7 +1965,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 				self#texpr rvalue_any e1;
 				let vt = self#vtype e1.etype in
-				let vte = self#vtype t in
+				let vte =
+					let vte = self#vtype t in
+					match e1.etype with
+					| TType ({ t_path = ["haxe"],"Rest$NativeRest" },_) -> get_boxed_type vte
+					| _ -> vte
+				in
 				self#texpr rvalue_any e2;
 				self#read_native_array vt vte
 			| t ->
@@ -2924,7 +2946,7 @@ let generate jvm_flag com =
 			output_string ch_out b;
 			close_in ch_in;
 			close_out ch_out;
-			Some (Printf.sprintf "lib/%s" name)
+			Some (Printf.sprintf "lib/%s \n" name)
 		end
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
@@ -2945,9 +2967,9 @@ let generate jvm_flag com =
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^
-		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^
 		"Created-By: Haxe (Haxe Foundation)" ^
 		(Option.map_default (fun (cl,_) ->  "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
+		(match class_paths with [] -> "" | _ -> "\nClass-Path: " ^ (String.concat " " class_paths)) ^
 		"\n\n"
 	in
 	Zip.add_entry ~level:gctx.jar_compression_level manifest_content gctx.jar "META-INF/MANIFEST.MF";

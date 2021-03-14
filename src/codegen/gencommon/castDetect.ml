@@ -625,22 +625,24 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 		match arglist, elist with
 		| [], [] -> true
 		| [(_,_,t)], elist when ExtType.is_rest (follow t) ->
-			let is_rest_array arg_t =
-				Type.fast_eq (Abstract.follow_with_abstracts t) (Abstract.follow_with_abstracts arg_t)
-			in
-			(match elist with
-			| [arg_t] when is_rest_array arg_t -> true
-			| _ ->
-				match follow t with
-				| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]) ->
-					let t1 = run_follow gen t1 in
-					(try
-						List.iter (fun et -> unify et t1) elist;
-						true
-					with Unify_error _ ->
-						false
-					)
-				| _ -> die "" __LOC__
+			(match follow t with
+			| TAbstract ({ a_path = ["haxe"],"Rest" } as a, [t1]) ->
+				let is_rest_array arg_t =
+					let boxed = TAbstract (a, [get_boxed gen t1]) in
+					Type.fast_eq (Abstract.follow_with_abstracts boxed) (Abstract.follow_with_abstracts arg_t)
+				in
+				(match elist with
+				| [arg_t] when is_rest_array arg_t -> true
+				| _ ->
+						let t1 = run_follow gen t1 in
+						(try
+							List.iter (fun et -> unify et t1) elist;
+							true
+						with Unify_error _ ->
+							false
+						)
+				)
+			| _ -> die "" __LOC__
 			)
 		| (_,_,t) :: arglist, et :: elist ->
 			(try

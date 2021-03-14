@@ -1084,6 +1084,10 @@ let generate con =
 					Some t
 			| TAbstract (({ a_path = [],"Null" } as tab),[t2]) ->
 					Some (TAbstract(tab,[gen.gfollow#run_f t2]))
+			| TType ({ t_path = ["haxe";"_Rest"],"NativeRest" } as td, [t2]) ->
+					Some (gen.gfollow#run_f (follow (TType (td,[get_boxed gen t2]))))
+			| TAbstract ({ a_path = ["haxe"],"Rest" } as a, [t2]) ->
+					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a [get_boxed gen t2]) )
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
@@ -1530,6 +1534,11 @@ let generate con =
 					| _ -> die "" __LOC__)
 				| TMeta (_,e) ->
 					expr_s w e
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["haxe";"_Rest"],"Rest_Impl_") }, { cf_name = "createNative" })) }, el) ->
+					(match follow e.etype with
+					| TInst (cls, params) ->
+						expr_s w { e with eexpr = TNew(cls,params,el) }
+					| _ -> die ~p:e.epos "Unexpected return type of haxe.Rest.createNative" __LOC__)
 				| TCall ({ eexpr = TIdent "__array__" }, el)
 				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el when t_has_type_param e.etype ->
