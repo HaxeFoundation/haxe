@@ -31,7 +31,9 @@
 
 - name: Flash setup
   if: matrix.target == 'flash9'
-  run: export DISPLAY=:99.0
+  run: |
+    find / -iname "libgtk-x11-2*"
+    export DISPLAY=:99.0
 
 - name: Test
   if: success() && !(matrix.SAUCE && matrix.SAUCE_ACCESS_KEY)
