@@ -78,37 +78,6 @@ class Process {
 		return new java.lang.ProcessBuilder(...pargs);
 	}
 
-	// var sysName = Sys.systemName();
-	// 	var pargs;
-	// 	if (args == null) {
-	// 		var cmdStr = cmd;
-	// 		switch (sysName) {
-	// 			case "Windows":
-	// 				cmd = switch (Sys.getEnv("COMSPEC")) {
-	// 					case null: "cmd.exe";
-	// 					case var comspec: comspec;
-	// 				}
-	// 				pargs = [cmd, '/C', '"$cmdStr"'];
-	// 			case _:
-	// 				cmd = "/bin/sh";
-	// 				pargs = [cmd, "-c", cmdStr];
-	// 		}
-	// 	} else {
-	// 		pargs = [];
-	// 		switch (sysName) {
-	// 			case "Windows":
-	// 				pargs.push(SysTools.quoteWinArg(cmd, false));
-	// 				for (arg in args)
-	// 					pargs.push(SysTools.quoteWinArg(arg, false));
-	// 			case _:
-	// 				pargs.push(cmd);
-	// 				for (arg in args)
-	// 					pargs.push(arg);
-	// 		}
-	// 	}
-
-	// 	return new java.lang.ProcessBuilder(...pargs);
-
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
 		if (detached)
 			throw "Detached process is not supported on this platform";
