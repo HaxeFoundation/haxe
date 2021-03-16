@@ -1808,7 +1808,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		| CTPath tp ->
 			if tp.tparams <> [] then display_error ctx "Type parameters are not supported for the `is` operator" p_t;
 			let e = type_expr ctx e WithType.value in
-			let e_t = type_type ctx (tp.tpackage,tp.tname) p_t in
+			let mt = Typeload.load_type_def ctx p_t tp in
+			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
+				DisplayEmitter.display_module_type ctx mt p_t;
+			let e_t = type_module_type ctx mt None p_t in
 			let e_Std_isOfType =
 				match Typeload.load_type_raise ctx ([],"Std") "Std" p with
 				| TClassDecl c ->
