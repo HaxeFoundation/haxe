@@ -6,6 +6,7 @@ import java.NativeArray;
 import java.lang.System;
 import java.lang.Object;
 import java.util.Arrays;
+import java.StdTypes;
 
 private typedef NativeRest<T> = NativeArray<T>;
 
@@ -28,6 +29,41 @@ abstract Rest<T>(NativeRest<T>) {
 		return new Rest(result);
 	}
 	#end
+
+	@:generic
+	static function ofNativePrimitive<TBoxed,TRest>(result:NativeRest<TBoxed>, collection:NativeArray<TRest>):Rest<TRest> {
+		for(i in 0...collection.length)
+			result[i] = cast collection[i];
+		return new Rest(cast result);
+	}
+
+	@:from static function ofNativeInt(collection:NativeArray<Int>):Rest<Int>
+		return ofNativePrimitive(new NativeRest<java.lang.Integer>(collection.length), collection);
+
+	@:from static function ofNativeFloat(collection:NativeArray<Float>):Rest<Float>
+		return ofNativePrimitive(new NativeRest<java.lang.Double>(collection.length), collection);
+
+	@:from static function ofNativeBool(collection:NativeArray<Bool>):Rest<Bool>
+		return ofNativePrimitive(new NativeRest<java.lang.Boolean>(collection.length), collection);
+
+	@:from static function ofNativeInt8(collection:NativeArray<Int8>):Rest<Int8>
+		return ofNativePrimitive(new NativeRest<java.lang.Byte>(collection.length), collection);
+
+	@:from static function ofNativeInt16(collection:NativeArray<Int16>):Rest<Int16>
+		return ofNativePrimitive(new NativeRest<java.lang.Short>(collection.length), collection);
+
+	@:from static function ofNativeChar16(collection:NativeArray<Char16>):Rest<Char16>
+		return ofNativePrimitive(new NativeRest<java.lang.Character>(collection.length), collection);
+
+	@:from static function ofNativeHaxeInt64(collection:NativeArray<haxe.Int64>):Rest<haxe.Int64>
+		return ofNativePrimitive(new NativeRest<java.lang.Long>(collection.length), collection);
+
+	@:from static function ofNativeInt64(collection:NativeArray<Int64>):Rest<Int64>
+		return ofNativePrimitive(new NativeRest<java.lang.Long>(collection.length), collection);
+
+	@:from static function ofNative<T>(collection:NativeArray<T>):Rest<T> {
+		return new Rest(collection);
+	}
 
 	inline function new(a:NativeRest<T>):Void
 		this = a;
