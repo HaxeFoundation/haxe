@@ -350,17 +350,16 @@ module Inheritance = struct
 			end
 		| _ -> error "Should extend by using a class" p
 
-	let map_params substs from_p to_p =
-		List.iter2 
-			(fun (_, p1) p2 -> if p1 != p2 then (Hashtbl.add substs p1 p2))
-			from_p to_p
-
 	let map_constraints cl ipth substs =
-		let rec gather_super cl = match cl.cl_super with
+		let map_params substs from_p to_p =
+			List.iter2 
+				(fun (_, p1) p2 -> if p1 != p2 then (Hashtbl.add substs p1 p2))
+				from_p to_p in
+		let gather_super cl = match cl.cl_super with
 			| Some (scl, tparams) -> map_params substs scl.cl_params tparams
 			| None -> ()
 			in
-		let rec ifinder =
+		let ifinder =
 			try	Some (List.find (fun (ifc, _) -> ifc.cl_path = ipth) cl.cl_implements)
 			with Not_found -> 	None
 		in begin
