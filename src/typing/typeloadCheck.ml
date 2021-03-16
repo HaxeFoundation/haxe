@@ -377,7 +377,6 @@ module Inheritance = struct
 			check_interface ctx missing c i2 (List.map (apply_params intf.cl_params params) p2) substs;
 		) intf.cl_implements;
 		let p = c.cl_name_pos in
-		(* let vrbs = true in *)
 		let rec check_field i f =
 			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
