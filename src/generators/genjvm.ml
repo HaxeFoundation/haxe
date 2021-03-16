@@ -2947,7 +2947,8 @@ let generate jvm_flag com =
 		"Manifest-Version: 1.0\n" ^
 		"Created-By: Haxe (Haxe Foundation)" ^
 		(Option.map_default (fun (cl,_) ->  "\nMain-Class: " ^ (s_type_path cl.cl_path)) "" entry_point) ^
-		(match class_paths with [] -> "" | _ -> "\nClass-Path: " ^ (String.concat " " class_paths))
+		(match class_paths with [] -> "" | _ -> "\nClass-Path: " ^ (String.concat " " class_paths)) ^
+		"\n\n"
 	in
 	Zip.add_entry ~level:gctx.jar_compression_level manifest_content gctx.jar "META-INF/MANIFEST.MF";
 
