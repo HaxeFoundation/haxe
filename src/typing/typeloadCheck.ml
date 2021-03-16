@@ -46,7 +46,7 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
-let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
+let valid_redefinition ctx f1 t1 f2 t2 subst= (* child, parent *)
 	let valid t1 t2 =
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
@@ -69,10 +69,16 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 					| _, _ when List.length ct1 = List.length ct2 ->
 						(* if same constraints, they are the same type *)
 						let check monos =
-							List.iter2 (fun t1 t2  ->
+							List.iter2 (fun t1 t2  -> 
 								try
-									let t1 = apply_params l1 monos (apply_params c1.cl_params pl1 t1) in
-									let t2 = apply_params l2 monos (apply_params c2.cl_params pl2 t2) in
+									let rec find_subst t = match Hashtbl.find_opt subst t with
+									(* subst is compatibility mapping of type parameters
+									between class and interfaces/base classes it implements
+									see more #5890 *)
+										| None -> t
+										| Some to_p -> find_subst to_p in
+									let t1 = find_subst ( apply_params l1 monos (apply_params c1.cl_params pl1 t1) ) in
+									let t2 = find_subst ( apply_params l2 monos (apply_params c2.cl_params pl2 t2) ) in
 									type_eq EqStrict t1 t2
 								with Unify_error l ->
 									raise (Unify_error (Unify_custom "Constraints differ" :: l))
@@ -204,8 +210,9 @@ let check_overriding ctx c f =
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
 			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
 			try
+				let substs = Hashtbl.create 0 in
 				let t = apply_params csup.cl_params params t in
-				valid_redefinition ctx f f.cf_type f2 t;
+				valid_redefinition ctx f f.cf_type f2 t substs
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
@@ -343,11 +350,35 @@ module Inheritance = struct
 			end
 		| _ -> error "Should extend by using a class" p
 
-	let rec check_interface ctx missing c intf params =
+	let map_params substs from_p to_p =
+		List.iter2 
+			(fun (_, p1) p2 -> if p1 != p2 then (Hashtbl.add substs p1 p2))
+			from_p to_p
+
+	let map_constraints cl ipth substs =
+		let rec gather_super cl = match cl.cl_super with
+			| Some (scl, tparams) -> map_params substs scl.cl_params tparams
+			| None -> ()
+			in
+		let rec ifinder =
+			try	Some (List.find (fun (ifc, _) -> ifc.cl_path = ipth) cl.cl_implements)
+			with Not_found -> 	None
+		in begin
+			(gather_super cl);
+			match (ifinder) with
+				| Some(ifase, clprms) -> 
+					map_params substs ifase.cl_params clprms;
+				| None -> ()
+			end
+			
+	let rec check_interface ctx missing c intf params substs =
+		map_constraints c intf.cl_path substs;
 		List.iter (fun (i2,p2) ->
-			check_interface ctx missing c i2 (List.map (apply_params intf.cl_params params) p2)
+			map_constraints intf i2.cl_path substs;
+			check_interface ctx missing c i2 (List.map (apply_params intf.cl_params params) p2) substs;
 		) intf.cl_implements;
 		let p = c.cl_name_pos in
+		(* let vrbs = true in *)
 		let rec check_field i f =
 			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
@@ -374,7 +405,8 @@ module Inheritance = struct
 					else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 						display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
-						valid_redefinition ctx f2 t2 f (apply_params intf.cl_params params f.cf_type)
+                        let rt = apply_params intf.cl_params params f.cf_type in
+						valid_redefinition ctx f2 t2 f rt substs;
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
@@ -423,7 +455,8 @@ module Inheritance = struct
 		| _ ->
 		List.iter (fun (intf,params) ->
 			let missing = DynArray.create () in
-			check_interface ctx missing c intf params;
+			let substs = Hashtbl.create 0 in
+			check_interface ctx missing c intf params substs;
 			if DynArray.length missing > 0 then begin
 				let l = DynArray.to_list missing in
 				let diag = {
