@@ -1435,6 +1435,11 @@ extern class Global {
 	static function base64_decode(data:String, strict:Bool = false):EitherType<String, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.gethostname.php
+	**/
+	static function gethostname():EitherType<String, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.gethostbyname.php
 	**/
 	static function gethostbyname(hostname:String):String;
