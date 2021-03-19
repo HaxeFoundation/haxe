@@ -491,8 +491,14 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 	let rec loop find_op ol = match ol with
 		| (op_cf,cf) :: ol when op_cf = find_op ->
 			let is_impl = has_class_field_flag cf CfImpl in
-			begin match follow cf.cf_type with
-				| TFun([(_,_,t1);(_,_,t2)],tret) ->
+			begin
+				match follow cf.cf_type with
+				| TFun((_,_,t1) :: (_,_,t2) :: pos_infos, tret) ->
+					(match pos_infos with
+					| [] -> ()
+					| [_,true,t] when is_pos_infos t -> ()
+					| _ -> die ~p:cf.cf_pos ("Unexpected arguments list of function " ^ cf.cf_name) __LOC__
+					);
 					let check e1 e2 swapped =
 						let map_arguments () =
 							let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in

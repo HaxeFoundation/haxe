@@ -130,7 +130,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				else TAbstract(a,pl)
 			in
 			match follow (map cf.cf_type) with
-			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_set && is_empty_or_pos_infos args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
@@ -140,7 +140,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				with Unify_error _ | Error (Unify _,_) ->
 					loop cfl
 				end
-			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when not is_set && is_empty_or_pos_infos args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in

@@ -1025,18 +1025,25 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
 						match t with
 							| TFun([_,_,t],_) -> t
+							| TFun([(_,_,t1);(_,true,t2)],_) when is_pos_infos t2 -> t1
 							| _ -> error (cf.cf_name ^ ": @:from cast functions must accept exactly one argument") p
 					) "@:from" in
 					a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
 				| (Meta.To,_,_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
+					let are_valid_args args =
+						match args with
+						| [_] -> true
+						| [_; (_,true,t)] when is_pos_infos t -> true
+						| _ -> false
+					in
 					(match cf.cf_kind, cf.cf_type with
 					| Var _, _ ->
 						error "@:to meta should be used on methods" p
-					| Method _, TFun(args, _) when not fctx.is_abstract_member && List.length args <> 1 ->
+					| Method _, TFun(args, _) when not fctx.is_abstract_member && not (are_valid_args args) ->
 						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
 						error ("static @:to method should have one argument") p
-					| Method _, TFun(args, _) when fctx.is_abstract_member && List.length args <> 1 ->
+					| Method _, TFun(args, _) when fctx.is_abstract_member && not (are_valid_args args) ->
 						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
 						error "@:to method should have no arguments" p
 					| _ -> ()
@@ -1064,7 +1071,9 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							in
 							args
 						end else
-							[]
+							match cf.cf_type with
+							| TFun([_;(_,true,t)],_) when is_pos_infos t -> [t]
+							| _ -> []
 						in
 						let t = resolve_m args in
 						t
@@ -1081,8 +1090,11 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
-					let left_eq,right_eq = match follow t with
+					let left_eq,right_eq =
+						match follow t with
 						| TFun([(_,_,t1);(_,_,t2)],_) ->
+							type_iseq targ t1,type_iseq targ t2
+						| TFun([(_,_,t1);(_,_,t2);(_,true,t3)],_) when is_pos_infos t3 ->
 							type_iseq targ t1,type_iseq targ t2
 						| _ ->
 							if fctx.is_abstract_member then
@@ -1117,11 +1129,11 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						end
 					in
 					begin match follow t with
-						| TFun([(_,_,t1);(_,_,t2)],_) ->
+						| TFun((_,_,t1) :: (_,_,t2) :: args,_) when is_empty_or_pos_infos args ->
 							if a.a_read <> None then error "Multiple resolve-read methods are not supported" cf.cf_pos;
 							check_fun t1 t2;
 							a.a_read <- Some cf;
-						| TFun([(_,_,t1);(_,_,t2);(_,_,t3)],_) ->
+						| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when is_empty_or_pos_infos args ->
 							if a.a_write <> None then error "Multiple resolve-write methods are not supported" cf.cf_pos;
 							check_fun t1 t2;
 							a.a_write <- Some cf;

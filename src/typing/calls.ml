@@ -10,6 +10,17 @@ open Error
 open CallUnification
 
 let make_call ctx e params t ?(force_inline=false) p =
+	let params =
+		match follow e.etype with
+		| TFun (expected_args,_) ->
+			(match List.rev expected_args with
+			| (_,true,t) :: rest when is_pos_infos t && List.length rest = List.length params ->
+				let infos = mk_infos ctx p [] in
+				params @ [type_expr ctx infos (WithType.with_type t)]
+			| _ -> params
+			)
+		| _ -> params
+	in
 	try
 		let ethis,cl,f = match e.eexpr with
 			| TField (ethis,fa) ->

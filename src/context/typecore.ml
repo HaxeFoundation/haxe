@@ -613,6 +613,55 @@ let s_field_call_candidate fcc =
 		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
 	]
 
+
+let relative_path ctx file =
+	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
+	let fpath = slashes (Path.get_full_path file) in
+	let fpath_lower = String.lowercase fpath in
+	let flen = String.length fpath_lower in
+	let rec loop = function
+		| [] -> file
+		| path :: l ->
+			let spath = String.lowercase (slashes path) in
+			let slen = String.length spath in
+			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
+	in
+	loop ctx.com.Common.class_path
+
+let mk_infos ctx p params =
+	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+	(EObjectDecl (
+		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
+		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
+		if ctx.curfield.cf_name = "" then
+			params
+		else
+			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
+	) ,p)
+
+let rec is_pos_infos = function
+	| TMono r ->
+		(match r.tm_type with
+		| Some t -> is_pos_infos t
+		| _ -> false)
+	| TLazy f ->
+		is_pos_infos (lazy_type f)
+	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
+		true
+	| TType (t,tl) ->
+		is_pos_infos (apply_params t.t_params tl t.t_type)
+	| TAbstract({a_path=[],"Null"},[t]) ->
+		is_pos_infos t
+	| _ ->
+		false
+
+let is_empty_or_pos_infos args =
+	match args with
+	| [_,true,t] -> is_pos_infos t
+	| [] -> true
+	| _ -> false
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
