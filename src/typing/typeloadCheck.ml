@@ -71,7 +71,7 @@ let valid_redefinition ctx f1 t1 f2 t2 subst= (* child, parent *)
 						let check monos =
 							List.iter2 (fun t1 t2  -> 
 								try
-									let rec find_subst t = match Hashtbl.find_opt subst t with
+									let rec find_subst t = match List.assq_opt t subst  with
 									(* subst is compatibility mapping of type parameters
 									between class and interfaces/base classes it implements
 									see more #5890 *)
@@ -210,9 +210,9 @@ let check_overriding ctx c f =
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
 			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
 			try
-				let substs = Hashtbl.create 0 in
+				let substs = ref [] in
 				let t = apply_params csup.cl_params params t in
-				valid_redefinition ctx f f.cf_type f2 t substs
+				valid_redefinition ctx f f.cf_type f2 t !substs
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
@@ -353,7 +353,7 @@ module Inheritance = struct
 	let map_constraints cl ipth substs =
 		let map_params substs from_p to_p =
 			List.iter2 
-				(fun (_, p1) p2 -> if p1 != p2 then (Hashtbl.add substs p1 p2))
+				(fun (_, p1) p2 -> if p1 != p2 then (substs:= (p1, p2)::!substs))
 				from_p to_p in
 		let gather_super cl = match cl.cl_super with
 			| Some (scl, tparams) -> map_params substs scl.cl_params tparams
@@ -404,7 +404,7 @@ module Inheritance = struct
 						display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
                         let rt = apply_params intf.cl_params params f.cf_type in
-						valid_redefinition ctx f2 t2 f rt substs;
+						valid_redefinition ctx f2 t2 f rt !substs;
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
@@ -453,7 +453,7 @@ module Inheritance = struct
 		| _ ->
 		List.iter (fun (intf,params) ->
 			let missing = DynArray.create () in
-			let substs = Hashtbl.create 0 in
+			let substs = ref [] in
 			check_interface ctx missing c intf params substs;
 			if DynArray.length missing > 0 then begin
 				let l = DynArray.to_list missing in
