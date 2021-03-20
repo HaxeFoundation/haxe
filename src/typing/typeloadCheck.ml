@@ -77,8 +77,8 @@ let valid_redefinition ctx f1 t1 f2 t2 subst = (* child, parent *)
 									see more #5890 *)
 										| None -> t
 										| Some (from_p, to_p) -> find_subst to_p in
-									let t1 = find_subst ( apply_params l1 monos (apply_params c1.cl_params pl1 t1) ) in
-									let t2 = find_subst ( apply_params l2 monos (apply_params c2.cl_params pl2 t2) ) in
+									let t1 = find_subst ( apply_params ~substs:subst l1 monos (apply_params ~substs:subst c1.cl_params pl1 t1) ) in
+									let t2 = find_subst ( apply_params ~substs:subst l2 monos (apply_params ~substs:subst c2.cl_params pl2 t2) ) in
 									type_eq EqStrict t1 t2
 								with Unify_error l ->
 									raise (Unify_error (Unify_custom "Constraints differ" :: l))

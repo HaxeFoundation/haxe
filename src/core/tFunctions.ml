@@ -323,7 +323,7 @@ let duplicate t =
 exception ApplyParamsRecursion
 
 (* substitute parameters with other types *)
-let apply_params ?stack cparams params t =
+let apply_params ?stack ?substs cparams params t =
 	match cparams with
 	| [] -> t
 	| _ ->
@@ -334,7 +334,10 @@ let apply_params ?stack cparams params t =
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
-	let subst = loop cparams params in
+	let subst = match substs with 
+		| None -> loop cparams params 
+		| Some (s) -> s @ (loop cparams params)
+		in
 	let rec loop t =
 		try
 			List.assq t subst

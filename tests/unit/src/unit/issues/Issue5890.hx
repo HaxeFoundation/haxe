@@ -41,3 +41,13 @@ interface IBase2<T> {
 
 interface OtherBase {}
 interface ISuc<T> extends IBase2<T> extends OtherBase {}
+class StatBase<T:{}> {}
+class ShotContext<TDef:{}, T:StatBase<TDef>> {}
+
+interface WeaponReporter<TDef:{}> {
+	public function shoot<T:StatBase<TDef>>(ctx:ShotContext<TDef, T>):Void;
+}
+
+class StatWeaponReporterImpl<TDef:{}> implements WeaponReporter<TDef> {
+	public function shoot<T:StatBase<TDef>>(ctx:ShotContext<TDef, T>):Void {}
+}
