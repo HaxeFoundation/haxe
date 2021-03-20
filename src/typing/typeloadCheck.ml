@@ -46,7 +46,7 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
-let valid_redefinition ctx f1 t1 f2 t2 subst= (* child, parent *)
+let valid_redefinition ctx f1 t1 f2 t2 subst = (* child, parent *)
 	let valid t1 t2 =
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
@@ -71,12 +71,12 @@ let valid_redefinition ctx f1 t1 f2 t2 subst= (* child, parent *)
 						let check monos =
 							List.iter2 (fun t1 t2  -> 
 								try
-									let rec find_subst t = match List.assq_opt t subst  with
+									let rec find_subst t = match List.find_opt (fun (key, value) -> (shallow_eq key t)) subst  with
 									(* subst is compatibility mapping of type parameters
 									between class and interfaces/base classes it implements
 									see more #5890 *)
 										| None -> t
-										| Some to_p -> find_subst to_p in
+										| Some (from_p, to_p) -> find_subst to_p in
 									let t1 = find_subst ( apply_params l1 monos (apply_params c1.cl_params pl1 t1) ) in
 									let t2 = find_subst ( apply_params l2 monos (apply_params c2.cl_params pl2 t2) ) in
 									type_eq EqStrict t1 t2
@@ -210,7 +210,7 @@ let check_overriding ctx c f =
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
 			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
 			try
-				let substs = ref [] in
+				let substs = ref [] in 
 				let t = apply_params csup.cl_params params t in
 				valid_redefinition ctx f f.cf_type f2 t !substs
 			with
