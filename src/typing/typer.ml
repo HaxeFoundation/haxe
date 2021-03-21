@@ -1794,8 +1794,6 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_cast ctx e t p
 	| EDisplay (e,dk) ->
 		TyperDisplay.handle_edisplay ctx e dk mode with_type
-	| EDisplayNew t ->
-		die "" __LOC__
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx true t in
 		let e = type_expr ctx e (WithType.with_type t) in
