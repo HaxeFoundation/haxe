@@ -55,7 +55,7 @@ let get_this ctx p =
 		in
 		mk (TLocal v) ctx.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> die "" __LOC__) in
+		let v = (try PMap.find "this" ctx.locals with Not_found -> error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
