@@ -511,7 +511,8 @@ let rec can_access ctx c cf stat =
 		in
 		loop c.cl_meta || loop f.cf_meta
 	in
-	let cur_paths = ref [] in
+	let module_path = ctx.curclass.cl_module.m_path in
+	let cur_paths = ref [fst module_path @ [snd module_path], false] in
 	let rec loop c is_current_path =
 		cur_paths := (make_path c ctx.curfield, is_current_path) :: !cur_paths;
 		begin match c.cl_super with
@@ -528,15 +529,16 @@ let rec can_access ctx c cf stat =
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
 				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
-				if is_constr
-				then (match c.cl_constructor with
+				if is_constr then (
+					match c.cl_constructor with
 					| Some cf ->
 						if allowed cf then true
 						else if cf.cf_expr = None then false (* maybe it's an inherited auto-generated constructor *)
 						else raise Not_found
 					| _ -> false
-				)
-				else try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields)) with Not_found -> false
+				) else
+					try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields))
+					with Not_found -> false
 			)
 			|| (match c.cl_super with
 			| Some (csup,_) -> loop csup
