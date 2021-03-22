@@ -1,7 +1,7 @@
 [
 	{
 		"name": "AbsolutePath",
-		"define": "absolute_path",
+		"define": "absolute-path",
 		"doc": "Print absolute file path in trace output."
 	},
 	{
@@ -12,28 +12,28 @@
 	},
 	{
 		"name": "AnalyzerOptimize",
-		"define": "analyzer_optimize",
+		"define": "analyzer-optimize",
 		"doc": "Perform advanced optimizations."
 	},
 	{
 		"name": "AnnotateSource",
-		"define": "annotate_source",
+		"define": "annotate-source",
 		"doc": "Add additional comments to generated source code.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "CheckXmlProxy",
-		"define": "check_xml_proxy",
+		"define": "check-xml-proxy",
 		"doc": "Check the used fields of the XML proxy."
 	},
 	{
 		"name": "CoreApi",
-		"define": "core_api",
+		"define": "core-api",
 		"doc": "Defined in the core API context."
 	},
 	{
 		"name": "CoreApiSerialize",
-		"define": "core_api_serialize",
+		"define": "core-api-serialize",
 		"doc": "Mark some generated core API classes with the `Serializable` attribute on C#.",
 		"platforms": ["cs"]
 	},
@@ -44,7 +44,7 @@
 	},
 	{
 		"name": "CsVer",
-		"define": "cs_ver",
+		"define": "cs-ver",
 		"doc": "The C# version to target.",
 		"platforms": ["cs"],
 		"params": ["version"]
@@ -63,7 +63,7 @@
 	},
 	{
 		"name": "DceDebug",
-		"define": "dce_debug",
+		"define": "dce-debug",
 		"doc": "Show DCE log.",
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
@@ -74,7 +74,7 @@
 	},
 	{
 		"name": "DisableUnicodeStrings",
-		"define": "disable_unicode_strings",
+		"define": "disable-unicode-strings",
 		"doc": "Disable Unicode support in `String` type.",
 		"platforms": ["cpp"]
 	},
@@ -86,24 +86,24 @@
 	},
 	{
 		"name": "DisplayStdin",
-		"define": "display_stdin",
+		"define": "display-stdin",
 		"doc": "Read the contents of a file specified in `--display` from standard input."
 	},
 	{
 		"name": "DllExport",
-		"define": "dll_export",
+		"define": "dll-export",
 		"doc": "GenCPP experimental linking.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "DllImport",
-		"define": "dll_import",
+		"define": "dll-import",
 		"doc": "Handle Haxe-generated .NET DLL imports.",
 		"platforms": ["cs"]
 	},
 	{
 		"name": "DocGen",
-		"define": "doc_gen",
+		"define": "doc-gen",
 		"doc": "Do not perform any removal/change in order to correctly generate documentation."
 	},
 	{
@@ -114,65 +114,65 @@
 	},
 	{
 		"name": "DumpPath",
-		"define": "dump_path",
+		"define": "dump-path",
 		"doc": "Path to generate dumps to (default: \"dump\").",
 		"params": ["path"]
 	},
 	{
 		"name": "DumpDependencies",
-		"define": "dump_dependencies",
+		"define": "dump-dependencies",
 		"doc": "Dump the classes dependencies in a dump subdirectory."
 	},
 	{
 		"name": "DumpIgnoreVarIds",
-		"define": "dump_ignore_var_ids",
+		"define": "dump-ignore-var-ids",
 		"doc": "Remove variable IDs from non-pretty dumps (helps with diff)."
 	},
 	{
 		"name": "DynamicInterfaceClosures",
-		"define": "dynamic_interface_closures",
+		"define": "dynamic-interface-closures",
 		"doc": "Use slow path for interface closures to save space.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "EraseGenerics",
-		"define": "erase_generics",
+		"define": "erase-generics",
 		"doc": "Erase generic classes on C#.",
 		"platforms": ["cs"]
 	},
 	{
 		"name": "EvalCallStackDepth",
-		"define": "eval_call_stack_depth",
+		"define": "eval-call-stack-depth",
 		"doc": "Set maximum call stack depth for eval. (default: 1000)",
 		"platforms": ["eval"],
 		"params": ["depth"]
 	},
 	{
 		"name": "EvalDebugger",
-		"define": "eval_debugger",
-		"doc": "Support debugger in macro/interp mode. Allows `host:port` value to open a socket. Implies eval_stack.",
+		"define": "eval-debugger",
+		"doc": "Support debugger in macro/interp mode. Allows `host:port` value to open a socket. Implies eval-stack.",
 		"platforms": ["eval"]
 	},
 	{
 		"name": "EvalStack",
-		"define": "eval_stack",
+		"define": "eval-stack",
 		"doc": "Record stack information in macro/interp mode.",
 		"platforms": ["eval"]
 	},
 	{
 		"name": "EvalTimes",
-		"define": "eval_times",
-		"doc": "Record per-method execution times in macro/interp mode. Implies eval_stack.",
+		"define": "eval-times",
+		"doc": "Record per-method execution times in macro/interp mode. Implies eval-stack.",
 		"platforms": ["eval"]
 	},
 	{
 		"name": "FilterTimes",
-		"define": "filter_times",
+		"define": "filter-times",
 		"doc": "Record per-filter execution times upon --times."
 	},
 	{
 		"name": "FastCast",
-		"define": "fast_cast",
+		"define": "fast-cast",
 		"doc": "Enables an experimental casts cleanup on C# and Java.",
 		"platforms": ["cs", "java"]
 	},
@@ -184,38 +184,38 @@
 	},
 	{
 		"name": "FileExtension",
-		"define": "file_extension",
+		"define": "file-extension",
 		"doc": "Output filename extension for cpp source code.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "FlashStrict",
-		"define": "flash_strict",
+		"define": "flash-strict",
 		"doc": "More strict typing for flash target.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "FlashUseStage",
-		"define": "flash_use_stage",
+		"define": "flash-use-stage",
 		"doc": "Keep the SWF library initial stage.",
 		"platforms": ["flash"]
 	},
 	{
-		"devcomment": "force_lib_check is only here as a debug facility - compiler checking allows errors to be found more easily",
+		"devcomment": "force-lib-check is only here as a debug facility - compiler checking allows errors to be found more easily",
 		"name": "ForceLibCheck",
-		"define": "force_lib_check",
+		"define": "force-lib-check",
 		"doc": "Force the compiler to check `--net-lib` and `–-java-lib` added classes (internal).",
 		"platforms": ["cs", "java"]
 	},
 	{
 		"name": "ForceNativeProperty",
-		"define": "force_native_property",
+		"define": "force-native-property",
 		"doc": "Tag all properties with `:nativeProperty` metadata for 3.1 compatibility.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "GencommonDebug",
-		"define": "gencommon_debug",
+		"define": "gencommon-debug",
 		"doc": "GenCommon internal.",
 		"platforms": ["cs", "java"]
 	},
@@ -226,13 +226,13 @@
 	},
 	{
 		"name": "HaxeBoot",
-		"define": "haxe_boot",
+		"define": "haxe-boot",
 		"doc": "Give the name 'haxe' to the flash boot class instead of a generated name.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "HaxeVer",
-		"define": "haxe_ver",
+		"define": "haxe-ver",
 		"doc": "The current Haxe version value as decimal number. E.g. 3.407 for 3.4.7.",
 		"reserved": true
 	},
@@ -244,39 +244,39 @@
 	},
 	{
 		"name": "HlVer",
-		"define": "hl_ver",
+		"define": "hl-ver",
 		"doc": "The HashLink version to target. (default: 1.10.0)",
 		"platforms": ["hl"],
 		"params": ["version"]
 	},
 	{
 		"name": "HxcppApiLevel",
-		"define": "hxcpp_api_level",
+		"define": "hxcpp-api-level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",
 		"platforms": ["cpp"],
 		"reserved": true
 	},
 	{
 		"name": "HxcppGcGenerational",
-		"define": "HXCPP_GC_GENERATIONAL",
+		"define": "HXCPP-GC-GENERATIONAL",
 		"doc": "Experimental Garbage Collector.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HxcppDebugger",
-		"define": "HXCPP_DEBUGGER",
-		"doc": "Include additional information for hxcpp_debugger.",
+		"define": "HXCPP-DEBUGGER",
+		"doc": "Include additional information for hxcpp-debugger.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HxcppSmartStings",
-		"define": "hxcpp_smart_strings",
-		"doc": "Use wide strings in hxcpp. (Turned on by default unless `-D disable_unicode_strings` is specified.)",
+		"define": "hxcpp-smart-strings",
+		"doc": "Use wide strings in hxcpp. (Turned on by default unless `-D disable-unicode-strings` is specified.)",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "IncludePrefix",
-		"define": "include_prefix",
+		"define": "include-prefix",
 		"doc": "Prepend path to generated include files.",
 		"platforms": ["cpp"]
 	},
@@ -293,20 +293,20 @@
 	},
 	{
 		"name": "JavaVer",
-		"define": "java_ver",
+		"define": "java-ver",
 		"doc": "Sets the Java version to be targeted.",
 		"platforms": ["java"],
 		"params": ["version: 5-7"]
 	},
 	{
 		"name": "JsClassic",
-		"define": "js_classic",
+		"define": "js-classic",
 		"doc": "Don't use a function wrapper and strict mode in JS output.",
 		"platforms": ["js"]
 	},
 	{
 		"name": "JsEs",
-		"define": "js_es",
+		"define": "js-es",
 		"doc": "Generate JS compliant with given ES standard version. (default: 5)",
 		"platforms": ["js"],
 		"params": ["version: 3 | 5 | 6"],
@@ -314,7 +314,7 @@
 	},
 	{
 		"name": "JsEnumsAsArrays",
-		"define": "js_enums_as_arrays",
+		"define": "js-enums-as-arrays",
 		"doc": "Generate enum representation as array instead of as object.",
 		"platforms": ["js"]
 	},
@@ -326,19 +326,19 @@
 	},
 	{
 		"name": "JsUnflatten",
-		"define": "js_unflatten",
+		"define": "js-unflatten",
 		"doc": "Generate nested objects for packages and types.",
 		"platforms": ["js"]
 	},
 	{
 		"name": "JsSourceMap",
-		"define": "js_source_map",
-		"doc": "Generate JavaScript source map even in non-debug mode. Deprecated in favor of `-D source_map`.",
+		"define": "js-source-map",
+		"doc": "Generate JavaScript source map even in non-debug mode. Deprecated in favor of `-D source-map`.",
 		"platforms": ["js"]
 	},
 	{
 		"name": "SourceMap",
-		"define": "source_map",
+		"define": "source-map",
 		"doc": "Generate source map for compiled files.",
 		"platforms": ["php", "js"]
 	},
@@ -362,31 +362,31 @@
 	},
 	{
 		"name": "KeepOldOutput",
-		"define": "keep_old_output",
+		"define": "keep-old-output",
 		"doc": "Keep old source files in the output directory.",
 		"platforms": ["cs", "java"]
 	},
 	{
 		"name": "LoopUnrollMaxCost",
-		"define": "loop_unroll_max_cost",
+		"define": "loop-unroll-max-cost",
 		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled. (default: 250)",
 		"params": ["cost"]
 	},
 	{
 		"name": "LuaJit",
-		"define": "lua_jit",
+		"define": "lua-jit",
 		"doc": "Enable the jit compiler for lua (version 5.2 only).",
 		"platforms": ["lua"]
 	},
 	{
 		"name": "LuaVanilla",
-		"define": "lua_vanilla",
+		"define": "lua-vanilla",
 		"doc": "Generate code lacking compiled extern lib support (e.g. utf8).",
 		"platforms": ["lua"]
 	},
 	{
 		"name": "LuaVer",
-		"define": "lua_ver",
+		"define": "lua-ver",
 		"doc": "The lua version to target.",
 		"platforms": ["lua"],
 		"params": ["version"]
@@ -400,39 +400,39 @@
 	},
 	{
 		"name": "MacroTimes",
-		"define": "macro_times",
+		"define": "macro-times",
 		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
 		"name": "NetVer",
-		"define": "net_ver",
+		"define": "net-ver",
 		"doc": "Sets the .NET version to be targeted.",
 		"platforms": ["cs"],
 		"params": ["version: 20-45"]
 	},
 	{
 		"name": "NetcoreVer",
-		"define": "netcore_ver",
+		"define": "netcore-ver",
 		"doc": "Sets the .NET core version to be targeted",
 		"platforms": ["cs"],
 		"params": ["version: x.x.x"]
 	},
 	{
 		"name": "NetTarget",
-		"define": "net_target",
+		"define": "net-target",
 		"doc": "Sets the .NET target. `netcore` (.NET core), `xbox`, `micro` (Micro Framework), `compact` (Compact Framework) are some valid values. (default: `net`)",
 		"platforms": ["cs"],
 		"params": ["name"]
 	},
 	{
 		"name": "NekoSource",
-		"define": "neko_source",
+		"define": "neko-source",
 		"doc": "Output neko source instead of bytecode.",
 		"platforms": ["neko"]
 	},
 	{
 		"name": "NekoV1",
-		"define": "neko_v1",
+		"define": "neko-v1",
 		"doc": "Keep Neko 1.x compatibility.",
 		"platforms": ["neko"]
 	},
@@ -450,7 +450,7 @@
 	},
 	{
 		"name": "NoDebug",
-		"define": "no_debug",
+		"define": "no-debug",
 		"doc": "Remove all debug macros from cpp output."
 	},
 	{
@@ -466,41 +466,41 @@
 	},
 	{
 		"name": "NoOpt",
-		"define": "no_opt",
+		"define": "no-opt",
 		"doc": "Disable optimizations."
 	},
 	{
 		"name": "NoInline",
-		"define": "no_inline",
+		"define": "no-inline",
 		"doc": "Disable inlining.",
 		"links": ["https://haxe.org/manual/class-field-inline.html"]
 	},
 	{
 		"name": "KeepInlinePositions",
-		"define": "keep_inline_positions",
+		"define": "keep-inline-positions",
 		"doc": "Don't substitute positions of inlined expressions with the position of the place of inlining.",
 		"links": ["https://haxe.org/manual/class-field-inline.html"]
 	},
 	{
 		"name": "NoRoot",
-		"define": "no_root",
+		"define": "no-root",
 		"doc": "Generate top-level types into the `haxe.root` namespace.",
 		"platforms": ["cs"]
 	},
 	{
 		"name": "NoMacroCache",
-		"define": "no_macro_cache",
+		"define": "no-macro-cache",
 		"doc": "Disable macro context caching."
 	},
 	{
 		"name": "NoSwfCompress",
-		"define": "no_swf_compress",
+		"define": "no-swf-compress",
 		"doc": "Disable SWF output compression.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "NoTraces",
-		"define": "no_traces",
+		"define": "no-traces",
 		"doc": "Disable all trace calls."
 	},
 	{
@@ -516,41 +516,41 @@
 	},
 	{
 		"name": "PhpPrefix",
-		"define": "php_prefix",
+		"define": "php-prefix",
 		"doc": "Root namespace for generated php classes. E.g. if compiled with`-D php-prefix=some.sub`, then all classes will be generated in `\\some\\sub` namespace.",
 		"platforms": ["php"],
 		"params": ["dot-separated namespace"]
 	},
 	{
 		"name": "PhpLib",
-		"define": "php_lib",
+		"define": "php-lib",
 		"doc": "Select the name for the php lib folder.",
 		"platforms": ["php"],
 		"params": ["folder name"]
 	},
 	{
 		"name": "PhpFront",
-		"define": "php_front",
+		"define": "php-front",
 		"doc": "Select the name for the php front file. (default: `index.php`)",
 		"platforms": ["php"],
 		"params": ["filename"]
 	},
 	{
 		"name": "PythonVersion",
-		"define": "python_version",
+		"define": "python-version",
 		"doc": "The python version to target. (default: 3.3)",
 		"platforms": ["python"],
 		"params": ["version"]
 	},
 	{
 		"name": "RealPosition",
-		"define": "real_position",
+		"define": "real-position",
 		"doc": "Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output.",
 		"platforms": ["cs", "java", "php"]
 	},
 	{
 		"name": "ReplaceFiles",
-		"define": "replace_files",
+		"define": "replace-files",
 		"doc": "GenCommon internal.",
 		"platforms": ["cs", "java"]
 	},
@@ -598,59 +598,59 @@
 	},
 	{
 		"name": "SwfCompressLevel",
-		"define": "swf_compress_level",
+		"define": "swf-compress-level",
 		"doc": "Set the amount of compression for the SWF output.",
 		"platforms": ["flash"],
 		"params": ["level: 1-9"]
 	},
 	{
 		"name": "SwfDebugPassword",
-		"define": "swf_debug_password",
+		"define": "swf-debug-password",
 		"doc": "Set a password for debugging.",
 		"platforms": ["flash"],
 		"params": ["password"]
 	},
 	{
 		"name": "SwfDirectBlit",
-		"define": "swf_direct_blit",
+		"define": "swf-direct-blit",
 		"doc": "Use hardware acceleration to blit graphics.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfGpu",
-		"define": "swf_gpu",
+		"define": "swf-gpu",
 		"doc": "Use GPU compositing features when drawing graphics.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfMetadata",
-		"define": "swf_metadata",
+		"define": "swf-metadata",
 		"doc": "Include contents of the given file as metadata in the SWF.",
 		"platforms": ["flash"],
 		"params": ["file"]
 	},
 	{
 		"name": "SwfPreloaderFrame",
-		"define": "swf_preloader_frame",
+		"define": "swf-preloader-frame",
 		"doc": "Insert empty first frame in SWF.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfProtected",
-		"define": "swf_protected",
+		"define": "swf-protected",
 		"doc": "Compile Haxe `private` as `protected` in the SWF instead of `public`.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfScriptTimeout",
-		"define": "swf_script_timeout",
+		"define": "swf-script-timeout",
 		"doc": "Maximum ActionScript processing time before script stuck dialog box displays.",
 		"platforms": ["flash"],
 		"params": ["time in seconds"]
 	},
 	{
 		"name": "SwfUseDoAbc",
-		"define": "swf_use_doabc",
+		"define": "swf-use-doabc",
 		"doc": "Use `DoAbc` SWF-tag instead of `DoAbcDefine`.",
 		"platforms": ["flash"]
 	},
@@ -668,7 +668,7 @@
 	},
 	{
 		"name": "UseNekoc",
-		"define": "use_nekoc",
+		"define": "use-nekoc",
 		"doc": "Use `nekoc` compiler instead of the internal one.",
 		"platforms": ["neko"]
 	},
@@ -686,12 +686,12 @@
 	},
 	{
 		"name": "WarnVarShadowing",
-		"define": "warn_var_shadowing",
+		"define": "warn-var-shadowing",
 		"doc": "Warn about shadowing variable declarations."
 	},
 	{
 		"name": "NoTre",
-		"define": "no_tre",
+		"define": "no-tre",
 		"doc": "Disable tail recursion elimination."
 	}
 ]
