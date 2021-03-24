@@ -2175,8 +2175,8 @@ module StdStd = struct
 	)
 
 	let random = vfun1 (fun v ->
-		let v = decode_int v in
-		vint (Random.State.int random (if v <= 0 then 1 else v))
+		let v = decode_i32 v in
+		vint32 (Random.State.int32 random (if v <= Int32.zero then Int32.one else v))
 	);
 end
 

@@ -24,6 +24,14 @@ private class MemberOverloadClass {
 	}
 }
 
+private overload extern inline function moduleTest(i:Int) {
+	return "Int: " + i;
+}
+
+private overload extern inline function moduleTest(s:String) {
+	return "String: " + s;
+}
+
 class TestOverloadsForEveryone extends Test {
 	function test() {
 		eq("Int: 12", StaticOverloadClass.test(12));
@@ -32,5 +40,8 @@ class TestOverloadsForEveryone extends Test {
 		var moc = new MemberOverloadClass();
 		eq("Int: 12", moc.test(12));
 		eq("String: foo", moc.test("foo"));
+
+		eq("Int: 12", moduleTest(12));
+		eq("String: foo", moduleTest("foo"));
 	}
 }

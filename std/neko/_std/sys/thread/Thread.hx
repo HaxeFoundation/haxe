@@ -22,7 +22,9 @@
 
 package sys.thread;
 
-abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 
 	public var events(get,never):EventLoop;
 
@@ -58,11 +60,6 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 	}
 
 	@:keep
-	static function initEventLoop() {
-		@:privateAccess HaxeThread.current().events = new EventLoop();
-	}
-
-	@:keep
 	static function processEvents() {
 		HaxeThread.current().events.loop();
 	}
@@ -70,19 +67,35 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 
 @:callable
 @:coreType
-private abstract ThreadHandle {}
+private abstract NativeThreadHandle {}
+
+private typedef ThreadHandle = NativeThreadHandle;
 
 private class HaxeThread {
-	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadHandle = neko.Lib.load("std", "thread_create", 2);
-	static var thread_current:()->ThreadHandle = neko.Lib.load("std", "thread_current", 0);
-	static var thread_send:(handle:ThreadHandle, msg:Dynamic)->Void = neko.Lib.load("std", "thread_send", 2);
-	static var thread_read_message:(block:Bool)->Dynamic = neko.Lib.load("std", "thread_read_message", 1);
+	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadHandle;
+	static var thread_current:()->ThreadHandle;
+	static var thread_send:(handle:ThreadHandle, msg:Dynamic)->Void;
+	static var thread_read_message:(block:Bool)->Dynamic;
 
-	static var mainThreadHandle = thread_current();
-	static var mainThread = new HaxeThread(mainThreadHandle);
+	static var mainThreadHandle:ThreadHandle;
+	static var mainThread:HaxeThread;
 
-	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
-	static final threadsMutex = new Mutex();
+	static var threads:Array<{thread:HaxeThread, handle:ThreadHandle}>;
+	static var threadsMutex:Mutex;
+
+	static function __init__() {
+		thread_create = neko.Lib.load("std", "thread_create", 2);
+		thread_current = neko.Lib.load("std", "thread_current", 0);
+		thread_send = neko.Lib.load("std", "thread_send", 2);
+		thread_read_message = neko.Lib.load("std", "thread_read_message", 1);
+
+		mainThreadHandle = thread_current();
+		mainThread = new HaxeThread(mainThreadHandle);
+		mainThread.events = new EventLoop();
+
+		threads = [];
+		threadsMutex = new Mutex();
+	}
 
 	public var events(default,null):Null<EventLoop>;
 	public var handle:ThreadHandle;

@@ -33,6 +33,7 @@ open EvalHash
 open EvalEncode
 open EvalField
 open MacroApi
+open Extlib_leftovers
 
 (* Create *)
 

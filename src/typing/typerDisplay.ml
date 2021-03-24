@@ -209,7 +209,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			| (t,doc,values) :: tl ->
 				let keep (args,r) =
 					begin try
-						let _ = unify_call_args' ctx el args r p false false in
+						let _ = unify_call_args ctx el args r p false false false in
 						true
 					with
 					| Error(Call_error (Not_enough_arguments _),_) -> true
@@ -651,7 +651,15 @@ let handle_display ctx e_ast dk mode with_type =
 	end;
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
-	display_expr ctx e_ast e dk mode with_type p
+	let f () = display_expr ctx e_ast e dk mode with_type p in
+	if ctx.in_overload_call_args then begin
+		try
+			f()
+		with DisplayException de ->
+			ctx.delayed_display <- Some de;
+			e
+	end else
+		f()
 
 let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =

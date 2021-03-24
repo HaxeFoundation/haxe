@@ -277,6 +277,7 @@ let reify in_macro =
 				| Not -> "OpNot"
 				| Neg -> "OpNeg"
 				| NegBits -> "OpNegBits"
+				| Spread -> "OpSpread"
 			) [] p in
 			expr "EUnop" [op;to_bool (flag = Postfix) p;loop e]
 		| EVars vl ->
@@ -332,8 +333,6 @@ let reify in_macro =
 			expr "EIs" [loop e; to_type_hint ct p]
 		| EDisplay (e,dk) ->
 			expr "EDisplay" [loop e; to_display_kind dk p]
-		| EDisplayNew t ->
-			expr "EDisplayNew" [to_tpath t p]
 		| ETernary (e1,e2,e3) ->
 			expr "ETernary" [loop e1;loop e2;loop e3]
 		| ECheckType (e1,ct) ->

@@ -7,6 +7,6 @@
 --resource serializedValues.txt
 --macro Macro.init()
 --dce full
--lib utest
+-lib utest:git:https://github.com/haxe-utest/utest#559b24c9a36533281ba7a2eed8aab83ed6b872b4
 -D analyzer-optimize
 -D analyzer-user-var-fusion

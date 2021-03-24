@@ -818,3 +818,24 @@ let reduce_unsafe_casts ?(require_cast=false) e t =
 	| { eexpr = TCast _ } as result -> result
 	| result when require_cast -> { e with eexpr = TCast(result,None) }
 	| result -> result
+
+(**
+	Returns a position spanning from the first expr to the last expr in `el`.
+	Returns `default_pos` if `el` is empty or values of `pfile` of the first and
+	the last positions are different.
+*)
+let punion_el default_pos el =
+	match el with
+	| [] -> default_pos
+	| [{ epos = p }] -> p
+	| { epos = first } :: { epos = last } :: el ->
+		let rec loop = function
+			| [] -> last
+			| [{ epos = last }] -> last
+			| _ :: el -> loop el
+		in
+		let last = loop el in
+		if first.pfile <> last.pfile then
+			default_pos
+		else
+			punion first last

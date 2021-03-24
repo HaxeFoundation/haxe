@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-	<a href="https://dev.azure.com/HaxeFoundation/GitHubPublic/_build/latest?definitionId=1&branchName=development"><img src="https://dev.azure.com/HaxeFoundation/GitHubPublic/_apis/build/status/HaxeFoundation.haxe?branchName=development" alt="Azure Pipelines Build Status"></a>
 	<a href="https://github.com/HaxeFoundation/haxe/actions"><img src="https://github.com/HaxeFoundation/haxe/workflows/CI/badge.svg" alt="GitHub Build Status"></a>
 	<a href="https://saucelabs.com/u/haxe"><img src="https://saucelabs.com/buildstatus/haxe" alt="SauceLabs Test Status"></a>
 	<a href="https://gitter.im/HaxeFoundation/haxe?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge"><img src="https://badges.gitter.im/Join%20Chat.svg" alt="Gitter"></a>

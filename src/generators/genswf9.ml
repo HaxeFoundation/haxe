@@ -86,6 +86,22 @@ type context = {
 	boot : path;
 	swf_protected : bool;
 	need_ctor_skip : bool;
+	(*
+		Takes an argument list of `call(arg1, arg2, ...)` and if there is a trailing argument `...rest` then returns
+		```
+		if(rest.length == 0) call(arg1, arg2)
+		else if(rest.length == 1) call(arg1, arg2, rest[0])
+		else if(rest.length == 2) call(arg1, arg2, rest[0], rest[1])
+		<... up to 20 rest args ...>
+		else throw "Too many rest arguments"
+		```
+		otherwise returns `None`
+	*)
+	handle_spread_args : basic_types ->
+						texpr list (* arguments *) ->
+						t (* call result type *) ->
+						(texpr list -> texpr) (* a function which takes an argument list and should return a call expression *) ->
+						texpr option;
 	mutable cur_class : tclass;
 	mutable debug : bool;
 	mutable last_line : int;
@@ -762,12 +778,13 @@ let begin_fun ctx args tret el stat p =
 		| None -> if c <> None then dparams := Some [v]
 		| Some l -> dparams := Some (v :: l)
 	in
-
 	let args, varargs = (match List.rev args with
 		| (({ v_name = "__arguments__"; v_type = t } as v),_) :: l ->
 			(match follow t with
 			| TInst ({ cl_path = ([],"Array") },_) -> List.rev l, Some (v,true)
 			| _ -> List.rev l, Some(v,false))
+		| (v,_) :: l when ExtType.is_rest (Type.follow v.v_type) ->
+			List.rev l, Some (v,true)
 		| _ ->
 			args, None
 	) in
@@ -1112,7 +1129,12 @@ let rec gen_expr_content ctx retval e =
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx retval op e1 e2 e.etype e.epos
 	| TCall (f,el) ->
-		gen_call ctx retval f el e.etype
+		(match ctx.handle_spread_args ctx.com.basic el e.etype (fun el -> { e with eexpr = TCall(f,el) }) with
+		| Some e ->
+			gen_expr ctx retval e
+		| None ->
+			gen_call ctx retval f el e.etype
+		)
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		(* it seems that [] is 4 time faster than new Array() *)
 		write ctx (HArray 0)
@@ -1121,17 +1143,22 @@ let rec gen_expr_content ctx retval e =
 		write ctx HThrow;
 		no_value ctx retval
 	| TNew (c,tl,pl) ->
-		let id = type_id ctx (TInst (c,tl)) in
-		(match id with
-		| HMParams _ ->
-			gen_type ctx id;
-			List.iter (gen_expr ctx true) pl;
-			write ctx (HConstruct (List.length pl))
-		| _ ->
-			write ctx (HFindPropStrict id);
-			List.iter (gen_expr ctx true) pl;
-			write ctx (HConstructProperty (id,List.length pl))
-		);
+		(match ctx.handle_spread_args ctx.com.basic pl e.etype (fun pl -> { e with eexpr = TNew(c,tl,pl) }) with
+		| Some e ->
+			gen_expr ctx retval e
+		| None ->
+			let id = type_id ctx (TInst (c,tl)) in
+			(match id with
+			| HMParams _ ->
+				gen_type ctx id;
+				List.iter (gen_expr ctx true) pl;
+				write ctx (HConstruct (List.length pl))
+			| _ ->
+				write ctx (HFindPropStrict id);
+				List.iter (gen_expr ctx true) pl;
+				write ctx (HConstructProperty (id,List.length pl))
+			);
+		)
 	| TFunction f ->
 		write ctx (HFunction (generate_function ctx f true))
 	| TIf (e0,e1,e2) ->
@@ -1399,8 +1426,27 @@ let rec gen_expr_content ctx retval e =
 		end
 	| TIdent s ->
 		abort ("Unbound variable " ^ s) e.epos
+and args_as_array ctx mandatory_args spread_arg p =
+	match mandatory_args with
+	| [] ->
+		spread_arg
+	| _ ->
+		let p = punion_el p mandatory_args in
+		let array = mk (TArrayDecl mandatory_args) (ctx.com.basic.tarray t_dynamic) p in
+		let concat = mk (TField (array,FDynamic "concat")) t_dynamic spread_arg.epos in
+		mk (TCall (concat,[spread_arg])) (ctx.com.basic.tarray t_dynamic) (punion p spread_arg.epos)
 
 and gen_call ctx retval e el r =
+	match List.rev el with
+	(* generate a call with `...rest` as `callee.apply(null, [param1, param2].concat(rest))` *)
+	| { eexpr = TUnop (Spread, Prefix, rest) } :: el_rev ->
+		let null = mk (TConst TNull) t_dynamic null_pos
+		and t_array_dyn = ctx.com.basic.tarray t_dynamic in
+		let t = TFun (["thisArg",false,t_dynamic; "argArray",false,t_array_dyn],r) in
+		let apply = mk (TField (e,FDynamic "apply")) t e.epos in
+		gen_call ctx retval apply [null; args_as_array ctx (List.rev el_rev) rest e.epos] r
+	(* normal call without `...rest` *)
+	| _ ->
 	match e.eexpr , el with
 	| TIdent "__is__", [e;t] ->
 		gen_expr ctx true e;
@@ -1636,6 +1682,8 @@ and gen_unop ctx retval op flag e =
 	| NegBits ->
 		gen_expr ctx true e;
 		write ctx (HOp A3OBitNot);
+	| Spread ->
+		die ~p:e.epos "Unhandled spread operator" __LOC__
 	| Increment
 	| Decrement ->
 		let incr = (op = Increment) in
@@ -2785,6 +2833,41 @@ let generate com boot_name =
 	let ctx = {
 		com = com;
 		need_ctor_skip = Common.has_feature com "Type.createEmptyInstance";
+		handle_spread_args = (fun basic args t_result args_to_expr ->
+			match List.rev args with
+			| { eexpr = TUnop (Spread,Prefix,rest) } :: args_rev ->
+				let t_rest_item = match Type.follow rest.etype with TAbstract (_,[t]) -> t | _ -> die "" __LOC__ in
+				let t_array_dyn = basic.tarray t_dynamic in
+				let c_array = match t_array_dyn with TInst (c,_) -> c | _ -> die "" __LOC__ in
+				let length =
+					let faccess =
+						try
+							let cf = PMap.find "length" c_array.cl_fields in
+							FInstance (c_array,[t_dynamic],cf)
+						with Not_found ->
+							FDynamic "length"
+					in
+					mk (TField (rest,faccess)) basic.tint rest.epos
+				in
+				let const n = mk (TConst (TInt (Int32.of_int n))) basic.tint rest.epos in
+				let check n =
+					mk (TBinop (OpEq, length, const n)) basic.tbool rest.epos
+				in
+				let rec nargs n acc =
+					if n < 0 then acc
+					else nargs (n - 1) ((mk (TArray (rest, const n)) t_rest_item rest.epos) :: acc)
+				in
+				let rec loop n e_else =
+					let args = (nargs (n - 1) args_rev) in
+					let e = mk (TIf (check n, args_to_expr args, Some e_else)) t_result rest.epos in
+					if n = 0 then e
+					else loop (n - 1) e
+				in
+				let msg = mk (TConst (TString "Too many rest arguments")) basic.tstring rest.epos in
+				Some (loop 20 (mk (TThrow msg) t_dynamic rest.epos))
+			| _ ->
+				None
+		);
 		debug = com.Common.debug;
 		cur_class = null_class;
 		boot = ([],boot_name);

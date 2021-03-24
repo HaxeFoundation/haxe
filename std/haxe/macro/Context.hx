@@ -60,6 +60,14 @@ class Context {
 	}
 
 	/**
+		Displays a compilation error `msg` at the given `Position` `pos`
+		without aborting the current macro call.
+	**/
+	public static function reportError(msg:String, pos:Position):Void {
+		load("report_error", 2)(msg, pos);
+	}
+
+	/**
 		Displays a compilation warning `msg` at the given `Position` `pos`.
 	**/
 	public static function warning(msg:String, pos:Position) {
@@ -76,16 +84,16 @@ class Context {
 	/**
 		Gets a list of all current compilation info/warning messages.
 	**/
-	public static function getMessages() : Array<Message> {
-		return load("get_messages",0)();
+	public static function getMessages():Array<Message> {
+		return load("get_messages", 0)();
 	}
 
 	/**
 		Filters all current info/warning messages. Filtered out messages will
 		not be displayed by the compiler.
 	**/
-	public static function filterMessages( predicate : Message -> Bool ) {
-		load("filter_messages",1)(predicate);
+	public static function filterMessages(predicate:Message->Bool) {
+		load("filter_messages", 1)(predicate);
 	}
 
 	/**
@@ -606,7 +614,7 @@ class Context {
 		stopTimer();
 		```
 	**/
-	public static function timer(id:String):()->Void {
+	public static function timer(id:String):() -> Void {
 		return load("timer", 1)(id);
 	}
 

@@ -68,7 +68,7 @@ abstract Int32(Int) from Int to Int {
 
 	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
 
-	@:op(A - B) public static function floatSub(a:Float, b:Int32):Float;
+	@:op(A - B) private static function floatSub(a:Float, b:Int32):Float;
 
 	#if (js || php || python || lua)
 	#if js

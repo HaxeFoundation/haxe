@@ -22,8 +22,6 @@
 
 package cpp;
 
-import haxe.extern.Rest;
-
 @:include("stdio.h")
 extern class Stdio {
 	@:native("printf")

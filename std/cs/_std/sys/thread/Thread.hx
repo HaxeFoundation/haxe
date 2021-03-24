@@ -23,10 +23,13 @@
 package sys.thread;
 
 import cs.system.threading.Thread as NativeThread;
+import cs.system.threading.Mutex as NativeMutex;
 import cs.system.WeakReference;
 import cs.Lib;
 
-abstract Thread(HaxeThread) {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 	public var events(get,never):EventLoop;
 
 	inline function new(thread:HaxeThread) {
@@ -88,22 +91,26 @@ abstract Thread(HaxeThread) {
 	}
 
 	@:keep
-	static function initEventLoop():Void {
-		@:privateAccess HaxeThread.get(NativeThread.CurrentThread).events = new EventLoop();
-	}
-
-	@:keep
 	static function processEvents():Void {
 		HaxeThread.get(NativeThread.CurrentThread).events.loop();
 	}
 }
 
 private class HaxeThread {
-	static final mainNativeThread = NativeThread.CurrentThread;
-	static final mainHaxeThread = new HaxeThread(NativeThread.CurrentThread);
-	static final threads = new Map<Int, WeakReference>();
-	static final threadsMutex = new cs.system.threading.Mutex();
-	static var allocateCount = 0;
+	static var mainNativeThread:NativeThread;
+	static var mainHaxeThread:HaxeThread;
+	static var threads:Map<Int, WeakReference>;
+	static var threadsMutex:NativeMutex;
+	static var allocateCount:Int;
+
+	static function __init__() {
+		threads = new Map();
+		threadsMutex = new NativeMutex();
+		allocateCount = 0;
+		mainNativeThread = NativeThread.CurrentThread;
+		mainHaxeThread = new HaxeThread(NativeThread.CurrentThread);
+		mainHaxeThread.events = new EventLoop();
+	}
 
 	public final native:NativeThread;
 	public var events(default,null):Null<EventLoop>;

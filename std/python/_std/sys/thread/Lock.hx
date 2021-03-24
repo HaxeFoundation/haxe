@@ -22,14 +22,20 @@
 
 package sys.thread;
 
-@:forward(release)
-abstract Lock(NativeSemaphore) {
+@:coreApi
+class Lock {
+	final semaphore:NativeSemaphore;
+
 	public inline function new() {
-		this = new NativeSemaphore(0);
+		semaphore = new NativeSemaphore(0);
 	}
 
 	public inline function wait(?timeout:Float):Bool {
-		return this.acquire(true, timeout);
+		return semaphore.acquire(true, timeout);
+	}
+
+	public inline function release():Void {
+		semaphore.release();
 	}
 }
 

@@ -22,6 +22,8 @@
 
 package haxe;
 
+using haxe.Unserializer;
+
 import haxe.ds.List;
 
 @:noDoc
@@ -29,28 +31,6 @@ typedef TypeResolver = {
 	function resolveClass(name:String):Class<Dynamic>;
 	function resolveEnum(name:String):Enum<Dynamic>;
 }
-
-#if php
-private abstract FastString(php.NativeString) from String {
-	public var length(get,never):Int;
-	inline function get_length():Int
-		return php.Global.strlen(this);
-
-	public inline function charCodeAt(pos:Int):Int {
-		return php.Global.ord(this[pos]);
-	}
-
-	public inline function charAt(pos:Int):String {
-		return this[pos];
-	}
-
-	public inline function substr(pos:Int, length:Int):String {
-		return php.Global.substr(this, pos, length);
-	}
-}
-#else
-private typedef FastString = String;
-#end
 
 /**
 	The `Unserializer` class is the complement to the `Serializer` class. It parses
@@ -99,7 +79,7 @@ class Unserializer {
 	}
 	#end
 
-	var buf:FastString;
+	var buf:String;
 	var pos:Int;
 	var length:Int;
 	var cache:Array<Dynamic>;
@@ -120,7 +100,7 @@ class Unserializer {
 	**/
 	public function new(buf:String) {
 		this.buf = buf;
-		length = this.buf.length;
+		length = this.buf.fastLength();
 		pos = 0;
 		#if neko
 		upos = 0;
@@ -161,7 +141,7 @@ class Unserializer {
 
 	inline function get(p:Int):Int {
 		#if php
-		return p >= length ? 0 : buf.charCodeAt(p);
+		return p >= length ? 0 : buf.fastCharCodeAt(p);
 		#else
 		return StringTools.fastCodeAt(buf, p);
 		#end
@@ -204,7 +184,7 @@ class Unserializer {
 			else
 				break;
 		}
-		return Std.parseFloat(buf.substr(p1, pos - p1));
+		return Std.parseFloat(buf.fastSubstr(p1, pos - p1));
 	}
 
 	function unserializeObject(o:{}) {
@@ -272,7 +252,7 @@ class Unserializer {
 				var len = readDigits();
 				if (get(pos++) != ":".code || length - pos < len)
 					throw "Invalid string length";
-				var s = buf.substr(pos, len);
+				var s = buf.fastSubstr(pos, len);
 				pos += len;
 				s = StringTools.urlDecode(s);
 				scache.push(s);
@@ -401,7 +381,7 @@ class Unserializer {
 				if (get(pos) >= '0'.code && get(pos) <= '9'.code && get(pos + 1) >= '0'.code && get(pos + 1) <= '9'.code && get(pos + 2) >= '0'.code
 					&& get(pos + 2) <= '9'.code && get(pos + 3) >= '0'.code && get(pos + 3) <= '9'.code && get(pos + 4) == '-'.code) {
 					// Included for backwards compatibility
-					d = Date.fromString(buf.substr(pos, 19));
+					d = Date.fromString(buf.fastSubstr(pos, 19));
 					pos += 19;
 				} else
 					d = Date.fromTime(readFloat());
@@ -413,9 +393,9 @@ class Unserializer {
 				if (get(pos++) != ":".code || length - pos < len)
 					throw "Invalid bytes length";
 				#if neko
-				var bytes = haxe.io.Bytes.ofData(base_decode(untyped buf.substr(pos, len).__s, untyped BASE64.__s));
+				var bytes = haxe.io.Bytes.ofData(base_decode(untyped buf.fastSubstr(pos, len).__s, untyped BASE64.__s));
 				#elseif php
-				var phpEncoded = php.Global.strtr(buf.substr(pos, len), '%:', '+/');
+				var phpEncoded = php.Global.strtr(buf.fastSubstr(pos, len), '%:', '+/');
 				var bytes = haxe.io.Bytes.ofData(php.Global.base64_decode(phpEncoded));
 				#else
 				var codes = CODES;
@@ -477,7 +457,7 @@ class Unserializer {
 			default:
 		}
 		pos--;
-		throw("Invalid char " + buf.charAt(pos) + " at position " + pos);
+		throw("Invalid char " + buf.fastCharAt(pos) + " at position " + pos);
 	}
 
 	/**
@@ -494,6 +474,38 @@ class Unserializer {
 	#if neko
 	static var base_decode = neko.Lib.load("std", "base_decode", 2);
 	#end
+
+	static inline function fastLength(s:String):Int {
+		#if php
+		return php.Global.strlen(s);
+		#else
+		return s.length;
+		#end
+	}
+
+	static inline function fastCharCodeAt(s:String, pos:Int):Int {
+		#if php
+		return php.Global.ord((s:php.NativeString)[pos]);
+		#else
+		return s.charCodeAt(pos);
+		#end
+	}
+
+	static inline function fastCharAt(s:String, pos:Int):String {
+		#if php
+		return (s:php.NativeString)[pos];
+		#else
+		return s.charAt(pos);
+		#end
+	}
+
+	static inline function fastSubstr(s:String, pos:Int, length:Int):String {
+		#if php
+		return php.Global.substr(s, pos, length);
+		#else
+		return s.substr(pos, length);
+		#end
+	}
 }
 
 private class DefaultResolver {

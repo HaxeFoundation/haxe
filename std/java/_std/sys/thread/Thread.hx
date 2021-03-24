@@ -32,7 +32,9 @@ import java.StdTypes.Int64 as Long;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.LinkedBlockingDeque;
 
-abstract Thread(HaxeThread) from HaxeThread {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 	public var events(get,never):EventLoop;
 
 	inline function new(t:HaxeThread) {
@@ -74,11 +76,6 @@ abstract Thread(HaxeThread) from HaxeThread {
 		}
 	}
 
-	@:keep
-	static function initEventLoop() {
-		@:privateAccess HaxeThread.get(JavaThread.currentThread()).events = new EventLoop();
-	}
-
 	@:keep //TODO: keep only if events are actually used
 	static function processEvents():Void {
 		current().getHandle().events.loop();
@@ -86,9 +83,16 @@ abstract Thread(HaxeThread) from HaxeThread {
 }
 
 private class HaxeThread {
-	static final nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread,HaxeThread>());
-	static final mainJavaThread = JavaThread.currentThread();
-	static final mainHaxeThread = new HaxeThread();
+	static var nativeThreads:java.util.Map<JavaThread,HaxeThread>;
+	static var mainJavaThread:JavaThread;
+	static var mainHaxeThread:HaxeThread;
+
+	static function __init__() {
+		nativeThreads = Collections.synchronizedMap(new WeakHashMap<JavaThread,HaxeThread>());
+		mainJavaThread = JavaThread.currentThread();
+		mainHaxeThread = new HaxeThread();
+		mainHaxeThread.events = new EventLoop();
+	}
 
 	public final messages = new LinkedBlockingDeque<Dynamic>();
 

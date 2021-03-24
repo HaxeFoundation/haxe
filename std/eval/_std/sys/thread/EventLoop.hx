@@ -12,8 +12,6 @@ enum NextEventTime {
 	At(time:Float);
 }
 
-abstract EventLoopHandle(Loop) from Loop to Loop {}
-
 abstract EventHandler(RegularEvent) from RegularEvent to RegularEvent {}
 
 private class RegularEvent {
@@ -31,7 +29,8 @@ private class RegularEvent {
 
 @:coreApi
 class EventLoop {
-	public final handle:EventLoopHandle;
+	@:allow(eval.luv.Loop)
+	final handle:Loop;
 
 	final mutex = new Mutex();
 	final oneTimeEvents = new Array<Null<()->Void>>();

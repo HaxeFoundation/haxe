@@ -6,13 +6,13 @@ private abstract class Parent<K> {
 }
 
 private class Child<K> extends Parent<K> {
-	public override function put(k:K) {
+	public function put(k:K) {
 		return true;
 	}
 }
 
 private class Child2<K> extends Parent<String> {
-	public override function put(k:String) {
+	public function put(k:String) {
 		return true;
 	}
 }

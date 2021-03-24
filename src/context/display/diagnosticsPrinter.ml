@@ -4,7 +4,6 @@ open Json
 open DisplayTypes
 open DiagnosticsKind
 open DisplayTypes
-open DiagnosticsTypes
 open Type
 open Genjson
 

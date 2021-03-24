@@ -77,6 +77,8 @@ let machine_type_of_int i = match i with
 	| 0x0520 -> TTriCore (* 0x0520 Infineon *)
 	| 0x8664 -> TAmd64 (* 0x8664 AMD x64 and Intel E64T *)
 	| 0x9041 -> TM32R (* 0x9041 M32R *)
+	| 0xC020 -> TOSXAmd64 (* 0xC020 OSX AMD x64 *)
+	| 0xFD1D -> TLinuxAmd64 (* 0xFD1D Linux AMD x64 *)
 	| _ -> assert false
 
 let coff_props_of_int iprops = List.fold_left (fun acc i ->

@@ -17,6 +17,7 @@ jobs:
   windows64-build:
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       OPAMYES: 1
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
@@ -29,12 +30,13 @@ jobs:
         with:
           submodules: recursive
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import build-windows.yml
 
   windows-build:
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
       OPAMYES: 1
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
@@ -47,7 +49,7 @@ jobs:
         with:
           submodules: recursive
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import build-windows.yml
 
   linux-build:
@@ -60,6 +62,7 @@ jobs:
         with:
           submodules: recursive
 
+      @import install-neko.yml
       @import build-linux.yml
 
   mac-build:
@@ -67,18 +70,20 @@ jobs:
     env:
       PLATFORM: mac
       OPAMYES: 1
+      MACOSX_DEPLOYMENT_TARGET: 10.13
     steps:
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
-      @import install-neko-mac.yml
+      @import install-neko.yml
       @import build-mac.yml
 
   windows64-test:
     needs: windows64-build
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
@@ -96,13 +101,14 @@ jobs:
         with:
           name: win${{env.ARCH}}Binaries
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import test-windows.yml
 
   windows-test:
     needs: windows-build
     runs-on: windows-latest
     env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
@@ -121,7 +127,7 @@ jobs:
         with:
           name: win${{env.ARCH}}Binaries
 
-      @import install-neko-windows.yml
+      @import install-neko.yml
       @import test-windows.yml
 
   linux-test:
@@ -147,7 +153,7 @@ jobs:
           - target: lua
             APT_PACKAGES: ncurses-dev
           - target: flash9
-            APT_PACKAGES: libglib2.0 libfreetype6 xvfb
+            APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
     steps:
       - uses: actions/checkout@main
         with:
@@ -156,7 +162,7 @@ jobs:
         with:
           name: linuxBinaries
 
-      @import install-neko-linux.yml
+      @import install-neko.yml
       @import test-linux.yml
 
   mac-test:
@@ -181,13 +187,13 @@ jobs:
         with:
           name: macBinaries
 
-      @import install-neko-mac.yml
+      @import install-neko.yml
       @import test-mac.yml
 
   deploy:
     if: github.event_name != 'pull_request'
     needs: [linux-test, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
@@ -215,7 +221,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
-          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}/gh-actions
+          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
         run: |
           set -ex
           COMMIT_HASH_SHORT=${GITHUB_SHA:0:7}
@@ -237,7 +243,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
-          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}/gh-actions
+          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
         run: |
           set -ex
           aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/haxe_latest.tar.gz
@@ -255,3 +261,41 @@ jobs:
           aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows64-choco/${FILE_NAME} ${HXBUILDS_S3ADDR}/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
           [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
           aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows-choco/${FILE_NAME}   ${HXBUILDS_S3ADDR}/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
+
+  deploy_apidoc:
+    if: github.event_name != 'pull_request' # TODO: also only when `GHP_REMOTE` is present
+    needs: [linux-test, mac-test, windows-test, windows64-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Haxe
+        uses: actions/download-artifact@v2
+        with:
+          name: linuxBinaries
+          path: linuxBinaries
+
+      - name: Setup Haxe
+        run: |
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Download xmldoc artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: xmldoc
+          path: xmldoc
+
+      - name: Deploy to api.haxe.org
+        env:
+          GHP_EMAIL: haxe-ci@onthewings.net
+          GHP_USERNAME: Haxe CI Bot
+          GHP_REMOTE: ${{ secrets.GHP_REMOTE }}
+        run: |
+          set -ex
+          LOCAL="`pwd`/extra/api.haxe.org"
+          git clone "${GHP_REMOTE}" "${LOCAL}"
+          haxe --cwd "${LOCAL}" --run ImportXml "`pwd`/xmldoc"

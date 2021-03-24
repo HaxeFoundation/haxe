@@ -224,7 +224,8 @@ let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DDynamic -> Some (ADynamic,p)
 	| DInline -> Some (AInline,p)
 	| DOverload -> Some (AOverload,p)
-	| DExtern | DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
+	| DExtern -> Some (AExtern,p)
+	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
 
 let serror() = raise (Stream.Error "")
 

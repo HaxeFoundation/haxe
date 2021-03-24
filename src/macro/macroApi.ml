@@ -21,7 +21,6 @@ type 'value compiler_api = {
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
-	type_macro_expr : Ast.expr -> Type.texpr;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -50,6 +49,7 @@ type 'value compiler_api = {
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
+	display_error : (string -> pos -> unit);
 }
 
 
@@ -270,6 +270,7 @@ let encode_unop op =
 	| Not -> 2
 	| Neg -> 3
 	| NegBits -> 4
+	| Spread -> 5
 	in
 	encode_enum IUnop tag []
 
@@ -494,16 +495,14 @@ and encode_expr e =
 				23, [loop e; null encode_ctype t]
 			| EDisplay (e,dk) ->
 				24, [loop e; encode_display_kind dk]
-			| EDisplayNew t ->
-				25, [encode_path t]
 			| ETernary (econd,e1,e2) ->
-				26, [loop econd;loop e1;loop e2]
+				25, [loop econd;loop e1;loop e2]
 			| ECheckType (e,t) ->
-				27, [loop e; encode_ctype t]
+				26, [loop e; encode_ctype t]
 			| EMeta (m,e) ->
-				28, [encode_meta_entry m;loop e]
+				27, [encode_meta_entry m;loop e]
 			| EIs (e,t) ->
-				29, [loop e;encode_ctype t]
+				28, [loop e;encode_ctype t]
 		in
 		encode_obj [
 			"pos", encode_pos p;
@@ -591,6 +590,7 @@ let decode_unop op =
 	| 2, [] -> Not
 	| 3, [] -> Neg
 	| 4, [] -> NegBits
+	| 5, [] -> Spread
 	| _ -> raise Invalid_expr
 
 let decode_import_mode t =
@@ -821,15 +821,13 @@ and decode_expr v =
 			ECast (loop e,opt decode_ctype t)
 		| 24, [e;dk] ->
 			EDisplay (loop e,decode_display_kind dk)
-		| 25, [t] ->
-			EDisplayNew (decode_path t)
-		| 26, [e1;e2;e3] ->
+		| 25, [e1;e2;e3] ->
 			ETernary (loop e1,loop e2,loop e3)
-		| 27, [e;t] ->
+		| 26, [e;t] ->
 			ECheckType (loop e, (decode_ctype t))
-		| 28, [m;e] ->
+		| 27, [m;e] ->
 			EMeta (decode_meta_entry m,loop e)
-		| 29, [e;t] ->
+		| 28, [e;t] ->
 			EIs (loop e,decode_ctype t)
 		| _ ->
 			raise Invalid_expr
@@ -953,6 +951,7 @@ and encode_cfield f =
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
 		"isExtern", vbool (has_class_field_flag f CfExtern);
 		"isFinal", vbool (has_class_field_flag f CfFinal);
+		"isAbstract", vbool (has_class_field_flag f CfAbstract);
 	]
 
 and encode_field_kind k =
@@ -1005,6 +1004,7 @@ and encode_tclass c =
 		"exclude", vfun0 (fun() -> add_class_flag c CExtern; c.cl_init <- None; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
+		"isAbstract", vbool (has_class_flag c CAbstract);
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
@@ -1314,6 +1314,7 @@ let decode_cfield v =
 	let public = decode_bool (field v "isPublic") in
 	let extern = decode_bool (field v "isExtern") in
 	let final = decode_bool (field v "isFinal") in
+	let abstract = decode_bool (field v "isAbstract") in
 	let cf = {
 		cf_name = decode_string (field v "name");
 		cf_type = decode_type (field v "type");
@@ -1331,6 +1332,7 @@ let decode_cfield v =
 	if public then add_class_field_flag cf CfPublic;
 	if extern then add_class_field_flag cf CfExtern;
 	if final then add_class_field_flag cf CfFinal;
+	if abstract then add_class_field_flag cf CfAbstract;
 	cf
 
 let decode_efield v =
@@ -1565,6 +1567,12 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			raise (Error.Fatal_error (msg,p))
+		);
+		"report_error", vfun2 (fun msg p ->
+			let msg = decode_string msg in
+			let p = decode_pos p in
+			(get_api()).display_error msg p;
+			vnull
 		);
 		"warning", vfun2 (fun msg p ->
 			let msg = decode_string msg in

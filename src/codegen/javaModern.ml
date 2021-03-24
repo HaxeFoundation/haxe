@@ -758,6 +758,17 @@ module Converter = struct
 			PMap.add s (ct_type_param s) acc
 		) acc params
 
+	(**
+		`haxe.Rest<T>` auto-boxes primitive types.
+		That means we can't use it as varargs for extern methods.
+		E.g externs with `int` varargs are represented as `int[]` at run time
+		while `haxe.Rest<Int>` is actually `java.lang.Integer[]`.
+	*)
+	let is_eligible_for_haxe_rest_args arg_type =
+		match arg_type with
+		| TByte | TChar | TDouble | TFloat | TInt | TLong | TShort | TBool -> false
+		| _ -> true
+
 	let convert_field ctx is_method (jc : jclass) (is_interface : bool) (jf : jfield) p =
 		let ctx = {
 			type_params = type_param_lut ctx.type_params jf.jf_types;
@@ -845,9 +856,18 @@ module Converter = struct
 				begin match jf.jf_descriptor with
 				| TMethod(args,ret) ->
 					let local_names = extract_local_names() in
+					let args_count = List.length args
+					and is_varargs = AccessFlags.has_flag jf.jf_flags MVarargs in
 					let convert_arg i jsig =
 						let name = local_names (i + 1) in
-						((name,p),false,[],Some (convert_signature ctx p jsig,p),None)
+						let hx_sig =
+							match jsig with
+							| TArray (jsig1,_) when is_varargs && i + 1 = args_count && is_eligible_for_haxe_rest_args jsig1 ->
+								mk_type_path (["haxe"], "Rest") [TPType (convert_signature ctx p jsig1,p)]
+							| _ ->
+								convert_signature ctx p jsig
+						in
+						((name,p),false,[],Some (hx_sig,p),None)
 					in
 					let f = {
 						f_params = List.map (fun tp -> convert_type_parameter ctx tp p) jf.jf_types;

@@ -134,7 +134,7 @@ module BinopResult = struct
 end
 
 let check_assign ctx e =
-	match e.eexpr with
+	if ctx.com.display.dms_error_policy <> EPIgnore then match e.eexpr with
 	| TLocal v when has_var_flag v VFinal ->
 		error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
@@ -451,7 +451,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type p =
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
-		if cf.cf_expr = None then begin
+		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				(* for non core-types we require that the return type is compatible to the native result type *)
@@ -488,13 +488,17 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 		| _ ->
 			()
 	end;
-	let rec loop ol = match ol with
-		| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op)) ->
-			loop ol
-		| (op_cf,cf) :: ol ->
+	let rec loop find_op ol = match ol with
+		| (op_cf,cf) :: ol when op_cf = find_op ->
 			let is_impl = has_class_field_flag cf CfImpl in
-			begin match follow cf.cf_type with
-				| TFun([(_,_,t1);(_,_,t2)],tret) ->
+			begin
+				match follow cf.cf_type with
+				| TFun((_,_,t1) :: (_,_,t2) :: pos_infos, tret) ->
+					(match pos_infos with
+					| [] -> ()
+					| [_,true,t] when is_pos_infos t -> ()
+					| _ -> die ~p:cf.cf_pos ("Unexpected arguments list of function " ^ cf.cf_name) __LOC__
+					);
 					let check e1 e2 swapped =
 						let map_arguments () =
 							let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
@@ -533,21 +537,30 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 						if not (Meta.has Meta.Commutative cf.cf_meta) then raise Not_found;
 						check e2 e1 true
 					with Not_found | Error (Unify _,_) | Unify_error _ ->
-						loop ol
+						loop find_op ol
 					end
 				| _ ->
 					die "" __LOC__
 			end
 		| [] ->
 			raise Not_found
+		| _ :: ol ->
+			loop find_op ol
 	in
-	if left then
-		loop a.a_ops
+	let find loop =
+		if left then
+			loop a.a_ops
+		else
+			let not_impl_or_is_commutative (_, cf) =
+				not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
+			in
+			loop (List.filter not_impl_or_is_commutative a.a_ops)
+	in
+	if is_assign_op then
+		try find (loop (OpAssignOp op))
+		with Not_found -> find (loop op)
 	else
-		let not_impl_or_is_commutative (_, cf) =
-			not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
-		in
-		loop (List.filter not_impl_or_is_commutative a.a_ops)
+		find (loop op)
 
 let try_abstract_binop_overloads ctx op e1 e2 is_assign_op with_type p =
 	try
@@ -643,7 +656,7 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 		type_binop2 ctx op e1 e2 is_assign_op wt p
 	in
 	let vr = new value_reference ctx in
-	let e = BinopResult.to_texpr vr result (fun _ -> assert false) in
+	let e = BinopResult.to_texpr vr result (fun _ -> raise Not_found) in
 	vr#to_texpr e
 
 let process_lhs_expr ctx name e_lhs =
@@ -655,7 +668,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 	let field_rhs_by_name op name ev with_type =
 		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
 		let e_get = acc_get ctx access_get p in
-		e_get.etype,type_binop2 ctx op e_get e2 true (WithType.with_type e_get.etype) p
+		e_get.etype,type_binop2 ctx op e_get e2 true WithType.value p
 	in
 	let field_rhs op cf ev =
 		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
@@ -691,7 +704,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		error "Invalid operation" p
 	| AKExpr e ->
 		let e,vr = process_lhs_expr ctx "lhs" e in
-		let e_rhs = type_binop2 ctx op e e2 true (WithType.with_type e.etype) p in
+		let e_rhs = type_binop2 ctx op e e2 true WithType.value p in
 		assign vr e e_rhs
 	| AKField fa ->
 		let vr = new value_reference ctx in
@@ -723,7 +736,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let ekey,ekey' = maybe_bind_to_temp ekey in
 		let ebase,ebase' = maybe_bind_to_temp ebase in
 		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
-		let eget = type_binop2 ctx op eget e2 true (WithType.with_type eget.etype) p in
+		let eget = type_binop2 ctx op eget e2 true WithType.value p in
 		let vr = new value_reference ctx in
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
@@ -768,7 +781,12 @@ let type_binop ctx op e1 e2 is_assign_op with_type p =
 	| OpAssignOp op ->
 		type_assign_op ctx op e1 e2 with_type p
 	| _ ->
-		type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
+		try
+			type_non_assign_op ctx op e1 e2 is_assign_op false with_type p
+		with Not_found ->
+			let op = if is_assign_op then OpAssignOp op else op in
+			die ~p ("Failed to type binary operation " ^ (s_binop op)) __LOC__
+
 
 let type_unop ctx op flag e with_type p =
 	let try_abstract_unop_overloads e = match follow e.etype with
@@ -801,6 +819,9 @@ let type_unop ctx op flag e with_type p =
 		| _ ->
 			raise Not_found
 	in
+	let unexpected_spread p =
+		error "Spread unary operator is only allowed for unpacking the last argument in a call with rest arguments" p
+	in
 	let make e =
 		let check_int () =
 			match classify e.etype with
@@ -825,6 +846,8 @@ let type_unop ctx op flag e with_type p =
 				check_int()
 			| Neg ->
 				check_int()
+			| Spread ->
+				unexpected_spread p
 		in
 		mk (TUnop (op,flag,e)) t p
 	in
@@ -835,6 +858,8 @@ let type_unop ctx op flag e with_type p =
 			make e
 	in
 	match op with
+	| Spread ->
+		unexpected_spread p
 	| Not | Neg | NegBits ->
 		let access_get = !type_access_ref ctx (fst e) (snd e) MGet WithType.value (* WITHTYPETODO *) in
 		let e = acc_get ctx access_get p in

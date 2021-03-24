@@ -1,10 +1,9 @@
 - name: Install dependencies
   run: |
     set -ex
-    sudo add-apt-repository ppa:avsm/ppa -y # provides OPAM 2
     sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
     sudo apt-get update -qqy
-    sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build neko neko-dev
+    sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl
 
 - name: Install OCaml libraries
   run: |
@@ -15,6 +14,10 @@
     opam install haxe --deps-only
     opam list
     ocamlopt -v
+
+- name: Set ADD_REVISION=1 for non-release
+  if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
 - name: Build Haxe
   run: |
@@ -27,6 +30,12 @@
     ldd -v ./haxe
     ldd -v ./haxelib
 
+# https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+- name: Extract branch name
+  id: extract_branch
+  shell: bash
+  run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+
 - name: Build xmldoc
   run: |
     set -ex
@@ -34,9 +43,15 @@
     cat >extra/doc/info.json <<EOL
       {
         "commit": "$GITHUB_SHA",
-        "branch": "$GITHUB_REF"
+        "branch": "${{ steps.extract_branch.outputs.branch }}"
       }
     EOL
+
+- name: Upload xmldoc artifact
+  uses: actions/upload-artifact@v1.0.0
+  with:
+    name: xmldoc
+    path: extra/doc
 
 - name: Upload artifact
   uses: actions/upload-artifact@v1.0.0

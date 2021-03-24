@@ -28,7 +28,6 @@ import haxe.Int64Helper;
 @:include("cpp/Int64.h")
 @:native("cpp::Int64Struct")
 private extern class ___Int64 {
-	function get():cpp.Int64;
 
 	@:native("_hx_int64_make")
 	static function make(high:Int32, low:Int32):__Int64;

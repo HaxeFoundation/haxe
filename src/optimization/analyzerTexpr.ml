@@ -538,7 +538,7 @@ module Fusion = struct
 			| {eexpr = TField (_,fa)} as e1 :: el when PurityState.is_explicitly_impure fa ->
 				block_element (e1 :: acc) el
 			(* no-side-effect *)
-			| {eexpr = TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
+			| {eexpr = TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
 			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
 				block_element acc el
@@ -561,7 +561,7 @@ module Fusion = struct
 				| None -> block_element (e :: acc) el
 				end
 			(* no-side-effect composites *)
-			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
+			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1) | TEnumIndex e1 | TEnumParameter(e1,_,_)} :: el ->
 				block_element acc (e1 :: el)
 			| {eexpr = TArray(e1,e2) | TBinop(_,e1,e2)} :: el ->
 				block_element acc (e1 :: e2 :: el)

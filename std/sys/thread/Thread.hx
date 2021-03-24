@@ -26,7 +26,9 @@ package sys.thread;
 #error "This class is not available on this target"
 #end
 
-extern abstract Thread({}) {
+private typedef ThreadImpl = {};
+
+extern abstract Thread(ThreadImpl) from ThreadImpl {
 	/**
 		Event loop of this thread (if available).
 
@@ -73,11 +75,6 @@ extern abstract Thread({}) {
 		returns `null` if no message is available.
 	**/
 	public static function readMessage(block:Bool):Dynamic;
-
-	/**
-		Initialize event loop in this thread
-	**/
-	private static function initEventLoop():Void;
 
 	/**
 		Run event loop of the current thread
