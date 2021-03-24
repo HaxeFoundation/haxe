@@ -69,7 +69,14 @@ class Php {
 				deleteDirectoryRecursively(binDir);
 			}
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runCommand.bind(_, ["bin/php/Main/index.php"]));
+			runThroughPhpVersions(runCommand.bind(_, ['$binDir/Main/index.php']));
+
+			changeDirectory(asysDir);
+			if(isCi()) {
+				deleteDirectoryRecursively(binDir);
+			}
+			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
+			runThroughPhpVersions(runCommand.bind(_, ['$binDir/index.php']));
 		}
 	}
 

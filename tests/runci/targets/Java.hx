@@ -31,6 +31,10 @@ class Java {
 		runCommand("haxe", ["compile-java.hxml"].concat(args));
 		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
+		changeDirectory(asysDir);
+		runCommand("haxe", ["compile-java.hxml"].concat(args));
+		runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
+
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-java", "export/java"].concat(args));
 		runCommand("java", ["-jar", "export/java/Main.jar"]);
