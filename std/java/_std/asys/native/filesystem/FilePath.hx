@@ -22,7 +22,7 @@ private typedef NativeFilePath = Path;
 	}
 
 	@:from public static inline function fromString(path:String):FilePath {
-		return new FilePath(Paths.get(path, new NativeArray(0)));
+		return new FilePath(Paths.get(path));
 	}
 
 	@:to public inline function toString():String {
@@ -67,7 +67,7 @@ private typedef NativeFilePath = Path;
 				builder.append(SEPARATOR);
 			builder.append(result[i]);
 		}
-		return new FilePath(Paths.get(builder.toString(), new NativeArray(0)));
+		return new FilePath(Paths.get(builder.toString()));
 	}
 
 	public function parent():Null<FilePath> {

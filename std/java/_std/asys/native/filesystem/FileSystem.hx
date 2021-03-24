@@ -39,7 +39,7 @@ class FileSystem {
 		inline pool.runFor(
 			() -> {
 				try {
-					var channel = FileChannel.open(path, hxOpenFlagToJavaOption(flag));
+					var channel = FileChannel.open(path, ...hxOpenFlagToJavaOption(flag));
 					cast new File(path, channel);
 				} catch(e:FileSystemException) {
 					var reason = e.getReason();
@@ -56,8 +56,8 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var path = new FilePath(Files.createTempFile(@:nullSafety(Off) (null:String), @:nullSafety(Off) (null:String), new NativeArray(0)));
-					var channel = FileChannel.open(path, hxOpenFlagToJavaOption(ReadWrite));
+					var path = new FilePath(Files.createTempFile(@:nullSafety(Off) (null:String), @:nullSafety(Off) (null:String)));
+					var channel = FileChannel.open(path, ...hxOpenFlagToJavaOption(ReadWrite));
 					cast new File(path, channel, true);
 				} catch(e:FileSystemException) {
 					var reason = e.getReason();
@@ -105,7 +105,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					Files.write(path, data.getData(), hxOpenFlagToJavaOption(flag));
+					Files.write(path, data.getData(), ...hxOpenFlagToJavaOption(flag));
 					NoData;
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
@@ -121,7 +121,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					Files.write(path, @:privateAccess text.getBytes("UTF-8"), hxOpenFlagToJavaOption(flag));
+					Files.write(path, @:privateAccess text.getBytes("UTF-8"), ...hxOpenFlagToJavaOption(flag));
 					NoData;
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
@@ -174,7 +174,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var attributes = NativeArray.make(PosixFilePermissions.asFileAttribute(jPerm));
+					var attributes = PosixFilePermissions.asFileAttribute(jPerm);
 					if(recursive)
 						Files.createDirectories(path, attributes)
 					else
@@ -197,7 +197,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var attributes = NativeArray.make(PosixFilePermissions.asFileAttribute(jPerm));
+					var attributes = PosixFilePermissions.asFileAttribute(jPerm);
 					if(recursive)
 						Files.createDirectories(parentDirectory, attributes);
 					Files.createTempDirectory(parentDirectory, prefix, attributes);
@@ -216,7 +216,7 @@ class FileSystem {
 			() -> {
 				try {
 					var options = overwrite ? NativeArray.make((cast StandardCopyOption.REPLACE_EXISTING:CopyOption)) : new NativeArray(0);
-					Files.move(oldPath, newPath, options);
+					Files.move(oldPath, newPath, ...options);
 					NoData;
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), oldPath);
@@ -232,7 +232,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					if(Files.isDirectory(path, new NativeArray(0))) {
+					if(Files.isDirectory(path)) {
 						throw new JException('Not a file');
 					}
 					Files.delete(path);
@@ -251,7 +251,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					if(Files.isDirectory(path, new NativeArray(0))) {
+					if(Files.isDirectory(path)) {
 						Files.delete(path);
 					} else {
 						throw new NotDirectoryException(path);
@@ -271,7 +271,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					Files.readAttributes(path, javaClass(PosixFileAttributes), new NativeArray(0));
+					Files.readAttributes(path, javaClass(PosixFileAttributes));
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
@@ -286,7 +286,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					(!mode.has(Exists) || Files.exists(path, new NativeArray(0)))
+					(!mode.has(Exists) || Files.exists(path))
 					&& (!mode.has(Readable) || Files.isReadable(path))
 					&& (!mode.has(Writable) || Files.isWritable(path))
 					&& (!mode.has(Executable) || Files.isExecutable(path));
@@ -302,7 +302,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					Files.isDirectory(path, new NativeArray(0));
+					Files.isDirectory(path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -315,7 +315,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					Files.isRegularFile(path, new NativeArray(0));
+					Files.isRegularFile(path);
 				} catch(e:Throwable) {
 					throw new FsException(CustomError(e.toString()), path);
 				}
@@ -344,7 +344,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), new NativeArray(0));
+					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView));
 					attributes.setOwner(user);
 					attributes.setGroup(group);
 					NoData;
@@ -362,7 +362,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), NativeArray.make(NOFOLLOW_LINKS));
+					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), NOFOLLOW_LINKS);
 					attributes.setOwner(user);
 					attributes.setGroup(group);
 					NoData;
@@ -382,7 +382,7 @@ class FileSystem {
 				try {
 					switch type {
 						case HardLink: Files.createLink(path, target);
-						case SymLink: Files.createSymbolicLink(path, target, new NativeArray(0));
+						case SymLink: Files.createSymbolicLink(path, target);
 					}
 					NoData;
 				} catch(e:FileSystemException) {
@@ -427,7 +427,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					Files.readAttributes(path, javaClass(PosixFileAttributes), NativeArray.make(NOFOLLOW_LINKS));
+					Files.readAttributes(path, javaClass(PosixFileAttributes), NOFOLLOW_LINKS);
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
@@ -445,7 +445,7 @@ class FileSystem {
 					var options = overwrite
 						? NativeArray.make((cast NOFOLLOW_LINKS:CopyOption), (cast REPLACE_EXISTING:CopyOption))
 						: NativeArray.make((cast NOFOLLOW_LINKS:CopyOption));
-					Files.copy(source, destination, options);
+					Files.copy(source, destination, ...options);
 					NoData;
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), source);
@@ -479,7 +479,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView), new NativeArray(0));
+					var attributes = Files.getFileAttributeView(path, javaClass(PosixFileAttributeView));
 					attributes.setTimes(FileTime.from(modificationTime, SECONDS), FileTime.from(accessTime, SECONDS), @:nullSafety(Off) (null:FileTime));
 					NoData;
 				} catch(e:FileSystemException) {
@@ -496,7 +496,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					new FilePath((path:JPath).toRealPath(new NativeArray(0)));
+					new FilePath((path:JPath).toRealPath());
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
