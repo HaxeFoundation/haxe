@@ -18,6 +18,7 @@ private typedef NativeFilePath = Path;
 
 	@:allow(asys.native.filesystem)
 	inline function new(path:Path) {
+		trace(path.getParent().toString());
 		this = path;
 	}
 
@@ -25,8 +26,11 @@ private typedef NativeFilePath = Path;
 		return new FilePath(Paths.get(path));
 	}
 
-	@:to public inline function toString():String {
-		return #if jvm this.toString() #else jObj(this).toString() #end;
+	@:to public function toString():String {
+		return switch #if jvm this.toString() #else jObj(this).toString() #end {
+			case '': '.';
+			case s: s;
+		}
 	}
 
 	@:op(A == B) function equals(p:FilePath):Bool {
@@ -73,7 +77,7 @@ private typedef NativeFilePath = Path;
 	public function parent():Null<FilePath> {
 		var path = switch this.getParent() {
 			case null if(!this.isAbsolute()):
-				this.toAbsolutePath().getParent();
+				Paths.get(Sys.getCwd());
 			case path:
 				path;
 		}

@@ -17,8 +17,17 @@ private typedef NativeFilePath = php.NativeString;
 	}
 
 	@:allow(asys.native.filesystem)
-	inline function new(s:String) {
-		this = s == null || strlen(s) == 1 ? s : rtrim(s, DIRECTORY_SEPARATOR == '/' ? '/' : '\\/');
+	function new(s:String) {
+		this = switch s {
+			case null: null;
+			case '': '.';
+			case _ if(strlen(s) == 1): s;
+			case _:
+				switch rtrim(s, DIRECTORY_SEPARATOR == '/' ? '/' : '\\/') {
+					case '': SEPARATOR;
+					case s: s;
+				}
+		}
 	}
 
 	@:from public static inline function fromString(path:String):FilePath {
