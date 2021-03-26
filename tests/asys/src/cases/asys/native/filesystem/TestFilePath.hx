@@ -11,6 +11,12 @@ class TestFilePath extends FsTest {
 		return {value:value, pos:pos};
 	}
 
+	function testEqual() {
+		var p1 = FilePath.fromString('qwe');
+		var p2 = FilePath.fromString('qwe');
+		isTrue(p1 == p2);
+	}
+
 	function testIsAbsolute() {
 		isTrue((Sys.getCwd():FilePath).isAbsolute());
 		isTrue(('/something/something':FilePath).isAbsolute());
@@ -74,7 +80,7 @@ class TestFilePath extends FsTest {
 			'path/to/../file' => mk('path/to/..'),
 			'.' => mk(cwd),
 			'./' => mk(cwd),
-			'' => mk(Path.directory(cwd)),
+			'' => mk(cwd),
 			'/' => mk(null)
 		];
 		if(isWindows) {
@@ -87,12 +93,20 @@ class TestFilePath extends FsTest {
 	}
 
 	function specFromString_toString() {
-		var s = "𠜎/aa😂/éé";
+		var s = '𠜎/aa😂/éé';
 		var p:FilePath = s;
 		s == p.toString();
 
-		var s = "some/dir/";
+		var s = 'some/dir/';
 		var p:FilePath = s;
 		'some/dir' == p.toString();
+
+		var s = '/';
+		var p:FilePath = s;
+		'/' == p.toString();
+
+		var s = '';
+		var p:FilePath = s;
+		'.' == p.toString();
 	}
 }
