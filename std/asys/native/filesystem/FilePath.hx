@@ -6,7 +6,7 @@ private typedef NativeFilePath = Dynamic;
 
 /**
 	Represents a relative or absolute file path.
-
+	
 	TODO: add API from `haxe.io.Path`
 **/
 @:coreApi abstract FilePath(NativeFilePath) {
@@ -22,8 +22,11 @@ private typedef NativeFilePath = Dynamic;
 	/**
 		Create file path from plain string.
 		Removes trailing slashes.
+
+		Creates a path of `.` if `path` is empty.
+		That is `FilePath.ofString('') == FilePath.ofString('.')`.
 	**/
-	@:from public static function fromString(path:String):FilePath {
+	@:from public static function ofString(path:String):FilePath {
 		throw new NotImplementedException();
 	}
 
@@ -60,14 +63,13 @@ private typedef NativeFilePath = Dynamic;
 	}
 
 	/**
-		Get the directory containing this path.
+		Get the parent element of this path.
 		E.g. for `dir/to/path` this method returns `dir/to`.
 
-		Returns `null` if this is the root of file system.
+		Returns `null` if this path does not have a parent element.
 
-		For relative paths this method resolves absolute paths if needed.
-		E.g. for `./` this method returns the path to the parent of current working
-		directory.
+		This method does not resolve special names like `.` and `..`.
+		That is the parent of `some/..` is `some`.
 	**/
 	public function parent():Null<FilePath> {
 		throw new NotImplementedException();

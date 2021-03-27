@@ -12,8 +12,16 @@ class TestFilePath extends FsTest {
 	}
 
 	function testEqual() {
-		var p1 = FilePath.fromString('qwe');
-		var p2 = FilePath.fromString('qwe');
+		var p1 = FilePath.ofString('qwe');
+		var p2 = FilePath.ofString('qwe');
+		isTrue(p1 == p2);
+
+		var p1 = FilePath.ofString('');
+		var p2 = FilePath.ofString('.');
+		isTrue(p1 == p2);
+
+		var p1 = FilePath.ofString('some');
+		var p2 = FilePath.ofString('some/');
 		isTrue(p1 == p2);
 	}
 
@@ -71,23 +79,24 @@ class TestFilePath extends FsTest {
 				equals(expected.value, str, expected.pos);
 			}
 		}
-		var cwd = Path.removeTrailingSlashes(Sys.getCwd());
 
 		var cases = [
-			'file' => mk(cwd),
+			'file' => mk(null),
+			'/file' => mk('/'),
 			'path/to/file' => mk('path/to'),
 			'path/to/dir/' => mk('path/to'),
+			'path/to///dir/' => mk('path/to'),
 			'path/to/../file' => mk('path/to/..'),
-			'.' => mk(cwd),
-			'./' => mk(cwd),
-			'' => mk(cwd),
-			'/' => mk(null)
+			'path/to/..' => mk('path/to'),
+			'path/to/.' => mk('path/to'),
+			'.' => mk(null),
+			'' => mk(null),
+			'/' => mk(null),
+			'\\' => mk(null)
 		];
 		if(isWindows) {
 			cases['C:\\'] = mk(null);
-			cases['\\'] = mk(null);
-		} else {
-			cases['\\'] = mk(cwd);
+			cases['C:\\dir'] = mk('C:\\');
 		}
 		check(cases);
 	}
@@ -97,7 +106,7 @@ class TestFilePath extends FsTest {
 		var p:FilePath = s;
 		s == p.toString();
 
-		var s = 'some/dir/';
+		var s = 'some/dir///';
 		var p:FilePath = s;
 		'some/dir' == p.toString();
 
@@ -108,5 +117,19 @@ class TestFilePath extends FsTest {
 		var s = '';
 		var p:FilePath = s;
 		'.' == p.toString();
+
+		if(isWindows) {
+			var s = 'some/dir/\\/';
+			var p:FilePath = s;
+			'some/dir' == p.toString();
+
+			var s = '\\';
+			var p:FilePath = s;
+			'\\' == p.toString();
+
+			var s = 'C:\\';
+			var p:FilePath = s;
+			'C:\\' == p.toString();
+		}
 	}
 }
