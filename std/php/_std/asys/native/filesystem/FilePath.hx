@@ -21,20 +21,17 @@ private typedef NativeFilePath = php.NativeString;
 		this = switch s {
 			case null: null;
 			case '': '.';
-			case _ if(strlen(s) == 1): s;
 			case _:
-				switch rtrim(s, DIRECTORY_SEPARATOR == '/' ? '/' : '\\/') {
-					case '': SEPARATOR;
-					case s: s;
-				}
+				s = rtrim(s, SEPARATOR == '/' ? '/' : '\\/');
+				s == '' ? SEPARATOR : s;
 		}
 	}
 
-	@:from public static inline function fromString(path:String):FilePath {
+	@:from public static inline function ofString(path:String):FilePath {
 		return new FilePath(path);
 	}
 
-	public function toString():String {
+	public inline function toString():String {
 		return this;
 	}
 
@@ -102,19 +99,11 @@ private typedef NativeFilePath = php.NativeString;
 	}
 
 	public function parent():Null<FilePath> {
-		var path = if(this == '.') {
-			Sys.getCwd();
-		} else {
-			switch dirname(this) {
-				case '.':
-					var abs = absolute();
-					var path = dirname(abs);
-					path == abs ? null : path;
-				case '':
-					dirname(Sys.getCwd());
-				case path:
-					path == this ? null : path;
-			}
+		var path = switch dirname(this) {
+			case '.':
+				strlen(this) > 1 && this[0] == '.' ? '.' : null;
+			case path:
+				path == this ? null : path;
 		}
 		return new FilePath(path);
 	}

@@ -8,16 +8,14 @@ private typedef NativeFilePath = NativeString;
 
 @:coreApi abstract FilePath(NativeFilePath) to NativeString {
 	public static var SEPARATOR(get,never):String;
-	static var __SEPARATOR:Null<String>;
-	static function get_SEPARATOR():String {
-		return switch __SEPARATOR {
-			case null:
-				var s = Sys.systemName() == 'Windows' ? '\\' : '/';
-				__SEPARATOR = s;
-				s;
-			case s:
-				(s:String);
-		}
+	static inline function get_SEPARATOR():String {
+		return _SEPARATOR;
+	}
+
+	static var _SEPARATOR:String;
+
+	static function __init__():Void {
+		_SEPARATOR = Sys.systemName() == 'Windows' ? '\\' : '/';
 	}
 
 	static inline function isSeparator(c:Int):Bool {
@@ -40,12 +38,18 @@ private typedef NativeFilePath = NativeString;
 		}
 	}
 
-	@:from public static inline function fromString(path:String):FilePath {
+	@:from public static inline function ofString(path:String):FilePath {
 		return new FilePath(path);
 	}
 
-	inline function new(b:NativeString) {
-		this = trimSlashes(b);
+	inline function new(s:NativeString) {
+		this = switch s {
+			case null: null;
+			case _ if(s.length == 0): '.';
+			case _:
+				var s = trimSlashes(s);
+				s.length == 0 ? SEPARATOR : s;
+		}
 	}
 
 	@:to public function toString():String {
@@ -71,7 +75,7 @@ private typedef NativeFilePath = NativeString;
 	public function parent():Null<FilePath> {
 		switch this.length {
 			case 0:
-				return new FilePath(Sys.getCwd()).parent();
+				return null;
 			case 1 if(isSeparator(this.code(0))):
 				return null;
 			case 2 if(SEPARATOR == '\\' && this.code(1) == ':'.code):
@@ -80,7 +84,7 @@ private typedef NativeFilePath = NativeString;
 				while(!isSeparator(this.code(i))) {
 					--i;
 					if(i < 0)
-						return new FilePath(Sys.getCwd());
+						return null;
 				}
 				return new FilePath(this.sub(0, i + 1));
 

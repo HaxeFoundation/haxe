@@ -19,13 +19,13 @@ private typedef NativeFilePath = String;
 		_SEPARATOR = neko.Lib.load("std","sys_string",0)() == NativeString.ofString('Windows') ? '\\' : '/';
 	}
 
-	@:from public static inline function fromString(path:String):FilePath {
+	@:from public static inline function ofString(path:String):FilePath {
 		return new FilePath(path);
 	}
 
 	@:allow(asys.native.filesystem)
 	function new(s:String) {
-		if(s == null || s.length == 1) {
+		if(s == null) {
 			this = s;
 		} else if(s.length == 0) {
 			this = '.';
@@ -39,11 +39,7 @@ private typedef NativeFilePath = String;
 				}
 				--i;
 			}
-			this = if(i + 1 == s.length) {
-				s;
-			} else {
-				s.substr(0, i + 1);
-			}
+			this = i == s.length - 1 ? s : s.substr(0, i + 1);
 		}
 	}
 
@@ -70,11 +66,7 @@ private typedef NativeFilePath = String;
 	}
 
 	public function absolute():FilePath {
-		var fullPath = if(isAbsolute()) {
-			this;
-		} else {
-			Sys.getCwd() + '/' + this;
-		}
+		var fullPath = isAbsolute() ? this : Sys.getCwd() + '/' + this;
 
 		var parts = if(SEPARATOR == '\\') {
 			fullPath.replace('\\', '/').split('/');
@@ -110,21 +102,9 @@ private typedef NativeFilePath = String;
 		}
 		//no directory in this path
 		return if(i < 0) {
-			switch this {
-				case '..':
-					new FilePath(Sys.getCwd()).parent();
-				case _:
-					new FilePath(Sys.getCwd());
-			}
+			null;
 		//this == '/' or this == '\'
-		} else if(i == 0) {
-			switch this {
-				case '/': null;
-				case '\\' if(isWin): null;
-				case _: new FilePath(this.charAt(0));
-			}
-		//this = 'C:\'
-		} else if(i == 2 && isWin && this.fastCodeAt(1) == ':'.code && isDriveLetter(this.fastCodeAt(0))) {
+		} else if(i == 0 && this.length == 1) {
 			return null;
 		} else {
 			new FilePath(this.substr(0, i + 1));

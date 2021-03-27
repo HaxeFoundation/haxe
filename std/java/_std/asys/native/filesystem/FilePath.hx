@@ -16,25 +16,23 @@ private typedef NativeFilePath = Path;
 		return JFile.separator;
 	}
 
+	static final empty = Paths.get('');
+
 	@:allow(asys.native.filesystem)
 	inline function new(path:Path) {
-		trace(path.getParent().toString());
-		this = path;
+		this = jObj(empty).equals(path) ? Paths.get('.') : path;
 	}
 
-	@:from public static inline function fromString(path:String):FilePath {
+	@:from public static inline function ofString(path:String):FilePath {
 		return new FilePath(Paths.get(path));
 	}
 
-	@:to public function toString():String {
-		return switch #if jvm this.toString() #else jObj(this).toString() #end {
-			case '': '.';
-			case s: s;
-		}
+	@:to public inline function toString():String {
+		return jObj(this).toString();
 	}
 
-	@:op(A == B) function equals(p:FilePath):Bool {
-		return #if jvm this.equals(p) #else jObj(this).equals(jObj(this)) #end;
+	@:op(A == B) inline function equals(p:FilePath):Bool {
+		return jObj(this).equals(jObj(this));
 	}
 
 	public inline function isAbsolute():Bool {
@@ -42,7 +40,8 @@ private typedef NativeFilePath = Path;
 	}
 
 	public function absolute():FilePath {
-		var fullPath:NativeString = cast #if jvm this.toAbsolutePath().toString() #else jObj(this.toAbsolutePath()).toString() #end;
+		var abs = this.toAbsolutePath();
+		var fullPath:NativeString = cast jObj(abs).toString();
 
 		var parts:NativeArray<String> = if(SEPARATOR == '\\') {
 			fullPath.split('\\|/');
@@ -75,18 +74,13 @@ private typedef NativeFilePath = Path;
 	}
 
 	public function parent():Null<FilePath> {
-		var path = switch this.getParent() {
-			case null if(!this.isAbsolute()):
-				Paths.get(Sys.getCwd());
-			case path:
-				path;
+		return switch this.getParent() {
+			case null: null;
+			case path: new FilePath(path);
 		}
-		return new FilePath(path);
 	}
 
-#if !jvm
-	static inline function jObj(o:Dynamic):java.lang.Object {
-		return o;
+	static inline function jObj(o:Path):java.lang.Object {
+		return cast o;
 	}
-#end
 }
