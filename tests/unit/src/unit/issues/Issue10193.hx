@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue10193 extends Test {
-	#if (js || cs || java)
+	#if (js || (cs && !no_root) || java)
 	function test() {
 		var c = new C(42);
 		eq(42, c.a);
@@ -10,7 +10,7 @@ class Issue10193 extends Test {
 	#end
 }
 
-#if (js || cs || java) // some targets are not happy with this for some reason...
+#if (js || (cs && !no_root) || java) // some targets are not happy with this for some reason...
 @:keep
 @:native("Issue10193E")
 private class EImpl {
