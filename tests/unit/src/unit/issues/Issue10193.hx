@@ -1,13 +1,16 @@
 package unit.issues;
 
 class Issue10193 extends Test {
+	#if js
 	function test() {
 		var c = new C(42);
 		eq(42, c.a);
 		eq(42, c.f());
 	}
+	#end
 }
 
+#if js // some targets are not happy with this for some reason...
 @:keep
 @:native("Issue10193E")
 private class EImpl {
@@ -30,3 +33,4 @@ private class C extends E {
 		this.f = () -> this.a;
 	}
 }
+#end
