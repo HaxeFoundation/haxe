@@ -181,6 +181,10 @@ class TestFileSystem extends FsTest {
 			FileSystem.isDirectory('test-data/symlink-dir', (e, r) -> {
 				if(noException(e))
 					isTrue(r);
+			}),
+			FileSystem.isDirectory('non-existent', (e, r) -> {
+				if(noException(e))
+					isFalse(r);
 			})
 		);
 	}
@@ -198,6 +202,10 @@ class TestFileSystem extends FsTest {
 			FileSystem.isFile('test-data/symlink', (e, r) -> {
 				if(noException(e))
 					isTrue(r);
+			}),
+			FileSystem.isFile('non-existent', (e, r) -> {
+				if(noException(e))
+					isFalse(r);
 			})
 		);
 	}
