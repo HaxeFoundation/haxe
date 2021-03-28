@@ -502,7 +502,16 @@ let add_field_inits locals ctx t =
 				match cf.cf_expr with
 				| Some { eexpr = TFunction f } ->
 					let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
+					let bl =
+						if (not ctx.com.config.pf_this_before_super
+							&& Meta.has (Meta.Custom ":passThroughCtor") cf.cf_meta
+							&& Meta.has (Meta.Custom ":safe") cf.cf_meta
+						) then
+							bl @ el
+						else
+							el @ bl
+					in
+					let ce = mk (TFunction {f with tf_expr = mk (TBlock bl) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
 					{cf with cf_expr = Some ce };
 				| _ ->
 					die "" __LOC__
