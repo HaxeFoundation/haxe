@@ -8,6 +8,7 @@
 	all : fixed subtypes in `expr is Module.SubType` expressions (#10174)
 	hl : fixed debugging of `catch` blocks (#10109)
 	jvm : fixed manifest generation for cases with a lot of jar libraries (#10157)
+	js : fixed extending extern classes for es5 (#10192)
 
 2021-02-26 4.2.1:
 
