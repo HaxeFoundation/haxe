@@ -23,6 +23,10 @@ private typedef NativeFilePath = String;
 		return new FilePath(path);
 	}
 
+	@:to inline function toNativeString():NativeString {
+		return untyped this.__s;
+	}
+
 	@:allow(asys.native.filesystem)
 	function new(s:String) {
 		if(s == null) {
