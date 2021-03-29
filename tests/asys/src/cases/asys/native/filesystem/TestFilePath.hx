@@ -89,6 +89,7 @@ class TestFilePath extends FsTest {
 			'path/to/../file' => mk('path/to/..'),
 			'path/to/..' => mk('path/to'),
 			'path/to/.' => mk('path/to'),
+			'.hidden' => mk(null),
 			'.' => mk(null),
 			'' => mk(null),
 			'/' => mk(null),

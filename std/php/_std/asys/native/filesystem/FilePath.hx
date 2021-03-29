@@ -101,10 +101,14 @@ private typedef NativeFilePath = php.NativeString;
 	public function parent():Null<FilePath> {
 		var path = switch dirname(this) {
 			case '.':
-				strlen(this) > 1 && this[0] == '.' ? '.' : null;
+				strlen(this) > 1 && this[0] == '.' && isSeparator(this[1]) ? '.' : null;
 			case path:
 				path == this ? null : path;
 		}
 		return new FilePath(path);
+	}
+
+	static inline function isSeparator(char:String):Bool {
+		return char == '/' || (char == SEPARATOR);
 	}
 }
