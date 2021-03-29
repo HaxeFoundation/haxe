@@ -1243,6 +1243,8 @@ let gen_class_static_field ctx c cl_path f =
 let can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
 		false
+	| f when has_class_field_flag f CfExtern ->
+		false
 	| f ->
 		is_physical_field f
 
