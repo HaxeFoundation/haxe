@@ -44,7 +44,7 @@ class TestFilePath extends FsTest {
 			for(path => expected in cases)
 				equals(expected.value, (path:FilePath).absolute().toString(), expected.pos);
 		}
-		var cwd = Sys.getCwd();
+		var cwd = Path.addTrailingSlash(Sys.getCwd());
 
 		var cases = [
 			'.' => expect(Path.removeTrailingSlashes(cwd)),
