@@ -6,7 +6,10 @@ private typedef NativeFilePath = Dynamic;
 
 /**
 	Represents a relative or absolute file path.
-	
+
+	File path cannot be empty.
+	E.g. creating a path using empty string produces a path of `.`.
+
 	TODO: add API from `haxe.io.Path`
 **/
 @:coreApi abstract FilePath(NativeFilePath) {
