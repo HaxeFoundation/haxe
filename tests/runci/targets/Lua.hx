@@ -79,6 +79,10 @@ class Lua {
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/lua/sys.lua"]);
 
+			changeDirectory(asysDir);
+			runCommand("haxe", ["compile-lua.hxml"].concat(args));
+			runCommand("lua", ["bin/asys.lua"]);
+
 			changeDirectory(miscDir + "luaDeadCode/stringReflection");
 			runCommand("haxe", ["compile.hxml"]);
 
