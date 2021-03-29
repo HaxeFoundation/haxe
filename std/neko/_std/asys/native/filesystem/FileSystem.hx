@@ -33,7 +33,7 @@ class FileSystem {
 	static final file_delete = Lib.load("std", "file_delete", 1);
 	static final sys_rename = Lib.load("std", "sys_rename", 2);
 	static final sys_stat:(NativeString)->FileStat = Lib.load("std", "sys_stat", 1);
-	static final sys_lstat:(NativeString)->FileStat = Lib.load("std", "sys_lstat", 1);
+	// static final sys_lstat:(NativeString)->FileStat = Lib.load("std", "sys_lstat", 1);
 	static final sys_file_type:(NativeString)->NativeString = Lib.load("std", "sys_file_type", 1);
 	static final sys_lfile_type:(NativeString)->NativeString = Lib.load("std", "sys_lfile_type", 1);
 	static final sys_create_dir = Lib.load("std", "sys_create_dir", 2);
@@ -119,7 +119,8 @@ class FileSystem {
 	static function writeToFile(path:FilePath, data:NativeString, flag:FileOpenFlag<Dynamic>):NoData {
 		var f = null;
 		try {
-			f = file_open(path, fopenHx(path, flag));
+			// f = file_open(path, fopenHx(path, flag));
+			f = file_open(path, NativeString.ofString('wb'));
 			var length = data.length();
 			var pos = 0;
 			while (length > 0) {
@@ -137,16 +138,11 @@ class FileSystem {
 		}
 	}
 
-	/**
-		Write `text` into a file specified by `path`
-
-		`flag` controls the behavior.
-		By default the file is truncated if it exists and is created if it does not exist.
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-	**/
 	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> inline writeToFile(path, NativeString.ofString(text), flag),
+			callback
+		);
 	}
 
 	/**
@@ -334,7 +330,8 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var info:FileInfo = cast sys_lstat(path);
+					// var info:FileInfo = cast sys_lstat(path);
+					var info:FileInfo = cast sys_stat(path);
 					info.mode.isLink();
 				} catch(e) {
 					if(!sys_exists(path))
@@ -358,7 +355,8 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var data = sys_lstat(path);
+					// var data = sys_lstat(path);
+					var data = sys_stat(path);
 					data.atime = Std.int(data.atime / 1000);
 					data.ctime = Std.int(data.ctime / 1000);
 					data.mtime = Std.int(data.mtime / 1000);
@@ -412,18 +410,18 @@ class FileSystem {
 		);
 	}
 
-	static function fopenHx(file:NativeString, flag:FileOpenFlag<Dynamic>):Resource {
-		var flags = switch flag {
-			case Append: 'ab';
-			case Read: 'rb';
-			case ReadWrite: 'rb+';
-			case Write: 'wb';
-			case WriteX: 'wbx';
-			case WriteRead: 'wb+';
-			case WriteReadX: 'wb+x';
-			case Overwrite: 'cb';
-			case OverwriteRead: 'cb+';
-		}
-		return file_open(file, NativeString.ofString(flags));
-	}
+	// static function fopenHx(file:NativeString, flag:FileOpenFlag<Dynamic>):Resource {
+	// 	var flags = switch flag {
+	// 		case Append: 'ab';
+	// 		case Read: 'rb';
+	// 		case ReadWrite: 'rb+';
+	// 		case Write: 'wb';
+	// 		case WriteX: ;
+	// 		case WriteRead: ;
+	// 		case WriteReadX: ;
+	// 		case Overwrite: ;
+	// 		case OverwriteRead: ;
+	// 	}
+	// 	return file_open(file, NativeString.ofString(flags));
+	// }
 }
