@@ -7,7 +7,7 @@ import asys.native.filesystem.FilePath;
 import haxe.io.Path;
 
 class TestFilePath extends FsTest {
-	function mk<T>(value:T, ?pos:PosInfos) {
+	function expect<T>(value:T, ?pos:PosInfos) {
 		return {value:value, pos:pos};
 	}
 
@@ -47,23 +47,23 @@ class TestFilePath extends FsTest {
 		var cwd = Sys.getCwd();
 
 		var cases = [
-			'.' => mk(Path.removeTrailingSlashes(cwd)),
-			'./' => mk(Path.removeTrailingSlashes(cwd)),
-			'non-existent.file' => mk(cwd + 'non-existent.file'),
-			'path/to/../../non-existent.file' => mk(cwd + 'non-existent.file'),
-			'single-dot-before-double-dot/./../non-existent.file' => mk(cwd + 'non-existent.file'),
-			'path/to/../' => mk(cwd + 'path'),
-			'...' => mk(cwd + '...')
+			'.' => expect(Path.removeTrailingSlashes(cwd)),
+			'./' => expect(Path.removeTrailingSlashes(cwd)),
+			'non-existent.file' => expect(cwd + 'non-existent.file'),
+			'path/to/../../non-existent.file' => expect(cwd + 'non-existent.file'),
+			'single-dot-before-double-dot/./../non-existent.file' => expect(cwd + 'non-existent.file'),
+			'path/to/../' => expect(cwd + 'path'),
+			'...' => expect(cwd + '...')
 		];
 		check(cases);
 		cases = if(isWindows) {
 			[
-				'/absolute/path' => mk('\\absolute\\path'),
-				'C:\\absolute\\path' => mk('C:\\absolute\\path')
+				'/absolute/path' => expect('\\absolute\\path'),
+				'C:\\absolute\\path' => expect('C:\\absolute\\path')
 			];
 		} else {
 			[
-				'/absolute/path' => mk('/absolute/path')
+				'/absolute/path' => expect('/absolute/path')
 			];
 		}
 		check(cases);
@@ -81,23 +81,23 @@ class TestFilePath extends FsTest {
 		}
 
 		var cases = [
-			'file' => mk(null),
-			'/file' => mk('/'),
-			'path/to/file' => mk('path/to'),
-			'path/to/dir/' => mk('path/to'),
-			'path/to///dir/' => mk('path/to'),
-			'path/to/../file' => mk('path/to/..'),
-			'path/to/..' => mk('path/to'),
-			'path/to/.' => mk('path/to'),
-			'.hidden' => mk(null),
-			'.' => mk(null),
-			'' => mk(null),
-			'/' => mk(null),
-			'\\' => mk(null)
+			'file' => expect(null),
+			'/file' => expect('/'),
+			'path/to/file' => expect('path/to'),
+			'path/to/dir/' => expect('path/to'),
+			'path/to///dir/' => expect('path/to'),
+			'path/to/../file' => expect('path/to/..'),
+			'path/to/..' => expect('path/to'),
+			'path/to/.' => expect('path/to'),
+			'.hidden' => expect(null),
+			'.' => expect(null),
+			'' => expect(null),
+			'/' => expect(null),
+			'\\' => expect(null)
 		];
 		if(isWindows) {
-			cases['C:\\'] = mk(null);
-			cases['C:\\dir'] = mk('C:\\');
+			cases['C:\\'] = expect(null);
+			cases['C:\\dir'] = expect('C:\\');
 		}
 		check(cases);
 	}
