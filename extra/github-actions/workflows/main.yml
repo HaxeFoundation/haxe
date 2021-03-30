@@ -193,7 +193,7 @@ jobs:
   deploy:
     if: github.event_name != 'pull_request'
     needs: [linux-test, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
