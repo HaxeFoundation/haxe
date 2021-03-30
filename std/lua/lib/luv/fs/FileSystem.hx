@@ -27,11 +27,15 @@ import lua.Result;
 
 @:luaRequire("luv")
 extern class FileSystem {
+	static final constants:Table<String,Int>;
+
 	@:native("fs_close")
 	@:overload(function(file:FileDescriptor, cb:String->Bool->Void):Request {})
 	static function close(file:FileDescriptor):Result<Bool>;
 
 	@:native("fs_open")
+	@:overload(function(path:String, flags:Int, mode:Int):Result<FileDescriptor> {})
+	@:overload(function(path:String, flags:Int, mode:Int, ?cb:String->FileDescriptor->Void):Request {})
 	@:overload(function(path:String, flags:Open, mode:Int, ?cb:String->FileDescriptor->Void):Request {})
 	static function open(path:String, flags:Open, mode:Int):Result<FileDescriptor>;
 
@@ -44,8 +48,8 @@ extern class FileSystem {
 	static function unlink(file:FileDescriptor, content:String):Result<String>;
 
 	@:native("fs_write")
-	@:overload(function(file:FileDescriptor, content:String, offset:Int, ?cb:String->Bool->Void):Int {})
-	static function write(file:FileDescriptor, content:String, offset:Int):Result<Bool>;
+	@:overload(function(file:FileDescriptor, content:String, offset:Int, ?cb:String->Int->Void):Int {})
+	static function write(file:FileDescriptor, content:String, offset:Int):Result<Int>;
 
 	@:native("fs_mkdir")
 	@:overload(function(path:String, mode:Int, cb:String->Bool->Void):Request {})
@@ -154,15 +158,15 @@ extern class FileSystem {
 	static function statfs(path:String):StatFs;
 
 	@:native("fs_opendir")
-	@:overload(function(path:String, cb:Handle->Bool->Void):Request {})
+	@:overload(function(path:String, cb:String->Handle->Void):Request {})
 	static function opendir(path:String):Handle;
 
 	@:native("fs_readdir")
-	@:overload(function(dir:Handle, cb:Table<Int, NameType>->Bool->Void):Request {})
-	static function readdir(path:String):Table<Int, NameType>;
+	@:overload(function(dir:Handle, cb:String->Table<Int, NameType>->Void):Request {})
+	static function readdir(path:Handle):Table<Int, NameType>;
 
 	@:native("fs_closedir")
-	@:overload(function(dir:Handle, cb:Bool->Void):Request {})
+	@:overload(function(dir:Handle, cb:String->Bool->Void):Request {})
 	static function closedir(dir:Handle):Bool;
 }
 
