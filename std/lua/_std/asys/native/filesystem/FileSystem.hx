@@ -7,7 +7,9 @@ import haxe.exceptions.NotImplementedException;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import lua.Lib;
-import lua.lib.luv.fs.FileSystem as LFileSystem;
+import lua.Table;
+import lua.lib.luv.fs.FileSystem as Fs;
+import lua.lib.luv.fs.FileSystem.NameType;
 
 @:coreApi
 class FileSystem {
@@ -43,19 +45,57 @@ class FileSystem {
 	}
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
-		throw new NotImplementedException();
+		readFile(path, s -> Bytes.ofString(s, RawNative), callback);
 	}
 
 	static public function readString(path:FilePath, callback:Callback<String>):Void {
-		throw new NotImplementedException();
+		readFile(path, s -> s, callback);
+	}
+
+	static function readFile<T>(path:FilePath, fn:(String)->T, callback:Callback<T>):Void {
+		Fs.open(path, Fs.constants.O_RDONLY, 0, xpcall((e,fd) -> {
+			if(e != null)
+				callback.fail(new FsException(CustomError(e), path))
+			else
+				Fs.fstat(fd, xpcall(function(e,stat) {
+					if(e != null)
+						Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))))
+					else
+						Fs.read(fd, stat.size, 0, xpcall(function(e,data) {
+							if(e != null)
+								Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))))
+							else
+								Fs.close(fd, xpcall((_,_) -> callback.success(fn(data))));
+						}));
+				}));
+		}));
 	}
 
 	static public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		writeFile(path, data.getString(0, data.length, RawNative), flag, callback);
 	}
 
 	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		writeFile(path, text, flag, callback);
+	}
+
+	static function writeFile<T>(path:FilePath, data:String, flag:FileOpenFlag<Dynamic>, callback:Callback<NoData>):Void {
+		Fs.open(path, luvOpenFlags(flag), FilePermissions.octal(0, 6, 4, 4), xpcall((e,fd) -> {
+			if(e != null)
+				callback.fail(new FsException(CustomError(e), path))
+			else
+				Fs.write(fd, data, 0, xpcall(function(e,bytesWritten) {
+					if(e != null)
+						Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))))
+					else
+						Fs.close(fd, xpcall((e,_) -> {
+							if(e != null)
+								callback.fail(new FsException(CustomError(e), path))
+							else
+								callback.success(NoData);
+						}));
+				}));
+		}));
 	}
 
 	/**
@@ -66,7 +106,27 @@ class FileSystem {
 	}
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
-		throw new NotImplementedException();
+		Fs.opendir(path, xpcall((e,dir) -> {
+			if(e != null)
+				callback.fail(new FsException(CustomError(e), path))
+			else {
+				var result = [];
+				function collect(e, entries:Table<Int,NameType>) {
+					if(e != null) {
+						Fs.closedir(dir, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))));
+					} else if(entries == null) {
+						Fs.closedir(dir, xpcall((_,_) -> callback.success(result)));
+					} else {
+						//TODO: do this without intermediate array
+						var entries = Table.toArray(entries);
+						for(entry in entries)
+							result.push(entry.name);
+						Fs.readdir(dir, xpcall(collect));
+					}
+				}
+				Fs.readdir(dir, xpcall(collect));
+			}
+		}));
 	}
 
 	/**
@@ -191,11 +251,13 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Get the value of a symbolic link.
-	**/
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		Fs.readlink(path, xpcall((e, r:String)-> {
+			if(e != null)
+				callback.fail(new FsException(CustomError(e), path))
+			else
+				callback.success(r);
+		}));
 	}
 
 	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
@@ -209,16 +271,23 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Shrink or expand a file specified by `path` to `newSize` bytes.
-
-		If the file does not exist, it is created.
-
-		If the file is larger than `newSize`, the extra data is lost.
-		If the file is shorter, zero bytes are used to fill the added length.
-	**/
 	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.open(path, Fs.constants.O_CREAT | Fs.constants.O_WRONLY, FilePermissions.octal(0, 6, 4, 4), xpcall((e,fd) -> {
+			if(e != null)
+				callback.fail(new FsException(CustomError(e), path))
+			else
+				Fs.ftruncate(fd, newSize, xpcall((e,r) -> {
+					if(e != null)
+						callback.fail(new FsException(CustomError(e), path))
+					else
+						Fs.close(fd, xpcall((e,_) -> {
+							if(e != null)
+								callback.fail(new FsException(CustomError(e), path))
+							else
+								callback.success(NoData);
+						}));
+				}));
+		}));
 	}
 
 	/**
@@ -231,10 +300,33 @@ class FileSystem {
 	}
 
 	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void {
-		LFileSystem.realpath(path, (e,r) -> {
+		Fs.realpath(path, xpcall((e, r:String) -> {
 			if(e != null)
-				callback.fail(new FsException(CustomError(e), path));
-			callback.success(@:privateAccess new FilePath(r));
-		});
+				callback.fail(new FsException(CustomError(e), path))
+			else
+				callback.success(r);
+		}));
+	}
+
+	/**
+		Adds exceptions handling to callbacks.
+		Otherwise lua just prints `Uncaught Error: (null)` on unhandled exceptions.
+	**/
+	static inline function xpcall<T>(cb:(e:String, r:T)->Void):(e:String, r:T)->Void {
+		return (e, r) -> lua.Lua.xpcall(() -> cb(e, r), untyped __lua__('_hx_error'));
+	}
+
+	static function luvOpenFlags(flag:FileOpenFlag<Dynamic>):Int {
+		return switch flag {
+			case Append: Fs.constants.O_WRONLY | Fs.constants.O_APPEND | Fs.constants.O_CREAT;
+			case Read: Fs.constants.O_RDONLY;
+			case ReadWrite: Fs.constants.O_RDWR;
+			case Write: Fs.constants.O_WRONLY | Fs.constants.O_CREAT | Fs.constants.O_TRUNC;
+			case WriteX: Fs.constants.O_WRONLY | Fs.constants.O_CREAT | Fs.constants.O_EXCL;
+			case WriteRead: Fs.constants.O_RDWR | Fs.constants.O_CREAT | Fs.constants.O_TRUNC;
+			case WriteReadX: Fs.constants.O_RDWR | Fs.constants.O_CREAT | Fs.constants.O_EXCL;
+			case Overwrite: Fs.constants.O_WRONLY | Fs.constants.O_CREAT;
+			case OverwriteRead: Fs.constants.O_RDWR | Fs.constants.O_CREAT;
+		}
 	}
 }

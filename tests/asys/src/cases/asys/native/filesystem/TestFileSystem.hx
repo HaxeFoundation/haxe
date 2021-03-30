@@ -1,6 +1,7 @@
 package cases.asys.native.filesystem;
 
 import haxe.PosInfos;
+import haxe.io.Path;
 import asys.native.filesystem.FilePermissions;
 import haxe.NoData;
 import asys.native.filesystem.Callback;
@@ -639,7 +640,7 @@ class TestFileSystem extends FsTest {
 	}
 
 	function testRealPath(async:Async) {
-		var expected = Sys.getCwd() + 'test-data' + FilePath.SEPARATOR + 'sub' + FilePath.SEPARATOR + 'hello.world';
+		var expected = Path.join([Sys.getCwd(), 'test-data', 'sub', 'hello.world']);
 
 		asyncAll(async, {
 			var p:FilePath = 'test-data/sub/.././../test-data////sub/hello.world';
