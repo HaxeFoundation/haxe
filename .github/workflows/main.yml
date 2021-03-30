@@ -7,7 +7,7 @@ on: [push, pull_request]
 jobs:
   cancel:
     name: "Cancel previous runs"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     timeout-minutes: 3
     steps:
       - uses: styfle/cancel-workflow-action@0.3.1
@@ -232,7 +232,7 @@ jobs:
 
 
   linux-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     env:
       PLATFORM: linux64
       OPAMYES: 1
@@ -640,7 +640,7 @@ jobs:
 
   linux-test:
     needs: linux-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     env:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
@@ -905,7 +905,7 @@ jobs:
   deploy_apidoc:
     if: github.event_name != 'pull_request' # TODO: also only when `GHP_REMOTE` is present
     needs: [linux-test, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: Download Haxe
         uses: actions/download-artifact@v2
