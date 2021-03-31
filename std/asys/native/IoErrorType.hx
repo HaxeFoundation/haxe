@@ -1,7 +1,9 @@
 package asys.native;
 
 /**
-	Error types
+	Error types.
+
+	TODO: add more error types
 **/
 @:using(asys.native.IoErrorType.IoErrorTypeTools)
 enum IoErrorType {

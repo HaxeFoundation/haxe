@@ -1,6 +1,5 @@
 package asys.native.filesystem;
 
-import haxe.exceptions.NotSupportedException;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import eval.luv.File as LFile;
