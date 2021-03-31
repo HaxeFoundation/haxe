@@ -2056,6 +2056,9 @@ let generate com =
     println ctx "_hx_array_mt.__index = Array.prototype";
     newline ctx;
 
+    (* Functions to support auto-run of libuv loop *)
+    print_file (Common.find_file com "lua/_lua/_hx_luv.lua");
+
     let b = open_block ctx in
     (* Localize init variables inside a do-block *)
     println ctx "local _hx_static_init = function()";
@@ -2113,19 +2116,18 @@ let generate com =
 
     Option.may (fun e ->
         spr ctx "_G.xpcall(";
-        (match e.eexpr with
-        | TCall(e2,[]) ->
-            gen_value ctx e2;
-        | _->
+            let luv_run =
+                (* Runs libuv loop if needed *)
+                mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
+            in
             let fn =
                 {
                     tf_args = [];
                     tf_type = com.basic.tvoid;
-                    tf_expr = mk (TBlock [e]) com.basic.tvoid e.epos;
+                    tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
                 }
             in
-            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) }
-        );
+            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
         spr ctx ", _hx_error)";
         newline ctx
     ) com.main;
