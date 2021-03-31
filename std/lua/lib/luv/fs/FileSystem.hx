@@ -150,8 +150,12 @@ extern class FileSystem {
 		Not available on windows
 	**/
 	@:native("fs_lchown")
-	@:overload(function(descriptor:FileDescriptor, uid:Int, gid:Int, cb:String->Bool->Void):Request {})
-	static function lchown(descriptor:FileDescriptor, uid:Int, gid:Int):Bool;
+	@:overload(function(descriptor:String, uid:Int, gid:Int, cb:String->Bool->Void):Request {})
+	static function lchown(descriptor:String, uid:Int, gid:Int):Bool;
+
+	@:native("fs_copyfile")
+	@:overload(function(path:String, newPath:String, flags:Null<CopyFlags>, cb:String->Bool->Void):Request {})
+	static function copyfile(path:String, newPath:String, ?flags:CopyFlags):Bool;
 
 	@:native("fs_statfs")
 	@:overload(function(path:String, cb:StatFs->Bool->Void):Request {})
@@ -216,4 +220,10 @@ typedef StatFs = {
 	bavail:Int,
 	files:Int,
 	ffree:Int
+}
+
+typedef CopyFlags = {
+	?excl:Bool,
+	?ficlone:Bool,
+	?ficlone_force:Bool
 }

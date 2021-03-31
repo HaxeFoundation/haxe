@@ -91,6 +91,10 @@ let rec func ctx bb tf t p =
 		ctx.name_stack <- s :: ctx.name_stack;
 		(fun () -> ctx.name_stack <- List.tl ctx.name_stack)
 	in
+	let check_ref v e = if ExtType.has_reference_semantics v.v_type then match (Texpr.skip e).eexpr with
+		| TLocal v' -> add_var_flag v' VCaptured
+		| _ -> ()
+	in
 	let rec value' bb e = match e.eexpr with
 		| TLocal _ | TIdent _ ->
 			bb,e
@@ -346,8 +350,10 @@ let rec func ctx bb tf t p =
 			add_texpr bb e;
 			bb
 		| TVar(v,Some e1) ->
+			check_ref v e1;
 			declare_var_and_assign bb v e1 e.epos
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+			check_ref v e2;
 			let assign e =
 				mk (TBinop(OpAssign,e1,e)) e.etype e.epos
 			in
