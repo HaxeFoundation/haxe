@@ -11,6 +11,8 @@ import lua.Table;
 import lua.lib.luv.fs.FileSystem as Fs;
 import lua.lib.luv.fs.FileSystem.NameType;
 
+using lua.NativeStringTools;
+
 @:coreApi
 class FileSystem {
 	/**
@@ -53,21 +55,23 @@ class FileSystem {
 	}
 
 	static function readFile<T>(path:FilePath, fn:(String)->T, callback:Callback<T>):Void {
-		Fs.open(path, Fs.constants.O_RDONLY, 0, xpcall((e,fd) -> {
-			if(e != null)
-				callback.fail(new FsException(CustomError(e), path))
-			else
+		Fs.open(path, Fs.constants.O_RDONLY, 0, xpcall((e,fd) -> switch ioError(e) {
+			case null:
 				Fs.fstat(fd, xpcall(function(e,stat) {
-					if(e != null)
-						Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))))
-					else
-						Fs.read(fd, stat.size, 0, xpcall(function(e,data) {
-							if(e != null)
-								Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))))
-							else
-								Fs.close(fd, xpcall((_,_) -> callback.success(fn(data))));
-						}));
+					switch ioError(e) {
+						case null:
+							Fs.read(fd, stat.size, 0, xpcall((e,data) -> switch ioError(e) {
+								case null:
+									Fs.close(fd, xpcall((_,_) -> callback.success(fn(data))));
+								case e:
+									Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(e, path))));
+							}));
+						case e:
+							Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(e, path))));
+					}
 				}));
+			case e:
+				callback.fail(new FsException(e, path));
 		}));
 	}
 
@@ -80,21 +84,19 @@ class FileSystem {
 	}
 
 	static function writeFile<T>(path:FilePath, data:String, flag:FileOpenFlag<Dynamic>, callback:Callback<NoData>):Void {
-		Fs.open(path, luvOpenFlags(flag), FilePermissions.octal(0, 6, 4, 4), xpcall((e,fd) -> {
-			if(e != null)
-				callback.fail(new FsException(CustomError(e), path))
-			else
-				Fs.write(fd, data, 0, xpcall(function(e,bytesWritten) {
-					if(e != null)
-						Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))))
-					else
-						Fs.close(fd, xpcall((e,_) -> {
-							if(e != null)
-								callback.fail(new FsException(CustomError(e), path))
-							else
-								callback.success(NoData);
-						}));
+		Fs.open(path, luvOpenFlags(flag), FilePermissions.octal(0, 6, 4, 4), xpcall((e,fd) -> switch ioError(e) {
+			case null:
+				Fs.write(fd, data, 0, xpcall((e,bytesWritten) -> switch ioError(e) {
+						case null:
+							Fs.close(fd, xpcall((e,_) -> switch ioError(e) {
+								case null: callback.success(NoData);
+								case e: callback.fail(new FsException(e, path));
+							}));
+						case e:
+							Fs.close(fd, xpcall((_,_) -> callback.fail(new FsException(e, path))));
 				}));
+			case e:
+				callback.fail(new FsException(e, path));
 		}));
 	}
 
@@ -106,26 +108,26 @@ class FileSystem {
 	}
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
-		Fs.opendir(path, xpcall((e,dir) -> {
-			if(e != null)
-				callback.fail(new FsException(CustomError(e), path))
-			else {
+		Fs.opendir(path, xpcall((e,dir) -> switch ioError(e) {
+			case null:
 				var result = [];
 				function collect(e, entries:Table<Int,NameType>) {
-					if(e != null) {
-						Fs.closedir(dir, xpcall((_,_) -> callback.fail(new FsException(CustomError(e), path))));
-					} else if(entries == null) {
-						Fs.closedir(dir, xpcall((_,_) -> callback.success(result)));
-					} else {
-						//TODO: do this without intermediate array
-						var entries = Table.toArray(entries);
-						for(entry in entries)
-							result.push(entry.name);
-						Fs.readdir(dir, xpcall(collect));
+					switch ioError(e) {
+						case null if(entries == null):
+							Fs.closedir(dir, xpcall((_,_) -> callback.success(result)));
+						case null:
+							//TODO: do this without intermediate array
+							var entries = Table.toArray(entries);
+							for(entry in entries)
+								result.push(entry.name);
+							Fs.readdir(dir, xpcall(collect));
+						case e:
+							Fs.closedir(dir, xpcall((_,_) -> callback.fail(new FsException(e, path))));
 					}
 				}
 				Fs.readdir(dir, xpcall(collect));
-			}
+			case e:
+				callback.fail(new FsException(e, path));
 		}));
 	}
 
@@ -184,7 +186,10 @@ class FileSystem {
 	}
 
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new NotImplementedException();
+		Fs.stat(path, xpcall((e,stat) -> switch ioError(e) {
+			case null: callback.success(stat);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
 	/**
@@ -201,110 +206,114 @@ class FileSystem {
 	}
 
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		Fs.stat(path, xpcall((e,stat) -> switch ioError(e) {
+			case null: callback.success((stat:FileInfo).mode.isDirectory());
+			case FileNotFound: callback.success(false);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
 	static public function isFile(path:FilePath, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		Fs.stat(path, xpcall((e,stat) -> switch ioError(e) {
+			case null: callback.success((stat:FileInfo).mode.isFile());
+			case FileNotFound: callback.success(false);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
-	/**
-		Set path permissions.
-
-		If `path` is a symbolic link it is dereferenced.
-	**/
 	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.chmod(path, permissions, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
-	/**
-		Set path owner and group.
-
-		If `path` is a symbolic link it is dereferenced.
-	**/
 	static public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.chown(path, user, group, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
-	/**
-		Set symbolic link owner and group.
-	**/
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.lchown(path, user, group, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
-	/**
-		Create a link to `target` at `path`.
-
-		If `type` is `SymLink` the `target` is expected to be an absolute path or
-		a path relative to `path`, however the existance of `target` is not checked
-		and the link is created even if `target` does not exist.
-
-		If `type` is `HardLink` the `target` is expected to be an existing path either
-		absolute or relative to the current working directory.
-	**/
 	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		var cb:(String,Bool)->Void = xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		});
+		switch type {
+			case HardLink:
+				Fs.link(target, path, cb);
+			case SymLink:
+				Fs.symlink(target, path, null, cb);
+		}
 	}
 
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		Fs.lstat(path, xpcall((e,stat) -> switch ioError(e) {
+			case null: callback.success((stat:FileInfo).mode.isLink());
+			case FileNotFound: callback.success(false);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
-		Fs.readlink(path, xpcall((e, r:String)-> {
-			if(e != null)
-				callback.fail(new FsException(CustomError(e), path))
-			else
-				callback.success(r);
+		Fs.readlink(path, xpcall((e, r:String)-> switch ioError(e) {
+			case null: callback.success(r);
+			case e: callback.fail(new FsException(e, path));
 		}));
 	}
 
 	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Copy a file from `source` path to `destination` path.
-	**/
-	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
-	}
-
-	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
-		Fs.open(path, Fs.constants.O_CREAT | Fs.constants.O_WRONLY, FilePermissions.octal(0, 6, 4, 4), xpcall((e,fd) -> {
-			if(e != null)
-				callback.fail(new FsException(CustomError(e), path))
-			else
-				Fs.ftruncate(fd, newSize, xpcall((e,r) -> {
-					if(e != null)
-						callback.fail(new FsException(CustomError(e), path))
-					else
-						Fs.close(fd, xpcall((e,_) -> {
-							if(e != null)
-								callback.fail(new FsException(CustomError(e), path))
-							else
-								callback.success(NoData);
-						}));
-				}));
+		Fs.lstat(path, xpcall((e,stat) -> switch ioError(e) {
+			case null: callback.success(stat);
+			case e: callback.fail(new FsException(e, path));
 		}));
 	}
 
-	/**
-		Change access and modification times of an existing file.
+	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
+		var flags = overwrite ? null : {excl:true};
+		Fs.copyfile(source, destination, flags, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case FileExists: callback.fail(new FsException(FileExists, destination));
+			case e: callback.fail(new FsException(e, source));
+		}));
+	}
 
-		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
-	**/
+	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
+		Fs.open(path, Fs.constants.O_CREAT | Fs.constants.O_WRONLY, FilePermissions.octal(0, 6, 4, 4), xpcall((e,fd) -> switch ioError(e) {
+			case null:
+				Fs.ftruncate(fd, newSize, xpcall((e,r) -> switch ioError(e) {
+					case null:
+						Fs.close(fd, xpcall((e,_) -> switch ioError(e) {
+							case null: callback.success(NoData);
+							case e: callback.fail(new FsException(e, path));
+						}));
+					case e:
+						callback.fail(new FsException(e, path));
+				}));
+			case e:
+				callback.fail(new FsException(e, path));
+		}));
+	}
+
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.utime(path, accessTime, modificationTime, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
 	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void {
-		Fs.realpath(path, xpcall((e, r:String) -> {
-			if(e != null)
-				callback.fail(new FsException(CustomError(e), path))
-			else
-				callback.success(r);
+		Fs.realpath(path, xpcall((e, r:String) -> switch ioError(e) {
+			case null: callback.success(r);
+			case e: callback.fail(new FsException(e, path));
 		}));
 	}
 
@@ -328,5 +337,33 @@ class FileSystem {
 			case Overwrite: Fs.constants.O_WRONLY | Fs.constants.O_CREAT;
 			case OverwriteRead: Fs.constants.O_RDWR | Fs.constants.O_CREAT;
 		}
+	}
+
+	static function ioError(e:Null<String>):Null<IoErrorType> {
+		return if(e == null)
+			null
+		else
+			switch e.find(':', 1, true) {
+				case null: null;
+				case {begin:pos}:
+					if(pos < 1)
+						null
+					else
+						switch e.sub(1, pos - 1).match {
+							case 'ENOENT': FileNotFound;
+							case 'EEXIST': FileExists;
+							case 'ESRCH': ProcessNotFound;
+							case 'EACCES': AccessDenied;
+							case 'ENOTDIR': NotDirectory;
+							case 'EMFILE': TooManyOpenFiles;
+							case 'EPIPE': BrokenPipe;
+							case 'ENOTEMPTY': NotEmpty;
+							case 'EADDRNOTAVAIL': AddressNotAvailable;
+							case 'ECONNRESET': ConnectionReset;
+							case 'ETIMEDOUT': TimedOut;
+							case 'ECONNREFUSED': ConnectionRefused;
+							case _: CustomError(e);
+						}
+			}
 	}
 }
