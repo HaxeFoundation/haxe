@@ -15,7 +15,7 @@ private abstract A(String) {
 }
 
 class Issue9543 extends unit.Test {
-	#if cpp
+	#if (cpp && !cppia)
 	function testVar() {
 		var foo:Int = 0;
 		var bar:cpp.Reference<Int> = foo;
