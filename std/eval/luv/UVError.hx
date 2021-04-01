@@ -201,6 +201,7 @@ enum abstract UVError(Int) {
 			case UV_ECONNRESET: ConnectionReset;
 			case UV_ETIMEDOUT: TimedOut;
 			case UV_ECONNREFUSED: ConnectionRefused;
+			case UV_EBADF: BadFile;
 			case _: CustomError(toString());
 		}
 	}

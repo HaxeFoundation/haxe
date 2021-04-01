@@ -33,6 +33,8 @@ enum IoErrorType {
 	TimedOut;
 	/** Connection refused */
 	ConnectionRefused;
+	/** Bad file descriptor */
+	BadFile;
 	/** Any other error */
 	CustomError(message:String);
 }
@@ -69,6 +71,8 @@ class IoErrorTypeTools {
 				"Operation timed out";
 			case ConnectionRefused:
 				"Connection refused";
+			case BadFile:
+				"Bad file descriptor";
 			case CustomError(message):
 				message;
 		}
