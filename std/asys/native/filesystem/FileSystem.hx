@@ -83,8 +83,15 @@ class FileSystem {
 
 	/**
 		Open directory for listing.
+
+		`maxBatchSize` sets maximum amount of entries returned by a call to `directory.next`.
+
+		In general bigger `maxBatchSize` allows to iterate faster, but requires more
+		memory per call to `directory.next`.
+
+		@see asys.native.filesystem.Directory.next
 	**/
-	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
+	static public function openDirectory(path:FilePath, maxBatchSize:Int = 64, callback:Callback<Directory>):Void {
 		throw new NotImplementedException();
 	}
 

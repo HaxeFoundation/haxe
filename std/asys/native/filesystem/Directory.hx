@@ -16,20 +16,16 @@ class Directory {
 	}
 
 	/**
-		Read next directory entry.
-		Passes `null` to `callback` if no more entries left to read.
-		Ignores `.` and `..` entries.
-	**/
-	public function nextEntry(callback:Callback<Null<FilePath>>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
 		Read next batch of directory entries.
 		Passes an empty array to `callback` if no more entries left to read.
 		Ignores `.` and `..` entries.
+
+		The size of the array is always equal to or less than `maxBatchSize` value used
+		for opening this directory.
+
+		@see asys.native.filesystem.FileSystem.openDirectory
 	**/
-	public function nextBatch(maxBatchSize:Int, callback:Callback<Array<FilePath>>):Void {
+	public function next(callback:Callback<Array<FilePath>>):Void {
 		throw new NotImplementedException();
 	}
 
