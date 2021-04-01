@@ -349,6 +349,7 @@ class FileSystem {
 		Adds exceptions handling to callbacks.
 		Otherwise lua just prints `Uncaught Error: (null)` on unhandled exceptions.
 	**/
+	@:allow(asys.native.filesystem)
 	static inline function xpcall<T>(cb:(e:String, r:T)->Void):(e:String, r:T)->Void {
 		return (e, r) -> lua.Lua.xpcall(() -> cb(e, r), untyped __lua__('_hx_error'));
 	}
@@ -391,6 +392,7 @@ class FileSystem {
 							case 'ECONNRESET': ConnectionReset;
 							case 'ETIMEDOUT': TimedOut;
 							case 'ECONNREFUSED': ConnectionRefused;
+							case 'EBADF': BadFile;
 							case _: CustomError(e);
 						}
 			}
