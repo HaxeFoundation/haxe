@@ -132,7 +132,7 @@ class File {
 		});
 	}
 
-	function failAsync<T>(callback:Callback<T>, error:IoErrorType, path:FilePath) {
+	function failAsync<T>(callback:Callback<T>, error:IoErrorType, path:FilePath):Void {
 		var idle = Idle.init(currentLoop()).resolve();
 		idle.start(() -> {
 			idle.stop();
