@@ -724,6 +724,7 @@ class TestFile extends FsTest {
 						});
 				});
 			})
+			//TODO: add a test for `file.setTimes(...)` failure
 		);
 	}
 

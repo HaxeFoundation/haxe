@@ -32,7 +32,6 @@ class File {
 	}
 
 	public function write(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		var loop = currentLoop();
 		var error = null;
 		if(length < 0) {
 			error = 'Negative length';
@@ -42,12 +41,7 @@ class File {
 			error = 'Offset out of buffer bounds';
 		}
 		if(error != null) {
-			var idle = Idle.init(loop).resolve();
-			idle.start(() -> {
-				idle.stop();
-				idle.close(() -> {});
-				callback.fail(new FsException(CustomError(error), path));
-			});
+			failAsync(callback, CustomError(error), path);
 		} else {
 			var b = Buffer.create(offset + length > buffer.length ? buffer.length - offset : length);
 			b.blitFromBytes(buffer, offset);
@@ -59,7 +53,6 @@ class File {
 	}
 
 	public function read(position:Int64, buffer:Bytes, offset:Int, length:Int, callback:Callback<Int>):Void {
-		var loop = currentLoop();
 		var error = null;
 		if(length < 0) {
 			error = 'Negative length';
@@ -69,12 +62,7 @@ class File {
 			error = 'Offset out of buffer bounds';
 		}
 		if(error != null) {
-			var idle = Idle.init(loop).resolve();
-			idle.start(() -> {
-				idle.stop();
-				idle.close(() -> {});
-				callback.fail(new FsException(CustomError(error), path));
-			});
+			failAsync(callback, CustomError(error), path);
 		} else {
 			var b = Buffer.create(offset + length > buffer.length ? buffer.length - offset : length);
 			file.read(currentLoop(), position, [b], null, r -> switch r {
@@ -141,6 +129,15 @@ class File {
 		file.close(loop, null, r -> switch r {
 			case Ok(_) | Error(UV_EBADF): callback.success(NoData);
 			case Error(e): callback.fail(new FsException(e, path));
+		});
+	}
+
+	function failAsync<T>(callback:Callback<T>, error:IoErrorType, path:FilePath) {
+		var idle = Idle.init(currentLoop()).resolve();
+		idle.start(() -> {
+			idle.stop();
+			idle.close(() -> {});
+			callback.fail(new FsException(error, path));
 		});
 	}
 }
