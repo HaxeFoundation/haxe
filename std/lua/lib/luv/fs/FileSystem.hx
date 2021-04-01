@@ -44,8 +44,8 @@ extern class FileSystem {
 	static function read(file:FileDescriptor, len:Int, offset:Int):Result<String>;
 
 	@:native("fs_unlink")
-	@:overload(function(file:FileDescriptor, ?cb:String->String->Void):Request {})
-	static function unlink(file:FileDescriptor, content:String):Result<String>;
+	@:overload(function(file:String, ?cb:String->Bool->Void):Request {})
+	static function unlink(file:String, content:String):Result<Bool>;
 
 	@:native("fs_write")
 	@:overload(function(file:FileDescriptor, content:String, offset:Int, ?cb:String->Int->Void):Int {})
@@ -56,8 +56,12 @@ extern class FileSystem {
 	static function mkdir(path:String, mode:Int):Result<Bool>;
 
 	@:native("fs_mkdtemp")
-	@:overload(function(data:String, cb:String->Bool->Void):Request {})
-	static function mkdtemp(data:String):Result<Bool>;
+	@:overload(function(template:String, cb:String->String->Void):Request {})
+	static function mkdtemp(template:String):Result<String>;
+
+	@:native("fs_mkstemp")
+	@:overload(function(template:String, cb:String->FileDescriptor->String->Void):Request {})
+	static function mkstemp(template:String):Result<FileDescriptor>;
 
 	@:native("fs_rmdir")
 	@:overload(function(path:String, cb:String->Bool->Void):Request {})
@@ -162,7 +166,7 @@ extern class FileSystem {
 	static function statfs(path:String):StatFs;
 
 	@:native("fs_opendir")
-	@:overload(function(path:String, cb:String->Handle->Void):Request {})
+	@:overload(function(path:String, cb:String->Handle->Void, ?entries:Int):Request {})
 	static function opendir(path:String):Handle;
 
 	@:native("fs_readdir")
@@ -226,4 +230,19 @@ typedef CopyFlags = {
 	?excl:Bool,
 	?ficlone:Bool,
 	?ficlone_force:Bool
+}
+
+enum abstract AccessMode(Int) to Int {
+	// from libuv sources
+
+	/* Test for read permission.  */
+	var R_OK = 4;
+	/* Test for write permission.  */
+	var W_OK = 2;
+	/* Test for execute permission.  */
+	var X_OK = 1;
+	/* Test for existence.  */
+	var F_OK = 0;
+
+	@:op(A | B) function or(b:AccessMode):Int;
 }
