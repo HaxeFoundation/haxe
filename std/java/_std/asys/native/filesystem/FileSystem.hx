@@ -133,11 +133,11 @@ class FileSystem {
 		);
 	}
 
-	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
+	static public function openDirectory(path:FilePath, maxBatchSize:Int = 64, callback:Callback<Directory>):Void {
 		pool.runFor(
 			() -> {
 				try {
-					new Directory(path, Files.newDirectoryStream(path));
+					new Directory(path, Files.newDirectoryStream(path), maxBatchSize);
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {

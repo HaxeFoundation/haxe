@@ -15,30 +15,17 @@ class Directory {
 
 	final stream:DirectoryStream<Path>;
 	final iterator:JIterator<Path>;
+	final maxBatchSize:Int;
 
 	@:allow(asys.native.filesystem)
-	function new(path:FilePath, stream:DirectoryStream<Path>) {
+	function new(path:FilePath, stream:DirectoryStream<Path>, maxBatchSize:Int) {
 		this.path = path;
 		this.stream = stream;
+		this.maxBatchSize = maxBatchSize;
 		this.iterator = stream.iterator();
 	}
 
-	public function nextEntry(callback:Callback<Null<FilePath>>):Void {
-		pool.runFor(
-			() -> {
-				try {
-					new FilePath(iterator.next().getFileName());
-				} catch(_:NoSuchElementException) {
-					null;
-				} catch(e:Throwable) {
-					throw new FsException(CustomError(e.toString()), path);
-				}
-			},
-			callback
-		);
-	}
-
-	public function nextBatch(maxBatchSize:Int, callback:Callback<Array<FilePath>>):Void {
+	public function next(callback:Callback<Array<FilePath>>):Void {
 		pool.runFor(
 			() -> {
 				var result = [];
