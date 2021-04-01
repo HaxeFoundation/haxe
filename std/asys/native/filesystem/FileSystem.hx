@@ -30,13 +30,11 @@ class FileSystem {
 	/**
 		Create and open a unique temporary file for writing and reading.
 
-		The file will be automatically deleted when it is closed or the program
-		terminates.
+		The file will be automatically deleted when it is closed.
 
-		Depending on a target platform the file deletion may not be guaranteed if
-		application crashes.
-
-		TODO: Can Haxe guarantee automatic file deletion for all targets?
+		Depending on a target platform the file may be automatically deleted upon
+		application shutdown, but in general deletion is not guaranteed if the `close`
+		method is not called.
 	**/
 	static public function tempFile(callback:Callback<File>):Void {
 		throw new NotImplementedException();
@@ -134,6 +132,11 @@ class FileSystem {
 		If `newPath` already exists and `overwrite` is `true` (which is the default)
 		the destination is overwritten. However, operation fails if `newPath` is
 		a non-empty directory.
+
+		If `overwrite` is `false` the operation is not guaranteed to be atomic.
+		That means if a third-party process creates `newPath` right in between the
+		check for existance and the actual move operation then the data created
+		by that third-party process may be overwritten.
 	**/
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();

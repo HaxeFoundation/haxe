@@ -2,48 +2,36 @@ package asys.native.filesystem;
 
 import haxe.io.Bytes;
 import haxe.NoData;
-import haxe.Exception;
-import haxe.exceptions.NotImplementedException;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import lua.Lib;
 import lua.Table;
 import lua.lib.luv.fs.FileSystem as Fs;
 import lua.lib.luv.fs.FileSystem.NameType;
+import lua.lib.luv.fs.FileSystem.AccessMode;
 
 using lua.NativeStringTools;
 
 @:coreApi
 class FileSystem {
-	/**
-		Open file for reading and/or writing.
-
-		Depending on `flag` value `callback` will be invoked with the appropriate
-		object type to read and/or write the file:
-		- `asys.native.filesystem.File` for reading and writing;
-		- `asys.native.filesystem.FileRead` for reading only;
-		- `asys.native.filesystem.FileWrite` for writing only;
-		- `asys.native.filesystem.FileAppend` for writing to the end of file only;
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-	**/
 	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
-		throw new NotImplementedException();
+		Fs.open(path, luvOpenFlags(flag), FilePermissions.octal(0, 6, 4, 4), xpcall((e,fd) -> switch ioError(e) {
+			case null: callback.success(cast @:privateAccess new File(fd, path));
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
-	/**
-		Create and open a unique temporary file for writing and reading.
-
-		The file will be automatically deleted when it is closed or the program
-		terminates.
-
-		Depending on a target platform the file deletion may not be guaranteed if
-		application crashes.
-
-		TODO: Can Haxe guarantee automatic file deletion for all targets?
-	**/
 	static public function tempFile(callback:Callback<File>):Void {
-		throw new NotImplementedException();
+		var pattern = switch lua.lib.luv.Os.tmpdir() {
+			case null: './XXXXXX';
+			case dir: '$dir/XXXXXX';
+		}
+		Fs.mkstemp(pattern, (e,fd,path) -> {
+			xpcall((e,fd) -> switch ioError(e) {
+				case null: callback.success(@:privateAccess new File(fd, path, true));
+				case e: callback.fail(new FsException(e, '(unknown path)'));
+			})(e,fd);
+		});
 	}
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
@@ -100,11 +88,11 @@ class FileSystem {
 		}));
 	}
 
-	/**
-		Open directory for listing.
-	**/
 	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
-		throw new NotImplementedException();
+		Fs.opendir(path, xpcall((e,dir) -> switch ioError(e) {
+			case null: callback.success(@:privateAccess new Directory(dir, path));
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
@@ -131,58 +119,100 @@ class FileSystem {
 		}));
 	}
 
-	/**
-		Create a directory.
-
-		Default `permissions` equals to octal `0777`, which means read+write+execution
-		permissions for everyone.
-
-		If `recursive` is `true`: create missing directories tree all the way down to `path`.
-		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
-	**/
 	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		if(permissions == null) permissions = 511;
+		inline mkdir(path, permissions, recursive, (e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		});
 	}
 
-	/**
-		Create a directory with auto-generated unique name.
+	static function mkdir(path:FilePath, permissions:FilePermissions, recursive:Bool, callback:(e:String,r:NoData)->Void):Void {
+		function mk(path:FilePath, callback:(e:String,r:NoData)->Void) {
+			Fs.mkdir(path, permissions, xpcall((e,_) -> switch ioError(e) {
+				case FileNotFound if(recursive):
+					switch path.parent() {
+						case null:
+							callback(e, NoData);
+						case parent:
+							mk(parent, (e,_) -> switch e {
+								case null: Fs.mkdir(path, permissions, xpcall(callback));
+								case _: callback(e,NoData);
+							});
+					}
+				case _:
+					callback(e,NoData);
+			}));
+		}
+		mk(path, callback);
+	}
 
-		`prefix` (if provided) is used as the beginning of a generated name.
-		The created directory path is passed to the `callback`.
-
-		Default `permissions` equals to octal `0777`, which means read+write+execution
-		permissions for everyone.
-
-		If `recursive` is `true`: create missing directories tree all the way down to the generated path.
-		If `recursive` is `false`: fail if any parent directory of the generated path does not exist.
-	**/
 	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		if(permissions == null) permissions = 511;
+
+		var name = (prefix == null ? '' : prefix) + getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+		var path = FilePath.ofString(parentDirectory.toString() + FilePath.SEPARATOR + name);
+
+		function create(callback:(String,NoData)->Void) {
+			inline mkdir(path, permissions, recursive, (e,_) -> switch ioError(e) {
+				case FileExists:
+					path = path.toString() + getRandomChar();
+					create(callback);
+				case _:
+					callback(e,NoData);
+			});
+		}
+		create((e,_) -> switch ioError(e) {
+			case null: callback.success(path);
+			case e: callback.fail(new FsException(e, parentDirectory));
+		});
 	}
 
-	/**
-		Move and/or rename the file or directory from `oldPath` to `newPath`.
+	static var __codes:Null<Array<String>>;
+	static function getRandomChar():String {
+		var codes:Array<String>;
+		switch __codes {
+			case null:
+				var a = [for(c in '0'.code...'9'.code) String.fromCharCode(c)];
+				for(c in 'A'.code...'Z'.code) a.push(String.fromCharCode(c));
+				for(c in 'a'.code...'z'.code) a.push(String.fromCharCode(c));
+				codes = __codes = a;
+			case a:
+				codes = a;
+		}
+		return codes[Std.random(codes.length)];
+	}
 
-		If `newPath` already exists and `overwrite` is `true` (which is the default)
-		the destination is overwritten. However, operation fails if `newPath` is
-		a non-empty directory.
-	**/
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		inline function move() {
+			Fs.rename(oldPath, newPath, xpcall((e,_) -> switch ioError(e) {
+				case null: callback.success(NoData);
+				case e: callback.fail(new FsException(e, oldPath));
+			}));
+		}
+		if(overwrite) {
+			move();
+		} else {
+			Fs.access(newPath, F_OK, xpcall((e,_) -> switch ioError(e) {
+				case null: callback.fail(new FsException(FileExists, newPath));
+				case FileNotFound: move();
+				case e: callback.fail(new FsException(e, newPath));
+			}));
+		}
 	}
 
-	/**
-		Remove a file or symbolic link.
-	**/
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.unlink(path, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
-	/**
-		Remove an empty directory.
-	**/
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.rmdir(path, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
@@ -192,17 +222,15 @@ class FileSystem {
 		}));
 	}
 
-	/**
-		Check user's access for a path.
-
-		For example to check if a file is readable and writable:
-		```haxe
-		import asys.native.filesystem.FileAccessMode;
-		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
-		```
-	**/
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		var flags:Int = F_OK;
+		if(mode.has(Executable)) flags = flags | X_OK;
+		if(mode.has(Writable)) flags = flags | W_OK;
+		if(mode.has(Readable)) flags = flags | R_OK;
+		Fs.access(path, flags, xpcall((e,ok) -> switch ioError(e) {
+			case null: callback.success(ok);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
@@ -339,6 +367,7 @@ class FileSystem {
 		}
 	}
 
+	@:allow(asys.native.filesystem)
 	static function ioError(e:Null<String>):Null<IoErrorType> {
 		return if(e == null)
 			null
