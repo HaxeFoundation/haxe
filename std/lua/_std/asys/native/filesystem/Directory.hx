@@ -1,8 +1,12 @@
 package asys.native.filesystem;
 
 import haxe.NoData;
-import haxe.exceptions.NotImplementedException;
 import lua.lib.luv.Handle;
+import lua.lib.luv.fs.FileSystem as Fs;
+import lua.lib.luv.Idle;
+import lua.NativeStringTools;
+import asys.native.filesystem.FileSystem.xpcall;
+import asys.native.filesystem.FileSystem.ioError;
 
 /**
 	Represents a directory.
@@ -14,33 +18,28 @@ class Directory {
 
 	final dir:Handle;
 
+
 	function new(dir:Handle, path:FilePath) {
+		trace(dir);
 		this.dir = dir;
 		this.path = path;
 	}
 
-	/**
-		Read next directory entry.
-		Passes `null` to `callback` if no more entries left to read.
-		Ignores `.` and `..` entries.
-	**/
-	public function nextEntry(callback:Callback<Null<FilePath>>):Void {
-		throw new NotImplementedException();
+	public function next(callback:Callback<Array<FilePath>>):Void {
+		Fs.readdir(dir, xpcall((e,entries) -> switch ioError(e) {
+			case null:
+				var entries = lua.Table.toArray(entries);
+				var result = [for(entry in entries) FilePath.ofString(entry.name)];
+				callback.success(result);
+			case e:
+				callback.fail(new FsException(e, path));
+		}));
 	}
 
-	/**
-		Read next batch of directory entries.
-		Passes an empty array to `callback` if no more entries left to read.
-		Ignores `.` and `..` entries.
-	**/
-	public function nextBatch(maxBatchSize:Int, callback:Callback<Array<FilePath>>):Void {
-		throw new NotImplementedException();
-	}
-
-	/**
-		Close the directory.
-	**/
 	public function close(callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		Fs.closedir(dir, xpcall((e,_) -> switch ioError(e) {
+			case null: callback.success(NoData);
+			case e: callback.fail(new FsException(e, path));
+		}));
 	}
 }

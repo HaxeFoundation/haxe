@@ -88,11 +88,11 @@ class FileSystem {
 		}));
 	}
 
-	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
+	static public function openDirectory(path:FilePath, maxBatchSize:Int = 64, callback:Callback<Directory>):Void {
 		Fs.opendir(path, xpcall((e,dir) -> switch ioError(e) {
 			case null: callback.success(@:privateAccess new Directory(dir, path));
 			case e: callback.fail(new FsException(e, path));
-		}));
+		}), maxBatchSize);
 	}
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
