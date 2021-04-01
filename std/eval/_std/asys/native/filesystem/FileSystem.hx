@@ -234,7 +234,7 @@ class FileSystem {
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
 		LFile.rmdir(currentLoop(), path, null, r -> switch r {
 			case Error(e): callback.fail(new FsException(e, path));
-			case Ok(stat): callback.success(stat);
+			case Ok(_): callback.success(NoData);
 		});
 	}
 
