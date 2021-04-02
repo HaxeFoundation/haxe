@@ -3,14 +3,20 @@ package asys.native.filesystem;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
+import cs.system.Exception as CsException;
+import sys.thread.ElasticThreadPool;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
+import cs.system.io.File as CsFile;
+import cs.system.io.FileNotFoundException;
+import cs.system.io.DirectoryNotFoundException;
+import cs.system.security.SecurityException;
 
-/**
-	File system operations.
-**/
 @:coreApi
 class FileSystem {
+	@:allow(asys.native.filesystem)
+	static final pool = new ElasticThreadPool(2 * cs.system.Environment.ProcessorCount);
+
 	/**
 		Open file for reading and/or writing.
 
@@ -40,21 +46,42 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Read the contents of a file specified by `path`.
-	**/
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					Bytes.ofData(CsFile.ReadAllBytes(path));
+				} catch(e:FileNotFoundException) {
+					throw new FsException(FileNotFound, path);
+				} catch(e:DirectoryNotFoundException) {
+					throw new FsException(FileNotFound, path);
+				} catch(e:SecurityException) {
+					throw new FsException(AccessDenied, path);
+				} catch(e:CsException) {
+					throw new FsException(CustomError(e.Message), path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Read the contents of a file specified by `path` as a `String`.
-
-		TODO:
-		Should this return an error if the file does not contain a valid unicode string?
-	**/
 	static public function readString(path:FilePath, callback:Callback<String>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					CsFile.ReadAllText(path);
+				} catch(e:FileNotFoundException) {
+					throw new FsException(FileNotFound, path);
+				} catch(e:DirectoryNotFoundException) {
+					throw new FsException(FileNotFound, path);
+				} catch(e:SecurityException) {
+					throw new FsException(AccessDenied, path);
+				} catch(e:CsException) {
+					throw new FsException(CustomError(e.Message), path);
+				}
+			},
+			callback
+		);
 	}
 
 	/**
@@ -69,16 +96,24 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Write `text` into a file specified by `path`
-
-		`flag` controls the behavior.
-		By default the file is truncated if it exists and is created if it does not exist.
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-	**/
 	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					CsFile.WriteAllText(path, text);
+					NoData;
+				} catch(e:FileNotFoundException) {
+					throw new FsException(FileNotFound, path);
+				} catch(e:DirectoryNotFoundException) {
+					throw new FsException(FileNotFound, path);
+				} catch(e:SecurityException) {
+					throw new FsException(AccessDenied, path);
+				} catch(e:CsException) {
+					throw new FsException(CustomError(e.Message), path);
+				}
+			},
+			callback
+		);
 	}
 
 	/**
@@ -294,13 +329,20 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Get a canonical absolute path. The path must exist.
-
-		Resolves intermediate `.`, `..`, excessive slashes.
-		Resolves symbolic links on all targets except C#.
-	**/
 	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				var result = try {
+					//C# does not have API to resolve symlinks
+					CsFile.Exists(path) ? FilePath.ofString(path.absolute()) : null;
+				} catch(e:CsException) {
+					throw new FsException(CustomError(e.Message), path);
+				}
+				if(result == null)
+					throw new FsException(FileNotFound, path);
+				result;
+			},
+			callback
+		);
 	}
 }

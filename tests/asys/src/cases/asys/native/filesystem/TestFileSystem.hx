@@ -649,14 +649,18 @@ class TestFileSystem extends FsTest {
 					equals(expected, p.toString());
 				}
 			});
-		},{
+		},
+		#if !cs //C# does not have API to resolve symlinks
+		{
 			var p:FilePath = 'test-data/symlink';
 			FileSystem.realPath(p, (e, p) -> {
 				if(noException(e)) {
 					equals(expected, p.toString());
 				}
 			});
-		},{
+		},
+		#end
+		{
 			var p:FilePath = 'non-existent';
 			FileSystem.realPath(p, (e, r) -> {
 				assertType(e, FsException, e -> {
