@@ -120,6 +120,10 @@ class TestFilePath extends FsTest {
 		var p:FilePath = s;
 		'/' == p.toString();
 
+		var s = '///';
+		var p:FilePath = s;
+		'/' == p.toString();
+
 		var s = '';
 		var p:FilePath = s;
 		'.' == p.toString();
@@ -138,10 +142,15 @@ class TestFilePath extends FsTest {
 			var p:FilePath = s;
 			'C:\\' == p.toString();
 
+			var s = 'C:\\\\\\';
+			var p:FilePath = s;
+			'C:\\' == p.toString();
+
 			//current working directory of drive C
 			var s = 'C:';
 			var p:FilePath = s;
 			'C:' == p.toString();
 		}
+
 	}
 }
