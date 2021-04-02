@@ -47,8 +47,12 @@ private typedef NativeFilePath = NativeString;
 			case null: null;
 			case _ if(s.length == 0): '.';
 			case _:
-				var s = trimSlashes(s);
-				s.length == 0 ? SEPARATOR : s;
+				var trimmed = trimSlashes(s);
+				switch trimmed.length {
+					case 0: SEPARATOR;
+					case 2 if(SEPARATOR == '\\' && s.code(1) == ':'.code && isSeparator(s.code(2))): s.sub(0, 3);
+					case _: trimmed;
+				}
 		}
 	}
 
