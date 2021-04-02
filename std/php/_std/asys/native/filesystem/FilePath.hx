@@ -8,22 +8,37 @@ import php.Global.*;
 import php.Syntax.*;
 import php.NativeArray;
 
-private typedef NativeFilePath = php.NativeString;
+private typedef NativeFilePath = NativeString;
 
-@:coreApi abstract FilePath(NativeFilePath) to String to NativeString {
+@:coreApi abstract FilePath(NativeFilePath) to NativeString {
 	public static var SEPARATOR(get,never):String;
 	static inline function get_SEPARATOR():String {
 		return DIRECTORY_SEPARATOR;
 	}
 
 	@:allow(asys.native.filesystem)
-	function new(s:String) {
+	function new(s:NativeString) {
 		this = switch s {
 			case null: null;
 			case '': '.';
 			case _:
-				s = rtrim(s, SEPARATOR == '/' ? '/' : '\\/');
-				s == '' ? SEPARATOR : s;
+				if(SEPARATOR == '\\') {
+					var trimmed:NativeString = rtrim(s, '\\/');
+					var length = strlen(s);
+					var lengthTrimmed = strlen(trimmed);
+					//current disk root. E.g. `\`
+					if(trimmed == '') {
+						SEPARATOR;
+					//specific disk root. E.g. `C:\`
+					} else if(lengthTrimmed == 2 && trimmed[1] == ':' && length >= 3 && isSeparator(s[2])) {
+						trimmed + SEPARATOR;
+					} else {
+						trimmed;
+					}
+				} else {
+					s = rtrim(s, SEPARATOR);
+					s == '' ? SEPARATOR : s;
+				}
 		}
 	}
 
@@ -31,7 +46,7 @@ private typedef NativeFilePath = php.NativeString;
 		return new FilePath(path);
 	}
 
-	public inline function toString():String {
+	@:to public inline function toString():String {
 		return this;
 	}
 
@@ -43,10 +58,7 @@ private typedef NativeFilePath = php.NativeString;
 		if(SEPARATOR == '\\') {
 			if(this[0] == '\\')
 				return true;
-			//This is not 100% valid. `Z:some\path` is "a relative path from the current directory of the Z: drive"
-			//but PHP doesn't have a function to get current directory of another drive so we keep the check like this
-			//to be consisten with `FilePath.absolute` method.
-			if(preg_match('/^[a-zA-Z]:/', this))
+			if(preg_match('#^[a-zA-Z]:(\\\\|/)#', this))
 				return true;
 		}
 		return false;
@@ -66,10 +78,17 @@ private typedef NativeFilePath = php.NativeString;
 		} else if(SEPARATOR == '\\') {
 			if(this[0] == '\\') {
 				this;
-			//This is not 100% valid. `Z:some\path` is "a relative path from the current directory of the Z: drive"
-			//but PHP doesn't have a function to get current directory of another drive
 			} else if(preg_match('/^[a-zA-Z]:/', this)) {
-				this;
+				if(strlen(this) > 2 && isSeparator(this[2])) {
+					this;
+				} else {
+					try {
+						var driveCwd = realpath(substr(this, 0, 2));
+						driveCwd + SEPARATOR + substr(this, 2);
+					} catch(e:php.Throwable) {
+						throw new FsException(CustomError('Unable to get current working directory of drive ${this[0]}'), this);
+					}
+				}
 			} else {
 				rtrim(cwd() + SEPARATOR + this, '\\/');
 			}
@@ -78,7 +97,7 @@ private typedef NativeFilePath = php.NativeString;
 		}
 
 		var parts:NativeIndexedArray<String> = if(SEPARATOR == '\\') {
-			(preg_split('#\\|/#', fullPath):NativeArray);
+			(preg_split('#\\\\|/#', fullPath):NativeArray);
 		} else {
 			explode('/', fullPath);
 		}
