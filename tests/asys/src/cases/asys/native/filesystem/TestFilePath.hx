@@ -86,6 +86,7 @@ class TestFilePath extends FsTest {
 		var cases = [
 			'file' => expect(null),
 			'/file' => expect('/'),
+			'./file' => expect('.'),
 			'path/to/file' => expect('path/to'),
 			'path/to/dir/' => expect('path/to'),
 			'path/to///dir/' => expect('path/to'),
