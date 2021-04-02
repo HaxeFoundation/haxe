@@ -65,10 +65,8 @@ private typedef NativeFilePath = NativeString;
 			case 0: false;
 			case _ if(isSeparator(this.code(0))): true;
 			case 1: false;
-			// This is not 100% valid. `Z:some\path` is "a relative path from the
-			// current directory of the Z: drive", but we keep the check like this
-			// to be consistent with `FilePath.absolute` method.
-			case _: SEPARATOR == '\\' && this.code(1) == ':'.code;
+			case length if(SEPARATOR == '\\'): this.code(1) == ':'.code && length >= 3 && isSeparator(this.code(2));
+			case _: false;
 		}
 	}
 
@@ -108,10 +106,20 @@ private typedef NativeFilePath = NativeString;
 		} else if(separatorCode == '\\'.code) {
 			if(thisBytes.get(0) == '\\'.code) {
 				thisBytes;
-			// This is not 100% valid. `Z:some\path` is "a relative path from the
-			// current directory of the Z: drive"
+			//Starts with `C:`
 			} else if(thisBytes.length > 1 && thisBytes.get(1) == ':'.code) {
-				thisBytes;
+				//absolute path with a drive. E.g. `C:/some/path`
+				if(thisBytes.length > 2 && isSeparator(thisBytes.get(2))) {
+					thisBytes;
+				//relative to specified drive. E.g. `C:some/path`
+				} else {
+					var driveCwd = NativeString.fromString(sys.FileSystem.fullPath(this.sub(0, 2).toString()));
+					if(thisBytes.length > 2) {
+						(driveCwd + NativeString.fromString(SEPARATOR) + this.sub(2)).toBytes();
+					} else {
+						driveCwd.toBytes();
+					}
+				}
 			} else {
 				withCwd();
 			}
