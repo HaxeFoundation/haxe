@@ -42,7 +42,7 @@ private typedef NativeFilePath = NativeString;
 		return new FilePath(path);
 	}
 
-	inline function new(s:NativeString) {
+	function new(s:NativeString) {
 		this = switch s {
 			case null: null;
 			case _ if(s.length == 0): '.';
