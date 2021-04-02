@@ -93,6 +93,7 @@ private typedef NativeFilePath = NativeString;
 		}
 	}
 
+	//TODO: use `get_full_path` from path.ml
 	public function absolute():FilePath {
 		var thisBytes = this.toBytes();
 		var separatorCode = StringTools.fastCodeAt(SEPARATOR, 0);
