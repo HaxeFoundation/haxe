@@ -35,6 +35,8 @@ private typedef NativeFilePath = Dynamic;
 
 	/**
 		Get string representation of this path.
+
+		Trailing slashes are always removed unless this is a root path.
 	**/
 	@:to public function toString():String {
 		throw new NotImplementedException();
@@ -56,10 +58,13 @@ private typedef NativeFilePath = Dynamic;
 
 	/**
 		Get an absolute path of this path.
+
 		For example translates `./path` to `/current/dir/path`.
 		Resolves `.` and `..` and removes excessive slashes.
 		Does not resolve symbolic links.
-		It does not matter if the path does not exist.
+
+		It does not matter if the path does not exist, however some implementations
+		may need current working directory to actually exist.
 	**/
 	public function absolute():FilePath {
 		throw new NotImplementedException();
