@@ -34,6 +34,7 @@ class TestFilePath extends FsTest {
 		if(isWindows) {
 			isTrue(('C:\\something':FilePath).isAbsolute());
 			isTrue(('\\':FilePath).isAbsolute());
+			isFalse(('C:something':FilePath).isAbsolute());
 		} else {
 			isFalse(('\\':FilePath).isAbsolute());
 		}
@@ -57,9 +58,11 @@ class TestFilePath extends FsTest {
 		];
 		check(cases);
 		cases = if(isWindows) {
+			var currentDrive = cwd.substr(0, 2);
 			[
 				'/absolute/path' => expect('\\absolute\\path'),
-				'C:\\absolute\\path' => expect('C:\\absolute\\path')
+				'C:\\absolute\\path' => expect('C:\\absolute\\path'),
+				'$currentDrive:relative\\path' => expect(cwd + 'relative\\path')
 			];
 		} else {
 			[
@@ -97,7 +100,9 @@ class TestFilePath extends FsTest {
 		];
 		if(isWindows) {
 			cases['C:\\'] = expect(null);
+			cases['C:'] = expect(null);
 			cases['C:\\dir'] = expect('C:\\');
+			cases['C:dir'] = expect(null);
 		}
 		check(cases);
 	}
@@ -128,9 +133,15 @@ class TestFilePath extends FsTest {
 			var p:FilePath = s;
 			'\\' == p.toString();
 
+			//root of drive C
 			var s = 'C:\\';
 			var p:FilePath = s;
 			'C:\\' == p.toString();
+
+			//current working directory of drive C
+			var s = 'C:';
+			var p:FilePath = s;
+			'C:' == p.toString();
 		}
 	}
 }
