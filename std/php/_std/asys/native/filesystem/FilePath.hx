@@ -36,8 +36,10 @@ private typedef NativeFilePath = NativeString;
 						trimmed;
 					}
 				} else {
-					s = rtrim(s, SEPARATOR);
-					s == '' ? SEPARATOR : s;
+					switch rtrim(s, SEPARATOR) {
+						case '': s[0];
+						case s: s;
+					}
 				}
 		}
 	}

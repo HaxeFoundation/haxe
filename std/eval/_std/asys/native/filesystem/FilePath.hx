@@ -49,8 +49,8 @@ private typedef NativeFilePath = NativeString;
 			case _:
 				var trimmed = trimSlashes(s);
 				switch trimmed.length {
-					case 0: SEPARATOR;
-					case 2 if(SEPARATOR == '\\' && s.code(1) == ':'.code && isSeparator(s.code(2))): s.sub(0, 3);
+					case 0: s.sub(0, 1);
+					case 2 if(SEPARATOR == '\\' && s.code(1) == ':'.code && s.length >= 3 && isSeparator(s.code(2))): s.sub(0, 3);
 					case _: trimmed;
 				}
 		}
