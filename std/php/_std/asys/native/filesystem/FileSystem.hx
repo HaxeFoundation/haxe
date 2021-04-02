@@ -109,14 +109,14 @@ class FileSystem {
 		});
 	}
 
-	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
+	static public function openDirectory(path:FilePath, maxBatchSize:Int = 64, callback:Callback<Directory>):Void {
 		run(() -> {
 			var result = try {
 				switch opendir(path) {
 					case false:
 						throw new php.Exception('Failed to open a directory');
 					case result:
-						@:privateAccess new Directory(result, path);
+						@:privateAccess new Directory(result, path, maxBatchSize);
 				}
 			} catch(e:php.Exception) {
 				callback.fail(new FsException(CustomError(e.getMessage()), path));
