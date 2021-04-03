@@ -148,7 +148,7 @@ class FileSystem {
 	/**
 		Open directory for listing.
 	**/
-	static public function openDirectory(path:FilePath, callback:Callback<Directory>):Void {
+	static public function openDirectory(path:FilePath, maxBatchSize:Int = 64, callback:Callback<Directory>):Void {
 		throw new NotImplementedException();
 	}
 
