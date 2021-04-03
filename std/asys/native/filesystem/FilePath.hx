@@ -19,7 +19,7 @@ private typedef NativeFilePath = Dynamic;
 	**/
 	public static var SEPARATOR(get,never):String;
 	static function get_SEPARATOR():String {
-		return Sys.systemName() == 'Windows' ? '\\' : '/';
+		throw new NotImplementedException();
 	}
 
 	/**
