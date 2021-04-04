@@ -43,7 +43,7 @@ class TestFilePath extends FsTest {
 	function testAbsolute() {
 		inline function check(cases:Map<String,{value:String,pos:PosInfos}>) {
 			for(path => expected in cases)
-				equals(expected.value, (path:FilePath).absolute().toString(), expected.pos);
+				equalPaths(expected.value, (path:FilePath).absolute().toString(), expected.pos);
 		}
 		var cwd = Path.addTrailingSlash(Sys.getCwd());
 
@@ -79,7 +79,7 @@ class TestFilePath extends FsTest {
 					case null: null;
 					case parent: parent.toString();
 				}
-				equals(expected.value, str, expected.pos);
+				equalPaths(expected.value, str, expected.pos);
 			}
 		}
 
@@ -108,49 +108,45 @@ class TestFilePath extends FsTest {
 		check(cases);
 	}
 
-	function specFromString_toString() {
+	function testFromString_toString() {
 		var s = '𠜎/aa😂/éé';
 		var p:FilePath = s;
-		s == p.toString();
+		equalPaths(s, p.toString());
 
 		var s = 'some/dir///';
 		var p:FilePath = s;
-		'some/dir' == p.toString();
+		equalPaths('some/dir', p.toString());
 
 		var s = '/';
 		var p:FilePath = s;
-		'/' == p.toString();
-
-		var s = '///';
-		var p:FilePath = s;
-		'/' == p.toString();
+		equalPaths('/', p.toString());
 
 		var s = '';
 		var p:FilePath = s;
-		'.' == p.toString();
+		equalPaths('.', p.toString());
 
 		if(isWindows) {
 			var s = 'some/dir/\\/';
 			var p:FilePath = s;
-			'some/dir' == p.toString();
+			equalPaths('some/dir', p.toString());
 
 			var s = '\\';
 			var p:FilePath = s;
-			'\\' == p.toString();
+			equalPaths('\\', p.toString());
 
 			//root of drive C
 			var s = 'C:\\';
 			var p:FilePath = s;
-			'C:\\' == p.toString();
+			equalPaths('C:\\', p.toString());
 
 			var s = 'C:\\\\\\';
 			var p:FilePath = s;
-			'C:\\' == p.toString();
+			equalPaths('C:\\', p.toString());
 
 			//current working directory of drive C
 			var s = 'C:';
 			var p:FilePath = s;
-			'C:' == p.toString();
+			equalPaths('C:', p.toString());
 		}
 
 	}

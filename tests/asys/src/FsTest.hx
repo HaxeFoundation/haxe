@@ -1,4 +1,7 @@
 import haxe.io.Bytes;
+import haxe.PosInfos;
+
+using StringTools;
 
 /**
 	Base class for filesystem-related tests
@@ -28,5 +31,19 @@ class FsTest extends Test {
 		var data = Bytes.alloc(256);
 		for(i in 0...data.length) data.set(i, i);
 		return data;
+	}
+
+	/**
+		"Slash-insensitive" comparison of two strings representing file paths.
+		E.g. `equalPaths("path/to/file", "path\\to\\file");` passes on windows
+		(but still fails on other systems)
+	**/
+	function equalPaths(expected:String, actual:String, ?msg:String, ?pos:PosInfos) {
+		if(isWindows) {
+			msg = msg == null ? 'expected path "$expected" but it is "$actual"' : msg;
+			equals(expected.replace('/', '\\'), actual.replace('/', '\\'), msg, pos);
+		} else {
+			equals(expected, actual, msg, pos);
+		}
 	}
 }
