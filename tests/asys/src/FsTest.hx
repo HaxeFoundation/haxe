@@ -38,8 +38,10 @@ class FsTest extends Test {
 		E.g. `equalPaths("path/to/file", "path\\to\\file");` passes on windows
 		(but still fails on other systems)
 	**/
-	function equalPaths(expected:String, actual:String, ?msg:String, ?pos:PosInfos) {
-		if(isWindows) {
+	function equalPaths(expected:Null<String>, actual:Null<String>, ?msg:String, ?pos:PosInfos) {
+		if(expected == null || actual == null) {
+			equals(expected, actual, msg, pos);
+		} else if(isWindows) {
 			msg = msg == null ? 'expected path "$expected" but it is "$actual"' : msg;
 			equals(expected.replace('/', '\\'), actual.replace('/', '\\'), msg, pos);
 		} else {
