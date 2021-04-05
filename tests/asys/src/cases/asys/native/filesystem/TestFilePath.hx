@@ -62,7 +62,7 @@ class TestFilePath extends FsTest {
 			[
 				'/absolute/path' => expect('\\absolute\\path'),
 				'C:\\absolute\\path' => expect('C:\\absolute\\path'),
-				'$currentDrive:relative\\path' => expect(cwd + 'relative\\path')
+				currentDrive + 'relative\\path' => expect(cwd + 'relative\\path')
 			];
 		} else {
 			[
