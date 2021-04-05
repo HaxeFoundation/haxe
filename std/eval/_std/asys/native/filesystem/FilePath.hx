@@ -80,7 +80,7 @@ private typedef NativeFilePath = NativeString;
 				return null;
 			case 1 if(isSeparator(this.code(0))):
 				return null;
-			case 2 if(SEPARATOR == '\\' && this.code(1) == ':'.code):
+			case 2 | 3 if(SEPARATOR == '\\' && this.code(1) == ':'.code):
 				return null;
 			case (_ - 1) => i:
 				while(!isSeparator(this.code(i))) {
