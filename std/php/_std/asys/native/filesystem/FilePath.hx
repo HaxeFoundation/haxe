@@ -124,7 +124,14 @@ private typedef NativeFilePath = NativeString;
 			case '.':
 				strlen(this) > 1 && this[0] == '.' && isSeparator(this[1]) ? '.' : null;
 			case path:
-				path == this ? null : path;
+				if(path == this) {
+					null;
+				//relative to current drive. E.g. `C:.\relative\path`
+				} else if(SEPARATOR == '\\' && strlen(path) == 3 && preg_match('/^[a-zA-Z]:\\./', path)) {
+					strlen(this) >= 4 && this[2] == '.' && isSeparator(this[3]) ? path : null;
+				} else {
+					path;
+				}
 		}
 		return new FilePath(path);
 	}
