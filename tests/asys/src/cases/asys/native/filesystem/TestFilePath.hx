@@ -6,22 +6,71 @@ import haxe.io.Bytes;
 import asys.native.filesystem.FilePath;
 import haxe.io.Path;
 
+/**
+ * INFO
+ * Paths are checked for equality using `equalPaths`, which automatically translates
+ * (back)slashes and ignores trailing slashes if needed.
+ */
 class TestFilePath extends FsTest {
 	function expect<T>(value:T, ?pos:PosInfos) {
 		return {value:value, pos:pos};
 	}
 
+	function check(cases:Map<String,{value:String,pos:PosInfos}>, subject:(Null<FilePath>)->Null<String>) {
+		for(path => expected in cases)
+			equalPaths(expected.value, subject(path), expected.pos);
+	}
+
+	function testCreatePath() {
+		var cases:Map<String,{value:String,pos:PosInfos}> = [
+			FilePath.createPath('path', 'to', 'file') => expect('path/to/file'),
+			FilePath.createPath('path/', 'to', 'file') => expect('/to/file'),
+			FilePath.createPath('path', '/to', 'file') => expect('/to/file'),
+			FilePath.createPath('path', '', 'file') => expect('path/file'),
+			FilePath.createPath(['path', 'to', 'file']) => expect('path/to/file'),
+			FilePath.createPath(['path/', 'to', 'file']) => expect('path/to/file'),
+			FilePath.createPath(['path', '', 'file']) => expect('path/file'),
+			FilePath.createPath(['path', '/to', 'file']) => expect('/to/file'),
+		];
+		//TODO: I'm not sure about these
+		if(isWindows) {
+			cases[FilePath.createPath(['C:', 'file'])] = expect('C:file');
+			cases[FilePath.createPath(['C:/', 'file'])] = expect('C:/file');
+			cases[FilePath.createPath(['path', 'C:file'])] = expect('C:path/file'); //???
+			cases[FilePath.createPath(['D:/path', 'C:file'])] = expect('C:path/file'); //??????
+		}
+		check(cases, p -> p);
+	}
+
+	function testOfString() {
+		var s = '𠜎/aa😂/éé';
+		var p:FilePath = s;
+		equalPaths(s, p);
+
+		if(isWindows) {
+			//root of drive C
+			var s = 'C:\\';
+			var p1:FilePath = s;
+			equalPaths('C:\\', p1);
+
+			//current working directory of drive C
+			var s = 'C:';
+			var p2:FilePath = s;
+			equalPaths('C:', p2);
+
+			isFalse(p1 == p2);
+		}
+
+	}
+
+	function testOfArray() {
+		var p:FilePath = ['𠜎', '😂'];
+		equalPaths('𠜎/😂', p);
+	}
+
 	function testEqual() {
 		var p1 = FilePath.ofString('qwe');
 		var p2 = FilePath.ofString('qwe');
-		isTrue(p1 == p2);
-
-		var p1 = FilePath.ofString('');
-		var p2 = FilePath.ofString('.');
-		isTrue(p1 == p2);
-
-		var p1 = FilePath.ofString('some');
-		var p2 = FilePath.ofString('some/');
 		isTrue(p1 == p2);
 	}
 
@@ -40,49 +89,46 @@ class TestFilePath extends FsTest {
 		}
 	}
 
-	function testAbsolute() {
-		inline function check(cases:Map<String,{value:String,pos:PosInfos}>) {
-			for(path => expected in cases)
-				equalPaths(expected.value, (path:FilePath).absolute().toString(), expected.pos);
-		}
-		var cwd = Path.addTrailingSlash(Sys.getCwd());
-
+	function testNormalize() {
 		var cases = [
-			'.' => expect(Path.removeTrailingSlashes(cwd)),
-			'./' => expect(Path.removeTrailingSlashes(cwd)),
-			'non-existent.file' => expect(cwd + 'non-existent.file'),
-			'path/to/../../non-existent.file' => expect(cwd + 'non-existent.file'),
-			'single-dot-before-double-dot/./../non-existent.file' => expect(cwd + 'non-existent.file'),
-			'path/to/../' => expect(cwd + 'path'),
-			'...' => expect(cwd + '...')
+			'some/path' => expect('some/path'),
+			'' => expect(''),
+			'.' => expect(''),
+			'./' => expect(''),
+			'path/to/./../../non-existent/./file' => expect('non-existent/file'),
+			'check///slashes/' => expect('check/slashes'),
+			'./all/redundant/../..' => expect(''),
+			'leaves/../non-redundant/../double-dots/../../..' => expect('../..'),
+			'...' => expect('...'),
+			'/absolute/path' => expect('/absolute/path')
 		];
-		check(cases);
-		cases = if(isWindows) {
-			var currentDrive = cwd.substr(0, 2);
-			[
-				'/absolute/path' => expect('\\absolute\\path'),
-				'C:\\absolute\\path' => expect('C:\\absolute\\path'),
-				currentDrive + 'relative\\path' => expect(cwd + 'relative\\path')
-			];
-		} else {
-			[
-				'/absolute/path' => expect('/absolute/path')
-			];
+		if(isWindows) {
+			cases['C:/absolute/../path'] = expect('C:/path');
+			cases['C:/absolute/excessive/dots/../../../..'] = expect('C:/');
+			cases['C:relative/.././'] = expect('C:');
+			cases['C:relative/../excessive/dots/../../../..'] = expect('C:../..');
 		}
-		check(cases);
+		check(cases, p -> p.normalize());
+	}
+
+	function testAbsolute() {
+		var cwd = Path.addTrailingSlash(Sys.getCwd());
+		var cases = [
+			'some/path' => expect(cwd + 'some/path'),
+			'' => expect(cwd),
+			'.' => expect(cwd + '.'),
+			'non-existent/file' => expect(cwd + 'non-existent/file'),
+			'/absolute/path' => expect('/absolute/path')
+		];
+		if(isWindows) {
+			var currentDrive = cwd.substr(0, 1);
+			cases['C:/absolute/path'] = expect('C:/absolute/path');
+			cases[currentDrive + ':relative/path'] = expect(cwd + 'relative/path');
+		}
+		check(cases, p -> p.absolute());
 	}
 
 	function testParent() {
-		inline function check(cases:Map<String,{value:Null<String>,pos:PosInfos}>) {
-			for(path => expected in cases) {
-				var str = switch (path:FilePath).parent() {
-					case null: null;
-					case parent: parent.toString();
-				}
-				equalPaths(expected.value, str, expected.pos);
-			}
-		}
-
 		var cases = [
 			'file' => expect(null),
 			'/file' => expect('/'),
@@ -105,49 +151,14 @@ class TestFilePath extends FsTest {
 			cases['C:\\dir'] = expect('C:\\');
 			cases['C:dir'] = expect(null);
 		}
-		check(cases);
+		check(cases, p -> p.parent());
 	}
 
-	function testFromString_toString() {
-		var s = '𠜎/aa😂/éé';
-		var p:FilePath = s;
-		equalPaths(s, p.toString());
-
-		var s = 'some/dir///';
-		var p:FilePath = s;
-		equalPaths('some/dir', p.toString());
-
-		var s = '/';
-		var p:FilePath = s;
-		equalPaths('/', p.toString());
-
-		var s = '';
-		var p:FilePath = s;
-		equalPaths('.', p.toString());
-
-		if(isWindows) {
-			var s = 'some/dir/\\/';
-			var p:FilePath = s;
-			equalPaths('some/dir', p.toString());
-
-			var s = '\\';
-			var p:FilePath = s;
-			equalPaths('\\', p.toString());
-
-			//root of drive C
-			var s = 'C:\\';
-			var p:FilePath = s;
-			equalPaths('C:\\', p.toString());
-
-			var s = 'C:\\\\\\';
-			var p:FilePath = s;
-			equalPaths('C:\\', p.toString());
-
-			//current working directory of drive C
-			var s = 'C:';
-			var p:FilePath = s;
-			equalPaths('C:', p.toString());
-		}
-
+	function testAdd() {
+		var p = FilePath.ofString('dir');
+		equalPaths('dir/file', p.add('file'));
+		equalPaths('/file', p.add('/file'));
+		equalPaths('dir', p.add(''));
+		equalPaths('dir', FilePath.ofString('').add(p));
 	}
 }

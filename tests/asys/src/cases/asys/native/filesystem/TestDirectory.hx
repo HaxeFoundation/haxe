@@ -9,7 +9,7 @@ class TestDirectory extends FsTest {
 	function testOpenNonExistent(async:Async) {
 		FileSystem.openDirectory('test-data/temp/non-existent', (e, _) -> {
 			assertType(e, FsException, e -> {
-				equals('test-data/temp/non-existent', e.path.toString());
+				equalPaths('test-data/temp/non-existent', e.path);
 				async.done();
 			});
 		});

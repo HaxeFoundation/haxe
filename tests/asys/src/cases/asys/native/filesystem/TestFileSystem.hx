@@ -24,10 +24,10 @@ class TestFileSystem extends FsTest {
 					same(bytesBinContent(), r);
 			}),
 			FileSystem.readBytes('test-data/', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data', e.path));
 			}),
 			FileSystem.readBytes('non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
 		);
 	}
@@ -39,10 +39,10 @@ class TestFileSystem extends FsTest {
 					equals('Hello, world!', r);
 			}),
 			FileSystem.readString('test-data/', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data', e.path));
 			}),
 			FileSystem.readString('non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
 		);
 	}
@@ -74,7 +74,7 @@ class TestFileSystem extends FsTest {
 			{
 				var path = 'test-data/temp/non-existent-dir/test.txt';
 				FileSystem.writeString(path, '', (e, r) -> {
-					assertType(e, FsException, e -> equals(path, e.path.toString()));
+					assertType(e, FsException, e -> equalPaths(path, e.path));
 				});
 			}
 		);
@@ -107,7 +107,7 @@ class TestFileSystem extends FsTest {
 			{
 				var path = 'test-data/temp/non-existent-dir/test.bin';
 				FileSystem.writeBytes(path, Bytes.alloc(1), (e, r) -> {
-					assertType(e, FsException, e -> equals(path, e.path.toString()));
+					assertType(e, FsException, e -> equalPaths(path, e.path));
 				});
 			}
 		);
@@ -224,7 +224,7 @@ class TestFileSystem extends FsTest {
 				});
 			}),
 			FileSystem.setPermissions('non-existent', [0, 7, 7, 7], (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
 		);
 	}
@@ -237,7 +237,7 @@ class TestFileSystem extends FsTest {
 					FileSystem.isDirectory('test-data/temp/dir', (e, r) -> isTrue(r));
 			}),
 			FileSystem.createDirectory('test-data/temp/non/existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non/existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/temp/non/existent', e.path));
 			}),
 			FileSystem.createDirectory('test-data/temp/non-existent1/non-existent2/non-existent3', true, (e, r) -> {
 				if(noException(e))
@@ -299,7 +299,7 @@ class TestFileSystem extends FsTest {
 			}),
 			//check exceptions
 			FileSystem.move('test-data/temp/non/existent', 'test-data/temp/non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non/existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/temp/non/existent', e.path));
 			})
 		);
 	}
@@ -314,10 +314,10 @@ class TestFileSystem extends FsTest {
 				});
 			}),
 			FileSystem.deleteFile('non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			}),
 			FileSystem.deleteFile('test-data/temp', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/temp', e.path));
 			})
 		);
 	}
@@ -332,17 +332,17 @@ class TestFileSystem extends FsTest {
 				});
 			}),
 			FileSystem.deleteDirectory('non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			}),
 			FileSystem.writeString('test-data/temp/file', '', (e, r) -> {
 				FileSystem.deleteDirectory('test-data/temp/file', (e, r) -> {
-					assertType(e, FsException, e -> equals('test-data/temp/file', e.path.toString()));
+					assertType(e, FsException, e -> equalPaths('test-data/temp/file', e.path));
 				});
 			}),
 			FileSystem.createDirectory('test-data/temp/non-empty', (e, r) -> {
 				FileSystem.writeString('test-data/temp/non-empty/file', '', (e, r) -> {
 					FileSystem.deleteDirectory('test-data/temp/non-empty', (e, r) -> {
-						assertType(e, FsException, e -> equals('test-data/temp/non-empty', e.path.toString()));
+						assertType(e, FsException, e -> equalPaths('test-data/temp/non-empty', e.path));
 					});
 				});
 			})
@@ -375,7 +375,7 @@ class TestFileSystem extends FsTest {
 				}
 			}),
 			FileSystem.info('non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
 		);
 	}
@@ -408,10 +408,10 @@ class TestFileSystem extends FsTest {
 					equals('sub' + FilePath.SEPARATOR + 'hello.world', r.toString());
 			}),
 			FileSystem.readLink('test-data/sub/hello.world', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/sub/hello.world', e.path));
 			}),
 			FileSystem.readLink('non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
 		);
 	}
@@ -426,7 +426,7 @@ class TestFileSystem extends FsTest {
 				}
 			}),
 			FileSystem.linkInfo('non-existent', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
 		);
 	}
@@ -453,7 +453,7 @@ class TestFileSystem extends FsTest {
 					});
 			}),
 			FileSystem.link('../sub/hello.world', 'test-data/temp/non-existent/link', (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non-existent/link', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent/link', e.path));
 			})
 		);
 	}
@@ -486,7 +486,7 @@ class TestFileSystem extends FsTest {
 					});
 			}),
 			FileSystem.copyFile('non-existent', 'test-data/temp/copy', (e, r) -> {
-				assertType(e, FsException, e -> equals('non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			}),
 			FileSystem.copyFile('test-data/sub/hello.world', 'test-data/non-existent/copy', (e, r) -> {
 				assertType(e, FsException, e -> {
@@ -523,7 +523,7 @@ class TestFileSystem extends FsTest {
 				}
 			}),
 			FileSystem.resize('test-data/temp/non-existent-dir/file', 5, (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non-existent-dir/file', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent-dir/file', e.path));
 			})
 		);
 	}
@@ -549,10 +549,10 @@ class TestFileSystem extends FsTest {
 					});
 			}),
 			FileSystem.setTimes('test-data/temp/set-times-non-existent', accessTime, modificationTime, (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/set-times-non-existent', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/temp/set-times-non-existent', e.path));
 			}),
 			FileSystem.setTimes('test-data/temp/non/existent/set-times', accessTime, modificationTime, (e, r) -> {
-				assertType(e, FsException, e -> equals('test-data/temp/non/existent/set-times', e.path.toString()));
+				assertType(e, FsException, e -> equalPaths('test-data/temp/non/existent/set-times', e.path));
 			})
 		);
 	}
@@ -570,7 +570,7 @@ class TestFileSystem extends FsTest {
 					FileSystem.setOwner('test-data/temp/set-owner', r.user, r.group, (e, _) -> {
 						noException(e);
 						FileSystem.setOwner('test-data/temp/non-existent', r.user, r.group, (e, r) -> {
-							assertType(e, FsException, e -> equals('test-data/temp/non-existent', e.path.toString()));
+							assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent', e.path));
 						});
 					});
 				});
@@ -591,7 +591,7 @@ class TestFileSystem extends FsTest {
 					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.user, r.group, (e, _) -> {
 						noException(e);
 						FileSystem.setLinkOwner('test-data/temp/non-existent-link', r.user, r.group, (e, r) -> {
-							assertType(e, FsException, e -> equals('test-data/temp/non-existent-link', e.path.toString()));
+							assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent-link', e.path));
 						});
 					});
 				});
@@ -612,7 +612,7 @@ class TestFileSystem extends FsTest {
 			}),
 			FileSystem.listDirectory('test-data/temp/non-existent', (e, r) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non-existent', e.path.toString());
+					equalPaths('test-data/temp/non-existent', e.path);
 				});
 			})
 		);
@@ -633,7 +633,7 @@ class TestFileSystem extends FsTest {
 			}),
 			FileSystem.uniqueDirectory('test-data/temp/non-existent-2/dir2', false, (e, path) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non-existent-2/dir2', e.path.toString());
+					equalPaths('test-data/temp/non-existent-2/dir2', e.path);
 				});
 			})
 		);

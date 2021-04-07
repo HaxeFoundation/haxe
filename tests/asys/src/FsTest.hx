@@ -1,6 +1,7 @@
 import haxe.io.Bytes;
 import haxe.PosInfos;
 
+using haxe.io.Path;
 using StringTools;
 
 /**
@@ -41,10 +42,15 @@ class FsTest extends Test {
 	function equalPaths(expected:Null<String>, actual:Null<String>, ?msg:String, ?pos:PosInfos) {
 		if(expected == null || actual == null) {
 			equals(expected, actual, msg, pos);
-		} else if(isWindows) {
-			msg = msg == null ? 'expected path "$expected" but it is "$actual"' : msg;
-			equals(expected.replace('/', '\\'), actual.replace('/', '\\'), msg, pos);
 		} else {
+			if(isWindows) {
+				expected = expected.replace('/', '\\');
+				actual = actual.replace('/', '\\');
+			}
+			if(expected != actual) {
+				expected = expected.removeTrailingSlashes();
+				actual = actual.removeTrailingSlashes();
+			}
 			equals(expected, actual, msg, pos);
 		}
 	}

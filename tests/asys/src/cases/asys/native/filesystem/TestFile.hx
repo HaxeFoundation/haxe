@@ -55,7 +55,7 @@ class TestFile extends FsTest {
 			//Read non-existent
 			FileSystem.openFile('test-data/temp/non-existent', Read, (e, r) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non-existent', e.path.toString());
+					equalPaths('test-data/temp/non-existent', e.path);
 				});
 			})
 		);
@@ -105,7 +105,7 @@ class TestFile extends FsTest {
 			//in non-existent directory
 			FileSystem.openFile('test-data/temp/non/existent.bin', Append, (e, file) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent.bin', e.path.toString());
+					equalPaths('test-data/temp/non/existent.bin', e.path);
 				});
 			})
 		);
@@ -186,20 +186,20 @@ class TestFile extends FsTest {
 				var buf = Bytes.alloc(10);
 				//position negative
 				file.read(-1, buf, 0, buf.length, (e, _) -> {
-					assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
+					assertType(e, FsException, e -> equalPaths('test-data/sub/hello.world', e.path));
 					//offset negative
 					file.read(0, buf, -1, buf.length, (e, _) -> {
-						assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
+						assertType(e, FsException, e -> equalPaths('test-data/sub/hello.world', e.path));
 						//offset == buf.length
 						file.read(0, buf, buf.length, buf.length, (e, r) -> {
 							if(noException(e))
 								equals(0, r);
 							//offset > buf.length
 							file.read(0, buf, buf.length + 1, buf.length, (e, _) -> {
-								assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
+								assertType(e, FsException, e -> equalPaths('test-data/sub/hello.world', e.path));
 								//length negative
 								file.read(0, buf, buf.length, -1, (e, _) -> {
-									assertType(e, FsException, e -> equals('test-data/sub/hello.world', e.path.toString()));
+									assertType(e, FsException, e -> equalPaths('test-data/sub/hello.world', e.path));
 									file.close((_, _) -> {});
 								});
 							});
@@ -217,20 +217,20 @@ class TestFile extends FsTest {
 				var buf = bytes([1, 2, 3]);
 				//position negative
 				file.write(-1, buf, 0, buf.length, (e, _) -> {
-					assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+					assertType(e, FsException, e -> equalPaths('test-data/temp/write.oob', e.path));
 					//offset negative
 					file.write(0, buf, -1, buf.length, (e, _) -> {
-						assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+						assertType(e, FsException, e -> equalPaths('test-data/temp/write.oob', e.path));
 						//offset == buf.length
 						file.write(0, buf, buf.length, buf.length, (e, r) -> {
 							if(noException(e))
 								equals(0, r);
 							//offset > buf.length
 							file.write(0, buf, buf.length + 1, buf.length, (e, _) -> {
-								assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+								assertType(e, FsException, e -> equalPaths('test-data/temp/write.oob', e.path));
 								//length negative
 								file.write(0, buf, 0, -1, (e, _) -> {
-									assertType(e, FsException, e -> equals('test-data/temp/write.oob', e.path.toString()));
+									assertType(e, FsException, e -> equalPaths('test-data/temp/write.oob', e.path));
 									file.close((_, _) -> {});
 								});
 							});
@@ -271,7 +271,7 @@ class TestFile extends FsTest {
 			}),
 			FileSystem.openFile('test-data/temp/non-existent', ReadWrite, (e, _) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non-existent', e.path.toString());
+					equalPaths('test-data/temp/non-existent', e.path);
 				});
 			})
 		);
@@ -318,7 +318,7 @@ class TestFile extends FsTest {
 			//exceptions
 			FileSystem.openFile('test-data/temp/non/existent', Write, (e, _) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent', e.path.toString());
+					equalPaths('test-data/temp/non/existent', e.path);
 				});
 			})
 		);
@@ -330,7 +330,7 @@ class TestFile extends FsTest {
 			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/writeX.bin', (_, _) -> {
 				FileSystem.openFile('test-data/temp/writeX.bin', WriteX, (e, _) -> {
 					assertType(e, FsException, e -> {
-						equals('test-data/temp/writeX.bin', e.path.toString());
+						equalPaths('test-data/temp/writeX.bin', e.path);
 					});
 				});
 			}),
@@ -354,7 +354,7 @@ class TestFile extends FsTest {
 			//exceptions
 			FileSystem.openFile('test-data/temp/non/existent', WriteX, (e, _) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent', e.path.toString());
+					equalPaths('test-data/temp/non/existent', e.path);
 				});
 			})
 		);
@@ -423,7 +423,7 @@ class TestFile extends FsTest {
 			//exceptions
 			FileSystem.openFile('test-data/temp/non/existent', WriteRead, (e, _) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent', e.path.toString());
+					equalPaths('test-data/temp/non/existent', e.path);
 				});
 			})
 		);
@@ -435,7 +435,7 @@ class TestFile extends FsTest {
 			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/write-readX.bin', (_, _) -> {
 				FileSystem.openFile('test-data/temp/write-readX.bin', WriteReadX, (e, file) -> {
 					assertType(e, FsException, e -> {
-						equals('test-data/temp/write-readX.bin', e.path.toString());
+						equalPaths('test-data/temp/write-readX.bin', e.path);
 					});
 				});
 			}),
@@ -466,7 +466,7 @@ class TestFile extends FsTest {
 			//exceptions
 			FileSystem.openFile('test-data/temp/non/existent', WriteReadX, (e, _) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent', e.path.toString());
+					equalPaths('test-data/temp/non/existent', e.path);
 				});
 			})
 		);
@@ -517,7 +517,7 @@ class TestFile extends FsTest {
 			//exceptions
 			FileSystem.openFile('test-data/temp/non/existent', Overwrite, (e, _) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent', e.path.toString());
+					equalPaths('test-data/temp/non/existent', e.path);
 				});
 			})
 		);
@@ -586,7 +586,7 @@ class TestFile extends FsTest {
 			//exceptions
 			FileSystem.openFile('test-data/temp/non/existent', OverwriteRead, (e, _) -> {
 				assertType(e, FsException, e -> {
-					equals('test-data/temp/non/existent', e.path.toString());
+					equalPaths('test-data/temp/non/existent', e.path);
 				});
 			})
 		);

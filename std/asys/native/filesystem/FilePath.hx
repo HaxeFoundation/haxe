@@ -7,9 +7,6 @@ private typedef NativeFilePath = Dynamic;
 /**
 	Represents a relative or absolute file path.
 
-	File path cannot be empty.
-	E.g. creating a path using empty string produces a path of `.`.
-
 	TODO: add API from `haxe.io.Path`
 **/
 @:coreApi abstract FilePath(NativeFilePath) {
@@ -23,13 +20,48 @@ private typedef NativeFilePath = Dynamic;
 	}
 
 	/**
+		Create a path by sequantually adding `appendices` to `path`.
+
+		If any of the appendices is an absolute path then `path` and all previous
+		appendices are discarded.
+		Any empty component is ignored.
+
+		TODO: see TODO of "add" method below
+	**/
+	overload extern static public inline function createPath(path:String, ...appendices:String):FilePath {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Create a path by combining items of `parts` array.
+
+		If any of the `parts` is an absolute path then all previous parts are discarded.
+		Any empty component is ignored.
+
+		@throws haxe.exceptions.ArgumentException if `parts` is empty.
+
+		TODO: see TODO of "add" method below
+	**/
+	overload extern static public inline function createPath(parts:Array<String>):FilePath {
+		throw new NotImplementedException();
+	}
+
+	/**
 		Create file path from plain string.
 		Removes trailing slashes.
 
 		Creates a path of `.` if `path` is empty.
 		That is `FilePath.ofString('') == FilePath.ofString('.')`.
 	**/
-	@:from public static function ofString(path:String):FilePath {
+	@:noUsing
+	@:from static public function ofString(path:String):FilePath {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Alias of `createPath(Array<String>)`
+	**/
+	@:from static function ofArray(parts:Array<String>):FilePath {
 		throw new NotImplementedException();
 	}
 
@@ -59,14 +91,26 @@ private typedef NativeFilePath = Dynamic;
 	/**
 		Get an absolute path of this path.
 
-		For example translates `./path` to `/current/dir/path`.
-		Resolves `.` and `..` and removes excessive slashes.
-		Does not resolve symbolic links.
+		If this path is already an absolute path, then it's returned as is.
 
 		It does not matter if the path does not exist, however some implementations
 		may need current working directory to actually exist.
 	**/
 	public function absolute():FilePath {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Returns this path with all the redundant elements removed.
+
+		Resolves `.` and `..` and removes excessive slashes and trailing slashes.
+		Does not resolve symbolic links.
+
+		This method may return an empty path if all elements of this path are redundant.
+
+		It does not matter if the path does not exist.
+	**/
+	public function normalize():FilePath {
 		throw new NotImplementedException();
 	}
 
@@ -82,4 +126,32 @@ private typedef NativeFilePath = Dynamic;
 	public function parent():Null<FilePath> {
 		throw new NotImplementedException();
 	}
+
+	/**
+		Creates a new path by appending `path` to this one.
+		This path is treated as a directory and a directory separator is inserted
+		between this and `path` if needed.
+
+		If `path` is an absolute path, then this method simply returns `path`.
+		If either this or `path` is empty then this method simply return the other one.
+
+		```haxe
+		FilePath.ofString('dir').add('file'); // result: dir/file
+		FilePath.ofString('dir/').add('file'); // result: dir/file
+		FilePath.ofString('dir').add('/file'); // result: /file
+		FilePath.ofString('').add('file'); // result: file
+		FilePath.ofString('dir').add(''); // result: dir
+		```
+
+		TODO:
+		What to do with windows paths relative to a drive?
+		```haxe
+		'D:dir'.add('C:file') == exception ?
+		'/dir'.add('C:file') == 'C:/dir/file' ?
+		```
+	**/
+	public function add(path:FilePath):FilePath {
+		throw new NotImplementedException();
+	}
+
 }
