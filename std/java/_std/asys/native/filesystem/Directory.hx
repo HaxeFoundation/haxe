@@ -31,7 +31,7 @@ class Directory {
 				var result = [];
 				try {
 					while(result.length < maxBatchSize) {
-						result.push(new FilePath(iterator.next().getFileName()));
+						result.push((iterator.next().getFileName():FilePath));
 					}
 					result;
 				} catch(_:NoSuchElementException) {

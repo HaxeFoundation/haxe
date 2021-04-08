@@ -56,7 +56,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var path = new FilePath(Files.createTempFile(@:nullSafety(Off) (null:String), @:nullSafety(Off) (null:String)));
+					var path = Files.createTempFile(@:nullSafety(Off) (null:String), @:nullSafety(Off) (null:String));
 					var channel = FileChannel.open(path, ...hxOpenFlagToJavaOption(ReadWrite));
 					cast new File(path, channel, true);
 				} catch(e:FileSystemException) {
@@ -155,7 +155,7 @@ class FileSystem {
 					var result = [];
 					var dir = Files.newDirectoryStream(path);
 					for(entry in dir) {
-						result.push(new FilePath(entry.getFileName()));
+						result.push((entry.getFileName():FilePath));
 					}
 					result;
 				} catch(e:FileSystemException) {
@@ -412,7 +412,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					new FilePath(Files.readSymbolicLink(path));
+					Files.readSymbolicLink(path);
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {
@@ -496,7 +496,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					new FilePath((path:JPath).toRealPath());
+					(path:JPath).toRealPath();
 				} catch(e:FileSystemException) {
 					throw new FsException(CustomError(e.getReason()), path);
 				} catch(e:Throwable) {

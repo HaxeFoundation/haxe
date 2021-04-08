@@ -1,7 +1,6 @@
 package asys.native.filesystem;
 
-import haxe.io.Bytes;
-import haxe.exceptions.NotImplementedException;
+import haxe.exceptions.ArgumentException;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.NativeArray;
@@ -16,19 +15,46 @@ private typedef NativeFilePath = Path;
 		return JFile.separator;
 	}
 
-	static final empty = Paths.get('');
-
-	@:allow(asys.native.filesystem)
-	inline function new(path:Path) {
-		this = jObj(empty).equals(path) ? Paths.get('.') : path;
+	overload extern static public inline function createPath(path:String, ...appendices:String):FilePath {
+		return createPathImpl(path, ...appendices);
 	}
 
+	@:native('createPath')
+	static function createPathImpl(path:String, ...appendices:String):FilePath {
+		var path = ofString(path);
+		for(p in appendices)
+			path = path.add(p);
+		return path;
+	}
+
+	overload extern static public inline function createPath(parts:Array<String>):FilePath {
+		return ofArray(parts);
+	}
+
+	@:noUsing
 	@:from public static inline function ofString(path:String):FilePath {
 		return new FilePath(Paths.get(path));
 	}
 
+	@:from static function ofArray(parts:Array<String>):FilePath {
+		if(parts.length == 0)
+			throw new ArgumentException('parts');
+		var path = ofString(parts[0]);
+		for(i in 1...parts.length)
+			path = path.add(parts[i]);
+		return path;
+	}
+
+	@:from static inline function ofNative(path:Path):FilePath {
+		return new FilePath(path);
+	}
+
+	inline function new(path:NativeFilePath) {
+		this = path;
+	}
+
 	@:to public inline function toString():String {
-		return jObj(this).toString();
+		return this == null ? null : jObj(this).toString();
 	}
 
 	@:op(A == B) inline function equals(p:FilePath):Bool {
@@ -39,48 +65,23 @@ private typedef NativeFilePath = Path;
 		return this.isAbsolute();
 	}
 
-	public function absolute():FilePath {
-		var abs = this.toAbsolutePath();
-		var fullPath:NativeString = cast jObj(abs).toString();
-
-		var parts:NativeArray<String> = if(SEPARATOR == '\\') {
-			fullPath.split('\\|/');
-		} else {
-			fullPath.split('/');
-		}
-
-		var i = 1;
-		var result = new NativeArray(parts.length);
-		result[0] = parts[0];
-		var resultSize = 1;
-		while(i < parts.length) {
-			switch parts[i] {
-				case '.' | '':
-				case '..':
-					if(resultSize > 1) --resultSize;
-				case part:
-					result[resultSize++] = part;
-			}
-			i++;
-		}
-
-		var builder = new java.lang.StringBuilder();
-		for(i in 0...resultSize) {
-			if(i != 0)
-				builder.append(SEPARATOR);
-			builder.append(result[i]);
-		}
-		return new FilePath(Paths.get(builder.toString()));
+	public inline function normalize():FilePath {
+		return this.normalize();
 	}
 
-	public function parent():Null<FilePath> {
-		return switch this.getParent() {
-			case null: null;
-			case path: new FilePath(path);
-		}
+	public inline function absolute():FilePath {
+		return this.toAbsolutePath();
 	}
 
-	static inline function jObj(o:Path):java.lang.Object {
+	public inline function parent():Null<FilePath> {
+		return this.getParent();
+	}
+
+	public inline function add(path:FilePath):FilePath {
+		return this.resolve(path);
+	}
+
+	static inline function jObj(o:NativeFilePath):java.lang.Object {
 		return cast o;
 	}
 }
