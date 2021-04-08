@@ -86,7 +86,7 @@ private typedef NativeFilePath = NativeString;
 					this;
 				} else {
 					try {
-						var driveCwd = realpath(substr(this, 0, 2));
+						var driveCwd = realpath(substr(this, 0, 2) + '.');
 						driveCwd + SEPARATOR + substr(this, 2);
 					} catch(e:php.Throwable) {
 						throw new FsException(CustomError('Unable to get current working directory of drive ${this[0]}'), this);
@@ -132,7 +132,7 @@ private typedef NativeFilePath = NativeString;
 			case '.':
 				strlen(this) > 1 && this[0] == '.' && isSeparator(this[1]) ? '.' : null;
 			case path:
-				if(path == this) {
+				if(trimSlashes(path) == trimSlashes(this)) {
 					null;
 				//relative to current drive with a dot. E.g. `C:.\relative\path`
 				} else if(SEPARATOR == '\\' && strlen(path) == 3 && preg_match('/^[a-zA-Z]:\\./', path)) {
@@ -169,21 +169,7 @@ private typedef NativeFilePath = NativeString;
 		return char == '/' || (char == SEPARATOR);
 	}
 
-	static function trimSlashes(s:NativeString):NativeString {
-		return if(SEPARATOR == '\\') {
-			var result:NativeString = rtrim(s, '/\\');
-			switch strlen(result) {
-				// \
-				case 0 if(strlen(s) > 0):
-					s[0];
-				// C:\
-				case 2 if(result[1] == ':' && strlen(s) > 2):
-					substr(s, 0, 3);
-				case _:
-					result;
-			}
-		} else {
-			rtrim(s, '/');
-		}
+	static inline function trimSlashes(s:NativeString):NativeString {
+		return rtrim(s, SEPARATOR == '\\' ? '/\\' : '/');
 	}
 }
