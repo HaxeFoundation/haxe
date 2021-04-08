@@ -1,7 +1,5 @@
 package asys.native.filesystem;
 
-import haxe.io.Bytes;
-import haxe.EntryPoint;
 import php.*;
 import php.Const.*;
 import php.Global.*;
@@ -17,8 +15,9 @@ private typedef NativeFilePath = NativeString;
 		return DIRECTORY_SEPARATOR;
 	}
 
-	overload extern static public inline function createPath(path:String, ...appendices:String):FilePath
+	overload extern static public inline function createPath(path:String, ...appendices:String):FilePath {
 		return createPathImpl(path, ...appendices);
+	}
 
 	@:native('createPath')
 	static function createPathImpl(path:String, ...appendices:String):FilePath {
@@ -46,7 +45,6 @@ private typedef NativeFilePath = NativeString;
 		return path;
 	}
 
-	@:allow(asys.native.filesystem)
 	inline function new(s:NativeString) {
 		this = s;
 	}
