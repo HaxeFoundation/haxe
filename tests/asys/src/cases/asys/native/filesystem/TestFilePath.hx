@@ -5,6 +5,8 @@ import asys.native.filesystem.FsException;
 import haxe.io.Bytes;
 import asys.native.filesystem.FilePath;
 import haxe.io.Path;
+import haxe.exceptions.ArgumentException;
+import haxe.exceptions.PosException;
 
 /**
  * INFO
@@ -16,28 +18,38 @@ class TestFilePath extends FsTest {
 		return {value:value, pos:pos};
 	}
 
-	function check(cases:Map<String,{value:String,pos:PosInfos}>, subject:(Null<FilePath>)->Null<String>) {
-		for(path => expected in cases)
+	inline function cases(m:Map<{value:String,pos:PosInfos},FilePath>) {
+		return m;
+	}
+
+	function check(cases:Map<{value:String,pos:PosInfos},FilePath>, subject:(Null<FilePath>)->Null<String>) {
+		for(expected => path in cases)
 			equalPaths(expected.value, subject(path), expected.pos);
 	}
 
 	function testCreatePath() {
-		var cases:Map<String,{value:String,pos:PosInfos}> = [
-			FilePath.createPath('path', 'to', 'file') => expect('path/to/file'),
-			FilePath.createPath('path/', 'to', 'file') => expect('/to/file'),
-			FilePath.createPath('path', '/to', 'file') => expect('/to/file'),
-			FilePath.createPath('path', '', 'file') => expect('path/file'),
-			FilePath.createPath(['path', 'to', 'file']) => expect('path/to/file'),
-			FilePath.createPath(['path/', 'to', 'file']) => expect('path/to/file'),
-			FilePath.createPath(['path', '', 'file']) => expect('path/file'),
-			FilePath.createPath(['path', '/to', 'file']) => expect('/to/file'),
-		];
+		var cases = cases([
+			expect('path/to/file') => FilePath.createPath('path', 'to', 'file'),
+			expect('path/to/file') => FilePath.createPath('path/', 'to', 'file'),
+			expect('/to/file') => FilePath.createPath('path', '/to', 'file'),
+			expect('path/file') => FilePath.createPath('path', '', 'file'),
+			expect('path/to/file') => FilePath.createPath(['path', 'to', 'file']),
+			expect('path/to/file') => FilePath.createPath(['path/', 'to', 'file']),
+			expect('path/file') => FilePath.createPath(['path', '', 'file']),
+			expect('/to/file') => FilePath.createPath(['path', '/to', 'file']),
+		]);
 		//TODO: I'm not sure about these
 		if(isWindows) {
-			cases[FilePath.createPath(['C:', 'file'])] = expect('C:file');
-			cases[FilePath.createPath(['C:/', 'file'])] = expect('C:/file');
-			cases[FilePath.createPath(['path', 'C:file'])] = expect('C:path/file'); //???
-			cases[FilePath.createPath(['D:/path', 'C:file'])] = expect('C:path/file'); //??????
+			cases[expect('C:file')] = FilePath.createPath('C:', 'file');
+			cases[expect('C:/file')] = FilePath.createPath('C:/', 'file');
+			cases[expect('C:path/file')] = FilePath.createPath('path', 'C:file'); //???
+			raises(() -> FilePath.createPath('D:/path', 'C:file'), ArgumentException); //??????
+
+			cases[expect('C:file')] = FilePath.createPath(['C:', 'file']);
+			cases[expect('C:/file')] = FilePath.createPath(['C:/', 'file']);
+			cases[expect('C:path/file')] = FilePath.createPath(['path', 'C:file']); //???
+			raises(() -> FilePath.createPath(['D:/path', 'C:file']), ArgumentException); //??????
+			raises(() -> FilePath.createPath([]), ArgumentException);
 		}
 		check(cases, p -> p);
 	}
@@ -90,66 +102,66 @@ class TestFilePath extends FsTest {
 	}
 
 	function testNormalize() {
-		var cases = [
-			'some/path' => expect('some/path'),
-			'' => expect(''),
-			'.' => expect(''),
-			'./' => expect(''),
-			'path/to/./../../non-existent/./file' => expect('non-existent/file'),
-			'check///slashes/' => expect('check/slashes'),
-			'./all/redundant/../..' => expect(''),
-			'leaves/../non-redundant/../double-dots/../../..' => expect('../..'),
-			'...' => expect('...'),
-			'/absolute/path' => expect('/absolute/path')
-		];
+		var cases = cases([
+			expect('some/path') => 'some/path',
+			expect('') => '',
+			expect('') => '.',
+			expect('') => './',
+			expect('non-existent/file') => 'path/to/./../../non-existent/./file',
+			expect('check/slashes') => 'check///slashes/',
+			expect('') => './all/redundant/../..',
+			expect('../..') => 'leaves/../non-redundant/../double-dots/../../..',
+			expect('...') => '...',
+			expect('/absolute/path') => '/absolute/path',
+		]);
 		if(isWindows) {
-			cases['C:/absolute/../path'] = expect('C:/path');
-			cases['C:/absolute/excessive/dots/../../../..'] = expect('C:/');
-			cases['C:relative/.././'] = expect('C:');
-			cases['C:relative/../excessive/dots/../../../..'] = expect('C:../..');
+			cases[expect('C:/path')] = 'C:/absolute/../path';
+			cases[expect('C:/')] = 'C:/absolute/excessive/dots/../../../..';
+			cases[expect('C:')] = 'C:relative/.././';
+			cases[expect('C:../..')] = 'C:relative/../excessive/dots/../../../..';
 		}
 		check(cases, p -> p.normalize());
 	}
 
 	function testAbsolute() {
 		var cwd = Path.addTrailingSlash(Sys.getCwd());
-		var cases = [
-			'some/path' => expect(cwd + 'some/path'),
-			'' => expect(cwd),
-			'.' => expect(cwd + '.'),
-			'non-existent/file' => expect(cwd + 'non-existent/file'),
-			'/absolute/path' => expect('/absolute/path')
-		];
+		var cases = cases([
+			expect(cwd + 'some/path') => 'some/path',
+			expect(cwd) => '',
+			expect(cwd + '.') => '.',
+			expect(cwd + 'non-existent/file') => 'non-existent/file',
+			expect('/absolute/path') => '/absolute/path',
+		]);
 		if(isWindows) {
 			var currentDrive = cwd.substr(0, 1);
-			cases['C:/absolute/path'] = expect('C:/absolute/path');
-			cases[currentDrive + ':relative/path'] = expect(cwd + 'relative/path');
+			cases[expect('C:/absolute/path')] = 'C:/absolute/path';
+			cases[expect(cwd + 'relative/path')] = currentDrive + ':relative/path';
 		}
 		check(cases, p -> p.absolute());
 	}
 
 	function testParent() {
-		var cases = [
-			'file' => expect(null),
-			'/file' => expect('/'),
-			'./file' => expect('.'),
-			'path/to/file' => expect('path/to'),
-			'path/to/dir/' => expect('path/to'),
-			'path/to///dir/' => expect('path/to'),
-			'path/to/../file' => expect('path/to/..'),
-			'path/to/..' => expect('path/to'),
-			'path/to/.' => expect('path/to'),
-			'.hidden' => expect(null),
-			'.' => expect(null),
-			'' => expect(null),
-			'/' => expect(null),
-			'\\' => expect(null)
-		];
+		var cases = cases([
+			expect(null) => 'file',
+			expect('/') => '/file',
+			expect('.') => './file',
+			expect('path/to') => 'path/to/file',
+			expect('path/to') => 'path/to/dir/',
+			expect('path/to') => 'path/to///dir/',
+			expect('path/to/..') => 'path/to/../file',
+			expect('path/to') => 'path/to/..',
+			expect('path/to') => 'path/to/.',
+			expect(null) => '.hidden',
+			expect(null) => '.',
+			expect(null) => '',
+			expect(null) => '/',
+			expect(null) => '\\',
+		]);
 		if(isWindows) {
-			cases['C:\\'] = expect(null);
-			cases['C:'] = expect(null);
-			cases['C:\\dir'] = expect('C:\\');
-			cases['C:dir'] = expect(null);
+			cases[expect(null)] = 'C:\\';
+			cases[expect(null)] = 'C:';
+			cases[expect('C:\\')] = 'C:\\dir';
+			cases[expect(null)] = 'C:dir';
 		}
 		check(cases, p -> p.parent());
 	}
