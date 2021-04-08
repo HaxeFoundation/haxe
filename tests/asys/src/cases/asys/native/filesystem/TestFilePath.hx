@@ -54,25 +54,10 @@ class TestFilePath extends FsTest {
 		check(cases, p -> p);
 	}
 
-	function testOfString() {
+	function testOfString_unicode() {
 		var s = '𠜎/aa😂/éé';
-		var p:FilePath = s;
+		var p = FilePath.ofString(s);
 		equalPaths(s, p);
-
-		if(isWindows) {
-			//root of drive C
-			var s = 'C:\\';
-			var p1:FilePath = s;
-			equalPaths('C:\\', p1);
-
-			//current working directory of drive C
-			var s = 'C:';
-			var p2:FilePath = s;
-			equalPaths('C:', p2);
-
-			isFalse(p1 == p2);
-		}
-
 	}
 
 	function testOfArray() {
@@ -93,6 +78,7 @@ class TestFilePath extends FsTest {
 		isFalse(('./':FilePath).isAbsolute());
 		isFalse(('..':FilePath).isAbsolute());
 		if(isWindows) {
+			trace(('C:something':FilePath).toString()); // debug jvm
 			isTrue(('C:\\something':FilePath).isAbsolute());
 			isTrue(('\\':FilePath).isAbsolute());
 			isFalse(('C:something':FilePath).isAbsolute());
@@ -130,12 +116,14 @@ class TestFilePath extends FsTest {
 			expect(cwd) => '',
 			expect(cwd + '.') => '.',
 			expect(cwd + 'non-existent/file') => 'non-existent/file',
-			expect('/absolute/path') => '/absolute/path',
 		]);
 		if(isWindows) {
 			var currentDrive = cwd.substr(0, 1);
+			cases[expect(currentDrive + ':/absolute/path')] = '/absolute/path';
 			cases[expect('C:/absolute/path')] = 'C:/absolute/path';
 			cases[expect(cwd + 'relative/path')] = currentDrive + ':relative/path';
+		} else {
+			cases[expect('/absolute/path')] = '/absolute/path';
 		}
 		check(cases, p -> p.absolute());
 	}
@@ -161,16 +149,22 @@ class TestFilePath extends FsTest {
 			cases[expect(null)] = 'C:\\';
 			cases[expect(null)] = 'C:';
 			cases[expect('C:\\')] = 'C:\\dir';
-			cases[expect(null)] = 'C:dir';
+			cases[expect('C:')] = 'C:dir';
 		}
 		check(cases, p -> p.parent());
 	}
 
 	function testAdd() {
-		var p = FilePath.ofString('dir');
-		equalPaths('dir/file', p.add('file'));
-		equalPaths('/file', p.add('/file'));
-		equalPaths('dir', p.add(''));
-		equalPaths('dir', FilePath.ofString('').add(p));
+		var dir = FilePath.ofString('dir');
+		var cases = cases([
+			expect('dir/file') => dir.add('file'),
+			expect('/file') => dir.add('/file'),
+			expect('dir') => dir.add(''),
+			expect('dir') => FilePath.ofString('').add(dir),
+		]);
+		if(isWindows) {
+			cases[expect('C:/dir')] = FilePath.ofString('C:/').add(dir);
+		}
+		check(cases, p -> p);
 	}
 }
