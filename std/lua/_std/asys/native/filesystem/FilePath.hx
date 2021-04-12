@@ -30,27 +30,13 @@ private typedef NativeFilePath = NativeString;
 		_SEPARATOR = Sys.systemName() == 'Windows' ? '\\' : '/';
 	}
 
+	@:noUsing
 	@:from public static inline function ofString(path:String):FilePath {
 		return new FilePath(path);
 	}
 
-	function new(s:NativeString) {
-		if(s == null) {
-			this = s;
-		} else if(s.length == 0) {
-			this = '.';
-		} else {
-			var i = s.length;
-			while(i > 1) {
-				switch s[i] {
-					case '/'.code:
-					case '\\'.code if(SEPARATOR == '\\'):
-					case _: break;
-				}
-				--i;
-			}
-			this = i == s.length ? s : s.sub(1, i);
-		}
+	inline function new(s:NativeString) {
+		this = s;
 	}
 
 	@:to public inline function toString():String {
@@ -77,26 +63,33 @@ private typedef NativeFilePath = NativeString;
 
 	public function absolute():FilePath {
 		var fullPath:String = isAbsolute() ? this : Sys.getCwd() + '/' + this;
+	}
 
+	public function normalize():FilePath {
 		var parts = if(SEPARATOR == '\\') {
 			StringTools.replace(fullPath, '\\', '/').split('/');
 		} else {
 			fullPath.split('/');
 		}
-		var i = 1;
+		var i = parts.length - 1;
 		var result = [];
-		while(i < parts.length) {
+		var skip = 0;
+		while(i >= 1) {
 			switch parts[i] {
 				case '.' | '':
 				case '..':
-					result.pop();
+					++skip;
+				case _ if(skip > 0):
+					--skip;
 				case part:
-					result.push(part);
+					result.unshift(part);
 			}
-			i++;
+			--i;
 		}
-		result.unshift(parts[0]);
-		return result.join(SEPARATOR);
+		for(i in 0...skip)
+			result.unshift('..');
+		var result = ofString(result.join(SEPARATOR));
+		return isAbsolute() && !result.isAbsolute() ? SEPARATOR + result : result;
 	}
 
 	public function parent():Null<FilePath> {
@@ -121,7 +114,44 @@ private typedef NativeFilePath = NativeString;
 		}
 	}
 
+	public function add(path:FilePath):FilePath {
+		if(path.isAbsolute() || this == '')
+			return path;
+		if(path == '')
+			return this;
+		if(SEPARATOR == '\\') {
+			var s = (cast path:NativeString);
+			if(s.length >= 2 && s[1] == ':') {
+				if(this.length >= 2 && this[1] == ':') {
+					if(s[0].sub(1,1).lower() != this[0].sub(1,1).lower()) {
+						throw new ArgumentException('path', 'Cannot combine paths on different drives');
+					}
+					return trimSlashes(this) + SEPARATOR + s.sub(3);
+				} else if(isSeparator(this[0])) {
+					return s.sub(1, 2) + trimSlashes(this) + SEPARATOR + s.sub(3);
+				}
+			}
+		}
+		return trimSlashes(this) + SEPARATOR + path;
+	}
+
 	static inline function isDriveLetter(c:Int):Bool {
 		return ('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code);
+	}
+
+	/**
+	 * Trims all trailing slashes even if it's the last slash of a root path.
+	 */
+	static function trimSlashes(s:NativeString):NativeString {
+		var i = s.length;
+		while(i >= 1) {
+			switch s[i] {
+				case '/'.code:
+				case '\\'.code if(SEPARATOR == '\\'):
+				case _: break;
+			}
+			--i;
+		}
+		return i == s.length ? s : s.sub(1, i);
 	}
 }
