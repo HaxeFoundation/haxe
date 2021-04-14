@@ -468,7 +468,12 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 							error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 				end;
 			end;
-			BinopResult.create_normal op e1 e2 tret needs_assign swapped p
+			(*
+				If the `@:op`-field has no expr, then user wants the semantics of an underlying type.
+				which is supposed to make an assignment for AssignOp's.
+				Hence we use `is_assign_op` here instead of `needs_assign`.
+			*)
+			BinopResult.create_normal op e1 e2 tret is_assign_op swapped p
 		end else if swapped then begin
 			let vr = new value_reference ctx in
 			let e2' = vr#as_var "lhs" e2 in
@@ -488,7 +493,8 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 		| _ ->
 			()
 	end;
-	let rec loop find_op ol = match ol with
+	let rec loop find_op ol =
+		match ol with
 		| (op_cf,cf) :: ol when op_cf = find_op ->
 			let is_impl = has_class_field_flag cf CfImpl in
 			begin
