@@ -300,19 +300,6 @@ let unify_field_call ctx fa el_typed el p inline =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				!make_call_ref ctx ef el ret ~force_inline:inline p
 			in
-			delay ctx PCheckConstraint (fun() ->
-				List.iter (fun t ->
-					match t with
-					| TMono m ->
-						let kind = Monomorph.classify_constraints m in
-						(try
-							Monomorph.check_constraints kind t
-						with Unify_error el ->
-							List.iter (fun e -> display_error ctx (unify_error_msg (print_context()) e) p) el
-						)
-					| _ -> ()
-				) monos
-			);
 			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
 		| t ->
 			error (s_type (print_context()) t ^ " cannot be called") p
