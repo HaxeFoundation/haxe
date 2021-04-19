@@ -165,6 +165,9 @@ module Monomorph = struct
 			if m != m2 then begin match m2.tm_type with
 			| None ->
 				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints;
+				(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
+				let mono_constraints,_ = classify_constraints' m in
+				List.iter (fun m3 -> constrain_to_type m3 None t) mono_constraints;
 				do_bind m t;
 			| Some t ->
 				bind m t
