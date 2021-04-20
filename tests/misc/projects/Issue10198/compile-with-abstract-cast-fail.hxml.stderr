@@ -1,3 +1,0 @@
-WithAbstractCast.hx:4: characters 3-53 : error: Int should be String
-WithAbstractCast.hx:4: characters 3-53 : ... have: Vector<Int>
-WithAbstractCast.hx:4: characters 3-53 : ... want: Vector<String>

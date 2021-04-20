@@ -155,17 +155,6 @@ module Monomorph = struct
 		m.tm_constraints <- []
 
 	let rec bind m t =
-		let propagate_constraints() =
-			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
-			   against before checking the constraints. *)
-			m.tm_type <- Some t;
-			let monos,kind = classify_constraints' m in
-			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
-			(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
-			List.iter (fun m2 ->
-				constrain_to_type m2 None t;
-			) monos;
-		in
 		begin match t with
 		| TAnon _ when List.mem MOpenStructure m.tm_constraints ->
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
@@ -175,14 +164,24 @@ module Monomorph = struct
 		| TMono m2 ->
 			if m != m2 then begin match m2.tm_type with
 			| None ->
-				propagate_constraints();
 				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints;
+				(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
+				let mono_constraints,_ = classify_constraints' m in
+				List.iter (fun m3 -> constrain_to_type m3 None t) mono_constraints;
 				do_bind m t;
 			| Some t ->
 				bind m t
 			end
 		| _ ->
-			propagate_constraints();
+			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
+			   against before checking the constraints. *)
+			m.tm_type <- Some t;
+			let monos,kind = classify_constraints' m in
+			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
+			(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
+			List.iter (fun m2 ->
+				constrain_to_type m2 None t;
+			) monos;
 			do_bind m t
 		end
 
