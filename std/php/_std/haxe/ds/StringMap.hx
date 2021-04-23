@@ -29,6 +29,7 @@ import php.NativeAssocArray;
 import haxe.Constraints;
 
 @:coreApi class StringMap<T> implements IMap<String, T> {
+	public var size(get, never):Int;
 	private var data:NativeAssocArray<T>;
 
 	public inline function new():Void {
@@ -85,5 +86,9 @@ import haxe.Constraints;
 
 	public inline function clear():Void {
 		data = new NativeAssocArray();
+	}
+	
+	private inline function get_size():Int {
+		return Global.count(data);
 	}
 }

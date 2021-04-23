@@ -28,6 +28,7 @@ import php.NativeArray;
 import php.NativeIndexedArray;
 
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	public var size(get, never):Int;
 	var data:NativeIndexedArray<T>;
 
 	public function new():Void {
@@ -84,5 +85,9 @@ import php.NativeIndexedArray;
 
 	public inline function clear():Void {
 		data = new NativeIndexedArray();
+	}
+	
+	private inline function get_size():Int {
+		return Global.count(data);
 	}
 }

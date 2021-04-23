@@ -108,6 +108,12 @@ import php.*;
 			len: Global.mb_strlen(matches[0][0])
 		};
 	}
+	
+	public function matchedNum():Int {
+		if(matches == null)
+			throw "No string matched";
+		return Global.count(matches);
+	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		var subject = len < 0 ? s : s.substr(0, pos + len);
