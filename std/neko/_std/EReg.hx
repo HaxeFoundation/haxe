@@ -217,9 +217,13 @@
 	
 	private static function fallback_matched_num(r:Dynamic):Int {
 		var i = 0;
+		var num = 0;
 		try {
-			while(regexp_matched(r, i) != null) i++;
+			while (true) {
+				if (regexp_matched(r, i) != null) num++;
+				i++;
+			}
 		} catch (_:Dynamic) {}
-		return i;
+		return num;
 	}
 }
