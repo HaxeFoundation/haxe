@@ -60,7 +60,7 @@
 	public function matchedNum():Int {
 		if (r.m == null)
 			throw "No string matched";
-		return r.m.length - 1;
+		return r.m.length;
 	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
