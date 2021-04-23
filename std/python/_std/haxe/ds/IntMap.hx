@@ -26,6 +26,7 @@ import python.Dict;
 import python.Syntax;
 
 class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	public var size(get, never):Int;
 	private var h:Dict<Int, T>;
 
 	public function new():Void {
@@ -87,5 +88,9 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 
 	public inline function clear():Void {
 		h.clear();
+	}
+	
+	private inline function get_size():Int {
+		return h.length;
 	}
 }
