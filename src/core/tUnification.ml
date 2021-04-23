@@ -52,6 +52,7 @@ let check_constraint name f =
 
 let unify_ref : (unification_context -> t -> t -> unit) ref = ref (fun _ _ _ -> ())
 let unify_min_ref : (unification_context -> t -> t list -> unify_min_result) ref = ref (fun _ _ _ -> assert false)
+let type_eq_ref : (unification_context -> t -> t -> unit) ref = ref (fun _ _ _ -> ())
 
 let default_unification_context = {
 	allow_transitive_cast = true;
@@ -65,12 +66,16 @@ module Monomorph = struct
 	let create () = {
 		tm_type = None;
 		tm_constraints = [];
+		tm_dependants = [];
 	}
 
 	(* constraining *)
 
 	let add_constraint m constr =
-		m.tm_constraints <- constr :: m.tm_constraints
+		m.tm_constraints <- constr :: m.tm_constraints;
+		match constr with
+		| MMono (m2,s) -> m2.tm_dependants <- (m,s) :: m2.tm_dependants
+		| _ -> ()
 
 	let constraint_of_type name t = match follow t with
 		| TMono m2 ->
@@ -152,7 +157,70 @@ module Monomorph = struct
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
 		m.tm_type <- Some t;
-		m.tm_constraints <- []
+		m.tm_constraints <- [];
+		m.tm_dependants <- []
+
+	(**
+		Check this monomorph does not cause conflicts in constraints of its dependants.
+	*)
+	let rec validate_dependants m =
+		let t = TMono m in
+		let rec get_check m2 =
+			match m2.tm_type with
+			| Some t2 ->
+				(match follow t2 with
+				| TMono m2 ->
+					get_check m2
+				| _ ->
+					(fun() -> (!unify_ref) default_unification_context t t2)
+				)
+			| None ->
+				let check() =
+					let m2_copy = { m2 with tm_type = m2.tm_type } in
+					(!unify_ref) default_unification_context t (TMono m2_copy)
+				in
+				let check_anon own_fields dependant_fields () =
+					PMap.iter (fun name f ->
+						try
+							let f2 = PMap.find name dependant_fields in
+							(!type_eq_ref) default_unification_context f.cf_type f2.cf_type
+						with Not_found ->
+							error [Has_no_field (t,name)];
+					) own_fields
+				in
+				match classify_constraints m2 with
+				| CStructural (fields,_) ->
+					(match follow t with
+					| TAnon a ->
+						check_anon a.a_fields fields
+					| TMono _ ->
+						(match classify_constraints m with
+						| CStructural (own_fields,_) -> check_anon own_fields fields
+						| _ -> check
+						)
+					|_ ->
+						check
+					)
+				| _ ->
+					check
+		in
+		List.iter (fun (m2,constraint_name) ->
+			let original_constraints = m2.tm_constraints in
+			m2.tm_constraints <- List.filter (function
+				| MMono (m',_) -> m' != m
+				| _ -> true
+			) m2.tm_constraints;
+			Std.finally
+				(fun() -> m2.tm_constraints <- original_constraints)
+				(fun() ->
+					let f = get_check m2 in
+					(match constraint_name with
+					| Some name -> check_constraint name f
+					| None -> f());
+					validate_dependants m2
+				)
+				()
+		) m.tm_dependants
 
 	let rec bind m t =
 		begin match t with
@@ -164,7 +232,7 @@ module Monomorph = struct
 		| TMono m2 ->
 			if m != m2 then begin match m2.tm_type with
 			| None ->
-				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints;
+				List.iter (add_constraint m2) m.tm_constraints;
 				do_bind m t;
 			| Some t ->
 				bind m t
@@ -174,7 +242,13 @@ module Monomorph = struct
 			   against before checking the constraints. *)
 			m.tm_type <- Some t;
 			let monos,kind = classify_constraints' m in
-			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
+			Std.finally
+				(fun () -> m.tm_type <- None)
+				(fun () ->
+					check_constraints kind t;
+					validate_dependants m
+				)
+				();
 			(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
 			List.iter (fun m2 ->
 				constrain_to_type m2 None t;
@@ -1142,4 +1216,5 @@ end
 ;;
 unify_ref := unify_custom;;
 unify_min_ref := UnifyMinT.unify_min;;
+type_eq_ref := type_eq_custom;;
 monomorph_classify_constraints_ref := Monomorph.classify_constraints

@@ -45,6 +45,7 @@ type t =
 and tmono = {
 	mutable tm_type : t option;
 	mutable tm_constraints : tmono_constraint list;
+	mutable tm_dependants : (tmono * string option) list; (* monomorphs which has this one as a constraint *)
 }
 
 and tmono_constraint =
