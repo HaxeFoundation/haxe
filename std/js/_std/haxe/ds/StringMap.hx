@@ -26,8 +26,74 @@ import js.lib.Object;
 import haxe.Constraints.IMap;
 import haxe.DynamicAccess;
 
-#if (js_es >= 5)
+#if (js_es >= 6)
 @:coreApi class StringMap<T> implements IMap<String, T> {
+	public var size(get, never):Int;
+	private var m:js.lib.Map<String, T>;
+	
+	public inline function new(map = new js.lib.Map()):Void {
+		m = map;
+	}
+	
+	public inline function set(key:String, value:T): Void {
+		m.set(key, value);
+	}
+	
+	public inline function get(key:String):Null<T> {
+		return m.get(key);
+	}
+	
+	public inline function exists(key:String):Bool {
+		return m.has(key);
+	}
+	
+	public inline function remove(key:String):Bool {
+		return m.delete(key);
+	}
+	
+	public inline function keys():Iterator<String> {
+		return new js.lib.HaxeIterator(m.keys());
+	}
+	
+	public inline function iterator():Iterator<T> {
+		return m.iterator();
+	}
+	
+	public inline function keyValueIterator():KeyValueIterator<String, T> {
+		return m.keyValueIterator();
+	}
+	
+	public inline function copy():StringMap<T> {
+		return new StringMap(new js.lib.Map(m));
+	}
+	
+	public function toString():String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keyValueIterator();
+		for (i in it) {
+			s.add(i.key);
+			s.add(" => ");
+			s.add(Std.string(i.value));
+			if (it.hasNext())
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+	
+	public inline function clear():Void {
+		m.clear();
+	}
+	
+	private inline function get_size():Int {
+		return m.size;
+	}
+}
+
+#elseif (js_es == 5)
+@:coreApi class StringMap<T> implements IMap<String, T> {
+	public var size(get, never):Int;
 	var h:Dynamic;
 
 	public inline function new() {
@@ -76,6 +142,12 @@ import haxe.DynamicAccess;
 
 	public inline function toString():String {
 		return stringify(h);
+	}
+	
+	private inline function get_size():Int {
+		var s = 0;
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
+		return s;
 	}
 
 	// impl
@@ -186,6 +258,7 @@ private class StringMapIterator<T> {
 }
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	public var size(get, never):Int;
 	private var h:Dynamic;
 	private var rh:Dynamic;
 
@@ -303,6 +376,12 @@ private class StringMapIterator<T> {
 	public inline function clear():Void {
 		h = {};
 		rh = null;
+	}
+	
+	private inline function get_size():Int {
+		var s = 0;
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
+		return s;
 	}
 
 	static function __init__():Void {

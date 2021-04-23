@@ -22,7 +22,74 @@
 
 package haxe.ds;
 
+#if (js_es >= 6)
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	public var size(get, never):Int;
+	private var m:js.lib.Map<Int, T>;
+	
+	public inline function new(map = new js.lib.Map()):Void {
+		m = map;
+	}
+	
+	public inline function set(key:Int, value:T): Void {
+		m.set(key, value);
+	}
+	
+	public inline function get(key:Int):Null<T> {
+		return m.get(key);
+	}
+	
+	public inline function exists(key:Int):Bool {
+		return m.has(key);
+	}
+	
+	public inline function remove(key:Int):Bool {
+		return m.delete(key);
+	}
+	
+	public inline function keys():Iterator<Int> {
+		return new js.lib.HaxeIterator(m.keys());
+	}
+	
+	public inline function iterator():Iterator<T> {
+		return m.iterator();
+	}
+	
+	public inline function keyValueIterator():KeyValueIterator<Int, T> {
+		return m.keyValueIterator();
+	}
+	
+	public inline function copy():IntMap<T> {
+		return new IntMap(new js.lib.Map(m));
+	}
+	
+	public function toString():String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keyValueIterator();
+		for (i in it) {
+			s.add(i.key);
+			s.add(" => ");
+			s.add(Std.string(i.value));
+			if (it.hasNext())
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+	
+	public inline function clear():Void {
+		m.clear();
+	}
+	
+	private inline function get_size():Int {
+		return m.size;
+	}
+}
+
+#else
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	public var size(get, never):Int;
 	private var h:Dynamic;
 
 	public inline function new():Void {
@@ -97,4 +164,11 @@ package haxe.ds;
 	public inline function clear():Void {
 		h = {};
 	}
+	
+	private inline function get_size():Int {
+		var s = 0;
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
+		return s;
+	}
 }
+#end

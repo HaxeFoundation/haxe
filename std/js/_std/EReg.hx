@@ -56,6 +56,12 @@
 			throw "No string matched";
 		return {pos: r.m.index, len: r.m[0].length};
 	}
+	
+	public function matchedNum():Int {
+		if (r.m == null)
+			throw "No string matched";
+		return r.m.length - 1;
+	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		return if (r.global) {

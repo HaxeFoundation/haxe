@@ -25,9 +25,77 @@ package haxe.ds;
 import js.Syntax;
 import js.Lib;
 
+#if (js_es >= 6)
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
+	public var size(get, never):Int;
+	private var m:js.lib.Map<K, V>;
+	
+	public inline function new(map = new js.lib.Map()):Void {
+		m = map;
+	}
+	
+	public inline function set(key:K, value:V): Void {
+		m.set(key, value);
+	}
+	
+	public inline function get(key:K):Null<V> {
+		return m.get(key);
+	}
+	
+	public inline function exists(key:K):Bool {
+		return m.has(key);
+	}
+	
+	public inline function remove(key:K):Bool {
+		return m.delete(key);
+	}
+	
+	public inline function keys():Iterator<K> {
+		return new js.lib.HaxeIterator(m.keys());
+	}
+	
+	public inline function iterator():Iterator<V> {
+		return m.iterator();
+	}
+	
+	public inline function keyValueIterator():KeyValueIterator<K, V> {
+		return m.keyValueIterator();
+	}
+	
+	public inline function copy():ObjectMap<K, V> {
+		return new ObjectMap(new js.lib.Map(m));
+	}
+	
+	public function toString():String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keyValueIterator();
+		for (i in it) {
+			s.add(Std.string(i.key));
+			s.add(" => ");
+			s.add(Std.string(i.value));
+			if (it.hasNext())
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+	
+	public inline function clear():Void {
+		m.clear();
+	}
+	
+	private inline function get_size():Int {
+		return m.size;
+	}
+}
 
+#else
+@:coreApi
+class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
+	public var size(get, never):Int;
+	
 	static inline function assignId(obj:{}):Int {
 		return Syntax.code('({0}.__id__ = {1})', obj, Lib.getNextHaxeUID());
 	}
@@ -122,4 +190,11 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	public inline function clear():Void {
 		h = {__keys__: {}};
 	}
+	
+	private inline function get_size():Int {
+		var s = 0;
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h.__keys__, s);
+		return s;
+	}
 }
+#end
