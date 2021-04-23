@@ -1,0 +1,3 @@
+Main2.hx:4: characters 3-50 : error: { id : String, createDate : Date } has no field project
+Main2.hx:4: characters 3-50 : ... have: Vector<Bar>
+Main2.hx:4: characters 3-50 : ... want: Vector<{ ?project, id }>

@@ -1,0 +1,3 @@
+Main1.hx:11: characters 2-42 : error: Int should be String
+Main1.hx:11: characters 2-42 : ... have: Array<Int>
+Main1.hx:11: characters 2-42 : ... want: Array<String>
