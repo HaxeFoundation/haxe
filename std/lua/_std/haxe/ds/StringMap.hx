@@ -25,6 +25,7 @@ package haxe.ds;
 import lua.Lua;
 
 class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	public var size(get, never):Int;
 	private var h:lua.Table<String, T>;
 
 	static var tnull:Dynamic = lua.Table.create();
@@ -115,5 +116,11 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 
 	public inline function clear():Void {
 		h = lua.Table.create();
+	}
+	
+	private function get_size():Int {
+		var s = 0;
+		untyped __lua__("for _ in pairs({0}) do s = s + 1 end", h);
+		return s;
 	}
 }

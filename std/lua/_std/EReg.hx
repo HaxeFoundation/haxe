@@ -110,6 +110,15 @@ class EReg {
 			len: matched.length
 		}
 	}
+	
+	public function matchedNum():Int {
+		if (m == null)
+			throw "No string matched";
+		else if (m[1] == null)
+			return 0;
+		else
+			return 1 + untyped __lua_length__(m[3]) / 2;
+	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		var ss = s.substr(0, len < 0 ? s.length : pos + len);

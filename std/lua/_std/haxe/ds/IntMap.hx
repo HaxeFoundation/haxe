@@ -25,6 +25,7 @@ package haxe.ds;
 import lua.Lua;
 
 class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	public var size(get, never):Int;
 	private var h:lua.Table<Int, T>;
 
 	static var tnull:Dynamic = lua.Table.create();
@@ -111,5 +112,11 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 
 	public inline function clear():Void {
 		h = lua.Table.create();
+	}
+	
+	private function get_size():Int {
+		var s = 0;
+		untyped __lua__("for _ in pairs({0}) do s = s + 1 end", h);
+		return s;
 	}
 }
