@@ -28,6 +28,7 @@ package haxe.ds;
 	with some reserved keys such as `constructor` or `prototype`.
 **/
 class UnsafeStringMap<T> implements haxe.Constraints.IMap<String, T> {
+	public var size(get, never):Int;
 	private var h:flash.utils.Dictionary;
 
 	public function new():Void {
@@ -89,6 +90,12 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String, T> {
 
 	public inline function clear():Void {
 		h = new flash.utils.Dictionary();
+	}
+	
+	private function get_size():Int {
+		var s = 0;
+		for(_ in keys()) s++;
+		return s;
 	}
 }
 
