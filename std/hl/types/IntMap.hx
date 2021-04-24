@@ -65,6 +65,13 @@ abstract IntMap(IntMapData) {
 	@:hlNative("std", "hiclear")
 	public function clear():Void {}
 	#end
+	
+	#if (hl_ver >= version("1.12.0"))
+	@:hlNative("std", "hisize")
+	public function size():Int {
+		return 0;
+	}
+	#end
 
 	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());

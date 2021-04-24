@@ -24,6 +24,7 @@ package haxe.ds;
 
 @:coreApi
 class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	public var size(get, never):Int;
 	var h:hl.types.IntMap;
 
 	public function new():Void {
@@ -86,6 +87,14 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		@:privateAccess h.clear();
 		#else
 		h = new hl.types.IntMap();
+		#end
+	}
+	
+	private function get_size():Int {
+		#if (hl_ver >= version("1.12.0"))
+		return h.size();
+		#else
+		return h.keysArray().length;
 		#end
 	}
 }
