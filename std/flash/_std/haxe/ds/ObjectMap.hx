@@ -24,6 +24,8 @@ package haxe.ds;
 
 @:coreApi
 class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constraints.IMap<K, V> {
+	public var size(get, never):Int;
+	
 	public function new() {
 		super(false);
 	}
@@ -79,6 +81,12 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 	public function clear():Void {
 		for (i in keys())
 			untyped __delete__(this, i);
+	}
+	
+	private function get_size():Int {
+		var s = 0;
+		for(_ in keys()) s++;
+		return s;
 	}
 }
 
