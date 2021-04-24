@@ -24,6 +24,7 @@ package haxe.ds;
 
 @:coreApi
 class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	public var size(get, never):Int;
 	var hashMap:java.util.HashMap<String, T>;
 
 	@:overload
@@ -87,5 +88,9 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 
 	public function clear():Void {
 		hashMap.clear();
+	}
+	
+	private inline function get_size():Int {
+		return hashMap.size();
 	}
 }
