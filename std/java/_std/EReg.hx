@@ -106,6 +106,14 @@ using StringTools;
 		var start = matcher.start();
 		return {pos: start, len: matcher.end() - start};
 	}
+	
+	public function matchedNum():Int {
+		if(matcher.group() == null) {
+			return 0;
+		} else {
+			return matcher.groupCount() + 1;
+		}
+	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		matcher = matcher.reset(len < 0 ? s : s.substr(0, pos + len));

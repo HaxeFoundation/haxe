@@ -39,7 +39,7 @@ import java.NativeArray;
 	private var vals:NativeArray<T>;
 
 	private var nBuckets:Int;
-	private var size:Int;
+	public var size(get, null):Int;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
@@ -389,6 +389,10 @@ import java.NativeArray;
 		cachedKey = 0;
 		cachedIndex = -1;
 		#end
+	}
+	
+	private inline function get_size():Int {
+		return size;
 	}
 
 	private static inline function assert(x:Bool):Void {

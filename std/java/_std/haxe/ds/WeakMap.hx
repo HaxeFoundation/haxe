@@ -47,7 +47,7 @@ import java.lang.ref.ReferenceQueue;
 	private var queue:ReferenceQueue<K>;
 
 	private var nBuckets:Int;
-	private var size:Int;
+	public var size(get, null):Int;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
@@ -435,6 +435,10 @@ import java.lang.ref.ReferenceQueue;
 		sameHash = 0;
 		maxProbe = 0;
 		#end
+	}
+	
+	private inline function get_size():Int {
+		return size;
 	}
 
 	extern private static inline function roundUp(x:Int):Int {
