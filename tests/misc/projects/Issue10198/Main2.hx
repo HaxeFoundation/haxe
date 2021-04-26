@@ -1,18 +1,8 @@
 class Main2 {
 	static function main() {
-		var foo:Vector<Foo> = null;
-		var bar:Vector<Bar> = Vector.fromIterable(foo);
+		var foo:Vector<String> = null;
+		var bar:Vector<Int> = Vector.fromIterable(foo);
 	}
-}
-
-typedef Foo = {
-	final id:String;
-	final ?project:String;
-}
-
-typedef Bar = {
-	final id:String;
-	final createDate:Date;
 }
 
 abstract Vector<T>(Array<T>) {
