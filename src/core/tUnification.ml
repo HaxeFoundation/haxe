@@ -65,12 +65,19 @@ module Monomorph = struct
 	let create () = {
 		tm_type = None;
 		tm_constraints = [];
+		tm_dependants = []
 	}
 
 	(* constraining *)
 
+	let add_dependant m dep =
+		m.tm_dependants <- dep :: m.tm_dependants
+
 	let add_constraint m constr =
-		m.tm_constraints <- constr :: m.tm_constraints
+		m.tm_constraints <- constr :: m.tm_constraints;
+		match constr with
+		| MMono (m2,s) -> add_dependant m2 (m,s)
+		| _ -> ()
 
 	let constraint_of_type name t = match follow t with
 		| TMono m2 ->
@@ -152,7 +159,29 @@ module Monomorph = struct
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
 		m.tm_type <- Some t;
-		m.tm_constraints <- []
+		m.tm_constraints <- [];
+		m.tm_dependants <- []
+
+	(**
+		Check `t` does not conflict with dependants of `m`.
+	*)
+	let rec validate_dependants m t =
+		List.iter (fun (m2,constraint_name) ->
+			(match m2.tm_type with
+			| None -> ()
+			| Some t2 ->
+				match follow t2 with
+				| TMono _ -> ()
+				| _ ->
+					let check() =
+						(!unify_ref) default_unification_context t2 t
+					in
+					match constraint_name with
+					| Some name -> check_constraint name check
+					| None -> check()
+			);
+			validate_dependants m2 t
+		) m.tm_dependants
 
 	let rec bind m t =
 		begin match t with
@@ -164,21 +193,23 @@ module Monomorph = struct
 		| TMono m2 ->
 			if m != m2 then begin match m2.tm_type with
 			| None ->
-				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints;
+				List.iter (add_constraint m2) m.tm_constraints;
+				List.iter (add_dependant m2) m.tm_dependants;
 				do_bind m t;
 			| Some t ->
 				bind m t
 			end
 		| _ ->
+			validate_dependants m t;
 			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
 			   against before checking the constraints. *)
 			m.tm_type <- Some t;
 			let monos,kind = classify_constraints' m in
 			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
-			(* If the monomorph we're binding to has other yet unbound monomorphs, bind them to our target type (issue #9640) .*)
-			List.iter (fun m2 ->
-				bind m2 t
-			) monos;
+			(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
+			(* List.iter (fun m2 ->
+				constrain_to_type m2 None t;
+			) monos; *)
 			do_bind m t
 		end
 
@@ -216,7 +247,7 @@ module Monomorph = struct
 	let spawn_constrained_monos map params =
 		let checks = DynArray.create () in
 		let monos = List.map (fun (s,t) ->
-			let mono = create() in
+			let mono = create () in
 			begin match follow t with
 				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->
 					DynArray.add checks (mono,constr,s_type_path path)
