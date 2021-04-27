@@ -1,0 +1,4 @@
+Main.hx:21: characters 3-23 : String should be Int
+Main.hx:22: characters 3-32 : String should be Int
+Main.hx:23: characters 3-39 : Foo should be Bar
+Main.hx:23: characters 3-39 : ... { ?project : Null<String>, id : String } has no field createDate

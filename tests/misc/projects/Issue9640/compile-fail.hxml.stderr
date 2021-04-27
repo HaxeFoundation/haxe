@@ -1,3 +1,4 @@
-Main.hx:5: characters 9-13 : Warning : Mono<Unknown<0> : Foo>
-Main.hx:8: characters 3-36 : BarLike should be Foo
-Main.hx:10: characters 9-13 : Warning : Mono<Unknown<0> : Foo>
+Main.hx:5: characters 9-13 : Warning : Mono<Foo>
+Main.hx:8: characters 3-36 : Foo should be BarLike
+Main.hx:8: characters 3-36 : ... Foo has no field bar
+Main.hx:10: characters 9-13 : Warning : Mono<Foo>
