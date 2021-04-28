@@ -354,7 +354,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				(mk_field i (mk_mono()) p null_pos) with
 				cf_kind = Var { v_read = AccNormal; v_write = if is_set then AccNormal else AccNo }
 			} in
-			(match Monomorph.classify_constraints r with
+			(match Monomorph.classify_down_constraints r with
 			| CStructural (fields,is_open) ->
 				(try
 					let f = PMap.find i fields in
@@ -365,7 +365,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					field_access f FHAnon
 				with Not_found when is_open ->
 					let f = mk_field() in
-					Monomorph.add_constraint r (MField f);
+					Monomorph.add_down_constraint r (MField f);
 					field_access f FHAnon
 				)
 			| CTypes tl ->
@@ -374,8 +374,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
 					ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
 				let f = mk_field() in
-				Monomorph.add_constraint r (MField f);
-				Monomorph.add_constraint r MOpenStructure;
+				Monomorph.add_down_constraint r (MField f);
+				Monomorph.add_down_constraint r MOpenStructure;
 				field_access f FHAnon
 			)
 		| TAbstract (a,tl) ->
@@ -477,7 +477,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		match t with
 		| TType (td,tl) -> type_field_by_typedef type_field_by_module_extension e td tl
 		| TMono r ->
-			(match Monomorph.classify_constraints r with
+			(match Monomorph.classify_down_constraints r with
 			| CStructural (_,is_open) when not is_open -> type_field_by_extension()
 			| _ -> raise Not_found
 			)
