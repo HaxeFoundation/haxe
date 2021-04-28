@@ -206,10 +206,6 @@ module Monomorph = struct
 			m.tm_type <- Some t;
 			let monos,kind = classify_constraints' m in
 			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
-			(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
-			(* List.iter (fun m2 ->
-				constrain_to_type m2 None t;
-			) monos; *)
 			do_bind m t
 		end
 
