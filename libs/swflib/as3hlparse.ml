@@ -886,7 +886,7 @@ let flatten t =
 		Array.iter (browse_field ctx) s.hls_fields;
 		browse_method ctx s.hls_method;
 	) t;
-	let classes =List.sort (fun c1 c2 -> c1.hlc_index - c2.hlc_index) (List.rev !classes) in
+	let classes = List.sort (fun c1 c2 -> c1.hlc_index - c2.hlc_index) (List.rev !classes) in
 	let methods = List.sort (fun m1 m2 -> m1.hlmt_index - m2.hlmt_index) (List.rev !methods) in
 	(* done *)
 	let rec ctx = {
