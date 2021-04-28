@@ -318,7 +318,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			| [] -> [],[]
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
-					m,m.tm_type,m.tm_constraints
+					m,m.tm_type,m.tm_down_constraints
 				) ctx.monomorphs.perfunction in
 				let current_monos = ctx.monomorphs.perfunction in
 				begin try
@@ -332,7 +332,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				with Error ((Call_error cerr as err),p) ->
 					List.iter (fun (m,t,constr) ->
 						if t != m.tm_type then m.tm_type <- t;
-						if constr != m.tm_constraints then m.tm_constraints <- constr;
+						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
 					ctx.monomorphs.perfunction <- current_monos;
 					maybe_raise_unknown_ident cerr p;
