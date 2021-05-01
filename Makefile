@@ -46,7 +46,7 @@ endif
 
 ADD_REVISION?=0
 
-BRANCH=$(shell echo $$APPVEYOR_REPO_NAME | grep -q /haxe && echo $$APPVEYOR_REPO_BRANCH || echo $$TRAVIS_REPO_SLUG | grep -q /haxe && echo $$TRAVIS_BRANCH || git rev-parse --abbrev-ref HEAD)
+BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 COMMIT_SHA=$(shell git rev-parse --short HEAD)
 COMMIT_DATE=$(shell \
 	if [ "$$(uname)" = "Darwin" ]; then \

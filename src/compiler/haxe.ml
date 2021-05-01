@@ -41,7 +41,7 @@
 	trailing l means list (but we also use natural plurals such as "metas")
 	semantic suffixes may be used freely (e.g. e1, e_if, e')
 *)
-
+open Extlib_leftovers
 open Printf
 open Common
 open DisplayTypes.DisplayMode
@@ -158,27 +158,36 @@ let run_command ctx cmd =
 	let t = Timer.timer ["command"] in
 	let cmd = expand_env ~h:(Some h) cmd in
 	let len = String.length cmd in
-	if len > 3 && String.sub cmd 0 3 = "cd " then begin
-		Sys.chdir (String.sub cmd 3 (len - 3));
-		0
-	end else
-	let binary_string s =
-		if not Globals.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
+	let result =
+		if len > 3 && String.sub cmd 0 3 = "cd " then begin
+			Sys.chdir (String.sub cmd 3 (len - 3));
+			0
+		(* Emit stderr as a server message in server mode *)
+		end else if CompilationServer.runs() then begin
+			let binary_string s =
+				if not Globals.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
+			in
+			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
+			let bout = Buffer.create 0 in
+			let berr = Buffer.create 0 in
+			let read_content channel buf =
+				Buffer.add_string buf (IO.read_all (IO.input_channel channel));
+			in
+			let tout = Thread.create (fun() -> read_content pout bout) () in
+			read_content perr berr;
+			Thread.join tout;
+			let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
+			let serr = binary_string (Buffer.contents berr) in
+			let sout = binary_string (Buffer.contents bout) in
+			if serr <> "" then ctx.messages <- CMError((if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr),null_pos) :: ctx.messages;
+			if sout <> "" then ctx.com.print (sout ^ "\n");
+			result
+		(* Direct pass-through of std streams for normal compilation *)
+		end else begin
+			match Unix.system cmd with
+			| WEXITED c | WSIGNALED c | WSTOPPED c -> c
+		end
 	in
-	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
-	let bout = Buffer.create 0 in
-	let berr = Buffer.create 0 in
-	let read_content channel buf =
-		Buffer.add_string buf (IO.read_all (IO.input_channel channel));
-	in
-	let tout = Thread.create (fun() -> read_content pout bout) () in
-	read_content perr berr;
-	Thread.join tout;
-	let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
-	let serr = binary_string (Buffer.contents berr) in
-	let sout = binary_string (Buffer.contents bout) in
-	if serr <> "" then ctx.messages <- CMError((if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr),null_pos) :: ctx.messages;
-	if sout <> "" then ctx.com.print (sout ^ "\n");
 	t();
 	result
 
@@ -558,7 +567,8 @@ let handle_display ctx tctx display_file_dot_path =
 	if ctx.com.display.dms_exit_during_typing then begin
 		if ctx.has_next || ctx.has_error then raise Abort;
 		(* If we didn't find a completion point, load the display file in macro mode. *)
-		ignore(load_display_module_in_macro tctx display_file_dot_path true);
+		if com.display_information.display_module_has_macro_defines then
+			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		let no_completion_point_found = "No completion point was found" in
 		match com.json_out with
 		| Some _ -> (match ctx.com.display.dms_kind with
@@ -765,8 +775,9 @@ try
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),"","interpret the program using internal macro system");
-		("Target",["--run"],[], Arg.Unit (fun() -> die "" __LOC__), "<module> [args...]","interpret a Haxe module with command line arguments");
-
+		("Target",["--run"],[], Arg.Unit (fun() ->
+			raise (Arg.Bad "--run requires an argument: a Haxe module name")
+		), "<module> [args...]","interpret a Haxe module with command line arguments");
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			process_libs();
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
@@ -854,7 +865,10 @@ try
 		),"<file>","use the SWF library for type checking");
 		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
 			add_native_lib file false;
-		),"<file>","add an external JAR or class directory library");
+		),"<file>","add an external JAR or directory of JAR files");
+		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
+			add_native_lib file true;
+		),"<file>","use an external JAR or directory of JAR files for type checking");
 		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>[@std]","add an external .NET DLL file");
@@ -942,7 +956,7 @@ try
 		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			(* This is handled by process_params, but passed through so we know we did something. *)
 			did_something := true;
-		),"<dir>","set current working directory");
+		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 	] in
 	let args_callback cl =
@@ -1093,7 +1107,7 @@ with
 			ctx.messages <- [];
 		end else begin
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
-			List.iter (error ctx "    referenced here") (List.rev pl);
+			List.iter (error ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p

@@ -37,7 +37,7 @@ let is_read_only_field_access e fa = match fa with
 		begin match cf.cf_kind with
 			| Method MethDynamic -> false
 			| Method _ -> true
-			| Var {v_write = AccNever} when not c.cl_interface -> true
+			| Var {v_write = AccNever} when not (has_class_flag c CInterface) -> true
 			| _ -> false
 		end
 	| FAnon cf | FClosure(None,cf) ->
@@ -52,7 +52,7 @@ let create_affection_checker () =
 	let rec might_be_affected e =
 		let rec loop e = match e.eexpr with
 			| TConst _ | TFunction _ | TTypeExpr _ -> ()
-			| TLocal {v_capture = true} -> raise Exit
+			| TLocal v when has_var_flag v VCaptured -> raise Exit
 			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
 			| TField(e1,fa) when not (is_read_only_field_access e1 fa) -> raise Exit
 			| TCall _ | TNew _ -> raise Exit

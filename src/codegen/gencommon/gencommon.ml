@@ -691,7 +691,7 @@ let reorder_modules gen =
 
 let run_filters_from gen t filters =
 	match t with
-	| TClassDecl c ->
+	| TClassDecl c when not (FiltersCommon.is_removable_class c) ->
 		trace (snd c.cl_path);
 		gen.gcurrent_path <- c.cl_path;
 		gen.gcurrent_class <- Some(c);
@@ -719,7 +719,7 @@ let run_filters_from gen t filters =
 		| None -> ()
 		| Some e ->
 			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
-	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
+	| TClassDecl _ | TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 
 let run_filters gen =
@@ -839,12 +839,12 @@ let write_file gen w source_dir path extension out_files =
 		close_out f
 	end;
 
-	out_files := (Path.UniqueKey.create s_path) :: !out_files;
+	out_files := (gen.gcon.file_keys#get s_path) :: !out_files;
 
 	t()
 
 
-let clean_files path excludes verbose =
+let clean_files gen path excludes verbose =
 	let rec iter_files pack dir path = try
 		let file = Unix.readdir dir in
 
@@ -854,7 +854,7 @@ let clean_files path excludes verbose =
 				let pack = pack @ [file] in
 				iter_files (pack) (Unix.opendir filepath) filepath;
 				try Unix.rmdir filepath with Unix.Unix_error (ENOTEMPTY,_,_) -> ();
-			else if not (String.ends_with filepath ".meta") && not (List.mem (Path.UniqueKey.create filepath) excludes) then begin
+			else if not (String.ends_with filepath ".meta") && not (List.mem (gen.gcon.file_keys#get filepath) excludes) then begin
 				if verbose then print_endline ("Removing " ^ filepath);
 			 	Sys.remove filepath
 			end
@@ -902,7 +902,7 @@ let dump_descriptor gen name path_s module_s =
 		SourceWriter.newline w;
 		List.iter (fun m ->
 			match m with
-				| TClassDecl cl when not cl.cl_extern ->
+				| TClassDecl cl when not (has_class_flag cl CExtern) ->
 					SourceWriter.write w "C ";
 					let s = module_s m in
 					Hashtbl.add main_paths cl.cl_path s;
@@ -996,6 +996,66 @@ let get_real_fun gen t =
 let mk_nativearray_decl gen t el pos =
 	mk (TCall (mk (TIdent "__array__") t_dynamic pos, el)) (gen.gclasses.nativearray t) pos
 
+
+let get_boxed gen t =
+	let get path =
+		try type_of_module_type (Hashtbl.find gen.gtypes path)
+		with Not_found -> t
+	in
+	match follow t with
+	| TAbstract({ a_path = ([],"Bool") }, []) ->
+		get (["java";"lang"], "Boolean")
+	| TAbstract({ a_path = ([],"Float") }, []) ->
+		get (["java";"lang"], "Double")
+	| TAbstract({ a_path = ([],"Int") }, []) ->
+		get (["java";"lang"], "Integer")
+	| TAbstract({ a_path = (["java"],"Int8") }, []) ->
+		get (["java";"lang"], "Byte")
+	| TAbstract({ a_path = (["java"],"Int16") }, []) ->
+		get (["java";"lang"], "Short")
+	| TAbstract({ a_path = (["java"],"Char16") }, []) ->
+		get (["java";"lang"], "Character")
+	| TAbstract({ a_path = ([],"Single") }, []) ->
+		get (["java";"lang"], "Float")
+	| TAbstract({ a_path = (["java"],"Int64") }, [])
+	| TAbstract({ a_path = (["haxe"],"Int64") }, []) ->
+		get (["java";"lang"], "Long")
+	| _ -> t
+
+(**
+	Wraps rest arguments into a native array.
+	E.g. transforms params from `callee(param, rest1, rest2, ..., restN)` into
+	`callee(param, untyped __array__(rest1, rest2, ..., restN))`
+*)
+let wrap_rest_args gen callee_type params p =
+	match follow callee_type with
+	| TFun(args, _) ->
+		let rec loop args params =
+			match args, params with
+			(* last argument expects rest parameters *)
+			| [(_,_,t)], params when ExtType.is_rest (follow t) ->
+				(match params with
+				(* In case of `...rest` just use `rest` *)
+				| [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
+				(* In other cases: `untyped __array__(param1, param2, ...)` *)
+				| _ ->
+					match Abstract.follow_with_abstracts t with
+					| TInst ({ cl_path = _,"NativeArray" }, [t1]) ->
+						let t1 = if Common.defined gen.gcon Define.EraseGenerics then t_dynamic else get_boxed gen t1 in
+						[mk_nativearray_decl gen t1 params (punion_el p params)]
+					| _ ->
+						die ~p "Unexpected rest arguments type" __LOC__
+				)
+			| a :: args, e :: params ->
+				e :: loop args params
+			| [], params ->
+				params
+			| _ :: _, [] ->
+				[]
+		in
+		loop args params
+	| _ -> params
+
 let ensure_local com block name e =
 	match e.eexpr with
 	| TLocal _ -> e
@@ -1042,30 +1102,6 @@ let mt_to_t_dyn md =
 		| TEnumDecl e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_params)
 		| TAbstractDecl a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_params)
 		| TTypeDecl t -> TType(t, List.map (fun _ -> t_dynamic) t.t_params)
-
-let mt_to_t mt params =
-	match mt with
-		| TClassDecl (cl) -> TInst(cl, params)
-		| TEnumDecl (e) -> TEnum(e, params)
-		| TAbstractDecl a -> TAbstract(a, params)
-		| _ -> die "" __LOC__
-
-let t_to_mt t =
-	match follow t with
-		| TInst(cl, _) -> TClassDecl(cl)
-		| TEnum(e, _) -> TEnumDecl(e)
-		| TAbstract(a, _) -> TAbstractDecl a
-		| _ -> die "" __LOC__
-
-let rec get_last_ctor cl =
-	Option.map_default (fun (super,_) -> if is_some super.cl_constructor then Some(get super.cl_constructor) else get_last_ctor super) None cl.cl_super
-
-let add_constructor cl cf =
-	match cl.cl_constructor with
-	| None -> cl.cl_constructor <- Some cf
-	| Some ctor ->
-			if ctor != cf && not (List.memq cf ctor.cf_overloads) then
-				ctor.cf_overloads <- cf :: ctor.cf_overloads
 
 (* replace open TMonos with TDynamic *)
 let rec replace_mono t =
@@ -1125,7 +1161,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	let rec loop_cl depth c tl tlch =
 		(try
 			let ret = PMap.find field c.cl_fields in
-			if Meta.has Meta.Overload ret.cf_meta then is_overload := true;
+			if has_class_field_flag ret CfOverload then is_overload := true;
 			match !chosen, exact_field with
 			| Some(d,f,_,_,_), _ when depth <= d || (is_var ret && not (is_var f)) -> ()
 			| _, None ->
@@ -1144,7 +1180,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 			let tlch = List.map (apply_params c.cl_params tlch) stl in
 			loop_cl (depth+1) sup tl tlch
 		| None -> ());
-		if c.cl_interface then
+		if (has_class_flag c CInterface) then
 			List.iter (fun (sup,stl) ->
 				let tl = List.map (apply_params c.cl_params tl) stl in
 				let stl = gen.greal_type_param (TClassDecl sup) stl in
@@ -1157,8 +1193,8 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	| None ->
 		None
 	| Some(_,f,c,tl,tlch) ->
-		if !is_overload && not (Meta.has Meta.Overload f.cf_meta) then
-			f.cf_meta <- (Meta.Overload,[],f.cf_pos) :: f.cf_meta;
+		if !is_overload && not (has_class_field_flag f CfOverload) then
+			add_class_field_flag f CfOverload;
 		let declared_t = apply_params c.cl_params tl f.cf_type in
 		let params_t = apply_params c.cl_params tlch f.cf_type in
 		let actual_t = match follow params_t with

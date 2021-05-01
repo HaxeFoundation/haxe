@@ -1,0 +1,301 @@
+# TODO: support skip ci (https://github.community/t/github-actions-does-not-respect-skip-ci/17325/8)
+
+name: CI
+on: [push, pull_request]
+
+jobs:
+  cancel:
+    name: "Cancel previous runs"
+    runs-on: ubuntu-18.04
+    timeout-minutes: 3
+    steps:
+      - uses: styfle/cancel-workflow-action@0.3.1
+        with:
+          workflow_id: 1447568
+          access_token: ${{ github.token }}
+
+  windows64-build:
+    runs-on: windows-latest
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      PLATFORM: windows64
+      OPAMYES: 1
+      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
+      ARCH: 64
+      MINGW_ARCH: x86_64
+      CYGWIN_SETUP: https://cygwin.com/setup-x86_64.exe
+      CYG_ROOT: C:/cygwin64
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      @import install-neko.yml
+      @import build-windows.yml
+
+  windows-build:
+    runs-on: windows-latest
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      PLATFORM: windows
+      OPAMYES: 1
+      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
+      ARCH: 32
+      MINGW_ARCH: i686
+      CYGWIN_SETUP: https://cygwin.com/setup-x86.exe
+      CYG_ROOT: C:/cygwin
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      @import install-neko.yml
+      @import build-windows.yml
+
+  linux-build:
+    runs-on: ubuntu-18.04
+    env:
+      PLATFORM: linux64
+      OPAMYES: 1
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      @import install-neko.yml
+      @import build-linux.yml
+
+  mac-build:
+    runs-on: macos-latest
+    env:
+      PLATFORM: mac
+      OPAMYES: 1
+      MACOSX_DEPLOYMENT_TARGET: 10.13
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      @import install-neko.yml
+      @import build-mac.yml
+
+  windows64-test:
+    needs: windows64-build
+    runs-on: windows-latest
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      PLATFORM: windows64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+      ARCH: 64
+    strategy:
+      fail-fast: false
+      matrix:
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, neko]
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: win${{env.ARCH}}Binaries
+
+      @import install-neko.yml
+      @import test-windows.yml
+
+  windows-test:
+    needs: windows-build
+    runs-on: windows-latest
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      PLATFORM: windows
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+      ARCH: 32
+    strategy:
+      fail-fast: false
+      matrix:
+        # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
+        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: win${{env.ARCH}}Binaries
+
+      @import install-neko.yml
+      @import test-windows.yml
+
+  linux-test:
+    needs: linux-build
+    runs-on: ubuntu-18.04
+    env:
+      PLATFORM: linux64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        include:
+          - target: js
+            # SAUCE: 1
+            # SAUCE_TUNNEL_ID: 'linux-test'
+            # SAUCE_BUILD: '${{env.GITHUB_RUN_NUMBER}}' # $(Build.BuildNumber)
+          - target: hl
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: cpp
+            APT_PACKAGES: gcc-multilib g++-multilib
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+          - target: flash9
+            APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: linuxBinaries
+
+      @import install-neko.yml
+      @import test-linux.yml
+
+  mac-test:
+    needs: mac-build
+    runs-on: macos-latest
+    env:
+      PLATFORM: mac
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        include:
+          - target: hl
+            BREW_PACKAGES: ninja
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
+        with:
+          name: macBinaries
+
+      @import install-neko.yml
+      @import test-mac.yml
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: [linux-test, mac-test, windows-test, windows64-test]
+    runs-on: ubuntu-18.04
+    steps:
+      # this is only needed for to get `COMMIT_DATE`...
+      # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
+      # would be faster
+      - name: Checkout the repository
+        uses: actions/checkout@main
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Install awscli
+        run: |
+          set -ex
+          sudo apt-get update -qqy
+          sudo apt-get install -qqy awscli
+
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+
+      - name: Upload binaries
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
+          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
+        run: |
+          set -ex
+          COMMIT_HASH_SHORT=${GITHUB_SHA:0:7}
+          COMMIT_DATE=`TZ=UTC git show --quiet --date='format-local:%Y-%m-%d' --format="%cd"`
+          FILE_NAME=haxe_${COMMIT_DATE}_${{ steps.extract_branch.outputs.branch }}_${COMMIT_HASH_SHORT}
+          aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/${FILE_NAME}.tar.gz
+          aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/${FILE_NAME}.tar.gz
+          aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/${FILE_NAME}.tar.gz
+          aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/${FILE_NAME}.zip
+          aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/${FILE_NAME}.zip
+          aws s3 cp win64Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows64-choco/
+          aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/${FILE_NAME}.zip
+          aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/${FILE_NAME}.zip
+          aws s3 cp win32Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows-choco/
+
+      - name: Update "latest"
+        if: github.ref == 'refs/heads/development'
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
+          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
+        run: |
+          set -ex
+          aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/haxe_latest.tar.gz
+          aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/haxe_latest.tar.gz
+          aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/haxe_latest.tar.gz
+          aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/haxe_latest.zip
+          aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/haxe_latest.zip
+          aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/haxe_latest.zip
+          aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/haxe_latest.zip
+
+          # Chocolatey packages have to be named with version number,
+          # so let's use web redirection to keep the original file name.
+          [[ "$HXBUILDS_S3ADDR" =~ s3://([^/]+)(.*) ]] && HXBUILDS_S3BUCKET="${BASH_REMATCH[1]}" && HXBUILDS_S3PATH="${BASH_REMATCH[2]}"
+          [[ `echo win64Binaries/*.nupkg` =~ win64Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
+          aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows64-choco/${FILE_NAME} ${HXBUILDS_S3ADDR}/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
+          [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
+          aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows-choco/${FILE_NAME}   ${HXBUILDS_S3ADDR}/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
+
+  deploy_apidoc:
+    if: github.event_name != 'pull_request' # TODO: also only when `GHP_REMOTE` is present
+    needs: [linux-test, mac-test, windows-test, windows64-test]
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Download Haxe
+        uses: actions/download-artifact@v2
+        with:
+          name: linuxBinaries
+          path: linuxBinaries
+
+      - name: Setup Haxe
+        run: |
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Download xmldoc artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: xmldoc
+          path: xmldoc
+
+      - name: Deploy to api.haxe.org
+        env:
+          GHP_EMAIL: haxe-ci@onthewings.net
+          GHP_USERNAME: Haxe CI Bot
+          GHP_REMOTE: ${{ secrets.GHP_REMOTE }}
+        run: |
+          set -ex
+          LOCAL="`pwd`/extra/api.haxe.org"
+          git clone "${GHP_REMOTE}" "${LOCAL}"
+          haxe --cwd "${LOCAL}" --run ImportXml "`pwd`/xmldoc"

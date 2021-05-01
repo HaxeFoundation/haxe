@@ -13,7 +13,7 @@ class Issue7428 extends unit.Test {
 	}
 
 	@:pure(false)
-	static function execute<T>(callback:Void->T):T {
+	static function execute<T>(callback:()->T):T {
 		var result = callback();
 		return result;
 	}

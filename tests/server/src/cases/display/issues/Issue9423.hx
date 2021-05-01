@@ -20,6 +20,7 @@ class Issue9423 extends DisplayTestCase {
 		});
 		var result = parseCompletion().result;
 		// TODO: this test does not pass, but the same setup works fine in vscode
+		// TODO: Another test which does not work here, but works in vshaxe: #9423.
 		// Assert.equals(1, result.items.length);
 		Assert.pass();
 	}

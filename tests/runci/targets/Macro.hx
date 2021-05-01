@@ -37,7 +37,7 @@ class Macro {
 			case _: // TODO
 		}
 
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "--interp"]);
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "--interp"]);
 	}
 }

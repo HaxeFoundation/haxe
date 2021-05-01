@@ -84,8 +84,93 @@ let normalize_path path =
 
 let path_sep = if Globals.is_windows then "\\" else "/"
 
-(** Returns absolute path. Doesn't fix path case on Windows. *)
-let get_full_path f = try Extc.get_full_path f with _ -> f
+let is_absolute_path f =
+	try
+		match f.[0] with
+		| '/' -> true
+		| 'A'..'Z' | 'a'..'z' -> Globals.is_windows && f.[1] = ':'
+		| '\\' -> Globals.is_windows
+		| _ -> false
+	with _ ->
+		false
+
+(**
+	Returns absolute path.
+	Resolves `.`, `..`, double slashes and trailing slashesw.
+	Doesn't resolve symbolic links.
+	Doesn't fix path case on Windows.
+	Doesn't access file system (see https://github.com/HaxeFoundation/haxe/issues/9509#issuecomment-636360777)
+*)
+let get_full_path =
+	if Globals.is_windows then
+		(fun f -> try Extc.get_full_path f with _ -> f)
+	else
+		(fun f ->
+			let length = String.length f in
+			let rec skip_past_slash i =
+				if i >= length then
+					i
+				else
+					match String.unsafe_get f i with
+					| '/' -> i + 1
+					| _ -> skip_past_slash (i + 1)
+			in
+			let rec has_dots_or_double_slash i =
+				if i >= length then
+					false
+				else
+					let has =
+						match String.unsafe_get f i with
+						| '.' ->
+							if i + 2 < length then
+								match String.unsafe_get f (i + 1), String.unsafe_get f (i + 2) with
+								| '.', '/' | '/', _ -> true (* path contains `../` or `./` *)
+								| _ -> false
+							else if i + 1 < length then
+								match String.unsafe_get f (i + 1) with
+								| '/' | '.' -> true (* path ends with `./` or `..` *)
+								| _ -> false
+							else
+								true (* path ends with `.` *)
+						| '/' when i > 0 -> (* double slash *)
+							true
+						| _ ->
+							false
+					in
+					if has then true
+					else has_dots_or_double_slash (skip_past_slash i)
+			in
+			let absolute_path =
+				if length > 0 && String.unsafe_get f 0 = '/' then f
+				else if length = 0 then Unix.getcwd()
+				else (Unix.getcwd()) ^ "/" ^ f
+			in
+			let has_trailing_slash =
+				length > 0 && String.unsafe_get f (length - 1) = '/'
+			in
+			if not has_trailing_slash && not (has_dots_or_double_slash 0) then
+				absolute_path
+			else begin
+				let parts = ExtString.String.split_on_char '/' absolute_path in
+				let skip = ref 0 in
+				let normalized_parts =
+					List.fold_left (fun acc current ->
+						match current with
+						| ".." ->
+							incr skip;
+							acc
+						| "." | "" ->
+							acc
+						| _ when !skip > 0 ->
+							decr skip;
+							acc
+						| _ ->
+							current :: acc
+					) [] (List.rev parts)
+				in
+				"/" ^ String.concat "/" normalized_parts
+			end
+		)
 
 (** Returns absolute path (on Windows ensures proper case with drive letter upper-cased)
     Use for returning positions from IDE support functions *)
@@ -93,15 +178,32 @@ let get_real_path =
 	if Globals.is_windows then
 		(fun p -> try Extc.get_real_path p with _ -> p)
 	else
-		get_full_path
+		(fun p -> try Extc.get_full_path p with _ -> p)
 
 module UniqueKey : sig
+	(**
+		Stores a unique key for a file path.
+	*)
 	type t
+	(**
+		Stores an original file path along with a lazily-calculated key.
+	*)
+	type lazy_t
 	(**
 		Returns absolute path guaranteed to be the same for different letter case.
 		Use where equality comparison is required, lowercases the path on Windows
 	*)
 	val create : string -> t
+
+	val create_lazy : string -> lazy_t
+	(**
+		Calculates a key or retrieve a cached key.
+	*)
+	val lazy_key : lazy_t -> t
+	(**
+		Returns original path, which was used to create `lazy_t`
+	*)
+	val lazy_path : lazy_t -> string
 	(**
 		Check if the first key starts with the second key
 	*)
@@ -110,13 +212,34 @@ module UniqueKey : sig
 		Get string representation of a key
 	*)
 	val to_string : t -> string
+
 end = struct
+
 	type t = string
+
+	type lazy_t = string * string option ref
+
+	(* type file_key *)
+
 	let create =
 		if Globals.is_windows then
 			(fun f -> String.lowercase (get_full_path f))
 		else
 			get_full_path
+
+	let create_lazy f =
+		(f, ref None)
+
+	let lazy_key l =
+		match l with
+		| f,{ contents = Some key } -> key
+		| f,k ->
+			let key = create f in
+			k := Some key;
+			key
+
+	let lazy_path l =
+		fst l
 
 	let starts_with subj start =
 		ExtString.String.starts_with subj start

@@ -201,7 +201,7 @@ let print_signature tl display_arg =
 	) tl in
 	let jo = JObject [
 		"signatures",JArray siginf;
-		"activeParameter",JInt display_arg;
+		"activeParameter",JInt (arg_index tl 0 display_arg);
 		"activeSignature",JInt 0;
 	] in
 	string_of_json jo
@@ -229,42 +229,33 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		did_something := true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		Common.define com Define.NoCOpt;
 		com.display <- DisplayMode.create (DMDiagnostics []);
 		Parser.display_mode := DMDiagnostics [];
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
-		let file_unique = Path.UniqueKey.create file in
+		let file_unique = com.file_keys#get file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let mode = match smode with
 			| "position" ->
-				Common.define com Define.NoCOpt;
 				DMDefinition
 			| "usage" ->
-				Common.define com Define.NoCOpt;
 				DMUsage (false,false,false)
 			(*| "rename" ->
-				Common.define com Define.NoCOpt;
 				DMUsage true*)
 			| "package" ->
 				DMPackage
 			| "type" ->
-				Common.define com Define.NoCOpt;
 				DMHover
 			| "toplevel" ->
 				DMDefault
 			| "module-symbols" ->
-				Common.define com Define.NoCOpt;
 				DMModuleSymbols None;
 			| "diagnostics" ->
-				Common.define com Define.NoCOpt;
 				DMDiagnostics [file_unique];
 			| "statistics" ->
-				Common.define com Define.NoCOpt;
 				DMStatistics
 			| "signature" ->
-				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
 				DMDefault
@@ -274,7 +265,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 					| "resolve" ->
 						DMResolve arg
 					| "workspace-symbols" ->
-						Common.define com Define.NoCOpt;
 						DMModuleSymbols (Some arg)
 					| _ ->
 						DMDefault
@@ -420,7 +410,7 @@ let process_global_display_mode com tctx =
 	| DMDiagnostics _ ->
 		Diagnostics.run com
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx (SFFile (DisplayPosition.display_position#get).pfile) true in
+		let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
@@ -430,8 +420,8 @@ let process_global_display_mode com tctx =
 				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file_key,cfile) ->
 					let file = cfile.CompilationServer.c_file_path in
-					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
-						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
+					if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
+						(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
 						acc
 				) [] l

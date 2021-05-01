@@ -192,6 +192,7 @@ class Compiler {
 		If you want to specify a different set of paths to search for modules, you can use the optional
 		argument `classPath`.
 
+		@param pack The package dot-path as String. Use `''` to include the root package.
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
 			   You can use `module*` with a * at the end for Wildcard matching
@@ -282,6 +283,7 @@ class Compiler {
 		Exclude a specific class, enum, or all classes and enums in a
 		package from being generated. Excluded types become `extern`.
 
+		@param pack The package dot-path as String. Use `''` to exclude the root package.
 		@param rec If true, recursively excludes all sub-packages.
 	**/
 	public static function exclude(pack:String, ?rec = true) {

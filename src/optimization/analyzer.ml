@@ -126,13 +126,13 @@ module Ssa = struct
 					else match e.eexpr with
 					| TLocal v ->
 						let v' = local ctx e v edge.cfg_from in
-						add_ssa_edge ctx.graph v' bb true i;
+						add_ssa_edge ctx.graph v' bb (LUPhi i);
 						{e with eexpr = TLocal v'}
 					| _ ->
 						die "" __LOC__
 				) el edge.cfg_to.bb_incoming in
 				let ephi = {ecall with eexpr = TCall(ephi,el)} in
-				set_var_value ctx.graph v0 bb true i;
+				set_var_value ctx.graph v0 bb (LUPhi i);
 				{e with eexpr = TBinop(OpAssign,e1,ephi)}
 			| _ ->
 				Type.map_expr (loop i) e
@@ -140,39 +140,40 @@ module Ssa = struct
 		dynarray_mapi loop bb.bb_phi
 
 	let rec rename_in_block ctx bb =
-		let write_var v is_phi i =
+		let write_var v luk =
 			update_reaching_def ctx v bb;
 			let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 			declare_var ctx.graph v' bb;
 			v'.v_meta <- v.v_meta;
-			v'.v_capture <- v.v_capture;
+			if has_var_flag v VCaptured then add_var_flag v' VCaptured;
 			add_var_def ctx.graph bb v';
 			set_reaching_def ctx.graph v' (get_reaching_def ctx.graph v);
 			set_reaching_def ctx.graph v (Some v');
-			set_var_value ctx.graph v' bb is_phi i;
+			set_var_value ctx.graph v' bb luk;
 			add_var_origin ctx.graph v' v;
 			v'
 		in
-		let rec loop is_phi i e = match e.eexpr with
+		let rec loop luk e = match e.eexpr with
 			| TLocal v ->
 				let v' = local ctx e v bb in
-				add_ssa_edge ctx.graph v' bb is_phi i;
+				add_ssa_edge ctx.graph v' bb luk;
 				{e with eexpr = TLocal v'}
 			| TVar(v,Some e1) ->
-				let e1 = (loop is_phi i) e1 in
-				let v' = write_var v is_phi i in
+				let e1 = (loop luk) e1 in
+				let v' = write_var v luk in
 				{e with eexpr = TVar(v',Some e1)}
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-				let e2 = (loop is_phi i) e2 in
-				let v' = write_var v is_phi i in
+				let e2 = (loop luk) e2 in
+				let v' = write_var v luk in
 				{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v'},e2)};
 			| TCall({eexpr = TConst (TString "phi")},_) ->
 				e
 			| _ ->
-				Type.map_expr (loop is_phi i) e
+				Type.map_expr (loop luk) e
 		in
-		dynarray_mapi (loop true) bb.bb_phi;
-		dynarray_mapi (loop false) bb.bb_el;
+		dynarray_mapi (fun i e -> loop (LUPhi i) e) bb.bb_phi;
+		dynarray_mapi (fun i e -> loop (LUEl i) e) bb.bb_el;
+		bb.bb_terminator <- BasicBlock.terminator_map (loop LUTerm) bb.bb_terminator;
 		List.iter (update_phi ctx) bb.bb_outgoing;
 		List.iter (rename_in_block ctx) bb.bb_dominated
 
@@ -253,13 +254,13 @@ module DataFlow (M : DataFlowApi) = struct
 				if List.exists (fun edge -> has_flag edge M.flag) bb.bb_incoming then
 					set_lattice_cell v (M.transfer ctx bb e)
 		in
-		let visit_expression bb e =
+		let visit_expression bb cond_branch e =
 			match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) ->
 				visit_assignment bb v e2;
 				false
-			| TMeta((Meta.Custom ":cond-branch",_,_),e1) when M.conditional ->
-				let e1 = M.transfer ctx bb e1 in
+			| _ when M.conditional && cond_branch ->
+				let e1 = M.transfer ctx bb e in
 				let edges = if e1 == M.bottom || e1 == M.top then
 					bb.bb_outgoing
 				else begin
@@ -293,8 +294,17 @@ module DataFlow (M : DataFlowApi) = struct
 		in
 		let visit_expressions bb =
 			let b = DynArray.fold_left (fun b e ->
-				visit_expression bb e || b
+				visit_expression bb false e || b
 			) false bb.bb_el in
+			let b = match bb.bb_terminator with
+			| TermCondBranch e1 ->
+				visit_expression bb true e1 || b
+			| TermReturnValue(e1,_)
+			| TermThrow(e1,_) ->
+				visit_expression bb false e1
+			| _ ->
+				b
+			in
 			if not b then List.iter add_cfg_edge bb.bb_outgoing
 		in
 		let visit_phis bb =
@@ -320,10 +330,10 @@ module DataFlow (M : DataFlowApi) = struct
 					end
 				end;
 				loop();
-			| [],((bb,is_phi,i) :: edges) ->
+			| [],((bb,luk) :: edges) ->
 				ssa_work_list := edges;
-				let e = get_texpr bb is_phi i in
-				ignore(visit_expression bb e);
+				let e = get_texpr bb luk in
+				ignore(visit_expression bb (match luk with LUTerm -> true | _ -> false) e);
 				loop()
 			| [],[] ->
 				()
@@ -369,7 +379,7 @@ module ConstPropagation = DataFlow(struct
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
 		| Null t1,Null t2 -> t1 == t2
-		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && List.for_all2 equals tl1 tl2
+		| EnumValue(i1,tl1),EnumValue(i2,tl2) -> i1 = i2 && safe_for_all2 equals tl1 tl2
 		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
@@ -394,7 +404,7 @@ module ConstPropagation = DataFlow(struct
 			| TTypeExpr mt ->
 				ModuleType(mt,e.etype)
 			| TLocal v ->
-				if (follow v.v_type) == t_dynamic || v.v_capture then
+				if (follow v.v_type) == t_dynamic || has_var_flag v VCaptured then
 					Bottom
 				else
 					get_cell v.v_id
@@ -486,7 +496,7 @@ module ConstPropagation = DataFlow(struct
 				if not (type_change_ok ctx.com t e.etype) then raise Not_found;
 				mk (TTypeExpr mt) t e.epos
 		in
-		let is_special_var v = v.v_capture || ExtType.has_variable_semantics v.v_type in
+		let is_special_var v = has_var_flag v VCaptured || ExtType.has_variable_semantics v.v_type in
 		let rec commit e = match e.eexpr with
 			| TLocal v when not (is_special_var v) ->
 				begin try
@@ -510,7 +520,8 @@ module ConstPropagation = DataFlow(struct
 		in
 		Graph.iter_dom_tree ctx.graph (fun bb ->
 			if not (List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming) then bb.bb_dominator <- ctx.graph.Graph.g_unreachable;
-			dynarray_map commit bb.bb_el
+			dynarray_map commit bb.bb_el;
+			bb.bb_terminator <- terminator_map commit bb.bb_terminator;
 		);
 end)
 
@@ -527,11 +538,13 @@ module CopyPropagation = DataFlow(struct
 		| Top
 		| Bottom
 		| Local of tvar
+		| This of Type.t
 
 	let to_string = function
 		| Top -> "Top"
 		| Bottom -> "Bottom"
 		| Local v -> Printf.sprintf "%s<%i>" v.v_name v.v_id
+		| This _ -> "this"
 
 	let conditional = false
 	let flag = FlagCopyPropagation
@@ -547,12 +560,15 @@ module CopyPropagation = DataFlow(struct
 		| Top,Top -> true
 		| Bottom,Bottom -> true
 		| Local v1,Local v2 -> v1.v_id = v2.v_id
+		| This t1,This t2 -> t1 == t2
 		| _ -> false
 
 	let transfer ctx bb e =
 		let rec loop e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				Local v
+			| TConst TThis ->
+				This e.etype
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				loop e1
 			| _ ->
@@ -565,25 +581,32 @@ module CopyPropagation = DataFlow(struct
 
 	let commit ctx =
 		let rec commit bb e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (has_var_flag v VCaptured) ->
 				begin try
 					let lat = get_cell v.v_id in
 					let leave () =
 						Hashtbl.remove lattice v.v_id;
 						raise Not_found
 					in
-					let v' = match lat with Local v -> v | _ -> leave() in
-					if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
-					let v'' = get_var_origin ctx.graph v' in
-					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
-					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
-					   considering variables whose origin-variables are assigned to at most once. *)
-					let writes = (get_var_info ctx.graph v'').vi_writes in
-					begin match writes with
-						| [bb'] when in_scope bb bb' -> ()
-						| _ -> leave()
+					begin match lat with
+					| Local v' ->
+						if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
+						let v'' = get_var_origin ctx.graph v' in
+						(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
+						the same origin var, which creates interference that is not tracked in the analysis. We address this by only
+						considering variables whose origin-variables are assigned to at most once. *)
+						let writes = (get_var_info ctx.graph v'').vi_writes in
+						begin match writes with
+							| [bb'] when in_scope bb bb' -> ()
+							| _ -> leave()
+						end;
+						commit bb {e with eexpr = TLocal v'}
+					| This t ->
+						if not (type_change_ok ctx.com t v.v_type) then leave();
+						mk (TConst TThis) t e.epos
+					| Top | Bottom ->
+						leave()
 					end;
-					commit bb {e with eexpr = TLocal v'}
 				with Not_found ->
 					e
 				end
@@ -594,7 +617,8 @@ module CopyPropagation = DataFlow(struct
 				Type.map_expr (commit bb) e
 		in
 		Graph.iter_dom_tree ctx.graph (fun bb ->
-			dynarray_map (commit bb) bb.bb_el
+			dynarray_map (commit bb) bb.bb_el;
+			bb.bb_terminator <- terminator_map (commit bb) bb.bb_terminator;
 		);
 end)
 
@@ -637,14 +661,14 @@ module LocalDce = struct
 
 	let rec apply ctx =
 		let is_used v =
-			Meta.has Meta.Used v.v_meta
+			has_var_flag v VUsed
 		in
 		let keep v =
-			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || v.v_capture || Meta.has Meta.This v.v_meta
+			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || has_var_flag v VCaptured || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
-				v.v_meta <- (Meta.Used,[],null_pos) :: v.v_meta;
+				add_var_flag v VUsed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
 					| None -> use (get_var_origin ctx.graph v)
@@ -660,20 +684,20 @@ module LocalDce = struct
 			| _ ->
 				Type.iter expr e
 		in
-		let bb_marked = ref [] in
 		let rec mark bb =
-			bb_marked := bb :: !bb_marked;
+			add_block_flag bb BlockDce;
 			DynArray.iter expr bb.bb_el;
 			DynArray.iter expr bb.bb_phi;
+			terminator_iter expr bb.bb_terminator;
 			List.iter (fun edge ->
 				if not (has_flag edge FlagDce) then begin
 					edge.cfg_flags <- FlagDce :: edge.cfg_flags;
 					if not ctx.config.const_propagation || has_flag edge FlagExecutable then
-						mark edge.cfg_from;
+						mark edge.cfg_to;
 				end
-			) bb.bb_incoming
+			) bb.bb_outgoing
 		in
-		mark ctx.graph.g_exit;
+		mark ctx.graph.g_root;
 		let rec sweep e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) when not (keep v) ->
 				if has_side_effect e2 then
@@ -685,9 +709,12 @@ module LocalDce = struct
 			| _ ->
 				Type.map_expr sweep e
 		in
-		List.iter (fun bb ->
-			dynarray_map sweep bb.bb_el
-		) !bb_marked;
+		Graph.iter_dom_tree ctx.graph (fun bb ->
+			if has_block_flag bb BlockDce then begin
+				dynarray_map sweep bb.bb_el;
+				bb.bb_terminator <- terminator_map sweep bb.bb_terminator;
+			end
+		)
 end
 
 module Debug = struct
@@ -717,6 +744,8 @@ module Debug = struct
 			| BKFunctionBegin _ -> "<function-begin>\n"
 			| BKFunctionEnd -> "<function-end>\n"
 			| BKLoopHead -> "<loop-head>\n"
+			| BKCatch v -> Printf.sprintf "<catch %s<%i>>" v.v_name v.v_id
+			| BKException -> "<exc>"
 			| _ -> ""
 		in
 		Printf.fprintf ch "n%i [shape=box,label=\"%s%s\"];\n" bb.bb_id s_kind (s_escape s)
@@ -755,8 +784,7 @@ module Debug = struct
 			edge bb_then "then";
 			edge bb_else "else";
 			edge bb_next "next";
-		| SEWhile(bb_head,bb_body,bb_next) ->
-			edge bb_head "loop-head";
+		| SEWhile(bb_body,bb_next,_) ->
 			edge bb_body "loop-body";
 			edge bb_next "next";
 		| SEMerge bb_next ->
@@ -780,14 +808,14 @@ module Debug = struct
 
 	let generate_cfg_ssa ch g =
 		Printf.fprintf ch "\tnode [shape=plaintext];\n";
-		let expr_name b i = Printf.sprintf "e%s%i" (if b then "p" else "") i in
+		let expr_name luk = Printf.sprintf "e%s" (match luk with | LUPhi i -> Printf.sprintf "p%i" i | LUEl i -> Printf.sprintf "%i" i | LUTerm -> "t") in
 		List.iter (fun bb ->
 			Printf.fprintf ch "n%i[label=<<table BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n\t<tr><td port=\"in\" bgcolor=\"lightgray\">(%i) %s</td></tr>\n" bb.bb_id bb.bb_id (BasicBlock.s_block_kind bb.bb_kind);
-			let s_expr b i e =
-				Printf.fprintf ch "\t<tr><td port=\"%s\" align=\"left\">%s</td></tr>\n" (expr_name b i) (s_escape (htmlescape (s_expr_pretty e)))
+			let s_expr luk e =
+				Printf.fprintf ch "\t<tr><td port=\"%s\" align=\"left\">%s</td></tr>\n" (expr_name luk) (s_escape (htmlescape (s_expr_pretty e)))
 			in
-			DynArray.iteri (s_expr true) bb.bb_phi;
-			DynArray.iteri (s_expr false) bb.bb_el;
+			DynArray.iteri (fun i e -> s_expr (LUPhi i) e) bb.bb_phi;
+			DynArray.iteri (fun i e -> s_expr (LUEl i) e) bb.bb_el;
 			Printf.fprintf ch "\t<tr><td port=\"out\"></td></tr>\n</table>>];\n";
 		) g.g_nodes;
 		Graph.iter_edges g (fun edge ->
@@ -795,11 +823,11 @@ module Debug = struct
 		);
 		DynArray.iter (fun vi ->
 			begin try
-				let (bb,is_phi,i) = match vi.vi_value with None -> raise Not_found | Some i -> i in
-				let n1 = Printf.sprintf "n%i:%s" bb.bb_id (expr_name is_phi i) in
-				List.iter (fun (bb',is_phi',i') ->
+				let (bb,luk) = match vi.vi_value with None -> raise Not_found | Some i -> i in
+				let n1 = Printf.sprintf "n%i:%s" bb.bb_id (expr_name luk) in
+				List.iter (fun (bb',luk') ->
 					if bb != bb' then begin (* intra-node edges look stupid in dot *)
-						let n2 = Printf.sprintf "n%i:%s" bb'.bb_id (expr_name is_phi' i') in
+						let n2 = Printf.sprintf "n%i:%s" bb'.bb_id (expr_name luk') in
 						Printf.fprintf ch "%s -> %s[color=lightblue,constraint=false];\n" n1 n2;
 					end
 				) vi.vi_ssa_edges;
@@ -859,18 +887,18 @@ module Debug = struct
 		f();
 		let ch,f = start_graph "-ssa-edges.dot" in
 		let nodes = ref PMap.empty in
-		let node_name bb is_phi i = Printf.sprintf "e%i_%b_%i" bb.bb_id is_phi i in
-		let node_name2 bb is_phi i =
-			let n = node_name bb is_phi i in
+		let node_name bb luk = Printf.sprintf "e%i_%s" bb.bb_id (match luk with LUPhi i -> Printf.sprintf "phi_%i" i | LUEl i -> Printf.sprintf "el%i" i | LUTerm -> "term") in
+		let node_name2 bb luk =
+			let n = node_name bb luk in
 			nodes := PMap.add n true !nodes;
 			n
 		in
 		DynArray.iter (fun vi ->
 			begin try
-				let (bb,is_phi,i) = match vi.vi_value with None -> raise Not_found | Some i -> i in
-				let n1 = node_name2 bb is_phi i in
-				List.iter (fun (bb',is_phi',i') ->
-					let n2 = node_name2 bb' is_phi' i' in
+				let (bb,luk) = match vi.vi_value with None -> raise Not_found | Some i -> i in
+				let n1 = node_name2 bb luk in
+				List.iter (fun (bb',luk') ->
+					let n2 = node_name2 bb' luk' in
 					Printf.fprintf ch "%s -> %s;\n" n1 n2
 				) vi.vi_ssa_edges
 			with Not_found ->
@@ -878,15 +906,15 @@ module Debug = struct
 			end
 		) g.g_var_infos;
 		List.iter (fun bb ->
-			let f is_phi acc i e =
-				let n = node_name bb is_phi i in
-				(i + 1),if PMap.mem n !nodes then
+			let f luk acc e =
+				let n = node_name bb luk in
+				if PMap.mem n !nodes then
 					(n,s_expr_pretty e) :: acc
 				else
 					acc
 			in
-			let _,active_nodes = DynArray.fold_left (fun (i,acc) -> f true acc i) (0,[]) bb.bb_phi in
-			let _,active_nodes = DynArray.fold_left (fun (i,acc) -> f false acc i) (0,active_nodes) bb.bb_el in
+			let _,active_nodes = DynArray.fold_left (fun (i,acc) e -> (i + 1),f (LUPhi i) acc e) (0,[]) bb.bb_phi in
+			let _,active_nodes = DynArray.fold_left (fun (i,acc) e -> (i + 1),f (LUEl i) acc e) (0,active_nodes) bb.bb_el in
 			if active_nodes <> [] then begin
 				Printf.fprintf ch "subgraph cluster_%i {\n" bb.bb_id;
 				Printf.fprintf ch "label=%i;\n" bb.bb_id;
@@ -926,6 +954,7 @@ module Run = struct
 			loop_stack = [];
 			debug_exprs = [];
 			name_stack = [];
+			did_optimize = false;
 		} in
 		ctx
 
@@ -1016,6 +1045,7 @@ module Run = struct
 		with_timer actx.config.detail_times ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
 		if actx.com.debug then Graph.check_integrity actx.graph;
 		if actx.config.optimize && not actx.has_unbound then begin
+			actx.did_optimize <- true;
 			with_timer actx.config.detail_times ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
 			if actx.config.const_propagation then with_timer actx.config.detail_times ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
 			if actx.config.copy_propagation then with_timer actx.config.detail_times ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);

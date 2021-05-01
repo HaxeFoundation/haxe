@@ -5,7 +5,7 @@ class Issue8869 extends Test {
 		noAssert();
 	}
 
-	function checkIntersectionConstraintInParentheses<T:(haxe.Constraints.Constructible<Void->Void> & Dummy)>(cl:Class<T>) {}
+	function checkIntersectionConstraintInParentheses<T:(haxe.Constraints.Constructible<()->Void> & Dummy)>(cl:Class<T>) {}
 }
 
 private class Dummy {

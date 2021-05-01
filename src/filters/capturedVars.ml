@@ -128,8 +128,8 @@ let captured_vars com e =
 			let tmp_used = ref used in
 			let rec browse = function
 				| Block f | Loop f | Function f -> f browse
-				| Use ({ v_extra = Some( _ :: _, _) })
-				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+				| Use ({ v_extra = Some({v_params = _ :: _}) })
+				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 					(* Java and C# deal with functions with type parameters in a different way *)
 					(* so they do should not be wrapped *)
 					()
@@ -163,7 +163,7 @@ let captured_vars com e =
 					| TLocal v ->
 						begin try
 							let v' = List.assoc v.v_id new_vars in
-							v'.v_capture <- true;
+							add_var_flag v' VCaptured;
 							{e with eexpr = TLocal v'}
 						with Not_found ->
 							e
@@ -192,7 +192,7 @@ let captured_vars com e =
 			let used = PMap.map (fun v ->
 				let vt = v.v_type in
 				v.v_type <- impl#captured_type vt;
-				v.v_capture <- true;
+				add_var_flag v VCaptured;
 				vt
 			) used in
 			wrap used e
@@ -219,8 +219,8 @@ let captured_vars com e =
 					incr depth;
 					f (collect_vars false);
 					decr depth;
-				| Use ({ v_extra = Some( _ :: _, _) })
-				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+				| Use ({ v_extra = Some({v_params = _ :: _}) })
+				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 					(* Java/C# use a special handling for functions with type parmaters *)
 					()
 				| Declare v ->
@@ -256,13 +256,16 @@ let captured_vars com e =
 			decr depth;
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
-		| Use ({ v_extra = Some( _ :: _, _) })
-		| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+		| Use ({ v_extra = Some({v_params = _ :: _}) })
+		| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 			()
 		| Use v ->
 			(try
 				let d = PMap.find v.v_id !vars in
-				if d <> !depth then used := PMap.add v.v_id v !used;
+				if d <> !depth then begin
+					used := PMap.add v.v_id v !used;
+					if has_var_flag v VAssigned then assigned := PMap.add v.v_id v !assigned;
+				end
 			with Not_found -> ())
 		| Assign v ->
 			(try
@@ -274,13 +277,15 @@ let captured_vars com e =
 				end
 				(* same depth but assigned after being used on a different depth - needs wrap *)
 				else if PMap.mem v.v_id !used then
-					assigned := PMap.add v.v_id v !assigned;
+					assigned := PMap.add v.v_id v !assigned
+				else
+					add_var_flag v VAssigned;
 			with Not_found -> ())
 		in
 		local_usage collect_vars e;
 
 		(* mark all capture variables - also used in rename_local_vars at later stage *)
-		PMap.iter (fun _ v -> v.v_capture <- true) !used;
+		PMap.iter (fun _ v -> add_var_flag v VCaptured) !used;
 
 		!assigned
 	in

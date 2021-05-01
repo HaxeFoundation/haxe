@@ -103,7 +103,10 @@ module TExprToExpr = struct
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
 			EFunction (FKAnonymous,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([(v.v_name,v.v_pos), v.v_final, mk_type_hint v.v_type v.v_pos, eopt eo])
+			let final = has_var_flag v VFinal
+			and t = mk_type_hint v.v_type v.v_pos
+			and eo = eopt eo in
+			EVars ([mk_evar ~final ?t ?eo ~meta:v.v_meta (v.v_name,v.v_pos)])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
@@ -175,6 +178,16 @@ module ExtType = struct
 
 	let is_bool t = match t with
 		| TAbstract({a_path=[],"Bool"},_) -> true
+		| _ -> false
+
+	let is_rest t = match t with
+		| TType({t_path=["haxe"; "extern"],"Rest"},_)
+		| TAbstract({a_path=["haxe"],"Rest"},_) -> true
+		| _ -> false
+
+	let is_type_param t =
+		match t with
+		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 		| _ -> false
 
 	type semantics =
@@ -264,7 +277,7 @@ module TClass = struct
 				end else acc
 			in
 			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc c.cl_implements
 			else
 				match c.cl_super with
@@ -292,6 +305,27 @@ module TClass = struct
 				end
 		in
 		loop [] c
+
+	let add_field c cf =
+		let is_static = has_class_field_flag cf CfStatic in
+		if is_static then begin
+			c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
+			c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+		end else begin
+			c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
+			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+		end
+
+	let get_map_function c tl =
+		let rec loop map c = match c.cl_super with
+			| Some(csup,tl) ->
+				let map t = map (apply_params csup.cl_params tl t) in
+				loop map csup
+			| None ->
+				map
+		in
+		let apply = apply_params c.cl_params tl in
+		loop apply c
 end
 
 let s_class_path c =

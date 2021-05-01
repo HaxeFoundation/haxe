@@ -60,9 +60,9 @@ let find_in_syntax symbols (pack,decls) =
 			expr e1;
 			check KAnyField s;
 		| EVars vl ->
-			List.iter (fun (_,_,tho,eo) ->
-				Option.may type_hint tho;
-				expr_opt eo
+			List.iter (fun v ->
+				Option.may type_hint v.ev_type;
+				expr_opt v.ev_expr
 			) vl;
 		| ECast(e1,tho) ->
 			expr e1;

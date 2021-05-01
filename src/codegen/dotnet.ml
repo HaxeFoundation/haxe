@@ -377,7 +377,7 @@ let convert_ilevent ctx p ev =
 		cff_kind = kind;
 	}
 
-let convert_ilmethod ctx p m is_explicit_impl =
+let convert_ilmethod ctx p is_interface m is_explicit_impl =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
 	let force_check = Common.defined ctx.ncom Define.ForceLibCheck in
 	let p = { p with pfile =	p.pfile ^" (" ^m.mname ^")" } in
@@ -394,13 +394,10 @@ let convert_ilmethod ctx p m is_explicit_impl =
 				| _ -> name)
 		| name -> name
 	in
-	let meta = [Meta.Overload, [], p] in
+	let meta = [] in
 	let acc, meta = match m.mflags.mf_access with
 		| FAFamily | FAFamOrAssem ->
 			(APrivate,null_pos), ((Meta.Protected, [], p) :: meta)
-		(* | FAPrivate -> APrivate *)
-		| FAPublic when List.mem SGetter m.msemantics || List.mem SSetter m.msemantics ->
-			(APrivate,null_pos), meta
 		| FAPublic -> (APublic,null_pos), meta
 		| _ ->
 			if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
@@ -414,6 +411,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
 	) ([acc],None) m.mflags.mf_contract in
+	let acc = (AOverload,p) :: acc in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
@@ -494,7 +492,8 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			cff_name, meta
 	in
 	let acc = match m.moverride with
-		| None -> acc
+		| None ->
+			if not is_interface && List.mem IAbstract m.mflags.mf_impl then (AAbstract,null_pos) :: acc else acc
 		| _ when cff_name = "new" -> acc
 		| Some (path,s) -> match lookup_ilclass ctx.nstd ctx.ncom path with
 			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
@@ -729,15 +728,23 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			meta := (Meta.LibType,[],p) :: !meta;
 
 		let is_interface = ref false in
+		let is_abstract = ref false in
+		let is_sealed = ref false in
 		List.iter (fun f -> match f with
 			| SSealed ->
-				flags := HFinal :: !flags
+				flags := HFinal :: !flags;
+				is_sealed := true
 			| SInterface ->
 				is_interface := true;
 				flags := HInterface :: !flags
-			| SAbstract -> meta := (Meta.Abstract, [], p) :: !meta
+			| SAbstract ->
+				meta := (Meta.Abstract, [], p) :: !meta;
+				is_abstract := true;
 			| _ -> ()
 		) ilcls.cflags.tdf_semantics;
+
+		(* static class = abstract sealed class - in this case we don't want an abstract flag *)
+		if !is_abstract && not !is_interface && not !is_sealed then flags := HAbstract :: !flags;
 
 		(* (match ilcls.cflags.tdf_vis with *)
 		(*	| VPublic | VNestedFamOrAssem | VNestedFamily -> () *)
@@ -796,7 +803,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 					ilcls.cmethods
 			in
 			run_fields (fun m ->
-				convert_ilmethod ctx p m (List.exists (fun m2 -> m != m2 && String.get m2.mname 0 <> '.' && String.ends_with m2.mname ("." ^ m.mname)) meths)
+				convert_ilmethod ctx p !is_interface m (List.exists (fun m2 -> m != m2 && String.get m2.mname 0 <> '.' && String.ends_with m2.mname ("." ^ m.mname)) meths)
 			) meths;
 			run_fields (convert_ilfield ctx p) ilcls.cfields;
 			run_fields (fun prop ->
@@ -986,7 +993,11 @@ let normalize_ilcls ctx cls =
 	let rec loop cls = try
 		match cls.csuper with
 		| Some { snorm = LClass((["System"],[],"Object"),_) }
-		| Some { snorm = LObject } | None -> ()
+		| Some { snorm = LObject } ->
+			let cls, params = ilcls_from_ilsig ctx LObject in
+			let cls = ilcls_with_params ctx cls params in
+			all_fields := get_all_fields cls @ !all_fields;
+		| None -> ()
 		| Some s ->
 			let cls, params = ilcls_from_ilsig ctx s.snorm in
 			let cls = ilcls_with_params ctx cls params in
@@ -1043,7 +1054,7 @@ let normalize_ilcls ctx cls =
 			List.iter (loop_interface cif) cif.cimplements
 		with | Not_found -> ()
 	in
-	List.iter (loop_interface cls) cls.cimplements;
+	if not (List.mem SAbstract cls.cflags.tdf_semantics) then List.iter (loop_interface cls) cls.cimplements;
 	let added = List.map (function
 		| (IlMethod m,a,name,b) when m.mflags.mf_access <> FAPublic ->
 			(IlMethod { m with mflags = { m.mflags with mf_access = FAPublic } },a,name,b)
@@ -1236,7 +1247,7 @@ let before_generate com =
 	let net_ver =
 		try
 			let ver = PMap.find "net_ver" com.defines.Define.values in
-			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45)")
+			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45, 50)")
 		with Not_found when netcore_ver != None ->
 			(* 4.7 was released around .NET core 2.1 *)
 			(* Note: better version mapping should be implemented some day,
@@ -1259,7 +1270,7 @@ let before_generate com =
 			loop acc
 		| _ -> ()
 	in
-	loop [20;21;30;35;40;45];
+	loop [20;21;30;35;40;45;50];
 
 	(* net target *)
 	let net_target = try

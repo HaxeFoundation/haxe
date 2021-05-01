@@ -283,6 +283,20 @@ let sharp_ident = [%sedlex.regexp?
 	)
 ]
 
+let is_whitespace = function
+	| ' ' | '\n' | '\r' | '\t' -> true
+	| _ -> false
+
+let string_is_whitespace s =
+	try
+		for i = 0 to String.length s - 1 do
+			if not (is_whitespace (String.unsafe_get s i)) then
+				raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
@@ -341,7 +355,7 @@ let rec token lexbuf =
 	| "||" -> mk lexbuf (Binop OpBoolOr)
 	| "<<" -> mk lexbuf (Binop OpShl)
 	| "->" -> mk lexbuf Arrow
-	| "..." -> mk lexbuf (Binop OpInterval)
+	| "..." -> mk lexbuf Spread
 	| "=>" -> mk lexbuf (Binop OpArrow)
 	| "!" -> mk lexbuf (Unop Not)
 	| "<" -> mk lexbuf (Binop OpLt)
@@ -598,6 +612,11 @@ let rec sharp_token lexbuf =
 	| Plus (Chars " \t") -> sharp_token lexbuf
 	| "\r\n" -> newline lexbuf; sharp_token lexbuf
 	| '\n' | '\r' -> newline lexbuf; sharp_token lexbuf
+	| "/*" ->
+		reset();
+		let pmin = lexeme_start lexbuf in
+		ignore(try comment lexbuf with Exit -> error Unclosed_comment pmin);
+		sharp_token lexbuf
 	| _ -> token lexbuf
 
 let lex_xml p lexbuf =

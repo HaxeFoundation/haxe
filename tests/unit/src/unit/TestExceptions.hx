@@ -1,6 +1,8 @@
 ﻿package unit;
 
 import haxe.Exception;
+import haxe.exceptions.ArgumentException;
+import haxe.exceptions.NotImplementedException;
 import haxe.ValueException;
 import haxe.CallStack;
 import utest.Assert;
@@ -315,6 +317,29 @@ class TestExceptions extends Test {
 		eq('haxe.Exception', HelperMacros.typeString(try throw new Exception('') catch(e) e));
 	}
 
+	function testNotImplemented() {
+		try {
+			futureFeature();
+		} catch(e:NotImplementedException) {
+			eq('unit.TestExceptions', e.posInfos.className);
+			eq('futureFeature', e.posInfos.methodName);
+		}
+	}
+	function futureFeature() {
+		throw new NotImplementedException();
+	}
+
+	function testArgumentException() {
+		function negativeOnly(i:Int) {
+			if(i >= 0) throw new ArgumentException('i');
+		}
+		try {
+			negativeOnly(10);
+		} catch(e:ArgumentException) {
+			eq('i', e.argument);
+		}
+	}
+
 #if java
 	function testCatchChain() {
 		eq("caught NativeExceptionChild: msg", raise(() -> throw new NativeExceptionChild("msg")));
@@ -327,7 +352,7 @@ class TestExceptions extends Test {
 		eq("caught Throwable: msg", raise(() -> throw new java.lang.Exception("msg")));
 	}
 
-	function raise<T>(f:Void -> String) {
+	function raise<T>(f:() -> String) {
 		return try {
 			f();
 		} catch(e:NativeExceptionChild) {

@@ -72,7 +72,7 @@ abstract Vector<T>(VectorData<T>) {
 		return this.join(sep);
 	}
 
-	public inline function sort<T>(f:T->T->Int):Void {
+	public inline function sort(f:T->T->Int):Void {
 		this.sort(f);
 	}
 

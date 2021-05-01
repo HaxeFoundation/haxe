@@ -2,7 +2,7 @@ open Ast
 open Globals
 open DisplayTypes.SymbolKind
 
-let collect_module_symbols with_locals (pack,decls) =
+let collect_module_symbols mname with_locals (pack,decls) =
 	let l = DynArray.create() in
 	let add name kind location parent deprecated =
 		let si = DisplayTypes.SymbolInformation.make name kind location (if parent = "" then None else Some parent) deprecated in
@@ -12,9 +12,9 @@ let collect_module_symbols with_locals (pack,decls) =
 		let add name kind location = add name kind location parent in
 		begin match e with
 		| EVars vl ->
-			List.iter (fun ((s,p),_,_,eo) ->
-				add s Variable p false;
-				expr_opt parent eo
+			List.iter (fun v ->
+				add (fst v.ev_name) Variable (snd v.ev_name) false;
+				expr_opt parent v.ev_expr
 			) vl
 		| ETry(e1,catches) ->
 			expr parent e1;
@@ -67,6 +67,7 @@ let collect_module_symbols with_locals (pack,decls) =
 	let field parent parent_kind cff =
 		field' parent parent_kind cff.cff_name cff.cff_kind cff.cff_access cff.cff_pos cff.cff_meta
 	in
+	let type_decls = Hashtbl.create 0 in
 	List.iter (fun (td,p) ->
 		let get_decl_path d =
 			let module_name = Path.module_name_of_file p.pfile in
@@ -78,6 +79,7 @@ let collect_module_symbols with_locals (pack,decls) =
 		let string_of_path l = String.concat "." l in
 		let add_type d kind =
 			let type_path, type_name = get_decl_path d in
+			Hashtbl.add type_decls type_name ();
 			add type_name kind p (string_of_path type_path) (is_deprecated d.d_meta);
 			string_of_path (type_path @ [type_name])
 		in
@@ -102,14 +104,20 @@ let collect_module_symbols with_locals (pack,decls) =
 				ignore(add_type d TypeAlias)
 			)
 		| EAbstract d ->
-			let kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract in
+			let kind = if List.mem AbEnum d.d_flags then EnumAbstract else Abstract in
 			let parent = add_type d kind in
 			List.iter (field parent kind) d.d_data
 		| EStatic d ->
 			let path, name = get_decl_path d in
-			let dotpath = string_of_path (path @ [name]) in
+			let dotpath = string_of_path path in
 			field' dotpath Class d.d_name d.d_data d.d_flags p d.d_meta
 	) decls;
+	begin match mname with
+	| Some(file,mname) when not (Hashtbl.mem type_decls mname) ->
+		add mname Module {pfile = file; pmin = 0; pmax = 0} (String.concat "." pack) false
+	| _ ->
+		()
+	end;
 	l
 
 module Printer = struct

@@ -250,6 +250,7 @@ typedef JsonClassField = {
 	var type:JsonType<Dynamic>;
 	var isPublic:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var params:JsonTypeParameters;
 	var meta:JsonMetadata;
 	var kind:JsonFieldKind<Dynamic>;
@@ -288,6 +289,7 @@ enum abstract JsonClassKindKind<T>(String) {
 	var KMacroType;
 	var KAbstractImpl:JsonClassKindKind<JsonTypePath>;
 	var KGenericBuild;
+	var KModuleFields:JsonClassKindKind<JsonModulePath>;
 }
 
 typedef JsonClassKind<T> = {
@@ -300,6 +302,7 @@ typedef JsonClass = {
 	var isInterface:Bool;
 	var isExtern:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var superClass:Null<JsonTypePathWithParams>;
 	var interfaces:Array<JsonTypePathWithParams>;
 	var fields:JsonClassFields;

@@ -59,7 +59,7 @@ let check_field_access ctx cff =
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
 					display_error ctx (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
-					display_error ctx "Previously defined here" p2;
+					display_error ctx (compl_msg "Previously defined here") p2;
 				end;
 				loop p1 acc l
 			with Not_found -> match access with
@@ -67,7 +67,7 @@ let check_field_access ctx cff =
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
 						display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-						display_error ctx "Conflicts with this" p2;
+						display_error ctx (compl_msg "Conflicts with this") p2;
 						loop p1 acc l
 					with Not_found ->
 						loop p1 ((access,p1) :: acc) l
@@ -86,12 +86,12 @@ let find_type_in_module m tname =
 	) m.m_types
 
 (* raises Type_not_found *)
-let find_type_in_module_raise m tname p =
+let find_type_in_module_raise ctx m tname p =
 	try
 		List.find (fun mt ->
 			let infos = t_infos mt in
 			if snd infos.mt_path = tname then
-				if infos.mt_private then
+				if ctx.m.curmod != infos.mt_module && infos.mt_private then
 					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
 				else
 					true
@@ -104,7 +104,7 @@ let find_type_in_module_raise m tname p =
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
 	let m = ctx.g.do_load_module ctx mpath p in
-	find_type_in_module_raise m tname p
+	find_type_in_module_raise ctx m tname p
 
 (* raises Not_found *)
 let load_type ctx mpath tname p = try
@@ -193,7 +193,7 @@ let load_unqualified_type_def ctx mname tname p =
 		if resume then
 			find_type_in_module m tname
 		else
-			find_type_in_module_raise m tname p
+			find_type_in_module_raise ctx m tname p
 	in
 	find_in_unqualified_modules ctx mname p find_type ~resume:false
 
@@ -209,7 +209,7 @@ let load_module ctx path p =
 
 let load_qualified_type_def ctx pack mname tname p =
 	let m = load_module ctx (pack,mname) p in
-	find_type_in_module_raise m tname p
+	find_type_in_module_raise ctx m tname p
 
 (*
 	load a type or a subtype definition
@@ -238,36 +238,6 @@ let resolve_position_by_path ctx path p =
 	let mt = load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
 	raise_positions [p]
-
-let check_param_constraints ctx types t pl c p =
-	match follow t with
-	| TMono _ -> ()
-	| _ ->
-		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
-		List.iter (fun ti ->
-			let ti = apply_params types pl ti in
-			let ti = (match follow ti with
-				| TInst ({ cl_kind = KGeneric } as c,pl) ->
-					(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
-					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
-					f pl
-				| _ -> ti
-			) in
-			try
-				unify_raise ctx t ti p
-			with Error(Unify l,p) ->
-				let fail() =
-					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
-				in
-				match follow t with
-				| TInst({cl_kind = KExpr e},_) ->
-					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
-					begin try unify_raise ctx e.etype ti p
-					with Error (Unify _,_) -> fail() end
-				| _ ->
-					fail()
-
-		) ctl
 
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
@@ -307,6 +277,29 @@ let make_extension_type ctx tl =
 	let ta = mk_anon ~fields (ref (Extend tl)) in
 	ta
 
+let check_param_constraints ctx t map c p =
+	match follow t with
+	| TMono _ -> ()
+	| _ ->
+		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
+		List.iter (fun ti ->
+			let ti = map ti in
+			try
+				unify_raise ctx t ti p
+			with Error(Unify l,p) ->
+				let fail() =
+					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
+				in
+				match follow t with
+				| TInst({cl_kind = KExpr e},_) ->
+					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
+					begin try unify_raise ctx e.etype ti p
+					with Error (Unify _,_) -> fail() end
+				| _ ->
+					fail()
+
+		) ctl
+
 (* build an instance from a full type *)
 let rec load_instance' ctx (t,p) allow_no_params =
 	let t = try
@@ -316,9 +309,10 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx p t in
-		let is_generic,is_generic_build = match mt with
-			| TClassDecl {cl_kind = KGeneric} -> true,false
-			| TClassDecl {cl_kind = KGenericBuild _} -> false,true
+		let is_generic,is_generic_build,is_extern = match mt with
+			| TClassDecl {cl_kind = KGeneric} -> true,false,false
+			| TClassDecl {cl_kind = KGenericBuild _} -> false,true,false
+			| TClassDecl c when (has_class_flag c CExtern) -> false,false,true
 			| TTypeDecl td ->
 				DeprecationCheck.if_enabled ctx.com (fun() ->
 					try
@@ -330,30 +324,23 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					with Not_found ->
 						()
 				);
-				false,false
-			| _ -> false,false
+				false,false,false
+			| _ -> false,false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		let is_rest = is_generic_build && (match types with ["Rest",_] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
-			let pl = ref [] in
-			pl := List.map (fun (name,t) ->
-				match follow t with
-				| TInst (c,_) ->
-					let t = mk_mono() in
-					if c.cl_kind <> KTypeParameter [] || is_generic then delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t (!pl) c p);
-					t;
-				| _ -> die "" __LOC__
-			) types;
-			f (!pl)
+			let monos = Monomorph.spawn_constrained_monos (fun t -> t) types in
+			f (monos)
 		end else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (load_complex_type ctx true t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
-			if not is_rest && ctx.com.display.dms_error_policy <> EPIgnore && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
-			let tparams = List.map (fun t ->
+			let is_java_rest = ctx.com.platform = Java && is_extern in
+			let is_rest = is_rest || is_java_rest in
+			let load_param t =
 				match t with
 				| TPExpr e ->
 					let name = (match fst e with
@@ -367,11 +354,13 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					) in
 					let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 					c.cl_kind <- KExpr e;
-					TInst (c,[])
-				| TPType t -> load_complex_type ctx true t
-			) t.tparams in
+					TInst (c,[]),pos e
+				| TPType t -> load_complex_type ctx true t,pos t
+			in
+			let checks = DynArray.create () in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
+					let t,pt = load_param t in
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 						let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
@@ -389,12 +378,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 							t
 						| TInst (c,[]) ->
 							check_const c;
-							let r = exc_protect ctx (fun r ->
-								r := lazy_available t;
-								delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);
-								t
-							) "constraint" in
-							TLazy r
+							DynArray.add checks (t,c,pt);
+							t
 						| _ -> die "" __LOC__
 					in
 					t :: loop tl1 tl2 is_rest
@@ -402,28 +387,50 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					[]
 				| [],["Rest",_] when is_generic_build ->
 					[]
-				| [],(_,t) :: tl when ctx.com.display.dms_error_policy = EPIgnore ->
-					t :: loop [] tl is_rest
-				| [],_ ->
-					error ("Not enough type parameters for " ^ s_type_path path) p
+				| [],(_,t) :: tl ->
+					if is_java_rest then
+						t_dynamic :: loop [] tl is_rest
+					else if ctx.com.display.dms_error_policy = EPIgnore then
+						t :: loop [] tl is_rest
+					else
+						error ("Not enough type parameters for " ^ s_type_path path) p
 				| t :: tl,[] ->
+					let t,pt = load_param t in
 					if is_rest then
 						t :: loop tl [] true
 					else if ctx.com.display.dms_error_policy = EPIgnore then
 						[]
 					else
-						error ("Too many parameters for " ^ s_type_path path) p
+						error ("Too many type parameters for " ^ s_type_path path) pt
 			in
-			let params = loop tparams types false in
+			let params = loop t.tparams types false in
+			if not is_rest then begin
+				let map t =
+					let t = apply_params types params t in
+					let t = (match follow t with
+						| TInst ({ cl_kind = KGeneric } as c,pl) ->
+							(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
+							let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
+							f pl
+						| _ -> t
+					) in
+					t
+				in
+				delay ctx PCheckConstraint (fun () ->
+					DynArray.iter (fun (t,c,p) ->
+						check_param_constraints ctx t map c p
+					) checks
+				);
+			end;
 			f params
 		end
 	in
 	t
 
-and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
+and load_instance ctx ?(allow_display=false) ((_,pn) as tp) allow_no_params =
 	try
-		let t = load_instance' ctx (t,pn) allow_no_params in
-		if allow_display then DisplayEmitter.check_display_type ctx t pn;
+		let t = load_instance' ctx tp allow_no_params in
+		if allow_display then DisplayEmitter.check_display_type ctx t tp;
 		t
 	with Error (Module_not_found path,_) when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
@@ -435,6 +442,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 and load_complex_type' ctx allow_display (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
+	| CTPath { tpackage = ["$"]; tname = "_hx_mono" } -> spawn_monomorph ctx p
 	| CTPath t -> load_instance ~allow_display ctx (t,p) false
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTNamed _ -> error "Named type not allowed here" p
@@ -537,7 +545,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern as a -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern | AAbstract | AOverload as a -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar(t,e) when !final ->
@@ -615,7 +623,7 @@ and load_complex_type ctx allow_display (t,pn) =
 	try
 		load_complex_type' ctx allow_display (t,pn)
 	with Error(Module_not_found(([],name)),p) as exc ->
-		if Diagnostics.is_diagnostics_run p then begin
+		if Diagnostics.is_diagnostics_run ctx.com p then begin
 			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
 			t_dynamic
 		end else if ctx.com.display.dms_display && not (DisplayPosition.display_position#enclosed_in pn) then
@@ -660,7 +668,8 @@ and init_meta_overloads ctx co cf =
 			ctx.type_params <- old;
 			false
 		| (Meta.Overload,[],_) when ctx.com.config.pf_overload ->
-			let topt (n,_,t) = match t with | TMono t when t.tm_type = None -> error ("Explicit type required for overload functions\nFor function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
+			add_class_field_flag cf CfOverload;
+			let topt (n,_,t) = match t with | TMono t when t.tm_type = None -> error ("Explicit type required for overload functions\n... For function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
 			(match follow cf.cf_type with
 			| TFun (args,_) -> List.iter topt args
 			| _ -> () (* could be a variable *));
@@ -726,7 +735,7 @@ let t_iterator ctx =
 *)
 let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
-		| None -> mk_mono()
+		| None -> spawn_monomorph ctx pcur
 		| Some (t,p) ->	load_complex_type ctx true (t,p)
 	in
 	if opt then ctx.t.tnull t else t
@@ -900,7 +909,7 @@ let init_core_api ctx c =
 		) fcore;
 		PMap.iter (fun i f ->
 			let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-			if (has_class_field_flag f CfPublic) && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
+			if (has_class_field_flag f CfPublic) && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (has_class_field_flag f CfOverride) then error ("Public field " ^ i ^ " is not part of core type") p;
 		) fl;
 	in
 	check_fields ccore.cl_fields c.cl_fields;

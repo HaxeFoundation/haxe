@@ -46,7 +46,8 @@
 		"name": "CsVer",
 		"define": "cs_ver",
 		"doc": "The C# version to target.",
-		"platforms": ["cs"]
+		"platforms": ["cs"],
+		"params": ["version"]
 	},
 	{
 		"name": "NoCppiaAst",
@@ -114,7 +115,8 @@
 	{
 		"name": "DumpPath",
 		"define": "dump_path",
-		"doc": "Path to generate dumps to (default: \"dump\")."
+		"doc": "Path to generate dumps to (default: \"dump\").",
+		"params": ["path"]
 	},
 	{
 		"name": "DumpDependencies",
@@ -231,12 +233,14 @@
 	{
 		"name": "HaxeVer",
 		"define": "haxe_ver",
-		"doc": "The current Haxe version value as decimal number. E.g. 3.407 for 3.4.7."
+		"doc": "The current Haxe version value as decimal number. E.g. 3.407 for 3.4.7.",
+		"reserved": true
 	},
 	{
 		"name": "Haxe",
 		"define": "haxe",
-		"doc": "The current Haxe version value in SemVer format."
+		"doc": "The current Haxe version value in SemVer format.",
+		"reserved": true
 	},
 	{
 		"name": "HlVer",
@@ -249,7 +253,8 @@
 		"name": "HxcppApiLevel",
 		"define": "hxcpp_api_level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",
-		"platforms": ["cpp"]
+		"platforms": ["cpp"],
+		"reserved": true
 	},
 	{
 		"name": "HxcppGcGenerational",
@@ -281,6 +286,12 @@
 		"doc": "The code is compiled to be run with `--interp`."
 	},
 	{
+		"name": "JarLegacyLoader",
+		"define": "jar-legacy-loader",
+		"doc": "Use the legacy loader to load .jar files on the JVM target.",
+		"platforms": ["java"]
+	},
+	{
 		"name": "JavaVer",
 		"define": "java_ver",
 		"doc": "Sets the Java version to be targeted.",
@@ -298,7 +309,7 @@
 		"define": "js_es",
 		"doc": "Generate JS compliant with given ES standard version. (default: 5)",
 		"platforms": ["js"],
-		"params": ["version number"],
+		"params": ["version: 3 | 5 | 6"],
 		"links": ["https://haxe.org/manual/target-javascript-es6.html"]
 	},
 	{
@@ -329,6 +340,18 @@
 		"name": "Jvm",
 		"define": "jvm",
 		"doc": "Generate jvm directly.",
+		"platforms": ["java"]
+	},
+	{
+		"name": "JvmCompressionLevel",
+		"define": "jvm.compression-level",
+		"doc": "Set the compression level of the generated file between 0 (no compression) and 9 (highest compression). Default: 6",
+		"platforms": ["java"]
+	},
+	{
+		"name": "JvmDynamicLevel",
+		"define": "jvm.dynamic-level",
+		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures",
 		"platforms": ["java"]
 	},
 	{
@@ -366,7 +389,8 @@
 		"name": "Macro",
 		"define": "macro",
 		"doc": "Defined when code is compiled in the macro context.",
-		"links": ["https://haxe.org/manual/macro.html"]
+		"links": ["https://haxe.org/manual/macro.html"],
+		"reserved": true
 	},
 	{
 		"name": "MacroTimes",
@@ -417,11 +441,6 @@
 		"define": "no-compilation",
 		"doc": "Disable final compilation.",
 		"platforms": ["cs", "java", "cpp", "hl"]
-	},
-	{
-		"name": "NoCOpt",
-		"define": "no_copt",
-		"doc": "Disable completion optimization (for debug purposes)."
 	},
 	{
 		"name": "NoDebug",
@@ -483,11 +502,6 @@
 		"define": "objc",
 		"doc": "Sets the hxcpp output to Objective-C++ classes. Must be defined for interop.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "OldConstructorInline",
-		"define": "old-constructor-inline",
-		"doc": "Use old constructor inlining logic (from Haxe 3.4.2) instead of the reworked version."
 	},
 	{
 		"name": "OldErrorFormat",
@@ -560,7 +574,8 @@
 	{
 		"name": "Static",
 		"define": "static",
-		"doc": "Defined if the current target is static."
+		"doc": "Defined if the current target is static.",
+		"reserved": true
 	},
 	{
 		"name": "StdEncodingUtf8",
@@ -572,7 +587,8 @@
 		"name": "Swc",
 		"define": "swc",
 		"doc": "Output a SWC instead of a SWF.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"reserved": true
 	},
 	{
 		"name": "SwfCompressLevel",
@@ -635,7 +651,8 @@
 	{
 		"name": "Sys",
 		"define": "sys",
-		"doc": "Defined for all system platforms."
+		"doc": "Defined for all system platforms.",
+		"reserved": true
 	},
 	{
 		"name": "Unsafe",
@@ -652,7 +669,8 @@
 	{
 		"name": "Utf16",
 		"define": "utf16",
-		"doc": "Defined for all platforms that use UTF-16 string encoding with UCS-2 API."
+		"doc": "Defined for all platforms that use UTF-16 string encoding with UCS-2 API.",
+		"reserved": true
 	},
 	{
 		"name": "Vcproj",

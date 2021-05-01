@@ -2,98 +2,93 @@ open Globals
 open Type
 open Typecore
 
-type overload_args_comparison =
-  | Same
-  | Different
-  | Impl_conflict
-
-let distinguishes_funs_as_params ctx =
-  	match ctx.com.platform with
-  	| Java -> false
-  	| _ -> true
-
-let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
-	let get_vmtype = match get_vmtype with
-		| None -> (fun f -> f)
-		| Some f -> f
-	in
-	if List.length f1.cf_params <> List.length f2.cf_params then
-		Different
-	else
-	let amb_funs =
-		match ctx with
-		| None -> false
-		| Some ctx -> not (distinguishes_funs_as_params ctx) in
-	let rec follow_skip_null t = match t with
-		| TMono r ->
-			(match r.tm_type with
-			| Some t -> follow_skip_null t
-			| _ -> t)
-		| TLazy f ->
-			follow_skip_null (lazy_type f)
-		| TAbstract ({ a_path = [],"Null" } as a, [p]) ->
-			TAbstract(a,[follow p])
-		| TType (t,tl) ->
-			follow_skip_null (apply_params t.t_params tl t.t_type)
-		| _ -> t
-	in
-	let compare_type t1 t2 =
-		(if type_iseq t1 t2 then
-			Same
-		else if amb_funs && type_iseq (ambiguate_funs t1) (ambiguate_funs t2) then
-			Impl_conflict
-		else
-			Different) in
-	let compare_arg t1 t2 =
-		let t1 = get_vmtype (follow_skip_null t1) in
-		let t2 = get_vmtype (follow_skip_null t2) in
-		match t1, t2 with
-			| TType _, TType _ -> compare_type t1 t2
-			| TType _, _
-			| _, TType _ -> Different
-			| _ -> compare_type t1 t2
-	in
-
-	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
-		| TFun(a1,_), TFun(a2,_) ->
-			let rec loop args1 args2 =
-				match args1, args2 with
-				| [], [] -> Same
-				| [], _ | _, [] -> Different
-				| (_,_,t1) :: rest1, (_,_,t2) :: rest2 ->
-					match compare_arg t1 t2 with
-					| Same -> loop rest1 rest2
-					| result -> result
-			in
-			loop a1 a2
-		| _ -> die "" __LOC__
-
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
-	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
+	let f_transform = match get_vmtype with
+		| Some f -> f
+		| None -> (fun t -> t)
+	in
+	let f_eq t1 t2 = type_iseq (f_transform t1) (f_transform t2) in
+	let compare_type_params () =
+		let rec loop params1 params2 = match params1,params2 with
+			| [],[] ->
+				true
+			| (n1,t1) :: params1,(n2,t2) :: params2 ->
+				let constraints_equal t1 t2 = match follow t1,t2 with
+					| TInst({cl_kind = KTypeParameter tl1},_),TInst({cl_kind = KTypeParameter tl2},_) ->
+						Ast.safe_for_all2 f_eq tl1 tl2
+					| _ ->
+						false
+				in
+				n1 = n2 && constraints_equal t1 t2 && loop params1 params2
+			| [],_
+			| _,[] ->
+				false
+		in
+		loop f1.cf_params f2.cf_params
+	in
+	let compare_arguments tl1 tl2 =
+		let rec loop tl1 tl2 = match tl1,tl2 with
+			| [],[] ->
+				true
+			| (n1,o1,t1) :: tl1,(n2,o2,t2) :: tl2 ->
+				(* TODO: do we want to compare n and o here? *)
+				f_eq t1 t2 && loop tl1 tl2
+			| _ ->
+				false
+		in
+		loop tl1 tl2
+	in
+	let compare_types () =
+		let t1 = follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1) in
+		match t1,follow t2 with
+		| TFun(tl1,_),TFun(tl2,_) ->
+			compare_arguments tl1 tl2
+		| _ ->
+			false
+	in
+	compare_type_params () && compare_types ()
 
-(** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
-let rec get_overloads c i =
-	let ret = try
-			let f = PMap.find i c.cl_fields in
-			match f.cf_kind with
+let collect_overloads map c i =
+	let acc = ref [] in
+	let rec loop map c =
+		let maybe_add cf =
+			let t = map cf.cf_type in
+			if not (List.exists (fun (t2,cf2) -> same_overload_args t t2 cf cf2) !acc) then acc := (t,cf) :: !acc
+		in
+		begin try
+			let cf = PMap.find i c.cl_fields in
+			begin match cf.cf_kind with
 				| Var _ ->
-					(* @:libType may generate classes that have a variable field in a superclass of an overloaded method *)
-					[]
+					()
 				| Method _ ->
-					(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
-		with | Not_found -> []
+					maybe_add cf;
+					List.iter maybe_add cf.cf_overloads
+			end;
+		with Not_found ->
+			()
+		end;
+		match c.cl_super with
+			| None when (has_class_flag c CInterface) ->
+				List.iter (fun (c,tl) ->
+					let tl = List.map map tl in
+					loop (fun t -> apply_params c.cl_params tl (map t)) c
+				) c.cl_implements
+			| None ->
+				()
+			| Some (c,tl) ->
+				let tl = List.map map tl in
+				loop (fun t -> apply_params c.cl_params tl (map t)) c
 	in
-	let rsup = match c.cl_super with
-	| None when c.cl_interface ->
-			let ifaces = List.concat (List.map (fun (c,tl) ->
-				List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i)
-			) c.cl_implements) in
-			ret @ ifaces
-	| None -> ret
-	| Some (c,tl) ->
-			ret @ ( List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i) )
-	in
-	ret @ (List.filter (fun (t,f) -> not (List.exists (fun (t2,f2) -> same_overload_args t t2 f f2) ret)) rsup)
+	loop map c;
+	List.rev !acc
+
+let get_overloads (com : Common.context) c i =
+	try
+		Hashtbl.find com.overload_cache (c.cl_path,i)
+	with Not_found ->
+		let l = collect_overloads (fun t -> t) c i in
+		Hashtbl.add com.overload_cache (c.cl_path,i) l;
+		l
 
 (** Overload resolution **)
 module Resolution =
@@ -135,7 +130,7 @@ struct
 	**)
 	let rec rate_conv cacc tfun targ =
 		match simplify_t tfun, simplify_t targ with
-		| TInst({ cl_interface = true } as cf, tlf), TInst(ca, tla) ->
+		| TInst(cf, tlf), TInst(ca, tla) when (has_class_flag cf CInterface) ->
 			(* breadth-first *)
 			let stack = ref [0,ca,tla] in
 			let cur = ref (0, ca,tla) in
@@ -211,7 +206,7 @@ struct
 			raise Not_found
 
 	let is_best arg1 arg2 =
-		(List.for_all2 (fun v1 v2 ->
+		(Ast.safe_for_all2 (fun v1 v2 ->
 			v1 <= v2)
 		arg1 arg2) && (List.exists2 (fun v1 v2 ->
 			v1 < v2)
@@ -219,7 +214,7 @@ struct
 
 	let rec rm_duplicates acc ret = match ret with
 		| [] -> acc
-		| ( el, t, _ ) :: ret when List.exists (fun (_,t2,_) -> type_iseq t t2) acc ->
+		| fcc :: ret when List.exists (fun fcc2 -> type_iseq fcc.fc_type fcc2.fc_type) acc ->
 			rm_duplicates acc ret
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
@@ -230,21 +225,25 @@ struct
 			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
 		) rated)
 
-	let count_optionals elist =
-		List.fold_left (fun acc (_,is_optional) -> if is_optional then acc + 1 else acc) 0 elist
+	let count_optionals t =
+		match follow t with
+		| TFun(args,_) ->
+			List.fold_left (fun acc (_,is_optional,_) -> if is_optional then acc + 1 else acc) 0 args
+		| _ ->
+			0
 
 	let rec fewer_optionals acc compatible = match acc, compatible with
 		| _, [] -> acc
 		| [], c :: comp -> fewer_optionals [c] comp
-		| (elist_acc, _, _) :: _, ((elist, _, _) as cur) :: comp ->
-			let acc_opt = count_optionals elist_acc in
-			let comp_opt = count_optionals elist in
+		| fcc_acc :: _, fcc :: comp ->
+			let acc_opt = count_optionals fcc_acc.fc_type in
+			let comp_opt = count_optionals fcc.fc_type in
 			if acc_opt = comp_opt then
-				fewer_optionals (cur :: acc) comp
+				fewer_optionals (fcc :: acc) comp
 			else if acc_opt < comp_opt then
 				fewer_optionals acc comp
 			else
-				fewer_optionals [cur] comp
+				fewer_optionals [fcc] comp
 
 	let reduce_compatible compatible = match fewer_optionals [] (rm_duplicates [] compatible) with
 		| [] -> []
@@ -253,8 +252,8 @@ struct
 			(* convert compatible into ( rate * compatible_type ) list *)
 			let rec mk_rate acc elist args = match elist, args with
 				| [], [] -> acc
-				| (_,true) :: elist, _ :: args -> mk_rate acc elist args
-				| (e,false) :: elist, (n,o,t) :: args ->
+				| _ :: elist, (_,true,_) :: args -> mk_rate acc elist args
+				| e :: elist, (n,o,t) :: args ->
 					(* if the argument is an implicit cast, we need to start with a penalty *)
 					(* The penalty should be higher than any other implicit cast - other than Dynamic *)
 					(* since Dynamic has a penalty of max_int, we'll impose max_int - 1 to it *)
@@ -267,9 +266,9 @@ struct
 			in
 
 			let rated = ref [] in
-			List.iter (function
-				| (elist,TFun(args,ret),d) -> (try
-					rated := ( (elist,TFun(args,ret),d), mk_rate [] elist args ) :: !rated
+			List.iter (fun fcc -> match fcc.fc_type with
+				| TFun(args,ret) -> (try
+					rated := ( fcc, mk_rate [] fcc.fc_args args ) :: !rated
 					with | Not_found -> ())
 				| _ -> die "" __LOC__
 			) compatible;

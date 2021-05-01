@@ -339,6 +339,7 @@ let rec unfold_null t =
 	match t with
 		| TMono r -> (match r.tm_type with None -> t | Some t -> unfold_null t)
 		| TAbstract ({ a_path = ([],"Null") }, [t]) -> unfold_null t
+		| TAbstract (abstr,tl) when not (Meta.has Meta.CoreType abstr.a_meta) -> unfold_null (apply_params abstr.a_params tl abstr.a_this)
 		| TLazy f -> unfold_null (lazy_type f)
 		| TType (t,tl) -> unfold_null (apply_params t.t_params tl t.t_type)
 		| _ -> t
@@ -726,7 +727,7 @@ class safety_scope (mode:safety_mode) (scope_type:scope_type) (safe_locals:(safe
 		(**
 			Wrapper for `get_subject` function
 		*)
-		method private get_subject =
+		method get_subject =
 			get_subject mode
 	end
 
@@ -897,7 +898,7 @@ class local_safety (mode:safety_mode) =
 			match expr.eexpr with
 				| TIf (condition, if_body, else_body) ->
 					condition_callback condition;
-					let (_, not_nulls) =
+					let (nulls_in_if, not_nulls) =
 						process_condition mode condition is_nullable_expr (fun _ -> ())
 					in
 					(* Don't touch expressions, which already was safe before this `if` *)
@@ -910,10 +911,13 @@ class local_safety (mode:safety_mode) =
 						process_condition mode not_condition is_nullable_expr (fun _ -> ())
 					in
 					let else_not_nulls = filter else_not_nulls in
+					let initial_safe = self#get_safe_locals_copy in
 					(** execute `if_body` with known not-null variables *)
 					List.iter self#get_current_scope#add_to_safety not_nulls;
 					body_callback if_body;
-					List.iter self#get_current_scope#remove_from_safety not_nulls;
+					let safe_after_if = self#get_safe_locals_copy in
+					(* List.iter self#get_current_scope#remove_from_safety not_nulls; *)
+					self#get_current_scope#reset_to initial_safe;
 					(** execute `else_body` with known not-null variables *)
 					let handle_dead_end body safe_vars =
 						if is_dead_end body then
@@ -921,12 +925,39 @@ class local_safety (mode:safety_mode) =
 					in
 					(match else_body with
 						| None ->
+							(*
+								`if` gets executed only when each of `nulls_in_if` is `null`.
+								That means if they become safe in `if`, then they are safe after `if` too.
+							*)
+							List.iter (fun e ->
+								let subj = self#get_current_scope#get_subject e in
+								if Hashtbl.mem safe_after_if subj then
+									self#get_current_scope#add_to_safety e;
+							) nulls_in_if;
+							(* These became unsafe in `if` *)
+							Hashtbl.iter (fun subj e ->
+								if not (Hashtbl.mem safe_after_if subj) then
+									self#get_current_scope#remove_from_safety e;
+							) initial_safe;
 							(** If `if_body` terminates execution, then bypassing `if` means `else_not_nulls` are safe now *)
 							handle_dead_end if_body else_not_nulls
 						| Some else_body ->
 							List.iter self#get_current_scope#add_to_safety else_not_nulls;
 							body_callback else_body;
-							List.iter self#get_current_scope#remove_from_safety else_not_nulls;
+							let safe_after_else = self#get_safe_locals_copy in
+							self#get_current_scope#reset_to initial_safe;
+							(* something was safe before `if..else`, but became unsafe in `if` or in `else` *)
+							Hashtbl.iter (fun subj e ->
+								if not (Hashtbl.mem safe_after_if subj && Hashtbl.mem safe_after_else subj) then
+									self#get_current_scope#remove_from_safety e;
+								Hashtbl.remove safe_after_if subj;
+								Hashtbl.remove safe_after_else subj;
+							) initial_safe;
+							(* something became safe in both `if` and `else` *)
+							Hashtbl.iter (fun subj e ->
+								if Hashtbl.mem safe_after_else subj then
+									self#get_current_scope#add_to_safety e
+							) safe_after_if;
 							(** If `if_body` terminates execution, then bypassing `if` means `else_not_nulls` are safe now *)
 							handle_dead_end if_body else_not_nulls;
 							(** If `else_body` terminates execution, then bypassing `else` means `not_nulls` are safe now *)
@@ -1043,6 +1074,7 @@ class expr_checker mode immediate_execution report =
 		*)
 		method can_pass_expr expr to_type p =
 			match expr.eexpr, to_type with
+				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
 				| TObjectDecl fields, TAnon to_type ->
 					List.for_all
 						(fun ((name, _, _), field_expr) ->
@@ -1359,19 +1391,20 @@ class expr_checker mode immediate_execution report =
 				| TNew (cls, params, args) ->
 					let ctor =
 						try
-							Some (get_constructor (fun ctor -> apply_params cls.cl_params params ctor.cf_type) cls)
+							Some (get_constructor cls)
 						with
 							| Not_found -> None
 					in
 					(match ctor with
 						| None ->
 							List.iter self#check_expr args
-						| Some (ctor_type, _) ->
+						| Some cf ->
 							let rec traverse t =
 								match follow t with
 									| TFun (types, _) -> self#check_args e_new args types
 									| _ -> fail ~msg:"Unexpected constructor type." e_new.epos __POS__
 							in
+							let ctor_type = apply_params cls.cl_params params cf.cf_type in
 							traverse ctor_type
 					)
 				| _ -> fail ~msg:"TNew expected" e_new.epos __POS__
@@ -1454,7 +1487,7 @@ class class_checker cls immediate_execution report =
 		*)
 		method check =
 			validate_safety_meta report cls_meta;
-			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
+			if is_safe_class && (not (has_class_flag cls CExtern)) && (not (has_class_flag cls CInterface)) then
 				self#check_var_fields;
 			let check_field is_static f =
 				validate_safety_meta report f.cf_meta;
@@ -1578,7 +1611,7 @@ class class_checker cls immediate_execution report =
 							List.iter (check_unsafe_usage init_list safety_enabled) args
 						| TConst TThis when safety_enabled ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
-						| TLocal v when Hashtbl.mem this_vars v.v_id ->
+						| TLocal v when safety_enabled && Hashtbl.mem this_vars v.v_id ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
 						| TMeta ((Meta.NullSafety, [(EConst (Ident "Off"), _)], _), e) ->
 							iter (check_unsafe_usage init_list false) e

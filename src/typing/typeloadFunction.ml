@@ -27,88 +27,37 @@ open DisplayTypes.DisplayMode
 open DisplayException
 open Common
 open Error
-
-let type_function_arg ctx t e opt p =
-	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
-	(* delay ctx PTypeField (fun() ->
-		if ExtType.is_void (follow t) then
-			error "Arguments of type Void are not allowed" p
-	); *)
-	if opt then
-		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
-		ctx.t.tnull t, e
-	else
-		let t = match e with Some (EConst (Ident "null"),null_pos) -> ctx.t.tnull t | _ -> t in
-		t, e
+open FunctionArguments
 
 let save_field_state ctx =
 	let old_ret = ctx.ret in
 	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
+	let old_monos = ctx.monomorphs.perfunction in
+	let old_in_function = ctx.in_function in
 	let locals = ctx.locals in
 	(fun () ->
 		ctx.locals <- locals;
 		ctx.ret <- old_ret;
 		ctx.curfun <- old_fun;
 		ctx.opened <- old_opened;
+		ctx.monomorphs.perfunction <- old_monos;
+		ctx.in_function <- old_in_function;
 	)
-
-let type_var_field ctx t e stat do_display p =
-	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
-	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
-	let e = type_expr ctx e (WithType.with_type t) in
-	let e = AbstractCast.cast_or_unify ctx t e p in
-	match t with
-	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
-	| _ -> e
-
-let type_var_field ctx t e stat do_display p =
-	let save = save_field_state ctx in
-	Std.finally save (type_var_field ctx t e stat do_display) p
 
 let type_function_params ctx fd fname p =
 	let params = ref [] in
 	params := Typeload.type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
-let type_function_arg_value ctx t c do_display =
-	match c with
-		| None -> None
-		| Some e ->
-			let p = pos e in
-			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
-			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType.with_type t)) in
-			unify ctx e.etype t p;
-			let rec loop e = match e.eexpr with
-				| TConst _ -> Some e
-				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
-				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when Meta.has Meta.Enum a.a_meta && Meta.has Meta.Enum cf.cf_meta -> Some e
-				| TCast(e,None) -> loop e
-				| _ ->
-					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
-						display_error ctx "Parameter default value should be constant" p;
-					None
-			in
-			loop e
-
-let process_function_arg ctx n t c do_display p =
-	if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
-	type_function_arg_value ctx t c do_display
-
-let type_function ctx args ret fmode f do_display p =
-	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
-		let c = process_function_arg ctx n t c do_display pn in
-		let v = add_local_with_origin ctx TVOArgument n t pn in
-		v.v_meta <- v.v_meta @ m;
-		if do_display && DisplayPosition.display_position#enclosed_in pn then
-			DisplayEmitter.display_variable ctx v pn;
-		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
-		v,c
-	) args f.f_args in
+let type_function ctx (args : function_arguments) ret fmode e do_display p =
+	ctx.in_function <- true;
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
-	let e = match f.f_expr with
+	ctx.monomorphs.perfunction <- [];
+	args#bring_into_context;
+	let e = match e with
 		| None ->
 			if ctx.com.display.dms_error_policy = EPIgnore then
 				(* when we don't care because we're in display mode, just act like
@@ -117,7 +66,10 @@ let type_function ctx args ret fmode f do_display p =
 				*)
 				EBlock [],p
 			else
-				error "Function body required" p
+				if fmode = FunMember && has_class_flag ctx.curclass CAbstract then
+					error "Function body or abstract modifier required" p
+				else
+					error "Function body required" p
 		| Some e -> e
 	in
 	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
@@ -167,7 +119,7 @@ let type_function ctx args ret fmode f do_display p =
 			None
 		| Some (csup,tl) ->
 			try
-				let _,cf = get_constructor (fun f->f.cf_type) csup in
+				let cf = get_constructor csup in
 				Some (Meta.has Meta.CompilerGenerated cf.cf_meta,TInst(csup,tl))
 			with Not_found ->
 				None
@@ -202,7 +154,7 @@ let type_function ctx args ret fmode f do_display p =
 					{ e with eexpr = TBlock (ev :: l) }
 				else begin
 					let rec has_v e = match e.eexpr with
-						| TLocal v' when v == v -> true
+						| TLocal v' when v' == v -> true
 						| _ -> check_expr has_v e
 					in
 					let rec loop el = match el with
@@ -221,16 +173,19 @@ let type_function ctx args ret fmode f do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
+	List.iter (fun (m,p) -> safe_mono_close ctx m p) ctx.monomorphs.perfunction;
 	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
-	e , fargs
+	e
 
-let type_function ctx args ret fmode f do_display p =
+let type_function ctx args ret fmode e do_display p =
 	let save = save_field_state ctx in
-	Std.finally save (type_function ctx args ret fmode f do_display) p
+	Std.finally save (type_function ctx args ret fmode e do_display) p
 
 let add_constructor ctx c force_constructor p =
-	match c.cl_constructor, c.cl_super with
-	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
+	if c.cl_constructor <> None then () else
+	let constructor = try Some (Type.get_constructor_class c (List.map snd c.cl_params)) with Not_found -> None in
+	match constructor with
+	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
 		let cf = {
 			cfsup with
 			cf_pos = p;
@@ -246,7 +201,7 @@ let add_constructor ctx c force_constructor p =
 				pass = PTypeField;
 			} in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
-			(if ctx.com.config.pf_overload then List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads);
+			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;
 			let map_arg (v,def) =
 				(*
 					let's optimize a bit the output by not always copying the default value
@@ -255,7 +210,7 @@ let add_constructor ctx c force_constructor p =
 				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
 				| _, Some _ when not ctx.com.config.pf_static -> v, null()
-				| Flash, Some ({eexpr = TConst (TString _)}) when not csup.cl_extern -> v, null()
+				| Flash, Some ({eexpr = TConst (TString _)}) when not (has_class_flag csup CExtern) -> v, null()
 				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
 				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
 				| _ -> v, def
@@ -292,7 +247,7 @@ let add_constructor ctx c force_constructor p =
 		) "add_constructor" in
 		cf.cf_type <- TLazy r;
 		c.cl_constructor <- Some cf;
-	| None,_ when force_constructor ->
+	| _ when force_constructor ->
 		let constr = mk (TFunction {
 			tf_args = [];
 			tf_type = ctx.t.tvoid;

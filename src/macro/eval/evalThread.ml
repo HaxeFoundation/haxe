@@ -77,41 +77,61 @@ let create_eval thread = {
 	caught_exception = vnull;
 }
 
-let spawn ctx f =
-	let f thread =
-		let id = Thread.id (Thread.self()) in
-		let maybe_send_thread_event reason = match ctx.debug.debug_socket with
-			| Some socket ->
-				socket.connection.send_thread_event id reason
-			| None ->
-				()
-		in
-		let new_eval = create_eval thread in
-		ctx.evals <- IntMap.add id new_eval ctx.evals;
-		let close () =
-			ctx.evals <- IntMap.remove id ctx.evals;
-			maybe_send_thread_event "exited";
-		in
-		try
-			maybe_send_thread_event "started";
-			ignore(f ());
-			close();
-		with
-		| RunTimeException(v,stack,p) ->
-			let msg = get_exc_error_message ctx v stack p in
-			prerr_endline msg;
-			close();
-		| Sys_exit i ->
-			close();
-			exit i;
-		| exc ->
-			close();
-			raise exc
+let run ctx f thread =
+	let id = Thread.id (Thread.self()) in
+	let maybe_send_thread_event reason = match ctx.debug.debug_socket with
+		| Some socket ->
+			socket.connection.send_thread_event id reason
+		| None ->
+			()
 	in
+	let new_eval = create_eval thread in
+	ctx.evals <- IntMap.add id new_eval ctx.evals;
+	let close () =
+		ctx.evals <- IntMap.remove id ctx.evals;
+		maybe_send_thread_event "exited";
+	in
+	try
+		maybe_send_thread_event "started";
+		ignore(f ());
+		close();
+	with
+	| RunTimeException(v,stack,p) ->
+		let msg = get_exc_error_message ctx v stack p in
+		prerr_endline msg;
+		close();
+	| Sys_exit i ->
+		close();
+		exit i;
+	| exc ->
+		close();
+		raise exc
+
+let spawn ctx f =
 	let thread = {
 		tthread = Obj.magic ();
 		tstorage = IntMap.empty;
+		tevents = vnull;
 		tdeque = Deque.create();
 	} in
-	thread.tthread <- Thread.create f thread;
+	thread.tthread <- Thread.create (run ctx f) thread;
 	thread
+
+(**
+	Just executes `f` if called from a Haxe thread.
+	Otherwise creates Haxe thread data structures, runs `f` and then cleans up
+	created data.
+*)
+let run ctx f =
+	let id = Thread.id (Thread.self()) in
+	if IntMap.mem id ctx.evals then
+		ignore(f())
+	else begin
+		let thread = {
+			tthread = Thread.self();
+			tstorage = IntMap.empty;
+			tevents = vnull;
+			tdeque = Deque.create();
+		} in
+		run ctx f thread
+	end

@@ -197,10 +197,20 @@ let rec const ctx c =
     | ConstMethodType jmethod_signature (* tag = 16 *) ->
         write_byte ctx.cpool 16;
         write_ui16 ctx.cpool (const ctx (ConstUtf8 (encode_sig ctx (TMethod jmethod_signature))))
+    | ConstDynamic (bootstrap_method, unqualified_name, jsignature) (* tag = 17 *) ->
+        write_byte ctx.cpool 17;
+        write_ui16 ctx.cpool bootstrap_method;
+        write_ui16 ctx.cpool (const ctx (ConstNameAndType(unqualified_name, jsignature)))
     | ConstInvokeDynamic (bootstrap_method, unqualified_name, jsignature) (* tag = 18 *) ->
         write_byte ctx.cpool 18;
         write_ui16 ctx.cpool bootstrap_method;
         write_ui16 ctx.cpool (const ctx (ConstNameAndType(unqualified_name, jsignature)))
+    | ConstModule unqualified_name (* tag = 19 *) ->
+        write_byte ctx.cpool 19;
+        write_ui16 ctx.cpool (const ctx (ConstUtf8 (unqualified_name)));
+    | ConstPackage unqualified_name (* tag = 20 *) ->
+        write_byte ctx.cpool 20;
+        write_ui16 ctx.cpool (const ctx (ConstUtf8 (unqualified_name)));
     | ConstUnusable -> assert false);
     ctx.ccount <- ret + 1;
     ret

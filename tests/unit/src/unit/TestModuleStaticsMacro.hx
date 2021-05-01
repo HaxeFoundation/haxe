@@ -14,14 +14,14 @@ class TestModuleStaticsMacro {
 			{
 				pos: pos,
 				name: "funcA",
-				kind: TDStatic(FFun({ret: macro : Int, args: [], expr: macro return 42})),
+				kind: TDField(FFun({ret: macro : Int, args: [], expr: macro return 42})),
 				pack: ["mstatics"],
 				fields: []
 			},
 			{
 				pos: pos,
 				name: "funcB",
-				kind: TDStatic(FFun({ret: macro : Int, args: [], expr: macro return 43})),
+				kind: TDField(FFun({ret: macro : Int, args: [], expr: macro return 43})),
 				pack: ["mstatics"],
 				fields: []
 			}
@@ -31,7 +31,7 @@ class TestModuleStaticsMacro {
 			pos: pos,
 			pack: ["mstatics"],
 			name: "FuncC",
-			kind: TDStatic(FFun({ret: macro : Int, args: [], expr: macro return 44})),
+			kind: TDField(FFun({ret: macro : Int, args: [], expr: macro return 44})),
 			fields: []
 		});
 

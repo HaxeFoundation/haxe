@@ -5,7 +5,7 @@ class Issue8805 extends DisplayTestCase {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8805/Main.hx"));
 		var args = ["-main", "Main"];
 		runHaxeJson(args, DisplayMethods.GotoDefinition, {file: file, offset: 56});
-		var result = parseGotoDefinition();
+		var result = parseGotoTypeDefinition();
 		if (result.result.length == 0) {
 			Assert.fail('display/definition failed');
 		} else {

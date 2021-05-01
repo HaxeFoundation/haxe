@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 open Type
 open EvalValue
@@ -40,6 +40,7 @@ let rtrue = create_ascii "true"
 let rfalse = create_ascii "false"
 let rfun = create_ascii "#fun"
 let rclosure = create_ascii "#closure"
+let rhandle = create_ascii "#handle"
 
 let s_date d =
 	let open Unix in
@@ -110,6 +111,8 @@ and s_value depth v =
 	else match v with
 	| VNull -> rnull
 	| VInt32 i32 -> create_ascii(Int32.to_string i32)
+	| VInt64 i -> create_ascii(Signed.Int64.to_string i)
+	| VUInt64 u -> create_ascii(Unsigned.UInt64.to_string u)
 	| VTrue -> rtrue
 	| VFalse -> rfalse
 	| VFloat f ->
@@ -118,8 +121,10 @@ and s_value depth v =
 		create_ascii (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
 	| VFunction (f,_) -> rfun
 	| VFieldClosure _ -> rclosure
+	| VHandle _ -> rhandle
 	| VEnumValue ve -> s_enum_value depth ve
 	| VString s -> s
+	| VNativeString s -> create_unknown_vstring s
 	| VArray va -> s_array (depth + 1) va
 	| VVector vv -> s_vector (depth + 1) vv
 	| VInstance {ikind=IDate d} -> s_date d

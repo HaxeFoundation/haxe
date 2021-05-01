@@ -1,2 +1,2 @@
-Duplicate.hx:2: characters 1-11 : Name C is already defined in this module
-Duplicate.hx:1: characters 1-16 : Previous declaration here
+Duplicate.hx:2: characters 7-8 : Name C is already defined in this module
+Duplicate.hx:1: characters 10-11 : ... Previous declaration here

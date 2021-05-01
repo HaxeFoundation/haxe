@@ -31,7 +31,7 @@ class Mysql {
 		?socket:String,
 		?database:String
 	}):sys.db.Connection {
-		throw "Not implemented for this platform";
+		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform");
 		return null;
 	}
 }

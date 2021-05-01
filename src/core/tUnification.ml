@@ -3,21 +3,279 @@ open TType
 open TFunctions
 open TPrinting
 
+type unify_error =
+	| Cannot_unify of t * t
+	| Invalid_field_type of string
+	| Has_no_field of t * string
+	| Has_no_runtime_field of t * string
+	| Has_extra_field of t * string
+	| Invalid_kind of string * field_kind * field_kind
+	| Invalid_visibility of string
+	| Not_matching_optional of string
+	| Cant_force_optional
+	| Invariant_parameter of int
+	| Constraint_failure of string
+	| Missing_overload of tclass_field * t
+	| FinalInvariance (* nice band name *)
+	| Invalid_function_argument of int (* index *) * int (* total *)
+	| Invalid_return_type
+	| Unify_custom of string
+
+exception Unify_error of unify_error list
+
+type eq_kind =
+	| EqStrict
+	| EqCoreType
+	| EqRightDynamic
+	| EqBothDynamic
+	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
+
+type unification_context = {
+	allow_transitive_cast : bool;
+	allow_abstract_cast   : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
+	allow_dynamic_to_cast : bool; (* allows a cast from dynamic to non-dynamic *)
+	equality_kind         : eq_kind;
+	equality_underlying   : bool;
+}
+
+type unify_min_result =
+	| UnifyMinOk of t
+	| UnifyMinError of unify_error list * int
+
+let error l = raise (Unify_error l)
+
+let check_constraint name f =
+	try
+		f()
+	with Unify_error l ->
+		raise (Unify_error ((Constraint_failure name) :: l))
+
+let unify_ref : (unification_context -> t -> t -> unit) ref = ref (fun _ _ _ -> ())
+let unify_min_ref : (unification_context -> t -> t list -> unify_min_result) ref = ref (fun _ _ _ -> assert false)
+
+let default_unification_context = {
+	allow_transitive_cast = true;
+	allow_abstract_cast   = true;
+	allow_dynamic_to_cast = true;
+	equality_kind         = EqStrict;
+	equality_underlying   = false;
+}
+
 module Monomorph = struct
 	let create () = {
 		tm_type = None;
+		tm_down_constraints = [];
+		tm_up_constraints = []
 	}
+
+	(* constraining *)
+
+	let add_up_constraint m ((t,name) as constr) =
+		m.tm_up_constraints <- constr :: m.tm_up_constraints;
+		match t with
+		| TMono m2 -> m2.tm_down_constraints <- MMono (m2,name) :: m2.tm_down_constraints
+		| _ -> ()
+
+	let add_down_constraint m constr =
+		m.tm_down_constraints <- constr :: m.tm_down_constraints;
+		match constr with
+		| MMono (m2,s) -> m2.tm_up_constraints <- (TMono m,s) :: m.tm_up_constraints
+		| _ -> ()
+
+	let constraint_of_type name t = match follow t with
+		| TMono m2 ->
+			[MMono(m2,name)]
+		| TAnon an when not (PMap.is_empty an.a_fields) ->
+			PMap.fold (fun cf l ->
+				(MField cf) :: l
+			) an.a_fields []
+		| TAnon _ ->
+			[MEmptyStructure]
+		| _ ->
+			[MType(t,name)]
+
+	let constrain_to_type m name t =
+		List.iter (add_down_constraint m) (constraint_of_type name t)
+
+	(* Note: This function is called by printing and others and should thus not modify state. *)
+
+	let rec classify_down_constraints' m =
+		let types = DynArray.create () in
+		let fields = ref PMap.empty in
+		let is_open = ref false in
+		let monos = ref [] in
+		let rec check constr = match constr with
+			| MMono(m2,name) ->
+				begin match m2.tm_type with
+				| None ->
+					let more_monos,kind = classify_down_constraints' m2 in
+					monos := !monos @ more_monos;
+					begin match kind with
+					| CUnknown ->
+						(* Collect unconstrained monomorphs because we have to bind them. *)
+						monos := m2 :: !monos;
+					| _ ->
+						(* Recursively inherit constraints. *)
+						List.iter check m2.tm_down_constraints
+					end
+				| Some t ->
+					List.iter (fun constr -> check constr) (constraint_of_type name t)
+				end;
+			| MField cf ->
+				fields := PMap.add cf.cf_name cf !fields;
+			| MType(t2,name) ->
+				DynArray.add types (t2,name)
+			| MOpenStructure
+			| MEmptyStructure ->
+				is_open := true
+		in
+		List.iter check m.tm_down_constraints;
+		let kind =
+			if DynArray.length types > 0 then
+				CTypes (DynArray.to_list types)
+			else if not (PMap.is_empty !fields) || !is_open then
+				CStructural(!fields,!is_open)
+			else
+				CUnknown
+		in
+		!monos,kind
+
+	let classify_down_constraints m = snd (classify_down_constraints' m)
+
+	let check_down_constraints constr t =
+		match constr with
+		| CUnknown ->
+			()
+		| CTypes tl ->
+			List.iter (fun (t2,name) ->
+				let f () = (!unify_ref) default_unification_context t t2 in
+				match name with
+				| Some name -> check_constraint name f
+				| None -> f()
+			) tl
+		| CStructural(fields,is_open) ->
+			let t2 = mk_anon ~fields (ref Closed) in
+			(!unify_ref) default_unification_context t t2
+
+	let rec collect_up_constraints m =
+		let rec collect m acc =
+			List.fold_left (fun acc (t,name) ->
+				match t with
+				| TMono m2 ->
+					(match m2.tm_type with
+					| Some t ->
+						(match follow t with
+						| TMono _ -> acc
+						| _ -> (t,name) :: acc)
+					| None -> collect m2 acc
+					)
+				| _ -> (t,name) :: acc
+			) acc m.tm_up_constraints
+		in
+		collect m []
+
+	let check_up_constraints m t =
+		List.iter (fun (t2,constraint_name) ->
+			let check() =
+				(!unify_ref) default_unification_context t2 t
+			in
+			match constraint_name with
+			| Some name -> check_constraint name check
+			| None -> check()
+		) (collect_up_constraints m)
+
+	(* binding *)
 
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
-		m.tm_type <- Some t
+		m.tm_type <- Some t;
+		m.tm_down_constraints <- [];
+		m.tm_up_constraints <- []
 
 	let rec bind m t =
-		m.tm_type <- Some t
+		begin match t with
+		| TAnon _ when List.mem MOpenStructure m.tm_down_constraints ->
+			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
+			   fields. This is kinda weird, but that's how it has always worked. *)
+			constrain_to_type m None t;
+			ignore(close m)
+		| TMono m2 ->
+			if m != m2 then begin match m2.tm_type with
+			| None ->
+				List.iter (add_down_constraint m2) m.tm_down_constraints;
+				List.iter (add_up_constraint m2) m.tm_up_constraints;
+				do_bind m t;
+			| Some t ->
+				bind m t
+			end
+		| _ ->
+			check_up_constraints m t;
+			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
+			   against before checking the constraints. *)
+			m.tm_type <- Some t;
+			let monos,kind = classify_down_constraints' m in
+			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_down_constraints kind t) ();
+			do_bind m t
+		end
+
+	and close m = match m.tm_type with
+		| Some _ ->
+			()
+		| None -> match classify_down_constraints m with
+			| CUnknown ->
+				()
+			| CTypes [(t,_)] ->
+				do_bind m t;
+				()
+			| CTypes _ ->
+				()
+			| CStructural(fields,_) ->
+				let check_recursion cf =
+					let rec loop t = match t with
+					| TMono m2 when m == m2 ->
+						let pctx = print_context() in
+						let s = Printf.sprintf "%s appears in { %s: %s }" (s_type pctx t) cf.cf_name (s_type pctx cf.cf_type) in
+						raise (Unify_error [Unify_custom "Recursive type";Unify_custom s]);
+					| _ ->
+						TFunctions.map loop t
+					in
+					ignore(loop cf.cf_type);
+				in
+				(* We found a bunch of fields but no type, create a merged structure type and bind to that *)
+				PMap.iter (fun _ cf -> check_recursion cf) fields;
+				do_bind m (mk_anon ~fields (ref Closed));
+				()
 
 	let unbind m =
 		m.tm_type <- None
+
+	let spawn_constrained_monos map params =
+		let checks = DynArray.create () in
+		let monos = List.map (fun (s,t) ->
+			let mono = create () in
+			begin match follow t with
+				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->
+					DynArray.add checks (mono,constr,s_type_path path)
+				| _ ->
+					()
+			end;
+			TMono mono
+		) params in
+		let map t = map (apply_params params monos t) in
+		DynArray.iter (fun (mono,constr,path) ->
+			List.iter (fun t -> constrain_to_type mono (Some path) (map t)) constr
+		) checks;
+		monos
+
 end
+
+let rec follow_and_close t = match follow t with
+	| TMono r as t ->
+		Monomorph.close r;
+		if r.tm_type <> None then follow_and_close t
+		else t
+	| t ->
+		t
 
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
@@ -53,19 +311,6 @@ let rec link e a b =
 		true
 	end
 
-let would_produce_recursive_anon field_acceptor field_donor =
-	try
-		(match !(field_acceptor.a_status) with
-		| Opened ->
-			PMap.iter (fun n field ->
-				match follow field.cf_type with
-				| TAnon a when field_acceptor == a -> raise Exit
-				| _ -> ()
-			) field_donor.a_fields;
-		| _ -> ());
-		false
-	with Exit -> true
-
 let link_dynamic a b = match follow a,follow b with
 	| TMono r,TDynamic _ -> Monomorph.bind r b
 	| TDynamic _,TMono r -> Monomorph.bind r a
@@ -89,6 +334,8 @@ let fast_eq_check type_param_check a b =
 		false
 
 let rec fast_eq a b = fast_eq_check fast_eq a b
+
+let fast_eq_pair (a,b) (a',b') = fast_eq a a' && fast_eq b b'
 
 let rec fast_eq_unbound_mono a b =
 	match a, b with
@@ -136,7 +383,6 @@ let rec shallow_eq a b =
 				| AbstractStatics a, AbstractStatics a2 -> a == a2
 				| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 shallow_eq tl1 tl2
 				| Closed, Closed -> fields_eq()
-				| Opened, Opened -> fields_eq()
 				| Const, Const -> fields_eq()
 				| _ -> false
 				)
@@ -149,33 +395,12 @@ let rec shallow_eq a b =
    it's also the one that is pointed by the position.
    It's actually a typecheck of  A :> B where some mutations can happen *)
 
-type unify_error =
-	| Cannot_unify of t * t
-	| Invalid_field_type of string
-	| Has_no_field of t * string
-	| Has_no_runtime_field of t * string
-	| Has_extra_field of t * string
-	| Invalid_kind of string * field_kind * field_kind
-	| Invalid_visibility of string
-	| Not_matching_optional of string
-	| Cant_force_optional
-	| Invariant_parameter of int
-	| Constraint_failure of string
-	| Missing_overload of tclass_field * t
-	| FinalInvariance (* nice band name *)
-	| Invalid_function_argument of int (* index *) * int (* total *)
-	| Invalid_return_type
-	| Unify_custom of string
-
-exception Unify_error of unify_error list
-
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
 let invalid_kind n a b = Invalid_kind (n,a,b)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
-let error l = raise (Unify_error l)
 
 (*
 	we can restrict access as soon as both are runtime-compatible
@@ -188,7 +413,7 @@ let unify_access a1 a2 =
 
 let direct_access = function
 	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
-	| AccResolve | AccCall -> false
+	| AccCall -> false
 
 let unify_kind k1 k2 =
 	k1 = k2 || match k1, k2 with
@@ -250,44 +475,15 @@ let rec_stack stack value fcheck frun ferror =
 let rec_stack_default stack value fcheck frun def =
 	if not (rec_stack_exists fcheck stack) then rec_stack_loop stack value frun () else def
 
-let rec_stack_bool stack value fcheck frun =
-	if (rec_stack_exists fcheck stack) then false else begin
-		try
-			stack.rec_stack <- value :: stack.rec_stack;
-			frun();
-			stack.rec_stack <- List.tl stack.rec_stack;
-			true
-		with
-			Unify_error l ->
-				stack.rec_stack <- List.tl stack.rec_stack;
-				false
-			| e ->
-				stack.rec_stack <- List.tl stack.rec_stack;
-				raise e
-	end
-
-type eq_kind =
-	| EqStrict
-	| EqCoreType
-	| EqRightDynamic
-	| EqBothDynamic
-	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
-
-type unification_context = {
-	allow_transitive_cast : bool;
-	equality_kind         : eq_kind;
-}
-
-let default_unification_context = {
-	allow_transitive_cast = true;
-	equality_kind         = EqStrict;
-}
-
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
 	let can_follow t = match param with
 		| EqCoreType -> false
 		| EqDoNotFollowNull -> not (is_explicit_null t)
+		| _ -> true
+	in
+	let can_follow_abstract ab = uctx.equality_underlying && match ab.a_this with
+		| TAbstract (ab',_) -> ab' != ab
 		| _ -> true
 	in
 	if a == b then
@@ -303,6 +499,12 @@ let rec type_eq uctx a b =
 		(match t.tm_type with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
+	| TDynamic a , TDynamic b ->
+		type_eq uctx a b
+	| _ , _ when a == t_dynamic && param = EqBothDynamic ->
+		()
+	| _ , _ when b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) ->
+		()
 	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
 		type_eq uctx t1 t2
 	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
@@ -312,10 +514,11 @@ let rec type_eq uctx a b =
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		type_eq_params uctx a b tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->
-		try_apply_params_rec t.t_params tl t.t_type (fun a -> type_eq uctx a b)
+		rec_stack eq_stack (a,b) (fast_eq_pair (a,b))
+			(fun() -> try_apply_params_rec t.t_params tl t.t_type (fun a -> type_eq uctx a b))
+			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) when can_follow b ->
-		rec_stack eq_stack (a,b)
-			(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
+		rec_stack eq_stack (a,b) (fast_eq_pair (a,b))
 			(fun() -> try_apply_params_rec t.t_params tl t.t_type (type_eq uctx a))
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
@@ -338,11 +541,12 @@ let rec type_eq uctx a b =
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length l1) in
 				error (cannot_unify a b :: msg :: l)
 		)
-	| TDynamic a , TDynamic b ->
-		type_eq uctx a b
-	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
+	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 || (param = EqCoreType && a1.a_path = a2.a_path) ->
 		type_eq_params uctx a b tl1 tl2
+	| TAbstract (ab,tl) , _ when can_follow_abstract ab ->
+		type_eq uctx (apply_params ab.a_params tl ab.a_this) b
+	| _ , TAbstract (ab,tl) when can_follow_abstract ab ->
+		type_eq uctx a (apply_params ab.a_params tl ab.a_this)
 	| TAnon a1, TAnon a2 ->
 		(try
 			(match !(a2.a_status) with
@@ -351,7 +555,6 @@ let rec type_eq uctx a b =
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| _ -> ()
 			);
-			if would_produce_recursive_anon a1 a2 || would_produce_recursive_anon a2 a1 then error [cannot_unify a b];
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
@@ -361,26 +564,17 @@ let rec type_eq uctx a b =
 					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];
 				with
 					Not_found ->
-						if is_closed a2 then error [has_no_field b n];
-						if not (link (Monomorph.create()) b f1.cf_type) then error [cannot_unify a b];
-						a2.a_fields <- PMap.add n f1 a2.a_fields
+						error [has_no_field b n];
 			) a1.a_fields;
 			PMap.iter (fun n f2 ->
 				if not (PMap.mem n a1.a_fields) then begin
-					if is_closed a1 then error [has_no_field a n];
-					if not (link (Monomorph.create()) a f2.cf_type) then error [cannot_unify a b];
-					a1.a_fields <- PMap.add n f2 a1.a_fields
+					error [has_no_field a n];
 				end;
 			) a2.a_fields;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , _ ->
-		if b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) then
-			()
-		else if a == t_dynamic && param = EqBothDynamic then
-			()
-		else
-			error [cannot_unify a b]
+		error [cannot_unify a b]
 
 and type_eq_params uctx a b tl1 tl2 =
 	let i = ref 0 in
@@ -393,9 +587,9 @@ and type_eq_params uctx a b tl1 tl2 =
 			error (err :: (Invariant_parameter !i) :: l)
 		) tl1 tl2
 
-let type_iseq a b =
+let type_iseq uctx a b =
 	try
-		type_eq default_unification_context a b;
+		type_eq uctx a b;
 		true
 	with
 		Unify_error _ -> false
@@ -408,6 +602,7 @@ let type_iseq_strict a b =
 		false
 
 let unify_stack = new_rec_stack()
+let variance_stack = new_rec_stack()
 let abstract_cast_stack = new_rec_stack()
 let unify_new_monos = new_rec_stack()
 
@@ -416,6 +611,8 @@ let print_stacks() =
 	let st = s_type ctx in
 	print_endline "unify_stack";
 	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) unify_stack.rec_stack;
+	print_endline "variance_stack";
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) variance_stack.rec_stack;
 	print_endline "monos";
 	List.iter (fun m -> print_endline ("\t" ^ st m)) unify_new_monos.rec_stack;
 	print_endline "abstract_cast_stack";
@@ -471,6 +668,8 @@ let rec unify (uctx : unification_context) a b =
 	| TAbstract ({ a_path = ["haxe"],"NotVoid" },[]), _
 	| _, TAbstract ({ a_path = ["haxe"],"NotVoid" },[]) ->
 		()
+	| TAbstract (ab,tl), TAbstract ({ a_path = ["haxe"],("FlatEnum" | "Function" | "Constructible") },_) ->
+		unify_to {uctx with allow_transitive_cast = false} a b ab tl
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
@@ -489,13 +688,14 @@ let rec unify (uctx : unification_context) a b =
 			| KTypeParameter pl -> List.exists (fun t ->
 				match follow t with
 				| TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)
-				| TAbstract(aa,tl) -> List.exists (unify_to uctx aa tl b) aa.a_to
+				| TAbstract(aa,tl) -> unifies_to uctx a b aa tl
 				| _ -> false
 			) pl
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		let uctx = get_nested_context uctx in
 		let i = ref 0 in
 		(try
 			(match follow r2 with
@@ -516,6 +716,7 @@ let rec unify (uctx : unification_context) a b =
 				(* one of the constraints must unify with { } *)
 				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) pl) then error [cannot_unify a b]
 			| _ -> ());
+		ignore(c.cl_build());
 		(try
 			PMap.iter (fun n f2 ->
 				(*
@@ -564,7 +765,7 @@ let rec unify (uctx : unification_context) a b =
 							error (invalid_field n :: l));
 
 				List.iter (fun f2o ->
-					if not (List.exists (fun f1o -> type_iseq f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
+					if not (List.exists (fun f1o -> type_iseq uctx f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
@@ -586,11 +787,10 @@ let rec unify (uctx : unification_context) a b =
 				end;
 				(match f1.cf_kind with
 				| Method MethInline ->
-					if (c.cl_extern || has_class_field_flag f1 CfExtern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
+					if ((has_class_flag c CExtern) || has_class_field_flag f1 CfExtern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
 				| _ -> ());
 			) an.a_fields;
 			(match !(an.a_status) with
-			| Opened -> an.a_status := Closed;
 			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
 			| Closed | Extend _ | Const -> ())
 		with
@@ -616,7 +816,7 @@ let rec unify (uctx : unification_context) a b =
 			begin match c.cl_kind with
 				| KTypeParameter tl ->
 					(* type parameters require an equal Constructible constraint *)
-					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq t1 t2 | _ -> false) tl) then error [cannot_unify a b]
+					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq uctx t1 t2 | _ -> false) tl) then error [cannot_unify a b]
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
 					if not (has_class_field_flag cf CfPublic) then error [invalid_visibility "new"];
@@ -627,7 +827,7 @@ let rec unify (uctx : unification_context) a b =
 			error [has_no_field a "new"]
 		end
 	| TDynamic t , _ ->
-		if t == a then
+		if t == a && uctx.allow_dynamic_to_cast then
 			()
 		else (match b with
 		| TDynamic t2 ->
@@ -636,8 +836,8 @@ let rec unify (uctx : unification_context) a b =
 					type_eq {uctx with equality_kind = EqRightDynamic} t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
-		| TAbstract(bb,tl) when (List.exists (unify_from uctx bb tl a b) bb.a_from) ->
-			()
+		| TAbstract(bb,tl) ->
+			unify_from uctx a b bb tl
 		| _ ->
 			error [cannot_unify a b])
 	| _ , TDynamic t ->
@@ -654,7 +854,6 @@ let rec unify (uctx : unification_context) a b =
 			(try
 				(match !(an.a_status) with
 				| Statics _ | EnumStatics _ -> error []
-				| Opened -> an.a_status := Closed
 				| _ -> ());
 				PMap.iter (fun _ f ->
 					try
@@ -664,44 +863,30 @@ let rec unify (uctx : unification_context) a b =
 				) an.a_fields
 			with Unify_error l ->
 				error (cannot_unify a b :: l))
-		| TAbstract(aa,tl) when (List.exists (unify_to uctx aa tl b) aa.a_to) ->
-			()
+		| TAbstract(aa,tl) ->
+			unify_to uctx a b aa tl
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
-		if not (List.exists (unify_to uctx aa tl b) aa.a_to) then error [cannot_unify a b];
+		unify_to uctx a b aa tl
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_params pl t in
 			try unify uctx t b; true with Unify_error _ -> false
-		) ctl) && not (List.exists (unify_from uctx bb tl a b) bb.a_from) then error [cannot_unify a b];
+		) ctl) then unify_from uctx a b bb tl
 	| _, TAbstract (bb,tl) ->
-		if not (List.exists (unify_from uctx bb tl a b) bb.a_from) then error [cannot_unify a b]
+		unify_from uctx a b bb tl
 	| _ , _ ->
 		error [cannot_unify a b]
 
-and unify_abstracts uctx a b a1 tl1 a2 tl2 =
-	let uctx_no_transitive_casts = {uctx with allow_transitive_cast = false} in
-	if (List.exists (unify_to uctx_no_transitive_casts a1 tl1 b) a1.a_to)
-	|| (List.exists (unify_from uctx_no_transitive_casts a2 tl2 a b) a2.a_from)
-	|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
-		&& ((List.exists (unify_to uctx a1 tl1 b) a1.a_to) || (List.exists (unify_from uctx a2 tl2 a b) a2.a_from))) then
-		()
-	else
-		error [cannot_unify a b]
-
 and unify_anons uctx a b a1 a2 =
-	if would_produce_recursive_anon a1 a2 then error [cannot_unify a b];
 	(try
 		PMap.iter (fun n f2 ->
 		try
 			let f1 = PMap.find n a1.a_fields in
 			if not (unify_kind f1.cf_kind f2.cf_kind) then
-				(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
-				| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
-					f1.cf_kind <- f2.cf_kind;
-				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
+				error [invalid_kind n f1.cf_kind f2.cf_kind];
 			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 			try
 				let f1_type =
@@ -717,120 +902,172 @@ and unify_anons uctx a b a1 a2 =
 		with
 			Not_found ->
 				match !(a1.a_status) with
-				| Opened ->
-					if not (link (Monomorph.create()) a f2.cf_type) then error [];
-					a1.a_fields <- PMap.add n f2 a1.a_fields
 				| Const when Meta.has Meta.Optional f2.cf_meta ->
 					()
 				| _ ->
 					error [has_no_field a n];
 		) a2.a_fields;
-		(match !(a1.a_status) with
-		| Const when not (PMap.is_empty a2.a_fields) ->
-			PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
-		| Opened ->
-			a1.a_status := Closed
-		| _ -> ());
 		(match !(a2.a_status) with
 		| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
 		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
-		| Opened -> a2.a_status := Closed
 		| Const | Extend _ | Closed -> ())
 	with
 		Unify_error l -> error (cannot_unify a b :: l))
 
-and unify_from uctx ab tl a b t =
-	rec_stack_bool abstract_cast_stack (a,b)
-		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
-		(fun() ->
-			let t = apply_params ab.a_params tl t in
-			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqRightDynamic} in
-			unify_func a t)
+and does_func_unify f =
+	try f(); true with Unify_error _ -> false
 
-and unify_to uctx ab tl b t =
-	let t = apply_params ab.a_params tl t in
-	let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
-	try
-		unify_func t b;
-		true
-	with Unify_error _ ->
-		false
+and does_func_unify_arg f arg =
+	try f arg; true with Unify_error _ -> false
 
-and unify_from_field uctx ab tl a b (t,cf) =
-	rec_stack_bool abstract_cast_stack (a,b)
-		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
-		(fun() ->
-			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
-			match follow cf.cf_type with
-			| TFun(_,r) ->
-				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
-				unify_func a (map t);
-				List.iter2 (fun m (name,t) -> match follow t with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> unify uctx m (map tc) ) constr
-					| _ -> ()
-				) monos cf.cf_params;
-				unify_func (map r) b;
-				true
-			| _ -> die "" __LOC__)
+and get_abstract_context uctx a b ab =
+	if (Meta.has Meta.CoreType ab.a_meta) || (Meta.has Meta.Transitive ab.a_meta) then
+		uctx
+	else if uctx.allow_abstract_cast then
+		{uctx with allow_abstract_cast = false}
+	else
+		error [cannot_unify a b]
 
-and unify_to_field uctx ab tl b (t,cf) =
-	let a = TAbstract(ab,tl) in
-	rec_stack_bool abstract_cast_stack (b,a)
-		(fun (b2,a2) -> fast_eq a a2 && fast_eq b b2)
-		(fun() ->
-			let unify_func = if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = EqStrict} in
-			match follow cf.cf_type with
-			| TFun((_,_,ta) :: _,_) ->
-				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
-				let athis = map ab.a_this in
-				(* we cannot allow implicit casts when the this type is not completely known yet *)
-				(* if has_mono athis then raise (Unify_error []); *)
-				with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
-				(* immediate constraints checking is ok here because we know there are no monomorphs *)
-				List.iter2 (fun m (name,t) -> match follow t with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> unify uctx m (map tc) ) constr
-					| _ -> ()
-				) monos cf.cf_params;
-				unify_func (map t) b;
-			| _ -> die "" __LOC__)
+and get_nested_context uctx =
+	{uctx with allow_abstract_cast = true}
+
+and unifies_with_abstract uctx a b f =
+	rec_stack_default abstract_cast_stack (a,b) (fast_eq_pair (a,b)) (fun() ->
+		(uctx.allow_transitive_cast && f {uctx with allow_transitive_cast = false}) || f uctx
+	) false
+
+and get_abstract_unify_func uctx equality_kind =
+	if uctx.allow_transitive_cast then unify uctx else type_eq {uctx with equality_kind = equality_kind}
+
+and unify_abstracts uctx a b a1 tl1 a2 tl2 =
+	if not (unifies_abstracts uctx a b a1 tl1 a2 tl2) then error [cannot_unify a b]
+
+and unify_from uctx a b ab tl =
+	if not (unifies_from uctx a b ab tl) then error [cannot_unify a b]
+
+and unify_to uctx a b ab tl =
+	if not (unifies_to uctx a b ab tl) then error [cannot_unify a b]
+
+and unifies_abstracts uctx a b a1 tl1 a2 tl2 =
+	unifies_with_abstract uctx a b (fun uctx ->
+		List.exists (unifies_to_direct uctx a b a1 tl1) a1.a_to ||
+		List.exists (unifies_from_direct uctx a b a2 tl2) a2.a_from
+	)
+
+and unifies_from uctx a b ab tl =
+	unifies_with_abstract uctx a b (fun uctx ->
+		List.exists (unifies_from_direct uctx a b ab tl) ab.a_from
+	)
+
+and unifies_to uctx a b ab tl =
+	unifies_with_abstract uctx a b (fun uctx ->
+		List.exists (unifies_to_direct uctx a b ab tl) ab.a_to
+	)
+
+and unifies_from_direct uctx a b ab tl t =
+	does_func_unify (fun() ->
+		let t = apply_params ab.a_params tl t in
+		let uctx = get_abstract_context uctx a b ab in
+		let unify_func = get_abstract_unify_func uctx EqRightDynamic in
+		unify_func a t)
+
+and unifies_to_direct uctx a b ab tl t =
+	does_func_unify (fun() ->
+		let t = apply_params ab.a_params tl t in
+		let uctx = get_abstract_context uctx a b ab in
+		let unify_func = get_abstract_unify_func uctx EqStrict in
+		unify_func t b)
+
+and unifies_from_field uctx a b ab tl (t,cf) =
+	does_func_unify (fun() ->
+		match follow cf.cf_type with
+		| TFun(_,r) ->
+			let map = apply_params ab.a_params tl in
+			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+			let map t = map (apply_params cf.cf_params monos t) in
+			let uctx = get_abstract_context uctx a b ab in
+			let unify_func = get_abstract_unify_func uctx EqStrict in
+			unify_func a (map t);
+			unify_func (map r) b;
+		| _ -> die "" __LOC__)
+
+and unifies_to_field uctx a b ab tl (t,cf) =
+	does_func_unify (fun() ->
+		match follow cf.cf_type with
+		| TFun((_,_,ta) :: _,_) ->
+			let map = apply_params ab.a_params tl in
+			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+			let map t = map (apply_params cf.cf_params monos t) in
+			let uctx = get_abstract_context uctx a b ab in
+			let unify_func = get_abstract_unify_func uctx EqStrict in
+			let athis = map ab.a_this in
+			(* we cannot allow implicit casts when the this type is not completely known yet *)
+			with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
+			unify_func (map t) b;
+		| _ -> die "" __LOC__)
 
 and unify_with_variance uctx f t1 t2 =
-	let allows_variance_to t tf = type_iseq tf t in
-	match follow t1,follow t2 with
+	let t1 = follow_without_type t1 in
+	let t2 = follow_without_type t2 in
+	let fail () = error [cannot_unify t1 t2] in
+	let unify_rec f = rec_stack variance_stack (t1,t2) (fast_eq_pair (t1,t2)) f (fun _ -> fail()) in
+	let unify_nested t1 t2 = with_variance (get_nested_context uctx) f t1 t2 in
+	let unify_tls tl1 tl2 = List.iter2 unify_nested tl1 tl2 in
+	let get_this_type ab tl = follow_without_type (apply_params ab.a_params tl ab.a_this) in
+	let get_defined_type td tl = follow_without_type (apply_params td.t_params tl td.t_type) in
+	let compare_underlying () = type_eq {uctx with equality_underlying = true; equality_kind = EqBothDynamic} t1 t2 in
+	let unifies_abstract uctx a b ab tl ats =
+		try
+			let uctx = get_abstract_context uctx a b ab in
+			rec_stack_default abstract_cast_stack (a,b) (fast_eq_pair (a,b)) (fun() ->
+				List.exists (does_func_unify_arg (fun at ->
+					let at = apply_params ab.a_params tl at in
+					if ats == ab.a_to then
+						with_variance uctx f at b
+					else
+						with_variance uctx f a at
+				)) ats
+			) false
+		with Unify_error _ -> false
+	in
+	match t1,t2 with
 	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
-		List.iter2 f tl1 tl2
+		unify_tls tl1 tl2
 	| TEnum(en1,tl1),TEnum(en2,tl2) when en1 == en2 ->
-		List.iter2 f tl1 tl2
-	| TAbstract(a1,tl1),TAbstract(a2,tl2) when a1 == a2 && Meta.has Meta.CoreType a1.a_meta ->
-		List.iter2 f tl1 tl2
-	| TAbstract(a1,pl1),TAbstract(a2,pl2) ->
-		if (Meta.has Meta.CoreType a1.a_meta) && (Meta.has Meta.CoreType a2.a_meta) then begin
-			let ta1 = apply_params a1.a_params pl1 a1.a_this in
-			let ta2 = apply_params a2.a_params pl2 a2.a_this in
-			type_eq {uctx with equality_kind = EqStrict} ta1 ta2;
-		end;
-		if not (List.exists (allows_variance_to t2) a1.a_to) && not (List.exists (allows_variance_to t1) a2.a_from) then
-			error [cannot_unify t1 t2]
-	| TAbstract(a,pl),t ->
-		type_eq {uctx with equality_kind = EqBothDynamic} (apply_params a.a_params pl a.a_this) t;
-		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_to) then error [cannot_unify t1 t2]
-	| t,TAbstract(a,pl) ->
-		type_eq {uctx with equality_kind = EqBothDynamic} t (apply_params a.a_params pl a.a_this);
-		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
-	| (TAnon a1 as t1), (TAnon a2 as t2) ->
-		rec_stack unify_stack (t1,t2)
-			(fun (a,b) -> fast_eq a t1 && fast_eq b t2)
-			(fun() -> unify_anons uctx t1 t2 a1 a2)
-			(fun l -> error l)
+		unify_tls tl1 tl2
+	| TAbstract(a1,tl1),TAbstract(a2,tl2) when a1 == a2 ->
+		unify_tls tl1 tl2
+	| TType(td1,tl1),TType(td2,tl2) when td1 == td2 ->
+		unify_tls tl1 tl2
+	| TType(td,tl),_ ->
+		unify_rec (fun() -> unify_with_variance uctx f (get_defined_type td tl) t2)
+	| _,TType(td,tl) ->
+		unify_rec (fun() -> unify_with_variance uctx f t1 (get_defined_type td tl))
+	| TAbstract(ab,tl),_ when Meta.has Meta.ForwardVariance ab.a_meta ->
+		with_variance uctx f (get_this_type ab tl) t2
+	| _,TAbstract(ab,tl) when Meta.has Meta.ForwardVariance ab.a_meta ->
+		with_variance uctx f t1 (get_this_type ab tl)
+	| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
+		if not (unifies_abstract uctx t1 t2 a1 tl1 a1.a_to)
+		&& not (unifies_abstract uctx t1 t2 a2 tl2 a2.a_from) then fail();
+		compare_underlying();
+	| TAbstract(ab,tl),_ ->
+		if not (unifies_abstract uctx t1 t2 ab tl ab.a_to) then fail();
+		compare_underlying();
+	| _,TAbstract(ab,tl) ->
+		if not (unifies_abstract uctx t1 t2 ab tl ab.a_from) then fail();
+		compare_underlying();
+	| TAnon(a1),TAnon(a2) ->
+		unify_anons uctx t1 t2 a1 a2
+	| TFun(al1,r1),TFun(al2,r2) when List.length al1 = List.length al2 ->
+		List.iter2 (fun (_,_,t1) (_,_,t2) -> unify_nested t1 t2) al1 al2;
+		unify_nested r1 r2;
 	| _ ->
-		error [cannot_unify t1 t2]
+		fail()
 
 and unify_type_params uctx a b tl1 tl2 =
+	let uctx = get_nested_context uctx in
 	let i = ref 0 in
 	List.iter2 (fun t1 t2 ->
 		incr i;
@@ -845,11 +1082,12 @@ and with_variance uctx f t1 t2 =
 	try
 		f t1 t2
 	with Unify_error l -> try
-		unify_with_variance uctx (with_variance uctx f) t1 t2
+		unify_with_variance uctx f t1 t2
 	with Unify_error _ ->
 		raise (Unify_error l)
 
 and unify_with_access uctx f1 t1 f2 =
+	let uctx = get_nested_context uctx in
 	match f2.cf_kind with
 	(* write only *)
 	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify uctx f2.cf_type t1
@@ -872,3 +1110,72 @@ let unify = unify default_unification_context
 
 let type_eq_custom = type_eq
 let type_eq param = type_eq {default_unification_context with equality_kind = param}
+
+let type_iseq_custom = type_iseq
+let type_iseq = type_iseq default_unification_context
+
+module UnifyMinT = struct
+	let collect_base_types t =
+		let tl = ref [] in
+		let rec loop t = (match t with
+			| TInst(cl, params) ->
+				(match cl.cl_kind with
+				| KTypeParameter tl -> List.iter loop tl
+				| _ -> ());
+				List.iter (fun (ic, ip) ->
+					let t = apply_params cl.cl_params params (TInst (ic,ip)) in
+					loop t
+				) cl.cl_implements;
+				(match cl.cl_super with None -> () | Some (csup, pl) ->
+					let t = apply_params cl.cl_params params (TInst (csup,pl)) in
+					loop t);
+				tl := t :: !tl;
+			| TType (td,pl) ->
+				loop (apply_params td.t_params pl td.t_type);
+				(* prioritize the most generic definition *)
+				tl := t :: !tl;
+			| TLazy f -> loop (lazy_type f)
+			| TMono r -> (match r.tm_type with None -> () | Some t -> loop t)
+			| _ -> tl := t :: !tl)
+		in
+		loop t;
+		!tl
+
+	let unify_min' uctx common_types tl =
+		let first_error = ref None in
+		let rec loop index common_types tl = match tl with
+			| [] ->
+				begin match common_types with
+				| [] ->
+					begin match !first_error with
+					| None -> die "" __LOC__
+					| Some(l,p) -> UnifyMinError(l,p)
+					end
+				| hd :: _ ->
+					UnifyMinOk hd
+				end
+			| t :: tl ->
+				let common_types = List.filter (fun t' ->
+					try
+						unify_custom uctx t t';
+						true
+					with Unify_error l ->
+						if !first_error = None then first_error := Some(l,index);
+						false
+				) common_types in
+				loop (index + 1) common_types tl
+		in
+		loop 0 common_types tl
+
+	let unify_min uctx t0 tl =
+		match tl with
+		| [] ->
+			UnifyMinOk t0
+		| _ ->
+			let common_types = collect_base_types t0 in
+			unify_min' uctx common_types tl
+end
+;;
+unify_ref := unify_custom;;
+unify_min_ref := UnifyMinT.unify_min;;
+monomorph_classify_constraints_ref := Monomorph.classify_down_constraints

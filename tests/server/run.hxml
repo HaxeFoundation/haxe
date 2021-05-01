@@ -1,5 +1,3 @@
 build.hxml
-# -D UTEST_PATTERN=9449
-#or set UTEST_PATTERN environment variable
 --next
 -cmd node test.js

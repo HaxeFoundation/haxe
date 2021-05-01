@@ -122,3 +122,8 @@ let run_on_expr ?(force=false) com e = if_enabled ~force com (fun() -> run_on_ex
 let run_on_field ?(force=false) com cf = if_enabled ~force com (fun() -> run_on_field com cf)
 
 let run ?(force=false) com = if_enabled ~force com (fun() -> run com)
+
+let check_is com name meta p =
+	()
+	(* if name = "is" && not (Meta.has Meta.Deprecated meta) then
+		warn_deprecation com "Using \"is\" as an identifier is deprecated" p *)

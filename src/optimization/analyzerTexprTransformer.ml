@@ -46,10 +46,6 @@ let rec func ctx bb tf t p =
 	let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
 	add_function g tf t p bb_root;
 	add_cfg_edge bb bb_root CFGFunction;
-	let make_block_meta b =
-		let e = mk (TConst (TInt (Int32.of_int b.bb_id))) ctx.com.basic.tint b.bb_pos in
-		wrap_meta ":block" e
-	in
 	let bb_breaks = ref [] in
 	let bb_continue = ref None in
 	let b_try_stack = ref [] in
@@ -76,14 +72,14 @@ let rec func ctx bb tf t p =
 			b_try_stack := List.tl !b_try_stack
 		)
 	in
-	let add_terminator bb e =
-		add_texpr bb e;
-		close_node g bb;
+	let add_terminator bb term =
+		bb.bb_terminator <- term;
+		close_node bb;
 		g.g_unreachable
 	in
 	let check_unbound_call s el =
 		if s = "$ref" then begin match el with
-			| [{eexpr = TLocal v}] -> v.v_capture <- true
+			| [{eexpr = TLocal v}] -> add_var_flag v VCaptured
 			| _ -> ()
 		end;
 		if is_unbound_call_that_might_have_side_effects s el then ctx.has_unbound <- true;
@@ -94,6 +90,10 @@ let rec func ctx bb tf t p =
 	let push_name s =
 		ctx.name_stack <- s :: ctx.name_stack;
 		(fun () -> ctx.name_stack <- List.tl ctx.name_stack)
+	in
+	let check_ref v e = if ExtType.has_reference_semantics v.v_type then match (Texpr.skip e).eexpr with
+		| TLocal v' -> add_var_flag v' VCaptured
+		| _ -> ()
 	in
 	let rec value' bb e = match e.eexpr with
 		| TLocal _ | TIdent _ ->
@@ -170,7 +170,7 @@ let rec func ctx bb tf t p =
 			let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 			add_cfg_edge bb bb_next CFGGoto;
 			set_syntax_edge bb (SEMerge bb_next);
-			close_node g bb;
+			close_node bb;
 			add_cfg_edge bb_func_end bb_next CFGGoto;
 			bb_next,ec
 		| TConst _ | TTypeExpr _ ->
@@ -202,8 +202,12 @@ let rec func ctx bb tf t p =
 			end
 		) (false,[]) (List.rev el) in
 		let bb,values = List.fold_left (fun (bb,acc) (aff,opt,e) ->
-			let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
-			bb,(value :: acc)
+			if bb == g.g_unreachable then
+				bb,acc
+			else begin
+				let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
+				bb,(value :: acc)
+			end
 		) (bb,[]) el in
 		bb,List.rev values
 	and bind_to_temp ?(v=None) bb sequential e =
@@ -304,7 +308,7 @@ let rec func ctx bb tf t p =
 		let bb = ref bb in
 		let check e t = match e.eexpr with
 			| TLocal v when ExtType.has_reference_semantics t ->
-				v.v_capture <- true;
+				add_var_flag v VCaptured;
 				e
 			| _ ->
 				if ExtType.has_variable_semantics t then begin
@@ -346,8 +350,10 @@ let rec func ctx bb tf t p =
 			add_texpr bb e;
 			bb
 		| TVar(v,Some e1) ->
+			check_ref v e1;
 			declare_var_and_assign bb v e1 e.epos
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+			check_ref v e2;
 			let assign e =
 				mk (TBinop(OpAssign,e1,e)) e.etype e.epos
 			in
@@ -364,20 +370,22 @@ let rec func ctx bb tf t p =
 		(* branching *)
 		| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
 			block_el bb el
+		| TBlock [] when (ExtType.is_void (follow e.etype)) ->
+			bb
 		| TBlock el ->
 			let bb_sub = create_node BKSub e.etype e.epos in
 			add_cfg_edge bb bb_sub CFGGoto;
-			close_node g bb;
+			close_node bb;
 			let bb_sub_next = block_el bb_sub el in
 			if bb_sub_next != g.g_unreachable then begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				set_syntax_edge bb (SESubBlock(bb_sub,bb_next));
 				add_cfg_edge bb_sub_next bb_next CFGGoto;
-				close_node g bb_sub_next;
+				close_node bb_sub_next;
 				bb_next;
 			end else begin
 				set_syntax_edge bb (SEMerge bb_sub);
-				close_node g bb_sub_next;
+				close_node bb_sub_next;
 				bb_sub_next
 			end
 		| TIf(e1,e2,None) ->
@@ -386,15 +394,15 @@ let rec func ctx bb tf t p =
 				bb
 			else begin
 				let bb_then = create_node BKConditional e2.etype e2.epos in
-				add_texpr bb (wrap_meta ":cond-branch" e1);
+				bb.bb_terminator <- TermCondBranch e1;
 				add_cfg_edge bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				let bb_then_next = block bb_then e2 in
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				set_syntax_edge bb (SEIfThen(bb_then,bb_next,e.epos));
 				add_cfg_edge bb bb_next CFGCondElse;
-				close_node g bb;
+				close_node bb;
 				add_cfg_edge bb_then_next bb_next CFGGoto;
-				close_node g bb_then_next;
+				close_node bb_then_next;
 				bb_next
 			end
 		| TIf(e1,e2,Some e3) ->
@@ -404,10 +412,10 @@ let rec func ctx bb tf t p =
 			else begin
 				let bb_then = create_node BKConditional e2.etype e2.epos in
 				let bb_else = create_node BKConditional e3.etype e3.epos in
-				add_texpr bb (wrap_meta ":cond-branch" e1);
+				bb.bb_terminator <- TermCondBranch e1;
 				add_cfg_edge bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				add_cfg_edge bb bb_else CFGCondElse;
-				close_node g bb;
+				close_node bb;
 				let bb_then_next = block bb_then e2 in
 				let bb_else_next = block bb_else e3 in
 				if bb_then_next == g.g_unreachable && bb_else_next == g.g_unreachable then begin
@@ -418,22 +426,22 @@ let rec func ctx bb tf t p =
 					set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype,e.epos));
 					add_cfg_edge bb_then_next bb_next CFGGoto;
 					add_cfg_edge bb_else_next bb_next CFGGoto;
-					close_node g bb_then_next;
-					close_node g bb_else_next;
+					close_node bb_then_next;
+					close_node bb_else_next;
 					bb_next
 				end
 			end
 		| TSwitch(e1,cases,edef) ->
 			let is_exhaustive = edef <> None || is_exhaustive e1 in
 			let bb,e1 = bind_to_temp bb false e1 in
-			add_texpr bb (wrap_meta ":cond-branch" e1);
+			bb.bb_terminator <- TermCondBranch e1;
 			let reachable = ref [] in
 			let make_case e =
 				let bb_case = create_node BKConditional e.etype e.epos in
 				let bb_case_next = block bb_case e in
 				if bb_case_next != g.g_unreachable then
 					reachable := bb_case_next :: !reachable;
-				close_node g bb_case_next;
+				close_node bb_case_next;
 				bb_case
 			in
 			let cases = List.map (fun (el,e) ->
@@ -451,24 +459,22 @@ let rec func ctx bb tf t p =
 			in
 			if is_exhaustive && !reachable = [] then begin
 				set_syntax_edge bb (SESwitch(cases,def,g.g_unreachable,e.epos));
-				close_node g bb;
+				close_node bb;
 				g.g_unreachable;
 			end else begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				if not is_exhaustive then add_cfg_edge bb bb_next CFGGoto;
 				List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) !reachable;
 				set_syntax_edge bb (SESwitch(cases,def,bb_next,e.epos));
-				close_node g bb;
+				close_node bb;
 				bb_next
 			end
 		| TWhile(e1,e2,NormalWhile) ->
-			let bb_loop_pre = create_node BKNormal e1.etype e1.epos in
+			let bb_loop_pre = create_node BKLoopHead e1.etype e1.epos in
 			add_cfg_edge bb bb_loop_pre CFGGoto;
 			set_syntax_edge bb (SEMerge bb_loop_pre);
-			close_node g bb;
-			let bb_loop_head = create_node BKLoopHead e1.etype e1.epos in
-			add_cfg_edge bb_loop_pre bb_loop_head CFGGoto;
-			let close = begin_loop bb bb_loop_head in
+			close_node bb;
+			let close = begin_loop bb bb_loop_pre in
 			let bb_loop_body = create_node BKNormal e2.etype e2.epos in
 			let bb_loop_body_next = block bb_loop_body e2 in
 			let bb_breaks = close() in
@@ -481,13 +487,12 @@ let rec func ctx bb tf t p =
 				create_node BKNormal bb.bb_type bb.bb_pos
 			in
 			List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) bb_breaks;
-			set_syntax_edge bb_loop_pre (SEWhile(bb_loop_head,bb_loop_body,bb_next));
-			close_node g bb_loop_pre;
-			add_texpr bb_loop_pre {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
-			if bb_loop_body_next != g.g_unreachable then add_cfg_edge bb_loop_body_next bb_loop_head CFGGoto;
-			add_cfg_edge bb_loop_head bb_loop_body CFGGoto;
-			close_node g bb_loop_body_next;
-			close_node g bb_loop_head;
+			set_syntax_edge bb_loop_pre (SEWhile(bb_loop_body,bb_next,e.epos));
+			bb_loop_pre.bb_terminator <- TermCondBranch e1;
+			if bb_loop_body_next != g.g_unreachable then add_cfg_edge bb_loop_body_next bb_loop_pre CFGGoto;
+			add_cfg_edge bb_loop_pre bb_loop_body CFGGoto;
+			close_node bb_loop_body_next;
+			close_node bb_loop_pre;
 			bb_next;
 		| TTry(e1,catches) ->
 			let bb_try = create_node BKNormal e1.etype e1.epos in
@@ -509,19 +514,19 @@ let rec func ctx bb tf t p =
 			let bb_next = if !is_reachable then create_node BKNormal bb.bb_type bb.bb_pos else g.g_unreachable in
 			let catches = List.map (fun (v,bb_catch,bb_catch_next) ->
 				if bb_catch_next != g.g_unreachable then add_cfg_edge bb_catch_next bb_next CFGGoto;
-				close_node g bb_catch_next;
+				close_node bb_catch_next;
 				v,bb_catch
 			) catches in
 			set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next,e.epos));
 			if bb_try_next != g.g_unreachable then add_cfg_edge bb_try_next bb_next CFGGoto;
-			close_node g bb_try_next;
-			close_node g bb_exc;
-			close_node g bb;
+			close_node bb_try_next;
+			close_node bb_exc;
+			close_node bb;
 			bb_next
 		(* control flow *)
 		| TReturn None ->
 			add_cfg_edge bb bb_exit CFGGoto;
-			add_terminator bb e
+			add_terminator bb (TermReturn e.epos)
 		| TReturn (Some e1) when ExtType.is_void (follow e1.etype) ->
 			let bb = block_element bb e1 in
 			block_element bb (mk (TReturn None) t_dynamic e.epos)
@@ -532,17 +537,17 @@ let rec func ctx bb tf t p =
 			with Exit ->
 				let bb,e1 = value bb e1 in
 				add_cfg_edge bb bb_exit CFGGoto;
-				add_terminator bb {e with eexpr = TReturn(Some e1)};
+				add_terminator bb (TermReturnValue(e1,e.epos))
 			end
 		| TBreak ->
 			bb_breaks := bb :: !bb_breaks;
-			add_terminator bb e
+			add_terminator bb (TermBreak e.epos)
 		| TContinue ->
 			begin match !bb_continue with
 				| Some bb_continue -> add_cfg_edge bb bb_continue CFGGoto
 				| _ -> die "" __LOC__
 			end;
-			add_terminator bb e
+			add_terminator bb (TermContinue e.epos)
 		| TThrow e1 ->
 			begin try
 				let mk_throw e1 =
@@ -555,7 +560,7 @@ let rec func ctx bb tf t p =
 					| [] -> add_cfg_edge bb bb_exit CFGGoto
 					| _ -> List.iter (fun bb_exc -> add_cfg_edge bb bb_exc CFGGoto) !b_try_stack;
 				end;
-				add_terminator bb {e with eexpr = TThrow e1};
+				add_terminator bb (TermThrow(e1,e.epos))
 			end
 		(* side_effects *)
 		| TCall({eexpr = TIdent s},el) when is_really_unbound s ->
@@ -639,7 +644,7 @@ let rec func ctx bb tf t p =
 						add_cfg_edge bb bb' CFGGoto;
 						List.iter (fun bb_exc -> add_cfg_edge bb bb_exc CFGMaybeThrow) bbl;
 						set_syntax_edge bb (SEMerge bb');
-						close_node g bb;
+						close_node bb;
 						block_element bb' e
 					end in
 					if bb == g.g_unreachable then bb else loop bb el
@@ -653,53 +658,67 @@ let rec func ctx bb tf t p =
 		block_el bb el
 	in
 	let bb_last = block bb_root tf.tf_expr in
-	close_node g bb_last;
+	close_node bb_last;
 	add_cfg_edge bb_last bb_exit CFGGoto; (* implied return *)
-	close_node g bb_exit;
+	close_node bb_exit;
 	bb_root,bb_exit
 
 let from_tfunction ctx tf t p =
 	let g = ctx.graph in
 	let bb_func,bb_exit = func ctx g.g_root tf t p in
 	ctx.entry <- bb_func;
-	close_node g g.g_root;
+	close_node g.g_root;
 	g.g_exit <- bb_exit
+
+let terminator_to_texpr_maybe = function
+	| TermReturn p -> Some (mk (TReturn None) t_dynamic p)
+	| TermBreak p -> Some (mk TBreak t_dynamic p)
+	| TermContinue p -> Some (mk TContinue t_dynamic p)
+	| TermReturnValue(e1,p) -> Some (mk (TReturn (Some e1)) t_dynamic p)
+	| TermThrow(e1,p) -> Some (mk (TThrow e1) t_dynamic p)
+	| TermCondBranch e1 -> Some e1 (* TODO: this shouldn't be here *)
+	| _ -> None
 
 let rec block_to_texpr_el ctx bb =
 	if bb.bb_dominator == ctx.graph.g_unreachable then
 		[]
 	else begin
 		let block bb = block_to_texpr ctx bb in
+		let live bb = not ctx.did_optimize || not ctx.config.local_dce || has_block_flag bb BlockDce in
+		let if_live bb = if live bb then Some bb else None in
 		let rec loop bb se =
-			let el = List.rev (DynArray.to_list bb.bb_el) in
-			match el,se with
-			| el,SESubBlock(bb_sub,bb_next) ->
-				Some bb_next,(block bb_sub) :: el
-			| el,SEMerge bb_next ->
-				Some bb_next,el
-			| el,SENone ->
-				None,el
-			| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(_,bb_body,bb_next)) ->
+			let get_terminator() = match bb.bb_terminator with
+				| TermCondBranch e1 -> e1
+				| _ -> die "" __LOC__
+			in
+			match se with
+			| SESubBlock(bb_sub,bb_next) ->
+				Some bb_next,Some (block bb_sub)
+			| SEMerge bb_next ->
+				Some bb_next,None
+			| SENone ->
+				None,terminator_to_texpr_maybe bb.bb_terminator
+			| SETry(bb_try,_,bbl,bb_next,p) ->
+				if_live bb_next,Some (mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid p)
+			| SEIfThen(bb_then,bb_next,p) ->
+				if_live bb_next,Some (mk (TIf(get_terminator(),block bb_then,None)) ctx.com.basic.tvoid p)
+			| SEIfThenElse(bb_then,bb_else,bb_next,t,p) ->
+				if_live bb_next,Some (mk (TIf(get_terminator(),block bb_then,Some (block bb_else))) t p)
+			| SEWhile(bb_body,bb_next,p) ->
 				let e2 = block bb_body in
-				Some bb_next,{e with eexpr = TWhile(e1,e2,flag)} :: el
-			| el,SETry(bb_try,_,bbl,bb_next,p) ->
-				Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid p) :: el
-			| e1 :: el,se ->
-				let e1 = Texpr.skip e1 in
-				let bb_next,e1_def,t,p = match se with
-					| SEIfThen(bb_then,bb_next,p) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid,p
-					| SEIfThenElse(bb_then,bb_else,bb_next,t,p) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t,p
-					| SESwitch(bbl,bo,bb_next,p) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid,p
-					| _ -> abort (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
-				in
-				bb_next,(mk e1_def t p) :: el
-			| [],_ ->
-				None,[]
+				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
+			| SESwitch(bbl,bo,bb_next,p) ->
+				Some bb_next,Some (mk (TSwitch(get_terminator(),List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)) ctx.com.basic.tvoid p)
 		in
-		let bb_next,el = loop bb bb.bb_syntax_edge in
+		let bb_next,e_term = loop bb bb.bb_syntax_edge in
+		let el = DynArray.to_list bb.bb_el in
+		let el = match e_term with
+			| None -> el
+			| Some e -> el @ [e]
+		in
 		let el = match bb_next with
 			| None -> el
-			| Some bb -> (block_to_texpr_el ctx bb) @ el
+			| Some bb -> el @ (block_to_texpr_el ctx bb)
 		in
 		el
 	end
@@ -707,7 +726,7 @@ let rec block_to_texpr_el ctx bb =
 and block_to_texpr ctx bb =
 	assert(bb.bb_closed);
 	let el = block_to_texpr_el ctx bb in
-	let e = mk (TBlock (List.rev el)) bb.bb_type bb.bb_pos in
+	let e = mk (TBlock el) bb.bb_type bb.bb_pos in
 	e
 
 and func ctx i =
@@ -733,7 +752,7 @@ and func ctx i =
 					false
 			in
 			begin match e1.eexpr,e2.eexpr with
-				| TLocal v1,TLocal v2 when v1 == v2 && not v1.v_capture && is_valid_assign_op op ->
+				| TLocal v1,TLocal v2 when v1 == v2 && not (has_var_flag v1 VCaptured) && is_valid_assign_op op ->
 					begin match op,e3.eexpr with
 						| (OpAdd|OpSub) as op,TConst (TInt i32) when Int32.to_int i32 = 1 && ExtType.is_numeric (Abstract.follow_with_abstracts v1.v_type) ->
 							let op = match op with

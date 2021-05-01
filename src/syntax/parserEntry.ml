@@ -204,7 +204,7 @@ class dead_block_collector conds = object(self)
 end
 
 (* parse main *)
-let parse ctx code file =
+let parse entry ctx code file =
 	let old = Lexer.save() in
 	let restore_cache = TokenCache.clear () in
 	let was_display = !in_display in
@@ -213,7 +213,7 @@ let parse ctx code file =
 	let old_macro = !in_macro in
 	code_ref := code;
 	in_display := display_position#get <> null_pos;
-	in_display_file := !in_display && display_position#is_in_file file;
+	in_display_file := !in_display && display_position#is_in_file (Path.UniqueKey.create file);
 	syntax_errors := [];
 	let restore =
 		(fun () ->
@@ -360,7 +360,7 @@ let parse ctx code file =
 		Some t
 	) in
 	try
-		let l = parse_file s in
+		let l = entry s in
 		(match !mstack with p :: _ -> syntax_error Unclosed_conditional ~pos:(Some p) sraw () | _ -> ());
 		let was_display_file = !in_display_file in
 		restore();
@@ -384,7 +384,7 @@ let parse ctx code file =
 			restore();
 			raise e
 
-let parse_string com s p error inlined =
+let parse_string entry com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
 	let old_display = display_position#get in
@@ -409,7 +409,7 @@ let parse_string com s p error inlined =
 		in_display_file := false;
 	end;
 	let result = try
-		parse com (Sedlexing.Utf8.from_string s) p.pfile
+		parse entry com (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)
@@ -421,13 +421,16 @@ let parse_string com s p error inlined =
 	result
 
 let parse_expr_string com s p error inl =
-	let head = "class X{static function main() " in
-	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
-	let extract_expr (_,decls) = match decls with
-		| [EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> (if inl then e else loop e)
-		| _ -> raise Exit
-	in
-	match parse_string com (head ^ s ^ ";}") p error inl with
-	| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(extract_expr data,is_display_file,pdi)
-	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
+	let s = if p.pmin > 0 then (String.make p.pmin ' ') ^ s else s in
+	let result = parse_string expr com s p error inl in
+	if inl then
+		result
+	else begin
+		let rec loop e =
+			let e = map_expr loop e in
+			(fst e,p)
+		in
+		match result with
+		| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(loop data,is_display_file,pdi)
+		| ParseError(data,error,errors) -> ParseError(loop data,error,errors)
+	end

@@ -150,7 +150,7 @@ class UI {
 	}
 
 	public static function dialog(title:String, text:String, flags:haxe.EnumFlags<DialogFlags>) {
-		@:privateAccess _dialog(title.bytes, text.bytes, flags.toInt());
+		return @:privateAccess _dialog(title.bytes, text.bytes, flags.toInt()) != 0;
 	}
 
 	@:hlNative("ui", "ui_loop")

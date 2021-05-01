@@ -111,7 +111,7 @@ let add_local jit var = match jit.scopes with
 	Returns either [Env slot] if the variable is captured or [Local slot] otherwise.
 *)
 let declare_local jit var =
-	if var.v_capture then Env (add_capture jit var true)
+	if has_var_flag var VCaptured then Env (add_capture jit var true)
 	else Local (add_local jit var)
 
 (*
@@ -122,7 +122,7 @@ let declare_local jit var =
 *)
 let declare_arg jit var =
 	let varacc = add_local jit var in
-	if var.v_capture then add_capture jit var true,Some varacc else varacc,None
+	if has_var_flag var VCaptured then add_capture jit var true,Some varacc else varacc,None
 
 (* Declares a variable for `this` in context [jit]. *)
 let declare_local_this jit = match jit.scopes with

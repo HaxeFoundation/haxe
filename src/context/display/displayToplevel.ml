@@ -108,11 +108,11 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 let read_class_paths com timer =
 	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
-		if not (DisplayPosition.display_position#is_in_file file) then begin
+		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 			match CompilationServer.get() with
 			| Some cs when pack <> fst path ->
-				let file_key = Path.UniqueKey.create file in
+				let file_key = com.file_keys#get file in
 				(CommonCache.get_cache cs com)#remove_file_for_real file_key
 			| _ ->
 				()
@@ -223,7 +223,7 @@ let collect ctx tk with_type sort =
 
 	let add_type mt =
 		match mt with
-		| TClassDecl {cl_kind = KAbstractImpl _ | KModuleStatics _} -> ()
+		| TClassDecl {cl_kind = KAbstractImpl _ | KModuleFields _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
 			let mname = snd (t_infos mt).mt_module.m_path in
@@ -324,7 +324,7 @@ let collect ctx tk with_type sort =
 		| KAbstractImpl ({a_impl = Some c} as a) ->
 			let origin = Self (TAbstractDecl a) in
 			List.iter (fun cf ->
-				if Meta.has Meta.Impl cf.cf_meta then begin
+				if has_class_field_flag cf CfImpl then begin
 					if ctx.curfun = FunStatic then ()
 					else begin
 						let cf = prepare_using_field cf in
@@ -340,11 +340,11 @@ let collect ctx tk with_type sort =
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) && ctx.curclass != c ->
+			| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum && not (path_exists cctx a.a_path) && ctx.curclass != c ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
-					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
+					if (has_class_field_flag cf CfEnum) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
 						add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
 				) c.cl_ordered_statics
 			| TTypeDecl t ->
@@ -381,7 +381,7 @@ let collect ctx tk with_type sort =
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
 					let decl,make = match c.cl_kind with
 						| KAbstractImpl a -> TAbstractDecl a,
-							if Meta.has Meta.Enum cf.cf_meta then make_ci_enum_abstract_field a else make_ci_class_field
+							if has_class_field_flag cf CfEnum then make_ci_enum_abstract_field a else make_ci_class_field
 						| _ -> TClassDecl c,make_ci_class_field
 					in
 					let origin = StaticImport decl in

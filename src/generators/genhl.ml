@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *)
+open Extlib_leftovers
 open Unix
 open Globals
 open Ast
@@ -433,7 +434,7 @@ let rec to_type ?tref ctx t =
 				| [] -> HDyn
 				| t :: tl ->
 					match follow (apply_params c.cl_params pl t) with
-					| TInst ({cl_interface=false},_) as t -> to_type ?tref ctx t
+					| TInst (c,_) as t when not (has_class_flag c CInterface) -> to_type ?tref ctx t
 					| _ -> loop tl
 			in
 			loop tl
@@ -478,7 +479,7 @@ and resolve_class ctx c pl statics =
 		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
 	| ([],"Array"), [] ->
 		die "" __LOC__
-	| _, _ when c.cl_extern ->
+	| _, _ when (has_class_flag c CExtern) ->
 		not_supported()
 	| _ ->
 		c
@@ -548,11 +549,11 @@ and real_type ctx e =
 	to_type ctx (loop e)
 
 and class_type ?(tref=None) ctx c pl statics =
-	let c = if c.cl_extern then resolve_class ctx c pl statics else c in
+	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
 	try
 		PMap.find key_path ctx.cached_types
-	with Not_found when c.cl_interface && not statics ->
+	with Not_found when (has_class_flag c CInterface) && not statics ->
 		let vp = {
 			vfields = [||];
 			vindex = PMap.empty;
@@ -626,7 +627,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			| Method m when m <> MethDynamic && not statics ->
 				let g = alloc_fid ctx c f in
 				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
-				let virt = if List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides then
+				let virt = if has_class_field_flag f CfOverride then
 					let vid = (try -(fst (get_index f.cf_name p))-1 with Not_found -> die "" __LOC__) in
 					DynArray.set virtuals vid g;
 					Some vid
@@ -640,7 +641,7 @@ and class_type ?(tref=None) ctx c pl statics =
 				in
 				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; };
 				None
-			| Method MethDynamic when List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides ->
+			| Method MethDynamic when has_class_field_flag f CfOverride ->
 				Some (try fst (get_index f.cf_name p) with Not_found -> die "" __LOC__)
 			| _ ->
 				let fid = add_field f.cf_name (fun() -> to_type ctx f.cf_type) in
@@ -663,7 +664,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			(* check toString *)
 			(try
 				let cf = PMap.find "toString" c.cl_fields in
-				if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
+				if has_class_field_flag cf CfOverride || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
 				DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
 			with Not_found ->
 				());
@@ -966,7 +967,7 @@ let common_type ctx e1 e2 for_eq p =
 	loop t1 t2
 
 let captured_index ctx v =
-	if not v.v_capture then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
+	if not (has_var_flag v VCaptured) then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
 
 let real_name v =
 	let rec loop = function
@@ -1311,7 +1312,7 @@ and object_access ctx eobj t f =
 and direct_method_call ctx c f ethis =
 	if (match f.cf_kind with Method m -> m = MethDynamic | Var _ -> true) then
 		false
-	else if c.cl_interface then
+	else if (has_class_flag c CInterface) then
 		false
 	else if (match c.cl_kind with KTypeParameter _ ->  true | _ -> false) then
 		false
@@ -1344,7 +1345,7 @@ and get_access ctx e =
 				| TAbstract (a,pl) -> loop (Abstract.get_underlying_type a pl)
 				| _ -> abort (s_type (print_context()) ethis.etype ^ " hl type should be interface") ethis.epos
 			in
-			let cdef, pl = if cdef.cl_interface then loop ethis.etype else cdef,pl in
+			let cdef, pl = if (has_class_flag cdef CInterface) then loop ethis.etype else cdef,pl in
 			object_access ctx ethis (class_type ctx cdef pl false) f
 		| (FAnon f | FClosure(None,f)), _ ->
 			object_access ctx ethis (to_type ctx ethis.etype) f
@@ -2496,6 +2497,8 @@ and eval_expr ctx e =
 		let r = eval_to ctx v t in
 		op ctx (ONeg (tmp,r));
 		tmp
+	| TUnop (Spread,_,_) ->
+		die ~p:e.epos "Unexpected spread operator" __LOC__
 	| TUnop (NegBits,_,v) ->
 		let t = to_type ctx e.etype in
 		let tmp = alloc_tmp ctx t in
@@ -2595,6 +2598,11 @@ and eval_expr ctx e =
 			Array.iteri (fun i v -> op ctx (OSetEnumField (env,i,eval_var ctx v))) capt.c_vars;
 			free ctx env;
 			op ctx (OInstanceClosure (r, fid, env)));
+		r
+	(* throwing a catch var means we want to rethrow an exception *)
+	| TThrow ({ eexpr = TLocal v } as e1) when has_var_flag v VCaught ->
+		let r = alloc_tmp ctx HVoid in
+		op ctx (ORethrow (eval_to ctx e1 HDyn));
 		r
 	| TThrow v ->
 		op ctx (OThrow (eval_to ctx v HDyn));
@@ -2907,7 +2915,7 @@ and eval_expr ctx e =
 		if safe_cast (rtype ctx re) t then
 			op ctx (OMov (rt,re))
 		else (match Abstract.follow_with_abstracts e.etype with
-		| TInst({ cl_interface = true } as c,_) ->
+		| TInst(c,_) when (has_class_flag c CInterface) ->
 			hold ctx re;
 			let c = eval_to ctx { eexpr = TTypeExpr(TClassDecl c); epos = e.epos; etype = t_dynamic } (class_type ctx ctx.base_type [] false) in
 			hold ctx c;
@@ -3040,10 +3048,10 @@ and build_capture_vars ctx f =
 	let used_vars = ref PMap.empty in
 	(* get all captured vars in scope, ignore vars that are declared *)
 	let decl_var v =
-		if v.v_capture then ignored_vars := PMap.add v.v_id () !ignored_vars
+		if has_var_flag v VCaptured then ignored_vars := PMap.add v.v_id () !ignored_vars
 	in
 	let use_var v =
-		if v.v_capture then used_vars := PMap.add v.v_id v !used_vars
+		if has_var_flag v VCaptured then used_vars := PMap.add v.v_id v !used_vars
 	in
 	let rec loop e =
 		(match e.eexpr with
@@ -3358,8 +3366,26 @@ let rec generate_member ctx c f =
 				| _ -> ()
 			) c.cl_ordered_fields;
 		) in
-		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
-		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
+		let ff = match f.cf_expr with
+			| Some { eexpr = TFunction f } -> f
+			| None when has_class_field_flag f CfAbstract ->
+				let tl,tr = match follow f.cf_type with
+					| TFun(tl,tr) -> tl,tr
+					| _ -> die "" __LOC__
+				in
+				let args = List.map (fun (n,_,t) ->
+					let v = Type.alloc_var VGenerated n t null_pos in
+					(v,None)
+				) tl in
+				{
+					tf_args = args;
+					tf_type = tr;
+					tf_expr = mk (TThrow (mk (TConst TNull) t_dynamic null_pos)) t_dynamic null_pos;
+				}
+			| _ -> abort "Missing function body" f.cf_pos
+		in
+		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) ff (Some c) None);
+		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
 			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
@@ -3371,9 +3397,9 @@ let rec generate_member ctx c f =
 
 let generate_type ctx t =
 	match t with
-	| TClassDecl { cl_interface = true }->
+	| TClassDecl c when (has_class_flag c CInterface) ->
 		()
-	| TClassDecl c when c.cl_extern ->
+	| TClassDecl c when (has_class_flag c CExtern) ->
 		List.iter (fun f ->
 			List.iter (fun (name,args,pos) ->
 				match name with
@@ -3416,7 +3442,7 @@ let generate_static_init ctx types main =
 		(* init class values *)
 		List.iter (fun t ->
 			match t with
-			| TClassDecl c when not c.cl_extern && not (is_array_class (s_type_path c.cl_path) && snd c.cl_path <> "ArrayDyn") && c != ctx.core_type && c != ctx.core_enum ->
+			| TClassDecl c when not (has_class_flag c CExtern) && not (is_array_class (s_type_path c.cl_path) && snd c.cl_path <> "ArrayDyn") && c != ctx.core_type && c != ctx.core_enum ->
 
 				let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
 
@@ -3476,13 +3502,13 @@ let generate_static_init ctx types main =
 						List.exists (fun (i,_) -> i == c || lookup i) cv.cl_implements
 					in
 					let check = function
-						| TClassDecl c when c.cl_interface = false && not c.cl_extern -> if lookup c then classes := c :: !classes
+						| TClassDecl c when (has_class_flag c CInterface) = false && not (has_class_flag c CExtern) -> if lookup c then classes := c :: !classes
 						| _ -> ()
 					in
 					List.iter check ctx.com.types;
 					!classes
 				in
-				if c.cl_interface then begin
+				if (has_class_flag c CInterface) then begin
 					let l = gather_implements() in
 					let ra = alloc_tmp ctx HArray in
 					let rt = alloc_tmp ctx HType in
@@ -3589,7 +3615,7 @@ let generate_static_init ctx types main =
 	List.iter (fun t ->
 		(match t with TClassDecl { cl_init = Some e } -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
-		| TClassDecl c when not c.cl_extern ->
+		| TClassDecl c when not (has_class_flag c CExtern) ->
 			List.iter (fun f ->
 				match f.cf_kind, f.cf_expr with
 				| Var _, Some e ->
@@ -3993,7 +4019,7 @@ let add_types ctx types =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"BytesKeyValueIterator"|"ArrayBytes") } as c) ->
-			c.cl_extern <- true
+			add_class_flag c CExtern
 		| TClassDecl c ->
 			let rec loop p f =
 				match p with
@@ -4003,7 +4029,7 @@ let add_types ctx types =
 				| _ ->
 					false
 			in
-			if not ctx.is_macro then List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
+			if not ctx.is_macro then List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.HlNative then
 					let lib, prefix = (match args with
@@ -4049,8 +4075,30 @@ let check ctx =
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map
 
+let make_context_sign com =
+	let mhash = Hashtbl.create 0 in
+	List.iter (fun t ->
+		let mt = t_infos t in
+		let mid = mt.mt_module.m_id in
+		Hashtbl.add mhash mid true
+	) com.types;
+	let data = Marshal.to_string mhash [No_sharing] in
+	Digest.to_hex (Digest.string data)
+
+let prev_sign = ref "" and prev_data = ref ""
+
 let generate com =
 	let dump = Common.defined com Define.Dump in
+	let hl_check = Common.raw_defined com "hl-check" in
+
+	let sign = make_context_sign com in
+	if sign = !prev_sign && not dump && not hl_check then begin
+		(* reuse previously generated data *)
+		let ch = open_out_bin com.file in
+		output_string ch !prev_data;
+		close_out ch;
+	end else
+
 	let ctx = create_context com false dump in
 	add_types ctx com.types;
 	let code = build_code ctx com.types com.main in
@@ -4072,7 +4120,7 @@ let generate com =
 		) code.functions;
 		close_out ch;
 	end;*)
-	if Common.raw_defined com "hl-check" then begin
+	if hl_check then begin
 		check ctx;
 		Hlinterp.check code false;
 	end;
@@ -4098,6 +4146,8 @@ let generate com =
 		let ch = open_out_bin com.file in
 		output_string ch str;
 		close_out ch;
+		prev_sign := sign;
+		prev_data := str;
 	end;
 	Hlopt.clean_cache();
 	t();

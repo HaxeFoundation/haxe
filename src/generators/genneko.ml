@@ -189,6 +189,7 @@ and gen_unop ctx p op flag e =
 	| Not -> call p (builtin p "not") [gen_expr ctx e]
 	| Neg -> (EBinop ("-",int p 0, gen_expr ctx e),p)
 	| NegBits -> (EBinop ("-",int p (-1), gen_expr ctx e),p)
+	| Spread -> die ~p:e.epos "Unhandled spread operator" __LOC__
 
 and gen_call ctx p e el =
 	match e.eexpr , el with
@@ -222,7 +223,7 @@ and gen_expr ctx e =
 	| TIdent s when s.[0] = '$' ->
 		(EConst (Builtin (String.sub s 1 (String.length s - 1))),p)
 	| TLocal v ->
-		if v.v_capture then
+		if has_var_flag v VCaptured then
 			(EArray (ident p v.v_name,int p 0),p)
 		else
 			ident p v.v_name
@@ -266,7 +267,7 @@ and gen_expr ctx e =
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
 		gen_call ctx p e el
-	| TNew (c,_,params) ->
+	| TNew (c,tl,params) ->
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
@@ -274,13 +275,13 @@ and gen_expr ctx e =
 		(EVars (
 			let e = (match eo with
 				| None ->
-					if v.v_capture then
+					if has_var_flag v VCaptured then
 						Some (call p (builtin p "array") [null p])
 					else
 						None
 				| Some e ->
 					let e = gen_expr ctx e in
-					if v.v_capture then
+					if has_var_flag v VCaptured then
 						Some (call p (builtin p "array") [e])
 					else
 						Some e
@@ -289,7 +290,7 @@ and gen_expr ctx e =
 		),p)
 	| TFunction f ->
 		let inits = List.fold_left (fun acc (a,c) ->
-			let acc = if a.v_capture then
+			let acc = if has_var_flag a VCaptured then
 				(EBinop ("=",ident p a.v_name,call p (builtin p "array") [ident p a.v_name]),p) :: acc
 			else
 				acc
@@ -307,7 +308,7 @@ and gen_expr ctx e =
 		let it = gen_expr ctx it in
 		let e = gen_expr ctx e in
 		let next = call p (field p (ident p "@tmp") "next") [] in
-		let next = (if v.v_capture then call p (builtin p "array") [next] else next) in
+		let next = (if has_var_flag v VCaptured then call p (builtin p "array") [next] else next) in
 		(EBlock
 			[(EVars ["@tmp", Some it],p);
 			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
@@ -341,7 +342,7 @@ and gen_expr ctx e =
 					| Some path -> call p (field p (gen_type_path p (["neko"],"Boot")) "__instanceof") [ident p "@tmp"; gen_type_path p path]
 				) in
 				let id = ident p "@tmp" in
-				let id = (if v.v_capture then call p (builtin p "array") [id] else id) in
+				let id = (if has_var_flag v VCaptured then call p (builtin p "array") [id] else id) in
 				let e = gen_expr ctx e in
 				(EIf (cond,(EBlock [
 					EVars [v.v_name,Some id],p;
@@ -556,7 +557,7 @@ let gen_type ctx t acc =
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
-		if c.cl_extern then
+		if (has_class_flag c CExtern) then
 			acc
 		else
 			gen_class ctx c :: acc
@@ -572,7 +573,7 @@ let gen_static_vars ctx t =
 	match t with
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ -> []
 	| TClassDecl c ->
-		if c.cl_extern then
+		if (has_class_flag c CExtern) then
 			[]
 		else
 			List.fold_right (fun f acc ->
@@ -641,7 +642,7 @@ let gen_name ctx acc t =
 		in
 		setname :: setconstrs :: meta @ acc
 	| TClassDecl c ->
-		if c.cl_extern || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
+		if (has_class_flag c CExtern) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
 			acc
 		else
 			let p = pos ctx c.cl_pos in

@@ -55,13 +55,13 @@ class Base64 {
 		return Bytes.ofString(base64_decode(str, true));
 	}
 
-	public static inline function urlEncode(bytes:Bytes, complement = true):String {
+	public static inline function urlEncode(bytes:Bytes, complement = false):String {
 		var result = str_replace(NORMAL_62_63, URL_62_63, base64_encode(bytes.toString()));
 		return (complement ? result : rtrim(result, "="));
 	}
 
-	public static inline function urlDecode(str:String, complement = true):Bytes {
-		if (!complement) {
+	public static inline function urlDecode(str:String, complement = false):Bytes {
+		if (complement) {
 			switch (strlen(str) % 3) {
 				case 1:
 					str += "==";

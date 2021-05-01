@@ -126,6 +126,7 @@ let gen_define_info defines =
 			let platforms_str = gen_platforms platforms in
 			let params_str = gen_params params in
 			let links_str = gen_links links in
+			let define = String.concat "_" (ExtString.String.nsplit define "-") in
 			"\t| " ^ name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str)) ^ "])"
 	) defines in
 	String.concat "\n" define_str

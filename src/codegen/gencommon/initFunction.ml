@@ -49,7 +49,7 @@ let ensure_simple_expr com e =
 
 let handle_override_dynfun acc e this field =
 	let v = mk_temp ("super_" ^ field) e.etype in
-	v.v_capture <- true;
+	add_var_flag v  VCaptured;
 
 	let add_expr = ref None in
 
@@ -126,7 +126,7 @@ let handle_class com cl =
 				let var = mk (TField ((mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) cf.cf_pos), FInstance(cl, List.map snd cl.cl_params, cf))) cf.cf_type cf.cf_pos in
 				let ret = binop Ast.OpAssign var e cf.cf_type cf.cf_pos in
 				cf.cf_expr <- None;
-				let is_override = List.memq cf cl.cl_overrides in
+				let is_override = has_class_field_flag cf CfOverride in
 
 				if is_override then begin
 					cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
@@ -146,7 +146,7 @@ let handle_class com cl =
 
 				let ret = binop Ast.OpAssign var (change_expr e) (fn cf.cf_type) cf.cf_pos in
 				cf.cf_expr <- None;
-				let is_override = List.memq cf cl.cl_overrides in
+				let is_override = has_class_field_flag cf CfOverride in
 
 				if is_override then begin
 					cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
@@ -226,7 +226,7 @@ let handle_class com cl =
 
 let mod_filter com md =
 	match md with
-	| TClassDecl cl when not cl.cl_extern ->
+	| TClassDecl cl when not (has_class_flag cl CExtern) ->
 		handle_class com cl
 	| _ -> ()
 

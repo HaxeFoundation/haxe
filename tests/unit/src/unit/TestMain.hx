@@ -6,7 +6,7 @@ import unit.Test.*;
 import haxe.ds.List;
 
 final asyncWaits = new Array<haxe.PosInfos>();
-final asyncCache = new Array<Void -> Void>();
+final asyncCache = new Array<() -> Void>();
 
 @:access(unit.Test)
 #if js
@@ -74,7 +74,8 @@ function main() {
 		new TestNull(),
 		new TestNumericCasts(),
 		new TestHashMap(),
-		#if (!no_http && (!azure || !(php && Windows)))
+		new TestRest(),
+		#if (!no_http && (!github || !(php && Windows)))
 		new TestHttp(),
 		#end
 		#if !no_pattern_matching
@@ -101,6 +102,7 @@ function main() {
 		#if (java || cs)
 		new TestOverloads(),
 		#end
+		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
 		#if ((dce == "full") && !interp)
@@ -109,9 +111,9 @@ function main() {
 		new TestMapComprehension(),
 		new TestMacro(),
 		new TestKeyValueIterator(),
-		new TestFieldVariance()
+		new TestFieldVariance(),
+		new TestConstrainedMonomorphs()
 		//new TestUnspecified(),
-		//new TestRemoting(),
 	];
 
 	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {

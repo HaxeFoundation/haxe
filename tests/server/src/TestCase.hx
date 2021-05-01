@@ -1,3 +1,4 @@
+import haxe.PosInfos;
 import haxe.Exception;
 import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
@@ -16,6 +17,8 @@ using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
 class TestCase implements ITest {
+	static public var debugLastResult:{hasError:Bool, stdout:String, stderr:String, prints:Array<String>};
+
 	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
@@ -37,11 +40,17 @@ class TestCase implements ITest {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, done:Void->Void) {
+	function runHaxe(args:Array<String>, done:()->Void) {
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
 			lastResult = result;
+			debugLastResult = {
+				hasError: lastResult.hasError,
+				prints: lastResult.prints,
+				stderr: lastResult.stderr,
+				stdout: lastResult.stdout
+			}
 			sendLogMessage(result.stdout);
 			for (print in result.prints) {
 				var line = print.trim();
@@ -54,7 +63,7 @@ class TestCase implements ITest {
 		}, sendErrorMessage);
 	}
 
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:Void->Void) {
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:()->Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		runHaxe(args, done);
@@ -123,12 +132,16 @@ class TestCase implements ITest {
 		return Json.parse(lastResult.stderr).result;
 	}
 
-	function parseGotoDefinition():GotoTypeDefinitionResult {
+	function parseGotoTypeDefinition():GotoTypeDefinitionResult {
 		return Json.parse(lastResult.stderr).result;
 	}
 
+	function parseGotoDefintion():GotoDefinitionResult {
+		return haxe.Json.parse(lastResult.stderr).result;
+	}
+
 	function parseGotoDefinitionLocations():Array<Location> {
-		switch parseGotoDefinition().result {
+		switch parseGotoTypeDefinition().result {
 			case null:
 				throw new Exception('No result for GotoDefinition found');
 			case result:
@@ -181,6 +194,21 @@ class TestCase implements ITest {
 		if (type != null) {
 			Assert.isTrue(check(type), null, p);
 		}
+	}
+
+	function assertClassField(completion:CompletionResult, name:String, ?callback:(field:JsonClassField)->Void, ?pos:PosInfos) {
+		for (item in completion.result.items) {
+			switch item.kind {
+				case ClassField if(item.args.field.name == name):
+					switch callback {
+						case null: Assert.pass(pos);
+						case fn: fn(item.args.field);
+					}
+					return;
+				case _:
+			}
+		}
+		Assert.fail(pos);
 	}
 
 	function assertHasCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {

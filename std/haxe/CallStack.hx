@@ -28,7 +28,7 @@ package haxe;
 enum StackItem {
 	CFunction;
 	Module(m:String);
-	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Null<Int>);
+	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Int);
 	Method(classname:Null<String>, method:String);
 	LocalFunction(?v:Int);
 }
@@ -56,12 +56,13 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 		Return the exception stack : this is the stack elements between
 		the place the last exception was thrown and the place it was
 		caught, or an empty array if not available.
+		Set `fullStack` parameter to true in order to return the full exception stack.
 
 		May not work if catch type was a derivative from `haxe.Exception`.
 	**/
-	public static function exceptionStack():Array<StackItem> {
+	public static function exceptionStack( fullStack = false ):Array<StackItem> {
 		var eStack:CallStack = NativeStackTrace.toHaxe(NativeStackTrace.exceptionStack());
-		return eStack.subtract(callStack()).asArray();
+		return (fullStack ? eStack : eStack.subtract(callStack())).asArray();
 	}
 
 	/**
@@ -133,7 +134,7 @@ abstract CallStack(Array<StackItem>) from Array<StackItem> {
 
 	static function exceptionToString(e:Exception):String {
 		if(e.previous == null) {
-			return 'Exception: ${e.message}${e.stack}';
+			return 'Exception: ${e.toString()}${e.stack}';
 		}
 		var result = '';
 		var e:Null<Exception> = e;

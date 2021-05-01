@@ -8,6 +8,7 @@ type rename_init = {
 	mutable ri_scope : var_scope;
 	mutable ri_hoisting : bool;
 	mutable ri_no_shadowing : bool;
+	mutable ri_no_catch_var_shadowing : bool;
 	mutable ri_switch_cases_no_blocks : bool;
 	mutable ri_reserved : bool StringMap.t;
 	mutable ri_reserve_current_top_level_symbol : bool;
@@ -22,8 +23,8 @@ let reserve_init ri name =
 	ri.ri_reserved <- StringMap.add name true ri.ri_reserved
 
 (**
-	Make all class names reserved names.
-	No local variable will have a name matching a class.
+	Make all module-level names reserved.
+	No local variable will have a name matching a module-level declaration.
 *)
 let reserve_all_types ri com path_to_name =
 	List.iter (fun mt ->
@@ -35,7 +36,7 @@ let reserve_all_types ri com path_to_name =
 				let native_name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
 				reserve_init ri native_name
 			) c.cl_ordered_statics
-		| TClassDecl { cl_kind = KModuleStatics m; cl_ordered_statics = fl } ->
+		| TClassDecl { cl_kind = KModuleFields m; cl_ordered_statics = fl } ->
 			let prefix = Path.flat_path m.m_path ^ "_" in
 			List.iter (fun cf ->
 				let name = try fst (TypeloadCheck.get_native_name cf.cf_meta) with Not_found -> prefix ^ cf.cf_name in
@@ -54,6 +55,7 @@ let init com =
 		ri_reserved = StringMap.empty;
 		ri_hoisting = false;
 		ri_no_shadowing = false;
+		ri_no_catch_var_shadowing = false;
 		ri_switch_cases_no_blocks = false;
 		ri_reserve_current_top_level_symbol = false;
 	} in
@@ -64,6 +66,8 @@ let init com =
 			ri.ri_hoisting <- true;
 		| NoShadowing ->
 			ri.ri_no_shadowing <- true;
+		| NoCatchVarShadowing ->
+			ri.ri_no_catch_var_shadowing <- true;
 		| SwitchCasesNoBlocks ->
 			ri.ri_switch_cases_no_blocks <- true;
 		| ReserveNames names ->
@@ -105,6 +109,7 @@ type scope = {
 type rename_context = {
 	rc_hoisting : bool;
 	rc_no_shadowing : bool;
+	rc_no_catch_var_shadowing : bool;
 	rc_switch_cases_no_blocks : bool;
 	rc_scope : var_scope;
 	mutable rc_reserved : bool StringMap.t;
@@ -227,7 +232,8 @@ let rec collect_vars ?(in_block=false) rc scope e =
 				| TBlock exprs -> { catch_expr with eexpr = TBlock (v_expr :: exprs) }
 				| _ -> { catch_expr with eexpr = TBlock [v_expr; catch_expr] }
 			in
-			collect_vars scope e
+			collect_vars scope e;
+			if rc.rc_no_catch_var_shadowing then use_var rc scope v;
 		) catches
 	| TSwitch (target, cases, default_opt) when rc.rc_switch_cases_no_blocks ->
 		collect_vars scope target;
@@ -290,7 +296,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		name := v.v_name ^ (string_of_int !count);
 	done;
 	v.v_name <- !name;
-	if rc.rc_no_shadowing || (v.v_capture && rc.rc_hoisting) then reserve reserved v.v_name
+	if rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting) then reserve reserved v.v_name
 
 (**
 	Rename variables found in `scope`
@@ -311,6 +317,7 @@ let run ctx ri e =
 			rc_scope = ri.ri_scope;
 			rc_hoisting = ri.ri_hoisting;
 			rc_no_shadowing = ri.ri_no_shadowing;
+			rc_no_catch_var_shadowing = ri.ri_no_catch_var_shadowing;
 			rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
 			rc_reserved = ri.ri_reserved;
 		} in

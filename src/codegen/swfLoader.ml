@@ -16,6 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
+open Extlib_leftovers
 open Swf
 open As3
 open As3hl
@@ -46,7 +47,7 @@ let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
 let ct_dyn = CTPath tp_dyn
 
 let ct_rest = CTPath {
-	tpackage = ["haxe"; "extern"];
+	tpackage = ["haxe"];
 	tname = "Rest";
 	tparams = [TPType (ct_dyn,null_pos)];
 	tsub = None;
@@ -70,7 +71,7 @@ let rec make_tpath = function
 			| [] , "QName" -> ["flash";"utils"], "QName"
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
-			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
+			| ["__AS3__";"vec"] , "Vector" -> pdyn := true; ["flash"], "Vector"
 			| _ -> lowercase_pack pack, name
 		in
 		{
@@ -422,8 +423,8 @@ let build_class com c file =
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
-			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
+			d_meta = [(Meta.Native,[(EConst (String(native_path,SDoubleQuotes)),null_pos)],null_pos)];
+			d_flags = [AbEnum;AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
 		(path.tpackage, [(EAbstract abstract_data,pos)])

@@ -89,7 +89,7 @@ class TestJava extends Test
 		eq(a.someEnum(), TB);
 		eq(a.currentRevision(), 1);
 		t(cl.getAnnotation(java.Lib.toNativeType(MyClass_ParameterLessAnnotation)) != null);
-		var m = cl.getMethod("testAnnotations", new java.NativeArray(0));
+		var m = cl.getMethod("testAnnotations");
 		a = m.getAnnotation(java.Lib.toNativeType(MyClass_MyAnnotation));
 		t(a != null);
 		eq(a.author(), "author");

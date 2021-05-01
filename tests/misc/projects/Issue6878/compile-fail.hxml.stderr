@@ -1,2 +1,2 @@
-Main.hx:11: characters 7-16 : Constraint check failure for Foo.T
-Main.hx:11: characters 7-16 : "10" should be Int
+Main.hx:11: characters 11-15 : Constraint check failure for Foo.T
+Main.hx:11: characters 11-15 : ... "10" should be Int

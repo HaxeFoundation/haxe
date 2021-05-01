@@ -119,11 +119,11 @@ let mk_conversion_fun gen e =
 	in
 	let block, local = match e.eexpr with
 		| TLocal v ->
-			v.v_capture <- true;
+			add_var_flag v VCaptured;
 			[],e
 		| _ ->
 			let tmp = mk_temp "delegate_conv" e.etype in
-			tmp.v_capture <- true;
+			add_var_flag tmp VCaptured;
 			[{ eexpr = TVar(tmp,Some e); etype = gen.gcon.basic.tvoid; epos = e.epos }], mk_local tmp e.epos
 	in
 	let body = {
@@ -191,29 +191,29 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 				| None -> Type.map_expr run e
 				| Some tparam_anon_decl ->
 					(match (vv, ve) with
-						| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
-						| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
+						| ({ v_extra = Some({v_params = _ :: _}) } as v), Some ({ eexpr = TFunction tf } as f)
+						| ({ v_extra = Some({v_params = _ :: _}) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
 							tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 							{ e with eexpr = TBlock([]) }
 						| _ ->
 							Type.map_expr run { e with eexpr = TVar(vv, ve) })
 					)
-			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some(_ :: _, _) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
+			| TBinop(OpAssign, { eexpr = TLocal({ v_extra = Some({v_params = _ :: _}) } as v)}, ({ eexpr= TFunction tf } as f)) when is_some tparam_anon_decl ->
 				(match tparam_anon_decl with
 					| None -> die "" __LOC__
 					| Some tparam_anon_decl ->
 						tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
 						{ e with eexpr = TBlock([]) }
 				)
-			| TLocal ({ v_extra = Some( _ :: _, _) } as v) ->
+			| TLocal ({ v_extra = Some({v_params =  _ :: _}) } as v) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v e false)
-			| TArray ( ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr), _) -> (* captured transformation *)
+			| TArray ( ({ eexpr = TLocal ({ v_extra = Some({v_params =  _ :: _}) } as v) } as expr), _) -> (* captured transformation *)
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v { expr with etype = e.etype } false)
-			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some( _ :: _, _) } as v) } as expr)) ->
+			| TMeta((Meta.Custom ":tparamcall",_,_),({ eexpr=TLocal ({ v_extra = Some({v_params = _ :: _}) } as v) } as expr)) ->
 				(match tparam_anon_acc with
 				| None -> Type.map_expr run e
 				| Some tparam_anon_acc -> tparam_anon_acc v expr true)
@@ -334,14 +334,14 @@ let get_captured expr =
 				Type.iter traverse expr
 			| TVar (v, opt) ->
 				(match v.v_extra with
-					| Some(_ :: _, _) -> ()
+					| Some({v_params = _ :: _}) -> ()
 					| _ ->
 						check_params v.v_type);
 				Hashtbl.add ignored v.v_id v;
 				ignore(Option.map traverse opt)
-			| TLocal { v_extra = Some( (_ :: _ ),_) } ->
+			| TLocal { v_extra = Some({v_params = (_ :: _ )}) } ->
 				()
-			| TLocal(( { v_capture = true } ) as v) ->
+			| TLocal v when has_var_flag v VCaptured ->
 				(if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
 			| _ -> Type.iter traverse expr
 	in traverse expr;
@@ -454,7 +454,7 @@ let configure gen ft =
 		(* change all captured variables to this.capturedVariable *)
 		let rec change_captured e =
 			match e.eexpr with
-				| TLocal( ({ v_capture = true }) as v ) when Hashtbl.mem captured_ht v.v_id ->
+				| TLocal v when has_var_flag v VCaptured && Hashtbl.mem captured_ht v.v_id ->
 					mk_this v e.epos
 				| _ -> Type.map_expr change_captured e
 		in
@@ -524,11 +524,11 @@ let configure gen ft =
 		(* add invoke function to the class *)
 		cls.cl_ordered_fields <- invoke_field :: cls.cl_ordered_fields;
 		cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
-		cls.cl_overrides <- invoke_field :: cls.cl_overrides;
+		add_class_field_flag invoke_field CfOverride;
 
 		(match tvar with
 		| None -> ()
-		| Some ({ v_extra = Some(_ :: _, _) } as v) ->
+		| Some ({ v_extra = Some({v_params = _ :: _}) } as v) ->
 			Hashtbl.add tvar_to_cdecl v.v_id (cls,captured)
 		| _ -> ());
 
@@ -596,7 +596,7 @@ let configure gen ft =
 				| _ -> die "" __LOC__) captured
 			in
 			let types = match v.v_extra with
-				| Some(t,_) -> t
+				| Some ve -> ve.v_params
 				| _ -> die "" __LOC__
 			in
 			let monos = List.map (fun _ -> mk_mono()) types in
@@ -652,7 +652,6 @@ let configure gen ft =
 		(* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 	in
 	gen.gexpr_filters#add name (PCustom priority) run
-
 
 (*
 	this submodule will provide the default implementation for the C# and Java targets.
@@ -853,7 +852,7 @@ struct
 
 		let dynamic_fun_call call_expr =
 			let tc, params = match call_expr.eexpr with
-				| TCall(tc, params) -> tc, params
+				| TCall(tc, params) -> tc,wrap_rest_args gen tc.etype params tc.epos
 				| _ -> die "" __LOC__
 			in
 			let ct = gen.greal_type call_expr.etype in

@@ -38,6 +38,7 @@ class TestMacro extends Test {
 		parseAndPrint("var a:A");
 		parseAndPrint("var a = b");
 		parseAndPrint("var a:A = b");
+		parseAndPrint("var @:a(b) c:D = e");
 		parseAndPrint("function() { }");
 		parseAndPrint("for (a in b) { }");
 		parseAndPrint("if (a) b");

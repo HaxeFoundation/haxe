@@ -33,6 +33,7 @@ open EvalHash
 open EvalEncode
 open EvalField
 open MacroApi
+open Extlib_leftovers
 
 (* Create *)
 
@@ -95,6 +96,7 @@ let create com api is_macro =
 	let thread = {
 		tthread = Thread.self();
 		tstorage = IntMap.empty;
+		tevents = vnull;
 		tdeque = EvalThread.Deque.create();
 	} in
 	let eval = EvalThread.create_eval thread in
@@ -116,6 +118,7 @@ let create com api is_macro =
 		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
+		file_keys = com.file_keys;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
 		toplevel = 	vobject {
@@ -137,6 +140,20 @@ let create com api is_macro =
 		select ctx;
 		ignore(Event.sync(Event.receive eval.debug_channel));
 	end;
+	(* If no user-defined exception handler is set then follow libuv behavior.
+		Which is printing an error to stderr and exiting with code 2 *)
+	Luv.Error.set_on_unhandled_exception (fun ex ->
+		match ex with
+		| Sys_exit _ -> raise ex
+		| _ ->
+			let msg =
+				match ex with
+				| Error.Error (err,_) -> Error.error_msg err
+				| _ -> Printexc.to_string ex
+			in
+			Printf.eprintf "%s\n" msg;
+			exit 2
+	);
 	t();
 	ctx
 
@@ -156,7 +173,7 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) EKEntrypoint (Hashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
@@ -197,7 +214,15 @@ let value_signature v =
 			incr cache_length;
 			f()
 	in
-	let function_count = ref 0 in
+	let custom_count = ref 0 in
+	(* Custom format: enumerate custom entities as name_char0, name_char1 etc. *)
+	let custom_name name_char =
+		cache v (fun () ->
+			addc 'F';
+			add (string_of_int !custom_count);
+			incr custom_count
+		)
+	in
 	let rec loop v = match v with
 		| VNull -> addc 'n'
 		| VTrue -> addc 't'
@@ -206,6 +231,12 @@ let value_signature v =
 		| VInt32 i ->
 			addc 'i';
 			add (Int32.to_string i)
+		| VInt64 i ->
+			add "i64";
+			add (Signed.Int64.to_string i)
+		| VUInt64 u ->
+			add "u64";
+			add (Unsigned.UInt64.to_string u)
 		| VFloat f ->
 			if f = neg_infinity then addc 'm'
 			else if f = infinity then addc 'p'
@@ -288,6 +319,8 @@ let value_signature v =
 			)
 		| VString s ->
 			adds s.sstring
+		| VNativeString s ->
+			add s
 		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
@@ -318,12 +351,9 @@ let value_signature v =
 		| VPrototype _ ->
 			die "" __LOC__
 		| VFunction _ | VFieldClosure _ ->
-			(* Custom format: enumerate functions as F0, F1 etc. *)
-			cache v (fun () ->
-				addc 'F';
-				add (string_of_int !function_count);
-				incr function_count
-			)
+			custom_name 'F'
+		| VHandle _ ->
+			custom_name 'H'
 		| VLazy f ->
 			loop (!f())
 	and loop_fields fields =
@@ -335,15 +365,7 @@ let value_signature v =
 	loop v;
 	Digest.string (Buffer.contents buf)
 
-let prepare_callback v n =
-	match v with
-	| VFunction _ | VFieldClosure _ ->
-		let ctx = get_ctx() in
-		(fun args -> match catch_exceptions ctx (fun() -> call_value v args) null_pos with
-			| Some v -> v
-			| None -> vnull)
-	| _ ->
-		raise Invalid_expr
+let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()
 
@@ -380,8 +402,17 @@ let compiler_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->
-		set_instance_field i key_exception_message (EvalString.create_unknown msg);
+		let msg = EvalString.create_unknown msg in
+		set_instance_field i key_exception_message msg;
 		set_instance_field i key_pos (encode_pos pos);
+		set_instance_field i key_native_exception msg;
+		let ctx = get_ctx() in
+		let eval = get_eval ctx in
+		(match eval.env with
+		| Some _ ->
+			let stack = EvalStackTrace.make_stack_value (call_stack eval) in
+			set_instance_field i key_native_stack stack;
+		| None -> ());
 		exc vi
 	| _ ->
 		die "" __LOC__

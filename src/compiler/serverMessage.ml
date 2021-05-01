@@ -71,7 +71,7 @@ let changed_directories com tabs dirs =
 
 let module_path_changed com tabs (m,time,file) =
 	if config.print_module_path_changed then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
-		(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file)
+		(sign_string com) (s_type_path m.m_path) m.m_extra.m_time (Path.UniqueKey.lazy_path m.m_extra.m_file) time file)
 
 let not_cached com tabs m =
 	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) "modified")

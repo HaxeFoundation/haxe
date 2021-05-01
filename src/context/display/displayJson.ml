@@ -122,22 +122,18 @@ let handler =
 			hctx.display#enable_display DMDefault;
 		);
 		"display/definition", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
 		"display/implementation", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMImplementation);
 		);
 		"display/typeDefinition", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMTypeDefinition;
 		);
 		"display/references", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
 			| "withBaseAndDescendants" ->
@@ -148,7 +144,6 @@ let handler =
 				hctx.display#enable_display (DMUsage (false,false,false));
 		);
 		"display/hover", (fun hctx ->
-			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMHover;
 		);
@@ -197,7 +192,7 @@ let handler =
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.get_full_path file in
-			let key = Path.UniqueKey.create file in
+			let key = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
 				Hashtbl.replace cc#get_removed_files key file
@@ -221,7 +216,7 @@ let handler =
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let fkey = Path.UniqueKey.create file in
+			let fkey = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey;
 			cs#remove_files fkey;

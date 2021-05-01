@@ -92,7 +92,7 @@ struct
 		let super, has_params = if Meta.has Meta.FlatEnum en.e_meta then base_class, false else base_param_class, true in
 
 		cl.cl_super <- Some(super,[]);
-		cl.cl_extern <- en.e_extern;
+		if en.e_extern then add_class_flag cl CExtern;
 		en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 		cl.cl_module <- en.e_module;
 		cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;
@@ -204,7 +204,7 @@ struct
 
 		cl.cl_ordered_fields <- getTag_cf :: cl.cl_ordered_fields ;
 		cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
-		cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
+		add_class_field_flag getTag_cf CfOverride;
 		cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
 		gen.gadd_to_module (TClassDecl cl) (max_dep);
 

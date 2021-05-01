@@ -85,12 +85,10 @@ private class SqliteConnection implements Connection {
 
 	public function commit() {
 		request("COMMIT");
-		startTransaction(); // match mysql usage
 	}
 
 	public function rollback() {
 		request("ROLLBACK");
-		startTransaction(); // match mysql usage
 	}
 
 	@:native("_hx_sqlite_connect")
@@ -175,7 +173,7 @@ private class SqliteResultSet implements ResultSet {
 	}
 
 	public function getFieldsNames():Array<String> {
-		return null;
+		throw new haxe.exceptions.NotImplementedException();
 	}
 
 	@:native("_hx_sqlite_result_next")

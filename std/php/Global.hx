@@ -20,6 +20,11 @@ extern class Global {
 	static function die(status:EitherType<String, Int>):Void;
 
 	/**
+		@see http://php.net/manual/en/function.error-log.php
+	**/
+	static function error_log(message:String, message_type:Int = 0, ?destination:String, ?extra_headers:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.error-reporting.php
 	**/
 	static function error_reporting(?level:Int):Int;
@@ -296,6 +301,11 @@ extern class Global {
 	static function echo(args:Rest<String>):Void;
 
 	/**
+		@see http://php.net/manual/en/function.print-r.php
+	**/
+	static function print_r(expression:Any, ?returnOutput:Bool):EitherType<Bool, String>;
+
+	/**
 		@see http://php.net/manual/en/function.sprintf.php
 	**/
 	static function sprintf(format:String, args:Rest<Dynamic>):EitherType<String, Bool>;
@@ -545,6 +555,16 @@ extern class Global {
 	static function mt_getrandmax():Int;
 
 	/**
+		@see http://php.net/manual/en/function.random-bytes.php
+	**/
+	static function random_bytes(length:Int):String;
+
+	/**
+		@see http://php.net/manual/en/function.random-int.php
+	**/
+	static function random_int(min:Int, max:Int):Int;
+
+	/**
 		@see http://php.net/manual/en/function.is-nan.php
 	**/
 	static function is_nan(arg:Float):Bool;
@@ -638,7 +658,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.fseek.php
 	**/
-	static function fseek(handle:Resource, offset:Int, ?whence:Int):EitherType<Int, Bool>;
+	static function fseek(handle:Resource, offset:Int, ?whence:Int):Int;
 
 	/**
 		@see http://php.net/manual/en/function.ftell.php
@@ -666,6 +686,11 @@ extern class Global {
 	static function fflush(handle:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static function flock(handle:Resource, operation:Int, ?wouldblock:Ref<Int>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.fwrite.php
 	**/
 	static function fwrite(handle:Resource, string:String, ?length:Int):EitherType<Int, Bool>;
@@ -691,6 +716,31 @@ extern class Global {
 	static function file_put_contents(filename:String, data:Dynamic, flags:Int = 0, ?context:Resource):EitherType<Int, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.fileatime.php
+	**/
+	static function fileatime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filectime.php
+	**/
+	static function filectime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filemtime.php
+	**/
+	static function filemtime(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.fileowner.php
+	**/
+	static function fileowner(filename:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filesize.php
+	**/
+	static function filesize(filename:String):EitherType<Int, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.clearstatcache.php
 	**/
 	static function clearstatcache(clear_realpath_cache:Bool = false, ?filename:String):Bool;
@@ -704,6 +754,16 @@ extern class Global {
 		@see http://php.net/manual/en/function.stat.php
 	**/
 	static function stat(filename:String):EitherType<NativeArray, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.fnmatch.php
+	**/
+	static function fnmatch(pattern:String, string:String, flags:Int = 0):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.pathinfo.php
+	**/
+	static function pathinfo(path:String, ?options:Int):EitherType<String, NativeAssocArray<String>>;
 
 	/**
 		@see http://php.net/manual/en/function.realpath.php
@@ -721,6 +781,16 @@ extern class Global {
 	static function mkdir(pathname:String, mode:Int = 511, recursive:Bool = false, ?context:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.link.php
+	**/
+	static function link(target:String, link:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.symlink.php
+	**/
+	static function symlink(target:String, link:String):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.unlink.php
 	**/
 	static function unlink(filename:String, ?context:Resource):Bool;
@@ -734,6 +804,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.dirname.php
 	**/
 	static function dirname(path:String, levels:Int = 1):String;
+
+	/**
+		@see http://php.net/manual/en/function.basename.php
+	**/
+	static function basename(path:String, ?suffix:String):String;
 
 	/**
 		@see http://php.net/manual/en/function.glob.php
@@ -756,6 +831,11 @@ extern class Global {
 	static function readdir(?dir_handle:Resource):EitherType<String, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.readlink.php
+	**/
+	static function readlink(filename:String):EitherType<Bool,String>;
+
+	/**
 		@see http://php.net/manual/en/function.rewinddir.php
 	**/
 	static function rewinddir(?dir_handle:Resource):Void;
@@ -764,6 +844,31 @@ extern class Global {
 		@see http://php.net/manual/en/function.is-dir.php
 	**/
 	static function is_dir(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-executable.php
+	**/
+	static function is_executable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-file.php
+	**/
+	static function is_file(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-link.php
+	**/
+	static function is_link(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-readable.php
+	**/
+	static function is_readable(filename:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-writable.php
+	**/
+	static function is_writable(filename:String):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.rename.php
@@ -862,10 +967,36 @@ extern class Global {
 	static function header(string:String, replace:Bool = true, ?http_response_code:Int):Void;
 
 	/**
+		@see http://php.net/manual/en/function.header-remove.php
+	**/
+	static function header_remove(?name:String):Void;
+
+	/**
+		@see http://php.net/manual/en/function.headers-list.php
+	**/
+	static function headers_list():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.headers-sent.php
+	**/
+	static function headers_sent(?file:Ref<String>, ?line:Ref<Int>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.setcookie.php
 	**/
-	static function setcookie(name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "", secure:Bool = false,
-		httponly:Bool = false):Bool;
+	@:overload(function(name:String, value:String = "", ?options:NativeStructArray<{?expires:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
+	static function setcookie(name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "",
+		secure:Bool = false, httponly:Bool = false):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.html-entity-decode.php
+	**/
+	static function html_entity_decode(string:String, ?flags:Int, ?encoding:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.htmlentities.php
+	**/
+	static function htmlentities(string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true):String;
 
 	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
@@ -873,7 +1004,7 @@ extern class Global {
 	static function htmlspecialchars(string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true):String;
 
 	/**
-		@see http://php.net/manual/en/function.htmlspecialchars_decode.php
+		@see http://php.net/manual/en/function.htmlspecialchars-decode.php
 	**/
 	static function htmlspecialchars_decode(string:String, ?flags:Int):String;
 
@@ -968,6 +1099,11 @@ extern class Global {
 	static function spl_object_hash(obj:{}):String;
 
 	/**
+		@see http://php.net/manual/en/function.spl-object-id.php
+	**/
+	static function spl_object_id(obj:{}):Int;
+
+	/**
 		@see http://php.net/manual/en/function.spl-autoload-call.php
 	**/
 	static function spl_autoload_call(class_name:String):Void;
@@ -1023,6 +1159,17 @@ extern class Global {
 	static function mb_check_encoding(str:String = null, ?encoding:String):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.mb-language.php
+	**/
+	@:overload(function(language:String):Bool {})
+	static function mb_language():String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-scrub.php
+	**/
+	static function mb_scrub(str:String, ?encoding:String):String;
+
+	/**
 		@see http://php.net/manual/en/function.mb-split.php
 	**/
 	static function mb_split(pattern:String, str:String, ?limit:Int):NativeIndexedArray<String>;
@@ -1030,12 +1177,17 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.mb-strlen.php
 	**/
-	static function mb_strlen(str:String, ?encoding:String):EitherType<Int, Bool>;
+	static function mb_strlen(str:String, ?encoding:String):Int;
 
 	/**
 		@see http://php.net/manual/en/function.mb-substr.php
 	**/
 	static function mb_substr(str:String, start:Int, length:Int = null, ?encoding:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-substitute-character.php
+	**/
+	static function mb_substitute_character(?substchar:EitherType<Int,String>):EitherType<Bool,EitherType<String,Int>>;
 
 	/**
 		@see http://php.net/manual/en/function.mb-chr.php
@@ -1263,6 +1415,11 @@ extern class Global {
 	static function getallheaders():NativeAssocArray<Dynamic>;
 
 	/**
+		@see http://php.net/manual/en/function.ucfirst.php
+	**/
+	static function ucfirst(string:String):String;
+
+	/**
 		@see http://php.net/manual/en/function.ucwords.php
 	**/
 	static function ucwords(str:String, ?delimiters:String):String;
@@ -1276,6 +1433,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.base64-decode.php
 	**/
 	static function base64_decode(data:String, strict:Bool = false):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.gethostname.php
+	**/
+	static function gethostname():EitherType<String, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.gethostbyname.php
@@ -1343,6 +1505,21 @@ extern class Global {
 	static function session_cache_expire(?new_cache_expire:Int):Int;
 
 	/**
+		@see http://php.net/manual/en/function.session-decode.php
+	**/
+	static function session_decode(data:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-destroy.php
+	**/
+	static function session_destroy():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-encode.php
+	**/
+	static function session_encode():String;
+
+	/**
 		@see http://php.net/manual/en/function.session-name.php
 	**/
 	static function session_name(?name:String):String;
@@ -1351,6 +1528,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.session-start.php
 	**/
 	static function session_start(?options:NativeArray):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-status.php
+	**/
+	static function session_status():Int;
 
 	/**
 		@see http://php.net/manual/en/function.session-unset.php
@@ -1385,6 +1567,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.session-set-cookie-params.php
 	**/
+	@:overload(function(options:NativeStructArray<{?lifetime:Int, ?path:String, ?domain:String, ?secure:Bool, ?httponly:Bool, ?samesite:String}>):Bool {})
 	static function session_set_cookie_params(lifetime:Int, ?path:String, ?domain:String, secure:Bool = false, httponly:Bool = false):Bool;
 
 	/**
@@ -1445,6 +1628,11 @@ extern class Global {
 	static function gzuncompress(data:String, ?length:Int):EitherType<String, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.mime-content-type.php
+	**/
+	static function mime_content_type(filename:String):EitherType<String, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.move-uploaded-file.php
 	**/
 	static function move_uploaded_file(filename:String, destination:String):Bool;
@@ -1458,4 +1646,207 @@ extern class Global {
 		@see http://php.net/manual/en/function.gc-collect-cycles.php
 	**/
 	static function gc_collect_cycles():Int;
+
+	/**
+		@see http://php.net/manual/en/function.cli-set-process-title.php
+	**/
+	static function cli_set_process_title(title:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.http-response-code.php
+	**/
+	static function http_response_code(?response_code:Int):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.version-compare.php
+	**/
+	@:overload(function(version1:String, version2:String, comparisonOperator:String):Bool {})
+	static function version_compare(version1:String, version2:String):Int;
+
+	/**
+		@see http://php.net/manual/en/function.ob-clean.php
+	**/
+	static function ob_clean():Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-end-clean.php
+	**/
+	static function ob_end_clean():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ob-end-flush.php
+	**/
+	static function ob_end_flush():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ob-flush.php
+	**/
+	static function ob_flush():Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-clean.php
+	**/
+	static function ob_get_clean():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-contents.php
+	**/
+	static function ob_get_contents():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-flush.php
+	**/
+	static function ob_get_flush():EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-length.php
+	**/
+	static function ob_get_length():EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-level.php
+	**/
+	static function ob_get_level():Int;
+
+	/**
+		@see http://php.net/manual/en/function.ob-get-status.php
+	**/
+	static function ob_get_status(full_status:Bool = false):NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.ob-implicit-flush.php
+	**/
+	static function ob_implicit_flush(flag:Int = 1):Void;
+
+	/**
+		@see http://php.net/manual/en/function.ob-list-handlers.php
+	**/
+	static function ob_list_handlers():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.ob-start.php
+	**/
+	static function ob_start(output_callback: (String, ?Int) -> String = null, chunk_size:Int = 0, ?flags:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.strip-tags.php
+	**/
+	static function strip_tags(str: String, ?allowable_tags:EitherType<String, Array<String>>):String;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-file.php
+	**/
+	static function parse_ini_file(filename:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.parse-ini-string.php
+	**/
+	static function parse_ini_string(ini:String, process_sections:Bool = false, ?scanner_mode:Int): EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-compile-file.php
+	**/
+	static function opcache_compile_file(file:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-get-configuration.php
+	**/
+	static function opcache_get_configuration():NativeAssocArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-get-status.php
+	**/
+	static function opcache_get_status(get_scripts:Bool = true):EitherType<NativeAssocArray<Dynamic>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-invalidate.php
+	**/
+	static function opcache_invalidate(script:String, force:Bool = false):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-is-script-cached.php
+	**/
+	static function opcache_is_script_cached(file:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opcache-reset.php
+	**/
+	static function opcache_reset():Bool;
+
+	/**
+		@see http://php.net/manual/en/function.touch.php
+	**/
+	static function touch(filename:String, ?time:Int, ?atime: Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.checkdnsrr.php
+	**/
+	static function checkdnsrr(host:String, type:String = "MX"):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.dns-get-record.php
+	**/
+	static function dns_get_record(hostname:String, ?type:Int, ?authns:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>,
+		?addtl:Ref<NativeIndexedArray<NativeAssocArray<Dynamic>>>, raw:Bool = false):EitherType<NativeIndexedArray<NativeAssocArray<Dynamic>>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.idn-to-ascii.php
+	**/
+	static function idn_to_ascii(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.idn-to-utf8.php
+	**/
+	static function idn_to_utf8(domain:String, ?options:Int, ?variant:Int, ?idna_info:Ref<NativeAssocArray<Dynamic>>):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.intl-error-name.php
+	**/
+	static function intl_error_name(error_code:Int):String;
+
+	/**
+		@see http://php.net/manual/en/function.intl-get-error-code.php
+	**/
+	static function intl_get_error_code():Int;
+
+	/**
+		@see http://php.net/manual/en/function.intl-get-error-message.php
+	**/
+	static function intl_get_error_message():String;
+
+	/**
+		@see http://php.net/manual/en/function.intl-is-failure.php
+	**/
+	static function intl_is_failure(error_code:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-has-var.php
+	**/
+	static function filter_has_var(input_type:Int, var_name:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-id.php
+	**/
+	static function filter_id(name:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-input.php
+	**/
+	static function filter_input(type:Int, var_name:String, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.filter-list.php
+	**/
+	static function filter_list():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-var.php
+	**/
+	static function filter_var(value: Any, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.number-format.php
+	**/
+	static function number_format(num:Float, ?decimals:Int, ?decimal_separator:String, ?thousands_separator:String):String;
+
 }
