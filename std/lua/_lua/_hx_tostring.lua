@@ -36,7 +36,7 @@ end
 function _hx_tostring(obj, depth)
     if depth == nil then
         depth = 0
-    elseif depth > 5 then
+    elseif depth > 15 then
         return "<...>"
     end
 
@@ -108,4 +108,3 @@ function _hx_error(obj)
         _G.print(debug.traceback());
     end
 end
-
