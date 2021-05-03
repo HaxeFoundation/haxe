@@ -1904,6 +1904,13 @@ let macro_api ccom get_api =
 			let e = decode_texpr e in
 			encode_expr ((get_api()).store_typed_expr e)
 		);
+		"type_and_store_expr", vfun1 (fun e ->
+			let api = get_api() in
+			let te = (api.type_expr (decode_expr e)) in
+			let v_e = encode_expr (api.store_typed_expr te) in
+			let v_to_string () = (s_type (print_context())) te.etype in
+			encode_obj ["expr",v_e;"type",encode_ref te.etype encode_type v_to_string]
+		);
 		"get_output", vfun0 (fun() ->
 			encode_string (ccom()).file
 		);
