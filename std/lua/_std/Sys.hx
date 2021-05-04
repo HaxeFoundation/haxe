@@ -41,7 +41,10 @@ class Sys {
 	}
 
 	public inline static function args():Array<String> {
-		var targs = lua.PairTools.copy(Lua.arg);
+        final arr = Lua.arg;
+        if (arr == null)
+          return [];
+		var targs = lua.PairTools.copy(arr);
 		var args = lua.Table.toArray(targs);
 		return args;
 	}

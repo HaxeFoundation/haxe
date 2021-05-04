@@ -99,11 +99,11 @@ class String {
 		return ret;
 	}
 
-	public inline function split(delimiter:String):Array<String> {
-		var idx = 1;
+	@:pure public inline function split(delimiter:String):Array<String> {
+		var idx: Null<Int> = 1;
 		var ret = [];
 		while (idx != null) {
-			var newidx = 0;
+			var newidx: Null<Int> = 0;
 			if (delimiter.length > 0) {
 				newidx = BaseString.find(this, delimiter, idx, true).begin;
 			} else if (idx >= this.length) {
