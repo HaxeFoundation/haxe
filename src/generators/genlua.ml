@@ -1181,9 +1181,9 @@ and gen_value ctx e =
         gen_expr ctx e
     | TMeta (_,e1) ->
         gen_value ctx e1
-    | TCall ({eexpr = (TField (e, s))},el) when (is_string_expr e) ->
-       spr ctx ("String.prototype." ^ (field_name s) );
-       gen_paren_arguments ctx (e :: el)
+    | TCall ({eexpr = (TField (e, s))}, el) when (is_string_expr e) ->
+        spr ctx ("String.prototype." ^ (field_name s));
+        gen_paren_arguments ctx (e :: el)
     | TCall (e,el) ->
         gen_call ctx e el
     | TReturn _
