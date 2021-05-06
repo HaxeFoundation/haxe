@@ -140,7 +140,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, neko] #flash9
         include:
           - target: js
             # SAUCE: 1
@@ -152,8 +152,8 @@ jobs:
             APT_PACKAGES: gcc-multilib g++-multilib
           - target: lua
             APT_PACKAGES: ncurses-dev
-          - target: flash9
-            APT_PACKAGES: libglib2.0 libfreetype6 xvfb
+          # - target: flash9
+          #   APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
     steps:
       - uses: actions/checkout@main
         with:
@@ -175,7 +175,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, neko] #flash9
         include:
           - target: hl
             BREW_PACKAGES: ninja
