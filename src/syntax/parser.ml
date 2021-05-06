@@ -67,6 +67,7 @@ exception TypePath of string list * (string * bool) option * bool (* in import *
 exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
 
 let error_msg = function
+	| Unexpected (Kwd k) -> "Unexpected keyword \""^(s_keyword k)^"\""
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
