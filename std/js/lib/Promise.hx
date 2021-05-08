@@ -60,7 +60,6 @@ extern class Promise<T> {
 		useful for aggregating results of multiple promises.
 	**/
 	@:overload(function(iterable:Array<Dynamic>):Promise<Array<Dynamic>> {})
-	@:overload(function<T>(iterable:Array<T>):Promise<Array<T>> {})
 	static function all<T>(iterable:Array<Promise<T>>):Promise<Array<T>>;
 
 	/**
@@ -74,7 +73,6 @@ extern class Promise<T> {
 		on each other / if you'd like to immediately reject upon any of them rejecting.
 	**/
 	@:overload(function(iterable:Array<Dynamic>):Promise<Array<PromiseSettleOutcome<Dynamic>>> {})
-	@:overload(function<T>(iterable:Array<T>):Promise<Array<PromiseSettleOutcome<T>>> {})
 	static function allSettled<T>(iterable:Array<Promise<T>>):Promise<Array<PromiseSettleOutcome<T>>>;
 
 	/**
@@ -83,7 +81,6 @@ extern class Promise<T> {
 		from that promise.
 	**/
 	@:overload(function(iterable:Array<Dynamic>):Promise<Dynamic> {})
-	@:overload(function<T>(iterable:Array<T>):Promise<T> {})
 	static function race<T>(iterable:Array<Promise<T>>):Promise<T>;
 
 	/** @throws DOMError */
