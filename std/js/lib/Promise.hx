@@ -59,6 +59,7 @@ extern class Promise<T> {
 		the first promise in the iterable that rejected. This method can be
 		useful for aggregating results of multiple promises.
 	**/
+	@:overload(function(iterable:Array<Dynamic>):Promise<Array<Dynamic>> {})
 	static function all<T>(iterable:Array<Promise<T>>):Promise<Array<T>>;
 
 	/**
@@ -71,6 +72,7 @@ extern class Promise<T> {
 		In comparison, the Promise returned by `Promise.all` may be more appropriate if the tasks are dependent
 		on each other / if you'd like to immediately reject upon any of them rejecting.
 	**/
+	@:overload(function(iterable:Array<Dynamic>):Promise<Array<PromiseSettleOutcome<Dynamic>>> {})
 	static function allSettled<T>(iterable:Array<Promise<T>>):Promise<Array<PromiseSettleOutcome<T>>>;
 
 	/**
@@ -78,6 +80,7 @@ extern class Promise<T> {
 		promises in the iterable fulfills or rejects, with the value or reason
 		from that promise.
 	**/
+	@:overload(function(iterable:Array<Dynamic>):Promise<Dynamic> {})
 	static function race<T>(iterable:Array<Promise<T>>):Promise<T>;
 
 	/** @throws DOMError */
