@@ -137,7 +137,7 @@ let collect ctx e_ast e dk with_type p =
 		in
 		match follow t with
 		| TMono m ->
-			begin match Monomorph.classify_constraints m with
+			begin match Monomorph.classify_down_constraints m with
 			| CStructural(fields,is_open) ->
 				if not is_open then begin
 					Monomorph.close m;

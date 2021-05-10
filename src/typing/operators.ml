@@ -191,7 +191,7 @@ let unify_int ctx e k =
 		| TAnon a ->
 			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> false)
 		| TMono m ->
-			begin match Monomorph.classify_constraints m with
+			begin match Monomorph.classify_down_constraints m with
 			| CStructural(fields,_) ->
 				(try is_dynamic (PMap.find f fields).cf_type with Not_found -> false)
 			| _ ->

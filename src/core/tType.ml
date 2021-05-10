@@ -44,7 +44,15 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
-	mutable tm_constraints : tmono_constraint list;
+	(*
+		```
+		function fn<A,B:A>() {}
+		```
+		`A` is a down-constraint for `B`
+		`B` is an up-constraint for `A`
+	*)
+	mutable tm_down_constraints : tmono_constraint list;
+	mutable tm_up_constraints : (t * string option) list;
 }
 
 and tmono_constraint =
