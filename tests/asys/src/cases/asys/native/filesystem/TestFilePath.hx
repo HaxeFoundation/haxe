@@ -23,8 +23,14 @@ class TestFilePath extends FsTest {
 	}
 
 	function check(cases:Map<{value:String,pos:PosInfos},FilePath>, subject:(Null<FilePath>)->Null<String>) {
-		for(expected => path in cases)
-			equalPaths(expected.value, subject(path), expected.pos);
+		for(expected => path in cases) {
+			var actual = try {
+				subject(path);
+			} catch(e) {
+				throw new haxe.exceptions.PosException(e.message, e, expected.pos);
+			}
+			equalPaths(expected.value, actual, expected.pos);
+		}
 	}
 
 	function testCreatePath() {
