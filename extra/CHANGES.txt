@@ -12,6 +12,7 @@
 	jvm : fixed manifest generation for cases with a lot of jar libraries (#10157)
 	js : fixed extending extern classes for es5 (#10192)
 	js : fixed checking `this` before `super` for es6 (#10193)
+	eval : fixed null pointer exception in `eval.NativeString.fromString(null)`
 
 2021-02-26 4.2.1:
 
