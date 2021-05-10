@@ -2,6 +2,7 @@
 
 	Bugfixes:
 
+	all : fixed piping stdin/stdout in `--cmd` (#4660, #6726)
 	all : fixed rest args typing for overloaded functions (#10143)
 	all : fixed using `var` fields as static extensions (#10144)
 	all : fixed completion for a type in `expr is Type` (#10167)
