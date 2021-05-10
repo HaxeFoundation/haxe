@@ -588,6 +588,14 @@ class Context {
 	}
 
 	/**
+		This function works like `storeExpr`, but also returns access to the expression's
+		type through the `type` field of the return value.
+	**/
+	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
+		return load("type_and_store_expr", 1)(e);
+	}
+
+	/**
 		Manually adds a dependency between module `modulePath` and an external
 		file `externFile`.
 
