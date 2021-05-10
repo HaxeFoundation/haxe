@@ -3075,8 +3075,9 @@ end
 
 module StdNativeString = struct
 	let from_string = vfun1 (fun v ->
-		let s = decode_vstring v in
-		vnative_string s.sstring
+		match decode_optional decode_vstring v with
+		| None -> vnull
+		| Some s -> vnative_string s.sstring
 	)
 
 	let from_bytes = vfun1 (fun v ->
