@@ -20,7 +20,6 @@ class Directory {
 
 
 	function new(dir:Handle, path:FilePath) {
-		trace(dir);
 		this.dir = dir;
 		this.path = path;
 	}
