@@ -13,6 +13,7 @@
 	js : fixed extending extern classes for es5 (#10192)
 	js : fixed checking `this` before `super` for es6 (#10193)
 	eval : fixed null pointer exception in `eval.NativeString.fromString(null)`
+	eval : fixed multiple locks of `sys.thread.Mutex` from the same thread (#10249)
 
 2021-02-26 4.2.1:
 
