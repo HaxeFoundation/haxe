@@ -252,7 +252,7 @@ and vdeque = {
 
 and vmutex = {
 	mmutex : Mutex.t;
-	mutable mowner : int option; (* thread ID *)
+	mutable mowner : (int * int) option; (* thread ID * same thread lock count *)
 }
 
 and vlock = {
