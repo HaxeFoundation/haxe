@@ -39,10 +39,15 @@ let rec s_type ctx t =
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-			let s_const = match !monomorph_classify_constraints_ref r with
+			let s_const =
+				let rec loop = function
 				| CUnknown -> ""
-				| CTypes tl -> " : " ^ String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
-				| CStructural(fields,_) -> " : " ^ s_type ctx (mk_anon ~fields (ref Closed))
+				| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+				| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
+				| CMixed l -> String.concat " & " (List.map loop l)
+				in
+				let s = loop (!monomorph_classify_constraints_ref r) in
+				if s = "" then s else " : " ^ s
 			in
 				Printf.sprintf "Unknown<%d>%s" id s_const
 			end
