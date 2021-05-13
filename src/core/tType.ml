@@ -65,6 +65,7 @@ and tmono_constraint =
 and tmono_constraint_kind =
 	| CUnknown
 	| CStructural of (string,tclass_field) PMap.t * bool
+	| CMixed of tmono_constraint_kind list
 	| CTypes of (t * string option) list
 
 and tlazy =

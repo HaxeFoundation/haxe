@@ -137,7 +137,7 @@ let collect ctx e_ast e dk with_type p =
 		in
 		match follow t with
 		| TMono m ->
-			begin match Monomorph.classify_down_constraints m with
+			let rec fold_constraints items = function
 			| CStructural(fields,is_open) ->
 				if not is_open then begin
 					Monomorph.close m;
@@ -151,7 +151,10 @@ let collect ctx e_ast e dk with_type p =
 				items
 			| CUnknown ->
 				items
-			end
+			| CMixed l ->
+				List.fold_left fold_constraints items l
+			in
+			fold_constraints items (Monomorph.classify_down_constraints m)
 		| TInst ({cl_kind = KTypeParameter tl},_) ->
 			(* Type parameters can access the fields of their constraints *)
 			List.fold_left (fun acc t -> loop acc t) items tl

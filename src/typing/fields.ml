@@ -354,7 +354,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				(mk_field i (mk_mono()) p null_pos) with
 				cf_kind = Var { v_read = AccNormal; v_write = if is_set then AccNormal else AccNo }
 			} in
-			(match Monomorph.classify_down_constraints r with
+			let rec check_constr = function
 			| CStructural (fields,is_open) ->
 				(try
 					let f = PMap.find i fields in
@@ -377,7 +377,18 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				Monomorph.add_down_constraint r (MField f);
 				Monomorph.add_down_constraint r MOpenStructure;
 				field_access f FHAnon
-			)
+			| CMixed l ->
+				let rec loop_constraints l =
+					match l with
+					| [] ->
+						raise Not_found
+					| constr :: l ->
+						try check_constr constr
+						with Not_found -> loop_constraints l
+				in
+				loop_constraints l
+			in
+			check_constr (Monomorph.classify_down_constraints r)
 		| TAbstract (a,tl) ->
 			(try
 				let c = find_some a.a_impl in

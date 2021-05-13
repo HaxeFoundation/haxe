@@ -131,18 +131,25 @@ module Monomorph = struct
 		in
 		List.iter check m.tm_down_constraints;
 		let kind =
-			if DynArray.length types > 0 then
-				CTypes (DynArray.to_list types)
-			else if not (PMap.is_empty !fields) || !is_open then
-				CStructural(!fields,!is_open)
+			let k1 =
+				if DynArray.length types > 0 then
+					CTypes (DynArray.to_list types)
+				else
+					CUnknown
+			in
+			if not (PMap.is_empty !fields) || !is_open then
+				let k2 = CStructural(!fields,!is_open) in
+				match k1 with
+				| CTypes _ -> CMixed [k1; k2]
+				| _ -> k2
 			else
-				CUnknown
+				k1
 		in
 		!monos,kind
 
 	let classify_down_constraints m = snd (classify_down_constraints' m)
 
-	let check_down_constraints constr t =
+	let rec check_down_constraints constr t =
 		match constr with
 		| CUnknown ->
 			()
@@ -156,6 +163,8 @@ module Monomorph = struct
 		| CStructural(fields,is_open) ->
 			let t2 = mk_anon ~fields (ref Closed) in
 			(!unify_ref) default_unification_context t t2
+		| CMixed l ->
+			List.iter (fun constr -> check_down_constraints constr t) l
 
 	let rec collect_up_constraints m =
 		let rec collect m acc =
@@ -213,7 +222,7 @@ module Monomorph = struct
 			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
 			   against before checking the constraints. *)
 			m.tm_type <- Some t;
-			let monos,kind = classify_down_constraints' m in
+			let kind = classify_down_constraints m in
 			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_down_constraints kind t) ();
 			do_bind m t
 		end
@@ -227,7 +236,7 @@ module Monomorph = struct
 			| CTypes [(t,_)] ->
 				do_bind m t;
 				()
-			| CTypes _ ->
+			| CTypes _ | CMixed _ ->
 				()
 			| CStructural(fields,_) ->
 				let check_recursion cf =
