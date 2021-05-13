@@ -9,6 +9,7 @@
 	all : fixed subtypes in `expr is Module.SubType` expressions (#10174)
 	all : fixed typing chains of calls with constrained type params (#10198)
 	all : fixed mixed constraints of anonymous structures and other types (#10162)
+	all : fixed operator overloading for enum abstracts (#10173)
 	hl : fixed debugging of `catch` blocks (#10109)
 	jvm : fixed manifest generation for cases with a lot of jar libraries (#10157)
 	js : fixed extending extern classes for es5 (#10192)

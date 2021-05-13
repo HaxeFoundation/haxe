@@ -108,11 +108,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 							(try Type.unify t' t with Unify_error _ -> ());
 							AKExpr e
 						| _ ->
-							if iscall then
-								AKExpr e
-							else begin
-								AKExpr (AbstractCast.cast_or_unify ctx t e e.epos)
-							end
+							AKExpr e
 					end
 				| _ -> e (* ??? *)
 			end
