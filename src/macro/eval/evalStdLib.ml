@@ -1741,25 +1741,47 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.lock mutex.mmutex;
-		mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		(match mutex.mowner with
+		| None ->
+			Mutex.lock mutex.mmutex;
+			mutex.mowner <- Some (thread_id,1)
+		| Some (id,n) ->
+			if id = thread_id then
+				mutex.mowner <- Some (thread_id,n + 1)
+			else begin
+				Mutex.lock mutex.mmutex;
+				mutex.mowner <- Some (thread_id,1)
+			end
+		);
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		mutex.mowner <- None;
-		Mutex.unlock mutex.mmutex;
+		(match mutex.mowner with
+		| Some (id,n) when n > 1 ->
+			mutex.mowner <- Some (id,n - 1)
+		| _ ->
+			mutex.mowner <- None;
+			Mutex.unlock mutex.mmutex;
+		);
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		if Mutex.try_lock mutex.mmutex then begin
-			mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		match mutex.mowner with
+		| Some (id,n) when id = thread_id ->
+			mutex.mowner <- Some (thread_id,n + 1);
 			vtrue
-		end else
-			vfalse
+		| _ ->
+			if Mutex.try_lock mutex.mmutex then begin
+				mutex.mowner <- Some (thread_id,1);
+				vtrue
+			end else
+				vfalse
 	)
 end
 
