@@ -59,16 +59,21 @@ class TestFilePath extends FsTest {
 		}
 		check(cases, p -> p);
 	}
-
+#if target.unicode
 	function testOfString_unicode() {
 		var s = '𠜎/aa😂/éé';
 		var p = FilePath.ofString(s);
 		equalPaths(s, p);
 	}
-
+#end
 	function testOfArray() {
-		var p:FilePath = ['𠜎', '😂'];
-		equalPaths('𠜎/😂', p);
+		#if target.unicode
+			var p:FilePath = ['𠜎', '😂'];
+			equalPaths('𠜎/😂', p);
+		#else
+			var p:FilePath = ['hello', 'world'];
+			equalPaths('hello/world', p);
+		#end
 	}
 
 	function testEqual() {

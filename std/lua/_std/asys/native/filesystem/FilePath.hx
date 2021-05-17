@@ -159,7 +159,7 @@ private typedef NativeFilePath = NativeString;
 			null;
 		//this == '/' or this == '\'
 		} else if(i == 1 && s.length == 1) {
-			return null;
+			null;
 		} else {
 			new FilePath(s.sub(1, i));
 		}
