@@ -4,6 +4,7 @@ import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.Exception;
 import haxe.exceptions.NotImplementedException;
+import haxe.exceptions.NotSupportedException;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import sys.thread.ElasticThreadPool;
@@ -33,9 +34,7 @@ class FileSystem {
 	static final file_delete = Lib.load("std", "file_delete", 1);
 	static final sys_rename = Lib.load("std", "sys_rename", 2);
 	static final sys_stat:(NativeString)->FileStat = Lib.load("std", "sys_stat", 1);
-	// static final sys_lstat:(NativeString)->FileStat = Lib.load("std", "sys_lstat", 1);
 	static final sys_file_type:(NativeString)->NativeString = Lib.load("std", "sys_file_type", 1);
-	static final sys_lfile_type:(NativeString)->NativeString = Lib.load("std", "sys_lfile_type", 1);
 	static final sys_create_dir = Lib.load("std", "sys_create_dir", 2);
 	static final sys_remove_dir = Lib.load("std", "sys_remove_dir", 1);
 	static final sys_read_dir:(NativeString)->Array<Any> = Lib.load("std", "sys_read_dir", 1);
@@ -305,68 +304,52 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Set symbolic link owner and group.
-	**/
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Create a link to `target` at `path`.
-
-		If `type` is `SymLink` the `target` is expected to be an absolute path or
-		a path relative to `path`, however the existance of `target` is not checked
-		and the link is created even if `target` does not exist.
-
-		If `type` is `HardLink` the `target` is expected to be an existing path either
-		absolute or relative to the current working directory.
-	**/
 	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void {
-		pool.runFor(
-			() -> {
-				try {
-					// var info:FileInfo = cast sys_lstat(path);
-					var info:FileInfo = cast sys_stat(path);
-					info.mode.isLink();
-				} catch(e) {
-					if(!sys_exists(path))
-						false
-					else
-						throw new FsException(CustomError(e.toString()), path);
-				}
-			},
-			callback
-		);
+		throw NotSupportedException.field();
+		// pool.runFor(
+		// 	() -> {
+		// 		try {
+		// 			var info:FileInfo = cast sys_stat(path);
+		// 			info.mode.isLink();
+		// 		} catch(e) {
+		// 			if(!sys_exists(path))
+		// 				false
+		// 			else
+		// 				throw new FsException(CustomError(e.toString()), path);
+		// 		}
+		// 	},
+		// 	callback
+		// );
 	}
 
-	/**
-		Get the value of a symbolic link.
-	**/
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
 	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
-		pool.runFor(
-			() -> {
-				try {
-					// var data = sys_lstat(path);
-					var data = sys_stat(path);
-					data.atime = Std.int(data.atime / 1000);
-					data.ctime = Std.int(data.ctime / 1000);
-					data.mtime = Std.int(data.mtime / 1000);
-					cast data;
-				} catch(e) {
-					throw new FsException(CustomError(e.toString()), path);
-				}
-			},
-			callback
-		);
+		throw NotSupportedException.field();
+		// pool.runFor(
+		// 	() -> {
+		// 		try {
+		// 			var data = sys_stat(path);
+		// 			data.atime = Std.int(data.atime / 1000);
+		// 			data.ctime = Std.int(data.ctime / 1000);
+		// 			data.mtime = Std.int(data.mtime / 1000);
+		// 			cast data;
+		// 		} catch(e) {
+		// 			throw new FsException(CustomError(e.toString()), path);
+		// 		}
+		// 	},
+		// 	callback
+		// );
 	}
 
 	/**

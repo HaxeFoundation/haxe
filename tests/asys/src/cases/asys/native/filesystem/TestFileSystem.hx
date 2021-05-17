@@ -114,7 +114,9 @@ class TestFileSystem extends FsTest {
 	}
 
 	//TODO test `Executable`
+	#if !neko
 	@:depends(testLink,testIsLink)
+	#end
 	function testCheck(async:Async) {
 		asyncAll(async,
 			FileSystem.check('test-data/sub', Exists, (e, r) -> {
@@ -133,10 +135,7 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					isTrue(r);
 			}),
-			FileSystem.check('non-existent', Exists, (e, r) -> {
-				if(noException(e))
-					isFalse(r);
-			}),
+			#if !neko
 			FileSystem.link('non-existent', 'test-data/temp/faulty-link', (_, _) -> {
 				FileSystem.isLink('test-data/temp/faulty-link', (e, r) -> {
 					if(noException(e) && isTrue(r))
@@ -145,6 +144,11 @@ class TestFileSystem extends FsTest {
 								isFalse(r);
 						});
 				});
+			}),
+			#end
+			FileSystem.check('non-existent', Exists, (e, r) -> {
+				if(noException(e))
+					isFalse(r);
 			})
 		);
 		if(!isWindows) {
@@ -379,7 +383,7 @@ class TestFileSystem extends FsTest {
 			})
 		);
 	}
-
+#if !neko
 	function testIsLink(async:Async) {
 		asyncAll(async,
 			FileSystem.isLink('test-data/symlink', (e, r) -> {
@@ -458,7 +462,29 @@ class TestFileSystem extends FsTest {
 		);
 	}
 
-	@:depends(testReadLink, testReadBytes, testReadString)
+	@:depends(testLink,testInfo)
+	function testSetLinkOwner(async:Async) {
+		if(isWindows) {
+			pass();
+			return;
+		}
+
+		asyncAll(async,
+			FileSystem.link('../sub/hello.world', 'test-data/temp/set-link-owner', (e, r) -> {
+				FileSystem.info('test-data/temp/set-link-owner', (e, r) -> {
+					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.user, r.group, (e, _) -> {
+						noException(e);
+						FileSystem.setLinkOwner('test-data/temp/non-existent-link', r.user, r.group, (e, r) -> {
+							assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent-link', e.path));
+						});
+					});
+				});
+			})
+		);
+	}
+#end
+
+	@:depends(testReadBytes, testReadString)
 	function testCopyFile(async:Async) {
 		asyncAll(async,
 			FileSystem.copyFile('test-data/bytes.bin', 'test-data/temp/copy', (e, r) -> {
@@ -571,27 +597,6 @@ class TestFileSystem extends FsTest {
 						noException(e);
 						FileSystem.setOwner('test-data/temp/non-existent', r.user, r.group, (e, r) -> {
 							assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent', e.path));
-						});
-					});
-				});
-			})
-		);
-	}
-
-	@:depends(testLink,testInfo)
-	function testSetLinkOwner(async:Async) {
-		if(isWindows) {
-			pass();
-			return;
-		}
-
-		asyncAll(async,
-			FileSystem.link('../sub/hello.world', 'test-data/temp/set-link-owner', (e, r) -> {
-				FileSystem.info('test-data/temp/set-link-owner', (e, r) -> {
-					FileSystem.setLinkOwner('test-data/temp/set-link-owner', r.user, r.group, (e, _) -> {
-						noException(e);
-						FileSystem.setLinkOwner('test-data/temp/non-existent-link', r.user, r.group, (e, r) -> {
-							assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent-link', e.path));
 						});
 					});
 				});
