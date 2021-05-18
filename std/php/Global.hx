@@ -927,6 +927,26 @@ extern class Global {
 	static function hash(algo:String, str:String, raw_output:Bool = false):String;
 
 	/**
+		@see http://php.net/manual/en/function.hash-algos.php
+	**/
+	static function hash_algos():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac.php
+	**/
+	static function hash_hmac(algo:String, data:String, key:String, binary:Bool = false):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac-algos.php
+	**/
+	static function hash_hmac_algos():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac-file.php
+	**/
+	static function hash_hmac_file(algo:String, data:String, key:String, binary:Bool = false):EitherType<String, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.pack.php
 	**/
 	static function pack(format:String, args:Rest<Dynamic>):String;
