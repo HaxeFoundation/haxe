@@ -31,20 +31,20 @@ private enum FileHandle {}
 @:coreApi
 class FileSystem {
 	static final sys_exists:(NativeString)->Bool = Lib.load("std", "sys_exists", 1);
-	static final file_delete = Lib.load("std", "file_delete", 1);
-	static final sys_rename = Lib.load("std", "sys_rename", 2);
+	static final file_delete:(NativeString)->Void = Lib.load("std", "file_delete", 1);
+	static final sys_rename:(NativeString, NativeString)->Void = Lib.load("std", "sys_rename", 2);
 	static final sys_stat:(NativeString)->FileStat = Lib.load("std", "sys_stat", 1);
 	static final sys_file_type:(NativeString)->NativeString = Lib.load("std", "sys_file_type", 1);
-	static final sys_create_dir = Lib.load("std", "sys_create_dir", 2);
-	static final sys_remove_dir = Lib.load("std", "sys_remove_dir", 1);
+	static final sys_create_dir:(path:NativeString,mode:Int)->Void = Lib.load("std", "sys_create_dir", 2);
+	static final sys_remove_dir:(NativeString)->Void = Lib.load("std", "sys_remove_dir", 1);
 	static final sys_read_dir:(NativeString)->Array<Any> = Lib.load("std", "sys_read_dir", 1);
 	static final file_full_path:(NativeString)->NativeString = Lib.load("std", "file_full_path", 1);
 	static final file_contents:(NativeString)->NativeString = neko.Lib.load("std", "file_contents", 1);
 	static final file_open:(path:NativeString, mode:NativeString)->FileHandle = neko.Lib.load("std", "file_open", 2);
 	static final file_close:(FileHandle)->Void = neko.Lib.load("std", "file_close", 1);
-	static final file_seek = neko.Lib.load("std", "file_seek", 3);
-	static final file_tell = neko.Lib.load("std", "file_tell", 1);
-	static final file_flush = neko.Lib.load("std", "file_flush", 1);
+	static final file_seek:(f:FileHandle, pos:Int, kind:Int)->Void = neko.Lib.load("std", "file_seek", 3);
+	static final file_tell:(FileHandle)->Int = neko.Lib.load("std", "file_tell", 1);
+	static final file_flush:(FileHandle)->Void = neko.Lib.load("std", "file_flush", 1);
 	static final file_write:(file:FileHandle, data:NativeString, pos:Int, length:Int)->Int = neko.Lib.load("std", "file_write", 4);
 	static final file_write_char = neko.Lib.load("std", "file_write_char", 2);
 
@@ -118,8 +118,7 @@ class FileSystem {
 	static function writeToFile(path:FilePath, data:NativeString, flag:FileOpenFlag<Dynamic>):NoData {
 		var f = null;
 		try {
-			// f = file_open(path, fopenHx(path, flag));
-			f = file_open(path, NativeString.ofString('wb'));
+			f = fopenHx(path, flag);
 			var length = data.length();
 			var pos = 0;
 			while (length > 0) {
@@ -129,6 +128,7 @@ class FileSystem {
 				pos += bytesWritten;
 				length -= bytesWritten;
 			}
+			file_close(f);
 			return NoData;
 		} catch(e) {
 			if(f != null)
@@ -170,58 +170,110 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Create a directory.
-
-		Default `permissions` equals to octal `0777`, which means read+write+execution
-		permissions for everyone.
-
-		If `recursive` is `true`: create missing directories tree all the way down to `path`.
-		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
-	**/
 	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		if(permissions == null) permissions = 511;
+		pool.runFor(
+			() -> {
+				try {
+					mkdir(path, permissions, recursive);
+					NoData;
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Create a directory with auto-generated unique name.
+	static function mkdir(path:FilePath, mode:Int, recursive:Bool):Void {
+		if(recursive) {
+			var parent = path.parent();
+			if(!sys_exists(parent)) {
+				mkdir(parent, mode, recursive);
+			}
+		}
+		sys_create_dir(path, mode);
+	}
 
-		`prefix` (if provided) is used as the beginning of a generated name.
-		The created directory path is passed to the `callback`.
-
-		Default `permissions` equals to octal `0777`, which means read+write+execution
-		permissions for everyone.
-
-		If `recursive` is `true`: create missing directories tree all the way down to the generated path.
-		If `recursive` is `false`: fail if any parent directory of the generated path does not exist.
-	**/
 	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		if(permissions == null) permissions = 511;
+		pool.runFor(
+			() -> {
+				try {
+					prefix = (prefix == null ? '' : prefix) + getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+					var path = parentDirectory.add(prefix);
+					while(sys_exists(path)) {
+						prefix += getRandomChar();
+						path = parentDirectory.add(prefix);
+					}
+					mkdir(path, permissions, recursive);
+					path;
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), parentDirectory);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Move and/or rename the file or directory from `oldPath` to `newPath`.
+	static var __codes:Null<Array<String>>;
+	static function getRandomChar():String {
+		switch __codes {
+			case null:
+				var a = [for(c in '0'.code...'9'.code) String.fromCharCode(c)];
+				for(c in 'A'.code...'Z'.code) a.push(String.fromCharCode(c));
+				for(c in 'a'.code...'z'.code) a.push(String.fromCharCode(c));
+				__codes = a;
+				return a[Std.random(a.length)];
+			case a:
+				return a[Std.random(a.length)];
+		}
+	}
 
-		If `newPath` already exists and `overwrite` is `true` (which is the default)
-		the destination is overwritten. However, operation fails if `newPath` is
-		a non-empty directory.
-	**/
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					if(!overwrite && sys_exists(newPath))
+						throw new FsException(FileExists, newPath);
+					sys_rename(oldPath, newPath);
+					NoData;
+				} catch(e:FsException) {
+					throw e;
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), oldPath);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Remove a file or symbolic link.
-	**/
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					file_delete(path);
+					NoData;
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Remove an empty directory.
-	**/
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					sys_remove_dir(path);
+					NoData;
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
@@ -241,17 +293,26 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Check user's access for a path.
-
-		For example to check if a file is readable and writable:
-		```haxe
-		import asys.native.filesystem.FileAccessMode;
-		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
-		```
-	**/
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		switch mode {
+			case Executable:
+				throw new NotSupportedException('File access mode "Executable" is not supported on neko');
+			case Writable:
+				throw new NotSupportedException('File access mode "Writable" is not supported on neko');
+			case Readable:
+				throw new NotSupportedException('File access mode "Readable" is not supported on neko');
+			case Exists:
+				pool.runFor(
+					() -> {
+						try {
+							sys_exists(path);
+						} catch(e) {
+							throw new FsException(CustomError(e.toString()), path);
+						}
+					},
+					callback
+				);
+		}
 	}
 
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
@@ -286,26 +347,16 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Set path permissions.
-
-		If `path` is a symbolic link it is dereferenced.
-	**/
 	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
-	/**
-		Set path owner and group.
-
-		If `path` is a symbolic link it is dereferenced.
-	**/
 	static public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
 	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
@@ -352,32 +403,30 @@ class FileSystem {
 		// );
 	}
 
-	/**
-		Copy a file from `source` path to `destination` path.
-	**/
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					if(!overwrite && sys_exists(destination))
+						throw new FsException(FileExists, destination);
+					sys.io.File.copy(source, destination);
+					NoData;
+				} catch(e:FsException) {
+					throw e;
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), source);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Shrink or expand a file specified by `path` to `newSize` bytes.
-
-		If the file does not exist, it is created.
-
-		If the file is larger than `newSize`, the extra data is lost.
-		If the file is shorter, zero bytes are used to fill the added length.
-	**/
 	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
-	/**
-		Change access and modification times of an existing file.
-
-		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
-	**/
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
 	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void {
@@ -393,18 +442,18 @@ class FileSystem {
 		);
 	}
 
-	// static function fopenHx(file:NativeString, flag:FileOpenFlag<Dynamic>):Resource {
-	// 	var flags = switch flag {
-	// 		case Append: 'ab';
-	// 		case Read: 'rb';
-	// 		case ReadWrite: 'rb+';
-	// 		case Write: 'wb';
-	// 		case WriteX: ;
-	// 		case WriteRead: ;
-	// 		case WriteReadX: ;
-	// 		case Overwrite: ;
-	// 		case OverwriteRead: ;
-	// 	}
-	// 	return file_open(file, NativeString.ofString(flags));
-	// }
+	static function fopenHx(path:FilePath, flag:FileOpenFlag<Dynamic>):FileHandle {
+		var flags = switch flag {
+			case Append: 'ab';
+			case Read: 'rb';
+			case ReadWrite: 'rb+';
+			case Write: 'wb';
+			case WriteX: 'wxb';
+			case WriteRead: 'wb+';
+			case WriteReadX: 'wxb+';
+			case Overwrite: throw new NotSupportedException('"Overwrite" flag is not supported on neko');
+			case OverwriteRead:  throw new NotSupportedException('"OverwriteRead" flag is not supported on neko');
+		}
+		return file_open(path, NativeString.ofString(flags));
+	}
 }

@@ -67,7 +67,9 @@ class TestFileSystem extends FsTest {
 			writeAndCheck('Hello, ', 'Hello, ', Write, ok -> {
 				if(ok) writeAndCheck('world!', 'Hello, world!', Append, ok -> {
 					if(ok) writeAndCheck('Goodbye', 'Goodbye', Write, ok -> {
+						#if !neko
 						if(ok) writeAndCheck('Bye-', 'Bye-bye', Overwrite, ok -> {});
+						#end
 					});
 				});
 			}),
@@ -100,7 +102,9 @@ class TestFileSystem extends FsTest {
 			writeAndCheck(bytes([0, 1, 2]), bytes([0, 1, 2]), Write, ok -> {
 				if(ok) writeAndCheck(bytes([3, 4, 5]), bytes([0, 1, 2, 3, 4, 5]), Append, ok -> {
 					if(ok) writeAndCheck(bytes([6, 7, 8, 9]), bytes([6, 7, 8, 9]), Write, ok -> {
+						#if !neko
 						if(ok) writeAndCheck(bytes([10, 11]), bytes([10, 11, 8, 9]), Overwrite, ok -> {});
+						#end
 					});
 				});
 			}),
@@ -123,6 +127,7 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					isTrue(r);
 			}),
+			#if !neko
 			FileSystem.check('test-data/sub/hello.world', Readable, (e, r) -> {
 				if(noException(e))
 					isTrue(r);
@@ -135,7 +140,6 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					isTrue(r);
 			}),
-			#if !neko
 			FileSystem.link('non-existent', 'test-data/temp/faulty-link', (_, _) -> {
 				FileSystem.isLink('test-data/temp/faulty-link', (e, r) -> {
 					if(noException(e) && isTrue(r))
@@ -153,10 +157,7 @@ class TestFileSystem extends FsTest {
 		);
 		if(!isWindows) {
 			asyncAll(async,
-				FileSystem.check('/bin', Exists, (e, r) -> {
-					if(noException(e))
-						isTrue(r);
-				}),
+				#if !neko
 				FileSystem.check('/bin', Readable, (e, r) -> {
 					if(noException(e))
 						isTrue(r);
@@ -168,6 +169,11 @@ class TestFileSystem extends FsTest {
 				FileSystem.check('/bin', Readable | Writable, (e, r) -> {
 					if(noException(e))
 						isFalse(r);
+				}),
+				#end
+				FileSystem.check('/bin', Exists, (e, r) -> {
+					if(noException(e))
+						isTrue(r);
 				})
 			);
 		}
@@ -211,24 +217,6 @@ class TestFileSystem extends FsTest {
 			FileSystem.isFile('non-existent', (e, r) -> {
 				if(noException(e))
 					isFalse(r);
-			})
-		);
-	}
-
-	@:depends(testWriteString, testInfo)
-	function testSetPermissions(async:Async) {
-		asyncAll(async,
-			FileSystem.writeString('test-data/temp/perm', '', (_, _) -> {
-				var permissions:FilePermissions = [0, 7, 6, 5];
-				FileSystem.setPermissions('test-data/temp/perm', permissions, (e, r) -> {
-					if(noException(e))
-						FileSystem.info('test-data/temp/perm', (_, r) -> {
-							isTrue(r.mode.has(permissions));
-						});
-				});
-			}),
-			FileSystem.setPermissions('non-existent', [0, 7, 7, 7], (e, r) -> {
-				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
 		);
 	}
@@ -384,6 +372,106 @@ class TestFileSystem extends FsTest {
 		);
 	}
 #if !neko
+	@:depends(testWriteString, testInfo)
+	function testSetPermissions(async:Async) {
+		asyncAll(async,
+			FileSystem.writeString('test-data/temp/perm', '', (_, _) -> {
+				var permissions:FilePermissions = [0, 7, 6, 5];
+				FileSystem.setPermissions('test-data/temp/perm', permissions, (e, r) -> {
+					if(noException(e))
+						FileSystem.info('test-data/temp/perm', (_, r) -> {
+							isTrue(r.mode.has(permissions));
+						});
+				});
+			}),
+			FileSystem.setPermissions('non-existent', [0, 7, 7, 7], (e, r) -> {
+				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
+			})
+		);
+	}
+
+	@:depends(testWriteString,testInfo)
+	function testSetOwner(async:Async) {
+		if(isWindows) {
+			pass();
+			return;
+		}
+
+		asyncAll(async,
+			FileSystem.writeString('test-data/temp/set-owner', '', (e, r) -> {
+				FileSystem.info('test-data/temp/set-owner', (e, r) -> {
+					FileSystem.setOwner('test-data/temp/set-owner', r.user, r.group, (e, _) -> {
+						noException(e);
+						FileSystem.setOwner('test-data/temp/non-existent', r.user, r.group, (e, r) -> {
+							assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent', e.path));
+						});
+					});
+				});
+			})
+		);
+	}
+
+
+	@:depends(testWriteString,testReadString,testReadBytes)
+	function testResize(async:Async) {
+		asyncAll(async,
+			FileSystem.writeString('test-data/temp/resize1', 'hello', (e, r) -> {
+				FileSystem.resize('test-data/temp/resize1', 2, (e, r) -> {
+					if(noException(e))
+						FileSystem.readString('test-data/temp/resize1', (e, r) -> equals('he', r));
+				});
+			}),
+			FileSystem.writeString('test-data/temp/resize2', 'hi', (e, r) -> {
+				FileSystem.resize('test-data/temp/resize2', 10, (e, r) -> {
+					if(noException(e)) {
+						var expected = Bytes.alloc(10);
+						expected.set(0, 'h'.code);
+						expected.set(1, 'i'.code);
+						FileSystem.readBytes('test-data/temp/resize2', (e, r) -> same(expected, r));
+					}
+				});
+			}),
+			FileSystem.resize('test-data/temp/non-existent-file', 10, (e, r) -> {
+				if(noException(e)) {
+					var expected = Bytes.alloc(10);
+					FileSystem.readBytes('test-data/temp/non-existent-file', (e, r) -> same(expected, r));
+				}
+			}),
+			FileSystem.resize('test-data/temp/non-existent-dir/file', 5, (e, r) -> {
+				assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent-dir/file', e.path));
+			})
+		);
+	}
+
+	@:depends(testInfo)
+	function testSetTimes(async:Async) {
+		var modificationTime = 1577826063; // 2019-12-31 21:01:03
+		var accessTime = 1580691906; // 2020-02-03 01:05:06
+		asyncAll(async,
+			FileSystem.setTimes('test-data/sub/hello.world', accessTime, modificationTime, (e, r) -> {
+				if(noException(e))
+					FileSystem.info('test-data/sub/hello.world', (e, r) -> {
+					#if eval
+						// TODO:
+						// The time is always set to a slightly (by 10-60 sec) different value.
+						// Find out why. Perhaps it's a bug in OCaml luv library.
+						isTrue(Math.abs(modificationTime - r.modificationTime) < 100);
+						isTrue(Math.abs(modificationTime - r.modificationTime) < 100);
+					#else
+						equals(modificationTime, r.modificationTime);
+						equals(accessTime, r.accessTime);
+					#end
+					});
+			}),
+			FileSystem.setTimes('test-data/temp/set-times-non-existent', accessTime, modificationTime, (e, r) -> {
+				assertType(e, FsException, e -> equalPaths('test-data/temp/set-times-non-existent', e.path));
+			}),
+			FileSystem.setTimes('test-data/temp/non/existent/set-times', accessTime, modificationTime, (e, r) -> {
+				assertType(e, FsException, e -> equalPaths('test-data/temp/non/existent/set-times', e.path));
+			})
+		);
+	}
+
 	function testIsLink(async:Async) {
 		asyncAll(async,
 			FileSystem.isLink('test-data/symlink', (e, r) -> {
@@ -518,87 +606,6 @@ class TestFileSystem extends FsTest {
 				assertType(e, FsException, e -> {
 					var path = e.path.toString();
 					isTrue(path == 'test-data/sub/hello.world' || path == 'test-data/non-existent/copy');
-				});
-			})
-		);
-	}
-
-	@:depends(testWriteString,testReadString,testReadBytes)
-	function testResize(async:Async) {
-		asyncAll(async,
-			FileSystem.writeString('test-data/temp/resize1', 'hello', (e, r) -> {
-				FileSystem.resize('test-data/temp/resize1', 2, (e, r) -> {
-					if(noException(e))
-						FileSystem.readString('test-data/temp/resize1', (e, r) -> equals('he', r));
-				});
-			}),
-			FileSystem.writeString('test-data/temp/resize2', 'hi', (e, r) -> {
-				FileSystem.resize('test-data/temp/resize2', 10, (e, r) -> {
-					if(noException(e)) {
-						var expected = Bytes.alloc(10);
-						expected.set(0, 'h'.code);
-						expected.set(1, 'i'.code);
-						FileSystem.readBytes('test-data/temp/resize2', (e, r) -> same(expected, r));
-					}
-				});
-			}),
-			FileSystem.resize('test-data/temp/non-existent-file', 10, (e, r) -> {
-				if(noException(e)) {
-					var expected = Bytes.alloc(10);
-					FileSystem.readBytes('test-data/temp/non-existent-file', (e, r) -> same(expected, r));
-				}
-			}),
-			FileSystem.resize('test-data/temp/non-existent-dir/file', 5, (e, r) -> {
-				assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent-dir/file', e.path));
-			})
-		);
-	}
-
-	@:depends(testInfo)
-	function testSetTimes(async:Async) {
-		var modificationTime = 1577826063; // 2019-12-31 21:01:03
-		var accessTime = 1580691906; // 2020-02-03 01:05:06
-		asyncAll(async,
-			FileSystem.setTimes('test-data/sub/hello.world', accessTime, modificationTime, (e, r) -> {
-				if(noException(e))
-					FileSystem.info('test-data/sub/hello.world', (e, r) -> {
-					#if eval
-						// TODO:
-						// The time is always set to a slightly (by 10-60 sec) different value.
-						// Find out why. Perhaps it's a bug in OCaml luv library.
-						isTrue(Math.abs(modificationTime - r.modificationTime) < 100);
-						isTrue(Math.abs(modificationTime - r.modificationTime) < 100);
-					#else
-						equals(modificationTime, r.modificationTime);
-						equals(accessTime, r.accessTime);
-					#end
-					});
-			}),
-			FileSystem.setTimes('test-data/temp/set-times-non-existent', accessTime, modificationTime, (e, r) -> {
-				assertType(e, FsException, e -> equalPaths('test-data/temp/set-times-non-existent', e.path));
-			}),
-			FileSystem.setTimes('test-data/temp/non/existent/set-times', accessTime, modificationTime, (e, r) -> {
-				assertType(e, FsException, e -> equalPaths('test-data/temp/non/existent/set-times', e.path));
-			})
-		);
-	}
-
-	@:depends(testWriteString,testInfo)
-	function testSetOwner(async:Async) {
-		if(isWindows) {
-			pass();
-			return;
-		}
-
-		asyncAll(async,
-			FileSystem.writeString('test-data/temp/set-owner', '', (e, r) -> {
-				FileSystem.info('test-data/temp/set-owner', (e, r) -> {
-					FileSystem.setOwner('test-data/temp/set-owner', r.user, r.group, (e, _) -> {
-						noException(e);
-						FileSystem.setOwner('test-data/temp/non-existent', r.user, r.group, (e, r) -> {
-							assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent', e.path));
-						});
-					});
 				});
 			})
 		);
