@@ -1849,4 +1849,8 @@ extern class Global {
 	**/
 	static function number_format(num:Float, ?decimals:Int, ?decimal_separator:String, ?thousands_separator:String):String;
 
+	/**
+		@see http://php.net/manual/en/function.empty.php
+	**/
+	static function empty(variable:Any):Bool;
 }
