@@ -4,8 +4,6 @@ import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
-import asys.native.IWritable;
-import asys.native.IReadable;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 

@@ -625,6 +625,8 @@ class TestFile extends FsTest {
 		);
 	}
 
+#if !neko
+
 	@:depends(testOpenWrite, testInfo)
 	function testPermissions(async:Async) {
 		asyncAll(async,
@@ -727,7 +729,7 @@ class TestFile extends FsTest {
 			//TODO: add a test for `file.setTimes(...)` failure
 		);
 	}
-
+#end
 	// TODO: see the doc block for `asys.native.filesystem.File.lock`
 	// @:depends(testOpenWrite)
 	// function testLock(async:Async) {

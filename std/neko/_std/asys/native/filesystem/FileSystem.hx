@@ -26,9 +26,8 @@ private typedef FileStat = {
 	var mode:Int;
 }
 
-private enum FileHandle {}
-
 @:coreApi
+@:allow(asys.native.filesystem)
 class FileSystem {
 	static final sys_exists:(NativeString)->Bool = Lib.load("std", "sys_exists", 1);
 	static final file_delete:(NativeString)->Void = Lib.load("std", "file_delete", 1);
@@ -47,39 +46,43 @@ class FileSystem {
 	static final file_flush:(FileHandle)->Void = neko.Lib.load("std", "file_flush", 1);
 	static final file_write:(file:FileHandle, data:NativeString, pos:Int, length:Int)->Int = neko.Lib.load("std", "file_write", 4);
 	static final file_write_char = neko.Lib.load("std", "file_write_char", 2);
+	static final file_eof:(FileHandle)->Bool = neko.Lib.load("std", "file_eof", 1);
+	static final file_read:(f:FileHandle, buf:NativeString, pos:Int, length:Int)->Int = neko.Lib.load("std", "file_read", 4);
+	static final file_read_char:(FileHandle)->Int = neko.Lib.load("std", "file_read_char", 1);
 
 	@:allow(asys.native.filesystem)
 	static final pool = new ElasticThreadPool(4);
 
-	/**
-		Open file for reading and/or writing.
-
-		Depending on `flag` value `callback` will be invoked with the appropriate
-		object type to read and/or write the file:
-		- `asys.native.filesystem.File` for reading and writing;
-		- `asys.native.filesystem.FileRead` for reading only;
-		- `asys.native.filesystem.FileWrite` for writing only;
-		- `asys.native.filesystem.FileAppend` for writing to the end of file only;
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-	**/
 	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					cast new File(fopenHx(path, flag), path, false);
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Create and open a unique temporary file for writing and reading.
-
-		The file will be automatically deleted when it is closed or the program
-		terminates.
-
-		Depending on a target platform the file deletion may not be guaranteed if
-		application crashes.
-
-		TODO: Can Haxe guarantee automatic file deletion for all targets?
-	**/
 	static public function tempFile(callback:Callback<File>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					var name = getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
+					var dir = FilePath.ofString(Sys.getCwd());
+					var path = dir.add(name);
+					while(sys_exists(path)) {
+						name += getRandomChar();
+					}
+					cast new File(fopenHx(path, WriteRead), path, true);
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), '(unknown path)');
+				}
+			},
+			callback
+		);
 	}
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
