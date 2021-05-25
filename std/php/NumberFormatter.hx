@@ -107,6 +107,7 @@ extern class NumberFormatter {
 	function new(locale: String, style: Int, ?pattern: String);
 
 	static function create(locale: String, style: Int, ?pattern: String): EitherType<NumberFormatter, Bool>;
+
 	function formatCurrency(value: Float, currency: String): EitherType<String, Bool>;
 	function format(value: EitherType<Int, Float>, ?type: Int): EitherType<String, Bool>;
 	function getAttribute(attr: Int): EitherType<Int, Bool>;
