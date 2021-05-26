@@ -9,8 +9,9 @@ class Issue10259 extends Test {
 
 		Assert.same([1 => 2], maps.intMap);
 		Assert.same(["1" => 2], maps.stringMap);
-		// Not sure if this is specified to actually work x)
-		eq(1, maps.objectMap.keys().next().x);
-		eq(2, maps.objectMap.iterator().next());
+		for (key => value in maps.objectMap) {
+			eq(1, key.x);
+			eq(2, value);
+		}
 	}
 }
