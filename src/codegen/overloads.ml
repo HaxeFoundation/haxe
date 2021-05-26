@@ -249,19 +249,26 @@ struct
 		| [] -> []
 		| [v] -> [v]
 		| compatible ->
+			let rate_arg t e = match e.eexpr with
+				(* if the argument is an implicit cast, we need to start with a penalty *)
+				(* The penalty should be higher than any other implicit cast - other than Dynamic *)
+				(* since Dynamic has a penalty of max_int, we'll impose max_int - 1 to it *)
+				| TMeta( (Meta.ImplicitCast,_,_), _) -> (max_int - 1, 0)
+				| _ -> rate_conv 0 t e.etype
+			in
 			(* convert compatible into ( rate * compatible_type ) list *)
 			let rec mk_rate acc elist args = match elist, args with
 				| [], [] -> acc
 				| _ :: elist, (_,true,_) :: args -> mk_rate acc elist args
+				| elist, [n,o,t] when ExtType.is_rest (follow t) ->
+					let t = match follow t with
+						| TAbstract({a_path=["haxe"],"Rest"},[t]) -> t
+						| _ -> die "" __LOC__
+					in
+					let rates = List.map (rate_arg t) elist in
+					acc @ rates
 				| e :: elist, (n,o,t) :: args ->
-					(* if the argument is an implicit cast, we need to start with a penalty *)
-					(* The penalty should be higher than any other implicit cast - other than Dynamic *)
-					(* since Dynamic has a penalty of max_int, we'll impose max_int - 1 to it *)
-					(match e.eexpr with
-						| TMeta( (Meta.ImplicitCast,_,_), _) ->
-							mk_rate ((max_int - 1, 0) :: acc) elist args
-						| _ ->
-							mk_rate (rate_conv 0 t e.etype :: acc) elist args)
+					mk_rate ((rate_arg t e) :: acc) elist args
 				| _ -> die "" __LOC__
 			in
 
