@@ -293,8 +293,8 @@ let rec func ctx bb tf t p =
 	and block_element_plus bb (e,efinal) f =
 		let bb = block_element bb e in
 		let bb = match efinal with
-			| None -> bb
-			| Some e -> block_element bb (f e)
+			| Some e when bb != g.g_unreachable -> block_element bb (f e)
+			| _ -> bb
 		in
 		bb
 	and block_element_value bb e f =
