@@ -41,11 +41,11 @@ extern class IntlDateFormatter {
 	@:phpClassConst static final SHORT: Int;
 	@:phpClassConst static final TRADITIONAL: Int;
 
-	function new(locale: Null<String>, dateType: Int, timeType: Int, timezone: EitherType<String, EitherType<IntlTimeZone, EitherType<DateTimeZone>>> = null,
+	function new(locale: Null<String>, dateType: Int, timeType: Int, timezone: EitherType<String, EitherType<DateTimeZone, IntlTimeZone>> = null,
 		calendar: EitherType<Int, IntlCalendar> = null, pattern: String = "");
 
 	static function create(locale: Null<String>, dateType: Int, timeType: Int,
-		timezone: EitherType<String, EitherType<IntlTimeZone, EitherType<DateTimeZone>>> = null,
+		timezone: EitherType<String, EitherType<DateTimeZone, IntlTimeZone>> = null,
 		calendar: EitherType<Int, IntlCalendar> = null, pattern: String = ""): Null<IntlDateFormatter>;
 
 	static function formatObject(datetime: EitherType<IntlCalendar, DateTime>, format: EitherType<Int, EitherType<NativeIndexedArray<Int>, String>> = null,
