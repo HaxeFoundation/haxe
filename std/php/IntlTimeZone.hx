@@ -34,9 +34,9 @@ extern class IntlTimeZone {
 
 	static function countEquivalentIDs(zoneId: String): Int;
 	static function createDefault(): IntlTimeZone;
-	static function createEnumeration(countryOrRawOffset: Any): IntlIterator;
+	static function createEnumeration(countryOrRawOffset: Any): IntlIterator<Int, String>;
 	static function createTimeZone(zoneId: String): IntlTimeZone;
-	static function createTimeZoneIDEnumeration(zoneType: Int, ?region: String, ?rawOffset: Int): EitherType<IntlIterator, Bool>;
+	static function createTimeZoneIDEnumeration(zoneType: Int, ?region: String, ?rawOffset: Int): EitherType<IntlIterator<Int, String>, Bool>;
 	static function fromDateTimeZone(zoneId: DateTimeZone): IntlTimeZone;
 	static function getCanonicalID(zoneId: String, isSystemID: Ref<Bool>): String;
 	static function getEquivalentID(zoneId: String, index: Int): String;
