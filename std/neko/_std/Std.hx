@@ -39,7 +39,7 @@
 		return inline downcast(value, c);
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return new String(untyped __dollar__string(s));
 	}
 

@@ -66,7 +66,7 @@ import cs.Lib;
 		return false;
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		if (s == null)
 			return "null";
 		if (Std.isOfType(s, Bool))

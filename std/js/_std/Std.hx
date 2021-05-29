@@ -44,7 +44,7 @@ import js.Syntax;
 	}
 
 	@:pure
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return @:privateAccess js.Boot.__string_rec(s, "");
 	}
 

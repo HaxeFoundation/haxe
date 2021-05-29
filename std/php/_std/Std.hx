@@ -43,7 +43,7 @@ import php.Syntax;
 		return Boot.isOfType(value, cast c) ? cast value : null;
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return Boot.stringify(s);
 	}
 

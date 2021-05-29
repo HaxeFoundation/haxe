@@ -55,7 +55,7 @@ class Std {
 		return clt.isAssignableFrom((v : java.lang.Object).getClass());
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return jvm.Jvm.toString(s);
 	}
 

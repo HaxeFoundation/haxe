@@ -41,7 +41,7 @@ import flash.Boot;
 		return downcast(value, c);
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return flash.Boot.__string_rec(s, "");
 	}
 

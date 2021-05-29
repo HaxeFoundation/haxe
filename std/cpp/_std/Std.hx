@@ -39,7 +39,7 @@
 		return inline downcast(value, c);
 	}
 
-	@:keep public static function string(s:Dynamic):String {
+	@:keep public static function string(s:Null<Dynamic>):String {
 		return untyped s == null ? "null" : s.toString();
 	}
 

@@ -90,7 +90,7 @@ class Std {
 		return untyped $int(x);
 	}
 
-	@:keep public static function string(s:Dynamic):String {
+	@:keep public static function string(s:Null<Dynamic>):String {
 		var len = 0;
 		var bytes = hl.Bytes.fromValue(s, new hl.Ref(len));
 		return @:privateAccess String.__alloc__(bytes, len);

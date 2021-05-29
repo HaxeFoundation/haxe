@@ -44,7 +44,7 @@ import lua.NativeStringTools;
 	}
 
 	@:keep
-	public static function string(s:Dynamic) : String {
+	public static function string(s:Null<Dynamic>): String {
 		return untyped _hx_tostring(s, 0);
 	}
 
