@@ -70,6 +70,13 @@
 			last = null;
 		return p;
 	}
+	
+	public function matchedNum():Int {
+		var num = _hx_regexp_matched_num(r);
+		if (num == -1)
+			throw "No string matched!";
+		return num;
+	}
 
 	public function split(s:String):Array<String> {
 		var pos = 0;
