@@ -30,6 +30,7 @@ extern class EReg {
 	function matchedRight():String;
 	function matchedPos():{pos:Int, len:Int};
 	function matchSub(s:String, pos:Int, len:Int = -1):Bool;
+	function matchedNum():Int;
 	function split(s:String):Array<String>;
 	function replace(s:String, by:String):String;
 	function map(s:String, f:EReg->String):String;
