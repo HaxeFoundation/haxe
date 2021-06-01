@@ -319,6 +319,12 @@
 		"platforms": ["js"]
 	},
 	{
+		"name": "JsGlobal",
+		"define": "js_global",
+		"doc": "Customizes the global object name.",
+		"platforms": ["js"]
+	},
+	{
 		"name": "JsUnflatten",
 		"define": "js_unflatten",
 		"doc": "Generate nested objects for packages and types.",
