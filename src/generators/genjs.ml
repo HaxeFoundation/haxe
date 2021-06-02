@@ -1893,11 +1893,11 @@ let generate com =
 
 	let defined_global = defined_global_value <> "" in
 
-	let rec typeof_join l = (match l with
+	let rec typeof_join = function
 	| x :: [] -> x
 	| x :: l -> "typeof " ^ x ^ " != \"undefined\" ? " ^ x ^ " : " ^ (typeof_join l)
 	| _ -> ""
-	) in
+	in
 
 	let var_exports = (
 		"$hx_exports",
