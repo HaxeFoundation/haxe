@@ -33,6 +33,8 @@ package haxe.ds;
 	@see https://haxe.org/manual/std-Map.html
 **/
 extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
+	public var size(get, never):Int;
+	
 	/**
 		Creates a new ObjectMap.
 	**/
@@ -99,4 +101,6 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		See `Map.clear`
 	**/
 	function clear():Void;
+	
+	private function get_size():Int;
 }

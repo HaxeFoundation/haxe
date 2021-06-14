@@ -331,3 +331,21 @@ var it:KeyValueIterator<String,String> = cast it;
 var keys = [for(kv in it) kv.key];
 keys[0] in ["1a","1b"];
 keys[1] in ["1a","1b"];
+
+// Test size
+
+new Map<Int, String>().size == 0;
+[1 => "a"].size == 1;
+[1 => "a", 3 => "c"].size == 2;
+
+new Map<String, Int>().size == 0;
+["a" => 1].size == 1;
+["a" => 1, "b" => 3].size == 2;
+
+new Map<{a: Int}, String>().size == 0;
+[{a: 1} => "a"].size == 1;
+[{a: 1} => "a", {a: 3} => "c"].size == 2;
+
+new Map<unit.MyAbstract.ClassWithHashCode, Int>().size == 0;
+[new unit.MyAbstract.ClassWithHashCode(1) => 1].size == 1
+[new unit.MyAbstract.ClassWithHashCode(1) => 1, new unit.MyAbstract.ClassWithHashCode(3) => 3].size == 1

@@ -30,6 +30,8 @@ package haxe.ds;
 	@see https://haxe.org/manual/std-Map.html
 **/
 extern class StringMap<T> implements haxe.Constraints.IMap<String, T> {
+	public var size(get, never):Int;
+	
 	/**
 		Creates a new StringMap.
 	**/
@@ -96,4 +98,6 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		See `Map.clear`
 	**/
 	function clear():Void;
+	
+	private function get_size():Int;
 }

@@ -32,6 +32,8 @@ package haxe.ds;
 	@see https://haxe.org/manual/std-Map.html
 **/
 class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
+	public var size(get, never):Int;
+	
 	/**
 		Creates a new WeakMap.
 	**/
@@ -104,4 +106,8 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		See `Map.clear`
 	**/
 	public function clear():Void {}
+	
+	function get_size():Int {
+		return 0;
+	}
 }

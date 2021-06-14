@@ -30,6 +30,8 @@ package haxe.ds;
 	@see https://haxe.org/manual/std-Map.html
 **/
 extern class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	public var size(get, never):Int;
+	
 	/**
 		Creates a new IntMap.
 	**/
@@ -96,4 +98,6 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		See `Map.clear`
 	**/
 	function clear():Void;
+	
+	private function get_size();
 }
