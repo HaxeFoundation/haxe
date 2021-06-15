@@ -44,8 +44,20 @@ import php.Syntax;
 	}
 
 	public static function string(s:Dynamic):String {
-		return Boot.stringify(s);
+		if(__hx__stringDepth > 10) {
+			return '<...>';
+		}
+		__hx__stringDepth++;
+		try {
+			var result = Boot.stringify(s);
+			__hx__stringDepth--;
+			return result;
+		} catch(_:Dynamic) {
+			__hx__stringDepth--;
+			throw Syntax.code("$__hx__caught_e");
+		}
 	}
+	static var __hx__stringDepth = 0;
 
 	public static inline function int(x:Float):Int {
 		return Syntax.int(x);
