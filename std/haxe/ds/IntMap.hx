@@ -99,5 +99,5 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	**/
 	function clear():Void;
 	
-	private function get_size();
+	private function get_size():Int;
 }
