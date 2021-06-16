@@ -214,4 +214,27 @@ class UI {
 	static function _chooseFile(forSave:Bool, obj:Dynamic):hl.Bytes {
 		return null;
 	}
+	
+	public static function setClipboardText(text:String):Bool {
+		if(text == null)
+			return false;
+		return @:privateAccess _setClipboardText(text.toUtf8());
+	}
+
+	@:hlNative("?ui", "ui_set_clipboard_text")
+	static function _setClipboardText(text:hl.Bytes):Bool {
+		return false;
+	}
+
+	public static function getClipboardText():String {
+		var t = _getClipboardText();
+		if( t == null )
+			return null;
+		return @:privateAccess String.fromUTF8(t);
+	}
+
+	@:hlNative("?ui", "ui_get_clipboard_text")
+	static function _getClipboardText():hl.Bytes {
+		return null;
+	}
 }
