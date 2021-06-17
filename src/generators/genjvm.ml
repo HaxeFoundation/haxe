@@ -2818,10 +2818,7 @@ module Preprocessor = struct
 		List.exists (fun mt -> snd (t_infos mt).mt_path = snd m.m_path) m.m_types
 
 	let check_path mt =
-		(* don't rewrite if there's an explicit @:native *)
-		if Meta.has Meta.Native mt.mt_meta then
-			()
-		else if mt.mt_private && has_primary_type mt.mt_module then begin
+		if mt.mt_private && has_primary_type mt.mt_module && not (Meta.has Meta.Native mt.mt_meta) then begin
 			let m = mt.mt_module in
 			let pack = match fst m.m_path with
 				| [] -> ["haxe";"root"]
