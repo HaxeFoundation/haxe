@@ -923,7 +923,8 @@ module Converter = struct
 		let known_sigs = Hashtbl.create 0 in
 		let should_generate jf =
 			not (AccessFlags.has_flag jf.jf_flags MPrivate)
-			&& not (AccessFlags.has_flag jf.jf_flags MSynthetic)
+			(* We might need member synthetics for proper call resolution, but we should never need static ones (issue #10279). *)
+			&& (not (AccessFlags.has_flag jf.jf_flags MSynthetic) || not (AccessFlags.has_flag jf.jf_flags MStatic))
 			&& jf.jf_name <> "<clinit>"
 		in
 		if jc.jc_path <> (["java";"lang"], "CharSequence") then begin
