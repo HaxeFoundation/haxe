@@ -123,7 +123,7 @@ let create com api is_macro =
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
-			oproto = fake_proto key_eval_toplevel;
+			oproto = OProto (fake_proto key_eval_toplevel);
 		};
 		eval = eval;
 		evals = evals;
