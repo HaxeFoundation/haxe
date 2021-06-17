@@ -903,6 +903,8 @@ module Converter = struct
 		let known_sigs = Hashtbl.create 0 in
 		let should_generate jf =
 			not (AccessFlags.has_flag jf.jf_flags MPrivate)
+			&& not (AccessFlags.has_flag jf.jf_flags MSynthetic)
+			&& jf.jf_name <> "<clinit>"
 		in
 		if jc.jc_path <> (["java";"lang"], "CharSequence") then begin
 			List.iter (fun jf ->
