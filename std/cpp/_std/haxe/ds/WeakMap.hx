@@ -45,8 +45,6 @@ package haxe.ds;
 ")
 @:coreApi
 class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never): Int;
-	
 	@:ifFeature("haxe.ds.WeakMap.*")
 	private var h:Dynamic;
 
@@ -101,7 +99,7 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		#end
 	}
 	
-	private function get_size():Int {
+	public function size():Int {
 		return untyped __global__.__root_hash_size(h);
 	}
 }

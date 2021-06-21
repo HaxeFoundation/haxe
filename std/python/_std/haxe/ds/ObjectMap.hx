@@ -25,7 +25,6 @@ package haxe.ds;
 import python.Dict;
 
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never):Int;
 	var h:Dict<K, V>;
 
 	public function new():Void {
@@ -89,7 +88,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		h.clear();
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		return h.length;
 	}
 }

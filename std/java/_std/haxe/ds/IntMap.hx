@@ -39,7 +39,7 @@ import java.NativeArray;
 	private var vals:NativeArray<T>;
 
 	private var nBuckets:Int;
-	public var size(get, null):Int;
+	private var _size:Int;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
@@ -57,7 +57,7 @@ import java.NativeArray;
 	public function set(key:Int, value:T):Void {
 		var targetIndex:Int;
 		if (nOccupied >= upperBound) {
-			if (nBuckets > (size << 1)) {
+			if (nBuckets > (_size << 1)) {
 				resize(nBuckets - 1); // clear "deleted" elements
 			} else {
 				resize(nBuckets + 1);
@@ -99,13 +99,13 @@ import java.NativeArray;
 			_keys[targetIndex] = key;
 			vals[targetIndex] = value;
 			setIsBothFalse(flags, targetIndex);
-			size++;
+			_size++;
 			nOccupied++;
 		} else if (isDel(flag)) {
 			_keys[targetIndex] = key;
 			vals[targetIndex] = value;
 			setIsBothFalse(flags, targetIndex);
-			size++;
+			_size++;
 		} else {
 			#if debug
 			assert(_keys[targetIndex] == key);
@@ -223,7 +223,7 @@ import java.NativeArray;
 			#end
 			if (!isEither(getFlag(flags, idx))) {
 				setIsDelTrue(flags, idx);
-				--size;
+				--_size;
 
 				vals[idx] = null;
 				// we do NOT reset the keys here, as unlike StringMap, we check for keys equality
@@ -245,10 +245,10 @@ import java.NativeArray;
 			newNBuckets = roundUp(newNBuckets);
 			if (newNBuckets < 4)
 				newNBuckets = 4;
-			if (size >= (newNBuckets * HASH_UPPER + 0.5))
-				/* requested size is too small */ {
+			if (_size >= (newNBuckets * HASH_UPPER + 0.5))
+				/* requested _size is too small */ {
 				j = 0;
-			} else { /* hash table size to be changed (shrink or expand); rehash */
+			} else { /* hash table _size to be changed (shrink or expand); rehash */
 				var nfSize = flagsSize(newNBuckets);
 				newFlags = new NativeArray(nfSize);
 				for (i in 0...nfSize) {
@@ -338,7 +338,7 @@ import java.NativeArray;
 
 			this.flags = newFlags;
 			this.nBuckets = newNBuckets;
-			this.nOccupied = size;
+			this.nOccupied = _size;
 			this.upperBound = Std.int(newNBuckets * HASH_UPPER + .5);
 		}
 	}
@@ -382,7 +382,7 @@ import java.NativeArray;
 		_keys = null;
 		vals = null;
 		nBuckets = 0;
-		size = 0;
+		_size = 0;
 		nOccupied = 0;
 		upperBound = 0;
 		#if !no_map_cache
@@ -391,8 +391,8 @@ import java.NativeArray;
 		#end
 	}
 	
-	private inline function get_size():Int {
-		return size;
+	public inline function size():Int {
+		return _size;
 	}
 
 	private static inline function assert(x:Bool):Void {

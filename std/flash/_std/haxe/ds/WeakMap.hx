@@ -24,8 +24,6 @@ package haxe.ds;
 
 @:coreApi
 class WeakMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never):Int;
-	
 	public function new() {
 		super(true);
 	}
@@ -83,7 +81,7 @@ class WeakMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constraint
 			untyped __delete__(this, i);
 	}
 	
-	private function get_size():Int {
+	public function size():Int {
 		var s = 0;
 		for(_ in keys()) s++;
 		return s;

@@ -36,7 +36,6 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		return untyped obj.__id__;
 	}
 
-	public var size(get, never):Int;
 	var h:{};
 	var k:{};
 
@@ -113,7 +112,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		k = untyped __dollar__hnew(0);
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		return untyped __dollar__hcount(k);
 	}
 }

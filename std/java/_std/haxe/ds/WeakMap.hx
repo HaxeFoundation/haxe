@@ -47,7 +47,7 @@ import java.lang.ref.ReferenceQueue;
 	private var queue:ReferenceQueue<K>;
 
 	private var nBuckets:Int;
-	public var size(get, null):Int;
+	private var _size:Int;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
@@ -96,7 +96,7 @@ import java.lang.ref.ReferenceQueue;
 					#end
 					entries[i] = null;
 					hashes[i] = FLAG_DEL;
-					--size;
+					--_size;
 				}
 			}
 		}
@@ -106,7 +106,7 @@ import java.lang.ref.ReferenceQueue;
 		cleanupRefs();
 		var x:Int, k:Int;
 		if (nOccupied >= upperBound) {
-			if (nBuckets > (size << 1))
+			if (nBuckets > (_size << 1))
 				resize(nBuckets - 1); // clear "deleted" elements
 			else
 				resize(nBuckets + 2);
@@ -154,12 +154,12 @@ import java.lang.ref.ReferenceQueue;
 		if (isEmpty(flag)) {
 			entries[x] = entry;
 			hashes[x] = k;
-			size++;
+			_size++;
 			nOccupied++;
 		} else if (isDel(flag)) {
 			entries[x] = entry;
 			hashes[x] = k;
-			size++;
+			_size++;
 		} else {
 			assert(entries[x].keyEquals(key));
 			entries[x] = entry;
@@ -207,10 +207,10 @@ import java.lang.ref.ReferenceQueue;
 			newNBuckets = roundUp(newNBuckets);
 			if (newNBuckets < 4)
 				newNBuckets = 4;
-			if (size >= (newNBuckets * HASH_UPPER + 0.5))
-				/* requested size is too small */ {
+			if (_size >= (newNBuckets * HASH_UPPER + 0.5))
+				/* requested _size is too small */ {
 				j = 0;
-			} else { /* hash table size to be changed (shrink or expand); rehash */
+			} else { /* hash table _size to be changed (shrink or expand); rehash */
 				var nfSize = newNBuckets;
 				newHash = new NativeArray(nfSize);
 				if (nBuckets < newNBuckets) // expand
@@ -279,7 +279,7 @@ import java.lang.ref.ReferenceQueue;
 
 			this.hashes = newHash;
 			this.nBuckets = newNBuckets;
-			this.nOccupied = size;
+			this.nOccupied = _size;
 			this.upperBound = Std.int(newNBuckets * HASH_UPPER + .5);
 		}
 	}
@@ -375,7 +375,7 @@ import java.lang.ref.ReferenceQueue;
 
 			hashes[idx] = FLAG_DEL;
 			entries[idx] = null;
-			--size;
+			--_size;
 
 			return true;
 		}
@@ -422,7 +422,7 @@ import java.lang.ref.ReferenceQueue;
 		entries = null;
 		queue = new ReferenceQueue();
 		nBuckets = 0;
-		size = 0;
+		_size = 0;
 		nOccupied = 0;
 		upperBound = 0;
 		#if !no_map_cache
@@ -437,8 +437,8 @@ import java.lang.ref.ReferenceQueue;
 		#end
 	}
 	
-	private inline function get_size():Int {
-		return size;
+	public inline function size():Int {
+		return _size;
 	}
 
 	extern private static inline function roundUp(x:Int):Int {

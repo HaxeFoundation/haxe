@@ -26,7 +26,6 @@ import php.*;
 
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never):Int;
 	var _keys:NativeAssocArray<K>;
 	var _values:NativeAssocArray<V>;
 
@@ -96,7 +95,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		_values = new NativeAssocArray();
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		return Global.count(_keys);
 	}
 }

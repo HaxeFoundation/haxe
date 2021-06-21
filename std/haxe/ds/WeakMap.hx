@@ -32,8 +32,6 @@ package haxe.ds;
 	@see https://haxe.org/manual/std-Map.html
 **/
 class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never):Int;
-	
 	/**
 		Creates a new WeakMap.
 	**/

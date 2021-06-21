@@ -23,7 +23,6 @@
 package haxe.ds;
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
-	public var size(get, never):Int;
 	private var h:Dynamic;
 	private var rh:Dynamic;
 
@@ -126,7 +125,7 @@ package haxe.ds;
 		rh = null;
 	}
 	
-	private function get_size():Int {
+	public function size():Int {
 		var s = 0;
 		for(_ in keys()) s++;
 		return s;

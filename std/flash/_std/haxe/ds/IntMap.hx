@@ -23,7 +23,6 @@
 package haxe.ds;
 
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
-	public var size(get, never):Int;
 	private var h:flash.utils.Dictionary;
 
 	public function new():Void {
@@ -87,7 +86,7 @@ package haxe.ds;
 		h = new flash.utils.Dictionary();
 	}
 	
-	private function get_size():Int {
+	public function size():Int {
 		var s = 0;
 		for(_ in keys()) s++;
 		return s;

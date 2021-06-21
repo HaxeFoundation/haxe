@@ -28,7 +28,6 @@ import js.Lib;
 #if (js_es >= 6)
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never):Int;
 	private var m:js.lib.Map<K, V>;
 	
 	public inline function new(map = new js.lib.Map()):Void {
@@ -86,7 +85,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		m.clear();
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		return m.size;
 	}
 }
@@ -94,8 +93,6 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 #else
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never):Int;
-	
 	static inline function assignId(obj:{}):Int {
 		return Syntax.code('({0}.__id__ = {1})', obj, Lib.getNextHaxeUID());
 	}
@@ -191,7 +188,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		h = {__keys__: {}};
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		var s = 0;
 		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h.__keys__, s);
 		return s;

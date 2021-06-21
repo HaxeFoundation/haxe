@@ -24,7 +24,6 @@ package haxe.ds;
 
 #if (js_es >= 6)
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
-	public var size(get, never):Int;
 	private var m:js.lib.Map<Int, T>;
 	
 	public inline function new(map = new js.lib.Map()):Void {
@@ -82,14 +81,13 @@ package haxe.ds;
 		m.clear();
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		return m.size;
 	}
 }
 
 #else
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
-	public var size(get, never):Int;
 	private var h:Dynamic;
 
 	public inline function new():Void {
@@ -165,7 +163,7 @@ package haxe.ds;
 		h = {};
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		var s = 0;
 		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
 		return s;

@@ -43,7 +43,7 @@ import cs.NativeArray;
 	private var vals:NativeArray<T>;
 
 	private var nBuckets:Int;
-	public var size(get, null):Int;
+	private var size:Int;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
@@ -68,7 +68,7 @@ import cs.NativeArray;
 	public function set(key:String, value:T):Void {
 		var x:Int, k:Int;
 		if (nOccupied >= upperBound) {
-			if (nBuckets > (size << 1)) {
+			if (nBuckets > (_size << 1)) {
 				resize(nBuckets - 1); // clear "deleted" elements
 			} else {
 				resize(nBuckets + 2);
@@ -119,13 +119,13 @@ import cs.NativeArray;
 			keys[x] = key;
 			vals[x] = value;
 			hashes[x] = k;
-			size++;
+			_size++;
 			nOccupied++;
 		} else if (isDel(flag)) {
 			keys[x] = key;
 			vals[x] = value;
 			hashes[x] = k;
-			size++;
+			_size++;
 		} else {
 			assert(_keys[x] == key);
 			vals[x] = value;
@@ -173,10 +173,10 @@ import cs.NativeArray;
 			newNBuckets = roundUp(newNBuckets);
 			if (newNBuckets < 4)
 				newNBuckets = 4;
-			if (size >= (newNBuckets * HASH_UPPER + 0.5))
-				/* requested size is too small */ {
+			if (_size >= (newNBuckets * HASH_UPPER + 0.5))
+				/* requested _size is too small */ {
 				j = 0;
-			} else { /* hash table size to be changed (shrink or expand); rehash */
+			} else { /* hash table _size to be changed (shrink or expand); rehash */
 				var nfSize = newNBuckets;
 				newHash = new NativeArray(nfSize);
 				if (nBuckets < newNBuckets) // expand
@@ -265,7 +265,7 @@ import cs.NativeArray;
 
 			this.hashes = newHash;
 			this.nBuckets = newNBuckets;
-			this.nOccupied = size;
+			this.nOccupied = _size;
 			this.upperBound = Std.int(newNBuckets * HASH_UPPER + .5);
 		}
 	}
@@ -350,7 +350,7 @@ import cs.NativeArray;
 			hashes[idx] = FLAG_DEL;
 			_keys[idx] = null;
 			vals[idx] = null;
-			--size;
+			--_size;
 
 			return true;
 		}
@@ -395,7 +395,7 @@ import cs.NativeArray;
 		_keys = null;
 		vals = null;
 		nBuckets = 0;
-		size = 0;
+		_size = 0;
 		nOccupied = 0;
 		upperBound = 0;
 		#if !no_map_cache
@@ -410,8 +410,8 @@ import cs.NativeArray;
 		#end
 	}
 	
-	private inline function get_size():Int {
-		return size;
+	public inline function size():Int {
+		return _size;
 	}
 
 	extern private static inline function roundUp(x:Int):Int {

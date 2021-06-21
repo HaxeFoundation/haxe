@@ -45,7 +45,6 @@ private class StringMapKeysIterator {
 
 @:coreApi
 class StringMap<T> implements haxe.Constraints.IMap<String, T> {
-	public var size(get, never):Int;
 	var h:hl.types.BytesMap;
 
 	public function new():Void {
@@ -118,7 +117,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		#end
 	}
 	
-	private function get_size():Int {
+	public function size():Int {
 		#if (hl_ver >= version("1.12.0"))
 		return h.size();
 		#else

@@ -32,8 +32,6 @@ import haxe.iterators.HashMapKeyValueIterator;
 	@see https://haxe.org/manual/std-Map.html
 **/
 abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
-	public var size(get, never):Int;
-	
 	/**
 		Creates a new HashMap.
 	**/

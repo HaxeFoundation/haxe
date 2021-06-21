@@ -28,7 +28,6 @@ import haxe.DynamicAccess;
 
 #if (js_es >= 6)
 @:coreApi class StringMap<T> implements IMap<String, T> {
-	public var size(get, never):Int;
 	private var m:js.lib.Map<String, T>;
 	
 	public inline function new(map = new js.lib.Map()):Void {
@@ -86,14 +85,13 @@ import haxe.DynamicAccess;
 		m.clear();
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		return m.size;
 	}
 }
 
 #elseif (js_es == 5)
 @:coreApi class StringMap<T> implements IMap<String, T> {
-	public var size(get, never):Int;
 	var h:Dynamic;
 
 	public inline function new() {
@@ -144,7 +142,7 @@ import haxe.DynamicAccess;
 		return stringify(h);
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		var s = 0;
 		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
 		return s;
@@ -258,7 +256,6 @@ private class StringMapIterator<T> {
 }
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String, T> {
-	public var size(get, never):Int;
 	private var h:Dynamic;
 	private var rh:Dynamic;
 
@@ -378,7 +375,7 @@ private class StringMapIterator<T> {
 		rh = null;
 	}
 	
-	private inline function get_size():Int {
+	public inline function size():Int {
 		var s = 0;
 		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
 		return s;

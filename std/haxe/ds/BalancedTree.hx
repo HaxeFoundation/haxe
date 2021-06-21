@@ -33,7 +33,6 @@ package haxe.ds;
 	are in-order.
 **/
 class BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
-	public var size(get, never):Int;
 	var root:TreeNode<K, V>;
 
 	/**

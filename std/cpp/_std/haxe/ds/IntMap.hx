@@ -52,8 +52,6 @@ package haxe.ds;
   inline String get_string(int key) { return __int_hash_get_string(h,key); }
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
-	public var size(get, never): Int;
-	
 	@:ifFeature("haxe.ds.IntMap.*")
 	private var h:Dynamic;
 
@@ -108,7 +106,7 @@ package haxe.ds;
 		#end
 	}
 	
-	private function get_size():Int {
+	public function size():Int {
 		return untyped __global__.__root_hash_size(h);
 	}
 

@@ -1553,7 +1553,7 @@ module StdIntMap = struct
 		vnull
 	)
 	
-	let get_size = vifun0 (fun vthis ->
+	let size = vifun0 (fun vthis ->
 		vint (IntHashtbl.size (this vthis))
 	)
 end
@@ -1616,7 +1616,7 @@ module StdStringMap = struct
 		vnull
 	)
 	
-	let get_size = vifun0 (fun vthis ->
+	let size = vifun0 (fun vthis ->
 		vint (StringHashtbl.size (this vthis))
 	)
 end
@@ -1678,7 +1678,7 @@ module StdObjectMap = struct
 		vnull
 	)
 	
-	let get_size = vifun0 (fun vthis ->
+	let size = vifun0 (fun vthis ->
 		vint (ValueHashtbl.length (this vthis))
 	)
 end
@@ -3173,7 +3173,7 @@ let init_maps builtins =
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
 		"clear",StdIntMap.clear;
-		"get_size",StdIntMap.get_size;
+		"size",StdIntMap.size;
 	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
@@ -3186,7 +3186,7 @@ let init_maps builtins =
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
 		"clear",StdObjectMap.clear;
-		"get_size",StdObjectMap.get_size;
+		"size",StdObjectMap.size;
 	];
 	init_fields builtins (["haxe";"ds"],"StringMap") [] [
 		"copy",StdStringMap.copy;
@@ -3199,7 +3199,7 @@ let init_maps builtins =
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;
 		"clear",StdStringMap.clear;
-		"get_size",StdStringMap.get_size;
+		"size",StdStringMap.size;
 	]
 
 let init_constructors builtins =
