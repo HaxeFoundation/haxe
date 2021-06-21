@@ -1873,4 +1873,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.empty.php
 	**/
 	static function empty(variable:Any):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.quoted-printable-decode.php
+	**/
+	static function quoted_printable_decode(string:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.quoted-printable-encode.php
+	**/
+	static function quoted_printable_encode(string:String):String;
 }
