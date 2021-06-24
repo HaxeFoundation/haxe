@@ -3,6 +3,7 @@
 	General improvements:
 
 	all : analyzer optimization
+	php : added externs for `quoted_printable_decode`, `quoted_printable_encode`, `Attribute`, `NumberFormat`, `IntlCalendar` and other `Intl*` classes
 
 2021-05-14 4.2.2:
 
