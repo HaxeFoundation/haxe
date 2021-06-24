@@ -1,3 +1,9 @@
+2021-XX-XX 4.2.3:
+
+	General improvements:
+
+	all : analyzer optimization
+
 2021-05-14 4.2.2:
 
 	Bugfixes:
