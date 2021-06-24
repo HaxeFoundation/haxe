@@ -9,6 +9,8 @@
 	Bugfixes:
 
 	all : fixed compiler crash on some unreachable code blocks (#10261)
+	jvm : fixed `@:native` (#10280)
+	jvm : fixed `--xml` generation (#10279)
 
 2021-05-14 4.2.2:
 
