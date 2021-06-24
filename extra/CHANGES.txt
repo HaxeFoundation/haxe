@@ -2,7 +2,8 @@
 
 	General improvements:
 
-	all : analyzer optimization
+	all : analyzer optimizations
+	js : added `-D js-global=globalThis` to customize global object name (#10282)
 	php : added externs for `quoted_printable_decode`, `quoted_printable_encode`, `Attribute`, `NumberFormat`, `IntlCalendar` and other `Intl*` classes
 
 2021-05-14 4.2.2:
