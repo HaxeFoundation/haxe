@@ -6,6 +6,10 @@
 	js : added `-D js-global=globalThis` to customize global object name (#10282)
 	php : added externs for `quoted_printable_decode`, `quoted_printable_encode`, `Attribute`, `NumberFormat`, `IntlCalendar` and other `Intl*` classes
 
+	Bugfixes:
+
+	all : fixed compiler crash on some unreachable code blocks (#10261)
+
 2021-05-14 4.2.2:
 
 	Bugfixes:
