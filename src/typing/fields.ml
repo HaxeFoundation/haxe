@@ -240,8 +240,11 @@ let field_access ctx mode f fh e pfield =
 		| AccInline ->
 			normal true
 		| AccCtor ->
+			let is_child_of_abstract c =
+				has_class_flag c CAbstract && extends ctx.curclass c
+			in
 			(match ctx.curfun, fh with
-				| FunConstructor, FHInstance(c,_) when c == ctx.curclass -> normal false
+				| FunConstructor, FHInstance(c,_) when c == ctx.curclass || is_child_of_abstract c -> normal false
 				| _ -> AKNo f.cf_name
 			)
 		| AccRequire (r,msg) ->

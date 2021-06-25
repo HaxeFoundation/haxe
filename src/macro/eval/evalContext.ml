@@ -353,10 +353,13 @@ let rec kind_name eval kind =
 
 let call_function f vl = f vl
 
-let object_fields o =
-	IntMap.fold (fun key index acc ->
-		(key,(o.ofields.(index))) :: acc
-	) o.oproto.pinstance_names []
+let object_fields o = match o.oproto with
+	| OProto proto ->
+		IntMap.fold (fun key index acc ->
+			(key,(o.ofields.(index))) :: acc
+		) proto.pinstance_names []
+	| ODictionary d ->
+		IntMap.fold (fun k v acc -> (k,v) :: acc) d []
 
 let instance_fields i =
 	IntMap.fold (fun name key acc ->

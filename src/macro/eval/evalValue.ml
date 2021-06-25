@@ -154,8 +154,12 @@ and vobject = {
 	(* The fields of the object known when it is created. *)
 	mutable ofields : value array;
 	(* The prototype of the object. *)
-	mutable oproto : vprototype;
+	mutable oproto : vobject_proto;
 }
+
+and vobject_proto =
+	| OProto of vprototype
+	| ODictionary of value IntMap.t
 
 and vprototype = {
 	(* The path of the prototype. Using rev_hash on this gives the original dot path. *)

@@ -1721,7 +1721,7 @@ let init_class ctx c p context_init herits fields =
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
-		| cf :: cfl when c.cl_constructor = None ->
+		| cf :: cfl when c.cl_constructor = None && not (has_class_flag c CAbstract) ->
 			if Diagnostics.is_diagnostics_run ctx.com cf.cf_name_pos then begin
 				let diag = {
 					mf_pos = c.cl_name_pos;
