@@ -284,7 +284,7 @@ let get_binop_fun op p = match op with
 	| OpShr -> op_shr p
 	| OpUShr -> op_ushr p
 	| OpMod -> op_mod p
-	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die "" __LOC__
+	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die ~p "" __LOC__
 
 let prepare_callback v n =
 	match v with
