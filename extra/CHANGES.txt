@@ -1,3 +1,18 @@
+2021-07-01 4.2.3:
+
+	General improvements:
+
+	all : analyzer optimizations
+	macro : support maps in `haxe.macro.Context.makeExpr` (#10259)
+	js : added `-D js-global=globalThis` to customize global object name (#10282)
+	php : added externs for `quoted_printable_decode`, `quoted_printable_encode`, `Attribute`, `NumberFormat`, `IntlCalendar` and other `Intl*` classes
+
+	Bugfixes:
+
+	all : fixed compiler crash on some unreachable code blocks (#10261)
+	jvm : fixed `@:native` (#10280)
+	jvm : fixed `--xml` generation (#10279)
+
 2021-05-14 4.2.2:
 
 	Bugfixes:
