@@ -266,7 +266,7 @@ let op_mod p v1 v2 = match v1,v2 with
 	| VFloat f1,VInt32 i2 -> vfloat (mod_float f1 (Int32.to_float i2))
 	| _ -> invalid_binop OpMod v1 v2 p
 
-let get_binop_fun op p = match op with
+let get_binop_fun ?(crash=true) op p = match op with
 	| OpAdd -> op_add p
 	| OpMult -> op_mult p
 	| OpDiv -> op_div p
@@ -284,7 +284,9 @@ let get_binop_fun op p = match op with
 	| OpShr -> op_shr p
 	| OpUShr -> op_ushr p
 	| OpMod -> op_mod p
-	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die ~p "" __LOC__
+	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn ->
+		if crash then die ~p "" __LOC__
+		else raise Exit
 
 let prepare_callback v n =
 	match v with
