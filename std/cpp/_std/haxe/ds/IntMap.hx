@@ -105,6 +105,10 @@ package haxe.ds;
 		h = null;
 		#end
 	}
+	
+	public function size():Int {
+		return untyped __global__.__root_hash_size(h);
+	}
 
 	#if (scriptable)
 	private function setString(key:Int, val:String):Void {

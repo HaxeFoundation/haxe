@@ -65,6 +65,7 @@ abstract NotVoid(Dynamic) { }
 abstract Constructible<T>(Dynamic) {}
 
 interface IMap<K, V> {
+	var size(get, never):Int;
 	function get(k:K):Null<V>;
 	function set(k:K, v:V):Void;
 	function exists(k:K):Bool;

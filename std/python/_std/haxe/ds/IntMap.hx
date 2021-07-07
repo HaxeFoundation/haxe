@@ -88,4 +88,8 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	public inline function clear():Void {
 		h.clear();
 	}
+	
+	public inline function size():Int {
+		return h.length;
+	}
 }

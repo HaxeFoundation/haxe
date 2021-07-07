@@ -88,4 +88,8 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	public function clear():Void {
 		hashMap.clear();
 	}
+	
+	public inline function size():Int {
+		return hashMap.size();
+	}
 }

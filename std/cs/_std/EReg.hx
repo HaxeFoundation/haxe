@@ -77,6 +77,12 @@ import cs.system.text.regularexpressions.*;
 	public function matchedPos():{pos:Int, len:Int} {
 		return {pos: m.Index, len: m.Length};
 	}
+	
+	public function matchedNum():Int {
+		if (m == null)
+			throw "No string matched";
+		return m.Groups.Count;
+	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		m = if (len < 0) regex.Match(s, pos) else regex.Match(s, pos, len);

@@ -70,6 +70,12 @@ class EReg {
 	public inline function matchedPos():{pos:Int, len:Int} {
 		return {pos: matchObj.start(), len: matchObj.end() - matchObj.start()};
 	}
+	
+	public function matchedNum():Int {
+		if (matchObj == null)
+			throw "No string matched";
+		return matchObj.lastindex + 1;
+	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		if (len != -1) {

@@ -116,4 +116,12 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		h = new hl.types.BytesMap();
 		#end
 	}
+	
+	public function size():Int {
+		#if (hl_ver >= version("1.12.0"))
+		return h.size();
+		#else
+		return h.keysArray().length;
+		#end
+	}
 }

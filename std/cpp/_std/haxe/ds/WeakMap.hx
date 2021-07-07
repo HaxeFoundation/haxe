@@ -98,4 +98,8 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		h = null;
 		#end
 	}
+	
+	public function size():Int {
+		return untyped __global__.__root_hash_size(h);
+	}
 }

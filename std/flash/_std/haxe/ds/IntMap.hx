@@ -85,6 +85,12 @@ package haxe.ds;
 	public inline function clear():Void {
 		h = new flash.utils.Dictionary();
 	}
+	
+	public function size():Int {
+		var s = 0;
+		for(_ in keys()) s++;
+		return s;
+	}
 }
 
 // this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
