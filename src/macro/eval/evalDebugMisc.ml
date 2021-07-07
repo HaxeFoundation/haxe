@@ -259,18 +259,20 @@ let rec expr_to_value ctx env e =
 				let v2 = loop e2 in
 				write_expr ctx env e1 v2;
 			| OpAssignOp op ->
-				raise Exit (* Nobody does that, right? *)
+				raise NoValueExpr
 			| OpBoolAnd ->
 				if is_true (loop e1) then loop e2
 				else VFalse
 			| OpBoolOr ->
 				if is_true (loop e1) then VTrue
 				else loop e2
+			| OpInterval | OpArrow | OpIn ->
+				raise NoValueExpr
 			| _ ->
 				let v1 = loop e1 in
 				let v2 = loop e2 in
 				let p = pos e in
-				(try get_binop_fun ~crash:false op p with _ -> raise NoValueExpr) v1 v2
+				(get_binop_fun op p) v1 v2
 			end
 		| EUnop(op,flag,e1) ->
 			begin match op with
