@@ -65,6 +65,10 @@ class TestLoose {
 		bar();
 	}
 
+	function stdString_assignNull_shouldPass() {
+		Std.string(null);
+	}
+
 	static var struct:Null<{foo:String}>;
 
 	static function checkAgainstNull_checkAndFieldAccess() {

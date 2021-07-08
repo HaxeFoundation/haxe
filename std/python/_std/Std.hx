@@ -118,7 +118,7 @@ import python.Syntax;
 	}
 
 	@:access(python.Boot)
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return python.Boot.toString(s);
 	}
 

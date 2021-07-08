@@ -83,7 +83,7 @@ extern class Std {
 
 		If s is null, "null" is returned.
 	**/
-	static function string(s:Dynamic):String;
+	static function string(s:Null<Dynamic>):String;
 
 	/**
 		Converts a `Float` to an `Int`, rounded towards 0.

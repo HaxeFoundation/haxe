@@ -9,6 +9,6 @@ class Issue7171 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq("(s : Dynamic) -> String", type(pos(1)));
+		eq("(s : Null<Dynamic>) -> String", type(pos(1)));
 	}
 }

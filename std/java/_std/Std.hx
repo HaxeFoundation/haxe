@@ -55,7 +55,7 @@ import java.Lib;
 		return clt.isAssignableFrom(clv);
 	}
 
-	public static function string(s:Dynamic):String {
+	public static function string(s:Null<Dynamic>):String {
 		return cast(s, String) + "";
 	}
 
