@@ -1,3 +1,9 @@
+2021-XX-XX 4.2.4:
+
+	Bugfixes:
+
+	js : fixed IntMap for keys greater than 2^31 (#10316)
+
 2021-07-01 4.2.3:
 
 	General improvements:
