@@ -26,7 +26,7 @@ private class PairIter<T> {
 class Issue10304 extends Test {
 	function test() {
 		var buf = new StringBuf();
-		for (p in new PairIter([1, 2, 3])) {
+		for (p in new PairIter(["1", "2", "3"])) {
 			buf.add('${p.prev} ${p.cur} ');
 		}
 		eq("null 1 1 2 2 3 ", buf.toString());
