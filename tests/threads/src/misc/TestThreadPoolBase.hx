@@ -4,6 +4,7 @@ import sys.thread.IThreadPool;
 import sys.thread.ThreadPoolException;
 import sys.thread.Deque;
 import sys.thread.Mutex;
+import haxe.Exception;
 import haxe.Timer;
 
 abstract class TestThreadPoolBase extends utest.Test {
@@ -100,5 +101,40 @@ abstract class TestThreadPoolBase extends utest.Test {
 		isTrue(pool.isShutdown);
 		pool.shutdown();
 		pass();
+	}
+
+	function testRunFor(async:Async) {
+		var mainThread = Thread.current();
+		var pool = createThreadPool(1);
+		//result
+		async.branch(async -> {
+			pool.runFor(
+				() -> {
+					isFalse(mainThread == Thread.current());
+					return 123;
+				},
+				(e, r) -> {
+					if(e != null)
+						fail(e.message);
+					isTrue(mainThread == Thread.current());
+					equals(123, r);
+					async.done();
+				}
+			);
+		});
+		//exception
+		async.branch(async -> {
+			pool.runFor(
+				() -> {
+					isFalse(mainThread == Thread.current());
+					throw new Exception('');
+				},
+				(e, r) -> {
+					isOfType(e, Exception);
+					isTrue(mainThread == Thread.current());
+					async.done();
+				}
+			);
+		});
 	}
 }

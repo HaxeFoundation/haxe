@@ -26,7 +26,7 @@ package eval.luv;
 	/**
 		Tries to take the mutex without blocking.
 	**/
-	public function tryLock():Result<Result.NoData>;
+	public function tryLock():Result<haxe.NoData>;
 
 	/**
 		Releases the mutex.

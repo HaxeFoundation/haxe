@@ -12,6 +12,7 @@ class Config {
 	static public final repoDir = FileSystem.fullPath("..") + "/";
 	static public final unitDir = cwd + "unit/";
 	static public final sysDir = cwd + "sys/";
+	static public final asysDir = cwd + "asys/";
 	static public final optDir = cwd + "optimization/";
 	static public final miscDir = cwd + "misc/";
 	static public final displayDir = cwd + "display/";

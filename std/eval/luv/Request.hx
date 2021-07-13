@@ -9,5 +9,5 @@ package eval.luv;
 	/**
 		Tries to cancel a pending request.
 	**/
-	public function cancel():Result<Result.NoData>;
+	public function cancel():Result<haxe.NoData>;
 }

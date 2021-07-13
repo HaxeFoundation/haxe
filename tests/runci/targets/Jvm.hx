@@ -18,6 +18,10 @@ class Jvm {
 		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
 		runCommand("java", ["-jar", "bin/jvm/sys.jar"]);
 
+		changeDirectory(asysDir);
+		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
+		runCommand("java", ["-jar", "bin/jvm/asys.jar"]);
+
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--jvm", "export/threads.jar"].concat(args));
 		runCommand("java", ["-jar", "export/threads.jar"]);

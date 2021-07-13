@@ -11,10 +11,6 @@ enum Result<T> {
 	Error(e:UVError);
 }
 
-enum abstract NoData(Dynamic) {
-	var NoData = null;
-}
-
 class ResultTools {
 	/**
 		Returns the result value on success or throws `eval.luv.LuvException`

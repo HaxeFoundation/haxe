@@ -8,8 +8,8 @@ enum abstract PipeMode(Int) {
 
 enum ReceiveHandle {
 	NONE;
-	TCP(associate:(tcp:Tcp)->Result<Result.NoData>);
-	PIPE(associate:(pipe:Pipe)->Result<Result.NoData>);
+	TCP(associate:(tcp:Tcp)->Result<haxe.NoData>);
+	PIPE(associate:(pipe:Pipe)->Result<haxe.NoData>);
 }
 
 /**
@@ -32,12 +32,12 @@ enum ReceiveHandle {
 	/**
 		Assigns a pipe a name or an address.
 	**/
-	public function bind(nameOrAddress:NativeString):Result<Result.NoData>;
+	public function bind(nameOrAddress:NativeString):Result<haxe.NoData>;
 
 	/**
 		Connects to the pipe at the given name or address.
 	**/
-	public function connect(target:NativeString, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function connect(target:NativeString, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Retrieves the name or address assigned to the pipe.
@@ -73,5 +73,5 @@ enum ReceiveHandle {
 	/**
 		Sets pipe permissions.
 	**/
-	public function chmod(mode:PipeMode):Result<Result.NoData>;
+	public function chmod(mode:PipeMode):Result<haxe.NoData>;
 }

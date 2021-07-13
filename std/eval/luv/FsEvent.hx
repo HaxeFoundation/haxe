@@ -31,6 +31,6 @@ enum abstract FsEventFlag(Int) {
 	/**
 		Stops the handle.
 	**/
-	public function stop():Result<Result.NoData>;
+	public function stop():Result<haxe.NoData>;
 
 }

@@ -63,7 +63,7 @@ extern class Resource {
 	/**
 		Sets the priority of the process with the given pid.
 	**/
-	static function setPriority(pid:Int, priority:Int):Result<Result.NoData>;
+	static function setPriority(pid:Int, priority:Int):Result<haxe.NoData>;
 
 	/**
 		Evaluates to the resident set size for the current process.

@@ -26,5 +26,5 @@ import eval.luv.File;
 	/**
 		Stops the handle.
 	**/
-	public function stop():Result<Result.NoData>;
+	public function stop():Result<haxe.NoData>;
 }

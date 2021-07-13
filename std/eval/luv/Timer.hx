@@ -26,15 +26,15 @@ package eval.luv;
 	/**
 		Starts a timer.
 	**/
-	public function start(callback:()->Void, timeoutMs:Int, ?repeatMs:Int):Result<Result.NoData>;
+	public function start(callback:()->Void, timeoutMs:Int, ?repeatMs:Int):Result<haxe.NoData>;
 
 	/**
 		Stops a timer.
 	**/
-	public function stop():Result<Result.NoData>;
+	public function stop():Result<haxe.NoData>;
 
 	/**
 		Restarts a timer.
 	**/
-	public function again():Result<Result.NoData>;
+	public function again():Result<haxe.NoData>;
 }

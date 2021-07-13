@@ -42,7 +42,7 @@ typedef DirectoryScan = {
 	/**
 		Closes the directory.
 	**/
-	public function close(loop:Loop, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function close(loop:Loop, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Retrieves a directory entry.
@@ -63,7 +63,7 @@ extern class DirSync {
 	static public function open(loop:Loop, path:NativeString):Result<Dir>;
 
 	@:inheritDoc(eval.luv.Dir.close)
-	static public function close(dir:Dir, loop:Loop):Result<Result.NoData>;
+	static public function close(dir:Dir, loop:Loop):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.Dir.read)
 	static public function read(dir:Dir, loop:Loop, ?numberOfEntries:Int):Result<Array<Dirent>>;

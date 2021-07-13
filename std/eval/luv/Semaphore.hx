@@ -29,5 +29,5 @@ package eval.luv;
 	/**
 		Tries to decrement a semaphore without blocking.
 	**/
-	public function tryWait():Result<Result.NoData>;
+	public function tryWait():Result<haxe.NoData>;
 }

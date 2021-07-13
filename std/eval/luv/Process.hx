@@ -75,12 +75,12 @@ typedef ProcessOptions = {
 	/**
 		Sends the given signal to the process with the given pid.
 	**/
-	static public function killPid(pid:Int, sigNum:Signal.SigNum):Result<Result.NoData>;
+	static public function killPid(pid:Int, sigNum:Signal.SigNum):Result<haxe.NoData>;
 
 	/**
 		Sends the given signal to the process.
 	**/
-	public function kill(sigNum:Signal.SigNum):Result<Result.NoData>;
+	public function kill(sigNum:Signal.SigNum):Result<haxe.NoData>;
 
 	/**
 		Evaluates to the pid of the process.
