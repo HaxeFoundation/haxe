@@ -1033,6 +1033,11 @@ try
 	process ctx.com.args;
 	(* Process haxelibs *)
 	process_libs();
+	(* Add env variables as env.* defines *)
+	Array.iter (fun e -> begin
+		let i = String.index e '=' in
+		Define.raw_define_value com.defines ("env." ^ (String.sub e 0 i)) (String.sub e (i+1) ((String.length e) - i - 1));
+	end) (Unix.environment());
 	(* Set up display configuration *)
 	process_display_configuration ctx;
 	let display_file_dot_path = DisplayOutput.process_display_file com classes in
