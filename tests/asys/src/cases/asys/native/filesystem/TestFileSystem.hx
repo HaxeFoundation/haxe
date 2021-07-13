@@ -102,7 +102,7 @@ class TestFileSystem extends FsTest {
 			writeAndCheck(bytes([0, 1, 2]), bytes([0, 1, 2]), Write, ok -> {
 				if(ok) writeAndCheck(bytes([3, 4, 5]), bytes([0, 1, 2, 3, 4, 5]), Append, ok -> {
 					if(ok) writeAndCheck(bytes([6, 7, 8, 9]), bytes([6, 7, 8, 9]), Write, ok -> {
-						#if !neko
+						#if neko
 						if(ok) writeAndCheck(bytes([10, 11]), bytes([10, 11, 8, 9]), Overwrite, ok -> {});
 						#end
 					});
