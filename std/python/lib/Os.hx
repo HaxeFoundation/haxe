@@ -69,6 +69,10 @@ extern class Os {
 	static final W_OK:Int;
 	static final X_OK:Int;
 
+	static final SEEK_SET:Int;
+	static final SEEK_CUR:Int;
+	static final SEEK_END:Int;
+
 	static final name:String;
 
 	static var environ:Dict<String, String>;
@@ -94,6 +98,7 @@ extern class Os {
 
 	static function rmdir(path:String):Void;
 
+	@:overload(function (fd:Int):Stat {})
 	static function stat(path:String):Stat;
 
 	static function lstat(path:String):Stat;
@@ -128,17 +133,26 @@ extern class Os {
 
 	static function link(src:String, dst:String):Void;
 
-	static function chown(path:String, uid:Int, guid:Int):Void;
+	@:overload(function (fd:Int, uid:Int, gid:Int):Void {})
+	static function chown(path:String, uid:Int, gid:Int):Void;
 
-	static function lchown(path:String, uid:Int, guid:Int):Void;
+	static function lchown(path:String, uid:Int, gid:Int):Void;
 
-	static function fchown(fd:Int, uid:Int, guid:Int):Void;
+	static function fchown(fd:Int, uid:Int, gid:Int):Void;
 
+	@:overload(function (fd:Int, mode:Int):Void {})
 	static function chmod(path:String, mode:Int):Void;
 
 	static function lchmod(path:String, mode:Int):Void;
 
+	@:overload(function (fd:Int, ?times:Tuple2<Int,Int>):Void {})
 	static function utime(path:String, ?times:Tuple2<Int,Int>):Void;
 
 	static function access(path:String, mode:Int):Bool;
+
+	static function lseek(fd:String, pos:Int, how:Int):Void;
+
+	// static function read(fd:String, n:Int):Bytearray;
+
+	// static function write(fd:String, str:Bytearrat):Int;
 }

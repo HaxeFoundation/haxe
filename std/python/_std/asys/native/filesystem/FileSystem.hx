@@ -4,9 +4,11 @@ import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 import python.lib.Builtins;
 import python.lib.Os;
+import python.lib.Tempfile;
 import python.lib.os.Path;
 import python.lib.Shutil;
 import python.Tuple;
+import python.Syntax;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.Exception;
@@ -24,44 +26,43 @@ class FileSystem {
 	static final pool = new ElasticThreadPool(4);
 
 	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
-		throw new NotImplementedException();
-		// pool.runFor(
-		// 	() -> {
-		// 		try {
-		// 			cast new File(fopenHx(path, flag), path, false);
-		// 		} catch(e) {
-		// 			throw new FsException(CustomError(e.toString()), path);
-		// 		}
-		// 	},
-		// 	callback
-		// );
+		pool.runFor(
+			() -> {
+				var mode = switch flag {
+					case Append: 'ab';
+					case Read: 'rb';
+					case _: 'r+b';
+				}
+				try {
+					var f = cast Os.fdopen(Os.open(path, pyOpenFlags(flag, true)), mode);
+					cast new File(cast f, path);
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function tempFile(callback:Callback<File>):Void {
-		throw new NotImplementedException();
-		// pool.runFor(
-		// 	() -> {
-		// 		try {
-		// 			var name = getRandomChar() + getRandomChar() + getRandomChar() + getRandomChar();
-		// 			var dir = FilePath.ofString(Sys.getCwd());
-		// 			var path = dir.add(name);
-		// 			while(sys_exists(path)) {
-		// 				name += getRandomChar();
-		// 			}
-		// 			cast new File(fopenHx(path, WriteRead), path, true);
-		// 		} catch(e) {
-		// 			throw new FsException(CustomError(e.toString()), '(unknown path)');
-		// 		}
-		// 	},
-		// 	callback
-		// );
+		pool.runFor(
+			() -> {
+				try {
+					var f = Tempfile.NamedTemporaryFile();
+					new File(cast f, Syntax.code('{0}.name', f));
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), '(unknown path)');
+				}
+			},
+			callback
+		);
 	}
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
 		pool.runFor(
 			() -> {
 				try {
-					var f:RawIOBase = cast Builtins.open(path, 'rb', -1);
+					var f:RawIOBase = cast Builtins.open(path, 'rb');
 					var size = f.read(-1);
 					var data = haxe.io.Bytes.ofData(size);
 					f.close();
@@ -94,7 +95,7 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var f:RawIOBase = cast Os.fdopen(Os.open(path, pyOpenFlags(flag, true)), 'rb+', -1);
+					var f:RawIOBase = cast Os.fdopen(Os.open(path, pyOpenFlags(flag, true)), 'r+b');
 					f.write(data.getData());
 					f.close();
 					NoData;
@@ -205,8 +206,12 @@ class FileSystem {
 					if(overwrite)
 						Os.replace(oldPath, newPath)
 					else
+						if(Os.name != 'nt' && Path.exists(newPath))
+							throw new FsException(FileExists, newPath);
 						Os.rename(oldPath, newPath);
 					NoData;
+				} catch(e:FsException) {
+					throw e;
 				} catch(e) {
 					throw new FsException(CustomError(e.toString()), oldPath);
 				}

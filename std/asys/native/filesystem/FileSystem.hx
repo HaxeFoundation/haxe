@@ -35,6 +35,9 @@ class FileSystem {
 		Depending on a target platform the file may be automatically deleted upon
 		application shutdown, but in general deletion is not guaranteed if the `close`
 		method is not called.
+
+		Depending on a target platform the directory entry for the file may be deleted
+		immediately after the file is created or even not created at all.
 	**/
 	static public function tempFile(callback:Callback<File>):Void {
 		throw new NotImplementedException();
