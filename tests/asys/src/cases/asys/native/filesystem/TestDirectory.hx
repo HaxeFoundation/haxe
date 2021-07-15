@@ -4,7 +4,7 @@ import asys.native.filesystem.FsException;
 import asys.native.filesystem.FileSystem;
 import asys.native.filesystem.Directory;
 
-@:depends(cases.asys.native.filesystem.TestFileSystem)
+@:depends(cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFileSystem)
 class TestDirectory extends FsTest {
 	function testOpenNonExistent(async:Async) {
 		FileSystem.openDirectory('test-data/temp/non-existent', (e, _) -> {

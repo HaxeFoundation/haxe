@@ -10,9 +10,9 @@ import asys.native.filesystem.FileSystem;
 import asys.native.filesystem.File;
 
 @:depends(
-	cases.asys.native.filesystem.TestFilePath,
-	cases.asys.native.filesystem.TestFilePermissions,
-	cases.asys.native.filesystem.TestFileSystem
+	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePath,
+	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePermissions,
+	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFileSystem
 )
 class TestFile extends FsTest {
 	function testOpenRead(async:Async) {

@@ -12,8 +12,8 @@ import asys.native.filesystem.FsException;
 import asys.native.filesystem.FileSystem;
 
 @:depends(
-	cases.asys.native.filesystem.TestFilePath,
-	cases.asys.native.filesystem.TestFilePermissions
+	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePath,
+	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePermissions
 )
 class TestFileSystem extends FsTest {
 
