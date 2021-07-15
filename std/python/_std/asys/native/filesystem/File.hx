@@ -54,6 +54,8 @@ class File {
 					throw new FsException(CustomError('File.read(): negative position'), path);
 				if(offset < 0 || offset > buffer.length)
 					throw new FsException(CustomError('File.read(): offset out of buffer bounds'), path);
+				if(offset + length > buffer.length)
+					length = buffer.length - offset;
 				try {
 					handle.seek(Int64.toInt(position), SeekSet);
 					var b = handle.read(length);

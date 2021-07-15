@@ -26,6 +26,8 @@ import python.Exceptions.OSError;
 import python.Tuple;
 import python.Dict;
 import python.lib.io.IOBase;
+import python.lib.os.DirEntry;
+import python.NativeIterator.NativeIteratorRaw;
 
 extern class Stat {
 	var st_mode:Int;
@@ -50,6 +52,10 @@ extern class Stat {
 	@:optional var st_rsize:Int;
 	@:optional var st_creator:Int;
 	@:optional var st_type:Int;
+}
+
+typedef ScandirIterator = NativeIteratorRaw<DirEntry> & {
+	function close():Void; // since Python 3.6
 }
 
 @:pythonImport("os")
@@ -152,7 +158,5 @@ extern class Os {
 
 	static function lseek(fd:String, pos:Int, how:Int):Void;
 
-	// static function read(fd:String, n:Int):Bytearray;
-
-	// static function write(fd:String, str:Bytearrat):Int;
+	static function scandir(?path:String):ScandirIterator;
 }

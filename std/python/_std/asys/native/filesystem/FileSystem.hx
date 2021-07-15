@@ -123,11 +123,17 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Open directory for listing.
-	**/
 	static public function openDirectory(path:FilePath, maxBatchSize:Int = 64, callback:Callback<Directory>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					new Directory(Os.scandir(path), path, maxBatchSize);
+				} catch(e) {
+					throw new FsException(CustomError(e.toString()), path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
@@ -205,10 +211,11 @@ class FileSystem {
 				try {
 					if(overwrite)
 						Os.replace(oldPath, newPath)
-					else
+					else {
 						if(Os.name != 'nt' && Path.exists(newPath))
 							throw new FsException(FileExists, newPath);
 						Os.rename(oldPath, newPath);
+					}
 					NoData;
 				} catch(e:FsException) {
 					throw e;
