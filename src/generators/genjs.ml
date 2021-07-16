@@ -287,9 +287,9 @@ let write_mappings ctx smap =
 	output_string channel "{\n";
 	output_string channel "\"version\":3,\n";
 	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"file:///\",\n");
+	output_string channel ("\"sourceRoot\":\"\",\n");
 	output_string channel ("\"sources\":[" ^
-		(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
+		(String.concat "," (List.map (fun s -> "\"file:///" ^ to_url s ^ "\"") sources)) ^
 		"],\n");
 	if Common.defined ctx.com Define.SourceMapContent then begin
 		output_string channel ("\"sourcesContent\":[" ^
