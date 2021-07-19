@@ -1608,9 +1608,15 @@ module TexprConverter = struct
 								report_not_exhaustive !v_lookup e [(ConConst TNull,dt.dt_pos),dt.dt_pos]
 						| Some e_then ->
 							let e_else = loop dt_rec params dt2 in
-							Option.map (fun e_else ->
-								mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
-							) e_else
+							begin match e_else with
+							| None ->
+								if toplevel then
+									Some (mk (TIf(e_cond,e_then,None)) t_switch e_then.epos)
+								else
+									report_not_exhaustive !v_lookup e []
+							| Some e_else ->
+								Some (mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos))
+							end
 						end
 					| Bind(bl,dt) ->
 						let el = List.map (fun (v,p,e) ->
