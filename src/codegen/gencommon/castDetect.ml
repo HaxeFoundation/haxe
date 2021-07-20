@@ -911,8 +911,10 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 								[fn funct a]
 							| TInst({ cl_path = (_,"NativeArray") },[funct]),_ ->
 								List.map (fn funct) applied
-							| _ ->
-								raise (Invalid_argument "Unexpected rest arguments type")
+							| _, a :: applied ->
+								(fn funct a) :: loop args_ft applied
+							| _, [] ->
+								[]
 							)
 						| (_,_,funct)::args_ft, a::applied ->
 							(fn funct a) :: loop args_ft applied
