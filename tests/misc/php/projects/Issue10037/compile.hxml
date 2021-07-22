@@ -1,0 +1,6 @@
+-cp src
+-main Main
+-dce full
+-php bin
+-D php-front=public/index.php
+--cmd php bin/public/index.php

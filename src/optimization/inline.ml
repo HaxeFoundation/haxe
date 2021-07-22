@@ -114,10 +114,10 @@ let api_inline ctx c field params p =
 	let mk_typeexpr path =
 		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
-		ExtList.List.find_map (function
+		Option.get (ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
 			| _ -> None
-		) m.m_types
+		) m.m_types)
 	in
 
 	let eJsSyntax () = mk_typeexpr (["js"],"Syntax") in
@@ -483,8 +483,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			set_inlined_vars args1 args2;
 			Some vthis
 
-	method finalize config e tl tret p =
-		let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
+	method finalize e tl tret has_params map_type p =
 		if self#had_side_effect then List.iter (fun (l,e) ->
 			if self#might_be_affected e && not (ExtType.has_value_semantics e.etype) then l.i_force_temp <- true;
 		) _inlined_vars;
@@ -650,6 +649,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| None -> raise Exit
 		| Some e -> Some e)
 	with Exit ->
+	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
+	let params = inline_rest_params ctx f params map_type p in
 	let state = new inline_state ctx ethis params cf f p in
 	let vthis_opt = state#initialize in
 	let opt f = function
@@ -848,7 +849,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| _ -> []
 	in
 	let tl = arg_types params f.tf_args in
-	let e = state#finalize config e tl tret p in
+	let e = state#finalize e tl tret has_params map_type p in
 	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
 		let se t = s_expr_pretty true t true (s_type (print_context())) in
 		print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
@@ -882,3 +883,45 @@ and type_inline_ctor ctx c cf tf ethis el po =
 			{tf with tf_expr = mk (TBlock (field_inits @ bl)) ctx.t.tvoid c.cl_pos}
 	in
 	type_inline ctx cf tf ethis el ctx.t.tvoid None po true
+
+and inline_rest_params ctx f params map_type p =
+	if not ctx.com.config.pf_supports_rest_args then
+		params
+	else
+		let rec loop args params =
+			match args, params with
+			(* last argument expects rest parameters *)
+			| [(v,_)], params when ExtType.is_rest (follow v.v_type) ->
+				(match params with
+				(* In case of `...rest` just use `rest` *)
+				| [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
+				(* In other cases: `haxe.Rest.of([param1, param2, ...])` *)
+				| _ ->
+					match follow (map_type v.v_type) with
+					| TAbstract ({ a_path = ["haxe"],"Rest"; a_impl = Some c } as a, [t]) ->
+						let cf =
+							try PMap.find "of" c.cl_statics
+							with Not_found -> die ~p:c.cl_name_pos "Can't find haxe.Rest.of function" __LOC__
+						and p = punion_el p params in
+						(* [param1, param2, ...] *)
+						(* If we don't know the type (e.g. the rest argument is a field type parameter) then we need
+						   to find a common type via unify_min. *)
+						let t_params = match follow t with
+							| TMono _ -> unify_min ctx params
+							| _ -> t
+						in
+						let array = mk (TArrayDecl params) (ctx.t.tarray t_params) p in
+						(* haxe.Rest.of(array) *)
+						let e = make_static_call ctx c cf (apply_params a.a_params [t]) [array] (TAbstract(a,[t_params])) p in
+						[e]
+					| _ ->
+						die ~p:v.v_pos "Unexpected rest arguments type" __LOC__
+				)
+			| a :: args, e :: params ->
+				e :: loop args params
+			| [], params ->
+				params
+			| _ :: _, [] ->
+				[]
+		in
+		loop f.tf_args params

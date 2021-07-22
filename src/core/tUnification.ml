@@ -64,13 +64,23 @@ let default_unification_context = {
 module Monomorph = struct
 	let create () = {
 		tm_type = None;
-		tm_constraints = [];
+		tm_down_constraints = [];
+		tm_up_constraints = []
 	}
 
 	(* constraining *)
 
-	let add_constraint m constr =
-		m.tm_constraints <- constr :: m.tm_constraints
+	let add_up_constraint m ((t,name) as constr) =
+		m.tm_up_constraints <- constr :: m.tm_up_constraints;
+		match t with
+		| TMono m2 -> m2.tm_down_constraints <- MMono (m2,name) :: m2.tm_down_constraints
+		| _ -> ()
+
+	let add_down_constraint m constr =
+		m.tm_down_constraints <- constr :: m.tm_down_constraints;
+		match constr with
+		| MMono (m2,s) -> m2.tm_up_constraints <- (TMono m,s) :: m.tm_up_constraints
+		| _ -> ()
 
 	let constraint_of_type name t = match follow t with
 		| TMono m2 ->
@@ -85,11 +95,11 @@ module Monomorph = struct
 			[MType(t,name)]
 
 	let constrain_to_type m name t =
-		List.iter (add_constraint m) (constraint_of_type name t)
+		List.iter (add_down_constraint m) (constraint_of_type name t)
 
 	(* Note: This function is called by printing and others and should thus not modify state. *)
 
-	let rec classify_constraints' m =
+	let rec classify_down_constraints' m =
 		let types = DynArray.create () in
 		let fields = ref PMap.empty in
 		let is_open = ref false in
@@ -98,7 +108,7 @@ module Monomorph = struct
 			| MMono(m2,name) ->
 				begin match m2.tm_type with
 				| None ->
-					let more_monos,kind = classify_constraints' m2 in
+					let more_monos,kind = classify_down_constraints' m2 in
 					monos := !monos @ more_monos;
 					begin match kind with
 					| CUnknown ->
@@ -106,7 +116,7 @@ module Monomorph = struct
 						monos := m2 :: !monos;
 					| _ ->
 						(* Recursively inherit constraints. *)
-						List.iter check m2.tm_constraints
+						List.iter check m2.tm_down_constraints
 					end
 				| Some t ->
 					List.iter (fun constr -> check constr) (constraint_of_type name t)
@@ -119,20 +129,27 @@ module Monomorph = struct
 			| MEmptyStructure ->
 				is_open := true
 		in
-		List.iter check m.tm_constraints;
+		List.iter check m.tm_down_constraints;
 		let kind =
-			if DynArray.length types > 0 then
-				CTypes (DynArray.to_list types)
-			else if not (PMap.is_empty !fields) || !is_open then
-				CStructural(!fields,!is_open)
+			let k1 =
+				if DynArray.length types > 0 then
+					CTypes (DynArray.to_list types)
+				else
+					CUnknown
+			in
+			if not (PMap.is_empty !fields) || !is_open then
+				let k2 = CStructural(!fields,!is_open) in
+				match k1 with
+				| CTypes _ -> CMixed [k1; k2]
+				| _ -> k2
 			else
-				CUnknown
+				k1
 		in
 		!monos,kind
 
-	let classify_constraints m = snd (classify_constraints' m)
+	let classify_down_constraints m = snd (classify_down_constraints' m)
 
-	let check_constraints constr t =
+	let rec check_down_constraints constr t =
 		match constr with
 		| CUnknown ->
 			()
@@ -146,17 +163,47 @@ module Monomorph = struct
 		| CStructural(fields,is_open) ->
 			let t2 = mk_anon ~fields (ref Closed) in
 			(!unify_ref) default_unification_context t t2
+		| CMixed l ->
+			List.iter (fun constr -> check_down_constraints constr t) l
+
+	let rec collect_up_constraints m =
+		let rec collect m acc =
+			List.fold_left (fun acc (t,name) ->
+				match t with
+				| TMono m2 ->
+					(match m2.tm_type with
+					| Some t ->
+						(match follow t with
+						| TMono _ -> acc
+						| _ -> (t,name) :: acc)
+					| None -> collect m2 acc
+					)
+				| _ -> (t,name) :: acc
+			) acc m.tm_up_constraints
+		in
+		collect m []
+
+	let check_up_constraints m t =
+		List.iter (fun (t2,constraint_name) ->
+			let check() =
+				(!unify_ref) default_unification_context t2 t
+			in
+			match constraint_name with
+			| Some name -> check_constraint name check
+			| None -> check()
+		) (collect_up_constraints m)
 
 	(* binding *)
 
 	let do_bind m t =
 		(* assert(m.tm_type = None); *) (* TODO: should be here, but matcher.ml does some weird bind handling at the moment. *)
 		m.tm_type <- Some t;
-		m.tm_constraints <- []
+		m.tm_down_constraints <- [];
+		m.tm_up_constraints <- []
 
 	let rec bind m t =
 		begin match t with
-		| TAnon _ when List.mem MOpenStructure m.tm_constraints ->
+		| TAnon _ when List.mem MOpenStructure m.tm_down_constraints ->
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
 			   fields. This is kinda weird, but that's how it has always worked. *)
 			constrain_to_type m None t;
@@ -164,34 +211,32 @@ module Monomorph = struct
 		| TMono m2 ->
 			if m != m2 then begin match m2.tm_type with
 			| None ->
-				List.iter (fun constr -> m2.tm_constraints <- constr :: m2.tm_constraints) m.tm_constraints;
+				List.iter (add_down_constraint m2) m.tm_down_constraints;
+				List.iter (add_up_constraint m2) m.tm_up_constraints;
 				do_bind m t;
 			| Some t ->
 				bind m t
 			end
 		| _ ->
+			check_up_constraints m t;
 			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
 			   against before checking the constraints. *)
 			m.tm_type <- Some t;
-			let monos,kind = classify_constraints' m in
-			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_constraints kind t) ();
-			(* If the monomorph we're binding to has other yet unbound monomorphs, constrain them to our target type (issue #9640) .*)
-			List.iter (fun m2 ->
-				constrain_to_type m2 None t;
-			) monos;
+			let kind = classify_down_constraints m in
+			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_down_constraints kind t) ();
 			do_bind m t
 		end
 
 	and close m = match m.tm_type with
 		| Some _ ->
 			()
-		| None -> match classify_constraints m with
+		| None -> match classify_down_constraints m with
 			| CUnknown ->
 				()
 			| CTypes [(t,_)] ->
 				do_bind m t;
 				()
-			| CTypes _ ->
+			| CTypes _ | CMixed _ ->
 				()
 			| CStructural(fields,_) ->
 				let check_recursion cf =
@@ -216,7 +261,7 @@ module Monomorph = struct
 	let spawn_constrained_monos map params =
 		let checks = DynArray.create () in
 		let monos = List.map (fun (s,t) ->
-			let mono = create() in
+			let mono = create () in
 			begin match follow t with
 				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->
 					DynArray.add checks (mono,constr,s_type_path path)
@@ -1142,4 +1187,4 @@ end
 ;;
 unify_ref := unify_custom;;
 unify_min_ref := UnifyMinT.unify_min;;
-monomorph_classify_constraints_ref := Monomorph.classify_constraints
+monomorph_classify_constraints_ref := Monomorph.classify_down_constraints

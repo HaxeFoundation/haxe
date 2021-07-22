@@ -32,7 +32,7 @@ import php.SuperGlobal.*;
 	This class is used for accessing the local Web server and the current
 	client request and information.
 **/
-@:deprecated('php.Web is deprecated and will be removed from standard library in Haxe 4.2. See php.SuperGlobal and php.Global for alternatives.')
+@:deprecated('php.Web is deprecated and will be removed from standard library. See php.SuperGlobal and php.Global for alternatives.')
 class Web {
 	/**
 		Returns the GET and POST parameters.

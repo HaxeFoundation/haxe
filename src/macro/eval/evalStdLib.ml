@@ -1741,25 +1741,47 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.lock mutex.mmutex;
-		mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		(match mutex.mowner with
+		| None ->
+			Mutex.lock mutex.mmutex;
+			mutex.mowner <- Some (thread_id,1)
+		| Some (id,n) ->
+			if id = thread_id then
+				mutex.mowner <- Some (thread_id,n + 1)
+			else begin
+				Mutex.lock mutex.mmutex;
+				mutex.mowner <- Some (thread_id,1)
+			end
+		);
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		mutex.mowner <- None;
-		Mutex.unlock mutex.mmutex;
+		(match mutex.mowner with
+		| Some (id,n) when n > 1 ->
+			mutex.mowner <- Some (id,n - 1)
+		| _ ->
+			mutex.mowner <- None;
+			Mutex.unlock mutex.mmutex;
+		);
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		if Mutex.try_lock mutex.mmutex then begin
-			mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		match mutex.mowner with
+		| Some (id,n) when id = thread_id ->
+			mutex.mowner <- Some (thread_id,n + 1);
 			vtrue
-		end else
-			vfalse
+		| _ ->
+			if Mutex.try_lock mutex.mmutex then begin
+				mutex.mowner <- Some (thread_id,1);
+				vtrue
+			end else
+				vfalse
 	)
 end
 
@@ -1860,19 +1882,26 @@ module StdReflect = struct
 		let name = hash (decode_vstring name).sstring in
 		match vresolve o with
 		| VObject o ->
-			let found = ref false in
-			let fields = IntMap.fold (fun name' i acc ->
-				if name = name' then begin
-					found := true;
-					acc
+			begin match o.oproto with
+			| OProto proto ->
+				let found = ref false in
+				let fields = IntMap.fold (fun name' i acc ->
+					if name = name' then begin
+						found := true;
+						acc
+					end else
+						(name',o.ofields.(i)) :: acc
+				) proto.pinstance_names [] in
+				if !found then begin
+					update_object_prototype o fields;
+					vtrue
 				end else
-					(name',o.ofields.(i)) :: acc
-			) o.oproto.pinstance_names [] in
-			if !found then begin
-				update_object_prototype o fields;
-				vtrue
-			end else
-				vfalse
+					vfalse
+			| ODictionary d ->
+				let has = IntMap.mem name d in
+				if has then o.oproto <- ODictionary (IntMap.remove name d);
+				vbool has
+			end
 		| _ ->
 			vfalse
 	)
@@ -1909,7 +1938,11 @@ module StdReflect = struct
 	let hasField = vfun2 (fun o field ->
 		let name = hash (decode_vstring field).sstring in
 		let b = match vresolve o with
-			| VObject o -> IntMap.mem name o.oproto.pinstance_names
+			| VObject o ->
+				begin match o.oproto with
+				| OProto proto -> IntMap.mem name proto.pinstance_names
+				| ODictionary d -> IntMap.mem name d
+				end
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
 			| _ -> unexpected_value o "object"
@@ -1938,7 +1971,7 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		(try set_field o (hash (decode_vstring name).sstring) v with Not_found -> ()); vnull
+		(try set_field_runtime o (hash (decode_vstring name).sstring) v with Not_found -> ()); vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
@@ -1947,7 +1980,7 @@ module StdReflect = struct
 		let vset = field o name_set in
 		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			(try set_field o (hash name.sstring) v with Not_found -> ());
+			(try set_field_runtime o (hash name.sstring) v with Not_found -> ());
 			vnull
 		end
 	)
@@ -2175,8 +2208,8 @@ module StdStd = struct
 	)
 
 	let random = vfun1 (fun v ->
-		let v = decode_int v in
-		vint (Random.State.int random (if v <= 0 then 1 else v))
+		let v = decode_i32 v in
+		vint32 (Random.State.int32 random (if v <= Int32.zero then Int32.one else v))
 	);
 end
 
@@ -3075,8 +3108,9 @@ end
 
 module StdNativeString = struct
 	let from_string = vfun1 (fun v ->
-		let s = decode_vstring v in
-		vnative_string s.sstring
+		match decode_optional decode_vstring v with
+		| None -> vnull
+		| Some s -> vnative_string s.sstring
 	)
 
 	let from_bytes = vfun1 (fun v ->

@@ -653,7 +653,6 @@ let configure gen ft =
 	in
 	gen.gexpr_filters#add name (PCustom priority) run
 
-
 (*
 	this submodule will provide the default implementation for the C# and Java targets.
 
@@ -853,7 +852,7 @@ struct
 
 		let dynamic_fun_call call_expr =
 			let tc, params = match call_expr.eexpr with
-				| TCall(tc, params) -> tc, params
+				| TCall(tc, params) -> tc,wrap_rest_args gen tc.etype params tc.epos
 				| _ -> die "" __LOC__
 			in
 			let ct = gen.greal_type call_expr.etype in

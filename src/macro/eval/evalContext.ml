@@ -290,7 +290,8 @@ and context = {
 }
 
 module GlobalState = struct
-	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "" __LOC__)
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "GlobalState.get_ctx_ref called before initialization" __LOC__)
+	let initialized = ref false
 
 	let sid : int ref = ref (-1)
 
@@ -307,7 +308,9 @@ module GlobalState = struct
 end
 
 let get_ctx () = (!GlobalState.get_ctx_ref)()
-let select ctx = GlobalState.get_ctx_ref := (fun() -> ctx)
+let select ctx =
+	GlobalState.initialized := true;
+	GlobalState.get_ctx_ref := (fun() -> ctx)
 
 let s_debug_state = function
 	| DbgRunning -> "DbgRunning"
@@ -350,10 +353,13 @@ let rec kind_name eval kind =
 
 let call_function f vl = f vl
 
-let object_fields o =
-	IntMap.fold (fun key index acc ->
-		(key,(o.ofields.(index))) :: acc
-	) o.oproto.pinstance_names []
+let object_fields o = match o.oproto with
+	| OProto proto ->
+		IntMap.fold (fun key index acc ->
+			(key,(o.ofields.(index))) :: acc
+		) proto.pinstance_names []
+	| ODictionary d ->
+		IntMap.fold (fun k v acc -> (k,v) :: acc) d []
 
 let instance_fields i =
 	IntMap.fold (fun name key acc ->

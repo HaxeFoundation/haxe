@@ -33,6 +33,7 @@ open EvalHash
 open EvalEncode
 open EvalField
 open MacroApi
+open Extlib_leftovers
 
 (* Create *)
 
@@ -122,7 +123,7 @@ let create com api is_macro =
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
-			oproto = fake_proto key_eval_toplevel;
+			oproto = OProto (fake_proto key_eval_toplevel);
 		};
 		eval = eval;
 		evals = evals;
@@ -430,6 +431,10 @@ let rec value_to_expr v p =
 		in
 		make_path mt
 	in
+	let make_map_entry e_key v =
+		let e_value = value_to_expr v p in
+		(EBinop(OpArrow,e_key,e_value),p)
+	in
 	match vresolve v with
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
@@ -463,6 +468,24 @@ let rec value_to_expr v p =
 				let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
 				(ECall (epath, args), p)
 		end
+	| VInstance {ikind = IIntMap m} ->
+		let el = IntHashtbl.fold (fun k v acc ->
+			let e_key = (EConst (Int (string_of_int k)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IStringMap m} ->
+		let el = StringHashtbl.fold (fun k (_,v) acc ->
+			let e_key = (EConst (String(k,SDoubleQuotes)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IObjectMap m} ->
+		let el = Hashtbl.fold (fun k v acc ->
+			let e_key = value_to_expr k p in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s

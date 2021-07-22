@@ -236,4 +236,15 @@ class ServerTests extends TestCase {
 	// 	var content = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
 	// 	Assert.isTrue(content.indexOf("this1.use(v1)") != -1);
 	// }
+
+	function test9918() {
+		vfs.putContent("Issue9918.hx", getTemplate("Issue9918.hx"));
+		var args = ["-main", "Issue9918.hx"];
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+	}
 }

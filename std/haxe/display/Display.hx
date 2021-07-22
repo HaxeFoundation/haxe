@@ -247,6 +247,7 @@ typedef DisplayModuleType = {
 	var doc:JsonDoc;
 	var isExtern:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var kind:DisplayModuleTypeKind;
 }
 
@@ -505,6 +506,7 @@ typedef HoverDisplayItemOccurence<T> = DisplayItemOccurrence<T> & {
 		var ?name:{
 			var name:String;
 			var kind:HoverExpectedNameKind;
+			var ?doc:String;
 		};
 	};
 }

@@ -1182,6 +1182,12 @@ let implement_invokeField ctx slow_invoke cl =
 					mk_this_call cf (List.map (fun (name,optional,t) ->
 						let idx = make_int ctx.rcf_gen.gcon.basic !i pos in
 						let ret = { eexpr = TArray(dyn_arg_local, idx); etype = t_dynamic; epos = pos } in
+						let ret =
+							if ExtType.is_rest t then
+								{ ret with eexpr = TUnop(Spread,Prefix,{ ret with etype = t }) }
+							else
+								ret
+						in
 						incr i;
 						if optional then
 							let condition = binop OpGt dyn_arg_length idx ctx.rcf_gen.gcon.basic.tbool pos in

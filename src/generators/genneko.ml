@@ -189,6 +189,7 @@ and gen_unop ctx p op flag e =
 	| Not -> call p (builtin p "not") [gen_expr ctx e]
 	| Neg -> (EBinop ("-",int p 0, gen_expr ctx e),p)
 	| NegBits -> (EBinop ("-",int p (-1), gen_expr ctx e),p)
+	| Spread -> die ~p:e.epos "Unhandled spread operator" __LOC__
 
 and gen_call ctx p e el =
 	match e.eexpr , el with
@@ -266,7 +267,7 @@ and gen_expr ctx e =
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
 		gen_call ctx p e el
-	| TNew (c,_,params) ->
+	| TNew (c,tl,params) ->
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e

@@ -197,6 +197,8 @@ let safe_call eval f a =
 		eval.debug_state <- old;
 		raise exc
 
+exception NoValueExpr
+
 let rec expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
@@ -210,17 +212,17 @@ let rec expr_to_value ctx env e =
 				| Ident s ->
 					let value = resolve_ident ctx env s in
 					value
-				| _ -> raise Exit
+				| _ -> raise NoValueExpr
 			end
 		| EArray(e1,eidx) ->
 			let v1 = loop e1 in
 			let vidx = loop eidx in
-			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
+			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise NoValueExpr in
 			begin match v1 with
 				| VArray va -> EvalArray.get va idx
 				| VVector vv -> Array.get vv idx
 				| VEnumValue ev -> Array.get ev.eargs idx
-				| _ -> raise Exit
+				| _ -> raise NoValueExpr
 			end
 		| EField(e1,s) ->
 			let v1 = loop e1 in
@@ -257,18 +259,20 @@ let rec expr_to_value ctx env e =
 				let v2 = loop e2 in
 				write_expr ctx env e1 v2;
 			| OpAssignOp op ->
-				raise Exit (* Nobody does that, right? *)
+				raise NoValueExpr
 			| OpBoolAnd ->
 				if is_true (loop e1) then loop e2
 				else VFalse
 			| OpBoolOr ->
 				if is_true (loop e1) then VTrue
 				else loop e2
+			| OpInterval | OpArrow | OpIn ->
+				raise NoValueExpr
 			| _ ->
 				let v1 = loop e1 in
 				let v2 = loop e2 in
 				let p = pos e in
-				(try get_binop_fun op p with _ -> raise Exit) v1 v2
+				(get_binop_fun op p) v1 v2
 			end
 		| EUnop(op,flag,e1) ->
 			begin match op with
@@ -281,12 +285,12 @@ let rec expr_to_value ctx env e =
 				begin match loop e1 with
 				| VFloat f -> VFloat (-.f)
 				| VInt32 i -> vint32 (Int32.neg i)
-				| _ -> raise Exit
+				| _ -> raise NoValueExpr
 				end
 			| NegBits ->
 				op_sub (pos e) (vint32 (Int32.minus_one)) (loop e1)
-			| Increment | Decrement ->
-				raise Exit
+			| Increment | Decrement | Spread ->
+				raise NoValueExpr
 			end
 		| ECall(e1,el) ->
 			begin match fst e1 with
@@ -359,8 +363,8 @@ let rec expr_to_value ctx env e =
 			let vc = loop2 ctx.toplevel ["Type";"createInstance"] in
 			safe_call env.env_eval (call_value vc) [v1;encode_array vl]
 		| ETry _ | ESwitch _ | EFunction _ | EFor _ | EDisplay _
-		| EDisplayNew _ | ECast(_,Some _) | EIs _ ->
-			raise Exit
+		| ECast(_,Some _) | EIs _ ->
+			raise NoValueExpr
 	in
 	loop e
 
@@ -394,23 +398,23 @@ and write_expr ctx env expr value =
 				env.env_locals.(slot) <- value;
 				value
 			with Not_found ->
-				raise Exit
+				raise NoValueExpr
 			end
 		| EArray(e1,e2) ->
 			let v1 = expr_to_value ctx env e1 in
 			let vidx = expr_to_value ctx env e2 in
-			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
+			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise NoValueExpr in
 			begin match v1 with
 				| VArray va -> EvalArray.set va idx value
 				| VVector vv -> Array.set vv idx value
 				| VEnumValue ev -> Array.set ev.eargs idx value
-				| _ -> raise Exit
+				| _ -> raise NoValueExpr
 			end;
 			value
 		| _ ->
-			raise Exit
+			raise NoValueExpr
 	end
 
 let expr_to_value_safe ctx env e =
 	try expr_to_value ctx env e
-	with Exit -> VNull
+	with NoValueExpr -> VNull

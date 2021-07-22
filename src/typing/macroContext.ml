@@ -203,15 +203,6 @@ let make_macro_api ctx p =
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
 		);
-		MacroApi.type_macro_expr = (fun e ->
-			let e = typing_timer ctx true (fun() -> type_expr ctx e WithType.value) in
-			let rec loop e = match e.eexpr with
-				| TField(_,FStatic(c,({cf_kind = Method _} as cf))) -> ignore(!load_macro_ref ctx false c.cl_path cf.cf_name e.epos)
-				| _ -> Type.iter loop e
-			in
-			loop e;
-			e
-		);
 		MacroApi.flush_context = (fun f ->
 			typing_timer ctx true f
 		);
@@ -394,6 +385,7 @@ let make_macro_api ctx p =
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
+		MacroApi.display_error = Typecore.display_error ctx;
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -600,6 +592,18 @@ type macro_arg_type =
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx (mode = MDisplay) cpath f p in
+	let margs =
+		(*
+			Replace "rest:haxe.Rest<Expr>" in macro signatures with "rest:Array<Expr>".
+			This allows to avoid handling special cases for rest args in macros during typing.
+		*)
+		match List.rev margs with
+		| (n,o,t) :: margs_rev ->
+			(match follow t with
+			| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]) -> List.rev ((n,o,mctx.t.tarray t1) :: margs_rev)
+			| _ -> margs)
+		| _ -> margs
+	in
 	let mpos = mfield.cf_pos in
 	let ctexpr = mk_type_path (["haxe";"macro"],"Expr") in
 	let expr = Typeload.load_instance mctx (ctexpr,p) false in
@@ -657,7 +661,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			try unify_raise mctx t expr p; (n, o, t_dynamic), MAExpr
 			with Error (Unify _,_) -> match follow t with
 				| TFun _ ->
-					(n,o,t_dynamic), MAFunction
+					(n,o,t), MAFunction
 				| _ ->
 					(n,o,t), MAOther
 			) margs in
@@ -669,6 +673,11 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let constants = List.map (fun e ->
 			let p = snd e in
 			let e =
+				let rec is_function e = match fst e with
+					| EFunction _ -> true
+					| EParenthesis e1 | ECast(e1,_) | EMeta(_,e1) -> is_function e1
+					| _ -> false
+				in
 				if Texpr.is_constant_value ctx.com.basic e then
 					(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
 					let rec loop e =
@@ -677,6 +686,10 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						| _ -> Ast.map_expr loop e
 					in
 					loop e
+				else if is_function e then
+					(* If we pass a function expression we don't want to type it as part of `unify_call_args` because that result just gets
+					   discarded. Use null here so it passes, then do the actual typing in the MAFunction part below. *)
+					(EConst (Ident "null"),p)
 				else
 					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
 					(ECheckType ((EConst (Ident "null"),p), (CTPath ctexpr,p)), p)
@@ -685,8 +698,8 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false) in
-		List.map2 (fun (_,mct) e ->
+		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false) in
+		List.map2 (fun ((n,_,t),mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
 				| TArray ({ eexpr = TArrayDecl [e] }, { eexpr = TConst (TInt index) }) -> List.nth el (Int32.to_int index), e
@@ -699,7 +712,8 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			| MAExpr ->
 				Interp.encode_expr e
 			| MAFunction ->
-				let e = ictx.Interp.curapi.MacroApi.type_macro_expr e in
+				let e = type_expr mctx e (WithType.with_argument t n) in
+				unify mctx e.etype t e.epos;
 				begin match Interp.eval_expr ictx e with
 				| Some v -> v
 				| None -> Interp.vnull
@@ -757,7 +771,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
 	mctx.curclass <- null_class;
-	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false in
+	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =

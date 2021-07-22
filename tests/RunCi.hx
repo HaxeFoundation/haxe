@@ -48,8 +48,6 @@ class RunCi {
 				var args = switch (ci) {
 					case null:
 						[];
-					case AzurePipelines:
-						["-D","azure"];
 					case GithubActions:
 						["-D","github"];
 				}

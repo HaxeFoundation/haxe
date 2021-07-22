@@ -3,7 +3,7 @@
     # mkdir ./linuxBinaries
     # curl -sSL https://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz -o ./linuxBinaries/haxe_bin.tar.gz
 
-    sudo apt install -qqy libmbedtls-dev
+    sudo apt install -qqy libmbedtls-dev libgtk2.0-0
 
     set -ex
     tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
@@ -29,9 +29,9 @@
     sudo apt update -qqy
     sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
-- name: Flash setup
-  if: matrix.target == 'flash9'
-  run: export DISPLAY=:99.0
+# - name: Flash setup
+#   if: matrix.target == 'flash9'
+#   run: export DISPLAY=:99.0
 
 - name: Test
   if: success() && !(matrix.SAUCE && matrix.SAUCE_ACCESS_KEY)

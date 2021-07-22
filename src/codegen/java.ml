@@ -215,6 +215,17 @@ let show_in_completion ctx jc =
 		| ("java" | "javax" | "org") :: _ -> true
 		| _ -> false
 
+(**
+	`haxe.Rest<T>` auto-boxes primitive types.
+	That means we can't use it as varargs for extern methods.
+	E.g externs with `int` varargs are represented as `int[]` at run time
+	while `haxe.Rest<Int>` is actually `java.lang.Integer[]`.
+*)
+let is_eligible_for_haxe_rest_args arg_type =
+	match arg_type with
+	| TByte | TChar | TDouble | TFloat | TInt | TLong | TShort | TBool -> false
+	| _ -> true
+
 let convert_java_enum ctx p pe =
 	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath,SDoubleQuotes) ), p], p ]) in
 	let data = ref [] in
@@ -254,6 +265,7 @@ let convert_java_enum ctx p pe =
 		in
 		let jf_constant = ref field.jf_constant in
 		let readonly = ref false in
+		let is_varargs = ref false in
 
 		List.iter (function
 			| JPublic -> cff_access := (APublic,null_pos) :: !cff_access
@@ -274,7 +286,7 @@ let convert_java_enum ctx p pe =
 			(* | JSynchronized -> cff_meta := (Meta.Synchronized, [], p) :: !cff_meta *)
 			| JVolatile -> cff_meta := (Meta.Volatile, [], p) :: !cff_meta
 			| JTransient -> cff_meta := (Meta.Transient, [], p) :: !cff_meta
-			(* | JVarArgs -> cff_meta := (Meta.VarArgs, [], p) :: !cff_meta *)
+			| JVarArgs -> is_varargs := true
 			| JAbstract when not is_interface ->
 				cff_access := (AAbstract, p) :: !cff_access
 			| _ -> ()
@@ -341,9 +353,17 @@ let convert_java_enum ctx p pe =
 					| c :: others -> ctx.jtparams <- (c @ field.jf_types) :: others
 					| [] -> ctx.jtparams <- field.jf_types :: []);
 					let i = ref 0 in
+					let args_count = List.length args in
 					let args = List.map (fun s ->
 						incr i;
-						(local_names !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
+						let hx_sig =
+							match s with
+							| TArray (s1,_) when !is_varargs && !i = args_count && is_eligible_for_haxe_rest_args s1 ->
+								mk_type_path ctx (["haxe"], "Rest") [TPType (convert_signature ctx p s1,null_pos)]
+							| _ ->
+								convert_signature ctx null_pos s
+						in
+						(local_names !i,null_pos), false, [], Some(hx_sig,null_pos), None
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
 					cff_access := (AOverload,p) :: !cff_access;

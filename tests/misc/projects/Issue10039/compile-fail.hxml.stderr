@@ -1,0 +1,1 @@
+Main.hx:2: characters 41-43 : Type parameters of multi type abstracts must be known (for haxe.IMap<Unknown<0> : String, Int>)

@@ -190,6 +190,16 @@ class TestDCE extends Test {
 		var c = Type.getClass(me);
 		hf(c, "get_bar");
 	}
+
+	public function testIssue10162() {
+		eq('bar', foo(ClassWithBar));
+	}
+	static function foo<T:Class<Dynamic> & { function bar():String; }>(cls:T)
+		return cls.bar();
+}
+
+class ClassWithBar {
+	static public function bar() return 'bar';
 }
 
 class UsedConstructed {

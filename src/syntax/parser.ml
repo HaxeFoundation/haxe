@@ -67,6 +67,7 @@ exception TypePath of string list * (string * bool) option * bool (* in import *
 exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
 
 let error_msg = function
+	| Unexpected (Kwd k) -> "Unexpected keyword \""^(s_keyword k)^"\""
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
@@ -224,7 +225,8 @@ let decl_flag_to_module_field_flag (flag,p) = match flag with
 	| DDynamic -> Some (ADynamic,p)
 	| DInline -> Some (AInline,p)
 	| DOverload -> Some (AOverload,p)
-	| DExtern | DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
+	| DExtern -> Some (AExtern,p)
+	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
 
 let serror() = raise (Stream.Error "")
 

@@ -3,7 +3,6 @@ package runci;
 import sys.FileSystem;
 
 enum Ci {
-	AzurePipelines;
 	GithubActions;
 }
 
@@ -22,9 +21,7 @@ class Config {
 	static public final threadsDir = cwd + "threads/";
 
 	static public final ci:Null<Ci> =
-		if (Sys.getEnv("TF_BUILD") == "True")
-			AzurePipelines;
-		else if (Sys.getEnv("GITHUB_WORKSPACE") != null)
+		if (Sys.getEnv("GITHUB_WORKSPACE") != null)
 			GithubActions;
 		else
 			null;
@@ -34,7 +31,6 @@ class Config {
 	}
 
 	static public final colorSupported = switch [ci, systemName] {
-		case [AzurePipelines, _]: true; // not sure
 		case [GithubActions, _]: true;
 		case [_, "Linux" | "Mac"]: true;
 		case [_, "Windows"]: false;

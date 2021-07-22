@@ -245,6 +245,11 @@ enum Unop {
 		`~`
 	**/
 	OpNegBits;
+
+	/**
+		`...`
+	**/
+	OpSpread;
 }
 
 /**
@@ -539,11 +544,6 @@ enum ExprDef {
 		Used internally to provide completion.
 	**/
 	EDisplay(e:Expr, displayKind:DisplayKind);
-
-	/**
-		Used internally to provide completion.
-	**/
-	EDisplayNew(t:TypePath);
 
 	/**
 		A `(econd) ? eif : eelse` expression.

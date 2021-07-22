@@ -66,7 +66,10 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 				*)
 				EBlock [],p
 			else
-				error "Function body required" p
+				if fmode = FunMember && has_class_flag ctx.curclass CAbstract then
+					error "Function body or abstract modifier required" p
+				else
+					error "Function body required" p
 		| Some e -> e
 	in
 	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
@@ -151,7 +154,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 					{ e with eexpr = TBlock (ev :: l) }
 				else begin
 					let rec has_v e = match e.eexpr with
-						| TLocal v' when v == v -> true
+						| TLocal v' when v' == v -> true
 						| _ -> check_expr has_v e
 					in
 					let rec loop el = match el with

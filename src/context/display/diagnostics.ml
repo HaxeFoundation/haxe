@@ -7,7 +7,6 @@ open Display
 open DisplayTypes.DisplayMode
 open DisplayTypes
 open DisplayException
-open DiagnosticsTypes
 
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
@@ -98,16 +97,8 @@ let prepare_field dctx com cf = match cf.cf_expr with
 		check_other_things com e;
 		DeprecationCheck.run_on_expr ~force:true com e
 
-let prepare com =
-	let dctx = {
-		removable_code = [];
-		import_positions = PMap.empty;
-		dead_blocks = Hashtbl.create 0;
-		diagnostics_messages = [];
-		unresolved_identifiers = [];
-		missing_fields = PMap.empty;
-	} in
-	List.iter (function
+let collect_diagnostics dctx com =
+		List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get c.cl_pos.pfile) ->
 			List.iter (prepare_field dctx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx com) c.cl_ordered_statics;
@@ -138,7 +129,19 @@ let prepare com =
 		| None ->
 			()
 	in
-	handle_dead_blocks com;
+	handle_dead_blocks com
+
+let prepare com =
+	let dctx = {
+		removable_code = [];
+		import_positions = PMap.empty;
+		dead_blocks = Hashtbl.create 0;
+		diagnostics_messages = [];
+		unresolved_identifiers = [];
+		missing_fields = PMap.empty;
+	} in
+	if not (List.exists (fun (_,_,_,sev) -> sev = DiagnosticsSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
+		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
 			PMap.iter (fun p b ->

@@ -84,6 +84,10 @@ let check_local_vars_init com e =
 	in
 	let declared = ref [] in
 	let outside_vars = ref IntMap.empty in
+	(* Set variables which belong to current function *)
+	let set_all_vars vars =
+		vars := PMap.mapi (fun id is_set -> if IntMap.mem id !outside_vars then is_set else true) !vars
+	in
 	let rec loop vars e =
 		match e.eexpr with
 		| TLocal v ->
@@ -174,10 +178,10 @@ let check_local_vars_init com e =
 				join vars cvars)
 		(* mark all reachable vars as initialized, since we don't exit the block  *)
 		| TBreak | TContinue | TReturn None ->
-			vars := PMap.map (fun _ -> true) !vars
+			set_all_vars vars
 		| TThrow e | TReturn (Some e) ->
 			loop vars e;
-			vars := PMap.map (fun _ -> true) !vars
+			set_all_vars vars
 		| TFunction tf ->
 			let old = !outside_vars in
 			(* Mark all known variables as "outside" so we can ignore their initialization state within the function.

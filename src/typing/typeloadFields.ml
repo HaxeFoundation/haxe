@@ -24,7 +24,8 @@ open Ast
 open Type
 open Typecore
 open Typeload
-open DisplayTypes.DisplayMode
+open DisplayTypes
+open DisplayMode
 open CompletionItem.ClassFieldOrigin
 open Common
 open Error
@@ -176,6 +177,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let super_args,super_expr,super_tl = get_struct_init_super_info ctx c p in
 		let params = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
+		let doc_buf = Buffer.create 0 in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
 			| Var { v_write = AccNever } -> args,el,tl
 			| Var _ ->
@@ -200,6 +202,17 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 					else
 						assign_expr
 				in
+				begin match gen_doc_text_opt cf.cf_doc with
+				| None ->
+					()
+				| Some doc ->
+					Buffer.add_string doc_buf "@param ";
+					Buffer.add_string doc_buf cf.cf_name;
+					Buffer.add_string doc_buf " ";
+					let doc = ExtString.String.trim doc in
+					Buffer.add_string doc_buf doc;
+					Buffer.add_string doc_buf "\n";
+				end;
 				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
 			| Method _ ->
 				args,el,tl
@@ -212,11 +225,13 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		} in
 		let e = mk (TFunction tf) (TFun(tl @ super_tl,ctx.t.tvoid)) p in
 		let cf = mk_field "new" e.etype p null_pos in
+		cf.cf_doc <- doc_from_string (Buffer.contents doc_buf);
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
-		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
+		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos; Meta.InheritDoc,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
-		c.cl_constructor <- Some cf
+		c.cl_constructor <- Some cf;
+		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem_assoc AStatic f.cff_access in
@@ -354,9 +369,18 @@ let build_enum_abstract ctx c a fields p =
 		else if does_unify a.a_this ctx.t.tstring then EAString
 		else EAOther
 	in
+	let set_field field ct e =
+		field.cff_access <- (AInline,null_pos) :: field.cff_access;
+		let e = (ECast(e,None),(pos e)) in
+		field.cff_kind <- FVar(ct,Some e)
+	and field_is_set field =
+		match field.cff_kind with
+		| FVar(Some _, Some ((ECast _),_)) -> List.exists (fun (access,_) -> access = AInline) field.cff_access
+		| _ -> false
+	in
 	List.iter (fun field ->
 		match field.cff_kind with
-		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) ->
+		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) && not (field_is_set field) ->
 			let check_visibility_conflict visibility p1 =
 				match visibility with
 				| VUnknown ->
@@ -387,18 +411,13 @@ let build_enum_abstract ctx c a fields p =
 				| Some _ -> ct
 				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
 			in
-			let set_field e =
-				field.cff_access <- (AInline,null_pos) :: field.cff_access;
-				let e = (ECast(e,None),(pos e)) in
-				field.cff_kind <- FVar(ct,Some e)
-			in
 			begin match eo with
 				| None ->
 					if not (has_class_flag c CExtern) then begin match mode with
 						| EAString ->
-							set_field (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
+							set_field field ct (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
-							set_field (EConst (Int (string_of_int !i)),null_pos);
+							set_field field ct (EConst (Int (string_of_int !i)),null_pos);
 							incr i;
 						| EAOther ->
 							error "Value required" field.cff_pos
@@ -414,7 +433,7 @@ let build_enum_abstract ctx c a fields p =
 							end
 						| _ -> ()
 					end;
-					set_field e
+					set_field field ct e
 			end
 		| _ ->
 			()
@@ -575,7 +594,7 @@ let create_field_context (ctx,cctx) c cff =
 			()
 	) cff.cff_meta;
 	let is_inline = List.mem_assoc AInline cff.cff_access in
-	if is_abstract then begin
+	if (is_abstract && not (has_meta Meta.LibType c.cl_meta)) then begin
 		if is_static then
 			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
 		else if !is_final then
@@ -993,6 +1012,10 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 			let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
 			let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
 			let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
+			let allow_no_expr () = if not (has_class_field_flag cf CfExtern) then begin
+				allows_no_expr := true;
+				fctx.expr_presence_matters <- true;
+			end in
 			let rec loop ml =
 				(match ml with
 				| (Meta.From,_,_) :: _ ->
@@ -1002,18 +1025,25 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
 						match t with
 							| TFun([_,_,t],_) -> t
+							| TFun([(_,_,t1);(_,true,t2)],_) when is_pos_infos t2 -> t1
 							| _ -> error (cf.cf_name ^ ": @:from cast functions must accept exactly one argument") p
 					) "@:from" in
 					a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
 				| (Meta.To,_,_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
+					let are_valid_args args =
+						match args with
+						| [_] -> true
+						| [_; (_,true,t)] when is_pos_infos t -> true
+						| _ -> false
+					in
 					(match cf.cf_kind, cf.cf_type with
 					| Var _, _ ->
 						error "@:to meta should be used on methods" p
-					| Method _, TFun(args, _) when not fctx.is_abstract_member && List.length args <> 1 ->
+					| Method _, TFun(args, _) when not fctx.is_abstract_member && not (are_valid_args args) ->
 						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
 						error ("static @:to method should have one argument") p
-					| Method _, TFun(args, _) when fctx.is_abstract_member && List.length args <> 1 ->
+					| Method _, TFun(args, _) when fctx.is_abstract_member && not (are_valid_args args) ->
 						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
 						error "@:to method should have no arguments" p
 					| _ -> ()
@@ -1041,7 +1071,9 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 							in
 							args
 						end else
-							[]
+							match cf.cf_type with
+							| TFun([_;(_,true,t)],_) when is_pos_infos t -> [t]
+							| _ -> []
 						in
 						let t = resolve_m args in
 						t
@@ -1050,7 +1082,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
 					a.a_array <- cf :: a.a_array;
-					fctx.expr_presence_matters <- true;
+					allow_no_expr();
 				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
 					error (cf.cf_name ^ ": Assignment overloading is not supported") p;
 				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
@@ -1058,8 +1090,11 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
-					let left_eq,right_eq = match follow t with
+					let left_eq,right_eq =
+						match follow t with
 						| TFun([(_,_,t1);(_,_,t2)],_) ->
+							type_iseq targ t1,type_iseq targ t2
+						| TFun([(_,_,t1);(_,_,t2);(_,true,t3)],_) when is_pos_infos t3 ->
 							type_iseq targ t1,type_iseq targ t2
 						| _ ->
 							if fctx.is_abstract_member then
@@ -1070,15 +1105,21 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if not (left_eq || right_eq) then error (cf.cf_name ^ ": The left or right argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
 					if right_eq && Meta.has Meta.Commutative cf.cf_meta then error (cf.cf_name ^ ": @:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) cf.cf_pos;
 					a.a_ops <- (op,cf) :: a.a_ops;
-					allows_no_expr := true;
-					fctx.expr_presence_matters <- true;
+					allow_no_expr();
 				| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),cf.cf_pos)));
 					a.a_unops <- (op,flag,cf) :: a.a_unops;
-					allows_no_expr := true;
-					fctx.expr_presence_matters <- true;
+					allow_no_expr();
+				| (Meta.Op,[ECall _,_],_) :: _ ->
+					begin match a.a_call with
+					| None ->
+						a.a_call <- Some cf
+					| Some cf' ->
+						cf'.cf_overloads <- cf :: cf'.cf_overloads
+					end;
+					allow_no_expr();
 				| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					let check_fun t1 t2 =
@@ -1088,11 +1129,11 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						end
 					in
 					begin match follow t with
-						| TFun([(_,_,t1);(_,_,t2)],_) ->
+						| TFun((_,_,t1) :: (_,_,t2) :: args,_) when is_empty_or_pos_infos args ->
 							if a.a_read <> None then error "Multiple resolve-read methods are not supported" cf.cf_pos;
 							check_fun t1 t2;
 							a.a_read <- Some cf;
-						| TFun([(_,_,t1);(_,_,t2);(_,_,t3)],_) ->
+						| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when is_empty_or_pos_infos args ->
 							if a.a_write <> None then error "Multiple resolve-write methods are not supported" cf.cf_pos;
 							check_fun t1 t2;
 							a.a_write <- Some cf;
@@ -1105,20 +1146,16 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| [] -> ()
 			in
 			loop cf.cf_meta;
-			let check_bind () =
-				if fd.f_expr = None then begin
-					if fctx.is_inline then error (cf.cf_name ^ ": Inline functions must have an expression") cf.cf_pos;
-					begin match fd.f_type with
-						| None -> error (cf.cf_name ^ ": Functions without expressions must have an explicit return type") cf.cf_pos
-						| Some _ -> ()
-					end;
+			if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
+			if fd.f_expr = None then begin
+				if fctx.is_inline then error (cf.cf_name ^ ": Inline functions must have an expression") cf.cf_pos;
+				if fd.f_type = None then error (cf.cf_name ^ ": Functions without expressions must have an explicit return type") cf.cf_pos;
+				if !allows_no_expr then begin
 					cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
 					fctx.do_bind <- false;
 					if not (Meta.has Meta.CoreType a.a_meta) then fctx.do_add <- false;
 				end
-			in
-			if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
-			if !allows_no_expr then check_bind()
+			end
 		| _ ->
 			()
 
@@ -1194,7 +1231,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api p fd.f_type in
+	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p fd.f_type in
 	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			Some a.a_this
@@ -1202,7 +1239,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			None
 	in
 	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
-	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api p t in
+	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
@@ -1223,10 +1260,11 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			add_class_field_flag cf CfOverload
 		else if fctx.field_kind = FKConstructor then
 			display_error ctx "Constructors cannot be overloaded on this target" p
-		else if (has_class_flag c CExtern || fctx.is_extern) then
-			add_class_field_flag cf CfOverload
-		else
-			display_error ctx "Only extern functions may be overloaded on this target" p
+		else begin
+			add_class_field_flag cf CfOverload;
+			if not (has_class_flag c CExtern || fctx.is_extern) then
+				display_error ctx "Only extern functions may be overloaded on this target" p
+		end
 	| None ->
 		()
 	end;
@@ -1601,7 +1639,7 @@ let init_class ctx c p context_init herits fields =
 					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
 						ctor.cf_overloads <- cf :: ctor.cf_overloads
 					else
-						display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+						display_error ctx ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
 							display_error ctx "Duplicate constructor" p
 				end
@@ -1617,7 +1655,7 @@ let init_class ctx c p context_init herits fields =
 					if has_class_field_flag cf CfOverload && not (is_var cf) then
 						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
 						if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
-						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
+						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
 						mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
 					else
 						let type_kind,path = match c.cl_kind with
@@ -1683,7 +1721,7 @@ let init_class ctx c p context_init herits fields =
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
-		| cf :: cfl when c.cl_constructor = None ->
+		| cf :: cfl when c.cl_constructor = None && not (has_class_flag c CAbstract) ->
 			if Diagnostics.is_diagnostics_run ctx.com cf.cf_name_pos then begin
 				let diag = {
 					mf_pos = c.cl_name_pos;

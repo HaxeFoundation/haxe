@@ -180,6 +180,11 @@ module ExtType = struct
 		| TAbstract({a_path=[],"Bool"},_) -> true
 		| _ -> false
 
+	let is_rest t = match t with
+		| TType({t_path=["haxe"; "extern"],"Rest"},_)
+		| TAbstract({a_path=["haxe"],"Rest"},_) -> true
+		| _ -> false
+
 	let is_type_param t =
 		match t with
 		| TInst({ cl_kind = KTypeParameter _ }, _) -> true

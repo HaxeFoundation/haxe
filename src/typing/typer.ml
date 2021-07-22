@@ -108,11 +108,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 							(try Type.unify t' t with Unify_error _ -> ());
 							AKExpr e
 						| _ ->
-							if iscall then
-								AKExpr e
-							else begin
-								AKExpr (AbstractCast.cast_or_unify ctx t e e.epos)
-							end
+							AKExpr e
 					end
 				| _ -> e (* ??? *)
 			end
@@ -567,10 +563,14 @@ and type_access ctx e p mode with_type =
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
-				let ec,t = match c.cl_kind with
-					| KAbstractImpl a ->
+				let ec,t = match c.cl_kind, fa.fa_host with
+					| KAbstractImpl a, FHAbstract _ ->
 						let t = TAbstract(a,monos) in
 						(new call_dispatcher ctx (MCall []) WithType.value p)#field_call fa el [],t
+					| KAbstractImpl a, FHInstance (c,pl) ->
+						let e_new = mk (TNew(c,monos,el)) (TInst(c,pl)) p in
+						let t = TAbstract(a,monos) in
+						mk_cast e_new t p, t
 					| _ ->
 						let t = TInst(c,monos) in
 						mk (TNew(c,monos,el)) t p,t
@@ -999,7 +999,7 @@ and type_new ctx path el with_type force_inline p =
 		| None ->
 			raise_error (No_constructor (TClassDecl c)) p
 		| Some(tl,tr) ->
-			let el,_ = unify_call_args ctx el tl tr p false false in
+			let el,_ = unify_call_args ctx el tl tr p false false false in
 			mk (TNew (c,params,el)) t p
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
@@ -1007,7 +1007,7 @@ and type_new ctx path el with_type force_inline p =
 		{ (fcc.fc_data()) with etype = t }
 	| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 		let fcc = build_constructor_call None c params in
-		let el = List.map fst fcc.fc_args in
+		let el = fcc.fc_args in
 		mk (TNew (c,params,el)) t p
 	| _ ->
 		error (s_type (print_context()) t ^ " cannot be constructed") p
@@ -1143,13 +1143,8 @@ and type_map_declaration ctx e1 el with_type p =
 			let e2 = type_expr ctx e2 WithType.value in
 			(e1 :: el_k,e2 :: el_v)
 		) ([],[]) el_kv in
-		let unify_min_resume el = try
-			unify_min_raise ctx el
-		with Error (Unify l,p) when ctx.in_call_args ->
-			 raise (WithTypeError(Unify l,p))
-		in
-		let tkey = unify_min_resume el_k in
-		let tval = unify_min_resume el_v in
+		let tkey = unify_min_raise ctx el_k in
+		let tval = unify_min_raise ctx el_v in
 		el_k,el_v,tkey,tval
 	end in
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
@@ -1344,6 +1339,7 @@ and type_array_comprehension ctx e with_type p =
 		| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
 		| EIf (cond,e2,Some e3) -> (EIf (cond,map_compr e2,Some (map_compr e3)),p)
 		| EBlock [e] -> (EBlock [map_compr e],p)
+		| EBlock [] -> map_compr (EObjectDecl [],p)
 		| EBlock el -> begin match List.rev el with
 			| e :: el -> (EBlock ((List.rev el) @ [map_compr e]),p)
 			| [] -> e,p
@@ -1598,10 +1594,16 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			| TFun signature -> type_bind ctx e signature args p
 			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
-		let e = type_expr ctx e WithType.value in
-		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
-		let e = Diagnostics.secure_generated_code ctx e in
-		e
+		begin match fst e with
+		| EConst (Ident "_") ->
+			ctx.com.warning (WithType.to_string with_type) p;
+			mk (TConst TNull) t_dynamic p
+		| _ ->
+			let e = type_expr ctx e WithType.value in
+			ctx.com.warning (s_type (print_context()) e.etype) e.epos;
+			let e = Diagnostics.secure_generated_code ctx e in
+			e
+		end
 	| (EField(e,"match"),p), [epat] ->
 		let et = type_expr ctx e WithType.value in
 		let rec has_enum_match t = match follow t with
@@ -1638,7 +1640,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			if (Meta.has Meta.CompilerGenerated cf.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 			let fa = FieldAccess.create e cf (FHInstance(c,params)) false p in
 			let fcc = unify_field_call ctx fa [] el p false in
-			let el = List.map fst fcc.fc_args in
+			let el = fcc.fc_args in
 			el,t
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p
@@ -1794,8 +1796,6 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_cast ctx e t p
 	| EDisplay (e,dk) ->
 		TyperDisplay.handle_edisplay ctx e dk mode with_type
-	| EDisplayNew t ->
-		die "" __LOC__
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx true t in
 		let e = type_expr ctx e (WithType.with_type t) in
@@ -1808,7 +1808,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		| CTPath tp ->
 			if tp.tparams <> [] then display_error ctx "Type parameters are not supported for the `is` operator" p_t;
 			let e = type_expr ctx e WithType.value in
-			let e_t = type_type ctx (tp.tpackage,tp.tname) p_t in
+			let mt = Typeload.load_type_def ctx p_t tp in
+			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
+				DisplayEmitter.display_module_type ctx mt p_t;
+			let e_t = type_module_type ctx mt None p_t in
 			let e_Std_isOfType =
 				match Typeload.load_type_raise ctx ([],"Std") "Std" p with
 				| TClassDecl c ->
@@ -1892,6 +1895,8 @@ let rec create com =
 		opened = [];
 		vthis = None;
 		in_call_args = false;
+		in_overload_call_args = false;
+		delayed_display = None;
 		monomorphs = {
 			perfunction = [];
 		};

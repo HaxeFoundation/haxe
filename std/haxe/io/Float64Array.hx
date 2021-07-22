@@ -43,12 +43,12 @@ abstract Float64Array(Float64ArrayData) {
 	}
 
 	@:arrayAccess public inline function get(index:Int):Float {
-		return this.bytes.getFloat((index << 3) + this.byteOffset);
+		return this.bytes.getDouble((index << 3) + this.byteOffset);
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:Float):Float {
 		if (index >= 0 && index < length) {
-			this.bytes.setFloat((index << 3) + this.byteOffset, value);
+			this.bytes.setDouble((index << 3) + this.byteOffset, value);
 			return value;
 		}
 		return 0;

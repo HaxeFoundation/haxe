@@ -63,7 +63,7 @@ class Deque<T> {
 
 @:pythonImport("collections", "deque")
 @:native("deque")
-extern class NativeDeque<T> {
+private extern class NativeDeque<T> {
 	function new();
 	function append(x:T):Void;
 	function appendleft(x:T):Void;

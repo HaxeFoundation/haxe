@@ -74,7 +74,7 @@ class NadakoB {
 }
 
 class Issue9744 extends unit.Test {
-	#if ((cs && fast_cast && erase_generics) || cppia)
+	#if (cs && fast_cast && erase_generics)
 	#else
 	function testAbstractOverAbstractSelf() {
 		var ref = new Ref();

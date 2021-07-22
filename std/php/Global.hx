@@ -731,6 +731,11 @@ extern class Global {
 	static function filemtime(filename:String):EitherType<Int, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.fileowner.php
+	**/
+	static function fileowner(filename:String):EitherType<Int, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.filesize.php
 	**/
 	static function filesize(filename:String):EitherType<Int, Bool>;
@@ -922,6 +927,26 @@ extern class Global {
 	static function hash(algo:String, str:String, raw_output:Bool = false):String;
 
 	/**
+		@see http://php.net/manual/en/function.hash-algos.php
+	**/
+	static function hash_algos():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac.php
+	**/
+	static function hash_hmac(algo:String, data:String, key:String, binary:Bool = false):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac-algos.php
+	**/
+	static function hash_hmac_algos():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac-file.php
+	**/
+	static function hash_hmac_file(algo:String, data:String, key:String, binary:Bool = false):EitherType<String, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.pack.php
 	**/
 	static function pack(format:String, args:Rest<Dynamic>):String;
@@ -1094,6 +1119,11 @@ extern class Global {
 	static function spl_object_hash(obj:{}):String;
 
 	/**
+		@see http://php.net/manual/en/function.spl-object-id.php
+	**/
+	static function spl_object_id(obj:{}):Int;
+
+	/**
 		@see http://php.net/manual/en/function.spl-autoload-call.php
 	**/
 	static function spl_autoload_call(class_name:String):Void;
@@ -1167,7 +1197,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.mb-strlen.php
 	**/
-	static function mb_strlen(str:String, ?encoding:String):EitherType<Int, Bool>;
+	static function mb_strlen(str:String, ?encoding:String):Int;
 
 	/**
 		@see http://php.net/manual/en/function.mb-substr.php
@@ -1423,6 +1453,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.base64-decode.php
 	**/
 	static function base64_decode(data:String, strict:Bool = false):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.gethostname.php
+	**/
+	static function gethostname():EitherType<String, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.gethostbyname.php
@@ -1803,4 +1838,49 @@ extern class Global {
 		@see http://php.net/manual/en/function.intl-is-failure.php
 	**/
 	static function intl_is_failure(error_code:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-has-var.php
+	**/
+	static function filter_has_var(input_type:Int, var_name:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-id.php
+	**/
+	static function filter_id(name:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-input.php
+	**/
+	static function filter_input(type:Int, var_name:String, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.filter-list.php
+	**/
+	static function filter_list():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-var.php
+	**/
+	static function filter_var(value: Any, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.number-format.php
+	**/
+	static function number_format(num:Float, ?decimals:Int, ?decimal_separator:String, ?thousands_separator:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.empty.php
+	**/
+	static function empty(variable:Any):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.quoted-printable-decode.php
+	**/
+	static function quoted_printable_decode(string:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.quoted-printable-encode.php
+	**/
+	static function quoted_printable_encode(string:String):String;
 }

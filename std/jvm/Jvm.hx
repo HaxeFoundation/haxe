@@ -291,7 +291,7 @@ class Jvm {
 
 	static public function readFieldClosure(obj:Dynamic, name:String, parameterTypes:NativeArray<java.lang.Class<Dynamic>>):Dynamic {
 		var cl = (obj : java.lang.Object).getClass();
-		var method = cl.getMethod(name, parameterTypes);
+		var method = cl.getMethod(name, ...parameterTypes);
 		if (method.isBridge()) {
 			/* This is probably not what we want... go through all methods and see if we find one that
 				isn't a bridge. This is pretty awkward, but I can't figure out how to use the Java reflection
