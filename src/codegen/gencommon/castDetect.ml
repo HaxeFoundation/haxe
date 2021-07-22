@@ -907,7 +907,8 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 						| [], [] -> []
 						| [(_,_,funct)], _ when expects_rest_args ->
 							(match funct, applied with
-							| TInst({ cl_path = (_,"NativeArray") },[_]),[a] when Type.does_unify funct a.etype ->
+							| _,[{ eexpr = TUnop(Spread,Prefix,a) }]
+							| _,[{ eexpr = TParenthesis({ eexpr = TUnop(Spread,Prefix,a) }) }] ->
 								[fn funct a]
 							| TInst({ cl_path = (_,"NativeArray") },[funct]),_ ->
 								List.map (fn funct) applied
