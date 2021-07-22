@@ -4,6 +4,7 @@ class Issue10315 extends Test {
 	function test() {
 		var o = new Obj();
 		eq('a', o.call('a'));
+		eq('b', o.call(('b':Dynamic)));
 	}
 }
 
