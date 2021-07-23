@@ -34,11 +34,11 @@ abstract Async(HandleData) to HandleData {
 		Allocate and initialize the handle.
 	**/
 	@:hlNative("uv", "async_init_wrap")
-	static public function init(loop:Loop, callback:()->Void):Async
+	static public function init(loop:Loop, callback:(async:Async)->Void):Async
 		return null;
 
 	/**
-		Wake up the event loop and call the async handle’s callback.
+		Wake up the event loop and call the async handle’s callback on the loop's thread.
 	**/
-	@:hlNative("uv", "async_send") public function send():Void {}
+	@:hlNative("uv", "async_send_wrap") public function send():Void {}
 }
