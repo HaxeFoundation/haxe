@@ -1,6 +1,6 @@
 package hl.uv;
 
-abstract UVError(Int) {
+enum abstract UVError(Int) {
 	var UV_NOERR = 0;
 	var UV_E2BIG = 1;
 	var UV_EACCES = 2;
@@ -82,6 +82,7 @@ abstract UVError(Int) {
 	var UV_ENOTTY = 77;
 
 	public function toString():String {
-		return 'UVError.toString not implemented';
+		// return 'UVError.toString not implemented';
+		return 'UVError #$this';
 	}
 }

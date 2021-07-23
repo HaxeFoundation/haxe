@@ -22,31 +22,67 @@
 
 package hl.uv;
 
+/**
+	Run modes for `hl.uv.Loop.run(mode)`
+**/
 enum abstract LoopRunMode(Int) {
+	/** Runs the event loop until there are no more active and referenced handles or requests. */
 	var Default = 0;
+	/** Poll for i/o once. Note that this function blocks if there are no pending callbacks. */
 	var Once = 1;
+	/** Poll for i/o once but don’t block if there are no pending callbacks. */
 	var NoWait = 2;
 }
 
+/**
+	Event loops
+
+	@see http://docs.libuv.org/en/v1.x/loop.html
+**/
 abstract Loop(hl.Abstract<"uv_loop">) {
+	/**
+		Allocate and initialize an event loop.
+	**/
 	@:hlNative("uv", "loop_init_wrap") static public function init():Loop {
 		return null;
 	}
 
+	/**
+		Releases all internal loop resources.
+		Call this function only when the loop has finished executing and all open
+		handles and requests have been closed, or it will throw `EBUSY`.
+	**/
 	@:hlNative("uv", "loop_close") public function close():Int {
 		return 0;
 	}
 
+	/**
+		This function runs the event loop.
+
+		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_run
+	**/
 	@:hlNative("uv", "run") public function run(mode:LoopRunMode):Int {
 		return 0;
 	}
 
+	/**
+		Returns non-zero if there are referenced active handles, active requests
+		or closing handles in the loop.
+	**/
 	@:hlNative("uv", "loop_alive") public function alive():Int {
 		return 0;
 	}
 
+	/**
+		Stop the event loop as soon as possible.
+	**/
 	@:hlNative("uv", "stop") public function stop():Void {}
 
+	/**
+		Returns the initialized default loop.
+
+		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_default_loop
+	**/
 	public static function getDefault():Loop {
 		var def = default_loop();
 		if (loopEvent == null)

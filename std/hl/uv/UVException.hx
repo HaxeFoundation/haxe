@@ -14,8 +14,11 @@ class UVException extends Exception {
 	/**
 		Instantiates an error with given message and position.
 	**/
+	#if hl @:keep #end
 	public function new(error:UVError, ?message:String, ?previous:Exception) {
-		super(message == null ? error.toString() : message, previous);
+		if(message == null)
+			message = error.toString();
+		super(message, previous);
 		this.error = error;
 	}
 }
