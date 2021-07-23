@@ -31,20 +31,14 @@ abstract HandleData(hl.Abstract<"uv_handle">) {
 	/**
 		Returns `true` if the handle is active, `false` otherwise.
 	**/
-	public inline function isActive():Bool
-		return is_active() != 0;
-
-	@:hlNative("uv", "is_active") function is_active():Int
-		return 0;
+	@:hlNative("uv", "is_active_wrap") public function isActive():Bool
+		return false;
 
 	/**
 		Returns `true` if the handle is closing or closed, `false` otherwise.
 	**/
-	public inline function isClosing():Bool
-		return is_closing() != 0;
-
-	@:hlNative("uv", "is_closing") function is_closing():Int
-		return 0;
+	@:hlNative("uv", "is_closing_wrap") public function isClosing():Bool
+		return false;
 
 	/**
 		Request handle to be closed.
@@ -59,7 +53,7 @@ abstract HandleData(hl.Abstract<"uv_handle">) {
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	@:hlNative("uv", "ref") public function ref():Void {}
+	@:hlNative("uv", "ref_wrap") public function ref():Void {}
 
 	/**
 		Unreference the given handle.
@@ -67,16 +61,13 @@ abstract HandleData(hl.Abstract<"uv_handle">) {
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	@:hlNative("uv", "unref") public function unref():Void {}
+	@:hlNative("uv", "unref_wrap") public function unref():Void {}
 
 	/**
 		Returns `true` if the handle is referenced, `false` otherwise.
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	public function hasRef():Bool
-		return has_ref() != 0;
-
-	@:hlNative("uv", "has_ref") function has_ref():Int
-		return 0;
+	@:hlNative("uv", "has_ref_wrap") public function hasRef():Bool
+		return false;
 }
