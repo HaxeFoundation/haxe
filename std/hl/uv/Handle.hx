@@ -32,7 +32,7 @@ class Handle {
 
 	public function close(?callback:()->Void) {
 		if (handle != null)
-			handle.close(callb);
+			handle.close(callback);
 		handle = null;
 	}
 }
