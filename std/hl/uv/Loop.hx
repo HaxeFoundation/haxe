@@ -35,11 +35,20 @@ enum abstract LoopRunMode(Int) {
 }
 
 /**
-	Event loops
+	Event loops.
 
 	@see http://docs.libuv.org/en/v1.x/loop.html
+
+	Haxe event loops define an implicit cast to libuv loops. That is, you can use
+	`sys.thread.Thread.current().events` in any place where `eval.luv.Loop` is
+	expected.
 **/
 abstract Loop(hl.Abstract<"uv_loop">) {
+
+	@:from
+	static inline function fromHaxeEventLoop(events:sys.thread.EventLoop):Loop
+		return events.handle;
+
 	/**
 		Allocate and initialize an event loop.
 	**/
