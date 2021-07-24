@@ -69,6 +69,8 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		This function runs the event loop.
 
 		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_run
+
+		TODO: change return type to `Bool`
 	**/
 	@:hlNative("uv", "run") public function run(mode:LoopRunMode):Int {
 		return 0;
@@ -77,6 +79,8 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	/**
 		Returns non-zero if there are referenced active handles, active requests
 		or closing handles in the loop.
+
+		TODO: change return type to `Bool`
 	**/
 	@:hlNative("uv", "loop_alive") public function alive():Int {
 		return 0;
