@@ -1,5 +1,9 @@
 package hl.uv;
 
+/**
+	TODO:
+	Find a way to assign native error numbers to these constants.
+**/
 enum abstract UVError(Int) {
 	var UV_NOERR = 0;
 	var UV_E2BIG = 1;

@@ -22,49 +22,93 @@
 
 package hl.uv;
 
-@:hlNative("uv")
-class Stream extends Handle {
-	public function write(bytes:haxe.io.Bytes, ?onWrite:Bool->Void, pos = 0, len = -1) {
-		if (len < 0)
-			len = bytes.length - pos;
-		if (pos < 0 || len < 0 || pos + len > bytes.length)
-			throw haxe.io.Error.OutsideBounds;
-		if (handle == null || !stream_write(handle, (bytes : hl.Bytes).offset(pos), len, onWrite))
-			throw new haxe.io.Eof();
-	}
+/**
+	Stream handles provide an abstraction of a duplex communication channel.
+	This is a base type for `Tcp`, `Pipe` and `Tty`.
 
-	public function readStartRaw(onData:hl.Bytes->Int->Void) {
-		if (handle == null || !stream_read_start(handle, onData))
-			throw new haxe.io.Eof();
-	}
+	@see http://docs.libuv.org/en/v1.x/stream.html
+**/
+@:forward
+abstract Stream(HandleData) to HandleData {
+	/**
+		Shutdown the outgoing (write) side of a duplex stream.
+		It waits for pending write requests to complete.
+	**/
+	@:hlNative("uv", "shutdown_wrap")
+	public function shutdown(callback:(e:UVError)->Void):Void {}
 
-	public function readStart(onData:haxe.io.Bytes->Void) {
-		readStartRaw(function(b, len) onData(if (len < 0) null else b.toBytes(len)));
-	}
+	/**
+		Start listening for incoming connections.
+		`backlog` indicates the number of connections the kernel might queue
+	**/
+	@:hlNative("uv", "listen_wrap")
+	public function listen(backlog:Int, callback:(e:UVError)->Void):Void {}
 
-	public function readStop() {
-		if (handle != null)
-			stream_read_stop(handle);
-	}
+	/**
+		This call is used in conjunction with `listen()` to accept incoming connections.
+		Call this function after receiving a listen callback to accept the connection.
 
-	public function listen(n:Int, onConnect:Void->Void) {
-		if (handle == null || !stream_listen(handle, n, onConnect))
-			throw new haxe.io.Eof();
-	}
+		Server(this stream) and `client` must be handles running on the same loop.
+	**/
+	@:hlNative("uv", "accept_wrap")
+	public function accept(client:Stream):Void {}
 
-	// --
+	/**
+		Read data from an incoming stream.
 
-	static function stream_write(handle:HandleData, bytes:hl.Bytes, len:Int, callb:Bool->Void):Bool {
+		The `callback` will be called several times until there is no more
+		data to read or `readStop()` is called. If `bytesRead` is 0 it does not
+		indicate EOF. It means either there's no data to read _right now_ or IO
+		operation would have to block.
+	**/
+	@:hlNative("uv", "read_start_wrap")
+	static function readStart(callback:(e:UVError, data:Bytes, bytesRead:Int)->Void):Void {}
+
+	/**
+		Stop reading data from the stream.
+	**/
+	@:hlNative("uv", "read_stop_wrap")
+	public function readStop():Void {}
+
+	/**
+		Write data to stream.
+	**/
+	@:hlNative("uv", "write_wrap")
+	public function write(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {}
+
+	/**
+		TODO: this should be defined in `hl.uv.Pipe`
+
+		Extended write function for sending handles over a pipe.
+		The pipe must be initialized with ipc == 1.
+	**/
+	// @:hlNative("uv", "write2_wrap")
+	// public function write2(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {}
+
+
+	/**
+		Same as `write()`, but won’t queue a write request if it can’t be completed immediately.
+
+		Returns number of bytes writen (can be less than the supplied buffer size).
+
+		Throws EAGAIN if no data can be sent immediately
+	**/
+	@:hlNative("uv", "try_write_wrap")
+	public function try_write(bytes:hl.Bytes, length:Int):Int
+		return 0;
+
+	/**
+		Indicates if the stream is readable.
+	**/
+	@:hlNative("uv", "is_readable_wrap")
+	public function isReadable():Bool
 		return false;
-	}
 
-	static function stream_read_start(handle:HandleData, callb:hl.Bytes->Int->Void) {
+	/**
+		Indicates if the stream is writable.
+	**/
+	@:hlNative("uv", "is_writable_wrap")
+	public function isWritable():Bool
 		return false;
-	}
 
-	static function stream_read_stop(handle:HandleData) {}
-
-	static function stream_listen(handle:HandleData, n:Int, callb:Void->Void) {
-		return false;
-	}
 }
