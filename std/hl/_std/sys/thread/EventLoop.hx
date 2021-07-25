@@ -105,7 +105,7 @@ class EventLoop {
 
 	public function progress():NextEventTime {
 		//TODO: throw if loop is already running
-		if((handle:Loop).run(NoWait) != 0) {
+		if((handle:Loop).run(NoWait)) {
 			return AnyTime(null);
 		} else {
 			return Never;
@@ -120,9 +120,9 @@ class EventLoop {
 				timer.stop();
 				timer.close();
 			}, Std.int(timeout * 1000), 0);
-			return (handle:Loop).run(Once) != 0;
+			return (handle:Loop).run(Once);
 		} else {
-			return (handle:Loop).run(Once) != 0;
+			return (handle:Loop).run(Once);
 		}
 	}
 

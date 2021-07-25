@@ -61,35 +61,27 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		Call this function only when the loop has finished executing and all open
 		handles and requests have been closed, or it will throw `EBUSY`.
 	**/
-	@:hlNative("uv", "loop_close") public function close():Int {
-		return 0;
-	}
+	@:hlNative("uv", "loop_close_wrap") public function close():Void {}
 
 	/**
 		This function runs the event loop.
 
 		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_run
-
-		TODO: change return type to `Bool`
 	**/
-	@:hlNative("uv", "run") public function run(mode:LoopRunMode):Int {
-		return 0;
-	}
+	@:hlNative("uv", "run_wrap") public function run(mode:LoopRunMode):Bool
+		return false;
 
 	/**
 		Returns non-zero if there are referenced active handles, active requests
 		or closing handles in the loop.
-
-		TODO: change return type to `Bool`
 	**/
-	@:hlNative("uv", "loop_alive") public function alive():Int {
-		return 0;
-	}
+	@:hlNative("uv", "loop_alive_wrap") public function alive():Bool
+		return false;
 
 	/**
 		Stop the event loop as soon as possible.
 	**/
-	@:hlNative("uv", "stop") public function stop():Void {}
+	@:hlNative("uv", "stop_wrap") public function stop():Void {}
 
 	/**
 		Returns the initialized default loop.
@@ -101,7 +93,7 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		if (loopEvent == null)
 			loopEvent = haxe.MainLoop.add(function() {
 				// if no more things to process, stop
-				if (def.run(NoWait) == 0) {
+				if (!def.run(NoWait)) {
 					loopEvent.stop();
 					loopEvent = null;
 				}
