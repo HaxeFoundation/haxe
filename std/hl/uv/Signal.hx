@@ -47,7 +47,7 @@ enum abstract SigNum(Int) from Int to Int {
 	@see http://docs.libuv.org/en/v1.x/signal.html
 **/
 @:forward
-abstract Signal(HandleData) to HandleData {
+abstract Signal(Handle) to Handle {
 
 	/** Signal being monitored by this handle. */
 	public var sigNum(get,never):SigNum;

@@ -29,7 +29,7 @@ package hl.uv;
 	@see http://docs.libuv.org/en/v1.x/check.html
 **/
 @:forward
-abstract Check(HandleData) to HandleData {
+abstract Check(Handle) to Handle {
 	/**
 		Allocate and initialize the handle.
 	**/

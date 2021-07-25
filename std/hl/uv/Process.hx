@@ -101,7 +101,7 @@ typedef ProcessOptions = {
 	@see http://docs.libuv.org/en/v1.x/process.html
 **/
 @:forward
-abstract Process(HandleData) to HandleData {
+abstract Process(Handle) to Handle {
 
 	/** The PID of the spawned process. It’s set after calling `spawn()`. */
 	public var pid(get,never):Int;

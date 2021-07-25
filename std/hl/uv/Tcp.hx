@@ -52,21 +52,21 @@ class Tcp extends Stream {
 		tcp_nodelay_wrap(handle, b);
 	}
 
-	static function tcp_init_wrap(loop:Loop):HandleData {
+	static function tcp_init_wrap(loop:Loop):Handle {
 		return null;
 	}
 
-	static function tcp_connect_wrap(h:HandleData, host:Int, port:Int, onConnected:Bool->Void):HandleData {
+	static function tcp_connect_wrap(h:Handle, host:Int, port:Int, onConnected:Bool->Void):Handle {
 		return null;
 	}
 
-	static function tcp_bind_wrap(h:HandleData, host:Int, port:Int):Bool {
+	static function tcp_bind_wrap(h:Handle, host:Int, port:Int):Bool {
 		return false;
 	}
 
-	static function tcp_accept_wrap(h:HandleData):HandleData {
+	static function tcp_accept_wrap(h:Handle):Handle {
 		return null;
 	}
 
-	static function tcp_nodelay_wrap(h:HandleData, b:Bool):Void {}
+	static function tcp_nodelay_wrap(h:Handle, b:Bool):Void {}
 }

@@ -28,7 +28,7 @@ package hl.uv;
 	@see http://docs.libuv.org/en/v1.x/timer.html
 **/
 @:forward
-abstract Timer(HandleData) to HandleData {
+abstract Timer(Handle) to Handle {
 	/** The timer repeat value. */
 	public var repeat(get,set):Int;
 	@:hlNative("uv", "timer_get_repeat_wrap") function get_repeat():Int return 0;

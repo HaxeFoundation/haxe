@@ -29,7 +29,7 @@ package hl.uv;
 	@see http://docs.libuv.org/en/v1.x/async.html
 **/
 @:forward
-abstract Async(HandleData) to HandleData {
+abstract Async(Handle) to Handle {
 	/**
 		Allocate and initialize the handle.
 	**/

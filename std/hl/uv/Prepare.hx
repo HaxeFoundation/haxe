@@ -29,7 +29,7 @@ package hl.uv;
 	@see http://docs.libuv.org/en/v1.x/prepare.html
 **/
 @:forward
-abstract Prepare(HandleData) to HandleData {
+abstract Prepare(Handle) to Handle {
 	/**
 		Allocate and initialize the handle.
 	**/

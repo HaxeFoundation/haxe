@@ -29,7 +29,7 @@ package hl.uv;
 	@see http://docs.libuv.org/en/v1.x/stream.html
 **/
 @:forward
-abstract Stream(HandleData) to HandleData {
+abstract Stream(Handle) to Handle {
 	/**
 		Shutdown the outgoing (write) side of a duplex stream.
 		It waits for pending write requests to complete.

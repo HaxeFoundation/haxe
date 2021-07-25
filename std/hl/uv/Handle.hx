@@ -22,17 +22,52 @@
 
 package hl.uv;
 
-@:hlNative("uv")
-class Handle {
-	var handle:Null<HandleData>;
+/**
+	Base type for all libuv handle types.
 
-	function new(h) {
-		handle = h;
-	}
+	@see http://docs.libuv.org/en/v1.x/handle.html
+**/
+abstract Handle(hl.Abstract<"uv_handle">) {
+	/**
+		Returns `true` if the handle is active, `false` otherwise.
+	**/
+	@:hlNative("uv", "is_active_wrap") public function isActive():Bool
+		return false;
 
-	public function close(?callback:()->Void) {
-		if (handle != null)
-			handle.close(callback);
-		handle = null;
-	}
+	/**
+		Returns `true` if the handle is closing or closed, `false` otherwise.
+	**/
+	@:hlNative("uv", "is_closing_wrap") public function isClosing():Bool
+		return false;
+
+	/**
+		Request handle to be closed.
+		`callback` will be called asynchronously after this call.
+		This MUST be called on each handle.
+	**/
+	@:hlNative("uv", "close_handle") public function close(?callback:()->Void):Void {}
+
+	/**
+		Reference the given handle.
+		If a handle is already referenced calling this function again will have no effect.
+
+		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
+	**/
+	@:hlNative("uv", "ref_wrap") public function ref():Void {}
+
+	/**
+		Unreference the given handle.
+		If a handle is not referenced calling this function again will have no effect.
+
+		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
+	**/
+	@:hlNative("uv", "unref_wrap") public function unref():Void {}
+
+	/**
+		Returns `true` if the handle is referenced, `false` otherwise.
+
+		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
+	**/
+	@:hlNative("uv", "has_ref_wrap") public function hasRef():Bool
+		return false;
 }
