@@ -22,51 +22,79 @@
 
 package hl.uv;
 
-@:hlNative("uv")
-class Tcp extends Stream {
-	public function new(?loop:Loop) {
-		if (loop == null)
-			loop = Loop.getDefault();
-		super(tcp_init_wrap(loop));
-	}
+/**
+	TCP handles are used to represent both TCP streams and servers.
 
-	public function connect(host:sys.net.Host, port:Int, onConnected:Bool->Void) {
-		var h = tcp_connect_wrap(handle, host.ip, port, onConnected);
-		if (h == null)
-			throw haxe.io.Error.Custom("Failed to connect to " + host + ":" + port);
-	}
+	@see http://docs.libuv.org/en/v1.x/tcp.html
+**/
+@:forward
+abstract Tcp(Stream) to Stream to Handle {
 
-	public function bind(host:sys.net.Host, port:Int) {
-		if (!tcp_bind_wrap(handle, host.ip, port))
-			throw haxe.io.Error.Custom("Failed to bind socket to " + host + ":" + port);
-	}
-
-	public function accept() {
-		var client = handle == null ? null : tcp_accept_wrap(handle);
-		if (client == null)
-			throw new haxe.io.Eof();
-		return new Stream(client);
-	}
-
-	public function noDelay(b:Bool) {
-		tcp_nodelay_wrap(handle, b);
-	}
-
-	static function tcp_init_wrap(loop:Loop):Handle {
+	/**
+		Initialize the handle. No socket is created as of yet.
+	**/
+	@:hlNative("uv", "tcp_init_wrap")
+	public function init(loop:Loop, ?domain:AddressFamily):Tcp
 		return null;
-	}
 
-	static function tcp_connect_wrap(h:Handle, host:Int, port:Int, onConnected:Bool->Void):Handle {
-		return null;
-	}
+	/**
+		This call is used in conjunction with `listen()` to accept incoming connections.
+		Call this function after receiving a listen callback to accept the connection.
 
-	static function tcp_bind_wrap(h:Handle, host:Int, port:Int):Bool {
-		return false;
-	}
+		Server(this stream) and `client` must be handles running on the same loop.
 
-	static function tcp_accept_wrap(h:Handle):Handle {
-		return null;
-	}
+		@see http://docs.libuv.org/en/v1.x/stream.html#c.uv_accept
+	**/
+	@:hlNative("uv", "accept_wrap")
+	public function accept(client:Tcp):Void {}
 
-	static function tcp_nodelay_wrap(h:Handle, b:Bool):Void {}
+	/**
+		Enable TCP_NODELAY.
+	**/
+	@:hlNative("uv", "tcp_noDelay_wrap")
+	public function noDelay(enable:Bool):Void {}
+
+	/**
+		Enable / disable TCP keep-alive.
+		`delay` is the initial delay in seconds, ignored when `enable` is `false`.
+	**/
+	@:hlNative("uv", "tcp_keepalive_wrap")
+	public function keepAlive(enable:Bool, delay:Int):Void {}
+
+	/**
+		Enable / disable simultaneous asynchronous accept requests that are queued
+		by the operating system when listening for new TCP connections.
+	**/
+	@:hlNative("uv", "tcp_simultaneous_accepts_wrap")
+	public function simultaneousAccepts(enable:Bool):Void {}
+
+	/**
+		Bind the handle to an address and port.
+	**/
+	@:hlNative("uv", "tcp_bind_wrap")
+	public function bind(addr:SockAddr, ?ipv6Only:Bool):Void {}
+
+	/**
+		Get the current address to which the handle is bound.
+	**/
+	@:hlNative("uv", "tcp_getsockname_wrap")
+	public function getSockName():SockAddr {}
+
+	/**
+		Get the address of the peer connected to the handle.
+	**/
+	@:hlNative("uv", "tcp_getpeername_wrap")
+	public function getPeername():SockAddr {}
+
+	/**
+		Establish an IPv4 or IPv6 TCP connection.
+	**/
+	@:hlNative("uv", "tcp_connect_wrap")
+	public function connect(addr:SockAddr, callback:(e:UVError)->Void):Void {}
+
+	/**
+		Establish an IPv4 or IPv6 TCP connection.
+	**/
+	@:hlNative("uv", "tcp_close_reset_wrap")
+	public function closeReset(?callback:()->Void):Void {}
 }

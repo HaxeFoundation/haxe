@@ -45,13 +45,16 @@ abstract Stream(Handle) to Handle {
 	public function listen(backlog:Int, callback:(e:UVError)->Void):Void {}
 
 	/**
+		TODO:
+		This should be defined in Tcp, Udp, etc.
+
 		This call is used in conjunction with `listen()` to accept incoming connections.
 		Call this function after receiving a listen callback to accept the connection.
 
 		Server(this stream) and `client` must be handles running on the same loop.
 	**/
-	@:hlNative("uv", "accept_wrap")
-	public function accept(client:Stream):Void {}
+	// @:hlNative("uv", "accept_wrap")
+	// public function accept(client:Stream):Void {}
 
 	/**
 		Read data from an incoming stream.

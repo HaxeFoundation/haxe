@@ -45,7 +45,7 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 		`callback` will be called asynchronously after this call.
 		This MUST be called on each handle.
 	**/
-	@:hlNative("uv", "close_handle") public function close(?callback:()->Void):Void {}
+	@:hlNative("uv", "close_wrap") public function close(?callback:()->Void):Void {}
 
 	/**
 		Reference the given handle.
