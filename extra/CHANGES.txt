@@ -8,6 +8,7 @@
 	hl : add clipboard support in hl 1.12 (#10320)
 	cs/java : fixed rest arguments for cases when only one argument is provided (#10315)
 	php : fixed type of `php.db.PDO.ATTR_DRIVER_NAME` (#10319)
+	eval : fixed signature of `eval.luv.Tcp.noDelay` method
 
 2021-07-01 4.2.3:
 
