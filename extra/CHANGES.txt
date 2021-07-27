@@ -3,7 +3,7 @@
 	Bugfixes:
 
 	all : fixed errors on final vars modification with `+=`, `*=` etc operations (#10325)
-	all : fixed hanging of MainLoop.add on threaded targets (#10308)
+	all : fixed hanging of MainLoop.add on threaded targets (#10308, #10329)
 	js : fixed IntMap for keys greater than 2^31 (#10316)
 	js : workaround to fix sourcemaps on Firefox in Windows (#10217)
 	hl : add clipboard support in hl 1.12 (#10320)
