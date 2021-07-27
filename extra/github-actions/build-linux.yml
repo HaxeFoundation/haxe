@@ -13,7 +13,9 @@
     opam update
     opam pin add haxe . --no-action
     opam install haxe --deps-only --assume-depexts
+    echo "vvvvvv CAT vvvvvvvv"
     cat ~/.opam/log/luv*.out
+    echo "^^^^^^ CAT ^^^^^^^^"
     opam list
     ocamlopt -v
 
