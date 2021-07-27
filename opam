@@ -32,5 +32,5 @@ depends: [
   "conf-zlib"
   "conf-mbedtls"
   "conf-neko"
-  "luv"
+  "luv" {<= "0.5.8"} (* see https://github.com/aantron/luv/issues/121 *)
 ]
