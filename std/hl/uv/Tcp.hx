@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+import hl.uv.SockAddr;
+
 /**
 	TCP handles are used to represent both TCP streams and servers.
 
@@ -37,7 +39,7 @@ abstract Tcp(Stream) to Stream to Handle {
 		which means no socket is created yet.
 	**/
 	@:hlNative("uv", "tcp_init_wrap")
-	public function init(loop:Loop, ?domain:AddressFamily):Tcp
+	static public function init(loop:Loop, ?domain:AddressFamily):Tcp
 		return null;
 
 	/**
@@ -81,13 +83,15 @@ abstract Tcp(Stream) to Stream to Handle {
 		Get the current address to which the handle is bound.
 	**/
 	@:hlNative("uv", "tcp_getsockname_wrap")
-	public function getSockName():SockAddr {}
+	public function getSockName():SockAddr
+		return null;
 
 	/**
 		Get the address of the peer connected to the handle.
 	**/
 	@:hlNative("uv", "tcp_getpeername_wrap")
-	public function getPeerName():SockAddr {}
+	public function getPeerName():SockAddr
+		return null;
 
 	/**
 		Establish an IPv4 or IPv6 TCP connection.
@@ -96,7 +100,9 @@ abstract Tcp(Stream) to Stream to Handle {
 	public function connect(addr:SockAddr, callback:(e:UVError)->Void):Void {}
 
 	/**
-		Establish an IPv4 or IPv6 TCP connection.
+		Resets a TCP connection by sending a RST packet.
+
+		@see http://docs.libuv.org/en/v1.x/tcp.html#c.uv_tcp_close_reset
 	**/
 	@:hlNative("uv", "tcp_close_reset_wrap")
 	public function closeReset(?callback:()->Void):Void {}

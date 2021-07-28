@@ -65,7 +65,7 @@ abstract Stream(Handle) to Handle {
 		operation would have to block.
 	**/
 	@:hlNative("uv", "read_start_wrap")
-	static function readStart(callback:(e:UVError, data:Bytes, bytesRead:Int)->Void):Void {}
+	public function readStart(callback:(e:UVError, data:Bytes, bytesRead:Int)->Void):Void {}
 
 	/**
 		Stop reading data from the stream.
