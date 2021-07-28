@@ -56,7 +56,7 @@ abstract Tcp(Stream) to Stream to Handle {
 	/**
 		Enable TCP_NODELAY.
 	**/
-	@:hlNative("uv", "tcp_noDelay_wrap")
+	@:hlNative("uv", "tcp_nodelay_wrap")
 	public function noDelay(enable:Bool):Void {}
 
 	/**
