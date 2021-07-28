@@ -32,6 +32,9 @@ abstract Tcp(Stream) to Stream to Handle {
 
 	/**
 		Initialize the handle. No socket is created as of yet.
+
+		Omitting `domain` is the same as passing `AddressFamily.UNSPEC` to it,
+		which means no socket is created yet.
 	**/
 	@:hlNative("uv", "tcp_init_wrap")
 	public function init(loop:Loop, ?domain:AddressFamily):Tcp
@@ -84,7 +87,7 @@ abstract Tcp(Stream) to Stream to Handle {
 		Get the address of the peer connected to the handle.
 	**/
 	@:hlNative("uv", "tcp_getpeername_wrap")
-	public function getPeername():SockAddr {}
+	public function getPeerName():SockAddr {}
 
 	/**
 		Establish an IPv4 or IPv6 TCP connection.
