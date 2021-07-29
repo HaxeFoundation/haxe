@@ -124,7 +124,7 @@ class Lib {
 	}
 
 	/**
-		Re-throw last cathed exception, preserving original stack information.
+		Re-throw last caught exception, preserving original stack information.
 
 		Calling this is only possible inside a catch statement.
 	**/
