@@ -45,18 +45,6 @@ abstract Stream(Handle) to Handle {
 	public function listen(backlog:Int, callback:(e:UVError)->Void):Void {}
 
 	/**
-		TODO:
-		This should be defined in Tcp, Udp, etc.
-
-		This call is used in conjunction with `listen()` to accept incoming connections.
-		Call this function after receiving a listen callback to accept the connection.
-
-		Server(this stream) and `client` must be handles running on the same loop.
-	**/
-	// @:hlNative("uv", "accept_wrap")
-	// public function accept(client:Stream):Void {}
-
-	/**
 		Read data from an incoming stream.
 
 		The `callback` will be called several times until there is no more
@@ -78,16 +66,6 @@ abstract Stream(Handle) to Handle {
 	**/
 	@:hlNative("uv", "write_wrap")
 	public function write(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {}
-
-	/**
-		TODO: this should be defined in `hl.uv.Pipe`
-
-		Extended write function for sending handles over a pipe.
-		The pipe must be initialized with ipc == 1.
-	**/
-	// @:hlNative("uv", "write2_wrap")
-	// public function write2(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {}
-
 
 	/**
 		Same as `write()`, but won’t queue a write request if it can’t be completed immediately.
