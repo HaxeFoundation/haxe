@@ -39,6 +39,21 @@ enum abstract SigNum(Int) from Int to Int {
 	var SIGSEGV = -7;
 	var SIGTERM = -8;
 	var SIGWINCH = -9;
+
+	public function toString():String {
+		return switch (this:SigNum) {
+			case SIGABRT: 'SIGABRT';
+			case SIGFPE: 'SIGFPE';
+			case SIGHUP: 'SIGHUP';
+			case SIGILL: 'SIGILL';
+			case SIGINT: 'SIGINT';
+			case SIGKILL: 'SIGKILL';
+			case SIGSEGV: 'SIGSEGV';
+			case SIGTERM: 'SIGTERM';
+			case SIGWINCH: 'SIGWINCH';
+			case _: '#$this';
+		}
+	}
 }
 
 /**

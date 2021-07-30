@@ -23,47 +23,76 @@
 package hl.uv;
 
 import hl.uv.Signal.SigNum;
+import hl.types.ArrayObj;
+import hl.types.BytesMap;
+import hl.NativeArray;
 
 /**
-	Container for each stdio handle or fd passed to a child process.
+	Predefined file descriptors for stdio.
 **/
-typedef ProcessStdio = {
-	var ?ignore:Bool;
-	var ?fd:Int;
-	var ?stream:Stream;
-	var ?createPipe:Bool;
+enum abstract StdioFd(Int) from Int to Int {
+	var STDIN = 0;
+	var STDOUT = 1;
+	var STDERR = 3;
+}
+
+/**
+	Containers for each stdio handle or fd passed to a child process.
+**/
+enum ProcessStdio {
 	/**
-		When var `createPipe` is specified, `readablePipe` and `writablePipe` determine
-		the direction of flow, from the child process' perspective. Both flags may be
-		specified to create a duplex data stream.
+		Redirect child process descriptor to `/dev/null`(Unix) or `NULL`(Windows)
 	**/
-	var ?readablePipe:Bool;
-	var ?writablePipe:Bool;
+	IGNORE;
 	/**
-		When `createPipe` is specified, specifying `nonBlockPipe` opens the handle
-		in non-blocking mode in the child. This may cause loss of data, if the child
-		is not designed to handle to encounter this mode, but can also be significantly
-		more efficient.
+		Connect child process descriptior to the corresponding parent process descriptor.
 	**/
-	var ?nonBlockPipe:Bool;
+	INHERIT;
+	/**
+		Connect child process descriptor to the specified file descriptor.
+
+		Predefined descriptors from `StdioFd` are allowed as well as any other
+		file descriptor represented by an `Int` value.
+	**/
+	FD(fd:StdioFd);
+	/**
+		Connect child proces descriptor to the specified pipe.
+
+		Specifying `nonBlock` opens the handle in non-blocking mode in the child.
+		This may cause loss of data, if the child is not designed to handle to
+		encounter this mode, but can also be significantly more efficient.
+	**/
+	PIPE(pipe:Pipe, permissions:StdioPipePermissions, ?nonBlock:Bool);
+	/**
+		Connect child proces descriptor to the specified stream.
+	**/
+	STREAM(stream:Stream);
+}
+
+/**
+	Determine the direction of flow from the child process' perspective.
+**/
+enum abstract StdioPipePermissions(Int) {
+	var READ = 1;
+	var WRITE = 2;
+	var DUPLEX = 3;
 }
 
 /**
 	Options for spawning processes.
 **/
 typedef ProcessOptions = {
-	/** Path pointing to the program to be executed. */
-	var file:String;
-	/** Command line arguments. args[0] should be the path to the program. */
-	var args:Array<String>;
 	/** Callback called after the process exits. */
-	var ?onExit:(p:Process, exitStatus:I64, termSignal:Int)->Void;
+	var ?onExit:(p:Process, exitStatus:I64, termSignal:SigNum)->Void;
 	/**
 		Describes the file descriptors that will be made available to the child process.
 		The convention is that stdio[0] points to stdin, stdio[1] is used for stdout,
 		and stdio[2] is stderr.
+
 		On Windows file descriptors greater than 2 are available to the child process
 		only if the child processes uses the MSVCRT runtime.
+
+		By default uses `ProcessStdio.IGNORE` for missing descriptors.
 	**/
 	var ?stdio:Array<ProcessStdio>;
 	/** Environment for the new process. The parents environment is used by default. */
@@ -73,7 +102,7 @@ typedef ProcessOptions = {
 	/** Set user id of the child process to this value. This is not supported on Windows. */
 	var ?uid:Int;
 	/** Set group id of the child process to this value. This is not supported on Windows. */
-	var ?git:Int;
+	var ?gid:Int;
 	/**
 		Spawn the child process in a detached state - this will make it a process
 		group leader, and will effectively enable the child to keep running after
@@ -91,7 +120,7 @@ typedef ProcessOptions = {
 	/** Hide the subprocess console window that would normally be created. Windows only. */
 	var ?windowsHideConsole:Bool;
 	/** Hide the subprocess GUI window that would normally be created. Windows only. */
-	var ?windowsHideGuiWindow:Bool;
+	var ?windowsHideGui:Bool;
 }
 
 /**
@@ -102,22 +131,67 @@ typedef ProcessOptions = {
 **/
 @:forward
 abstract Process(Handle) to Handle {
-
 	/** The PID of the spawned process. It’s set after calling `spawn()`. */
 	public var pid(get,never):Int;
-	@:hlNative("uv", "process_pid") public function get_sigNum():Int return 0;
+	@:hlNative("uv", "process_pid") public function get_pid():Int return 0;
 
 	/**
 		Disables (tries) file descriptor inheritance for inherited descriptors.
+
+		The effect is that child processes spawned by this process don’t accidentally
+		inherit these handles.
 	**/
 	@:hlNative("uv", "disable_stdio_inheritance")
 	static public function disableStdioInheritance():Void {}
 
 	/**
 		Initializes the process handle and starts the process.
+
+		`cmd` is the program to be executed.
+		`args[0]` should be the path to the program.
 	**/
-	@:hlNative("uv", "spawn_wrap")
-	public function spawn(loop:Loop, options:ProcessOptions):Void {}
+	static public function spawn(loop:Loop, cmd:String, args:Array<String>, ?options:ProcessOptions):Process {
+		inline function toNative<T>(array:Array<T>):NativeArray<T> {
+			var result = new NativeArray<T>(array.length);
+			for(i => v in array)
+				result[i] = v;
+			return result;
+		}
+		if(options == null) {
+			return spawn_wrap(loop, cmd, toNative(args));
+		} else {
+			var stdio = null;
+			if(options.stdio != null)
+				stdio = toNative(options.stdio);
+			var env = null;
+			if(options.env != null){
+				var envArray = [for(k => v in options.env) '$k=$v'];
+				env = toNative(envArray);
+			}
+			return spawn_wrap(loop, cmd, toNative(args), options.onExit, stdio, env, options.cwd,
+				options.uid, options.gid, options.detached, options.windowsVerbatimArguments,
+				options.windowsHide, options.windowsHideConsole, options.windowsHideGui);
+		}
+	}
+
+	@:hlNative("uv", "spawn_wrap") static function spawn_wrap(
+		loop:Loop,
+		file:String,
+		args:NativeArray<String>,
+		?onExti:(p:Process, exitStatus:I64, termSignal:Int)->Void,
+		?stdio:NativeArray<ProcessStdio>,
+		?env:NativeArray<String>,
+		?cwd:String,
+		?uid:Int,
+		?gid:Int,
+		?detached:Bool,
+		?windowsVerbatimArguments:Bool,
+		?windowsHide:Bool,
+		?windowsHideConsole:Bool,
+		?windowsHideGui:Bool
+	):Process
+		return null;
+
 
 	/**
 		Sends the specified signal to the process.
