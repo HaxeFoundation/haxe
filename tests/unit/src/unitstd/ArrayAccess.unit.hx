@@ -1,5 +1,3 @@
-package tests.unit.src.unitstd;
-
 extern inline overload function test1(access: ArrayAccess<Int>) return true;
 extern inline overload function test1(access: Any) return false;
 
