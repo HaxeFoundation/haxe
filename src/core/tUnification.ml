@@ -684,7 +684,7 @@ let rec unify (uctx : unification_context) a b =
 			let t1' = apply_params tp tl t1 in
 			unify uctx t1' t2
 		with Unify_error l ->
-			raise (cannot_unify a b :: l)
+			error (cannot_unify a b :: l)
 		end
 	| _, TInst ({ cl_path = [],"ArrayAccess" },_) ->
 		error [cannot_unify a b]
