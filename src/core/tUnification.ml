@@ -679,6 +679,15 @@ let rec unify (uctx : unification_context) a b =
 		()
 	| TAbstract (ab,tl), TAbstract ({ a_path = ["haxe"],("FlatEnum" | "Function" | "Constructible") },_) ->
 		unify_to {uctx with allow_transitive_cast = false} a b ab tl
+	| TInst ({ cl_array_access=Some t1; cl_params=tp },tl), TInst ({ cl_path = [],"ArrayAccess" },[t2]) ->
+		begin try
+			let t1' = apply_params tp tl t1 in
+			unify uctx t1' t2
+		with Unify_error l ->
+			raise (cannot_unify a b :: l)
+		end
+	| _, TInst ({ cl_path = [],"ArrayAccess" },_) ->
+		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts uctx a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
