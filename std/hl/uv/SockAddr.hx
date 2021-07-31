@@ -68,7 +68,7 @@ abstract SockAddr(hl.Abstract<"uv_sockaddr_storage">) {
 	/**
 		Converts a network address to a string.
 	**/
-	public inline function toString():String
+	public function toString():String
 		return switch port {
 			case null: '${name()}';
 			case p: '${name()}:$p';
