@@ -30,7 +30,11 @@ enum abstract SocketType(Int) from Int {
 abstract SockAddr(hl.Abstract<"uv_sockaddr_storage">) {
 	/** Extracts the port in a network address. */
 	public var port(get,never):Null<Int>;
-	@:hlNative("uv", "get_port") function get_port():Null<Int> return null;
+	@:hlNative("uv", "sockaddr_get_port") function get_port():Null<Int> return null;
+
+	@:hlNative("uv", "sockaddr_cast_ptr")
+	static function castPtr(pointer:Dynamic):SockAddr
+		return null;
 
 	/**
 		Converts a string and port number to an IPv4 struct sockaddr.
