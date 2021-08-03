@@ -1883,4 +1883,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.quoted-printable-encode.php
 	**/
 	static function quoted_printable_encode(string:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.easter-date.php
+	**/
+	static function easter_date(?year:Int, ?mode:Int): Int;
+
+	/**
+		@see http://php.net/manual/en/function.easter-days.php
+	**/
+	static function easter_days(?year:Int, ?mode:Int): Int;
 }
