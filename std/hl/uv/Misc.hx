@@ -20,25 +20,21 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package hl;
+package hl.uv;
 
-@:coreType @:notNull @:runtimeValue abstract I64 {
+/**
+	Misscelaneous.
 
+	@see http://docs.libuv.org/en/v1.x/misc.html
+**/
+class Misc {
 	/**
-		Destructively cast to Int
+		Gets the temp directory.
 	**/
-	public inline function toInt():Int {
-		return cast this;
-	}
+	static public inline function tmpDir():String
+		return @:privateAccess String.fromUTF8(tmpDirWrap());
 
-	@:hlNative("std", "num_i64_of_int")
-	public static function ofInt(i:Int):I64
-		return cast 0;
-
-	@:to
-	@:deprecated("Implicit cast from I64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.")
-	inline function implicitToInt(): Int {
-		return toInt();
-	}
-
+	@:hlNative("uv", "os_tmpdir_wrap")
+	static function tmpDirWrap():Bytes
+		return null;
 }
