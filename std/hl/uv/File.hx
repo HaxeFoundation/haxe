@@ -51,37 +51,28 @@ enum FileOpenFlag {
 	O_WRONLY;
 }
 
-class FileStat {
-	public var dev:I64; //UI64
-	public var mode:I64; //UI64
-	public var nlink:I64; //UI64
-	public var uid:I64; //UI64
-	public var gid:I64; //UI64
-	public var rdev:I64; //UI64
-	public var ino:I64; //UI64
-	public var size:I64; //UI64
-	public var blksize:I64; //UI64
-	public var blocks:I64; //UI64
-	public var flags:I64; //UI64
-	public var gen:I64; //UI64
-	public var atim:FileStatTimeSpec;
-	public var mtim:FileStatTimeSpec;
-	public var ctim:FileStatTimeSpec;
-	public var birthtim:FileStatTimeSpec;
-
-	function new() @:privateAccess {
-		atim = new FileStatTimeSpec();
-		mtim = new FileStatTimeSpec();
-		ctim = new FileStatTimeSpec();
-		birthtim = new FileStatTimeSpec();
-	}
+typedef FileStat = {
+	var dev:I64; //UI64
+	var mode:I64; //UI64
+	var nlink:I64; //UI64
+	var uid:I64; //UI64
+	var gid:I64; //UI64
+	var rdev:I64; //UI64
+	var ino:I64; //UI64
+	var size:I64; //UI64
+	var blksize:I64; //UI64
+	var blocks:I64; //UI64
+	var flags:I64; //UI64
+	var gen:I64; //UI64
+	var atim:FileTimeSpec;
+	var mtim:FileTimeSpec;
+	var ctim:FileTimeSpec;
+	var birthtim:FileTimeSpec;
 }
 
-class FileStatTimeSpec {
-	public var sec:I64;
-	public var nsec:I64;
-
-	function new() {}
+typedef FileTimeSpec = {
+	var sec:I64;
+	var nsec:I64;
 }
 
 typedef FileStatFs = {
@@ -185,11 +176,11 @@ abstract File(Int) {
 	/**
 		Retrieves status information for the file at the given path.
 	**/
-	static public inline function stat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):Void
-		statWrap(loop, path, @:privateAccess new FileStat(), callback);
+	static public inline function stat(loop:Loop, path:String, callback:(e:UVError, stat:FileStat)->Void):Void
+		statWrap(loop, path, callback);
 
 	@:hlNative("uv", "fs_stat_wrap")
-	static function statWrap(loop:Loop, path:String, stat:FileStat, callback:(e:UVError, stat:Null<FileStat>)->Void):Void {}
+	static function statWrap(loop:Loop, path:String, callback:(e:UVError, stat:Dynamic)->Void):Void {}
 
 	// /**
 	// 	Retrieves status information for the file.
