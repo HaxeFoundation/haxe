@@ -23,19 +23,19 @@
 package hl.uv;
 
 enum abstract DirEntryType(Int) {
-	var UV_DIRENT_UNKNOWN = 1;
-	var UV_DIRENT_FILE = 2;
-	var UV_DIRENT_DIR = 3;
-	var UV_DIRENT_LINK = 4;
-	var UV_DIRENT_FIFO = 5;
-	var UV_DIRENT_SOCKET = 6;
-	var UV_DIRENT_CHAR = 7;
-	var UV_DIRENT_BLOCK = 8;
-} uv_dirent_type_t;
+	var DIRENT_UNKNOWN = 1;
+	var DIRENT_FILE = 2;
+	var DIRENT_DIR = 3;
+	var DIRENT_LINK = 4;
+	var DIRENT_FIFO = 5;
+	var DIRENT_SOCKET = 6;
+	var DIRENT_CHAR = 7;
+	var DIRENT_BLOCK = 8;
+}
 
-class DirEntry {
-	public var name:String;
-	public var type:DirEntryType;
+typedef DirEntry = {
+	var name:String;
+	var type:DirEntryType;
 }
 
 /**
@@ -53,12 +53,26 @@ abstract Dir(Abstract<"uv_dir">) {
 	/**
 		Closes the directory stream.
 	**/
-	@:hlNative("uv", "fs_opendir_wrap")
+	@:hlNative("uv", "fs_closedir_wrap")
 	public function close(loop:Loop, callback:(e:UVError)->Void):Void {}
 
 	/**
 		Iterates over the directory stream.
 	**/
+	public function read(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:Null<Array<DirEntry>>)->Void):Void {
+		readWrap(loop, numberOfEntries, (e, entries) -> {
+			if(entries == null) {
+				callback(e, null);
+			} else {
+				callback(e, [for(i in 0...entries.length) {
+					var entry:Dynamic = entries[i];
+					entry.name = @:privateAccess String.fromUTF8(entry.name);
+					entry;
+				}]);
+			}
+		});
+	}
+
 	@:hlNative("uv", "fs_readdir_wrap")
-	public function read(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:Null<Array<DirEntry>>)->Void):Void {}
+	function readWrap(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:NativeArray<Dynamic>)->Void):Void {}
 }
