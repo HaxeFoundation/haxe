@@ -80,11 +80,14 @@ class FileSync {
 	/**
 		Create a temporary file.
 	**/
-	static public function mkstemp(tpl:String):String
-		return @:privateAccess String.fromUTF8(mkstempWrap(tpl));
+	static public function mkstemp(tpl:String):{file:File, path:String} {
+		var r:Dynamic = mkstempWrap(tpl);
+		r.path = @:privateAccess String.fromUTF8(r.path);
+		return r;
+	}
 
 	@:hlNative("uv", "fs_mkstemp_wrap_sync")
-	static function mkstempWrap(tpl:String):Bytes
+	static function mkstempWrap(tpl:String):Dynamic
 		return null;
 
 	/**

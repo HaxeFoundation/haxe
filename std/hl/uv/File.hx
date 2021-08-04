@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+import hl.types.ArrayObj;
+
 /**
 	Full list of file creation flags and file status flags.
 	@see open(2) man page
@@ -71,8 +73,8 @@ typedef FileStat = {
 }
 
 typedef FileTimeSpec = {
-	var sec:I64;
-	var nsec:I64;
+	var sec:Int;
+	var nsec:Int;
 }
 
 typedef FileStatFs = {
@@ -92,7 +94,7 @@ enum abstract CopyFileFlag(Int) {
 	var FICLONE_FORCE = 3;
 }
 
-enum abstract FileAccessFlag(Int) {
+enum abstract FileAccessMode(Int) {
 	var F_OK = 0;
 	var R_OK = 1;
 	var W_OK = 2;
@@ -120,7 +122,7 @@ abstract File(Int) {
 		Open file.
 	**/
 	static public inline function open(loop:Loop, path:String, flags:Array<FileOpenFlag>, callback:(e:UVError, file:File)->Void):Void {
-		openWrap(loop, path, @:privateAccess (cast flags:hl.types.ArrayObj<FileOpenFlag>).array, callback);
+		openWrap(loop, path, @:privateAccess (cast flags:ArrayObj<FileOpenFlag>).array, callback);
 	}
 	@:hlNative("uv", "fs_open_wrap")
 	static function openWrap(loop:Loop, path:String, flags:NativeArray<Dynamic>, callback:(e:UVError, file:File)->Void):Void {}
@@ -182,139 +184,159 @@ abstract File(Int) {
 	@:hlNative("uv", "fs_stat_wrap")
 	static function statWrap(loop:Loop, path:String, callback:(e:UVError, stat:Dynamic)->Void):Void {}
 
-	// /**
-	// 	Retrieves status information for the file.
-	// **/
-	// @:hlNative("uv", "fs_fstat_wrap")
-	// public function fstat(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void):Void {}
+	/**
+		Retrieves status information for the file.
+	**/
+	public inline function fstat(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void):Void
+		fstatWrap(loop, callback);
 
-	// /**
-	// 	Retrieves status information for the file at the given path.
-	// 	If `path` is a symbolic link, then it returns information about the link
-	// 	itself, not the file that the link refers to.
-	// **/
-	// @:hlNative("uv", "fs_lstat_wrap")
-	// static public function lstat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):Void {}
+	@:hlNative("uv", "fs_fstat_wrap")
+	function fstatWrap(loop:Loop, callback:(e:UVError, stat:Dynamic)->Void):Void {}
 
-	// /**
-	// 	Retrieves status information for the filesystem containing the given path.
-	// **/
-	// @:hlNative("uv", "fs_statfs_wrap")
-	// static public function statFs(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStatFs>)->Void):Void {}
+	/**
+		Retrieves status information for the file at the given path.
+		If `path` is a symbolic link, then it returns information about the link
+		itself, not the file that the link refers to.
+	**/
+	@:hlNative("uv", "fs_lstat_wrap")
+	static public inline function lstat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):Void
+		lstatWrap(loop, path, callback);
 
-	// /**
-	// 	Change the name or location of a file.
-	// **/
-	// @:hlNative("uv", "fs_rename_wrap")
-	// static public function rename(loop:Loop, path:String, newPath:String, callback:(e:UVError)->Void):Void {}
+	@:hlNative("uv", "fs_lstat_wrap")
+	static function lstatWrap(loop:Loop, path:String, callback:(e:UVError, stat:Dynamic)->Void):Void {}
 
-	// /**
-	// 	Flushes file changes to storage.
-	// **/
-	// @:hlNative("uv", "fs_fsync_wrap")
-	// public function fsync(loop:Loop, callback:(e:UVError)->Void):Void {}
+	/**
+		Retrieves status information for the filesystem containing the given path.
+	**/
+	static public inline function statFs(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStatFs>)->Void):Void
+		statfsWrap(loop, path, callback);
 
-	// /**
-	// 	Flushes file changes to storage, but may omit some metadata.
-	// **/
-	// @:hlNative("uv", "fs_fdatasync_wrap")
-	// public function fdataSync(loop:Loop, callback:(e:UVError)->Void):Void {}
+	@:hlNative("uv", "fs_statfs_wrap")
+	static function statfsWrap(loop:Loop, path:String, callback:(e:UVError, stat:Dynamic)->Void):Void {}
 
-	// /**
-	// 	Truncate a file to a specified length.
-	// **/
-	// @:hlNative("uv", "fs_ftruncate_wrap")
-	// public function ftruncate(loop:Loop, offset:I64, callback:(e:UVError)->Void):Void {}
+	/**
+		Change the name or location of a file.
+	**/
+	@:hlNative("uv", "fs_rename_wrap")
+	static public function rename(loop:Loop, path:String, newPath:String, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Copies a file from `path` to `newPath`.
-	// **/
-	// @:hlNative("uv", "fs_copyfile_wrap")
-	// static public function copyFile(loop:Loop, path:String, newPath:String, flags:Array<CopyFileFlag>, callback:(e:UVError)->Void):Void {}
+	/**
+		Flushes file changes to storage.
+	**/
+	@:hlNative("uv", "fs_fsync_wrap")
+	public function fsync(loop:Loop, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Transfers data between file descriptors.
-	// **/
-	// @:hlNative("uv", "fs_sendfile_wrap")
-	// public function sendFile(loop:Loop, toFile:File, offset:I64, length:I64, callback:(e:UVError)->Void):Void {}
+	/**
+		Flushes file changes to storage, but may omit some metadata.
+	**/
+	@:hlNative("uv", "fs_fdatasync_wrap")
+	public function fdataSync(loop:Loop, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Checks whether the calling process can access the file at the given path.
-	// **/
-	// @:hlNative("uv", "fs_access_wrap")
-	// static public function access(loop:Loop, path:String, mode:Array<FileAccessMode>, callback:(e:UVError)->Void):Void {}
+	/**
+		Truncate a file to a specified length.
+	**/
+	@:hlNative("uv", "fs_ftruncate_wrap")
+	public function ftruncate(loop:Loop, offset:I64, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Changes permissions of the file at the given path.
-	// **/
-	// @:hlNative("uv", "fs_chmod_wrap")
-	// static public function chmod(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):Void {}
+	/**
+		Copies a file from `path` to `newPath`.
+	**/
+	@:hlNative("uv", "fs_copyfile_wrap")
+	static public function copyFile(loop:Loop, path:String, newPath:String, flags:Null<Array<CopyFileFlag>>, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Changes permissions of the file.
-	// **/
-	// @:hlNative("uv", "fs_fchmod_wrap")
-	// public function fchmod(loop:Loop, mode:Int, callback:(e:UVError)->Void):Void {}
+	/**
+		Transfers data between file descriptors.
 
-	// /**
-	// 	Sets timestamps of the file at the given path.
-	// **/
-	// @:hlNative("uv", "fs_utime_wrap")
-	// static public function utime(loop:Loop, path:String, atime:I64, mtime:I64, callback:(e:UVError)->Void):Void {}
+		Data will be read starting at `inOffset` of the source file.
+		On success `outOffset` will set to the offset of the byte following the
+		last byte that was read.
+	**/
+	@:hlNative("uv", "fs_sendfile_wrap")
+	public function sendFile(loop:Loop, toFile:File, inOffset:I64, length:I64, callback:(e:UVError, outOffset:I64)->Void):Void {}
 
-	// /**
-	// 	Sets timestamps of the file.
-	// **/
-	// @:hlNative("uv", "fs_futime_wrap")
-	// public function futime(loop:Loop, atime:I64, mtime:I64, callback:(e:UVError)->Void):Void {}
+	/**
+		Checks whether the calling process can access the file at the given path.
+	**/
+	@:hlNative("uv", "fs_access_wrap")
+	static public function access(loop:Loop, path:String, mode:Array<FileAccessMode>, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Sets timestamps of the file at the given path.
-	// 	If `path` is a symbolic link, then it sets timestamp of the link itself.
-	// **/
-	// @:hlNative("uv", "fs_lutime_wrap")
-	// static public function lutime(loop:Loop, path:String, atime:I64, mtime:I64, callback:(e:UVError)->Void):Void {}
+	/**
+		Changes permissions of the file at the given path.
+	**/
+	@:hlNative("uv", "fs_chmod_wrap")
+	static public function chmod(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Hardlinks a file at the location given by `link`.
-	// **/
-	// @:hlNative("uv", "fs_link_wrap")
-	// static public function link(loop:Loop, path:String, link:String, callback:(e:UVError)->Void):Void {}
+	/**
+		Changes permissions of the file.
+	**/
+	@:hlNative("uv", "fs_fchmod_wrap")
+	public function fchmod(loop:Loop, mode:Int, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Symlinks a file at the location given by `link`.
-	// **/
-	// @:hlNative("uv", "fs_symlink_wrap")
-	// static public function symlink(loop:Loop, path:String, link:String, flags:Array<FileSymlinkFlag>, callback:(e:UVError)->Void):Void {}
+	/**
+		Sets timestamps of the file at the given path.
+	**/
+	@:hlNative("uv", "fs_utime_wrap")
+	static public function utime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Reads the target path of a symlink.
-	// **/
-	// @:hlNative("uv", "fs_readlink_wrap")
-	// static public function readLink(loop:Loop, path:String, callback:(e:UVError, target:Null<String>)->Void):Void {}
+	/**
+		Sets timestamps of the file.
+	**/
+	@:hlNative("uv", "fs_futime_wrap")
+	public function futime(loop:Loop, atime:Float, mtime:Float, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Resolves a real absolute path to the given file.
-	// **/
-	// @:hlNative("uv", "fs_realpath_wrap")
-	// static public function realPath(loop:Loop, path:String, callback:(e:UVError, real:Null<String>)->Void):Void {}
+	/**
+		Sets timestamps of the file at the given path.
+		If `path` is a symbolic link, then it sets timestamp of the link itself.
+	**/
+	@:hlNative("uv", "fs_lutime_wrap")
+	static public function lutime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Changes owneship of the file at the given path.
-	// **/
-	// @:hlNative("uv", "fs_chown_wrap")
-	// static public function chown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+	/**
+		Hardlinks a file at the location given by `link`.
+	**/
+	@:hlNative("uv", "fs_link_wrap")
+	static public function link(loop:Loop, path:String, link:String, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Changes owneship of the file.
-	// **/
-	// @:hlNative("uv", "fs_fchown_wrap")
-	// public function fchown(loop:Loop, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+	/**
+		Symlinks a file at the location given by `link`.
+	**/
+	@:hlNative("uv", "fs_symlink_wrap")
+	static public function symlink(loop:Loop, path:String, link:String, flags:Null<Array<FileSymlinkFlag>>, callback:(e:UVError)->Void):Void {}
 
-	// /**
-	// 	Changes owneship of the file at the given path.
-	// 	If `path` is a symbolic link, the it changes ownership of the link itself.
-	// **/
-	// @:hlNative("uv", "fs_chown_wrap")
-	// static public function lchown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+	/**
+		Reads the target path of a symlink.
+	**/
+	static public function readLink(loop:Loop, path:String, callback:(e:UVError, target:Null<String>)->Void):Void
+		readLinkWrap(loop, path, (e, t) -> callback(e, t == null ? null : @:privateAccess String.fromUTF8(t)));
+
+	@:hlNative("uv", "fs_readlink_wrap")
+	static public function readLinkWrap(loop:Loop, path:String, callback:(e:UVError, target:Bytes)->Void):Void {}
+
+	/**
+		Resolves a real absolute path to the given file.
+	**/
+	static public function realPath(loop:Loop, path:String, callback:(e:UVError, real:Null<String>)->Void):Void
+		realPathWrap(loop, path, (e, r) -> callback(e, r == null ? null : @:privateAccess String.fromUTF8(r)));
+
+	@:hlNative("uv", "fs_realpath_wrap")
+	static public function realPathWrap(loop:Loop, path:String, callback:(e:UVError, real:Bytes)->Void):Void {}
+
+	/**
+		Changes owneship of the file at the given path.
+	**/
+	@:hlNative("uv", "fs_chown_wrap")
+	static public function chown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+
+	/**
+		Changes owneship of the file.
+	**/
+	@:hlNative("uv", "fs_fchown_wrap")
+	public function fchown(loop:Loop, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+
+	/**
+		Changes owneship of the file at the given path.
+		If `path` is a symbolic link, the it changes ownership of the link itself.
+	**/
+	@:hlNative("uv", "fs_chown_wrap")
+	static public function lchown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
 }

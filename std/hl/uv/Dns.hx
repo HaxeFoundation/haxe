@@ -47,10 +47,6 @@ typedef AddrInfo = {
 	var addr:SockAddr;
 	var ?canonName:String;
 }
-// @:forward
-// abstract AddrInfo(AddrInfoData) from AddrInfoData {
-// 	public var canonName(get,never):String;
-// }
 
 typedef NameInfoFlags = {
 	var ?nameReqd:Bool;
