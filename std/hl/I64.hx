@@ -59,16 +59,6 @@ import haxe.Int64;
 	static public function ofString(s:String):I64;
 
 	/**
-		Parse the given string value to I64.
-	**/
-	@:to public inline function toString():String {
-		return @:privateAccess String.fromUTF8(__toString());
-	}
-
-	@:hlNative("std", "num_i64_to_bytes")
-	function __toString():Bytes;
-
-	/**
 		Convert `haxe.Int64` to `hl.uv.I64`
 	**/
 	@:from static public function ofInt64(hx:Int64):I64 {
