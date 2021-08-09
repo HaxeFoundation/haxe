@@ -62,14 +62,14 @@ import haxe.Int64;
 		Convert `haxe.Int64` to `hl.uv.I64`
 	**/
 	@:from static public function ofInt64(hx:Int64):I64 {
-		return ((hx.high:I64) << 31) | (hx.low:I64);
+		return ((hx.high:I64) << 32) | (hx.low:I64);
 	}
 
 	/**
 		Convert to `haxe.Int64`
 	**/
 	@:to public function toInt64():Int64 {
-		return Int64.make((this >> 31).toInt(), this.toInt());
+		return Int64.make((this >> 32).toInt(), this.toInt());
 	}
 
 	/**
