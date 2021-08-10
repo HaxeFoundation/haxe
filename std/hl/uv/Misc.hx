@@ -90,6 +90,13 @@ typedef Passwd = {
 	var shell:Null<String>;
 }
 
+typedef Uname = {
+	var sysname:String;
+	var release:String;
+	var version:String;
+	var machine:String;
+}
+
 /**
 	Miscellaneous.
 
@@ -213,7 +220,8 @@ class Misc {
 		return null;
 
 	/**
-		Gets a subset of the password file entry for the current effective uid (not the real uid).
+		Gets a subset of the password file entry for the current effective uid
+		(not the real uid).
 	**/
 	static public function getPasswd():Passwd @:privateAccess {
 		var p:Dynamic = getPasswdWrap();
@@ -226,4 +234,100 @@ class Misc {
 	@:hlNative("uv", "os_getpasswd_wrap")
 	static function getPasswdWrap():Dynamic
 		return null;
+
+	/**
+		Gets the amount of free memory available in the system, as reported by
+		the kernel (in bytes).
+	**/
+	@:hlNative("uv", "get_free_memory")
+	static public function getFreeMemory():I64
+		return I64.ofInt(0);
+
+	/**
+		Gets the total amount of physical memory in the system (in bytes).
+	**/
+	@:hlNative("uv", "get_total_memory")
+	static public function getTotalMemory():I64
+		return I64.ofInt(0);
+
+	/**
+		Gets the amount of memory available to the process (in bytes) based on limits imposed by the OS.
+	**/
+	@:hlNative("uv", "get_constrained_memory")
+	static public function getConstrainedMemory():I64
+		return I64.ofInt(0);
+
+	/**
+		Returns the current high-resolution real time.
+
+		This is expressed in nanoseconds.
+
+		It is relative to an arbitrary time in the past. It is not related to the
+		time of day and therefore not subject to clock drift. The primary use is
+		for measuring performance between intervals.
+	**/
+	@:hlNative("uv", "hrtime")
+	static public function hrTime():I64
+		return I64.ofInt(0);
+
+	/**
+		Returns the hostname.
+	**/
+	static public inline function getHostName():String
+		return @:privateAccess String.fromUTF8(getHostNameWrap());
+
+	@:hlNative("uv", "os_gethostname_wrap")
+	static function getHostNameWrap():Bytes
+		return null;
+
+	/**
+		Retrieves the scheduling priority of the process specified by pid.
+		The returned value of priority is between -20 (high priority) and 19 (low priority).
+	**/
+	@:hlNative("uv", "os_getpriority_wrap")
+	static public function getPriority(pid:Int):Int
+		return 0;
+
+	/**
+		Sets the scheduling priority of the process specified by pid.
+		The priority value range is between -20 (high priority) and 19 (low priority).
+	**/
+	@:hlNative("uv", "os_setpriority_wrap")
+	static public function setPriority(pid:Int, priority:Int):Void {}
+
+	/**
+		Retrieves system information.
+	**/
+	static public function uname():Uname @:privateAccess {
+		var u:Dynamic = unameWrap();
+		u.sysname = String.fromUTF8(u.sysname);
+		u.release = String.fromUTF8(u.release);
+		u.version = String.fromUTF8(u.version);
+		u.machine = String.fromUTF8(u.machine);
+		return u;
+	}
+
+	@:hlNative("uv", "os_uname_wrap")
+	static function unameWrap():Dynamic
+		return null;
+
+	/**
+		Get time.
+	**/
+	static public function getTimeOfDay():{sec:I64, usec:Int}
+		return getTimeOfDayWrap();
+
+	@:hlNative("uv", "gettimeofday_wrap")
+	static function getTimeOfDayWrap():Dynamic
+		return null;
+
+	/**
+		Fill `buf` with exactly `length` cryptographically strong random bytes acquired
+		from the system CSPRNG.
+
+		`flags` is reserved for future extension and must currently be 0.
+	**/
+	@:hlNative("uv", "random_wrap")
+	static public function random(loop:Loop, buf:Bytes, length:Int, flags:Int, callback:(e:UVError)->Void):Void {}
+
 }
