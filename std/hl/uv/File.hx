@@ -73,8 +73,8 @@ typedef FileStat = {
 }
 
 typedef FileTimeSpec = {
-	var sec:Int;
-	var nsec:Int;
+	var sec:I64;
+	var nsec:I64;
 }
 
 typedef FileStatFs = {
