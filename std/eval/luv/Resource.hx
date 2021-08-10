@@ -68,7 +68,7 @@ extern class Resource {
 	/**
 		Evaluates to the resident set size for the current process.
 	**/
-	static function residentSetMemory(pid:Int):Result<UInt64>;
+	static function residentSetMemory():Result<UInt64>;
 
 	/**
 		Gets the resource usage measures for the current process.
