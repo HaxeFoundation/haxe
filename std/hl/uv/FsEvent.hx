@@ -56,7 +56,8 @@ abstract FsEvent(Handle) to Handle {
 		return null;
 
 	/**
-		Open file.
+		Start the handle with the given callback, which will watch the specified
+		path for changes.
 	**/
 	public function start(path:String, flags:Null<Array<FsEventFlag>>, callback:(e:UVError, path:Null<String>, events:Null<Array<FsEventType>>)->Void):Void {
 		startWrap(path, flags, (e, path, events) -> {
