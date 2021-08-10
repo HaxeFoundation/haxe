@@ -55,7 +55,40 @@ typedef RUsage = {
 	var nvcsw:I64;
 	/** involuntary context switches (X) */
 	var nivcsw:I64;
-} uv_rusage_t;
+}
+
+typedef CpuInfo = {
+	var model:String;
+	var speed:Int;
+	var cpuTimes:{
+		/** milliseconds */
+		var user:I64;
+		/** milliseconds */
+		var nice:I64;
+		/** milliseconds */
+		var sys:I64;
+		/** milliseconds */
+		var idle:I64
+		/** milliseconds */;
+		var irq:I64;
+	}
+}
+
+typedef InterfaceAddress = {
+	var name:String;
+	var physAddr:haxe.io.Bytes;
+	var isInternal:Bool;
+	var address:SockAddr;
+	var netmask:SockAddr;
+}
+
+typedef Passwd = {
+	var username:String;
+	var uid:I64;
+	var gid:I64;
+	var homedir:String;
+	var shell:Null<String>;
+}
 
 /**
 	Miscellaneous.
@@ -68,7 +101,7 @@ class Misc {
 	**/
 	@:hlNative("uv", "resident_set_memory_wrap")
 	static public function residentSetMemory():I64
-		return 0;
+		return I64.ofInt(0);
 
 	/**
 		Gets the current system uptime.
@@ -90,25 +123,73 @@ class Misc {
 	/**
 		Returns the current process ID.
 	**/
-	@:hlNative("uv", "os_getpid_wrap")
+	@:hlNative("uv", "os_getpid")
 	static public function getPid():Int
-		return null;
+		return 0;
 
 	/**
 		Returns the parent process ID.
 	**/
-	@:hlNative("uv", "os_getppid_wrap")
+	@:hlNative("uv", "os_getppid")
 	static public function getPPid():Int
-		return null;
+		return 0;
 
 	/**
 		Gets information about the CPUs on the system.
 	**/
-	static public function cpuInfo():CpuInfo
-		return cpuInfoWrap();
+	static public function cpuInfo():Array<CpuInfo> {
+		var infos = cpuInfoWrap();
+		var a = new Array<CpuInfo>();
+		a.resize(infos.length);
+		for(i in 0...infos.length) {
+			var info:Dynamic = infos[i];
+			info.model = @:privateAccess String.fromUTF8(info.model);
+			a[i] = info;
+		}
+		return a;
+	}
 
 	@:hlNative("uv", "cpu_info_wrap")
-	static function cpuInfoWrap():Dynamic
+	static function cpuInfoWrap():NativeArray<Dynamic>
+		return null;
+
+	/**
+		Gets address information about the network interfaces on the system.
+	**/
+	static public function interfaceAddresses():Array<InterfaceAddress> {
+		var addresses = interfaceAddressesWrap();
+		var a = new Array<InterfaceAddress>();
+		a.resize(addresses.length);
+		for(i in 0...addresses.length) {
+			var addr:Dynamic = addresses[i];
+			addr.name = @:privateAccess String.fromUTF8(addr.name);
+			addr.physAddr = haxe.io.Bytes.ofData(new haxe.io.BytesData(addr.physAddr, 6));
+			addr.address = @:privateAccess SockAddr.castPtr(addr.address);
+			addr.netmask = @:privateAccess SockAddr.castPtr(addr.netmask);
+			a[i] = addr;
+		}
+		return a;
+	}
+
+	@:hlNative("uv", "interface_addresses_wrap")
+	static function interfaceAddressesWrap():NativeArray<Dynamic>
+		return null;
+
+	/**
+		Gets the load average.
+	**/
+	static public function loadAvg():Array<Float> {
+		var result = new Array<Float>();
+		result.resize(3);
+		var avg = loadAvgWrap();
+		for(i in 0...avg.length) {
+			result[i] = avg[i];
+		}
+		return result;
+	}
+
+	@:hlNative("uv", "loadavg_wrap")
+	static public function loadAvgWrap():NativeArray<Float>
 		return null;
 
 	/**
@@ -119,5 +200,30 @@ class Misc {
 
 	@:hlNative("uv", "os_tmpdir_wrap")
 	static function tmpDirWrap():Bytes
+		return null;
+
+	/**
+		Gets the current user’s home directory.
+	**/
+	static public inline function homeDir():String
+		return @:privateAccess String.fromUTF8(homeDirWrap());
+
+	@:hlNative("uv", "os_homedir_wrap")
+	static function homeDirWrap():Bytes
+		return null;
+
+	/**
+		Gets a subset of the password file entry for the current effective uid (not the real uid).
+	**/
+	static public function getPasswd():Passwd @:privateAccess {
+		var p:Dynamic = getPasswdWrap();
+		p.username = String.fromUTF8(p.username);
+		p.shell = p.shell == null ? null : String.fromUTF8(p.shell);
+		p.homedir = String.fromUTF8(p.homedir);
+		return p;
+	}
+
+	@:hlNative("uv", "os_getpasswd_wrap")
+	static function getPasswdWrap():Dynamic
 		return null;
 }
