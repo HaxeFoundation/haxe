@@ -28,15 +28,6 @@ import hl.types.BytesMap;
 import hl.NativeArray;
 
 /**
-	Predefined file descriptors for stdio.
-**/
-enum abstract StdioFd(Int) from Int to Int {
-	var STDIN = 0;
-	var STDOUT = 1;
-	var STDERR = 3;
-}
-
-/**
 	Containers for each stdio handle or fd passed to a child process.
 **/
 enum ProcessStdio {
@@ -50,11 +41,8 @@ enum ProcessStdio {
 	INHERIT;
 	/**
 		Connect child process descriptor to the specified file descriptor.
-
-		Predefined descriptors from `StdioFd` are allowed as well as any other
-		file descriptor represented by an `Int` value.
 	**/
-	FD(fd:StdioFd);
+	FD(fd:File);
 	/**
 		Connect child proces descriptor to the specified pipe.
 

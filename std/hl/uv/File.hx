@@ -112,6 +112,13 @@ enum abstract FileSymlinkFlag(Int) {
 	@see http://docs.libuv.org/en/v1.x/fs.html
 **/
 abstract File(Int) {
+	static public final stdin:File = new File(0);
+	static public final stdout:File = new File(1);
+	static public final stderr:File = new File(2);
+
+	inline function new(fd:Int)
+		this = fd;
+
 	/**
 		Close file.
 	**/
