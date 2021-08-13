@@ -66,7 +66,7 @@ enum abstract UVError(Int) {
 	var UV_ENOTEMPTY = 56;
 	var UV_ENOTSOCK = 57;
 	var UV_ENOTSUP = 58;
-	// var UV_EOVERFLOW = 59;
+	var UV_EOVERFLOW = 59;
 	var UV_EPERM = 60;
 	var UV_EPIPE = 61;
 	var UV_EPROTO = 62;
@@ -154,7 +154,7 @@ enum abstract UVError(Int) {
 			case UV_ENOTEMPTY: "Directory not empty";
 			case UV_ENOTSOCK: "Socket operation on non-socket";
 			case UV_ENOTSUP: "Operation not supported on socket";
-			// case UV_EOVERFLOW: "Value too large for defined data type";
+			case UV_EOVERFLOW: "Value too large for defined data type";
 			case UV_EPERM: "Operation not permitted";
 			case UV_EPIPE: "Broken pipe";
 			case UV_EPROTO: "Protocol error";
@@ -240,7 +240,7 @@ enum abstract UVError(Int) {
 			case UV_ENOTEMPTY: "ENOTEMPTY";
 			case UV_ENOTSOCK: "ENOTSOCK";
 			case UV_ENOTSUP: "ENOTSUP";
-			// case UV_EOVERFLOW: "EOVERFLOW";
+			case UV_EOVERFLOW: "EOVERFLOW";
 			case UV_EPERM: "EPERM";
 			case UV_EPIPE: "EPIPE";
 			case UV_EPROTO: "EPROTO";
