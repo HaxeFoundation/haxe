@@ -52,8 +52,10 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	/**
 		Allocate and initialize an event loop.
 	**/
-	@:hlNative("uv", "loop_init_wrap") static public function init():Loop {
-		return null;
+	static public function init():Loop {
+		var loop = alloc();
+		_init(loop).resolve();
+		return loop;
 	}
 
 	/**
@@ -61,27 +63,31 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		Call this function only when the loop has finished executing and all open
 		handles and requests have been closed, or it will throw `EBUSY`.
 	**/
-	@:hlNative("uv", "loop_close_wrap") public function close():Void {}
+	public function close():Void {
+		_close().resolve();
+	}
 
 	/**
 		This function runs the event loop.
 
 		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_run
 	**/
-	@:hlNative("uv", "run_wrap") public function run(mode:LoopRunMode):Bool
-		return false;
+	public function run(mode:LoopRunMode):Bool {
+		return _run(mode).resolve() != 0;
+	}
 
 	/**
 		Returns non-zero if there are referenced active handles, active requests
 		or closing handles in the loop.
 	**/
-	@:hlNative("uv", "loop_alive_wrap") public function alive():Bool
-		return false;
+	public function alive():Bool {
+		return _alive() != 0;
+	}
 
 	/**
 		Stop the event loop as soon as possible.
 	**/
-	@:hlNative("uv", "stop_wrap") public function stop():Void {}
+	@:hlNative("uv", "stop") public function stop():Void {}
 
 	/**
 		Returns the initialized default loop.
@@ -101,9 +107,12 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		return def;
 	}
 
-	@:hlNative("uv", "default_loop") static function default_loop():Loop {
-		return null;
-	}
-
 	static var loopEvent:haxe.MainLoop.MainEvent;
+
+	@:hlNative("uv", "alloc_uv_loop_t") static function alloc():Loop return null;
+	@:hlNative("uv", "loop_init") static function _init(loop:Loop):UVResult return new UVResult(0);
+	@:hlNative("uv", "loop_close") function _close():UVResult return new UVResult(0);
+	@:hlNative("uv", "run") function _run(mode:LoopRunMode):UVResult return new UVResult(0);
+	@:hlNative("uv", "loop_alive") function _alive():Int return 0;
+	@:hlNative("uv", "default_loop") static function default_loop():Loop return null;
 }

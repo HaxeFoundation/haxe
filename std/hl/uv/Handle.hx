@@ -31,21 +31,26 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 	/**
 		Returns `true` if the handle is active, `false` otherwise.
 	**/
-	@:hlNative("uv", "is_active_wrap") public function isActive():Bool
-		return false;
+	public inline function isActive():Bool
+		return is_active() != 0;
 
 	/**
 		Returns `true` if the handle is closing or closed, `false` otherwise.
 	**/
-	@:hlNative("uv", "is_closing_wrap") public function isClosing():Bool
-		return false;
+	public inline function isClosing():Bool
+		return is_closing() != 0;
 
 	/**
 		Request handle to be closed.
 		`callback` will be called asynchronously after this call.
 		This MUST be called on each handle.
 	**/
-	@:hlNative("uv", "close_wrap") public function close(?callback:()->Void):Void {}
+	public function close(?callback:()->Void):Void {
+		if(isClosing())
+			throw new UVException(UV_EINVAL);
+		HandleData.ofPointer(get_data()).onClose = callback;
+		close_with_cb();
+	}
 
 	/**
 		Reference the given handle.
@@ -53,7 +58,7 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	@:hlNative("uv", "ref_wrap") public function ref():Void {}
+	@:hlNative("uv", "ref") public function ref():Void {}
 
 	/**
 		Unreference the given handle.
@@ -61,13 +66,22 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	@:hlNative("uv", "unref_wrap") public function unref():Void {}
+	@:hlNative("uv", "unref") public function unref():Void {}
 
 	/**
 		Returns `true` if the handle is referenced, `false` otherwise.
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	@:hlNative("uv", "has_ref_wrap") public function hasRef():Bool
-		return false;
+	public inline function hasRef():Bool
+		return has_ref() != 0;
+
+	@:hlNative("uv", "is_active") function is_active():Int return 0;
+	@:hlNative("uv", "is_closing") function is_closing():Int return 0;
+	@:hlNative("uv", "close_with_cb") function close_with_cb():Void {}
+	@:hlNative("uv", "has_ref") function has_ref():Int return 0;
+	@:allow(hl.uv)
+	@:hlNative("uv", "handle_get_data") function get_data():Pointer return null;
+	@:allow(hl.uv)
+	@:hlNative("uv", "handle_set_data_with_gc") function set_data(data:HandleData):Void {}
 }

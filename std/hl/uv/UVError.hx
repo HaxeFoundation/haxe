@@ -90,179 +90,32 @@ enum abstract UVError(Int) {
 	var UV_ESOCKTNOSUPPORT = 80;
 
 	public function toString():String {
-		return 'UVError ' + name() + ': ' + description();
+		return 'UVError ' + inline name() + ': ' + inline description();
+	}
+
+	public function name():String {
+		return @:privateAccess String.fromUTF8(err_name(translate_to_uv_error(this)));
 	}
 
 	public function description():String {
-		return switch (cast this:UVError) {
-			case UV_NOERR: "No error";
-			case UV_E2BIG: "Argument list too long";
-			case UV_EACCES: "Permission denied";
-			case UV_EADDRINUSE: "Address already in use";
-			case UV_EADDRNOTAVAIL: "Address not available";
-			case UV_EAFNOSUPPORT: "Address family not supported";
-			case UV_EAGAIN: "Resource temporarily unavailable";
-			case UV_EAI_ADDRFAMILY: "Address family not supported";
-			case UV_EAI_AGAIN: "Temporary failure";
-			case UV_EAI_BADFLAGS: "Bad ai_flags value";
-			case UV_EAI_BADHINTS: "Invalid value for hints";
-			case UV_EAI_CANCELED: "Request canceled";
-			case UV_EAI_FAIL: "Permanent failure";
-			case UV_EAI_FAMILY: "Ai_family not supported";
-			case UV_EAI_MEMORY: "Out of memory";
-			case UV_EAI_NODATA: "No address";
-			case UV_EAI_NONAME: "Unknown node or service";
-			case UV_EAI_OVERFLOW: "Argument buffer overflow";
-			case UV_EAI_PROTOCOL: "Resolved protocol is unknown";
-			case UV_EAI_SERVICE: "Service not available for socket type";
-			case UV_EAI_SOCKTYPE: "Socket type not supported";
-			case UV_EALREADY: "Connection already in progress";
-			case UV_EBADF: "Bad file descriptor";
-			case UV_EBUSY: "Resource busy or locked";
-			case UV_ECANCELED: "Operation canceled";
-			case UV_ECHARSET: "Invalid Unicode character";
-			case UV_ECONNABORTED: "Software caused connection abort";
-			case UV_ECONNREFUSED: "Connection refused";
-			case UV_ECONNRESET: "Connection reset by peer";
-			case UV_EDESTADDRREQ: "Destination address required";
-			case UV_EEXIST: "File already exists";
-			case UV_EFAULT: "Bad address in system call argument";
-			case UV_EFBIG: "File too large";
-			case UV_EHOSTUNREACH: "Host is unreachable";
-			case UV_EINTR: "Interrupted system call";
-			case UV_EINVAL: "Invalid argument";
-			case UV_EIO: "I/o error";
-			case UV_EISCONN: "Socket is already connected";
-			case UV_EISDIR: "Illegal operation on a directory";
-			case UV_ELOOP: "Too many symbolic links encountered";
-			case UV_EMFILE: "Too many open files";
-			case UV_EMSGSIZE: "Message too long";
-			case UV_ENAMETOOLONG: "Name too long";
-			case UV_ENETDOWN: "Network is down";
-			case UV_ENETUNREACH: "Network is unreachable";
-			case UV_ENFILE: "File table overflow";
-			case UV_ENOBUFS: "No buffer space available";
-			case UV_ENODEV: "No such device";
-			case UV_ENOENT: "No such file or directory";
-			case UV_ENOMEM: "Not enough memory";
-			case UV_ENONET: "Machine is not on the network";
-			case UV_ENOPROTOOPT: "Protocol not available";
-			case UV_ENOSPC: "No space left on device";
-			case UV_ENOSYS: "Function not implemented";
-			case UV_ENOTCONN: "Socket is not connected";
-			case UV_ENOTDIR: "Not a directory";
-			case UV_ENOTEMPTY: "Directory not empty";
-			case UV_ENOTSOCK: "Socket operation on non-socket";
-			case UV_ENOTSUP: "Operation not supported on socket";
-			case UV_EOVERFLOW: "Value too large for defined data type";
-			case UV_EPERM: "Operation not permitted";
-			case UV_EPIPE: "Broken pipe";
-			case UV_EPROTO: "Protocol error";
-			case UV_EPROTONOSUPPORT: "Protocol not supported";
-			case UV_EPROTOTYPE: "Protocol wrong type for socket";
-			case UV_ERANGE: "Result too large";
-			case UV_EROFS: "Read-only file system";
-			case UV_ESHUTDOWN: "Cannot send after transport endpoint shutdown";
-			case UV_ESPIPE: "Invalid seek";
-			case UV_ESRCH: "No such process";
-			case UV_ETIMEDOUT: "Connection timed out";
-			case UV_ETXTBSY: "Text file is busy";
-			case UV_EXDEV: "Cross-device link not permitted";
-			case UV_UNKNOWN: "Unknown error";
-			case UV_EOF: "End of file";
-			case UV_ENXIO: "No such device or address";
-			case UV_EMLINK: "Too many links";
-			case UV_ENOTTY: "Inappropriate ioctl for device";
-			case UV_EFTYPE: "Inappropriate file type or format";
-			case UV_EILSEQ: "Illegal byte sequence";
-			case UV_ESOCKTNOSUPPORT: "Socket type not supported";
-		}
+		return @:privateAccess String.fromUTF8(strerror(translate_to_uv_error(this)));
 	}
 
-	function name():String {
-		return switch (cast this:UVError) {
-			case UV_NOERR: "NOERR";
-			case UV_E2BIG: "E2BIG";
-			case UV_EACCES: "EACCES";
-			case UV_EADDRINUSE: "EADDRINUSE";
-			case UV_EADDRNOTAVAIL: "EADDRNOTAVAIL";
-			case UV_EAFNOSUPPORT: "EAFNOSUPPORT";
-			case UV_EAGAIN: "EAGAIN";
-			case UV_EAI_ADDRFAMILY: "EAI_ADDRFAMILY";
-			case UV_EAI_AGAIN: "EAI_AGAIN";
-			case UV_EAI_BADFLAGS: "EAI_BADFLAGS";
-			case UV_EAI_BADHINTS: "EAI_BADHINTS";
-			case UV_EAI_CANCELED: "EAI_CANCELED";
-			case UV_EAI_FAIL: "EAI_FAIL";
-			case UV_EAI_FAMILY: "EAI_FAMILY";
-			case UV_EAI_MEMORY: "EAI_MEMORY";
-			case UV_EAI_NODATA: "EAI_NODATA";
-			case UV_EAI_NONAME: "EAI_NONAME";
-			case UV_EAI_OVERFLOW: "EAI_OVERFLOW";
-			case UV_EAI_PROTOCOL: "EAI_PROTOCOL";
-			case UV_EAI_SERVICE: "EAI_SERVICE";
-			case UV_EAI_SOCKTYPE: "EAI_SOCKTYPE";
-			case UV_EALREADY: "EALREADY";
-			case UV_EBADF: "EBADF";
-			case UV_EBUSY: "EBUSY";
-			case UV_ECANCELED: "ECANCELED";
-			case UV_ECHARSET: "ECHARSET";
-			case UV_ECONNABORTED: "ECONNABORTED";
-			case UV_ECONNREFUSED: "ECONNREFUSED";
-			case UV_ECONNRESET: "ECONNRESET";
-			case UV_EDESTADDRREQ: "EDESTADDRREQ";
-			case UV_EEXIST: "EEXIST";
-			case UV_EFAULT: "EFAULT";
-			case UV_EFBIG: "EFBIG";
-			case UV_EHOSTUNREACH: "EHOSTUNREACH";
-			case UV_EINTR: "EINTR";
-			case UV_EINVAL: "EINVAL";
-			case UV_EIO: "EIO";
-			case UV_EISCONN: "EISCONN";
-			case UV_EISDIR: "EISDIR";
-			case UV_ELOOP: "ELOOP";
-			case UV_EMFILE: "EMFILE";
-			case UV_EMSGSIZE: "EMSGSIZE";
-			case UV_ENAMETOOLONG: "ENAMETOOLONG";
-			case UV_ENETDOWN: "ENETDOWN";
-			case UV_ENETUNREACH: "ENETUNREACH";
-			case UV_ENFILE: "ENFILE";
-			case UV_ENOBUFS: "ENOBUFS";
-			case UV_ENODEV: "ENODEV";
-			case UV_ENOENT: "ENOENT";
-			case UV_ENOMEM: "ENOMEM";
-			case UV_ENONET: "ENONET";
-			case UV_ENOPROTOOPT: "ENOPROTOOPT";
-			case UV_ENOSPC: "ENOSPC";
-			case UV_ENOSYS: "ENOSYS";
-			case UV_ENOTCONN: "ENOTCONN";
-			case UV_ENOTDIR: "ENOTDIR";
-			case UV_ENOTEMPTY: "ENOTEMPTY";
-			case UV_ENOTSOCK: "ENOTSOCK";
-			case UV_ENOTSUP: "ENOTSUP";
-			case UV_EOVERFLOW: "EOVERFLOW";
-			case UV_EPERM: "EPERM";
-			case UV_EPIPE: "EPIPE";
-			case UV_EPROTO: "EPROTO";
-			case UV_EPROTONOSUPPORT: "EPROTONOSUPPORT";
-			case UV_EPROTOTYPE: "EPROTOTYPE";
-			case UV_ERANGE: "ERANGE";
-			case UV_EROFS: "EROFS";
-			case UV_ESHUTDOWN: "ESHUTDOWN";
-			case UV_ESPIPE: "ESPIPE";
-			case UV_ESRCH: "ESRCH";
-			case UV_ETIMEDOUT: "ETIMEDOUT";
-			case UV_ETXTBSY: "ETXTBSY";
-			case UV_EXDEV: "EXDEV";
-			case UV_UNKNOWN: "UNKNOWN";
-			case UV_EOF: "EOF";
-			case UV_ENXIO: "ENXIO";
-			case UV_EMLINK: "EMLINK";
-			case UV_ENOTTY: "ENOTTY";
-			case UV_EFTYPE: "EFTYPE";
-			case UV_EILSEQ: "EILSEQ";
-			case UV_ESOCKTNOSUPPORT: "ESOCKTNOSUPPORT";
-			case _: '#$this';
-		}
-	}
+	@:allow(hl.uv)
+	@:hlNative("uv", "translate_uv_error")
+	static function translate_uv_error(uvErrno:Int):UVError
+		return UV_NOERR;
+
+	@:allow(hl.uv)
+	@:hlNative("uv", "translate_to_uv_error")
+	static function translate_to_uv_error(errno:Int):Int
+		return 0;
+
+	@:hlNative("uv", "strerror")
+	static function strerror(uvErrno:Int):Bytes
+		return null;
+
+	@:hlNative("uv", "err_name")
+	static function err_name(uvErrno:Int):Bytes
+		return null;
 }

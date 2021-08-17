@@ -22,40 +22,16 @@
 
 package hl.uv;
 
-private class Data extends HandleData {
-	public final onSend:(async:Async)->Void;
+abstract UVResult(Int) {
 
-	public function new(callback:(async:Async)->Void) {
-		this.onSend = callback;
-	}
-}
-
-/**
-	Async handles allow the user to “wakeup” the event loop
-	and get a callback called from another thread.
-
-	@see http://docs.libuv.org/en/v1.x/async.html
-**/
-@:forward
-abstract Async(Handle) to Handle {
-	/**
-		Allocate and initialize the handle.
-	**/
-	static public function init(loop:Loop, callback:(async:Async)->Void):Async {
-		var async = alloc();
-		async.set_data(new Data(callback));
-		init_with_cb(loop, async).resolve();
-		return async;
+	@:allow(hl.uv)
+	inline function new(v:Int) {
+		this = v;
 	}
 
-	/**
-		Wake up the event loop and call the async handle’s callback on the loop's thread.
-	**/
-	public function send():Void {
-		_send().resolve();
+	public inline function resolve():Int {
+		if(this < 0)
+			throw new UVException(UVError.translate_uv_error(this));
+		return this;
 	}
-
-	@:hlNative("uv", "alloc_uv_async_t") static function alloc():Async return null;
-	@:hlNative("uv", "async_init_with_cb") static function init_with_cb(loop:Loop, async:Async):UVResult return new UVResult(0);
-	@:hlNative("uv", "async_send") function _send():UVResult return new UVResult(0);
 }

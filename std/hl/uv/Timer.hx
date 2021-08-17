@@ -22,6 +22,14 @@
 
 package hl.uv;
 
+private class Data extends HandleData {
+	public final onTick:()->Void;
+
+	public function new(callback:()->Void) {
+		this.onTick = callback;
+	}
+}
+
 /**
 	Timers.
 
@@ -30,20 +38,31 @@ package hl.uv;
 @:forward
 abstract Timer(Handle) to Handle {
 	/** The timer repeat value. */
-	public var repeat(get,set):Int;
-	@:hlNative("uv", "timer_get_repeat_wrap") function get_repeat():Int return 0;
-	@:hlNative("uv", "timer_set_repeat_wrap") function set_repeat(v:Int):Int return v;
+	public var repeat(get,set):Int; // TODO: change to I64
+
+	function get_repeat():Int
+		return _get_repeat().toInt();
+
+	function set_repeat(v:Int):Int {
+		_set_repeat(I64.ofInt(v));
+		return v;
+	}
+
 
 	/** Get the timer due value or 0 if it has expired. */
-	public var dueIn(get,never):Int;
-	@:hlNative("uv", "timer_get_due_in_wrap") public function get_dueIn():Int return 0;
+	public var dueIn(get,never):Int; // TODO: change to I64
+
+	function get_dueIn():Int
+		return _get_dueIn().toInt();
 
 	/**
 		Initialize the timer.
 	**/
-	@:hlNative("uv", "timer_init_wrap")
-	static public function init(loop:Loop):Timer
-		return null;
+	static public function init(loop:Loop):Timer {
+		var timer = alloc();
+		_init(loop, timer).resolve();
+		return timer;
+	}
 
 	/**
 		Start the timer.
@@ -52,21 +71,36 @@ abstract Timer(Handle) to Handle {
 		If `timeout` is zero, the `callback` fires on the next event loop iteration.
 		If `repeat` is non-zero, the `callback` fires first after `timeout` milliseconds
 		and then repeatedly after `repeat` milliseconds.
+
+		TODO: change `timeout` and `repeat` to I64
 	**/
-	@:hlNative("uv", "timer_start_wrap")
-	public function start(callback:()->Void, timeout:Int, repeat:Int):Void {}
+	public function start(callback:()->Void, timeout:Int, repeat:Int):Void {
+		this.set_data(new Data(callback));
+		start_with_cb(I64.ofInt(timeout), I64.ofInt(repeat)).resolve();
+	}
 
 	/**
 		Stop the timer, the callback will not be called anymore.
 	**/
-	@:hlNative("uv", "timer_stop_wrap")
-	public function stop():Void {}
+	public function stop():Void {
+		_stop().resolve();
+	}
 
 	/**
 		Stop the timer, and if it is repeating restart it using the repeat value
 		as the timeout.
 		If the timer has never been started before it throws UV_EINVAL.
 	**/
-	@:hlNative("uv", "timer_again_wrap")
-	public function again():Void {}
+	public function again():Void {
+		_again().resolve();
+	}
+
+	@:hlNative("uv", "alloc_uv_timer_t") static function alloc():Timer return null;
+	@:hlNative("uv", "timer_get_repeat") function _get_repeat():I64 return I64.ofInt(0);
+	@:hlNative("uv", "timer_set_repeat") function _set_repeat(v:I64):I64 return v;
+	@:hlNative("uv", "timer_get_due_in") function _get_dueIn():I64 return I64.ofInt(0);
+	@:hlNative("uv", "timer_init") static function _init(loop:Loop, timer:Timer):UVResult return new UVResult(0);
+	@:hlNative("uv", "timer_start_with_cb") function start_with_cb(timeout:I64, repeat:I64):UVResult return new UVResult(0);
+	@:hlNative("uv", "timer_stop") function _stop():UVResult return new UVResult(0);
+	@:hlNative("uv", "timer_again") function _again():UVResult return new UVResult(0);
 }
