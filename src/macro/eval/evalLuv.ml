@@ -1579,9 +1579,9 @@ module F = struct
 end
 
 let file_fields = [
-	"get_stdin", VHandle (HFile File.stdin);
-	"get_stdout", VHandle (HFile File.stdout);
-	"get_stderr", VHandle (HFile File.stderr);
+	"stdin", VHandle (HFile File.stdin);
+	"stdout", VHandle (HFile File.stdout);
+	"stderr", VHandle (HFile File.stderr);
 	"createRequest", vfun0 (fun() ->
 		VHandle (HFileRequest (File.Request.make()))
 	);

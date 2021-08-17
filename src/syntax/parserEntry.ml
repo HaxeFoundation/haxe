@@ -252,7 +252,8 @@ let parse entry ctx code file =
 				let p = pos tk in
 				(* Completion at the / should not pick up the comment (issue #9133) *)
 				let p = if is_completion() then {p with pmin = p.pmin + 1} else p in
-				if display_position#enclosed_in p then syntax_completion SCComment None (pos tk);
+				(* The > 0 check is to deal with the special case of line comments at the beginning of the file (issue #10322) *)
+				if display_position#enclosed_in p && p.pmin > 0 then syntax_completion SCComment None (pos tk);
 			end;
 			next_token()
 		| Sharp "end" ->

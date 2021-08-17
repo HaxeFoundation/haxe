@@ -273,6 +273,7 @@ let mk_mr_select com e ecall name =
 (* from genphp *)
 let rec is_string_type t =
     match follow t with
+    | TInst ({cl_kind = KTypeParameter constraints}, _) -> List.exists is_string_type constraints
     | TInst ({cl_path = ([], "String")}, _) -> true
     | TAnon a ->
         (match !(a.a_status) with

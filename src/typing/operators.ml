@@ -680,6 +680,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
 	in
 	let assign vr e r_rhs =
+		check_assign ctx e;
 		let assign e_rhs =
 			let e_rhs = AbstractCast.cast_or_unify ctx e.etype e_rhs p in
 			match e_rhs.eexpr with

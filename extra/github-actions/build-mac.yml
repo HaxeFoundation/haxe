@@ -38,7 +38,7 @@
     opam env
     opam pin add ctypes 0.17.1 --yes
     opam pin add haxe . --no-action
-    opam install haxe --deps-only
+    opam install haxe --deps-only --assume-depexts
     opam list
     ocamlopt -v
 
