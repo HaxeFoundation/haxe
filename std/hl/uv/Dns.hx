@@ -25,16 +25,25 @@ package hl.uv;
 import hl.types.ArrayObj;
 import hl.uv.SockAddr;
 
+enum abstract AddrInfoFlags(Int) from Int to Int {
+	/** Socket address is intended for `bind'. */
+	var AI_PASSIVE = 1;
+	/** Request for canonical name. */
+	var AI_CANONNAME = 2;
+	/** Don't use name resolution. */
+	var AI_NUMERICHOST = 4;
+	/** IPv4 mapped addresses are acceptable. */
+	var AI_V4MAPPED = 8;
+	/** Return IPv4 mapped and IPv6 addresses. */
+	var AI_ALL = 16;
+	/** Use configuration of this host to choose returned address type. */
+	var AI_ADDRCONFIG = 32;
+	/** Don't use name resolution. */
+	var AI_NUMERICSERV = 64;
+}
+
 typedef AddrInfoOptions = {
-	var ?flags:{
-		var ?passive:Bool;
-		var ?canonName:Bool;
-		var ?numericHost:Bool;
-		var ?numericServ:Bool;
-		var ?v4Mapped:Bool;
-		var ?all:Bool;
-		var ?addrConfig:Bool;
-	};
+	var ?flags:AddrInfoFlags;
 	var ?family:AddressFamily;
 	var ?sockType:SocketType;
 	var ?protocol:Int;
@@ -48,13 +57,40 @@ typedef AddrInfo = {
 	var ?canonName:String;
 }
 
-typedef NameInfoFlags = {
-	var ?nameReqd:Bool;
-	var ?dgram:Bool;
-	var ?noFqdn:Bool;
-	var ?numericHost:Bool;
-	var ?numericServ:Bool;
+enum abstract NameInfoFlags(Int) from Int to Int {
+	/** Don't try to look up hostname. */
+	var NI_NUMERICHOST = 1;
+	/** Don't convert port number to name. */
+	var NI_NUMERICSERV = 2;
+	/** Only return nodename portion. */
+	var NI_NOFQDN = 4;
+	/** Don't return numeric addresses. */
+	var NI_NAMEREQD = 8;
+	/** Look up UDP service rather than TCP. */
+	var NI_DGRAM = 16;
 }
+
+private class AddrData extends ReqData {
+	public final callback:(e:UVError, ai:RawAddrInfo)->Void;
+
+	public function new(callback) {
+		super();
+		this.callback = callback;
+	}
+}
+
+private class NameData extends ReqData {
+	public final callback:(e:UVError, hostname:Bytes, service:Bytes)->Void;
+
+	public function new(callback) {
+		super();
+		this.callback = callback;
+	}
+}
+
+@:forward abstract AddrInfoRequest(Req) to Req {}
+
+@:forward abstract NameInfoRequest(Req) to Req {}
 
 /**
 	DNS queries.
@@ -68,63 +104,71 @@ class Dns {
 		Either `name` or `service` may be `null` but not both.
 	**/
 	static public function getAddrInfo(loop:Loop, name:Null<String>, service:Null<String>, hints:Null<AddrInfoOptions>,
-		callback:(e:UVError, infos:Array<AddrInfo>)->Void):Void {
-		function onAddrInfo(e:UVError, infos:NativeArray<Dynamic>) {
-			callback(e, [for(i in 0...infos.length) {
-				var entry:Dynamic = infos[i];
-				if(entry.canonName != null) {
-					entry.canonName = @:privateAccess String.fromUTF8(entry.canonName);
-				}
-				entry.addr = @:privateAccess SockAddr.castPtr(entry.addr);
-				(entry:AddrInfo);
-			}]);
-		}
-		if(hints == null) {
-			getAddrInfoWrap(loop, name, service, null, null, null, null, onAddrInfo);
-		} else {
-			getAddrInfoWrap(loop, name, service, hints.flags, hints.family, hints.sockType, hints.protocol, onAddrInfo);
-		}
-	}
+		callback:(e:UVError, infos:Array<AddrInfo>)->Void):AddrInfoRequest {
 
-	@:hlNative("uv", "getaddrinfo_wrap")
-	static function getAddrInfoWrap(
-		loop:Loop,
-		name:Null<String>,
-		service:Null<String>,
-		flags:Null<Dynamic>,
-		family:Null<AddressFamily>,
-		sockType:Null<SocketType>,
-		protocol:Null<Int>,
-		callback:(e:UVError, infos:NativeArray<AddrInfo>)->Void
-	):Void {}
+		var node = name == null ? null : @:privateAccess name.toUtf8();
+		var service = service == null ? null : @:privateAccess service.toUtf8();
+		var aiHints:RawAddrInfo = null;
+
+		var req = UV.alloc_getaddrinfo();
+		req.setData(new AddrData((e, ai) -> {
+			// TODO: These are freed somewhere else. Figure out why (especially `req`)
+			// UV.free(node);
+			// UV.free(service);
+			// aiHints.freeaddrinfo();
+			req.setData(null);
+			// UV.free(req);
+
+			var infos = null;
+			if(ai != null) {
+				infos = [];
+				while(ai != null) {
+					var entry:AddrInfo = {
+						family:ai.addrinfo_family(),
+						sockType:ai.addrinfo_socktype(),
+						protocol:ai.addrinfo_protocol(),
+						addr:ai.addrinfo_addr()
+					}
+					switch ai.addrinfo_canonname() {
+						case null:
+						case cn: entry.canonName = @:privateAccess String.fromUTF8(cn);
+					}
+					infos.push(entry);
+					ai = ai.addrinfo_next();
+				}
+				ai.freeaddrinfo();
+			}
+			callback(e, infos);
+		}));
+
+		if(hints != null) {
+			aiHints = UV.alloc_addrinfo(hints.flags, hints.family, hints.sockType, hints.protocol);
+		}
+		loop.getaddrinfo_with_cb(req, node, service, aiHints);
+
+		return req;
+	}
 
 	/**
 		Retrieves host names.
 	**/
-	static public function getNameInfo(loop:Loop, addr:SockAddr, flags:Null<NameInfoFlags>,
-		callback:(e:UVError, name:String, service:String)->Void):Void {
-		function onNameInfo(e:UVError, name:Bytes, service:Bytes) @:privateAccess {
-			var name = name == null ? null : String.fromUTF8(name);
-			var service = service == null ? null : String.fromUTF8(service);
-			callback(e, name, service);
-		}
-		if(flags == null) {
-			getNameInfoWrap(loop, addr, null, null, null, null, null, onNameInfo);
-		} else {
-			getNameInfoWrap(loop, addr, flags.nameReqd, flags.dgram, flags.noFqdn, flags.numericHost, flags.numericServ, onNameInfo);
-		}
+	static public function getNameInfo(loop:Loop, addr:SockAddr, flags:NameInfoFlags,
+		callback:(e:UVError, name:String, service:String)->Void):NameInfoRequest {
+
+		var req = UV.alloc_getnameinfo();
+		req.setData(new NameData((e, hostname, service) -> {
+			req.setData(null);
+			// UV.free(req);
+			callback(
+				e,
+				hostname == null ? null : @:privateAccess String.fromUTF8(hostname),
+				service == null ? null : @:privateAccess String.fromUTF8(service)
+			);
+			// UV.free(hostname);
+			// UV.free(service);
+		}));
+		loop.getnameinfo_with_cb(req, addr, flags.nameinfo_flags_to_native());
+
+		return req;
 	}
-
-	@:hlNative("uv", "getnameinfo_wrap")
-	static public function getNameInfoWrap(
-		loop:Loop,
-		addr:SockAddr,
-		nameReqd:Null<Bool>,
-		dgram:Null<Bool>,
-		noFqdn:Null<Bool>,
-		numericHost:Null<Bool>,
-		numericServ:Null<Bool>,
-		callback:(e:UVError, name:Null<Bytes>, service:Null<Bytes>)->Void
-	):Void {}
-
 }
