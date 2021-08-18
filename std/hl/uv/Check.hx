@@ -22,6 +22,10 @@
 
 package hl.uv;
 
+private class Data extends HandleData {
+	public var onCheck:()->Void;
+}
+
 /**
 	Check handles will run the given callback once per loop iteration,
 	right after polling for i/o.
@@ -30,21 +34,31 @@ package hl.uv;
 **/
 @:forward
 abstract Check(Handle) to Handle {
+	var check(get,never):Check;
+	inline function get_check():Check return cast this;
+
 	/**
 		Allocate and initialize the handle.
 	**/
-	@:hlNative("uv", "check_init_wrap")
-	static public function init(loop:Loop):Check
-		return null;
+	static public function init(loop:Loop):Check {
+		var check = UV.alloc_check();
+		check.setData(new Data());
+		loop.check_init(check);
+		return check;
+	}
 
 	/**
 		Start the handle with the given callback.
 	**/
-	@:hlNative("uv", "check_start_wrap")
-	public function start(callback:()->Void):Void {}
+	public function start(callback:()->Void):Void {
+		(cast this.getData():Data).onCheck = callback;
+		check.check_start_with_cb().resolve();
+	}
 
 	/**
 		Stop the handle, the callback will no longer be called.
 	**/
-	@:hlNative("uv", "check_stop_wrap") public function stop():Void {}
+	public function stop():Void {
+		check.check_stop().resolve();
+	}
 }

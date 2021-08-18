@@ -24,8 +24,8 @@ package hl.uv;
 
 @:keep
 @:allow(hl.uv)
-class HandleData {
+abstract class HandleData {
 	var onClose:()->Void;
 
-	function new() {}
+	public function new() {}
 }

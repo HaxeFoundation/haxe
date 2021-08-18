@@ -105,4 +105,7 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 
 	@:allow(hl.uv) inline function setData(data:HandleData)
 		handle.handle_set_data_with_gc(data);
+
+	@:allow(hl.uv) inline function getData():HandleData
+		return handle.handle_get_data().handle_data_of_pointer();
 }
