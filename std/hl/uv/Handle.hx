@@ -22,23 +22,48 @@
 
 package hl.uv;
 
+enum abstract HandleType(Int) {
+	var UV_UNKNOWN_HANDLE = 0;
+	var UV_ASYNC;
+	var UV_CHECK;
+	var UV_FS_EVENT;
+	var UV_FS_POLL;
+	var UV_HANDLE;
+	var UV_IDLE;
+	var UV_NAMED_PIPE;
+	var UV_POLL;
+	var UV_PREPARE;
+	var UV_PROCESS;
+	var UV_STREAM;
+	var UV_TCP;
+	var UV_TIMER;
+	var UV_TTY;
+	var UV_UDP;
+	var UV_SIGNAL;
+	var UV_FILE;
+	var UV_HANDLE_TYPE_MAX;
+}
+
 /**
 	Base type for all libuv handle types.
 
 	@see http://docs.libuv.org/en/v1.x/handle.html
 **/
 abstract Handle(hl.Abstract<"uv_handle">) {
+	var handle(get,never):Handle;
+	inline function get_handle():Handle return cast this;
+
 	/**
 		Returns `true` if the handle is active, `false` otherwise.
 	**/
-	public inline function isActive():Bool
-		return is_active() != 0;
+	public function isActive():Bool
+		return handle.is_active() != 0;
 
 	/**
 		Returns `true` if the handle is closing or closed, `false` otherwise.
 	**/
-	public inline function isClosing():Bool
-		return is_closing() != 0;
+	public function isClosing():Bool
+		return handle.is_closing() != 0;
 
 	/**
 		Request handle to be closed.
@@ -48,8 +73,8 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 	public function close(?callback:()->Void):Void {
 		if(isClosing())
 			throw new UVException(UV_EINVAL);
-		HandleData.ofPointer(get_data()).onClose = callback;
-		close_with_cb();
+		handle.handle_get_data().handle_data_of_pointer().onClose = callback;
+		handle.close_with_cb();
 	}
 
 	/**
@@ -58,7 +83,8 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	@:hlNative("uv", "ref") public function ref():Void {}
+	public function ref():Void
+		UV.ref(handle);
 
 	/**
 		Unreference the given handle.
@@ -66,22 +92,17 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	@:hlNative("uv", "unref") public function unref():Void {}
+	public function unref():Void
+		UV.unref(handle);
 
 	/**
 		Returns `true` if the handle is referenced, `false` otherwise.
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	public inline function hasRef():Bool
-		return has_ref() != 0;
+	public function hasRef():Bool
+		return handle.has_ref() != 0;
 
-	@:hlNative("uv", "is_active") function is_active():Int return 0;
-	@:hlNative("uv", "is_closing") function is_closing():Int return 0;
-	@:hlNative("uv", "close_with_cb") function close_with_cb():Void {}
-	@:hlNative("uv", "has_ref") function has_ref():Int return 0;
-	@:allow(hl.uv)
-	@:hlNative("uv", "handle_get_data") function get_data():Pointer return null;
-	@:allow(hl.uv)
-	@:hlNative("uv", "handle_set_data_with_gc") function set_data(data:HandleData):Void {}
+	@:allow(hl.uv) inline function setData(data:HandleData)
+		handle.handle_set_data_with_gc(data);
 }

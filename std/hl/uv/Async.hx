@@ -26,6 +26,7 @@ private class Data extends HandleData {
 	public final onSend:(async:Async)->Void;
 
 	public function new(callback:(async:Async)->Void) {
+		super();
 		this.onSend = callback;
 	}
 }
@@ -38,13 +39,16 @@ private class Data extends HandleData {
 **/
 @:forward
 abstract Async(Handle) to Handle {
+	var async(get,never):Async;
+	inline function get_async():Async return cast this;
+
 	/**
 		Allocate and initialize the handle.
 	**/
 	static public function init(loop:Loop, callback:(async:Async)->Void):Async {
-		var async = alloc();
-		async.set_data(new Data(callback));
-		init_with_cb(loop, async).resolve();
+		var async = UV.alloc_async();
+		async.setData(new Data(callback));
+		loop.async_init_with_cb(async).resolve();
 		return async;
 	}
 
@@ -52,10 +56,6 @@ abstract Async(Handle) to Handle {
 		Wake up the event loop and call the async handle’s callback on the loop's thread.
 	**/
 	public function send():Void {
-		_send().resolve();
+		async.async_send().resolve();
 	}
-
-	@:hlNative("uv", "alloc_uv_async_t") static function alloc():Async return null;
-	@:hlNative("uv", "async_init_with_cb") static function init_with_cb(loop:Loop, async:Async):UVResult return new UVResult(0);
-	@:hlNative("uv", "async_send") function _send():UVResult return new UVResult(0);
 }

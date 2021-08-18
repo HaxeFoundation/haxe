@@ -44,6 +44,8 @@ enum abstract LoopRunMode(Int) {
 	expected.
 **/
 abstract Loop(hl.Abstract<"uv_loop">) {
+	var loop(get,never):Loop;
+	inline function get_loop():Loop return cast this;
 
 	@:from
 	static inline function fromHaxeEventLoop(events:sys.thread.EventLoop):Loop
@@ -53,8 +55,8 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		Allocate and initialize an event loop.
 	**/
 	static public function init():Loop {
-		var loop = alloc();
-		_init(loop).resolve();
+		var loop = UV.alloc_loop();
+		loop.loop_init().resolve();
 		return loop;
 	}
 
@@ -64,7 +66,7 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		handles and requests have been closed, or it will throw `EBUSY`.
 	**/
 	public function close():Void {
-		_close().resolve();
+		loop.loop_close().resolve();
 	}
 
 	/**
@@ -73,7 +75,7 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_run
 	**/
 	public function run(mode:LoopRunMode):Bool {
-		return _run(mode).resolve() != 0;
+		return UV.run(loop, mode).resolve() != 0;
 	}
 
 	/**
@@ -81,13 +83,15 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		or closing handles in the loop.
 	**/
 	public function alive():Bool {
-		return _alive() != 0;
+		return loop.loop_alive() != 0;
 	}
 
 	/**
 		Stop the event loop as soon as possible.
 	**/
-	@:hlNative("uv", "stop") public function stop():Void {}
+	public function stop():Void {
+		UV.stop(loop);
+	}
 
 	/**
 		Returns the initialized default loop.
@@ -95,7 +99,7 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_default_loop
 	**/
 	public static function getDefault():Loop {
-		var def = default_loop();
+		var def = UV.default_loop();
 		if (loopEvent == null)
 			loopEvent = haxe.MainLoop.add(function() {
 				// if no more things to process, stop
@@ -108,11 +112,4 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	}
 
 	static var loopEvent:haxe.MainLoop.MainEvent;
-
-	@:hlNative("uv", "alloc_uv_loop_t") static function alloc():Loop return null;
-	@:hlNative("uv", "loop_init") static function _init(loop:Loop):UVResult return new UVResult(0);
-	@:hlNative("uv", "loop_close") function _close():UVResult return new UVResult(0);
-	@:hlNative("uv", "run") function _run(mode:LoopRunMode):UVResult return new UVResult(0);
-	@:hlNative("uv", "loop_alive") function _alive():Int return 0;
-	@:hlNative("uv", "default_loop") static function default_loop():Loop return null;
 }

@@ -94,28 +94,10 @@ enum abstract UVError(Int) {
 	}
 
 	public function name():String {
-		return @:privateAccess String.fromUTF8(err_name(translate_to_uv_error(this)));
+		return @:privateAccess String.fromUTF8(this.translate_to_uv_error().err_name());
 	}
 
 	public function description():String {
-		return @:privateAccess String.fromUTF8(strerror(translate_to_uv_error(this)));
+		return @:privateAccess String.fromUTF8(this.translate_to_uv_error().strerror());
 	}
-
-	@:allow(hl.uv)
-	@:hlNative("uv", "translate_uv_error")
-	static function translate_uv_error(uvErrno:Int):UVError
-		return UV_NOERR;
-
-	@:allow(hl.uv)
-	@:hlNative("uv", "translate_to_uv_error")
-	static function translate_to_uv_error(errno:Int):Int
-		return 0;
-
-	@:hlNative("uv", "strerror")
-	static function strerror(uvErrno:Int):Bytes
-		return null;
-
-	@:hlNative("uv", "err_name")
-	static function err_name(uvErrno:Int):Bytes
-		return null;
 }

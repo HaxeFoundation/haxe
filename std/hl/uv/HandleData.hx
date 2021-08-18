@@ -22,16 +22,10 @@
 
 package hl.uv;
 
-@:allow(hl.uv)
 @:keep
+@:allow(hl.uv)
 class HandleData {
 	var onClose:()->Void;
 
-	@:hlNative('uv', 'handle_data_of_pointer')
-	static function ofPointer(ptr:Pointer):HandleData
-		return null;
-
-	@:hlNative('uv', 'handle_data_to_pointer')
-	function toPointer():Pointer
-		return null;
+	function new() {}
 }

@@ -23,11 +23,7 @@
 package hl.uv;
 
 private class Data extends HandleData {
-	public final onTick:()->Void;
-
-	public function new(callback:()->Void) {
-		this.onTick = callback;
-	}
+	public var onTick:()->Void;
 }
 
 /**
@@ -37,14 +33,17 @@ private class Data extends HandleData {
 **/
 @:forward
 abstract Timer(Handle) to Handle {
+	var timer(get,never):Timer;
+	inline function get_timer():Timer return cast this;
+
 	/** The timer repeat value. */
 	public var repeat(get,set):Int; // TODO: change to I64
 
 	function get_repeat():Int
-		return _get_repeat().toInt();
+		return timer.timer_get_repeat().toInt();
 
 	function set_repeat(v:Int):Int {
-		_set_repeat(I64.ofInt(v));
+		timer.timer_set_repeat(I64.ofInt(v));
 		return v;
 	}
 
@@ -53,14 +52,15 @@ abstract Timer(Handle) to Handle {
 	public var dueIn(get,never):Int; // TODO: change to I64
 
 	function get_dueIn():Int
-		return _get_dueIn().toInt();
+		return timer.timer_get_due_in().toInt();
 
 	/**
 		Initialize the timer.
 	**/
 	static public function init(loop:Loop):Timer {
-		var timer = alloc();
-		_init(loop, timer).resolve();
+		var timer = UV.alloc_timer();
+		timer.setData(@:privateAccess new Data());
+		UV.timer_init(loop, timer).resolve();
 		return timer;
 	}
 
@@ -75,15 +75,15 @@ abstract Timer(Handle) to Handle {
 		TODO: change `timeout` and `repeat` to I64
 	**/
 	public function start(callback:()->Void, timeout:Int, repeat:Int):Void {
-		this.set_data(new Data(callback));
-		start_with_cb(I64.ofInt(timeout), I64.ofInt(repeat)).resolve();
+		(cast this.handle_get_data().handle_data_of_pointer():Data).onTick = callback;
+		timer.timer_start_with_cb(I64.ofInt(timeout), I64.ofInt(repeat)).resolve();
 	}
 
 	/**
 		Stop the timer, the callback will not be called anymore.
 	**/
 	public function stop():Void {
-		_stop().resolve();
+		timer.timer_stop().resolve();
 	}
 
 	/**
@@ -92,15 +92,6 @@ abstract Timer(Handle) to Handle {
 		If the timer has never been started before it throws UV_EINVAL.
 	**/
 	public function again():Void {
-		_again().resolve();
+		timer.timer_again().resolve();
 	}
-
-	@:hlNative("uv", "alloc_uv_timer_t") static function alloc():Timer return null;
-	@:hlNative("uv", "timer_get_repeat") function _get_repeat():I64 return I64.ofInt(0);
-	@:hlNative("uv", "timer_set_repeat") function _set_repeat(v:I64):I64 return v;
-	@:hlNative("uv", "timer_get_due_in") function _get_dueIn():I64 return I64.ofInt(0);
-	@:hlNative("uv", "timer_init") static function _init(loop:Loop, timer:Timer):UVResult return new UVResult(0);
-	@:hlNative("uv", "timer_start_with_cb") function start_with_cb(timeout:I64, repeat:I64):UVResult return new UVResult(0);
-	@:hlNative("uv", "timer_stop") function _stop():UVResult return new UVResult(0);
-	@:hlNative("uv", "timer_again") function _again():UVResult return new UVResult(0);
 }
