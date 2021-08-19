@@ -43,7 +43,7 @@ extern class ListFormat {
 		Returns an array of objects representing the different components
 		that can be used to format a list of values in a locale-aware fashion.
 	**/
-	function formatToParts(list: Array<String>): Array<ListFormatPart>;
+	function formatToParts(?list: Array<String>): Array<ListFormatPart>;
 
 	/**
 		Returns an array containing those of the provided locales that are supported
