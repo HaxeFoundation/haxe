@@ -44,6 +44,14 @@ enum abstract HandleType(Int) {
 	var UV_HANDLE_TYPE_MAX;
 }
 
+@:keep
+@:allow(hl.uv)
+abstract class HandleData {
+	var onClose:()->Void;
+
+	public function new() {}
+}
+
 /**
 	Base type for all libuv handle types.
 

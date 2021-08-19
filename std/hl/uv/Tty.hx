@@ -24,11 +24,11 @@ package hl.uv;
 
 enum abstract TtyMode(Int) {
 	/** Initial/normal terminal mode */
-	var TTY_MODE_NORMAL = 0;
+	var TTY_MODE_NORMAL;
 	/** Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled) */
-	var TTY_MODE_RAW = 1;
+	var TTY_MODE_RAW;
 	/** Binary-safe I/O mode for IPC (Unix-only) */
-	var TTY_MODE_IO = 2;
+	var TTY_MODE_IO;
 }
 
 /**

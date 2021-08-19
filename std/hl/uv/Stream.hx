@@ -22,6 +22,38 @@
 
 package hl.uv;
 
+import hl.uv.Request;
+
+private class ConnectData extends RequestData {
+	public final callback:(e:UVError)->Void;
+
+	public function new(callback) {
+		this.callback = callback;
+	}
+}
+
+abstract ConnectRequest(Request) to Request {}
+
+private class ShutdownData extends RequestData {
+	public final callback:(e:UVError)->Void;
+
+	public function new(callback) {
+		this.callback = callback;
+	}
+}
+
+abstract ShutdownRequest(Request) to Request {}
+
+private class WriteData extends RequestData {
+	public final callback:(e:UVError)->Void;
+
+	public function new(callback) {
+		this.callback = callback;
+	}
+}
+
+abstract WriteRequest(Request) to Request {}
+
 /**
 	Stream handles provide an abstraction of a duplex communication channel.
 	This is a base type for `Tcp`, `Pipe` and `Tty`.

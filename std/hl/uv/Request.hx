@@ -22,7 +22,7 @@
 
 package hl.uv;
 
-enum abstract ReqType(Int) {
+enum abstract RequestType(Int) {
 	var UV_UNKNOWN_REQ = 0;
 	var UV_REQ;
 	var UV_CONNECT;
@@ -36,14 +36,18 @@ enum abstract ReqType(Int) {
 	var UV_REQ_TYPE_MAX;
 }
 
+@:keep
+@:allow(hl.uv)
+abstract class RequestData {}
+
 /**
 	Base type for all libuv request types.
 
 	@see http://docs.libuv.org/en/v1.x/request.html
 **/
-abstract Req(hl.Abstract<"uv_req">) {
-	var req(get,never):Req;
-	inline function get_req():Req return cast this;
+abstract Request(hl.Abstract<"uv_req">) {
+	var req(get,never):Request;
+	inline function get_req():Request return cast this;
 
 	/**
 		Cancel a pending request.
@@ -54,9 +58,9 @@ abstract Req(hl.Abstract<"uv_req">) {
 		UV.cancel(req).resolve();
 	}
 
-	@:allow(hl.uv) inline function setData(data:ReqData)
+	@:allow(hl.uv) inline function setData(data:RequestData)
 		req.req_set_data_with_gc(data);
 
-	@:allow(hl.uv) inline function getData():ReqData
+	@:allow(hl.uv) inline function getData():RequestData
 		return req.req_get_data().req_data_of_pointer();
 }

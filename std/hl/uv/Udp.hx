@@ -23,11 +23,22 @@
 package hl.uv;
 
 import hl.uv.SockAddr;
+import hl.uv.Request;
 
 enum abstract UdpMembership(Int) {
 	var LEAVE_GROUP = 0;
-	var JOIN_GROUP = 1;
+	var JOIN_GROUP;
 }
+
+private class UdpSendData extends RequestData {
+	public final callback:(e:UVError)->Void;
+
+	public function new(callback) {
+		this.callback = callback;
+	}
+}
+
+abstract UdpSendRequest(Request) to Request {}
 
 /**
 	Flags for the callback of `Udbp.recvStart`.

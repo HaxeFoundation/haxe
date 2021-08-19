@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+import hl.uv.Request;
+
 typedef RUsage = {
 	/** user CPU time used */
 	var utime:{sec:I64, usec:I64};
@@ -96,6 +98,16 @@ typedef Uname = {
 	var version:String;
 	var machine:String;
 }
+
+private class RandomData extends RequestData {
+	public final callback:(e:UVError)->Void;
+
+	public function new(callback) {
+		this.callback = callback;
+	}
+}
+
+abstract RandomRequest(Request) to Request {}
 
 /**
 	Miscellaneous.

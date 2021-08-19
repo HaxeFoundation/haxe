@@ -23,6 +23,7 @@
 package hl.uv;
 
 import hl.types.ArrayObj;
+import hl.uv.Request;
 
 /**
 	Full list of file creation flags and file status flags.
@@ -105,6 +106,56 @@ enum abstract FileSymlinkFlag(Int) {
 	var SYMLINK_DIR = 0;
 	var SYMLINK_JUNCTION = 1;
 }
+
+enum abstract FsRequestType(Int) to Int {
+	var UV_FS_UNKNOWN = -1;
+	var UV_FS_CUSTOM;
+	var UV_FS_OPEN;
+	var UV_FS_CLOSE;
+	var UV_FS_READ;
+	var UV_FS_WRITE;
+	var UV_FS_SENDFILE;
+	var UV_FS_STAT;
+	var UV_FS_LSTAT;
+	var UV_FS_FSTAT;
+	var UV_FS_FTRUNCATE;
+	var UV_FS_UTIME;
+	var UV_FS_FUTIME;
+	var UV_FS_ACCESS;
+	var UV_FS_CHMOD;
+	var UV_FS_FCHMOD;
+	var UV_FS_FSYNC;
+	var UV_FS_FDATASYNC;
+	var UV_FS_UNLINK;
+	var UV_FS_RMDIR;
+	var UV_FS_MKDIR;
+	var UV_FS_MKDTEMP;
+	var UV_FS_RENAME;
+	var UV_FS_SCANDIR;
+	var UV_FS_LINK;
+	var UV_FS_SYMLINK;
+	var UV_FS_READLINK;
+	var UV_FS_CHOWN;
+	var UV_FS_FCHOWN;
+	var UV_FS_REALPATH;
+	var UV_FS_COPYFILE;
+	var UV_FS_LCHOWN;
+	var UV_FS_OPENDIR;
+	var UV_FS_READDIR;
+	var UV_FS_CLOSEDIR;
+	var UV_FS_MKSTEMP;
+	var UV_FS_LUTIME;
+}
+
+private class FsData extends RequestData {
+	public final callback:()->Void;
+
+	public function new(callback) {
+		this.callback = callback;
+	}
+}
+
+abstract FsRequest(Request) to Request {}
 
 /**
 	File system operations.

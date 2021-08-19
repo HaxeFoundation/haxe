@@ -23,29 +23,10 @@
 package hl.uv;
 
 /**
-	The kind of the libuv handle.
+	Buffer data type.
 
-	@see http://docs.libuv.org/en/v1.x/handle.html#c.uv_handle_type
+	Passed by value. Use `hl.uv.Ref` to avoid that.
 
-	TODO: use native values.
+	@see http://docs.libuv.org/en/stable/misc.html#c.uv_buf_t
 **/
-enum abstract HandleType(Int) {
-	var UV_UNKNOWN_HANDLE = 0;
-	var UV_ASYNC = 1;
-	var UV_CHECK = 2;
-	var UV_FS_EVENT = 3;
-	var UV_FS_POLL = 4;
-	var UV_HANDLE = 5;
-	var UV_IDLE = 6;
-	var UV_NAMED_PIPE = 7;
-	var UV_POLL = 8;
-	var UV_PREPARE = 9;
-	var UV_PROCESS = 10;
-	var UV_STREAM = 11;
-	var UV_TCP = 12;
-	var UV_TIMER = 13;
-	var UV_TTY = 14;
-	var UV_UDP = 15;
-	var UV_SIGNAL = 16;
-	var UV_FILE = 17;
-}
+abstract Buffer(hl.Abstract<"uv_buf">) {}

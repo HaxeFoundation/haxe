@@ -24,6 +24,7 @@ package hl.uv;
 
 import hl.types.ArrayObj;
 import hl.uv.SockAddr;
+import hl.uv.Request;
 
 enum abstract AddrInfoFlags(Int) from Int to Int {
 	/** Socket address is intended for `bind'. */
@@ -70,27 +71,25 @@ enum abstract NameInfoFlags(Int) from Int to Int {
 	var NI_DGRAM = 16;
 }
 
-private class AddrData extends ReqData {
+private class AddrData extends RequestData {
 	public final callback:(e:UVError, ai:RawAddrInfo)->Void;
 
 	public function new(callback) {
-		super();
 		this.callback = callback;
 	}
 }
 
-private class NameData extends ReqData {
+private class NameData extends RequestData {
 	public final callback:(e:UVError, hostname:Bytes, service:Bytes)->Void;
 
 	public function new(callback) {
-		super();
 		this.callback = callback;
 	}
 }
 
-@:forward abstract AddrInfoRequest(Req) to Req {}
+@:forward abstract AddrInfoRequest(Request) to Request {}
 
-@:forward abstract NameInfoRequest(Req) to Req {}
+@:forward abstract NameInfoRequest(Request) to Request {}
 
 /**
 	DNS queries.

@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+import hl.uv.Handle;
+
 private class Data extends HandleData {
 	public var onCheck:()->Void;
 }
