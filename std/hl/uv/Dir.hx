@@ -22,15 +22,17 @@
 
 package hl.uv;
 
+import hl.uv.File;
+
 enum abstract DirEntryType(Int) {
-	var DIRENT_UNKNOWN = 1;
-	var DIRENT_FILE = 2;
-	var DIRENT_DIR = 3;
-	var DIRENT_LINK = 4;
-	var DIRENT_FIFO = 5;
-	var DIRENT_SOCKET = 6;
-	var DIRENT_CHAR = 7;
-	var DIRENT_BLOCK = 8;
+	var UV_DIRENT_UNKNOWN = 0;
+	var UV_DIRENT_FILE;
+	var UV_DIRENT_DIR;
+	var UV_DIRENT_LINK;
+	var UV_DIRENT_FIFO;
+	var UV_DIRENT_SOCKET;
+	var UV_DIRENT_CHAR;
+	var UV_DIRENT_BLOCK;
 }
 
 typedef DirEntry = {
@@ -44,35 +46,67 @@ typedef DirEntry = {
 	@see http://docs.libuv.org/en/v1.x/fs.html#c.uv_fs_opendir
 **/
 abstract Dir(Abstract<"uv_dir">) {
+	var dir(get,never):Dir;
+	inline function get_dir():Dir return cast this;
+
 	/**
 		Opens `path` as a directory stream
 	**/
-	@:hlNative("uv", "fs_opendir_wrap")
-	static public function open(loop:Loop, path:String, callback:(e:UVError, dir:Null<Dir>)->Void):Void {}
+	static public function open(loop:Loop, path:String, callback:(e:UVError, dir:Null<Dir>)->Void):Void {
+		var req = UV.alloc_fs();
+		req.setCallback(() -> {
+			var result = req.getResult();
+			var dir = switch req.fs_get_ptr() {
+				case null: null;
+				case ptr: ptr.pointer_to_dir();
+			}
+			req.free();
+			callback(result.translate_uv_error(), dir);
+		});
+		loop.fs_opendir_with_cb(req, path.toUTF8(), true).resolve();
+	}
 
 	/**
 		Closes the directory stream.
 	**/
-	@:hlNative("uv", "fs_closedir_wrap")
-	public function close(loop:Loop, callback:(e:UVError)->Void):Void {}
+	public function close(loop:Loop, callback:(e:UVError)->Void):Void {
+		var req = UV.alloc_fs();
+		req.setCallback(() -> {
+			var result = req.getResult();
+			req.free();
+			callback(result.translate_uv_error());
+		});
+		loop.fs_closedir_with_cb(req, dir, true).resolve();
+	}
 
 	/**
 		Iterates over the directory stream.
 	**/
 	public function read(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:Null<Array<DirEntry>>)->Void):Void {
-		readWrap(loop, numberOfEntries, (e, entries) -> {
-			if(entries == null) {
-				callback(e, null);
-			} else {
-				callback(e, [for(i in 0...entries.length) {
-					var entry:Dynamic = entries[i];
-					entry.name = @:privateAccess String.fromUTF8(entry.name);
-					entry;
-				}]);
+		var req = UV.alloc_fs();
+		req.setCallback(() -> {
+			var result = req.getResult();
+			var e = result.translate_uv_error();
+			var entries = switch e {
+				case UV_NOERR:
+					[for(i in 0...result) {
+						var dirent = dir.dir_dirent(i);
+						{
+							name: dirent.dirent_name().fromUTF8(),
+							type: dirent.dirent_type()
+						}
+					}];
+				case _:
+					null;
 			}
+			switch dir.dir_dirent(0) {
+				case null:
+				case dirent: dirent.dirent_to_pointer().free();
+			}
+			req.free();
+			callback(e, entries);
 		});
+		dir.dir_init(numberOfEntries);
+		loop.fs_readdir_with_cb(req, dir, true).resolve();
 	}
-
-	@:hlNative("uv", "fs_readdir_wrap")
-	function readWrap(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:NativeArray<Dynamic>)->Void):Void {}
 }

@@ -62,7 +62,7 @@ abstract Request(hl.Abstract<"uv_req">) {
 		req.req_set_data_with_gc(data);
 
 	@:allow(hl.uv) inline function getData():RequestData
-		return req.req_get_data().req_data_of_pointer();
+		return req.req_get_data().pointer_to_req_data();
 
 	@:allow(hl.uv) inline function free() {
 		setData(null);

@@ -61,8 +61,12 @@ abstract Timer(Handle) to Handle {
 	**/
 	static public function init(loop:Loop):Timer {
 		var timer = UV.alloc_timer();
+		var result = UV.timer_init(loop, timer);
+		if(result < 0) {
+			timer.free();
+			result.throwErr();
+		}
 		timer.setData(new Data());
-		UV.timer_init(loop, timer).resolve();
 		return timer;
 	}
 
@@ -77,8 +81,8 @@ abstract Timer(Handle) to Handle {
 		TODO: change `timeout` and `repeat` to I64
 	**/
 	public function start(callback:()->Void, timeout:Int, repeat:Int):Void {
-		(cast this.getData():Data).onTick = callback;
 		timer.timer_start_with_cb(I64.ofInt(timeout), I64.ofInt(repeat)).resolve();
+		(cast this.getData():Data).onTick = callback;
 	}
 
 	/**

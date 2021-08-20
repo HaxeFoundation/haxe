@@ -44,8 +44,12 @@ abstract Check(Handle) to Handle {
 	**/
 	static public function init(loop:Loop):Check {
 		var check = UV.alloc_check();
+		var result = loop.check_init(check);
+		if(result < 0) {
+			check.free();
+			result.throwErr();
+		}
 		check.setData(new Data());
-		loop.check_init(check);
 		return check;
 	}
 
@@ -53,8 +57,8 @@ abstract Check(Handle) to Handle {
 		Start the handle with the given callback.
 	**/
 	public function start(callback:()->Void):Void {
-		(cast this.getData():Data).onCheck = callback;
 		check.check_start_with_cb().resolve();
+		(cast this.getData():Data).onCheck = callback;
 	}
 
 	/**

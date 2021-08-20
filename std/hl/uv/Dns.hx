@@ -105,14 +105,21 @@ class Dns {
 	static public function getAddrInfo(loop:Loop, name:Null<String>, service:Null<String>, hints:Null<AddrInfoOptions>,
 		callback:(e:UVError, infos:Array<AddrInfo>)->Void):Void {
 
-		var node = name == null ? null : @:privateAccess name.toUtf8();
-		var service = service == null ? null : @:privateAccess service.toUtf8();
-		var aiHints:RawAddrInfo = null;
-
 		var req = UV.alloc_getaddrinfo();
+		var node = name == null ? null : name.toUTF8();
+		var service = service == null ? null : service.toUTF8();
+		var aiHints:RawAddrInfo = null;
+		if(hints != null) {
+			aiHints = UV.alloc_addrinfo(hints.flags, hints.family, hints.sockType, hints.protocol);
+		}
+		var result = loop.getaddrinfo_with_cb(req, node, service, aiHints);
+		if(result < 0) {
+			aiHints.freeaddrinfo();
+			req.free();
+			result.throwErr();
+		}
 		req.setData(new AddrData((e, ai) -> {
 			req.free();
-
 			var infos = null;
 			if(ai != null) {
 				infos = [];
@@ -125,7 +132,7 @@ class Dns {
 					}
 					switch ai.addrinfo_ai_canonname() {
 						case null:
-						case cn: entry.canonName = @:privateAccess String.fromUTF8(cn);
+						case cn: entry.canonName = cn.fromUTF8();
 					}
 					infos.push(entry);
 					ai = ai.addrinfo_ai_next();
@@ -134,11 +141,6 @@ class Dns {
 			}
 			callback(e, infos);
 		}));
-
-		if(hints != null) {
-			aiHints = UV.alloc_addrinfo(hints.flags, hints.family, hints.sockType, hints.protocol);
-		}
-		loop.getaddrinfo_with_cb(req, node, service, aiHints);
 	}
 
 	/**
@@ -148,16 +150,18 @@ class Dns {
 		callback:(e:UVError, name:String, service:String)->Void):Void {
 
 		var req = UV.alloc_getnameinfo();
+		var result = loop.getnameinfo_with_cb(req, addr, flags.nameinfo_flags_to_native());
+		if(result < 0) {
+			req.free();
+			result.throwErr();
+		}
 		req.setData(new NameData((e, hostname, service) -> {
 			req.free();
 			callback(
 				e,
-				hostname == null ? null : @:privateAccess String.fromUTF8(hostname),
-				service == null ? null : @:privateAccess String.fromUTF8(service)
+				hostname == null ? null : hostname.fromUTF8(),
+				service == null ? null : service.fromUTF8()
 			);
-			// hostname.bytes_to_pointer().free();
-			// hostname.bytes_to_pointer().free();
 		}));
-		loop.getnameinfo_with_cb(req, addr, flags.nameinfo_flags_to_native());
 	}
 }

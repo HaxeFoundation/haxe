@@ -81,7 +81,7 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 	public function close(?callback:()->Void):Void {
 		if(isClosing())
 			throw new UVException(UV_EINVAL);
-		handle.handle_get_data().handle_data_of_pointer().onClose = () -> {
+		handle.handle_get_data().pointer_to_handle_data().onClose = () -> {
 			handle.setData(null);
 			handle.handle_to_pointer().free();
 			if(callback != null)
@@ -120,5 +120,10 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 		handle.handle_set_data_with_gc(data);
 
 	@:allow(hl.uv) inline function getData():HandleData
-		return handle.handle_get_data().handle_data_of_pointer();
+		return handle.handle_get_data().pointer_to_handle_data();
+
+	@:allow(hl.uv) inline function free():Void {
+		handle.setData(null);
+		handle.handle_to_pointer().free();
+	}
 }

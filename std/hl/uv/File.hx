@@ -155,9 +155,20 @@ private class FsData extends RequestData {
 	}
 }
 
+@:allow(hl.uv)
 abstract FsRequest(Request) to Request {
-	@:allow(hl.uv.Dir) function setCallback(callback:()->Void) {
+	inline function setCallback(callback:()->Void) {
 		this.setData(new FsData(callback));
+	}
+
+	inline function getResult():Int {
+		return (cast this:FsRequest).fs_get_result().toInt();
+	}
+
+	inline function free() {
+		this.setData(null);
+		(cast this:FsRequest).fs_req_cleanup();
+		this.req_to_pointer().free();
 	}
 }
 

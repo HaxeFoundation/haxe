@@ -49,8 +49,12 @@ abstract Async(Handle) to Handle {
 	**/
 	static public function init(loop:Loop, callback:(async:Async)->Void):Async {
 		var async = UV.alloc_async();
+		var result = loop.async_init_with_cb(async);
+		if(result < 0) {
+			async.free();
+			result.throwErr();
+		}
 		async.setData(new Data(callback));
-		loop.async_init_with_cb(async).resolve();
 		return async;
 	}
 
