@@ -123,17 +123,17 @@ class Dns {
 				infos = [];
 				while(ai != null) {
 					var entry:AddrInfo = {
-						family:ai.addrinfo_family(),
-						sockType:ai.addrinfo_socktype(),
-						protocol:ai.addrinfo_protocol(),
-						addr:ai.addrinfo_addr()
+						family:ai.addrinfo_ai_family(),
+						sockType:ai.addrinfo_ai_socktype(),
+						protocol:ai.addrinfo_ai_protocol(),
+						addr:ai.addrinfo_ai_addr()
 					}
-					switch ai.addrinfo_canonname() {
+					switch ai.addrinfo_ai_canonname() {
 						case null:
 						case cn: entry.canonName = @:privateAccess String.fromUTF8(cn);
 					}
 					infos.push(entry);
-					ai = ai.addrinfo_next();
+					ai = ai.addrinfo_ai_next();
 				}
 				ai.freeaddrinfo();
 			}

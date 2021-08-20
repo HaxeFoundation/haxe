@@ -86,12 +86,12 @@ extern class UV {
 	static public function alloc_getaddrinfo():AddrInfoRequest;
 	static public function alloc_getnameinfo():NameInfoRequest;
 	static public function alloc_addrinfo(flags:Int, family:AddressFamily, socktype:SocketType, protocol:Int):RawAddrInfo;
-	static public function addrinfo_family(ai:RawAddrInfo):AddressFamily;
-	static public function addrinfo_socktype(ai:RawAddrInfo):SocketType;
-	static public function addrinfo_protocol(ai:RawAddrInfo):Int;
-	static public function addrinfo_addr(ai:RawAddrInfo):SockAddr;
-	static public function addrinfo_canonname(ai:RawAddrInfo):Bytes;
-	static public function addrinfo_next(ai:RawAddrInfo):Null<RawAddrInfo>;
+	static public function addrinfo_ai_family(ai:RawAddrInfo):AddressFamily;
+	static public function addrinfo_ai_socktype(ai:RawAddrInfo):SocketType;
+	static public function addrinfo_ai_protocol(ai:RawAddrInfo):Int;
+	static public function addrinfo_ai_addr(ai:RawAddrInfo):SockAddr;
+	static public function addrinfo_ai_canonname(ai:RawAddrInfo):Bytes;
+	static public function addrinfo_ai_next(ai:RawAddrInfo):Null<RawAddrInfo>;
 	static public function nameinfo_flags_to_native(ai:NameInfoFlags):Int;
 
 // Auto generated
