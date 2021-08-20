@@ -81,7 +81,12 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 	public function close(?callback:()->Void):Void {
 		if(isClosing())
 			throw new UVException(UV_EINVAL);
-		handle.handle_get_data().handle_data_of_pointer().onClose = callback;
+		handle.handle_get_data().handle_data_of_pointer().onClose = () -> {
+			handle.setData(null);
+			handle.handle_to_pointer().free();
+			if(callback != null)
+				callback();
+		};
 		handle.close_with_cb();
 	}
 

@@ -155,7 +155,11 @@ private class FsData extends RequestData {
 	}
 }
 
-abstract FsRequest(Request) to Request {}
+abstract FsRequest(Request) to Request {
+	@:allow(hl.uv.Dir) function setCallback(callback:()->Void) {
+		this.setData(new FsData(callback));
+	}
+}
 
 /**
 	File system operations.

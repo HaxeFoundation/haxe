@@ -70,15 +70,22 @@ extern class UV {
 		return result;
 	}
 
-	static public function free(v:Dynamic):Void;
+	extern static public inline function toUTF8(s:String):Bytes {
+		return @:privateAccess s.toUtf8();
+	}
+
+	static public function free(ptr:Pointer):Void;
+	static public function bytes_to_pointer(bytes:Bytes):Pointer;
 	static public function translate_uv_error(uvErrno:Int):UVError;
 	static public function translate_to_uv_error(errno:Int):Int;
 	static public function handle_data_of_pointer(ptr:Pointer):HandleData;
 	static public function handle_data_to_pointer(data:HandleData):Pointer;
+	static public function handle_to_pointer(data:Handle):Pointer;
 	static public function handle_set_data_with_gc(handle:Handle, data:HandleData):Void;
 	static public function req_data_of_pointer(ptr:Pointer):RequestData;
 	static public function req_data_to_pointer(data:RequestData):Pointer;
 	static public function req_set_data_with_gc(req:Request, data:RequestData):Void;
+	static public function req_to_pointer(req:Request):Pointer;
 	static public function alloc_loop():Loop;
 	static public function alloc_async():Async;
 	static public function alloc_timer():Timer;
@@ -93,6 +100,8 @@ extern class UV {
 	static public function addrinfo_ai_canonname(ai:RawAddrInfo):Bytes;
 	static public function addrinfo_ai_next(ai:RawAddrInfo):Null<RawAddrInfo>;
 	static public function nameinfo_flags_to_native(ai:NameInfoFlags):Int;
+	static public function alloc_fs():FsRequest;
+	static public function pointer_to_dir(req:Pointer):Dir;
 
 // Auto generated
 

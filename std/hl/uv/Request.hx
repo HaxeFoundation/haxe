@@ -63,4 +63,9 @@ abstract Request(hl.Abstract<"uv_req">) {
 
 	@:allow(hl.uv) inline function getData():RequestData
 		return req.req_get_data().req_data_of_pointer();
+
+	@:allow(hl.uv) inline function free() {
+		setData(null);
+		req.req_to_pointer().free();
+	}
 }

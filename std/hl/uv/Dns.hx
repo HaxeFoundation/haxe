@@ -103,7 +103,7 @@ class Dns {
 		Either `name` or `service` may be `null` but not both.
 	**/
 	static public function getAddrInfo(loop:Loop, name:Null<String>, service:Null<String>, hints:Null<AddrInfoOptions>,
-		callback:(e:UVError, infos:Array<AddrInfo>)->Void):AddrInfoRequest {
+		callback:(e:UVError, infos:Array<AddrInfo>)->Void):Void {
 
 		var node = name == null ? null : @:privateAccess name.toUtf8();
 		var service = service == null ? null : @:privateAccess service.toUtf8();
@@ -111,12 +111,7 @@ class Dns {
 
 		var req = UV.alloc_getaddrinfo();
 		req.setData(new AddrData((e, ai) -> {
-			// TODO: These are freed somewhere else. Figure out why (especially `req`)
-			// UV.free(node);
-			// UV.free(service);
-			// aiHints.freeaddrinfo();
-			req.setData(null);
-			// UV.free(req);
+			req.free();
 
 			var infos = null;
 			if(ai != null) {
@@ -144,30 +139,25 @@ class Dns {
 			aiHints = UV.alloc_addrinfo(hints.flags, hints.family, hints.sockType, hints.protocol);
 		}
 		loop.getaddrinfo_with_cb(req, node, service, aiHints);
-
-		return req;
 	}
 
 	/**
 		Retrieves host names.
 	**/
 	static public function getNameInfo(loop:Loop, addr:SockAddr, flags:NameInfoFlags,
-		callback:(e:UVError, name:String, service:String)->Void):NameInfoRequest {
+		callback:(e:UVError, name:String, service:String)->Void):Void {
 
 		var req = UV.alloc_getnameinfo();
 		req.setData(new NameData((e, hostname, service) -> {
-			req.setData(null);
-			// UV.free(req);
+			req.free();
 			callback(
 				e,
 				hostname == null ? null : @:privateAccess String.fromUTF8(hostname),
 				service == null ? null : @:privateAccess String.fromUTF8(service)
 			);
-			// UV.free(hostname);
-			// UV.free(service);
+			// hostname.bytes_to_pointer().free();
+			// hostname.bytes_to_pointer().free();
 		}));
 		loop.getnameinfo_with_cb(req, addr, flags.nameinfo_flags_to_native());
-
-		return req;
 	}
 }
