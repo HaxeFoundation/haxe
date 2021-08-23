@@ -1184,6 +1184,7 @@ and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
 	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
+	| [< >] -> no_keyword "variable name" s
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->

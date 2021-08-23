@@ -421,3 +421,8 @@ let check_signature_mark e p1 p2 =
 
 let convert_abstract_flags flags =
 	ExtList.List.filter_map decl_flag_to_abstract_flag flags
+
+let no_keyword what s =
+	match Stream.peek s with
+	| Some (Kwd kwd,p) -> error (Custom ("Keyword " ^ (s_keyword kwd) ^ " cannot be used as " ^ what)) p
+	| _ -> raise Stream.Failure
