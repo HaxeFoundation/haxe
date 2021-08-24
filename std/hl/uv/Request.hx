@@ -36,18 +36,44 @@ enum abstract RequestType(Int) {
 	var UV_REQ_TYPE_MAX;
 }
 
-@:keep
-@:allow(hl.uv)
-abstract class RequestData {}
-
 /**
 	Base type for all libuv request types.
 
 	@see http://docs.libuv.org/en/v1.x/request.html
 **/
-abstract Request(hl.Abstract<"uv_req">) {
-	var req(get,never):Request;
-	inline function get_req():Request return cast this;
+abstract class Request<T:RefUvReqT> {
+	var _r:RefUvReqT;
+
+	@:allow(hl.uv)
+	var r(get,never):T;
+
+	inline function get_r():T
+		return (cast _r:T);
+
+	public function new(req:T) {
+		req.req_set_data_with_gc(this);
+		_r = req;
+	}
+
+	extern inline function req(action:(r:T)->Void):Void {
+		switch r {
+			case null: throw new UVException(UV_EINVAL);
+			case r: action(r);
+		}
+	}
+
+	extern inline function reqReturn<R>(action:(r:T)->R) {
+		return switch r {
+			case null: throw new UVException(UV_EINVAL);
+			case r: action(r);
+		}
+	}
+
+	@:allow(hl.uv) function freeReq() {
+		_r.req_set_data_with_gc(null);
+		_r.req_to_pointer().free();
+		_r = null;
+	}
 
 	/**
 		Cancel a pending request.
@@ -55,17 +81,6 @@ abstract Request(hl.Abstract<"uv_req">) {
 		Fails if the request is executing or has finished executing.
 	**/
 	public function cancel():Void {
-		UV.cancel(req).resolve();
-	}
-
-	@:allow(hl.uv) inline function setData(data:RequestData)
-		req.req_set_data_with_gc(data);
-
-	@:allow(hl.uv) inline function getData():RequestData
-		return req.req_get_data().pointer_to_req_data();
-
-	@:allow(hl.uv) inline function free() {
-		setData(null);
-		req.req_to_pointer().free();
+		req(r -> UV.cancel(r).resolve());
 	}
 }

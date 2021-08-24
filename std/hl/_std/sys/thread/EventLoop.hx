@@ -63,8 +63,10 @@ class EventLoop {
 		(eventHandler:RegularEvent).event = noop;
 		pending.push(() -> {
 			var timer = (eventHandler:RegularEvent).timer;
-			timer.stop();
-			timer.close(noop);
+			if(!timer.isClosing()) {
+				timer.stop();
+				timer.close(noop);
+			}
 		});
 		mutex.release();
 		wakeup.send();

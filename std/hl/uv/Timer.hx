@@ -24,49 +24,43 @@ package hl.uv;
 
 import hl.uv.Handle;
 
-private class Data extends HandleData {
-	public var onTick:()->Void;
-}
-
 /**
 	Timers.
 
 	@see http://docs.libuv.org/en/v1.x/timer.html
 **/
-@:forward
-abstract Timer(Handle) to Handle {
-	var timer(get,never):Timer;
-	inline function get_timer():Timer return cast this;
+class Timer extends Handle<RefUvTimerT> {
+
+	var onTick:()->Void;
 
 	/** The timer repeat value. */
 	public var repeat(get,set):Int; // TODO: change to I64
 
 	function get_repeat():Int
-		return timer.timer_get_repeat().toInt();
+		return handleReturn(h -> h.timer_get_repeat().toInt());
 
 	function set_repeat(v:Int):Int {
-		timer.timer_set_repeat(I64.ofInt(v));
+		handle(h -> h.timer_set_repeat(I64.ofInt(v)));
 		return v;
 	}
-
 
 	/** Get the timer due value or 0 if it has expired. */
 	public var dueIn(get,never):Int; // TODO: change to I64
 
 	function get_dueIn():Int
-		return timer.timer_get_due_in().toInt();
+		return handleReturn(h -> h.timer_get_due_in().toInt());
 
 	/**
 		Initialize the timer.
 	**/
 	static public function init(loop:Loop):Timer {
-		var timer = UV.alloc_timer();
-		var result = UV.timer_init(loop, timer);
+		loop.checkLoop();
+		var timer = new Timer(UV.alloc_timer());
+		var result = loop.timer_init(timer.h);
 		if(result < 0) {
-			timer.free();
+			timer.freeHandle();
 			result.throwErr();
 		}
-		timer.setData(new Data());
 		return timer;
 	}
 
@@ -81,15 +75,17 @@ abstract Timer(Handle) to Handle {
 		TODO: change `timeout` and `repeat` to I64
 	**/
 	public function start(callback:()->Void, timeout:Int, repeat:Int):Void {
-		timer.timer_start_with_cb(I64.ofInt(timeout), I64.ofInt(repeat)).resolve();
-		(cast this.getData():Data).onTick = callback;
+		handle(h -> {
+			h.timer_start_with_cb(I64.ofInt(timeout), I64.ofInt(repeat)).resolve();
+			onTick = callback;
+		});
 	}
 
 	/**
 		Stop the timer, the callback will not be called anymore.
 	**/
 	public function stop():Void {
-		timer.timer_stop().resolve();
+		handle(h -> h.timer_stop().resolve());
 	}
 
 	/**
@@ -98,6 +94,6 @@ abstract Timer(Handle) to Handle {
 		If the timer has never been started before it throws UV_EINVAL.
 	**/
 	public function again():Void {
-		timer.timer_again().resolve();
+		handle(h -> h.timer_again().resolve());
 	}
 }

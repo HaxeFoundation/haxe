@@ -45,68 +45,93 @@ typedef DirEntry = {
 
 	@see http://docs.libuv.org/en/v1.x/fs.html#c.uv_fs_opendir
 **/
-abstract Dir(Abstract<"uv_dir">) {
-	var dir(get,never):Dir;
-	inline function get_dir():Dir return cast this;
+class Dir {
+	var _d:RefUvDirT;
+
+	function new(handle:RefUvDirT) {
+		_d = handle;
+	}
+
+	extern inline function dir(action:(d:RefUvDirT)->Void) {
+		switch _d {
+			case null: throw new UVException(UV_EINVAL);
+			case d: action(d);
+		}
+	}
 
 	/**
 		Opens `path` as a directory stream
 	**/
 	static public function open(loop:Loop, path:String, callback:(e:UVError, dir:Null<Dir>)->Void):Void {
-		var req = UV.alloc_fs();
-		req.setCallback(() -> {
+		loop.checkLoop();
+		var req = new FsRequest(UV.alloc_fs());
+		var result = loop.fs_opendir_with_cb(req.r, path.toUTF8(), true);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
 			var result = req.getResult();
-			var dir = switch req.fs_get_ptr() {
+			var dir = switch req.r.fs_get_ptr() {
 				case null: null;
 				case ptr: ptr.pointer_to_dir();
 			}
-			req.free();
-			callback(result.translate_uv_error(), dir);
-		});
-		loop.fs_opendir_with_cb(req, path.toUTF8(), true).resolve();
+			req.freeReq();
+			callback(result.translate_uv_error(), new Dir(dir));
+		}
 	}
 
 	/**
 		Closes the directory stream.
 	**/
 	public function close(loop:Loop, callback:(e:UVError)->Void):Void {
-		var req = UV.alloc_fs();
-		req.setCallback(() -> {
-			var result = req.getResult();
-			req.free();
-			callback(result.translate_uv_error());
+		loop.checkLoop();
+		dir(d -> {
+			var req = new FsRequest(UV.alloc_fs());
+			var result = loop.fs_closedir_with_cb(req.r, d, true);
+			req.callback = () -> {
+				var result = req.getResult();
+				req.freeReq();
+				callback(result.translate_uv_error());
+			};
 		});
-		loop.fs_closedir_with_cb(req, dir, true).resolve();
 	}
 
 	/**
 		Iterates over the directory stream.
 	**/
 	public function read(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:Null<Array<DirEntry>>)->Void):Void {
-		var req = UV.alloc_fs();
-		req.setCallback(() -> {
-			var result = req.getResult();
-			var e = result.translate_uv_error();
-			var entries = switch e {
-				case UV_NOERR:
-					[for(i in 0...result) {
-						var dirent = dir.dir_dirent(i);
-						{
-							name: dirent.dirent_name().fromUTF8(),
-							type: dirent.dirent_type()
-						}
-					}];
-				case _:
-					null;
+		loop.checkLoop();
+		dir(d -> {
+			var req = new FsRequest(UV.alloc_fs());
+			d.dir_init(numberOfEntries);
+			var result = loop.fs_readdir_with_cb(req.r, d, true);
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
 			}
-			switch dir.dir_dirent(0) {
-				case null:
-				case dirent: dirent.dirent_to_pointer().free();
+			req.callback = () -> {
+				var result = req.getResult();
+				var e = result.translate_uv_error();
+				var entries = switch e {
+					case UV_NOERR:
+						[for(i in 0...result) {
+							var dirent = d.dir_dirent(i);
+							{
+								name: dirent.dirent_name().fromUTF8(),
+								type: dirent.dirent_type()
+							}
+						}];
+					case _:
+						null;
+				}
+				switch d.dir_dirent(0) {
+					case null:
+					case dirent: dirent.dirent_to_pointer().free();
+				}
+				req.freeReq();
+				callback(e, entries);
 			}
-			req.free();
-			callback(e, entries);
 		});
-		dir.dir_init(numberOfEntries);
-		loop.fs_readdir_with_cb(req, dir, true).resolve();
 	}
 }

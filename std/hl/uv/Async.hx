@@ -24,37 +24,27 @@ package hl.uv;
 
 import hl.uv.Handle;
 
-private class Data extends HandleData {
-	public final onSend:(async:Async)->Void;
-
-	public function new(callback:(async:Async)->Void) {
-		super();
-		this.onSend = callback;
-	}
-}
-
 /**
 	Async handles allow the user to “wakeup” the event loop
 	and get a callback called from another thread.
 
 	@see http://docs.libuv.org/en/v1.x/async.html
 **/
-@:forward
-abstract Async(Handle) to Handle {
-	var async(get,never):Async;
-	inline function get_async():Async return cast this;
+class Async extends Handle<RefUvAsyncT> {
+	var onSend:(async:Async)->Void;
 
 	/**
 		Allocate and initialize the handle.
 	**/
 	static public function init(loop:Loop, callback:(async:Async)->Void):Async {
-		var async = UV.alloc_async();
-		var result = loop.async_init_with_cb(async);
+		loop.checkLoop();
+		var async = new Async(UV.alloc_async());
+		var result = loop.async_init_with_cb(async.h);
 		if(result < 0) {
-			async.free();
+			async.freeHandle();
 			result.throwErr();
 		}
-		async.setData(new Data(callback));
+		async.onSend = callback;
 		return async;
 	}
 
@@ -62,6 +52,6 @@ abstract Async(Handle) to Handle {
 		Wake up the event loop and call the async handle’s callback on the loop's thread.
 	**/
 	public function send():Void {
-		async.async_send().resolve();
+		handle(h -> h.async_send().resolve());
 	}
 }

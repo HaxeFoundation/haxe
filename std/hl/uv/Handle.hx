@@ -44,51 +44,73 @@ enum abstract HandleType(Int) {
 	var UV_HANDLE_TYPE_MAX;
 }
 
-@:keep
-@:allow(hl.uv)
-abstract class HandleData {
-	var onClose:()->Void;
-
-	public function new() {}
-}
-
 /**
 	Base type for all libuv handle types.
 
 	@see http://docs.libuv.org/en/v1.x/handle.html
 **/
-abstract Handle(hl.Abstract<"uv_handle">) {
-	var handle(get,never):Handle;
-	inline function get_handle():Handle return cast this;
+abstract class Handle<T:RefUvHandleT> {
+	var _h:RefUvHandleT;
+	var onClose:()->Void;
+	@:allow(hl.uv) var h(get,never):T;
+
+	inline function get_h():T
+		return (cast _h:T);
+
+	function new(handle:T) {
+		handle.handle_set_data_with_gc(this);
+		_h = handle;
+	}
+
+	extern inline function handle(action:(h:T)->Void) {
+		switch h {
+			case null: throw new UVException(UV_EINVAL);
+			case h: action(h);
+		}
+	}
+
+	extern inline function handleReturn<R>(action:(h:T)->R) {
+		return switch h {
+			case null: throw new UVException(UV_EINVAL);
+			case h: action(h);
+		}
+	}
+
+	@:allow(hl.uv) inline function freeHandle():Void {
+		_h.handle_set_data_with_gc(null);
+		_h.handle_to_pointer().free();
+		_h = null;
+	}
 
 	/**
 		Returns `true` if the handle is active, `false` otherwise.
 	**/
-	public function isActive():Bool
-		return handle.is_active() != 0;
+	public function isActive():Bool {
+		return handleReturn(h -> h.is_active() != 0);
+	}
 
 	/**
 		Returns `true` if the handle is closing or closed, `false` otherwise.
 	**/
 	public function isClosing():Bool
-		return handle.is_closing() != 0;
+		return handleReturn(h -> h.is_closing() != 0);
 
 	/**
 		Request handle to be closed.
 		`callback` will be called asynchronously after this call.
 		This MUST be called on each handle.
 	**/
-	public function close(?callback:()->Void):Void {
-		if(isClosing())
-			throw new UVException(UV_EINVAL);
-		handle.handle_get_data().pointer_to_handle_data().onClose = () -> {
-			handle.setData(null);
-			handle.handle_to_pointer().free();
-			if(callback != null)
-				callback();
-		};
-		handle.close_with_cb();
-	}
+	public function close(?callback:()->Void):Void
+		handle(h -> {
+			if(h.is_closing() != 0)
+				throw new UVException(UV_EINVAL);
+			onClose = () -> {
+				freeHandle();
+				if(callback != null)
+					callback();
+			};
+			h.close_with_cb();
+		});
 
 	/**
 		Reference the given handle.
@@ -97,7 +119,7 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function ref():Void
-		UV.ref(handle);
+		handle(h -> UV.ref(h));
 
 	/**
 		Unreference the given handle.
@@ -106,24 +128,14 @@ abstract Handle(hl.Abstract<"uv_handle">) {
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function unref():Void
-		UV.unref(handle);
+		handle(h -> UV.unref(h));
 
 	/**
 		Returns `true` if the handle is referenced, `false` otherwise.
 
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
-	public function hasRef():Bool
-		return handle.has_ref() != 0;
-
-	@:allow(hl.uv) inline function setData(data:HandleData)
-		handle.handle_set_data_with_gc(data);
-
-	@:allow(hl.uv) inline function getData():HandleData
-		return handle.handle_get_data().pointer_to_handle_data();
-
-	@:allow(hl.uv) inline function free():Void {
-		handle.setData(null);
-		handle.handle_to_pointer().free();
+	public function hasRef():Bool {
+		return handleReturn(h -> h.has_ref() != 0);
 	}
 }

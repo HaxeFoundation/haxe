@@ -24,32 +24,26 @@ package hl.uv;
 
 import hl.uv.Handle;
 
-private class Data extends HandleData {
-	public var onCheck:()->Void;
-}
-
 /**
 	Check handles will run the given callback once per loop iteration,
 	right after polling for i/o.
 
 	@see http://docs.libuv.org/en/v1.x/check.html
 **/
-@:forward
-abstract Check(Handle) to Handle {
-	var check(get,never):Check;
-	inline function get_check():Check return cast this;
+class Check extends Handle<RefUvCheckT> {
+	var onCheck:()->Void;
 
 	/**
 		Allocate and initialize the handle.
 	**/
 	static public function init(loop:Loop):Check {
-		var check = UV.alloc_check();
-		var result = loop.check_init(check);
+		loop.checkLoop();
+		var check = new Check(UV.alloc_check());
+		var result = loop.check_init(check.h);
 		if(result < 0) {
-			check.free();
+			check.freeHandle();
 			result.throwErr();
 		}
-		check.setData(new Data());
 		return check;
 	}
 
@@ -57,14 +51,16 @@ abstract Check(Handle) to Handle {
 		Start the handle with the given callback.
 	**/
 	public function start(callback:()->Void):Void {
-		check.check_start_with_cb().resolve();
-		(cast this.getData():Data).onCheck = callback;
+		handle(h -> {
+			h.check_start_with_cb().resolve();
+			onCheck = callback;
+		});
 	}
 
 	/**
 		Stop the handle, the callback will no longer be called.
 	**/
 	public function stop():Void {
-		check.check_stop().resolve();
+		handle(h -> h.check_stop().resolve());
 	}
 }

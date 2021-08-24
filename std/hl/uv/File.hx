@@ -147,28 +147,19 @@ enum abstract FsRequestType(Int) to Int {
 	var UV_FS_LUTIME;
 }
 
-private class FsData extends RequestData {
-	public final callback:()->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
-}
-
 @:allow(hl.uv)
-abstract FsRequest(Request) to Request {
-	inline function setCallback(callback:()->Void) {
-		this.setData(new FsData(callback));
-	}
+class FsRequest extends Request<RefUvFsT> {
+	var callback:()->Void;
 
 	inline function getResult():Int {
-		return (cast this:FsRequest).fs_get_result().toInt();
+		return r.fs_get_result().toInt();
 	}
 
-	inline function free() {
-		this.setData(null);
-		(cast this:FsRequest).fs_req_cleanup();
-		this.req_to_pointer().free();
+	override function freeReq() {
+		r.req_set_data_with_gc(null);
+		r.fs_req_cleanup();
+		r.req_to_pointer().free();
+		_r = null;
 	}
 }
 

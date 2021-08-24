@@ -43,10 +43,7 @@ enum abstract LoopRunMode(Int) {
 	`sys.thread.Thread.current().events` in any place where `eval.luv.Loop` is
 	expected.
 **/
-abstract Loop(hl.Abstract<"uv_loop">) {
-	var loop(get,never):Loop;
-	inline function get_loop():Loop return cast this;
-
+abstract Loop(RefUvLoopT) from RefUvLoopT to RefUvLoopT {
 	@:from
 	static inline function fromHaxeEventLoop(events:sys.thread.EventLoop):Loop
 		return events.handle;
@@ -56,7 +53,11 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	**/
 	static public function init():Loop {
 		var loop = UV.alloc_loop();
-		loop.loop_init().resolve();
+		var result = loop.loop_init();
+		if(result < 0) {
+			loop.loop_to_pointer().free();
+			result.throwErr();
+		}
 		return loop;
 	}
 
@@ -66,7 +67,9 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		handles and requests have been closed, or it will throw `EBUSY`.
 	**/
 	public function close():Void {
-		loop.loop_close().resolve();
+		this.checkLoop();
+		this.loop_close().resolve();
+		this.loop_to_pointer().free();
 	}
 
 	/**
@@ -75,7 +78,8 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		@see http://docs.libuv.org/en/v1.x/loop.html#c.uv_run
 	**/
 	public function run(mode:LoopRunMode):Bool {
-		return UV.run(loop, mode).resolve() != 0;
+		this.checkLoop();
+		return UV.run(this, mode).resolve() != 0;
 	}
 
 	/**
@@ -83,14 +87,16 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		or closing handles in the loop.
 	**/
 	public function alive():Bool {
-		return loop.loop_alive() != 0;
+		this.checkLoop();
+		return this.loop_alive() != 0;
 	}
 
 	/**
 		Stop the event loop as soon as possible.
 	**/
 	public function stop():Void {
-		UV.stop(loop);
+		this.checkLoop();
+		UV.stop(this);
 	}
 
 	/**
@@ -103,7 +109,7 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		if (loopEvent == null)
 			loopEvent = haxe.MainLoop.add(function() {
 				// if no more things to process, stop
-				if (!def.run(NoWait)) {
+				if (def.run(NoWait) == 0) {
 					loopEvent.stop();
 					loopEvent = null;
 				}

@@ -71,25 +71,13 @@ enum abstract NameInfoFlags(Int) from Int to Int {
 	var NI_DGRAM = 16;
 }
 
-private class AddrData extends RequestData {
-	public final callback:(e:UVError, ai:RawAddrInfo)->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
+private class AddrInfoRequest extends Request<RefUvGetaddrinfoT> {
+	@:allow(hl.uv.Dns) var callback:(status:Int, ai:RefCAddrinfo)->Void;
 }
 
-private class NameData extends RequestData {
-	public final callback:(e:UVError, hostname:Bytes, service:Bytes)->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
+private class NameInfoRequest extends Request<RefUvGetnameinfoT> {
+	@:allow(hl.uv.Dns) var callback:(status:Int, hostname:Bytes, service:Bytes)->Void;
 }
-
-@:forward abstract AddrInfoRequest(Request) to Request {}
-
-@:forward abstract NameInfoRequest(Request) to Request {}
 
 /**
 	DNS queries.
@@ -105,21 +93,23 @@ class Dns {
 	static public function getAddrInfo(loop:Loop, name:Null<String>, service:Null<String>, hints:Null<AddrInfoOptions>,
 		callback:(e:UVError, infos:Array<AddrInfo>)->Void):Void {
 
-		var req = UV.alloc_getaddrinfo();
+		loop.checkLoop();
+		var req = new AddrInfoRequest(UV.alloc_getaddrinfo());
 		var node = name == null ? null : name.toUTF8();
 		var service = service == null ? null : service.toUTF8();
-		var aiHints:RawAddrInfo = null;
-		if(hints != null) {
+		var aiHints:RefCAddrinfo = null;
+		if(hints != null)
 			aiHints = UV.alloc_addrinfo(hints.flags, hints.family, hints.sockType, hints.protocol);
-		}
-		var result = loop.getaddrinfo_with_cb(req, node, service, aiHints);
+
+		var result = loop.getaddrinfo_with_cb(req.r, node, service, aiHints);
 		if(result < 0) {
 			aiHints.freeaddrinfo();
-			req.free();
+			req.freeReq();
 			result.throwErr();
 		}
-		req.setData(new AddrData((e, ai) -> {
-			req.free();
+		req.callback = (status, ai) -> {
+			aiHints.freeaddrinfo();
+			req.freeReq();
 			var infos = null;
 			if(ai != null) {
 				infos = [];
@@ -139,8 +129,8 @@ class Dns {
 				}
 				ai.freeaddrinfo();
 			}
-			callback(e, infos);
-		}));
+			callback(status.translate_uv_error(), infos);
+		};
 	}
 
 	/**
@@ -149,19 +139,20 @@ class Dns {
 	static public function getNameInfo(loop:Loop, addr:SockAddr, flags:NameInfoFlags,
 		callback:(e:UVError, name:String, service:String)->Void):Void {
 
-		var req = UV.alloc_getnameinfo();
-		var result = loop.getnameinfo_with_cb(req, addr, flags.nameinfo_flags_to_native());
+		loop.checkLoop();
+		var req = new NameInfoRequest(UV.alloc_getnameinfo());
+		var result = loop.getnameinfo_with_cb(req.r, addr, flags.nameinfo_flags_to_native());
 		if(result < 0) {
-			req.free();
+			req.freeReq();
 			result.throwErr();
 		}
-		req.setData(new NameData((e, hostname, service) -> {
-			req.free();
+		req.callback = (status, hostname, service) -> {
+			req.freeReq();
 			callback(
-				e,
+				status.translate_uv_error(),
 				hostname == null ? null : hostname.fromUTF8(),
 				service == null ? null : service.fromUTF8()
 			);
-		}));
+		};
 	}
 }
