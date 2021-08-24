@@ -39,7 +39,7 @@ let update_object_prototype o fields =
 	let ctx = get_ctx() in
 	let proto,fields = ctx.get_object_prototype (get_ctx()) fields in
 	o.ofields <- Array.of_list (List.map snd fields);
-	o.oproto <- proto
+	o.oproto <- OProto proto
 
 (* Calls *)
 
@@ -59,12 +59,38 @@ let set_instance_field vi name v2 =
 	vi.ifields.(get_instance_field_index_raise vi.iproto name) <- v2
 
 let set_object_field o name v2 =
-	try
-		o.ofields.(get_instance_field_index_raise o.oproto name) <- v2;
-	with Not_found ->
-		let fields = IntMap.fold (fun name i acc -> (name,o.ofields.(i)) :: acc) o.oproto.pinstance_names [] in
-		let fields = (name,v2) :: fields in
-		update_object_prototype o fields
+	match o.oproto with
+	| OProto proto ->
+		begin try
+			o.ofields.(get_instance_field_index_raise proto name) <- v2;
+		with Not_found ->
+			let fields = IntMap.fold (fun name i acc -> (name,o.ofields.(i)) :: acc) proto.pinstance_names [] in
+			let fields = (name,v2) :: fields in
+			update_object_prototype o fields
+		end
+	| ODictionary d ->
+		o.oproto <- ODictionary (IntMap.add name v2 d)
+
+(* Turns prototypes into dictionaries if the field doesn't exist. *)
+let set_object_field_runtime o name v2 =
+	let update_dictionary d =
+		IntMap.add name v2 d
+	in
+	let make_dictionary proto =
+		IntMap.map (fun i -> o.ofields.(i)) proto.pinstance_names
+	in
+	match o.oproto with
+	| OProto proto ->
+		begin try
+			o.ofields.(get_instance_field_index_raise proto name) <- v2;
+		with Not_found ->
+			let d = make_dictionary proto in
+			let d = update_dictionary d in
+			o.oproto <- ODictionary d
+		end
+	| ODictionary d ->
+		let d = update_dictionary d in
+		o.oproto <- ODictionary d
 
 let set_bytes_length_field v1 v2 =
 	match v1 with
@@ -87,6 +113,10 @@ let set_field v1 name v2 = match vresolve v1 with
 	| VInstance {ikind = IBytes _} -> set_bytes_length_field v1 v2
 	| VInstance vi -> set_instance_field vi name v2
 	| _ -> unexpected_value v1 "object"
+
+let set_field_runtime v1 name v2 = match vresolve v1 with
+	| VObject o -> set_object_field_runtime o name v2
+	| _ -> set_field v1 name v2
 
 (* Equality/compare *)
 
@@ -167,6 +197,7 @@ let op_add p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
+	| VNativeString s1,VNativeString s2 -> vnative_string (s1 ^ s2)
 	| VString s1,VString s2 -> vstring (concat s1 s2)
 	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
 	| v1,VString s2 -> vstring (concat (s_value 0 v1) s2)
@@ -253,4 +284,38 @@ let get_binop_fun op p = match op with
 	| OpShr -> op_shr p
 	| OpUShr -> op_ushr p
 	| OpMod -> op_mod p
-	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die "" __LOC__
+	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die ~p "" __LOC__
+
+let prepare_callback v n =
+	match v with
+	| VFunction _ | VFieldClosure _ ->
+		let ctx = get_ctx() in
+		(fun args -> match catch_exceptions ctx (fun() -> call_value v args) null_pos with
+			| Some v -> v
+			| None -> vnull)
+	| _ ->
+		raise MacroApi.Invalid_expr
+
+let create_haxe_exception ?stack msg =
+	let vi = encode_instance key_haxe_Exception in
+	match vi with
+	| VInstance i ->
+		let v_msg = create_unknown (msg) in
+		set_instance_field i key_exception_message v_msg;
+		set_instance_field i key_native_exception v_msg;
+		(match stack with
+		| Some stack ->
+			let stack = EvalStackTrace.make_stack stack in
+			set_instance_field i key_native_stack stack;
+		| None ->
+			let ctx = get_ctx() in
+			let eval = get_eval ctx in
+			match eval.env with
+			| Some _ ->
+				let stack = EvalStackTrace.make_stack_value (call_stack eval) in
+				set_instance_field i key_native_stack stack;
+			| None -> ()
+		);
+		vi
+	| _ ->
+		die "" __LOC__

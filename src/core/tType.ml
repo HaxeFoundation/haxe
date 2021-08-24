@@ -44,7 +44,15 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
-	mutable tm_constraints : tmono_constraint list;
+	(*
+		```
+		function fn<A,B:A>() {}
+		```
+		`A` is a down-constraint for `B`
+		`B` is an up-constraint for `A`
+	*)
+	mutable tm_down_constraints : tmono_constraint list;
+	mutable tm_up_constraints : (t * string option) list;
 }
 
 and tmono_constraint =
@@ -57,6 +65,7 @@ and tmono_constraint =
 and tmono_constraint_kind =
 	| CUnknown
 	| CStructural of (string,tclass_field) PMap.t * bool
+	| CMixed of tmono_constraint_kind list
 	| CTypes of (t * string option) list
 
 and tlazy =
@@ -311,6 +320,7 @@ and tabstract = {
 	mutable a_array : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
+	mutable a_call : tclass_field option;
 	a_enum : bool;
 }
 
@@ -401,3 +411,5 @@ type flag_tvar =
 	| VCaptured
 	| VFinal
 	| VUsed (* used by the analyzer *)
+	| VAssigned
+	| VCaught

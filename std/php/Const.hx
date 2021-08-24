@@ -543,4 +543,105 @@ extern class Const {
 	static final SORT_NUMERIC:Int;
 	static final SORT_REGULAR:Int;
 	static final SORT_STRING:Int;
+
+	/**
+		@see http://php.net/manual/en/filter.constants.php
+	**/
+	static final FILTER_CALLBACK:Int;
+	static final FILTER_DEFAULT:Int;
+	static final FILTER_FLAG_ALLOW_FRACTION:Int;
+	static final FILTER_FLAG_ALLOW_HEX:Int;
+	static final FILTER_FLAG_ALLOW_OCTAL:Int;
+	static final FILTER_FLAG_ALLOW_SCIENTIFIC:Int;
+	static final FILTER_FLAG_ALLOW_THOUSAND:Int;
+	static final FILTER_FLAG_EMAIL_UNICODE:Int;
+	static final FILTER_FLAG_EMPTY_STRING_NULL:Int;
+	static final FILTER_FLAG_ENCODE_AMP:Int;
+	static final FILTER_FLAG_ENCODE_HIGH:Int;
+	static final FILTER_FLAG_ENCODE_LOW:Int;
+	static final FILTER_FLAG_HOST_REQUIRED:Int;
+	static final FILTER_FLAG_HOSTNAME:Int;
+	static final FILTER_FLAG_IPV4:Int;
+	static final FILTER_FLAG_IPV6:Int;
+	static final FILTER_FLAG_NO_ENCODE_QUOTES:Int;
+	static final FILTER_FLAG_NO_PRIV_RANGE:Int;
+	static final FILTER_FLAG_NO_RES_RANGE:Int;
+	static final FILTER_FLAG_NONE:Int;
+	static final FILTER_FLAG_PATH_REQUIRED:Int;
+	static final FILTER_FLAG_QUERY_REQUIRED:Int;
+	static final FILTER_FLAG_SCHEME_REQUIRED:Int;
+	static final FILTER_FLAG_STRIP_BACKTICK:Int;
+	static final FILTER_FLAG_STRIP_HIGH:Int;
+	static final FILTER_FLAG_STRIP_LOW:Int;
+	static final FILTER_FORCE_ARRAY:Int;
+	static final FILTER_NULL_ON_FAILURE:Int;
+	static final FILTER_REQUIRE_ARRAY:Int;
+	static final FILTER_REQUIRE_SCALAR:Int;
+	static final FILTER_SANITIZE_ADD_SLASHES:Int;
+	static final FILTER_SANITIZE_EMAIL:Int;
+	static final FILTER_SANITIZE_ENCODED:Int;
+	static final FILTER_SANITIZE_MAGIC_QUOTES:Int;
+	static final FILTER_SANITIZE_NUMBER_FLOAT:Int;
+	static final FILTER_SANITIZE_NUMBER_INT:Int;
+	static final FILTER_SANITIZE_SPECIAL_CHARS:Int;
+	static final FILTER_SANITIZE_STRING:Int;
+	static final FILTER_SANITIZE_STRIPPED:Int;
+	static final FILTER_SANITIZE_URL:Int;
+	static final FILTER_UNSAFE_RAW:Int;
+	static final FILTER_VALIDATE_BOOLEAN:Int;
+	static final FILTER_VALIDATE_DOMAIN:Int;
+	static final FILTER_VALIDATE_EMAIL:Int;
+	static final FILTER_VALIDATE_FLOAT:Int;
+	static final FILTER_VALIDATE_INT:Int;
+	static final FILTER_VALIDATE_IP:Int;
+	static final FILTER_VALIDATE_MAC:Int;
+	static final FILTER_VALIDATE_REGEXP:Int;
+	static final FILTER_VALIDATE_URL:Int;
+	static final INPUT_COOKIE:Int;
+	static final INPUT_ENV:Int;
+	static final INPUT_GET:Int;
+	static final INPUT_POST:Int;
+	static final INPUT_REQUEST:Int;
+	static final INPUT_SERVER:Int;
+	static final INPUT_SESSION:Int;
+
+	/**
+		@see http://php.net/manual/en/fileinfo.constants.php
+	**/
+	static final FILEINFO_COMPRESS: Int;
+	static final FILEINFO_CONTINUE: Int;
+	static final FILEINFO_DEVICES: Int;
+	static final FILEINFO_EXTENSION: Int;
+	static final FILEINFO_MIME: Int;
+	static final FILEINFO_MIME_ENCODING: Int;
+	static final FILEINFO_MIME_TYPE: Int;
+	static final FILEINFO_NONE: Int;
+	static final FILEINFO_PRESERVE_ATIME: Int;
+	static final FILEINFO_RAW: Int;
+	static final FILEINFO_SYMLINK: Int;
+
+	/**
+		@see http://php.net/manual/en/calendar.constants.php
+	**/
+	static final CAL_DOW_DAYNO: Int;
+	static final CAL_DOW_LONG: Int;
+	static final CAL_DOW_SHORT: Int;
+	static final CAL_EASTER_ALWAYS_GREGORIAN: Int;
+	static final CAL_EASTER_ALWAYS_JULIAN: Int;
+	static final CAL_EASTER_DEFAULT: Int;
+	static final CAL_EASTER_ROMAN: Int;
+	static final CAL_FRENCH: Int;
+	static final CAL_GREGORIAN: Int;
+	static final CAL_JEWISH: Int;
+	static final CAL_JEWISH_ADD_ALAFIM: Int;
+	static final CAL_JEWISH_ADD_ALAFIM_GERESH: Int;
+	static final CAL_JEWISH_ADD_GERESHAYIM: Int;
+	static final CAL_JULIAN: Int;
+	static final CAL_MONTH_FRENCH: Int;
+	static final CAL_MONTH_GREGORIAN_LONG: Int;
+	static final CAL_MONTH_GREGORIAN_SHORT: Int;
+	static final CAL_MONTH_JEWISH: Int;
+	static final CAL_MONTH_JULIAN_LONG: Int;
+	static final CAL_MONTH_JULIAN_SHORT: Int;
+	static final CAL_NUM_CALS: Int;
 }

@@ -98,6 +98,7 @@ type unop =
 	| Not
 	| Neg
 	| NegBits
+	| Spread
 
 type string_literal_kind =
 	| SDoubleQuotes
@@ -135,6 +136,7 @@ type token =
 	| Question
 	| At
 	| Dollar of string
+	| Spread
 
 type unop_flag =
 	| Prefix
@@ -221,7 +223,6 @@ and expr_def =
 	| ECast of expr * type_hint option
 	| EIs of expr * type_hint
 	| EDisplay of expr * display_kind
-	| EDisplayNew of placed_type_path
 	| ETernary of expr * expr * expr
 	| ECheckType of expr * type_hint
 	| EMeta of metadata_entry * expr
@@ -235,8 +236,43 @@ and type_param = {
 	tp_meta : metadata;
 }
 
+(**
+	This structure represents a documentation comment of a symbol.
+
+	Use `Ast.get_doc_text` to generate a final user-readable text for a doc_block.
+*)
 and doc_block = {
+	(** Contains own docs written nearby the symbol in Haxe code *)
 	doc_own: string option;
+	(**
+		This field is for docs pointed by @:inheritDoc meta.
+
+		It's populated with `InheritDoc.build_*` functions.
+		Each string in this list is compiled of a doc a single @:inheritDoc points to.
+
+		E.g. calling `InheritDoc.build_class_field_doc` for `field4` (from sample below)
+		will produce `doc_inherited = ["Own field3 doc"; "Own field2 doc\nOwn field1 doc"]`.
+
+		Sample:
+		```
+		class MyClass {
+
+			/** Own field1 doc */
+			function field1();
+
+			/** Own field2 doc */
+			@:inheritDoc(MyClass.field1) function field2();
+
+			/** Own field3 doc */
+			function field2();
+
+			/** Own field4 doc */
+			@:inheritDoc(MyClass.field3)
+			@:inheritDoc(MyClass.field2)
+			function field4();
+		}
+		```
+	*)
 	mutable doc_inherited: string list;
 }
 
@@ -281,6 +317,9 @@ and evar = {
 	ev_expr : expr option;
 	ev_meta : metadata;
 }
+
+(* TODO: should we introduce CTMono instead? *)
+let ct_mono = CTPath { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
 
 type enum_flag =
 	| EPrivate
@@ -374,6 +413,11 @@ let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
 
 let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
 
+(**
+	Generates full doc block text out of `doc_block` structure
+	by concatenating `d.doc_own` and all entries of `d.doc_inherited` with new lines
+	in between.
+*)
 let gen_doc_text d =
 	let docs =
 		match d.doc_own with
@@ -389,11 +433,7 @@ let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
 let rec is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
-	| Neg | NegBits -> false
-
-let is_prefix = function
-	| Increment | Decrement -> true
-	| Not | Neg | NegBits -> true
+	| Neg | NegBits | Spread -> false
 
 let base_class_name = snd
 
@@ -522,6 +562,7 @@ let s_unop = function
 	| Not -> "!"
 	| Neg -> "-"
 	| NegBits -> "~"
+	| Spread -> "..."
 
 let s_token = function
 	| Eof -> "<end of file>"
@@ -547,6 +588,7 @@ let s_token = function
 	| Question -> "?"
 	| At -> "@"
 	| Dollar v -> "$" ^ v
+	| Spread -> "..."
 
 exception Invalid_escape_sequence of char * int * (string option)
 
@@ -740,7 +782,6 @@ let map_expr loop (e,p) =
 		let t = type_hint t in
 		EIs (e,t)
 	| EDisplay (e,f) -> EDisplay (loop e,f)
-	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) ->
 		let e1 = loop e1 in
 		let e2 = loop e2 in
@@ -758,7 +799,7 @@ let iter_expr loop (e,p) =
 	let opt eo = match eo with None -> () | Some e -> loop e in
 	let exprs = List.iter loop in
 	match e with
-	| EConst _ | EContinue | EBreak | EDisplayNew _ | EReturn None -> ()
+	| EConst _ | EContinue | EBreak | EReturn None -> ()
 	| EParenthesis e1 | EField(e1,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
 	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EIs(e1,_) | EUntyped e1 -> loop e1;
 	| EArray(e1,e2) | EBinop(_,e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
@@ -834,7 +875,6 @@ module Printer = struct
 		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
 		| EDisplay (e1,dk) -> Printf.sprintf "#DISPLAY(%s, %s)" (s_expr_inner tabs e1) (s_display_kind dk)
-		| EDisplayNew tp -> Printf.sprintf "#DISPLAY_NEW(%s)" (s_complex_type_path tabs tp)
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
 	and s_complex_type_path tabs (t,_) =
@@ -1143,8 +1183,6 @@ module Expr = struct
 			| EMeta((m,_,_),e1) ->
 				add ("EMeta " ^ fst (Meta.get_info m));
 				loop e1
-			| EDisplayNew _ ->
-				die "" __LOC__
 		in
 		loop' "" e;
 		Buffer.contents buf

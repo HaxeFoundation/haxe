@@ -240,8 +240,11 @@ let field_access ctx mode f fh e pfield =
 		| AccInline ->
 			normal true
 		| AccCtor ->
+			let is_child_of_abstract c =
+				has_class_flag c CAbstract && extends ctx.curclass c
+			in
 			(match ctx.curfun, fh with
-				| FunConstructor, FHInstance(c,_) when c == ctx.curclass -> normal false
+				| FunConstructor, FHInstance(c,_) when c == ctx.curclass || is_child_of_abstract c -> normal false
 				| _ -> AKNo f.cf_name
 			)
 		| AccRequire (r,msg) ->
@@ -354,7 +357,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				(mk_field i (mk_mono()) p null_pos) with
 				cf_kind = Var { v_read = AccNormal; v_write = if is_set then AccNormal else AccNo }
 			} in
-			(match Monomorph.classify_constraints r with
+			let rec check_constr = function
 			| CStructural (fields,is_open) ->
 				(try
 					let f = PMap.find i fields in
@@ -365,7 +368,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					field_access f FHAnon
 				with Not_found when is_open ->
 					let f = mk_field() in
-					Monomorph.add_constraint r (MField f);
+					Monomorph.add_down_constraint r (MField f);
 					field_access f FHAnon
 				)
 			| CTypes tl ->
@@ -374,10 +377,21 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				if not (List.exists (fun (m,_) -> m == r) ctx.monomorphs.perfunction) && not (ctx.untyped && ctx.com.platform = Neko) then
 					ctx.monomorphs.perfunction <- (r,p) :: ctx.monomorphs.perfunction;
 				let f = mk_field() in
-				Monomorph.add_constraint r (MField f);
-				Monomorph.add_constraint r MOpenStructure;
+				Monomorph.add_down_constraint r (MField f);
+				Monomorph.add_down_constraint r MOpenStructure;
 				field_access f FHAnon
-			)
+			| CMixed l ->
+				let rec loop_constraints l =
+					match l with
+					| [] ->
+						raise Not_found
+					| constr :: l ->
+						try check_constr constr
+						with Not_found -> loop_constraints l
+				in
+				loop_constraints l
+			in
+			check_constr (Monomorph.classify_down_constraints r)
 		| TAbstract (a,tl) ->
 			(try
 				let c = find_some a.a_impl in
@@ -391,6 +405,10 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	in
 	let type_field_by_extension f t e =
 		let check_constant_struct = ref false in
+		let e = match t with
+			| TInst _ when e.eexpr = TConst TSuper -> { e with eexpr = TCast(mk (TConst TThis) (mk_mono()) e.epos,None) }
+			| _ -> e
+		in
 		let loop = type_field_by_list (fun (c,pc) ->
 			let cf0 = PMap.find i c.cl_statics in
 			let rec check cfl = match cfl with
@@ -449,7 +467,6 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found ->
 				type_field_by_typedef type_field_by_type_extension e td tl
 			)
-		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
 		| TMono _ -> raise Not_found
 		| TAbstract (a,tl) ->
 			(try
@@ -473,9 +490,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		) t e in
 		match t with
 		| TType (td,tl) -> type_field_by_typedef type_field_by_module_extension e td tl
-		| TInst _ when e.eexpr = TConst TSuper -> raise Not_found
 		| TMono r ->
-			(match Monomorph.classify_constraints r with
+			(match Monomorph.classify_down_constraints r with
 			| CStructural (_,is_open) when not is_open -> type_field_by_extension()
 			| _ -> raise Not_found
 			)
@@ -561,17 +577,27 @@ let get_struct_init_anon_fields c tl =
 	let args =
 		match c.cl_constructor with
 		| Some cf ->
+			let javadoc = match gen_doc_text_opt cf.cf_doc with
+				| None -> None
+				| Some s -> Some (new Javadoc.javadoc s)
+			in
+			let extract_param_info name = match javadoc with
+				| Some javadoc -> javadoc#get_param_info name
+				| None -> None
+			in
 			(match follow cf.cf_type with
 			| TFun (args,_) ->
 				Some (match cf.cf_expr with
 					| Some { eexpr = TFunction fn } ->
 						List.map (fun (name,_,t) ->
 							let t = apply_params c.cl_params tl t in
-							try
+							let p = try
 								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
-								name,t,v.v_pos
+								v.v_pos
 							with Not_found ->
-								name,t,cf.cf_name_pos
+								cf.cf_name_pos
+							in
+							name,t,p,extract_param_info name
 						) args
 					| _ ->
 						List.map
@@ -579,9 +605,9 @@ let get_struct_init_anon_fields c tl =
 								let t = apply_params c.cl_params tl t in
 								try
 									let cf = PMap.find name c.cl_fields in
-									name,t,cf.cf_name_pos
+									name,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
 								with Not_found ->
-									name,t,cf.cf_name_pos
+									name,t,cf.cf_name_pos,extract_param_info name
 							) args
 				)
 			| _ -> None
@@ -590,8 +616,9 @@ let get_struct_init_anon_fields c tl =
 	in
 	match args with
 	| Some args ->
-		List.fold_left (fun fields (name,t,p) ->
+		List.fold_left (fun fields (name,t,p,doc) ->
 			let cf = mk_field name t p p in
+			cf.cf_doc <- (doc_from_string_opt doc);
 			PMap.add cf.cf_name cf fields
 		) PMap.empty args
 	| _ ->

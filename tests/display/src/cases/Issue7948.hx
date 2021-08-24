@@ -14,7 +14,7 @@ class Issue7948 extends DisplayTestCase {
 				kind: DKParserError,
 				severity: Error,
 				range: diagnosticsRange(pos(1), pos(2)),
-				args: "Unexpected class"
+				args: 'Unexpected keyword "class"'
 			}
 		], diagnostics());
 	}

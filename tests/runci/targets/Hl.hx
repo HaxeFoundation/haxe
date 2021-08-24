@@ -7,19 +7,19 @@ import runci.Config.*;
 
 class Hl {
     static var hlSrc = switch [ci, systemName] {
-      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink";
+      case [GithubActions, "Windows"]: "C:\\hashlink";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink"]);
     };
     static var hlBuild = switch [ci, systemName] {
-      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build";
+      case [GithubActions, "Windows"]: "C:\\hashlink_build";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
     };
     static var hlBinDir = switch [ci, systemName] {
-      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build\\bin";
+      case [GithubActions, "Windows"]: "C:\\hashlink_build\\bin";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin"]);
     };
     static var hlBinary = switch [ci, systemName] {
-      case [AzurePipelines | GithubActions, "Windows"]: "C:\\hashlink_build\\bin\\hl.exe";
+      case [GithubActions, "Windows"]: "C:\\hashlink_build\\bin\\hl.exe";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin", "hl"]);
     };
 
@@ -43,7 +43,7 @@ class Hl {
         }
 
         FileSystem.createDirectory(hlBuild);
-        var generator = systemName == "Windows" ? [] : ["-GNinja"];
+        var generator = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
         runCommand("cmake", generator.concat([
             "-DBUILD_TESTING=OFF",
             "-DWITH_BULLET=OFF",
@@ -72,9 +72,9 @@ class Hl {
         runCommand("haxe", ["compile-hl.hxml"].concat(args));
         runCommand(hlBinary, ["bin/unit.hl"]);
 
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
-		// runCommand("hl", ["export/threads.hl"]);
+        changeDirectory(threadsDir);
+        runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
+        runCommand("hl", ["export/threads.hl"]);
 
         changeDirectory(sysDir);
         runCommand("haxe", ["compile-hl.hxml"].concat(args));

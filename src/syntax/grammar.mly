@@ -560,7 +560,7 @@ and parse_meta_entry = parser
 	[< '(At,p1); s >] ->
 		let meta = check_resume p1 (fun () -> Some (Meta.Last,[],p1)) (fun () -> None) in
 		match s with parser
-		| [< name,p = parse_meta_name p1; params = parse_meta_params p; s >] -> (name,params,punion p1 p)
+		| [< name,p = parse_meta_name p1; params = parse_meta_params p >] -> (name,params,punion p1 p)
 		| [< >] -> match meta with None -> serror() | Some meta -> meta
 
 and parse_meta = parser
@@ -668,6 +668,13 @@ and parse_complex_type_inner allow_named = parser
 		| [< >] -> serror())
 	| [< '(Question,p1); t,p2 = parse_complex_type_inner allow_named >] ->
 		CTOptional (t,p2),punion p1 p2
+	| [< '(Spread,p1); t,p2 = parse_complex_type_inner allow_named >] ->
+		let hint =
+			match t with
+			| CTNamed (_,hint) -> hint
+			| _ -> (t,p2)
+		in
+		CTPath (mk_type_path ~params:[TPType hint] (["haxe"],"Rest")),punion p1 p2
 	| [< n = dollar_ident; s >] ->
 		(match s with parser
 		| [< '(DblDot,_) when allow_named; t = parse_complex_type >] ->
@@ -991,6 +998,10 @@ and parse_fun_param s =
 	match s with parser
 	| [< '(Question,_); name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),true,meta,t,c)
 	| [< name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),false,meta,t,c)
+	| [< '(Spread,_); name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] ->
+		let t = match t with Some t -> t | None -> (ct_mono,null_pos) in
+		let t = CTPath (mk_type_path ~params:[TPType t] (["haxe"],"Rest")), snd t in
+		((name,pn),false,meta,Some t,c)
 
 and parse_fun_param_value = parser
 	| [< '(Binop OpAssign,_); e = expr >] -> Some e
@@ -1173,6 +1184,7 @@ and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
 	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
+	| [< >] -> no_keyword "variable name" s
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->
@@ -1194,7 +1206,7 @@ and parse_var_decls final p1 = parser
 	| [< meta,name,final,t,pn = parse_var_decl_head final; s >] ->
 		let v_decl = parse_var_assignment_resume final [] name pn t meta s in
 		List.rev (parse_var_decls_next final [v_decl] s)
-	| [< s >] -> error (Custom "Missing variable identifier") p1
+	| [< >] -> error (Custom "Missing variable identifier") p1
 
 and parse_var_decl final = parser
 	| [< meta,name,final,t,pn = parse_var_decl_head final; v_decl = parse_var_assignment_resume final [] name pn t meta >] -> v_decl
@@ -1361,7 +1373,8 @@ and expr = parser
 		)
 	| [< '(BkOpen,p1); e = parse_array_decl p1; s >] -> expr_next e s
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
-	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
+	| [< '(Unop op,p1); e = expr >] -> make_unop op e p1
+	| [< '(Spread,p1); e = expr >] -> make_unop Spread e (punion p1 (pos e))
 	| [< '(Binop OpSub,p1); e = expr >] ->
 		make_unop Neg e p1
 	(*/* removed unary + : this cause too much syntax errors go unnoticed, such as "a + + 1" (missing 'b')
@@ -1385,7 +1398,7 @@ and expr = parser
 				syntax_error (Expected [")"]) s (mk_null_expr (pos cond))
 		in
 		let e2 = (match s with parser
-			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
+			| [< '(Kwd Else,_); e2 = secure_expr >] -> Some e2
 			| [< >] ->
 				(* We check this in two steps to avoid the lexer missing tokens (#8565). *)
 				match Stream.npeek 1 s with
@@ -1481,6 +1494,7 @@ and expr_next' e1 = parser
 		| [< e2 = secure_expr >] ->
 			make_binop OpGt e1 e2)
 	| [< '(Binop op,_); e2 = secure_expr >] -> make_binop op e1 e2
+	| [< '(Spread,_); e2 = secure_expr >] -> make_binop OpInterval e1 e2
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [< '(Question,_); e2 = expr; s >] ->

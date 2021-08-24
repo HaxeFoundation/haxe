@@ -1247,7 +1247,7 @@ let before_generate com =
 	let net_ver =
 		try
 			let ver = PMap.find "net_ver" com.defines.Define.values in
-			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45)")
+			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45, 50)")
 		with Not_found when netcore_ver != None ->
 			(* 4.7 was released around .NET core 2.1 *)
 			(* Note: better version mapping should be implemented some day,
@@ -1270,7 +1270,7 @@ let before_generate com =
 			loop acc
 		| _ -> ()
 	in
-	loop [20;21;30;35;40;45];
+	loop [20;21;30;35;40;45;50];
 
 	(* net target *)
 	let net_target = try

@@ -84,6 +84,16 @@ let normalize_path path =
 
 let path_sep = if Globals.is_windows then "\\" else "/"
 
+let is_absolute_path f =
+	try
+		match f.[0] with
+		| '/' -> true
+		| 'A'..'Z' | 'a'..'z' -> Globals.is_windows && f.[1] = ':'
+		| '\\' -> Globals.is_windows
+		| _ -> false
+	with _ ->
+		false
+
 (**
 	Returns absolute path.
 	Resolves `.`, `..`, double slashes and trailing slashesw.

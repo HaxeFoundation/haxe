@@ -952,7 +952,8 @@ let generate con =
 					| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
 					| TAbstract( { a_path = [],"Class" }, _ )
 					| TAbstract( { a_path = [],"Enum" }, _ )
-					| TAbstract( { a_path = ["haxe";"extern"],"Rest" }, _ )
+					| TAbstract( { a_path = (["haxe"]),"Rest" }, _ )
+					| TType( { t_path = (["haxe";"extern"]),"Rest" }, _ )
 					| TInst( { cl_path = ([], "Class") }, _ )
 					| TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
 					| TInst( ({ cl_kind = KTypeParameter _ } as cl), _ ) when erase_generics && not (Meta.has Meta.NativeGeneric cl.cl_meta) ->
@@ -1506,6 +1507,8 @@ let generate con =
 						write w " as ";
 						write w (t_s e.etype);
 						write w " )";
+					| TCall({ eexpr = TField (_, FStatic ({ cl_path = ["cs"],"Syntax" }, { cf_name = meth })) }, args) ->
+						gen_syntax meth args e.epos
 					| TCall ({ eexpr = TIdent "__cs__" }, [ { eexpr = TConst(TString(s)) } ] ) ->
 						write w s
 					| TCall ({ eexpr = TIdent "__cs__" }, { eexpr = TConst(TString(s)) } :: tl ) ->
@@ -1637,6 +1640,8 @@ let generate con =
 						(match flag with
 							| Ast.Prefix -> write w ( " " ^ (Ast.s_unop op) ^ " " ); expr_s w e
 							| Ast.Postfix -> expr_s w e; write w (Ast.s_unop op))
+					| TUnop (Spread, Prefix, e) ->
+						expr_s w e
 					| TUnop (op, flag, e) ->
 						(match flag with
 							| Ast.Prefix -> write w ( " " ^ (Ast.s_unop op) ^ " (" ); expr_s w e; write w ") "
@@ -1759,6 +1764,8 @@ let generate con =
 					| TContinue -> write w "continue"
 					| TThrow { eexpr = TIdent "__rethrow__" } ->
 						write w "throw"
+					| TThrow { eexpr = TLocal(v) } when (has_var_flag v VCaught) ->
+						write w "throw";
 					| TThrow e ->
 						write w "throw ";
 						expr_s w e
@@ -1784,7 +1791,40 @@ let generate con =
 					| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then die "" __LOC__
 					| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then die "" __LOC__
 					| TIdent s -> write w "[ ident not supported ]"; if !strict_mode then die "" __LOC__
-			)
+				)
+			and gen_syntax meth args pos =
+				match meth, args with
+				| "code", code :: args ->
+					let code, code_pos =
+						match code.eexpr with
+						| TConst (TString s) -> s, code.epos
+						| _ -> abort "The `code` argument for cs.Syntax.code must be a string constant" code.epos
+					in
+					begin
+						let rec reveal_expr expr =
+							match expr.eexpr with
+								| TCast (e, _) | TMeta (_, e) -> reveal_expr e
+								| _ -> expr
+						in
+						let args = List.map
+							(fun arg ->
+								match (reveal_expr arg).eexpr with
+									| TIf _ | TBinop _ | TUnop _ -> { arg with eexpr = TParenthesis arg }
+									| _ -> arg
+							)
+							args
+						in
+						Codegen.interpolate_code gen.gcon code args (write w) (expr_s w) code_pos
+					end
+				| "plainCode", [code] ->
+					let code =
+						match code.eexpr with
+						| TConst (TString s) -> s
+						| _ -> abort "The `code` argument for cs.Syntax.plainCode must be a string constant" code.epos
+					in
+					write w (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+				| _ ->
+					abort (Printf.sprintf "Unknown cs.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 			and do_call w e el =
 				let params, el = extract_tparams [] el in
 				let params = List.rev params in
@@ -1955,6 +1995,7 @@ let generate con =
 				| TAbstract ({ a_path = (["cs"], "Ref") },[t]) -> "ref " ^ t_s t
 				| TType ({ t_path = (["cs"], "Out") }, [t])
 				| TAbstract ({ a_path = (["cs"], "Out") },[t]) -> "out " ^ t_s t
+				| _ when ExtType.is_rest (Type.follow t) -> "params " ^ (t_s (Abstract.follow_with_abstracts t))
 				| t -> t_s t
 			in
 			let c = contents w in

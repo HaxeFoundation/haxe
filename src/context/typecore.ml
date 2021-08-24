@@ -133,6 +133,8 @@ and typer = {
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
 	mutable in_call_args : bool;
+	mutable in_overload_call_args : bool;
+	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	mutable monomorphs : monomorphs;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
@@ -148,7 +150,7 @@ and monomorphs = {
 type 'a field_call_candidate = {
 	(* The argument expressions for this call and whether or not the argument is optional on the
 	   target function. *)
-	fc_args  : (texpr * bool) list;
+	fc_args  : texpr list;
 	(* The applied return type. *)
 	fc_ret   : Type.t;
 	(* The applied function type. *)
@@ -171,7 +173,8 @@ type field_access = {
 	(* The expression on which the field is accessed. For abstracts, this is a type expression
 	   to the implementation class. *)
 	fa_on     : texpr;
-	(* The field being accessed. *)
+	(* The field being accessed. Note that in case of overloads, this might refer to the main field which
+	   hosts other overloads in its cf_overloads. *)
 	fa_field  : tclass_field;
 	(* The host of the field. *)
 	fa_host   : field_host;
@@ -203,7 +206,7 @@ let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LO
 let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
-let type_generic_function_ref : (typer -> field_access -> texpr list -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
+let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -508,7 +511,8 @@ let rec can_access ctx c cf stat =
 		in
 		loop c.cl_meta || loop f.cf_meta
 	in
-	let cur_paths = ref [] in
+	let module_path = ctx.curclass.cl_module.m_path in
+	let cur_paths = ref [fst module_path @ [snd module_path], false] in
 	let rec loop c is_current_path =
 		cur_paths := (make_path c ctx.curfield, is_current_path) :: !cur_paths;
 		begin match c.cl_super with
@@ -525,15 +529,16 @@ let rec can_access ctx c cf stat =
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
 				let allowed f = extends ctx.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
-				if is_constr
-				then (match c.cl_constructor with
+				if is_constr then (
+					match c.cl_constructor with
 					| Some cf ->
 						if allowed cf then true
 						else if cf.cf_expr = None then false (* maybe it's an inherited auto-generated constructor *)
 						else raise Not_found
 					| _ -> false
-				)
-				else try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields)) with Not_found -> false
+				) else
+					try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields))
+					with Not_found -> false
 			)
 			|| (match c.cl_super with
 			| Some (csup,_) -> loop csup
@@ -603,12 +608,61 @@ let make_field_call_candidate args ret monos t cf data = {
 let s_field_call_candidate fcc =
 	let pctx = print_context() in
 	let se = s_expr_pretty false "" false (s_type pctx) in
-	let sl_args = List.map (fun (e,_) -> se e) fcc.fc_args in
+	let sl_args = List.map se fcc.fc_args in
 	Printer.s_record_fields "" [
 		"fc_args",String.concat ", " sl_args;
 		"fc_type",s_type pctx fcc.fc_type;
 		"fc_field",Printf.sprintf "%s: %s" fcc.fc_field.cf_name (s_type pctx fcc.fc_field.cf_type)
 	]
+
+
+let relative_path ctx file =
+	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
+	let fpath = slashes (Path.get_full_path file) in
+	let fpath_lower = String.lowercase fpath in
+	let flen = String.length fpath_lower in
+	let rec loop = function
+		| [] -> file
+		| path :: l ->
+			let spath = String.lowercase (slashes path) in
+			let slen = String.length spath in
+			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
+	in
+	loop ctx.com.Common.class_path
+
+let mk_infos ctx p params =
+	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+	(EObjectDecl (
+		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
+		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
+		if ctx.curfield.cf_name = "" then
+			params
+		else
+			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
+	) ,p)
+
+let rec is_pos_infos = function
+	| TMono r ->
+		(match r.tm_type with
+		| Some t -> is_pos_infos t
+		| _ -> false)
+	| TLazy f ->
+		is_pos_infos (lazy_type f)
+	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
+		true
+	| TType (t,tl) ->
+		is_pos_infos (apply_params t.t_params tl t.t_type)
+	| TAbstract({a_path=[],"Null"},[t]) ->
+		is_pos_infos t
+	| _ ->
+		false
+
+let is_empty_or_pos_infos args =
+	match args with
+	| [_,true,t] -> is_pos_infos t
+	| [] -> true
+	| _ -> false
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

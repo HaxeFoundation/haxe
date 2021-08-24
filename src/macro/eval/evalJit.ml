@@ -172,6 +172,10 @@ and unop jit op flag e1 p =
 		end
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
+	| Spread ->
+		match flag with
+		| Postfix -> die ~p:p "Postfix spread operator is not supported" __LOC__
+		| Prefix -> jit_expr jit false e1
 
 and jit_default jit return def =
 	match def with

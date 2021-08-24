@@ -1,0 +1,3 @@
+Main.hx:3: characters 3-16 : Ambiguous overload, candidates follow
+Main.hx:6: characters 41-45 : ... (s : String) -> Void
+Main.hx:7: characters 41-45 : ... (s : String, r : haxe.Rest<String>) -> Void

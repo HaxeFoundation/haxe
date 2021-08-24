@@ -33,6 +33,7 @@ open EvalHash
 open EvalEncode
 open EvalField
 open MacroApi
+open Extlib_leftovers
 
 (* Create *)
 
@@ -122,7 +123,7 @@ let create com api is_macro =
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
-			oproto = fake_proto key_eval_toplevel;
+			oproto = OProto (fake_proto key_eval_toplevel);
 		};
 		eval = eval;
 		evals = evals;
@@ -139,6 +140,20 @@ let create com api is_macro =
 		select ctx;
 		ignore(Event.sync(Event.receive eval.debug_channel));
 	end;
+	(* If no user-defined exception handler is set then follow libuv behavior.
+		Which is printing an error to stderr and exiting with code 2 *)
+	Luv.Error.set_on_unhandled_exception (fun ex ->
+		match ex with
+		| Sys_exit _ -> raise ex
+		| _ ->
+			let msg =
+				match ex with
+				| Error.Error (err,_) -> Error.error_msg err
+				| _ -> Printexc.to_string ex
+			in
+			Printf.eprintf "%s\n" msg;
+			exit 2
+	);
 	t();
 	ctx
 
@@ -199,7 +214,15 @@ let value_signature v =
 			incr cache_length;
 			f()
 	in
-	let function_count = ref 0 in
+	let custom_count = ref 0 in
+	(* Custom format: enumerate custom entities as name_char0, name_char1 etc. *)
+	let custom_name name_char =
+		cache v (fun () ->
+			addc 'F';
+			add (string_of_int !custom_count);
+			incr custom_count
+		)
+	in
 	let rec loop v = match v with
 		| VNull -> addc 'n'
 		| VTrue -> addc 't'
@@ -208,6 +231,12 @@ let value_signature v =
 		| VInt32 i ->
 			addc 'i';
 			add (Int32.to_string i)
+		| VInt64 i ->
+			add "i64";
+			add (Signed.Int64.to_string i)
+		| VUInt64 u ->
+			add "u64";
+			add (Unsigned.UInt64.to_string u)
 		| VFloat f ->
 			if f = neg_infinity then addc 'm'
 			else if f = infinity then addc 'p'
@@ -290,6 +319,8 @@ let value_signature v =
 			)
 		| VString s ->
 			adds s.sstring
+		| VNativeString s ->
+			add s
 		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
@@ -320,12 +351,9 @@ let value_signature v =
 		| VPrototype _ ->
 			die "" __LOC__
 		| VFunction _ | VFieldClosure _ ->
-			(* Custom format: enumerate functions as F0, F1 etc. *)
-			cache v (fun () ->
-				addc 'F';
-				add (string_of_int !function_count);
-				incr function_count
-			)
+			custom_name 'F'
+		| VHandle _ ->
+			custom_name 'H'
 		| VLazy f ->
 			loop (!f())
 	and loop_fields fields =
@@ -337,15 +365,7 @@ let value_signature v =
 	loop v;
 	Digest.string (Buffer.contents buf)
 
-let prepare_callback v n =
-	match v with
-	| VFunction _ | VFieldClosure _ ->
-		let ctx = get_ctx() in
-		(fun args -> match catch_exceptions ctx (fun() -> call_value v args) null_pos with
-			| Some v -> v
-			| None -> vnull)
-	| _ ->
-		raise Invalid_expr
+let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()
 
@@ -390,7 +410,7 @@ let compiler_error msg pos =
 		let eval = get_eval ctx in
 		(match eval.env with
 		| Some _ ->
-			let stack = EvalStdLib.StdNativeStackTrace.make_stack_value (call_stack eval) in
+			let stack = EvalStackTrace.make_stack_value (call_stack eval) in
 			set_instance_field i key_native_stack stack;
 		| None -> ());
 		exc vi
@@ -410,6 +430,10 @@ let rec value_to_expr v p =
 			loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
 		in
 		make_path mt
+	in
+	let make_map_entry e_key v =
+		let e_value = value_to_expr v p in
+		(EBinop(OpArrow,e_key,e_value),p)
 	in
 	match vresolve v with
 	| VNull -> (EConst (Ident "null"),p)
@@ -444,6 +468,24 @@ let rec value_to_expr v p =
 				let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
 				(ECall (epath, args), p)
 		end
+	| VInstance {ikind = IIntMap m} ->
+		let el = IntHashtbl.fold (fun k v acc ->
+			let e_key = (EConst (Int (string_of_int k)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IStringMap m} ->
+		let el = StringHashtbl.fold (fun k (_,v) acc ->
+			let e_key = (EConst (String(k,SDoubleQuotes)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IObjectMap m} ->
+		let el = Hashtbl.fold (fun k v acc ->
+			let e_key = value_to_expr k p in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s

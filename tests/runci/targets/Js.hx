@@ -17,10 +17,6 @@ class Js {
 				} else {
 					Linux.requireAptPackages(["nodejs"]);
 				}
-			case [AzurePipelines, "Mac"]:
-				runCommand("brew", ["install", "node"], true);
-				// runCommand("brew", ["install", "node@10"], true);
-				// runCommand("brew", ["link", "--overwrite", "--force", "node@10"]);
 			case _:
 				//pass
 		}
@@ -69,21 +65,22 @@ class Js {
 			env.exists("SAUCE_ACCESS_KEY")
 		) {
 			var sc = switch (ci) {
-				case AzurePipelines:
-					var scVersion = "sc-4.5.3-linux";
-					runCommand("wget", ["-q", 'https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
-					runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
+				// TODO: figure out SauceConnect for GitHub Actions
+				// case AzurePipelines:
+				// 	var scVersion = "sc-4.5.3-linux";
+				// 	runCommand("wget", ["-q", 'https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
+				// 	runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
 
-					//start sauce-connect
-					var scReadyFile = "sauce-connect-ready-" + Std.random(100);
-					var p = new Process('${scVersion}/bin/sc', [
-						"-i", Sys.getEnv("SAUCE_TUNNEL_ID"),
-						"-f", scReadyFile
-					]);
-					while(!FileSystem.exists(scReadyFile)) {
-						Sys.sleep(0.5);
-					}
-					p;
+				// 	//start sauce-connect
+				// 	var scReadyFile = "sauce-connect-ready-" + Std.random(100);
+				// 	var p = new Process('${scVersion}/bin/sc', [
+				// 		"-i", Sys.getEnv("SAUCE_TUNNEL_ID"),
+				// 		"-f", scReadyFile
+				// 	]);
+				// 	while(!FileSystem.exists(scReadyFile)) {
+				// 		Sys.sleep(0.5);
+				// 	}
+				// 	p;
 				case _:
 					// sauce-connect should have been started
 					null;

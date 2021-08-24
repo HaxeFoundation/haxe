@@ -57,6 +57,14 @@ let decode_vstring v = match v with
 	| VString s -> s
 	| _ -> unexpected_value v "string"
 
+let decode_native_string v = match v with
+	| VNativeString s -> s
+	| _ -> unexpected_value v "native string"
+
+let decode_handle v = match v with
+	| VHandle h -> h
+	| _ -> unexpected_value v "handle"
+
 let decode_bytes v = match v with
 	| VInstance {ikind=IBytes s} -> s
 	| _ -> unexpected_value v "string"
@@ -110,3 +118,13 @@ let num = function
 	| VInt32 i -> Int32.to_float i
 	| VFloat f -> f
 	| v -> unexpected_value v "number"
+
+let decode_option decode_value v =
+	match decode_enum v with
+	| 0, [v] -> Some (decode_value v)
+	| 1, [] -> None
+	| _ -> unexpected_value v "haxe.ds.Option"
+
+let decode_optional decode_value v =
+	if v = VNull then None
+	else Some (decode_value v)

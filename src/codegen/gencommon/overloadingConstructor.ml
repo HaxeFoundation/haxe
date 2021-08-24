@@ -201,6 +201,22 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 			| None -> [], ctor.cf_pos
 			| Some super -> [super], super.epos
 			in
+			let el_args =
+				let rec loop fn_args cur_args =
+					match cur_args with
+					| [] -> []
+					| (v,_) :: cur_args ->
+						let local = mk_local v p in
+						match fn_args, cur_args with
+						| [_,_,t], [] when ExtType.is_rest (follow t) ->
+							[mk (TUnop(Spread,Prefix,local)) v.v_type p]
+						| [], _ ->
+							local :: loop fn_args cur_args
+						| _ :: fn_args, _ ->
+							local :: loop fn_args cur_args
+				in
+				loop fn_args cur_tf_args
+			in
 			let block_contents = block_contents @ [{
 				eexpr = TCall(
 					{
@@ -211,7 +227,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 						epos = p
 					},
 					[{ eexpr = TConst TThis; etype = TInst(cl, List.map snd cl.cl_params); epos = p }]
-					@ List.map (fun (v,_) -> mk_local v p) cur_tf_args
+					@ el_args
 				);
 				etype = com.basic.tvoid;
 				epos = p

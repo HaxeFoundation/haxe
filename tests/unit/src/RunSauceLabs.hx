@@ -136,8 +136,9 @@ class RunSauceLabs {
 		);
 
 		var tags = [];
-		if (Sys.getEnv("TF_BUILD") != null)
-			tags.push("AzurePipelines");
+		// TODO: figure out SauceLabs for Github Actions
+		// if (Sys.getEnv("TF_BUILD") != null)
+		// 	tags.push("AzurePipelines");
 
 		var maxDuration = 60 * 5; //5 min
 		var commandTimeout = 60;  //60s

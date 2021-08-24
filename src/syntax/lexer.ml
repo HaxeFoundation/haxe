@@ -355,7 +355,7 @@ let rec token lexbuf =
 	| "||" -> mk lexbuf (Binop OpBoolOr)
 	| "<<" -> mk lexbuf (Binop OpShl)
 	| "->" -> mk lexbuf Arrow
-	| "..." -> mk lexbuf (Binop OpInterval)
+	| "..." -> mk lexbuf Spread
 	| "=>" -> mk lexbuf (Binop OpArrow)
 	| "!" -> mk lexbuf (Unop Not)
 	| "<" -> mk lexbuf (Binop OpLt)
@@ -612,6 +612,11 @@ let rec sharp_token lexbuf =
 	| Plus (Chars " \t") -> sharp_token lexbuf
 	| "\r\n" -> newline lexbuf; sharp_token lexbuf
 	| '\n' | '\r' -> newline lexbuf; sharp_token lexbuf
+	| "/*" ->
+		reset();
+		let pmin = lexeme_start lexbuf in
+		ignore(try comment lexbuf with Exit -> error Unclosed_comment pmin);
+		sharp_token lexbuf
 	| _ -> token lexbuf
 
 let lex_xml p lexbuf =

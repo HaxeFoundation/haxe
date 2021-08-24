@@ -46,7 +46,7 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
-let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
+let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 	let valid t1 t2 =
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
@@ -71,8 +71,8 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 						let check monos =
 							List.iter2 (fun t1 t2  ->
 								try
-									let t1 = apply_params l1 monos (apply_params c1.cl_params pl1 t1) in
-									let t2 = apply_params l2 monos (apply_params c2.cl_params pl2 t2) in
+									let t1 = apply_params l1 monos (apply_params c1.cl_params pl1 (map2 t1)) in
+									let t2 = apply_params l2 monos (apply_params c2.cl_params pl2 (map1 t2)) in
 									type_eq EqStrict t1 t2
 								with Unify_error l ->
 									raise (Unify_error (Unify_custom "Constraints differ" :: l))
@@ -174,15 +174,22 @@ let check_overriding ctx c f =
 		let check_field f get_super_field is_overload = try
 			(if is_overload && not (has_class_field_flag f CfOverload) then
 				display_error ctx ("Missing overload declaration for field " ^ i) p);
+			let f_has_override = has_class_field_flag f CfOverride in
 			let t, f2 = get_super_field csup i in
 			check_native_name_override ctx f f2;
 			(* allow to define fields that are not defined for this platform version in superclass *)
 			(match f2.cf_kind with
 			| Var { v_read = AccRequire _ } -> raise Not_found;
 			| _ -> ());
+			if has_class_field_flag f2 CfAbstract then begin
+				if f_has_override then
+					display_error ctx ("Field " ^ i ^ " is declared 'override' but parent field " ^ i ^ " is 'abstract' and does not provide any implementation to override") p
+				else
+					add_class_field_flag f CfOverride (* our spec requires users to not "override" abstract functions, but our implementation depends on implementations to be declared with "override" ¯\_(ツ)_/¯ *)
+			end;
 			if (has_class_field_flag f2 CfOverload && not (has_class_field_flag f CfOverload)) then
 				display_error ctx ("Field " ^ i ^ " should be declared with overload since it was already declared as overload in superclass") p
-			else if not (has_class_field_flag f CfOverride) then begin
+			else if not f_has_override && not (has_class_field_flag f2 CfAbstract) then begin
 				if has_class_flag c CExtern then add_class_field_flag f CfOverride
 				else display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
 			end else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
@@ -198,7 +205,8 @@ let check_overriding ctx c f =
 			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
-				valid_redefinition ctx f f.cf_type f2 t;
+				let map = TClass.get_map_function csup params in
+				valid_redefinition ctx map map f f.cf_type f2 t;
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
@@ -244,7 +252,7 @@ let check_overriding ctx c f =
 let class_field_no_interf c i =
 	try
 		let f = PMap.find i c.cl_fields in
-		f.cf_type , f
+		(fun t -> t),f.cf_type , f
 	with Not_found ->
 		match c.cl_super with
 		| None ->
@@ -252,7 +260,8 @@ let class_field_no_interf c i =
 		| Some (c,tl) ->
 			(* rec over class_field *)
 			let _, t , f = raw_class_field (fun f -> f.cf_type) c tl i in
-			apply_params c.cl_params tl t , f
+			let map = TClass.get_map_function c tl in
+			map,apply_params c.cl_params tl t , f
 
 let rec return_flow ctx e =
 	let error() =
@@ -345,7 +354,7 @@ module Inheritance = struct
 			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
 			try
-				let t2, f2 = class_field_no_interf c i in
+				let map2, t2, f2 = class_field_no_interf c i in
 				let t2, f2 =
 					if f2.cf_overloads <> [] || has_class_field_flag f2 CfOverload then
 						let overloads = Overloads.get_overloads ctx.com c i in
@@ -367,7 +376,8 @@ module Inheritance = struct
 					else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 						display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
-						valid_redefinition ctx f2 t2 f (apply_params intf.cl_params params f.cf_type)
+						let map1 = TClass.get_map_function  intf params in
+						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin

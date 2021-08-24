@@ -341,16 +341,15 @@ let rec build_generic ctx c p tl =
 		TInst (cg,[])
 	end
 
-let type_generic_function ctx fa el_typed el with_type p =
+let type_generic_function ctx fa fcc with_type p =
 	let c,stat = match fa.fa_host with
 		| FHInstance(c,tl) -> c,false
 		| FHStatic c -> c,true
 		| FHAbstract(a,tl,c) -> c,true
 		| _ -> die "" __LOC__
 	in
-	let cf = fa.fa_field in
+	let cf = fcc.fc_field in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
-	let fcc = CallUnification.unify_field_call ctx fa el_typed el p false in
 	begin match with_type with
 		| WithType.WithType(t,_) -> unify ctx fcc.fc_ret t p
 		| _ -> ()
@@ -360,7 +359,7 @@ let type_generic_function ctx fa el_typed el with_type p =
 		| TMono m -> safe_mono_close ctx m p
 		| _ -> ()
 	) monos;
-	let el = List.map fst fcc.fc_args in
+	let el = fcc.fc_args in
 	(try
 		let gctx = make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.name in
@@ -446,8 +445,8 @@ let type_generic_function ctx fa el_typed el with_type p =
 				{fa with fa_field = cf2}
 			end
 		in
-		let e = FieldAccess.get_field_expr fa FCall in
-		make_call ctx e el fcc.fc_ret p
+		let dispatch = new CallUnification.call_dispatcher ctx (MCall []) with_type p in
+		dispatch#field_call fa el []
 	with Generic_Exception (msg,p) ->
 		error msg p)
 

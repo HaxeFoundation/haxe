@@ -248,11 +248,22 @@ let check_constant_switch e1 cases def =
 			| Some e -> Some e
 			end
 	in
+	let is_empty e = match e.eexpr with
+		| TBlock [] -> true
+		| _ -> false
+	in
+	let is_empty_def () = match def with
+		| None -> true
+		| Some e -> is_empty e
+in
 	match Texpr.skip e1 with
 		| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
 			loop e1 cases
 		| _ ->
-			None
+			if List.for_all (fun (_,e) -> is_empty e) cases && is_empty_def() then
+				Some e1
+			else
+				None
 
 let reduce_control_flow ctx e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->

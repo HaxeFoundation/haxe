@@ -17,14 +17,14 @@ class Issue6871 extends unit.Test {
 			Reflect.getProperty(Issue6871, 'field');
 			t(false);
 		} catch(e:Dynamic) {
-			eq(GETTER_ERROR, exception(e));
+			eq(GETTER_ERROR, e);
 		}
 
 		try {
 			Reflect.setProperty(Issue6871, 'field', 123);
 			t(false);
 		} catch(e:Dynamic) {
-			eq(SETTER_ERROR, exception(e));
+			eq(SETTER_ERROR, e);
 		}
 	}
 }

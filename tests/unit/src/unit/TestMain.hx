@@ -74,7 +74,8 @@ function main() {
 		new TestNull(),
 		new TestNumericCasts(),
 		new TestHashMap(),
-		#if (!no_http && (!(azure || github) || !(php && Windows)))
+		new TestRest(),
+		#if (!no_http && (!github || !(php && Windows)))
 		new TestHttp(),
 		#end
 		#if !no_pattern_matching

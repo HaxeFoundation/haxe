@@ -39,13 +39,15 @@ let rec filter_param (stack:t list) t =
 		| Some t -> filter_param stack t)
 	| TInst(_,[]) | TEnum(_,[]) | TAbstract(_,[]) ->
 		t
+	| TType({ t_path = (["haxe";"extern"],"Rest") },_) ->
+		filter_param stack (follow t)
 	| TType(td,tl) ->
 		TType(td,List.map (filter_param stack) tl)
 	| TInst(c,tl) ->
 		TInst(c,List.map (filter_param stack) tl)
 	| TEnum(e,tl) ->
 		TEnum(e,List.map (filter_param stack) tl)
-	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) ->
+	| TAbstract({ a_path = (["haxe"],"Rest") } as a,tl) ->
 		TAbstract(a, List.map (filter_param stack) tl)
 	| TAbstract({a_path = [],"Null"} as a,[t]) ->
 		TAbstract(a,[filter_param stack t])

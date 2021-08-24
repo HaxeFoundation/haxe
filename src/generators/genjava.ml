@@ -1084,6 +1084,10 @@ let generate con =
 					Some t
 			| TAbstract (({ a_path = [],"Null" } as tab),[t2]) ->
 					Some (TAbstract(tab,[gen.gfollow#run_f t2]))
+			| TType ({ t_path = ["haxe";"_Rest"],"NativeRest" } as td, [t2]) ->
+					Some (gen.gfollow#run_f (follow (TType (td,[get_boxed gen t2]))))
+			| TAbstract ({ a_path = ["haxe"],"Rest" } as a, [t2]) ->
+					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a [get_boxed gen t2]) )
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
@@ -1530,6 +1534,11 @@ let generate con =
 					| _ -> die "" __LOC__)
 				| TMeta (_,e) ->
 					expr_s w e
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["haxe";"_Rest"],"Rest_Impl_") }, { cf_name = "createNative" })) }, el) ->
+					(match follow e.etype with
+					| TInst (cls, params) ->
+						expr_s w { e with eexpr = TNew(cls,params,el) }
+					| _ -> die ~p:e.epos "Unexpected return type of haxe.Rest.createNative" __LOC__)
 				| TCall ({ eexpr = TIdent "__array__" }, el)
 				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el when t_has_type_param e.etype ->
@@ -1666,6 +1675,7 @@ let generate con =
 						acc + 1
 					) 0 el);
 					write w ")"
+				| TUnop (Ast.Spread, Prefix, e) -> expr_s w e
 				| TUnop ((Ast.Increment as op), flag, e)
 				| TUnop ((Ast.Decrement as op), flag, e) ->
 					(match flag with
@@ -1994,9 +2004,19 @@ let generate con =
 				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 
 				let params = List.map snd cl.cl_params in
-				let ret_type, args = match follow cf_type, follow cf.cf_type with
+				let ret_type, args, has_rest_args = match follow cf_type, follow cf.cf_type with
 					| TFun (strbtl, t), TFun(rargs, _) ->
-							(apply_params cl.cl_params params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_params params (real_type t))) strbtl rargs)
+						let ret_type = apply_params cl.cl_params params (real_type t)
+						and args =
+							List.map2 (fun(_,_,t) (n,o,_) ->
+								(n,o,apply_params cl.cl_params params (real_type t))
+							) strbtl rargs
+						and rest =
+							match List.rev rargs with
+							| (_,_,t) :: _ -> ExtType.is_rest (follow t)
+							| _ -> false
+						in
+						ret_type,args,rest
 					| _ -> die "" __LOC__
 				in
 
@@ -2008,12 +2028,26 @@ let generate con =
 				write_parts w (visibility :: v_n :: modifiers @ [params; (if is_new then "" else rett_s cf.cf_pos (run_follow gen ret_type)); (change_field name)]);
 
 				(* <T>(string arg1, object arg2) with T : object *)
-				(match cf.cf_expr with
+				let arg_names =
+					match cf.cf_expr with
 					| Some { eexpr = TFunction tf } ->
-							print w "(%s)" (String.concat ", " (List.map2 (fun (var,_) (_,_,t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id var.v_name)) tf.tf_args args))
+						List.map (fun (var,_) -> change_id var.v_name) tf.tf_args
 					| _ ->
-							print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
-				);
+						List.map (fun (name,_,_) -> change_id name) args
+				in
+				let rec loop acc names args =
+					match names, args with
+					| [], [] -> acc
+					| _, [] | [], _ ->
+						die "" __LOC__
+					| [name], [_,_,TInst ({ cl_path = ["java"],"NativeArray" }, [t])] when has_rest_args ->
+						let arg = sprintf "%s ...%s" (argt_s cf.cf_pos (run_follow gen t)) name in
+						arg :: acc
+					| name :: names, (_,_,t) :: args ->
+						let arg = sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) name in
+						loop (arg :: acc) names args
+				in
+				print w "(%s)" (String.concat ", " (List.rev (loop [] arg_names args)));
 				if is_interface || List.mem "native" modifiers || is_abstract then
 					write w ";"
 				else begin
