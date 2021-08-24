@@ -99,16 +99,6 @@ typedef Uname = {
 	var machine:String;
 }
 
-private class RandomData extends RequestData {
-	public final callback:(e:UVError)->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
-}
-
-abstract RandomRequest(Request) to Request {}
-
 /**
 	Miscellaneous.
 

@@ -27,7 +27,7 @@ enum abstract SocketType(Int) from Int {
 /**
 	Binds `struct sockaddr` (man 2 socket).
 **/
-abstract SockAddr(RefCSockaddr) to RefCSockaddr {
+abstract SockAddr(CSockaddrStar) to CSockaddrStar {
 	/** Extracts the port in a network address. */
 	public var port(get,never):Null<Int>;
 	@:hlNative("uv", "sockaddr_get_port") function get_port():Null<Int> return null;

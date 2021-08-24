@@ -41,8 +41,8 @@ enum abstract RequestType(Int) {
 
 	@see http://docs.libuv.org/en/v1.x/request.html
 **/
-abstract class Request<T:RefUvReqT> {
-	var _r:RefUvReqT;
+abstract class Request<T:UvReqTStar> {
+	var _r:UvReqTStar;
 
 	@:allow(hl.uv)
 	var r(get,never):T;

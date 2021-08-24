@@ -148,7 +148,7 @@ enum abstract FsRequestType(Int) to Int {
 }
 
 @:allow(hl.uv)
-class FsRequest extends Request<RefUvFsT> {
+class FsRequest extends Request<UvFsTStar> {
 	var callback:()->Void;
 
 	inline function getResult():Int {

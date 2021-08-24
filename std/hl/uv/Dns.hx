@@ -71,11 +71,11 @@ enum abstract NameInfoFlags(Int) from Int to Int {
 	var NI_DGRAM = 16;
 }
 
-private class AddrInfoRequest extends Request<RefUvGetaddrinfoT> {
-	@:allow(hl.uv.Dns) var callback:(status:Int, ai:RefCAddrinfo)->Void;
+private class AddrInfoRequest extends Request<UvGetaddrinfoTStar> {
+	@:allow(hl.uv.Dns) var callback:(status:Int, ai:CAddrinfoStar)->Void;
 }
 
-private class NameInfoRequest extends Request<RefUvGetnameinfoT> {
+private class NameInfoRequest extends Request<UvGetnameinfoTStar> {
 	@:allow(hl.uv.Dns) var callback:(status:Int, hostname:Bytes, service:Bytes)->Void;
 }
 
@@ -97,7 +97,7 @@ class Dns {
 		var req = new AddrInfoRequest(UV.alloc_getaddrinfo());
 		var node = name == null ? null : name.toUTF8();
 		var service = service == null ? null : service.toUTF8();
-		var aiHints:RefCAddrinfo = null;
+		var aiHints:CAddrinfoStar = null;
 		if(hints != null)
 			aiHints = UV.alloc_addrinfo(hints.flags, hints.family, hints.sockType, hints.protocol);
 
@@ -108,7 +108,6 @@ class Dns {
 			result.throwErr();
 		}
 		req.callback = (status, ai) -> {
-			aiHints.freeaddrinfo();
 			req.freeReq();
 			var infos = null;
 			if(ai != null) {

@@ -49,8 +49,8 @@ enum abstract HandleType(Int) {
 
 	@see http://docs.libuv.org/en/v1.x/handle.html
 **/
-abstract class Handle<T:RefUvHandleT> {
-	var _h:RefUvHandleT;
+abstract class Handle<T:UvHandleTStar> {
+	var _h:UvHandleTStar;
 	var onClose:()->Void;
 	@:allow(hl.uv) var h(get,never):T;
 

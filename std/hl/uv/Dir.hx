@@ -46,13 +46,13 @@ typedef DirEntry = {
 	@see http://docs.libuv.org/en/v1.x/fs.html#c.uv_fs_opendir
 **/
 class Dir {
-	var _d:RefUvDirT;
+	var _d:UvDirTStar;
 
-	function new(handle:RefUvDirT) {
+	function new(handle:UvDirTStar) {
 		_d = handle;
 	}
 
-	extern inline function dir(action:(d:RefUvDirT)->Void) {
+	extern inline function dir(action:(d:UvDirTStar)->Void) {
 		switch _d {
 			case null: throw new UVException(UV_EINVAL);
 			case d: action(d);

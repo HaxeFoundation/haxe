@@ -29,7 +29,7 @@ import hl.uv.Handle;
 
 	@see http://docs.libuv.org/en/v1.x/timer.html
 **/
-class Timer extends Handle<RefUvTimerT> {
+class Timer extends Handle<UvTimerTStar> {
 
 	var onTick:()->Void;
 

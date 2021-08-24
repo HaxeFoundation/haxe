@@ -24,36 +24,6 @@ package hl.uv;
 
 import hl.uv.Request;
 
-private class ConnectData extends RequestData {
-	public final callback:(e:UVError)->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
-}
-
-abstract ConnectRequest(Request) to Request {}
-
-private class ShutdownData extends RequestData {
-	public final callback:(e:UVError)->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
-}
-
-abstract ShutdownRequest(Request) to Request {}
-
-private class WriteData extends RequestData {
-	public final callback:(e:UVError)->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
-}
-
-abstract WriteRequest(Request) to Request {}
-
 /**
 	Stream handles provide an abstraction of a duplex communication channel.
 	This is a base type for `Tcp`, `Pipe` and `Tty`.
@@ -61,7 +31,7 @@ abstract WriteRequest(Request) to Request {}
 	@see http://docs.libuv.org/en/v1.x/stream.html
 **/
 @:forward
-abstract Stream(Handle) to Handle {
+abstract Stream(UvHandleTStar) to UvHandleTStar {
 	/**
 		Shutdown the outgoing (write) side of a duplex stream.
 		It waits for pending write requests to complete.

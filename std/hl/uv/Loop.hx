@@ -43,7 +43,7 @@ enum abstract LoopRunMode(Int) {
 	`sys.thread.Thread.current().events` in any place where `eval.luv.Loop` is
 	expected.
 **/
-abstract Loop(RefUvLoopT) from RefUvLoopT to RefUvLoopT {
+abstract Loop(UvLoopTStar) from UvLoopTStar to UvLoopTStar {
 	@:from
 	static inline function fromHaxeEventLoop(events:sys.thread.EventLoop):Loop
 		return events.handle;

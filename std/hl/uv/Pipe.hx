@@ -40,7 +40,7 @@ enum ReceiveHandle {
 	@see http://docs.libuv.org/en/v1.x/pipe.html
 **/
 @:forward
-abstract Pipe(Stream) to Stream to Handle {
+abstract Pipe(Stream) to Stream to RefUvHandleT {
 	/**
 		Initialize a pipe handle.
 

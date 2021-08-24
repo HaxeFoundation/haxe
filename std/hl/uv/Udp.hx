@@ -30,16 +30,6 @@ enum abstract UdpMembership(Int) {
 	var JOIN_GROUP;
 }
 
-private class UdpSendData extends RequestData {
-	public final callback:(e:UVError)->Void;
-
-	public function new(callback) {
-		this.callback = callback;
-	}
-}
-
-abstract UdpSendRequest(Request) to Request {}
-
 /**
 	Flags for the callback of `Udbp.recvStart`.
 
@@ -57,7 +47,7 @@ typedef RecvFlags = {
 	@see http://docs.libuv.org/en/v1.x/udp.html
 **/
 @:forward
-abstract Udp(Stream) to Stream to Handle {
+abstract Udp(Stream) to Stream to UvHandleTStar {
 
 	/**
 		Initialize a new UDP handle. The actual socket is created lazily.

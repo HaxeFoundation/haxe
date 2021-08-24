@@ -27,43 +27,53 @@
 
 package hl.uv;
 
+import hl.uv.Handle;
+import hl.uv.Request;
 import hl.uv.SockAddr;
 import hl.uv.Dns;
 import hl.uv.Dir;
 import hl.uv.Loop;
 import hl.uv.File;
+import hl.uv.Tty;
+import hl.uv.Udp;
 
 typedef UvUidT = Int;
 typedef UvGidT = Int;
+typedef UvPidT = Int;
+typedef UvHandleType = HandleType;
+typedef UvReqType = RequestType;
 typedef UvRunMode = LoopRunMode;
 typedef UvFsType = FsRequestType;
+typedef UvTtyModeT = TtyMode;
+typedef UvTtyVtermstateT = TtyVTermState;
+typedef UvTtyVtermstateTStar = Ref<TtyVTermState>;
+typedef UvMembership = UdpMembership;
 
 abstract UvFile(Int) {}
 
-abstract RefUvUdpSendT(RefUvReqT) to RefUvReqT {}
-abstract RefUvWriteT(RefUvReqT) to RefUvReqT {}
-abstract RefUvShutdownT(RefUvReqT) to RefUvReqT {}
-abstract RefUvRandomT(RefUvReqT) to RefUvReqT {}
-abstract RefUvGetnameinfoT(RefUvReqT) to RefUvReqT {}
-abstract RefUvGetaddrinfoT(RefUvReqT) to RefUvReqT {}
-abstract RefUvFsT(RefUvReqT) to RefUvReqT {}
-abstract RefUvConnectT(RefUvReqT) to RefUvReqT {}
+abstract UvUdpSendTStar(UvReqTStar) to UvReqTStar {}
+abstract UvWriteTStar(UvReqTStar) to UvReqTStar {}
+abstract UvShutdownTStar(UvReqTStar) to UvReqTStar {}
+abstract UvRandomTStar(UvReqTStar) to UvReqTStar {}
+abstract UvGetnameinfoTStar(UvReqTStar) to UvReqTStar {}
+abstract UvGetaddrinfoTStar(UvReqTStar) to UvReqTStar {}
+abstract UvFsTStar(UvReqTStar) to UvReqTStar {}
+abstract UvConnectTStar(UvReqTStar) to UvReqTStar {}
 
-abstract RefUvUdpT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvTtyT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvTimerT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvTcpT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvStreamT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvSignalT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvRusageT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvProcessT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvPrepareT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvPipeT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvIdleT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvFsPollT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvFsEventT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvCheckT(RefUvHandleT) to RefUvHandleT {}
-abstract RefUvAsyncT(RefUvHandleT) to RefUvHandleT {}
+abstract UvUdpTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvTtyTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvTimerTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvTcpTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvStreamTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvSignalTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvProcessTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvPrepareTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvPipeTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvIdleTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvFsPollTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvFsEventTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvCheckTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvAsyncTStar(UvHandleTStar) to UvHandleTStar {}
 
 //TODO: implement these
 private typedef UInt = Int;
@@ -103,154 +113,151 @@ extern class UV {
 	static public function bytes_to_pointer(bytes:Bytes):Pointer;
 	static public function translate_uv_error(uvErrno:Int):UVError;
 	static public function translate_to_uv_error(errno:Int):Int;
-	static public function handle_to_pointer(data:RefUvHandleT):Pointer;
-	static public function handle_set_data_with_gc<T:RefUvHandleT>(handle:RefUvHandleT, data:Handle<T>):Void;
-	static public function req_set_data_with_gc<T:RefUvReqT>(req:RefUvReqT, data:Request<T>):Void;
-	static public function req_to_pointer(req:RefUvReqT):Pointer;
-	static public function alloc_loop():RefUvLoopT;
-	static public function loop_to_pointer(req:RefUvLoopT):Pointer;
-	static public function alloc_async():RefUvAsyncT;
-	static public function alloc_timer():RefUvTimerT;
-	static public function alloc_check():RefUvCheckT;
-	static public function alloc_getaddrinfo():RefUvGetaddrinfoT;
-	static public function alloc_getnameinfo():RefUvGetnameinfoT;
-	static public function alloc_addrinfo(flags:Int, family:AddressFamily, socktype:SocketType, protocol:Int):RefCAddrinfo;
-	static public function addrinfo_ai_family(ai:RefCAddrinfo):AddressFamily;
-	static public function addrinfo_ai_socktype(ai:RefCAddrinfo):SocketType;
-	static public function addrinfo_ai_protocol(ai:RefCAddrinfo):Int;
-	static public function addrinfo_ai_addr(ai:RefCAddrinfo):SockAddr;
-	static public function addrinfo_ai_canonname(ai:RefCAddrinfo):Bytes;
-	static public function addrinfo_ai_next(ai:RefCAddrinfo):Null<RefCAddrinfo>;
+	static public function handle_to_pointer(data:UvHandleTStar):Pointer;
+	static public function handle_set_data_with_gc<T:UvHandleTStar>(handle:UvHandleTStar, data:Handle<T>):Void;
+	static public function req_set_data_with_gc<T:UvReqTStar>(req:UvReqTStar, data:Request<T>):Void;
+	static public function req_to_pointer(req:UvReqTStar):Pointer;
+	static public function alloc_loop():UvLoopTStar;
+	static public function loop_to_pointer(req:UvLoopTStar):Pointer;
+	static public function alloc_async():UvAsyncTStar;
+	static public function alloc_timer():UvTimerTStar;
+	static public function alloc_check():UvCheckTStar;
+	static public function alloc_getaddrinfo():UvGetaddrinfoTStar;
+	static public function alloc_getnameinfo():UvGetnameinfoTStar;
+	static public function alloc_addrinfo(flags:Int, family:AddressFamily, socktype:SocketType, protocol:Int):CAddrinfoStar;
+	static public function addrinfo_ai_family(ai:CAddrinfoStar):AddressFamily;
+	static public function addrinfo_ai_socktype(ai:CAddrinfoStar):SocketType;
+	static public function addrinfo_ai_protocol(ai:CAddrinfoStar):Int;
+	static public function addrinfo_ai_addr(ai:CAddrinfoStar):SockAddr;
+	static public function addrinfo_ai_canonname(ai:CAddrinfoStar):Bytes;
+	static public function addrinfo_ai_next(ai:CAddrinfoStar):Null<CAddrinfoStar>;
 	static public function nameinfo_flags_to_native(ai:NameInfoFlags):Int;
-	static public function alloc_fs():RefUvFsT;
-	static public function pointer_to_dir(req:Pointer):RefUvDirT;
-	static public function dir_init(dir:RefUvDirT, num_entries:Int):Void;
-	static public function dir_nentries(dir:RefUvDirT):Int;
-	static public function dir_dirent(dir:RefUvDirT, index:Int):RefUvDirentT;
-	static public function dirent_to_pointer(dirent:RefUvDirentT):Pointer;
-	static public function dirent_name(dirent:RefUvDirentT):Bytes;
-	static public function dirent_type(dirent:RefUvDirentT):DirEntryType;
+	static public function alloc_fs():UvFsTStar;
+	static public function pointer_to_dir(req:Pointer):UvDirTStar;
+	static public function dir_init(dir:UvDirTStar, num_entries:Int):Void;
+	static public function dir_nentries(dir:UvDirTStar):Int;
+	static public function dir_dirent(dir:UvDirTStar, index:Int):UvDirentTStar;
+	static public function dirent_to_pointer(dirent:UvDirentTStar):Pointer;
+	static public function dirent_name(dirent:UvDirentTStar):Bytes;
+	static public function dirent_type(dirent:UvDirentTStar):DirEntryType;
 
 // Auto generated content :
 
-	static public function async_init_with_cb(loop:RefUvLoopT, async:RefUvAsyncT):Int;
-	static public function async_send(async:RefUvAsyncT):Int;
-	static public function check_init(loop:RefUvLoopT, check:RefUvCheckT):Int;
-	static public function check_start_with_cb(check:RefUvCheckT):Int;
-	static public function check_stop(check:RefUvCheckT):Int;
-	static public function getaddrinfo_with_cb(loop:RefUvLoopT, req:RefUvGetaddrinfoT, node:Bytes, service:Bytes, hints:RefCAddrinfo):Int;
-	static public function freeaddrinfo(ai:RefCAddrinfo):Void;
-	static public function getnameinfo_with_cb(loop:RefUvLoopT, req:RefUvGetnameinfoT, addr:RefCSockaddr, flags:Int):Int;
+	static public function async_init_with_cb(loop:UvLoopTStar, async:UvAsyncTStar):Int;
+	static public function async_send(async:UvAsyncTStar):Int;
+	static public function check_init(loop:UvLoopTStar, check:UvCheckTStar):Int;
+	static public function check_start_with_cb(check:UvCheckTStar):Int;
+	static public function check_stop(check:UvCheckTStar):Int;
+	static public function getaddrinfo_with_cb(loop:UvLoopTStar, req:UvGetaddrinfoTStar, node:Bytes, service:Bytes, hints:CAddrinfoStar):Int;
+	static public function freeaddrinfo(ai:CAddrinfoStar):Void;
+	static public function getnameinfo_with_cb(loop:UvLoopTStar, req:UvGetnameinfoTStar, addr:CSockaddrStar, flags:Int):Int;
 	static public function strerror(err:Int):Bytes;
 	static public function strerror_r(err:Int, buf:Bytes, buflen:U64):Bytes;
 	static public function err_name(err:Int):Bytes;
 	static public function err_name_r(err:Int, buf:Bytes, buflen:U64):Bytes;
 	static public function translate_sys_error(sys_errno:Int):Int;
-	static public function fs_req_cleanup(req:RefUvFsT):Void;
-	static public function fs_close_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, use_uv_fs_cb:Bool):Int;
-	static public function fs_open_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, flags:Int, mode:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_read_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, bufs:Ref<UvBufT>, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
-	static public function fs_unlink_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_write_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, bufs:Ref<UvBufT>, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
-	static public function fs_mkdir_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, mode:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_mkdtemp_with_cb(loop:RefUvLoopT, req:RefUvFsT, tpl:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_mkstemp_with_cb(loop:RefUvLoopT, req:RefUvFsT, tpl:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_rmdir_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_opendir_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_closedir_with_cb(loop:RefUvLoopT, req:RefUvFsT, dir:RefUvDirT, use_uv_fs_cb:Bool):Int;
-	static public function fs_readdir_with_cb(loop:RefUvLoopT, req:RefUvFsT, dir:RefUvDirT, use_uv_fs_cb:Bool):Int;
-	static public function fs_scandir_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, flags:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_scandir_next(req:RefUvFsT, ent:RefUvDirentT):Int;
-	static public function fs_stat_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_fstat_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, use_uv_fs_cb:Bool):Int;
-	static public function fs_lstat_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_statfs_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_rename_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, new_path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_fsync_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, use_uv_fs_cb:Bool):Int;
-	static public function fs_fdatasync_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, use_uv_fs_cb:Bool):Int;
-	static public function fs_ftruncate_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, offset:I64, use_uv_fs_cb:Bool):Int;
-	static public function fs_copyfile_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, new_path:Bytes, flags:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_sendfile_with_cb(loop:RefUvLoopT, req:RefUvFsT, out_fd:UvFile, in_fd:UvFile, in_offset:I64, length:U64, use_uv_fs_cb:Bool):Int;
-	static public function fs_access_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, mode:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_chmod_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, mode:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_fchmod_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, mode:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_utime_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, atime:Float, mtime:Float, use_uv_fs_cb:Bool):Int;
-	static public function fs_futime_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, atime:Float, mtime:Float, use_uv_fs_cb:Bool):Int;
-	static public function fs_lutime_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, atime:Float, mtime:Float, use_uv_fs_cb:Bool):Int;
-	static public function fs_link_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, new_path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_symlink_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, new_path:Bytes, flags:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_readlink_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_realpath_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_chown_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, uid:UvUidT, gid:UvGidT, use_uv_fs_cb:Bool):Int;
-	static public function fs_fchown_with_cb(loop:RefUvLoopT, req:RefUvFsT, file:UvFile, uid:UvUidT, gid:UvGidT, use_uv_fs_cb:Bool):Int;
-	static public function fs_lchown_with_cb(loop:RefUvLoopT, req:RefUvFsT, path:Bytes, uid:UvUidT, gid:UvGidT, use_uv_fs_cb:Bool):Int;
-	static public function fs_get_type(req:RefUvFsT):UvFsType;
-	static public function fs_get_result(req:RefUvFsT):I64;
-	static public function fs_get_system_error(req:RefUvFsT):Int;
-	static public function fs_get_ptr(req:RefUvFsT):Pointer;
-	static public function fs_get_path(req:RefUvFsT):Bytes;
-	static public function fs_get_statbuf(req:RefUvFsT):RefUvStatT;
-	static public function fs_event_init(loop:RefUvLoopT, handle:RefUvFsEventT):Int;
-	static public function fs_event_start_with_cb(handle:RefUvFsEventT, path:Bytes, flags:UInt):Int;
-	static public function fs_event_stop(handle:RefUvFsEventT):Int;
-	static public function fs_event_getpath(handle:RefUvFsEventT, buffer:Bytes, size:Ref<U64>):Int;
-	static public function fs_poll_init(loop:RefUvLoopT, handle:RefUvFsPollT):Int;
-	static public function fs_poll_start_with_cb(handle:RefUvFsPollT, path:Bytes, interval:UInt):Int;
-	static public function fs_poll_stop(handle:RefUvFsPollT):Int;
-	static public function fs_poll_getpath(handle:RefUvFsPollT, buffer:Bytes, size:Ref<U64>):Int;
-	static public function is_active(handle:RefUvHandleT):Int;
-	static public function is_closing(handle:RefUvHandleT):Int;
-	static public function close_with_cb(handle:RefUvHandleT):Void;
-	static public function ref(handle:RefUvHandleT):Void;
-	static public function unref(handle:RefUvHandleT):Void;
-	static public function has_ref(handle:RefUvHandleT):Int;
+	static public function fs_req_cleanup(req:UvFsTStar):Void;
+	static public function fs_close_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, use_uv_fs_cb:Bool):Int;
+	static public function fs_open_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, flags:Int, mode:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_read_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, bufs:Ref<UvBufT>, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
+	static public function fs_unlink_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_write_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, bufs:Ref<UvBufT>, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
+	static public function fs_mkdir_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, mode:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_mkdtemp_with_cb(loop:UvLoopTStar, req:UvFsTStar, tpl:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_mkstemp_with_cb(loop:UvLoopTStar, req:UvFsTStar, tpl:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_rmdir_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_opendir_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_closedir_with_cb(loop:UvLoopTStar, req:UvFsTStar, dir:UvDirTStar, use_uv_fs_cb:Bool):Int;
+	static public function fs_readdir_with_cb(loop:UvLoopTStar, req:UvFsTStar, dir:UvDirTStar, use_uv_fs_cb:Bool):Int;
+	static public function fs_scandir_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, flags:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_scandir_next(req:UvFsTStar, ent:UvDirentTStar):Int;
+	static public function fs_stat_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_fstat_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, use_uv_fs_cb:Bool):Int;
+	static public function fs_lstat_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_statfs_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_rename_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, new_path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_fsync_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, use_uv_fs_cb:Bool):Int;
+	static public function fs_fdatasync_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, use_uv_fs_cb:Bool):Int;
+	static public function fs_ftruncate_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, offset:I64, use_uv_fs_cb:Bool):Int;
+	static public function fs_copyfile_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, new_path:Bytes, flags:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_sendfile_with_cb(loop:UvLoopTStar, req:UvFsTStar, out_fd:UvFile, in_fd:UvFile, in_offset:I64, length:U64, use_uv_fs_cb:Bool):Int;
+	static public function fs_access_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, mode:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_chmod_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, mode:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_fchmod_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, mode:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_utime_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, atime:Float, mtime:Float, use_uv_fs_cb:Bool):Int;
+	static public function fs_futime_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, atime:Float, mtime:Float, use_uv_fs_cb:Bool):Int;
+	static public function fs_lutime_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, atime:Float, mtime:Float, use_uv_fs_cb:Bool):Int;
+	static public function fs_link_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, new_path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_symlink_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, new_path:Bytes, flags:Int, use_uv_fs_cb:Bool):Int;
+	static public function fs_readlink_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_realpath_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
+	static public function fs_chown_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, uid:UvUidT, gid:UvGidT, use_uv_fs_cb:Bool):Int;
+	static public function fs_fchown_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, uid:UvUidT, gid:UvGidT, use_uv_fs_cb:Bool):Int;
+	static public function fs_lchown_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, uid:UvUidT, gid:UvGidT, use_uv_fs_cb:Bool):Int;
+	static public function fs_get_type(req:UvFsTStar):UvFsType;
+	static public function fs_get_result(req:UvFsTStar):I64;
+	static public function fs_get_system_error(req:UvFsTStar):Int;
+	static public function fs_get_ptr(req:UvFsTStar):Pointer;
+	static public function fs_get_path(req:UvFsTStar):Bytes;
+	static public function fs_get_statbuf(req:UvFsTStar):UvStatTStar;
+	static public function fs_event_init(loop:UvLoopTStar, handle:UvFsEventTStar):Int;
+	static public function fs_event_start_with_cb(handle:UvFsEventTStar, path:Bytes, flags:UInt):Int;
+	static public function fs_event_stop(handle:UvFsEventTStar):Int;
+	static public function fs_event_getpath(handle:UvFsEventTStar, buffer:Bytes, size:Ref<U64>):Int;
+	static public function fs_poll_init(loop:UvLoopTStar, handle:UvFsPollTStar):Int;
+	static public function fs_poll_start_with_cb(handle:UvFsPollTStar, path:Bytes, interval:UInt):Int;
+	static public function fs_poll_stop(handle:UvFsPollTStar):Int;
+	static public function fs_poll_getpath(handle:UvFsPollTStar, buffer:Bytes, size:Ref<U64>):Int;
+	static public function is_active(handle:UvHandleTStar):Int;
+	static public function is_closing(handle:UvHandleTStar):Int;
+	static public function close_with_cb(handle:UvHandleTStar):Void;
+	static public function ref(handle:UvHandleTStar):Void;
+	static public function unref(handle:UvHandleTStar):Void;
+	static public function has_ref(handle:UvHandleTStar):Int;
 	static public function handle_size(type:UvHandleType):U64;
-	static public function send_buffer_size(handle:RefUvHandleT, value:Ref<Int>):Int;
-	static public function recv_buffer_size(handle:RefUvHandleT, value:Ref<Int>):Int;
-	static public function handle_get_loop(handle:RefUvHandleT):RefUvLoopT;
-	static public function handle_get_data(handle:RefUvHandleT):Pointer;
-	static public function handle_set_data(handle:RefUvHandleT, data:Pointer):Pointer;
-	static public function handle_get_type(handle:RefUvHandleT):UvHandleType;
+	static public function send_buffer_size(handle:UvHandleTStar, value:Ref<Int>):Int;
+	static public function recv_buffer_size(handle:UvHandleTStar, value:Ref<Int>):Int;
+	static public function handle_get_loop(handle:UvHandleTStar):UvLoopTStar;
+	static public function handle_get_data(handle:UvHandleTStar):Pointer;
+	static public function handle_set_data(handle:UvHandleTStar, data:Pointer):Pointer;
+	static public function handle_get_type(handle:UvHandleTStar):UvHandleType;
 	static public function handle_type_name(type:UvHandleType):Bytes;
-	static public function idle_init(loop:RefUvLoopT, idle:RefUvIdleT):Int;
-	static public function idle_start_with_cb(idle:RefUvIdleT):Int;
-	static public function idle_stop(idle:RefUvIdleT):Int;
-	static public function loop_init(loop:RefUvLoopT):Int;
-	static public function loop_close(loop:RefUvLoopT):Int;
-	static public function default_loop():RefUvLoopT;
-	static public function run(loop:RefUvLoopT, mode:UvRunMode):Int;
-	static public function loop_alive(loop:RefUvLoopT):Int;
-	static public function stop(loop:RefUvLoopT):Void;
+	static public function idle_init(loop:UvLoopTStar, idle:UvIdleTStar):Int;
+	static public function idle_start_with_cb(idle:UvIdleTStar):Int;
+	static public function idle_stop(idle:UvIdleTStar):Int;
+	static public function loop_init(loop:UvLoopTStar):Int;
+	static public function loop_close(loop:UvLoopTStar):Int;
+	static public function default_loop():UvLoopTStar;
+	static public function run(loop:UvLoopTStar, mode:UvRunMode):Int;
+	static public function loop_alive(loop:UvLoopTStar):Int;
+	static public function stop(loop:UvLoopTStar):Void;
 	static public function loop_size():U64;
-	static public function backend_fd(loop:RefUvLoopT):Int;
-	static public function backend_timeout(loop:RefUvLoopT):Int;
-	static public function now(loop:RefUvLoopT):U64;
-	static public function update_time(loop:RefUvLoopT):Void;
-	static public function walk_with_cb(loop:RefUvLoopT, arg:Pointer):Void;
-	static public function loop_fork(loop:RefUvLoopT):Int;
-	static public function loop_get_data(loop:RefUvLoopT):Pointer;
-	static public function loop_set_data(loop:RefUvLoopT, data:Pointer):Pointer;
-	static public function metrics_idle_time(loop:RefUvLoopT):U64;
+	static public function backend_fd(loop:UvLoopTStar):Int;
+	static public function backend_timeout(loop:UvLoopTStar):Int;
+	static public function now(loop:UvLoopTStar):U64;
+	static public function update_time(loop:UvLoopTStar):Void;
+	static public function walk_with_cb(loop:UvLoopTStar, arg:Pointer):Void;
+	static public function loop_fork(loop:UvLoopTStar):Int;
+	static public function loop_get_data(loop:UvLoopTStar):Pointer;
+	static public function loop_set_data(loop:UvLoopTStar, data:Pointer):Pointer;
+	static public function metrics_idle_time(loop:UvLoopTStar):U64;
 	static public function guess_handle(file:UvFile):UvHandleType;
 	static public function library_shutdown():Void;
 	static public function buf_init(base:Bytes, len:UInt):UvBufT;
-	static public function setup_args(argc:Int, argv:Bytes):Bytes;
-	static public function get_process_title(buffer:Bytes, size:U64):Int;
-	static public function set_process_title(title:Bytes):Int;
 	static public function resident_set_memory(rss:Ref<U64>):Int;
 	static public function uptime(uptime:Ref<Float>):Int;
-	static public function getrusage(rusage:RefUvRusageT):Int;
+	static public function getrusage(rusage:UvRusageTStar):Int;
 	static public function os_getpid():UvPidT;
 	static public function os_getppid():UvPidT;
-	static public function cpu_info(cpu_infos:RefUvCpuInfoT, count:Ref<Int>):Int;
-	static public function free_cpu_info(cpu_infos:RefUvCpuInfoT, count:Int):Void;
-	static public function interface_addresses(addresses:RefUvInterfaceAddressT, count:Ref<Int>):Int;
-	static public function free_interface_addresses(addresses:RefUvInterfaceAddressT, count:Int):Void;
+	static public function cpu_info(cpu_infos:Ref<UvCpuInfoTStar>, count:Ref<Int>):Int;
+	static public function free_cpu_info(cpu_infos:UvCpuInfoTStar, count:Int):Void;
+	static public function interface_addresses(addresses:Ref<UvInterfaceAddressTStar>, count:Ref<Int>):Int;
+	static public function free_interface_addresses(addresses:UvInterfaceAddressTStar, count:Int):Void;
 	static public function loadavg(avg:Ref<Float>):Void;
-	static public function ip4_addr(ip:Bytes, port:Int, addr:RefCSockaddrIn):Int;
-	static public function ip6_addr(ip:Bytes, port:Int, addr:RefCSockaddrIn6):Int;
-	static public function ip4_name(src:RefCSockaddrIn, dst:Bytes, size:U64):Int;
-	static public function ip6_name(src:RefCSockaddrIn6, dst:Bytes, size:U64):Int;
+	static public function ip4_addr(ip:Bytes, port:Int, addr:CSockaddrInStar):Int;
+	static public function ip6_addr(ip:Bytes, port:Int, addr:CSockaddrIn6Star):Int;
+	static public function ip4_name(src:CSockaddrInStar, dst:Bytes, size:U64):Int;
+	static public function ip6_name(src:CSockaddrIn6Star, dst:Bytes, size:U64):Int;
 	static public function inet_ntop(af:Int, src:Pointer, dst:Bytes, size:U64):Int;
 	static public function inet_pton(af:Int, src:Bytes, dst:Pointer):Int;
 	static public function if_indextoname(ifindex:UInt, buffer:Bytes, size:Ref<U64>):Int;
@@ -260,8 +267,8 @@ extern class UV {
 	static public function chdir(dir:Bytes):Int;
 	static public function os_homedir(buffer:Bytes, size:Ref<U64>):Int;
 	static public function os_tmpdir(buffer:Bytes, size:Ref<U64>):Int;
-	static public function os_get_passwd(pwd:RefUvPasswdT):Int;
-	static public function os_free_passwd(pwd:RefUvPasswdT):Void;
+	static public function os_get_passwd(pwd:UvPasswdTStar):Int;
+	static public function os_free_passwd(pwd:UvPasswdTStar):Void;
 	static public function get_free_memory():U64;
 	static public function get_total_memory():U64;
 	static public function get_constrained_memory():U64;
@@ -272,120 +279,114 @@ extern class UV {
 	static public function os_gethostname(buffer:Bytes, size:Ref<U64>):Int;
 	static public function os_getpriority(pid:UvPidT, priority:Ref<Int>):Int;
 	static public function os_setpriority(pid:UvPidT, priority:Int):Int;
-	static public function os_uname(buffer:RefUvUtsnameT):Int;
-	static public function gettimeofday(tv:RefUvTimeval64T):Int;
-	static public function random_with_cb(loop:RefUvLoopT, req:RefUvRandomT, buf:Pointer, buflen:U64, flags:UInt):Int;
+	static public function os_uname(buffer:UvUtsnameTStar):Int;
+	static public function gettimeofday(tv:UvTimeval64TStar):Int;
+	static public function random_with_cb(loop:UvLoopTStar, req:UvRandomTStar, buf:Pointer, buflen:U64, flags:UInt):Int;
 	static public function sleep(msec:UInt):Void;
-	static public function pipe_init(loop:RefUvLoopT, handle:RefUvPipeT, ipc:Int):Int;
-	static public function pipe_open(handle:RefUvPipeT, file:UvFile):Int;
-	static public function pipe_bind(handle:RefUvPipeT, name:Bytes):Int;
-	static public function pipe_connect_with_cb(req:RefUvConnectT, handle:RefUvPipeT, name:Bytes):Void;
-	static public function pipe_getsockname(handle:RefUvPipeT, buffer:Bytes, size:Ref<U64>):Int;
-	static public function pipe_getpeername(handle:RefUvPipeT, buffer:Bytes, size:Ref<U64>):Int;
-	static public function pipe_pending_instances(handle:RefUvPipeT, count:Int):Void;
-	static public function pipe_pending_count(handle:RefUvPipeT):Int;
-	static public function pipe_pending_type(handle:RefUvPipeT):UvHandleType;
-	static public function pipe_chmod(handle:RefUvPipeT, flags:Int):Int;
+	static public function pipe_init(loop:UvLoopTStar, handle:UvPipeTStar, ipc:Int):Int;
+	static public function pipe_open(handle:UvPipeTStar, file:UvFile):Int;
+	static public function pipe_bind(handle:UvPipeTStar, name:Bytes):Int;
+	static public function pipe_connect_with_cb(req:UvConnectTStar, handle:UvPipeTStar, name:Bytes):Void;
+	static public function pipe_getsockname(handle:UvPipeTStar, buffer:Bytes, size:Ref<U64>):Int;
+	static public function pipe_getpeername(handle:UvPipeTStar, buffer:Bytes, size:Ref<U64>):Int;
+	static public function pipe_pending_instances(handle:UvPipeTStar, count:Int):Void;
+	static public function pipe_pending_count(handle:UvPipeTStar):Int;
+	static public function pipe_pending_type(handle:UvPipeTStar):UvHandleType;
+	static public function pipe_chmod(handle:UvPipeTStar, flags:Int):Int;
 	static public function pipe(fds:Ref<UvFile>, read_flags:Int, write_flags:Int):Int;
-	static public function prepare_init(loop:RefUvLoopT, prepare:RefUvPrepareT):Int;
-	static public function prepare_start_with_cb(prepare:RefUvPrepareT):Int;
-	static public function prepare_stop(prepare:RefUvPrepareT):Int;
+	static public function prepare_init(loop:UvLoopTStar, prepare:UvPrepareTStar):Int;
+	static public function prepare_start_with_cb(prepare:UvPrepareTStar):Int;
+	static public function prepare_stop(prepare:UvPrepareTStar):Int;
 	static public function disable_stdio_inheritance():Void;
-	static public function spawn(loop:RefUvLoopT, handle:RefUvProcessT, options:RefUvProcessOptionsT):Int;
-	static public function process_kill(handle:RefUvProcessT, signum:Int):Int;
+	static public function spawn(loop:UvLoopTStar, handle:UvProcessTStar, options:UvProcessOptionsTStar):Int;
+	static public function process_kill(handle:UvProcessTStar, signum:Int):Int;
 	static public function kill(pid:Int, signum:Int):Int;
-	static public function process_get_pid(handle:RefUvProcessT):UvPidT;
-	static public function cancel(req:RefUvReqT):Int;
+	static public function process_get_pid(handle:UvProcessTStar):UvPidT;
+	static public function cancel(req:UvReqTStar):Int;
 	static public function req_size(type:UvReqType):U64;
-	static public function req_get_data(req:RefUvReqT):Pointer;
-	static public function req_set_data(req:RefUvReqT, data:Pointer):Pointer;
-	static public function req_get_type(req:RefUvReqT):UvReqType;
+	static public function req_get_data(req:UvReqTStar):Pointer;
+	static public function req_set_data(req:UvReqTStar, data:Pointer):Pointer;
+	static public function req_get_type(req:UvReqTStar):UvReqType;
 	static public function req_type_name(type:UvReqType):Bytes;
-	static public function signal_init(loop:RefUvLoopT, signal:RefUvSignalT):Int;
-	static public function signal_start_with_cb(signal:RefUvSignalT, signum:Int):Int;
-	static public function signal_start_oneshot_with_cb(signal:RefUvSignalT, signum:Int):Int;
-	static public function signal_stop(signal:RefUvSignalT):Int;
-	static public function shutdown_with_cb(req:RefUvShutdownT, handle:RefUvStreamT):Int;
-	static public function listen_with_cb(stream:RefUvStreamT, backlog:Int):Int;
-	static public function accept(server:RefUvStreamT, client:RefUvStreamT):Int;
-	static public function read_start_with_cb(stream:RefUvStreamT):Int;
-	static public function read_stop(refuvstreamt:RefUvStreamT):Int;
-	static public function write_with_cb(req:RefUvWriteT, handle:RefUvStreamT, bufs:Ref<UvBufT>, nbufs:UInt):Int;
-	static public function write2_with_cb(req:RefUvWriteT, handle:RefUvStreamT, bufs:Ref<UvBufT>, nbufs:UInt, send_handle:RefUvStreamT):Int;
-	static public function try_write(handle:RefUvStreamT, bufs:Ref<UvBufT>, nbufs:UInt):Int;
-	static public function try_write2(handle:RefUvStreamT, bufs:Ref<UvBufT>, nbufs:UInt, send_handle:RefUvStreamT):Int;
-	static public function is_readable(handle:RefUvStreamT):Int;
-	static public function is_writable(handle:RefUvStreamT):Int;
-	static public function stream_set_blocking(handle:RefUvStreamT, blocking:Int):Int;
-	static public function stream_get_write_queue_size(stream:RefUvStreamT):U64;
-	static public function tcp_init(loop:RefUvLoopT, handle:RefUvTcpT):Int;
-	static public function tcp_init_ex(loop:RefUvLoopT, handle:RefUvTcpT, flags:UInt):Int;
-	static public function tcp_nodelay(handle:RefUvTcpT, enable:Int):Int;
-	static public function tcp_keepalive(handle:RefUvTcpT, enable:Int, delay:UInt):Int;
-	static public function tcp_simultaneous_accepts(handle:RefUvTcpT, enable:Int):Int;
-	static public function tcp_bind(handle:RefUvTcpT, addr:RefCSockaddr, flags:UInt):Int;
-	static public function tcp_getsockname(handle:RefUvTcpT, name:RefCSockaddr, namelen:Ref<Int>):Int;
-	static public function tcp_getpeername(handle:RefUvTcpT, name:RefCSockaddr, namelen:Ref<Int>):Int;
-	static public function tcp_connect_with_cb(req:RefUvConnectT, handle:RefUvTcpT, addr:RefCSockaddr):Int;
-	static public function tcp_close_reset_with_cb(handle:RefUvTcpT):Int;
-	static public function timer_init(loop:RefUvLoopT, handle:RefUvTimerT):Int;
-	static public function timer_start_with_cb(handle:RefUvTimerT, timeout:U64, repeat:U64):Int;
-	static public function timer_stop(handle:RefUvTimerT):Int;
-	static public function timer_again(handle:RefUvTimerT):Int;
-	static public function timer_set_repeat(handle:RefUvTimerT, repeat:U64):Void;
-	static public function timer_get_repeat(handle:RefUvTimerT):U64;
-	static public function timer_get_due_in(handle:RefUvTimerT):U64;
-	static public function tty_init(loop:RefUvLoopT, handle:RefUvTtyT, fd:UvFile, unused:Int):Int;
-	static public function tty_set_mode(handle:RefUvTtyT, mode:UvTtyModeT):Int;
+	static public function signal_init(loop:UvLoopTStar, signal:UvSignalTStar):Int;
+	static public function signal_start_with_cb(signal:UvSignalTStar, signum:Int):Int;
+	static public function signal_start_oneshot_with_cb(signal:UvSignalTStar, signum:Int):Int;
+	static public function signal_stop(signal:UvSignalTStar):Int;
+	static public function shutdown_with_cb(req:UvShutdownTStar, handle:UvStreamTStar):Int;
+	static public function listen_with_cb(stream:UvStreamTStar, backlog:Int):Int;
+	static public function accept(server:UvStreamTStar, client:UvStreamTStar):Int;
+	static public function read_start_with_cb(stream:UvStreamTStar):Int;
+	static public function read_stop(uvstreamtstar:UvStreamTStar):Int;
+	static public function write_with_cb(req:UvWriteTStar, handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt):Int;
+	static public function write2_with_cb(req:UvWriteTStar, handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt, send_handle:UvStreamTStar):Int;
+	static public function try_write(handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt):Int;
+	static public function try_write2(handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt, send_handle:UvStreamTStar):Int;
+	static public function is_readable(handle:UvStreamTStar):Int;
+	static public function is_writable(handle:UvStreamTStar):Int;
+	static public function stream_set_blocking(handle:UvStreamTStar, blocking:Int):Int;
+	static public function stream_get_write_queue_size(stream:UvStreamTStar):U64;
+	static public function tcp_init(loop:UvLoopTStar, handle:UvTcpTStar):Int;
+	static public function tcp_init_ex(loop:UvLoopTStar, handle:UvTcpTStar, flags:UInt):Int;
+	static public function tcp_nodelay(handle:UvTcpTStar, enable:Int):Int;
+	static public function tcp_keepalive(handle:UvTcpTStar, enable:Int, delay:UInt):Int;
+	static public function tcp_simultaneous_accepts(handle:UvTcpTStar, enable:Int):Int;
+	static public function tcp_bind(handle:UvTcpTStar, addr:CSockaddrStar, flags:UInt):Int;
+	static public function tcp_getsockname(handle:UvTcpTStar, name:CSockaddrStar, namelen:Ref<Int>):Int;
+	static public function tcp_getpeername(handle:UvTcpTStar, name:CSockaddrStar, namelen:Ref<Int>):Int;
+	static public function tcp_connect_with_cb(req:UvConnectTStar, handle:UvTcpTStar, addr:CSockaddrStar):Int;
+	static public function tcp_close_reset_with_cb(handle:UvTcpTStar):Int;
+	static public function timer_init(loop:UvLoopTStar, handle:UvTimerTStar):Int;
+	static public function timer_start_with_cb(handle:UvTimerTStar, timeout:U64, repeat:U64):Int;
+	static public function timer_stop(handle:UvTimerTStar):Int;
+	static public function timer_again(handle:UvTimerTStar):Int;
+	static public function timer_set_repeat(handle:UvTimerTStar, repeat:U64):Void;
+	static public function timer_get_repeat(handle:UvTimerTStar):U64;
+	static public function timer_get_due_in(handle:UvTimerTStar):U64;
+	static public function tty_init(loop:UvLoopTStar, handle:UvTtyTStar, fd:UvFile, unused:Int):Int;
+	static public function tty_set_mode(handle:UvTtyTStar, mode:UvTtyModeT):Int;
 	static public function tty_reset_mode():Int;
-	static public function tty_get_winsize(handle:RefUvTtyT, width:Ref<Int>, height:Ref<Int>):Int;
+	static public function tty_get_winsize(handle:UvTtyTStar, width:Ref<Int>, height:Ref<Int>):Int;
 	static public function tty_set_vterm_state(state:UvTtyVtermstateT):Void;
-	static public function tty_get_vterm_state(state:RefUvTtyVtermstateT):Int;
-	static public function udp_init(loop:RefUvLoopT, handle:RefUvUdpT):Int;
-	static public function udp_init_ex(loop:RefUvLoopT, handle:RefUvUdpT, flags:UInt):Int;
-	static public function udp_bind(handle:RefUvUdpT, addr:RefCSockaddr, flags:UInt):Int;
-	static public function udp_connect(handle:RefUvUdpT, addr:RefCSockaddr):Int;
-	static public function udp_getpeername(handle:RefUvUdpT, name:RefCSockaddr, namelen:Ref<Int>):Int;
-	static public function udp_getsockname(handle:RefUvUdpT, name:RefCSockaddr, namelen:Ref<Int>):Int;
-	static public function udp_set_membership(handle:RefUvUdpT, multicast_addr:Bytes, interface_addr:Bytes, membership:UvMembership):Int;
-	static public function udp_set_source_membership(handle:RefUvUdpT, multicast_addr:Bytes, interface_addr:Bytes, source_addr:Bytes, membership:UvMembership):Int;
-	static public function udp_set_multicast_loop(handle:RefUvUdpT, on:Int):Int;
-	static public function udp_set_multicast_ttl(handle:RefUvUdpT, ttl:Int):Int;
-	static public function udp_set_multicast_interface(handle:RefUvUdpT, interface_addr:Bytes):Int;
-	static public function udp_set_broadcast(handle:RefUvUdpT, on:Int):Int;
-	static public function udp_set_ttl(handle:RefUvUdpT, ttl:Int):Int;
-	static public function udp_send_with_cb(req:RefUvUdpSendT, handle:RefUvUdpT, bufs:Ref<UvBufT>, nbufs:UInt, addr:RefCSockaddr):Int;
-	static public function udp_try_send(handle:RefUvUdpT, bufs:Ref<UvBufT>, nbufs:UInt, addr:RefCSockaddr):Int;
-	static public function udp_recv_start_with_cb(handle:RefUvUdpT):Int;
-	static public function udp_using_recvmmsg(handle:RefUvUdpT):Int;
-	static public function udp_recv_stop(handle:RefUvUdpT):Int;
-	static public function udp_get_send_queue_size(handle:RefUvUdpT):U64;
-	static public function udp_get_send_queue_count(handle:RefUvUdpT):U64;
+	static public function tty_get_vterm_state(state:UvTtyVtermstateTStar):Int;
+	static public function udp_init(loop:UvLoopTStar, handle:UvUdpTStar):Int;
+	static public function udp_init_ex(loop:UvLoopTStar, handle:UvUdpTStar, flags:UInt):Int;
+	static public function udp_bind(handle:UvUdpTStar, addr:CSockaddrStar, flags:UInt):Int;
+	static public function udp_connect(handle:UvUdpTStar, addr:CSockaddrStar):Int;
+	static public function udp_getpeername(handle:UvUdpTStar, name:CSockaddrStar, namelen:Ref<Int>):Int;
+	static public function udp_getsockname(handle:UvUdpTStar, name:CSockaddrStar, namelen:Ref<Int>):Int;
+	static public function udp_set_membership(handle:UvUdpTStar, multicast_addr:Bytes, interface_addr:Bytes, membership:UvMembership):Int;
+	static public function udp_set_source_membership(handle:UvUdpTStar, multicast_addr:Bytes, interface_addr:Bytes, source_addr:Bytes, membership:UvMembership):Int;
+	static public function udp_set_multicast_loop(handle:UvUdpTStar, on:Int):Int;
+	static public function udp_set_multicast_ttl(handle:UvUdpTStar, ttl:Int):Int;
+	static public function udp_set_multicast_interface(handle:UvUdpTStar, interface_addr:Bytes):Int;
+	static public function udp_set_broadcast(handle:UvUdpTStar, on:Int):Int;
+	static public function udp_set_ttl(handle:UvUdpTStar, ttl:Int):Int;
+	static public function udp_send_with_cb(req:UvUdpSendTStar, handle:UvUdpTStar, bufs:Ref<UvBufT>, nbufs:UInt, addr:CSockaddrStar):Int;
+	static public function udp_try_send(handle:UvUdpTStar, bufs:Ref<UvBufT>, nbufs:UInt, addr:CSockaddrStar):Int;
+	static public function udp_recv_start_with_cb(handle:UvUdpTStar):Int;
+	static public function udp_using_recvmmsg(handle:UvUdpTStar):Int;
+	static public function udp_recv_stop(handle:UvUdpTStar):Int;
+	static public function udp_get_send_queue_size(handle:UvUdpTStar):U64;
+	static public function udp_get_send_queue_count(handle:UvUdpTStar):U64;
 	static public function version():UInt;
 	static public function version_string():Bytes;
 }
 
-abstract UvTtyVtermstateT(Abstract<"uv_tty_vtermstate_t">) {}
-abstract UvTtyModeT(Abstract<"uv_tty_mode_t">) {}
-abstract UvReqType(Abstract<"uv_req_type">) {}
-abstract UvPidT(Abstract<"uv_pid_t">) {}
-abstract UvMembership(Abstract<"uv_membership">) {}
-abstract UvHandleType(Abstract<"uv_handle_type">) {}
+abstract UvUtsnameTStar(Abstract<"uv_utsname_t_star">) {}
+abstract UvTimeval64TStar(Abstract<"uv_timeval64_t_star">) {}
+abstract UvStatTStar(Abstract<"uv_stat_t_star">) {}
+abstract UvRusageTStar(Abstract<"uv_rusage_t_star">) {}
+abstract UvReqTStar(Abstract<"uv_req_t_star">) {}
+abstract UvProcessOptionsTStar(Abstract<"uv_process_options_t_star">) {}
+abstract UvPasswdTStar(Abstract<"uv_passwd_t_star">) {}
+abstract UvLoopTStar(Abstract<"uv_loop_t_star">) {}
+abstract UvInterfaceAddressTStar(Abstract<"uv_interface_address_t_star">) {}
+abstract UvHandleTStar(Abstract<"uv_handle_t_star">) {}
+abstract UvDirentTStar(Abstract<"uv_dirent_t_star">) {}
+abstract UvDirTStar(Abstract<"uv_dir_t_star">) {}
+abstract UvCpuInfoTStar(Abstract<"uv_cpu_info_t_star">) {}
 abstract UvBufT(Abstract<"uv_buf_t">) {}
-abstract RefUvUtsnameT(Abstract<"uv_utsname_t_star">) {}
-abstract RefUvTtyVtermstateT(Abstract<"uv_tty_vtermstate_t_star">) {}
-abstract RefUvTimeval64T(Abstract<"uv_timeval64_t_star">) {}
-abstract RefUvStatT(Abstract<"uv_stat_t_star">) {}
-abstract RefUvReqT(Abstract<"uv_req_t_star">) {}
-abstract RefUvProcessOptionsT(Abstract<"uv_process_options_t_star">) {}
-abstract RefUvPasswdT(Abstract<"uv_passwd_t_star">) {}
-abstract RefUvLoopT(Abstract<"uv_loop_t_star">) {}
-abstract RefUvInterfaceAddressT(Abstract<"uv_interface_address_t_star">) {}
-abstract RefUvHandleT(Abstract<"uv_handle_t_star">) {}
-abstract RefUvDirentT(Abstract<"uv_dirent_t_star">) {}
-abstract RefUvDirT(Abstract<"uv_dir_t_star">) {}
-abstract RefUvCpuInfoT(Abstract<"uv_cpu_info_t_star">) {}
-abstract RefCSockaddrIn6(Abstract<"sockaddr_in6_star">) {}
-abstract RefCSockaddrIn(Abstract<"sockaddr_in_star">) {}
-abstract RefCSockaddr(Abstract<"sockaddr_star">) {}
-abstract RefCAddrinfo(Abstract<"addrinfo_star">) {}
+abstract CSockaddrStar(Abstract<"sockaddr_star">) {}
+abstract CSockaddrInStar(Abstract<"sockaddr_in_star">) {}
+abstract CSockaddrIn6Star(Abstract<"sockaddr_in6_star">) {}
+abstract CAddrinfoStar(Abstract<"addrinfo_star">) {}
