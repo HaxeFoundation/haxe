@@ -49,6 +49,8 @@ enum abstract HandleType(Int) {
 
 	@see http://docs.libuv.org/en/v1.x/handle.html
 **/
+// @:keep
+// @:keepSub
 abstract class Handle<T:UvHandleTStar> {
 	var _h:UvHandleTStar;
 	var onClose:()->Void;
@@ -92,8 +94,9 @@ abstract class Handle<T:UvHandleTStar> {
 	/**
 		Returns `true` if the handle is closing or closed, `false` otherwise.
 	**/
-	public function isClosing():Bool
-		return handleReturn(h -> h.is_closing() != 0);
+	public function isClosing():Bool {
+		return _h == null || _h.is_closing() != 0;
+	}
 
 	/**
 		Request handle to be closed.
@@ -108,7 +111,7 @@ abstract class Handle<T:UvHandleTStar> {
 				freeHandle();
 				if(callback != null)
 					callback();
-			};
+			}
 			h.close_with_cb();
 		});
 

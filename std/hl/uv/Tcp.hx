@@ -24,13 +24,17 @@ package hl.uv;
 
 import hl.uv.SockAddr;
 
+enum abstract TcpFlag(Int) to Int {
+	/** Used with uv_tcp_bind, when an IPv6 address is used. */
+	var UV_TCP_IPV6ONLY = 1;
+}
+
 /**
 	TCP handles are used to represent both TCP streams and servers.
 
 	@see http://docs.libuv.org/en/v1.x/tcp.html
 **/
-@:forward
-abstract Tcp(Stream) to Stream to Handle {
+class Tcp extends Stream<UvTcpTStar> {
 
 	/**
 		Initialize the handle. No socket is created as of yet.
@@ -38,9 +42,16 @@ abstract Tcp(Stream) to Stream to Handle {
 		Omitting `domain` is the same as passing `AddressFamily.UNSPEC` to it,
 		which means no socket is created yet.
 	**/
-	@:hlNative("uv", "tcp_init_wrap")
-	static public function init(loop:Loop, ?domain:AddressFamily):Tcp
-		return null;
+	static public function init(loop:Loop, ?domain:AddressFamily):Tcp {
+		loop.checkLoop();
+		var tcp = new Tcp(UV.alloc_tcp());
+		var result = domain == null ? loop.tcp_init(tcp.h) : loop.tcp_init_ex(tcp.h, domain.address_family_to_af());
+		if(result < 0) {
+			tcp.freeHandle();
+			result.throwErr();
+		}
+		return tcp;
+	}
 
 	/**
 		This call is used in conjunction with `listen()` to accept incoming connections.
@@ -50,60 +61,105 @@ abstract Tcp(Stream) to Stream to Handle {
 
 		@see http://docs.libuv.org/en/v1.x/stream.html#c.uv_accept
 	**/
-	@:hlNative("uv", "accept_wrap")
-	public function accept(client:Tcp):Void {}
+	public function accept(client:Tcp):Void {
+		handle(server -> client.handle(client -> {
+			server.accept(client).resolve();
+		}));
+	}
 
 	/**
 		Enable TCP_NODELAY.
 	**/
-	@:hlNative("uv", "tcp_nodelay_wrap")
-	public function noDelay(enable:Bool):Void {}
+	public function noDelay(enable:Bool):Void {
+		handle(h -> h.tcp_nodelay(enable ? 1 : 0).resolve());
+	}
 
 	/**
 		Enable / disable TCP keep-alive.
 		`delay` is the initial delay in seconds, ignored when `enable` is `false`.
 	**/
-	@:hlNative("uv", "tcp_keepalive_wrap")
-	public function keepAlive(enable:Bool, delay:Int):Void {}
+	public function keepAlive(enable:Bool, delay:Int):Void {
+		handle(h -> h.tcp_keepalive((enable ? 1 : 0), delay).resolve());
+	}
 
 	/**
 		Enable / disable simultaneous asynchronous accept requests that are queued
 		by the operating system when listening for new TCP connections.
 	**/
-	@:hlNative("uv", "tcp_simultaneous_accepts_wrap")
-	public function simultaneousAccepts(enable:Bool):Void {}
+	public function simultaneousAccepts(enable:Bool):Void {
+		handle(h -> h.tcp_simultaneous_accepts(enable ? 1 : 0).resolve());
+	}
 
 	/**
 		Bind the handle to an address and port.
 	**/
-	@:hlNative("uv", "tcp_bind_wrap")
-	public function bind(addr:SockAddr, ?ipv6Only:Bool):Void {}
+	public function bind(addr:SockAddr, ?ipv6Only:Bool):Void {
+		handle(h -> h.tcp_bind(addr.sockaddr_of_storage(), (ipv6Only ? UV_TCP_IPV6ONLY : 0)).resolve());
+	}
 
 	/**
 		Get the current address to which the handle is bound.
 	**/
-	@:hlNative("uv", "tcp_getsockname_wrap")
-	public function getSockName():SockAddr
-		return null;
+	public function getSockName():SockAddr {
+		return handleReturn(h -> {
+			var addr = UV.alloc_sockaddr_storage(); // TODO: need to free addr manually?
+			var size = UV.sockaddr_storage_size();
+			var result = h.tcp_getsockname(addr.sockaddr_of_storage(), Ref.make(size));
+			if(result < 0) {
+				result.throwErr();
+			}
+			return addr;
+		});
+	}
 
 	/**
 		Get the address of the peer connected to the handle.
 	**/
-	@:hlNative("uv", "tcp_getpeername_wrap")
-	public function getPeerName():SockAddr
-		return null;
+	public function getPeerName():SockAddr {
+		return handleReturn(h -> {
+			var addr = UV.alloc_sockaddr_storage(); // TODO: need to free addr manually?
+			var size = UV.sockaddr_storage_size();
+			var result = h.tcp_getpeername(addr.sockaddr_of_storage(), Ref.make(size));
+			if(result < 0) {
+				result.throwErr();
+			}
+			return addr;
+		});
+	}
 
 	/**
 		Establish an IPv4 or IPv6 TCP connection.
 	**/
-	@:hlNative("uv", "tcp_connect_wrap")
-	public function connect(addr:SockAddr, callback:(e:UVError)->Void):Void {}
+	public function connect(addr:SockAddr, callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			var req = Stream.createConnect();
+			var result = req.r.tcp_connect_with_cb(h, addr.sockaddr_of_storage());
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
+			}
+			req.callback = status -> {
+				req.freeReq();
+				callback(status.translate_uv_error());
+			}
+		});
+	}
 
 	/**
 		Resets a TCP connection by sending a RST packet.
 
 		@see http://docs.libuv.org/en/v1.x/tcp.html#c.uv_tcp_close_reset
 	**/
-	@:hlNative("uv", "tcp_close_reset_wrap")
-	public function closeReset(?callback:()->Void):Void {}
+	public function closeReset(?callback:()->Void):Void {
+		handle(h -> {
+			if(h.is_closing() != 0)
+				throw new UVException(UV_EINVAL);
+			onClose = () -> {
+				freeHandle();
+				if(callback != null)
+					callback();
+			}
+			h.tcp_close_reset_with_cb().resolve();
+		});
+	}
 }

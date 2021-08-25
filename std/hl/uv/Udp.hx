@@ -47,7 +47,7 @@ typedef RecvFlags = {
 	@see http://docs.libuv.org/en/v1.x/udp.html
 **/
 @:forward
-abstract Udp(Stream) to Stream to UvHandleTStar {
+abstract Udp(UvUdpTStar) to UvUdpTStar to UvHandleTStar {
 
 	/**
 		Initialize a new UDP handle. The actual socket is created lazily.

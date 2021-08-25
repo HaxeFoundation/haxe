@@ -50,7 +50,7 @@ enum abstract TtyVTermState(Int) {
 	@see http://docs.libuv.org/en/v1.x/tty.html
 **/
 @:forward
-abstract Tty(Stream) to Stream to UvHandleTStar {
+class Tty extends Stream<UvTtyTStar> {
 	/**
 		Initialize a new TTY stream with the given file descriptor.
 	**/

@@ -140,7 +140,7 @@ class Dns {
 
 		loop.checkLoop();
 		var req = new NameInfoRequest(UV.alloc_getnameinfo());
-		var result = loop.getnameinfo_with_cb(req.r, addr, flags.nameinfo_flags_to_native());
+		var result = loop.getnameinfo_with_cb(req.r, addr.sockaddr_of_storage(), flags.nameinfo_flags_to_native());
 		if(result < 0) {
 			req.freeReq();
 			result.throwErr();

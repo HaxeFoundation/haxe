@@ -24,27 +24,67 @@ package hl.uv;
 
 import hl.uv.Request;
 
+@:allow(hl.uv.Stream)
+private class ConnectRequest extends Request<UvConnectTStar> {
+	var callback:(status:Int)->Void;
+}
+
+@:allow(hl.uv.Stream)
+private class WriteRequest extends Request<UvWriteTStar> {
+	var callback:(status:Int)->Void;
+	//to keep bytes alive untile write request is complete
+	var data:Bytes;
+}
+
+@:allow(hl.uv.Stream)
+private class ShutdownRequest extends Request<UvShutdownTStar> {
+	var callback:(status:Int)->Void;
+}
+
+
 /**
 	Stream handles provide an abstraction of a duplex communication channel.
 	This is a base type for `Tcp`, `Pipe` and `Tty`.
 
 	@see http://docs.libuv.org/en/v1.x/stream.html
 **/
-@:forward
-abstract Stream(UvHandleTStar) to UvHandleTStar {
+abstract class Stream<T:UvStreamTStar> extends Handle<T> {
+	var onConnection:(status:Int)->Void;
+	var onRead:(nRead:I64, buf:UvBufTArr)->Void;
+
+	static inline function createConnect():ConnectRequest {
+		return new ConnectRequest(UV.alloc_connect());
+	}
+
 	/**
 		Shutdown the outgoing (write) side of a duplex stream.
 		It waits for pending write requests to complete.
 	**/
-	@:hlNative("uv", "shutdown_wrap")
-	public function shutdown(callback:(e:UVError)->Void):Void {}
+	public function shutdown(callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			var req = new ShutdownRequest(UV.alloc_shutdown());
+			var result = req.r.shutdown_with_cb(h);
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
+			}
+			req.callback = status -> {
+				req.freeReq();
+				callback(status.translate_uv_error());
+			}
+		});
+	}
 
 	/**
 		Start listening for incoming connections.
 		`backlog` indicates the number of connections the kernel might queue
 	**/
-	@:hlNative("uv", "listen_wrap")
-	public function listen(backlog:Int, callback:(e:UVError)->Void):Void {}
+	public function listen(backlog:Int, callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			h.listen_with_cb(backlog).resolve();
+			onConnection = status -> callback(status.translate_uv_error());
+		});
+	}
 
 	/**
 		Read data from an incoming stream.
@@ -54,20 +94,57 @@ abstract Stream(UvHandleTStar) to UvHandleTStar {
 		indicate EOF. It means either there's no data to read _right now_ or IO
 		operation would have to block.
 	**/
-	@:hlNative("uv", "read_start_wrap")
-	public function readStart(callback:(e:UVError, data:Bytes, bytesRead:Int)->Void):Void {}
+	public function readStart(callback:(e:UVError, data:Null<Bytes>, bytesRead:Int)->Void):Void {
+		handle(h -> {
+			h.read_start_with_cb().resolve();
+			onRead = (nRead, buf) -> {
+				var bytesRead = nRead.toInt();
+				var e = bytesRead.translate_uv_error();
+				var data = switch e {
+					case UV_NOERR:
+						@:privateAccess Bytes.copy(buf.buf_base(), bytesRead); // TODO: avoid copying bytes, but make sure it's automatically freed by GC
+					case _:
+						bytesRead = 0;
+						null;
+				}
+				// if(buf != null) {
+				// 	var base = buf.buf_base();
+				// 	if(base != null)
+				// 		base.bytes_to_pointer().free();
+				// 	buf.buf_to_pointer().free();
+				// }
+				callback(e, data, bytesRead);
+			}
+		});
+	}
 
 	/**
 		Stop reading data from the stream.
 	**/
-	@:hlNative("uv", "read_stop_wrap")
-	public function readStop():Void {}
+	public function readStop():Void {
+		handle(h -> h.read_stop().resolve());
+	}
 
 	/**
 		Write data to stream.
 	**/
-	@:hlNative("uv", "write_wrap")
-	public function write(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {}
+	public function write(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			var req = new WriteRequest(UV.alloc_write());
+			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
+			// trace({length:length, buf_len:buf.buf_len()});
+			var result = req.r.write_with_cb(h, buf, 1);
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
+			}
+			req.data = bytes;
+			req.callback = status -> {
+				req.freeReq();
+				callback(status.translate_uv_error());
+			}
+		});
+	}
 
 	/**
 		Same as `write()`, but won’t queue a write request if it can’t be completed immediately.
@@ -76,22 +153,28 @@ abstract Stream(UvHandleTStar) to UvHandleTStar {
 
 		Throws EAGAIN if no data can be sent immediately
 	**/
-	@:hlNative("uv", "try_write_wrap")
-	public function try_write(bytes:hl.Bytes, length:Int):Int
-		return 0;
+	public function tryWrite(bytes:hl.Bytes, length:Int):Int {
+		return handleReturn(h -> {
+			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
+			var result = h.try_write(buf, 1);
+			if(result < 0)
+				result.throwErr();
+			return result;
+		});
+	}
 
 	/**
 		Indicates if the stream is readable.
 	**/
-	@:hlNative("uv", "is_readable_wrap")
-	public function isReadable():Bool
-		return false;
+	public function isReadable():Bool {
+		return handleReturn(h -> h.is_readable() != 0);
+	}
 
 	/**
 		Indicates if the stream is writable.
 	**/
-	@:hlNative("uv", "is_writable_wrap")
-	public function isWritable():Bool
-		return false;
+	public function isWritable():Bool {
+		return handleReturn(h -> h.is_writable() != 0);
+	}
 
 }

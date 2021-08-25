@@ -121,7 +121,9 @@ class EventLoop {
 	}
 
 	/**
-		Blocks until a new event is added or `timeout` (in seconds) to expires.
+		Wait until a new event is added or `timeout` (in seconds) to expires.
+
+		Depending on a target platform this method may block.
 
 		Depending on a target platform this method may also automatically execute arriving
 		events while waiting. However if any event is executed it will stop waiting.

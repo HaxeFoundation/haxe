@@ -61,19 +61,22 @@ abstract UvFsTStar(UvReqTStar) to UvReqTStar {}
 abstract UvConnectTStar(UvReqTStar) to UvReqTStar {}
 
 abstract UvUdpTStar(UvHandleTStar) to UvHandleTStar {}
-abstract UvTtyTStar(UvHandleTStar) to UvHandleTStar {}
-abstract UvTimerTStar(UvHandleTStar) to UvHandleTStar {}
-abstract UvTcpTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvStreamTStar(UvHandleTStar) to UvHandleTStar {}
+abstract UvTtyTStar(UvStreamTStar) to UvStreamTStar to UvHandleTStar {}
+abstract UvTcpTStar(UvStreamTStar) to UvStreamTStar to UvHandleTStar {}
+abstract UvPipeTStar(UvStreamTStar) to UvStreamTStar to UvHandleTStar {}
+abstract UvTimerTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvSignalTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvProcessTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvPrepareTStar(UvHandleTStar) to UvHandleTStar {}
-abstract UvPipeTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvIdleTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvFsPollTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvFsEventTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvCheckTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvAsyncTStar(UvHandleTStar) to UvHandleTStar {}
+
+abstract UvBufTArr(Abstract<"uv_buf_t_arr">) {}
+abstract CSockaddrStorageStar(Abstract<"sockaddr_storage_star">) {}
 
 //TODO: implement these
 private typedef UInt = Int;
@@ -122,9 +125,22 @@ extern class UV {
 	static public function alloc_async():UvAsyncTStar;
 	static public function alloc_timer():UvTimerTStar;
 	static public function alloc_check():UvCheckTStar;
+	static public function alloc_tcp():UvTcpTStar;
+	static public function alloc_sockaddr_storage():CSockaddrStorageStar;
+	static public function sockaddr_storage_size():Int;
+	static public function sockaddr_storage_to_pointer(addr:CSockaddrStorageStar):Pointer;
+	static public function sockaddr_of_storage(addr:CSockaddrStorageStar):CSockaddrStar;
+	// static public function alloc_udp():UvUdpTStar;
+	// static public function alloc_pipe():UvPipeTStar;
+	// static public function alloc_tty():UvTtyTStar;
 	static public function alloc_getaddrinfo():UvGetaddrinfoTStar;
 	static public function alloc_getnameinfo():UvGetnameinfoTStar;
 	static public function alloc_addrinfo(flags:Int, family:AddressFamily, socktype:SocketType, protocol:Int):CAddrinfoStar;
+	static public function alloc_shutdown():UvShutdownTStar;
+	static public function alloc_write():UvWriteTStar;
+	static public function alloc_connect():UvConnectTStar;
+	static public function address_family_to_af(family:AddressFamily):Int;
+	static public function address_family_to_pf(family:AddressFamily):Int;
 	static public function addrinfo_ai_family(ai:CAddrinfoStar):AddressFamily;
 	static public function addrinfo_ai_socktype(ai:CAddrinfoStar):SocketType;
 	static public function addrinfo_ai_protocol(ai:CAddrinfoStar):Int;
@@ -140,6 +156,10 @@ extern class UV {
 	static public function dirent_to_pointer(dirent:UvDirentTStar):Pointer;
 	static public function dirent_name(dirent:UvDirentTStar):Bytes;
 	static public function dirent_type(dirent:UvDirentTStar):DirEntryType;
+	static public function buf_to_pointer(buf:UvBufTArr):Pointer;
+	static public function alloc_buf(bytes:Bytes, bytesLength:Int):UvBufTArr;
+	static public function buf_base(buf:UvBufTArr):Bytes;
+	static public function buf_len(buf:UvBufTArr):U64;
 
 // Auto generated content :
 
@@ -159,9 +179,9 @@ extern class UV {
 	static public function fs_req_cleanup(req:UvFsTStar):Void;
 	static public function fs_close_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, use_uv_fs_cb:Bool):Int;
 	static public function fs_open_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, flags:Int, mode:Int, use_uv_fs_cb:Bool):Int;
-	static public function fs_read_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, bufs:Ref<UvBufT>, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
+	static public function fs_read_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, bufs:UvBufTArr, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
 	static public function fs_unlink_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, use_uv_fs_cb:Bool):Int;
-	static public function fs_write_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, bufs:Ref<UvBufT>, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
+	static public function fs_write_with_cb(loop:UvLoopTStar, req:UvFsTStar, file:UvFile, bufs:UvBufTArr, nbufs:UInt, offset:I64, use_uv_fs_cb:Bool):Int;
 	static public function fs_mkdir_with_cb(loop:UvLoopTStar, req:UvFsTStar, path:Bytes, mode:Int, use_uv_fs_cb:Bool):Int;
 	static public function fs_mkdtemp_with_cb(loop:UvLoopTStar, req:UvFsTStar, tpl:Bytes, use_uv_fs_cb:Bool):Int;
 	static public function fs_mkstemp_with_cb(loop:UvLoopTStar, req:UvFsTStar, tpl:Bytes, use_uv_fs_cb:Bool):Int;
@@ -317,10 +337,10 @@ extern class UV {
 	static public function accept(server:UvStreamTStar, client:UvStreamTStar):Int;
 	static public function read_start_with_cb(stream:UvStreamTStar):Int;
 	static public function read_stop(uvstreamtstar:UvStreamTStar):Int;
-	static public function write_with_cb(req:UvWriteTStar, handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt):Int;
-	static public function write2_with_cb(req:UvWriteTStar, handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt, send_handle:UvStreamTStar):Int;
-	static public function try_write(handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt):Int;
-	static public function try_write2(handle:UvStreamTStar, bufs:Ref<UvBufT>, nbufs:UInt, send_handle:UvStreamTStar):Int;
+	static public function write_with_cb(req:UvWriteTStar, handle:UvStreamTStar, bufs:UvBufTArr, nbufs:UInt):Int;
+	static public function write2_with_cb(req:UvWriteTStar, handle:UvStreamTStar, bufs:UvBufTArr, nbufs:UInt, send_handle:UvStreamTStar):Int;
+	static public function try_write(handle:UvStreamTStar, bufs:UvBufTArr, nbufs:UInt):Int;
+	static public function try_write2(handle:UvStreamTStar, bufs:UvBufTArr, nbufs:UInt, send_handle:UvStreamTStar):Int;
 	static public function is_readable(handle:UvStreamTStar):Int;
 	static public function is_writable(handle:UvStreamTStar):Int;
 	static public function stream_set_blocking(handle:UvStreamTStar, blocking:Int):Int;
@@ -361,8 +381,8 @@ extern class UV {
 	static public function udp_set_multicast_interface(handle:UvUdpTStar, interface_addr:Bytes):Int;
 	static public function udp_set_broadcast(handle:UvUdpTStar, on:Int):Int;
 	static public function udp_set_ttl(handle:UvUdpTStar, ttl:Int):Int;
-	static public function udp_send_with_cb(req:UvUdpSendTStar, handle:UvUdpTStar, bufs:Ref<UvBufT>, nbufs:UInt, addr:CSockaddrStar):Int;
-	static public function udp_try_send(handle:UvUdpTStar, bufs:Ref<UvBufT>, nbufs:UInt, addr:CSockaddrStar):Int;
+	static public function udp_send_with_cb(req:UvUdpSendTStar, handle:UvUdpTStar, bufs:UvBufTArr, nbufs:UInt, addr:CSockaddrStar):Int;
+	static public function udp_try_send(handle:UvUdpTStar, bufs:UvBufTArr, nbufs:UInt, addr:CSockaddrStar):Int;
 	static public function udp_recv_start_with_cb(handle:UvUdpTStar):Int;
 	static public function udp_using_recvmmsg(handle:UvUdpTStar):Int;
 	static public function udp_recv_stop(handle:UvUdpTStar):Int;
