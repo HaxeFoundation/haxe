@@ -1,5 +1,9 @@
 2021-XX-XX 4.2.4:
 
+	General improvements:
+
+	all : improved error messages upon directory creation failures (#10361)
+
 	Bugfixes:
 
 	all : fixed errors on final vars modification with `+=`, `*=` etc operations (#10325)
