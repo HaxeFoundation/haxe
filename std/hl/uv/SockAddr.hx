@@ -3,8 +3,7 @@ package hl.uv;
 /**
 	Network address families.
 
-	TODO:
-	Use native values
+	Does not match native values!
 **/
 enum abstract AddressFamily(Int) from Int {
 	var UNSPEC = -1;
@@ -37,6 +36,14 @@ abstract SockAddr(CSockaddrStorageStar) from CSockaddrStorageStar to CSockaddrSt
 	@:hlNative("uv", "sockaddr_cast_ptr")
 	static function castPtr(pointer:Dynamic):SockAddr
 		return null;
+
+	@:from static inline function ofSockaddrStar(addr:Null<CSockaddrStar>):SockAddr {
+		return addr.sockaddr_to_storage();
+	}
+
+	@:to inline function toSockaddrStar():CSockaddrStar {
+		return this.sockaddr_of_storage();
+	}
 
 	/**
 		Converts a string and port number to an IPv4 struct sockaddr.

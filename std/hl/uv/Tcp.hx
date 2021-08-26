@@ -94,7 +94,7 @@ class Tcp extends Stream<UvTcpTStar> {
 		Bind the handle to an address and port.
 	**/
 	public function bind(addr:SockAddr, ?ipv6Only:Bool):Void {
-		handle(h -> h.tcp_bind(addr.sockaddr_of_storage(), (ipv6Only ? UV_TCP_IPV6ONLY : 0)).resolve());
+		handle(h -> h.tcp_bind(addr, (ipv6Only ? UV_TCP_IPV6ONLY : 0)).resolve());
 	}
 
 	/**
@@ -133,7 +133,7 @@ class Tcp extends Stream<UvTcpTStar> {
 	public function connect(addr:SockAddr, callback:(e:UVError)->Void):Void {
 		handle(h -> {
 			var req = Stream.createConnect();
-			var result = req.r.tcp_connect_with_cb(h, addr.sockaddr_of_storage());
+			var result = req.r.tcp_connect_with_cb(h, addr);
 			if(result < 0) {
 				req.freeReq();
 				result.throwErr();

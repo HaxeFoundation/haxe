@@ -41,7 +41,6 @@ private class ShutdownRequest extends Request<UvShutdownTStar> {
 	var callback:(status:Int)->Void;
 }
 
-
 /**
 	Stream handles provide an abstraction of a duplex communication channel.
 	This is a base type for `Tcp`, `Pipe` and `Tty`.
@@ -49,11 +48,17 @@ private class ShutdownRequest extends Request<UvShutdownTStar> {
 	@see http://docs.libuv.org/en/v1.x/stream.html
 **/
 abstract class Stream<T:UvStreamTStar> extends Handle<T> {
+	var onAlloc:(buf:Buffer, size:Int)->Void;
 	var onConnection:(status:Int)->Void;
 	var onRead:(nRead:I64, buf:UvBufTArr)->Void;
 
 	static inline function createConnect():ConnectRequest {
 		return new ConnectRequest(UV.alloc_connect());
+	}
+
+	function new(handle:T) {
+		super(handle);
+		onAlloc = (buf, size) -> buf.set(new Bytes(size), size);
 	}
 
 	/**
@@ -87,6 +92,19 @@ abstract class Stream<T:UvStreamTStar> extends Handle<T> {
 	}
 
 	/**
+		Set buffer allocation function for `readStart`.
+
+		A suggested size (65536 at the moment in most cases) is provided, but it’s
+		just an indication, not related in any way to the pending data to be read.
+		The user is free to allocate the amount of memory they decide.
+
+		By default it's `(buf, size) -> buf.set(new hl.Bytes(size), size)`
+	**/
+	public function setAlloc(alloc:(buf:Buffer, size:Int)->Void) {
+		onAlloc = alloc;
+	}
+
+	/**
 		Read data from an incoming stream.
 
 		The `callback` will be called several times until there is no more
@@ -102,17 +120,11 @@ abstract class Stream<T:UvStreamTStar> extends Handle<T> {
 				var e = bytesRead.translate_uv_error();
 				var data = switch e {
 					case UV_NOERR:
-						@:privateAccess Bytes.copy(buf.buf_base(), bytesRead); // TODO: avoid copying bytes, but make sure it's automatically freed by GC
+						buf.buf_base();
 					case _:
 						bytesRead = 0;
 						null;
 				}
-				// if(buf != null) {
-				// 	var base = buf.buf_base();
-				// 	if(base != null)
-				// 		base.bytes_to_pointer().free();
-				// 	buf.buf_to_pointer().free();
-				// }
 				callback(e, data, bytesRead);
 			}
 		});
@@ -157,9 +169,7 @@ abstract class Stream<T:UvStreamTStar> extends Handle<T> {
 		return handleReturn(h -> {
 			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
 			var result = h.try_write(buf, 1);
-			if(result < 0)
-				result.throwErr();
-			return result;
+			return result.resolve();
 		});
 	}
 

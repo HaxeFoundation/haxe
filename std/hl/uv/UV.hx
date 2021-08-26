@@ -130,7 +130,9 @@ extern class UV {
 	static public function sockaddr_storage_size():Int;
 	static public function sockaddr_storage_to_pointer(addr:CSockaddrStorageStar):Pointer;
 	static public function sockaddr_of_storage(addr:CSockaddrStorageStar):CSockaddrStar;
-	// static public function alloc_udp():UvUdpTStar;
+	static public function sockaddr_to_storage(addr:CSockaddrStar):CSockaddrStorageStar;
+	static public function alloc_udp():UvUdpTStar;
+	static public function alloc_udp_send():UvUdpSendTStar;
 	// static public function alloc_pipe():UvPipeTStar;
 	// static public function alloc_tty():UvTtyTStar;
 	static public function alloc_getaddrinfo():UvGetaddrinfoTStar;
@@ -158,6 +160,7 @@ extern class UV {
 	static public function dirent_type(dirent:UvDirentTStar):DirEntryType;
 	static public function buf_to_pointer(buf:UvBufTArr):Pointer;
 	static public function alloc_buf(bytes:Bytes, bytesLength:Int):UvBufTArr;
+	static public function buf_set(buf:UvBufTArr, base:Bytes, length:Int):Void;
 	static public function buf_base(buf:UvBufTArr):Bytes;
 	static public function buf_len(buf:UvBufTArr):U64;
 
@@ -263,7 +266,6 @@ extern class UV {
 	static public function metrics_idle_time(loop:UvLoopTStar):U64;
 	static public function guess_handle(file:UvFile):UvHandleType;
 	static public function library_shutdown():Void;
-	static public function buf_init(base:Bytes, len:UInt):UvBufT;
 	static public function resident_set_memory(rss:Ref<U64>):Int;
 	static public function uptime(uptime:Ref<Float>):Int;
 	static public function getrusage(rusage:UvRusageTStar):Int;
