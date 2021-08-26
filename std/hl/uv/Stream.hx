@@ -56,6 +56,10 @@ abstract class Stream<T:UvStreamTStar> extends Handle<T> {
 		return new ConnectRequest(UV.alloc_connect());
 	}
 
+	static inline function createWrite():WriteRequest {
+		return new WriteRequest(UV.alloc_write());
+	}
+
 	function new(handle:T) {
 		super(handle);
 		onAlloc = (buf, size) -> buf.set(new Bytes(size), size);
@@ -142,9 +146,8 @@ abstract class Stream<T:UvStreamTStar> extends Handle<T> {
 	**/
 	public function write(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {
 		handle(h -> {
-			var req = new WriteRequest(UV.alloc_write());
+			var req = createWrite();
 			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
-			// trace({length:length, buf_len:buf.buf_len()});
 			var result = req.r.write_with_cb(h, buf, 1);
 			if(result < 0) {
 				req.freeReq();

@@ -39,8 +39,7 @@ enum ReceiveHandle {
 
 	@see http://docs.libuv.org/en/v1.x/pipe.html
 **/
-@:forward
-abstract Pipe(Stream) to Stream to RefUvHandleT {
+class Pipe extends Stream<UvPipeTStar> {
 	/**
 		Initialize a pipe handle.
 
@@ -49,21 +48,37 @@ abstract Pipe(Stream) to Stream to RefUvHandleT {
 		that will be passing the handles should have this flag set, not the
 		listening pipe that `accept()` is called on.
 	**/
-	@:hlNative("uv", "pipe_init_wrap")
-	static public function init(loop:Loop, ?ipc:Bool):Pipe
-		return null;
+	static public function init(loop:Loop, ipc:Bool = false):Pipe {
+		loop.checkLoop();
+		var pipe = new Pipe(UV.alloc_pipe());
+		var result = loop.pipe_init(pipe.h, ipc ? 1 : 0);
+		if(result < 0) {
+			pipe.freeHandle();
+			result.throwErr();
+		}
+		return pipe;
+	}
 
 	/**
 		Bind the pipe to a file path (Unix) or a name (Windows).
 	**/
-	@:hlNative("uv", "pipe_bind_wrap")
-	public function bind(name:String):Void {}
+	public function bind(name:String):Void {
+		handle(h -> h.pipe_bind(name.toUTF8()).resolve());
+	}
 
 	/**
 		Connect to the Unix domain socket or the named pipe.
 	**/
-	@:hlNative("uv", "pipe_connect_wrap")
-	public function connect(name:String, callback:(e:UVError)->Void):Void {}
+	public function connect(name:String, callback:(e:UVError)->Void):Void {
+		handle(h -> {
+			var req = Stream.createConnect();
+			req.r.pipe_connect_with_cb(h, name.toUTF8());
+			req.callback = status -> {
+				req.freeReq();
+				callback(status.translate_uv_error());
+			}
+		});
+	}
 
 	/**
 		Set the number of pending pipe instance handles when the pipe server is
@@ -71,33 +86,43 @@ abstract Pipe(Stream) to Stream to RefUvHandleT {
 
 		This setting applies to Windows only.
 	**/
-	@:hlNative("uv", "pipe_pending_instances_wrap")
-	public function pendingInstances(count:Int):Void {}
+	public function pendingInstances(count:Int):Void {
+		handle(h -> h.pipe_pending_instances(count));
+	}
 
 	/**
 		Get the current address to which the handle is bound.
 	**/
-	public inline function getSockName():String
-		return @:privateAccess String.fromUTF8(getsockname_wrap());
-
-	@:hlNative("uv", "pipe_getsockname_wrap") function getsockname_wrap():Bytes
-		return null;
+	public inline function getSockName():String {
+		return handleReturn(h -> getName(h, false));
+	}
 
 	/**
 		Get the address of the peer connected to the handle.
 	**/
-	public inline function getPeerName():String
-		return @:privateAccess String.fromUTF8(getpeername_wrap());
+	public inline function getPeerName():String {
+		return handleReturn(h -> getName(h, true));
+	}
 
-	@:hlNative("uv", "pipe_getpeername_wrap") function getpeername_wrap():Bytes
-		return null;
+	static inline function getName(h:UvPipeTStar, getPeer:Bool) {
+		var size = I64.ofInt(256);
+		var buf = null;
+		var eNoBufs = UVError.UV_ENOBUFS.toNative();
+		var result = eNoBufs;
+		while (result == eNoBufs) {
+			buf = new Bytes(size.toInt());
+			result = getPeer ? h.pipe_getpeername(buf,Ref.make(size)) : h.pipe_getsockname(buf,Ref.make(size));
+		}
+		result.resolve();
+		return buf.fromUTF8();
+	}
 
 	/**
 		Amount of handles waiting to be received.
 	**/
-	@:hlNative("uv", "pipe_pending_count_wrap")
-	public function pendingCount():Int
-		return 0;
+	public function pendingCount():Int {
+		return handleReturn(h -> h.pipe_pending_count());
+	}
 
 	/**
 		Used to receive handles over IPC pipes.
@@ -105,8 +130,9 @@ abstract Pipe(Stream) to Stream to RefUvHandleT {
 		First - call `pendingCount()`, if it’s > 0 then initialize a handle of the
 		given type, returned by `pendingType()` and call `accept(handle)`.
 	**/
-	@:hlNative("uv", "pipe_pending_type_wrap") public function pendingType():HandleType
-		return UV_UNKNOWN_HANDLE;
+	public function pendingType():HandleType {
+		return handleReturn(h -> h.pipe_pending_type());
+	}
 
 	/**
 		This call is used in conjunction with `listen()` to accept incoming connections.
@@ -116,13 +142,30 @@ abstract Pipe(Stream) to Stream to RefUvHandleT {
 
 		@see http://docs.libuv.org/en/v1.x/stream.html#c.uv_accept
 	**/
-	@:hlNative("uv", "accept_wrap")
-	public function accept(client:Stream):Void {}
+	public function accept<T:UvStreamTStar>(client:Stream<T>):Void {
+		handle(server -> client.handle(client -> {
+			server.accept(client).resolve();
+		}));
+	}
 
 	/**
 		Extended write function for sending handles over a pipe.
 		The pipe must be initialized with ipc == true.
 	**/
-	@:hlNative("uv", "write2_wrap")
-	public function write2(bytes:Bytes, length:Int, sendHandle:Stream, callback:(e:UVError)->Void):Void {}
+	public function write2<T:UvStreamTStar>(bytes:Bytes, length:Int, sendHandle:Stream<T>, callback:(e:UVError)->Void):Void {
+		handle(h -> sendHandle.handle(sendHandle -> {
+			var req = Stream.createWrite();
+			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
+			var result = req.r.write2_with_cb(h, buf, 1, sendHandle);
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
+			}
+			req.data = bytes;
+			req.callback = status -> {
+				req.freeReq();
+				callback(status.translate_uv_error());
+			}
+		}));
+	}
 }

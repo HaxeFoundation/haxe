@@ -100,4 +100,9 @@ enum abstract UVError(Int) {
 	public function description():String {
 		return @:privateAccess String.fromUTF8(this.translate_to_uv_error().strerror());
 	}
+
+	@:allow(hl.uv)
+	inline function toNative():Int {
+		return this.translate_to_uv_error();
+	}
 }

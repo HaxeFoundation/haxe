@@ -133,7 +133,7 @@ extern class UV {
 	static public function sockaddr_to_storage(addr:CSockaddrStar):CSockaddrStorageStar;
 	static public function alloc_udp():UvUdpTStar;
 	static public function alloc_udp_send():UvUdpSendTStar;
-	// static public function alloc_pipe():UvPipeTStar;
+	static public function alloc_pipe():UvPipeTStar;
 	// static public function alloc_tty():UvTtyTStar;
 	static public function alloc_getaddrinfo():UvGetaddrinfoTStar;
 	static public function alloc_getnameinfo():UvGetnameinfoTStar;
