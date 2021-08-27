@@ -31,49 +31,40 @@ class Version {
 	/**
 		Returns the libuv version as a string.
 	**/
-	static public inline function string():String
-		return @:privateAccess String.fromUTF8(stringWrap());
-
-	@:hlNative("uv","version_string_wrap")
-	static function stringWrap():Bytes
-		return null;
+	static public inline function string():String {
+		return UV.version_string().fromUTF8();
+	}
 
 	/**
 		libuv major version number.
 	**/
 	static public var major(get,never):Int;
-	@:hlNative("uv","version_major")
-	static function get_major():Int return 0;
+	static inline function get_major():Int return UV.version_major();
 
 	/**
 		libuv minor version number.
 	**/
 	static public var minor(get,never):Int;
-	@:hlNative("uv","version_minor")
-	static function get_minor():Int return 0;
+	static inline function get_minor():Int return UV.version_minor();
 
 	/**
 		libuv patch version number.
 	**/
 	static public var patch(get,never):Int;
-	@:hlNative("uv","version_patch")
-	static function get_patch():Int return 0;
+	static inline function get_patch():Int return UV.version_patch();
 
 	/**
 		`true` if the libuv version is a release, and `false` if it is a development version.
 		This does not depend on Haxe compilation arguments and will almost always be `true`.
 	**/
 	static public var isRelease(get,never):Bool;
-	@:hlNative("uv","version_is_release")
-	static function get_isRelease():Bool return false;
+	static inline function get_isRelease():Bool return UV.version_is_release();
 
 	/**
 		libuv version suffix for development releases.
 	**/
 	static public var suffix(get,never):String;
-	static inline function get_suffix():String return @:privateAccess String.fromUTF8(get_suffixWrap());
-	@:hlNative("uv","version_suffix")
-	static function get_suffixWrap():Bytes return null;
+	static inline function get_suffix():String return UV.version_suffix().fromUTF8();
 
 	/**
 		Returns the libuv version packed into a single integer.
@@ -82,6 +73,5 @@ class Version {
 		least significant bits. E.g. for libuv 1.2.3 this would be 0x010203.
 	**/
 	static public var hex(get,never):Int;
-	@:hlNative("uv","version_hex")
-	static function get_hex():Int return 0;
+	static inline function get_hex():Int return UV.version_hex();
 }
