@@ -55,7 +55,7 @@ abstract Loop(UvLoopTStar) from UvLoopTStar to UvLoopTStar {
 		var loop = UV.alloc_loop();
 		var result = loop.loop_init();
 		if(result < 0) {
-			loop.loop_to_pointer().free();
+			loop.free_loop();
 			result.throwErr();
 		}
 		return loop;
@@ -69,7 +69,7 @@ abstract Loop(UvLoopTStar) from UvLoopTStar to UvLoopTStar {
 	public function close():Void {
 		this.checkLoop();
 		this.loop_close().resolve();
-		this.loop_to_pointer().free();
+		this.free_loop();
 	}
 
 	/**

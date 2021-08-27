@@ -127,7 +127,7 @@ class Dir {
 				}
 				switch d.dir_dirent(0) {
 					case null:
-					case dirent: dirent.dirent_to_pointer().free();
+					case dirent: dirent.free_dirent();
 				}
 				req.freeReq();
 				callback(e, entries);

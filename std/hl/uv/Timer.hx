@@ -34,21 +34,21 @@ class Timer extends Handle<UvTimerTStar> {
 	@:keep var onTick:()->Void;
 
 	/** The timer repeat value. */
-	public var repeat(get,set):Int; // TODO: change to I64
+	public var repeat(get,set):I64;
 
-	function get_repeat():Int
-		return handleReturn(h -> h.timer_get_repeat().toInt());
+	function get_repeat():I64
+		return handleReturn(h -> h.timer_get_repeat());
 
-	function set_repeat(v:Int):Int {
-		handle(h -> h.timer_set_repeat(I64.ofInt(v)));
+	function set_repeat(v:I64):I64 {
+		handle(h -> h.timer_set_repeat(v));
 		return v;
 	}
 
 	/** Get the timer due value or 0 if it has expired. */
-	public var dueIn(get,never):Int; // TODO: change to I64
+	public var dueIn(get,never):I64;
 
-	function get_dueIn():Int
-		return handleReturn(h -> h.timer_get_due_in().toInt());
+	function get_dueIn():I64
+		return handleReturn(h -> h.timer_get_due_in());
 
 	/**
 		Initialize the timer.
@@ -74,9 +74,9 @@ class Timer extends Handle<UvTimerTStar> {
 
 		TODO: change `timeout` and `repeat` to I64
 	**/
-	public function start(callback:()->Void, timeout:Int, repeat:Int):Void {
+	public function start(callback:()->Void, timeout:I64, repeat:I64):Void {
 		handle(h -> {
-			h.timer_start_with_cb(I64.ofInt(timeout), I64.ofInt(repeat)).resolve();
+			h.timer_start_with_cb(timeout, repeat).resolve();
 			onTick = callback;
 		});
 	}

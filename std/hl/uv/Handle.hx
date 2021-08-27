@@ -78,7 +78,7 @@ abstract class Handle<T:UvHandleTStar> {
 
 	@:allow(hl.uv) inline function freeHandle():Void {
 		_h.handle_set_data_with_gc(null);
-		_h.handle_to_pointer().free();
+		_h.free_handle();
 		_h = null;
 	}
 

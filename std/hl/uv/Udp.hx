@@ -184,7 +184,7 @@ class Udp extends Handle<UvUdpTStar> {
 			var size = UV.sockaddr_storage_size();
 			var result = h.udp_getsockname(addr.sockaddr_of_storage(), Ref.make(size));
 			if(result < 0) {
-				addr.sockaddr_storage_to_pointer().free();
+				addr.free_sockaddr_storage();
 				result.throwErr();
 			}
 			return addr;
@@ -200,7 +200,7 @@ class Udp extends Handle<UvUdpTStar> {
 			var size = UV.sockaddr_storage_size();
 			var result = h.udp_getpeername(addr.sockaddr_of_storage(), Ref.make(size));
 			if(result < 0) {
-				addr.sockaddr_storage_to_pointer().free();
+				addr.free_sockaddr_storage();
 				result.throwErr();
 			}
 			return addr;
@@ -275,7 +275,7 @@ class Udp extends Handle<UvUdpTStar> {
 			var buf = UV.alloc_buf(bytes, length);
 			var result = req.r.udp_send_with_cb(h, buf, 1, addr);
 			if(result < 0) {
-				buf.buf_to_pointer().free();
+				buf.free_buf();
 				req.freeReq();
 				result.throwErr();
 			}
@@ -299,7 +299,7 @@ class Udp extends Handle<UvUdpTStar> {
 		return handleReturn(h -> {
 			var buf = UV.alloc_buf(bytes, length);
 			var result = h.udp_try_send(buf, 1, addr);
-			buf.buf_to_pointer().free();
+			buf.free_buf();
 			return result.resolve();
 		});
 	}
@@ -330,7 +330,7 @@ class Udp extends Handle<UvUdpTStar> {
 	public function recvStart(callback:(e:UVError, data:Null<Bytes>, bytesRead:Int, addr:Null<SockAddr>, flags:RecvFlags)->Void):Void {
 		handle(h -> {
 			h.udp_recv_start_with_cb().resolve();
-			onRecv = (nRead, buf, addr, flags) -> { // TODO: free addr
+			onRecv = (nRead, buf, addr, flags) -> { // buf is freed on C-side
 				var bytesRead = nRead.toInt();
 				var e = bytesRead.translate_uv_error();
 				var data = switch e {
@@ -340,7 +340,7 @@ class Udp extends Handle<UvUdpTStar> {
 						bytesRead = 0;
 						null;
 				}
-				callback(e, data, bytesRead, addr, new RecvFlags(flags));
+				callback(e, data, bytesRead, addr, new RecvFlags(flags)); // TODO: copy addr. Otherwise it's deallocated by libuv by the end of callback
 			}
 		});
 	}

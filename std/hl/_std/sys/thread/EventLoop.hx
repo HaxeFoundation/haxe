@@ -1,5 +1,6 @@
 package sys.thread;
 
+import hl.I64;
 import hl.uv.Loop;
 import hl.uv.Async;
 import hl.uv.Timer as UVTimer;
@@ -51,7 +52,7 @@ class EventLoop {
 		mutex.acquire();
 		pending.push(() -> {
 			e.timer = UVTimer.init(handle);
-			e.timer.start(e.run, intervalMs, intervalMs < 1 ? 1 : intervalMs);
+			e.timer.start(e.run, I64.ofInt(intervalMs), I64.ofInt(intervalMs < 1 ? 1 : intervalMs));
 		});
 		mutex.release();
 		wakeup.send();
@@ -121,7 +122,7 @@ class EventLoop {
 			timer.start(() -> {
 				timer.stop();
 				timer.close();
-			}, Std.int(timeout * 1000), 0);
+			}, I64.ofInt(Std.int(timeout * 1000)), I64.ofInt(0));
 			return (handle:Loop).run(Once);
 		} else {
 			return (handle:Loop).run(Once);

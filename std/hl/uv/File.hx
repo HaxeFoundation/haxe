@@ -158,7 +158,7 @@ class FsRequest extends Request<UvFsTStar> {
 	override function freeReq() {
 		r.req_set_data_with_gc(null);
 		r.fs_req_cleanup();
-		r.req_to_pointer().free();
+		r.free_req();
 		_r = null;
 	}
 }

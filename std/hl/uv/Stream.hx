@@ -147,14 +147,16 @@ abstract class Stream<T:UvStreamTStar> extends Handle<T> {
 	public function write(bytes:hl.Bytes, length:Int, callback:(e:UVError)->Void):Void {
 		handle(h -> {
 			var req = createWrite();
-			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
+			var buf = UV.alloc_buf(bytes, length);
 			var result = req.r.write_with_cb(h, buf, 1);
 			if(result < 0) {
+				buf.free_buf();
 				req.freeReq();
 				result.throwErr();
 			}
 			req.data = bytes;
 			req.callback = status -> {
+				buf.free_buf();
 				req.freeReq();
 				callback(status.translate_uv_error());
 			}
@@ -170,8 +172,9 @@ abstract class Stream<T:UvStreamTStar> extends Handle<T> {
 	**/
 	public function tryWrite(bytes:hl.Bytes, length:Int):Int {
 		return handleReturn(h -> {
-			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
+			var buf = UV.alloc_buf(bytes, length);
 			var result = h.try_write(buf, 1);
+			buf.free_buf();
 			return result.resolve();
 		});
 	}

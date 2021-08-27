@@ -71,7 +71,7 @@ abstract class Request<T:UvReqTStar> {
 
 	@:allow(hl.uv) function freeReq() {
 		_r.req_set_data_with_gc(null);
-		_r.req_to_pointer().free();
+		_r.free_req();
 		_r = null;
 	}
 

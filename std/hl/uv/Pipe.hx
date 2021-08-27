@@ -155,14 +155,16 @@ class Pipe extends Stream<UvPipeTStar> {
 	public function write2<T:UvStreamTStar>(bytes:Bytes, length:Int, sendHandle:Stream<T>, callback:(e:UVError)->Void):Void {
 		handle(h -> sendHandle.handle(sendHandle -> {
 			var req = Stream.createWrite();
-			var buf = UV.alloc_buf(bytes, length); // TODO: need to free buf manually?
+			var buf = UV.alloc_buf(bytes, length);
 			var result = req.r.write2_with_cb(h, buf, 1, sendHandle);
 			if(result < 0) {
+				buf.free_buf();
 				req.freeReq();
 				result.throwErr();
 			}
 			req.data = bytes;
 			req.callback = status -> {
+				buf.free_buf();
 				req.freeReq();
 				callback(status.translate_uv_error());
 			}
