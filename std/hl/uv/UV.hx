@@ -36,6 +36,8 @@ import hl.uv.Loop;
 import hl.uv.File;
 import hl.uv.Tty;
 import hl.uv.Udp;
+import hl.uv.Process;
+import hl.uv.Signal;
 
 typedef UvUidT = Int;
 typedef UvGidT = Int;
@@ -77,6 +79,7 @@ abstract UvAsyncTStar(UvHandleTStar) to UvHandleTStar {}
 
 abstract UvBufTArr(Abstract<"uv_buf_t_arr">) {}
 abstract CSockaddrStorageStar(Abstract<"sockaddr_storage_star">) {}
+abstract UvStdioContainerTStar(Abstract<"uv_stdio_container_t_star">) {}
 
 //TODO: implement these
 private typedef UInt = Int;
@@ -113,9 +116,13 @@ extern class UV {
 	}
 
 	static public function free(ptr:Pointer):Void;
+	static public function alloc_char_array(length:Int):Ref<Bytes>;
+	static public function free_char_array(a:Ref<Bytes>):Void;
 	static public function bytes_to_pointer(bytes:Bytes):Pointer;
 	static public function translate_uv_error(uvErrno:Int):UVError;
 	static public function translate_to_uv_error(errno:Int):Int;
+	static public function translate_sys_signal(sigNum:Int):SigNum;
+	static public function translate_to_sys_signal(sigNum:SigNum):Int;
 	static public function handle_to_pointer(data:UvHandleTStar):Pointer;
 	static public function handle_set_data_with_gc<T:UvHandleTStar>(handle:UvHandleTStar, data:Handle<T>):Void;
 	static public function req_set_data_with_gc<T:UvReqTStar>(req:UvReqTStar, data:Request<T>):Void;
@@ -134,7 +141,11 @@ extern class UV {
 	static public function alloc_udp():UvUdpTStar;
 	static public function alloc_udp_send():UvUdpSendTStar;
 	static public function alloc_pipe():UvPipeTStar;
-	// static public function alloc_tty():UvTtyTStar;
+	static public function alloc_stdio_container(stdio:NativeArray<Dynamic>, count:Int):UvStdioContainerTStar; //Dynamic should contain hl.uv.Process.ProcessStdio instances
+	static public function free_stdio_container(stdio:UvStdioContainerTStar):Void;
+	static public function alloc_process_options(file:Bytes, args:Ref<Bytes>, env:Ref<Bytes>, cwd:Bytes, flags:Int, stdio_count:Int, stdio:UvStdioContainerTStar, uid:UvUidT, gid:UvGidT):UvProcessOptionsTStar;
+	static public function free_process_options(options:UvProcessOptionsTStar):Void;
+	static public function alloc_process():UvProcessTStar;
 	static public function alloc_getaddrinfo():UvGetaddrinfoTStar;
 	static public function alloc_getnameinfo():UvGetnameinfoTStar;
 	static public function alloc_addrinfo(flags:Int, family:AddressFamily, socktype:SocketType, protocol:Int):CAddrinfoStar;

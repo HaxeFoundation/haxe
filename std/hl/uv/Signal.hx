@@ -23,11 +23,9 @@
 package hl.uv;
 
 /**
-	Predefined signal numbers.
-	`hl.uv.Signal` methods also accept native signal numbers instead of these constants.
+	Predefined signal numbers (don't match native signal values).
 
-	TODO:
-	Find how to set these constants to native signal numbers.
+	`hl.uv.Signal` methods also accept native signal numbers instead of these constants.
 **/
 enum abstract SigNum(Int) from Int to Int {
 	var SIGABRT = -1;
@@ -62,7 +60,7 @@ enum abstract SigNum(Int) from Int to Int {
 	@see http://docs.libuv.org/en/v1.x/signal.html
 **/
 @:forward
-abstract Signal(Handle) to Handle {
+abstract Signal(UvHandleTStar) to UvHandleTStar {
 
 	/** Signal being monitored by this handle. */
 	public var sigNum(get,never):SigNum;

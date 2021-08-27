@@ -22,6 +22,7 @@
 
 package hl.uv;
 
+import hl.types.ArrayBase;
 import hl.uv.Signal.SigNum;
 import hl.types.ArrayObj;
 import hl.types.BytesMap;
@@ -54,16 +55,16 @@ enum ProcessStdio {
 	/**
 		Connect child proces descriptor to the specified stream.
 	**/
-	STREAM(stream:Stream);
+	STREAM<T:UvStreamTStar>(stream:Stream<T>);
 }
 
 /**
 	Determine the direction of flow from the child process' perspective.
 **/
-enum abstract StdioPipePermissions(Int) {
-	var READ = 1;
-	var WRITE = 2;
-	var DUPLEX = 3;
+enum abstract StdioPipePermissions(Int) to Int {
+	var READ = UV_READABLE_PIPE;
+	var WRITE = UV_WRITABLE_PIPE;
+	var DUPLEX = UV_READABLE_PIPE | UV_WRITABLE_PIPE;
 }
 
 /**
@@ -112,16 +113,92 @@ typedef ProcessOptions = {
 }
 
 /**
+	Flags specifying how a stdio should be transmitted to the child process.
+**/
+enum abstract StdioFlag(Int) to Int {
+	var UV_IGNORE = 0x00;
+	var UV_CREATE_PIPE = 0x01;
+	var UV_INHERIT_FD = 0x02;
+	var UV_INHERIT_STREAM = 0x04;
+	/**
+		When UV_CREATE_PIPE is specified, UV_READABLE_PIPE and UV_WRITABLE_PIPE
+		determine the direction of flow, from the child process' perspective. Both
+		flags may be specified to create a duplex data stream.
+	**/
+	var UV_READABLE_PIPE = 0x10;
+	var UV_WRITABLE_PIPE = 0x20;
+	/**
+		When UV_CREATE_PIPE is specified, specifying UV_NONBLOCK_PIPE opens the
+		handle in non-blocking mode in the child. This may cause loss of data,
+		if the child is not designed to handle to encounter this mode,
+		but can also be significantly more efficient.
+	**/
+	var UV_NONBLOCK_PIPE = 0x40;
+}
+
+/*
+ * These are the flags that can be used for the uv_process_options.flags field.
+ */
+enum abstract ProcessFlag(Int) to Int {
+	/**
+		Set the child process' user id. The user id is supplied in the `uid` field
+		of the options struct. This does not work on windows; setting this flag
+		will cause uv_spawn() to fail.
+	**/
+	var UV_PROCESS_SETUID = 1 << 0;
+	/**
+		Set the child process' group id. The user id is supplied in the `gid`
+		field of the options struct. This does not work on windows; setting this
+		flag will cause uv_spawn() to fail.
+	**/
+	var UV_PROCESS_SETGID = 1 << 1;
+	/**
+		Do not wrap any arguments in quotes, or perform any other escaping, when
+		converting the argument list into a command line string. This option is
+		only meaningful on Windows systems. On Unix it is silently ignored.
+	**/
+	var UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS = 1 << 2;
+	/**
+		Spawn the child process in a detached state - this will make it a process
+		group leader, and will effectively enable the child to keep running after
+		the parent exits.  Note that the child process will still keep the
+		parent's event loop alive unless the parent process calls uv_unref() on
+		the child's process handle.
+	**/
+	var UV_PROCESS_DETACHED = 1 << 3;
+	/**
+		Hide the subprocess window that would normally be created. This option is
+		only meaningful on Windows systems. On Unix it is silently ignored.
+	**/
+	var UV_PROCESS_WINDOWS_HIDE = 1 << 4;
+	/**
+		Hide the subprocess console window that would normally be created. This
+		option is only meaningful on Windows systems. On Unix it is silently
+		ignored.
+	**/
+	var UV_PROCESS_WINDOWS_HIDE_CONSOLE = 1 << 5;
+	/**
+		Hide the subprocess GUI window that would normally be created. This
+		option is only meaningful on Windows systems. On Unix it is silently
+		ignored.
+	**/
+	var UV_PROCESS_WINDOWS_HIDE_GUI = 1 << 6;
+}
+
+/**
 	Process handles will spawn a new process and allow the user to control it
 	and establish communication channels with it using streams.
 
 	@see http://docs.libuv.org/en/v1.x/process.html
 **/
-@:forward
-abstract Process(Handle) to Handle {
+class Process extends Handle<UvProcessTStar> {
+	@:keep var onExit:(p:Process, exitStatus:I64, termSignal:SigNum)->Void;
+
 	/** The PID of the spawned process. It’s set after calling `spawn()`. */
 	public var pid(get,never):Int;
-	@:hlNative("uv", "process_pid") public function get_pid():Int return 0;
+	function get_pid():Int {
+		return handleReturn(h -> h.process_get_pid());
+	}
 
 	/**
 		Disables (tries) file descriptor inheritance for inherited descriptors.
@@ -129,8 +206,9 @@ abstract Process(Handle) to Handle {
 		The effect is that child processes spawned by this process don’t accidentally
 		inherit these handles.
 	**/
-	@:hlNative("uv", "disable_stdio_inheritance")
-	static public function disableStdioInheritance():Void {}
+	static public inline function disableStdioInheritance():Void {
+		UV.disable_stdio_inheritance();
+	}
 
 	/**
 		Initializes the process handle and starts the process.
@@ -139,58 +217,78 @@ abstract Process(Handle) to Handle {
 		`args[0]` should be the path to the program.
 	**/
 	static public function spawn(loop:Loop, cmd:String, args:Array<String>, ?options:ProcessOptions):Process {
-		inline function toNative<T>(array:Array<T>):NativeArray<T> {
-			var result = new NativeArray<T>(array.length);
-			for(i => v in array)
-				result[i] = v;
-			return result;
-		}
-		if(options == null) {
-			return spawn_wrap(loop, cmd, toNative(args));
-		} else {
-			var stdio = null;
-			if(options.stdio != null)
-				stdio = toNative(options.stdio);
-			var env = null;
-			if(options.env != null){
-				var envArray = [for(k => v in options.env) '$k=$v'];
-				env = toNative(envArray);
+		loop.checkLoop();
+
+		var cArgs = UV.alloc_char_array(args.length + 1);
+		cArgs.offset(args.length).set(null);
+		for(i => a in args)
+			cArgs.offset(i).set(a.toUTF8());
+
+		var env = null;
+		var cwd = null;
+		var flags = 0;
+		var stdioCount = 0;
+		var stdio = null;
+		var uid = 0;
+		var gid = 0;
+		if(options != null) {
+			if(options.stdio != null) {
+				stdioCount = options.stdio.length;
+				stdio = UV.alloc_stdio_container(@:privateAccess (cast options.stdio:ArrayObj<Dynamic>).array, stdioCount);
 			}
-			return spawn_wrap(loop, cmd, toNative(args), options.onExit, stdio, env, options.cwd,
-				options.uid, options.gid, options.detached, options.windowsVerbatimArguments,
-				options.windowsHide, options.windowsHideConsole, options.windowsHideGui);
+			if( options.cwd != null )
+				cwd = options.cwd.toUTF8();
+			if(options.uid != null) {
+				uid = options.uid;
+				flags |= UV_PROCESS_SETUID;
+			}
+			if(options.gid != null) {
+				gid = options.gid;
+				flags |= UV_PROCESS_SETGID;
+			}
+			if(options.detached)
+				flags |= UV_PROCESS_DETACHED;
+			if(options.windowsVerbatimArguments)
+				flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+			if(options.windowsHide)
+				flags |= UV_PROCESS_WINDOWS_HIDE;
+			if(options.windowsHideConsole)
+				flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
+			if(options.windowsHideGui)
+				flags |= UV_PROCESS_WINDOWS_HIDE_GUI;
 		}
+		var cOptions = UV.alloc_process_options(cmd.toUTF8(), cArgs, env, cwd, flags, stdioCount, stdio, uid, gid);
+
+		var process = new Process(UV.alloc_process());
+		if(options != null && options.onExit != null)
+			process.onExit = options.onExit;
+
+		var result = loop.spawn(process.h, cOptions);
+
+		if(cArgs != null) env.free_char_array();
+		if(env != null) env.free_char_array();
+		if(stdio != null) stdio.free_stdio_container();
+		cOptions.free_process_options();
+
+		if(result < 0) {
+			process.freeHandle();
+			result.throwErr();
+		}
+		return process;
 	}
-
-	@:hlNative("uv", "spawn_wrap") static function spawn_wrap(
-		loop:Loop,
-		file:String,
-		args:NativeArray<String>,
-		?onExti:(p:Process, exitStatus:I64, termSignal:Int)->Void,
-		?stdio:NativeArray<ProcessStdio>,
-		?env:NativeArray<String>,
-		?cwd:String,
-		?uid:Int,
-		?gid:Int,
-		?detached:Bool,
-		?windowsVerbatimArguments:Bool,
-		?windowsHide:Bool,
-		?windowsHideConsole:Bool,
-		?windowsHideGui:Bool
-	):Process
-		return null;
-
 
 	/**
 		Sends the specified signal to the process.
 	**/
-	@:hlNative("uv", "process_kill_wrap")
-	public function kill(sigNum:SigNum):Void {}
+	public function kill(sigNum:SigNum):Void {
+		handle(h -> h.process_kill(sigNum.translate_to_sys_signal()));
+	}
 
 	/**
-		Sends the specified signal to the process with the specified pid.
+		Sends the signal to the process with the specified pid.
 	**/
-	@:hlNative("uv", "kill_wrap")
-	static public function killPid(pid:Int, sigNum:SigNum):Void {}
+	static public function killPid(pid:Int, sigNum:SigNum):Void {
+		UV.kill(pid, sigNum.translate_to_sys_signal());
+	}
 
 }
