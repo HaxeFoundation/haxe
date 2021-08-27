@@ -51,7 +51,9 @@ typedef UvTtyVtermstateT = TtyVTermState;
 typedef UvTtyVtermstateTStar = Ref<TtyVTermState>;
 typedef UvMembership = UdpMembership;
 
-abstract UvFile(Int) {}
+abstract UvFile(Int) {
+	@:allow(hl.uv) inline function new(fd:Int) this = fd;
+}
 
 abstract UvUdpSendTStar(UvReqTStar) to UvReqTStar {}
 abstract UvWriteTStar(UvReqTStar) to UvReqTStar {}
@@ -174,6 +176,7 @@ extern class UV {
 	static public function buf_set(buf:UvBufTArr, base:Bytes, length:Int):Void;
 	static public function buf_base(buf:UvBufTArr):Bytes;
 	static public function buf_len(buf:UvBufTArr):U64;
+	static public function alloc_tty():UvTtyTStar;
 
 // Auto generated content :
 

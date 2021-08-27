@@ -22,7 +22,7 @@
 
 package hl.uv;
 
-enum abstract TtyMode(Int) {
+enum abstract TtyMode(Int) to Int {
 	/** Initial/normal terminal mode */
 	var TTY_MODE_NORMAL;
 	/** Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled) */
@@ -34,7 +34,7 @@ enum abstract TtyMode(Int) {
 /**
 	Console virtual terminal mode type
 **/
-enum abstract TtyVTermState(Int) {
+enum abstract TtyVTermState(Int) to Int {
 	/**
 		The console supports handling of virtual terminal sequences (Windows10
 		new console, ConEmu)
@@ -49,37 +49,47 @@ enum abstract TtyVTermState(Int) {
 
 	@see http://docs.libuv.org/en/v1.x/tty.html
 **/
-@:forward
 class Tty extends Stream<UvTtyTStar> {
 	/**
 		Initialize a new TTY stream with the given file descriptor.
 	**/
-	@:hlNative("uv", "tty_init_wrap")
-	static public function init(loop:Loop, fd:File):Tty
-		return null;
+	static public function init(loop:Loop, fd:File):Tty {
+		loop.checkLoop();
+		var tty = new Tty(UV.alloc_tty());
+		var result = loop.tty_init(tty.h, fd, 0);
+		if(result < 0) {
+			tty.freeHandle();
+			result.throwErr();
+		}
+		return tty;
+	}
 
 	/**
 		Set the TTY using the specified terminal mode.
 	**/
-	@:hlNative("uv", "tty_set_mode_wrap")
-	public function setMode(mode:TtyMode):Void {}
+	public function setMode(mode:TtyMode):Void {
+		handle(h -> h.tty_set_mode(mode).resolve());
+	}
 
 	/**
 		To be called when the program exits. Resets TTY settings to default values
 		for the next process to take over.
 	**/
-	@:hlNative("uv", "tty_reset_mode_wrap")
-	static public function resetMode():Void {}
+	static public function resetMode():Void {
+		UV.tty_reset_mode().resolve();
+	}
 
 	/**
 		Gets the current Window size.
 	**/
-	public inline function getWinSize():{width:Int, height:Int}
-		return getWinSizeWrap();
-
-	@:hlNative("uv", "tty_get_winsize_wrap")
-	function getWinSizeWrap():Dynamic
-		return null;
+	public function getWinSize():{width:Int, height:Int} {
+		return handleReturn(h -> {
+			var width = 0;
+			var height = 0;
+			h.tty_get_winsize(Ref.make(width), Ref.make(height)).resolve();
+			return {width:width, height:height}
+		});
+	}
 
 	/**
 		Controls whether console virtual terminal sequences are processed by libuv
@@ -91,8 +101,9 @@ class Tty extends Stream<UvTtyTStar> {
 		This function is only meaningful on Windows systems. On Unix it is silently
 		ignored.
 	**/
-	@:hlNative("uv", "tty_set_vterm_state_wrap")
-	static public function setVTermState(state:TtyVTermState):Void {}
+	static public function setVTermState(state:TtyVTermState):Void {
+		UV.tty_set_vterm_state(state);
+	}
 
 	/**
 		Get the current state of whether console virtual terminal sequences are
@@ -100,7 +111,9 @@ class Tty extends Stream<UvTtyTStar> {
 
 		This function is not implemented on Unix, where it throws `ENOTSUP`.
 	**/
-	@:hlNative("uv", "tty_get_vterm_state_wrap")
-	static public function getVTermState():TtyVTermState
-		return TTY_UNSUPPORTED;
+	static public function getVTermState():TtyVTermState {
+		var state = TTY_UNSUPPORTED;
+		UV.tty_get_vterm_state(Ref.make(state)).resolve();
+		return state;
+	}
 }
