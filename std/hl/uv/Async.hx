@@ -31,7 +31,7 @@ import hl.uv.Handle;
 	@see http://docs.libuv.org/en/v1.x/async.html
 **/
 class Async extends Handle<UvAsyncTStar> {
-	var onSend:(async:Async)->Void;
+	@:keep var onSend:(async:Async)->Void;
 
 	/**
 		Allocate and initialize the handle.

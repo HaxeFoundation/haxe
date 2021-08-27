@@ -72,9 +72,9 @@ enum abstract UdpFlags(Int) to Int {
 
 @:allow(hl.uv.Udp)
 private class UdpSendRequest extends Request<UvUdpSendTStar> {
-	var callback:(status:Int)->Void;
+	@:keep var callback:(status:Int)->Void;
 	//to keep bytes alive untile send request is complete
-	var data:Bytes;
+	@:keep var data:Bytes;
 }
 
 /**
@@ -118,8 +118,8 @@ abstract RecvFlags(Int) to Int {
 	@see http://docs.libuv.org/en/v1.x/udp.html
 **/
 class Udp extends Handle<UvUdpTStar> {
-	var onAlloc:(buf:Buffer, size:Int)->Void;
-	var onRecv:(nRead:I64, buf:UvBufTArr, addr:Null<CSockaddrStar>, flags:UInt)->Void;
+	@:keep var onAlloc:(buf:Buffer, size:Int)->Void;
+	@:keep var onRecv:(nRead:I64, buf:UvBufTArr, addr:Null<CSockaddrStar>, flags:UInt)->Void;
 
 	function new(handle:UvUdpTStar) {
 		super(handle);

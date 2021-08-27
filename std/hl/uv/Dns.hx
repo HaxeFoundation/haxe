@@ -71,12 +71,14 @@ enum abstract NameInfoFlags(Int) from Int to Int {
 	var NI_DGRAM = 16;
 }
 
+@:allow(hl.uv.Dns)
 private class AddrInfoRequest extends Request<UvGetaddrinfoTStar> {
-	@:allow(hl.uv.Dns) var callback:(status:Int, ai:CAddrinfoStar)->Void;
+	@:keep var callback:(status:Int, ai:CAddrinfoStar)->Void;
 }
 
+@:allow(hl.uv.Dns)
 private class NameInfoRequest extends Request<UvGetnameinfoTStar> {
-	@:allow(hl.uv.Dns) var callback:(status:Int, hostname:Bytes, service:Bytes)->Void;
+	@:keep var callback:(status:Int, hostname:Bytes, service:Bytes)->Void;
 }
 
 /**

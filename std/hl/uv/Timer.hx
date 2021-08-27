@@ -31,7 +31,7 @@ import hl.uv.Handle;
 **/
 class Timer extends Handle<UvTimerTStar> {
 
-	var onTick:()->Void;
+	@:keep var onTick:()->Void;
 
 	/** The timer repeat value. */
 	public var repeat(get,set):Int; // TODO: change to I64

@@ -49,11 +49,9 @@ enum abstract HandleType(Int) {
 
 	@see http://docs.libuv.org/en/v1.x/handle.html
 **/
-// @:keep
-// @:keepSub
 abstract class Handle<T:UvHandleTStar> {
-	var _h:UvHandleTStar;
-	var onClose:()->Void;
+	@:keep var _h:UvHandleTStar;
+	@:keep var onClose:()->Void;
 	@:allow(hl.uv) var h(get,never):T;
 
 	inline function get_h():T
@@ -102,6 +100,8 @@ abstract class Handle<T:UvHandleTStar> {
 		Request handle to be closed.
 		`callback` will be called asynchronously after this call.
 		This MUST be called on each handle.
+
+		Trying to perform any action on a closed handle throws `UV_EINVAL`.
 	**/
 	public function close(?callback:()->Void):Void
 		handle(h -> {

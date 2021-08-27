@@ -26,19 +26,19 @@ import hl.uv.Request;
 
 @:allow(hl.uv.Stream)
 private class ConnectRequest extends Request<UvConnectTStar> {
-	var callback:(status:Int)->Void;
+	@:keep var callback:(status:Int)->Void;
 }
 
 @:allow(hl.uv.Stream)
 private class WriteRequest extends Request<UvWriteTStar> {
-	var callback:(status:Int)->Void;
+	@:keep var callback:(status:Int)->Void;
 	//to keep bytes alive untile write request is complete
-	var data:Bytes;
+	@:keep var data:Bytes;
 }
 
 @:allow(hl.uv.Stream)
 private class ShutdownRequest extends Request<UvShutdownTStar> {
-	var callback:(status:Int)->Void;
+	@:keep var callback:(status:Int)->Void;
 }
 
 /**
@@ -48,9 +48,9 @@ private class ShutdownRequest extends Request<UvShutdownTStar> {
 	@see http://docs.libuv.org/en/v1.x/stream.html
 **/
 abstract class Stream<T:UvStreamTStar> extends Handle<T> {
-	var onAlloc:(buf:Buffer, size:Int)->Void;
-	var onConnection:(status:Int)->Void;
-	var onRead:(nRead:I64, buf:UvBufTArr)->Void;
+	@:keep var onAlloc:(buf:Buffer, size:Int)->Void;
+	@:keep var onConnection:(status:Int)->Void;
+	@:keep var onRead:(nRead:I64, buf:UvBufTArr)->Void;
 
 	static inline function createConnect():ConnectRequest {
 		return new ConnectRequest(UV.alloc_connect());

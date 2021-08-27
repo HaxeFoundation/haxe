@@ -31,7 +31,7 @@ import hl.uv.Handle;
 	@see http://docs.libuv.org/en/v1.x/check.html
 **/
 class Check extends Handle<UvCheckTStar> {
-	var onCheck:()->Void;
+	@:keep var onCheck:()->Void;
 
 	/**
 		Allocate and initialize the handle.
