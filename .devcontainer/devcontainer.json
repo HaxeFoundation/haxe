@@ -12,7 +12,8 @@
 
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
-		"vshaxe.haxe-extension-pack"
+		"vshaxe.haxe-extension-pack",
+		"ocamllabs.ocaml-platform"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
