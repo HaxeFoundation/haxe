@@ -82,10 +82,11 @@ abstract UvAsyncTStar(UvHandleTStar) to UvHandleTStar {}
 abstract UvBufTArr(Abstract<"uv_buf_t_arr">) {}
 abstract CSockaddrStorageStar(Abstract<"sockaddr_storage_star">) {}
 abstract UvStdioContainerTStar(Abstract<"uv_stdio_container_t_star">) {}
+abstract UvTimespecTStar(Abstract<"uv_timespec_t_star">) {}
 
 //TODO: implement these
-private typedef UInt = Int;
-private typedef U64 = I64;
+typedef UInt = Int;
+typedef U64 = I64;
 
 /**
 	Automatically generated bindings for libuv.
@@ -177,11 +178,30 @@ extern class UV {
 	static public function nameinfo_flags_to_native(ai:NameInfoFlags):Int;
 	static public function alloc_fs():UvFsTStar;
 	static public function alloc_fs_event():UvFsEventTStar;
+	static public function alloc_fs_poll():UvFsPollTStar;
 	static public function pointer_to_dir(req:Pointer):UvDirTStar;
 	static public function free_dir(dirent:UvDirTStar):Void;
 	static public function dir_init(dir:UvDirTStar, num_entries:Int):Void;
 	static public function dir_nentries(dir:UvDirTStar):Int;
 	static public function dir_dirent(dir:UvDirTStar, index:Int):UvDirentTStar;
+	static public function stat_st_dev(stat:UvStatTStar):U64;
+	static public function stat_st_mode(stat:UvStatTStar):U64;
+	static public function stat_st_nlink(stat:UvStatTStar):U64;
+	static public function stat_st_uid(stat:UvStatTStar):U64;
+	static public function stat_st_gid(stat:UvStatTStar):U64;
+	static public function stat_st_rdev(stat:UvStatTStar):U64;
+	static public function stat_st_ino(stat:UvStatTStar):U64;
+	static public function stat_st_size(stat:UvStatTStar):U64;
+	static public function stat_st_blksize(stat:UvStatTStar):U64;
+	static public function stat_st_blocks(stat:UvStatTStar):U64;
+	static public function stat_st_flags(stat:UvStatTStar):U64;
+	static public function stat_st_gen(stat:UvStatTStar):U64;
+	static public function stat_st_atim(stat:UvStatTStar):UvTimespecTStar;
+	static public function stat_st_mtim(stat:UvStatTStar):UvTimespecTStar;
+	static public function stat_st_ctim(stat:UvStatTStar):UvTimespecTStar;
+	static public function stat_st_birthtim(stat:UvStatTStar):UvTimespecTStar;
+	static public function timespec_tv_sec(times:UvTimespecTStar):I64;
+	static public function timespec_tv_nsec(times:UvTimespecTStar):I64;
 	static public function free_dirent(dirent:UvDirentTStar):Void;
 	static public function dirent_name(dirent:UvDirentTStar):Bytes;
 	static public function dirent_type(dirent:UvDirentTStar):DirEntryType;

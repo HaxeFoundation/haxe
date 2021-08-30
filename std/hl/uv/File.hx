@@ -55,18 +55,18 @@ enum FileOpenFlag {
 }
 
 typedef FileStat = {
-	var dev:I64; //UI64
-	var mode:I64; //UI64
-	var nlink:I64; //UI64
-	var uid:I64; //UI64
-	var gid:I64; //UI64
-	var rdev:I64; //UI64
-	var ino:I64; //UI64
-	var size:I64; //UI64
-	var blksize:I64; //UI64
-	var blocks:I64; //UI64
-	var flags:I64; //UI64
-	var gen:I64; //UI64
+	var dev:U64;
+	var mode:U64;
+	var nlink:U64;
+	var uid:U64;
+	var gid:U64;
+	var rdev:U64;
+	var ino:U64;
+	var size:U64;
+	var blksize:U64;
+	var blocks:U64;
+	var flags:U64;
+	var gen:U64;
 	var atim:FileTimeSpec;
 	var mtim:FileTimeSpec;
 	var ctim:FileTimeSpec;
@@ -175,6 +175,35 @@ abstract File(UvFile) to UvFile {
 
 	inline function new(fd:Int)
 		this = new UvFile(fd);
+
+	static inline function uvTimespecToToHl(times:UvTimespecTStar):FileTimeSpec {
+		return {
+			sec:times.timespec_tv_sec(),
+			nsec:times.timespec_tv_nsec(),
+		}
+	}
+
+	@:allow(hl.uv)
+	static inline function uvStatToHl(stat:UvStatTStar):FileStat {
+		return {
+			dev:stat.stat_st_dev(),
+			mode:stat.stat_st_mode(),
+			nlink:stat.stat_st_nlink(),
+			uid:stat.stat_st_uid(),
+			gid:stat.stat_st_gid(),
+			rdev:stat.stat_st_rdev(),
+			ino:stat.stat_st_ino(),
+			size:stat.stat_st_size(),
+			blksize:stat.stat_st_blksize(),
+			blocks:stat.stat_st_blocks(),
+			flags:stat.stat_st_flags(),
+			gen:stat.stat_st_gen(),
+			atim:uvTimespecToToHl(stat.stat_st_atim()),
+			mtim:uvTimespecToToHl(stat.stat_st_mtim()),
+			ctim:uvTimespecToToHl(stat.stat_st_ctim()),
+			birthtim:uvTimespecToToHl(stat.stat_st_birthtim()),
+		}
+	}
 
 	/**
 		Close file.

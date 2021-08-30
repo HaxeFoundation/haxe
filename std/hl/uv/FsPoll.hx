@@ -32,27 +32,47 @@ import hl.uv.File;
 
 	@see http://docs.libuv.org/en/v1.x/fs_poll.html
 **/
-@:forward
-abstract FsPoll(Handle) to Handle {
+class FsPoll extends Handle<UvFsPollTStar> {
+	var onChange:(status:Int, prev:UvStatTStar, curr:UvStatTStar)->Void;
+
 	/**
 		Initialize handle.
 	**/
-	@:hlNative("uv", "fs_poll_init_wrap")
-	static public function init(loop:Loop):FsPoll
-		return null;
+	static public function init(loop:Loop):FsPoll {
+		loop.checkLoop();
+		var poll = new FsPoll(UV.alloc_fs_poll());
+		var result = loop.fs_poll_init(poll.h);
+		if(result < 0) {
+			poll.freeHandle();
+			result.throwErr();
+		}
+		return poll;
+	}
 
 	/**
 		Check the file at `path` for changes every `interval` milliseconds.
 	**/
-	public inline function start(path:String, interval:Int, callback:(e:UVError, previous:Null<FileStat>, current:Null<FileStat>)->Void):Void
-		startWrap(path, interval, callback);
-
-	@:hlNative("uv", "fs_poll_start_wrap")
-	function startWrap(path:String, interval:Int, callback:(e:UVError, previous:Dynamic, current:Dynamic)->Void):Void {}
+	public function start(path:String, interval:Int, callback:(e:UVError, previous:Null<FileStat>, current:Null<FileStat>)->Void):Void {
+		handle(h -> {
+			h.fs_poll_start_with_cb(path.toUTF8(), interval).resolve();
+			onChange = (status, prev, curr) -> switch status.translate_uv_error() {
+				case UV_NOERR: callback(UV_NOERR, File.uvStatToHl(prev), File.uvStatToHl(curr));
+				case e: callback(e, null, null);
+			}
+		});
+	}
 
 	/**
 		Stop the handle, the callback will no longer be called.
 	**/
-	@:hlNative("uv", "fs_poll_stop_wrap")
-	public function stop():Void {}
+	public function stop():Void {
+		handle(h -> h.fs_poll_stop().resolve());
+	}
+
+	/**
+		Get the path being monitored by the handle.
+	**/
+	public function getPath():String {
+		return handleReturn(h -> UV.getName((buf, size) -> h.fs_poll_getpath(buf,size)));
+	}
 }
