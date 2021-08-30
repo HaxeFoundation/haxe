@@ -117,6 +117,19 @@ extern class UV {
 		return @:privateAccess String.fromUTF8(b);
 	}
 
+	extern static public inline function getName(fn:(buf:Bytes, size:Ref<U64>)->Int):String {
+		var size = I64.ofInt(256);
+		var buf = null;
+		var eNoBufs = UVError.UV_ENOBUFS.toNative();
+		var result = eNoBufs;
+		while (result == eNoBufs) {
+			buf = new Bytes(size.toInt());
+			result = fn(buf, Ref.make(size));
+		}
+		result.resolve();
+		return buf.fromUTF8();
+	}
+
 	static public function alloc_char_array(length:Int):Ref<Bytes>;
 	static public function free_char_array(a:Ref<Bytes>):Void;
 	static public function free_bytes(bytes:Bytes):Void;
@@ -163,6 +176,7 @@ extern class UV {
 	static public function addrinfo_ai_next(ai:CAddrinfoStar):Null<CAddrinfoStar>;
 	static public function nameinfo_flags_to_native(ai:NameInfoFlags):Int;
 	static public function alloc_fs():UvFsTStar;
+	static public function alloc_fs_event():UvFsEventTStar;
 	static public function pointer_to_dir(req:Pointer):UvDirTStar;
 	static public function free_dir(dirent:UvDirTStar):Void;
 	static public function dir_init(dir:UvDirTStar, num_entries:Int):Void;

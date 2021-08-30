@@ -27,18 +27,33 @@ package hl.uv;
 
 	@see http://docs.libuv.org/en/v1.x/fs_event.html#c.uv_fs_event_flags
 **/
-enum abstract FsEventFlag(Int) {
+enum abstract FsEventFlag(Int) to Int {
 	var WATCH_ENTRY = 1;
 	var STAT = 2;
-	var RECURSIVE = 3;
+	var RECURSIVE = 4;
 }
 
 /**
 	Event types that `hl.uv.FsEvent` handles monitor.
 **/
-enum abstract FsEventType(Int) {
+enum abstract FsEventType(Int) to Int {
 	var RENAME = 1;
 	var CHANGE = 2;
+}
+
+abstract FsEvents(Int) {
+	@:allow(hl.uv.FsEvent)
+	inline function new(events:Int) {
+		this = events;
+	}
+
+	public var rename(get,never):Bool;
+	inline function get_rename():Bool
+		return 0 != (this & RENAME);
+
+	public var change(get,never):Bool;
+	inline function get_change():Bool
+		return 0 != (this & CHANGE);
 }
 
 /**
@@ -46,32 +61,52 @@ enum abstract FsEventType(Int) {
 
 	@see http://docs.libuv.org/en/v1.x/fs_event.html
 **/
-@:forward
-abstract FsEvent(Handle) to Handle {
+class FsEvent extends Handle<UvFsEventTStar> {
+	var onEvent:(status:Int, path:Bytes, evens:Int)->Void;
+
 	/**
 		Initialize handle.
 	**/
-	@:hlNative("uv", "fs_event_init_wrap")
-	static public function init(loop:Loop):FsEvent
-		return null;
+	static public function init(loop:Loop):FsEvent {
+		loop.checkLoop();
+		var event = new FsEvent(UV.alloc_fs_event());
+		var result = loop.fs_event_init(event.h);
+		if(result < 0) {
+			event.freeHandle();
+			result.throwErr();
+		}
+		return event;
+	}
 
 	/**
 		Start the handle with the given callback, which will watch the specified
 		path for changes.
 	**/
-	public function start(path:String, flags:Null<Array<FsEventFlag>>, callback:(e:UVError, path:Null<String>, events:Null<Array<FsEventType>>)->Void):Void {
-		startWrap(path, flags, (e, path, events) -> {
-			var path = path == null ? null : @:privateAccess String.fromUTF8(path);
-			var events = events == null ? null : [for(i in events) i];
-			callback(e, path, events);
+	public function start(path:String, flags:Null<Array<FsEventFlag>>, callback:(e:UVError, path:Null<String>, events:FsEvents)->Void):Void {
+		handle(h -> {
+			var cFlags = 0;
+			if(flags != null)
+				for(f in flags)
+					cFlags |= f;
+			h.fs_event_start_with_cb(path.toUTF8(), cFlags).resolve();
+			onEvent = (status, path, events) -> {
+				callback(status.translate_uv_error(), (path == null ? null : path.fromUTF8()), new FsEvents(events));
+			}
 		});
 	}
-	@:hlNative("uv", "fs_event_start_wrap")
-	function startWrap(path:String, flags:Null<Array<FsEventFlag>>, callback:(e:UVError, path:Null<Bytes>, events:Null<NativeArray<FsEventType>>)->Void):Void {}
 
 	/**
 		Stop the handle, the callback will no longer be called.
 	**/
-	@:hlNative("uv", "fs_event_stop_wrap")
-	public function stop():Void {}
+	public function stop():Void {
+		handle(h -> h.fs_event_stop().resolve());
+	}
+
+	/**
+		Get the path being monitored by the handle.
+	**/
+	public function getPath():String {
+		return handleReturn(h -> UV.getName((buf, size) -> h.fs_event_getpath(buf,size)));
+	}
+
 }

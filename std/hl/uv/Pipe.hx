@@ -94,27 +94,14 @@ class Pipe extends Stream<UvPipeTStar> {
 		Get the current address to which the handle is bound.
 	**/
 	public inline function getSockName():String {
-		return handleReturn(h -> getName(h, false));
+		return handleReturn(h -> UV.getName((buf, size) -> h.pipe_getsockname(buf,size)));
 	}
 
 	/**
 		Get the address of the peer connected to the handle.
 	**/
 	public inline function getPeerName():String {
-		return handleReturn(h -> getName(h, true));
-	}
-
-	static inline function getName(h:UvPipeTStar, getPeer:Bool) {
-		var size = I64.ofInt(256);
-		var buf = null;
-		var eNoBufs = UVError.UV_ENOBUFS.toNative();
-		var result = eNoBufs;
-		while (result == eNoBufs) {
-			buf = new Bytes(size.toInt());
-			result = getPeer ? h.pipe_getpeername(buf,Ref.make(size)) : h.pipe_getsockname(buf,Ref.make(size));
-		}
-		result.resolve();
-		return buf.fromUTF8();
+		return handleReturn(h -> UV.getName((buf, size) -> h.pipe_getpeername(buf,size)));
 	}
 
 	/**
