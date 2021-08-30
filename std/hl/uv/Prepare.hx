@@ -28,23 +28,37 @@ package hl.uv;
 
 	@see http://docs.libuv.org/en/v1.x/prepare.html
 **/
-@:forward
-abstract Prepare(Handle) to Handle {
+class Prepare extends Handle<UvPrepareTStar> {
+	var onPrepare:()->Void;
+
 	/**
 		Allocate and initialize the handle.
 	**/
-	@:hlNative("uv", "prepare_init_wrap")
-	static public function init(loop:Loop):Prepare
-		return null;
+	static public function init(loop:Loop):Prepare {
+		loop.checkLoop();
+		var prepare = new Prepare(UV.alloc_prepare());
+		var result = loop.prepare_init(prepare.h);
+		if(result < 0) {
+			prepare.freeHandle();
+			result.throwErr();
+		}
+		return prepare;
+	}
 
 	/**
 		Start the handle with the given callback.
 	**/
-	@:hlNative("uv", "prepare_start_wrap")
-	public function start(callback:()->Void):Void {}
+	public function start(callback:()->Void):Void {
+		handle(h -> {
+			h.prepare_start_with_cb().resolve();
+			onPrepare = callback;
+		});
+	}
 
 	/**
 		Stop the handle, the callback will no longer be called.
 	**/
-	@:hlNative("uv", "prepare_stop_wrap") public function stop():Void {}
+	public function stop():Void {
+		handle(h -> h.prepare_stop().resolve());
+	}
 }
