@@ -59,35 +59,56 @@ enum abstract SigNum(Int) from Int to Int {
 
 	@see http://docs.libuv.org/en/v1.x/signal.html
 **/
-@:forward
-abstract Signal(UvHandleTStar) to UvHandleTStar {
-
-	/** Signal being monitored by this handle. */
-	public var sigNum(get,never):SigNum;
-	@:hlNative("uv", "signal_get_sigNum_wrap") public function get_sigNum():SigNum return 0;
+class Signal extends Handle<UvSignalTStar> {
+	var callback:()->Void;
 
 	/**
 		Allocate and initialize the handle.
 	**/
-	@:hlNative("uv", "signal_init_wrap")
-	static public function init(loop:Loop):Signal
-		return null;
+	static public function init(loop:Loop):Signal {
+		loop.checkLoop();
+		var s = new Signal(UV.alloc_signal());
+		var result = loop.signal_init(s.h);
+		if(result < 0) {
+			s.freeHandle();
+			result.throwErr();
+		}
+		return s;
+	}
 
 	/**
 		Start the handle with the given callback, watching for the given signal.
 	**/
-	@:hlNative("uv", "signal_start_wrap")
-	public function start(sigNum:SigNum, callback:(sigNum:SigNum)->Void):Void {}
+	public function start(sigNum:SigNum, callback:()->Void):Void {
+		handle(h -> {
+			h.signal_start_with_cb(sigNum.translate_to_sys_signal()).resolve();
+			this.callback = callback;
+		});
+	}
 
 	/**
 		Start the handle with the given callback, watching for the given signal.
 		The signal handler is reset the moment the signal is received.
 	**/
-	@:hlNative("uv", "signal_start_oneshot_wrap")
-	public function startOneshot(sigNum:SigNum, callback:(sigNum:SigNum)->Void):Void {}
+	public function startOneshot(sigNum:SigNum, callback:()->Void):Void {
+		handle(h -> {
+			h.signal_start_oneshot_with_cb(sigNum.translate_to_sys_signal()).resolve();
+			this.callback = callback;
+		});
+	}
 
 	/**
 		Stop the handle, the callback will no longer be called.
 	**/
-	@:hlNative("uv", "signal_stop_wrap") public function stop():Void {}
+	public function stop():Void {
+		handle(h -> h.signal_stop().resolve());
+	}
+
+
+	/**
+		Signal being monitored by this handle.
+	**/
+	public function sigNum():SigNum {
+		return handleReturn(h -> h.signal_signum());
+	}
 }

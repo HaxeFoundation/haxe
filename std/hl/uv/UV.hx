@@ -213,6 +213,8 @@ extern class UV {
 	static public function buf_base(buf:UvBufTArr):Bytes;
 	static public function buf_len(buf:UvBufTArr):U64;
 	static public function alloc_tty():UvTtyTStar;
+	static public function alloc_signal():UvSignalTStar;
+	static public function signal_signum(signal:UvSignalTStar):Int;
 	static public function version_major():Int;
 	static public function version_minor():Int;
 	static public function version_patch():Int;
