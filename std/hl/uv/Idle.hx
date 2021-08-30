@@ -28,23 +28,37 @@ package hl.uv;
 
 	@see http://docs.libuv.org/en/v1.x/idle.html
 **/
-@:forward
-abstract Idle(Handle) to Handle {
+class Idle extends Handle<UvIdleTStar> {
+	var onIdle:()->Void;
+
 	/**
 		Allocate and initialize the handle.
 	**/
-	@:hlNative("uv", "idle_init_wrap")
-	static public function init(loop:Loop):Idle
-		return null;
+	static public function init(loop:Loop):Idle {
+		loop.checkLoop();
+		var idle = new Idle(UV.alloc_idle());
+		var result = loop.idle_init(idle.h);
+		if(result < 0) {
+			idle.freeHandle();
+			result.throwErr();
+		}
+		return idle;
+	}
 
 	/**
 		Start the handle with the given callback.
 	**/
-	@:hlNative("uv", "idle_start_wrap")
-	public function start(callback:()->Void):Void {}
+	public function start(callback:()->Void):Void {
+		handle(h -> {
+			h.idle_start_with_cb().resolve();
+			onIdle = callback;
+		});
+	}
 
 	/**
 		Stop the handle, the callback will no longer be called.
 	**/
-	@:hlNative("uv", "idle_stop_wrap") public function stop():Void {}
+	public function stop():Void {
+		handle(h -> h.idle_stop().resolve());
+	}
 }

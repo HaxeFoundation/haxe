@@ -147,6 +147,7 @@ extern class UV {
 	static public function alloc_async():UvAsyncTStar;
 	static public function alloc_timer():UvTimerTStar;
 	static public function alloc_check():UvCheckTStar;
+	static public function alloc_idle():UvIdleTStar;
 	static public function alloc_tcp():UvTcpTStar;
 	static public function alloc_sockaddr_storage():CSockaddrStorageStar;
 	static public function sockaddr_storage_size():Int;
