@@ -31,7 +31,7 @@ import hl.uv.Handle;
 **/
 class Timer extends Handle<UvTimerTStar> {
 
-	@:keep var onTick:()->Void;
+	@:keep var callback:()->Void;
 
 	/** The timer repeat value. */
 	public var repeat(get,set):I64;
@@ -77,7 +77,7 @@ class Timer extends Handle<UvTimerTStar> {
 	public function start(callback:()->Void, timeout:I64, repeat:I64):Void {
 		handle(h -> {
 			h.timer_start_with_cb(timeout, repeat).resolve();
-			onTick = callback;
+			this.callback = callback;
 		});
 	}
 

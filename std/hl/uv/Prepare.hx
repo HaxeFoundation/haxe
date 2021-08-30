@@ -29,7 +29,7 @@ package hl.uv;
 	@see http://docs.libuv.org/en/v1.x/prepare.html
 **/
 class Prepare extends Handle<UvPrepareTStar> {
-	var onPrepare:()->Void;
+	var callback:()->Void;
 
 	/**
 		Allocate and initialize the handle.
@@ -51,7 +51,7 @@ class Prepare extends Handle<UvPrepareTStar> {
 	public function start(callback:()->Void):Void {
 		handle(h -> {
 			h.prepare_start_with_cb().resolve();
-			onPrepare = callback;
+			this.callback = callback;
 		});
 	}
 

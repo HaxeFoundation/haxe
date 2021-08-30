@@ -62,7 +62,7 @@ abstract FsEvents(Int) {
 	@see http://docs.libuv.org/en/v1.x/fs_event.html
 **/
 class FsEvent extends Handle<UvFsEventTStar> {
-	var onEvent:(status:Int, path:Bytes, evens:Int)->Void;
+	var callback:(status:Int, path:Bytes, evens:Int)->Void;
 
 	/**
 		Initialize handle.
@@ -89,7 +89,7 @@ class FsEvent extends Handle<UvFsEventTStar> {
 				for(f in flags)
 					cFlags |= f;
 			h.fs_event_start_with_cb(path.toUTF8(), cFlags).resolve();
-			onEvent = (status, path, events) -> {
+			this.callback = (status, path, events) -> {
 				callback(status.translate_uv_error(), (path == null ? null : path.fromUTF8()), new FsEvents(events));
 			}
 		});

@@ -29,7 +29,7 @@ package hl.uv;
 	@see http://docs.libuv.org/en/v1.x/idle.html
 **/
 class Idle extends Handle<UvIdleTStar> {
-	var onIdle:()->Void;
+	var callback:()->Void;
 
 	/**
 		Allocate and initialize the handle.
@@ -51,7 +51,7 @@ class Idle extends Handle<UvIdleTStar> {
 	public function start(callback:()->Void):Void {
 		handle(h -> {
 			h.idle_start_with_cb().resolve();
-			onIdle = callback;
+			this.callback = callback;
 		});
 	}
 

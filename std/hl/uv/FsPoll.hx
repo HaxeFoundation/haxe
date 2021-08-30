@@ -33,7 +33,7 @@ import hl.uv.File;
 	@see http://docs.libuv.org/en/v1.x/fs_poll.html
 **/
 class FsPoll extends Handle<UvFsPollTStar> {
-	var onChange:(status:Int, prev:UvStatTStar, curr:UvStatTStar)->Void;
+	var callback:(status:Int, prev:UvStatTStar, curr:UvStatTStar)->Void;
 
 	/**
 		Initialize handle.
@@ -55,7 +55,7 @@ class FsPoll extends Handle<UvFsPollTStar> {
 	public function start(path:String, interval:Int, callback:(e:UVError, previous:Null<FileStat>, current:Null<FileStat>)->Void):Void {
 		handle(h -> {
 			h.fs_poll_start_with_cb(path.toUTF8(), interval).resolve();
-			onChange = (status, prev, curr) -> switch status.translate_uv_error() {
+			this.callback = (status, prev, curr) -> switch status.translate_uv_error() {
 				case UV_NOERR: callback(UV_NOERR, File.uvStatToHl(prev), File.uvStatToHl(curr));
 				case e: callback(e, null, null);
 			}

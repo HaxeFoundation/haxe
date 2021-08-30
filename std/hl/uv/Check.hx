@@ -31,7 +31,7 @@ import hl.uv.Handle;
 	@see http://docs.libuv.org/en/v1.x/check.html
 **/
 class Check extends Handle<UvCheckTStar> {
-	@:keep var onCheck:()->Void;
+	@:keep var callback:()->Void;
 
 	/**
 		Allocate and initialize the handle.
@@ -53,7 +53,7 @@ class Check extends Handle<UvCheckTStar> {
 	public function start(callback:()->Void):Void {
 		handle(h -> {
 			h.check_start_with_cb().resolve();
-			onCheck = callback;
+			this.callback = callback;
 		});
 	}
 
