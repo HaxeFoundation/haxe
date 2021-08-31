@@ -33,6 +33,9 @@ enum abstract DirEntryType(Int) {
 	var UV_DIRENT_SOCKET;
 	var UV_DIRENT_CHAR;
 	var UV_DIRENT_BLOCK;
+
+	@:allow(hl.uv.Dir) inline function new(v:Int)
+		this = v;
 }
 
 typedef DirEntry = {
@@ -119,7 +122,7 @@ class Dir {
 							var dirent = d.dir_dirent(i);
 							{
 								name: dirent.dirent_name().fromUTF8(),
-								type: dirent.dirent_type()
+								type: new DirEntryType(dirent.dirent_type())
 							}
 						}];
 					case _:
