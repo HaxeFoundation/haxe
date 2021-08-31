@@ -108,16 +108,20 @@ class Misc {
 	/**
 		Gets the resident set size (RSS) for the current process.
 	**/
-	@:hlNative("uv", "resident_set_memory_wrap")
-	static public function residentSetMemory():I64
-		return I64.ofInt(0);
+	static public function residentSetMemory():I64 {
+		var rss = I64.ofInt(0);
+		UV.resident_set_memory(Ref.make(rss)).resolve();
+		return rss;
+	}
 
 	/**
 		Gets the current system uptime.
 	**/
-	@:hlNative("uv", "uptime_wrap")
-	static public function uptime():Float
-		return 0;
+	static public function uptime():Float {
+		var uptime = 0.0;
+		UV.uptime(Ref.make(uptime)).resolve();
+		return uptime;
+	}
 
 	/**
 		Gets the resource usage measures for the current process.

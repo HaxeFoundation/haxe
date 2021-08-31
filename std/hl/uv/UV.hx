@@ -83,6 +83,8 @@ abstract UvBufTArr(Abstract<"uv_buf_t_arr">) {}
 abstract CSockaddrStorageStar(Abstract<"sockaddr_storage_star">) {}
 abstract UvStdioContainerTStar(Abstract<"uv_stdio_container_t_star">) {}
 abstract UvTimespecTStar(Abstract<"uv_timespec_t_star">) {}
+abstract UvTimevalTStar(Abstract<"uv_timeval_t_star">) {}
+abstract UvCpuTimesTStar(Abstract<"uv_cpu_times_t_star">) {}
 
 //TODO: implement these
 typedef UInt = Int;
@@ -221,6 +223,37 @@ extern class UV {
 	static public function version_hex():Int;
 	static public function version_suffix():Bytes;
 	static public function version_is_release():Bool;
+	static public function alloc_rusage():UvRusageTStar;
+	static public function alloc_timeval64():UvTimeval64TStar;
+	static public function alloc_cpuinfo():UvCpuInfoTStar;
+	static public function timeval_tv_sec(timeval:UvTimevalTStar):I64;
+	static public function timeval_tv_usec(timeval:UvTimevalTStar):I64;
+	static public function timeval64_tv_sec(timeval:UvTimeval64TStar):I64;
+	static public function timeval64_tv_usec(timeval:UvTimeval64TStar):Int;
+	static public function rusage_ru_utime(rusage:UvRusageTStar):UvTimevalTStar;
+	static public function rusage_ru_stime(rusage:UvRusageTStar):UvTimevalTStar;
+	static public function rusage_ru_maxrss(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_ixrss(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_idrss(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_isrss(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_minflt(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_majflt(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_nswap(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_inblock(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_oublock(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_msgsnd(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_msgrcv(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_nsignals(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_nvcsw(rusage:UvRusageTStar):U64;
+	static public function rusage_ru_nivcsw(rusage:UvRusageTStar):U64;
+	static public function cpu_info_model(cpu_info:UvCpuInfoTStar):Bytes;
+	static public function cpu_info_speed(cpu_info:UvCpuInfoTStar):Int;
+	static public function cpu_info_cpu_times(cpu_info:UvCpuInfoTStar):UvCpuTimesTStar;
+	static public function cpu_times_user(cpu_times:UvCpuTimesTStar):U64;
+	static public function cpu_times_nice(cpu_times:UvCpuTimesTStar):U64;
+	static public function cpu_times_sys(cpu_times:UvCpuTimesTStar):U64;
+	static public function cpu_times_idle(cpu_times:UvCpuTimesTStar):U64;
+	static public function cpu_times_irq(cpu_times:UvCpuTimesTStar):U64;
 
 // Auto generated content :
 
@@ -338,8 +371,6 @@ extern class UV {
 	static public function ip6_addr(ip:Bytes, port:Int, addr:CSockaddrIn6Star):Int;
 	static public function ip4_name(src:CSockaddrInStar, dst:Bytes, size:U64):Int;
 	static public function ip6_name(src:CSockaddrIn6Star, dst:Bytes, size:U64):Int;
-	static public function inet_ntop(af:Int, src:Pointer, dst:Bytes, size:U64):Int;
-	static public function inet_pton(af:Int, src:Bytes, dst:Pointer):Int;
 	static public function if_indextoname(ifindex:UInt, buffer:Bytes, size:Ref<U64>):Int;
 	static public function if_indextoiid(ifindex:UInt, buffer:Bytes, size:Ref<U64>):Int;
 	static public function exepath(buffer:Bytes, size:Ref<U64>):Int;
