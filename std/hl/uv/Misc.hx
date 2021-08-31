@@ -30,33 +30,33 @@ typedef RUsage = {
 	/** system CPU time used */
 	var stime:{sec:I64, usec:I64};
 	/** maximum resident set size */
-	var maxrss:I64;
+	var maxrss:U64;
 	/** integral shared memory size (X) */
-	var ixrss:I64;
+	var ixrss:U64;
 	/** integral unshared data size (X) */
-	var idrss:I64;
+	var idrss:U64;
 	/** integral unshared stack size (X) */
-	var isrss:I64;
+	var isrss:U64;
 	/** page reclaims (soft page faults) (X) */
-	var minflt:I64;
+	var minflt:U64;
 	/** page faults (hard page faults) */
-	var majflt:I64;
+	var majflt:U64;
 	/** swaps (X) */
-	var nswap:I64;
+	var nswap:U64;
 	/** block input operations */
-	var inblock:I64;
+	var inblock:U64;
 	/** block output operations */
-	var oublock:I64;
+	var oublock:U64;
 	/** IPC messages sent (X) */
-	var msgsnd:I64;
+	var msgsnd:U64;
 	/** IPC messages received (X) */
-	var msgrcv:I64;
+	var msgrcv:U64;
 	/** signals received (X) */
-	var nsignals:I64;
+	var nsignals:U64;
 	/** voluntary context switches (X) */
-	var nvcsw:I64;
+	var nvcsw:U64;
 	/** involuntary context switches (X) */
-	var nivcsw:I64;
+	var nivcsw:U64;
 }
 
 typedef CpuInfo = {
@@ -64,15 +64,15 @@ typedef CpuInfo = {
 	var speed:Int;
 	var cpuTimes:{
 		/** milliseconds */
-		var user:I64;
+		var user:U64;
 		/** milliseconds */
-		var nice:I64;
+		var nice:U64;
 		/** milliseconds */
-		var sys:I64;
+		var sys:U64;
 		/** milliseconds */
-		var idle:I64
+		var idle:U64
 		/** milliseconds */;
-		var irq:I64;
+		var irq:U64;
 	}
 }
 
@@ -126,84 +126,49 @@ class Misc {
 	/**
 		Gets the resource usage measures for the current process.
 	**/
-	static public inline function getRUsage():RUsage
-		return getRUsageWrap();
-
-	@:hlNative("uv", "getrusage_wrap")
-	static function getRUsageWrap():Dynamic
-		return null;
-
-	/**
-		Returns the current process ID.
-	**/
-	@:hlNative("uv", "os_getpid")
-	static public function getPid():Int
-		return 0;
-
-	/**
-		Returns the parent process ID.
-	**/
-	@:hlNative("uv", "os_getppid")
-	static public function getPPid():Int
-		return 0;
-
-	/**
-		Gets information about the CPUs on the system.
-	**/
-	static public function cpuInfo():Array<CpuInfo> {
-		var infos = cpuInfoWrap();
-		var a = new Array<CpuInfo>();
-		a.resize(infos.length);
-		for(i in 0...infos.length) {
-			var info:Dynamic = infos[i];
-			info.model = @:privateAccess String.fromUTF8(info.model);
-			a[i] = info;
+	static public function getRUsage():RUsage {
+		var rusage = UV.alloc_rusage();
+		var result = UV.getrusage(rusage);
+		if(result < 0) {
+			rusage.free_rusage();
+			result.throwErr();
 		}
-		return a;
-	}
-
-	@:hlNative("uv", "cpu_info_wrap")
-	static function cpuInfoWrap():NativeArray<Dynamic>
-		return null;
-
-	/**
-		Gets address information about the network interfaces on the system.
-	**/
-	static public function interfaceAddresses():Array<InterfaceAddress> {
-		var addresses = interfaceAddressesWrap();
-		var a = new Array<InterfaceAddress>();
-		a.resize(addresses.length);
-		for(i in 0...addresses.length) {
-			var addr:Dynamic = addresses[i];
-			addr.name = @:privateAccess String.fromUTF8(addr.name);
-			addr.physAddr = haxe.io.Bytes.ofData(new haxe.io.BytesData(addr.physAddr, 6));
-			addr.address = @:privateAccess SockAddr.castPtr(addr.address);
-			addr.netmask = @:privateAccess SockAddr.castPtr(addr.netmask);
-			a[i] = addr;
-		}
-		return a;
-	}
-
-	@:hlNative("uv", "interface_addresses_wrap")
-	static function interfaceAddressesWrap():NativeArray<Dynamic>
-		return null;
-
-	/**
-		Gets the load average.
-	**/
-	static public function loadAvg():Array<Float> {
-		var result = new Array<Float>();
-		result.resize(3);
-		var avg = loadAvgWrap();
-		for(i in 0...avg.length) {
-			result[i] = avg[i];
+		var utime = rusage.rusage_ru_utime();
+		var stime = rusage.rusage_ru_stime();
+		var result = {
+			utime: {sec:utime.timeval_tv_sec(), usec:utime.timeval_tv_usec()},
+			stime: {sec:stime.timeval_tv_sec(), usec:stime.timeval_tv_usec()},
+			maxrss: rusage.rusage_ru_maxrss(),
+			ixrss: rusage.rusage_ru_ixrss(),
+			idrss: rusage.rusage_ru_idrss(),
+			isrss: rusage.rusage_ru_isrss(),
+			minflt: rusage.rusage_ru_minflt(),
+			majflt: rusage.rusage_ru_majflt(),
+			nswap: rusage.rusage_ru_nswap(),
+			inblock: rusage.rusage_ru_inblock(),
+			oublock: rusage.rusage_ru_oublock(),
+			msgsnd: rusage.rusage_ru_msgsnd(),
+			msgrcv: rusage.rusage_ru_msgrcv(),
+			nsignals: rusage.rusage_ru_nsignals(),
+			nvcsw: rusage.rusage_ru_nvcsw(),
+			nivcsw: rusage.rusage_ru_nivcsw(),
 		}
 		return result;
 	}
 
-	@:hlNative("uv", "loadavg_wrap")
-	static public function loadAvgWrap():NativeArray<Float>
-		return null;
+	/**
+		Returns the current process ID.
+	**/
+	static public inline function getPid():Int {
+		return UV.os_getpid();
+	}
+
+	/**
+		Returns the parent process ID.
+	**/
+	static public inline function getPPid():Int {
+		return UV.os_getppid();
+	}
 
 	/**
 		Gets the temp directory.

@@ -204,15 +204,7 @@ extern class UV {
 	static public function version_hex():Int;
 	static public function version_suffix():Bytes;
 	static public function version_is_release():Bool;
-	static public function alloc_cpu_info():UvCpuInfoTStar;
-	static public function cpu_info_model(cpu_info:UvCpuInfoTStar):Bytes;
-	static public function cpu_info_speed(cpu_info:UvCpuInfoTStar):Int;
-	static public function cpu_info_cpu_times(cpu_info:UvCpuInfoTStar):UvCpuTimesTStar;
-	static public function cpu_times_user(cpu_times:UvCpuTimesTStar):U64;
-	static public function cpu_times_nice(cpu_times:UvCpuTimesTStar):U64;
-	static public function cpu_times_sys(cpu_times:UvCpuTimesTStar):U64;
-	static public function cpu_times_idle(cpu_times:UvCpuTimesTStar):U64;
-	static public function cpu_times_irq(cpu_times:UvCpuTimesTStar):U64;
+	static public function free_rusage(rusage:UvRusageTStar):Void;
 
 // Auto generated content :
 
@@ -381,11 +373,9 @@ extern class UV {
 	static public function getrusage(rusage:UvRusageTStar):Int;
 	static public function os_getpid():UvPidT;
 	static public function os_getppid():UvPidT;
-	static public function cpu_info(cpu_infos:Ref<UvCpuInfoTStar>, count:Ref<Int>):Int;
 	static public function free_cpu_info(cpu_infos:UvCpuInfoTStar, count:Int):Void;
 	static public function interface_addresses(addresses:Ref<UvInterfaceAddressTStar>, count:Ref<Int>):Int;
 	static public function free_interface_addresses(addresses:UvInterfaceAddressTStar, count:Int):Void;
-	static public function loadavg(avg:Ref<Float>):Void;
 	static public function ip4_addr(ip:Bytes, port:Int, addr:CSockaddrInStar):Int;
 	static public function ip6_addr(ip:Bytes, port:Int, addr:CSockaddrIn6Star):Int;
 	static public function ip4_name(src:CSockaddrInStar, dst:Bytes, size:U64):Int;
