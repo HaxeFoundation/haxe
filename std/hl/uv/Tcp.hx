@@ -94,7 +94,12 @@ class Tcp extends Stream<UvTcpTStar> {
 		Bind the handle to an address and port.
 	**/
 	public function bind(addr:SockAddr, ?ipv6Only:Bool):Void {
-		handle(h -> h.tcp_bind(addr, (ipv6Only ? UV_TCP_IPV6ONLY : 0)).resolve());
+		handle(h -> {
+			var cAddr = addr.toSockaddrStorageStar();
+			var result = h.tcp_bind(cAddr.sockaddr_of_storage(), (ipv6Only ? UV_TCP_IPV6ONLY : 0));
+			cAddr.free_sockaddr_storage();
+			result.resolve();
+		});
 	}
 
 	/**
@@ -102,13 +107,16 @@ class Tcp extends Stream<UvTcpTStar> {
 	**/
 	public function getSockName():SockAddr {
 		return handleReturn(h -> {
-			var addr = UV.alloc_sockaddr_storage(); // TODO: need to free addr manually?
+			var addr = UV.alloc_sockaddr_storage();
 			var size = UV.sockaddr_storage_size();
 			var result = h.tcp_getsockname(addr.sockaddr_of_storage(), Ref.make(size));
 			if(result < 0) {
+				addr.free_sockaddr_storage();
 				result.throwErr();
 			}
-			return addr;
+			var result = SockAddrTools.ofSockaddrStorageStar(addr);
+			addr.free_sockaddr_storage();
+			result;
 		});
 	}
 
@@ -121,9 +129,12 @@ class Tcp extends Stream<UvTcpTStar> {
 			var size = UV.sockaddr_storage_size();
 			var result = h.tcp_getpeername(addr.sockaddr_of_storage(), Ref.make(size));
 			if(result < 0) {
+				addr.free_sockaddr_storage();
 				result.throwErr();
 			}
-			return addr;
+			var result = SockAddrTools.ofSockaddrStorageStar(addr);
+			addr.free_sockaddr_storage();
+			result;
 		});
 	}
 
@@ -133,12 +144,15 @@ class Tcp extends Stream<UvTcpTStar> {
 	public function connect(addr:SockAddr, callback:(e:UVError)->Void):Void {
 		handle(h -> {
 			var req = Stream.createConnect();
-			var result = req.r.tcp_connect_with_cb(h, addr);
+			var cAddr = addr.toSockaddrStorageStar();
+			var result = req.r.tcp_connect_with_cb(h, cAddr.sockaddr_of_storage());
 			if(result < 0) {
+				cAddr.free_sockaddr_storage();
 				req.freeReq();
 				result.throwErr();
 			}
 			req.callback = status -> {
+				cAddr.free_sockaddr_storage();
 				req.freeReq();
 				callback(status.translate_uv_error());
 			}

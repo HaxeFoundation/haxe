@@ -157,6 +157,7 @@ extern class UV {
 	static public function alloc_sockaddr_storage():CSockaddrStorageStar;
 	static public function sockaddr_storage_size():Int;
 	static public function sockaddr_storage_ss_family(addr:CSockaddrStorageStar):Int;
+	static public function sockaddr_storage_port(addr:CSockaddrStorageStar):Null<Int>;
 	static public function free_sockaddr_storage(addr:CSockaddrStorageStar):Void;
 	static public function sockaddr_of_storage(addr:CSockaddrStorageStar):CSockaddrStar;
 	static public function sockaddr_to_storage(addr:CSockaddrStar):CSockaddrStorageStar;
@@ -182,7 +183,7 @@ extern class UV {
 	static public function addrinfo_ai_family(ai:CAddrinfoStar):AddressFamily;
 	static public function addrinfo_ai_socktype(ai:CAddrinfoStar):SocketType;
 	static public function addrinfo_ai_protocol(ai:CAddrinfoStar):Int;
-	static public function addrinfo_ai_addr(ai:CAddrinfoStar):SockAddr;
+	static public function addrinfo_ai_addr(ai:CAddrinfoStar):CSockaddrStorageStar;
 	static public function addrinfo_ai_canonname(ai:CAddrinfoStar):Bytes;
 	static public function addrinfo_ai_next(ai:CAddrinfoStar):Null<CAddrinfoStar>;
 	static public function nameinfo_flags_to_native(ai:NameInfoFlags):Int;
@@ -351,7 +352,6 @@ extern class UV {
 	static public function backend_timeout(loop:UvLoopTStar):Int;
 	static public function now(loop:UvLoopTStar):U64;
 	static public function update_time(loop:UvLoopTStar):Void;
-	static public function walk_with_cb(loop:UvLoopTStar, arg:Pointer):Void;
 	static public function loop_fork(loop:UvLoopTStar):Int;
 	static public function loop_get_data(loop:UvLoopTStar):Pointer;
 	static public function loop_set_data(loop:UvLoopTStar, data:Pointer):Pointer;

@@ -24,66 +24,77 @@ enum abstract SocketType(Int) from Int {
 }
 
 /**
-	Binds `struct sockaddr` (man 2 socket).
-
-	// TODO: figure out if it's required to manually free this struct
+	Represents ip4 or ip6 socket address.
 **/
-abstract SockAddr(CSockaddrStorageStar) from CSockaddrStorageStar to CSockaddrStorageStar {
+@:using(hl.uv.SockAddr.SockAddrTools)
+enum SockAddr {
+	Ip4Addr(ip:String, ?port:Int);
+	Ip6Addr(ip:String, ?port:Int);
+}
+
+class SockAddrTools {
 	/** Extracts the port in a network address. */
-	public var port(get,never):Null<Int>;
-	@:hlNative("uv", "sockaddr_get_port") function get_port():Null<Int> return null;
-
-	@:hlNative("uv", "sockaddr_cast_ptr")
-	static function castPtr(pointer:Dynamic):SockAddr
-		return null;
-
-	@:from static inline function ofSockaddrStar(addr:Null<CSockaddrStar>):SockAddr {
-		return addr.sockaddr_to_storage();
-	}
-
-	@:to inline function toSockaddrStar():CSockaddrStar {
-		return this.sockaddr_of_storage();
-	}
-
-	/**
-		Converts a string and port number to an IPv4 struct sockaddr.
-
-		@see http://docs.libuv.org/en/v1.x/misc.html#c.uv_ip4_addr
-	**/
-	@:hlNative("uv", "ip4_addr_wrap")
-	static public function ipv4(ip:String, port:Int):SockAddr
-		return null;
-
-	/**
-		Converts a string and port number to an IPv6 struct sockaddr.
-
-		@see http://docs.libuv.org/en/v1.x/misc.html#c.uv_ip6_addr
-	**/
-	@:hlNative("uv", "ip6_addr_wrap")
-	static public function ipv6(ip:String, port:Int):SockAddr
-		return null;
-
-	/**
-		Converts a network address to a string.
-
-		@see http://docs.libuv.org/en/v1.x/misc.html#c.uv_ip4_name
-		@see http://docs.libuv.org/en/v1.x/misc.html#c.uv_ip6_name
-	**/
-	public function name():Null<String>
-		return switch name_wrap() {
+	static public function port(addr:Null<SockAddr>):Null<Int> {
+		return switch addr {
 			case null: null;
-			case b: @:privateAccess String.fromUTF8(b);
+			case Ip4Addr(_, port): port;
+			case Ip6Addr(_, port): port;
 		}
-	//TODO: return `String` instead of `Bytes`
-	@:hlNative("uv", "ip_name_wrap") function name_wrap():Null<Bytes>
-		return null;
+	}
+
+	@:allow(hl.uv)
+	static function ofSockaddrStorageStar(addr:Null<CSockaddrStorageStar>):Null<SockAddr> {
+		if(addr == null)
+			return null;
+		var buf = new Bytes(256);
+		var size = I64.ofInt(256);
+		return switch addr.sockaddr_storage_ss_family().address_family_of_af() {
+			case INET:
+				UV.ip4_name(addr.sockaddr_in_of_storage(), buf, size);
+				Ip4Addr(buf.fromUTF8(), addr.sockaddr_storage_port());
+			case INET6:
+				UV.ip6_name(addr.sockaddr_in6_of_storage(), buf, size);
+				Ip6Addr(buf.fromUTF8(), addr.sockaddr_storage_port());
+			case _:
+				null;
+		}
+	}
+
+	@:allow(hl.uv)
+	static function toSockaddrStorageStar(addr:Null<SockAddr>):Null<CSockaddrStorageStar> {
+		if(addr == null)
+			return null;
+		var cAddr = UV.alloc_sockaddr_storage();
+		var result = switch addr {
+			case Ip4Addr(ip, port): UV.ip4_addr(ip.toUTF8(), port, cAddr.sockaddr_in_of_storage());
+			case Ip6Addr(ip, port): UV.ip6_addr(ip.toUTF8(), port, cAddr.sockaddr_in6_of_storage());
+		}
+		if(result < 0) {
+			cAddr.free_sockaddr_storage();
+			result.throwErr();
+		}
+		return cAddr;
+	}
 
 	/**
 		Converts a network address to a string.
 	**/
-	public function toString():String
-		return switch port {
-			case null: '${name()}';
-			case p: '${name()}:$p';
+	static public function name(addr:Null<SockAddr>):Null<String> {
+		return switch addr {
+			case null: null;
+			case Ip4Addr(ip, _): ip;
+			case Ip6Addr(ip, _): ip;
 		}
+	}
+
+	/**
+		Converts a network address to a string.
+	**/
+	static public function toString(addr:Null<SockAddr>):Null<String> {
+		return switch addr {
+			case null: null;
+			case Ip4Addr(ip, port): ip + (port == null ? '' : '$port');
+			case Ip6Addr(ip, port): ip + (port == null ? '' : '$port');
+		}
+	}
 }

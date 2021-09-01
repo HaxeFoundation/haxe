@@ -115,12 +115,14 @@ class Dns {
 			if(ai != null) {
 				infos = [];
 				while(ai != null) {
+					var cAddr = ai.addrinfo_ai_addr();
 					var entry:AddrInfo = {
 						family:ai.addrinfo_ai_family(),
 						sockType:ai.addrinfo_ai_socktype(),
 						protocol:ai.addrinfo_ai_protocol(),
-						addr:ai.addrinfo_ai_addr()
+						addr:SockAddrTools.ofSockaddrStorageStar(cAddr)
 					}
+					cAddr.free_sockaddr_storage();
 					switch ai.addrinfo_ai_canonname() {
 						case null:
 						case cn: entry.canonName = cn.fromUTF8();
@@ -142,12 +144,15 @@ class Dns {
 
 		loop.checkLoop();
 		var req = new NameInfoRequest(UV.alloc_getnameinfo());
-		var result = loop.getnameinfo_with_cb(req.r, addr.sockaddr_of_storage(), flags.nameinfo_flags_to_native());
+		var cAddr = addr.toSockaddrStorageStar();
+		var result = loop.getnameinfo_with_cb(req.r, cAddr.sockaddr_of_storage(), flags.nameinfo_flags_to_native());
 		if(result < 0) {
+			cAddr.free_sockaddr_storage();
 			req.freeReq();
 			result.throwErr();
 		}
 		req.callback = (status, hostname, service) -> {
+			cAddr.free_sockaddr_storage();
 			req.freeReq();
 			callback(
 				status.translate_uv_error(),

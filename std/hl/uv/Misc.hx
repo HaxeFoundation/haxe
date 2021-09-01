@@ -22,6 +22,7 @@
 
 package hl.uv;
 
+import hl.uv.SockAddr.SockAddrTools;
 import hl.uv.Request;
 
 typedef RUsage = {
@@ -220,13 +221,18 @@ class Misc {
 		var result = [for(i in 0...count) {
 			var addr = addresses.interface_address_get(i);
 			var physAddr = addr.interface_address_phys_addr();
-			{
+			var address = addr.interface_address_address();
+			var netmask = addr.interface_address_netmask();
+			var entry = {
 				name:addr.interface_address_name().fromUTF8(),
 				physAddr:[for(i in 0...6) physAddr.getUI8(i)],
 				isInternal:addr.interface_address_is_internal() != 0,
-				address:(addr.interface_address_address():SockAddr),
-				netmask:(addr.interface_address_netmask():SockAddr),
+				address:SockAddrTools.ofSockaddrStorageStar(address),
+				netmask:SockAddrTools.ofSockaddrStorageStar(netmask),
 			}
+			address.free_sockaddr_storage();
+			netmask.free_sockaddr_storage();
+			entry;
 		}];
 		addresses.free_interface_addresses(count);
 		return result;
@@ -238,46 +244,6 @@ class Misc {
 	static public function loadAvg():Array<Float> {
 		var a = UV.loadavg_array();
 		return [for(i in 0...a.length) a[i]];
-	}
-
-	/**
-		Convert a string containing an IPv4 addresses to a structure.
-	**/
-	static public function ip4Addr(ip:String, port:Int):SockAddr {
-		var addr = UV.alloc_sockaddr_storage();
-		var result = UV.ip4_addr(ip.toUTF8(), port, addr.sockaddr_in_of_storage());
-		if(result < 0) {
-			addr.free_sockaddr_storage();
-			result.throwErr();
-		}
-		return addr;
-	}
-
-	/**
-		Convert a string containing an IPv6 addresses to a structure.
-	**/
-	static public function ip6Addr(ip:String, port:Int):SockAddr {
-		var addr = UV.alloc_sockaddr_storage();
-		var result = UV.ip6_addr(ip.toUTF8(), port, addr.sockaddr_in6_of_storage());
-		if(result < 0) {
-			addr.free_sockaddr_storage();
-			result.throwErr();
-		}
-		return addr;
-	}
-
-	/**
-		Convert a structure containing an IPv4 or IPv6 address to a string.
-	**/
-	static public function ipName(addr:SockAddr):String {
-		var buf = new Bytes(256);
-		var size = I64.ofInt(256);
-		switch addr.sockaddr_storage_ss_family().address_family_of_af() {
-			case INET: UV.ip4_name(addr.sockaddr_in_of_storage(), buf, size);
-			case INET6: UV.ip6_name(addr.sockaddr_in6_of_storage(), buf, size);
-			case _: throw new UVException(UV_EINVAL);
-		}
-		return buf.fromUTF8();
 	}
 
 	/**

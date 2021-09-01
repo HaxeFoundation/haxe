@@ -159,7 +159,10 @@ class Udp extends Handle<UvUdpTStar> {
 				flags |= UV_UDP_IPV6ONLY;
 			if(reuseAddr)
 				flags |= UV_UDP_REUSEADDR;
-			h.udp_bind(addr, flags).resolve();
+			var cAddr = addr.toSockaddrStorageStar();
+			var result = h.udp_bind(cAddr.sockaddr_of_storage(), flags);
+			cAddr.free_sockaddr_storage();
+			result.resolve();
 		});
 	}
 
@@ -171,7 +174,10 @@ class Udp extends Handle<UvUdpTStar> {
 	**/
 	public function connect(addr:Null<SockAddr>):Void {
 		handle(h -> {
-			h.udp_connect(addr).resolve();
+			var cAddr = addr.toSockaddrStorageStar();
+			var result = h.udp_connect(cAddr.sockaddr_of_storage());
+			cAddr.free_sockaddr_storage();
+			result.resolve();
 		});
 	}
 
@@ -180,14 +186,16 @@ class Udp extends Handle<UvUdpTStar> {
 	**/
 	public function getSockName():SockAddr {
 		return handleReturn(h -> {
-			var addr = UV.alloc_sockaddr_storage();
+			var cAddr = UV.alloc_sockaddr_storage();
 			var size = UV.sockaddr_storage_size();
-			var result = h.udp_getsockname(addr.sockaddr_of_storage(), Ref.make(size));
+			var result = h.udp_getsockname(cAddr.sockaddr_of_storage(), Ref.make(size));
 			if(result < 0) {
-				addr.free_sockaddr_storage();
+				cAddr.free_sockaddr_storage();
 				result.throwErr();
 			}
-			return addr;
+			var addr = SockAddrTools.ofSockaddrStorageStar(cAddr);
+			cAddr.free_sockaddr_storage();
+			addr;
 		});
 	}
 
@@ -196,14 +204,16 @@ class Udp extends Handle<UvUdpTStar> {
 	**/
 	public function getPeerName():SockAddr {
 		return handleReturn(h -> {
-			var addr = UV.alloc_sockaddr_storage();
+			var cAddr = UV.alloc_sockaddr_storage();
 			var size = UV.sockaddr_storage_size();
-			var result = h.udp_getpeername(addr.sockaddr_of_storage(), Ref.make(size));
+			var result = h.udp_getpeername(cAddr.sockaddr_of_storage(), Ref.make(size));
 			if(result < 0) {
-				addr.free_sockaddr_storage();
+				cAddr.free_sockaddr_storage();
 				result.throwErr();
 			}
-			return addr;
+			var addr = SockAddrTools.ofSockaddrStorageStar(cAddr);
+			cAddr.free_sockaddr_storage();
+			addr;
 		});
 	}
 
@@ -273,13 +283,16 @@ class Udp extends Handle<UvUdpTStar> {
 		handle(h -> {
 			var req = new UdpSendRequest(UV.alloc_udp_send());
 			var buf = UV.alloc_buf(bytes, length);
-			var result = req.r.udp_send_with_cb(h, buf, 1, addr);
+			var cAddr = addr.toSockaddrStorageStar();
+			var result = req.r.udp_send_with_cb(h, buf, 1, cAddr.sockaddr_of_storage());
 			if(result < 0) {
+				cAddr.free_sockaddr_storage();
 				buf.free_buf();
 				req.freeReq();
 				result.throwErr();
 			}
 			req.callback = status -> {
+				cAddr.free_sockaddr_storage();
 				req.freeReq();
 				callback(status.translate_uv_error());
 			}
@@ -298,7 +311,9 @@ class Udp extends Handle<UvUdpTStar> {
 	public function trySend(bytes:hl.Bytes, length:Int, addr:Null<SockAddr>):Int {
 		return handleReturn(h -> {
 			var buf = UV.alloc_buf(bytes, length);
-			var result = h.udp_try_send(buf, 1, addr);
+			var cAddr = addr.toSockaddrStorageStar();
+			var result = h.udp_try_send(buf, 1, cAddr.sockaddr_of_storage());
+			cAddr.free_sockaddr_storage();
 			buf.free_buf();
 			return result.resolve();
 		});
@@ -330,7 +345,7 @@ class Udp extends Handle<UvUdpTStar> {
 	public function recvStart(callback:(e:UVError, data:Null<Bytes>, bytesRead:Int, addr:Null<SockAddr>, flags:RecvFlags)->Void):Void {
 		handle(h -> {
 			h.udp_recv_start_with_cb().resolve();
-			onRecv = (nRead, buf, addr, flags) -> { // buf is freed on C-side
+			onRecv = (nRead, buf, cAddr, flags) -> { // buf is freed on C-side
 				var bytesRead = nRead.toInt();
 				var e = bytesRead.translate_uv_error();
 				var data = switch e {
@@ -340,7 +355,10 @@ class Udp extends Handle<UvUdpTStar> {
 						bytesRead = 0;
 						null;
 				}
-				callback(e, data, bytesRead, addr, new RecvFlags(flags)); // TODO: copy addr. Otherwise it's deallocated by libuv by the end of callback
+				var storage = cAddr.sockaddr_to_storage();
+				var addr = SockAddrTools.ofSockaddrStorageStar(storage);
+				storage.free_sockaddr_storage();
+				callback(e, data, bytesRead, addr, new RecvFlags(flags));
 			}
 		});
 	}
