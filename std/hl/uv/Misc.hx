@@ -78,7 +78,7 @@ typedef CpuInfo = {
 
 typedef InterfaceAddress = {
 	var name:String;
-	var physAddr:haxe.io.Bytes;
+	var physAddr:Array<Int>;
 	var isInternal:Bool;
 	var address:SockAddr;
 	var netmask:SockAddr;
@@ -97,6 +97,11 @@ typedef Uname = {
 	var release:String;
 	var version:String;
 	var machine:String;
+}
+
+@:allow(hl.uv)
+class RandomRequest extends Request<UvRandomTStar> {
+	@:keep var callback:(status:Int)->Void;
 }
 
 /**
@@ -153,6 +158,7 @@ class Misc {
 			nvcsw: rusage.rusage_ru_nvcsw(),
 			nivcsw: rusage.rusage_ru_nivcsw(),
 		}
+		rusage.free_rusage();
 		return result;
 	}
 
@@ -171,62 +177,180 @@ class Misc {
 	}
 
 	/**
+		Gets information about the CPUs on the system.
+	**/
+	static public function cpuInfo():Array<CpuInfo> {
+		var infos = null;
+		var count = 0;
+		var result = UV.cpu_info(Ref.make(infos), Ref.make(count));
+		if(result < 0) {
+			infos.free_cpu_info(count);
+			result.throwErr();
+		}
+		var result = [for(i in 0...count) {
+			var info = infos.cpu_info_get(i);
+			var times = info.cpu_info_cpu_times();
+			{
+				model: info.cpu_info_model().fromUTF8(),
+				speed: info.cpu_info_speed(),
+				cpuTimes: {
+					user: times.cpu_times_user(),
+					nice: times.cpu_times_nice(),
+					sys: times.cpu_times_sys(),
+					idle: times.cpu_times_idle(),
+					irq: times.cpu_times_irq(),
+				}
+			}
+		}];
+		infos.free_cpu_info(count);
+		return result;
+	}
+
+	/**
+		Gets address information about the network interfaces on the system.
+	**/
+	static public function interfaceAddresses():Array<InterfaceAddress> {
+		var addresses = null;
+		var count = 0;
+		var result = UV.interface_addresses(Ref.make(addresses), Ref.make(count));
+		if(result < 0) {
+			addresses.free_interface_addresses(count);
+			result.throwErr();
+		}
+		var result = [for(i in 0...count) {
+			var addr = addresses.interface_address_get(i);
+			var physAddr = addr.interface_address_phys_addr();
+			{
+				name:addr.interface_address_name().fromUTF8(),
+				physAddr:[for(i in 0...6) physAddr.getUI8(i)],
+				isInternal:addr.interface_address_is_internal() != 0,
+				address:(addr.interface_address_address():SockAddr),
+				netmask:(addr.interface_address_netmask():SockAddr),
+			}
+		}];
+		addresses.free_interface_addresses(count);
+		return result;
+	}
+
+	/**
 		Gets the temp directory.
 	**/
-	static public inline function tmpDir():String
-		return @:privateAccess String.fromUTF8(tmpDirWrap());
+	static public function loadAvg():Array<Float> {
+		var a = UV.loadavg_array();
+		return [for(i in 0...a.length) a[i]];
+	}
 
-	@:hlNative("uv", "os_tmpdir_wrap")
-	static function tmpDirWrap():Bytes
-		return null;
+	/**
+		Convert a string containing an IPv4 addresses to a structure.
+	**/
+	static public function ip4Addr(ip:String, port:Int):SockAddr {
+		var addr = UV.alloc_sockaddr_storage();
+		var result = UV.ip4_addr(ip.toUTF8(), port, addr.sockaddr_in_of_storage());
+		if(result < 0) {
+			addr.free_sockaddr_storage();
+			result.throwErr();
+		}
+		return addr;
+	}
+
+	/**
+		Convert a string containing an IPv6 addresses to a structure.
+	**/
+	static public function ip6Addr(ip:String, port:Int):SockAddr {
+		var addr = UV.alloc_sockaddr_storage();
+		var result = UV.ip6_addr(ip.toUTF8(), port, addr.sockaddr_in6_of_storage());
+		if(result < 0) {
+			addr.free_sockaddr_storage();
+			result.throwErr();
+		}
+		return addr;
+	}
+
+	/**
+		Convert a structure containing an IPv4 or IPv6 address to a string.
+	**/
+	static public function ipName(addr:SockAddr):String {
+		var buf = new Bytes(256);
+		var size = I64.ofInt(256);
+		switch addr.sockaddr_storage_ss_family().address_family_of_af() {
+			case INET: UV.ip4_name(addr.sockaddr_in_of_storage(), buf, size);
+			case INET6: UV.ip6_name(addr.sockaddr_in6_of_storage(), buf, size);
+			case _: throw new UVException(UV_EINVAL);
+		}
+		return buf.fromUTF8();
+	}
+
+	/**
+		Gets the current working directory.
+	**/
+	static public function cwd():String {
+		return UV.getName((buf, size) -> UV.cwd(buf, size));
+	}
+
+	/**
+		Changes the current working directory.
+	**/
+	static public function chdir(dir:String) {
+		UV.chdir(dir.toUTF8()).resolve();
+	}
 
 	/**
 		Gets the current user’s home directory.
 	**/
-	static public inline function homeDir():String
-		return @:privateAccess String.fromUTF8(homeDirWrap());
+	static public function homeDir():String {
+		return UV.getName((buf, size) -> UV.os_homedir(buf, size));
+	}
 
-	@:hlNative("uv", "os_homedir_wrap")
-	static function homeDirWrap():Bytes
-		return null;
+	/**
+		Gets the temp directory.
+	**/
+	static public function tmpDir():String {
+		return UV.getName((buf, size) -> UV.os_tmpdir(buf, size));
+	}
 
 	/**
 		Gets a subset of the password file entry for the current effective uid
 		(not the real uid).
 	**/
-	static public function getPasswd():Passwd @:privateAccess {
-		var p:Dynamic = getPasswdWrap();
-		p.username = String.fromUTF8(p.username);
-		p.shell = p.shell == null ? null : String.fromUTF8(p.shell);
-		p.homedir = String.fromUTF8(p.homedir);
-		return p;
+	static public function getPasswd():Passwd {
+		var passwd = UV.alloc_passwd();
+		var result = passwd.os_get_passwd();
+		if(result < 0) {
+			passwd.os_free_passwd();
+			result.throwErr();
+		}
+		var result = {
+			username: passwd.passwd_username().fromUTF8(),
+			uid: passwd.passwd_uid(),
+			gid: passwd.passwd_gid(),
+			shell: passwd.passwd_shell().fromUTF8(),
+			homedir: passwd.passwd_homedir().fromUTF8(),
+		}
+		passwd.os_free_passwd();
+		return result;
 	}
 
-	@:hlNative("uv", "os_getpasswd_wrap")
-	static function getPasswdWrap():Dynamic
-		return null;
-
 	/**
-		Gets the amount of free memory available in the system, as reported by
-		the kernel (in bytes).
+		Gets the amount of free memory available in the system,
+		as reported by the kernel (in bytes).
 	**/
-	@:hlNative("uv", "get_free_memory")
-	static public function getFreeMemory():I64
-		return I64.ofInt(0);
+	static public inline function getFreeMemory():U64 {
+		return UV.get_free_memory();
+	}
 
 	/**
 		Gets the total amount of physical memory in the system (in bytes).
 	**/
-	@:hlNative("uv", "get_total_memory")
-	static public function getTotalMemory():I64
-		return I64.ofInt(0);
+	static public inline function getTotalMemory():U64 {
+		return UV.get_total_memory();
+	}
 
 	/**
 		Gets the amount of memory available to the process (in bytes) based on limits imposed by the OS.
 	**/
-	@:hlNative("uv", "get_constrained_memory")
-	static public function getConstrainedMemory():I64
-		return I64.ofInt(0);
+	static public inline function getConstrainedMemory():U64 {
+		return UV.get_constrained_memory();
+	}
 
 	/**
 		Returns the current high-resolution real time.
@@ -237,60 +361,72 @@ class Misc {
 		time of day and therefore not subject to clock drift. The primary use is
 		for measuring performance between intervals.
 	**/
-	@:hlNative("uv", "hrtime")
-	static public function hrTime():I64
-		return I64.ofInt(0);
+	static public inline function hrTime():U64 {
+		return UV.hrtime();
+	}
 
 	/**
 		Returns the hostname.
 	**/
-	static public inline function getHostName():String
-		return @:privateAccess String.fromUTF8(getHostNameWrap());
-
-	@:hlNative("uv", "os_gethostname_wrap")
-	static function getHostNameWrap():Bytes
-		return null;
+	static public function getHostName():String {
+		return UV.getName((buf, size) -> UV.os_gethostname(buf, size));
+	}
 
 	/**
 		Retrieves the scheduling priority of the process specified by pid.
 		The returned value of priority is between -20 (high priority) and 19 (low priority).
 	**/
-	@:hlNative("uv", "os_getpriority_wrap")
-	static public function getPriority(pid:Int):Int
-		return 0;
+	static public function getPriority(pid:Int):Int {
+		var p = 0;
+		UV.os_getpriority(pid, Ref.make(p)).resolve();
+		return p;
+	}
 
 	/**
 		Sets the scheduling priority of the process specified by pid.
 		The priority value range is between -20 (high priority) and 19 (low priority).
 	**/
-	@:hlNative("uv", "os_setpriority_wrap")
-	static public function setPriority(pid:Int, priority:Int):Void {}
+	static public function setPriority(pid:Int, priority:Int):Void {
+		UV.os_setpriority(pid, priority).resolve();
+	}
 
 	/**
 		Retrieves system information.
 	**/
 	static public function uname():Uname @:privateAccess {
-		var u:Dynamic = unameWrap();
-		u.sysname = String.fromUTF8(u.sysname);
-		u.release = String.fromUTF8(u.release);
-		u.version = String.fromUTF8(u.version);
-		u.machine = String.fromUTF8(u.machine);
-		return u;
+		var buf = UV.alloc_utsname();
+		var result = UV.os_uname(buf);
+		if(result < 0) {
+			buf.free_utsname();
+			result.throwErr();
+		}
+		var result = {
+			sysname: buf.utsname_sysname().fromUTF8(),
+			release: buf.utsname_release().fromUTF8(),
+			version: buf.utsname_version().fromUTF8(),
+			machine: buf.utsname_machine().fromUTF8(),
+		}
+		buf.free_utsname();
+		return result;
 	}
-
-	@:hlNative("uv", "os_uname_wrap")
-	static function unameWrap():Dynamic
-		return null;
 
 	/**
 		Get time.
 	**/
-	static public function getTimeOfDay():{sec:I64, usec:Int}
-		return getTimeOfDayWrap();
-
-	@:hlNative("uv", "gettimeofday_wrap")
-	static function getTimeOfDayWrap():Dynamic
-		return null;
+	static public function getTimeOfDay():{sec:I64, usec:Int} {
+		var tv = UV.alloc_timeval64();
+		var result = UV.gettimeofday(tv);
+		if(result < 0) {
+			tv.free_timeval64();
+			result.throwErr();
+		}
+		var result = {
+			sec:tv.timeval64_tv_sec(),
+			usec:tv.timeval64_tv_usec(),
+		}
+		tv.free_timeval64();
+		return result;
+	}
 
 	/**
 		Fill `buf` with exactly `length` cryptographically strong random bytes acquired
@@ -298,7 +434,28 @@ class Misc {
 
 		`flags` is reserved for future extension and must currently be 0.
 	**/
-	@:hlNative("uv", "random_wrap")
-	static public function random(loop:Loop, buf:Bytes, length:Int, flags:Int, callback:(e:UVError)->Void):Void {}
+	static public function random(loop:Loop, buf:Bytes, length:Int, flags:Int, callback:(e:UVError)->Void):Void {
+		loop.checkLoop();
+		var req = new RandomRequest(UV.alloc_random());
+		var result = loop.random_with_cb(req.r, buf.pointer_of_bytes(), I64.ofInt(length), flags, true);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = status -> {
+			req.freeReq();
+			callback(status.translate_uv_error());
+		}
+	}
+
+	/**
+		Synchronously fill `buf` with exactly `length` cryptographically strong random bytes acquired
+		from the system CSPRNG.
+
+		`flags` is reserved for future extension and must currently be 0.
+	**/
+	static public function randomSync(buf:Bytes, length:Int, flags:Int):Void {
+		UV.random_with_cb(null, null, buf.pointer_of_bytes(), I64.ofInt(length), flags, false).resolve();
+	}
 
 }
