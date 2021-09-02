@@ -62,19 +62,26 @@ class Dir {
 		}
 	}
 
+	extern inline function dirReturn<R>(action:(d:UvDirTStar)->R):R {
+		return switch _d {
+			case null: throw new UVException(UV_EINVAL);
+			case d: action(d);
+		}
+	}
+
 	/**
 		Opens `path` as a directory stream
 	**/
-	static public function open(loop:Loop, path:String, callback:(e:UVError, dir:Null<Dir>)->Void):Void {
+	static public function open(loop:Loop, path:String, callback:(e:UVError, dir:Null<Dir>)->Void):FsRequest {
 		loop.checkLoop();
-		var req = new FsRequest(UV.alloc_fs());
+		var req = File.createReq();
 		var result = loop.fs_opendir_with_cb(req.r, path.toUTF8(), true);
 		if(result < 0) {
 			req.freeReq();
 			result.throwErr();
 		}
 		req.callback = () -> {
-			var result = req.getResult();
+			var result = req.getIntResult();
 			var dir = switch req.r.fs_get_ptr() {
 				case null: null;
 				case ptr: ptr.pointer_to_dir();
@@ -82,31 +89,33 @@ class Dir {
 			req.freeReq();
 			callback(result.translate_uv_error(), new Dir(dir));
 		}
+		return req;
 	}
 
 	/**
 		Closes the directory stream.
 	**/
-	public function close(loop:Loop, callback:(e:UVError)->Void):Void {
+	public function close(loop:Loop, callback:(e:UVError)->Void):FsRequest {
 		loop.checkLoop();
-		dir(d -> {
-			var req = new FsRequest(UV.alloc_fs());
+		return dirReturn(d -> {
+			var req = File.createReq();
 			var result = loop.fs_closedir_with_cb(req.r, d, true);
 			req.callback = () -> {
-				var result = req.getResult();
+				var result = req.getIntResult();
 				req.freeReq();
 				callback(result.translate_uv_error());
 			};
+			req;
 		});
 	}
 
 	/**
 		Iterates over the directory stream.
 	**/
-	public function read(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:Null<Array<DirEntry>>)->Void):Void {
+	public function read(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:Null<Array<DirEntry>>)->Void):FsRequest {
 		loop.checkLoop();
-		dir(d -> {
-			var req = new FsRequest(UV.alloc_fs());
+		return dirReturn(d -> {
+			var req = File.createReq();
 			d.dir_init(numberOfEntries);
 			var result = loop.fs_readdir_with_cb(req.r, d, true);
 			if(result < 0) {
@@ -114,7 +123,7 @@ class Dir {
 				result.throwErr();
 			}
 			req.callback = () -> {
-				var result = req.getResult();
+				var result = req.getIntResult();
 				var e = result.translate_uv_error();
 				var entries = switch e {
 					case UV_NOERR:
@@ -135,6 +144,7 @@ class Dir {
 				req.freeReq();
 				callback(e, entries);
 			}
+			req;
 		});
 	}
 }

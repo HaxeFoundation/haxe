@@ -79,6 +79,9 @@ abstract class Request<T:UvReqTStar> {
 		Cancel a pending request.
 
 		Fails if the request is executing or has finished executing.
+
+		The callback of the request will be called some time in future
+		with `UV_ECANCELED` error.
 	**/
 	public function cancel():Void {
 		req(r -> UV.cancel(r).resolve());

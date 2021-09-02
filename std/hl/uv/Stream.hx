@@ -33,7 +33,7 @@ private class ConnectRequest extends Request<UvConnectTStar> {
 private class WriteRequest extends Request<UvWriteTStar> {
 	@:keep var callback:(status:Int)->Void;
 	//to keep bytes alive untile write request is complete
-	@:keep var data:Bytes;
+	var data:Bytes;
 }
 
 @:allow(hl.uv.Stream)

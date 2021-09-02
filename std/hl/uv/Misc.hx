@@ -400,7 +400,7 @@ class Misc {
 
 		`flags` is reserved for future extension and must currently be 0.
 	**/
-	static public function random(loop:Loop, buf:Bytes, length:Int, flags:Int, callback:(e:UVError)->Void):Void {
+	static public function random(loop:Loop, buf:Bytes, length:Int, flags:Int, callback:(e:UVError)->Void):RandomRequest {
 		loop.checkLoop();
 		var req = new RandomRequest(UV.alloc_random());
 		var result = loop.random_with_cb(req.r, buf.pointer_of_bytes(), I64.ofInt(length), flags, true);
@@ -412,6 +412,7 @@ class Misc {
 			req.freeReq();
 			callback(status.translate_uv_error());
 		}
+		return req;
 	}
 
 	/**

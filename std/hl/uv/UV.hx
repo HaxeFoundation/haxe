@@ -225,6 +225,9 @@ extern class UV {
 	static public function utsname_version(u:UvUtsnameTStar):Bytes;
 	static public function utsname_machine(u:UvUtsnameTStar):Bytes;
 	static public function alloc_random():UvRandomTStar;
+	static public function translate_to_sys_file_open_flag(fileOpenFlagIndex:Int):Int;
+	static public function pointer_to_statfs(ptr:Pointer):UvStatfsTStar;
+	static public function statfs_f_spare(statfs:UvStatfsTStar):NativeArray<U64>;
 
 // Auto generated content :
 

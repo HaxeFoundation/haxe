@@ -79,32 +79,32 @@ typedef FileTimeSpec = {
 }
 
 typedef FileStatFs = {
-	var type:I64; // UI64
-	var bsize:I64; // UI64
-	var blocks:I64; // UI64
-	var bfree:I64; // UI64
-	var bavail:I64; // UI64
-	var files:I64; // UI64
-	var ffree:I64; // UI64
-	var spare:Array<I64>; // UI64
+	var type:U64;
+	var bsize:U64;
+	var blocks:U64;
+	var bfree:U64;
+	var bavail:U64;
+	var files:U64;
+	var ffree:U64;
+	var spare:Array<U64>;
 }
 
-enum abstract CopyFileFlag(Int) {
+enum abstract CopyFileFlag(Int) to Int {
 	var EXCL = 1;
 	var FICLONE = 2;
-	var FICLONE_FORCE = 3;
+	var FICLONE_FORCE = 4;
 }
 
-enum abstract FileAccessMode(Int) {
+enum abstract FileAccessMode(Int) to Int {
 	var F_OK = 0;
-	var R_OK = 1;
+	var X_OK = 1;
 	var W_OK = 2;
-	var X_OK = 3;
+	var R_OK = 4;
 }
 
-enum abstract FileSymlinkFlag(Int) {
-	var SYMLINK_DIR = 0;
-	var SYMLINK_JUNCTION = 1;
+enum abstract FileSymlinkFlag(Int) to Int {
+	var SYMLINK_DIR = 1;
+	var SYMLINK_JUNCTION = 2;
 }
 
 enum abstract FsRequestType(Int) to Int {
@@ -150,9 +150,29 @@ enum abstract FsRequestType(Int) to Int {
 @:allow(hl.uv)
 class FsRequest extends Request<UvFsTStar> {
 	@:keep var callback:()->Void;
+	//to keep bytes alive untile read/write request is complete
+	var data:Bytes;
 
-	inline function getResult():Int {
+	inline function getIntResult():Int {
 		return r.fs_get_result().toInt();
+	}
+
+	inline function getResult():U64 {
+		return r.fs_get_result();
+	}
+
+	inline function getPath():Null<String> {
+		return switch r.fs_get_path() {
+			case null: null;
+			case p: p.fromUTF8();
+		}
+	}
+
+	inline function getStat():Null<FileStat> {
+		return switch r.fs_get_statbuf() {
+			case null: null;
+			case s: File.uvStatToHl(s);
+		}
 	}
 
 	override function freeReq() {
@@ -176,11 +196,16 @@ abstract File(UvFile) to UvFile {
 	inline function new(fd:Int)
 		this = new UvFile(fd);
 
-	static inline function uvTimespecToToHl(times:UvTimespecTStar):FileTimeSpec {
+	static inline function uvTimespecToHl(times:UvTimespecTStar):FileTimeSpec {
 		return {
 			sec:times.timespec_tv_sec(),
 			nsec:times.timespec_tv_nsec(),
 		}
+	}
+
+	@:allow(hl.uv)
+	static inline function createReq():FsRequest {
+		return new FsRequest(UV.alloc_fs());
 	}
 
 	@:allow(hl.uv)
@@ -198,144 +223,301 @@ abstract File(UvFile) to UvFile {
 			blocks:stat.stat_st_blocks(),
 			flags:stat.stat_st_flags(),
 			gen:stat.stat_st_gen(),
-			atim:uvTimespecToToHl(stat.stat_st_atim()),
-			mtim:uvTimespecToToHl(stat.stat_st_mtim()),
-			ctim:uvTimespecToToHl(stat.stat_st_ctim()),
-			birthtim:uvTimespecToToHl(stat.stat_st_birthtim()),
+			atim:uvTimespecToHl(stat.stat_st_atim()),
+			mtim:uvTimespecToHl(stat.stat_st_mtim()),
+			ctim:uvTimespecToHl(stat.stat_st_ctim()),
+			birthtim:uvTimespecToHl(stat.stat_st_birthtim()),
 		}
+	}
+
+	static inline function simpleRequest(loop:Loop, callback:(e:UVError)->Void, action:(req:FsRequest)->Int):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var result = action(req);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getIntResult();
+			req.freeReq();
+			callback(result.translate_uv_error());
+		}
+		return req;
+	}
+
+	static inline function pathRequest(loop:Loop, callback:(e:UVError, path:Null<String>)->Void, action:(req:FsRequest)->Int):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var result = action(req);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getIntResult();
+			var path = req.getPath();
+			req.freeReq();
+			switch result.translate_uv_error() {
+				case UV_NOERR: callback(UV_NOERR, path);
+				case e: callback(e, null);
+			}
+		}
+		return req;
+	}
+
+	static inline function statRequest(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void, action:(req:FsRequest)->Int):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var result = action(req);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getIntResult();
+			var stat = req.getStat();
+			req.freeReq();
+			callback(result.translate_uv_error(), stat);
+		}
+		return req;
 	}
 
 	/**
 		Close file.
 	**/
-	@:hlNative("uv", "fs_close_wrap")
-	public function close(loop:Loop, callback:(e:UVError)->Void):Void {}
+	public function close(loop:Loop, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_close_with_cb(req.r, this, true));
+	}
 
 	/**
 		Open file.
 	**/
-	static public inline function open(loop:Loop, path:String, flags:Array<FileOpenFlag>, callback:(e:UVError, file:File)->Void):Void {
-		openWrap(loop, path, @:privateAccess (cast flags:ArrayObj<FileOpenFlag>).array, callback);
+	static public function open(loop:Loop, path:String, flags:Array<FileOpenFlag>, callback:(e:UVError, file:File)->Void):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var cFlags = 0;
+		var mode = 0;
+		for(flag in flags) {
+			cFlags |= flag.getIndex().translate_to_sys_file_open_flag();
+			switch flag {
+				case O_CREAT(m): mode = m;
+				case _:
+			}
+		}
+		var result = loop.fs_open_with_cb(req.r, path.toUTF8(), cFlags, mode, true);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getIntResult();
+			req.freeReq();
+			callback(result.translate_uv_error(), new File(result));
+		}
+		return req;
 	}
-	@:hlNative("uv", "fs_open_wrap")
-	static function openWrap(loop:Loop, path:String, flags:NativeArray<Dynamic>, callback:(e:UVError, file:File)->Void):Void {}
 
 	/**
 		Read from file.
 	**/
-	@:hlNative("uv", "fs_read_wrap")
-	public function read(loop:Loop, buf:Bytes, length:Int, offset:I64, callback:(e:UVError, bytesRead:I64)->Void):Void {}
+	public function read(loop:Loop, buffer:Bytes, length:Int, offset:I64, callback:(e:UVError, bytesRead:I64)->Void):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var buf = buffer.alloc_buf(length);
+		var result = loop.fs_read_with_cb(req.r, this, buf, 1, offset, true);
+		if(result < 0) {
+			buf.free_buf();
+			req.freeReq();
+			result.throwErr();
+		}
+		req.data = buffer;
+		req.callback = () -> {
+			var result = req.getResult();
+			buf.free_buf();
+			req.freeReq();
+			switch result.toInt().translate_uv_error() {
+				case UV_NOERR: callback(UV_NOERR, result);
+				case e: callback(e, I64.ofInt(0));
+			}
+		}
+		return req;
+	}
 
 	/**
 		Delete a name and possibly the file it refers to.
 	**/
-	@:hlNative("uv", "fs_unlink_wrap")
-	static public function unlink(loop:Loop, path:String, callback:(e:UVError)->Void):Void {}
+	static public function unlink(loop:Loop, path:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_unlink_with_cb(req.r, path.toUTF8(), true));
+	}
 
 	/**
 		Write to file.
 	**/
-	@:hlNative("uv", "fs_write_wrap")
-	public function write(loop:Loop, data:Bytes, length:Int, offset:I64, callback:(e:UVError, bytesWritten:I64)->Void):Void {}
+	public function write(loop:Loop, data:Bytes, length:Int, offset:I64, callback:(e:UVError, bytesWritten:I64)->Void):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var buf = data.alloc_buf(length);
+		var result = loop.fs_write_with_cb(req.r, this, buf, 1, offset, true);
+		if(result < 0) {
+			buf.free_buf();
+			req.freeReq();
+			result.throwErr();
+		}
+		req.data = data;
+		req.callback = () -> {
+			var result = req.getResult();
+			buf.free_buf();
+			req.freeReq();
+			switch result.toInt().translate_uv_error() {
+				case UV_NOERR: callback(UV_NOERR, result);
+				case e: callback(e, I64.ofInt(0));
+			}
+		}
+		return req;
+	}
 
 	/**
 		Create a directory.
 	**/
-	@:hlNative("uv", "fs_mkdir_wrap")
-	static public function mkdir(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):Void {}
+	static public function mkdir(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_mkdir_with_cb(req.r, path.toUTF8(), mode, true));
+	}
 
 	/**
 		Create a temporary directory.
 	**/
-	static public inline function mkdtemp(loop:Loop, tpl:String, callback:(e:UVError, path:Null<String>)->Void):Void
-		mkdtempWrap(loop, tpl, (e, p) -> callback(e, p == null ? null : @:privateAccess String.fromUTF8(p)));
-
-	@:hlNative("uv", "fs_mkdtemp_wrap")
-	static function mkdtempWrap(loop:Loop, tpl:String, callback:(e:UVError, path:Null<Bytes>)->Void):Void {}
+	static public function mkdtemp(loop:Loop, tpl:String, callback:(e:UVError, path:Null<String>)->Void):FsRequest {
+		return pathRequest(loop, callback, req -> loop.fs_mkdtemp_with_cb(req.r, tpl.toUTF8(), true));
+	}
 
 	/**
 		Create a temporary file.
 	**/
-	static public function mkstemp(loop:Loop, tpl:String, callback:(e:UVError, file:File, path:Null<String>)->Void):Void
-		mkstempWrap(loop, tpl, (e, f, p) -> callback(e, f, p == null ? null : @:privateAccess String.fromUTF8(p)));
-
-	@:hlNative("uv", "fs_mkstemp_wrap")
-	static function mkstempWrap(loop:Loop, tpl:String, callback:(e:UVError, file:File, path:Null<Bytes>)->Void):Void {}
+	static public function mkstemp(loop:Loop, tpl:String, callback:(e:UVError, file:File, path:Null<String>)->Void):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var result = loop.fs_mkstemp_with_cb(req.r, tpl.toUTF8(), true);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getIntResult();
+			var path = req.getPath();
+			req.freeReq();
+			switch result.translate_uv_error() {
+				case UV_NOERR: callback(UV_NOERR, new File(result), path);
+				case e: callback(e, new File(result), null);
+			}
+		}
+		return req;
+	}
 
 	/**
 		Delete a directory.
 	**/
-	@:hlNative("uv", "fs_rmdir_wrap")
-	static public function rmdir(loop:Loop, path:String, callback:(e:UVError)->Void):Void {}
+	static public function rmdir(loop:Loop, path:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_rmdir_with_cb(req.r, path.toUTF8(), true));
+	}
 
 	/**
 		Retrieves status information for the file at the given path.
 	**/
-	static public inline function stat(loop:Loop, path:String, callback:(e:UVError, stat:FileStat)->Void):Void
-		statWrap(loop, path, callback);
-
-	@:hlNative("uv", "fs_stat_wrap")
-	static function statWrap(loop:Loop, path:String, callback:(e:UVError, stat:Dynamic)->Void):Void {}
+	static public function stat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):FsRequest {
+		return statRequest(loop, callback, req -> loop.fs_stat_with_cb(req.r, path.toUTF8(), true));
+	}
 
 	/**
 		Retrieves status information for the file.
 	**/
-	public inline function fstat(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void):Void
-		fstatWrap(loop, callback);
-
-	@:hlNative("uv", "fs_fstat_wrap")
-	function fstatWrap(loop:Loop, callback:(e:UVError, stat:Dynamic)->Void):Void {}
+	public function fstat(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void):FsRequest {
+		return statRequest(loop, callback, req -> loop.fs_fstat_with_cb(req.r, this, true));
+	}
 
 	/**
 		Retrieves status information for the file at the given path.
 		If `path` is a symbolic link, then it returns information about the link
 		itself, not the file that the link refers to.
 	**/
-	@:hlNative("uv", "fs_lstat_wrap")
-	static public inline function lstat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):Void
-		lstatWrap(loop, path, callback);
-
-	@:hlNative("uv", "fs_lstat_wrap")
-	static function lstatWrap(loop:Loop, path:String, callback:(e:UVError, stat:Dynamic)->Void):Void {}
+	static public function lstat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):FsRequest {
+		return statRequest(loop, callback, req -> loop.fs_stat_with_cb(req.r, path.toUTF8(), true));
+	}
 
 	/**
 		Retrieves status information for the filesystem containing the given path.
 	**/
-	static public inline function statFs(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStatFs>)->Void):Void
-		statfsWrap(loop, path, callback);
-
-	@:hlNative("uv", "fs_statfs_wrap")
-	static function statfsWrap(loop:Loop, path:String, callback:(e:UVError, stat:Dynamic)->Void):Void {}
+	static public function statFs(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStatFs>)->Void):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var result = loop.fs_statfs_with_cb(req.r, path.toUTF8(), true);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getIntResult();
+			var stat = switch req.r.fs_get_ptr().pointer_to_statfs() {
+				case null: null;
+				case s:
+					var spare = s.statfs_f_spare();
+					{
+						type: s.statfs_f_type(),
+						bsize: s.statfs_f_bsize(),
+						blocks: s.statfs_f_blocks(),
+						bfree: s.statfs_f_bfree(),
+						bavail: s.statfs_f_bavail(),
+						files: s.statfs_f_files(),
+						ffree: s.statfs_f_ffree(),
+						spare: [for(i in 0... spare.length) spare[i]],
+					}
+			}
+			req.freeReq();
+			callback(result.translate_uv_error(), stat);
+		}
+		return req;
+	}
 
 	/**
 		Change the name or location of a file.
 	**/
-	@:hlNative("uv", "fs_rename_wrap")
-	static public function rename(loop:Loop, path:String, newPath:String, callback:(e:UVError)->Void):Void {}
+	static public function rename(loop:Loop, path:String, newPath:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_rename_with_cb(req.r, path.toUTF8(), newPath.toUTF8(), true));
+	}
 
 	/**
 		Flushes file changes to storage.
 	**/
-	@:hlNative("uv", "fs_fsync_wrap")
-	public function fsync(loop:Loop, callback:(e:UVError)->Void):Void {}
+	public function fsync(loop:Loop, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_fsync_with_cb(req.r, this, true));
+	}
 
 	/**
 		Flushes file changes to storage, but may omit some metadata.
 	**/
-	@:hlNative("uv", "fs_fdatasync_wrap")
-	public function fdataSync(loop:Loop, callback:(e:UVError)->Void):Void {}
+	public function fdataSync(loop:Loop, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_fdatasync_with_cb(req.r, this, true));
+	}
 
 	/**
 		Truncate a file to a specified length.
 	**/
-	@:hlNative("uv", "fs_ftruncate_wrap")
-	public function ftruncate(loop:Loop, offset:I64, callback:(e:UVError)->Void):Void {}
+	public function ftruncate(loop:Loop, offset:I64, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_ftruncate_with_cb(req.r, this, offset, true));
+	}
 
 	/**
 		Copies a file from `path` to `newPath`.
 	**/
-	@:hlNative("uv", "fs_copyfile_wrap")
-	static public function copyFile(loop:Loop, path:String, newPath:String, flags:Null<Array<CopyFileFlag>>, callback:(e:UVError)->Void):Void {}
+	static public function copyFile(loop:Loop, path:String, newPath:String, flags:Null<Array<CopyFileFlag>>, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> {
+			var cFlags = 0;
+			if(flags != null)
+				for(f in flags)
+					cFlags |= f;
+			loop.fs_copyfile_with_cb(req.r, path.toUTF8(), newPath.toUTF8(), cFlags, true);
+		});
+	}
 
 	/**
 		Transfers data between file descriptors.
@@ -344,92 +526,126 @@ abstract File(UvFile) to UvFile {
 		On success `outOffset` will set to the offset of the byte following the
 		last byte that was read.
 	**/
-	@:hlNative("uv", "fs_sendfile_wrap")
-	public function sendFile(loop:Loop, toFile:File, inOffset:I64, length:I64, callback:(e:UVError, outOffset:I64)->Void):Void {}
+	public function sendFile(loop:Loop, toFile:File, inOffset:I64, length:I64, callback:(e:UVError, outOffset:I64)->Void):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var result = loop.fs_sendfile_with_cb(req.r, this, toFile, inOffset, length, true);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getResult();
+			req.freeReq();
+			switch result.toInt().translate_uv_error() {
+				case UV_NOERR: callback(UV_NOERR, result);
+				case e: callback(e, I64.ofInt(0));
+			}
+		}
+		return req;
+	}
 
 	/**
 		Checks whether the calling process can access the file at the given path.
 	**/
-	@:hlNative("uv", "fs_access_wrap")
-	static public function access(loop:Loop, path:String, mode:Array<FileAccessMode>, callback:(e:UVError)->Void):Void {}
+	static public function access(loop:Loop, path:String, mode:Array<FileAccessMode>, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> {
+			var cMode = 0;
+			for(m in mode)
+				cMode |= m;
+			loop.fs_access_with_cb(req.r, path.toUTF8(), cMode, true);
+		});
+	}
 
 	/**
 		Changes permissions of the file at the given path.
 	**/
-	@:hlNative("uv", "fs_chmod_wrap")
-	static public function chmod(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):Void {}
+	static public function chmod(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_chmod_with_cb(req.r, path.toUTF8(), mode, true));
+	}
 
 	/**
 		Changes permissions of the file.
 	**/
-	@:hlNative("uv", "fs_fchmod_wrap")
-	public function fchmod(loop:Loop, mode:Int, callback:(e:UVError)->Void):Void {}
+	public function fchmod(loop:Loop, mode:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_fchmod_with_cb(req.r, this, mode, true));
+	}
 
 	/**
 		Sets timestamps of the file at the given path.
 	**/
-	@:hlNative("uv", "fs_utime_wrap")
-	static public function utime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):Void {}
+	static public function utime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_utime_with_cb(req.r, path.toUTF8(), atime, mtime, true));
+	}
 
 	/**
 		Sets timestamps of the file.
 	**/
-	@:hlNative("uv", "fs_futime_wrap")
-	public function futime(loop:Loop, atime:Float, mtime:Float, callback:(e:UVError)->Void):Void {}
+	public function futime(loop:Loop, atime:Float, mtime:Float, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_futime_with_cb(req.r, this, atime, mtime, true));
+	}
 
 	/**
 		Sets timestamps of the file at the given path.
 		If `path` is a symbolic link, then it sets timestamp of the link itself.
 	**/
-	@:hlNative("uv", "fs_lutime_wrap")
-	static public function lutime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):Void {}
+	static public function lutime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_lutime_with_cb(req.r, path.toUTF8(), atime, mtime, true));
+	}
 
 	/**
 		Hardlinks a file at the location given by `link`.
 	**/
-	@:hlNative("uv", "fs_link_wrap")
-	static public function link(loop:Loop, path:String, link:String, callback:(e:UVError)->Void):Void {}
+	static public function link(loop:Loop, path:String, link:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_link_with_cb(req.r, path.toUTF8(), link.toUTF8(), true));
+	}
 
 	/**
 		Symlinks a file at the location given by `link`.
 	**/
-	@:hlNative("uv", "fs_symlink_wrap")
-	static public function symlink(loop:Loop, path:String, link:String, flags:Null<Array<FileSymlinkFlag>>, callback:(e:UVError)->Void):Void {}
+	static public function symlink(loop:Loop, path:String, link:String, flags:Null<Array<FileSymlinkFlag>>, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> {
+			var cFlags = 0;
+			if(flags != null)
+				for(f in flags)
+					cFlags |= f;
+			loop.fs_symlink_with_cb(req.r, path.toUTF8(), link.toUTF8(), cFlags, true);
+		});
+	}
 
 	/**
 		Reads the target path of a symlink.
 	**/
-	static public function readLink(loop:Loop, path:String, callback:(e:UVError, target:Null<String>)->Void):Void
-		readLinkWrap(loop, path, (e, t) -> callback(e, t == null ? null : @:privateAccess String.fromUTF8(t)));
-
-	@:hlNative("uv", "fs_readlink_wrap")
-	static public function readLinkWrap(loop:Loop, path:String, callback:(e:UVError, target:Bytes)->Void):Void {}
+	static public function readLink(loop:Loop, path:String, callback:(e:UVError, target:Null<String>)->Void):FsRequest {
+		return pathRequest(loop, callback, req -> loop.fs_readlink_with_cb(req.r, path.toUTF8(), true));
+	}
 
 	/**
 		Resolves a real absolute path to the given file.
 	**/
-	static public function realPath(loop:Loop, path:String, callback:(e:UVError, real:Null<String>)->Void):Void
-		realPathWrap(loop, path, (e, r) -> callback(e, r == null ? null : @:privateAccess String.fromUTF8(r)));
-
-	@:hlNative("uv", "fs_realpath_wrap")
-	static public function realPathWrap(loop:Loop, path:String, callback:(e:UVError, real:Bytes)->Void):Void {}
+	static public function realPath(loop:Loop, path:String, callback:(e:UVError, real:Null<String>)->Void):FsRequest {
+		return pathRequest(loop, callback, req -> loop.fs_realpath_with_cb(req.r, path.toUTF8(), true));
+	}
 
 	/**
 		Changes owneship of the file at the given path.
 	**/
-	@:hlNative("uv", "fs_chown_wrap")
-	static public function chown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+	static public function chown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_chown_with_cb(req.r, path.toUTF8(), uid, gid, true));
+	}
 
 	/**
 		Changes owneship of the file.
 	**/
-	@:hlNative("uv", "fs_fchown_wrap")
-	public function fchown(loop:Loop, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+	public function fchown(loop:Loop, uid:Int, gid:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_fchown_with_cb(req.r, this, uid, gid, true));
+	}
 
 	/**
 		Changes owneship of the file at the given path.
 		If `path` is a symbolic link, the it changes ownership of the link itself.
 	**/
-	@:hlNative("uv", "fs_chown_wrap")
-	static public function lchown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):Void {}
+	static public function lchown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, req -> loop.fs_lchown_with_cb(req.r, path.toUTF8(), uid, gid, true));
+	}
 }

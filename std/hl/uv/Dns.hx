@@ -72,12 +72,12 @@ enum abstract NameInfoFlags(Int) from Int to Int {
 }
 
 @:allow(hl.uv.Dns)
-private class AddrInfoRequest extends Request<UvGetaddrinfoTStar> {
+class AddrInfoRequest extends Request<UvGetaddrinfoTStar> {
 	@:keep var callback:(status:Int, ai:CAddrinfoStar)->Void;
 }
 
 @:allow(hl.uv.Dns)
-private class NameInfoRequest extends Request<UvGetnameinfoTStar> {
+class NameInfoRequest extends Request<UvGetnameinfoTStar> {
 	@:keep var callback:(status:Int, hostname:Bytes, service:Bytes)->Void;
 }
 
@@ -93,7 +93,7 @@ class Dns {
 		Either `name` or `service` may be `null` but not both.
 	**/
 	static public function getAddrInfo(loop:Loop, name:Null<String>, service:Null<String>, hints:Null<AddrInfoOptions>,
-		callback:(e:UVError, infos:Array<AddrInfo>)->Void):Void {
+		callback:(e:UVError, infos:Array<AddrInfo>)->Void):AddrInfoRequest {
 
 		loop.checkLoop();
 		var req = new AddrInfoRequest(UV.alloc_getaddrinfo());
@@ -134,13 +134,14 @@ class Dns {
 			}
 			callback(status.translate_uv_error(), infos);
 		};
+		return req;
 	}
 
 	/**
 		Retrieves host names.
 	**/
 	static public function getNameInfo(loop:Loop, addr:SockAddr, flags:NameInfoFlags,
-		callback:(e:UVError, name:String, service:String)->Void):Void {
+		callback:(e:UVError, name:String, service:String)->Void):NameInfoRequest {
 
 		loop.checkLoop();
 		var req = new NameInfoRequest(UV.alloc_getnameinfo());
@@ -160,5 +161,6 @@ class Dns {
 				service == null ? null : service.fromUTF8()
 			);
 		};
+		return req;
 	}
 }
