@@ -1893,4 +1893,19 @@ extern class Global {
 		@see http://php.net/manual/en/function.easter-days.php
 	**/
 	static function easter_days(?year:Int, ?mode:Int): Int;
+
+	/**
+		@see http://php.net/manual/en/function.sys-get-temp-dir.php
+	**/
+	static function sys_get_temp_dir():String;
+
+	/**
+		@see http://php.net/manual/en/function.tempnam.php
+	**/
+	static function tempnam(directory:String, prefix:String):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.tmpfile.php
+	**/
+	static function tmpfile():EitherType<Resource, Bool>;
 }
