@@ -37,6 +37,8 @@ abstract DirSync(Dir) from Dir to Dir {
 	static public function open(path:String):Dir {
 		var req = File.createReq();
 		var result = UV.fs_opendir_with_cb(null, req.r, path.toUTF8(), false);
+		if(result >= 0)
+			result = req.getIntResult();
 		var dir = switch req.r.fs_get_ptr() {
 			case null: null;
 			case ptr: ptr.pointer_to_dir();
@@ -53,6 +55,8 @@ abstract DirSync(Dir) from Dir to Dir {
 		this.dir(d -> {
 			var req = File.createReq();
 			var result = UV.fs_closedir_with_cb(null, req.r, d, false);
+			if(result >= 0)
+				result = req.getIntResult();
 			req.freeReq();
 			result.resolve();
 		});
@@ -66,11 +70,8 @@ abstract DirSync(Dir) from Dir to Dir {
 			var req = File.createReq();
 			d.dir_init(numberOfEntries);
 			var result = UV.fs_readdir_with_cb(null, req.r, d, false);
-			if(result < 0) {
-				req.freeReq();
-				result.throwErr();
-			}
-			var result = req.getIntResult();
+			if(result >= 0)
+				result = req.getIntResult();
 			var e = result.translate_uv_error();
 			var entries = switch e {
 				case UV_NOERR:

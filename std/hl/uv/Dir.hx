@@ -51,7 +51,7 @@ typedef DirEntry = {
 **/
 @:allow(hl.uv)
 class Dir {
-	/** Synchronous versions of `hl.uv.Dir` methods */
+	/** Synchronous operations with this directory */
 	public var sync(get,never):DirSync;
 	inline function get_sync():DirSync return this;
 

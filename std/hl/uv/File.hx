@@ -188,11 +188,16 @@ class FsRequest extends Request<UvFsTStar> {
 
 	@see http://docs.libuv.org/en/v1.x/fs.html
 **/
-abstract File(UvFile) to UvFile {
+abstract File(UvFile) from UvFile to UvFile {
 	static public final stdin:File = new File(0);
 	static public final stdout:File = new File(1);
 	static public final stderr:File = new File(2);
 
+	/** Synchronous operations with this file */
+	public var sync(get,never):FileSync;
+	inline function get_sync():FileSync return this;
+
+	@:allow(hl.uv)
 	inline function new(fd:Int)
 		this = new UvFile(fd);
 
