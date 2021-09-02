@@ -33,5 +33,7 @@ extern class RecursiveDirectoryIterator extends FilesystemIterator implements Re
 	function getChildren(): Null<RecursiveDirectoryIterator>;
 	function getSubPath(): String;
 	function getSubPathname(): String;
-	function hasChildren(allowLinks: Bool = false): Bool;
+
+	@:overload(function hasChildren(allowLinks: Bool): Bool {})
+	function hasChildren(): Bool;
 }
