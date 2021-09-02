@@ -22,29 +22,70 @@
 
 package hl.uv;
 
+import hl.uv.File;
 import hl.uv.Dir;
 
 /**
-	Synchronous functions of `hl.uv.Dir`
+	Synchronous handling of directory streams.
+
+	@see http://docs.libuv.org/en/v1.x/fs.html#c.uv_fs_opendir
 **/
-class DirSync {
+abstract DirSync(Dir) from Dir to Dir {
 	/**
 		Opens `path` as a directory stream
 	**/
-	@:hlNative("uv", "fs_opendir_wrap_sync")
-	static public function open(path:String):Dir
-		return null;
+	static public function open(path:String):Dir {
+		var req = File.createReq();
+		var result = UV.fs_opendir_with_cb(null, req.r, path.toUTF8(), false);
+		var dir = switch req.r.fs_get_ptr() {
+			case null: null;
+			case ptr: ptr.pointer_to_dir();
+		}
+		req.freeReq();
+		result.resolve();
+		return new Dir(dir);
+	}
 
 	/**
 		Closes the directory stream.
 	**/
-	@:hlNative("uv", "fs_opendir_wrap_sync")
-	static public function close(dir:Dir):Void {}
+	public function close():Void {
+		this.dir(d -> {
+			var req = File.createReq();
+			var result = UV.fs_closedir_with_cb(null, req.r, d, false);
+			req.freeReq();
+			result.resolve();
+		});
+	}
 
 	/**
 		Iterates over the directory stream.
 	**/
-	@:hlNative("uv", "fs_readdir_wrap_sync")
-	static public function read(dir:Dir, numberOfEntries:Int):Array<DirEntry>>
-		return null;
+	public function read(numberOfEntries:Int):Array<DirEntry> {
+		return this.dirReturn(d -> {
+			var req = File.createReq();
+			d.dir_init(numberOfEntries);
+			var result = UV.fs_readdir_with_cb(null, req.r, d, false);
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
+			}
+			var result = req.getIntResult();
+			var e = result.translate_uv_error();
+			var entries = switch e {
+				case UV_NOERR:
+					[for(i in 0...result) {
+						var dirent = d.dir_dirent(i);
+						{
+							name: dirent.dirent_name().fromUTF8(),
+							type: new DirEntryType(dirent.dirent_type())
+						}
+					}];
+				case _:
+					null;
+			}
+			req.freeReq();
+			entries;
+		});
+	}
 }

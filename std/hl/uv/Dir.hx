@@ -34,7 +34,8 @@ enum abstract DirEntryType(Int) {
 	var UV_DIRENT_CHAR;
 	var UV_DIRENT_BLOCK;
 
-	@:allow(hl.uv.Dir) inline function new(v:Int)
+	@:allow(hl.uv)
+	inline function new(v:Int)
 		this = v;
 }
 
@@ -48,7 +49,12 @@ typedef DirEntry = {
 
 	@see http://docs.libuv.org/en/v1.x/fs.html#c.uv_fs_opendir
 **/
+@:allow(hl.uv)
 class Dir {
+	/** Synchronous versions of `hl.uv.Dir` methods */
+	public var sync(get,never):DirSync;
+	inline function get_sync():DirSync return this;
+
 	var _d:UvDirTStar;
 
 	function new(handle:UvDirTStar) {
@@ -100,6 +106,10 @@ class Dir {
 		return dirReturn(d -> {
 			var req = File.createReq();
 			var result = loop.fs_closedir_with_cb(req.r, d, true);
+			if(result < 0) {
+				req.freeReq();
+				result.throwErr();
+			}
 			req.callback = () -> {
 				var result = req.getIntResult();
 				req.freeReq();
@@ -136,10 +146,6 @@ class Dir {
 						}];
 					case _:
 						null;
-				}
-				switch d.dir_dirent(0) {
-					case null:
-					case dirent: dirent.free_dirent();
 				}
 				req.freeReq();
 				callback(e, entries);
