@@ -157,7 +157,8 @@ extern class UV {
 	static public function alloc_sockaddr_storage():CSockaddrStorageStar;
 	static public function sockaddr_storage_size():Int;
 	static public function sockaddr_storage_ss_family(addr:CSockaddrStorageStar):Int;
-	static public function sockaddr_storage_port(addr:CSockaddrStorageStar):Null<Int>;
+	static public function sockaddr_in_sin_port(addr:CSockaddrInStar):Int;
+	static public function sockaddr_in6_sin6_port(addr:CSockaddrIn6Star):Int;
 	static public function free_sockaddr_storage(addr:CSockaddrStorageStar):Void;
 	static public function sockaddr_of_storage(addr:CSockaddrStorageStar):CSockaddrStar;
 	static public function sockaddr_to_storage(addr:CSockaddrStar):CSockaddrStorageStar;

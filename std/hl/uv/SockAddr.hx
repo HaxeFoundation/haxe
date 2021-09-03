@@ -51,10 +51,10 @@ class SockAddrTools {
 		return switch addr.sockaddr_storage_ss_family().address_family_of_af() {
 			case INET:
 				UV.ip4_name(addr.sockaddr_in_of_storage(), buf, size);
-				Ip4Addr(buf.fromUTF8(), addr.sockaddr_storage_port());
+				Ip4Addr(buf.fromUTF8(), addr.sockaddr_in_of_storage().sockaddr_in_sin_port());
 			case INET6:
 				UV.ip6_name(addr.sockaddr_in6_of_storage(), buf, size);
-				Ip6Addr(buf.fromUTF8(), addr.sockaddr_storage_port());
+				Ip6Addr(buf.fromUTF8(), addr.sockaddr_in6_of_storage().sockaddr_in6_sin6_port());
 			case _:
 				null;
 		}
