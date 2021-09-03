@@ -25,6 +25,8 @@ package hl.uv;
 import hl.uv.SockAddr;
 import hl.uv.Request;
 
+using hl.uv.UV;
+
 enum abstract UdpMembership(Int) {
 	var LEAVE_GROUP = 0;
 	var JOIN_GROUP;

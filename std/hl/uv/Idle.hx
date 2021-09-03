@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 /**
 	Idle handles will run the given callback once per loop iteration,
 	right before the `hl.uv.Prepare` handles.

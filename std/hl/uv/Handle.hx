@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 enum abstract HandleType(Int) {
 	var UV_UNKNOWN_HANDLE = 0;
 	var UV_ASYNC;

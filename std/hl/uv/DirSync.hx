@@ -25,6 +25,8 @@ package hl.uv;
 import hl.uv.File;
 import hl.uv.Dir;
 
+using hl.uv.UV;
+
 /**
 	Synchronous handling of directory streams.
 

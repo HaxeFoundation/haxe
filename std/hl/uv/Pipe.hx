@@ -25,6 +25,8 @@ package hl.uv;
 import hl.uv.SockAddr;
 import hl.uv.Handle;
 
+using hl.uv.UV;
+
 /**
 	Handles, which can be received via `hl.uv.Pipe.receiveHandle()`
 **/

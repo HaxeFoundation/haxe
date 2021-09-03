@@ -24,6 +24,8 @@ package hl.uv;
 
 import hl.uv.File;
 
+using hl.uv.UV;
+
 enum abstract DirEntryType(Int) {
 	var UV_DIRENT_UNKNOWN = 0;
 	var UV_DIRENT_FILE;

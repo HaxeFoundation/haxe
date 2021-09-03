@@ -25,6 +25,8 @@ package hl.uv;
 import hl.types.ArrayObj;
 import hl.uv.File;
 
+using hl.uv.UV;
+
 /**
 	Synchronous file system operations.
 

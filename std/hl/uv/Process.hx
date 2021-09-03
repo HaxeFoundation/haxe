@@ -28,6 +28,8 @@ import hl.types.ArrayObj;
 import hl.types.BytesMap;
 import hl.NativeArray;
 
+using hl.uv.UV;
+
 /**
 	Containers for each stdio handle or fd passed to a child process.
 **/

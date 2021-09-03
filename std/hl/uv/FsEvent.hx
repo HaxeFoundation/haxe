@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 /**
 	Flags that can be passed to `hl.uv.FsEvent.start()` to control its behavior.
 

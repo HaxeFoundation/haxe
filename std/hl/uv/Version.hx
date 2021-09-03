@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 /**
 	Version information for the vendored libuv.
 

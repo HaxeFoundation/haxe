@@ -24,6 +24,8 @@ package hl.uv;
 
 import hl.uv.Request;
 
+using hl.uv.UV;
+
 @:allow(hl.uv.Stream)
 private class ConnectRequest extends Request<UvConnectTStar> {
 	@:keep var callback:(status:Int)->Void;

@@ -24,6 +24,8 @@ package hl.uv;
 
 import hl.uv.File;
 
+using hl.uv.UV;
+
 /**
 	FS Poll handles allow the user to monitor a given path for changes.
 

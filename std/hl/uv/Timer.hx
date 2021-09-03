@@ -24,6 +24,8 @@ package hl.uv;
 
 import hl.uv.Handle;
 
+using hl.uv.UV;
+
 /**
 	Timers.
 

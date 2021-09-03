@@ -24,6 +24,8 @@ package hl.uv;
 
 import hl.uv.SockAddr;
 
+using hl.uv.UV;
+
 enum abstract TcpFlag(Int) to Int {
 	/** Used with uv_tcp_bind, when an IPv6 address is used. */
 	var UV_TCP_IPV6ONLY = 1;

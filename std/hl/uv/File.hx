@@ -25,6 +25,8 @@ package hl.uv;
 import hl.types.ArrayObj;
 import hl.uv.Request;
 
+using hl.uv.UV;
+
 /**
 	Full list of file creation flags and file status flags.
 	@see open(2) man page

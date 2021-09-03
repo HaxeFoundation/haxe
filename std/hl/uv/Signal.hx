@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 /**
 	Predefined signal numbers (don't match native signal values).
 

@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 /**
 	Run modes for `hl.uv.Loop.run(mode)`
 **/

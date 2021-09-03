@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 enum abstract RequestType(Int) {
 	var UV_UNKNOWN_REQ = 0;
 	var UV_REQ;

@@ -24,6 +24,8 @@ package hl.uv;
 
 import hl.uv.Handle;
 
+using hl.uv.UV;
+
 /**
 	Check handles will run the given callback once per loop iteration,
 	right after polling for i/o.

@@ -22,6 +22,8 @@
 
 package hl.uv;
 
+using hl.uv.UV;
+
 enum abstract TtyMode(Int) to Int {
 	/** Initial/normal terminal mode */
 	var TTY_MODE_NORMAL;

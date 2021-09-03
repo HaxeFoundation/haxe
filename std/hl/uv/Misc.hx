@@ -25,6 +25,8 @@ package hl.uv;
 import hl.uv.SockAddr.SockAddrTools;
 import hl.uv.Request;
 
+using hl.uv.UV;
+
 typedef RUsage = {
 	/** user CPU time used */
 	var utime:{sec:I64, usec:I64};

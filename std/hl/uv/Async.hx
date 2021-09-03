@@ -24,6 +24,8 @@ package hl.uv;
 
 import hl.uv.Handle;
 
+using hl.uv.UV;
+
 /**
 	Async handles allow the user to “wakeup” the event loop
 	and get a callback called from another thread.

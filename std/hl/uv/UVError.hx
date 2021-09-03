@@ -1,5 +1,7 @@
 package hl.uv;
 
+using hl.uv.UV;
+
 /**
 	TODO:
 	Find a way to assign native error numbers to these constants.

@@ -130,8 +130,8 @@ extern class UV {
 			buf = new Bytes(size.toInt());
 			result = fn(buf, Ref.make(size));
 		}
-		result.resolve();
-		return buf.fromUTF8();
+		resolve(result);
+		return fromUTF8(buf);
 	}
 
 	static public function alloc_char_array(length:Int):Ref<Bytes>;

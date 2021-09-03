@@ -26,6 +26,8 @@ import hl.types.ArrayObj;
 import hl.uv.SockAddr;
 import hl.uv.Request;
 
+using hl.uv.UV;
+
 enum abstract AddrInfoFlags(Int) from Int to Int {
 	/** Socket address is intended for `bind'. */
 	var AI_PASSIVE = 1;
