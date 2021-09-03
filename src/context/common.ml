@@ -1083,14 +1083,22 @@ let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
 let adapt_defines_to_macro_context defines =
-	let values = ref defines.values in
-	List.iter (fun p -> values := PMap.remove (Globals.platform_name p) !values) Globals.platforms;
-	let to_remove = List.map Define.get_define_key [Define.NoTraces] in
-	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
-	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
-	values := PMap.add "macro" "1" !values;
-	values := PMap.add (platform_name !Globals.macro_platform) "1" !values;
-	{values = !values; defines_signature = None }
+	let to_remove = List.map Globals.platform_name Globals.platforms in
+	let to_remove = List.fold_left (fun acc d -> Define.get_define_key d :: acc) to_remove [Define.NoTraces] in
+	let to_remove = List.fold_left (fun acc (_, d) -> ("flash" ^ d) :: acc) to_remove flash_versions in
+	let macro_defines = {
+		values = PMap.foldi (fun k v acc ->
+			if List.mem k to_remove then acc else PMap.add k v acc) defines.values PMap.empty;
+		defines_signature = None
+	} in
+	Define.define macro_defines Define.Macro;
+	Define.raw_define macro_defines (platform_name !Globals.macro_platform);
+	macro_defines
+
+let adapt_defines_to_display_context defines =
+	let defines = adapt_defines_to_macro_context defines in
+	Define.define defines Define.Display;
+	defines
 
 let is_legacy_completion com = match com.json_out with
 	| None -> true
