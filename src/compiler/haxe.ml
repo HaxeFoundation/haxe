@@ -216,7 +216,6 @@ module Initialize = struct
 						loop l
 				in
 				loop Common.flash_versions;
-				Common.raw_define com "flash";
 				com.package_rules <- PMap.remove "flash" com.package_rules;
 				add_std "flash";
 				"swf"
