@@ -408,7 +408,7 @@
 		"define": "net-ver",
 		"doc": "Sets the .NET version to be targeted.",
 		"platforms": ["cs"],
-		"params": ["version: 20-45"]
+		"params": ["version: 20-50"]
 	},
 	{
 		"name": "NetcoreVer",
