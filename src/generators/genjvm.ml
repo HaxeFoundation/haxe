@@ -2026,13 +2026,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#cast e.etype;
 		| TThrow e1 ->
 			self#texpr rvalue_any e1;
-			if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
-				let exc = new haxe_exception gctx e1.etype in
-				if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
-					jm#add_thrown_exception exc#get_native_path;
-			end;
-			code#athrow;
-			jm#set_terminated true
+			(* There could be something like `throw throw`, so we should only throw if we aren't terminated (issue #10363) *)
+			if not (jm#is_terminated) then begin
+				if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
+					let exc = new haxe_exception gctx e1.etype in
+					if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
+						jm#add_thrown_exception exc#get_native_path;
+				end;
+				code#athrow;
+				jm#set_terminated true
+			end
 		| TObjectDecl fl ->
 			let td = gctx.anon_identification#identify true e.etype in
 			begin match follow e.etype,td with
