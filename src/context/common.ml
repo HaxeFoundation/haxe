@@ -1068,17 +1068,6 @@ let add_diagnostics_message com s p kind sev =
 
 open Printer
 
-let dump_context com = s_record_fields "" [
-	"version",string_of_int com.version;
-	"args",s_list ", " (fun s -> s) com.args;
-	"debug",string_of_bool com.debug;
-	"platform",platform_name com.platform;
-	"std_path",s_list ", " (fun s -> s) com.std_path;
-	"class_path",s_list ", " (fun s -> s) com.class_path;
-	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
-	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
-]
-
 let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
