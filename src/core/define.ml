@@ -6,6 +6,9 @@ type define = {
 	mutable defines_signature : string option;
 }
 
+let get_define_key d =
+	fst (infos d)
+
 let get_documentation_list() =
 	let m = ref 0 in
 	let rec loop i =
@@ -31,11 +34,15 @@ let get_documentation_list() =
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
 	all,!m
 
-let raw_defined ctx v =
-	PMap.mem v ctx.values
+let raw_defined ctx k =
+	PMap.mem k ctx.values
 
-let defined ctx v =
-	raw_defined ctx (fst (infos v))
+let defined ctx k =
+	raw_defined ctx (get_define_key k)
+
+let external_defined ctx k =
+	let k = String.concat "_" (ExtString.String.nsplit k "-") in
+	raw_defined ctx k
 
 let raw_defined_value ctx k =
 	PMap.find k ctx.values
@@ -47,21 +54,38 @@ let defined_value_safe ?default ctx v =
 	try defined_value ctx v
 	with Not_found -> match default with Some s -> s | None -> ""
 
-let raw_define_value ctx k v =
-	ctx.values <- PMap.add k v ctx.values;
+let external_defined_value ctx k =
 	let k = String.concat "_" (ExtString.String.nsplit k "-") in
+	PMap.find k ctx.values
+
+let raw_define_value ctx k v =
 	ctx.values <- PMap.add k v ctx.values;
 	ctx.defines_signature <- None
 
-let raw_define ctx v =
-	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
+let define_value ctx k v =
+	raw_define_value ctx (get_define_key k) v
+
+let external_define_value ctx k v =
+	let k = String.concat "_" (ExtString.String.nsplit k "-") in
 	raw_define_value ctx k v
 
-let define_value ctx k v =
-	raw_define ctx (fst (infos k) ^ "=" ^ v)
+let raw_define ctx k =
+	raw_define_value ctx k "1"
 
-let define ctx v =
-	raw_define ctx (fst (infos v))
+let define ctx k =
+	raw_define_value ctx (get_define_key k) "1"
+
+let external_define ctx k =
+	let k = String.concat "_" (ExtString.String.nsplit k "-") in
+	raw_define_value ctx k "1"
+
+let defines_for_external ctx =
+	PMap.foldi (fun k v acc ->
+		let added_underscore = PMap.add k v acc in
+		match ExtString.String.nsplit k "_" with
+			| [_] -> added_underscore
+			| split -> PMap.add (String.concat "-" split) v added_underscore;
+	) ctx.values PMap.empty
 
 let get_signature def =
 	match def.defines_signature with

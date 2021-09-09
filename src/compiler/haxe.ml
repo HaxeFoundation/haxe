@@ -237,7 +237,7 @@ module Initialize = struct
 				if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
 					failwith "Invalid -D js-es value";
 
-				if es_version >= 5 then Common.raw_define com "js-es5"; (* backward-compatibility *)
+				if es_version >= 5 then Common.raw_define com "js_es5"; (* backward-compatibility *)
 
 				add_std "js";
 				"js"
@@ -792,10 +792,10 @@ try
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun l ->
 			cp_libs := l :: !cp_libs;
-			Common.raw_define com l;
+			Define.external_define com.defines l;
 		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
-			let flag = try fst (ExtString.String.split var "=") with _ -> var in
+			let flag, value = try ExtString.String.split var "=" with _ -> var, "1" in
 			let raise_reserved description =
 				raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
 			in
@@ -803,7 +803,7 @@ try
 			List.iter (fun ns ->
 				if ExtString.String.starts_with flag (ns ^ ".") then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" flag ns)
 			) reserved_flag_namespaces;
-			Common.raw_define com var;
+			Define.external_define_value com.defines flag value;
 		),"<var[=value]>","define a conditional compilation flag");
 		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
 			com.verbose <- true

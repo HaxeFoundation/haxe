@@ -2925,7 +2925,7 @@ let generate jvm_flag com =
 		default_export_config = {
 			export_debug = true;
 		};
-		detail_times = Common.Define.raw_defined com.defines "jvm-times";
+		detail_times = Common.raw_defined com "jvm_times";
 		timer = new Timer.timer ["generate";"java"];
 		jar_compression_level = compression_level;
 		dynamic_level = dynamic_level;
