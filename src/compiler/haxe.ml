@@ -492,7 +492,14 @@ let create_typer_context ctx native_libs =
 	let com = ctx.com in
 	ctx.setup();
 	Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
-	Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
+	let buffer = Buffer.create 64 in
+	Buffer.add_string buffer "Defines: ";
+	PMap.iter (fun k v -> match v with
+		"1" -> Printf.bprintf buffer "%s;" k
+		| _ -> Printf.bprintf buffer "%s=%s;" k v
+	) com.defines.values;
+	Buffer.truncate buffer (Buffer.length buffer - 1);
+	Common.log com (Buffer.contents buffer);
 	Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
 	(* Native lib pass 1: Register *)

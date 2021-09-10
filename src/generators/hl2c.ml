@@ -1780,10 +1780,14 @@ let write_c com file (code:code) gnames =
 	block ctx;
 	sline "\"version\" : %d," ctx.version;
 	sline "\"libs\" : [%s]," (String.concat "," (Hashtbl.fold (fun k _ acc -> sprintf "\"%s\"" k :: acc) native_libs []));
-	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" (String.escaped k) (String.escaped v) :: acc) com.Common.defines.Define.values []));
+	let defines = Buffer.create 64 in
+	PMap.iter (fun key value ->
+		Printf.bprintf defines "\n\t\t\"%s\" : \"%s\"," (String.escaped key) (String.escaped value);
+	) com.defines.values;
+	Buffer.truncate defines (Buffer.length defines - 1);
+	sline "\"defines\" : {%s\n\t}," (Buffer.contents defines);
 	sline "\"files\" : [%s\n\t]" (String.concat "," (List.map (sprintf "\n\t\t\"%s\"") ctx.cfiles));
 	unblock ctx;
 	line "}";
 
 	close_file ctx
-
