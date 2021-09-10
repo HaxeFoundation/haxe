@@ -1,5 +1,9 @@
 2021-XX-XX 4.2.4:
 
+	New features:
+
+	hl : add clipboard support in hl 1.12 (#10320)
+
 	General improvements:
 
 	all : improved error messages upon directory creation failures (#10361)
@@ -10,7 +14,6 @@
 	all : fixed hanging of MainLoop.add on threaded targets (#10308, #10329)
 	js : fixed IntMap for keys greater than 2^31 (#10316)
 	js : workaround to fix sourcemaps on Firefox in Windows (#10217)
-	hl : add clipboard support in hl 1.12 (#10320)
 	cs/java : fixed rest arguments for cases when only one argument is provided (#10315)
 	php : fixed type of `php.db.PDO.ATTR_DRIVER_NAME` (#10319)
 	eval : fixed signature of `eval.luv.Tcp.noDelay` method
