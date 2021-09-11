@@ -197,6 +197,10 @@ abstract Map<K, V>(IMap<K, V>) {
 		return cast map;
 	}
 
+	@:from static inline function fromInt64Map<V>(map:Int64Map<V>):Map<Int64, V> {
+		return cast map;
+	}
+
 	@:from static inline function fromObjectMap<K:{}, V>(map:ObjectMap<K, V>):Map<K, V> {
 		return cast map;
 	}
