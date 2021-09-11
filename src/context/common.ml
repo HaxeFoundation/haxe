@@ -370,8 +370,56 @@ let raw_define com v =
 let define_value com k v =
 	Define.define_value com.defines k v
 
-let raw_defined_value com k =
-	Define.raw_defined_value com.defines k
+let convert_define k =
+	String.concat "_" (ExtString.String.nsplit k "-")
+
+let external_defined ctx k =
+	Define.raw_defined ctx.defines (convert_define k)
+
+let external_defined_value ctx k =
+	Define.raw_defined_value ctx.defines (convert_define k)
+
+let reserved_flags = [
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
+	]
+
+let reserved_flag_namespaces = ["target"]
+
+let convert_and_validate k =
+	let converted_flag = convert_define k in
+	let raise_reserved description =
+		raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
+	in
+	if List.mem converted_flag reserved_flags then
+		raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" k);
+	List.iter (fun ns ->
+		if ExtString.String.starts_with converted_flag (ns ^ ".") then
+			raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" k ns)
+	) reserved_flag_namespaces;
+	converted_flag
+
+let external_define_value ctx k v =
+	raw_define_value ctx.defines (convert_and_validate k) v
+
+(* TODO: Temporary function until #8690, remove after *)
+let external_define_value_no_check ctx k v =
+	Define.raw_define_value ctx.defines (convert_define k) v
+
+let external_define ctx k =
+	Define.raw_define ctx.defines (convert_and_validate k)
+
+(* TODO: Temporary function until #8690, remove after *)
+let external_define_no_check ctx k =
+	Define.raw_define ctx.defines (convert_define k)
+
+let defines_for_external ctx =
+	PMap.foldi (fun k v acc ->
+		let added_underscore = PMap.add k v acc in
+		match ExtString.String.nsplit k "_" with
+			| [_] -> added_underscore
+			| split -> PMap.add (String.concat "-" split) v added_underscore;
+	) ctx.defines.values PMap.empty
 
 let get_es_version com =
 	try int_of_string (defined_value com Define.JsEs) with _ -> 0
@@ -787,23 +835,23 @@ let init_platform com pf =
 	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
 	com.config <- get_config com;
 	if com.config.pf_static then begin
-		raw_define_value com.defines "target.static" "true";
+		raw_define com "target.static";
 		define com Define.Static;
 	end;
 	if com.config.pf_sys then begin
-		raw_define_value com.defines "target.sys" "true";
+		raw_define com "target.sys";
 		define com Define.Sys
 	end else
 		com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
 	if com.config.pf_uses_utf16 then begin
-		raw_define_value com.defines "target.utf16" "true";
+		raw_define com "target.utf16";
 		define com Define.Utf16;
 	end;
 	if com.config.pf_supports_threads then begin
-		raw_define_value com.defines "target.threaded" "true";
+		raw_define com "target.threaded";
 	end;
 	if com.config.pf_supports_unicode then begin
-		raw_define_value com.defines "target.unicode" "true";
+		raw_define com "target.unicode";
 	end;
 	raw_define_value com.defines "target.name" name;
 	raw_define com name

@@ -1610,20 +1610,21 @@ let macro_api ccom get_api =
 				let v = if v = vnull then "" else ", " ^ (decode_string v) in
 				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
 			end;
+			(* TODO: use external_define and external_define_value for #8690 *)
 			if v = vnull then
-				Define.external_define com.defines s
+				Common.external_define_no_check com s
 			else
-				Define.external_define_value com.defines s (decode_string v);
+				Common.external_define_value_no_check com s (decode_string v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
-			vbool (Define.external_defined (ccom()).defines (decode_string s))
+			vbool (Common.external_defined (ccom()) (decode_string s))
 		);
 		"defined_value", vfun1 (fun s ->
-			try encode_string (Define.external_defined_value (ccom()).defines (decode_string s)) with Not_found -> vnull
+			try encode_string (Common.external_defined_value (ccom()) (decode_string s)) with Not_found -> vnull
 		);
 		"get_defines", vfun0 (fun() ->
-			encode_string_map encode_string (Define.defines_for_external (ccom()).defines)
+			encode_string_map encode_string (Common.defines_for_external (ccom()))
 		);
 		"get_type", vfun1 (fun s ->
 			let tname = decode_string s in

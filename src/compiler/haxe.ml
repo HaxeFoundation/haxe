@@ -80,13 +80,6 @@ let error ctx msg p =
 	message ctx (CMError(msg,p));
 	ctx.has_error <- true
 
-let reserved_flags = [
-	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver";"haxe-ver"
-	]
-
-let reserved_flag_namespaces = ["target"]
-
 let delete_file f = try Sys.remove f with _ -> ()
 
 let expand_env ?(h=None) path  =
@@ -497,7 +490,7 @@ let create_typer_context ctx native_libs =
 	let buffer = Buffer.create 64 in
 	Buffer.add_string buffer "Defines: ";
 	PMap.iter (fun k v -> match v with
-		"1" -> Printf.bprintf buffer "%s;" k
+		| "1" -> Printf.bprintf buffer "%s;" k
 		| _ -> Printf.bprintf buffer "%s=%s;" k v
 	) com.defines.values;
 	Buffer.truncate buffer (Buffer.length buffer - 1);
@@ -800,18 +793,13 @@ try
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun l ->
 			cp_libs := l :: !cp_libs;
-			Define.external_define com.defines l;
+			Common.external_define com l;
 		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
-			let flag, value = try ExtString.String.split var "=" with _ -> var, "1" in
-			let raise_reserved description =
-				raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
-			in
-			if List.mem flag reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" flag);
-			List.iter (fun ns ->
-				if ExtString.String.starts_with flag (ns ^ ".") then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" flag ns)
-			) reserved_flag_namespaces;
-			Define.external_define_value com.defines flag value;
+			let flag, value = try let split = ExtString.String.split var "=" in (fst split, Some (snd split)) with _ -> var, None in
+			match value with
+				| Some value -> Common.external_define_value com flag value
+				| None -> Common.external_define com flag;
 		),"<var[=value]>","define a conditional compilation flag");
 		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
 			com.verbose <- true

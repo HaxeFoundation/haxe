@@ -40,10 +40,6 @@ let raw_defined ctx k =
 let defined ctx k =
 	raw_defined ctx (get_define_key k)
 
-let external_defined ctx k =
-	let k = String.concat "_" (ExtString.String.nsplit k "-") in
-	raw_defined ctx k
-
 let raw_defined_value ctx k =
 	PMap.find k ctx.values
 
@@ -54,10 +50,6 @@ let defined_value_safe ?default ctx v =
 	try defined_value ctx v
 	with Not_found -> match default with Some s -> s | None -> ""
 
-let external_defined_value ctx k =
-	let k = String.concat "_" (ExtString.String.nsplit k "-") in
-	PMap.find k ctx.values
-
 let raw_define_value ctx k v =
 	ctx.values <- PMap.add k v ctx.values;
 	ctx.defines_signature <- None
@@ -65,27 +57,11 @@ let raw_define_value ctx k v =
 let define_value ctx k v =
 	raw_define_value ctx (get_define_key k) v
 
-let external_define_value ctx k v =
-	let k = String.concat "_" (ExtString.String.nsplit k "-") in
-	raw_define_value ctx k v
-
 let raw_define ctx k =
 	raw_define_value ctx k "1"
 
 let define ctx k =
 	raw_define_value ctx (get_define_key k) "1"
-
-let external_define ctx k =
-	let k = String.concat "_" (ExtString.String.nsplit k "-") in
-	raw_define_value ctx k "1"
-
-let defines_for_external ctx =
-	PMap.foldi (fun k v acc ->
-		let added_underscore = PMap.add k v acc in
-		match ExtString.String.nsplit k "_" with
-			| [_] -> added_underscore
-			| split -> PMap.add (String.concat "-" split) v added_underscore;
-	) ctx.values PMap.empty
 
 let get_signature def =
 	match def.defines_signature with
