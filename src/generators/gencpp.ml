@@ -2247,6 +2247,7 @@ let is_array_splice_call obj member =
 let is_map_get_call obj member =
    member.cf_name="get" &&
    (match obj.cpptype  with
+   | TCppInst({cl_path=(["cpp"],"Int64Map")}) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}) -> true
@@ -2257,6 +2258,7 @@ let is_map_get_call obj member =
 let is_map_set_call obj member =
    member.cf_name="set" &&
    (match obj.cpptype  with
+   | TCppInst({cl_path=(["cpp"],"Int64Map")}) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}) -> true
@@ -2741,6 +2743,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   let fname, cppType = match return_type with
                   | TCppVoid | TCppScalar("bool")  -> (if forCppia then "getBool" else "get_bool"), return_type
                   | TCppScalar("int")  -> (if forCppia then "getInt" else "get_int"), return_type
+                  | TCppScalar("::cpp::Int64") -> (if forCppia then "getInt64" else "get_int64"), return_type
                   | TCppScalar("Float")  -> (if forCppia then "getFloat" else "get_float"), return_type
                   | TCppString  -> (if forCppia then "getString" else "get_string"), return_type
                   | _ -> "get", TCppDynamic
@@ -2760,6 +2763,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   let fname = match retypedArgs with
                   | [_;{cpptype=TCppScalar("bool")}]  -> "setBool"
                   | [_;{cpptype=TCppScalar("int")}]  -> "setInt"
+                  | [_;{cpptype=TCppScalar("::cpp::Int64")}]  -> "setInt64"
                   | [_;{cpptype=TCppScalar("Float")}]  -> "setFloat"
                   | [_;{cpptype=TCppString}]  -> "setString"
                   | _ -> "set"
