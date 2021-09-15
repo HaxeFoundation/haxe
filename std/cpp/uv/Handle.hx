@@ -70,15 +70,36 @@ abstract class Handle {
 
 		This MUST be called on each handle.
 	**/
-	public function close(callback:()->Void) {
+	public function close(?callback:()->Void) {
 		UV.close(uvHandle, Callable.fromStaticFunction(uvCloseCb));
 		onClose = callback;
+	}
+
+	/**
+		Reference the handle.
+	**/
+	public function ref() {
+		UV.ref(uvHandle);
+	}
+
+	/**
+		Un-reference the handle.
+	**/
+	public function unref() {
+		UV.unref(uvHandle);
+	}
+
+	/**
+		Un-reference the handle.
+	**/
+	public function hasRef() {
+		return 0 != UV.has_ref(uvHandle);
 	}
 
 	static function uvCloseCb(uvHandle:Star<UvHandleT>) {
 		var handle = getHandle(uvHandle);
 		uvHandle.handle_set_data(null);
-		if(handle != null) {
+		if(handle != null && handle.onClose != null) {
 			handle.onClose();
 		}
 	}
