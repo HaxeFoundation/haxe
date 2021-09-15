@@ -1533,12 +1533,12 @@ let load_native ctx lib name t =
 					(match !cached_sys_name with
 					| Some n -> n
 					| None ->
-						let ic = Unix.open_process_in "uname" in
+						let ic, pid = Process_helper.open_process_args_in_pid "uname" [| "uname" |] in
 						let uname = (match input_line ic with
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						close_in ic;
+						Process_helper.close_process_in_pid (ic, pid);
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"

@@ -4126,18 +4126,12 @@ let generate com =
 	end;
 	let t = Timer.timer ["generate";"hl";"write"] in
 
-	let escape_command s =
-		let b = Buffer.create 0 in
-		String.iter (fun ch -> if (ch=='"' || ch=='\\' ) then Buffer.add_string b "\\";  Buffer.add_char b ch) s;
-		"\"" ^ Buffer.contents b ^ "\""
-	in
-
 	if file_extension com.file = "c" then begin
 		let gnames = Array.create (Array.length code.globals) "" in
 		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		Hl2c.write_c com com.file code gnames;
 		let t = Timer.timer ["nativecompile";"hl"] in
-		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
+		if not (Common.defined com Define.NoCompilation) && com.run_command_args "haxelib" ["run"; "hashlink"; "build"; com.file] <> 0 then failwith "Build failed";
 		t();
 	end else begin
 		let ch = IO.output_string() in
@@ -4152,7 +4146,7 @@ let generate com =
 	Hlopt.clean_cache();
 	t();
 	if Common.raw_defined com "run" then begin
-		if com.run_command ("haxelib run hashlink run " ^ escape_command com.file) <> 0 then failwith "Failed to run HL";
+		if com.run_command_args "haxelib" ["run"; "hashlink"; "run"; com.file] <> 0 then failwith "Failed to run HL";
 	end;
 	if Common.defined com Define.Interp then
 		try

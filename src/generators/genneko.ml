@@ -810,16 +810,16 @@ let generate com =
 			in
 			abort msg (loop 0)
 	end;
-	let command cmd = try com.run_command cmd with _ -> -1 in
+	let command cmd args = try com.run_command_args cmd args with _ -> -1 in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
 	if source || use_nekoc then begin
 		let ch = IO.output_channel (open_out_bin neko_file) in
 		Binast.write ch e;
 		IO.close_out ch;
 	end;
-	if use_nekoc && command ("nekoc" ^ (if ctx.version > 1 then " -version " ^ string_of_int ctx.version else "") ^ " \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	if use_nekoc && command "nekoc" (if ctx.version > 1 then ["-version"; (string_of_int ctx.version); neko_file] else [neko_file]) <> 0 then failwith "Neko compilation failure";
 	if source then begin
-		if command ("nekoc -p \"" ^ neko_file ^ "\"") <> 0 then failwith "Failed to print neko code";
+		if command "nekoc" ["-p"; neko_file] <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
 		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
 	end

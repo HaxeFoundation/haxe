@@ -311,6 +311,7 @@ type context = {
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
+	mutable run_command_args : string -> string list -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	file_keys : file_keys;
 	readdir_cache : (string * string,(string array) option) Hashtbl.t;
@@ -672,6 +673,7 @@ let create version s_version args =
 		config = default_config;
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
+		run_command_args = Process_helper.command;
 		std_path = [];
 		class_path = [];
 		main_class = None;
