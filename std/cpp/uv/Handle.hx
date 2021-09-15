@@ -77,6 +77,8 @@ abstract class Handle {
 
 	/**
 		Reference the handle.
+
+		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function ref() {
 		UV.ref(uvHandle);
@@ -84,13 +86,17 @@ abstract class Handle {
 
 	/**
 		Un-reference the handle.
+
+		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function unref() {
 		UV.unref(uvHandle);
 	}
 
 	/**
-		Un-reference the handle.
+		Returns `true` if the handle is referenced.
+
+		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function hasRef() {
 		return 0 != UV.has_ref(uvHandle);
