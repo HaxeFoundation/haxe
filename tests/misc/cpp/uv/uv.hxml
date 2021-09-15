@@ -1,0 +1,4 @@
+--cpp bin
+--debug
+--main UVSample
+--dce full
