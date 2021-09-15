@@ -25,49 +25,40 @@ package cpp.uv;
 using cpp.uv.UV;
 
 /**
-	Timer handles are used to schedule callbacks to be called in the future.
+	Async handles allow the user to “wakeup” the event loop and get a callback
+	called from another thread.
 
-	@see http://docs.libuv.org/en/v1.x/timer.html
+	@see http://docs.libuv.org/en/v1.x/async.html
 **/
 @:headerCode('#include "uv.h"')
-class Timer extends Handle {
-	var uvTimer:Star<UvTimerT>;
-	var onTick:()->Void;
+class Async extends Handle {
+	var uvAsync:Star<UvAsyncT>;
+	var onSend:(async:Async)->Void;
 
 	function initUvHandle() {
-		uvTimer = UvTimerT.create();
-		uvHandle = cast uvTimer;
+		uvAsync = UvAsyncT.create();
+		uvHandle = cast uvAsync;
 	}
 
 	/**
-		Create a timer.
+		Create an async handle.
 	**/
-	static public function init(loop:Loop):Timer {
-		var timer = new Timer();
-		UV.timer_init(loop.uvLoop, timer.uvTimer).resolve();
-		return timer;
+	static public function init(loop:Loop, callback:(async:Async)->Void):Async {
+		var async = new Async();
+		UV.async_init(loop.uvLoop, async.uvAsync, Callable.fromStaticFunction(uvAsyncCb)).resolve();
+		async.onSend = callback;
+		return async;
+	}
+
+	static function uvAsyncCb(uvAsync:Star<UvAsyncT>) {
+		var async = Std.downcast(Handle.getHandle(cast uvAsync), Async);
+		async.onSend(async);
 	}
 
 	/**
-		Start the timer.
-
-		`timeout` and `repeat` are in milliseconds.
+		Wake up the event loop and call the async handle’s callback.
 	**/
-	public function start(callback:()->Void, timeout:UInt64, repeat:UInt64) {
-		uvTimer.timer_start(Callable.fromStaticFunction(uvTimerCb), timeout, repeat).resolve();
-		onTick = callback;
-	}
-
-	static function uvTimerCb(uvTimer:Star<UvTimerT>) {
-		var timer = Std.downcast(Handle.getHandle(cast uvTimer), Timer);
-		timer.onTick();
-	}
-
-	/**
-		Stop the timer
-	**/
-	public function stop() {
-		UV.timer_stop(uvTimer).resolve();
-		onTick = null;
+	public function send() {
+		UV.async_send(uvAsync).resolve();
 	}
 }
