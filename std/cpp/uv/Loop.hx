@@ -73,15 +73,16 @@ enum abstract LoopRunMode(Int) {
 **/
 @:headerCode('#include "uv.h"')
 class Loop {
-	var ref:Star<UvLoopT>;
+	@:allow(cpp.uv)
+	var uvLoop:Star<UvLoopT>;
 
 	function new() {
-		ref = UvLoopT.create();
+		uvLoop = UvLoopT.create();
 		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
 	}
 
 	static function finalizer(loop:Loop) {
-		Native.free(loop.ref);
+		Native.free(loop.uvLoop);
 	}
 
 	/**
@@ -89,7 +90,7 @@ class Loop {
 	**/
 	static public function init():Loop {
 		var loop = new Loop();
-		UV.loop_init(loop.ref).resolve();
+		UV.loop_init(loop.uvLoop).resolve();
 		return loop;
 	}
 
@@ -102,9 +103,9 @@ class Loop {
 	public function configure(option:LoopOption):Void {
 		var result = switch option {
 			case BlockSignal(sigNum):
-				UV.loop_configure(ref, UV_LOOP_BLOCK_SIGNAL, sigNum);
+				UV.loop_configure(uvLoop, UV_LOOP_BLOCK_SIGNAL, sigNum);
 			case MetricsIdleTime:
-				UV.loop_configure(ref, UV_METRICS_IDLE_TIME);
+				UV.loop_configure(uvLoop, UV_METRICS_IDLE_TIME);
 		}
 		result.resolve();
 	}
@@ -116,7 +117,7 @@ class Loop {
 		handles and requests have been closed.
 	**/
 	public function close():Void {
-		UV.loop_close(ref).resolve();
+		UV.loop_close(uvLoop).resolve();
 	}
 
 	/**
@@ -124,9 +125,9 @@ class Loop {
 	**/
 	public function run(mode:LoopRunMode = DEFAULT):Bool {
 		var result = switch mode {
-			case DEFAULT: UV.run(ref, UV_RUN_DEFAULT);
-			case ONCE: UV.run(ref, UV_RUN_ONCE);
-			case NOWAIT: UV.run(ref, UV_RUN_NOWAIT);
+			case DEFAULT: UV.run(uvLoop, UV_RUN_DEFAULT);
+			case ONCE: UV.run(uvLoop, UV_RUN_ONCE);
+			case NOWAIT: UV.run(uvLoop, UV_RUN_NOWAIT);
 		}
 		return 0 != result.resolve();
 	}
@@ -136,14 +137,14 @@ class Loop {
 		closing handles in the loop.
 	**/
 	public function alive():Bool {
-		return 0 != UV.loop_alive(ref).resolve();
+		return 0 != UV.loop_alive(uvLoop).resolve();
 	}
 
 	/**
 		Stop the event loop, causing `loop.run()` to end as soon as possible.
 	**/
 	public function stop() {
-		return UV.stop(ref);
+		return UV.stop(uvLoop);
 	}
 
 	/**
@@ -152,7 +153,7 @@ class Loop {
 		Only kqueue, epoll and event ports are supported.
 	**/
 	public function backendFd():Int {
-		return UV.backend_fd(ref);
+		return UV.backend_fd(uvLoop);
 	}
 
 	/**
@@ -161,20 +162,20 @@ class Loop {
 		The return value is in milliseconds, or -1 for no timeout.
 	**/
 	public function backendTimeout():Int {
-		return UV.backend_timeout(ref);
+		return UV.backend_timeout(uvLoop);
 	}
 
 	/**
 		Return the current timestamp in milliseconds.
 	**/
 	public function now():UInt64 {
-		return UV.now(ref);
+		return UV.now(uvLoop);
 	}
 
 	/**
 		Update the event loop’s concept of “now”.
 	**/
 	public function updateTime() {
-		UV.update_time(ref);
+		UV.update_time(uvLoop);
 	}
 }
