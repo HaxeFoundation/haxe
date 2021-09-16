@@ -32,12 +32,6 @@ extern enum abstract UvLoopOption(Int) {
 	@:native('UV_METRICS_IDLE_TIME') var UV_METRICS_IDLE_TIME;
 }
 
-extern enum abstract UvRunMode(Int) {
-	@:native('UV_RUN_DEFAULT') var UV_RUN_DEFAULT;
-	@:native('UV_RUN_ONCE') var UV_RUN_ONCE;
-	@:native('UV_RUN_NOWAIT') var UV_RUN_NOWAIT;
-}
-
 extern enum abstract UvSigNum(Int) from Int to Int {
 	@:native('SIGABRT') var SIGABRT;
 	@:native('SIGFPE') var SIGFPE;
@@ -54,6 +48,9 @@ typedef UvPidT = Int;
 
 /**
 	Automatically generated bindings for libuv.
+
+	@see http://docs.libuv.org/en/v1.x/api.html
+
 	Avoid using this module directly.
 	BACKWARD COMPATIBILITY OF THIS MODULE IS NOT MAINTAINED.
 **/
@@ -328,6 +325,10 @@ typedef UvWalkCb = Callable<(handle:Star<UvHandleT>, arg:Star<cpp.Void>)->Void>
 
 @:native("uv_utsname_t")
 extern class UvUtsnameT {
+	var sysname:Reference<Char>;
+	var release:Reference<Char>;
+	var version:Reference<Char>;
+	var machine:Reference<Char>;
 	@:native("new uv_utsname_t") public static function create():Star<UvUtsnameT>;
 }
 
@@ -350,9 +351,9 @@ typedef UvUdpSendCb = Callable<(req:Star<UvUdpSendT>, status:Int)->Void>
 
 typedef UvUdpRecvCb = Callable<(handle:Star<UvUdpT>, nread:SSizeT, buf:Star<UvBufT>, addr:Star<Sockaddr>, flags:UInt32)->Void>
 
-@:native("uv_tty_vtermstate_t")
-extern class UvTtyVtermstateT {
-	@:native("new uv_tty_vtermstate_t") public static function create():Star<UvTtyVtermstateT>;
+extern enum abstract UvTtyVtermstateT(Int) {
+	@:native("UV_TTY_SUPPORTED") var UV_TTY_SUPPORTED;
+	@:native("UV_TTY_UNSUPPORTED") var UV_TTY_UNSUPPORTED;
 }
 
 @:native("uv_tty_t")
@@ -360,14 +361,31 @@ extern class UvTtyT {
 	@:native("new uv_tty_t") public static function create():Star<UvTtyT>;
 }
 
-@:native("uv_tty_mode_t")
-extern class UvTtyModeT {
-	@:native("new uv_tty_mode_t") public static function create():Star<UvTtyModeT>;
+extern enum abstract UvTtyModeT(Int) {
+	@:native("UV_TTY_MODE_NORMAL") var UV_TTY_MODE_NORMAL;
+	@:native("UV_TTY_MODE_RAW") var UV_TTY_MODE_RAW;
+	@:native("UV_TTY_MODE_IO") var UV_TTY_MODE_IO;
+}
+
+@:native("uv_timeval_t")
+extern class UvTimevalT {
+	var tv_sec:Int64;
+	var tv_usec:Int64;
+	@:native("new uv_timeval_t") public static function create():Star<UvTimevalT>;
 }
 
 @:native("uv_timeval64_t")
 extern class UvTimeval64T {
+	var tv_sec:Int64;
+	var tv_usec:Int32;
 	@:native("new uv_timeval64_t") public static function create():Star<UvTimeval64T>;
+}
+
+@:native("uv_timespec_t")
+extern class UvTimespecT {
+	var tv_sec:Int64;
+	var tv_nsec:Int64;
+	@:native("new uv_timespec_t") public static function create():Star<UvTimespecT>;
 }
 
 @:native("uv_timer_t")
@@ -387,8 +405,53 @@ extern class UvStreamT {
 	@:native("new uv_stream_t") public static function create():Star<UvStreamT>;
 }
 
+extern enum abstract UvStdioFlags(Int) {
+	@:native("UV_IGNORE") var UV_IGNORE;
+	@:native("UV_CREATE_PIPE") var UV_CREATE_PIPE;
+	@:native("UV_INHERIT_FD") var UV_INHERIT_FD;
+	@:native("UV_INHERIT_STREAM") var UV_INHERIT_STREAM;
+	@:native("UV_READABLE_PIPE") var UV_READABLE_PIPE;
+	@:native("UV_WRITABLE_PIPE") var UV_WRITABLE_PIPE;
+	@:native("UV_NONBLOCK_PIPE") var UV_NONBLOCK_PIPE;
+}
+
+@:native("uv_stdio_container_t")
+extern class UvStdioContainerT {
+	var flags:UvStdioFlags;
+	@:native("new uv_stdio_container_t") public static function create():Star<UvStdioContainerT>;
+}
+
+@:native("uv_statfs_t")
+extern class UvStatfsT {
+	var f_type:UInt64;
+	var f_bsize:UInt64;
+	var f_blocks:UInt64;
+	var f_bfree:UInt64;
+	var f_bavail:UInt64;
+	var f_files:UInt64;
+	var f_ffree:UInt64;
+	var f_spare:Reference<UInt64>;
+	@:native("new uv_statfs_t") public static function create():Star<UvStatfsT>;
+}
+
 @:native("uv_stat_t")
 extern class UvStatT {
+	var st_dev:UInt64;
+	var st_mode:UInt64;
+	var st_nlink:UInt64;
+	var st_uid:UInt64;
+	var st_gid:UInt64;
+	var st_rdev:UInt64;
+	var st_ino:UInt64;
+	var st_size:UInt64;
+	var st_blksize:UInt64;
+	var st_blocks:UInt64;
+	var st_flags:UInt64;
+	var st_gen:UInt64;
+	var st_atim:UvTimespecT;
+	var st_mtim:UvTimespecT;
+	var st_ctim:UvTimespecT;
+	var st_birthtim:UvTimespecT;
 	@:native("new uv_stat_t") public static function create():Star<UvStatT>;
 }
 
@@ -408,12 +471,43 @@ typedef UvShutdownCb = Callable<(req:Star<UvShutdownT>, status:Int)->Void>
 
 @:native("uv_rusage_t")
 extern class UvRusageT {
+	var ru_utime:UvTimevalT;
+	var ru_stime:UvTimevalT;
+	var ru_maxrss:UInt64;
+	var ru_ixrss:UInt64;
+	var ru_idrss:UInt64;
+	var ru_isrss:UInt64;
+	var ru_minflt:UInt64;
+	var ru_majflt:UInt64;
+	var ru_nswap:UInt64;
+	var ru_inblock:UInt64;
+	var ru_oublock:UInt64;
+	var ru_msgsnd:UInt64;
+	var ru_msgrcv:UInt64;
+	var ru_nsignals:UInt64;
+	var ru_nvcsw:UInt64;
+	var ru_nivcsw:UInt64;
 	@:native("new uv_rusage_t") public static function create():Star<UvRusageT>;
 }
 
-@:native("uv_req_type")
-extern class UvReqType {
-	@:native("new uv_req_type") public static function create():Star<UvReqType>;
+extern enum abstract UvRunMode(Int) {
+	@:native("UV_RUN_DEFAULT") var UV_RUN_DEFAULT;
+	@:native("UV_RUN_ONCE") var UV_RUN_ONCE;
+	@:native("UV_RUN_NOWAIT") var UV_RUN_NOWAIT;
+}
+
+extern enum abstract UvReqType(Int) {
+	@:native("UV_UNKNOWN_REQ") var UV_UNKNOWN_REQ;
+	@:native("UV_REQ") var UV_REQ;
+	@:native("UV_CONNECT") var UV_CONNECT;
+	@:native("UV_WRITE") var UV_WRITE;
+	@:native("UV_SHUTDOWN") var UV_SHUTDOWN;
+	@:native("UV_UDP_SEND") var UV_UDP_SEND;
+	@:native("UV_FS") var UV_FS;
+	@:native("UV_WORK") var UV_WORK;
+	@:native("UV_GETADDRINFO") var UV_GETADDRINFO;
+	@:native("UV_GETNAMEINFO") var UV_GETNAMEINFO;
+	@:native("UV_REQ_TYPE_MAX") var UV_REQ_TYPE_MAX;
 }
 
 @:native("uv_req_t")
@@ -445,6 +539,16 @@ extern class UvProcessT {
 
 @:native("uv_process_options_t")
 extern class UvProcessOptionsT {
+	var exit_cb:UvExitCb;
+	var file:ConstCharStar;
+	var args:Star<Star<Char>>;
+	var env:Star<Star<Char>>;
+	var cwd:ConstCharStar;
+	var flags:UInt32;
+	var stdio_count:Int;
+	var stdio:Star<UvStdioContainerT>;
+	var uid:UvUidT;
+	var gid:UvGidT;
 	@:native("new uv_process_options_t") public static function create():Star<UvProcessOptionsT>;
 }
 
@@ -462,6 +566,11 @@ extern class UvPipeT {
 
 @:native("uv_passwd_t")
 extern class UvPasswdT {
+	var username:Star<Char>;
+	var uid:Int64;
+	var gid:Int64;
+	var shell:Star<Char>;
+	var homedir:Star<Char>;
 	@:native("new uv_passwd_t") public static function create():Star<UvPasswdT>;
 }
 
@@ -475,9 +584,9 @@ extern class UvOsFdT {
 	@:native("new uv_os_fd_t") public static function create():Star<UvOsFdT>;
 }
 
-@:native("uv_membership")
-extern class UvMembership {
-	@:native("new uv_membership") public static function create():Star<UvMembership>;
+extern enum abstract UvMembership(Int) {
+	@:native("UV_LEAVE_GROUP") var UV_LEAVE_GROUP;
+	@:native("UV_JOIN_GROUP") var UV_JOIN_GROUP;
 }
 
 @:native("uv_malloc_func")
@@ -492,6 +601,9 @@ extern class UvLoopT {
 
 @:native("uv_interface_address_t")
 extern class UvInterfaceAddressT {
+	var name:Star<Char>;
+	var phys_addr:Reference<Char>;
+	var is_internal:Int;
 	@:native("new uv_interface_address_t") public static function create():Star<UvInterfaceAddressT>;
 }
 
@@ -502,9 +614,26 @@ extern class UvIdleT {
 
 typedef UvIdleCb = Callable<(handle:Star<UvIdleT>)->Void>
 
-@:native("uv_handle_type")
-extern class UvHandleType {
-	@:native("new uv_handle_type") public static function create():Star<UvHandleType>;
+extern enum abstract UvHandleType(Int) {
+	@:native("UV_UNKNOWN_HANDLE") var UV_UNKNOWN_HANDLE;
+	@:native("UV_ASYNC") var UV_ASYNC;
+	@:native("UV_CHECK") var UV_CHECK;
+	@:native("UV_FS_EVENT") var UV_FS_EVENT;
+	@:native("UV_FS_POLL") var UV_FS_POLL;
+	@:native("UV_HANDLE") var UV_HANDLE;
+	@:native("UV_IDLE") var UV_IDLE;
+	@:native("UV_NAMED_PIPE") var UV_NAMED_PIPE;
+	@:native("UV_POLL") var UV_POLL;
+	@:native("UV_PREPARE") var UV_PREPARE;
+	@:native("UV_PROCESS") var UV_PROCESS;
+	@:native("UV_STREAM") var UV_STREAM;
+	@:native("UV_TCP") var UV_TCP;
+	@:native("UV_TIMER") var UV_TIMER;
+	@:native("UV_TTY") var UV_TTY;
+	@:native("UV_UDP") var UV_UDP;
+	@:native("UV_SIGNAL") var UV_SIGNAL;
+	@:native("UV_FILE") var UV_FILE;
+	@:native("UV_HANDLE_TYPE_MAX") var UV_HANDLE_TYPE_MAX;
 }
 
 @:native("uv_handle_t")
@@ -531,9 +660,44 @@ extern class UvGetaddrinfoT {
 
 typedef UvGetaddrinfoCb = Callable<(req:Star<UvGetaddrinfoT>, status:Int, res:Star<Addrinfo>)->Void>
 
-@:native("uv_fs_type")
-extern class UvFsType {
-	@:native("new uv_fs_type") public static function create():Star<UvFsType>;
+extern enum abstract UvFsType(Int) {
+	@:native("UV_FS_UNKNOWN") var UV_FS_UNKNOWN;
+	@:native("UV_FS_CUSTOM") var UV_FS_CUSTOM;
+	@:native("UV_FS_OPEN") var UV_FS_OPEN;
+	@:native("UV_FS_CLOSE") var UV_FS_CLOSE;
+	@:native("UV_FS_READ") var UV_FS_READ;
+	@:native("UV_FS_WRITE") var UV_FS_WRITE;
+	@:native("UV_FS_SENDFILE") var UV_FS_SENDFILE;
+	@:native("UV_FS_STAT") var UV_FS_STAT;
+	@:native("UV_FS_LSTAT") var UV_FS_LSTAT;
+	@:native("UV_FS_FSTAT") var UV_FS_FSTAT;
+	@:native("UV_FS_FTRUNCATE") var UV_FS_FTRUNCATE;
+	@:native("UV_FS_UTIME") var UV_FS_UTIME;
+	@:native("UV_FS_FUTIME") var UV_FS_FUTIME;
+	@:native("UV_FS_ACCESS") var UV_FS_ACCESS;
+	@:native("UV_FS_CHMOD") var UV_FS_CHMOD;
+	@:native("UV_FS_FCHMOD") var UV_FS_FCHMOD;
+	@:native("UV_FS_FSYNC") var UV_FS_FSYNC;
+	@:native("UV_FS_FDATASYNC") var UV_FS_FDATASYNC;
+	@:native("UV_FS_UNLINK") var UV_FS_UNLINK;
+	@:native("UV_FS_RMDIR") var UV_FS_RMDIR;
+	@:native("UV_FS_MKDIR") var UV_FS_MKDIR;
+	@:native("UV_FS_MKDTEMP") var UV_FS_MKDTEMP;
+	@:native("UV_FS_RENAME") var UV_FS_RENAME;
+	@:native("UV_FS_SCANDIR") var UV_FS_SCANDIR;
+	@:native("UV_FS_LINK") var UV_FS_LINK;
+	@:native("UV_FS_SYMLINK") var UV_FS_SYMLINK;
+	@:native("UV_FS_READLINK") var UV_FS_READLINK;
+	@:native("UV_FS_CHOWN") var UV_FS_CHOWN;
+	@:native("UV_FS_FCHOWN") var UV_FS_FCHOWN;
+	@:native("UV_FS_REALPATH") var UV_FS_REALPATH;
+	@:native("UV_FS_COPYFILE") var UV_FS_COPYFILE;
+	@:native("UV_FS_LCHOWN") var UV_FS_LCHOWN;
+	@:native("UV_FS_OPENDIR") var UV_FS_OPENDIR;
+	@:native("UV_FS_READDIR") var UV_FS_READDIR;
+	@:native("UV_FS_CLOSEDIR") var UV_FS_CLOSEDIR;
+	@:native("UV_FS_MKSTEMP") var UV_FS_MKSTEMP;
+	@:native("UV_FS_LUTIME") var UV_FS_LUTIME;
 }
 
 @:native("uv_fs_t")
@@ -567,25 +731,55 @@ extern class UvFile {
 	@:native("new uv_file") public static function create():Star<UvFile>;
 }
 
-typedef UvExitCb = Callable<(v:Star<UvProcessT>, exit_status:Int64, term_signal:Int)->Void>
+typedef UvExitCb = Callable<(process:Star<UvProcessT>, exit_status:Int64, term_signal:Int)->Void>
 
 @:native("uv_env_item_t")
 extern class UvEnvItemT {
+	var name:Star<Char>;
+	var value:Star<Char>;
 	@:native("new uv_env_item_t") public static function create():Star<UvEnvItemT>;
+}
+
+extern enum abstract UvDirentTypeT(Int) {
+	@:native("UV_DIRENT_UNKNOWN") var UV_DIRENT_UNKNOWN;
+	@:native("UV_DIRENT_FILE") var UV_DIRENT_FILE;
+	@:native("UV_DIRENT_DIR") var UV_DIRENT_DIR;
+	@:native("UV_DIRENT_LINK") var UV_DIRENT_LINK;
+	@:native("UV_DIRENT_FIFO") var UV_DIRENT_FIFO;
+	@:native("UV_DIRENT_SOCKET") var UV_DIRENT_SOCKET;
+	@:native("UV_DIRENT_CHAR") var UV_DIRENT_CHAR;
+	@:native("UV_DIRENT_BLOCK") var UV_DIRENT_BLOCK;
 }
 
 @:native("uv_dirent_t")
 extern class UvDirentT {
+	var name:ConstCharStar;
+	var type:UvDirentTypeT;
 	@:native("new uv_dirent_t") public static function create():Star<UvDirentT>;
 }
 
 @:native("uv_dir_t")
 extern class UvDirT {
+	var dirents:Star<UvDirentT>;
+	var nentries:SizeT;
 	@:native("new uv_dir_t") public static function create():Star<UvDirT>;
+}
+
+@:native("uv_cpu_times_s")
+extern class UvCpuTimesS {
+	var user:UInt64;
+	var nice:UInt64;
+	var sys:UInt64;
+	var idle:UInt64;
+	var irq:UInt64;
+	@:native("new uv_cpu_times_s") public static function create():Star<UvCpuTimesS>;
 }
 
 @:native("uv_cpu_info_t")
 extern class UvCpuInfoT {
+	var model:Star<Char>;
+	var speed:Int;
+	var cpu_times:UvCpuTimesS;
 	@:native("new uv_cpu_info_t") public static function create():Star<UvCpuInfoT>;
 }
 
