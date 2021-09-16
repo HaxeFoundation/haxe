@@ -100,7 +100,7 @@
 	public static function isStructure(v:Dynamic):Bool {
 		if (v == null)
 			return false;
-    	return js.Syntax.typeof(v) == "object" && v.__enum__ == null && v.constructor == js.lib.Object && !js.Boot.isEnum(v);
+    	return js.Syntax.typeof(v) == "object" && v.__enum__ == null && v.constructor == js.lib.Object && v.__class__ == null && !js.Boot.isEnum(v);
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
