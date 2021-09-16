@@ -415,9 +415,16 @@ extern enum abstract UvStdioFlags(Int) {
 	@:native("UV_NONBLOCK_PIPE") var UV_NONBLOCK_PIPE;
 }
 
+@:structAccess
+extern class UvStdioContainerTDataUnion {
+	var stream:Star<UvStreamT>;
+	var fd:Int;
+}
+
 @:native("uv_stdio_container_t")
 extern class UvStdioContainerT {
 	var flags:UvStdioFlags;
+	var data:UvStdioContainerTDataUnion;
 	@:native("new uv_stdio_container_t") public static function create():Star<UvStdioContainerT>;
 }
 
@@ -590,11 +597,25 @@ extern class UvLoopT {
 	@:native("new uv_loop_t") public static function create():Star<UvLoopT>;
 }
 
+@:structAccess
+extern class UvInterfaceAddressTNetmaskUnion {
+	var netmask4:SockaddrIn;
+	var netmask6:SockaddrIn6;
+}
+
+@:structAccess
+extern class UvInterfaceAddressTAddressUnion {
+	var address4:SockaddrIn;
+	var address6:SockaddrIn6;
+}
+
 @:native("uv_interface_address_t")
 extern class UvInterfaceAddressT {
 	var name:Star<Char>;
 	var phys_addr:Reference<Char>;
 	var is_internal:Int;
+	var address:UvInterfaceAddressTAddressUnion;
+	var netmask:UvInterfaceAddressTNetmaskUnion;
 	@:native("new uv_interface_address_t") public static function create():Star<UvInterfaceAddressT>;
 }
 
@@ -756,6 +777,7 @@ extern class UvDirT {
 	@:native("new uv_dir_t") public static function create():Star<UvDirT>;
 }
 
+@:structAccess
 @:native("uv_cpu_times_s")
 extern class UvCpuTimesS {
 	var user:UInt64;
