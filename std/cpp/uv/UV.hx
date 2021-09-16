@@ -515,10 +515,7 @@ extern class UvReqT {
 	@:native("new uv_req_t") public static function create():Star<UvReqT>;
 }
 
-@:native("uv_realloc_func")
-extern class UvReallocFunc {
-	@:native("new uv_realloc_func") public static function create():Star<UvReallocFunc>;
-}
+typedef UvReallocFunc = Callable<(ptr:Star<cpp.Void>, size:SizeT)->Star<cpp.Void>>
 
 typedef UvReadCb = Callable<(stream:Star<UvStreamT>, nread:SSizeT, buf:Star<UvBufT>)->Void>
 
@@ -527,10 +524,7 @@ extern class UvRandomT {
 	@:native("new uv_random_t") public static function create():Star<UvRandomT>;
 }
 
-@:native("uv_random_cb")
-extern class UvRandomCb {
-	@:native("new uv_random_cb") public static function create():Star<UvRandomCb>;
-}
+typedef UvRandomCb = Callable<(req:Star<UvRandomT>, status:Int, buf:Star<cpp.Void>, buflen:SizeT)->Void>
 
 @:native("uv_process_t")
 extern class UvProcessT {
@@ -589,10 +583,7 @@ extern enum abstract UvMembership(Int) {
 	@:native("UV_JOIN_GROUP") var UV_JOIN_GROUP;
 }
 
-@:native("uv_malloc_func")
-extern class UvMallocFunc {
-	@:native("new uv_malloc_func") public static function create():Star<UvMallocFunc>;
-}
+typedef UvMallocFunc = Callable<(size:SizeT)->Star<cpp.Void>>
 
 @:native("uv_loop_t")
 extern class UvLoopT {
@@ -801,10 +792,7 @@ extern class UvCheckT {
 
 typedef UvCheckCb = Callable<(handle:Star<UvCheckT>)->Void>
 
-@:native("uv_calloc_func")
-extern class UvCallocFunc {
-	@:native("new uv_calloc_func") public static function create():Star<UvCallocFunc>;
-}
+typedef UvCallocFunc = Callable<(count:SizeT, size:SizeT)->Star<cpp.Void>>
 
 @:native("uv_buf_t")
 extern class UvBufT {
