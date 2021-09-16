@@ -150,6 +150,10 @@ using php.Global;
 		}
 	}
 
+	public static function isStructure(v:Dynamic):Bool {
+		throw 'todo';
+	}
+
 	public static inline function isEnumValue(v:Dynamic):Bool {
 		return Boot.isEnumValue(v);
 	}

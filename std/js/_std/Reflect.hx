@@ -96,6 +96,10 @@
 			|| (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
 
+	public static function isStructure(v:Dynamic):Bool {
+		throw 'todo';
+	}
+
 	public static function isEnumValue(v:Dynamic):Bool {
 		return v != null && v.__enum__ != null;
 	}

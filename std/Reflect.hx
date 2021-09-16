@@ -166,6 +166,12 @@ extern class Reflect {
 	static function isObject(v:Dynamic):Bool;
 
 	/**
+		Tells if `v` is an structure.
+		If `v` is null, the result is false.
+	**/
+	static function isStructure(v:Dynamic):Bool;
+
+	/**
 		Tells if `v` is an enum value.
 
 		The result is true if `v` is of type EnumValue, i.e. an enum

@@ -135,6 +135,10 @@ import cs.system.reflection.*;
 		return v != null && !(Std.isOfType(v, HxEnum) || Std.isOfType(v, Function) || Std.isOfType(v, cs.system.ValueType));
 	}
 
+	public static function isStructure(v:Dynamic):Bool {
+		return v != null && Std.isOfType(v, DynamicObject);
+	}
+
 	public static function isEnumValue(v:Dynamic):Bool {
 		return v != null && (Std.isOfType(v, HxEnum) || Std.isOfType(v, cs.system.Enum));
 	}

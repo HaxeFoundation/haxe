@@ -116,6 +116,10 @@ class Reflect {
 		}
 	}
 
+	public static function isStructure(v:Dynamic):Bool {
+		return hl.Type.getDynamic(v).kind == HDynObj;
+	}
+
 	public static function isEnumValue(v:Dynamic):Bool {
 		var t = hl.Type.getDynamic(v);
 		return t.kind == HEnum;

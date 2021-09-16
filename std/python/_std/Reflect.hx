@@ -115,6 +115,10 @@ class Reflect {
 		}
 	}
 
+	public static function isStructure(v:Dynamic):Bool {
+		throw 'todo';
+	}
+
 	public static function isEnumValue(v:Dynamic):Bool {
 		return v != Enum && UBuiltins.isinstance(v, cast Enum);
 	}

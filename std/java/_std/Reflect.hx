@@ -121,6 +121,10 @@ import java.Boot;
 				|| Std.isOfType(v, java.lang.Boolean.BooleanClass));
 	}
 
+	public static function isStructure(v:Dynamic):Bool {
+		return Std.isOfType(v, java.internal.DynamicObject);
+	}
+
 	public static function isEnumValue(v:Dynamic):Bool {
 		return v != null && (Std.isOfType(v, HxEnum) || Std.isOfType(v, java.lang.Enum));
 	}

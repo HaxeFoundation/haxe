@@ -101,6 +101,9 @@
 			return (t == "string");
 		}
 
+	public static function isStructure(v:Dynamic):Bool {
+		throw 'todo';
+
 	public static function isEnumValue(v:Dynamic):Bool {
 		return try v.__enum__ == true catch (e:Dynamic) false;
 	}

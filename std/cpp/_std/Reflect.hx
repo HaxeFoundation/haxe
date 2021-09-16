@@ -97,6 +97,14 @@ class Reflect {
 			return t == ObjectType.vtObject || t == ObjectType.vtClass || t == ObjectType.vtString || t == ObjectType.vtArray;
 		}
 
+	public static function isStructure(v:Dynamic):Bool
+		untyped {
+			if (v == null)
+				return false;
+			var t:Int = v.__GetType();
+			return t == ObjectType.vtObject;
+		}
+
 	public static function isEnumValue(v:Dynamic):Bool
 		untyped {
 			return v != null && v.__GetType() == ObjectType.vtEnum;

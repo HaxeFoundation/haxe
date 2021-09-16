@@ -179,6 +179,10 @@ class Reflect {
 		return true;
 	}
 
+	public static function isStructure(v:Dynamic):Bool {
+		throw 'todo';
+	}
+
 	public static function isEnumValue(v:Dynamic):Bool {
 		if (v == null) {
 			return false;

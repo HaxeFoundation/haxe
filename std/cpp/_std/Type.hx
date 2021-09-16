@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import cpp.ObjectType;
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -126,17 +129,17 @@ enum ValueType {
 				return TNull;
 			var t:Int = untyped v.__GetType();
 			switch (t) {
-				case 2:
+				case ObjectType.vtBool:
 					return TBool;
-				case 0xFF:
+				case ObjectType.vtInt:
 					return TInt;
-				case 1:
+				case ObjectType.vtFloat:
 					return TFloat;
-				case 6:
+				case ObjectType.vtFunction:
 					return TFunction;
-				case 4:
+				case ObjectType.vtObject:
 					return TObject;
-				case 7:
+				case ObjectType.vtEnum:
 					return TEnum(v.__GetClass());
 				default:
 					return untyped TClass(v.__GetClass());
