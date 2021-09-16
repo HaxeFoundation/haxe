@@ -122,11 +122,13 @@ import lua.Boot;
 		}
 
 	public static function isStructure(v:Dynamic):Bool untyped {
-			if (v == null)
-				return false;
-			var t = __lua__("type(v)");
-			return t == "table" && v.__enum__ == null && !lua.Boot.isClass(v);
-		}
+		if (v == null) return false;
+		if(Lua.type(v) != "table" || v.__enum__ != null || lua.Boot.isClass(v) || lua.Boot.isEnum(v)) return false;
+		var mt = Lua.getmetatable(v);
+		if(mt == null) return true;
+		if(mt.__index != null) return false;
+		return !Reflect.hasField(mt, '__index');
+	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
 		return v != null && Std.isOfType(v, lua.Table) && v.__enum__ != null;

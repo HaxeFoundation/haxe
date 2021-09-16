@@ -110,8 +110,8 @@
 		}
 
 	public static function isStructure(v:Dynamic):Bool untyped {
-			return $typeof(v) == $tobject && v.__enum__ == null && v.__class__ == null;
-		}
+		return $typeof(v) == $tobject && v.__enum__ == null && v.__class__ == null && v.prototype == null;
+	}
 
 	public static function isEnumValue(v:Dynamic):Bool
 		untyped {
