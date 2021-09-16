@@ -120,12 +120,9 @@ class Reflect {
 		var t = hl.Type.getDynamic(v);
 		return switch(t.kind) {
 			case HDynObj: true;
-			case HObj:
-				var c = t.getGlobal();
-				return c == Class || c == null;
 			case HVirtual:
 				var vv = hl.Api.getVirtualValue(v);
-				return vv != null && isStructure(vv);
+				return vv == null || isStructure(vv);
 			default: false;
 		}
 	}
