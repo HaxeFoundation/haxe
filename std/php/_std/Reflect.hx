@@ -24,6 +24,7 @@ import php.Boot;
 import php.Syntax;
 import php.Closure;
 import php.Const;
+import php.StdClass;
 import php.NativeAssocArray;
 import haxe.Constraints;
 
@@ -151,7 +152,7 @@ using php.Global;
 	}
 
 	public static function isStructure(v:Dynamic):Bool {
-		throw 'todo';
+		return v.is_object() && Std.isOfType(v, StdClass);
 	}
 
 	public static inline function isEnumValue(v:Dynamic):Bool {

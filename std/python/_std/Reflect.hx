@@ -116,7 +116,7 @@ class Reflect {
 	}
 
 	public static function isStructure(v:Dynamic):Bool {
-		throw 'todo';
+		return Type.typeof(v) == TObject;
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {

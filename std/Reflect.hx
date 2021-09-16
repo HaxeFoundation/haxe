@@ -166,7 +166,7 @@ extern class Reflect {
 	static function isObject(v:Dynamic):Bool;
 
 	/**
-		Tells if `v` is an structure.
+		Tells if `v` is a structure.
 		If `v` is null, the result is false.
 	**/
 	static function isStructure(v:Dynamic):Bool;

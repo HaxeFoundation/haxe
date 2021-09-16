@@ -101,8 +101,7 @@ class Reflect {
 		untyped {
 			if (v == null)
 				return false;
-			var t:Int = v.__GetType();
-			return t == ObjectType.vtObject;
+			return v.__GetType() == ObjectType.vtObject;
 		}
 
 	public static function isEnumValue(v:Dynamic):Bool

@@ -1966,6 +1966,11 @@ module StdReflect = struct
 		| _ -> vfalse
 	)
 
+	let isStructure = vfun1 (fun v -> match vresolve v with
+		| VObject _ -> vtrue
+		| _ -> vfalse
+	)
+
 	let makeVarArgs = vfun1 (fun f ->
 		vstatic_function ((fun vl -> call_value f [encode_array vl]))
 	)

@@ -109,9 +109,9 @@
 			return $typeof(v) == $tobject && v.__enum__ == null;
 		}
 
-	public static function isStructure(v:Dynamic):Bool {
-		throw 'todo';
-	}
+	public static function isStructure(v:Dynamic):Bool untyped {
+			return $typeof(v) == $tobject && v.__enum__ == null && v.__class__ == null;
+		}
 
 	public static function isEnumValue(v:Dynamic):Bool
 		untyped {

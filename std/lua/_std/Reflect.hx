@@ -121,9 +121,12 @@ import lua.Boot;
 				|| (t == "function" && (lua.Boot.isClass(v) || lua.Boot.isEnum(v)) != null);
 		}
 
-	public static function isStructure(v:Dynamic):Bool {
-		throw 'todo';
-	}
+	public static function isStructure(v:Dynamic):Bool untyped {
+			if (v == null)
+				return false;
+			var t = __lua__("type(v)");
+			return t == "table" && v.__enum__ == null;
+		}
 
 	public static function isEnumValue(v:Dynamic):Bool {
 		return v != null && Std.isOfType(v, lua.Table) && v.__enum__ != null;

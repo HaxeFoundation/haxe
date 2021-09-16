@@ -117,7 +117,17 @@ class Reflect {
 	}
 
 	public static function isStructure(v:Dynamic):Bool {
-		return hl.Type.getDynamic(v).kind == HDynObj;
+		var t = hl.Type.getDynamic(v);
+		return switch(t.kind) {
+			case HDynObj: true;
+			case HObj:
+				var c = t.getGlobal();
+				return c == Class || c == null;
+			case HVirtual:
+				var vv = hl.Api.getVirtualValue(v);
+				return vv != null && hl.Type.getDynamic(vv) == HDynObj;
+			default: false;
+		}
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {

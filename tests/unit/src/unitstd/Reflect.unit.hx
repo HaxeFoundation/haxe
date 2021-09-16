@@ -137,6 +137,7 @@ Reflect.isObject(x) == false;
 // isStructure
 Reflect.isStructure({}) == true;
 Reflect.isStructure({v:"f"}) == true;
+
 Reflect.isStructure(new C()) == false;
 Reflect.isStructure(new C2()) == false;
 Reflect.isStructure(new CChild()) == false;
@@ -144,8 +145,7 @@ Reflect.isStructure(new EmptyClass()) == false;
 Reflect.isStructure(Type.createEmptyInstance(ReallyEmptyClass)) == false;
 Reflect.isStructure("foo") == false;
 Reflect.isStructure(E) == false;
-Reflect.isStructure(C) == false;
-
+Reflect.isStructure(C) == false; 
 Reflect.isStructure(1) == false;
 Reflect.isStructure(1.1) == false;
 Reflect.isStructure(true) == false;

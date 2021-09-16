@@ -180,7 +180,10 @@ class Reflect {
 	}
 
 	public static function isStructure(v:Dynamic):Bool {
-		throw 'todo';
+		if (v == null) {
+			return false;
+		}
+		return Jvm.instanceof(v, jvm.DynamicObject);
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {

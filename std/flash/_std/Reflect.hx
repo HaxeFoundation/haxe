@@ -101,8 +101,16 @@
 			return (t == "string");
 		}
 
-	public static function isStructure(v:Dynamic):Bool {
-		throw 'todo';
+	public static function isStructure(v:Dynamic):Bool
+		untyped {
+			if (v == null)
+				return false;
+			var t = __typeof__(v);
+			if (t == "object") {
+				return v.hasOwnProperty("prototype");
+			}
+			return false;
+		}
 
 	public static function isEnumValue(v:Dynamic):Bool {
 		return try v.__enum__ == true catch (e:Dynamic) false;

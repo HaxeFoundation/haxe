@@ -97,7 +97,10 @@
 	}
 
 	public static function isStructure(v:Dynamic):Bool {
-		throw 'todo';
+		if (v == null)
+			return false;
+		var t = js.Syntax.typeof(v);
+		return t == "object" && v.__enum__ == null && !js.Boot.isClass(v);
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
