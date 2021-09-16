@@ -31,7 +31,7 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 abstract class Handle {
-	var uvHandle:Star<UvHandleT>;
+	var uvHandle:RawPointer<UvHandleT>;
 	var onClose:()->Void;
 
 	function new() {
@@ -40,7 +40,7 @@ abstract class Handle {
 		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
 	}
 
-	static function getHandle(uvHandle:Star<UvHandleT>):Handle {
+	static function getHandle(uvHandle:RawPointer<UvHandleT>):Handle {
 		return untyped __cpp__('(hx::Object*){0}', uvHandle.handle_get_data());
 	}
 
@@ -48,7 +48,7 @@ abstract class Handle {
 
 	static function finalizer(handle:Handle) {
 		// untyped __cpp__('printf("FINALIZER!\n")');
-		Native.free(handle.uvHandle);
+		Stdlib.free(Pointer.fromRaw(handle.uvHandle));
 	}
 
 	/**
@@ -102,7 +102,7 @@ abstract class Handle {
 		return 0 != UV.has_ref(uvHandle);
 	}
 
-	static function uvCloseCb(uvHandle:Star<UvHandleT>) {
+	static function uvCloseCb(uvHandle:RawPointer<UvHandleT>) {
 		var handle = getHandle(uvHandle);
 		uvHandle.handle_set_data(null);
 		if(handle != null && handle.onClose != null) {

@@ -32,7 +32,7 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Idle extends Handle {
-	var uvIdle:Star<UvIdleT>;
+	var uvIdle:RawPointer<UvIdleT>;
 	var onIdle:()->Void;
 
 	function initUvHandle() {
@@ -57,7 +57,7 @@ class Idle extends Handle {
 		onIdle = callback;
 	}
 
-	static function uvIdleCb(uvIdle:Star<UvIdleT>) {
+	static function uvIdleCb(uvIdle:RawPointer<UvIdleT>) {
 		var idle = Std.downcast(Handle.getHandle(cast uvIdle), Idle);
 		idle.onIdle();
 	}

@@ -32,7 +32,7 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Check extends Handle {
-	var uvCheck:Star<UvCheckT>;
+	var uvCheck:RawPointer<UvCheckT>;
 	var onCheck:()->Void;
 
 	function initUvHandle() {
@@ -57,7 +57,7 @@ class Check extends Handle {
 		onCheck = callback;
 	}
 
-	static function uvCheckCb(uvCheck:Star<UvCheckT>) {
+	static function uvCheckCb(uvCheck:RawPointer<UvCheckT>) {
 		var check = Std.downcast(Handle.getHandle(cast uvCheck), Check);
 		check.onCheck();
 	}

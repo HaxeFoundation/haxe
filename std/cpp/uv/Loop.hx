@@ -69,7 +69,7 @@ enum abstract LoopRunMode(Int) {
 @:headerCode('#include "uv.h"')
 private class LoopImpl {
 	@:allow(cpp.uv)
-	var uvLoop:Star<UvLoopT>;
+	var uvLoop:RawPointer<UvLoopT>;
 
 	public function new() {
 		uvLoop = UvLoopT.create();
@@ -77,7 +77,7 @@ private class LoopImpl {
 	}
 
 	static function finalizer(loop:LoopImpl) {
-		Native.free(loop.uvLoop);
+		Stdlib.free(Pointer.fromRaw(loop.uvLoop));
 	}
 }
 

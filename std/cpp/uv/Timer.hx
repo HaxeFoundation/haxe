@@ -31,7 +31,7 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Timer extends Handle {
-	var uvTimer:Star<UvTimerT>;
+	var uvTimer:RawPointer<UvTimerT>;
 	var onTick:()->Void;
 
 	function initUvHandle() {
@@ -58,7 +58,7 @@ class Timer extends Handle {
 		onTick = callback;
 	}
 
-	static function uvTimerCb(uvTimer:Star<UvTimerT>) {
+	static function uvTimerCb(uvTimer:RawPointer<UvTimerT>) {
 		var timer = Std.downcast(Handle.getHandle(cast uvTimer), Timer);
 		timer.onTick();
 	}

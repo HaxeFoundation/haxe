@@ -32,7 +32,7 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Prepare extends Handle {
-	var uvPrepare:Star<UvPrepareT>;
+	var uvPrepare:RawPointer<UvPrepareT>;
 	var onPrepare:()->Void;
 
 	function initUvHandle() {
@@ -57,7 +57,7 @@ class Prepare extends Handle {
 		onPrepare = callback;
 	}
 
-	static function uvPrepareCb(uvPrepare:Star<UvPrepareT>) {
+	static function uvPrepareCb(uvPrepare:RawPointer<UvPrepareT>) {
 		var prepare = Std.downcast(Handle.getHandle(cast uvPrepare), Prepare);
 		prepare.onPrepare();
 	}
