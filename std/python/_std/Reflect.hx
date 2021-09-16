@@ -115,8 +115,9 @@ class Reflect {
 		}
 	}
 
+	@:access(python.Boot)
 	public static function isStructure(v:Dynamic):Bool {
-		return Type.typeof(v) == TObject;
+		return python.Boot.isAnonObject(v);
 	}
 
 	public static function isEnumValue(v:Dynamic):Bool {
