@@ -46,6 +46,13 @@ extern enum abstract UvSigNum(Int) from Int to Int {
 
 typedef UvPidT = Int;
 
+@:structAccess
+@:native("uv_stdio_container_t")
+extern class UvStdioContainerTStruct {
+	var flags:UvStdioFlags;
+	var data:UvStdioContainerTDataUnion;
+}
+
 /**
 	Automatically generated bindings for libuv.
 
@@ -351,7 +358,7 @@ typedef UvUdpSendCb = Callable<(req:Star<UvUdpSendT>, status:Int)->Void>
 
 typedef UvUdpRecvCb = Callable<(handle:Star<UvUdpT>, nread:SSizeT, buf:Star<UvBufT>, addr:Star<Sockaddr>, flags:UInt32)->Void>
 
-extern enum abstract UvTtyVtermstateT(Int) {
+extern enum abstract UvTtyVtermstateT(Int) to Int {
 	@:native("UV_TTY_SUPPORTED") var UV_TTY_SUPPORTED;
 	@:native("UV_TTY_UNSUPPORTED") var UV_TTY_UNSUPPORTED;
 }
@@ -361,7 +368,7 @@ extern class UvTtyT {
 	@:native("new uv_tty_t") public static function create():Star<UvTtyT>;
 }
 
-extern enum abstract UvTtyModeT(Int) {
+extern enum abstract UvTtyModeT(Int) to Int {
 	@:native("UV_TTY_MODE_NORMAL") var UV_TTY_MODE_NORMAL;
 	@:native("UV_TTY_MODE_RAW") var UV_TTY_MODE_RAW;
 	@:native("UV_TTY_MODE_IO") var UV_TTY_MODE_IO;
@@ -405,7 +412,7 @@ extern class UvStreamT {
 	@:native("new uv_stream_t") public static function create():Star<UvStreamT>;
 }
 
-extern enum abstract UvStdioFlags(Int) {
+extern enum abstract UvStdioFlags(Int) to Int {
 	@:native("UV_IGNORE") var UV_IGNORE;
 	@:native("UV_CREATE_PIPE") var UV_CREATE_PIPE;
 	@:native("UV_INHERIT_FD") var UV_INHERIT_FD;
@@ -497,13 +504,13 @@ extern class UvRusageT {
 	@:native("new uv_rusage_t") public static function create():Star<UvRusageT>;
 }
 
-extern enum abstract UvRunMode(Int) {
+extern enum abstract UvRunMode(Int) to Int {
 	@:native("UV_RUN_DEFAULT") var UV_RUN_DEFAULT;
 	@:native("UV_RUN_ONCE") var UV_RUN_ONCE;
 	@:native("UV_RUN_NOWAIT") var UV_RUN_NOWAIT;
 }
 
-extern enum abstract UvReqType(Int) {
+extern enum abstract UvReqType(Int) to Int {
 	@:native("UV_UNKNOWN_REQ") var UV_UNKNOWN_REQ;
 	@:native("UV_REQ") var UV_REQ;
 	@:native("UV_CONNECT") var UV_CONNECT;
@@ -585,7 +592,7 @@ extern class UvOsFdT {
 	@:native("new uv_os_fd_t") public static function create():Star<UvOsFdT>;
 }
 
-extern enum abstract UvMembership(Int) {
+extern enum abstract UvMembership(Int) to Int {
 	@:native("UV_LEAVE_GROUP") var UV_LEAVE_GROUP;
 	@:native("UV_JOIN_GROUP") var UV_JOIN_GROUP;
 }
@@ -626,7 +633,7 @@ extern class UvIdleT {
 
 typedef UvIdleCb = Callable<(handle:Star<UvIdleT>)->Void>
 
-extern enum abstract UvHandleType(Int) {
+extern enum abstract UvHandleType(Int) to Int {
 	@:native("UV_UNKNOWN_HANDLE") var UV_UNKNOWN_HANDLE;
 	@:native("UV_ASYNC") var UV_ASYNC;
 	@:native("UV_CHECK") var UV_CHECK;
@@ -672,7 +679,7 @@ extern class UvGetaddrinfoT {
 
 typedef UvGetaddrinfoCb = Callable<(req:Star<UvGetaddrinfoT>, status:Int, res:Star<Addrinfo>)->Void>
 
-extern enum abstract UvFsType(Int) {
+extern enum abstract UvFsType(Int) to Int {
 	@:native("UV_FS_UNKNOWN") var UV_FS_UNKNOWN;
 	@:native("UV_FS_CUSTOM") var UV_FS_CUSTOM;
 	@:native("UV_FS_OPEN") var UV_FS_OPEN;
@@ -752,7 +759,7 @@ extern class UvEnvItemT {
 	@:native("new uv_env_item_t") public static function create():Star<UvEnvItemT>;
 }
 
-extern enum abstract UvDirentTypeT(Int) {
+extern enum abstract UvDirentTypeT(Int) to Int {
 	@:native("UV_DIRENT_UNKNOWN") var UV_DIRENT_UNKNOWN;
 	@:native("UV_DIRENT_FILE") var UV_DIRENT_FILE;
 	@:native("UV_DIRENT_DIR") var UV_DIRENT_DIR;
