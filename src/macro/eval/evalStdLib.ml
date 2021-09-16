@@ -3625,6 +3625,7 @@ let init_standard_library builtins =
 		"isEnumValue",StdReflect.isEnumValue;
 		"isFunction",StdReflect.isFunction;
 		"isObject",StdReflect.isObject;
+		"isStructure",StdReflect.isStructure;
 		"makeVarArgs",StdReflect.makeVarArgs;
 		"setField",StdReflect.setField;
 		"setProperty",StdReflect.setProperty;

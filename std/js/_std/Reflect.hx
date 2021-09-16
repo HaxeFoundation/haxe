@@ -96,6 +96,7 @@
 			|| (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
 
+	@:access(js.Boot)
 	public static function isStructure(v:Dynamic):Bool {
 		if (v == null)
 			return false;

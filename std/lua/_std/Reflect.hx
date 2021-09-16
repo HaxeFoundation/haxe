@@ -125,7 +125,7 @@ import lua.Boot;
 			if (v == null)
 				return false;
 			var t = __lua__("type(v)");
-			return t == "table" && v.__enum__ == null;
+			return t == "table" && v.__enum__ == null && !lua.Boot.isClass(v);
 		}
 
 	public static function isEnumValue(v:Dynamic):Bool {

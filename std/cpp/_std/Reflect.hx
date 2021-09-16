@@ -97,12 +97,10 @@ class Reflect {
 			return t == ObjectType.vtObject || t == ObjectType.vtClass || t == ObjectType.vtString || t == ObjectType.vtArray;
 		}
 
-	public static function isStructure(v:Dynamic):Bool
-		untyped {
-			if (v == null)
-				return false;
-			return v.__GetType() == ObjectType.vtObject;
-		}
+	@:access(python.Boot)
+	public static function isStructure(v:Dynamic):Bool {
+		return python.Boot.isAnonObject(v);
+	}
 
 	public static function isEnumValue(v:Dynamic):Bool
 		untyped {

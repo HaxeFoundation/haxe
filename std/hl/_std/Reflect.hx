@@ -125,7 +125,7 @@ class Reflect {
 				return c == Class || c == null;
 			case HVirtual:
 				var vv = hl.Api.getVirtualValue(v);
-				return vv != null && hl.Type.getDynamic(vv) == HDynObj;
+				return vv != null && isStructure(vv);
 			default: false;
 		}
 	}
