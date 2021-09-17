@@ -46,6 +46,10 @@ abstract class Request {
 	abstract function setupUvReq():Void;
 
 	static function finalizer(handle:Request) {
+		handle.destructor();
+	}
+
+	function destructor() {
 		Stdlib.free(Pointer.fromRaw(handle.uvReq));
 	}
 
