@@ -39,6 +39,7 @@ enum ProcessStdio {
 		Connect child process descriptior to the corresponding parent process descriptor.
 	**/
 	INHERIT;
+	// TODO
 	// /**
 	// 	Connect child process descriptor to the specified file descriptor.
 	// **/
@@ -54,7 +55,7 @@ enum ProcessStdio {
 	// /**
 	// 	Connect child proces descriptor to the specified stream.
 	// **/
-	// STREAM<T:UvStreamTStar>(stream:Stream<T>);
+	// STREAM(stream:Stream);
 }
 
 /**
@@ -111,55 +112,6 @@ typedef ProcessOptions = {
 	var ?windowsHideGui:Bool;
 }
 
-/*
- * These are the flags that can be used for the uv_process_options.flags field.
- */
-enum abstract ProcessFlag(Int) to Int {
-	/**
-		Set the child process' user id. The user id is supplied in the `uid` field
-		of the options struct. This does not work on windows; setting this flag
-		will cause uv_spawn() to fail.
-	**/
-	var UV_PROCESS_SETUID = 1 << 0;
-	/**
-		Set the child process' group id. The user id is supplied in the `gid`
-		field of the options struct. This does not work on windows; setting this
-		flag will cause uv_spawn() to fail.
-	**/
-	var UV_PROCESS_SETGID = 1 << 1;
-	/**
-		Do not wrap any arguments in quotes, or perform any other escaping, when
-		converting the argument list into a command line string. This option is
-		only meaningful on Windows systems. On Unix it is silently ignored.
-	**/
-	var UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS = 1 << 2;
-	/**
-		Spawn the child process in a detached state - this will make it a process
-		group leader, and will effectively enable the child to keep running after
-		the parent exits.  Note that the child process will still keep the
-		parent's event loop alive unless the parent process calls uv_unref() on
-		the child's process handle.
-	**/
-	var UV_PROCESS_DETACHED = 1 << 3;
-	/**
-		Hide the subprocess window that would normally be created. This option is
-		only meaningful on Windows systems. On Unix it is silently ignored.
-	**/
-	var UV_PROCESS_WINDOWS_HIDE = 1 << 4;
-	/**
-		Hide the subprocess console window that would normally be created. This
-		option is only meaningful on Windows systems. On Unix it is silently
-		ignored.
-	**/
-	var UV_PROCESS_WINDOWS_HIDE_CONSOLE = 1 << 5;
-	/**
-		Hide the subprocess GUI window that would normally be created. This
-		option is only meaningful on Windows systems. On Unix it is silently
-		ignored.
-	**/
-	var UV_PROCESS_WINDOWS_HIDE_GUI = 1 << 6;
-}
-
 /**
 	Process handles will spawn a new process and allow the user to control it and
 	establish communication channels with it using streams.
@@ -168,8 +120,8 @@ enum abstract ProcessFlag(Int) to Int {
 **/
 @:headerCode('#include "uv.h"')
 class Process extends Handle {
-	var uvProcess:Star<UvProcessT>;
-	var onExit:(p:Process, exitCode:Int64, termSignal:Int)->Void;
+	var uvProcess:RawPointer<UvProcessT>;
+	var onExit:(p:Process, exitStatus:Int64, termSignal:SigNum)->Void;
 
 	function initUvHandle() {
 		uvProcess = UvProcessT.create();
@@ -188,7 +140,7 @@ class Process extends Handle {
 		The effect is that child processes spawned by this process don’t accidentally
 		inherit these handles.
 	**/
-	static public inline function disableStdioInheritance():Void {
+	static public function disableStdioInheritance():Void {
 		UV.disable_stdio_inheritance();
 	}
 
@@ -199,64 +151,93 @@ class Process extends Handle {
 		`args[0]` should be the path to the program.
 	**/
 	static public function spawn(loop:Loop, cmd:String, args:Array<String>, ?options:ProcessOptions):Process {
-		inline function toChars(array:Array<String>):Star<Star<Char>> {
-			var chars:Pointer<CastCharStar> = Stdlib.malloc((array.length + 1) * untyped __cpp__('sizeof(char *)'));
-			chars.setAt(array.length, null);
-			for(i => item in array)
-				chars.setAt(i, item);
-			return cast chars;
+		var process = new Process();
+		var cOpts = new UvProcessOptionsT();
+		var cCmd:ConstCharStar = cmd;
+
+		cOpts.file = cmd;
+		cOpts.args = args.toChars();
+		if(options != null) {
+			if(options.onExit != null) {
+				cOpts.exit_cb = Callable.fromStaticFunction(uvExitCb);
+				process.onExit = options.onExit;
+			}
+			if(options.env != null)
+				cOpts.env = [for(key => value in options.env) '$key=$value'].toChars();
+			if(options.stdio != null) {
+				cOpts.stdio_count = options.stdio.length;
+				var stdio:Pointer<UvStdioContainerT> = Stdlib.malloc(cOpts.stdio_count * untyped __cpp__('sizeof(uv_stdio_container_t)'));
+				cOpts.stdio = stdio.raw;
+				for(i => io in options.stdio) {
+					var cIo = stdio.at(i);
+					switch io {
+						case IGNORE:
+							cIo.flags = UV_IGNORE;
+						case INHERIT:
+							cIo.flags = UV_INHERIT_FD;
+							cIo.data.fd = i;
+						// TODO
+						// case FD(fd):
+						// 	cIo.ref.flags = UV_INHERIT_FD;
+						// 	cIo.ref.data.fd = fd
+						// case PIPE(pipe, premissions, nonBlock):
+						// 	var flags:Int = UV_CREATE_PIPE;
+						// 	if(nonBlock)
+						// 		flags |= UV_NONBLOCK_PIPE;
+						// 	switch permissions {
+						// 		case READ: flags |= UV_READABLE_PIPE;
+						// 		case WRITE: flags |= UV_WRITABLE_PIPE;
+						// 		case DUPLEX: flags |= UV_READABLE_PIPE | UV_WRITABLE_PIPE;
+						// 	}
+						// 	cIo.ref.flags = cast flags;
+						// 	cIo.ref.data.stream = cast pipe.uvStream;
+						// case STREAM(stream):
+						// 	cIo.ref.flags = UV_INHERIT_STREAM;
+						// 	cIo.ref.data.stream = cast stream.uvStream;
+					}
+				}
+			}
+			var flags = 0;
+			if( options.cwd != null ) {
+				cOpts.cwd = (options.cwd:String);
+			}
+			if(options.uid != null) {
+				cOpts.uid = options.uid;
+				flags |= UV_PROCESS_SETUID;
+			}
+			if(options.gid != null) {
+				cOpts.gid = options.gid;
+				flags |= UV_PROCESS_SETGID;
+			}
+			if(options.detached)
+				flags |= UV_PROCESS_DETACHED;
+			if(options.windowsVerbatimArguments)
+				flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+			if(options.windowsHide)
+				flags |= UV_PROCESS_WINDOWS_HIDE;
+			if(options.windowsHideConsole)
+				flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
+			if(options.windowsHideGui)
+				flags |= UV_PROCESS_WINDOWS_HIDE_GUI;
+			cOpts.flags = flags;
 		}
-throw 'todo';
-		// var cOptions = new UvProcessOptionsT();
+		var result = UV.spawn(loop.uvLoop, process.uvProcess, RawPointer.addressOf(cOpts));
 
-		// cOptions.args = toChars(args);
+		Stdlib.free(Pointer.fromRaw(cOpts.args));
+		if(cOpts.env != null)
+			Stdlib.free(Pointer.fromRaw(cOpts.env));
+		if(cOpts.stdio != null)
+			Stdlib.free(Pointer.fromRaw(cOpts.stdio));
 
-		// if(options != null) {
-		// 	if(options.env != null)
-		// 		cOptions.env = toChars([for(key => value in options.env) '$key=$value']);
-		// 	if(options.stdio != null) {
-		// 		stdioCount = options.stdio.length;
-		// 		var stdio:Pointer<> = UV.alloc_stdio_container(@:privateAccess (cast options.stdio:ArrayObj<Dynamic>).array, stdioCount);
-		// 	}
-		// 	if( options.cwd != null )
-		// 		cwd = options.cwd.toUTF8();
-		// 	if(options.uid != null) {
-		// 		uid = options.uid;
-		// 		flags |= UV_PROCESS_SETUID;
-		// 	}
-		// 	if(options.gid != null) {
-		// 		gid = options.gid;
-		// 		flags |= UV_PROCESS_SETGID;
-		// 	}
-		// 	if(options.detached)
-		// 		flags |= UV_PROCESS_DETACHED;
-		// 	if(options.windowsVerbatimArguments)
-		// 		flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-		// 	if(options.windowsHide)
-		// 		flags |= UV_PROCESS_WINDOWS_HIDE;
-		// 	if(options.windowsHideConsole)
-		// 		flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
-		// 	if(options.windowsHideGui)
-		// 		flags |= UV_PROCESS_WINDOWS_HIDE_GUI;
-		// }
-		// var cOptions = UV.alloc_process_options(cmd.toUTF8(), cArgs, env, cwd, flags, stdioCount, stdio, uid, gid);
+		result.resolve();
+		return process;
+	}
 
-		// var process = new Process(UV.alloc_process());
-		// if(options != null && options.onExit != null)
-		// 	process.onExit = options.onExit;
-
-		// var result = loop.spawn(process.h, cOptions);
-
-		// cArgs.free_char_array();
-		// if(cEnv != null) cEnv.free_char_array();
-		// if(stdio != null) stdio.free_stdio_container();
-		// cOptions.free_process_options();
-
-		// if(result < 0) {
-		// 	process.freeHandle();
-		// 	result.throwErr();
-		// }
-		// return process;
+	static function uvExitCb(uvProcess:RawPointer<UvProcessT>, exitStatus:Int64, termSignal:Int) {
+		var process = Std.downcast(Handle.getHandle(cast uvProcess), Process);
+		var cb = process.onExit;
+		process.onExit = null;
+		cb(process, exitStatus, Signal.fromInt(termSignal));
 	}
 
 	/**

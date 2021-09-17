@@ -25,6 +25,7 @@ package cpp.uv;
 using cpp.uv.UV;
 
 @:using(cpp.uv.Signal)
+@:headerCode('#include "uv.h"')
 enum abstract SigNum(Int) from Int {
 	var SIGABRT = -1;
 	var SIGFPE = -2;
