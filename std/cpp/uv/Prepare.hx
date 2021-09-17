@@ -35,7 +35,7 @@ class Prepare extends Handle {
 	var uvPrepare:RawPointer<UvPrepareT>;
 	var onPrepare:()->Void;
 
-	function initUvHandle() {
+	function setupUvHandle() {
 		uvPrepare = UvPrepareT.create();
 		uvHandle = cast uvPrepare;
 	}

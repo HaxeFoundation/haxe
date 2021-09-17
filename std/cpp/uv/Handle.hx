@@ -35,7 +35,7 @@ abstract class Handle {
 	var onClose:()->Void;
 
 	function new() {
-		initUvHandle();
+		setupUvHandle();
 		uvHandle.handle_set_data(untyped __cpp__('{0}.GetPtr()', this));
 		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
 	}
@@ -44,7 +44,7 @@ abstract class Handle {
 		return untyped __cpp__('(hx::Object*){0}', uvHandle.handle_get_data());
 	}
 
-	abstract function initUvHandle():Void;
+	abstract function setupUvHandle():Void;
 
 	static function finalizer(handle:Handle) {
 		// untyped __cpp__('printf("FINALIZER!\n")');

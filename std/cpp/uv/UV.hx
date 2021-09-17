@@ -48,6 +48,13 @@ typedef UvPidT = Int;
 typedef UvUidT = Int;
 typedef UvGidT = Int;
 
+@:native("uv_buf_t")
+@:structAccess extern class UvBufT {
+	var base:RawPointer<Char>;
+	var len:SizeT;
+	@:native("new uv_buf_t") public static function create():RawPointer<UvBufT>;
+}
+
 /**
 	Automatically generated bindings for libuv.
 
@@ -67,6 +74,10 @@ extern class UV {
 
 	extern static public inline function throwErr(result:Int):Int {
 		throw new UVException(UVError.ofNative(result));
+	}
+
+	extern static public inline function explain(result:Int):UVError {
+		return result < 0 ? UVError.ofNative(result) : UV_NOERR;
 	}
 
 	extern static public inline function toChars(array:Array<String>):RawPointer<RawPointer<Char>> {
@@ -95,9 +106,9 @@ extern class UV {
 	@:native("uv_fs_req_cleanup") static function fs_req_cleanup(req:RawPointer<UvFsT>):Void;
 	@:native("uv_fs_close") static function fs_close(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, file:UvFile, cb:UvFsCb):Int;
 	@:native("uv_fs_open") static function fs_open(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, path:ConstCharStar, flags:Int, mode:Int, cb:UvFsCb):Int;
-	@:native("uv_fs_read") static function fs_read(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, file:UvFile, bufs:Reference<UvBufT>, nbufs:UInt32, offset:Int64, cb:UvFsCb):Int;
+	@:native("uv_fs_read") static function fs_read(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, file:UvFile, bufs:Reference<UvBufT>, nbufs:UInt, offset:Int64, cb:UvFsCb):Int;
 	@:native("uv_fs_unlink") static function fs_unlink(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, path:ConstCharStar, cb:UvFsCb):Int;
-	@:native("uv_fs_write") static function fs_write(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, file:UvFile, bufs:Reference<UvBufT>, nbufs:UInt32, offset:Int64, cb:UvFsCb):Int;
+	@:native("uv_fs_write") static function fs_write(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, file:UvFile, bufs:Reference<UvBufT>, nbufs:UInt, offset:Int64, cb:UvFsCb):Int;
 	@:native("uv_fs_mkdir") static function fs_mkdir(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, path:ConstCharStar, mode:Int, cb:UvFsCb):Int;
 	@:native("uv_fs_mkdtemp") static function fs_mkdtemp(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, tpl:ConstCharStar, cb:UvFsCb):Int;
 	@:native("uv_fs_mkstemp") static function fs_mkstemp(loop:RawPointer<UvLoopT>, req:RawPointer<UvFsT>, tpl:ConstCharStar, cb:UvFsCb):Int;
@@ -139,11 +150,11 @@ extern class UV {
 	@:native("uv_get_osfhandle") static function get_osfhandle(fd:Int):UvOsFdT;
 	@:native("uv_open_osfhandle") static function open_osfhandle(os_fd:UvOsFdT):Int;
 	@:native("uv_fs_event_init") static function fs_event_init(loop:RawPointer<UvLoopT>, handle:RawPointer<UvFsEventT>):Int;
-	@:native("uv_fs_event_start") static function fs_event_start(handle:RawPointer<UvFsEventT>, cb:UvFsEventCb, path:ConstCharStar, flags:UInt32):Int;
+	@:native("uv_fs_event_start") static function fs_event_start(handle:RawPointer<UvFsEventT>, cb:UvFsEventCb, path:ConstCharStar, flags:UInt):Int;
 	@:native("uv_fs_event_stop") static function fs_event_stop(handle:RawPointer<UvFsEventT>):Int;
 	@:native("uv_fs_event_getpath") static function fs_event_getpath(handle:RawPointer<UvFsEventT>, buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
 	@:native("uv_fs_poll_init") static function fs_poll_init(loop:RawPointer<UvLoopT>, handle:RawPointer<UvFsPollT>):Int;
-	@:native("uv_fs_poll_start") static function fs_poll_start(handle:RawPointer<UvFsPollT>, poll_cb:UvFsPollCb, path:ConstCharStar, interval:UInt32):Int;
+	@:native("uv_fs_poll_start") static function fs_poll_start(handle:RawPointer<UvFsPollT>, poll_cb:UvFsPollCb, path:ConstCharStar, interval:UInt):Int;
 	@:native("uv_fs_poll_stop") static function fs_poll_stop(handle:RawPointer<UvFsPollT>):Int;
 	@:native("uv_fs_poll_getpath") static function fs_poll_getpath(handle:RawPointer<UvFsPollT>, buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
 	@:native("uv_is_active") static function is_active(handle:RawPointer<UvHandleT>):Int;
@@ -184,7 +195,7 @@ extern class UV {
 	@:native("uv_guess_handle") static function guess_handle(file:UvFile):UvHandleType;
 	@:native("uv_replace_allocator") static function replace_allocator(malloc_func:UvMallocFunc, realloc_func:UvReallocFunc, calloc_func:UvCallocFunc, free_func:UvFreeFunc):Int;
 	@:native("uv_library_shutdown") static function library_shutdown():Void;
-	@:native("uv_buf_init") static function buf_init(base:RawPointer<Char>, len:UInt32):UvBufT;
+	@:native("uv_buf_init") static function buf_init(base:RawPointer<Char>, len:UInt):UvBufT;
 	@:native("uv_setup_args") static function setup_args(argc:Int, argv:RawPointer<RawPointer<Char>>):RawPointer<RawPointer<Char>>;
 	@:native("uv_get_process_title") static function get_process_title(buffer:RawPointer<Char>, size:SizeT):Int;
 	@:native("uv_set_process_title") static function set_process_title(title:ConstCharStar):Int;
@@ -204,8 +215,8 @@ extern class UV {
 	@:native("uv_ip6_name") static function ip6_name(src:RawPointer<SockaddrIn6>, dst:RawPointer<Char>, size:SizeT):Int;
 	@:native("uv_inet_ntop") static function inet_ntop(af:Int, src:RawPointer<cpp.Void>, dst:RawPointer<Char>, size:SizeT):Int;
 	@:native("uv_inet_pton") static function inet_pton(af:Int, src:ConstCharStar, dst:RawPointer<cpp.Void>):Int;
-	@:native("uv_if_indextoname") static function if_indextoname(ifindex:UInt32, buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
-	@:native("uv_if_indextoiid") static function if_indextoiid(ifindex:UInt32, buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
+	@:native("uv_if_indextoname") static function if_indextoname(ifindex:UInt, buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
+	@:native("uv_if_indextoiid") static function if_indextoiid(ifindex:UInt, buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
 	@:native("uv_exepath") static function exepath(buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
 	@:native("uv_cwd") static function cwd(buffer:RawPointer<Char>, size:RawPointer<SizeT>):Int;
 	@:native("uv_chdir") static function chdir(dir:ConstCharStar):Int;
@@ -229,8 +240,8 @@ extern class UV {
 	@:native("uv_os_setpriority") static function os_setpriority(pid:UvPidT, priority:Int):Int;
 	@:native("uv_os_uname") static function os_uname(buffer:RawPointer<UvUtsnameT>):Int;
 	@:native("uv_gettimeofday") static function gettimeofday(tv:RawPointer<UvTimeval64T>):Int;
-	@:native("uv_random") static function random(loop:RawPointer<UvLoopT>, req:RawPointer<UvRandomT>, buf:RawPointer<cpp.Void>, buflen:SizeT, flags:UInt32, cb:UvRandomCb):Int;
-	@:native("uv_sleep") static function sleep(msec:UInt32):Void;
+	@:native("uv_random") static function random(loop:RawPointer<UvLoopT>, req:RawPointer<UvRandomT>, buf:RawPointer<cpp.Void>, buflen:SizeT, flags:UInt, cb:UvRandomCb):Int;
+	@:native("uv_sleep") static function sleep(msec:UInt):Void;
 	@:native("uv_pipe_init") static function pipe_init(loop:RawPointer<UvLoopT>, handle:RawPointer<UvPipeT>, ipc:Int):Int;
 	@:native("uv_pipe_open") static function pipe_open(handle:RawPointer<UvPipeT>, file:UvFile):Int;
 	@:native("uv_pipe_bind") static function pipe_bind(handle:RawPointer<UvPipeT>, name:ConstCharStar):Int;
@@ -265,21 +276,21 @@ extern class UV {
 	@:native("uv_accept") static function accept(server:RawPointer<UvStreamT>, client:RawPointer<UvStreamT>):Int;
 	@:native("uv_read_start") static function read_start(stream:RawPointer<UvStreamT>, alloc_cb:UvAllocCb, read_cb:UvReadCb):Int;
 	@:native("uv_read_stop") static function read_stop(stream:RawPointer<UvStreamT>):Int;
-	@:native("uv_write") static function write(req:RawPointer<UvWriteT>, handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt32, cb:UvWriteCb):Int;
-	@:native("uv_write2") static function write2(req:RawPointer<UvWriteT>, handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt32, send_handle:RawPointer<UvStreamT>, cb:UvWriteCb):Int;
-	@:native("uv_try_write") static function try_write(handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt32):Int;
-	@:native("uv_try_write2") static function try_write2(handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt32, send_handle:RawPointer<UvStreamT>):Int;
+	@:native("uv_write") static function write(req:RawPointer<UvWriteT>, handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt, cb:UvWriteCb):Int;
+	@:native("uv_write2") static function write2(req:RawPointer<UvWriteT>, handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt, send_handle:RawPointer<UvStreamT>, cb:UvWriteCb):Int;
+	@:native("uv_try_write") static function try_write(handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt):Int;
+	@:native("uv_try_write2") static function try_write2(handle:RawPointer<UvStreamT>, bufs:Reference<UvBufT>, nbufs:UInt, send_handle:RawPointer<UvStreamT>):Int;
 	@:native("uv_is_readable") static function is_readable(handle:RawPointer<UvStreamT>):Int;
 	@:native("uv_is_writable") static function is_writable(handle:RawPointer<UvStreamT>):Int;
 	@:native("uv_stream_set_blocking") static function stream_set_blocking(handle:RawPointer<UvStreamT>, blocking:Int):Int;
 	@:native("uv_stream_get_write_queue_size") static function stream_get_write_queue_size(stream:RawPointer<UvStreamT>):SizeT;
 	@:native("uv_tcp_init") static function tcp_init(loop:RawPointer<UvLoopT>, handle:RawPointer<UvTcpT>):Int;
-	@:native("uv_tcp_init_ex") static function tcp_init_ex(loop:RawPointer<UvLoopT>, handle:RawPointer<UvTcpT>, flags:UInt32):Int;
+	@:native("uv_tcp_init_ex") static function tcp_init_ex(loop:RawPointer<UvLoopT>, handle:RawPointer<UvTcpT>, flags:UInt):Int;
 	@:native("uv_tcp_open") static function tcp_open(handle:RawPointer<UvTcpT>, sock:UvOsSockT):Int;
 	@:native("uv_tcp_nodelay") static function tcp_nodelay(handle:RawPointer<UvTcpT>, enable:Int):Int;
-	@:native("uv_tcp_keepalive") static function tcp_keepalive(handle:RawPointer<UvTcpT>, enable:Int, delay:UInt32):Int;
+	@:native("uv_tcp_keepalive") static function tcp_keepalive(handle:RawPointer<UvTcpT>, enable:Int, delay:UInt):Int;
 	@:native("uv_tcp_simultaneous_accepts") static function tcp_simultaneous_accepts(handle:RawPointer<UvTcpT>, enable:Int):Int;
-	@:native("uv_tcp_bind") static function tcp_bind(handle:RawPointer<UvTcpT>, addr:RawPointer<Sockaddr>, flags:UInt32):Int;
+	@:native("uv_tcp_bind") static function tcp_bind(handle:RawPointer<UvTcpT>, addr:RawPointer<Sockaddr>, flags:UInt):Int;
 	@:native("uv_tcp_getsockname") static function tcp_getsockname(handle:RawPointer<UvTcpT>, name:RawPointer<Sockaddr>, namelen:RawPointer<Int>):Int;
 	@:native("uv_tcp_getpeername") static function tcp_getpeername(handle:RawPointer<UvTcpT>, name:RawPointer<Sockaddr>, namelen:RawPointer<Int>):Int;
 	@:native("uv_tcp_connect") static function tcp_connect(req:RawPointer<UvConnectT>, handle:RawPointer<UvTcpT>, addr:RawPointer<Sockaddr>, cb:UvConnectCb):Int;
@@ -299,9 +310,9 @@ extern class UV {
 	@:native("uv_tty_set_vterm_state") static function tty_set_vterm_state(state:UvTtyVtermstateT):Void;
 	@:native("uv_tty_get_vterm_state") static function tty_get_vterm_state(state:RawPointer<UvTtyVtermstateT>):Int;
 	@:native("uv_udp_init") static function udp_init(loop:RawPointer<UvLoopT>, handle:RawPointer<UvUdpT>):Int;
-	@:native("uv_udp_init_ex") static function udp_init_ex(loop:RawPointer<UvLoopT>, handle:RawPointer<UvUdpT>, flags:UInt32):Int;
+	@:native("uv_udp_init_ex") static function udp_init_ex(loop:RawPointer<UvLoopT>, handle:RawPointer<UvUdpT>, flags:UInt):Int;
 	@:native("uv_udp_open") static function udp_open(handle:RawPointer<UvUdpT>, sock:UvOsSockT):Int;
-	@:native("uv_udp_bind") static function udp_bind(handle:RawPointer<UvUdpT>, addr:RawPointer<Sockaddr>, flags:UInt32):Int;
+	@:native("uv_udp_bind") static function udp_bind(handle:RawPointer<UvUdpT>, addr:RawPointer<Sockaddr>, flags:UInt):Int;
 	@:native("uv_udp_connect") static function udp_connect(handle:RawPointer<UvUdpT>, addr:RawPointer<Sockaddr>):Int;
 	@:native("uv_udp_getpeername") static function udp_getpeername(handle:RawPointer<UvUdpT>, name:RawPointer<Sockaddr>, namelen:RawPointer<Int>):Int;
 	@:native("uv_udp_getsockname") static function udp_getsockname(handle:RawPointer<UvUdpT>, name:RawPointer<Sockaddr>, namelen:RawPointer<Int>):Int;
@@ -312,14 +323,14 @@ extern class UV {
 	@:native("uv_udp_set_multicast_interface") static function udp_set_multicast_interface(handle:RawPointer<UvUdpT>, interface_addr:ConstCharStar):Int;
 	@:native("uv_udp_set_broadcast") static function udp_set_broadcast(handle:RawPointer<UvUdpT>, on:Int):Int;
 	@:native("uv_udp_set_ttl") static function udp_set_ttl(handle:RawPointer<UvUdpT>, ttl:Int):Int;
-	@:native("uv_udp_send") static function udp_send(req:RawPointer<UvUdpSendT>, handle:RawPointer<UvUdpT>, bufs:Reference<UvBufT>, nbufs:UInt32, addr:RawPointer<Sockaddr>, send_cb:UvUdpSendCb):Int;
-	@:native("uv_udp_try_send") static function udp_try_send(handle:RawPointer<UvUdpT>, bufs:Reference<UvBufT>, nbufs:UInt32, addr:RawPointer<Sockaddr>):Int;
+	@:native("uv_udp_send") static function udp_send(req:RawPointer<UvUdpSendT>, handle:RawPointer<UvUdpT>, bufs:Reference<UvBufT>, nbufs:UInt, addr:RawPointer<Sockaddr>, send_cb:UvUdpSendCb):Int;
+	@:native("uv_udp_try_send") static function udp_try_send(handle:RawPointer<UvUdpT>, bufs:Reference<UvBufT>, nbufs:UInt, addr:RawPointer<Sockaddr>):Int;
 	@:native("uv_udp_recv_start") static function udp_recv_start(handle:RawPointer<UvUdpT>, alloc_cb:UvAllocCb, recv_cb:UvUdpRecvCb):Int;
 	@:native("uv_udp_using_recvmmsg") static function udp_using_recvmmsg(handle:RawPointer<UvUdpT>):Int;
 	@:native("uv_udp_recv_stop") static function udp_recv_stop(handle:RawPointer<UvUdpT>):Int;
 	@:native("uv_udp_get_send_queue_size") static function udp_get_send_queue_size(handle:RawPointer<UvUdpT>):SizeT;
 	@:native("uv_udp_get_send_queue_count") static function udp_get_send_queue_count(handle:RawPointer<UvUdpT>):SizeT;
-	@:native("uv_version") static function version():UInt32;
+	@:native("uv_version") static function version():UInt;
 	@:native("uv_version_string") static function version_string():ConstCharStar;
 }
 
@@ -355,7 +366,7 @@ typedef UvWalkCb = Callable<(handle:RawPointer<UvHandleT>, arg:RawPointer<cpp.Vo
 
 typedef UvUdpSendCb = Callable<(req:RawPointer<UvUdpSendT>, status:Int)->Void>
 
-typedef UvUdpRecvCb = Callable<(handle:RawPointer<UvUdpT>, nread:SSizeT, buf:RawPointer<UvBufT>, addr:RawPointer<Sockaddr>, flags:UInt32)->Void>
+typedef UvUdpRecvCb = Callable<(handle:RawPointer<UvUdpT>, nread:SSizeT, buf:RawPointer<UvBufT>, addr:RawPointer<Sockaddr>, flags:UInt)->Void>
 
 extern enum abstract UvUdpFlags(Int) to Int {
 	@:native("UV_UDP_IPV6ONLY") var UV_UDP_IPV6ONLY;
@@ -569,7 +580,7 @@ typedef UvRandomCb = Callable<(req:RawPointer<UvRandomT>, status:Int, buf:RawPoi
 	var args:RawPointer<RawPointer<Char>>;
 	var env:RawPointer<RawPointer<Char>>;
 	var cwd:ConstCharStar;
-	var flags:UInt32;
+	var flags:UInt;
 	var stdio_count:Int;
 	var stdio:RawPointer<UvStdioContainerT>;
 	var uid:UvUidT;
@@ -858,11 +869,6 @@ typedef UvCloseCb = Callable<(handle:RawPointer<UvHandleT>)->Void>
 typedef UvCheckCb = Callable<(handle:RawPointer<UvCheckT>)->Void>
 
 typedef UvCallocFunc = Callable<(count:SizeT, size:SizeT)->RawPointer<cpp.Void>>
-
-@:native("uv_buf_t")
-@:structAccess extern class UvBufT {
-	@:native("new uv_buf_t") public static function create():RawPointer<UvBufT>;
-}
 
 @:native("uv_async_t")
 @:structAccess extern class UvAsyncT {

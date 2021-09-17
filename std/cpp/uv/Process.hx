@@ -123,7 +123,7 @@ class Process extends Handle {
 	var uvProcess:RawPointer<UvProcessT>;
 	var onExit:(p:Process, exitStatus:Int64, termSignal:SigNum)->Void;
 
-	function initUvHandle() {
+	function setupUvHandle() {
 		uvProcess = UvProcessT.create();
 		uvHandle = cast uvProcess;
 	}

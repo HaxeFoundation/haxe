@@ -34,7 +34,7 @@ class Timer extends Handle {
 	var uvTimer:RawPointer<UvTimerT>;
 	var onTick:()->Void;
 
-	function initUvHandle() {
+	function setupUvHandle() {
 		uvTimer = UvTimerT.create();
 		uvHandle = cast uvTimer;
 	}

@@ -76,7 +76,7 @@ class Signal extends Handle {
 	var onSignal:()->Void;
 	var onSignalOnce:()->Void;
 
-	function initUvHandle() {
+	function setupUvHandle() {
 		uvSignal = UvSignalT.create();
 		uvHandle = cast uvSignal;
 	}

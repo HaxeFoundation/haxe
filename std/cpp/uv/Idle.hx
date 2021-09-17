@@ -35,7 +35,7 @@ class Idle extends Handle {
 	var uvIdle:RawPointer<UvIdleT>;
 	var onIdle:()->Void;
 
-	function initUvHandle() {
+	function setupUvHandle() {
 		uvIdle = UvIdleT.create();
 		uvHandle = cast uvIdle;
 	}

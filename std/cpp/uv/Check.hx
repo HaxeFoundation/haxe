@@ -35,7 +35,7 @@ class Check extends Handle {
 	var uvCheck:RawPointer<UvCheckT>;
 	var onCheck:()->Void;
 
-	function initUvHandle() {
+	function setupUvHandle() {
 		uvCheck = UvCheckT.create();
 		uvHandle = cast uvCheck;
 	}

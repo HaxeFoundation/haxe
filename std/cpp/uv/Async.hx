@@ -35,7 +35,7 @@ class Async extends Handle {
 	var uvAsync:RawPointer<UvAsyncT>;
 	var onSend:(async:Async)->Void;
 
-	function initUvHandle() {
+	function setupUvHandle() {
 		uvAsync = UvAsyncT.create();
 		uvHandle = cast uvAsync;
 	}
