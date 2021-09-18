@@ -44,6 +44,18 @@ extern enum abstract UvSigNum(Int) from Int to Int {
 	@:native('SIGWINCH') var SIGWINCH;
 }
 
+extern enum abstract AfAddressFamily(Int) from Int to Int {
+	@:native('AF_UNSPEC') var AF_UNSPEC;
+	@:native('AF_INET') var AF_INET;
+	@:native('AF_INET6') var AF_INET6;
+}
+
+extern enum abstract PfAddressFamily(Int) from Int to Int {
+	@:native('PF_UNSPEC') var PF_UNSPEC;
+	@:native('PF_INET') var PF_INET;
+	@:native('PF_INET6') var PF_INET6;
+}
+
 typedef UvPidT = Int;
 typedef UvUidT = Int;
 typedef UvGidT = Int;
@@ -53,6 +65,14 @@ typedef UvGidT = Int;
 	var base:RawPointer<Char>;
 	var len:SizeT;
 	@:native("new uv_buf_t") public static function create():RawPointer<UvBufT>;
+}
+
+@:native("uv_os_sock_t")
+@:scalar @:coreType @:notNull
+extern abstract UvOsSockT from Int to Int {}
+
+extern enum abstract UvTcpFlags(Int) {
+	@:native('UV_TCP_IPV6ONLY') var UV_TCP_IPV6ONLY;
 }
 
 /**
@@ -618,11 +638,6 @@ typedef UvPrepareCb = Callable<(handle:RawPointer<UvPrepareT>)->Void>
 	var gid:Int64;
 	var shell:RawPointer<Char>;
 	var homedir:RawPointer<Char>;
-}
-
-@:native("uv_os_sock_t")
-@:structAccess extern class UvOsSockT {
-	@:native("new uv_os_sock_t") public static function create():RawPointer<UvOsSockT>;
 }
 
 @:native("uv_os_fd_t")
