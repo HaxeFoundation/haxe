@@ -49,16 +49,16 @@ enum abstract SigNum(Int) from Int {
 			case SIGTERM: 'SIGTERM';
 			case SIGWINCH: 'SIGWINCH';
 			case _:
-				switch (this:UvSigNum) {
-					case UvSigNum.SIGABRT: 'SIGABRT';
-					case UvSigNum.SIGFPE: 'SIGFPE';
-					case UvSigNum.SIGHUP: 'SIGHUP';
-					case UvSigNum.SIGILL: 'SIGILL';
-					case UvSigNum.SIGINT: 'SIGINT';
-					case UvSigNum.SIGKILL: 'SIGKILL';
-					case UvSigNum.SIGSEGV: 'SIGSEGV';
-					case UvSigNum.SIGTERM: 'SIGTERM';
-					case UvSigNum.SIGWINCH: 'SIGWINCH';
+				switch (this:NativeSigNum) {
+					case NativeSigNum.SIGABRT: 'SIGABRT';
+					case NativeSigNum.SIGFPE: 'SIGFPE';
+					case NativeSigNum.SIGHUP: 'SIGHUP';
+					case NativeSigNum.SIGILL: 'SIGILL';
+					case NativeSigNum.SIGINT: 'SIGINT';
+					case NativeSigNum.SIGKILL: 'SIGKILL';
+					case NativeSigNum.SIGSEGV: 'SIGSEGV';
+					case NativeSigNum.SIGTERM: 'SIGTERM';
+					case NativeSigNum.SIGWINCH: 'SIGWINCH';
 					case _: 'SIG#$this';
 				}
 		}
@@ -86,15 +86,15 @@ class Signal extends Handle {
 	**/
 	static public function toInt(sigNum:SigNum):Int {
 		return switch sigNum {
-			case SIGABRT: UvSigNum.SIGABRT;
-			case SIGFPE: UvSigNum.SIGFPE;
-			case SIGHUP: UvSigNum.SIGHUP;
-			case SIGILL: UvSigNum.SIGILL;
-			case SIGINT: UvSigNum.SIGINT;
-			case SIGKILL: UvSigNum.SIGKILL;
-			case SIGSEGV: UvSigNum.SIGSEGV;
-			case SIGTERM: UvSigNum.SIGTERM;
-			case SIGWINCH: UvSigNum.SIGWINCH;
+			case SIGABRT: NativeSigNum.SIGABRT;
+			case SIGFPE: NativeSigNum.SIGFPE;
+			case SIGHUP: NativeSigNum.SIGHUP;
+			case SIGILL: NativeSigNum.SIGILL;
+			case SIGINT: NativeSigNum.SIGINT;
+			case SIGKILL: NativeSigNum.SIGKILL;
+			case SIGSEGV: NativeSigNum.SIGSEGV;
+			case SIGTERM: NativeSigNum.SIGTERM;
+			case SIGWINCH: NativeSigNum.SIGWINCH;
 			case _: cast sigNum;
 		}
 	}
@@ -104,15 +104,15 @@ class Signal extends Handle {
 	**/
 	static public function fromInt(sigNum:Int):SigNum {
 		return switch sigNum {
-			case UvSigNum.SIGABRT: SIGABRT;
-			case UvSigNum.SIGFPE: SIGFPE;
-			case UvSigNum.SIGHUP: SIGHUP;
-			case UvSigNum.SIGILL: SIGILL;
-			case UvSigNum.SIGINT: SIGINT;
-			case UvSigNum.SIGKILL: SIGKILL;
-			case UvSigNum.SIGSEGV: SIGSEGV;
-			case UvSigNum.SIGTERM: SIGTERM;
-			case UvSigNum.SIGWINCH: SIGWINCH;
+			case NativeSigNum.SIGABRT: SIGABRT;
+			case NativeSigNum.SIGFPE: SIGFPE;
+			case NativeSigNum.SIGHUP: SIGHUP;
+			case NativeSigNum.SIGILL: SIGILL;
+			case NativeSigNum.SIGINT: SIGINT;
+			case NativeSigNum.SIGKILL: SIGKILL;
+			case NativeSigNum.SIGSEGV: SIGSEGV;
+			case NativeSigNum.SIGTERM: SIGTERM;
+			case NativeSigNum.SIGWINCH: SIGWINCH;
 			case _: sigNum;
 		}
 	}

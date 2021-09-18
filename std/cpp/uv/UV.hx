@@ -27,33 +27,35 @@
 
 package cpp.uv;
 
-extern enum abstract UvLoopOption(Int) {
-	@:native('UV_LOOP_BLOCK_SIGNAL') var UV_LOOP_BLOCK_SIGNAL;
-	@:native('UV_METRICS_IDLE_TIME') var UV_METRICS_IDLE_TIME;
+@:coreType
+@:native("uv_loop_option")
+extern enum abstract UvLoopOption from Int {
+	@:native("UV_LOOP_BLOCK_SIGNAL") var UV_LOOP_BLOCK_SIGNAL;
+	@:native("UV_METRICS_IDLE_TIME") var UV_METRICS_IDLE_TIME;
 }
 
-extern enum abstract UvSigNum(Int) from Int to Int {
-	@:native('SIGABRT') var SIGABRT;
-	@:native('SIGFPE') var SIGFPE;
-	@:native('SIGHUP') var SIGHUP;
-	@:native('SIGILL') var SIGILL;
-	@:native('SIGINT') var SIGINT;
-	@:native('SIGKILL') var SIGKILL;
-	@:native('SIGSEGV') var SIGSEGV;
-	@:native('SIGTERM') var SIGTERM;
-	@:native('SIGWINCH') var SIGWINCH;
+extern enum abstract NativeSigNum(Int) from Int to Int {
+	@:native("SIGABRT") var SIGABRT;
+	@:native("SIGFPE") var SIGFPE;
+	@:native("SIGHUP") var SIGHUP;
+	@:native("SIGILL") var SIGILL;
+	@:native("SIGINT") var SIGINT;
+	@:native("SIGKILL") var SIGKILL;
+	@:native("SIGSEGV") var SIGSEGV;
+	@:native("SIGTERM") var SIGTERM;
+	@:native("SIGWINCH") var SIGWINCH;
 }
 
 extern enum abstract AfAddressFamily(Int) from Int to Int {
-	@:native('AF_UNSPEC') var AF_UNSPEC;
-	@:native('AF_INET') var AF_INET;
-	@:native('AF_INET6') var AF_INET6;
+	@:native("AF_UNSPEC") var AF_UNSPEC;
+	@:native("AF_INET") var AF_INET;
+	@:native("AF_INET6") var AF_INET6;
 }
 
 extern enum abstract PfAddressFamily(Int) from Int to Int {
-	@:native('PF_UNSPEC') var PF_UNSPEC;
-	@:native('PF_INET') var PF_INET;
-	@:native('PF_INET6') var PF_INET6;
+	@:native("PF_UNSPEC") var PF_UNSPEC;
+	@:native("PF_INET") var PF_INET;
+	@:native("PF_INET6") var PF_INET6;
 }
 
 typedef UvPidT = Int;
@@ -71,8 +73,10 @@ typedef UvGidT = Int;
 @:scalar @:coreType @:notNull
 extern abstract UvOsSockT from Int to Int {}
 
-extern enum abstract UvTcpFlags(Int) {
-	@:native('UV_TCP_IPV6ONLY') var UV_TCP_IPV6ONLY;
+@:coreType
+@:native("uv_tcp_flags")
+extern enum abstract UvTcpFlags to Int {
+	@:native("UV_TCP_IPV6ONLY") var UV_TCP_IPV6ONLY;
 }
 
 /**
@@ -101,7 +105,7 @@ extern class UV {
 	}
 
 	extern static public inline function toChars(array:Array<String>):RawPointer<RawPointer<Char>> {
-		var chars:Pointer<CastCharStar> = Stdlib.malloc((array.length + 1) * untyped __cpp__('sizeof(char *)'));
+		var chars:Pointer<CastCharStar> = Stdlib.malloc((array.length + 1) * untyped __cpp__("sizeof(char *)"));
 		chars.setAt(array.length, null);
 		for(i => item in array)
 			chars.setAt(i, item);
