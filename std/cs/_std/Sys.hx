@@ -50,9 +50,14 @@ class Sys {
 		return Environment.GetEnvironmentVariable(s);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		Environment.SetEnvironmentVariable(s, v);
-		if (_env != null)
+		if (_env == null)
+			return;
+
+		if (v == null)
+			_env.remove(s);
+		else
 			_env.set(s, v);
 	}
 
