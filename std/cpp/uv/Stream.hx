@@ -27,7 +27,7 @@ import haxe.io.Bytes;
 using cpp.uv.UV;
 
 @:allow(cpp.uv)
-private class WriteRequest extends Request {
+class WriteRequest extends Request {
 	var uvWrite:RawPointer<UvWriteT>;
 	var onWrite:(e:UVError)->Void;
 	//to keep bytes alive while waiting for a callback
@@ -47,7 +47,7 @@ private class WriteRequest extends Request {
 }
 
 @:allow(cpp.uv)
-private class ConnectRequest extends Request {
+class ConnectRequest extends Request {
 	var uvConnect:RawPointer<UvConnectT>;
 	var onConnect:(e:UVError)->Void;
 
@@ -58,7 +58,7 @@ private class ConnectRequest extends Request {
 }
 
 @:allow(cpp.uv)
-private class ShutdownRequest extends Request {
+class ShutdownRequest extends Request {
 	var uvShutdown:RawPointer<UvShutdownT>;
 	var onShutdown:(e:UVError)->Void;
 
@@ -82,14 +82,6 @@ abstract class Stream extends Handle {
 	//to keep bytes alive while waiting for a callback
 	var readBuffer:Bytes;
 
-	@:allow(cpp.uv) static function createWriteRequest():WriteRequest {
-		return new WriteRequest();
-	}
-
-	@:allow(cpp.uv) static function createConnectRequest():ConnectRequest {
-		return new ConnectRequest();
-	}
-
 	/**
 		Shutdown the outgoing (write) side of a duplex stream.
 		It waits for pending write requests to complete.
@@ -112,12 +104,12 @@ abstract class Stream extends Handle {
 		When a new incoming connection is received the `callback` is called.
 	**/
 	public function listen(backlog:Int, callback:(e:UVError)->Void) {
-		UV.shutdown(uvStream, Callable.fromStaticFunction(uvConnectionCb)).resolve();
+		UV.listen(uvStream, backlog, Callable.fromStaticFunction(uvConnectionCb)).resolve();
 		onConnection = callback;
 	}
 
 	static function uvConnectionCb(uvStream:RawPointer<UvStreamT>, status:Int) {
-		var stream = Std.downcast(Request.getHandle(cast uvStream), Stream);
+		var stream = Std.downcast(Handle.getHandle(cast uvStream), Stream);
 		stream.onConnection(status.explain());
 	}
 
@@ -125,24 +117,24 @@ abstract class Stream extends Handle {
 		Read data from an incoming stream.
 	**/
 	public function readStart(callback:(e:UVError, data:Bytes, bytesRead:SSizeT)->Void, ?allocate:(size:SizeT)->Bytes) {
-		UV.read_start(uvStream, Callable.fromStaticFunction(uvReadCb), Callable.fromStaticFunction(uvAllocCb)).resolve();
+		UV.read_start(uvStream, Callable.fromStaticFunction(uvAllocCb), Callable.fromStaticFunction(uvReadCb)).resolve();
 		onRead = callback;
-		onAlloc = size -> readBuffer = allocate == null ? Bytes.alloc(size) : allocate(size);
+		onAlloc = size -> allocate == null ? Bytes.alloc(size) : allocate(size);
 	}
 
-	static function uvReadCb(uvStream:RawPointer<UvStreamT>, bytesRead:SSizeT, buf:RawPointer<UvBufT>) {
-		var stream = Std.downcast(Request.getRequest(cast uvStream), Stream);
-		Stdlib.free(Pointer.fromRaw(buf));
-		var data = readBuffer;
-		readBuffer = null;
+	static function uvReadCb(uvStream:RawPointer<UvStreamT>, bytesRead:SSizeT, buf:RawConstPointer<UvBufT>) {
+		var stream = Std.downcast(Handle.getHandle(cast uvStream), Stream);
+		var data = stream.readBuffer;
+		stream.readBuffer = null;
 		stream.onRead(bytesRead.explain(), data, bytesRead < 0 ? 0 : bytesRead);
 	}
 
-	static function uvAllocCb(uvStream:RawPointer<UvStreamT>, size:SizeT, buf:RawPointer<UvBufT>) {
-		var stream = Std.downcast(Request.getRequest(cast uvStream), Stream);
-		readBuffer = stream.onAlloc(size);
-		var base = NativeArray.getBase(readBuffer.getData()).getBase();
-		return RawPointer.addressOf(UV.buf_init(base, (size:Int)));
+	static function uvAllocCb(uvHandle:RawPointer<UvHandleT>, size:SizeT, buf:RawPointer<UvBufT>) {
+		var stream = Std.downcast(Handle.getHandle(cast uvHandle), Stream);
+		stream.readBuffer = stream.onAlloc(size);
+		var ref = Pointer.fromRaw(buf).ref;
+		ref.base = NativeArray.getBase(stream.readBuffer.getData()).getBase();
+		ref.len = stream.readBuffer.length;
 	}
 
 	/**
@@ -163,8 +155,11 @@ abstract class Stream extends Handle {
 		if(pos + length > data.length)
 			throw new UVException(UV_ENOBUFS);
 		var req = new WriteRequest();
+		req.buf = UvBufT.create();
+		var ptr = Pointer.fromRaw(req.buf);
 		var base = NativeArray.getBase(readBuffer.getData()).getBase();
-		req.buf = RawPointer.addressOf(UV.buf_init(Pointer.fromRaw(base).at(pos), length));
+		ptr.value.base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
+		ptr.value.len = length;
 		UV.write(req.uvWrite, uvStream, req.buf, 1, Callable.fromStaticFunction(uvWriteCb)).resolve();
 		req.data = data;
 		req.onWrite = callback;
@@ -185,8 +180,9 @@ abstract class Stream extends Handle {
 		if(pos + length > data.length)
 			throw new UVException(UV_ENOBUFS);
 		var base = NativeArray.getBase(readBuffer.getData()).getBase();
-		var buf = RawPointer.addressOf(UV.buf_init(Pointer.fromRaw(base).at(pos), length));
-		var result = UV.tryWrite(uvStream, buf, 1);
+		base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
+		var buf = RawPointer.addressOf(UV.buf_init(base, length));
+		var result = UV.try_write(uvStream, buf, 1);
 		Stdlib.free(Pointer.fromRaw(buf));
 		return result.resolve();
 	}
@@ -201,7 +197,7 @@ abstract class Stream extends Handle {
 	/**
 		Returns `true` if the stream is writable
 	**/
-	public function isReadable():Bool {
+	public function isWritable():Bool {
 		return 0 != UV.is_writable(uvStream);
 	}
 }
