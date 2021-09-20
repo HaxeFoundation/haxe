@@ -2475,7 +2475,8 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		let ssig = generate_signature true (jsignature_of_type gctx cf.cf_type) in
 		let offset = jc#get_pool#add_string ssig in
-		jm#add_attribute (AttributeSignature offset)
+		jm#add_attribute (AttributeSignature offset);
+		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
 
 	method generate_main e =
 		let jsig = method_sig [array_sig string_sig] None in
