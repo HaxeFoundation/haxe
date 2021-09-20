@@ -59,7 +59,7 @@ class Timer extends Handle {
 	}
 
 	static function uvTimerCb(uvTimer:RawPointer<UvTimerT>) {
-		var timer = Std.downcast(Handle.getHandle(cast uvTimer), Timer);
+		var timer:Timer = cast Handle.getHandle(cast uvTimer);
 		timer.onTick();
 	}
 

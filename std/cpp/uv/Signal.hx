@@ -143,12 +143,12 @@ class Signal extends Handle {
 	}
 
 	static function uvSignalCb(uvSignal:RawPointer<UvSignalT>, sigNum:Int) {
-		var signal = Std.downcast(Handle.getHandle(cast uvSignal), Signal);
+		var signal:Signal = cast Handle.getHandle(cast uvSignal);
 		signal.onSignal();
 	}
 
 	static function uvSignalCbOnce(uvSignal:RawPointer<UvSignalT>, sigNum:Int) {
-		var signal = Std.downcast(Handle.getHandle(cast uvSignal), Signal);
+		var signal:Signal = cast Handle.getHandle(cast uvSignal);
 		var cb = signal.onSignalOnce;
 		signal.onSignalOnce = null;
 		cb();

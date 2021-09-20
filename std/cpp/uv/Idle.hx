@@ -58,7 +58,7 @@ class Idle extends Handle {
 	}
 
 	static function uvIdleCb(uvIdle:RawPointer<UvIdleT>) {
-		var idle = Std.downcast(Handle.getHandle(cast uvIdle), Idle);
+		var idle:Idle = cast Handle.getHandle(cast uvIdle);
 		idle.onIdle();
 	}
 

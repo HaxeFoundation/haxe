@@ -127,11 +127,11 @@ class Tcp extends Stream {
 	public function connect(addr:SockAddr, callback:(e:UVError)->Void) {
 		var req = new ConnectRequest();
 		UV.tcp_connect(req.uvConnect, uvTcp, cast addr.storage, Callable.fromStaticFunction(uvConnectCb)).resolve();
-		return addr;
+		req.onConnect = callback;
 	}
 
 	static function uvConnectCb(uvConnect:RawPointer<UvConnectT>, status:Int) {
-		var req = Std.downcast(Request.getRequest(cast uvConnect), ConnectRequest);
+		var req:ConnectRequest = cast Request.getRequest(cast uvConnect);
 		req.onConnect(status.explain());
 	}
 

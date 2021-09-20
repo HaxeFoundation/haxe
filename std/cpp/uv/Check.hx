@@ -58,7 +58,7 @@ class Check extends Handle {
 	}
 
 	static function uvCheckCb(uvCheck:RawPointer<UvCheckT>) {
-		var check = Std.downcast(Handle.getHandle(cast uvCheck), Check);
+		var check:Check = cast Handle.getHandle(cast uvCheck);
 		check.onCheck();
 	}
 

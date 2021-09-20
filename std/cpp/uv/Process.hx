@@ -234,7 +234,7 @@ class Process extends Handle {
 	}
 
 	static function uvExitCb(uvProcess:RawPointer<UvProcessT>, exitStatus:Int64, termSignal:Int) {
-		var process = Std.downcast(Handle.getHandle(cast uvProcess), Process);
+		var process:Process = cast Handle.getHandle(cast uvProcess);
 		var cb = process.onExit;
 		process.onExit = null;
 		cb(process, exitStatus, Signal.fromInt(termSignal));

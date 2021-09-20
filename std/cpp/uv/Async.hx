@@ -51,7 +51,7 @@ class Async extends Handle {
 	}
 
 	static function uvAsyncCb(uvAsync:RawPointer<UvAsyncT>) {
-		var async = Std.downcast(Handle.getHandle(cast uvAsync), Async);
+		var async:Async = cast Handle.getHandle(cast uvAsync);
 		async.onSend(async);
 	}
 

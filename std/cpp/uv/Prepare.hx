@@ -58,7 +58,7 @@ class Prepare extends Handle {
 	}
 
 	static function uvPrepareCb(uvPrepare:RawPointer<UvPrepareT>) {
-		var prepare = Std.downcast(Handle.getHandle(cast uvPrepare), Prepare);
+		var prepare:Prepare = cast Handle.getHandle(cast uvPrepare);
 		prepare.onPrepare();
 	}
 

@@ -93,7 +93,7 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvShutdownCb(uvShutdown:RawPointer<UvShutdownT>, status:Int) {
-		var req = Std.downcast(Request.getRequest(cast uvShutdown), ShutdownRequest);
+		var req:ShutdownRequest = cast Request.getRequest(cast uvShutdown);
 		req.onShutdown(status.explain());
 	}
 
@@ -109,7 +109,7 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvConnectionCb(uvStream:RawPointer<UvStreamT>, status:Int) {
-		var stream = Std.downcast(Handle.getHandle(cast uvStream), Stream);
+		var stream:Stream = cast Handle.getHandle(cast uvStream);
 		stream.onConnection(status.explain());
 	}
 
@@ -123,14 +123,14 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvReadCb(uvStream:RawPointer<UvStreamT>, bytesRead:SSizeT, buf:RawConstPointer<UvBufT>) {
-		var stream = Std.downcast(Handle.getHandle(cast uvStream), Stream);
+		var stream:Stream = cast Handle.getHandle(cast uvStream);
 		var data = stream.readBuffer;
 		stream.readBuffer = null;
 		stream.onRead(bytesRead.explain(), data, bytesRead < 0 ? 0 : bytesRead);
 	}
 
 	static function uvAllocCb(uvHandle:RawPointer<UvHandleT>, size:SizeT, buf:RawPointer<UvBufT>) {
-		var stream = Std.downcast(Handle.getHandle(cast uvHandle), Stream);
+		var stream:Stream = cast Handle.getHandle(cast uvHandle);
 		stream.readBuffer = stream.onAlloc(size);
 		var ref = Pointer.fromRaw(buf).ref;
 		ref.base = NativeArray.getBase(stream.readBuffer.getData()).getBase();
@@ -166,7 +166,7 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvWriteCb(uvWrite:RawPointer<UvWriteT>, status:Int) {
-		var req = Std.downcast(Request.getRequest(cast uvWrite), WriteRequest);
+		var req:WriteRequest = cast Request.getRequest(cast uvWrite);
 		req.onWrite(status.explain());
 	}
 
