@@ -33,8 +33,8 @@ class TcpSample extends UVSample {
 	}
 
 	function server() {
-		function print(msg:String) {
-			this.print('SERVER: $msg');
+		function print(msg:String, ?pos:PosInfos) {
+			this.print('SERVER: $msg', pos);
 		}
 		var loop = Thread.current().events;
 		var server = Tcp.init(loop, INET);
@@ -47,7 +47,7 @@ class TcpSample extends UVSample {
 				case UV_NOERR:
 					print('incoming request ($bytesRead bytes): "${data.toString()}"');
 					client.write(data, 0, bytesRead, handle(() -> {
-						shutdownAndClose(client, print, () -> {
+						shutdownAndClose(client, msg -> print(msg), () -> {
 							server.close(() -> print('done'));
 						});
 					}));
@@ -61,8 +61,8 @@ class TcpSample extends UVSample {
 	}
 
 	function client() {
-		function print(msg:String) {
-			this.print('CLIENT: $msg');
+		function print(msg:String, ?pos:PosInfos) {
+			this.print('CLIENT: $msg', pos);
 		}
 		var loop = Thread.current().events;
 		var client = Tcp.init(loop, INET);
@@ -75,7 +75,7 @@ class TcpSample extends UVSample {
 						print('response from server ($bytesRead bytes): "${data.toString()}"');
 					case UV_EOF:
 						print('disconnected from server');
-						shutdownAndClose(client, print);
+						shutdownAndClose(client, msg -> print(msg));
 					case _:
 						throw new UVException(e);
 				});

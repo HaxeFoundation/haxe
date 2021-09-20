@@ -106,7 +106,7 @@ class Tcp extends Stream {
 	**/
 	public function getSockName() {
 		var addr = new SockAddr();
-		var size = 0;
+		var size:Int = untyped __cpp__('sizeof(sockaddr_storage *)');
 		UV.tcp_getsockname(uvTcp, cast addr.storage, RawPointer.addressOf(size)).resolve();
 		return addr;
 	}
@@ -116,7 +116,7 @@ class Tcp extends Stream {
 	**/
 	public function getPeerName() {
 		var addr = new SockAddr();
-		var size = 0;
+		var size:Int = untyped __cpp__('sizeof(sockaddr_storage *)');
 		UV.tcp_getpeername(uvTcp, cast addr.storage, RawPointer.addressOf(size)).resolve();
 		return addr;
 	}
