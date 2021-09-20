@@ -27,7 +27,7 @@ let get_documentation_list() =
 			) in
 			let pfs = platform_list_help (List.rev !pfs) in
 			if String.length t > !m then m := String.length t;
-			(t, params ^ doc ^ pfs) :: (loop (i + 1))
+			((String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs) :: (loop (i + 1))
 		end else
 			[]
 	in
