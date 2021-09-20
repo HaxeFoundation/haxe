@@ -157,7 +157,7 @@ abstract class Stream extends Handle {
 		var req = new WriteRequest();
 		req.buf = UvBufT.create();
 		var ptr = Pointer.fromRaw(req.buf);
-		var base = NativeArray.getBase(readBuffer.getData()).getBase();
+		var base = NativeArray.getBase(data.getData()).getBase();
 		ptr.value.base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
 		ptr.value.len = length;
 		UV.write(req.uvWrite, uvStream, req.buf, 1, Callable.fromStaticFunction(uvWriteCb)).resolve();
