@@ -38,15 +38,15 @@ class TcpSample extends UVSample {
 		}
 		var loop = Thread.current().events;
 		var server = Tcp.init(loop, INET);
-		server.bind(Ip4Addr('0.0.0.0', PORT));
+		server.bind(SockAddr.ipv4('0.0.0.0', PORT));
 		server.listen(32, handle(() -> {
 			var client = Tcp.init(loop);
 			server.accept(client);
 			print('connection from ' + client.getSockName());
 			client.readStart((e, data, bytesRead) -> switch e {
 				case UV_NOERR:
-					print('incoming request: ' + data.toBytes(bytesRead).toString());
-					client.write(data, bytesRead, handle(() -> {
+					print('incoming request ($bytesRead bytes): "${data.toString()}"');
+					client.write(data, 0, bytesRead, handle(() -> {
 						shutdownAndClose(client, print, () -> {
 							server.close(() -> print('done'));
 						});
@@ -66,13 +66,13 @@ class TcpSample extends UVSample {
 		}
 		var loop = Thread.current().events;
 		var client = Tcp.init(loop, INET);
-		client.connect(Ip4Addr('127.0.0.1', PORT), handle(() -> {
+		client.connect(SockAddr.ipv4('127.0.0.1', PORT), handle(() -> {
 			print('connected to ' + client.getPeerName());
-			var data = Bytes.ofString('Hello, world!').getData();
-			client.write(data.bytes, data.length, handle(() -> {
+			var data = Bytes.ofString('Hello, world!');
+			client.write(data, 0, data.length, handle(() -> {
 				client.readStart((e, data, bytesRead) -> switch e {
 					case UV_NOERR:
-						print('response from server: ' + data.toBytes(bytesRead).toString());
+						print('response from server ($bytesRead bytes): "${data.toString()}"');
 					case UV_EOF:
 						print('disconnected from server');
 						shutdownAndClose(client, print);

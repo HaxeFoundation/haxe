@@ -75,6 +75,15 @@ abstract class Handle {
 		onClose = callback;
 	}
 
+	@:allow(cpp.uv.Tcp)
+	static function uvCloseCb(uvHandle:RawPointer<UvHandleT>) {
+		var handle = getHandle(uvHandle);
+		uvHandle.handle_set_data(null);
+		if(handle != null && handle.onClose != null) {
+			handle.onClose();
+		}
+	}
+
 	/**
 		Reference the handle.
 
@@ -100,13 +109,5 @@ abstract class Handle {
 	**/
 	public function hasRef() {
 		return 0 != UV.has_ref(uvHandle);
-	}
-
-	static function uvCloseCb(uvHandle:RawPointer<UvHandleT>) {
-		var handle = getHandle(uvHandle);
-		uvHandle.handle_set_data(null);
-		if(handle != null && handle.onClose != null) {
-			handle.onClose();
-		}
 	}
 }

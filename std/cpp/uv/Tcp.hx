@@ -23,6 +23,7 @@
 package cpp.uv;
 
 import cpp.uv.SockAddr;
+import cpp.uv.Stream;
 
 using cpp.uv.UV;
 
@@ -32,19 +33,19 @@ using cpp.uv.UV;
 	@see http://docs.libuv.org/en/v1.x/tcp.html
 **/
 @:headerCode('#include "uv.h"')
-abstract class Tcp extends Tcp {
+class Tcp extends Stream {
 	var uvTcp:RawPointer<UvTcpT>;
 
 	function setupUvHandle() {
 		uvTcp = UvTcpT.create();
 		uvStream = cast uvTcp;
-		uvHandle = cast uvHandle;
+		uvHandle = cast uvTcp;
 	}
 
 	/**
 		Create a TCP handle
 	**/
-	public function init(loop:Loop, domain:AddressFamily = UNSPEC):Tcp {
+	static public function init(loop:Loop, domain:AddressFamily = UNSPEC):Tcp {
 		var tcp = new Tcp();
 		var flags = switch domain {
 			case UNSPEC: AF_UNSPEC;
@@ -52,7 +53,7 @@ abstract class Tcp extends Tcp {
 			case INET6: AF_INET6;
 			case OTHER(i): i;
 		}
-		UV.tcp_init(loop.uvLoop, tcp.uvTcp, flags).resolve();
+		UV.tcp_init_ex(loop.uvLoop, tcp.uvTcp, flags).resolve();
 		return tcp;
 	}
 
@@ -60,7 +61,7 @@ abstract class Tcp extends Tcp {
 		Enable TCP_NODELAY, which disables Nagle’s algorithm.
 	**/
 	public function noDelay(enable:Bool) {
-		UV.tcp_no_delay(uvTcp, enable ? 1 : 0).resolve();
+		UV.tcp_nodelay(uvTcp, enable ? 1 : 0).resolve();
 	}
 
 	/**
@@ -87,7 +88,7 @@ abstract class Tcp extends Tcp {
 		Call this function after receiving a `callback` to accept the connection.
 	**/
 	public function bind(addr:SockAddr, ipv6Only = false) {
-		UV.bind(uvTcp, addr.uvAddr, ipv6Only ? UV_TCP_IPV6ONLY : 0).resolve();
+		UV.tcp_bind(uvTcp, cast addr.storage, ipv6Only ? UV_TCP_IPV6ONLY : 0).resolve();
 	}
 
 	/**
@@ -97,7 +98,48 @@ abstract class Tcp extends Tcp {
 		Call this function after receiving a `callback` to accept the connection.
 	**/
 	public function accept(client:Tcp) {
-		UV.accept(uvTcp, client.uvTcp).resolve();
+		UV.accept(uvStream, client.uvStream).resolve();
 	}
 
+	/**
+		Get the current address to which the handle is bound.
+	**/
+	public function getSockName() {
+		var addr = new SockAddr();
+		var size = 0;
+		UV.tcp_getsockname(uvTcp, cast addr.storage, RawPointer.addressOf(size)).resolve();
+		return addr;
+	}
+
+	/**
+		Get the address of the peer connected to the handle.
+	**/
+	public function getPeerName() {
+		var addr = new SockAddr();
+		var size = 0;
+		UV.tcp_getpeername(uvTcp, cast addr.storage, RawPointer.addressOf(size)).resolve();
+		return addr;
+	}
+
+	/**
+		Establish an IPv4 or IPv6 TCP connection.
+	**/
+	public function connect(addr:SockAddr, callback:(e:UVError)->Void) {
+		var req = new ConnectRequest();
+		UV.tcp_connect(req.uvConnect, uvTcp, cast addr.storage, Callable.fromStaticFunction(uvConnectCb)).resolve();
+		return addr;
+	}
+
+	static function uvConnectCb(uvConnect:RawPointer<UvConnectT>, status:Int) {
+		var req = Std.downcast(Request.getRequest(cast uvConnect), ConnectRequest);
+		req.onConnect(status.explain());
+	}
+
+	/**
+		Resets a TCP connection by sending a RST packet.
+	**/
+	public function closeReset(callback:()->Void) {
+		UV.tcp_close_reset(uvTcp, Callable.fromStaticFunction(Handle.uvCloseCb)).resolve();
+		onClose = callback;
+	}
 }

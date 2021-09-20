@@ -34,11 +34,12 @@ abstract class Request {
 	var uvReq:RawPointer<UvReqT>;
 
 	function new() {
-		initUvReq();
+		setupUvReq();
 		uvReq.req_set_data(untyped __cpp__('{0}.GetPtr()', this));
 		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
 	}
 
+	@:allow(cpp.uv)
 	static function getRequest(uvReq:RawPointer<UvReqT>):Request {
 		return untyped __cpp__('(hx::Object*){0}', uvReq.req_get_data());
 	}
@@ -50,7 +51,7 @@ abstract class Request {
 	}
 
 	function destructor() {
-		Stdlib.free(Pointer.fromRaw(handle.uvReq));
+		Pointer.fromRaw(uvReq).destroy();
 	}
 
 	/**
