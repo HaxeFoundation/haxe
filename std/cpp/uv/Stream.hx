@@ -75,7 +75,7 @@ class ShutdownRequest extends Request {
 **/
 @:headerCode('#include "uv.h"')
 abstract class Stream extends Handle {
-	var uvStream:RawPointer<UvStreamT>;
+	@:allow(cpp.uv) var uvStream:RawPointer<UvStreamT>;
 	var onConnection:(e:UVError)->Void;
 	var onRead:(e:UVError, data:Bytes, bytesRead:SSizeT)->Void;
 	var onAlloc:(suggestedSize:SizeT)->Bytes;

@@ -22,6 +22,7 @@
 
 package cpp.uv;
 
+import cpp.uv.Pipe;
 import cpp.uv.Signal;
 
 using cpp.uv.UV;
@@ -44,27 +45,18 @@ enum ProcessStdio {
 	// 	Connect child process descriptor to the specified file descriptor.
 	// **/
 	// FD(fd:File);
-	// /**
-	// 	Connect child proces descriptor to the specified pipe.
+	/**
+		Connect child proces descriptor to the specified pipe.
 
-	// 	Specifying `nonBlock` opens the handle in non-blocking mode in the child.
-	// 	This may cause loss of data, if the child is not designed to handle to
-	// 	encounter this mode, but can also be significantly more efficient.
-	// **/
-	// PIPE(pipe:Pipe, permissions:StdioPipePermissions, ?nonBlock:Bool);
-	// /**
-	// 	Connect child proces descriptor to the specified stream.
-	// **/
-	// STREAM(stream:Stream);
-}
-
-/**
-	Determine the direction of flow from the child process' perspective.
-**/
-enum abstract StdioPipePermissions(Int) {
-	var READ;
-	var WRITE;
-	var DUPLEX;
+		Specifying `nonBlock` opens the handle in non-blocking mode in the child.
+		This may cause loss of data, if the child is not designed to handle to
+		encounter this mode, but can also be significantly more efficient.
+	**/
+	PIPE(pipe:Pipe, permissions:PipeMode, ?nonBlock:Bool);
+	/**
+		Connect child proces descriptor to the specified stream.
+	**/
+	STREAM(stream:Stream);
 }
 
 /**
@@ -178,22 +170,22 @@ class Process extends Handle {
 							cIo.data.fd = i;
 						// TODO
 						// case FD(fd):
-						// 	cIo.ref.flags = UV_INHERIT_FD;
-						// 	cIo.ref.data.fd = fd
-						// case PIPE(pipe, premissions, nonBlock):
-						// 	var flags:Int = UV_CREATE_PIPE;
-						// 	if(nonBlock)
-						// 		flags |= UV_NONBLOCK_PIPE;
-						// 	switch permissions {
-						// 		case READ: flags |= UV_READABLE_PIPE;
-						// 		case WRITE: flags |= UV_WRITABLE_PIPE;
-						// 		case DUPLEX: flags |= UV_READABLE_PIPE | UV_WRITABLE_PIPE;
-						// 	}
-						// 	cIo.ref.flags = cast flags;
-						// 	cIo.ref.data.stream = cast pipe.uvStream;
-						// case STREAM(stream):
-						// 	cIo.ref.flags = UV_INHERIT_STREAM;
-						// 	cIo.ref.data.stream = cast stream.uvStream;
+						// 	cIo.flags = UV_INHERIT_FD;
+						// 	cIo.data.fd = fd
+						case PIPE(pipe, permissions, nonBlock):
+							var flags:Int = UV_CREATE_PIPE;
+							if(nonBlock)
+								flags |= UV_NONBLOCK_PIPE;
+							switch permissions {
+								case READ: flags |= UV_READABLE_PIPE;
+								case WRITE: flags |= UV_WRITABLE_PIPE;
+								case READ_WRITE: flags |= UV_READABLE_PIPE | UV_WRITABLE_PIPE;
+							}
+							cIo.flags = untyped __cpp__('(uv_stdio_flags){0}', flags);
+							cIo.data.stream = cast pipe.uvStream;
+						case STREAM(stream):
+							cIo.flags = UV_INHERIT_STREAM;
+							cIo.data.stream = cast stream.uvStream;
 					}
 				}
 			}
