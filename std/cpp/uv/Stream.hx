@@ -170,6 +170,7 @@ abstract class Stream extends Handle {
 
 	static function uvWriteCb(uvWrite:RawPointer<UvWriteT>, status:Int) {
 		var req:WriteRequest = cast Request.getRequest(cast uvWrite);
+		Pointer.fromRaw(req.buf).destroy();
 		req.onWrite(status.explain());
 	}
 
