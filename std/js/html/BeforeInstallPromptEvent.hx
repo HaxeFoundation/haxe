@@ -3,7 +3,7 @@ package js.html;
 import js.lib.Promise;
 
 /**
-	The `BeforeInstallPromptEvent` is fired fired at the `Window.onbeforeinstallprompt` handler,
+	The `BeforeInstallPromptEvent` is fired at the `Window.onbeforeinstallprompt` handler,
 	before a user is prompted to install a web site to a home screen.
 
 	@see https://developer.mozilla.org/en-US/docs/Web/API/BeforeInstallPromptEvent
