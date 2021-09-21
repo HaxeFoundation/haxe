@@ -180,13 +180,16 @@ abstract class Stream extends Handle {
 		Returns number of bytes written.
 	**/
 	public function tryWrite(data:Bytes, pos:UInt, length:UInt):Int {
+		return tryWriteImpl(data, pos, length, (h, b) -> UV.try_write(h, b, 1));
+	}
+
+	inline function tryWriteImpl(data:Bytes, pos:UInt, length:UInt, fn:(h:RawPointer<UvStreamT>, b:RawPointer<UvBufT>)->Int):Int {
 		if(pos + length > data.length)
 			throw new UVException(UV_ENOBUFS);
 		var base = NativeArray.getBase(readBuffer.getData()).getBase();
 		base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
-		var buf = RawPointer.addressOf(UV.buf_init(base, length));
-		var result = UV.try_write(uvStream, buf, 1);
-		Stdlib.free(Pointer.fromRaw(buf));
+		var buf = UV.buf_init(base, length);
+		var result = fn(uvStream, RawPointer.addressOf(buf));
 		return result.resolve();
 	}
 

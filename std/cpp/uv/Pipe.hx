@@ -106,6 +106,13 @@ class Pipe extends Stream {
 	}
 
 	/**
+		Same as `pipe.tryWrite` and extended write function for sending handles over a pipe.
+	**/
+	public function tryWrite2(data:Bytes, pos:UInt, length:UInt, sendHandle:Stream):Int {
+		return tryWriteImpl(data, pos, length, (h, b) -> UV.try_write2(h, b, 1, sendHandle.uvStream));
+	}
+
+	/**
 		Get the current address to which the handle is bound.
 	**/
 	public function getSockName() {
