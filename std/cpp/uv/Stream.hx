@@ -148,10 +148,13 @@ abstract class Stream extends Handle {
 	}
 
 	/**
-		Shutdown the outgoing (write) side of a duplex stream.
-		It waits for pending write requests to complete.
+		Write data to stream.
 	**/
 	public function write(data:Bytes, pos:UInt, length:UInt, callback:(e:UVError)->Void) {
+		writeImpl(data, pos, length, callback, (r, h, b, cb) -> UV.write(r, h, b, 1, cb));
+	}
+
+	inline function writeImpl(data:Bytes, pos:UInt, length:UInt, callback:(e:UVError)->Void, fn:(r:RawPointer<UvWriteT>, h:RawPointer<UvStreamT>, b:RawPointer<UvBufT>, cb:UvWriteCb)->Int) {
 		if(pos + length > data.length)
 			throw new UVException(UV_ENOBUFS);
 		var req = new WriteRequest();
@@ -160,7 +163,7 @@ abstract class Stream extends Handle {
 		var base = NativeArray.getBase(data.getData()).getBase();
 		ptr.value.base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
 		ptr.value.len = length;
-		UV.write(req.uvWrite, uvStream, req.buf, 1, Callable.fromStaticFunction(uvWriteCb)).resolve();
+		fn(req.uvWrite, uvStream, req.buf, Callable.fromStaticFunction(uvWriteCb)).resolve();
 		req.data = data;
 		req.onWrite = callback;
 	}

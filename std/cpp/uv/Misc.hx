@@ -38,4 +38,11 @@ class Misc {
 	static public function getPid():Int {
 		return UV.os_getpid();
 	}
+
+	/**
+		Gets the temp directory.
+	**/
+	static public function tmpDir():String {
+		return UV.getName((buf, size) -> UV.os_tmpdir(buf, size));
+	}
 }

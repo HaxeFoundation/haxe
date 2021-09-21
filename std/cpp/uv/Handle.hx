@@ -24,6 +24,27 @@ package cpp.uv;
 
 using cpp.uv.UV;
 
+enum abstract HandleType(Int) {
+	var UNKNOWN_HANDLE = 0;
+	var ASYNC;
+	var CHECK;
+	var FS_EVENT;
+	var FS_POLL;
+	var HANDLE;
+	var IDLE;
+	var NAMED_PIPE;
+	var POLL;
+	var PREPARE;
+	var PROCESS;
+	var STREAM;
+	var TCP;
+	var TIMER;
+	var TTY;
+	var UDP;
+	var SIGNAL;
+	var FILE;
+}
+
 /**
 	Base type for all libuv handles.
 

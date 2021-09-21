@@ -135,6 +135,25 @@ extern class UV {
 		return chars.raw;
 	}
 
+	extern static public inline function getName(fn:(buf:RawPointer<Char>, size:RawPointer<SizeT>)->Int):String {
+		var size:SizeT = 256;
+		var buf:Pointer<Char> = null;
+		var eNoBufs = UVError.UV_ENOBUFS.toNative();
+		var result = eNoBufs;
+		while (result == eNoBufs) {
+			if(buf != null)
+				buf.destroy();
+			buf = Stdlib.malloc(size);
+			result = fn(buf.raw, RawPointer.addressOf(size));
+		}
+		if(result < 0) {
+			if(buf != null)
+				buf.destroy();
+			throwErr(result);
+		}
+		return new String(untyped buf.raw); // TODO: is this a correct way to create String from RawPointer<Char>
+	}
+
 // Auto generated content :
 
 	@:native("uv_async_init") static function async_init(loop:RawPointer<UvLoopT>, async:RawPointer<UvAsyncT>, async_cb:UvAsyncCb):Int;

@@ -46,11 +46,11 @@ class PipeSample extends UVSample {
 			var tcp = Tcp.init(loop, INET);
 			client.readStart((e, data, bytesRead) -> switch e {
 				case UV_NOERR:
-					print('incoming request: ' + data.toBytes(bytesRead).toString());
-					var addr = Ip4Addr('93.184.216.34', 80); //http://example.com
+					print('incoming request: ' + data.toString());
+					var addr = SockAddr.ipv4('93.184.216.34', 80); //http://example.com
 					tcp.connect(addr, handle(() -> {
 						print('tcp connected to ' + addr);
-						client.write2(data, bytesRead, tcp, handle(() -> print('tcp sent')));
+						client.write2(data, 0, bytesRead, tcp, handle(() -> print('tcp sent')));
 					}));
 				case UV_EOF:
 					print('client disconnected');
@@ -74,21 +74,21 @@ class PipeSample extends UVSample {
 		var client = Pipe.init(loop, true);
 		client.connect(NAME, handle(() -> {
 			print('connected to ' + client.getPeerName());
-			var data = Bytes.ofString('Hello, world!').getData();
-			client.write(data.bytes, data.length, handle(() -> {
+			var data = Bytes.ofString('Hello, world!');
+			client.write(data, 0, data.length, handle(() -> {
 				var tcp = Tcp.init(loop);
 				client.readStart((e, data, bytesRead) -> switch e {
 					case UV_NOERR:
 						while(client.pendingCount() > 0) {
 							switch client.pendingType() {
-								case UV_TCP:
+								case TCP:
 									client.accept(tcp);
 									print('Received tcp socket connected to ' + tcp.getPeerName());
 								case _:
 									throw 'Received unexpected handler type';
 							}
 						}
-						print('response from server: ' + data.toBytes(bytesRead).toString());
+						print('response from server: ' + data.toString());
 						client.close(() -> print('pipe connection closed'));
 					case UV_EOF:
 						print('disconnected from server');
