@@ -40,11 +40,10 @@ enum ProcessStdio {
 		Connect child process descriptior to the corresponding parent process descriptor.
 	**/
 	INHERIT;
-	// TODO
-	// /**
-	// 	Connect child process descriptor to the specified file descriptor.
-	// **/
-	// FD(fd:File);
+	/**
+		Connect child process descriptor to the specified file descriptor.
+	**/
+	FD(file:File);
 	/**
 		Connect child proces descriptor to the specified pipe.
 
@@ -168,10 +167,9 @@ class Process extends Handle {
 						case INHERIT:
 							cIo.flags = UV_INHERIT_FD;
 							cIo.data.fd = i;
-						// TODO
-						// case FD(fd):
-						// 	cIo.flags = UV_INHERIT_FD;
-						// 	cIo.data.fd = fd
+						case FD(file):
+							cIo.flags = UV_INHERIT_FD;
+							cIo.data.fd = file.uv;
 						case PIPE(pipe, permissions, nonBlock):
 							var flags:Int = UV_CREATE_PIPE;
 							if(nonBlock)

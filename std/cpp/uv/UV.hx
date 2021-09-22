@@ -102,6 +102,11 @@ extern enum abstract UvTcpFlags to Int {
 	@:native("new sockaddr") public static function create():RawPointer<Sockaddr>;
 }
 
+abstract UvFile(Int) to Int {
+	@:allow(cpp.uv) inline function new(fd:Int)
+		this = fd;
+}
+
 /**
 	Automatically generated bindings for libuv.
 
@@ -860,11 +865,6 @@ extern enum abstract UvFsEvent to Int {
 }
 
 typedef UvFreeFunc = Callable<(ptr:RawPointer<cpp.Void>)->Void>
-
-@:native("uv_file")
-@:structAccess extern class UvFile {
-	@:native("new uv_file") public static function create():RawPointer<UvFile>;
-}
 
 typedef UvExitCb = Callable<(process:RawPointer<UvProcessT>, exit_status:Int64, term_signal:Int)->Void>
 
