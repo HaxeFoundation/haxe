@@ -15,8 +15,8 @@ class FsPollSample extends UVSample {
 		poll.start(path, 100, (e, previous, current) -> switch e {
 			case UV_NOERR:
 				print('FS Poll at $path:');
-				print('\tprev: $previous');
-				print('\tcurr: $current');
+				print('\tprev: ${previous.toString()}');
+				print('\tcurr: ${current.toString()}');
 				FileSystem.deleteFile(path);
 				poll.stop();
 				poll.close();

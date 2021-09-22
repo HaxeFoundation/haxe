@@ -26,6 +26,40 @@ import haxe.io.Bytes;
 
 using cpp.uv.UV;
 
+@:structInit
+class FileStat {
+	var dev:UInt64;
+	var mode:UInt64;
+	var nlink:UInt64;
+	var uid:UInt64;
+	var gid:UInt64;
+	var rdev:UInt64;
+	var ino:UInt64;
+	var size:UInt64;
+	var blksize:UInt64;
+	var blocks:UInt64;
+	var flags:UInt64;
+	var gen:UInt64;
+	var atim:FileTimeSpec;
+	var mtim:FileTimeSpec;
+	var ctim:FileTimeSpec;
+	var birthtim:FileTimeSpec;
+
+	public function toString():String {
+		return '{dev:$dev, mode:$mode, nlink:$nlink, uid:$uid, gid:$gid, rdev:$rdev, ino:$ino, size:$size, blksize:$blksize, blocks:$blocks, flags:$flags, gen:$gen, atim:$atim, mtim:$mtim, ctim:$ctim, birthtim:$birthtim}';
+	}
+}
+
+@:structInit
+class FileTimeSpec {
+	var sec:Int64;
+	var nsec:Int64;
+
+	public function toString():String {
+		return '{sec:$sec, nsec:$nsec}';
+	}
+}
+
 /**
 	Filesystem operations.
 
@@ -45,4 +79,35 @@ abstract File(UvFile) {
 	@:allow(cpp.uv)
 	inline function new(uv:UvFile)
 		this = uv;
+
+	static function uvTimespecToHx(times:RawConstPointer<UvTimespecT>):FileTimeSpec {
+		var ptr = ConstPointer.fromRaw(times);
+		return {
+			sec: ptr.value.tv_sec,
+			nsec: ptr.value.tv_nsec,
+		}
+	}
+
+	@:allow(cpp.uv)
+	static function uvStatToHx(stat:RawConstPointer<UvStatT>):FileStat {
+		var ptr = ConstPointer.fromRaw(stat);
+		return {
+			dev: ptr.value.st_dev,
+			mode: ptr.value.st_mode,
+			nlink: ptr.value.st_nlink,
+			uid: ptr.value.st_uid,
+			gid: ptr.value.st_gid,
+			rdev: ptr.value.st_rdev,
+			ino: ptr.value.st_ino,
+			size: ptr.value.st_size,
+			blksize: ptr.value.st_blksize,
+			blocks: ptr.value.st_blocks,
+			flags: ptr.value.st_flags,
+			gen: ptr.value.st_gen,
+			atim:uvTimespecToHx(RawConstPointer.addressOf(ptr.value.st_atim)),
+			mtim:uvTimespecToHx(RawConstPointer.addressOf(ptr.value.st_mtim)),
+			ctim:uvTimespecToHx(RawConstPointer.addressOf(ptr.value.st_ctim)),
+			birthtim:uvTimespecToHx(RawConstPointer.addressOf(ptr.value.st_birthtim)),
+		}
+	}
 }

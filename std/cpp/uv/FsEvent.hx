@@ -22,8 +22,6 @@
 
 package cpp.uv;
 
-import cpp.uv.Stream;
-
 using cpp.uv.UV;
 
 enum abstract FsEventFlag(Int) to Int {
@@ -91,7 +89,7 @@ class FsEvent extends Handle {
 	}
 
 	static function uvFsEventCb(uvFsEvent:RawPointer<UvFsEventT>, filename:ConstCharStar, events:Int, status:Int) {
-		var event = cast Handle.getHandle(cast uvFsEvent);
+		var event:FsEvent = cast Handle.getHandle(cast uvFsEvent);
 		event.onEvent(status.explain(), filename == null ? null : filename.toString(), new FsEvents(events));
 	}
 
