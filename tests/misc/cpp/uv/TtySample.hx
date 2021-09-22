@@ -8,7 +8,7 @@ class TtySample extends UVSample {
 		print('opening tty...');
 		var tty = Tty.init(Thread.current().events, File.stdout);
 		print('setting mode...');
-		tty.setMode(TTY_MODE_NORMAL);
+		tty.setMode(MODE_NORMAL);
 		print('window size: ' + tty.getWinSize());
 		Tty.resetMode();
 		//VTermState works on windows only
