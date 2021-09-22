@@ -155,14 +155,8 @@ abstract class Stream extends Handle {
 	}
 
 	inline function writeImpl(data:Bytes, pos:UInt, length:UInt, callback:(e:UVError)->Void, fn:(r:RawPointer<UvWriteT>, h:RawPointer<UvStreamT>, b:RawPointer<UvBufT>, cb:UvWriteCb)->Int) {
-		if(pos + length > data.length)
-			throw new UVException(UV_ENOBUFS);
 		var req = new WriteRequest();
-		req.buf = UvBufT.create();
-		var ptr = Pointer.fromRaw(req.buf);
-		var base = NativeArray.getBase(data.getData()).getBase();
-		ptr.value.base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
-		ptr.value.len = length;
+		req.buf = data.toBuf(pos, length);
 		fn(req.uvWrite, uvStream, req.buf, Callable.fromStaticFunction(uvWriteCb)).resolve();
 		req.data = data;
 		req.onWrite = callback;
@@ -170,7 +164,6 @@ abstract class Stream extends Handle {
 
 	static function uvWriteCb(uvWrite:RawPointer<UvWriteT>, status:Int) {
 		var req:WriteRequest = cast Request.getRequest(cast uvWrite);
-		Pointer.fromRaw(req.buf).destroy();
 		req.onWrite(status.explain());
 	}
 
@@ -185,12 +178,9 @@ abstract class Stream extends Handle {
 	}
 
 	inline function tryWriteImpl(data:Bytes, pos:UInt, length:UInt, fn:(h:RawPointer<UvStreamT>, b:RawPointer<UvBufT>)->Int):Int {
-		if(pos + length > data.length)
-			throw new UVException(UV_ENOBUFS);
-		var base = NativeArray.getBase(readBuffer.getData()).getBase();
-		base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
-		var buf = UV.buf_init(base, length);
-		var result = fn(uvStream, RawPointer.addressOf(buf));
+		var buf = data.toBuf(pos, length);
+		var result = fn(uvStream, buf);
+		Pointer.fromRaw(buf).destroy();
 		return result.resolve();
 	}
 

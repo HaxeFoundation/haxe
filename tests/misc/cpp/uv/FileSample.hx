@@ -1,5 +1,4 @@
 import haxe.Constraints.Function;
-import hl.I64;
 import haxe.io.Bytes;
 import cpp.uv.UVError;
 import haxe.PosInfos;
@@ -49,19 +48,19 @@ class FileSample extends UVSample {
 	}
 
 	function createFile(path:String, content:Bytes, callback:()->Void, ?pos:PosInfos) {
-		File.open(loop, path, [O_CREAT(420),O_TRUNC,O_WRONLY], (e, file) -> handle(() -> {
-			file.write(loop, content.getData(), content.length, I64.ofInt(0), (e, bytesWritten) -> handle(() -> {
+		File.open(loop, path, [CREAT(420),TRUNC,WRONLY], (e, file) -> handle(() -> {
+			file.write(loop, content, 0, content.length, 0, (e, bytesWritten) -> handle(() -> {
 				file.close(loop, handle(callback, pos));
 			}, pos)(e));
 		}, pos)(e));
 	}
 
 	function readFile(path:String, callback:(data:Bytes)->Void) {
-		File.open(loop, path, [O_RDONLY], (e, file) -> handle(() -> {
-			var buf = new hl.Bytes(10240);
-			file.read(loop, buf, 10240, I64.ofInt(0), (e, bytesRead) -> handle(() -> {
+		File.open(loop, path, [RDONLY], (e, file) -> handle(() -> {
+			var buf = Bytes.alloc(10240);
+			file.read(loop, buf, 0, 10240, 0, (e, bytesRead) -> handle(() -> {
 				file.close(loop, handle(() -> {
-					callback(buf.toBytes(bytesRead.toInt()));
+					callback(buf.sub(0, bytesRead));
 				}));
 			})(e));
 		})(e));
@@ -81,10 +80,10 @@ class FileSample extends UVSample {
 	function createWriteSyncReadUnlink(actions:Actions) {
 		var path = Misc.tmpDir() + '/test-file';
 		print('Creating $path for writing...');
-		File.open(loop, path, [O_CREAT(420), O_WRONLY], (e, file) -> handle(() -> {
+		File.open(loop, path, [CREAT(420), WRONLY], (e, file) -> handle(() -> {
 			print('Writing...');
 			var data = Bytes.ofString('Hello, world!');
-			file.write(loop, data.getData(), data.length, I64.ofInt(0), (e, bytesWritten) -> handle(() -> {
+			file.write(loop, data, 0, data.length, 0, (e, bytesWritten) -> handle(() -> {
 				print('$bytesWritten bytes written: $data');
 				print('fsync...');
 				file.fsync(loop, handle(() -> {
@@ -102,11 +101,11 @@ class FileSample extends UVSample {
 
 	function readUnlink(path:String, actions:Actions) {
 		print('Opening $path for reading...');
-		File.open(loop, path, [O_RDONLY], (e, file) -> handle(() -> {
+		File.open(loop, path, [RDONLY], (e, file) -> handle(() -> {
 			print('Reading...');
-			var buf = new hl.Bytes(1024);
-			file.read(loop, buf, 1024, I64.ofInt(0), (e, bytesRead) -> handle(() -> {
-				print('$bytesRead bytes read: ' + buf.toBytes(bytesRead.toInt()));
+			var buf = Bytes.alloc(1024);
+			file.read(loop, buf, 0, 1024, 0, (e, bytesRead) -> handle(() -> {
+				print('$bytesRead bytes read: ' + buf.toString());
 				file.close(loop, handle(() -> {
 					print('closed $path');
 					unlink(path, actions);
@@ -168,7 +167,7 @@ class FileSample extends UVSample {
 	function statFStat(actions:Actions) {
 		var path = Misc.tmpDir() + '/test-file';
 		print('fstat on $path...');
-		File.open(loop, path, [O_CREAT(420)], (e, file) -> handle(() -> {
+		File.open(loop, path, [CREAT(420)], (e, file) -> handle(() -> {
 			file.fstat(loop, (e, fstat) -> handle(() -> {
 				print('got fstat: $fstat');
 				file.close(loop, handle(() -> {
@@ -213,9 +212,9 @@ class FileSample extends UVSample {
 		var content = '1234567890';
 		print('Writing content for truncation at $path: $content');
 		createFile(path, Bytes.ofString(content), () -> {
-			File.open(loop, path, [O_WRONLY], (e, file) -> handle(() -> {
+			File.open(loop, path, [WRONLY], (e, file) -> handle(() -> {
 				print('truncating at 5...');
-				file.ftruncate(loop, I64.ofInt(5), handle(() -> {
+				file.ftruncate(loop, 5, handle(() -> {
 					file.close(loop, handle(() -> {
 						readFile(path, data -> {
 							print('Content after truncation (length=${data.length}): $data');
@@ -248,10 +247,10 @@ class FileSample extends UVSample {
 		var path = Misc.tmpDir() + '/test-file-send';
 		var newPath = '$path-copy';
 		createFile(path, Bytes.ofString('12345678'), () -> {
-			File.open(loop, path, [O_RDONLY], (e, src) -> handle(() -> {
-				File.open(loop, newPath, [O_CREAT(420), O_WRONLY], (e, dst) -> handle(() -> {
+			File.open(loop, path, [RDONLY], (e, src) -> handle(() -> {
+				File.open(loop, newPath, [CREAT(420), WRONLY], (e, dst) -> handle(() -> {
 					print('sendFile from $path to $newPath...');
-					src.sendFile(loop, dst, I64.ofInt(0), I64.ofInt(20), (e, outOffset) -> handle(() -> {
+					src.sendFile(loop, dst, 0, 20, (e, outOffset) -> handle(() -> {
 						print('sendfile stopped at $outOffset');
 						src.close(loop, handle(() -> {
 							dst.close(loop, handle(() -> {

@@ -107,6 +107,40 @@ abstract UvFile(Int) to Int {
 		this = fd;
 }
 
+typedef UvFsCb = Callable<(RawPointer<UvFsT>)->Void>;
+
+extern enum abstract UvFsOpenFlag(Int) to Int {
+	@:native("UV_FS_O_APPEND") var UV_FS_O_APPEND;
+	@:native("UV_FS_O_CREAT") var UV_FS_O_CREAT;
+	@:native("UV_FS_O_DIRECT") var UV_FS_O_DIRECT;
+	@:native("UV_FS_O_DIRECTORY") var UV_FS_O_DIRECTORY;
+	@:native("UV_FS_O_DSYNC") var UV_FS_O_DSYNC;
+	@:native("UV_FS_O_EXCL") var UV_FS_O_EXCL;
+	@:native("UV_FS_O_EXLOCK") var UV_FS_O_EXLOCK;
+	@:native("UV_FS_O_FILEMAP") var UV_FS_O_FILEMAP;
+	@:native("UV_FS_O_NOATIME") var UV_FS_O_NOATIME;
+	@:native("UV_FS_O_NOCTTY") var UV_FS_O_NOCTTY;
+	@:native("UV_FS_O_NOFOLLOW") var UV_FS_O_NOFOLLOW;
+	@:native("UV_FS_O_NONBLOCK") var UV_FS_O_NONBLOCK;
+	@:native("UV_FS_O_RANDOM") var UV_FS_O_RANDOM;
+	@:native("UV_FS_O_RDONLY") var UV_FS_O_RDONLY;
+	@:native("UV_FS_O_RDWR") var UV_FS_O_RDWR;
+	@:native("UV_FS_O_SEQUENTIAL") var UV_FS_O_SEQUENTIAL;
+	@:native("UV_FS_O_SHORT_LIVED") var UV_FS_O_SHORT_LIVED;
+	@:native("UV_FS_O_SYMLINK") var UV_FS_O_SYMLINK;
+	@:native("UV_FS_O_SYNC") var UV_FS_O_SYNC;
+	@:native("UV_FS_O_TEMPORARY") var UV_FS_O_TEMPORARY;
+	@:native("UV_FS_O_TRUNC") var UV_FS_O_TRUNC;
+	@:native("UV_FS_O_WRONLY") var UV_FS_O_WRONLY;
+}
+
+enum abstract NativeFileAccessMode(Int) to Int {
+	@:native("F_OK") var F_OK;
+	@:native("X_OK") var X_OK;
+	@:native("W_OK") var W_OK;
+	@:native("R_OK") var R_OK;
+}
+
 /**
 	Automatically generated bindings for libuv.
 
@@ -157,6 +191,17 @@ extern class UV {
 			throwErr(result);
 		}
 		return new String(untyped buf.raw); // TODO: is this a correct way to create String from RawPointer<Char>
+	}
+
+	extern static public inline function toBuf(bytes:haxe.io.Bytes, pos:Int, length:Int):RawPointer<UvBufT> {
+		if(pos + length > bytes.length)
+			throw new UVException(UV_ENOBUFS);
+		var buf = UvBufT.create();
+		var ptr = Pointer.fromRaw(buf);
+		var base = NativeArray.getBase(bytes.getData()).getBase();
+		ptr.value.base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
+		ptr.value.len = length;
+		return buf;
 	}
 
 // Auto generated content :
@@ -857,11 +902,6 @@ typedef UvFsEventCb = Callable<(handle:RawPointer<UvFsEventT>, filename:ConstCha
 extern enum abstract UvFsEvent to Int {
 	@:native("UV_RENAME") var UV_RENAME;
 	@:native("UV_CHANGE") var UV_CHANGE;
-}
-
-@:native("uv_fs_cb")
-@:structAccess extern class UvFsCb {
-	@:native("new uv_fs_cb") public static function create():RawPointer<UvFsCb>;
 }
 
 typedef UvFreeFunc = Callable<(ptr:RawPointer<cpp.Void>)->Void>

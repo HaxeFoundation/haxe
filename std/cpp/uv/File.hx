@@ -26,6 +26,53 @@ import haxe.io.Bytes;
 
 using cpp.uv.UV;
 
+/**
+	Full list of file creation flags and file status flags.
+	@see open(2) man page
+**/
+enum FileOpenFlag {
+	APPEND;
+	CREAT(mode:Int);
+	DIRECT;
+	DIRECTORY;
+	DSYNC;
+	EXCL;
+	EXLOCK;
+	FILEMAP;
+	NOATIME;
+	NOCTTY;
+	NOFOLLOW;
+	NONBLOCK;
+	RANDOM;
+	RDONLY;
+	RDWR;
+	SEQUENTIAL;
+	SHORT_LIVED;
+	SYMLINK;
+	SYNC;
+	TEMPORARY;
+	TRUNC;
+	WRONLY;
+}
+
+enum abstract CopyFileFlag(Int) to Int {
+	var EXCL = 1;
+	var FICLONE = 2;
+	var FICLONE_FORCE = 4;
+}
+
+enum abstract FileAccessMode(Int) to Int {
+	var F_OK;
+	var X_OK;
+	var W_OK;
+	var R_OK;
+}
+
+enum abstract FileSymlinkFlag(Int) to Int {
+	var SYMLINK_DIR = 1;
+	var SYMLINK_JUNCTION = 2;
+}
+
 @:structInit
 class FileStat {
 	var dev:UInt64;
@@ -57,6 +104,67 @@ class FileTimeSpec {
 
 	public function toString():String {
 		return '{sec:$sec, nsec:$nsec}';
+	}
+}
+
+@:structInit
+class FileStatFs {
+	var type:UInt64;
+	var bsize:UInt64;
+	var blocks:UInt64;
+	var bfree:UInt64;
+	var bavail:UInt64;
+	var files:UInt64;
+	var ffree:UInt64;
+	var spare:Array<UInt64>;
+
+	public function toString():String {
+		return '{type:$type, bsize:$bsize, blocks:$blocks, bfree:$bfree, bavail:$bavail, files:$files, ffree:$ffree, spare:$spare}';
+	}
+}
+
+@:allow(cpp.uv)
+@:headerCode('#include "uv.h"')
+class FsRequest extends Request {
+	var uvFs:RawPointer<UvFsT>;
+	var callback:()->Void;
+	//to keep bytes alive while waiting for a callback
+	var data:Bytes;
+	var buf:RawPointer<UvBufT>;
+
+	function setupUvReq() {
+		uvFs = UvFsT.create();
+		uvReq = cast uvFs;
+	}
+
+	override function destructor() {
+		Sys.println('FsRequest DESTRUCTOR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+		if(buf != null)
+			Pointer.fromRaw(buf).destroy();
+		UV.fs_req_cleanup(uvFs);
+		super.destructor();
+	}
+
+	inline function getResult():SSizeT {
+		return UV.fs_get_result(uvFs);
+	}
+
+	inline function getIntResult():Int {
+		return UV.fs_get_result(uvFs);
+	}
+
+	inline function getPath():Null<String> {
+		return switch UV.fs_get_path(uvFs) {
+			case null: null;
+			case p: p.toString();
+		}
+	}
+
+	inline function getStat():Null<FileStat> {
+		return switch UV.fs_get_statbuf(uvFs) {
+			case null: null;
+			case s: File.uvStatToHx(s);
+		}
 	}
 }
 
@@ -109,5 +217,384 @@ abstract File(UvFile) {
 			ctim:uvTimespecToHx(RawConstPointer.addressOf(ptr.value.st_ctim)),
 			birthtim:uvTimespecToHx(RawConstPointer.addressOf(ptr.value.st_birthtim)),
 		}
+	}
+
+	static inline function uvOpenFlag(flag:FileOpenFlag):UvFsOpenFlag {
+		return switch flag {
+			case APPEND: UV_FS_O_APPEND;
+			case CREAT(_): UV_FS_O_CREAT;
+			case DIRECT: UV_FS_O_DIRECT;
+			case DIRECTORY: UV_FS_O_DIRECTORY;
+			case DSYNC: UV_FS_O_DSYNC;
+			case EXCL: UV_FS_O_EXCL;
+			case EXLOCK: UV_FS_O_EXLOCK;
+			case FILEMAP: UV_FS_O_FILEMAP;
+			case NOATIME: UV_FS_O_NOATIME;
+			case NOCTTY: UV_FS_O_NOCTTY;
+			case NOFOLLOW: UV_FS_O_NOFOLLOW;
+			case NONBLOCK: UV_FS_O_NONBLOCK;
+			case RANDOM: UV_FS_O_RANDOM;
+			case RDONLY: UV_FS_O_RDONLY;
+			case RDWR: UV_FS_O_RDWR;
+			case SEQUENTIAL: UV_FS_O_SEQUENTIAL;
+			case SHORT_LIVED: UV_FS_O_SHORT_LIVED;
+			case SYMLINK: UV_FS_O_SYMLINK;
+			case SYNC: UV_FS_O_SYNC;
+			case TEMPORARY: UV_FS_O_TEMPORARY;
+			case TRUNC: UV_FS_O_TRUNC;
+			case WRONLY: UV_FS_O_WRONLY;
+		}
+	}
+
+	static function uvFsCb(uvFs:RawPointer<UvFsT>) {
+		var req:FsRequest = cast Request.getRequest(cast uvFs);
+		req.callback();
+	}
+
+	static inline function simpleRequest(loop:Loop, callback:(e:UVError)->Void, action:(req:FsRequest, cb:UvFsCb)->Int):FsRequest {
+		var req = new FsRequest();
+		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.callback = () -> callback(req.getIntResult().explain());
+		return req;
+	}
+
+	static inline function pathRequest(loop:Loop, callback:(e:UVError, path:Null<String>)->Void, action:(req:FsRequest, cb:UvFsCb)->Int):FsRequest {
+		var req = new FsRequest();
+		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.callback = () -> callback(req.getIntResult().explain(), req.getPath());
+		return req;
+	}
+
+	static inline function statRequest(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void, action:(req:FsRequest, cb:UvFsCb)->Int):FsRequest {
+		var req = new FsRequest();
+		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.callback = () -> callback(req.getIntResult().explain(), req.getStat());
+		return req;
+	}
+
+	/**
+		Close file.
+	**/
+	public function close(loop:Loop, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_close(loop.uvLoop, req.uvFs, this, cb));
+	}
+
+	/**
+		Open file.
+	**/
+	static public function open(loop:Loop, path:String, flags:Array<FileOpenFlag>, callback:(e:UVError, file:File)->Void):FsRequest {
+		var req = new FsRequest();
+		var iFlags = 0;
+		var mode = 0;
+		for(flag in flags) {
+			iFlags |= uvOpenFlag(flag);
+			switch flag {
+				case CREAT(m): mode = m;
+				case _:
+			}
+		}
+		UV.fs_open(loop.uvLoop, req.uvFs, path, iFlags, mode, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.callback = () -> {
+			var result = req.getIntResult();
+			callback(result.explain(), new File(new UvFile(result)));
+		}
+		return req;
+	}
+
+	/**
+		Read from file.
+	**/
+	public function read(loop:Loop, buffer:Bytes, pos:Int, length:Int, offset:Int64, callback:(e:UVError, bytesRead:SSizeT)->Void):FsRequest {
+		var req = new FsRequest();
+		req.buf = buffer.toBuf(pos, length);
+		UV.fs_read(loop.uvLoop, req.uvFs, this, req.buf, 1, offset, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.data = buffer;
+		req.callback = () -> {
+			var result = req.getResult();
+			switch (result:Int).explain() {
+				case UV_NOERR: callback(UV_NOERR, result);
+				case e: callback(e, 0);
+			}
+		}
+		return req;
+	}
+
+	/**
+		Delete a name and possibly the file it refers to.
+	**/
+	static public function unlink(loop:Loop, path:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_unlink(loop.uvLoop, req.uvFs, path, cb));
+	}
+
+	/**
+		Write to file.
+	**/
+	public function write(loop:Loop, data:Bytes, pos:Int, length:Int, offset:Int64, callback:(e:UVError, bytesWritten:SSizeT)->Void):FsRequest {
+		var req = new FsRequest();
+		req.buf = data.toBuf(pos, length);
+		UV.fs_write(loop.uvLoop, req.uvFs, this, req.buf, 1, offset, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.data = data;
+		req.callback = () -> {
+			var result = req.getResult();
+			switch (result:Int).explain() {
+				case UV_NOERR: callback(UV_NOERR, result);
+				case e: callback(e, 0);
+			}
+		}
+		return req;
+	}
+
+	/**
+		Create a directory.
+	**/
+	static public function mkdir(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_mkdir(loop.uvLoop, req.uvFs, path, mode, cb));
+	}
+
+	/**
+		Create a temporary directory.
+	**/
+	static public function mkdtemp(loop:Loop, tpl:String, callback:(e:UVError, path:Null<String>)->Void):FsRequest {
+		return pathRequest(loop, callback, (req, cb) -> UV.fs_mkdtemp(loop.uvLoop, req.uvFs, tpl, cb));
+	}
+
+	/**
+		Create a temporary file.
+	**/
+	static public function mkstemp(loop:Loop, tpl:String, callback:(e:UVError, file:File, path:Null<String>)->Void):FsRequest {
+		var req = new FsRequest();
+		UV.fs_mkstemp(loop.uvLoop, req.uvFs, tpl, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.callback = () -> {
+			var result = req.getIntResult();
+			callback(result.explain(), new File(new UvFile(result)), req.getPath());
+		}
+		return req;
+	}
+
+	/**
+		Delete a directory.
+	**/
+	static public function rmdir(loop:Loop, path:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_rmdir(loop.uvLoop, req.uvFs, path, cb));
+	}
+
+	/**
+		Retrieves status information for the file at the given path.
+	**/
+	static public function stat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):FsRequest {
+		return statRequest(loop, callback, (req, cb) -> UV.fs_stat(loop.uvLoop, req.uvFs, path, cb));
+	}
+
+	/**
+		Retrieves status information for the file.
+	**/
+	public function fstat(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void):FsRequest {
+		return statRequest(loop, callback, (req, cb) -> UV.fs_fstat(loop.uvLoop, req.uvFs, this, cb));
+	}
+
+	/**
+		Retrieves status information for the file at the given path.
+		If `path` is a symbolic link, then it returns information about the link
+		itself, not the file that the link refers to.
+	**/
+	static public function lstat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):FsRequest {
+		return statRequest(loop, callback, (req, cb) -> UV.fs_stat(loop.uvLoop, req.uvFs, path, cb));
+	}
+
+	/**
+		Retrieves status information for the filesystem containing the given path.
+	**/
+	static public function statFs(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStatFs>)->Void):FsRequest {
+		var req = new FsRequest();
+		UV.fs_statfs(loop.uvLoop, req.uvFs, path, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.callback = () -> {
+			var stat:FileStatFs = switch (cast UV.fs_get_ptr(req.uvFs):RawPointer<UvStatfsT>) {
+				case null: null;
+				case s:
+					var ptr = Pointer.fromRaw(s);
+					var sparePtr = Pointer.fromRaw(ptr.value.f_spare);
+					{
+						type: ptr.value.f_type,
+						bsize: ptr.value.f_bsize,
+						blocks: ptr.value.f_blocks,
+						bfree: ptr.value.f_bfree,
+						bavail: ptr.value.f_bavail,
+						files: ptr.value.f_files,
+						ffree: ptr.value.f_ffree,
+						spare: [for(i in 0...4) sparePtr.at(i)],
+					}
+			}
+			callback(req.getIntResult().explain(), stat);
+		}
+		return req;
+	}
+
+	/**
+		Change the name or location of a file.
+	**/
+	static public function rename(loop:Loop, path:String, newPath:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_rename(loop.uvLoop, req.uvFs, path, newPath, cb));
+	}
+
+	/**
+		Flushes file changes to storage.
+	**/
+	public function fsync(loop:Loop, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_fsync(loop.uvLoop, req.uvFs, this, cb));
+	}
+
+	/**
+		Flushes file changes to storage, but may omit some metadata.
+	**/
+	public function fdataSync(loop:Loop, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_fdatasync(loop.uvLoop, req.uvFs, this, cb));
+	}
+
+	/**
+		Truncate a file to a specified length.
+	**/
+	public function ftruncate(loop:Loop, offset:Int64, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_ftruncate(loop.uvLoop, req.uvFs, this, offset, cb));
+	}
+
+	/**
+		Copies a file from `path` to `newPath`.
+	**/
+	static public function copyFile(loop:Loop, path:String, newPath:String, flags:Null<Array<CopyFileFlag>>, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> {
+			var iFlags = 0;
+			if(flags != null)
+				for(f in flags)
+					iFlags |= f;
+			UV.fs_copyfile(loop.uvLoop, req.uvFs, path, newPath, iFlags, cb);
+		});
+	}
+
+	/**
+		Transfers data between file descriptors.
+		Data will be read starting at `inOffset` of the source file.
+		On success `outOffset` will set to the offset of the byte following the
+		last byte that was read.
+	**/
+	public function sendFile(loop:Loop, toFile:File, inOffset:Int64, length:SizeT, callback:(e:UVError, outOffset:SSizeT)->Void):FsRequest {
+		var req = new FsRequest();
+		UV.fs_sendfile(loop.uvLoop, req.uvFs, this, toFile.uv, inOffset, length, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.callback = () -> {
+			var result = req.getResult();
+			switch (result:Int).explain() {
+				case UV_NOERR: callback(UV_NOERR, result);
+				case e: callback(e, 0);
+			}
+		}
+		return req;
+	}
+
+	/**
+		Checks whether the calling process can access the file at the given path.
+	**/
+	static public function access(loop:Loop, path:String, mode:Array<FileAccessMode>, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> {
+			var cMode = 0;
+			for(m in mode)
+				cMode |= switch m {
+					case F_OK: NativeFileAccessMode.F_OK;
+					case X_OK: NativeFileAccessMode.X_OK;
+					case W_OK: NativeFileAccessMode.W_OK;
+					case R_OK: NativeFileAccessMode.R_OK;
+				};
+			UV.fs_access(loop.uvLoop, req.uvFs, path, cMode, cb);
+		});
+	}
+
+	/**
+		Changes permissions of the file at the given path.
+	**/
+	static public function chmod(loop:Loop, path:String, mode:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_chmod(loop.uvLoop, req.uvFs, path, mode, cb));
+	}
+
+	/**
+		Changes permissions of the file.
+	**/
+	public function fchmod(loop:Loop, mode:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_fchmod(loop.uvLoop, req.uvFs, this, mode, cb));
+	}
+
+	/**
+		Sets timestamps of the file at the given path.
+	**/
+	static public function utime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_utime(loop.uvLoop, req.uvFs, path, atime, mtime, cb));
+	}
+
+	/**
+		Sets timestamps of the file.
+	**/
+	public function futime(loop:Loop, atime:Float, mtime:Float, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_futime(loop.uvLoop, req.uvFs, this, atime, mtime, cb));
+	}
+
+	/**
+		Sets timestamps of the file at the given path.
+		If `path` is a symbolic link, then it sets timestamp of the link itself.
+	**/
+	static public function lutime(loop:Loop, path:String, atime:Float, mtime:Float, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_lutime(loop.uvLoop, req.uvFs, path, atime, mtime, cb));
+	}
+
+	/**
+		Hardlinks a file at the location given by `link`.
+	**/
+	static public function link(loop:Loop, path:String, link:String, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_link(loop.uvLoop, req.uvFs, path, link, cb));
+	}
+
+	/**
+		Symlinks a file at the location given by `link`.
+	**/
+	static public function symlink(loop:Loop, path:String, link:String, flags:Null<Array<FileSymlinkFlag>>, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> {
+			var iFlags = 0;
+			if(flags != null)
+				for(f in flags)
+					iFlags |= f;
+			UV.fs_symlink(loop.uvLoop, req.uvFs, path, link, iFlags, cb);
+		});
+	}
+
+	/**
+		Reads the target path of a symlink.
+	**/
+	static public function readLink(loop:Loop, path:String, callback:(e:UVError, target:Null<String>)->Void):FsRequest {
+		return pathRequest(loop, callback, (req, cb) -> UV.fs_readlink(loop.uvLoop, req.uvFs, path, cb));
+	}
+
+	/**
+		Resolves a real absolute path to the given file.
+	**/
+	static public function realPath(loop:Loop, path:String, callback:(e:UVError, real:Null<String>)->Void):FsRequest {
+		return pathRequest(loop, callback, (req, cb) -> UV.fs_realpath(loop.uvLoop, req.uvFs, path, cb));
+	}
+
+	/**
+		Changes owneship of the file at the given path.
+	**/
+	static public function chown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_chown(loop.uvLoop, req.uvFs, path, uid, gid, cb));
+	}
+
+	/**
+		Changes owneship of the file.
+	**/
+	public function fchown(loop:Loop, uid:Int, gid:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_fchown(loop.uvLoop, req.uvFs, this, uid, gid, cb));
+	}
+
+	/**
+		Changes owneship of the file at the given path.
+		If `path` is a symbolic link, the it changes ownership of the link itself.
+	**/
+	static public function lchown(loop:Loop, path:String, uid:Int, gid:Int, callback:(e:UVError)->Void):FsRequest {
+		return simpleRequest(loop, callback, (req, cb) -> UV.fs_lchown(loop.uvLoop, req.uvFs, path, uid, gid, cb));
 	}
 }

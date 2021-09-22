@@ -226,14 +226,8 @@ class Udp extends Handle {
 		Send data over the UDP socket.
 	**/
 	public function send(data:Bytes, pos:UInt, length:UInt, addr:Null<SockAddr>, callback:(e:UVError)->Void) {
-		if(pos + length > data.length)
-			throw new UVException(UV_ENOBUFS);
 		var req = new SendRequest();
-		req.buf = UvBufT.create();
-		var ptr = Pointer.fromRaw(req.buf);
-		var base = NativeArray.getBase(data.getData()).getBase();
-		ptr.value.base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
-		ptr.value.len = length;
+		req.buf = data.toBuf(pos, length);
 		UV.udp_send(req.uvSend, uvUdp, req.buf, 1, addr == null ? null : cast addr.storage, Callable.fromStaticFunction(uvSendCb)).resolve();
 		req.data = data;
 		req.onSend = callback;
@@ -252,12 +246,10 @@ class Udp extends Handle {
 		Returns number of bytes sent.
 	**/
 	public function trySend(data:Bytes, pos:UInt, length:UInt, addr:Null<SockAddr>):Int {
-		if(pos + length > data.length)
-			throw new UVException(UV_ENOBUFS);
-		var base = NativeArray.getBase(data.getData()).getBase();
-		base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
-		var buf = UV.buf_init(base, length);
-		return UV.udp_try_send(uvUdp, RawPointer.addressOf(buf), 1, addr == null ? null : cast addr.storage).resolve();
+		var buf = data.toBuf(pos, length);
+		var result = UV.udp_try_send(uvUdp, buf, 1, addr == null ? null : cast addr.storage);
+		Pointer.fromRaw(buf).destroy();
+		return result.resolve();
 	}
 
 	/**
