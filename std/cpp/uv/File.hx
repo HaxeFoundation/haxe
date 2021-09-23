@@ -141,7 +141,8 @@ class FsRequest extends Request {
 		Sys.println('FsRequest DESTRUCTOR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 		if(buf != null)
 			Pointer.fromRaw(buf).destroy();
-		UV.fs_req_cleanup(uvFs);
+		if(uvFs != null)
+			UV.fs_req_cleanup(uvFs);
 		super.destructor();
 	}
 
@@ -180,8 +181,8 @@ abstract File(UvFile) {
 	static public final stderr:File = new File(new UvFile(2));
 
 	@:allow(cpp.uv)
-	var uv(get,never):UvFile;
-	inline function get_uv():UvFile
+	var uvFile(get,never):UvFile;
+	inline function get_uvFile():UvFile
 		return this;
 
 	@:allow(cpp.uv)
@@ -246,6 +247,7 @@ abstract File(UvFile) {
 		}
 	}
 
+	@:allow(cpp.uv)
 	static function uvFsCb(uvFs:RawPointer<UvFsT>) {
 		var req:FsRequest = cast Request.getRequest(cast uvFs);
 		req.callback();
@@ -478,7 +480,7 @@ abstract File(UvFile) {
 	**/
 	public function sendFile(loop:Loop, toFile:File, inOffset:Int64, length:SizeT, callback:(e:UVError, outOffset:SSizeT)->Void):FsRequest {
 		var req = new FsRequest();
-		UV.fs_sendfile(loop.uvLoop, req.uvFs, this, toFile.uv, inOffset, length, Callable.fromStaticFunction(uvFsCb)).resolve();
+		UV.fs_sendfile(loop.uvLoop, req.uvFs, this, toFile.uvFile, inOffset, length, Callable.fromStaticFunction(uvFsCb)).resolve();
 		req.callback = () -> {
 			var result = req.getResult();
 			switch (result:Int).explain() {

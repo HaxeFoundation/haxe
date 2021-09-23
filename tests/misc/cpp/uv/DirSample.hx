@@ -1,4 +1,3 @@
-import cpp.uv.DirSync;
 import cpp.uv.Misc;
 import cpp.uv.Dir;
 import cpp.uv.UVException;

@@ -66,7 +66,7 @@ class Tty extends Stream {
 	**/
 	static public function init(loop:Loop, file:File):Tty {
 		var tty = new Tty();
-		UV.tty_init(loop.uvLoop, tty.uvTty, file.uv, 0).resolve();
+		UV.tty_init(loop.uvLoop, tty.uvTty, file.uvFile, 0).resolve();
 		return tty;
 	}
 

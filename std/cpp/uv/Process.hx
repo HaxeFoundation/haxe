@@ -169,7 +169,7 @@ class Process extends Handle {
 							cIo.data.fd = i;
 						case FD(file):
 							cIo.flags = UV_INHERIT_FD;
-							cIo.data.fd = file.uv;
+							cIo.data.fd = file.uvFile;
 						case PIPE(pipe, permissions, nonBlock):
 							var flags:Int = UV_CREATE_PIPE;
 							if(nonBlock)
