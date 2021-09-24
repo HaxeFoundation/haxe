@@ -59,7 +59,7 @@ class SockAddr {
 	}
 
 	static function finalizer(addr:SockAddr) {
-		Pointer.fromRaw(addr.storage).destroy();
+		Stdlib.free(Pointer.fromRaw(addr.storage));
 	}
 
 	/**

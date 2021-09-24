@@ -235,6 +235,7 @@ class FileSample extends UVSample {
 		createFile(path, Bytes.ofString('123'), () -> {
 			print('Copy $path to $newPath');
 			File.copyFile(loop, path, newPath, [EXCL], handle(() -> {
+				print('Copy success');
 				deleteFiles([path, newPath], () -> {
 					print('Done');
 					actions.next();

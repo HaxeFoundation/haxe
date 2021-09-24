@@ -90,7 +90,7 @@ private class SendRequest extends Request {
 	override function destructor() {
 		super.destructor();
 		if(buf != null)
-			Pointer.fromRaw(buf).destroy();
+			Stdlib.free(Pointer.fromRaw(buf));
 	}
 }
 
@@ -235,7 +235,7 @@ class Udp extends Handle {
 
 	static function uvSendCb(uvSend:RawPointer<UvUdpSendT>, status:Int) {
 		var req:SendRequest = cast Request.getRequest(cast uvSend);
-		Pointer.fromRaw(req.buf).destroy();
+		Stdlib.free(Pointer.fromRaw(req.buf));
 		req.onSend(status.explain());
 	}
 
@@ -248,7 +248,7 @@ class Udp extends Handle {
 	public function trySend(data:Bytes, pos:UInt, length:UInt, addr:Null<SockAddr>):Int {
 		var buf = data.toBuf(pos, length);
 		var result = UV.udp_try_send(uvUdp, buf, 1, addr == null ? null : cast addr.storage);
-		Pointer.fromRaw(buf).destroy();
+		Stdlib.free(Pointer.fromRaw(buf));
 		return result.resolve();
 	}
 

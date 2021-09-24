@@ -53,12 +53,17 @@ class DirEntry {
 
 
 /**
-	TTY handles represent a stream for the console.
+	Directory stream.
 
-	@see http://docs.libuv.org/en/v1.x/fs.html#c.uv_dir_t
+	@see http://docs.libuv.org/en/v1.x/fs.html#c.uv_fs_opendir
 **/
+@:allow(cpp.uv.DirSync)
 @:headerCode('#include "uv.h"')
 class Dir {
+	/** Synchronous operations with this directory */
+	public var sync(get,never):DirSync;
+	inline function get_sync():DirSync return this;
+
 	var uvDir:RawPointer<UvDirT>;
 
 	function new() {
@@ -66,7 +71,7 @@ class Dir {
 	}
 
 	static function finalizer(dir:Dir) {
-		Pointer.fromRaw(dir.uvDir).destroy();
+		Stdlib.free(Pointer.fromRaw(dir.uvDir));
 	}
 
 	/**

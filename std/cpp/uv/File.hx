@@ -138,9 +138,8 @@ class FsRequest extends Request {
 	}
 
 	override function destructor() {
-		Sys.println('FsRequest DESTRUCTOR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 		if(buf != null)
-			Pointer.fromRaw(buf).destroy();
+			Stdlib.free(Pointer.fromRaw(buf));
 		if(uvFs != null)
 			UV.fs_req_cleanup(uvFs);
 		super.destructor();
@@ -257,6 +256,9 @@ abstract File(UvFile) {
 		var req = new FsRequest();
 		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
 		req.callback = () -> callback(req.getIntResult().explain());
+		// TODO: fix GC destroying request/handle objects, which don't have a reference from Haxe code.
+		// cpp.vm.Gc.run(true);
+		// cpp.vm.Gc.compact();
 		return req;
 	}
 
@@ -468,7 +470,8 @@ abstract File(UvFile) {
 			if(flags != null)
 				for(f in flags)
 					iFlags |= f;
-			UV.fs_copyfile(loop.uvLoop, req.uvFs, path, newPath, iFlags, cb);
+			var r = UV.fs_copyfile(loop.uvLoop, req.uvFs, path, newPath, iFlags, cb);
+			r;
 		});
 	}
 

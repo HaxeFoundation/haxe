@@ -181,13 +181,13 @@ extern class UV {
 		var result = eNoBufs;
 		while (result == eNoBufs) {
 			if(buf != null)
-				buf.destroy();
+				Stdlib.free(buf);
 			buf = Stdlib.malloc(size);
 			result = fn(buf.raw, RawPointer.addressOf(size));
 		}
 		if(result < 0) {
 			if(buf != null)
-				buf.destroy();
+				Stdlib.free(buf);
 			throwErr(result);
 		}
 		return new String(untyped buf.raw); // TODO: is this a correct way to create String from RawPointer<Char>

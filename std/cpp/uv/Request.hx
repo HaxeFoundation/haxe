@@ -37,6 +37,7 @@ abstract class Request {
 		setupUvReq();
 		uvReq.req_set_data(untyped __cpp__('{0}.GetPtr()', this));
 		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
+		// cpp.vm.Gc.doNotKill(this);
 	}
 
 	@:allow(cpp.uv)
@@ -51,7 +52,7 @@ abstract class Request {
 	}
 
 	function destructor() {
-		Pointer.fromRaw(uvReq).destroy();
+		Stdlib.free(Pointer.fromRaw(uvReq));
 	}
 
 	/**

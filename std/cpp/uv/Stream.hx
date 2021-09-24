@@ -180,7 +180,7 @@ abstract class Stream extends Handle {
 	inline function tryWriteImpl(data:Bytes, pos:UInt, length:UInt, fn:(h:RawPointer<UvStreamT>, b:RawPointer<UvBufT>)->Int):Int {
 		var buf = data.toBuf(pos, length);
 		var result = fn(uvStream, buf);
-		Pointer.fromRaw(buf).destroy();
+		Stdlib.free(Pointer.fromRaw(buf));
 		return result.resolve();
 	}
 
