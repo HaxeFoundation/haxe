@@ -38,7 +38,7 @@ class Hl {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev"]);
+				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev=3.15.1"]);
 			case "Mac":
 				runCommand("brew", ["update", '--preinstall'], true);
 				runCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile'], true);
@@ -55,7 +55,7 @@ class Hl {
 			"-DWITH_FMT=ON",
 			"-DWITH_OPENAL=OFF",
 			"-DWITH_SDL=OFF",
-			"-DWITH_SQLITE=OFF",
+			"-DWITH_SQLITE=ON",
 			"-DWITH_SSL=OFF",
 			"-DWITH_UI=OFF",
 			"-DWITH_UV=OFF",

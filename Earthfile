@@ -254,7 +254,7 @@ test-environment-cs:
 
 test-environment-hl:
     FROM +test-environment
-    DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev"
+    DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev libsqlite3-dev=3.15.1"
     SAVE IMAGE --cache-hint
 
 test-environment-lua:

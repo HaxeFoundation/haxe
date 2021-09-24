@@ -14,13 +14,11 @@ class Main {
 		runner.addCase(new io.TestProcess());
 		#end
 		#if !(java || cs || lua || python || eval || js) // Sqlite is not implemented for these targets
-		#if !hl // Idk how to resolve "FATAL ERROR : Failed to load library sqlite.hdll"
 		var testSqlite = #if php Sys.systemName() != 'Windows' #else true #end; //our CI doesn't have sqlite php module
 		if(testSqlite) {
 			runner.addCase(new db.TestSqliteConnection());
 			runner.addCase(new db.TestSqliteResultSet());
 		}
-		#end
 		#end
 		#if php
 		if (Sys.systemName() != "Windows")
