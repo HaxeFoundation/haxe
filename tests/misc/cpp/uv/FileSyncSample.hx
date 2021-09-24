@@ -1,5 +1,4 @@
 import haxe.Constraints.Function;
-import hl.I64;
 import haxe.io.Bytes;
 import cpp.uv.UVError;
 import haxe.PosInfos;
@@ -33,8 +32,8 @@ class FileSyncSample extends UVSample {
 
 	function createFile(path:String, content:Bytes, ?pos:PosInfos) {
 		try {
-			var file = FileSync.open(path, [O_CREAT(420),O_TRUNC,O_WRONLY]);
-			file.sync.write(content.getData(), content.length, I64.ofInt(0));
+			var file = FileSync.open(path, [CREAT(420),TRUNC,WRONLY]);
+			file.sync.write(content, 0, content.length, 0);
 			file.sync.close();
 		} catch(e:UVException) {
 			throw new UVException(e.error, pos.fileName + ':' + pos.lineNumber + ': ' + e.error.toString(), e);
@@ -42,11 +41,11 @@ class FileSyncSample extends UVSample {
 	}
 
 	function readFile(path:String):Bytes {
-		var file = FileSync.open(path, [O_RDONLY]);
-		var buf = new hl.Bytes(10240);
-		var bytesRead = file.sync.read(buf, 10240, I64.ofInt(0));
+		var file = FileSync.open(path, [RDONLY]);
+		var buf = Bytes.alloc(10240);
+		var bytesRead = file.sync.read(buf, 0, 10240, 0);
 		file.sync.close();
-		return buf.toBytes(bytesRead.toInt());
+		return buf.sub(0, bytesRead);
 	}
 
 	function deleteFiles(files:Array<String>) {
@@ -57,10 +56,10 @@ class FileSyncSample extends UVSample {
 	function createWriteSyncReadUnlink(actions:Actions) {
 		var path = Misc.tmpDir() + '/test-file';
 		print('Creating $path for writing...');
-		var file = FileSync.open(path, [O_CREAT(420), O_WRONLY]);
+		var file = FileSync.open(path, [CREAT(420), WRONLY]);
 		print('Writing...');
 		var data = Bytes.ofString('Hello, world!');
-		var bytesWritten = file.sync.write(data.getData(), data.length, I64.ofInt(0));
+		var bytesWritten = file.sync.write(data, 0, data.length, 0);
 		print('$bytesWritten bytes written: $data');
 		print('fsync...');
 		file.sync.fsync();
@@ -73,11 +72,11 @@ class FileSyncSample extends UVSample {
 
 	function readUnlink(path:String, actions:Actions) {
 		print('Opening $path for reading...');
-		var file = FileSync.open(path, [O_RDONLY]);
+		var file = FileSync.open(path, [RDONLY]);
 		print('Reading...');
-		var buf = new hl.Bytes(1024);
-		var bytesRead = file.sync.read(buf, 1024, I64.ofInt(0));
-		print('$bytesRead bytes read: ' + buf.toBytes(bytesRead.toInt()));
+		var buf = Bytes.alloc(1024);
+		var bytesRead = file.sync.read(buf, 0, 1024, 0);
+		print('$bytesRead bytes read: ' + buf.toString());
 		file.sync.close();
 		print('closed $path');
 		unlink(path, actions);
@@ -127,7 +126,7 @@ class FileSyncSample extends UVSample {
 	function statFStat(actions:Actions) {
 		var path = Misc.tmpDir() + '/test-file';
 		print('fstat on $path...');
-		var file = FileSync.open(path, [O_CREAT(420)]);
+		var file = FileSync.open(path, [CREAT(420)]);
 		var fstat = file.sync.fstat();
 		print('got fstat: $fstat');
 		file.sync.close();
@@ -166,9 +165,9 @@ class FileSyncSample extends UVSample {
 		var content = '1234567890';
 		print('Writing content for truncation at $path: $content');
 		createFile(path, Bytes.ofString(content));
-		var file = FileSync.open(path, [O_WRONLY]);
+		var file = FileSync.open(path, [WRONLY]);
 		print('truncating at 5...');
-		file.sync.ftruncate(I64.ofInt(5));
+		file.sync.ftruncate(5);
 		file.sync.close();
 		var data = readFile(path);
 		print('Content after truncation (length=${data.length}): $data');
@@ -192,10 +191,10 @@ class FileSyncSample extends UVSample {
 		var path = Misc.tmpDir() + '/test-file-send';
 		var newPath = '$path-copy';
 		createFile(path, Bytes.ofString('12345678'));
-		var src = FileSync.open(path, [O_RDONLY]);
-		var dst = FileSync.open(newPath, [O_CREAT(420), O_WRONLY]);
+		var src = FileSync.open(path, [RDONLY]);
+		var dst = FileSync.open(newPath, [CREAT(420), WRONLY]);
 		print('sendFile from $path to $newPath...');
-		var outOffset = src.sync.sendFile(dst, I64.ofInt(0), I64.ofInt(20));
+		var outOffset = src.sync.sendFile(dst, 0, 20);
 		print('sendfile stopped at $outOffset');
 		src.sync.close();
 		dst.sync.close();

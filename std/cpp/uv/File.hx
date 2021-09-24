@@ -179,6 +179,10 @@ abstract File(UvFile) {
 	static public final stdout:File = new File(new UvFile(1));
 	static public final stderr:File = new File(new UvFile(2));
 
+	/** Synchronous operations with this file */
+	public var sync(get,never):FileSync;
+	inline function get_sync():FileSync return new File(this);
+
 	@:allow(cpp.uv)
 	var uvFile(get,never):UvFile;
 	inline function get_uvFile():UvFile
@@ -219,6 +223,7 @@ abstract File(UvFile) {
 		}
 	}
 
+	@:allow(cpp.uv)
 	static inline function uvOpenFlag(flag:FileOpenFlag):UvFsOpenFlag {
 		return switch flag {
 			case APPEND: UV_FS_O_APPEND;
@@ -470,8 +475,7 @@ abstract File(UvFile) {
 			if(flags != null)
 				for(f in flags)
 					iFlags |= f;
-			var r = UV.fs_copyfile(loop.uvLoop, req.uvFs, path, newPath, iFlags, cb);
-			r;
+			UV.fs_copyfile(loop.uvLoop, req.uvFs, path, newPath, iFlags, cb);
 		});
 	}
 
