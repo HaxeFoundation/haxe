@@ -141,6 +141,44 @@ enum abstract NativeFileAccessMode(Int) to Int {
 	@:native("R_OK") var R_OK;
 }
 
+extern enum abstract NativeAddrInfoFlag(Int) from Int to Int {
+	@:native("AI_PASSIVE") var AI_PASSIVE;
+	@:native("AI_CANONNAME") var AI_CANONNAME;
+	@:native("AI_NUMERICHOST") var AI_NUMERICHOST;
+	@:native("AI_V4MAPPED") var AI_V4MAPPED;
+	@:native("AI_ALL") var AI_ALL;
+	@:native("AI_ADDRCONFIG") var AI_ADDRCONFIG;
+	@:native("AI_NUMERICSERV") var AI_NUMERICSERV;
+}
+
+extern enum abstract NativeSocketType(Int) from Int to Int {
+	@:native("SOCK_STREAM") var SOCK_STREAM;
+	@:native("SOCK_DGRAM") var SOCK_DGRAM;
+	@:native("SOCK_RAW") var SOCK_RAW;
+}
+
+@:native("addrinfo")
+@:structAccess extern class Addrinfo {
+	function new():Void;
+	@:native("new addrinfo") public static function create():RawPointer<Addrinfo>;
+	var ai_flags:Int;
+	var ai_family:Int;
+	var ai_socktype:Int;
+	var ai_protocol:Int;
+	var ai_addrlen:Int;
+	var ai_addr:RawPointer<Sockaddr>;
+	var ai_canonname:RawPointer<Char>;
+	var ai_next:RawPointer<Addrinfo>;
+}
+
+extern enum abstract NativeNameInfoFlag(Int) from Int to Int {
+	@:native("NI_NUMERICHOST") var NI_NUMERICHOST;
+	@:native("NI_NUMERICSERV") var NI_NUMERICSERV;
+	@:native("NI_NOFQDN") var NI_NOFQDN;
+	@:native("NI_NAMEREQD") var NI_NAMEREQD;
+	@:native("NI_DGRAM") var NI_DGRAM;
+}
+
 /**
 	Automatically generated bindings for libuv.
 
@@ -453,7 +491,7 @@ extern class UV {
 
 @:native("uv_write_t")
 @:structAccess extern class UvWriteT {
-	@:native("new uv_write_t") public static function create():RawPointer<UvWriteT>;
+	@:native("new uv_write_t") static function create():RawPointer<UvWriteT>;
 }
 
 typedef UvWriteCb = Callable<(req:RawPointer<UvWriteT>, status:Int)->Void>
@@ -472,12 +510,12 @@ typedef UvWalkCb = Callable<(handle:RawPointer<UvHandleT>, arg:RawPointer<cpp.Vo
 
 @:native("uv_udp_t")
 @:structAccess extern class UvUdpT {
-	@:native("new uv_udp_t") public static function create():RawPointer<UvUdpT>;
+	@:native("new uv_udp_t") static function create():RawPointer<UvUdpT>;
 }
 
 @:native("uv_udp_send_t")
 @:structAccess extern class UvUdpSendT {
-	@:native("new uv_udp_send_t") public static function create():RawPointer<UvUdpSendT>;
+	@:native("new uv_udp_send_t") static function create():RawPointer<UvUdpSendT>;
 }
 
 typedef UvUdpSendCb = Callable<(req:RawPointer<UvUdpSendT>, status:Int)->Void>
@@ -503,7 +541,7 @@ extern enum abstract UvTtyVtermstateT to Int {
 
 @:native("uv_tty_t")
 @:structAccess extern class UvTtyT {
-	@:native("new uv_tty_t") public static function create():RawPointer<UvTtyT>;
+	@:native("new uv_tty_t") static function create():RawPointer<UvTtyT>;
 }
 
 @:coreType @:native("uv_tty_mode_t")
@@ -539,19 +577,19 @@ extern enum abstract UvTtyModeT to Int {
 
 @:native("uv_timer_t")
 @:structAccess extern class UvTimerT {
-	@:native("new uv_timer_t") public static function create():RawPointer<UvTimerT>;
+	@:native("new uv_timer_t") static function create():RawPointer<UvTimerT>;
 }
 
 typedef UvTimerCb = Callable<(handle:RawPointer<UvTimerT>)->Void>
 
 @:native("uv_tcp_t")
 @:structAccess extern class UvTcpT {
-	@:native("new uv_tcp_t") public static function create():RawPointer<UvTcpT>;
+	@:native("new uv_tcp_t") static function create():RawPointer<UvTcpT>;
 }
 
 @:native("uv_stream_t")
 @:structAccess extern class UvStreamT {
-	@:native("new uv_stream_t") public static function create():RawPointer<UvStreamT>;
+	@:native("new uv_stream_t") static function create():RawPointer<UvStreamT>;
 }
 
 @:coreType @:native("uv_stdio_flags")
@@ -616,14 +654,14 @@ extern enum abstract UvStdioFlags to Int {
 
 @:native("uv_signal_t")
 @:structAccess extern class UvSignalT {
-	@:native("new uv_signal_t") public static function create():RawPointer<UvSignalT>;
+	@:native("new uv_signal_t") static function create():RawPointer<UvSignalT>;
 }
 
 typedef UvSignalCb = Callable<(handle:RawPointer<UvSignalT>, signum:Int)->Void>
 
 @:native("uv_shutdown_t")
 @:structAccess extern class UvShutdownT {
-	@:native("new uv_shutdown_t") public static function create():RawPointer<UvShutdownT>;
+	@:native("new uv_shutdown_t") static function create():RawPointer<UvShutdownT>;
 }
 
 typedef UvShutdownCb = Callable<(req:RawPointer<UvShutdownT>, status:Int)->Void>
@@ -674,7 +712,7 @@ extern enum abstract UvReqType to Int {
 
 @:native("uv_req_t")
 @:structAccess extern class UvReqT {
-	@:native("new uv_req_t") public static function create():RawPointer<UvReqT>;
+	@:native("new uv_req_t") static function create():RawPointer<UvReqT>;
 }
 
 typedef UvReallocFunc = Callable<(ptr:RawPointer<cpp.Void>, size:SizeT)->RawPointer<cpp.Void>>
@@ -683,14 +721,14 @@ typedef UvReadCb = Callable<(stream:RawPointer<UvStreamT>, nread:SSizeT, buf:Raw
 
 @:native("uv_random_t")
 @:structAccess extern class UvRandomT {
-	@:native("new uv_random_t") public static function create():RawPointer<UvRandomT>;
+	@:native("new uv_random_t") static function create():RawPointer<UvRandomT>;
 }
 
 typedef UvRandomCb = Callable<(req:RawPointer<UvRandomT>, status:Int, buf:RawPointer<cpp.Void>, buflen:SizeT)->Void>
 
 @:native("uv_process_t")
 @:structAccess extern class UvProcessT {
-	@:native("new uv_process_t") public static function create():RawPointer<UvProcessT>;
+	@:native("new uv_process_t") static function create():RawPointer<UvProcessT>;
 }
 
 @:native("uv_process_options_t")
@@ -722,14 +760,14 @@ extern enum abstract UvProcessFlags to Int {
 
 @:native("uv_prepare_t")
 @:structAccess extern class UvPrepareT {
-	@:native("new uv_prepare_t") public static function create():RawPointer<UvPrepareT>;
+	@:native("new uv_prepare_t") static function create():RawPointer<UvPrepareT>;
 }
 
 typedef UvPrepareCb = Callable<(handle:RawPointer<UvPrepareT>)->Void>
 
 @:native("uv_pipe_t")
 @:structAccess extern class UvPipeT {
-	@:native("new uv_pipe_t") public static function create():RawPointer<UvPipeT>;
+	@:native("new uv_pipe_t") static function create():RawPointer<UvPipeT>;
 }
 
 @:native("uv_passwd_t")
@@ -745,7 +783,7 @@ typedef UvPrepareCb = Callable<(handle:RawPointer<UvPrepareT>)->Void>
 
 @:native("uv_os_fd_t")
 @:structAccess extern class UvOsFdT {
-	@:native("new uv_os_fd_t") public static function create():RawPointer<UvOsFdT>;
+	@:native("new uv_os_fd_t") static function create():RawPointer<UvOsFdT>;
 }
 
 @:coreType @:native("uv_membership")
@@ -758,7 +796,7 @@ typedef UvMallocFunc = Callable<(size:SizeT)->RawPointer<cpp.Void>>
 
 @:native("uv_loop_t")
 @:structAccess extern class UvLoopT {
-	@:native("new uv_loop_t") public static function create():RawPointer<UvLoopT>;
+	@:native("new uv_loop_t") static function create():RawPointer<UvLoopT>;
 }
 
 @:structAccess extern class UvInterfaceAddressTNetmaskUnion {
@@ -784,7 +822,7 @@ typedef UvMallocFunc = Callable<(size:SizeT)->RawPointer<cpp.Void>>
 
 @:native("uv_idle_t")
 @:structAccess extern class UvIdleT {
-	@:native("new uv_idle_t") public static function create():RawPointer<UvIdleT>;
+	@:native("new uv_idle_t") static function create():RawPointer<UvIdleT>;
 }
 
 typedef UvIdleCb = Callable<(handle:RawPointer<UvIdleT>)->Void>
@@ -814,19 +852,19 @@ extern enum abstract UvHandleType to Int {
 
 @:native("uv_handle_t")
 @:structAccess extern class UvHandleT {
-	@:native("new uv_handle_t") public static function create():RawPointer<UvHandleT>;
+	@:native("new uv_handle_t") static function create():RawPointer<UvHandleT>;
 }
 
 @:native("uv_getnameinfo_t")
 @:structAccess extern class UvGetnameinfoT {
-	@:native("new uv_getnameinfo_t") public static function create():RawPointer<UvGetnameinfoT>;
+	@:native("new uv_getnameinfo_t") static function create():RawPointer<UvGetnameinfoT>;
 }
 
 typedef UvGetnameinfoCb = Callable<(req:RawPointer<UvGetnameinfoT>, status:Int, hostname:ConstCharStar, service:ConstCharStar)->Void>
 
 @:native("uv_getaddrinfo_t")
 @:structAccess extern class UvGetaddrinfoT {
-	@:native("new uv_getaddrinfo_t") public static function create():RawPointer<UvGetaddrinfoT>;
+	@:native("new uv_getaddrinfo_t") static function create():RawPointer<UvGetaddrinfoT>;
 }
 
 typedef UvGetaddrinfoCb = Callable<(req:RawPointer<UvGetaddrinfoT>, status:Int, res:RawPointer<Addrinfo>)->Void>
@@ -874,19 +912,19 @@ extern enum abstract UvFsType to Int {
 
 @:native("uv_fs_t")
 @:structAccess extern class UvFsT {
-	@:native("new uv_fs_t") public static function create():RawPointer<UvFsT>;
+	@:native("new uv_fs_t") static function create():RawPointer<UvFsT>;
 }
 
 @:native("uv_fs_poll_t")
 @:structAccess extern class UvFsPollT {
-	@:native("new uv_fs_poll_t") public static function create():RawPointer<UvFsPollT>;
+	@:native("new uv_fs_poll_t") static function create():RawPointer<UvFsPollT>;
 }
 
 typedef UvFsPollCb = Callable<(handle:RawPointer<UvFsPollT>, status:Int, prev:RawConstPointer<UvStatT>, curr:RawConstPointer<UvStatT>)->Void>
 
 @:native("uv_fs_event_t")
 @:structAccess extern class UvFsEventT {
-	@:native("new uv_fs_event_t") public static function create():RawPointer<UvFsEventT>;
+	@:native("new uv_fs_event_t") static function create():RawPointer<UvFsEventT>;
 }
 
 @:coreType @:native("uv_fs_event_flags")
@@ -968,7 +1006,7 @@ typedef UvConnectionCb = Callable<(server:RawPointer<UvStreamT>, status:Int)->Vo
 
 @:native("uv_connect_t")
 @:structAccess extern class UvConnectT {
-	@:native("new uv_connect_t") public static function create():RawPointer<UvConnectT>;
+	@:native("new uv_connect_t") static function create():RawPointer<UvConnectT>;
 }
 
 typedef UvConnectCb = Callable<(req:RawPointer<UvConnectT>, status:Int)->Void>
@@ -977,7 +1015,7 @@ typedef UvCloseCb = Callable<(handle:RawPointer<UvHandleT>)->Void>
 
 @:native("uv_check_t")
 @:structAccess extern class UvCheckT {
-	@:native("new uv_check_t") public static function create():RawPointer<UvCheckT>;
+	@:native("new uv_check_t") static function create():RawPointer<UvCheckT>;
 }
 
 typedef UvCheckCb = Callable<(handle:RawPointer<UvCheckT>)->Void>
@@ -986,14 +1024,9 @@ typedef UvCallocFunc = Callable<(count:SizeT, size:SizeT)->RawPointer<cpp.Void>>
 
 @:native("uv_async_t")
 @:structAccess extern class UvAsyncT {
-	@:native("new uv_async_t") public static function create():RawPointer<UvAsyncT>;
+	@:native("new uv_async_t") static function create():RawPointer<UvAsyncT>;
 }
 
 typedef UvAsyncCb = Callable<(handle:RawPointer<UvAsyncT>)->Void>
 
 typedef UvAllocCb = Callable<(handle:RawPointer<UvHandleT>, suggested_size:SizeT, buf:RawPointer<UvBufT>)->Void>
-
-@:native("addrinfo")
-@:structAccess extern class Addrinfo {
-	@:native("new addrinfo") public static function create():RawPointer<Addrinfo>;
-}

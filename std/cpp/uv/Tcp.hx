@@ -47,12 +47,7 @@ class Tcp extends Stream {
 	**/
 	static public function init(loop:Loop, domain:AddressFamily = UNSPEC):Tcp {
 		var tcp = new Tcp();
-		var flags = switch domain {
-			case UNSPEC: AF_UNSPEC;
-			case INET: AF_INET;
-			case INET6: AF_INET6;
-			case OTHER(i): i;
-		}
+		var flags = SockAddr.addressFamilyToAf(domain);
 		UV.tcp_init_ex(loop.uvLoop, tcp.uvTcp, flags).resolve();
 		return tcp;
 	}

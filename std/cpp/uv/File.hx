@@ -75,22 +75,22 @@ enum abstract FileSymlinkFlag(Int) to Int {
 
 @:structInit
 class FileStat {
-	var dev:UInt64;
-	var mode:UInt64;
-	var nlink:UInt64;
-	var uid:UInt64;
-	var gid:UInt64;
-	var rdev:UInt64;
-	var ino:UInt64;
-	var size:UInt64;
-	var blksize:UInt64;
-	var blocks:UInt64;
-	var flags:UInt64;
-	var gen:UInt64;
-	var atim:FileTimeSpec;
-	var mtim:FileTimeSpec;
-	var ctim:FileTimeSpec;
-	var birthtim:FileTimeSpec;
+	public var dev:UInt64;
+	public var mode:UInt64;
+	public var nlink:UInt64;
+	public var uid:UInt64;
+	public var gid:UInt64;
+	public var rdev:UInt64;
+	public var ino:UInt64;
+	public var size:UInt64;
+	public var blksize:UInt64;
+	public var blocks:UInt64;
+	public var flags:UInt64;
+	public var gen:UInt64;
+	public var atim:FileTimeSpec;
+	public var mtim:FileTimeSpec;
+	public var ctim:FileTimeSpec;
+	public var birthtim:FileTimeSpec;
 
 	public function toString():String {
 		return '{dev:$dev, mode:$mode, nlink:$nlink, uid:$uid, gid:$gid, rdev:$rdev, ino:$ino, size:$size, blksize:$blksize, blocks:$blocks, flags:$flags, gen:$gen, atim:$atim, mtim:$mtim, ctim:$ctim, birthtim:$birthtim}';
@@ -99,8 +99,8 @@ class FileStat {
 
 @:structInit
 class FileTimeSpec {
-	var sec:Int64;
-	var nsec:Int64;
+	public var sec:Int64;
+	public var nsec:Int64;
 
 	public function toString():String {
 		return '{sec:$sec, nsec:$nsec}';
@@ -109,14 +109,14 @@ class FileTimeSpec {
 
 @:structInit
 class FileStatFs {
-	var type:UInt64;
-	var bsize:UInt64;
-	var blocks:UInt64;
-	var bfree:UInt64;
-	var bavail:UInt64;
-	var files:UInt64;
-	var ffree:UInt64;
-	var spare:Array<UInt64>;
+	public var type:UInt64;
+	public var bsize:UInt64;
+	public var blocks:UInt64;
+	public var bfree:UInt64;
+	public var bavail:UInt64;
+	public var files:UInt64;
+	public var ffree:UInt64;
+	public var spare:Array<UInt64>;
 
 	public function toString():String {
 		return '{type:$type, bsize:$bsize, blocks:$blocks, bfree:$bfree, bavail:$bavail, files:$files, ffree:$ffree, spare:$spare}';

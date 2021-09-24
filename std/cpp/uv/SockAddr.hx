@@ -44,15 +44,14 @@ enum SocketType {
 	OTHER(i:Int);
 }
 
+@:allow(cpp.uv)
 @:headerCode('#include "uv.h"')
 class SockAddr {
 	/** Extracts the port in a network address. */
 	public var port(get,never):Null<Int>;
 
-	@:allow(cpp.uv)
 	final storage:RawPointer<SockaddrStorage>;
 
-	@:allow(cpp.uv)
 	function new() {
 		storage = SockaddrStorage.create();
 		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
@@ -60,6 +59,42 @@ class SockAddr {
 
 	static function finalizer(addr:SockAddr) {
 		Stdlib.free(Pointer.fromRaw(addr.storage));
+	}
+
+	static inline function addressFamilyToAf(f:AddressFamily):AfAddressFamily {
+		return switch f {
+			case UNSPEC: AF_UNSPEC;
+			case INET: AF_INET;
+			case INET6: AF_INET6;
+			case OTHER(i): i;
+		}
+	}
+
+	static inline function afToAddressFamily(af:AfAddressFamily):AddressFamily {
+		return switch af {
+			case AF_UNSPEC: UNSPEC;
+			case AF_INET: INET;
+			case AF_INET6: INET6;
+			case i: OTHER(i);
+		}
+	}
+
+	static inline function socketTypeToNative(s:SocketType):NativeSocketType {
+		return switch s {
+			case STREAM: SOCK_STREAM;
+			case DGRAM: SOCK_DGRAM;
+			case RAW: SOCK_RAW;
+			case OTHER(i): i;
+		}
+	}
+
+	static inline function nativeToSocketType(s:NativeSocketType):SocketType {
+		return switch s {
+			case SOCK_STREAM: STREAM;
+			case SOCK_DGRAM: DGRAM;
+			case SOCK_RAW: RAW;
+			case i: OTHER(i);
+		}
 	}
 
 	/**
