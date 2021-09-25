@@ -27,8 +27,8 @@ class Flash {
 			var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
 			var flexVersion = "4.16.0";
 			runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz']);
-			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
-			var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
+			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", getDownloadPath()]);
+			var flexsdkPath = getDownloadPath() + '/apache-flex-sdk-${flexVersion}-bin';
 			addToPATH(flexsdkPath + "/bin");
 			var playerglobalswcFolder = flexsdkPath + "/player";
 			FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
@@ -60,8 +60,8 @@ class Flash {
 					]);
 					var majorVersion = getLatestFPVersion()[0];
 					runNetworkCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz']);
-					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
-					playerCmd = Path.join([Sys.getEnv("HOME"), "flashplayerdebugger"]);
+					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", getDownloadPath()]);
+					playerCmd = Path.join([getDownloadPath(), "flashplayerdebugger"]);
 				}
 				if (!FileSystem.exists(mmcfgPath)) {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");

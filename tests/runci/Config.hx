@@ -26,8 +26,8 @@ class Config {
 		else
 			null;
 
-	static public function isCi():Bool {
-		return ci != null;
+	static public macro function isCi() {
+		return macro $v{ci != null};
 	}
 
 	static public final colorSupported = switch [ci, systemName] {

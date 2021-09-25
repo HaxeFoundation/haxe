@@ -3,32 +3,29 @@ package runci.targets;
 import haxe.io.Path;
 import sys.FileSystem;
 import runci.System.*;
-import runci.System.Failure;
 import runci.Config.*;
 
+using StringTools;
+
 class Hl {
-	static var hlSrc = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink"]);
-	};
-	static var hlBuild = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink_build";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
-	};
-	static var hlBinDir = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink_build\\bin";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin"]);
-	};
-	static var hlBinary = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink_build\\bin\\hl.exe";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin", "hl"]);
-	};
+	static final hlSrc = Path.join([getDownloadPath(), "hashlink"]);
+
+	static final hlBuild = Path.join([getInstallPath(), "hashlink_build"]);
+
+	static final hlBinDir = Path.join([getInstallPath(), "hashlink_build", "bin"]);
+
+	static final hlBinary =
+		if (isCi() || !commandSucceed("hl", ["--version"])){
+			Path.join([hlBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
+		} else {
+			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
+		};
 
 	static final miscHlDir = miscDir + 'hl/';
 
 	static public function getHlDependencies() {
-		if (commandSucceed("hl", ["--version"])) {
-			infoMsg('hl has already been installed.');
+		if (!isCi() && FileSystem.exists(hlBinary)) {
+			infoMsg('hl has already been installed at $hlBinary.');
 			return;
 		}
 		if (!FileSystem.exists(hlSrc))
@@ -75,14 +72,6 @@ class Hl {
 
 	static public function run(args:Array<String>) {
 		getHlDependencies();
-
-		var hlBinary = try {
-			if(!isCi())
-				runCommand(hlBinary, ["--version"]);
-			hlBinary;
-		} catch(e:Failure) {
-			'hl';
-		}
 
 		switch (systemName) {
 			case "Windows":

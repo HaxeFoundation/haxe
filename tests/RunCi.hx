@@ -27,6 +27,10 @@ class RunCi {
 			changeDirectory(cwd);
 		}
 
+		final downloadPath = getDownloadPath();
+		if (!sys.FileSystem.exists(downloadPath))
+			sys.FileSystem.createDirectory(downloadPath);
+
 		for (test in tests) {
 			switch (systemName) {
 				case "Windows":

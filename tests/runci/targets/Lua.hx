@@ -1,6 +1,5 @@
 package runci.targets;
 
-import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 import haxe.io.*;
@@ -46,8 +45,7 @@ class Lua {
 		getLuaDependencies();
 
 		for (lv in ["-l5.1", "-l5.2", "-l5.3"].concat(systemName == 'Linux' && Linux.arch == Arm64 ? [] : ["-j2.0", "-j2.1"])) {
-
-			var envpath = Sys.getEnv("HOME") + '/lua_env$lv';
+			final envpath = getInstallPath() + '/lua_env/lua$lv';
 			addToPATH(envpath + '/bin');
 
 			if (systemName == "Mac" && lv.startsWith("-j")) continue;

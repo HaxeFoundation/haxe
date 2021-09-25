@@ -26,6 +26,23 @@ class Js {
 		runCommand("node", ["-v"]);
 	}
 
+	static function installNpmPackages(packages:Array<String>) {
+		final required = if (isCi()) {
+			packages;
+		} else {
+			final filtered = packages.filter( (lib) -> {
+				final isInstalled = commandSucceed("npm", ["list", lib]);
+				if (isInstalled)
+					infoMsg('npm package `$lib` has already been installed.');
+				return !isInstalled;
+			});
+			if (filtered.length == 0)
+				return;
+			filtered;
+		};
+		runNetworkCommand("npm", ["install"].concat(required));
+	}
+
 	static public function run(args:Array<String>) {
 		getJSDependencies();
 
@@ -89,7 +106,7 @@ class Js {
 			}
 
 			changeDirectory(unitDir);
-			runNetworkCommand("npm", ["install", "wd", "q"]);
+			installNpmPackages(["wd", "q"]);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 			final server = new Process("nekotools", ["server"]);
 			runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
@@ -111,7 +128,7 @@ class Js {
 		runCommand("node", ["test.js"]);
 
 		changeDirectory(sysDir);
-		runNetworkCommand("npm", ["install", "deasync"]);
+		installNpmPackages(["deasync"]);
 		runCommand("haxe", ["compile-js.hxml"].concat(args));
 		runSysTest("node", ["bin/js/sys.js"]);
 

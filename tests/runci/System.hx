@@ -139,7 +139,8 @@ class System {
 
 	static public function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
 		final name = (altName == null) ? repository : altName;
-		if (isLibraryInstalled(name))
+		// It could only be installed already if we're on a local machine
+		if (!isCi() && isLibraryInstalled(name))
 			return infoMsg('$name has already been installed.');
 
 		final args = ["git", name, 'https://github.com/$account/$repository'];
@@ -155,13 +156,15 @@ class System {
 	}
 
 	static public function haxelibInstall(library:String):Void {
-		if (isLibraryInstalled(library))
+		// It could only be installed already if we're on a local machine
+		if (!isCi() && isLibraryInstalled(library))
 			return infoMsg('$library has already been installed.');
 		runCommand("haxelib", ["install", library]);
 	}
 
 	static public function haxelibDev(library:String, path:String):Void {
-		if (isLibraryInstalled(library))
+		// It could only be installed already if we're on a local machine
+		if (!isCi() && isLibraryInstalled(library))
 			return infoMsg('$library has already been installed.');
 		runCommand("haxelib", ["dev", library, path]);
 	}
@@ -223,4 +226,20 @@ class System {
 		if (exitCode != 0)
 			throw new CommandFailure(exitCode);
 	}
+
+	static final installPath = if (systemName == "Windows")
+			Sys.getEnv("USERPROFILE") + "/haxe-ci";
+		else
+			Sys.getEnv("HOME") + "/haxe-ci";
+
+	/** Returns path where packages should be installed. **/
+	public static inline function getInstallPath():String {
+		return installPath;
+	}
+
+	/** Returns path where downloads should be placed. **/
+	public static inline function getDownloadPath():String {
+		return installPath + "/downloads";
+	}
+
 }
