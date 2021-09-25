@@ -21,9 +21,9 @@ class Lua {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
 				else
-					runCommand("brew", ["install", "python3"], true);
+					runNetworkCommand("brew", ["install", "python3"]);
 
-				runCommand("brew", ["install", "pcre"], false, true);
+				attemptCommand("brew", ["install", "pcre"]);
 				runCommand("pip3", ["install", "hererocks"]);
 			}
 		}
@@ -67,7 +67,7 @@ class Lua {
 			runCommand("luarocks", ["config", "--rock-trees"]);
 
 			// Note: don't use a user config
-			// runCommand("luarocks", ["config", "--user-config"], false, true);
+			// attemptCommand("luarocks", ["config", "--user-config"]);
 
 			installLib("haxe-deps", "0.0.1-6");
 

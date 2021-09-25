@@ -6,7 +6,7 @@ using StringTools;
 
 class Linux {
 	static public var arch(get, null):Arch;
-	
+
 	static function get_arch() {
 		if(arch == null)
 			arch = switch commandResult('arch', []).stdout.replace('\n', '') {
@@ -15,11 +15,11 @@ class Linux {
 			}
 		return arch;
 	}
-	
+
 	static public function isAptPackageInstalled(aptPackage:String):Bool {
 		return commandSucceed("dpkg-query", ["-W", "-f='${Status}'", aptPackage]);
 	}
-	
+
 	static public function requireAptPackages(packages:Array<String>):Void {
 		var notYetInstalled = [for (p in packages) if (!isAptPackageInstalled(p)) p];
 		if (notYetInstalled.length > 0) {
@@ -29,7 +29,7 @@ class Linux {
 			} else {
 				["apt-get", "install", "-qqy"];
 			};
-			runCommand("sudo", baseCommand.concat(notYetInstalled), true);
+			runNetworkCommand("sudo", baseCommand.concat(notYetInstalled));
 		}
 	}
 }

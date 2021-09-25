@@ -89,7 +89,7 @@ class Js {
 			}
 
 			changeDirectory(unitDir);
-			runCommand("npm", ["install", "wd", "q"], true);
+			runNetworkCommand("npm", ["install", "wd", "q"]);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 			var server = new Process("nekotools", ["server"]);
 			runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
@@ -111,7 +111,7 @@ class Js {
 		runCommand("node", ["test.js"]);
 
 		changeDirectory(sysDir);
-		runCommand("npm", ["install", "deasync"], true);
+		runNetworkCommand("npm", ["install", "deasync"]);
 		runCommand("haxe", ["compile-js.hxml"].concat(args));
 		runSysTest("node", ["bin/js/sys.js"]);
 

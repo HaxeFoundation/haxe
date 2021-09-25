@@ -1,6 +1,5 @@
 package runci.targets;
 
-import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 
@@ -33,9 +32,9 @@ class Php {
 				// TODO: install php-sqlite3?
 				Linux.requireAptPackages(["php-cli", "php-mbstring"]);
 			case "Mac":
-				runCommand("brew", ["install", "php"], true);
+				runNetworkCommand("brew", ["install", "php"]);
 			case "Windows":
-				runCommand("cinst", ["php", "-version", "7.1.8", "-y"], true);
+				runNetworkCommand("cinst", ["php", "-version", "7.1.8", "-y"]);
 			case _:
 				throw 'unknown system: $systemName';
 		}

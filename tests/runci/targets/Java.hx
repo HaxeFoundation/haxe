@@ -37,19 +37,16 @@ class Java {
 
 		infoMsg("Testing java-lib extras");
 		changeDirectory('$unitDir/bin');
-		if (!FileSystem.exists('java-lib-tests')) {
-			runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
-		}
-		for (dir in FileSystem.readDirectory('java-lib-tests'))
-		{
-			var path = 'java-lib-tests/$dir';
-			if (FileSystem.isDirectory(path)) for (file in FileSystem.readDirectory(path))
-			{
-				if (file.endsWith('.hxml'))
-				{
-					runCommand("haxe", ["--cwd",'java-lib-tests/$dir',file]);
-				}
-			}
+		final libTestDir = 'java-lib-tests';
+		if (!FileSystem.exists(libTestDir))
+			runNetworkCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"]);
+
+		for (dir in FileSystem.readDirectory(libTestDir)) {
+			var path = '$libTestDir/$dir';
+			if (FileSystem.isDirectory(path))
+				for (file in FileSystem.readDirectory(path))
+					if (file.endsWith('.hxml'))
+						runCommand("haxe", ["--cwd", path, file]);
 		}
 	}
 }

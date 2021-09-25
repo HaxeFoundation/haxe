@@ -20,7 +20,7 @@ class Cs {
 				if (commandSucceed("mono", ["--version"]))
 					infoMsg('mono has already been installed.');
 				else
-					runCommand("brew", ["install", "mono"], true);
+					runNetworkCommand("brew", ["install", "mono"]);
 				runCommand("mono", ["--version"]);
 			case "Windows":
 				//pass
@@ -62,10 +62,10 @@ class Cs {
 		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
 		final exe = FileSystem.fullPath("bin/cs/bin/Main-Debug.exe");
 		switch (systemName) {
-			case "Linux" | "Mac":
-				runSysTest("mono", [exe]);
 			case "Windows":
 				runSysTest(exe);
+			case _:
+				runSysTest("mono", [exe]);
 		}
 
 		changeDirectory(threadsDir);

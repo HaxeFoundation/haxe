@@ -27,7 +27,7 @@ class Python {
 					});
 					var file = '${pypyVersion}.tar.bz2';
 					if(!FileSystem.exists(file)) {
-						runCommand("wget", ["-nv", 'https://downloads.python.org/pypy/$file'], true);
+						runNetworkCommand("wget", ["-nv", 'https://downloads.python.org/pypy/$file']);
 					}
 					runCommand("tar", ["-xf", file]);
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
@@ -39,13 +39,13 @@ class Python {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
 				else
-					runCommand("brew", ["install", "python3"], true);
+					runNetworkCommand("brew", ["install", "python3"]);
 				runCommand("python3", ["-V"]);
 
 				if (commandSucceed("pypy3", ["-V"]))
 					infoMsg('pypy3 has already been installed.');
 				else
-					runCommand("brew", ["install", "pypy3"], true);
+					runNetworkCommand("brew", ["install", "pypy3"]);
 				runCommand("pypy3", ["-V"]);
 
 				return ["python3", "pypy3"];
