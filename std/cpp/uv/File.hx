@@ -253,7 +253,9 @@ abstract File(UvFile) {
 
 	@:allow(cpp.uv)
 	static function uvFsCb(uvFs:RawPointer<UvFsT>) {
+		trace(uvFs);
 		var req:FsRequest = cast Request.getRequest(cast uvFs);
+		trace(req);
 		req.callback();
 	}
 
@@ -262,8 +264,11 @@ abstract File(UvFile) {
 		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
 		req.callback = () -> callback(req.getIntResult().explain());
 		// TODO: fix GC destroying request/handle objects, which don't have a reference from Haxe code.
-		// cpp.vm.Gc.run(true);
-		// cpp.vm.Gc.compact();
+		Sys.println('GC.run(major)');
+		cpp.vm.Gc.run(true);
+		Sys.println('GC.compact()');
+		cpp.vm.Gc.compact();
+		Sys.println('GC done');
 		return req;
 	}
 
@@ -332,6 +337,7 @@ abstract File(UvFile) {
 		Delete a name and possibly the file it refers to.
 	**/
 	static public function unlink(loop:Loop, path:String, callback:(e:UVError)->Void):FsRequest {
+		Sys.println('unlinking $path');
 		return simpleRequest(loop, callback, (req, cb) -> UV.fs_unlink(loop.uvLoop, req.uvFs, path, cb));
 	}
 

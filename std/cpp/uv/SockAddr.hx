@@ -143,7 +143,7 @@ class SockAddr {
 			Stdlib.free(buf);
 			result.throwErr();
 		}
-		return new String(untyped buf.raw); //TODO: is this ok?
+		return buf.raw.charStarToString();
 	}
 
 	function get_port():Null<Int> {

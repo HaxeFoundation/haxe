@@ -1,7 +1,7 @@
-import hl.Bytes;
 import cpp.uv.UVException;
 import sys.thread.Thread;
 import cpp.uv.Misc;
+import haxe.io.Bytes;
 
 class MiscSample extends UVSample {
 	public function run() {
@@ -35,13 +35,13 @@ class MiscSample extends UVSample {
 		print('Priority: ' + Misc.getPriority(myPid));
 		print('Uname: ' + Misc.uname());
 		print('Time of day: ' + Misc.getTimeOfDay());
-		var buf = new Bytes(20);
-		Misc.randomSync(buf, 20, 0);
-		print('Sync  random bytes hex: ' + haxe.io.Bytes.ofData(new haxe.io.BytesData(buf, 20)).toHex());
-		var buf = new Bytes(20);
-		Misc.random(Thread.current().events, buf, 20, 0, e -> switch e {
+		var buf = Bytes.alloc(20);
+		Misc.randomSync(buf, 0, 20, 0);
+		print('Sync random bytes hex: ' + buf.toHex());
+		var buf = Bytes.alloc(20);
+		Misc.random(Thread.current().events, buf, 0, 20, 0, e -> switch e {
 			case UV_NOERR:
-				print('Async random bytes hex: ' + haxe.io.Bytes.ofData(new haxe.io.BytesData(buf, 20)).toHex());
+				print('Async random bytes hex: ' + buf.toHex());
 			case _:
 				throw new UVException(e);
 		});

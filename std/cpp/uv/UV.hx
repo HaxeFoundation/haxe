@@ -228,7 +228,7 @@ extern class UV {
 				Stdlib.free(buf);
 			throwErr(result);
 		}
-		return new String(untyped buf.raw); // TODO: is this a correct way to create String from RawPointer<Char>
+		return charStarToString(buf.raw);
 	}
 
 	extern static public inline function toBuf(bytes:haxe.io.Bytes, pos:Int, length:Int):RawPointer<UvBufT> {
@@ -240,6 +240,10 @@ extern class UV {
 		ptr.value.base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
 		ptr.value.len = length;
 		return buf;
+	}
+
+	extern static public inline function charStarToString(chars:RawPointer<Char>):String {
+		return new String(untyped chars); // TODO: is this a correct way to create String from RawPointer<Char>
 	}
 
 // Auto generated content :

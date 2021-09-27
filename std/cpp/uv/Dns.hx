@@ -149,7 +149,7 @@ class Dns {
 					sockType: SockAddr.nativeToSocketType(ptr.value.ai_socktype),
 					protocol: ptr.value.ai_protocol,
 					addr: new SockAddr(),
-					canonName: ptr.value.ai_canonname == null ? null : new String(untyped ptr.value.ai_canonname)
+					canonName: ptr.value.ai_canonname == null ? null : ptr.value.ai_canonname.charStarToString()
 				}
 				untyped __cpp__('memcpy({0}, {1}, {2})', entry.addr.storage, ptr.value.ai_addr, ptr.value.ai_addrlen);
 				infos.push(entry);
