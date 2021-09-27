@@ -253,9 +253,7 @@ abstract File(UvFile) {
 
 	@:allow(cpp.uv)
 	static function uvFsCb(uvFs:RawPointer<UvFsT>) {
-		trace(uvFs);
 		var req:FsRequest = cast Request.getRequest(cast uvFs);
-		trace(req);
 		req.callback();
 	}
 
