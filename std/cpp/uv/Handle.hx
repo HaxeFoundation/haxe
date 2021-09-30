@@ -51,39 +51,29 @@ enum abstract HandleType(Int) {
 	@see http://docs.libuv.org/en/v1.x/handle.html
 **/
 @:headerCode('#include "uv.h"')
-abstract class Handle {
-	var uvHandle:RawPointer<UvHandleT>;
+abstract class Handle extends Wrapper {
 	var onClose:()->Void;
 
-	function new() {
-		setupUvHandle();
-		uvHandle.handle_set_data(untyped __cpp__('{0}.GetPtr()', this));
-		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
+	static function get(uv:RawPointer<cpp.Void>):Handle {
+		return untyped __cpp__('(hx::Object*){0}', UV.handle_get_data(cast uv));
 	}
 
-	static function getHandle(uvHandle:RawPointer<UvHandleT>):Handle {
-		return untyped __cpp__('(hx::Object*){0}', uvHandle.handle_get_data());
-	}
-
-	abstract function setupUvHandle():Void;
-
-	static function finalizer(handle:Handle) {
-		// untyped __cpp__('printf("FINALIZER!\n")');
-		Stdlib.free(Pointer.fromRaw(handle.uvHandle));
+	function setupUvData() {
+		UV.handle_set_data(cast uv, untyped __cpp__('{0}.GetPtr()', this));
 	}
 
 	/**
 		Returns `true` if the handle is active.
 	**/
 	public function isActive():Bool {
-		return 0 != UV.is_active(uvHandle);
+		return 0 != UV.is_active(cast uv);
 	}
 
 	/**
 		Returns `true` if the handle is closing or closed.
 	**/
 	public function isClosing():Bool {
-		return 0 != UV.is_closing(uvHandle);
+		return 0 != UV.is_closing(cast uv);
 	}
 
 	/**
@@ -92,14 +82,14 @@ abstract class Handle {
 		This MUST be called on each handle.
 	**/
 	public function close(?callback:()->Void) {
-		UV.close(uvHandle, Callable.fromStaticFunction(uvCloseCb));
+		UV.close(cast uv, Callable.fromStaticFunction(uvCloseCb));
 		onClose = callback;
 	}
 
 	@:allow(cpp.uv.Tcp)
-	static function uvCloseCb(uvHandle:RawPointer<UvHandleT>) {
-		var handle = getHandle(uvHandle);
-		uvHandle.handle_set_data(null);
+	static function uvCloseCb(uv:RawPointer<UvHandleT>) {
+		var handle = Handle.get(cast uv);
+		UV.handle_set_data(cast uv, null);
 		if(handle != null && handle.onClose != null) {
 			handle.onClose();
 		}
@@ -111,7 +101,7 @@ abstract class Handle {
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function ref() {
-		UV.ref(uvHandle);
+		UV.ref(cast uv);
 	}
 
 	/**
@@ -120,7 +110,7 @@ abstract class Handle {
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function unref() {
-		UV.unref(uvHandle);
+		UV.unref(cast uv);
 	}
 
 	/**
@@ -129,6 +119,6 @@ abstract class Handle {
 		@see http://docs.libuv.org/en/v1.x/handle.html#reference-counting
 	**/
 	public function hasRef() {
-		return 0 != UV.has_ref(uvHandle);
+		return 0 != UV.has_ref(cast uv);
 	}
 }

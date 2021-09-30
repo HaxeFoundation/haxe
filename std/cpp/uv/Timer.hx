@@ -31,12 +31,15 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Timer extends Handle {
-	var uvTimer:RawPointer<UvTimerT>;
 	var onTick:()->Void;
+	var uvTimer(get,never):RawPointer<UvTimerT>;
 
-	function setupUvHandle() {
-		uvTimer = UvTimerT.create();
-		uvHandle = cast uvTimer;
+	inline function get_uvTimer():RawPointer<UvTimerT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvTimerT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -59,7 +62,7 @@ class Timer extends Handle {
 	}
 
 	static function uvTimerCb(uvTimer:RawPointer<UvTimerT>) {
-		var timer:Timer = cast Handle.getHandle(cast uvTimer);
+		var timer:Timer = cast Handle.get(cast uvTimer);
 		timer.onTick();
 	}
 

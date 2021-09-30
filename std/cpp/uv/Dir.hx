@@ -117,7 +117,7 @@ class Dir {
 		req.callback = () -> {
 			inline function cleanup() {
 				UV.fs_req_cleanup(req.uvFs);
-				req.uvFs = null;
+				req.uv = null;
 			}
 			var result = req.getIntResult();
 			switch result.explain() {

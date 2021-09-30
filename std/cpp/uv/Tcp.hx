@@ -34,12 +34,14 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Tcp extends Stream {
-	var uvTcp:RawPointer<UvTcpT>;
+	var uvTcp(get,never):RawPointer<UvTcpT>;
 
-	function setupUvHandle() {
-		uvTcp = UvTcpT.create();
-		uvStream = cast uvTcp;
-		uvHandle = cast uvTcp;
+	inline function get_uvTcp():RawPointer<UvTcpT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvTcpT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -126,7 +128,7 @@ class Tcp extends Stream {
 	}
 
 	static function uvConnectCb(uvConnect:RawPointer<UvConnectT>, status:Int) {
-		var req:ConnectRequest = cast Request.getRequest(cast uvConnect);
+		var req:ConnectRequest = cast Request.get(cast uvConnect);
 		req.onConnect(status.explain());
 	}
 

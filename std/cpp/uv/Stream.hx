@@ -28,19 +28,23 @@ using cpp.uv.UV;
 
 @:allow(cpp.uv)
 class WriteRequest extends Request {
-	var uvWrite:RawPointer<UvWriteT>;
 	var onWrite:(e:UVError)->Void;
 	//to keep bytes alive while waiting for a callback
 	var data:Bytes;
 	var buf:RawPointer<UvBufT>;
 
-	function setupUvReq() {
-		uvWrite = UvWriteT.create();
-		uvReq = cast uvWrite;
+	var uvWrite(get,never):RawPointer<UvWriteT>;
+
+	inline function get_uvWrite():RawPointer<UvWriteT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvWriteT.create();
+		super.setupUvData();
 	}
 
-	override function destructor() {
-		super.destructor();
+	override function finalize() {
+		super.finalize();
 		if(buf != null)
 			Stdlib.free(Pointer.fromRaw(buf));
 	}
@@ -48,23 +52,29 @@ class WriteRequest extends Request {
 
 @:allow(cpp.uv)
 class ConnectRequest extends Request {
-	var uvConnect:RawPointer<UvConnectT>;
 	var onConnect:(e:UVError)->Void;
+	var uvConnect(get,never):RawPointer<UvConnectT>;
 
-	function setupUvReq() {
-		uvConnect = UvConnectT.create();
-		uvReq = cast uvConnect;
+	inline function get_uvConnect():RawPointer<UvConnectT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvConnectT.create();
+		super.setupUvData();
 	}
 }
 
 @:allow(cpp.uv)
 class ShutdownRequest extends Request {
-	var uvShutdown:RawPointer<UvShutdownT>;
 	var onShutdown:(e:UVError)->Void;
+	var uvShutdown(get,never):RawPointer<UvShutdownT>;
 
-	function setupUvReq() {
-		uvShutdown = UvShutdownT.create();
-		uvReq = cast uvShutdown;
+	inline function get_uvShutdown():RawPointer<UvShutdownT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvShutdownT.create();
+		super.setupUvData();
 	}
 }
 
@@ -75,12 +85,16 @@ class ShutdownRequest extends Request {
 **/
 @:headerCode('#include "uv.h"')
 abstract class Stream extends Handle {
-	@:allow(cpp.uv) var uvStream:RawPointer<UvStreamT>;
 	var onConnection:(e:UVError)->Void;
 	var onRead:(e:UVError, data:Bytes, bytesRead:SSizeT)->Void;
 	var onAlloc:(suggestedSize:SizeT)->Bytes;
 	//to keep bytes alive while waiting for a callback
 	var readBuffer:Bytes;
+
+	@:allow(cpp.uv) var uvStream(get,never):RawPointer<UvStreamT>;
+
+	inline function get_uvStream():RawPointer<UvStreamT>
+		return cast uv;
 
 	/**
 		Shutdown the outgoing (write) side of a duplex stream.
@@ -93,7 +107,7 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvShutdownCb(uvShutdown:RawPointer<UvShutdownT>, status:Int) {
-		var req:ShutdownRequest = cast Request.getRequest(cast uvShutdown);
+		var req:ShutdownRequest = cast Request.get(cast uvShutdown);
 		req.onShutdown(status.explain());
 	}
 
@@ -109,7 +123,7 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvConnectionCb(uvStream:RawPointer<UvStreamT>, status:Int) {
-		var stream:Stream = cast Handle.getHandle(cast uvStream);
+		var stream:Stream = cast Handle.get(cast uvStream);
 		stream.onConnection(status.explain());
 	}
 
@@ -123,14 +137,14 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvReadCb(uvStream:RawPointer<UvStreamT>, bytesRead:SSizeT, buf:RawConstPointer<UvBufT>) {
-		var stream:Stream = cast Handle.getHandle(cast uvStream);
+		var stream:Stream = cast Handle.get(cast uvStream);
 		var data = stream.readBuffer;
 		stream.readBuffer = null;
 		stream.onRead(bytesRead.explain(), data, bytesRead < 0 ? 0 : bytesRead);
 	}
 
 	static function uvAllocCb(uvHandle:RawPointer<UvHandleT>, size:SizeT, buf:RawPointer<UvBufT>) {
-		var stream:Stream = cast Handle.getHandle(cast uvHandle);
+		var stream:Stream = cast Handle.get(cast uvHandle);
 		stream.readBuffer = stream.onAlloc(size);
 		var ref = Pointer.fromRaw(buf).ref;
 		ref.base = NativeArray.getBase(stream.readBuffer.getData()).getBase();
@@ -163,7 +177,7 @@ abstract class Stream extends Handle {
 	}
 
 	static function uvWriteCb(uvWrite:RawPointer<UvWriteT>, status:Int) {
-		var req:WriteRequest = cast Request.getRequest(cast uvWrite);
+		var req:WriteRequest = cast Request.get(cast uvWrite);
 		req.onWrite(status.explain());
 	}
 

@@ -32,12 +32,15 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Check extends Handle {
-	var uvCheck:RawPointer<UvCheckT>;
 	var onCheck:()->Void;
+	var uvCheck(get,never):RawPointer<UvCheckT>;
 
-	function setupUvHandle() {
-		uvCheck = UvCheckT.create();
-		uvHandle = cast uvCheck;
+	inline function get_uvCheck():RawPointer<UvCheckT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvCheckT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -58,7 +61,7 @@ class Check extends Handle {
 	}
 
 	static function uvCheckCb(uvCheck:RawPointer<UvCheckT>) {
-		var check:Check = cast Handle.getHandle(cast uvCheck);
+		var check:Check = cast Handle.get(cast uvCheck);
 		check.onCheck();
 	}
 

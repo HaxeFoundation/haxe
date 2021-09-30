@@ -63,17 +63,20 @@ enum abstract NameInfoFlag(Int) {
 @:allow(cpp.uv)
 @:headerCode('#include "uv.h"')
 class AddrInfoRequest extends Request {
-	var uvAddrInfo:RawPointer<UvGetaddrinfoT>;
 	var callback:(e:UVError, infos:Array<AddrInfo>)->Void;
 	var aiHints:RawPointer<Addrinfo>;
+	var uvAddrInfo(get,never):RawPointer<UvGetaddrinfoT>;
 
-	function setupUvReq() {
-		uvAddrInfo = UvGetaddrinfoT.create();
-		uvReq = cast uvAddrInfo;
+	inline function get_uvAddrInfo():RawPointer<UvGetaddrinfoT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvGetaddrinfoT.create();
+		super.setupUvData();
 	}
 
-	override function destructor() {
-		super.destructor();
+	override function finalize() {
+		super.finalize();
 		UV.freeaddrinfo(aiHints);
 	}
 }
@@ -81,12 +84,15 @@ class AddrInfoRequest extends Request {
 @:allow(cpp.uv)
 @:headerCode('#include "uv.h"')
 class NameInfoRequest extends Request {
-	var uvNameInfo:RawPointer<UvGetnameinfoT>;
 	var callback:(e:UVError, name:String, service:String)->Void;
+	var uvNameInfo(get,never):RawPointer<UvGetnameinfoT>;
 
-	function setupUvReq() {
-		uvNameInfo = UvGetnameinfoT.create();
-		uvReq = cast uvNameInfo;
+	inline function get_uvNameInfo():RawPointer<UvGetnameinfoT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvGetnameinfoT.create();
+		super.setupUvData();
 	}
 }
 
@@ -138,7 +144,7 @@ class Dns {
 	}
 
 	static function uvGetaddrinfoCb(uvAddrInfo:RawPointer<UvGetaddrinfoT>, status:Int, res:RawPointer<Addrinfo>) {
-		var req:AddrInfoRequest = cast Request.getRequest(cast uvAddrInfo);
+		var req:AddrInfoRequest = cast Request.get(cast uvAddrInfo);
 		var infos = null;
 		if(res != null) {
 			infos = [];
@@ -183,7 +189,7 @@ class Dns {
 	}
 
 	static function uvGetnameinfoCb(uvNameInfo:RawPointer<UvGetnameinfoT>, status:Int, hostname:ConstCharStar, service:ConstCharStar) {
-		var req:NameInfoRequest = cast Request.getRequest(cast uvNameInfo);
+		var req:NameInfoRequest = cast Request.get(cast uvNameInfo);
 		req.callback(
 			status.explain(),
 			hostname == null ? null : hostname.toString(),

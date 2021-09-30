@@ -73,7 +73,7 @@ abstract DirSync(Dir) from Dir to Dir {
 		var result = UV.fs_readdir(null, req.uvFs, this.uvDir, null);
 		inline function cleanup() {
 			UV.fs_req_cleanup(req.uvFs);
-			req.uvFs = null;
+			req.uv = null;
 		}
 		var result = req.getIntResult();
 		switch result.explain() {

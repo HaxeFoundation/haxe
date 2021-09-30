@@ -36,12 +36,15 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class FsPoll extends Handle {
-	var uvFsPoll:RawPointer<UvFsPollT>;
 	var onChange:(e:UVError, previous:Null<FileStat>, current:Null<FileStat>)->Void;
+	var uvFsPoll(get,never):RawPointer<UvFsPollT>;
 
-	function setupUvHandle() {
-		uvFsPoll = UvFsPollT.create();
-		uvHandle = cast uvFsPoll;
+	inline function get_uvFsPoll():RawPointer<UvFsPollT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvFsPollT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -62,7 +65,7 @@ class FsPoll extends Handle {
 	}
 
 	static function uvFsPollCb(uvFsPoll:RawPointer<UvFsPollT>, status:Int, prev:RawConstPointer<UvStatT>, curr:RawConstPointer<UvStatT>) {
-		var poll:FsPoll = cast Handle.getHandle(cast uvFsPoll);
+		var poll:FsPoll = cast Handle.get(cast uvFsPoll);
 		switch status.explain() {
 			case UV_NOERR:
 				poll.onChange(UV_NOERR, File.uvStatToHx(prev), File.uvStatToHx(curr));

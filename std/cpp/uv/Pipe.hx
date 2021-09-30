@@ -42,12 +42,14 @@ enum abstract PipeMode(Int) to Int {
 **/
 @:headerCode('#include "uv.h"')
 class Pipe extends Stream {
-	var uvPipe:RawPointer<UvPipeT>;
+	var uvPipe(get,never):RawPointer<UvPipeT>;
 
-	function setupUvHandle() {
-		uvPipe = UvPipeT.create();
-		uvStream = cast uvPipe;
-		uvHandle = cast uvPipe;
+	inline function get_uvPipe():RawPointer<UvPipeT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvPipeT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -81,7 +83,7 @@ class Pipe extends Stream {
 	}
 
 	static function uvConnectCb(uvConnect:RawPointer<UvConnectT>, status:Int) {
-		var req:ConnectRequest = cast Request.getRequest(cast uvConnect);
+		var req:ConnectRequest = cast Request.get(cast uvConnect);
 		req.onConnect(status.explain());
 	}
 

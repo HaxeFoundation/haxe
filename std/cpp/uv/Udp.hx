@@ -76,19 +76,23 @@ abstract RecvFlags(Int) to Int {
 
 @:allow(cpp.uv)
 private class SendRequest extends Request {
-	var uvSend:RawPointer<UvUdpSendT>;
 	var onSend:(e:UVError)->Void;
 	//to keep bytes alive while waiting for a callback
 	var data:Bytes;
 	var buf:RawPointer<UvBufT>;
 
-	function setupUvReq() {
-		uvSend = UvUdpSendT.create();
-		uvReq = cast uvSend;
+	var uvSend(get,never):RawPointer<UvUdpSendT>;
+
+	inline function get_uvSend():RawPointer<UvUdpSendT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvUdpSendT.create();
+		super.setupUvData();
 	}
 
-	override function destructor() {
-		super.destructor();
+	override function finalize() {
+		super.finalize();
 		if(buf != null)
 			Stdlib.free(Pointer.fromRaw(buf));
 	}
@@ -101,15 +105,19 @@ private class SendRequest extends Request {
 **/
 @:headerCode('#include "uv.h"')
 class Udp extends Handle {
-	var uvUdp:RawPointer<UvUdpT>;
 	var onRecv:(e:UVError, data:Bytes, bytesReceived:SSizeT, addr:Null<SockAddr>, flags:RecvFlags)->Void;
 	var onAlloc:(suggestedSize:SizeT)->Bytes;
 	//to keep bytes alive while waiting for a callback
 	var recvBuffer:Bytes;
 
-	function setupUvHandle() {
-		uvUdp = UvUdpT.create();
-		uvHandle = cast uvUdp;
+	var uvUdp(get,never):RawPointer<UvUdpT>;
+
+	inline function get_uvUdp():RawPointer<UvUdpT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvUdpT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -234,7 +242,7 @@ class Udp extends Handle {
 	}
 
 	static function uvSendCb(uvSend:RawPointer<UvUdpSendT>, status:Int) {
-		var req:SendRequest = cast Request.getRequest(cast uvSend);
+		var req:SendRequest = cast Request.get(cast uvSend);
 		Stdlib.free(Pointer.fromRaw(req.buf));
 		req.onSend(status.explain());
 	}
@@ -262,7 +270,7 @@ class Udp extends Handle {
 	}
 
 	static function uvUdpRecvCb(uvUdp:RawPointer<UvUdpT>, nread:SSizeT, buf:RawConstPointer<UvBufT>, sockaddr:RawConstPointer<Sockaddr>, flags:UInt32) {
-		var udp:Udp = cast Handle.getHandle(cast uvUdp);
+		var udp:Udp = cast Handle.get(cast uvUdp);
 		var data = udp.recvBuffer;
 		var addr = null;
 		if(sockaddr != null) {
@@ -276,7 +284,7 @@ class Udp extends Handle {
 	}
 
 	static function uvAllocCb(uvHandle:RawPointer<UvHandleT>, size:SizeT, buf:RawPointer<UvBufT>) {
-		var udp:Udp = cast Handle.getHandle(cast uvHandle);
+		var udp:Udp = cast Handle.get(cast uvHandle);
 		udp.recvBuffer = udp.onAlloc(size);
 		var ref = Pointer.fromRaw(buf).ref;
 		ref.base = NativeArray.getBase(udp.recvBuffer.getData()).getBase();

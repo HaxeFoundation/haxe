@@ -58,12 +58,15 @@ abstract FsEvents(Int) {
 **/
 @:headerCode('#include "uv.h"')
 class FsEvent extends Handle {
-	var uvFsEvent:RawPointer<UvFsEventT>;
 	var onEvent:(e:UVError, path:Null<String>, events:FsEvents)->Void;
+	var uvFsEvent(get,never):RawPointer<UvFsEventT>;
 
-	function setupUvHandle() {
-		uvFsEvent = UvFsEventT.create();
-		uvHandle = cast uvFsEvent;
+	inline function get_uvFsEvent():RawPointer<UvFsEventT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvFsEventT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -89,7 +92,7 @@ class FsEvent extends Handle {
 	}
 
 	static function uvFsEventCb(uvFsEvent:RawPointer<UvFsEventT>, filename:ConstCharStar, events:Int, status:Int) {
-		var event:FsEvent = cast Handle.getHandle(cast uvFsEvent);
+		var event:FsEvent = cast Handle.get(cast uvFsEvent);
 		event.onEvent(status.explain(), filename == null ? null : filename.toString(), new FsEvents(events));
 	}
 

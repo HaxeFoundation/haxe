@@ -126,23 +126,27 @@ class FileStatFs {
 @:allow(cpp.uv)
 @:headerCode('#include "uv.h"')
 class FsRequest extends Request {
-	var uvFs:RawPointer<UvFsT>;
 	var callback:()->Void;
 	//to keep bytes alive while waiting for a callback
 	var data:Bytes;
 	var buf:RawPointer<UvBufT>;
 
-	function setupUvReq() {
-		uvFs = UvFsT.create();
-		uvReq = cast uvFs;
+	var uvFs(get,never):RawPointer<UvFsT>;
+
+	inline function get_uvFs():RawPointer<UvFsT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvFsT.create();
+		super.setupUvData();
 	}
 
-	override function destructor() {
+	override function finalize() {
 		if(buf != null)
 			Stdlib.free(Pointer.fromRaw(buf));
 		if(uvFs != null)
 			UV.fs_req_cleanup(uvFs);
-		super.destructor();
+		super.finalize();
 	}
 
 	inline function getResult():SSizeT {
@@ -253,7 +257,7 @@ abstract File(UvFile) {
 
 	@:allow(cpp.uv)
 	static function uvFsCb(uvFs:RawPointer<UvFsT>) {
-		var req:FsRequest = cast Request.getRequest(cast uvFs);
+		var req:FsRequest = cast Request.get(cast uvFs);
 		req.callback();
 	}
 
@@ -262,11 +266,9 @@ abstract File(UvFile) {
 		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
 		req.callback = () -> callback(req.getIntResult().explain());
 		// TODO: fix GC destroying request/handle objects, which don't have a reference from Haxe code.
-		Sys.println('GC.run(major)');
-		cpp.vm.Gc.run(true);
-		Sys.println('GC.compact()');
-		cpp.vm.Gc.compact();
-		Sys.println('GC done');
+		// Sys.println('GC.run(major)');
+		// cpp.vm.Gc.run(true);
+		// Sys.println('GC done');
 		return req;
 	}
 

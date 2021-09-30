@@ -53,12 +53,14 @@ enum abstract VTermState(Int) {
 **/
 @:headerCode('#include "uv.h"')
 class Tty extends Stream {
-	var uvTty:RawPointer<UvTtyT>;
+	var uvTty(get,never):RawPointer<UvTtyT>;
 
-	function setupUvHandle() {
-		uvTty = UvTtyT.create();
-		uvStream = cast uvTty;
-		uvHandle = cast uvTty;
+	inline function get_uvTty():RawPointer<UvTtyT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvTtyT.create();
+		super.setupUvData();
 	}
 
 	/**

@@ -111,12 +111,15 @@ typedef ProcessOptions = {
 **/
 @:headerCode('#include "uv.h"')
 class Process extends Handle {
-	var uvProcess:RawPointer<UvProcessT>;
 	var onExit:(p:Process, exitStatus:Int64, termSignal:SigNum)->Void;
+	var uvProcess(get,never):RawPointer<UvProcessT>;
 
-	function setupUvHandle() {
-		uvProcess = UvProcessT.create();
-		uvHandle = cast uvProcess;
+	inline function get_uvProcess():RawPointer<UvProcessT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvProcessT.create();
+		super.setupUvData();
 	}
 
 	/** The PID of the spawned process. It’s set after calling `spawn()`. */
@@ -224,7 +227,7 @@ class Process extends Handle {
 	}
 
 	static function uvExitCb(uvProcess:RawPointer<UvProcessT>, exitStatus:Int64, termSignal:Int) {
-		var process:Process = cast Handle.getHandle(cast uvProcess);
+		var process:Process = cast Handle.get(cast uvProcess);
 		var cb = process.onExit;
 		process.onExit = null;
 		cb(process, exitStatus, Signal.fromInt(termSignal));

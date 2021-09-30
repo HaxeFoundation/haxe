@@ -32,12 +32,15 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Prepare extends Handle {
-	var uvPrepare:RawPointer<UvPrepareT>;
 	var onPrepare:()->Void;
+	var uvPrepare(get,never):RawPointer<UvPrepareT>;
 
-	function setupUvHandle() {
-		uvPrepare = UvPrepareT.create();
-		uvHandle = cast uvPrepare;
+	inline function get_uvPrepare():RawPointer<UvPrepareT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvPrepareT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -58,7 +61,7 @@ class Prepare extends Handle {
 	}
 
 	static function uvPrepareCb(uvPrepare:RawPointer<UvPrepareT>) {
-		var prepare:Prepare = cast Handle.getHandle(cast uvPrepare);
+		var prepare:Prepare = cast Handle.get(cast uvPrepare);
 		prepare.onPrepare();
 	}
 

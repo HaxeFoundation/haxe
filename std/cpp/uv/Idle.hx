@@ -32,12 +32,15 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Idle extends Handle {
-	var uvIdle:RawPointer<UvIdleT>;
 	var onIdle:()->Void;
+	var uvIdle(get,never):RawPointer<UvIdleT>;
 
-	function setupUvHandle() {
-		uvIdle = UvIdleT.create();
-		uvHandle = cast uvIdle;
+	inline function get_uvIdle():RawPointer<UvIdleT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvIdleT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -58,7 +61,7 @@ class Idle extends Handle {
 	}
 
 	static function uvIdleCb(uvIdle:RawPointer<UvIdleT>) {
-		var idle:Idle = cast Handle.getHandle(cast uvIdle);
+		var idle:Idle = cast Handle.get(cast uvIdle);
 		idle.onIdle();
 	}
 

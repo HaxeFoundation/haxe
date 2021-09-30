@@ -104,14 +104,18 @@ typedef Uname = {
 @:allow(cpp.uv)
 @:headerCode('#include "uv.h"')
 class RandomRequest extends Request {
-	var uvRandom:RawPointer<UvRandomT>;
 	var callback:(e:UVError)->Void;
 	//to keep bytes alive while waiting for a callback
 	var buf:Bytes;
 
-	function setupUvReq() {
-		uvRandom = UvRandomT.create();
-		uvReq = cast uvRandom;
+	var uvRandom(get,never):RawPointer<UvRandomT>;
+
+	inline function get_uvRandom():RawPointer<UvRandomT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvRandomT.create();
+		super.setupUvData();
 	}
 }
 
@@ -392,7 +396,7 @@ class Misc {
 	}
 
 	static function uvRandomCb(uvRandom:RawPointer<UvRandomT>, status:Int, buf:RawPointer<cpp.Void>, buflen:SizeT):Void {
-		var req:RandomRequest = cast Request.getRequest(cast uvRandom);
+		var req:RandomRequest = cast Request.get(cast uvRandom);
 		req.callback(status.explain());
 	}
 

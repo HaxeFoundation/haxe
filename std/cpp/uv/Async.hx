@@ -32,12 +32,15 @@ using cpp.uv.UV;
 **/
 @:headerCode('#include "uv.h"')
 class Async extends Handle {
-	var uvAsync:RawPointer<UvAsyncT>;
 	var onSend:(async:Async)->Void;
+	var uvAsync(get,never):RawPointer<UvAsyncT>;
 
-	function setupUvHandle() {
-		uvAsync = UvAsyncT.create();
-		uvHandle = cast uvAsync;
+	inline function get_uvAsync():RawPointer<UvAsyncT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvAsyncT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -51,7 +54,7 @@ class Async extends Handle {
 	}
 
 	static function uvAsyncCb(uvAsync:RawPointer<UvAsyncT>) {
-		var async:Async = cast Handle.getHandle(cast uvAsync);
+		var async:Async = cast Handle.get(cast uvAsync);
 		async.onSend(async);
 	}
 

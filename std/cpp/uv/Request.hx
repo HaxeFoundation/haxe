@@ -30,29 +30,19 @@ using cpp.uv.UV;
 	@see http://docs.libuv.org/en/v1.x/request.html
 **/
 @:headerCode('#include "uv.h"')
-abstract class Request {
-	var uvReq:RawPointer<UvReqT>;
+abstract class Request extends Wrapper {
+	var uvReq(get,never):RawPointer<UvReqT>;
 
-	function new() {
-		setupUvReq();
-		uvReq.req_set_data(untyped __cpp__('{0}.GetPtr()', this));
-		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
-		// cpp.vm.Gc.doNotKill(this);
-	}
+	inline function get_uvReq():RawPointer<UvReqT>
+		return cast uv;
 
 	@:allow(cpp.uv)
-	static function getRequest(uvReq:RawPointer<UvReqT>):Request {
-		return untyped __cpp__('(hx::Object*){0}', uvReq.req_get_data());
+	static function get(uv:RawPointer<cpp.Void>):Request {
+		return untyped __cpp__('(hx::Object*){0}', UV.req_get_data(cast uv));
 	}
 
-	abstract function setupUvReq():Void;
-
-	static function finalizer(handle:Request) {
-		handle.destructor();
-	}
-
-	function destructor() {
-		Stdlib.free(Pointer.fromRaw(uvReq));
+	function setupUvData() {
+		UV.req_set_data(cast uv, untyped __cpp__('{0}.GetPtr()', this));
 	}
 
 	/**

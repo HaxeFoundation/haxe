@@ -72,13 +72,16 @@ enum abstract SigNum(Int) from Int {
 **/
 @:headerCode('#include "uv.h"')
 class Signal extends Handle {
-	var uvSignal:RawPointer<UvSignalT>;
 	var onSignal:()->Void;
 	var onSignalOnce:()->Void;
+	var uvSignal(get,never):RawPointer<UvSignalT>;
 
-	function setupUvHandle() {
-		uvSignal = UvSignalT.create();
-		uvHandle = cast uvSignal;
+	inline function get_uvSignal():RawPointer<UvSignalT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvSignalT.create();
+		super.setupUvData();
 	}
 
 	/**
@@ -143,12 +146,12 @@ class Signal extends Handle {
 	}
 
 	static function uvSignalCb(uvSignal:RawPointer<UvSignalT>, sigNum:Int) {
-		var signal:Signal = cast Handle.getHandle(cast uvSignal);
+		var signal:Signal = cast Handle.get(cast uvSignal);
 		signal.onSignal();
 	}
 
 	static function uvSignalCbOnce(uvSignal:RawPointer<UvSignalT>, sigNum:Int) {
-		var signal:Signal = cast Handle.getHandle(cast uvSignal);
+		var signal:Signal = cast Handle.get(cast uvSignal);
 		var cb = signal.onSignalOnce;
 		signal.onSignalOnce = null;
 		cb();
