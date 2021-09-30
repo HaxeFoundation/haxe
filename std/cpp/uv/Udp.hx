@@ -124,7 +124,7 @@ class Udp extends Handle {
 		Create a UDP handle.
 	**/
 	static public function init(loop:Loop, domain:AddressFamily = UNSPEC, recvmmsg:Bool = false):Udp {
-		var udp = new Udp();
+		var udp = new Udp(loop);
 		var flags:Int = switch domain {
 			case UNSPEC: AF_UNSPEC;
 			case INET: AF_INET;
@@ -134,6 +134,7 @@ class Udp extends Handle {
 		if(recvmmsg)
 			flags |= UV_UDP_RECVMMSG;
 		UV.udp_init_ex(loop.uvLoop, udp.uvUdp, flags).resolve();
+		udp.referenceFromLoop();
 		return udp;
 	}
 
@@ -234,15 +235,17 @@ class Udp extends Handle {
 		Send data over the UDP socket.
 	**/
 	public function send(data:Bytes, pos:UInt, length:UInt, addr:Null<SockAddr>, callback:(e:UVError)->Void) {
-		var req = new SendRequest();
+		var req = new SendRequest(loop);
 		req.buf = data.toBuf(pos, length);
 		UV.udp_send(req.uvSend, uvUdp, req.buf, 1, addr == null ? null : cast addr.storage, Callable.fromStaticFunction(uvSendCb)).resolve();
+		req.referenceFromLoop();
 		req.data = data;
 		req.onSend = callback;
 	}
 
 	static function uvSendCb(uvSend:RawPointer<UvUdpSendT>, status:Int) {
 		var req:SendRequest = cast Request.get(cast uvSend);
+		req.unreferenceFromLoop();
 		Stdlib.free(Pointer.fromRaw(req.buf));
 		req.onSend(status.explain());
 	}

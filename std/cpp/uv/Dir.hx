@@ -78,8 +78,9 @@ class Dir {
 		Opens `path` as a directory stream
 	**/
 	static public function open(loop:Loop, path:String, callback:(e:UVError, dir:Null<Dir>)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		UV.fs_opendir(loop.uvLoop, req.uvFs, path, Callable.fromStaticFunction(File.uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> {
 			switch req.getIntResult().explain() {
 				case UV_NOERR:
@@ -97,8 +98,9 @@ class Dir {
 		Closes the directory stream.
 	**/
 	public function close(loop:Loop, callback:(e:UVError)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		UV.fs_closedir(loop.uvLoop, req.uvFs, uvDir, Callable.fromStaticFunction(File.uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> callback(req.getIntResult().explain());
 		return req;
 	}
@@ -107,13 +109,14 @@ class Dir {
 		Iterates over the directory stream.
 	**/
 	public function read(loop:Loop, numberOfEntries:Int, callback:(e:UVError, entries:Null<Array<DirEntry>>)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		var ptr = Pointer.fromRaw(uvDir);
 		if(ptr.value.dirents != null)
 			Stdlib.free(Pointer.fromRaw(ptr.value.dirents));
 		ptr.value.nentries = numberOfEntries;
 		ptr.value.dirents = untyped __cpp__('(uv_dirent_t *)malloc(sizeof(uv_dirent_t) * {0})', numberOfEntries);
-		var result = UV.fs_readdir(loop.uvLoop, req.uvFs, uvDir, Callable.fromStaticFunction(File.uvFsCb));
+		UV.fs_readdir(loop.uvLoop, req.uvFs, uvDir, Callable.fromStaticFunction(File.uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> {
 			inline function cleanup() {
 				UV.fs_req_cleanup(req.uvFs);

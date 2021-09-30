@@ -91,6 +91,7 @@ abstract class Handle extends Wrapper {
 		var handle = Handle.get(cast uv);
 		UV.handle_set_data(cast uv, null);
 		if(handle != null && handle.onClose != null) {
+			handle.unreferenceFromLoop();
 			handle.onClose();
 		}
 	}

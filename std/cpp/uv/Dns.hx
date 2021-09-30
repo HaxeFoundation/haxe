@@ -112,7 +112,7 @@ class Dns {
 	static public function getAddrInfo(loop:Loop, name:Null<String>, service:Null<String>, hints:Null<AddrInfoOptions>,
 		callback:(e:UVError, infos:Array<AddrInfo>)->Void):AddrInfoRequest {
 
-		var req = new AddrInfoRequest();
+		var req = new AddrInfoRequest(loop);
 		var node = name == null ? null : ConstCharStar.fromString(name);
 		var service = service == null ? null : ConstCharStar.fromString(service);
 		if(hints != null) {
@@ -139,12 +139,14 @@ class Dns {
 				aiHints.value.ai_protocol = hints.protocol;
 		}
 		UV.getaddrinfo(loop.uvLoop, req.uvAddrInfo, Callable.fromStaticFunction(uvGetaddrinfoCb), node, service, req.aiHints).resolve();
+		req.referenceFromLoop();
 		req.callback = callback;
 		return req;
 	}
 
 	static function uvGetaddrinfoCb(uvAddrInfo:RawPointer<UvGetaddrinfoT>, status:Int, res:RawPointer<Addrinfo>) {
 		var req:AddrInfoRequest = cast Request.get(cast uvAddrInfo);
+		req.unreferenceFromLoop();
 		var infos = null;
 		if(res != null) {
 			infos = [];
@@ -172,7 +174,7 @@ class Dns {
 	static public function getNameInfo(loop:Loop, addr:SockAddr, flags:Null<Array<NameInfoFlag>>,
 		callback:(e:UVError, name:String, service:String)->Void):NameInfoRequest {
 
-		var req = new NameInfoRequest();
+		var req = new NameInfoRequest(loop);
 		var iFlags = 0;
 		if(flags != null)
 			for(flag in flags)
@@ -184,12 +186,14 @@ class Dns {
 					case NIF_DGRAM: NI_DGRAM;
 				}
 		UV.getnameinfo(loop.uvLoop, req.uvNameInfo, Callable.fromStaticFunction(uvGetnameinfoCb), cast addr.storage, iFlags).resolve();
+		req.referenceFromLoop();
 		req.callback = callback;
 		return req;
 	}
 
 	static function uvGetnameinfoCb(uvNameInfo:RawPointer<UvGetnameinfoT>, status:Int, hostname:ConstCharStar, service:ConstCharStar) {
 		var req:NameInfoRequest = cast Request.get(cast uvNameInfo);
+		req.unreferenceFromLoop();
 		req.callback(
 			status.explain(),
 			hostname == null ? null : hostname.toString(),

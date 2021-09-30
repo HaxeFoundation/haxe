@@ -47,8 +47,9 @@ class Idle extends Handle {
 		Create a idle.
 	**/
 	static public function init(loop:Loop):Idle {
-		var idle = new Idle();
+		var idle = new Idle(loop);
 		UV.idle_init(loop.uvLoop, idle.uvIdle).resolve();
+		idle.referenceFromLoop();
 		return idle;
 	}
 

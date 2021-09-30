@@ -47,8 +47,9 @@ class Async extends Handle {
 		Create an async handle.
 	**/
 	static public function init(loop:Loop, callback:(async:Async)->Void):Async {
-		var async = new Async();
+		var async = new Async(loop);
 		UV.async_init(loop.uvLoop, async.uvAsync, Callable.fromStaticFunction(uvAsyncCb)).resolve();
+		async.referenceFromLoop();
 		async.onSend = callback;
 		return async;
 	}

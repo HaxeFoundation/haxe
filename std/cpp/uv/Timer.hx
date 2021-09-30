@@ -46,8 +46,9 @@ class Timer extends Handle {
 		Create a timer.
 	**/
 	static public function init(loop:Loop):Timer {
-		var timer = new Timer();
+		var timer = new Timer(loop);
 		UV.timer_init(loop.uvLoop, timer.uvTimer).resolve();
+		timer.referenceFromLoop();
 		return timer;
 	}
 

@@ -101,13 +101,15 @@ abstract class Stream extends Handle {
 		It waits for pending write requests to complete.
 	**/
 	public function shutdown(callback:(e:UVError)->Void) {
-		var req = new ShutdownRequest();
+		var req = new ShutdownRequest(loop);
 		UV.shutdown(req.uvShutdown, uvStream, Callable.fromStaticFunction(uvShutdownCb)).resolve();
+		req.referenceFromLoop();
 		req.onShutdown = callback;
 	}
 
 	static function uvShutdownCb(uvShutdown:RawPointer<UvShutdownT>, status:Int) {
 		var req:ShutdownRequest = cast Request.get(cast uvShutdown);
+		req.unreferenceFromLoop();
 		req.onShutdown(status.explain());
 	}
 
@@ -169,15 +171,17 @@ abstract class Stream extends Handle {
 	}
 
 	inline function writeImpl(data:Bytes, pos:UInt, length:UInt, callback:(e:UVError)->Void, fn:(r:RawPointer<UvWriteT>, h:RawPointer<UvStreamT>, b:RawPointer<UvBufT>, cb:UvWriteCb)->Int) {
-		var req = new WriteRequest();
+		var req = new WriteRequest(loop);
 		req.buf = data.toBuf(pos, length);
 		fn(req.uvWrite, uvStream, req.buf, Callable.fromStaticFunction(uvWriteCb)).resolve();
+		req.referenceFromLoop();
 		req.data = data;
 		req.onWrite = callback;
 	}
 
 	static function uvWriteCb(uvWrite:RawPointer<UvWriteT>, status:Int) {
 		var req:WriteRequest = cast Request.get(cast uvWrite);
+		req.unreferenceFromLoop();
 		req.onWrite(status.explain());
 	}
 

@@ -51,8 +51,9 @@ class FsPoll extends Handle {
 		Initialize a new FsPoll handle.
 	**/
 	static public function init(loop:Loop):FsPoll {
-		var poll = new FsPoll();
+		var poll = new FsPoll(loop);
 		UV.fs_poll_init(loop.uvLoop, poll.uvFsPoll).resolve();
+		poll.referenceFromLoop();
 		return poll;
 	}
 

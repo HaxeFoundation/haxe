@@ -124,8 +124,9 @@ class Signal extends Handle {
 		Create a signal.
 	**/
 	static public function init(loop:Loop):Signal {
-		var signal = new Signal();
+		var signal = new Signal(loop);
 		UV.signal_init(loop.uvLoop, signal.uvSignal).resolve();
+		signal.referenceFromLoop();
 		return signal;
 	}
 

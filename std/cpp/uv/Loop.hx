@@ -66,10 +66,14 @@ enum abstract LoopRunMode(Int) {
 	var NOWAIT;
 }
 
+@:allow(cpp.uv)
 @:headerCode('#include "uv.h"')
 private class LoopImpl {
-	@:allow(cpp.uv)
 	var uvLoop:RawPointer<UvLoopT>;
+	// Keeps references to active wrappers, which are not referenced from Haxe code,
+	// but should not be GC'ed yet (e.g. waiting for callbacks from libuv)
+	// TODO: maybe change to linked list to avoid allocations on resizing the array?
+	var activeWrappers:Array<Wrapper> = [];
 
 	public function new() {
 		uvLoop = UvLoopT.create();
@@ -78,6 +82,14 @@ private class LoopImpl {
 
 	static function finalizer(loop:LoopImpl) {
 		Stdlib.free(Pointer.fromRaw(loop.uvLoop));
+	}
+
+	inline function addWrapper(wrapper:Wrapper) {
+		activeWrappers.push(wrapper);
+	}
+
+	inline function removeWrapper(wrapper:Wrapper) {
+		activeWrappers.remove(wrapper);
 	}
 }
 

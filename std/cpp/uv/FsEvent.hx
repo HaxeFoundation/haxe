@@ -73,8 +73,9 @@ class FsEvent extends Handle {
 		Initialize a new FsEvent handle.
 	**/
 	static public function init(loop:Loop):FsEvent {
-		var event = new FsEvent();
+		var event = new FsEvent(loop);
 		UV.fs_event_init(loop.uvLoop, event.uvFsEvent).resolve();
+		event.referenceFromLoop();
 		return event;
 	}
 

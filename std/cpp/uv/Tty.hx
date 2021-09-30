@@ -67,8 +67,9 @@ class Tty extends Stream {
 		Initialize a new TTY stream with the given file descriptor.
 	**/
 	static public function init(loop:Loop, file:File):Tty {
-		var tty = new Tty();
+		var tty = new Tty(loop);
 		UV.tty_init(loop.uvLoop, tty.uvTty, file.uvFile, 0).resolve();
+		tty.referenceFromLoop();
 		return tty;
 	}
 

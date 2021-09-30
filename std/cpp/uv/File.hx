@@ -258,12 +258,14 @@ abstract File(UvFile) {
 	@:allow(cpp.uv)
 	static function uvFsCb(uvFs:RawPointer<UvFsT>) {
 		var req:FsRequest = cast Request.get(cast uvFs);
+		req.unreferenceFromLoop();
 		req.callback();
 	}
 
 	static inline function simpleRequest(loop:Loop, callback:(e:UVError)->Void, action:(req:FsRequest, cb:UvFsCb)->Int):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> callback(req.getIntResult().explain());
 		// TODO: fix GC destroying request/handle objects, which don't have a reference from Haxe code.
 		// Sys.println('GC.run(major)');
@@ -273,15 +275,17 @@ abstract File(UvFile) {
 	}
 
 	static inline function pathRequest(loop:Loop, callback:(e:UVError, path:Null<String>)->Void, action:(req:FsRequest, cb:UvFsCb)->Int):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> callback(req.getIntResult().explain(), req.getPath());
 		return req;
 	}
 
 	static inline function statRequest(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void, action:(req:FsRequest, cb:UvFsCb)->Int):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		action(req, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> callback(req.getIntResult().explain(), req.getStat());
 		return req;
 	}
@@ -297,7 +301,7 @@ abstract File(UvFile) {
 		Open file.
 	**/
 	static public function open(loop:Loop, path:String, flags:Array<FileOpenFlag>, callback:(e:UVError, file:File)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		var iFlags = 0;
 		var mode = 0;
 		for(flag in flags) {
@@ -308,6 +312,7 @@ abstract File(UvFile) {
 			}
 		}
 		UV.fs_open(loop.uvLoop, req.uvFs, path, iFlags, mode, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> {
 			var result = req.getIntResult();
 			callback(result.explain(), new File(new UvFile(result)));
@@ -319,9 +324,10 @@ abstract File(UvFile) {
 		Read from file.
 	**/
 	public function read(loop:Loop, buffer:Bytes, pos:Int, length:Int, offset:Int64, callback:(e:UVError, bytesRead:SSizeT)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		req.buf = buffer.toBuf(pos, length);
 		UV.fs_read(loop.uvLoop, req.uvFs, this, req.buf, 1, offset, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.data = buffer;
 		req.callback = () -> {
 			var result = req.getResult();
@@ -337,7 +343,6 @@ abstract File(UvFile) {
 		Delete a name and possibly the file it refers to.
 	**/
 	static public function unlink(loop:Loop, path:String, callback:(e:UVError)->Void):FsRequest {
-		Sys.println('unlinking $path');
 		return simpleRequest(loop, callback, (req, cb) -> UV.fs_unlink(loop.uvLoop, req.uvFs, path, cb));
 	}
 
@@ -345,9 +350,10 @@ abstract File(UvFile) {
 		Write to file.
 	**/
 	public function write(loop:Loop, data:Bytes, pos:Int, length:Int, offset:Int64, callback:(e:UVError, bytesWritten:SSizeT)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		req.buf = data.toBuf(pos, length);
 		UV.fs_write(loop.uvLoop, req.uvFs, this, req.buf, 1, offset, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.data = data;
 		req.callback = () -> {
 			var result = req.getResult();
@@ -377,8 +383,9 @@ abstract File(UvFile) {
 		Create a temporary file.
 	**/
 	static public function mkstemp(loop:Loop, tpl:String, callback:(e:UVError, file:File, path:Null<String>)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		UV.fs_mkstemp(loop.uvLoop, req.uvFs, tpl, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> {
 			var result = req.getIntResult();
 			callback(result.explain(), new File(new UvFile(result)), req.getPath());
@@ -420,8 +427,9 @@ abstract File(UvFile) {
 		Retrieves status information for the filesystem containing the given path.
 	**/
 	static public function statFs(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStatFs>)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		UV.fs_statfs(loop.uvLoop, req.uvFs, path, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> {
 			var stat:FileStatFs = switch (cast UV.fs_get_ptr(req.uvFs):RawPointer<UvStatfsT>) {
 				case null: null;
@@ -492,8 +500,9 @@ abstract File(UvFile) {
 		last byte that was read.
 	**/
 	public function sendFile(loop:Loop, toFile:File, inOffset:Int64, length:SizeT, callback:(e:UVError, outOffset:SSizeT)->Void):FsRequest {
-		var req = new FsRequest();
+		var req = new FsRequest(loop);
 		UV.fs_sendfile(loop.uvLoop, req.uvFs, this, toFile.uvFile, inOffset, length, Callable.fromStaticFunction(uvFsCb)).resolve();
+		req.referenceFromLoop();
 		req.callback = () -> {
 			var result = req.getResult();
 			switch (result:Int).explain() {

@@ -384,12 +384,13 @@ class Misc {
 		`flags` is reserved for future extension and must currently be 0.
 	**/
 	static public function random(loop:Loop, buf:Bytes, pos:Int, length:Int, flags:Int, callback:(e:UVError)->Void):RandomRequest {
-		var req = new RandomRequest();
+		var req = new RandomRequest(loop);
 		if(pos + length > buf.length)
 			throw new UVException(UV_ENOBUFS);
 		var base = NativeArray.getBase(buf.getData()).getBase();
 		base = Pointer.addressOf(Pointer.fromRaw(base).at(pos)).raw;
 		UV.random(loop.uvLoop, req.uvRandom, cast base, length, flags, Callable.fromStaticFunction(uvRandomCb)).resolve();
+		req.referenceFromLoop();
 		req.buf = buf;
 		req.callback = callback;
 		return req;
@@ -397,6 +398,7 @@ class Misc {
 
 	static function uvRandomCb(uvRandom:RawPointer<UvRandomT>, status:Int, buf:RawPointer<cpp.Void>, buflen:SizeT):Void {
 		var req:RandomRequest = cast Request.get(cast uvRandom);
+		req.unreferenceFromLoop();
 		req.callback(status.explain());
 	}
 

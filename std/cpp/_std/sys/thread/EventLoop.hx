@@ -108,6 +108,9 @@ class EventLoop {
 	public function progress():NextEventTime {
 		//TODO: throw if loop is already running
 		if((handle:Loop).run(NOWAIT)) {
+			Sys.println('GC.run(major)');
+			cpp.vm.Gc.run(true);
+			Sys.println('GC done');
 			return AnyTime(null);
 		} else {
 			return Never;
@@ -131,7 +134,16 @@ class EventLoop {
 	public function loop():Void {
 		//TODO: throw if loop is already running
 		consumePending();
-		(handle:Loop).run(DEFAULT);
+		#if !debug
+		// (handle:Loop).run(DEFAULT);
+		#else
+		// TODO: do not forget to remove this
+		while(progress() != Never) {
+			// Sys.println('GC.run(major)');
+			cpp.vm.Gc.run(true);
+			// Sys.println('GC done');
+		}
+		#end
 	}
 
 	function consumePending(?_:Async):Void {

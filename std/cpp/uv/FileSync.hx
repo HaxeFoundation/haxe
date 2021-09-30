@@ -36,20 +36,20 @@ using cpp.uv.UV;
 abstract FileSync(File) from File to File {
 
 	static inline function simpleRequest(action:(req:FsRequest)->Int):Void {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		action(req).resolve();
 		req.getIntResult().resolve();
 	}
 
 	static inline function pathRequest(action:(req:FsRequest)->Int):String {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		action(req).resolve();
 		req.getIntResult().resolve();
 		return req.getPath();
 	}
 
 	static inline function statRequest(action:(req:FsRequest)->Int):FileStat {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		action(req).resolve();
 		req.getIntResult().resolve();
 		return req.getStat();
@@ -66,7 +66,7 @@ abstract FileSync(File) from File to File {
 		Open file.
 	**/
 	static public function open(path:String, flags:Array<FileOpenFlag>):File {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		var iFlags = 0;
 		var mode = 0;
 		for(flag in flags) {
@@ -84,7 +84,7 @@ abstract FileSync(File) from File to File {
 		Read from file.
 	**/
 	public function read(buffer:Bytes, pos:Int, length:Int, offset:Int64):SSizeT {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		req.buf = buffer.toBuf(pos, length);
 		UV.fs_read(null, req.uvFs, this.uvFile, req.buf, 1, offset, null).resolve();
 		var result = req.getResult();
@@ -103,7 +103,7 @@ abstract FileSync(File) from File to File {
 		Write to file.
 	**/
 	public function write(data:Bytes, pos:Int, length:Int, offset:Int64):SSizeT {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		req.buf = data.toBuf(pos, length);
 		UV.fs_write(null, req.uvFs, this.uvFile, req.buf, 1, offset, null).resolve();
 		var result = req.getResult();
@@ -129,7 +129,7 @@ abstract FileSync(File) from File to File {
 		Create a temporary file.
 	**/
 	static public function mkstemp(tpl:String):{file:File, path:String} {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		UV.fs_mkstemp(null, req.uvFs, tpl, null).resolve();
 		return {file:new File(new UvFile(req.getIntResult().resolve())), path:req.getPath()}
 	}
@@ -168,7 +168,7 @@ abstract FileSync(File) from File to File {
 		Retrieves status information for the filesystem containing the given path.
 	**/
 	static public function statFs(path:String):FileStatFs {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		UV.fs_statfs(null, req.uvFs, path, null).resolve();
 		req.getIntResult().resolve();
 		var s = (cast UV.fs_get_ptr(req.uvFs):RawPointer<UvStatfsT>);
@@ -234,7 +234,7 @@ abstract FileSync(File) from File to File {
 		last byte that was read.
 	**/
 	public function sendFile(toFile:File, inOffset:Int64, length:SizeT):SSizeT {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		UV.fs_sendfile(null, req.uvFs, this.uvFile, toFile.uvFile, inOffset, length, null).resolve();
 		var result = req.getResult();
 		(result:Int).resolve();

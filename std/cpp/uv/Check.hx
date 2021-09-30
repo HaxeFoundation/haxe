@@ -47,8 +47,9 @@ class Check extends Handle {
 		Create a check.
 	**/
 	static public function init(loop:Loop):Check {
-		var check = new Check();
+		var check = new Check(loop);
 		UV.check_init(loop.uvLoop, check.uvCheck).resolve();
+		check.referenceFromLoop();
 		return check;
 	}
 

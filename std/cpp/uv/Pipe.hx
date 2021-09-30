@@ -61,8 +61,9 @@ class Pipe extends Stream {
 		listening pipe that uv_accept is called on.
 	**/
 	static public function init(loop:Loop, ipc:Bool = false):Pipe {
-		var pipe = new Pipe();
+		var pipe = new Pipe(loop);
 		UV.pipe_init(loop.uvLoop, pipe.uvPipe, ipc ? 1 : 0).resolve();
+		pipe.referenceFromLoop();
 		return pipe;
 	}
 
@@ -77,13 +78,15 @@ class Pipe extends Stream {
 		Connect to the Unix domain socket or the named pipe.
 	**/
 	public function connect(name:String, callback:(e:UVError)->Void) {
-		var req = new ConnectRequest();
+		var req = new ConnectRequest(loop);
 		UV.pipe_connect(req.uvConnect, uvPipe, name, Callable.fromStaticFunction(uvConnectCb));
+		req.referenceFromLoop();
 		req.onConnect = callback;
 	}
 
 	static function uvConnectCb(uvConnect:RawPointer<UvConnectT>, status:Int) {
 		var req:ConnectRequest = cast Request.get(cast uvConnect);
+		req.unreferenceFromLoop();
 		req.onConnect(status.explain());
 	}
 

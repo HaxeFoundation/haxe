@@ -48,9 +48,10 @@ class Tcp extends Stream {
 		Create a TCP handle
 	**/
 	static public function init(loop:Loop, domain:AddressFamily = UNSPEC):Tcp {
-		var tcp = new Tcp();
+		var tcp = new Tcp(loop);
 		var flags = SockAddr.addressFamilyToAf(domain);
 		UV.tcp_init_ex(loop.uvLoop, tcp.uvTcp, flags).resolve();
+		tcp.referenceFromLoop();
 		return tcp;
 	}
 
@@ -122,13 +123,15 @@ class Tcp extends Stream {
 		Establish an IPv4 or IPv6 TCP connection.
 	**/
 	public function connect(addr:SockAddr, callback:(e:UVError)->Void) {
-		var req = new ConnectRequest();
+		var req = new ConnectRequest(loop);
 		UV.tcp_connect(req.uvConnect, uvTcp, cast addr.storage, Callable.fromStaticFunction(uvConnectCb)).resolve();
+		req.referenceFromLoop();
 		req.onConnect = callback;
 	}
 
 	static function uvConnectCb(uvConnect:RawPointer<UvConnectT>, status:Int) {
 		var req:ConnectRequest = cast Request.get(cast uvConnect);
+		req.unreferenceFromLoop();
 		req.onConnect(status.explain());
 	}
 

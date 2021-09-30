@@ -47,8 +47,9 @@ class Prepare extends Handle {
 		Create a prepare.
 	**/
 	static public function init(loop:Loop):Prepare {
-		var prepare = new Prepare();
+		var prepare = new Prepare(loop);
 		UV.prepare_init(loop.uvLoop, prepare.uvPrepare).resolve();
+		prepare.referenceFromLoop();
 		return prepare;
 	}
 

@@ -39,7 +39,7 @@ abstract DirSync(Dir) from Dir to Dir {
 		Opens `path` as a directory stream
 	**/
 	static public function open(path:String):Dir {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		UV.fs_opendir(null, req.uvFs, path, null).resolve();
 		switch req.getIntResult().explain() {
 			case UV_NOERR:
@@ -55,7 +55,7 @@ abstract DirSync(Dir) from Dir to Dir {
 		Closes the directory stream.
 	**/
 	public function close():Void {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		UV.fs_closedir(null, req.uvFs, this.uvDir, null).resolve();
 		req.getIntResult().resolve();
 	}
@@ -64,7 +64,7 @@ abstract DirSync(Dir) from Dir to Dir {
 		Iterates over the directory stream.
 	**/
 	public function read(numberOfEntries:Int):Array<DirEntry> {
-		var req = new FsRequest();
+		var req = new FsRequest(null);
 		var ptr = Pointer.fromRaw(this.uvDir);
 		if(ptr.value.dirents != null)
 			Stdlib.free(Pointer.fromRaw(ptr.value.dirents));

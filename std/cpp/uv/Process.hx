@@ -145,7 +145,7 @@ class Process extends Handle {
 		`args[0]` should be the path to the program.
 	**/
 	static public function spawn(loop:Loop, cmd:String, args:Array<String>, ?options:ProcessOptions):Process {
-		var process = new Process();
+		var process = new Process(loop);
 		var cOpts = new UvProcessOptionsT();
 		var cCmd:ConstCharStar = cmd;
 
