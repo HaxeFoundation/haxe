@@ -12,15 +12,10 @@ abstract class Wrapper {
 	var prevRef:Null<Wrapper>;
 	var nextRef:Null<Wrapper>;
 
-static var cnt = 0;
-
 	function new(loop:Loop) {
 		this.loop = loop;
 		setupUvData();
 		cpp.vm.Gc.setFinalizer(this, Function.fromStaticFunction(finalizer));
-
-		cnt++;
-		untyped __cpp__('printf("[W]rappers created: %d\\n", {0})', cnt);
 	}
 
 	abstract function setupUvData():Void;
@@ -44,9 +39,6 @@ static var cnt = 0;
 	}
 
 	static function finalizer(wrapper:Wrapper) {
-		cnt--;
-		untyped __cpp__('printf("[W]rappers destroyed: %d\\n", {0})', cnt);
-
 		wrapper.finalize();
 	}
 }
