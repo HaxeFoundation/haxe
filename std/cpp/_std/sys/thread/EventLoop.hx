@@ -134,16 +134,7 @@ class EventLoop {
 	public function loop():Void {
 		//TODO: throw if loop is already running
 		consumePending();
-		#if !debug
-		// (handle:Loop).run(DEFAULT);
-		#else
-		// TODO: do not forget to remove this
-		while(progress() != Never) {
-			// Sys.println('GC.run(major)');
-			cpp.vm.Gc.run(true);
-			// Sys.println('GC done');
-		}
-		#end
+		(handle:Loop).run(DEFAULT);
 	}
 
 	function consumePending(?_:Async):Void {

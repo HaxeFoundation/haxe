@@ -72,8 +72,7 @@ private class LoopImpl {
 	var uvLoop:RawPointer<UvLoopT>;
 	// Keeps references to active wrappers, which are not referenced from Haxe code,
 	// but should not be GC'ed yet (e.g. waiting for callbacks from libuv)
-	// TODO: maybe change to linked list to avoid allocations on resizing the array?
-	var activeWrappers:Array<Wrapper> = [];
+	var activeWrappers:Null<Wrapper>;
 
 	public function new() {
 		uvLoop = UvLoopT.create();
@@ -84,12 +83,30 @@ private class LoopImpl {
 		Stdlib.free(Pointer.fromRaw(loop.uvLoop));
 	}
 
-	inline function addWrapper(wrapper:Wrapper) {
-		activeWrappers.push(wrapper);
+	function addWrapper(wrapper:Wrapper) {
+		if(activeWrappers != null) {
+			wrapper.nextRef = activeWrappers;
+			activeWrappers.prevRef = wrapper;
+		}
+		activeWrappers = wrapper;
 	}
 
-	inline function removeWrapper(wrapper:Wrapper) {
-		activeWrappers.remove(wrapper);
+	function removeWrapper(wrapper:Wrapper) {
+		if(wrapper == activeWrappers) {
+			activeWrappers = wrapper.nextRef;
+			wrapper.nextRef = null;
+			if(activeWrappers != null)
+				activeWrappers.prevRef = null;
+		} else {
+			trace(wrapper);
+			var prev = wrapper.prevRef;
+			var next = wrapper.nextRef;
+			prev.nextRef = next;
+			if(next != null)
+				next.prevRef = prev;
+			wrapper.nextRef = null;
+			wrapper.prevRef = null;
+		}
 	}
 }
 

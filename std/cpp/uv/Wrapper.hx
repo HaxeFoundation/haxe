@@ -8,6 +8,10 @@ abstract class Wrapper {
 	var uv:RawPointer<cpp.Void>;
 	final loop:Loop;
 
+	//these are needed to keep a linked list of active wrappers per loop (see Loop.activeWrappers)
+	var prevRef:Null<Wrapper>;
+	var nextRef:Null<Wrapper>;
+
 static var cnt = 0;
 
 	function new(loop:Loop) {

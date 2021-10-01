@@ -215,7 +215,7 @@ class Process extends Handle {
 			cOpts.flags = flags;
 		}
 		var result = UV.spawn(loop.uvLoop, process.uvProcess, RawPointer.addressOf(cOpts));
-
+		process.referenceFromLoop();
 		Stdlib.free(Pointer.fromRaw(cOpts.args));
 		if(cOpts.env != null)
 			Stdlib.free(Pointer.fromRaw(cOpts.env));
