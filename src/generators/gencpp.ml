@@ -1666,11 +1666,13 @@ and tcpp_to_string tcpp =
     tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass params =
-      let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then " " else " ::" in
+   match (get_meta_string klass.cl_meta Meta.Native)<>"" with
+   | true -> 
       let typeParams = match params with
       | [] -> ""
       | _ -> "<" ^ String.concat "," (List.map tcpp_to_string params) ^ ">" in
-      globalNamespace ^ (join_class_path_remap klass.cl_path "::") ^ typeParams
+      (join_class_path_remap klass.cl_path "::") ^ typeParams
+   | false -> "::" ^ (join_class_path_remap klass.cl_path "::")
 ;;
 
 
