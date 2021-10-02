@@ -61,4 +61,18 @@ class Issue10412 extends DisplayTestCase {
 		var fields = fields(pos(1));
 		eq(true, hasField(fields, "length", "Int"));
 	}
+
+	/**
+		class Test {
+		var a:Int;
+		function test() {
+			this.{-1-}.resume;
+
+		final x:String;
+		}
+	**/
+	function testFinalResume() {
+		var fields = fields(pos(1));
+		eq(true, hasField(fields, "x", "String"));
+	}
 }
