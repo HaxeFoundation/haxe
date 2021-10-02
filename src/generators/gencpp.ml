@@ -753,10 +753,12 @@ let rec class_string klass suffix params remap =
             (join_class_path_remap klass.cl_path "::") ^ " *"
    (* Normal class *)
    | _ when is_native_class klass ->
-      join_class_path_remap klass.cl_path "::" ^ "<" ^ (String.concat "," (List.map type_string params)) ^ ">"
+      let class_params = match params with
+      | [] -> ""
+      | _ -> "<" ^ (String.concat "," (List.map type_string params)) ^ ">" in
+      (join_class_path_remap klass.cl_path "::") ^ class_params
    | _ ->
-      let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
-      globalNamespace ^ (join_class_path_remap klass.cl_path "::") ^ suffix
+      (join_class_path_remap klass.cl_path "::") ^ suffix
    )
 and type_string_suff suffix haxe_type remap =
    let type_string = type_string_remap remap in
@@ -1933,9 +1935,11 @@ let rec cpp_type_of stack ctx haxe_type =
          else if (has_class_flag klass CInterface) then
             TCppInterface(klass)
          else if (has_class_flag klass CExtern) && (not (is_internal_class klass.cl_path) ) then
-            TCppInst(klass, List.map (cpp_type_of stack ctx) params)
+            let tcpp_params = List.map (cpp_type_of stack ctx) params in
+            TCppInst(klass, tcpp_params)
          else
-            TCppInst(klass, List.map (cpp_type_of stack ctx) params)
+            let tcpp_params = List.map (cpp_type_of stack ctx) params in
+            TCppInst(klass, tcpp_params)
        )
 
 let cpp_type_of ctx = cpp_type_of [] ctx
@@ -2843,9 +2847,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             in
             let arg_types, _ = cpp_function_type_of_args_ret ctx constructor_type in
             let retypedArgs = retype_function_args args arg_types in
-            let created_type = (match cpp_type_of expr.etype with 
-            | TCppInst(klass, []) -> TCppInst(klass, List.map cpp_type_of params)
-            | other -> other ) in
+            let created_type = cpp_type_of expr.etype in
             gc_stack := !gc_stack || (match created_type with | TCppInst(t, _) -> not (is_native_class t) | _ -> false );
             CppCall( FuncNew(created_type), retypedArgs), created_type
 
@@ -3064,12 +3066,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
          | TVar (v,eo) ->
             let varType = cpp_type_of v.v_type in
-            let init = match eo with
-            | None -> None
-            | Some e ->
-               (Printf.printf "# %s\n" (s_type_kind v.v_type));
-               (Printf.printf "# %s\n" (s_type_kind e.etype));
-               Some (retype varType e) in
+            let init = match eo with None -> None | Some e -> Some (retype varType e) in
             Hashtbl.add !declarations v.v_name ();
             CppVarDecl(v, init), varType
 
