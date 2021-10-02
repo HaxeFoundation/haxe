@@ -307,6 +307,48 @@ abstract UInt(Int) from Int to Int {
 		return this;
 	}
 
+	@:from private static #if (!js || analyzer) inline #end function parseFloat(x:Float):UInt {
+		var y = Math.floor(x);
+		if (x == y)
+			return y;
+		var z:UInt = y;
+		z += Std.int(x - y);
+		return z;
+	}
+
+	@:from private static #if (!js || analyzer) inline #end function parseString(s:String):UInt {
+		var base:UInt = 10;
+		var current:UInt = 0;
+		var multiplier:UInt = 1;
+
+		var s = StringTools.trim(s);
+		if (s.charAt(0) == "-") {
+			throw "NumberFormatError: Negative";
+		}
+		var len = s.length;
+		var before:UInt = 0;
+
+		for (i in 0...len) {
+			var digitInt = s.charCodeAt(len - 1 - i) - '0'.code;
+
+			if (digitInt < 0 || digitInt > 9) {
+				throw "NumberFormatError";
+			}
+
+			if (digitInt != 0) {
+				var digit:UInt = digitInt;
+				before = current;
+				current = current + multiplier * digit;
+				if (lt(current,before)) {
+					throw "NumberFormatError: Overflow";
+				}
+			}
+
+			multiplier = multiplier * base;
+		}
+		return current;
+	}
+
 	@:to private #if (!js || analyzer) inline #end function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
