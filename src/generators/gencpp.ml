@@ -758,7 +758,8 @@ let rec class_string klass suffix params remap =
       | _ -> "<" ^ (String.concat "," (List.map type_string params)) ^ ">" in
       (join_class_path_remap klass.cl_path "::") ^ class_params
    | _ ->
-      (join_class_path_remap klass.cl_path "::") ^ suffix
+      let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
+      globalNamespace ^ (join_class_path_remap klass.cl_path "::") ^ suffix
    )
 and type_string_suff suffix haxe_type remap =
    let type_string = type_string_remap remap in
