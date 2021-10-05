@@ -14,6 +14,7 @@
 	all : fixed hanging of MainLoop.add on threaded targets (#10308, #10329)
 	js : fixed IntMap for keys greater than 2^31 (#10316)
 	js : workaround to fix sourcemaps on Firefox in Windows (#10217)
+	js : delayed truncation of the output file on `Compiler.setCustomJSGenerator` (#10387)
 	cs/java : fixed rest arguments for cases when only one argument is provided (#10315)
 	php : fixed type of `php.db.PDO.ATTR_DRIVER_NAME` (#10319)
 	eval : fixed signature of `eval.luv.Tcp.noDelay` method
