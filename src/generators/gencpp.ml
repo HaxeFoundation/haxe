@@ -4833,7 +4833,9 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
             | (["cpp"],"Pointer") | (["cpp"],"ConstPointer") | (["cpp"],"Function")
             | (["cpp"],"RawPointer") | (["cpp"],"RawConstPointer") -> List.iter visit_type params
             | _ when is_native_gen_class klass -> add_native_gen_class klass
-            | _ when is_extern_class klass -> add_extern_class klass
+            | _ when is_extern_class klass ->
+               add_extern_class klass;
+               List.iter visit_type params;
             | _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
             )
          | TAbstract (a,params) when is_scalar_abstract a ->
