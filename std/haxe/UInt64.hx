@@ -29,51 +29,65 @@ abstract UInt64(Int64) from Int64 to Int64 {
 
 	@:commutative @:op(A + B) private static function addI(lhs:UInt64, rhs:Int):UInt64;
 
-	@:commutative @:op(A + B) private static function addF(lhs:UInt64, rhs:Float):Float;
+	@:commutative @:op(A + B) private static function addF(lhs:UInt64, rhs:Float):UInt64;
 
 	@:op(A * B) public static function mul(lhs:UInt64, rhs:UInt64):UInt64
 		return Int64.mul(lhs, rhs);
 
 	@:commutative @:op(A * B) private static function mulInt(lhs:UInt64, rhs:Int):UInt64;
 
-	@:commutative @:op(A * B) private static function mulFloat(lhs:UInt64, rhs:Float):Float;
+	@:commutative @:op(A * B) private static function mulFloat(lhs:UInt64, rhs:Float):UInt64;
 
 	@:op(A % B) public static function mod(lhs:UInt64, rhs:UInt64):UInt64
 		return Int64.mod(lhs, rhs);
 
 	@:op(A % B) private static function modI(lhs:UInt64, rhs:Int):UInt64;
 
-	@:op(A % B) private static function modF(lhs:UInt64, rhs:Float):Float;
+	@:op(A % B) private static function modF(lhs:UInt64, rhs:Float):UInt64;
 
-	@:op(A - B) private static function sub(lhs:UInt64, rhs:UInt64):UInt64;
+	@:op(A - B) public static function sub(lhs:UInt64, rhs:UInt64):UInt64
+		return Int64.sub(lhs,rhs);
 
-	@:op(A - B) private static function subI(lhs:UInt64, rhs:Int):UInt64;
+	@:op(A - B) private static function subInt(lhs:UInt64, rhs:Int):UInt64;
 
-	@:op(A - B) private static function subF(lhs:UInt64, rhs:Float):Float;
+	@:op(A - B) private static function subInt(lhs:Int, rhs:UInt64):UInt64;
 
-	@:op(A / B) private static function div(lhs:UInt64, rhs:UInt64):Float;
+	@:op(A - B) private static function subF(lhs:UInt64, rhs:Float):UInt64;
 
-	@:op(A / B) private static function divI(lhs:UInt64, rhs:Int):Float;
+	@:op(A / B) private static function div(lhs:UInt64, rhs:UInt64):UInt64
+		return Int64.div(lhs,rhs);
 
-	@:op(A / B) private static function divF(lhs:UInt64, rhs:Float):Float;
+	@:op(A / B) private static function divInt(lhs:UInt64, rhs:Int):UInt64;
 
-	@:op(A | B) private static function or(lhs:UInt64, rhs:UInt64):UInt64;
+	@:op(A / B) private static function intDiv(lhs:Int, rhs:UInt64):UInt64;
+
+	@:op(A / B) private static function divFloat(lhs:UInt64, rhs:Float):UInt64;
+
+	@:op(A / B) private static function floatDiv(lhs:Float, rhs:UInt64):UInt64;
+
+	@:op(A | B) private static function or(lhs:UInt64, rhs:UInt64):UInt64
+		return Int64.or(lhs,rhs);
 
 	@:commutative @:op(A | B) private static function orI(lhs:UInt64, rhs:Int):UInt64;
 
-	@:op(A ^ B) private static function xor(lhs:UInt64, rhs:UInt64):UInt64;
+	@:op(A ^ B) private static function xor(lhs:UInt64, rhs:UInt64):UInt64
+		return Int64.xor(lhs,rhs);
 
 	@:commutative @:op(A ^ B) private static function xorI(lhs:UInt64, rhs:Int):UInt64;
 
-	@:op(A & B) private static function and(lhs:UInt64, rhs:UInt64):UInt64;
+	@:op(A & B) private static function and(lhs:UInt64, rhs:UInt64):UInt64
+		return Int64.and(lhs,rhs);
 
 	@:commutative @:op(A & B) private static function andI(lhs:UInt64, rhs:Int):UInt64;
 
-	@:op(A << B) private static function shl(lhs:UInt64, rhs:Int):UInt64;
+	@:op(A << B) private static function shl(lhs:UInt64, rhs:Int):UInt64
+		return Int64.shl(lhs,rhs);
 
-	@:op(A >> B) private static function shr(lhs:UInt64, rhs:Int):UInt64;
+	@:op(A >> B) private static function shr(lhs:UInt64, rhs:Int):UInt64
+		return Int64.shr(lhs,rhs);
 
-	@:op(A >>> B) private static function ushr(lhs:UInt64, rhs:Int):UInt64;
+	@:op(A >>> B) private static function ushr(lhs:UInt64, rhs:Int):UInt64
+		return Int64.ushr(lhs,rhs);
 
 	@:op(A > B) private static function gt(lhs:UInt64, rhs:UInt64):Bool;
 
@@ -99,7 +113,8 @@ abstract UInt64(Int64) from Int64 to Int64 {
 
 	@:op(A <= B) private static function ltef2(lhs:Float, rhs:UInt64):Bool;
 
-	@:op(~A) private static function bneg(t:UInt64):UInt64;
+	@:op(~A) private static function bneg(t:UInt64):UInt64
+		return Int64.neg(t);
 
 	@:commutative @:op(A == B) private static function equalsInt<T:Int>(a:UInt64, b:T):Bool;
 
