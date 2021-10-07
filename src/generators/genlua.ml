@@ -716,6 +716,8 @@ and gen_expr ?(local=true) ctx e = begin
              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
          | _ ->
              Globals.die "" __LOC__);
+    | TField (_, (FStatic ({cl_path = [],""},_) as f)) ->
+        spr ctx (ident (field_name f))
     | TField (x,f) ->
         gen_value ctx x;
         let name = field_name f in
