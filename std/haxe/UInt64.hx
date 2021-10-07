@@ -22,8 +22,14 @@
 
 package haxe;
 
+using haxe.UInt64;
+
 @:transitive
 abstract UInt64(Int64) from Int64 to Int64 {
+	public static function compare(a:UInt64,b:UInt64)
+		return Int64.compare(a,b);
+	public static inline function make(high:Int32, low:Int32):UInt64
+		return Int64.make(high,low);
 	@:op(A + B) public static function add(lhs:UInt64, rhs:UInt64):UInt64
 		return Int64.add(lhs, rhs);
 
@@ -188,7 +194,7 @@ abstract UInt64(Int64) from Int64 to Int64 {
 		return str;
 	}
 
-	private inline function toInt():Int {
+	public inline function toInt():Int {
 		return Int64.toInt(this);
 	}
 
@@ -209,4 +215,14 @@ abstract UInt64(Int64) from Int64 to Int64 {
 			return int + 0.0;
 		}
 	}
+
+	public var high(get, never):Int32;
+
+	private inline function get_high()
+		return this.high;
+
+	public var low(get, never):Int32;
+
+	private inline function get_low()
+		return this.low;
 }
