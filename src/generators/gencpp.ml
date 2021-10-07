@@ -2790,6 +2790,17 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   *)
 
                (* Other functions ... *)
+               | CppFunction( FuncInstance(_, InstStruct, {cf_type=TFun(arg_types,_)}) as func, return_type) ->
+                  (* For struct access classes use the types of the arguments instead of the function argument types *)
+                  (* In the case of generic extern classes a TFun arg type could be `MyClass.T` instead of the real type *)
+                  let map_args func_arg passed_arg =
+                     let (name, opt, _) = func_arg in
+                     name, opt, passed_arg.etype in
+                  let real_types = List.map2 map_args arg_types args in
+                  let arg_types = List.map (fun (_,opt,t) -> cpp_tfun_arg_type_of ctx opt t) real_types in
+                  let retypedArgs = retype_function_args args arg_types in
+                  CppCall(func,retypedArgs), return_type
+
                | CppFunction( FuncInstance(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
                | CppFunction( FuncStatic(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
                | CppFunction( FuncThis({cf_type=TFun(arg_types,_)},_ ) as func, returnType ) ->
