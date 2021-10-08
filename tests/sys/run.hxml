@@ -11,6 +11,7 @@ compile.hxml
 -cmd echo CS     && mono bin/cs/bin/Main-Debug.exe
 -cmd echo Java   && java -jar bin/java/Main-Debug.jar
 -cmd echo Php    && php bin/php/Main/index.php
+--cmd echo Js     && node bin/js/sys.js
 
 # Windows
 # --next
@@ -20,6 +21,7 @@ compile.hxml
 # -cmd echo CS     && bin\cs\bin\Main-Debug.exe
 # -cmd echo Java   && java -jar bin\java\Main-Debug.jar
 # -cmd echo Php    && php bin\php\Main\index.php
+# --cmd echo Js     && node bin/js/sys.js
 
 # Macro has to be placed at the end since it would exit the compilation process.
 --next

@@ -42,6 +42,8 @@ class TestUnicode extends utest.Test {
 		"bin-py";
 #elseif eval
 		"bin-eval";
+#elseif js
+		"bin-js";
 #else
 		null;
 #end

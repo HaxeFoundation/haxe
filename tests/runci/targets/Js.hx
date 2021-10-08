@@ -110,6 +110,11 @@ class Js {
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);
 
+		changeDirectory(sysDir);
+		runCommand("npm", ["install", "deasync"], true);
+		runCommand("haxe", ["compile-js.hxml"].concat(args));
+		runCommand("node", ["bin/js/sys.js"]);
+
 		changeDirectory(miscJsDir);
 		runCommand("haxe", ["run.hxml"]);
 	}
