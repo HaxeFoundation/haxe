@@ -3,28 +3,35 @@
 # Compile everything first.
 compile.hxml
 
+# Install Dependencies
+# --next
+# --cmd luarocks install haxe-deps 0.0.1-6
+# --cmd npm install deasync
+
 # Mac/Linux
 --next
--cmd echo Neko   && neko bin/neko/sys.n
--cmd echo Python && python3 bin/python/sys.py
--cmd echo Cpp    && bin/cpp/Main-debug
--cmd echo CS     && mono bin/cs/bin/Main-Debug.exe
--cmd echo Java   && java -jar bin/java/Main-Debug.jar
--cmd echo Php    && php bin/php/Main/index.php
+--cmd echo Neko   && neko bin/neko/sys.n
+--cmd echo Python && python3 bin/python/sys.py
+--cmd echo Cpp    && bin/cpp/Main-debug
+--cmd echo CS     && mono bin/cs/bin/Main-Debug.exe
+--cmd echo Java   && java -jar bin/java/Main-Debug.jar
+--cmd echo Php    && php bin/php/Main/index.php
+--cmd echo Hl     && hl bin/hl/sys.hl
 --cmd echo Js     && node bin/js/sys.js
 
 # Windows
 # --next
-# -cmd echo Neko   && neko bin\neko\sys.n
-# -cmd echo Python && python3 bin\python\sys.py
-# -cmd echo Cpp    && bin\cpp\Main-debug.exe
-# -cmd echo CS     && bin\cs\bin\Main-Debug.exe
-# -cmd echo Java   && java -jar bin\java\Main-Debug.jar
-# -cmd echo Php    && php bin\php\Main\index.php
+# --cmd echo Neko   && neko bin\neko\sys.n
+# --cmd echo Python && python3 bin\python\sys.py
+# --cmd echo Cpp    && bin\cpp\Main-debug.exe
+# --cmd echo CS     && bin\cs\bin\Main-Debug.exe
+# --cmd echo Java   && java -jar bin\java\Main-Debug.jar
+# --cmd echo Php    && php bin\php\Main\index.php
+# --cmd echo Hl     && hl bin/hl/sys.hl
 # --cmd echo Js     && node bin/js/sys.js
 
 # Macro has to be placed at the end since it would exit the compilation process.
 --next
--cmd echo Macro
+--cmd echo Macro
 --next
 compile-macro.hxml
