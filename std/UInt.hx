@@ -307,7 +307,7 @@ abstract UInt(Int) from Int to Int {
 		return this;
 	}
 
-	@:from private static #if (!js || analyzer) inline #end function parseFloat(x:Float):UInt {
+	private static #if (!js || analyzer) inline #end function parseFloat(x:Float):UInt {
 		var y = Math.floor(x);
 		if (x == y)
 			return y;
@@ -316,7 +316,7 @@ abstract UInt(Int) from Int to Int {
 		return z;
 	}
 
-	@:from private static #if (!js || analyzer) inline #end function parseString(s:String):UInt {
+	private static #if (!js || analyzer) inline #end function parseString(s:String):UInt {
 		var base:UInt = 10;
 		var current:UInt = 0;
 		var multiplier:UInt = 1;
