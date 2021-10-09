@@ -95,29 +95,44 @@ abstract UInt64(Int64) from Int64 to Int64 {
 	@:op(A >>> B) private static function ushr(lhs:UInt64, rhs:Int):UInt64
 		return Int64.ushr(lhs,rhs);
 
-	@:op(A > B) private static function gt(lhs:UInt64, rhs:UInt64):Bool;
+	@:op(A > B) private static function gt(lhs:UInt64, rhs:UInt64):Bool {
+		final aNeg = (lhs : Int64) < 0;
+		final bNeg = (rhs : Int64) < 0;
+		return aNeg != bNeg ? aNeg : (lhs : Int64) > (rhs : Int64);
+	}
 
-	@:op(A >= B) private static function gte(lhs:UInt64, rhs:UInt64):Bool;
+	@:op(A >= B) private static function gte(lhs:UInt64, rhs:UInt64):Bool {
+		final aNeg = (lhs : Int64) < 0;
+		final bNeg = (rhs : Int64) < 0;
+		return aNeg != bNeg ? aNeg : (lhs : Int64) >= (rhs : Int64);
+	}
 
-	@:op(A < B) private static function lt(lhs:UInt64, rhs:UInt64):Bool;
+	@:op(A < B) private static function lt(lhs:UInt64, rhs:UInt64):Bool
+		return gt(rhs,lhs);
 
-	@:op(A <= B) private static function lte(lhs:UInt64, rhs:UInt64):Bool;
+	@:op(A <= B) private static function lte(lhs:UInt64, rhs:UInt64):Bool
+		return gte(rhs,lhs);
 
-	@:op(A > B) private static function gtf(lhs:UInt64, rhs:Float):Bool;
+	@:op(A > B) private static function gtf(lhs:UInt64, rhs:Float):Bool
+		return lhs.toFloat() > rhs;
 
-	@:op(A > B) private static function gtf2(lhs:Float, rhs:UInt64):Bool;
+	@:op(A > B) private static function gtf2(lhs:Float, rhs:UInt64):Bool
+		return lhs > rhs.toFloat();
 
-	@:op(A >= B) private static function gtef(lhs:UInt64, rhs:Float):Bool;
+	@:op(A >= B) private static function gtef(lhs:UInt64, rhs:Float):Bool
+		return lhs.toFloat() >= rhs;
 
-	@:op(A >= B) private static function gtef2(lhs:Float, rhs:UInt64):Bool;
+	@:op(A < B) private static function ltf(lhs:UInt64, rhs:Float):Bool
+		return lhs.toFloat() < rhs;
 
-	@:op(A < B) private static function ltf(lhs:UInt64, rhs:Float):Bool;
+	@:op(A < B) private static function ltf2(lhs:Float, rhs:UInt64):Bool
+		return lhs < rhs.toFloat();
 
-	@:op(A < B) private static function ltf2(lhs:Float, rhs:UInt64):Bool;
+	@:op(A <= B) private static function ltef(lhs:UInt64, rhs:Float):Bool
+		return lhs.toFloat() <= rhs;
 
-	@:op(A <= B) private static function ltef(lhs:UInt64, rhs:Float):Bool;
-
-	@:op(A <= B) private static function ltef2(lhs:Float, rhs:UInt64):Bool;
+	@:op(A <= B) private static function ltef2(lhs:Float, rhs:UInt64):Bool
+		return lhs <= rhs.toFloat();
 
 	@:op(~A) private static function bneg(t:UInt64):UInt64
 		return Int64.neg(t);
