@@ -307,15 +307,6 @@ abstract UInt(Int) from Int to Int {
 		return this;
 	}
 
-	public static #if (!js || analyzer) inline #end function parseFloat(x:Float):UInt {
-		var y = Math.floor(x);
-		if (x == y)
-			return y;
-		var z:UInt = y;
-		z += Std.int(x - y);
-		return z;
-	}
-
 	public static #if (!js || analyzer) inline #end function parseString(s:String):UInt {
 		var base:UInt = 10;
 		var current:UInt = 0;
