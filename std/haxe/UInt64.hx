@@ -142,9 +142,11 @@
 	 @:op(~A) private static function bneg(t:UInt64):UInt64
 		 return Int64.neg(t);
  
-	 @:op(A == B) private static function eq(a:UInt64, b:UInt64):Bool;
+	 @:op(A == B) private static function eq(a:UInt64, b:UInt64):Bool
+		 return (a : Int64) == (b : Int64);
  
-	 @:op(A != B) private static function neq(a:UInt64, b:UInt64):Bool;
+	 @:op(A != B) private static function neq(a:UInt64, b:UInt64):Bool
+		 return !eq(a, b);
  
 	 @:commutative @:op(A == B) private static function equalsInt<T:Int>(a:UInt64, b:T):Bool;
  
