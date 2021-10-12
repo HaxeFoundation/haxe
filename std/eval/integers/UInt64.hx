@@ -93,6 +93,7 @@ package eval.integers;
 	@:op(A - B) inline function _sub(u:UInt64):UInt64 return this.sub(u);
 	@:op(A * B) inline function _mul(u:UInt64):UInt64 return this.mul(u);
 	@:op(A / B) inline function _div(u:UInt64):UInt64 return this.div(u);
+	@:op(A % B) inline function _mod(u:UInt64):UInt64 return this.remainder(u);
 	@:op(A & B) inline function _logand(u:UInt64):UInt64 return this.logand(u);
 	@:op(A | B) inline function _logor(u:UInt64):UInt64 return this.logor(u);
 	@:op(A ^ B) inline function _logxor(u:UInt64):UInt64 return this.logxor(u);

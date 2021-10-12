@@ -7,6 +7,7 @@
 	General improvements:
 
 	all : improved error messages upon directory creation failures (#10361)
+	eval : added `%` operator to `eval.numbers.Int64` and `eval.numbers.UInt64` (#10411)
 
 	Bugfixes:
 
