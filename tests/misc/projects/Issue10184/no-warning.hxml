@@ -1,0 +1,3 @@
+# should have no deprecation warnings
+-D no-deprecation-warnings
+--run Deprecated
