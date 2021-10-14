@@ -594,19 +594,28 @@ module Fusion = struct
 				| [] -> false
 				| (Meta.Pure, [], _) :: _
 				| (Meta.Pure, [(EConst (Ident ("true")), _)], _) :: _  -> true
-				| _ :: rest -> contains_pure_meta rest in
-			let not_impure_extern = match e.eexpr with
-			| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
-				contains_pure_meta cf.cf_meta || contains_pure_meta cl.cl_meta
-			| _ -> true in
+				| _ :: rest -> contains_pure_meta rest
+			in
+			let rec is_impure_extern e = match e.eexpr with
+				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
+					not (
+						Meta.has Meta.CoreApi cl.cl_meta ||
+						Meta.has Meta.NoClosure cl.cl_meta ||
+						contains_pure_meta cf.cf_meta ||
+						contains_pure_meta cl.cl_meta
+					)
+				| _ -> check_expr is_impure_extern e
+			in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
 					not (
 						ExtType.has_variable_semantics v.v_type &&
 						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
-					) &&
-			        (is_compiler_generated || config.optimize && not_impure_extern && config.fusion && config.user_var_fusion && not has_type_params)
+					) && (
+						is_compiler_generated || config.optimize &&
+						config.fusion && config.user_var_fusion && not has_type_params && not (is_impure_extern e)
+					)
 			in
 			if config.fusion_debug then begin
 				print_endline (Printf.sprintf "\nFUSION: %s\n\tvar %s<%i> = %s" (if b then "true" else "false") v.v_name v.v_id (s_expr_pretty e));
