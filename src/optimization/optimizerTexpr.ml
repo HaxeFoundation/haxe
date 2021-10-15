@@ -75,15 +75,16 @@ let create_affection_checker () =
 	in
 	might_be_affected,collect_modified_locals
 
-let optimize_binop e op e1 e2 =
+let rec optimize_binop e op e1 e2 =
 	let is_float t =
 		match follow t with
-		| TAbstract({ a_path = [],"Float" },_) -> true
+		| TAbstract({ a_path = [],("Float"|"Single") },_) -> true
 		| _ -> false
 	in
 	let is_numeric t =
 		match follow t with
-		| TAbstract({ a_path = [],("Float"|"Int") },_) -> true
+		| TAbstract({ a_path = [],("Float"|"Single"|"Int"|"UInt") },_) -> true
+		| TAbstract({ a_path = ["haxe"],"Int64" }, _) -> true
 		| _ -> false
 	in
 	let check_float op f1 f2 =
@@ -100,6 +101,8 @@ let optimize_binop e op e1 e2 =
 	| _ , TConst (TInt 1l) when op = OpMult -> e1
 	| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
 	| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
+	| TCast (inner, cast_mt) , _ when is_numeric e1.etype -> optimize_binop e op inner e2
+	| _ , TCast (inner, cast_mt) when is_numeric e2.etype -> optimize_binop e op e1 inner
 	| TConst TNull, TConst TNull ->
 		(match op with
 		| OpEq -> { e with eexpr = TConst (TBool true) }
