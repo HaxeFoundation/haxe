@@ -1538,7 +1538,7 @@ let load_native ctx lib name t =
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						Process_helper.close_process_in_pid (ic, pid);
+						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"

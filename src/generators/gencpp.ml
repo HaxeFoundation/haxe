@@ -8558,15 +8558,15 @@ let generate_source ctx =
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
-      let cmd = ["run"; "hxcpp"; "Build.xml"; "haxe"] in
-      if (common_ctx.debug) then cmd := cmd @ ["-Ddebug"];
+      let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
+      if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
       PMap.iter ( fun name value -> match name with
          | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
-         | _ -> cmd := cmd @ [Printf.sprintf "-D%s=%s" name value];
+         | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=%s" name value];
       ) common_ctx.defines.values;
-      List.iter (fun path -> cmd := cmd @ [Printf.sprintf "-I%s" path]) common_ctx.class_path;
-      common_ctx.print ("haxelib " ^ (String.concat " " cmd) ^ "\n");
-      if common_ctx.run_command_args "haxelib" cmd <> 0 then failwith "Build failed";
+      List.iter (fun path -> cmd := !cmd @ [Printf.sprintf "-I%s" path]) common_ctx.class_path;
+      common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
+      if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
       t()
    end
