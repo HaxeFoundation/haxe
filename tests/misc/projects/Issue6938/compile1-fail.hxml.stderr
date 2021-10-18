@@ -1,0 +1,2 @@
+Main1.hx:11: characters 9-23 : Warning : Potential typo detected (expected similar values are ScreenMode.AAA, ScreenMode.AAB)
+Main1.hx:11: characters 9-23 : Only inline or read-only (default, never) fields can be used as a pattern
