@@ -1089,6 +1089,10 @@ module Run = struct
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
+	let run_on_field ctx config c cf =
+		run_on_field ctx config c cf;
+		List.iter (run_on_field ctx config c) cf.cf_overloads
+
 	let run_on_class ctx config c =
 		let config = update_config_from_meta ctx.Typecore.com config c.cl_meta in
 		let process_field stat cf = match cf.cf_kind with
