@@ -105,8 +105,11 @@ let completion str =
 
 let defines com tabs =
 	if config.print_defines then begin
-		let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) com.defines.Define.values [] in
-		print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)))
+		let buffer = Buffer.create 64 in
+		Buffer.add_string buffer "Defines ";
+		PMap.iter (Printf.bprintf buffer "%s=%s,") com.defines.values;
+		Buffer.truncate buffer (Buffer.length buffer - 1);
+		print_endline (Buffer.contents buffer)
 	end
 
 let signature com tabs sign =

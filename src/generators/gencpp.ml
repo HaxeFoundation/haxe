@@ -6942,9 +6942,9 @@ let write_build_options common_ctx filename defines =
    let writer = cached_source_writer common_ctx filename in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ ->  writer#write (name ^ "="^(escape_command value)^ "\n" ) ) defines;
+      | _ ->  writer#write (Printf.sprintf "%s=%s\n" name (escape_command value))) defines;
    let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
-   writer#write ("hxcpp=" ^ (Pervasives.input_line pin));
+   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line pin));
    Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
 
@@ -8553,21 +8553,20 @@ let generate_source ctx =
    | _ -> "output" in
 
    write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps (!boot_enums@ !boot_classes) !build_xml !extern_src output_name;
-   let cmd_defines = ref [] in
-   PMap.iter ( fun name value -> match name with
-      | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ -> cmd_defines := !cmd_defines @ ["-D" ^ name ^ "=" ^ value] ) common_ctx.defines.Define.values;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
-      let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
-      if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
-      cmd := !cmd @ !cmd_defines;
-      cmd := List.fold_left (fun cmd path -> cmd @ ["-I" ^ path] ) !cmd common_ctx.class_path;
-      common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
-      if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
+      let cmd = ["run"; "hxcpp"; "Build.xml"; "haxe"] in
+      if (common_ctx.debug) then cmd := cmd @ ["-Ddebug"];
+      PMap.iter ( fun name value -> match name with
+         | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
+         | _ -> cmd := cmd @ [Printf.sprintf "-D%s=%s" name value];
+      ) common_ctx.defines.values;
+      List.iter (fun path -> cmd := cmd @ [Printf.sprintf "-I%s" path]) common_ctx.class_path;
+      common_ctx.print ("haxelib " ^ (String.concat " " cmd) ^ "\n");
+      if common_ctx.run_command_args "haxelib" cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
       t()
    end
@@ -8583,5 +8582,3 @@ let generate common_ctx =
       generate_source ctx
    end
 ;;
-
-

@@ -43,7 +43,7 @@ and sourcemap_pos = {
 type ctx = {
 	com : Common.context;
 	buf : Rbuffer.t;
-	chan : out_channel;
+	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
 	js_modern : bool;
@@ -261,7 +261,15 @@ let handle_newlines ctx str =
 	) ctx.smap
 
 let flush ctx =
-	Rbuffer.output_buffer ctx.chan ctx.buf;
+	let chan =
+		match ctx.chan with
+		| Some chan -> chan
+		| None ->
+			let chan = open_out_bin ctx.com.file in
+			ctx.chan <- Some chan;
+			chan
+	in
+	Rbuffer.output_buffer chan ctx.buf;
 	Rbuffer.clear ctx.buf
 
 let spr ctx s =
@@ -1768,7 +1776,7 @@ let alloc_ctx com es_version =
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
-		chan = open_out_bin com.file;
+		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
@@ -2103,5 +2111,6 @@ let generate com =
 	| Some smap -> write_mappings ctx smap
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
-	close_out ctx.chan)
+	Option.may (fun chan -> close_out chan) ctx.chan
+	)
 

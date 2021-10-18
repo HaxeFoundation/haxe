@@ -1139,6 +1139,7 @@ class builder jc name jsig = object(self)
 		assert (code#get_fp = 0);
 		assert (not was_exported);
 		was_exported <- true;
+		self#commit_annotations jc#get_pool;
 		let attributes = self#export_attributes jc#get_pool in
 		let offset_name = jc#get_pool#add_string name in
 		let jsig = generate_signature false jsig in

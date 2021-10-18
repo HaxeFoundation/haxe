@@ -475,7 +475,7 @@ and resume tdecl fdecl s =
 		| Kwd New :: Kwd Function :: _ when fdecl ->
 			junk_tokens (k - 2);
 			true
-		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
 			junk_tokens (k - 1);
 			true
 		| BrClose :: _ when tdecl ->

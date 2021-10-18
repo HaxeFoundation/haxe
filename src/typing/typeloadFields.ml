@@ -798,7 +798,7 @@ module TypeBinding = struct
 				| Some (csup,_) ->
 					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
 					if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
-						error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+						display_error ctx ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
 		end
 
 	let bind_var_expression ctx cctx fctx cf e =
