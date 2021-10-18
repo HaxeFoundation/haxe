@@ -1,2 +1,4 @@
-Main1.hx:11: characters 9-23 : Warning : Potential typo detected (expected similar values are ScreenMode.AAA, ScreenMode.AAB)
-Main1.hx:11: characters 9-23 : Only inline or read-only (default, never) fields can be used as a pattern
+Main1.hx:16: characters 9-23 : Warning : Potential typo detected (expected similar values are ScreenMode.AAA, ScreenMode.AAB)
+Main1.hx:16: characters 9-23 : Only inline or read-only (default, never) fields can be used as a pattern
+Main1.hx:21: characters 9-24 : Warning : Potential typo detected (expected similar values are ScreenRatio.ZZA, ScreenRatio.ZZB)
+Main1.hx:21: characters 9-24 : Only inline or read-only (default, never) fields can be used as a pattern
