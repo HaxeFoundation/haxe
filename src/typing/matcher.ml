@@ -219,7 +219,7 @@ module Pattern = struct
 		let con_type_expr mt p = ConTypeExpr mt,p in
 		let con_array i p = ConArray i,p in
 		let con_fields fl p = ConFields fl,p in
-		let get_enumerable_idents = match follow t with
+		let get_enumerable_idents () = match follow t with
 			| TEnum(en,_) ->
 				en.e_names
 			| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
@@ -243,7 +243,7 @@ module Pattern = struct
 					loop e1
 				| TField (ef,f) ->
 					let s = field_name f in
-					begin match StringError.get_similar s get_enumerable_idents with
+					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] -> ()
 						| l ->
 							let tpath = match follow t with
@@ -314,7 +314,7 @@ module Pattern = struct
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Pattern variables must be lower-case" p;
 					end;
-					begin match StringError.get_similar s get_enumerable_idents with
+					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->
 							()
 							(* if toplevel then
