@@ -130,9 +130,7 @@ class TestFileSystem extends utest.Test {
 
 	function testAbsolutePath() {
 		var paths = [
-		#if !js // nodejs for some reason likes to unixify windows paths on linux
 			{ input: "c:\\nadako",   expected: "c:\\nadako" },
-		#end
 			{ input: "nadako.js",    expected: haxe.io.Path.join([Sys.getCwd(), "nadako.js"]) },
 			{ input: "./nadako.js",  expected: haxe.io.Path.join([Sys.getCwd(), "/./nadako.js"]) },
 			{ input: "/nadako",      expected: "/nadako" }
