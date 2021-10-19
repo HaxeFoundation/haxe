@@ -19,9 +19,11 @@ class TestSocket extends utest.Test {
 		registeredSockets = [];
 	}
 
+	#if !js // bind is not implemented on nodejs
 	public function testBind() {
 		var socket = register(new Socket());
 		socket.bind(new Host('localhost'), 34567);
 		Assert.pass();
 	}
+	#end
 }
