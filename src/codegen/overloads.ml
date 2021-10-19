@@ -269,6 +269,9 @@ struct
 					acc @ rates
 				| e :: elist, (n,o,t) :: args ->
 					mk_rate ((rate_arg t e) :: acc) elist args
+				| [],_ ->
+					(* this can happen on pf_pad_nulls = false targets, see #10434 *)
+					acc
 				| _ -> die "" __LOC__
 			in
 
