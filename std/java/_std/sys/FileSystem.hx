@@ -24,7 +24,6 @@ package sys;
 
 import java.io.File;
 import java.Lib;
-import java.NativeArray;
 
 @:coreApi
 class FileSystem {
@@ -44,8 +43,8 @@ class FileSystem {
 			throw "Path " + path + " doesn't exist";
 
 		try {
-			final pathObject = java.nio.file.Paths.get(path, NativeArray.make());
-			final attributes = java.nio.file.Files.readAttributes(pathObject, "unix:*", NativeArray.make());
+			final pathObject = java.nio.file.Paths.get(path);
+			final attributes = java.nio.file.Files.readAttributes(pathObject, "unix:*");
 
 			return {
 				atime: Date.fromTime(cast(attributes.get("lastAccessTime").toMillis(), Float)),
