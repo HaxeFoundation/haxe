@@ -220,7 +220,9 @@
 	 }
  
 	 public inline function toInt():Int {
-		 return Int64.toInt(this);
+		if (x.high != x.low >> 31)
+			throw "Overflow";
+		return x.low;
 	 }
  
 	 public static inline function parseString(sParam:String):UInt64 {
@@ -228,7 +230,7 @@
 	 }
  
 	 @:from public static inline function ofInt(x:Int):UInt64
-		 return Int64.ofInt(x);
+		#if lua return make((x : Int32) >> 31, (x : Int32)); #else return make(x >> 31, x); #end
  
 	 public var high(get, never):Int32;
  
