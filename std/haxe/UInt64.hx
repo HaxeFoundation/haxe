@@ -230,17 +230,6 @@
 	 @:from public static inline function ofInt(x:Int):UInt64
 		 return Int64.ofInt(x);
  
-	 @:to private #if (!js || analyzer) inline #end function toFloat():Float {
-		 var int = toInt();
-		 if (int < 0) {
-			 return 18446744073709551616.0 + int;
-		 } else {
-			 // + 0.0 here to make sure we promote to Float on some platforms
-			 // In particular, PHP was having issues when comparing to Int in the == op.
-			 return int + 0.0;
-		 }
-	 }
- 
 	 public var high(get, never):Int32;
  
 	 private inline function get_high()
