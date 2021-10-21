@@ -41,19 +41,41 @@ class FileSystem {
 		var f = new File(path);
 		if (!f.exists())
 			throw "Path " + path + " doesn't exist";
-		return {
-			gid: 0, // java doesn't let you get this info
-			uid: 0, // same
-			atime: Date.now(), // same
-			mtime: Date.fromTime(cast(f.lastModified(), Float)),
-			ctime: Date.fromTime(cast(f.lastModified(), Float)), // same
-			size: cast(f.length(), Int), // TODO: maybe change to Int64 for Haxe 3?
-			dev: 0, // FIXME: not sure what that is
-			ino: 0, // FIXME: not sure what that is
-			nlink: 0, // FIXME: not sure what that is
-			rdev: 0, // FIXME: not sure what that is
-			mode: 0 // FIXME: not sure what that is
-		};
+
+		try {
+			final pathObject = java.nio.file.Paths.get(path);
+			final attributes = java.nio.file.Files.readAttributes(pathObject, "unix:*");
+
+			return {
+				atime: Date.fromTime(cast(attributes.get("lastAccessTime").toMillis(), Float)),
+				ctime: Date.fromTime(cast(attributes.get("creationTime").toMillis(), Float)),
+				dev: cast(attributes.get("dev"), Int),
+				gid: attributes.get("gid"),
+				ino: cast(attributes.get("ino"), Int),
+				mode: attributes.get("mode"),
+				mtime: Date.fromTime(cast(attributes.get("lastModifiedTime").toMillis(), Float)),
+				nlink: attributes.get("nlink"),
+				rdev: cast(attributes.get("rdev"), Int),
+				size: cast(attributes.get("size"), Int),
+				uid: attributes.get("uid"),
+			};
+		}
+
+		catch (e) {
+			return {
+				gid: 0, // java doesn't let you get this info
+				uid: 0, // same
+				atime: Date.now(), // same
+				mtime: Date.fromTime(cast(f.lastModified(), Float)),
+				ctime: Date.fromTime(cast(f.lastModified(), Float)), // same
+				size: cast(f.length(), Int), // TODO: maybe change to Int64 for Haxe 3?
+				dev: 0, // FIXME: not sure what that is
+				ino: 0, // FIXME: not sure what that is
+				nlink: 0, // FIXME: not sure what that is
+				rdev: 0, // FIXME: not sure what that is
+				mode: 0 // FIXME: not sure what that is
+			};
+		}
 	}
 
 	public static function fullPath(relPath:String):String {
