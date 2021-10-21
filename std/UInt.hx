@@ -307,7 +307,7 @@ abstract UInt(Int) from Int to Int {
 		return this;
 	}
 
-	public static #if (!js || analyzer) inline #end function parseString(s:String):UInt {
+	public static function parseString(s:String):UInt {
 		var base:UInt = 10;
 		var current:UInt = 0;
 		var multiplier:UInt = 1;
