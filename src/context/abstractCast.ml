@@ -42,7 +42,7 @@ and do_check_cast ctx uctx tleft eright p =
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
-		if (Meta.has Meta.MultiType a.a_meta) then
+		if (Meta.has Meta.MultiType cf.cf_meta) then
 			mk_cast eright tleft p
 		else match a.a_impl with
 			| Some c -> recurse cf (fun () ->
