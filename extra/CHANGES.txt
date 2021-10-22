@@ -26,6 +26,7 @@
 	eval : fixed signature of `eval.luv.Tcp.noDelay` method
 	lua : fixed `string.length` when `string` has type of a type parameter constrained to `String` (#10343)
 	jvm : fixed `Reflect.compare()` for different number types (#10350)
+	python : fixed exceptions on tracing some native values (#10440)
 
 2021-07-01 4.2.3:
 
