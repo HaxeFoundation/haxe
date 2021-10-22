@@ -853,11 +853,6 @@ module TypeBinding = struct
 					let e = if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
 						e
 					else begin
-						let e = Optimizer.reduce_loop ctx (maybe_run_analyzer e) in
-						let e = (match Optimizer.make_constant_expression ctx e with
-							| Some e -> e
-							| None -> e
-						) in
 						let rec check_this e = match e.eexpr with
 							| TConst TThis ->
 								display_error ctx "Cannot access this or other member field in variable initialization" e.epos;

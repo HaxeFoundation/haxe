@@ -15,6 +15,7 @@
 	all : fixed hanging of MainLoop.add on threaded targets (#10308, #10329)
 	all : fixed compiler crash when resolving overloads with not enough arguments (#10434)
 	analyzer : fixed analyzer on overloads (#10405)
+	analyzer : fixed issues with fields initialization expressions (#10405)
 	display : improved code completion in anonymous objects declarations (#10414)
 	js : fixed IntMap for keys greater than 2^31 (#10316)
 	js : workaround to fix sourcemaps on Firefox in Windows (#10217)
