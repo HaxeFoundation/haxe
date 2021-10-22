@@ -204,7 +204,7 @@ let convert_fields gctx pfm =
 		l
 
 module AnnotationHandler = struct
-	let convert_annotations meta =
+	let generate_annotations builder meta =
 		let parse_path e =
 			let sl = try string_list_of_expr_path_raise e with Exit -> Error.error "Field expression expected" (pos e) in
 			let path = match sl with
@@ -241,22 +241,17 @@ module AnnotationHandler = struct
 			| _ ->
 				Error.error "Call expression expected" (pos e)
 		in
-		ExtList.List.filter_map (fun (m,el,_) -> match m,el with
+		List.iter (fun (m,el,_) -> match m,el with
 			| Meta.Meta,[e] ->
 				let path,annotation = parse_expr e in
 				let path = match path with
 					| [],name -> ["haxe";"root"],name
 					| _ -> path
 				in
-				Some(path,annotation)
+				builder#add_annotation path annotation;
 			| _ ->
-				None
+				()
 		) meta
-
-	let generate_annotations builder meta =
-		List.iter (fun (path,annotation) ->
-			builder#add_annotation path annotation
-		) (convert_annotations meta)
 end
 
 let enum_ctor_sig =
@@ -2340,13 +2335,7 @@ class tclass_to_jvm gctx c = object(self)
 		in
 		let handler = new texpr_to_jvm gctx jc jm tr in
 		List.iter (fun (v,_) ->
-			let slot,_,_ = handler#add_local v VarArgument in
-			let annot = AnnotationHandler.convert_annotations v.v_meta in
-			match annot with
-			| [] ->
-				()
-			| _ ->
-				jm#add_argument_annotation slot annot;
+			ignore(handler#add_local v VarArgument);
 		) args;
 		jm#finalize_arguments;
 		begin match mtype with
