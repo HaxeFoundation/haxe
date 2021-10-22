@@ -1327,7 +1327,7 @@ and get_access ctx e =
 		(match a, follow ethis.etype with
 		| FStatic (c,({ cf_kind = Var _ | Method MethDynamic } as f)), _ ->
 			let g, t = class_global ctx c in
-			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> die "" __LOC__) | _ -> die "" __LOC__))
+			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> die ~p:e.epos "" __LOC__) | _ -> die ~p:e.epos "" __LOC__))
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), f), TInst (c,_)
