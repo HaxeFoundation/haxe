@@ -60,7 +60,7 @@ class Cpp {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-cpp.hxml"].concat(args));
-		runCpp("bin/cpp/Main-debug", []);
+		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);

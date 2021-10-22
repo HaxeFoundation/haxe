@@ -83,7 +83,7 @@ class Hl {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
-		runCommand(hlBinary, ["bin/hl/sys.hl"]);
+		runSysTest(hlBinary, ["bin/hl/sys.hl"]);
 
 		changeDirectory(miscHlDir);
 		runCommand("haxe", ["run.hxml"]);

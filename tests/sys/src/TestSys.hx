@@ -5,18 +5,38 @@ class TestSys extends TestCommandBase {
 		return Sys.command(cmd, args);
 	}
 
-	function testEnv() {
-		#if !(java)
+	function testEnvironment() {
+		var env = Sys.environment();
+		// EXISTS should be set manually via the command line
+		Assert.notNull(env.get("EXISTS"));
+		Assert.isNull(env.get("doesn't exist"));
+	}
+
+	function testGetEnv() {
+		// EXISTS should be set manually via the command line
+		Assert.notNull(Sys.getEnv("EXISTS"));
+		Assert.isNull(Sys.getEnv("doesn't exist"));
+	}
+
+	#if !java
+	function testPutEnv() {
 		Sys.putEnv("foo", "value");
 		Assert.equals("value", Sys.getEnv("foo"));
-		#end
-		Assert.equals(null, Sys.getEnv("doesn't exist"));
 
-		#if !(java)
 		var env = Sys.environment();
 		Assert.equals("value", env.get("foo"));
+
+		// null
+		Sys.putEnv("foo", null);
+		Assert.isNull(Sys.getEnv("foo"));
+
+		#if !(python || cs) // #10401
+		env = Sys.environment();
 		#end
+
+		Assert.isFalse(env.exists("foo"));
 	}
+	#end
 
 	function testProgramPath() {
 		var p = Sys.programPath();
