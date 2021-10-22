@@ -491,47 +491,6 @@ and display_expr ctx e_ast e dk mode with_type p =
 		in
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (DisplayPosition.display_position#with_pos p))
 
-let handle_structure_display ctx e fields origin =
-	let p = pos e in
-	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) fields [] in
-	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
-	let tpair ?(values=PMap.empty) t =
-		let ct = CompletionType.from_type (get_import_status ctx) ~values t in
-		(t,ct)
-	in
-	let make_field_item cf =
-		make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)
-	in
-	match fst e with
-	| EObjectDecl fl ->
-		let fields = ref fields in
-		let rec loop subj fl = match fl with
-			| [] -> subj
-			| ((n,p,_),_) :: fl ->
-				let subj = if DisplayPosition.display_position#enclosed_in p then
-					Some(n,p)
-				else begin
-					fields := List.filter (fun cf -> cf.cf_name <> n) !fields;
-					subj
-				end in
-				loop subj fl
-		in
-		let subj = loop None fl in
-		let name,pinsert = match subj with
-			| None -> None,DisplayPosition.display_position#with_pos (pos e)
-			| Some(name,p) -> Some name,p
-		in
-		let fields = List.map make_field_item !fields in
-		raise_fields fields CRStructureField (make_subject name pinsert)
-	| EBlock [] ->
-		let fields = List.fold_left (fun acc cf ->
-			(make_field_item cf) :: acc
-		) [] fields in
-		let pinsert = DisplayPosition.display_position#with_pos (pos e) in
-		raise_fields fields CRStructureField (make_subject None pinsert)
-	| _ ->
-		error "Expected object expression" p
-
 let handle_display ctx e_ast dk mode with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
@@ -660,6 +619,57 @@ let handle_display ctx e_ast dk mode with_type =
 			e
 	end else
 		f()
+
+let handle_structure_display ctx e fields origin =
+	let p = pos e in
+	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) fields [] in
+	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
+	let tpair ?(values=PMap.empty) t =
+		let ct = CompletionType.from_type (get_import_status ctx) ~values t in
+		(t,ct)
+	in
+	let make_field_item cf =
+		make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)
+	in
+	match fst e with
+	| EObjectDecl fl ->
+		let fields = ref fields in
+		let rec loop subj fl = match fl with
+			| [] -> subj
+			| ((n,p,_),e) :: fl ->
+				let subj = if DisplayPosition.display_position#enclosed_in p then
+					Some(n,p)
+				else begin
+					if DisplayPosition.display_position#enclosed_in ({ (pos e) with pmin = p.pmax + 1 }) then begin
+						let e = fst e, { (pos e) with pmin = p.pmax + 1 } in
+						let wt =
+							try
+								let cf = List.find (fun { cf_name = name } -> name = n) !fields in
+								WithType.with_type cf.cf_type
+							with Not_found -> WithType.value
+						in
+						ignore(handle_display ctx e DKMarked MGet wt)
+					end;
+					fields := List.filter (fun cf -> cf.cf_name <> n) !fields;
+					subj
+				end in
+				loop subj fl
+		in
+		let subj = loop None fl in
+		let name,pinsert = match subj with
+			| None -> None,DisplayPosition.display_position#with_pos (pos e)
+			| Some(name,p) -> Some name,p
+		in
+		let fields = List.map make_field_item !fields in
+		raise_fields fields CRStructureField (make_subject name pinsert)
+	| EBlock [] ->
+		let fields = List.fold_left (fun acc cf ->
+			(make_field_item cf) :: acc
+		) [] fields in
+		let pinsert = DisplayPosition.display_position#with_pos (pos e) in
+		raise_fields fields CRStructureField (make_subject None pinsert)
+	| _ ->
+		error "Expected object expression" p
 
 let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =
