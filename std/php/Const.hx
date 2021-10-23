@@ -659,4 +659,11 @@ extern class Const {
 	static final FTP_TEXT: Int;
 	static final FTP_TIMEOUT_SEC: Int;
 	static final FTP_USEPASVADDRESS: Bool;
+
+	/**
+		@see http://php.net/manual/en/misc.constants.php
+	**/
+	static final CONNECTION_ABORTED: Int;
+	static final CONNECTION_NORMAL: Int;
+	static final CONNECTION_TIMEOUT: Int;
 }
