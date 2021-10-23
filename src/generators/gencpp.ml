@@ -2914,7 +2914,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
                arrayExpr, elemType
 
          | TTypeExpr module_type ->
-            let path = t_path module_type in
+            (* If we try and use the coreType / runtimeValue cpp.Int64 abstract with Class<T> then we get a class decl of the abstract *)
+            (* as that abstract has functions in its declaration *)
+            (* Intercept it and replace it with the path of the actual int64 type so the generated cpp is correct *)
+            let path = match module_type with
+            | TClassDecl ({ cl_path = ["cpp";"_Int64"],"Int64_Impl_" }) -> ["cpp"],"Int64"
+            | _ -> t_path module_type in
             CppClassOf(path, is_native_gen_module module_type), TCppClass
 
          | TBinop (op,left,right) ->
