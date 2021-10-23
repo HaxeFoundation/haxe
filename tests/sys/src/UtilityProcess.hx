@@ -28,6 +28,8 @@ class UtilityProcess {
 		Path.join(["bin", "python"]);
 #elseif eval
 		Path.join(["src"]);
+#elseif js
+		Path.join(["bin", "js"]);
 #else
 		null;
 #end
@@ -64,6 +66,8 @@ class UtilityProcess {
 		"UtilityProcess.py";
 #elseif eval
 		"UtilityProcess.hx";
+#elseif js
+		"UtilityProcess.js";
 #else
 		null;
 #end
@@ -118,7 +122,7 @@ class UtilityProcess {
 			stderr: stderr
 		};
 	}
-	
+
 	public static function main():Void {
 		var args = Sys.args();
 		function sequenceIndex(d:String, mode:String):String return (switch (UnicodeSequences.valid[Std.parseInt(d)]) {

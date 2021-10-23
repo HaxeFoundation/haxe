@@ -211,7 +211,7 @@ let convert_fields gctx pfm =
 		l
 
 module AnnotationHandler = struct
-	let generate_annotations builder meta =
+	let convert_annotations meta =
 		let parse_path e =
 			let sl = try string_list_of_expr_path_raise e with Exit -> Error.error "Field expression expected" (pos e) in
 			let path = match sl with
@@ -248,17 +248,22 @@ module AnnotationHandler = struct
 			| _ ->
 				Error.error "Call expression expected" (pos e)
 		in
-		List.iter (fun (m,el,_) -> match m,el with
+		ExtList.List.filter_map (fun (m,el,_) -> match m,el with
 			| Meta.Meta,[e] ->
 				let path,annotation = parse_expr e in
 				let path = match path with
 					| [],name -> ["haxe";"root"],name
 					| _ -> path
 				in
-				builder#add_annotation path annotation;
+				Some(path,annotation)
 			| _ ->
-				()
+				None
 		) meta
+
+	let generate_annotations builder meta =
+		List.iter (fun (path,annotation) ->
+			builder#add_annotation path annotation
+		) (convert_annotations meta)
 end
 
 let enum_ctor_sig =
@@ -2026,13 +2031,16 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#cast e.etype;
 		| TThrow e1 ->
 			self#texpr rvalue_any e1;
-			if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
-				let exc = new haxe_exception gctx e1.etype in
-				if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
-					jm#add_thrown_exception exc#get_native_path;
-			end;
-			code#athrow;
-			jm#set_terminated true
+			(* There could be something like `throw throw`, so we should only throw if we aren't terminated (issue #10363) *)
+			if not (jm#is_terminated) then begin
+				if not (Exceptions.is_haxe_exception e1.etype) && not (does_unify e1.etype gctx.t_runtime_exception) then begin
+					let exc = new haxe_exception gctx e1.etype in
+					if not (List.exists (fun exc' -> exc#is_assignable_to exc') caught_exceptions) then
+						jm#add_thrown_exception exc#get_native_path;
+				end;
+				code#athrow;
+				jm#set_terminated true
+			end
 		| TObjectDecl fl ->
 			let td = gctx.anon_identification#identify true e.etype in
 			begin match follow e.etype,td with
@@ -2357,7 +2365,13 @@ class tclass_to_jvm gctx c = object(self)
 		in
 		let handler = new texpr_to_jvm gctx jc jm tr in
 		List.iter (fun (v,_) ->
-			ignore(handler#add_local v VarArgument);
+			let slot,_,_ = handler#add_local v VarArgument in
+			let annot = AnnotationHandler.convert_annotations v.v_meta in
+			match annot with
+			| [] ->
+				()
+			| _ ->
+				jm#add_argument_annotation slot annot;
 		) args;
 		jm#finalize_arguments;
 		begin match mtype with
@@ -2472,7 +2486,8 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		let ssig = generate_signature true (jsignature_of_type gctx cf.cf_type) in
 		let offset = jc#get_pool#add_string ssig in
-		jm#add_attribute (AttributeSignature offset)
+		jm#add_attribute (AttributeSignature offset);
+		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
 
 	method generate_main e =
 		let jsig = method_sig [array_sig string_sig] None in
@@ -2922,7 +2937,7 @@ let generate jvm_flag com =
 		default_export_config = {
 			export_debug = true;
 		};
-		detail_times = Common.Define.raw_defined com.defines "jvm-times";
+		detail_times = Common.raw_defined com "jvm_times";
 		timer = new Timer.timer ["generate";"java"];
 		jar_compression_level = compression_level;
 		dynamic_level = dynamic_level;

@@ -138,6 +138,15 @@ class System {
 		}
 	}
 
+	static public function haxelibDev(library:String, path:String):Void {
+		try {
+			getHaxelibPath(library);
+			infoMsg('$library has already been installed.');
+		} catch (e:Dynamic) {
+			runCommand("haxelib", ["dev", library, path]);
+		}
+	}
+
 	static public function haxelibRun(args:Array<String>, useRetry:Bool = false):Void {
 		runCommand("haxelib", ["run"].concat(args), useRetry);
 	}

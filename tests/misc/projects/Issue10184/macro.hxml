@@ -1,0 +1,7 @@
+# test defines set via define macro function
+--macro define("f-dash")
+--macro define("f_underscore")
+--macro define("v-dash", "value")
+--macro define("v_underscore", "value")
+
+--run Flags

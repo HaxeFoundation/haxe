@@ -219,6 +219,16 @@ module Pattern = struct
 		let con_type_expr mt p = ConTypeExpr mt,p in
 		let con_array i p = ConArray i,p in
 		let con_fields fl p = ConFields fl,p in
+		let get_enumerable_idents () = match follow t with
+			| TEnum(en,_) ->
+				en.e_names
+			| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
+				ExtList.List.filter_map (fun cf ->
+					if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
+				) c.cl_ordered_statics
+			| _ ->
+				[]
+		in
 		let check_expr e =
 			let rec loop e = match e.eexpr with
 				| TField(_,FEnum(en,ef)) ->
@@ -231,7 +241,19 @@ module Pattern = struct
 					PatConstructor(con_const ct e.epos,[])
 				| TCast(e1,None) ->
 					loop e1
-				| TField _ ->
+				| TField (ef,f) ->
+					let s = field_name f in
+					begin match StringError.get_similar s (get_enumerable_idents()) with
+						| [] -> ()
+						| l ->
+							let tpath = match follow t with
+								| TEnum (e,tl) -> s_type_path e.e_path ^ "."
+								| TAbstract (a,tl) -> s_type_path a.a_path ^ "."
+								| _ -> ""
+							in
+							let fields = List.map (fun (el) -> tpath ^ el) l in
+							pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
+					end;
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
 					PatConstructor(con_type_expr mt e.epos,[])
@@ -292,17 +314,7 @@ module Pattern = struct
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Pattern variables must be lower-case" p;
 					end;
-					let sl = match follow t with
-						| TEnum(en,_) ->
-							en.e_names
-						| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
-							ExtList.List.filter_map (fun cf ->
-								if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
-							) c.cl_ordered_statics
-						| _ ->
-							[]
-					in
-					begin match StringError.get_similar s sl with
+					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->
 							()
 							(* if toplevel then
