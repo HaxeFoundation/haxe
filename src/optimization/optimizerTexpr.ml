@@ -92,6 +92,9 @@ let rec optimize_binop e op e1 e2 =
 		let fstr = Numeric.float_repres f in
 		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
+	let preserve_cast t = match follow t with
+		| TAbstract({ a_path = [],("Int"|"Float") }, _) -> false
+		| _ -> true in
 	(match e1.eexpr, e2.eexpr with
 	| TConst (TInt 0l) , _ when op = OpAdd && is_numeric e2.etype -> e2
 	| TConst (TInt 1l) , _ when op = OpMult -> e2
@@ -101,8 +104,12 @@ let rec optimize_binop e op e1 e2 =
 	| _ , TConst (TInt 1l) when op = OpMult -> e1
 	| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
 	| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
-	| TCast (inner, cast_mt) , _ when is_numeric e1.etype -> optimize_binop e op inner e2
-	| _ , TCast (inner, cast_mt) when is_numeric e2.etype -> optimize_binop e op e1 inner
+	| TCast (inner, cast_mt) , _ when is_numeric e1.etype ->
+		let optimised = optimize_binop e op inner e2 in
+		if (preserve_cast e.etype) then { e with eexpr = TCast (optimised, cast_mt) } else optimised
+	| _ , TCast (inner, cast_mt) when is_numeric e2.etype ->
+		let optimised = optimize_binop e op e1 inner in
+		if (preserve_cast e.etype) then { e with eexpr = TCast (optimised, cast_mt) } else optimised
 	| TConst TNull, TConst TNull ->
 		(match op with
 		| OpEq -> { e with eexpr = TConst (TBool true) }
