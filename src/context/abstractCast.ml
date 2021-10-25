@@ -35,7 +35,10 @@ and do_check_cast ctx uctx tleft eright p =
 		if cf.cf_kind = Method MethMacro then begin
 			match cast_stack.rec_stack with
 			| previous_from :: _ when previous_from == cf ->
-				raise (Error (Unify [cannot_unify eright.etype tleft], eright.epos));
+				(try
+					Type.unify_custom uctx eright.etype tleft;
+				with Unify_error l ->
+					raise (Error (Unify l, eright.epos)))
 			| _ -> ()
 		end;
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
