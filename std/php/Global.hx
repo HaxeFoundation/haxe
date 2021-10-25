@@ -2083,4 +2083,19 @@ extern class Global {
 		@see http://php.net/manual/en/function.ftp-systype.php
 	**/
 	static function ftp_systype(ftp: Resource): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.connection-aborted.php
+	**/
+	static function connection_aborted(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.connection-status.php
+	**/
+	static function connection_status(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ignore-user-abort.php
+	**/
+	static function ignore_user_abort(enable: Null<Bool> = null): Int;
 }
