@@ -1249,7 +1249,11 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	} in
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
-	if fctx.is_abstract then add_class_field_flag cf CfAbstract;
+	if fctx.is_abstract then begin
+		if fctx.field_kind = FKConstructor then
+			display_error ctx "Constructors cannot be abstract" p;
+		add_class_field_flag cf CfAbstract;
+	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	if fctx.is_generic then add_class_field_flag cf CfGeneric;
 	begin match fctx.overload with
