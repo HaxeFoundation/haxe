@@ -590,19 +590,11 @@ module Fusion = struct
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
 			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
-			let rec contains_pure_meta metadata = match metadata with
-				| [] -> false
-				| (Meta.Pure, [], _) :: _
-				| (Meta.Pure, [(EConst (Ident ("true")), _)], _) :: _  -> true
-				| _ :: rest -> contains_pure_meta rest
-			in
 			let rec is_impure_extern e = match e.eexpr with
 				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
 					not (
 						Meta.has Meta.CoreApi cl.cl_meta ||
-						Meta.has Meta.NoClosure cl.cl_meta ||
-						contains_pure_meta cf.cf_meta ||
-						contains_pure_meta cl.cl_meta
+						PurityState.is_pure cl cf
 					)
 				| _ -> check_expr is_impure_extern e
 			in
