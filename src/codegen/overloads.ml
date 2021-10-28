@@ -258,43 +258,59 @@ struct
 			in
 			(* convert compatible into ( rate * compatible_type ) list *)
 			let rec mk_rate acc elist args = match elist, args with
-				| [], [] -> acc
-				| _ :: elist, (_,true,_) :: args -> mk_rate acc elist args
+				| [], [] ->
+					acc,false
+				| _ :: elist, (_,true,_) :: args ->
+					mk_rate acc elist args
 				| elist, [n,o,t] when ExtType.is_rest (follow t) ->
 					let t = match follow t with
 						| TAbstract({a_path=["haxe"],"Rest"},[t]) -> t
 						| _ -> die "" __LOC__
 					in
 					let rates = List.map (rate_arg t) elist in
-					acc @ rates
+					acc @ rates,true
 				| e :: elist, (n,o,t) :: args ->
 					mk_rate ((rate_arg t e) :: acc) elist args
 				| [],_ ->
 					(* this can happen on pf_pad_nulls = false targets, see #10434 *)
-					acc
+					acc,false
 				| _ -> die "" __LOC__
 			in
 
-			let rated = ref [] in
-			List.iter (fun fcc -> match fcc.fc_type with
-				| TFun(args,ret) -> (try
-					rated := ( fcc, mk_rate [] fcc.fc_args args ) :: !rated
-					with | Not_found -> ())
-				| _ -> die "" __LOC__
-			) compatible;
-
-			let rec loop best rem = match best, rem with
-				| _, [] -> best
-				| [], r1 :: rem -> loop [r1] rem
-				| (bover, bargs) :: b1, (rover, rargs) :: rem ->
-					if is_best bargs rargs then
-						loop best rem
-					else if is_best rargs bargs then
-						loop (loop b1 [rover,rargs]) rem
-					else (* equally specific *)
-						loop ( (rover,rargs) :: best ) rem
+			let rec loop best l = match l with
+				| [] ->
+					begin match best with
+						| Some(_,_,l) -> l
+						| None -> []
+					end
+				| fcc :: l ->
+					let args,ret = match follow fcc.fc_type with
+						| TFun(args,ret) -> args,ret
+						| _ -> die "" __LOC__
+					in
+					begin try
+						let (rate,is_rest) = mk_rate [] fcc.fc_args args in
+						let (best_rate,best_is_rest,best_l) = match best with
+							| None ->
+								(* If it's the first one, assume it's the best *)
+								(rate,is_rest,[fcc])
+							| Some(best_rate,best_is_rest,best_l) ->
+								if is_best rate best_rate then
+									(rate,is_rest,[fcc])
+								else if is_best best_rate rate then
+									(best_rate,best_is_rest,best_l)
+								(* If they are equal, we prefer the one without Rest (issue #10205) *)
+								else if is_rest && not best_is_rest then
+									(best_rate,best_is_rest,best_l)
+								else if not is_rest && best_is_rest then
+									(rate,is_rest,[fcc])
+								else
+									(best_rate,best_is_rest,fcc :: best_l)
+						in
+						loop (Some(best_rate,best_is_rest,best_l)) l
+					with Not_found ->
+						loop best l
+					end
 			in
-
-			let r = loop [] !rated in
-			List.map fst r
+			loop None compatible
 end
