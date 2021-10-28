@@ -402,11 +402,6 @@ let is_dynamic_iterator ctx e =
 	| _ ->
 		false
 
-let pass_tdynamic_in_tcast e t =
-	match t == t_dynamic, e.eexpr with
-	| true, TField(_,FClosure _) -> {e with etype = t}
-	| _ -> e
-
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
@@ -661,7 +656,7 @@ and gen_expr ctx e =
 		print ctx "$bind(";
 		gen_value ctx x;
 		print ctx ",$arrayPush)"
-	| TField (x,FClosure (_,f)) when e.etype != t_dynamic ->
+	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use.$bind";
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
@@ -695,8 +690,7 @@ and gen_expr ctx e =
 		spr ctx (module_field m f)
 	| TField (x,f) ->
 		let rec skip e = match e.eexpr with
-			| TMeta(_,e1) -> skip e1
-			| TCast(e1,None) -> skip (pass_tdynamic_in_tcast e1 e.etype)
+			| TCast(e1,None) | TMeta(_,e1) -> skip e1
 			| TConst(TInt _ | TFloat _) | TObjectDecl _ -> {e with eexpr = TParenthesis e}
 			| _ -> e
 		in
@@ -884,8 +878,8 @@ and gen_expr ctx e =
 			newline ctx;
 		);
 		spr ctx "}"
-	| TCast (e1,None) ->
-		gen_expr ctx (pass_tdynamic_in_tcast e1 e.etype)
+	| TCast (e,None) ->
+		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
 		gen_value ctx e1;
@@ -1017,7 +1011,7 @@ and gen_value ctx e =
 	| TContinue ->
 		unsupported e.epos
 	| TCast (e1, None) ->
-		gen_value ctx (pass_tdynamic_in_tcast e1 e.etype)
+		gen_value ctx e1
 	| TCast (e1, Some t) ->
 		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
 		gen_value ctx e1;
