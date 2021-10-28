@@ -1,6 +1,6 @@
 package unit.issues;
 
-class Issue12205 extends unit.Test {
+class Issue10205 extends unit.Test {
 	function test() {
 		eq("no rest foo", over("foo"));
 		eq("rest foo bar", over("foo", "bar"));
