@@ -280,7 +280,7 @@ struct
 			let rec loop best l = match l with
 				| [] ->
 					begin match best with
-						| Some(_,_,l) -> l
+						| Some(_,_,l) -> List.rev l
 						| None -> []
 					end
 				| fcc :: l ->
