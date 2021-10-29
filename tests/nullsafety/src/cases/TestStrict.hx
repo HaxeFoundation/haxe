@@ -112,6 +112,8 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 
 @:build(Validator.checkFields())
 class TestStrict {
+	extern static final something:String;
+
 	public var field:Null<String>;
 	// @:shouldWarn public var publiclyModifiableField:String = 'hello';
 	@:shouldFail var notInitializedField:Int;
