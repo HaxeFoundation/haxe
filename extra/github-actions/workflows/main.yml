@@ -6,7 +6,7 @@ on: [push, pull_request]
 jobs:
   cancel:
     name: "Cancel previous runs"
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 3
     steps:
       - uses: styfle/cancel-workflow-action@0.3.1
@@ -53,7 +53,7 @@ jobs:
       @import build-windows.yml
 
   linux-build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       PLATFORM: linux64
       OPAMYES: 1
@@ -132,7 +132,7 @@ jobs:
 
   linux-test:
     needs: linux-build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
@@ -193,7 +193,7 @@ jobs:
   deploy:
     if: github.event_name != 'pull_request'
     needs: [linux-test, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
@@ -265,7 +265,7 @@ jobs:
   deploy_apidoc:
     if: github.event_name != 'pull_request' # TODO: also only when `GHP_REMOTE` is present
     needs: [linux-test, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Download Haxe
         uses: actions/download-artifact@v2
