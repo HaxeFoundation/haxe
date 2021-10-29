@@ -271,7 +271,12 @@ let make_extension_type ctx tl =
 				else fields
 			) a.a_fields fields
 		| TDynamic _ ->
-			extends_dynamic := Some t;
+			begin match !extends_dynamic with
+			| None ->
+				extends_dynamic := Some t;
+			| Some _ ->
+				display_error ctx "Can only extend one Dynamic<T>" p
+			end;
 			fields
 		| _ ->
 			error "Can only extend structures" p

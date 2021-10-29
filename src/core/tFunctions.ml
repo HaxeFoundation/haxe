@@ -420,7 +420,11 @@ let apply_params ?stack cparams params t =
 			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 		| TAnon a ->
 			let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
-			mk_anon ~fields a.a_status
+			let status = match !(a.a_status) with
+				| Extend tl -> ref (Extend (List.map loop tl))
+				| _ -> a.a_status
+			in
+			mk_anon ~fields status
 		| TLazy f ->
 			let ft = lazy_type f in
 			let ft2 = loop ft in
