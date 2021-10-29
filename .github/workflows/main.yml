@@ -862,6 +862,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
           HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
+          AWS_EC2_METADATA_DISABLED: true
         run: |
           set -ex
           COMMIT_HASH_SHORT=${GITHUB_SHA:0:7}
@@ -884,6 +885,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
           HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
+          AWS_EC2_METADATA_DISABLED: true
         run: |
           set -ex
           aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/haxe_latest.tar.gz
