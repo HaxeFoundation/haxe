@@ -1,3 +1,9 @@
+2021-XX-XX 4.2.5:
+
+	Bugfixes:
+
+	all : fixed compiler crash in complex constraints chains (#10445)
+
 2021-10-22 4.2.4:
 
 	New features:
