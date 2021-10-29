@@ -485,7 +485,8 @@ let rec validate_safety_meta report (metadata:Ast.metadata) =
 	Check if specified `field` represents a `var` field which will exist at runtime.
 *)
 let should_be_initialized field =
-	match field.cf_kind with
+	not (has_class_field_flag field CfExtern)
+	&& match field.cf_kind with
 		| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> true
 		| Var _ -> Meta.has Meta.IsVar field.cf_meta
 		| _ -> false
