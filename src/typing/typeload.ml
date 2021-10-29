@@ -263,17 +263,25 @@ let is_redefined ctx cf1 fields p =
 		false
 
 let make_extension_type ctx tl =
+	let extends_dynamic = ref None in
 	let mk_extension fields (t,p) = match follow t with
 		| TAnon a ->
 			PMap.fold (fun cf fields ->
 				if not (is_redefined ctx cf fields p) then PMap.add cf.cf_name cf fields
 				else fields
 			) a.a_fields fields
+		| TDynamic _ ->
+			extends_dynamic := Some t;
+			fields
 		| _ ->
 			error "Can only extend structures" p
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
 	let tl = List.map (fun (t,_) -> t) tl in
+	let tl = match !extends_dynamic with
+		| None -> tl
+		| Some t -> t :: tl
+	in
 	let ta = mk_anon ~fields (ref (Extend tl)) in
 	ta
 

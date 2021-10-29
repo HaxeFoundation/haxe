@@ -58,6 +58,23 @@ let remove_constant_flag t callb =
 		restore();
 		raise e
 
+let extract_dynamic_parameter_from_anon an = match !(an.a_status) with
+	| Extend tl ->
+		let rec loop tl = match tl with
+			| t :: tl ->
+				begin match follow t with
+				| TDynamic t ->
+					t
+				| _ ->
+					loop tl
+				end
+			| [] ->
+				raise Not_found
+		in
+		loop tl
+	| _ ->
+		raise Not_found
+
 let enum_field_type ctx en ef p =
 	let tl_en = Monomorph.spawn_constrained_monos (fun t -> t) en.e_params in
 	let map = apply_params en.e_params tl_en in
@@ -518,6 +535,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
 		| TDynamic t ->
+			AKExpr (mk (TField (e,FDynamic i)) t p)
+		| TAnon an ->
+			let t =  extract_dynamic_parameter_from_anon an in
 			AKExpr (mk (TField (e,FDynamic i)) t p)
 		| TAbstract (a,tl) ->
 			(try

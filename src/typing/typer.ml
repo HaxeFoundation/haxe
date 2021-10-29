@@ -763,7 +763,13 @@ and type_object_decl ctx fl with_type p =
 	| WithType.WithType(t,_) ->
 		let rec loop seen t =
 			match follow t with
-			| TAnon a -> ODKWithStructure a
+			| TAnon a ->
+				begin try
+					dynamic_parameter := Some (extract_dynamic_parameter_from_anon a);
+				with Not_found ->
+					()
+				end;
+				ODKWithStructure a
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
