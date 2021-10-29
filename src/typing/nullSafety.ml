@@ -773,6 +773,12 @@ class local_safety (mode:safety_mode) =
 			scopes <- scope :: scopes;
 			List.iter (fun (v, _) -> scope#declare_var v) fn.tf_args
 		(**
+			Should be called upon standalone block declaration.
+		*)
+		method block_declared =
+			let scope = new safety_scope mode STNormal self#get_current_scope#get_safe_locals self#get_current_scope#get_never_safe in
+			scopes <- scope :: scopes
+		(**
 			Should be called upon entering a loop.
 		*)
 		method loop_declared e =
@@ -1057,10 +1063,25 @@ class expr_checker mode immediate_execution report =
 				| TReturn (Some e) -> self#is_nullable_expr e
 				| TBinop ((OpAssign | OpAssignOp _), _, right) -> self#is_nullable_expr right
 				| TBlock exprs ->
-					(match exprs with
+					local_safety#block_declared;
+					let rec traverse exprs =
+						match exprs with
+							| [] -> false
+							| [e] -> self#is_nullable_expr e
+							| e :: exprs ->
+								(match e.eexpr with
+									| TVar (v,_) -> local_safety#declare_var v
+									| _ -> ()
+								);
+								traverse exprs
+					in
+					let is_nullable = traverse exprs in
+					local_safety#scope_closed;
+					is_nullable
+					(* (match exprs with
 						| [] -> false
 						| _ -> self#is_nullable_expr (List.hd (List.rev exprs))
-					)
+					) *)
 				| TIf _ ->
 					let nullable = ref false in
 					let check body = nullable := !nullable || self#is_nullable_expr body in
@@ -1150,11 +1171,16 @@ class expr_checker mode immediate_execution report =
 			Check expressions in a block
 		*)
 		method private check_block exprs p =
-			match exprs with
-				| [] -> ()
-				| e :: rest ->
-					self#check_expr e;
-					self#check_block rest p
+			local_safety#block_declared;
+			let rec traverse exprs =
+				match exprs with
+					| [] -> ()
+					| e :: rest ->
+						self#check_expr e;
+						traverse rest
+			in
+			traverse exprs;
+			local_safety#scope_closed
 		(**
 			Don't allow to use nullable values as items in declaration of not-nullable arrays
 		*)

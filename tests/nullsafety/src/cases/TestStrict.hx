@@ -996,6 +996,18 @@ class TestStrict {
 		else a = 'hello';
 		var s:String = a;
 	}
+
+	/**
+	 * @see https://github.com/HaxeFoundation/haxe/pull/10428#issuecomment-951574457
+	 */
+	static function issue10428() {
+		final arr:Array<Int> = [
+			{
+				var tmp = (1 : Null<Int>);
+				if (tmp != null) tmp else 2;
+			}
+		];
+	}
 }
 
 private class FinalNullableFields {
