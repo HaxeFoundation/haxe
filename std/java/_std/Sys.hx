@@ -48,7 +48,7 @@ using haxe.Int64;
 		return java.lang.System.getenv(s);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		// java offers no support for it (!)
 		throw new haxe.exceptions.NotImplementedException("Not implemented in this platform");
 	}

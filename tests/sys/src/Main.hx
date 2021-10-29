@@ -23,15 +23,9 @@ class Main {
 		#end
 		#end
 		#if php
-		switch (Sys.systemName()) {
-			case "Windows":
-				// pass
-			case _:
-				runner.addCase(new net.TestSocket());
-		}
-		#else
-			runner.addCase(new net.TestSocket());
+		if (Sys.systemName() != "Windows")
 		#end
+			runner.addCase(new net.TestSocket());
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;

@@ -98,7 +98,9 @@ class Sys {
 		return Os.getenv(s);
 	}
 
-	public inline static function putEnv(s:String, v:String):Void {
+	public inline static function putEnv(s:String, v:Null<String>):Void {
+		if (v == null)
+			return Os.unsetenv(s);
 		Os.setenv(s, v);
 	}
 

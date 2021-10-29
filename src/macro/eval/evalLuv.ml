@@ -2141,6 +2141,10 @@ let env_fields = [
 		and value = decode_native_string v2 in
 		encode_unit_result (Env.setenv name ~value)
 	);
+	"unsetEnv", vfun1 (fun v ->
+		let name = decode_string v in
+		encode_unit_result (Env.unsetenv name)
+	);
 	"environ", vfun0 (fun() ->
 		let encode env =
 			let map =

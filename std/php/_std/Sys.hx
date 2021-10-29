@@ -50,9 +50,14 @@ import haxe.SysTools;
 		return value == false ? null : value;
 	}
 
-	public static function putEnv(s:String, v:String):Void {
-		customEnvVars[s] = '$v'; // in case of `null` it should become `"null"`
-		Global.putenv('$s=$v');
+	public static function putEnv(s:String, v:Null<String>):Void {
+		if (v == null) {
+			Global.unset(customEnvVars[s]);
+			Global.putenv('$s');
+		} else {
+			customEnvVars[s] = '$v'; // in case of `null` it should become `"null"`
+			Global.putenv('$s=$v');
+		}
 	}
 
 	public static inline function sleep(seconds:Float):Void {
