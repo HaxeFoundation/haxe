@@ -274,8 +274,8 @@ let precedence op =
 	| OpArrow -> 10, right
 	| OpAssign | OpAssignOp _ -> 11, right
 
-let is_not_assign = function
-	| OpAssign | OpAssignOp _ -> false
+let is_higher_than_ternary = function
+	| OpAssign | OpAssignOp _ | OpArrow -> false
 	| _ -> true
 
 let swap op1 op2 =
@@ -288,7 +288,7 @@ let rec make_binop op e ((v,p2) as e2) =
 	| EBinop (_op,_e,_e2) when swap op _op ->
 		let _e = make_binop op e _e in
 		EBinop (_op,_e,_e2) , punion (pos _e) (pos _e2)
-	| ETernary (e1,e2,e3) when is_not_assign op ->
+	| ETernary (e1,e2,e3) when is_higher_than_ternary op ->
 		let e = make_binop op e e1 in
 		ETernary (e,e2,e3) , punion (pos e) (pos e3)
 	| _ ->
