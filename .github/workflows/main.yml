@@ -36,7 +36,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -144,7 +144,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -246,7 +246,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -348,7 +348,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -464,7 +464,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -565,7 +565,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -675,7 +675,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
@@ -773,7 +773,7 @@ jobs:
         run: |
           set -ex
       
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_2019-12-02_master_1df580c.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
           tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
           NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
           sudo mkdir -p /usr/local/bin
