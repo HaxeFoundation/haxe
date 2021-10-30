@@ -488,6 +488,14 @@ let rec gen_call ctx e el in_value =
 			| _ ->
 				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
 		)
+	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "unbind" })), [e] ->
+		(match e.eexpr with
+		| TField(x, FClosure(_,f)) ->
+			gen_value ctx x;
+			if not (Meta.has Meta.SelfCall f.cf_meta) then spr ctx (field f.cf_name)
+		| _ ->
+			gen_value ctx e
+		)
 	| TIdent "__new__", args ->
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos

@@ -144,6 +144,14 @@ class Lib {
 	}
 
 	/**
+		Avoid applying "$bind" to member functions
+	**/
+	@:noClosure
+	public static function unbind(fn:haxe.Constraints.Function):Dynamic {
+		return fn; // function is implemented in the compiler
+	}
+
+	/**
 		Generate next unique id
 	**/
 	@:allow(haxe.ds.ObjectMap.assignId)

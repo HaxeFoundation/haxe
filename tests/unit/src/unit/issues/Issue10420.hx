@@ -9,17 +9,19 @@ class Issue10420 extends Test {
 	function test() {
 		var obj = {count : 101};
 
-		eq((func :  Dynamic).apply(obj), obj.count);
+		eq(UNBIND(func).call(obj), obj.count);
 
-		var jsbind = (func :  Dynamic).bind(obj);
+		var jsbind = UNBIND(func).bind(obj);
 		eq(jsbind(), obj.count);
 
-		var jsv = js.Syntax.code("{0}.apply({1})", (func : Dynamic), obj);
+		var jsv = js.Syntax.code("{0}.apply({1})", UNBIND(func), obj);
 		eq(jsv, obj.count);
 
 		// .apply will not works on haxe $bind
 		var hxv = js.Syntax.code("{0}.apply({1})", func, obj);
 		eq(hxv, this.count);
 	}
+
+	static inline function UNBIND(fn) return js.Lib.unbind(fn);
 #end
 }
