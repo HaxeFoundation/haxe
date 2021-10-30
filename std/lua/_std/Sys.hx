@@ -89,7 +89,7 @@ class Sys {
 	}
 
 	public inline static function getCwd():String
-		return Misc.cwd();
+		return haxe.io.Path.addTrailingSlash(Misc.cwd());
 
 	public inline static function setCwd(s:String):Void
 		Misc.chdir(s);

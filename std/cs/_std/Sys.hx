@@ -83,7 +83,7 @@ class Sys {
 	}
 
 	public static inline function getCwd():String {
-		return cs.system.io.Directory.GetCurrentDirectory();
+		return haxe.io.Path.addTrailingSlash(cs.system.io.Directory.GetCurrentDirectory());
 	}
 
 	public static inline function setCwd(s:String):Void {
