@@ -15,7 +15,7 @@ class Flash {
 	static final miscFlashDir = getMiscSubDir('flash');
 
 	static function getLatestFPVersion():Array<Int> {
-		final appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		final appcast = Xml.parse(haxe.Http.requestUrl("https://fpdownload.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
 		final versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
 		return versionStr.split(",").map(Std.parseInt);
 	}
@@ -24,7 +24,7 @@ class Flash {
 		if (commandSucceed("mxmlc", ["--version"])) {
 			infoMsg('mxmlc has already been installed.');
 		} else {
-			var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
+			var apacheMirror = Json.parse(Http.requestUrl("https://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
 			var flexVersion = "4.16.0";
 			runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz']);
 			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", getDownloadPath()]);
@@ -33,7 +33,7 @@ class Flash {
 			var playerglobalswcFolder = flexsdkPath + "/player";
 			FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
 			var flashVersion = runci.targets.Flash.getLatestFPVersion();
-			runNetworkCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"]);
+			runNetworkCommand("wget", ["-nv", 'https://fpdownload.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"]);
 			File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 			runCommand("mxmlc", ["--version"]);
 		}
@@ -59,7 +59,7 @@ class Flash {
 						"libglib2.0-0", "libfreetype6"
 					]);
 					var majorVersion = getLatestFPVersion()[0];
-					runNetworkCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz']);
+					runNetworkCommand("wget", ["-nv", 'https://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz']);
 					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", getDownloadPath()]);
 					playerCmd = Path.join([getDownloadPath(), "flashplayerdebugger"]);
 				}
