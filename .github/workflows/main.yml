@@ -397,7 +397,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash9, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -455,6 +455,13 @@ jobs:
           pip install hererocks
           hererocks lua53 -l5.3 -rlatest
           call lua53/bin/activate
+
+      - name: Install wget
+        if: matrix.target == 'flash9'
+        shell: cmd
+        run: |
+          choco install wget
+          wget --version
 
       - name: Setup haxelib
         shell: pwsh
@@ -482,7 +489,7 @@ jobs:
       matrix:
         # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+        target: [macro, js, hl, cpp, java, cs, php, python, flash9, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -541,6 +548,13 @@ jobs:
           hererocks lua53 -l5.3 -rlatest
           call lua53/bin/activate
 
+      - name: Install wget
+        if: matrix.target == 'flash9'
+        shell: cmd
+        run: |
+          choco install wget
+          wget --version
+
       - name: Setup haxelib
         shell: pwsh
         run: |
@@ -563,7 +577,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, neko] #flash9
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
         include:
           - target: hl
             BREW_PACKAGES: ninja
