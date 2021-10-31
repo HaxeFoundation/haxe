@@ -69,6 +69,7 @@ class Sys {
 
 	public static function putEnv(s:String, v:Null<String>):Void {
 		if (v == null) {
+			python.lib.Os.unsetenv(s);
 			environ.remove(s);
 			return;
 		}

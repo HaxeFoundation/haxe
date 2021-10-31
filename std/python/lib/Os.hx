@@ -57,6 +57,8 @@ extern class Os {
 
 	static function putenv(name:String, value:String):Void;
 
+	static function unsetenv(name:String):Void;
+
 	static function chdir(path:String):Void;
 
 	static function unlink(path:String):Void;
