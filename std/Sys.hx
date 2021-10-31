@@ -64,7 +64,8 @@ extern class Sys {
 	static function putEnv(s:String, v:Null<String>):Void;
 
 	/**
-		Returns all environment variables.
+		Returns a map of the current environment variables and their values
+		as of the invocation of the function.
 	**/
 	static function environment():Map<String, String>;
 
