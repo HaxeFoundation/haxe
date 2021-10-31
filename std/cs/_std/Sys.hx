@@ -70,7 +70,7 @@ class Sys {
 			}
 		}
 
-		return _env;
+		return _env.copy();
 	}
 
 	public static inline function sleep(seconds:Float):Void {
