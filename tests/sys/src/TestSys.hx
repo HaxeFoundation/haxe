@@ -32,6 +32,10 @@ class TestSys extends TestCommandBase {
 		#end
 	}
 
+	function existsInSubProcess(variable:String, value:String) {
+		return UtilityProcess.runUtilityAsCommand(["checkEnv", variable, value]) == 0;
+	}
+
 	function testGetEnv() {
 		// EXISTS should be set manually via the command line
 		Assert.notNull(Sys.getEnv("EXISTS"));
@@ -45,11 +49,15 @@ class TestSys extends TestCommandBase {
 
 		Assert.equals("value", Sys.environment().get("foo"));
 
+		Assert.isTrue(existsInSubProcess("foo", "value"));
+
 		// null
 		Sys.putEnv("foo", null);
 		Assert.isNull(Sys.getEnv("foo"));
 
 		Assert.isFalse(Sys.environment().exists("foo"));
+
+		Assert.isFalse(existsInSubProcess("foo", "value"));
 	}
 	#end
 
