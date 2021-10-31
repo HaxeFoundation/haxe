@@ -10,6 +10,26 @@ class TestSys extends TestCommandBase {
 		// EXISTS should be set manually via the command line
 		Assert.notNull(env.get("EXISTS"));
 		Assert.isNull(env.get("doesn't exist"));
+
+		final nonExistent = "NON_EXISTENT";
+		env.set(nonExistent, "1");
+		// new copies should not be affected
+		Assert.isNull(Sys.environment()[nonExistent]);
+
+		#if !java
+		// env should not update when environment updates
+		final toUpdate = "TO_UPDATE";
+
+		Sys.putEnv(toUpdate, "1");
+		Assert.isNull(env.get(toUpdate));
+
+		// new copy should have the variable
+		Assert.equals("1", Sys.environment()[toUpdate]);
+
+		// environment should not update if env updates
+		env.set(toUpdate, "2");
+		Assert.equals("1", Sys.getEnv(toUpdate));
+		#end
 	}
 
 	function testGetEnv() {
@@ -23,18 +43,13 @@ class TestSys extends TestCommandBase {
 		Sys.putEnv("foo", "value");
 		Assert.equals("value", Sys.getEnv("foo"));
 
-		var env = Sys.environment();
-		Assert.equals("value", env.get("foo"));
+		Assert.equals("value", Sys.environment().get("foo"));
 
 		// null
 		Sys.putEnv("foo", null);
 		Assert.isNull(Sys.getEnv("foo"));
 
-		#if !(python || cs) // #10401
-		env = Sys.environment();
-		#end
-
-		Assert.isFalse(env.exists("foo"));
+		Assert.isFalse(Sys.environment().exists("foo"));
 	}
 	#end
 

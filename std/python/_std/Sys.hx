@@ -77,7 +77,7 @@ class Sys {
 	}
 
 	public static function environment():Map<String, String> {
-		return environ;
+		return environ.copy();
 	}
 
 	public static function sleep(seconds:Float):Void {
