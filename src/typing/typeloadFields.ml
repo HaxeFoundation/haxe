@@ -1250,8 +1250,13 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if fctx.is_abstract then begin
-		if fctx.field_kind = FKConstructor then
-			display_error ctx "Constructors cannot be abstract" p;
+		if fctx.field_kind = FKConstructor then begin
+			let p =
+				try List.assoc AAbstract f.cff_access
+				with Not_found -> p
+			in
+			display_error ctx "Constructors cannot be abstract" p
+		end;
 		add_class_field_flag cf CfAbstract;
 	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
