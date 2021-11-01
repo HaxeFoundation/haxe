@@ -4,13 +4,12 @@ import runci.System.*;
 import runci.Config.*;
 
 class Php {
-	static var miscPhpDir(get,never):String;
-	static inline function get_miscPhpDir() return miscDir + 'php/';
+	static final miscPhpDir = miscDir + 'php/';
 
 	static public function getPhpDependencies() {
-		var phpCmd = commandResult("php", ["-v"]);
-		var phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
-		var phpVer = if (phpVerReg.match(phpCmd.stdout))
+		final phpCmd = commandResult("php", ["-v"]);
+		final phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
+		final phpVer = if (phpVerReg.match(phpCmd.stdout))
 			Std.parseFloat(phpVerReg.matched(1));
 		else
 			null;
@@ -47,9 +46,9 @@ class Php {
 		changeDirectory(miscPhpDir);
 		runCommand("haxe", ["run.hxml"]);
 
-		var binDir = "bin/php";
+		final binDir = "bin/php";
 
-		var prefixes = [[]];
+		final prefixes = [[]];
 		if(isCi()) {
 			prefixes.push(['-D', 'php-prefix=haxe']);
 			prefixes.push(['-D', 'php-prefix=my.pack']);

@@ -1,6 +1,5 @@
 package runci.targets;
 
-import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 

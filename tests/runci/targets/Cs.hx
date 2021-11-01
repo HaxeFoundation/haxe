@@ -5,8 +5,7 @@ import runci.System.*;
 import runci.Config.*;
 
 class Cs {
-	static var miscCsDir(get,never):String;
-	static inline function get_miscCsDir() return miscDir + 'cs/';
+	static final miscCsDir = miscDir + 'cs/';
 
 	static public function getCsDependencies() {
 		switch (systemName) {
@@ -47,7 +46,7 @@ class Cs {
 		for (noroot in        [[], ["-D", "no_root"]])
 		for (erasegenerics in [[], ["-D", "erase_generics"]])
 		{
-			var extras = fastcast.concat(erasegenerics).concat(noroot);
+			final extras = fastcast.concat(erasegenerics).concat(noroot);
 			runCommand("haxe", ['compile-cs.hxml'].concat(extras).concat(args));
 			runCs("bin/cs/bin/TestMain-Debug.exe");
 

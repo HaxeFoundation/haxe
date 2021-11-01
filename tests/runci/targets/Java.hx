@@ -6,8 +6,7 @@ import runci.Config.*;
 using StringTools;
 
 class Java {
-	static var miscJavaDir(get,never):String;
-	static inline function get_miscJavaDir() return miscDir + 'java/';
+	static final miscJavaDir = miscDir + 'java/';
 
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
@@ -42,7 +41,7 @@ class Java {
 			runNetworkCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"]);
 
 		for (dir in FileSystem.readDirectory(libTestDir)) {
-			var path = '$libTestDir/$dir';
+			final path = '$libTestDir/$dir';
 			if (FileSystem.isDirectory(path))
 				for (file in FileSystem.readDirectory(path))
 					if (file.endsWith('.hxml'))

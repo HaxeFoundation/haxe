@@ -5,8 +5,7 @@ import runci.System.*;
 import runci.Config.*;
 
 class Python {
-	static var miscPythonDir(get,never):String;
-	static inline function get_miscPythonDir() return miscDir + 'python/';
+	static final miscPythonDir = miscDir + 'python/';
 
 	static public function getPythonDependencies():Array<String> {
 		switch (systemName) {
@@ -21,11 +20,11 @@ class Python {
 				if (commandSucceed(pypy, ["-V"])) {
 					infoMsg('pypy3 has already been installed.');
 				} else {
-					var pypyVersion = "pypy3.8-v7.3.7-" + (switch Linux.arch {
+					final pypyVersion = "pypy3.8-v7.3.7-" + (switch Linux.arch {
 						case Arm64: "aarch64";
 						case Amd64: "linux64";
 					});
-					var file = '${pypyVersion}.tar.bz2';
+					final file = '${pypyVersion}.tar.bz2';
 					if(!FileSystem.exists(file)) {
 						runNetworkCommand("wget", ["-nv", 'https://downloads.python.org/pypy/$file']);
 					}
@@ -62,7 +61,7 @@ class Python {
 	}
 
 	static public function run(args:Array<String>) {
-		var pys = getPythonDependencies();
+		final pys = getPythonDependencies();
 		runCommand("haxe", ["compile-python.hxml"].concat(args));
 		for (py in pys) {
 			runCommand(py, ["bin/unit.py"]);
