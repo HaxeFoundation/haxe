@@ -89,7 +89,7 @@ class Sys {
 	}
 
 	public static function getCwd():String {
-		return python.lib.Os.getcwd();
+		return haxe.io.Path.addTrailingSlash(python.lib.Os.getcwd());
 	}
 
 	public static function setCwd(s:String):Void {

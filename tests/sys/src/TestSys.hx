@@ -85,8 +85,14 @@ class TestSys extends TestCommandBase {
 		#end
 	}
 
+	function testGetCwd() {
+		final current = Sys.getCwd();
+		// ensure it has a trailing slash
+		Assert.notEquals(current, haxe.io.Path.removeTrailingSlashes(current));
+	}
+
 	#if !java
-	function testCwd() {
+	function testSetCwd() {
 		var cur = Sys.getCwd();
 		Sys.setCwd("../");
 		var newCwd = haxe.io.Path.join([cur, "../"]);
