@@ -421,7 +421,7 @@ let rec to_type ?tref ctx t =
 			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 			t
 		)
-	| TDynamic _ ->
+	| TDynamic _ | TIntersection _ ->
 		HDyn
 	| TEnum (e,_) ->
 		enum_type ~tref ctx e

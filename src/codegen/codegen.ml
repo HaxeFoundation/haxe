@@ -109,6 +109,9 @@ let update_cache_dependencies t =
 				()
 			else
 				check_t m t
+		| TIntersection(t1,t2) ->
+			check_t m t1;
+			check_t m t2;
 	and check_field m cf =
 		check_t m cf.cf_type
 	in

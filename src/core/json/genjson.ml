@@ -225,6 +225,7 @@ let rec generate_type ctx t =
 		| TAbstract(a,tl) -> "TAbstract",Some (generate_type_path_with_params ctx a.a_module.m_path a.a_path tl a.a_meta)
 		| TAnon an -> "TAnonymous", Some(generate_anon ctx an)
 		| TFun(tl,tr) -> "TFun", Some (jobject (generate_function_signature ctx tl tr))
+		| TIntersection(t1,t2) -> "TIntersection", None (* TINTERSECTODO *)
 	in
 	let name,args = loop t in
 	generate_adt ctx None name args

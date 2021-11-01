@@ -304,11 +304,14 @@ let rec link e a b =
 		| TLazy f ->
 			loop (lazy_type f)
 		| TAnon a ->
-			try
+			begin try
 				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) a.a_fields;
 				false
 			with
 				Exit -> true
+			end
+		| TIntersection(t1,t2) ->
+			loop t1 || loop t2
 	in
 	(* tell is already a ~= b *)
 	if loop b then

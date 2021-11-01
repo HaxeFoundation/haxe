@@ -192,6 +192,8 @@ module BetterErrors = struct
 			"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
 		| TLazy f ->
 			s_type ctx (lazy_type f)
+		| TIntersection(t1,t2) ->
+			Printf.sprintf "(%s & %s)" (s_type ctx t1) (s_type ctx t2)
 
 	and s_type_params ctx = function
 		| [] -> ""

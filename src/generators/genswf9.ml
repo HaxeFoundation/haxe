@@ -301,7 +301,7 @@ let classify ctx t =
 		KType (type_id ctx t)
 	| TMono _
 	| TType _
-	| TDynamic _ ->
+	| TDynamic _ | TIntersection _ ->
 		KDynamic
 	| TLazy _ ->
 		die "" __LOC__

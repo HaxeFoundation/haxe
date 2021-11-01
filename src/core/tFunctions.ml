@@ -276,6 +276,8 @@ let map loop t =
 		if ft == ft2 then t else ft2
 	| TDynamic t2 ->
 		if t == t2 then	t else TDynamic (loop t2)
+	| TIntersection(t1,t2) ->
+		TIntersection(loop t1,loop t2)
 
 let iter loop t =
 	match t with
@@ -303,6 +305,9 @@ let iter loop t =
 		loop ft
 	| TDynamic t2 ->
 		if t != t2 then	loop t2
+	| TIntersection(t1,t2) ->
+		loop t1;
+		loop t2
 
 let duplicate t =
 	let monos = ref [] in
@@ -433,6 +438,8 @@ let apply_params ?stack cparams params t =
 				t
 			else
 				TDynamic (loop t2)
+		| TIntersection(t1,t2) ->
+			TIntersection(loop t1,loop t2)
 	in
 	loop t
 
@@ -474,7 +481,7 @@ let follow_once t =
 		(match r.tm_type with
 		| None -> t
 		| Some t -> t)
-	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ | TIntersection _ ->
 		t
 	| TType (t,tl) ->
 		apply_params t.t_params tl t.t_type
@@ -583,6 +590,8 @@ let rec has_mono t = match t with
 		PMap.fold (fun cf b -> has_mono cf.cf_type || b) a.a_fields false
 	| TLazy f ->
 		has_mono (lazy_type f)
+	| TIntersection(t1,t2) ->
+		has_mono t1 || has_mono t2
 
 let concat e1 e2 =
 	let e = (match e1.eexpr, e2.eexpr with
@@ -741,7 +750,7 @@ let quick_field t n =
 			FAnon (PMap.find n a.a_fields))
 	| TDynamic _ ->
 		FDynamic n
-	| TEnum _  | TMono _ | TAbstract _ | TFun _ ->
+	| TEnum _  | TMono _ | TAbstract _ | TFun _ | TIntersection _ (* TINTERSECTODO *) ->
 		raise Not_found
 	| TLazy _ | TType _ ->
 		die "" __LOC__
@@ -790,7 +799,7 @@ let resolve_typedef t =
 *)
 let type_has_meta t m =
 	match t with
-		| TMono _ | TFun _ | TAnon _ | TDynamic _ | TLazy _ -> false
+		| TMono _ | TFun _ | TAnon _ | TDynamic _ | TLazy _ | TIntersection _ -> false
 		| TEnum ({ e_meta = metadata }, _)
 		| TInst ({ cl_meta = metadata }, _)
 		| TType ({ t_meta = metadata }, _)

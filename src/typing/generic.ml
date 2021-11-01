@@ -240,6 +240,9 @@ let rec build_generic ctx c p tl =
 			| TFun (args,ret) ->
 				List.iter (fun (_,_,t) -> loop t) args;
 				loop ret
+			| TIntersection(t1,t2) ->
+				loop t1;
+				loop t2;
 			end
 		and add_dep m tl =
 			add_dependency mg m;

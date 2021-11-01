@@ -739,6 +739,7 @@ module TypeBinding = struct
 			| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
 			| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+			| TIntersection(t1,t2) -> is_full_type t1 && is_full_type t2
 		in
 		let force_macro () =
 			(* force macro system loading of this class in order to get completion *)

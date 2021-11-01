@@ -110,6 +110,8 @@ let generate_type com t =
 			"() -> " ^ ftype ret
 		| TFun (args,ret) ->
 			String.concat " -> " (List.map (fun (_,_,t) -> ftype t) args) ^ " -> " ^ ftype ret
+		| TIntersection(t1,t2) ->
+			"(" ^ (ftype t1) ^ " & " ^ (ftype t2) ^ ")"
 	and ftype t =
 		match t with
 		| TMono r ->

@@ -124,6 +124,7 @@ let rec gen_type ?(values=None) t =
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (lazy_type f)
+	| TIntersection(t1,t2) -> node "d" [] [] (* TINTERSECTODO *)
 
 and gen_type_decl n t pl =
 	let i = t_infos t in

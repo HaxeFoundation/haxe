@@ -56,6 +56,8 @@ module TExprToExpr = struct
 			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [tparam t2])
 		| TLazy f ->
 			convert_type (lazy_type f)
+		| TIntersection(t1,t2) ->
+			CTIntersection[convert_type' t1;convert_type' t2]
 
 	and convert_type' t =
 		convert_type t,null_pos

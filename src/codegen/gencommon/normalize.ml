@@ -60,7 +60,7 @@ let rec filter_param (stack:t list) t =
 		mk_anon ~fields a.a_status
 	| TFun(args,ret) ->
 		TFun(List.map (fun (n,o,t) -> (n,o,filter_param stack t)) args, filter_param stack ret)
-	| TDynamic _ ->
+	| TDynamic _ | TIntersection _ ->
 		t
 	| TLazy f ->
 		filter_param stack (lazy_type f)

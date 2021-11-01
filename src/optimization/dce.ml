@@ -250,6 +250,9 @@ and mark_t dce p t =
 			if not (Meta.has Meta.CoreType a.a_meta) then
 				mark_t dce p (Abstract.get_underlying_type a pl)
 		| TLazy _ | TDynamic _ | TType _ | TAnon _ | TMono _ -> ()
+		| TIntersection(t1,t2) ->
+			mark_t dce p t1;
+			mark_t dce p t2;
 		end;
 		dce.t_stack <- List.tl dce.t_stack
 	end
@@ -317,7 +320,7 @@ let rec to_string dce t = match t with
 			()
 		else
 			to_string dce t
-	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) ->
+	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) | TIntersection _ ->
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 

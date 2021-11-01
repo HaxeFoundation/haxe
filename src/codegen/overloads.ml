@@ -114,6 +114,7 @@ struct
 		| TDynamic _ -> t
 		| TLazy f -> simplify_t (lazy_type f)
 		| TFun _ -> t
+		| TIntersection(t1,t2) -> TIntersection(simplify_t t1,simplify_t t2)
 
 	(* rate type parameters *)
 	let rate_tp tlfun tlarg =

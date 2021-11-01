@@ -814,7 +814,7 @@ and type_string_suff suffix haxe_type remap =
       | EnumStatics e -> type_string_suff suffix (TEnum (e,List.map snd e.e_params))
       | _ -> "Dynamic"  ^ suffix )
       *)
-   | TDynamic haxe_type -> "Dynamic" ^ suffix
+   | TDynamic _ | TIntersection _ -> "Dynamic" ^ suffix
    | TLazy func -> type_string_suff suffix (lazy_type func) remap
    | TAbstract (abs,pl) when abs.a_impl <> None ->
       type_string_suff suffix (Abstract.get_underlying_type abs pl) remap
@@ -1777,7 +1777,7 @@ let rec cpp_type_of stack ctx haxe_type =
 
       | TFun _ -> TCppObject
       | TAnon _ -> TCppObject
-      | TDynamic _ -> TCppDynamic
+      | TDynamic _ | TIntersection _ -> TCppDynamic
       | TLazy func -> cpp_type_of stack ctx (lazy_type func)
       )
    end

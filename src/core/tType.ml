@@ -41,6 +41,7 @@ type t =
 	| TDynamic of t
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
+	| TIntersection of t * t
 
 and tmono = {
 	mutable tm_type : t option;

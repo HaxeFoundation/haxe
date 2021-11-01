@@ -1089,6 +1089,8 @@ and encode_type t =
 			loop (lazy_type f)
 		| TAbstract (a, pl) ->
 			8, [encode_abref a; encode_tparams pl]
+		| TIntersection(t1,t2) ->
+			9, [encode_type t1;encode_type t2]
 	in
 	let tag, pl = loop t in
 	encode_enum IType tag pl
@@ -1833,7 +1835,7 @@ let macro_api ccom get_api =
 					| Some t -> t)
 				| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Abstract.get_underlying_type a tl
-				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ |  TIntersection _ ->
 					t
 				| TType (t,tl) ->
 					apply_params t.t_params tl t.t_type

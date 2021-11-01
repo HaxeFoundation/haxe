@@ -396,7 +396,7 @@ let promote_type_hints tctx =
 		| TAbstract(({a_name_pos = pn;a_path = (_,name)}),_) ->
 			md.m_type_hints <- (p,pn) :: md.m_type_hints;
 		| TDynamic _ -> ()
-		| TFun _ | TAnon _ -> ()
+		| TFun _ | TAnon _ | TIntersection _ -> ()
 	in
 	List.iter explore_type_hint tctx.g.type_hints
 

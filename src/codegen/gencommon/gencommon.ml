@@ -1116,7 +1116,7 @@ let rec replace_mono t =
 		List.iter (fun (_,_,t) -> replace_mono t) args;
 		replace_mono ret
 	| TAnon _
-	| TDynamic _ -> ()
+	| TDynamic _ | TIntersection _ -> ()
 	| TLazy f ->
 		replace_mono (lazy_type f)
 

@@ -1395,7 +1395,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					)
 				| TFun _ -> self#use ~prefix:false ([], "Closure")
 				| TAnon _ -> "object"
-				| TDynamic _ -> "mixed"
+				| TDynamic _ | TIntersection _ -> "mixed"
 				| TLazy _ -> fail ~msg:"TLazy not implemented" self#pos __LOC__
 				| TMono mono ->
 					(match mono.tm_type with

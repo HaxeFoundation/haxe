@@ -507,6 +507,8 @@ module CompletionType = struct
 				}
 			| TDynamic t ->
 				CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
+			| TIntersection(t1,t2) ->
+				CTDynamic None (* TINTERSECTODO *)
 		in
 		from_type values t
 end

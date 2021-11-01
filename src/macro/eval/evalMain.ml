@@ -585,7 +585,7 @@ let handle_decoding_error f v t =
 					end
 				| _ -> error "expected enum value" v
 			end
-		| TInst _ | TAbstract _ | TFun _ ->
+		| TInst _ | TAbstract _ | TFun _ | TIntersection _ ->
 			(* TODO: might need some more of these, not sure *)
 			die "" __LOC__
 		| TMono r ->

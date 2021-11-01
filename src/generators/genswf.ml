@@ -94,6 +94,9 @@ let build_dependencies t =
 		| TType (tt,pl) ->
 			add_type_rec (t::l) tt.t_type;
 			List.iter (add_type_rec (t::l)) pl
+		| TIntersection(t1,t2) ->
+			add_type_rec l t1;
+			add_type_rec l t2
 	and add_type t =
 		add_type_rec [] t
 	and add_expr e =
