@@ -239,7 +239,7 @@ let rec type_id ctx t =
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KTypeParameter l ->
-			(match l with
+			(match expand_constraints l with
 			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
 		| _ ->

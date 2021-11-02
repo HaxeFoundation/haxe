@@ -124,7 +124,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 			let check_constraints () =
 				List.iter2 (fun m (name,t) -> match follow t with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
+						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) (expand_constraints constr)
 					| _ -> ()
 				) monos cf.cf_params;
 			in

@@ -985,7 +985,7 @@ and encode_method_kind m =
 and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
-		| KTypeParameter pl -> 1, [encode_tparams pl]
+		| KTypeParameter pl -> 1, [encode_tparams (expand_constraints pl)]
 		| KModuleFields m -> 2, [encode_string (s_type_path m.m_path)]
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []

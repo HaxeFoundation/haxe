@@ -59,7 +59,7 @@ let priority = solve_deps name [DAfter DynamicOperators.priority]
 let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texpr->texpr->string->texpr option->bool->texpr) (call_expr:texpr->texpr->string->texpr list->texpr) =
 	let is_nondynamic_tparam fexpr f = match follow fexpr.etype with
 		| TInst({ cl_kind = KTypeParameter(tl) }, _) ->
-			List.exists (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl
+			List.exists (fun t -> not (is_dynamic { fexpr with etype = t } f)) (expand_constraints tl)
 		| _ -> false
 	in
 
@@ -69,7 +69,7 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 		| TField(fexpr, f) when is_nondynamic_tparam fexpr f ->
 			(match follow fexpr.etype with
 				| TInst( ({ cl_kind = KTypeParameter(tl) } as tp_cl), tp_tl) ->
-					let t = apply_params tp_cl.cl_params tp_tl (List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl) in
+					let t = apply_params tp_cl.cl_params tp_tl (List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) (expand_constraints tl)) in
 					{ e with eexpr = TField(mk_cast t (run fexpr), f) }
 				| _ -> Globals.die "" __LOC__)
 

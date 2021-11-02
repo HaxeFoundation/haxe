@@ -630,13 +630,27 @@ let tconst_to_const = function
 	| TThis -> Ident "this"
 	| TSuper -> Ident "super"
 
+let expand_constraints tl =
+	let rec loop acc tl = match tl with
+		| [] ->
+			acc
+		| t :: tl ->
+			begin match follow t with
+			| TIntersection(t1,t2) ->
+				loop (loop acc [t1]) (t2 :: tl)
+			| _ ->
+				loop (t :: acc) tl
+			end
+	in
+	loop [] tl
+
 let has_ctor_constraint c = match c.cl_kind with
 	| KTypeParameter tl ->
 		List.exists (fun t -> match follow t with
 			| TAnon a when PMap.mem "new" a.a_fields -> true
 			| TAbstract({a_path=["haxe"],"Constructible"},_) -> true
 			| _ -> false
-		) tl;
+		) (expand_constraints tl);
 	| _ -> false
 
 (* ======= Field utility ======= *)
@@ -713,7 +727,7 @@ let rec raw_class_field build_type c tl i =
 					in
 					loop2 t
 			in
-			loop tl
+			loop (expand_constraints tl)
 		| _ ->
 			if not (has_class_flag c CInterface) then raise Not_found;
 			(*

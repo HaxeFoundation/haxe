@@ -2021,6 +2021,7 @@ let generate con =
 							List.fold_left (fun acc (name, t) ->
 								match run_follow gen t with
 									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
+										let constraints = expand_constraints constraints in
 										(* base class should come before interface constraints *)
 										let base_class_constraints = ref [] in
 										let other_constraints = List.fold_left (fun acc t ->

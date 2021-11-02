@@ -266,7 +266,7 @@ module Monomorph = struct
 			let mono = create () in
 			begin match follow t with
 				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->
-					DynArray.add checks (mono,constr,s_type_path path)
+					DynArray.add checks (mono,(expand_constraints constr),s_type_path path)
 				| _ ->
 					()
 			end;
@@ -709,7 +709,7 @@ let rec unify (uctx : unification_context) a b =
 				| TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)
 				| TAbstract(aa,tl) -> unifies_to uctx a b aa tl
 				| _ -> false
-			) pl
+			) (expand_constraints pl)
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
@@ -733,7 +733,7 @@ let rec unify (uctx : unification_context) a b =
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
 			| KTypeParameter pl ->
 				(* one of the constraints must unify with { } *)
-				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) pl) then error [cannot_unify a b]
+				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) (expand_constraints pl)) then error [cannot_unify a b]
 			| _ -> ());
 		ignore(c.cl_build());
 		(try
@@ -835,7 +835,7 @@ let rec unify (uctx : unification_context) a b =
 			begin match c.cl_kind with
 				| KTypeParameter tl ->
 					(* type parameters require an equal Constructible constraint *)
-					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq uctx t1 t2 | _ -> false) tl) then error [cannot_unify a b]
+					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq uctx t1 t2 | _ -> false) (expand_constraints tl)) then error [cannot_unify a b]
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
 					if not (has_class_field_flag cf CfPublic) then error [invalid_visibility "new"];
@@ -893,7 +893,7 @@ let rec unify (uctx : unification_context) a b =
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_params pl t in
 			try unify uctx t b; true with Unify_error _ -> false
-		) ctl) then unify_from uctx a b bb tl
+		) (expand_constraints ctl)) then unify_from uctx a b bb tl
 	| _, TAbstract (bb,tl) ->
 		unify_from uctx a b bb tl
 	| _,TIntersection(t1,t2) ->
@@ -1145,7 +1145,7 @@ module UnifyMinT = struct
 		let rec loop t = (match t with
 			| TInst(cl, params) ->
 				(match cl.cl_kind with
-				| KTypeParameter tl -> List.iter loop tl
+				| KTypeParameter tl -> List.iter loop (expand_constraints tl)
 				| _ -> ());
 				List.iter (fun (ic, ip) ->
 					let t = apply_params cl.cl_params params (TInst (ic,ip)) in

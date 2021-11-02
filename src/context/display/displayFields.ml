@@ -58,7 +58,7 @@ let collect_static_extensions ctx items e p =
 				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
 				List.iter2 (fun m (name,t) -> match follow t with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
+						List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) (expand_constraints constr)
 					| _ -> ()
 				) monos f.cf_params;
 				if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
@@ -159,7 +159,7 @@ let collect ctx e_ast e dk with_type p =
 			fold_constraints items (Monomorph.classify_down_constraints m)
 		| TInst ({cl_kind = KTypeParameter tl},_) ->
 			(* Type parameters can access the fields of their constraints *)
-			List.fold_left (fun acc t -> loop acc t) items tl
+			List.fold_left (fun acc t -> loop acc t) items (expand_constraints tl)
 		| TInst(c0,tl) ->
 			(* For classes, browse the hierarchy *)
 			let fields = TClass.get_all_fields c0 tl in

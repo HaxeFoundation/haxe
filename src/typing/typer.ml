@@ -995,7 +995,7 @@ and type_new ctx path el with_type force_inline p =
 	try begin match Abstract.follow_with_forward_ctor t with
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 		if not (TypeloadCheck.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
- 		begin match get_constructible_constraint ctx tl p with
+ 		begin match get_constructible_constraint ctx (expand_constraints tl) p with
 		| None ->
 			raise_error (No_constructor (TClassDecl c)) p
 		| Some(tl,tr) ->

@@ -329,7 +329,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					type_field_by_list (fun t -> match follow t with
 						| TAbstract _ -> type_field_by_e type_field_by_type (mk_cast e t p);
 						| _ -> raise Not_found
-					) tl
+					) (expand_constraints tl)
 				| _ -> raise Not_found
 			with Not_found ->
 				type_field_by_interfaces e c

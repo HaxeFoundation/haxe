@@ -166,7 +166,7 @@ let get_constructible_constraint ctx tl p =
 			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
 				Some (extract_function t1)
 			| TInst({cl_kind = KTypeParameter tl1},_) ->
-				begin match loop tl1 with
+				begin match loop (expand_constraints tl1) with
 				| None -> loop tl
 				| Some _ as t -> t
 				end

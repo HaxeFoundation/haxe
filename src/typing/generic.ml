@@ -180,7 +180,7 @@ let rec build_generic ctx c p tl =
 		match follow t with
 		| TInst (c2,tl) ->
 			(match c2.cl_kind with
-			| KTypeParameter tl ->
+			| KTypeParameter _ ->
 				if not (TypeloadCheck.is_generic_parameter ctx c2) && has_ctor_constraint c2 then
 					error "Type parameters with a constructor cannot be used non-generically" p;
 				recurse := true
@@ -263,7 +263,7 @@ let rec build_generic ctx c p tl =
 			(* Type parameter constraints are substituted here. *)
 			cf_new.cf_params <- List.rev_map (fun (s,t) -> match follow t with
 				| TInst({cl_kind = KTypeParameter tl1} as c,_) ->
-					let tl1 = List.map (generic_substitute_type gctx) tl1 in
+					let tl1 = List.map (generic_substitute_type gctx) (expand_constraints tl1) in
 					c.cl_kind <- KTypeParameter tl1;
 					s,t
 				| _ -> die "" __LOC__

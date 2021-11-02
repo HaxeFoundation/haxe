@@ -238,7 +238,7 @@ let inline_default_config cf t =
 			c.cl_params @ ct, pl @ cpl
 	in
 	let rec loop t = match follow t with
-		| TInst({cl_kind = KTypeParameter tl},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop tl)
+		| TInst({cl_kind = KTypeParameter tl},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop (expand_constraints tl))
 		| TInst (c,pl) -> get_params c pl
 		| _ -> ([],[])
 	in

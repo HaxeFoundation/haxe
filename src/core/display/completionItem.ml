@@ -803,7 +803,7 @@ let to_json ctx index item =
 				"TypeParameter",jobject [
 					"name",jstring (snd c.cl_path);
 					"meta",generate_metadata ctx c.cl_meta;
-					"constraints",jlist (generate_type ctx) tl;
+					"constraints",jlist (generate_type ctx) (expand_constraints tl);
 				]
 			| _ -> die "" __LOC__
 			end

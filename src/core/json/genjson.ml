@@ -277,7 +277,7 @@ and generate_type_path_with_params ctx mpath tpath tl meta =
 
 and generate_type_parameter ctx (s,t) =
 	let generate_constraints () = match follow t with
-		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
+		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx (expand_constraints tl)
 		| _ -> die "" __LOC__
 	in
 	jobject [
@@ -600,7 +600,7 @@ let generate_class ctx c =
 	let generate_class_kind ck =
 		let ctor,args = match ck with
 		| KNormal -> "KNormal",None
-		| KTypeParameter tl -> "KTypeParameter",Some (generate_types ctx tl)
+		| KTypeParameter tl -> "KTypeParameter",Some (generate_types ctx (expand_constraints tl))
 		| KExpr e -> "KExpr",Some (generate_expr ctx e)
 		| KGeneric -> "KGeneric",None
 		| KGenericInstance(c,tl) -> "KGenericInstance",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl c.cl_meta)

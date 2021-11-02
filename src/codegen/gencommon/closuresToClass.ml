@@ -279,7 +279,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 let rec get_type_params acc t =
 	match t with
 		| TInst(( { cl_kind = KTypeParameter constraints } as cl), []) ->
-			let params = List.fold_left get_type_params acc constraints in
+			let params = List.fold_left get_type_params acc (expand_constraints constraints) in
 			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )

@@ -162,9 +162,9 @@ let rec classify t =
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KNumParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KNumParam t
+	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) (expand_constraints ctl) -> KNumParam t
 	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
+	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) (expand_constraints ctl) -> KStrParam t
 	| TMono r when r.tm_type = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther

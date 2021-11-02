@@ -119,7 +119,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		List.iter (function (_,TInst(c,[])) -> (
 			match c.cl_kind with
 			| KTypeParameter (hd :: tail) ->
-				let before = hd :: tail in
+				let before = expand_constraints (hd :: tail) in
 				let after = List.map (apply_params cl.cl_params ctor_type_params) (before) in
 				c.cl_kind <- KTypeParameter(after)
 			| _ -> ())

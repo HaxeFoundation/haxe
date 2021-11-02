@@ -437,7 +437,7 @@ let rec to_type ?tref ctx t =
 					| TInst (c,_) as t when not (has_class_flag c CInterface) -> to_type ?tref ctx t
 					| _ -> loop tl
 			in
-			loop tl
+			loop (expand_constraints tl)
 		| _ -> class_type ~tref ctx c pl false)
 	| TAbstract ({a_path = [],"Null"},[t1]) ->
 		let t = to_type ?tref ctx t1 in
@@ -2137,7 +2137,7 @@ and eval_expr ctx e =
 					(match follow rt with
 					| TInst({ cl_kind = KTypeParameter tl },_) ->
 						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
-						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) tl)
+						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) (expand_constraints tl))
 					| _ -> false)
 				| _ ->
 					false

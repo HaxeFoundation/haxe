@@ -232,7 +232,7 @@ let rec handle_signature_display ctx e_ast with_type =
 					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
 					| _ -> loop tl
 			in
-			[loop tl,None,PMap.empty]
+			[loop (expand_constraints tl),None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			Display.merge_core_doc ctx (TClassDecl c);
 			let fa = get_constructor_access c tl p in
@@ -579,7 +579,7 @@ let handle_display ctx e_ast dk mode with_type =
 						false
 					end
 				end
-			| ITTypeParameter {cl_kind = KTypeParameter tl} when get_constructible_constraint ctx tl null_pos <> None ->
+			| ITTypeParameter {cl_kind = KTypeParameter tl} when get_constructible_constraint ctx (expand_constraints tl) null_pos <> None ->
 				true
 			| _ -> false
 		) r.fitems in

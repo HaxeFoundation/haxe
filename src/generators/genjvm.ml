@@ -2536,7 +2536,7 @@ class tclass_to_jvm gctx c = object(self)
 			| TInst({cl_kind = KTypeParameter tl},_) ->
 				List.map (fun t ->
 					get_boxed_type (jsignature_of_type gctx t)
-				 ) tl
+				 ) (expand_constraints tl)
 			| _ ->
 				[]
 			in

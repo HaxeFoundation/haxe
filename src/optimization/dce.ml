@@ -226,7 +226,7 @@ and mark_t dce p t =
 		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
 			if not (Meta.has Meta.Used c.cl_meta) then begin
 				c.cl_meta <- (mk_used_meta c.cl_pos) :: c.cl_meta;
-				List.iter (mark_t dce p) tl;
+				List.iter (mark_t dce p) (expand_constraints tl);
 			end;
 			List.iter (mark_t dce p) pl
 		| TInst(c,pl) ->
@@ -353,7 +353,7 @@ and field dce c n stat =
 				| t :: tl ->
 					loop tl
 			in
-			loop tl
+			loop (expand_constraints tl)
 		| _ -> raise Not_found
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
