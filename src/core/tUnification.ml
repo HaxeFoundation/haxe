@@ -82,7 +82,7 @@ module Monomorph = struct
 		| MMono (m2,s) -> m2.tm_up_constraints <- (TMono m,s) :: m.tm_up_constraints
 		| _ -> ()
 
-	let constraint_of_type name t = match follow t with
+	let rec constraint_of_type name t = match follow t with
 		| TMono m2 ->
 			[MMono(m2,name)]
 		| TAnon an when not (PMap.is_empty an.a_fields) ->
@@ -91,6 +91,8 @@ module Monomorph = struct
 			) an.a_fields []
 		| TAnon _ ->
 			[MEmptyStructure]
+		| TIntersection(t1,t2) ->
+			(constraint_of_type name t1) @ (constraint_of_type name t2)
 		| _ ->
 			[MType(t,name)]
 
@@ -342,6 +344,8 @@ let fast_eq_check type_param_check a b =
 		c1 == c2 && List.for_all2 type_param_check l1 l2
 	| TAbstract (a1,l1), TAbstract (a2,l2) ->
 		a1 == a2 && List.for_all2 type_param_check l1 l2
+	| TIntersection(t1,t2),TIntersection(t1',t2') ->
+		t1 == t1' && t2 == t2'
 	| _ , _ ->
 		false
 
@@ -585,6 +589,9 @@ let rec type_eq uctx a b =
 			) a2.a_fields;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
+	| TIntersection(t1,t2),TIntersection(t1',t2') ->
+		type_eq uctx t1 t1';
+		type_eq uctx t2 t2';
 	| _ , _ ->
 		error [cannot_unify a b]
 
@@ -889,6 +896,9 @@ let rec unify (uctx : unification_context) a b =
 		) ctl) then unify_from uctx a b bb tl
 	| _, TAbstract (bb,tl) ->
 		unify_from uctx a b bb tl
+	| _,TIntersection(t1,t2) ->
+		unify uctx a t1;
+		unify uctx a t2;
 	| _ , _ ->
 		error [cannot_unify a b]
 
@@ -1075,6 +1085,9 @@ and unify_with_variance uctx f t1 t2 =
 	| TFun(al1,r1),TFun(al2,r2) when List.length al1 = List.length al2 ->
 		List.iter2 (fun (_,_,t1) (_,_,t2) -> unify_nested t1 t2) al1 al2;
 		unify_nested r1 r2;
+	| TIntersection(t1,t2),TIntersection(t1',t2') ->
+		unify_nested t1 t1';
+		unify_nested t2 t2';
 	| _ ->
 		fail()
 

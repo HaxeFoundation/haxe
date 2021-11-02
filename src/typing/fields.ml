@@ -314,6 +314,12 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		let field_access = field_access e in
 		match t with
 		| TType (td,tl) -> type_field_by_typedef type_field_by_type e td tl
+		| TIntersection(t1,t2) ->
+			begin try
+				type_field_by_type e t1
+			with Not_found ->
+				type_field_by_type e t2
+			end
 		| TInst (c,tl) ->
 			(try
 				snd (class_field_with_access e c tl)

@@ -689,21 +689,29 @@ let rec raw_class_field build_type c tl i =
 				| [] ->
 					raise Not_found
 				| t :: ctl ->
-					match follow t with
-					| TAnon a ->
-						(try
-							let f = PMap.find i a.a_fields in
-							None, build_type f, f
-						with
-							Not_found -> loop ctl)
-					| TInst (c,tl) ->
-						(try
-							let c2, t , f = raw_class_field build_type c (List.map apply tl) i in
-							c2, apply_params c.cl_params tl t, f
-						with
-							Not_found -> loop ctl)
-					| _ ->
-						loop ctl
+					let rec loop2 t = match follow t with
+						| TAnon a ->
+							(try
+								let f = PMap.find i a.a_fields in
+								None, build_type f, f
+							with
+								Not_found -> loop ctl)
+						| TInst (c,tl) ->
+							(try
+								let c2, t , f = raw_class_field build_type c (List.map apply tl) i in
+								c2, apply_params c.cl_params tl t, f
+							with
+								Not_found -> loop ctl)
+						| TIntersection(t1,t2) ->
+							begin try
+								loop2 t1
+							with Not_found ->
+								loop2 t2
+							end
+						| _ ->
+							loop ctl
+					in
+					loop2 t
 			in
 			loop tl
 		| _ ->
@@ -804,6 +812,17 @@ let type_has_meta t m =
 		| TInst ({ cl_meta = metadata }, _)
 		| TType ({ t_meta = metadata }, _)
 		| TAbstract ({ a_meta = metadata }, _) -> has_meta m metadata
+
+let intersection_of_tl tl =
+	let rec loop t1 tl = match tl with
+		| [] -> die "" __LOC__
+		| [t2] -> TIntersection(t1,t2)
+		| t2 :: tl -> loop (TIntersection(t1,t2)) tl
+	in
+	match tl with
+	| [] -> die "" __LOC__
+	| [t1] -> t1
+	| t1 :: tl -> loop t1 tl
 
 (* tvar *)
 

@@ -795,7 +795,10 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			let constr = match fst th with
-				| CTIntersection tl -> List.map (load_complex_type ctx true) tl
+				| CTIntersection ctl ->
+					let tl = List.map (load_complex_type ctx true) ctl in
+					let t = intersection_of_tl tl in
+					[t]
 				| _ -> [load_complex_type ctx true th]
 			in
 			(* check against direct recursion *)
