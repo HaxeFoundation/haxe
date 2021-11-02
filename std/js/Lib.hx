@@ -38,7 +38,7 @@ class Lib {
 		Inserts an `import` expression that loads JavaScript object from
 		a module or file specified in the `module` argument.
 	**/
-	public static inline function dynamicImport(module:String):Promise<Dynamic> {
+	public static inline function dynamicImport(module:String):js.lib.Promise<Dynamic> {
 		return js.Syntax.code("import({0})", module);
 	}
 
