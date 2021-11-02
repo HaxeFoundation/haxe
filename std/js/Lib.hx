@@ -35,6 +35,14 @@ class Lib {
 	}
 
 	/**
+		Inserts an `import` expression that loads JavaScript object from
+		a module or file specified in the `module` argument.
+	**/
+	public static inline function dynamicImport(module:String):Promise<Dynamic> {
+		return js.Syntax.code("import({0})", module);
+	}
+
+	/**
 		Display an alert message box containing the given message.
 		@deprecated Use Browser.alert() instead.
 	**/
