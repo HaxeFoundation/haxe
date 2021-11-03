@@ -406,6 +406,7 @@ type flag_tclass_field =
 	| CfImpl
 	| CfEnum
 	| CfGeneric
+	| CfDefault (* Interface field with default implementation (only valid on Java) *)
 
 type flag_tvar =
 	| VCaptured

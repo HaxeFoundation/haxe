@@ -1,12 +1,13 @@
 package unit;
 import haxe.io.Bytes;
-import haxe.test.Base;
-import haxe.test.MyClass;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base___InnerClass3__;
 import haxe.test.Base.Base___InnerClass3___InnerClass4__;
-import haxe.test.TEnum;
+import haxe.test.Base;
 import haxe.test.LowerCaseClass;
+import haxe.test.MyClass;
+import haxe.test.MyDefaultInterface;
+import haxe.test.TEnum;
 import java.util.EnumSet;
 import java.vm.*;
 
@@ -296,6 +297,11 @@ class TestJava extends Test
 	//TODO:
 	//overload with functions + variable types
 
+	function testDefaultInterface() {
+		var c = new MyDefaultInterfaceClass();
+		eq("FOO", c.test("foo"));
+	}
+
 }
 
 private class TestMyClass extends haxe.test.MyClass
@@ -372,6 +378,10 @@ enum HaxeEnum {
 	HA;
 	HB;
 	HC;
+}
+
+class MyDefaultInterfaceClass implements MyDefaultInterface {
+	public function new() {}
 }
 
 #end
