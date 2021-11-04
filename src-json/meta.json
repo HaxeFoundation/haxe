@@ -613,6 +613,14 @@
 		"targets": ["TClass", "TEnum"]
 	},
 	{
+		"name": "JavaDefault",
+		"metadata": ":java.default",
+		"doc": "Equivalent to the default modifier of the Java language",
+		"platforms": ["java"],
+		"params": [],
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "JavaNative",
 		"metadata": ":javaNative",
 		"doc": "Automatically added by `--java-lib` on classes generated from JAR/class files.",

@@ -2093,6 +2093,11 @@ let generate con =
 			newline w
 	in
 
+	let gen_class_field w ?(is_overload=false) is_static cl is_final cf =
+		(* This should probably be handled somewhere earlier in the unholy gencommon machinery, but whatever *)
+		if not (has_class_field_flag cf CfExtern) then gen_class_field w ~is_overload is_static cl is_final cf
+	in
+
 	let gen_class w cl =
 		let cf_filters = [ handle_throws ] in
 		List.iter (fun f -> List.iter (f gen) cl.cl_ordered_fields) cf_filters;

@@ -393,6 +393,7 @@ let convert_java_enum ctx p pe =
 					})
 				| _ -> error "Method signature was expected" p
 		in
+		if field.jf_code <> None && is_interface then cff_meta := (Meta.JavaDefault,[],cff_pos) :: !cff_meta;
 		let cff_name, cff_meta =
 			match String.get cff_name 0 with
 				| '%' ->

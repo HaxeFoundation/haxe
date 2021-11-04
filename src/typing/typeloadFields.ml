@@ -66,6 +66,7 @@ type field_init_ctx = {
 	is_inline : bool;
 	is_final : bool;
 	is_static : bool;
+	default : pos option;
 	override : pos option;
 	overload : pos option;
 	is_extern : bool;
@@ -615,9 +616,16 @@ let create_field_context (ctx,cctx) c cff =
 		| "__init__" when is_static -> FKInit
 		| _ -> FKNormal
 	in
+	let default = try
+		let (_,_,p) = Meta.get Meta.JavaDefault cff.cff_meta in
+		Some p
+	with Not_found ->
+		None
+	in
 	let fctx = {
 		is_inline = is_inline;
 		is_static = is_static;
+		default = default;
 		override = override;
 		overload = overload;
 		is_macro = is_macro;
@@ -1261,6 +1269,18 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	if fctx.is_generic then add_class_field_flag cf CfGeneric;
+	begin match fctx.default with
+	| Some p ->
+		begin match ctx.com.platform with
+		| Java ->
+			if not (has_class_flag ctx.curclass CExtern) || not (has_class_flag c CInterface) then display_error ctx "The default modifier is only allowed on extern interfaces" p;
+			add_class_field_flag cf CfDefault;
+		| _ ->
+			display_error ctx "The default modifier is only supported on the Java target" p
+		end;
+	| None ->
+		()
+	end;
 	begin match fctx.overload with
 	| Some p ->
 		if ctx.com.config.pf_overload then

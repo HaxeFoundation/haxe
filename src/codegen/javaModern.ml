@@ -789,6 +789,8 @@ module Converter = struct
 						add_access (AOverride,null_pos);
 					| _ -> ()
 				) ann
+			| AttrCode _ when is_interface ->
+				add_meta (Meta.JavaDefault,[],p)
 			| _ -> ()
 		) jf.jf_attributes;
 		let add_native_meta () =

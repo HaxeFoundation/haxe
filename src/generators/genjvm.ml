@@ -2505,7 +2505,7 @@ class tclass_to_jvm gctx c = object(self)
 		let field mtype cf = match cf.cf_kind with
 			| Method (MethNormal | MethInline) ->
 				List.iter (fun cf ->
-					self#generate_method gctx jc c mtype cf
+					if not (has_class_field_flag cf CfExtern) then self#generate_method gctx jc c mtype cf
 				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
 				if not (has_class_flag c CInterface) && is_physical_field cf then self#generate_field gctx jc c mtype cf
