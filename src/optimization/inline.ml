@@ -254,7 +254,7 @@ let inline_config cls_opt cf call_args return_type =
 		let t = if cf.cf_name = "_new" then
 			return_type
 		else if call_args = [] then
-			error "Invalid abstract implementation function" cf.cf_pos
+			typing_error "Invalid abstract implementation function" cf.cf_pos
 		else
 			follow (List.hd call_args).etype
 		in
@@ -386,7 +386,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				(i.i_subst,Some e) :: acc
 			in
 			if i.i_abstract_this && i.i_write then begin
-				if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
+				if not (is_writable e) then typing_error "Cannot modify the abstract value, store it into a local first" p;
 				accept VIInline
 			end else if i.i_force_temp || (i.i_captured && not (is_constant e)) then
 				reject()
@@ -397,7 +397,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					| TLocal _ | TConst _ ->
 						if not i.i_write then VIInline else VIDoNotInline
 					| TFunction _ ->
-						if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
+						if i.i_write then typing_error "Cannot modify a closure parameter inside inline method" p;
 						if i.i_read <= 1 then VIInline else VIInlineIfCalled
 					| _ ->
 						if not i.i_write && (i.i_read + i.i_called) <= 1 then VIInline else VIDoNotInline
@@ -689,7 +689,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 				{ e with eexpr = TLocal l.i_subst }
 			| None ->
-				error "Could not inline `this` outside of an instance context" po
+				typing_error "Could not inline `this` outside of an instance context" po
 			)
 		| TVar (v,eo) ->
 			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
@@ -697,9 +697,9 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			if not term then begin
 				match cf.cf_kind with
 				| Method MethInline ->
-					error "Cannot inline a not final return" po
+					typing_error "Cannot inline a not final return" po
 				| _ ->
-					error ("Function " ^ cf.cf_name ^ " cannot be inlined because of a not final return") p
+					typing_error ("Function " ^ cf.cf_name ^ " cannot be inlined because of a not final return") p
 			end;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
@@ -816,9 +816,9 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
 				begin match type_inline_ctor ctx c cf tf ethis el po with
 				| Some e -> map term false e
-				| None -> error "Could not inline super constructor call" po
+				| None -> typing_error "Could not inline super constructor call" po
 				end
-			| _ -> error "Cannot inline function containing super" po
+			| _ -> typing_error "Cannot inline function containing super" po
 			end
 		| TCall(e1,el) ->
 			state#set_side_effect;
@@ -826,7 +826,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let el = List.map (map false false) el in
 			{e with eexpr = TCall(e1,el)}
 		| TConst TSuper ->
-			error "Cannot inline function containing super" po
+			typing_error "Cannot inline function containing super" po
 		| TMeta((Meta.Ast,_,_) as m,e1) when term ->
 			(* Special case for @:ast-wrapped TSwitch nodes: If the recursion alters the type of the TSwitch node, we also want
 			   to alter the type of the TMeta node. *)

@@ -505,7 +505,7 @@ module Builder = struct
 		| TFloat f -> mk (TConst (TFloat f)) basic.tfloat p
 		| TBool b -> mk (TConst (TBool b)) basic.tbool p
 		| TNull -> mk (TConst TNull) (basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
+		| _ -> typing_error "Unsupported constant" p
 
 	let field e name t p =
 		let f =
@@ -569,7 +569,7 @@ let rec constructor_side_effects e =
 let type_constant basic c p =
 	match c with
 	| Int s ->
-		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
+		if String.length s > 10 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
@@ -577,8 +577,8 @@ let type_constant basic c p =
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
 	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
-	| Ident t -> error ("Invalid constant :  " ^ t) p
-	| Regexp _ -> error "Invalid constant" p
+	| Ident t -> typing_error ("Invalid constant :  " ^ t) p
+	| Regexp _ -> typing_error "Invalid constant" p
 
 let rec type_constant_value basic (e,p) =
 	match e with
@@ -591,7 +591,7 @@ let rec type_constant_value basic (e,p) =
 	| EArrayDecl el ->
 		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->
-		error "Constant value expected" p
+		typing_error "Constant value expected" p
 
 let is_constant_value basic e =
 	try (ignore (type_constant_value basic e); true) with Error (Custom _,_) -> false
@@ -600,7 +600,7 @@ let for_remap basic v e1 e2 p =
 	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
 	let ev' = mk (TLocal v') e1.etype e1.epos in
 	let t1 = (Abstract.follow_with_abstracts e1.etype) in
-	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
+	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> typing_error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
 	let ehasnext = mk (TCall(ehasnext,[])) basic.tbool ehasnext.epos in
 	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
 	let enext = mk (TCall(enext,[])) v.v_type e1.epos in
@@ -635,7 +635,7 @@ let build_metadata api t =
 	let make_meta_field ml =
 		let h = Hashtbl.create 0 in
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
-			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
+			if Hashtbl.mem h f then typing_error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
 			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api) el)) (api.tarray t_dynamic) p
 		) ml)) t_dynamic p

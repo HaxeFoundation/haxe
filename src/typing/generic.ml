@@ -111,7 +111,7 @@ let generic_substitute_expr gctx e =
 				let fa = try
 					quick_field t cf.cf_name
 				with Not_found ->
-					error (Printf.sprintf "Type %s has no field %s (possible typing order issue)" (s_type (print_context()) t) cf.cf_name) e.epos
+					typing_error (Printf.sprintf "Type %s has no field %s (possible typing order issue)" (s_type (print_context()) t) cf.cf_name) e.epos
 				in
 				build_expr {e with eexpr = TField(e1,fa)}
 			end;
@@ -128,7 +128,7 @@ let generic_substitute_expr gctx e =
 				let eo = loop gctx.subst in
 				begin match eo with
 					| Some e -> e
-					| None -> error "Only Const type parameters can be used as value" e.epos
+					| None -> typing_error "Only Const type parameters can be used as value" e.epos
 				end
 			with Not_found ->
 				e
@@ -155,7 +155,7 @@ let static_method_container gctx c cf p =
 		let t = Typeload.load_instance ctx (mk_type_path (pack,name),p) true in
 		match t with
 		| TInst(cg,_) -> cg
-		| _ -> error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
+		| _ -> typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> die "" __LOC__) in
 		let mg = {
@@ -182,7 +182,7 @@ let rec build_generic ctx c p tl =
 			(match c2.cl_kind with
 			| KTypeParameter tl ->
 				if not (TypeloadCheck.is_generic_parameter ctx c2) && has_ctor_constraint c2 then
-					error "Type parameters with a constructor cannot be used non-generically" p;
+					typing_error "Type parameters with a constructor cannot be used non-generically" p;
 				recurse := true
 			| _ -> ());
 			List.iter check_recursive tl;
@@ -199,7 +199,7 @@ let rec build_generic ctx c p tl =
 		let t = Typeload.load_instance ctx (mk_type_path (pack,name),p) false in
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
-		| _ -> error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
+		| _ -> typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> die "" __LOC__) in
 		(* let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in *)
@@ -280,7 +280,7 @@ let rec build_generic ctx c p tl =
 					| Some e ->
 						cf_new.cf_expr <- Some (generic_substitute_expr gctx e)
 				) with Unify_error l ->
-					error (error_msg (Unify l)) cf_new.cf_pos
+					typing_error (error_msg (Unify l)) cf_new.cf_pos
 				end;
 				t
 			in
@@ -295,10 +295,10 @@ let rec build_generic ctx c p tl =
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
-		if c.cl_init <> None then error "This class can't be generic" p;
+		if c.cl_init <> None then typing_error "This class can't be generic" p;
 		List.iter (fun cf -> match cf.cf_kind with
 			| Method MethMacro when not ctx.in_macro -> ()
-			| _ -> error "A generic class can't have static fields" cf.cf_pos
+			| _ -> typing_error "A generic class can't have static fields" cf.cf_pos
 		) c.cl_ordered_statics;
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
@@ -321,7 +321,7 @@ let rec build_generic ctx c p tl =
 			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor
 			| None, None, None -> None
-			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
+			| _ -> typing_error "Please define a constructor for this class in order to use it as generic" c.cl_pos
 		);
 		cg.cl_implements <- List.map (fun (i,tl) ->
 			(match follow (generic_substitute_type gctx (TInst (i, List.map (generic_substitute_type gctx) tl))) with
@@ -349,7 +349,7 @@ let type_generic_function ctx fa fcc with_type p =
 		| _ -> die "" __LOC__
 	in
 	let cf = fcc.fc_field in
-	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
+	if cf.cf_params = [] then typing_error "Function has no type parameters and cannot be generic" p;
 	begin match with_type with
 		| WithType.WithType(t,_) -> unify ctx fcc.fc_ret t p
 		| _ -> ()
@@ -448,7 +448,7 @@ let type_generic_function ctx fa fcc with_type p =
 		let dispatch = new CallUnification.call_dispatcher ctx (MCall []) with_type p in
 		dispatch#field_call fa el []
 	with Generic_Exception (msg,p) ->
-		error msg p)
+		typing_error msg p)
 
 ;;
 Typecore.type_generic_function_ref := type_generic_function
