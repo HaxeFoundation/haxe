@@ -558,7 +558,7 @@ and parse_meta_params pname s = match s with parser
 
 and parse_meta_entry = parser
 	[< '(At,p1); s >] ->
-		let meta = check_resume p1 (fun () -> Some (Meta.Last,[],p1)) (fun () -> None) in
+		let meta = check_resume p1 (fun () -> Some (Meta.HxCompletion,[],p1)) (fun () -> None) in
 		match s with parser
 		| [< name,p = parse_meta_name p1; params = parse_meta_params p >] -> (name,params,punion p1 p)
 		| [< >] -> match meta with None -> serror() | Some meta -> meta
@@ -580,7 +580,7 @@ and parse_meta_name_2 p1 acc s =
 
 and parse_meta_name p1 = parser
 	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] ->
-		let meta = check_resume p (fun () -> Some (Meta.Last,p)) (fun() -> None) in
+		let meta = check_resume p (fun () -> Some (Meta.HxCompletion,p)) (fun() -> None) in
 		begin match s with parser
 		| [< name,p2 = parse_meta_name_2 p [] >] -> (Meta.parse (rev_concat "." name)),p2
 		| [< >] -> match meta with None -> raise Stream.Failure | Some meta -> meta
