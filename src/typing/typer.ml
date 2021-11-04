@@ -1325,7 +1325,7 @@ and type_array_decl ctx el with_type p =
 	| Some t ->
 		let el = List.map (fun e ->
 			let e = type_expr ctx e (WithType.with_type t) in
-			AbstractCast.cast_or_unify ctx t e p;
+			AbstractCast.cast_or_unify ctx t e e.epos;
 		) el in
 		mk (TArrayDecl el) (ctx.t.tarray t) p)
 
