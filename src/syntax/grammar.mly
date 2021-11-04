@@ -1184,7 +1184,14 @@ and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
 	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
-	| [< >] -> no_keyword "variable name" s
+	| [< >] ->
+		(* This nonsense is here for the var @ case in issue #9639 *)
+		let rec loop meta = match meta with
+			| (Meta.HxCompletion,_,p) :: _ -> (meta,"",false,None,null_pos)
+			| _ :: meta -> loop meta
+			| [] -> no_keyword "variable name" s
+		in
+		loop meta
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->

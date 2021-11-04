@@ -612,6 +612,7 @@ and type_vars ctx vl p =
 			) in
 			let v = add_local_with_origin ctx TVOLocalVariable n t pv in
 			v.v_meta <- ev.ev_meta;
+			DisplayEmitter.check_display_metadata ctx v.v_meta;
 			if ev.ev_final then add_var_flag v VFinal;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;
