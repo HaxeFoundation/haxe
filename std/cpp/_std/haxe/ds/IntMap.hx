@@ -125,6 +125,10 @@ package haxe.ds;
 		untyped __int_hash_set_float(__cpp__("HX_MAP_THIS"), key, val);
 	}
 
+	private function setInt64(key:Int, val:haxe.Int64):Void {
+		untyped __int_hash_set_int64(__cpp__("HX_MAP_THIS"), key, val);
+	}
+
 	private function getString(key:Int):String {
 		return untyped __int_hash_get_string(h, key);
 	}
@@ -139,6 +143,10 @@ package haxe.ds;
 
 	private function getFloat(key:Int):Float {
 		return untyped __int_hash_get_float(h, key);
+	}
+
+	private function getInt64(key:Int):haxe.Int64 {
+		return untyped __int_hash_get_int64(h, key);
 	}
 	#end
 }
