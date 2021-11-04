@@ -57,6 +57,10 @@ extern class Os {
 
 	static function putenv(name:String, value:String):Void;
 
+	/** Removes the value for the environment variable `name`.
+
+		When targeting python versions prior to 3.9, this function may not exist on some platforms.
+	 **/
 	static function unsetenv(name:String):Void;
 
 	static function chdir(path:String):Void;

@@ -69,7 +69,10 @@ class Sys {
 
 	public static function putEnv(s:String, v:Null<String>):Void {
 		if (v == null) {
-			python.lib.Os.unsetenv(s);
+			try {
+				python.lib.Os.unsetenv(s);
+			} catch(e:python.Exceptions.AttributeError) {}
+			// in python versions earlier than 3.9, some platforms don't have the unsetenv function
 			environ.remove(s);
 			return;
 		}
