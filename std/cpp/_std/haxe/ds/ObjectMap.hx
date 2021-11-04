@@ -49,7 +49,7 @@ package haxe.ds;
   inline int get_int(Dynamic key) { return __object_hash_get_int(h,key); }
   inline Float get_float(Dynamic key) { return __object_hash_get_float(h,key); }
   inline String get_string(Dynamic key) { return __object_hash_get_string(h,key); }
-  inline String get_int64(Dynamic key) { return __object_hash_get_int64(h,key); }
+  inline cpp::Int64 get_int64(Dynamic key) { return __object_hash_get_int64(h,key); }
 ")
 @:coreApi
 class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
