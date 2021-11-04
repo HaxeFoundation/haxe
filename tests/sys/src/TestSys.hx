@@ -29,11 +29,26 @@ class TestSys extends TestCommandBase {
 		// environment should not update if env updates
 		env.set(toUpdate, "2");
 		Assert.equals("1", Sys.getEnv(toUpdate));
+
+		// variables set via target specific api should exist
+		#if (cs || python)
+		final toSetNatively = "SET_NATIVELY";
+		#if cs
+		cs.system.Environment.SetEnvironmentVariable(toSetNatively, "1");
+		#elseif python
+		python.lib.Os.environ.set(toSetNatively, "1");
+		#end
+		Assert.equals("1", Sys.environment()[toSetNatively]);
+		#end
 		#end
 	}
 
 	function existsInSubProcess(variable:String, value:String) {
+		#if js
 		return UtilityProcess.runUtilityAsCommand(["checkEnv", variable, value]) == 0;
+		#else
+		return UtilityProcess.runUtility(["checkEnv", variable, value]).exitCode == 0;
+		#end
 	}
 
 	function testGetEnv() {
@@ -51,6 +66,11 @@ class TestSys extends TestCommandBase {
 
 		Assert.isTrue(existsInSubProcess("foo", "value"));
 
+		#if python
+		// the variable should also be visible through python's api
+		Assert.equals("value", python.lib.Os.environ.get("foo"));
+		#end
+
 		// null
 		Sys.putEnv("foo", null);
 		Assert.isNull(Sys.getEnv("foo"));
@@ -58,6 +78,11 @@ class TestSys extends TestCommandBase {
 		Assert.isFalse(Sys.environment().exists("foo"));
 
 		Assert.isFalse(existsInSubProcess("foo", "value"));
+
+		#if python
+		// the variable should also be gone when checking through python's api
+		Assert.isFalse(python.lib.Os.environ.hasKey("foo"));
+		#end
 	}
 	#end
 
