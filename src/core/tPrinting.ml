@@ -498,6 +498,15 @@ module Printer = struct
 	let s_type_params tl =
 		s_list ", " s_type_param tl
 
+	let s_flags flags all_flags =
+		let _,l = List.fold_left (fun (i,acc) name ->
+			if has_flag flags i then (i + 1,name :: acc) else (i + 1,acc)
+		) (0,[]) all_flags in
+		String.concat " " l
+
+	let s_tclass_field_flags flags =
+		s_flags flags flag_tclass_field_names
+
 	let s_tclass_field tabs cf =
 		s_record_fields tabs [
 			"cf_name",cf.cf_name;
@@ -509,6 +518,7 @@ module Printer = struct
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
+			"cf_flags",s_tclass_field_flags cf.cf_flags;
 		]
 
 	let s_tclass tabs c =

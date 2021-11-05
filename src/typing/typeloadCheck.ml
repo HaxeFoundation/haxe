@@ -350,14 +350,14 @@ module Inheritance = struct
 			check_interface ctx missing c i2 (List.map (apply_params intf.cl_params params) p2)
 		) intf.cl_implements;
 		let p = c.cl_name_pos in
-		let rec check_field i f =
+		let check_field f =
 			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
 			let make_implicit_field () =
 				let cf = {f with cf_overloads = []} in
 				begin try
 					let cf' = PMap.find cf.cf_name c.cl_fields in
-					Hashtbl.remove ctx.com.overload_cache (c.cl_path,i);
+					Hashtbl.remove ctx.com.overload_cache (c.cl_path,f.cf_name);
 					cf'.cf_overloads <- cf :: cf'.cf_overloads
 				with Not_found ->
 					TClass.add_field c cf
@@ -365,10 +365,10 @@ module Inheritance = struct
 				cf
 			in
 			try
-				let map2, t2, f2 = class_field_no_interf c i in
+				let map2, t2, f2 = class_field_no_interf c f.cf_name in
 				let t2, f2 =
 					if f2.cf_overloads <> [] || has_class_field_flag f2 CfOverload then
-						let overloads = Overloads.get_overloads ctx.com c i in
+						let overloads = Overloads.get_overloads ctx.com c f.cf_name in
 						is_overload := true;
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
 					else
@@ -383,16 +383,16 @@ module Inheritance = struct
 						| MethMacro -> 2
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
-						display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
+						display_error ctx ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 					else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-						display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+						display_error ctx ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
 						let map1 = TClass.get_map_function  intf params in
 						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
-								display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+								display_error ctx ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 								display_error ctx (compl_msg "Interface field is defined here") f.cf_pos;
 								display_error ctx (compl_msg (error_msg (Unify l))) p;
 							end
@@ -413,18 +413,18 @@ module Inheritance = struct
 						let msg = if !is_overload then
 							let ctx = print_context() in
 							let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
-							"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
+							"No suitable overload for " ^ f.cf_name ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
 						else
-							("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
+							("Field " ^ f.cf_name ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
 						in
 						display_error ctx msg p
 					end
 				| Not_found -> ()
 		in
-		let check_field i cf =
-			check_field i cf;
+		let check_field _ cf =
+			check_field cf;
 			if has_class_field_flag cf CfOverload then
-				List.iter (check_field i) (List.rev cf.cf_overloads)
+				List.iter check_field (List.rev cf.cf_overloads)
 		in
 		PMap.iter check_field intf.cl_fields
 
