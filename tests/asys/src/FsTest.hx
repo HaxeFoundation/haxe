@@ -1,3 +1,4 @@
+import asys.native.filesystem.FilePath;
 import haxe.io.Bytes;
 import haxe.PosInfos;
 
@@ -48,10 +49,19 @@ class FsTest extends Test {
 				actual = actual.replace('/', '\\');
 			}
 			if(expected != actual) {
-				expected = expected.removeTrailingSlashes();
-				actual = actual.removeTrailingSlashes();
+				expected = removeTrailingSlashes(expected);
+				actual = removeTrailingSlashes(actual);
 			}
 			equals(expected, actual, msg, pos);
 		}
+	}
+
+	static final driveOnly = ~/^[a-zA-Z]:$/;
+
+	function removeTrailingSlashes(path:String):String {
+		var trimmed = Path.removeTrailingSlashes(path);
+		if(isWindows && driveOnly.match(trimmed) && path != trimmed)
+			trimmed = path.substr(0, 3);
+		return trimmed;
 	}
 }

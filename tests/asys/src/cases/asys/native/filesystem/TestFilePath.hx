@@ -44,18 +44,13 @@ class TestFilePath extends FsTest {
 			expect('path/file') => FilePath.createPath(['path', '', 'file']),
 			expect('/to/file') => FilePath.createPath(['path', '/to', 'file']),
 		]);
-		//TODO: I'm not sure about these
 		if(isWindows) {
-			cases[expect('C:file')] = FilePath.createPath('C:', 'file');
 			cases[expect('C:/file')] = FilePath.createPath('C:/', 'file');
-			cases[expect('C:path/file')] = FilePath.createPath('path', 'C:file'); //???
-			raises(() -> FilePath.createPath('D:/path', 'C:file'), ArgumentException); //??????
-
-			cases[expect('C:file')] = FilePath.createPath(['C:', 'file']);
-			cases[expect('C:/file')] = FilePath.createPath(['C:/', 'file']);
-			cases[expect('C:path/file')] = FilePath.createPath(['path', 'C:file']); //???
-			raises(() -> FilePath.createPath(['D:/path', 'C:file']), ArgumentException); //??????
 			raises(() -> FilePath.createPath([]), ArgumentException);
+			raises(() -> FilePath.createPath('D:/path', 'C:file'), ArgumentException);
+			//TODO: I'm not sure about these
+			// cases[expect('C:file')] = FilePath.createPath('C:', 'file');//???
+			// cases[expect('C:path/file')] = FilePath.createPath('path', 'C:file'); //???
 		}
 		check(cases, p -> p);
 	}
@@ -89,7 +84,6 @@ class TestFilePath extends FsTest {
 		isFalse(('./':FilePath).isAbsolute());
 		isFalse(('..':FilePath).isAbsolute());
 		if(isWindows) {
-			trace(('C:something':FilePath).toString()); // debug jvm
 			isTrue(('C:\\something':FilePath).isAbsolute());
 			isTrue(('\\':FilePath).isAbsolute());
 			isFalse(('C:something':FilePath).isAbsolute());
@@ -113,6 +107,7 @@ class TestFilePath extends FsTest {
 		]);
 		if(isWindows) {
 			cases[expect('C:/path')] = 'C:/absolute/../path';
+			cases[expect('C:/')] = 'C:/back/to/root/../../..';
 			cases[expect('C:/')] = 'C:/absolute/excessive/dots/../../../..';
 			cases[expect('C:')] = 'C:relative/.././';
 			cases[expect('C:../..')] = 'C:relative/../excessive/dots/../../../..';
@@ -130,9 +125,9 @@ class TestFilePath extends FsTest {
 		]);
 		if(isWindows) {
 			var currentDrive = cwd.substr(0, 1);
-			cases[expect(currentDrive + ':/absolute/path')] = '/absolute/path';
+			cases[expect('/absolute/path')] = '/absolute/path';
 			cases[expect('C:/absolute/path')] = 'C:/absolute/path';
-			cases[expect(cwd + 'relative/path')] = currentDrive + ':relative/path';
+			cases[expect(cwd + 'relative/path')] = cwd + 'relative/path';
 		} else {
 			cases[expect('/absolute/path')] = '/absolute/path';
 		}
@@ -161,6 +156,7 @@ class TestFilePath extends FsTest {
 			cases[expect(null)] = 'C:';
 			cases[expect('C:\\')] = 'C:\\dir';
 			cases[expect('C:')] = 'C:dir';
+			cases[expect('C:.')] = 'C:.\\dir';
 		}
 		check(cases, p -> p.parent());
 	}

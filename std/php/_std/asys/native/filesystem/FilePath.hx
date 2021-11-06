@@ -101,7 +101,8 @@ private typedef NativeFilePath = NativeString;
 	}
 
 	public function normalize():FilePath {
-		var parts:NativeIndexedArray<String> = if(SEPARATOR == '\\') {
+		var isWin = SEPARATOR == '\\';
+		var parts:NativeIndexedArray<String> = if(isWin) {
 			(preg_split('#\\\\|/#', this):NativeArray);
 		} else {
 			explode('/', this);
@@ -124,7 +125,13 @@ private typedef NativeFilePath = NativeString;
 		for(i in 0...skip)
 			array_unshift(result, '..');
 		var result = ofString(implode(SEPARATOR, result));
-		return isAbsolute() && !result.isAbsolute() ? SEPARATOR + result : result;
+		return if(isAbsolute() && !result.isAbsolute()) {
+			isSeparator(this[0]) ? SEPARATOR + result : (result == '' ? parts[0] : result) + SEPARATOR;
+		} else if(isWin && strlen(this) >= 2 && this[1] == ':' && (strlen(result) < 2 || (result:NativeString)[1] != ':')) {
+			(substr(this, 0, 2):String) + (result:NativeString);
+		} else {
+			result;
+		}
 	}
 
 	public function parent():Null<FilePath> {
@@ -134,9 +141,9 @@ private typedef NativeFilePath = NativeString;
 			case path:
 				if(trimSlashes(path) == trimSlashes(this)) {
 					null;
-				//relative to current drive with a dot. E.g. `C:.\relative\path`
+				//relative to current drive. E.g. `dirname("C:dir")` returns `C:.`
 				} else if(SEPARATOR == '\\' && strlen(path) == 3 && preg_match('/^[a-zA-Z]:\\./', path)) {
-					strlen(this) >= 4 && this[2] == '.' && isSeparator(this[3]) ? path : null;
+					strlen(this) >= 4 && this[2] == '.' && isSeparator(this[3]) ? path : substr(path, 0, 2);
 				} else {
 					path;
 				}
