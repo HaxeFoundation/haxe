@@ -42,6 +42,8 @@ class TestCommandBase extends utest.Test {
 				run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 			#elseif lua
 				run("lua", [bin].concat(args));
+			#elseif js
+				run("node", [bin].concat(args));
 			#else
 				-1;
 			#end
@@ -133,6 +135,8 @@ class TestCommandBase extends utest.Test {
 					run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 				#elseif lua
 					run("lua", [bin].concat(args));
+				#elseif js
+					run("node", [bin].concat(args));
 				#else
 					-1;
 				#end

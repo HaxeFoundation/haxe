@@ -12,7 +12,7 @@
     opam init # --disable-sandboxing
     opam update
     opam pin add haxe . --no-action
-    opam install haxe --deps-only
+    opam install haxe --deps-only --assume-depexts
     opam list
     ocamlopt -v
 

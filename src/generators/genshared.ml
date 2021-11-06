@@ -278,7 +278,7 @@ object(self)
 				in
 				loop csup;
 				(c,cf)
-			| None -> Error.error "Could not find overload constructor" e.epos
+			| None -> Error.typing_error "Could not find overload constructor" e.epos
 		in
 		let find_super_ctor el =
 			let _,cf = find_super_ctor el in

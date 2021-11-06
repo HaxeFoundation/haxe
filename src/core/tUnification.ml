@@ -73,7 +73,7 @@ module Monomorph = struct
 	let add_up_constraint m ((t,name) as constr) =
 		m.tm_up_constraints <- constr :: m.tm_up_constraints;
 		match t with
-		| TMono m2 -> m2.tm_down_constraints <- MMono (m2,name) :: m2.tm_down_constraints
+		| TMono m2 -> m2.tm_down_constraints <- MMono (m,name) :: m2.tm_down_constraints
 		| _ -> ()
 
 	let add_down_constraint m constr =

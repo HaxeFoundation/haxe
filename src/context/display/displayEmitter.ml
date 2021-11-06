@@ -155,7 +155,7 @@ let display_meta com meta p = match com.display.dms_kind with
 	| DMDefault ->
 		let all = Meta.get_all() in
 		let all = List.map make_ci_metadata all in
-		let subject = if meta = Meta.Last then None else Some (Meta.to_string meta) in
+		let subject = if meta = Meta.HxCompletion then None else Some (Meta.to_string meta) in
 		raise_fields all CRMetadata (make_subject subject p);
 	| _ ->
 		()

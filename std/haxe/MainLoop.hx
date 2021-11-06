@@ -110,11 +110,11 @@ class MainLoop {
 	static function injectIntoEventLoop(waitMs:Int) {
 		#if (target.threaded && !cppia)
 			mutex.acquire();
-			if(eventLoopHandler != null) {
+			if(eventLoopHandler != null)
 				mainThread.events.cancel(eventLoopHandler);
-			}
 			eventLoopHandler = mainThread.events.repeat(
 				() -> {
+					mainThread.events.cancel(eventLoopHandler);
 					var wait = tick();
 					if(hasEvents()) {
 						injectIntoEventLoop(Std.int(wait * 1000));

@@ -766,7 +766,7 @@ let default_implementation gen (dyn_tparam_cast:texpr->t->texpr) ifaces =
 							false)
 						| _ -> false
 					in
-					let unifies = unifies && not (PMap.mem "cs_safe_casts" gen.gcon.defines.Define.values) in
+					let unifies = unifies && not (Common.raw_defined gen.gcon "cs_safe_casts") in
 					(match follow t with
 						| TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) && not unifies && not (Meta.has Meta.Enum cl.cl_meta) ->
 							let iface = Hashtbl.find ifaces cl.cl_path in

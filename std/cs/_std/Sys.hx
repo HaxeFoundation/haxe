@@ -50,9 +50,14 @@ class Sys {
 		return Environment.GetEnvironmentVariable(s);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		Environment.SetEnvironmentVariable(s, v);
-		if (_env != null)
+		if (_env == null)
+			return;
+
+		if (v == null)
+			_env.remove(s);
+		else
 			_env.set(s, v);
 	}
 
@@ -65,7 +70,7 @@ class Sys {
 			}
 		}
 
-		return _env;
+		return _env.copy();
 	}
 
 	public static inline function sleep(seconds:Float):Void {
@@ -78,7 +83,7 @@ class Sys {
 	}
 
 	public static inline function getCwd():String {
-		return cs.system.io.Directory.GetCurrentDirectory();
+		return haxe.io.Path.addTrailingSlash(cs.system.io.Directory.GetCurrentDirectory());
 	}
 
 	public static inline function setCwd(s:String):Void {

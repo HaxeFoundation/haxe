@@ -23,6 +23,8 @@ let handle_in_temp_thread ctx env f =
 		let v = try
 			f()
 		with
+		| NoValueExpr ->
+			vnull
 		| RunTimeException(v,stack,p) ->
 			prerr_endline (EvalExceptions.get_exc_error_message ctx v stack p);
 			vnull

@@ -5,18 +5,53 @@ class TestSys extends TestCommandBase {
 		return Sys.command(cmd, args);
 	}
 
-	function testEnv() {
-		#if !(java)
-		Sys.putEnv("foo", "value");
-		Assert.equals("value", Sys.getEnv("foo"));
-		#end
-		Assert.equals(null, Sys.getEnv("doesn't exist"));
-
-		#if !(java)
+	function testEnvironment() {
 		var env = Sys.environment();
-		Assert.equals("value", env.get("foo"));
+		// EXISTS should be set manually via the command line
+		Assert.notNull(env.get("EXISTS"));
+		Assert.isNull(env.get("doesn't exist"));
+
+		final nonExistent = "NON_EXISTENT";
+		env.set(nonExistent, "1");
+		// new copies should not be affected
+		Assert.isNull(Sys.environment()[nonExistent]);
+
+		#if !java
+		// env should not update when environment updates
+		final toUpdate = "TO_UPDATE";
+
+		Sys.putEnv(toUpdate, "1");
+		Assert.isNull(env.get(toUpdate));
+
+		// new copy should have the variable
+		Assert.equals("1", Sys.environment()[toUpdate]);
+
+		// environment should not update if env updates
+		env.set(toUpdate, "2");
+		Assert.equals("1", Sys.getEnv(toUpdate));
 		#end
 	}
+
+	function testGetEnv() {
+		// EXISTS should be set manually via the command line
+		Assert.notNull(Sys.getEnv("EXISTS"));
+		Assert.isNull(Sys.getEnv("doesn't exist"));
+	}
+
+	#if !java
+	function testPutEnv() {
+		Sys.putEnv("foo", "value");
+		Assert.equals("value", Sys.getEnv("foo"));
+
+		Assert.equals("value", Sys.environment().get("foo"));
+
+		// null
+		Sys.putEnv("foo", null);
+		Assert.isNull(Sys.getEnv("foo"));
+
+		Assert.isFalse(Sys.environment().exists("foo"));
+	}
+	#end
 
 	function testProgramPath() {
 		var p = Sys.programPath();
@@ -50,8 +85,14 @@ class TestSys extends TestCommandBase {
 		#end
 	}
 
+	function testGetCwd() {
+		final current = Sys.getCwd();
+		// ensure it has a trailing slash
+		Assert.notEquals(current, haxe.io.Path.removeTrailingSlashes(current));
+	}
+
 	#if !java
-	function testCwd() {
+	function testSetCwd() {
 		var cur = Sys.getCwd();
 		Sys.setCwd("../");
 		var newCwd = haxe.io.Path.join([cur, "../"]);

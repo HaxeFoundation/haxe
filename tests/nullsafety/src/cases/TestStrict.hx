@@ -112,6 +112,8 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 
 @:build(Validator.checkFields())
 class TestStrict {
+	extern static final something:String;
+
 	public var field:Null<String>;
 	// @:shouldWarn public var publiclyModifiableField:String = 'hello';
 	@:shouldFail var notInitializedField:Int;
@@ -993,6 +995,18 @@ class TestStrict {
 		if(Math.random() > 0.5) a = 'hi'
 		else a = 'hello';
 		var s:String = a;
+	}
+
+	/**
+	 * @see https://github.com/HaxeFoundation/haxe/pull/10428#issuecomment-951574457
+	 */
+	static function issue10428() {
+		final arr:Array<Int> = [
+			{
+				var tmp = (1 : Null<Int>);
+				if (tmp != null) tmp else 2;
+			}
+		];
 	}
 }
 

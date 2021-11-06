@@ -82,14 +82,14 @@ let get_error_pos_ref : ((string -> int -> string) -> pos -> string) ref = ref (
 	Printf.sprintf "%s: characters %d-%d" p.pfile p.pmin p.pmax
 )
 
-let s_version with_build =
+let s_version =
 	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
-	let build =
-		match with_build, Version.version_extra with
-			| true, Some (_,build) -> "+" ^ build
-			| _, _ -> ""
-	in
-	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
+	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision pre
+
+let s_version_full =
+	match Version.version_extra with
+		| Some (_,build) -> s_version ^ "+" ^ build
+		| _ -> s_version
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
@@ -111,7 +111,7 @@ let die ?p msg ml_loc =
 		try snd (ExtString.String.split backtrace "\n")
 		with ExtString.Invalid_string -> backtrace
 	in
-	let ver = s_version true
+	let ver = s_version_full
 	and os_type = if Sys.unix then "unix" else "windows" in
 	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
 	assert false

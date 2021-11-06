@@ -475,7 +475,7 @@ and resume tdecl fdecl s =
 		| Kwd New :: Kwd Function :: _ when fdecl ->
 			junk_tokens (k - 2);
 			true
-		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
 			junk_tokens (k - 1);
 			true
 		| BrClose :: _ when tdecl ->
@@ -558,7 +558,7 @@ and parse_meta_params pname s = match s with parser
 
 and parse_meta_entry = parser
 	[< '(At,p1); s >] ->
-		let meta = check_resume p1 (fun () -> Some (Meta.Last,[],p1)) (fun () -> None) in
+		let meta = check_resume p1 (fun () -> Some (Meta.HxCompletion,[],p1)) (fun () -> None) in
 		match s with parser
 		| [< name,p = parse_meta_name p1; params = parse_meta_params p >] -> (name,params,punion p1 p)
 		| [< >] -> match meta with None -> serror() | Some meta -> meta
@@ -580,7 +580,7 @@ and parse_meta_name_2 p1 acc s =
 
 and parse_meta_name p1 = parser
 	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] ->
-		let meta = check_resume p (fun () -> Some (Meta.Last,p)) (fun() -> None) in
+		let meta = check_resume p (fun () -> Some (Meta.HxCompletion,p)) (fun() -> None) in
 		begin match s with parser
 		| [< name,p2 = parse_meta_name_2 p [] >] -> (Meta.parse (rev_concat "." name)),p2
 		| [< >] -> match meta with None -> raise Stream.Failure | Some meta -> meta
@@ -1184,6 +1184,14 @@ and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
 	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
+	| [< >] ->
+		(* This nonsense is here for the var @ case in issue #9639 *)
+		let rec loop meta = match meta with
+			| (Meta.HxCompletion,_,p) :: _ -> (meta,"",false,None,null_pos)
+			| _ :: meta -> loop meta
+			| [] -> no_keyword "variable name" s
+		in
+		loop meta
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->

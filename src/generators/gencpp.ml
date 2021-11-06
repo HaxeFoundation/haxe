@@ -6942,9 +6942,9 @@ let write_build_options common_ctx filename defines =
    let writer = cached_source_writer common_ctx filename in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ ->  writer#write (name ^ "="^(escape_command value)^ "\n" ) ) defines;
+      | _ ->  writer#write (Printf.sprintf "%s=%s\n" name (escape_command value))) defines;
    let cmd = Unix.open_process_in "haxelib path hxcpp" in
-   writer#write ("hxcpp=" ^ (Pervasives.input_line cmd));
+   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line cmd));
    Pervasives.ignore (Unix.close_process_in cmd);
    writer#close;;
 
@@ -8553,21 +8553,23 @@ let generate_source ctx =
    | _ -> "output" in
 
    write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps (!boot_enums@ !boot_classes) !build_xml !extern_src output_name;
-   let cmd_defines = ref "" in
-   PMap.iter ( fun name value -> match name with
-      | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines.Define.values;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
-      let cmd = ref "haxelib run hxcpp Build.xml haxe" in
-      if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
-      cmd := !cmd ^ !cmd_defines;
-      cmd := List.fold_left (fun cmd path -> cmd ^ " -I\"" ^ (escape_command path) ^ "\"" ) !cmd common_ctx.class_path;
-      common_ctx.print (!cmd ^ "\n");
-      if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
+      let cmd_buffer = Buffer.create 128 in
+      Buffer.add_string cmd_buffer "haxelib run hxcpp Build.xml haxe";
+      if (common_ctx.debug) then Buffer.add_string cmd_buffer " -Ddebug";
+      PMap.iter ( fun name value -> match name with
+         | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
+         | _ -> Printf.bprintf cmd_buffer " -D%s=\"%s\"" name (escape_command value);
+      ) common_ctx.defines.values;
+      List.iter (fun path -> Printf.bprintf cmd_buffer " -I\"%s\"" (escape_command path)) common_ctx.class_path;
+      Buffer.add_char cmd_buffer '\n';
+      let cmd = Buffer.contents cmd_buffer in
+      common_ctx.print cmd;
+      if common_ctx.run_command cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
       t()
    end
@@ -8583,5 +8585,3 @@ let generate common_ctx =
       generate_source ctx
    end
 ;;
-
-

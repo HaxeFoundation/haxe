@@ -67,13 +67,17 @@ class Sys {
 		return environ.get(s);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
+		if (v == null) {
+			environ.remove(s);
+			return;
+		}
 		python.lib.Os.putenv(s, v);
 		environ.set(s, v);
 	}
 
 	public static function environment():Map<String, String> {
-		return environ;
+		return environ.copy();
 	}
 
 	public static function sleep(seconds:Float):Void {
@@ -85,7 +89,7 @@ class Sys {
 	}
 
 	public static function getCwd():String {
-		return python.lib.Os.getcwd();
+		return haxe.io.Path.addTrailingSlash(python.lib.Os.getcwd());
 	}
 
 	public static function setCwd(s:String):Void {

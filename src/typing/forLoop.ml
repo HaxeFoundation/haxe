@@ -280,7 +280,7 @@ module IterationKind = struct
 				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
 				| TUnop (Increment,_,{ eexpr = TLocal l })
 				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
-					error "Loop variable cannot be modified" e.epos
+					typing_error "Loop variable cannot be modified" e.epos
 				| _ ->
 					Type.iter loop e
 			in
@@ -317,7 +317,7 @@ module IterationKind = struct
 		match iterator.it_kind with
 		| IteratorIntUnroll(offset,length,ascending) ->
 			check_loop_var_modification [v] e2;
-			if not ascending then error "Cannot iterate backwards" p;
+			if not ascending then typing_error "Cannot iterate backwards" p;
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
@@ -330,7 +330,7 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
 			check_loop_var_modification [v] e2;
-			if not ascending then error "Cannot iterate backwards" p;
+			if not ascending then typing_error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
 			let ev_index = make_local v_index v_index.v_pos in
@@ -460,7 +460,7 @@ let type_for_loop ctx handle_display it e2 p =
 	let rec loop_ident dko e1 = match e1 with
 		| EConst(Ident i),p -> i,p,dko
 		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
-		| _ -> error "Identifier expected" (pos e1)
+		| _ -> typing_error "Identifier expected" (pos e1)
 	in
 	let rec loop dko e1 = match fst e1 with
 		| EBinop(OpIn,e1,e2) ->
@@ -475,7 +475,7 @@ let type_for_loop ctx handle_display it e2 p =
 			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
 			| None -> ()
 			end;
-			error "For expression should be 'v in expr'" (snd it)
+			typing_error "For expression should be 'v in expr'" (snd it)
 	in
 	let ik,e1 = loop None it in
 	let e1 = type_expr ctx e1 WithType.value in

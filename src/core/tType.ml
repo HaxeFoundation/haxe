@@ -406,6 +406,12 @@ type flag_tclass_field =
 	| CfImpl
 	| CfEnum
 	| CfGeneric
+	| CfDefault (* Interface field with default implementation (only valid on Java) *)
+
+(* Order has to match declaration for printing*)
+let flag_tclass_field_names = [
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault"
+]
 
 type flag_tvar =
 	| VCaptured

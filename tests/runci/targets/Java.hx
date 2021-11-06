@@ -29,7 +29,7 @@ class Java {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-java.hxml"].concat(args));
-		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
+		runSysTest("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
 		changeDirectory(asysDir);
 		runCommand("haxe", ["compile-java.hxml"].concat(args));

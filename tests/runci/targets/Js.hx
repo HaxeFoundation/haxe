@@ -9,6 +9,8 @@ import sys.io.Process;
 using StringTools;
 
 class Js {
+	static final miscJsDir = miscDir + 'js/';
+
 	static public function getJSDependencies() {
 		switch [ci, systemName] {
 			case [_, "Linux"]:
@@ -107,5 +109,13 @@ class Js {
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);
+
+		changeDirectory(sysDir);
+		runCommand("npm", ["install", "deasync"], true);
+		runCommand("haxe", ["compile-js.hxml"].concat(args));
+		runSysTest("node", ["bin/js/sys.js"]);
+
+		changeDirectory(miscJsDir);
+		runCommand("haxe", ["run.hxml"]);
 	}
 }

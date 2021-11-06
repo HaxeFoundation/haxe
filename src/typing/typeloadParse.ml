@@ -40,7 +40,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	with
 		| Sedlexing.MalFormed ->
 			t();
-			error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+			typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
 		| e ->
 			t();
 			raise e
@@ -77,7 +77,7 @@ let parse_file com file p =
 		in
 		parse_file_from_string com file p s
 	else
-		let ch = try open_in_bin file with _ -> error ("Could not open " ^ file) p in
+		let ch = try open_in_bin file with _ -> typing_error ("Could not open " ^ file) p in
 		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
 let parse_hook = ref parse_file
@@ -270,7 +270,7 @@ let handle_parser_result com p result =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
-			| EPShow -> error msg p
+			| EPShow -> typing_error msg p
 			| EPIgnore -> ()
 			| EPCollect -> add_diagnostics_message com msg p DKParserError Error
 	in

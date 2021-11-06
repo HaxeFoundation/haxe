@@ -33,7 +33,7 @@ class Cs {
 		if (args == null) args = [];
 		exe = FileSystem.fullPath(exe);
 		switch (systemName) {
-			case "Linux", "Mac":
+			case "Linux" | "Mac":
 				runCommand("mono", [exe].concat(args));
 			case "Windows":
 				runCommand(exe, args);
@@ -60,7 +60,13 @@ class Cs {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
-		runCs("bin/cs/bin/Main-Debug.exe", []);
+		final exe = FileSystem.fullPath("bin/cs/bin/Main-Debug.exe");
+		switch (systemName) {
+			case "Linux" | "Mac":
+				runSysTest("mono", [exe]);
+			case "Windows":
+				runSysTest(exe);
+		}
 
 		changeDirectory(asysDir);
 		runCommand("haxe", ["compile-cs.hxml",'-D'].concat(args));

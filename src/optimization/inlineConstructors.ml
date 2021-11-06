@@ -316,7 +316,11 @@ let inline_constructors ctx original_e =
 						let iv_is_const iv = match iv.iv_kind with IVKField(_,_,Some(_)) -> true | _ -> false in
 						if is_lvalue && iv_is_const fiv then raise Not_found;
 						if fiv.iv_closed then raise Not_found;
-						if not captured || (not is_lvalue && fiv.iv_state == IVSUnassigned) then cancel_iv fiv efield.epos;
+						if not is_lvalue && fiv.iv_state == IVSUnassigned then (
+							ctx.com.warning ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
+							raise Not_found
+						);
+						if not captured then cancel_iv fiv efield.epos;
 						IOFInlineVar(fiv)
 					with Not_found ->
 						cancel_iv iv efield.epos;
@@ -399,7 +403,7 @@ let inline_constructors ctx original_e =
 						None
 				end
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
-				error "Extern constructor could not be inlined" e.epos;
+				typing_error "Extern constructor could not be inlined" e.epos;
 			| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
 				let v = alloc_var VGenerated "inlobj" e.etype e.epos in
 				let ev = mk (TLocal v) v.v_type e.epos in

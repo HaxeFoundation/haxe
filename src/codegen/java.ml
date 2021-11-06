@@ -393,6 +393,7 @@ let convert_java_enum ctx p pe =
 					})
 				| _ -> error "Method signature was expected" p
 		in
+		if field.jf_code <> None && is_interface then cff_meta := (Meta.JavaDefault,[],cff_pos) :: !cff_meta;
 		let cff_name, cff_meta =
 			match String.get cff_name 0 with
 				| '%' ->
@@ -411,7 +412,7 @@ let convert_java_enum ctx p pe =
 							String.concat "_" parts,
 							(Meta.Native, [EConst (String (cff_name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 		in
-		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
+		if Common.raw_defined ctx.jcom "java_loader_debug" then
 			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem_assoc AStatic !cff_access then "static " else "") (if List.mem_assoc AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
 
 		{
@@ -453,7 +454,7 @@ let convert_java_enum ctx p pe =
 				[convert_java_enum ctx p jc]
 		| false ->
 			let flags = ref [HExtern] in
-			if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then begin
+			if Common.raw_defined ctx.jcom "java_loader_debug" then begin
 				let sup = jc.csuper :: jc.cinterfaces in
 				print_endline ("converting " ^ (if List.mem JAbstract jc.cflags then "abstract " else "") ^ JData.path_s jc.cpath ^ " : " ^ (String.concat ", " (List.map s_sig sup)));
 			end;
@@ -1262,7 +1263,7 @@ let add_java_lib com name std extern modern =
 
 let before_generate con =
 	let java_ver = try
-			int_of_string (PMap.find "java_ver" con.defines.Define.values)
+			int_of_string (Common.defined_value con Define.JavaVer)
 		with | Not_found ->
 			Common.define_value con Define.JavaVer "7";
 			7

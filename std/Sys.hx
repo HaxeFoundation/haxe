@@ -57,12 +57,15 @@ extern class Sys {
 	/**
 		Sets the value of the given environment variable.
 
+		If `v` is `null`, the environment variable is removed.
+
 		(java) This functionality is not available on Java; calling this function will throw.
 	**/
-	static function putEnv(s:String, v:String):Void;
+	static function putEnv(s:String, v:Null<String>):Void;
 
 	/**
-		Returns all environment variables.
+		Returns a map of the current environment variables and their values
+		as of the invocation of the function.
 	**/
 	static function environment():Map<String, String>;
 

@@ -6,6 +6,7 @@ import runci.Config.*;
 
 class Cpp {
 	static public var gotCppDependencies = false;
+	static final miscCppDir = miscDir + 'cpp/';
 
 	static public function getCppDependencies() {
 		if (gotCppDependencies) return;
@@ -59,7 +60,7 @@ class Cpp {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-cpp.hxml"].concat(args));
-		runCpp("bin/cpp/Main-debug", []);
+		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
@@ -71,5 +72,8 @@ class Cpp {
 		// 	runCommand("haxe", ["build.hxml"]);
 		// 	runCpp("bin/TestObjc-debug");
 		// }
+
+		changeDirectory(miscCppDir);
+		runCommand("haxe", ["run.hxml"]);
 	}
 }

@@ -68,9 +68,9 @@ let get_general_module_type ctx mt p =
 				| TInst(c,_) -> loop (TClassDecl c)
 				| TEnum(en,_) -> loop (TEnumDecl en)
 				| TAbstract(a,_) -> loop (TAbstractDecl a)
-				| _ -> error "Cannot use this type as a value" p
+				| _ -> typing_error "Cannot use this type as a value" p
 			end
-		| _ -> error "Cannot use this type as a value" p
+		| _ -> typing_error "Cannot use this type as a value" p
 	in
 	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) true
 
@@ -132,7 +132,7 @@ module Constructor = struct
 		| ConArray i -> make_int ctx.com.basic i p
 		| ConTypeExpr mt -> TyperBase.type_module_type ctx mt None p
 		| ConStatic(c,cf) -> make_static_field c cf p
-		| ConFields _ -> error "Something went wrong" p
+		| ConFields _ -> typing_error "Something went wrong" p
 
 	let hash con = Hashtbl.hash (fst con)
 end
@@ -183,18 +183,18 @@ module Pattern = struct
 		let ctx = pctx.ctx in
 		let p = pos e in
 		let fail () =
-			error ("Unrecognized pattern: " ^ (Ast.Printer.s_expr e)) p
+			typing_error ("Unrecognized pattern: " ^ (Ast.Printer.s_expr e)) p
 		in
 		let unify_expected t' =
 			unify ctx t' t p
 		in
 		let verror name p =
-			error (Printf.sprintf "Variable %s must appear exactly once in each sub-pattern" name) p
+			typing_error (Printf.sprintf "Variable %s must appear exactly once in each sub-pattern" name) p
 		in
 		let add_local final name p =
 			let is_wildcard_local = name = "_" in
-			if not is_wildcard_local && pctx.is_postfix_match then error "Pattern variables are not allowed in .match patterns" p;
-			if not is_wildcard_local && PMap.mem name pctx.current_locals then error (Printf.sprintf "Variable %s is bound multiple times" name) p;
+			if not is_wildcard_local && pctx.is_postfix_match then typing_error "Pattern variables are not allowed in .match patterns" p;
+			if not is_wildcard_local && PMap.mem name pctx.current_locals then typing_error (Printf.sprintf "Variable %s is bound multiple times" name) p;
 			match pctx.or_locals with
 			| Some map when not is_wildcard_local ->
 				let v,p = try PMap.find name map with Not_found -> verror name p in
@@ -219,6 +219,16 @@ module Pattern = struct
 		let con_type_expr mt p = ConTypeExpr mt,p in
 		let con_array i p = ConArray i,p in
 		let con_fields fl p = ConFields fl,p in
+		let get_enumerable_idents () = match follow t with
+			| TEnum(en,_) ->
+				en.e_names
+			| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
+				ExtList.List.filter_map (fun cf ->
+					if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
+				) c.cl_ordered_statics
+			| _ ->
+				[]
+		in
 		let check_expr e =
 			let rec loop e = match e.eexpr with
 				| TField(_,FEnum(en,ef)) ->
@@ -231,7 +241,19 @@ module Pattern = struct
 					PatConstructor(con_const ct e.epos,[])
 				| TCast(e1,None) ->
 					loop e1
-				| TField _ ->
+				| TField (ef,f) ->
+					let s = field_name f in
+					begin match StringError.get_similar s (get_enumerable_idents()) with
+						| [] -> ()
+						| l ->
+							let tpath = match follow t with
+								| TEnum (e,tl) -> s_type_path e.e_path ^ "."
+								| TAbstract (a,tl) -> s_type_path a.a_path ^ "."
+								| _ -> ""
+							in
+							let fields = List.map (fun (el) -> tpath ^ el) l in
+							pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
+					end;
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
 					PatConstructor(con_type_expr mt e.epos,[])
@@ -292,17 +314,7 @@ module Pattern = struct
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Pattern variables must be lower-case" p;
 					end;
-					let sl = match follow t with
-						| TEnum(en,_) ->
-							en.e_names
-						| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
-							ExtList.List.filter_map (fun cf ->
-								if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
-							) c.cl_ordered_statics
-						| _ ->
-							[]
-					in
-					begin match StringError.get_similar s sl with
+					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->
 							()
 							(* if toplevel then
@@ -332,7 +344,7 @@ module Pattern = struct
 				begin match follow t with
 					| TFun(ta,tr) when tr == fake_tuple_type ->
 						if i = "_" then PatTuple(List.map (fun (_,_,t) -> (PatAny,pos e)) ta)
-						else error "Cannot bind matched tuple to variable, use _ instead" p
+						else typing_error "Cannot bind matched tuple to variable, use _ instead" p
 					| _ ->
 						if i = "_" then PatAny
 						else handle_ident i (pos e)
@@ -365,9 +377,9 @@ module Pattern = struct
 							| [],[] ->
 								[]
 							| [],_ ->
-								error "Not enough arguments" p
+								typing_error "Not enough arguments" p
 							| _,[] ->
-								error "Too many arguments" p
+								typing_error "Too many arguments" p
 						in
 						let patterns = loop el args in
 						ignore(unapply_type_parameters ef.ef_params monos);
@@ -380,7 +392,7 @@ module Pattern = struct
 					try_typing e
 				with
 					| Exit -> fail()
-					| Bad_pattern s -> error s p
+					| Bad_pattern s -> typing_error s p
 				end
 			| EArrayDecl el ->
 				let rec pattern seen t = match follow t with
@@ -390,8 +402,8 @@ module Pattern = struct
 								let pat = make pctx false t e in
 								pat :: loop el tl
 							| [],[] -> []
-							| [],_ -> error "Not enough arguments" p
-							| (_,p) :: _,[] -> error "Too many arguments" p
+							| [],_ -> typing_error "Not enough arguments" p
+							| (_,p) :: _,[] -> typing_error "Too many arguments" p
 						in
 						let patterns = loop el tl in
 						PatTuple patterns
@@ -446,7 +458,7 @@ module Pattern = struct
 								collect_field cf (apply_params a.a_params tl cf.cf_type) filter
 						) c.cl_ordered_statics;
 					| _ ->
-						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
+						typing_error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
 				collect_fields t None;
 				let is_matchable cf =
@@ -463,7 +475,7 @@ module Pattern = struct
 						else
 							patterns,fields
 				) ([],[]) !known_fields in
-				List.iter (fun ((s,_,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
+				List.iter (fun ((s,_,_),e) -> if not (List.mem s fields) then typing_error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
 				PatConstructor(con_fields fields (pos e),patterns)
 			| EBinop(OpOr,e1,e2) ->
 				let pctx1 = {pctx with current_locals = PMap.empty} in
@@ -551,7 +563,7 @@ module Case = struct
 				let e2 = collapse_case el in
 				EBinop(OpOr,e,e2),punion (pos e) (pos e2)
 			| [] ->
-				error "case without pattern" p
+				typing_error "case without pattern" p
 		in
 		let e = collapse_case el in
 		let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
@@ -1119,9 +1131,9 @@ module Compile = struct
 			| [],[] ->
 				bindings
 			| [],e :: _ ->
-				error "Invalid match: Not enough patterns" e.epos
+				typing_error "Invalid match: Not enough patterns" e.epos
 			| (_,p) :: _,[] ->
-				error "Invalid match: Too many patterns" p
+				typing_error "Invalid match: Too many patterns" p
 		in
 		let bindings = loop patterns subjects bindings in
 		if bindings = [] then dt else bind mctx (List.rev bindings) dt
@@ -1146,7 +1158,7 @@ module Compile = struct
 					| PatBind(v,pat1) -> loop ((v,pos pat,subject) :: bindings) pat1
 					| PatVariable _ | PatAny -> ()
 					| PatExtractor _ -> raise Extractor
-					| _ -> error ("Unexpected pattern: " ^ (Pattern.to_string pat)) case.case_pos;
+					| _ -> typing_error ("Unexpected pattern: " ^ (Pattern.to_string pat)) case.case_pos;
 				in
 				loop bindings (List.hd patterns)
 			) cases;
@@ -1407,7 +1419,7 @@ module TexprConverter = struct
 			| _ -> kind = SKValue
 		in
 		List.iter (fun (con,unguarded,dt) ->
-			if not (compatible_kind con) then error "Incompatible pattern" dt.dt_pos;
+			if not (compatible_kind con) then typing_error "Incompatible pattern" dt.dt_pos;
 			if unguarded then ConTable.remove h con
 		) cases;
 		let unmatched = ConTable.fold (fun con _ acc -> con :: acc) h [] in
@@ -1438,7 +1450,7 @@ module TexprConverter = struct
 			| [] -> "_"
 			| _ -> String.concat " | " (List.sort Pervasives.compare sl)
 		in
-		error (Printf.sprintf "Unmatched patterns: %s" (s_subject v_lookup s e_subject)) e_subject.epos
+		typing_error (Printf.sprintf "Unmatched patterns: %s" (s_subject v_lookup s e_subject)) e_subject.epos
 
 	type dt_recursion =
 		| Toplevel
@@ -1608,9 +1620,15 @@ module TexprConverter = struct
 								report_not_exhaustive !v_lookup e [(ConConst TNull,dt.dt_pos),dt.dt_pos]
 						| Some e_then ->
 							let e_else = loop dt_rec params dt2 in
-							Option.map (fun e_else ->
-								mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
-							) e_else
+							begin match e_else with
+							| None ->
+								if toplevel then
+									Some (mk (TIf(e_cond,e_then,None)) t_switch e_then.epos)
+								else
+									report_not_exhaustive !v_lookup e []
+							| Some e_else ->
+								Some (mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos))
+							end
 						end
 					| Bind(bl,dt) ->
 						let el = List.map (fun (v,p,e) ->
@@ -1629,7 +1647,7 @@ module TexprConverter = struct
 		let e = loop Toplevel params dt in
 		match e with
 		| None ->
-			error "Unmatched patterns: _" p;
+			typing_error "Unmatched patterns: _" p;
 		| Some e ->
 			Texpr.duplicate_tvars e
 end
