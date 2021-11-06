@@ -28,20 +28,6 @@ import haxe.ds.StringMap;
 
 @:coreApi
 class Sys {
-	static var environ(get,default):StringMap<String>;
-	static function get_environ():StringMap<String> {
-		return switch environ {
-			case null:
-				var environ = new StringMap();
-				var env = Os.environ;
-				for (key in env.keys()) {
-					environ.set(key, env.get(key, null));
-				}
-				Sys.environ = environ;
-			case env: env;
-		}
-	}
-
 	public static inline function time():Float {
 		return Time.time();
 	}
@@ -64,24 +50,24 @@ class Sys {
 	}
 
 	public static function getEnv(s:String):String {
-		return environ.get(s);
+		return Os.environ.get(s, null);
 	}
 
 	public static function putEnv(s:String, v:Null<String>):Void {
 		if (v == null) {
-			try {
-				python.lib.Os.unsetenv(s);
-			} catch(e:python.Exceptions.AttributeError) {}
-			// in python versions earlier than 3.9, some platforms don't have the unsetenv function
-			environ.remove(s);
+			Os.environ.remove(s);
 			return;
 		}
-		python.lib.Os.putenv(s, v);
-		environ.set(s, v);
+		Os.environ.set(s, v);
 	}
 
 	public static function environment():Map<String, String> {
-		return environ.copy();
+		final environ = new StringMap();
+		final env = Os.environ;
+		for (key in env.keys()) {
+			environ.set(key, env.get(key, null));
+		}
+		return environ;
 	}
 
 	public static function sleep(seconds:Float):Void {
