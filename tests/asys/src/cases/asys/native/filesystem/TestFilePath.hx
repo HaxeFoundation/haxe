@@ -14,38 +14,38 @@ import haxe.exceptions.PosException;
  * (back)slashes and ignores trailing slashes if needed.
  */
 class TestFilePath extends FsTest {
-	function expect<T>(value:T, ?pos:PosInfos) {
+	function expect(value:FilePath, ?pos:PosInfos) {
 		return {value:value, pos:pos};
 	}
 
-	inline function cases(m:Map<{value:String,pos:PosInfos},FilePath>) {
+	inline function cases(m:Map<{value:FilePath,pos:PosInfos},Null<String>>) {
 		return m;
 	}
 
-	function check(cases:Map<{value:String,pos:PosInfos},FilePath>, subject:(Null<FilePath>)->Null<String>) {
-		for(expected => path in cases) {
+	function check(cases:Map<{value:FilePath,pos:PosInfos},Null<String>>, subject:(Null<FilePath>)->Null<String>) {
+		for(path => expected in cases) {
 			var actual = try {
-				subject(path);
+				subject(path.value);
 			} catch(e) {
-				throw new haxe.exceptions.PosException(e.message, e, expected.pos);
+				throw new haxe.exceptions.PosException(e.message, e, path.pos);
 			}
-			equalPaths(expected.value, actual, expected.pos);
+			equalPaths(expected, actual, path.pos);
 		}
 	}
 
 	function testCreatePath() {
 		var cases = cases([
-			expect('path/to/file') => FilePath.createPath('path', 'to', 'file'),
-			expect('path/to/file') => FilePath.createPath('path/', 'to', 'file'),
-			expect('/to/file') => FilePath.createPath('path', '/to', 'file'),
-			expect('path/file') => FilePath.createPath('path', '', 'file'),
-			expect('path/to/file') => FilePath.createPath(['path', 'to', 'file']),
-			expect('path/to/file') => FilePath.createPath(['path/', 'to', 'file']),
-			expect('path/file') => FilePath.createPath(['path', '', 'file']),
-			expect('/to/file') => FilePath.createPath(['path', '/to', 'file']),
+			expect(FilePath.createPath('path', 'to', 'file')) => 'path/to/file',
+			expect(FilePath.createPath('path/', 'to', 'file')) => 'path/to/file',
+			expect(FilePath.createPath('path', '/to', 'file')) => '/to/file',
+			expect(FilePath.createPath('path', '', 'file')) => 'path/file',
+			expect(FilePath.createPath(['path', 'to', 'file'])) => 'path/to/file',
+			expect(FilePath.createPath(['path/', 'to', 'file'])) => 'path/to/file',
+			expect(FilePath.createPath(['path', '', 'file'])) => 'path/file',
+			expect(FilePath.createPath(['path', '/to', 'file'])) => '/to/file',
 		]);
 		if(isWindows) {
-			cases[expect('C:/file')] = FilePath.createPath('C:/', 'file');
+			cases[expect(FilePath.createPath('C:/', 'file'))] = 'C:/file';
 			raises(() -> FilePath.createPath([]), ArgumentException);
 			raises(() -> FilePath.createPath('D:/path', 'C:file'), ArgumentException);
 			//TODO: I'm not sure about these
@@ -96,21 +96,21 @@ class TestFilePath extends FsTest {
 		var cases = cases([
 			expect('some/path') => 'some/path',
 			expect('') => '',
-			expect('') => '.',
-			expect('') => './',
-			expect('non-existent/file') => 'path/to/./../../non-existent/./file',
-			expect('check/slashes') => 'check///slashes/',
-			expect('') => './all/redundant/../..',
-			expect('../..') => 'leaves/../non-redundant/../double-dots/../../..',
+			expect('.') => '',
+			expect('./') => '',
+			expect('path/to/./../../non-existent/./file') => 'non-existent/file',
+			expect('check///slashes/') => 'check/slashes',
+			expect('./all/redundant/../..') => '',
+			expect('leaves/../non-redundant/../double-dots/../../..') => '../..',
 			expect('...') => '...',
 			expect('/absolute/path') => '/absolute/path',
 		]);
 		if(isWindows) {
-			cases[expect('C:/path')] = 'C:/absolute/../path';
-			cases[expect('C:/')] = 'C:/back/to/root/../../..';
-			cases[expect('C:/')] = 'C:/absolute/excessive/dots/../../../..';
-			cases[expect('C:')] = 'C:relative/.././';
-			cases[expect('C:../..')] = 'C:relative/../excessive/dots/../../../..';
+			cases[expect('C:/absolute/../path')] = 'C:/path';
+			cases[expect('C:/back/to/root/../../..')] = 'C:/';
+			cases[expect('C:/absolute/excessive/dots/../../../..')] = 'C:/';
+			cases[expect('C:relative/.././')] = 'C:';
+			cases[expect('C:relative/../excessive/dots/../../../..')] = 'C:../..';
 		}
 		check(cases, p -> p.normalize());
 	}
@@ -118,10 +118,10 @@ class TestFilePath extends FsTest {
 	function testAbsolute() {
 		var cwd = Path.addTrailingSlash(Sys.getCwd());
 		var cases = cases([
-			expect(cwd + 'some/path') => 'some/path',
-			expect(cwd) => '',
-			expect(cwd + '.') => '.',
-			expect(cwd + 'non-existent/file') => 'non-existent/file',
+			expect('some/path') => cwd + 'some/path',
+			expect('') => cwd,
+			expect('.') => cwd + '.',
+			expect('non-existent/file') => cwd + 'non-existent/file',
 		]);
 		if(isWindows) {
 			var currentDrive = cwd.substr(0, 1);
@@ -136,27 +136,27 @@ class TestFilePath extends FsTest {
 
 	function testParent() {
 		var cases = cases([
-			expect(null) => 'file',
-			expect('/') => '/file',
-			expect('.') => './file',
-			expect('path/to') => 'path/to/file',
-			expect('path/to') => 'path/to/dir/',
-			expect('path/to') => 'path/to///dir/',
-			expect('path/to/..') => 'path/to/../file',
-			expect('path/to') => 'path/to/..',
-			expect('path/to') => 'path/to/.',
-			expect(null) => '.hidden',
-			expect(null) => '.',
-			expect(null) => '',
-			expect(null) => '/',
-			expect(null) => '\\',
+			expect('file') => null,
+			expect('/file') => '/',
+			expect('./file') => '.',
+			expect('path/to/file') => 'path/to',
+			expect('path/to/dir/') => 'path/to',
+			expect('path/to///dir/') => 'path/to',
+			expect('path/to/../file') => 'path/to/..',
+			expect('path/to/..') => 'path/to',
+			expect('path/to/.') => 'path/to',
+			expect('.hidden') => null,
+			expect('.') => null,
+			expect('') => null,
+			expect('/') => null,
+			expect('\\') => null,
 		]);
 		if(isWindows) {
-			cases[expect(null)] = 'C:\\';
-			cases[expect(null)] = 'C:';
-			cases[expect('C:\\')] = 'C:\\dir';
-			cases[expect('C:')] = 'C:dir';
-			cases[expect('C:.')] = 'C:.\\dir';
+			cases[expect('C:\\')] = null;
+			cases[expect('C:')] = null;
+			cases[expect('C:\\dir')] = 'C:\\';
+			cases[expect('C:dir')] = 'C:';
+			cases[expect('C:.\\dir')] = 'C:.';
 		}
 		check(cases, p -> p.parent());
 	}
@@ -164,13 +164,13 @@ class TestFilePath extends FsTest {
 	function testAdd() {
 		var dir = FilePath.ofString('dir');
 		var cases = cases([
-			expect('dir/file') => dir.add('file'),
-			expect('/file') => dir.add('/file'),
-			expect('dir') => dir.add(''),
-			expect('dir') => FilePath.ofString('').add(dir),
+			expect(dir.add('file')) => 'dir/file',
+			expect(dir.add('/file')) => '/file',
+			expect(dir.add('')) => 'dir',
+			expect(FilePath.ofString('').add(dir)) => 'dir',
 		]);
 		if(isWindows) {
-			cases[expect('C:/dir')] = FilePath.ofString('C:/').add(dir);
+			cases[expect(FilePath.ofString('C:/').add(dir))] = 'C:/dir';
 		}
 		check(cases, p -> p);
 	}
