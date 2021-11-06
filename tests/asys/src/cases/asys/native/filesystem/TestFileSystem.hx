@@ -658,7 +658,7 @@ class TestFileSystem extends FsTest {
 			var p:FilePath = 'test-data/sub/.././../test-data////sub/hello.world';
 			FileSystem.realPath(p, (e, p) -> {
 				if(noException(e)) {
-					equals(expected, p.toString());
+					equalPaths(expected, p.toString());
 				}
 			});
 		},
@@ -667,7 +667,7 @@ class TestFileSystem extends FsTest {
 			var p:FilePath = 'test-data/symlink';
 			FileSystem.realPath(p, (e, p) -> {
 				if(noException(e)) {
-					equals(expected, p.toString());
+					equalPaths(expected, p.toString());
 				}
 			});
 		},
