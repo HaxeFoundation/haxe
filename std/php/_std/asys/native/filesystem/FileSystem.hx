@@ -391,6 +391,8 @@ class FileSystem {
 					case false:
 						throw new php.Exception('Failed to read a link');
 					case (_:String) => r:
+						if(FilePath.SEPARATOR == '\\' && !is_link(path))
+							throw new php.Exception('Failed to read a link');
 						(r:FilePath);
 				}
 			} catch(e:php.Exception) {
