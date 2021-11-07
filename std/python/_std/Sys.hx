@@ -55,7 +55,11 @@ class Sys {
 
 	public static function putEnv(s:String, v:Null<String>):Void {
 		if (v == null) {
-			Os.environ.remove(s);
+			try {
+				Os.environ.remove(s);
+			} catch(e:python.Exceptions.KeyError) {
+				// the variable didn't exist
+			}
 			return;
 		}
 		Os.environ.set(s, v);
