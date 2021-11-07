@@ -11,7 +11,7 @@ import asys.native.filesystem.File;
 
 @:depends(
 	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePath,
-	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePermissions
+	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePermissions,
 	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFileSystem
 )
 class TestFile extends FsTest {
