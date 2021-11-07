@@ -83,6 +83,15 @@ class TestSys extends TestCommandBase {
 		// the variable should also be gone when checking through python's api
 		Assert.isFalse(python.lib.Os.environ.hasKey("foo"));
 		#end
+
+		Assert.isTrue(
+			try {
+				Sys.putEnv("NON_EXISTENT", null);
+				true;
+			} catch (e) {
+				trace(e);
+				false;
+			});
 	}
 	#end
 
