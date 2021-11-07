@@ -11,7 +11,7 @@ import asys.native.filesystem.File;
 
 @:depends(
 	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePath,
-	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePermissions,
+	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFilePermissions
 	cases.asys#if (java && !jvm) ._native #else .native #end.filesystem.TestFileSystem
 )
 class TestFile extends FsTest {
@@ -629,6 +629,12 @@ class TestFile extends FsTest {
 
 	@:depends(testOpenWrite, testInfo)
 	function testPermissions(async:Async) {
+		if(isWindows) {
+			pass();
+			async.done();
+			return;
+		}
+
 		asyncAll(async,
 			FileSystem.openFile('test-data/temp/set-perm', Write, (_, file) -> {
 				var permissions:FilePermissions = [0, 7, 6, 5];
@@ -647,6 +653,7 @@ class TestFile extends FsTest {
 	function testSetOwner(async:Async) {
 		if(isWindows) {
 			pass();
+			async.done();
 			return;
 		}
 

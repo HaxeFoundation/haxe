@@ -140,15 +140,17 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					isTrue(r);
 			}),
-			FileSystem.link('non-existent', 'test-data/temp/faulty-link', (_, _) -> {
-				FileSystem.isLink('test-data/temp/faulty-link', (e, r) -> {
-					if(noException(e) && isTrue(r))
-						FileSystem.check('test-data/temp/faulty-link', Exists, (e, r) -> {
-							if(noException(e))
-								isFalse(r);
-						});
-				});
-			}),
+			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
+			if(!isWindows)
+				FileSystem.link('non-existent', 'test-data/temp/faulty-link', (_, _) -> {
+					FileSystem.isLink('test-data/temp/faulty-link', (e, r) -> {
+						if(noException(e) && isTrue(r))
+							FileSystem.check('test-data/temp/faulty-link', Exists, (e, r) -> {
+								if(noException(e))
+									isFalse(r);
+							});
+					});
+				}),
 			#end
 			FileSystem.check('non-existent', Exists, (e, r) -> {
 				if(noException(e))
@@ -374,6 +376,12 @@ class TestFileSystem extends FsTest {
 #if !neko
 	@:depends(testWriteString, testInfo)
 	function testSetPermissions(async:Async) {
+		if(isWindows) {
+			pass();
+			async.done();
+			return;
+		}
+
 		asyncAll(async,
 			FileSystem.writeString('test-data/temp/perm', '', (_, _) -> {
 				var permissions:FilePermissions = [0, 7, 6, 5];
@@ -394,6 +402,7 @@ class TestFileSystem extends FsTest {
 	function testSetOwner(async:Async) {
 		if(isWindows) {
 			pass();
+			async.done();
 			return;
 		}
 
@@ -474,10 +483,12 @@ class TestFileSystem extends FsTest {
 
 	function testIsLink(async:Async) {
 		asyncAll(async,
-			FileSystem.isLink('test-data/symlink', (e, r) -> {
-				if(noException(e))
-					isTrue(r);
-			}),
+			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
+			if(!isWindows)
+				FileSystem.isLink('test-data/symlink', (e, r) -> {
+					if(noException(e))
+						isTrue(r);
+				}),
 			FileSystem.isLink('test-data/sub/hello.world', (e, r) -> {
 				if(noException(e))
 					isFalse(r);
@@ -495,10 +506,12 @@ class TestFileSystem extends FsTest {
 
 	function testReadLink(async:Async) {
 		asyncAll(async,
-			FileSystem.readLink('test-data/symlink', (e, r) -> {
-				if(noException(e))
-					equals('sub' + FilePath.SEPARATOR + 'hello.world', r.toString());
-			}),
+			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
+			if(!isWindows)
+				FileSystem.readLink('test-data/symlink', (e, r) -> {
+					if(noException(e))
+						equals('sub' + FilePath.SEPARATOR + 'hello.world', r.toString());
+				}),
 			FileSystem.readLink('test-data/sub/hello.world', (e, r) -> {
 				assertType(e, FsException, e -> equalPaths('test-data/sub/hello.world', e.path));
 			}),
@@ -510,13 +523,15 @@ class TestFileSystem extends FsTest {
 
 	function testLinkInfo(async:Async) {
 		asyncAll(async,
-			FileSystem.linkInfo('test-data/symlink', (e, r) -> {
-				if(noException(e)) {
-					isFalse(r.mode.isFile());
-					isFalse(r.mode.isDirectory());
-					isTrue(r.mode.isLink());
-				}
-			}),
+			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
+			if(!isWindows)
+				FileSystem.linkInfo('test-data/symlink', (e, r) -> {
+					if(noException(e)) {
+						isFalse(r.mode.isFile());
+						isFalse(r.mode.isDirectory());
+						isTrue(r.mode.isLink());
+					}
+				}),
 			FileSystem.linkInfo('non-existent', (e, r) -> {
 				assertType(e, FsException, e -> equalPaths('non-existent', e.path));
 			})
@@ -526,24 +541,28 @@ class TestFileSystem extends FsTest {
 	@:depends(testReadLink, testIsLink, testReadString)
 	function testLink(async:Async) {
 		asyncAll(async,
-			FileSystem.link('../sub/hello.world', 'test-data/temp/symlink', SymLink, (e, r) -> {
-				if(noException(e))
-					FileSystem.readLink('test-data/temp/symlink', (e, r) -> {
-						if(noException(e))
-							equals('../sub/hello.world', r.toString());
-					});
-			}),
-			FileSystem.link('test-data/sub/hello.world', 'test-data/temp/hardlink', HardLink, (e, r) -> {
-				if(noException(e))
-					FileSystem.isLink('test-data/temp/hardlink', (e, r) -> {
-						if(noException(e))
-							if(isFalse(r))
-								FileSystem.readString('test-data/temp/hardlink', (e, r) -> {
-									if(noException(e))
-										equals('Hello, world!', r);
-								});
-					});
-			}),
+			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
+			if(!isWindows)
+				FileSystem.link('../sub/hello.world', 'test-data/temp/symlink', SymLink, (e, r) -> {
+					if(noException(e))
+						FileSystem.readLink('test-data/temp/symlink', (e, r) -> {
+							if(noException(e))
+								equals('../sub/hello.world', r.toString());
+						});
+				}),
+			//windows requires elevated mode or UAC disabled to create hard links
+			if(!isWindows)
+				FileSystem.link('test-data/sub/hello.world', 'test-data/temp/hardlink', HardLink, (e, r) -> {
+					if(noException(e))
+						FileSystem.isLink('test-data/temp/hardlink', (e, r) -> {
+							if(noException(e))
+								if(isFalse(r))
+									FileSystem.readString('test-data/temp/hardlink', (e, r) -> {
+										if(noException(e))
+											equals('Hello, world!', r);
+									});
+						});
+				}),
 			FileSystem.link('../sub/hello.world', 'test-data/temp/non-existent/link', (e, r) -> {
 				assertType(e, FsException, e -> equalPaths('test-data/temp/non-existent/link', e.path));
 			})
@@ -554,6 +573,7 @@ class TestFileSystem extends FsTest {
 	function testSetLinkOwner(async:Async) {
 		if(isWindows) {
 			pass();
+			async.done();
 			return;
 		}
 
@@ -580,6 +600,13 @@ class TestFileSystem extends FsTest {
 					FileSystem.readBytes('test-data/temp/copy', (e, r) -> {
 						if(noException(e) && same(bytesBinContent(), r)) {
 							asyncAll(async,
+								//disable overwrite
+								FileSystem.copyFile('test-data/sub/hello.world', 'test-data/temp/copy', false, (e, r) -> {
+									assertType(e, FsException, e -> {
+										var path = e.path.toString();
+										isTrue(path == 'test-data/sub/hello.world' || path == 'test-data/temp/copy');
+									});
+								}),
 								//overwrite
 								FileSystem.copyFile('test-data/sub/hello.world', 'test-data/temp/copy', (e, r) -> {
 									if(noException(e))
@@ -587,13 +614,6 @@ class TestFileSystem extends FsTest {
 											if(noException(e))
 												equals('Hello, world!', r);
 										});
-								}),
-								//disable overwrite
-								FileSystem.copyFile('test-data/sub/hello.world', 'test-data/temp/copy', false, (e, r) -> {
-									assertType(e, FsException, e -> {
-										var path = e.path.toString();
-										isTrue(path == 'test-data/sub/hello.world' || path == 'test-data/temp/copy');
-									});
 								})
 							);
 						}
@@ -665,11 +685,13 @@ class TestFileSystem extends FsTest {
 		#if !cs //C# does not have API to resolve symlinks
 		{
 			var p:FilePath = 'test-data/symlink';
-			FileSystem.realPath(p, (e, p) -> {
-				if(noException(e)) {
-					equalPaths(expected, p.toString());
-				}
-			});
+			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
+			if(!isWindows)
+				FileSystem.realPath(p, (e, p) -> {
+					if(noException(e)) {
+						equalPaths(expected, p.toString());
+					}
+				});
 		},
 		#end
 		{
