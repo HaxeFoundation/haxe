@@ -60,9 +60,6 @@ extern class Sys {
 		If `v` is `null`, the environment variable is removed.
 
 		(java) This functionality is not available on Java; calling this function will throw.
-
-		(python) When targeting python versions earlier than 3.9, passing `null` as the variable
-		value may not properly remove the variable depending on the platform.
 	**/
 	static function putEnv(s:String, v:Null<String>):Void;
 
