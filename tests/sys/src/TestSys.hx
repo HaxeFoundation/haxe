@@ -59,39 +59,38 @@ class TestSys extends TestCommandBase {
 
 	#if !java
 	function testPutEnv() {
-		Sys.putEnv("foo", "value");
-		Assert.equals("value", Sys.getEnv("foo"));
+		Sys.putEnv("FOO", "value");
+		Assert.equals("value", Sys.getEnv("FOO"));
 
-		Assert.equals("value", Sys.environment().get("foo"));
+		Assert.equals("value", Sys.environment().get("FOO"));
 
-		Assert.isTrue(existsInSubProcess("foo", "value"));
+		Assert.isTrue(existsInSubProcess("FOO", "value"));
 
 		#if python
 		// the variable should also be visible through python's api
-		Assert.equals("value", python.lib.Os.environ.get("foo"));
+		Assert.equals("value", python.lib.Os.environ.get("FOO"));
 		#end
 
 		// null
-		Sys.putEnv("foo", null);
-		Assert.isNull(Sys.getEnv("foo"));
+		Sys.putEnv("FOO", null);
+		Assert.isNull(Sys.getEnv("FOO"));
 
-		Assert.isFalse(Sys.environment().exists("foo"));
+		Assert.isFalse(Sys.environment().exists("FOO"));
 
-		Assert.isFalse(existsInSubProcess("foo", "value"));
+		Assert.isFalse(existsInSubProcess("FOO", "value"));
 
 		#if python
 		// the variable should also be gone when checking through python's api
-		Assert.isFalse(python.lib.Os.environ.hasKey("foo"));
+		Assert.isFalse(python.lib.Os.environ.hasKey("FOO"));
 		#end
 
-		Assert.isTrue(
-			try {
-				Sys.putEnv("NON_EXISTENT", null);
-				true;
-			} catch (e) {
-				trace(e);
-				false;
-			});
+		Assert.isTrue(try {
+			Sys.putEnv("NON_EXISTENT", null);
+			true;
+		} catch (e) {
+			trace(e);
+			false;
+		});
 	}
 	#end
 
