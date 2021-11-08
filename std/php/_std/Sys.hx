@@ -29,6 +29,43 @@ import haxe.SysTools;
 	/** Environment variables set by `Sys.putEnv()` */
 	static var customEnvVars = new NativeAssocArray<String>();
 
+	// we need to keep track of capitalization for windows
+	static final isWindows = systemName() == "Windows";
+
+	static var envCapitalization(get, null):Map<String, String>;
+
+	static function get_envCapitalization():Map<String, String> {
+		if (envCapitalization == null)
+			return envCapitalization = [for (k => _ in SuperGlobal._SERVER) k.toUpperCase() => k];
+		return envCapitalization;
+	}
+
+	static inline function addCustom(name:String, value:String):Void {
+		customEnvVars[name] = value;
+		if (!isWindows)
+			return;
+		final upperCase = name.toUpperCase();
+		if (envCapitalization.exists(upperCase))
+			return;
+		envCapitalization[upperCase] = name;
+	}
+
+	static inline function removeCustom(name:String):Void {
+		Global.unset(customEnvVars[name]);
+		if (!isWindows)
+			return;
+		envCapitalization.remove(name.toUpperCase());
+	}
+
+	static inline function getCapitalization(name:String):String {
+		if (!isWindows)
+			return name;
+		final existing = envCapitalization[name.toUpperCase()];
+		if (existing != null)
+			return existing;
+		return name;
+	}
+
 	public static inline function print(v:Dynamic):Void {
 		Global.echo(Std.string(v));
 	}
@@ -52,10 +89,10 @@ import haxe.SysTools;
 
 	public static function putEnv(s:String, v:Null<String>):Void {
 		if (v == null) {
-			Global.unset(customEnvVars[s]);
+			removeCustom(s);
 			Global.putenv('$s');
 		} else {
-			customEnvVars[s] = '$v'; // in case of `null` it should become `"null"`
+			addCustom(s, v);
 			Global.putenv('$s=$v');
 		}
 	}
@@ -129,7 +166,8 @@ import haxe.SysTools;
 	public static function environment():Map<String, String> {
 		var env = SuperGlobal._SERVER;
 		Syntax.foreach(customEnvVars, function(name:String, value:String) {
-			env[name] = value;
+			final actualName = getCapitalization(name);
+			env[actualName] = value;
 		});
 		return php.Lib.hashOfAssociativeArray(env);
 	}
