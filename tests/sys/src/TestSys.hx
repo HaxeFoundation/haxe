@@ -54,6 +54,11 @@ class TestSys extends TestCommandBase {
 	function testGetEnv() {
 		// EXISTS should be set manually via the command line
 		Assert.notNull(Sys.getEnv("EXISTS"));
+
+		// on windows, Sys.getEnv should be case insensitive
+		if (Sys.systemName() == "Windows")
+			Assert.notNull(Sys.getEnv("exists"));
+
 		Assert.isNull(Sys.getEnv("doesn't exist"));
 	}
 
