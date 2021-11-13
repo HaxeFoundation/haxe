@@ -35,8 +35,4 @@ import haxe.extern.EitherType;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BufferSource>
  */
 @:forward
-abstract BufferSource(ArrayBuffer) to ArrayBuffer from ArrayBuffer {
-	@:from public static inline function fromBufferView(view:ArrayBufferView) {
-		return cast view.buffer;
-	}
-}
+abstract BufferSource(Dynamic) from ArrayBuffer from ArrayBufferView { }
