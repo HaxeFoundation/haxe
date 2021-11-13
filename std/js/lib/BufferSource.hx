@@ -34,5 +34,13 @@ import haxe.extern.EitherType;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BufferSource>
  */
-@:forward
-abstract BufferSource(Dynamic) from ArrayBuffer from ArrayBufferView { }
+abstract BufferSource(Dynamic) from ArrayBuffer from ArrayBufferView {
+	
+	public var byteLength(get, never): Int;
+
+	@:pure
+	inline function get_byteLength(): Int {
+		return this.byteLength;
+	}
+	
+}
