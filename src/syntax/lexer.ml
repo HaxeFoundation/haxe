@@ -299,7 +299,13 @@ let string_is_whitespace s =
 
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
-let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
+let digit = [%sedlex.regexp? '0'..'9']
+let sep_digit = [%sedlex.regexp? Opt '_', digit]
+let integer_digits = [%sedlex.regexp? (digit, Star sep_digit)]
+let hex_digit = [%sedlex.regexp? '0'..'9'|'a'..'f'|'A'..'F']
+let sep_hex_digit = [%sedlex.regexp? Opt '_', hex_digit]
+let hex_digits = [%sedlex.regexp? (hex_digit, Star sep_hex_digit)]
+let integer = [%sedlex.regexp? ('1'..'9', Star sep_digit) | '0']
 
 (* https://www.w3.org/TR/xml/#sec-common-syn plus '$' for JSX *)
 let xml_name_start_char = [%sedlex.regexp? '$' | ':' | 'A'..'Z' | '_' | 'a'..'z' | 0xC0 .. 0xD6 | 0xD8 .. 0xF6 | 0xF8 .. 0x2FF | 0x370 .. 0x37D | 0x37F .. 0x1FFF | 0x200C .. 0x200D | 0x2070 .. 0x218F | 0x2C00 .. 0x2FEF | 0x3001 .. 0xD7FF | 0xF900 .. 0xFDCF | 0xFDF0 .. 0xFFFD | 0x10000 .. 0xEFFFF]
@@ -319,12 +325,12 @@ let rec token lexbuf =
 	| Plus (Chars " \t") -> token lexbuf
 	| "\r\n" -> newline lexbuf; token lexbuf
 	| '\n' | '\r' -> newline lexbuf; token lexbuf
-	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F') -> mk lexbuf (Const (Int (lexeme lexbuf)))
+	| "0x", Plus hex_digits -> mk lexbuf (Const (Int (lexeme lexbuf)))
 	| integer -> mk lexbuf (Const (Int (lexeme lexbuf)))
-	| integer, '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, '.', Star '0'..'9', ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
+	| integer, '.', Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
+	| '.', Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
+	| integer, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
+	| integer, '.', Star digit, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
 	| integer, "..." ->
 		let s = lexeme lexbuf in
 		mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))
