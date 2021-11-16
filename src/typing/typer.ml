@@ -1688,6 +1688,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let iftype = WithType.WithType(e2.etype,None) in
 		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
 		vr#to_texpr e_if
+	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
+		let e_cond = EBinop(OpNotEq,e1,(EConst(Ident "null"), p)) in
+		let e_if = EIf ((e_cond, p),e1,Some e2) in
+		type_assign ctx e1 (e_if, p) with_type p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when (match with_type with

@@ -61,5 +61,31 @@ class TestNullCoalescing extends Test {
 
 		var a = [0 => nullInt ?? 0 + 100];
 		eq(a[0], 100);
+
+		final di:Null<Dynamic> = null;
+		final di2:Null<Dynamic> = null;
+		final di3:Null<Dynamic> = 2;
+		eq(di ?? di2 ?? di3, 2);
+
+		var a:Null<Int> = null;
+		a ??= 5;
+		eq(a, 5);
+		var a:Null<Int> = null;
+		eq(a ??= 5, 5);
+		eq(a, 5);
+
+		count = 0;
+		var a = call();
+		eq(count, 1);
+		a ??= call();
+		eq(count, 1);
+
+		var a:Null<String> = null;
+		final b = a ??= call();
+		final c = a ??= call();
+		eq(count, 2);
+		eq(a, "_");
+		eq(b, "_");
+		eq(c, "_");
 	}
 }

@@ -345,6 +345,7 @@ let rec token lexbuf =
 	| "<<=" -> mk lexbuf (Binop (OpAssignOp OpShl))
 	| "||=" -> mk lexbuf (Binop (OpAssignOp OpBoolOr))
 	| "&&=" -> mk lexbuf (Binop (OpAssignOp OpBoolAnd))
+	| "??=" -> mk lexbuf (Binop (OpAssignOp OpNullCoal))
 (*//| ">>=" -> mk lexbuf (Binop (OpAssignOp OpShr)) *)
 (*//| ">>>=" -> mk lexbuf (Binop (OpAssignOp OpUShr)) *)
 	| "==" -> mk lexbuf (Binop OpEq)
