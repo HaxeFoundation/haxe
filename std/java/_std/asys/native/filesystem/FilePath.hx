@@ -45,7 +45,7 @@ private typedef NativeFilePath = Path;
 		return path;
 	}
 
-	@:from static inline function ofNative(path:Path):FilePath {
+	@:from static inline function ofNative(path:NativeFilePath):FilePath {
 		return new FilePath(path);
 	}
 

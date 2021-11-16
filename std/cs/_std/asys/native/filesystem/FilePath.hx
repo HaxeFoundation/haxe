@@ -33,22 +33,43 @@ private typedef NativeFilePath = String;
 		}
 	}
 
+	overload extern static public inline function createPath(path:String, ...appendices:String):FilePath {
+		return createPathImpl(path, ...appendices);
+	}
+
+	@:native('createPath')
+	static function createPathImpl(path:String, ...appendices:String):FilePath {
+		var path = ofString(path);
+		for(p in appendices)
+			path = path.add(p);
+		return path;
+	}
+
+	overload extern static public inline function createPath(parts:Array<String>):FilePath {
+		return ofArray(parts);
+	}
+
+	@:noUsing
 	@:from public static inline function ofString(path:String):FilePath {
+		return new FilePath(Paths.get(path));
+	}
+
+	@:from static function ofArray(parts:Array<String>):FilePath {
+		if(parts.length == 0)
+			throw new ArgumentException('parts');
+		return Path.Combine(@:privateAccess parts.__a);
+	}
+
+	@:from static inline function ofNative(path:NativeFilePath):FilePath {
 		return new FilePath(path);
 	}
 
-	function new(s:NativeFilePath) {
-		this = switch s {
-			case null: null;
-			case _ if(s.length == 0): '.';
-			case _:
-				var trimmed = trimSlashes(s);
-				switch trimmed.length {
-					case 0: s.charAt(0);
-					case 2 if(SEPARATOR == '\\' && s.fastCodeAt(1) == ':'.code && isSeparator(s.fastCodeAt(2))): s.substr(0, 3);
-					case _: trimmed;
-				}
-		}
+	inline function new(path:NativeFilePath) {
+		this = path;
+	}
+
+	public inline function add(path:FilePath):FilePath {
+		return Path.Combine(this, path);
 	}
 
 	@:to public inline function toString():String {
