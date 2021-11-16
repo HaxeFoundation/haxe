@@ -29,27 +29,73 @@ class TestSys extends TestCommandBase {
 		// environment should not update if env updates
 		env.set(toUpdate, "2");
 		Assert.equals("1", Sys.getEnv(toUpdate));
+
+		// variables set via target specific api should exist
+		#if (cs || python)
+		final toSetNatively = "SET_NATIVELY";
+		#if cs
+		cs.system.Environment.SetEnvironmentVariable(toSetNatively, "1");
+		#elseif python
+		python.lib.Os.environ.set(toSetNatively, "1");
+		#end
+		Assert.equals("1", Sys.environment()[toSetNatively]);
+		#end
+		#end
+	}
+
+	function existsInSubProcess(variable:String, value:String) {
+		#if js
+		return UtilityProcess.runUtilityAsCommand(["checkEnv", variable, value]) == 0;
+		#else
+		return UtilityProcess.runUtility(["checkEnv", variable, value]).exitCode == 0;
 		#end
 	}
 
 	function testGetEnv() {
 		// EXISTS should be set manually via the command line
 		Assert.notNull(Sys.getEnv("EXISTS"));
+
+		// on windows, Sys.getEnv should be case insensitive
+		if (Sys.systemName() == "Windows")
+			Assert.notNull(Sys.getEnv("exists"));
+
 		Assert.isNull(Sys.getEnv("doesn't exist"));
 	}
 
 	#if !java
 	function testPutEnv() {
-		Sys.putEnv("foo", "value");
-		Assert.equals("value", Sys.getEnv("foo"));
+		Sys.putEnv("FOO", "value");
+		Assert.equals("value", Sys.getEnv("FOO"));
 
-		Assert.equals("value", Sys.environment().get("foo"));
+		Assert.equals("value", Sys.environment().get("FOO"));
+
+		Assert.isTrue(existsInSubProcess("FOO", "value"));
+
+		#if python
+		// the variable should also be visible through python's api
+		Assert.equals("value", python.lib.Os.environ.get("FOO"));
+		#end
 
 		// null
-		Sys.putEnv("foo", null);
-		Assert.isNull(Sys.getEnv("foo"));
+		Sys.putEnv("FOO", null);
+		Assert.isNull(Sys.getEnv("FOO"));
 
-		Assert.isFalse(Sys.environment().exists("foo"));
+		Assert.isFalse(Sys.environment().exists("FOO"));
+
+		Assert.isFalse(existsInSubProcess("FOO", "value"));
+
+		#if python
+		// the variable should also be gone when checking through python's api
+		Assert.isFalse(python.lib.Os.environ.hasKey("FOO"));
+		#end
+
+		Assert.isTrue(try {
+			Sys.putEnv("NON_EXISTENT", null);
+			true;
+		} catch (e) {
+			trace(e);
+			false;
+		});
 	}
 	#end
 
