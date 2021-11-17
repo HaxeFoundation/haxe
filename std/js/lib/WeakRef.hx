@@ -26,13 +26,13 @@ package js.lib;
 	Documentation [WeakRef](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("WeakRef")
-extern class WeakRef {
+extern class WeakRef<T> {
 	/**
 		Creates a new WeakRef object.
 	**/
-	@:pure function new(target:{});
+	@:pure function new(target:T);
 	/**
-		Returns the WeakRef object's target object, or undefined if the target object has been reclaimed.
+		Returns the WeakRef object's target object, or null if the target object has been reclaimed.
 	**/
-	@:pure function deref():{};
+	@:pure function deref():Null<T>;
 }
