@@ -135,6 +135,20 @@ let mk_class m path pos name_pos =
 		cl_descendants = [];
 	}
 
+let mk_typedef m path pos name_pos t =
+	{
+		t_path = path;
+		t_module = m;
+		t_pos = pos;
+		t_name_pos = name_pos;
+		t_private = false;
+		t_doc = None;
+		t_meta = [];
+		t_params = [];
+		t_using = [];
+		t_type = t;
+	}
+
 let module_extra file sign time kind policy =
 	{
 		m_file = Path.UniqueKey.create_lazy file;
