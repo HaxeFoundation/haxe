@@ -26,7 +26,7 @@ package js.lib;
 	Documentation [WeakRef](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("WeakRef")
-extern class WeakRef<T> {
+extern class WeakRef<T:{}> {
 	/**
 		Creates a new WeakRef object.
 	**/
