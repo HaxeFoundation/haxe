@@ -80,7 +80,7 @@ let rec is_nullable_type = function
 	| TLazy f ->
 		is_nullable_type (lazy_type f)
 	| TType (t,tl) ->
-		is_nullable_type (apply_params t.t_params tl t.t_type)
+		is_nullable_type (apply_typedef t tl)
 	| _ ->
 		false
 
@@ -235,9 +235,9 @@ class unificator =
 					| _, TMono t ->
 						(match t.tm_type with None -> () | Some t -> self#unify a t)
 					| TType (t,tl), _ ->
-						self#unify_rec a b (fun() -> self#unify (apply_params t.t_params tl t.t_type) b)
+						self#unify_rec a b (fun() -> self#unify (apply_typedef t tl) b)
 					| _, TType (t,tl) ->
-						self#unify_rec a b (fun() -> self#unify a (apply_params t.t_params tl t.t_type))
+						self#unify_rec a b (fun() -> self#unify a (apply_typedef t tl))
 					| TAbstract (abstr,tl), _ when not (Meta.has Meta.CoreType abstr.a_meta) ->
 						self#unify (apply_params abstr.a_params tl abstr.a_this) b
 					| _, TAbstract (abstr,tl) when not (Meta.has Meta.CoreType abstr.a_meta) ->
@@ -341,7 +341,7 @@ let rec unfold_null t =
 		| TAbstract ({ a_path = ([],"Null") }, [t]) -> unfold_null t
 		| TAbstract (abstr,tl) when not (Meta.has Meta.CoreType abstr.a_meta) -> unfold_null (apply_params abstr.a_params tl abstr.a_this)
 		| TLazy f -> unfold_null (lazy_type f)
-		| TType (t,tl) -> unfold_null (apply_params t.t_params tl t.t_type)
+		| TType (t,tl) -> unfold_null (apply_typedef t tl)
 		| _ -> t
 
 (**
@@ -367,7 +367,7 @@ let rec can_pass_type src dst =
 			| TMono r -> (match r.tm_type with None -> true | Some t -> can_pass_type src t)
 			| TEnum (_, params) -> true
 			| TInst _ -> true
-			| TType (t, tl) -> can_pass_type src (apply_params t.t_params tl t.t_type)
+			| TType (t, tl) -> can_pass_type src (apply_typedef t tl)
 			| TFun _ -> true
 			| TAnon _ -> true
 			| TDynamic _ -> true

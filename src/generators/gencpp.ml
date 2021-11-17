@@ -804,7 +804,7 @@ and type_string_suff suffix haxe_type remap =
          | _ -> die "" __LOC__)
       | ["cpp"] , "Function" ->
          "::cpp::Function< " ^ (cpp_function_signature_params params ) ^ " >"
-      | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type) remap
+      | _ ->  type_string_suff suffix (apply_typedef type_def params) remap
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
    | TAnon a -> "Dynamic"
@@ -1773,7 +1773,7 @@ let rec cpp_type_of stack ctx haxe_type =
 
       | TType (type_def,params) ->
          cpp_type_from_path stack ctx type_def.t_path params (fun () ->
-            cpp_type_of stack ctx (apply_params type_def.t_params params type_def.t_type) )
+            cpp_type_of stack ctx (apply_typedef type_def params) )
 
       | TFun _ -> TCppObject
       | TAnon _ -> TCppObject

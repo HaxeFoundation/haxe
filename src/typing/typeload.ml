@@ -726,7 +726,7 @@ let t_iterator ctx =
 		add_dependency ctx.m.curmod t.t_module;
 		if List.length t.t_params <> 1 then die "" __LOC__;
 		let pt = mk_mono() in
-		apply_params t.t_params [pt] t.t_type, pt
+		apply_typedef t [pt], pt
 	| _ ->
 		die "" __LOC__
 

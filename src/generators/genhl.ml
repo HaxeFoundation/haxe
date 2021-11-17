@@ -380,7 +380,7 @@ let rec to_type ?tref ctx t =
 		let t =
 			get_rec_cache ctx t
 				(fun() -> abort "Unsupported recursive type" td.t_pos)
-				(fun tref -> to_type ~tref ctx (apply_params td.t_params tl td.t_type))
+				(fun tref -> to_type ~tref ctx (apply_typedef td tl))
 		in
 		(match td.t_path with
 		| ["haxe";"macro"], name -> Hashtbl.replace ctx.macro_typedefs name t; t

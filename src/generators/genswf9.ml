@@ -220,7 +220,7 @@ let rec follow_basic t =
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
 	| TType (t,tl) ->
-		follow_basic (apply_params t.t_params tl t.t_type)
+		follow_basic (apply_typedef t tl)
 	| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		follow_basic (apply_params a.a_params pl a.a_this)
 	| _ -> t

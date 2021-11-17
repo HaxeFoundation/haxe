@@ -208,7 +208,7 @@ module ExtType = struct
 		let rec loop t = match t with
 			| TInst(c,_) -> check c.cl_meta
 			| TEnum(en,_) -> check en.e_meta
-			| TType(t,tl) -> check t.t_meta || (loop (apply_params t.t_params tl t.t_type))
+			| TType(t,tl) -> check t.t_meta || (loop (apply_typedef t tl))
 			| TAbstract(a,_) -> check a.a_meta
 			| TLazy f -> loop (lazy_type f)
 			| TMono r ->

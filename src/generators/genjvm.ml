@@ -181,7 +181,7 @@ let rec jsignature_of_type gctx stack t =
 	| TType(td,tl) ->
 		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
 		| Some c -> TObject(c.cl_path,[])
-		| None -> jsignature_of_type (apply_params td.t_params tl td.t_type)
+		| None -> jsignature_of_type (apply_typedef td tl)
 		end
 	| TLazy f -> jsignature_of_type (lazy_type f)
 

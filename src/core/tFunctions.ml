@@ -436,6 +436,9 @@ let apply_params ?stack cparams params t =
 	in
 	loop t
 
+let apply_typedef td tl =
+	apply_params td.t_params tl td.t_type
+
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
@@ -463,7 +466,7 @@ let rec follow t =
 	| TLazy f ->
 		follow (lazy_type f)
 	| TType (t,tl) ->
-		follow (apply_params t.t_params tl t.t_type)
+		follow (apply_typedef t tl)
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		follow t
 	| _ -> t
@@ -477,7 +480,7 @@ let follow_once t =
 	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 		t
 	| TType (t,tl) ->
-		apply_params t.t_params tl t.t_type
+		apply_typedef t tl
 	| TLazy f ->
 		lazy_type f
 
@@ -490,7 +493,7 @@ let rec follow_without_null t =
 	| TLazy f ->
 		follow_without_null (lazy_type f)
 	| TType (t,tl) ->
-		follow_without_null (apply_params t.t_params tl t.t_type)
+		follow_without_null (apply_typedef t tl)
 	| _ -> t
 
 let rec follow_without_type t =
@@ -522,7 +525,7 @@ let rec is_nullable ?(no_lazy=false) = function
 		| _ -> is_nullable (lazy_type f)
 		)
 	| TType (t,tl) ->
-		is_nullable ~no_lazy (apply_params t.t_params tl t.t_type)
+		is_nullable ~no_lazy (apply_typedef t tl)
 	| TFun _ ->
 		false
 (*
@@ -553,7 +556,7 @@ let rec is_null ?(no_lazy=false) = function
 		| _ -> is_null (lazy_type f)
 		)
 	| TType (t,tl) ->
-		is_null ~no_lazy (apply_params t.t_params tl t.t_type)
+		is_null ~no_lazy (apply_typedef t tl)
 	| _ ->
 		false
 
@@ -566,7 +569,7 @@ let rec is_explicit_null = function
 	| TLazy f ->
 		is_explicit_null (lazy_type f)
 	| TType (t,tl) ->
-		is_explicit_null (apply_params t.t_params tl t.t_type)
+		is_explicit_null (apply_typedef t tl)
 	| _ ->
 		false
 

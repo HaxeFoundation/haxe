@@ -110,7 +110,7 @@ let follow_once t =
 	| TLazy f ->
 		lazy_type f
 	| TType (t,tl) ->
-		apply_params t.t_params tl t.t_type
+		apply_typedef t tl
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		t
 	| _ ->
@@ -665,7 +665,7 @@ let init_ctx gen =
 		| TLazy f ->
 			follow_f (lazy_type f)
 		| TType (t,tl) ->
-			follow_f (apply_params t.t_params tl t.t_type)
+			follow_f (apply_typedef t tl)
 		| TAbstract({a_path = [],"Null"},[t]) ->
 			follow_f t
 		| _ -> Some t

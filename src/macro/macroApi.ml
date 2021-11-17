@@ -1836,7 +1836,7 @@ let macro_api ccom get_api =
 				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 					t
 				| TType (t,tl) ->
-					apply_params t.t_params tl t.t_type
+					apply_typedef t tl
 				| TLazy f ->
 					lazy_type f
 			in

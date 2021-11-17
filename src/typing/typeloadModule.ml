@@ -829,7 +829,7 @@ let init_module_type ctx context_init (decl,p) =
 						check_rec (lazy_type f);
 					| TType (td,tl) ->
 						if td == t then typing_error "Recursive typedef is not allowed" p;
-						check_rec (apply_params td.t_params tl td.t_type)
+						check_rec (apply_typedef td tl)
 					| _ ->
 						()
 				in

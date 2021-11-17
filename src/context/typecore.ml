@@ -652,7 +652,7 @@ let rec is_pos_infos = function
 	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
 		true
 	| TType (t,tl) ->
-		is_pos_infos (apply_params t.t_params tl t.t_type)
+		is_pos_infos (apply_typedef t tl)
 	| TAbstract({a_path=[],"Null"},[t]) ->
 		is_pos_infos t
 	| _ ->
