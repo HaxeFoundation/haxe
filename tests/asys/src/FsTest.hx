@@ -49,8 +49,8 @@ class FsTest extends Test {
 				actual = actual.replace('/', '\\');
 			}
 			if(expected != actual) {
-				expected = removeTrailingSlashes(expected);
-				actual = removeTrailingSlashes(actual);
+				expected = removeTrailingNoise(expected);
+				actual = removeTrailingNoise(actual);
 			}
 			equals(expected, actual, msg, pos);
 		}
@@ -58,10 +58,28 @@ class FsTest extends Test {
 
 	static final driveOnly = ~/^[a-zA-Z]:$/;
 
-	function removeTrailingSlashes(path:String):String {
-		var trimmed = Path.removeTrailingSlashes(path);
-		if(isWindows && driveOnly.match(trimmed) && path != trimmed)
-			trimmed = path.substr(0, 3);
-		return trimmed;
+	/**
+	 * Removes trailing slashes and trailing single dots
+	 *
+	 * @param path
+	 * @return String
+	 */
+	function removeTrailingNoise(path:String):String {
+		var i = path.length - 1;
+		while(i > 0) {
+			switch path.fastCodeAt(i) {
+				case '/'.code:
+				case '\\'.code if(isWindows && !(i == 2 && path.fastCodeAt(1) != ':'.code)):
+				case '.'.code if(i > 0 && path.fastCodeAt(i - 1) != '.'.code):
+				case _:
+					break;
+			}
+			i--;
+		}
+		return path.substr(0, i + 1);
+		// var trimmed = Path.removeTrailingSlashes(path);
+		// if(isWindows && driveOnly.match(trimmed) && path != trimmed)
+		// 	trimmed = path.substr(0, 3);
+		// return trimmed;
 	}
 }
