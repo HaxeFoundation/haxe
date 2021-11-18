@@ -107,7 +107,7 @@ type string_literal_kind =
 
 type constant =
 	| Int of string * string option
-	| Float of string
+	| Float of string * string option
 	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
@@ -459,7 +459,7 @@ let parse_path s =
 
 let s_constant = function
 	| Int (s, _) -> s
-	| Float s -> s
+	| Float (s, _) -> s
 	| String(s,qs) ->
 		begin match qs with
 		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""

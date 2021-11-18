@@ -73,7 +73,7 @@ let rec eval ctx (e,p) =
 		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
 	| EConst (String(s,_)) -> TString s
 	| EConst (Int (i, _)) -> TFloat (float_of_string i)
-	| EConst (Float f) -> TFloat (float_of_string f)
+	| EConst (Float (f, _)) -> TFloat (float_of_string f)
 	| ECall ((EConst (Ident "version"),_),[(EConst (String(s,_)), p)]) -> parse_version s p
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))

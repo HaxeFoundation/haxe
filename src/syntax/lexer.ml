@@ -118,6 +118,12 @@ let split_int_suffix s =
 	let suffix    = String.sub s pivot_pos ((String.length s) - pivot_pos) in
 	(literal, suffix)
 
+let split_float_suffix s =
+	let pivot_pos = String.index s 'f' in
+	let literal   = String.sub s 0 pivot_pos in
+	let suffix    = String.sub s pivot_pos ((String.length s) - pivot_pos) in
+	(literal, suffix)
+	
 let init file =
 	let f = make_file file in
 	cur := f;
@@ -331,10 +337,16 @@ let rec token lexbuf =
 	| integer, ('i'|'u'), Plus integer ->
 		let literal, suffix = split_int_suffix (lexeme lexbuf) in
 		mk lexbuf (Const (Int (literal, Some suffix)))
-	| integer, '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, '.', Star '0'..'9', ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
+	| integer, 'f', Plus integer ->
+		let literal, suffix = split_float_suffix (lexeme lexbuf) in
+		mk lexbuf (Const (Float (literal, Some suffix)))
+	| integer, '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf, None)))
+	| integer, '.', Plus '0'..'9', Plus ('f'), Plus integer ->
+		let literal, suffix = split_float_suffix (lexeme lexbuf) in
+		mk lexbuf (Const (Float (literal, Some suffix)))
+	| '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf, None)))
+	| integer, ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf, None)))
+	| integer, '.', Star '0'..'9', ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf, None)))
 	| integer, "..." ->
 		let s = lexeme lexbuf in
 		mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))

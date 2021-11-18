@@ -65,7 +65,7 @@ enum Constant {
 	/**
 		Represents a float literal.
 	**/
-	CFloat(f:String);
+	CFloat(f:String, ?s:String);
 
 	/**
 		Represents a string literal.

@@ -205,7 +205,7 @@ let rec expr_to_value ctx env e =
 			begin match cst with
 				| String(s,_) -> EvalString.create_unknown s
 				| Int (s,_) -> VInt32 (Int32.of_string s)
-				| Float s -> VFloat (float_of_string s)
+				| Float (s,_) -> VFloat (float_of_string s)
 				| Ident "true" -> VTrue
 				| Ident "false" -> VFalse
 				| Ident "null" -> VNull

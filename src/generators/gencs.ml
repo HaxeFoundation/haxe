@@ -1899,7 +1899,7 @@ let generate con =
 
 		let rec gen_spart w = function
 			| EConst c, p -> (match c with
-				| Int (s, _) | Float s | Ident s ->
+				| Int (s, _) | Float (s, _) | Ident s ->
 					write w s
 				| String(s,_) ->
 					write w "\"";

@@ -85,7 +85,7 @@ module StrictMeta = struct
 		| TConst(TInt i) ->
 			(EConst(Int (Int32.to_string i, None)), expr.epos)
 		| TConst(TFloat f) ->
-			(EConst(Float f), expr.epos)
+			(EConst(Float (f, None)), expr.epos)
 		| TConst(TString s) ->
 			(EConst(String(s,SDoubleQuotes)), expr.epos)
 		| TConst TNull ->

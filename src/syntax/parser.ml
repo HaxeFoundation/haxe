@@ -303,7 +303,7 @@ let rec make_unop op ((v,p2) as e) p1 =
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
 	| EIs (e, t) -> EIs (make_unop op e p1, t), punion p1 p2
 	| EConst (Int (i, suffix)) when op = Neg -> EConst (Int (neg i, suffix)),punion p1 p2
-	| EConst (Float j) when op = Neg -> EConst (Float (neg j)),punion p1 p2
+	| EConst (Float (j, suffix)) when op = Neg -> EConst (Float (neg j, suffix)),punion p1 p2
 	| _ -> EUnop (op,Prefix,e), punion p1 p2
 
 let rec make_meta name params ((v,p2) as e) p1 =

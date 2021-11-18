@@ -1531,7 +1531,7 @@ and parse_field e1 p s =
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
-			| (EConst (Int (v, None)),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+			| (EConst (Int (v, None)),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".", None)),punion p p2) s
 			| _ -> serror()
 		end
 	)
@@ -1642,7 +1642,7 @@ let rec validate_macro_cond s e = match fst e with
 	| EConst (Ident _)
 	| EConst (String _)
 	| EConst (Int (_, _))
-	| EConst (Float _)
+	| EConst (Float (_, _))
 		-> e
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
@@ -1666,8 +1666,8 @@ let rec parse_macro_cond s =
 				None, (EConst (String(s,qs)),p)
 			| [< '(Const (Int (i, s)),p) >] ->
 				None, (EConst (Int (i, s)),p)
-			| [< '(Const (Float f),p) >] ->
-				None, (EConst (Float f),p)
+			| [< '(Const (Float (f, s)),p) >] ->
+				None, (EConst (Float (f, s)),p)
 			| [< '(Kwd k,p) >] ->
 				parse_macro_ident (s_keyword k) p s
 			| [< '(Unop op,p); tk, e = parse_macro_cond >] ->

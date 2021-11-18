@@ -1688,6 +1688,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		| "u32" ->
 			type_cast ctx (EConst (Int (s, None)), p) (CTPath (mk_type_path ([],"UInt")), p) p
 		| other -> typing_error (other ^ " is not a valid integer suffix") p)
+	| EConst (Float (s, Some suffix) as c) ->
+		(match suffix with
+		| "f64" -> Texpr.type_constant ctx.com.basic c p
+		| other -> typing_error (other ^ " is not a valid float suffix") p)
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->

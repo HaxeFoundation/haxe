@@ -3318,7 +3318,7 @@ let generate_static ctx c f =
 				add_native lib name
 			| (Meta.HlNative,[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
-			| (Meta.HlNative,[(EConst(Float(ver)),_)] ,_ ) :: _ ->
+			| (Meta.HlNative,[(EConst(Float(ver,_)),_)] ,_ ) :: _ ->
 				let cur_ver = (try Common.defined_value ctx.com Define.HlVer with Not_found -> "") in
 				if cur_ver < ver then
 					let gen_content() =
