@@ -3,14 +3,20 @@ package asys.native.filesystem;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
+import cs.NativeArray;
+import cs.system.io.FileStream;
 import cs.system.Exception as CsException;
 import sys.thread.ElasticThreadPool;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import cs.system.io.File as CsFile;
+import cs.system.io.FileMode;
+import cs.system.io.FileAccess;
 import cs.system.io.FileNotFoundException;
 import cs.system.io.DirectoryNotFoundException;
 import cs.system.security.SecurityException;
+import cs.system.text.Encoding.UTF8;
+
 
 @:coreApi
 class FileSystem {
@@ -92,15 +98,21 @@ class FileSystem {
 
 		@see asys.native.filesystem.FileOpenFlag for more details.
 	**/
-	static public function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+	static public inline function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
+		writeNativeBytes(path, data.getData(), flag, callback);
 	}
 
-	static public function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
+	static public inline function writeString(path:FilePath, text:String, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
+		writeNativeBytes(path, UTF8.GetBytes(text), flag, callback);
+	}
+
+	static function writeNativeBytes(path:String, bytes:NativeArray<cs.StdTypes.UInt8>, flag:FileOpenFlag<Dynamic>, callback:Callback<NoData>):Void {
 		pool.runFor(
 			() -> {
 				try {
-					CsFile.WriteAllText(path, text);
+					var stream = streamFile(path, flag);
+					stream.Write(bytes, 0, bytes.Length);
+					stream.Close();
 					NoData;
 				} catch(e:FileNotFoundException) {
 					throw new FsException(FileNotFound, path);
@@ -344,5 +356,22 @@ class FileSystem {
 			},
 			callback
 		);
+	}
+
+	static function streamFile(path:String, flag:FileOpenFlag<Dynamic>):FileStream {
+		var mode = FileMode.Create;
+		var access = FileAccess.ReadWrite;
+		switch flag {
+			case Append: mode = Append; access = Write;
+			case Read: mode = Open; access = Read;
+			case ReadWrite: mode = Open;
+			case Write: mode = Create; access = Write;
+			case WriteX: mode = CreateNew; access = Write;
+			case WriteRead: mode = Create;
+			case WriteReadX: mode = CreateNew;
+			case Overwrite: mode = OpenOrCreate; access = Write;
+			case OverwriteRead: mode = OpenOrCreate;
+		}
+		return new FileStream(path, mode, access, ReadWrite);
 	}
 }
