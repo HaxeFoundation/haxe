@@ -1466,7 +1466,7 @@ let generate con =
 						)
 					| TParenthesis e ->
 						write w "("; expr_s w e; write w ")"
-					| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+					| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 						(match e.eexpr with
 						| TFor _ | TWhile _ ->
 							expr_s w e;
@@ -1899,7 +1899,7 @@ let generate con =
 
 		let rec gen_spart w = function
 			| EConst c, p -> (match c with
-				| Int s | Float s | Ident s ->
+				| Int (s, _) | Float s | Ident s ->
 					write w s
 				| String(s,_) ->
 					write w "\"";
@@ -2633,7 +2633,7 @@ let generate con =
 					else
 						"object" :: (loop (pred i) acc)
 				in
-				let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> die "" __LOC__) [] in
+				let tparams = loop (match m with [(EConst(Int (s, _)),_)] -> int_of_string s | _ -> die "" __LOC__) [] in
 				cl.cl_meta <- (Meta.Meta, [
 					EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))",SDoubleQuotes) ), cl.cl_pos
 				], cl.cl_pos) :: cl.cl_meta

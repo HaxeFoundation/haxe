@@ -568,7 +568,7 @@ let rec constructor_side_effects e =
 
 let type_constant basic c p =
 	match c with
-	| Int s ->
+	| Int (s,_) ->
 		if String.length s > 10 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)

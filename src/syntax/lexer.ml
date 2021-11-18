@@ -111,6 +111,13 @@ let is_valid_identifier s =
 		with Exit ->
 			false
 
+let split_int_suffix s =
+	let is_signed = String.contains s 'i' in
+	let pivot_pos = String.index s (if is_signed then 'i' else 'u') in
+	let literal   = String.sub s 0 pivot_pos in
+	let suffix    = String.sub s pivot_pos ((String.length s) - pivot_pos) in
+	(literal, suffix)
+
 let init file =
 	let f = make_file file in
 	cur := f;
@@ -319,8 +326,11 @@ let rec token lexbuf =
 	| Plus (Chars " \t") -> token lexbuf
 	| "\r\n" -> newline lexbuf; token lexbuf
 	| '\n' | '\r' -> newline lexbuf; token lexbuf
-	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F') -> mk lexbuf (Const (Int (lexeme lexbuf)))
-	| integer -> mk lexbuf (Const (Int (lexeme lexbuf)))
+	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F') -> mk lexbuf (Const (Int ((lexeme lexbuf), None)))
+	| integer -> mk lexbuf (Const (Int ((lexeme lexbuf), None)))
+	| integer, ('i'|'u'), Plus integer ->
+		let literal, suffix = split_int_suffix (lexeme lexbuf) in
+		mk lexbuf (Const (Int (literal, Some suffix)))
 	| integer, '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
 	| '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
 	| integer, ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))

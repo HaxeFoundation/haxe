@@ -32,7 +32,7 @@ let reify in_macro =
 	let to_const c p =
 		let cst n v = mk_enum "Constant" n [EConst (String(v,SDoubleQuotes)),p] p in
 		match c with
-		| Int i -> cst "CInt" i
+		| Int (i, _) -> cst "CInt" i
 		| String(s,qs) ->
 			let qs = mk_enum "StringLiteralKind" (match qs with SDoubleQuotes -> "DoubleQuotes" | SSingleQuotes -> "SingleQuotes") [] p in
 			mk_enum "Constant" "CString" [(EConst (String(s,SDoubleQuotes)),p);qs] p
@@ -220,8 +220,8 @@ let reify in_macro =
 			p
 		| None ->
 		let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
-		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
-		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
+		let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
+		let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
 		if in_macro then
 			(EUntyped (ECall ((EConst (Ident "$__mk_pos__"),p),[file;pmin;pmax]),p),p)
 		else

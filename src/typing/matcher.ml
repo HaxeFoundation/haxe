@@ -334,7 +334,7 @@ module Pattern = struct
 				let e = loop e in
 				pctx.in_reification <- old;
 				e
-			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
+			| EConst((Ident ("false" | "true") | Int (_,_) | String _ | Float _) as ct) ->
 				let p = pos e in
 				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;

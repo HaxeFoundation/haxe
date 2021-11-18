@@ -270,7 +270,7 @@ let build_class com c file =
 							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
 							| HVInt i | HVUInt i ->
-								Some (Int (Int32.to_string i))
+								Some (Int (Int32.to_string i, None))
 							| HVFloat f ->
 								Some (Float (Numeric.float_repres f))
 							) in

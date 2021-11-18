@@ -1524,7 +1524,7 @@ let generate con =
 				| TTypeExpr mt -> write w (md_s e.epos mt)
 				| TParenthesis e ->
 					write w "("; expr_s w e; write w ")"
-				| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+				| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 					(match e.eexpr with
 					| TFor _ | TWhile _ ->
 						print w "label%s:" n;
@@ -1834,7 +1834,7 @@ let generate con =
 
 	let rec gen_spart w = function
 		| EConst c, p -> (match c with
-			| Int s | Float s | Ident s ->
+			| Int (s, _) | Float s | Ident s ->
 				write w s
 			| String(s,_) ->
 				write w "\"";

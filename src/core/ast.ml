@@ -106,7 +106,7 @@ type string_literal_kind =
 	(* | SMarkup *)
 
 type constant =
-	| Int of string
+	| Int of string * string option
 	| Float of string
 	| String of string * string_literal_kind
 	| Ident of string
@@ -458,7 +458,7 @@ let parse_path s =
 	| x :: l -> List.rev l, x
 
 let s_constant = function
-	| Int s -> s
+	| Int (s, _) -> s
 	| Float s -> s
 	| String(s,qs) ->
 		begin match qs with

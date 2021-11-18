@@ -210,7 +210,7 @@ let make_macro_api ctx p =
 			let p = te.epos in
 			let id = get_next_stored_typed_expr_id() in
 			ctx.com.stored_typed_exprs <- PMap.add id te ctx.com.stored_typed_exprs;
-			let eid = (EConst (Int (string_of_int id))), p in
+			let eid = (EConst (Int (string_of_int id, None))), p in
 			(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
 		);
 		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
@@ -696,7 +696,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			in
 			(* let's track the index by doing [e][index] (we will keep the expression type this way) *)
 			incr index;
-			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
+			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index), None)),p)),p)
 		) el in
 		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false) in
 		List.map2 (fun ((n,_,t),mct) e ->
@@ -814,7 +814,7 @@ let setup() =
 	Interp.setup Interp.macro_api
 
 let type_stored_expr ctx e1 =
-	let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> die "" __LOC__ in
+	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
 	get_stored_typed_expr ctx.com id
 
 ;;

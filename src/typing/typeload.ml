@@ -345,7 +345,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				| TPExpr e ->
 					let name = (match fst e with
 						| EConst (String(s,_)) -> "S" ^ s
-						| EConst (Int i) -> "I" ^ i
+						| EConst (Int (i,_)) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->
 							ignore(type_expr ctx e WithType.value);

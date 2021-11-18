@@ -418,14 +418,14 @@ let build_enum_abstract ctx c a fields p =
 						| EAString ->
 							set_field field ct (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
-							set_field field ct (EConst (Int (string_of_int !i)),null_pos);
+							set_field field ct (EConst (Int (string_of_int !i, None)),null_pos);
 							incr i;
 						| EAOther ->
 							typing_error "Value required" field.cff_pos
 					end else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
 				| Some e ->
 					begin match mode,e with
-						| EAInt i,(EConst(Int s),_) ->
+						| EAInt i,(EConst(Int (s, None)),_) ->
 							begin try
 								let i' = int_of_string s in
 								i := (i' + 1)
@@ -1607,7 +1607,7 @@ let init_class ctx c p context_init herits fields =
 				| e :: l ->
 					let sc = match fst e with
 						| EConst (Ident s) -> s
-						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int _ | Float _ | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
+						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int (_,_) | Float _ | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
 						| _ -> ""
 					in
 					if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then

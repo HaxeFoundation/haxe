@@ -221,7 +221,7 @@ module AnnotationHandler = struct
 			path
 		in
 		let rec parse_value e = match fst e with
-			| EConst (Int s) -> AInt (Int32.of_string s)
+			| EConst (Int (s, _)) -> AInt (Int32.of_string s)
 			| EConst (Float s) -> ADouble (float_of_string s)
 			| EConst (String(s,_)) -> AString s
 			| EConst (Ident "true") -> ABool true

@@ -181,13 +181,13 @@ let generate_type com t =
 							| (Meta.DefParam,[(EConst (String(p,_)),_);(EConst v,_)],_) :: _ when p = a ->
 								(match v with
 								| Float "1.#QNAN" -> Float "0./*NaN*/"
-								| Float "4294967295." -> Int "0xFFFFFFFF"
-								| Int "16777215" -> Int "0xFFFFFF"
+								| Float "4294967295." -> Int ("0xFFFFFFFF", None)
+								| Int ("16777215", _) -> Int ("0xFFFFFF", None)
 								| Float x ->
 									(try
 										let f = float_of_string x in
 										let s = string_of_int (int_of_float f) in
-										if s ^ "." = x then Int s else v
+										if s ^ "." = x then Int (s, None) else v
 									with _ ->
 										v)
 								| _ -> v)

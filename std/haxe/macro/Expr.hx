@@ -60,7 +60,7 @@ enum Constant {
 	/**
 		Represents an integer literal.
 	**/
-	CInt(v:String);
+	CInt(v:String, ?s:String);
 
 	/**
 		Represents a float literal.

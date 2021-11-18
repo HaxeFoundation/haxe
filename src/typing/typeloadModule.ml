@@ -83,7 +83,7 @@ module StrictMeta = struct
 		| TField(e,f) ->
 			(EField(process_meta_argument ~toplevel:false ctx e,field_name f),expr.epos)
 		| TConst(TInt i) ->
-			(EConst(Int (Int32.to_string i)), expr.epos)
+			(EConst(Int (Int32.to_string i, None)), expr.epos)
 		| TConst(TFloat f) ->
 			(EConst(Float f), expr.epos)
 		| TConst(TString s) ->
