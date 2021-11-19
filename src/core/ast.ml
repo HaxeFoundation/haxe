@@ -458,8 +458,10 @@ let parse_path s =
 	| x :: l -> List.rev l, x
 
 let s_constant = function
-	| Int (s, _) -> s
-	| Float (s, _) -> s
+	| Int (s, None) -> s
+	| Int (s, Some suffix) -> s ^ suffix
+	| Float (s, None) -> s
+	| Float (s, Some suffix) -> s ^ suffix
 	| String(s,qs) ->
 		begin match qs with
 		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
