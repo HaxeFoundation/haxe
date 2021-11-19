@@ -1722,8 +1722,9 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EFor (it,e2) ->
 		ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
 	| ETernary (e1,e2,e3) ->
-		begin match e1 with
-			| EConst (Ident "null"), p -> typing_error "Cannot use null as ternary condition" p
+		let cond = type_expr ctx e1 WithType.value in
+		begin match cond.eexpr with
+			| TConst TNull -> typing_error "Cannot use null as ternary condition" cond.epos
 			| _ -> ()
 		end;
 		type_expr ctx (EIf (e1,e2,Some e3),p) with_type
