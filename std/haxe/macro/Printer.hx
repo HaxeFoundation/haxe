@@ -101,8 +101,10 @@ class Printer {
 		return switch (c) {
 			case CString(s, SingleQuotes): printFormatString(s);
 			case CString(s, _): printString(s);
-			case CIdent(s), CInt(s), CFloat(s):
+			case CIdent(s), CInt(s, null), CFloat(s, null):
 				s;
+			case CInt(s, suffix), CFloat(s, suffix):
+				s + suffix;
 			case CRegexp(s, opt): '~/$s/$opt';
 		}
 
