@@ -351,7 +351,10 @@ let reify in_macro =
 				| EParenthesis (ECheckType (e2, (CTPath{tname="String";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
 				| EParenthesis (ECheckType (e2, (CTPath{tname="Int";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
 				| EParenthesis (ECheckType (e2, (CTPath{tname="Float";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
-				| _ -> (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_enc_pos (pos e)]),p)
+				| EConst (Int (s, Some "i64")) ->
+					expr "EConst" [mk_enum "Constant" "CInt" [ (EConst(String (s, SDoubleQuotes)),(pos e1)); (EConst(String ("i64", SDoubleQuotes)),(pos e1)) ] (pos e1)]
+				| _ ->
+					(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e1; to_enc_pos (pos e1)]),p)
 				end
 			| Meta.Dollar "i", _ ->
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]
