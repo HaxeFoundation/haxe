@@ -1674,6 +1674,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		| "i32" ->
 			Texpr.type_constant ctx.com.basic c p
 		| "i64" ->
+			if String.length s > 18 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
+
 			let i64  = Int64.of_string s in
 			let high = Int64.to_int32 (Int64.shift_right i64 32) in
 			let low  = Int64.to_int32 i64 in

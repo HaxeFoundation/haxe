@@ -342,7 +342,8 @@ let rec token lexbuf =
 	| Plus (Chars " \t") -> token lexbuf
 	| "\r\n" -> newline lexbuf; token lexbuf
 	| '\n' | '\r' -> newline lexbuf; token lexbuf
-	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F') -> mk lexbuf (Const (Int ((lexeme lexbuf), None)))
+	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F'), Opt integer_suffix ->
+		mk lexbuf (split_int_suffix (lexeme lexbuf))
 	| integer, Opt integer_suffix ->
 		mk lexbuf (split_int_suffix (lexeme lexbuf))
 	| integer, float_suffix ->
