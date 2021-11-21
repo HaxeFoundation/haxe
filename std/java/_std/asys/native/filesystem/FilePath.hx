@@ -77,6 +77,13 @@ private typedef NativeFilePath = Path;
 		return this.getParent();
 	}
 
+	public function name():FilePath {
+		return switch this.getFileName() {
+			case null: '';
+			case path: path;
+		}
+	}
+
 	public inline function add(path:FilePath):FilePath {
 		return this.resolve(path);
 	}

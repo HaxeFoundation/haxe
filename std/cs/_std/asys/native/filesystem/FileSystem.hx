@@ -3,6 +3,7 @@ package asys.native.filesystem;
 import haxe.io.Bytes;
 import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
+import haxe.exceptions.NotSupportedException;
 import cs.NativeArray;
 import cs.system.io.FileStream;
 import cs.system.Exception as CsException;
@@ -10,12 +11,16 @@ import sys.thread.ElasticThreadPool;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
 import cs.system.io.File as CsFile;
+import cs.system.io.Directory as CsDirectory;
 import cs.system.io.FileMode;
 import cs.system.io.FileAccess;
 import cs.system.io.FileNotFoundException;
 import cs.system.io.DirectoryNotFoundException;
 import cs.system.security.SecurityException;
 import cs.system.text.Encoding.UTF8;
+import cs.StdTypes.UInt8;
+import cs.system.DateTime;
+import cs.system.DateTimeKind;
 
 
 @:coreApi
@@ -55,17 +60,8 @@ class FileSystem {
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
 		pool.runFor(
 			() -> {
-				try {
-					Bytes.ofData(CsFile.ReadAllBytes(path));
-				} catch(e:FileNotFoundException) {
-					throw new FsException(FileNotFound, path);
-				} catch(e:DirectoryNotFoundException) {
-					throw new FsException(FileNotFound, path);
-				} catch(e:SecurityException) {
-					throw new FsException(AccessDenied, path);
-				} catch(e:CsException) {
-					throw new FsException(CustomError(e.Message), path);
-				}
+				try Bytes.ofData(CsFile.ReadAllBytes(path))
+				catch(e:CsException) rethrow(e, path);
 			},
 			callback
 		);
@@ -74,17 +70,8 @@ class FileSystem {
 	static public function readString(path:FilePath, callback:Callback<String>):Void {
 		pool.runFor(
 			() -> {
-				try {
-					CsFile.ReadAllText(path);
-				} catch(e:FileNotFoundException) {
-					throw new FsException(FileNotFound, path);
-				} catch(e:DirectoryNotFoundException) {
-					throw new FsException(FileNotFound, path);
-				} catch(e:SecurityException) {
-					throw new FsException(AccessDenied, path);
-				} catch(e:CsException) {
-					throw new FsException(CustomError(e.Message), path);
-				}
+				try CsFile.ReadAllText(path)
+				catch(e:CsException) rethrow(e, path);
 			},
 			callback
 		);
@@ -109,19 +96,15 @@ class FileSystem {
 	static function writeNativeBytes(path:String, bytes:NativeArray<cs.StdTypes.UInt8>, flag:FileOpenFlag<Dynamic>, callback:Callback<NoData>):Void {
 		pool.runFor(
 			() -> {
+				var stream = null;
 				try {
-					var stream = streamFile(path, flag);
+					stream = streamFile(path, flag);
 					stream.Write(bytes, 0, bytes.Length);
 					stream.Close();
 					NoData;
-				} catch(e:FileNotFoundException) {
-					throw new FsException(FileNotFound, path);
-				} catch(e:DirectoryNotFoundException) {
-					throw new FsException(FileNotFound, path);
-				} catch(e:SecurityException) {
-					throw new FsException(AccessDenied, path);
 				} catch(e:CsException) {
-					throw new FsException(CustomError(e.Message), path);
+					closeStream(stream);
+					rethrow(e, path);
 				}
 			},
 			callback
@@ -142,13 +125,21 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		List directory contents.
-		Does not add `.` and `..` to the result.
-		Entries are provided as paths relative to the directory.
-	**/
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					var dirs = CsDirectory.GetDirectories(path);
+					var files = CsDirectory.GetFiles(path);
+					var entries:Array<FilePath> = @:privateAccess Array.alloc(dirs.length + files.length);
+					for(file in files)
+						
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	/**
@@ -270,89 +261,85 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Set symbolic link owner and group.
-	**/
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
-	/**
-		Create a link to `target` at `path`.
-
-		If `type` is `SymLink` the `target` is expected to be an absolute path or
-		a path relative to `path`, however the existance of `target` is not checked
-		and the link is created even if `target` does not exist.
-
-		If `type` is `HardLink` the `target` is expected to be an existing path either
-		absolute or relative to the current working directory.
-	**/
 	static public function link(target:FilePath, path:FilePath, type:FileLink = SymLink, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
-	/**
-		Check if the path is a symbolic link.
-		Returns `false` if `path` does not exist.
-	**/
 	static public function isLink(path:FilePath, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
-	/**
-		Get the value of a symbolic link.
-	**/
 	static public function readLink(path:FilePath, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
-	/**
-		Get information at the given path without following symbolic links.
-	**/
 	static public function linkInfo(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
-	/**
-		Copy a file from `source` path to `destination` path.
-	**/
 	static public function copyFile(source:FilePath, destination:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					CsFile.Copy(source, destination, overwrite);
+					NoData;
+				} catch(e:CsException) {
+					rethrow(e, source);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Shrink or expand a file specified by `path` to `newSize` bytes.
-
-		If the file does not exist, it is created.
-
-		If the file is larger than `newSize`, the extra data is lost.
-		If the file is shorter, zero bytes are used to fill the added length.
-	**/
 	static public function resize(path:FilePath, newSize:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				var stream = null;
+				try {
+					stream = streamFile(path, OverwriteRead);
+					stream.SetLength(newSize);
+					stream.Close();
+					NoData;
+				} catch(e:CsException) {
+					closeStream(stream);
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Change access and modification times of an existing file.
-
-		TODO: Decide on type for `accessTime` and `modificationTime` - see TODO in `asys.native.filesystem.FileInfo.FileStat`
-	**/
 	static public function setTimes(path:FilePath, accessTime:Int, modificationTime:Int, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					var epoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+					CsFile.SetLastAccessTimeUtc(path, epoch.AddSeconds(accessTime));
+					CsFile.SetLastWriteTimeUtc(path, epoch.AddSeconds(modificationTime));
+					NoData;
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function realPath(path:FilePath, callback:Callback<FilePath>):Void {
 		pool.runFor(
 			() -> {
-				var result = try {
+				try {
 					//C# does not have API to resolve symlinks
-					CsFile.Exists(path) ? FilePath.ofString(path.absolute()) : null;
+					if(!CsFile.Exists(path))
+						throw new FileNotFoundException('File not found', path);
+					path.absolute().normalize();
 				} catch(e:CsException) {
-					throw new FsException(CustomError(e.Message), path);
+					rethrow(e, path);
 				}
-				if(result == null)
-					throw new FsException(FileNotFound, path);
-				result;
 			},
 			callback
 		);
@@ -373,5 +360,23 @@ class FileSystem {
 			case OverwriteRead: mode = OpenOrCreate;
 		}
 		return new FileStream(path, mode, access, ReadWrite);
+	}
+
+	static function rethrow<T>(e:CsException, path:FilePath):T {
+		var error:IoErrorType = if(Std.isOfType(e, FileNotFoundException)) {
+			FileNotFound;
+		} else if(Std.isOfType(e, DirectoryNotFoundException)) {
+			FileNotFound;
+		} else if(Std.isOfType(e, SecurityException)) {
+			AccessDenied;
+		} else {
+			CustomError(e.Message);
+		}
+		throw new FsException(error, path);
+	}
+
+	static inline function closeStream(stream:Null<FileStream>):Void {
+		if(stream != null)
+			stream.Close();
 	}
 }

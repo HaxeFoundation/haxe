@@ -105,6 +105,10 @@ private typedef NativeString = cs.system.String;
 		}
 	}
 
+	public function name():FilePath {
+		return Path.GetFileName(trimSlashes(this));
+	}
+
 	public function normalize():FilePath {
 		var delimiter = if(SEPARATOR == '\\') {
 			var str = new NativeArray<String>(2);

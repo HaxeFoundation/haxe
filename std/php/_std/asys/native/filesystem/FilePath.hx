@@ -151,6 +151,10 @@ private typedef NativeFilePath = NativeString;
 		return new FilePath(path);
 	}
 
+	public function name():FilePath {
+		return basename(this);
+	}
+
 	public function add(path:FilePath):FilePath {
 		if(path.isAbsolute() || this == '')
 			return path;

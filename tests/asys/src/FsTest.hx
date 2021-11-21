@@ -70,16 +70,12 @@ class FsTest extends Test {
 			switch path.fastCodeAt(i) {
 				case '/'.code:
 				case '\\'.code if(isWindows && !(i == 2 && path.fastCodeAt(1) != ':'.code)):
-				case '.'.code if(i > 0 && path.fastCodeAt(i - 1) != '.'.code):
+				// case '.'.code if(i > 0 && path.fastCodeAt(i - 1) != '.'.code):
 				case _:
 					break;
 			}
 			i--;
 		}
 		return path.substr(0, i + 1);
-		// var trimmed = Path.removeTrailingSlashes(path);
-		// if(isWindows && driveOnly.match(trimmed) && path != trimmed)
-		// 	trimmed = path.substr(0, 3);
-		// return trimmed;
 	}
 }

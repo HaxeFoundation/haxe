@@ -148,6 +148,21 @@ private typedef NativeFilePath = String;
 		}
 	}
 
+	public function name():Null<FilePath> {
+		var s = trimSlashes(this);
+		var i = s.length;
+		var isWin = SEPARATOR == '\\';
+		while(i >= 0) {
+			switch s.fastCodeAt(i) {
+				case '/'.code: break;
+				case '\\'.code if(isWin): break;
+				case _:
+			}
+			--i;
+		}
+		return new FilePath(i < 0 ? s : s.substr(i + 1));
+	}
+
 	public function add(path:FilePath):FilePath {
 		if(path.isAbsolute() || this == '')
 			return path;

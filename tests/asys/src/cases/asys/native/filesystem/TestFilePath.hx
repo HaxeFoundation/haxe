@@ -161,6 +161,26 @@ class TestFilePath extends FsTest {
 		check(cases, p -> p.parent());
 	}
 
+	function testName() {
+		var cases = cases([
+			expect('file.ext') => 'file.ext',
+			expect('path/to/file.ext') => 'file.ext',
+			expect('./file.ext') => 'file.ext',
+			expect('path/to/dir/') => 'dir',
+			expect('path/to/.') => '.',
+			expect('') => '',
+			expect('/') => '',
+		]);
+		if(isWindows) {
+			cases[expect('C:\\')] = 'C:\\'; // TODO: Is this what we want? Or ''? Or 'C:'?
+			cases[expect('C:')] = 'C:';
+			cases[expect('C:\\file.ext')] = 'file.ext';
+			cases[expect('C:\\dir\\')] = 'dir';
+			cases[expect('C:dir')] = 'dir';
+		}
+		check(cases, p -> p.name());
+	}
+
 	function testAdd() {
 		var dir = FilePath.ofString('dir');
 		var cases = cases([

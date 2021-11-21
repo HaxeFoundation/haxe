@@ -88,6 +88,17 @@ private typedef NativeFilePath = NativeString;
 		}
 	}
 
+	public function name():FilePath {
+		var s = trimSlashes(this);
+		var i = s.length - 1;
+		while(!isSeparator(s.code(i))) {
+			--i;
+			if(i < 0)
+				return s;
+		}
+		return new FilePath(s.sub(i + 1));
+	}
+
 	//TODO: use `get_full_path` from path.ml
 	public function absolute():FilePath {
 		var result:NativeString = if(this.length == 0) {

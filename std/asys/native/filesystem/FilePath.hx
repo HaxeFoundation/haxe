@@ -118,12 +118,26 @@ private typedef NativeFilePath = Dynamic;
 		Get the parent element of this path.
 		E.g. for `dir/to/path` this method returns `dir/to`.
 
+		Ignores trailing slashes.
+		E.g. for `dir/to/path/` this method returns `dir/to`.
+
 		Returns `null` if this path does not have a parent element.
 
 		This method does not resolve special names like `.` and `..`.
 		That is the parent of `some/..` is `some`.
 	**/
 	public function parent():Null<FilePath> {
+		throw new NotImplementedException();
+	}
+
+	/**
+		Get the last element (farthest from the root) of this path.
+		E.g. for `dir/to/path` this method returns `path`.
+
+		Ignores trailing slashes.
+		E.g. for `dir/to/path/` this method returns `path`.
+	**/
+	public function name():FilePath {
 		throw new NotImplementedException();
 	}
 

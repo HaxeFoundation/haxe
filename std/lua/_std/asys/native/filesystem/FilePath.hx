@@ -165,6 +165,20 @@ private typedef NativeFilePath = NativeString;
 		}
 	}
 
+	public function name():Null<FilePath> {
+		var s = trimSlashes(this);
+		var i = s.length;
+		var isWin = SEPARATOR == '\\';
+		while(i >= 1) {
+			if(s[i] == '/'.code || (isWin && s[i] == '\\'.code)) {
+				break;
+			}
+			--i;
+		}
+		//no directory in this path
+		return new FilePath(i < 1 ? s : s.sub(i + 1));
+	}
+
 	public function add(path:FilePath):FilePath {
 		if(path.isAbsolute() || this == '')
 			return path;
