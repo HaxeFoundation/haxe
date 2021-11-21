@@ -482,6 +482,12 @@ class TestFileSystem extends FsTest {
 	}
 
 	function testIsLink(async:Async) {
+		#if cs
+			pass();
+			async.done();
+			return;
+		#end
+
 		asyncAll(async,
 			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
 			if(!isWindows)
@@ -505,6 +511,12 @@ class TestFileSystem extends FsTest {
 	}
 
 	function testReadLink(async:Async) {
+		#if cs
+			pass();
+			async.done();
+			return;
+		#end
+
 		asyncAll(async,
 			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
 			if(!isWindows)
@@ -522,6 +534,12 @@ class TestFileSystem extends FsTest {
 	}
 
 	function testLinkInfo(async:Async) {
+		#if cs
+			pass();
+			async.done();
+			return;
+		#end
+
 		asyncAll(async,
 			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
 			if(!isWindows)
@@ -540,6 +558,12 @@ class TestFileSystem extends FsTest {
 
 	@:depends(testReadLink, testIsLink, testReadString)
 	function testLink(async:Async) {
+		#if cs
+			pass();
+			async.done();
+			return;
+		#end
+
 		asyncAll(async,
 			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
 			if(!isWindows)
@@ -571,6 +595,11 @@ class TestFileSystem extends FsTest {
 
 	@:depends(testLink,testInfo)
 	function testSetLinkOwner(async:Async) {
+		#if cs
+			pass();
+			async.done();
+			return;
+		#end
 		if(isWindows) {
 			pass();
 			async.done();

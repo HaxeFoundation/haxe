@@ -132,8 +132,11 @@ class FileSystem {
 					var dirs = CsDirectory.GetDirectories(path);
 					var files = CsDirectory.GetFiles(path);
 					var entries:Array<FilePath> = @:privateAccess Array.alloc(dirs.length + files.length);
-					for(file in files)
-						
+					for(i in 0...dirs.length)
+						entries[i] = FilePath.ofString(dirs[i]).name();
+					for(i in 0...files.length)
+						entries[dirs.length + i] = FilePath.ofString(files[i]).name();
+					entries;
 				} catch(e:CsException) {
 					rethrow(e, path);
 				}
