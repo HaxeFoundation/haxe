@@ -5,7 +5,6 @@ import haxe.NoData;
 import haxe.exceptions.NotImplementedException;
 import haxe.exceptions.NotSupportedException;
 import cs.NativeArray;
-import cs.system.io.FileStream;
 import cs.system.Exception as CsException;
 import sys.thread.ElasticThreadPool;
 import asys.native.system.SystemUser;
@@ -14,6 +13,10 @@ import cs.system.io.File as CsFile;
 import cs.system.io.Directory as CsDirectory;
 import cs.system.io.FileMode;
 import cs.system.io.FileAccess;
+import cs.system.io.FileStream;
+import cs.system.io.FileAttributes;
+import cs.system.io.FileInfo as CsFileInfo;
+import cs.system.io.DirectoryInfo;
 import cs.system.io.FileNotFoundException;
 import cs.system.io.DirectoryNotFoundException;
 import cs.system.security.SecurityException;
@@ -21,12 +24,14 @@ import cs.system.text.Encoding.UTF8;
 import cs.StdTypes.UInt8;
 import cs.system.DateTime;
 import cs.system.DateTimeKind;
+import cs.system.DateTimeOffset;
 
 
 @:coreApi
 class FileSystem {
 	@:allow(asys.native.filesystem)
 	static final pool = new ElasticThreadPool(2 * cs.system.Environment.ProcessorCount);
+	static final unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
 	/**
 		Open file for reading and/or writing.
@@ -204,15 +209,57 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Get file or directory information at the given path.
-		If `path` is a symbolic link then the link is followed.
-
-		@see `asys.native.filesystem.FileSystem.linkInfo` to get information of the
-		link itself.
-	**/
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					var fi = new CsFileInfo(path);
+					if(!fi.Exists)
+						throw new FileNotFoundException(path);
+					({
+						gid: 0,
+						uid: 0,
+						atime: Std.int(fi.LastAccessTime.ToUniversalTime().Subtract(unixEpoch).TotalSeconds),
+						mtime: Std.int(fi.LastWriteTime.ToUniversalTime().Subtract(unixEpoch).TotalSeconds),
+						ctime: Std.int(fi.CreationTime.ToUniversalTime().Subtract(unixEpoch).TotalSeconds),
+						size: cast(fi.Length, Int),
+						dev: 0,
+						ino: 0,
+						nlink: 0,
+						rdev: 0,
+						mode: @:privateAccess FileMode.S_IFREG,
+						blksize: 0,
+						blocks: 0
+					}:FileInfo);
+				} catch(e:FileNotFoundException) {
+					try {
+						var di = new DirectoryInfo(path);
+						if(!di.Exists)
+							throw new DirectoryNotFoundException(path);
+						({
+							gid: 0,
+							uid: 0,
+							atime: Std.int(di.LastAccessTime.ToUniversalTime().Subtract(unixEpoch).TotalSeconds),
+							mtime: Std.int(di.LastWriteTime.ToUniversalTime().Subtract(unixEpoch).TotalSeconds),
+							ctime: Std.int(di.CreationTime.ToUniversalTime().Subtract(unixEpoch).TotalSeconds),
+							size: 0,
+							dev: 0,
+							ino: 0,
+							nlink: 0,
+							rdev: 0,
+							mode: @:privateAccess FileMode.S_IFDIR,
+							blksize: 0,
+							blocks: 0
+						}:FileInfo);
+					} catch(e:CsException) {
+						rethrow(e, path);
+					}
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	/**
@@ -228,40 +275,53 @@ class FileSystem {
 		throw new NotImplementedException();
 	}
 
-	/**
-		Check if the path is a directory.
-		If `path` is a symbolic links then it will be resolved and checked.
-		Returns `false` if `path` does not exist.
-	**/
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					CsDirectory.Exists(path);
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Check if the path is a regular file.
-		If `path` is a symbolic links then it will be resolved and checked.
-		Returns `false` if `path` does not exist.
-	**/
 	static public function isFile(path:FilePath, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					CsFile.Exists(path);
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Set path permissions.
-
-		If `path` is a symbolic link it is dereferenced.
-	**/
 	static public function setPermissions(path:FilePath, permissions:FilePermissions, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					var attr = (cast CsFile.GetAttributes(path):Int);
+					var ro = (cast FileAttributes.ReadOnly:Int);
+					if(attr & 128 == 0) // u+w
+						CsFile.SetAttributes(path, cast (attr | ro))
+					else
+						CsFile.SetAttributes(path, cast (attr & ~ro));
+					NoData;
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Set path owner and group.
-
-		If `path` is a symbolic link it is dereferenced.
-	**/
 	static public function setOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		throw NotSupportedException.field();
 	}
 
 	static public function setLinkOwner(path:FilePath, user:SystemUser, group:SystemGroup, callback:Callback<NoData>):Void {

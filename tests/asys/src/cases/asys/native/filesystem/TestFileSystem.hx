@@ -67,9 +67,7 @@ class TestFileSystem extends FsTest {
 			writeAndCheck('Hello, ', 'Hello, ', Write, ok -> {
 				if(ok) writeAndCheck('world!', 'Hello, world!', Append, ok -> {
 					if(ok) writeAndCheck('Goodbye', 'Goodbye', Write, ok -> {
-						#if !neko
 						if(ok) writeAndCheck('Bye-', 'Bye-bye', Overwrite, ok -> {});
-						#end
 					});
 				});
 			}),
@@ -102,9 +100,7 @@ class TestFileSystem extends FsTest {
 			writeAndCheck(bytes([0, 1, 2]), bytes([0, 1, 2]), Write, ok -> {
 				if(ok) writeAndCheck(bytes([3, 4, 5]), bytes([0, 1, 2, 3, 4, 5]), Append, ok -> {
 					if(ok) writeAndCheck(bytes([6, 7, 8, 9]), bytes([6, 7, 8, 9]), Write, ok -> {
-						#if neko
 						if(ok) writeAndCheck(bytes([10, 11]), bytes([10, 11, 8, 9]), Overwrite, ok -> {});
-						#end
 					});
 				});
 			}),
@@ -117,17 +113,13 @@ class TestFileSystem extends FsTest {
 		);
 	}
 
-	//TODO test `Executable`
-	#if !neko
 	@:depends(testLink,testIsLink)
-	#end
 	function testCheck(async:Async) {
 		asyncAll(async,
 			FileSystem.check('test-data/sub', Exists, (e, r) -> {
 				if(noException(e))
 					isTrue(r);
 			}),
-			#if !neko
 			FileSystem.check('test-data/sub/hello.world', Readable, (e, r) -> {
 				if(noException(e))
 					isTrue(r);
@@ -151,7 +143,6 @@ class TestFileSystem extends FsTest {
 							});
 					});
 				}),
-			#end
 			FileSystem.check('non-existent', Exists, (e, r) -> {
 				if(noException(e))
 					isFalse(r);
@@ -159,7 +150,6 @@ class TestFileSystem extends FsTest {
 		);
 		if(!isWindows) {
 			asyncAll(async,
-				#if !neko
 				FileSystem.check('/bin', Readable, (e, r) -> {
 					if(noException(e))
 						isTrue(r);
@@ -172,7 +162,6 @@ class TestFileSystem extends FsTest {
 					if(noException(e))
 						isFalse(r);
 				}),
-				#end
 				FileSystem.check('/bin', Exists, (e, r) -> {
 					if(noException(e))
 						isTrue(r);
@@ -350,22 +339,28 @@ class TestFileSystem extends FsTest {
 					equals(13, r.size);
 					isTrue(r.mode.isFile());
 					isFalse(r.mode.isDirectory());
-					isFalse(r.mode.isLink());
+					#if !cs
+						isFalse(r.mode.isLink());
+					#end
 				}
 			}),
-			FileSystem.info('test-data/symlink', (e, r) -> {
-				if(noException(e)) {
-					equals(13, r.size);
-					isTrue(r.mode.isFile());
-					isFalse(r.mode.isDirectory());
-					isFalse(r.mode.isLink());
-				}
-			}),
+			#if !cs
+				FileSystem.info('test-data/symlink', (e, r) -> {
+					if(noException(e)) {
+						equals(13, r.size);
+						isTrue(r.mode.isFile());
+						isFalse(r.mode.isDirectory());
+						isFalse(r.mode.isLink());
+					}
+				}),
+			#end
 			FileSystem.info('test-data/sub', (e, r) -> {
 				if(noException(e)) {
 					isFalse(r.mode.isFile());
 					isTrue(r.mode.isDirectory());
-					isFalse(r.mode.isLink());
+					#if !cs
+						isFalse(r.mode.isLink());
+					#end
 				}
 			}),
 			FileSystem.info('non-existent', (e, r) -> {
@@ -373,10 +368,10 @@ class TestFileSystem extends FsTest {
 			})
 		);
 	}
-#if !neko
+
 	@:depends(testWriteString, testInfo)
 	function testSetPermissions(async:Async) {
-		if(isWindows) {
+		if(isWindows #if cs || true #end) {
 			pass();
 			async.done();
 			return;
@@ -400,7 +395,7 @@ class TestFileSystem extends FsTest {
 
 	@:depends(testWriteString,testInfo)
 	function testSetOwner(async:Async) {
-		if(isWindows) {
+		if(isWindows #if cs || true #end) {
 			pass();
 			async.done();
 			return;
@@ -619,7 +614,6 @@ class TestFileSystem extends FsTest {
 			})
 		);
 	}
-#end
 
 	@:depends(testReadBytes, testReadString)
 	function testCopyFile(async:Async) {
