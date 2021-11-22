@@ -115,6 +115,8 @@ class FileSystem {
 
 		If `recursive` is `true`: create missing directories tree all the way down to `path`.
 		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
+
+		[cs] `permissions` parameter is ignored when targeting C#
 	**/
 	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
 		throw new NotImplementedException();
@@ -131,6 +133,8 @@ class FileSystem {
 
 		If `recursive` is `true`: create missing directories tree all the way down to the generated path.
 		If `recursive` is `false`: fail if any parent directory of the generated path does not exist.
+
+		[cs] `permissions` parameter is ignored when targeting C#
 	**/
 	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
 		throw new NotImplementedException();

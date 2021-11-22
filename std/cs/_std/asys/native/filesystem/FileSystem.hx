@@ -25,6 +25,9 @@ import cs.StdTypes.UInt8;
 import cs.system.DateTime;
 import cs.system.DateTimeKind;
 import cs.system.DateTimeOffset;
+import cs.system.Guid;
+import cs.system.security.accesscontrol.FileSystemRights;
+import cs.system.security.accesscontrol.AccessControlType;
 
 
 @:coreApi
@@ -150,33 +153,49 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Create a directory.
-
-		Default `permissions` equals to octal `0777`, which means read+write+execution
-		permissions for everyone.
-
-		If `recursive` is `true`: create missing directories tree all the way down to `path`.
-		If `recursive` is `false`: fail if any parent directory of `path` does not exist.
-	**/
 	static public function createDirectory(path:FilePath, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					if(recursive)
+						CsDirectory.CreateDirectory(path)
+					else {
+						switch path.parent() {
+							case null:
+							case parent if(!CsDirectory.Exists(parent)):
+								throw new DirectoryNotFoundException(parent);
+						}
+						CsDirectory.CreateDirectory(path);
+					}
+					NoData;
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Create a directory with auto-generated unique name.
-
-		`prefix` (if provided) is used as the beginning of a generated name.
-		The created directory path is passed to the `callback`.
-
-		Default `permissions` equals to octal `0777`, which means read+write+execution
-		permissions for everyone.
-
-		If `recursive` is `true`: create missing directories tree all the way down to the generated path.
-		If `recursive` is `false`: fail if any parent directory of the generated path does not exist.
-	**/
 	static public function uniqueDirectory(parentDirectory:FilePath, ?prefix:String, ?permissions:FilePermissions, recursive:Bool = false, callback:Callback<FilePath>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				if(prefix == null)
+					prefix = '';
+				var path = parentDirectory.add(prefix + Guid.NewGuid().ToString());
+				try {
+					if(recursive || CsDirectory.Exists(parentDirectory))
+						CsDirectory.CreateDirectory(path)
+					else
+						throw new DirectoryNotFoundException(parentDirectory);
+					path;
+				} catch(e:DirectoryNotFoundException) {
+					throw new FsException(FileNotFound, parentDirectory);
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	/**
@@ -272,7 +291,66 @@ class FileSystem {
 		```
 	**/
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				var stream = null;
+				try {
+					var result = true;
+					var isFile = CsFile.Exists(path);
+					var isDir = !isFile && CsDirectory.Exists(path);
+					if(mode.has(Exists) && !isFile && !isDir) {
+						result = false;
+					} else if(isFile) {
+						stream = CsFile.Open(path, FileMode.Open);
+						if(mode.has(Readable)) {
+							result = result && stream.CanRead;
+						}
+						if(mode.has(Readable)) {
+							result = result && stream.CanWrite;
+						}
+						if(mode.has(Executable)) {
+							//TODO
+						}
+						stream.Close();
+					} else if(isDir) { //if `isDir` is `true` it means the directory is at least readable, so check only for writable
+						if(mode.has(Writable)) {
+							var acl = try {
+								CsDirectory.GetAccessControl(path);
+							} catch(e:CsException) {
+								null;
+							}
+							if (acl == null) {
+								result = false;
+							} else {
+								var rules = acl.GetAccessRules(true, true, untyped __cs__('typeof(System.Security.Principal.SecurityIdentifier)'));
+								if (rules == null) {
+									result = false;
+								} else {
+									var writable = false;
+									for(i in 0...rules.Count) {
+										var rule = cast(rules[i], cs.system.security.accesscontrol.AccessRule);
+										if (rule.AccessControlType == AccessControlType.Deny) {
+											result = false;
+											break;
+										} else if (rule.AccessControlType == AccessControlType.Allow) {
+											writable = true;
+										}
+									}
+									result = result && writable;
+								}
+							}
+						}
+					} else {
+						result = false;
+					}
+					result;
+				} catch(e:CsException) {
+					closeStream(stream);
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function isDirectory(path:FilePath, callback:Callback<Bool>):Void {

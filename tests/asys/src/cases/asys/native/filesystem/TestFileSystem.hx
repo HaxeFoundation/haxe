@@ -132,17 +132,19 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					isTrue(r);
 			}),
-			//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
-			if(!isWindows)
-				FileSystem.link('non-existent', 'test-data/temp/faulty-link', (_, _) -> {
-					FileSystem.isLink('test-data/temp/faulty-link', (e, r) -> {
-						if(noException(e) && isTrue(r))
-							FileSystem.check('test-data/temp/faulty-link', Exists, (e, r) -> {
-								if(noException(e))
-									isFalse(r);
-							});
-					});
-				}),
+			#if !cs
+				//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
+				if(!isWindows)
+					FileSystem.link('non-existent', 'test-data/temp/faulty-link', (_, _) -> {
+						FileSystem.isLink('test-data/temp/faulty-link', (e, r) -> {
+							if(noException(e) && isTrue(r))
+								FileSystem.check('test-data/temp/faulty-link', Exists, (e, r) -> {
+									if(noException(e))
+										isFalse(r);
+								});
+						});
+					}),
+			#end
 			FileSystem.check('non-existent', Exists, (e, r) -> {
 				if(noException(e))
 					isFalse(r);
@@ -682,7 +684,9 @@ class TestFileSystem extends FsTest {
 					FileSystem.info(path, (e, r) -> {
 						if(noException(e)) {
 							isTrue(r.mode.isDirectory());
-							isTrue(r.mode.has(permissions));
+							#if !cs
+								isTrue(r.mode.has(permissions));
+							#end
 						}
 					});
 			}),
