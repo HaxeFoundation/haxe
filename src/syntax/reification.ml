@@ -30,14 +30,17 @@ let reify in_macro =
 		| _ -> (ECall (constr,vl),pmin)
 	in
 	let to_const c p =
-		let cst n v = mk_enum "Constant" n [EConst (String(v,SDoubleQuotes)),p] p in
 		match c with
-		| Int (i, _) -> cst "CInt" i
+		| Int (i, suffix) ->
+			let suffix = match suffix with None -> (EConst (Ident "null"),p) | Some s -> (EConst (String (s, SDoubleQuotes)),p) in
+			mk_enum "Constant" "CInt" [(EConst (String(i,SDoubleQuotes)),p);suffix] p
 		| String(s,qs) ->
 			let qs = mk_enum "StringLiteralKind" (match qs with SDoubleQuotes -> "DoubleQuotes" | SSingleQuotes -> "SingleQuotes") [] p in
 			mk_enum "Constant" "CString" [(EConst (String(s,SDoubleQuotes)),p);qs] p
-		| Float (s, _) -> cst "CFloat" s
-		| Ident s -> cst "CIdent" s
+		| Float (f, suffix) ->
+			let suffix = match suffix with None -> (EConst (Ident "null"),p) | Some s -> (EConst (String (s, SDoubleQuotes)),p) in
+			mk_enum "Constant" "CFloat" [(EConst (String(f,SDoubleQuotes)),p);suffix] p
+		| Ident s -> mk_enum "Constant" "CIdent" [EConst (String(s,SDoubleQuotes)),p] p
 		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String(r,SDoubleQuotes)),p);(EConst (String(o,SDoubleQuotes)),p)] p
 	in
 	let rec to_binop o p =
