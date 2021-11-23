@@ -547,8 +547,20 @@ let decode_string_literal_kind v =
 
 let decode_const c =
 	match decode_enum c with
-	| 0, [s;suffix] -> Int (decode_string s, opt decode_string suffix)
-	| 1, [s;suffix] -> Float (decode_string s, opt decode_string suffix)
+	| 0, [s;suffix] ->
+		let decoded_suffix = opt decode_string suffix in
+		(match decoded_suffix with
+		| None | Some "i32" | Some "i64" | Some "u32" ->
+			Int (decode_string s, decoded_suffix)
+		| Some other ->
+			raise Invalid_expr)
+	| 1, [s;suffix] ->
+		let decoded_suffix = opt decode_string suffix in
+		(match decoded_suffix with
+		| None | Some "f64" ->
+			Float (decode_string s, opt decode_string suffix)
+		| Some other ->
+			raise Invalid_expr)
 	| 2, [s;qs] -> String (decode_string s,decode_string_literal_kind qs)
 	| 3, [s] -> Ident (decode_string s)
 	| 4, [s;opt] -> Regexp (decode_string s, decode_string opt)
