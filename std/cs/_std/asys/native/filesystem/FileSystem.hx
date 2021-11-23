@@ -116,18 +116,25 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Open directory for listing.
-
-		`maxBatchSize` sets maximum amount of entries returned by a call to `directory.next`.
-
-		In general bigger `maxBatchSize` allows to iterate faster, but requires more
-		memory per call to `directory.next`.
-
-		@see asys.native.filesystem.Directory.next
-	**/
 	static public function openDirectory(path:FilePath, maxBatchSize:Int = 64, callback:Callback<Directory>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					#if (net_ver >= 40)
+						var contents = CsDirectory.EnumerateFileSystemEntries(path).GetEnumerator();
+					#else
+						var entries = CsDirectory.GetFileSystemEntries(path);
+						var contents:Array<FilePath> = @:privateAccess Array.alloc(entries.length);
+						for(i in 0...entries.length)
+							contents[i] = FilePath.ofString(entries[i]).name();
+					#end
+					new Directory(contents, path, maxBatchSize);
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function listDirectory(path:FilePath, callback:Callback<Array<FilePath>>):Void {
@@ -495,6 +502,7 @@ class FileSystem {
 		return new FileStream(path, mode, access, ReadWrite);
 	}
 
+	@:allow(asys.native.filesystem)
 	static inline function rethrow<T>(e:CsException, path:FilePath):T {
 		var error:IoErrorType = if(Std.isOfType(e, FileNotFoundException)) {
 			FileNotFound;
