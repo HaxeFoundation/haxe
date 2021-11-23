@@ -335,6 +335,15 @@ module Pattern = struct
 				pctx.in_reification <- old;
 				e
 			| EConst((Ident ("false" | "true") | Int (_,_) | String _ | Float (_,_)) as ct) ->
+				begin match ct with
+					| String (value,kind) when kind = Ast.SSingleQuotes ->
+						let e = ctx.g.do_format_string ctx value p in
+						begin match e with
+							| EBinop _, p -> typing_error "String interpolation is not allowed in case patterns" p;
+							| _ -> ()
+						end;
+					| _ -> ()
+				end;
 				let p = pos e in
 				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
