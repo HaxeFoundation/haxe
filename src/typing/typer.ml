@@ -1669,10 +1669,11 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,SSingleQuotes)) when s <> "" ->
 		type_expr ctx (format_string ctx s p) with_type
-	| EConst (Int (s, Some suffix) as c) ->
+	| EConst (Int (s, Some suffix)) ->
 		(match suffix with
 		| "i32" ->
-			Texpr.type_constant ctx.com.basic c p
+			(try mk (TConst (TInt (Int32.of_string s))) ctx.com.basic.tint p
+			with _ -> typing_error ("Cannot represent " ^ s ^ " with a 32 bit integer") p)
 		| "i64" ->
 			if String.length s > 18 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
 
