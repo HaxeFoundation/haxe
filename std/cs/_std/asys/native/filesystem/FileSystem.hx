@@ -28,6 +28,11 @@ import cs.system.DateTimeOffset;
 import cs.system.Guid;
 import cs.system.security.accesscontrol.FileSystemRights;
 import cs.system.security.accesscontrol.AccessControlType;
+import cs.system.security.PermissionSet;
+import cs.system.security.permissions.PermissionState;
+import cs.system.security.permissions.FileIOPermission;
+import cs.system.security.permissions.FileIOPermissionAccess;
+import cs.system.AppDomain;
 
 
 @:coreApi
@@ -85,14 +90,6 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Write `data` into a file specified by `path`
-
-		`flag` controls the behavior.
-		By default the file truncated if it exists and created if it does not exist.
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-	**/
 	static public inline function writeBytes(path:FilePath, data:Bytes, flag:FileOpenFlag<Dynamic> = Write, callback:Callback<NoData>):Void {
 		writeNativeBytes(path, data.getData(), flag, callback);
 	}
@@ -137,14 +134,11 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
-					var dirs = CsDirectory.GetDirectories(path);
-					var files = CsDirectory.GetFiles(path);
-					var entries:Array<FilePath> = @:privateAccess Array.alloc(dirs.length + files.length);
-					for(i in 0...dirs.length)
-						entries[i] = FilePath.ofString(dirs[i]).name();
-					for(i in 0...files.length)
-						entries[dirs.length + i] = FilePath.ofString(files[i]).name();
-					entries;
+					var entries = CsDirectory.GetFileSystemEntries(path);
+					var result:Array<FilePath> = @:privateAccess Array.alloc(entries.length);
+					for(i in 0...entries.length)
+						result[i] = FilePath.ofString(entries[i]).name();
+					result;
 				} catch(e:CsException) {
 					rethrow(e, path);
 				}
@@ -198,34 +192,60 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Move and/or rename the file or directory from `oldPath` to `newPath`.
-
-		If `newPath` already exists and `overwrite` is `true` (which is the default)
-		the destination is overwritten. However, operation fails if `newPath` is
-		a non-empty directory.
-
-		If `overwrite` is `false` the operation is not guaranteed to be atomic.
-		That means if a third-party process creates `newPath` right in between the
-		check for existance and the actual move operation then the data created
-		by that third-party process may be overwritten.
-	**/
 	static public function move(oldPath:FilePath, newPath:FilePath, overwrite:Bool = true, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					try {
+						if(overwrite && CsFile.Exists(newPath))
+							CsFile.Delete(newPath);
+						CsFile.Move(oldPath, newPath);
+					} catch(e:FileNotFoundException) {
+						if(!overwrite && CsDirectory.Exists(newPath))
+							throw new FsException(FileExists, newPath);
+						CsDirectory.Move(oldPath, newPath);
+					}
+					NoData;
+				} catch(e:FsException) {
+					throw e;
+				} catch(e:CsException) {
+					rethrow(e, oldPath);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Remove a file or symbolic link.
-	**/
 	static public function deleteFile(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					if(!CsFile.Exists(path))
+						throw new FileNotFoundException(path);
+					CsFile.Delete(path);
+					NoData;
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Remove an empty directory.
-	**/
 	static public function deleteDirectory(path:FilePath, callback:Callback<NoData>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				try {
+					if(!CsDirectory.Exists(path))
+						throw new DirectoryNotFoundException(path);
+					CsDirectory.Delete(path);
+					NoData;
+				} catch(e:CsException) {
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function info(path:FilePath, callback:Callback<FileInfo>):Void {
@@ -281,15 +301,6 @@ class FileSystem {
 		);
 	}
 
-	/**
-		Check user's access for a path.
-
-		For example to check if a file is readable and writable:
-		```haxe
-		import asys.native.filesystem.FileAccessMode;
-		FileSystem.check(path, Readable | Writable, (error, result) -> trace(result));
-		```
-	**/
 	static public function check(path:FilePath, mode:FileAccessMode, callback:Callback<Bool>):Void {
 		pool.runFor(
 			() -> {
@@ -314,30 +325,11 @@ class FileSystem {
 						stream.Close();
 					} else if(isDir) { //if `isDir` is `true` it means the directory is at least readable, so check only for writable
 						if(mode.has(Writable)) {
-							var acl = try {
-								CsDirectory.GetAccessControl(path);
-							} catch(e:CsException) {
-								null;
-							}
-							if (acl == null) {
+							var permissionSet = new PermissionSet(PermissionState.None);
+							var writePermission = new FileIOPermission(FileIOPermissionAccess.Write, path.absolute());
+							permissionSet.AddPermission(writePermission);
+							if(!permissionSet.IsSubsetOf(untyped __cs__('System.AppDomain.CurrentDomain.PermissionSet'))) {
 								result = false;
-							} else {
-								var rules = acl.GetAccessRules(true, true, untyped __cs__('typeof(System.Security.Principal.SecurityIdentifier)'));
-								if (rules == null) {
-									result = false;
-								} else {
-									var writable = false;
-									for(i in 0...rules.Count) {
-										var rule = cast(rules[i], cs.system.security.accesscontrol.AccessRule);
-										if (rule.AccessControlType == AccessControlType.Deny) {
-											result = false;
-											break;
-										} else if (rule.AccessControlType == AccessControlType.Allow) {
-											writable = true;
-										}
-									}
-									result = result && writable;
-								}
 							}
 						}
 					} else {
@@ -503,13 +495,11 @@ class FileSystem {
 		return new FileStream(path, mode, access, ReadWrite);
 	}
 
-	static function rethrow<T>(e:CsException, path:FilePath):T {
+	static inline function rethrow<T>(e:CsException, path:FilePath):T {
 		var error:IoErrorType = if(Std.isOfType(e, FileNotFoundException)) {
 			FileNotFound;
 		} else if(Std.isOfType(e, DirectoryNotFoundException)) {
 			FileNotFound;
-		} else if(Std.isOfType(e, SecurityException)) {
-			AccessDenied;
 		} else {
 			CustomError(e.Message);
 		}

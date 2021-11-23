@@ -124,6 +124,7 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					isTrue(r);
 			}),
+			// #if !cs //TODO: implement these checks depending on .NET/mono versions
 			FileSystem.check('test-data/temp', Writable, (e, r) -> {
 				if(noException(e))
 					isTrue(r);
@@ -132,6 +133,7 @@ class TestFileSystem extends FsTest {
 				if(noException(e))
 					isTrue(r);
 			}),
+			// #end
 			#if !cs
 				//too much hassle making windows links to work across different machines (CI, local PC, netowrk share etc)
 				if(!isWindows)
@@ -156,14 +158,16 @@ class TestFileSystem extends FsTest {
 					if(noException(e))
 						isTrue(r);
 				}),
-				FileSystem.check('/bin', Writable, (e, r) -> {
-					if(noException(e))
-						isFalse(r);
-				}),
-				FileSystem.check('/bin', Readable | Writable, (e, r) -> {
-					if(noException(e))
-						isFalse(r);
-				}),
+				#if !cs //TODO: implement these checks depending on .NET/mono versions
+					FileSystem.check('/bin', Writable, (e, r) -> {
+						if(noException(e))
+							isFalse(r);
+					}),
+					FileSystem.check('/bin', Readable | Writable, (e, r) -> {
+						if(noException(e))
+							isFalse(r);
+					}),
+				#end
 				FileSystem.check('/bin', Exists, (e, r) -> {
 					if(noException(e))
 						isTrue(r);
