@@ -1039,10 +1039,18 @@ and parse_constraint_param s =
 				| [< >] -> serror())
 			| [< >] -> None
 		) in
+		let default = (match s with parser
+			| [< '(Binop OpAssign,_); s >] ->
+				(match s with parser
+				| [< t = parse_complex_type >] -> Some t
+				| [< >] -> serror())
+			| [< >] -> None
+		) in
 		{
 			tp_name = name;
 			tp_params = params;
 			tp_constraints = cto;
+			tp_default = default;
 			tp_meta = meta;
 		}
 	| [< >] ->

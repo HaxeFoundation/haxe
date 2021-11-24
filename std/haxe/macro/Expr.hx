@@ -677,6 +677,11 @@ typedef TypeParamDecl = {
 	var ?constraints:Array<ComplexType>;
 
 	/**
+		The optional default type of the type parameter.
+	**/
+	var ?defaultType:Null<ComplexType>;
+
+	/**
 		The optional parameters of the type parameter.
 	**/
 	var ?params:Array<TypeParamDecl>;

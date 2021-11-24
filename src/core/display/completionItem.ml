@@ -228,6 +228,7 @@ module CompletionModuleType = struct
 				tp_name = s,null_pos;
 				tp_params = [];
 				tp_constraints = None; (* TODO? *)
+				tp_default = None; (* TODO? *)
 				tp_meta = c.cl_meta
 			}
 			| _ ->
