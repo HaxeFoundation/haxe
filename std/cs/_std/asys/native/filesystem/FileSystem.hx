@@ -120,15 +120,22 @@ class FileSystem {
 		pool.runFor(
 			() -> {
 				try {
+					if(!CsDirectory.Exists(path))
+						if(CsFile.Exists(path))
+							throw new FsException(NotDirectory, path)
+						else
+							throw new FsException(FileNotFound, path);
 					#if (net_ver >= 40)
 						var contents = CsDirectory.EnumerateFileSystemEntries(path).GetEnumerator();
 					#else
 						var entries = CsDirectory.GetFileSystemEntries(path);
 						var contents:Array<FilePath> = @:privateAccess Array.alloc(entries.length);
 						for(i in 0...entries.length)
-							contents[i] = FilePath.ofString(entries[i]).name();
+							contents[i] = FilePath.ofString(entries[i]);
 					#end
 					new Directory(contents, path, maxBatchSize);
+				} catch(e:FsException) {
+					throw e;
 				} catch(e:CsException) {
 					rethrow(e, path);
 				}

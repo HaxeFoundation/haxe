@@ -30,7 +30,7 @@ class Directory {
 					for(i in 0...maxBatchSize) {
 						if(!contents.MoveNext())
 							break;
-						result.push((contents.Current:FilePath));
+						result.push((contents.Current:FilePath).name());
 					}
 					result;
 				} catch(e:CsException) {
@@ -55,8 +55,10 @@ class Directory {
 		pool.runFor(
 			() -> {
 				try {
-					if(current < contents.length - 1) {
-						var result = contents.slice(current, maxBatchSize);
+					if(current < contents.length) {
+						var result = contents.slice(current, current + maxBatchSize);
+						for(i => entry in result)
+							result[i] = entry.name();
 						current += maxBatchSize;
 						result;
 					} else {
