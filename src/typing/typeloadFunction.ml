@@ -183,7 +183,7 @@ let type_function ctx args ret fmode e do_display p =
 
 let add_constructor ctx c force_constructor p =
 	if c.cl_constructor <> None then () else
-	let constructor = try Some (Type.get_constructor_class c (List.map hack_tp c.cl_params)) with Not_found -> None in
+	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with
 	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
 		let cf = {

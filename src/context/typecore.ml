@@ -562,7 +562,7 @@ let prepare_using_field cf = match follow cf.cf_type with
 	| TFun((_,_,tf) :: args,ret) ->
 		let rec loop acc overloads = match overloads with
 			| ({cf_type = TFun((_,_,tfo) :: args,ret)} as cfo) :: l ->
-				let tfo = apply_params cfo.cf_params (List.map hack_tp cfo.cf_params) tfo in
+				let tfo = apply_params cfo.cf_params (extract_param_types cfo.cf_params) tfo in
 				(* ignore overloads which have a different first argument *)
 				if type_iseq tf tfo then loop ({cfo with cf_type = TFun(args,ret)} :: acc) l else loop acc l
 			| _ :: l ->

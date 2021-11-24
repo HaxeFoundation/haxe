@@ -1361,7 +1361,7 @@ module TexprConverter = struct
 					t_dynamic
 				in
 				let t = match fst con with
-					| ConEnum(en,_) -> TEnum(en,List.map hack_tp en.e_params)
+					| ConEnum(en,_) -> TEnum(en,extract_param_types en.e_params)
 					| ConArray _ -> ctx.t.tarray t_dynamic
 					| ConConst ct ->
 						begin match ct with
@@ -1371,7 +1371,7 @@ module TexprConverter = struct
 							| TBool _ -> ctx.t.tbool
 							| _ -> fail()
 						end
-					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,List.map hack_tp a.a_params))
+					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,extract_param_types a.a_params))
 					| ConTypeExpr mt -> get_general_module_type ctx mt e.epos
 					| ConFields _ | ConStatic _ -> fail()
 				in
@@ -1652,7 +1652,7 @@ module TexprConverter = struct
 				dt.dt_texpr <- e;
 				e
 		in
-		let params = List.map hack_tp ctx.type_params in
+		let params = extract_param_types ctx.type_params in
 		let e = loop Toplevel params dt in
 		match e with
 		| None ->

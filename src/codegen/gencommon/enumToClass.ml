@@ -127,7 +127,7 @@ struct
 					in
 
 					let ef_type =
-						let fn, types = if handle_type_params then hack_tp, dup_types else (fun _ -> t_dynamic), en.e_params in
+						let fn, types = if handle_type_params then extract_param_type, dup_types else (fun _ -> t_dynamic), en.e_params in
 						let t = apply_params en.e_params (List.map fn types) ef.ef_type in
 						apply_params ef.ef_params (List.map fn ef.ef_params) t
 					in
@@ -144,7 +144,7 @@ struct
 						eexpr = TFunction({
 							tf_args = tf_args;
 							tf_type = ret;
-							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map hack_tp dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, List.map hack_tp dup_types); epos = pos } );
+							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,extract_param_types dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, extract_param_types dup_types); epos = pos } );
 						});
 						etype = ef_type;
 						epos = pos

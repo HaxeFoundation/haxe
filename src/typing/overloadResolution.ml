@@ -92,7 +92,7 @@ let maybe_resolve_instance_overload is_ctor map_type c cf el =
 		resolve_instance_overload is_ctor map_type c cf.cf_name el
 	else match unify_cf map_type c cf el with
 		| Some fcc -> Some (fcc.fc_data)
-		| None -> Some(c,cf,List.map hack_tp cf.cf_params)
+		| None -> Some(c,cf,extract_param_types cf.cf_params)
 
 let maybe_resolve_constructor_overload c tl el =
 	let cf,c,tl = get_constructor_class c tl in

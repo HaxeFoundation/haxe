@@ -61,7 +61,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 			) c.cl_ordered_fields;
 			md
 		| TClassDecl c when not (has_class_flag c CExtern) ->
-			let this = { eexpr = TConst TThis; etype = TInst(c,List.map hack_tp c.cl_params); epos = c.cl_pos } in
+			let this = { eexpr = TConst TThis; etype = TInst(c,extract_param_types c.cl_params); epos = c.cl_pos } in
 			(* look through all interfaces, and try to find a type that applies exactly *)
 			let rec loop_iface (iface:tclass) itl =
 				List.iter (fun (s,stl) -> loop_iface s (List.map (apply_params iface.cl_params itl) stl)) iface.cl_implements;
@@ -81,19 +81,19 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									Overloads.same_overload_args ~get_vmtype ftype t f f2
 								) overloads
 							| _ :: _ ->
-								(match field_access gen (TInst(c, List.map hack_tp c.cl_params)) f.cf_name with
+								(match field_access gen (TInst(c, extract_param_types c.cl_params)) f.cf_name with
 								| FClassField(_,_,_,f2,false,t,_) -> t,f2 (* if it's not an overload, all functions should have the same signature *)
 								| _ -> raise Not_found)
 							| [] -> raise Not_found
 						in
 						replace_mono t2;
 						(* if we find a function with the exact type of real_ftype, it means this interface has already been taken care of *)
-						if not (type_iseq (get_real_fun gen (apply_params f2.cf_params (List.map hack_tp f.cf_params) t2)) real_ftype) then begin
+						if not (type_iseq (get_real_fun gen (apply_params f2.cf_params (extract_param_types f.cf_params) t2)) real_ftype) then begin
 							(match f.cf_kind with | Method (MethNormal | MethInline) -> () | _ -> raise Not_found);
 							let t2 = get_real_fun gen t2 in
 							if List.length f.cf_params <> List.length f2.cf_params then raise Not_found;
 							replace_mono t2;
-							match follow (apply_params f2.cf_params (List.map hack_tp f.cf_params) t2), follow real_ftype with
+							match follow (apply_params f2.cf_params (extract_param_types f.cf_params) t2), follow real_ftype with
 							| TFun(a1,r1), TFun(a2,r2) when not implement_explicitly && not (type_iseq r1 r2) && Overloads.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
 								(* different return types are the trickiest cases to deal with *)
 								(* check for covariant return type *)
@@ -107,7 +107,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								(* we only have to worry about non-covariant issues *)
 								if not is_covariant then begin
 									(* override return type and cast implemented function *)
-									let args, newr = match follow t2, follow (apply_params f.cf_params (List.map hack_tp f2.cf_params) real_ftype) with
+									let args, newr = match follow t2, follow (apply_params f.cf_params (extract_param_types f2.cf_params) real_ftype) with
 										| TFun(a,_), TFun(_,r) -> a,r
 										| _ -> Globals.die "" __LOC__
 									in
@@ -133,7 +133,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								let vars = List.map (fun (n,_,t) -> alloc_var n t) a2 in
 
 								let args = List.map2 (fun v (_,_,t) -> mk_cast t (mk_local v f2.cf_pos)) vars a1 in
-								let field = { eexpr = TField(this, FInstance(c,List.map hack_tp c.cl_params,f2)); etype = TFun(a1,r1); epos = p } in
+								let field = { eexpr = TField(this, FInstance(c,extract_param_types c.cl_params,f2)); etype = TFun(a1,r1); epos = p } in
 								let call = { eexpr = TCall(field, args); etype = r1; epos = p } in
 								(* let call = gen.gparam_func_call call field (List.map snd f.cf_params) args in *)
 								let is_void = ExtType.is_void r2 in
@@ -221,8 +221,8 @@ let run ~explicit_fn_name ~get_vmtype gen =
 											eexpr = TCall(
 												{
 													eexpr = TField(
-														{ eexpr = TConst TThis; etype = TInst(c, List.map hack_tp c.cl_params); epos = p },
-														FInstance(c,List.map hack_tp c.cl_params,f));
+														{ eexpr = TConst TThis; etype = TInst(c, extract_param_types c.cl_params); epos = p },
+														FInstance(c,extract_param_types c.cl_params,f));
 													etype = f.cf_type;
 													epos = p
 												},

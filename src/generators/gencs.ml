@@ -158,7 +158,7 @@ let get_overloads_for_optional_args gen cl cf is_static =
 	| [],Method (MethNormal | MethDynamic | MethInline) ->
 		(match cf.cf_expr, follow cf.cf_type with
 		| Some ({ eexpr = TFunction fn } as method_expr), TFun (args, return_type) ->
-			let type_params = List.map hack_tp cl.cl_params in
+			let type_params = extract_param_types cl.cl_params in
 			let rec collect_overloads tf_args_rev args_rev default_values_rev =
 				match tf_args_rev, args_rev with
 				| (_, Some default_value) :: rest_tf_args_rev, _ :: rest_args_rev ->
@@ -2327,7 +2327,7 @@ let generate con =
 					let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 					let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
 					let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
-					let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map hack_tp cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+					let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, extract_param_types cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 					let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> die "" __LOC__ in
 					gen_nocompletion w cf.cf_meta;
 
@@ -2568,7 +2568,7 @@ let generate con =
 						let this = if static then
 							make_static_this cl f.cf_pos
 						else
-							{ eexpr = TConst TThis; etype = TInst(cl,List.map hack_tp cl.cl_params); epos = f.cf_pos }
+							{ eexpr = TConst TThis; etype = TInst(cl,extract_param_types cl.cl_params); epos = f.cf_pos }
 						in
 						print w "public %s%s %s" (if static then "static " else "") (t_s f.cf_type) (Dotnet.netname_to_hx f.cf_name);
 						begin_block w;
@@ -2755,11 +2755,11 @@ let generate con =
 
 				let events, nonprops = !events, !nonprops in
 
-				let t = TInst(cl, List.map hack_tp cl.cl_params) in
+				let t = TInst(cl, extract_param_types cl.cl_params) in
 				let find_prop name = try
 						List.assoc name !props
 					with | Not_found -> match field_access gen t name with
-						| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,List.map hack_tp cl.cl_params)) name ->
+						| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,extract_param_types cl.cl_params)) name ->
 							let ret = ref (v,t,None,None) in
 							props := (name, ret) :: !props;
 							ret

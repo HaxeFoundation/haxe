@@ -200,7 +200,7 @@ let gen_type_params ipos priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
 	let mpath = (if m.m_path <> path then [("module",snd (gen_path m.m_path false))] else []) in
 	let file = (if ipos && pos <> null_pos then [("file",pos.pfile)] else []) in
-	gen_path path priv :: ("params", String.concat ":" (List.map hack_tp' params)) :: (file @ mpriv @ mpath)
+	gen_path path priv :: ("params", String.concat ":" (List.map extract_param_name params)) :: (file @ mpriv @ mpath)
 
 let gen_class_path name (c,pl) =
 	node name [("path",s_type_path (tpath (TClassDecl c)))] (List.map gen_type pl)

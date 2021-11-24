@@ -639,7 +639,7 @@ and decode_tparam_decl v =
 			| [t] -> Some (decode_ctype t)
 			| tl -> Some (CTIntersection (List.map decode_ctype tl),Globals.null_pos)
 		);
-		tp_default = if vdefault = vnull then None else Some (decode_ctype vdefault);
+		tp_default = opt decode_ctype vdefault;
 		tp_params = decode_tparams (field v "params");
 		tp_meta = decode_meta_content (field v "meta");
 	}
@@ -1942,7 +1942,7 @@ let macro_api ccom get_api =
 				| TInst({cl_kind = KTypeParameter _},_) ->
 					begin try
 						(* use non-physical equality check here to make apply_params work *)
-						hack_tp (List.find (fun (_,t2,_) -> type_iseq t t2) tpl)
+						extract_param_type (List.find (fun (_,t2,_) -> type_iseq t t2) tpl)
 					with Not_found ->
 						Type.map map t
 					end

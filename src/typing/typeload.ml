@@ -304,7 +304,7 @@ let check_param_constraints ctx t map c p =
 let rec load_instance' ctx (t,p) allow_no_params =
 	let t = try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
-		let pt = hack_tp_assoc t.tname ctx.type_params in
+		let pt = lookup_param t.tname ctx.type_params in
 		if t.tparams <> [] then typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
 		pt
 	with Not_found ->
@@ -789,7 +789,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
-	let t = TInst (c,List.map hack_tp c.cl_params) in
+	let t = TInst (c,extract_param_types c.cl_params) in
 	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	let default = match tp.tp_default with
@@ -887,7 +887,7 @@ let init_core_api ctx c =
 	let compare_fields f f2 =
 		let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
 		(try
-			type_eq EqCoreType (apply_params ccore.cl_params (List.map hack_tp c.cl_params) f.cf_type) f2.cf_type
+			type_eq EqCoreType (apply_params ccore.cl_params (extract_param_types c.cl_params) f.cf_type) f2.cf_type
 		with Unify_error l ->
 			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
 			display_error ctx (error_msg (Unify l)) p);

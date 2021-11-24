@@ -2268,7 +2268,7 @@ class tclass_to_jvm gctx c = object(self)
 				| None ->
 					()
 				end else begin
-					let _,_,cf_super = raw_class_field (fun cf -> cf.cf_type) c_sup (List.map hack_tp c_sup.cl_params) cf.cf_name in
+					let _,_,cf_super = raw_class_field (fun cf -> cf.cf_type) c_sup (extract_param_types c_sup.cl_params) cf.cf_name in
 					compare_fields cf cf_super
 				end
 			in
@@ -2463,7 +2463,7 @@ class tclass_to_jvm gctx c = object(self)
 					default e;
 				end;
 			| Some e when mtype <> MStatic ->
-				let tl = List.map hack_tp c.cl_params in
+				let tl = extract_param_types c.cl_params in
 				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
 				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
 				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in

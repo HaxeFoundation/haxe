@@ -610,16 +610,23 @@ let concat e1 e2 =
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
 
-let hack_tp (_,t,_) = t
-let hack_tp' (n,_,_) = n
-
-let hack_tp_assoc n' l = hack_tp (List.find (fun (n,_,_) -> n = n') l)
+let extract_param_type (_,t,_) = t
+let extract_param_types = List.map extract_param_type
+let extract_param_name (n,_,_) = n
+let lookup_param n l =
+	let rec loop l = match l with
+		| [] ->
+			raise Not_found
+		| (n',t,_) :: l ->
+			if n = n' then t else loop l
+	in
+	loop l
 
 let type_of_module_type = function
-	| TClassDecl c -> TInst (c,List.map hack_tp c.cl_params)
-	| TEnumDecl e -> TEnum (e,List.map hack_tp e.e_params)
-	| TTypeDecl t -> TType (t,List.map hack_tp t.t_params)
-	| TAbstractDecl a -> TAbstract (a,List.map hack_tp a.a_params)
+	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)
+	| TEnumDecl e -> TEnum (e,extract_param_types e.e_params)
+	| TTypeDecl t -> TType (t,extract_param_types t.t_params)
+	| TAbstractDecl a -> TAbstract (a,extract_param_types a.a_params)
 
 let rec module_type_of_type = function
 	| TInst(c,_) -> TClassDecl c

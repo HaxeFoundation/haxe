@@ -115,7 +115,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let static_ctor_name = make_static_ctor_name cl in
 		(* create the static constructor *)
 		let ctor_types = List.map (fun (s,t,d) -> (s, TInst(map_param (get_cl_t t), []),d)) cl.cl_params in
-		let ctor_type_params = List.map hack_tp ctor_types in
+		let ctor_type_params = extract_param_types ctor_types in
 		List.iter (function (_,TInst(c,[]),_) -> (
 			match c.cl_kind with
 			| KTypeParameter (hd :: tail) ->
@@ -124,11 +124,11 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 				c.cl_kind <- KTypeParameter(after)
 			| _ -> ())
 		| _ -> ()) ctor_types;
-		let me = alloc_var "__hx_this" (TInst(cl, List.map hack_tp ctor_types)) in
+		let me = alloc_var "__hx_this" (TInst(cl, extract_param_types ctor_types)) in
 		add_var_flag me VCaptured;
 
 		let fn_args, _ = get_fun ctor.cf_type in
-		let ctor_params = List.map hack_tp ctor_types in
+		let ctor_params = extract_param_types ctor_types in
 		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, com.basic.tvoid) in
 		let cur_tf_args = match ctor.cf_expr with
 		| Some { eexpr = TFunction(tf) } -> tf.tf_args
@@ -223,10 +223,10 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 						eexpr = TField(
 							Texpr.Builder.make_static_this cl p,
 							FStatic(cl, static_ctor));
-						etype = apply_params static_ctor.cf_params (List.map hack_tp cl.cl_params) static_ctor.cf_type;
+						etype = apply_params static_ctor.cf_params (extract_param_types cl.cl_params) static_ctor.cf_type;
 						epos = p
 					},
-					[{ eexpr = TConst TThis; etype = TInst(cl, List.map hack_tp cl.cl_params); epos = p }]
+					[{ eexpr = TConst TThis; etype = TInst(cl, extract_param_types cl.cl_params); epos = p }]
 					@ el_args
 				);
 				etype = com.basic.tvoid;
@@ -250,7 +250,7 @@ let clone_ctors com ctor sup stl cl =
 		let super_call =
 		{
 			eexpr = TCall(
-				{ eexpr = TConst TSuper; etype = TInst(cl, List.map hack_tp cl.cl_params); epos = ctor.cf_pos },
+				{ eexpr = TConst TSuper; etype = TInst(cl, extract_param_types cl.cl_params); epos = ctor.cf_pos },
 				List.map (fun (v,_) -> mk_local v ctor.cf_pos) tf_args);
 			etype = com.basic.tvoid;
 			epos = ctor.cf_pos;
@@ -328,7 +328,7 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 						ctor
 					| None ->
 						try
-							let sctor, sup, stl = prev_ctor cl (List.map hack_tp cl.cl_params) in
+							let sctor, sup, stl = prev_ctor cl (extract_param_types cl.cl_params) in
 							(* we'll make constructors that will only call super() *)
 							let ctor = clone_ctors com sctor sup stl cl in
 							cl.cl_constructor <- Some ctor;
@@ -383,12 +383,12 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 					| Some (sup,_) ->
 						try
 							ignore (get_last_empty sup);
-							let esuper = mk (TConst TSuper) (TInst (cl, List.map hack_tp cl.cl_params)) cl.cl_pos in
+							let esuper = mk (TConst TSuper) (TInst (cl, extract_param_types cl.cl_params)) cl.cl_pos in
 							[mk (TCall (esuper, [empty_ctor_expr])) basic.tvoid cl.cl_pos]
 						with Not_found ->
 							try
 								(* super type is native: find super constructor with least arguments *)
-								let sctor, sup, stl = prev_ctor cl (List.map hack_tp cl.cl_params) in
+								let sctor, sup, stl = prev_ctor cl (extract_param_types cl.cl_params) in
 								let rec loop remaining (best,n) =
 									match remaining with
 									| [] -> best

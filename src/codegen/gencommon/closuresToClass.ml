@@ -426,7 +426,7 @@ let configure gen ft =
 
 		let mk_this v pos =
 			{
-				(mk_field_access gen { eexpr = TConst TThis; etype = TInst(cls, List.map hack_tp cls.cl_params); epos = pos } v.v_name pos)
+				(mk_field_access gen { eexpr = TConst TThis; etype = TInst(cls, extract_param_types cls.cl_params); epos = pos } v.v_name pos)
 				with etype = v.v_type
 			}
 		in
@@ -476,9 +476,9 @@ let configure gen ft =
 					eexpr = TCall({
 						eexpr = TField({
 							eexpr = TConst TThis;
-							etype = TInst(cls, List.map hack_tp cls.cl_params);
+							etype = TInst(cls, extract_param_types cls.cl_params);
 							epos = pos;
-						}, FInstance(cls, List.map hack_tp cls.cl_params, cf));
+						}, FInstance(cls, extract_param_types cls.cl_params, cf));
 						etype = cf.cf_type;
 						epos = pos;
 					}, List.map (fun (v,_) -> mk_local v pos) tfunc.tf_args);
@@ -899,7 +899,7 @@ struct
 
 		let map_base_classfields cl map_fn =
 			let pos = cl.cl_pos in
-			let this_t = TInst(cl,List.map hack_tp cl.cl_params) in
+			let this_t = TInst(cl,extract_param_types cl.cl_params) in
 			let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 			let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
@@ -1091,7 +1091,7 @@ struct
 				loop arity []
 			in
 
-			let this = mk (TConst TThis) (TInst (cl, List.map hack_tp cl.cl_params)) pos in
+			let this = mk (TConst TThis) (TInst (cl, extract_param_types cl.cl_params)) pos in
 			let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
 			let mk_invoke_switch i api =
