@@ -9,9 +9,11 @@ import cs.system.Exception as CsException;
 import sys.thread.ElasticThreadPool;
 import asys.native.system.SystemUser;
 import asys.native.system.SystemGroup;
+import cs.system.io.Path;
 import cs.system.io.File as CsFile;
 import cs.system.io.Directory as CsDirectory;
 import cs.system.io.FileMode;
+import cs.system.io.FileOptions;
 import cs.system.io.FileAccess;
 import cs.system.io.FileStream;
 import cs.system.io.FileAttributes;
@@ -39,35 +41,45 @@ import cs.system.AppDomain;
 class FileSystem {
 	@:allow(asys.native.filesystem)
 	static final pool = new ElasticThreadPool(2 * cs.system.Environment.ProcessorCount);
+	@:allow(asys.native.filesystem)
 	static final unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
-	/**
-		Open file for reading and/or writing.
-
-		Depending on `flag` value `callback` will be invoked with the appropriate
-		object type to read and/or write the file:
-		- `asys.native.filesystem.File` for reading and writing;
-		- `asys.native.filesystem.FileRead` for reading only;
-		- `asys.native.filesystem.FileWrite` for writing only;
-		- `asys.native.filesystem.FileAppend` for writing to the end of file only;
-
-		@see asys.native.filesystem.FileOpenFlag for more details.
-	**/
 	static public function openFile<T>(path:FilePath, flag:FileOpenFlag<T>, callback:Callback<T>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				var stream = null;
+				try {
+					stream = streamFile(path, flag);
+					var forAppend = switch flag {
+						case Append: true;
+						case _: false;
+					}
+					cast new File(stream, path, forAppend);
+				} catch(e:CsException) {
+					closeStream(stream);
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
-	/**
-		Create and open a unique temporary file for writing and reading.
-
-		The file will be automatically deleted when it is closed.
-
-		Depending on a target platform the file may be automatically deleted upon
-		application shutdown, but in general deletion is not guaranteed if the `close`
-		method is not called.
-	**/
 	static public function tempFile(callback:Callback<File>):Void {
-		throw new NotImplementedException();
+		pool.runFor(
+			() -> {
+				var stream = null;
+				var path = Path.GetTempFileName();
+				try {
+					var options:FileOptions = cast ((cast RandomAccess:Int) | (cast DeleteOnClose:Int));
+					stream = new FileStream(path, Create, ReadWrite, ReadWrite, 4096, options);
+					cast new File(stream, path, false);
+				} catch(e:CsException) {
+					closeStream(stream);
+					rethrow(e, path);
+				}
+			},
+			callback
+		);
 	}
 
 	static public function readBytes(path:FilePath, callback:Callback<Bytes>):Void {
@@ -326,11 +338,11 @@ class FileSystem {
 					if(mode.has(Exists) && !isFile && !isDir) {
 						result = false;
 					} else if(isFile) {
-						stream = CsFile.Open(path, FileMode.Open);
+						stream = streamFile(path, ReadWrite);
 						if(mode.has(Readable)) {
 							result = result && stream.CanRead;
 						}
-						if(mode.has(Readable)) {
+						if(mode.has(Writable)) {
 							result = result && stream.CanWrite;
 						}
 						if(mode.has(Executable)) {
@@ -342,9 +354,13 @@ class FileSystem {
 							var permissionSet = new PermissionSet(PermissionState.None);
 							var writePermission = new FileIOPermission(FileIOPermissionAccess.Write, path.absolute());
 							permissionSet.AddPermission(writePermission);
-							if(!permissionSet.IsSubsetOf(untyped __cs__('System.AppDomain.CurrentDomain.PermissionSet'))) {
-								result = false;
-							}
+							#if (net_ver >= 40)
+								if(!permissionSet.IsSubsetOf(AppDomain.CurrentDomain.PermissionSet)) {
+									result = false;
+								}
+							#else
+								//TODO
+							#end
 						}
 					} else {
 						result = false;
