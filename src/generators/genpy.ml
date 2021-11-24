@@ -1891,7 +1891,7 @@ module Generator = struct
 		let py_metas = filter_py_metas cf.cf_meta in
 		begin match cf.cf_expr with
 			| Some ({eexpr = TFunction f} as ef) ->
-				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_params)) cf.cf_pos in
+				let ethis = mk (TConst TThis) (TInst(c,List.map hack_tp c.cl_params)) cf.cf_pos in
 				let assigned_fields = ref [] in
 				(* Collect all fields that are assigned to but panic out as soon as `this`,
 				   `super`, `return` or `throw` appears (regardless of control flow). *)

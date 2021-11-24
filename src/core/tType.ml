@@ -77,7 +77,7 @@ and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 
-and type_params = (string * t) list
+and type_params = (string * t * t option) list
 
 and tconstant =
 	| TInt of int32

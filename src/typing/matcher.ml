@@ -43,7 +43,7 @@ let type_field_access ctx ?(resume=false) e name =
 
 let unapply_type_parameters params monos =
 	let unapplied = ref [] in
-	List.iter2 (fun (_,t1) t2 ->
+	List.iter2 (fun (_,t1,_) t2 ->
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
 			unapplied := (m1,m1.tm_type) :: !unapplied;
@@ -1361,7 +1361,7 @@ module TexprConverter = struct
 					t_dynamic
 				in
 				let t = match fst con with
-					| ConEnum(en,_) -> TEnum(en,List.map snd en.e_params)
+					| ConEnum(en,_) -> TEnum(en,List.map hack_tp en.e_params)
 					| ConArray _ -> ctx.t.tarray t_dynamic
 					| ConConst ct ->
 						begin match ct with
@@ -1371,7 +1371,7 @@ module TexprConverter = struct
 							| TBool _ -> ctx.t.tbool
 							| _ -> fail()
 						end
-					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,List.map snd a.a_params))
+					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,List.map hack_tp a.a_params))
 					| ConTypeExpr mt -> get_general_module_type ctx mt e.epos
 					| ConFields _ | ConStatic _ -> fail()
 				in
@@ -1652,7 +1652,7 @@ module TexprConverter = struct
 				dt.dt_texpr <- e;
 				e
 		in
-		let params = List.map snd ctx.type_params in
+		let params = List.map hack_tp ctx.type_params in
 		let e = loop Toplevel params dt in
 		match e with
 		| None ->

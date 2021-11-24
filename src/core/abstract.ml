@@ -88,7 +88,7 @@ let rec find_multitype_params a pl =
 			loop (fun t -> t) e
 		) el;
 		let definitive_types = ref [] in
-		let tl = List.map2 (fun (n,_) t ->
+		let tl = List.map2 (fun (n,_,_) t ->
 			try
 				let t = (Hashtbl.find relevant n) t in
 				definitive_types := t :: !definitive_types;

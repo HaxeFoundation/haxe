@@ -344,8 +344,8 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
-		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| (x,TLazy f,def) :: l1, _ -> loop ((x,lazy_type f,def) :: l1) l2
+		| (_,t1,_) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
@@ -610,11 +610,16 @@ let concat e1 e2 =
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
 
+let hack_tp (_,t,_) = t
+let hack_tp' (n,_,_) = n
+
+let hack_tp_assoc n' l = hack_tp (List.find (fun (n,_,_) -> n = n') l)
+
 let type_of_module_type = function
-	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
-	| TEnumDecl e -> TEnum (e,List.map snd e.e_params)
-	| TTypeDecl t -> TType (t,List.map snd t.t_params)
-	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
+	| TClassDecl c -> TInst (c,List.map hack_tp c.cl_params)
+	| TEnumDecl e -> TEnum (e,List.map hack_tp e.e_params)
+	| TTypeDecl t -> TType (t,List.map hack_tp t.t_params)
+	| TAbstractDecl a -> TAbstract (a,List.map hack_tp a.a_params)
 
 let rec module_type_of_type = function
 	| TInst(c,_) -> TClassDecl c

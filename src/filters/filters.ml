@@ -469,7 +469,7 @@ let add_rtti ctx t =
 (* Adds member field initializations as assignments to the constructor *)
 let add_field_inits locals ctx t =
 	let apply c =
-		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
+		let ethis = mk (TConst TThis) (TInst (c,List.map hack_tp c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
 		let v = alloc_var VGenerated "_g" ethis.etype ethis.epos in
 		let need_this = ref false in
@@ -486,7 +486,7 @@ let add_field_inits locals ctx t =
 				match cf.cf_expr with
 				| None -> die "" __LOC__
 				| Some e ->
-					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
+					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map hack_tp c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
 					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
 			) inits in

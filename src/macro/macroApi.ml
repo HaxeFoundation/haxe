@@ -900,7 +900,8 @@ let rec encode_mtype t fields =
 	] @ fields)
 
 and encode_type_params tl =
-	encode_array (List.map (fun (n,t) -> encode_obj ["name",encode_string n;"t",encode_type t]) tl)
+	(* TP_TODO *)
+	encode_array (List.map (fun (n,t,def) -> encode_obj ["name",encode_string n;"t",encode_type t]) tl)
 
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
@@ -1282,7 +1283,11 @@ let decode_tconst c =
 	| _ -> raise Invalid_expr
 
 let decode_type_params v =
-	List.map (fun v -> decode_string (field v "name"),decode_type (field v "t")) (decode_array v)
+	List.map (fun v ->
+		let name = decode_string (field v "name") in
+		let t = decode_type (field v "t") in
+		(name,t,None (* TP_TODO*) )
+	) (decode_array v)
 
 let decode_tvar v =
 	(Obj.obj (decode_unsafe (field v "$")) : tvar)
@@ -1932,12 +1937,12 @@ let macro_api ccom get_api =
 		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
-			let tpl = List.map (fun v -> decode_string (field v "name"), decode_type (field v "t")) (decode_array tpl) in
+			let tpl = List.map (fun v -> decode_string (field v "name"), decode_type (field v "t"), None (* TP_TODO*) ) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
 					begin try
 						(* use non-physical equality check here to make apply_params work *)
-						snd (List.find (fun (_,t2) -> type_iseq t t2) tpl)
+						hack_tp (List.find (fun (_,t2,_) -> type_iseq t t2) tpl)
 					with Not_found ->
 						Type.map map t
 					end

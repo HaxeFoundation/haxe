@@ -450,7 +450,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 			| Some(c,_) -> self#process_class c
 			| None -> ()
 		end;
-		let tc = TInst(c,List.map snd c.cl_params) in
+		let tc = TInst(c,List.map hack_tp c.cl_params) in
 		let l = Hashtbl.fold (fun _ pfm acc ->
 			let path = pfm.pfm_path in
 			let path_inner = (fst path,snd path ^ "$Interface") in

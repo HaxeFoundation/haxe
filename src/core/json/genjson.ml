@@ -274,7 +274,7 @@ and generate_type_path_with_params ctx mpath tpath tl meta =
 
 (* type parameter *)
 
-and generate_type_parameter ctx (s,t) =
+and generate_type_parameter ctx (s,t,tp_todo) =
 	let generate_constraints () = match follow t with
 		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
 		| _ -> die "" __LOC__

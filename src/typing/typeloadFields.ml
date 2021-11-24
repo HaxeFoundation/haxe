@@ -176,7 +176,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				ast_fields
 		in
 		let super_args,super_expr,super_tl = get_struct_init_super_info ctx c p in
-		let params = List.map snd c.cl_params in
+		let params = List.map hack_tp c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let doc_buf = Buffer.create 0 in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
@@ -410,7 +410,7 @@ let build_enum_abstract ctx c a fields p =
 			field.cff_meta <- (Meta.Enum,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
-				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
+				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map hack_tp a.a_params)),null_pos)
 			in
 			begin match eo with
 				| None ->
@@ -459,7 +459,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> typing_error "Build call parameter must be a class path" p in
 				if ctx.in_macro then typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
-				ctx.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
+				ctx.get_build_infos <- (fun() -> Some (mt, List.map hack_tp (t_infos mt).mt_params, fvars()));
 				context_init#run;
 				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
@@ -526,9 +526,9 @@ let create_class_context ctx c context_init p =
 		tthis = (match abstract with
 			| Some a ->
 				(match a.a_this with
-				| TMono r when r.tm_type = None -> TAbstract (a,List.map snd c.cl_params)
+				| TMono r when r.tm_type = None -> TAbstract (a,List.map hack_tp c.cl_params)
 				| t -> t)
-			| None -> TInst (c,List.map snd c.cl_params));
+			| None -> TInst (c,List.map hack_tp c.cl_params));
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
@@ -667,7 +667,7 @@ let rec get_parent c name =
 let transform_field (ctx,cctx) c f fields p =
 	let f = match cctx.abstract with
 		| Some a ->
-			let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
+			let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map hack_tp a.a_params)) in
 			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
 			transform_abstract_field ctx.com this_t a_t a f
 		| None ->
@@ -1340,7 +1340,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let t_get,t_set = match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
 			if Meta.has Meta.IsVar f.cff_meta then typing_error (name ^ ": Abstract properties cannot be real variables") f.cff_pos;
-			let ta = apply_params a.a_params (List.map snd a.a_params) a.a_this in
+			let ta = apply_params a.a_params (List.map hack_tp a.a_params) a.a_this in
 			tfun [ta] ret, tfun [ta;ret] ret
 		| _ -> tfun [] ret, TFun(["value",false,ret],ret)
 	in
@@ -1420,7 +1420,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 				end else if not (has_class_flag c CExtern) then begin
 					try
-						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
+						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map hack_tp c.cl_params) m) in
 						display_error ctx (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m (name) (if fctx.is_static then "not " else "")) f2.cf_pos
 					with Not_found ->
 						display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p

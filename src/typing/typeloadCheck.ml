@@ -38,10 +38,10 @@ exception Build_canceled of build_state
 let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
 	try
-		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
+		ignore (hack_tp_assoc (snd c.cl_path) ctx.curfield.cf_params);
 		has_class_field_flag ctx.curfield CfGeneric
 	with Not_found -> try
-		ignore(List.assoc (snd c.cl_path) ctx.type_params);
+		ignore(hack_tp_assoc (snd c.cl_path) ctx.type_params);
 		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
 	with Not_found ->
 		false
@@ -61,7 +61,7 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| [], [] -> t1, t2
 		| l1, l2 when List.length l1 = List.length l2 ->
 			let to_check = ref [] in
-			let monos = List.map2 (fun (name,p1) (_,p2) ->
+			let monos = List.map2 (fun (name,p1,tp_todo) (_,p2,to_todo') ->
 				(match follow p1, follow p2 with
 				| TInst ({ cl_kind = KTypeParameter ct1 } as c1,pl1), TInst ({ cl_kind = KTypeParameter ct2 } as c2,pl2) ->
 					(match ct1, ct2 with

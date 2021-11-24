@@ -26,7 +26,7 @@ let rec is_removable_class c =
 		(match c.cl_super with
 			| Some (c,_) -> is_removable_class c
 			| _ -> false) ||
-		List.exists (fun (_,t) -> match follow t with
+		List.exists (fun (_,t,_) -> match follow t with
 			| TInst(c,_) ->
 				has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
 			| _ ->

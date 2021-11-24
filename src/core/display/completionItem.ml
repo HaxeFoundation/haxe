@@ -214,7 +214,7 @@ module CompletionModuleType = struct
 				false,false,false,kind,ctor
 			| TAbstractDecl a ->
 				let kind = if a.a_enum then EnumAbstract else Abstract in
-				let is_extern,is_final,is_abstract,ctor = match Abstract.follow_with_forward_ctor (TAbstract(a,List.map snd a.a_params)) with
+				let is_extern,is_final,is_abstract,ctor = match Abstract.follow_with_forward_ctor (TAbstract(a,List.map hack_tp a.a_params)) with
 					| TInst(c,_) -> let is_extern,is_final,is_abstract,_,ctor = ctor_info (TClassDecl c) in is_extern,is_final,is_abstract,ctor
 					| TAbstract(a,_) -> false,false,false,actor a
 					| _ -> false,false,false,No
@@ -223,7 +223,7 @@ module CompletionModuleType = struct
 		in
 		let is_extern,is_final,is_abstract,kind,ctor = ctor_info mt in
 		let infos = t_infos mt in
-		let convert_type_param (s,t) = match follow t with
+		let convert_type_param (s,t,tp_todo) = match follow t with
 			| TInst(c,_) -> {
 				tp_name = s,null_pos;
 				tp_params = [];

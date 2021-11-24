@@ -157,7 +157,7 @@ and gen_field att f =
 			in
 			att,get_value_meta f.cf_meta
 	) in
-	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
+	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_,_) -> n) l)) :: att) in
 	let overloads = match List.map (gen_field []) f.cf_overloads with
 		| [] -> []
 		| nl -> [node "overloads" [] nl]
@@ -200,7 +200,7 @@ let gen_type_params ipos priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
 	let mpath = (if m.m_path <> path then [("module",snd (gen_path m.m_path false))] else []) in
 	let file = (if ipos && pos <> null_pos then [("file",pos.pfile)] else []) in
-	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: (file @ mpriv @ mpath)
+	gen_path path priv :: ("params", String.concat ":" (List.map hack_tp' params)) :: (file @ mpriv @ mpath)
 
 let gen_class_path name (c,pl) =
 	node name [("path",s_type_path (tpath (TClassDecl c)))] (List.map gen_type pl)

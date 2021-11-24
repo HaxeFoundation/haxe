@@ -148,7 +148,7 @@ let build_dependencies t =
 		(match c.cl_super with
 		| None -> add_path ([],"Object") DKInherit;
 		| Some x -> add_inherit x);
-		List.iter (fun (_,t) ->
+		List.iter (fun (_,t,_) ->
 			(* add type-parameters constraints dependencies *)
 			match follow t with
 			| TInst (c,_) -> List.iter add_inherit c.cl_implements

@@ -487,7 +487,7 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param (s,t) = match follow t with
+	let s_type_param (s,t,tp_todo) = match follow t with
 		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
 			begin match tl1 with
 			| [] -> s

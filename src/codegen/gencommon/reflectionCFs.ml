@@ -246,7 +246,7 @@ let switch_case ctx pos field_name =
 let call_super ctx fn_args ret_t cf cl this_t pos =
 	{
 		eexpr = TCall({
-			eexpr = TField({ eexpr = TConst(TSuper); etype = this_t; epos = pos }, FInstance(cl,List.map snd cl.cl_params,cf));
+			eexpr = TField({ eexpr = TConst(TSuper); etype = this_t; epos = pos }, FInstance(cl,List.map hack_tp cl.cl_params,cf));
 			etype = TFun(fun_args fn_args, ret_t);
 			epos = pos;
 		}, List.map (fun (v,_) -> mk_local v pos) fn_args);
@@ -280,7 +280,7 @@ let enumerate_dynamic_fields ctx cl when_found base_arr =
 		]
 	in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, List.map hack_tp cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
@@ -467,7 +467,7 @@ let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value
 
 let get_delete_field ctx cl is_dynamic =
 	let pos = cl.cl_pos in
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, List.map hack_tp cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 	let gen = ctx.rcf_gen in
 	let basic = gen.gcon.basic in
@@ -687,7 +687,7 @@ let implement_final_lookup ctx cl =
 	let pos = cl.cl_pos in
 	let is_override = is_override cl in
 
-	(* let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in *)
+	(* let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map hack_tp cl.cl_params); epos = pos } in *)
 
 	let mk_throw str pos =
 		let e = ctx.rcf_mk_exception str pos in
@@ -806,7 +806,7 @@ let implement_get_set ctx cl =
 		let handle_prop = alloc_var "handleProperties" basic.tbool in
 		let handle_prop_local = mk_local handle_prop pos in
 
-		let this = { eexpr = TConst TThis; etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in
+		let this = { eexpr = TConst TThis; etype = TInst(cl, List.map hack_tp cl.cl_params); epos = pos } in
 		let mk_this_call_raw name fun_t params =
 			{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t; }, params ); etype = snd (get_fun fun_t); epos = pos }
 		in
@@ -817,7 +817,7 @@ let implement_get_set ctx cl =
 
 		let maybe_cast e = e in
 
-		let t = TInst(cl, List.map snd cl.cl_params) in
+		let t = TInst(cl, List.map hack_tp cl.cl_params) in
 
 		(* if it's not latest hxgen class -> check super *)
 		let mk_do_default args do_default =
@@ -829,7 +829,7 @@ let implement_get_set ctx cl =
 					fun () ->
 						mk_return {
 							eexpr = TCall(
-								{ eexpr = TField({ eexpr = TConst TSuper; etype = t; epos = pos }, FInstance(cl, List.map snd cl.cl_params, cfield)); etype = !fun_type; epos = pos },
+								{ eexpr = TField({ eexpr = TConst TSuper; etype = t; epos = pos }, FInstance(cl, List.map hack_tp cl.cl_params, cfield)); etype = !fun_type; epos = pos },
 								(List.map (fun (v,_) -> mk_local v pos) args) );
 							etype = if is_float then basic.tfloat else t_dynamic;
 							epos = pos;
@@ -849,7 +849,7 @@ let implement_get_set ctx cl =
 			in
 
 			let do_field cf cf_type =
-				let get_field ethis = { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos } in
+				let get_field ethis = { eexpr = TField (ethis, FInstance(cl, List.map hack_tp cl.cl_params, cf)); etype = cf_type; epos = pos } in
 				let this = { eexpr = TConst(TThis); etype = t; epos = pos } in
 				let value_local = if is_float then match follow cf_type with
 					| TInst({ cl_kind = KTypeParameter _ }, _) ->
@@ -936,15 +936,15 @@ let implement_get_set ctx cl =
 							eexpr = TIf(
 								handle_prop_local,
 								mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [],
-								Some { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos }
+								Some { eexpr = TField (ethis, FInstance(cl, List.map hack_tp cl.cl_params, cf)); etype = cf_type; epos = pos }
 							);
 							etype = cf_type;
 							epos = pos;
 						}
 					| Var _
-					| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,List.map snd cl.cl_params,cf)); etype = cf_type; epos = pos }
+					| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,List.map hack_tp cl.cl_params,cf)); etype = cf_type; epos = pos }
 					| _ ->
-							{ eexpr = TField (this, FClosure(Some (cl,List.map snd cl.cl_params), cf)); etype = cf_type; epos = pos }
+							{ eexpr = TField (this, FClosure(Some (cl,List.map hack_tp cl.cl_params), cf)); etype = cf_type; epos = pos }
 			in
 
 			let do_field cf cf_type =
@@ -1077,7 +1077,7 @@ let implement_getFields ctx cl =
 	*)
 	let exprs =
 		if is_override cl then
-			let tparams = List.map snd cl.cl_params in
+			let tparams = List.map hack_tp cl.cl_params in
 			let esuper = mk (TConst TSuper) (TInst(cl, tparams)) pos in
 			let efield = mk (TField (esuper, FInstance (cl, tparams, cf))) t pos in
 			[mk (TCall (efield, [base_arr])) basic.tvoid pos]
@@ -1140,7 +1140,7 @@ let implement_invokeField ctx slow_invoke cl =
 	let all_args = field_args @ [ dynamic_arg, None ] in
 	let fun_t = TFun(fun_args all_args, t_dynamic) in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, List.map hack_tp cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 
 	let mk_this_call_raw name fun_t params =
@@ -1280,7 +1280,7 @@ let implement_varargs_cl ctx cl =
 	let pos = cl.cl_pos in
 	let gen = ctx.rcf_gen in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, List.map hack_tp cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
@@ -1339,7 +1339,7 @@ let implement_closure_cl ctx cl =
 	let field_args, _ = field_type_args ctx pos in
 	let obj_arg = alloc_var "target" (TInst(ctx.rcf_object_iface, [])) in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, List.map hack_tp cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 

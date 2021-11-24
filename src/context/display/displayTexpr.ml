@@ -95,7 +95,7 @@ let check_display_enum ctx cc cfile en =
 	PMap.iter (fun _ ef ->
 		if display_position#enclosed_in ef.ef_pos then begin
 			let sef = find_enum_field_by_position se ef.ef_name_pos in
-			ignore(TypeloadModule.load_enum_field ctx en (TEnum (en,List.map snd en.e_params)) (ref false) (ref 0) sef)
+			ignore(TypeloadModule.load_enum_field ctx en (TEnum (en,List.map hack_tp en.e_params)) (ref false) (ref 0) sef)
 		end
 	) en.e_constrs
 

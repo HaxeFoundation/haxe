@@ -260,7 +260,7 @@ module Monomorph = struct
 
 	let spawn_constrained_monos map params =
 		let checks = DynArray.create () in
-		let monos = List.map (fun (s,t) ->
+		let monos = List.map (fun (s,t,_) ->
 			let mono = create () in
 			begin match follow t with
 				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->

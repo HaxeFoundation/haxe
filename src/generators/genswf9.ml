@@ -2253,7 +2253,7 @@ let mk_instance_getter_func c tl accessor_cl accessor_tl accessor_cf prop_cf =
 	}
 
 let maybe_gen_instance_getter ctx c f acc alloc_slot =
-	let tl = List.map snd c.cl_params in
+	let tl = List.map hack_tp c.cl_params in
 	maybe_gen_instance_accessor ctx c tl f acc alloc_slot MK3Getter
 		(mk_instance_getter_func c tl c tl f)
 		(fun prop_cf -> ([],prop_cf.cf_type))
@@ -2274,7 +2274,7 @@ let mk_instance_setter_func com c tl accessor_cl accessor_tl accessor_cf prop_cf
 	}
 
 let maybe_gen_instance_setter ctx c f acc alloc_slot =
-	let tl = List.map snd c.cl_params in
+	let tl = List.map hack_tp c.cl_params in
 	maybe_gen_instance_accessor ctx c tl f acc alloc_slot MK3Setter
 		(mk_instance_setter_func ctx.com c tl c tl f)
 		(fun prop_cf -> ([(mk_varg prop_cf.cf_type,None)],ctx.com.basic.tvoid))
@@ -2376,7 +2376,7 @@ let realize_required_accessors ctx cl =
 		| _ -> false
 	in
 
-	let tl = List.map snd cl.cl_params in
+	let tl = List.map hack_tp cl.cl_params in
 	let fields = ref [] in
 	Hashtbl.iter (fun name (read, write, native) ->
 		match Type.class_field cl tl name with
@@ -2526,7 +2526,7 @@ let generate_class ctx c =
 				if read = AccCall then begin
 					try
 						begin
-						let tl = List.map snd c.cl_params in
+						let tl = List.map hack_tp c.cl_params in
 						match Type.class_field c tl ("get_" ^ f.cf_name) with
 						| Some (actual_cl, actual_tl), _, getter_cf when actual_cl != c ->
 							let func = mk_instance_getter_func c tl actual_cl actual_tl getter_cf f in
@@ -2551,7 +2551,7 @@ let generate_class ctx c =
 			if write = AccCall then begin
 				try
 					begin
-					let tl = List.map snd c.cl_params in
+					let tl = List.map hack_tp c.cl_params in
 					match Type.class_field c tl ("set_" ^ f.cf_name) with
 					| Some (actual_cl, actual_tl), _, setter_cf when actual_cl != c ->
 						let func = mk_instance_setter_func ctx.com c tl actual_cl actual_tl setter_cf f in

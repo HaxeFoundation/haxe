@@ -47,14 +47,14 @@ let run types =
 		| _ -> Globals.die "" __LOC__
 	in
 
-	let iter_types (nt,t) =
+	let iter_types (nt,t,tp_todo) =
 		let cls = get_cls t in
 		let orig = cls.cl_path in
 		check_type (snd orig) (fun name -> cls.cl_path <- (fst orig, name))
 	in
 
 	let save_params save params =
-		List.fold_left (fun save (_,t) ->
+		List.fold_left (fun save (_,t,tp_todo) ->
 			let cls = get_cls t in
 			(cls.cl_path,t) :: save) save params
 	in

@@ -56,7 +56,7 @@ let collect_static_extensions ctx items e p =
 		| TFun((_,_,t) :: args, ret) ->
 			begin try
 				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
-				List.iter2 (fun m (name,t) -> match follow t with
+				List.iter2 (fun m (name,t,tp_todo) -> match follow t with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
 						List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
 					| _ -> ()

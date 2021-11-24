@@ -169,7 +169,7 @@ let fix_override com c f fd =
 					   have to detect this case and change the variable (issue #2712). *)
 					begin match follow v.v_type with
 						| TInst({cl_kind = KTypeParameter [tc]} as cp,_) when com.platform = Flash ->
-							if List.mem_assoc (snd cp.cl_path) c.cl_params then raise (Unify_error [])
+							if List.exists (fun (name,_,_) -> name = (snd cp.cl_path)) c.cl_params then raise (Unify_error [])
 						| _ ->
 							()
 					end;

@@ -12,7 +12,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 		let rec loop params1 params2 = match params1,params2 with
 			| [],[] ->
 				true
-			| (n1,t1) :: params1,(n2,t2) :: params2 ->
+			| (n1,t1,tp_todo) :: params1,(n2,t2,tp_todo') :: params2 ->
 				let constraints_equal t1 t2 = match follow t1,t2 with
 					| TInst({cl_kind = KTypeParameter tl1},_),TInst({cl_kind = KTypeParameter tl2},_) ->
 						Ast.safe_for_all2 f_eq tl1 tl2
@@ -39,7 +39,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 		loop tl1 tl2
 	in
 	let compare_types () =
-		let t1 = follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1) in
+		let t1 = follow (apply_params f1.cf_params (List.map (fun (_,t,_) -> t) f2.cf_params) t1) in
 		match t1,follow t2 with
 		| TFun(tl1,_),TFun(tl2,_) ->
 			compare_arguments tl1 tl2

@@ -510,7 +510,7 @@ let init_module_type ctx context_init (decl,p) =
 				let _, _, f = ctx.g.do_build_instance ctx t p_type in
 				(* create a temp private typedef, does not register it in module *)
 				let t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name) in
-				let t_type = f (List.map snd (t_infos t).mt_params) in
+				let t_type = f (List.map hack_tp (t_infos t).mt_params) in
 				let mt = TTypeDecl {(mk_typedef ctx.m.curmod t_path p p t_type) with
 					t_private = true;
 					t_params = (t_infos t).mt_params
@@ -660,7 +660,7 @@ let init_module_type ctx context_init (decl,p) =
 					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
-					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
+					List.iter (fun (_,t,_) -> ignore(follow t)) c.cl_params;
 					Built;
 				with TypeloadCheck.Build_canceled state ->
 					c.cl_build <- make_pass ctx build;
@@ -757,7 +757,7 @@ let init_module_type ctx context_init (decl,p) =
 				) fields
 			| _ -> typing_error "Enum build macro must return a single variable with anonymous object fields" p
 		);
-		let et = TEnum (e,List.map snd e.e_params) in
+		let et = TEnum (e,List.map hack_tp e.e_params) in
 		let names = ref [] in
 		let index = ref 0 in
 		let is_flat = ref true in
@@ -896,7 +896,7 @@ let init_module_type ctx context_init (decl,p) =
 		a.a_to <- List.rev a.a_to;
 		if not !is_type then begin
 			if Meta.has Meta.CoreType a.a_meta then
-				a.a_this <- TAbstract(a,List.map snd a.a_params)
+				a.a_this <- TAbstract(a,List.map hack_tp a.a_params)
 			else
 				typing_error "Abstract is missing underlying type declaration" a.a_pos
 		end;
