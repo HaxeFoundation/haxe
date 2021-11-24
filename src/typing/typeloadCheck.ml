@@ -39,10 +39,10 @@ let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
 	let name = snd c.cl_path in
 	try
-		ignore(List.exists (fun (n,_,_) -> n = name) ctx.curfield.cf_params);
+		ignore(List.find (fun (n,_,_) -> n = name) ctx.curfield.cf_params);
 		has_class_field_flag ctx.curfield CfGeneric
 	with Not_found -> try
-		ignore(List.exists (fun (n,_,_) -> n = name) ctx.type_params);
+		ignore(List.find (fun (n,_,_) -> n = name) ctx.type_params);
 		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
 	with Not_found ->
 		false
