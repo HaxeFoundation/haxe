@@ -167,7 +167,7 @@ let type_change_ok com t1 t2 =
 			| TLazy f ->
 				is_nullable_or_whatever (lazy_type f)
 			| TType (t,tl) ->
-				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
+				is_nullable_or_whatever (apply_typedef t tl)
 			| TFun _ ->
 				false
 			| TInst ({ cl_kind = KTypeParameter _ },_) ->

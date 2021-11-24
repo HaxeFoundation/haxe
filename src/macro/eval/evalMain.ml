@@ -555,7 +555,7 @@ let handle_decoding_error f v t =
 				| _ -> error "expected Bool" v
 			end
 		| TType(t,tl) ->
-			loop tabs (apply_params t.t_params tl t.t_type) v
+			loop tabs (apply_typedef t tl) v
 		| TAbstract({a_path=["haxe";"macro"],"Position"},_) ->
 			begin match v with
 				| VInstance {ikind=IPos _} -> f "#pos"

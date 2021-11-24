@@ -110,7 +110,7 @@ let rec is_null t =
 	match t with
 		| TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
 		| TAbstract( { a_path = ([], "Null") }, _ ) -> true
-		| TType( t, tl ) -> is_null (apply_params t.t_params tl t.t_type)
+		| TType( t, tl ) -> is_null (apply_typedef t tl)
 		| TMono r ->
 			(match r.tm_type with
 			| Some t -> is_null t

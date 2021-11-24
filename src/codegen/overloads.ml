@@ -106,7 +106,7 @@ struct
 			t
 		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
 		| TType(t, tl) ->
-			simplify_t (apply_params t.t_params tl t.t_type)
+			simplify_t (apply_typedef t tl)
 		| TMono r -> (match r.tm_type with
 			| Some t -> simplify_t t
 			| None -> t_dynamic)

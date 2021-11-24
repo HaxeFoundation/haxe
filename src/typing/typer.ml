@@ -1444,8 +1444,12 @@ and type_cast ctx e t p =
 	let texpr = loop t in
 	mk (TCast (type_expr ctx e WithType.value,Some texpr)) t p
 
-and type_if ctx e e1 e2 with_type p =
+and type_if ctx e e1 e2 with_type is_ternary p =
 	let e = type_expr ctx e WithType.value in
+	if is_ternary then begin match e.eexpr with
+		| TConst TNull -> typing_error "Cannot use null as ternary condition" e.epos
+		| _ -> ()
+	end;
 	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	(match e2 with
@@ -1722,9 +1726,9 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EFor (it,e2) ->
 		ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
 	| ETernary (e1,e2,e3) ->
-		type_expr ctx (EIf (e1,e2,Some e3),p) with_type
+		type_if ctx e1 e2 (Some e3) with_type true p
 	| EIf (e,e1,e2) ->
-		type_if ctx e e1 e2 with_type p
+		type_if ctx e e1 e2 with_type false p
 	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond WithType.value in

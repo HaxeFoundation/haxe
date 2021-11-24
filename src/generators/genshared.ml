@@ -141,7 +141,7 @@ object(self)
 			begin try
 				Some (Hashtbl.find pfms td.t_path)
 			with Not_found ->
-				self#identify accept_anons (apply_params td.t_params tl td.t_type)
+				self#identify accept_anons (apply_typedef td tl)
 			end
 		| TMono {tm_type = Some t} ->
 			self#identify accept_anons t

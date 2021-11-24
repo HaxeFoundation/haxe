@@ -1,3 +1,4 @@
+package js.lib;
 /*
  * Copyright (C)2005-2019 Haxe Foundation
  *
@@ -20,27 +21,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package js.lib;
-
-import haxe.extern.EitherType;
-
 /**
-	`BufferSource` is a typedef used to represent objects that are either themselves an [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer),
-	or which are a [TypedArray](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray) providing an [ArrayBufferView](https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView).
-
-	This is a helper type to simplify the specification. It isn't an interface and there are no objects implementing it.
-
-	Documentation [BufferSource](https://developer.mozilla.org/en-US/docs/Web/API/BufferSource) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BufferSource$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
-
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/BufferSource>
- */
-abstract BufferSource(Dynamic) from ArrayBuffer from ArrayBufferView {
-	
-	public var byteLength(get, never): Int;
-
-	@:pure
-	inline function get_byteLength(): Int {
-		return this.byteLength;
-	}
-	
+	The `WeakRef` object lets you hold a weak reference to another object, without preventing that object from getting garbage-collected.
+	Documentation [WeakRef](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+**/
+@:native("WeakRef")
+extern class WeakRef<T:{}> {
+	/**
+		Creates a new WeakRef object.
+	**/
+	@:pure function new(target:T);
+	/**
+		Returns the WeakRef object's target object, or null if the target object has been reclaimed.
+	**/
+	@:pure function deref():Null<T>;
 }

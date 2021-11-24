@@ -284,16 +284,9 @@ let module_pass_1 ctx m tdecls loadp =
 			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv d.d_meta p in
-			let t = {
-				t_path = path;
-				t_module = m;
-				t_pos = p;
-				t_name_pos = pos d.d_name;
+			let t = {(mk_typedef m path p (pos d.d_name) (mk_mono())) with
 				t_doc = d.d_doc;
 				t_private = priv;
-				t_params = [];
-				t_using = [];
-				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
 			(* failsafe in case the typedef is not initialized (see #3933) *)
@@ -516,17 +509,11 @@ let init_module_type ctx context_init (decl,p) =
 					typing_error "Type aliases must start with an uppercase letter" p;
 				let _, _, f = ctx.g.do_build_instance ctx t p_type in
 				(* create a temp private typedef, does not register it in module *)
-				let mt = TTypeDecl {
-					t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
-					t_module = ctx.m.curmod;
-					t_pos = p;
-					t_name_pos = p;
+				let t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name) in
+				let t_type = f (List.map snd (t_infos t).mt_params) in
+				let mt = TTypeDecl {(mk_typedef ctx.m.curmod t_path p p t_type) with
 					t_private = true;
-					t_doc = None;
-					t_meta = [];
-					t_params = (t_infos t).mt_params;
-					t_using = [];
-					t_type = f (List.map snd (t_infos t).mt_params);
+					t_params = (t_infos t).mt_params
 				} in
 				if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
 					DisplayEmitter.display_module_type ctx mt p;
@@ -829,7 +816,7 @@ let init_module_type ctx context_init (decl,p) =
 						check_rec (lazy_type f);
 					| TType (td,tl) ->
 						if td == t then typing_error "Recursive typedef is not allowed" p;
-						check_rec (apply_params td.t_params tl td.t_type)
+						check_rec (apply_typedef td tl)
 					| _ ->
 						()
 				in
