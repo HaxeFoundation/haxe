@@ -124,7 +124,7 @@ private class HxThread {
 			}
 			dropThread(nt);
 		}
-		nt = new NativeThread(null, wrappedCallB);
+		nt = new NativeThread({target:wrappedCallB});
 		t = new HxThread(nt);
 		if(withEventLoop)
 			t.events = new EventLoop();
