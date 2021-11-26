@@ -141,8 +141,7 @@ let key_sys_net_Lock = hash "sys.thread.Lock"
 let key_sys_net_Tls = hash "sys.thread.Tls"
 let key_sys_net_Deque = hash "sys.thread.Deque"
 let key_sys_thread_EventLoop = hash "sys.thread.EventLoop"
-(* let key_sys_thread_Semaphore = hash "sys.thread.Semaphore"
-let key_sys_thread_Condition = hash "sys.thread.Condition" *)
+
 let key_mbedtls_Config = hash "mbedtls.Config"
 let key_mbedtls_CtrDrbg = hash "mbedtls.CtrDrbg"
 let key_mbedtls_Entropy = hash "mbedtls.Entropy"

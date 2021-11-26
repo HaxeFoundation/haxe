@@ -2,35 +2,21 @@ package sys.thread;
 
 @:coreApi
 class Semaphore {
-	final native:SemaphoreSlim;
+	final native:cs.system.threading.Semaphore;
 
 	public function new(value:Int):Void {
-		this.native = new SemaphoreSlim(value);
+		this.native = new cs.system.threading.Semaphore(value, 0x7FFFFFFF);
 	}
 
 	public function acquire():Void {
-		native.Wait();
+		native.WaitOne();
 	}
 
 	public function tryAcquire(?timeout:Float):Bool {
-		return native.Wait(timeout == null ? 0 : Std.int(timeout * 1000));
+		return native.WaitOne(timeout == null ? 0 : Std.int(timeout * 1000));
 	}
 
 	public function release():Void {
 		native.Release();
 	}
-}
-
-// doesn't seem to be in the dlls shipped with hxcs?
-
-@:native("System.Threading.SemaphoreSlim")
-private extern class SemaphoreSlim implements cs.system.IDisposable {
-	overload function new(value:Int):Void;
-	overload function new(value:Int, maximum:Int):Void;
-
-	function Release():Void;
-	overload function Dispose():Void;
-	overload function Dispose(b:Bool):Void;
-	overload function Wait():Void;
-	overload function Wait(millisecondsTimeout:Int):Bool;
 }

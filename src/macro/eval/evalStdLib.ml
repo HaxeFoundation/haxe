@@ -1785,90 +1785,6 @@ module StdMutex = struct
 	)
 end
 
-(*module StdSemaphore = struct
-	let this vthis = match vthis with
-		| VInstance {ikind=ISemaphore sem} -> sem
-		| _ -> unexpected_value vthis "Semaphore"
-	
-	let acquire = vifun0 (fun vthis ->
-		let sem = this vthis in
-		Semaphore.Counting.acquire sem.ssem;
-		vnull
-	)
-
-	let tryAcquire = vifun1 (fun vthis timeout ->
-		let sem = this vthis in
-		let rec loop target_time =
-			match Semaphore.Counting.try_acquire sem.ssem with
-			| false ->
-				if Sys.time() >= target_time then
-					vfalse
-				else begin
-					Thread.yield();
-					loop target_time
-				end
-			| true ->
-				vtrue
-		in
-		match Semaphore.Counting.try_acquire sem.ssem with
-			| false -> begin match timeout with
-							| VNull -> vfalse
-							| _ -> let target_time = (Sys.time()) +. num timeout in
-							loop target_time
-						end
-			| true -> vtrue
-	)
-
-	let release = vifun0 (fun vthis ->
-		let sem = this vthis in
-		Semaphore.Counting.release sem.ssem;
-		vnull
-	)
-end*)
-
-(*module StdCondition = struct
-	let this vthis = match vthis with
-		| VInstance {ikind=ICondition cond} -> cond
-		| _ -> unexpected_value vthis "Condition"
-	
-	let acquire = vifun0 (fun vthis ->
-		let cond = this vthis in
-		Mutex.lock cond.cmutex;
-		vnull
-	)
-
-	let tryAcquire = vifun0 (fun vthis ->
-		let cond = this vthis in
-		match Mutex.try_lock cond.cmutex with
-			| false -> vfalse
-			| true -> vtrue
-	)
-
-	let release = vifun0 (fun vthis ->
-		let cond = this vthis in
-		Mutex.unlock cond.cmutex;
-		vnull
-	)
-
-	let wait = vifun0 (fun vthis ->
-		let cond = this vthis in
-		Condition.wait cond.ccond cond.cmutex;
-		vnull
-	)
-
-	let signal = vifun0 (fun vthis ->
-		let cond = this vthis in
-		Condition.signal cond.ccond;
-		vnull
-	)
-
-	let broadcast = vifun0 (fun vthis ->
-		let cond = this vthis in
-		Condition.broadcast cond.ccond;
-		vnull
-	)
-end*)
-
 module StdNativeProcess = struct
 
 	let this vthis = match vthis with
@@ -3412,22 +3328,6 @@ let init_constructors builtins =
 			} in
 			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
-	(* add key_sys_thread_Semaphore
-			(fun vl -> match vl with
-				| [value] -> let sem = {
-					ssem = Semaphore.Counting.make(decode_int value)
-				} in
-				encode_instance key_sys_thread_Semaphore ~kind:(ISemaphore sem)
-				| _ -> die "" __LOC__
-			);
-	add key_sys_thread_Condition
-			(fun _ ->
-			let cond = {
-				ccond = Condition.create();
-				cmutex = Mutex.create();
-			} in
-			encode_instance key_sys_thread_Condition ~kind:(ICondition cond)
-		); *)
 	let tls_counter = ref (-1) in
 	add key_sys_net_Tls
 		(fun _ ->
@@ -3700,19 +3600,6 @@ let init_standard_library builtins =
 		"tryAcquire",StdMutex.tryAcquire;
 		"release",StdMutex.release;
 	];
-	(* init_fields builtins (["sys";"thread"],"Semaphore") [] [
-		"acquire",StdSemaphore.acquire;
-		"tryAcquire",StdSemaphore.tryAcquire;
-		"release",StdSemaphore.release
-	];
-	init_fields builtins (["sys";"thread"],"Condition") [] [
-		"acquire",StdCondition.acquire;
-		"tryAcquire",StdCondition.tryAcquire;
-		"release",StdCondition.release;
-		"wait",StdCondition.wait;
-		"signal",StdCondition.signal;
-		"broadcast",StdCondition.broadcast;
-	]; *)
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;
 		"exitCode",StdNativeProcess.exitCode;
