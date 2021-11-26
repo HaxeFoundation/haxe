@@ -23,12 +23,6 @@ class Condition {
 		untyped __global__.__hxcpp_condition_wait(c);
 	}
 
-	/*
-	public function timedWait(timeout:Float):Bool {
-		return untyped __global__.__hxcpp_condition_timed_wait(c, timeout);
-	}
-	*/
-
 	public function signal():Void {
 		untyped __global__.__hxcpp_condition_signal(c);
 	}

@@ -19,13 +19,6 @@ abstract Condition(hl.Abstract<"hl_condition">) {
 	@:hlNative("std", "condition_wait")
 	public function wait():Void {}
 
-	/*
-	@:hlNative("std", "condition_timed_wait")
-	public function timedWait(timeout:Float):Bool {
-		return false;
-	}
-	*/
-
 	@:hlNative("std", "condition_signal")
 	public function signal():Void {}
 

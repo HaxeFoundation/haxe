@@ -27,11 +27,6 @@ class Condition {
 		Monitor.Wait(object);
 	}
 
-	/*
-		public function timedWait(timeout:Float):Bool {
-			return Monitor.Wait(object, Std.int(timeout * 1000));
-		}
-	 */
 	public function signal():Void {
 		Monitor.Pulse(object);
 	}
