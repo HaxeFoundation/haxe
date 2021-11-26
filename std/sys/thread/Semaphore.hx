@@ -1,6 +1,6 @@
 package sys.thread;
 
-#if (!target.threaded || eval)
+#if (!target.threaded)
 #error "This class is not available on this target"
 #end
 @:coreApi extern class Semaphore {
