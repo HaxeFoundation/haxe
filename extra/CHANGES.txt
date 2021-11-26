@@ -1,5 +1,9 @@
 2021-XX-XX 4.2.5:
 
+	New features:
+
+	php : support PHP attributes generation (#9964)
+
 	Bugfixes:
 
 	all : fixed compiler crash in complex constraints chains (#10445)
