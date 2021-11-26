@@ -1028,20 +1028,16 @@ and parse_constraint_param s =
 	let meta = parse_meta s in
 	match s with parser
 	| [< name = type_name; s >] ->
-		let params = (match s with parser
-			| [< >] -> []
-		) in
 		let cto = (match s with parser
 			| [< '(DblDot,_); s >] ->
 				(match s with parser
-				| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> Some t
 				| [< t = parse_complex_type >] -> Some t
 				| [< >] -> serror())
 			| [< >] -> None
 		) in
 		{
 			tp_name = name;
-			tp_params = params;
+			tp_params = [];
 			tp_constraints = cto;
 			tp_meta = meta;
 		}
