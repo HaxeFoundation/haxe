@@ -1095,6 +1095,9 @@ class expr_checker mode immediate_execution report =
 			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
 		*)
 		method can_pass_expr expr to_type p =
+			match expr.etype with
+				| TAbstract ({ a_path = ([],"Null") },[t]) when t == t_dynamic -> true
+				| _ -> ();
 			match expr.eexpr, to_type with
 				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
 				| TObjectDecl fields, TAnon to_type ->

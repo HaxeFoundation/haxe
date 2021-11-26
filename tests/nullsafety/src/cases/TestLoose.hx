@@ -99,4 +99,29 @@ class TestLoose {
 			}
 		}
 	}
+
+	static function testNullDynamic_shouldPass(n:Null<Dynamic>) {
+		function dynamicFn(arg:Dynamic):Void {}
+		function stringFn(arg:String):Void {}
+		trace(n);
+		trace("Message: " + n);
+		trace('Message: ${n}');
+		final x = Std.string(n);
+		final arr:Array<Dynamic> = [n];
+		dynamicFn(n);
+		stringFn(n);
+		n += "5";
+		final obj = {
+			a: n,
+			b: (n: String)
+		}
+		stringFn(obj.a);
+		stringFn(obj.b);
+		final obj:{a:Dynamic, b:Dynamic} = {
+			a: n,
+			b: (n: String)
+		}
+		stringFn(obj.a);
+		stringFn(obj.b);
+	}
 }
