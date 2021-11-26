@@ -12,9 +12,7 @@ class TestSemaphore extends utest.Test {
 		m.acquire();
 		isTrue(m.tryAcquire());
 		isFalse(m.tryAcquire());
-		final t = Sys.time();
 		isFalse(m.tryAcquire(0.1));
-		isTrue(Sys.time() - t < 0.15);
 		m.release();
 		m.release();
 		m.release();

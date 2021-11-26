@@ -5,31 +5,37 @@ package sys.thread;
 	final mutex:eval.luv.Mutex;
 
 	public function new():Void {
-        cond = eval.luv.Condition.init().resolve();
-        mutex= eval.luv.Mutex.init(true).resolve();
-    }
+		cond = eval.luv.Condition.init().resolve();
+		mutex = eval.luv.Mutex.init(true).resolve();
+		eval.vm.Gc.finalise(destroy, this);
+	}
+
+	static function destroy(cond:Condition):Void {
+		cond.cond.destroy();
+		cond.mutex.destroy();
+	}
 
 	public function acquire():Void {
-        mutex.lock();
-    }
+		mutex.lock();
+	}
 
 	public function tryAcquire():Bool {
-        return mutex.tryLock().isOk();
-    }
+		return mutex.tryLock().isOk();
+	}
 
 	public function release():Void {
-        mutex.unlock();
-    }
+		mutex.unlock();
+	}
 
 	public function wait():Void {
-        cond.wait(mutex);
-    }
+		cond.wait(mutex);
+	}
 
 	public function signal():Void {
-        cond.signal();
-    }
+		cond.signal();
+	}
 
 	public function broadcast():Void {
-        cond.broadcast();
-    }
+		cond.broadcast();
+	}
 }
