@@ -5,7 +5,7 @@ import cs.system.threading.Monitor;
 @:coreApi
 @:access(sys.thread.Mutex)
 class Condition {
-	public final object:cs.system.Object;
+	final object:cs.system.Object;
 
 	public function new():Void {
 		this.object = new cs.system.Object();
@@ -27,10 +27,11 @@ class Condition {
 		Monitor.Wait(object);
 	}
 
-	public function timedWait(timeout:Float):Bool {
-		return Monitor.Wait(obj, timeout * 1000);
-	}
-
+	/*
+		public function timedWait(timeout:Float):Bool {
+			return Monitor.Wait(object, Std.int(timeout * 1000));
+		}
+	 */
 	public function signal():Void {
 		Monitor.Pulse(object);
 	}

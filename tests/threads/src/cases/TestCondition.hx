@@ -3,8 +3,10 @@ package cases;
 #if !neko
 import sys.thread.Condition;
 import sys.thread.Thread;
+#end
 
 class TestCondition extends utest.Test {
+	#if !neko
 	function test() {
 		final cond = new Condition();
 		final thread = Thread.create(() -> {
@@ -18,5 +20,5 @@ class TestCondition extends utest.Test {
 		cond.release();
 		utest.Assert.pass();
 	}
+	#end
 }
-#end
