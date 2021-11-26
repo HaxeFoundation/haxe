@@ -900,8 +900,13 @@ let rec encode_mtype t fields =
 	] @ fields)
 
 and encode_type_params tl =
-	(* TP_TODO *)
-	encode_array (List.map (fun (n,t,def) -> encode_obj ["name",encode_string n;"t",encode_type t]) tl)
+	encode_array (List.map (fun (n,t,def) ->
+		encode_obj [
+			"name",encode_string n;
+			"t",encode_type t;
+			"defaultType",(match def with None -> vnull | Some t -> encode_type t);
+		]
+	) tl)
 
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
@@ -1286,7 +1291,8 @@ let decode_type_params v =
 	List.map (fun v ->
 		let name = decode_string (field v "name") in
 		let t = decode_type (field v "t") in
-		(name,t,None (* TP_TODO*) )
+		let default = opt decode_type (field v "defaultType") in
+		(name,t,default)
 	) (decode_array v)
 
 let decode_tvar v =
@@ -1937,7 +1943,12 @@ let macro_api ccom get_api =
 		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
-			let tpl = List.map (fun v -> decode_string (field v "name"), decode_type (field v "t"), None (* TP_TODO*) ) (decode_array tpl) in
+			let tpl = List.map (fun v ->
+				let name = decode_string (field v "name") in
+				let t = decode_type (field v "t") in
+				let default = None in (* we don't care here *)
+				(name,t,default)
+			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
 					begin try

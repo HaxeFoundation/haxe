@@ -651,10 +651,14 @@ and init_meta_overloads ctx co cf =
 				| Method MethInline -> typing_error "Cannot @:overload inline function" p
 				| _ -> ());
 			let old = ctx.type_params in
-			(* TP_TODO *)
-			(* (match cf.cf_params with
-			| [] -> ()
-			| l -> ctx.type_params <- List.filter (fun t -> not (List.mem t l)) ctx.type_params); *)
+			begin match cf.cf_params with
+				| [] ->
+					()
+				| l ->
+					ctx.type_params <- List.filter (fun t ->
+						not (List.mem t l) (* TODO: this still looks suspicious *)
+					) ctx.type_params
+			end;
 			let params : type_params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> typing_error "Explicit type required" p | Some t -> load_complex_type ctx true t in
