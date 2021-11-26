@@ -19,7 +19,7 @@ build: [
 install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
-  "ocaml" {>= "4.12"}
+  "ocaml" {>= "4.02"}
   "ocamlfind" {build}
   "dune" {>= "1.11"}
   "camlp5" {build & = "8.00"}

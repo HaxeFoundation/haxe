@@ -201,8 +201,8 @@ and vinstance_kind =
 	| IThread of vthread
 	| IMutex of vmutex
 	| ILock of vlock
-	| ISemaphore of vsem
-	| ICondition of vcond
+	(* | ISemaphore of vsem
+	| ICondition of vcond *)
 	| ITls of int
 	| IDeque of vdeque
 	| IZip of vzlib (* Compress/Uncompress *)
@@ -261,14 +261,14 @@ and vmutex = {
 	mutable mowner : (int * int) option; (* thread ID * same thread lock count *)
 }
 
-and vsem = {
+(* and vsem = {
 	ssem: Semaphore.Counting.t;
 }
 
 and vcond = {
 	ccond: Condition.t;
 	cmutex: Mutex.t;
-}
+} *)
 
 and vlock = {
 	ldeque : vdeque;

@@ -1,6 +1,6 @@
 package sys.thread;
 
-#if (!target.threaded)
+#if (!target.threaded || eval)
 #error "This class is not available on this target"
 #end
 

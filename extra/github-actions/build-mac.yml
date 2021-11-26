@@ -33,6 +33,7 @@
     set -ex
     opam init # --disable-sandboxing
     opam update
+    opam switch create 4.07.1
     eval $(opam env)
     opam env
     opam pin add ctypes 0.17.1 --yes
