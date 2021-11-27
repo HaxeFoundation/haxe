@@ -70,19 +70,32 @@ let is_string_type t =
 (**
 	Check for explicit `Null<>` typing
 *)
-let rec is_nullable_type = function
+let rec is_nullable_type ?(dynamic_is_nullable=false) = function
 	| TMono r ->
 		(match r.tm_type with None -> false | Some t -> is_nullable_type t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
+	| TAbstract ({ a_path = ([],"Any") },[]) ->
+		false
 	| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		is_nullable_type (apply_params a.a_params tl a.a_this)
 	| TLazy f ->
 		is_nullable_type (lazy_type f)
 	| TType (t,tl) ->
 		is_nullable_type (apply_typedef t tl)
+	| (TDynamic _) as t ->
+		dynamic_is_nullable && t == t_dynamic
 	| _ ->
 		false
+(*
+(**
+	Check if `callee` represents `trace`
+*)
+let is_trace_expr callee =
+	match callee.eexpr with
+	| TIdent "`trace" -> true
+	| _ -> false *)
+
 
 (**
 	If `expr` is a TCast or TMeta, returns underlying expression (recursively bypassing nested casts).
@@ -357,23 +370,6 @@ let accessed_field_name access =
 		| FDynamic name -> name
 		| FClosure (_, { cf_name = name }) -> name
 		| FEnum (_, { ef_name = name }) -> name
-
-let rec can_pass_type src dst =
-	if is_nullable_type src && not (is_nullable_type dst) then
-		false
-	else
-		(* TODO *)
-		match dst with
-			| TMono r -> (match r.tm_type with None -> true | Some t -> can_pass_type src t)
-			| TEnum (_, params) -> true
-			| TInst _ -> true
-			| TType (t, tl) -> can_pass_type src (apply_typedef t tl)
-			| TFun _ -> true
-			| TAnon _ -> true
-			| TDynamic _ -> true
-			| TLazy _ -> true
-			| TAbstract ({ a_path = ([],"Null") }, [t]) -> true
-			| TAbstract _ -> true
 
 (**
 	Collect nullable local vars which are checked against `null`.
@@ -1106,7 +1102,7 @@ class expr_checker mode immediate_execution report =
 							with Not_found -> false)
 						fields
 				| _, _ ->
-					if self#is_nullable_expr expr && not (is_nullable_type to_type) then
+					if self#is_nullable_expr expr && not (is_nullable_type ~dynamic_is_nullable:true to_type) then
 						false
 					else begin
 						let expr_type = unfold_null expr.etype in
@@ -1120,7 +1116,6 @@ class expr_checker mode immediate_execution report =
 								true
 							| e ->
 								fail ~msg:"Null safety unification failure" expr.epos __POS__
-						(* can_pass_type expr.etype to_type *)
 					end
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.
