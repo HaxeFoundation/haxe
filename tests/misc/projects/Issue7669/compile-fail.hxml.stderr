@@ -1,0 +1,8 @@
+Main.hx:4: characters 9-23 : Unknown identifier : NumpadSubtract
+Main.hx:4: characters 9-23 : Pattern variables must be lower-case or with `var ` prefix
+Main.hx:5: characters 9-22 : Unknown identifier : NumpadDecimal
+Main.hx:5: characters 9-22 : Pattern variables must be lower-case or with `var ` prefix
+Main.hx:5: characters 4-23 : Warning : This case is unused
+Main.hx:8: characters 15-29 : Unknown identifier : NumpadSubtract
+Main.hx:8: characters 15-29 : Pattern variables must be lower-case or with `var ` prefix
+Main.hx:8: characters 15-29 : Variable NumpadSubtract must appear exactly once in each sub-pattern
