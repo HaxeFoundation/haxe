@@ -1342,16 +1342,7 @@ module Printer = struct
 			| TParenthesis e1 ->
 				Printf.sprintf "(%s)" (print_expr pctx e1)
 			| TObjectDecl fl ->
-				let fl2 = ref fl in
-				begin match follow e.etype with
-					| TAnon an ->
-						PMap.iter (fun s cf ->
-							if not (Expr.field_mem_assoc s fl) then fl2 := ((s,null_pos,NoQuotes),null cf.cf_type cf.cf_pos) :: !fl2
-						) an.a_fields
-					| _ ->
-						()
-				end;
-				Printf.sprintf "_hx_AnonObject(%s)" (print_exprs_named pctx ", " !fl2)
+				Printf.sprintf "_hx_AnonObject(%s)" (print_exprs_named pctx ", " fl)
 			| TArrayDecl el ->
 				Printf.sprintf "[%s]" (print_exprs pctx ", " el)
 			| TCall(e1,el) ->
