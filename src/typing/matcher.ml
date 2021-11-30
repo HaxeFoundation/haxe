@@ -312,8 +312,7 @@ module Pattern = struct
 				with _ ->
 					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-						display_error ctx ("Unknown identifier : " ^ s) p;
-						display_error ctx ("Pattern variables must be lower-case or with `var ` prefix") p;
+						display_error ctx ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
 					end;
 					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->

@@ -1,2 +1,1 @@
-Main.hx:7: characters 18-23 : Unknown identifier : VALUE
-Main.hx:7: characters 18-23 : Pattern variables must be lower-case or with `var ` prefix
+Main.hx:7: characters 18-23 : Unknown identifier : VALUE, pattern variables must be lower-case or with `var ` prefix
