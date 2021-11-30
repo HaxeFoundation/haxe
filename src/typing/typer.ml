@@ -287,10 +287,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			| (MGet, KAbstractImpl ab)
 			| (MCall _, KAbstractImpl ab) ->
 				let t = TAbstract (ab,[]) in
-				let vtmp = alloc_var VGenerated "tmp" t p in
-				let var = mk (TVar (vtmp,Some (get_this ctx p))) t p in
-				let vexpr = mk (TLocal vtmp) t p in
-				let block = mk (TBlock [var;vexpr]) t p in
+				let block = mk (TBlock [(get_this ctx p)]) t p in
 				AKExpr block
 			| _ ->
 				typing_error "Property 'abstract' is reserved and only available in abstracts" p
