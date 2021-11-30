@@ -430,6 +430,9 @@ let collect ctx tk with_type sort =
 					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
 					| None -> ()
 				end
+			| FunMemberAbstract ->
+				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
+				add (make_ci_literal "abstract" (tpair t)) (Some "abstract");
 			| _ ->
 				()
 		end;
