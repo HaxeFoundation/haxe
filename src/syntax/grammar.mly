@@ -1320,6 +1320,7 @@ and expr = parser
 	| [< '(Kwd Final,p1); v = parse_var_decl true >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd Abstract,p); s >] -> expr_next (EConst (Ident "abstract"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
 	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
 	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s
