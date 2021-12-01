@@ -162,7 +162,7 @@ let rec jsignature_of_type gctx stack t =
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
-	| TInst({cl_kind = KTypeParameter [t]},_) -> jsignature_of_type t
+	| TInst({cl_kind = KTypeParameter [t]},_) when t != t_dynamic -> jsignature_of_type t
 	| TInst({cl_kind = KTypeParameter _; cl_path = (_,name)},_) -> TTypeParameter name
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
@@ -383,7 +383,7 @@ let create_field_closure gctx jc path_this jm name jsig =
 		| _ ->
 			die "" __LOC__
 	in
-	let jm_invoke = wf#generate_invoke args ret in
+	let jm_invoke = wf#generate_invoke args ret [] in
 	let vars = List.map (fun (name,jsig) ->
 		jm_invoke#add_local name jsig VarArgument
 	) args in
@@ -512,7 +512,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		jm_init#construct ConstructInit jc_closure#get_this_path (fun () -> []);
 		jm_init#putstatic jc_closure#get_this_path jf_closure#get_name jf_closure#get_jsig;
 
-	method tfunction e tf =
+	method tfunction ret e tf =
 		let outside,accesses_this = Texpr.collect_captured_vars e in
 		let env = List.map (fun v ->
 			v.v_id,(v.v_name,self#vtype v.v_type)
@@ -522,6 +522,10 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		let wf = new JvmFunctions.typed_function gctx.typed_functions FuncLocal jc jm context in
 		let jc_closure = wf#get_class in
 		ignore(wf#generate_constructor (env <> []));
+		let filter = match ret with
+			| RValue (Some (TObject(path,_))) -> [path]
+			| _ -> []
+		in
 		let args,ret =
 			let args = List.map (fun (v,eo) ->
 				(* TODO: Can we do this differently? *)
@@ -530,7 +534,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			) tf.tf_args in
 			args,(return_of_type gctx tf.tf_type)
 		in
-		let jm_invoke = wf#generate_invoke args ret in
+		let jm_invoke = wf#generate_invoke args ret filter in
 		let handler = new texpr_to_jvm gctx jc_closure jm_invoke ret in
 		handler#set_env env;
 		let args = List.map (fun (v,eo) ->
@@ -607,7 +611,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncStatic(path,name)) jc jm [] in
 			let jc_closure = wf#get_class in
 			ignore(wf#generate_constructor false);
-			let jm_invoke = wf#generate_invoke args ret in
+			let jm_invoke = wf#generate_invoke args ret [] in
 			let vars = List.map (fun (name,jsig) ->
 				jm_invoke#add_local name jsig VarArgument
 			) args in
@@ -1943,7 +1947,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#emit_block_exits false;
 			jm#return;
 		| TFunction tf ->
-			self#tfunction e tf
+			self#tfunction ret e tf
 		| TArrayDecl el when not (need_val ret) ->
 			List.iter (self#texpr ret) el
 		| TArrayDecl el ->
@@ -2843,6 +2847,29 @@ module Preprocessor = struct
 		end else if fst mt.mt_path = [] then
 			mt.mt_path <- make_root mt.mt_path
 
+	let check_single_method_interface gctx c =
+		let rec loop m l = match l with
+			| [] ->
+				m
+			| cf :: l ->
+				if not (has_class_field_flag cf CfDefault) then begin match m with
+					| None ->
+						loop (Some cf) l
+					| Some _ ->
+						None
+				end else
+					loop m l
+		in
+		match loop None c.cl_ordered_fields with
+		| None ->
+			()
+		| Some cf ->
+			match jsignature_of_type gctx cf.cf_type with
+			| TMethod(args,ret) ->
+				JvmFunctions.JavaFunctionalInterfaces.add args ret c.cl_path cf.cf_name (List.map fst (c.cl_params @ cf.cf_params));
+			| _ ->
+				()
+
 	let preprocess gctx =
 		let rec has_runtime_meta = function
 			| (Meta.Custom s,_,_) :: _ when String.length s > 0 && s.[0] <> ':' ->
@@ -2872,6 +2899,7 @@ module Preprocessor = struct
 			match mt with
 			| TClassDecl c ->
 				if not (has_class_flag c CInterface) then gctx.preprocessor#preprocess_class c
+				else check_single_method_interface gctx c;
 			| _ -> ()
 		) gctx.com.types;
 		(* find typedef-interface implementations *)
