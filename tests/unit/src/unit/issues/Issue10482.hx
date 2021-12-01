@@ -23,6 +23,9 @@ class Issue10482 extends Test {
 		eq("plus 3", ab + 3);
 		eq("call", ab());
 		eq("hi", ab.arr()[0].hi());
+
+		final ab = new AbGeneric(1.5);
+		eq(1.5, ab.foo());
 	}
 }
 
@@ -70,3 +73,14 @@ abstract MyInlineAbstract(Int) {
 	public function value():Int return this;
 }
 
+abstract AbGeneric<T>(T) {
+	public function new(a:T):Void {
+		this = a;
+	}
+	public function foo() {
+		return abstract.bar();
+	}
+	public function bar() {
+		return this;
+	}
+}

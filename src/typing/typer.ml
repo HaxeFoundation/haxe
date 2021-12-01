@@ -286,9 +286,10 @@ let rec type_ident_raise ctx i p mode with_type =
 			| MSet _, KAbstractImpl ab -> typing_error "Property 'abstract' is read-only" p;
 			| (MGet, KAbstractImpl ab)
 			| (MCall _, KAbstractImpl ab) ->
-				let t = TAbstract (ab,[]) in
-				let block = mk (TBlock [(get_this ctx p)]) t p in
-				AKExpr block
+				let tl = List.map snd ab.a_params in
+				let e = get_this ctx p in
+				let e = {e with etype = TAbstract (ab,tl)} in
+				AKExpr e
 			| _ ->
 				typing_error "Property 'abstract' is reserved and only available in abstracts" p
 		end
