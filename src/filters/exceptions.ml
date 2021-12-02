@@ -84,12 +84,6 @@ let std_is ctx e t p =
 	let type_expr = { eexpr = TTypeExpr(module_type_of_type t); etype = t; epos = p } in
 	make_static_call ctx.typer std_cls isOfType_field (fun t -> t) [e; type_expr] return_type p
 
-let bool_not basic_types e p =
-	mk (TUnop (Not,Prefix,e)) basic_types.tbool p
-
-let bool_or basic_types e1 e2 p =
-	mk (TBinop (OpBoolOr,e1,e2)) basic_types.tbool p
-
 (**
 	Check if type path of `t` exists in `lst`
 *)
@@ -465,8 +459,9 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 let catch_native ctx catches t p =
 	let rec transform handle_as_value_exception catches =
 		match catches with
-		| [] ->
+		| [] when (match handle_as_value_exception with [] -> false | _ -> true) ->
 			[catches_as_value_exception ctx handle_as_value_exception None t p]
+		| [] -> []
 		(* Haxe-specific wildcard catches should go to if-fest because they need additional handling *)
 		| (v,_) :: _ when is_haxe_wildcard_catch ctx v.v_type ->
 			(match handle_as_value_exception with
