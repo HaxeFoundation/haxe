@@ -91,6 +91,11 @@ type exceptions_config = {
 	ec_native_throws : path list;
 	(* Base types which may be caught from Haxe code without wrapping. *)
 	ec_native_catches : path list;
+	(*
+		Hint exceptions filter to avoid wrapping for targets, which can throw/catch any type
+		Ignored on targets with a specific native base type for exceptions.
+	*)
+	ec_avoid_wrapping : bool;
 	(* Path of a native class or interface, which can be used for wildcard catches. *)
 	ec_wildcard_catch : path;
 	(*
@@ -467,6 +472,7 @@ let default_config =
 			ec_native_catches = [];
 			ec_wildcard_catch = (["StdTypes"],"Dynamic");
 			ec_base_throw = (["StdTypes"],"Dynamic");
+			ec_avoid_wrapping = true;
 			ec_special_throw = fun _ -> false;
 		};
 		pf_scoping = {
@@ -495,6 +501,8 @@ let get_config com =
 					["js";"lib"],"Error";
 					["haxe"],"Exception";
 				];
+				ec_native_catches = [];
+				ec_avoid_wrapping = false;
 			};
 			pf_scoping = {
 				vs_scope = if es6 then BlockScope else FunctionScope;
@@ -510,6 +518,9 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
 			pf_supports_rest_args = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_avoid_wrapping = false;
+			}
 		}
 	| Neko ->
 		{
@@ -590,7 +601,7 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_rest_args = true;
 			pf_this_before_super = false;
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["cs";"system"],"Exception";
 					["haxe"],"Exception";

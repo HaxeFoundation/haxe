@@ -120,7 +120,7 @@ let rec is_native_throw ctx t =
 	Check if `t` can be caught without wrapping.
 *)
 let rec is_native_catch ctx t =
-	ctx.throws_anything || is_in_list t ctx.config.ec_native_catches
+	ctx.catches_anything || is_in_list t ctx.config.ec_native_catches
 
 (**
 	Check if `t` can be used for a Haxe-specific wildcard catch.
@@ -129,7 +129,6 @@ let rec is_native_catch ctx t =
 let is_haxe_wildcard_catch ctx t =
 	let t = Abstract.follow_with_abstracts t in
 	t == t_dynamic || fast_eq ctx.haxe_exception_type t
-
 
 (**
 	Check if `cls` is or extends (if `check_parent=true`) `haxe.Exception`
@@ -297,9 +296,13 @@ let catches_to_ifs ctx catches t p =
 							let condition = mk (TConst (TBool true)) ctx.basic.tbool v.v_pos in
 							let body =
 								mk (TBlock [
-									(* var v:Dynamic = haxe_exception_local.unwrap(); *)
 									if var_used then
-										mk (TVar (v, Some (catch#unwrap v.v_pos))) ctx.basic.tvoid v.v_pos
+										(* `var v:Dynamic = catch_local;` or `var v:Dynamic = haxe_exception_local.unwrap();` *)
+										let e =
+											if ctx.catches_anything then catch_local
+											else catch#unwrap v.v_pos
+										in
+										mk (TVar (v, Some e)) ctx.basic.tvoid v.v_pos
 									else
 										mk (TBlock[]) ctx.basic.tvoid v.v_pos;
 									body
@@ -546,8 +549,8 @@ let filter tctx =
 			config = config;
 			wildcard_catch_type = wildcard_catch_type;
 			base_throw_type = base_throw_type;
-			throws_anything = is_path_of_dynamic config.ec_base_throw;
-			catches_anything = is_path_of_dynamic config.ec_wildcard_catch;
+			throws_anything = is_path_of_dynamic config.ec_base_throw && config.ec_avoid_wrapping;
+			catches_anything = is_path_of_dynamic config.ec_wildcard_catch && config.ec_avoid_wrapping;
 			haxe_exception_class = haxe_exception_class;
 			haxe_exception_type = haxe_exception_type;
 			haxe_native_stack_trace = haxe_native_stack_trace;
