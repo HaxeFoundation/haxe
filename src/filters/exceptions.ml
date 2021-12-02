@@ -457,11 +457,18 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 	```
 *)
 let catch_native ctx catches t p =
-	let rec transform handle_as_value_exception catches =
+	let rec transform handle_as_value_exception value_exception_catch catches =
 		match catches with
-		| [] when (match handle_as_value_exception with [] -> false | _ -> true) ->
-			[catches_as_value_exception ctx handle_as_value_exception None t p]
-		| [] -> []
+		| [] ->
+			(match handle_as_value_exception, value_exception_catch with
+			| [], None ->
+				[]
+			| [], Some catch ->
+				catches_to_ifs ctx [catch] t p
+			| _, _ ->
+				[catches_as_value_exception ctx handle_as_value_exception None t p]
+				@ Option.map_default (fun catch -> catches_to_ifs ctx [catch] t p) [] value_exception_catch
+			)
 		(* Haxe-specific wildcard catches should go to if-fest because they need additional handling *)
 		| (v,_) :: _ when is_haxe_wildcard_catch ctx v.v_type ->
 			(match handle_as_value_exception with
@@ -471,9 +478,9 @@ let catch_native ctx catches t p =
 				catches_as_value_exception ctx handle_as_value_exception None t p
 				:: catches_to_ifs ctx catches t p
 			)
-		| (v,_) as current :: rest when fast_eq ctx.value_exception_type (Abstract.follow_with_abstracts v.v_type) ->
+		| (v,_) as current :: rest when ctx.catches_anything && fast_eq ctx.value_exception_type (Abstract.follow_with_abstracts v.v_type) ->
 			catches_as_value_exception ctx handle_as_value_exception (Some current) t p
-			:: transform [] rest
+			:: transform [] (Some (Option.default current value_exception_catch)) rest
 		(* Keep catches for native exceptions intact *)
 		| (v,_) as current :: rest when (is_native_catch ctx v.v_type) ->
 			let handle_as_value_exception =
@@ -490,12 +497,12 @@ let catch_native ctx catches t p =
 				else
 					handle_as_value_exception
 			in
-			current :: (transform handle_as_value_exception rest)
+			current :: (transform handle_as_value_exception value_exception_catch rest)
 		(* everything else goes to if-fest *)
 		| catches ->
 			catches_to_ifs ctx (handle_as_value_exception @ catches) t p
 	in
-	transform [] catches
+	transform [] None catches
 
 (**
 	Transform `throw` and `try..catch` expressions.
