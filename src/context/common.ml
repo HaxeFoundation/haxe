@@ -667,14 +667,6 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
-			pf_exceptions = { default_config.pf_exceptions with
-				ec_native_throws = [
-					["haxe"],"Exception";
-				];
-				ec_native_catches = [
-					["haxe"],"Exception";
-				];
-			}
 		}
 	| Eval ->
 		{
