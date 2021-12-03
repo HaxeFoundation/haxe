@@ -1444,6 +1444,19 @@ and type_cast ctx e t p =
 	let texpr = loop t in
 	mk (TCast (type_expr ctx e WithType.value,Some texpr)) t p
 
+and make_if_then_else ctx e0 e1 e2 with_type p =
+	let e1,e2,t = match with_type with
+	| WithType.NoValue -> e1,e2,ctx.t.tvoid
+	| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
+	| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+		e1,e2,unify_min_for_type_source ctx [e1; e2] src
+	| WithType.WithType(t,_) ->
+		let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
+		let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
+		e1,e2,t
+	in
+	mk (TIf (e0,e1,Some e2)) t p
+
 and type_if ctx e e1 e2 with_type is_ternary p =
 	let e = type_expr ctx e WithType.value in
 	if is_ternary then begin match e.eexpr with
@@ -1452,22 +1465,12 @@ and type_if ctx e e1 e2 with_type is_ternary p =
 	end;
 	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
-	(match e2 with
+	match e2 with
 	| None ->
 		mk (TIf (e,e1,None)) ctx.t.tvoid p
 	| Some e2 ->
 		let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
-		let e1,e2,t = match with_type with
-			| WithType.NoValue -> e1,e2,ctx.t.tvoid
-			| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
-			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
-				e1,e2,unify_min_for_type_source ctx [e1; e2] src
-			| WithType.WithType(t,_) ->
-				let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
-				let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
-				e1,e2,t
-		in
-		mk (TIf (e,e1,Some e2)) t p)
+		make_if_then_else ctx e e1 e2 with_type p
 
 and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	if ctx.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
@@ -1676,11 +1679,14 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (OpNullCoal,e1,e2) ->
-		let enull = (EConst (Ident "null"), p) in
-		let cond = EBinop (OpEq, e1, enull) in
-		let texpr2 = type_expr ctx (Expr.ensure_block e2) with_type in
-		let iftype = WithType.WithType(texpr2.etype,None) in
-		type_expr ctx (EIf ((cond, p),e2,Some e1),p) iftype
+		let vr = new value_reference ctx in
+		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
+		let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
+		let e1 = vr#as_var "tmp" e1 in
+		let e_null = Builder.make_null e1.etype e1.epos in
+		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
+		let e_if = make_if_then_else ctx e_cond e1 e2 with_type p in
+		vr#to_texpr e_if
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when (match with_type with
