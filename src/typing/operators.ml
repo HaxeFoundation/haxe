@@ -444,6 +444,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		typing_error "Unexpected =>" p
 	| OpIn ->
 		typing_error "Unexpected in" p
+	| OpNullCoal
 	| OpAssign
 	| OpAssignOp _ ->
 		die "" __LOC__

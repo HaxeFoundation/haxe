@@ -4218,6 +4218,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | OpInterval -> "..."
       | OpArrow -> "->"
       | OpIn -> " in "
+      | OpNullCoal -> "??"
       | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
 
    and gen_closure closure =
@@ -7301,6 +7302,7 @@ let cppia_op_info = function
 	| IaBinOp OpInterval -> ("...", 121)
 	| IaBinOp OpArrow -> ("=>", 122)
 	| IaBinOp OpIn -> (" in ", 123)
+	| IaBinOp OpNullCoal -> ("??", 124)
 	| IaBinOp OpAssignOp OpAdd -> ("+=", 201)
 	| IaBinOp OpAssignOp OpMult -> ("*=", 202)
 	| IaBinOp OpAssignOp OpDiv -> ("/=", 203)
@@ -7318,6 +7320,7 @@ let cppia_op_info = function
 	| IaBinOp OpAssignOp OpMod -> ("%=", 220)
 
 	| IaBinOp OpAssignOp OpIn
+	| IaBinOp OpAssignOp OpNullCoal
 	| IaBinOp OpAssignOp OpInterval
 	| IaBinOp OpAssignOp OpAssign
 	| IaBinOp OpAssignOp OpEq

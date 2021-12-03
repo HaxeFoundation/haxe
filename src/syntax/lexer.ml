@@ -379,6 +379,7 @@ let rec token lexbuf =
 	| "}" -> mk lexbuf BrClose
 	| "(" -> mk lexbuf POpen
 	| ")" -> mk lexbuf PClose
+	| "??" -> mk lexbuf (Binop OpNullCoal)
 	| "?" -> mk lexbuf Question
 	| "@" -> mk lexbuf At
 

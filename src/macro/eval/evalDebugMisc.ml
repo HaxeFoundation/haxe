@@ -266,7 +266,7 @@ let rec expr_to_value ctx env e =
 			| OpBoolOr ->
 				if is_true (loop e1) then VTrue
 				else loop e2
-			| OpInterval | OpArrow | OpIn ->
+			| OpInterval | OpArrow | OpIn | OpNullCoal ->
 				raise NoValueExpr
 			| _ ->
 				let v1 = loop e1 in

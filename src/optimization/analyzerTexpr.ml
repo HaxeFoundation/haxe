@@ -504,6 +504,7 @@ module Fusion = struct
 		| OpAssignOp _
 		| OpInterval
 		| OpIn
+		| OpNullCoal
 		| OpArrow ->
 			false
 

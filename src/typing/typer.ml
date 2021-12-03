@@ -1675,6 +1675,12 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
+	| EBinop (OpNullCoal,e1,e2) ->
+		let enull = (EConst (Ident "null"), p) in
+		let cond = EBinop (OpEq, e1, enull) in
+		let texpr2 = type_expr ctx (Expr.ensure_block e2) with_type in
+		let iftype = WithType.WithType(texpr2.etype,None) in
+		type_expr ctx (EIf ((cond, p),e2,Some e1),p) iftype
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when (match with_type with
