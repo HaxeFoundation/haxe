@@ -5,29 +5,61 @@ class TestNullCoalescing extends Test {
 	final nullInt:Null<Int> = null;
 	final nullBool:Null<Bool> = null;
 
+	var count = 0;
+	function call() {
+		count++;
+		return "_";
+	}
+
 	function test() {
+		var a = call() ?? "default";
+		eq(count, 1);
+
 		eq(null ?? nullInt, null);
 		eq(null ?? nullBool, null);
-		final a = Std.random(0) + 1;
+
+		final a:Dynamic = Std.random(0) + 1;
 		final b = Std.random(0) + 2;
 		eq(1 + a + 1 ?? 1 + b + 1, 3);
 
 		final nullableBool:Null<Bool> = false;
-		final testBool:Bool = nullBool ?? true;
+		final testBool = nullBool ?? true;
 		final testNullBool = null ?? nullableBool;
 		final s:Int = nullInt == null ? 2 : nullInt;
 		final s:Int = if (nullInt == null) 2; else nullInt;
-		final s:Int = nullInt ?? 2;
+		final s = nullInt ?? 2;
 
 		// $type(testBool); // Bool
 		// $type(testNullBool); // Null<Bool>
 		// $type(s); // Int
+		final shouldBeBool:Bool = testBool;
+		if (testNullBool == null) {}
+		final shouldBeInt:Int = s;
 
 		eq(testBool, true);
 		eq(testNullBool, false);
 		eq(s, 2);
 
-		eq(nullInt ?? 2 ?? 3 + 100, 2);
+		eq(nullInt == null ? 2 : nullInt, 2);
+		eq(nullInt ?? 2, 2);
+		eq(nullInt ?? (2 : Null<Int>) ?? 3 + 100, 2);
 		eq(nullInt ?? nullInt ?? 3, 3);
+
+		final i:Null<Int> = 1;
+		final arr:Array<Int> = [i ?? 2];
+		arr.push(i ?? 2);
+		arr.push((1 : Null<Int>) ?? 2);
+		eq(arr[0], 1);
+		eq(arr[1], 1);
+		eq(arr[2], 1);
+
+		final arr = [
+			nullInt ?? 2,
+			2
+		];
+		eq(arr[0], arr[1]);
+
+		var a = [0 => nullInt ?? 0 + 100];
+		eq(a[0], 100);
 	}
 }

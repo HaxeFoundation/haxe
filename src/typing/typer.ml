@@ -1685,7 +1685,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e1 = vr#as_var "tmp" e1 in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
-		let e_if = make_if_then_else ctx e_cond e1 e2 with_type p in
+		let iftype = WithType.WithType(e2.etype,None) in
+		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
 		vr#to_texpr e_if
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
