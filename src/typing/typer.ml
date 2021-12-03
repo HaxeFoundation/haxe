@@ -287,8 +287,8 @@ let rec type_ident_raise ctx i p mode with_type =
 			| (MGet, KAbstractImpl ab)
 			| (MCall _, KAbstractImpl ab) ->
 				let tl = List.map snd ab.a_params in
-				let t = TAbstract (ab,tl) in
-				let e = mk (TBlock [(get_this ctx p)]) t p in
+				let e = get_this ctx p in
+				let e = {e with etype = TAbstract (ab,tl)} in
 				AKExpr e
 			| _ ->
 				typing_error "Property 'abstract' is reserved and only available in abstracts" p
