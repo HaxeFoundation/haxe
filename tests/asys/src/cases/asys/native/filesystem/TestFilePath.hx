@@ -120,7 +120,8 @@ class TestFilePath extends FsTest {
 		var cases = cases([
 			expect('some/path') => cwd + 'some/path',
 			expect('') => cwd,
-			expect('.') => cwd,
+			expect('.') => cwd + '.',
+			expect('./') => cwd + '.',
 			expect('non-existent/file') => cwd + 'non-existent/file',
 		]);
 		if(isWindows) {
