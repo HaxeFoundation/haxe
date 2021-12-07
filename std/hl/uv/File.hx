@@ -273,6 +273,26 @@ abstract File(UvFile) from UvFile to UvFile {
 		return req;
 	}
 
+	static inline function ptrPathRequest(loop:Loop, callback:(e:UVError, path:Null<String>)->Void, action:(req:FsRequest)->Int):FsRequest {
+		loop.checkLoop();
+		var req = createReq();
+		var result = action(req);
+		if(result < 0) {
+			req.freeReq();
+			result.throwErr();
+		}
+		req.callback = () -> {
+			var result = req.getIntResult();
+			var ptr = req.r.fs_get_ptr();
+			req.freeReq();
+			switch result.translate_uv_error() {
+				case UV_NOERR: callback(UV_NOERR, ptr.pointer_to_bytes().fromUTF8());
+				case e: callback(e, null);
+			}
+		}
+		return req;
+	}
+
 	static inline function statRequest(loop:Loop, callback:(e:UVError, stat:Null<FileStat>)->Void, action:(req:FsRequest)->Int):FsRequest {
 		loop.checkLoop();
 		var req = createReq();
@@ -448,7 +468,7 @@ abstract File(UvFile) from UvFile to UvFile {
 		itself, not the file that the link refers to.
 	**/
 	static public function lstat(loop:Loop, path:String, callback:(e:UVError, stat:Null<FileStat>)->Void):FsRequest {
-		return statRequest(loop, callback, req -> loop.fs_stat_with_cb(req.r, path.toUTF8(), true));
+		return statRequest(loop, callback, req -> loop.fs_lstat_with_cb(req.r, path.toUTF8(), true));
 	}
 
 	/**
@@ -624,14 +644,14 @@ abstract File(UvFile) from UvFile to UvFile {
 		Reads the target path of a symlink.
 	**/
 	static public function readLink(loop:Loop, path:String, callback:(e:UVError, target:Null<String>)->Void):FsRequest {
-		return pathRequest(loop, callback, req -> loop.fs_readlink_with_cb(req.r, path.toUTF8(), true));
+		return ptrPathRequest(loop, callback, req -> loop.fs_readlink_with_cb(req.r, path.toUTF8(), true));
 	}
 
 	/**
 		Resolves a real absolute path to the given file.
 	**/
 	static public function realPath(loop:Loop, path:String, callback:(e:UVError, real:Null<String>)->Void):FsRequest {
-		return pathRequest(loop, callback, req -> loop.fs_realpath_with_cb(req.r, path.toUTF8(), true));
+		return ptrPathRequest(loop, callback, req -> loop.fs_realpath_with_cb(req.r, path.toUTF8(), true));
 	}
 
 	/**

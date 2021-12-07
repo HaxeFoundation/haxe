@@ -138,6 +138,7 @@ extern class UV {
 	static public function free_char_array(a:Ref<Bytes>):Void;
 	static public function free_bytes(bytes:Bytes):Void;
 	static public function pointer_of_bytes(bytes:Bytes):Pointer;
+	static public function pointer_to_bytes(pointer:Pointer):Bytes;
 	static public function translate_uv_error(uvErrno:Int):UVError;
 	static public function translate_to_uv_error(errno:Int):Int;
 	static public function translate_sys_signal(sigNum:Int):SigNum;
