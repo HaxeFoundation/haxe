@@ -52,7 +52,10 @@ class Base64 {
 				default:
 			}
 		}
-		return Bytes.ofString(base64_decode(str, true));
+		return switch base64_decode(str, true) {
+			case false: throw new Exception("Base64.decode : invalid encoded string");
+			case s: Bytes.ofString(s);
+		}
 	}
 
 	public static inline function urlEncode(bytes:Bytes, complement = false):String {
@@ -70,6 +73,9 @@ class Base64 {
 				default:
 			}
 		}
-		return Bytes.ofString(base64_decode(str_replace(URL_62_63, NORMAL_62_63, str), true));
+		return switch base64_decode(str_replace(URL_62_63, NORMAL_62_63, str), true) {
+			case false: throw new Exception("Base64.urlDecode : invalid encoded string");
+			case s: Bytes.ofString(s);
+		}
 	}
 }

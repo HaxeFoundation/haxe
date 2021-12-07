@@ -43,7 +43,7 @@ and sourcemap_pos = {
 type ctx = {
 	com : Common.context;
 	buf : Rbuffer.t;
-	chan : out_channel;
+	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
 	js_modern : bool;
@@ -261,7 +261,15 @@ let handle_newlines ctx str =
 	) ctx.smap
 
 let flush ctx =
-	Rbuffer.output_buffer ctx.chan ctx.buf;
+	let chan =
+		match ctx.chan with
+		| Some chan -> chan
+		| None ->
+			let chan = open_out_bin ctx.com.file in
+			ctx.chan <- Some chan;
+			chan
+	in
+	Rbuffer.output_buffer chan ctx.buf;
 	Rbuffer.clear ctx.buf
 
 let spr ctx s =
@@ -416,22 +424,35 @@ let is_code_injection_function e =
 let var ctx =
 	if ctx.es_version >= 6 then "let" else "var"
 
-let rec gen_call ctx e el in_value =
-	let apply,el =
-		if ctx.es_version < 6 then
-			match List.rev el with
-			| [{ eexpr = TUnop (Spread,Ast.Prefix,rest) }] ->
-				true,[rest]
-			| { eexpr = TUnop (Spread,Ast.Prefix,rest) } :: args_rev ->
-				(* [arg1, arg2, ..., argN].concat(rest) *)
-				let arr = mk (TArrayDecl (List.rev args_rev)) t_dynamic null_pos in
-				let concat = mk (TField (arr, FDynamic "concat")) t_dynamic null_pos in
-				true,[mk (TCall (concat, [rest])) t_dynamic null_pos]
-			| _ ->
-				false,el
-		else
+(**
+	Returns `(needs_apply,element_list)` tuple where `needs_apply` indicates if
+	a call should be generated as `<function>.apply(<this>, element_list)` instead
+	of `<function>(el)`.
+
+	If `add_null_context` is provided then `element_list` will have `null` as the
+	first expr if needed.
+*)
+let apply_args ?(add_null_context=false) ctx el =
+	if ctx.es_version < 6 then
+		match List.rev el with
+		| [{ eexpr = TUnop (Spread,Ast.Prefix,rest) }] when not add_null_context ->
+			true,[rest]
+		| { eexpr = TUnop (Spread,Ast.Prefix,rest) } :: args_rev ->
+			(* [arg1, arg2, ..., argN].concat(rest) *)
+			let args =
+				if add_null_context then (null t_dynamic null_pos) :: List.rev args_rev
+				else List.rev args_rev
+			in
+			let arr = mk (TArrayDecl args) t_dynamic null_pos in
+			let concat = mk (TField (arr, FDynamic "concat")) t_dynamic null_pos in
+			true,[mk (TCall (concat, [rest])) t_dynamic null_pos]
+		| _ ->
 			false,el
-	in
+	else
+		false,el
+
+let rec gen_call ctx e el in_value =
+	let apply,el = apply_args ctx el in
 	match e.eexpr , el with
 	| TConst TSuper , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
@@ -750,12 +771,20 @@ and gen_expr ctx e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		print ctx "[]"
 	| TNew (c,_,el) ->
+		let apply,el = apply_args ~add_null_context:true ctx el in
 		(match c.cl_constructor with
 		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
-		| _ -> print ctx "new ");
-		print ctx "%s(" (ctx.type_accessor (TClassDecl c));
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		| _ -> print ctx (if apply then "(new" else "new "));
+		let cls = ctx.type_accessor (TClassDecl c) in
+		if apply then begin
+			print ctx "(Function.prototype.bind.apply(%s," cls;
+			concat ctx "," (gen_value ctx) el;
+			print ctx ")))"
+		end else begin
+			print ctx "%s(" cls;
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")"
+		end;
 	| TIf (cond,e,eelse) ->
 		spr ctx "if";
 		gen_value ctx cond;
@@ -1768,7 +1797,7 @@ let alloc_ctx com es_version =
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
-		chan = open_out_bin com.file;
+		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
@@ -2103,5 +2132,6 @@ let generate com =
 	| Some smap -> write_mappings ctx smap
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
-	close_out ctx.chan)
+	Option.may (fun chan -> close_out chan) ctx.chan
+	)
 

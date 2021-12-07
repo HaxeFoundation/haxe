@@ -27,11 +27,29 @@ open DisplayTypes
 open Genjson
 open Globals
 
+(* Merges argument and return types from macro and non-macro context, preferring the one that isn't Dynamic.
+   WARNING: Merging types from boths contexts like this is dangerous. The resuling type must never be
+   persisted on the compilation server, or else the compiler gets COVID. *)
+let perform_type_voodoo t tl' tr' =
+	match t with
+	| TFun(tl,tr) ->
+		let rec loop acc tl tl' = match tl,tl' with
+			| ((_,_,t1) as a1 :: tl),((_,_,t1') as a1' :: tl') ->
+				let a = if t1 == t_dynamic then a1' else a1 in
+				loop (a :: acc) tl tl'
+			| _ -> (List.rev acc) @ tl'
+		in
+		let tl = loop [] tl tl' in
+		TFun(tl,if tr == t_dynamic then tr' else tr')
+	| _ ->
+		TFun(tl',tr')
+
 let maybe_resolve_macro_field ctx t c cf =
 	try
 		if cf.cf_kind <> Method MethMacro then raise Exit;
 		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
-		(TFun(tl,tr)),c,cf
+		let t = perform_type_voodoo t tl tr in
+		t,c,{cf with cf_type = t}
 	with _ ->
 		t,c,cf
 

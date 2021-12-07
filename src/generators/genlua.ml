@@ -76,7 +76,7 @@ let get_exposed ctx path meta = try
         (match args with
          | [ EConst (String(s,_)), _ ] -> [s]
          | [] -> [path]
-         | _ -> error "Invalid @:expose parameters" pos)
+         | _ -> typing_error "Invalid @:expose parameters" pos)
     with Not_found -> []
 
 let dot_path = Globals.s_type_path
@@ -158,7 +158,7 @@ let println ctx =
             newline ctx
         end)
 
-let unsupported p = error "This expression cannot be compiled to Lua" p
+let unsupported p = typing_error "This expression cannot be compiled to Lua" p
 
 let basename path =
     try
@@ -376,7 +376,7 @@ and gen_call ctx e el =
     (match e.eexpr , el with
      | TConst TSuper , params ->
          (match ctx.current.cl_super with
-          | None -> error "Missing api.setCurrentClass" e.epos
+          | None -> typing_error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               print ctx "%s.super(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
               List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
@@ -384,7 +384,7 @@ and gen_call ctx e el =
          );
      | TField ({ eexpr = TConst TSuper },f) , params ->
          (match ctx.current.cl_super with
-          | None -> error "Missing api.setCurrentClass" e.epos
+          | None -> typing_error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               let name = field_name f in
               print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
@@ -437,7 +437,7 @@ and gen_call ctx e el =
                   if List.length(fields) > 0 then incr count;
               | { eexpr = TConst(TNull)} -> ()
               | _ ->
-                  error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+				typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
              )) el;
          spr ctx "})";
      | TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
@@ -626,7 +626,7 @@ and check_multireturn_param ctx t pos =
    match t with
          TAbstract(_,p) | TInst(_,p) ->
             if List.exists ttype_multireturn p then
-                error "MultiReturns must not be type parameters" pos
+				 typing_error "MultiReturns must not be type parameters" pos
             else
                 ()
         | _ ->
@@ -716,6 +716,8 @@ and gen_expr ?(local=true) ctx e = begin
              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
          | _ ->
              Globals.die "" __LOC__);
+    | TField (_, (FStatic ({cl_path = [],""},_) as f)) ->
+        spr ctx (ident (field_name f))
     | TField (x,f) ->
         gen_value ctx x;
         let name = field_name f in
@@ -1484,20 +1486,20 @@ let check_multireturn ctx c =
     match c with
     | _ when Meta.has Meta.MultiReturn c.cl_meta ->
         if not (has_class_flag c CExtern) then
-            error "MultiReturns must be externs" c.cl_pos
+            typing_error "MultiReturns must be externs" c.cl_pos
         else if List.length c.cl_ordered_statics > 0 then
-            error "MultiReturns must not contain static fields" c.cl_pos
+            typing_error "MultiReturns must not contain static fields" c.cl_pos
         else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
-            error "MultiReturns must not contain methods" c.cl_pos;
+            typing_error "MultiReturns must not contain methods" c.cl_pos;
     | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
-        error "Cannot extend a MultiReturn" c.cl_pos
+        typing_error "Cannot extend a MultiReturn" c.cl_pos
     | _ -> ()
 
 
 let check_field_name c f =
     match f.cf_name with
     | "prototype" | "__proto__" | "constructor" ->
-        error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+        typing_error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
     | _ -> ()
 
 (* convert a.b.c to ["a"]["b"]["c"] *)
@@ -1585,7 +1587,7 @@ let generate_class ctx c =
     ctx.current <- c;
     ctx.id_counter <- 0;
     (match c.cl_path with
-     | [],"Function" -> error "This class redefines a native one" c.cl_pos
+     | [],"Function" -> typing_error "This class redefines a native one" c.cl_pos
      | _ -> ());
     let p = s_path ctx c.cl_path in
     let hxClasses = has_feature ctx "Type.resolveClass" in
@@ -1783,7 +1785,7 @@ let generate_require ctx path meta =
      | [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
          print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
      | _ ->
-         error "Unsupported @:luaRequire format" mp);
+		typing_error "Unsupported @:luaRequire format" mp);
 
     newline ctx
 
@@ -1798,7 +1800,7 @@ let generate_type ctx = function
         if p = "Std" && c.cl_ordered_statics = [] then
             ()
         else if (not (has_class_flag c CExtern)) && Meta.has Meta.LuaDotMethod c.cl_meta then
-            error "LuaDotMethod is valid for externs only" c.cl_pos
+            typing_error "LuaDotMethod is valid for externs only" c.cl_pos
         else if not (has_class_flag c CExtern) then
             generate_class ctx c;
         check_multireturn ctx c;
@@ -1850,7 +1852,7 @@ let alloc_ctx com =
         lua_jit = Common.defined com Define.LuaJit;
         lua_vanilla = Common.defined com Define.LuaVanilla;
         lua_ver = try
-                float_of_string (PMap.find "lua_ver" com.defines.Define.values)
+                float_of_string (Common.defined_value com Define.LuaVer)
             with | Not_found -> 5.2;
     } in
     ctx.type_accessor <- (fun t ->
@@ -1911,7 +1913,7 @@ let transform_multireturn ctx = function
                         e
                     | TReturn Some(e2) ->
                         if is_multireturn e2.etype then
-                            error "You cannot return a multireturn type from a haxe function" e2.epos
+                            typing_error "You cannot return a multireturn type from a haxe function" e2.epos
                         else
                             Type.map_expr loop e;
      (*

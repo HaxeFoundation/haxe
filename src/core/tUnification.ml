@@ -73,7 +73,7 @@ module Monomorph = struct
 	let add_up_constraint m ((t,name) as constr) =
 		m.tm_up_constraints <- constr :: m.tm_up_constraints;
 		match t with
-		| TMono m2 -> m2.tm_down_constraints <- MMono (m2,name) :: m2.tm_down_constraints
+		| TMono m2 -> m2.tm_down_constraints <- MMono (m,name) :: m2.tm_down_constraints
 		| _ -> ()
 
 	let add_down_constraint m constr =
@@ -1024,7 +1024,7 @@ and unify_with_variance uctx f t1 t2 =
 	let unify_nested t1 t2 = with_variance (get_nested_context uctx) f t1 t2 in
 	let unify_tls tl1 tl2 = List.iter2 unify_nested tl1 tl2 in
 	let get_this_type ab tl = follow_without_type (apply_params ab.a_params tl ab.a_this) in
-	let get_defined_type td tl = follow_without_type (apply_params td.t_params tl td.t_type) in
+	let get_defined_type td tl = follow_without_type (apply_typedef td tl) in
 	let compare_underlying () = type_eq {uctx with equality_underlying = true; equality_kind = EqBothDynamic} t1 t2 in
 	let unifies_abstract uctx a b ab tl ats =
 		try
@@ -1140,7 +1140,7 @@ module UnifyMinT = struct
 					loop t);
 				tl := t :: !tl;
 			| TType (td,pl) ->
-				loop (apply_params td.t_params pl td.t_type);
+				loop (apply_typedef td pl);
 				(* prioritize the most generic definition *)
 				tl := t :: !tl;
 			| TLazy f -> loop (lazy_type f)

@@ -141,7 +141,7 @@ object(self)
 			begin try
 				Some (Hashtbl.find pfms td.t_path)
 			with Not_found ->
-				self#identify accept_anons (apply_params td.t_params tl td.t_type)
+				self#identify accept_anons (apply_typedef td tl)
 			end
 		| TMono {tm_type = Some t} ->
 			self#identify accept_anons t
@@ -278,7 +278,7 @@ object(self)
 				in
 				loop csup;
 				(c,cf)
-			| None -> Error.error "Could not find overload constructor" e.epos
+			| None -> Error.typing_error "Could not find overload constructor" e.epos
 		in
 		let find_super_ctor el =
 			let _,cf = find_super_ctor el in

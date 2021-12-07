@@ -33,12 +33,12 @@ let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> 
 
 let is_lower_ident s p =
 	try Ast.is_lower_ident s
-	with Invalid_argument msg -> error msg p
+	with Invalid_argument msg -> typing_error msg p
 
 let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
-		error "Cannot access this from a static function" p
+		typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
 		let v = match ctx.vthis with
 			| None ->
@@ -55,7 +55,7 @@ let get_this ctx p =
 		in
 		mk (TLocal v) ctx.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> error "Cannot reference this abstract here" p) in
+		let v = (try PMap.find "this" ctx.locals with Not_found -> typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
@@ -79,7 +79,7 @@ let rec type_module_type ctx t tparams p =
 			module_type_of_type t
 		with Exit ->
 			if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
-			else error "Invalid module type" p
+			else typing_error "Invalid module type" p
 		in
 		type_module_type ctx mt None p
 	| TClassDecl c ->
@@ -89,7 +89,7 @@ let rec type_module_type ctx t tparams p =
 		let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
-		let t = apply_params s.t_params (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) s.t_type in
+		let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
 		DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
@@ -99,11 +99,11 @@ let rec type_module_type ctx t tparams p =
 		| TAbstract (a,params) ->
 			type_module_type ctx (TAbstractDecl a) (Some params) p
 		| _ ->
-			error (s_type_path s.t_path ^ " is not a value") p)
+			typing_error (s_type_path s.t_path ^ " is not a value") p)
 	| TAbstractDecl { a_impl = Some c } ->
 		type_module_type ctx (TClassDecl c) tparams p
 	| TAbstractDecl a ->
-		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
+		if not (Meta.has Meta.RuntimeValue a.a_meta) then typing_error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = abstract_module_type a [] in
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 
@@ -151,7 +151,7 @@ let s_access_kind acc =
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
 		| TFun(tl,tr) -> tl,tr
-		| _ -> error "Constructible type parameter should be function" p
+		| _ -> typing_error "Constructible type parameter should be function" p
 	in
 	let rec loop tl = match tl with
 		| [] -> None

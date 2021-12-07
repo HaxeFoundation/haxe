@@ -644,4 +644,26 @@ extern class Const {
 	static final CAL_MONTH_JULIAN_LONG: Int;
 	static final CAL_MONTH_JULIAN_SHORT: Int;
 	static final CAL_NUM_CALS: Int;
+
+	/**
+		@see http://php.net/manual/en/ftp.constants.php
+	**/
+	static final FTP_ASCII: Int;
+	static final FTP_AUTORESUME: Int;
+	static final FTP_AUTOSEEK: Int;
+	static final FTP_BINARY: Int;
+	static final FTP_FAILED: Int;
+	static final FTP_FINISHED: Int;
+	static final FTP_IMAGE: Int;
+	static final FTP_MOREDATA: Int;
+	static final FTP_TEXT: Int;
+	static final FTP_TIMEOUT_SEC: Int;
+	static final FTP_USEPASVADDRESS: Bool;
+
+	/**
+		@see http://php.net/manual/en/misc.constants.php
+	**/
+	static final CONNECTION_ABORTED: Int;
+	static final CONNECTION_NORMAL: Int;
+	static final CONNECTION_TIMEOUT: Int;
 }

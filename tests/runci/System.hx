@@ -83,6 +83,22 @@ class System {
 			fail();
 	}
 
+	static function showAndRunCommand(cmd:String, args:Null<Array<String>>, displayed:String):Int {
+		infoMsg('Command: $displayed');
+
+		final t = Timer.stamp();
+		final exitCode = Sys.command(cmd, args);
+		final dt = Math.round(Timer.stamp() - t);
+
+		final msg = 'Command exited with $exitCode in ${dt}s: $displayed';
+		if (exitCode != 0)
+			failMsg(msg);
+		else
+			successMsg(msg);
+
+		return exitCode;
+	}
+
 	/**
 	 * Recursively delete a directory.
 	 * @return Int Exit code of a system command executed to perform deletion.
@@ -138,6 +154,15 @@ class System {
 		}
 	}
 
+	static public function haxelibDev(library:String, path:String):Void {
+		try {
+			getHaxelibPath(library);
+			infoMsg('$library has already been installed.');
+		} catch (e:Dynamic) {
+			runCommand("haxelib", ["dev", library, path]);
+		}
+	}
+
 	static public function haxelibRun(args:Array<String>, useRetry:Bool = false):Void {
 		runCommand("haxelib", ["run"].concat(args), useRetry);
 	}
@@ -162,5 +187,33 @@ class System {
 	static public function changeDirectory(path:String) {
 		Sys.println('Changing directory to $path');
 		Sys.setCwd(path);
+	}
+
+	static function mergeArgs(cmd:String, args:Array<String>) {
+		return switch (Sys.systemName()) {
+			case "Windows":
+				[StringTools.replace(cmd, "/", "\\")].concat(args).map(haxe.SysTools.quoteWinArg.bind(_, true)).join(" ");
+			case _:
+				[cmd].concat(args).map(haxe.SysTools.quoteUnixArg).join(" ");
+		}
+	}
+
+	/* command for setting the environment variable to set before sys tests */
+	static final setCommand = if (Sys.systemName() == "Windows") "set"; else "export";
+	static final nameAndValue = "EXISTS=1";
+
+	/** Prepares environment for system tests and runs `cmd` with `args` **/
+	static public function runSysTest(cmd:String, ?args:Array<String>) {
+		final cmdStr = '$setCommand [$nameAndValue] && ' + cmd + (args == null ? '' : ' $args');
+
+		if (args != null)
+			cmd = mergeArgs(cmd, args);
+
+		final fullCmd = '$setCommand $nameAndValue && $cmd';
+
+		final exitCode = showAndRunCommand(fullCmd, null, cmdStr);
+
+		if (exitCode != 0)
+			fail();
 	}
 }

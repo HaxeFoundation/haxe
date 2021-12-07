@@ -1610,18 +1610,21 @@ let macro_api ccom get_api =
 				let v = if v = vnull then "" else ", " ^ (decode_string v) in
 				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
 			end;
-			let v = if v = vnull then "" else "=" ^ (decode_string v) in
-			Common.raw_define com (s ^ v);
+			(* TODO: use external_define and external_define_value for #8690 *)
+			if v = vnull then
+				Common.external_define_no_check com s
+			else
+				Common.external_define_value_no_check com s (decode_string v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
-			vbool (Common.raw_defined (ccom()) (decode_string s))
+			vbool (Common.external_defined (ccom()) (decode_string s))
 		);
 		"defined_value", vfun1 (fun s ->
-			try encode_string (Common.raw_defined_value (ccom()) (decode_string s)) with Not_found -> vnull
+			try encode_string (Common.external_defined_value (ccom()) (decode_string s)) with Not_found -> vnull
 		);
 		"get_defines", vfun0 (fun() ->
-			encode_string_map encode_string (ccom()).defines.Define.values
+			encode_string_map encode_string (Common.defines_for_external (ccom()))
 		);
 		"get_type", vfun1 (fun s ->
 			let tname = decode_string s in
@@ -1833,7 +1836,7 @@ let macro_api ccom get_api =
 				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 					t
 				| TType (t,tl) ->
-					apply_params t.t_params tl t.t_type
+					apply_typedef t tl
 				| TLazy f ->
 					lazy_type f
 			in

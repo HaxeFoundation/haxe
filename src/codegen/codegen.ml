@@ -257,7 +257,7 @@ let rec is_volatile t =
 		is_volatile (lazy_type f)
 	| TType (t,tl) ->
 		(match t.t_path with
-		| _ -> is_volatile (apply_params t.t_params tl t.t_type))
+		| _ -> is_volatile (apply_typedef t tl))
 	| _ ->
 		false
 
