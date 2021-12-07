@@ -31,6 +31,10 @@ package hl;
 		return cast this;
 	}
 
+	@:hlNative("std", "num_i64_of_int")
+	@:from public static function ofInt(i:Int):I64
+		return cast 0;
+
 	@:to
 	@:deprecated("Implicit cast from I64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.")
 	inline function implicitToInt(): Int {
