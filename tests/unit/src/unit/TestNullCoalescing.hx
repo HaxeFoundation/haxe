@@ -4,6 +4,7 @@ package unit;
 class TestNullCoalescing extends Test {
 	final nullInt:Null<Int> = null;
 	final nullBool:Null<Bool> = null;
+	final nullString:Null<String> = null;
 
 	var count = 0;
 	function call() {
@@ -15,8 +16,8 @@ class TestNullCoalescing extends Test {
 		var a = call() ?? "default";
 		eq(count, 1);
 
-		eq(null ?? nullInt, null);
-		eq(null ?? nullBool, null);
+		eq(nullInt ?? nullInt, null);
+		eq(nullBool ?? nullBool, null);
 
 		final a:Dynamic = Std.random(0) + 1;
 		final b = Std.random(0) + 2;
@@ -24,7 +25,7 @@ class TestNullCoalescing extends Test {
 
 		final nullableBool:Null<Bool> = false;
 		final testBool = nullBool ?? true;
-		final testNullBool = null ?? nullableBool;
+		final testNullBool = nullBool ?? nullableBool;
 		final s:Int = nullInt == null ? 2 : nullInt;
 		final s:Int = if (nullInt == null) 2; else nullInt;
 		final s = nullInt ?? 2;
@@ -73,6 +74,8 @@ class TestNullCoalescing extends Test {
 		var a:Null<Int> = null;
 		eq(a ??= 5, 5);
 		eq(a, 5);
+		var a = "default";
+		eq(a ??= "5", "default");
 
 		count = 0;
 		var a = call();
@@ -87,5 +90,17 @@ class TestNullCoalescing extends Test {
 		eq(a, "_");
 		eq(b, "_");
 		eq(c, "_");
+
+		final a:Null<Int> = ({} : Dynamic).x;
+		eq(a ?? 2, 2);
+
+		final a = nullInt;
+		eq(a ?? 2, 2);
+
+		final a = nullString;
+		eq(a ?? "2", "2");
+
+		eq(1 ?? 2, 1);
+		eq("1" ?? "2", "1");
 	}
 }
