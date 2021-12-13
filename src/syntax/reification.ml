@@ -30,14 +30,17 @@ let reify in_macro =
 		| _ -> (ECall (constr,vl),pmin)
 	in
 	let to_const c p =
-		let cst n v = mk_enum "Constant" n [EConst (String(v,SDoubleQuotes)),p] p in
 		match c with
-		| Int i -> cst "CInt" i
+		| Int (i, suffix) ->
+			let suffix = match suffix with None -> (EConst (Ident "null"),p) | Some s -> (EConst (String (s, SDoubleQuotes)),p) in
+			mk_enum "Constant" "CInt" [(EConst (String(i,SDoubleQuotes)),p);suffix] p
 		| String(s,qs) ->
 			let qs = mk_enum "StringLiteralKind" (match qs with SDoubleQuotes -> "DoubleQuotes" | SSingleQuotes -> "SingleQuotes") [] p in
 			mk_enum "Constant" "CString" [(EConst (String(s,SDoubleQuotes)),p);qs] p
-		| Float s -> cst "CFloat" s
-		| Ident s -> cst "CIdent" s
+		| Float (f, suffix) ->
+			let suffix = match suffix with None -> (EConst (Ident "null"),p) | Some s -> (EConst (String (s, SDoubleQuotes)),p) in
+			mk_enum "Constant" "CFloat" [(EConst (String(f,SDoubleQuotes)),p);suffix] p
+		| Ident s -> mk_enum "Constant" "CIdent" [EConst (String(s,SDoubleQuotes)),p] p
 		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String(r,SDoubleQuotes)),p);(EConst (String(o,SDoubleQuotes)),p)] p
 	in
 	let rec to_binop o p =
@@ -220,8 +223,8 @@ let reify in_macro =
 			p
 		| None ->
 		let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
-		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
-		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
+		let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
+		let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
 		if in_macro then
 			(EUntyped (ECall ((EConst (Ident "$__mk_pos__"),p),[file;pmin;pmax]),p),p)
 		else
@@ -351,7 +354,10 @@ let reify in_macro =
 				| EParenthesis (ECheckType (e2, (CTPath{tname="String";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
 				| EParenthesis (ECheckType (e2, (CTPath{tname="Int";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
 				| EParenthesis (ECheckType (e2, (CTPath{tname="Float";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
-				| _ -> (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_enc_pos (pos e)]),p)
+				| EConst (Int (s, Some "i64")) ->
+					expr "EConst" [mk_enum "Constant" "CInt" [ (EConst(String (s, SDoubleQuotes)),(pos e1)); (EConst(String ("i64", SDoubleQuotes)),(pos e1)) ] (pos e1)]
+				| _ ->
+					(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e1; to_enc_pos (pos e1)]),p)
 				end
 			| Meta.Dollar "i", _ ->
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]

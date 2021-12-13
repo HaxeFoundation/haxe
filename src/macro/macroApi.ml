@@ -198,7 +198,7 @@ let haxe_float f p =
 	else if (f <> f) then
 		(Ast.EField (math, "NaN"), p)
 	else
-		(Ast.EConst (Ast.Float (Numeric.float_repres f)), p)
+		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
@@ -226,8 +226,8 @@ let encode_string_literal_kind qs =
 
 let encode_const c =
 	let tag, pl = match c with
-	| Int s -> 0, [encode_string s]
-	| Float s -> 1, [encode_string s]
+	| Int (s, suffix) -> 0, [encode_string s;null encode_string suffix]
+	| Float (s, suffix) -> 1, [encode_string s;null encode_string suffix]
 	| String(s,qs) -> 2, [encode_string s;encode_string_literal_kind qs]
 	| Ident s -> 3, [encode_string s]
 	| Regexp (s,opt) -> 4, [encode_string s;encode_string opt]
@@ -547,8 +547,20 @@ let decode_string_literal_kind v =
 
 let decode_const c =
 	match decode_enum c with
-	| 0, [s] -> Int (decode_string s)
-	| 1, [s] -> Float (decode_string s)
+	| 0, [s;suffix] ->
+		let decoded_suffix = opt decode_string suffix in
+		(match decoded_suffix with
+		| None | Some "i32" | Some "i64" | Some "u32" ->
+			Int (decode_string s, decoded_suffix)
+		| Some other ->
+			raise Invalid_expr)
+	| 1, [s;suffix] ->
+		let decoded_suffix = opt decode_string suffix in
+		(match decoded_suffix with
+		| None | Some "f64" ->
+			Float (decode_string s, opt decode_string suffix)
+		| Some other ->
+			raise Invalid_expr)
 	| 2, [s;qs] -> String (decode_string s,decode_string_literal_kind qs)
 	| 3, [s] -> Ident (decode_string s)
 	| 4, [s;opt] -> Regexp (decode_string s, decode_string opt)

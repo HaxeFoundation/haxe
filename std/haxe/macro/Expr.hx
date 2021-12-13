@@ -60,12 +60,12 @@ enum Constant {
 	/**
 		Represents an integer literal.
 	**/
-	CInt(v:String);
+	CInt(v:String, ?s:String);
 
 	/**
 		Represents a float literal.
 	**/
-	CFloat(f:String);
+	CFloat(f:String, ?s:String);
 
 	/**
 		Represents a string literal.

@@ -672,7 +672,7 @@ struct
 					iface.cl_meta <-
 						(Meta.HxGen, [], cl.cl_pos)
 						::
-						(Meta.Custom "generic_iface", [(EConst(Int(string_of_int(List.length cl.cl_params))), cl.cl_pos)], cl.cl_pos)
+						(Meta.Custom "generic_iface", [(EConst(Int(string_of_int(List.length cl.cl_params), None)), cl.cl_pos)], cl.cl_pos)
 						::
 						iface.cl_meta;
 					Hashtbl.add ifaces cl.cl_path iface;

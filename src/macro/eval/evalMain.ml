@@ -439,7 +439,7 @@ let rec value_to_expr v p =
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
 	| VFalse -> (EConst (Ident "false"),p)
-	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
+	| VInt32 i -> (EConst (Int (Int32.to_string i,None)),p)
 	| VFloat f -> haxe_float f p
 	| VString s -> (EConst (String(s.sstring,SDoubleQuotes)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
@@ -470,7 +470,7 @@ let rec value_to_expr v p =
 		end
 	| VInstance {ikind = IIntMap m} ->
 		let el = IntHashtbl.fold (fun k v acc ->
-			let e_key = (EConst (Int (string_of_int k)),p) in
+			let e_key = (EConst (Int (string_of_int k, None)),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in
 		(EArrayDecl el,p)

@@ -172,8 +172,8 @@ and convert_signature ctx p jsig =
 let convert_constant ctx p const =
 	Option.map_default (function
 		| ConstString s -> Some (EConst (String(s,SDoubleQuotes)), p)
-		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i)), p)
-		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
+		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i, None)), p)
+		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f, None)), p)
 		| _ -> None) None const
 
 let convert_constraints ctx p tl = match tl with

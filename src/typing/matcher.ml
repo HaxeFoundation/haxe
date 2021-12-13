@@ -334,7 +334,7 @@ module Pattern = struct
 				let e = loop e in
 				pctx.in_reification <- old;
 				e
-			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
+			| EConst((Ident ("false" | "true") | Int (_,_) | String _ | Float (_,_)) as ct) ->
 				begin match ct with
 					| String (value,kind) when kind = Ast.SSingleQuotes ->
 						let e = ctx.g.do_format_string ctx value p in
