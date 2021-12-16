@@ -102,5 +102,24 @@ class TestNullCoalescing extends Test {
 
 		eq(1 ?? 2, 1);
 		eq("1" ?? "2", "1");
+
+		var a = new MyAbstract(1);
+		eq(a ?? 2, 3);
+		// ?? is right-associative
+		eq((a ?? 10 * 10) ?? 1 * 10, 111);
+
+		final arr = [];
+		function item(n) {
+			arr.push(n);
+			return n;
+		}
+		eq(item(1) ?? item(2) ?? item(3), 1);
+		eq(arr.length, 1);
+		for (i => v in [1]) eq(arr[i], v);
 	}
+}
+
+abstract MyAbstract(Int) from Int {
+	public function new(a) this = a;
+	@:op(a ?? b) function plus(b):MyAbstract return this + b;
 }

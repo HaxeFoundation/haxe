@@ -1091,9 +1091,8 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					allow_no_expr();
 				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
 					typing_error (cf.cf_name ^ ": Assignment overloading is not supported") p;
-				| (Meta.Op,[EBinop(OpAssignOp OpNullCoal,_,_),_],_) :: _
-				| (Meta.Op,[EBinop(OpNullCoal,_,_),_],_) :: _ ->
-					typing_error (cf.cf_name ^ ": Null coalescing overloading is not supported") p;
+				| (Meta.Op,[EBinop(OpAssignOp OpNullCoal,_,_),_],_) :: _ ->
+					typing_error (cf.cf_name ^ ": Null coalescing assignment overloading is not supported") p;
 				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
 					typing_error (cf.cf_name ^ ": Ternary overloading is not supported") p;
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->

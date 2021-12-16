@@ -444,7 +444,15 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		typing_error "Unexpected =>" p
 	| OpIn ->
 		typing_error "Unexpected in" p
-	| OpNullCoal
+	| OpNullCoal ->
+		let vr = new value_reference ctx in
+		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
+		let e_null = Builder.make_null e1.etype e1.epos in
+		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
+		let iftype = WithType.WithType(e2.etype,None) in
+		let e_if = (!make_if_then_else_ref) ctx e_cond e1 e2 iftype p in
+		let e = vr#to_texpr e_if in
+		BinopSpecial (e,false)
 	| OpAssign
 	| OpAssignOp _ ->
 		die "" __LOC__

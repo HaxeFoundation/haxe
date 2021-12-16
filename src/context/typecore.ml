@@ -207,6 +207,9 @@ let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_s
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
 let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+let make_if_then_else_ref : (typer ->
+Type.texpr ->
+Type.texpr -> Type.texpr -> WithType.t -> Common.pos -> Type.texpr) ref = ref (fun _ _ -> die "" __LOC__)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
