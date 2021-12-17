@@ -1678,6 +1678,16 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
+	| EBinop (OpNullCoal,e1,e2) ->
+		let vr = new value_reference ctx in
+		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
+		let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
+		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
+		let e_null = Builder.make_null e1.etype e1.epos in
+		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
+		let iftype = WithType.WithType(e2.etype,None) in
+		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
+		vr#to_texpr e_if
 	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
 		let e_cond = EBinop(OpNotEq,e1,(EConst(Ident "null"), p)) in
 		let e_if = EIf ((e_cond, p),e1,Some e2) in
@@ -1990,5 +2000,4 @@ unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
-type_block_ref := type_block;
-make_if_then_else_ref := make_if_then_else
+type_block_ref := type_block
