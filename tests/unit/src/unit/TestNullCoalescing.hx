@@ -102,5 +102,23 @@ class TestNullCoalescing extends Test {
 
 		eq(1 ?? 2, 1);
 		eq("1" ?? "2", "1");
+
+		final arr = [];
+		function item(n) {
+			arr.push(n);
+			return n;
+		}
+		eq(item(1) ?? item(2) ?? item(3), 1);
+		eq(arr.length, 1);
+		for (i => v in [1]) eq(arr[i], v);
+
+		final arr = [];
+		function item(n) {
+			arr.push(n);
+			return null;
+		}
+		eq(item(1) ?? item(2) ?? item(3), null);
+		eq(arr.length, 3);
+		for (i => v in [1, 2, 3]) eq(arr[i], v);
 	}
 }
