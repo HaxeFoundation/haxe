@@ -1909,8 +1909,8 @@ let generate con =
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl, _) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
-				let params_extends = List.fold_left (fun acc (name, t, _) ->
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> match follow tp.ttp_type with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
+				let params_extends = List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
 					match run_follow gen t with
 						| TInst (cl, p) ->
 							(match cl.cl_implements with

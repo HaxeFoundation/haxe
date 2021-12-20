@@ -660,7 +660,7 @@ let init_module_type ctx context_init (decl,p) =
 					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
-					List.iter (fun (_,t,_) -> ignore(follow t)) c.cl_params;
+					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
 				with TypeloadCheck.Build_canceled state ->
 					c.cl_build <- make_pass ctx build;

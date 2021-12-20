@@ -328,7 +328,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| _ -> false,false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
-		let is_rest = is_generic_build && (match types with ["Rest",_,_] -> true | _ -> false) in
+		let is_rest = is_generic_build && (match types with [{ttp_name="Rest"}] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) types in
 			f (monos)
@@ -359,7 +359,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			in
 			let checks = DynArray.create () in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
-				| t :: tl1,(name,t2,_) :: tl2 ->
+				| t :: tl1,({ttp_name=name;ttp_type=t2}) :: tl2 ->
 					let t,pt = load_param t in
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
@@ -385,9 +385,9 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					t :: loop tl1 tl2 is_rest
 				| [],[] ->
 					[]
-				| [],["Rest",_,_] when is_generic_build ->
+				| [],[{ttp_name="Rest"}] when is_generic_build ->
 					[]
-				| [],(_,t,def) :: tl ->
+				| [],({ttp_type=t;ttp_default=def}) :: tl ->
 					if is_java_rest then
 						t_dynamic :: loop [] tl is_rest
 					else if ctx.com.display.dms_error_policy = EPIgnore then
@@ -802,7 +802,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	in
 	match tp.tp_constraints with
 	| None ->
-		n, t, default
+		mk_type_param n t default
 	| Some th ->
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
@@ -826,7 +826,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 			c.cl_kind <- KTypeParameter constr;
 			t
 		) "constraint" in
-		n, TLazy r, default
+		mk_type_param n (TLazy r) default
 
 and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
 	let names = ref [] in
@@ -869,7 +869,7 @@ let load_core_class ctx c =
 let init_core_api ctx c =
 	let ccore = load_core_class ctx c in
 	begin try
-		List.iter2 (fun (n1,t1,tp_todo) (n2,t2,tp_todo') -> match follow t1, follow t2 with
+		List.iter2 (fun tp1 tp2 -> match follow tp1.ttp_type, follow tp2.ttp_type with
 			| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
 				begin try
 					List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
@@ -877,7 +877,7 @@ let init_core_api ctx c =
 					| Invalid_argument _ ->
 						typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
 					| Unify_error l ->
-						display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
+						display_error ctx ("Type parameter " ^ tp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
 						display_error ctx (error_msg (Unify l)) c.cl_pos
 				end
 			| t1,t2 ->

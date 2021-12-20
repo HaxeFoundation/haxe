@@ -419,7 +419,7 @@ and type_ident ctx i p mode with_type =
 	with Not_found ->
 		let resolved_to_type_parameter = ref false in
 		try
-			let t = List.find (fun (i2,_,_) -> i2 = i) ctx.type_params in
+			let t = List.find (fun tp -> tp.ttp_name = i) ctx.type_params in
 			resolved_to_type_parameter := true;
 			let c = match follow (extract_param_type t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin

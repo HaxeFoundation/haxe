@@ -289,7 +289,7 @@ let rec get_type_params acc t =
 				get_type_params acc ( Abstract.get_underlying_type a pl)
 		| TAnon a ->
 			PMap.fold (fun cf acc ->
-				let params = List.map (fun (_,t,_) -> match follow t with
+				let params = List.map (fun tp -> match follow tp.ttp_type with
 					| TInst(c,_) -> c
 					| _ -> die "" __LOC__) cf.cf_params
 				in
@@ -396,7 +396,7 @@ let configure gen ft =
 		in
 
 		(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
-		let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []), None )) tparams in
+		let cltypes = List.map (fun cl -> mk_type_param (snd cl.cl_path) (TInst(cl, [])) None) tparams in
 
 		(* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
 		let cfield = match gen.gcurrent_classfield with
@@ -617,11 +617,11 @@ let configure gen ft =
 				| TInst(c,_), TInst(c2,_) -> c == c2
 				| _ -> false
 			in
-			let passoc = List.map2 (fun (_,t,_) m -> t,m) types monos in
-			let cltparams = List.map (fun (_,t,_) ->
+			let passoc = List.map2 (fun tp m -> tp.ttp_type,m) types monos in
+			let cltparams = List.map (fun tp ->
 				try
-					snd (List.find (fun (t2,_) -> same_cl t t2) passoc)
-				with | Not_found -> t) cls.cl_params
+					snd (List.find (fun (t2,_) -> same_cl tp.ttp_type t2) passoc)
+				with | Not_found -> tp.ttp_type) cls.cl_params
 			in
 			{ e with eexpr = TNew(cls, cltparams, List.rev captured) }
 		with

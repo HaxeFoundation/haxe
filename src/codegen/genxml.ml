@@ -157,7 +157,7 @@ and gen_field att f =
 			in
 			att,get_value_meta f.cf_meta
 	) in
-	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_,_) -> n) l)) :: att) in
+	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map extract_param_name l)) :: att) in
 	let overloads = match List.map (gen_field []) f.cf_overloads with
 		| [] -> []
 		| nl -> [node "overloads" [] nl]

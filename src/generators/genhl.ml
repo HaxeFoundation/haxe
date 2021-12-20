@@ -355,7 +355,7 @@ let make_debug ctx arr =
 let fake_tnull =
 	{null_abstract with
 		a_path = [],"Null";
-		a_params = ["T",t_dynamic,None];
+		a_params = [{ttp_name = "T"; ttp_type = t_dynamic; ttp_default = None}];
 	}
 
 let get_rec_cache ctx t none_callback not_found_callback =

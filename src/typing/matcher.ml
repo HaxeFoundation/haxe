@@ -43,11 +43,11 @@ let type_field_access ctx ?(resume=false) e name =
 
 let unapply_type_parameters params monos =
 	let unapplied = ref [] in
-	List.iter2 (fun (_,t1,_) t2 ->
+	List.iter2 (fun tp1 t2 ->
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
 			unapplied := (m1,m1.tm_type) :: !unapplied;
-			Monomorph.bind m1 t1;
+			Monomorph.bind m1 tp1.ttp_type;
 		| _ -> ()
 	) params monos;
 	!unapplied

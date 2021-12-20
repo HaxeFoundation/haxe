@@ -344,8 +344,8 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f,def) :: l1, _ -> loop ((x,lazy_type f,def) :: l1) l2
-		| (_,t1,_) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| {ttp_type = TLazy f} as tp :: l1, _ -> loop ({tp with ttp_type = lazy_type f} :: l1) l2
+		| tp :: l1 , t2 :: l2 -> (tp.ttp_type,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
@@ -610,17 +610,23 @@ let concat e1 e2 =
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
 
-let extract_param_type (_,t,_) = t
+let extract_param_type tp = tp.ttp_type
 let extract_param_types = List.map extract_param_type
-let extract_param_name (n,_,_) = n
+let extract_param_name tp = tp.ttp_name
 let lookup_param n l =
 	let rec loop l = match l with
 		| [] ->
 			raise Not_found
-		| (n',t,_) :: l ->
-			if n = n' then t else loop l
+		| tp :: l ->
+			if n = tp.ttp_name then tp.ttp_type else loop l
 	in
 	loop l
+
+let mk_type_param n t def = {
+	ttp_name = n;
+	ttp_type = t;
+	ttp_default = def;
+}
 
 let type_of_module_type = function
 	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)

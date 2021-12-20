@@ -912,11 +912,11 @@ let rec encode_mtype t fields =
 	] @ fields)
 
 and encode_type_params tl =
-	encode_array (List.map (fun (n,t,def) ->
+	encode_array (List.map (fun tp ->
 		encode_obj [
-			"name",encode_string n;
-			"t",encode_type t;
-			"defaultType",(match def with None -> vnull | Some t -> encode_type t);
+			"name",encode_string tp.ttp_name;
+			"t",encode_type tp.ttp_type;
+			"defaultType",(match tp.ttp_default with None -> vnull | Some t -> encode_type t);
 		]
 	) tl)
 
@@ -1304,7 +1304,7 @@ let decode_type_params v =
 		let name = decode_string (field v "name") in
 		let t = decode_type (field v "t") in
 		let default = opt decode_type (field v "defaultType") in
-		(name,t,default)
+		mk_type_param name t default
 	) (decode_array v)
 
 let decode_tvar v =
@@ -1959,13 +1959,13 @@ let macro_api ccom get_api =
 				let name = decode_string (field v "name") in
 				let t = decode_type (field v "t") in
 				let default = None in (* we don't care here *)
-				(name,t,default)
+				mk_type_param  name t default
 			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
 					begin try
 						(* use non-physical equality check here to make apply_params work *)
-						extract_param_type (List.find (fun (_,t2,_) -> type_iseq t t2) tpl)
+						extract_param_type (List.find (fun tp2 -> type_iseq t tp2.ttp_type) tpl)
 					with Not_found ->
 						Type.map map t
 					end

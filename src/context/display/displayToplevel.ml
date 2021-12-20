@@ -448,9 +448,9 @@ let collect ctx tk with_type sort =
 	end;
 
 	(* type params *)
-	List.iter (fun (s,t,tp_todo) -> match follow t with
+	List.iter (fun tp -> match follow tp.ttp_type with
 		| TInst(c,_) ->
-			add (make_ci_type_param c (tpair t)) (Some (snd c.cl_path))
+			add (make_ci_type_param c (tpair tp.ttp_type)) (Some (snd c.cl_path))
 		| _ -> die "" __LOC__
 	) ctx.type_params;
 

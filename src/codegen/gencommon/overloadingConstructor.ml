@@ -114,9 +114,9 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 	| false ->
 		let static_ctor_name = make_static_ctor_name cl in
 		(* create the static constructor *)
-		let ctor_types = List.map (fun (s,t,d) -> (s, TInst(map_param (get_cl_t t), []),d)) cl.cl_params in
+		let ctor_types = List.map (fun tp -> {tp with ttp_type = TInst(map_param (get_cl_t tp.ttp_type), [])}) cl.cl_params in
 		let ctor_type_params = extract_param_types ctor_types in
-		List.iter (function (_,TInst(c,[]),_) -> (
+		List.iter (function {ttp_type=TInst(c,[])} -> (
 			match c.cl_kind with
 			| KTypeParameter (hd :: tail) ->
 				let before = hd :: tail in

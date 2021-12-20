@@ -103,7 +103,7 @@ struct
 			| _ -> ());
 		let c_types =
 			if handle_type_params then
-				List.map (fun (s,t,def) -> (s, TInst (map_param (get_cl_t t), []),def)) en.e_params
+				List.map (fun tp -> {tp with ttp_type=TInst (map_param (get_cl_t tp.ttp_type), [])}) en.e_params
 			else
 				[]
 		in
@@ -121,7 +121,7 @@ struct
 				| TFun(params,ret) ->
 					let dup_types =
 						if handle_type_params then
-							List.map (fun (s,t,def) -> (s, TInst (map_param (get_cl_t t), []), def)) en.e_params
+							List.map (fun tp -> {tp with ttp_type = TInst (map_param (get_cl_t tp.ttp_type), [])}) en.e_params
 						else
 							[]
 					in

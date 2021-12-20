@@ -2013,12 +2013,12 @@ let generate con =
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
-					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl, _) -> get_param_name tcl) cl_params)) in
+					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
-							List.fold_left (fun acc (name, t, _) ->
+							List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
 								match run_follow gen t with
 									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
 										(* base class should come before interface constraints *)

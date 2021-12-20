@@ -223,9 +223,9 @@ module CompletionModuleType = struct
 		in
 		let is_extern,is_final,is_abstract,kind,ctor = ctor_info mt in
 		let infos = t_infos mt in
-		let convert_type_param (s,t,tp_todo) = match follow t with
+		let convert_type_param tp = match follow tp.ttp_type with
 			| TInst(c,_) -> {
-				tp_name = s,null_pos;
+				tp_name = tp.ttp_name,null_pos;
 				tp_params = [];
 				tp_constraints = None; (* TODO? *)
 				tp_default = None; (* TODO? *)
