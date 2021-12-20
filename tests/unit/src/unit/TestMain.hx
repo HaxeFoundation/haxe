@@ -1,9 +1,9 @@
 package unit;
 
-import utest.ui.Report;
-import utest.Runner;
-import unit.Test.*;
 import haxe.ds.List;
+import unit.Test.*;
+import utest.Runner;
+import utest.ui.Report;
 
 final asyncWaits = new Array<haxe.PosInfos>();
 final asyncCache = new Array<() -> Void>();
@@ -25,25 +25,25 @@ function main() {
 	}
 	#end
 
-	var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
+	var verbose = #if (cpp || neko || php) Sys.args().indexOf("-v") >= 0 #else false #end;
 
-	#if cs //"Turkey Test" - Issue #996
+	#if cs // "Turkey Test" - Issue #996
 	cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
 	cs.Lib.applyCultureChanges();
 	#end
 	#if neko
-	if( neko.Web.isModNeko )
-		neko.Web.setHeader("Content-Type","text/plain");
+	if (neko.Web.isModNeko)
+		neko.Web.setHeader("Content-Type", "text/plain");
 	#elseif php
-	if( php.Web.isModNeko )
-		php.Web.setHeader("Content-Type","text/plain");
+	if (php.Web.isModNeko)
+		php.Web.setHeader("Content-Type", "text/plain");
 	#end
 	#if !macro
 	trace("Generated at: " + HelperMacros.getCompilationDate());
 	#end
 	trace("START");
 	#if flash
-	var tf : flash.text.TextField = untyped flash.Boot.getTrace();
+	var tf:flash.text.TextField = untyped flash.Boot.getTrace();
 	tf.selectable = true;
 	tf.mouseEnabled = true;
 	#end
@@ -76,8 +76,7 @@ function main() {
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
-		#if (!no_http && (!github || !(php && Windows)))
-		new TestHttp(),
+		#if (!no_http && (!github || !(php && Windows))) new TestHttp(),
 		#end
 		#if !no_pattern_matching
 		new TestMatch(),
@@ -106,15 +105,15 @@ function main() {
 		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
-		#if ((dce == "full") && !interp)
-		new TestDCE(),
+		#if ((dce == "full") && !interp) new TestDCE(),
 		#end
 		new TestMapComprehension(),
 		new TestMacro(),
 		new TestKeyValueIterator(),
 		new TestFieldVariance(),
-		new TestConstrainedMonomorphs()
-		//new TestUnspecified(),
+		new TestConstrainedMonomorphs(),
+		new TestDefaultTypeParameters(),
+		// new TestUnspecified(),
 	];
 
 	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
@@ -132,12 +131,13 @@ function main() {
 	report.displaySuccessResults = NeverShowSuccessResults;
 	var success = true;
 	runner.onProgress.add(function(e) {
-		for(a in e.result.assertations) {
+		for (a in e.result.assertations) {
 			switch a {
 				case Success(pos):
 				case Warning(msg):
 				case Ignore(reason):
-				case _: success = false;
+				case _:
+					success = false;
 			}
 		}
 		#if js
