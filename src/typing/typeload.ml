@@ -345,8 +345,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				| TPExpr e ->
 					let name = (match fst e with
 						| EConst (String(s,_)) -> "S" ^ s
-						| EConst (Int i) -> "I" ^ i
-						| EConst (Float f) -> "F" ^ f
+						| EConst (Int (_,_) as c) -> "I" ^ s_constant c
+						| EConst (Float (_,_) as c) -> "F" ^ s_constant c
 						| EDisplay _ ->
 							ignore(type_expr ctx e WithType.value);
 							"Expr"
@@ -807,10 +807,12 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			let constr = match fst th with
+			let rec loop th = match fst th with
 				| CTIntersection tl -> List.map (load_complex_type ctx true) tl
+				| CTParent ct -> loop ct
 				| _ -> [load_complex_type ctx true th]
 			in
+			let constr = loop th in
 			(* check against direct recursion *)
 			let rec loop t =
 				match follow t with

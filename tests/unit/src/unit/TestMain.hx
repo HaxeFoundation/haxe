@@ -50,6 +50,7 @@ function main() {
 	var classes = [
 		new TestOps(),
 		new TestBasetypes(),
+		new TestNumericSuffixes(),
 		new TestExceptions(),
 		new TestBytes(),
 		new TestIO(),

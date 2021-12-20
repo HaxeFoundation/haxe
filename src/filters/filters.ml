@@ -198,7 +198,7 @@ let check_local_vars_init com e =
 
 let mark_switch_break_loops e =
 	let add_loop_label n e =
-		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n)),e.epos)],e.epos), e) }
+		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n, None)),e.epos)],e.epos), e) }
 	in
 	let in_switch = ref false in
 	let did_found = ref (-1) in

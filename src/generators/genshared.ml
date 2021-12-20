@@ -195,7 +195,7 @@ module Info = struct
 
 		method get_class_info (c : tclass) =
 			let rec loop ml = match ml with
-			| (Meta.Custom ":jvm.classInfo",[(EConst (Int s),_)],_) :: _ ->
+			| (Meta.Custom ":jvm.classInfo",[(EConst (Int (s, _)),_)],_) :: _ ->
 				DynArray.get class_infos (int_of_string s)
 			| _ :: ml ->
 				loop ml
@@ -206,7 +206,7 @@ module Info = struct
 					implicit_ctors = PMap.empty;
 				} in
 				DynArray.add class_infos infos;
-				c.cl_meta <- (Meta.Custom ":jvm.classInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: c.cl_meta;
+				c.cl_meta <- (Meta.Custom ":jvm.classInfo",[(EConst (Int (string_of_int index, None)),null_pos)],null_pos) :: c.cl_meta;
 				infos
 			in
 			loop c.cl_meta
@@ -241,7 +241,7 @@ object(self)
 
 	method get_field_info (ml : metadata) =
 		let rec loop ml = match ml with
-		| (Meta.Custom ":jvm.fieldInfo",[(EConst (Int s),_)],_) :: _ ->
+		| (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (s, _)),_)],_) :: _ ->
 			Some (DynArray.get field_infos (int_of_string s))
 		| _ :: ml ->
 			loop ml
@@ -367,7 +367,7 @@ object(self)
 					let info = self#preprocess_constructor_expr c cf e in
 					let index = DynArray.length field_infos in
 					DynArray.add field_infos info;
-					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: cf.cf_meta;
+					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index, None)),null_pos)],null_pos) :: cf.cf_meta;
 					if not (Meta.has Meta.HxGen cf.cf_meta) then begin
 						let rec loop next c =
 							if (has_class_flag c CExtern) then make_native cf

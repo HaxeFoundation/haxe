@@ -716,7 +716,7 @@ and gen_expr ctx e =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+	| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 		(match e.eexpr with
 		| TWhile _ | TFor _ ->
 			print ctx "_hx_loop%s: " n;

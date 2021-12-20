@@ -1008,6 +1008,23 @@ class TestStrict {
 			}
 		];
 	}
+
+	static function issue9588_DynamicIsNullable_AnyIsNotNullable(?a:String) {
+		function dyn(v:Dynamic):Dynamic
+			return v;
+		var d:Dynamic = dyn(a);
+		// TODO: decide if 'dynamic to non-nullable' should fail since we allow 'nullable to dynamic now'.
+		//shouldFail(var s:String = d);
+
+		function any(v:Any):Any
+			return v;
+		shouldFail(any(a));
+		var s:String = any('');
+	}
+
+	static function issue10272_nullableConcatString_shouldPass(msg:Null<Dynamic>) {
+		trace("Message: " + msg);
+	}
 }
 
 private class FinalNullableFields {

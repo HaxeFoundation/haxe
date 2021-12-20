@@ -312,7 +312,7 @@ module Pattern = struct
 				with _ ->
 					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-						display_error ctx "Pattern variables must be lower-case" p;
+						display_error ctx ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
 					end;
 					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->
@@ -334,7 +334,7 @@ module Pattern = struct
 				let e = loop e in
 				pctx.in_reification <- old;
 				e
-			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
+			| EConst((Ident ("false" | "true") | Int (_,_) | String _ | Float (_,_)) as ct) ->
 				begin match ct with
 					| String (value,kind) when kind = Ast.SSingleQuotes ->
 						let e = ctx.g.do_format_string ctx value p in

@@ -106,8 +106,8 @@ type string_literal_kind =
 	(* | SMarkup *)
 
 type constant =
-	| Int of string
-	| Float of string
+	| Int of string * string option
+	| Float of string * string option
 	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
@@ -459,8 +459,10 @@ let parse_path s =
 	| x :: l -> List.rev l, x
 
 let s_constant = function
-	| Int s -> s
-	| Float s -> s
+	| Int (s, None) -> s
+	| Int (s, Some suffix) -> s ^ suffix
+	| Float (s, None) -> s
+	| Float (s, Some suffix) -> s ^ suffix
 	| String(s,qs) ->
 		begin match qs with
 		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
