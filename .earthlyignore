@@ -1,0 +1,7 @@
+.devcontainer
+.github
+.vscode
+Earthfile
+extra/doc
+bin
+out
