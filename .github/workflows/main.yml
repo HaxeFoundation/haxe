@@ -235,70 +235,26 @@ jobs:
       PLATFORM: linux64
       OPAMYES: 1
     steps:
+      - name: Set up QEMU
+        id: qemu
+        uses: docker/setup-qemu-action@v1
+        with:
+            image: tonistiigi/binfmt:latest
+            platforms: all
+            
+      - name: Install Earthly
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        
       - uses: actions/checkout@main
         with:
           submodules: recursive
-
-      - name: Install Neko using snapshot from S3 (Unix)
-        if: ${{ !startsWith(env.PLATFORM, 'windows') }}
-        run: |
-          set -ex
-      
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-      
-      - name: Install Neko using snapshot from S3 (Windows)
-        if: ${{ startsWith(env.PLATFORM, 'windows') }}
-        shell: pwsh
-        run: |
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
-          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
-          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
-          echo "$NEKOPATH" >> $env:GITHUB_PATH
-          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
-      
-      - name: Print Neko version
-        run: neko -version 2>&1
-      
-      - name: Install dependencies
-        run: |
-          set -ex
-          sudo add-apt-repository ppa:avsm/ppa -y # provides OPAM 2
-          sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl
-      
-      - name: Install OCaml libraries
-        run: |
-          set -ex
-          opam init # --disable-sandboxing
-          opam update
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
-          opam list
-          ocamlopt -v
       
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-      
-      - name: Build Haxe
-        run: |
-          set -ex
-          eval $(opam env)
-          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
-          opam config exec -- make -s haxelib
-          make -s package_unix
-          ls -l out
-          ldd -v ./haxe
-          ldd -v ./haxelib
+
+      - name: Build
+        run: earthly +build-multiarch --ADD_REVISION=$ADD_REVISION
       
       # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
       - name: Extract branch name
@@ -307,15 +263,7 @@ jobs:
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
       
       - name: Build xmldoc
-        run: |
-          set -ex
-          make -s xmldoc
-          cat >extra/doc/info.json <<EOL
-            {
-              "commit": "$GITHUB_SHA",
-              "branch": "${{ steps.extract_branch.outputs.branch }}"
-            }
-          EOL
+        run: earthly +xmldoc --COMMIT=$GITHUB_SHA --BRANCH=${{ steps.extract_branch.outputs.branch }}
       
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v1.0.0
@@ -327,7 +275,13 @@ jobs:
         uses: actions/upload-artifact@v1.0.0
         with:
           name: linuxBinaries
-          path: out
+          path: out/linux/amd64
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linuxBinaries-arm64
+          path: out/linux/arm64
       
 
   mac-build:
