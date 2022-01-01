@@ -20,4 +20,25 @@ class TestDefaultTypeParameters extends Test {
 		t(HelperMacros.typeString((null : DefaultTPClass_yy<String>)).endsWith("DefaultTPClass_yy<String, String>"));
 		t(HelperMacros.typeString((null : DefaultTPClass_yy<Int, Int>)).endsWith("DefaultTPClass_yy<Int, Int>"));
 	}
+
+	macro static function printThings() {
+		var pr = new haxe.macro.Printer();
+		var tds = [
+			macro class DefaultTPClass_y<T=String> {},
+			macro class DefaultTPClass_yn<S=String, T> {},
+			macro class DefaultTPClass_ny<S, T=String > {},
+			macro class DefaultTPClass_yy<S=Int, T=String> {},
+		];
+		return macro $v{[for (td in tds) pr.printTypeDefinition(td).replace("\r", "").replace("\n", "")]};
+	}
+
+	function testPrinting() {
+		var expected = [
+			"class DefaultTPClass_y<T=String> {}",
+			"class DefaultTPClass_yn<S=String, T> {}",
+			"class DefaultTPClass_ny<S, T=String> {}",
+			"class DefaultTPClass_yy<S=Int, T=String> {}"
+		];
+		Assert.same(expected, printThings());
+	}
 }
