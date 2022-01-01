@@ -786,19 +786,27 @@ let field_to_type_path ctx e =
 	in
 	loop e [] []
 
-let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
+type type_param_host =
+	| TPHType
+	| TPHConstructor
+	| TPHMethod
+	| TPHEnumConstructor
+
+let rec type_type_param ctx host path get_params p tp =
 	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
-	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
+	c.cl_params <- type_type_params ctx host c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
-	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
+	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,extract_param_types c.cl_params) in
 	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	let default = match tp.tp_default with
-		| None -> None
-		| Some ct -> Some (load_complex_type ctx true ct)
+		| None ->
+			None
+		| Some ct ->
+			Some (load_complex_type ctx true ct)
 	in
 	match tp.tp_constraints with
 	| None ->
@@ -828,12 +836,12 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 		) "constraint" in
 		mk_type_param n (TLazy r) default
 
-and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
+and type_type_params ctx host path get_params p tpl =
 	let names = ref [] in
 	List.map (fun tp ->
 		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
 		names := (fst tp.tp_name) :: !names;
-		type_type_param ~enum_constructor ctx path get_params p tp
+		type_type_param ctx host path get_params p tp
 	) tpl
 
 let load_core_class ctx c =

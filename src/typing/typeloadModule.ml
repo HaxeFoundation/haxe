@@ -407,7 +407,7 @@ let module_pass_1 ctx m tdecls loadp =
 let load_enum_field ctx e et is_flat index c =
 	let p = c.ec_pos in
 	let params = ref [] in
-	params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
+	params := type_type_params ctx TPHEnumConstructor ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
 	let params = !params in
 	let ctx = { ctx with type_params = params @ ctx.type_params } in
 	let rt = (match c.ec_type with
@@ -912,7 +912,7 @@ let module_pass_2 ctx m decls tdecls p =
 	List.iter (fun d ->
 		match d with
 		| (TClassDecl c, (EClass d, p)) ->
-			c.cl_params <- type_type_params ctx c.cl_path (fun() -> c.cl_params) p d.d_params;
+			c.cl_params <- type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) p d.d_params;
 			if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 			if Meta.has Meta.GenericBuild c.cl_meta then begin
 				if ctx.in_macro then typing_error "@:genericBuild cannot be used in macros" c.cl_pos;
@@ -920,11 +920,11 @@ let module_pass_2 ctx m decls tdecls p =
 			end;
 			if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		| (TEnumDecl e, (EEnum d, p)) ->
-			e.e_params <- type_type_params ctx e.e_path (fun() -> e.e_params) p d.d_params;
+			e.e_params <- type_type_params ctx TPHType e.e_path (fun() -> e.e_params) p d.d_params;
 		| (TTypeDecl t, (ETypedef d, p)) ->
-			t.t_params <- type_type_params ctx t.t_path (fun() -> t.t_params) p d.d_params;
+			t.t_params <- type_type_params ctx TPHType t.t_path (fun() -> t.t_params) p d.d_params;
 		| (TAbstractDecl a, (EAbstract d, p)) ->
-			a.a_params <- type_type_params ctx a.a_path (fun() -> a.a_params) p d.d_params;
+			a.a_params <- type_type_params ctx TPHType a.a_path (fun() -> a.a_params) p d.d_params;
 		| _ ->
 			die "" __LOC__
 	) decls;

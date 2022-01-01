@@ -47,7 +47,7 @@ let save_field_state ctx =
 
 let type_function_params ctx fd fname p =
 	let params = ref [] in
-	params := Typeload.type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
+	params := Typeload.type_type_params ctx TPHMethod ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
 let type_function ctx (args : function_arguments) ret fmode e do_display p =
