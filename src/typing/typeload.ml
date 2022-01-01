@@ -806,7 +806,16 @@ let rec type_type_param ctx host path get_params p tp =
 		| None ->
 			None
 		| Some ct ->
-			Some (load_complex_type ctx true ct)
+			let t = load_complex_type ctx true ct in
+			begin match host with
+			| TPHType ->
+				()
+			| TPHConstructor
+			| TPHMethod
+			| TPHEnumConstructor ->
+				display_error ctx "Default type parameters are only supported on types" (pos ct)
+			end;
+			Some t
 	in
 	match tp.tp_constraints with
 	| None ->
