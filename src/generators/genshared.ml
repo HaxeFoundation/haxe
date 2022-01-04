@@ -141,7 +141,7 @@ object(self)
 			begin try
 				Some (Hashtbl.find pfms td.t_path)
 			with Not_found ->
-				self#identify accept_anons (apply_params td.t_params tl td.t_type)
+				self#identify accept_anons (apply_typedef td tl)
 			end
 		| TMono {tm_type = Some t} ->
 			self#identify accept_anons t
@@ -195,7 +195,7 @@ module Info = struct
 
 		method get_class_info (c : tclass) =
 			let rec loop ml = match ml with
-			| (Meta.Custom ":jvm.classInfo",[(EConst (Int s),_)],_) :: _ ->
+			| (Meta.Custom ":jvm.classInfo",[(EConst (Int (s, _)),_)],_) :: _ ->
 				DynArray.get class_infos (int_of_string s)
 			| _ :: ml ->
 				loop ml
@@ -206,7 +206,7 @@ module Info = struct
 					implicit_ctors = PMap.empty;
 				} in
 				DynArray.add class_infos infos;
-				c.cl_meta <- (Meta.Custom ":jvm.classInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: c.cl_meta;
+				c.cl_meta <- (Meta.Custom ":jvm.classInfo",[(EConst (Int (string_of_int index, None)),null_pos)],null_pos) :: c.cl_meta;
 				infos
 			in
 			loop c.cl_meta
@@ -241,7 +241,7 @@ object(self)
 
 	method get_field_info (ml : metadata) =
 		let rec loop ml = match ml with
-		| (Meta.Custom ":jvm.fieldInfo",[(EConst (Int s),_)],_) :: _ ->
+		| (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (s, _)),_)],_) :: _ ->
 			Some (DynArray.get field_infos (int_of_string s))
 		| _ :: ml ->
 			loop ml
@@ -367,7 +367,7 @@ object(self)
 					let info = self#preprocess_constructor_expr c cf e in
 					let index = DynArray.length field_infos in
 					DynArray.add field_infos info;
-					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: cf.cf_meta;
+					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index, None)),null_pos)],null_pos) :: cf.cf_meta;
 					if not (Meta.has Meta.HxGen cf.cf_meta) then begin
 						let rec loop next c =
 							if (has_class_flag c CExtern) then make_native cf
@@ -450,7 +450,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 			| Some(c,_) -> self#process_class c
 			| None -> ()
 		end;
-		let tc = TInst(c,List.map snd c.cl_params) in
+		let tc = TInst(c,extract_param_types c.cl_params) in
 		let l = Hashtbl.fold (fun _ pfm acc ->
 			let path = pfm.pfm_path in
 			let path_inner = (fst path,snd path ^ "$Interface") in

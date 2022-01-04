@@ -207,11 +207,13 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	}
 
 	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetExists(offset:Int):Bool {
 		return offset < length;
 	}
 
 	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetGet(offset:Int):Ref<T> {
 		try {
 			return arr[offset];
@@ -221,6 +223,7 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	}
 
 	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetSet(offset:Int, value:T):Void {
 		if (length <= offset) {
 			for(i in length...offset + 1) {
@@ -233,6 +236,7 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	}
 
 	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetUnset(offset:Int):Void {
 		if (offset >= 0 && offset < length) {
 			Global.array_splice(arr, offset, 1);
@@ -241,17 +245,20 @@ final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate
 	}
 
 	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	private function getIterator():Traversable {
 		return new NativeArrayIterator(arr);
 	}
 
 	@:noCompletion @:keep
 	@:native('count') //to not interfere with `Lambda.count`
+	@:php.attribute('\\ReturnTypeWillChange')
 	private function _hx_count():Int {
 		return length;
 	}
 
 	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function jsonSerialize():NativeIndexedArray<T> {
 		return arr;
 	}

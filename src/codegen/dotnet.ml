@@ -265,9 +265,9 @@ let convert_ilenum ctx p ?(is_flag=false) ilcls =
 				| Some IChar i
 				| Some IByte i
 				| Some IShort i ->
-					[Meta.CsNative, [EConst (Int (string_of_int i) ), p], p ], Int64.of_int i
+					[Meta.CsNative, [EConst (Int (string_of_int i, None) ), p], p ], Int64.of_int i
 				| Some IInt i ->
-					[Meta.CsNative, [EConst (Int (Int32.to_string i) ), p], p ], Int64.of_int32 i
+					[Meta.CsNative, [EConst (Int (Int32.to_string i, None) ), p], p ], Int64.of_int32 i
 				| Some IFloat32 f | Some IFloat64 f ->
 					[], Int64.of_float f
 				| Some IInt64 i ->
@@ -473,6 +473,7 @@ let convert_ilmethod ctx p is_interface m is_explicit_impl =
 				tp_name = "M" ^ string_of_int t.tnumber,null_pos;
 				tp_params = [];
 				tp_constraints = None;
+				tp_default = None;
 				tp_meta = [];
 			}
 		) m.mtypes in
@@ -643,6 +644,7 @@ let convert_delegate ctx p ilcls =
 			tp_name = ("T" ^ string_of_int t.tnumber),null_pos;
 			tp_params = [];
 			tp_constraints = None;
+			tp_default = None;
 			tp_meta = [];
 		}
 	) ilcls.ctypes in
@@ -816,6 +818,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 					tp_name = "T" ^ string_of_int p.tnumber,null_pos;
 					tp_params = [];
 					tp_constraints = None;
+					tp_default = None;
 					tp_meta = [];
 				}) ilcls.ctypes
 			in

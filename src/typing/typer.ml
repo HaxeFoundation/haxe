@@ -325,7 +325,7 @@ let rec type_ident_raise ctx i p mode with_type =
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
-		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
+		let c , t , f = class_field ctx ctx.curclass (extract_param_types ctx.curclass.cl_params) i p in
 		field_access ctx mode f (match c with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
@@ -336,7 +336,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			typing_error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e,fa = match ctx.curclass.cl_kind with
 			| KAbstractImpl a when is_impl && not is_enum ->
-				let tl = List.map snd a.a_params in
+				let tl = extract_param_types a.a_params in
 				let e = get_this ctx p in
 				let e = {e with etype = TAbstract(a,tl)} in
 				e,FHAbstract(a,tl,ctx.curclass)
@@ -377,7 +377,7 @@ let rec type_ident_raise ctx i p mode with_type =
 								| Var {v_read = AccInline} -> true
 								|  _ -> false
 							in
-							let fa = FieldAccess.create et cf (FHAbstract(a,List.map snd a.a_params,c)) inline p in
+							let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
 							ImportHandling.mark_import_position ctx pt;
 							AKField fa
 						end
@@ -419,12 +419,12 @@ and type_ident ctx i p mode with_type =
 	with Not_found ->
 		let resolved_to_type_parameter = ref false in
 		try
-			let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
+			let t = List.find (fun tp -> tp.ttp_name = i) ctx.type_params in
 			resolved_to_type_parameter := true;
-			let c = match follow (snd t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
+			let c = match follow (extract_param_type t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
 				let e = type_module_type ctx (TClassDecl c) None p in
-				AKExpr {e with etype = (snd t)}
+				AKExpr {e with etype = (extract_param_type t)}
 			end else
 				raise Not_found
 		with Not_found ->
@@ -1444,8 +1444,12 @@ and type_cast ctx e t p =
 	let texpr = loop t in
 	mk (TCast (type_expr ctx e WithType.value,Some texpr)) t p
 
-and type_if ctx e e1 e2 with_type p =
+and type_if ctx e e1 e2 with_type is_ternary p =
 	let e = type_expr ctx e WithType.value in
+	if is_ternary then begin match e.eexpr with
+		| TConst TNull -> typing_error "Cannot use null as ternary condition" e.epos
+		| _ -> ()
+	end;
 	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	(match e2 with
@@ -1669,6 +1673,33 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,SSingleQuotes)) when s <> "" ->
 		type_expr ctx (format_string ctx s p) with_type
+	| EConst (Int (s, Some suffix)) ->
+		(match suffix with
+		| "i32" ->
+			(try mk (TConst (TInt (Int32.of_string s))) ctx.com.basic.tint p
+			with _ -> typing_error ("Cannot represent " ^ s ^ " with a 32 bit integer") p)
+		| "i64" ->
+			if String.length s > 18 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
+
+			let i64  = Int64.of_string s in
+			let high = Int64.to_int32 (Int64.shift_right i64 32) in
+			let low  = Int64.to_int32 i64 in
+
+			let ident = EConst (Ident "haxe"), p in
+			let field = EField ((EField (ident, "Int64"), p), "make"), p in
+
+			let arg_high = EConst (Int (Int32.to_string high, None)), p in
+			let arg_low  = EConst (Int (Int32.to_string low, None)), p in
+			let call     = ECall (field, [ arg_high; arg_low ]), p in
+			type_expr ctx call with_type
+		| "u32" ->
+			let check = ECheckType ((EConst (Int (s, None)), p), (CTPath (mk_type_path ([],"UInt")), p)), p in
+			type_expr ctx check with_type
+		| other -> typing_error (other ^ " is not a valid integer suffix") p)
+	| EConst (Float (s, Some suffix) as c) ->
+		(match suffix with
+		| "f64" -> Texpr.type_constant ctx.com.basic c p
+		| other -> typing_error (other ^ " is not a valid float suffix") p)
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->
@@ -1722,9 +1753,9 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EFor (it,e2) ->
 		ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
 	| ETernary (e1,e2,e3) ->
-		type_expr ctx (EIf (e1,e2,Some e3),p) with_type
+		type_if ctx e1 e2 (Some e3) with_type true p
 	| EIf (e,e1,e2) ->
-		type_if ctx e e1 e2 with_type p
+		type_if ctx e e1 e2 with_type false p
 	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond WithType.value in
@@ -1924,7 +1955,7 @@ let rec create com =
 			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
-			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
+			| "Dynamic" -> t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
 			| "Null" ->
 				let mk_null t =
 					try

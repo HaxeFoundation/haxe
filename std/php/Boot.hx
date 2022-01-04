@@ -59,7 +59,7 @@ class Boot {
 	static function __init__() {
 		Global.mb_internal_encoding('UTF-8');
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
-			var previousLevel = Global.error_reporting(Const.E_ALL);
+			var previousLevel = Global.error_reporting(Const.E_ALL & ~Const.E_DEPRECATED);
 			var previousHandler = Global.set_error_handler(function(errno:Int, errstr:String, errfile:String, errline:Int) {
 				if (Global.error_reporting() & errno == 0) {
 					return false;

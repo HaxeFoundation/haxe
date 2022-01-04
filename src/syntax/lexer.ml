@@ -111,6 +111,25 @@ let is_valid_identifier s =
 		with Exit ->
 			false
 
+let split_int_suffix s =
+	let is_signed = String.contains s 'i' in
+	match String.index_opt s (if is_signed then 'i' else 'u') with
+	| Some pivot ->
+		let literal = String.sub s 0 pivot in
+		let suffix  = String.sub s pivot ((String.length s) - pivot) in
+		Const (Int (literal, Some suffix))
+	| None ->
+		Const (Int (s, None))
+
+let split_float_suffix s =
+	match String.index_opt s 'f' with
+	| Some pivot ->
+		let literal = String.sub s 0 pivot in
+		let suffix  = String.sub s pivot ((String.length s) - pivot) in
+		Const (Float (literal, Some suffix))
+	| None ->
+		Const (Float (s, None))
+
 let init file =
 	let f = make_file file in
 	cur := f;
@@ -307,6 +326,10 @@ let sep_hex_digit = [%sedlex.regexp? Opt '_', hex_digit]
 let hex_digits = [%sedlex.regexp? (hex_digit, Star sep_hex_digit)]
 let integer = [%sedlex.regexp? ('1'..'9', Star sep_digit) | '0']
 
+let integer_suffix = [%sedlex.regexp? ('i'|'u'), Plus integer]
+
+let float_suffix = [%sedlex.regexp? 'f', Plus integer]
+
 (* https://www.w3.org/TR/xml/#sec-common-syn plus '$' for JSX *)
 let xml_name_start_char = [%sedlex.regexp? '$' | ':' | 'A'..'Z' | '_' | 'a'..'z' | 0xC0 .. 0xD6 | 0xD8 .. 0xF6 | 0xF8 .. 0x2FF | 0x370 .. 0x37D | 0x37F .. 0x1FFF | 0x200C .. 0x200D | 0x2070 .. 0x218F | 0x2C00 .. 0x2FEF | 0x3001 .. 0xD7FF | 0xF900 .. 0xFDCF | 0xFDF0 .. 0xFFFD | 0x10000 .. 0xEFFFF]
 let xml_name_char = [%sedlex.regexp? xml_name_start_char | '-' | '.' | '0'..'9' | 0xB7 | 0x0300 .. 0x036F | 0x203F .. 0x2040]
@@ -325,12 +348,16 @@ let rec token lexbuf =
 	| Plus (Chars " \t") -> token lexbuf
 	| "\r\n" -> newline lexbuf; token lexbuf
 	| '\n' | '\r' -> newline lexbuf; token lexbuf
-	| "0x", Plus hex_digits -> mk lexbuf (Const (Int (lexeme lexbuf)))
-	| integer -> mk lexbuf (Const (Int (lexeme lexbuf)))
-	| integer, '.', Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| '.', Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, '.', Star digit, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits -> mk lexbuf (Const (Float (lexeme lexbuf)))
+	| "0x", Plus hex_digits, Opt integer_suffix ->
+		mk lexbuf (split_int_suffix (lexeme lexbuf))
+	| integer, Opt integer_suffix ->
+		mk lexbuf (split_int_suffix (lexeme lexbuf))
+	| integer, float_suffix ->
+		mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, '.', Star digit, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| integer, "..." ->
 		let s = lexeme lexbuf in
 		mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))

@@ -110,7 +110,7 @@ let rec is_null t =
 	match t with
 		| TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
 		| TAbstract( { a_path = ([], "Null") }, _ ) -> true
-		| TType( t, tl ) -> is_null (apply_params t.t_params tl t.t_type)
+		| TType( t, tl ) -> is_null (apply_typedef t tl)
 		| TMono r ->
 			(match r.tm_type with
 			| Some t -> is_null t
@@ -158,7 +158,7 @@ let get_overloads_for_optional_args gen cl cf is_static =
 	| [],Method (MethNormal | MethDynamic | MethInline) ->
 		(match cf.cf_expr, follow cf.cf_type with
 		| Some ({ eexpr = TFunction fn } as method_expr), TFun (args, return_type) ->
-			let type_params = List.map snd cl.cl_params in
+			let type_params = extract_param_types cl.cl_params in
 			let rec collect_overloads tf_args_rev args_rev default_values_rev =
 				match tf_args_rev, args_rev with
 				| (_, Some default_value) :: rest_tf_args_rev, _ :: rest_args_rev ->
@@ -1466,7 +1466,7 @@ let generate con =
 						)
 					| TParenthesis e ->
 						write w "("; expr_s w e; write w ")"
-					| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+					| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 						(match e.eexpr with
 						| TFor _ | TWhile _ ->
 							expr_s w e;
@@ -1899,7 +1899,7 @@ let generate con =
 
 		let rec gen_spart w = function
 			| EConst c, p -> (match c with
-				| Int s | Float s | Ident s ->
+				| Int (s, _) | Float (s, _) | Ident s ->
 					write w s
 				| String(s,_) ->
 					write w "\"";
@@ -2013,12 +2013,12 @@ let generate con =
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
-					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
+					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
-							List.fold_left (fun acc (name, t) ->
+							List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
 								match run_follow gen t with
 									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
 										(* base class should come before interface constraints *)
@@ -2327,7 +2327,7 @@ let generate con =
 					let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 					let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
 					let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
-					let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+					let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, extract_param_types cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 					let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> die "" __LOC__ in
 					gen_nocompletion w cf.cf_meta;
 
@@ -2568,7 +2568,7 @@ let generate con =
 						let this = if static then
 							make_static_this cl f.cf_pos
 						else
-							{ eexpr = TConst TThis; etype = TInst(cl,List.map snd cl.cl_params); epos = f.cf_pos }
+							{ eexpr = TConst TThis; etype = TInst(cl,extract_param_types cl.cl_params); epos = f.cf_pos }
 						in
 						print w "public %s%s %s" (if static then "static " else "") (t_s f.cf_type) (Dotnet.netname_to_hx f.cf_name);
 						begin_block w;
@@ -2633,7 +2633,7 @@ let generate con =
 					else
 						"object" :: (loop (pred i) acc)
 				in
-				let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> die "" __LOC__) [] in
+				let tparams = loop (match m with [(EConst(Int (s, _)),_)] -> int_of_string s | _ -> die "" __LOC__) [] in
 				cl.cl_meta <- (Meta.Meta, [
 					EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))",SDoubleQuotes) ), cl.cl_pos
 				], cl.cl_pos) :: cl.cl_meta
@@ -2755,11 +2755,11 @@ let generate con =
 
 				let events, nonprops = !events, !nonprops in
 
-				let t = TInst(cl, List.map snd cl.cl_params) in
+				let t = TInst(cl, extract_param_types cl.cl_params) in
 				let find_prop name = try
 						List.assoc name !props
 					with | Not_found -> match field_access gen t name with
-						| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,List.map snd cl.cl_params)) name ->
+						| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,extract_param_types cl.cl_params)) name ->
 							let ret = ref (v,t,None,None) in
 							props := (name, ret) :: !props;
 							ret

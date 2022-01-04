@@ -297,7 +297,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_forward f Meta.Forward a
 	in
 	let type_field_by_typedef f e td tl =
-		f e (follow_without_type (apply_params td.t_params tl td.t_type))
+		f e (follow_without_type (apply_typedef td tl))
 	in
 	let type_field_by_interfaces e c =
 		(* For extern lib types we didn't go through check_interfaces and check_abstract_class, which handles some field

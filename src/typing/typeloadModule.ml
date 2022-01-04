@@ -83,9 +83,9 @@ module StrictMeta = struct
 		| TField(e,f) ->
 			(EField(process_meta_argument ~toplevel:false ctx e,field_name f),expr.epos)
 		| TConst(TInt i) ->
-			(EConst(Int (Int32.to_string i)), expr.epos)
+			(EConst(Int (Int32.to_string i, None)), expr.epos)
 		| TConst(TFloat f) ->
-			(EConst(Float f), expr.epos)
+			(EConst(Float (f, None)), expr.epos)
 		| TConst(TString s) ->
 			(EConst(String(s,SDoubleQuotes)), expr.epos)
 		| TConst TNull ->
@@ -284,16 +284,9 @@ let module_pass_1 ctx m tdecls loadp =
 			has_declaration := true;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv d.d_meta p in
-			let t = {
-				t_path = path;
-				t_module = m;
-				t_pos = p;
-				t_name_pos = pos d.d_name;
+			let t = {(mk_typedef m path p (pos d.d_name) (mk_mono())) with
 				t_doc = d.d_doc;
 				t_private = priv;
-				t_params = [];
-				t_using = [];
-				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
 			(* failsafe in case the typedef is not initialized (see #3933) *)
@@ -414,7 +407,7 @@ let module_pass_1 ctx m tdecls loadp =
 let load_enum_field ctx e et is_flat index c =
 	let p = c.ec_pos in
 	let params = ref [] in
-	params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
+	params := type_type_params ctx TPHEnumConstructor ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
 	let params = !params in
 	let ctx = { ctx with type_params = params @ ctx.type_params } in
 	let rt = (match c.ec_type with
@@ -516,17 +509,11 @@ let init_module_type ctx context_init (decl,p) =
 					typing_error "Type aliases must start with an uppercase letter" p;
 				let _, _, f = ctx.g.do_build_instance ctx t p_type in
 				(* create a temp private typedef, does not register it in module *)
-				let mt = TTypeDecl {
-					t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
-					t_module = ctx.m.curmod;
-					t_pos = p;
-					t_name_pos = p;
+				let t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name) in
+				let t_type = f (extract_param_types (t_infos t).mt_params) in
+				let mt = TTypeDecl {(mk_typedef ctx.m.curmod t_path p p t_type) with
 					t_private = true;
-					t_doc = None;
-					t_meta = [];
-					t_params = (t_infos t).mt_params;
-					t_using = [];
-					t_type = f (List.map snd (t_infos t).mt_params);
+					t_params = (t_infos t).mt_params
 				} in
 				if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
 					DisplayEmitter.display_module_type ctx mt p;
@@ -673,7 +660,7 @@ let init_module_type ctx context_init (decl,p) =
 					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
-					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
+					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
 				with TypeloadCheck.Build_canceled state ->
 					c.cl_build <- make_pass ctx build;
@@ -770,7 +757,7 @@ let init_module_type ctx context_init (decl,p) =
 				) fields
 			| _ -> typing_error "Enum build macro must return a single variable with anonymous object fields" p
 		);
-		let et = TEnum (e,List.map snd e.e_params) in
+		let et = TEnum (e,extract_param_types e.e_params) in
 		let names = ref [] in
 		let index = ref 0 in
 		let is_flat = ref true in
@@ -829,7 +816,7 @@ let init_module_type ctx context_init (decl,p) =
 						check_rec (lazy_type f);
 					| TType (td,tl) ->
 						if td == t then typing_error "Recursive typedef is not allowed" p;
-						check_rec (apply_params td.t_params tl td.t_type)
+						check_rec (apply_typedef td tl)
 					| _ ->
 						()
 				in
@@ -909,7 +896,7 @@ let init_module_type ctx context_init (decl,p) =
 		a.a_to <- List.rev a.a_to;
 		if not !is_type then begin
 			if Meta.has Meta.CoreType a.a_meta then
-				a.a_this <- TAbstract(a,List.map snd a.a_params)
+				a.a_this <- TAbstract(a,extract_param_types a.a_params)
 			else
 				typing_error "Abstract is missing underlying type declaration" a.a_pos
 		end;
@@ -925,7 +912,7 @@ let module_pass_2 ctx m decls tdecls p =
 	List.iter (fun d ->
 		match d with
 		| (TClassDecl c, (EClass d, p)) ->
-			c.cl_params <- type_type_params ctx c.cl_path (fun() -> c.cl_params) p d.d_params;
+			c.cl_params <- type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) p d.d_params;
 			if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 			if Meta.has Meta.GenericBuild c.cl_meta then begin
 				if ctx.in_macro then typing_error "@:genericBuild cannot be used in macros" c.cl_pos;
@@ -933,11 +920,11 @@ let module_pass_2 ctx m decls tdecls p =
 			end;
 			if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		| (TEnumDecl e, (EEnum d, p)) ->
-			e.e_params <- type_type_params ctx e.e_path (fun() -> e.e_params) p d.d_params;
+			e.e_params <- type_type_params ctx TPHType e.e_path (fun() -> e.e_params) p d.d_params;
 		| (TTypeDecl t, (ETypedef d, p)) ->
-			t.t_params <- type_type_params ctx t.t_path (fun() -> t.t_params) p d.d_params;
+			t.t_params <- type_type_params ctx TPHType t.t_path (fun() -> t.t_params) p d.d_params;
 		| (TAbstractDecl a, (EAbstract d, p)) ->
-			a.a_params <- type_type_params ctx a.a_path (fun() -> a.a_params) p d.d_params;
+			a.a_params <- type_type_params ctx TPHType a.a_path (fun() -> a.a_params) p d.d_params;
 		| _ ->
 			die "" __LOC__
 	) decls;

@@ -135,6 +135,20 @@ let mk_class m path pos name_pos =
 		cl_descendants = [];
 	}
 
+let mk_typedef m path pos name_pos t =
+	{
+		t_path = path;
+		t_module = m;
+		t_pos = pos;
+		t_name_pos = name_pos;
+		t_private = false;
+		t_doc = None;
+		t_meta = [];
+		t_params = [];
+		t_using = [];
+		t_type = t;
+	}
+
 let module_extra file sign time kind policy =
 	{
 		m_file = Path.UniqueKey.create_lazy file;
@@ -330,8 +344,8 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
-		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| {ttp_type = TLazy f} as tp :: l1, _ -> loop ({tp with ttp_type = lazy_type f} :: l1) l2
+		| tp :: l1 , t2 :: l2 -> (tp.ttp_type,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
@@ -436,6 +450,9 @@ let apply_params ?stack cparams params t =
 	in
 	loop t
 
+let apply_typedef td tl =
+	apply_params td.t_params tl td.t_type
+
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
@@ -463,7 +480,7 @@ let rec follow t =
 	| TLazy f ->
 		follow (lazy_type f)
 	| TType (t,tl) ->
-		follow (apply_params t.t_params tl t.t_type)
+		follow (apply_typedef t tl)
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		follow t
 	| _ -> t
@@ -477,7 +494,7 @@ let follow_once t =
 	| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 		t
 	| TType (t,tl) ->
-		apply_params t.t_params tl t.t_type
+		apply_typedef t tl
 	| TLazy f ->
 		lazy_type f
 
@@ -490,7 +507,7 @@ let rec follow_without_null t =
 	| TLazy f ->
 		follow_without_null (lazy_type f)
 	| TType (t,tl) ->
-		follow_without_null (apply_params t.t_params tl t.t_type)
+		follow_without_null (apply_typedef t tl)
 	| _ -> t
 
 let rec follow_without_type t =
@@ -522,7 +539,7 @@ let rec is_nullable ?(no_lazy=false) = function
 		| _ -> is_nullable (lazy_type f)
 		)
 	| TType (t,tl) ->
-		is_nullable ~no_lazy (apply_params t.t_params tl t.t_type)
+		is_nullable ~no_lazy (apply_typedef t tl)
 	| TFun _ ->
 		false
 (*
@@ -553,7 +570,7 @@ let rec is_null ?(no_lazy=false) = function
 		| _ -> is_null (lazy_type f)
 		)
 	| TType (t,tl) ->
-		is_null ~no_lazy (apply_params t.t_params tl t.t_type)
+		is_null ~no_lazy (apply_typedef t tl)
 	| _ ->
 		false
 
@@ -566,7 +583,7 @@ let rec is_explicit_null = function
 	| TLazy f ->
 		is_explicit_null (lazy_type f)
 	| TType (t,tl) ->
-		is_explicit_null (apply_params t.t_params tl t.t_type)
+		is_explicit_null (apply_typedef t tl)
 	| _ ->
 		false
 
@@ -593,11 +610,29 @@ let concat e1 e2 =
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
 
+let extract_param_type tp = tp.ttp_type
+let extract_param_types = List.map extract_param_type
+let extract_param_name tp = tp.ttp_name
+let lookup_param n l =
+	let rec loop l = match l with
+		| [] ->
+			raise Not_found
+		| tp :: l ->
+			if n = tp.ttp_name then tp.ttp_type else loop l
+	in
+	loop l
+
+let mk_type_param n t def = {
+	ttp_name = n;
+	ttp_type = t;
+	ttp_default = def;
+}
+
 let type_of_module_type = function
-	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
-	| TEnumDecl e -> TEnum (e,List.map snd e.e_params)
-	| TTypeDecl t -> TType (t,List.map snd t.t_params)
-	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
+	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)
+	| TEnumDecl e -> TEnum (e,extract_param_types e.e_params)
+	| TTypeDecl t -> TType (t,extract_param_types t.t_params)
+	| TAbstractDecl a -> TAbstract (a,extract_param_types a.a_params)
 
 let rec module_type_of_type = function
 	| TInst(c,_) -> TClassDecl c
@@ -613,8 +648,8 @@ let rec module_type_of_type = function
 		raise Exit
 
 let tconst_to_const = function
-	| TInt i -> Int (Int32.to_string i)
-	| TFloat s -> Float s
+	| TInt i -> Int (Int32.to_string i, None)
+	| TFloat s -> Float (s, None)
 	| TString s -> String(s,SDoubleQuotes)
 	| TBool b -> Ident (if b then "true" else "false")
 	| TNull -> Ident "null"

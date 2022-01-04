@@ -12,14 +12,14 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 		let rec loop params1 params2 = match params1,params2 with
 			| [],[] ->
 				true
-			| (n1,t1) :: params1,(n2,t2) :: params2 ->
+			| tp1 :: params1,tp2 :: params2 ->
 				let constraints_equal t1 t2 = match follow t1,t2 with
 					| TInst({cl_kind = KTypeParameter tl1},_),TInst({cl_kind = KTypeParameter tl2},_) ->
 						Ast.safe_for_all2 f_eq tl1 tl2
 					| _ ->
 						false
 				in
-				n1 = n2 && constraints_equal t1 t2 && loop params1 params2
+				tp1.ttp_name = tp2.ttp_name && constraints_equal tp1.ttp_type tp2.ttp_type && loop params1 params2
 			| [],_
 			| _,[] ->
 				false
@@ -39,7 +39,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 		loop tl1 tl2
 	in
 	let compare_types () =
-		let t1 = follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1) in
+		let t1 = follow (apply_params f1.cf_params (extract_param_types f2.cf_params) t1) in
 		match t1,follow t2 with
 		| TFun(tl1,_),TFun(tl2,_) ->
 			compare_arguments tl1 tl2
@@ -106,7 +106,7 @@ struct
 			t
 		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
 		| TType(t, tl) ->
-			simplify_t (apply_params t.t_params tl t.t_type)
+			simplify_t (apply_typedef t tl)
 		| TMono r -> (match r.tm_type with
 			| Some t -> simplify_t t
 			| None -> t_dynamic)

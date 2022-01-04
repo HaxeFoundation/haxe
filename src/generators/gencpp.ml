@@ -804,7 +804,7 @@ and type_string_suff suffix haxe_type remap =
          | _ -> die "" __LOC__)
       | ["cpp"] , "Function" ->
          "::cpp::Function< " ^ (cpp_function_signature_params params ) ^ " >"
-      | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type) remap
+      | _ ->  type_string_suff suffix (apply_typedef type_def params) remap
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
    | TAnon a -> "Dynamic"
@@ -1773,7 +1773,7 @@ let rec cpp_type_of stack ctx haxe_type =
 
       | TType (type_def,params) ->
          cpp_type_from_path stack ctx type_def.t_path params (fun () ->
-            cpp_type_of stack ctx (apply_params type_def.t_params params type_def.t_type) )
+            cpp_type_of stack ctx (apply_typedef type_def params) )
 
       | TFun _ -> TCppObject
       | TAnon _ -> TCppObject
@@ -4713,7 +4713,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (if return_type="Void" then "void" else return_type );
          output (" " ^ remap_name ^ "(" );
          output (ctx_arg_list ctx tl "" );
-         output ") = 0;\n";
+         output (") " ^ (if return_type="void" then "{}" else "{ return 0; }" ) ^ "\n");
          if doDynamic then
             output ("		::Dynamic " ^ remap_name ^ "_dyn();\n" );
       | _ when has_decl ->
@@ -6503,7 +6503,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let class_name_text = join_class_path class_path "." in
 
    (* Initialise static in boot function ... *)
-   if (not (has_class_flag class_def CInterface) && not nativeGen) && not (has_class_flag class_def CAbstract) then begin
+   if (not (has_class_flag class_def CInterface) && not nativeGen) then begin
       (* Remap the specialised "extern" classes back to the generic names *)
       output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
@@ -6527,13 +6527,17 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       in
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-      output_cpp ("\t" ^ class_name ^ " _hx_dummy;\n");
-      output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)&_hx_dummy;\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_cpp ("\t" ^ class_name ^ " _hx_dummy;\n");
+         output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)&_hx_dummy;\n");
+      end;
       output_cpp ("\t::hx::Static(__mClass) = new ::hx::Class_obj();\n");
       output_cpp ("\t__mClass->mName = " ^  (strq class_name_text)  ^ ";\n");
       output_cpp ("\t__mClass->mSuper = &super::__SGetClass();\n");
-      output_cpp ("\t__mClass->mConstructEmpty = &__CreateEmpty;\n");
-      output_cpp ("\t__mClass->mConstructArgs = &__Create;\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_cpp ("\t__mClass->mConstructEmpty = &__CreateEmpty;\n");
+         output_cpp ("\t__mClass->mConstructArgs = &__Create;\n");
+      end;
       output_cpp ("\t__mClass->mGetStaticField = &" ^ (
          if (has_get_static_field class_def) then class_name ^ "::__GetStatic;\n" else "::hx::Class_obj::GetNoStaticField;\n" ));
       output_cpp ("\t__mClass->mSetStaticField = &" ^ (
@@ -6710,9 +6714,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
              output_h ("\t\tstatic " ^ptr_name^ " __alloc(::hx::Ctx *_hx_ctx" ^
                  (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
       end;
-      output_h ("\t\tstatic void * _hx_vtable;\n");
-      output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
-      output_h ("\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_h ("\t\tstatic void * _hx_vtable;\n");
+         output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
+         output_h ("\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
+      end;
       if (List.length dynamic_functions > 0) then
          output_h ("\t\tstatic void __alloc_dynamic_functions(::hx::Ctx *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
       if (scriptable) then

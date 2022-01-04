@@ -88,9 +88,9 @@ let rec find_multitype_params a pl =
 			loop (fun t -> t) e
 		) el;
 		let definitive_types = ref [] in
-		let tl = List.map2 (fun (n,_) t ->
+		let tl = List.map2 (fun tp t ->
 			try
-				let t = (Hashtbl.find relevant n) t in
+				let t = (Hashtbl.find relevant tp.ttp_name) t in
 				definitive_types := t :: !definitive_types;
 				t
 			with Not_found ->
@@ -119,7 +119,7 @@ and get_underlying_type ?(return_first=false) a pl =
 			| TAbstract({a_path=([],"Null")} as a,[t1]) ->
 				TAbstract(a,[loop t1])
 			| TType (t,tl) ->
-				loop (apply_params t.t_params tl t.t_type)
+				loop (apply_typedef t tl)
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				if rec_stack_exists (fast_eq t) underlying_type_stack then begin
 					let pctx = print_context() in
