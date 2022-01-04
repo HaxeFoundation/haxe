@@ -40,6 +40,11 @@ open Genshared
 let is_really_int t =
 	not (is_nullable t) && ExtType.is_int (follow t)
 
+(* Due to @:native, the usual String path doesn't match *)
+let is_string t = match t with
+| TInst({cl_path=([],"String") | (["java";"lang"],"String")},_) -> true
+| _ -> false
+
 let get_construction_mode c cf =
 	if Meta.has Meta.HxGen cf.cf_meta then ConstructInitPlusNew
 	else ConstructInit
@@ -1809,12 +1814,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| Not | Neg | NegBits when not (need_val ret) -> self#texpr ret e1
 			| _ -> self#unop ret op flag e1
 			end
-		| TBinop(OpAdd,e1,e2) when ExtType.is_string (follow e.etype) ->
+		| TBinop(OpAdd,e1,e2) when is_string (follow e.etype) ->
 			let string_builder_path = (["java";"lang"],"StringBuilder") in
 			let string_builder_sig = object_path_sig string_builder_path in
 			jm#construct ConstructInit string_builder_path (fun () -> []);
 			let rec loop e = match e.eexpr with
-				| TBinop(OpAdd,e1,e2) when ExtType.is_string (follow e.etype) ->
+				| TBinop(OpAdd,e1,e2) when is_string (follow e.etype) ->
 					loop e1;
 					loop e2;
 				| _ ->
