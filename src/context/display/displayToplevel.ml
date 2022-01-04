@@ -431,7 +431,7 @@ let collect ctx tk with_type sort =
 					| None -> ()
 				end
 			| FunMemberAbstract ->
-				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
+				let t = TInst(ctx.curclass,extract_param_types ctx.curclass.cl_params) in
 				add (make_ci_literal "abstract" (tpair t)) (Some "abstract");
 			| _ ->
 				()
