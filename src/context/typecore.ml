@@ -92,7 +92,7 @@ type typer_globals = {
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
 	do_optimize : typer -> texpr -> texpr;
-	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
+	do_build_instance : typer -> module_type -> pos -> (typed_type_param list * path * (t list -> t));
 	do_format_string : typer -> string -> pos -> Ast.expr;
 	do_finalize : typer -> unit;
 	do_generate : typer -> (texpr option * module_type list * module_def list);
@@ -117,7 +117,7 @@ and typer = {
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable tthis : t;
-	mutable type_params : (string * t) list;
+	mutable type_params : type_params;
 	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
 	mutable curfield : tclass_field;
@@ -562,7 +562,7 @@ let prepare_using_field cf = match follow cf.cf_type with
 	| TFun((_,_,tf) :: args,ret) ->
 		let rec loop acc overloads = match overloads with
 			| ({cf_type = TFun((_,_,tfo) :: args,ret)} as cfo) :: l ->
-				let tfo = apply_params cfo.cf_params (List.map snd cfo.cf_params) tfo in
+				let tfo = apply_params cfo.cf_params (extract_param_types cfo.cf_params) tfo in
 				(* ignore overloads which have a different first argument *)
 				if type_iseq tf tfo then loop ({cfo with cf_type = TFun(args,ret)} :: acc) l else loop acc l
 			| _ :: l ->

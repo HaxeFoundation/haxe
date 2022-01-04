@@ -103,7 +103,7 @@ struct
 			| _ -> ());
 		let c_types =
 			if handle_type_params then
-				List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_params
+				List.map (fun tp -> {tp with ttp_type=TInst (map_param (get_cl_t tp.ttp_type), [])}) en.e_params
 			else
 				[]
 		in
@@ -121,13 +121,13 @@ struct
 				| TFun(params,ret) ->
 					let dup_types =
 						if handle_type_params then
-							List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_params
+							List.map (fun tp -> {tp with ttp_type = TInst (map_param (get_cl_t tp.ttp_type), [])}) en.e_params
 						else
 							[]
 					in
 
 					let ef_type =
-						let fn, types = if handle_type_params then snd, dup_types else (fun _ -> t_dynamic), en.e_params in
+						let fn, types = if handle_type_params then extract_param_type, dup_types else (fun _ -> t_dynamic), en.e_params in
 						let t = apply_params en.e_params (List.map fn types) ef.ef_type in
 						apply_params ef.ef_params (List.map fn ef.ef_params) t
 					in
@@ -144,7 +144,7 @@ struct
 						eexpr = TFunction({
 							tf_args = tf_args;
 							tf_type = ret;
-							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
+							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,extract_param_types dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, extract_param_types dup_types); epos = pos } );
 						});
 						etype = ef_type;
 						epos = pos

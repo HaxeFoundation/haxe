@@ -77,7 +77,7 @@ let check_display_class ctx cc cfile c =
 		List.iter check_field c.cl_ordered_statics;
 	| _ ->
 		let sc = find_class_by_position cfile c.cl_name_pos in
-		ignore(Typeload.type_type_params ctx c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
+		ignore(Typeload.type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) null_pos sc.d_params);
 		List.iter (function
 			| (HExtends(ct,p) | HImplements(ct,p)) when display_position#enclosed_in p ->
 				ignore(Typeload.load_instance ~allow_display:true ctx (ct,p) false)
@@ -91,22 +91,22 @@ let check_display_class ctx cc cfile c =
 
 let check_display_enum ctx cc cfile en =
 	let se = find_enum_by_position cfile en.e_name_pos in
-	ignore(Typeload.type_type_params ctx en.e_path (fun() -> en.e_params) null_pos se.d_params);
+	ignore(Typeload.type_type_params ctx TPHType en.e_path (fun() -> en.e_params) null_pos se.d_params);
 	PMap.iter (fun _ ef ->
 		if display_position#enclosed_in ef.ef_pos then begin
 			let sef = find_enum_field_by_position se ef.ef_name_pos in
-			ignore(TypeloadModule.load_enum_field ctx en (TEnum (en,List.map snd en.e_params)) (ref false) (ref 0) sef)
+			ignore(TypeloadModule.load_enum_field ctx en (TEnum (en,extract_param_types en.e_params)) (ref false) (ref 0) sef)
 		end
 	) en.e_constrs
 
 let check_display_typedef ctx cc cfile td =
 	let st = find_typedef_by_position cfile td.t_name_pos in
-	ignore(Typeload.type_type_params ctx td.t_path (fun() -> td.t_params) null_pos st.d_params);
+	ignore(Typeload.type_type_params ctx TPHType td.t_path (fun() -> td.t_params) null_pos st.d_params);
 	ignore(Typeload.load_complex_type ctx true st.d_data)
 
 let check_display_abstract ctx cc cfile a =
 	let sa = find_abstract_by_position cfile a.a_name_pos in
-	ignore(Typeload.type_type_params ctx a.a_path (fun() -> a.a_params) null_pos sa.d_params);
+	ignore(Typeload.type_type_params ctx TPHType a.a_path (fun() -> a.a_params) null_pos sa.d_params);
 	List.iter (function
 		| (AbOver(ct,p) | AbFrom(ct,p) | AbTo(ct,p)) when display_position#enclosed_in p ->
 			ignore(Typeload.load_complex_type ctx true (ct,p))

@@ -376,7 +376,8 @@ let reify in_macro =
 			"name", to_placed_name t.tp_name;
 			"params", (EArrayDecl (List.map (to_tparam_decl p) t.tp_params),p);
 			"meta", to_meta t.tp_meta p;
-			"constraints", (EArrayDecl (match t.tp_constraints with None -> [] | Some th -> [to_ctype th p]),p)
+			"constraints", (EArrayDecl (match t.tp_constraints with None -> [] | Some th -> [to_ctype th p]),p);
+			"defaultType", to_opt to_ctype t.tp_default p;
 		] p
 	and to_type_def (t,p) =
 		match t with
