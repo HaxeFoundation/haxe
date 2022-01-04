@@ -281,6 +281,18 @@ let rec type_ident_raise ctx i p mode with_type =
 			AKExpr (get_this ctx p)
 		| (MCall _, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
+	| "abstract" ->
+		begin match mode, ctx.curclass.cl_kind with
+			| MSet _, KAbstractImpl ab -> typing_error "Property 'abstract' is read-only" p;
+			| (MGet, KAbstractImpl ab)
+			| (MCall _, KAbstractImpl ab) ->
+				let tl = List.map snd ab.a_params in
+				let e = get_this ctx p in
+				let e = {e with etype = TAbstract (ab,tl)} in
+				AKExpr e
+			| _ ->
+				typing_error "Property 'abstract' is reserved and only available in abstracts" p
+		end
 	| "super" ->
 		let t = (match ctx.curclass.cl_super with
 			| None -> typing_error "Current class does not have a superclass" p
