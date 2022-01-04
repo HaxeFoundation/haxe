@@ -51,6 +51,7 @@ function main() {
 		new TestOps(),
 		new TestBasetypes(),
 		new TestNumericSuffixes(),
+		new TestNumericSeparator(),
 		new TestExceptions(),
 		new TestBytes(),
 		new TestIO(),
