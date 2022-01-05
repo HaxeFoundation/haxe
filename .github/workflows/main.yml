@@ -232,7 +232,46 @@ jobs:
   linux-build:
     runs-on: ubuntu-20.04
     env:
-      PLATFORM: linux64
+      OPAMYES: 1
+    steps:  
+      - name: Install Earthly
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
+      - name: Build
+        run: earthly --platform=linux/amd64 +build --ADD_REVISION=$ADD_REVISION
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linuxBinaries
+          path: out/linux/amd64
+      
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      
+      - name: Build xmldoc
+        run: earthly +xmldoc --COMMIT=$GITHUB_SHA --BRANCH=${{ steps.extract_branch.outputs.branch }}
+      
+      - name: Upload xmldoc artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: xmldoc
+          path: extra/doc
+          
+  linux-arm64-build:
+    runs-on: ubuntu-20.04
+    env:
       OPAMYES: 1
     steps:
       - name: Set up QEMU
@@ -254,33 +293,12 @@ jobs:
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
       - name: Build
-        run: earthly +build-multiarch --ADD_REVISION=$ADD_REVISION
-      
-      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
-      - name: Extract branch name
-        id: extract_branch
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      
-      - name: Build xmldoc
-        run: earthly +xmldoc --COMMIT=$GITHUB_SHA --BRANCH=${{ steps.extract_branch.outputs.branch }}
-      
-      - name: Upload xmldoc artifact
-        uses: actions/upload-artifact@v1.0.0
-        with:
-          name: xmldoc
-          path: extra/doc
+        run: earthly --platform=linux/arm64 +build --ADD_REVISION=$ADD_REVISION
       
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
         with:
-          name: linuxBinaries
-          path: out/linux/amd64
-      
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1.0.0
-        with:
-          name: linuxBinaries-arm64
+          name: linuxArm64Binaries
           path: out/linux/arm64
       
 
