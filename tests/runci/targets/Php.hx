@@ -30,6 +30,7 @@ class Php {
 		}
 		switch systemName {
 			case "Linux":
+				// TODO: install php-sqlite3?
 				Linux.requireAptPackages(["php-cli", "php-mbstring"]);
 			case "Mac":
 				runCommand("brew", ["install", "php"], true);
