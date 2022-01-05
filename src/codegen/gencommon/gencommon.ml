@@ -1068,7 +1068,7 @@ let follow_module follow_func md = match md with
 	| TClassDecl _
 	| TEnumDecl _
 	| TAbstractDecl _ -> md
-	| TTypeDecl tdecl -> match (follow_func (TType(tdecl, List.map snd tdecl.t_params))) with
+	| TTypeDecl tdecl -> match (follow_func (TType(tdecl, extract_param_types tdecl.t_params))) with
 		| TInst(cl,_) -> TClassDecl cl
 		| TEnum(e,_) -> TEnumDecl e
 		| TType(t,_) -> TTypeDecl t
@@ -1188,7 +1188,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 				loop_cl (depth+1) sup tl tlch
 			) c.cl_implements
 	in
-	loop_cl 0 orig_cl (List.map snd orig_cl.cl_params) (List.map snd orig_cl.cl_params);
+	loop_cl 0 orig_cl (extract_param_types orig_cl.cl_params) (extract_param_types orig_cl.cl_params);
 	match !chosen with
 	| None ->
 		None
@@ -1296,7 +1296,7 @@ let field_access_esp gen t field = match field with
 		in
 		let p = match follow (run_follow gen t) with
 			| TInst(_,p) -> p
-			| _ -> List.map snd cl.cl_params
+			| _ -> extract_param_types cl.cl_params
 		in
 		FClassField(cl,p,cl,cf,static,cf.cf_type,cf.cf_type)
 	| _ -> field_access gen t (field_name field)

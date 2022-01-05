@@ -344,8 +344,8 @@ let apply_params ?stack cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
-		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| {ttp_type = TLazy f} as tp :: l1, _ -> loop ({tp with ttp_type = lazy_type f} :: l1) l2
+		| tp :: l1 , t2 :: l2 -> (tp.ttp_type,t2) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let subst = loop cparams params in
@@ -610,11 +610,29 @@ let concat e1 e2 =
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
 
+let extract_param_type tp = tp.ttp_type
+let extract_param_types = List.map extract_param_type
+let extract_param_name tp = tp.ttp_name
+let lookup_param n l =
+	let rec loop l = match l with
+		| [] ->
+			raise Not_found
+		| tp :: l ->
+			if n = tp.ttp_name then tp.ttp_type else loop l
+	in
+	loop l
+
+let mk_type_param n t def = {
+	ttp_name = n;
+	ttp_type = t;
+	ttp_default = def;
+}
+
 let type_of_module_type = function
-	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
-	| TEnumDecl e -> TEnum (e,List.map snd e.e_params)
-	| TTypeDecl t -> TType (t,List.map snd t.t_params)
-	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
+	| TClassDecl c -> TInst (c,extract_param_types c.cl_params)
+	| TEnumDecl e -> TEnum (e,extract_param_types e.e_params)
+	| TTypeDecl t -> TType (t,extract_param_types t.t_params)
+	| TAbstractDecl a -> TAbstract (a,extract_param_types a.a_params)
 
 let rec module_type_of_type = function
 	| TInst(c,_) -> TClassDecl c

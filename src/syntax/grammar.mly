@@ -1035,10 +1035,18 @@ and parse_constraint_param s =
 				| [< >] -> serror())
 			| [< >] -> None
 		) in
+		let default = (match s with parser
+			| [< '(Binop OpAssign,_); s >] ->
+				(match s with parser
+				| [< t = parse_complex_type >] -> Some t
+				| [< >] -> serror())
+			| [< >] -> None
+		) in
 		{
 			tp_name = name;
 			tp_params = [];
 			tp_constraints = cto;
+			tp_default = default;
 			tp_meta = meta;
 		}
 	| [< >] ->
@@ -1320,6 +1328,7 @@ and expr = parser
 	| [< '(Kwd Final,p1); v = parse_var_decl true >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd Abstract,p); s >] -> expr_next (EConst (Ident "abstract"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
 	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
 	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s

@@ -643,6 +643,7 @@ and decode_tparams v =
 
 and decode_tparam_decl v =
 	let vconstraints = field v "constraints" in
+	let vdefault = field v "defaultType" in
 	{
 		tp_name = decode_placed_name (field v "name_pos") (field v "name");
 		tp_constraints = if vconstraints = vnull then None else (match decode_array vconstraints with
@@ -650,6 +651,7 @@ and decode_tparam_decl v =
 			| [t] -> Some (decode_ctype t)
 			| tl -> Some (CTIntersection (List.map decode_ctype tl),Globals.null_pos)
 		);
+		tp_default = opt decode_ctype vdefault;
 		tp_params = decode_tparams (field v "params");
 		tp_meta = decode_meta_content (field v "meta");
 	}
@@ -910,7 +912,13 @@ let rec encode_mtype t fields =
 	] @ fields)
 
 and encode_type_params tl =
-	encode_array (List.map (fun (n,t) -> encode_obj ["name",encode_string n;"t",encode_type t]) tl)
+	encode_array (List.map (fun tp ->
+		encode_obj [
+			"name",encode_string tp.ttp_name;
+			"t",encode_type tp.ttp_type;
+			"defaultType",(match tp.ttp_default with None -> vnull | Some t -> encode_type t);
+		]
+	) tl)
 
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
@@ -1292,7 +1300,12 @@ let decode_tconst c =
 	| _ -> raise Invalid_expr
 
 let decode_type_params v =
-	List.map (fun v -> decode_string (field v "name"),decode_type (field v "t")) (decode_array v)
+	List.map (fun v ->
+		let name = decode_string (field v "name") in
+		let t = decode_type (field v "t") in
+		let default = opt decode_type (field v "defaultType") in
+		mk_type_param name t default
+	) (decode_array v)
 
 let decode_tvar v =
 	(Obj.obj (decode_unsafe (field v "$")) : tvar)
@@ -1942,12 +1955,17 @@ let macro_api ccom get_api =
 		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
-			let tpl = List.map (fun v -> decode_string (field v "name"), decode_type (field v "t")) (decode_array tpl) in
+			let tpl = List.map (fun v ->
+				let name = decode_string (field v "name") in
+				let t = decode_type (field v "t") in
+				let default = None in (* we don't care here *)
+				mk_type_param  name t default
+			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
 					begin try
 						(* use non-physical equality check here to make apply_params work *)
-						snd (List.find (fun (_,t2) -> type_iseq t t2) tpl)
+						extract_param_type (List.find (fun tp2 -> type_iseq t tp2.ttp_type) tpl)
 					with Not_found ->
 						Type.map map t
 					end

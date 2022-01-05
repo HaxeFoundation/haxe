@@ -47,7 +47,7 @@ let save_field_state ctx =
 
 let type_function_params ctx fd fname p =
 	let params = ref [] in
-	params := Typeload.type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
+	params := Typeload.type_type_params ctx TPHMethod ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
 let type_function ctx (args : function_arguments) ret fmode e do_display p =
@@ -183,7 +183,7 @@ let type_function ctx args ret fmode e do_display p =
 
 let add_constructor ctx c force_constructor p =
 	if c.cl_constructor <> None then () else
-	let constructor = try Some (Type.get_constructor_class c (List.map snd c.cl_params)) with Not_found -> None in
+	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with
 	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
 		let cf = {

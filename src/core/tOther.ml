@@ -263,7 +263,7 @@ module TClass = struct
 		loop PMap.empty c0 tl
 
 	let get_all_super_fields c =
-		get_member_fields' false c (List.map snd c.cl_params)
+		get_member_fields' false c (extract_param_types c.cl_params)
 
 	let get_all_fields c tl =
 		get_member_fields' true c tl

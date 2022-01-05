@@ -2098,4 +2098,19 @@ extern class Global {
 		@see http://php.net/manual/en/function.ignore-user-abort.php
 	**/
 	static function ignore_user_abort(enable: Null<Bool> = null): Int;
+
+	/**
+		@see http://php.net/manual/en/function.highlight-file.php
+	**/
+	static function highlight_file(filename: String, returns: Bool = false): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.highlight-string.php
+	**/
+	static function highlight_string(string: String, returns: Bool = false): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.php-strip-whitespace.php
+	**/
+	static function php_strip_whitespace(filename: String): String;
 }

@@ -40,6 +40,11 @@ open Genshared
 let is_really_int t =
 	not (is_nullable t) && ExtType.is_int (follow t)
 
+(* Due to @:native, the usual String path doesn't match *)
+let is_string t = match t with
+| TInst({cl_path=([],"String") | (["java";"lang"],"String")},_) -> true
+| _ -> false
+
 let get_construction_mode c cf =
 	if Meta.has Meta.HxGen cf.cf_meta then ConstructInitPlusNew
 	else ConstructInit
@@ -1809,12 +1814,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| Not | Neg | NegBits when not (need_val ret) -> self#texpr ret e1
 			| _ -> self#unop ret op flag e1
 			end
-		| TBinop(OpAdd,e1,e2) when ExtType.is_string (follow e.etype) ->
+		| TBinop(OpAdd,e1,e2) when is_string (follow e.etype) ->
 			let string_builder_path = (["java";"lang"],"StringBuilder") in
 			let string_builder_sig = object_path_sig string_builder_path in
 			jm#construct ConstructInit string_builder_path (fun () -> []);
 			let rec loop e = match e.eexpr with
-				| TBinop(OpAdd,e1,e2) when ExtType.is_string (follow e.etype) ->
+				| TBinop(OpAdd,e1,e2) when is_string (follow e.etype) ->
 					loop e1;
 					loop e2;
 				| _ ->
@@ -2268,7 +2273,7 @@ class tclass_to_jvm gctx c = object(self)
 				| None ->
 					()
 				end else begin
-					let _,_,cf_super = raw_class_field (fun cf -> cf.cf_type) c_sup (List.map snd c_sup.cl_params) cf.cf_name in
+					let _,_,cf_super = raw_class_field (fun cf -> cf.cf_type) c_sup (extract_param_types c_sup.cl_params) cf.cf_name in
 					compare_fields cf cf_super
 				end
 			in
@@ -2428,8 +2433,8 @@ class tclass_to_jvm gctx c = object(self)
 			| [] when c.cl_params = [] ->
 				()
 			| _ ->
-				let stl = String.concat "" (List.map (fun (n,_) ->
-					Printf.sprintf "%s:Ljava/lang/Object;" n
+				let stl = String.concat "" (List.map (fun tp ->
+					Printf.sprintf "%s:Ljava/lang/Object;" tp.ttp_name
 				) cf.cf_params) in
 				let ssig = generate_method_signature true (jsignature_of_type gctx cf.cf_type) in
 				let s = if cf.cf_params = [] then ssig else Printf.sprintf "<%s>%s" stl ssig in
@@ -2463,7 +2468,7 @@ class tclass_to_jvm gctx c = object(self)
 					default e;
 				end;
 			| Some e when mtype <> MStatic ->
-				let tl = List.map snd c.cl_params in
+				let tl = extract_param_types c.cl_params in
 				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
 				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
 				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
@@ -2531,8 +2536,8 @@ class tclass_to_jvm gctx c = object(self)
 		end
 
 	method private generate_signature =
-		jc#set_type_parameters (List.map (fun (n,t) ->
-			let jsigs = match follow t with
+		jc#set_type_parameters (List.map (fun tp ->
+			let jsigs = match follow tp.ttp_type with
 			| TInst({cl_kind = KTypeParameter tl},_) ->
 				List.map (fun t ->
 					get_boxed_type (jsignature_of_type gctx t)
@@ -2540,7 +2545,7 @@ class tclass_to_jvm gctx c = object(self)
 			| _ ->
 				[]
 			in
-			(n,jsigs)
+			(tp.ttp_name,jsigs)
 		) c.cl_params);
 		match c.cl_super with
 			| Some(c,tl) -> jc#set_super_parameters (List.map (jtype_argument_of_type gctx []) tl)

@@ -304,7 +304,7 @@ let check_param_constraints ctx t map c p =
 let rec load_instance' ctx (t,p) allow_no_params =
 	let t = try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
-		let pt = List.assoc t.tname ctx.type_params in
+		let pt = lookup_param t.tname ctx.type_params in
 		if t.tparams <> [] then typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
 		pt
 	with Not_found ->
@@ -328,7 +328,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| _ -> false,false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
-		let is_rest = is_generic_build && (match types with ["Rest",_] -> true | _ -> false) in
+		let is_rest = is_generic_build && (match types with [{ttp_name="Rest"}] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) types in
 			f (monos)
@@ -359,7 +359,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			in
 			let checks = DynArray.create () in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
-				| t :: tl1,(name,t2) :: tl2 ->
+				| t :: tl1,({ttp_name=name;ttp_type=t2}) :: tl2 ->
 					let t,pt = load_param t in
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
@@ -385,15 +385,19 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					t :: loop tl1 tl2 is_rest
 				| [],[] ->
 					[]
-				| [],["Rest",_] when is_generic_build ->
+				| [],[{ttp_name="Rest"}] when is_generic_build ->
 					[]
-				| [],(_,t) :: tl ->
+				| [],({ttp_type=t;ttp_default=def}) :: tl ->
 					if is_java_rest then
 						t_dynamic :: loop [] tl is_rest
 					else if ctx.com.display.dms_error_policy = EPIgnore then
 						t :: loop [] tl is_rest
-					else
-						typing_error ("Not enough type parameters for " ^ s_type_path path) p
+					else begin match def with
+						| None ->
+							typing_error ("Not enough type parameters for " ^ s_type_path path) p
+						| Some t ->
+							t :: loop [] tl is_rest
+					end
 				| t :: tl,[] ->
 					let t,pt = load_param t in
 					if is_rest then
@@ -647,10 +651,15 @@ and init_meta_overloads ctx co cf =
 				| Method MethInline -> typing_error "Cannot @:overload inline function" p
 				| _ -> ());
 			let old = ctx.type_params in
-			(match cf.cf_params with
-			| [] -> ()
-			| l -> ctx.type_params <- List.filter (fun t -> not (List.mem t l)) ctx.type_params);
-			let params = (!type_function_params_rec) ctx f cf.cf_name p in
+			begin match cf.cf_params with
+				| [] ->
+					()
+				| l ->
+					ctx.type_params <- List.filter (fun t ->
+						not (List.mem t l) (* TODO: this still looks suspicious *)
+					) ctx.type_params
+			end;
+			let params : type_params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> typing_error "Explicit type required" p | Some t -> load_complex_type ctx true t in
 			let args =
@@ -777,19 +786,40 @@ let field_to_type_path ctx e =
 	in
 	loop e [] []
 
-let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
+type type_param_host =
+	| TPHType
+	| TPHConstructor
+	| TPHMethod
+	| TPHEnumConstructor
+
+let rec type_type_param ctx host path get_params p tp =
 	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
-	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
+	c.cl_params <- type_type_params ctx host c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
-	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
-	let t = TInst (c,List.map snd c.cl_params) in
+	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
+	let t = TInst (c,extract_param_types c.cl_params) in
 	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
+	let default = match tp.tp_default with
+		| None ->
+			None
+		| Some ct ->
+			let t = load_complex_type ctx true ct in
+			begin match host with
+			| TPHType ->
+				()
+			| TPHConstructor
+			| TPHMethod
+			| TPHEnumConstructor ->
+				display_error ctx "Default type parameters are only supported on types" (pos ct)
+			end;
+			Some t
+	in
 	match tp.tp_constraints with
 	| None ->
-		n, t
+		mk_type_param n t default
 	| Some th ->
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
@@ -813,14 +843,14 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 			c.cl_kind <- KTypeParameter constr;
 			t
 		) "constraint" in
-		n, TLazy r
+		mk_type_param n (TLazy r) default
 
-and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
+and type_type_params ctx host path get_params p tpl =
 	let names = ref [] in
 	List.map (fun tp ->
 		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
 		names := (fst tp.tp_name) :: !names;
-		type_type_param ~enum_constructor ctx path get_params p tp
+		type_type_param ctx host path get_params p tp
 	) tpl
 
 let load_core_class ctx c =
@@ -856,7 +886,7 @@ let load_core_class ctx c =
 let init_core_api ctx c =
 	let ccore = load_core_class ctx c in
 	begin try
-		List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
+		List.iter2 (fun tp1 tp2 -> match follow tp1.ttp_type, follow tp2.ttp_type with
 			| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
 				begin try
 					List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
@@ -864,7 +894,7 @@ let init_core_api ctx c =
 					| Invalid_argument _ ->
 						typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
 					| Unify_error l ->
-						display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
+						display_error ctx ("Type parameter " ^ tp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
 						display_error ctx (error_msg (Unify l)) c.cl_pos
 				end
 			| t1,t2 ->
@@ -880,7 +910,7 @@ let init_core_api ctx c =
 	let compare_fields f f2 =
 		let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
 		(try
-			type_eq EqCoreType (apply_params ccore.cl_params (List.map snd c.cl_params) f.cf_type) f2.cf_type
+			type_eq EqCoreType (apply_params ccore.cl_params (extract_param_types c.cl_params) f.cf_type) f2.cf_type
 		with Unify_error l ->
 			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
 			display_error ctx (error_msg (Unify l)) p);

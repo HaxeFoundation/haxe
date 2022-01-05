@@ -741,7 +741,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 
 	(* this function will receive the original function argument, the applied function argument and the original function parameters. *)
 	(* from this info, it will infer the applied tparams for the function *)
-	let infer_params pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) calls_parameters_explicitly : tparams =
+	let infer_params pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:typed_type_param list) calls_parameters_explicitly : tparams =
 		match params with
 		| [] -> []
 		| _ ->

@@ -122,7 +122,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 			let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 			let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 			let check_constraints () =
-				List.iter2 (fun m (name,t) -> match follow t with
+				List.iter2 (fun m tp -> match follow tp.ttp_type with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
 						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
 					| _ -> ()
