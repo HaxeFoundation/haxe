@@ -322,6 +322,11 @@ typedef Var = {
 	var ?isFinal:Bool;
 
 	/**
+		Whether or not the variable is static.
+	**/
+	var ?isStatic:Bool;
+
+	/**
 		Metadata associatied with the variable, if available.
 	**/
 	var ?meta:Metadata;

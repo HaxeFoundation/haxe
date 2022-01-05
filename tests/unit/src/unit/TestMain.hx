@@ -55,6 +55,7 @@ function main() {
 		new TestBytes(),
 		new TestIO(),
 		new TestLocals(),
+		new TestLocalStatic(),
 		new TestEReg(),
 		new TestXML(),
 		new TestMisc(),

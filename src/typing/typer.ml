@@ -626,6 +626,7 @@ and type_vars ctx vl p =
 			v.v_meta <- ev.ev_meta;
 			DisplayEmitter.check_display_metadata ctx v.v_meta;
 			if ev.ev_final then add_var_flag v VFinal;
+			if ev.ev_static then add_var_flag v VStatic;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e

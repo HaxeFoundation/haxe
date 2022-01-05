@@ -290,6 +290,7 @@ let reify in_macro =
 					"type", to_opt to_type_hint v.ev_type p;
 					"expr", to_opt to_expr v.ev_expr p;
 					"isFinal",to_bool v.ev_final p;
+					"isStatic",to_bool v.ev_static p;
 					"meta",to_meta v.ev_meta p;
 				] in
 				to_obj fields p
