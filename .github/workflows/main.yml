@@ -764,6 +764,7 @@ jobs:
           COMMIT_DATE=`TZ=UTC git show --quiet --date='format-local:%Y-%m-%d' --format="%cd"`
           FILE_NAME=haxe_${COMMIT_DATE}_${{ steps.extract_branch.outputs.branch }}_${COMMIT_HASH_SHORT}
           aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/${FILE_NAME}.tar.gz
+          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/${FILE_NAME}.tar.gz
           aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/${FILE_NAME}.tar.gz
           aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/${FILE_NAME}.tar.gz
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/${FILE_NAME}.zip
@@ -784,6 +785,7 @@ jobs:
         run: |
           set -ex
           aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/haxe_latest.tar.gz
+          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/haxe_latest.tar.gz
           aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/haxe_latest.tar.gz
           aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/haxe_latest.tar.gz
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/haxe_latest.zip
