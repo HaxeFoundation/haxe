@@ -220,8 +220,8 @@ test-all:
     BUILD +test --TEST=cs
     BUILD +test --TEST=js
     BUILD +test --TEST=cpp
+    BUILD +test --TEST=lua
     
     IF [ "$TARGETPLATFORM" = "linux/amd64" ] # FIXME
         BUILD +test --TEST=hl
-        BUILD +test --TEST=lua
     END
