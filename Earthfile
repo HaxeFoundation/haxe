@@ -15,8 +15,10 @@ neko:
         RUN echo "Unsupported platform $TARGETPLATFORM" && exit 1
     END
     
-    RUN apt-get update -qqy \
-        && apt-get install -qqy curl
+    RUN apt-get update -qqy && \
+        apt-get install -qqy curl && \
+        apt-get autoremove -y && \
+        apt-get clean -y
     
     RUN set -ex                                                                                                 && \
         curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o /tmp/neko_latest.tar.gz    && \
@@ -39,7 +41,9 @@ build-environment:
         add-apt-repository ppa:avsm/ppa -y && \
         add-apt-repository ppa:haxe/ocaml -y && \
         apt-get update -qqy && \
-        apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libstring-shellquote-perl libipc-system-simple-perl
+        apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libstring-shellquote-perl libipc-system-simple-perl && \
+        apt-get autoremove -y && \
+        apt-get clean -y
         
 build:
     FROM +build-environment
@@ -99,11 +103,6 @@ xmldoc:
     
     SAVE ARTIFACT ./extra/doc/* AS LOCAL extra/doc/
     
-# python-test-environment:
-#     FROM python:3
-#     ARG TARGETPLATFORM
-#     DO +INSTALL_NEKO --TARGETPLATFORM=$TARGETPLATFORM --NEKOPATH=$NEKOPATH
-    
 test-environment:
     FROM +neko
     
@@ -111,8 +110,10 @@ test-environment:
     ENV COMMON_PACKAGES=wget git build-essential locales sqlite3
     
     # Node.js is required as there are tests that use it (search "-cmd node")
-    RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-        && apt-get install -qqy nodejs $COMMON_PACKAGES
+    RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
+        apt-get install -qqy nodejs $COMMON_PACKAGES && \
+        apt-get autoremove -y && \
+        apt-get clean -y
     
     # set locale
     RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
@@ -126,7 +127,8 @@ INSTALL_PACKAGES:
     RUN set -ex && \
         apt-get update -qqy && \
         apt-get install -qqy $PACKAGES && \
-        apt-get clean
+        apt-get autoremove -y && \
+        apt-get clean -y
     
 test-environment-java:
     FROM +test-environment
