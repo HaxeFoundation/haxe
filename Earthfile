@@ -174,7 +174,6 @@ test-environment-cpp:
     DO +INSTALL_PACKAGES --PACKAGES=$PACKAGES
     
 test:
-    ARG GITHUB_WORKSPACE=true # emulate github environment
     ARG TEST # macro, js, hl, cpp, java ,jvm, cs, php, python, lua, neko
     
     FROM +test-environment
@@ -195,6 +194,7 @@ test:
         FROM +test-environment-lua
     ELSE IF [ "$TEST" = "hl" ]
         FROM +test-environment-hl
+        ENV GITHUB_WORKSPACE=true # emulate github environment, TODO: properly define a "Earthly" environment
     END
     
     ENV HAXE_STD_PATH=/haxe/std
