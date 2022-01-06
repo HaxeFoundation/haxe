@@ -1,3 +1,3 @@
 -cp ../src
--D timeout=3
+-D timeout=30
 --run Main
