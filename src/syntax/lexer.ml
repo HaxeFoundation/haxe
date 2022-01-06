@@ -111,24 +111,39 @@ let is_valid_identifier s =
 		with Exit ->
 			false
 
+let split_suffix s is_int =
+	let len = String.length s in
+	let rec loop i pivot =
+		if i = len then begin
+			match pivot with
+			| None ->
+				(s,None)
+			| Some pivot ->
+				(* There might be a _ at the end of the literal because we allow _f64 and such *)
+				let literal_length = if String.unsafe_get s (pivot - 1) = '_' then pivot - 1 else pivot in
+				let literal = String.sub s 0 literal_length in
+				let suffix  = String.sub s pivot (len - pivot) in
+				(literal, Some suffix)
+		end else begin
+			let c = String.unsafe_get s i in
+			match c with
+			| 'i' | 'u' ->
+				loop (i + 1) (Some i)
+			| 'f' when not is_int ->
+				loop (i + 1) (Some i)
+			| _ ->
+				loop (i + 1) pivot
+		end
+	in
+	loop 0 None
+
 let split_int_suffix s =
-	let is_signed = String.contains s 'i' in
-	match String.index_opt s (if is_signed then 'i' else 'u') with
-	| Some pivot ->
-		let literal = String.sub s 0 pivot in
-		let suffix  = String.sub s pivot ((String.length s) - pivot) in
-		Const (Int (literal, Some suffix))
-	| None ->
-		Const (Int (s, None))
+	let (literal,suffix) = split_suffix s true in
+	Const (Int (literal,suffix))
 
 let split_float_suffix s =
-	match String.index_opt s 'f' with
-	| Some pivot ->
-		let literal = String.sub s 0 pivot in
-		let suffix  = String.sub s pivot ((String.length s) - pivot) in
-		Const (Float (literal, Some suffix))
-	| None ->
-		Const (Float (s, None))
+	let (literal,suffix) = split_suffix s false in
+	Const (Float (literal,suffix))
 
 let init file =
 	let f = make_file file in
@@ -326,9 +341,9 @@ let sep_hex_digit = [%sedlex.regexp? Opt '_', hex_digit]
 let hex_digits = [%sedlex.regexp? (hex_digit, Star sep_hex_digit)]
 let integer = [%sedlex.regexp? ('1'..'9', Star sep_digit) | '0']
 
-let integer_suffix = [%sedlex.regexp? ('i'|'u'), Plus integer]
+let integer_suffix = [%sedlex.regexp? Opt '_', ('i'|'u'), Plus integer]
 
-let float_suffix = [%sedlex.regexp? 'f', Plus integer]
+let float_suffix = [%sedlex.regexp? Opt '_', 'f', Plus integer]
 
 (* https://www.w3.org/TR/xml/#sec-common-syn plus '$' for JSX *)
 let xml_name_start_char = [%sedlex.regexp? '$' | ':' | 'A'..'Z' | '_' | 'a'..'z' | 0xC0 .. 0xD6 | 0xD8 .. 0xF6 | 0xF8 .. 0x2FF | 0x370 .. 0x37D | 0x37F .. 0x1FFF | 0x200C .. 0x200D | 0x2070 .. 0x218F | 0x2C00 .. 0x2FEF | 0x3001 .. 0xD7FF | 0xF900 .. 0xFDCF | 0xFDF0 .. 0xFFFD | 0x10000 .. 0xEFFFF]
