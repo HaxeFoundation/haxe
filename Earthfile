@@ -150,7 +150,7 @@ test-environment-cs:
     
 test-environment-hl:
     FROM +test-environment
-    DO +INSTALL_PACKAGES --PACKAGES="libpng-dev libjpeg-turbo8-dev libturbojpeg zlib1g-dev libvorbis-dev cmake ninja-build pkg-config"
+    DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev"
     
 test-environment-lua:
     # hererocks uses pip
