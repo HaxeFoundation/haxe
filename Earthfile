@@ -174,6 +174,7 @@ test-environment-cpp:
     DO +INSTALL_PACKAGES --PACKAGES=$PACKAGES
     
 test:
+    ARG GITHUB_WORKSPACE=true # emulate github environment
     ARG TEST # macro, js, hl, cpp, java ,jvm, cs, php, python, lua, neko
     
     FROM +test-environment
