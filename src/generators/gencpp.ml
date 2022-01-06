@@ -28,7 +28,7 @@ open Globals
 *)
 let follow = Abstract.follow_with_abstracts
 
-let replace_float_separators s = Texpr.replace_separators s "'"
+let replace_float_separators s = Texpr.replace_separators s ""
 
 (*
    Code for generating source files.
@@ -7441,7 +7441,7 @@ class script_writer ctx filename asciiOut =
       end
    method constText c = match c with
    | TInt i -> (this#op IaConstInt) ^ (Printf.sprintf "%ld " i)
-   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText (Texpr.replace_separators f "")) (* cppia probably doesn't support ' seperators *)
+   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText (replace_float_separators f))
    | TString s -> (this#op IaConstString) ^ (this#stringText s)
    | TBool true -> (this#op IaConstTrue)
    | TBool false -> (this#op IaConstFalse)
