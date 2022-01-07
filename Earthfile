@@ -32,6 +32,8 @@ neko:
         PATH=$NEKOPATH:$PATH                                                                                    && \
         neko -version
     
+    SAVE IMAGE --cache-hint
+    
 build-environment:
     FROM +neko
     
@@ -44,6 +46,8 @@ build-environment:
         apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libstring-shellquote-perl libipc-system-simple-perl && \
         apt-get autoremove -y && \
         apt-get clean -y
+        
+    SAVE IMAGE --cache-hint
         
 build:
     FROM +build-environment
@@ -77,6 +81,7 @@ build:
     
     SAVE ARTIFACT ./out/* AS LOCAL out/$TARGETPLATFORM/
     SAVE ARTIFACT ./haxe* AS LOCAL out/$TARGETPLATFORM/
+    SAVE IMAGE --cache-hint
     
 build-multiarch:
     ARG ADD_REVISION
@@ -121,18 +126,20 @@ test-environment:
     ENV LANGUAGE=en_US:en  
     ENV LC_ALL=en_US.UTF-8
     
+    SAVE IMAGE --cache-hint
+    
 INSTALL_PACKAGES:
     COMMAND
     ARG PACKAGES
     RUN set -ex && \
         apt-get update -qqy && \
         apt-get install -qqy $PACKAGES && \
-        apt-get autoremove -y && \
-        apt-get clean -y
+        apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* 
     
 test-environment-java:
     FROM +test-environment
     DO +INSTALL_PACKAGES --PACKAGES="default-jdk"
+    SAVE IMAGE --cache-hint
     
 test-environment-js:
     # somehow js tests require hxjava which in turns require javac
@@ -141,24 +148,29 @@ test-environment-js:
 test-environment-python:
     FROM +test-environment
     DO +INSTALL_PACKAGES --PACKAGES="python3"
+    SAVE IMAGE --cache-hint
     
 test-environment-php:
     FROM +test-environment
     DO +INSTALL_PACKAGES --PACKAGES="php-cli php-mbstring php-sqlite3"
+    SAVE IMAGE --cache-hint
     
 test-environment-cs:
     FROM +test-environment
     DO +INSTALL_PACKAGES --PACKAGES="mono-devel mono-mcs"
+    SAVE IMAGE --cache-hint
     
 test-environment-hl:
     FROM +test-environment
     DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev"
+    SAVE IMAGE --cache-hint
     
 test-environment-lua:
     # hererocks uses pip
     FROM +test-environment-python 
     DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre3-dev cmake"
     RUN ln -s /root/.local/bin/hererocks /bin/
+    SAVE IMAGE --cache-hint
     
 test-environment-cpp:
     FROM +test-environment
@@ -174,6 +186,7 @@ test-environment-cpp:
     END
     
     DO +INSTALL_PACKAGES --PACKAGES=$PACKAGES
+    SAVE IMAGE --cache-hint
     
 test:
     ARG TEST # macro, js, hl, cpp, java ,jvm, cs, php, python, lua, neko
