@@ -138,13 +138,12 @@ test-environment:
     DO +INSTALL_HAXE --HAXE_STD_PATH=$HAXE_STD_PATH
     
     ENV DEBIAN_FRONTEND=noninteractive
-    ENV COMMON_PACKAGES=wget git build-essential locales sqlite3
+    DO +INSTALL_PACKAGES --PACKAGES="curl wget git build-essential locales sqlite3"
     
     # Node.js is required as there are tests that use it (search "-cmd node")
     RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
         apt-get install -qqy nodejs $COMMON_PACKAGES && \
-        apt-get autoremove -y && \
-        apt-get clean -y
+        apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* 
     
     # set locale
     RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
