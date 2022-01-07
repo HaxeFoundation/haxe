@@ -1,41 +1,62 @@
 VERSION 0.6
 FROM ubuntu:20.04
 WORKDIR /tmp
-
-ENV NEKOPATH=/tmp/neko
+    
+INSTALL_PACKAGES:
+    COMMAND
+    ARG PACKAGES
+    RUN set -ex && \
+        apt-get update -qqy && \
+        apt-get install -qqy $PACKAGES && \
+        apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* 
+    
+INSTALL_NEKO:
+    COMMAND
+    ARG NEKOPATH
+    COPY +neko/* $NEKOPATH/
+    RUN bash -c 'set -ex && ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools} /usr/local/bin/ && ln -s $NEKOPATH/libneko.* /lib/'
+    
+INSTALL_HAXE:
+    COMMAND
+    ARG HAXE_STD_PATH
+    COPY +build/haxe +build/haxelib /usr/local/bin/
+    COPY +build/std $HAXE_STD_PATH/
+    RUN ls -lah $HAXE_STD_PATH/
+    
+try-neko:
+    ENV NEKOPATH=/tmp/neko
+    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
+    RUN neko -version
+    RUN nekotools server
+        
+try-haxe:
+    ENV NEKOPATH=/tmp/neko
+    ENV HAXE_STD_PATH=/tmp/haxe/std
+    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
+    DO +INSTALL_HAXE --HAXE_STD_PATH=$HAXE_STD_PATH
+    RUN ls -lah $HAXE_STD_PATH/
+    RUN haxe -version
+    RUN haxelib
         
 neko:
-    ARG TARGETPLATFORM
+    DO +INSTALL_PACKAGES --PACKAGES="curl"
     
-    IF [ "$TARGETPLATFORM" = "linux/amd64" ]
-        ENV PLATFORM=linux64
-    ELSE IF [ "$TARGETPLATFORM" = "linux/arm64" ]
-        ENV PLATFORM=linux-arm64
-    ELSE 
-        RUN echo "Unsupported platform $TARGETPLATFORM" && exit 1
-    END
+    ARG TARGETARCH
+    RUN set -ex && \
+        case "$TARGETARCH" in \
+            amd64) PLATFORM=linux64;; \
+            arm64) PLATFORM=linux-arm64;; \
+            *) exit 1;; \
+        esac && \
+        curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o neko_latest.tar.gz && \
+        tar -xf neko_latest.tar.gz && \
+        mv `echo neko-*-*` /tmp/neko-unpacked
     
-    RUN apt-get update -qqy && \
-        apt-get install -qqy curl && \
-        apt-get autoremove -y && \
-        apt-get clean -y
-    
-    RUN set -ex                                                                                                 && \
-        curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o /tmp/neko_latest.tar.gz    && \
-        tar -xf /tmp/neko_latest.tar.gz -C /tmp                                                                 && \
-        mv `echo /tmp/neko-*-*` $NEKOPATH                                                                       && \
-        mkdir -p /usr/local/bin                                                                                 && \
-        mkdir -p /usr/local/lib/neko                                                                            && \
-        ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/                                          && \
-        ln -s $NEKOPATH/libneko.*                      /lib/                                                    && \
-        ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/                                     && \
-        PATH=$NEKOPATH:$PATH                                                                                    && \
-        neko -version
-    
+    SAVE ARTIFACT /tmp/neko-unpacked/*
     SAVE IMAGE --cache-hint
     
 build-environment:
-    FROM +neko
+    DO +INSTALL_NEKO
     
     RUN set -ex && \
         apt-get update -qqy && \
@@ -60,7 +81,6 @@ build:
     
     # Install OCaml libraries
     RUN set -ex && \
-        export PATH=$NEKOPATH:$PATH && \
         opam init --disable-sandboxing && \
         opam update && \
         opam pin add haxe . --no-action && \
@@ -70,7 +90,6 @@ build:
         
     # Build Haxe
     RUN set -ex && \
-        export PATH=$NEKOPATH:$PATH && \
         eval $(opam env) && \
         opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && \
         opam config exec -- make -s haxelib && \
@@ -79,6 +98,7 @@ build:
         ldd -v ./haxe && \
         ldd -v ./haxelib
     
+    SAVE ARTIFACT std
     SAVE ARTIFACT ./out/* AS LOCAL out/$TARGETPLATFORM/
     SAVE ARTIFACT ./haxe* AS LOCAL out/$TARGETPLATFORM/
     SAVE IMAGE --cache-hint
@@ -88,28 +108,34 @@ build-multiarch:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +build --ADD_REVISION=$ADD_REVISION
     
 xmldoc:
-    FROM +build
+    DO +INSTALL_PACKAGES --PACKAGES="git"
+    
+    ENV NEKOPATH=/tmp/neko
+    ENV HAXE_STD_PATH=/tmp/haxe/std
+    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
+    DO +INSTALL_HAXE --HAXE_STD_PATH=$HAXE_STD_PATH
+    
+    COPY --dir extra .
     
     ARG COMMIT
     ARG BRANCH
     
-    COPY . .
-    
-    RUN set -ex                                                         && \
-        export PATH=$NEKOPATH:$PWD:$PATH                                && \
-        cd extra                                                        && \
-        ../haxelib newrepo                                              && \
-        ../haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
-        ../haxelib git hxjava https://github.com/HaxeFoundation/hxjava  && \
-        ../haxelib git hxcs   https://github.com/HaxeFoundation/hxcs    && \
-        ../haxe doc.hxml
-        
-    RUN echo "{\"commit\":\"$COMMIT\",\"branch\":\"$BRANCH\"}" > extra/doc/info.json
+    RUN set -ex                                                      && \
+        cd extra                                                     && \
+        haxelib newrepo                                              && \
+        haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
+        haxelib git hxjava https://github.com/HaxeFoundation/hxjava  && \
+        haxelib git hxcs   https://github.com/HaxeFoundation/hxcs    && \
+        haxe doc.hxml                                                && \
+        echo "{\"commit\":\"$COMMIT\",\"branch\":\"$BRANCH\"}" > doc/info.json
     
     SAVE ARTIFACT ./extra/doc/* AS LOCAL extra/doc/
     
 test-environment:
-    FROM +neko
+    ENV NEKOPATH=/tmp/neko
+    ENV HAXE_STD_PATH=/tmp/haxe/std
+    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
+    DO +INSTALL_HAXE --HAXE_STD_PATH=$HAXE_STD_PATH
     
     ENV DEBIAN_FRONTEND=noninteractive
     ENV COMMON_PACKAGES=wget git build-essential locales sqlite3
@@ -127,14 +153,6 @@ test-environment:
     ENV LC_ALL=en_US.UTF-8
     
     SAVE IMAGE --cache-hint
-    
-INSTALL_PACKAGES:
-    COMMAND
-    ARG PACKAGES
-    RUN set -ex && \
-        apt-get update -qqy && \
-        apt-get install -qqy $PACKAGES && \
-        apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* 
     
 test-environment-java:
     FROM +test-environment
@@ -215,11 +233,10 @@ test:
     ENV HAXE_STD_PATH=/haxe/std
     WORKDIR /haxe
     
-    COPY +build/* .
+    COPY +build/haxe +build/haxelib /usr/local/bin/
     COPY --dir tests std .
     
-    RUN PATH=$PATH:$PWD:$NEKOPATH \
-        && mkdir /haxelib \
+    RUN mkdir /haxelib \
         && haxelib setup /haxelib \
         && cd tests \
         && haxe RunCi.hxml
@@ -237,6 +254,6 @@ test-all:
     BUILD +test --TEST=cpp
     BUILD +test --TEST=lua
     
-    IF [ "$TARGETPLATFORM" = "linux/amd64" ] # FIXME
+    IF [ "$TARGETPLATFORM" = "linux/amd64" ] # FIXME: hl can't compile on arm64 (JIT issue?)
         BUILD +test --TEST=hl
     END
