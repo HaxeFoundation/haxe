@@ -309,7 +309,7 @@ jobs:
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
       - name: Build
-        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/${{ github.repository }}:cache --push +build --ADD_REVISION=$ADD_REVISION
+        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/${{ github.repository }}:cache-arm64 --push +build --ADD_REVISION=$ADD_REVISION
       
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
@@ -694,11 +694,11 @@ jobs:
       
       - name: Test
         if: success() && !(matrix.SAUCE && matrix.SAUCE_ACCESS_KEY)
-        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/${{ github.repository }}:cache --push +test-all
+        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/${{ github.repository }}:cache-arm64 --push +test-all
       
       - name: Test (with SauceLabs)
         if: success() && matrix.SAUCE && matrix.SAUCE_ACCESS_KEY
-        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/${{ github.repository }}:cache --push +test --TEST=js
+        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/${{ github.repository }}:cache-arm64 --push +test --TEST=js
         env:
           SAUCE_ACCESS_KEY: matrix.SAUCE_ACCESS_KEY
       
