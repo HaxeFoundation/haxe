@@ -317,7 +317,7 @@ class ArrayObj<T> extends ArrayBase {
 		if (length < len) {
 			__expand(len - 1);
 		} else if (length > len) {
-			for (i in length...len) {
+			for (i in len...length) {
 				array[i] = null;
 			}
 			this.length = len;

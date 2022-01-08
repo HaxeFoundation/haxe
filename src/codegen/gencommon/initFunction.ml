@@ -123,7 +123,7 @@ let handle_class com cl =
 			let is_var = match cf.cf_kind with Var _ -> true | _ -> false in
 			(match cf.cf_expr, cf.cf_params with
 			| Some e, [] ->
-				let var = mk (TField ((mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) cf.cf_pos), FInstance(cl, List.map snd cl.cl_params, cf))) cf.cf_type cf.cf_pos in
+				let var = mk (TField ((mk (TConst TThis) (TInst (cl, extract_param_types cl.cl_params)) cf.cf_pos), FInstance(cl, extract_param_types cl.cl_params, cf))) cf.cf_type cf.cf_pos in
 				let ret = binop Ast.OpAssign var e cf.cf_type cf.cf_pos in
 				cf.cf_expr <- None;
 				let is_override = has_class_field_flag cf CfOverride in
@@ -139,7 +139,7 @@ let handle_class com cl =
 			| Some e, _ ->
 				let params = List.map (fun _ -> t_dynamic) cf.cf_params in
 				let fn = apply_params cf.cf_params params in
-				let var = mk (TField ((mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) cf.cf_pos), FInstance(cl, List.map snd cl.cl_params, cf))) cf.cf_type cf.cf_pos in
+				let var = mk (TField ((mk (TConst TThis) (TInst (cl, extract_param_types cl.cl_params)) cf.cf_pos), FInstance(cl, extract_param_types cl.cl_params, cf))) cf.cf_type cf.cf_pos in
 				let rec change_expr e =
 					Type.map_expr_type (change_expr) fn (fun v -> v.v_type <- fn v.v_type; v) e
 				in
@@ -173,7 +173,7 @@ let handle_class com cl =
 				ctor
 			| None ->
 				try
-					let sctor, sup, stl = OverloadingConstructor.prev_ctor cl (List.map snd cl.cl_params) in
+					let sctor, sup, stl = OverloadingConstructor.prev_ctor cl (extract_param_types cl.cl_params) in
 					let ctor = OverloadingConstructor.clone_ctors com sctor sup stl cl in
 					cl.cl_constructor <- Some ctor;
 					ctor

@@ -77,7 +77,13 @@ and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 
-and type_params = (string * t) list
+and typed_type_param = {
+	ttp_name : string;
+	ttp_type : t;
+	ttp_default : t option;
+}
+
+and type_params = typed_type_param list
 
 and tconstant =
 	| TInt of int32
@@ -406,6 +412,12 @@ type flag_tclass_field =
 	| CfImpl
 	| CfEnum
 	| CfGeneric
+	| CfDefault (* Interface field with default implementation (only valid on Java) *)
+
+(* Order has to match declaration for printing*)
+let flag_tclass_field_names = [
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault"
+]
 
 type flag_tvar =
 	| VCaptured

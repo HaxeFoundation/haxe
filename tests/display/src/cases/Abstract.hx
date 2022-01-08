@@ -44,4 +44,39 @@ class Abstract extends DisplayTestCase {
 		eq(false, hasField(fields, "instanceField", "() -> Void"));
 		eq(true, hasField(fields, "staticField", "() -> Void"));
 	}
+
+	/**
+		abstract MyAbstract(String) {
+			public function new() this = "foo";
+
+			public function instanceField():Void {
+				{-1-}
+			}
+			static public function staticField():Void {
+				{-2-}
+			}
+			public function instanceField2():Void {
+				ab{-3-}stract;
+			}
+		}
+		abstract AbGeneric<T>(T) {
+			public function new(a:T) this = a;
+			public function foo() {
+				return ab{-4-}stract.bar();
+			}
+			public function bar() {
+				return th{-5-}is;
+			}
+		}
+	**/
+	function test3():Void {
+		final fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "literal", "abstract"));
+		final fields = toplevel(pos(2));
+		eq(false, hasToplevel(fields, "literal", "abstract"));
+		// TODO: improve display hints
+		// eq("cases.MyAbstract", type(pos(3)));
+		// eq("cases.AbGeneric<cases.AbGeneric.T>", type(pos(4)));
+		eq("cases.AbGeneric.T", type(pos(5)));
+	}
 }

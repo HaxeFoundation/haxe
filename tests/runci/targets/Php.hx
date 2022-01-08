@@ -25,7 +25,7 @@ class Php {
 					}
 				case _:
 			}
-			infoMsg('php ${phpVer} has already been installed.');
+			infoMsg('php $phpVer has already been installed.');
 			return;
 		}
 		switch systemName {
@@ -57,19 +57,18 @@ class Php {
 
 		for(prefix in prefixes) {
 			changeDirectory(unitDir);
-			if(isCi()) {
+			if(isCi())
 				deleteDirectoryRecursively(binDir);
-			}
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
 			runThroughPhpVersions(runCommand.bind(_, [binDir + "/index.php"]));
 
 			changeDirectory(sysDir);
-			if(isCi()) {
+			if(isCi())
 				deleteDirectoryRecursively(binDir);
-			}
+
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runCommand.bind(_, ["bin/php/Main/index.php"]));
+			runThroughPhpVersions(runSysTest.bind(_, ["bin/php/Main/index.php"]));
 		}
 	}
 

@@ -37,11 +37,12 @@ exception Build_canceled of build_state
 
 let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
+	let name = snd c.cl_path in
 	try
-		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
+		ignore(lookup_param name ctx.curfield.cf_params);
 		has_class_field_flag ctx.curfield CfGeneric
 	with Not_found -> try
-		ignore(List.assoc (snd c.cl_path) ctx.type_params);
+		ignore(lookup_param name ctx.type_params);
 		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
 	with Not_found ->
 		false
@@ -61,8 +62,9 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| [], [] -> t1, t2
 		| l1, l2 when List.length l1 = List.length l2 ->
 			let to_check = ref [] in
-			let monos = List.map2 (fun (name,p1) (_,p2) ->
-				(match follow p1, follow p2 with
+			(* TPTODO: defaults *)
+			let monos = List.map2 (fun tp1 tp2 ->
+				(match follow tp1.ttp_type, follow tp2.ttp_type with
 				| TInst ({ cl_kind = KTypeParameter ct1 } as c1,pl1), TInst ({ cl_kind = KTypeParameter ct2 } as c2,pl2) ->
 					(match ct1, ct2 with
 					| [], [] -> ()
@@ -82,7 +84,7 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 					| _ ->
 						raise (Unify_error [Unify_custom "Different number of constraints"]))
 				| _ -> ());
-				TInst (mk_class null_module ([],name) null_pos null_pos,[])
+				TInst (mk_class null_module ([],tp1.ttp_name) null_pos null_pos,[])
 			) l1 l2 in
 			List.iter (fun f -> f monos) !to_check;
 			apply_params l1 monos t1, apply_params l2 monos t2
@@ -146,7 +148,7 @@ let get_native_name meta =
 	| [] ->
 		raise Not_found
 	| _ ->
-		error "String expected" mp
+		typing_error "String expected" mp
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
@@ -322,8 +324,8 @@ let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
 		let m2 = Hashtbl.find ctx.g.types_module t.mt_path in
-		if m.m_path <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.m_path) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
-		error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
+		if m.m_path <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.m_path) then typing_error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		typing_error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
 	with
 		Not_found ->
 			Hashtbl.add ctx.g.types_module t.mt_path m.m_path
@@ -335,29 +337,40 @@ module Inheritance = struct
 
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
-			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then error "Cannot extend basic class" p;
-			if extends csup c then error "Recursive class" p;
+			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then typing_error "Cannot extend basic class" p;
+			if extends csup c then typing_error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
-					if is_generic_parameter ctx csup then error "Extending generic type parameters is no longer allowed in Haxe 4" p;
-					error "Cannot extend type parameters" p
+					if is_generic_parameter ctx csup then typing_error "Extending generic type parameters is no longer allowed in Haxe 4" p;
+					typing_error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
-		| _ -> error "Should extend by using a class" p
+		| _ -> typing_error "Should extend by using a class" p
 
 	let rec check_interface ctx missing c intf params =
 		List.iter (fun (i2,p2) ->
 			check_interface ctx missing c i2 (List.map (apply_params intf.cl_params params) p2)
 		) intf.cl_implements;
 		let p = c.cl_name_pos in
-		let rec check_field i f =
+		let check_field f =
 			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
+			let make_implicit_field () =
+				let cf = {f with cf_overloads = []} in
+				begin try
+					let cf' = PMap.find cf.cf_name c.cl_fields in
+					Hashtbl.remove ctx.com.overload_cache (c.cl_path,f.cf_name);
+					cf'.cf_overloads <- cf :: cf'.cf_overloads
+				with Not_found ->
+					TClass.add_field c cf
+				end;
+				cf
+			in
 			try
-				let map2, t2, f2 = class_field_no_interf c i in
+				let map2, t2, f2 = class_field_no_interf c f.cf_name in
 				let t2, f2 =
 					if f2.cf_overloads <> [] || has_class_field_flag f2 CfOverload then
-						let overloads = Overloads.get_overloads ctx.com c i in
+						let overloads = Overloads.get_overloads ctx.com c f.cf_name in
 						is_overload := true;
 						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
 					else
@@ -372,31 +385,29 @@ module Inheritance = struct
 						| MethMacro -> 2
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
-						display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
+						display_error ctx ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 					else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-						display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+						display_error ctx ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
 						let map1 = TClass.get_map_function  intf params in
 						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
-								display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+								display_error ctx ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 								display_error ctx (compl_msg "Interface field is defined here") f.cf_pos;
 								display_error ctx (compl_msg (error_msg (Unify l))) p;
 							end
 				)
 			with
 				| Not_found when (has_class_flag c CAbstract) ->
-					let cf = {f with cf_overloads = []} in
+					let cf = make_implicit_field () in
 					add_class_field_flag cf CfAbstract;
-					begin try
-						let cf' = PMap.find cf.cf_name c.cl_fields in
-						Hashtbl.remove ctx.com.overload_cache (c.cl_path,i);
-						cf'.cf_overloads <- cf :: cf'.cf_overloads
-					with Not_found ->
-						TClass.add_field c cf
-					end
+				| Not_found when has_class_field_flag f CfDefault ->
+					let cf = make_implicit_field () in
+					cf.cf_expr <- None;
+					add_class_field_flag cf CfExtern;
+					add_class_field_flag cf CfOverride;
 				| Not_found when not (has_class_flag c CInterface) ->
 					if Diagnostics.is_diagnostics_run ctx.com c.cl_pos then
 						DynArray.add missing (f,t)
@@ -404,18 +415,18 @@ module Inheritance = struct
 						let msg = if !is_overload then
 							let ctx = print_context() in
 							let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> die "" __LOC__ in
-							"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
+							"No suitable overload for " ^ f.cf_name ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
 						else
-							("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
+							("Field " ^ f.cf_name ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
 						in
 						display_error ctx msg p
 					end
 				| Not_found -> ()
 		in
-		let check_field i cf =
-			check_field i cf;
+		let check_field _ cf =
+			check_field cf;
 			if has_class_field_flag cf CfOverload then
-				List.iter (check_field i) (List.rev cf.cf_overloads)
+				List.iter check_field (List.rev cf.cf_overloads)
 		in
 		PMap.iter check_field intf.cl_fields
 
@@ -499,7 +510,7 @@ module Inheritance = struct
 				| _ -> ()
 			) csup.cl_meta;
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
-				error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
+				typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
 		let check_cancel_build csup =
 			match csup.cl_build() with
@@ -541,17 +552,17 @@ module Inheritance = struct
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends p =
 			if is_extends then begin
-				if c.cl_super <> None then error "Cannot extend several classes" p;
+				if c.cl_super <> None then typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
-					if not (has_class_flag csup CInterface) then error "Cannot extend by using a class" p;
+					if not (has_class_flag csup CInterface) then typing_error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PConnectField (fun() -> check_interfaces ctx c);
 						has_interf := true;
 					end
 				end else begin
-					if (has_class_flag csup CInterface) then error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then typing_error "Cannot extend by using an interface" p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
@@ -560,13 +571,13 @@ module Inheritance = struct
 				)
 			end else begin match follow t with
 				| TInst ({ cl_path = [],"ArrayAccess" } as ca,[t]) when (has_class_flag ca CExtern) ->
-					if c.cl_array_access <> None then error "Duplicate array access" p;
+					if c.cl_array_access <> None then typing_error "Duplicate array access" p;
 					c.cl_array_access <- Some t;
 					(fun () -> ())
 				| TInst (intf,params) ->
-					if extends intf c then error "Recursive class" p;
-					if (has_class_flag c CInterface) then error "Interfaces cannot implement another interface (use extends instead)" p;
-					if not (has_class_flag intf CInterface) then error "You can only implement an interface" p;
+					if extends intf c then typing_error "Recursive class" p;
+					if (has_class_flag c CInterface) then typing_error "Interfaces cannot implement another interface (use extends instead)" p;
+					if not (has_class_flag intf CInterface) then typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 						delay ctx PConnectField (fun() -> check_interfaces ctx c);
@@ -577,12 +588,12 @@ module Inheritance = struct
 						process_meta intf;
 					)
 				| TDynamic t ->
-					if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
+					if c.cl_dynamic <> None then typing_error "Cannot have several dynamics" p;
 					if not (has_class_flag c CExtern) then display_error ctx "In haxe 4, implements Dynamic is only supported on externs" p;
 					c.cl_dynamic <- Some t;
 					(fun () -> ())
 				| _ ->
-					error "Should implement by using an interface" p
+					typing_error "Should implement by using an interface" p
 			end
 		in
 		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->

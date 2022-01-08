@@ -27,11 +27,29 @@ open DisplayTypes
 open Genjson
 open Globals
 
+(* Merges argument and return types from macro and non-macro context, preferring the one that isn't Dynamic.
+   WARNING: Merging types from boths contexts like this is dangerous. The resuling type must never be
+   persisted on the compilation server, or else the compiler gets COVID. *)
+let perform_type_voodoo t tl' tr' =
+	match t with
+	| TFun(tl,tr) ->
+		let rec loop acc tl tl' = match tl,tl' with
+			| ((_,_,t1) as a1 :: tl),((_,_,t1') as a1' :: tl') ->
+				let a = if t1 == t_dynamic then a1' else a1 in
+				loop (a :: acc) tl tl'
+			| _ -> (List.rev acc) @ tl'
+		in
+		let tl = loop [] tl tl' in
+		TFun(tl,if tr == t_dynamic then tr' else tr')
+	| _ ->
+		TFun(tl',tr')
+
 let maybe_resolve_macro_field ctx t c cf =
 	try
 		if cf.cf_kind <> Method MethMacro then raise Exit;
 		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
-		(TFun(tl,tr)),c,cf
+		let t = perform_type_voodoo t tl tr in
+		t,c,{cf with cf_type = t}
 	with _ ->
 		t,c,cf
 
@@ -311,7 +329,7 @@ let collect ctx tk with_type sort =
 		in
 		(* member fields *)
 		if ctx.curfun <> FunStatic then begin
-			let all_fields = Type.TClass.get_all_fields ctx.curclass (List.map snd ctx.curclass.cl_params) in
+			let all_fields = Type.TClass.get_all_fields ctx.curclass (extract_param_types ctx.curclass.cl_params) in
 			PMap.iter (fun _ (c,cf) ->
 				let origin = if c == ctx.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
 				maybe_add_field CFSMember origin cf
@@ -406,12 +424,15 @@ let collect ctx tk with_type sort =
 		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
 		begin match ctx.curfun with
 			| FunMember | FunConstructor | FunMemberClassLocal ->
-				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
+				let t = TInst(ctx.curclass,extract_param_types ctx.curclass.cl_params) in
 				add (make_ci_literal "this" (tpair t)) (Some "this");
 				begin match ctx.curclass.cl_super with
 					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
 					| None -> ()
 				end
+			| FunMemberAbstract ->
+				let t = TInst(ctx.curclass,extract_param_types ctx.curclass.cl_params) in
+				add (make_ci_literal "abstract" (tpair t)) (Some "abstract");
 			| _ ->
 				()
 		end;
@@ -430,9 +451,9 @@ let collect ctx tk with_type sort =
 	end;
 
 	(* type params *)
-	List.iter (fun (s,t) -> match follow t with
+	List.iter (fun tp -> match follow tp.ttp_type with
 		| TInst(c,_) ->
-			add (make_ci_type_param c (tpair t)) (Some (snd c.cl_path))
+			add (make_ci_type_param c (tpair tp.ttp_type)) (Some (snd c.cl_path))
 		| _ -> die "" __LOC__
 	) ctx.type_params;
 

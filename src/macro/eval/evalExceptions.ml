@@ -145,7 +145,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 					in
 					raise (Error.Error (Error.Custom s.sstring,p))
 				| _ ->
-					Error.error "Something went wrong" null_pos
+					Error.typing_error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
 			let stack = match stack with
@@ -156,7 +156,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			let msg = get_exc_error_message ctx v stack (if p' = null_pos then p else p') in
 			reset_ctx();
 			final();
-			Error.error msg null_pos
+			Error.typing_error msg null_pos
 		end
 	| MacroApi.Abort ->
 		final();

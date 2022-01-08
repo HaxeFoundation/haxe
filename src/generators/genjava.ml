@@ -1524,7 +1524,7 @@ let generate con =
 				| TTypeExpr mt -> write w (md_s e.epos mt)
 				| TParenthesis e ->
 					write w "("; expr_s w e; write w ")"
-				| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+				| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 					(match e.eexpr with
 					| TFor _ | TWhile _ ->
 						print w "label%s:" n;
@@ -1834,7 +1834,7 @@ let generate con =
 
 	let rec gen_spart w = function
 		| EConst c, p -> (match c with
-			| Int s | Float s | Ident s ->
+			| Int (s, _) | Float (s, _) | Ident s ->
 				write w s
 			| String(s,_) ->
 				write w "\"";
@@ -1909,8 +1909,8 @@ let generate con =
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
-				let params_extends = List.fold_left (fun acc (name, t) ->
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> match follow tp.ttp_type with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
+				let params_extends = List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
 					match run_follow gen t with
 						| TInst (cl, p) ->
 							(match cl.cl_implements with
@@ -2001,9 +2001,9 @@ let generate con =
 				let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 				let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
 				let v_n = if is_static then "static" else if is_override && not is_interface then "" else if not is_virtual then "final" else "" in
-				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, extract_param_types cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 
-				let params = List.map snd cl.cl_params in
+				let params = extract_param_types cl.cl_params in
 				let ret_type, args, has_rest_args = match follow cf_type, follow cf.cf_type with
 					| TFun (strbtl, t), TFun(rargs, _) ->
 						let ret_type = apply_params cl.cl_params params (real_type t)
@@ -2091,6 +2091,11 @@ let generate con =
 				end);
 			newline w;
 			newline w
+	in
+
+	let gen_class_field w ?(is_overload=false) is_static cl is_final cf =
+		(* This should probably be handled somewhere earlier in the unholy gencommon machinery, but whatever *)
+		if not (has_class_field_flag cf CfExtern) then gen_class_field w ~is_overload is_static cl is_final cf
 	in
 
 	let gen_class w cl =

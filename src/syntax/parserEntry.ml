@@ -72,8 +72,8 @@ let rec eval ctx (e,p) =
 	| EConst (Ident i) ->
 		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
 	| EConst (String(s,_)) -> TString s
-	| EConst (Int i) -> TFloat (float_of_string i)
-	| EConst (Float f) -> TFloat (float_of_string f)
+	| EConst (Int (i, _)) -> TFloat (float_of_string i)
+	| EConst (Float (f, _)) -> TFloat (float_of_string f)
 	| ECall ((EConst (Ident "version"),_),[(EConst (String(s,_)), p)]) -> parse_version s p
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
@@ -252,7 +252,8 @@ let parse entry ctx code file =
 				let p = pos tk in
 				(* Completion at the / should not pick up the comment (issue #9133) *)
 				let p = if is_completion() then {p with pmin = p.pmin + 1} else p in
-				if display_position#enclosed_in p then syntax_completion SCComment None (pos tk);
+				(* The > 0 check is to deal with the special case of line comments at the beginning of the file (issue #10322) *)
+				if display_position#enclosed_in p && p.pmin > 0 then syntax_completion SCComment None (pos tk);
 			end;
 			next_token()
 		| Sharp "end" ->
@@ -289,7 +290,7 @@ let parse entry ctx code file =
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
-				| (Const (Int s),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
+				| (Const (Int (s, _)),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;

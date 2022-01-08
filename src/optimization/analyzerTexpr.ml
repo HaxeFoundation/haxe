@@ -167,7 +167,7 @@ let type_change_ok com t1 t2 =
 			| TLazy f ->
 				is_nullable_or_whatever (lazy_type f)
 			| TType (t,tl) ->
-				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
+				is_nullable_or_whatever (apply_typedef t tl)
 			| TFun _ ->
 				false
 			| TInst ({ cl_kind = KTypeParameter _ },_) ->
@@ -590,14 +590,24 @@ module Fusion = struct
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
 			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
+			let rec is_impure_extern e = match e.eexpr with
+				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
+					not (
+						Meta.has Meta.CoreApi cl.cl_meta ||
+						PurityState.is_pure cl cf
+					)
+				| _ -> check_expr is_impure_extern e
+			in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
 					not (
 						ExtType.has_variable_semantics v.v_type &&
 						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
-					) &&
-			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
+					) && (
+						is_compiler_generated || config.optimize &&
+						config.fusion && config.user_var_fusion && not has_type_params && not (is_impure_extern e)
+					)
 			in
 			if config.fusion_debug then begin
 				print_endline (Printf.sprintf "\nFUSION: %s\n\tvar %s<%i> = %s" (if b then "true" else "false") v.v_name v.v_id (s_expr_pretty e));
@@ -1179,7 +1189,7 @@ module Purity = struct
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
 					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					Error.error (Error.compl_msg "Pure field is here") p;
+					Error.typing_error (Error.compl_msg "Pure field is here") p;
 				end
 			| _ -> ()
 		) com.types;

@@ -1187,7 +1187,7 @@ module StdFileSystem = struct
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->
-		catch_unix_error Path.mkdir_from_path (Path.add_trailing_slash (decode_string path));
+		catch_unix_error Path.mkdir_from_path_unix_err (Path.add_trailing_slash (decode_string path));
 		vnull
 	)
 
@@ -2637,11 +2637,14 @@ module StdSys = struct
 			| _ -> vnull
 	)
 
-	let putEnv = vfun2 (fun s v ->
-		let s = decode_string s in
-		let v = decode_string v in
-		catch_unix_error Unix.putenv s v;
-		vnull
+	let putEnv = vfun2 (fun s -> function
+		| v when v = vnull ->
+			let _ = Luv.Env.unsetenv (decode_string s) in vnull
+		| v ->
+			let s = decode_string s in
+			let v = decode_string v in
+			catch_unix_error Unix.putenv s v;
+			vnull
 	)
 
 	let setCwd = vfun1 (fun s ->

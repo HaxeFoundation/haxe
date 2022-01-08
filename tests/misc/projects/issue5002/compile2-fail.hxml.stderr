@@ -12,7 +12,7 @@ Main2.hx:10: characters 3-25 : ... Called from macro here
 Main2.hx:11: characters 3-24 : ... Called from macro here
 "0_argument" is not a valid function argument name.
 Main2.hx:12: characters 3-32 : ... Called from macro here
-Main2.hx:13: characters 3-27 : Pattern variables must be lower-case
+Main2.hx:13: characters 3-27 : Unknown identifier : 0_patternVariable, pattern variables must be lower-case or with `var ` prefix
 Main2.hx:14: characters 3-23 : "0_forVariable" is not a valid for variable name.
 Main2.hx:15: characters 3-31 : "0_forVariableKey" is not a valid for variable name.
 Main2.hx:15: characters 3-31 : "0_forVariableValue" is not a valid for variable name.

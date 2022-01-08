@@ -28,6 +28,8 @@ open Globals
 *)
 let follow = Abstract.follow_with_abstracts
 
+let replace_float_separators s = Texpr.replace_separators s ""
+
 (*
    Code for generating source files.
    It manages creating diretories, indents, blocks and only modifying files
@@ -804,7 +806,7 @@ and type_string_suff suffix haxe_type remap =
          | _ -> die "" __LOC__)
       | ["cpp"] , "Function" ->
          "::cpp::Function< " ^ (cpp_function_signature_params params ) ^ " >"
-      | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type) remap
+      | _ ->  type_string_suff suffix (apply_typedef type_def params) remap
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
    | TAnon a -> "Dynamic"
@@ -1672,7 +1674,7 @@ and cpp_class_path_of klass =
 let cpp_const_type cval = match cval with
    | TInt i -> CppInt(i) , TCppScalar("int")
    | TBool b -> CppBool(b) , TCppScalar("bool")
-   | TFloat f -> CppFloat(f) , TCppScalar("Float")
+   | TFloat f -> CppFloat(replace_float_separators f) , TCppScalar("Float")
    | TString s -> CppString(s) , TCppString
    | _ -> (* TNull, TThis & TSuper should already be handled *)
       CppNull, TCppNull
@@ -1707,7 +1709,7 @@ let rec const_int_of expr =
 let rec const_float_of expr =
    match expr.eexpr with
    | TConst TInt x -> Printf.sprintf "%ld" x
-   | TConst TFloat x -> x
+   | TConst TFloat x -> (replace_float_separators x)
    | TConst TBool x -> if x then "1" else "0"
    | TParenthesis e -> const_float_of e
    | _ -> raise Not_found
@@ -1773,7 +1775,7 @@ let rec cpp_type_of stack ctx haxe_type =
 
       | TType (type_def,params) ->
          cpp_type_from_path stack ctx type_def.t_path params (fun () ->
-            cpp_type_of stack ctx (apply_params type_def.t_params params type_def.t_type) )
+            cpp_type_of stack ctx (apply_typedef type_def params) )
 
       | TFun _ -> TCppObject
       | TAnon _ -> TCppObject
@@ -3333,7 +3335,7 @@ let string_of_path path =
 let default_value_string ctx value =
 match value.eexpr with
    | TConst (TInt i) -> Printf.sprintf "%ld" i
-   | TConst (TFloat float_as_string) -> "((Float)" ^ float_as_string ^ ")"
+   | TConst (TFloat float_as_string) -> "((Float)" ^ (replace_float_separators float_as_string) ^ ")"
    | TConst (TString s) -> strq ctx s
    | TConst (TBool b) -> (if b then "true" else "false")
    | TConst TNull -> "null()"
@@ -4713,7 +4715,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (if return_type="Void" then "void" else return_type );
          output (" " ^ remap_name ^ "(" );
          output (ctx_arg_list ctx tl "" );
-         output ") = 0;\n";
+         output (") " ^ (if return_type="void" then "{}" else "{ return 0; }" ) ^ "\n");
          if doDynamic then
             output ("		::Dynamic " ^ remap_name ^ "_dyn();\n" );
       | _ when has_decl ->
@@ -6503,7 +6505,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let class_name_text = join_class_path class_path "." in
 
    (* Initialise static in boot function ... *)
-   if (not (has_class_flag class_def CInterface) && not nativeGen) && not (has_class_flag class_def CAbstract) then begin
+   if (not (has_class_flag class_def CInterface) && not nativeGen) then begin
       (* Remap the specialised "extern" classes back to the generic names *)
       output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
@@ -6527,13 +6529,17 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       in
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-      output_cpp ("\t" ^ class_name ^ " _hx_dummy;\n");
-      output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)&_hx_dummy;\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_cpp ("\t" ^ class_name ^ " _hx_dummy;\n");
+         output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)&_hx_dummy;\n");
+      end;
       output_cpp ("\t::hx::Static(__mClass) = new ::hx::Class_obj();\n");
       output_cpp ("\t__mClass->mName = " ^  (strq class_name_text)  ^ ";\n");
       output_cpp ("\t__mClass->mSuper = &super::__SGetClass();\n");
-      output_cpp ("\t__mClass->mConstructEmpty = &__CreateEmpty;\n");
-      output_cpp ("\t__mClass->mConstructArgs = &__Create;\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_cpp ("\t__mClass->mConstructEmpty = &__CreateEmpty;\n");
+         output_cpp ("\t__mClass->mConstructArgs = &__Create;\n");
+      end;
       output_cpp ("\t__mClass->mGetStaticField = &" ^ (
          if (has_get_static_field class_def) then class_name ^ "::__GetStatic;\n" else "::hx::Class_obj::GetNoStaticField;\n" ));
       output_cpp ("\t__mClass->mSetStaticField = &" ^ (
@@ -6710,9 +6716,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
              output_h ("\t\tstatic " ^ptr_name^ " __alloc(::hx::Ctx *_hx_ctx" ^
                  (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
       end;
-      output_h ("\t\tstatic void * _hx_vtable;\n");
-      output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
-      output_h ("\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_h ("\t\tstatic void * _hx_vtable;\n");
+         output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
+         output_h ("\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
+      end;
       if (List.length dynamic_functions > 0) then
          output_h ("\t\tstatic void __alloc_dynamic_functions(::hx::Ctx *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
       if (scriptable) then
@@ -6942,9 +6950,9 @@ let write_build_options common_ctx filename defines =
    let writer = cached_source_writer common_ctx filename in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ ->  writer#write (name ^ "="^(escape_command value)^ "\n" ) ) defines;
+      | _ ->  writer#write (Printf.sprintf "%s=%s\n" name (escape_command value))) defines;
    let cmd = Unix.open_process_in "haxelib path hxcpp" in
-   writer#write ("hxcpp=" ^ (Pervasives.input_line cmd));
+   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line cmd));
    Pervasives.ignore (Unix.close_process_in cmd);
    writer#close;;
 
@@ -7433,7 +7441,7 @@ class script_writer ctx filename asciiOut =
       end
    method constText c = match c with
    | TInt i -> (this#op IaConstInt) ^ (Printf.sprintf "%ld " i)
-   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText f)
+   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText (replace_float_separators f))
    | TString s -> (this#op IaConstString) ^ (this#stringText s)
    | TBool true -> (this#op IaConstTrue)
    | TBool false -> (this#op IaConstFalse)
@@ -8553,21 +8561,23 @@ let generate_source ctx =
    | _ -> "output" in
 
    write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps (!boot_enums@ !boot_classes) !build_xml !extern_src output_name;
-   let cmd_defines = ref "" in
-   PMap.iter ( fun name value -> match name with
-      | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines.Define.values;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
-      let cmd = ref "haxelib run hxcpp Build.xml haxe" in
-      if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
-      cmd := !cmd ^ !cmd_defines;
-      cmd := List.fold_left (fun cmd path -> cmd ^ " -I\"" ^ (escape_command path) ^ "\"" ) !cmd common_ctx.class_path;
-      common_ctx.print (!cmd ^ "\n");
-      if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
+      let cmd_buffer = Buffer.create 128 in
+      Buffer.add_string cmd_buffer "haxelib run hxcpp Build.xml haxe";
+      if (common_ctx.debug) then Buffer.add_string cmd_buffer " -Ddebug";
+      PMap.iter ( fun name value -> match name with
+         | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
+         | _ -> Printf.bprintf cmd_buffer " -D%s=\"%s\"" name (escape_command value);
+      ) common_ctx.defines.values;
+      List.iter (fun path -> Printf.bprintf cmd_buffer " -I\"%s\"" (escape_command path)) common_ctx.class_path;
+      Buffer.add_char cmd_buffer '\n';
+      let cmd = Buffer.contents cmd_buffer in
+      common_ctx.print cmd;
+      if common_ctx.run_command cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
       t()
    end
@@ -8583,5 +8593,3 @@ let generate common_ctx =
       generate_source ctx
    end
 ;;
-
-

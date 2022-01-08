@@ -720,9 +720,10 @@ module Converter = struct
 			tp_name = (name,p);
 			tp_params = [];
 			tp_meta = [];
+			tp_default = None;
 			tp_constraints = match constraints with
 				| [] -> None
-				| _ -> Some (CTIntersection constraints,p)
+				| _ -> Some (CTIntersection constraints,p);
 		} in
 		tp
 
@@ -789,6 +790,8 @@ module Converter = struct
 						add_access (AOverride,null_pos);
 					| _ -> ()
 				) ann
+			| AttrCode _ when is_interface ->
+				add_meta (Meta.JavaDefault,[],p)
 			| _ -> ()
 		) jf.jf_attributes;
 		let add_native_meta () =

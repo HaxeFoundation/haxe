@@ -22,12 +22,14 @@
 
 package sys.thread;
 
+import python.lib.threading.Semaphore;
+
 @:coreApi
 class Lock {
-	final semaphore:NativeSemaphore;
+	final semaphore:Semaphore;
 
 	public inline function new() {
-		semaphore = new NativeSemaphore(0);
+		semaphore = new Semaphore(0);
 	}
 
 	public inline function wait(?timeout:Float):Bool {
@@ -37,12 +39,4 @@ class Lock {
 	public inline function release():Void {
 		semaphore.release();
 	}
-}
-
-@:pythonImport("threading", "Semaphore")
-@:native("Lock")
-private extern class NativeSemaphore {
-	function new(value:Int);
-	function acquire(blocking:Bool = true, ?timeout:Float):Bool;
-	function release():Void;
 }

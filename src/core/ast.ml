@@ -106,8 +106,8 @@ type string_literal_kind =
 	(* | SMarkup *)
 
 type constant =
-	| Int of string
-	| Float of string
+	| Int of string * string option
+	| Float of string * string option
 	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
@@ -233,6 +233,7 @@ and type_param = {
 	tp_name : placed_name;
 	tp_params :	type_param list;
 	tp_constraints : type_hint option;
+	tp_default : type_hint option;
 	tp_meta : metadata;
 }
 
@@ -458,8 +459,10 @@ let parse_path s =
 	| x :: l -> List.rev l, x
 
 let s_constant = function
-	| Int s -> s
-	| Float s -> s
+	| Int (s, None) -> s
+	| Int (s, Some suffix) -> s ^ suffix
+	| Float (s, None) -> s
+	| Float (s, Some suffix) -> s ^ suffix
 	| String(s,qs) ->
 		begin match qs with
 		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
@@ -691,8 +694,9 @@ let map_expr loop (e,p) =
 		),p
 	and tparamdecl t =
 		let constraints = opt type_hint t.tp_constraints in
+		let default = opt type_hint t.tp_default in
 		let params = List.map tparamdecl t.tp_params in
-		{ tp_name = t.tp_name; tp_constraints = constraints; tp_params = params; tp_meta = t.tp_meta }
+		{ tp_name = t.tp_name; tp_constraints = constraints; tp_default = default; tp_params = params; tp_meta = t.tp_meta }
 	and func f =
 		let params = List.map tparamdecl f.f_params in
 		let args = List.map (fun (n,o,m,t,e) ->

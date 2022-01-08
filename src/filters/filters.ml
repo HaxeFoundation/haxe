@@ -97,8 +97,8 @@ let check_local_vars_init com e =
 					if v.v_name = "this" then com.warning "this might be used before assigning a value to it" e.epos
 					else com.warning ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
 				else
-					if v.v_name = "this" then error "Missing this = value" e.epos
-					else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
+					if v.v_name = "this" then typing_error "Missing this = value" e.epos
+					else typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
 		| TVar (v,eo) ->
 			begin
@@ -198,7 +198,7 @@ let check_local_vars_init com e =
 
 let mark_switch_break_loops e =
 	let add_loop_label n e =
-		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n)),e.epos)],e.epos), e) }
+		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n, None)),e.epos)],e.epos), e) }
 	in
 	let in_switch = ref false in
 	let did_found = ref (-1) in
@@ -278,7 +278,7 @@ let check_abstract_as_value e =
 		match e.eexpr with
 		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
 		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-			error "Cannot use abstract as value" e.epos
+			typing_error "Cannot use abstract as value" e.epos
 		| _ -> Type.iter loop e
 	in
 	loop e;
@@ -382,7 +382,7 @@ let remove_extern_fields ctx t = match t with
 let check_private_path ctx t = match t with
 	| TClassDecl c when c.cl_private ->
 		let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
-		if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
+		if Hashtbl.mem ctx.g.types_module rpath then typing_error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 	| _ ->
 		()
 
@@ -469,7 +469,7 @@ let add_rtti ctx t =
 (* Adds member field initializations as assignments to the constructor *)
 let add_field_inits locals ctx t =
 	let apply c =
-		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
+		let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
 		let v = alloc_var VGenerated "_g" ethis.etype ethis.epos in
 		let need_this = ref false in
@@ -486,7 +486,7 @@ let add_field_inits locals ctx t =
 				match cf.cf_expr with
 				| None -> die "" __LOC__
 				| Some e ->
-					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
+					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,extract_param_types c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
 					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
 			) inits in
@@ -567,7 +567,7 @@ let check_cs_events com t = match t with
 		let check fields f =
 			match f.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
-				if (has_class_field_flag f CfPublic) then error "@:event fields must be private" f.cf_pos;
+				if (has_class_field_flag f CfPublic) then typing_error "@:event fields must be private" f.cf_pos;
 
 				(* prevent generating reflect helpers for the event in gencommon *)
 				f.cf_meta <- (Meta.SkipReflection, [], f.cf_pos) :: f.cf_meta;
@@ -576,7 +576,7 @@ let check_cs_events com t = match t with
 				let tmeth = (tfun [f.cf_type] com.basic.tvoid) in
 
 				let process_event_method name =
-					let m = try PMap.find name fields with Not_found -> error ("Missing event method: " ^ name) f.cf_pos in
+					let m = try PMap.find name fields with Not_found -> typing_error ("Missing event method: " ^ name) f.cf_pos in
 
 					(* check method signature *)
 					begin
@@ -617,7 +617,7 @@ let check_remove_metadata ctx t = match t with
 let check_void_field ctx t = match t with
 	| TClassDecl c ->
 		let check f =
-			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
+			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> typing_error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
 		in
 		List.iter check c.cl_ordered_fields;
 		List.iter check c.cl_ordered_statics;

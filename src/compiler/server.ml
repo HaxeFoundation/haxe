@@ -76,7 +76,7 @@ let default_flush ctx =
 
 let create_context params =
 	let ctx = {
-		com = Common.create version (s_version true) params;
+		com = Common.create version params;
 		flush = (fun()->());
 		setup = (fun()->());
 		messages = [];

@@ -475,7 +475,7 @@ and resume tdecl fdecl s =
 		| Kwd New :: Kwd Function :: _ when fdecl ->
 			junk_tokens (k - 2);
 			true
-		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
 			junk_tokens (k - 1);
 			true
 		| BrClose :: _ when tdecl ->
@@ -558,7 +558,7 @@ and parse_meta_params pname s = match s with parser
 
 and parse_meta_entry = parser
 	[< '(At,p1); s >] ->
-		let meta = check_resume p1 (fun () -> Some (Meta.Last,[],p1)) (fun () -> None) in
+		let meta = check_resume p1 (fun () -> Some (Meta.HxCompletion,[],p1)) (fun () -> None) in
 		match s with parser
 		| [< name,p = parse_meta_name p1; params = parse_meta_params p >] -> (name,params,punion p1 p)
 		| [< >] -> match meta with None -> serror() | Some meta -> meta
@@ -580,7 +580,7 @@ and parse_meta_name_2 p1 acc s =
 
 and parse_meta_name p1 = parser
 	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] ->
-		let meta = check_resume p (fun () -> Some (Meta.Last,p)) (fun() -> None) in
+		let meta = check_resume p (fun () -> Some (Meta.HxCompletion,p)) (fun() -> None) in
 		begin match s with parser
 		| [< name,p2 = parse_meta_name_2 p [] >] -> (Meta.parse (rev_concat "." name)),p2
 		| [< >] -> match meta with None -> raise Stream.Failure | Some meta -> meta
@@ -1028,21 +1028,25 @@ and parse_constraint_param s =
 	let meta = parse_meta s in
 	match s with parser
 	| [< name = type_name; s >] ->
-		let params = (match s with parser
-			| [< >] -> []
-		) in
 		let cto = (match s with parser
 			| [< '(DblDot,_); s >] ->
 				(match s with parser
-				| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> Some t
+				| [< t = parse_complex_type >] -> Some t
+				| [< >] -> serror())
+			| [< >] -> None
+		) in
+		let default = (match s with parser
+			| [< '(Binop OpAssign,_); s >] ->
+				(match s with parser
 				| [< t = parse_complex_type >] -> Some t
 				| [< >] -> serror())
 			| [< >] -> None
 		) in
 		{
 			tp_name = name;
-			tp_params = params;
+			tp_params = [];
 			tp_constraints = cto;
+			tp_default = default;
 			tp_meta = meta;
 		}
 	| [< >] ->
@@ -1184,6 +1188,14 @@ and parse_var_decl_head final s =
 	let meta = parse_meta s in
 	match s with parser
 	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (meta,name,final,t,p)
+	| [< >] ->
+		(* This nonsense is here for the var @ case in issue #9639 *)
+		let rec loop meta = match meta with
+			| (Meta.HxCompletion,_,p) :: _ -> (meta,"",false,None,null_pos)
+			| _ :: meta -> loop meta
+			| [] -> no_keyword "variable name" s
+		in
+		loop meta
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->
@@ -1316,6 +1328,7 @@ and expr = parser
 	| [< '(Kwd Final,p1); v = parse_var_decl true >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd Abstract,p); s >] -> expr_next (EConst (Ident "abstract"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
 	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
 	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s
@@ -1452,7 +1465,7 @@ and expr = parser
 				syntax_error (Expected ["{"]) s (ESwitch(e,[],None),punion p1 (pos e))
 		end
 	| [< '(Kwd Try,p1); e = secure_expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
-	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
+	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int (i, None)),p1) e2
 	| [< '(Kwd Untyped,p1); e = secure_expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 	| [< '(Kwd Inline,p); e = secure_expr >] -> make_meta Meta.Inline [] e p
@@ -1523,7 +1536,7 @@ and parse_field e1 p s =
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
-			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+			| (EConst (Int (v, None)),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".", None)),punion p p2) s
 			| _ -> serror()
 		end
 	)
@@ -1633,8 +1646,8 @@ and secure_expr = parser
 let rec validate_macro_cond s e = match fst e with
 	| EConst (Ident _)
 	| EConst (String _)
-	| EConst (Int _)
-	| EConst (Float _)
+	| EConst (Int (_, _))
+	| EConst (Float (_, _))
 		-> e
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
@@ -1656,10 +1669,10 @@ let rec parse_macro_cond s =
 				parse_macro_ident t p s
 			| [< '(Const (String(s,qs)),p) >] ->
 				None, (EConst (String(s,qs)),p)
-			| [< '(Const (Int i),p) >] ->
-				None, (EConst (Int i),p)
-			| [< '(Const (Float f),p) >] ->
-				None, (EConst (Float f),p)
+			| [< '(Const (Int (i, s)),p) >] ->
+				None, (EConst (Int (i, s)),p)
+			| [< '(Const (Float (f, s)),p) >] ->
+				None, (EConst (Float (f, s)),p)
 			| [< '(Kwd k,p) >] ->
 				parse_macro_ident (s_keyword k) p s
 			| [< '(Unop op,p); tk, e = parse_macro_cond >] ->

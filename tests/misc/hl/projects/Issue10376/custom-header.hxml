@@ -1,0 +1,5 @@
+--main CheckSourceHeader
+--hl out/main.c
+-D no-compilation
+-D source-header=custom
+--cmd haxe --run CheckSourceHeader custom

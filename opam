@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "haxe"
-version: "4.2.3"
+version: "4.2.4"
 synopsis: "Multi-target universal programming language"
 description: """
 Haxe is an open source toolkit based on a modern,
@@ -32,5 +32,5 @@ depends: [
   "conf-zlib"
   "conf-mbedtls"
   "conf-neko"
-  "luv"
+  "luv" {<= "0.5.8"} (* see https://github.com/aantron/luv/issues/121 *)
 ]
