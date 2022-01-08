@@ -249,10 +249,10 @@ test-all:
     BUILD +test --TEST=python
     BUILD +test --TEST=java,jvm
     BUILD +test --TEST=cs
-    BUILD +test --TEST=js
     BUILD +test --TEST=cpp
     BUILD +test --TEST=lua
     
-    IF [ "$TARGETPLATFORM" = "linux/amd64" ] # FIXME: hl can't compile on arm64 (JIT issue?)
-        BUILD +test --TEST=hl
+    IF [ "$TARGETPLATFORM" = "linux/amd64" ]
+        BUILD +test --TEST=js # FIXME: timeout
+        BUILD +test --TEST=hl # FIXME: hl can't compile on arm64 (JIT issue?)
     END
