@@ -251,8 +251,8 @@ test-all:
     BUILD +test --TEST=cs
     BUILD +test --TEST=cpp
     BUILD +test --TEST=lua
+    BUILD +test --TEST=js # FIXME: timeout
     
     IF [ "$TARGETPLATFORM" = "linux/amd64" ]
-        BUILD +test --TEST=js # FIXME: timeout
         BUILD +test --TEST=hl # FIXME: hl can't compile on arm64 (JIT issue?)
     END
