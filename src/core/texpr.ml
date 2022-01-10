@@ -566,6 +566,9 @@ let rec constructor_side_effects e =
 		with Exit ->
 			true
 
+let replace_separators s c =
+	String.concat c (ExtString.String.nsplit s "_")
+
 let type_constant basic c p =
 	match c with
 	| Int (s,_) ->

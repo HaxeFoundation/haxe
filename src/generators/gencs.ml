@@ -1369,6 +1369,7 @@ let generate con =
 									| _ -> ()
 								*)
 							| TFloat s ->
+								let s = Texpr.replace_separators s "" in
 								let len = String.length s in
 								let rec loop i prev_c =
 									if i >= len then begin
