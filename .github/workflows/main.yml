@@ -253,7 +253,9 @@ jobs:
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
       - name: Build
-        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache --push +build --ADD_REVISION=$ADD_REVISION
+        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache +build --ADD_REVISION=$ADD_REVISION
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
       
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
@@ -268,7 +270,9 @@ jobs:
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
       
       - name: Build xmldoc
-        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache --push +xmldoc --COMMIT=$GITHUB_SHA --BRANCH=${{ steps.extract_branch.outputs.branch }}
+        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache +xmldoc --COMMIT=$GITHUB_SHA --BRANCH=${{ steps.extract_branch.outputs.branch }}
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
       
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v1.0.0
@@ -309,7 +313,9 @@ jobs:
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
       - name: Build
-        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-arm64 --push +build --ADD_REVISION=$ADD_REVISION
+        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-arm64 +build --ADD_REVISION=$ADD_REVISION
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
       
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
@@ -655,12 +661,15 @@ jobs:
       
       - name: Test
         if: success() && !(matrix.SAUCE && matrix.SAUCE_ACCESS_KEY)
-        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache --push +test-all
+        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache +test-all
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
       
       - name: Test (with SauceLabs)
         if: success() && matrix.SAUCE && matrix.SAUCE_ACCESS_KEY
-        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache --push +test --TEST=js
+        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache +test --TEST=js
         env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
           SAUCE_ACCESS_KEY: matrix.SAUCE_ACCESS_KEY
       
   linux-arm64-test:
@@ -694,12 +703,15 @@ jobs:
       
       # - name: Test
       #   if: success() && !(matrix.SAUCE && matrix.SAUCE_ACCESS_KEY)
-      #   run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-arm64 --push +test-all
+      #   run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-arm64 +test-all
+      # env:
+      #     EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
       
       # - name: Test (with SauceLabs)
       #   if: success() && matrix.SAUCE && matrix.SAUCE_ACCESS_KEY
-      #   run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-arm64 --push +test --TEST=js
+      #   run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-arm64 +test --TEST=js
       #   env:
+      #     EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
       #     SAUCE_ACCESS_KEY: matrix.SAUCE_ACCESS_KEY
       
 
