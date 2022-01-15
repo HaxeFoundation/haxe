@@ -97,8 +97,11 @@ Std.parseInt('  	-0x10') == -16;
 #end
 #end
 #end
+
+#if !neko
 Std.parseInt("+123") == 123;
 Std.parseInt("-0xa0") == -160;
+#end
 
 // parseFloat
 Std.parseFloat("0") == 0.;
