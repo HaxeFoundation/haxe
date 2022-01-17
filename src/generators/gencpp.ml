@@ -28,6 +28,8 @@ open Globals
 *)
 let follow = Abstract.follow_with_abstracts
 
+let replace_float_separators s = Texpr.replace_separators s ""
+
 (*
    Code for generating source files.
    It manages creating diretories, indents, blocks and only modifying files
@@ -1672,7 +1674,7 @@ and cpp_class_path_of klass =
 let cpp_const_type cval = match cval with
    | TInt i -> CppInt(i) , TCppScalar("int")
    | TBool b -> CppBool(b) , TCppScalar("bool")
-   | TFloat f -> CppFloat(f) , TCppScalar("Float")
+   | TFloat f -> CppFloat(replace_float_separators f) , TCppScalar("Float")
    | TString s -> CppString(s) , TCppString
    | _ -> (* TNull, TThis & TSuper should already be handled *)
       CppNull, TCppNull
@@ -1707,7 +1709,7 @@ let rec const_int_of expr =
 let rec const_float_of expr =
    match expr.eexpr with
    | TConst TInt x -> Printf.sprintf "%ld" x
-   | TConst TFloat x -> x
+   | TConst TFloat x -> (replace_float_separators x)
    | TConst TBool x -> if x then "1" else "0"
    | TParenthesis e -> const_float_of e
    | _ -> raise Not_found
@@ -3333,7 +3335,7 @@ let string_of_path path =
 let default_value_string ctx value =
 match value.eexpr with
    | TConst (TInt i) -> Printf.sprintf "%ld" i
-   | TConst (TFloat float_as_string) -> "((Float)" ^ float_as_string ^ ")"
+   | TConst (TFloat float_as_string) -> "((Float)" ^ (replace_float_separators float_as_string) ^ ")"
    | TConst (TString s) -> strq ctx s
    | TConst (TBool b) -> (if b then "true" else "false")
    | TConst TNull -> "null()"
@@ -7439,7 +7441,7 @@ class script_writer ctx filename asciiOut =
       end
    method constText c = match c with
    | TInt i -> (this#op IaConstInt) ^ (Printf.sprintf "%ld " i)
-   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText f)
+   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText (replace_float_separators f))
    | TString s -> (this#op IaConstString) ^ (this#stringText s)
    | TBool true -> (this#op IaConstTrue)
    | TBool false -> (this#op IaConstFalse)

@@ -243,7 +243,7 @@ module Initialize = struct
 				add_std "php";
 				"php"
 			| Cpp ->
-				Common.define_value com Define.HxcppApiLevel "400";
+				Common.define_value com Define.HxcppApiLevel "430";
 				add_std "cpp";
 				if Common.defined com Define.Cppia then
 					classes := (Path.parse_path "cpp.cppia.HostClasses" ) :: !classes;
