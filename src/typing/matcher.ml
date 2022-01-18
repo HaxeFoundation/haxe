@@ -43,11 +43,11 @@ let type_field_access ctx ?(resume=false) e name =
 
 let unapply_type_parameters params monos =
 	let unapplied = ref [] in
-	List.iter2 (fun (_,t1) t2 ->
+	List.iter2 (fun tp1 t2 ->
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
 			unapplied := (m1,m1.tm_type) :: !unapplied;
-			Monomorph.bind m1 t1;
+			Monomorph.bind m1 tp1.ttp_type;
 		| _ -> ()
 	) params monos;
 	!unapplied
@@ -312,7 +312,7 @@ module Pattern = struct
 				with _ ->
 					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-						display_error ctx "Pattern variables must be lower-case" p;
+						display_error ctx ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
 					end;
 					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->
@@ -334,7 +334,7 @@ module Pattern = struct
 				let e = loop e in
 				pctx.in_reification <- old;
 				e
-			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
+			| EConst((Ident ("false" | "true") | Int (_,_) | String _ | Float (_,_)) as ct) ->
 				begin match ct with
 					| String (value,kind) when kind = Ast.SSingleQuotes ->
 						let e = ctx.g.do_format_string ctx value p in
@@ -1361,7 +1361,7 @@ module TexprConverter = struct
 					t_dynamic
 				in
 				let t = match fst con with
-					| ConEnum(en,_) -> TEnum(en,List.map snd en.e_params)
+					| ConEnum(en,_) -> TEnum(en,extract_param_types en.e_params)
 					| ConArray _ -> ctx.t.tarray t_dynamic
 					| ConConst ct ->
 						begin match ct with
@@ -1371,7 +1371,7 @@ module TexprConverter = struct
 							| TBool _ -> ctx.t.tbool
 							| _ -> fail()
 						end
-					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,List.map snd a.a_params))
+					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,extract_param_types a.a_params))
 					| ConTypeExpr mt -> get_general_module_type ctx mt e.epos
 					| ConFields _ | ConStatic _ -> fail()
 				in
@@ -1652,7 +1652,7 @@ module TexprConverter = struct
 				dt.dt_texpr <- e;
 				e
 		in
-		let params = List.map snd ctx.type_params in
+		let params = extract_param_types ctx.type_params in
 		let e = loop Toplevel params dt in
 		match e with
 		| None ->

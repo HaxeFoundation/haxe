@@ -77,7 +77,13 @@ and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 
-and type_params = (string * t) list
+and typed_type_param = {
+	ttp_name : string;
+	ttp_type : t;
+	ttp_default : t option;
+}
+
+and type_params = typed_type_param list
 
 and tconstant =
 	| TInt of int32

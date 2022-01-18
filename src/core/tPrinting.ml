@@ -487,11 +487,17 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param (s,t) = match follow t with
+	let s_type_param tp = match follow tp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-			begin match tl1 with
-			| [] -> s
-			| _ -> Printf.sprintf "%s:%s" s (String.concat " & " (List.map s_type tl1))
+			let s = match tl1 with
+				| [] -> tp.ttp_name
+				| _ -> Printf.sprintf "%s:%s" tp.ttp_name (String.concat " & " (List.map s_type tl1))
+			in
+			begin match tp.ttp_default with
+			| None ->
+				s
+			| Some t ->
+				Printf.sprintf "%s = %s" s (s_type t)
 			end
 		| _ -> die "" __LOC__
 

@@ -1035,10 +1035,18 @@ and parse_constraint_param s =
 				| [< >] -> serror())
 			| [< >] -> None
 		) in
+		let default = (match s with parser
+			| [< '(Binop OpAssign,_); s >] ->
+				(match s with parser
+				| [< t = parse_complex_type >] -> Some t
+				| [< >] -> serror())
+			| [< >] -> None
+		) in
 		{
 			tp_name = name;
 			tp_params = [];
 			tp_constraints = cto;
+			tp_default = default;
 			tp_meta = meta;
 		}
 	| [< >] ->
@@ -1320,6 +1328,7 @@ and expr = parser
 	| [< '(Kwd Final,p1); v = parse_var_decl true >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd Abstract,p); s >] -> expr_next (EConst (Ident "abstract"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
 	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
 	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s
@@ -1456,7 +1465,7 @@ and expr = parser
 				syntax_error (Expected ["{"]) s (ESwitch(e,[],None),punion p1 (pos e))
 		end
 	| [< '(Kwd Try,p1); e = secure_expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
-	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
+	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int (i, None)),p1) e2
 	| [< '(Kwd Untyped,p1); e = secure_expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 	| [< '(Kwd Inline,p); e = secure_expr >] -> make_meta Meta.Inline [] e p
@@ -1527,7 +1536,7 @@ and parse_field e1 p s =
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
-			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+			| (EConst (Int (v, None)),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".", None)),punion p p2) s
 			| _ -> serror()
 		end
 	)
@@ -1637,8 +1646,8 @@ and secure_expr = parser
 let rec validate_macro_cond s e = match fst e with
 	| EConst (Ident _)
 	| EConst (String _)
-	| EConst (Int _)
-	| EConst (Float _)
+	| EConst (Int (_, _))
+	| EConst (Float (_, _))
 		-> e
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
@@ -1660,10 +1669,10 @@ let rec parse_macro_cond s =
 				parse_macro_ident t p s
 			| [< '(Const (String(s,qs)),p) >] ->
 				None, (EConst (String(s,qs)),p)
-			| [< '(Const (Int i),p) >] ->
-				None, (EConst (Int i),p)
-			| [< '(Const (Float f),p) >] ->
-				None, (EConst (Float f),p)
+			| [< '(Const (Int (i, s)),p) >] ->
+				None, (EConst (Int (i, s)),p)
+			| [< '(Const (Float (f, s)),p) >] ->
+				None, (EConst (Float (f, s)),p)
 			| [< '(Kwd k,p) >] ->
 				parse_macro_ident (s_keyword k) p s
 			| [< '(Unop op,p); tk, e = parse_macro_cond >] ->

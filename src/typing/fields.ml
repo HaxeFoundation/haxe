@@ -139,22 +139,12 @@ let field_access ctx mode f fh e pfield =
 		in
 		begin match fh with
 		| FHInstance(c,tl) ->
-			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
-				| MGet,Var {v_read = AccCall }
-				| MSet _,Var {v_write = AccCall }
-				| MCall _,Var {v_read = AccCall } ->
-					()
-				| MCall _, Var _ ->
-					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" pfield
-				| MCall _, _ ->
-					()
-				| MGet,Var _
-				| MSet _,Var _ when ctx.com.platform = Flash && has_class_flag c CExtern ->
-					()
-				| _, Method _ ->
+			if e.eexpr = TConst TSuper then begin match mode with
+				| MSet _ | MGet ->
 					display_error ctx "Cannot create closure on super method" pfield
-				| _ ->
-					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
+				| MCall _ ->
+					()
+			end;
 			(* We need the actual class type (i.e. a potential child class) for visibility checks. *)
 			begin match follow e.etype with
 			| TInst(c,_) ->
@@ -183,6 +173,14 @@ let field_access ctx mode f fh e pfield =
 				check_field_access ctx c f false pfield
 			| _ ->
 				()
+			end;
+			if e.eexpr = TConst TSuper then begin match mode with
+				| MGet | MCall _ when v.v_read = AccCall ->
+					()
+				| MSet _ when v.v_write = AccCall ->
+					()
+				| _ ->
+					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield;
 			end;
 		| FHAnon ->
 			()

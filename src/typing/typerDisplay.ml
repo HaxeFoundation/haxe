@@ -87,7 +87,7 @@ let completion_item_of_expr ctx e =
 			end
 		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->
 			Display.merge_core_doc ctx (TAbstractDecl a);
-			let t = TType(abstract_module_type a (List.map snd a.a_params),[]) in
+			let t = TType(abstract_module_type a (extract_param_types a.a_params),[]) in
 			let t = tpair t in
 			make_ci_type (CompletionModuleType.of_module_type (TAbstractDecl a)) ImportStatus.Imported (Some t)
 		| TTypeExpr mt ->
@@ -569,7 +569,7 @@ let handle_display ctx e_ast dk mode with_type =
 						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
 						begin match resolve_typedef mt with
 						| TClassDecl c -> has_constructor c
-						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,List.map snd a.a_params)) with
+						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,extract_param_types a.a_params)) with
 							| TInst(c,_) -> has_constructor c
 							| TAbstract({a_impl = Some c},_) -> PMap.mem "_new" c.cl_statics
 							| _ -> false)
