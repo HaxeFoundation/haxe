@@ -315,7 +315,21 @@ let rec build_generic ctx c p tl =
 		TypeloadFunction.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
-		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
+		Meta.[
+			Access; Allow;
+			Final;
+			Hack;
+			Internal;
+			Keep;
+			NoClosure; NullSafety;
+			Pure;
+			Struct; StructInit;
+			Using
+		] |> List.iter (fun meta ->
+			if has_meta meta c.cl_meta then
+				let _,args,_ = get_meta meta c.cl_meta in
+				cg.cl_meta <- (meta,args,null_pos) :: cg.cl_meta
+		);
 		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
