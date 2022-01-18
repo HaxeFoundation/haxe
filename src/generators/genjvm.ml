@@ -1541,6 +1541,18 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| _ ->
 				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
+		| TField(_,FStatic({cl_path = (["haxe"],"EnumTools")}, {cf_name = "values"})) ->
+			begin match el with
+			| [e1] ->
+				let jsig_ret = array_sig (object_path_sig object_path) in
+				let meth = gctx.typed_functions#register_signature [] (Some jsig_ret) in
+				let jsig_meth = (method_sig meth.dargs meth.dret) in
+				self#read (fun () -> jm#cast jsig_meth) e1 (FDynamic "values");
+				jm#invokevirtual haxe_function_path meth.name jsig_meth;
+				Some jsig_ret
+			| _ ->
+				die "" __LOC__
+			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
@@ -2047,50 +2059,48 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#set_terminated true
 			end
 		| TObjectDecl fl ->
-			let td = gctx.anon_identification#identify true e.etype in
-			begin match follow e.etype,td with
-			(* The guard is here because in the case of quoted fields like `"a-b"`, the field is not part of the
-			   type. In this case we have to do full dynamic construction. *)
-			| TAnon an,Some pfm when List.for_all (fun ((name,_,_),_) -> PMap.mem name an.a_fields) fl ->
-				let fl' = convert_fields gctx pfm in
+			(* We cannot rely on e.etype because it might have optional field shit, so we need to build a concrete type from the fields... *)
+			let fields = List.fold_left (fun acc ((name,_,_),e) ->
+				let cf = mk_field name e.etype e.epos e.epos in
+				PMap.add name cf acc
+			) PMap.empty fl in
+			let t = mk_anon ~fields (ref Closed) in
+			let td = gctx.anon_identification#identify true t in
+			begin match td with
+			| Some pfm ->
+				let lut = Hashtbl.create 0 in
 				jm#construct ConstructInit pfm.pfm_path (fun () ->
-					(* We have to respect declaration order, so let's temp var where necessary *)
-					let rec loop fl fl' ok acc = match fl,fl' with
-						| ((name,_,_),e) :: fl,(name',jsig) :: fl' ->
-							if ok && name = name' then begin
+					(* Step 1: Expressions in order with temp vars *)
+					let rec loop fl = match fl with
+						| ((name,_,_),e) :: fl ->
+							let jsig = self#vtype e.etype in
+							let load = match (Texpr.skip e).eexpr with
+							| TConst _ | TTypeExpr _ | TFunction _ ->
+								(fun () -> self#texpr rvalue_any e)
+							| _ ->
+								let _,load,save = jm#add_local (Printf.sprintf "_hx_tmp_%s" name) jsig VarWillInit in
 								self#texpr rvalue_any e;
-								jm#cast jsig;
-								loop fl fl' ok acc
-							end else begin
-								let load = match (Texpr.skip e).eexpr with
-								| TConst _ | TTypeExpr _ | TFunction _ ->
-									(fun () -> self#texpr rvalue_any e)
-								| _ ->
-									let _,load,save = jm#add_local (Printf.sprintf "_hx_tmp_%s" name) (self#vtype e.etype) VarWillInit in
-									self#texpr rvalue_any e;
-									save();
-									load
-								in
-								loop fl fl' false ((name,load) :: acc)
-							end
-						| [],[] ->
-							acc
-						| (_,e) :: fl,[] ->
-							self#texpr RVoid e;
-							loop fl fl' ok acc
-						| [],(_,jsig) :: fl' ->
-							jm#load_default_value jsig;
-							loop [] fl' ok acc
+								save();
+								load
+							in
+							Hashtbl.add lut name load;
+							loop fl;
+						| [] ->
+							()
 					in
-					let vars = loop fl fl' true [] in
-					let vars = List.sort (fun (name1,_) (name2,_) -> compare name1 name2) vars in
-					List.iter (fun (name,load) ->
+					loop fl;
+					(* Step 2: Fields in order of constructor arguments *)
+					let order = List.sort (fun ((name1,_,_),_) ((name2,_,_),_) -> compare name1 name2) fl in
+					List.map (fun ((name,_,_),_) ->
+						let load = Hashtbl.find lut name in
 						load();
-						if List.mem_assoc name fl' then jm#cast (List.assoc name fl')
-					) vars;
-					List.map snd fl';
+						let cf = PMap.find name pfm.pfm_fields in
+						let jsig = self#vtype cf.cf_type in
+						jm#cast jsig;
+						jsig
+					) order;
 				)
-			| _ ->
+			| None ->
 				jm#construct ConstructInit haxe_dynamic_object_path (fun () -> []);
 				List.iter (fun ((name,_,_),e) ->
 					code#dup;

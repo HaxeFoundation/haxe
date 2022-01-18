@@ -136,18 +136,30 @@ module StrictMeta = struct
 		let pf = ctx.com.platform in
 		let changed_expr, fields_to_check, ctype = match params with
 			| [ECall(ef, el),p] ->
-				(* check last argument *)
-				let el, fields = match List.rev el with
-					| (EObjectDecl(decl),_) :: el ->
-						List.rev el, decl
-					| _ ->
-						el, []
-				in
 				let tpath = field_to_type_path ctx ef in
-				if pf = Cs then
+				begin match pf with
+				| Cs ->
+					let el, fields = match List.rev el with
+						| (EObjectDecl(decl),_) :: el ->
+							List.rev el, decl
+						| _ ->
+							el, []
+					in
 					(ENew((tpath,snd ef), el), p), fields, CTPath tpath
-				else
+				| Java ->
+					let fields = match el with
+					| [EObjectDecl(fields),_] ->
+						fields
+					| [] ->
+						[]
+					| (_,p) :: _ ->
+						display_error ctx "Object declaration expected" p;
+						[]
+					in
 					ef, fields, CTPath tpath
+				| _ ->
+					Error.typing_error "@:strict is not supported on this target" p
+				end
 			| [EConst(Ident i),p as expr] ->
 				let tpath = { tpackage=[]; tname=i; tparams=[]; tsub=None } in
 				if pf = Cs then
