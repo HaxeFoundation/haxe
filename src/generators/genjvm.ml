@@ -1541,6 +1541,18 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| _ ->
 				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
+		| TField(_,FStatic({cl_path = (["haxe"],"EnumTools")}, {cf_name = "values"})) ->
+			begin match el with
+			| [e1] ->
+				let jsig_ret = array_sig (object_path_sig object_path) in
+				let meth = gctx.typed_functions#register_signature [] (Some jsig_ret) in
+				let jsig_meth = (method_sig meth.dargs meth.dret) in
+				self#read (fun () -> jm#cast jsig_meth) e1 (FDynamic "values");
+				jm#invokevirtual haxe_function_path meth.name jsig_meth;
+				Some jsig_ret
+			| _ ->
+				die "" __LOC__
+			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
