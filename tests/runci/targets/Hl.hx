@@ -3,6 +3,7 @@ package runci.targets;
 import haxe.io.Path;
 import sys.FileSystem;
 import runci.System.*;
+import runci.System.Failure;
 import runci.Config.*;
 
 class Hl {
@@ -74,6 +75,14 @@ class Hl {
 
 	static public function run(args:Array<String>) {
 		getHlDependencies();
+
+		var hlBinary = try {
+			runCommand(hlBinary);
+			hlBinary;
+		} catch(e:Failure) {
+			'hl';
+		}
+
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
 		runCommand(hlBinary, ["bin/unit.hl"]);
 
