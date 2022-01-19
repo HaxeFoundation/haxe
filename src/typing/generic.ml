@@ -213,6 +213,21 @@ let rec build_generic ctx c p tl =
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
+		cg.cl_meta <- List.filter (fun (m,_,_) -> match m with
+			| Meta.Access | Allow
+			| Final
+			| Hack
+			| Internal
+			| Keep
+			| NoClosure | NullSafety
+			| Pure
+			| Struct | StructInit
+			| Using ->
+				true
+			| _ ->
+				false
+		) c.cl_meta;
+		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -314,8 +329,6 @@ let rec build_generic ctx c p tl =
 		);
 		TypeloadFunction.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
-		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
-		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
 		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
