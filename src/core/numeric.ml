@@ -49,7 +49,7 @@ let parse_float s =
 	let rec loop sp i =
 		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
 		match String.unsafe_get s i with
-		| ' ' when sp = i -> loop (sp + 1) (i + 1)
+		| ' ' | '\t' when sp = i -> loop (sp + 1) (i + 1)
 		| '0'..'9' | '-' | '+' | 'e' | 'E' | '.' -> loop sp (i + 1)
 		| _ -> String.sub s sp (i - sp)
 	in
