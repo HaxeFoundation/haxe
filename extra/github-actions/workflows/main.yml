@@ -55,15 +55,94 @@ jobs:
   linux-build:
     runs-on: ubuntu-18.04
     env:
-      PLATFORM: linux64
       OPAMYES: 1
     steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Earthly
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
-      @import install-neko.yml
-      @import build-linux.yml
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
+      - name: Build
+        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache +build --ADD_REVISION=$ADD_REVISION
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
+
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+
+      - name: Build xmldoc
+        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-amd64 +xmldoc --COMMIT=$GITHUB_SHA --BRANCH=${{ steps.extract_branch.outputs.branch }}
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
+
+      - name: Upload xmldoc artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: xmldoc
+          path: extra/doc
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linuxBinaries
+          path: out/linux/amd64
+
+  linux-arm64-build:
+    runs-on: ubuntu-18.04
+    env:
+      OPAMYES: 1
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Earthly
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+
+      - name: Set up QEMU
+        id: qemu
+        uses: docker/setup-qemu-action@v1
+        with:
+            image: tonistiigi/binfmt:latest
+            platforms: all
+
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
+      - name: Build
+        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-arm64 +build --ADD_REVISION=$ADD_REVISION
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linuxArm64Binaries
+          path: out/linux/arm64
 
   mac-build:
     runs-on: macos-latest
@@ -134,36 +213,41 @@ jobs:
     needs: linux-build
     runs-on: ubuntu-18.04
     env:
-      PLATFORM: linux64
-      TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, neko] #flash9
-        include:
-          - target: js
-            # SAUCE: 1
-            # SAUCE_TUNNEL_ID: 'linux-test'
-            # SAUCE_BUILD: '${{env.GITHUB_RUN_NUMBER}}' # $(Build.BuildNumber)
-          - target: hl
-            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
-          - target: cpp
-            APT_PACKAGES: gcc-multilib g++-multilib
-          - target: lua
-            APT_PACKAGES: ncurses-dev
-          # - target: flash9
-          #   APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
     steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v1
-        with:
-          name: linuxBinaries
 
-      @import install-neko.yml
-      @import test-linux.yml
+      - name: Set up QEMU
+        id: qemu
+        uses: docker/setup-qemu-action@v1
+        with:
+            image: tonistiigi/binfmt:latest
+            platforms: all
+
+      - name: Install Earthly
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'\
+
+      - name: Test
+        if: success() && !(matrix.SAUCE && matrix.SAUCE_ACCESS_KEY)
+        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache +test-all
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
+
+      - name: Test (with SauceLabs)
+        if: success() && matrix.SAUCE && matrix.SAUCE_ACCESS_KEY
+        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache +test --TEST=js
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/develop' }}"
+          SAUCE_ACCESS_KEY: matrix.SAUCE_ACCESS_KEY
 
   mac-test:
     needs: mac-build
@@ -192,7 +276,7 @@ jobs:
 
   deploy:
     if: github.event_name != 'pull_request'
-    needs: [linux-test, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64-build, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-18.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
@@ -229,6 +313,7 @@ jobs:
           COMMIT_DATE=`TZ=UTC git show --quiet --date='format-local:%Y-%m-%d' --format="%cd"`
           FILE_NAME=haxe_${COMMIT_DATE}_${{ steps.extract_branch.outputs.branch }}_${COMMIT_HASH_SHORT}
           aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/${FILE_NAME}.tar.gz
+          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/${FILE_NAME}.tar.gz
           aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/${FILE_NAME}.tar.gz
           aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/${FILE_NAME}.tar.gz
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/${FILE_NAME}.zip
@@ -249,6 +334,7 @@ jobs:
         run: |
           set -ex
           aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/haxe_latest.tar.gz
+          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/haxe_latest.tar.gz
           aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/haxe_latest.tar.gz
           aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/haxe_latest.tar.gz
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/haxe_latest.zip
