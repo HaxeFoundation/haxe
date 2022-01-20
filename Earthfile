@@ -1,6 +1,113 @@
 VERSION 0.6
-FROM ubuntu:20.04
-WORKDIR /tmp
+ARG UBUNTU_RELEASE=bionic
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-$UBUNTU_RELEASE
+ARG DEVCONTAINER_IMAGE_NAME_DEFAULT=ghcr.io/haxefoundation/haxe_devcontainer
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+ARG WORKDIR=/workspace
+RUN mkdir -m 777 "$WORKDIR"
+WORKDIR "$WORKDIR"
+
+ARG --required TARGETARCH
+
+devcontainer-library-scripts:
+    RUN curl -fsSLO https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/common-debian.sh
+    RUN curl -fsSLO https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh
+    SAVE ARTIFACT --keep-ts *.sh AS LOCAL .devcontainer/library-scripts/
+
+devcontainer:
+    # Avoid warnings by switching to noninteractive
+    ENV DEBIAN_FRONTEND=noninteractive
+
+    ARG INSTALL_ZSH="false"
+    ARG UPGRADE_PACKAGES="true"
+    ARG ENABLE_NONROOT_DOCKER="true"
+    ARG USE_MOBY="false"
+    COPY .devcontainer/library-scripts/common-debian.sh .devcontainer/library-scripts/docker-debian.sh /tmp/library-scripts/
+    RUN apt-get update \
+        && /bin/bash /tmp/library-scripts/common-debian.sh "${INSTALL_ZSH}" "${USERNAME}" "${USER_UID}" "${USER_GID}" "${UPGRADE_PACKAGES}" "true" "true" \
+        && /bin/bash /tmp/library-scripts/docker-debian.sh "${ENABLE_NONROOT_DOCKER}" "/var/run/docker-host.sock" "/var/run/docker.sock" "${USERNAME}" "${USE_MOBY}" \
+        # Clean up
+        && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/library-scripts/
+
+    # Setting the ENTRYPOINT to docker-init.sh will configure non-root access 
+    # to the Docker socket. The script will also execute CMD as needed.
+    ENTRYPOINT [ "/usr/local/share/docker-init.sh" ]
+    CMD [ "sleep", "infinity" ]
+
+    # Configure apt and install packages
+    RUN apt-get update \
+        && apt-get install -qqy --no-install-recommends apt-utils dialog 2>&1 \
+        && apt-get install -qqy --no-install-recommends \
+            iproute2 \
+            procps \
+            sudo \
+            bash-completion \
+            build-essential \
+            curl \
+            wget \
+            software-properties-common \
+            direnv \
+            tzdata \
+            # install docker engine for using `WITH DOCKER`
+            docker-ce \
+        # install node
+        && curl -sL https://deb.nodesource.com/setup_16.x | bash - \
+        && apt-get install -qqy --no-install-recommends nodejs=16.* \
+        # install ocaml and other haxe compiler deps
+        && add-apt-repository ppa:avsm/ppa \
+        && add-apt-repository ppa:haxe/ocaml \
+        && apt-get install -qqy --no-install-recommends \
+            ocaml-nox \
+            camlp5 \
+            opam \
+            libpcre3-dev \
+            zlib1g-dev \
+            libgtk2.0-dev \
+            libmbedtls-dev \
+            ninja-build \
+            libstring-shellquote-perl \
+            libipc-system-simple-perl \
+        #
+        # Clean up
+        && apt-get autoremove -y \
+        && apt-get clean -y \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Switch back to dialog for any ad-hoc use of apt-get
+    ENV DEBIAN_FRONTEND=
+
+    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
+
+    COPY +earthly/earthly /usr/local/bin/
+    RUN earthly bootstrap --no-buildkit --with-autocomplete
+
+    USER $USER
+
+    # Do not show git branch in bash prompt
+    # It's slow
+    RUN sed -ir 's/^__bash_prompt$/PS1="\\[\\033[0;32m\\]\\u \\[\\033[0m\\]➜ \\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\$ "/' ~/.bashrc
+
+    USER root
+
+    ARG GIT_SHA
+    ENV GIT_SHA="$GIT_SHA"
+    ARG IMAGE_NAME="$DEVCONTAINER_IMAGE_NAME_DEFAULT"
+    ARG IMAGE_TAG="development"
+    ARG IMAGE_CACHE="$IMAGE_NAME:$IMAGE_TAG"
+    SAVE IMAGE --cache-from="$IMAGE_CACHE" --push "$IMAGE_NAME:$IMAGE_TAG"
+
+# Usage:
+# COPY +earthly/earthly /usr/local/bin/
+# RUN earthly bootstrap --no-buildkit --with-autocomplete
+earthly:
+    ARG --required TARGETARCH
+    RUN curl -fsSL https://github.com/earthly/earthly/releases/download/v0.6.2/earthly-linux-${TARGETARCH} -o /usr/local/bin/earthly \
+        && chmod +x /usr/local/bin/earthly
+    SAVE ARTIFACT /usr/local/bin/earthly
 
 INSTALL_PACKAGES:
     COMMAND
@@ -39,39 +146,20 @@ try-haxe:
     RUN haxelib
 
 neko:
-    DO +INSTALL_PACKAGES --PACKAGES="curl"
-
-    ARG TARGETARCH
     RUN set -ex && \
         case "$TARGETARCH" in \
             amd64) PLATFORM=linux64;; \
             arm64) PLATFORM=linux-arm64;; \
             *) exit 1;; \
         esac && \
-        curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o neko_latest.tar.gz && \
+        curl -fsSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o neko_latest.tar.gz && \
         tar -xf neko_latest.tar.gz && \
         mv `echo neko-*-*` /tmp/neko-unpacked
-
     SAVE ARTIFACT /tmp/neko-unpacked/*
     SAVE IMAGE --cache-hint
 
-build-environment:
-    DO +INSTALL_NEKO
-
-    RUN set -ex && \
-        apt-get update -qqy && \
-        apt-get install -qqy software-properties-common && \
-        add-apt-repository ppa:avsm/ppa -y && \
-        add-apt-repository ppa:haxe/ocaml -y && \
-        apt-get update -qqy && \
-        apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libstring-shellquote-perl libipc-system-simple-perl && \
-        apt-get autoremove -y && \
-        apt-get clean -y
-
-    SAVE IMAGE --cache-hint
-
 build:
-    FROM +build-environment
+    FROM +devcontainer
 
     ARG TARGETPLATFORM
     ARG ADD_REVISION
@@ -84,7 +172,7 @@ build:
         opam init --disable-sandboxing && \
         opam update && \
         opam pin add haxe . --no-action && \
-        opam install haxe --yes --deps-only --assume-depexts && \
+        opam install haxe --yes --deps-only --no-depexts && \
         opam list && \
         ocamlopt -v
 
@@ -132,6 +220,7 @@ xmldoc:
     SAVE ARTIFACT ./extra/doc/* AS LOCAL extra/doc/
 
 test-environment:
+    FROM ubuntu:$UBUNTU_RELEASE
     ENV NEKOPATH=/tmp/neko
     ENV HAXE_STD_PATH=/tmp/haxe/std
     DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
