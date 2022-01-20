@@ -77,7 +77,8 @@ class Hl {
 		getHlDependencies();
 
 		var hlBinary = try {
-			runCommand(hlBinary);
+			if(!isCi())
+				runCommand(hlBinary);
 			hlBinary;
 		} catch(e:Failure) {
 			'hl';
