@@ -66,9 +66,13 @@ class Cpp {
 		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
 		runCpp("export/cpp/Main");
 
+		changeDirectory('$miscDir/cpp/uv');
+		runCommand("haxe", ["uv.hxml", "-D", "SAMPLE=All"]);
+		runCpp("bin/UVSample-debug");
+
 		// if (Sys.systemName() == "Mac")
 		// {
-		// 	changeDirectory(miscDir + "cppObjc");
+		// 	changeDirectory(miscDir + "cpp/cppObjc");
 		// 	runCommand("haxe", ["build.hxml"]);
 		// 	runCpp("bin/TestObjc-debug");
 		// }

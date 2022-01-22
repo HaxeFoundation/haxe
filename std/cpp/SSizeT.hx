@@ -22,8 +22,7 @@
 
 package cpp;
 
-@:unreflective
-extern class RawConstPointer<T> implements ArrayAccess<T> {
-	@:native("::hx::AddressOf")
-	static function addressOf<T>(t:Reference<T>):RawConstPointer<T>;
-}
+@:native("ssize_t")
+@:scalar @:coreType @:notNull
+extern abstract SSizeT from Int to Int {}
+

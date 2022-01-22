@@ -20,10 +20,57 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cpp;
+package cpp.uv;
 
-@:unreflective
-extern class RawConstPointer<T> implements ArrayAccess<T> {
-	@:native("::hx::AddressOf")
-	static function addressOf<T>(t:Reference<T>):RawConstPointer<T>;
+using cpp.uv.UV;
+
+/**
+	Idle handles will run the given callback once per loop iteration, right before
+	the `cpp.uv.Prepare` handles.
+
+	@see http://docs.libuv.org/en/v1.x/idle.html
+**/
+@:headerCode('#include "uv.h"')
+class Idle extends Handle {
+	var onIdle:()->Void;
+	var uvIdle(get,never):RawPointer<UvIdleT>;
+
+	inline function get_uvIdle():RawPointer<UvIdleT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvIdleT.create();
+		super.setupUvData();
+	}
+
+	/**
+		Create a idle.
+	**/
+	static public function init(loop:Loop):Idle {
+		var idle = new Idle(loop);
+		UV.idle_init(loop.uvLoop, idle.uvIdle).resolve();
+		idle.referenceFromLoop();
+		return idle;
+	}
+
+	/**
+		Start the handle with the given callback.
+	**/
+	public function start(callback:()->Void) {
+		uvIdle.idle_start(Callable.fromStaticFunction(uvIdleCb)).resolve();
+		onIdle = callback;
+	}
+
+	static function uvIdleCb(uvIdle:RawPointer<UvIdleT>) {
+		var idle:Idle = cast Handle.get(cast uvIdle);
+		idle.onIdle();
+	}
+
+	/**
+		Stop the idle.
+	**/
+	public function stop() {
+		UV.idle_stop(uvIdle).resolve();
+		onIdle = null;
+	}
 }

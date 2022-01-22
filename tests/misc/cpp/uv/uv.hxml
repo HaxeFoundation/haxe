@@ -1,0 +1,5 @@
+--cpp bin
+--debug
+--main UVSample
+--dce full
+-D analyzer-optimize

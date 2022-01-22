@@ -20,10 +20,49 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cpp;
+package cpp.uv;
 
-@:unreflective
-extern class RawConstPointer<T> implements ArrayAccess<T> {
-	@:native("::hx::AddressOf")
-	static function addressOf<T>(t:Reference<T>):RawConstPointer<T>;
+using cpp.uv.UV;
+
+/**
+	Async handles allow the user to “wakeup” the event loop and get a callback
+	called from another thread.
+
+	@see http://docs.libuv.org/en/v1.x/async.html
+**/
+@:headerCode('#include "uv.h"')
+class Async extends Handle {
+	var onSend:(async:Async)->Void;
+	var uvAsync(get,never):RawPointer<UvAsyncT>;
+
+	inline function get_uvAsync():RawPointer<UvAsyncT>
+		return cast uv;
+
+	override function setupUvData() {
+		uv = cast UvAsyncT.create();
+		super.setupUvData();
+	}
+
+	/**
+		Create an async handle.
+	**/
+	static public function init(loop:Loop, callback:(async:Async)->Void):Async {
+		var async = new Async(loop);
+		UV.async_init(loop.uvLoop, async.uvAsync, Callable.fromStaticFunction(uvAsyncCb)).resolve();
+		async.referenceFromLoop();
+		async.onSend = callback;
+		return async;
+	}
+
+	static function uvAsyncCb(uvAsync:RawPointer<UvAsyncT>) {
+		var async:Async = cast Handle.get(cast uvAsync);
+		async.onSend(async);
+	}
+
+	/**
+		Wake up the event loop and call the async handle’s callback.
+	**/
+	public function send() {
+		UV.async_send(uvAsync).resolve();
+	}
 }

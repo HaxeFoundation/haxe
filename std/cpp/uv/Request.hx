@@ -20,10 +20,36 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cpp;
+package cpp.uv;
 
-@:unreflective
-extern class RawConstPointer<T> implements ArrayAccess<T> {
-	@:native("::hx::AddressOf")
-	static function addressOf<T>(t:Reference<T>):RawConstPointer<T>;
+using cpp.uv.UV;
+
+/**
+	Base type for all libuv request types.
+
+	@see http://docs.libuv.org/en/v1.x/request.html
+**/
+@:headerCode('#include "uv.h"')
+abstract class Request extends Wrapper {
+	var uvReq(get,never):RawPointer<UvReqT>;
+
+	inline function get_uvReq():RawPointer<UvReqT>
+		return cast uv;
+
+	@:allow(cpp.uv)
+	static function get(uv:RawPointer<cpp.Void>):Request {
+		return untyped __cpp__('(hx::Object*){0}', UV.req_get_data(cast uv));
+	}
+
+	function setupUvData() {
+		UV.req_set_data(cast uv, untyped __cpp__('{0}.GetPtr()', this));
+	}
+
+	/**
+		Cancel a pending request.
+		Fails if the request is executing or has finished executing.
+	**/
+	public function cancel() {
+		uvReq.cancel().resolve();
+	}
 }
