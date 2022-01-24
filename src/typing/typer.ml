@@ -478,7 +478,7 @@ and handle_efield ctx e p0 mode with_type =
 	let open TyperDotPath in
 
 	let dot_path first pnext =
-		let name,_,p = first in
+		let {name = name; pos = p} = first in
 		try
 			(* first, try to resolve the first ident in the chain and access its fields.
 			   this doesn't support untyped identifiers yet, because we want to check fully-qualified
@@ -501,11 +501,11 @@ and handle_efield ctx e p0 mode with_type =
 							(* TODO: we should pass the actual resolution error from resolve_dot_path instead of Not_found *)
 							let rec loop pack_acc first_uppercase path =
 								match path with
-								| (name,PLowercase,_) :: rest ->
+								| {name = name; case = PLowercase} :: rest ->
 									(match first_uppercase with
 									| None -> loop (name :: pack_acc) None rest
 									| Some (n,p) -> List.rev pack_acc, n, None, p)
-								| (name,PUppercase,p) :: rest ->
+								| {name = name; case = PUppercase; pos = p} :: rest ->
 									(match first_uppercase with
 									| None -> loop pack_acc (Some (name,p)) rest
 									| Some (n,_) -> List.rev pack_acc, n, Some name, p)
@@ -525,7 +525,7 @@ and handle_efield ctx e p0 mode with_type =
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
 						if ctx.in_display then begin
-							let sl = List.map (fun (n,_,_) -> n) path in
+							let sl = List.map (fun part -> part.name) path in
 							if is_legacy_completion ctx.com then
 								raise (Parser.TypePath (sl,None,false,p))
 							else
@@ -538,13 +538,13 @@ and handle_efield ctx e p0 mode with_type =
 	   or a simple field access chain *)
 	let rec loop dot_path_acc (e,p) =
 		match e with
-		| EField (e,s,efk_todo) ->
+		| EField (e,s,efk) ->
 			(* field access - accumulate and check further *)
-			loop ((mk_dot_path_part s p) :: dot_path_acc) e
+			loop ((mk_dot_path_part s efk p) :: dot_path_acc) e
 		| EConst (Ident i) ->
 			(* it's a dot-path, so it might be either fully-qualified access (pack.Class.field)
 			   or normal field access of a local/global/field identifier, proceed figuring this out *)
-			dot_path (mk_dot_path_part i p) dot_path_acc
+			dot_path (mk_dot_path_part i EFNormal p) dot_path_acc
 		| _ ->
 			(* non-ident expr occured: definitely NOT a fully-qualified access,
 			   resolve the field chain against this expression *)

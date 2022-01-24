@@ -446,10 +446,10 @@ let field_chain ctx path access mode with_type =
 	let rec loop access path = match path with
 		| [] ->
 			access
-		| [(name,_,p)] ->
+		| [{name = name; pos = p}] ->
 			let e = acc_get ctx access p in
 			type_field_default_cfg ctx e name p mode with_type
-		| (name,_,p) :: path ->
+		| {name = name; pos = p} :: path ->
 			let e = acc_get ctx access p in
 			let access = type_field_default_cfg ctx e name p MGet WithType.value in
 			loop access path

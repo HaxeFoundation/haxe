@@ -191,6 +191,17 @@ type static_extension_access = {
 	se_access : field_access;
 }
 
+type dot_path_part_case =
+	| PUppercase
+	| PLowercase
+
+type dot_path_part = {
+	name : string;
+	case : dot_path_part_case;
+	kind : efield_kind;
+	pos : pos
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
