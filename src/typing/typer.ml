@@ -2091,4 +2091,5 @@ unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
-type_block_ref := type_block
+type_block_ref := type_block;
+acc_get_ref := acc_get
