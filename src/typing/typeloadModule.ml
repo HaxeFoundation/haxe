@@ -73,15 +73,15 @@ module StrictMeta = struct
 			| hd :: tl ->
 				let rec loop pack expr = match pack with
 					| hd :: tl ->
-						loop tl (EField(expr,hd),pos)
+						loop tl (efield(expr,hd),pos)
 					| [] ->
-						(EField(expr,name),pos)
+						(efield(expr,name),pos)
 				in
 				loop tl (EConst(Ident(hd)),pos)
 
 	let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 		| TField(e,f) ->
-			(EField(process_meta_argument ~toplevel:false ctx e,field_name f),expr.epos)
+			(efield(process_meta_argument ~toplevel:false ctx e,field_name f),expr.epos)
 		| TConst(TInt i) ->
 			(EConst(Int (Int32.to_string i, None)), expr.epos)
 		| TConst(TFloat f) ->
@@ -99,7 +99,7 @@ module StrictMeta = struct
 			if ctx.com.platform = Cs then
 				(ECall( (EConst(Ident "typeof"), p), [get_native_repr md expr.epos] ), p)
 			else
-				(EField(get_native_repr md expr.epos, "class"), p)
+				(efield(get_native_repr md expr.epos, "class"), p)
 		| TTypeExpr md ->
 			get_native_repr md expr.epos
 		| _ ->
@@ -109,7 +109,7 @@ module StrictMeta = struct
 	let handle_fields ctx fields_to_check with_type_expr =
 		List.map (fun ((name,_,_),expr) ->
 			let pos = snd expr in
-			let field = (EField(with_type_expr,name), pos) in
+			let field = (efield(with_type_expr,name), pos) in
 			let fieldexpr = (EConst(Ident name),pos) in
 			let left_side = match ctx.com.platform with
 				| Cs -> field

@@ -538,7 +538,7 @@ and handle_efield ctx e p0 mode with_type =
 	   or a simple field access chain *)
 	let rec loop dot_path_acc (e,p) =
 		match e with
-		| EField (e,s) ->
+		| EField (e,s,efk_todo) ->
 			(* field access - accumulate and check further *)
 			loop ((mk_dot_path_part s p) :: dot_path_acc) e
 		| EConst (Ident i) ->
@@ -557,7 +557,7 @@ and type_access ctx e p mode with_type =
 	match e with
 	| EConst (Ident s) ->
 		type_ident ctx s p mode with_type
-	| EField (e1,"new") ->
+	| EField (e1,"new",efk_todo) ->
 		let e1 = type_expr ctx e1 WithType.value in
 		begin match e1.eexpr with
 			| TTypeExpr (TClassDecl c) ->
@@ -1412,10 +1412,10 @@ and type_array_comprehension ctx e with_type p =
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 		| EBinop(OpArrow,a,b) ->
 			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),comprehension_pos);
-			(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
+			(ECall ((efield ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 		| _ ->
 			et := (EArrayDecl [],comprehension_pos);
-			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
+			(ECall ((efield ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 	in
 	let e = map_compr e in
 	let ea = type_expr ctx !et with_type in
@@ -1652,15 +1652,15 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			let e_trace = mk (TIdent "`trace") t_dynamic p in
 			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
 		else
-			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
-	| (EField ((EConst (Ident "super"),_),_),_), _ ->
+			type_expr ctx (ECall ((efield ((efield ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
+	| (EField ((EConst (Ident "super"),_),_,_),_), _ -> (* <- ??? *)
 		(match def() with
 			| { eexpr = TCall ({ eexpr = TField (_, FInstance(_, _, { cf_kind = Method MethDynamic; cf_name = name })); epos = p }, _) } as e ->
 				ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p;
 				e
 			| e -> e
 		)
-	| (EField (e,"bind"),p), args ->
+	| (EField (e,"bind",efk_todo),p), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
 			| TFun signature -> type_bind ctx e signature args p
@@ -1676,7 +1676,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			let e = Diagnostics.secure_generated_code ctx e in
 			e
 		end
-	| (EField(e,"match"),p), [epat] ->
+	| (EField(e,"match",efk_todo),p), [epat] ->
 		let et = type_expr ctx e WithType.value in
 		let rec has_enum_match t = match follow t with
 			| TEnum _ -> true
@@ -1721,10 +1721,10 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 
 and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
-	| EField ((EConst (String(s,_)),ps),"code") ->
+	| EField ((EConst (String(s,_)),ps),"code",EFNormal) ->
 		if UTF8.length s <> 1 then typing_error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UCharExt.code (UTF8.get s 0))))) ctx.t.tint p
-	| EField(_,n) when starts_with n '$' ->
+	| EField(_,n,_) when starts_with n '$' ->
 		typing_error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then typing_error "Cannot use super as value" p;
@@ -1753,7 +1753,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			let low  = Int64.to_int32 i64 in
 
 			let ident = EConst (Ident "haxe"), p in
-			let field = EField ((EField (ident, "Int64"), p), "make"), p in
+			let field = efield ((efield (ident, "Int64"), p), "make"), p in
 
 			let arg_high = EConst (Int (Int32.to_string high, None)), p in
 			let arg_low  = EConst (Int (Int32.to_string low, None)), p in

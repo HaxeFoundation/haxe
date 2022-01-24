@@ -260,7 +260,7 @@ let rec handle_signature_display ctx e_ast with_type =
 					display_dollar_type ctx p (fun t -> t,(CompletionType.from_type (get_import_status ctx) t))
 			in
 			let e1 = match e1 with
-				| (EField (e,"bind"),p) ->
+				| (EField (e,"bind",_),p) ->
 					let e = type_expr ctx e WithType.value in
 					(match follow e.etype with
 						| TFun signature -> e
@@ -450,7 +450,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 			raise_fields fields (CRField(item,e1.epos,None,None)) (make_subject so ~start_pos:(Some (pos e_ast)) {e.epos with pmin = e.epos.pmax - l;})
 		in
 		begin match fst e_ast,e.eexpr with
-			| EField(e1,s),TField(e2,_) ->
+			| EField(e1,s,_),TField(e2,_) ->
 				display_fields e1 e2 (Some s)
 			| EObjectDecl [(name,pn,_),(EConst (Ident "null"),pe)],_ when pe.pmin = -1 ->
 				(* This is what the parser emits for #8651. Bit of a dodgy heuristic but should be fine. *)
@@ -588,7 +588,7 @@ let handle_display ctx e_ast dk mode with_type =
 	in
 	let e = match e_ast, e.eexpr with
 		| _, TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1
-		| (EField(_,"new"),_), TFunction { tf_expr = { eexpr = TReturn (Some ({ eexpr = TNew _ } as e1))} } -> e1
+		| (EField(_,"new",_),_), TFunction { tf_expr = { eexpr = TReturn (Some ({ eexpr = TNew _ } as e1))} } -> e1
 		| _ -> e
 	in
 	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in

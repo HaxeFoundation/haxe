@@ -232,7 +232,7 @@ module AnnotationHandler = struct
 			| EConst (Ident "true") -> ABool true
 			| EConst (Ident "false") -> ABool false
 			| EArrayDecl el -> AArray (List.map parse_value el)
-			| EField(e1,s) ->
+			| EField(e1,s,_) ->
 				let path = parse_path e1 in
 				AEnum(object_path_sig path,s)
 			| _ -> Error.typing_error "Expected value expression" (pos e)

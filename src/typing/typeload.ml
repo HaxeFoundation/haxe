@@ -754,13 +754,13 @@ let load_type_hint ?(opt=false) ctx pcur t =
 
 let field_to_type_path ctx e =
 	let rec loop e pack name = match e with
-		| EField(e,f),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
 			| [] | _ :: [] ->
 				loop e pack (f :: name)
 			| _ -> (* too many name paths *)
 				display_error ctx ("Unexpected " ^ f) p;
 				raise Exit)
-		| EField(e,f),_ ->
+		| EField(e,f,_),_ ->
 			loop e (f :: pack) name
 		| EConst(Ident f),_ ->
 			let pack, name, sub = match name with

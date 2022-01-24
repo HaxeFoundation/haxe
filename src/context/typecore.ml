@@ -473,7 +473,7 @@ let rec can_access ctx c cf stat =
 	in
 	let rec expr_path acc e =
 		match fst e with
-		| EField (e,f) -> expr_path (f :: acc) e
+		| EField (e,f,_) -> expr_path (f :: acc) e
 		| EConst (Ident n) -> n :: acc
 		| _ -> []
 	in
