@@ -252,6 +252,11 @@ enum Unop {
 	OpSpread;
 }
 
+enum EFieldKind {
+	Normal;
+	Safe;
+}
+
 /**
 	Represents a node in the AST.
 	@see https://haxe.org/manual/macro-reification-expression.html
@@ -429,8 +434,10 @@ enum ExprDef {
 
 	/**
 		Field access on `e.field`.
+
+		If `kind` is null, it is equal to Normal.
 	**/
-	EField(e:Expr, field:String);
+	EField(e:Expr, field:String, ?kind:EFieldKind);
 
 	/**
 		Parentheses `(e)`.

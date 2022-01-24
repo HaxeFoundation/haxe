@@ -55,6 +55,7 @@ type 'value compiler_api = {
 
 type enum_type =
 	| IExpr
+	| IEFieldKind
 	| IBinop
 	| IUnop
 	| IConst
@@ -150,53 +151,18 @@ module type InterpApi = sig
 	val get_api_call_pos : unit -> pos
 end
 
-let enum_name = function
-	| IExpr -> "ExprDef"
-	| IBinop -> "Binop"
-	| IUnop -> "Unop"
-	| IConst -> "Constant"
-	| ITParam -> "TypeParam"
-	| ICType -> "ComplexType"
-	| IField -> "FieldType"
-	| IType -> "Type"
-	| IFieldKind -> "FieldKind"
-	| IMethodKind -> "MethodKind"
-	| IVarAccess -> "VarAccess"
-	| IAccess -> "Access"
-	| IClassKind -> "ClassKind"
-	| ITypedExpr -> "TypedExprDef"
-	| ITConstant -> "TConstant"
-	| IModuleType -> "ModuleType"
-	| IFieldAccess -> "FieldAccess"
-	| IAnonStatus -> "AnonStatus"
-	| IImportMode -> "ImportMode"
-	| IQuoteStatus -> "QuoteStatus"
-	| IDisplayKind -> "DisplayKind"
-	| IMessage -> "Message"
-	| IFunctionKind -> "FunctionKind"
-	| IStringLiteralKind -> "StringLiteralKind"
-
-let all_enums =
-	let last = IImportMode in
-	let rec loop i =
-		let e : enum_type = Obj.magic i in
-		if e = last then [e] else e :: loop (i + 1)
-	in
-	loop 0
-
-
 let s_type_path = Globals.s_type_path
 
 (* convert float value to haxe expression, handling inf/-inf/nan *)
 let haxe_float f p =
 	let std = (Ast.EConst (Ast.Ident "std"), p) in
-	let math = (Ast.EField (std, "Math"), p) in
+	let math = (efield (std, "Math"), p) in
 	if (f = infinity) then
-		(Ast.EField (math, "POSITIVE_INFINITY"), p)
+		(efield (math, "POSITIVE_INFINITY"), p)
 	else if (f = neg_infinity) then
-		(Ast.EField (math, "NEGATIVE_INFINITY"), p)
+		(efield (math, "NEGATIVE_INFINITY"), p)
 	else if (f <> f) then
-		(Ast.EField (math, "NaN"), p)
+		(efield (math, "NaN"), p)
 	else
 		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
@@ -413,6 +379,13 @@ and encode_message msg =
 	in
 	encode_enum ~pos:None IMessage tag pl
 
+and encode_efield_kind efk =
+	let i = match efk with
+		| EFNormal -> 0
+		| EFSafe -> 1
+	in
+	encode_enum IEFieldKind i []
+
 and encode_expr e =
 	let rec loop (e,p) =
 		let tag, pl = match e with
@@ -422,8 +395,8 @@ and encode_expr e =
 				1, [loop e1;loop e2]
 			| EBinop (op,e1,e2) ->
 				2, [encode_binop op;loop e1;loop e2]
-			| EField (e,f) ->
-				3, [loop e;encode_string f]
+			| EField (e,f,efk) ->
+				3, [loop e;encode_string f;encode_efield_kind efk]
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
@@ -767,8 +740,15 @@ and decode_expr v =
 			EArray (loop e1, loop e2)
 		| 2, [op;e1;e2] ->
 			EBinop (decode_op op, loop e1, loop e2)
-		| 3, [e;f] ->
-			EField (loop e, decode_string f)
+		| 3, [e;f;efk] ->
+			let efk = if efk == vnull then
+				EFNormal
+			else match decode_enum efk with
+				| 0,[] -> EFNormal
+				| 1,[] -> EFSafe
+				| _ -> raise Invalid_expr
+			in
+			EField (loop e, decode_string f, efk)
 		| 4, [e] ->
 			EParenthesis (loop e)
 		| 5, [a] ->

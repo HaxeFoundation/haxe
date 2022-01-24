@@ -53,8 +53,8 @@ let extend_remoting ctx c t p async prot =
 			let id = (EConst (String (fst f.cff_name,SDoubleQuotes)), p) in
 			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
 			let expr = ECall (
-				(EField (
-					(ECall ((EField ((EConst (Ident "__cnx"),p),"resolve"),p),[id]),p),
+				(efield (
+					(ECall ((efield ((EConst (Ident "__cnx"),p),"resolve"),p),[id]),p),
 					"call")
 				,p),eargs),p
 			in

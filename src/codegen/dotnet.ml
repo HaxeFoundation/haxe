@@ -595,7 +595,7 @@ let mk_special_call name p args =
 	mke (ECast( mke (EUntyped( mke (ECall( mke (EConst(Ident name)) p, args )) p )) p , None)) p
 
 let mk_this_call name p args =
-	mke (ECall( mke (EField(mke (EConst(Ident "this")) p ,name)) p, args )) p
+	mke (ECall( mke (efield(mke (EConst(Ident "this")) p ,name)) p, args )) p
 
 let mk_metas metas p =
 	List.map (fun m -> m,[],p) metas
@@ -653,7 +653,7 @@ let convert_delegate ctx p ilcls =
 		let clsname = match ilcls.cpath with
 			| (ns,inner,n) -> get_clsname ctx (ns,inner,"Delegate_"^n)
 		in
-		let expr = (ECall( (EField( (EConst(Ident (clsname)),p), fn_name ),p), [(EConst(Ident"arg1"),p);(EConst(Ident"arg2"),p)]),p) in
+		let expr = (ECall( (efield( (EConst(Ident (clsname)),p), fn_name ),p), [(EConst(Ident"arg1"),p);(EConst(Ident"arg2"),p)]),p) in
 		FFun {
 			f_params = types;
 			f_args = [("arg1",null_pos),false,[],Some (abs_type,null_pos),None;("arg2",null_pos),false,[],Some (abs_type,null_pos),None];

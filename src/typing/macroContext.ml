@@ -790,7 +790,7 @@ let call_init_macro ctx e =
 	| ECall (e,args) ->
 		let rec loop e =
 			match fst e with
-			| EField (e,f) -> f :: loop e
+			| EField (e,f,_) -> f :: loop e
 			| EConst (Ident i) -> [i]
 			| _ -> typing_error "Invalid macro call" p
 		in
