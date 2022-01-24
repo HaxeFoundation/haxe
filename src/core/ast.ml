@@ -131,6 +131,7 @@ type token =
 	| PClose
 	| Dot
 	| DblDot
+	| QuestionDot
 	| Arrow
 	| IntInterval of string
 	| Sharp of string
@@ -589,6 +590,7 @@ let s_token = function
 	| PClose -> ")"
 	| Dot -> "."
 	| DblDot -> ":"
+	| QuestionDot -> "?."
 	| Arrow -> "->"
 	| IntInterval s -> s ^ "..."
 	| Sharp s -> "#" ^ s
