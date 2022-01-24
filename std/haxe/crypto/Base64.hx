@@ -35,10 +35,10 @@ class Base64 {
 	public static function encode(bytes:haxe.io.Bytes, complement = true):String {
 		var str = new BaseCode(BYTES).encodeBytes(bytes).toString();
 		if (complement)
-			switch (bytes.length % 3) {
-				case 1:
-					str += "==";
+			switch (bytes.length % 4) {
 				case 2:
+					str += "==";
+				case 3:
 					str += "=";
 				default:
 			}
@@ -55,10 +55,10 @@ class Base64 {
 	public static function urlEncode(bytes:haxe.io.Bytes, complement = false):String {
 		var str = new BaseCode(URL_BYTES).encodeBytes(bytes).toString();
 		if (complement)
-			switch (bytes.length % 3) {
-				case 1:
-					str += "==";
+			switch (bytes.length % 4) {
 				case 2:
+					str += "==";
+				case 3:
 					str += "=";
 				default:
 			}
