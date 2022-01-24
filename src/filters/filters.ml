@@ -66,6 +66,65 @@ let rec add_final_return e =
 			{ e with eexpr = TFunction f }
 		| _ -> e
 
+module LocalStatic = struct
+	let promote_local_static ctx lut v eo =
+		let name = Printf.sprintf "%s_%s" ctx.curfield.cf_name v.v_name in
+		begin try
+			let cf = PMap.find name ctx.curclass.cl_statics in
+			display_error ctx (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
+			typing_error "Conflicting field was found here" cf.cf_name_pos;
+		with Not_found ->
+			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
+			begin match eo with
+			| None ->
+				()
+			| Some e ->
+				let rec loop e = match e.eexpr with
+					| TLocal _ | TFunction _ ->
+						typing_error "Accessing local variables in static initialization is not allowed" e.epos
+					| TConst (TThis | TSuper) ->
+						typing_error "Accessing `this` in static initialization is not allowed" e.epos
+					| TReturn _ | TBreak | TContinue ->
+						typing_error "This kind of control flow in static initialization is not allowed" e.epos
+					| _ ->
+						iter loop e
+				in
+				loop e;
+				cf.cf_expr <- Some e
+			end;
+			TClass.add_field ctx.curclass cf;
+			Hashtbl.add lut v.v_id cf
+		end
+
+	let find_local_static lut v =
+		Hashtbl.find lut v.v_id
+
+	let run ctx e =
+		let local_static_lut = Hashtbl.create 0 in
+		let c = ctx.curclass in
+		let rec run e = match e.eexpr with
+			| TBlock el ->
+				let el = ExtList.List.filter_map (fun e -> match e.eexpr with
+					| TVar(v,eo) when has_var_flag v VStatic ->
+						promote_local_static ctx local_static_lut v eo;
+						None
+					| _ ->
+						Some (run e)
+				) el in
+				{ e with eexpr = TBlock el }
+			| TLocal v when has_var_flag v VStatic ->
+				begin try
+					let cf = find_local_static local_static_lut v in
+					Texpr.Builder.make_static_field c cf e.epos
+				with Not_found ->
+					typing_error (Printf.sprintf "Could not find local static %s (id %i)" v.v_name v.v_id) e.epos
+				end
+			| _ ->
+				Type.map_expr run e
+		in
+		run e
+end
+
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
@@ -745,6 +804,7 @@ let run com tctx main =
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
 	let filters = [
+		"local_statics",LocalStatic.run tctx;
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
 		"check_local_vars_init",check_local_vars_init tctx.com;
 		"check_abstract_as_value",check_abstract_as_value;

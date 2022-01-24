@@ -425,3 +425,4 @@ type flag_tvar =
 	| VUsed (* used by the analyzer *)
 	| VAssigned
 	| VCaught
+	| VStatic

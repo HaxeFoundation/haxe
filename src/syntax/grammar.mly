@@ -1109,16 +1109,27 @@ and block_with_pos' acc f p s =
 and block_with_pos acc p s =
 	block_with_pos' acc parse_block_elt p s
 
-and parse_block_elt = parser
+and parse_block_var = parser
 	| [< '(Kwd Var,p1); vl = parse_var_decls false p1; p2 = semicolon >] ->
-		(EVars vl,punion p1 p2)
+		(vl,punion p1 p2)
 	| [< '(Kwd Final,p1); vl = parse_var_decls true p1; p2 = semicolon >] ->
-		(EVars vl,punion p1 p2)
+		(vl,punion p1 p2)
+
+and parse_block_elt = parser
+	| [< (vl,p) = parse_block_var >] ->
+		(EVars vl,p)
 	| [< '(Kwd Inline,p1); s >] ->
 		begin match s with parser
 		| [< '(Kwd Function,_); e = parse_function p1 true; _ = semicolon >] -> e
 		| [< e = secure_expr; _ = semicolon >] -> make_meta Meta.Inline [] e p1
 		| [< >] -> serror()
+		end
+	| [< '(Kwd Static,p); s >] ->
+		begin match s with parser
+		| [< (vl,p) = parse_block_var >] ->
+			let vl = List.map (fun ev -> {ev with ev_static = true}) vl in
+			(EVars vl,p)
+		| [<>] -> syntax_error (Expected ["var";"final"]) s (mk_null_expr p)
 		end
 	| [< '(Binop OpLt,p1); s >] ->
 		let e = handle_xml_literal p1 in

@@ -447,6 +447,7 @@ and encode_expr e =
 						"name",encode_placed_name v.ev_name;
 						"name_pos",encode_pos (pos v.ev_name);
 						"isFinal",vbool v.ev_final;
+						"isStatic",vbool v.ev_static;
 						"type",null encode_ctype v.ev_type;
 						"expr",null loop v.ev_expr;
 						"meta",encode_meta_content v.ev_meta;
@@ -794,12 +795,14 @@ and decode_expr v =
 			EVars (List.map (fun v ->
 				let vfinal = field v "isFinal" in
 				let final = if vfinal == vnull then false else decode_bool vfinal in
+				let vstatic = field v "isStatic" in
+				let static = if vstatic == vnull then false else decode_bool vstatic in
 				let vmeta = field v "meta" in
 				let meta = if vmeta == vnull then [] else decode_meta_content vmeta in
 				let name = (decode_placed_name (field v "name_pos") (field v "name"))
 				and t = opt decode_ctype (field v "type")
 				and eo = opt loop (field v "expr") in
-				mk_evar ~final ?t ?eo ~meta name
+				mk_evar ~final ~static ?t ?eo ~meta name
 			) (decode_array vl))
 		| 11, [kind;f] ->
 			EFunction (decode_function_kind kind,decode_fun f)

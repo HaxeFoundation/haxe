@@ -314,6 +314,7 @@ and class_field = {
 and evar = {
 	ev_name : placed_name;
 	ev_final : bool;
+	ev_static : bool;
 	ev_type : type_hint option;
 	ev_expr : expr option;
 	ev_meta : metadata;
@@ -387,10 +388,11 @@ let mk_type_path ?(params=[]) ?sub (pack,name) =
 		raise (Invalid_argument "Empty module name is not allowed");
 	{ tpackage = pack; tname = name; tsub = sub; tparams = params; }
 
-let mk_evar ?(final=false) ?(t:type_hint option) ?eo ?(meta=[]) name =
+let mk_evar ?(final=false) ?(static=false) ?(t:type_hint option) ?eo ?(meta=[]) name =
 	{
 		ev_name = name;
 		ev_final = final;
+		ev_static = static;
 		ev_type = t;
 		ev_expr = eo;
 		ev_meta = meta;
