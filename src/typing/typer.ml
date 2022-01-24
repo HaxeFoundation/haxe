@@ -618,7 +618,9 @@ and type_vars ctx vl p =
 			let e = (match ev.ev_expr with
 				| None -> None
 				| Some e ->
-					let e = type_expr ctx e (WithType.with_type t) in
+					let old_in_loop = ctx.in_loop in
+					if ev.ev_static then ctx.in_loop <- false;
+					let e = Std.finally (fun () -> ctx.in_loop <- old_in_loop) (type_expr ctx e) (WithType.with_type t) in
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in

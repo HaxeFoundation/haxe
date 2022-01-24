@@ -68,18 +68,33 @@ let rec add_final_return e =
 
 module LocalStatic = struct
 	let promote_local_static ctx lut v eo =
-		 (* TODO: mangle properly *)
 		let name = Printf.sprintf "%s_%s" ctx.curfield.cf_name v.v_name in
-		let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
-		begin match eo with
-		| None ->
-			()
-		| Some e ->
-			(* TODO: sanitize *)
-			cf.cf_expr <- Some e
-		end;
-		TClass.add_field ctx.curclass cf;
-		Hashtbl.add lut v.v_id cf
+		begin try
+			let cf = PMap.find name ctx.curclass.cl_statics in
+			display_error ctx (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
+			typing_error "Conflicting field was found here" cf.cf_name_pos;
+		with Not_found ->
+			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
+			begin match eo with
+			| None ->
+				()
+			| Some e ->
+				let rec loop e = match e.eexpr with
+					| TLocal _ | TFunction _ ->
+						typing_error "Accessing local variables in static initialization is not allowed" e.epos
+					| TConst (TThis | TSuper) ->
+						typing_error "Accessing `this` in static initialization is not allowed" e.epos
+					| TReturn _ | TBreak | TContinue ->
+						typing_error "This kind of control flow in static initialization is not allowed" e.epos
+					| _ ->
+						iter loop e
+				in
+				loop e;
+				cf.cf_expr <- Some e
+			end;
+			TClass.add_field ctx.curclass cf;
+			Hashtbl.add lut v.v_id cf
+		end
 
 	let find_local_static lut v =
 		Hashtbl.find lut v.v_id
