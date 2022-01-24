@@ -412,6 +412,7 @@ let rec token lexbuf =
 	| ":" -> mk lexbuf DblDot
 	| "," -> mk lexbuf Comma
 	| "." -> mk lexbuf Dot
+	| "?." -> mk lexbuf QuestionDot
 	| "%" -> mk lexbuf (Binop OpMod)
 	| "&" -> mk lexbuf (Binop OpAnd)
 	| "|" -> mk lexbuf (Binop OpOr)
