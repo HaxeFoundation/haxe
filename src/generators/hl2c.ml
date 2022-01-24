@@ -1096,6 +1096,9 @@ let valid_ident =
 	let e = Str.regexp "[^A-Za-z0-9_]+" in
 	(fun str -> Str.global_replace e "_" str)
 
+let native_name str =
+	if str.[0] = '?' then String.sub str 1 (String.length str - 1) else str
+
 let make_types_idents htypes =
 	let types_descs = ref PMap.empty in
 	let rec make_desc t =
@@ -1125,8 +1128,13 @@ let make_types_idents htypes =
 				Array.iteri (fun i (f,_,t) -> arr.(i) <- (f,make_desc t)) vp.vfields;
 				td
 	in
+	let hashes = Hashtbl.create 0 in
 	let make_sign d =
-		String.sub (Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32]))) 0 7
+		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32])) in
+		let h = String.sub dig 0 7 in
+		let h = if Hashtbl.mem hashes h then dig else h in
+		Hashtbl.add hashes h ();
+		h
 	in
 	let rec desc_string d =
 		match d with
@@ -1182,8 +1190,11 @@ let make_function_table code =
 	Array.iter (fun (lib,name,t,idx) ->
 		let fname =
 			let lib = code.strings.(lib) in
-			let lib = if lib = "std" then "hl" else lib in
-			lib ^ "_" ^ code.strings.(name)
+			let lib = if lib.[0] = '?' then String.sub lib 1 (String.length lib - 1) else lib in
+ 			let lib = if lib = "std" then "hl" else lib in
+			let str = lib ^ "_" ^ code.strings.(name) in
+			(* create wrappers defines for invalid definitions *)
+			if str = "hl_tls_get" then str ^ "_w" else str
 		in
 		match t with
 		| HFun (args, t) ->
@@ -1443,6 +1454,7 @@ let write_c com file (code:code) gnames =
 	define ctx "// Abstract decls";
 	let rec get_abstracts = function
 		| [] -> []
+		| HAbstract (("hl_tls" | "hl_mutex" | "hl_thread"), _) :: l -> get_abstracts l (* ignore / defined in hl.h already *)
 		| HAbstract (name,_) :: l -> name :: get_abstracts l
 		| _ :: l -> get_abstracts l
 	in
@@ -1457,7 +1469,13 @@ let write_c com file (code:code) gnames =
 		Hashtbl.replace native_libs code.strings.(lib) ();
 		let ft = ctx.ftable.(idx) in
 		define_type ctx (HFun (ft.fe_args,ft.fe_ret));
-		sexpr "HL_API %s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
+		match ft.fe_name with
+		| "hl_tls_get_w" ->
+			define ctx "#define hl_tls_get_w(tls) ((vdynamic*)hl_tls_get(tls))";
+		| "hl_tls_set" ->
+			() (* don't redefine *)
+		| _ ->
+			sexpr "HL_API %s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
 	) sorted_natives;
 	line "#endif";
 	line "";
@@ -1721,7 +1739,10 @@ let write_c com file (code:code) gnames =
 	open_file ctx "hl/functions.c";
 	define ctx "#define HLC_BOOT";
 	define ctx "#include <hlc.h>";
-	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat "," (List.map (fun f -> define_function ctx f.fe_index) (Array.to_list ctx.ftable)));
+	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat ",\\\n\t" (List.map (fun f ->
+		let name = define_function ctx f.fe_index in
+		if name = "hl_tls_get_w" then "hl_tls_get" else name
+	) (Array.to_list ctx.ftable)));
 	let rec loop i =
 		if i = Array.length ctx.ftable then [] else
 		let ft = ctx.ftable.(i) in
@@ -1729,7 +1750,7 @@ let write_c com file (code:code) gnames =
 		define ctx (sprintf "extern hl_type %s;" n);
 		("&" ^ n) :: loop (i + 1)
 	in
-	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat "," (loop 0));
+	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat ",\\\n\t" (loop 0));
 	line "";
 	Array.iter (fun f ->
 		if f.fe_module = None then (match f.fe_decl with None -> () | Some f -> generate_function ctx f);
