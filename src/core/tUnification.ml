@@ -1012,6 +1012,7 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			let athis = map ab.a_this in
 			(* we cannot allow implicit casts when the this type is not completely known yet *)
+			if has_mono athis then raise (Unify_error []);
 			with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
 			unify_func (map t) b;
 		| _ -> die "" __LOC__)
