@@ -250,7 +250,8 @@ class Printer {
 			case EUnop(op, false, e1): printUnop(op) + printExpr(e1);
 			case EFunction(FNamed(no,inlined), func): (inlined ? 'inline ' : '') + 'function $no' + printFunction(func);
 			case EFunction(kind, func): (kind != FArrow ? "function" : "") + printFunction(func, kind);
-			case EVars(vl): "var " + vl.map(printVar).join(", ");
+			case EVars([]): "var ";
+			case EVars(vl): ((vl[0].isStatic) ? "static " : "") + ((vl[0].isFinal) ? "final " : "var ") + vl.map(printVar).join(", ");
 			case EBlock([]): '{ }';
 			case EBlock(el):
 				var old = tabs;
