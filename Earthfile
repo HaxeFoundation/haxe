@@ -1,6 +1,5 @@
 VERSION 0.6
-ARG UBUNTU_RELEASE=bionic
-FROM mcr.microsoft.com/vscode/devcontainers/base:0-$UBUNTU_RELEASE
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-bionic
 ARG DEVCONTAINER_IMAGE_NAME_DEFAULT=ghcr.io/haxefoundation/haxe_devcontainer
 
 ARG USERNAME=vscode
@@ -220,7 +219,8 @@ xmldoc:
     SAVE ARTIFACT ./extra/doc/* AS LOCAL extra/doc/
 
 test-environment:
-    FROM ubuntu:$UBUNTU_RELEASE
+    # we use a sightly newer ubuntu for easier installation of the target runtimes (e.g. php)
+    FROM ubuntu:focal
     ENV NEKOPATH=/tmp/neko
     ENV HAXE_STD_PATH=/tmp/haxe/std
     DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
@@ -295,7 +295,7 @@ test-environment-cpp:
     SAVE IMAGE --cache-hint
 
 test:
-    ARG TEST # macro, js, hl, cpp, java ,jvm, cs, php, python, lua, neko
+    ARG TEST # macro, js, hl, cpp, java, jvm, cs, php, python, lua, neko
 
     FROM +test-environment
 
