@@ -90,6 +90,13 @@ devcontainer:
     # https://github.com/microsoft/vscode-dev-containers/issues/1196#issuecomment-988388658
     RUN git config --global codespaces-theme.hide-status 1
 
+    # Install OCaml libraries
+    COPY opam .
+    RUN opam init --disable-sandboxing
+    RUN opam install . --yes --deps-only --no-depexts
+    RUN opam list
+    RUN ocamlopt -v
+
     USER root
 
     ARG GIT_SHA
@@ -159,14 +166,7 @@ neko:
 build:
     FROM +devcontainer
 
-    # Install OCaml libraries
-    COPY opam .
-    RUN opam init --disable-sandboxing
-    RUN opam update
-    RUN opam pin add haxe . --no-action
-    RUN opam install haxe --yes --deps-only --no-depexts
-    RUN opam list
-    RUN ocamlopt -v
+    USER $USERNAME
 
     # Build Haxe
     COPY --dir extra libs plugins src* std dune* Makefile* .
