@@ -289,50 +289,74 @@ test-environment-cpp:
     DO +INSTALL_PACKAGES --PACKAGES=$PACKAGES
     SAVE IMAGE --cache-hint
 
-test:
-    ARG TEST # macro, js, hl, cpp, java, jvm, cs, php, python, lua, neko
-
-    IF [ "$TEST" = "python" ]
-        FROM +test-environment-python
-    ELSE IF [ "$TEST" = "php" ]
-        FROM +test-environment-php
-    ELSE IF [ "$TEST" = "java,jvm" ]
-        FROM +test-environment-java
-    ELSE IF [ "$TEST" = "js" ]
-        FROM +test-environment-js
-    ELSE IF [ "$TEST" = "cs" ]
-        FROM +test-environment-cs
-    ELSE IF [ "$TEST" = "cpp" ]
-        FROM +test-environment-cpp
-    ELSE IF [ "$TEST" = "lua" ]
-        FROM +test-environment-lua
-    ELSE IF [ "$TEST" = "hl" ]
-        FROM +test-environment-hl
-        ENV GITHUB_WORKSPACE=true # emulate github environment, TODO: properly define a "Earthly" environment
-    ELSE
-        FROM +test-environment
-    END
-
+RUN_CI:
+    COMMAND
     COPY tests tests
+    RUN mkdir /haxelib && haxelib setup /haxelib
+    WORKDIR tests
+    ARG --required TEST
+    ENV TEST="$TEST"
+    RUN haxe RunCi.hxml
 
-    RUN mkdir /haxelib \
-        && haxelib setup /haxelib \
-        && cd tests \
-        && haxe RunCi.hxml
+test-macro:
+    FROM +test-environment
+    DO +RUN_CI --TEST=macro
+
+test-neko:
+    FROM +test-environment
+    DO +RUN_CI --TEST=neko
+
+test-js:
+    FROM +test-environment-js
+    DO +RUN_CI --TEST=js
+
+test-hl:
+    FROM +test-environment-hl
+    ENV GITHUB_WORKSPACE=true # emulate github environment, TODO: properly define a "Earthly" environment
+    DO +RUN_CI --TEST=hl
+
+test-cpp:
+    FROM +test-environment-cpp
+    DO +RUN_CI --TEST=cpp
+
+test-java:
+    FROM +test-environment-java
+    DO +RUN_CI --TEST=java
+
+test-jvm:
+    FROM +test-environment-java
+    DO +RUN_CI --TEST=jvm
+
+test-cs:
+    FROM +test-environment-cs
+    DO +RUN_CI --TEST=cs
+
+test-php:
+    FROM +test-environment-php
+    DO +RUN_CI --TEST=php
+
+test-python:
+    FROM +test-environment-python
+    DO +RUN_CI --TEST=python
+
+test-lua:
+    FROM +test-environment-lua
+    DO +RUN_CI --TEST=lua
 
 test-all:
     ARG TARGETPLATFORM
 
-    BUILD +test --TEST=macro
-    BUILD +test --TEST=neko
-    BUILD +test --TEST=php
-    BUILD +test --TEST=python
-    BUILD +test --TEST=java,jvm
-    BUILD +test --TEST=cs
-    BUILD +test --TEST=cpp
-    BUILD +test --TEST=lua
-    BUILD +test --TEST=js # FIXME: timeout
+    BUILD +test-macro
+    BUILD +test-neko
+    BUILD +test-php
+    BUILD +test-python
+    BUILD +test-java
+    BUILD +test-jvm
+    BUILD +test-cs
+    BUILD +test-cpp
+    BUILD +test-lua
+    BUILD +test-js
 
     IF [ "$TARGETPLATFORM" = "linux/amd64" ]
-        BUILD +test --TEST=hl # FIXME: hl can't compile on arm64 (JIT issue?)
+        BUILD +test-hl # FIXME: hl can't compile on arm64 (JIT issue?)
     END

@@ -5,6 +5,9 @@ import runci.Config.*;
 
 class Jvm {
 	static public function run(args:Array<String>) {
+		deleteDirectoryRecursively("bin/jvm");
+		Java.getJavaDependencies();
+
 		for (level in 0...3) {
 			var args = args.concat(["-D", "jvm.dynamic-level=" + level]);
 			runCommand("haxe", ["compile-jvm.hxml"].concat(args));
