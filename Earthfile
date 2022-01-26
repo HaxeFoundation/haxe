@@ -147,7 +147,7 @@ try-neko:
 try-haxe:
     DO +INSTALL_NEKO
     DO +INSTALL_HAXE
-    RUN haxe -version
+    RUN haxe --version
     RUN haxelib version
 
 neko:
@@ -351,3 +351,12 @@ test-all:
     IF [ "$TARGETPLATFORM" = "linux/amd64" ]
         BUILD +test-hl # FIXME: hl can't compile on arm64 (JIT issue?)
     END
+
+github-actions:
+    DO +INSTALL_NEKO
+    DO +INSTALL_HAXE
+    RUN mkdir -p "$WORKDIR"/.github/workflows
+    COPY extra/github-actions extra/github-actions
+    WORKDIR extra/github-actions
+    RUN haxe build.hxml
+    SAVE ARTIFACT --keep-ts "$WORKDIR"/.github/workflows AS LOCAL .github/workflows
