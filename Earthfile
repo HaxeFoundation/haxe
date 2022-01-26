@@ -137,7 +137,7 @@ INSTALL_HAXE:
     COMMAND
     ARG PREFIX=/usr/local
     COPY +build/haxe +build/haxelib "$PREFIX/bin/"
-    COPY +build/std "$PREFIX/share/haxe/std"
+    COPY std "$PREFIX/share/haxe/std"
 
 try-neko:
     DO +INSTALL_NEKO
@@ -214,11 +214,11 @@ test-environment:
     DO +INSTALL_HAXE
 
     ENV DEBIAN_FRONTEND=noninteractive
-    DO +INSTALL_PACKAGES --PACKAGES="curl wget git build-essential locales sqlite3"
+    DO +INSTALL_PACKAGES --PACKAGES="ca-certificates curl wget git build-essential locales sqlite3"
 
     # Node.js is required as there are tests that use it (search "-cmd node")
     RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
-        apt-get install -qqy nodejs $COMMON_PACKAGES && \
+        apt-get install -qqy nodejs && \
         apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
     # set locale
