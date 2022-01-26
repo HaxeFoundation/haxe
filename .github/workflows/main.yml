@@ -274,7 +274,7 @@ jobs:
           path: out/linux/amd64
 
       - name: Test
-        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-test-${{github.ref_name}}-amd64 +test-all
+        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-test-${{github.ref_name}}-amd64 +test-all --GITHUB_ACTIONS="$GITHUB_ACTIONS"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
 

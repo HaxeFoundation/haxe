@@ -285,52 +285,73 @@ RUN_CI:
     RUN mkdir /haxelib && haxelib setup /haxelib
     WORKDIR tests
     ARG --required TEST
-    ENV GITHUB_WORKSPACE=true # emulate github environment, TODO: properly define a "Earthly" environment
     ENV TEST="$TEST"
     RUN haxe RunCi.hxml
 
 test-macro:
     FROM +test-environment
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=macro
 
 test-neko:
     FROM +test-environment
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=neko
 
 test-js:
     FROM +test-environment-js
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=js
 
 test-hl:
     FROM +test-environment-hl
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=hl
 
 test-cpp:
     FROM +test-environment-cpp
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=cpp
 
 test-java:
     FROM +test-environment-java
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=java
 
 test-jvm:
     FROM +test-environment-java
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=jvm
 
 test-cs:
     FROM +test-environment-cs
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=cs
 
 test-php:
     FROM +test-environment-php
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=php
 
 test-python:
     FROM +test-environment-python
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=python
 
 test-lua:
     FROM +test-environment-lua
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=lua
 
 test-all:
