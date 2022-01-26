@@ -84,11 +84,11 @@ devcontainer:
     COPY +earthly/earthly /usr/local/bin/
     RUN earthly bootstrap --no-buildkit --with-autocomplete
 
-    USER $USER
+    USER $USERNAME
 
-    # Do not show git branch in bash prompt
-    # It's slow
-    RUN sed -ir 's/^__bash_prompt$/PS1="\\[\\033[0;32m\\]\\u \\[\\033[0m\\]➜ \\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\$ "/' ~/.bashrc
+    # Do not show git branch in bash prompt because it's slow
+    # https://github.com/microsoft/vscode-dev-containers/issues/1196#issuecomment-988388658
+    RUN git config --global codespaces-theme.hide-status 1
 
     USER root
 
