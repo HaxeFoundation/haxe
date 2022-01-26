@@ -54,15 +54,15 @@ let type_function_arg_value ctx t c do_display =
 
 class function_arguments
 	(ctx : typer)
-	(type_arg : bool -> type_hint option -> pos -> Type.t)
+	(type_arg : int -> bool -> type_hint option -> pos -> Type.t)
 	(is_extern : bool)
 	(do_display : bool)
 	(abstract_this : Type.t option)
 	(syntax : (placed_name * bool * metadata * type_hint option * expr option) list)
 =
 	let with_default =
-		let l = List.map (fun ((name,pn),opt,m,t,eo) ->
-			let t = type_arg opt t pn in
+		let l = List.mapi (fun i ((name,pn),opt,m,t,eo) ->
+			let t = type_arg i opt t pn in
 			let t,eo = type_function_arg ctx t eo opt pn in
 			(name,eo,t)
 		) syntax in
