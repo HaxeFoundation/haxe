@@ -231,6 +231,8 @@ jobs:
 
   linux-amd64:
     runs-on: ubuntu-18.04
+    env:
+      EARTHLY_PLATFORMS: linux/amd64
     steps:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
@@ -251,7 +253,7 @@ jobs:
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
       - name: Build
-        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-build-${{github.ref_name}}-amd64 +build --ADD_REVISION=$ADD_REVISION
+        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-build-${{github.ref_name}}-amd64 +build --ADD_REVISION=$ADD_REVISION
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
 
@@ -271,12 +273,14 @@ jobs:
           path: out/linux/amd64
 
       - name: Test
-        run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-test-${{github.ref_name}}-amd64 +test-all
+        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-test-${{github.ref_name}}-amd64 +test-all
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
 
   linux-arm64:
     runs-on: ubuntu-18.04
+    env:
+      EARTHLY_PLATFORMS: linux/arm64
     steps:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
@@ -304,7 +308,7 @@ jobs:
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
       - name: Build
-        run: earthly --platform=linux/arm64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-build-${{github.ref_name}}-arm64 +build --ADD_REVISION=$ADD_REVISION
+        run: earthly --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-build-${{github.ref_name}}-arm64 +build --ADD_REVISION=$ADD_REVISION
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
 
