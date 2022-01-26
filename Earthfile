@@ -188,14 +188,10 @@ build-multiarch:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +build --ADD_REVISION=$ADD_REVISION
 
 xmldoc:
-    DO +INSTALL_PACKAGES --PACKAGES="git"
     DO +INSTALL_NEKO
     DO +INSTALL_HAXE
 
     COPY --dir extra .
-
-    ARG COMMIT
-    ARG BRANCH
 
     WORKDIR extra
     RUN haxelib newrepo
@@ -203,9 +199,12 @@ xmldoc:
     RUN haxelib git hxjava https://github.com/HaxeFoundation/hxjava
     RUN haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
     RUN haxe doc.hxml
+
+    ARG COMMIT
+    ARG BRANCH
     RUN echo "{\"commit\":\"$COMMIT\",\"branch\":\"$BRANCH\"}" > doc/info.json
 
-    SAVE ARTIFACT --keep-ts ./doc/* AS LOCAL extra/doc/
+    SAVE ARTIFACT --keep-ts ./doc AS LOCAL extra/doc
 
 test-environment:
     # we use a sightly newer ubuntu for easier installation of the target runtimes (e.g. php)
