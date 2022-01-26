@@ -79,7 +79,7 @@ devcontainer:
     # Switch back to dialog for any ad-hoc use of apt-get
     ENV DEBIAN_FRONTEND=
 
-    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
+    DO +INSTALL_NEKO
 
     COPY +earthly/earthly /usr/local/bin/
     RUN earthly bootstrap --no-buildkit --with-autocomplete
@@ -118,31 +118,31 @@ INSTALL_PACKAGES:
 
 INSTALL_NEKO:
     COMMAND
-    ARG NEKOPATH
-    COPY +neko/* $NEKOPATH/
-    RUN bash -c 'set -ex && ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools} /usr/local/bin/ && ln -s $NEKOPATH/libneko.* /lib/'
+    ARG NEKOPATH=/neko
+    COPY +neko/* "$NEKOPATH/"
+    ARG PREFIX=/usr/local
+    RUN bash -c "ln -s \"$NEKOPATH\"/{neko,nekoc,nekoml,nekotools} \"$PREFIX/bin/\""
+    RUN bash -c "ln -s \"$NEKOPATH\"/libneko.* \"$PREFIX/lib/\""
+    RUN mkdir -p "$PREFIX/lib/neko/"
+    RUN bash -c "ln -s \"$NEKOPATH\"/*.ndll \"$PREFIX/lib/neko/\""
+    RUN ldconfig
 
 INSTALL_HAXE:
     COMMAND
-    ARG HAXE_STD_PATH
-    COPY +build/haxe +build/haxelib /usr/local/bin/
-    COPY +build/std $HAXE_STD_PATH/
-    RUN ls -lah $HAXE_STD_PATH/
+    ARG PREFIX=/usr/local
+    COPY +build/haxe +build/haxelib "$PREFIX/bin/"
+    COPY +build/std "$PREFIX/share/haxe/std"
 
 try-neko:
-    ENV NEKOPATH=/tmp/neko
-    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
+    DO +INSTALL_NEKO
     RUN neko -version
-    RUN nekotools server
+    RUN nekotools
 
 try-haxe:
-    ENV NEKOPATH=/tmp/neko
-    ENV HAXE_STD_PATH=/tmp/haxe/std
-    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
-    DO +INSTALL_HAXE --HAXE_STD_PATH=$HAXE_STD_PATH
-    RUN ls -lah $HAXE_STD_PATH/
+    DO +INSTALL_NEKO
+    DO +INSTALL_HAXE
     RUN haxe -version
-    RUN haxelib
+    RUN haxelib version
 
 neko:
     RUN set -ex && \
@@ -196,11 +196,8 @@ build-multiarch:
 
 xmldoc:
     DO +INSTALL_PACKAGES --PACKAGES="git"
-
-    ENV NEKOPATH=/tmp/neko
-    ENV HAXE_STD_PATH=/tmp/haxe/std
-    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
-    DO +INSTALL_HAXE --HAXE_STD_PATH=$HAXE_STD_PATH
+    DO +INSTALL_NEKO
+    DO +INSTALL_HAXE
 
     COPY --dir extra .
 
@@ -221,10 +218,8 @@ xmldoc:
 test-environment:
     # we use a sightly newer ubuntu for easier installation of the target runtimes (e.g. php)
     FROM ubuntu:focal
-    ENV NEKOPATH=/tmp/neko
-    ENV HAXE_STD_PATH=/tmp/haxe/std
-    DO +INSTALL_NEKO --NEKOPATH=$NEKOPATH
-    DO +INSTALL_HAXE --HAXE_STD_PATH=$HAXE_STD_PATH
+    DO +INSTALL_NEKO
+    DO +INSTALL_HAXE
 
     ENV DEBIAN_FRONTEND=noninteractive
     DO +INSTALL_PACKAGES --PACKAGES="curl wget git build-essential locales sqlite3"
@@ -297,8 +292,6 @@ test-environment-cpp:
 test:
     ARG TEST # macro, js, hl, cpp, java, jvm, cs, php, python, lua, neko
 
-    FROM +test-environment
-
     IF [ "$TEST" = "python" ]
         FROM +test-environment-python
     ELSE IF [ "$TEST" = "php" ]
@@ -316,13 +309,11 @@ test:
     ELSE IF [ "$TEST" = "hl" ]
         FROM +test-environment-hl
         ENV GITHUB_WORKSPACE=true # emulate github environment, TODO: properly define a "Earthly" environment
+    ELSE
+        FROM +test-environment
     END
 
-    ENV HAXE_STD_PATH=/haxe/std
-    WORKDIR /haxe
-
-    COPY +build/haxe +build/haxelib /usr/local/bin/
-    COPY --dir tests std .
+    COPY tests tests
 
     RUN mkdir /haxelib \
         && haxelib setup /haxelib \
