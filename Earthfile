@@ -159,13 +159,8 @@ neko:
 build:
     FROM +devcontainer
 
-    ARG TARGETPLATFORM
-    ARG ADD_REVISION
-
-    # Copy files
-    COPY --dir .git extra libs plugins src* std dune* Makefile* opam .
-
     # Install OCaml libraries
+    COPY opam .
     RUN opam init --disable-sandboxing
     RUN opam update
     RUN opam pin add haxe . --no-action
@@ -174,10 +169,15 @@ build:
     RUN ocamlopt -v
 
     # Build Haxe
+    COPY --dir extra libs plugins src* std dune* Makefile* .
+    COPY .git .git # the Makefile calls git to get commit sha
+    ARG ADD_REVISION
+    ENV ADD_REVISION=$ADD_REVISION
     RUN opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && ldd -v ./haxe
     RUN opam config exec -- make -s haxelib && ldd -v ./haxelib
     RUN make -s package_unix && ls -l out
 
+    ARG TARGETPLATFORM
     SAVE ARTIFACT --keep-ts ./out/* AS LOCAL out/$TARGETPLATFORM/
     SAVE ARTIFACT --keep-ts ./haxe AS LOCAL out/$TARGETPLATFORM/
     SAVE ARTIFACT --keep-ts ./haxelib AS LOCAL out/$TARGETPLATFORM/
