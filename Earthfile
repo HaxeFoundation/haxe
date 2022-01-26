@@ -111,9 +111,8 @@ earthly:
 INSTALL_PACKAGES:
     COMMAND
     ARG PACKAGES
-    RUN set -ex && \
-        apt-get update -qqy && \
-        apt-get install -qqy $PACKAGES && \
+    RUN apt-get update -qqy && \
+        apt-get install -qqy --no-install-recommends $PACKAGES && \
         apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 INSTALL_NEKO:
@@ -167,13 +166,12 @@ build:
     COPY --dir .git extra libs plugins src* std dune* Makefile* opam .
 
     # Install OCaml libraries
-    RUN set -ex && \
-        opam init --disable-sandboxing && \
-        opam update && \
-        opam pin add haxe . --no-action && \
-        opam install haxe --yes --deps-only --no-depexts && \
-        opam list && \
-        ocamlopt -v
+    RUN opam init --disable-sandboxing
+    RUN opam update
+    RUN opam pin add haxe . --no-action
+    RUN opam install haxe --yes --deps-only --no-depexts
+    RUN opam list
+    RUN ocamlopt -v
 
     # Build Haxe
     RUN opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && ldd -v ./haxe
@@ -199,16 +197,15 @@ xmldoc:
     ARG COMMIT
     ARG BRANCH
 
-    RUN set -ex                                                      && \
-        cd extra                                                     && \
-        haxelib newrepo                                              && \
-        haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
-        haxelib git hxjava https://github.com/HaxeFoundation/hxjava  && \
-        haxelib git hxcs   https://github.com/HaxeFoundation/hxcs    && \
-        haxe doc.hxml                                                && \
-        echo "{\"commit\":\"$COMMIT\",\"branch\":\"$BRANCH\"}" > doc/info.json
+    WORKDIR extra
+    RUN haxelib newrepo
+    RUN haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp
+    RUN haxelib git hxjava https://github.com/HaxeFoundation/hxjava
+    RUN haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
+    RUN haxe doc.hxml
+    RUN echo "{\"commit\":\"$COMMIT\",\"branch\":\"$BRANCH\"}" > doc/info.json
 
-    SAVE ARTIFACT --keep-ts ./extra/doc/* AS LOCAL extra/doc/
+    SAVE ARTIFACT --keep-ts ./doc/* AS LOCAL extra/doc/
 
 test-environment:
     # we use a sightly newer ubuntu for easier installation of the target runtimes (e.g. php)
