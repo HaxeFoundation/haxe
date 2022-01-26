@@ -240,7 +240,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.2/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.5/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
 
       - uses: actions/checkout@main
         with:
@@ -281,7 +281,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.2/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.5/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
 
       - name: Set up QEMU
         id: qemu
@@ -638,7 +638,7 @@ jobs:
             platforms: all
 
       - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.2/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'\
+        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.5/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'\
 
       - name: Test
         run: earthly --platform=linux/amd64 --remote-cache=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):cache-test-${{github.ref_name}}-amd64 +test-all
