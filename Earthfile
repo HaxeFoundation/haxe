@@ -164,7 +164,7 @@ build:
     ARG ADD_REVISION
 
     # Copy files
-    COPY --dir extra libs plugins src* std dune* Makefile* opam .
+    COPY --dir .git extra libs plugins src* std dune* Makefile* opam .
 
     # Install OCaml libraries
     RUN set -ex && \
@@ -176,18 +176,13 @@ build:
         ocamlopt -v
 
     # Build Haxe
-    RUN set -ex && \
-        eval $(opam env) && \
-        opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && \
-        opam config exec -- make -s haxelib && \
-        make -s package_unix && \
-        ls -l out && \
-        ldd -v ./haxe && \
-        ldd -v ./haxelib
+    RUN opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && ldd -v ./haxe
+    RUN opam config exec -- make -s haxelib && ldd -v ./haxelib
+    RUN make -s package_unix && ls -l out
 
-    SAVE ARTIFACT std
-    SAVE ARTIFACT ./out/* AS LOCAL out/$TARGETPLATFORM/
-    SAVE ARTIFACT ./haxe* AS LOCAL out/$TARGETPLATFORM/
+    SAVE ARTIFACT --keep-ts ./out/* AS LOCAL out/$TARGETPLATFORM/
+    SAVE ARTIFACT --keep-ts ./haxe AS LOCAL out/$TARGETPLATFORM/
+    SAVE ARTIFACT --keep-ts ./haxelib AS LOCAL out/$TARGETPLATFORM/
     SAVE IMAGE --cache-hint
 
 build-multiarch:
@@ -213,7 +208,7 @@ xmldoc:
         haxe doc.hxml                                                && \
         echo "{\"commit\":\"$COMMIT\",\"branch\":\"$BRANCH\"}" > doc/info.json
 
-    SAVE ARTIFACT ./extra/doc/* AS LOCAL extra/doc/
+    SAVE ARTIFACT --keep-ts ./extra/doc/* AS LOCAL extra/doc/
 
 test-environment:
     # we use a sightly newer ubuntu for easier installation of the target runtimes (e.g. php)
@@ -279,14 +274,13 @@ test-environment-cpp:
     ARG TARGETPLATFORM
 
     IF [ "$TARGETPLATFORM" = "linux/amd64" ]
-        ENV PACKAGES=g++-multilib
+        DO +INSTALL_PACKAGES --PACKAGES="g++-multilib"
     ELSE IF [ "$TARGETPLATFORM" = "linux/arm64" ]
-        ENV PACKAGES=g++-multilib-arm-linux-gnueabi
+        DO +INSTALL_PACKAGES --PACKAGES="g++-multilib-arm-linux-gnueabi"
     ELSE
         RUN echo "Unsupported platform $TARGETPLATFORM" && exit 1
     END
 
-    DO +INSTALL_PACKAGES --PACKAGES=$PACKAGES
     SAVE IMAGE --cache-hint
 
 RUN_CI:
@@ -295,6 +289,7 @@ RUN_CI:
     RUN mkdir /haxelib && haxelib setup /haxelib
     WORKDIR tests
     ARG --required TEST
+    ENV GITHUB_WORKSPACE=true # emulate github environment, TODO: properly define a "Earthly" environment
     ENV TEST="$TEST"
     RUN haxe RunCi.hxml
 
@@ -312,7 +307,6 @@ test-js:
 
 test-hl:
     FROM +test-environment-hl
-    ENV GITHUB_WORKSPACE=true # emulate github environment, TODO: properly define a "Earthly" environment
     DO +RUN_CI --TEST=hl
 
 test-cpp:
