@@ -78,13 +78,21 @@ class Hl {
 
 		var hlBinary = try {
 			if(!isCi())
-				runCommand(hlBinary);
+				runCommand(hlBinary, ["--version"]);
 			hlBinary;
 		} catch(e:Failure) {
 			'hl';
 		}
 
-		runCommand("haxe", ["compile-hl.hxml"].concat(args));
+		switch (systemName) {
+			case "Windows":
+				runCommand("haxe", ["compile-hl.hxml"].concat(args));
+			case _:
+				runCommand("haxe", [
+					"compile-hl.hxml",
+					"-D", "no_http", // hl's ssl.hdll is only built on Windows
+				].concat(args));
+		}
 		runCommand(hlBinary, ["bin/unit.hl"]);
 
 		changeDirectory(threadsDir);
