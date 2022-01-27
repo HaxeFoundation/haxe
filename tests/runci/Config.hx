@@ -21,7 +21,7 @@ class Config {
 	static public final threadsDir = cwd + "threads/";
 
 	static public final ci:Null<Ci> =
-		if (Sys.getEnv("GITHUB_WORKSPACE") != null)
+		if (Sys.getEnv("GITHUB_ACTIONS") == "true")
 			GithubActions;
 		else
 			null;
