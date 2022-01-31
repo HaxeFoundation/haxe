@@ -29,16 +29,10 @@
 
 @:hlNative("uv")
 class Fs extends Handle {
-	public function new(?loop : Loop) {
+	public function new(?loop : Loop, path : String, onContentChanged : Event -> Void) {
 		if(loop == null)
 			loop = Loop.getDefault();
-		super(fs_init_wrap(loop));
-	}
-
-	public function start(path : String, onContentChanged : (String, Event) -> Void) {
-		if(handle == null)
-			return;
-		fs_start_wrap(handle, (bytes, ev) -> onContentChanged(@:privateAccess String.fromUTF8(bytes), cast(ev, Event)), @:privateAccess path.toUtf8());
+		super(fs_start_wrap(loop, (e) -> onContentChanged(cast(e, Event)), @:privateAccess path.toUtf8()));
 	}
 
 	public function stop() {
@@ -46,13 +40,9 @@ class Fs extends Handle {
 			return;
 		fs_stop_wrap(handle);
 	}
-	
-	static function fs_init_wrap(loop:Loop) : HandleData {
-		return null;
-	}
 
-	static function fs_start_wrap(handle:HandleData, cb : (hl.Bytes, Int) -> Void, path : hl.Bytes) : Bool {
-		return false;
+	static function fs_start_wrap(loop:Loop, cb : Int -> Void, path : hl.Bytes) : HandleData {
+		return null;
 	}
 
 	static function fs_stop_wrap(handle:HandleData) : Bool {
