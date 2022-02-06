@@ -351,13 +351,27 @@ let rec mkdir_recursive base dir_list =
 				Unix.mkdir path 0o755;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
 
-let mkdir_from_path path =
+(**
+	Recursively creates `path`.
+	Raises `Unix.Unix_error` exceptions as-is.
+*)
+let mkdir_from_path_unix_err path =
 	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
 	match parts with
 		| [] -> (* path was "" *) ()
 		| _ ->
 			let dir_list = List.rev (List.tl (List.rev parts)) in
 			mkdir_recursive "" dir_list
+
+(**
+	Recursively creates `path`.
+	Converts all `Unix.Unix_error` exceptions to human-readable `Failure msg`.
+*)
+let mkdir_from_path path =
+	try
+		mkdir_from_path_unix_err path
+	with Unix.Unix_error(err,_,args) ->
+		raise (Failure (Printf.sprintf "%s (%s)" (Unix.error_message err) args))
 
 let full_dot_path pack mname tname =
 	if tname = mname then (pack,mname) else (pack @ [mname],tname)

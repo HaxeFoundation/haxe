@@ -65,14 +65,14 @@ let is_ignored meta =
 let get_base_config com =
 	{
 		optimize = Common.defined com Define.AnalyzerOptimize;
-		const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
-		copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
-		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
-		fusion = not (Common.raw_defined com "analyzer-no-fusion");
-		purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
+		const_propagation = not (Common.raw_defined com "analyzer_no_const_propagation");
+		copy_propagation = not (Common.raw_defined com "analyzer_no_copy_propagation");
+		local_dce = not (Common.raw_defined com "analyzer_no_local_dce");
+		fusion = not (Common.raw_defined com "analyzer_no_fusion");
+		purity_inference = not (Common.raw_defined com "analyzer_no_purity_inference");
 		debug_kind = DebugNone;
-		detail_times = Common.raw_defined com "analyzer-times";
-		user_var_fusion = (match com.platform with Flash | Java -> false | _ -> true) && (Common.raw_defined com "analyzer-user-var-fusion" || (not com.debug && not (Common.raw_defined com "analyzer-no-user-var-fusion")));
+		detail_times = Common.raw_defined com "analyzer_times";
+		user_var_fusion = (match com.platform with Flash | Java -> false | _ -> true) && (Common.raw_defined com "analyzer_user_var_fusion" || (not com.debug && not (Common.raw_defined com "analyzer_no_user_var_fusion")));
 		fusion_debug = false;
 	}
 

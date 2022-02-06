@@ -85,7 +85,7 @@ let rec func ctx bb tf t p =
 		if is_unbound_call_that_might_have_side_effects s el then ctx.has_unbound <- true;
 	in
 	let no_void t p =
-		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p
+		if ExtType.is_void (follow t) then Error.typing_error "Cannot use Void as value" p
 	in
 	let push_name s =
 		ctx.name_stack <- s :: ctx.name_stack;
@@ -179,7 +179,7 @@ let rec func ctx bb tf t p =
 			let bb = block_element bb e in
 			bb,mk (TConst TNull) t_dynamic e.epos
 		| TVar _ | TFor _ | TWhile _ ->
-			Error.error "Cannot use this expression as value" e.epos
+			Error.typing_error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in
 		no_void e.etype e.epos;
@@ -297,8 +297,8 @@ let rec func ctx bb tf t p =
 	and block_element_plus bb (e,efinal) f =
 		let bb = block_element bb e in
 		let bb = match efinal with
-			| None -> bb
-			| Some e -> block_element bb (f e)
+			| Some e when bb != g.g_unreachable -> block_element bb (f e)
+			| _ -> bb
 		in
 		bb
 	and block_element_value bb e f =

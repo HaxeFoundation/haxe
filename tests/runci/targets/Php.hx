@@ -25,11 +25,12 @@ class Php {
 					}
 				case _:
 			}
-			infoMsg('php ${phpVer} has already been installed.');
+			infoMsg('php $phpVer has already been installed.');
 			return;
 		}
 		switch systemName {
 			case "Linux":
+				// TODO: install php-sqlite3?
 				Linux.requireAptPackages(["php-cli", "php-mbstring"]);
 			case "Mac":
 				runCommand("brew", ["install", "php"], true);
@@ -57,30 +58,18 @@ class Php {
 
 		for(prefix in prefixes) {
 			changeDirectory(unitDir);
-			if(isCi()) {
+			if(isCi())
 				deleteDirectoryRecursively(binDir);
-			}
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runCommand.bind(_, [binDir + "/index.php"]));
+			runCommand("php", [binDir + "/index.php"]);
 
 			changeDirectory(sysDir);
-			if(isCi()) {
+			if(isCi())
 				deleteDirectoryRecursively(binDir);
-			}
-			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runCommand.bind(_, ["bin/php/Main/index.php"]));
-		}
-	}
 
-	static function runThroughPhpVersions(fn:(phpCmd:String)->Void) {
-		switch [ci, systemName] {
-			case [GithubActions, "Linux"]:
-				for(version in ['7.4', '8.0']) {
-					fn('php$version');
-				}
-			case _:
-				fn('php');
+			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
+			runSysTest("php", ["bin/php/Main/index.php"]);
 		}
 	}
 }

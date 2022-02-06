@@ -39,10 +39,15 @@ let rec s_type ctx t =
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-			let s_const = match !monomorph_classify_constraints_ref r with
+			let s_const =
+				let rec loop = function
 				| CUnknown -> ""
-				| CTypes tl -> " : " ^ String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
-				| CStructural(fields,_) -> " : " ^ s_type ctx (mk_anon ~fields (ref Closed))
+				| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+				| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
+				| CMixed l -> String.concat " & " (List.map loop l)
+				in
+				let s = loop (!monomorph_classify_constraints_ref r) in
+				if s = "" then s else " : " ^ s
 			in
 				Printf.sprintf "Unknown<%d>%s" id s_const
 			end
@@ -482,16 +487,31 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param (s,t) = match follow t with
+	let s_type_param tp = match follow tp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-			begin match tl1 with
-			| [] -> s
-			| _ -> Printf.sprintf "%s:%s" s (String.concat " & " (List.map s_type tl1))
+			let s = match tl1 with
+				| [] -> tp.ttp_name
+				| _ -> Printf.sprintf "%s:%s" tp.ttp_name (String.concat " & " (List.map s_type tl1))
+			in
+			begin match tp.ttp_default with
+			| None ->
+				s
+			| Some t ->
+				Printf.sprintf "%s = %s" s (s_type t)
 			end
 		| _ -> die "" __LOC__
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl
+
+	let s_flags flags all_flags =
+		let _,l = List.fold_left (fun (i,acc) name ->
+			if has_flag flags i then (i + 1,name :: acc) else (i + 1,acc)
+		) (0,[]) all_flags in
+		String.concat " " l
+
+	let s_tclass_field_flags flags =
+		s_flags flags flag_tclass_field_names
 
 	let s_tclass_field tabs cf =
 		s_record_fields tabs [
@@ -504,6 +524,7 @@ module Printer = struct
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
+			"cf_flags",s_tclass_field_flags cf.cf_flags;
 		]
 
 	let s_tclass tabs c =

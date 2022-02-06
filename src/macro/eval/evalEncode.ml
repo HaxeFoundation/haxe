@@ -141,7 +141,7 @@ let encode_obj l =
 	let proto,sorted = ctx.get_object_prototype ctx l in
 	vobject {
 		ofields = Array.of_list (List.map snd sorted);
-		oproto = proto;
+		oproto = OProto proto;
 	}
 
 let encode_obj_s l =

@@ -108,8 +108,7 @@ let collect_diagnostics dctx com =
 	) com.types;
 	let handle_dead_blocks com = match com.cache with
 		| Some cc ->
-			let macro_defines = adapt_defines_to_macro_context com.defines in
-			let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
+			let display_defines = adapt_defines_to_display_context com.defines in
 			let is_true defines e =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in

@@ -121,7 +121,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 			cf
 		in
         let cf = match origin,scope,follow cf.cf_type with
-            | Self (TClassDecl c),CFSConstructor,TFun(tl,_) -> {cf with cf_type = TFun(tl,TInst(c,List.map snd c.cl_params))}
+            | Self (TClassDecl c),CFSConstructor,TFun(tl,_) -> {cf with cf_type = TFun(tl,TInst(c,extract_param_types c.cl_params))}
             | _ -> cf
         in
 		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
@@ -155,7 +155,7 @@ let display_meta com meta p = match com.display.dms_kind with
 	| DMDefault ->
 		let all = Meta.get_all() in
 		let all = List.map make_ci_metadata all in
-		let subject = if meta = Meta.Last then None else Some (Meta.to_string meta) in
+		let subject = if meta = Meta.HxCompletion then None else Some (Meta.to_string meta) in
 		raise_fields all CRMetadata (make_subject subject p);
 	| _ ->
 		()

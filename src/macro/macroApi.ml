@@ -198,7 +198,7 @@ let haxe_float f p =
 	else if (f <> f) then
 		(Ast.EField (math, "NaN"), p)
 	else
-		(Ast.EConst (Ast.Float (Numeric.float_repres f)), p)
+		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
@@ -226,8 +226,8 @@ let encode_string_literal_kind qs =
 
 let encode_const c =
 	let tag, pl = match c with
-	| Int s -> 0, [encode_string s]
-	| Float s -> 1, [encode_string s]
+	| Int (s, suffix) -> 0, [encode_string s;null encode_string suffix]
+	| Float (s, suffix) -> 1, [encode_string s;null encode_string suffix]
 	| String(s,qs) -> 2, [encode_string s;encode_string_literal_kind qs]
 	| Ident s -> 3, [encode_string s]
 	| Regexp (s,opt) -> 4, [encode_string s;encode_string opt]
@@ -447,6 +447,7 @@ and encode_expr e =
 						"name",encode_placed_name v.ev_name;
 						"name_pos",encode_pos (pos v.ev_name);
 						"isFinal",vbool v.ev_final;
+						"isStatic",vbool v.ev_static;
 						"type",null encode_ctype v.ev_type;
 						"expr",null loop v.ev_expr;
 						"meta",encode_meta_content v.ev_meta;
@@ -547,8 +548,20 @@ let decode_string_literal_kind v =
 
 let decode_const c =
 	match decode_enum c with
-	| 0, [s] -> Int (decode_string s)
-	| 1, [s] -> Float (decode_string s)
+	| 0, [s;suffix] ->
+		let decoded_suffix = opt decode_string suffix in
+		(match decoded_suffix with
+		| None | Some "i32" | Some "i64" | Some "u32" ->
+			Int (decode_string s, decoded_suffix)
+		| Some other ->
+			raise Invalid_expr)
+	| 1, [s;suffix] ->
+		let decoded_suffix = opt decode_string suffix in
+		(match decoded_suffix with
+		| None | Some "f64" ->
+			Float (decode_string s, opt decode_string suffix)
+		| Some other ->
+			raise Invalid_expr)
 	| 2, [s;qs] -> String (decode_string s,decode_string_literal_kind qs)
 	| 3, [s] -> Ident (decode_string s)
 	| 4, [s;opt] -> Regexp (decode_string s, decode_string opt)
@@ -631,6 +644,7 @@ and decode_tparams v =
 
 and decode_tparam_decl v =
 	let vconstraints = field v "constraints" in
+	let vdefault = field v "defaultType" in
 	{
 		tp_name = decode_placed_name (field v "name_pos") (field v "name");
 		tp_constraints = if vconstraints = vnull then None else (match decode_array vconstraints with
@@ -638,6 +652,7 @@ and decode_tparam_decl v =
 			| [t] -> Some (decode_ctype t)
 			| tl -> Some (CTIntersection (List.map decode_ctype tl),Globals.null_pos)
 		);
+		tp_default = opt decode_ctype vdefault;
 		tp_params = decode_tparams (field v "params");
 		tp_meta = decode_meta_content (field v "meta");
 	}
@@ -780,12 +795,14 @@ and decode_expr v =
 			EVars (List.map (fun v ->
 				let vfinal = field v "isFinal" in
 				let final = if vfinal == vnull then false else decode_bool vfinal in
+				let vstatic = field v "isStatic" in
+				let static = if vstatic == vnull then false else decode_bool vstatic in
 				let vmeta = field v "meta" in
 				let meta = if vmeta == vnull then [] else decode_meta_content vmeta in
 				let name = (decode_placed_name (field v "name_pos") (field v "name"))
 				and t = opt decode_ctype (field v "type")
 				and eo = opt loop (field v "expr") in
-				mk_evar ~final ?t ?eo ~meta name
+				mk_evar ~final ~static ?t ?eo ~meta name
 			) (decode_array vl))
 		| 11, [kind;f] ->
 			EFunction (decode_function_kind kind,decode_fun f)
@@ -898,7 +915,13 @@ let rec encode_mtype t fields =
 	] @ fields)
 
 and encode_type_params tl =
-	encode_array (List.map (fun (n,t) -> encode_obj ["name",encode_string n;"t",encode_type t]) tl)
+	encode_array (List.map (fun tp ->
+		encode_obj [
+			"name",encode_string tp.ttp_name;
+			"t",encode_type tp.ttp_type;
+			"defaultType",(match tp.ttp_default with None -> vnull | Some t -> encode_type t);
+		]
+	) tl)
 
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
@@ -1280,7 +1303,12 @@ let decode_tconst c =
 	| _ -> raise Invalid_expr
 
 let decode_type_params v =
-	List.map (fun v -> decode_string (field v "name"),decode_type (field v "t")) (decode_array v)
+	List.map (fun v ->
+		let name = decode_string (field v "name") in
+		let t = decode_type (field v "t") in
+		let default = opt decode_type (field v "defaultType") in
+		mk_type_param name t default
+	) (decode_array v)
 
 let decode_tvar v =
 	(Obj.obj (decode_unsafe (field v "$")) : tvar)
@@ -1610,18 +1638,21 @@ let macro_api ccom get_api =
 				let v = if v = vnull then "" else ", " ^ (decode_string v) in
 				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
 			end;
-			let v = if v = vnull then "" else "=" ^ (decode_string v) in
-			Common.raw_define com (s ^ v);
+			(* TODO: use external_define and external_define_value for #8690 *)
+			if v = vnull then
+				Common.external_define_no_check com s
+			else
+				Common.external_define_value_no_check com s (decode_string v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
-			vbool (Common.raw_defined (ccom()) (decode_string s))
+			vbool (Common.external_defined (ccom()) (decode_string s))
 		);
 		"defined_value", vfun1 (fun s ->
-			try encode_string (Common.raw_defined_value (ccom()) (decode_string s)) with Not_found -> vnull
+			try encode_string (Common.external_defined_value (ccom()) (decode_string s)) with Not_found -> vnull
 		);
 		"get_defines", vfun0 (fun() ->
-			encode_string_map encode_string (ccom()).defines.Define.values
+			encode_string_map encode_string (Common.defines_for_external (ccom()))
 		);
 		"get_type", vfun1 (fun s ->
 			let tname = decode_string s in
@@ -1833,7 +1864,7 @@ let macro_api ccom get_api =
 				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 					t
 				| TType (t,tl) ->
-					apply_params t.t_params tl t.t_type
+					apply_typedef t tl
 				| TLazy f ->
 					lazy_type f
 			in
@@ -1904,6 +1935,13 @@ let macro_api ccom get_api =
 			let e = decode_texpr e in
 			encode_expr ((get_api()).store_typed_expr e)
 		);
+		"type_and_store_expr", vfun1 (fun e ->
+			let api = get_api() in
+			let te = (api.type_expr (decode_expr e)) in
+			let v_e = encode_expr (api.store_typed_expr te) in
+			let v_to_string () = (s_type (print_context())) te.etype in
+			encode_obj ["expr",v_e;"type",encode_ref te.etype encode_type v_to_string]
+		);
 		"get_output", vfun0 (fun() ->
 			encode_string (ccom()).file
 		);
@@ -1920,12 +1958,17 @@ let macro_api ccom get_api =
 		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
-			let tpl = List.map (fun v -> decode_string (field v "name"), decode_type (field v "t")) (decode_array tpl) in
+			let tpl = List.map (fun v ->
+				let name = decode_string (field v "name") in
+				let t = decode_type (field v "t") in
+				let default = None in (* we don't care here *)
+				mk_type_param  name t default
+			) (decode_array tpl) in
 			let rec map t = match t with
 				| TInst({cl_kind = KTypeParameter _},_) ->
 					begin try
 						(* use non-physical equality check here to make apply_params work *)
-						snd (List.find (fun (_,t2) -> type_iseq t t2) tpl)
+						extract_param_type (List.find (fun tp2 -> type_iseq t tp2.ttp_type) tpl)
 					with Not_found ->
 						Type.map map t
 					end

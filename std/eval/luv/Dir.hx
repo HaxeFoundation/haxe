@@ -60,14 +60,14 @@ typedef DirectoryScan = {
 **/
 extern class DirSync {
 	@:inheritDoc(eval.luv.Dir.open)
-	static public function open(loop:Loop, path:NativeString):Result<Dir>;
+	static public function open(path:NativeString):Result<Dir>;
 
 	@:inheritDoc(eval.luv.Dir.close)
-	static public function close(dir:Dir, loop:Loop):Result<Result.NoData>;
+	static public function close(dir:Dir):Result<Result.NoData>;
 
 	@:inheritDoc(eval.luv.Dir.read)
-	static public function read(dir:Dir, loop:Loop, ?numberOfEntries:Int):Result<Array<Dirent>>;
+	static public function read(dir:Dir, ?numberOfEntries:Int):Result<Array<Dirent>>;
 
 	@:inheritDoc(eval.luv.Dir.scan)
-	static public function scan(loop:Loop, path:NativeString):Result<DirectoryScan>;
+	static public function scan(path:NativeString):Result<DirectoryScan>;
 }

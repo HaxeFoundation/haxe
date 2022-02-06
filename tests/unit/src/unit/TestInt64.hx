@@ -13,6 +13,14 @@ class TestInt64 extends Test {
 		eq( a.high, 10 );
 		eq( a.low, 0xFFFFFFFF );
 
+		a = 47244640255i64;
+		eq( a.high, 10 );
+		eq( a.low, 0xFFFFFFFF );
+
+		a = 0x7FFFFFFFFFFFFFFFi64;
+		eq( a.high, 0x7FFFFFFF );
+		eq( a.low, 0xFFFFFFFF );
+
 		// Int casts
 		a = 1;
 		eq( a.toInt(), 1 );

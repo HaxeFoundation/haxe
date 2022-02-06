@@ -28,20 +28,6 @@ import haxe.ds.StringMap;
 
 @:coreApi
 class Sys {
-	static var environ(get,default):StringMap<String>;
-	static function get_environ():StringMap<String> {
-		return switch environ {
-			case null:
-				var environ = new StringMap();
-				var env = Os.environ;
-				for (key in env.keys()) {
-					environ.set(key, env.get(key, null));
-				}
-				Sys.environ = environ;
-			case env: env;
-		}
-	}
-
 	public static inline function time():Float {
 		return Time.time();
 	}
@@ -64,15 +50,27 @@ class Sys {
 	}
 
 	public static function getEnv(s:String):String {
-		return environ.get(s);
+		return Os.environ.get(s, null);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
-		python.lib.Os.putenv(s, v);
-		environ.set(s, v);
+	public static function putEnv(s:String, v:Null<String>):Void {
+		if (v == null) {
+			try {
+				Os.environ.remove(s);
+			} catch(e:python.Exceptions.KeyError) {
+				// the variable didn't exist
+			}
+			return;
+		}
+		Os.environ.set(s, v);
 	}
 
 	public static function environment():Map<String, String> {
+		final environ = new StringMap();
+		final env = Os.environ;
+		for (key in env.keys()) {
+			environ.set(key, env.get(key, null));
+		}
 		return environ;
 	}
 
@@ -85,7 +83,7 @@ class Sys {
 	}
 
 	public static function getCwd():String {
-		return python.lib.Os.getcwd();
+		return haxe.io.Path.addTrailingSlash(python.lib.Os.getcwd());
 	}
 
 	public static function setCwd(s:String):Void {

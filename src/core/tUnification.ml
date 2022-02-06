@@ -73,7 +73,7 @@ module Monomorph = struct
 	let add_up_constraint m ((t,name) as constr) =
 		m.tm_up_constraints <- constr :: m.tm_up_constraints;
 		match t with
-		| TMono m2 -> m2.tm_down_constraints <- MMono (m2,name) :: m2.tm_down_constraints
+		| TMono m2 -> m2.tm_down_constraints <- MMono (m,name) :: m2.tm_down_constraints
 		| _ -> ()
 
 	let add_down_constraint m constr =
@@ -131,18 +131,25 @@ module Monomorph = struct
 		in
 		List.iter check m.tm_down_constraints;
 		let kind =
-			if DynArray.length types > 0 then
-				CTypes (DynArray.to_list types)
-			else if not (PMap.is_empty !fields) || !is_open then
-				CStructural(!fields,!is_open)
+			let k1 =
+				if DynArray.length types > 0 then
+					CTypes (DynArray.to_list types)
+				else
+					CUnknown
+			in
+			if not (PMap.is_empty !fields) || !is_open then
+				let k2 = CStructural(!fields,!is_open) in
+				match k1 with
+				| CTypes _ -> CMixed [k1; k2]
+				| _ -> k2
 			else
-				CUnknown
+				k1
 		in
 		!monos,kind
 
 	let classify_down_constraints m = snd (classify_down_constraints' m)
 
-	let check_down_constraints constr t =
+	let rec check_down_constraints constr t =
 		match constr with
 		| CUnknown ->
 			()
@@ -156,6 +163,8 @@ module Monomorph = struct
 		| CStructural(fields,is_open) ->
 			let t2 = mk_anon ~fields (ref Closed) in
 			(!unify_ref) default_unification_context t t2
+		| CMixed l ->
+			List.iter (fun constr -> check_down_constraints constr t) l
 
 	let rec collect_up_constraints m =
 		let rec collect m acc =
@@ -213,7 +222,7 @@ module Monomorph = struct
 			(* Due to recursive constraints like in #9603, we tentatively bind the monomorph to the type we're checking
 			   against before checking the constraints. *)
 			m.tm_type <- Some t;
-			let monos,kind = classify_down_constraints' m in
+			let kind = classify_down_constraints m in
 			Std.finally (fun () -> m.tm_type <- None) (fun () -> check_down_constraints kind t) ();
 			do_bind m t
 		end
@@ -227,7 +236,7 @@ module Monomorph = struct
 			| CTypes [(t,_)] ->
 				do_bind m t;
 				()
-			| CTypes _ ->
+			| CTypes _ | CMixed _ ->
 				()
 			| CStructural(fields,_) ->
 				let check_recursion cf =
@@ -251,9 +260,9 @@ module Monomorph = struct
 
 	let spawn_constrained_monos map params =
 		let checks = DynArray.create () in
-		let monos = List.map (fun (s,t) ->
+		let monos = List.map (fun tp ->
 			let mono = create () in
-			begin match follow t with
+			begin match follow tp.ttp_type with
 				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->
 					DynArray.add checks (mono,constr,s_type_path path)
 				| _ ->
@@ -903,7 +912,7 @@ and unify_anons uctx a b a1 a2 =
 			Not_found ->
 				match !(a1.a_status) with
 				| Const when Meta.has Meta.Optional f2.cf_meta ->
-					()
+					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields
 				| _ ->
 					error [has_no_field a n];
 		) a2.a_fields;
@@ -1003,6 +1012,7 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			let athis = map ab.a_this in
 			(* we cannot allow implicit casts when the this type is not completely known yet *)
+			if has_mono athis then raise (Unify_error []);
 			with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
 			unify_func (map t) b;
 		| _ -> die "" __LOC__)
@@ -1015,7 +1025,7 @@ and unify_with_variance uctx f t1 t2 =
 	let unify_nested t1 t2 = with_variance (get_nested_context uctx) f t1 t2 in
 	let unify_tls tl1 tl2 = List.iter2 unify_nested tl1 tl2 in
 	let get_this_type ab tl = follow_without_type (apply_params ab.a_params tl ab.a_this) in
-	let get_defined_type td tl = follow_without_type (apply_params td.t_params tl td.t_type) in
+	let get_defined_type td tl = follow_without_type (apply_typedef td tl) in
 	let compare_underlying () = type_eq {uctx with equality_underlying = true; equality_kind = EqBothDynamic} t1 t2 in
 	let unifies_abstract uctx a b ab tl ats =
 		try
@@ -1131,7 +1141,7 @@ module UnifyMinT = struct
 					loop t);
 				tl := t :: !tl;
 			| TType (td,pl) ->
-				loop (apply_params td.t_params pl td.t_type);
+				loop (apply_typedef td pl);
 				(* prioritize the most generic definition *)
 				tl := t :: !tl;
 			| TLazy f -> loop (lazy_type f)

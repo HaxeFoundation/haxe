@@ -172,7 +172,7 @@ let gen_constant ctx pe c =
 		with _ ->
 			if ctx.version < 2 then abort "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe;
 			(EConst (Int32 i),p))
-	| TFloat f -> (EConst (Float f),p)
+	| TFloat f -> (EConst (Float (Texpr.replace_separators f "")),p)
 	| TString s -> call p (field p (ident p "String") "new") [gen_big_string ctx p s]
 	| TBool b -> (EConst (if b then True else False),p)
 	| TNull -> null p

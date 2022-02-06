@@ -533,9 +533,14 @@ module Graph = struct
 					()
 			end;
 			let infer e = match e.eexpr with
-			| TVar(v,eo) ->
+			| TVar(v,_) ->
 				declare_var g v bb;
-				if eo <> None then add_var_def g bb v;
+				(* Technically, this was correct because without an assignment this isn't really a
+				   definition. However, there can be situations where uninitialized variables have to
+				   be considered in the data flow analysis, which requires proper SSA edges or otherwise
+				   stuff like #10304 happens. *)
+				(* if eo <> None then *)
+				add_var_def g bb v;
 			| TBinop(OpAssign,{eexpr = TLocal v},_) ->
 				add_var_def g bb v
 			| _ ->

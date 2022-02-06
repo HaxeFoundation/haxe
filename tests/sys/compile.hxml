@@ -8,3 +8,4 @@
 --next compile-java.hxml
 --next compile-php.hxml
 --next compile-hl.hxml
+--next compile-js.hxml

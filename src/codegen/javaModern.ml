@@ -720,9 +720,10 @@ module Converter = struct
 			tp_name = (name,p);
 			tp_params = [];
 			tp_meta = [];
+			tp_default = None;
 			tp_constraints = match constraints with
 				| [] -> None
-				| _ -> Some (CTIntersection constraints,p)
+				| _ -> Some (CTIntersection constraints,p);
 		} in
 		tp
 
@@ -789,6 +790,8 @@ module Converter = struct
 						add_access (AOverride,null_pos);
 					| _ -> ()
 				) ann
+			| AttrCode _ when is_interface ->
+				add_meta (Meta.JavaDefault,[],p)
 			| _ -> ()
 		) jf.jf_attributes;
 		let add_native_meta () =
@@ -923,6 +926,9 @@ module Converter = struct
 		let known_sigs = Hashtbl.create 0 in
 		let should_generate jf =
 			not (AccessFlags.has_flag jf.jf_flags MPrivate)
+			(* We might need member synthetics for proper call resolution, but we should never need static ones (issue #10279). *)
+			&& (not (AccessFlags.has_flag jf.jf_flags MSynthetic) || not (AccessFlags.has_flag jf.jf_flags MStatic))
+			&& jf.jf_name <> "<clinit>"
 		in
 		if jc.jc_path <> (["java";"lang"], "CharSequence") then begin
 			List.iter (fun jf ->

@@ -87,7 +87,7 @@ let completion_item_of_expr ctx e =
 			end
 		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->
 			Display.merge_core_doc ctx (TAbstractDecl a);
-			let t = TType(abstract_module_type a (List.map snd a.a_params),[]) in
+			let t = TType(abstract_module_type a (extract_param_types a.a_params),[]) in
 			let t = tpair t in
 			make_ci_type (CompletionModuleType.of_module_type (TAbstractDecl a)) ImportStatus.Imported (Some t)
 		| TTypeExpr mt ->
@@ -179,7 +179,7 @@ let display_dollar_type ctx p make_type =
 	| DMDefinition | DMTypeDefinition ->
 		raise_positions []
 	| _ ->
-		error "Unsupported method" p
+		typing_error "Unsupported method" p
 	end
 
 let rec handle_signature_display ctx e_ast with_type =
@@ -189,7 +189,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		let rec follow_with_callable (t,doc,values) = match follow t with
 			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc,values)
 			| TFun(args,ret) -> ((args,ret),doc,values)
-			| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
+			| _ -> typing_error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 		in
 		let tl = List.map follow_with_callable tl in
 		let rec loop i acc el = match el with
@@ -227,7 +227,7 @@ let rec handle_signature_display ctx e_ast with_type =
 	let find_constructor_types t = match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
 			let rec loop tl = match tl with
-				| [] -> raise_error (No_constructor (TClassDecl c)) p
+				| [] -> raise_typing_error (No_constructor (TClassDecl c)) p
 				| t :: tl -> match follow t with
 					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
 					| _ -> loop tl
@@ -312,11 +312,11 @@ let rec handle_signature_display ctx e_ast with_type =
 			| _ ->
 				raise_signatures [] 0 0 SKArrayAccess
 			end
-		| _ -> error "Call expected" p
+		| _ -> typing_error "Call expected" p
 
 and display_expr ctx e_ast e dk mode with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
-		| None -> error "Current class does not have a super" p
+		| None -> typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = get_constructor_access c params p in
 			fa.fa_field,c
@@ -491,47 +491,6 @@ and display_expr ctx e_ast e dk mode with_type p =
 		in
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) (make_subject None (DisplayPosition.display_position#with_pos p))
 
-let handle_structure_display ctx e fields origin =
-	let p = pos e in
-	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) fields [] in
-	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
-	let tpair ?(values=PMap.empty) t =
-		let ct = CompletionType.from_type (get_import_status ctx) ~values t in
-		(t,ct)
-	in
-	let make_field_item cf =
-		make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)
-	in
-	match fst e with
-	| EObjectDecl fl ->
-		let fields = ref fields in
-		let rec loop subj fl = match fl with
-			| [] -> subj
-			| ((n,p,_),_) :: fl ->
-				let subj = if DisplayPosition.display_position#enclosed_in p then
-					Some(n,p)
-				else begin
-					fields := List.filter (fun cf -> cf.cf_name <> n) !fields;
-					subj
-				end in
-				loop subj fl
-		in
-		let subj = loop None fl in
-		let name,pinsert = match subj with
-			| None -> None,DisplayPosition.display_position#with_pos (pos e)
-			| Some(name,p) -> Some name,p
-		in
-		let fields = List.map make_field_item !fields in
-		raise_fields fields CRStructureField (make_subject name pinsert)
-	| EBlock [] ->
-		let fields = List.fold_left (fun acc cf ->
-			(make_field_item cf) :: acc
-		) [] fields in
-		let pinsert = DisplayPosition.display_position#with_pos (pos e) in
-		raise_fields fields CRStructureField (make_subject None pinsert)
-	| _ ->
-		error "Expected object expression" p
-
 let handle_display ctx e_ast dk mode with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
@@ -557,7 +516,7 @@ let handle_display ctx e_ast dk mode with_type =
 		| DMDefinition | DMTypeDefinition ->
 			raise_positions []
 		| _ ->
-			error "Unsupported method" p
+			typing_error "Unsupported method" p
 		end
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
@@ -610,7 +569,7 @@ let handle_display ctx e_ast dk mode with_type =
 						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
 						begin match resolve_typedef mt with
 						| TClassDecl c -> has_constructor c
-						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,List.map snd a.a_params)) with
+						| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,extract_param_types a.a_params)) with
 							| TInst(c,_) -> has_constructor c
 							| TAbstract({a_impl = Some c},_) -> PMap.mem "_new" c.cl_statics
 							| _ -> false)
@@ -660,6 +619,57 @@ let handle_display ctx e_ast dk mode with_type =
 			e
 	end else
 		f()
+
+let handle_structure_display ctx e fields origin =
+	let p = pos e in
+	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) fields [] in
+	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
+	let tpair ?(values=PMap.empty) t =
+		let ct = CompletionType.from_type (get_import_status ctx) ~values t in
+		(t,ct)
+	in
+	let make_field_item cf =
+		make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)
+	in
+	match fst e with
+	| EObjectDecl fl ->
+		let fields = ref fields in
+		let rec loop subj fl = match fl with
+			| [] -> subj
+			| ((n,p,_),e) :: fl ->
+				let subj = if DisplayPosition.display_position#enclosed_in p then
+					Some(n,p)
+				else begin
+					if DisplayPosition.display_position#enclosed_in ({ (pos e) with pmin = p.pmax + 1 }) then begin
+						let e = fst e, { (pos e) with pmin = p.pmax + 1 } in
+						let wt =
+							try
+								let cf = List.find (fun { cf_name = name } -> name = n) !fields in
+								WithType.with_type cf.cf_type
+							with Not_found -> WithType.value
+						in
+						ignore(handle_display ctx e DKMarked MGet wt)
+					end;
+					fields := List.filter (fun cf -> cf.cf_name <> n) !fields;
+					subj
+				end in
+				loop subj fl
+		in
+		let subj = loop None fl in
+		let name,pinsert = match subj with
+			| None -> None,DisplayPosition.display_position#with_pos (pos e)
+			| Some(name,p) -> Some name,p
+		in
+		let fields = List.map make_field_item !fields in
+		raise_fields fields CRStructureField (make_subject name pinsert)
+	| EBlock [] ->
+		let fields = List.fold_left (fun acc cf ->
+			(make_field_item cf) :: acc
+		) [] fields in
+		let pinsert = DisplayPosition.display_position#with_pos (pos e) in
+		raise_fields fields CRStructureField (make_subject None pinsert)
+	| _ ->
+		typing_error "Expected object expression" p
 
 let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =

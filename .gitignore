@@ -12,6 +12,8 @@
 /out
 /installer
 
+.tmp-earthly-out*
+
 /extra/hxclasses
 /extra/*.swf
 /extra/*.swc

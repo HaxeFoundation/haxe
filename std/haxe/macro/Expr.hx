@@ -60,12 +60,12 @@ enum Constant {
 	/**
 		Represents an integer literal.
 	**/
-	CInt(v:String);
+	CInt(v:String, ?s:String);
 
 	/**
 		Represents a float literal.
 	**/
-	CFloat(f:String);
+	CFloat(f:String, ?s:String);
 
 	/**
 		Represents a string literal.
@@ -320,6 +320,11 @@ typedef Var = {
 		Whether or not the variable can be assigned to.
 	**/
 	var ?isFinal:Bool;
+
+	/**
+		Whether or not the variable is static.
+	**/
+	var ?isStatic:Bool;
 
 	/**
 		Metadata associatied with the variable, if available.
@@ -675,6 +680,11 @@ typedef TypeParamDecl = {
 		The optional constraints of the type parameter.
 	**/
 	var ?constraints:Array<ComplexType>;
+
+	/**
+		The optional default type of the type parameter.
+	**/
+	var ?defaultType:Null<ComplexType>;
 
 	/**
 		The optional parameters of the type parameter.
