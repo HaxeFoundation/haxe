@@ -73,7 +73,7 @@ type generation_context = {
 }
 
 type ret =
-	| RValue of jsignature option
+	| RValue of jsignature option * string option
 	| RVoid
 	| RReturn
 
@@ -434,9 +434,9 @@ let create_field_closure gctx jc path_this jm name jsig f =
 		[jsig_this]
 	)
 
-let rvalue_any = RValue None
-let rvalue_sig jsig = RValue (Some jsig)
-let rvalue_type gctx t = RValue (Some (jsignature_of_type gctx t))
+let rvalue_any = RValue(None,None)
+let rvalue_sig jsig = RValue (Some jsig,None)
+let rvalue_type gctx t name = RValue (Some (jsignature_of_type gctx t),name)
 
 class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return_type : jsignature option) = object(self)
 	val com = gctx.com
@@ -508,7 +508,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		jm#cast vt
 
 	method cast_expect ret t = match ret with
-		| RValue (Some jsig) -> jm#cast jsig
+		| RValue (Some jsig,_) -> jm#cast jsig
 		| _ -> self#cast t
 
 	method make_static_closure_field (name : string) (jc_closure : JvmClass.builder) =
@@ -517,14 +517,18 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		jm_init#construct ConstructInit jc_closure#get_this_path (fun () -> []);
 		jm_init#putstatic jc_closure#get_this_path jf_closure#get_name jf_closure#get_jsig;
 
-	method tfunction e tf =
+	method tfunction ret e tf =
 		let outside,accesses_this = Texpr.collect_captured_vars e in
 		let env = List.map (fun v ->
 			v.v_id,(v.v_name,self#vtype v.v_type)
 		) outside in
 		let env = if accesses_this then ((0,("this",jc#get_jsig)) :: env) else env in
 		let context = List.map snd env in
-		let wf = new JvmFunctions.typed_function gctx.typed_functions FuncLocal jc jm context in
+		let name = match ret with
+			| RValue(_,Some s) -> Some s
+			| _ -> None
+		in
+		let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncLocal name) jc jm context in
 		let jc_closure = wf#get_class in
 		ignore(wf#generate_constructor (env <> []));
 		let args,ret =
@@ -1307,7 +1311,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#boolop (self#binop_compare op e1 e2)
 		| OpAssign,_ ->
 			let f () =
-				self#texpr (rvalue_type gctx e1.etype) e2;
+				self#texpr (rvalue_type gctx e1.etype None) e2;
 				self#cast e1.etype;
 			in
 			self#read_write ret AKNone e1 f
@@ -1378,7 +1382,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				(fun () -> code#bconst false)
 				(fun () -> code#bconst true)
 		| Spread, _ ->
-			self#texpr (rvalue_type gctx e.etype) e
+			self#texpr (rvalue_type gctx e.etype None) e
 		| NegBits,_ ->
 			let jsig = jsignature_of_type gctx (follow e.etype) in
 			self#texpr rvalue_any e;
@@ -1768,13 +1772,13 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 	method const ret t ct = match ct with
 		| Type.TInt i32 ->
 			begin match ret with
-			| RValue (Some (TLong | TObject((["java";"lang"],"Long"),_))) -> code#lconst (Int64.of_int32 i32)
-			| RValue (Some (TDouble | TObject((["java";"lang"],"Double"),_))) -> code#dconst (Int32.to_float i32)
+			| RValue (Some (TLong | TObject((["java";"lang"],"Long"),_)),_) -> code#lconst (Int64.of_int32 i32)
+			| RValue (Some (TDouble | TObject((["java";"lang"],"Double"),_)),_) -> code#dconst (Int32.to_float i32)
 			| _ -> code#iconst i32
 			end
 		| TFloat f ->
 			begin match ret with
-			| RValue (Some (TFloat | TObject((["java";"lang"],"Float"),_))) -> code#fconst (float_of_string f)
+			| RValue (Some (TFloat | TObject((["java";"lang"],"Float"),_)),_) -> code#fconst (float_of_string f)
 			| _ -> code#dconst (float_of_string f)
 			end
 		| TBool true -> code#bconst true
@@ -1806,7 +1810,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		code#set_line (Lexer.get_error_line e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
-			self#texpr (rvalue_type gctx v.v_type) e1;
+			self#texpr (rvalue_type gctx v.v_type (Some v.v_name)) e1;
 			self#cast v.v_type;
 			let _,_,store = self#add_local v VarWillInit in
 			store()
@@ -1960,7 +1964,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#emit_block_exits false;
 			jm#return;
 		| TFunction tf ->
-			self#tfunction e tf
+			self#tfunction ret e tf
 		| TArrayDecl el when not (need_val ret) ->
 			List.iter (self#texpr ret) el
 		| TArrayDecl el ->
