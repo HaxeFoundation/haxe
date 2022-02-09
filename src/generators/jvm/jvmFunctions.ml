@@ -383,7 +383,7 @@ class typed_function
 	val jc_closure =
 		let name = match kind with
 			| FuncLocal ->
-				Printf.sprintf "Closure_%s_%i" (patch_name host_method#get_name) host_method#get_next_closure_id
+				Printf.sprintf "Closure_%s_%i" (patch_name host_method#get_name) (host_class#get_next_closure_id (host_method#get_name))
 			| FuncStatic(path,name) ->
 				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 			| FuncMember(path,name) ->
