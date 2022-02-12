@@ -148,8 +148,8 @@ class TestUnicode extends utest.Test {
 
 #if target.unicode
 	function testFilesystem() {
-#if !java
-#if !(cpp || cs) // C++ disabled temporarily (#8400), C# disabled temporarily (#8247)
+#if !java // java does not have this functionality
+#if !cs // C# disabled temporarily (#8247)
 		// setCwd + getCwd
 		Sys.setCwd("test-res");
 		function enterLeave(dir:String, ?alt:String):Void {
@@ -185,8 +185,8 @@ class TestUnicode extends utest.Test {
 					);
 			}, "test-res");
 
-#if !java
-#if !(cpp || cs) // C++ disabled temporarily (#8400), C# disabled temporarily (#8247)
+#if !java // java does not have this functionality
+#if !cs // C# disabled temporarily (#8247)
 		assertNormalEither(path -> {
 				if (!FileSystem.exists(path)) return false; // NFC/NFD differences
 				Sys.setCwd(path);
@@ -209,10 +209,8 @@ class TestUnicode extends utest.Test {
 #end
 
 		// exists
-#if !cpp // C++ disabled temporarily (#8400)
 		assertNormalEither(FileSystem.exists, 'test-res/a', 'expected exists == true');
 		assertNormalEither(FileSystem.exists, 'test-res/b', 'expected exists == false');
-#end
 
 		// fullPath
 #if !lua // Lua disabled temporarily (#8215)
@@ -259,7 +257,6 @@ class TestUnicode extends utest.Test {
 			});
 
 		// rename
-#if !cpp // C++ disabled temporarily (#8400)
 		File.copy("test-res/data.bin", "temp-unicode/rename-me");
 		pathBoth(str -> {
 				FileSystem.rename('temp-unicode/rename-me', 'temp-unicode/$str');
@@ -267,9 +264,7 @@ class TestUnicode extends utest.Test {
 				Assert.isTrue(FileSystem.exists('temp-unicode/$str'));
 				FileSystem.rename('temp-unicode/$str', 'temp-unicode/rename-me');
 			});
-#end
 
-#if !cpp // C++ disabled temporarily (#8400)
 		pathBoth(str -> {
 				// copy
 				File.copy("test-res/data.bin", 'temp-unicode/$str');
@@ -289,7 +284,6 @@ class TestUnicode extends utest.Test {
 				FileSystem.deleteDirectory('temp-unicode/$str');
 				Assert.isFalse(FileSystem.exists('temp-unicode/$str'));
 			});
-#end
 	}
 
 	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
