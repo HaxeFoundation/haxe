@@ -1,0 +1,8 @@
+--main Main
+--interp
+--macro addGlobalMetadata("", "@meta0", false)
+--macro addGlobalMetadata("", "@meta1", true)
+--macro addGlobalMetadata("Main", "@meta2", false)
+--macro addGlobalMetadata("Main", "@meta3", true)
+--macro addGlobalMetadata("Main.MainSub", "@meta4", false)
+--macro addGlobalMetadata("Main.MainSub", "@meta5", true)
