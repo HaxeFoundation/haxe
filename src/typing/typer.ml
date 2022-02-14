@@ -1194,7 +1194,7 @@ and type_local_function ctx kind f with_type p =
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.in_loop <- false;
 	let rt = Typeload.load_type_hint ctx p f.f_type in
-	let type_arg opt t p = Typeload.load_type_hint ~opt ctx p t in
+	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.in_display None f.f_args in
 	let targs = args#for_type in
 	(match with_type with

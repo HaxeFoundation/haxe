@@ -85,6 +85,11 @@ type field_init_ctx = {
 	mutable expr_presence_matters : bool;
 }
 
+type method_kind =
+	| MKNormal
+	| MKGetter
+	| MKSetter
+
 let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
@@ -1169,7 +1174,8 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 			()
 
 let create_method (ctx,cctx,fctx) c f fd p =
-	let params = TypeloadFunction.type_function_params ctx fd (fst f.cff_name) p in
+	let name = fst f.cff_name in
+	let params = TypeloadFunction.type_function_params ctx fd name p in
 	if fctx.is_generic then begin
 		if params = [] then typing_error (fst f.cff_name ^ ": Generic functions must have type parameters") p;
 	end;
@@ -1231,7 +1237,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| false,_ ->
 			()
 	end;
-	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
+	let parent = (if not fctx.is_static then get_parent c name else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 	if fctx.is_abstract && dynamic then display_error ctx "Abstract methods may not be dynamic" p;
 	if fctx.is_inline && dynamic then typing_error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
@@ -1240,7 +1246,45 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p fd.f_type in
+	let mk = lazy (
+		if String.length name < 4 then
+			MKNormal
+		else match String.sub name 0 4 with
+		| "get_" ->
+			begin match fd.f_args with
+			| [] -> MKGetter
+			| _ -> MKNormal
+			end
+		| "set_" ->
+			begin match fd.f_args with
+			| [_] -> MKSetter
+			| _ -> MKNormal
+			end
+		| _ ->
+			MKNormal
+	) in
+	let try_find_property_type () =
+		let name = String.sub name 4 (String.length name - 4) in
+		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
+		cf.cf_type
+	in
+	let maybe_use_property_type th check def =
+		if th = None && check() then
+			try
+				try_find_property_type()
+			with Not_found ->
+				def()
+		else
+			def()
+	in
+	let ret = if fctx.field_kind = FKConstructor then
+		ctx.t.tvoid
+	else begin
+		let def () =
+			FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p fd.f_type
+		in
+		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
+	end in
 	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			Some a.a_this
@@ -1248,11 +1292,16 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			None
 	in
 	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
-	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p t in
+	let type_arg i opt cto p =
+		let def () =
+			FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p cto
+		in
+		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
+	in
 	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
-		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
+		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
