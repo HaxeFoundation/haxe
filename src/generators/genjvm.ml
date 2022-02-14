@@ -2503,9 +2503,16 @@ class tclass_to_jvm gctx c = object(self)
 				| _ ->
 					default e;
 		end;
-		let ssig = generate_signature true (jsignature_of_type gctx cf.cf_type) in
-		let offset = jc#get_pool#add_string ssig in
-		jm#add_attribute (AttributeSignature offset);
+		let jsig = jsignature_of_type gctx cf.cf_type in
+		(* see https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.3.4 *)
+		begin match jsig with
+			| TObject _ | TArray _ | TTypeParameter _ ->
+				let ssig = generate_signature true jsig in
+				let offset = jc#get_pool#add_string ssig in
+				jm#add_attribute (AttributeSignature offset);
+			| _ ->
+				()
+		end;
 		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
 
 	method generate_main e =
