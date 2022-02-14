@@ -393,6 +393,7 @@ let rec token lexbuf =
 	| "<<=" -> mk lexbuf (Binop (OpAssignOp OpShl))
 	| "||=" -> mk lexbuf (Binop (OpAssignOp OpBoolOr))
 	| "&&=" -> mk lexbuf (Binop (OpAssignOp OpBoolAnd))
+	| "??=" -> mk lexbuf (Binop (OpAssignOp OpNullCoal))
 (*//| ">>=" -> mk lexbuf (Binop (OpAssignOp OpShr)) *)
 (*//| ">>>=" -> mk lexbuf (Binop (OpAssignOp OpUShr)) *)
 	| "==" -> mk lexbuf (Binop OpEq)
@@ -427,6 +428,7 @@ let rec token lexbuf =
 	| "}" -> mk lexbuf BrClose
 	| "(" -> mk lexbuf POpen
 	| ")" -> mk lexbuf PClose
+	| "??" -> mk lexbuf (Binop OpNullCoal)
 	| "?" -> mk lexbuf Question
 	| "@" -> mk lexbuf At
 

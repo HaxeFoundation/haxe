@@ -70,6 +70,7 @@ let reify in_macro =
 		| OpInterval -> op "OpInterval"
 		| OpArrow -> op "OpArrow"
 		| OpIn -> op "OpIn"
+		| OpNullCoal -> op "OpNullCoal"
 	in
 	let to_string s p =
 		let len = String.length s in

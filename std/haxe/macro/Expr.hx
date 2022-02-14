@@ -214,6 +214,11 @@ enum Binop {
 		`in`
 	**/
 	OpIn;
+
+	/**
+		`??`
+	**/
+	OpNullCoal;
 }
 
 /**

@@ -91,6 +91,7 @@ type binop =
 	| OpInterval
 	| OpArrow
 	| OpIn
+	| OpNullCoal
 
 type unop =
 	| Increment
@@ -560,6 +561,7 @@ let rec s_binop = function
 	| OpInterval -> "..."
 	| OpArrow -> "=>"
 	| OpIn -> " in "
+	| OpNullCoal -> "??"
 
 let s_unop = function
 	| Increment -> "++"

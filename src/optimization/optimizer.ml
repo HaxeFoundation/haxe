@@ -55,6 +55,7 @@ let standard_precedence op =
 	| OpBoolAnd -> 14, left
 	| OpBoolOr -> 15, left
 	| OpArrow -> 16, left
+	| OpNullCoal -> 17, right
 	| OpAssignOp OpAssign -> 18, right (* mimics ?: *)
 	| OpAssign | OpAssignOp _ -> 19, right
 

@@ -271,7 +271,7 @@ let precedence op =
 	| OpInterval -> 7, left
 	| OpBoolAnd -> 8, left
 	| OpBoolOr -> 9, left
-	| OpArrow -> 10, right
+	| OpArrow | OpNullCoal -> 10, right
 	| OpAssign | OpAssignOp _ -> 11, right
 
 let is_higher_than_ternary = function

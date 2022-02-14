@@ -2484,7 +2484,7 @@ and eval_expr ctx e =
 					free ctx r;
 					binop r r b;
 					r))
-		| OpInterval | OpArrow | OpIn ->
+		| OpInterval | OpArrow | OpIn | OpNullCoal ->
 			die "" __LOC__)
 	| TUnop (Not,_,v) ->
 		let tmp = alloc_tmp ctx HBool in
