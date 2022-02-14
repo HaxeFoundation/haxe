@@ -339,7 +339,7 @@ class Boot {
 				if (value.is_string()) {
 					return value;
 				}
-			case 'php\\NativeArray':
+			case 'array':
 				if (value.is_array()) {
 					return value;
 				}

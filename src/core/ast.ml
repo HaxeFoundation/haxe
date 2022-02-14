@@ -1016,22 +1016,22 @@ let expr_of_type_path (sl,s) p =
 		EField(e,s),p
 
 let match_path recursive sl sl_pattern =
-	let rec loop sl1 sl2 = match sl1,sl2 with
+	let rec loop top sl1 sl2 = match sl1,sl2 with
 		| [],[] ->
 			true
 		(* always recurse into types of package paths *)
 		| (s1 :: s11 :: _),[s2] when is_lower_ident s2 && not (is_lower_ident s11)->
 			s1 = s2
-		| [_],[""] ->
+		| [_],[] when top ->
 			true
-		| _,([] | [""]) ->
+		| _,[] ->
 			recursive
 		| [],_ ->
 			false
 		| (s1 :: sl1),(s2 :: sl2) ->
-			s1 = s2 && loop sl1 sl2
+			s1 = s2 && loop false sl1 sl2
 	in
-	loop sl sl_pattern
+	loop true sl sl_pattern
 
 let full_dot_path2 mpath tpath =
 	if mpath = tpath then

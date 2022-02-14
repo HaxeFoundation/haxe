@@ -1416,6 +1416,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 								| TAbstract ({ a_path = ["php"],"NativeIndexedArray" }, [param]) -> (self#use_t param) ^ "[]"
 								| _ -> "array"
 							)
+						| (["php"],"NativeArray") -> "array"
 						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
 		(**
@@ -2072,6 +2073,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							| "float" -> "'Float'"
 							| "bool" -> "'Bool'"
 							| "string" -> "'String'"
+							| "array" -> "'array'"
 							| "mixed" -> "'Dynamic'"
 							| "Enum" -> "'Enum'"
 							| "Class" -> "'Class'"
