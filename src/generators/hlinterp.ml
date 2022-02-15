@@ -1156,6 +1156,11 @@ let interp ctx f args =
 			| _ -> Globals.die "" __LOC__)
 		| ONop _ ->
 			()
+		| (OAtomicAdd (_, _, _)|OAtomicSub (_, _, _)|OAtomicAnd (_, _, _)|
+OAtomicOr (_, _, _)|OAtomicXor (_, _, _)|OAtomicCompareExchange (_, _, _, _)|
+OAtomicExchange (_, _, _)|OAtomicLoad (_, _)|
+OAtomicStore (_, _, _)) ->
+			failwith "Atomics not yet implemented for hl interp"
 		);
 		loop()
 	in
@@ -2547,6 +2552,11 @@ let check code macros =
 				reg off HI32;
 			| ONop _ ->
 				()
+			| (OAtomicAdd (_, _, _)|OAtomicSub (_, _, _)|OAtomicAnd (_, _, _)|
+OAtomicOr (_, _, _)|OAtomicXor (_, _, _)|OAtomicCompareExchange (_, _, _, _)|
+OAtomicExchange (_, _, _)|OAtomicLoad (_, _)|
+OAtomicStore (_, _, _)) ->
+				failwith "Atomics not yet supported for hl interp"
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

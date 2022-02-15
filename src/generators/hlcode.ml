@@ -201,6 +201,17 @@ type opcode =
 	| ORefData of reg * reg
 	| ORefOffset of reg * reg * reg
 	| ONop of string
+	(* atomics *)
+	| OAtomicAdd of reg * reg * reg
+	| OAtomicSub of reg * reg * reg
+	| OAtomicAnd of reg * reg * reg
+	| OAtomicOr of reg * reg * reg
+	| OAtomicXor of reg * reg * reg
+	| OAtomicCompareExchange of reg * reg * reg * reg
+	| OAtomicExchange of reg * reg *reg
+	(* | OAtomicIsLockFree of reg *reg *)
+	| OAtomicLoad of reg * reg
+	| OAtomicStore of reg * reg * reg
 
 type fundecl = {
 	fpath : string * string;
@@ -572,7 +583,15 @@ let ostr fstr o =
 	| ORefData (r,d) -> Printf.sprintf "refdata %d, %d" r d
 	| ORefOffset (r,r2,off) -> Printf.sprintf "refoffset %d, %d, %d" r r2 off
 	| ONop s -> if s = "" then "nop" else "nop " ^ s
-
+	| OAtomicAdd (r, a, b) -> Printf.sprintf "atomicadd %d, %d, %d" r a b
+	| OAtomicSub (r, a, b) -> Printf.sprintf "atomicsub %d, %d, %d" r a b
+	| OAtomicAnd (r, a, b) -> Printf.sprintf "atomicand %d, %d, %d" r a b
+	| OAtomicOr (r, a, b) -> Printf.sprintf "atomicor %d, %d, %d" r a b
+	| OAtomicXor (r, a, b) -> Printf.sprintf "atomicxor %d, %d, %d" r a b
+	| OAtomicCompareExchange (r, a, expected, replacement) -> Printf.sprintf "atomiccompareexchange %d, %d, %d" r expected replacement
+	| OAtomicExchange (r, a, b) -> Printf.sprintf "atomicexchange %d, %d, %d" r a b
+	| OAtomicLoad (r, a) -> Printf.sprintf "atomicload %d, %d" r a
+	| OAtomicStore (r, a, b) -> Printf.sprintf "atomicstore %d, %d, %d" r a b
 let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)
 
 let dump pr code =

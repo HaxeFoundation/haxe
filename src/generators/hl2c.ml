@@ -1087,6 +1087,24 @@ let generate_function ctx f =
 			sexpr "%s = %s + %s" (reg r) (reg r2) (reg off)
 		| ONop _ ->
 			()
+		| OAtomicAdd (r, a, b) ->
+			sexpr "%s = hl_atomic_add(%s, %s)" (reg r) (reg a) (reg b)
+		| OAtomicSub (r, a, b) ->
+			sexpr "%s = hl_atomic_sub(%s, %s)" (reg r) (reg a) (reg b)
+		| OAtomicAnd (r, a, b) ->
+			sexpr "%s = hl_atomic_and(%s, %s)" (reg r) (reg a) (reg b)
+		| OAtomicOr (r, a, b) ->
+			sexpr "%s = hl_atomic_or(%s, %s)" (reg r) (reg a) (reg b)
+		| OAtomicXor (r, a, b) ->
+			sexpr "%s = hl_atomic_xor(%s, %s)" (reg r) (reg a) (reg b)
+		| OAtomicCompareExchange (r, a, expected, replacement) ->
+			sexpr "%s = hl_atomic_compare_exchange(%s, %s, %s)" (reg r) (reg a) (reg expected) (reg replacement)
+		| OAtomicExchange (r, a, b) ->
+			sexpr "%s = hl_atomic_exchange(%s, %s)" (reg r) (reg a) (reg b)
+		| OAtomicLoad (r, a) ->
+			sexpr "%s = hl_atomic_load(%s)" (reg r) (reg a)
+		| OAtomicStore (r, a, b) ->
+			sexpr "%s = hl_atomic_store(%s, %s)" (reg r) (reg a) (reg b)
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();

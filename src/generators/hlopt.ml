@@ -164,6 +164,50 @@ let opcode_fx frw op =
 		write r;
 	| ONop _  ->
 		()
+	| OAtomicAdd (r, a, b) -> 
+		(* read a; *)
+		read b;
+		write a;
+		write r;
+	| OAtomicSub (r, a, b) ->
+		(* read a; *)
+		read b;
+		write a;
+		write r;
+	| OAtomicAnd (r, a, b) ->
+		(* read a; *)
+		read b;
+		write a;
+		write r;
+	| OAtomicOr (r, a, b) ->
+		(* read a; *)
+		read b;
+		write a;
+		write r;
+	| OAtomicXor (r, a, b) ->
+		(* read a; *)
+		read b;
+		write a;
+		write r;
+	| OAtomicCompareExchange (r, a, expected, replacement) ->
+		(* read a; *)
+		read expected;
+		read replacement;
+		write a;
+		write r;
+	| OAtomicExchange (r, a, b) ->
+		(* read a; *)
+		read b;
+		write a;
+		write r;
+	| OAtomicLoad (r, a) ->
+		read a;
+		write r;
+	| OAtomicStore (r, a, b) ->
+		(* read a; *)
+		read b;
+		write a;
+		write r
 
 let opcode_eq a b =
 	match a, b with
@@ -432,6 +476,45 @@ let opcode_map read write op =
 		ORefOffset (write r,r2,off);
 	| ONop _ ->
 		op
+	| OAtomicAdd (r, a, b) -> 
+		(* let a = read a in *)
+		let b = read b in
+		OAtomicAdd (write r, write a, b);
+	| OAtomicSub (r, a, b) ->
+		(* let a = read a in *)
+		let b = read b in
+		OAtomicSub (write r, write a, b);
+	| OAtomicAnd (r, a, b) ->
+		(* let a = read a in *)
+		let b = read b in
+		OAtomicAnd (write r, write a, b);
+	| OAtomicOr (r, a, b) ->
+		(* let a = read a in *)
+		let b = read b in
+		OAtomicOr (write r, write a, b);
+	| OAtomicXor (r, a, b) ->
+		(* let a = read a in *)
+		let b = read b in
+		OAtomicXor (write r, write a, b);
+	| OAtomicCompareExchange (r, a, expected, replacement) ->
+		let expected = read expected in
+		let replacement = read replacement in
+		let a = write a in
+		let r = write r in
+		OAtomicCompareExchange (r, a, expected, replacement);
+	| OAtomicExchange (r, a, b) ->
+		let b = read b in
+		let a = write a in
+		let r = write r in
+		OAtomicExchange (r, a, b);
+	| OAtomicLoad (r, a) ->
+		let a = read a in
+		OAtomicLoad(write r, a);
+	| OAtomicStore (r, a, b) ->
+		let b = read b in
+		let a = write a in
+		let r = write r in
+		OAtomicStore(r, a, b)
 
 (* build code graph *)
 

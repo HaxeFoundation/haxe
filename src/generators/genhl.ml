@@ -2054,6 +2054,61 @@ and eval_expr ctx e =
 			free ctx rfile;
 			free ctx min;
 			r
+		| "$atomicAdd", [a; b] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let b = eval_to ctx b (HI32) in
+			op ctx (OAtomicAdd (r, a, b));
+			r
+		| "$atomicSub", [a; b] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let b = eval_to ctx b (HI32) in
+			op ctx (OAtomicSub (r, a, b));
+			r
+		| "$atomicAnd", [a; b] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let b = eval_to ctx b (HI32) in
+			op ctx (OAtomicAnd (r, a, b));
+			r
+		| "$atomicOr", [a; b] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let b = eval_to ctx b (HI32) in
+			op ctx (OAtomicOr(r, a, b));
+			r
+		| "$atomicXor", [a; b] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let b = eval_to ctx b (HI32) in
+			op ctx (OAtomicXor (r, a, b));
+			r
+		| "$atomicCompareExchange", [a; expected; replacement;] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let expected = eval_to ctx expected (HI32) in
+			let replacement = eval_to ctx replacement (HI32) in
+			Printf.printf "%i %i %i %i" r a expected replacement;
+			op ctx (OAtomicCompareExchange (r, a, expected, replacement));
+			r
+		| "$atomicExchange", [a; value] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let value = eval_to ctx value (HI32) in
+			op ctx (OAtomicExchange (r, a, value));
+			r
+		| "$atomicLoad", [a] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			op ctx (OAtomicLoad (r, a));
+			r
+		| "$atomicStore", [a; value] ->
+			let r = alloc_tmp ctx HI32 in
+			let a = eval_to ctx a (HRef(HI32)) in
+			let value = eval_to ctx value (HI32) in
+			op ctx (OAtomicStore (r, a, value));
+			r
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
@@ -3745,6 +3800,17 @@ let write_code ch code debug =
 			write_index e;
 			write_index i;
 			write_index idx;
+		| OAtomicCompareExchange (r, a, expected, replacement) ->
+			byte oid;
+			write_index r;
+			write_index a;
+			write_index expected;
+			write_index replacement;
+		(* | OAtomicExchange (r, a, b) ->
+			byte oid;
+			write_index r;
+			write_index a;
+			write_index b; *)
 		| _ ->
 			let field n = (Obj.magic (Obj.field o n) : int) in
 			match Obj.size o with
