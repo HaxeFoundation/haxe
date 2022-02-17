@@ -1197,30 +1197,74 @@ and type_local_function ctx kind f with_type p =
 	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.in_display None f.f_args in
 	let targs = args#for_type in
+	let maybe_unify_arg t1 t2 =
+		match follow t1 with
+		| TMono _ -> unify ctx t2 t1 p
+		| _ -> ()
+	in
+	let maybe_unify_ret tr = match follow tr,follow rt with
+		| TAbstract({a_path = [],"Void"},_),_ when kind <> FKArrow -> ()
+		| _,TMono _ -> unify ctx rt tr p
+		| _ -> ()
+	in
+	(* The idea here is: If we have multiple `from Function`, we can
+	   1. ignore any that have a different argument arity, and
+	   2. still top-down infer any argument or return type that is equal across all candidates.
+	*)
+	let handle_abstract_matrix l =
+		let arity = List.length targs in
+		let m = new unification_matrix (arity + 1) in
+		let rec loop l = match l with
+			| t :: l ->
+				begin match follow t with
+				| TFun(args,ret) ->
+					if List.length args = arity then begin
+						List.iteri (fun i (_,_,t) ->
+							m#join t (i + 1);
+						) args;
+						m#join ret 0;
+					end;
+					loop l
+				| _ ->
+					raise Exit
+				end
+			| [] ->
+				()
+		in
+		begin try
+			loop l;
+			List.iteri (fun i (_,_,t1) ->
+				match m#get_type (i + 1) with
+				| Some t2 -> maybe_unify_arg t1 t2
+				| None -> ()
+			) targs;
+			begin match m#get_type 0 with
+			| Some tr ->
+				maybe_unify_ret tr
+			| None ->
+				()
+			end
+		with Exit ->
+			()
+		end
+	in
 	(match with_type with
 	| WithType.WithType(t,_) ->
 		let rec loop stack t =
 			(match follow t with
 			| TFun (args2,tr) when List.length args2 = List.length targs ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
-					match follow t1 with
-					| TMono _ -> unify ctx t2 t1 p
-					| _ -> ()
+					maybe_unify_arg t1 t2
 				) targs args2;
 				(* unify for top-down inference unless we are expecting Void *)
-				begin
-					match follow tr,follow rt with
-					| TAbstract({a_path = [],"Void"},_),_ when kind <> FKArrow -> ()
-					| _,TMono _ -> unify ctx rt tr p
-					| _ -> ()
-				end
+				maybe_unify_ret tr
 			| TAbstract(a,tl) ->
 				begin match get_abstract_froms a tl with
-				| [t2] ->
-					if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
-				| _ ->
-					()
-			end
+					| [t2] ->
+						if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
+					| l ->
+						handle_abstract_matrix l
+				end
 			| _ -> ())
 		in
 		loop [] t

@@ -1185,6 +1185,32 @@ module UnifyMinT = struct
 			let common_types = collect_base_types t0 in
 			unify_min' uctx common_types tl
 end
+
+type unification_matrix_state =
+	| STop
+	| SType of t
+	| SBottom
+
+class unification_matrix (arity : int) = object(self)
+	val values = Array.make arity STop
+
+	method join (t : t) (at : int) =
+		match values.(at) with
+		| STop ->
+			values.(at) <- SType t
+		| SBottom ->
+			()
+		| SType t' ->
+			if not (type_iseq t t') then values.(at) <- SBottom
+
+	method get_type (at : int) =
+		match values.(at) with
+		| SType t ->
+			Some t
+		| _ ->
+			None
+end
+
 ;;
 unify_ref := unify_custom;;
 unify_min_ref := UnifyMinT.unify_min;;
