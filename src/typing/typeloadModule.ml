@@ -664,6 +664,7 @@ let init_module_type ctx context_init (decl,p) =
 		) d.d_meta;
 		let prev_build_count = ref (!build_count - 1) in
 		let build() =
+			c.cl_build <- (fun()-> Building [c]);
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
 			let rec build() =
 				c.cl_build <- (fun()-> Building [c]);
