@@ -1199,7 +1199,7 @@ and type_local_function ctx kind f with_type p =
 	let targs = args#for_type in
 	(match with_type with
 	| WithType.WithType(t,_) ->
-		let rec loop t =
+		let rec loop stack t =
 			(match follow t with
 			| TFun (args2,tr) when List.length args2 = List.length targs ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
@@ -1215,10 +1215,15 @@ and type_local_function ctx kind f with_type p =
 					| _ -> ()
 				end
 			| TAbstract(a,tl) ->
-				loop (Abstract.get_underlying_type a tl)
+				begin match get_abstract_froms a tl with
+				| [t2] ->
+					if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
+				| _ ->
+					()
+			end
 			| _ -> ())
 		in
-		loop t
+		loop [] t
 	| WithType.NoValue ->
 		if name = None then display_error ctx "Unnamed lvalue functions are not supported" p
 	| _ ->
