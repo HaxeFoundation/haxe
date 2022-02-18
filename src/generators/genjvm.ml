@@ -2462,6 +2462,7 @@ class tclass_to_jvm gctx c = object(self)
 		let flags = if Meta.has Meta.Private cf.cf_meta then [FdPrivate] else if Meta.has Meta.Protected cf.cf_meta then [FdProtected] else [FdPublic] in
 		let flags = if mtype = MStatic then FdStatic :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then FdSynthetic :: flags else flags in
+		let flags = if Meta.has Meta.Volatile cf.cf_meta then FdVolatile :: flags else flags in
 		let jm = jc#spawn_field cf.cf_name jsig flags in
 		let default e =
 			let p = null_pos in
