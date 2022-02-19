@@ -4660,9 +4660,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let code = (get_code field.cf_meta Meta.FunctionCode) in
          let tail_code = (get_code field.cf_meta Meta.FunctionTailCode) in
 
-         let current_file = !(ctx.current_file) in
-         let dbg_func = DebugDatabase.create_function field.cf_name remap_name in
-         ctx.current_func := dbg_func;
+         ctx.current_func := (DebugDatabase.create_function field.cf_name remap_name);
 
          if nativeImpl<>"" && is_static then begin
             output " {\n";
@@ -4671,7 +4669,9 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          end else
             gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code no_debug;
          
-         ctx.current_file := { current_file with functions = !(ctx.current_func) :: current_file.functions };
+         let current_file = !(ctx.current_file) in
+         let current_func = !(ctx.current_func) in
+         ctx.current_file := { current_file with functions = current_func :: current_file.functions };
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
