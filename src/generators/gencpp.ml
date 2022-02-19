@@ -108,13 +108,19 @@ let guarded_include file =
 
 
 
-class source_writer common_ctx write_header_func write_func close_func =
+class source_writer common_ctx write_header_func write_func close_func (current_line : unit->int) (header_size : unit->int) =
    object(this)
    val indent_str = "\t"
    val mutable indent = ""
    val mutable indents = []
    val mutable just_finished_block = false
    val mutable headerLines  = Hashtbl.create 0
+   method get_current_line =
+      let line = current_line in
+      line
+   method get_header_size =
+      let size = header_size in
+      size
    method close = close_func(); ()
    method write x = write_func x; just_finished_block <- false
    method write_h x = write_header_func x; ()
@@ -153,10 +159,32 @@ let read_whole_file chan =
 (* The cached_source_writer will not write to the file if it has not changed,
    thus allowing the makefile dependencies to work correctly *)
 let cached_source_writer common_ctx filename =
+   let src_line = ref 1 in
+   let head_line = ref 1 in
    let header = Buffer.create 0 in
-   let add_header str = Buffer.add_string header str in
+   let add_header str =
+      let rec loop from =
+			try
+				let next = String.index_from str from '\n' + 1 in
+				head_line := !head_line + 1;
+				loop next
+			with Not_found ->
+				()
+		in
+		loop 0;
+      Buffer.add_string header str in
    let buffer = Buffer.create 0 in
-   let add_buf str = Buffer.add_string buffer str in
+   let add_buf str =
+      let rec loop from =
+			try
+				let next = String.index_from str from '\n' + 1 in
+				src_line := !src_line + 1;
+				loop next
+			with Not_found ->
+				()
+		in
+		loop 0;
+      Buffer.add_string buffer str in
    let close = fun() ->
       Buffer.add_buffer header buffer;
       let contents = Buffer.contents header in
@@ -175,7 +203,9 @@ let cached_source_writer common_ctx filename =
          close_out out_file;
       end;
    in
-   new source_writer common_ctx (add_header) (add_buf) (close)
+   let current_src_line () = !src_line in
+   let current_head_line () = !head_line in
+   new source_writer common_ctx (add_header) (add_buf) (close) (current_src_line) (current_head_line)
 ;;
 
 let make_class_directories = Path.mkdir_recursive;;
@@ -278,14 +308,14 @@ module DebugDatabase = struct
 
    let create () = { files = [] }
 
-   let create_file cpp_file haxe_file haxe_type = {
+   let create_file cpp_file haxe_file haxe_type offset = {
       cpp_file = cpp_file;
       haxe_file = haxe_file;
       haxe_type = haxe_type;
+      header_offset = offset;
       closures = [];
       functions = [];
       expr_map = [];
-      header_offset = 0;
    }
 
    let create_function haxe_name cpp_name = {
@@ -305,7 +335,7 @@ module DebugDatabase = struct
          (Printf.printf "%s, %s, %s\n" g.haxe_file g.cpp_file g.haxe_type);
          List.iter
             (fun e_map -> (
-               Printf.printf "\t%i:%i -> %i:%i\n" e_map.haxe.e_start.line e_map.haxe.e_start.col e_map.haxe.e_end.line e_map.haxe.e_end.col
+               Printf.printf "\t%i:%i -> %i:%i -> %i\n" e_map.haxe.e_start.line e_map.haxe.e_start.col e_map.haxe.e_end.line e_map.haxe.e_end.col (e_map.cpp_line + g.header_offset)
             ))
             g.expr_map;
       ))
@@ -352,13 +382,13 @@ type context =
 }
 
 let new_context common_ctx debug file_info member_types =
-let null_file = new source_writer common_ctx ignore ignore (fun () -> () ) in
+let null_file = new source_writer common_ctx ignore ignore (fun () -> () ) (fun () -> 1) (fun () -> 0) in
 let has_def def = Common.defined_value_safe common_ctx def <>""  in
 let result =
 {
    ctx_common = common_ctx;
    debug_database = ref (DebugDatabase.create());
-   current_file = ref (DebugDatabase.create_file "" "" "");
+   current_file = ref (DebugDatabase.create_file "" "" "" 0);
    current_func = ref (DebugDatabase.create_function "" "");
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
@@ -3555,7 +3585,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
          (
             let pos = Lexer.get_pos_coords expr.cpppos in
-            let map = DebugDatabase.create_mapping 0 pos in
+            let map = DebugDatabase.create_mapping (writer#get_current_line() + 1) pos in
             let current = !(ctx.current_file) in
             ctx.current_file := { current with expr_map = (map :: current.expr_map) }
          );
@@ -6149,7 +6179,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let cpp_file_name   = "cpp/" ^ ( String.concat "/" (fst class_path) ) ^ "/" ^ (snd class_path) ^ ".cpp" in
    let haxe_file_name  = class_def.cl_pos.pfile in
 
-   ctx.current_file := (DebugDatabase.create_file cpp_file_name haxe_file_name dot_name);
+   ctx.current_file := (DebugDatabase.create_file cpp_file_name haxe_file_name dot_name (cpp_file#get_header_size()));
 
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name false (has_class_flag class_def CInterface))
