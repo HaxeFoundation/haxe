@@ -278,25 +278,23 @@ module DebugDatabase = struct
       cpp_line : int;
    }
 
+   type hx_closure = {
+      name : string;
+      arguments : name_mapping list;
+   }
+
    type hx_function = {
       haxe_name : string;
       cpp_name : string;
       arguments : name_mapping list;
       variables : name_mapping list;
-   }
-
-   type hx_closure = {
-      name : string;
-      captures : name_mapping list;
-      arguments : name_mapping list;
-      variables : name_mapping list;
+      closures : hx_closure list;
    }
 
    type generated_file = {
       cpp_file : string;
       haxe_file : string;
       haxe_type : string;
-      closures : hx_closure list;
       functions : hx_function list;
       expr_map : hx_expr_mapping list;
       header_offset : int;
@@ -313,33 +311,55 @@ module DebugDatabase = struct
       haxe_file = haxe_file;
       haxe_type = haxe_type;
       header_offset = offset;
-      closures = [];
       functions = [];
       expr_map = [];
    }
 
    let create_function haxe_name cpp_name = {
       haxe_name = haxe_name;
-      cpp_name = cpp_name;
+      cpp_name  = cpp_name;
       arguments = [];
       variables = [];
+      closures  = [];
+   }
+
+   let create_closure name arguments = {
+      name      = name;
+      arguments = arguments;
+   }
+
+   let create_name_mapping haxe_name cpp_name haxe_type = {
+      haxe_var = haxe_name;
+      cpp_var = cpp_name;
+      haxe_type = haxe_type;
    }
 
    let create_mapping cpp_line hx_pos =
       let (line_start, col_start, line_end, col_end) = hx_pos in
       { cpp_line = cpp_line; haxe = { e_start = { line = line_start; col = col_start; }; e_end = { line = line_end; col = col_end } } }
 
+   let print_name_mapping map =
+      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\" }" map.haxe_var map.cpp_var map.haxe_type
+
+   let print_closure closure =
+      Printf.sprintf "{ \"name\" : \"%s\", \"arguments\" : [ %s ] }" closure.name (String.concat ", " (List.map print_name_mapping closure.arguments))
+
+   let print_function func =
+      let printed_args     = String.concat ", " (List.map print_name_mapping func.arguments) in
+      let printed_vars     = String.concat ", " (List.map print_name_mapping func.variables) in
+      let printed_closures = String.concat ", " (List.map print_closure func.closures) in
+      Printf.sprintf "{ \"name\" : \"%s\", \"cpp\" : \"%s\", \"arguments\" : [ %s ], \"variables\" : [ %s ], \"closures\" : [ %s ] }" func.haxe_name func.cpp_name printed_args printed_vars printed_closures
+
+   let print_exprmap offset map =
+      Printf.sprintf "{ \"haxe\" : { \"start\" : { \"line\" : %i, \"col\" : %i }, \"end\" : { \"line\" : %i, \"col\" : %i } }, \"cpp\" : %i }" map.haxe.e_start.line map.haxe.e_start.col map.haxe.e_end.line map.haxe.e_end.col (map.cpp_line + offset)
+
+   let print_generated_file f =
+      let printed_funcs = String.concat ", " (List.map print_function f.functions) in
+      let printed_exprs = String.concat ", " (List.map (print_exprmap f.header_offset) f.expr_map) in
+      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ], \"exprs\" : [ %s ] }" f.haxe_file f.cpp_file f.haxe_type printed_funcs printed_exprs
+
    let print db =
-      List.iter
-      (fun g -> (
-         (Printf.printf "%s, %s, %s\n" g.haxe_file g.cpp_file g.haxe_type);
-         List.iter
-            (fun e_map -> (
-               Printf.printf "\t%i:%i -> %i:%i -> %i\n" e_map.haxe.e_start.line e_map.haxe.e_start.col e_map.haxe.e_end.line e_map.haxe.e_end.col (e_map.cpp_line + g.header_offset)
-            ))
-            g.expr_map;
-      ))
-      db.files;
+      "{ \"files\" : [ " ^ String.concat ", " (List.map print_generated_file db.files) ^ " ] }"
 
 end
 
@@ -3641,6 +3661,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       | CppVarDecl(var,init) ->
          let name =  cpp_var_name_of var in
+         (
+            let mapping = DebugDatabase.create_name_mapping var.v_name name (Printer.s_type var.v_type) in
+            let current = !(ctx.current_func) in
+            ctx.current_func := { current with variables = mapping :: current.variables };
+         );
          if cpp_no_debug_synbol ctx var then
             out ( (cpp_var_type_of ctx var) ^ " " ^ name )
          else begin
@@ -4388,6 +4413,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       let func_type = tcpp_to_string closure.close_type in
       output_i (func_type ^ " _hx_run(" ^ (cpp_arg_list ctx closure.close_args "__o_") ^ ")");
 
+      let args        = List.map (fun (a, o) -> DebugDatabase.create_name_mapping a.v_name (cpp_arg_string ctx a o "__o_") (Printer.s_type a.v_type)) closure.close_args in
+      let dbg_closure = DebugDatabase.create_closure ("_hx_Closure_" ^ (string_of_int closure.close_id)) args in
+      let current     = !(ctx.current_func) in
+      ctx.current_func := { current with closures = dbg_closure :: current.closures };
+
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
           hx_stack_push ctx output_i class_name func_name closure.close_expr.cpppos gc_stack;
@@ -4431,7 +4461,13 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
       if ctx.ctx_debug_level >= 2 then begin
          if (not is_static)
             then output_i ("HX_STACK_THIS(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this") ^")\n");
-         List.iter (fun (v,_) -> if not (cpp_no_debug_synbol ctx v) then
+         List.iter (fun (v,_) ->
+            (
+               let current_func = !(ctx.current_func) in
+               let new_arg      = DebugDatabase.create_name_mapping v.v_name (cpp_var_name_of v) (Printer.s_type v.v_type) in
+               ctx.current_func := { current_func with arguments = new_arg :: current_func.arguments };
+            );
+            if not (cpp_no_debug_synbol ctx v) then
               output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ v.v_name ^"\")\n") ) function_def.tf_args;
 
          let line = Lexer.get_error_line function_def.tf_expr.epos in
@@ -4624,12 +4660,18 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let code = (get_code field.cf_meta Meta.FunctionCode) in
          let tail_code = (get_code field.cf_meta Meta.FunctionTailCode) in
 
+         let current_file = !(ctx.current_file) in
+         let dbg_func = DebugDatabase.create_function field.cf_name remap_name in
+         ctx.current_func := dbg_func;
+
          if nativeImpl<>"" && is_static then begin
             output " {\n";
             output ("\t" ^ ret ^ "::" ^ nativeImpl ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
             output "}\n\n";
          end else
             gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code no_debug;
+         
+         ctx.current_file := { current_file with functions = !(ctx.current_func) :: current_file.functions };
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
@@ -8675,7 +8717,7 @@ let generate_source ctx =
 
    write_resources common_ctx;
 
-   DebugDatabase.print !(ctx.debug_database);
+   Printf.printf "%s\n" (DebugDatabase.print !(ctx.debug_database));
 
    (* Output class info if requested *)
    if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
