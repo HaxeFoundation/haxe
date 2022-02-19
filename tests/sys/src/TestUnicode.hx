@@ -330,7 +330,7 @@ class TestUnicode extends utest.Test {
 
 		// args
 		#if !cs // C# behaves like Windows here
-		if (#if (java || eval || hl || cpp) Sys.systemName() != "Windows" #else true #end) {
+		if (#if (java || eval || cpp) Sys.systemName() != "Windows" #else true #end) {
 			// https://stackoverflow.com/questions/7660651/passing-command-line-unicode-argument-to-java-code
 			UnicodeSequences.normalBoth(str -> {
 					assertUEquals(runUtility(["args", str]).stdout, str + endLine);
