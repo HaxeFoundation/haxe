@@ -4,7 +4,7 @@ import runci.System.*;
 import runci.Config.*;
 
 class Php {
-	static final miscPhpDir = miscDir + 'php/';
+	static final miscPhpDir = getMiscSubDir('php');
 
 	static public function getPhpDependencies() {
 		final phpCmd = commandResult("php", ["-v"]);

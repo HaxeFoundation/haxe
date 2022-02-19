@@ -12,7 +12,7 @@ import runci.System.CommandFailure;
 import runci.Config.*;
 
 class Flash {
-	static final miscFlashDir = miscDir + 'flash/';
+	static final miscFlashDir = getMiscSubDir('flash');
 
 	static function getLatestFPVersion():Array<Int> {
 		final appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));

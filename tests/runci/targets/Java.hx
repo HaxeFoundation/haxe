@@ -1,12 +1,13 @@
 package runci.targets;
 
 import sys.FileSystem;
+import haxe.io.Path;
 import runci.System.*;
 import runci.Config.*;
 using StringTools;
 
 class Java {
-	static final miscJavaDir = miscDir + 'java/';
+	static final miscJavaDir = getMiscSubDir('java');
 
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
@@ -35,13 +36,13 @@ class Java {
 		runCommand("java", ["-jar", "export/java/Main.jar"]);
 
 		infoMsg("Testing java-lib extras");
-		changeDirectory('$unitDir/bin');
+		changeDirectory(Path.join([unitDir, 'bin']));
 		final libTestDir = 'java-lib-tests';
 		if (!FileSystem.exists(libTestDir))
 			runNetworkCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"]);
 
 		for (dir in FileSystem.readDirectory(libTestDir)) {
-			final path = '$libTestDir/$dir';
+			final path = Path.join([libTestDir, dir]);
 			if (FileSystem.isDirectory(path))
 				for (file in FileSystem.readDirectory(path))
 					if (file.endsWith('.hxml'))

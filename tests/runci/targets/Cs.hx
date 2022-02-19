@@ -5,7 +5,7 @@ import runci.System.*;
 import runci.Config.*;
 
 class Cs {
-	static final miscCsDir = miscDir + 'cs/';
+	static final miscCsDir = getMiscSubDir('cs');
 
 	static public function getCsDependencies() {
 		switch (systemName) {
@@ -74,7 +74,7 @@ class Cs {
 		changeDirectory(miscCsDir);
 		runCommand("haxe", ["run.hxml"]);
 
-		changeDirectory(miscCsDir + "csTwoLibs");
+		changeDirectory(getMiscSubDir("cs", "csTwoLibs"));
 		for (i in 1...5)
 		{
 			runCommand("haxe", ['compile-$i.hxml','-D','fast_cast']);

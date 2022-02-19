@@ -1,6 +1,7 @@
 package runci;
 
 import sys.FileSystem;
+import haxe.io.Path;
 
 enum Ci {
 	GithubActions;
@@ -10,15 +11,17 @@ class Config {
 	static public final systemName = Sys.systemName();
 	static public final cwd = Sys.getCwd();
 	static public final repoDir = FileSystem.fullPath("..") + "/";
-	static public final unitDir = cwd + "unit/";
-	static public final sysDir = cwd + "sys/";
+	static public final unitDir = Path.join([cwd, "unit"]);
+	static public final sysDir = Path.join([cwd, "sys"]);
 	static public final optDir = cwd + "optimization/";
-	static public final miscDir = cwd + "misc/";
-	static public final displayDir = cwd + "display/";
-	static public final serverDir = cwd + "server/";
-	static public final sourcemapsDir = cwd + "sourcemaps/";
-	static public final nullSafetyDir = cwd + "nullsafety/";
-	static public final threadsDir = cwd + "threads/";
+	static public final displayDir = Path.join([cwd, "display"]);
+	static public final serverDir = Path.join([cwd, "server"]);
+	static public final sourcemapsDir = Path.join([cwd, "sourcemaps"]);
+	static public final nullSafetyDir = Path.join([cwd, "nullsafety"]);
+	static public final threadsDir = Path.join([cwd, "threads"]);
+
+	static public function getMiscSubDir(...subDir:String)
+		return Path.join([cwd, "misc"].concat(subDir.toArray()));
 
 	static public final ci:Null<Ci> =
 		if (Sys.getEnv("GITHUB_ACTIONS") == "true")

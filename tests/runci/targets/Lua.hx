@@ -6,7 +6,7 @@ import haxe.io.*;
 using StringTools;
 
 class Lua {
-	static final miscLuaDir = miscDir + 'lua/';
+	static final miscLuaDir = getMiscSubDir('lua');
 
 	static public function getLuaDependencies(){
 		switch (systemName){
@@ -76,7 +76,7 @@ class Lua {
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
-			changeDirectory(miscDir + "luaDeadCode/stringReflection");
+			changeDirectory(getMiscSubDir("luaDeadCode", "stringReflection"));
 			runCommand("haxe", ["compile.hxml"]);
 
 			changeDirectory(miscLuaDir);

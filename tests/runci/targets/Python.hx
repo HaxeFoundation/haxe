@@ -5,8 +5,6 @@ import runci.System.*;
 import runci.Config.*;
 
 class Python {
-	static final miscPythonDir = miscDir + 'python/';
-
 	static public function getPythonDependencies():Array<String> {
 		switch (systemName) {
 			case "Linux":
@@ -73,10 +71,10 @@ class Python {
 			runSysTest(py, ["bin/python/sys.py"]);
 		}
 
-		changeDirectory(miscPythonDir);
+		changeDirectory(getMiscSubDir("python"));
 		runCommand("haxe", ["run.hxml"]);
 
-		changeDirectory(miscPythonDir + "pythonImport");
+		changeDirectory(getMiscSubDir('python', "pythonImport"));
 		runCommand("haxe", ["compile.hxml"]);
 		for (py in pys) {
 			runCommand(py, ["test.py"]);

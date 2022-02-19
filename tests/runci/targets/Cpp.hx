@@ -6,7 +6,7 @@ import runci.Config.*;
 
 class Cpp {
 	static public var gotCppDependencies = false;
-	static final miscCppDir = miscDir + 'cpp/';
+	static final miscCppDir = getMiscSubDir('cpp');
 
 	static public function getCppDependencies() {
 		if (gotCppDependencies) return;
@@ -47,6 +47,8 @@ class Cpp {
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
 		getCppDependencies();
 
+		final isLinuxArm64 = systemName == 'Linux' && Linux.arch == Arm64;
+
 		final archFlag = switch systemName {
 			case 'Windows':
 				'HXCPP_M32';
@@ -67,7 +69,7 @@ class Cpp {
 			runCommand("haxe", ["compile-cppia.hxml"].concat(args));
 			runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 
-			if(systemName != 'Linux' && Linux.arch != Arm64) // FIXME
+			if (!isLinuxArm64) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
@@ -75,7 +77,7 @@ class Cpp {
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
-		if(systemName != 'Linux' && Linux.arch != Arm64) { // FIXME
+		if (!isLinuxArm64) { // FIXME
 			changeDirectory(threadsDir);
 			runCommand("haxe", ["-D", archFlag, "build.hxml", "-cpp", "export/cpp"]);
 			runCpp("export/cpp/Main");
@@ -83,7 +85,7 @@ class Cpp {
 
 		// if (Sys.systemName() == "Mac")
 		// {
-		// 	changeDirectory(miscDir + "cppObjc");
+		// 	changeDirectory(getMiscSubDir("cppObjc"));
 		// 	runCommand("haxe", ["build.hxml"]);
 		// 	runCpp("bin/TestObjc-debug");
 		// }

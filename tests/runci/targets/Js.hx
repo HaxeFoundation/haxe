@@ -9,7 +9,7 @@ import sys.io.Process;
 using StringTools;
 
 class Js {
-	static final miscJsDir = miscDir + 'js/';
+	static final miscJsDir = getMiscSubDir('js');
 
 	static public function getJSDependencies() {
 		switch [ci, systemName] {
@@ -73,7 +73,7 @@ class Js {
 		];
 
 		infoMsg("Test ES6:");
-		changeDirectory(miscDir + "es6");
+		changeDirectory(getMiscSubDir("es6"));
 		runCommand("haxe", ["run.hxml"]);
 
 		haxelibInstallGit("HaxeFoundation", "hxnodejs");

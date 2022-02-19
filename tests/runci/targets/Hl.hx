@@ -12,16 +12,16 @@ class Hl {
 
 	static final hlBuild = Path.join([getInstallPath(), "hashlink_build"]);
 
-	static final hlBinDir = Path.join([getInstallPath(), "hashlink_build", "bin"]);
+	static final hlBuildBinDir = Path.join([getInstallPath(), "hashlink_build", "bin"]);
 
 	static final hlBinary =
 		if (isCi() || !commandSucceed("hl", ["--version"])){
-			Path.join([hlBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
+			Path.join([hlBuildBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
 		} else {
 			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
 		};
 
-	static final miscHlDir = miscDir + 'hl/';
+	static final miscHlDir = getMiscSubDir('hl');
 
 	static public function getHlDependencies() {
 		if (!isCi() && FileSystem.exists(hlBinary)) {
@@ -65,7 +65,7 @@ class Hl {
 		]);
 
 		runCommand(hlBinary, ["--version"]);
-		addToPATH(hlBinDir);
+		addToPATH(hlBuildBinDir);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 	}
