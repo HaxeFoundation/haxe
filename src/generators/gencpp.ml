@@ -223,6 +223,97 @@ let new_header_file common_ctx base_dir =
 
 
 (* CPP code generation context *)
+
+
+module DebugDatabase = struct
+
+   type hx_position = {
+      line : int;
+      col : int;
+   }
+
+   type name_mapping = {
+      haxe_type : string;
+      haxe_var : string;
+      cpp_var : string;
+   }
+
+   type hx_expr_range = {
+      e_start : hx_position;
+      e_end : hx_position;
+   }
+
+   type hx_expr_mapping = {
+      haxe : hx_expr_range;
+      cpp_line : int;
+   }
+
+   type hx_function = {
+      haxe_name : string;
+      cpp_name : string;
+      arguments : name_mapping list;
+      variables : name_mapping list;
+   }
+
+   type hx_closure = {
+      name : string;
+      captures : name_mapping list;
+      arguments : name_mapping list;
+      variables : name_mapping list;
+   }
+
+   type generated_file = {
+      cpp_file : string;
+      haxe_file : string;
+      haxe_type : string;
+      closures : hx_closure list;
+      functions : hx_function list;
+      expr_map : hx_expr_mapping list;
+      header_offset : int;
+   }
+
+   type db = {
+      files : generated_file list;
+   }
+
+   let create () = { files = [] }
+
+   let create_file cpp_file haxe_file haxe_type = {
+      cpp_file = cpp_file;
+      haxe_file = haxe_file;
+      haxe_type = haxe_type;
+      closures = [];
+      functions = [];
+      expr_map = [];
+      header_offset = 0;
+   }
+
+   let create_function haxe_name cpp_name = {
+      haxe_name = haxe_name;
+      cpp_name = cpp_name;
+      arguments = [];
+      variables = [];
+   }
+
+   let create_mapping cpp_line hx_pos =
+      let (line_start, col_start, line_end, col_end) = hx_pos in
+      { cpp_line = cpp_line; haxe = { e_start = { line = line_start; col = col_start; }; e_end = { line = line_end; col = col_end } } }
+
+   let print db =
+      List.iter
+      (fun g -> (
+         (Printf.printf "%s, %s, %s\n" g.haxe_file g.cpp_file g.haxe_type);
+         List.iter
+            (fun e_map -> (
+               Printf.printf "\t%i:%i -> %i:%i\n" e_map.haxe.e_start.line e_map.haxe.e_start.col e_map.haxe.e_end.line e_map.haxe.e_end.col
+            ))
+            g.expr_map;
+      ))
+      db.files;
+
+end
+
+
 (*
   ctx_debug_level
     0 = no debug
@@ -236,6 +327,10 @@ let new_header_file common_ctx base_dir =
 type context =
 {
    ctx_common : Common.context;
+
+   debug_database : DebugDatabase.db ref;
+   current_file : DebugDatabase.generated_file ref;
+   current_func : DebugDatabase.hx_function ref;
 
    mutable ctx_debug_level : int;
    (* cached as required *)
@@ -262,6 +357,9 @@ let has_def def = Common.defined_value_safe common_ctx def <>""  in
 let result =
 {
    ctx_common = common_ctx;
+   debug_database = ref (DebugDatabase.create());
+   current_file = ref (DebugDatabase.create_file "" "" "");
+   current_func = ref (DebugDatabase.create_function "" "");
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
    ctx_type_ids = Hashtbl.create 0;
@@ -3440,7 +3538,6 @@ let can_quick_alloc klass =
    (not (is_native_class klass)) && (not (implements_native_interface klass))
 ;;
 
-
 let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
@@ -3452,14 +3549,20 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
    let output_i value = out spacer; writer#write_i value in
 
    let output_p expr value =
-       if (ctx.ctx_debug_level>0) then begin
-          let line = Lexer.get_error_line expr.cpppos in
-          let lineName = Printf.sprintf "%4d" line in
-          let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
-          out (macro ^ "(" ^ lineName ^ ")\t" );
-          lastLine := line;
-       end;
-       writer#write_i value
+      if (ctx.ctx_debug_level>0) then begin
+         let line = Lexer.get_error_line expr.cpppos in
+         let lineName = Printf.sprintf "%4d" line in
+         let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
+         (
+            let pos = Lexer.get_pos_coords expr.cpppos in
+            let map = DebugDatabase.create_mapping 0 pos in
+            let current = !(ctx.current_file) in
+            ctx.current_file := { current with expr_map = (map :: current.expr_map) }
+         );
+         out (macro ^ "(" ^ lineName ^ ")\t" );
+         lastLine := line;
+      end;
+      writer#write_i value
    in
 
    let forInjection = match injection with Some inject -> inject.inj_setvar<>"" | _ -> false in
@@ -6043,6 +6146,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
 
    let dump_field_name = (fun field -> output_cpp ("\t" ^  (strq field.cf_name) ^ ",\n")) in
+   let cpp_file_name   = "cpp/" ^ ( String.concat "/" (fst class_path) ) ^ "/" ^ (snd class_path) ^ ".cpp" in
+   let haxe_file_name  = class_def.cl_pos.pfile in
+
+   ctx.current_file := (DebugDatabase.create_file cpp_file_name haxe_file_name dot_name);
 
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name false (has_class_flag class_def CInterface))
@@ -6050,6 +6157,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name true (has_class_flag class_def CInterface)) statics_except_meta;
    output_cpp "\n";
+
+   let current_db   = !(ctx.debug_database) in
+   let current_file = !(ctx.current_file) in
+   let new_files    = current_file :: current_db.files in
+   ctx.debug_database := { current_db with files = new_files };
 
    if (List.length dynamic_functions > 0) then begin
       output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(::hx::Ctx *_hx_ctx," ^ class_name ^ " *_hx_obj) {\n");
@@ -8429,6 +8541,7 @@ let generate_cppia ctx =
    script#close
 ;;
 
+open DebugDatabase
 
 (*
  The common_ctx contains the haxe AST in the "types" field and the resources
@@ -8531,6 +8644,8 @@ let generate_source ctx =
    generate_files common_ctx ctx.ctx_file_info;
 
    write_resources common_ctx;
+
+   DebugDatabase.print !(ctx.debug_database);
 
    (* Output class info if requested *)
    if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
