@@ -8717,7 +8717,13 @@ let generate_source ctx =
 
    write_resources common_ctx;
 
-   Printf.printf "%s\n" (DebugDatabase.print !(ctx.debug_database));
+   (
+      let channel = open_out "sourcemap.json" in
+
+      Printf.fprintf channel "%s" (DebugDatabase.print !(ctx.debug_database));
+
+      close_out channel;
+   );
 
    (* Output class info if requested *)
    if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
