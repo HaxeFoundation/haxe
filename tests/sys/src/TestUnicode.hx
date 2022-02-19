@@ -319,12 +319,10 @@ class TestUnicode extends utest.Test {
 				// trace
 				assertUEnds(runUtility(["trace", '$i', mode]).stdout, str + endLine);
 				#if !java
-#if (hl || cpp) if (Sys.systemName() != "Windows") { #end // HL and C++ temporarily disabled (#8379)
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
 				// putEnv + environment
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
-#if (hl || cpp) } #end // HL and C++ temporarily disabled (#8379)
 				#end
 			});
 
