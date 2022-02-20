@@ -160,7 +160,7 @@ let read_whole_file chan =
    thus allowing the makefile dependencies to work correctly *)
 let cached_source_writer common_ctx filename =
    let src_line = ref 1 in
-   let head_line = ref 1 in
+   let head_line = ref 0 in
    let header = Buffer.create 0 in
    let add_header str =
       let rec loop from =
@@ -306,11 +306,11 @@ module DebugDatabase = struct
 
    let create () = { files = [] }
 
-   let create_file cpp_file haxe_file haxe_type offset = {
+   let create_file cpp_file haxe_file haxe_type = {
       cpp_file = cpp_file;
       haxe_file = haxe_file;
       haxe_type = haxe_type;
-      header_offset = offset;
+      header_offset = 0;
       functions = [];
       expr_map = [];
    }
@@ -408,7 +408,7 @@ let result =
 {
    ctx_common = common_ctx;
    debug_database = ref (DebugDatabase.create());
-   current_file = ref (DebugDatabase.create_file "" "" "" 0);
+   current_file = ref (DebugDatabase.create_file "" "" "");
    current_func = ref (DebugDatabase.create_function "" "");
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
@@ -3605,7 +3605,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
          (
             let pos = Lexer.get_pos_coords expr.cpppos in
-            let map = DebugDatabase.create_mapping (writer#get_current_line() + 1) pos in
+            let map = DebugDatabase.create_mapping (writer#get_current_line()) pos in
             let current = !(ctx.current_file) in
             ctx.current_file := { current with expr_map = (map :: current.expr_map) }
          );
@@ -6235,7 +6235,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       | true -> Path.normalize_path (Filename.concat (Sys.getcwd()) haxe_file_name)
       | false -> haxe_file_name in
 
-   ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name (cpp_file#get_header_size()));
+   Printf.printf "%s (%i)\n" cpp_file_name (cpp_file#get_header_size());
+
+   ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name);
 
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name false (has_class_flag class_def CInterface))
@@ -6243,11 +6245,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name true (has_class_flag class_def CInterface)) statics_except_meta;
    output_cpp "\n";
-
-   let current_db   = !(ctx.debug_database) in
-   let current_file = !(ctx.current_file) in
-   let new_files    = current_file :: current_db.files in
-   ctx.debug_database := { current_db with files = new_files };
 
    if (List.length dynamic_functions > 0) then begin
       output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(::hx::Ctx *_hx_ctx," ^ class_name ^ " *_hx_obj) {\n");
@@ -6811,6 +6808,13 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("\treturn [ [_hx_" ^ protocol ^ "_delegate alloc] initWithImplementation:inImplementation.mPtr];\n");
       output_cpp ("}\n\n");
    end;
+
+   let current_db   = !(ctx.debug_database) in
+   let current_file = !(ctx.current_file) in
+   let header_size  = cpp_file#get_header_size() in
+   let new_files    = { current_file with header_offset = header_size } :: current_db.files in
+   ctx.debug_database := { current_db with files = new_files };
+   Printf.printf "%s %i\n" current_file.haxe_type header_size;
 
 
    cpp_file#close;
