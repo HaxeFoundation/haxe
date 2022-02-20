@@ -4736,6 +4736,11 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       end else begin
          ctx.ctx_real_this_ptr <- false;
          let func_name = "__default_" ^ (remap_name) in
+         let args        = List.map (fun (a, o) -> DebugDatabase.create_name_mapping a.v_name (cpp_arg_string ctx a o "__o_") (Printer.s_type a.v_type)) function_def.tf_args in
+         let dbg_closure = DebugDatabase.create_closure func_name args in
+         let current     = DebugDatabase.create_function field.cf_name remap_name in
+         ctx.current_func := { current with closures = dbg_closure :: current.closures };
+
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type_str;
          output (" _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
@@ -4743,6 +4748,10 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
          output ("HX_END_DEFAULT_FUNC\n\n");
+
+         let current_file = !(ctx.current_file) in
+         let current_func = !(ctx.current_func) in
+         ctx.current_file := { current_file with functions = current_func :: current_file.functions };
 
          if (is_static) then
             output ( "::Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
