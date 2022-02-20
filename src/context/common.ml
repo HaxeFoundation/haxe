@@ -551,6 +551,7 @@ let get_config com =
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
 				];
+				ec_avoid_wrapping = false;
 			};
 			pf_scoping = {
 				vs_scope = FunctionScope;
