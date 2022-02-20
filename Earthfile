@@ -32,7 +32,7 @@ devcontainer:
         # Clean up
         && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/library-scripts/
 
-    # Setting the ENTRYPOINT to docker-init.sh will configure non-root access 
+    # Setting the ENTRYPOINT to docker-init.sh will configure non-root access
     # to the Docker socket. The script will also execute CMD as needed.
     ENTRYPOINT [ "/usr/local/share/docker-init.sh" ]
     CMD [ "sleep", "infinity" ]
@@ -254,7 +254,7 @@ test-environment-cs:
 
 test-environment-hl:
     FROM +test-environment
-    DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev libsqlite3-dev=3.15.1"
+    DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev libsqlite3-dev"
     SAVE IMAGE --cache-hint
 
 test-environment-lua:
