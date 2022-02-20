@@ -6218,10 +6218,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
 
    let dump_field_name = (fun field -> output_cpp ("\t" ^  (strq field.cf_name) ^ ",\n")) in
-   let cpp_file_name   = "cpp/" ^ ( String.concat "/" (fst class_path) ) ^ "/" ^ (snd class_path) ^ ".cpp" in
+   let cpp_file_name   = match (String.concat "/" (fst class_path)) with
+      | "" -> (snd class_path) ^ ".cpp"
+      | prefix -> prefix ^ "/" ^ (snd class_path) ^ ".cpp" in
    let haxe_file_name  = class_def.cl_pos.pfile in
+   let abs_haxe_file   = match Filename.is_relative haxe_file_name with
+      | true -> Path.normalize_path (Filename.concat (Sys.getcwd()) haxe_file_name)
+      | false -> haxe_file_name in
 
-   ctx.current_file := (DebugDatabase.create_file cpp_file_name haxe_file_name dot_name (cpp_file#get_header_size()));
+   ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name (cpp_file#get_header_size()));
 
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name false (has_class_flag class_def CInterface))
