@@ -501,7 +501,6 @@ let get_config com =
 					["js";"lib"],"Error";
 					["haxe"],"Exception";
 				];
-				ec_native_catches = [];
 				ec_avoid_wrapping = false;
 			};
 			pf_scoping = {
