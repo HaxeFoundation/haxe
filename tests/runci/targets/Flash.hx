@@ -187,10 +187,10 @@ class Flash {
 
 	/**
 		Run a Flash swf file.
-		Return whether the test is successful or not.
-		It detemines the test result by reading the flashlog.txt, looking for "SUCCESS: true".
+		Throws `CommandFailure` if unsuccessful.
+		It detemines the test result by reading the flashlog.txt, looking for "success: true".
 	*/
-	static function runFlash(swf:String):Bool {
+	static function runFlash(swf:String):Void {
 		swf = FileSystem.fullPath(swf);
 		infoMsg('Running .swf file: $swf');
 
@@ -212,7 +212,7 @@ class Flash {
 		}
 		if (!FileSystem.exists(flashlogPath)) {
 			failMsg('$flashlogPath not found.');
-			return false;
+			throw new CommandFailure();
 		}
 
 		// read flashlog.txt continously
@@ -241,26 +241,20 @@ class Flash {
 		traceProcess.close();
 		final cmd = (systemName == "Windows")? "type":"cat";
 		Sys.command(cmd, [flashlogPath]);
-		return success;
+		if (!success)
+			throw new CommandFailure();
 	}
 
 	static public function run(args:Array<String>) {
 		setupFlashPlayerDebugger();
 		setupFlexSdk();
-		var success = true;
 		for (argsVariant in [[], ["--swf-version", "32"]]) {
 			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args).concat(argsVariant));
-			var runSuccess = runFlash("bin/unit9.swf");
-			if (!runSuccess) {
-				success = false;
-			}
+			runFlash("bin/unit9.swf");
 		}
 
 		changeDirectory(miscFlashDir);
 		runCommand("haxe", ["run.hxml"]);
-
-		if (!success)
-			throw new CommandFailure();
 	}
 
 }
