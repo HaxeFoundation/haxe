@@ -1,22 +1,22 @@
 package runci.targets;
 
-import sys.io.File;
 import sys.FileSystem;
-import haxe.io.Path;
-import haxe.Json;
+import sys.io.File;
 import sys.io.Process;
+import haxe.Json;
 import haxe.Http;
+import haxe.io.Path;
 
 import runci.System.*;
+import runci.System.CommandFailure;
 import runci.Config.*;
 
 class Flash {
-	static var miscFlashDir(get,never):String;
-	static inline function get_miscFlashDir() return miscDir + 'flash/';
+	static final miscFlashDir = getMiscSubDir('flash');
 
-	static public function getLatestFPVersion():Array<Int> {
-		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
-		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
+	static function getLatestFPVersion():Array<Int> {
+		final appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		final versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
 		return versionStr.split(",").map(Std.parseInt);
 	}
 
@@ -26,14 +26,14 @@ class Flash {
 		} else {
 			var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
 			var flexVersion = "4.16.0";
-			runCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
-			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
-			var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
+			runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz']);
+			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", getDownloadPath()]);
+			var flexsdkPath = getDownloadPath() + '/apache-flex-sdk-${flexVersion}-bin';
 			addToPATH(flexsdkPath + "/bin");
 			var playerglobalswcFolder = flexsdkPath + "/player";
 			FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
 			var flashVersion = runci.targets.Flash.getLatestFPVersion();
-			runCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
+			runNetworkCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"]);
 			File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 			runCommand("mxmlc", ["--version"]);
 		}
@@ -59,9 +59,9 @@ class Flash {
 						"libglib2.0-0", "libfreetype6"
 					]);
 					var majorVersion = getLatestFPVersion()[0];
-					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
-					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
-					playerCmd = Path.join([Sys.getEnv("HOME"), "flashplayerdebugger"]);
+					runNetworkCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz']);
+					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", getDownloadPath()]);
+					playerCmd = Path.join([getDownloadPath(), "flashplayerdebugger"]);
 				}
 				if (!FileSystem.exists(mmcfgPath)) {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
@@ -76,10 +76,10 @@ class Flash {
 				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
 					return;
 				}
-				runCommand("brew", ["uninstall", "openssl@1.0.2t"], false, true);
-				runCommand("brew", ["uninstall", "python@2.7.17"], false, true);
-				runCommand("brew", ["untap", "local/openssl"], false, true);
-				runCommand("brew", ["untap", "local/python2"], false, true);
+				attemptCommand("brew", ["uninstall", "openssl@1.0.2t"]);
+				attemptCommand("brew", ["uninstall", "python@2.7.17"]);
+				attemptCommand("brew", ["untap", "local/openssl"]);
+				attemptCommand("brew", ["untap", "local/python2"]);
 				runCommand("brew", ["update"]);
 				runCommand("brew", ["install", "--cask", "flash-player-debugger"]);
 
@@ -173,7 +173,7 @@ class Flash {
 		runCommand("haxe", ["run.hxml"]);
 
 		if (!success)
-			fail();
+			throw new CommandFailure();
 	}
 
 

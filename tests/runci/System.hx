@@ -6,14 +6,15 @@ import runci.Config.*;
 
 using StringTools;
 
-enum Failure {
-	Fail;
+class CommandFailure extends haxe.Exception {
+	public final exitCode:Int;
+	public function new(exitCode:Int = 1) {
+		super("Command failed to run: " + Std.string(exitCode));
+		this.exitCode = exitCode;
+	}
 }
 
 class System {
-	static public var success(default, null) = true;
-
-
 	static public function successMsg(msg:String):Void {
 		Sys.println(colorSupported ? '\x1b[32m' + msg + '\x1b[0m' : msg);
 	}
@@ -26,8 +27,8 @@ class System {
 
 	static public function commandSucceed(cmd:String, args:Array<String>):Bool {
 		return try {
-			var p = new Process(cmd, args);
-			var succeed = p.exitCode() == 0;
+			final p = new Process(cmd, args);
+			final succeed = p.exitCode() == 0;
 			p.close();
 			succeed;
 		} catch(e:Dynamic) false;
@@ -38,8 +39,8 @@ class System {
 		stderr:String,
 		exitCode:Int
 	} {
-		var p = new Process(cmd, args);
-		var out = {
+		final p = new Process(cmd, args);
+		final out = {
 			stdout: p.stdout.readAll().toString(),
 			stderr: p.stderr.readAll().toString(),
 			exitCode: p.exitCode()
@@ -48,42 +49,30 @@ class System {
 		return out;
 	}
 
-	/**
-		Run a command using `Sys.command()`.
-		If the command exits with non-zero code, exit the whole script with the same code.
-
-		If `useRetry` is `true`, the command will be re-run if it exits with non-zero code (3 trials).
-		It is useful for running network-dependent commands.
-	*/
-	static public function runCommand(cmd:String, ?args:Array<String>, useRetry:Bool = false, allowFailure:Bool = false):Void {
-		var trials = useRetry ? 3 : 1;
-		var exitCode:Int = 1;
-		var cmdStr = cmd + (args == null ? '' : ' $args');
-
-		while (trials-->0) {
-			infoMsg('Command: $cmdStr');
-
-			var t = Timer.stamp();
-			exitCode = Sys.command(cmd, args);
-			var dt = Math.round(Timer.stamp() - t);
-
-			if (exitCode == 0) {
-				successMsg('Command exited with $exitCode in ${dt}s: $cmdStr');
-				return;
-			}
-			else
-				failMsg('Command exited with $exitCode in ${dt}s: $cmdStr');
-
-			if (trials > 0) {
-				infoMsg('Command will be re-run...');
-			}
-		}
-
-		if (!allowFailure)
-			fail();
+	static inline function getDisplayCmd(cmd:String, ?args:Array<String>) {
+		return cmd + (args == null ? '' : ' $args');
 	}
 
-	static function showAndRunCommand(cmd:String, args:Null<Array<String>>, displayed:String):Int {
+	/**
+		Run a command using `Sys.command()`.
+		If the command exits with non-zero code, throws `CommandFailure` with the same code.
+	*/
+	static public function runCommand(cmd:String, ?args:Array<String>):Void {
+		final exitCode = showAndRunCommand(cmd, args);
+
+		if (exitCode != 0)
+			throw new CommandFailure(exitCode);
+	}
+
+	/** Runs command using `Sys.command()` but ignores failures. **/
+	static public function attemptCommand(cmd:String, ?args:Array<String>) {
+		showAndRunCommand(cmd, args);
+	}
+
+	static function showAndRunCommand(cmd:String, args:Null<Array<String>>, ?displayed:String):Int {
+		if (displayed == null)
+			displayed = getDisplayCmd(cmd, args);
+
 		infoMsg('Command: $displayed');
 
 		final t = Timer.stamp();
@@ -99,6 +88,28 @@ class System {
 		return exitCode;
 	}
 
+
+	static final TRIALS = 3;
+	/**
+		Run a command using `Sys.command()` with up to three attempts. Useful for running network-dependent commands.
+
+		If all three attempts fail, throws a `CommandFailure` with the exit code of the last run.
+	**/
+	static public function runNetworkCommand(cmd:String, ?args:Array<String>) {
+		final cmdStr = getDisplayCmd(cmd, args);
+
+		for (trial in 1...TRIALS+1){
+			final exitCode = showAndRunCommand(cmd, args, cmdStr);
+			if (exitCode == 0)
+				return;
+
+			if (trial == TRIALS)
+				throw new CommandFailure(exitCode);
+
+			infoMsg('Command will be re-run...');
+		}
+	}
+
 	/**
 	 * Recursively delete a directory.
 	 * @return Int Exit code of a system command executed to perform deletion.
@@ -112,11 +123,6 @@ class System {
 		}
 	}
 
-	static public function fail():Void {
-		success = false;
-		throw Fail;
-	}
-
 	static public function addToPATH(path:String):Void {
 		infoMsg('Prepending $path to PATH.');
 		switch (systemName) {
@@ -127,50 +133,54 @@ class System {
 		}
 	}
 
-	static public function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
-		var name:String = (altName == null) ? repository : altName;
-		try {
-			getHaxelibPath(name);
-			infoMsg('$name has already been installed.');
-		} catch (e:Dynamic) {
-			var args:Array<String> = ["git", name, 'https://github.com/$account/$repository'];
-			if (branch != null) {
-				args.push(branch);
-			}
-			if (srcPath != null) {
-				args.push(srcPath);
-			}
+	static function isLibraryInstalled(library:String):Bool {
+		return new Process("haxelib", ["path", library]).exitCode() == 0;
+	}
 
-			runCommand("haxelib", args, useRetry);
-		}
+	static public function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
+		final name = (altName == null) ? repository : altName;
+		// It could only be installed already if we're on a local machine
+		if (!isCi() && isLibraryInstalled(name))
+			return infoMsg('$name has already been installed.');
+
+		final args = ["git", name, 'https://github.com/$account/$repository'];
+		if (branch != null)
+			args.push(branch);
+		if (srcPath != null)
+			args.push(srcPath);
+
+		if (useRetry)
+			runNetworkCommand("haxelib", args);
+		else
+			runCommand("haxelib", args);
 	}
 
 	static public function haxelibInstall(library:String):Void {
-		try {
-			getHaxelibPath(library);
-			infoMsg('$library has already been installed.');
-		} catch (e:Dynamic) {
-			runCommand("haxelib", ["install", library]);
-		}
+		// It could only be installed already if we're on a local machine
+		if (!isCi() && isLibraryInstalled(library))
+			return infoMsg('$library has already been installed.');
+		runCommand("haxelib", ["install", library]);
 	}
 
 	static public function haxelibDev(library:String, path:String):Void {
-		try {
-			getHaxelibPath(library);
-			infoMsg('$library has already been installed.');
-		} catch (e:Dynamic) {
-			runCommand("haxelib", ["dev", library, path]);
-		}
+		// It could only be installed already if we're on a local machine
+		if (!isCi() && isLibraryInstalled(library))
+			return infoMsg('$library has already been installed.');
+		runCommand("haxelib", ["dev", library, path]);
 	}
 
 	static public function haxelibRun(args:Array<String>, useRetry:Bool = false):Void {
-		runCommand("haxelib", ["run"].concat(args), useRetry);
+		final allArgs = ["run"].concat(args);
+		if (useRetry)
+			runNetworkCommand("haxelib", allArgs);
+		else
+			runCommand("haxelib", allArgs);
 	}
 
 	static public function getHaxelibPath(libName:String) {
-		var proc = new Process("haxelib", ["path", libName]);
+		final proc = new Process("haxelib", ["path", libName]);
+		final code = proc.exitCode();
 		var result;
-		var code = proc.exitCode();
 		do {
 			result = proc.stdout.readLine();
 			if (!result.startsWith("-L")) {
@@ -204,16 +214,32 @@ class System {
 
 	/** Prepares environment for system tests and runs `cmd` with `args` **/
 	static public function runSysTest(cmd:String, ?args:Array<String>) {
-		final cmdStr = '$setCommand [$nameAndValue] && ' + cmd + (args == null ? '' : ' $args');
+		final toDisplay = getDisplayCmd(setCommand, [nameAndValue]) + ' && ' + getDisplayCmd(cmd, args);
 
 		if (args != null)
 			cmd = mergeArgs(cmd, args);
 
 		final fullCmd = '$setCommand $nameAndValue && $cmd';
 
-		final exitCode = showAndRunCommand(fullCmd, null, cmdStr);
+		final exitCode = showAndRunCommand(fullCmd, null, toDisplay);
 
 		if (exitCode != 0)
-			fail();
+			throw new CommandFailure(exitCode);
 	}
+
+	static final installPath = if (systemName == "Windows")
+			Sys.getEnv("USERPROFILE") + "/haxe-ci";
+		else
+			Sys.getEnv("HOME") + "/haxe-ci";
+
+	/** Returns path where packages should be installed. **/
+	public static inline function getInstallPath():String {
+		return installPath;
+	}
+
+	/** Returns path where downloads should be placed. **/
+	public static inline function getDownloadPath():String {
+		return installPath + "/downloads";
+	}
+
 }
