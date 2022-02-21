@@ -67,6 +67,7 @@ class Lua {
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
 			installLib("haxe-deps", "0.0.1-6");
+			installLib("luasec", "1.0.2-1");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
