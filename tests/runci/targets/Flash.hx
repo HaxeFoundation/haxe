@@ -17,7 +17,7 @@ class Flash {
 	static final miscFlashDir = getMiscSubDir('flash');
 
 	static function getLatestFPVersion():Array<Int> {
-		final appcast = Xml.parse(haxe.Http.requestUrl("https://fpdownload.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		final appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
 		final versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
 		return versionStr.split(",").map(Std.parseInt);
 	}
