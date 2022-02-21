@@ -22,8 +22,19 @@ class Flash {
 		return versionStr.split(",").map(Std.parseInt);
 	}
 
+	static final defaultApacheMirror = "https://downloads.apache.org/";
+
+	static function getPreferredApacheMirror() {
+		return try {
+			Json.parse(Http.requestUrl("https://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
+		} catch (e) {
+			failMsg('Unable to determine preferred Apache mirror. Defaulting to $defaultApacheMirror');
+			defaultApacheMirror;
+		}
+	}
+
 	static function downloadFlexSdk(version:String, sdkPath:String):Void {
-		final apacheMirror = Json.parse(Http.requestUrl("https://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
+		final apacheMirror = getPreferredApacheMirror();
 		if (systemName == "Windows") {
 			final zipName = 'apache-flex-sdk-${version}-bin.zip';
 			runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${version}/binaries/$zipName', "-O", getDownloadPath() + '/$zipName']);
