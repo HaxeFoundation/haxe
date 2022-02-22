@@ -236,7 +236,7 @@ class Flash {
 		var success = false;
 		while (true) {
 			try {
-				var line = traceProcess.stdout.readLine();
+				final line = traceProcess.stdout.readLine();
 				if (line.indexOf("success: ") >= 0) {
 					success = line.indexOf("success: true") >= 0;
 					break;
@@ -250,7 +250,7 @@ class Flash {
 
 		traceProcess.kill();
 		traceProcess.close();
-		final cmd = (systemName == "Windows")? "type":"cat";
+		final cmd = (systemName == "Windows") ? "type" : "cat";
 		Sys.command(cmd, [flashlogPath]);
 		if (!success)
 			throw new CommandFailure();
