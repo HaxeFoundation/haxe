@@ -479,7 +479,7 @@ let init_module_type ctx context_init (decl,p) =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> die "" __LOC__
 	in
 	let commit_import path mode p =
-		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
+		ctx.m.import_statements <- (path,mode) :: ctx.m.import_statements;
 		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
 	in
 	let check_path_display path p =
@@ -551,7 +551,7 @@ let init_module_type ctx context_init (decl,p) =
 				| [] ->
 					(match name with
 					| None ->
-						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types;
+						ctx.m.module_imports <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_imports;
 						Option.may (fun c ->
 							context_init#add (fun () ->
 								ignore(c.cl_build());
@@ -562,13 +562,13 @@ let init_module_type ctx context_init (decl,p) =
 							);
 						) md.m_statics
 					| Some(newname,pname) ->
-						ctx.m.module_types <- (rebind (get_type tname) newname pname,p) :: ctx.m.module_types);
+						ctx.m.module_imports <- (rebind (get_type tname) newname pname,p) :: ctx.m.module_imports);
 				| [tsub,p2] ->
 					let pu = punion p1 p2 in
 					(try
 						let tsub = List.find (has_name tsub) types in
 						chk_private tsub pu;
-						ctx.m.module_types <- ((match name with None -> tsub | Some(n,pname) -> rebind tsub n pname),p) :: ctx.m.module_types
+						ctx.m.module_imports <- ((match name with None -> tsub | Some(n,pname) -> rebind tsub n pname),p) :: ctx.m.module_imports
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
 						let find_main_type_static () =
@@ -647,7 +647,7 @@ let init_module_type ctx context_init (decl,p) =
 		check_path_display path p;
 		let types,filter_classes = handle_using ctx path p in
 		(* do the import first *)
-		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
+		ctx.m.module_imports <- (List.map (fun t -> t,p) types) @ ctx.m.module_imports;
 		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
@@ -962,11 +962,11 @@ let type_types_into_module ctx m tdecls p =
 		t = ctx.t;
 		m = {
 			curmod = m;
-			module_types = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
+			module_imports = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
-			module_imports = [];
+			import_statements = [];
 		};
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		bypass_accessor = 0;

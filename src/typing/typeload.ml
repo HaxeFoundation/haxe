@@ -126,7 +126,7 @@ let find_type_in_current_module_context ctx pack name =
 		List.find path_matches ctx.m.curmod.m_types
 	with Not_found ->
 		(* Check the local imports *)
-		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
+		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_imports in
 		ImportHandling.mark_import_position ctx pi;
 		t
 
@@ -698,11 +698,11 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		module_types = [];
+		module_imports = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
-		module_imports = [];
+		import_statements = [];
 	};
 	ctx.type_params <- [];
 	(fun() ->

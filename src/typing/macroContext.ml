@@ -273,7 +273,7 @@ let make_macro_api ctx p =
 			List.map fst ctx.m.module_using;
 		);
 		MacroApi.get_local_imports = (fun() ->
-			ctx.m.module_imports;
+			ctx.m.import_statements;
 		);
 		MacroApi.get_local_vars = (fun () ->
 			ctx.locals;
@@ -515,11 +515,11 @@ let load_macro_module ctx cpath display p =
 	api.MacroApi.current_macro_module <- (fun() -> mloaded);
 	mctx.m <- {
 		curmod = mloaded;
-		module_types = [];
+		module_imports = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
-		module_imports = [];
+		import_statements = [];
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
@@ -558,11 +558,11 @@ let load_macro' ctx display cpath f p =
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
-			module_types = [];
+			module_imports = [];
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
-			module_imports = [];
+			import_statements = [];
 		};
 		t();
 		meth

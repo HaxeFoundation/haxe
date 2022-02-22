@@ -412,7 +412,7 @@ let rec type_ident_raise ctx i p mode with_type =
 					with
 						Not_found -> loop l
 		in
-		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_types)
+		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_imports)
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
@@ -1978,11 +1978,11 @@ let rec create com =
 		};
 		m = {
 			curmod = null_module;
-			module_types = [];
+			module_imports = [];
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
-			module_imports = [];
+			import_statements = [];
 		};
 		is_display_file = false;
 		bypass_accessor = 0;
@@ -2027,7 +2027,7 @@ let rec create com =
 				typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.module_types <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;
+	ctx.m.module_imports <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->
