@@ -2063,15 +2063,17 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				jm#set_terminated true
 			end
 		| TObjectDecl fl ->
+			let had_invalid_field_name = ref false in
 			(* We cannot rely on e.etype because it might have optional field shit, so we need to build a concrete type from the fields... *)
 			let fields = List.fold_left (fun acc ((name,_,_),e) ->
 				let cf = mk_field name e.etype e.epos e.epos in
+				if not (Lexer.is_valid_identifier name) then had_invalid_field_name := true;
 				PMap.add name cf acc
 			) PMap.empty fl in
 			let t = mk_anon ~fields (ref Closed) in
 			let td = gctx.anon_identification#identify true t in
 			begin match td with
-			| Some pfm ->
+			| Some pfm when not !had_invalid_field_name ->
 				let lut = Hashtbl.create 0 in
 				jm#construct ConstructInit pfm.pfm_path (fun () ->
 					(* Step 1: Expressions in order with temp vars *)
@@ -2104,7 +2106,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						jsig
 					) order;
 				)
-			| None ->
+			| _ ->
 				jm#construct ConstructInit haxe_dynamic_object_path (fun () -> []);
 				List.iter (fun ((name,_,_),e) ->
 					code#dup;
