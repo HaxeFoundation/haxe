@@ -7,7 +7,7 @@ class Issue10537 extends Test {
 		var imports = [
 			"haxe.ds.StringMap",
 			"StringTools.endsWith",
-			"Sys.*",
+			"StringTools.*",
 			"StringTools.startsWith as sw"
 		];
 		var usings = ["StringTools"];
@@ -15,7 +15,7 @@ class Issue10537 extends Test {
 			Context.typeExpr(macro {
 				StringMap;
 				endsWith("foo", "o");
-				println("print");
+				startsWith("foo", "o");
 				sw("foo", "f");
 				"foo".endsWith("o");
 			});
