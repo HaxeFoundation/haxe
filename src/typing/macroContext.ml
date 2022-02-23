@@ -200,6 +200,11 @@ let make_macro_api ctx p =
 			];
 		);
 		MacroApi.parse_string = parse_expr_string;
+		MacroApi.parse = (fun entry s ->
+			match ParserEntry.parse_string entry ctx.com.defines s null_pos typing_error false with
+			| ParseSuccess(r,_,_) -> r
+			| ParseError(_,(msg,p),_) -> Parser.error msg p
+		);
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
 		);
