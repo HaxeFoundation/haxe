@@ -19,6 +19,7 @@ type 'value compiler_api = {
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
+	parse : 'a . ((Ast.token * Globals.pos) Stdlib__stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	store_typed_expr : Type.texpr -> Ast.expr;
