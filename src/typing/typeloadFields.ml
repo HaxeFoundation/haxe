@@ -476,7 +476,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			List.iter (fun e ->
 				try
 					let path = List.rev (string_pos_list_of_expr_path_raise e) in
-					let types,filter_classes = handle_using ctx path (pos e) in
+					let types,filter_classes = ImportHandling.handle_using ctx path (pos e) in
 					let ti =
 						match mt with
 							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)

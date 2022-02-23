@@ -492,10 +492,7 @@ let init_module_type ctx context_init (decl,p) =
 		end
 	| EUsing path ->
 		check_path_display path p;
-		let types,filter_classes = handle_using ctx path p in
-		(* do the import first *)
-		ctx.m.module_imports <- (List.map (fun t -> t,p) types) @ ctx.m.module_imports;
-		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
+		ImportHandling.init_using ctx context_init path p
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
