@@ -209,3 +209,44 @@ let init_import ctx context_init path mode p =
 					typing_error "No statics to import from this type" p
 			)
 		))
+
+let handle_using ctx path p =
+	let t = match List.rev path with
+		| (s1,_) :: (s2,_) :: sl ->
+			if is_lower_ident s2 then mk_type_path ((List.rev (s2 :: List.map fst sl)),s1)
+			else mk_type_path ~sub:s1 (List.rev (List.map fst sl),s2)
+		| (s1,_) :: sl ->
+			mk_type_path (List.rev (List.map fst sl),s1)
+		| [] ->
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
+	in
+	let types = (match t.tsub with
+		| None ->
+			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
+			Option.map_default (fun c -> (TClassDecl c) :: types) types md.m_statics
+		| Some _ ->
+			let t = ctx.g.do_load_type_def ctx p t in
+			[t]
+	) in
+	(* delay the using since we need to resolve typedefs *)
+	let filter_classes types =
+		let rec loop acc types = match types with
+			| td :: l ->
+				(match resolve_typedef td with
+				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
+					loop ((c,p) :: acc) l
+				| td ->
+					loop acc l)
+			| [] ->
+				acc
+		in
+		loop [] types
+	in
+	types,filter_classes
+
+let init_using ctx context_init path p =
+	let types,filter_classes = handle_using ctx path p in
+	(* do the import first *)
+	ctx.m.module_imports <- (List.map (fun t -> t,p) types) @ ctx.m.module_imports;
+	context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

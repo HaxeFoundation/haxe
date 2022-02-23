@@ -400,6 +400,9 @@ let make_macro_api ctx p =
 				List.iter (fun (path,mode) ->
 					ImportHandling.init_import ctx context_init path mode null_pos
 				) imports;
+				List.iter (fun path ->
+					ImportHandling.init_using ctx context_init path null_pos
+				) usings;
 				context_init#run;
 				f()
 			in

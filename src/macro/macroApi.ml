@@ -2036,8 +2036,10 @@ let macro_api ccom get_api =
 		"with_imports", vfun3(fun imports usings f ->
 			let imports = List.map decode_string (decode_array imports) in
 			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let usings = List.map decode_string (decode_array usings) in
+			let usings = List.map ((get_api()).parse (fun s -> Grammar.parse_using' s Globals.null_pos)) usings in
 			let f = prepare_callback f 0 in
-			(get_api()).with_imports imports [] (fun () -> f [])
+			(get_api()).with_imports imports usings (fun () -> f [])
 		);
 	]
 end

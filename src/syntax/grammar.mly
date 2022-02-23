@@ -386,7 +386,7 @@ and parse_import s p1 =
 	in
 	(EImport (path,mode),punion p1 p2)
 
-and parse_using s p1 =
+and parse_using' s p1 =
 	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
@@ -401,21 +401,27 @@ and parse_using s p1 =
 			| [< '(Kwd Function,p) >] ->
 				loop pn (("function",p) :: acc)
 			| [< >] ->
-				syntax_error (Expected ["identifier"]) s (p,List.rev acc);
+				syntax_error (Expected ["identifier"]) s (List.rev acc);
 			end
-		| [< '(Semicolon,p2) >] ->
-			p2,List.rev acc
 		| [< >] ->
-			syntax_error (Expected [".";";"]) s ((last_pos s),List.rev acc)
+			List.rev acc
 	in
-	let p2, path = (match s with parser
+	match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
 			if would_skip_display_position p1 true s then
-				(display_position#with_pos p1,[])
+				[]
 			else
-				syntax_error (Expected ["identifier"]) s (p1,[])
-	) in
+				syntax_error (Expected ["identifier"]) s []
+
+and parse_using s p1 =
+	let path = parse_using' s p1 in
+	let p2 = match s with parser
+	| [< '(Semicolon,p2) >] ->
+		p2
+	| [< >] ->
+		syntax_error (Expected [".";";"]) s (last_pos s)
+	in
 	(EUsing path,punion p1 p2)
 
 and parse_abstract_relations s =
