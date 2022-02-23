@@ -336,7 +336,7 @@ and parse_class doc meta cflags need_name s =
 			d_data = fl;
 		}, punion p1 p2)
 
-and parse_import s p1 =
+and parse_import' s p1 =
 	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
@@ -353,29 +353,37 @@ and parse_import s p1 =
 				loop pn (("extern",p) :: acc)
 			| [< '(Kwd Function,p) >] ->
 				loop pn (("function",p) :: acc)
-			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
-				p2, List.rev acc, IAll
+			| [< '(Binop OpMult,_) >] ->
+				List.rev acc, IAll
 			| [< >] ->
 				ignore(popt semicolon s);
-				syntax_error (Expected ["identifier"]) s (p,List.rev acc,INormal)
+				syntax_error (Expected ["identifier"]) s (List.rev acc,INormal)
 			end
-		| [< '(Semicolon,p2) >] ->
-			p2, List.rev acc, INormal
-		| [< '(Kwd In,_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName(name,pname)
-		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName(name,pname)
+		| [< '(Kwd In,_); '(Const (Ident name),pname) >] ->
+			List.rev acc, IAsName(name,pname)
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname) >] ->
+			List.rev acc, IAsName(name,pname)
 		| [< >] ->
-			syntax_error (Expected [".";";";"as"]) s ((last_pos s),List.rev acc,INormal)
+			List.rev acc,INormal
 	in
-	let p2, path, mode = (match s with parser
+	let path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
 			if would_skip_display_position p1 true s then
-				(display_position#with_pos p1,[],INormal)
+				([],INormal)
 			else
-				syntax_error (Expected ["identifier"]) s (p1,[],INormal)
+				syntax_error (Expected ["identifier"]) s ([],INormal)
 	) in
+	(path,mode)
+
+and parse_import s p1 =
+	let (path,mode) = parse_import' s p1 in
+	let p2 = match s with parser
+	| [< '(Semicolon,p2) >] ->
+		p2
+	| [< >] ->
+		syntax_error (Expected [".";";";"as"]) s (last_pos s)
+	in
 	(EImport (path,mode),punion p1 p2)
 
 and parse_using s p1 =
