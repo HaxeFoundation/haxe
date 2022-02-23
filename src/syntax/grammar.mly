@@ -382,7 +382,10 @@ and parse_import s p1 =
 	| [< '(Semicolon,p2) >] ->
 		p2
 	| [< >] ->
-		syntax_error (Expected [".";";";"as"]) s (last_pos s)
+		if would_skip_display_position p1 true s then
+			display_position#with_pos p1
+		else
+			syntax_error (Expected [".";";";"as"]) s (last_pos s)
 	in
 	(EImport (path,mode),punion p1 p2)
 
@@ -420,7 +423,10 @@ and parse_using s p1 =
 	| [< '(Semicolon,p2) >] ->
 		p2
 	| [< >] ->
-		syntax_error (Expected [".";";"]) s (last_pos s)
+		if would_skip_display_position p1 true s then
+			display_position#with_pos p1
+		else
+			syntax_error (Expected [".";";"]) s (last_pos s)
 	in
 	(EUsing path,punion p1 p2)
 
