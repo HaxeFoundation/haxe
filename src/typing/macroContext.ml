@@ -391,6 +391,25 @@ let make_macro_api ctx p =
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
 		MacroApi.display_error = Typecore.display_error ctx;
+		MacroApi.with_imports = (fun imports usings f ->
+			let old_globals = ctx.m.module_globals in
+			let old_imports = ctx.m.module_imports in
+			let old_using = ctx.m.module_using in
+			let run () =
+				let context_init = new TypeloadFields.context_init in
+				List.iter (fun (path,mode) ->
+					ImportHandling.init_import ctx context_init path mode null_pos
+				) imports;
+				context_init#run;
+				f()
+			in
+			let restore () =
+				ctx.m.module_globals <- old_globals;
+				ctx.m.module_imports <- old_imports;
+				ctx.m.module_using <- old_using;
+			in
+			Std.finally restore run ()
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =

@@ -626,6 +626,10 @@ class Context {
 		return load("timer", 1)(id);
 	}
 
+	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		return load("with_imports", 3)(imports, usings, code);
+	}
+
 	@:deprecated
 	public static function registerModuleReuseCall(modulePath:String, macroCall:String) {
 		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";

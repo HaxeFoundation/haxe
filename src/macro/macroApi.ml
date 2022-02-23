@@ -51,6 +51,7 @@ type 'value compiler_api = {
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
 	display_error : (string -> pos -> unit);
+	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 }
 
 
@@ -2031,8 +2032,12 @@ let macro_api ccom get_api =
 			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
 			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
 			| _ -> Globals.die "" __LOC__
-		)
+		);
+		"with_imports", vfun3(fun imports usings f ->
+			let imports = List.map decode_string (decode_array imports) in
+			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let f = prepare_callback f 0 in
+			(get_api()).with_imports imports [] (fun () -> f [])
+		);
 	]
-
-
 end
