@@ -1209,6 +1209,15 @@ class unification_matrix (arity : int) = object(self)
 			Some t
 		| _ ->
 			None
+
+	method dump =
+		let pctx = print_context() in
+		let s_unification_matrix_state = function
+			| STop -> "STop"
+			| SType t -> "SType " ^ (s_type pctx t)
+			| SBottom -> "SBottom"
+		in
+		String.concat " ; " (List.map s_unification_matrix_state (Array.to_list values))
 end
 
 ;;

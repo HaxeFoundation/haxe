@@ -1217,34 +1217,30 @@ and type_local_function ctx kind f with_type p =
 		let rec loop l = match l with
 			| t :: l ->
 				begin match follow t with
-				| TFun(args,ret) ->
-					if List.length args = arity then begin
-						List.iteri (fun i (_,_,t) ->
-							m#join t (i + 1);
-						) args;
-						m#join ret 0;
-					end;
-					loop l
+				| TFun(args,ret) when List.length args = arity ->
+					List.iteri (fun i (_,_,t) ->
+						m#join t (i + 1);
+					) args;
+					m#join ret 0;
 				| _ ->
-					raise Exit
-				end
+					()
+				end;
+				loop l
 			| [] ->
 				()
 		in
-		begin try
-			loop l;
-			List.iteri (fun i (_,_,t1) ->
-				match m#get_type (i + 1) with
-				| Some t2 -> maybe_unify_arg t1 t2
-				| None -> ()
-			) targs;
-			begin match m#get_type 0 with
-			| Some tr ->
-				maybe_unify_ret tr
+		loop l;
+ 		List.iteri (fun i (_,_,t1) ->
+			match m#get_type (i + 1) with
+			| Some t2 ->
+				maybe_unify_arg t1 t2
 			| None ->
 				()
-			end
-		with Exit ->
+		) targs;
+		begin match m#get_type 0 with
+		| Some tr ->
+			maybe_unify_ret tr
+		| None ->
 			()
 		end
 	in
