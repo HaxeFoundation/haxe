@@ -67,6 +67,13 @@ class Lib {
 	}
 
 	/**
+		Creates a deep clone of a given value using the structured clone algorithm.
+	**/
+	public static inline function structuredClone(value: Any, ?options: {transfer: Array<Any>}): Dynamic {
+		return js.Syntax.code("structuredClone({0}, {1})", value, options);
+	}
+
+	/**
 		Native JavaScript `parseInt` function.
 
 		Its specification is different from `Std.parseInt`, so one
