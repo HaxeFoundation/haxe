@@ -1181,6 +1181,25 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 		| _ ->
 			()
 
+let type_opt (ctx,cctx,fctx) p t =
+	let c = cctx.tclass in
+	let is_truly_extern =
+		(has_class_flag c CExtern || fctx.is_extern)
+		&& not fctx.is_inline (* if it's inline, we can infer the type from the expression *)
+	in
+	match t with
+	| None when is_truly_extern || (has_class_flag c CInterface) ->
+		display_error ctx "Type required for extern classes and interfaces" p;
+		t_dynamic
+	| None when cctx.is_core_api ->
+		display_error ctx "Type required for core api classes" p;
+		t_dynamic
+	| None when fctx.is_abstract ->
+		display_error ctx "Type required for abstract functions" p;
+		t_dynamic
+	| _ ->
+		Typeload.load_type_hint ctx p t
+
 let create_method (ctx,cctx,fctx) c f fd p =
 	let name = fst f.cff_name in
 	let params = TypeloadFunction.type_function_params ctx fd name p in
@@ -1289,7 +1308,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		ctx.t.tvoid
 	else begin
 		let def () =
-			FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p fd.f_type
+			type_opt (ctx,cctx,fctx) p fd.f_type
 		in
 		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
@@ -1302,7 +1321,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
 	let type_arg i opt cto p =
 		let def () =
-			FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p cto
+			type_opt (ctx,cctx,fctx) p cto
 		in
 		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
