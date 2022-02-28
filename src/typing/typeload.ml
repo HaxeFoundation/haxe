@@ -126,7 +126,7 @@ let find_type_in_current_module_context ctx pack name =
 		List.find path_matches ctx.m.curmod.m_types
 	with Not_found ->
 		(* Check the local imports *)
-		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
+		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_imports in
 		ImportHandling.mark_import_position ctx pi;
 		t
 
@@ -698,11 +698,11 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		module_types = [];
+		module_imports = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
-		module_imports = [];
+		import_statements = [];
 	};
 	ctx.type_params <- [];
 	(fun() ->
@@ -754,13 +754,13 @@ let load_type_hint ?(opt=false) ctx pcur t =
 
 let field_to_type_path ctx e =
 	let rec loop e pack name = match e with
-		| EField(e,f),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
 			| [] | _ :: [] ->
 				loop e pack (f :: name)
 			| _ -> (* too many name paths *)
 				display_error ctx ("Unexpected " ^ f) p;
 				raise Exit)
-		| EField(e,f),_ ->
+		| EField(e,f,_),_ ->
 			loop e (f :: pack) name
 		| EConst(Ident f),_ ->
 			let pack, name, sub = match name with
@@ -956,38 +956,3 @@ let init_core_api ctx c =
 let string_list_of_expr_path (e,p) =
 	try string_list_of_expr_path_raise (e,p)
 	with Exit -> typing_error "Invalid path" p
-
-let handle_using ctx path p =
-	let t = match List.rev path with
-		| (s1,_) :: (s2,_) :: sl ->
-			if is_lower_ident s2 then mk_type_path ((List.rev (s2 :: List.map fst sl)),s1)
-			else mk_type_path ~sub:s1 (List.rev (List.map fst sl),s2)
-		| (s1,_) :: sl ->
-			mk_type_path (List.rev (List.map fst sl),s1)
-		| [] ->
-			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
-	in
-	let types = (match t.tsub with
-		| None ->
-			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-			Option.map_default (fun c -> (TClassDecl c) :: types) types md.m_statics
-		| Some _ ->
-			let t = load_type_def ctx p t in
-			[t]
-	) in
-	(* delay the using since we need to resolve typedefs *)
-	let filter_classes types =
-		let rec loop acc types = match types with
-			| td :: l ->
-				(match resolve_typedef td with
-				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-					loop ((c,p) :: acc) l
-				| td ->
-					loop acc l)
-			| [] ->
-				acc
-		in
-		loop [] types
-	in
-	types,filter_classes

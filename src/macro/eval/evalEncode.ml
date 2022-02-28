@@ -161,6 +161,7 @@ let encode_enum i pos index pl =
 	let open MacroApi in
 	let key = match i with
 		| IExpr -> key_haxe_macro_ExprDef
+		| IEFieldKind -> key_haxe_macro_EFieldKind
 		| IBinop -> key_haxe_macro_Binop
 		| IUnop -> key_haxe_macro_Unop
 		| IConst -> key_haxe_macro_Constant

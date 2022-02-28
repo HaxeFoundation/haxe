@@ -381,7 +381,7 @@ let collect ctx tk with_type sort =
 				()
 		in
 		List.iter enum_ctors ctx.m.curmod.m_types;
-		List.iter enum_ctors (List.map fst ctx.m.module_types);
+		List.iter enum_ctors (List.map fst ctx.m.module_imports);
 
 		(* enum constructors of expected type *)
 		begin match with_type with
@@ -461,7 +461,7 @@ let collect ctx tk with_type sort =
 	List.iter add_type ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter add_type (List.rev_map fst ctx.m.module_types); (* reverse! *)
+	List.iter add_type (List.rev_map fst ctx.m.module_imports); (* reverse! *)
 
 	(* types from files *)
 	begin match !CompilationServer.instance with

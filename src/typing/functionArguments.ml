@@ -4,21 +4,6 @@ open Type
 open Typecore
 open Error
 
-let type_opt ctx is_core_api is_abstract_method p t =
-	let c = ctx.curclass in
-	match t with
-	| None when (has_class_flag c CExtern) || (has_class_flag c CInterface) ->
-		display_error ctx "Type required for extern classes and interfaces" p;
-		t_dynamic
-	| None when is_core_api ->
-		display_error ctx "Type required for core api classes" p;
-		t_dynamic
-	| None when is_abstract_method ->
-		display_error ctx "Type required for abstract functions" p;
-		t_dynamic
-	| _ ->
-		Typeload.load_type_hint ctx p t
-
 let type_function_arg ctx t e opt p =
 	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
 	(* delay ctx PTypeField (fun() ->

@@ -336,7 +336,7 @@ and parse_class doc meta cflags need_name s =
 			d_data = fl;
 		}, punion p1 p2)
 
-and parse_import s p1 =
+and parse_import' s p1 =
 	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
@@ -353,32 +353,43 @@ and parse_import s p1 =
 				loop pn (("extern",p) :: acc)
 			| [< '(Kwd Function,p) >] ->
 				loop pn (("function",p) :: acc)
-			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
-				p2, List.rev acc, IAll
+			| [< '(Binop OpMult,_) >] ->
+				List.rev acc, IAll
 			| [< >] ->
 				ignore(popt semicolon s);
-				syntax_error (Expected ["identifier"]) s (p,List.rev acc,INormal)
+				syntax_error (Expected ["identifier"]) s (List.rev acc,INormal)
 			end
-		| [< '(Semicolon,p2) >] ->
-			p2, List.rev acc, INormal
-		| [< '(Kwd In,_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName(name,pname)
-		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName(name,pname)
+		| [< '(Kwd In,_); '(Const (Ident name),pname) >] ->
+			List.rev acc, IAsName(name,pname)
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname) >] ->
+			List.rev acc, IAsName(name,pname)
 		| [< >] ->
-			syntax_error (Expected [".";";";"as"]) s ((last_pos s),List.rev acc,INormal)
+			List.rev acc,INormal
 	in
-	let p2, path, mode = (match s with parser
+	let path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
 			if would_skip_display_position p1 true s then
-				(display_position#with_pos p1,[],INormal)
+				([],INormal)
 			else
-				syntax_error (Expected ["identifier"]) s (p1,[],INormal)
+				syntax_error (Expected ["identifier"]) s ([],INormal)
 	) in
+	(path,mode)
+
+and parse_import s p1 =
+	let (path,mode) = parse_import' s p1 in
+	let p2 = match s with parser
+	| [< '(Semicolon,p2) >] ->
+		p2
+	| [< >] ->
+		if would_skip_display_position p1 true s then
+			display_position#with_pos p1
+		else
+			syntax_error (Expected [".";";";"as"]) s (last_pos s)
+	in
 	(EImport (path,mode),punion p1 p2)
 
-and parse_using s p1 =
+and parse_using' s p1 =
 	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
@@ -393,21 +404,30 @@ and parse_using s p1 =
 			| [< '(Kwd Function,p) >] ->
 				loop pn (("function",p) :: acc)
 			| [< >] ->
-				syntax_error (Expected ["identifier"]) s (p,List.rev acc);
+				syntax_error (Expected ["identifier"]) s (List.rev acc);
 			end
-		| [< '(Semicolon,p2) >] ->
-			p2,List.rev acc
 		| [< >] ->
-			syntax_error (Expected [".";";"]) s ((last_pos s),List.rev acc)
+			List.rev acc
 	in
-	let p2, path = (match s with parser
+	match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
 			if would_skip_display_position p1 true s then
-				(display_position#with_pos p1,[])
+				[]
 			else
-				syntax_error (Expected ["identifier"]) s (p1,[])
-	) in
+				syntax_error (Expected ["identifier"]) s []
+
+and parse_using s p1 =
+	let path = parse_using' s p1 in
+	let p2 = match s with parser
+	| [< '(Semicolon,p2) >] ->
+		p2
+	| [< >] ->
+		if would_skip_display_position p1 true s then
+			display_position#with_pos p1
+		else
+			syntax_error (Expected [".";";"]) s (last_pos s)
+	in
 	(EUsing path,punion p1 p2)
 
 and parse_abstract_relations s =
@@ -1331,7 +1351,7 @@ and expr = parser
 		expr_next (EConst (Ident (s_keyword k)), p) s
 	| [< '(Kwd Macro,p); s >] ->
 		begin match s with parser
-		| [< '(Dot,pd); e = parse_field (EConst (Ident "macro"),p) pd >] -> e
+		| [< '(Dot,pd); e = parse_field (EConst (Ident "macro"),p) EFNormal pd >] -> e
 		| [< e = parse_macro_expr p >] -> e
 		| [< >] -> serror()
 		end
@@ -1493,7 +1513,8 @@ and expr_next' e1 = parser
 		(match fst e1 with
 		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> die "" __LOC__)
-	| [< '(Dot,p); e = parse_field e1 p >] -> e
+	| [< '(Dot,p); e = parse_field e1 EFNormal p >] -> e
+	| [< '(QuestionDot,p); e = parse_field e1 EFSafe p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,p1); e2 = secure_expr; s >] ->
 		let p2 = expect_unless_resume_p BkClose s in
@@ -1534,16 +1555,16 @@ and expr_next' e1 = parser
 		expr_next e_is s
 	| [< >] -> e1
 
-and parse_field e1 p s =
+and parse_field e1 efk p s =
 	check_resume p (fun () -> (EDisplay (e1,DKDot),p)) (fun () ->
 		begin match s with parser
-		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
-		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
-		| [< '(Kwd Function,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"function") , punion (pos e1) p2) s
-		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
-		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,s_keyword k) , punion (pos e1) p2) s
-		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
-		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
+		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro",efk) , punion (pos e1) p2) s
+		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern",efk) , punion (pos e1) p2) s
+		| [< '(Kwd Function,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"function",efk) , punion (pos e1) p2) s
+		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new",efk) , punion (pos e1) p2) s
+		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
+		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f,efk) , punion (pos e1) p2) s
+		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v,efk) , punion (pos e1) p2) s
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
@@ -1663,7 +1684,7 @@ let rec validate_macro_cond s e = match fst e with
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
 	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond s e1), snd e)
-	| EField(e1,name) -> (EField(validate_macro_cond s e1,name), snd e)
+	| EField(e1,name,efk) -> (EField(validate_macro_cond s e1,name,efk), snd e)
 	| ECall ((EConst (Ident _),_) as i, args) -> (ECall (i,List.map (validate_macro_cond s) args),snd e)
 	| _ -> syntax_error (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 

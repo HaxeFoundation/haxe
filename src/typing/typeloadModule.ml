@@ -73,15 +73,15 @@ module StrictMeta = struct
 			| hd :: tl ->
 				let rec loop pack expr = match pack with
 					| hd :: tl ->
-						loop tl (EField(expr,hd),pos)
+						loop tl (efield(expr,hd),pos)
 					| [] ->
-						(EField(expr,name),pos)
+						(efield(expr,name),pos)
 				in
 				loop tl (EConst(Ident(hd)),pos)
 
 	let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 		| TField(e,f) ->
-			(EField(process_meta_argument ~toplevel:false ctx e,field_name f),expr.epos)
+			(efield(process_meta_argument ~toplevel:false ctx e,field_name f),expr.epos)
 		| TConst(TInt i) ->
 			(EConst(Int (Int32.to_string i, None)), expr.epos)
 		| TConst(TFloat f) ->
@@ -99,7 +99,7 @@ module StrictMeta = struct
 			if ctx.com.platform = Cs then
 				(ECall( (EConst(Ident "typeof"), p), [get_native_repr md expr.epos] ), p)
 			else
-				(EField(get_native_repr md expr.epos, "class"), p)
+				(efield(get_native_repr md expr.epos, "class"), p)
 		| TTypeExpr md ->
 			get_native_repr md expr.epos
 		| _ ->
@@ -109,7 +109,7 @@ module StrictMeta = struct
 	let handle_fields ctx fields_to_check with_type_expr =
 		List.map (fun ((name,_,_),expr) ->
 			let pos = snd expr in
-			let field = (EField(with_type_expr,name), pos) in
+			let field = (efield(with_type_expr,name), pos) in
 			let fieldexpr = (EConst(Ident name),pos) in
 			let left_side = match ctx.com.platform with
 				| Cs -> field
@@ -478,177 +478,21 @@ let init_module_type ctx context_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> die "" __LOC__
 	in
-	let commit_import path mode p =
-		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
-		if Filename.basename p.pfile <> "import.hx" then ImportHandling.add_import_position ctx p path;
-	in
 	let check_path_display path p =
 		if DisplayPosition.display_position#is_in_file (ctx.com.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx path p
-	in
-	let init_import path mode =
-		check_path_display path p;
-		let rec loop acc = function
-			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
-			| rest -> List.rev acc, rest
 		in
-		let pack, rest = loop [] path in
-		(match rest with
-		| [] ->
-			(match mode with
-			| IAll ->
-				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
-			| _ ->
-				(match List.rev path with
-				(* p spans `import |` (to the display position), so we take the pmax here *)
-				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
-				| (_,p) :: _ -> typing_error "Module name must start with an uppercase letter" p))
-		| (tname,p2) :: rest ->
-			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
-			let p_type = punion p1 p2 in
-			let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
-			let types = md.m_types in
-			let no_private (t,_) = not (t_infos t).mt_private in
-			let error_private p = typing_error "Importing private declarations from a module is not allowed" p in
-			let chk_private t p = if ctx.m.curmod != (t_infos t).mt_module && (t_infos t).mt_private then error_private p in
-			let has_name name t = snd (t_infos t).mt_path = name in
-			let get_type tname =
-				let t = (try List.find (has_name tname) types with Not_found -> typing_error (StringError.string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p_type) in
-				chk_private t p_type;
-				t
-			in
-			let rebind t name p =
-				if not (name.[0] >= 'A' && name.[0] <= 'Z') then
-					typing_error "Type aliases must start with an uppercase letter" p;
-				let _, _, f = ctx.g.do_build_instance ctx t p_type in
-				(* create a temp private typedef, does not register it in module *)
-				let t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name) in
-				let t_type = f (extract_param_types (t_infos t).mt_params) in
-				let mt = TTypeDecl {(mk_typedef ctx.m.curmod t_path p p t_type) with
-					t_private = true;
-					t_params = (t_infos t).mt_params
-				} in
-				if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
-					DisplayEmitter.display_module_type ctx mt p;
-				mt
-			in
-			let add_static_init t name s =
-				let name = (match name with None -> s | Some (n,_) -> n) in
-				match resolve_typedef t with
-				| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
-					ignore(c.cl_build());
-					ignore(PMap.find s c.cl_statics);
-					ctx.m.module_globals <- PMap.add name (TClassDecl c,s,p) ctx.m.module_globals
-				| TEnumDecl e ->
-					ignore(PMap.find s e.e_constrs);
-					ctx.m.module_globals <- PMap.add name (TEnumDecl e,s,p) ctx.m.module_globals
-				| _ ->
-					raise Not_found
-			in
-			(match mode with
-			| INormal | IAsName _ ->
-				let name = (match mode with IAsName n -> Some n | _ -> None) in
-				(match rest with
-				| [] ->
-					(match name with
-					| None ->
-						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types;
-						Option.may (fun c ->
-							context_init#add (fun () ->
-								ignore(c.cl_build());
-								List.iter (fun cf ->
-									if has_class_field_flag cf CfPublic then
-										ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals
-								) c.cl_ordered_statics
-							);
-						) md.m_statics
-					| Some(newname,pname) ->
-						ctx.m.module_types <- (rebind (get_type tname) newname pname,p) :: ctx.m.module_types);
-				| [tsub,p2] ->
-					let pu = punion p1 p2 in
-					(try
-						let tsub = List.find (has_name tsub) types in
-						chk_private tsub pu;
-						ctx.m.module_types <- ((match name with None -> tsub | Some(n,pname) -> rebind tsub n pname),p) :: ctx.m.module_types
-					with Not_found ->
-						(* this might be a static property, wait later to check *)
-						let find_main_type_static () =
-							let tmain = get_type tname in
-							try
-								add_static_init tmain name tsub
-							with Not_found ->
-								(* TODO: mention module-level declarations in the error message? *)
-								display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
-						in
-						context_init#add (fun() ->
-							match md.m_statics with
-							| Some c ->
-								(try
-									ignore(c.cl_build());
-									let rec loop fl =
-										match fl with
-										| [] -> raise Not_found
-										| cf :: rest ->
-											if cf.cf_name = tsub then
-												if not (has_class_field_flag cf CfPublic) then
-													error_private p
-												else
-													let imported_name = match name with None -> tsub | Some (n,pname) -> n in
-													ctx.m.module_globals <- PMap.add imported_name (TClassDecl c,tsub,p) ctx.m.module_globals;
-											else
-												loop rest
-									in
-									loop c.cl_ordered_statics
-								with Not_found ->
-									find_main_type_static ())
-							| None ->
-								find_main_type_static ()
-						)
-					)
-				| (tsub,p2) :: (fname,p3) :: rest ->
-					(match rest with
-					| [] -> ()
-					| (n,p) :: _ -> typing_error ("Unexpected " ^ n) p);
-					let tsub = get_type tsub in
-					context_init#add (fun() ->
-						try
-							add_static_init tsub name fname
-						with Not_found ->
-							display_error ctx (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
-					);
-				)
-			| IAll ->
-				let t = (match rest with
-					| [] -> get_type tname
-					| [tsub,_] -> get_type tsub
-					| _ :: (n,p) :: _ -> typing_error ("Unexpected " ^ n) p
-				) in
-				context_init#add (fun() ->
-					match resolve_typedef t with
-					| TClassDecl c
-					| TAbstractDecl {a_impl = Some c} ->
-						ignore(c.cl_build());
-						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals) c.cl_statics
-					| TEnumDecl e ->
-						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
-					| _ ->
-						typing_error "No statics to import from this type" p
-				)
-			))
-	in
 	match decl with
 	| EImport (path,mode) ->
 		begin try
-			init_import path mode;
-			commit_import path mode p;
+			check_path_display path p;
+			ImportHandling.init_import ctx context_init path mode p;
+			ImportHandling.commit_import ctx path mode p;
 		with Error(err,p) ->
 			display_error ctx (Error.error_msg err) p
 		end
 	| EUsing path ->
 		check_path_display path p;
-		let types,filter_classes = handle_using ctx path p in
-		(* do the import first *)
-		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
-		context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
+		ImportHandling.init_using ctx context_init path p
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -962,11 +806,11 @@ let type_types_into_module ctx m tdecls p =
 		t = ctx.t;
 		m = {
 			curmod = m;
-			module_types = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
+			module_imports = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
-			module_imports = [];
+			import_statements = [];
 		};
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		bypass_accessor = 0;

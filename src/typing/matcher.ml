@@ -422,7 +422,7 @@ module Pattern = struct
 						) el in
 						PatConstructor(con_array (List.length patterns) (pos e),patterns)
 					| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
-						begin match TyperBase.get_abstract_froms a tl with
+						begin match TyperBase.get_abstract_froms ctx a tl with
 							| [t2] -> pattern (t :: seen) t2
 							| _ -> fail()
 						end

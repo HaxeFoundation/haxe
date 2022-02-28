@@ -200,6 +200,11 @@ let make_macro_api ctx p =
 			];
 		);
 		MacroApi.parse_string = parse_expr_string;
+		MacroApi.parse = (fun entry s ->
+			match ParserEntry.parse_string entry ctx.com.defines s null_pos typing_error false with
+			| ParseSuccess(r,_,_) -> r
+			| ParseError(_,(msg,p),_) -> Parser.error msg p
+		);
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
 		);
@@ -273,7 +278,7 @@ let make_macro_api ctx p =
 			List.map fst ctx.m.module_using;
 		);
 		MacroApi.get_local_imports = (fun() ->
-			ctx.m.module_imports;
+			ctx.m.import_statements;
 		);
 		MacroApi.get_local_vars = (fun () ->
 			ctx.locals;
@@ -386,6 +391,28 @@ let make_macro_api ctx p =
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
 		MacroApi.display_error = Typecore.display_error ctx;
+		MacroApi.with_imports = (fun imports usings f ->
+			let old_globals = ctx.m.module_globals in
+			let old_imports = ctx.m.module_imports in
+			let old_using = ctx.m.module_using in
+			let run () =
+				let context_init = new TypeloadFields.context_init in
+				List.iter (fun (path,mode) ->
+					ImportHandling.init_import ctx context_init path mode null_pos
+				) imports;
+				List.iter (fun path ->
+					ImportHandling.init_using ctx context_init path null_pos
+				) usings;
+				context_init#run;
+				f()
+			in
+			let restore () =
+				ctx.m.module_globals <- old_globals;
+				ctx.m.module_imports <- old_imports;
+				ctx.m.module_using <- old_using;
+			in
+			Std.finally restore run ()
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -515,11 +542,11 @@ let load_macro_module ctx cpath display p =
 	api.MacroApi.current_macro_module <- (fun() -> mloaded);
 	mctx.m <- {
 		curmod = mloaded;
-		module_types = [];
+		module_imports = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
-		module_imports = [];
+		import_statements = [];
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
@@ -558,11 +585,11 @@ let load_macro' ctx display cpath f p =
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
-			module_types = [];
+			module_imports = [];
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
-			module_imports = [];
+			import_statements = [];
 		};
 		t();
 		meth
@@ -790,7 +817,7 @@ let call_init_macro ctx e =
 	| ECall (e,args) ->
 		let rec loop e =
 			match fst e with
-			| EField (e,f) -> f :: loop e
+			| EField (e,f,_) -> f :: loop e
 			| EConst (Ident i) -> [i]
 			| _ -> typing_error "Invalid macro call" p
 		in

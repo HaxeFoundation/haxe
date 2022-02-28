@@ -60,11 +60,11 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_types : (module_type * pos) list;
+	mutable module_imports : (module_type * pos) list;
 	mutable module_using : (tclass * pos) list;
 	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
 	mutable wildcard_packages : (string list * pos) list;
-	mutable module_imports : import list;
+	mutable import_statements : import list;
 }
 
 type typer_globals = {
@@ -189,6 +189,17 @@ type static_extension_access = {
 	se_this   : texpr;
 	(* The field access information. *)
 	se_access : field_access;
+}
+
+type dot_path_part_case =
+	| PUppercase
+	| PLowercase
+
+type dot_path_part = {
+	name : string;
+	case : dot_path_part_case;
+	kind : efield_kind;
+	pos : pos
 }
 
 exception Forbid_package of (string * path * pos) * pos list * string
@@ -473,7 +484,7 @@ let rec can_access ctx c cf stat =
 	in
 	let rec expr_path acc e =
 		match fst e with
-		| EField (e,f) -> expr_path (f :: acc) e
+		| EField (e,f,_) -> expr_path (f :: acc) e
 		| EConst (Ident n) -> n :: acc
 		| _ -> []
 	in

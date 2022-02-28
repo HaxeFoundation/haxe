@@ -19,6 +19,7 @@ type 'value compiler_api = {
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
+	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	store_typed_expr : Type.texpr -> Ast.expr;
@@ -50,11 +51,13 @@ type 'value compiler_api = {
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
 	display_error : (string -> pos -> unit);
+	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 }
 
 
 type enum_type =
 	| IExpr
+	| IEFieldKind
 	| IBinop
 	| IUnop
 	| IConst
@@ -150,53 +153,18 @@ module type InterpApi = sig
 	val get_api_call_pos : unit -> pos
 end
 
-let enum_name = function
-	| IExpr -> "ExprDef"
-	| IBinop -> "Binop"
-	| IUnop -> "Unop"
-	| IConst -> "Constant"
-	| ITParam -> "TypeParam"
-	| ICType -> "ComplexType"
-	| IField -> "FieldType"
-	| IType -> "Type"
-	| IFieldKind -> "FieldKind"
-	| IMethodKind -> "MethodKind"
-	| IVarAccess -> "VarAccess"
-	| IAccess -> "Access"
-	| IClassKind -> "ClassKind"
-	| ITypedExpr -> "TypedExprDef"
-	| ITConstant -> "TConstant"
-	| IModuleType -> "ModuleType"
-	| IFieldAccess -> "FieldAccess"
-	| IAnonStatus -> "AnonStatus"
-	| IImportMode -> "ImportMode"
-	| IQuoteStatus -> "QuoteStatus"
-	| IDisplayKind -> "DisplayKind"
-	| IMessage -> "Message"
-	| IFunctionKind -> "FunctionKind"
-	| IStringLiteralKind -> "StringLiteralKind"
-
-let all_enums =
-	let last = IImportMode in
-	let rec loop i =
-		let e : enum_type = Obj.magic i in
-		if e = last then [e] else e :: loop (i + 1)
-	in
-	loop 0
-
-
 let s_type_path = Globals.s_type_path
 
 (* convert float value to haxe expression, handling inf/-inf/nan *)
 let haxe_float f p =
 	let std = (Ast.EConst (Ast.Ident "std"), p) in
-	let math = (Ast.EField (std, "Math"), p) in
+	let math = (efield (std, "Math"), p) in
 	if (f = infinity) then
-		(Ast.EField (math, "POSITIVE_INFINITY"), p)
+		(efield (math, "POSITIVE_INFINITY"), p)
 	else if (f = neg_infinity) then
-		(Ast.EField (math, "NEGATIVE_INFINITY"), p)
+		(efield (math, "NEGATIVE_INFINITY"), p)
 	else if (f <> f) then
-		(Ast.EField (math, "NaN"), p)
+		(efield (math, "NaN"), p)
 	else
 		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
@@ -414,6 +382,13 @@ and encode_message msg =
 	in
 	encode_enum ~pos:None IMessage tag pl
 
+and encode_efield_kind efk =
+	let i = match efk with
+		| EFNormal -> 0
+		| EFSafe -> 1
+	in
+	encode_enum IEFieldKind i []
+
 and encode_expr e =
 	let rec loop (e,p) =
 		let tag, pl = match e with
@@ -423,8 +398,8 @@ and encode_expr e =
 				1, [loop e1;loop e2]
 			| EBinop (op,e1,e2) ->
 				2, [encode_binop op;loop e1;loop e2]
-			| EField (e,f) ->
-				3, [loop e;encode_string f]
+			| EField (e,f,efk) ->
+				3, [loop e;encode_string f;encode_efield_kind efk]
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
@@ -769,8 +744,15 @@ and decode_expr v =
 			EArray (loop e1, loop e2)
 		| 2, [op;e1;e2] ->
 			EBinop (decode_op op, loop e1, loop e2)
-		| 3, [e;f] ->
-			EField (loop e, decode_string f)
+		| 3, [e;f;efk] ->
+			let efk = if efk == vnull then
+				EFNormal
+			else match decode_enum efk with
+				| 0,[] -> EFNormal
+				| 1,[] -> EFSafe
+				| _ -> raise Invalid_expr
+			in
+			EField (loop e, decode_string f, efk)
 		| 4, [e] ->
 			EParenthesis (loop e)
 		| 5, [a] ->
@@ -2050,8 +2032,14 @@ let macro_api ccom get_api =
 			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
 			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
 			| _ -> Globals.die "" __LOC__
-		)
+		);
+		"with_imports", vfun3(fun imports usings f ->
+			let imports = List.map decode_string (decode_array imports) in
+			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let usings = List.map decode_string (decode_array usings) in
+			let usings = List.map ((get_api()).parse (fun s -> Grammar.parse_using' s Globals.null_pos)) usings in
+			let f = prepare_callback f 0 in
+			(get_api()).with_imports imports usings (fun () -> f [])
+		);
 	]
-
-
 end
