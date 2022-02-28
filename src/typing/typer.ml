@@ -75,7 +75,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					) c.cl_ordered_statics in
 					false,a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					begin match get_abstract_froms a pl with
+					begin match get_abstract_froms ctx a pl with
 						| [t2] ->
 							if (List.exists (shallow_eq t) stack) then raise Exit;
 							loop (t :: stack) t2
@@ -783,7 +783,7 @@ and type_object_decl ctx fl with_type p =
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
-				let froms = get_abstract_froms a pl
+				let froms = get_abstract_froms ctx a pl
 				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
 				(match List.fold_left fold [] froms with
 				| [t] -> t
@@ -1255,7 +1255,7 @@ and type_local_function ctx kind f with_type p =
 				(* unify for top-down inference unless we are expecting Void *)
 				maybe_unify_ret tr
 			| TAbstract(a,tl) ->
-				begin match get_abstract_froms a tl with
+				begin match get_abstract_froms ctx a tl with
 					| [t2] ->
 						if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
 					| l ->
@@ -1351,7 +1351,7 @@ and type_array_decl ctx el with_type p =
 							| Some t -> t :: acc
 						)
 						[]
-						(get_abstract_froms a pl)
+						(get_abstract_froms ctx a pl)
 				in
 				(match types with
 				| [t] -> Some t
