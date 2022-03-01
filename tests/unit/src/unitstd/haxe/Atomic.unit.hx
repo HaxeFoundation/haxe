@@ -28,4 +28,6 @@ a.load() == 0;
 
 a.exchange(10) == 0;
 a.load() == 10;
+#else
+0 == 0; // prevent complaints about "no assertions"
 #end
