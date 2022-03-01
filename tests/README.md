@@ -9,7 +9,7 @@ We have a number of test suites, which are placed in their own folders in this d
 It is possible to run it in local machines too:
 
  1. Change to this directory.
- 2. Define the test target by `export TEST=$TARGET` (or `set "TEST=$TARGET"` on Windows), where `$TARGET` should be a comma-seperated list of targets, e.g. `neko,macro`. Possible targets are `macro`, `neko`, `js`, `lua`, `php`, `cpp`, `cppia`, `flash9`, `java`, `jvm`, `cs`, `python`, and `hl`.  However, `flash9` is not likely to work on local machines (TODO).
+ 2. Define the test target by `export TEST=$TARGET` (or `set "TEST=$TARGET"` on Windows), where `$TARGET` should be a comma-seperated list of targets, e.g. `neko,macro`. Possible targets are `macro`, `neko`, `js`, `lua`, `php`, `cpp`, `cppia`, `flash9`, `java`, `jvm`, `cs`, `python`, and `hl`.
  3. Run the script: `haxe RunCi.hxml`.
 
 Note that the script will try to look for test dependencies and install them if they are not found. Look at the `getXXXDependencies` functions for the details.

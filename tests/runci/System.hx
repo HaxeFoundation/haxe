@@ -9,7 +9,7 @@ using StringTools;
 class CommandFailure extends haxe.Exception {
 	public final exitCode:Int;
 	public function new(exitCode:Int = 1) {
-		super("Command failed to run: " + Std.string(exitCode));
+		super("Command failed: " + Std.string(exitCode));
 		this.exitCode = exitCode;
 	}
 }

@@ -32,7 +32,7 @@ devcontainer:
         # Clean up
         && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/library-scripts/
 
-    # Setting the ENTRYPOINT to docker-init.sh will configure non-root access 
+    # Setting the ENTRYPOINT to docker-init.sh will configure non-root access
     # to the Docker socket. The script will also execute CMD as needed.
     ENTRYPOINT [ "/usr/local/share/docker-init.sh" ]
     CMD [ "sleep", "infinity" ]
@@ -279,6 +279,13 @@ test-environment-cpp:
 
     SAVE IMAGE --cache-hint
 
+test-environment-flash:
+    # apache flex requires java
+    FROM +test-environment-java
+    # requirements for running flash player
+    DO +INSTALL_PACKAGES --PACKAGES="libglib2.0-0 libfreetype6 xvfb libxcursor1 libnss3 libgtk2.0-0"
+    SAVE IMAGE --cache-hint
+
 RUN_CI:
     COMMAND
     COPY tests tests
@@ -354,6 +361,12 @@ test-lua:
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=lua
 
+test-flash:
+    FROM +test-environment-flash
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
+    DO +RUN_CI --TEST=flash9
+
 test-all:
     ARG TARGETPLATFORM
 
@@ -367,6 +380,7 @@ test-all:
     BUILD +test-cpp
     BUILD +test-lua
     BUILD +test-js
+    BUILD +test-flash
 
     IF [ "$TARGETPLATFORM" = "linux/amd64" ]
         BUILD +test-hl # FIXME: hl can't compile on arm64 (JIT issue?)
