@@ -1,14 +1,12 @@
 package haxe;
 
-import cpp.AtomicInt;
+#if cppia
+#error "Cppia does not support atomic operations yet."
+#end
 
 @:native("volatile int")
 @:scalar
-private abstract VolatileInt(Int) {
-	@:to function toInt():Int {
-		return cast this;
-	}
-}
+private extern abstract VolatileInt(Int) {}
 
 @:coreApi
 @:using(haxe.Atomic)

@@ -3,4 +3,4 @@ compile-each.hxml
 -hl bin/unit.hl
 #-D interp
 -D hl-check
--D hl-ver=1.11.0
+-D hl-ver=1.12.0

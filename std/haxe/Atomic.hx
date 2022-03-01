@@ -1,5 +1,12 @@
 package haxe;
 
+#if !target.atomics
+#error "This target does not support atomic operations."
+#endif
+
+// only Atomic<Int> can be implemented in a portable way at the moment
+// the type parameter is there so that more types can be implemented without breaking anything (hopefully)
+
 /**
 	Atomic operations.
 	(js) The Atomics and SharedArrayBuffer objects need to be available. Errors will be thrown if this is not the case.
@@ -7,7 +14,7 @@ package haxe;
 @:coreType
 @:coreApi
 @:using(haxe.Atomic)
-abstract Atomic<T:Int /* only Atomic<Int> can be implemented in a portable way at the moment */> {
+abstract Atomic<T:Int> {
 	public extern function new(value:T):Void;
 
 	/**
