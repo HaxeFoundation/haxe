@@ -99,6 +99,7 @@ class ImportAll {
 					case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
 					case "neko.vm.Ui" | "sys.db.Sqlite" | "sys.db.Mysql" if ( Context.defined("interp") ): continue;
 					case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet" if ( Context.defined("cs") ): continue;
+					case "haxe.Atomic" if(!Context.defined("target.atomics")): continue;
 					}
 					Context.getModule(cl);
 				} else if( sys.FileSystem.isDirectory(p + "/" + file) )

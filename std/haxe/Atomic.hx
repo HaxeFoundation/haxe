@@ -1,8 +1,8 @@
 package haxe;
 
-#if !target.atomics
+#if (!target.atomics)
 #error "This target does not support atomic operations."
-#endif
+#end
 
 // only Atomic<Int> can be implemented in a portable way at the moment
 // the type parameter is there so that more types can be implemented without breaking anything (hopefully)

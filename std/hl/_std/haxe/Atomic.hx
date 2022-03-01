@@ -1,6 +1,6 @@
 package haxe;
 
-#if (hl_ver < version("1.12.0"))
+#if (hl_ver < version("1.12.0") && !doc_gen)
 #error "Atomic operations require HL 1.12+"
 #end
 
