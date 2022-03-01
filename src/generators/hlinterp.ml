@@ -2551,12 +2551,31 @@ let check code macros =
 				reg r (rtype r2);
 				reg off HI32;
 			| ONop _ ->
-				()
-			| (OAtomicAdd (_, _, _)|OAtomicSub (_, _, _)|OAtomicAnd (_, _, _)|
-OAtomicOr (_, _, _)|OAtomicXor (_, _, _)|OAtomicCompareExchange (_, _, _, _)|
-OAtomicExchange (_, _, _)|OAtomicLoad (_, _)|
-OAtomicStore (_, _, _)) ->
-				failwith "Atomics not yet supported for hl interp"
+				();
+			| OAtomicAdd (r, a, b)
+			| OAtomicSub (r, a, b)
+			| OAtomicAnd (r, a, b)
+			| OAtomicOr (r, a, b)
+			| OAtomicXor (r, a, b)  ->
+				numeric r;
+				reg a (HRef (rtype r));
+				reg b (rtype r);
+			| OAtomicCompareExchange (r, a, expected, replacement) ->
+				numeric r;
+				reg a (HRef (rtype r));
+				reg expected (rtype r);
+				reg replacement (rtype r);
+			| OAtomicExchange (r, a, b) ->
+				numeric r;
+				reg a (HRef (rtype r));
+				reg b (rtype r);
+			| OAtomicLoad (r, a) ->
+				numeric r;
+				reg a (HRef (rtype r));
+			| OAtomicStore (r, a, b) ->
+				numeric r;
+				reg a (HRef (rtype r));
+				reg b (rtype r)
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

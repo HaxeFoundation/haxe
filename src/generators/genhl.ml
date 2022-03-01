@@ -2057,45 +2057,60 @@ and eval_expr ctx e =
 		| "$atomicAdd", [a; b] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let b = eval_to ctx b (HI32) in
+			free ctx a;
 			op ctx (OAtomicAdd (r, a, b));
 			r
 		| "$atomicSub", [a; b] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let b = eval_to ctx b (HI32) in
+			free ctx a;
 			op ctx (OAtomicSub (r, a, b));
 			r
 		| "$atomicAnd", [a; b] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let b = eval_to ctx b (HI32) in
+			free ctx a;
 			op ctx (OAtomicAnd (r, a, b));
 			r
 		| "$atomicOr", [a; b] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let b = eval_to ctx b (HI32) in
+			free ctx a;
 			op ctx (OAtomicOr(r, a, b));
 			r
 		| "$atomicXor", [a; b] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let b = eval_to ctx b (HI32) in
+			free ctx a;
 			op ctx (OAtomicXor (r, a, b));
 			r
 		| "$atomicCompareExchange", [a; expected; replacement;] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let expected = eval_to ctx expected (HI32) in
+			hold ctx expected;
 			let replacement = eval_to ctx replacement (HI32) in
-			Printf.printf "%i %i %i %i" r a expected replacement;
+			free ctx a;
+			free ctx expected;
 			op ctx (OAtomicCompareExchange (r, a, expected, replacement));
 			r
 		| "$atomicExchange", [a; value] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let value = eval_to ctx value (HI32) in
+			free ctx a;
 			op ctx (OAtomicExchange (r, a, value));
 			r
 		| "$atomicLoad", [a] ->
@@ -2106,7 +2121,9 @@ and eval_expr ctx e =
 		| "$atomicStore", [a; value] ->
 			let r = alloc_tmp ctx HI32 in
 			let a = eval_to ctx a (HRef(HI32)) in
+			hold ctx a;
 			let value = eval_to ctx value (HI32) in
+			free ctx a;
 			op ctx (OAtomicStore (r, a, value));
 			r
 		| _ ->
