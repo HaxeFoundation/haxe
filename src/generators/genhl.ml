@@ -2095,35 +2095,39 @@ and eval_expr ctx e =
 			op ctx (OAtomicXor (r, a, b));
 			r
 		| "$atomicCompareExchange", [a; expected; replacement;] ->
-			let r = alloc_tmp ctx HI32 in
-			let a = eval_to ctx a (HRef(HI32)) in
+			let a = eval_expr ctx a in
 			hold ctx a;
-			let expected = eval_to ctx expected (HI32) in
+			let t = (match rtype ctx a with HRef t -> t | _ -> invalid()) in
+			let expected = eval_to ctx expected (t) in
 			hold ctx expected;
-			let replacement = eval_to ctx replacement (HI32) in
+			let replacement = eval_to ctx replacement (t) in
 			free ctx a;
 			free ctx expected;
+			let r = alloc_tmp ctx t in
 			op ctx (OAtomicCompareExchange (r, a, expected, replacement));
 			r
 		| "$atomicExchange", [a; value] ->
-			let r = alloc_tmp ctx HI32 in
-			let a = eval_to ctx a (HRef(HI32)) in
+			let a = eval_expr ctx a in
 			hold ctx a;
-			let value = eval_to ctx value (HI32) in
+			let t = (match rtype ctx a with HRef t -> t | _ -> invalid()) in
+			let value = eval_to ctx value t in
 			free ctx a;
+			let r = alloc_tmp ctx t in
 			op ctx (OAtomicExchange (r, a, value));
 			r
 		| "$atomicLoad", [a] ->
-			let r = alloc_tmp ctx HI32 in
-			let a = eval_to ctx a (HRef(HI32)) in
+			let a = eval_expr ctx a in
+			let t = (match rtype ctx a with HRef t -> t | _ -> invalid()) in
+			let r = alloc_tmp ctx t in
 			op ctx (OAtomicLoad (r, a));
 			r
 		| "$atomicStore", [a; value] ->
-			let r = alloc_tmp ctx HI32 in
-			let a = eval_to ctx a (HRef(HI32)) in
+			let a = eval_expr ctx a in
 			hold ctx a;
-			let value = eval_to ctx value (HI32) in
+			let t = (match rtype ctx a with HRef t -> t | _ -> invalid()) in
+			let value = eval_to ctx value t in
 			free ctx a;
+			let r = alloc_tmp ctx t in
 			op ctx (OAtomicStore (r, a, value));
 			r
 		| _ ->

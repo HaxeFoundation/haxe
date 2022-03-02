@@ -793,6 +793,17 @@ let generate_function ctx f =
 			| ta, tb ->
 				failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb ^ " (hlc)")
 		in
+		let atomic_suffix t = 
+			match t with
+			| HBool
+			| HF32
+			| HF64 -> failwith("Atomic operations on bool/f32/f64 are not supported.")
+			| HUI8 -> "8"
+			| HUI16 -> "16"
+			| HI32 -> "32"
+			| HI64 -> "64"
+			| _ -> "_ptr"
+		in
 		match op with
 		| OMov (r,v) ->
 			if rtype r <> HVoid then sexpr "%s = %s" (reg r) (rcast v (rtype r))
@@ -1088,23 +1099,23 @@ let generate_function ctx f =
 		| ONop _ ->
 			()
 		| OAtomicAdd (r, a, b) ->
-			sexpr "%s = hl_atomic_add(%s, %s)" (reg r) (reg a) (reg b)
+			sexpr "%s = hl_atomic_add%s(%s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg b)
 		| OAtomicSub (r, a, b) ->
-			sexpr "%s = hl_atomic_sub(%s, %s)" (reg r) (reg a) (reg b)
+			sexpr "%s = hl_atomic_sub%s(%s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg b)
 		| OAtomicAnd (r, a, b) ->
-			sexpr "%s = hl_atomic_and(%s, %s)" (reg r) (reg a) (reg b)
+			sexpr "%s = hl_atomic_and%s(%s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg b)
 		| OAtomicOr (r, a, b) ->
-			sexpr "%s = hl_atomic_or(%s, %s)" (reg r) (reg a) (reg b)
+			sexpr "%s = hl_atomic_or%s(%s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg b)
 		| OAtomicXor (r, a, b) ->
-			sexpr "%s = hl_atomic_xor(%s, %s)" (reg r) (reg a) (reg b)
+			sexpr "%s = hl_atomic_xor%s(%s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg b)
 		| OAtomicCompareExchange (r, a, expected, replacement) ->
-			sexpr "%s = hl_atomic_compare_exchange(%s, %s, %s)" (reg r) (reg a) (reg expected) (reg replacement)
+			sexpr "%s = hl_atomic_compare_exchange%s(%s, %s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg expected) (reg replacement)
 		| OAtomicExchange (r, a, b) ->
-			sexpr "%s = hl_atomic_exchange(%s, %s)" (reg r) (reg a) (reg b)
+			sexpr "%s = hl_atomic_exchange%s(%s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg b)
 		| OAtomicLoad (r, a) ->
-			sexpr "%s = hl_atomic_load(%s)" (reg r) (reg a)
+			sexpr "%s = hl_atomic_load%s(%s)" (reg r) (atomic_suffix (rtype r)) (reg a)
 		| OAtomicStore (r, a, b) ->
-			sexpr "%s = hl_atomic_store(%s, %s)" (reg r) (reg a) (reg b)
+			sexpr "%s = hl_atomic_store%s(%s, %s)" (reg r) (atomic_suffix (rtype r)) (reg a) (reg b)
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();

@@ -2284,6 +2284,9 @@ let check code macros =
 				is_obj o;
 				HVoid
 		in
+		let is_atomic r =
+			(match rtype r with HBool | HF32 | HF64 -> error (reg_inf r ^ " should a an integer or a pointer") | _ -> ());
+		in
 		list_iteri reg targs;
 		Array.iteri (fun i op ->
 			pos := i;
@@ -2557,23 +2560,23 @@ let check code macros =
 			| OAtomicAnd (r, a, b)
 			| OAtomicOr (r, a, b)
 			| OAtomicXor (r, a, b)  ->
-				numeric r;
+				int r;
 				reg a (HRef (rtype r));
 				reg b (rtype r);
 			| OAtomicCompareExchange (r, a, expected, replacement) ->
-				numeric r;
+				is_atomic r;
 				reg a (HRef (rtype r));
 				reg expected (rtype r);
 				reg replacement (rtype r);
 			| OAtomicExchange (r, a, b) ->
-				numeric r;
+				is_atomic r;
 				reg a (HRef (rtype r));
 				reg b (rtype r);
 			| OAtomicLoad (r, a) ->
-				numeric r;
+				is_atomic r;
 				reg a (HRef (rtype r));
 			| OAtomicStore (r, a, b) ->
-				numeric r;
+				is_atomic r;
 				reg a (HRef (rtype r));
 				reg b (rtype r)
 		) f.code
