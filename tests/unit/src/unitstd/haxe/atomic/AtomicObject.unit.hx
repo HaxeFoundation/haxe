@@ -1,4 +1,4 @@
-#if (!js && !cpp)
+#if (target.atomics && (!js && !cpp))
 var a = new haxe.atomic.AtomicObject("Hey World!");
 
 a.load() == "Hey World!";

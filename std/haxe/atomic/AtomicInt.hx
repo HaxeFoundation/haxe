@@ -57,7 +57,7 @@ abstract AtomicInt {
 	/**
 		Atomically fetches the value of `a`.
 	**/
-	public function load(a:Atomic<Int>):Int;
+	public function load():Int;
 
 	/**
 		Atomically stores `value` into `a`.
