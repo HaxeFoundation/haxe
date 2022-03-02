@@ -24,7 +24,6 @@ class Lua {
 				attemptCommand("brew", ["install", "pcre"]);
 				runCommand("pip3", ["install", "hererocks"]);
 				runCommand("brew", ["install", "openssl"]);
-				runCommand("brew", ["link", "--force", "openssl"]);
 			}
 		}
 	}
@@ -32,6 +31,9 @@ class Lua {
 	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
             final args = ["install", lib, version];
+			if (systemName == "Mac") {
+				args.push('OPENSSL_DIR=/usr/local/opt/openssl@3');
+			}
             if (server != null){
                 final server_arg = '--server=$server';
                 args.push(server_arg);
