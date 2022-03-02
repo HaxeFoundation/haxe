@@ -23,6 +23,8 @@ class Lua {
 
 				attemptCommand("brew", ["install", "pcre"]);
 				runCommand("pip3", ["install", "hererocks"]);
+				runCommand("brew", ["install", "openssl"]);
+				runCommand("brew", ["link", "--force", "openssl"]);
 			}
 		}
 	}
