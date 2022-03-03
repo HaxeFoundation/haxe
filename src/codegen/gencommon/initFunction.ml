@@ -78,9 +78,9 @@ let handle_class com cl =
 	let init = List.fold_left (fun acc cf ->
 		match cf.cf_kind with
 			| Var v when Meta.has Meta.ReadOnly cf.cf_meta ->
-					if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then com.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+					if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then com.warning WGencommon "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 					(match cf.cf_expr with
-					| None -> com.warning "Uninitialized readonly variable" cf.cf_pos
+					| None -> com.warning WGencommon "Uninitialized readonly variable" cf.cf_pos
 					| Some e -> ensure_simple_expr com e);
 					acc
 			| Var _
@@ -115,7 +115,7 @@ let handle_class com cl =
 	let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->
 		match cf.cf_kind with
 		| Var v when Meta.has Meta.ReadOnly cf.cf_meta ->
-				if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then com.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+				if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then com.warning WGencommon "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 				Option.may (ensure_simple_expr com) cf.cf_expr;
 				(acc_vars,acc_funs)
 		| Var _

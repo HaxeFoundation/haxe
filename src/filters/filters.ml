@@ -153,8 +153,8 @@ let check_local_vars_init com e =
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
 			if not init then begin
 				if IntMap.mem v.v_id !outside_vars then
-					if v.v_name = "this" then com.warning "this might be used before assigning a value to it" e.epos
-					else com.warning ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+					if v.v_name = "this" then com.warning WVarInit "this might be used before assigning a value to it" e.epos
+					else com.warning WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
 				else
 					if v.v_name = "this" then typing_error "Missing this = value" e.epos
 					else typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
@@ -707,7 +707,7 @@ let commit_features ctx t =
 let check_reserved_type_paths ctx t =
 	let check path pos =
 		if List.mem path ctx.com.config.pf_reserved_type_paths then
-			ctx.com.warning ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+			ctx.com.warning WReservedTypePath ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
 	in
 	match t with
 	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos

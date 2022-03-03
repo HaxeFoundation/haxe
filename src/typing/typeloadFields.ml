@@ -126,7 +126,7 @@ let dump_field_context fctx =
 let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
 		| (Meta.Native,[],_) ->
-			ctx.com.warning "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
+			ctx.com.warning WDeprecated "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
 			true
 		| _ -> false
 	with | Not_found -> Meta.has Meta.NativeJni meta
@@ -937,7 +937,7 @@ module TypeBinding = struct
 			begin match ctx.com.platform with
 				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
-						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						ctx.com.warning WDeprecated "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
@@ -1403,7 +1403,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			delay ctx PTypeField (fun () -> args#verify_extern);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
-			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning WExternInit "Extern non-inline function may not have an expression" p;
 		end;
 	end;
 	cf

@@ -502,8 +502,6 @@ let init_module_type ctx context_init (decl,p) =
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
 				add_class_flag c CFinal;
-				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-					ctx.com.warning "`@:final class` is deprecated in favor of `final class`" p; *)
 			end
 		) d.d_meta;
 		let prev_build_count = ref (!build_count - 1) in

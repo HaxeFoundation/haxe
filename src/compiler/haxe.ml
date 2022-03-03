@@ -391,7 +391,7 @@ let setup_common_context ctx com =
 	Common.raw_define com "true";
 	Common.define_value com Define.Dce "std";
 	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
-	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
+	com.warning <- (fun w msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
 	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
 		(match msg with
@@ -446,9 +446,9 @@ let process_display_configuration ctx =
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
 			if com.display.dms_error_policy = EPCollect then
-				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
+				(fun w s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
 			else
-				(fun msg p -> message ctx (CMWarning(msg,p)));
+				(fun w msg p -> message ctx (CMWarning(msg,p)));
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;

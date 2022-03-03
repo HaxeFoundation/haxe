@@ -298,8 +298,8 @@ let add_local ctx k n t p =
 			let v' = PMap.find n ctx.locals in
 			(* ignore std lib *)
 			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
-				ctx.com.warning "This variable shadows a previously declared variable" p;
-				ctx.com.warning (compl_msg "Previous variable was here") v'.v_pos
+				ctx.com.warning WVarShadow "This variable shadows a previously declared variable" p;
+				ctx.com.warning WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 			end
 		with Not_found ->
 			()

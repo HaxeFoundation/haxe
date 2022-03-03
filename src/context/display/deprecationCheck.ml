@@ -13,7 +13,7 @@ let warn_deprecation com s p_usage =
 		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
 		match com.display.dms_kind with
 		| DMDiagnostics _ -> ()
-		| _ -> com.warning s p_usage;
+		| _ -> com.warning WDeprecated s p_usage;
 	end
 
 let print_deprecation_message com meta s p_usage =

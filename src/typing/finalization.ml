@@ -113,7 +113,7 @@ let sort_types com modules =
 		match state p with
 		| Done -> ()
 		| Generating ->
-			com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
+			com.warning WStaticInitOrder ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with

@@ -23,6 +23,7 @@ open Type
 open Globals
 open Define
 open NativeLibraries
+open Warning
 
 type package_rule =
 	| Forbidden
@@ -307,7 +308,7 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
-	mutable warning : string -> pos -> unit;
+	mutable warning : warning -> string -> pos -> unit;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)

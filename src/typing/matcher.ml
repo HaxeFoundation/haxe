@@ -252,7 +252,7 @@ module Pattern = struct
 								| _ -> ""
 							in
 							let fields = List.map (fun (el) -> tpath ^ el) l in
-							pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
+							pctx.ctx.com.warning WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
 					end;
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
@@ -319,7 +319,7 @@ module Pattern = struct
 							()
 							(* if toplevel then
 								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
-						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
+						| l -> pctx.ctx.com.warning WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
 					let v = add_local false s p in
 					PatVariable v
@@ -933,8 +933,8 @@ module Useless = struct
 	let check_case com p (case,bindings,patterns) =
 		let p = List.map (fun (_,_,patterns) -> patterns) p in
 		match u' p (copy p) (copy p) patterns [] [] with
-			| False -> com.warning "This case is unused" case.case_pos
-			| Pos p -> com.warning "This pattern is unused" p
+			| False -> com.warning WMatcher "This case is unused" case.case_pos
+			| Pos p -> com.warning WMatcher "This pattern is unused" p
 			| True -> ()
 
 	let check com cases =

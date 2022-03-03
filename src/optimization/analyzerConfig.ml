@@ -99,12 +99,12 @@ let update_config_from_meta com config meta =
 						| "fusion_debug" -> { config with fusion_debug = true }
 						| "as_var" -> config
 						| _ ->
-							com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+							com.warning WMatcher (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 							config
 					end
 				| _ ->
 					let s = Ast.Printer.s_expr e in
-					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+					com.warning WMatcher (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el
 		| (Meta.HasUntyped,_,_) ->
