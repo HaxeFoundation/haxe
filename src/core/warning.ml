@@ -1,3 +1,6 @@
+open Globals
+open Error
+
 type warning =
 	(* general *)
 	| WInternal
@@ -56,29 +59,22 @@ let warning_id = function
 	| WClosureCompare -> 106
 	| WReservedTypePath -> 107
 
-let parse_options s =
-	let lexbuf = Sedlexing.Utf8.from_string s in
-	let fail msg =
-		raise (Failure msg)
+let parse_options s ps lexbuf =
+	let fail msg p =
+		Error.typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
 	in
-	let id () = match Lexer.token lexbuf with
+	let parse_range () = match Lexer.token lexbuf with
 		| Const (Int(i,_)),_ ->
 			WRExact (int_of_string i)
 		| IntInterval i1,_ ->
 			begin match Lexer.token lexbuf with
 			| Const (Int(i2,_)),_ ->
 				WRRange(int_of_string i1,int_of_string i2)
-			| _ ->
-				fail "Expected number"
+			| (_,p) ->
+				fail "Expected number" p
 			end
-		| _ ->
-			fail "Expected number"
-	in
-	let parse_range () =
-		try
-			id()
-		with Failure msg ->
-			fail msg
+		| (_,p) ->
+			fail "Expected number" p
 	in
 	let add acc mode range =
 		{ wo_range = range; wo_mode = mode } :: acc
@@ -90,17 +86,27 @@ let parse_options s =
 			next (add acc WMDisable (parse_range()))
 		| Eof,_ ->
 			List.rev acc
-		| _ ->
-			fail "Expected + or -"
+		| (_,p) ->
+			fail "Expected + or -" p
 	in
 	next []
+
+let parse_options s ps =
+	let restore = Lexer.reinit ps.pfile in
+	Std.finally (fun () ->
+		restore()
+	) (fun () ->
+		let lexbuf = Sedlexing.Utf8.from_string s in
+		parse_options s ps lexbuf
+	) ()
 
 let from_meta ml =
 	let parse_arg e = match fst e with
 		| Ast.EConst (String(s,_)) ->
-			parse_options s
+			let p = snd e in
+			parse_options s {p with pmin = p.pmin + 1; pmax = p.pmax - 1} (* pmin is on the quote *)
 		| _ ->
-			raise (Failure "String expected") (* this should probably be a warning, lol... *)
+			Error.typing_error "String expected" (snd e)
 	in
 	let rec loop acc ml = match ml with
 		| (Meta.HaxeWarning,args,_) :: ml ->

@@ -975,7 +975,8 @@ try
 		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
 		("Compilation",["-w"],[], Arg.String (fun s ->
-			let l = Warning.parse_options s in
+			let p = { pfile = "-w " ^ s; pmin = 0; pmax = 0 } in
+			let l = Warning.parse_options s p in
 			com.warning_options <- l :: com.warning_options
 		),"<warning list>","enable or disable specific warnings");
 	] in

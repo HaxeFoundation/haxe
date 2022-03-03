@@ -153,6 +153,15 @@ let init file =
 let save() =
 	!cur
 
+let reinit file =
+	let old_file = try Some (Hashtbl.find all_files file) with Not_found -> None in
+	let old_cur = !cur in
+	init file;
+	(fun () ->
+		cur := old_cur;
+		Option.may (Hashtbl.replace all_files file) old_file;
+	)
+
 let restore c =
 	cur := c
 
