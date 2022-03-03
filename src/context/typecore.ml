@@ -234,7 +234,7 @@ let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy
 
 let warning ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning w ~options msg p
+	ctx.com.warning w options msg p
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 

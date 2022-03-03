@@ -391,7 +391,7 @@ let setup_common_context ctx com =
 	Common.raw_define com "true";
 	Common.define_value com Define.Dce "std";
 	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
-	com.warning <- (fun w ?(options=[]) msg p ->
+	com.warning <- (fun w options msg p ->
 		match Warning.get_mode w (com.warning_options @ options) with
 		| WMEnable ->
 			message ctx (CMWarning(msg,p))
@@ -452,7 +452,7 @@ let process_display_configuration ctx =
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
 			if com.display.dms_error_policy = EPCollect then
-				(fun w ?(options=[]) s p ->
+				(fun w options s p ->
 					match Warning.get_mode w (com.warning_options @ options) with
 					| WMEnable ->
 						add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning
@@ -460,7 +460,7 @@ let process_display_configuration ctx =
 						()
 				)
 			else
-				(fun w ?(options=[]) msg p ->
+				(fun w options msg p ->
 					match Warning.get_mode w (com.warning_options @ options) with
 					| WMEnable ->
 						message ctx (CMWarning(msg,p))

@@ -4,6 +4,7 @@ open Common
 open Ast
 
 let curclass = ref null_class
+let curfield = ref null_field
 
 let warned_positions = Hashtbl.create 0
 
@@ -12,8 +13,11 @@ let warn_deprecation com s p_usage =
 	if not (Hashtbl.mem warned_positions (pkey p_usage)) then begin
 		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
 		match com.display.dms_kind with
-		| DMDiagnostics _ -> ()
-		| _ -> com.warning WDeprecated s p_usage;
+		| DMDiagnostics _ ->
+			()
+		| _ ->
+			let options = Warning.from_meta (!curclass.cl_meta @ !curfield.cf_meta) in
+			com.warning WDeprecated options s p_usage;
 	end
 
 let print_deprecation_message com meta s p_usage =
@@ -81,7 +85,14 @@ let run_on_expr com e =
 	in
 	expr e
 
-let run_on_field com cf = match cf.cf_expr with None -> () | Some e -> run_on_expr com e
+let run_on_field com cf =
+	match cf.cf_expr with
+	| None ->
+		()
+	| Some e ->
+		curfield := cf;
+		run_on_expr com e;
+		curfield := null_field
 
 let run com =
 	List.iter (fun t -> match t with

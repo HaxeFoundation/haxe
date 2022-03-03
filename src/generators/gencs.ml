@@ -2436,7 +2436,7 @@ let generate con =
 					let args,ret = get_fun cf.cf_type in
 					match args with
 					| [_,_,idx] -> pairs := PMap.add (t_s idx) ( t_s ret, Some cf, None ) !pairs
-					| _ -> gen.gcon.warning WGenerator "The __get function must have exactly one argument (the index)" cf.cf_pos
+					| _ -> gen.gwarning WGenerator "The __get function must have exactly one argument (the index)" cf.cf_pos
 				) (get :: get.cf_overloads)
 			with | Not_found -> ());
 			(try
@@ -2447,12 +2447,12 @@ let generate con =
 					| [_,_,idx; _,_,v] -> (try
 						let vt, g, _ = PMap.find (t_s idx) !pairs in
 						let tvt = t_s v in
-						if vt <> tvt then gen.gcon.warning WGenerator "The __get function of same index has a different type from this __set function" cf.cf_pos;
+						if vt <> tvt then gen.gwarning WGenerator "The __get function of same index has a different type from this __set function" cf.cf_pos;
 						pairs := PMap.add (t_s idx) (vt, g, Some cf) !pairs
 					with | Not_found ->
 						pairs := PMap.add (t_s idx) (t_s v, None, Some cf) !pairs)
 					| _ ->
-						gen.gcon.warning WGenerator "The __set function must have exactly two arguments (index, value)" cf.cf_pos
+						gen.gwarning WGenerator "The __set function must have exactly two arguments (index, value)" cf.cf_pos
 				) (set :: set.cf_overloads)
 			with | Not_found -> ());
 			PMap.iter (fun idx (v, get, set) ->
@@ -3134,7 +3134,7 @@ let generate con =
 
 		add_cast_handler gen;
 		if not erase_generics then
-			RealTypeParams.configure gen (fun e t -> gen.gcon.warning WGenerator ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
+			RealTypeParams.configure gen (fun e t -> gen.gwarning WGenerator ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
 		else
 			RealTypeParams.RealTypeParamsModf.configure gen (RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen);
 
@@ -3464,11 +3464,11 @@ let generate con =
 			let net_lib = List.find (function net_lib -> is_some (net_lib#lookup (["haxe";"lang"], "FieldLookup"))) gen.gcon.native_libs.net_libs in
 			let name = net_lib#get_name in
 			if not (Common.defined gen.gcon Define.DllImport) then begin
-				gen.gcon.warning WGenerator ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly. Please define `-D dll_import` to handle Haxe-generated dll import correctly") null_pos;
+				gen.gwarning WGenerator ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly. Please define `-D dll_import` to handle Haxe-generated dll import correctly") null_pos;
 				raise Not_found
 			end;
 			if not (List.exists (function net_lib -> net_lib#get_name = name) haxe_libs) then
-				gen.gcon.warning WGenerator ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
+				gen.gwarning WGenerator ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
 			(* it has; in this case, we need to add the used fields on each __init__ *)
 			add_class_flag flookup_cl CExtern;
 			let hashs_by_path = Hashtbl.create !nhash in

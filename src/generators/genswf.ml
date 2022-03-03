@@ -343,7 +343,7 @@ let build_swf9 com file swc =
 								(match h.Png.png_color with
 								| Png.ClTrueColor (Png.TBits8,Png.NoAlpha) ->
 									if h.Png.png_width * h.Png.png_height * 4 > Sys.max_string_length then begin
-										com.warning WGenerator "Flash will loose some color information for this file, add alpha channel to preserve it" p;
+										com.warning WGenerator [] "Flash will loose some color information for this file, add alpha channel to preserve it" p;
 										raise Exit;
 									end;
 									let data = Extc.unzip (Png.data png) in

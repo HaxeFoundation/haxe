@@ -578,7 +578,7 @@ let new_ctx con =
 		gwarning = (fun w msg p ->
 			let options = Option.map_default (fun c -> Warning.from_meta c.cl_meta) [] gen.gcurrent_class in
 			let options = options @ Option.map_default (fun cf -> Warning.from_meta cf.cf_meta) [] gen.gcurrent_classfield in
-			con.warning w ~options msg p
+			con.warning w options msg p
 		);
 		gentry_point = get_entry_point con;
 		gclasses = {

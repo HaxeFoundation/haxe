@@ -128,7 +128,7 @@ end
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
-let check_local_vars_init com e =
+let check_local_vars_init ctx e =
 	let intersect vl1 vl2 =
 		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
 	in
@@ -153,8 +153,8 @@ let check_local_vars_init com e =
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
 			if not init then begin
 				if IntMap.mem v.v_id !outside_vars then
-					if v.v_name = "this" then com.warning WVarInit "this might be used before assigning a value to it" e.epos
-					else com.warning WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+					if v.v_name = "this" then warning ctx WVarInit "this might be used before assigning a value to it" e.epos
+					else warning ctx WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
 				else
 					if v.v_name = "this" then typing_error "Missing this = value" e.epos
 					else typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
@@ -807,7 +807,7 @@ let run com tctx main =
 	let filters = [
 		"local_statics",LocalStatic.run tctx;
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
-		"check_local_vars_init",check_local_vars_init tctx.com;
+		"check_local_vars_init",check_local_vars_init tctx;
 		"check_abstract_as_value",check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		"reduce_expression",Optimizer.reduce_expression tctx;

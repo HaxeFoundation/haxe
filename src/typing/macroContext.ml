@@ -413,6 +413,9 @@ let make_macro_api ctx p =
 			in
 			Std.finally restore run ()
 		);
+		MacroApi.warning = (fun w msg p ->
+			warning ctx w msg p
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =
