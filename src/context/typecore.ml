@@ -232,6 +232,10 @@ let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy
 	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
 	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
 
+let warning ctx w msg p =
+	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
+	ctx.com.warning w ~options msg p
+
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
 let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_type
@@ -298,8 +302,8 @@ let add_local ctx k n t p =
 			let v' = PMap.find n ctx.locals in
 			(* ignore std lib *)
 			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
-				ctx.com.warning WVarShadow "This variable shadows a previously declared variable" p;
-				ctx.com.warning WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+				warning ctx WVarShadow "This variable shadows a previously declared variable" p;
+				warning ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 			end
 		with Not_found ->
 			()

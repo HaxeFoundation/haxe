@@ -126,7 +126,7 @@ let dump_field_context fctx =
 let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
 		| (Meta.Native,[],_) ->
-			ctx.com.warning WDeprecated "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
+			warning ctx WDeprecated "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
 			true
 		| _ -> false
 	with | Not_found -> Meta.has Meta.NativeJni meta
@@ -497,7 +497,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 		| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			Some (fun () ->
 				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-					ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
+					warning ctx WDeprecated "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
 				context_init#run;
 				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
 				fbuild e;
@@ -591,10 +591,10 @@ let create_field_context (ctx,cctx) c cff =
 		| Meta.Final ->
 			is_final := true;
 			(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-				ctx.com.warning "`@:final` is deprecated in favor of `final`" p; *)
+				warning ctx WDeprecated "`@:final` is deprecated in favor of `final`" p; *)
 		| Meta.Extern ->
 			(* if not (Define.is_haxe3_compat ctx.com.defines) then
-				ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
+				warning ctx WDeprecated "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
 			is_extern := true;
 		| _ ->
 			()
@@ -937,7 +937,7 @@ module TypeBinding = struct
 			begin match ctx.com.platform with
 				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
-						ctx.com.warning WDeprecated "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						warning ctx WDeprecated "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
@@ -949,7 +949,7 @@ module TypeBinding = struct
 					end;
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
-						if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
+						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
 					) fargs; *)
 					let tf = {
 						tf_args = args#for_expr;
@@ -1403,7 +1403,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			delay ctx PTypeField (fun () -> args#verify_extern);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
-			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning WExternInit "Extern non-inline function may not have an expression" p;
+			else if not (fctx.is_inline || fctx.is_macro) then warning ctx WExternInit "Extern non-inline function may not have an expression" p;
 		end;
 	end;
 	cf

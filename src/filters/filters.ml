@@ -706,8 +706,9 @@ let commit_features ctx t =
 
 let check_reserved_type_paths ctx t =
 	let check path pos =
-		if List.mem path ctx.com.config.pf_reserved_type_paths then
-			ctx.com.warning WReservedTypePath ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+		if List.mem path ctx.com.config.pf_reserved_type_paths then begin
+			warning ctx WReservedTypePath ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+		end
 	in
 	match t with
 	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos
@@ -916,7 +917,15 @@ let run com tctx main =
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in
-	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
+	List.iter (fun t ->
+		begin match t with
+		| TClassDecl c ->
+			tctx.curclass <- c
+		| _ ->
+			()
+		end;
+		List.iter (fun f -> f tctx t) type_filters
+	) com.types;
 	t();
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
 	com.stage <- CFilteringDone

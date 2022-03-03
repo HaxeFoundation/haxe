@@ -650,7 +650,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		try
 			unify_raise mctx mret ttype mpos;
 			(* TODO: enable this again in the future *)
-			(* ctx.com.warning "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
+			(* warning ctx WDeprecated "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
 		with Error (Unify _,_) ->
 			let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in

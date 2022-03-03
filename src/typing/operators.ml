@@ -332,7 +332,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		| TConst TNull , _ | _ , TConst TNull -> ()
 		| _ ->
 			match follow e1.etype, follow e2.etype with
-			| TFun _ , _ | _, TFun _ -> ctx.com.warning WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
+			| TFun _ , _ | _, TFun _ -> warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
 			| _ -> ()
 		end;
 		mk_op e1 e2 ctx.t.tbool
