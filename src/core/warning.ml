@@ -95,6 +95,26 @@ let parse_options s =
 	in
 	next []
 
+let from_meta ml =
+	let parse_arg e = match fst e with
+		| Ast.EConst (String(s,_)) ->
+			parse_options s
+		| _ ->
+			raise (Failure "String expected") (* this should probably be a warning, lol... *)
+	in
+	let rec loop acc ml = match ml with
+		| (Meta.HaxeWarning,args,_) :: ml ->
+			let acc = List.fold_left (fun acc arg ->
+				(parse_arg arg) :: acc
+			) acc args in
+			loop acc ml
+		| _ :: ml ->
+			loop acc ml
+		| [] ->
+			List.rev acc
+	in
+	loop [] ml
+
 let get_mode w (l : warning_option list list) =
 	let code = warning_id w in
 	let in_range range = match range with

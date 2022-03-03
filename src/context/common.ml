@@ -308,7 +308,7 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
-	mutable warning : warning -> string -> pos -> unit;
+	mutable warning : warning -> ?options:Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -745,7 +745,7 @@ let create version args =
 		};
 		get_macros = (fun() -> None);
 		info = (fun _ _ -> die "" __LOC__);
-		warning = (fun _ _ -> die "" __LOC__);
+		warning = (fun _ ?options _ -> die "" __LOC__);
 		warning_options = [];
 		error = (fun _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);

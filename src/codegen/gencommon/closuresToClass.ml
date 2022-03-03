@@ -627,7 +627,7 @@ let configure gen ft =
 		with
 			| Not_found ->
 				if in_tparam then begin
-					gen.gcon.warning WGencommon "This expression may be invalid" e.epos;
+					gen.gwarning WGencommon "This expression may be invalid" e.epos;
 					e
 				end else
 					(* It is possible that we are recursively calling a function
@@ -642,8 +642,8 @@ let configure gen ft =
 						(Meta.Custom(":tparamcall"), [], e.epos), e
 					) }
 			| Unify_error el ->
-				List.iter (fun el -> gen.gcon.warning WGencommon (Error.unify_error_msg (print_context()) el) e.epos) el;
-				gen.gcon.warning WGencommon "This expression may be invalid" e.epos;
+				List.iter (fun el -> gen.gwarning WGencommon (Error.unify_error_msg (print_context()) el) e.epos) el;
+				gen.gwarning WGencommon "This expression may be invalid" e.epos;
 				e
 		)
 		(* (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
