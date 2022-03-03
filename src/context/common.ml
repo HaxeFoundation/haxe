@@ -309,6 +309,7 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
 	mutable warning : warning -> string -> pos -> unit;
+	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
@@ -745,6 +746,7 @@ let create version args =
 		get_macros = (fun() -> None);
 		info = (fun _ _ -> die "" __LOC__);
 		warning = (fun _ _ -> die "" __LOC__);
+		warning_options = [];
 		error = (fun _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
