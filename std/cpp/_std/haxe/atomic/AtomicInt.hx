@@ -1,43 +1,46 @@
 package haxe.atomic;
 
 #if cppia
-#error "Cppia does not support atomic operations yet."
+extern
 #end
-
-@:native("volatile int")
-@:scalar
-@:coreType
-private extern abstract VolatileInt from Int to Int {}
-
-extern abstract AtomicInt(cpp.Pointer<VolatileInt>) {
-	public extern inline function new(value:Int) {
-		this = cpp.Pointer.ofArray([(cast value:VolatileInt)]);
+abstract AtomicInt(cpp.Pointer<Int>) {
+	public #if !(scriptable || cppia) inline #end function new(value:Int) {
+		this = cpp.Pointer.ofArray([value]);
 	}
 
-	@:native("_hx_atomic_add")
-	public extern function add(b:Int):Int;
+	public #if !(scriptable || cppia) inline #end function add(b:Int):Int {
+		return untyped __cpp__("_hx_atomic_add({0}, {1})", this, b);
+	}
 
-	@:native("_hx_atomic_sub")
-	public extern function sub(b:Int):Int;
+	public #if !(scriptable || cppia) inline #end function sub(b:Int):Int {
+		return untyped __cpp__("_hx_atomic_sub({0}, {1})", this, b);
+	}
 
-	@:native("_hx_atomic_and")
-	public extern function and(b:Int):Int;
+	public #if !(scriptable || cppia) inline #end function and(b:Int):Int {
+		return untyped __cpp__("_hx_atomic_and({0}, {1})", this, b);
+	}
 
-	@:native("_hx_atomic_or")
-	public extern function or(b:Int):Int;
+	public #if !(scriptable || cppia) inline #end function or(b:Int):Int {
+		return untyped __cpp__("_hx_atomic_or({0}, {1})", this, b);
+	}
 
-	@:native("_hx_atomic_xor")
-	public extern function xor(b:Int):Int;
+	public #if !(scriptable || cppia) inline #end function xor(b:Int):Int {
+		return untyped __cpp__("_hx_atomic_xor({0}, {1})", this, b);
+	}
 
-	@:native("_hx_atomic_compare_exchange")
-	public extern function compareExchange(expected:Int, replacement:Int):Int;
+	public #if !(scriptable || cppia) inline #end function compareExchange(expected:Int, replacement:Int):Int {
+		return untyped __cpp__("_hx_atomic_compare_exchange({0}, {1}, {2})", this, expected, replacement);
+	}
 
-	@:native("_hx_atomic_exchange")
-	public extern function exchange(value:Int):Int;
+	public #if !(scriptable || cppia) inline #end function exchange(value:Int):Int {
+		return untyped __cpp__("_hx_atomic_exchange({0}, {1})", this, value);
+	}
 
-	@:native("_hx_atomic_load")
-	public extern function load():Int;
+	public #if !(scriptable || cppia) inline #end function load():Int {
+		return untyped __cpp__("_hx_atomic_load({0})", this);
+	}
 
-	@:native("_hx_atomic_store")
-	public extern function store(value:Int):Int;
+	public #if !(scriptable || cppia) inline #end function store(value:Int):Int {
+		return untyped __cpp__("_hx_atomic_store({0}, {1})", this, value);
+	}
 }

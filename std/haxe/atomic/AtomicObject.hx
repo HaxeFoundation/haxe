@@ -4,13 +4,13 @@ package haxe.atomic;
 #error "This target does not support atomic operations."
 #end
 
-#if js
-#error "JavaScript does not supporte AtomicObject"
+#if (js || hxcpp)
+#error "JavaScript and Hxcpp do not supporte AtomicObject"
 #end
 
 /**
 	Atomic object.
-	Not supported on JavaScript.
+	Not supported on JavaScript or C++.
 **/
 @:coreType
 abstract AtomicObject<T:{}> {

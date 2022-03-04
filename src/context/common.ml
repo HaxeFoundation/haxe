@@ -657,7 +657,7 @@ let get_config com =
 				vs_flags = [NoShadowing];
 				vs_scope = FunctionScope;
 			};
-			pf_supports_atomics = not (defined Define.Cppia);
+			pf_supports_atomics = true;
 		}
 	| Cs ->
 		{

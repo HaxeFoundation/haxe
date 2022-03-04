@@ -1,4 +1,4 @@
-#if (target.atomics && (!js && !cpp))
+#if (target.atomics && !(js || cpp))
 var a = new haxe.atomic.AtomicObject("Hey World!");
 
 a.load() == "Hey World!";
@@ -10,4 +10,6 @@ a.load() == "Goodbye World!";
 
 a.exchange("Hello World!") == "Goodbye World!";
 a.load() == "Hello World!";
+#else
+0 == 0; // prevent "no assertions" warning
 #end
