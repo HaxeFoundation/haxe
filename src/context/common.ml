@@ -685,7 +685,6 @@ let get_config com =
 				vs_scope = FunctionScope;
 				vs_flags = [NoShadowing]
 			};
-			pf_supports_atomics = true;
 		}
 	| Java ->
 		{
