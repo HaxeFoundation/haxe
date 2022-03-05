@@ -1,6 +1,6 @@
 package haxe.atomic;
 
-#if (target.atomics != "1")
+#if !target.atomics
 #error "This target does not support atomic operations."
 #end
 
