@@ -391,7 +391,13 @@ let setup_common_context ctx com =
 	Common.raw_define com "true";
 	Common.define_value com Define.Dce "std";
 	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
-	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
+	com.warning <- (fun w options msg p ->
+		match Warning.get_mode w (com.warning_options @ options) with
+		| WMEnable ->
+			message ctx (CMWarning(msg,p))
+		| WMDisable ->
+			()
+	);
 	com.error <- error ctx;
 	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
 		(match msg with
@@ -446,9 +452,21 @@ let process_display_configuration ctx =
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
 			if com.display.dms_error_policy = EPCollect then
-				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
+				(fun w options s p ->
+					match Warning.get_mode w (com.warning_options @ options) with
+					| WMEnable ->
+						add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning
+					| WMDisable ->
+						()
+				)
 			else
-				(fun msg p -> message ctx (CMWarning(msg,p)));
+				(fun w options msg p ->
+					match Warning.get_mode w (com.warning_options @ options) with
+					| WMEnable ->
+						message ctx (CMWarning(msg,p))
+					| WMDisable ->
+						()
+				);
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
@@ -956,6 +974,11 @@ try
 			did_something := true;
 		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
+		("Compilation",["-w"],[], Arg.String (fun s ->
+			let p = { pfile = "-w " ^ s; pmin = 0; pmax = 0 } in
+			let l = Warning.parse_options s p in
+			com.warning_options <- l :: com.warning_options
+		),"<warning list>","enable or disable specific warnings");
 	] in
 	let args_callback cl =
 		begin try

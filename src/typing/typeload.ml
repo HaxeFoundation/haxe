@@ -529,7 +529,7 @@ and load_complex_type' ctx allow_display (t,p) =
 				| None -> typing_error ("Explicit type required for field " ^ n) p
 				| Some t -> load_complex_type ctx allow_display t
 			in
-			if n = "new" then ctx.com.warning "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
+			if n = "new" then warning ctx WDeprecated "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
 			let no_expr = function
 				| None -> ()
 				| Some (_,p) -> typing_error "Expression not allowed here" p
@@ -545,7 +545,7 @@ and load_complex_type' ctx allow_display (t,p) =
 				| APrivate ->
 					let p = pos a in
 					if Filename.basename p.pfile <> "NativeIterable.hx" then (* Terrible workaround for #7436 *)
-						ctx.com.warning "private structure fields are deprecated" p;
+						warning ctx WDeprecated "private structure fields are deprecated" p;
 					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true

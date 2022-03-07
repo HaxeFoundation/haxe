@@ -63,11 +63,11 @@ let rec get_constant_expr e =
 		| TParenthesis(e) | TMeta(_,e) -> get_constant_expr e
 		| _ -> None
 
-let init com java_mode =
+let init gen java_mode =
 	let should_warn = false in
 
 	let do_warn =
-		if should_warn then com.warning "Unreachable code" else (fun pos -> ())
+		if should_warn then gen.gwarning WGencommon "Unreachable code" else (fun pos -> ())
 	in
 
 	let return_loop expr kind =
@@ -208,5 +208,5 @@ let init com java_mode =
 let priority = min_dep -. 100.0
 
 let configure gen java_mode =
-	let run = init gen.gcon java_mode in
+	let run = init gen java_mode in
 	gen.gsyntax_filters#add "unreachable_synf" (PCustom priority) run

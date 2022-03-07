@@ -52,6 +52,7 @@ type 'value compiler_api = {
 	flush_context : (unit -> t) -> t;
 	display_error : (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
+	warning : Warning.warning -> string -> pos -> unit;
 }
 
 
@@ -1589,7 +1590,7 @@ let macro_api ccom get_api =
 		"warning", vfun2 (fun msg p ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).warning msg p;
+			(get_api()).warning WUser msg p;
 			vnull
 		);
 		"info", vfun2 (fun msg p ->
@@ -1620,7 +1621,7 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			if com.stage <> CInitMacrosStart then begin
 				let v = if v = vnull then "" else ", " ^ (decode_string v) in
-				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
+				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
 			end;
 			(* TODO: use external_define and external_define_value for #8690 *)
 			if v = vnull then
@@ -1873,7 +1874,7 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			let cp = decode_string cp in
 			if com.stage <> CInitMacrosStart then
-				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addClassPath(" ^ cp ^ ")") Globals.null_pos;
+				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.addClassPath(" ^ cp ^ ")") Globals.null_pos;
 			let cp = Path.add_trailing_slash cp in
 			com.class_path <- cp :: com.class_path;
 			(match com.get_macros() with
@@ -1889,7 +1890,7 @@ let macro_api ccom get_api =
 			let file = decode_string file in
 			let com = ccom() in
 			if com.stage <> CInitMacrosStart then
-				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addNativeLib(" ^ file ^ ")") Globals.null_pos;
+				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.addNativeLib(" ^ file ^ ")") Globals.null_pos;
 			NativeLibraryHandler.add_native_lib com file false ();
 			vnull
 		);

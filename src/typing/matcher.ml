@@ -252,7 +252,7 @@ module Pattern = struct
 								| _ -> ""
 							in
 							let fields = List.map (fun (el) -> tpath ^ el) l in
-							pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
+							warning pctx.ctx WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
 					end;
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
@@ -318,8 +318,8 @@ module Pattern = struct
 						| [] ->
 							()
 							(* if toplevel then
-								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
-						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
+								warning pctx.ctx (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
+						| l -> warning pctx.ctx WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
 					let v = add_local false s p in
 					PatVariable v
@@ -930,16 +930,16 @@ module Useless = struct
 
 	(* Sane part *)
 
-	let check_case com p (case,bindings,patterns) =
+	let check_case ctx p (case,bindings,patterns) =
 		let p = List.map (fun (_,_,patterns) -> patterns) p in
 		match u' p (copy p) (copy p) patterns [] [] with
-			| False -> com.warning "This case is unused" case.case_pos
-			| Pos p -> com.warning "This pattern is unused" p
+			| False -> Typecore.warning ctx WMatcher "This case is unused" case.case_pos
+			| Pos p -> Typecore.warning ctx WMatcher "This pattern is unused" p
 			| True -> ()
 
-	let check com cases =
+	let check ctx cases =
 		ignore(List.fold_left (fun acc (case,bindings,patterns) ->
-			check_case com acc (case,bindings,patterns);
+			check_case ctx acc (case,bindings,patterns);
 			if case.case_guard = None then acc @ [case,bindings,patterns] else acc
 		) [] cases)
 end
@@ -1279,7 +1279,7 @@ module Compile = struct
 			switch mctx subject [] dt_fail
 		| _ ->
 			let dt = compile mctx subjects cases in
-			Useless.check mctx.ctx.com cases;
+			Useless.check mctx.ctx cases;
 			match vars with
 				| [] -> dt
 				| _ -> bind mctx vars dt

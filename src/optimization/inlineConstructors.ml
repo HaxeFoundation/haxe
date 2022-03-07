@@ -317,7 +317,7 @@ let inline_constructors ctx original_e =
 						if is_lvalue && iv_is_const fiv then raise Not_found;
 						if fiv.iv_closed then raise Not_found;
 						if not is_lvalue && fiv.iv_state == IVSUnassigned then (
-							ctx.com.warning ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
+							warning ctx WInliner ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
 							raise Not_found
 						);
 						if not captured then cancel_iv fiv efield.epos;

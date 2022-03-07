@@ -1664,11 +1664,11 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	| (EConst (Ident "$type"),_) , [e] ->
 		begin match fst e with
 		| EConst (Ident "_") ->
-			ctx.com.warning (WithType.to_string with_type) p;
+			warning ctx WInfo (WithType.to_string with_type) p;
 			mk (TConst TNull) t_dynamic p
 		| _ ->
 			let e = type_expr ctx e WithType.value in
-			ctx.com.warning (s_type (print_context()) e.etype) e.epos;
+			warning ctx WInfo (s_type (print_context()) e.etype) e.epos;
 			let e = Diagnostics.secure_generated_code ctx e in
 			e
 		end
