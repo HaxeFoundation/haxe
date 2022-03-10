@@ -58,7 +58,7 @@ type generation_context = {
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
 	t_throwable : Type.t;
-	mutable anon_identification : jsignature tanon_identification;
+	anon_identification : jsignature tanon_identification;
 	mutable preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
 	typed_functions : JvmFunctions.typed_functions;
@@ -67,7 +67,6 @@ type generation_context = {
 	detail_times : bool;
 	mutable timer : Timer.timer;
 	mutable typedef_interfaces : jsignature typedef_interfaces;
-	mutable current_field_info : field_generation_info option;
 	jar_compression_level : int;
 	dynamic_level : int;
 }
@@ -438,7 +437,13 @@ let rvalue_any = RValue(None,None)
 let rvalue_sig jsig = RValue (Some jsig,None)
 let rvalue_type gctx t name = RValue (Some (jsignature_of_type gctx t),name)
 
-class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return_type : jsignature option) = object(self)
+class texpr_to_jvm
+	(gctx : generation_context)
+	(field_info : field_generation_info option)
+	(jc : JvmClass.builder)
+	(jm : JvmMethod.builder)
+	(return_type : jsignature option)
+= object(self)
 	val com = gctx.com
 	val code = jm#get_code
 	val pool : JvmConstantPool.constant_pool = jc#get_pool
@@ -540,7 +545,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			args,(return_of_type gctx tf.tf_type)
 		in
 		let jm_invoke = wf#generate_invoke args ret in
-		let handler = new texpr_to_jvm gctx jc_closure jm_invoke ret in
+		let handler = new texpr_to_jvm gctx field_info jc_closure jm_invoke ret in
 		handler#set_env env;
 		let args = List.map (fun (v,eo) ->
 			handler#add_local v VarArgument,v,eo
@@ -1623,7 +1628,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 				invoke e1.etype
 			end
 		| TConst TSuper ->
-			let c,cf = match gctx.current_field_info with
+			let c,cf = match field_info with
 				| Some ({super_call_fields = hd :: tl} as info) ->
 					info.super_call_fields <- tl;
 					hd
@@ -2330,7 +2335,7 @@ class tclass_to_jvm gctx c = object(self)
 		let _,load,_ = jm_empty_ctor#add_local "_" haxe_empty_constructor_sig VarArgument in
 		jm_empty_ctor#load_this;
 		if c.cl_constructor = None then begin
-			let handler = new texpr_to_jvm gctx jc jm_empty_ctor None in
+			let handler = new texpr_to_jvm gctx None jc jm_empty_ctor None in
 			DynArray.iter (fun e ->
 				handler#texpr RVoid e;
 			) field_inits;
@@ -2345,7 +2350,7 @@ class tclass_to_jvm gctx c = object(self)
 			jm_empty_ctor#call_super_ctor ConstructInit jsig_empty
 		end;
 		if c.cl_constructor = None then begin
-			let handler = new texpr_to_jvm gctx jc jm_empty_ctor None in
+			let handler = new texpr_to_jvm gctx None jc jm_empty_ctor None in
 			DynArray.iter (fun e ->
 				handler#texpr RVoid e;
 			) delayed_field_inits;
@@ -2358,7 +2363,7 @@ class tclass_to_jvm gctx c = object(self)
 			PMap.iter (fun _ (c,cf) ->
 				let cmode = get_construction_mode c cf in
 				let jm = jc#spawn_method (if cmode = ConstructInit then "<init>" else "new") (jsignature_of_type gctx cf.cf_type) [MPublic] in
-				let handler = new texpr_to_jvm gctx jc jm None in
+				let handler = new texpr_to_jvm gctx None jc jm None in
 				jm#load_this;
 				DynArray.iter (fun e ->
 					handler#texpr RVoid e;
@@ -2377,14 +2382,14 @@ class tclass_to_jvm gctx c = object(self)
 		with Not_found ->
 			()
 
-	method generate_expr gctx jc jm e is_method scmode mtype =
+	method generate_expr gctx field_info jc jm e scmode mtype =
 		let e,args,tr = match e.eexpr with
-			| TFunction tf when is_method ->
+			| TFunction tf ->
 				tf.tf_expr,tf.tf_args,(return_of_type gctx tf.tf_type)
 			| _ ->
 				e,[],None
 		in
-		let handler = new texpr_to_jvm gctx jc jm tr in
+		let handler = new texpr_to_jvm gctx field_info jc jm tr in
 		List.iter (fun (v,_) ->
 			let slot,_,_ = handler#add_local v VarArgument in
 			let annot = AnnotationHandler.convert_annotations v.v_meta in
@@ -2419,7 +2424,6 @@ class tclass_to_jvm gctx c = object(self)
 			handler#texpr RReturn e
 
 	method generate_method gctx jc c mtype cf =
-		gctx.current_field_info <- gctx.preprocessor#get_field_info cf.cf_meta;
 		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = if Meta.has Meta.Private cf.cf_meta then [MPrivate] else if Meta.has Meta.Protected cf.cf_meta then [MProtected] else [MPublic] in
 		let flags = if (has_class_flag c CInterface) then MAbstract :: flags else flags in
@@ -2443,7 +2447,8 @@ class tclass_to_jvm gctx c = object(self)
 		begin match cf.cf_expr with
 		| None -> ()
 		| Some e ->
-			self#generate_expr gctx jc jm e true scmode mtype;
+			let field_info = gctx.preprocessor#get_field_info cf.cf_meta in
+			self#generate_expr gctx field_info jc jm e scmode mtype;
 		end;
 		begin match cf.cf_params with
 			| [] when c.cl_params = [] ->
@@ -2527,7 +2532,7 @@ class tclass_to_jvm gctx c = object(self)
 			jm#putstatic (["haxe";"root"],"Sys") "_args" (TArray(string_sig,None))
 		end;
 		jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
-		self#generate_expr gctx jc jm e true SCNone MStatic;
+		self#generate_expr gctx None jc jm e SCNone MStatic;
 		if not jm#is_terminated then jm#return
 
 	method private generate_fields =
@@ -2555,7 +2560,7 @@ class tclass_to_jvm gctx c = object(self)
 				()
 			| Some e ->
 				let jm = jc#get_static_init_method in
-				let handler = new texpr_to_jvm gctx jc jm None in
+				let handler = new texpr_to_jvm gctx None jc jm None in
 				handler#texpr RReturn (mk_block e);
 		end
 
@@ -2607,7 +2612,7 @@ let generate_class gctx c =
 let generate_enum_equals gctx (jc_ctor : JvmClass.builder) =
 	let jm_equals,load = generate_equals_function jc_ctor (haxe_enum_sig object_sig) in
 	let code = jm_equals#get_code in
-	let jm_equals_handler = new texpr_to_jvm gctx jc_ctor jm_equals (Some TBool) in
+	let jm_equals_handler = new texpr_to_jvm gctx None jc_ctor jm_equals (Some TBool) in
 	let is_haxe_enum jsig = match jsig with
 		| TObject(path,_) ->
 			Hashtbl.mem gctx.enum_paths path
@@ -2761,7 +2766,7 @@ let generate_enum gctx en =
 			()
 		| Some e ->
 			ignore(jc_enum#spawn_field "__meta__" object_sig [FdStatic;FdPublic]);
-			let handler = new texpr_to_jvm gctx jc_enum jm_clinit None in
+			let handler = new texpr_to_jvm gctx None jc_enum jm_clinit None in
 			handler#texpr rvalue_any e;
 			jm_clinit#putstatic jc_enum#get_this_path "__meta__" object_sig
 		end;
@@ -2962,7 +2967,6 @@ let generate jvm_flag com =
 		typed_functions = new JvmFunctions.typed_functions;
 		closure_paths = Hashtbl.create 0;
 		enum_paths = Hashtbl.create 0;
-		current_field_info = None;
 		default_export_config = {
 			export_debug = true;
 		};
@@ -2971,7 +2975,6 @@ let generate jvm_flag com =
 		jar_compression_level = compression_level;
 		dynamic_level = dynamic_level;
 	} in
-	gctx.anon_identification <- anon_identification;
 	gctx.preprocessor <- new preprocessor com.basic (jsignature_of_type gctx);
 	gctx.typedef_interfaces <- new typedef_interfaces gctx.preprocessor#get_infos anon_identification;
 	gctx.typedef_interfaces#add_interface_rewrite (["haxe";"root"],"Iterator") (["java";"util"],"Iterator") true;
