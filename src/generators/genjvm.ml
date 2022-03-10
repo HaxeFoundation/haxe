@@ -49,11 +49,16 @@ let get_construction_mode c cf =
 	if Meta.has Meta.HxGen cf.cf_meta then ConstructInitPlusNew
 	else ConstructInit
 
+class virtual jvm_output = object(self)
+	method virtual add_entry : string -> string -> unit
+	method virtual close : unit
+end
+
 (* Haxe *)
 
 type generation_context = {
 	com : Common.context;
-	jar : Zip.out_file;
+	out : jvm_output;
 	t_runtime_exception : Type.t;
 	entry_point : (tclass * texpr) option;
 	t_exception : Type.t;
@@ -102,6 +107,36 @@ let run_timed gctx detail name f =
 		gctx.timer <- sub;
 		sub#run_finally f (fun () -> gctx.timer <- old)
 	end
+
+class jar_output
+	(jar_path : string)
+	(compression_level : int)
+= object(self)
+	inherit jvm_output
+	val jar = Zip.open_out jar_path
+
+	method add_entry (content : string) (name : string) =
+		Zip.add_entry ~level:compression_level content jar name
+
+	method close =
+		Zip.close_out jar
+end
+
+class file_output
+	(base_path : string)
+	= object(self)
+	inherit jvm_output
+
+	method add_entry (content : string) (name : string) =
+		let path = base_path ^ name in
+		Path.mkdir_from_path path;
+		let ch = open_out path in
+		output_string ch content;
+		close_out ch
+
+	method close =
+		()
+end
 
 open NativeSignatures
 
@@ -311,7 +346,7 @@ let write_class gctx path jc =
 	let t = Timer.timer ["jvm";"write"] in
 	let ch = IO.output_bytes() in
 	JvmWriter.write_jvm_class ch jc;
-	Zip.add_entry ~level:gctx.jar_compression_level (Bytes.unsafe_to_string (IO.close_out ch)) gctx.jar path;
+	gctx.out#add_entry (Bytes.unsafe_to_string (IO.close_out ch)) path;
 	t()
 
 let is_const_int_pattern (el,_) =
@@ -2923,31 +2958,38 @@ let generate jvm_flag com =
 		| Some (jarname,cl,expr) -> jarname, Some (cl,expr)
 		| None -> "jar",None
 	in
-	let jar_dir,jar_path = if jvm_flag then begin
-		match path.file_name with
-		| Some _ ->
-			begin match path.directory with
-				| None ->
-					"./","./" ^ com.file
-				| Some dir ->
-					mkdir_from_path dir;
-					add_trailing_slash dir,com.file
-			end
-		| None ->
-			failwith "Please specify an output file name"
-	end else begin
-		let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
-		let jar_dir = add_trailing_slash com.file in
-		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
-		jar_dir,jar_path
-	end in
-	let anon_identification = new tanon_identification haxe_dynamic_object_path in
 	let compression_level = try
 		int_of_string (Define.defined_value com.defines Define.JvmCompressionLevel)
 	with _ ->
 		6
 	in
 	if compression_level < 0 || compression_level > 9 then failwith "Invalid value for -D jvm.compression-level: Must be >=0 and <= 9";
+	let create_jar path =
+		new jar_output path compression_level
+	in
+	let out_dir,out = if jvm_flag then begin
+		match path.file_name with
+		| Some _ ->
+			begin match path.directory with
+				| None ->
+					"./",create_jar ("./" ^ com.file)
+				| Some dir ->
+					mkdir_from_path dir;
+					add_trailing_slash dir,create_jar com.file
+			end
+		| None -> match path.directory with
+			| Some dir ->
+				let dir = add_trailing_slash dir in
+				dir,new file_output dir
+			| None ->
+				failwith "Please specify an output file name"
+	end else begin
+		let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
+		let jar_dir = add_trailing_slash com.file in
+		let jar_path = Printf.sprintf "%s%s.jar" jar_dir jar_name in
+		jar_dir,create_jar jar_path
+	end in
+	let anon_identification = new tanon_identification haxe_dynamic_object_path in
 	let dynamic_level = try
 		int_of_string (Define.defined_value com.defines Define.JvmDynamicLevel)
 	with _ ->
@@ -2956,7 +2998,7 @@ let generate jvm_flag com =
 	if dynamic_level < 0 || dynamic_level > 2 then failwith "Invalid value for -D jvm.dynamic-level: Must be >=0 and <= 2";
 	let gctx = {
 		com = com;
-		jar = Zip.open_out jar_path;
+		out = out;
 		t_runtime_exception = TInst(resolve_class com (["java";"lang"],"RuntimeException"),[]);
 		entry_point = entry_point;
 		t_exception = TInst(resolve_class com (["java";"lang"],"Exception"),[]);
@@ -2981,7 +3023,7 @@ let generate jvm_flag com =
 	let class_paths = ExtList.List.filter_map (fun java_lib ->
 		if java_lib#has_flag NativeLibraries.FlagIsStd || java_lib#has_flag FlagIsExtern then None
 		else begin
-			let dir = Printf.sprintf "%slib/" jar_dir in
+			let dir = Printf.sprintf "%slib/" out_dir in
 			Path.mkdir_from_path dir;
 			let name = FilePath.name_and_extension (FilePath.parse java_lib#get_file_path) in
 			let ch_in = open_in_bin java_lib#get_file_path in
@@ -2995,7 +3037,7 @@ let generate jvm_flag com =
 	) com.native_libs.java_libs in
 	Hashtbl.iter (fun name v ->
 		let filename = Codegen.escape_res_name name true in
-		Zip.add_entry ~level:gctx.jar_compression_level v gctx.jar filename;
+		gctx.out#add_entry v filename;
 	) com.resources;
 	let generate_real_types () =
 		List.iter (generate_module_type gctx) com.types;
@@ -3016,6 +3058,5 @@ let generate jvm_flag com =
 		(match class_paths with [] -> "" | _ -> "\nClass-Path: " ^ (String.concat " " class_paths)) ^
 		"\n\n"
 	in
-	Zip.add_entry ~level:gctx.jar_compression_level manifest_content gctx.jar "META-INF/MANIFEST.MF";
-
-	Zip.close_out gctx.jar
+	gctx.out#add_entry manifest_content "META-INF/MANIFEST.MF";
+	gctx.out#close;
