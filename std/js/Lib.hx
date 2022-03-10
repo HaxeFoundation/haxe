@@ -69,7 +69,7 @@ class Lib {
 	/**
 		Creates a deep clone of a given value using the structured clone algorithm.
 	**/
-	public static inline function structuredClone(value: Any, ?options: {transfer: Array<Any>}): Dynamic {
+	public static inline function structuredClone<T>(value: T, ?options: {transfer: Array<Any>}): T {
 		return js.Syntax.code("structuredClone({0}, {1})", value, options);
 	}
 
