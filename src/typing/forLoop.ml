@@ -78,6 +78,7 @@ module IterationKind = struct
 	let type_field_config = {
 		Fields.TypeFieldConfig.do_resume = true;
 		allow_resolve = false;
+		safe = false;
 	}
 
 	let get_next_array_element arr iexpr pt p =
@@ -120,14 +121,14 @@ module IterationKind = struct
 					)
 			in
 			try
-				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+				let acc = type_field ({do_resume = true;allow_resolve = false;safe = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 				try_acc acc;
 			with Not_found ->
 				try_last_resort (fun () ->
 					match !dynamic_iterator with
 					| Some e -> e
 					| None ->
-						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+						let acc = type_field ({do_resume = resume;allow_resolve = false;safe = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 						try_acc acc
 				)
 		in

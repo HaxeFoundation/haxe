@@ -336,7 +336,7 @@ and parse_class doc meta cflags need_name s =
 			d_data = fl;
 		}, punion p1 p2)
 
-and parse_import s p1 =
+and parse_import' s p1 =
 	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
@@ -353,32 +353,43 @@ and parse_import s p1 =
 				loop pn (("extern",p) :: acc)
 			| [< '(Kwd Function,p) >] ->
 				loop pn (("function",p) :: acc)
-			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
-				p2, List.rev acc, IAll
+			| [< '(Binop OpMult,_) >] ->
+				List.rev acc, IAll
 			| [< >] ->
 				ignore(popt semicolon s);
-				syntax_error (Expected ["identifier"]) s (p,List.rev acc,INormal)
+				syntax_error (Expected ["identifier"]) s (List.rev acc,INormal)
 			end
-		| [< '(Semicolon,p2) >] ->
-			p2, List.rev acc, INormal
-		| [< '(Kwd In,_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName(name,pname)
-		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName(name,pname)
+		| [< '(Kwd In,_); '(Const (Ident name),pname) >] ->
+			List.rev acc, IAsName(name,pname)
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname) >] ->
+			List.rev acc, IAsName(name,pname)
 		| [< >] ->
-			syntax_error (Expected [".";";";"as"]) s ((last_pos s),List.rev acc,INormal)
+			List.rev acc,INormal
 	in
-	let p2, path, mode = (match s with parser
+	let path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
 			if would_skip_display_position p1 true s then
-				(display_position#with_pos p1,[],INormal)
+				([],INormal)
 			else
-				syntax_error (Expected ["identifier"]) s (p1,[],INormal)
+				syntax_error (Expected ["identifier"]) s ([],INormal)
 	) in
+	(path,mode)
+
+and parse_import s p1 =
+	let (path,mode) = parse_import' s p1 in
+	let p2 = match s with parser
+	| [< '(Semicolon,p2) >] ->
+		p2
+	| [< >] ->
+		if would_skip_display_position p1 true s then
+			display_position#with_pos p1
+		else
+			syntax_error (Expected [".";";";"as"]) s (last_pos s)
+	in
 	(EImport (path,mode),punion p1 p2)
 
-and parse_using s p1 =
+and parse_using' s p1 =
 	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
@@ -393,21 +404,30 @@ and parse_using s p1 =
 			| [< '(Kwd Function,p) >] ->
 				loop pn (("function",p) :: acc)
 			| [< >] ->
-				syntax_error (Expected ["identifier"]) s (p,List.rev acc);
+				syntax_error (Expected ["identifier"]) s (List.rev acc);
 			end
-		| [< '(Semicolon,p2) >] ->
-			p2,List.rev acc
 		| [< >] ->
-			syntax_error (Expected [".";";"]) s ((last_pos s),List.rev acc)
+			List.rev acc
 	in
-	let p2, path = (match s with parser
+	match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
 		| [< >] ->
 			if would_skip_display_position p1 true s then
-				(display_position#with_pos p1,[])
+				[]
 			else
-				syntax_error (Expected ["identifier"]) s (p1,[])
-	) in
+				syntax_error (Expected ["identifier"]) s []
+
+and parse_using s p1 =
+	let path = parse_using' s p1 in
+	let p2 = match s with parser
+	| [< '(Semicolon,p2) >] ->
+		p2
+	| [< >] ->
+		if would_skip_display_position p1 true s then
+			display_position#with_pos p1
+		else
+			syntax_error (Expected [".";";"]) s (last_pos s)
+	in
 	(EUsing path,punion p1 p2)
 
 and parse_abstract_relations s =
@@ -1035,10 +1055,18 @@ and parse_constraint_param s =
 				| [< >] -> serror())
 			| [< >] -> None
 		) in
+		let default = (match s with parser
+			| [< '(Binop OpAssign,_); s >] ->
+				(match s with parser
+				| [< t = parse_complex_type >] -> Some t
+				| [< >] -> serror())
+			| [< >] -> None
+		) in
 		{
 			tp_name = name;
 			tp_params = [];
 			tp_constraints = cto;
+			tp_default = default;
 			tp_meta = meta;
 		}
 	| [< >] ->
@@ -1101,16 +1129,27 @@ and block_with_pos' acc f p s =
 and block_with_pos acc p s =
 	block_with_pos' acc parse_block_elt p s
 
-and parse_block_elt = parser
+and parse_block_var = parser
 	| [< '(Kwd Var,p1); vl = parse_var_decls false p1; p2 = semicolon >] ->
-		(EVars vl,punion p1 p2)
+		(vl,punion p1 p2)
 	| [< '(Kwd Final,p1); vl = parse_var_decls true p1; p2 = semicolon >] ->
-		(EVars vl,punion p1 p2)
+		(vl,punion p1 p2)
+
+and parse_block_elt = parser
+	| [< (vl,p) = parse_block_var >] ->
+		(EVars vl,p)
 	| [< '(Kwd Inline,p1); s >] ->
 		begin match s with parser
 		| [< '(Kwd Function,_); e = parse_function p1 true; _ = semicolon >] -> e
 		| [< e = secure_expr; _ = semicolon >] -> make_meta Meta.Inline [] e p1
 		| [< >] -> serror()
+		end
+	| [< '(Kwd Static,p); s >] ->
+		begin match s with parser
+		| [< (vl,p) = parse_block_var >] ->
+			let vl = List.map (fun ev -> {ev with ev_static = true}) vl in
+			(EVars vl,p)
+		| [<>] -> syntax_error (Expected ["var";"final"]) s (mk_null_expr p)
 		end
 	| [< '(Binop OpLt,p1); s >] ->
 		let e = handle_xml_literal p1 in
@@ -1312,7 +1351,7 @@ and expr = parser
 		expr_next (EConst (Ident (s_keyword k)), p) s
 	| [< '(Kwd Macro,p); s >] ->
 		begin match s with parser
-		| [< '(Dot,pd); e = parse_field (EConst (Ident "macro"),p) pd >] -> e
+		| [< '(Dot,pd); e = parse_field (EConst (Ident "macro"),p) EFNormal pd >] -> e
 		| [< e = parse_macro_expr p >] -> e
 		| [< >] -> serror()
 		end
@@ -1320,6 +1359,7 @@ and expr = parser
 	| [< '(Kwd Final,p1); v = parse_var_decl true >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd Abstract,p); s >] -> expr_next (EConst (Ident "abstract"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
 	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
 	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s
@@ -1456,7 +1496,7 @@ and expr = parser
 				syntax_error (Expected ["{"]) s (ESwitch(e,[],None),punion p1 (pos e))
 		end
 	| [< '(Kwd Try,p1); e = secure_expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
-	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
+	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int (i, None)),p1) e2
 	| [< '(Kwd Untyped,p1); e = secure_expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 	| [< '(Kwd Inline,p); e = secure_expr >] -> make_meta Meta.Inline [] e p
@@ -1473,7 +1513,8 @@ and expr_next' e1 = parser
 		(match fst e1 with
 		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> die "" __LOC__)
-	| [< '(Dot,p); e = parse_field e1 p >] -> e
+	| [< '(Dot,p); e = parse_field e1 EFNormal p >] -> e
+	| [< '(QuestionDot,p); e = parse_field e1 EFSafe p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,p1); e2 = secure_expr; s >] ->
 		let p2 = expect_unless_resume_p BkClose s in
@@ -1514,20 +1555,20 @@ and expr_next' e1 = parser
 		expr_next e_is s
 	| [< >] -> e1
 
-and parse_field e1 p s =
+and parse_field e1 efk p s =
 	check_resume p (fun () -> (EDisplay (e1,DKDot),p)) (fun () ->
 		begin match s with parser
-		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
-		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
-		| [< '(Kwd Function,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"function") , punion (pos e1) p2) s
-		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
-		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,s_keyword k) , punion (pos e1) p2) s
-		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
-		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
+		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro",efk) , punion (pos e1) p2) s
+		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern",efk) , punion (pos e1) p2) s
+		| [< '(Kwd Function,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"function",efk) , punion (pos e1) p2) s
+		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new",efk) , punion (pos e1) p2) s
+		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
+		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f,efk) , punion (pos e1) p2) s
+		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v,efk) , punion (pos e1) p2) s
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
-			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+			| (EConst (Int (v, None)),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".", None)),punion p p2) s
 			| _ -> serror()
 		end
 	)
@@ -1637,13 +1678,13 @@ and secure_expr = parser
 let rec validate_macro_cond s e = match fst e with
 	| EConst (Ident _)
 	| EConst (String _)
-	| EConst (Int _)
-	| EConst (Float _)
+	| EConst (Int (_, _))
+	| EConst (Float (_, _))
 		-> e
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
 	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond s e1), snd e)
-	| EField(e1,name) -> (EField(validate_macro_cond s e1,name), snd e)
+	| EField(e1,name,efk) -> (EField(validate_macro_cond s e1,name,efk), snd e)
 	| ECall ((EConst (Ident _),_) as i, args) -> (ECall (i,List.map (validate_macro_cond s) args),snd e)
 	| _ -> syntax_error (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
@@ -1660,10 +1701,10 @@ let rec parse_macro_cond s =
 				parse_macro_ident t p s
 			| [< '(Const (String(s,qs)),p) >] ->
 				None, (EConst (String(s,qs)),p)
-			| [< '(Const (Int i),p) >] ->
-				None, (EConst (Int i),p)
-			| [< '(Const (Float f),p) >] ->
-				None, (EConst (Float f),p)
+			| [< '(Const (Int (i, s)),p) >] ->
+				None, (EConst (Int (i, s)),p)
+			| [< '(Const (Float (f, s)),p) >] ->
+				None, (EConst (Float (f, s)),p)
 			| [< '(Kwd k,p) >] ->
 				parse_macro_ident (s_keyword k) p s
 			| [< '(Unop op,p); tk, e = parse_macro_cond >] ->

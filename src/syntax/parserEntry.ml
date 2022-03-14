@@ -72,8 +72,8 @@ let rec eval ctx (e,p) =
 	| EConst (Ident i) ->
 		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
 	| EConst (String(s,_)) -> TString s
-	| EConst (Int i) -> TFloat (float_of_string i)
-	| EConst (Float f) -> TFloat (float_of_string f)
+	| EConst (Int (i, _)) -> TFloat (float_of_string i)
+	| EConst (Float (f, _)) -> TFloat (float_of_string f)
 	| ECall ((EConst (Ident "version"),_),[(EConst (String(s,_)), p)]) -> parse_version s p
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
@@ -290,7 +290,7 @@ let parse entry ctx code file =
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
-				| (Const (Int s),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
+				| (Const (Int (s, _)),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;

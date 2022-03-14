@@ -148,6 +148,7 @@ let rec generate_binop ctx op =
 	| OpInterval -> "OpInterval",None
 	| OpArrow -> "OpArrow",None
 	| OpIn -> "OpIn",None
+	| OpNullCoal -> "OpNullCoal",None
 	in
 	generate_adt ctx (Some (["haxe";"macro"],"Binop")) name args
 
@@ -274,14 +275,15 @@ and generate_type_path_with_params ctx mpath tpath tl meta =
 
 (* type parameter *)
 
-and generate_type_parameter ctx (s,t) =
-	let generate_constraints () = match follow t with
+and generate_type_parameter ctx tp =
+	let generate_constraints () = match follow tp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
 		| _ -> die "" __LOC__
 	in
 	jobject [
-		"name",jstring s;
+		"name",jstring tp.ttp_name;
 		"constraints",generate_constraints ();
+		"defaultType",jopt (generate_type ctx) tp.ttp_default;
 	]
 
 (* texpr *)

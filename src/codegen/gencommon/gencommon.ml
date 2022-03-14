@@ -384,6 +384,8 @@ type generator_ctx =
 
 	gtools : gen_tools;
 
+	gwarning : Warning.warning -> string -> pos -> unit;
+
 	(*
 		module filters run before module filters and they should generate valid haxe syntax as a result.
 		Module filters shouldn't go through the expressions as it adds an unnecessary burden to the GC,
@@ -573,6 +575,11 @@ let new_ctx con =
 
 	let rec gen = {
 		gcon = con;
+		gwarning = (fun w msg p ->
+			let options = Option.map_default (fun c -> Warning.from_meta c.cl_meta) [] gen.gcurrent_class in
+			let options = options @ Option.map_default (fun cf -> Warning.from_meta cf.cf_meta) [] gen.gcurrent_classfield in
+			con.warning w options msg p
+		);
 		gentry_point = get_entry_point con;
 		gclasses = {
 			cl_reflect = get_cl (get_type ([], "Reflect"));
@@ -612,7 +619,7 @@ let new_ctx con =
 
 		greal_field_types = Hashtbl.create 0;
 		ghandle_cast = (fun to_t from_t e -> mk_cast to_t e);
-		gon_unsafe_cast = (fun t t2 pos -> (gen.gcon.warning ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
+		gon_unsafe_cast = (fun t t2 pos -> (gen.gwarning WGencommon ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
 		gneeds_box = (fun t -> false);
 		gspecial_needs_cast = (fun to_t from_t -> false);
 		gsupported_conversions = Hashtbl.create 0;
@@ -1068,7 +1075,7 @@ let follow_module follow_func md = match md with
 	| TClassDecl _
 	| TEnumDecl _
 	| TAbstractDecl _ -> md
-	| TTypeDecl tdecl -> match (follow_func (TType(tdecl, List.map snd tdecl.t_params))) with
+	| TTypeDecl tdecl -> match (follow_func (TType(tdecl, extract_param_types tdecl.t_params))) with
 		| TInst(cl,_) -> TClassDecl cl
 		| TEnum(e,_) -> TEnumDecl e
 		| TType(t,_) -> TTypeDecl t
@@ -1188,7 +1195,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 				loop_cl (depth+1) sup tl tlch
 			) c.cl_implements
 	in
-	loop_cl 0 orig_cl (List.map snd orig_cl.cl_params) (List.map snd orig_cl.cl_params);
+	loop_cl 0 orig_cl (extract_param_types orig_cl.cl_params) (extract_param_types orig_cl.cl_params);
 	match !chosen with
 	| None ->
 		None
@@ -1296,7 +1303,7 @@ let field_access_esp gen t field = match field with
 		in
 		let p = match follow (run_follow gen t) with
 			| TInst(_,p) -> p
-			| _ -> List.map snd cl.cl_params
+			| _ -> extract_param_types cl.cl_params
 		in
 		FClassField(cl,p,cl,cf,static,cf.cf_type,cf.cf_type)
 	| _ -> field_access gen t (field_name field)

@@ -626,6 +626,19 @@ class Context {
 		return load("timer", 1)(id);
 	}
 
+	/**
+		Executes `code` in a context that has `imports` and `usings` added.
+
+		This is equivalent to temporarily having `import` and `using` statements in a file. These
+		are only active during the execution of `code` and do not affect anything afterwards. This
+		is true even if `code` throws an exception.
+
+		If any argument is `null`, the result is unspecified.
+	**/
+	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		return load("with_imports", 3)(imports, usings, code);
+	}
+
 	@:deprecated
 	public static function registerModuleReuseCall(modulePath:String, macroCall:String) {
 		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";

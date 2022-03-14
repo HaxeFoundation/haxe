@@ -85,6 +85,11 @@ type field_init_ctx = {
 	mutable expr_presence_matters : bool;
 }
 
+type method_kind =
+	| MKNormal
+	| MKGetter
+	| MKSetter
+
 let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
@@ -121,7 +126,7 @@ let dump_field_context fctx =
 let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
 		| (Meta.Native,[],_) ->
-			ctx.com.warning "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
+			warning ctx WDeprecated "@:native metadata for jni functions is deprecated. Use @:java.native instead." pos;
 			true
 		| _ -> false
 	with | Not_found -> Meta.has Meta.NativeJni meta
@@ -176,7 +181,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				ast_fields
 		in
 		let super_args,super_expr,super_tl = get_struct_init_super_info ctx c p in
-		let params = List.map snd c.cl_params in
+		let params = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let doc_buf = Buffer.create 0 in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
@@ -410,7 +415,7 @@ let build_enum_abstract ctx c a fields p =
 			field.cff_meta <- (Meta.Enum,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
-				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
+				| None -> Some (TExprToExpr.convert_type (TAbstract(a,extract_param_types a.a_params)),null_pos)
 			in
 			begin match eo with
 				| None ->
@@ -418,14 +423,14 @@ let build_enum_abstract ctx c a fields p =
 						| EAString ->
 							set_field field ct (EConst (String (fst field.cff_name,SDoubleQuotes)),null_pos)
 						| EAInt i ->
-							set_field field ct (EConst (Int (string_of_int !i)),null_pos);
+							set_field field ct (EConst (Int (string_of_int !i, None)),null_pos);
 							incr i;
 						| EAOther ->
 							typing_error "Value required" field.cff_pos
 					end else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
 				| Some e ->
 					begin match mode,e with
-						| EAInt i,(EConst(Int s),_) ->
+						| EAInt i,(EConst(Int (s, None)),_) ->
 							begin try
 								let i' = int_of_string s in
 								i := (i' + 1)
@@ -459,7 +464,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> typing_error "Build call parameter must be a class path" p in
 				if ctx.in_macro then typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
-				ctx.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
+				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
 				context_init#run;
 				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
@@ -471,7 +476,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			List.iter (fun e ->
 				try
 					let path = List.rev (string_pos_list_of_expr_path_raise e) in
-					let types,filter_classes = handle_using ctx path (pos e) in
+					let types,filter_classes = ImportHandling.handle_using ctx path (pos e) in
 					let ti =
 						match mt with
 							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)
@@ -492,7 +497,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 		| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			Some (fun () ->
 				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-					ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
+					warning ctx WDeprecated "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
 				context_init#run;
 				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
 				fbuild e;
@@ -526,9 +531,9 @@ let create_class_context ctx c context_init p =
 		tthis = (match abstract with
 			| Some a ->
 				(match a.a_this with
-				| TMono r when r.tm_type = None -> TAbstract (a,List.map snd c.cl_params)
+				| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
 				| t -> t)
-			| None -> TInst (c,List.map snd c.cl_params));
+			| None -> TInst (c,extract_param_types c.cl_params));
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
@@ -586,10 +591,10 @@ let create_field_context (ctx,cctx) c cff =
 		| Meta.Final ->
 			is_final := true;
 			(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-				ctx.com.warning "`@:final` is deprecated in favor of `final`" p; *)
+				warning ctx WDeprecated "`@:final` is deprecated in favor of `final`" p; *)
 		| Meta.Extern ->
 			(* if not (Define.is_haxe3_compat ctx.com.defines) then
-				ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
+				warning ctx WDeprecated "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
 			is_extern := true;
 		| _ ->
 			()
@@ -667,7 +672,7 @@ let rec get_parent c name =
 let transform_field (ctx,cctx) c f fields p =
 	let f = match cctx.abstract with
 		| Some a ->
-			let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
+			let a_t = TExprToExpr.convert_type' (TAbstract(a,extract_param_types a.a_params)) in
 			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
 			transform_abstract_field ctx.com this_t a_t a f
 		| None ->
@@ -748,13 +753,21 @@ module TypeBinding = struct
 			| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 		in
-		let force_macro () =
+		let force_macro display =
 			(* force macro system loading of this class in order to get completion *)
-			delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ())
+			delay ctx PTypeField (fun() ->
+				try
+					ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p)
+				with
+				| Exit ->
+					()
+				| Error _ when display ->
+					()
+			)
 		in
 		let handle_display_field () =
 			if fctx.is_macro && not ctx.in_macro then
-				force_macro()
+				force_macro true
 			else begin
 				cf.cf_type <- TLazy r;
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
@@ -762,14 +775,14 @@ module TypeBinding = struct
 		in
 		if ctx.com.display.dms_full_typing then begin
 			if fctx.is_macro && not ctx.in_macro then
-				force_macro ()
+				force_macro false
 			else begin
 				cf.cf_type <- TLazy r;
 				(* is_lib ? *)
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.in_macro then
-			force_macro()
+			force_macro true
 		else begin
 			if fctx.is_display_field then begin
 				handle_display_field()
@@ -924,7 +937,7 @@ module TypeBinding = struct
 			begin match ctx.com.platform with
 				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
-						ctx.com.warning "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						warning ctx WDeprecated "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
@@ -936,7 +949,7 @@ module TypeBinding = struct
 					end;
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
-						if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
+						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
 					) fargs; *)
 					let tf = {
 						tf_args = args#for_expr;
@@ -1091,6 +1104,9 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					allow_no_expr();
 				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
 					typing_error (cf.cf_name ^ ": Assignment overloading is not supported") p;
+				| (Meta.Op,[EBinop(OpAssignOp OpNullCoal,_,_),_],_) :: _
+				| (Meta.Op,[EBinop(OpNullCoal,_,_),_],_) :: _ ->
+					typing_error (cf.cf_name ^ ": Null coalescing overloading is not supported") p;
 				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
 					typing_error (cf.cf_name ^ ": Ternary overloading is not supported") p;
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
@@ -1165,8 +1181,28 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 		| _ ->
 			()
 
+let type_opt (ctx,cctx,fctx) p t =
+	let c = cctx.tclass in
+	let is_truly_extern =
+		(has_class_flag c CExtern || fctx.is_extern)
+		&& not fctx.is_inline (* if it's inline, we can infer the type from the expression *)
+	in
+	match t with
+	| None when is_truly_extern || (has_class_flag c CInterface) ->
+		display_error ctx "Type required for extern classes and interfaces" p;
+		t_dynamic
+	| None when cctx.is_core_api ->
+		display_error ctx "Type required for core api classes" p;
+		t_dynamic
+	| None when fctx.is_abstract ->
+		display_error ctx "Type required for abstract functions" p;
+		t_dynamic
+	| _ ->
+		Typeload.load_type_hint ctx p t
+
 let create_method (ctx,cctx,fctx) c f fd p =
-	let params = TypeloadFunction.type_function_params ctx fd (fst f.cff_name) p in
+	let name = fst f.cff_name in
+	let params = TypeloadFunction.type_function_params ctx fd name p in
 	if fctx.is_generic then begin
 		if params = [] then typing_error (fst f.cff_name ^ ": Generic functions must have type parameters") p;
 	end;
@@ -1228,7 +1264,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| false,_ ->
 			()
 	end;
-	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
+	let parent = (if not fctx.is_static then get_parent c name else None) in
 	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 	if fctx.is_abstract && dynamic then display_error ctx "Abstract methods may not be dynamic" p;
 	if fctx.is_inline && dynamic then typing_error (fst f.cff_name ^ ": 'inline' is not allowed on 'dynamic' functions") p;
@@ -1237,7 +1273,45 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p fd.f_type in
+	let mk = lazy (
+		if String.length name < 4 then
+			MKNormal
+		else match String.sub name 0 4 with
+		| "get_" ->
+			begin match fd.f_args with
+			| [] -> MKGetter
+			| _ -> MKNormal
+			end
+		| "set_" ->
+			begin match fd.f_args with
+			| [_] -> MKSetter
+			| _ -> MKNormal
+			end
+		| _ ->
+			MKNormal
+	) in
+	let try_find_property_type () =
+		let name = String.sub name 4 (String.length name - 4) in
+		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
+		cf.cf_type
+	in
+	let maybe_use_property_type th check def =
+		if th = None && check() then
+			try
+				try_find_property_type()
+			with Not_found ->
+				def()
+		else
+			def()
+	in
+	let ret = if fctx.field_kind = FKConstructor then
+		ctx.t.tvoid
+	else begin
+		let def () =
+			type_opt (ctx,cctx,fctx) p fd.f_type
+		in
+		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
+	end in
 	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			Some a.a_this
@@ -1245,11 +1319,16 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			None
 	in
 	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
-	let type_arg opt t p = FunctionArguments.type_opt ctx cctx.is_core_api fctx.is_abstract p t in
+	let type_arg i opt cto p =
+		let def () =
+			type_opt (ctx,cctx,fctx) p cto
+		in
+		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
+	in
 	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
-		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
+		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
@@ -1324,7 +1403,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			delay ctx PTypeField (fun () -> args#verify_extern);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then display_error ctx "Abstract methods may not have an expression" p
-			else if not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+			else if not (fctx.is_inline || fctx.is_macro) then warning ctx WExternInit "Extern non-inline function may not have an expression" p;
 		end;
 	end;
 	cf
@@ -1340,7 +1419,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let t_get,t_set = match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
 			if Meta.has Meta.IsVar f.cff_meta then typing_error (name ^ ": Abstract properties cannot be real variables") f.cff_pos;
-			let ta = apply_params a.a_params (List.map snd a.a_params) a.a_this in
+			let ta = apply_params a.a_params (extract_param_types a.a_params) a.a_this in
 			tfun [ta] ret, tfun [ta;ret] ret
 		| _ -> tfun [] ret, TFun(["value",false,ret],ret)
 	in
@@ -1420,7 +1499,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 				end else if not (has_class_flag c CExtern) then begin
 					try
-						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
+						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (extract_param_types c.cl_params) m) in
 						display_error ctx (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m (name) (if fctx.is_static then "not " else "")) f2.cf_pos
 					with Not_found ->
 						display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
@@ -1607,7 +1686,7 @@ let init_class ctx c p context_init herits fields =
 				| e :: l ->
 					let sc = match fst e with
 						| EConst (Ident s) -> s
-						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int _ | Float _ | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
+						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int (_,_) | Float (_,_) | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
 						| _ -> ""
 					in
 					if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then

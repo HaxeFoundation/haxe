@@ -26,15 +26,14 @@ open Fields
 open TFunctions
 open Error
 
-type dot_path_part_case =
-	| PUppercase
-	| PLowercase
-
-type dot_path_part = (string * dot_path_part_case * pos)
-
-let mk_dot_path_part s p : dot_path_part =
+let mk_dot_path_part s efk p : dot_path_part =
 	let case = if is_lower_ident s p then PLowercase else PUppercase in
-	(s,case,p)
+	{
+		name = s;
+		case = case;
+		kind = efk;
+		pos = p
+	}
 
 let s_dot_path parts =
 	String.concat "." (List.map (fun (s,_,_) -> s) parts)
@@ -44,7 +43,7 @@ let resolve_module_field ctx m path p mode with_type =
 	match path, m.m_statics with
 	| [], _ | _, None ->
 		raise Not_found
-	| (name,_,p) :: path_rest, Some c ->
+	| {name = name; pos = p} :: path_rest, Some c ->
 		let f = PMap.find name c.cl_statics in (* raises Not_found *)
 		let e = type_module_type ctx (TClassDecl c) None p in
 		field_access ctx mode f (FHStatic c) e p, path_rest
@@ -61,7 +60,7 @@ let resolve_in_module ctx m path p mode with_type =
 		(* if there was no module fields, resolve  *)
 		let mname = snd m.m_path in
 		match path with
-		| (sname,PUppercase,sp) :: path_rest ->
+		| {name = sname; case = PUppercase; pos = sp} :: path_rest ->
 			begin
 			try
 				resolve_module_type ctx m sname sp, path_rest
@@ -94,7 +93,7 @@ let resolve_unqualified ctx name next_path p mode with_type =
 				so we try resolving a field first and fall back to find_in_unqualified_modules
 			*)
 			match next_path with
-			| (field,_,pfield) :: next_path ->
+			| {name = field; pos = pfield} :: next_path ->
 				let e = type_module_type ctx t None p in
 				let access = type_field (TypeFieldConfig.create true) ctx e field pfield mode with_type in
 				access, next_path
@@ -110,11 +109,11 @@ let resolve_unqualified ctx name next_path p mode with_type =
 let resolve_dot_path ctx (path_parts : dot_path_part list) mode with_type =
 	let rec loop pack_acc path =
 		match path with
-		| (_,PLowercase,_) as x :: path ->
+		| {case = PLowercase} as x :: path ->
 			(* part starts with lowercase - it's a package part, add it the accumulator and proceed *)
 			loop (x :: pack_acc) path
 
-		| (name,PUppercase,p) :: path ->
+		| {name = name; case = PUppercase; pos = p} :: path ->
 			(* If this is the last part we want to use the actual mode. *)
 			let mode,with_type = match path with
 				| [] | [_] -> mode,with_type
@@ -123,7 +122,7 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) mode with_type =
 			(* part starts with uppercase - it's a module name - try resolving *)
 			let accessor, path_rest =
 				if pack_acc <> [] then
-					let pack = List.rev_map (fun (x,_,_) -> x) pack_acc in
+					let pack = List.rev_map (fun part -> part.name) pack_acc in
 					resolve_qualified ctx pack name path p mode with_type
 				else
 					resolve_unqualified ctx name path p mode with_type

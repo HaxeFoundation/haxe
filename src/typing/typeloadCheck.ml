@@ -37,11 +37,12 @@ exception Build_canceled of build_state
 
 let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
+	let name = snd c.cl_path in
 	try
-		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
+		ignore(lookup_param name ctx.curfield.cf_params);
 		has_class_field_flag ctx.curfield CfGeneric
 	with Not_found -> try
-		ignore(List.assoc (snd c.cl_path) ctx.type_params);
+		ignore(lookup_param name ctx.type_params);
 		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
 	with Not_found ->
 		false
@@ -61,8 +62,9 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| [], [] -> t1, t2
 		| l1, l2 when List.length l1 = List.length l2 ->
 			let to_check = ref [] in
-			let monos = List.map2 (fun (name,p1) (_,p2) ->
-				(match follow p1, follow p2 with
+			(* TPTODO: defaults *)
+			let monos = List.map2 (fun tp1 tp2 ->
+				(match follow tp1.ttp_type, follow tp2.ttp_type with
 				| TInst ({ cl_kind = KTypeParameter ct1 } as c1,pl1), TInst ({ cl_kind = KTypeParameter ct2 } as c2,pl2) ->
 					(match ct1, ct2 with
 					| [], [] -> ()
@@ -82,7 +84,7 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 					| _ ->
 						raise (Unify_error [Unify_custom "Different number of constraints"]))
 				| _ -> ());
-				TInst (mk_class null_module ([],name) null_pos null_pos,[])
+				TInst (mk_class null_module ([],tp1.ttp_name) null_pos null_pos,[])
 			) l1 l2 in
 			List.iter (fun f -> f monos) !to_check;
 			apply_params l1 monos t1, apply_params l2 monos t2
@@ -533,7 +535,7 @@ module Inheritance = struct
 					let lt = try
 						List.find path_matches ctx.m.curmod.m_types
 					with Not_found ->
-						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_types in
+						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_imports in
 						ImportHandling.mark_import_position ctx pi;
 						t
 					in

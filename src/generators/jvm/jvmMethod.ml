@@ -143,7 +143,6 @@ class builder jc name jsig = object(self)
 	val mutable argument_locals = []
 	val mutable argument_annotations = Hashtbl.create 0
 	val mutable thrown_exceptions = Hashtbl.create 0
-	val mutable closure_count = 0
 	val mutable regex_count = 0
 
 	(* per-frame *)
@@ -191,11 +190,6 @@ class builder jc name jsig = object(self)
 			| None -> JvmVerificationTypeInfo.VTop
 			| _ -> JvmVerificationTypeInfo.of_signature jc#get_pool t
 		) locals
-
-	method get_next_closure_id =
-		let id = closure_count in
-		closure_count <- closure_count + 1;
-		id
 
 	method get_next_regex_id =
 		let id = regex_count in

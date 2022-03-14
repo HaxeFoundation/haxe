@@ -23,6 +23,7 @@ open Type
 open Globals
 open Define
 open NativeLibraries
+open Warning
 
 type package_rule =
 	| Forbidden
@@ -91,6 +92,11 @@ type exceptions_config = {
 	ec_native_throws : path list;
 	(* Base types which may be caught from Haxe code without wrapping. *)
 	ec_native_catches : path list;
+	(*
+		Hint exceptions filter to avoid wrapping for targets, which can throw/catch any type
+		Ignored on targets with a specific native base type for exceptions.
+	*)
+	ec_avoid_wrapping : bool;
 	(* Path of a native class or interface, which can be used for wildcard catches. *)
 	ec_wildcard_catch : path;
 	(*
@@ -302,7 +308,8 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
-	mutable warning : string -> pos -> unit;
+	mutable warning : warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
@@ -467,6 +474,7 @@ let default_config =
 			ec_native_catches = [];
 			ec_wildcard_catch = (["StdTypes"],"Dynamic");
 			ec_base_throw = (["StdTypes"],"Dynamic");
+			ec_avoid_wrapping = true;
 			ec_special_throw = fun _ -> false;
 		};
 		pf_scoping = {
@@ -495,6 +503,7 @@ let get_config com =
 					["js";"lib"],"Error";
 					["haxe"],"Exception";
 				];
+				ec_avoid_wrapping = false;
 			};
 			pf_scoping = {
 				vs_scope = if es6 then BlockScope else FunctionScope;
@@ -510,6 +519,9 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
 			pf_supports_rest_args = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_avoid_wrapping = false;
+			}
 		}
 	| Neko ->
 		{
@@ -540,6 +552,7 @@ let get_config com =
 					["flash";"errors"],"Error";
 					["haxe"],"Exception";
 				];
+				ec_avoid_wrapping = false;
 			};
 			pf_scoping = {
 				vs_scope = FunctionScope;
@@ -590,7 +603,7 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_rest_args = true;
 			pf_this_before_super = false;
-			pf_exceptions = {
+			pf_exceptions = { default_config.pf_exceptions with
 				ec_native_throws = [
 					["cs";"system"],"Exception";
 					["haxe"],"Exception";
@@ -667,14 +680,6 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
-			pf_exceptions = { default_config.pf_exceptions with
-				ec_native_throws = [
-					["haxe"],"Exception";
-				];
-				ec_native_catches = [
-					["haxe"],"Exception";
-				];
-			}
 		}
 	| Eval ->
 		{
@@ -740,7 +745,8 @@ let create version args =
 		};
 		get_macros = (fun() -> None);
 		info = (fun _ _ -> die "" __LOC__);
-		warning = (fun _ _ -> die "" __LOC__);
+		warning = (fun _ _ _ -> die "" __LOC__);
+		warning_options = [];
 		error = (fun _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());

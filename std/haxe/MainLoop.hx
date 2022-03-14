@@ -63,7 +63,12 @@ class MainLoop {
 	#if (target.threaded && !cppia)
 	static var eventLoopHandler:Null<EventHandler>;
 	static var mutex = new sys.thread.Mutex();
-	static var mainThread = Thread.current();
+	static var mainThread(get,never) : Thread;
+	static var _mainThread : Thread = Thread.current();
+	static function get_mainThread() {
+		if( _mainThread == null ) _mainThread = Thread.current();
+		return _mainThread;
+	}
 	#end
 
 	static var pending:MainEvent;

@@ -1287,6 +1287,12 @@
 		"internal": true
 	},
 	{
+		"name": "HaxeWarning",
+		"metadata": ":haxe.warning",
+		"doc": "Modifies warning options, equivalent to the -w CLI argument",
+		"targets": ["TClass","TClassField"]
+	},
+	{
 		"name": "Void",
 		"metadata": ":void",
 		"doc": "Use Cpp native `void` return type.",

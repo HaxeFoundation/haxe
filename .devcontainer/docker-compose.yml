@@ -1,0 +1,28 @@
+version: '3'
+services:
+  workspace:
+    image: ghcr.io/haxefoundation/haxe_devcontainer:development
+    init: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker-host.sock
+      - ..:/workspace:cached
+    environment:
+      - EARTHLY_BUILDKIT_HOST=tcp://earthly:8372
+      - EARTHLY_USE_INLINE_CACHE=true
+      - EARTHLY_SAVE_INLINE_CACHE=true
+    user: vscode
+    entrypoint: /usr/local/share/docker-init.sh
+    command: sleep infinity
+  earthly:
+    image: earthly/buildkitd:v0.6.5
+    privileged: true
+    environment:
+      - BUILDKIT_TCP_TRANSPORT_ENABLED=true
+    expose:
+      - 8372
+    volumes:
+      # https://docs.earthly.dev/docs/guides/using-the-earthly-docker-images/buildkit-standalone#earthly_tmp_dir
+      - earthly-tmp:/tmp/earthly:rw
+
+volumes:
+  earthly-tmp:

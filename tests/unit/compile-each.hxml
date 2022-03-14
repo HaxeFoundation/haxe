@@ -1,4 +1,4 @@
--D source-header=''
+-D source-header=
 --debug
 -p src
 # -cp "C:\Program Files\The Haxe Effect\src/dev/null"
@@ -10,3 +10,4 @@
 -lib utest:git:https://github.com/haxe-utest/utest#559b24c9a36533281ba7a2eed8aab83ed6b872b4
 -D analyzer-optimize
 -D analyzer-user-var-fusion
+-w -400-102

@@ -227,7 +227,7 @@ let inline_constructors ctx original_e =
 		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
 		let mark() =
 			incr curr_io_id;
-			let id_expr = (EConst(Int (string_of_int !curr_io_id)), e.epos) in
+			let id_expr = (EConst(Int (string_of_int !curr_io_id, None)), e.epos) in
 			let meta = (Meta.InlineObject, [id_expr], e.epos) in
 			mk (TMeta(meta, e)) e.etype e.epos
 		in
@@ -317,7 +317,7 @@ let inline_constructors ctx original_e =
 						if is_lvalue && iv_is_const fiv then raise Not_found;
 						if fiv.iv_closed then raise Not_found;
 						if not is_lvalue && fiv.iv_state == IVSUnassigned then (
-							ctx.com.warning ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
+							warning ctx WInliner ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
 							raise Not_found
 						);
 						if not captured then cancel_iv fiv efield.epos;
@@ -439,10 +439,10 @@ let inline_constructors ctx original_e =
 				handle_default_case e
 		in
 		match e.eexpr with
-		| TMeta((Meta.Inline,_,_),{eexpr = TMeta((Meta.InlineObject, [(EConst(Int (id_str)), _)], _), e)}) ->
+		| TMeta((Meta.Inline,_,_),{eexpr = TMeta((Meta.InlineObject, [(EConst(Int (id_str, None)), _)], _), e)}) ->
 			let io_id = int_of_string id_str in
 			handle_inline_object_case io_id true e
-		| TMeta((Meta.InlineObject, [(EConst(Int (id_str)), _)], _), e) ->
+		| TMeta((Meta.InlineObject, [(EConst(Int (id_str, None)), _)], _), e) ->
 			let io_id = int_of_string id_str in
 			handle_inline_object_case io_id false e
 		| TVar(v,None) -> ignore(add v IVKLocal); None
@@ -592,7 +592,7 @@ let inline_constructors ctx original_e =
 			end
 		in
 		match e.eexpr with
-		| TMeta((Meta.InlineObject, [(EConst(Int (id_str)), _)], _), e) ->
+		| TMeta((Meta.InlineObject, [(EConst(Int (id_str, _)), _)], _), e) ->
 			let io_id = int_of_string id_str in
 			begin try
 				let io = get_io io_id in

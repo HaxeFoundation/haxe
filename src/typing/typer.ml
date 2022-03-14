@@ -75,7 +75,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					) c.cl_ordered_statics in
 					false,a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					begin match get_abstract_froms a pl with
+					begin match get_abstract_froms ctx a pl with
 						| [t2] ->
 							if (List.exists (shallow_eq t) stack) then raise Exit;
 							loop (t :: stack) t2
@@ -281,6 +281,18 @@ let rec type_ident_raise ctx i p mode with_type =
 			AKExpr (get_this ctx p)
 		| (MCall _, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
+	| "abstract" ->
+		begin match mode, ctx.curclass.cl_kind with
+			| MSet _, KAbstractImpl ab -> typing_error "Property 'abstract' is read-only" p;
+			| (MGet, KAbstractImpl ab)
+			| (MCall _, KAbstractImpl ab) ->
+				let tl = extract_param_types ab.a_params in
+				let e = get_this ctx p in
+				let e = {e with etype = TAbstract (ab,tl)} in
+				AKExpr e
+			| _ ->
+				typing_error "Property 'abstract' is reserved and only available in abstracts" p
+		end
 	| "super" ->
 		let t = (match ctx.curclass.cl_super with
 			| None -> typing_error "Current class does not have a superclass" p
@@ -325,7 +337,7 @@ let rec type_ident_raise ctx i p mode with_type =
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
-		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
+		let c , t , f = class_field ctx ctx.curclass (extract_param_types ctx.curclass.cl_params) i p in
 		field_access ctx mode f (match c with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
@@ -336,7 +348,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			typing_error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e,fa = match ctx.curclass.cl_kind with
 			| KAbstractImpl a when is_impl && not is_enum ->
-				let tl = List.map snd a.a_params in
+				let tl = extract_param_types a.a_params in
 				let e = get_this ctx p in
 				let e = {e with etype = TAbstract(a,tl)} in
 				e,FHAbstract(a,tl,ctx.curclass)
@@ -377,7 +389,7 @@ let rec type_ident_raise ctx i p mode with_type =
 								| Var {v_read = AccInline} -> true
 								|  _ -> false
 							in
-							let fa = FieldAccess.create et cf (FHAbstract(a,List.map snd a.a_params,c)) inline p in
+							let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
 							ImportHandling.mark_import_position ctx pt;
 							AKField fa
 						end
@@ -400,7 +412,7 @@ let rec type_ident_raise ctx i p mode with_type =
 					with
 						Not_found -> loop l
 		in
-		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_types)
+		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_imports)
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
@@ -419,12 +431,12 @@ and type_ident ctx i p mode with_type =
 	with Not_found ->
 		let resolved_to_type_parameter = ref false in
 		try
-			let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
+			let t = List.find (fun tp -> tp.ttp_name = i) ctx.type_params in
 			resolved_to_type_parameter := true;
-			let c = match follow (snd t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
+			let c = match follow (extract_param_type t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
 				let e = type_module_type ctx (TClassDecl c) None p in
-				AKExpr {e with etype = (snd t)}
+				AKExpr {e with etype = (extract_param_type t)}
 			end else
 				raise Not_found
 		with Not_found ->
@@ -466,7 +478,7 @@ and handle_efield ctx e p0 mode with_type =
 	let open TyperDotPath in
 
 	let dot_path first pnext =
-		let name,_,p = first in
+		let {name = name; pos = p} = first in
 		try
 			(* first, try to resolve the first ident in the chain and access its fields.
 			   this doesn't support untyped identifiers yet, because we want to check fully-qualified
@@ -489,11 +501,11 @@ and handle_efield ctx e p0 mode with_type =
 							(* TODO: we should pass the actual resolution error from resolve_dot_path instead of Not_found *)
 							let rec loop pack_acc first_uppercase path =
 								match path with
-								| (name,PLowercase,_) :: rest ->
+								| {name = name; case = PLowercase} :: rest ->
 									(match first_uppercase with
 									| None -> loop (name :: pack_acc) None rest
 									| Some (n,p) -> List.rev pack_acc, n, None, p)
-								| (name,PUppercase,p) :: rest ->
+								| {name = name; case = PUppercase; pos = p} :: rest ->
 									(match first_uppercase with
 									| None -> loop pack_acc (Some (name,p)) rest
 									| Some (n,_) -> List.rev pack_acc, n, Some name, p)
@@ -513,7 +525,7 @@ and handle_efield ctx e p0 mode with_type =
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
 						if ctx.in_display then begin
-							let sl = List.map (fun (n,_,_) -> n) path in
+							let sl = List.map (fun part -> part.name) path in
 							if is_legacy_completion ctx.com then
 								raise (Parser.TypePath (sl,None,false,p))
 							else
@@ -526,13 +538,13 @@ and handle_efield ctx e p0 mode with_type =
 	   or a simple field access chain *)
 	let rec loop dot_path_acc (e,p) =
 		match e with
-		| EField (e,s) ->
+		| EField (e,s,efk) ->
 			(* field access - accumulate and check further *)
-			loop ((mk_dot_path_part s p) :: dot_path_acc) e
+			loop ((mk_dot_path_part s efk p) :: dot_path_acc) e
 		| EConst (Ident i) ->
 			(* it's a dot-path, so it might be either fully-qualified access (pack.Class.field)
 			   or normal field access of a local/global/field identifier, proceed figuring this out *)
-			dot_path (mk_dot_path_part i p) dot_path_acc
+			dot_path (mk_dot_path_part i EFNormal p) dot_path_acc
 		| _ ->
 			(* non-ident expr occured: definitely NOT a fully-qualified access,
 			   resolve the field chain against this expression *)
@@ -545,7 +557,7 @@ and type_access ctx e p mode with_type =
 	match e with
 	| EConst (Ident s) ->
 		type_ident ctx s p mode with_type
-	| EField (e1,"new") ->
+	| EField (e1,"new",efk_todo) ->
 		let e1 = type_expr ctx e1 WithType.value in
 		begin match e1.eexpr with
 			| TTypeExpr (TClassDecl c) ->
@@ -606,7 +618,9 @@ and type_vars ctx vl p =
 			let e = (match ev.ev_expr with
 				| None -> None
 				| Some e ->
-					let e = type_expr ctx e (WithType.with_type t) in
+					let old_in_loop = ctx.in_loop in
+					if ev.ev_static then ctx.in_loop <- false;
+					let e = Std.finally (fun () -> ctx.in_loop <- old_in_loop) (type_expr ctx e) (WithType.with_type t) in
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
@@ -614,6 +628,7 @@ and type_vars ctx vl p =
 			v.v_meta <- ev.ev_meta;
 			DisplayEmitter.check_display_metadata ctx v.v_meta;
 			if ev.ev_final then add_var_flag v VFinal;
+			if ev.ev_static then add_var_flag v VStatic;
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
@@ -768,7 +783,7 @@ and type_object_decl ctx fl with_type p =
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
-				let froms = get_abstract_froms a pl
+				let froms = get_abstract_froms ctx a pl
 				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
 				(match List.fold_left fold [] froms with
 				| [t] -> t
@@ -1179,31 +1194,76 @@ and type_local_function ctx kind f with_type p =
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.in_loop <- false;
 	let rt = Typeload.load_type_hint ctx p f.f_type in
-	let type_arg opt t p = Typeload.load_type_hint ~opt ctx p t in
+	let type_arg _ opt t p = Typeload.load_type_hint ~opt ctx p t in
 	let args = new FunctionArguments.function_arguments ctx type_arg false ctx.in_display None f.f_args in
 	let targs = args#for_type in
+	let maybe_unify_arg t1 t2 =
+		match follow t1 with
+		| TMono _ -> unify ctx t2 t1 p
+		| _ -> ()
+	in
+	let maybe_unify_ret tr = match follow tr,follow rt with
+		| TAbstract({a_path = [],"Void"},_),_ when kind <> FKArrow -> ()
+		| _,TMono _ -> unify ctx rt tr p
+		| _ -> ()
+	in
+	(* The idea here is: If we have multiple `from Function`, we can
+	   1. ignore any that have a different argument arity, and
+	   2. still top-down infer any argument or return type that is equal across all candidates.
+	*)
+	let handle_abstract_matrix l =
+		let arity = List.length targs in
+		let m = new unification_matrix (arity + 1) in
+		let rec loop l = match l with
+			| t :: l ->
+				begin match follow t with
+				| TFun(args,ret) when List.length args = arity ->
+					List.iteri (fun i (_,_,t) ->
+						m#join t (i + 1);
+					) args;
+					m#join ret 0;
+				| _ ->
+					()
+				end;
+				loop l
+			| [] ->
+				()
+		in
+		loop l;
+ 		List.iteri (fun i (_,_,t1) ->
+			match m#get_type (i + 1) with
+			| Some t2 ->
+				maybe_unify_arg t1 t2
+			| None ->
+				()
+		) targs;
+		begin match m#get_type 0 with
+		| Some tr ->
+			maybe_unify_ret tr
+		| None ->
+			()
+		end
+	in
 	(match with_type with
 	| WithType.WithType(t,_) ->
-		let rec loop t =
+		let rec loop stack t =
 			(match follow t with
 			| TFun (args2,tr) when List.length args2 = List.length targs ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
-					match follow t1 with
-					| TMono _ -> unify ctx t2 t1 p
-					| _ -> ()
+					maybe_unify_arg t1 t2
 				) targs args2;
 				(* unify for top-down inference unless we are expecting Void *)
-				begin
-					match follow tr,follow rt with
-					| TAbstract({a_path = [],"Void"},_),_ when kind <> FKArrow -> ()
-					| _,TMono _ -> unify ctx rt tr p
-					| _ -> ()
-				end
+				maybe_unify_ret tr
 			| TAbstract(a,tl) ->
-				loop (Abstract.get_underlying_type a tl)
+				begin match get_abstract_froms ctx a tl with
+					| [t2] ->
+						if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
+					| l ->
+						handle_abstract_matrix l
+				end
 			| _ -> ())
 		in
-		loop t
+		loop [] t
 	| WithType.NoValue ->
 		if name = None then display_error ctx "Unnamed lvalue functions are not supported" p
 	| _ ->
@@ -1291,7 +1351,7 @@ and type_array_decl ctx el with_type p =
 							| Some t -> t :: acc
 						)
 						[]
-						(get_abstract_froms a pl)
+						(get_abstract_froms ctx a pl)
 				in
 				(match types with
 				| [t] -> Some t
@@ -1348,10 +1408,10 @@ and type_array_comprehension ctx e with_type p =
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 		| EBinop(OpArrow,a,b) ->
 			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),comprehension_pos);
-			(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
+			(ECall ((efield ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 		| _ ->
 			et := (EArrayDecl [],comprehension_pos);
-			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
+			(ECall ((efield ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 	in
 	let e = map_compr e in
 	let ea = type_expr ctx !et with_type in
@@ -1444,6 +1504,19 @@ and type_cast ctx e t p =
 	let texpr = loop t in
 	mk (TCast (type_expr ctx e WithType.value,Some texpr)) t p
 
+and make_if_then_else ctx e0 e1 e2 with_type p =
+	let e1,e2,t = match with_type with
+	| WithType.NoValue -> e1,e2,ctx.t.tvoid
+	| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
+	| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+		e1,e2,unify_min_for_type_source ctx [e1; e2] src
+	| WithType.WithType(t,_) ->
+		let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
+		let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
+		e1,e2,t
+	in
+	mk (TIf (e0,e1,Some e2)) t p
+
 and type_if ctx e e1 e2 with_type is_ternary p =
 	let e = type_expr ctx e WithType.value in
 	if is_ternary then begin match e.eexpr with
@@ -1452,22 +1525,12 @@ and type_if ctx e e1 e2 with_type is_ternary p =
 	end;
 	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
-	(match e2 with
+	match e2 with
 	| None ->
 		mk (TIf (e,e1,None)) ctx.t.tvoid p
 	| Some e2 ->
 		let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
-		let e1,e2,t = match with_type with
-			| WithType.NoValue -> e1,e2,ctx.t.tvoid
-			| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
-			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
-				e1,e2,unify_min_for_type_source ctx [e1; e2] src
-			| WithType.WithType(t,_) ->
-				let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
-				let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
-				e1,e2,t
-		in
-		mk (TIf (e,e1,Some e2)) t p)
+		make_if_then_else ctx e e1 e2 with_type p
 
 and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	if ctx.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
@@ -1585,15 +1648,15 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			let e_trace = mk (TIdent "`trace") t_dynamic p in
 			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
 		else
-			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
-	| (EField ((EConst (Ident "super"),_),_),_), _ ->
+			type_expr ctx (ECall ((efield ((efield ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
+	| (EField ((EConst (Ident "super"),_),_,_),_), _ -> (* <- ??? *)
 		(match def() with
 			| { eexpr = TCall ({ eexpr = TField (_, FInstance(_, _, { cf_kind = Method MethDynamic; cf_name = name })); epos = p }, _) } as e ->
 				ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p;
 				e
 			| e -> e
 		)
-	| (EField (e,"bind"),p), args ->
+	| (EField (e,"bind",efk_todo),p), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
 			| TFun signature -> type_bind ctx e signature args p
@@ -1601,15 +1664,15 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	| (EConst (Ident "$type"),_) , [e] ->
 		begin match fst e with
 		| EConst (Ident "_") ->
-			ctx.com.warning (WithType.to_string with_type) p;
+			warning ctx WInfo (WithType.to_string with_type) p;
 			mk (TConst TNull) t_dynamic p
 		| _ ->
 			let e = type_expr ctx e WithType.value in
-			ctx.com.warning (s_type (print_context()) e.etype) e.epos;
+			warning ctx WInfo (s_type (print_context()) e.etype) e.epos;
 			let e = Diagnostics.secure_generated_code ctx e in
 			e
 		end
-	| (EField(e,"match"),p), [epat] ->
+	| (EField(e,"match",efk_todo),p), [epat] ->
 		let et = type_expr ctx e WithType.value in
 		let rec has_enum_match t = match follow t with
 			| TEnum _ -> true
@@ -1654,10 +1717,10 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 
 and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
-	| EField ((EConst (String(s,_)),ps),"code") ->
+	| EField ((EConst (String(s,_)),ps),"code",EFNormal) ->
 		if UTF8.length s <> 1 then typing_error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UCharExt.code (UTF8.get s 0))))) ctx.t.tint p
-	| EField(_,n) when starts_with n '$' ->
+	| EField(_,n,_) when starts_with n '$' ->
 		typing_error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then typing_error "Cannot use super as value" p;
@@ -1673,8 +1736,49 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> die "" __LOC__),[],[str;opt])) t p
 	| EConst (String(s,SSingleQuotes)) when s <> "" ->
 		type_expr ctx (format_string ctx s p) with_type
+	| EConst (Int (s, Some suffix)) ->
+		(match suffix with
+		| "i32" ->
+			(try mk (TConst (TInt (Int32.of_string s))) ctx.com.basic.tint p
+			with _ -> typing_error ("Cannot represent " ^ s ^ " with a 32 bit integer") p)
+		| "i64" ->
+			if String.length s > 18 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
+
+			let i64  = Int64.of_string s in
+			let high = Int64.to_int32 (Int64.shift_right i64 32) in
+			let low  = Int64.to_int32 i64 in
+
+			let ident = EConst (Ident "haxe"), p in
+			let field = efield ((efield (ident, "Int64"), p), "make"), p in
+
+			let arg_high = EConst (Int (Int32.to_string high, None)), p in
+			let arg_low  = EConst (Int (Int32.to_string low, None)), p in
+			let call     = ECall (field, [ arg_high; arg_low ]), p in
+			type_expr ctx call with_type
+		| "u32" ->
+			let check = ECheckType ((EConst (Int (s, None)), p), (CTPath (mk_type_path ([],"UInt")), p)), p in
+			type_expr ctx check with_type
+		| other -> typing_error (other ^ " is not a valid integer suffix") p)
+	| EConst (Float (s, Some suffix) as c) ->
+		(match suffix with
+		| "f64" -> Texpr.type_constant ctx.com.basic c p
+		| other -> typing_error (other ^ " is not a valid float suffix") p)
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
+	| EBinop (OpNullCoal,e1,e2) ->
+		let vr = new value_reference ctx in
+		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
+		let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
+		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
+		let e_null = Builder.make_null e1.etype e1.epos in
+		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
+		let iftype = WithType.WithType(e2.etype,None) in
+		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
+		vr#to_texpr e_if
+	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
+		let e_cond = EBinop(OpNotEq,e1,(EConst(Ident "null"), p)) in
+		let e_if = EIf ((e_cond, p),e1,Some e2) in
+		type_assign ctx e1 (e_if, p) with_type p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when (match with_type with
@@ -1870,11 +1974,11 @@ let rec create com =
 		};
 		m = {
 			curmod = null_module;
-			module_types = [];
+			module_imports = [];
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
-			module_imports = [];
+			import_statements = [];
 		};
 		is_display_file = false;
 		bypass_accessor = 0;
@@ -1919,7 +2023,7 @@ let rec create com =
 				typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.module_types <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;
+	ctx.m.module_imports <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->
@@ -1928,7 +2032,7 @@ let rec create com =
 			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
-			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
+			| "Dynamic" -> t_dynamic_def := TAbstract(a,extract_param_types a.a_params);
 			| "Null" ->
 				let mk_null t =
 					try
@@ -1983,4 +2087,5 @@ unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
-type_block_ref := type_block
+type_block_ref := type_block;
+acc_get_ref := acc_get

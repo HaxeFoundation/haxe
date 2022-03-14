@@ -424,7 +424,7 @@ let rec value_to_expr v p =
 			let rec loop = function
 				| [] -> die "" __LOC__
 				| [name] -> (EConst (Ident name),p)
-				| name :: l -> (EField (loop l,name),p)
+				| name :: l -> (efield (loop l,name),p)
 			in
 			let t = t_infos t in
 			loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
@@ -439,7 +439,7 @@ let rec value_to_expr v p =
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
 	| VFalse -> (EConst (Ident "false"),p)
-	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
+	| VInt32 i -> (EConst (Int (Int32.to_string i,None)),p)
 	| VFloat f -> haxe_float f p
 	| VString s -> (EConst (String(s.sstring,SDoubleQuotes)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
@@ -459,7 +459,7 @@ let rec value_to_expr v p =
 				| PEnum names -> fst (List.nth names e.eindex)
 				| _ -> die "" __LOC__
 			in
-			(EField (expr, name), p)
+			(efield (expr, name), p)
 		in
 		begin
 			match e.eargs with
@@ -470,7 +470,7 @@ let rec value_to_expr v p =
 		end
 	| VInstance {ikind = IIntMap m} ->
 		let el = IntHashtbl.fold (fun k v acc ->
-			let e_key = (EConst (Int (string_of_int k)),p) in
+			let e_key = (EConst (Int (string_of_int k, None)),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in
 		(EArrayDecl el,p)

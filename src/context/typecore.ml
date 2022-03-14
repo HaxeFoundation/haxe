@@ -60,11 +60,11 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_types : (module_type * pos) list;
+	mutable module_imports : (module_type * pos) list;
 	mutable module_using : (tclass * pos) list;
 	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
 	mutable wildcard_packages : (string list * pos) list;
-	mutable module_imports : import list;
+	mutable import_statements : import list;
 }
 
 type typer_globals = {
@@ -92,7 +92,7 @@ type typer_globals = {
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
 	do_optimize : typer -> texpr -> texpr;
-	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
+	do_build_instance : typer -> module_type -> pos -> (typed_type_param list * path * (t list -> t));
 	do_format_string : typer -> string -> pos -> Ast.expr;
 	do_finalize : typer -> unit;
 	do_generate : typer -> (texpr option * module_type list * module_def list);
@@ -117,7 +117,7 @@ and typer = {
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable tthis : t;
-	mutable type_params : (string * t) list;
+	mutable type_params : type_params;
 	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
 	mutable curfield : tclass_field;
@@ -191,6 +191,17 @@ type static_extension_access = {
 	se_access : field_access;
 }
 
+type dot_path_part_case =
+	| PUppercase
+	| PLowercase
+
+type dot_path_part = {
+	name : string;
+	case : dot_path_part_case;
+	kind : efield_kind;
+	pos : pos
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
@@ -220,6 +231,10 @@ let pass_name = function
 let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
 	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
 	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
+
+let warning ctx w msg p =
+	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
+	ctx.com.warning w options msg p
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -287,8 +302,8 @@ let add_local ctx k n t p =
 			let v' = PMap.find n ctx.locals in
 			(* ignore std lib *)
 			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
-				ctx.com.warning "This variable shadows a previously declared variable" p;
-				ctx.com.warning (compl_msg "Previous variable was here") v'.v_pos
+				warning ctx WVarShadow "This variable shadows a previously declared variable" p;
+				warning ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 			end
 		with Not_found ->
 			()
@@ -473,7 +488,7 @@ let rec can_access ctx c cf stat =
 	in
 	let rec expr_path acc e =
 		match fst e with
-		| EField (e,f) -> expr_path (f :: acc) e
+		| EField (e,f,_) -> expr_path (f :: acc) e
 		| EConst (Ident n) -> n :: acc
 		| _ -> []
 	in
@@ -562,7 +577,7 @@ let prepare_using_field cf = match follow cf.cf_type with
 	| TFun((_,_,tf) :: args,ret) ->
 		let rec loop acc overloads = match overloads with
 			| ({cf_type = TFun((_,_,tfo) :: args,ret)} as cfo) :: l ->
-				let tfo = apply_params cfo.cf_params (List.map snd cfo.cf_params) tfo in
+				let tfo = apply_params cfo.cf_params (extract_param_types cfo.cf_params) tfo in
 				(* ignore overloads which have a different first argument *)
 				if type_iseq tf tfo then loop ({cfo with cf_type = TFun(args,ret)} :: acc) l else loop acc l
 			| _ :: l ->
@@ -634,7 +649,7 @@ let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
 	(EObjectDecl (
 		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
-		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p), None)),p)) ::
 		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params

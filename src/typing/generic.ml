@@ -27,14 +27,14 @@ let make_generic ctx ps pt p =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
-		| (_,t1) :: l1 , t2 :: l2 ->
+		| ({ttp_type=TLazy f} as tp) :: l1, _ -> loop ({tp with ttp_type=lazy_type f} :: l1) l2
+		| tp1 :: l1 , t2 :: l2 ->
 			let t,eo = generic_check_const_expr ctx t2 in
-			(t1,(t,eo)) :: loop l1 l2
+			(tp1.ttp_type,(t,eo)) :: loop l1 l2
 		| _ -> die "" __LOC__
 	in
 	let name =
-		String.concat "_" (List.map2 (fun (s,_) t ->
+		String.concat "_" (List.map2 (fun {ttp_name=s} t ->
 			let rec subst s = "_" ^ string_of_int (Char.code (String.get (Str.matched_string s) 0)) ^ "_" in
 			let ident_safe = Str.global_substitute (Str.regexp "[^a-zA-Z0-9_]") subst in
 			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
@@ -202,7 +202,6 @@ let rec build_generic ctx c p tl =
 		| _ -> typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> die "" __LOC__) in
-		(* let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in *)
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
@@ -213,6 +212,21 @@ let rec build_generic ctx c p tl =
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
+		cg.cl_meta <- List.filter (fun (m,_,_) -> match m with
+			| Meta.Access | Allow
+			| Final
+			| Hack
+			| Internal
+			| Keep
+			| NoClosure | NullSafety
+			| Pure
+			| Struct | StructInit
+			| Using ->
+				true
+			| _ ->
+				false
+		) c.cl_meta;
+		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -249,20 +263,20 @@ let rec build_generic ctx c p tl =
 		let build_field cf_old =
 			(* We have to clone the type parameters (issue #4672). We cannot substitute the constraints immediately because
 			   we need the full substitution list first. *)
-			let param_subst,params = List.fold_left (fun (subst,params) (s,t) -> match follow t with
+			let param_subst,params = List.fold_left (fun (subst,params) tp -> match follow tp.ttp_type with
 				| TInst(c,tl) as t ->
 					let t2 = TInst({c with cl_module = mg;},tl) in
-					(t,(t2,None)) :: subst,(s,t2) :: params
+					(t,(t2,None)) :: subst,({tp with ttp_type=t2}) :: params
 				| _ -> die "" __LOC__
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
 			(* Type parameter constraints are substituted here. *)
-			cf_new.cf_params <- List.rev_map (fun (s,t) -> match follow t with
+			cf_new.cf_params <- List.rev_map (fun tp -> match follow tp.ttp_type with
 				| TInst({cl_kind = KTypeParameter tl1} as c,_) ->
 					let tl1 = List.map (generic_substitute_type gctx) tl1 in
 					c.cl_kind <- KTypeParameter tl1;
-					s,t
+					tp (* TPTODO: weird mapping *)
 				| _ -> die "" __LOC__
 			) params;
 			let f () =
@@ -314,8 +328,6 @@ let rec build_generic ctx c p tl =
 		);
 		TypeloadFunction.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
-		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
-		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
 		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)

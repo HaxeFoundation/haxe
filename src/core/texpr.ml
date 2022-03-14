@@ -566,13 +566,16 @@ let rec constructor_side_effects e =
 		with Exit ->
 			true
 
+let replace_separators s c =
+	String.concat c (ExtString.String.nsplit s "_")
+
 let type_constant basic c p =
 	match c with
-	| Int s ->
+	| Int (s,_) ->
 		if String.length s > 10 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
+	| Float (f,_) -> mk (TConst (TFloat f)) basic.tfloat p
 	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p

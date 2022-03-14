@@ -56,6 +56,7 @@ type object_store = {
     mutable os_fields : object_store list;
 }
 
+let replace_float_separators s =  Texpr.replace_separators s ""
 
 let debug_expression expression  =
     " --[[ " ^ Type.s_expr_kind expression  ^ " --]] "
@@ -324,7 +325,7 @@ let rec extract_expr e = match e.eexpr with
 
 let gen_constant ctx p = function
     | TInt i -> print ctx "%ld" i
-    | TFloat s -> spr ctx s
+    | TFloat s -> spr ctx (replace_float_separators s)
     | TString s -> begin
             add_feature ctx "use.string";
             print ctx "\"%s\"" (s_escape_lua s)

@@ -281,7 +281,7 @@ class typed_functions = object(self)
 end
 
 type typed_function_kind =
-	| FuncLocal
+	| FuncLocal of string option
 	| FuncMember of jpath * string
 	| FuncStatic of jpath * string
 
@@ -367,8 +367,13 @@ class typed_function
 
 	val jc_closure =
 		let name = match kind with
-			| FuncLocal ->
-				Printf.sprintf "Closure_%s_%i" (patch_name host_method#get_name) host_method#get_next_closure_id
+			| FuncLocal s ->
+				let name = patch_name host_method#get_name in
+				let name = match s with
+					| None -> name
+					| Some s -> name ^ "_" ^ s
+				in
+				Printf.sprintf "Closure_%s_%i" name (host_class#get_next_closure_id name)
 			| FuncStatic(path,name) ->
 				Printf.sprintf "%s_%s" (snd path) (patch_name name)
 			| FuncMember(path,name) ->

@@ -443,15 +443,21 @@ let array_access ctx e1 e2 mode p =
 	return a new `access_mode->access_kind` getter for the whole field access chain.
 *)
 let field_chain ctx path access mode with_type =
+	let type_field e part =
+		let cfg = {TypeFieldConfig.default with
+			safe = part.kind = EFSafe
+		} in
+		type_field cfg ctx e part.name part.pos
+	in
 	let rec loop access path = match path with
 		| [] ->
 			access
-		| [(name,_,p)] ->
-			let e = acc_get ctx access p in
-			type_field_default_cfg ctx e name p mode with_type
-		| (name,_,p) :: path ->
-			let e = acc_get ctx access p in
-			let access = type_field_default_cfg ctx e name p MGet WithType.value in
+		| [part] ->
+			let e = acc_get ctx access part.pos in
+			type_field e part mode with_type
+		| part :: path ->
+			let e = acc_get ctx access part.pos in
+			let access = type_field e part MGet WithType.value in
 			loop access path
 	in
 	loop access path

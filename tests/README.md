@@ -4,14 +4,13 @@ We have a number of test suites, which are placed in their own folders in this d
 
 "RunCi.hx" is the script used by our CIs to run all the test suites.
 
-### Local testing
+## Local testing
 
 It is possible to run it in local machines too:
 
  1. Change to this directory.
- 2. Compile the script: `haxe RunCi.hxml`.
- 3. Define the test target by `export TEST=$TARGET` (or `set "TEST=$TARGET"` on Windows), where `$TARGET` should be a comma-seperated list of targets, e.g. `neko,macro`. Possible targets are `macro`, `neko`, `js`, `lua`, `php`, `cpp`, `flash9`, `java`, `cs`, `python`, and `third-party`. However, `flash9` and `third-party` are not likely to work on local machines (TODO).
- 4. Run it: `neko RunCi.n`.
+ 2. Define the test target by `export TEST=$TARGET` (or `set "TEST=$TARGET"` on Windows), where `$TARGET` should be a comma-seperated list of targets, e.g. `neko,macro`. Possible targets are `macro`, `neko`, `js`, `lua`, `php`, `cpp`, `cppia`, `flash9`, `java`, `jvm`, `cs`, `python`, and `hl`.
+ 3. Run the script: `haxe RunCi.hxml`.
 
 Note that the script will try to look for test dependencies and install them if they are not found. Look at the `getXXXDependencies` functions for the details.
 

@@ -36,8 +36,8 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		return HxThread.current();
 	}
 
-	public static inline function create(callb:Void->Void):Thread {
-		return HxThread.create(callb, false);
+	public static inline function create(job:Void->Void):Thread {
+		return HxThread.create(job, false);
 	}
 
 	public static inline function runWithEventLoop(job:()->Void):Void {

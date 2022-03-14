@@ -43,11 +43,11 @@ let type_field_access ctx ?(resume=false) e name =
 
 let unapply_type_parameters params monos =
 	let unapplied = ref [] in
-	List.iter2 (fun (_,t1) t2 ->
+	List.iter2 (fun tp1 t2 ->
 		match t2,follow t2 with
 		| TMono m1,TMono m2 ->
 			unapplied := (m1,m1.tm_type) :: !unapplied;
-			Monomorph.bind m1 t1;
+			Monomorph.bind m1 tp1.ttp_type;
 		| _ -> ()
 	) params monos;
 	!unapplied
@@ -252,7 +252,7 @@ module Pattern = struct
 								| _ -> ""
 							in
 							let fields = List.map (fun (el) -> tpath ^ el) l in
-							pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
+							warning pctx.ctx WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
 					end;
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
@@ -312,14 +312,14 @@ module Pattern = struct
 				with _ ->
 					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-						display_error ctx "Pattern variables must be lower-case" p;
+						display_error ctx ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
 					end;
 					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->
 							()
 							(* if toplevel then
-								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
-						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
+								warning pctx.ctx (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
+						| l -> warning pctx.ctx WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
 					let v = add_local false s p in
 					PatVariable v
@@ -334,7 +334,7 @@ module Pattern = struct
 				let e = loop e in
 				pctx.in_reification <- old;
 				e
-			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
+			| EConst((Ident ("false" | "true") | Int (_,_) | String _ | Float (_,_)) as ct) ->
 				begin match ct with
 					| String (value,kind) when kind = Ast.SSingleQuotes ->
 						let e = ctx.g.do_format_string ctx value p in
@@ -422,7 +422,7 @@ module Pattern = struct
 						) el in
 						PatConstructor(con_array (List.length patterns) (pos e),patterns)
 					| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
-						begin match TyperBase.get_abstract_froms a tl with
+						begin match TyperBase.get_abstract_froms ctx a tl with
 							| [t2] -> pattern (t :: seen) t2
 							| _ -> fail()
 						end
@@ -930,16 +930,16 @@ module Useless = struct
 
 	(* Sane part *)
 
-	let check_case com p (case,bindings,patterns) =
+	let check_case ctx p (case,bindings,patterns) =
 		let p = List.map (fun (_,_,patterns) -> patterns) p in
 		match u' p (copy p) (copy p) patterns [] [] with
-			| False -> com.warning "This case is unused" case.case_pos
-			| Pos p -> com.warning "This pattern is unused" p
+			| False -> Typecore.warning ctx WMatcher "This case is unused" case.case_pos
+			| Pos p -> Typecore.warning ctx WMatcher "This pattern is unused" p
 			| True -> ()
 
-	let check com cases =
+	let check ctx cases =
 		ignore(List.fold_left (fun acc (case,bindings,patterns) ->
-			check_case com acc (case,bindings,patterns);
+			check_case ctx acc (case,bindings,patterns);
 			if case.case_guard = None then acc @ [case,bindings,patterns] else acc
 		) [] cases)
 end
@@ -1279,7 +1279,7 @@ module Compile = struct
 			switch mctx subject [] dt_fail
 		| _ ->
 			let dt = compile mctx subjects cases in
-			Useless.check mctx.ctx.com cases;
+			Useless.check mctx.ctx cases;
 			match vars with
 				| [] -> dt
 				| _ -> bind mctx vars dt
@@ -1361,7 +1361,7 @@ module TexprConverter = struct
 					t_dynamic
 				in
 				let t = match fst con with
-					| ConEnum(en,_) -> TEnum(en,List.map snd en.e_params)
+					| ConEnum(en,_) -> TEnum(en,extract_param_types en.e_params)
 					| ConArray _ -> ctx.t.tarray t_dynamic
 					| ConConst ct ->
 						begin match ct with
@@ -1371,7 +1371,7 @@ module TexprConverter = struct
 							| TBool _ -> ctx.t.tbool
 							| _ -> fail()
 						end
-					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,List.map snd a.a_params))
+					| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,extract_param_types a.a_params))
 					| ConTypeExpr mt -> get_general_module_type ctx mt e.epos
 					| ConFields _ | ConStatic _ -> fail()
 				in
@@ -1652,7 +1652,7 @@ module TexprConverter = struct
 				dt.dt_texpr <- e;
 				e
 		in
-		let params = List.map snd ctx.type_params in
+		let params = extract_param_types ctx.type_params in
 		let e = loop Toplevel params dt in
 		match e with
 		| None ->

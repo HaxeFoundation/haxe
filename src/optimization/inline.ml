@@ -864,7 +864,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 (* Same as type_inline, but modifies the function body to add field inits *)
 and type_inline_ctor ctx c cf tf ethis el po =
 	let field_inits =
-		let cparams = List.map snd c.cl_params in
+		let cparams = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst (c,cparams)) c.cl_pos in
 		let el = List.fold_left (fun acc cf ->
 			match cf.cf_kind,cf.cf_expr with

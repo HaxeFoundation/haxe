@@ -66,10 +66,69 @@ let rec add_final_return e =
 			{ e with eexpr = TFunction f }
 		| _ -> e
 
+module LocalStatic = struct
+	let promote_local_static ctx lut v eo =
+		let name = Printf.sprintf "%s_%s" ctx.curfield.cf_name v.v_name in
+		begin try
+			let cf = PMap.find name ctx.curclass.cl_statics in
+			display_error ctx (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
+			typing_error "Conflicting field was found here" cf.cf_name_pos;
+		with Not_found ->
+			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
+			begin match eo with
+			| None ->
+				()
+			| Some e ->
+				let rec loop e = match e.eexpr with
+					| TLocal _ | TFunction _ ->
+						typing_error "Accessing local variables in static initialization is not allowed" e.epos
+					| TConst (TThis | TSuper) ->
+						typing_error "Accessing `this` in static initialization is not allowed" e.epos
+					| TReturn _ | TBreak | TContinue ->
+						typing_error "This kind of control flow in static initialization is not allowed" e.epos
+					| _ ->
+						iter loop e
+				in
+				loop e;
+				cf.cf_expr <- Some e
+			end;
+			TClass.add_field ctx.curclass cf;
+			Hashtbl.add lut v.v_id cf
+		end
+
+	let find_local_static lut v =
+		Hashtbl.find lut v.v_id
+
+	let run ctx e =
+		let local_static_lut = Hashtbl.create 0 in
+		let c = ctx.curclass in
+		let rec run e = match e.eexpr with
+			| TBlock el ->
+				let el = ExtList.List.filter_map (fun e -> match e.eexpr with
+					| TVar(v,eo) when has_var_flag v VStatic ->
+						promote_local_static ctx local_static_lut v eo;
+						None
+					| _ ->
+						Some (run e)
+				) el in
+				{ e with eexpr = TBlock el }
+			| TLocal v when has_var_flag v VStatic ->
+				begin try
+					let cf = find_local_static local_static_lut v in
+					Texpr.Builder.make_static_field c cf e.epos
+				with Not_found ->
+					typing_error (Printf.sprintf "Could not find local static %s (id %i)" v.v_name v.v_id) e.epos
+				end
+			| _ ->
+				Type.map_expr run e
+		in
+		run e
+end
+
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
-let check_local_vars_init com e =
+let check_local_vars_init ctx e =
 	let intersect vl1 vl2 =
 		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
 	in
@@ -94,8 +153,8 @@ let check_local_vars_init com e =
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
 			if not init then begin
 				if IntMap.mem v.v_id !outside_vars then
-					if v.v_name = "this" then com.warning "this might be used before assigning a value to it" e.epos
-					else com.warning ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
+					if v.v_name = "this" then warning ctx WVarInit "this might be used before assigning a value to it" e.epos
+					else warning ctx WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
 				else
 					if v.v_name = "this" then typing_error "Missing this = value" e.epos
 					else typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
@@ -198,7 +257,7 @@ let check_local_vars_init com e =
 
 let mark_switch_break_loops e =
 	let add_loop_label n e =
-		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n)),e.epos)],e.epos), e) }
+		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n, None)),e.epos)],e.epos), e) }
 	in
 	let in_switch = ref false in
 	let did_found = ref (-1) in
@@ -469,7 +528,7 @@ let add_rtti ctx t =
 (* Adds member field initializations as assignments to the constructor *)
 let add_field_inits locals ctx t =
 	let apply c =
-		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
+		let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
 		let v = alloc_var VGenerated "_g" ethis.etype ethis.epos in
 		let need_this = ref false in
@@ -486,7 +545,7 @@ let add_field_inits locals ctx t =
 				match cf.cf_expr with
 				| None -> die "" __LOC__
 				| Some e ->
-					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
+					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,extract_param_types c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
 					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
 			) inits in
@@ -647,8 +706,9 @@ let commit_features ctx t =
 
 let check_reserved_type_paths ctx t =
 	let check path pos =
-		if List.mem path ctx.com.config.pf_reserved_type_paths then
-			ctx.com.warning ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+		if List.mem path ctx.com.config.pf_reserved_type_paths then begin
+			warning ctx WReservedTypePath ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+		end
 	in
 	match t with
 	| TClassDecl c when not (has_class_flag c CExtern) -> check c.cl_path c.cl_pos
@@ -745,8 +805,9 @@ let run com tctx main =
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
 	let filters = [
+		"local_statics",LocalStatic.run tctx;
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
-		"check_local_vars_init",check_local_vars_init tctx.com;
+		"check_local_vars_init",check_local_vars_init tctx;
 		"check_abstract_as_value",check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
 		"reduce_expression",Optimizer.reduce_expression tctx;
@@ -856,7 +917,15 @@ let run com tctx main =
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in
-	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
+	List.iter (fun t ->
+		begin match t with
+		| TClassDecl c ->
+			tctx.curclass <- c
+		| _ ->
+			()
+		end;
+		List.iter (fun f -> f tctx t) type_filters
+	) com.types;
 	t();
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
 	com.stage <- CFilteringDone
