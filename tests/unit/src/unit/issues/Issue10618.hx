@@ -1,5 +1,6 @@
 package unit.issues;
 
+#if java
 @:keep
 private class NotMain implements java.util.Iterator<String> {
 	static function main() {}
@@ -10,6 +11,7 @@ private class NotMain implements java.util.Iterator<String> {
 	public function next():String
 		throw 0;
 }
+#end
 
 class Issue10618 extends unit.Test {
 	public function test() {
