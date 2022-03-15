@@ -281,6 +281,7 @@ module DebugDatabase = struct
    type hx_closure = {
       name : string;
       arguments : name_mapping list;
+      expr_map : hx_expr_mapping list;
    }
 
    type hx_function = {
@@ -289,6 +290,7 @@ module DebugDatabase = struct
       arguments : name_mapping list;
       variables : name_mapping list;
       closures : hx_closure list;
+      expr_map : hx_expr_mapping list;
    }
 
    type generated_file = {
@@ -296,7 +298,6 @@ module DebugDatabase = struct
       haxe_file : string;
       haxe_type : string;
       functions : hx_function list;
-      expr_map : hx_expr_mapping list;
       header_offset : int;
    }
 
@@ -312,7 +313,6 @@ module DebugDatabase = struct
       haxe_type = haxe_type;
       header_offset = 0;
       functions = [];
-      expr_map = [];
    }
 
    let create_function haxe_name cpp_name = {
@@ -321,11 +321,13 @@ module DebugDatabase = struct
       arguments = [];
       variables = [];
       closures  = [];
+      expr_map  = [];
    }
 
    let create_closure name arguments = {
       name      = name;
       arguments = arguments;
+      expr_map  = [];
    }
 
    let create_name_mapping haxe_name cpp_name haxe_type = {
@@ -341,22 +343,23 @@ module DebugDatabase = struct
    let print_name_mapping map =
       Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\" }" map.haxe_var map.cpp_var map.haxe_type
 
-   let print_closure closure =
-      Printf.sprintf "{ \"name\" : \"%s\", \"arguments\" : [ %s ] }" closure.name (String.concat ", " (List.map print_name_mapping closure.arguments))
-
-   let print_function func =
-      let printed_args     = String.concat ", " (List.map print_name_mapping func.arguments) in
-      let printed_vars     = String.concat ", " (List.map print_name_mapping func.variables) in
-      let printed_closures = String.concat ", " (List.map print_closure func.closures) in
-      Printf.sprintf "{ \"name\" : \"%s\", \"cpp\" : \"%s\", \"arguments\" : [ %s ], \"variables\" : [ %s ], \"closures\" : [ %s ] }" func.haxe_name func.cpp_name printed_args printed_vars printed_closures
-
    let print_exprmap offset map =
       Printf.sprintf "{ \"haxe\" : { \"start\" : { \"line\" : %i, \"col\" : %i }, \"end\" : { \"line\" : %i, \"col\" : %i } }, \"cpp\" : %i }" map.haxe.e_start.line map.haxe.e_start.col map.haxe.e_end.line map.haxe.e_end.col (map.cpp_line + offset)
 
+   let print_closure offset (closure : hx_closure) =
+      let printed_exprs = String.concat ", " (List.map (print_exprmap offset) closure.expr_map) in
+      Printf.sprintf "{ \"name\" : \"%s\", \"arguments\" : [ %s ], \"exprs\" : [ %s ] }" closure.name (String.concat ", " (List.map print_name_mapping closure.arguments)) printed_exprs
+
+   let print_function offset func =
+      let printed_args     = String.concat ", " (List.map print_name_mapping func.arguments) in
+      let printed_vars     = String.concat ", " (List.map print_name_mapping func.variables) in
+      let printed_closures = String.concat ", " (List.map (print_closure offset) func.closures) in
+      let printed_exprs    = String.concat ", " (List.map (print_exprmap offset) func.expr_map) in
+      Printf.sprintf "{ \"name\" : \"%s\", \"cpp\" : \"%s\", \"arguments\" : [ %s ], \"variables\" : [ %s ], \"closures\" : [ %s ], \"exprs\" : [ %s ] }" func.haxe_name func.cpp_name printed_args printed_vars printed_closures printed_exprs
+
    let print_generated_file f =
-      let printed_funcs = String.concat ", " (List.map print_function f.functions) in
-      let printed_exprs = String.concat ", " (List.map (print_exprmap f.header_offset) f.expr_map) in
-      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ], \"exprs\" : [ %s ] }" f.haxe_file f.cpp_file f.haxe_type printed_funcs printed_exprs
+      let printed_funcs = String.concat ", " (List.map (print_function f.header_offset) f.functions) in
+      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ] }" f.haxe_file f.cpp_file f.haxe_type printed_funcs
 
    let print db =
       "{ \"files\" : [ " ^ String.concat ", " (List.map print_generated_file db.files) ^ " ] }"
@@ -381,6 +384,7 @@ type context =
    debug_database : DebugDatabase.db ref;
    current_file : DebugDatabase.generated_file ref;
    current_func : DebugDatabase.hx_function ref;
+   closure_stack : DebugDatabase.hx_closure Stack.t ref;
 
    mutable ctx_debug_level : int;
    (* cached as required *)
@@ -410,6 +414,7 @@ let result =
    debug_database = ref (DebugDatabase.create());
    current_file = ref (DebugDatabase.create_file "" "" "");
    current_func = ref (DebugDatabase.create_function "" "");
+   closure_stack = ref (Stack.create());
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
    ctx_type_ids = Hashtbl.create 0;
@@ -3604,10 +3609,15 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          let lineName = Printf.sprintf "%4d" line in
          let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
          (
-            let pos = Lexer.get_pos_coords expr.cpppos in
-            let map = DebugDatabase.create_mapping (writer#get_current_line()) pos in
-            let current = !(ctx.current_file) in
-            ctx.current_file := { current with expr_map = (map :: current.expr_map) }
+            let pos      = Lexer.get_pos_coords expr.cpppos in
+            let map      = DebugDatabase.create_mapping (writer#get_current_line()) pos in
+            let func     = !(ctx.current_func) in
+            let closures = !(ctx.closure_stack) in
+            match Stack.pop_opt closures with
+            | Some closure ->
+               Stack.push { closure with expr_map = (map :: closure.expr_map) } closures
+            | None ->
+               ctx.current_func := { func with expr_map = (map :: func.expr_map) };
          );
          out (macro ^ "(" ^ lineName ^ ")\t" );
          lastLine := line;
@@ -4413,10 +4423,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       let func_type = tcpp_to_string closure.close_type in
       output_i (func_type ^ " _hx_run(" ^ (cpp_arg_list ctx closure.close_args "__o_") ^ ")");
 
-      let args        = List.map (fun (a, o) -> DebugDatabase.create_name_mapping a.v_name (cpp_arg_string ctx a o "__o_") (Printer.s_type a.v_type)) closure.close_args in
-      let dbg_closure = DebugDatabase.create_closure ("_hx_Closure_" ^ (string_of_int closure.close_id)) args in
-      let current     = !(ctx.current_func) in
-      ctx.current_func := { current with closures = dbg_closure :: current.closures };
+      let args     = List.map (fun (a, o) -> DebugDatabase.create_name_mapping a.v_name (cpp_arg_string ctx a o "__o_") (Printer.s_type a.v_type)) closure.close_args in
+      let closures = !(ctx.closure_stack) in
+      Stack.push (DebugDatabase.create_closure ("_hx_Closure_" ^ (string_of_int closure.close_id)) args) closures;
 
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
@@ -4437,6 +4446,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
 
       output_i ("HX_END_LOCAL_FUNC" ^ argsCount ^ "(" ^ return ^ ")\n\n");
+
+      let current  = !(ctx.current_func) in
+      let closures = !(ctx.closure_stack) in
+      match Stack.pop_opt closures with
+      | Some closure ->
+         ctx.current_func := { current with closures = (closure :: current.closures) };
+      | None ->
+         ();
    in
 
 
