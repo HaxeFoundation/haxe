@@ -722,7 +722,7 @@ class texpr_to_jvm
 		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(None,{cf_name = s}) ->
 			dynamic_read s
 		| FClosure((Some(c,_)),cf) ->
-			if has_class_flag c CInterface then
+			if has_class_flag c CInterface || Meta.has Meta.Runtime cf.cf_meta then
 				dynamic_read cf.cf_name
 			else
 				create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
