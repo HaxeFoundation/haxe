@@ -51,7 +51,7 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
-			let te,c,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
+			let te,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
 			Display.merge_core_doc ctx (TClassDecl c);
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
@@ -65,7 +65,7 @@ let completion_item_of_expr ctx e =
 			in
 			of_field {e with etype = te} origin cf CFSStatic make_ci
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
-			let te,c,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
+			let te,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
 			Display.merge_core_doc ctx (TClassDecl c);
 			let origin = match follow e1.etype with
 			| TInst(c',_) when c != c' ->
@@ -224,6 +224,21 @@ let rec handle_signature_display ctx e_ast with_type =
 		let overloads = List.map (fun (t,doc,values) -> (convert_function_signature ctx values t,doc)) overloads in
 		raise_signatures overloads 0 (* ? *) display_arg SKCall
 	in
+	let process_overloads stat co (map,cf,t) =
+		let is_wacky_overload = not (has_class_field_flag cf CfOverload) in
+		let can_access cf = match co with
+			| Some c -> can_access ctx c cf stat
+			| None -> true
+		in
+		let l = (t,cf) :: List.rev_map (fun cf -> map cf.cf_type,cf) cf.cf_overloads in
+		let l = List.filter (fun (_,cf) -> can_access cf) l in
+		let l = List.map (fun (t,cf') ->
+			(* Ghetto overloads have their documentation on the main field. *)
+			let doc = if is_wacky_overload then cf.cf_doc else cf'.cf_doc in
+			(t,doc,get_value_meta cf.cf_meta)
+		) l in
+		l
+	in
 	let find_constructor_types t = match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
 			let rec loop tl = match tl with
@@ -236,14 +251,9 @@ let rec handle_signature_display ctx e_ast with_type =
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			Display.merge_core_doc ctx (TClassDecl c);
 			let fa = get_constructor_access c tl p in
-			let is_wacky_overload = not (has_class_field_flag fa.fa_field CfOverload) in
 			let map = FieldAccess.get_map_function fa in
-			let map_cf cf =
-				(* Ghetto overloads have their documentation on the main field. *)
-				let doc = if is_wacky_overload then fa.fa_field.cf_doc else cf.cf_doc in
-				map cf.cf_type,doc,get_value_meta cf.cf_meta
-			in
-			List.map map_cf (fa.fa_field :: fa.fa_field.cf_overloads)
+			let cf = fa.fa_field in
+			process_overloads false (Some c) (map,cf,cf.cf_type)
 		| _ ->
 			[]
 	in
@@ -269,13 +279,17 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			let tl = match e1.eexpr with
 				| TField(_,fa) ->
-					let f (t,_,cf) =
-						(t,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads
-					in
 					begin match fa with
-						| FStatic(c,cf) | FInstance(c,_,cf) -> f (DisplayToplevel.maybe_resolve_macro_field ctx e1.etype c cf)
-						| FAnon cf | FClosure(_,cf) -> f (e1.etype,null_class,cf)
-						| _ -> [e1.etype,None,PMap.empty]
+						| FStatic(c,cf) ->
+							let t,cf = DisplayToplevel.maybe_resolve_macro_field ctx e1.etype c cf in
+							process_overloads true (Some c) ((fun t -> t),cf,t)
+						| FInstance(c,tl,cf) | FClosure(Some(c,tl),cf) ->
+							let t,cf = DisplayToplevel.maybe_resolve_macro_field ctx e1.etype c cf in
+							process_overloads false (Some c) (TClass.get_map_function c tl,cf,t)
+						| FAnon cf | FClosure(None,cf) ->
+							process_overloads false None ((fun t -> t),cf,e1.etype)
+						| _ ->
+							[e1.etype,None,PMap.empty]
 					end;
 				| TConst TSuper ->
 					find_constructor_types e1.etype

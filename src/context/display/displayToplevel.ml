@@ -49,9 +49,9 @@ let maybe_resolve_macro_field ctx t c cf =
 		if cf.cf_kind <> Method MethMacro then raise Exit;
 		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
 		let t = perform_type_voodoo t tl tr in
-		t,c,{cf with cf_type = t}
+		t,{cf with cf_type = t}
 	with _ ->
-		t,c,cf
+		t,cf
 
 let exclude : string list ref = ref []
 
@@ -307,16 +307,16 @@ let collect ctx tk with_type sort =
 		let add_field scope origin cf =
 			let origin,cf = match origin with
 				| Self (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					Self (TClassDecl c),cf
 				| StaticImport (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					StaticImport (TClassDecl c),cf
 				| Parent (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					Parent (TClassDecl c),cf
 				| StaticExtension (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					StaticExtension (TClassDecl c),cf
 				| _ ->
 					origin,cf
