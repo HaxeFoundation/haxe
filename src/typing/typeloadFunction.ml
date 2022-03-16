@@ -186,10 +186,13 @@ let add_constructor ctx c force_constructor p =
 	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with
 	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
+		let filter_meta (m,_,_) =
+			m = Meta.CompilerGenerated || m = Meta.Custom ":safe"
+		in
 		let cf = {
 			cfsup with
 			cf_pos = p;
-			cf_meta = List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
+			cf_meta = (Meta.Custom ":passThroughCtor",[],null_pos) :: (List.filter filter_meta cfsup.cf_meta);
 			cf_doc = None;
 			cf_expr = None;
 		} in
