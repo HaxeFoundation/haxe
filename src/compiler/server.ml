@@ -8,23 +8,11 @@ open Timer
 open Type
 open DisplayOutput
 open Json
+open Compiler
+open CompilationContext
 
 exception Dirty of path
 exception ServerError of string
-
-let prompt = ref false
-let start_time = ref (Timer.get_time())
-
-let is_debug_run = try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
-
-type context = {
-	com : Common.context;
-	mutable flush : unit -> unit;
-	mutable setup : unit -> unit;
-	mutable messages : compiler_message list;
-	mutable has_next : bool;
-	mutable has_error : bool;
-}
 
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
@@ -59,33 +47,6 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			api.send_error errors
 		end
 
-let default_flush ctx =
-	check_display_flush ctx (fun () ->
-		List.iter
-			(fun msg -> match msg with
-				| CMInfo _ -> print_endline (compiler_message_string msg)
-				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-			)
-			(List.rev ctx.messages);
-		if ctx.has_error && !prompt then begin
-			print_endline "Press enter to exit...";
-			ignore(read_line());
-		end;
-		if ctx.has_error then exit 1
-	)
-
-let create_context params =
-	let ctx = {
-		com = Common.create version params;
-		flush = (fun()->());
-		setup = (fun()->());
-		messages = [];
-		has_next = false;
-		has_error = false;
-	} in
-	ctx.flush <- (fun() -> default_flush ctx);
-	ctx
-
 let parse_hxml_data data =
 	let lines = Str.split (Str.regexp "[\r\n]+") data in
 	List.concat (List.map (fun l ->
@@ -107,16 +68,6 @@ let parse_hxml file =
 	let data = IO.read_all ch in
 	IO.close_in ch;
 	parse_hxml_data data
-
-let ssend sock str =
-	let rec loop pos len =
-		if len = 0 then
-			()
-		else
-			let s = Unix.send sock str pos len [] in
-			loop (pos + s) (len - s)
-	in
-	loop 0 (Bytes.length str)
 
 let current_stdin = ref None
 
@@ -212,6 +163,79 @@ module ServerCompilationContext = struct
 end
 
 open ServerCompilationContext
+
+class virtual server_communication
+	(sctx : ServerCompilationContext.t)
+= object(self)
+	method virtual out : string -> unit (* like stdout *)
+	method virtual err : string -> unit (* like stderr *)
+	method virtual finish : compilation_context -> unit
+
+	method maybe_cache_context com =
+		if com.display.dms_full_typing then begin
+			CommonCache.cache_context sctx.cs com;
+			ServerMessage.cached_modules com "" (List.length com.modules);
+		end
+end
+
+class stdio_communication
+	(sctx : ServerCompilationContext.t)
+= object(self)
+	inherit server_communication sctx
+
+	method out (s : string) =
+		print_string s;
+		flush stdout (* TODO: is this ok? *)
+
+	method err (s : string) =
+		prerr_string s
+
+	method finish (ctx : compilation_context) =
+		List.iter
+		(fun msg -> match msg with
+			| CMInfo _ -> print_endline (compiler_message_string msg)
+			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+		)
+		(List.rev ctx.messages);
+		if ctx.has_error && !Helper.prompt then begin
+			print_endline "Press enter to exit...";
+			ignore(read_line());
+		end;
+		flush stdout;
+		if ctx.has_error then exit 1
+end
+
+class other_communication
+	(sctx : ServerCompilationContext.t)
+	(write : string -> unit)
+= object(self)
+	inherit server_communication sctx
+
+	method out (s : string) =
+		write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+
+	method err (s : string) =
+		write s
+
+	method finish (ctx : compilation_context) =
+		sctx.compilation_step <- sctx.compilation_step + 1;
+		sctx.compilation_mark <- sctx.mark_loop;
+		check_display_flush ctx (fun () ->
+			List.iter
+				(fun msg ->
+					let s = compiler_message_string msg in
+					write (s ^ "\n");
+					ServerMessage.message s;
+				)
+				(List.rev ctx.messages);
+			sctx.was_compilation <- ctx.com.display.dms_full_typing;
+			if ctx.has_error then begin
+				measure_times := false;
+				write "\x02\n"
+			end else
+				self#maybe_cache_context ctx.com;
+		)
+end
 
 let stat dir =
 	(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
@@ -466,50 +490,33 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		None
 
 (* Sets up the per-compilation context. *)
-let create sctx write params =
+let create sctx (comm : server_communication) params =
 	let cs = sctx.cs in
-	let maybe_cache_context com =
-		if com.display.dms_full_typing then begin
-			CommonCache.cache_context sctx.cs com;
-			ServerMessage.cached_modules com "" (List.length com.modules);
-		end
-	in
-	let ctx = create_context params in
-	ctx.flush <- (fun() ->
-		sctx.compilation_step <- sctx.compilation_step + 1;
-		sctx.compilation_mark <- sctx.mark_loop;
-		check_display_flush ctx (fun () ->
-			List.iter
-				(fun msg ->
-					let s = compiler_message_string msg in
-					write (s ^ "\n");
-					ServerMessage.message s;
-				)
-				(List.rev ctx.messages);
-			sctx.was_compilation <- ctx.com.display.dms_full_typing;
-			if ctx.has_error then begin
-				measure_times := false;
-				write "\x02\n"
-			end else maybe_cache_context ctx.com;
-		)
-	);
-	ctx.setup <- (fun() ->
-		let sign = Define.get_signature ctx.com.defines in
-		ServerMessage.defines ctx.com "";
-		ServerMessage.signature ctx.com "" sign;
-		ServerMessage.display_position ctx.com "" (DisplayPosition.display_position#get);
-		try
-			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
-				ServerMessage.class_paths_changed ctx.com "";
-				Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
-				cs#clear_directories sign;
-				(cs#get_context sign)#set_initialized false;
-			end;
-		with Not_found ->
-			Hashtbl.add sctx.class_paths sign ctx.com.class_path;
-			()
-	);
-	ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
+	let rec ctx = {
+		com = Common.create version params;
+		finish = (fun()-> comm#finish ctx);
+		setup = (fun() ->
+			let sign = Define.get_signature ctx.com.defines in
+			ServerMessage.defines ctx.com "";
+			ServerMessage.signature ctx.com "" sign;
+			ServerMessage.display_position ctx.com "" (DisplayPosition.display_position#get);
+			try
+				if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
+					ServerMessage.class_paths_changed ctx.com "";
+					Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
+					cs#clear_directories sign;
+					(cs#get_context sign)#set_initialized false;
+				end;
+			with Not_found ->
+				Hashtbl.add sctx.class_paths sign ctx.com.class_path;
+				()
+		);
+		messages = [];
+		has_next = false;
+		has_error = false;
+		server_mode = SMNone;
+	} in
+	ctx.com.print <- comm#out;
 	ctx
 
 (* Resets the state for a new compilation *)
@@ -527,7 +534,7 @@ let init_new_compilation sctx =
 	Hashtbl.clear Timer.htimers;
 	sctx.compilation_step <- sctx.compilation_step + 1;
 	sctx.compilation_mark <- sctx.mark_loop;
-	start_time := get_time()
+	Helper.start_time := get_time()
 
 let cleanup () =
 	begin match !MacroContext.macro_interp_cache with
@@ -608,9 +615,138 @@ module Tasks = struct
 	end
 end
 
+(* Returns a list of contexts, but doesn't do anything yet *)
+let process_params create pl =
+	let each_params = ref [] in
+	let compilations = DynArray.create () in
+	let curdir = Unix.getcwd () in
+	let add_context args =
+		let ctx = create args in
+		(* --cwd triggers immediately, so let's reset *)
+		Unix.chdir curdir;
+		DynArray.add compilations ctx;
+		ctx;
+	in
+	let rec loop acc = function
+		| [] ->
+			ignore(add_context (!each_params @ (List.rev acc)));
+		| "--next" :: l when acc = [] -> (* skip empty --next *)
+			loop [] l
+		| "--next" :: l ->
+			let ctx = add_context (!each_params @ (List.rev acc)) in
+			ctx.has_next <- true;
+			loop [] l
+		| "--each" :: l ->
+			each_params := List.rev acc;
+			loop [] l
+		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
+			(* we need to change it immediately since it will affect hxml loading *)
+			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+			(* Push the --cwd arg so the arg processor know we did something. *)
+			loop (dir :: "--cwd" :: acc) l
+		| "--connect" :: hp :: l ->
+			(match CompilationServer.get() with
+			| None ->
+				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+				Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+			| Some _ ->
+				(* already connected : skip *)
+				loop acc l)
+		| "--run" :: cl :: args ->
+			let acc = cl :: "-x" :: acc in
+			let ctx = add_context (!each_params @ (List.rev acc)) in
+			ctx.com.sys_args <- args;
+		| arg :: l ->
+			match List.rev (ExtString.String.nsplit arg ".") with
+			| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
+				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+				loop acc l
+			| _ -> loop (arg :: acc) l
+	in
+	(* put --display in front if it was last parameter *)
+	let pl = (match List.rev pl with
+		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
+		| _ -> pl
+	) in
+	loop [] pl;
+	DynArray.to_list compilations
+
+let parse_host_port hp =
+	let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+	let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
+	host, port
+
+let rec process sctx comm args =
+	let t0 = get_time() in
+	ServerMessage.arguments args;
+	init_new_compilation sctx;
+	let create = create sctx comm in
+	let ctxs = try
+		process_params create args
+	with Arg.Bad msg ->
+		let ctx = create args in
+		error ctx ("Error: " ^ msg) null_pos;
+		[ctx]
+	in
+	let run ctx =
+		Compiler.setup_common_context ctx;
+		Compiler.compile_safe ctx (fun () ->
+			let actx = Args.parse_args ctx in
+			begin match ctx.server_mode with
+			| SMListen hp ->
+				setup_listen ctx.com.verbose hp
+			| SMConnect hp ->
+				setup_connect ctx.com.verbose hp
+			| SMNone ->
+				()
+			end;
+			Compiler.compile ctx actx;
+		);
+		ctx.finish();
+	in
+	let run ctx = try
+		if ctx.has_error then begin
+			ctx.finish();
+			false (* can happen if process_params above fails already *)
+		end else begin
+			run ctx;
+			true (* reads as "continue?" *)
+		end
+	with
+		| Completion str ->
+			ServerMessage.completion str;
+			comm#err str;
+			false
+		| Arg.Bad msg ->
+			error ctx ("Error: " ^ msg) null_pos;
+			false
+	in
+	let success = List.fold_left (fun b ctx -> b && run ctx) true ctxs in
+	if success then begin
+		close_times();
+		if !measure_times then report_times (fun s -> comm#err (s ^ "\n"));
+	end;
+	run_delays sctx;
+	ServerMessage.stats stats (get_time() -. t0)
+
+and setup_listen verbose hp =
+	let accept = match hp with
+	| "stdio" ->
+		Server_old.init_wait_stdio()
+	| _ ->
+		let host, port = parse_host_port hp in
+		init_wait_socket host port
+	in
+	wait_loop verbose accept
+
+and setup_connect verbose hp =
+	let host, port = parse_host_port hp in
+	let accept = init_wait_connect host port in
+	wait_loop verbose accept
+
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
-let wait_loop process_params verbose accept =
+and wait_loop verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Create server context and set up hooks for parsing and typing *)
@@ -638,41 +774,21 @@ let wait_loop process_params verbose accept =
 	(* Main loop: accept connections and process arguments *)
 	while true do
 		let support_nonblock, read, write, close = accept() in
-		let process s =
-			let t0 = get_time() in
-			let hxml =
-				try
-					let idx = String.index s '\001' in
-					current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
-					(String.sub s 0 idx)
-				with Not_found ->
-					s
-			in
-			let data = parse_hxml_data hxml in
-			ServerMessage.arguments data;
-			init_new_compilation sctx;
-			begin try
-				let create = create sctx write in
-				(* Pass arguments to normal handling in main.ml *)
-				process_params create data;
-				close_times();
-				if !measure_times then report_times (fun s -> write (s ^ "\n"))
-			with
-			| Completion str ->
-				ServerMessage.completion str;
-				write str
-			| Arg.Bad msg ->
-				print_endline ("Error: " ^ msg);
-			end;
-			run_delays sctx;
-			ServerMessage.stats stats (get_time() -. t0)
-		in
 		begin try
 			(* Read arguments *)
 			let rec loop block =
 				match read block with
-				| Some data ->
-					process data
+				| Some s ->
+					let hxml =
+						try
+							let idx = String.index s '\001' in
+							current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
+							(String.sub s 0 idx)
+						with Not_found ->
+							s
+					in
+					let data = parse_hxml_data hxml in
+					process sctx (new other_communication sctx write) data
 				| None ->
 					if not cs#has_task then
 						(* If there is no pending task, turn into blocking mode. *)
@@ -690,7 +806,7 @@ let wait_loop process_params verbose accept =
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
 			(try write ("\x02\n" ^ estr); with _ -> ());
-			if is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then begin
 				close();
 				exit (-1);
@@ -708,75 +824,14 @@ let wait_loop process_params verbose accept =
 			cs#add_task (new Tasks.server_exploration_task cs)
 	done
 
-let mk_length_prefixed_communication allow_nonblock chin chout =
-	let sin = Unix.descr_of_in_channel chin in
-	let chin = IO.input_channel chin in
-	let chout = IO.output_channel chout in
-
-	let bout = Buffer.create 0 in
-
-	let block () = Unix.clear_nonblock sin in
-	let unblock () = Unix.set_nonblock sin in
-
-	let read_nonblock _ =
-        let len = IO.read_i32 chin in
-        Some (IO.really_nread_string chin len)
-	in
-	let read = if allow_nonblock then fun do_block ->
-		if do_block then begin
-			block();
-			read_nonblock true;
-		end else begin
-			let c0 =
-				unblock();
-				try
-					Some (IO.read_byte chin)
-				with
-				| Sys_blocked_io
-				(* TODO: We're supposed to catch Sys_blocked_io only, but that doesn't work on my PC... *)
-				| Sys_error _ ->
-					None
-			in
-			begin match c0 with
-			| Some c0 ->
-				block(); (* We got something, make sure we block until we're done. *)
-				let c1 = IO.read_byte chin in
-				let c2 = IO.read_byte chin in
-				let c3 = IO.read_byte chin in
-				let len = c3 lsl 24 + c2 lsl 16 + c1 lsl 8 + c0 in
-				Some (IO.really_nread_string chin len)
-			| None ->
-				None
-			end
-		end
-	else read_nonblock in
-
-	let write = Buffer.add_string bout in
-
-	let close = fun() ->
-		IO.write_i32 chout (Buffer.length bout);
-		IO.nwrite_string chout (Buffer.contents bout);
-		IO.flush chout
-	in
-
-	fun () ->
-		Buffer.clear bout;
-		allow_nonblock, read, write, close
-
-(* The accept-function to wait for a stdio connection. *)
-let init_wait_stdio() =
-	set_binary_mode_in stdin true;
-	set_binary_mode_out stderr true;
-	mk_length_prefixed_communication false stdin stderr
-
 (* Connect to given host/port and return accept function for communication *)
-let init_wait_connect host port =
+and init_wait_connect host port =
 	let host = Unix.inet_addr_of_string host in
 	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
-	mk_length_prefixed_communication true chin chout
+	Server_old.mk_length_prefixed_communication true chin chout
 
 (* The accept-function to wait for a socket connection. *)
-let init_wait_socket host port =
+and init_wait_socket host port =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
 	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
@@ -812,59 +867,8 @@ let init_wait_socket host port =
 				end
 		in
 		let read = fun _ -> (let s = read_loop 0 in Unix.clear_nonblock sin; Some s) in
-		let write s = ssend sin (Bytes.unsafe_of_string s) in
+		let write s = Server_old.ssend sin (Bytes.unsafe_of_string s) in
 		let close() = Unix.close sin in
 		false, read, write, close
 	) in
 	accept
-
-(* The connect function to connect to [host] at [port] and send arguments [args]. *)
-let do_connect host port args =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
-	let rec display_stdin args =
-		match args with
-		| [] -> ""
-		| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
-			let accept = init_wait_stdio() in
-			let _, read, _, _ = accept() in
-			Option.default "" (read true)
-		| _ :: args ->
-			display_stdin args
-	in
-	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
-	ssend sock (Bytes.of_string (s ^ "\000"));
-	let has_error = ref false in
-	let rec print line =
-		match (if line = "" then '\x00' else line.[0]) with
-		| '\x01' ->
-			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
-			flush stdout
-		| '\x02' ->
-			has_error := true;
-		| _ ->
-			prerr_endline line;
-	in
-	let buf = Buffer.create 0 in
-	let process() =
-		let lines = ExtString.String.nsplit (Buffer.contents buf) "\n" in
-		(* the last line ends with \n *)
-		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
-		List.iter print lines;
-	in
-	let tmp = Bytes.create 1024 in
-	let rec loop() =
-		let b = Unix.recv sock tmp 0 1024 [] in
-		Buffer.add_subbytes buf tmp 0 b;
-		if b > 0 then begin
-			if Bytes.get tmp (b - 1) = '\n' then begin
-				process();
-				Buffer.reset buf;
-			end;
-			loop();
-		end
-	in
-	loop();
-	process();
-	if !has_error then exit 1
