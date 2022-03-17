@@ -52,16 +52,10 @@ let args = List.tl (Array.to_list Sys.argv) in
 	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in
 	let host, port = (try ExtString.String.split server ":" with _ -> "127.0.0.1", server) in
 	Server_old.do_connect host (try int_of_string port with _ -> failwith "Invalid HAXE_COMPILATION_SERVER port") args
-with Not_found -> try
+with Not_found ->
 	let cs = CompilationServer.create () in
 	let sctx = ServerCompilationContext.create false cs in
 	Server.process sctx (new stdio_communication sctx) args;
-with DisplayOutput.Completion c ->
-	prerr_endline c;
-	exit 0
-| Arg.Bad msg ->
-	prerr_endline ("Error: " ^ msg);
-	exit 1
 );
 other();
 if !Timer.measure_times then Timer.report_times prerr_endline
