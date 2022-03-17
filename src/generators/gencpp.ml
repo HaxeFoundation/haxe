@@ -21,6 +21,7 @@ open Ast
 open Type
 open Common
 open Globals
+open Stack
 
 (*
    Generators do not care about non-core-type abstracts, so let us follow them
