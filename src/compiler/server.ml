@@ -169,13 +169,18 @@ class virtual server_communication
 = object(self)
 	method virtual out : string -> unit (* like stdout *)
 	method virtual err : string -> unit (* like stderr *)
-	method virtual finish : compilation_context -> unit
+	method virtual do_finish : compilation_context -> unit
 
 	method maybe_cache_context com =
 		if com.display.dms_full_typing then begin
 			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
 		end
+
+	method finish (ctx : compilation_context) =
+		ctx.com.client_stdout#close self#out;
+		ctx.com.client_stderr#close self#err;
+		self#do_finish ctx
 end
 
 class stdio_communication
@@ -185,18 +190,16 @@ class stdio_communication
 
 	method out (s : string) =
 		print_string s;
-		flush stdout (* TODO: is this ok? *)
+		flush stdout;
 
 	method err (s : string) =
 		prerr_string s
 
-	method finish (ctx : compilation_context) =
-		List.iter
-		(fun msg -> match msg with
+	method do_finish (ctx : compilation_context) =
+		List.iter (fun msg -> match msg with
 			| CMInfo _ -> print_endline (compiler_message_string msg)
 			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-		)
-		(List.rev ctx.messages);
+		) (List.rev ctx.messages);
 		if ctx.has_error && !Helper.prompt then begin
 			print_endline "Press enter to exit...";
 			ignore(read_line());
@@ -217,7 +220,7 @@ class other_communication
 	method err (s : string) =
 		write s
 
-	method finish (ctx : compilation_context) =
+	method do_finish (ctx : compilation_context) =
 		sctx.compilation_step <- sctx.compilation_step + 1;
 		sctx.compilation_mark <- sctx.mark_loop;
 		check_display_flush ctx (fun () ->
@@ -516,7 +519,6 @@ let create sctx (comm : server_communication) params =
 		has_error = false;
 		server_mode = SMNone;
 	} in
-	ctx.com.print <- comm#out;
 	ctx
 
 (* Resets the state for a new compilation *)
@@ -645,13 +647,8 @@ let process_params create pl =
 			(* Push the --cwd arg so the arg processor know we did something. *)
 			loop (dir :: "--cwd" :: acc) l
 		| "--connect" :: hp :: l ->
-			(match CompilationServer.get() with
-			| None ->
-				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-				Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
-			| Some _ ->
-				(* already connected : skip *)
-				loop acc l)
+			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+			Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
 		| "--run" :: cl :: args ->
 			let acc = cl :: "-x" :: acc in
 			let ctx = add_context (!each_params @ (List.rev acc)) in
@@ -676,6 +673,45 @@ let parse_host_port hp =
 	let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
 	host, port
 
+let setup_common_context ctx comm =
+	let com = ctx.com in
+	let out = new server_pipe (Unix.pipe()) in
+	ctx.com.client_stdout <- out;
+	ctx.com.client_stderr <- new server_pipe (Unix.pipe());
+	ctx.com.print <- (fun s ->
+		out#write s;
+		out#read comm#out;
+	);
+	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
+	Common.raw_define com "haxe3";
+	Common.raw_define com "haxe4";
+	Common.define_value com Define.Haxe s_version;
+	Common.raw_define com "true";
+	Common.define_value com Define.Dce "std";
+	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
+	com.warning <- (fun w options msg p ->
+		match Warning.get_mode w (com.warning_options @ options) with
+		| WMEnable ->
+			message ctx (CMWarning(msg,p))
+		| WMDisable ->
+			()
+	);
+	com.error <- error ctx;
+	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
+		(match msg with
+		| CMError(_,_) -> keep_errors;
+		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
+	) (List.rev ctx.messages))) in
+	com.get_messages <- (fun () -> (List.map (fun msg ->
+		(match msg with
+		| CMError(_,_) -> die "" __LOC__;
+		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
+	) (filter_messages false (fun _ -> true))));
+	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
+	if CompilationServer.runs() then com.run_command <- run_command ctx;
+	com.class_path <- get_std_class_paths ();
+	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
+
 let rec process sctx comm args =
 	let t0 = get_time() in
 	ServerMessage.arguments args;
@@ -689,7 +725,10 @@ let rec process sctx comm args =
 		[ctx]
 	in
 	let run ctx =
-		Compiler.setup_common_context ctx;
+		(* Close any leftover descriptors from previous compilation *)
+		ctx.com.client_stdout#close (fun _ -> ());
+		ctx.com.client_stderr#close (fun _ -> ());
+		setup_common_context ctx comm;
 		Compiler.compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx in
 			begin match ctx.server_mode with

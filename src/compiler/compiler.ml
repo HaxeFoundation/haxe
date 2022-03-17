@@ -451,38 +451,6 @@ let get_std_class_paths () =
 				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 
-let setup_common_context ctx =
-	let com = ctx.com in
-	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
-	Common.raw_define com "haxe3";
-	Common.raw_define com "haxe4";
-	Common.define_value com Define.Haxe s_version;
-	Common.raw_define com "true";
-	Common.define_value com Define.Dce "std";
-	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
-	com.warning <- (fun w options msg p ->
-		match Warning.get_mode w (com.warning_options @ options) with
-		| WMEnable ->
-			message ctx (CMWarning(msg,p))
-		| WMDisable ->
-			()
-	);
-	com.error <- error ctx;
-	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
-		(match msg with
-		| CMError(_,_) -> keep_errors;
-		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
-	) (List.rev ctx.messages))) in
-	com.get_messages <- (fun () -> (List.map (fun msg ->
-		(match msg with
-		| CMError(_,_) -> die "" __LOC__;
-		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
-	) (filter_messages false (fun _ -> true))));
-	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
-	if CompilationServer.runs() then com.run_command <- run_command ctx;
-	com.class_path <- get_std_class_paths ();
-	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
-
 let compile ctx actx =
 	let com = ctx.com in
 	(* Set up display configuration *)
