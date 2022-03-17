@@ -21,7 +21,6 @@ open Ast
 open Type
 open Common
 open Globals
-open Stack
 
 (*
    Generators do not care about non-core-type abstracts, so let us follow them
@@ -3614,10 +3613,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             let map      = DebugDatabase.create_mapping (writer#get_current_line()) pos in
             let func     = !(ctx.current_func) in
             let closures = !(ctx.closure_stack) in
-            match Stack.pop_opt closures with
-            | Some closure ->
+            match Stack.is_empty closures with
+            | false ->
+               let closure = Stack.pop closures in
                Stack.push { closure with expr_map = (map :: closure.expr_map) } closures
-            | None ->
+            | true ->
                ctx.current_func := { func with expr_map = (map :: func.expr_map) };
          );
          out (macro ^ "(" ^ lineName ^ ")\t" );
@@ -4450,10 +4450,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       let current  = !(ctx.current_func) in
       let closures = !(ctx.closure_stack) in
-      match Stack.pop_opt closures with
-      | Some closure ->
+      match Stack.is_empty closures with
+      | false ->
+         let closure = Stack.pop closures in
          ctx.current_func := { current with closures = (closure :: current.closures) };
-      | None ->
+      | true ->
          ();
    in
 
