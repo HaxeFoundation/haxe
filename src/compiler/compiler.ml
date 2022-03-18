@@ -372,39 +372,6 @@ let generate tctx ext actx =
 		t()
 	end
 
-let parse_command cmd =
-	let args = DynArray.create () in
-	let buf = Buffer.create 0 in
-	let len = String.length cmd in
-	let add c = Buffer.add_char buf c in
-	let commit () =
-		if Buffer.length buf > 0 then begin
-			DynArray.add args (Buffer.contents buf);
-			Buffer.reset buf;
-		end
-	in
-	let rec loop i =
-		if i = len then
-			commit()
-		else match cmd.[i] with
-		| ' ' ->
-			commit();
-			loop (i + 1)
-		| '"' ->
-			Lexer.reset();
-			let lexbuf = Sedlexing.Utf8.from_string (String.sub cmd (i + 1) (len - i - 1)) in
-			let i' = Lexer.string lexbuf in
-			Buffer.add_string buf (Printf.sprintf "\"%s\"" (Lexer.contents()));
-			loop (i + i' + 1);
-		| '\'' ->
-			()
-		| c ->
-			add c;
-			loop (i + 1)
-	in
-	loop 0;
-	DynArray.to_list args
-
 let run_command ctx cmd =
 	let h = Hashtbl.create 0 in
 	Hashtbl.add h "__file__" ctx.com.file;
@@ -418,22 +385,25 @@ let run_command ctx cmd =
 			0
 		(* Emit stderr as a server message in server mode *)
 		end else begin
-			let args = parse_command cmd in
-			let finished = ref false in
-			let rec read what where =
-				ignore(what#read where);
-				Thread.yield();
-				if not !finished then read what where
-				else Thread.exit()
+			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
+			let bout = Bytes.create 1024 in
+			let berr = Bytes.create 1024 in
+			let rec read_content channel buf f =
+				begin try
+					let i = input channel buf 0 1024 in
+					if i > 0 then begin
+						f (Bytes.unsafe_to_string (Bytes.sub buf 0 i));
+						read_content channel buf f
+					end
+				with Unix.Unix_error _ ->
+					()
+				end
 			in
-			ignore(Thread.create (read ctx.com.client_stdout) ctx.write_stdout);
-			ignore(Thread.create (read ctx.com.client_stderr) ctx.write_stderr);
-			let pid = Unix.create_process (List.hd args) (Array.of_list args) Unix.stdin ctx.com.client_stdout#out_descr ctx.com.client_stderr#out_descr in
-			let result = match snd (Unix.waitpid [] pid) with
-				| WEXITED code -> code
-				| _ -> 255
-			in
-			finished := true;
+			let tout = Thread.create (fun() -> read_content pout bout ctx.write_stdout) () in
+			let terr = Thread.create (fun() -> read_content perr berr ctx.write_stderr) () in
+			Thread.join tout;
+			Thread.join terr;
+			let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
 			result
 		end
 	in
