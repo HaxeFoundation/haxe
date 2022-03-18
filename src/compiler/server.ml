@@ -517,6 +517,8 @@ let create sctx (comm : server_communication) params =
 		has_next = false;
 		has_error = false;
 		server_mode = SMNone;
+		write_stdout = comm#out;
+		write_stderr = comm#err;
 	} in
 	ctx
 
@@ -610,7 +612,7 @@ let setup_common_context ctx comm =
 	ctx.com.client_stderr <- new server_pipe (Unix.pipe());
 	ctx.com.print <- (fun s ->
 		out#write s;
-		out#read comm#out;
+		ignore(out#read comm#out);
 	);
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";

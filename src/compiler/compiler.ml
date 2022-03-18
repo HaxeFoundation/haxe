@@ -372,6 +372,39 @@ let generate tctx ext actx =
 		t()
 	end
 
+let parse_command cmd =
+	let args = DynArray.create () in
+	let buf = Buffer.create 0 in
+	let len = String.length cmd in
+	let add c = Buffer.add_char buf c in
+	let commit () =
+		if Buffer.length buf > 0 then begin
+			DynArray.add args (Buffer.contents buf);
+			Buffer.reset buf;
+		end
+	in
+	let rec loop i =
+		if i = len then
+			commit()
+		else match cmd.[i] with
+		| ' ' ->
+			commit();
+			loop (i + 1)
+		| '"' ->
+			Lexer.reset();
+			let lexbuf = Sedlexing.Utf8.from_string (String.sub cmd (i + 1) (len - i - 1)) in
+			let i' = Lexer.string lexbuf in
+			Buffer.add_string buf (Printf.sprintf "\"%s\"" (Lexer.contents()));
+			loop (i + i' + 1);
+		| '\'' ->
+			()
+		| c ->
+			add c;
+			loop (i + 1)
+	in
+	loop 0;
+	DynArray.to_list args
+
 let run_command ctx cmd =
 	let h = Hashtbl.create 0 in
 	Hashtbl.add h "__file__" ctx.com.file;
@@ -384,29 +417,24 @@ let run_command ctx cmd =
 			Sys.chdir (String.sub cmd 3 (len - 3));
 			0
 		(* Emit stderr as a server message in server mode *)
-		end else if CompilationServer.runs() then begin
-			let binary_string s =
-				if not Globals.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
-			in
-			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
-			let bout = Buffer.create 0 in
-			let berr = Buffer.create 0 in
-			let read_content channel buf =
-				Buffer.add_string buf (IO.read_all (IO.input_channel channel));
-			in
-			let tout = Thread.create (fun() -> read_content pout bout) () in
-			read_content perr berr;
-			Thread.join tout;
-			let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
-			let serr = binary_string (Buffer.contents berr) in
-			let sout = binary_string (Buffer.contents bout) in
-			if serr <> "" then ctx.messages <- CMError((if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr),null_pos) :: ctx.messages;
-			if sout <> "" then ctx.com.print (sout ^ "\n");
-			result
-		(* Direct pass-through of std streams for normal compilation *)
 		end else begin
-			match Unix.system cmd with
-			| WEXITED c | WSIGNALED c | WSTOPPED c -> c
+			let args = parse_command cmd in
+			let finished = ref false in
+			let rec read what where =
+				ignore(what#read where);
+				Thread.yield();
+				if not !finished then read what where
+				else Thread.exit()
+			in
+			ignore(Thread.create (read ctx.com.client_stdout) ctx.write_stdout);
+			ignore(Thread.create (read ctx.com.client_stderr) ctx.write_stderr);
+			let pid = Unix.create_process (List.hd args) (Array.of_list args) Unix.stdin ctx.com.client_stdout#out_descr ctx.com.client_stderr#out_descr in
+			let result = match snd (Unix.waitpid [] pid) with
+				| WEXITED code -> code
+				| _ -> 255
+			in
+			finished := true;
+			result
 		end
 	in
 	t();

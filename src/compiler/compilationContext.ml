@@ -33,4 +33,6 @@ type compilation_context = {
 	mutable has_next : bool;
 	mutable has_error : bool;
 	mutable server_mode : server_mode;
+	mutable write_stdout : string -> unit;
+	mutable write_stderr : string -> unit;
 }
