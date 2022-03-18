@@ -177,8 +177,6 @@ class virtual server_communication
 		end
 
 	method finish (ctx : compilation_context) =
-		ctx.com.client_stdout#close self#out;
-		ctx.com.client_stderr#close self#err;
 		self#do_finish ctx
 end
 
@@ -607,13 +605,7 @@ let parse_host_port hp =
 
 let setup_common_context ctx comm =
 	let com = ctx.com in
-	let out = new server_pipe (Unix.pipe()) in
-	ctx.com.client_stdout <- out;
-	ctx.com.client_stderr <- new server_pipe (Unix.pipe());
-	ctx.com.print <- (fun s ->
-		out#write s;
-		ignore(out#read comm#out);
-	);
+	ctx.com.print <- comm#out;
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.raw_define com "haxe4";
@@ -658,8 +650,6 @@ let rec process sctx comm args =
 	in
 	let run ctx =
 		(* Close any leftover descriptors from previous compilation *)
-		ctx.com.client_stdout#close (fun _ -> ());
-		ctx.com.client_stderr#close (fun _ -> ());
 		setup_common_context ctx comm;
 		Compiler.compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx in

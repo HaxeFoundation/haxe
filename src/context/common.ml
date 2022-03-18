@@ -294,41 +294,6 @@ let pipe_read ch_in buf buf_size f =
 	end;
 	i
 
-class server_pipe (r,w) =
-	let buf_size = 1024 in
-object(self)
-	val mutable was_closed = false
-	val ch_in = Unix.in_channel_of_descr r
-	val ch_out = Unix.out_channel_of_descr w
-	val buf = Bytes.create buf_size
-
-	method write (s: string) =
-		output_string ch_out s;
-		flush ch_out
-
-	method read (f : string -> unit) =
-		let rec read () =
-			let i = pipe_read ch_in buf buf_size f in
-			if i = buf_size then read() else i
-		in
-		read();
-
-	method close (f : string -> unit) =
-		if not was_closed then begin
-			was_closed <- true;
-			close_out ch_out;
-			let rec loop () =
-				let i = self#read f in
-				if i > 0 then loop()
-			in
-			loop();
-			close_in ch_in
-		end
-
-	method out = ch_out
-	method out_descr = w
-end
-
 type context = {
 	mutable stage : compiler_stage;
 	mutable cache : context_cache option;
@@ -358,8 +323,6 @@ type context = {
 	callbacks : compiler_callbacks;
 	defines : Define.define;
 	mutable print : string -> unit;
-	mutable client_stdout : server_pipe;
-	mutable client_stderr : server_pipe;
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
@@ -763,8 +726,6 @@ let create version args =
 		platform = Cross;
 		config = default_config;
 		print = (fun s -> print_string s; flush stdout);
-		client_stdout = new server_pipe (Unix.pipe());
-		client_stderr = new server_pipe (Unix.pipe());
 		run_command = Sys.command;
 		std_path = [];
 		class_path = [];

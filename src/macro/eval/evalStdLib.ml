@@ -2663,9 +2663,7 @@ module StdSys = struct
 	)
 
 	let stderr = vfun0 (fun () ->
-		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel com.client_stderr#out)
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
 	)
 
 	let stdin = vfun0 (fun () ->
@@ -2673,9 +2671,7 @@ module StdSys = struct
 	)
 
 	let stdout = vfun0 (fun () ->
-		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel com.client_stdout#out)
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stdout)
 	)
 
 	let systemName =
