@@ -177,7 +177,9 @@ let prepare com =
 	dctx
 
 let secure_generated_code ctx e =
-	mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos
+	(* This causes problems and sucks in general... need a different solution. But I forgot which problem this solved anyway. *)
+	(* mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos *)
+	e
 
 let print com =
 	let dctx = prepare com in
