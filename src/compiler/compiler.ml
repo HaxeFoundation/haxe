@@ -368,11 +368,16 @@ let generate tctx ext actx =
 	end
 
 let run_command ctx cmd =
-	let h = Hashtbl.create 0 in
-	Hashtbl.add h "__file__" ctx.com.file;
-	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
 	let t = Timer.timer ["command"] in
-	let cmd = Helper.expand_env ~h:(Some h) cmd in
+	(* TODO: this is a hack *)
+	let cmd = if ctx.comm.is_server then begin
+		let h = Hashtbl.create 0 in
+		Hashtbl.add h "__file__" ctx.com.file;
+		Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
+		Helper.expand_env ~h:(Some h) cmd
+	end else
+		cmd
+	in
 	let len = String.length cmd in
 	let result =
 		if len > 3 && String.sub cmd 0 3 = "cd " then begin

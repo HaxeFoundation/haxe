@@ -189,7 +189,8 @@ module Communication = struct
 			end;
 			flush stdout;
 			if ctx.has_error then exit 1
-		)
+		);
+		is_server = false;
 	}
 
 	let create_pipe sctx write = {
@@ -217,7 +218,8 @@ module Communication = struct
 				end else
 					maybe_cache_context sctx ctx.com;
 			)
-		)
+		);
+		is_server = false;
 	}
 end
 
