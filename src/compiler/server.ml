@@ -18,7 +18,7 @@ let has_error ctx =
 
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
-		if ctx.com.diagnostics <> None then begin
+		if is_diagnostics ctx.com then begin
 			List.iter (fun msg ->
 				let msg,p,kind = match msg with
 					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information

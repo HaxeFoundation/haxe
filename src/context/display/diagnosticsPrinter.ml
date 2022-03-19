@@ -10,10 +10,10 @@ open Genjson
 type t = DiagnosticsKind.t * pos
 
 let is_diagnostics_file com file_key =
-	match com.diagnostics with
-	| Some [] -> true
-	| Some file_keys -> List.exists (fun key' -> file_key = key') file_keys
-	| None -> false
+	match com.report_mode with
+	| RMDiagnostics [] -> true
+	| RMDiagnostics file_keys -> List.exists (fun key' -> file_key = key') file_keys
+	| _ -> false
 
 module UnresolvedIdentifierSuggestion = struct
 	type t =

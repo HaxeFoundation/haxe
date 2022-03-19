@@ -106,7 +106,7 @@ let process_display_configuration ctx =
 	let com = ctx.com in
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
-			if com.diagnostics <> None then
+			if is_diagnostics com then
 				(fun w options s p ->
 					match Warning.get_mode w (com.warning_options @ options) with
 					| WMEnable ->
@@ -194,6 +194,11 @@ let emit_diagnostics ctx =
 	DisplayPosition.display_position#reset;
 	raise (DisplayOutput.Completion s)
 
+let emit_statistics ctx tctx =
+	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
+	let s = Statistics.Printer.print_statistics stats in
+	raise (DisplayOutput.Completion s)
+
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
 	let handle_diagnostics msg p kind =
@@ -201,7 +206,7 @@ let run_or_diagnose ctx f arg =
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
 		emit_diagnostics ctx
 	in
-	if com.diagnostics <> None then begin try
+	if is_diagnostics com then begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
@@ -275,7 +280,7 @@ let filter ctx tctx display_file_dot_path =
 	let should_load_in_macro =
 		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
 		   type the module in macro context. (#8682). *)
-		ctx.com.diagnostics = None || com.display_information.display_module_has_macro_defines
+		not (is_diagnostics com) || com.display_information.display_module_has_macro_defines
 	in
 	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro  tctx display_file_dot_path false with
@@ -287,7 +292,14 @@ let filter ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	DisplayOutput.process_global_display_mode com tctx;
-	if com.diagnostics <> None then emit_diagnostics ctx;
+	begin match com.report_mode with
+	| RMDiagnostics _ ->
+		emit_diagnostics ctx
+	| RMStatistics ->
+		emit_statistics ctx tctx
+	| RMNone ->
+		()
+	end;
 	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
@@ -683,7 +695,7 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(ModuleSymbols s | Statistics s | Metadata s) ->
+	| DisplayException(ModuleSymbols s | Metadata s) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

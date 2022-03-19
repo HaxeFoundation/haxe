@@ -7,7 +7,6 @@ open Genjson
 
 exception DisplayException of display_exception_kind
 
-let raise_statistics s = raise (DisplayException(Statistics s))
 let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 let raise_metadata s = raise (DisplayException(Metadata s))
 let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignatures(Some(l,isig,iarg,kind))))
@@ -158,7 +157,6 @@ let arg_index signatures signature_index param_index =
 
 let to_json ctx de =
 	match de with
-	| Statistics _
 	| ModuleSymbols _
 	| Metadata _ -> die "" __LOC__
 	| DisplaySignatures None ->

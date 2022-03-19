@@ -31,7 +31,7 @@ let type_function_arg_value ctx t c do_display =
 				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
-					if ctx.com.display.dms_kind = DMNone || ctx.com.diagnostics <> None then
+					if ctx.com.display.dms_kind = DMNone || Common.is_diagnostics ctx.com then
 						display_error ctx "Parameter default value should be constant" p;
 					None
 			in

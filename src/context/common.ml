@@ -287,6 +287,11 @@ type compiler_stage =
 	| CGenerationStart  (* Generation is about to begin. *)
 	| CGenerationDone   (* Generation just finished. *)
 
+type report_mode =
+	| RMNone
+	| RMDiagnostics of Path.UniqueKey.t list
+	| RMStatistics
+
 type context = {
 	mutable stage : compiler_stage;
 	mutable cache : context_cache option;
@@ -328,7 +333,7 @@ type context = {
 	pass_debug_messages : string DynArray.t;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) Hashtbl.t;
 	mutable has_error : bool;
-	mutable diagnostics : Path.UniqueKey.t list option;
+	mutable report_mode : report_mode;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -773,8 +778,12 @@ let create version args =
 		parser_cache = Hashtbl.create 0;
 		json_out = None;
 		has_error = false;
-		diagnostics = None;
+		report_mode = RMNone;
 	}
+
+let is_diagnostics com = match com.report_mode with
+	| RMDiagnostics _ -> true
+	| _ -> false
 
 let log com str =
 	if com.verbose then com.print (str ^ "\n")

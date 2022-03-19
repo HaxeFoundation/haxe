@@ -12,7 +12,7 @@ let warn_deprecation com s p_usage =
 	let pkey p = (p.pfile,p.pmin) in
 	if not (Hashtbl.mem warned_positions (pkey p_usage)) then begin
 		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
-		if com.diagnostics = None then begin
+		if not (is_diagnostics com) then begin
 			let options = Warning.from_meta (!curclass.cl_meta @ !curfield.cf_meta) in
 			com.warning WDeprecated options s p_usage;
 		end

@@ -215,7 +215,6 @@ module DisplayMode = struct
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
-		| DMStatistics
 		| DMSignature
 
 	type error_policy =
@@ -283,14 +282,6 @@ module DisplayMode = struct
 				dms_force_macro_typing = false;
 				dms_per_file = true;
 			}
-		| DMStatistics -> { settings with
-				dms_full_typing = true;
-				dms_inline = false;
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false;
-				dms_force_macro_typing = true;
-				dms_per_file = true;
-			}
 
 	let to_string = function
 		| DMNone -> "none"
@@ -305,7 +296,6 @@ module DisplayMode = struct
 		| DMUsage (false,_,_) -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMStatistics -> "statistics"
 		| DMSignature -> "signature"
 end
 
@@ -388,7 +378,6 @@ type diagnostics_context = {
 }
 
 type display_exception_kind =
-	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string
 	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind) option

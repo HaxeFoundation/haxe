@@ -230,53 +230,53 @@ let handle_display_argument com file_pos actx =
 		actx.did_something <- true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		com.diagnostics <- Some []
+		com.report_mode <- RMDiagnostics []
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let file_unique = com.file_keys#get file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		let mode = match smode with
+		let create mode =
+			Parser.display_mode := mode;
+			DisplayMode.create mode
+		in
+		let dm = match smode with
 			| "position" ->
-				DMDefinition
+				create DMDefinition
 			| "usage" ->
-				DMUsage (false,false,false)
-			(*| "rename" ->
-				DMUsage true*)
+				create (DMUsage (false,false,false))
 			| "package" ->
-				DMPackage
+				create DMPackage
 			| "type" ->
-				DMHover
+				create DMHover
 			| "toplevel" ->
-				DMDefault
+				create DMDefault
 			| "module-symbols" ->
-				DMModuleSymbols None;
+				create (DMModuleSymbols None)
 			| "diagnostics" ->
-				com.diagnostics <- Some [file_unique];
-				DMNone
+				com.report_mode <- RMDiagnostics [file_unique];
+				let dm = create DMNone in
+				{dm with dms_display_file_policy = DFPAlso}
 			| "statistics" ->
-				DMStatistics
+				com.report_mode <- RMStatistics;
+				let dm = create DMNone in
+				{dm with dms_display_file_policy = DFPAlso; dms_error_policy = EPIgnore}
 			| "signature" ->
-				DMSignature
+				create DMSignature
 			| "" ->
-				DMDefault
+				create DMDefault
 			| _ ->
 				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
 				match smode with
 					| "resolve" ->
-						DMResolve arg
+						create (DMResolve arg)
 					| "workspace-symbols" ->
-						DMModuleSymbols (Some arg)
+						create (DMModuleSymbols (Some arg))
 					| _ ->
-						DMDefault
+						create DMDefault
 		in
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
-		let dm = DisplayMode.create mode in
-		let dm = {dm with
-			dms_display_file_policy = if com.diagnostics <> None then DFPAlso else dm.dms_display_file_policy
-		} in
 		com.display <- dm;
-		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		DisplayPosition.display_position#set {
 			pfile = Path.get_full_path file;
@@ -412,9 +412,6 @@ let process_global_display_mode com tctx =
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
-	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
-		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
 		let symbols = match CompilationServer.get() with
