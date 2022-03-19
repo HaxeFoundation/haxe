@@ -35,7 +35,6 @@ type communication = {
 and compilation_context = {
 	com : Common.context;
 	mutable on_exit : (unit -> unit) list;
-	setup : unit -> unit;
 	mutable messages : Common.compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
@@ -45,7 +44,7 @@ and compilation_context = {
 type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) * (unit -> unit))
 
 type server_api = {
-	create_new_context : string list -> compilation_context;
+	setup_new_context : Common.context -> unit;
 	init_wait_socket : string -> int -> server_accept;
 	init_wait_connect : string -> int -> server_accept;
 	wait_loop : bool -> server_accept -> unit;

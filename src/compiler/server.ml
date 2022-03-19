@@ -158,6 +158,13 @@ module ServerCompilationContext = struct
 			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
 		end
+
+	let cleanup () =
+		begin match !MacroContext.macro_interp_cache with
+		| Some interp -> EvalContext.GlobalState.cleanup interp
+		| None -> ()
+		end
+
 end
 
 open ServerCompilationContext
@@ -466,40 +473,22 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		t();
 		None
 
-(* Sets up the per-compilation context. *)
-let create sctx comm params =
+let setup_new_context sctx com =
 	let cs = sctx.cs in
-	let rec ctx = {
-		com = Common.create version params;
-		on_exit = [];
-		setup = (fun() ->
-			let sign = Define.get_signature ctx.com.defines in
-			ServerMessage.defines ctx.com "";
-			ServerMessage.signature ctx.com "" sign;
-			ServerMessage.display_position ctx.com "" (DisplayPosition.display_position#get);
-			try
-				if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
-					ServerMessage.class_paths_changed ctx.com "";
-					Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
-					cs#clear_directories sign;
-					(cs#get_context sign)#set_initialized false;
-				end;
-			with Not_found ->
-				Hashtbl.add sctx.class_paths sign ctx.com.class_path;
-				()
-		);
-		messages = [];
-		has_next = false;
-		has_error = false;
-		comm = comm;
-	} in
-	ctx
-
-let cleanup () =
-	begin match !MacroContext.macro_interp_cache with
-	| Some interp -> EvalContext.GlobalState.cleanup interp
-	| None -> ()
-	end
+	let sign = Define.get_signature com.defines in
+	ServerMessage.defines com "";
+	ServerMessage.signature com "" sign;
+	ServerMessage.display_position com "" (DisplayPosition.display_position#get);
+	try
+		if (Hashtbl.find sctx.class_paths sign) <> com.class_path then begin
+			ServerMessage.class_paths_changed com "";
+			Hashtbl.replace sctx.class_paths sign com.class_path;
+			cs#clear_directories sign;
+			(cs#get_context sign)#set_initialized false;
+		end;
+	with Not_found ->
+		Hashtbl.add sctx.class_paths sign com.class_path;
+		()
 
 let gc_heap_stats () =
 	let stats = Gc.quick_stat() in
@@ -510,7 +499,7 @@ let rec process sctx comm args =
 	ServerMessage.arguments args;
 	reset sctx;
 	let api = {
-		create_new_context = create sctx comm;
+		setup_new_context = setup_new_context sctx;
 		init_wait_socket = init_wait_socket;
 		init_wait_connect = init_wait_connect;
 		wait_loop = wait_loop;

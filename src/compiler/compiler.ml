@@ -138,7 +138,6 @@ let process_display_configuration ctx =
 
 let create_typer_context ctx native_libs =
 	let com = ctx.com in
-	ctx.setup();
 	Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 	let buffer = Buffer.create 64 in
 	Buffer.add_string buffer "Defines: ";
@@ -479,7 +478,6 @@ let setup_common_context ctx =
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
 
 let compile ctx actx =
-	setup_common_context ctx;
 	let com = ctx.com in
 	(* Set up display configuration *)
 	process_display_configuration ctx;
@@ -692,6 +690,18 @@ with
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
+		(* Sets up the per-compilation context. *)
+let create comm params =
+	let rec ctx = {
+		com = Common.create version params;
+		on_exit = [];
+		messages = [];
+		has_next = false;
+		has_error = false;
+		comm = comm;
+	} in
+	ctx
+
 let parse_hxml_data data =
 	let open DisplayOutput in
 	let lines = Str.split (Str.regexp "[\r\n]+") data in
@@ -709,62 +719,64 @@ let parse_hxml_data data =
 			[l]
 	) lines)
 
-let parse_hxml file =
-	let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
-	let data = IO.read_all ch in
-	IO.close_in ch;
-	parse_hxml_data data
+module Multiple = struct
+	let parse_hxml file =
+		let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
+		let data = IO.read_all ch in
+		IO.close_in ch;
+		parse_hxml_data data
 
-(* Returns a list of contexts, but doesn't do anything yet *)
-let process_params create pl =
-	let each_params = ref [] in
-	let compilations = DynArray.create () in
-	let curdir = Unix.getcwd () in
-	let add_context args =
-		let ctx = create args in
-		(* --cwd triggers immediately, so let's reset *)
-		Unix.chdir curdir;
-		DynArray.add compilations ctx;
-		ctx;
-	in
-	let rec loop acc = function
-		| [] ->
-			ignore(add_context (!each_params @ (List.rev acc)));
-		| "--next" :: l when acc = [] -> (* skip empty --next *)
-			loop [] l
-		| "--next" :: l ->
-			let ctx = add_context (!each_params @ (List.rev acc)) in
-			ctx.has_next <- true;
-			loop [] l
-		| "--each" :: l ->
-			each_params := List.rev acc;
-			loop [] l
-		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
-			(* we need to change it immediately since it will affect hxml loading *)
-			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
-			(* Push the --cwd arg so the arg processor know we did something. *)
-			loop (dir :: "--cwd" :: acc) l
-		| "--connect" :: hp :: l ->
-			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-			Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
-		| "--run" :: cl :: args ->
-			let acc = cl :: "-x" :: acc in
-			let ctx = add_context (!each_params @ (List.rev acc)) in
-			ctx.com.sys_args <- args;
-		| arg :: l ->
-			match List.rev (ExtString.String.nsplit arg ".") with
-			| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
-				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
-				loop acc l
-			| _ -> loop (arg :: acc) l
-	in
-	(* put --display in front if it was last parameter *)
-	let pl = (match List.rev pl with
-		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
-		| _ -> pl
-	) in
-	loop [] pl;
-	DynArray.to_list compilations
+	(* Returns a list of contexts, but doesn't do anything yet *)
+	let process_params create pl =
+		let each_params = ref [] in
+		let compilations = DynArray.create () in
+		let curdir = Unix.getcwd () in
+		let add_context args =
+			let ctx = create args in
+			(* --cwd triggers immediately, so let's reset *)
+			Unix.chdir curdir;
+			DynArray.add compilations ctx;
+			ctx;
+		in
+		let rec loop acc = function
+			| [] ->
+				ignore(add_context (!each_params @ (List.rev acc)));
+			| "--next" :: l when acc = [] -> (* skip empty --next *)
+				loop [] l
+			| "--next" :: l ->
+				let ctx = add_context (!each_params @ (List.rev acc)) in
+				ctx.has_next <- true;
+				loop [] l
+			| "--each" :: l ->
+				each_params := List.rev acc;
+				loop [] l
+			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
+				(* we need to change it immediately since it will affect hxml loading *)
+				(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+				(* Push the --cwd arg so the arg processor know we did something. *)
+				loop (dir :: "--cwd" :: acc) l
+			| "--connect" :: hp :: l ->
+				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+				Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+			| "--run" :: cl :: args ->
+				let acc = cl :: "-x" :: acc in
+				let ctx = add_context (!each_params @ (List.rev acc)) in
+				ctx.com.sys_args <- args;
+			| arg :: l ->
+				match List.rev (ExtString.String.nsplit arg ".") with
+				| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
+					let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+					loop acc l
+				| _ -> loop (arg :: acc) l
+		in
+		(* put --display in front if it was last parameter *)
+		let pl = (match List.rev pl with
+			| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
+			| _ -> pl
+		) in
+		loop [] pl;
+		DynArray.to_list compilations
+end
 
 let parse_host_port hp =
 	let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
@@ -773,9 +785,9 @@ let parse_host_port hp =
 
 let entry server_api comm args =
 	let ctxs = try
-		process_params server_api.create_new_context args
+		Multiple.process_params (create comm) args
 	with Arg.Bad msg ->
-		let ctx = server_api.create_new_context args in
+		let ctx = (create comm) args in
 		error ctx ("Error: " ^ msg) null_pos;
 		[ctx]
 	in
@@ -800,6 +812,7 @@ let entry server_api comm args =
 			| SMNone ->
 				()
 			end;
+			server_api.setup_new_context ctx.com;
 			compile ctx actx;
 		);
 		finalize ctx;
