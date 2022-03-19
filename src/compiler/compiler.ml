@@ -695,44 +695,62 @@ with
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
-		(* Sets up the per-compilation context. *)
-let create comm params =
-	let rec ctx = {
-		com = Common.create version params;
-		on_exit = [];
-		messages = [];
-		has_next = false;
-		has_error = false;
-		comm = comm;
-	} in
-	ctx
+let compile_ctx server_api comm ctx =
+	let run ctx =
+		setup_common_context ctx;
+		compile_safe ctx (fun () ->
+			let actx = Args.parse_args ctx.com in
+			begin match actx.server_mode with
+			| SMListen hp ->
+				let accept = match hp with
+				| "stdio" ->
+					server_api.init_wait_stdio()
+				| _ ->
+					let host, port = Helper.parse_host_port hp in
+					server_api.init_wait_socket host port
+				in
+				server_api.wait_loop ctx.com.verbose accept
+			| SMConnect hp ->
+				let host, port = Helper.parse_host_port hp in
+				let accept = server_api.init_wait_connect host port in
+				server_api.wait_loop ctx.com.verbose accept
+			| SMNone ->
+				()
+			end;
+			server_api.setup_new_context ctx.com;
+			compile ctx actx;
+		);
+		finalize ctx;
+	in
+	try
+		if ctx.has_error then begin
+			finalize ctx;
+			false (* can happen if process_params above fails already *)
+		end else begin
+			run ctx;
+			true (* reads as "continue?" *)
+		end
+	with
+		| DisplayOutput.Completion str ->
+			ServerMessage.completion str;
+			comm.write_err str;
+			false
+		| Arg.Bad msg ->
+			error ctx ("Error: " ^ msg) null_pos;
+			false
 
-let parse_hxml_data data =
-	let open DisplayOutput in
-	let lines = Str.split (Str.regexp "[\r\n]+") data in
-	List.concat (List.map (fun l ->
-		let l = unquote (ExtString.String.strip l) in
-		if l = "" || l.[0] = '#' then
-			[]
-		else if l.[0] = '-' then
-			try
-				let a, b = ExtString.String.split l " " in
-				[unquote a; unquote (ExtString.String.strip b)]
-			with
-				_ -> [l]
-		else
-			[l]
-	) lines)
+let create_context comm params = {
+	com = Common.create version params;
+	on_exit = [];
+	messages = [];
+	has_next = false;
+	has_error = false;
+	comm = comm;
+}
 
-module Multiple = struct
-	let parse_hxml file =
-		let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
-		let data = IO.read_all ch in
-		IO.close_in ch;
-		parse_hxml_data data
-
+module HighLevel = struct
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params create pl =
+	let process_params server_api create pl =
 		let each_params = ref [] in
 		let compilations = DynArray.create () in
 		let curdir = Unix.getcwd () in
@@ -762,7 +780,7 @@ module Multiple = struct
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->
 				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-				Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
 				let ctx = add_context (!each_params @ (List.rev acc)) in
@@ -770,7 +788,7 @@ module Multiple = struct
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
-					let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+					let acc, l = (try acc, Helper.parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
 					loop acc l
 				| _ -> loop (arg :: acc) l
 		in
@@ -781,66 +799,18 @@ module Multiple = struct
 		) in
 		loop [] pl;
 		DynArray.to_list compilations
-end
 
-let parse_host_port hp =
-	let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-	let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
-	host, port
-
-let entry server_api comm args =
-	let ctxs = try
-		Multiple.process_params (create comm) args
-	with Arg.Bad msg ->
-		let ctx = (create comm) args in
-		error ctx ("Error: " ^ msg) null_pos;
-		[ctx]
-	in
-	let run ctx =
-		setup_common_context ctx;
-		compile_safe ctx (fun () ->
-			let actx = Args.parse_args ctx.com in
-			begin match actx.server_mode with
-			| SMListen hp ->
-				let accept = match hp with
-				| "stdio" ->
-					Server_old.init_wait_stdio()
-				| _ ->
-					let host, port = parse_host_port hp in
-					server_api.init_wait_socket host port
-				in
-				server_api.wait_loop ctx.com.verbose accept
-			| SMConnect hp ->
-				let host, port = parse_host_port hp in
-				let accept = server_api.init_wait_connect host port in
-				server_api.wait_loop ctx.com.verbose accept
-			| SMNone ->
-				()
-			end;
-			server_api.setup_new_context ctx.com;
-			compile ctx actx;
-		);
-		finalize ctx;
-	in
-	let run ctx = try
-		if ctx.has_error then begin
-			finalize ctx;
-			false (* can happen if process_params above fails already *)
-		end else begin
-			run ctx;
-			true (* reads as "continue?" *)
-		end
-	with
-		| DisplayOutput.Completion str ->
-			ServerMessage.completion str;
-			comm.write_err str;
-			false
-		| Arg.Bad msg ->
+	let entry server_api comm args =
+		let ctxs = try
+			process_params server_api (create_context comm) args
+		with Arg.Bad msg ->
+			let ctx = create_context comm args in
 			error ctx ("Error: " ^ msg) null_pos;
-			false
-	in
-	let success = List.fold_left (fun b ctx -> b && run ctx) true ctxs in
-	if success then begin
-		Timer.close_times();
-		if !Timer.measure_times then Timer.report_times (fun s -> comm.write_err (s ^ "\n"));
-	end;
+			[ctx]
+		in
+		let success = List.fold_left (fun b ctx -> b && compile_ctx server_api comm ctx) true ctxs in
+		if success then begin
+			Timer.close_times();
+			if !Timer.measure_times then Timer.report_times (fun s -> comm.write_err (s ^ "\n"));
+		end;
+end

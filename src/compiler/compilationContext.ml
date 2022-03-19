@@ -48,5 +48,7 @@ type server_api = {
 	setup_new_context : Common.context -> unit;
 	init_wait_socket : string -> int -> server_accept;
 	init_wait_connect : string -> int -> server_accept;
+	init_wait_stdio : unit -> server_accept;
 	wait_loop : bool -> server_accept -> unit;
+	do_connect : string -> int -> string list -> unit;
 }
