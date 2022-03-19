@@ -9,11 +9,11 @@ open Genjson
 
 type t = DiagnosticsKind.t * pos
 
-let is_diagnostics_file file_key =
-	match (!Parser.display_mode) with
-	| DMDiagnostics [] -> true
-	| DMDiagnostics file_keys -> List.exists (fun key' -> file_key = key') file_keys
-	| _ -> false
+let is_diagnostics_file com file_key =
+	match com.diagnostics with
+	| Some [] -> true
+	| Some file_keys -> List.exists (fun key' -> file_key = key') file_keys
+	| None -> false
 
 module UnresolvedIdentifierSuggestion = struct
 	type t =
@@ -29,7 +29,7 @@ open UnresolvedIdentifierSuggestion
 open CompletionItem
 open CompletionModuleType
 
-let json_of_diagnostics dctx =
+let json_of_diagnostics com dctx =
 	let diag = Hashtbl.create 0 in
 	let add append dk p sev args =
 		let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
@@ -57,7 +57,7 @@ let json_of_diagnostics dctx =
 			| DKMissingFields ->
 				true
 		in
-		if p = null_pos || is_diagnostics_file (file_keys#get p.pfile) then add append dk p sev args
+		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then add append dk p sev args
 	in
 	List.iter (fun (s,p,suggestions) ->
 		let suggestions = ExtList.List.filter_map (fun (s,item,r) ->

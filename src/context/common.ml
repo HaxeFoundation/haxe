@@ -327,6 +327,8 @@ type context = {
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	pass_debug_messages : string DynArray.t;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) Hashtbl.t;
+	mutable has_error : bool;
+	mutable diagnostics : Path.UniqueKey.t list option;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -770,6 +772,8 @@ let create version args =
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 		json_out = None;
+		has_error = false;
+		diagnostics = None;
 	}
 
 let log com str =
@@ -1126,6 +1130,7 @@ let utf16_to_utf8 str =
 	Buffer.contents b
 
 let add_diagnostics_message com s p kind sev =
+	if sev = DisplayTypes.DiagnosticsSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 

@@ -106,7 +106,7 @@ let process_display_configuration ctx =
 	let com = ctx.com in
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
-			if com.display.dms_error_policy = EPCollect then
+			if com.diagnostics <> None then
 				(fun w options s p ->
 					match Warning.get_mode w (com.warning_options @ options) with
 					| WMEnable ->
@@ -188,14 +188,20 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 	| None ->
 		None
 
-let run_or_diagnose com f arg =
+let emit_diagnostics ctx =
+	let dctx = Diagnostics.run ctx.com in
+	let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics ctx.com dctx) in
+	DisplayPosition.display_position#reset;
+	raise (DisplayOutput.Completion s)
+
+let run_or_diagnose ctx f arg =
+	let com = ctx.com in
 	let handle_diagnostics msg p kind =
+		ctx.has_error <- true;
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-		Diagnostics.run com;
+		emit_diagnostics ctx
 	in
-	match com.display.dms_kind with
-	| DMDiagnostics _ ->
-		begin try
+	if com.diagnostics <> None then begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
@@ -205,11 +211,11 @@ let run_or_diagnose com f arg =
 		| Lexer.Error(msg,p) ->
 			handle_diagnostics (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		end
-	| _ ->
+	else
 		f arg
 
 (** Creates the typer context and types [classes] into it. *)
-let do_type tctx actx =
+let do_type ctx tctx actx =
 	let com = tctx.Typecore.com in
 	let t = Timer.timer ["typing"] in
 	Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com "before_init_macros") (CompilationServer.get ());
@@ -218,7 +224,7 @@ let do_type tctx actx =
 	com.stage <- CInitMacrosDone;
 	CommonCache.lock_signature com "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
-	run_or_diagnose com (fun () ->
+	run_or_diagnose ctx (fun () ->
 		if com.display.dms_kind <> DMNone then Option.may (DisplayTexpr.check_display_file tctx) (CompilationServer.get ());
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
 		Finalization.finalize tctx;
@@ -260,17 +266,16 @@ let filter ctx tctx display_file_dot_path =
 	let com = ctx.com in
 	com.stage <- CFilteringStart;
 	let t = Timer.timer ["filters"] in
-	let main, types, modules = run_or_diagnose com Finalization.generate tctx in
+	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
 	com.main <- main;
 	com.types <- types;
 	com.modules <- modules;
 	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
 		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
-	let should_load_in_macro = match ctx.com.display.dms_kind with
+	let should_load_in_macro =
 		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
 		   type the module in macro context. (#8682). *)
-		| DMDiagnostics _ -> com.display_information.display_module_has_macro_defines
-		| _ -> true
+		ctx.com.diagnostics = None || com.display_information.display_module_has_macro_defines
 	in
 	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro  tctx display_file_dot_path false with
@@ -282,6 +287,7 @@ let filter ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	DisplayOutput.process_global_display_mode com tctx;
+	if com.diagnostics <> None then emit_diagnostics ctx;
 	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
@@ -521,7 +527,7 @@ let compile ctx actx =
 				None
 		in
 		begin try
-			do_type tctx actx
+			do_type ctx tctx actx
 		with TypeloadParse.DisplayInMacroBlock ->
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		end;
@@ -677,10 +683,6 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(DisplayDiagnostics dctx) ->
-		let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx) in
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion s)
 	| DisplayException(ModuleSymbols s | Statistics s | Metadata s) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
@@ -722,6 +724,7 @@ let compile_ctx server_api comm ctx =
 			compile ctx actx;
 		);
 		finalize ctx;
+		server_api.after_compilation ctx;
 	in
 	try
 		if ctx.has_error then begin
@@ -733,6 +736,7 @@ let compile_ctx server_api comm ctx =
 		end
 	with
 		| DisplayOutput.Completion str ->
+			server_api.after_compilation ctx;
 			ServerMessage.completion str;
 			comm.write_err str;
 			false

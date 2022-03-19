@@ -215,13 +215,11 @@ module DisplayMode = struct
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
-		| DMDiagnostics of Path.UniqueKey.t list
 		| DMStatistics
 		| DMSignature
 
 	type error_policy =
 		| EPIgnore
-		| EPCollect
 		| EPShow
 
 	type display_file_policy =
@@ -285,12 +283,6 @@ module DisplayMode = struct
 				dms_force_macro_typing = false;
 				dms_per_file = true;
 			}
-		| DMDiagnostics files -> { default_compilation_settings with
-				dms_kind = DMDiagnostics files;
-				dms_error_policy = EPCollect;
-				dms_display_file_policy = if files = [] then DFPNo else DFPAlso;
-				dms_per_file = true;
-			}
 		| DMStatistics -> { settings with
 				dms_full_typing = true;
 				dms_inline = false;
@@ -313,7 +305,6 @@ module DisplayMode = struct
 		| DMUsage (false,_,_) -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMDiagnostics _ -> "diagnostics"
 		| DMStatistics -> "statistics"
 		| DMSignature -> "signature"
 end
@@ -397,7 +388,6 @@ type diagnostics_context = {
 }
 
 type display_exception_kind =
-	| DisplayDiagnostics of diagnostics_context
 	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string

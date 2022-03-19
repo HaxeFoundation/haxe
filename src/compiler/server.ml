@@ -13,10 +13,12 @@ open CompilationContext
 exception Dirty of path
 exception ServerError of string
 
+let has_error ctx =
+	ctx.has_error || ctx.com.Common.has_error
+
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
-		begin match ctx.com.display.dms_kind with
-		| DMDiagnostics _->
+		if ctx.com.diagnostics <> None then begin
 			List.iter (fun msg ->
 				let msg,p,kind = match msg with
 					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
@@ -26,11 +28,10 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
 			) (List.rev ctx.messages);
 			raise (Completion (Diagnostics.print ctx.com))
-		| _ ->
+		end else
 			f_otherwise ()
-		end
 	| Some api ->
-		if ctx.has_error then begin
+		if has_error ctx then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
 					| CMInfo(msg,p) -> msg,p,3
@@ -45,7 +46,6 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			) (List.rev ctx.messages) in
 			api.send_error errors
 		end
-
 
 let current_stdin = ref None
 
@@ -189,12 +189,12 @@ module Communication = struct
 				| CMInfo _ -> print_endline (compiler_message_string msg)
 				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
 			) (List.rev ctx.messages);
-			if ctx.has_error && !Helper.prompt then begin
+			if has_error ctx && !Helper.prompt then begin
 				print_endline "Press enter to exit...";
 				ignore(read_line());
 			end;
 			flush stdout;
-			if ctx.has_error then exit 1
+			if has_error ctx then exit 1
 		);
 		is_server = false;
 	}
@@ -218,7 +218,7 @@ module Communication = struct
 					)
 					(List.rev ctx.messages);
 				sctx.was_compilation <- ctx.com.display.dms_full_typing;
-				if ctx.has_error then begin
+				if has_error ctx then begin
 					measure_times := false;
 					write "\x02\n"
 				end else
@@ -502,6 +502,12 @@ let after_arg_parsing sctx ctx =
 		Hashtbl.add sctx.class_paths sign com.class_path;
 		()
 
+let after_compilation sctx ctx =
+	(* if not (has_error ctx) then *)
+		(* maybe_cache_context sctx ctx.com *)
+	(* TODO: not yet, trying to get parity first *)
+	()
+
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
 	let chin = IO.input_channel chin in
@@ -631,6 +637,7 @@ let rec process sctx comm args =
 	let api = {
 		before_anything = before_anything sctx;
 		after_arg_parsing = after_arg_parsing sctx;
+		after_compilation = after_compilation sctx;
 		init_wait_socket = init_wait_socket;
 		init_wait_connect = init_wait_connect;
 		init_wait_stdio = init_wait_stdio;

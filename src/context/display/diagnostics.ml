@@ -11,7 +11,10 @@ open DisplayException
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
-let is_diagnostics_run com p = DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get p.pfile)
+let is_diagnostics_run com p =
+	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
+	if b then com.has_error <- true;
+	b
 
 let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
@@ -99,7 +102,7 @@ let prepare_field dctx com cf = match cf.cf_expr with
 
 let collect_diagnostics dctx com =
 		List.iter (function
-		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get c.cl_pos.pfile) ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
 			List.iter (prepare_field dctx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx com) c.cl_ordered_statics;
 			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
@@ -174,12 +177,12 @@ let prepare com =
 	dctx
 
 let secure_generated_code ctx e =
-	if is_diagnostics_run ctx.com e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
+	mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos
 
 let print com =
 	let dctx = prepare com in
-	Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx)
+	Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics com dctx)
 
 let run com =
 	let dctx = prepare com in
-	DisplayException.raise_diagnostics dctx
+	dctx

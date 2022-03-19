@@ -270,9 +270,10 @@ let handle_parser_result com p result =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
-			| EPShow -> typing_error msg p
+			| EPShow ->
+				if com.diagnostics = None then typing_error msg p
+				else add_diagnostics_message com msg p DKParserError Error
 			| EPIgnore -> ()
-			| EPCollect -> add_diagnostics_message com msg p DKParserError Error
 	in
 	match result with
 		| ParseSuccess(data,is_display_file,pdi) ->

@@ -852,7 +852,7 @@ module TypeBinding = struct
 					| _ -> !analyzer_run_on_expr_ref ctx.com e
 				in
 				let require_constant_expression e msg =
-					if ctx.com.display.dms_kind <> DMNone && ctx.com.display.dms_error_policy <> EPCollect then
+					if ctx.com.display.dms_kind <> DMNone then
 						e
 					else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 					| Some e -> e
@@ -871,7 +871,7 @@ module TypeBinding = struct
 					(* disallow initialization of non-physical fields (issue #1958) *)
 					display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 				| Var v when not fctx.is_static ->
-					let e = if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
+					let e = if ctx.com.display.dms_display then
 						e
 					else begin
 						let rec check_this e = match e.eexpr with

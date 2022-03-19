@@ -479,7 +479,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 					raise_toplevel ctx dk with_type (name,p)
 				end
 		end
-	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
+	| DMDefault | DMNone | DMModuleSymbols _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
 		let iterator = try

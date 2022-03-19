@@ -230,8 +230,7 @@ let handle_display_argument com file_pos actx =
 		actx.did_something <- true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		com.display <- DisplayMode.create (DMDiagnostics []);
-		Parser.display_mode := DMDiagnostics [];
+		com.diagnostics <- Some []
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
@@ -253,7 +252,8 @@ let handle_display_argument com file_pos actx =
 			| "module-symbols" ->
 				DMModuleSymbols None;
 			| "diagnostics" ->
-				DMDiagnostics [file_unique];
+				com.diagnostics <- Some [file_unique];
+				DMNone
 			| "statistics" ->
 				DMStatistics
 			| "signature" ->
@@ -271,7 +271,11 @@ let handle_display_argument com file_pos actx =
 						DMDefault
 		in
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
-		com.display <- DisplayMode.create mode;
+		let dm = DisplayMode.create mode in
+		let dm = {dm with
+			dms_display_file_policy = if com.diagnostics <> None then DFPAlso else dm.dms_display_file_policy
+		} in
+		com.display <- dm;
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		DisplayPosition.display_position#set {
@@ -408,8 +412,6 @@ let process_global_display_mode com tctx =
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
-	| DMDiagnostics _ ->
-		Diagnostics.run com
 	| DMStatistics ->
 		let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
 		raise_statistics (Statistics.Printer.print_statistics stats)

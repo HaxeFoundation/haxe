@@ -47,6 +47,7 @@ type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) 
 type server_api = {
 	before_anything : compilation_context -> unit;
 	after_arg_parsing : compilation_context -> unit;
+	after_compilation : compilation_context -> unit;
 	init_wait_socket : string -> int -> server_accept;
 	init_wait_connect : string -> int -> server_accept;
 	init_wait_stdio : unit -> server_accept;

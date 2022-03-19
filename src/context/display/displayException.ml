@@ -7,7 +7,6 @@ open Genjson
 
 exception DisplayException of display_exception_kind
 
-let raise_diagnostics s = raise (DisplayException(DisplayDiagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))
 let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 let raise_metadata s = raise (DisplayException(Metadata s))
@@ -164,8 +163,6 @@ let to_json ctx de =
 	| Metadata _ -> die "" __LOC__
 	| DisplaySignatures None ->
 		jnull
-	| DisplayDiagnostics dctx ->
-		DiagnosticsPrinter.json_of_diagnostics dctx
 	| DisplaySignatures Some(sigs,isig,iarg,kind) ->
 		(* We always want full info for signatures *)
 		let ctx = Genjson.create_context GMFull in
