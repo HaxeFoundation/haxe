@@ -45,7 +45,8 @@ and compilation_context = {
 type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) * (unit -> unit))
 
 type server_api = {
-	setup_new_context : Common.context -> unit;
+	before_anything : compilation_context -> unit;
+	after_arg_parsing : compilation_context -> unit;
 	init_wait_socket : string -> int -> server_accept;
 	init_wait_connect : string -> int -> server_accept;
 	init_wait_stdio : unit -> server_accept;

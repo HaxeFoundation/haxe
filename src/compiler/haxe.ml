@@ -45,7 +45,6 @@ open Server
 
 let other = Timer.timer ["other"];;
 Sys.catch_break true;
-MacroContext.setup();
 
 let args = List.tl (Array.to_list Sys.argv) in
 (try

@@ -697,6 +697,7 @@ with
 
 let compile_ctx server_api comm ctx =
 	let run ctx =
+		server_api.before_anything ctx;
 		setup_common_context ctx;
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
@@ -717,7 +718,7 @@ let compile_ctx server_api comm ctx =
 			| SMNone ->
 				()
 			end;
-			server_api.setup_new_context ctx.com;
+			server_api.after_arg_parsing ctx;
 			compile ctx actx;
 		);
 		finalize ctx;

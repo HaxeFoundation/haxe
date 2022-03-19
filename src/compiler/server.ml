@@ -113,6 +113,8 @@ module ServerCompilationContext = struct
 		mutable delays : (unit -> unit) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
 		mutable was_compilation : bool;
+		(* True if the macro context has been set up *)
+		mutable macro_context_setup : bool;
 	}
 
 	let create verbose cs = {
@@ -125,6 +127,7 @@ module ServerCompilationContext = struct
 		mark_loop = 0;
 		delays = [];
 		was_compilation = false;
+		macro_context_setup = false;
 	}
 
 	let add_delay sctx f =
@@ -157,6 +160,12 @@ module ServerCompilationContext = struct
 		if com.display.dms_full_typing then begin
 			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
+		end
+
+	let ensure_macro_setup sctx =
+		if not sctx.macro_context_setup then begin
+			sctx.macro_context_setup <- true;
+			MacroContext.setup();
 		end
 
 	let cleanup () = match !MacroContext.macro_interp_cache with
@@ -472,7 +481,11 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		t();
 		None
 
-let setup_new_context sctx com =
+let before_anything sctx ctx =
+	ensure_macro_setup sctx
+
+let after_arg_parsing sctx ctx =
+	let com = ctx.com in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
 	ServerMessage.defines com "";
@@ -616,7 +629,8 @@ let rec process sctx comm args =
 	ServerMessage.arguments args;
 	reset sctx;
 	let api = {
-		setup_new_context = setup_new_context sctx;
+		before_anything = before_anything sctx;
+		after_arg_parsing = after_arg_parsing sctx;
 		init_wait_socket = init_wait_socket;
 		init_wait_connect = init_wait_connect;
 		init_wait_stdio = init_wait_stdio;
@@ -637,6 +651,7 @@ and wait_loop verbose accept =
 	let sctx = ServerCompilationContext.create verbose cs in
 	TypeloadModule.type_module_hook := type_module sctx;
 	MacroContext.macro_enable_cache := true;
+	ServerCompilationContext.ensure_macro_setup sctx;
 	TypeloadParse.parse_hook := parse_file cs;
 	let ring = Ring.create 10 0. in
 	let gc_heap_stats () =
