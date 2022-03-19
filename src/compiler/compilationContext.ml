@@ -1,5 +1,10 @@
 open Globals
 
+type server_mode =
+	| SMNone
+	| SMListen of string
+	| SMConnect of string
+
 type arg_context = {
 	mutable classes : Globals.path list;
 	mutable xml_out : string option;
@@ -18,21 +23,30 @@ type arg_context = {
 	mutable swf_version : bool;
 	mutable native_libs : (string * bool) list;
 	mutable raise_usage : unit -> unit;
+	mutable server_mode : server_mode;
 }
 
-type server_mode =
-	| SMNone
-	| SMListen of string
-	| SMConnect of string
+type communication = {
+	write_out : string -> unit;
+	write_err : string -> unit;
+	flush     : compilation_context -> unit;
+}
 
-type compilation_context = {
+and compilation_context = {
 	com : Common.context;
-	mutable finish : unit -> unit;
-	mutable setup : unit -> unit;
+	mutable on_exit : (unit -> unit) list;
+	setup : unit -> unit;
 	mutable messages : Common.compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
-	mutable server_mode : server_mode;
-	mutable write_stdout : string -> unit;
-	mutable write_stderr : string -> unit;
+	comm : communication;
+}
+
+type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) * (unit -> unit))
+
+type server_api = {
+	create_new_context : string list -> compilation_context;
+	init_wait_socket : string -> int -> server_accept;
+	init_wait_connect : string -> int -> server_accept;
+	wait_loop : bool -> server_accept -> unit;
 }

@@ -287,13 +287,6 @@ type compiler_stage =
 	| CGenerationStart  (* Generation is about to begin. *)
 	| CGenerationDone   (* Generation just finished. *)
 
-let pipe_read ch_in buf buf_size f =
-	let i = input ch_in buf 0 buf_size in
-	if i > 0 then begin
-		f (Bytes.unsafe_to_string (Bytes.sub buf 0 i));
-	end;
-	i
-
 type context = {
 	mutable stage : compiler_stage;
 	mutable cache : context_cache option;

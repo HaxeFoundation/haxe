@@ -95,14 +95,11 @@ let process_args arg_spec =
 		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
 	) arg_spec)
 
-let parse_args ctx =
+let parse_args com =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2020 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
 		s_version_full (if Sys.os_type = "Win32" then ".exe" else "")
 	in
-	let com = ctx.com in
-	set_binary_mode_out stdout true;
-	set_binary_mode_out stderr true;
 	let actx = {
 		classes = [([],"Std")];
 		xml_out = None;
@@ -121,6 +118,7 @@ let parse_args ctx =
 		swf_version = false;
 		native_libs = [];
 		raise_usage = (fun () -> ());
+		server_mode = SMNone;
 	} in
 	let add_native_lib file extern = actx.native_libs <- (file,extern) :: actx.native_libs in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -226,13 +224,13 @@ let parse_args ctx =
 		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
 			let all,max_length = Define.get_documentation_list() in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
+			List.iter (fun msg -> com.print (msg ^ "\n")) all;
 			actx.did_something <- true
 		),"","print help for all compiler specific defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
 			let all,max_length = Meta.get_documentation_list() in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
+			List.iter (fun msg -> com.print (msg ^ "\n")) all;
 			actx.did_something <- true
 		),"","print help for all compiler metadatas");
 	] in
@@ -342,10 +340,10 @@ let parse_args ctx =
 			actx.config_macros <- e :: actx.config_macros
 		),"<macro>","call the given macro before typing anything else");
 		("Compilation Server",["--server-listen"],["--wait"], Arg.String (fun hp ->
-			ctx.server_mode <- SMListen hp;
+			actx.server_mode <- SMListen hp;
 		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run");
 		("Compilation Server",["--server-connect"],[], Arg.String (fun hp ->
-			ctx.server_mode <- SMConnect hp;
+			actx.server_mode <- SMConnect hp;
 		),"[host:]port]","connect to the given port and wait for commands to run");
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
 			die "" __LOC__
@@ -370,7 +368,7 @@ let parse_args ctx =
 				actx.force_typing <- true;
 				actx.config_macros <- (Printf.sprintf "include('%s', true, null, null, true)" cl) :: actx.config_macros;
 			end
-		with Failure _ when ctx.com.display.dms_display ->
+		with Failure _ when com.display.dms_display ->
 			()
 		end
 	in
@@ -433,7 +431,7 @@ let parse_args ctx =
 	actx.raise_usage <- (fun () -> raise (Helper.HelpMessage (usage_string basic_args_spec usage)));
 	process_ref := process;
 	(* Handle CLI arguments *)
-	process ctx.com.args;
+	process com.args;
 	(* Process haxelibs *)
 	process_libs();
 	actx

@@ -46,27 +46,6 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			api.send_error errors
 		end
 
-let parse_hxml_data data =
-	let lines = Str.split (Str.regexp "[\r\n]+") data in
-	List.concat (List.map (fun l ->
-		let l = unquote (ExtString.String.strip l) in
-		if l = "" || l.[0] = '#' then
-			[]
-		else if l.[0] = '-' then
-			try
-				let a, b = ExtString.String.split l " " in
-				[unquote a; unquote (ExtString.String.strip b)]
-			with
-				_ -> [l]
-		else
-			[l]
-	) lines)
-
-let parse_hxml file =
-	let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
-	let data = IO.read_all ch in
-	IO.close_in ch;
-	parse_hxml_data data
 
 let current_stdin = ref None
 
@@ -156,85 +135,83 @@ module ServerCompilationContext = struct
 		sctx.delays <- [];
 		List.iter (fun f -> f()) fl
 
+	(* Resets the state for a new compilation *)
 	let reset sctx =
 		Hashtbl.clear sctx.changed_directories;
-		sctx.was_compilation <- false
-end
+		sctx.was_compilation <- false;
+		Parser.reset_state();
+		return_partial_type := false;
+		measure_times := false;
+		Hashtbl.clear DeprecationCheck.warned_positions;
+		close_times();
+		stats.s_files_parsed := 0;
+		stats.s_classes_built := 0;
+		stats.s_methods_typed := 0;
+		stats.s_macros_called := 0;
+		Hashtbl.clear Timer.htimers;
+		sctx.compilation_step <- sctx.compilation_step + 1;
+		sctx.compilation_mark <- sctx.mark_loop;
+		Helper.start_time := get_time()
 
-open ServerCompilationContext
-
-class virtual server_communication
-	(sctx : ServerCompilationContext.t)
-= object(self)
-	method virtual out : string -> unit (* like stdout *)
-	method virtual err : string -> unit (* like stderr *)
-	method virtual do_finish : compilation_context -> unit
-
-	method maybe_cache_context com =
+	let maybe_cache_context sctx com =
 		if com.display.dms_full_typing then begin
 			CommonCache.cache_context sctx.cs com;
 			ServerMessage.cached_modules com "" (List.length com.modules);
 		end
-
-	method finish (ctx : compilation_context) =
-		self#do_finish ctx
 end
 
-class stdio_communication
-	(sctx : ServerCompilationContext.t)
-= object(self)
-	inherit server_communication sctx
+open ServerCompilationContext
 
-	method out (s : string) =
-		print_string s;
-		flush stdout;
-
-	method err (s : string) =
-		prerr_string s
-
-	method do_finish (ctx : compilation_context) =
-		List.iter (fun msg -> match msg with
-			| CMInfo _ -> print_endline (compiler_message_string msg)
-			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-		) (List.rev ctx.messages);
-		if ctx.has_error && !Helper.prompt then begin
-			print_endline "Press enter to exit...";
-			ignore(read_line());
-		end;
-		flush stdout;
-		if ctx.has_error then exit 1
-end
-
-class other_communication
-	(sctx : ServerCompilationContext.t)
-	(write : string -> unit)
-= object(self)
-	inherit server_communication sctx
-
-	method out (s : string) =
-		write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
-
-	method err (s : string) =
-		write s
-
-	method do_finish (ctx : compilation_context) =
-		sctx.compilation_step <- sctx.compilation_step + 1;
-		sctx.compilation_mark <- sctx.mark_loop;
-		check_display_flush ctx (fun () ->
-			List.iter
-				(fun msg ->
-					let s = compiler_message_string msg in
-					write (s ^ "\n");
-					ServerMessage.message s;
-				)
-				(List.rev ctx.messages);
-			sctx.was_compilation <- ctx.com.display.dms_full_typing;
-			if ctx.has_error then begin
-				measure_times := false;
-				write "\x02\n"
-			end else
-				self#maybe_cache_context ctx.com;
+module Communication = struct
+	let create_stdio () = {
+		write_out = (fun s ->
+			print_string s;
+			flush stdout;
+		);
+		write_err = (fun s ->
+			prerr_string s;
+		);
+		flush = (fun ctx ->
+			List.iter (fun msg -> match msg with
+				| CMInfo _ -> print_endline (compiler_message_string msg)
+				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			) (List.rev ctx.messages);
+			if ctx.has_error && !Helper.prompt then begin
+				print_endline "Press enter to exit...";
+				ignore(read_line());
+			end;
+			flush stdout;
+			if ctx.has_error then exit 1
 		)
+	}
+
+	let create_pipe sctx write = {
+		write_out = (fun s ->
+			write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+		);
+		write_err = (fun s ->
+			write s
+		);
+		flush = (fun ctx ->
+			sctx.compilation_step <- sctx.compilation_step + 1;
+			sctx.compilation_mark <- sctx.mark_loop;
+			check_display_flush ctx (fun () ->
+				List.iter
+					(fun msg ->
+						let s = compiler_message_string msg in
+						write (s ^ "\n");
+						ServerMessage.message s;
+					)
+					(List.rev ctx.messages);
+				sctx.was_compilation <- ctx.com.display.dms_full_typing;
+				if ctx.has_error then begin
+					measure_times := false;
+					write "\x02\n"
+				end else
+					maybe_cache_context sctx ctx.com;
+			)
+		)
+	}
 end
 
 let stat dir =
@@ -490,11 +467,11 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		None
 
 (* Sets up the per-compilation context. *)
-let create sctx (comm : server_communication) params =
+let create sctx comm params =
 	let cs = sctx.cs in
 	let rec ctx = {
 		com = Common.create version params;
-		finish = (fun()-> comm#finish ctx);
+		on_exit = [];
 		setup = (fun() ->
 			let sign = Define.get_signature ctx.com.defines in
 			ServerMessage.defines ctx.com "";
@@ -514,28 +491,9 @@ let create sctx (comm : server_communication) params =
 		messages = [];
 		has_next = false;
 		has_error = false;
-		server_mode = SMNone;
-		write_stdout = comm#out;
-		write_stderr = comm#err;
+		comm = comm;
 	} in
 	ctx
-
-(* Resets the state for a new compilation *)
-let init_new_compilation sctx =
-	ServerCompilationContext.reset sctx;
-	Parser.reset_state();
-	return_partial_type := false;
-	measure_times := false;
-	Hashtbl.clear DeprecationCheck.warned_positions;
-	close_times();
-	stats.s_files_parsed := 0;
-	stats.s_classes_built := 0;
-	stats.s_methods_typed := 0;
-	stats.s_macros_called := 0;
-	Hashtbl.clear Timer.htimers;
-	sctx.compilation_step <- sctx.compilation_step + 1;
-	sctx.compilation_mark <- sctx.mark_loop;
-	Helper.start_time := get_time()
 
 let cleanup () =
 	begin match !MacroContext.macro_interp_cache with
@@ -547,155 +505,17 @@ let gc_heap_stats () =
 	let stats = Gc.quick_stat() in
 	stats.major_words,stats.heap_words
 
-(* Returns a list of contexts, but doesn't do anything yet *)
-let process_params create pl =
-	let each_params = ref [] in
-	let compilations = DynArray.create () in
-	let curdir = Unix.getcwd () in
-	let add_context args =
-		let ctx = create args in
-		(* --cwd triggers immediately, so let's reset *)
-		Unix.chdir curdir;
-		DynArray.add compilations ctx;
-		ctx;
-	in
-	let rec loop acc = function
-		| [] ->
-			ignore(add_context (!each_params @ (List.rev acc)));
-		| "--next" :: l when acc = [] -> (* skip empty --next *)
-			loop [] l
-		| "--next" :: l ->
-			let ctx = add_context (!each_params @ (List.rev acc)) in
-			ctx.has_next <- true;
-			loop [] l
-		| "--each" :: l ->
-			each_params := List.rev acc;
-			loop [] l
-		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
-			(* we need to change it immediately since it will affect hxml loading *)
-			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
-			(* Push the --cwd arg so the arg processor know we did something. *)
-			loop (dir :: "--cwd" :: acc) l
-		| "--connect" :: hp :: l ->
-			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-			Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
-		| "--run" :: cl :: args ->
-			let acc = cl :: "-x" :: acc in
-			let ctx = add_context (!each_params @ (List.rev acc)) in
-			ctx.com.sys_args <- args;
-		| arg :: l ->
-			match List.rev (ExtString.String.nsplit arg ".") with
-			| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
-				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
-				loop acc l
-			| _ -> loop (arg :: acc) l
-	in
-	(* put --display in front if it was last parameter *)
-	let pl = (match List.rev pl with
-		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
-		| _ -> pl
-	) in
-	loop [] pl;
-	DynArray.to_list compilations
-
-let parse_host_port hp =
-	let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-	let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
-	host, port
-
-let setup_common_context ctx comm =
-	let com = ctx.com in
-	ctx.com.print <- comm#out;
-	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
-	Common.raw_define com "haxe3";
-	Common.raw_define com "haxe4";
-	Common.define_value com Define.Haxe s_version;
-	Common.raw_define com "true";
-	Common.define_value com Define.Dce "std";
-	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
-	com.warning <- (fun w options msg p ->
-		match Warning.get_mode w (com.warning_options @ options) with
-		| WMEnable ->
-			message ctx (CMWarning(msg,p))
-		| WMDisable ->
-			()
-	);
-	com.error <- error ctx;
-	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
-		(match msg with
-		| CMError(_,_) -> keep_errors;
-		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
-	) (List.rev ctx.messages))) in
-	com.get_messages <- (fun () -> (List.map (fun msg ->
-		(match msg with
-		| CMError(_,_) -> die "" __LOC__;
-		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
-	) (filter_messages false (fun _ -> true))));
-	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
-	if CompilationServer.runs() then com.run_command <- run_command ctx;
-	com.class_path <- get_std_class_paths ();
-	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
-
 let rec process sctx comm args =
 	let t0 = get_time() in
 	ServerMessage.arguments args;
-	init_new_compilation sctx;
-	let create = create sctx comm in
-	let ctxs = try
-		process_params create args
-	with Arg.Bad msg ->
-		let ctx = create args in
-		error ctx ("Error: " ^ msg) null_pos;
-		[ctx]
-	in
-	let run ctx =
-		(* Close any leftover descriptors from previous compilation *)
-		setup_common_context ctx comm;
-		Compiler.compile_safe ctx (fun () ->
-			let actx = Args.parse_args ctx in
-			begin match ctx.server_mode with
-			| SMListen hp ->
-				let accept = match hp with
-				| "stdio" ->
-					Server_old.init_wait_stdio()
-				| _ ->
-					let host, port = parse_host_port hp in
-					init_wait_socket host port
-				in
-				wait_loop ctx.com.verbose accept
-			| SMConnect hp ->
-				let host, port = parse_host_port hp in
-				let accept = init_wait_connect host port in
-				wait_loop ctx.com.verbose accept
-			| SMNone ->
-				()
-			end;
-			Compiler.compile ctx actx;
-		);
-		ctx.finish();
-	in
-	let run ctx = try
-		if ctx.has_error then begin
-			ctx.finish();
-			false (* can happen if process_params above fails already *)
-		end else begin
-			run ctx;
-			true (* reads as "continue?" *)
-		end
-	with
-		| Completion str ->
-			ServerMessage.completion str;
-			comm#err str;
-			false
-		| Arg.Bad msg ->
-			error ctx ("Error: " ^ msg) null_pos;
-			false
-	in
-	let success = List.fold_left (fun b ctx -> b && run ctx) true ctxs in
-	if success then begin
-		close_times();
-		if !measure_times then report_times (fun s -> comm#err (s ^ "\n"));
-	end;
+	reset sctx;
+	let api = {
+		create_new_context = create sctx comm;
+		init_wait_socket = init_wait_socket;
+		init_wait_connect = init_wait_connect;
+		wait_loop = wait_loop;
+	} in
+	Compiler.entry api comm args;
 	run_delays sctx;
 	ServerMessage.stats stats (get_time() -. t0)
 
@@ -743,7 +563,7 @@ and wait_loop verbose accept =
 							s
 					in
 					let data = parse_hxml_data hxml in
-					process sctx (new other_communication sctx write) data
+					process sctx (Communication.create_pipe sctx write) data
 				| None ->
 					if not cs#has_task then
 						(* If there is no pending task, turn into blocking mode. *)

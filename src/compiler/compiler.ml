@@ -72,20 +72,16 @@ let initialize_target ctx com actx =
 				actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 			"cpp"
 		| Cs ->
-			let old_finish = ctx.finish in
-			ctx.finish <- (fun () ->
+			ctx.on_exit <- (fun () ->
 				com.native_libs.net_libs <- [];
-				old_finish()
-			);
+			) :: ctx.on_exit;
 			Dotnet.before_generate com;
 			add_std "cs"; "cs"
 		| Java ->
-			let old_finish = ctx.finish in
-			ctx.finish <- (fun () ->
+			ctx.on_exit <- (fun () ->
 				List.iter (fun java_lib -> java_lib#close) com.native_libs.java_libs;
 				com.native_libs.java_libs <- [];
-				old_finish()
-			);
+			) :: ctx.on_exit;
 			Java.before_generate com;
 			if defined com Define.Jvm then begin
 				add_std "jvm";
@@ -399,8 +395,8 @@ let run_command ctx cmd =
 					()
 				end
 			in
-			let tout = Thread.create (fun() -> read_content pout bout ctx.write_stdout) () in
-			let terr = Thread.create (fun() -> read_content perr berr ctx.write_stderr) () in
+			let tout = Thread.create (fun() -> read_content pout bout ctx.comm.write_out) () in
+			let terr = Thread.create (fun() -> read_content perr berr ctx.comm.write_err) () in
 			Thread.join tout;
 			Thread.join terr;
 			let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
@@ -449,7 +445,41 @@ let get_std_class_paths () =
 				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 
+let setup_common_context ctx =
+	let com = ctx.com in
+	ctx.com.print <- ctx.comm.write_out;
+	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
+	Common.raw_define com "haxe3";
+	Common.raw_define com "haxe4";
+	Common.define_value com Define.Haxe s_version;
+	Common.raw_define com "true";
+	Common.define_value com Define.Dce "std";
+	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
+	com.warning <- (fun w options msg p ->
+		match Warning.get_mode w (com.warning_options @ options) with
+		| WMEnable ->
+			message ctx (CMWarning(msg,p))
+		| WMDisable ->
+			()
+	);
+	com.error <- error ctx;
+	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
+		(match msg with
+		| CMError(_,_) -> keep_errors;
+		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
+	) (List.rev ctx.messages))) in
+	com.get_messages <- (fun () -> (List.map (fun msg ->
+		(match msg with
+		| CMError(_,_) -> die "" __LOC__;
+		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
+	) (filter_messages false (fun _ -> true))));
+	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
+	if CompilationServer.runs() then com.run_command <- run_command ctx;
+	com.class_path <- get_std_class_paths ();
+	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
+
 let compile ctx actx =
+	setup_common_context ctx;
 	let com = ctx.com in
 	(* Set up display configuration *)
 	process_display_configuration ctx;
@@ -508,6 +538,12 @@ let compile ctx actx =
 			if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
 		) (List.rev actx.cmds)
 	end
+
+let finalize ctx =
+	List.iter (fun f ->
+		f();
+	) ctx.on_exit;
+	ctx.comm.flush ctx
 
 let compile_safe ctx f =
 	let com = ctx.com in
@@ -646,7 +682,7 @@ with
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
-		ctx.finish();
+		finalize ctx;
 		if !Timer.measure_times then Timer.report_times prerr_endline;
 		exit i
 	| DisplayOutput.Completion _ as exc ->
@@ -655,3 +691,138 @@ with
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
+
+let parse_hxml_data data =
+	let open DisplayOutput in
+	let lines = Str.split (Str.regexp "[\r\n]+") data in
+	List.concat (List.map (fun l ->
+		let l = unquote (ExtString.String.strip l) in
+		if l = "" || l.[0] = '#' then
+			[]
+		else if l.[0] = '-' then
+			try
+				let a, b = ExtString.String.split l " " in
+				[unquote a; unquote (ExtString.String.strip b)]
+			with
+				_ -> [l]
+		else
+			[l]
+	) lines)
+
+let parse_hxml file =
+	let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
+	let data = IO.read_all ch in
+	IO.close_in ch;
+	parse_hxml_data data
+
+(* Returns a list of contexts, but doesn't do anything yet *)
+let process_params create pl =
+	let each_params = ref [] in
+	let compilations = DynArray.create () in
+	let curdir = Unix.getcwd () in
+	let add_context args =
+		let ctx = create args in
+		(* --cwd triggers immediately, so let's reset *)
+		Unix.chdir curdir;
+		DynArray.add compilations ctx;
+		ctx;
+	in
+	let rec loop acc = function
+		| [] ->
+			ignore(add_context (!each_params @ (List.rev acc)));
+		| "--next" :: l when acc = [] -> (* skip empty --next *)
+			loop [] l
+		| "--next" :: l ->
+			let ctx = add_context (!each_params @ (List.rev acc)) in
+			ctx.has_next <- true;
+			loop [] l
+		| "--each" :: l ->
+			each_params := List.rev acc;
+			loop [] l
+		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
+			(* we need to change it immediately since it will affect hxml loading *)
+			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+			(* Push the --cwd arg so the arg processor know we did something. *)
+			loop (dir :: "--cwd" :: acc) l
+		| "--connect" :: hp :: l ->
+			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+			Server_old.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+		| "--run" :: cl :: args ->
+			let acc = cl :: "-x" :: acc in
+			let ctx = add_context (!each_params @ (List.rev acc)) in
+			ctx.com.sys_args <- args;
+		| arg :: l ->
+			match List.rev (ExtString.String.nsplit arg ".") with
+			| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
+				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+				loop acc l
+			| _ -> loop (arg :: acc) l
+	in
+	(* put --display in front if it was last parameter *)
+	let pl = (match List.rev pl with
+		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
+		| _ -> pl
+	) in
+	loop [] pl;
+	DynArray.to_list compilations
+
+let parse_host_port hp =
+	let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+	let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
+	host, port
+
+let entry server_api comm args =
+	let ctxs = try
+		process_params server_api.create_new_context args
+	with Arg.Bad msg ->
+		let ctx = server_api.create_new_context args in
+		error ctx ("Error: " ^ msg) null_pos;
+		[ctx]
+	in
+	let run ctx =
+		setup_common_context ctx;
+		compile_safe ctx (fun () ->
+			let actx = Args.parse_args ctx.com in
+			begin match actx.server_mode with
+			| SMListen hp ->
+				let accept = match hp with
+				| "stdio" ->
+					Server_old.init_wait_stdio()
+				| _ ->
+					let host, port = parse_host_port hp in
+					server_api.init_wait_socket host port
+				in
+				server_api.wait_loop ctx.com.verbose accept
+			| SMConnect hp ->
+				let host, port = parse_host_port hp in
+				let accept = server_api.init_wait_connect host port in
+				server_api.wait_loop ctx.com.verbose accept
+			| SMNone ->
+				()
+			end;
+			compile ctx actx;
+		);
+		finalize ctx;
+	in
+	let run ctx = try
+		if ctx.has_error then begin
+			finalize ctx;
+			false (* can happen if process_params above fails already *)
+		end else begin
+			run ctx;
+			true (* reads as "continue?" *)
+		end
+	with
+		| DisplayOutput.Completion str ->
+			ServerMessage.completion str;
+			comm.write_err str;
+			false
+		| Arg.Bad msg ->
+			error ctx ("Error: " ^ msg) null_pos;
+			false
+	in
+	let success = List.fold_left (fun b ctx -> b && run ctx) true ctxs in
+	if success then begin
+		Timer.close_times();
+		if !Timer.measure_times then Timer.report_times (fun s -> comm.write_err (s ^ "\n"));
+	end;
