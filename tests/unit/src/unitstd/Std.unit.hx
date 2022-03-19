@@ -81,7 +81,9 @@ Std.parseInt("0010") == 10;
 // trailing text
 Std.parseInt("100x123") == 100;
 Std.parseInt("12foo13") == 12;
+#if !php // https://github.com/HaxeFoundation/haxe/issues/10617
 Std.parseInt("23e2") == 23;
+#end
 Std.parseInt("0x10z") == 16;
 Std.parseInt("0x10x123") == 16;
 // hexadecimals
