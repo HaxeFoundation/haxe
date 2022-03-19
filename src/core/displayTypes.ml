@@ -211,7 +211,6 @@ module DisplayMode = struct
 		| DMDefinition
 		| DMTypeDefinition
 		| DMImplementation
-		| DMResolve of string
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
@@ -269,7 +268,7 @@ module DisplayMode = struct
 		let settings = { default_display_settings with dms_kind = dm } in
 		match dm with
 		| DMNone -> default_compilation_settings
-		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
+		| DMDefault | DMDefinition | DMTypeDefinition | DMPackage | DMHover | DMSignature -> settings
 		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
@@ -289,7 +288,6 @@ module DisplayMode = struct
 		| DMDefinition -> "position"
 		| DMTypeDefinition -> "type-definition"
 		| DMImplementation -> "implementation"
-		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
 		| DMUsage (true,_,_) -> "rename"

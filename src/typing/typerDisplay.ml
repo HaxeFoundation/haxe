@@ -352,7 +352,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| _ -> e
 	in
 	match ctx.com.display.dms_kind with
-	| DMResolve _ | DMPackage ->
+	| DMPackage ->
 		die "" __LOC__
 	| DMSignature ->
 		handle_signature_display ctx e_ast with_type

@@ -268,8 +268,6 @@ let handle_display_argument com file_pos actx =
 			| _ ->
 				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
 				match smode with
-					| "resolve" ->
-						create (DMResolve arg)
 					| "workspace-symbols" ->
 						create (DMModuleSymbols (Some arg))
 					| _ ->
