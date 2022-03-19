@@ -48,7 +48,7 @@ let add_libs com libs =
 			| Some cs ->
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
-					if not com.display.dms_display then raise Not_found;
+					if com.display.dms_full_typing then raise Not_found;
 					cs#find_haxelib libs
 				with Not_found ->
 					let lines = call_haxelib() in
@@ -368,7 +368,7 @@ let parse_args com =
 				actx.force_typing <- true;
 				actx.config_macros <- (Printf.sprintf "include('%s', true, null, null, true)" cl) :: actx.config_macros;
 			end
-		with Failure _ when com.display.dms_display ->
+		with Failure _ when com.display.dms_error_policy = EPIgnore ->
 			()
 		end
 	in

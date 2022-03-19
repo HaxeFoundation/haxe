@@ -185,8 +185,6 @@ let rec acc_get ctx g p =
 			let tf = apply_params cf.cf_type in
 			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
-		| Var _,None when ctx.com.display.dms_display ->
-			 FieldAccess.get_field_expr fa FRead
 		| Var _,None ->
 			typing_error "Recursive inline is not supported" p
 		end

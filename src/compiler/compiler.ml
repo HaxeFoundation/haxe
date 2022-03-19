@@ -245,7 +245,7 @@ let do_type ctx tctx actx =
 
 let handle_display ctx tctx display_file_dot_path =
 	let com = ctx.com in
-	if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
+	if ctx.com.display.dms_kind = DMNone & ctx.has_error then raise Abort;
 	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
@@ -507,11 +507,6 @@ let compile ctx actx =
 	let display_file_dot_path = DisplayOutput.process_display_file com actx in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = initialize_target ctx com actx in
-	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
-	if com.display.dms_display then begin match com.display.dms_kind with
-		| DMDefault | DMUsage _ -> ()
-		| _ -> if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
-	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));

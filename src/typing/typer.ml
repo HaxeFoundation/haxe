@@ -948,10 +948,13 @@ and type_new ctx path el with_type force_inline p =
 		with Error (e,p) ->
 			typing_error (error_msg e) p;
 	in
+	let display_position_in_el () =
+		List.exists (fun e -> DisplayPosition.display_position#enclosed_in (pos e)) el
+	in
 	let t = if (fst path).tparams <> [] then begin
 		try
 			Typeload.load_instance ctx path false
-		with Error _ as exc when ctx.com.display.dms_display ->
+		with Error _ as exc when display_position_in_el() ->
 			(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
 			List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
 			raise exc
@@ -991,7 +994,7 @@ and type_new ctx path el with_type force_inline p =
 		| mt ->
 			typing_error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 		end
-	| Error _ as exc when ctx.com.display.dms_display ->
+	| Error _ as exc when display_position_in_el() ->
 		List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
 		raise exc
 	in
@@ -1315,7 +1318,7 @@ and type_local_function ctx kind f with_type p =
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
 				exprs
-			end else if inline && not ctx.com.display.dms_display then
+			end else if inline && not ctx.is_display_file then
 				(mk (TBlock []) ctx.t.tvoid p) :: exprs (* do not add variable since it will be inlined *)
 			else
 				(mk (TVar (v,Some e)) ctx.t.tvoid p) :: exprs

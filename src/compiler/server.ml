@@ -80,7 +80,7 @@ let parse_file cs com file p =
 						end else begin try
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
-							if not com.display.dms_display then raise Not_found;
+							if com.display.dms_full_typing then raise Not_found;
 							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
