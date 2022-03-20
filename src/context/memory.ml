@@ -1,5 +1,5 @@
 open Globals
-open CompilationServer
+open CompilationCache
 open Common
 open Type
 open Genjson
@@ -93,7 +93,7 @@ let fmt_word f =
 let size v =
 	fmt_size (mem_size v)
 
-let get_memory_json (cs : CompilationServer.t) mreq =
+let get_memory_json (cs : CompilationCache.t) mreq =
 	begin match mreq with
 	| MCache ->
 		let old_gc = Gc.get() in

@@ -2,7 +2,7 @@ open Printf
 open Globals
 open Ast
 open Common
-open CompilationServer
+open CompilationCache
 open Timer
 open Type
 open DisplayOutput
@@ -100,7 +100,7 @@ module ServerCompilationContext = struct
 		(* The list of changed directories per-signature *)
 		changed_directories : (Digest.t,cached_directory list) Hashtbl.t;
 		(* A reference to the compilation server instance *)
-		cs : CompilationServer.t;
+		cs : CompilationCache.t;
 		(* A list of class paths per-signature *)
 		class_paths : (Digest.t,string list) Hashtbl.t;
 		(* Increased for each typed module *)
@@ -119,7 +119,7 @@ module ServerCompilationContext = struct
 
 	let create verbose = {
 		verbose = verbose;
-		cs = new CompilationServer.cache;
+		cs = new CompilationCache.cache;
 		class_paths = Hashtbl.create 0;
 		changed_directories = Hashtbl.create 0;
 		compilation_step = 0;
@@ -255,10 +255,10 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 							if not (cs#has_directory sign dir) then begin
 								let time = stat dir in
 								ServerMessage.added_directory com "" dir;
-								cs#add_directory sign (CompilationServer.create_directory dir time)
+								cs#add_directory sign (CompilationCache.create_directory dir time)
 							end;
 						) sub_dirs;
-						(CompilationServer.create_directory dir.c_path time') :: acc
+						(CompilationCache.create_directory dir.c_path time') :: acc
 					end else
 						acc
 				with Unix.Unix_error _ ->
@@ -278,7 +278,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 				let add_dir path =
 					try
 						let time = stat path in
-						dirs := CompilationServer.create_directory path time :: !dirs
+						dirs := CompilationCache.create_directory path time :: !dirs
 					with Unix.Unix_error _ ->
 						()
 				in

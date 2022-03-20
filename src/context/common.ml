@@ -18,7 +18,6 @@
  *)
 open Extlib_leftovers
 open Ast
-open CompilationServer
 open Type
 open Globals
 open Define
@@ -294,7 +293,7 @@ type report_mode =
 
 type context = {
 	mutable stage : compiler_stage;
-	mutable cache : context_cache option;
+	mutable cache : CompilationCache.context_cache option;
 	(* config *)
 	version : int;
 	args : string list;
@@ -353,7 +352,7 @@ type context = {
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
-	cs : CompilationServer.t;
+	cs : CompilationCache.t;
 }
 
 exception Abort of string * pos

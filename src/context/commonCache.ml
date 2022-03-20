@@ -1,6 +1,5 @@
 open Globals
 open Common
-open CompilationServer
 open Type
 
 let handle_native_lib com lib =

@@ -381,10 +381,11 @@ let make_macro_api ctx p =
 				| None -> ()
 				| Some(_,mctx) -> add mctx;
 			in
+			let open CompilationCache in
 			match Obj.magic i with
-			| CompilationServer.NormalContext -> add ctx
-			| CompilationServer.MacroContext -> add_macro ctx
-			| CompilationServer.NormalAndMacroContext -> add ctx; add_macro ctx;
+			| NormalContext -> add ctx
+			| MacroContext -> add_macro ctx
+			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
 		MacroApi.decode_expr = Interp.decode_expr;
 		MacroApi.encode_expr = Interp.encode_expr;

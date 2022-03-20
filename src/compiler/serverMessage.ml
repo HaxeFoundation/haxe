@@ -1,6 +1,6 @@
 open Globals
 open Common
-open CompilationServer
+open CompilationCache
 open Type
 open Json
 

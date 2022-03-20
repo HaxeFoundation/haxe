@@ -1,6 +1,6 @@
 
 open Type
-open CompilationServer
+open CompilationCache
 
 class gc_task (max_working_memory : float) (heap_size : float) = object(self)
 	inherit server_task ["gc"] 100
@@ -30,7 +30,7 @@ class gc_task (max_working_memory : float) (heap_size : float) = object(self)
 		ServerMessage.gc_stats (Timer.get_time() -. t0) stats do_compact new_space_overhead
 end
 
-class class_maintenance_task (cs : CompilationServer.t) (c : tclass) = object(self)
+class class_maintenance_task (cs : CompilationCache.t) (c : tclass) = object(self)
 	inherit server_task ["module maintenance"] 70
 
 	method private execute =
@@ -47,7 +47,7 @@ class class_maintenance_task (cs : CompilationServer.t) (c : tclass) = object(se
 		Option.may field c.cl_constructor;
 end
 
-class module_maintenance_task (cs : CompilationServer.t) (m : module_def) = object(self)
+class module_maintenance_task (cs : CompilationCache.t) (m : module_def) = object(self)
 	inherit server_task ["module maintenance"] 80
 
 	method private execute =
@@ -59,7 +59,7 @@ class module_maintenance_task (cs : CompilationServer.t) (m : module_def) = obje
 		) m.m_types
 end
 
-class server_exploration_task (cs : CompilationServer.t) = object(self)
+class server_exploration_task (cs : CompilationCache.t) = object(self)
 	inherit server_task ["server explore"] 90
 
 	method private execute =

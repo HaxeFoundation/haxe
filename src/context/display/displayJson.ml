@@ -44,7 +44,7 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t) = object(self)
+class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) = object(self)
 	val cs = cs;
 
 	method get_cs = cs
@@ -82,7 +82,7 @@ type handler_context = {
 }
 
 let handler =
-	let open CompilationServer in
+	let open CompilationCache in
 	let h = Hashtbl.create 0 in
 	let l = [
 		"initialize", (fun hctx ->

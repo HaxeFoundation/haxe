@@ -5,7 +5,7 @@ open Type
 open Typecore
 open DisplayPosition
 open CompletionItem
-open CompilationServer
+open CompilationCache
 open ClassFieldOrigin
 
 let find_field_by_position sc p =

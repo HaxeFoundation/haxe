@@ -18,7 +18,7 @@
 *)
 open Ast
 open Common
-open CompilationServer
+open CompilationCache
 open Type
 open Typecore
 open CompletionItem
@@ -472,7 +472,7 @@ let collect ctx tk with_type sort =
 		| s :: sl -> add_package (List.rev sl,s)
 	in
 	List.iter (fun ((file_key,cfile),_) ->
-		let module_name = CompilationServer.get_module_name_of_cfile cfile.c_file_path cfile in
+		let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path cfile in
 		let dot_path = s_type_path (cfile.c_package,module_name) in
 		(* In legacy mode we only show toplevel types. *)
 		if is_legacy_completion && cfile.c_package <> [] then begin

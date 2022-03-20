@@ -101,7 +101,8 @@ let prepare_field dctx com cf = match cf.cf_expr with
 		DeprecationCheck.run_on_expr ~force:true com e
 
 let collect_diagnostics dctx com =
-		List.iter (function
+	let open CompilationCache in
+	List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
 			List.iter (prepare_field dctx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx com) c.cl_ordered_statics;
@@ -116,8 +117,8 @@ let collect_diagnostics dctx com =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
 			Hashtbl.iter (fun file_key cfile ->
-				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.CompilationServer.c_file_path) then begin
-					let dead_blocks = cfile.CompilationServer.c_pdi.pd_dead_blocks in
+				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path) then begin
+					let dead_blocks = cfile.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try
 						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file_key in
