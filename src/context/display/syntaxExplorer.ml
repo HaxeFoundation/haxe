@@ -161,7 +161,7 @@ let find_in_syntax symbols (pack,decls) =
 
 let explore_uncached_modules tctx cs symbols =
 	DisplayToplevel.init_or_update_server cs tctx.com ["display";"references"];
-	let cc = CommonCache.get_cache cs tctx.com in
+	let cc = CommonCache.get_cache tctx.com in
 	let files = cc#get_files in
 	let modules = cc#get_modules in
 	let t = Timer.timer ["display";"references";"candidates"] in

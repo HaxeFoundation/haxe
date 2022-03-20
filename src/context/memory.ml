@@ -237,53 +237,50 @@ let display_memory com =
 	let mem = Gc.stat() in
 	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
 	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match get() with
-	| None ->
-		print "No cache found";
-	| Some c ->
-		print ("Total cache size " ^ size c);
-		(* print ("  haxelib " ^ size c.c_haxelib); *)
-		(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
-		(* print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)"); *)
-		let module_list = c#get_modules in
-		let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty module_list in
-		let modules = List.fold_left (fun acc m ->
-			let (size,r) = get_module_memory c all_modules m in
-			(m,size,r) :: acc
-		) [] module_list in
-		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-		List.iter (fun (m,size,(reached,deps,out,leaks)) ->
-			let key = m.m_extra.m_sign in
-			if key <> !cur_key then begin
-				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
-				cur_key := key;
-			end;
-			print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
-			(if reached then try
-				incr mcount;
-				let lcount = ref 0 in
-				let leak l =
-					incr lcount;
-					incr tcount;
-					print (Printf.sprintf "      LEAK %s" l);
-					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
-						print (Printf.sprintf "      ...");
-						raise Exit;
-					end;
-				in
-				List.iter leak leaks;
-			with Exit ->
-				());
-			if verbose then begin
-				print (Printf.sprintf "      %d total deps" (List.length deps));
-				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (module_sign key md));
-				) m.m_extra.m_deps;
-			end;
-			flush stdout
-		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
-			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
-			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
-		) modules);
-		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-		print "Cache dump complete")
+	let c = com.cs in
+	print ("Total cache size " ^ size c);
+	(* print ("  haxelib " ^ size c.c_haxelib); *)
+	(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
+	(* print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)"); *)
+	let module_list = c#get_modules in
+	let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty module_list in
+	let modules = List.fold_left (fun acc m ->
+		let (size,r) = get_module_memory c all_modules m in
+		(m,size,r) :: acc
+	) [] module_list in
+	let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
+	List.iter (fun (m,size,(reached,deps,out,leaks)) ->
+		let key = m.m_extra.m_sign in
+		if key <> !cur_key then begin
+			print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
+			cur_key := key;
+		end;
+		print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
+		(if reached then try
+			incr mcount;
+			let lcount = ref 0 in
+			let leak l =
+				incr lcount;
+				incr tcount;
+				print (Printf.sprintf "      LEAK %s" l);
+				if !lcount >= 3 && !tcount >= 100 && not verbose then begin
+					print (Printf.sprintf "      ...");
+					raise Exit;
+				end;
+			in
+			List.iter leak leaks;
+		with Exit ->
+			());
+		if verbose then begin
+			print (Printf.sprintf "      %d total deps" (List.length deps));
+			PMap.iter (fun _ md ->
+				print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (module_sign key md));
+			) m.m_extra.m_deps;
+		end;
+		flush stdout
+	) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
+		let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
+		if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
+	) modules);
+	if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
+	print "Cache dump complete"

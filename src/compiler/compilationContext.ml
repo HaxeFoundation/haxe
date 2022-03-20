@@ -45,6 +45,7 @@ and compilation_context = {
 type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) * (unit -> unit))
 
 type server_api = {
+	cache : CompilationServer.t;
 	before_anything : compilation_context -> unit;
 	after_arg_parsing : compilation_context -> unit;
 	after_compilation : compilation_context -> unit;

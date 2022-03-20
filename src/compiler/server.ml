@@ -50,7 +50,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 let current_stdin = ref None
 
 let parse_file cs com file p =
-	let cc = CommonCache.get_cache cs com in
+	let cc = CommonCache.get_cache com in
 	let ffile = Path.get_full_path file
 	and fkey = com.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
@@ -117,9 +117,9 @@ module ServerCompilationContext = struct
 		mutable macro_context_setup : bool;
 	}
 
-	let create verbose cs = {
+	let create verbose = {
 		verbose = verbose;
-		cs = cs;
+		cs = new CompilationServer.cache;
 		class_paths = Hashtbl.create 0;
 		changed_directories = Hashtbl.create 0;
 		compilation_step = 0;
@@ -301,7 +301,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
-	let cc = CommonCache.get_cache sctx.cs com in
+	let cc = CommonCache.get_cache com in
 	let content_changed m file =
 		let fkey = ctx.com.file_keys#get file in
 		try
@@ -459,7 +459,7 @@ let add_modules sctx ctx m p =
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
-	let cc = CommonCache.get_cache sctx.cs com in
+	let cc = CommonCache.get_cache com in
 	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
 		let m = cc#find_module mpath in
@@ -635,6 +635,7 @@ let rec process sctx comm args =
 	ServerMessage.arguments args;
 	reset sctx;
 	let api = {
+		cache = sctx.cs;
 		before_anything = before_anything sctx;
 		after_arg_parsing = after_arg_parsing sctx;
 		after_compilation = after_compilation sctx;
@@ -654,8 +655,8 @@ and wait_loop verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Create server context and set up hooks for parsing and typing *)
-	let cs = CompilationServer.create () in
-	let sctx = ServerCompilationContext.create verbose cs in
+	let sctx = ServerCompilationContext.create verbose in
+	let cs = sctx.cs in
 	TypeloadModule.type_module_hook := type_module sctx;
 	MacroContext.macro_enable_cache := true;
 	ServerCompilationContext.ensure_macro_setup sctx;

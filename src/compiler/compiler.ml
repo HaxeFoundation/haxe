@@ -223,22 +223,23 @@ let run_or_diagnose ctx f arg =
 let do_type ctx tctx actx =
 	let com = tctx.Typecore.com in
 	let t = Timer.timer ["typing"] in
-	Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com "before_init_macros") (CompilationServer.get ());
+	let cs = com.cs in
+	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
 	com.stage <- CInitMacrosDone;
 	CommonCache.lock_signature com "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 	run_or_diagnose ctx (fun () ->
-		if com.display.dms_kind <> DMNone then Option.may (DisplayTexpr.check_display_file tctx) (CompilationServer.get ());
+		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
 		Finalization.finalize tctx;
 	) ();
 	com.stage <- CTypingDone;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
-	begin match !CompilationServer.instance,com.display.dms_kind with
-		| Some cs,(DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
+	begin match com.display.dms_kind with
+		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
 	t()
@@ -496,7 +497,7 @@ let setup_common_context ctx =
 		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
 	) (filter_messages false (fun _ -> true))));
 	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
-	if CompilationServer.runs() then com.run_command <- run_command ctx;
+	com.run_command <- run_command ctx;
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
 
@@ -701,7 +702,7 @@ with
 		raise exc
 	| Out_of_memory as exc ->
 		raise exc
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not Helper.is_debug_run ->
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
 let compile_ctx server_api comm ctx =
@@ -751,8 +752,8 @@ let compile_ctx server_api comm ctx =
 			error ctx ("Error: " ^ msg) null_pos;
 			false
 
-let create_context comm params = {
-	com = Common.create version params;
+let create_context comm cs params = {
+	com = Common.create cs version params;
 	on_exit = [];
 	messages = [];
 	has_next = false;
@@ -813,10 +814,11 @@ module HighLevel = struct
 		DynArray.to_list compilations
 
 	let entry server_api comm args =
+		let create = create_context comm server_api.cache in
 		let ctxs = try
-			process_params server_api (create_context comm) args
+			process_params server_api create args
 		with Arg.Bad msg ->
-			let ctx = create_context comm args in
+			let ctx = create args in
 			error ctx ("Error: " ^ msg) null_pos;
 			[ctx]
 		in

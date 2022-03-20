@@ -310,10 +310,7 @@ let parse_input com input report_times =
 		jsonrpc = jsonrpc
 	});
 
-	let cs = match CompilationServer.get() with
-		| Some cs -> cs
-		| None -> send_error [jstring "compilation server not running for some reason"];
-	in
+	let cs = com.cs in
 
 	let display = new display_handler jsonrpc com cs in
 

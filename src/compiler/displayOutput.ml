@@ -412,17 +412,16 @@ let process_global_display_mode com tctx =
 		FindReferences.find_implementations tctx com
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
-		let symbols = match CompilationServer.get() with
-			| None -> []
-			| Some cs ->
-				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
-				List.fold_left (fun acc (file_key,cfile) ->
-					let file = cfile.CompilationServer.c_file_path in
-					if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
-						(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
-					else
-						acc
-				) [] l
+		let cs = com.cs in
+		let symbols =
+			let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
+			List.fold_left (fun acc (file_key,cfile) ->
+				let file = cfile.CompilationServer.c_file_path in
+				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
+					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
+				else
+					acc
+			) [] l
 		in
 		raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com symbols filter)
 	| _ -> ()

@@ -44,17 +44,15 @@ let add_libs com libs =
 	match libs with
 	| [] -> []
 	| _ ->
-		let lines = match CompilationServer.get() with
-			| Some cs ->
-				(try
-					(* if we are compiling, really call haxelib since library path might have changed *)
-					if com.display.dms_full_typing then raise Not_found;
-					cs#find_haxelib libs
-				with Not_found ->
-					let lines = call_haxelib() in
-					cs#cache_haxelib libs lines;
-					lines)
-			| _ -> call_haxelib()
+		let lines =
+			try
+				(* if we are compiling, really call haxelib since library path might have changed *)
+				if com.display.dms_full_typing then raise Not_found;
+				com.cs#find_haxelib libs
+			with Not_found ->
+				let lines = call_haxelib() in
+				com.cs#cache_haxelib libs lines;
+				lines
 		in
 		let extra_args = ref [] in
 		let lines = List.fold_left (fun acc l ->

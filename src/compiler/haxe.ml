@@ -54,8 +54,7 @@ let args = List.tl (Array.to_list Sys.argv) in
 with Not_found ->
 	set_binary_mode_out stdout true;
 	set_binary_mode_out stderr true;
-	let cs = CompilationServer.create () in
-	let sctx = ServerCompilationContext.create false cs in
+	let sctx = ServerCompilationContext.create false in
 	Server.process sctx (Communication.create_stdio ()) args;
 );
 other();

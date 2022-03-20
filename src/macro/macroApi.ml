@@ -1981,8 +1981,8 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"server_invalidate_files", vfun1 (fun a ->
-			let cs = match CompilationServer.get() with Some cs -> cs | None -> failwith "compilation server not running" in
 			let com = ccom() in
+			let cs = com.cs in
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in

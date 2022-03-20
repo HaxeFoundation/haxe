@@ -6,8 +6,8 @@ open Type
 let handle_native_lib com lib =
 	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
 	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
-	match get() with
-	| Some cs when not (Define.raw_defined com.defines "haxe.noNativeLibsCache") ->
+	if not (Define.raw_defined com.defines "haxe.noNativeLibsCache") then begin
+		let cs = com.cs in
 		let init () =
 			let file = lib#get_file_path in
 			let key = file in
@@ -46,21 +46,21 @@ let handle_native_lib com lib =
 				name,if name = lib#get_file_path then build else f
 			) com.load_extern_type
 		)
-	| _ ->
+	end else
 		(* Offline mode, just read library as usual. *)
 		(fun () -> lib#load)
 
 (* context *)
 
-let get_cache cs com = match com.Common.cache with
+let get_cache com = match com.Common.cache with
 	| None ->
 		let sign = Define.get_signature com.defines in
-		cs#get_context sign
+		com.cs#get_context sign
 	| Some cache ->
 		cache
 
 let rec cache_context cs com =
-	let cc = get_cache cs com in
+	let cc = get_cache com in
 	let sign = Define.get_signature com.defines in
 	let cache_module m =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
@@ -76,9 +76,7 @@ let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
 	ignore(cs#add_info sign desc com.platform com.class_path com.defines)
 
-let lock_signature com name = match CompilationServer.get() with
-	| Some cs ->
-		maybe_add_context_sign cs com name;
-		com.cache <- Some (get_cache cs com)
-	| None ->
-		()
+let lock_signature com name =
+	let cs = com.cs in
+	maybe_add_context_sign cs com name;
+	com.cache <- Some (get_cache com)

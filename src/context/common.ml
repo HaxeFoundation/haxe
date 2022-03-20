@@ -353,6 +353,7 @@ type context = {
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	cs : CompilationServer.t;
 }
 
 exception Abort of string * pos
@@ -700,9 +701,10 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create version args =
+let create cs version args =
 	let m = Type.mk_mono() in
 	{
+		cs = cs;
 		cache = None;
 		stage = CCreated;
 		version = version;
