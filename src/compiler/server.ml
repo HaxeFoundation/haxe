@@ -503,10 +503,8 @@ let after_arg_parsing sctx ctx =
 		()
 
 let after_compilation sctx ctx =
-	(* if not (has_error ctx) then *)
-		(* maybe_cache_context sctx ctx.com *)
-	(* TODO: not yet, trying to get parity first *)
-	()
+	if not (has_error ctx) then
+		maybe_cache_context sctx ctx.com
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in

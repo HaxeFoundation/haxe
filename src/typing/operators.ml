@@ -79,15 +79,16 @@ module BinopResult = struct
 end
 
 let check_assign ctx e =
-	if ctx.com.display.dms_error_policy <> EPIgnore then match e.eexpr with
-	| TLocal v when has_var_flag v VFinal ->
+	match e.eexpr with
+	| TLocal v when has_var_flag v VFinal && not (Common.ignore_error ctx.com) ->
 		typing_error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
-		invalid_assign e.epos
+		if not (Common.ignore_error ctx.com) then
+			invalid_assign e.epos
 
 type type_class =
 	| KInt

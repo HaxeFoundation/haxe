@@ -1377,7 +1377,7 @@ and type_array_decl ctx el with_type p =
 		let t = try
 			unify_min_raise ctx el
 		with Error (Unify l,p) ->
-			if !allow_array_dynamic || ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then
+			if !allow_array_dynamic || ctx.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
 				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;

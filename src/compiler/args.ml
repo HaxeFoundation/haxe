@@ -366,7 +366,7 @@ let parse_args com =
 				actx.force_typing <- true;
 				actx.config_macros <- (Printf.sprintf "include('%s', true, null, null, true)" cl) :: actx.config_macros;
 			end
-		with Failure _ when com.display.dms_error_policy = EPIgnore ->
+		with Failure _ when ignore_error com ->
 			()
 		end
 	in

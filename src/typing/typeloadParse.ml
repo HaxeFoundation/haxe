@@ -273,7 +273,8 @@ let handle_parser_result com p result =
 			| EPShow ->
 				if is_diagnostics com then add_diagnostics_message com msg p DKParserError Error
 				else typing_error msg p
-			| EPIgnore -> ()
+			| EPIgnore ->
+				com.has_error <- true
 	in
 	match result with
 		| ParseSuccess(data,is_display_file,pdi) ->

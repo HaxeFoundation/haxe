@@ -59,7 +59,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	args#bring_into_context;
 	let e = match e with
 		| None ->
-			if ctx.com.display.dms_error_policy = EPIgnore then
+			if ignore_error ctx.com then
 				(* when we don't care because we're in display mode, just act like
 				   the function has an empty block body. this is fine even if function
 				   defines a return type, because returns aren't checked in this mode
@@ -104,7 +104,6 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		   can _not_ use type_iseq to avoid the Void check above because that
 		   would turn Dynamic returns to Void returns. *)
 		| TMono t when not (has_return e) -> ignore(link t ret ctx.t.tvoid)
-		| _ when ctx.com.display.dms_error_policy = EPIgnore -> ()
 		| _ -> (try TypeloadCheck.return_flow ctx e with Exit -> ())
 	end;
 	let rec loop e =

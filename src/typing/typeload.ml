@@ -390,11 +390,12 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				| [],({ttp_type=t;ttp_default=def}) :: tl ->
 					if is_java_rest then
 						t_dynamic :: loop [] tl is_rest
-					else if ctx.com.display.dms_error_policy = EPIgnore then
-						t :: loop [] tl is_rest
 					else begin match def with
 						| None ->
-							typing_error ("Not enough type parameters for " ^ s_type_path path) p
+							if ignore_error ctx.com then
+								t :: loop [] tl is_rest
+							else
+								typing_error ("Not enough type parameters for " ^ s_type_path path) p
 						| Some t ->
 							t :: loop [] tl is_rest
 					end
@@ -402,7 +403,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					let t,pt = load_param t in
 					if is_rest then
 						t :: loop tl [] true
-					else if ctx.com.display.dms_error_policy = EPIgnore then
+					else if ignore_error ctx.com then
 						[]
 					else
 						typing_error ("Too many type parameters for " ^ s_type_path path) pt
@@ -630,7 +631,7 @@ and load_complex_type ctx allow_display (t,pn) =
 		if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
 			t_dynamic
-		end else if ctx.com.display.dms_error_policy = EPIgnore && not (DisplayPosition.display_position#enclosed_in pn) then
+		end else if ignore_error ctx.com && not (DisplayPosition.display_position#enclosed_in pn) then
 			t_dynamic
 		else
 			raise exc

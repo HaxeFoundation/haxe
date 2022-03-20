@@ -105,7 +105,6 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
-	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testDisplayModuleRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
@@ -126,9 +125,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertSkipping("HelloWorld");
 	}
-	#end
 
-	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testMutuallyDependent() {
 		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
 		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
@@ -140,7 +137,28 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
-	#end
+
+	function testDiagnosticsRecache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+	 	runHaxe(args);
+	 	assertSkipping("HelloWorld");
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	}
+
+	function testDiagnosticsRecache2() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	}
 
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));

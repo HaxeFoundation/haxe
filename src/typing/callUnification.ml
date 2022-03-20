@@ -364,7 +364,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
 			commit_delayed_display (attempt_call cf false)
-		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
+		with Error _ when Common.ignore_error ctx.com ->
 			fail_fun();
 		end
 	| _ ->
@@ -414,7 +414,7 @@ class call_dispatcher
 	(p : pos)
 =
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	let check_assign () = if is_set && ctx.com.display.dms_error_policy <> EPIgnore then invalid_assign p in
+	let check_assign () = if is_set && not (Common.ignore_error ctx.com) then invalid_assign p in
 
 object(self)
 

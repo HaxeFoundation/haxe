@@ -1433,9 +1433,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	} in
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	let check_method m t is_getter =
-		if ctx.com.display.dms_error_policy = EPIgnore then
-			()
-		else try
+		try
 			let overloads = find_accessor m in
 			let rec get_overload overl = match overl with
 				| [tf] ->
