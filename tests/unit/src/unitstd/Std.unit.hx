@@ -169,8 +169,10 @@ Std.parseFloat("2.426670815e+12") == 2.426670815e+12;
 Std.parseFloat("2.426670815E+12") == 2.426670815e+12;
 Std.parseFloat("2.426670815e-12") == 2.426670815e-12;
 Std.parseFloat("2.426670815E-12") == 2.426670815e-12;
+#if !interp
 Std.parseFloat("6e") == 6;
 Std.parseFloat("6E") == 6;
+#end
 // null
 Math.isNaN(Std.parseFloat(null)) == true;
 // no number
