@@ -119,7 +119,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 		f()
 
 let check_error ctx err p = match err with
-	| Module_not_found ([],name) when Diagnostics.is_diagnostics_run ctx.com p ->
+	| Module_not_found ([],name) when Diagnostics.error_in_diagnostics_run ctx.com p ->
 		DisplayToplevel.handle_unresolved_identifier ctx name p true
 	| _ ->
 		display_error ctx (error_msg err) p
@@ -456,7 +456,7 @@ and type_ident ctx i p mode with_type =
 					if ctx.in_display then begin
 						raise (Error (err,p))
 					end;
-					if Diagnostics.is_diagnostics_run ctx.com p then begin
+					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						DisplayFields.handle_missing_ident ctx i mode with_type p;
 						let t = mk_mono() in

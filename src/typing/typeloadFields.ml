@@ -1481,7 +1481,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					let cf = generate_field () in
 					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-				end else if Diagnostics.is_diagnostics_run ctx.com f.cff_pos then begin
+				end else if Diagnostics.error_in_diagnostics_run ctx.com f.cff_pos then begin
 					let cf_accessor = generate_field() in
 					remove_class_field_flag cf_accessor CfPublic;
 					if fctx.is_static then add_class_field_flag cf_accessor CfStatic;
@@ -1824,7 +1824,7 @@ let init_class ctx c p context_init herits fields =
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
 		| cf :: cfl when c.cl_constructor = None && not (has_class_flag c CAbstract) ->
-			if Diagnostics.is_diagnostics_run ctx.com cf.cf_name_pos then begin
+			if Diagnostics.error_in_diagnostics_run ctx.com cf.cf_name_pos then begin
 				let diag = {
 					mf_pos = c.cl_name_pos;
 					mf_on = TClassDecl c;

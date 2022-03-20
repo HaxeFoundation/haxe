@@ -11,7 +11,7 @@ open DisplayException
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
-let is_diagnostics_run com p =
+let error_in_diagnostics_run com p =
 	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
 	if b then com.has_error <- true;
 	b

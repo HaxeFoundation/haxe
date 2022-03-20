@@ -409,7 +409,7 @@ module Inheritance = struct
 					add_class_field_flag cf CfExtern;
 					add_class_field_flag cf CfOverride;
 				| Not_found when not (has_class_flag c CInterface) ->
-					if Diagnostics.is_diagnostics_run ctx.com c.cl_pos then
+					if Diagnostics.error_in_diagnostics_run ctx.com c.cl_pos then
 						DynArray.add missing (f,t)
 					else begin
 						let msg = if !is_overload then
@@ -475,7 +475,7 @@ module Inheritance = struct
 		match !missing with
 		| [] ->
 			()
-		| l when Diagnostics.is_diagnostics_run ctx.com c.cl_pos ->
+		| l when Diagnostics.error_in_diagnostics_run ctx.com c.cl_pos ->
 			let diag = {
 				mf_pos = c.cl_name_pos;
 				mf_on = TClassDecl c;
@@ -615,7 +615,7 @@ module Inheritance = struct
 				in
 				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
-				if Diagnostics.is_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
+				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in
 		fl
