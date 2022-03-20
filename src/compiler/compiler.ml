@@ -619,6 +619,8 @@ let handle_display_exception_json ctx dex api =
 		DisplayPosition.display_position#reset;
 		let ctx = DisplayJson.create_json_context api.jsonrpc (match dex with DisplayFields _ -> true | _ -> false) in
 		api.send_result (DisplayException.to_json ctx dex)
+	| DisplayNoResult ->
+		api.send_result JNull
 	| _ ->
 		handle_display_exception_old ctx dex
 
