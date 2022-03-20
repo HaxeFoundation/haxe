@@ -255,11 +255,11 @@ let handle_display_argument com file_pos actx =
 			| "diagnostics" ->
 				com.report_mode <- RMDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso}
+				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_error_policy = EPIgnore}
+				{dm with dms_display_file_policy = DFPAlso; dms_error_policy = EPIgnore; dms_per_file = true}
 			| "signature" ->
 				create DMSignature
 			| "" ->

@@ -160,6 +160,18 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
+	function testDiagnosticsRecache3() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
+		assertReuse("HelloWorld");
+	}
+
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
