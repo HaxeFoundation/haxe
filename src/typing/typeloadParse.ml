@@ -251,7 +251,7 @@ module PdiHandler = struct
 					raise DisplayInMacroBlock;
 				begin match com.display.dms_kind with
 				| DMHover ->
-					raise (DisplayException.DisplayException(DisplayHover None))
+					raise (DisplayException.DisplayException(DisplayNoResult))
 				| _ ->
 					()
 				end;

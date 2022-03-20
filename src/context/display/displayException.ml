@@ -9,10 +9,10 @@ exception DisplayException of display_exception_kind
 
 let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 let raise_metadata s = raise (DisplayException(Metadata s))
-let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignatures(Some(l,isig,iarg,kind))))
-let raise_hover item expected p = raise (DisplayException(DisplayHover(Some {hitem = item;hpos = p;hexpected = expected})))
+let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignatures((l,isig,iarg,kind))))
+let raise_hover item expected p = raise (DisplayException(DisplayHover({hitem = item;hpos = p;hexpected = expected})))
 let raise_positions pl = raise (DisplayException(DisplayPositions pl))
-let raise_fields ckl cr subj = raise (DisplayException(DisplayFields(Some({fitems = ckl;fkind = cr;fsubject = subj}))))
+let raise_fields ckl cr subj = raise (DisplayException(DisplayFields({fitems = ckl;fkind = cr;fsubject = subj})))
 let raise_package sl = raise (DisplayException(DisplayPackage sl))
 
 (* global state *)
@@ -159,9 +159,7 @@ let to_json ctx de =
 	match de with
 	| ModuleSymbols _
 	| Metadata _ -> die "" __LOC__
-	| DisplaySignatures None ->
-		jnull
-	| DisplaySignatures Some(sigs,isig,iarg,kind) ->
+	| DisplaySignatures(sigs,isig,iarg,kind) ->
 		(* We always want full info for signatures *)
 		let ctx = Genjson.create_context GMFull in
 		let fsig ((_,signature),doc) =
@@ -179,9 +177,7 @@ let to_json ctx de =
 			"signatures",jlist fsig sigs;
 			"kind",jint sigkind;
 		]
-	| DisplayHover None ->
-		jnull
-	| DisplayHover (Some hover) ->
+	| DisplayHover hover ->
 		let named_source_kind = function
 			| WithType.FunctionArgument name -> (0, name)
 			| WithType.StructureField name -> (1, name)
@@ -220,9 +216,9 @@ let to_json ctx de =
 		]
 	| DisplayPositions pl ->
 		jarray (List.map generate_pos_as_location pl)
-	| DisplayFields None ->
-		jnull
-	| DisplayFields Some r ->
+	| DisplayFields r ->
 		fields_to_json ctx r.fitems r.fkind r.fsubject
 	| DisplayPackage pack ->
 		jarray (List.map jstring pack)
+	| DisplayNoResult ->
+		jnull

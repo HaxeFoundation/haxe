@@ -256,7 +256,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			| Some s -> new Javadoc.javadoc s
 		in
 		match de with
-		| DisplayHover (Some hover) ->
+		| DisplayHover hover ->
 			begin match hover.hexpected with
 			| Some (WithType(t,Some si)) ->
 				let si = match si with

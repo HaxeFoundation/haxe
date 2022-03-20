@@ -258,12 +258,8 @@ let handle_display ctx tctx display_file_dot_path =
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		let no_completion_point_found = "No completion point was found" in
 		match com.json_out with
-		| Some _ -> (match ctx.com.display.dms_kind with
-			| DMDefault -> raise (DisplayException(DisplayFields None))
-			| DMSignature -> raise (DisplayException(DisplaySignatures None))
-			| DMHover -> raise (DisplayException(DisplayHover None))
-			| DMDefinition | DMTypeDefinition -> raise_positions []
-			| _ -> failwith no_completion_point_found)
+		| Some _ ->
+			raise (DisplayException DisplayNoResult)
 		| None ->
 			failwith no_completion_point_found;
 	end
@@ -562,6 +558,76 @@ let finalize ctx =
 	) ctx.on_exit;
 	ctx.comm.flush ctx
 
+open DisplayTypes
+
+let handle_display_exception_old ctx dex = match dex with
+	| DisplayPackage pack ->
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion (String.concat "." pack))
+	| DisplayFields r ->
+		DisplayPosition.display_position#reset;
+		let fields = if !Timer.measure_times then begin
+			Timer.close_times();
+			(List.map (fun (name,value) ->
+				CompletionItem.make_ci_timer ("@TIME " ^ name) value
+			) (DisplayOutput.get_timer_fields !Helper.start_time)) @ r.fitems
+		end else
+			r.fitems
+		in
+		let s = match r.fkind with
+			| CRToplevel _
+			| CRTypeHint
+			| CRExtends
+			| CRImplements
+			| CRStructExtension _
+			| CRImport
+			| CRUsing
+			| CRNew
+			| CRPattern _
+			| CRTypeRelation
+			| CRTypeDecl ->
+				DisplayOutput.print_toplevel fields
+			| CRField _
+			| CRStructureField
+			| CRMetadata
+			| CROverride ->
+				DisplayOutput.print_fields fields
+		in
+		raise (DisplayOutput.Completion s)
+	| DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover) ->
+		DisplayPosition.display_position#reset;
+		let doc = CompletionItem.get_documentation hover.hitem in
+		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
+	| DisplaySignatures (signatures,_,display_arg,_) ->
+		DisplayPosition.display_position#reset;
+		if ctx.com.display.dms_kind = DMSignature then
+			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
+		else
+			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
+	| DisplayPositions pl ->
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
+	| ModuleSymbols s | Metadata s ->
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion s)
+	| DisplayHover _ | DisplayNoResult ->
+		raise (DisplayOutput.Completion "")
+
+let handle_display_exception_json ctx dex api =
+	match dex with
+	| DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ ->
+		DisplayPosition.display_position#reset;
+		let ctx = DisplayJson.create_json_context api.jsonrpc (match dex with DisplayFields _ -> true | _ -> false) in
+		api.send_result (DisplayException.to_json ctx dex)
+	| _ ->
+		handle_display_exception_old ctx dex
+
+let handle_display_exception ctx dex = match ctx.com.json_out with
+	| Some api ->
+		handle_display_exception_json ctx dex api
+	| None ->
+		handle_display_exception_old ctx dex
+
 let compile_safe ctx f =
 	let com = ctx.com in
 try
@@ -595,15 +661,6 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
 		com.info msg null_pos
-	| DisplayException(DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
-		begin
-			DisplayPosition.display_position#reset;
-			match ctx.com.json_out with
-			| Some api ->
-				let ctx = DisplayJson.create_json_context api.jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
-				api.send_result (DisplayException.to_json ctx de)
-			| _ -> die "" __LOC__
-		end
 	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
 		begin match com.json_out with
 		| Some (f,_) ->
@@ -613,52 +670,6 @@ with
 			f (DisplayException.fields_to_json jctx fields CRImport (Some (Parser.cut_pos_at_display p)) false)
 		| _ -> die "" __LOC__
 		end *)
-	| DisplayException(DisplayPackage pack) ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayException(DisplayFields Some r) ->
-		DisplayPosition.display_position#reset;
-		let fields = if !Timer.measure_times then begin
-			Timer.close_times();
-			(List.map (fun (name,value) ->
-				CompletionItem.make_ci_timer ("@TIME " ^ name) value
-			) (DisplayOutput.get_timer_fields !Helper.start_time)) @ r.fitems
-		end else
-			r.fitems
-		in
-		let s = match r.fkind with
-			| CRToplevel _
-			| CRTypeHint
-			| CRExtends
-			| CRImplements
-			| CRStructExtension _
-			| CRImport
-			| CRUsing
-			| CRNew
-			| CRPattern _
-			| CRTypeRelation
-			| CRTypeDecl ->
-				DisplayOutput.print_toplevel fields
-			| CRField _
-			| CRStructureField
-			| CRMetadata
-			| CROverride ->
-				DisplayOutput.print_fields fields
-		in
-		raise (DisplayOutput.Completion s)
-	| DisplayException(DisplayHover Some ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
-		DisplayPosition.display_position#reset;
-		let doc = CompletionItem.get_documentation hover.hitem in
-		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
-	| DisplayException(DisplaySignatures Some (signatures,_,display_arg,_)) ->
-		DisplayPosition.display_position#reset;
-		if ctx.com.display.dms_kind = DMSignature then
-			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
-		else
-			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
-	| DisplayException(DisplayPositions pl) ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Parser.TypePath (p,c,is_import,pos) ->
 		let fields =
 			try begin match c with
@@ -691,15 +702,12 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(ModuleSymbols s | Metadata s) ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 		finalize ctx;
 		if !Timer.measure_times then Timer.report_times prerr_endline;
 		exit i
-	| DisplayOutput.Completion _ as exc ->
-		raise exc
+	| DisplayException dex ->
+		handle_display_exception ctx dex
 	| Out_of_memory as exc ->
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->

@@ -546,7 +546,7 @@ let handle_display ctx e_ast dk mode with_type =
 			raise err
 		end else
 			raise_toplevel ctx dk with_type (s_type_path path,p)
-	| DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
+	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
 		let l = List.filter (fun item ->
@@ -712,7 +712,7 @@ let handle_edisplay ctx e dk mode with_type =
 	| DKPattern outermost,DMDefault ->
 		begin try
 			handle_display ctx e dk with_type
-		with DisplayException(DisplayFields Some({fkind = CRToplevel _} as r)) ->
+		with DisplayException(DisplayFields ({fkind = CRToplevel _} as r)) ->
 			raise_fields r.fitems (CRPattern ((get_expected_type ctx with_type),outermost)) r.fsubject
 		end
 	| _ -> handle_display ctx e dk with_type

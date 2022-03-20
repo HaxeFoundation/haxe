@@ -375,8 +375,9 @@ type diagnostics_context = {
 type display_exception_kind =
 	| ModuleSymbols of string
 	| Metadata of string
-	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind) option
-	| DisplayHover of hover_result option
+	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind)
+	| DisplayHover of hover_result
 	| DisplayPositions of pos list
-	| DisplayFields of fields_result option
+	| DisplayFields of fields_result
 	| DisplayPackage of string list
+	| DisplayNoResult
