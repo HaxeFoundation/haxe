@@ -852,9 +852,7 @@ module TypeBinding = struct
 					| _ -> !analyzer_run_on_expr_ref ctx.com e
 				in
 				let require_constant_expression e msg =
-					if ctx.com.display.dms_kind <> DMNone && ctx.com.display.dms_error_policy <> EPCollect then
-						e
-					else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+					match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 					| Some e -> e
 					| None -> display_error ctx msg p; e
 				in
@@ -871,9 +869,7 @@ module TypeBinding = struct
 					(* disallow initialization of non-physical fields (issue #1958) *)
 					display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 				| Var v when not fctx.is_static ->
-					let e = if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
-						e
-					else begin
+					let e = begin
 						let rec check_this e = match e.eexpr with
 							| TConst TThis ->
 								display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
@@ -1485,7 +1481,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					let cf = generate_field () in
 					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-				end else if Diagnostics.is_diagnostics_run ctx.com f.cff_pos then begin
+				end else if Diagnostics.error_in_diagnostics_run ctx.com f.cff_pos then begin
 					let cf_accessor = generate_field() in
 					remove_class_field_flag cf_accessor CfPublic;
 					if fctx.is_static then add_class_field_flag cf_accessor CfStatic;
@@ -1828,7 +1824,7 @@ let init_class ctx c p context_init herits fields =
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
 		| cf :: cfl when c.cl_constructor = None && not (has_class_flag c CAbstract) ->
-			if Diagnostics.is_diagnostics_run ctx.com cf.cf_name_pos then begin
+			if Diagnostics.error_in_diagnostics_run ctx.com cf.cf_name_pos then begin
 				let diag = {
 					mf_pos = c.cl_name_pos;
 					mf_on = TClassDecl c;

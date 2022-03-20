@@ -18,7 +18,6 @@
  *)
 open Extlib_leftovers
 open Ast
-open CompilationServer
 open Type
 open Globals
 open Define
@@ -287,9 +286,14 @@ type compiler_stage =
 	| CGenerationStart  (* Generation is about to begin. *)
 	| CGenerationDone   (* Generation just finished. *)
 
+type report_mode =
+	| RMNone
+	| RMDiagnostics of Path.UniqueKey.t list
+	| RMStatistics
+
 type context = {
 	mutable stage : compiler_stage;
-	mutable cache : context_cache option;
+	mutable cache : CompilationCache.context_cache option;
 	(* config *)
 	version : int;
 	args : string list;
@@ -327,6 +331,8 @@ type context = {
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	pass_debug_messages : string DynArray.t;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) Hashtbl.t;
+	mutable has_error : bool;
+	mutable report_mode : report_mode;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -346,6 +352,7 @@ type context = {
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	cs : CompilationCache.t;
 }
 
 exception Abort of string * pos
@@ -693,9 +700,10 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create version args =
+let create cs version args =
 	let m = Type.mk_mono() in
 	{
+		cs = cs;
 		cache = None;
 		stage = CCreated;
 		version = version;
@@ -770,7 +778,13 @@ let create version args =
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 		json_out = None;
+		has_error = false;
+		report_mode = RMNone;
 	}
+
+let is_diagnostics com = match com.report_mode with
+	| RMDiagnostics _ -> true
+	| _ -> false
 
 let log com str =
 	if com.verbose then com.print (str ^ "\n")
@@ -1126,6 +1140,7 @@ let utf16_to_utf8 str =
 	Buffer.contents b
 
 let add_diagnostics_message com s p kind sev =
+	if sev = DisplayTypes.DiagnosticsSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 

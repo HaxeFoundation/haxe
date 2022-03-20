@@ -561,7 +561,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| _ ->
 				let tthis = e.etype in
 				try
-					if not (Diagnostics.is_diagnostics_run ctx.com pfield) then raise Exit;
+					if not (Diagnostics.error_in_diagnostics_run ctx.com pfield) then raise Exit;
 					DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
 				with Exit ->
 					display_error ctx (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield

@@ -352,7 +352,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| _ -> e
 	in
 	match ctx.com.display.dms_kind with
-	| DMResolve _ | DMPackage ->
+	| DMPackage ->
 		die "" __LOC__
 	| DMSignature ->
 		handle_signature_display ctx e_ast with_type
@@ -479,7 +479,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 					raise_toplevel ctx dk with_type (name,p)
 				end
 		end
-	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
+	| DMDefault | DMNone | DMModuleSymbols _ ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
 		let iterator = try
@@ -546,7 +546,7 @@ let handle_display ctx e_ast dk mode with_type =
 			raise err
 		end else
 			raise_toplevel ctx dk with_type (s_type_path path,p)
-	| DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
+	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
 		let l = List.filter (fun item ->
@@ -712,7 +712,7 @@ let handle_edisplay ctx e dk mode with_type =
 	| DKPattern outermost,DMDefault ->
 		begin try
 			handle_display ctx e dk with_type
-		with DisplayException(DisplayFields Some({fkind = CRToplevel _} as r)) ->
+		with DisplayException(DisplayFields ({fkind = CRToplevel _} as r)) ->
 			raise_fields r.fitems (CRPattern ((get_expected_type ctx with_type),outermost)) r.fsubject
 		end
 	| _ -> handle_display ctx e dk with_type

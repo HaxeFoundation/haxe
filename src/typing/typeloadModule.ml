@@ -904,12 +904,6 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	let tdecls = handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
-	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
-		| DMResolve s ->
-			DisplayPath.resolve_position_by_path ctx (mk_type_path ([],s)) p
-		| _ ->
-			()
-	end;
 	m
 
 (* let type_module ctx mpath file ?(is_extern=false) tdecls p =

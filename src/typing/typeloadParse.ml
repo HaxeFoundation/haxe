@@ -251,7 +251,7 @@ module PdiHandler = struct
 					raise DisplayInMacroBlock;
 				begin match com.display.dms_kind with
 				| DMHover ->
-					raise (DisplayException.DisplayException(DisplayHover None))
+					raise (DisplayException.DisplayException(DisplayNoResult))
 				| _ ->
 					()
 				end;
@@ -270,9 +270,10 @@ let handle_parser_result com p result =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
-			| EPShow -> typing_error msg p
+			| EPShow ->
+				if is_diagnostics com then add_diagnostics_message com msg p DKParserError Error
+				else typing_error msg p
 			| EPIgnore -> ()
-			| EPCollect -> add_diagnostics_message com msg p DKParserError Error
 	in
 	match result with
 		| ParseSuccess(data,is_display_file,pdi) ->

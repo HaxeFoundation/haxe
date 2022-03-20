@@ -5,7 +5,7 @@ open Type
 open Typecore
 open DisplayPosition
 open CompletionItem
-open CompilationServer
+open CompilationCache
 open ClassFieldOrigin
 
 let find_field_by_position sc p =
@@ -164,12 +164,10 @@ let check_display_file ctx cs =
 			| Some m -> check_display_module ctx cc cfile m
 			end
 		with Not_found ->
-			if ctx.com.display.dms_display then begin
-				let fkey = DisplayPosition.display_position#get_file_key in
-				(* force parsing again : if the completion point have been changed *)
-				cs#remove_files fkey;
-				cs#taint_modules fkey;
-			end;
+			let fkey = DisplayPosition.display_position#get_file_key in
+			(* force parsing again : if the completion point have been changed *)
+			cs#remove_files fkey;
+			cs#taint_modules fkey;
 		end
 	| None ->
 		()

@@ -141,7 +141,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.is_display_file && not (Diagnostics.is_diagnostics_run ctx.com p) then begin
+					if ctx.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
 						ignore(type_expr ctx (e,p) WithType.value);
 						ignore(loop el [])
 					end;
@@ -256,7 +256,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			| Some s -> new Javadoc.javadoc s
 		in
 		match de with
-		| DisplayHover (Some hover) ->
+		| DisplayHover hover ->
 			begin match hover.hexpected with
 			| Some (WithType(t,Some si)) ->
 				let si = match si with

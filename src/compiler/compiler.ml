@@ -106,7 +106,7 @@ let process_display_configuration ctx =
 	let com = ctx.com in
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
-			if com.display.dms_error_policy = EPCollect then
+			if is_diagnostics com then
 				(fun w options s p ->
 					match Warning.get_mode w (com.warning_options @ options) with
 					| WMEnable ->
@@ -188,14 +188,25 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 	| None ->
 		None
 
-let run_or_diagnose com f arg =
+let emit_diagnostics ctx =
+	let dctx = Diagnostics.run ctx.com in
+	let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics ctx.com dctx) in
+	DisplayPosition.display_position#reset;
+	raise (DisplayOutput.Completion s)
+
+let emit_statistics ctx tctx =
+	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
+	let s = Statistics.Printer.print_statistics stats in
+	raise (DisplayOutput.Completion s)
+
+let run_or_diagnose ctx f arg =
+	let com = ctx.com in
 	let handle_diagnostics msg p kind =
+		ctx.has_error <- true;
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-		Diagnostics.run com;
+		emit_diagnostics ctx
 	in
-	match com.display.dms_kind with
-	| DMDiagnostics _ ->
-		begin try
+	if is_diagnostics com then begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
@@ -205,36 +216,37 @@ let run_or_diagnose com f arg =
 		| Lexer.Error(msg,p) ->
 			handle_diagnostics (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 		end
-	| _ ->
+	else
 		f arg
 
 (** Creates the typer context and types [classes] into it. *)
-let do_type tctx actx =
+let do_type ctx tctx actx =
 	let com = tctx.Typecore.com in
 	let t = Timer.timer ["typing"] in
-	Option.may (fun cs -> CommonCache.maybe_add_context_sign cs com "before_init_macros") (CompilationServer.get ());
+	let cs = com.cs in
+	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
 	com.stage <- CInitMacrosDone;
 	CommonCache.lock_signature com "after_init_macros";
 	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
-	run_or_diagnose com (fun () ->
-		if com.display.dms_kind <> DMNone then Option.may (DisplayTexpr.check_display_file tctx) (CompilationServer.get ());
+	run_or_diagnose ctx (fun () ->
+		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
 		Finalization.finalize tctx;
 	) ();
 	com.stage <- CTypingDone;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
-	begin match !CompilationServer.instance,com.display.dms_kind with
-		| Some cs,(DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
+	begin match com.display.dms_kind with
+		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
 	t()
 
 let handle_display ctx tctx display_file_dot_path =
 	let com = ctx.com in
-	if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
+	if ctx.com.display.dms_kind = DMNone & ctx.has_error then raise Abort;
 	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
@@ -246,12 +258,8 @@ let handle_display ctx tctx display_file_dot_path =
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		let no_completion_point_found = "No completion point was found" in
 		match com.json_out with
-		| Some _ -> (match ctx.com.display.dms_kind with
-			| DMDefault -> raise (DisplayException(DisplayFields None))
-			| DMSignature -> raise (DisplayException(DisplaySignatures None))
-			| DMHover -> raise (DisplayException(DisplayHover None))
-			| DMDefinition | DMTypeDefinition -> raise_positions []
-			| _ -> failwith no_completion_point_found)
+		| Some _ ->
+			raise (DisplayException DisplayNoResult)
 		| None ->
 			failwith no_completion_point_found;
 	end
@@ -260,17 +268,16 @@ let filter ctx tctx display_file_dot_path =
 	let com = ctx.com in
 	com.stage <- CFilteringStart;
 	let t = Timer.timer ["filters"] in
-	let main, types, modules = run_or_diagnose com Finalization.generate tctx in
+	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
 	com.main <- main;
 	com.types <- types;
 	com.modules <- modules;
 	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
 		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
-	let should_load_in_macro = match ctx.com.display.dms_kind with
+	let should_load_in_macro =
 		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
 		   type the module in macro context. (#8682). *)
-		| DMDiagnostics _ -> com.display_information.display_module_has_macro_defines
-		| _ -> true
+		not (is_diagnostics com) || com.display_information.display_module_has_macro_defines
 	in
 	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro  tctx display_file_dot_path false with
@@ -282,6 +289,14 @@ let filter ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	DisplayOutput.process_global_display_mode com tctx;
+	begin match com.report_mode with
+	| RMDiagnostics _ ->
+		emit_diagnostics ctx
+	| RMStatistics ->
+		emit_statistics ctx tctx
+	| RMNone ->
+		()
+	end;
 	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
@@ -478,7 +493,7 @@ let setup_common_context ctx =
 		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
 	) (filter_messages false (fun _ -> true))));
 	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
-	if CompilationServer.runs() then com.run_command <- run_command ctx;
+	com.run_command <- run_command ctx;
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
 
@@ -489,11 +504,6 @@ let compile ctx actx =
 	let display_file_dot_path = DisplayOutput.process_display_file com actx in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = initialize_target ctx com actx in
-	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
-	if com.display.dms_display then begin match com.display.dms_kind with
-		| DMDefault | DMUsage _ -> ()
-		| _ -> if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
-	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
@@ -521,7 +531,7 @@ let compile ctx actx =
 				None
 		in
 		begin try
-			do_type tctx actx
+			do_type ctx tctx actx
 		with TypeloadParse.DisplayInMacroBlock ->
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		end;
@@ -547,6 +557,78 @@ let finalize ctx =
 		f();
 	) ctx.on_exit;
 	ctx.comm.flush ctx
+
+open DisplayTypes
+
+let handle_display_exception_old ctx dex = match dex with
+	| DisplayPackage pack ->
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion (String.concat "." pack))
+	| DisplayFields r ->
+		DisplayPosition.display_position#reset;
+		let fields = if !Timer.measure_times then begin
+			Timer.close_times();
+			(List.map (fun (name,value) ->
+				CompletionItem.make_ci_timer ("@TIME " ^ name) value
+			) (DisplayOutput.get_timer_fields !Helper.start_time)) @ r.fitems
+		end else
+			r.fitems
+		in
+		let s = match r.fkind with
+			| CRToplevel _
+			| CRTypeHint
+			| CRExtends
+			| CRImplements
+			| CRStructExtension _
+			| CRImport
+			| CRUsing
+			| CRNew
+			| CRPattern _
+			| CRTypeRelation
+			| CRTypeDecl ->
+				DisplayOutput.print_toplevel fields
+			| CRField _
+			| CRStructureField
+			| CRMetadata
+			| CROverride ->
+				DisplayOutput.print_fields fields
+		in
+		raise (DisplayOutput.Completion s)
+	| DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover) ->
+		DisplayPosition.display_position#reset;
+		let doc = CompletionItem.get_documentation hover.hitem in
+		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
+	| DisplaySignatures (signatures,_,display_arg,_) ->
+		DisplayPosition.display_position#reset;
+		if ctx.com.display.dms_kind = DMSignature then
+			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
+		else
+			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
+	| DisplayPositions pl ->
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
+	| ModuleSymbols s | Metadata s ->
+		DisplayPosition.display_position#reset;
+		raise (DisplayOutput.Completion s)
+	| DisplayHover _ | DisplayNoResult ->
+		raise (DisplayOutput.Completion "")
+
+let handle_display_exception_json ctx dex api =
+	match dex with
+	| DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ ->
+		DisplayPosition.display_position#reset;
+		let ctx = DisplayJson.create_json_context api.jsonrpc (match dex with DisplayFields _ -> true | _ -> false) in
+		api.send_result (DisplayException.to_json ctx dex)
+	| DisplayNoResult ->
+		api.send_result JNull
+	| _ ->
+		handle_display_exception_old ctx dex
+
+let handle_display_exception ctx dex = match ctx.com.json_out with
+	| Some api ->
+		handle_display_exception_json ctx dex api
+	| None ->
+		handle_display_exception_old ctx dex
 
 let compile_safe ctx f =
 	let com = ctx.com in
@@ -581,15 +663,6 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
 		com.info msg null_pos
-	| DisplayException(DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
-		begin
-			DisplayPosition.display_position#reset;
-			match ctx.com.json_out with
-			| Some api ->
-				let ctx = DisplayJson.create_json_context api.jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
-				api.send_result (DisplayException.to_json ctx de)
-			| _ -> die "" __LOC__
-		end
 	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
 		begin match com.json_out with
 		| Some (f,_) ->
@@ -599,52 +672,6 @@ with
 			f (DisplayException.fields_to_json jctx fields CRImport (Some (Parser.cut_pos_at_display p)) false)
 		| _ -> die "" __LOC__
 		end *)
-	| DisplayException(DisplayPackage pack) ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayException(DisplayFields Some r) ->
-		DisplayPosition.display_position#reset;
-		let fields = if !Timer.measure_times then begin
-			Timer.close_times();
-			(List.map (fun (name,value) ->
-				CompletionItem.make_ci_timer ("@TIME " ^ name) value
-			) (DisplayOutput.get_timer_fields !Helper.start_time)) @ r.fitems
-		end else
-			r.fitems
-		in
-		let s = match r.fkind with
-			| CRToplevel _
-			| CRTypeHint
-			| CRExtends
-			| CRImplements
-			| CRStructExtension _
-			| CRImport
-			| CRUsing
-			| CRNew
-			| CRPattern _
-			| CRTypeRelation
-			| CRTypeDecl ->
-				DisplayOutput.print_toplevel fields
-			| CRField _
-			| CRStructureField
-			| CRMetadata
-			| CROverride ->
-				DisplayOutput.print_fields fields
-		in
-		raise (DisplayOutput.Completion s)
-	| DisplayException(DisplayHover Some ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
-		DisplayPosition.display_position#reset;
-		let doc = CompletionItem.get_documentation hover.hitem in
-		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
-	| DisplayException(DisplaySignatures Some (signatures,_,display_arg,_)) ->
-		DisplayPosition.display_position#reset;
-		if ctx.com.display.dms_kind = DMSignature then
-			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
-		else
-			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
-	| DisplayException(DisplayPositions pl) ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Parser.TypePath (p,c,is_import,pos) ->
 		let fields =
 			try begin match c with
@@ -677,26 +704,20 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| DisplayException(DisplayDiagnostics dctx) ->
-		let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx) in
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion s)
-	| DisplayException(ModuleSymbols s | Statistics s | Metadata s) ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 		finalize ctx;
 		if !Timer.measure_times then Timer.report_times prerr_endline;
 		exit i
-	| DisplayOutput.Completion _ as exc ->
-		raise exc
+	| DisplayException dex ->
+		handle_display_exception ctx dex
 	| Out_of_memory as exc ->
 		raise exc
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not Helper.is_debug_run ->
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
 let compile_ctx server_api comm ctx =
 	let run ctx =
+		server_api.before_anything ctx;
 		setup_common_context ctx;
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
@@ -717,10 +738,11 @@ let compile_ctx server_api comm ctx =
 			| SMNone ->
 				()
 			end;
-			server_api.setup_new_context ctx.com;
+			server_api.after_arg_parsing ctx;
 			compile ctx actx;
 		);
 		finalize ctx;
+		server_api.after_compilation ctx;
 	in
 	try
 		if ctx.has_error then begin
@@ -732,6 +754,7 @@ let compile_ctx server_api comm ctx =
 		end
 	with
 		| DisplayOutput.Completion str ->
+			server_api.after_compilation ctx;
 			ServerMessage.completion str;
 			comm.write_err str;
 			false
@@ -739,8 +762,8 @@ let compile_ctx server_api comm ctx =
 			error ctx ("Error: " ^ msg) null_pos;
 			false
 
-let create_context comm params = {
-	com = Common.create version params;
+let create_context comm cs params = {
+	com = Common.create cs version params;
 	on_exit = [];
 	messages = [];
 	has_next = false;
@@ -801,10 +824,11 @@ module HighLevel = struct
 		DynArray.to_list compilations
 
 	let entry server_api comm args =
+		let create = create_context comm server_api.cache in
 		let ctxs = try
-			process_params server_api (create_context comm) args
+			process_params server_api create args
 		with Arg.Bad msg ->
-			let ctx = create_context comm args in
+			let ctx = create args in
 			error ctx ("Error: " ^ msg) null_pos;
 			[ctx]
 		in

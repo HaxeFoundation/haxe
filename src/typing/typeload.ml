@@ -454,7 +454,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		let tl = List.map (fun (t,pn) ->
 			try
 				(load_complex_type ctx allow_display (t,pn),pn)
-			with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
+			with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 				let l = List.filter (fun item -> match item.ci_kind with
 					| ITType({kind = Struct},_) -> true
 					| _ -> false
@@ -496,7 +496,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			let il = List.map (fun (t,pn) ->
 				try
 					(load_instance ctx ~allow_display (t,pn) false,pn)
-				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
+				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
@@ -627,10 +627,10 @@ and load_complex_type ctx allow_display (t,pn) =
 	try
 		load_complex_type' ctx allow_display (t,pn)
 	with Error(Module_not_found(([],name)),p) as exc ->
-		if Diagnostics.is_diagnostics_run ctx.com p then begin
+		if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
 			t_dynamic
-		end else if ctx.com.display.dms_display && not (DisplayPosition.display_position#enclosed_in pn) then
+		end else if ctx.com.display.dms_error_policy = EPIgnore && not (DisplayPosition.display_position#enclosed_in pn) then
 			t_dynamic
 		else
 			raise exc

@@ -3,7 +3,6 @@ open Ast
 open Common
 open Filename
 open CompilationContext
-open CompilationServer
 open Timer
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
@@ -230,49 +229,51 @@ let handle_display_argument com file_pos actx =
 		actx.did_something <- true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
-		com.display <- DisplayMode.create (DMDiagnostics []);
-		Parser.display_mode := DMDiagnostics [];
+		com.report_mode <- RMDiagnostics []
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let file_unique = com.file_keys#get file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		let mode = match smode with
+		let create mode =
+			Parser.display_mode := mode;
+			DisplayMode.create mode
+		in
+		let dm = match smode with
 			| "position" ->
-				DMDefinition
+				create DMDefinition
 			| "usage" ->
-				DMUsage (false,false,false)
-			(*| "rename" ->
-				DMUsage true*)
+				create (DMUsage (false,false,false))
 			| "package" ->
-				DMPackage
+				create DMPackage
 			| "type" ->
-				DMHover
+				create DMHover
 			| "toplevel" ->
-				DMDefault
+				create DMDefault
 			| "module-symbols" ->
-				DMModuleSymbols None;
+				create (DMModuleSymbols None)
 			| "diagnostics" ->
-				DMDiagnostics [file_unique];
+				com.report_mode <- RMDiagnostics [file_unique];
+				let dm = create DMNone in
+				{dm with dms_display_file_policy = DFPAlso}
 			| "statistics" ->
-				DMStatistics
+				com.report_mode <- RMStatistics;
+				let dm = create DMNone in
+				{dm with dms_display_file_policy = DFPAlso; dms_error_policy = EPIgnore}
 			| "signature" ->
-				DMSignature
+				create DMSignature
 			| "" ->
-				DMDefault
+				create DMDefault
 			| _ ->
 				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
 				match smode with
-					| "resolve" ->
-						DMResolve arg
 					| "workspace-symbols" ->
-						DMModuleSymbols (Some arg)
+						create (DMModuleSymbols (Some arg))
 					| _ ->
-						DMDefault
+						create DMDefault
 		in
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
-		com.display <- DisplayMode.create mode;
-		Parser.display_mode := mode;
+		com.display <- dm;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		DisplayPosition.display_position#set {
 			pfile = Path.get_full_path file;
@@ -408,24 +409,19 @@ let process_global_display_mode com tctx =
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
-	| DMDiagnostics _ ->
-		Diagnostics.run com
-	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
-		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
-		let symbols = match CompilationServer.get() with
-			| None -> []
-			| Some cs ->
-				let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
-				List.fold_left (fun acc (file_key,cfile) ->
-					let file = cfile.CompilationServer.c_file_path in
-					if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
-						(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
-					else
-						acc
-				) [] l
+		let open CompilationCache in
+		let cs = com.cs in
+		let symbols =
+			let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
+			List.fold_left (fun acc (file_key,cfile) ->
+				let file = cfile.c_file_path in
+				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
+					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
+				else
+					acc
+			) [] l
 		in
 		raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com symbols filter)
 	| _ -> ()

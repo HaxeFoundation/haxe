@@ -1,6 +1,6 @@
 open Globals
 open Common
-open CompilationServer
+open CompilationCache
 open Type
 open Json
 
@@ -56,7 +56,7 @@ let config = {
 
 let sign_string com =
 	let sign = Define.get_signature com.defines in
-	let cs = CompilationServer.force () in
+	let cs = com.cs in
 	let	sign_id = (cs#get_context sign)#get_index in
 	Printf.sprintf "%2i,%3s: " sign_id (short_platform_name com.platform)
 

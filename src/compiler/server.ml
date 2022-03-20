@@ -2,7 +2,7 @@ open Printf
 open Globals
 open Ast
 open Common
-open CompilationServer
+open CompilationCache
 open Timer
 open Type
 open DisplayOutput
@@ -13,10 +13,12 @@ open CompilationContext
 exception Dirty of path
 exception ServerError of string
 
+let has_error ctx =
+	ctx.has_error || ctx.com.Common.has_error
+
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
-		begin match ctx.com.display.dms_kind with
-		| DMDiagnostics _->
+		if is_diagnostics ctx.com then begin
 			List.iter (fun msg ->
 				let msg,p,kind = match msg with
 					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
@@ -26,11 +28,10 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
 			) (List.rev ctx.messages);
 			raise (Completion (Diagnostics.print ctx.com))
-		| _ ->
+		end else
 			f_otherwise ()
-		end
 	| Some api ->
-		if ctx.has_error then begin
+		if has_error ctx then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
 					| CMInfo(msg,p) -> msg,p,3
@@ -46,11 +47,10 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			api.send_error errors
 		end
 
-
 let current_stdin = ref None
 
 let parse_file cs com file p =
-	let cc = CommonCache.get_cache cs com in
+	let cc = CommonCache.get_cache com in
 	let ffile = Path.get_full_path file
 	and fkey = com.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
@@ -80,7 +80,7 @@ let parse_file cs com file p =
 						end else begin try
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
-							if not com.display.dms_display then raise Not_found;
+							if com.display.dms_full_typing then raise Not_found;
 							let ident = Hashtbl.find Parser.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
@@ -100,7 +100,7 @@ module ServerCompilationContext = struct
 		(* The list of changed directories per-signature *)
 		changed_directories : (Digest.t,cached_directory list) Hashtbl.t;
 		(* A reference to the compilation server instance *)
-		cs : CompilationServer.t;
+		cs : CompilationCache.t;
 		(* A list of class paths per-signature *)
 		class_paths : (Digest.t,string list) Hashtbl.t;
 		(* Increased for each typed module *)
@@ -113,11 +113,13 @@ module ServerCompilationContext = struct
 		mutable delays : (unit -> unit) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
 		mutable was_compilation : bool;
+		(* True if the macro context has been set up *)
+		mutable macro_context_setup : bool;
 	}
 
-	let create verbose cs = {
+	let create verbose = {
 		verbose = verbose;
-		cs = cs;
+		cs = new CompilationCache.cache;
 		class_paths = Hashtbl.create 0;
 		changed_directories = Hashtbl.create 0;
 		compilation_step = 0;
@@ -125,6 +127,7 @@ module ServerCompilationContext = struct
 		mark_loop = 0;
 		delays = [];
 		was_compilation = false;
+		macro_context_setup = false;
 	}
 
 	let add_delay sctx f =
@@ -159,6 +162,12 @@ module ServerCompilationContext = struct
 			ServerMessage.cached_modules com "" (List.length com.modules);
 		end
 
+	let ensure_macro_setup sctx =
+		if not sctx.macro_context_setup then begin
+			sctx.macro_context_setup <- true;
+			MacroContext.setup();
+		end
+
 	let cleanup () = match !MacroContext.macro_interp_cache with
 		| Some interp -> EvalContext.GlobalState.cleanup interp
 		| None -> ()
@@ -180,12 +189,12 @@ module Communication = struct
 				| CMInfo _ -> print_endline (compiler_message_string msg)
 				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
 			) (List.rev ctx.messages);
-			if ctx.has_error && !Helper.prompt then begin
+			if has_error ctx && !Helper.prompt then begin
 				print_endline "Press enter to exit...";
 				ignore(read_line());
 			end;
 			flush stdout;
-			if ctx.has_error then exit 1
+			if has_error ctx then exit 1
 		);
 		is_server = false;
 	}
@@ -209,7 +218,7 @@ module Communication = struct
 					)
 					(List.rev ctx.messages);
 				sctx.was_compilation <- ctx.com.display.dms_full_typing;
-				if ctx.has_error then begin
+				if has_error ctx then begin
 					measure_times := false;
 					write "\x02\n"
 				end else
@@ -246,10 +255,10 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 							if not (cs#has_directory sign dir) then begin
 								let time = stat dir in
 								ServerMessage.added_directory com "" dir;
-								cs#add_directory sign (CompilationServer.create_directory dir time)
+								cs#add_directory sign (CompilationCache.create_directory dir time)
 							end;
 						) sub_dirs;
-						(CompilationServer.create_directory dir.c_path time') :: acc
+						(CompilationCache.create_directory dir.c_path time') :: acc
 					end else
 						acc
 				with Unix.Unix_error _ ->
@@ -269,7 +278,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 				let add_dir path =
 					try
 						let time = stat path in
-						dirs := CompilationServer.create_directory path time :: !dirs
+						dirs := CompilationCache.create_directory path time :: !dirs
 					with Unix.Unix_error _ ->
 						()
 				in
@@ -292,7 +301,7 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx ctx m p =
 	let com = ctx.Typecore.com in
-	let cc = CommonCache.get_cache sctx.cs com in
+	let cc = CommonCache.get_cache com in
 	let content_changed m file =
 		let fkey = ctx.com.file_keys#get file in
 		try
@@ -450,7 +459,7 @@ let add_modules sctx ctx m p =
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
-	let cc = CommonCache.get_cache sctx.cs com in
+	let cc = CommonCache.get_cache com in
 	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
 		let m = cc#find_module mpath in
@@ -472,7 +481,11 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		t();
 		None
 
-let setup_new_context sctx com =
+let before_anything sctx ctx =
+	ensure_macro_setup sctx
+
+let after_arg_parsing sctx ctx =
+	let com = ctx.com in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
 	ServerMessage.defines com "";
@@ -488,6 +501,12 @@ let setup_new_context sctx com =
 	with Not_found ->
 		Hashtbl.add sctx.class_paths sign com.class_path;
 		()
+
+let after_compilation sctx ctx =
+	(* if not (has_error ctx) then *)
+		(* maybe_cache_context sctx ctx.com *)
+	(* TODO: not yet, trying to get parity first *)
+	()
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
@@ -616,7 +635,10 @@ let rec process sctx comm args =
 	ServerMessage.arguments args;
 	reset sctx;
 	let api = {
-		setup_new_context = setup_new_context sctx;
+		cache = sctx.cs;
+		before_anything = before_anything sctx;
+		after_arg_parsing = after_arg_parsing sctx;
+		after_compilation = after_compilation sctx;
 		init_wait_socket = init_wait_socket;
 		init_wait_connect = init_wait_connect;
 		init_wait_stdio = init_wait_stdio;
@@ -633,10 +655,11 @@ and wait_loop verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Create server context and set up hooks for parsing and typing *)
-	let cs = CompilationServer.create () in
-	let sctx = ServerCompilationContext.create verbose cs in
+	let sctx = ServerCompilationContext.create verbose in
+	let cs = sctx.cs in
 	TypeloadModule.type_module_hook := type_module sctx;
 	MacroContext.macro_enable_cache := true;
+	ServerCompilationContext.ensure_macro_setup sctx;
 	TypeloadParse.parse_hook := parse_file cs;
 	let ring = Ring.create 10 0. in
 	let gc_heap_stats () =

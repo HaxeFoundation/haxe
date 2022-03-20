@@ -399,7 +399,7 @@ let check_type_decl_completion mode pmax s =
 		if pmax <= p.pmin && pmin >= p.pmax then begin
 			let so,p = match Stream.peek s with
 			| Some((Const(Ident name),p)) when display_position#enclosed_in p -> (Some name),p
-			| Some(e,p) -> print_endline (s_token e); None,p
+			| Some(e,p) -> None,p
 			| _ -> None,p
 			in
 			delay_syntax_completion (SCTypeDecl mode) so p

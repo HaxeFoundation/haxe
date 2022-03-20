@@ -381,10 +381,11 @@ let make_macro_api ctx p =
 				| None -> ()
 				| Some(_,mctx) -> add mctx;
 			in
+			let open CompilationCache in
 			match Obj.magic i with
-			| CompilationServer.NormalContext -> add ctx
-			| CompilationServer.MacroContext -> add_macro ctx
-			| CompilationServer.NormalAndMacroContext -> add ctx; add_macro ctx;
+			| NormalContext -> add ctx
+			| MacroContext -> add_macro ctx
+			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
 		MacroApi.decode_expr = Interp.decode_expr;
 		MacroApi.encode_expr = Interp.encode_expr;
@@ -521,7 +522,7 @@ let get_macro_context ctx p =
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
 		(* Inherit most display settings, but require normal typing. *)
-		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_display = false; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
+		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		let name = platform_name !Globals.macro_platform in
 		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;

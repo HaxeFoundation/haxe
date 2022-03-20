@@ -258,21 +258,6 @@ type context_options =
 	| MacroContext
 	| NormalAndMacroContext
 
-let instance : t option ref = ref None
-
-let create () =
-	let cs = new cache in
-	instance := Some cs;
-	cs
-
-let get () =
-	!instance
-
-let runs () =
-	!instance <> None
-
-let force () = match !instance with None -> die "" __LOC__ | Some i -> i
-
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->
 		let name = Path.module_name_of_file file in

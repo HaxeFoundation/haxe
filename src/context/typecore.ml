@@ -228,9 +228,11 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
-	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
-	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
+let display_error ctx msg p =
+	if is_diagnostics ctx.com then
+		add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
+	else
+		ctx.on_error ctx msg p
 
 let warning ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
