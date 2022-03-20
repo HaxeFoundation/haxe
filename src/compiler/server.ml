@@ -10,7 +10,7 @@ open Json
 open Compiler
 open CompilationContext
 
-exception Dirty of path
+exception Dirty of module_skip_reason
 exception ServerError of string
 
 let has_error ctx =
@@ -320,7 +320,7 @@ let check_module sctx ctx m p =
 				let time = file_time file in
 				if time > m.m_extra.m_time then begin
 					ServerMessage.module_path_changed com "" (m,time,file);
-					raise Not_found
+					raise (Dirty (Shadowed file))
 				end
 			end
 		) paths
@@ -334,27 +334,26 @@ let check_module sctx ctx m p =
 			| MFake | MImport -> () (* don't get classpath *)
 			| MExtern ->
 				(* if we have a file then this will override our extern type *)
-				let has_file = (try check_module_shadowing directories m; false with Not_found -> true) in
-				if has_file then begin
-					if sctx.verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path); (* TODO *)
-					raise Not_found;
-				end;
+				check_module_shadowing directories m;
 				let rec loop = function
 					| [] ->
 						if sctx.verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path); (* TODO *)
-						raise Not_found (* no extern registration *)
+						raise (Dirty LibraryChanged)
 					| (file,load) :: l ->
 						match load m.m_path p with
-						| None -> loop l
+						| None ->
+							loop l
 						| Some _ ->
 							if com.file_keys#get file <> (Path.UniqueKey.lazy_key m.m_extra.m_file) then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
-								raise Not_found;
+								raise (Dirty LibraryChanged)
 							end
 				in
 				loop com.load_extern_type
-			| MCode -> check_module_shadowing directories m
-			| MMacro when ctx.Typecore.in_macro -> check_module_shadowing directories m
+			| MCode ->
+				check_module_shadowing directories m
+			| MMacro when ctx.Typecore.in_macro ->
+				check_module_shadowing directories m
 			| MMacro ->
 				(*
 					Creating another context while the previous one is incomplete means we have an infinite loop in the compiler.
@@ -381,14 +380,14 @@ let check_module sctx ctx m p =
 				end else begin
 					ServerMessage.not_cached com "" m;
 					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules (Path.UniqueKey.lazy_key m.m_extra.m_file);
-					raise Not_found;
+					raise (Dirty (FileChanged file))
 				end
 			end
 		in
 		let check_dependencies () =
 			PMap.iter (fun _ m2 -> match check m2 with
 				| None -> ()
-				| Some path -> raise (Dirty path)
+				| Some _ -> raise (Dirty (DependencyDirty m2.m_path))
 			) m.m_extra.m_deps;
 		in
 		begin match m.m_extra.m_dirty with
@@ -407,12 +406,9 @@ let check_module sctx ctx m p =
 				if not (has_policy NoCheckDependencies) then check_dependencies();
 				None
 			with
-			| Not_found ->
-				m.m_extra.m_dirty <- Some m.m_path;
-				Some m.m_path
-			| Dirty path ->
-				m.m_extra.m_dirty <- Some path;
-				Some path
+			| Dirty reason ->
+				m.m_extra.m_dirty <- Some reason;
+				Some reason
 			end
 	in
 	check m
@@ -466,8 +462,8 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m p with
 		| None -> ()
-		| Some path ->
-			ServerMessage.skipping_dep com "" (m,path);
+		| Some reason ->
+			ServerMessage.skipping_dep com "" (m,(Printer.s_module_skip_reason reason));
 			tcheck();
 			raise Not_found;
 		end;

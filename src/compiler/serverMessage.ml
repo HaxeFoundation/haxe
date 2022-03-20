@@ -85,8 +85,8 @@ let removed_directory com tabs dir =
 let reusing com tabs m =
 	if config.print_reusing then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path))
 
-let skipping_dep com tabs (m,path) =
-	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com) (s_type_path m.m_path) (if m.m_path = path then "" else Printf.sprintf "(%s)" (s_type_path path)))
+let skipping_dep com tabs (m,reason) =
+	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path m.m_path) reason)
 
 let unchanged_content com tabs file =
 	if config.print_unchanged_content then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com) file)

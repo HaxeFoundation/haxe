@@ -1,3 +1,4 @@
+import SkipReason;
 import haxe.PosInfos;
 import haxe.Exception;
 import haxe.display.Position;
@@ -29,6 +30,16 @@ class TestCase implements ITest {
 	static var i:Int = 0;
 
 	public function new() {}
+
+	static public function printSkipReason(ddr:SkipReason) {
+		return switch (ddr) {
+			case DependencyDirty(path): 'DependencyDirty $path';
+			case Tainted(cause): 'Tainted $cause';
+			case FileChanged(file): 'FileChanged $file';
+			case Shadowed(file): 'Shadowed $file';
+			case LibraryChanged: 'LibraryChanged';
+		}
+	}
 
 	public function setup() {
 		testDir = "test/cases/" + i++;
@@ -165,11 +176,8 @@ class TestCase implements ITest {
 		Assert.isTrue(hasMessage('reusing $module'), null, p);
 	}
 
-	function assertSkipping(module:String, ?dependency:String, ?p:haxe.PosInfos) {
-		var msg = 'skipping $module';
-		if (dependency != null) {
-			msg += '($dependency)';
-		}
+	function assertSkipping(module:String, reason:SkipReason, ?p:haxe.PosInfos) {
+		var msg = 'skipping $module (${printSkipReason(reason))})';
 		Assert.isTrue(hasMessage(msg), null, p);
 	}
 

@@ -167,7 +167,7 @@ let check_display_file ctx cs =
 			let fkey = DisplayPosition.display_position#get_file_key in
 			(* force parsing again : if the completion point have been changed *)
 			cs#remove_files fkey;
-			cs#taint_modules fkey;
+			cs#taint_modules fkey "check_display_file";
 		end
 	| None ->
 		()

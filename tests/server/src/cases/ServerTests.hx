@@ -25,7 +25,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args);
-		assertSkipping("HelloWorld");
+		assertSkipping("HelloWorld", Tainted("server/invalidate"));
 		// assertNotCacheModified("HelloWorld");
 	}
 
@@ -36,7 +36,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		assertSkipping("WithDependency", "Dependency");
+		assertSkipping("WithDependency", DependencyDirty("Dependency"));
 		// assertNotCacheModified("Dependency");
 		runHaxe(args);
 		assertReuse("Dependency");
@@ -82,8 +82,8 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
 		// assertNotCacheModified("BuildMacro");
-		assertSkipping("BuiltClass", "BuildMacro");
-		assertSkipping("BuildMacro");
+		assertSkipping("BuiltClass", DependencyDirty("BuildMacro"));
+		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}
 
 	function testBrokenSyntaxDiagnostics() {
@@ -123,7 +123,7 @@ class ServerTests extends TestCase {
 		runHaxe(args2);
 
 		runHaxe(args);
-		assertSkipping("HelloWorld");
+		assertSkipping("HelloWorld", Tainted("check_display_file"));
 	}
 
 	function testMutuallyDependent() {
@@ -146,7 +146,7 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 	 	runHaxe(args);
-	 	assertSkipping("HelloWorld");
+	 	assertSkipping("HelloWorld", Tainted("server/invalidate"));
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
 		runHaxe(args);
 		assertReuse("HelloWorld");

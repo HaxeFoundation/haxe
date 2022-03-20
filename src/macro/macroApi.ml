@@ -1986,7 +1986,7 @@ let macro_api ccom get_api =
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s;
+				cs#taint_modules s "server_invalidate_files";
 				cs#remove_files s;
 			) (decode_array a);
 			vnull

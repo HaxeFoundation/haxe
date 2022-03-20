@@ -31,6 +31,13 @@ type module_check_policy =
 	| NoCheckDependencies
 	| NoCheckShadowing
 
+type module_skip_reason =
+	| DependencyDirty of path
+	| Tainted of string
+	| FileChanged of string
+	| Shadowed of string
+	| LibraryChanged
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -356,7 +363,7 @@ and module_def_extra = {
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : path option;
+	mutable m_dirty : module_skip_reason option;
 	mutable m_added : int;
 	mutable m_mark : int;
 	mutable m_deps : (int,module_def) PMap.t;
