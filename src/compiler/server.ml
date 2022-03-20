@@ -3,28 +3,15 @@ open Globals
 open Ast
 open Common
 open CompilationServer
-open DisplayTypes.DisplayMode
 open Timer
 open Type
 open DisplayOutput
 open Json
+open Compiler
+open CompilationContext
 
 exception Dirty of path
 exception ServerError of string
-
-let prompt = ref false
-let start_time = ref (Timer.get_time())
-
-let is_debug_run = try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
-
-type context = {
-	com : Common.context;
-	mutable flush : unit -> unit;
-	mutable setup : unit -> unit;
-	mutable messages : compiler_message list;
-	mutable has_next : bool;
-	mutable has_error : bool;
-}
 
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
@@ -59,64 +46,6 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			api.send_error errors
 		end
 
-let default_flush ctx =
-	check_display_flush ctx (fun () ->
-		List.iter
-			(fun msg -> match msg with
-				| CMInfo _ -> print_endline (compiler_message_string msg)
-				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-			)
-			(List.rev ctx.messages);
-		if ctx.has_error && !prompt then begin
-			print_endline "Press enter to exit...";
-			ignore(read_line());
-		end;
-		if ctx.has_error then exit 1
-	)
-
-let create_context params =
-	let ctx = {
-		com = Common.create version params;
-		flush = (fun()->());
-		setup = (fun()->());
-		messages = [];
-		has_next = false;
-		has_error = false;
-	} in
-	ctx.flush <- (fun() -> default_flush ctx);
-	ctx
-
-let parse_hxml_data data =
-	let lines = Str.split (Str.regexp "[\r\n]+") data in
-	List.concat (List.map (fun l ->
-		let l = unquote (ExtString.String.strip l) in
-		if l = "" || l.[0] = '#' then
-			[]
-		else if l.[0] = '-' then
-			try
-				let a, b = ExtString.String.split l " " in
-				[unquote a; unquote (ExtString.String.strip b)]
-			with
-				_ -> [l]
-		else
-			[l]
-	) lines)
-
-let parse_hxml file =
-	let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
-	let data = IO.read_all ch in
-	IO.close_in ch;
-	parse_hxml_data data
-
-let ssend sock str =
-	let rec loop pos len =
-		if len = 0 then
-			()
-		else
-			let s = Unix.send sock str pos len [] in
-			loop (pos + s) (len - s)
-	in
-	loop 0 (Bytes.length str)
 
 let current_stdin = ref None
 
@@ -206,12 +135,90 @@ module ServerCompilationContext = struct
 		sctx.delays <- [];
 		List.iter (fun f -> f()) fl
 
+	(* Resets the state for a new compilation *)
 	let reset sctx =
 		Hashtbl.clear sctx.changed_directories;
-		sctx.was_compilation <- false
+		sctx.was_compilation <- false;
+		Parser.reset_state();
+		return_partial_type := false;
+		measure_times := false;
+		Hashtbl.clear DeprecationCheck.warned_positions;
+		close_times();
+		stats.s_files_parsed := 0;
+		stats.s_classes_built := 0;
+		stats.s_methods_typed := 0;
+		stats.s_macros_called := 0;
+		Hashtbl.clear Timer.htimers;
+		sctx.compilation_step <- sctx.compilation_step + 1;
+		sctx.compilation_mark <- sctx.mark_loop;
+		Helper.start_time := get_time()
+
+	let maybe_cache_context sctx com =
+		if com.display.dms_full_typing then begin
+			CommonCache.cache_context sctx.cs com;
+			ServerMessage.cached_modules com "" (List.length com.modules);
+		end
+
+	let cleanup () = match !MacroContext.macro_interp_cache with
+		| Some interp -> EvalContext.GlobalState.cleanup interp
+		| None -> ()
 end
 
 open ServerCompilationContext
+
+module Communication = struct
+	let create_stdio () = {
+		write_out = (fun s ->
+			print_string s;
+			flush stdout;
+		);
+		write_err = (fun s ->
+			prerr_string s;
+		);
+		flush = (fun ctx ->
+			List.iter (fun msg -> match msg with
+				| CMInfo _ -> print_endline (compiler_message_string msg)
+				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			) (List.rev ctx.messages);
+			if ctx.has_error && !Helper.prompt then begin
+				print_endline "Press enter to exit...";
+				ignore(read_line());
+			end;
+			flush stdout;
+			if ctx.has_error then exit 1
+		);
+		is_server = false;
+	}
+
+	let create_pipe sctx write = {
+		write_out = (fun s ->
+			write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+		);
+		write_err = (fun s ->
+			write s
+		);
+		flush = (fun ctx ->
+			sctx.compilation_step <- sctx.compilation_step + 1;
+			sctx.compilation_mark <- sctx.mark_loop;
+			check_display_flush ctx (fun () ->
+				List.iter
+					(fun msg ->
+						let s = compiler_message_string msg in
+						write (s ^ "\n");
+						ServerMessage.message s;
+					)
+					(List.rev ctx.messages);
+				sctx.was_compilation <- ctx.com.display.dms_full_typing;
+				if ctx.has_error then begin
+					measure_times := false;
+					write "\x02\n"
+				end else
+					maybe_cache_context sctx ctx.com;
+			)
+		);
+		is_server = false;
+	}
+end
 
 let stat dir =
 	(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
@@ -465,248 +472,22 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		t();
 		None
 
-(* Sets up the per-compilation context. *)
-let create sctx write params =
+let setup_new_context sctx com =
 	let cs = sctx.cs in
-	let maybe_cache_context com =
-		if com.display.dms_full_typing then begin
-			CommonCache.cache_context sctx.cs com;
-			ServerMessage.cached_modules com "" (List.length com.modules);
-		end
-	in
-	let ctx = create_context params in
-	ctx.flush <- (fun() ->
-		sctx.compilation_step <- sctx.compilation_step + 1;
-		sctx.compilation_mark <- sctx.mark_loop;
-		check_display_flush ctx (fun () ->
-			List.iter
-				(fun msg ->
-					let s = compiler_message_string msg in
-					write (s ^ "\n");
-					ServerMessage.message s;
-				)
-				(List.rev ctx.messages);
-			sctx.was_compilation <- ctx.com.display.dms_full_typing;
-			if ctx.has_error then begin
-				measure_times := false;
-				write "\x02\n"
-			end else maybe_cache_context ctx.com;
-		)
-	);
-	ctx.setup <- (fun() ->
-		let sign = Define.get_signature ctx.com.defines in
-		ServerMessage.defines ctx.com "";
-		ServerMessage.signature ctx.com "" sign;
-		ServerMessage.display_position ctx.com "" (DisplayPosition.display_position#get);
-		try
-			if (Hashtbl.find sctx.class_paths sign) <> ctx.com.class_path then begin
-				ServerMessage.class_paths_changed ctx.com "";
-				Hashtbl.replace sctx.class_paths sign ctx.com.class_path;
-				cs#clear_directories sign;
-				(cs#get_context sign)#set_initialized false;
-			end;
-		with Not_found ->
-			Hashtbl.add sctx.class_paths sign ctx.com.class_path;
-			()
-	);
-	ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
-	ctx
-
-(* Resets the state for a new compilation *)
-let init_new_compilation sctx =
-	ServerCompilationContext.reset sctx;
-	Parser.reset_state();
-	return_partial_type := false;
-	measure_times := false;
-	Hashtbl.clear DeprecationCheck.warned_positions;
-	close_times();
-	stats.s_files_parsed := 0;
-	stats.s_classes_built := 0;
-	stats.s_methods_typed := 0;
-	stats.s_macros_called := 0;
-	Hashtbl.clear Timer.htimers;
-	sctx.compilation_step <- sctx.compilation_step + 1;
-	sctx.compilation_mark <- sctx.mark_loop;
-	start_time := get_time()
-
-let cleanup () =
-	begin match !MacroContext.macro_interp_cache with
-	| Some interp -> EvalContext.GlobalState.cleanup interp
-	| None -> ()
-	end
-
-let gc_heap_stats () =
-	let stats = Gc.quick_stat() in
-	stats.major_words,stats.heap_words
-
-let fmt_percent f =
-	int_of_float (f *. 100.)
-
-module Tasks = struct
-	class gc_task (max_working_memory : float) (heap_size : float) = object(self)
-		inherit server_task ["gc"] 100
-
-		method private execute =
-			let t0 = get_time() in
-			let stats = Gc.stat() in
-			let live_words = float_of_int stats.live_words in
-			(* Maximum heap size needed for the last X compilations = sum of what's live + max working memory. *)
-			let needed_max = live_words +. max_working_memory in
-			(* Additional heap percentage needed = what's live / max of what was live. *)
-			let percent_needed = (1. -. live_words /. needed_max) in
-			(* Effective cache size percentage = what's live / heap size. *)
-			let percent_used = live_words /. heap_size in
-			(* Set allowed space_overhead to the maximum of what we needed during the last X compilations. *)
-			let new_space_overhead = int_of_float ((percent_needed +. 0.05) *. 100.) in
-			let old_gc = Gc.get() in
-			Gc.set { old_gc with Gc.space_overhead = new_space_overhead; };
-			(* Compact if less than 80% of our heap words consist of the cache and there's less than 50% overhead. *)
-			let do_compact = percent_used < 0.8 && percent_needed < 0.5 in
-			begin if do_compact then
-				Gc.compact()
-			else
-				Gc.full_major();
-			end;
-			Gc.set old_gc;
-			ServerMessage.gc_stats (get_time() -. t0) stats do_compact new_space_overhead
-	end
-
-	class class_maintenance_task (cs : CompilationServer.t) (c : tclass) = object(self)
-		inherit server_task ["module maintenance"] 70
-
-		method private execute =
-			let rec field cf =
-				(* Unset cf_expr. This holds the optimized version for generators, which we don't need to persist. If
-				   we compile again, the semi-optimized expression will be restored by calling cl_restore(). *)
-				cf.cf_expr <- None;
-				List.iter field cf.cf_overloads
-			in
-			(* What we're doing here at the moment is free, so we can just do it in one task. If this ever gets more expensive,
-			   we should spawn a task per-field. *)
-			List.iter field c.cl_ordered_fields;
-			List.iter field c.cl_ordered_statics;
-			Option.may field c.cl_constructor;
-	end
-
-	class module_maintenance_task (cs : CompilationServer.t) (m : module_def) = object(self)
-		inherit server_task ["module maintenance"] 80
-
-		method private execute =
-			List.iter (fun mt -> match mt with
-				| TClassDecl c ->
-					cs#add_task (new class_maintenance_task cs c)
-				| _ ->
-					()
-			) m.m_types
-	end
-
-	class server_exploration_task (cs : CompilationServer.t) = object(self)
-		inherit server_task ["server explore"] 90
-
-		method private execute =
-			cs#iter_modules (fun m -> cs#add_task (new module_maintenance_task cs m))
-	end
-end
-
-(* The server main loop. Waits for the [accept] call to then process the sent compilation
-   parameters through [process_params]. *)
-let wait_loop process_params verbose accept =
-	if verbose then ServerMessage.enable_all ();
-	Sys.catch_break false; (* Sys can never catch a break *)
-	(* Create server context and set up hooks for parsing and typing *)
-	let cs = CompilationServer.create () in
-	let sctx = ServerCompilationContext.create verbose cs in
-	TypeloadModule.type_module_hook := type_module sctx;
-	MacroContext.macro_enable_cache := true;
-	TypeloadParse.parse_hook := parse_file cs;
-	let ring = Ring.create 10 0. in
-	let heap_stats_start = ref (gc_heap_stats()) in
-	let update_heap () =
-		(* On every compilation: Track how many words were allocated for this compilation (working memory). *)
-		let heap_stats_now = gc_heap_stats() in
-		let words_allocated = (fst heap_stats_now) -. (fst !heap_stats_start) in
-		let heap_size = float_of_int (snd heap_stats_now) in
-		Ring.push ring words_allocated;
-		if Ring.is_filled ring then begin
-			Ring.reset_filled ring;
-			 (* Maximum working memory for the last X compilations. *)
-			let max = Ring.fold ring 0. (fun m i -> if i > m then i else m) in
-			cs#add_task (new Tasks.gc_task max heap_size)
+	let sign = Define.get_signature com.defines in
+	ServerMessage.defines com "";
+	ServerMessage.signature com "" sign;
+	ServerMessage.display_position com "" (DisplayPosition.display_position#get);
+	try
+		if (Hashtbl.find sctx.class_paths sign) <> com.class_path then begin
+			ServerMessage.class_paths_changed com "";
+			Hashtbl.replace sctx.class_paths sign com.class_path;
+			cs#clear_directories sign;
+			(cs#get_context sign)#set_initialized false;
 		end;
-		heap_stats_start := heap_stats_now;
-	in
-	(* Main loop: accept connections and process arguments *)
-	while true do
-		let support_nonblock, read, write, close = accept() in
-		let process s =
-			let t0 = get_time() in
-			let hxml =
-				try
-					let idx = String.index s '\001' in
-					current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
-					(String.sub s 0 idx)
-				with Not_found ->
-					s
-			in
-			let data = parse_hxml_data hxml in
-			ServerMessage.arguments data;
-			init_new_compilation sctx;
-			begin try
-				let create = create sctx write in
-				(* Pass arguments to normal handling in main.ml *)
-				process_params create data;
-				close_times();
-				if !measure_times then report_times (fun s -> write (s ^ "\n"))
-			with
-			| Completion str ->
-				ServerMessage.completion str;
-				write str
-			| Arg.Bad msg ->
-				print_endline ("Error: " ^ msg);
-			end;
-			run_delays sctx;
-			ServerMessage.stats stats (get_time() -. t0)
-		in
-		begin try
-			(* Read arguments *)
-			let rec loop block =
-				match read block with
-				| Some data ->
-					process data
-				| None ->
-					if not cs#has_task then
-						(* If there is no pending task, turn into blocking mode. *)
-						loop true
-					else begin
-						(* Otherwise run the task and loop to check if there are more or if there's a request now. *)
-						cs#get_task#run;
-						loop false
-					end;
-			in
-			loop (not support_nonblock)
-		with Unix.Unix_error _ ->
-			ServerMessage.socket_message "Connection Aborted"
-		| e ->
-			let estr = Printexc.to_string e in
-			ServerMessage.uncaught_error estr;
-			(try write ("\x02\n" ^ estr); with _ -> ());
-			if is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
-			if e = Out_of_memory then begin
-				close();
-				exit (-1);
-			end;
-		end;
-		(* Close connection and perform some cleanup *)
-		close();
-		current_stdin := None;
-		cleanup();
-		update_heap();
-		(* If our connection always blocks, we have to execute all pending tasks now. *)
-		if not support_nonblock then
-			while cs#has_task do cs#get_task#run done
-		else if sctx.was_compilation then
-			cs#add_task (new Tasks.server_exploration_task cs)
-	done
+	with Not_found ->
+		Hashtbl.add sctx.class_paths sign com.class_path;
+		()
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
@@ -763,60 +544,21 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 		Buffer.clear bout;
 		allow_nonblock, read, write, close
 
+let ssend sock str =
+	let rec loop pos len =
+		if len = 0 then
+			()
+		else
+			let s = Unix.send sock str pos len [] in
+			loop (pos + s) (len - s)
+	in
+	loop 0 (Bytes.length str)
+
 (* The accept-function to wait for a stdio connection. *)
 let init_wait_stdio() =
 	set_binary_mode_in stdin true;
 	set_binary_mode_out stderr true;
 	mk_length_prefixed_communication false stdin stderr
-
-(* Connect to given host/port and return accept function for communication *)
-let init_wait_connect host port =
-	let host = Unix.inet_addr_of_string host in
-	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
-	mk_length_prefixed_communication true chin chout
-
-(* The accept-function to wait for a socket connection. *)
-let init_wait_socket host port =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
-	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
-	ServerMessage.socket_message ("Waiting on " ^ host ^ ":" ^ string_of_int port);
-	Unix.listen sock 10;
-	let bufsize = 1024 in
-	let tmp = Bytes.create bufsize in
-	let accept() = (
-		let sin, _ = Unix.accept sock in
-		Unix.set_nonblock sin;
-		ServerMessage.socket_message "Client connected";
-		let b = Buffer.create 0 in
-		let rec read_loop count =
-			try
-				let r = Unix.recv sin tmp 0 bufsize [] in
-				if r = 0 then
-					failwith "Incomplete request"
-				else begin
-					ServerMessage.socket_message (Printf.sprintf "Reading %d bytes\n" r);
-					Buffer.add_subbytes b tmp 0 r;
-					if Bytes.get tmp (r-1) = '\000' then
-						Buffer.sub b 0 (Buffer.length b - 1)
-					else
-						read_loop 0
-				end
-			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
-				if count = 100 then
-					failwith "Aborting inactive connection"
-				else begin
-					ServerMessage.socket_message "Waiting for data...";
-					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
-					read_loop (count + 1);
-				end
-		in
-		let read = fun _ -> (let s = read_loop 0 in Unix.clear_nonblock sin; Some s) in
-		let write s = ssend sin (Bytes.unsafe_of_string s) in
-		let close() = Unix.close sin in
-		false, read, write, close
-	) in
-	accept
 
 (* The connect function to connect to [host] at [port] and send arguments [args]. *)
 let do_connect host port args =
@@ -868,3 +610,152 @@ let do_connect host port args =
 	loop();
 	process();
 	if !has_error then exit 1
+
+let rec process sctx comm args =
+	let t0 = get_time() in
+	ServerMessage.arguments args;
+	reset sctx;
+	let api = {
+		setup_new_context = setup_new_context sctx;
+		init_wait_socket = init_wait_socket;
+		init_wait_connect = init_wait_connect;
+		init_wait_stdio = init_wait_stdio;
+		wait_loop = wait_loop;
+		do_connect = do_connect;
+	} in
+	Compiler.HighLevel.entry api comm args;
+	run_delays sctx;
+	ServerMessage.stats stats (get_time() -. t0)
+
+(* The server main loop. Waits for the [accept] call to then process the sent compilation
+   parameters through [process_params]. *)
+and wait_loop verbose accept =
+	if verbose then ServerMessage.enable_all ();
+	Sys.catch_break false; (* Sys can never catch a break *)
+	(* Create server context and set up hooks for parsing and typing *)
+	let cs = CompilationServer.create () in
+	let sctx = ServerCompilationContext.create verbose cs in
+	TypeloadModule.type_module_hook := type_module sctx;
+	MacroContext.macro_enable_cache := true;
+	TypeloadParse.parse_hook := parse_file cs;
+	let ring = Ring.create 10 0. in
+	let gc_heap_stats () =
+		let stats = Gc.quick_stat() in
+		stats.major_words,stats.heap_words
+	in
+	let heap_stats_start = ref (gc_heap_stats()) in
+	let update_heap () =
+		(* On every compilation: Track how many words were allocated for this compilation (working memory). *)
+		let heap_stats_now = gc_heap_stats() in
+		let words_allocated = (fst heap_stats_now) -. (fst !heap_stats_start) in
+		let heap_size = float_of_int (snd heap_stats_now) in
+		Ring.push ring words_allocated;
+		if Ring.is_filled ring then begin
+			Ring.reset_filled ring;
+			 (* Maximum working memory for the last X compilations. *)
+			let max = Ring.fold ring 0. (fun m i -> if i > m then i else m) in
+			cs#add_task (new Tasks.gc_task max heap_size)
+		end;
+		heap_stats_start := heap_stats_now;
+	in
+	(* Main loop: accept connections and process arguments *)
+	while true do
+		let support_nonblock, read, write, close = accept() in
+		begin try
+			(* Read arguments *)
+			let rec loop block =
+				match read block with
+				| Some s ->
+					let hxml =
+						try
+							let idx = String.index s '\001' in
+							current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
+							(String.sub s 0 idx)
+						with Not_found ->
+							s
+					in
+					let data = Helper.parse_hxml_data hxml in
+					process sctx (Communication.create_pipe sctx write) data
+				| None ->
+					if not cs#has_task then
+						(* If there is no pending task, turn into blocking mode. *)
+						loop true
+					else begin
+						(* Otherwise run the task and loop to check if there are more or if there's a request now. *)
+						cs#get_task#run;
+						loop false
+					end;
+			in
+			loop (not support_nonblock)
+		with Unix.Unix_error _ ->
+			ServerMessage.socket_message "Connection Aborted"
+		| e ->
+			let estr = Printexc.to_string e in
+			ServerMessage.uncaught_error estr;
+			(try write ("\x02\n" ^ estr); with _ -> ());
+			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if e = Out_of_memory then begin
+				close();
+				exit (-1);
+			end;
+		end;
+		(* Close connection and perform some cleanup *)
+		close();
+		current_stdin := None;
+		cleanup();
+		update_heap();
+		(* If our connection always blocks, we have to execute all pending tasks now. *)
+		if not support_nonblock then
+			while cs#has_task do cs#get_task#run done
+		else if sctx.was_compilation then
+			cs#add_task (new Tasks.server_exploration_task cs)
+	done
+
+(* Connect to given host/port and return accept function for communication *)
+and init_wait_connect host port =
+	let host = Unix.inet_addr_of_string host in
+	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
+	mk_length_prefixed_communication true chin chout
+
+(* The accept-function to wait for a socket connection. *)
+and init_wait_socket host port =
+	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
+	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
+	ServerMessage.socket_message ("Waiting on " ^ host ^ ":" ^ string_of_int port);
+	Unix.listen sock 10;
+	let bufsize = 1024 in
+	let tmp = Bytes.create bufsize in
+	let accept() = (
+		let sin, _ = Unix.accept sock in
+		Unix.set_nonblock sin;
+		ServerMessage.socket_message "Client connected";
+		let b = Buffer.create 0 in
+		let rec read_loop count =
+			try
+				let r = Unix.recv sin tmp 0 bufsize [] in
+				if r = 0 then
+					failwith "Incomplete request"
+				else begin
+					ServerMessage.socket_message (Printf.sprintf "Reading %d bytes\n" r);
+					Buffer.add_subbytes b tmp 0 r;
+					if Bytes.get tmp (r-1) = '\000' then
+						Buffer.sub b 0 (Buffer.length b - 1)
+					else
+						read_loop 0
+				end
+			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
+				if count = 100 then
+					failwith "Aborting inactive connection"
+				else begin
+					ServerMessage.socket_message "Waiting for data...";
+					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
+					read_loop (count + 1);
+				end
+		in
+		let read = fun _ -> (let s = read_loop 0 in Unix.clear_nonblock sin; Some s) in
+		let write s = ssend sin (Bytes.unsafe_of_string s) in
+		let close() = Unix.close sin in
+		false, read, write, close
+	) in
+	accept

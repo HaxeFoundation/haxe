@@ -2,6 +2,7 @@ open Globals
 open Ast
 open Common
 open Filename
+open CompilationContext
 open CompilationServer
 open Timer
 open DisplayTypes.DisplayMode
@@ -219,14 +220,14 @@ let unquote v =
 			| _ -> v
 	else v
 
-let handle_display_argument com file_pos pre_compilation did_something =
+let handle_display_argument com file_pos actx =
 	match file_pos with
 	| "classes" ->
-		pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true,null_pos))) :: !pre_compilation;
+		actx.pre_compilation <- (fun() -> raise (Parser.TypePath (["."],None,true,null_pos))) :: actx.pre_compilation;
 	| "keywords" ->
 		raise (Completion (print_keywords ()))
 	| "memory" ->
-		did_something := true;
+		actx.did_something <- true;
 		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
 		com.display <- DisplayMode.create (DMDiagnostics []);
@@ -288,7 +289,7 @@ type display_path_kind =
 	| DPKInput of string
 	| DPKNone
 
-let process_display_file com classes =
+let process_display_file com actx =
 	let get_module_path_from_file_path com spath =
 		let rec loop = function
 			| [] -> None
@@ -313,7 +314,7 @@ let process_display_file com classes =
 		| DFPNo ->
 			DPKNone
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
-			classes := [];
+			actx.classes <- [];
 			com.main_class <- None;
 			begin match !TypeloadParse.current_stdin with
 			| Some input ->
@@ -324,7 +325,7 @@ let process_display_file com classes =
 			end
 		| dfp ->
 			if dfp = DFPOnly then begin
-				classes := [];
+				actx.classes <- [];
 				com.main_class <- None;
 			end;
 			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
@@ -337,11 +338,11 @@ let process_display_file com classes =
 						   This can happen if we're completing in such a file. *)
 						DPKMacro (fst path,name)
 					| [name] ->
-						classes := path :: !classes;
+						actx.classes <- path :: actx.classes;
 						DPKNormal path
 					| [name;target] ->
 						let path = fst path, name in
-						classes := path :: !classes;
+						actx.classes <- path :: actx.classes;
 						DPKNormal path
 					| e ->
 						die "" __LOC__
@@ -355,7 +356,7 @@ let process_display_file com classes =
 				DPKDirect real
 			in
 			Common.log com ("Display file : " ^ real);
-			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]");
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
 			path
 
 let load_display_file_standalone ctx file =
@@ -475,7 +476,7 @@ let handle_syntax_completion com kind subj =
 		()
 	| _ ->
 		let l = List.map make_ci_keyword l in
-		match com.json_out with
+		match com.Common.json_out with
 		| None ->
 			let b = Buffer.create 0 in
 			Buffer.add_string b "<il>\n";
