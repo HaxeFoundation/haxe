@@ -146,9 +146,14 @@ let json_of_diagnostics com dctx =
 		add DKMissingFields p DiagnosticsSeverity.Error j
 	) dctx.missing_fields;
 	(* non-append from here *)
-	Hashtbl.iter (fun _ (s,p) ->
-		add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
-	) DeprecationCheck.warned_positions;
+	begin match Warning.get_mode WDeprecated com.warning_options with
+	| WMEnable ->
+		Hashtbl.iter (fun _ (s,p) ->
+			add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
+		) DeprecationCheck.warned_positions;
+	| WMDisable ->
+		()
+	end;
 	PMap.iter (fun p r ->
 		if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
 	) dctx.import_positions;
