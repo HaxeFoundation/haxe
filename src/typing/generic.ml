@@ -173,6 +173,37 @@ let static_method_container gctx c cf p =
 		add_dependency ctx.m.curmod mg;
 		cg
 
+let set_type_parameter_dependencies mg tl =
+	(* ensure that type parameters are set in dependencies *)
+	let dep_stack = ref [] in
+	let rec loop t =
+		if not (List.memq t !dep_stack) then begin
+		dep_stack := t :: !dep_stack;
+		match t with
+		| TInst (c,tl) -> add_dep c.cl_module tl
+		| TEnum (e,tl) -> add_dep e.e_module tl
+		| TType (t,tl) -> add_dep t.t_module tl
+		| TAbstract (a,tl) -> add_dep a.a_module tl
+		| TMono r ->
+			(match r.tm_type with
+			| None -> ()
+			| Some t -> loop t)
+		| TLazy f ->
+			loop (lazy_type f);
+		| TDynamic t2 ->
+			if t == t2 then () else loop t2
+		| TAnon a ->
+			PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
+		| TFun (args,ret) ->
+			List.iter (fun (_,_,t) -> loop t) args;
+			loop ret
+		end
+	and add_dep m tl =
+		add_dependency mg m;
+		List.iter loop tl
+	in
+	List.iter loop tl
+
 let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
@@ -231,35 +262,7 @@ let rec build_generic ctx c p tl =
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
 		add_dependency ctx.m.curmod mg;
-		(* ensure that type parameters are set in dependencies *)
-		let dep_stack = ref [] in
-		let rec loop t =
-			if not (List.memq t !dep_stack) then begin
-			dep_stack := t :: !dep_stack;
-			match t with
-			| TInst (c,tl) -> add_dep c.cl_module tl
-			| TEnum (e,tl) -> add_dep e.e_module tl
-			| TType (t,tl) -> add_dep t.t_module tl
-			| TAbstract (a,tl) -> add_dep a.a_module tl
-			| TMono r ->
-				(match r.tm_type with
-				| None -> ()
-				| Some t -> loop t)
-			| TLazy f ->
-				loop (lazy_type f);
-			| TDynamic t2 ->
-				if t == t2 then () else loop t2
-			| TAnon a ->
-				PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
-			| TFun (args,ret) ->
-				List.iter (fun (_,_,t) -> loop t) args;
-				loop ret
-			end
-		and add_dep m tl =
-			add_dependency mg m;
-			List.iter loop tl
-		in
-		List.iter loop tl;
+		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			(* We have to clone the type parameters (issue #4672). We cannot substitute the constraints immediately because
 			   we need the full substitution list first. *)
@@ -402,6 +405,7 @@ let type_generic_function ctx fa fcc with_type p =
 			else
 				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
 		with Not_found ->
+			set_type_parameter_dependencies c.cl_module monos;
 			let finalize_field c cf2 =
 				ignore(follow cf.cf_type);
 				let rec check e = match e.eexpr with
