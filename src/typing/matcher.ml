@@ -270,10 +270,12 @@ module Pattern = struct
 		in
 		let catch_errors () =
 			let old = ctx.on_error in
+			let restore_report_mode = disable_report_mode ctx.com in
 			ctx.on_error <- (fun _ _ _ ->
 				raise Exit
 			);
 			(fun () ->
+				restore_report_mode();
 				ctx.on_error <- old
 			)
 		in
