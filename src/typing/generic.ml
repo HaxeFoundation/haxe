@@ -405,7 +405,6 @@ let type_generic_function ctx fa fcc with_type p =
 			else
 				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
 		with Not_found ->
-			set_type_parameter_dependencies c.cl_module monos;
 			let finalize_field c cf2 =
 				ignore(follow cf.cf_type);
 				let rec check e = match e.eexpr with
@@ -433,6 +432,7 @@ let type_generic_function ctx fa fcc with_type p =
 			if stat then begin
 				if Meta.has Meta.GenericClassPerMethod c.cl_meta then begin
 					let c = static_method_container gctx c cf p in
+					set_type_parameter_dependencies c.cl_module monos;
 					let cf2 = try
 						let cf2 = PMap.find cf.cf_name c.cl_statics in
 						unify_existing_field cf2.cf_type cf2.cf_pos;
@@ -446,6 +446,7 @@ let type_generic_function ctx fa fcc with_type p =
 					in
 					{fa with fa_host = FHStatic c;fa_field = cf2;fa_on = Builder.make_static_this c p}
 				end else begin
+					set_type_parameter_dependencies c.cl_module monos;
 					let cf2 = mk_cf2 name in
 					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
 					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
