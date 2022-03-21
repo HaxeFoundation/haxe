@@ -91,6 +91,13 @@ class virtual server_task (id : string list) (priority : int) = object(self)
 	method get_id = id
 end
 
+class arbitrary_task (id : string list) (priority : int) (f : unit -> unit) = object(self)
+	inherit server_task id priority
+
+	method private execute =
+		f ()
+end
+
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []

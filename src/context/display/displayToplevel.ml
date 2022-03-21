@@ -55,15 +55,17 @@ let maybe_resolve_macro_field ctx t c cf =
 
 let exclude : string list ref = ref []
 
-class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
+class explore_class_path_task com checked recursive f_pack f_module dir pack = object(self)
 	inherit server_task ["explore";dir] 50
 	val platform_str = platform_name_macro com
 
 	method private execute : unit =
+		let unique_dir = Path.UniqueKey.create dir in
 		let dot_path = (String.concat "." (List.rev pack)) in
-		if (List.mem dot_path !exclude) then
+		if (List.mem dot_path !exclude) || Hashtbl.mem checked unique_dir then
 			()
 		else try
+			Hashtbl.add checked unique_dir true;
 			let entries = Sys.readdir dir in
 			Array.iter (fun file ->
 				match file with
@@ -78,8 +80,7 @@ class explore_class_path_task cs com recursive f_pack f_module dir pack = object
 						with Not_found ->
 							f_pack (List.rev pack,file);
 							if recursive then begin
-								let task = new explore_class_path_task cs com recursive f_pack f_module (dir ^ file ^ "/") (file :: pack) in
-								cs#add_task task
+								(new explore_class_path_task com checked recursive f_pack f_module (dir ^ file ^ "/") (file :: pack))#run
 							end
 						end
 					| _ ->
@@ -111,10 +112,14 @@ end
 let explore_class_paths com timer class_paths recursive f_pack f_module =
 	let cs = com.cs in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
+	let checked = Hashtbl.create 0 in
 	let tasks = List.map (fun dir ->
-		new explore_class_path_task cs com recursive f_pack f_module dir []
+		new explore_class_path_task com checked recursive f_pack f_module dir []
 	) class_paths in
-	List.iter (fun task -> cs#add_task task) tasks;
+	let task = new arbitrary_task ["explore"] 50 (fun () ->
+		List.iter (fun task -> task#run) tasks
+	) in
+	cs#add_task task;
 	t()
 
 let read_class_paths com timer =
