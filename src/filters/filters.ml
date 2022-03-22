@@ -784,9 +784,8 @@ let run com tctx main =
 				(* Save cf_expr_unoptimized early: We want to inline with the original expression
 				   on the next compilation. *)
 				if not cached then begin
-					let field cf = match cf.cf_expr with
-						| Some {eexpr = TFunction tf} -> cf.cf_expr_unoptimized <- Some tf
-						| _ -> ()
+					let field cf =
+						cf.cf_expr_unoptimized <- cf.cf_expr
 					in
 					List.iter field cls.cl_ordered_fields;
 					List.iter field cls.cl_ordered_statics;

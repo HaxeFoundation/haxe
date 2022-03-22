@@ -69,7 +69,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		let force_inline = is_forced_inline cl f in
 		(match f.cf_expr_unoptimized,f.cf_expr with
-		| Some fd,_
+		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
 			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
 			| None ->

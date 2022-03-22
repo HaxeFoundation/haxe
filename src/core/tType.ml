@@ -206,7 +206,7 @@ and tclass_field = {
 	mutable cf_kind : field_kind;
 	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
-	mutable cf_expr_unoptimized : tfunc option;
+	mutable cf_expr_unoptimized : texpr option;
 	mutable cf_overloads : tclass_field list;
 	mutable cf_flags : int;
 }

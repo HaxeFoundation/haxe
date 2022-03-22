@@ -792,10 +792,10 @@ let module_pass_2 ctx m decls tdecls p =
 (*
 	Creates a module context for [m] and types [tdecls] using it.
 *)
-let type_types_into_module ctx m tdecls p =
+let type_types_into_module ?(check=true) ctx m tdecls p =
 	let decls, tdecls = module_pass_1 ctx m tdecls p in
 	let types = List.map fst decls in
-	List.iter (TypeloadCheck.check_module_types ctx m p) types;
+	if check then List.iter (TypeloadCheck.check_module_types ctx m p) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
 	let ctx = {
