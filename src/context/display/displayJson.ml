@@ -168,6 +168,7 @@ let handler =
 		);
 		"server/contexts", (fun hctx ->
 			let l = List.map (fun cc -> cc#get_json) hctx.display#get_cs#get_contexts in
+			let l = List.filter (fun json -> json <> JNull) l in
 			hctx.send_result (jarray l)
 		);
 		"server/modules", (fun hctx ->
@@ -188,6 +189,29 @@ let handler =
 				hctx.send_error [jstring "No such module"]
 			in
 			hctx.send_result (generate_module () m)
+		);
+		"server/type", (fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
+			let typeName = hctx.jsonrpc#get_string_param "typeName" in
+			let cc = hctx.display#get_cs#get_context sign in
+			let m = try
+				cc#find_module path
+			with Not_found ->
+				hctx.send_error [jstring "No such module"]
+			in
+			let rec loop mtl = match mtl with
+				| [] ->
+					hctx.send_error [jstring "No such type"]
+				| mt :: mtl ->
+					let infos = t_infos mt in
+					if snd infos.mt_path = typeName then begin
+						let ctx = Genjson.create_context GMMinimum in
+						hctx.send_result (Genjson.generate_module_type ctx mt)
+					end else
+						loop mtl
+			in
+			loop m.m_types
 		);
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
