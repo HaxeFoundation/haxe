@@ -26,6 +26,14 @@ let find_class_by_position decls p =
 	in
 	loop decls
 
+let find_module_static_by_position decls p =
+	let rec loop dl = match dl with
+		| (EStatic d,_) :: dl when pos d.d_name = p -> d
+		| _ :: dl -> loop dl
+		| [] -> raise Not_found
+	in
+	loop decls
+
 let find_enum_by_position decls p =
 	let rec loop dl = match dl with
 		| (EEnum en,_) :: dl when pos en.d_name = p -> en
@@ -50,17 +58,20 @@ let find_abstract_by_position decls p =
 	in
 	loop decls
 
-let check_display_field ctx sc c cf =
-	let cff = find_field_by_position sc cf.cf_name_pos in
+let actually_check_display_field ctx c cff p =
 	let context_init = new TypeloadFields.context_init in
-	let cctx = TypeloadFields.create_class_context c context_init cf.cf_pos in
-	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx cf.cf_pos in
+	let cctx = TypeloadFields.create_class_context c context_init p in
+	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx p in
 	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let fctx = TypeloadFields.create_field_context cctx cff true display_modifier in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
 	flush_pass ctx PTypeField "check_display_field";
 	ignore(follow cf.cf_type)
+
+let check_display_field ctx sc c cf =
+	let cff = find_field_by_position sc cf.cf_name_pos in
+	actually_check_display_field ctx c cff cf.cf_pos
 
 let check_display_class ctx decls c =
 	let check_field sc cf =
@@ -118,10 +129,11 @@ let check_display_abstract ctx decls a =
 
 let check_display_module_fields ctx decls m =
 	Option.may (fun c ->
-		let sc = find_class_by_position decls c.cl_name_pos in
 		List.iter (fun cf ->
-			if display_position#enclosed_in cf.cf_pos then
-				check_display_field ctx sc c cf;
+			if display_position#enclosed_in cf.cf_pos then begin
+				let cff = find_module_static_by_position decls cf.cf_name_pos in
+				actually_check_display_field ctx c (TypeloadModule.field_of_static_definition cff cf.cf_pos) cf.cf_pos;
+			end;
 			DisplayEmitter.check_display_metadata ctx cf.cf_meta
 		) c.cl_ordered_statics
 	) m.m_statics

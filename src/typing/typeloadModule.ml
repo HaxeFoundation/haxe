@@ -199,6 +199,16 @@ module StrictMeta = struct
 			| _ -> []
 end
 
+let field_of_static_definition d p =
+	{
+		cff_name = d.d_name;
+		cff_doc = d.d_doc;
+		cff_pos = p;
+		cff_meta = d.d_meta;
+		cff_access = (AStatic,null_pos) :: d.d_flags;
+		cff_kind = d.d_data;
+	}
+
 (*
 	Build module structure : should be atomic - no type loading is possible
 *)
@@ -384,14 +394,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let first_pos = ref null_pos in
 			let fields = List.map (fun (d,p) ->
 				first_pos := p;
-				{
-					cff_name = d.d_name;
-					cff_doc = d.d_doc;
-					cff_pos = p;
-					cff_meta = d.d_meta;
-					cff_access = (AStatic,null_pos) :: d.d_flags;
-					cff_kind = d.d_data;
-				}
+				field_of_static_definition d p;
 			) statics in
 			let p = let p = !first_pos in { p with pmax = p.pmin } in
 			let c = EClass {
