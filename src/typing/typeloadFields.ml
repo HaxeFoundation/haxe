@@ -516,37 +516,14 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
-let create_class_context ctx c context_init p =
-	locate_macro_error := true;
-	incr stats.s_classes_built;
+let create_class_context c context_init p =
 	let abstract = match c.cl_kind with
 		| KAbstractImpl a -> Some a
 		| _ -> None
 	in
-	let ctx = {
-		ctx with
-		curclass = c;
-		type_params = c.cl_params;
-		pass = PBuildClass;
-		tthis = (match abstract with
-			| Some a ->
-				(match a.a_this with
-				| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
-				| t -> t)
-			| None -> TInst (c,extract_param_types c.cl_params));
-		on_error = (fun ctx msg ep ->
-			ctx.com.error msg ep;
-			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-			let open TFunctions in
-			if not (ExtString.String.starts_with msg "...") && !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error (compl_msg "Defined in this class") c.cl_pos
-		);
-	} in
-	(* a lib type will skip most checks *)
 	let is_lib = Meta.has Meta.LibType c.cl_meta in
-	if is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
 	(* a native type will skip one check: the static vs non-static field *)
 	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
-	if Meta.has Meta.Macro c.cl_meta then display_error ctx "Macro classes are no longer allowed in haxe 3" c.cl_pos;
 	let rec extends_public c =
 		Meta.has Meta.PublicFields c.cl_meta ||
 		match c.cl_super with
@@ -567,20 +544,35 @@ let create_class_context ctx c context_init p =
 		delayed_expr = [];
 		has_display_field = false;
 	} in
-	ctx,cctx
+	cctx
 
-let create_field_context (ctx,cctx) c cff =
-	DeprecationCheck.check_is ctx.com (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
+let create_typer_context_for_class ctx cctx p =
+	locate_macro_error := true;
+	incr stats.s_classes_built;
+	let c = cctx.tclass in
+	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
+	if Meta.has Meta.Macro c.cl_meta then display_error ctx "Macro classes are no longer allowed in haxe 3" c.cl_pos;
 	let ctx = {
 		ctx with
-		pass = PBuildClass; (* will be set later to PTypeExpr *)
-		locals = PMap.empty;
-		opened = [];
-		monomorphs = {
-			perfunction = [];
-		};
+		curclass = c;
+		type_params = c.cl_params;
+		pass = PBuildClass;
+		tthis = (match cctx.abstract with
+			| Some a ->
+				(match a.a_this with
+				| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
+				| t -> t)
+			| None -> TInst (c,extract_param_types c.cl_params));
+		on_error = (fun ctx msg ep ->
+			ctx.com.error msg ep;
+			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
+			let open TFunctions in
+			if not (ExtString.String.starts_with msg "...") && !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error (compl_msg "Defined in this class") c.cl_pos
+		);
 	} in
-	let display_modifier = Typeload.check_field_access ctx cff in
+	ctx
+
+let create_field_context cctx cff is_display_file display_modifier =
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_static,is_abstract_member = if cctx.abstract <> None && not is_static then true,true else is_static,false in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
@@ -600,19 +592,6 @@ let create_field_context (ctx,cctx) c cff =
 			()
 	) cff.cff_meta;
 	let is_inline = List.mem_assoc AInline cff.cff_access in
-	if (is_abstract && not (has_meta Meta.LibType c.cl_meta)) then begin
-		if is_static then
-			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
-		else if !is_final then
-			display_error ctx "Abstract methods may not be final" (pos cff.cff_name)
-		else if is_inline then
-			display_error ctx "Abstract methods may not be inline" (pos cff.cff_name)
-		else if not (has_class_flag c CAbstract) then begin
-			display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
-			display_error ctx "First abstract field was here" (pos cff.cff_name);
-			add_class_flag c CAbstract;
-		end;
-	end;
 	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let overload = try Some (List.assoc AOverload cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
@@ -627,6 +606,7 @@ let create_field_context (ctx,cctx) c cff =
 	with Not_found ->
 		None
 	in
+	let c = cctx.tclass in
 	let fctx = {
 		is_inline = is_inline;
 		is_static = is_static;
@@ -637,7 +617,7 @@ let create_field_context (ctx,cctx) c cff =
 		is_extern = !is_extern;
 		is_abstract = is_abstract;
 		is_final = !is_final;
-		is_display_field = ctx.is_display_file && DisplayPosition.display_position#enclosed_in cff.cff_pos;
+		is_display_field = is_display_file && DisplayPosition.display_position#enclosed_in cff.cff_pos;
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = is_abstract_member;
@@ -648,7 +628,34 @@ let create_field_context (ctx,cctx) c cff =
 		expr_presence_matters = false;
 	} in
 	if fctx.is_display_field then cctx.has_display_field <- true;
-	ctx,fctx
+	fctx
+
+let create_typer_context_for_field ctx cctx fctx cff =
+	DeprecationCheck.check_is ctx.com (fst cff.cff_name) cff.cff_meta (snd cff.cff_name);
+	let ctx = {
+		ctx with
+		pass = PBuildClass; (* will be set later to PTypeExpr *)
+		locals = PMap.empty;
+		opened = [];
+		monomorphs = {
+			perfunction = [];
+		};
+	} in
+	let c = cctx.tclass in
+	if (fctx.is_abstract && not (has_meta Meta.LibType c.cl_meta)) then begin
+		if fctx.is_static then
+			display_error ctx "Static methods may not be abstract" (pos cff.cff_name)
+		else if fctx.is_final then
+			display_error ctx "Abstract methods may not be final" (pos cff.cff_name)
+		else if fctx.is_inline then
+			display_error ctx "Abstract methods may not be inline" (pos cff.cff_name)
+		else if not (has_class_flag c CAbstract) then begin
+			display_error ctx "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
+			display_error ctx "First abstract field was here" (pos cff.cff_name);
+			add_class_flag c CAbstract;
+		end;
+	end;
+	ctx
 
 let is_public (ctx,cctx) access parent =
 	let c = cctx.tclass in
@@ -1652,7 +1659,8 @@ let check_overloads ctx c =
 	Option.may check_field c.cl_constructor
 
 let init_class ctx c p context_init herits fields =
-	let ctx,cctx = create_class_context ctx c context_init p in
+	let cctx = create_class_context c context_init p in
+	let ctx = create_typer_context_for_class ctx cctx p in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = patch_class ctx c fields in
 	let fields = build_fields (ctx,cctx) c fields in
@@ -1703,7 +1711,9 @@ let init_class ctx c p context_init herits fields =
 	List.iter (fun f ->
 		let p = f.cff_pos in
 		try
-			let ctx,fctx = create_field_context (ctx,cctx) c f in
+			let display_modifier = Typeload.check_field_access ctx f in
+			let fctx = create_field_context cctx f ctx.is_display_file display_modifier in
+			let ctx = create_typer_context_for_field ctx cctx fctx f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
 			if fctx.field_kind = FKInit then begin

@@ -53,9 +53,11 @@ let find_abstract_by_position decls p =
 let check_display_field ctx sc c cf =
 	let cff = find_field_by_position sc cf.cf_name_pos in
 	let context_init = new TypeloadFields.context_init in
-	let ctx,cctx = TypeloadFields.create_class_context ctx c context_init cf.cf_pos in
+	let cctx = TypeloadFields.create_class_context c context_init cf.cf_pos in
+	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx cf.cf_pos in
 	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
-	let ctx,fctx = TypeloadFields.create_field_context (ctx,cctx) c cff in
+	let display_modifier = Typeload.check_field_access ctx cff in
+	let fctx = TypeloadFields.create_field_context cctx cff true display_modifier in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
 	flush_pass ctx PTypeField "check_display_field";
 	ignore(follow cf.cf_type)
@@ -125,7 +127,6 @@ let check_display_module_fields ctx decls m =
 	) m.m_statics
 
 let check_display_module ctx decls m =
-	print_endline ("check_display_module " ^ (s_type_path m.m_path));
 	let imports = List.filter (function
 		| (EImport _ | EUsing _),_ -> true
 		| _ -> false
