@@ -378,7 +378,7 @@ test-all:
     BUILD +test-jvm
     BUILD +test-cs
     BUILD +test-cpp
-    BUILD +test-lua
+    # BUILD +test-lua
     BUILD +test-js
     BUILD +test-flash
 
