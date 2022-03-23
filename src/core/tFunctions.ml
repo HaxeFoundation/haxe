@@ -160,7 +160,7 @@ let module_extra file sign time kind policy =
 		};
 		m_dirty = None;
 		m_added = 0;
-		m_mark = 0;
+		m_checked = 0;
 		m_time = time;
 		m_processed = 0;
 		m_deps = PMap.empty;

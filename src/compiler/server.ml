@@ -103,12 +103,8 @@ module ServerCompilationContext = struct
 		cs : CompilationCache.t;
 		(* A list of class paths per-signature *)
 		class_paths : (Digest.t,string list) Hashtbl.t;
-		(* Increased for each typed module *)
-		mutable mark_loop : int;
 		(* Increased for each compilation *)
 		mutable compilation_step : int;
-		(* The [mark_loop] value at which we started the current compilation *)
-		mutable compilation_mark : int;
 		(* A list of delays which are run after compilation *)
 		mutable delays : (unit -> unit) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
@@ -123,8 +119,6 @@ module ServerCompilationContext = struct
 		class_paths = Hashtbl.create 0;
 		changed_directories = Hashtbl.create 0;
 		compilation_step = 0;
-		compilation_mark = 0;
-		mark_loop = 0;
 		delays = [];
 		was_compilation = false;
 		macro_context_setup = false;
@@ -152,8 +146,6 @@ module ServerCompilationContext = struct
 		stats.s_methods_typed := 0;
 		stats.s_macros_called := 0;
 		Hashtbl.clear Timer.htimers;
-		sctx.compilation_step <- sctx.compilation_step + 1;
-		sctx.compilation_mark <- sctx.mark_loop;
 		Helper.start_time := get_time()
 
 	let maybe_cache_context sctx com =
@@ -207,8 +199,6 @@ module Communication = struct
 			write s
 		);
 		flush = (fun ctx ->
-			sctx.compilation_step <- sctx.compilation_step + 1;
-			sctx.compilation_mark <- sctx.mark_loop;
 			check_display_flush ctx (fun () ->
 				List.iter
 					(fun msg ->
@@ -325,8 +315,7 @@ let check_module sctx ctx m p =
 			end
 		) paths
 	in
-	let mark = sctx.mark_loop in
-	let start_mark = sctx.compilation_mark in
+	let start_mark = sctx.compilation_step in
 	let rec check m =
 		let check_module_path () =
 			let directories = get_changed_directories sctx ctx in
@@ -390,26 +379,34 @@ let check_module sctx ctx m p =
 				| Some _ -> raise (Dirty (DependencyDirty m2.m_path))
 			) m.m_extra.m_deps;
 		in
-		begin match m.m_extra.m_dirty with
-		| Some path ->
-			Some path
-		| None ->
-			if m.m_extra.m_mark = mark then
-				None
-			else try
-				let old_mark = m.m_extra.m_mark in
-				m.m_extra.m_mark <- mark;
-				if old_mark <= start_mark then begin
-					if not (has_policy NoCheckShadowing) then check_module_path();
-					if not (has_policy NoCheckFileTimeModification) || file_extension (Path.UniqueKey.lazy_path m.m_extra.m_file) <> "hx" then check_file();
-				end;
+		let check () =
+			try
+				if not (has_policy NoCheckShadowing) then check_module_path();
+				if not (has_policy NoCheckFileTimeModification) || file_extension (Path.UniqueKey.lazy_path m.m_extra.m_file) <> "hx" then check_file();
 				if not (has_policy NoCheckDependencies) then check_dependencies();
 				None
 			with
 			| Dirty reason ->
-				m.m_extra.m_dirty <- Some reason;
 				Some reason
-			end
+		in
+		(* If the module mark matches our compilation mark, we are done *)
+		if m.m_extra.m_checked = start_mark then
+			m.m_extra.m_dirty
+		else begin
+			(* Otherwise, set to current compilation mark for recursion *)
+			m.m_extra.m_checked <- start_mark;
+			let dirty = match m.m_extra.m_dirty with
+				| Some _ as dirty ->
+					(* If we are already dirty, stick to it. *)
+					dirty
+				| None ->
+					(* Otherwise, run the checks *)
+					check ()
+			in
+			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
+			m.m_extra.m_dirty <- dirty;
+			dirty
+		end
 	in
 	check m
 
@@ -419,13 +416,13 @@ let add_modules sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_added < sctx.compilation_step then begin
+			m.m_extra.m_added <- sctx.compilation_step;
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 			| _ ->
 				ServerMessage.reusing com tabs m;
-				m.m_extra.m_added <- sctx.compilation_step;
 				List.iter (fun t ->
 					match t with
 					| TClassDecl c -> c.cl_restore()
@@ -456,7 +453,6 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache com in
-	sctx.mark_loop <- sctx.mark_loop + 1;
 	try
 		let m = cc#find_module mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
@@ -628,7 +624,9 @@ let rec process sctx comm args =
 	let t0 = get_time() in
 	ServerMessage.arguments args;
 	reset sctx;
+	sctx.compilation_step <- sctx.compilation_step + 1;
 	let api = {
+		compilation_step = sctx.compilation_step;
 		cache = sctx.cs;
 		before_anything = before_anything sctx;
 		after_arg_parsing = after_arg_parsing sctx;

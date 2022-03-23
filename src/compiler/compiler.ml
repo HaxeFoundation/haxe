@@ -762,8 +762,8 @@ let compile_ctx server_api comm ctx =
 			error ctx ("Error: " ^ msg) null_pos;
 			false
 
-let create_context comm cs params = {
-	com = Common.create cs version params;
+let create_context compilation_step comm cs params = {
+	com = Common.create compilation_step cs version params;
 	on_exit = [];
 	messages = [];
 	has_next = false;
@@ -824,7 +824,7 @@ module HighLevel = struct
 		DynArray.to_list compilations
 
 	let entry server_api comm args =
-		let create = create_context comm server_api.cache in
+		let create = create_context server_api.compilation_step comm server_api.cache in
 		let ctxs = try
 			process_params server_api create args
 		with Arg.Bad msg ->
