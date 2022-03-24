@@ -408,7 +408,7 @@ let save_class_state ctx t = match t with
 
 (* PASS 2 begin *)
 
-let remove_generic_base ctx t = match t with
+let remove_generic_base t = match t with
 	| TClassDecl c when is_removable_class c ->
 		add_class_flag c CExtern;
 	| _ ->
@@ -446,7 +446,7 @@ let check_private_path ctx t = match t with
 		()
 
 (* Rewrites class or enum paths if @:native metadata is set *)
-let apply_native_paths ctx t =
+let apply_native_paths t =
 	let get_real_name meta name =
 		let name',p = get_native_name meta in
 		(Meta.RealPath,[Ast.EConst (Ast.String (name,SDoubleQuotes)), p], p), name'
@@ -511,14 +511,14 @@ let apply_native_paths ctx t =
 		()
 
 (* Adds the __rtti field if required *)
-let add_rtti ctx t =
+let add_rtti com t =
 	let rec has_rtti c =
 		Meta.has Meta.Rtti c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti csup
 	in
 	match t with
 	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
-		let f = mk_field ~static:true "__rtti" ctx.t.tstring c.cl_pos null_pos in
-		let str = Genxml.gen_type_string ctx.com t in
+		let f = mk_field ~static:true "__rtti" com.basic.tstring c.cl_pos null_pos in
+		let str = Genxml.gen_type_string com t in
 		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 		c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
@@ -589,15 +589,15 @@ let add_field_inits cl_path locals com t =
 		()
 
 (* Adds the __meta__ field if required *)
-let add_meta_field ctx t = match t with
+let add_meta_field com t = match t with
 	| TClassDecl c ->
-		(match Texpr.build_metadata ctx.com.basic t with
+		(match Texpr.build_metadata com.basic t with
 		| None -> ()
 		| Some e ->
-			add_feature ctx.com "has_metadata";
+			add_feature com "has_metadata";
 			let cf = mk_field ~static:true "__meta__" e.etype e.epos null_pos in
 			cf.cf_expr <- Some e;
-			let can_deal_with_interface_metadata () = match ctx.com.platform with
+			let can_deal_with_interface_metadata () = match com.platform with
 				| Cs | Java -> false
 				| _ -> true
 			in
@@ -607,7 +607,7 @@ let add_meta_field ctx t = match t with
 				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
 				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
 				ncls.cl_statics <- PMap.add cf.cf_name cf ncls.cl_statics;
-				ctx.com.types <- ctx.com.types @ [ TClassDecl ncls ];
+				com.types <- com.types @ [ TClassDecl ncls ];
 				c.cl_meta <- (Meta.Custom ":hasMetadata",[],e.epos) :: c.cl_meta
 			end else begin
 				c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
@@ -666,14 +666,14 @@ let check_cs_events com t = match t with
 		()
 
 (* Removes interfaces tagged with @:remove metadata *)
-let check_remove_metadata ctx t = match t with
+let check_remove_metadata t = match t with
 	| TClassDecl c ->
 		c.cl_implements <- List.filter (fun (c,_) -> not (Meta.has Meta.Remove c.cl_meta)) c.cl_implements;
 	| _ ->
 		()
 
 (* Checks for Void class fields *)
-let check_void_field ctx t = match t with
+let check_void_field t = match t with
 	| TClassDecl c ->
 		let check f =
 			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> typing_error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
@@ -686,7 +686,7 @@ let check_void_field ctx t = match t with
 (* Interfaces have no 'super', but can extend many other interfaces.
    This makes the first extended (implemented) interface the super for efficiency reasons (you can get one for 'free')
    and leaves the remaining ones as 'implemented' *)
-let promote_first_interface_to_super ctx t = match t with
+let promote_first_interface_to_super t = match t with
 	| TClassDecl c when (has_class_flag c CInterface) ->
 		begin match c.cl_implements with
 		| ({ cl_path = ["cpp";"rtti"],_ },_ ) :: _ -> ()
@@ -698,10 +698,10 @@ let promote_first_interface_to_super ctx t = match t with
 	| _ ->
 		()
 
-let commit_features ctx t =
+let commit_features com t =
 	let m = (t_infos t).mt_module in
 	Hashtbl.iter (fun k v ->
-		Common.add_feature ctx.com k;
+		Common.add_feature com k;
 	) m.m_extra.m_features
 
 let check_reserved_type_paths ctx t =
@@ -865,11 +865,11 @@ let run com tctx main =
 	let t = filter_timer detail_times ["type 2"] in
 	(* PASS 2: type filters pre-DCE *)
 	List.iter (fun t ->
-		remove_generic_base tctx t;
+		remove_generic_base t;
 		remove_extern_fields com t;
 		Codegen.update_cache_dependencies t;
 		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
-		check_remove_metadata tctx t;
+		check_remove_metadata t;
 	) com.types;
 	t();
 	com.stage <- CDceStart;
@@ -894,19 +894,19 @@ let run com tctx main =
 		)
 		new_types;
 	let type_filters = [
-		Exceptions.patch_constructors;
-		check_private_path;
+		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
+		check_private_path tctx;
 		apply_native_paths;
-		add_rtti;
-		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> (fun ctx -> add_field_inits ctx.curclass.cl_path locals ctx.com));
-		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
+		add_rtti com;
+		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
+		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
 		check_void_field;
-		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
-		commit_features;
-		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths else (fun _ _ -> ()));
+		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
+		commit_features com;
+		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths tctx else (fun _ -> ()));
 	] in
 	let type_filters = match com.platform with
-		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
+		| Cs -> type_filters @ [ fun t -> InterfaceProps.run t ]
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in
@@ -917,7 +917,7 @@ let run com tctx main =
 		| _ ->
 			()
 		end;
-		List.iter (fun f -> f tctx t) type_filters
+		List.iter (fun f -> f t) type_filters
 	) com.types;
 	t();
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);

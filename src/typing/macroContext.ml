@@ -472,11 +472,11 @@ and flush_macro_context mint ctx =
 			()
 	in
 	let type_filters = [
-		Filters.remove_generic_base mctx;
+		Filters.remove_generic_base;
 		Exceptions.patch_constructors mctx;
 		(fun mt -> Filters.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		minimal_restore;
-		Filters.apply_native_paths mctx
+		Filters.apply_native_paths
 	] in
 	let ready = fun t ->
 		Filters.apply_filters_once mctx expr_filters t;
