@@ -416,12 +416,12 @@ let add_modules sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_added < sctx.compilation_step then begin
-			m.m_extra.m_added <- sctx.compilation_step;
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 			| _ ->
+				m.m_extra.m_added <- sctx.compilation_step;
 				ServerMessage.reusing com tabs m;
 				List.iter (fun t ->
 					match t with
