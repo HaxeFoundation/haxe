@@ -72,16 +72,9 @@ let initialize_target ctx com actx =
 				actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 			"cpp"
 		| Cs ->
-			ctx.on_exit <- (fun () ->
-				com.native_libs.net_libs <- [];
-			) :: ctx.on_exit;
 			Dotnet.before_generate com;
 			add_std "cs"; "cs"
 		| Java ->
-			ctx.on_exit <- (fun () ->
-				List.iter (fun java_lib -> java_lib#close) com.native_libs.java_libs;
-				com.native_libs.java_libs <- [];
-			) :: ctx.on_exit;
 			Java.before_generate com;
 			if defined com Define.Jvm then begin
 				add_std "jvm";
@@ -553,10 +546,14 @@ let compile ctx actx =
 	end
 
 let finalize ctx =
-	List.iter (fun f ->
-		f();
-	) ctx.on_exit;
-	ctx.comm.flush ctx
+	ctx.comm.flush ctx;
+	(* In server mode any open libs are closed by the lib_build_task. In offline mode
+	   we should do it here to be safe. *)
+	if not ctx.comm.is_server then begin
+		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
+		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
+		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
+	end
 
 open DisplayTypes
 
@@ -710,8 +707,6 @@ let compile_ctx server_api comm ctx =
 	let run ctx =
 		server_api.before_anything ctx;
 		setup_common_context ctx;
-		(* TODO: deal with this a bit better *)
-		if not comm.is_server then Common.raw_define ctx.com "haxe.noNativeLibsCache";
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			begin match actx.server_mode with
@@ -755,9 +750,8 @@ let compile_ctx server_api comm ctx =
 			error ctx ("Error: " ^ msg) null_pos;
 			false
 
-let create_context compilation_step comm cs params = {
+let create_context comm cs compilation_step params = {
 	com = Common.create compilation_step cs version params;
-	on_exit = [];
 	messages = [];
 	has_next = false;
 	has_error = false;
@@ -771,7 +765,7 @@ module HighLevel = struct
 		let compilations = DynArray.create () in
 		let curdir = Unix.getcwd () in
 		let add_context args =
-			let ctx = create args in
+			let ctx = create (server_api.on_context_create()) args in
 			(* --cwd triggers immediately, so let's reset *)
 			Unix.chdir curdir;
 			DynArray.add compilations ctx;
@@ -817,11 +811,11 @@ module HighLevel = struct
 		DynArray.to_list compilations
 
 	let entry server_api comm args =
-		let create = create_context (server_api.on_context_create()) comm server_api.cache in
+		let create = create_context comm server_api.cache in
 		let ctxs = try
 			process_params server_api create args
 		with Arg.Bad msg ->
-			let ctx = create args in
+			let ctx = create 0 args in
 			error ctx ("Error: " ^ msg) null_pos;
 			[ctx]
 		in
