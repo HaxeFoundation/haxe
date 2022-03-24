@@ -57,5 +57,4 @@ with Not_found ->
 	let sctx = ServerCompilationContext.create false in
 	Server.process sctx (Communication.create_stdio ()) args;
 );
-other();
-if !Timer.measure_times then Timer.report_times prerr_endline
+other()
