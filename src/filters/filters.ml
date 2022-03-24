@@ -760,7 +760,6 @@ let destruction tctx detail_times main locals =
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
 	com.stage <- CFilteringDone
 
-
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
 let save_class_state ctx t = match t with
 | TClassDecl c ->
