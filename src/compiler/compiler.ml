@@ -824,7 +824,7 @@ module HighLevel = struct
 		DynArray.to_list compilations
 
 	let entry server_api comm args =
-		let create = create_context server_api.compilation_step comm server_api.cache in
+		let create = create_context (server_api.on_context_create()) comm server_api.cache in
 		let ctxs = try
 			process_params server_api create args
 		with Arg.Bad msg ->

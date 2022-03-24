@@ -620,13 +620,21 @@ let do_connect host port args =
 	process();
 	if !has_error then exit 1
 
+let enable_cache_mode sctx =
+	TypeloadModule.type_module_hook := type_module sctx;
+	MacroContext.macro_enable_cache := true;
+	ServerCompilationContext.ensure_macro_setup sctx;
+	TypeloadParse.parse_hook := parse_file sctx.cs
+
 let rec process sctx comm args =
 	let t0 = get_time() in
 	ServerMessage.arguments args;
 	reset sctx;
-	sctx.compilation_step <- sctx.compilation_step + 1;
 	let api = {
-		compilation_step = sctx.compilation_step;
+		on_context_create = (fun () ->
+			sctx.compilation_step <- sctx.compilation_step + 1;
+			sctx.compilation_step;
+		);
 		cache = sctx.cs;
 		before_anything = before_anything sctx;
 		after_arg_parsing = after_arg_parsing sctx;
@@ -649,10 +657,7 @@ and wait_loop verbose accept =
 	(* Create server context and set up hooks for parsing and typing *)
 	let sctx = ServerCompilationContext.create verbose in
 	let cs = sctx.cs in
-	TypeloadModule.type_module_hook := type_module sctx;
-	MacroContext.macro_enable_cache := true;
-	ServerCompilationContext.ensure_macro_setup sctx;
-	TypeloadParse.parse_hook := parse_file cs;
+	enable_cache_mode sctx;
 	let ring = Ring.create 10 0. in
 	let gc_heap_stats () =
 		let stats = Gc.quick_stat() in
