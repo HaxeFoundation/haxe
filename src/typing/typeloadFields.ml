@@ -462,7 +462,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| _ -> typing_error "Invalid build parameters" p
 				) in
 				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> typing_error "Build call parameter must be a class path" p in
-				if ctx.in_macro then typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
+				if ctx.com.is_macro_context then typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
 				context_init#run;
@@ -773,7 +773,7 @@ module TypeBinding = struct
 			)
 		in
 		let handle_display_field () =
-			if fctx.is_macro && not ctx.in_macro then
+			if fctx.is_macro && not ctx.com.is_macro_context then
 				force_macro true
 			else begin
 				cf.cf_type <- TLazy r;
@@ -781,14 +781,14 @@ module TypeBinding = struct
 			end
 		in
 		if ctx.com.display.dms_full_typing then begin
-			if fctx.is_macro && not ctx.in_macro then
+			if fctx.is_macro && not ctx.com.is_macro_context then
 				force_macro false
 			else begin
 				cf.cf_type <- TLazy r;
 				(* is_lib ? *)
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
-		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.in_macro then
+		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
 			force_macro true
 		else begin
 			if fctx.is_display_field then begin
@@ -852,7 +852,7 @@ module TypeBinding = struct
 			if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				r := lazy_processing (fun() -> t);
 				cctx.context_init#run;
-				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
@@ -930,7 +930,7 @@ module TypeBinding = struct
 			r := lazy_processing (fun() -> t);
 			cctx.context_init#run;
 			incr stats.s_methods_typed;
-			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 			let fmode = (match cctx.abstract with
 				| Some _ ->
 					if fctx.is_abstract_member then FunMemberAbstract else FunStatic
@@ -1209,7 +1209,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	if fctx.is_generic then begin
 		if params = [] then typing_error (fst f.cff_name ^ ": Generic functions must have type parameters") p;
 	end;
-	let fd = if fctx.is_macro && not ctx.in_macro && not fctx.is_static then
+	let fd = if fctx.is_macro && not ctx.com.is_macro_context && not fctx.is_static then
 		(* remove display of first argument which will contain the "this" expression *)
 		{ fd with f_args = match fd.f_args with [] -> [] | _ :: l -> l }
 	else
@@ -1218,7 +1218,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let fd = if not fctx.is_macro then
 		fd
 	else begin
-		if ctx.in_macro then begin
+		if ctx.com.is_macro_context then begin
 			(* a class with a macro cannot be extern in macro context (issue #2015) *)
 			remove_class_flag c CExtern;
 			let texpr = CTPath (mk_type_path (["haxe";"macro"],"Expr")) in
@@ -1610,7 +1610,7 @@ let init_field (ctx,cctx,fctx) f =
 		| FProp (get,set,t,eo) ->
 			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
 	in
-	(if (fctx.is_static || fctx.is_macro && ctx.in_macro) then add_class_field_flag cf CfStatic);
+	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
 	if Meta.has Meta.InheritDoc cf.cf_meta then
 		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
 	cf

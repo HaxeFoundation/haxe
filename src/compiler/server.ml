@@ -341,7 +341,7 @@ let check_module sctx ctx m p =
 				loop com.load_extern_type
 			| MCode ->
 				check_module_shadowing directories m
-			| MMacro when ctx.Typecore.in_macro ->
+			| MMacro when com.is_macro_context ->
 				check_module_shadowing directories m
 			| MMacro ->
 				(*
@@ -350,7 +350,7 @@ let check_module sctx ctx m p =
 					Prevents spending another 5 hours for debugging.
 					@see https://github.com/HaxeFoundation/haxe/issues/8174
 				*)
-				if not ctx.g.complete && ctx.in_macro then
+				if not ctx.g.complete && ctx.com.is_macro_context then
 					raise (ServerError ("Infinite loop in Haxe server detected. "
 						^ "Probably caused by shadowing a module of the standard library. "
 						^ "Make sure shadowed module does not pull macro context."));

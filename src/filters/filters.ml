@@ -416,16 +416,16 @@ let remove_generic_base ctx t = match t with
 
 (* Removes extern and macro fields, also checks for Void fields *)
 
-let remove_extern_fields ctx t = match t with
+let remove_extern_fields com t = match t with
 	| TClassDecl c ->
-		if not (Common.defined ctx.com Define.DocGen) then begin
+		if not (Common.defined com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
-				let b = is_removable_field ctx f in
+				let b = is_removable_field com f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 				not b
 			) c.cl_ordered_fields;
 			c.cl_ordered_statics <- List.filter (fun f ->
-				let b = is_removable_field ctx f in
+				let b = is_removable_field com f in
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
@@ -526,7 +526,7 @@ let add_rtti ctx t =
 		()
 
 (* Adds member field initializations as assignments to the constructor *)
-let add_field_inits locals ctx t =
+let add_field_inits cl_path locals com t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -552,11 +552,11 @@ let add_field_inits locals ctx t =
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
 			let cf = match c.cl_constructor with
 			| None ->
-				let ct = TFun([],ctx.com.basic.tvoid) in
+				let ct = TFun([],com.basic.tvoid) in
 				let ce = mk (TFunction {
 					tf_args = [];
-					tf_type = ctx.com.basic.tvoid;
-					tf_expr = mk (TBlock el) ctx.com.basic.tvoid c.cl_pos;
+					tf_type = com.basic.tvoid;
+					tf_expr = mk (TBlock el) com.basic.tvoid c.cl_pos;
 				}) ct c.cl_pos in
 				let ctor = mk_field "new" ct c.cl_pos null_pos in
 				ctor.cf_kind <- Method MethNormal;
@@ -565,18 +565,18 @@ let add_field_inits locals ctx t =
 				match cf.cf_expr with
 				| Some { eexpr = TFunction f } ->
 					let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
+					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
 					{cf with cf_expr = Some ce };
 				| _ ->
 					die "" __LOC__
 			in
-			let config = AnalyzerConfig.get_field_config ctx.com c cf in
-			Analyzer.Run.run_on_field ctx config c cf;
+			let config = AnalyzerConfig.get_field_config com c cf in
+			Analyzer.Run.run_on_field com config c cf;
 			(match cf.cf_expr with
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
-				let e = RenameVars.run ctx locals e in
-				let e = Optimizer.sanitize ctx.com e in
+				let e = RenameVars.run cl_path locals e in
+				let e = Optimizer.sanitize com e in
 				cf.cf_expr <- Some e
 			| _ ->
 				());
@@ -839,7 +839,7 @@ let run com tctx main =
 	List.iter (fun f -> List.iter f new_types) filters;
 	t();
 	com.stage <- CAnalyzerStart;
-	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
+	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
 	com.stage <- CAnalyzerDone;
 	let locals = RenameVars.init com in
 	let filters = [
@@ -847,7 +847,7 @@ let run com tctx main =
 		"add_final_return",if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		"RenameVars",(match com.platform with
 		| Eval -> (fun e -> e)
-		| _ -> RenameVars.run tctx locals);
+		| _ -> (fun e -> RenameVars.run tctx.curclass.cl_path locals e));
 		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
@@ -866,7 +866,7 @@ let run com tctx main =
 	(* PASS 2: type filters pre-DCE *)
 	List.iter (fun t ->
 		remove_generic_base tctx t;
-		remove_extern_fields tctx t;
+		remove_extern_fields com t;
 		Codegen.update_cache_dependencies t;
 		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 		check_remove_metadata tctx t;
@@ -898,7 +898,7 @@ let run com tctx main =
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
-		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits locals);
+		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> (fun ctx -> add_field_inits ctx.curclass.cl_path locals ctx.com));
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );

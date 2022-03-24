@@ -1474,7 +1474,7 @@ module TexprConverter = struct
 		let p = dt.dt_pos in
 		let c_type = match follow (Typeload.load_instance ctx (mk_type_path (["std"],"Type"),p) true) with TInst(c,_) -> c | t -> die "" __LOC__ in
 		let mk_index_call e =
-			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
+			if not ctx.com.is_macro_context && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
 				   (correctly typed) neutral value because it doesn't actually matter. *)
 				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
@@ -1482,7 +1482,7 @@ module TexprConverter = struct
 				mk (TEnumIndex e) com.basic.tint e.epos
 		in
 		let mk_name_call e =
-			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
+			if not ctx.com.is_macro_context && not ctx.com.display.DisplayMode.dms_full_typing then
 				mk (TConst (TString "")) ctx.t.tstring e.epos
 			else
 				let cf = PMap.find "enumConstructor" c_type.cl_statics in

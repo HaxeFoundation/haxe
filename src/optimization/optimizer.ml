@@ -266,7 +266,7 @@ in
 			else
 				None
 
-let reduce_control_flow ctx e = match e.eexpr with
+let reduce_control_flow com e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
@@ -291,10 +291,10 @@ let reduce_control_flow ctx e = match e.eexpr with
 		(try List.nth el i with Failure _ -> e)
 	| TCast(e1,None) ->
 		(* TODO: figure out what's wrong with these targets *)
-		let require_cast = match ctx.com.platform with
+		let require_cast = match com.platform with
 			| Cpp | Flash -> true
-			| Java -> defined ctx.com Define.Jvm
-			| Cs -> defined ctx.com Define.EraseGenerics || defined ctx.com Define.FastCast
+			| Java -> defined com Define.Jvm
+			| Cs -> defined com Define.EraseGenerics || defined com Define.FastCast
 			| _ -> false
 		in
 		Texpr.reduce_unsafe_casts ~require_cast e e.etype
@@ -337,7 +337,7 @@ let rec reduce_loop ctx e =
 				reduce_expr ctx e
 		end
 	| _ ->
-		reduce_expr ctx (reduce_control_flow ctx e))
+		reduce_expr ctx (reduce_control_flow ctx.com e))
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then

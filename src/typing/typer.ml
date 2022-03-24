@@ -1997,7 +1997,6 @@ let rec create com =
 		in_loop = false;
 		in_display = false;
 		get_build_infos = (fun() -> None);
-		in_macro = Common.defined com Define.Macro;
 		ret = mk_mono();
 		locals = PMap.empty;
 		type_params = [];

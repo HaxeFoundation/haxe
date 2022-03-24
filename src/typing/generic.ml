@@ -314,7 +314,7 @@ let rec build_generic ctx c p tl =
 		in
 		if c.cl_init <> None then typing_error "This class can't be generic" p;
 		List.iter (fun cf -> match cf.cf_kind with
-			| Method MethMacro when not ctx.in_macro -> ()
+			| Method MethMacro when not ctx.com.is_macro_context -> ()
 			| _ -> typing_error "A generic class can't have static fields" cf.cf_pos
 		) c.cl_ordered_statics;
 		cg.cl_super <- (match c.cl_super with

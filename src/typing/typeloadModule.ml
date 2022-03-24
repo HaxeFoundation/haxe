@@ -40,7 +40,7 @@ let make_module ctx mpath file loadp =
 		m_path = mpath;
 		m_types = [];
 		m_statics = None;
-		m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.in_macro then MMacro else MCode) (get_policy ctx mpath);
+		m_extra = module_extra (Path.get_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.com.is_macro_context then MMacro else MCode) (get_policy ctx mpath);
 	} in
 	m
 
@@ -773,7 +773,7 @@ let module_pass_2 ctx m decls tdecls p =
 			c.cl_params <- type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) p d.d_params;
 			if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 			if Meta.has Meta.GenericBuild c.cl_meta then begin
-				if ctx.in_macro then typing_error "@:genericBuild cannot be used in macros" c.cl_pos;
+				if ctx.com.is_macro_context then typing_error "@:genericBuild cannot be used in macros" c.cl_pos;
 				c.cl_kind <- KGenericBuild d.d_data;
 			end;
 			if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
@@ -831,7 +831,6 @@ let type_types_into_module ?(check=true) ctx m tdecls p =
 		type_params = [];
 		curfun = FunStatic;
 		untyped = false;
-		in_macro = ctx.in_macro;
 		in_display = false;
 		in_function = false;
 		in_loop = false;

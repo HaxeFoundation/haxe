@@ -331,7 +331,7 @@ let generate tctx ext actx =
 	end;
 	if Common.defined com Define.DumpDependencies then begin
 		Codegen.Dump.dump_dependencies com;
-		if not tctx.Typecore.in_macro then match tctx.Typecore.g.Typecore.macros with
+		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
 			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end;
@@ -663,15 +663,6 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
 		com.info msg null_pos
-	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
-		begin match com.json_out with
-		| Some (f,_) ->
-			let tctx = Typer.create ctx.com in
-			let fields = DisplayToplevel.collect tctx true Typecore.NoValue in
-			let jctx = Genjson.create_context Genjson.GMMinimum in
-			f (DisplayException.fields_to_json jctx fields CRImport (Some (Parser.cut_pos_at_display p)) false)
-		| _ -> die "" __LOC__
-		end *)
 	| Parser.TypePath (p,c,is_import,pos) ->
 		let fields =
 			try begin match c with

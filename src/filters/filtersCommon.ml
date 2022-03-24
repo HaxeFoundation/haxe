@@ -69,7 +69,7 @@ let run_expression_filters time_details ctx filters t =
 		let rec process_field f =
 			ctx.curfield <- f;
 			(match f.cf_expr with
-			| Some e when not (is_removable_field ctx f) ->
+			| Some e when not (is_removable_field ctx.com f) ->
 				f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f run e);
 			| _ -> ());
 			List.iter process_field f.cf_overloads

@@ -350,6 +350,7 @@ type context = {
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
 	mutable json_out : json_api option;
+	is_macro_context : bool;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
@@ -788,6 +789,7 @@ let create compilation_step cs version args =
 		json_out = None;
 		has_error = false;
 		report_mode = RMNone;
+		is_macro_context = false;
 	}
 
 let is_diagnostics com = match com.report_mode with
@@ -802,7 +804,7 @@ let disable_report_mode com =
 let log com str =
 	if com.verbose then com.print (str ^ "\n")
 
-let clone com =
+let clone com is_macro_context =
 	let t = com.basic in
 	{ com with
 		cache = None;
@@ -825,6 +827,7 @@ let clone com =
 		};
 		native_libs = create_native_libs();
 		overload_cache = Hashtbl.create 0;
+		is_macro_context = is_macro_context;
 	}
 
 let file_time file = Extc.filetime file

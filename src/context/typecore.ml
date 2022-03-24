@@ -125,7 +125,6 @@ and typer = {
 	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
-	mutable in_macro : bool;
 	mutable macro_depth : int;
 	mutable curfun : current_fun;
 	mutable ret : t;
@@ -462,12 +461,12 @@ let push_this ctx e = match e.eexpr with
 		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
-let is_removable_field ctx f =
+let is_removable_field com f =
 	not (has_class_field_flag f CfOverride) && (
 		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
 		|| (match f.cf_kind with
 			| Var {v_read = AccRequire (s,_)} -> true
-			| Method MethMacro -> not ctx.in_macro
+			| Method MethMacro -> not com.is_macro_context
 			| _ -> false)
 	)
 
@@ -648,7 +647,7 @@ let relative_path ctx file =
 	loop ctx.com.Common.class_path
 
 let mk_infos ctx p params =
-	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+	let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
 	(EObjectDecl (
 		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p), None)),p)) ::

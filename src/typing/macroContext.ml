@@ -309,7 +309,7 @@ let make_macro_api ctx p =
 			in
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
-			if not ctx.in_macro then match tdef with
+			if not ctx.com.is_macro_context then match tdef with
 			| EClass c when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem_assoc AMacro cff.cff_access)) c.d_data ->
 				add true mctx
 			| _ ->
@@ -474,7 +474,7 @@ and flush_macro_context mint ctx =
 	let type_filters = [
 		Filters.remove_generic_base mctx;
 		Exceptions.patch_constructors mctx;
-		Filters.add_field_inits (RenameVars.init mctx.com) mctx;
+		(fun mt -> Filters.add_field_inits mctx.curclass.cl_path (RenameVars.init mctx.com) mctx.com mt);
 		minimal_restore;
 		Filters.apply_native_paths mctx
 	] in
@@ -516,7 +516,7 @@ let get_macro_context ctx p =
 		select();
 		api, ctx
 	| None ->
-		let com2 = Common.clone ctx.com in
+		let com2 = Common.clone ctx.com true in
 		ctx.com.get_macros <- (fun() -> Some com2);
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
@@ -584,7 +584,7 @@ let load_macro' ctx display cpath f p =
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> typing_error "Macro call should be a method" p) in
 		restore();
-		if not ctx.in_macro then flush_macro_context mint ctx;
+		if not ctx.com.is_macro_context then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
@@ -791,7 +791,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			in
 			safe_decode ctx v expected mret p process
 	in
-	let e = if ctx.in_macro then
+	let e = if ctx.com.is_macro_context then
 		Some (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p)
 	else
 		call()
