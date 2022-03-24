@@ -215,7 +215,7 @@ module Communication = struct
 					maybe_cache_context sctx ctx.com;
 			)
 		);
-		is_server = false;
+		is_server = true;
 	}
 end
 

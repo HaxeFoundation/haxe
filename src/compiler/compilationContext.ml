@@ -35,7 +35,6 @@ type communication = {
 
 and compilation_context = {
 	com : Common.context;
-	mutable on_exit : (unit -> unit) list;
 	mutable messages : Common.compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
