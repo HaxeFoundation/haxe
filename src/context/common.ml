@@ -292,6 +292,7 @@ type report_mode =
 	| RMStatistics
 
 type context = {
+	compilation_step : int;
 	mutable stage : compiler_stage;
 	mutable cache : CompilationCache.context_cache option;
 	(* config *)
@@ -706,9 +707,10 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create cs version args =
+let create compilation_step cs version args =
 	let m = Type.mk_mono() in
 	{
+		compilation_step = compilation_step;
 		cs = cs;
 		cache = None;
 		stage = CCreated;

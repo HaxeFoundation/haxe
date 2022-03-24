@@ -717,18 +717,13 @@ let check_reserved_type_paths ctx t =
 
 (* PASS 3 end *)
 
-let pp_counter = ref 1
-
-let is_cached t =
+let is_cached com t =
 	let m = (t_infos t).mt_module.m_extra in
-	if m.m_processed = 0 then m.m_processed <- !pp_counter;
-	m.m_processed <> !pp_counter
+	if m.m_processed = 0 then m.m_processed <- com.compilation_step;
+	m.m_processed <> com.compilation_step
 
 let apply_filters_once ctx filters t =
-	if not (is_cached t) then run_expression_filters None ctx filters t
-
-let next_compilation() =
-	incr pp_counter
+	if not (is_cached ctx.com t) then run_expression_filters None ctx filters t
 
 let iter_expressions fl mt =
 	match mt with
@@ -773,7 +768,7 @@ end
 let run com tctx main =
 	let detail_times = Common.defined com DefineList.FilterTimes in
 	let new_types = List.filter (fun t ->
-		let cached = is_cached t in
+		let cached = is_cached com t in
 		begin match t with
 			| TClassDecl cls ->
 				List.iter (fun (iface,_) -> add_descendant iface cls) cls.cl_implements;
@@ -856,7 +851,6 @@ let run com tctx main =
 		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
-	next_compilation();
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
 	t();

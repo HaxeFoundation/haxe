@@ -484,8 +484,7 @@ and flush_macro_context mint ctx =
 	in
 	(try Interp.add_types mint types ready
 	with Error (e,p) -> t(); raise (Fatal_error(error_msg e,p)));
-	t();
-	Filters.next_compilation()
+	t()
 
 let create_macro_interp ctx mctx =
 	let com2 = mctx.com in

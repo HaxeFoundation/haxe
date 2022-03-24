@@ -646,7 +646,7 @@ module Printer = struct
 			"m_time",string_of_float me.m_time;
 			"m_dirty",s_opt s_module_skip_reason me.m_dirty;
 			"m_added",string_of_int me.m_added;
-			"m_mark",string_of_int me.m_mark;
+			"m_checked",string_of_int me.m_checked;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;

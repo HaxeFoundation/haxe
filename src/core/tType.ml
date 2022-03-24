@@ -365,9 +365,9 @@ and module_def_extra = {
 	mutable m_time : float;
 	mutable m_dirty : module_skip_reason option;
 	mutable m_added : int;
-	mutable m_mark : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_checked : int;
 	mutable m_processed : int;
+	mutable m_deps : (int,module_def) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
