@@ -510,7 +510,9 @@ let add_field_inits cl_path locals com t =
 					die "" __LOC__
 			in
 			let config = AnalyzerConfig.get_field_config com c cf in
+			remove_class_field_flag cf CfPostProcessed;
 			Analyzer.Run.run_on_field com config c cf;
+			add_class_field_flag cf CfPostProcessed;
 			(match cf.cf_expr with
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
