@@ -719,6 +719,8 @@ let compile_ctx server_api comm ctx =
 	let run ctx =
 		server_api.before_anything ctx;
 		setup_common_context ctx;
+		(* TODO: deal with this a bit better *)
+		if not comm.is_server then Common.raw_define ctx.com "haxe.noNativeLibsCache";
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			begin match actx.server_mode with
