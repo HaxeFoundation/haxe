@@ -204,6 +204,10 @@ let handler =
 				| [] ->
 					hctx.send_error [jstring "No such type"]
 				| mt :: mtl ->
+					begin match mt with
+					| TClassDecl c -> c.cl_restore()
+					| _ -> ()
+					end;
 					let infos = t_infos mt in
 					if snd infos.mt_path = typeName then begin
 						let ctx = Genjson.create_context GMMinimum in

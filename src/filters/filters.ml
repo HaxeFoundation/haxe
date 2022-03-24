@@ -345,67 +345,6 @@ let check_abstract_as_value e =
 
 (* PASS 1 end *)
 
-(* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
-let save_class_state ctx t = match t with
-	| TClassDecl c ->
-		let vars = ref [] in
-		let rec save_vars e =
-			let add v = vars := (v, v.v_type) :: !vars in
-			match e.eexpr with
-				| TFunction fn ->
-					List.iter (fun (v, _) -> add v) fn.tf_args;
-					save_vars fn.tf_expr
-				| TVar (v, e) ->
-					add v;
-					Option.may save_vars e
-				| _ ->
-					iter save_vars e
-		in
-		let mk_field_restore f =
-			Option.may save_vars f.cf_expr;
-			let rec mk_overload_restore f =
-				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
-			in
-			( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
-		in
-		let restore_field (f,res,overloads) =
-			let restore_field (f,(name,kind,expr,t,meta,params)) =
-				f.cf_name <- name; f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
-				f
-			in
-			let f = restore_field (f,res) in
-			f.cf_overloads <- List.map restore_field overloads;
-			f
-		in
-		let mk_pmap lst =
-			List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
-		in
-
-		let meta = c.cl_meta and path = c.cl_path and ext = (has_class_flag c CExtern) in
-		let sup = c.cl_super and impl = c.cl_implements in
-		let csr = Option.map (mk_field_restore) c.cl_constructor in
-		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
-		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
-		let init = c.cl_init in
-		Option.may save_vars init;
-		c.cl_restore <- (fun() ->
-			c.cl_super <- sup;
-			c.cl_implements <- impl;
-			c.cl_meta <- meta;
-			if ext then add_class_flag c CExtern else remove_class_flag c CExtern;
-			c.cl_path <- path;
-			c.cl_init <- init;
-			c.cl_ordered_fields <- List.map restore_field ofr;
-			c.cl_ordered_statics <- List.map restore_field osr;
-			c.cl_fields <- mk_pmap c.cl_ordered_fields;
-			c.cl_statics <- mk_pmap c.cl_ordered_statics;
-			c.cl_constructor <- Option.map restore_field csr;
-			c.cl_descendants <- [];
-			List.iter (fun (v, t) -> v.v_type <- t) !vars;
-		)
-	| _ ->
-		()
-
 (* PASS 2 begin *)
 
 let remove_generic_base t = match t with
@@ -625,7 +564,7 @@ let check_cs_events com t = match t with
 	| TClassDecl cl when not (has_class_flag cl CExtern) ->
 		let check fields f =
 			match f.cf_kind with
-			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
+			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta && not (has_class_field_flag f CfPostProcessed) ->
 				if (has_class_field_flag f CfPublic) then typing_error "@:event fields must be private" f.cf_pos;
 
 				(* prevent generating reflect helpers for the event in gencommon *)
@@ -765,6 +704,125 @@ module ForRemap = struct
 		loop e
 end
 
+let destruction tctx detail_times main locals =
+	let com = tctx.com in
+	let t = filter_timer detail_times ["type 2"] in
+	(* PASS 2: type filters pre-DCE *)
+	List.iter (fun t ->
+		remove_generic_base t;
+		remove_extern_fields com t;
+		Codegen.update_cache_dependencies t;
+		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
+		check_remove_metadata t;
+	) com.types;
+	t();
+	com.stage <- CDceStart;
+	let t = filter_timer detail_times ["dce"] in
+	(* DCE *)
+	let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
+	let dce_mode = match dce_mode with
+		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
+		| "std" -> DceStd
+		| "no" -> DceNo
+		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
+	in
+	Dce.run com main dce_mode;
+	t();
+	com.stage <- CDceDone;
+	(* PASS 3: type filters post-DCE *)
+	let type_filters = [
+		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
+		check_private_path tctx;
+		apply_native_paths;
+		add_rtti com;
+		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
+		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
+		check_void_field;
+		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
+		commit_features com;
+		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths tctx else (fun _ -> ()));
+	] in
+	let type_filters = match com.platform with
+		| Cs -> type_filters @ [ fun t -> InterfaceProps.run t ]
+		| _ -> type_filters
+	in
+	let t = filter_timer detail_times ["type 3"] in
+	List.iter (fun t ->
+		begin match t with
+		| TClassDecl c ->
+			tctx.curclass <- c
+		| _ ->
+			()
+		end;
+		List.iter (fun f -> f t) type_filters
+	) com.types;
+	t();
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
+	com.stage <- CFilteringDone
+
+
+(* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
+let save_class_state ctx t = match t with
+| TClassDecl c ->
+	let vars = ref [] in
+	let rec save_vars e =
+		let add v = vars := (v, v.v_type) :: !vars in
+		match e.eexpr with
+			| TFunction fn ->
+				List.iter (fun (v, _) -> add v) fn.tf_args;
+				save_vars fn.tf_expr
+			| TVar (v, e) ->
+				add v;
+				Option.may save_vars e
+			| _ ->
+				iter save_vars e
+	in
+	let mk_field_restore f =
+		Option.may save_vars f.cf_expr;
+		let rec mk_overload_restore f =
+			add_class_field_flag f CfPostProcessed;
+			f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
+		in
+		( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
+	in
+	let restore_field (f,res,overloads) =
+		let restore_field (f,(name,kind,expr,t,meta,params)) =
+			f.cf_name <- name; f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
+			f
+		in
+		let f = restore_field (f,res) in
+		f.cf_overloads <- List.map restore_field overloads;
+		f
+	in
+	let mk_pmap lst =
+		List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
+	in
+
+	let meta = c.cl_meta and path = c.cl_path and ext = (has_class_flag c CExtern) in
+	let sup = c.cl_super and impl = c.cl_implements in
+	let csr = Option.map (mk_field_restore) c.cl_constructor in
+	let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
+	let osr = List.map (mk_field_restore) c.cl_ordered_statics in
+	let init = c.cl_init in
+	Option.may save_vars init;
+	c.cl_restore <- (fun() ->
+		c.cl_super <- sup;
+		c.cl_implements <- impl;
+		c.cl_meta <- meta;
+		if ext then add_class_flag c CExtern else remove_class_flag c CExtern;
+		c.cl_path <- path;
+		c.cl_init <- init;
+		c.cl_ordered_fields <- List.map restore_field ofr;
+		c.cl_ordered_statics <- List.map restore_field osr;
+		c.cl_fields <- mk_pmap c.cl_ordered_fields;
+		c.cl_statics <- mk_pmap c.cl_ordered_statics;
+		c.cl_constructor <- Option.map restore_field csr;
+		c.cl_descendants <- [];
+		List.iter (fun (v, t) -> v.v_type <- t) !vars;
+	)
+| _ ->
+	()
+
 let run com tctx main =
 	let detail_times = Common.defined com DefineList.FilterTimes in
 	let new_types = List.filter (fun t ->
@@ -790,6 +848,15 @@ let run com tctx main =
 		end;
 		not cached
 	) com.types in
+	(* IMPORTANT:
+	    There may be types in new_types which have already been post-processed, but then had their m_processed flag unset
+		because they received an additional dependency. This could happen in cases such as @:generic methods in #10635.
+		It is important that all filters from here up to save_class_state only process fields which do not have the
+		CfPostProcessed flag set.
+
+		This is mostly covered by run_expression_filters already, but any new additions which don't utilize that have to
+		be aware of this.
+	*)
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
@@ -849,6 +916,7 @@ let run com tctx main =
 		| Eval -> (fun e -> e)
 		| _ -> (fun e -> RenameVars.run tctx.curclass.cl_path locals e));
 		"mark_switch_break_loops",mark_switch_break_loops;
+		"insert_save_stacks",Exceptions.insert_save_stacks tctx
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
 	let t = filter_timer detail_times ["callbacks"] in
@@ -862,63 +930,4 @@ let run com tctx main =
 	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
 	t();
-	let t = filter_timer detail_times ["type 2"] in
-	(* PASS 2: type filters pre-DCE *)
-	List.iter (fun t ->
-		remove_generic_base t;
-		remove_extern_fields com t;
-		Codegen.update_cache_dependencies t;
-		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
-		check_remove_metadata t;
-	) com.types;
-	t();
-	com.stage <- CDceStart;
-	let t = filter_timer detail_times ["dce"] in
-	(* DCE *)
-	let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
-	let dce_mode = match dce_mode with
-		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
-		| "std" -> DceStd
-		| "no" -> DceNo
-		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
-	in
-	Dce.run com main dce_mode;
-	t();
-	com.stage <- CDceDone;
-	(* PASS 3: type filters post-DCE *)
-	List.iter
-		(run_expression_filters
-			(timer_label detail_times [])
-			tctx
-			["insert_save_stacks",Exceptions.insert_save_stacks tctx]
-		)
-		new_types;
-	let type_filters = [
-		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
-		check_private_path tctx;
-		apply_native_paths;
-		add_rtti com;
-		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
-		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
-		check_void_field;
-		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
-		commit_features com;
-		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths tctx else (fun _ -> ()));
-	] in
-	let type_filters = match com.platform with
-		| Cs -> type_filters @ [ fun t -> InterfaceProps.run t ]
-		| _ -> type_filters
-	in
-	let t = filter_timer detail_times ["type 3"] in
-	List.iter (fun t ->
-		begin match t with
-		| TClassDecl c ->
-			tctx.curclass <- c
-		| _ ->
-			()
-		end;
-		List.iter (fun f -> f t) type_filters
-	) com.types;
-	t();
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
-	com.stage <- CFilteringDone
+	destruction tctx detail_times main locals

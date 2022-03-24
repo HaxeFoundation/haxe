@@ -420,6 +420,7 @@ type flag_tclass_field =
 	| CfEnum
 	| CfGeneric
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
+	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [

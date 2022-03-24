@@ -231,7 +231,11 @@ let null_abstract = {
 }
 
 let add_dependency m mdep =
-	if m != null_module && m != mdep then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
+	if m != null_module && m != mdep then begin
+		m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps;
+		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
+		m.m_extra.m_processed <- 0
+	end
 
 let arg_name (a,_) = a.v_name
 

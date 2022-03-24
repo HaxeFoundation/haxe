@@ -67,11 +67,13 @@ let run_expression_filters time_details ctx filters t =
 	| TClassDecl c ->
 		ctx.curclass <- c;
 		let rec process_field f =
-			ctx.curfield <- f;
-			(match f.cf_expr with
-			| Some e when not (is_removable_field ctx.com f) ->
-				f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f run e);
-			| _ -> ());
+			if not (has_class_field_flag f CfPostProcessed) then begin
+				ctx.curfield <- f;
+				(match f.cf_expr with
+				| Some e when not (is_removable_field ctx.com f) ->
+					f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f run e);
+				| _ -> ());
+			end;
 			List.iter process_field f.cf_overloads
 		in
 		List.iter process_field c.cl_ordered_fields;
