@@ -305,7 +305,7 @@ let rec build_generic ctx c p tl =
 				let t = spawn_monomorph ctx p in
 				r := lazy_processing (fun() -> t);
 				let t0 = f() in
-				unify_raise ctx t0 t p;
+				unify_raise t0 t p;
 				link_dynamic t0 t;
 				t
 			) "build_generic" in
@@ -379,7 +379,7 @@ let type_generic_function ctx fa fcc with_type p =
 		let gctx = make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.name in
 		let unify_existing_field tcf pcf = try
-			unify_raise ctx tcf fcc.fc_type p
+			unify_raise tcf fcc.fc_type p
 		with Error(Unify _,_) as err ->
 			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
 			display_error ctx (compl_msg "Conflicting field was defined here") pcf;

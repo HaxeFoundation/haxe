@@ -418,7 +418,7 @@ let array_access ctx e1 e2 mode p =
 				let pt = spawn_monomorph ctx p in
 				let t = ctx.t.tarray pt in
 				begin try
-					unify_raise ctx et t p
+					unify_raise et t p
 				with Error(Unify _,_) ->
 					if not ctx.untyped then begin
 						let msg = if !has_abstract_array_access then

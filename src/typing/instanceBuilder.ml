@@ -77,7 +77,7 @@ let build_instance ctx mtype p =
 				let t = spawn_monomorph ctx p in
 				r := lazy_processing (fun() -> t);
 				let tf = (f()) in
-				unify_raise ctx tf t p;
+				unify_raise tf t p;
 				link_dynamic t tf;
 				(match tf with
 					| TInst (c, _) -> ignore(c.cl_build())

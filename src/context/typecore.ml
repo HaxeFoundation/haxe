@@ -282,7 +282,7 @@ let unify ctx t1 t2 p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let unify_raise_custom uctx (ctx : typer) t1 t2 p =
+let unify_raise_custom uctx t1 t2 p =
 	try
 		Type.unify_custom uctx t1 t2
 	with

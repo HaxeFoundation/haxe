@@ -651,13 +651,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let cttype = mk_type_path (["haxe";"macro"],"Type") in
 		let ttype = Typeload.load_instance mctx (cttype,p) false in
 		try
-			unify_raise mctx mret ttype mpos;
+			unify_raise mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* warning ctx WDeprecated "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
 		with Error (Unify _,_) ->
 			let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
-			unify_raise mctx mret ttype mpos;
+			unify_raise mret ttype mpos;
 	);
 	(*
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_args
@@ -688,7 +688,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
 		*)
 		let eargs = List.map (fun (n,o,t) ->
-			try unify_raise mctx t expr p; (n, o, t_dynamic), MAExpr
+			try unify_raise t expr p; (n, o, t_dynamic), MAExpr
 			with Error (Unify _,_) -> match follow t with
 				| TFun _ ->
 					(n,o,t), MAFunction

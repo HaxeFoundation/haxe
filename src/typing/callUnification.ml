@@ -201,7 +201,7 @@ let unify_typed_args ctx tmap args el_typed call_pos =
 			List.rev acc_args,args
 		| ((_,opt,t0) as arg) :: args,e :: el ->
 			begin try
-				unify_raise ctx (tmap e.etype) t0 e.epos;
+				unify_raise (tmap e.etype) t0 e.epos;
 			with Error(Unify _ as msg,p) ->
 				let call_error = Call_error(Could_not_unify msg) in
 				raise(Error(call_error,p))

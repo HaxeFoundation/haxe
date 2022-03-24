@@ -107,7 +107,7 @@ module IterationKind = struct
 			let try_acc acc =
 				let acc_expr = build_call ctx acc [] WithType.value e.epos in
 				try
-					unify_raise ctx acc_expr.etype t acc_expr.epos;
+					unify_raise acc_expr.etype t acc_expr.epos;
 					acc_expr
 				with Error (Unify(l),p) ->
 					try_last_resort (fun () ->

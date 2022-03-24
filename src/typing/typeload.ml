@@ -285,7 +285,7 @@ let check_param_constraints ctx t map c p =
 		List.iter (fun ti ->
 			let ti = map ti in
 			try
-				unify_raise ctx t ti p
+				unify_raise t ti p
 			with Error(Unify l,p) ->
 				let fail() =
 					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
@@ -293,7 +293,7 @@ let check_param_constraints ctx t map c p =
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
 					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
-					begin try unify_raise ctx e.etype ti p
+					begin try unify_raise e.etype ti p
 					with Error (Unify _,_) -> fail() end
 				| _ ->
 					fail()

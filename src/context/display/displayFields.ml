@@ -58,7 +58,7 @@ let collect_static_extensions ctx items e p =
 				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
 				List.iter2 (fun m tp -> match follow tp.ttp_type with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
+						List.iter (fun tc -> unify_raise m (map tc) e.epos) constr
 					| _ -> ()
 				) monos f.cf_params;
 				if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
