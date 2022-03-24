@@ -315,7 +315,7 @@ let check_module sctx ctx m p =
 			end
 		) paths
 	in
-	let start_mark = sctx.compilation_step in
+	let start_mark = ctx.com.compilation_step in
 	let rec check m =
 		let check_module_path () =
 			let directories = get_changed_directories sctx ctx in
@@ -415,13 +415,13 @@ let check_module sctx ctx m p =
 let add_modules sctx ctx m p =
 	let com = ctx.Typecore.com in
 	let rec add_modules tabs m0 m =
-		if m.m_extra.m_added < sctx.compilation_step then begin
+		if m.m_extra.m_added < ctx.com.compilation_step then begin
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 			| _ ->
-				m.m_extra.m_added <- sctx.compilation_step;
+				m.m_extra.m_added <- ctx.com.compilation_step;
 				ServerMessage.reusing com tabs m;
 				List.iter (fun t ->
 					match t with

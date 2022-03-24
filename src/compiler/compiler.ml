@@ -750,7 +750,7 @@ let compile_ctx server_api comm ctx =
 			error ctx ("Error: " ^ msg) null_pos;
 			false
 
-let create_context compilation_step comm cs params = {
+let create_context comm cs compilation_step params = {
 	com = Common.create compilation_step cs version params;
 	messages = [];
 	has_next = false;
@@ -765,7 +765,7 @@ module HighLevel = struct
 		let compilations = DynArray.create () in
 		let curdir = Unix.getcwd () in
 		let add_context args =
-			let ctx = create args in
+			let ctx = create (server_api.on_context_create()) args in
 			(* --cwd triggers immediately, so let's reset *)
 			Unix.chdir curdir;
 			DynArray.add compilations ctx;
@@ -811,11 +811,11 @@ module HighLevel = struct
 		DynArray.to_list compilations
 
 	let entry server_api comm args =
-		let create = create_context (server_api.on_context_create()) comm server_api.cache in
+		let create = create_context comm server_api.cache in
 		let ctxs = try
 			process_params server_api create args
 		with Arg.Bad msg ->
-			let ctx = create args in
+			let ctx = create 0 args in
 			error ctx ("Error: " ^ msg) null_pos;
 			[ctx]
 		in
