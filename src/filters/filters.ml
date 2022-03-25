@@ -732,6 +732,15 @@ let destruction tctx detail_times main locals =
 	t();
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
+	List.iter
+		(run_expression_filters
+			~ignore_processed_status:true
+			(timer_label detail_times [])
+			tctx
+			(* This has to run after DCE, or otherwise its condition always holds. *)
+			["insert_save_stacks",Exceptions.insert_save_stacks tctx]
+		)
+		com.types;
 	let type_filters = [
 		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
 		check_private_path tctx;
@@ -917,7 +926,6 @@ let run com tctx main =
 		| Eval -> (fun e -> e)
 		| _ -> (fun e -> RenameVars.run tctx.curclass.cl_path locals e));
 		"mark_switch_break_loops",mark_switch_break_loops;
-		"insert_save_stacks",Exceptions.insert_save_stacks tctx
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
 	let t = filter_timer detail_times ["callbacks"] in

@@ -48,7 +48,7 @@ let is_overridden cls field =
 	in
 	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
 
-let run_expression_filters time_details ctx filters t =
+let run_expression_filters ?(ignore_processed_status=false) time_details ctx filters t =
 	let run e =
 		List.fold_left
 			(fun e (filter_name,f) ->
@@ -67,7 +67,7 @@ let run_expression_filters time_details ctx filters t =
 	| TClassDecl c ->
 		ctx.curclass <- c;
 		let rec process_field f =
-			if not (has_class_field_flag f CfPostProcessed) then begin
+			if ignore_processed_status || not (has_class_field_flag f CfPostProcessed) then begin
 				ctx.curfield <- f;
 				(match f.cf_expr with
 				| Some e when not (is_removable_field ctx.com f) ->
