@@ -186,37 +186,42 @@ module Communication = struct
 				ignore(read_line());
 			end;
 			flush stdout;
-			if has_error ctx then exit 1
 		);
+		exit = exit;
 		is_server = false;
 	}
 
-	let create_pipe sctx write = {
-		write_out = (fun s ->
-			write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
-		);
-		write_err = (fun s ->
-			write s
-		);
-		flush = (fun ctx ->
-			check_display_flush ctx (fun () ->
-				List.iter
-					(fun msg ->
-						let s = compiler_message_string msg in
-						write (s ^ "\n");
-						ServerMessage.message s;
-					)
-					(List.rev ctx.messages);
-				sctx.was_compilation <- ctx.com.display.dms_full_typing;
-				if has_error ctx then begin
-					measure_times := false;
-					write "\x02\n"
-				end else
-					maybe_cache_context sctx ctx.com;
-			)
-		);
-		is_server = true;
-	}
+	let create_pipe sctx write =
+		let rec comm = {
+			write_out = (fun s ->
+				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+			);
+			write_err = (fun s ->
+				write s
+			);
+			flush = (fun ctx ->
+				check_display_flush ctx (fun () ->
+					List.iter
+						(fun msg ->
+							let s = compiler_message_string msg in
+							write (s ^ "\n");
+							ServerMessage.message s;
+						)
+						(List.rev ctx.messages);
+					sctx.was_compilation <- ctx.com.display.dms_full_typing;
+					if has_error ctx then begin
+						measure_times := false;
+						write "\x02\n"
+					end else
+						maybe_cache_context sctx ctx.com;
+				)
+			);
+			exit = (fun i ->
+				()
+			);
+			is_server = true;
+		} in
+		comm
 end
 
 let stat dir =
