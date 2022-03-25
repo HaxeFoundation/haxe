@@ -211,8 +211,7 @@ module Communication = struct
 				if has_error ctx then begin
 					measure_times := false;
 					write "\x02\n"
-				end else
-					maybe_cache_context sctx ctx.com;
+				end
 			)
 		);
 		is_server = true;
