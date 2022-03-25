@@ -46,6 +46,7 @@ class Issue10635 extends DisplayTestCase {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue10635/MainBefore.hx"));
 		runHaxe(args);
 		vfs.putContent("Main.hx", getTemplate("issues/Issue10635/MainAfter.hx"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		// Note: We only have to run this once to reproduce because ServerMethods.Type will call cl_restore anyway
 		runHaxe(args);
 		runHaxeJson(args, ServerMethods.Contexts, null);
