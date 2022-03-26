@@ -186,8 +186,8 @@ module Communication = struct
 				ignore(read_line());
 			end;
 			flush stdout;
-			if has_error ctx then exit 1
 		);
+		exit = exit;
 		is_server = false;
 	}
 
@@ -214,6 +214,9 @@ module Communication = struct
 				end else
 					maybe_cache_context sctx ctx.com;
 			)
+		);
+		exit = (fun i ->
+			()
 		);
 		is_server = true;
 	}

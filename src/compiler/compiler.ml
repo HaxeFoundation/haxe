@@ -692,10 +692,8 @@ with
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
-	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
-		finalize ctx;
-		if !Timer.measure_times then Timer.report_times prerr_endline;
-		exit i
+	| EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ as exc ->
+		raise exc
 	| DisplayException dex ->
 		handle_display_exception ctx dex
 	| Out_of_memory as exc ->
@@ -703,7 +701,22 @@ with
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
-let compile_ctx server_api comm ctx =
+let catch_completion_and_exit ctx server_api run =
+	try
+		run ctx;
+		if ctx.has_error then 1 else 0
+	with
+		| DisplayOutput.Completion str ->
+			server_api.after_compilation ctx;
+			ServerMessage.completion str;
+			ctx.comm.write_err str;
+			1
+		| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
+			if i <> 0 then ctx.has_error <- true;
+			finalize ctx;
+			i
+
+let compile_ctx server_api ctx =
 	let run ctx =
 		server_api.before_anything ctx;
 		setup_common_context ctx;
@@ -732,23 +745,11 @@ let compile_ctx server_api comm ctx =
 		finalize ctx;
 		server_api.after_compilation ctx;
 	in
-	try
-		if ctx.has_error then begin
-			finalize ctx;
-			false (* can happen if process_params above fails already *)
-		end else begin
-			run ctx;
-			true (* reads as "continue?" *)
-		end
-	with
-		| DisplayOutput.Completion str ->
-			server_api.after_compilation ctx;
-			ServerMessage.completion str;
-			comm.write_err str;
-			false
-		| Arg.Bad msg ->
-			error ctx ("Error: " ^ msg) null_pos;
-			false
+	if ctx.has_error then begin
+		finalize ctx;
+		1 (* can happen if process_params fails already *)
+	end else
+		catch_completion_and_exit ctx server_api run
 
 let create_context comm cs compilation_step params = {
 	com = Common.create compilation_step cs version params;
@@ -819,9 +820,15 @@ module HighLevel = struct
 			error ctx ("Error: " ^ msg) null_pos;
 			[ctx]
 		in
-		let success = List.fold_left (fun b ctx -> b && compile_ctx server_api comm ctx) true ctxs in
-		if success then begin
+		let code = List.fold_left (fun code ctx ->
+			if code = 0 then
+				compile_ctx server_api ctx
+			else
+				code
+		) 0 ctxs in
+		if code = 0 then begin
 			Timer.close_times();
 			if !Timer.measure_times then Timer.report_times (fun s -> comm.write_err (s ^ "\n"));
 		end;
+		comm.exit code
 end
