@@ -403,6 +403,12 @@ let delay_late ctx p f =
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
+let delay_if_mono ctx p t f = match follow t with
+	| TMono _ ->
+		delay ctx p f
+	| _ ->
+		f()
+
 let rec flush_pass ctx p (where:string) =
 	match ctx.g.delayed with
 	| (p2,l) :: rest when p2 <= p ->
