@@ -8,8 +8,14 @@ abstract AtomicObject<T:{}>(AtomicReference<T>) {
 	}
 
 	public inline function compareExchange(expected:T, replacement:T):T {
-		final original = this.get();
-		if (this.compareAndSet(expected, replacement)) {} // TODO: this is probably subject to race conditions
+		// Java's compareAndSet returns a boolean, so do a CAS loop to be able to return the original value without a potential race condition
+
+		var original;
+		var real_replacement;
+		do {
+			original = this.get();
+			real_replacement = original == expected ? replacement : original;
+		} while (!this.compareAndSet(original, real_replacement));
 		return original;
 	}
 
