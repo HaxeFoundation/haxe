@@ -366,15 +366,7 @@ let add_local_with_origin ctx origin n t p =
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =
-	(* ensure that our generated local does not mask an existing one *)
-	let rec loop n =
-		let nv = (if n = 0 then gen_local_prefix else gen_local_prefix ^ string_of_int n) in
-		if PMap.mem nv ctx.locals then
-			loop (n+1)
-		else
-			nv
-	in
-	add_local ctx VGenerated (loop 0) t p
+	add_local ctx VGenerated "`" t p
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
@@ -685,6 +677,20 @@ let is_empty_or_pos_infos args =
 	| [_,true,t] -> is_pos_infos t
 	| [] -> true
 	| _ -> false
+
+let get_next_stored_typed_expr_id =
+	let uid = ref 0 in
+	(fun() -> incr uid; !uid)
+
+let get_stored_typed_expr com id =
+	let e = PMap.find id com.stored_typed_exprs in
+	Texpr.duplicate_tvars e
+
+let store_typed_expr com te p =
+	let id = get_next_stored_typed_expr_id() in
+	com.stored_typed_exprs <- PMap.add id te com.stored_typed_exprs;
+	let eid = (EConst (Int (string_of_int id, None))), p in
+	(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
