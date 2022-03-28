@@ -320,7 +320,7 @@ jobs:
 
       - name: Install dependencies
         env:
-          ZLIB_VERSION: 1.2.11
+          ZLIB_VERSION: 1.2.12
           MBEDTLS_VERSION: 2.25.0
           PCRE_VERSION: 10.39
         run: |
