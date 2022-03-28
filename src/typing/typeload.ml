@@ -58,16 +58,16 @@ let check_field_access ctx cff =
 			try
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
-					display_error ctx (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
-					display_error ctx (compl_msg "Previously defined here") p2;
+					display_error ctx.com (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
+					display_error ctx.com (compl_msg "Previously defined here") p2;
 				end;
 				loop p1 acc l
 			with Not_found -> match access with
 				| APublic | APrivate ->
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
-						display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-						display_error ctx (compl_msg "Conflicts with this") p2;
+						display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
+						display_error ctx.com (compl_msg "Conflicts with this") p2;
 						loop p1 acc l
 					with Not_found ->
 						loop p1 ((access,p1) :: acc) l
@@ -254,8 +254,8 @@ let is_redefined ctx cf1 fields p =
 		let cf2 = PMap.find cf1.cf_name fields in
 		let st = s_type (print_context()) in
 		if not (type_iseq cf1.cf_type cf2.cf_type) then begin
-			display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
-			display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
+			display_error ctx.com ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
+			display_error ctx.com ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
 			typing_error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
 		end else
 			true
@@ -288,7 +288,7 @@ let check_param_constraints ctx t map c p =
 				unify_raise t ti p
 			with Error(Unify l,p) ->
 				let fail() =
-					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
+					if not ctx.untyped then display_error ctx.com (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
@@ -753,13 +753,13 @@ let load_type_hint ?(opt=false) ctx pcur t =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
-let field_to_type_path ctx e =
+let field_to_type_path com e =
 	let rec loop e pack name = match e with
 		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
 			| [] | _ :: [] ->
 				loop e pack (f :: name)
 			| _ -> (* too many name paths *)
-				display_error ctx ("Unexpected " ^ f) p;
+				display_error com ("Unexpected " ^ f) p;
 				raise Exit)
 		| EField(e,f,_),_ ->
 			loop e (f :: pack) name
@@ -770,7 +770,7 @@ let field_to_type_path ctx e =
 					if Char.uppercase fchar = fchar then
 						pack, f, None
 					else begin
-						display_error ctx "A class name must start with an uppercase letter" (snd e);
+						display_error com "A class name must start with an uppercase letter" (snd e);
 						raise Exit
 					end
 				| [name] ->
@@ -782,7 +782,7 @@ let field_to_type_path ctx e =
 			in
 			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
 		| _,pos ->
-			display_error ctx "Unexpected expression when building strict meta" pos;
+			display_error com "Unexpected expression when building strict meta" pos;
 			raise Exit
 	in
 	loop e [] []
@@ -814,7 +814,7 @@ let rec type_type_param ctx host path get_params p tp =
 			| TPHConstructor
 			| TPHMethod
 			| TPHEnumConstructor ->
-				display_error ctx "Default type parameters are only supported on types" (pos ct)
+				display_error ctx.com "Default type parameters are only supported on types" (pos ct)
 			end;
 			Some t
 	in
@@ -849,7 +849,7 @@ let rec type_type_param ctx host path get_params p tp =
 and type_type_params ctx host path get_params p tpl =
 	let names = ref [] in
 	List.map (fun tp ->
-		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
+		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx.com ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
 		names := (fst tp.tp_name) :: !names;
 		type_type_param ctx host path get_params p tp
 	) tpl
@@ -895,8 +895,8 @@ let init_core_api ctx c =
 					| Invalid_argument _ ->
 						typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
 					| Unify_error l ->
-						display_error ctx ("Type parameter " ^ tp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
-						display_error ctx (error_msg (Unify l)) c.cl_pos
+						display_error ctx.com ("Type parameter " ^ tp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
+						display_error ctx.com (error_msg (Unify l)) c.cl_pos
 				end
 			| t1,t2 ->
 				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
@@ -913,8 +913,8 @@ let init_core_api ctx c =
 		(try
 			type_eq EqCoreType (apply_params ccore.cl_params (extract_param_types c.cl_params) f.cf_type) f2.cf_type
 		with Unify_error l ->
-			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
-			display_error ctx (error_msg (Unify l)) p);
+			display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in core type") p;
+			display_error ctx.com (error_msg (Unify l)) p);
 		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then typing_error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
 		(match f2.cf_doc with
 		| None -> f2.cf_doc <- f.cf_doc

@@ -391,7 +391,7 @@ let make_macro_api ctx p =
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
-		MacroApi.display_error = Typecore.display_error ctx;
+		MacroApi.display_error = Typecore.display_error ctx.com;
 		MacroApi.with_imports = (fun imports usings f ->
 			let old_globals = ctx.m.module_globals in
 			let old_imports = ctx.m.module_imports in
@@ -813,7 +813,7 @@ let call_init_macro ctx e =
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
 		end
 	with err ->
-		display_error ctx ("Could not parse `" ^ e ^ "`") p;
+		display_error ctx.com ("Could not parse `" ^ e ^ "`") p;
 		raise err
 	in
 	match fst e with

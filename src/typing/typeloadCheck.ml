@@ -152,8 +152,8 @@ let get_native_name meta =
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
-		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ctx (compl_msg "Base field is defined here") base_pos
+		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
+		display_error ctx.com (compl_msg "Base field is defined here") base_pos
 	in
 	try
 		let child_name, child_pos = get_native_name child.cf_meta in
@@ -168,14 +168,14 @@ let check_native_name_override ctx child base =
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
-		if has_class_field_flag f CfOverride then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
+		if has_class_field_flag f CfOverride then display_error ctx.com ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		let p = f.cf_name_pos in
 		let i = f.cf_name in
 		let check_field f get_super_field is_overload = try
 			(if is_overload && not (has_class_field_flag f CfOverload) then
-				display_error ctx ("Missing overload declaration for field " ^ i) p);
+				display_error ctx.com ("Missing overload declaration for field " ^ i) p);
 			let f_has_override = has_class_field_flag f CfOverride in
 			let t, f2 = get_super_field csup i in
 			check_native_name_override ctx f f2;
@@ -185,35 +185,35 @@ let check_overriding ctx c f =
 			| _ -> ());
 			if has_class_field_flag f2 CfAbstract then begin
 				if f_has_override then
-					display_error ctx ("Field " ^ i ^ " is declared 'override' but parent field " ^ i ^ " is 'abstract' and does not provide any implementation to override") p
+					display_error ctx.com ("Field " ^ i ^ " is declared 'override' but parent field " ^ i ^ " is 'abstract' and does not provide any implementation to override") p
 				else
 					add_class_field_flag f CfOverride (* our spec requires users to not "override" abstract functions, but our implementation depends on implementations to be declared with "override" ¯\_(ツ)_/¯ *)
 			end;
 			if (has_class_field_flag f2 CfOverload && not (has_class_field_flag f CfOverload)) then
-				display_error ctx ("Field " ^ i ^ " should be declared with overload since it was already declared as overload in superclass") p
+				display_error ctx.com ("Field " ^ i ^ " should be declared with overload since it was already declared as overload in superclass") p
 			else if not f_has_override && not (has_class_field_flag f2 CfAbstract) then begin
 				if has_class_flag c CExtern then add_class_field_flag f CfOverride
-				else display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
+				else display_error ctx.com ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
 			end else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
-				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
+				display_error ctx.com ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 			else (match f.cf_kind, f2.cf_kind with
 			| _, Method MethInline ->
-				display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
+				display_error ctx.com ("Field " ^ i ^ " is inlined and cannot be overridden") p
 			| a, b when a = b -> ()
 			| Method MethInline, Method MethNormal ->
 				() (* allow to redefine a method as inlined *)
 			| _ ->
-				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
+				display_error ctx.com ("Field " ^ i ^ " has different property access than in superclass") p);
+			if (has_class_field_flag f2 CfFinal) then display_error ctx.com ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
 				let map = TClass.get_map_function csup params in
 				valid_redefinition ctx map map f f.cf_type f2 t;
 			with
 				Unify_error l ->
-					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ctx (compl_msg "Base field is defined here") f2.cf_name_pos;
-					display_error ctx (compl_msg (error_msg (Unify l))) p;
+					display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
+					display_error ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
+					display_error ctx.com (compl_msg (error_msg (Unify l))) p;
 		with
 			Not_found ->
 				if has_class_field_flag f CfOverride then
@@ -227,7 +227,7 @@ let check_overriding ctx c f =
 						) fields [] in
 						StringError.string_error i fields ("Field " ^ i ^ " is declared 'override' but doesn't override any field")
 					end in
-					display_error ctx msg p
+					display_error ctx.com msg p
 		in
 		if has_class_field_flag f CfOverload then begin
 			let overloads = Overloads.get_overloads ctx.com csup i in
@@ -235,7 +235,7 @@ let check_overriding ctx c f =
 				(* check if any super class fields are vars *)
 				match f2.cf_kind with
 				| Var _ ->
-					display_error ctx ("A variable named '" ^ f2.cf_name ^ "' was already declared in a superclass") f.cf_pos
+					display_error ctx.com ("A variable named '" ^ f2.cf_name ^ "' was already declared in a superclass") f.cf_pos
 				| _ -> ()
 			) overloads;
 			List.iter (fun f ->
@@ -267,7 +267,7 @@ let class_field_no_interf c i =
 
 let rec return_flow ctx e =
 	let error() =
-		display_error ctx (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
+		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
 	in
 	let return_flow = return_flow ctx in
 	let rec uncond e = match e.eexpr with
@@ -385,18 +385,18 @@ module Inheritance = struct
 						| MethMacro -> 2
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
-						display_error ctx ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
+						display_error ctx.com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 					else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-						display_error ctx ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+						display_error ctx.com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
 						let map1 = TClass.get_map_function  intf params in
 						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
-								display_error ctx ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ctx (compl_msg "Interface field is defined here") f.cf_pos;
-								display_error ctx (compl_msg (error_msg (Unify l))) p;
+								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+								display_error ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
+								display_error ctx.com (compl_msg (error_msg (Unify l))) p;
 							end
 				)
 			with
@@ -419,7 +419,7 @@ module Inheritance = struct
 						else
 							("Field " ^ f.cf_name ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
 						in
-						display_error ctx msg p
+						display_error ctx.com msg p
 					end
 				| Not_found -> ()
 		in
@@ -486,8 +486,8 @@ module Inheritance = struct
 			display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 		| l ->
 			let singular = match l with [_] -> true | _ -> false in
-			display_error ctx (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
-			display_error ctx (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
+			display_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
+			display_error ctx.com (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
 			let pctx = print_context() in
 			List.iter (fun (cf,_) ->
 				let s = match follow cf.cf_type with
@@ -496,7 +496,7 @@ module Inheritance = struct
 					| t ->
 						s_type pctx t
 				in
-				display_error ctx (Printf.sprintf "... %s(%s)" cf.cf_name s) cf.cf_name_pos
+				display_error ctx.com (Printf.sprintf "... %s(%s)" cf.cf_name s) cf.cf_name_pos
 			) (List.rev !missing)
 
 	let set_heritance ctx c herits p =
@@ -589,7 +589,7 @@ module Inheritance = struct
 					)
 				| TDynamic t ->
 					if c.cl_dynamic <> None then typing_error "Cannot have several dynamics" p;
-					if not (has_class_flag c CExtern) then display_error ctx "In haxe 4, implements Dynamic is only supported on externs" p;
+					if not (has_class_flag c CExtern) then display_error ctx.com "In haxe 4, implements Dynamic is only supported on externs" p;
 					c.cl_dynamic <- Some t;
 					(fun () -> ())
 				| _ ->
@@ -639,6 +639,6 @@ let check_final_vars ctx e =
 		in
 		find_inits e;
 		Hashtbl.iter (fun _ cf ->
-			display_error ctx ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
+			display_error ctx.com ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
 		) final_vars
 	end

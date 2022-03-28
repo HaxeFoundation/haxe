@@ -289,8 +289,8 @@ let rec build_generic ctx c p tl =
 					| None ->
 						begin match cf_old.cf_kind with
 							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
-								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
-								display_error ctx (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
+								display_error ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
+								display_error ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
 								()
 						end
@@ -381,8 +381,8 @@ let type_generic_function ctx fa fcc with_type p =
 		let unify_existing_field tcf pcf = try
 			unify_raise tcf fcc.fc_type p
 		with Error(Unify _,_) as err ->
-			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_error ctx (compl_msg "Conflicting field was defined here") pcf;
+			display_error ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
+			display_error ctx.com (compl_msg "Conflicting field was defined here") pcf;
 			raise err
 		in
 		let fa = try
@@ -409,14 +409,14 @@ let type_generic_function ctx fa fcc with_type p =
 				ignore(follow cf.cf_type);
 				let rec check e = match e.eexpr with
 					| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
-						display_error ctx "Only generic type parameters can be constructed" e.epos;
-						display_error ctx "While specializing this call" p;
+						display_error ctx.com "Only generic type parameters can be constructed" e.epos;
+						display_error ctx.com "While specializing this call" p;
 					| _ ->
 						Type.iter check e
 				in
 				cf2.cf_expr <- (match cf.cf_expr with
 					| None ->
-						display_error ctx "Recursive @:generic function" p; None;
+						display_error ctx.com "Recursive @:generic function" p; None;
 					| Some e ->
 						let e = generic_substitute_expr gctx e in
 						check e;
