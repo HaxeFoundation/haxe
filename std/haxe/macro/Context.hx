@@ -416,7 +416,10 @@ class Context {
 		Types expression `e` and returns the corresponding `TypedExpr`.
 
 		Typing the expression may result in a compiler error which can be
-		caught using `try ... catch`.
+		caught using `try ... catch`. Note that not all compiler errors can
+		be caught this way because the compiler might delay various checks
+		to a later stage, at which point the exception handler is no longer
+		active.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
 		return load("type_expr", 1)(e);

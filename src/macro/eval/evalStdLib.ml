@@ -2585,8 +2585,6 @@ module StdSys = struct
 	)
 
 	let exit = vfun1 (fun code ->
-		(* TODO: Borrowed from interp.ml *)
-		if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
 		raise (Sys_exit(decode_int code));
 	)
 

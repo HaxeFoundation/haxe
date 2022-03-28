@@ -637,14 +637,12 @@ and type_vars ctx vl p =
 				check_error ctx e p;
 				add_local ctx VGenerated n t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
-	delay ctx PTypeField (fun() ->
-		List.iter
-			(fun (v,_) ->
-				if ExtType.is_void (follow v.v_type) then
-					typing_error "Variables of type Void are not allowed" v.v_pos
-			)
-			vl
-	);
+	List.iter (fun (v,_) ->
+		delay_if_mono ctx PTypeField v.v_type (fun() ->
+			if ExtType.is_void (follow v.v_type) then
+				typing_error "Variables of type Void are not allowed" v.v_pos
+		)
+	) vl;
 	match vl with
 	| [v,eo] ->
 		mk (TVar (v,eo)) ctx.t.tvoid p

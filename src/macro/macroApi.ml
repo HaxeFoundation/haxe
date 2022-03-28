@@ -921,7 +921,7 @@ and encode_tabstract a =
 		"type", encode_type a.a_this;
 		"impl", (match a.a_impl with None -> vnull | Some c -> encode_clref c);
 		"binops", encode_array (List.map (fun (op,cf) -> encode_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops);
-		"unops", encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "isPostfix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
+		"unops", encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "postFix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
 		"from", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field));
 		"to", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
 		"array", encode_array (List.map encode_cfield a.a_array);

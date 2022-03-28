@@ -30,6 +30,7 @@ type communication = {
 	write_out : string -> unit;
 	write_err : string -> unit;
 	flush     : compilation_context -> unit;
+	exit      : int -> unit;
 	is_server : bool;
 }
 

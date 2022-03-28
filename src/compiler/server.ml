@@ -186,8 +186,8 @@ module Communication = struct
 				ignore(read_line());
 			end;
 			flush stdout;
-			if has_error ctx then exit 1
 		);
+		exit = exit;
 		is_server = false;
 	}
 
@@ -213,6 +213,9 @@ module Communication = struct
 					write "\x02\n"
 				end
 			)
+		);
+		exit = (fun i ->
+			()
 		);
 		is_server = true;
 	}
