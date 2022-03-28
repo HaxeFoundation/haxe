@@ -108,7 +108,7 @@ let check_display_enum ctx decls en =
 	PMap.iter (fun _ ef ->
 		if display_position#enclosed_in ef.ef_pos then begin
 			let sef = find_enum_field_by_position se ef.ef_name_pos in
-			ignore(TypeloadModule.load_enum_field ctx en (TEnum (en,extract_param_types en.e_params)) (ref false) (ref 0) sef)
+			ignore(TypeloadModule.TypeLevel.load_enum_field ctx en (TEnum (en,extract_param_types en.e_params)) (ref false) (ref 0) sef)
 		end
 	) en.e_constrs
 
@@ -143,8 +143,8 @@ let check_display_module ctx decls m =
 		| (EImport _ | EUsing _),_ -> true
 		| _ -> false
 	) decls in
-	let imports = TypeloadModule.handle_import_hx ctx m imports null_pos in
-	let ctx = TypeloadModule.type_types_into_module ctx m imports null_pos in
+	let imports = TypeloadModule.ModuleLevel.handle_import_hx ctx ctx.g m imports null_pos in
+	let ctx = TypeloadModule.type_types_into_module ctx.com ctx.g m imports null_pos in
 	List.iter (fun md ->
 		let infos = t_infos md in
 		if display_position#enclosed_in infos.mt_name_pos then
