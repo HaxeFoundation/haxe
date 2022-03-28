@@ -226,10 +226,9 @@ let stat dir =
 	(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
 
 (* Gets a list of changed directories for the current compilation. *)
-let get_changed_directories sctx (ctx : Typecore.typer) =
+let get_changed_directories sctx (com : Common.context) =
 	let t = Timer.timer ["server";"module cache";"changed dirs"] in
 	let cs = sctx.cs in
-	let com = ctx.Typecore.com in
 	let sign = Define.get_signature com.defines in
 	let dirs = try
 		(* First, check if we already have determined changed directories for current compilation. *)
@@ -292,16 +291,15 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
-let check_module sctx ctx m p =
-	let com = ctx.Typecore.com in
+let check_module sctx (com : Common.context) m p =
 	let cc = CommonCache.get_cache com in
 	let content_changed m file =
-		let fkey = ctx.com.file_keys#get file in
+		let fkey = com.file_keys#get file in
 		try
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
-			let new_data = TypeloadParse.parse_module ctx m.m_path p in
+			let new_data = TypeloadParse.parse_module com m.m_path p in
 			cfile.c_decls <> snd new_data
 		with Not_found ->
 			true
@@ -318,10 +316,10 @@ let check_module sctx ctx m p =
 			end
 		) paths
 	in
-	let start_mark = ctx.com.compilation_step in
+	let start_mark = com.compilation_step in
 	let rec check m =
 		let check_module_path () =
-			let directories = get_changed_directories sctx ctx in
+			let directories = get_changed_directories sctx com in
 			match m.m_extra.m_kind with
 			| MFake | MImport -> () (* don't get classpath *)
 			| MExtern ->
@@ -353,12 +351,16 @@ let check_module sctx ctx m p =
 					Prevents spending another 5 hours for debugging.
 					@see https://github.com/HaxeFoundation/haxe/issues/8174
 				*)
-				if not ctx.g.complete && ctx.com.is_macro_context then
+				(* if not ctx.g.complete && ctx.com.is_macro_context then
 					raise (ServerError ("Infinite loop in Haxe server detected. "
 						^ "Probably caused by shadowing a module of the standard library. "
-						^ "Make sure shadowed module does not pull macro context."));
-				let _, mctx = MacroContext.get_macro_context ctx p in
-				check_module_shadowing (get_changed_directories sctx mctx) m
+						^ "Make sure shadowed module does not pull macro context.")); *)
+				begin match com.get_macros() with
+				| Some mcom ->
+					check_module_shadowing (get_changed_directories sctx mcom) m
+				| None ->
+					()
+				end
 		in
 		let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
 			| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
@@ -415,16 +417,15 @@ let check_module sctx ctx m p =
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
    context. *)
-let add_modules sctx ctx m p =
-	let com = ctx.Typecore.com in
+let add_modules sctx (com : Common.context) m p =
 	let rec add_modules tabs m0 m =
-		if m.m_extra.m_added < ctx.com.compilation_step then begin
+		if m.m_extra.m_added < com.compilation_step then begin
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 			| _ ->
-				m.m_extra.m_added <- ctx.com.compilation_step;
+				m.m_extra.m_added <- com.compilation_step;
 				ServerMessage.reusing com tabs m;
 				List.iter (fun t ->
 					match t with
@@ -442,7 +443,7 @@ let add_modules sctx ctx m p =
 						a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 					| _ -> ()
 				) m.m_types;
-				TypeloadModule.ModuleLevel.add_module ctx m p;
+				TypeloadModule.ModuleLevel.add_module com m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 				PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
 			)
@@ -452,14 +453,13 @@ let add_modules sctx ctx m p =
 
 (* Looks up the module referred to by [mpath] in the cache. If it exists, a check is made to
    determine if it's still valid. If this function returns None, the module is re-typed. *)
-let type_module sctx (ctx:Typecore.typer) mpath p =
+let type_module sctx (com : Common.context) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
-	let com = ctx.Typecore.com in
 	let cc = CommonCache.get_cache com in
 	try
 		let m = cc#find_module mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
-		begin match check_module sctx ctx m p with
+		begin match check_module sctx com m p with
 		| None -> ()
 		| Some reason ->
 			ServerMessage.skipping_dep com "" (m,(Printer.s_module_skip_reason reason));
@@ -468,7 +468,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		end;
 		tcheck();
 		let tadd = Timer.timer ["server";"module cache";"add modules"] in
-		add_modules sctx ctx m p;
+		add_modules sctx com m p;
 		tadd();
 		t();
 		Some m

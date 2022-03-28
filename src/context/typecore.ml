@@ -68,8 +68,6 @@ type typer_module = {
 }
 
 type typer_globals = {
-	types_module : (path, path) Hashtbl.t;
-	modules : (path , module_def) Hashtbl.t;
 	mutable delayed : (typer_pass * (unit -> unit) list) list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
@@ -311,39 +309,39 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let display_identifier_error ctx ?prepend_msg msg p =
+let display_identifier_error com ?prepend_msg msg p =
 	let prepend = match prepend_msg with Some s -> s ^ " " | _ -> "" in
-	display_error ctx.com (prepend ^ msg) p
+	display_error com (prepend ^ msg) p
 
-let check_identifier_name ?prepend_msg ctx name kind p =
+let check_identifier_name ?prepend_msg com name kind p =
 	if starts_with name '$' then
-		display_identifier_error ctx ?prepend_msg ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
+		display_identifier_error com ?prepend_msg ((StringHelper.capitalize kind) ^ " names starting with a dollar are not allowed: \"" ^ name ^ "\"") p
 	else if not (Lexer.is_valid_identifier name) then
-		display_identifier_error ctx ?prepend_msg ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name.") p
+		display_identifier_error com ?prepend_msg ("\"" ^ (StringHelper.s_escape name) ^ "\" is not a valid " ^ kind ^ " name.") p
 
-let check_field_name ctx name p =
+let check_field_name com name p =
 	match name with
 	| "new" -> () (* the only keyword allowed in field names *)
-	| _ -> check_identifier_name ctx name "field" p
+	| _ -> check_identifier_name com name "field" p
 
-let check_uppercase_identifier_name ?prepend_msg ctx name kind p =
+let check_uppercase_identifier_name ?prepend_msg com name kind p =
 	if String.length name = 0 then
-		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name must not be empty.") p
+		display_identifier_error ?prepend_msg com ((StringHelper.capitalize kind) ^ " name must not be empty.") p
 	else if Ast.is_lower_ident name then
-		display_identifier_error ?prepend_msg ctx ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
+		display_identifier_error ?prepend_msg com ((StringHelper.capitalize kind) ^ " name should start with an uppercase letter: \"" ^ name ^ "\"") p
 	else
-		check_identifier_name ?prepend_msg ctx name kind p
+		check_identifier_name ?prepend_msg com name kind p
 
-let check_module_path ctx (pack,name) p =
+let check_module_path com (pack,name) p =
 	let full_path = StringHelper.s_escape (if pack = [] then name else (String.concat "." pack) ^ "." ^ name) in
-	check_uppercase_identifier_name ~prepend_msg:("Module \"" ^ full_path ^ "\" does not have a valid name.") ctx name "module" p;
+	check_uppercase_identifier_name ~prepend_msg:("Module \"" ^ full_path ^ "\" does not have a valid name.") com name "module" p;
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
-		display_error ctx.com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
-		display_error ctx.com msg p
+		display_error com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
+		display_error com msg p
 
-let check_local_variable_name ctx name origin p =
+let check_local_variable_name com name origin p =
 	match name with
 	| "this" -> () (* TODO: vars named `this` should technically be VGenerated, not VUser *)
 	| _ ->
@@ -356,10 +354,10 @@ let check_local_variable_name ctx name origin p =
 			| TVOCatchVariable -> "catch variable"
 			| TVOLocalFunction -> "function"
 		in
-		check_identifier_name ctx name (s_var_origin origin) p
+		check_identifier_name com name (s_var_origin origin) p
 
 let add_local_with_origin ctx origin n t p =
-	check_local_variable_name ctx n origin p;
+	check_local_variable_name ctx.com n origin p;
 	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"
@@ -455,7 +453,7 @@ let create_fake_module ctx file =
 		Hashtbl.add fake_modules key mdep;
 		mdep
 	) in
-	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
+	Hashtbl.replace ctx.com.module_lut mdep.m_path mdep;
 	mdep
 
 let push_this ctx e = match e.eexpr with

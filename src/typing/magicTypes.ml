@@ -26,7 +26,7 @@ let extend_remoting ctx c t p async prot =
 	(* build it *)
 	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
 	let file, decls = (try
-		TypeloadParse.parse_module ctx path p
+		TypeloadParse.parse_module ctx.com path p
 	with
 		| Not_found -> ctx.com.package_rules <- rules; typing_error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
 		| e -> ctx.com.package_rules <- rules; raise e) in
@@ -76,7 +76,7 @@ let extend_remoting ctx c t p async prot =
 			(EClass { c with d_flags = []; d_name = new_name,pos c.d_name; d_data = fields },p)
 		| _ -> d
 	) decls in
-	let m = type_module ctx ctx.g (t.tpackage,new_name) file decls p in
+	let m = type_module ctx.com ctx.g (t.tpackage,new_name) file decls p in
 	add_dependency ctx.m.curmod m;
 	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types

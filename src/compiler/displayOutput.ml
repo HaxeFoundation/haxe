@@ -377,7 +377,7 @@ let load_display_file_standalone ctx file =
 			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
 			com.class_path <- dir :: com.class_path
 	end;
-	ignore(TypeloadModule.type_module ctx ctx.g (pack,name) file ~dont_check_path:true decls null_pos)
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,name) file ~dont_check_path:true decls null_pos)
 
 let load_display_content_standalone ctx input =
 	let com = ctx.com in
@@ -385,7 +385,7 @@ let load_display_content_standalone ctx input =
 	let p = {pfile = file; pmin = 0; pmax = 0} in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
 	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
-	ignore(TypeloadModule.type_module ctx ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)
+	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)
 
 let promote_type_hints tctx =
 	let rec explore_type_hint (md,p,t) =

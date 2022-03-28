@@ -516,7 +516,7 @@ and handle_efield ctx e p0 mode with_type =
 							in
 							let pack,name,sub,p = loop [] None path in
 							let mpath = (pack,name) in
-							if Hashtbl.mem ctx.g.modules mpath then
+							if Hashtbl.mem ctx.com.module_lut mpath then
 								let tname = Option.default name sub in
 								raise (Error (Type_not_found (mpath,tname,Not_defined),p))
 							else
@@ -1947,8 +1947,6 @@ let rec create com =
 		g = {
 			core_api = None;
 			macros = None;
-			modules = Hashtbl.create 0;
-			types_module = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
 			global_metadata = [];
 			module_check_policies = [];

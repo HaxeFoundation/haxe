@@ -299,14 +299,14 @@ let parse_module' com m p =
 	let pack,decls = parse_module_file com file p in
 	file,remap,pack,decls
 
-let parse_module ctx m p =
-	let file,remap,pack,decls = parse_module' ctx.com m p in
+let parse_module com m p =
+	let file,remap,pack,decls = parse_module' com m p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in
 		if p == null_pos then
-			display_error ctx.com ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
+			display_error com ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
-			display_error ctx.com (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
+			display_error com (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
 	end;
 	file, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)

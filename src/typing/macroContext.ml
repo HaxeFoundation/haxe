@@ -303,7 +303,7 @@ let make_macro_api ctx p =
 			in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = TypeloadModule.type_module ctx ctx.g ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep;
 			in
@@ -329,10 +329,10 @@ let make_macro_api ctx p =
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
 			begin try
-				let m = Hashtbl.find ctx.g.modules mpath in
+				let m = Hashtbl.find ctx.com.module_lut mpath in
 				ignore(TypeloadModule.type_types_into_module ctx.com ctx.g m types pos)
 			with Not_found ->
-				let mnew = TypeloadModule.type_module ctx ctx.g mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod;
 			end
@@ -375,7 +375,7 @@ let make_macro_api ctx p =
 		MacroApi.add_module_check_policy = (fun sl il b i ->
 			let add ctx =
 				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
-				Hashtbl.iter (fun _ m -> m.m_extra.m_check_policy <- TypeloadModule.get_policy ctx.g m.m_path) ctx.g.modules;
+				Hashtbl.iter (fun _ m -> m.m_extra.m_check_policy <- TypeloadModule.get_policy ctx.g m.m_path) ctx.com.module_lut;
 			in
 			let add_macro ctx = match ctx.g.macros with
 				| None -> ()
@@ -537,7 +537,7 @@ let get_macro_context ctx p =
 
 let load_macro_module ctx cpath display p =
 	let api, mctx = get_macro_context ctx p in
-	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
+	let m = (try Hashtbl.find ctx.com.type_to_module cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
 	if display then mctx.com.display <- ctx.com.display;

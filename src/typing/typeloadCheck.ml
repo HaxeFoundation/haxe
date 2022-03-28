@@ -320,15 +320,15 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 	) ctx.g.global_metadata;
 	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
-let check_module_types ctx m p t =
+let check_module_types com m p t =
 	let t = t_infos t in
 	try
-		let m2 = Hashtbl.find ctx.g.types_module t.mt_path in
+		let m2 = Hashtbl.find com.type_to_module t.mt_path in
 		if m.m_path <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.m_path) then typing_error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		typing_error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
 	with
 		Not_found ->
-			Hashtbl.add ctx.g.types_module t.mt_path m.m_path
+			Hashtbl.add com.type_to_module t.mt_path m.m_path
 
 module Inheritance = struct
 	let is_basic_class_path path = match path with

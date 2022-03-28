@@ -597,12 +597,6 @@ let create_typer_context_for_class ctx cctx p =
 				| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
 				| t -> t)
 			| None -> TInst (c,extract_param_types c.cl_params));
-		(* on_error = (fun ctx msg ep ->
-			ctx.com.error msg ep;
-			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-			let open TFunctions in
-			if not (ExtString.String.starts_with msg "...") && !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error (compl_msg "Defined in this class") c.cl_pos
-		); *)
 	} in
 	ctx
 
@@ -721,7 +715,7 @@ let transform_field (ctx,cctx) c f fields p =
 	in
 	if List.mem_assoc AMacro f.cff_access then
 		(match ctx.g.macros with
-		| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
+		| Some (_,mctx) when Hashtbl.mem mctx.com.type_to_module c.cl_path ->
 			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
 			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
 				typing_error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
@@ -1609,7 +1603,7 @@ let init_field (ctx,cctx,fctx) f =
 	let name = fst f.cff_name in
 	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
-	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
+	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx.com name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()

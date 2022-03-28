@@ -55,21 +55,20 @@ module ModuleLevel = struct
 		} in
 		m
 
-	let add_module ctx m p =
-		List.iter (TypeloadCheck.check_module_types ctx m p) m.m_types;
-		Hashtbl.add ctx.g.modules m.m_path m
+	let add_module com m p =
+		List.iter (TypeloadCheck.check_module_types com m p) m.m_types;
+		Hashtbl.add com.module_lut m.m_path m
 
 	(*
 		Build module structure : should be atomic - no type loading is possible
 	*)
-	let create_module_types ctx m tdecls loadp =
-		let com = ctx.com in
+	let create_module_types com m tdecls loadp =
 		let decls = ref [] in
 		let statics = ref [] in
 		let check_name name meta also_statics p =
 			DeprecationCheck.check_is com name meta p;
 			let error prev_pos =
-				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
+				display_error com ("Name " ^ name ^ " is already defined in this module") p;
 				typing_error (compl_msg "Previous declaration here") prev_pos;
 			in
 			List.iter (fun (t2,(_,p2)) ->
@@ -89,7 +88,7 @@ module ModuleLevel = struct
 			let p = snd decl in
 			let check_type_name type_name meta =
 				let module_name = snd m.m_path in
-				if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name ctx type_name "type" p;
+				if type_name <> module_name && not (Meta.has Meta.Native meta) then Typecore.check_uppercase_identifier_name com type_name "type" p;
 			in
 			let acc = (match fst decl with
 			| EImport _ | EUsing _ ->
@@ -121,8 +120,8 @@ module ModuleLevel = struct
 				) d.d_flags;
 				if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
 				if has_class_flag c CAbstract then begin
-					if has_class_flag c CInterface then display_error ctx.com "An interface may not be abstract" c.cl_name_pos;
-					if has_class_flag c CFinal then display_error ctx.com "An abstract class may not be final" c.cl_name_pos;
+					if has_class_flag c CInterface then display_error com "An interface may not be abstract" c.cl_name_pos;
+					if has_class_flag c CFinal then display_error com "An abstract class may not be final" c.cl_name_pos;
 				end;
 				decls := (TClassDecl c, decl) :: !decls;
 				acc
@@ -162,11 +161,12 @@ module ModuleLevel = struct
 					t_meta = d.d_meta;
 				} in
 				(* failsafe in case the typedef is not initialized (see #3933) *)
-				delay ctx PBuildModule (fun () ->
+				(* delay ctx PBuildModule (fun () ->
 					match t.t_type with
 					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 					| _ -> ()
-				);
+				); *)
+				(* TODO *)
 				decls := (TTypeDecl t, decl) :: !decls;
 				acc
 			| EAbstract d ->
@@ -269,8 +269,7 @@ module ModuleLevel = struct
 		let decls = List.rev !decls in
 		decls, List.rev tdecls
 
-	let handle_import_hx ctx g m decls p =
-		let com = ctx.com in
+	let handle_import_hx com g m decls p =
 		let path_split = match List.rev (Path.get_path_parts (Path.UniqueKey.lazy_path m.m_extra.m_file)) with
 			| [] -> []
 			| _ :: l -> l
@@ -287,13 +286,13 @@ module ModuleLevel = struct
 			(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
 			let m_import = make_module com g ([],path) path p in
 			m_import.m_extra.m_kind <- MImport;
-			add_module ctx m_import p;
+			add_module com m_import p;
 			m_import
 		in
 		List.fold_left (fun acc path ->
 			let decls = try
 				let r = Hashtbl.find com.parser_cache path in
-				let mimport = Hashtbl.find ctx.g.modules ([],path) in
+				let mimport = Hashtbl.find com.module_lut ([],path) in
 				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport;
 				r
 			with Not_found ->
@@ -733,12 +732,12 @@ let create_typer_context_for_module com g m = {
 	Creates a module context for [m] and types [tdecls] using it.
 *)
 let type_types_into_module ?(check=true) com g m tdecls p =
-	let ctx = create_typer_context_for_module com g m in
-	let decls,tdecls = ModuleLevel.create_module_types ctx m tdecls p in
+	let decls,tdecls = ModuleLevel.create_module_types com m tdecls p in
 	let types = List.map fst decls in
-	if check then List.iter (TypeloadCheck.check_module_types ctx m p) types;
+	if check then List.iter (TypeloadCheck.check_module_types com m p) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
+	let ctx = create_typer_context_for_module com g m in
 	if ctx.g.std != null_module then begin
 		add_dependency m ctx.g.std;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
@@ -755,12 +754,12 @@ let type_types_into_module ?(check=true) com g m tdecls p =
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module ctx g mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let m = ModuleLevel.make_module ctx.com g mpath file p in
-	Hashtbl.add ctx.g.modules m.m_path m;
-	let tdecls = ModuleLevel.handle_import_hx ctx ctx.g m tdecls p in
-	let ctx = type_types_into_module ctx.com g m tdecls p in
-	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
+let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
+	let m = ModuleLevel.make_module com g mpath file p in
+	Hashtbl.add com.module_lut m.m_path m;
+	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
+	ignore(type_types_into_module com g m tdecls p);
+	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path com m.m_path p;
 	m
 
 (* let type_module ctx mpath file ?(is_extern=false) tdecls p =
@@ -769,17 +768,17 @@ let type_module ctx g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let load_module' ctx g m p =
+let load_module' com g m p =
 	try
-		Hashtbl.find ctx.g.modules m
+		Hashtbl.find com.module_lut m
 	with
 		Not_found ->
-			match !type_module_hook ctx m p with
+			match !type_module_hook com m p with
 			| Some m -> m
 			| None ->
 			let is_extern = ref false in
 			let file, decls = (try
-				TypeloadParse.parse_module ctx m p
+				TypeloadParse.parse_module com m p
 			with Not_found ->
 				let rec loop = function
 					| [] ->
@@ -790,16 +789,16 @@ let load_module' ctx g m p =
 						| Some (_,a) -> file, a
 				in
 				is_extern := true;
-				loop ctx.com.load_extern_type
+				loop com.load_extern_type
 			) in
 			let is_extern = !is_extern in
 			try
-				type_module ctx g m file ~is_extern decls p
+				type_module com g m file ~is_extern decls p
 			with Forbid_package (inf,pl,pf) when p <> null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 
 let load_module ctx m p =
-	let m2 = load_module' ctx ctx.g m p in
+	let m2 = load_module' ctx.com ctx.g m p in
 	add_dependency ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
 	m2

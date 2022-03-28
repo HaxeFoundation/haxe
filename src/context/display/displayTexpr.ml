@@ -143,7 +143,7 @@ let check_display_module ctx decls m =
 		| (EImport _ | EUsing _),_ -> true
 		| _ -> false
 	) decls in
-	let imports = TypeloadModule.ModuleLevel.handle_import_hx ctx ctx.g m imports null_pos in
+	let imports = TypeloadModule.ModuleLevel.handle_import_hx ctx.com ctx.g m imports null_pos in
 	let ctx = TypeloadModule.type_types_into_module ctx.com ctx.g m imports null_pos in
 	List.iter (fun md ->
 		let infos = t_infos md in
@@ -173,7 +173,7 @@ let check_display_file ctx cs =
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
-			begin match !TypeloadModule.type_module_hook ctx path null_pos with
+			begin match !TypeloadModule.type_module_hook ctx.com path null_pos with
 			| None -> raise Not_found
 			| Some m -> check_display_module ctx cfile.c_decls m
 			end

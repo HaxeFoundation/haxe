@@ -99,7 +99,7 @@ object(self)
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
 					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
-					if not is_extern then check_local_variable_name ctx name TVOArgument pn;
+					if not is_extern then check_local_variable_name ctx.com name TVOArgument pn;
 					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name t m pn in
 					if do_display && DisplayPosition.display_position#enclosed_in pn then
