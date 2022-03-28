@@ -274,6 +274,7 @@ let rec build_generic_class ctx c p tl =
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
+			remove_class_field_flag cf_new CfPostProcessed;
 			(* Type parameter constraints are substituted here. *)
 			cf_new.cf_params <- List.rev_map (fun tp -> match follow tp.ttp_type with
 				| TInst({cl_kind = KTypeParameter tl1} as c,_) ->
