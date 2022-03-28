@@ -60,7 +60,7 @@ let find_abstract_by_position decls p =
 
 let actually_check_display_field ctx c cff p =
 	let context_init = new TypeloadFields.context_init in
-	let cctx = TypeloadFields.create_class_context c context_init p in
+	let cctx = TypeloadFields.create_class_context ctx.com c context_init p in
 	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx p in
 	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
 	let display_modifier = Typeload.check_field_access ctx cff in

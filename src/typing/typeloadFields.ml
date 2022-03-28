@@ -51,10 +51,13 @@ type class_init_ctx = {
 	extends_public : bool;
 	abstract : tabstract option;
 	context_init : context_init;
+	cl_if_feature : string list;
+	cl_req : (string * string option) option;
 	mutable has_display_field : bool;
 	mutable delayed_expr : (typer * tlazy ref option) list;
 	mutable force_constructor : bool;
 	mutable uninitialized_final : tclass_field list;
+	mutable has_init : bool;
 }
 
 type field_kind =
@@ -516,7 +519,35 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
-let create_class_context c context_init p =
+
+let rec check_require com = function
+	| [] ->
+		None
+	| (Meta.Require,conds,_) :: l ->
+		let rec loop = function
+			| [] ->
+				check_require com l
+			| e :: l ->
+				let sc = match fst e with
+					| EConst (Ident s) -> s
+					| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int (_,_) | Float (_,_) | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
+					| _ -> ""
+				in
+				if not (ParserEntry.is_true (ParserEntry.eval com.defines e)) then
+					Some (sc,(match List.rev l with (EConst (String(msg,_)),_) :: _ -> Some msg | _ -> None))
+				else
+					loop l
+		in
+		loop conds
+	| _ :: l ->
+		check_require com l
+
+let rec check_if_feature = function
+	| [] -> []
+	| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> typing_error "String expected" p) el
+	| _ :: l -> check_if_feature l
+
+let create_class_context com c context_init p =
 	let abstract = match c.cl_kind with
 		| KAbstractImpl a -> Some a
 		| _ -> None
@@ -543,6 +574,9 @@ let create_class_context c context_init p =
 		uninitialized_final = [];
 		delayed_expr = [];
 		has_display_field = false;
+		cl_if_feature = check_if_feature c.cl_meta;
+		cl_req = check_require com c.cl_meta;
+		has_init = false;
 	} in
 	cctx
 
@@ -1658,178 +1692,85 @@ let check_overloads ctx c =
 	List.iter check_field c.cl_ordered_statics;
 	Option.may check_field c.cl_constructor
 
-let init_class ctx c p context_init herits fields =
-	let cctx = create_class_context c context_init p in
-	let ctx = create_typer_context_for_class ctx cctx p in
-	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
-	let fields = patch_class ctx c fields in
-	let fields = build_fields (ctx,cctx) c fields in
-	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
-	if not cctx.is_lib then begin
-		delay ctx PForce (fun() -> check_overloads ctx c);
-		begin match c.cl_super with
-		| Some(csup,tl) ->
-			if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
-				delay ctx PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx c csup tl);
-		| None ->
-			()
-		end
-	end;
+let type_field_into_class ctx cctx c f =
 	let rec has_field f = function
 		| None -> false
 		| Some (c,_) ->
 			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 	in
-	let rec check_require = function
-		| [] -> None
-		| (Meta.Require,conds,_) :: l ->
-			let rec loop = function
-				| [] -> check_require l
-				| e :: l ->
-					let sc = match fst e with
-						| EConst (Ident s) -> s
-						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int (_,_) | Float (_,_) | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
-						| _ -> ""
-					in
-					if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then
-						Some (sc,(match List.rev l with (EConst (String(msg,_)),_) :: _ -> Some msg | _ -> None))
-					else
-						loop l
-			in
-			loop conds
-		| _ :: l ->
-			check_require l
-	in
-	let rec check_if_feature = function
-		| [] -> []
-		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String(s,_)) -> s | _ -> typing_error "String expected" p) el
-		| _ :: l -> check_if_feature l
-	in
-	let cl_if_feature = check_if_feature c.cl_meta in
-	let cl_req = check_require c.cl_meta in
-	let has_init = ref false in
-	List.iter (fun f ->
-		let p = f.cff_pos in
-		try
-			let display_modifier = Typeload.check_field_access ctx f in
-			let fctx = create_field_context cctx f ctx.is_display_file display_modifier in
-			let ctx = create_typer_context_for_field ctx cctx fctx f in
-			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
-			let cf = init_field (ctx,cctx,fctx) f in
-			if fctx.field_kind = FKInit then begin
-				if !has_init then
-					display_error ctx ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
-				else
-					has_init := true
+	let p = f.cff_pos in
+	try
+		let display_modifier = Typeload.check_field_access ctx f in
+		let fctx = create_field_context cctx f ctx.is_display_file display_modifier in
+		let ctx = create_typer_context_for_field ctx cctx fctx f in
+		if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
+		let cf = init_field (ctx,cctx,fctx) f in
+		if fctx.field_kind = FKInit then begin
+			if cctx.has_init then
+				display_error ctx ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
+			else
+				cctx.has_init <- true
+		end;
+		if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
+		if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
+			typing_error "You can only declare static fields in extern interfaces" p;
+		let set_feature s =
+			ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
+		in
+		List.iter set_feature cctx.cl_if_feature;
+		List.iter set_feature (check_if_feature cf.cf_meta);
+		let req = check_require ctx.com f.cff_meta in
+		let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cctx.cl_req else None | _ -> req) in
+		(match req with
+		| None -> ()
+		| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
+		begin match fctx.field_kind with
+		| FKConstructor ->
+			begin match c.cl_super with
+			| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
+				ctx.com.error "Cannot override final constructor" cf.cf_pos
+			| _ -> ()
 			end;
-			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
-			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
-				typing_error "You can only declare static fields in extern interfaces" p;
-			let set_feature s =
-				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
-			in
-			List.iter set_feature cl_if_feature;
-			List.iter set_feature (check_if_feature cf.cf_meta);
-			let req = check_require f.cff_meta in
-			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
-			(match req with
-			| None -> ()
-			| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
-			begin match fctx.field_kind with
-			| FKConstructor ->
-				begin match c.cl_super with
-				| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
-					ctx.com.error "Cannot override final constructor" cf.cf_pos
-				| _ -> ()
-				end;
-				begin match c.cl_constructor with
-				| None ->
-						c.cl_constructor <- Some cf
-				| Some ctor when ctx.com.config.pf_overload ->
-					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
-						ctor.cf_overloads <- cf :: ctor.cf_overloads
-					else
-						display_error ctx ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
-				| Some ctor ->
-							display_error ctx "Duplicate constructor" p
-				end
-			| FKInit ->
-				()
-			| FKNormal ->
-				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
-				if not cctx.is_native && not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
-				if fctx.override <> None then
-					add_class_field_flag cf CfOverride;
-				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
-				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
-					if has_class_field_flag cf CfOverload && not (is_var cf) then
-						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
-						if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
-						(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
-						mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
-					else
-						let type_kind,path = match c.cl_kind with
-							| KAbstractImpl a -> "abstract",a.a_path
-							| KModuleFields m -> "module",m.m_path
-							| _ -> "class",c.cl_path
-						in
-						display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
+			begin match c.cl_constructor with
+			| None ->
+					c.cl_constructor <- Some cf
+			| Some ctor when ctx.com.config.pf_overload ->
+				if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
+					ctor.cf_overloads <- cf :: ctor.cf_overloads
 				else
-				if fctx.do_add then TClass.add_field c cf
+					display_error ctx ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+			| Some ctor ->
+						display_error ctx "Duplicate constructor" p
 			end
-		with Error (Custom str,p2) when p = p2 ->
-			display_error ctx str p
-	) fields;
-	(match cctx.abstract with
-	| Some a ->
-		a.a_to_field <- List.rev a.a_to_field;
-		a.a_from_field <- List.rev a.a_from_field;
-		a.a_ops <- List.rev a.a_ops;
-		a.a_unops <- List.rev a.a_unops;
-		a.a_array <- List.rev a.a_array;
-	| None -> ());
-	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
-	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	(* if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin
-		let rec loop acc c tl =
-			let maybe_add acc cf = match cf.cf_kind with
-				| Method MethNormal when not (PMap.mem cf.cf_name acc) -> PMap.add cf.cf_name cf acc
-				| _ -> acc
-			in
-			let acc = List.fold_left maybe_add PMap.empty c.cl_ordered_fields in
-			match c.cl_super with
-			| Some(c,tl) -> loop acc c tl
-			| None -> acc
-		in
-		let fields = match c.cl_super with
-			| Some(c,tl) -> loop PMap.empty c tl
-			| None -> PMap.empty
-		in
-		let open Display in
-		let l = PMap.fold (fun cf acc ->
-			if not (List.exists (fun cf' -> cf'.cf_name = cf.cf_name) c.cl_overrides) then
-				(IdentifierType.ITClassMember cf) :: acc
-			else acc
-		) fields [] in
-		raise (Display.DisplayToplevel l)
-	end; *)
-	(*
-		make sure a default contructor with same access as super one will be added to the class structure at some point.
-	*)
-	let has_struct_init, struct_init_pos =
-		try
-			let _,_,p = Meta.get Meta.StructInit c.cl_meta in
-			true, p
-		with Not_found ->
-			false, null_pos
-	in
-	if has_struct_init then
-		if (has_class_flag c CInterface) then
-			display_error ctx "@:structInit is not allowed on interfaces" struct_init_pos
-		else if (has_class_flag c CAbstract) then
-			display_error ctx "@:structInit is not allowed on abstract classes" struct_init_pos
-		else
-			ensure_struct_init_constructor ctx c fields p;
+		| FKInit ->
+			()
+		| FKNormal ->
+			let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
+			if not cctx.is_native && not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
+			if fctx.override <> None then
+				add_class_field_flag cf CfOverride;
+			let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
+			if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
+				if has_class_field_flag cf CfOverload && not (is_var cf) then
+					let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
+					if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
+					(if not (has_class_field_flag mainf CfOverload) then display_error ctx ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
+					mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
+				else
+					let type_kind,path = match c.cl_kind with
+						| KAbstractImpl a -> "abstract",a.a_path
+						| KModuleFields m -> "module",m.m_path
+						| _ -> "class",c.cl_path
+					in
+					display_error ctx ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
+			else
+			if fctx.do_add then TClass.add_field c cf
+		end
+	with Error (Custom str,p2) when p = p2 ->
+		display_error ctx str p
+
+let finalize_cctx ctx cctx p =
+	let c = cctx.tclass in
 	begin match cctx.uninitialized_final with
 		| cf :: cfl when c.cl_constructor = None && not (has_class_flag c CAbstract) ->
 			if Diagnostics.error_in_diagnostics_run ctx.com cf.cf_name_pos then begin
@@ -1848,9 +1789,6 @@ let init_class ctx c p context_init herits fields =
 		| _ ->
 			()
 	end;
-	if not has_struct_init then
-		(* add_constructor does not deal with overloads correctly *)
-		if not ctx.com.config.pf_overload then TypeloadFunction.add_constructor ctx c cctx.force_constructor p;
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
 		init_class_done ctx;
@@ -1858,3 +1796,56 @@ let init_class ctx c p context_init herits fields =
 		| None -> ()
 		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
 	) cctx.delayed_expr
+
+let init_class ctx c p context_init herits fields =
+	let cctx = create_class_context ctx.com c context_init p in
+	let ctx = create_typer_context_for_class ctx cctx p in
+	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
+	let fields = patch_class ctx c fields in
+	let fields = build_fields (ctx,cctx) c fields in
+	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
+	if not cctx.is_lib then begin
+		delay ctx PForce (fun() -> check_overloads ctx c);
+		begin match c.cl_super with
+		| Some(csup,tl) ->
+			if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
+				delay ctx PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx c csup tl);
+		| None ->
+			()
+		end
+	end;
+	List.iter (fun f ->
+		type_field_into_class ctx cctx c f
+	) fields;
+	(match cctx.abstract with
+	| Some a ->
+		a.a_to_field <- List.rev a.a_to_field;
+		a.a_from_field <- List.rev a.a_from_field;
+		a.a_ops <- List.rev a.a_ops;
+		a.a_unops <- List.rev a.a_unops;
+		a.a_array <- List.rev a.a_array;
+	| None -> ());
+	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
+	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
+	(*
+		make sure a default contructor with same access as super one will be added to the class structure at some point.
+	*)
+	let has_struct_init, struct_init_pos =
+		try
+			let _,_,p = Meta.get Meta.StructInit c.cl_meta in
+			true, p
+		with Not_found ->
+			false, null_pos
+	in
+	begin if has_struct_init then begin
+		if (has_class_flag c CInterface) then
+			display_error ctx "@:structInit is not allowed on interfaces" struct_init_pos
+		else if (has_class_flag c CAbstract) then
+			display_error ctx "@:structInit is not allowed on abstract classes" struct_init_pos
+		else
+			ensure_struct_init_constructor ctx c fields p
+	end else
+		(* add_constructor does not deal with overloads correctly *)
+		if not ctx.com.config.pf_overload then TypeloadFunction.add_constructor ctx c cctx.force_constructor p
+	end;
+	finalize_cctx ctx cctx p
