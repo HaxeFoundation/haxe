@@ -1392,6 +1392,8 @@ and type_array_decl ctx el with_type p =
 
 and type_array_comprehension ctx e with_type p =
 	let v = gen_local ctx (spawn_monomorph ctx p) p in
+	let ev = mk (TLocal v) v.v_type p in
+	let e_ref = store_typed_expr ctx.com ev p in
 	let et = ref (EConst(Ident "null"),p) in
 	let comprehension_pos = p in
 	let rec map_compr (e,p) =
@@ -1409,10 +1411,10 @@ and type_array_comprehension ctx e with_type p =
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 		| EBinop(OpArrow,a,b) ->
 			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),comprehension_pos);
-			(ECall ((efield ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
+			(ECall ((efield (e_ref,"set"),p),[a;b]),p)
 		| _ ->
 			et := (EArrayDecl [],comprehension_pos);
-			(ECall ((efield ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
+			(ECall ((efield (e_ref,"push"),p),[(e,p)]),p)
 	in
 	let e = map_compr e in
 	let ea = type_expr ctx !et with_type in
@@ -1421,7 +1423,7 @@ and type_array_comprehension ctx e with_type p =
 	mk (TBlock [
 		mk (TVar (v,Some ea)) ctx.t.tvoid p;
 		efor;
-		mk (TLocal v) v.v_type p;
+		ev;
 	]) v.v_type p
 
 and type_return ?(implicit=false) ctx e with_type p =

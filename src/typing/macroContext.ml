@@ -55,14 +55,6 @@ let safe_decode ctx v expected t p f =
 		close_out ch;
 		typing_error (Printf.sprintf "Expected %s but got %s (see %s.txt for details)" expected (Interp.value_string v) (String.concat "/" path)) p
 
-let get_next_stored_typed_expr_id =
-	let uid = ref 0 in
-	(fun() -> incr uid; !uid)
-
-let get_stored_typed_expr com id =
-	let e = PMap.find id com.stored_typed_exprs in
-	Texpr.duplicate_tvars e
-
 let get_type_patch ctx t sub =
 	let new_patch() =
 		{ tp_type = None; tp_remove = false; tp_meta = [] }
@@ -213,10 +205,7 @@ let make_macro_api ctx p =
 		);
 		MacroApi.store_typed_expr = (fun te ->
 			let p = te.epos in
-			let id = get_next_stored_typed_expr_id() in
-			ctx.com.stored_typed_exprs <- PMap.add id te ctx.com.stored_typed_exprs;
-			let eid = (EConst (Int (string_of_int id, None))), p in
-			(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
+			Typecore.store_typed_expr ctx.com te p
 		);
 		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
 		MacroApi.type_patch = (fun t f s v ->
