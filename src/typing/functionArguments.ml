@@ -32,7 +32,7 @@ let type_function_arg_value ctx t c do_display =
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || Common.is_diagnostics ctx.com then
-						display_error ctx "Parameter default value should be constant" p;
+						Common.display_error ctx.com "Parameter default value should be constant" p;
 					None
 			in
 			loop e
