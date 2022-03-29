@@ -91,7 +91,7 @@ let build_instance ctx mtype p =
 		let ft = (fun pl ->
 			match c.cl_kind with
 			| KGeneric ->
-				build (fun () -> Generic.build_generic ctx c p pl) "build_generic"
+				build (fun () -> Generic.build_generic_class ctx c p pl) "build_generic"
 			| KMacroType ->
 				build (fun () -> build_macro_type ctx pl p) "macro_type"
 			| KGenericBuild cfl ->

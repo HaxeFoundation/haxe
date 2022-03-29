@@ -204,7 +204,7 @@ let set_type_parameter_dependencies mg tl =
 	in
 	List.iter loop tl
 
-let rec build_generic ctx c p tl =
+let rec build_generic_class ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
 	let rec check_recursive t =
@@ -274,6 +274,7 @@ let rec build_generic ctx c p tl =
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
+			remove_class_field_flag cf_new CfPostProcessed;
 			(* Type parameter constraints are substituted here. *)
 			cf_new.cf_params <- List.rev_map (fun tp -> match follow tp.ttp_type with
 				| TInst({cl_kind = KTypeParameter tl1} as c,_) ->
@@ -308,7 +309,7 @@ let rec build_generic ctx c p tl =
 				unify_raise t0 t p;
 				link_dynamic t0 t;
 				t
-			) "build_generic" in
+			) "build_generic_class" in
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
@@ -324,7 +325,7 @@ let rec build_generic ctx c p tl =
 				let cs,pl = TypeloadCheck.Inheritance.check_extends ctx c ts p in
 				match cs.cl_kind with
 				| KGeneric ->
-					(match build_generic ctx cs p pl with
+					(match build_generic_class ctx cs p pl with
 					| TInst (cs,pl) -> Some (cs,pl)
 					| _ -> die "" __LOC__)
 				| _ -> Some(cs,pl)
