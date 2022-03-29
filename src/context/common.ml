@@ -1160,6 +1160,12 @@ let add_diagnostics_message com s p kind sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
+let display_error com msg p =
+	if is_diagnostics com then
+		add_diagnostics_message com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
+	else
+		com.error msg p
+
 open Printer
 
 let dump_path com =

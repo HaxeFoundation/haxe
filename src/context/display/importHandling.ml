@@ -152,7 +152,7 @@ let init_import ctx context_init path mode p =
 							add_static_init tmain name tsub
 						with Not_found ->
 							(* TODO: mention module-level declarations in the error message? *)
-							display_error ctx (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
+							display_error ctx.com (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
 					in
 					context_init#add (fun() ->
 						match md.m_statics with
@@ -188,7 +188,7 @@ let init_import ctx context_init path mode p =
 					try
 						add_static_init tsub name fname
 					with Not_found ->
-						display_error ctx (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+						display_error ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
 				);
 			)
 		| IAll ->

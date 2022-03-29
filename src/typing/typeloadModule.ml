@@ -103,7 +103,7 @@ module StrictMeta = struct
 		| TTypeExpr md ->
 			get_native_repr md expr.epos
 		| _ ->
-			display_error ctx "This expression is too complex to be a strict metadata argument" expr.epos;
+			display_error ctx.com "This expression is too complex to be a strict metadata argument" expr.epos;
 			(EConst(Ident "null"), expr.epos)
 
 	let handle_fields ctx fields_to_check with_type_expr =
@@ -130,13 +130,13 @@ module StrictMeta = struct
 			| TTypeExpr(md) ->
 				ECall(get_native_repr md texpr.epos, extra), texpr.epos
 			| _ ->
-				display_error ctx "Unexpected expression" texpr.epos; die "" __LOC__
+				display_error ctx.com "Unexpected expression" texpr.epos; die "" __LOC__
 
 	let get_strict_meta ctx meta params pos =
 		let pf = ctx.com.platform in
 		let changed_expr, fields_to_check, ctype = match params with
 			| [ECall(ef, el),p] ->
-				let tpath = field_to_type_path ctx ef in
+				let tpath = field_to_type_path ctx.com ef in
 				begin match pf with
 				| Cs ->
 					let el, fields = match List.rev el with
@@ -153,7 +153,7 @@ module StrictMeta = struct
 					| [] ->
 						[]
 					| (_,p) :: _ ->
-						display_error ctx "Object declaration expected" p;
+						display_error ctx.com "Object declaration expected" p;
 						[]
 					in
 					ef, fields, CTPath tpath
@@ -167,13 +167,13 @@ module StrictMeta = struct
 				else
 					expr, [], CTPath tpath
 			| [ (EField(_),p as field) ] ->
-				let tpath = field_to_type_path ctx field in
+				let tpath = field_to_type_path ctx.com field in
 				if pf = Cs then
 					(ENew((tpath,p), []), p), [], CTPath tpath
 				else
 					field, [], CTPath tpath
 			| _ ->
-				display_error ctx "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
+				display_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 				raise Exit
 		in
 		let texpr = type_expr ctx changed_expr NoValue in
@@ -219,7 +219,7 @@ let module_pass_1 ctx m tdecls loadp =
 	let check_name name meta also_statics p =
 		DeprecationCheck.check_is com name meta p;
 		let error prev_pos =
-			display_error ctx ("Name " ^ name ^ " is already defined in this module") p;
+			display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
 			typing_error (compl_msg "Previous declaration here") prev_pos;
 		in
 		List.iter (fun (t2,(_,p2)) ->
@@ -271,8 +271,8 @@ let module_pass_1 ctx m tdecls loadp =
 			) d.d_flags;
 			if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
 			if has_class_flag c CAbstract then begin
-				if has_class_flag c CInterface then display_error ctx "An interface may not be abstract" c.cl_name_pos;
-				if has_class_flag c CFinal then display_error ctx "An abstract class may not be final" c.cl_name_pos;
+				if has_class_flag c CInterface then display_error ctx.com "An interface may not be abstract" c.cl_name_pos;
+				if has_class_flag c CFinal then display_error ctx.com "An abstract class may not be final" c.cl_name_pos;
 			end;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
@@ -491,7 +491,7 @@ let init_module_type ctx context_init (decl,p) =
 			ImportHandling.init_import ctx context_init path mode p;
 			ImportHandling.commit_import ctx path mode p;
 		with Error(err,p) ->
-			display_error ctx (Error.error_msg err) p
+			display_error ctx.com (Error.error_msg err) p
 		end
 	| EUsing path ->
 		check_path_display path p;
