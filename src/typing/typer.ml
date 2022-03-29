@@ -963,7 +963,7 @@ and type_new ctx path el with_type force_inline p =
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
 		begin match t_follow with
-			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
+			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic_class ctx c p tl)
 			| _ -> t
 		end
 	with
@@ -976,7 +976,7 @@ and type_new ctx path el with_type force_inline p =
 			no_abstract_constructor c p;
 			ignore (unify_constructor_call c fa);
 			begin try
-				Generic.build_generic ctx c p monos
+				Generic.build_generic_class ctx c p monos
 			with Generic.Generic_Exception _ as exc ->
 				(* If we have an expected type, just use that (issue #3804) *)
 				begin match with_type with

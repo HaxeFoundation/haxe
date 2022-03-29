@@ -185,13 +185,10 @@ let add_constructor ctx c force_constructor p =
 	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with
 	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
-		let cf = {
-			cfsup with
-			cf_pos = p;
-			cf_meta = List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-			cf_doc = None;
-			cf_expr = None;
-		} in
+		let cf = mk_field "new" cfsup.cf_type p null_pos in
+		cf.cf_kind <- cfsup.cf_kind;
+		cf.cf_params <- cfsup.cf_params;
+		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
 		let r = exc_protect ctx (fun r ->
 			let t = mk_mono() in
 			r := lazy_processing (fun() -> t);
