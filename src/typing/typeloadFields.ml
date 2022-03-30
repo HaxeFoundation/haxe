@@ -681,7 +681,7 @@ let transform_field (ctx,cctx) c f fields p =
 	in
 	if List.mem_assoc AMacro f.cff_access then
 		(match ctx.g.macros with
-		| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
+		| Some (_,mctx) when Hashtbl.mem mctx.com.type_to_module c.cl_path ->
 			(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
 			if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
 				typing_error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p

@@ -57,7 +57,7 @@ module ModuleLevel = struct
 
 	let add_module ctx m p =
 		List.iter (TypeloadCheck.check_module_types ctx m p) m.m_types;
-		Hashtbl.add ctx.g.modules m.m_path m
+		Hashtbl.add ctx.com.module_lut m.m_path m
 
 	(*
 		Build module structure : should be atomic - no type loading is possible
@@ -293,7 +293,7 @@ module ModuleLevel = struct
 		List.fold_left (fun acc path ->
 			let decls = try
 				let r = Hashtbl.find com.parser_cache path in
-				let mimport = Hashtbl.find ctx.g.modules ([],path) in
+				let mimport = Hashtbl.find com.module_lut ([],path) in
 				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport;
 				r
 			with Not_found ->
@@ -757,7 +757,7 @@ let type_types_into_module ?(check=true) ctx m tdecls p =
 *)
 let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
 	let m = ModuleLevel.make_module ctx mpath file p in
-	Hashtbl.add ctx.g.modules m.m_path m;
+	Hashtbl.add ctx.com.module_lut m.m_path m;
 	let tdecls = ModuleLevel.handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
@@ -771,7 +771,7 @@ let type_module_hook = ref (fun _ _ _ -> None)
 
 let load_module' ctx g m p =
 	try
-		Hashtbl.find ctx.g.modules m
+		Hashtbl.find ctx.com.module_lut m
 	with
 		Not_found ->
 			match !type_module_hook ctx m p with
