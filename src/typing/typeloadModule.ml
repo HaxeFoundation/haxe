@@ -393,6 +393,270 @@ module TypeLevel = struct
 			DisplayEmitter.display_enum_field ctx e f p;
 		f,cf
 
+	let init_class ctx context_init c d p =
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
+		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
+		let herits = d.d_flags in
+		List.iter (fun (m,_,p) ->
+			if m = Meta.Final then begin
+				add_class_flag c CFinal;
+			end
+		) d.d_meta;
+		let prev_build_count = ref (!build_count - 1) in
+		let build() =
+			c.cl_build <- (fun()-> Building [c]);
+			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
+			let rec build() =
+				c.cl_build <- (fun()-> Building [c]);
+				try
+					List.iter (fun f -> f()) fl;
+					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
+					c.cl_build <- (fun()-> Built);
+					incr build_count;
+					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
+					Built;
+				with TypeloadCheck.Build_canceled state ->
+					c.cl_build <- make_pass ctx build;
+					let rebuild() =
+						delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
+					in
+					(match state with
+					| Built -> die "" __LOC__
+					| Building cl ->
+						if !build_count = !prev_build_count then typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
+						prev_build_count := !build_count;
+						rebuild();
+						Building (c :: cl)
+					| BuildMacro f ->
+						f := rebuild :: !f;
+						state);
+				| exn ->
+					c.cl_build <- (fun()-> Built);
+					raise exn
+			in
+			build()
+		in
+		ctx.pass <- PBuildClass;
+		ctx.curclass <- c;
+		c.cl_build <- make_pass ctx build;
+		ctx.pass <- PBuildModule;
+		ctx.curclass <- null_class;
+		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
+		if Meta.has Meta.InheritDoc c.cl_meta then
+				delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c);
+		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
+			delay ctx PTypeField (fun () ->
+				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
+				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
+				let rec run_field cf =
+					let metas = StrictMeta.check_strict_meta ctx cf.cf_meta in
+					if metas <> [] then cf.cf_meta <- metas @ cf.cf_meta;
+					List.iter run_field cf.cf_overloads
+				in
+				List.iter run_field c.cl_ordered_statics;
+				List.iter run_field c.cl_ordered_fields;
+				match c.cl_constructor with
+					| Some f -> run_field f
+					| _ -> ()
+			)
+
+	let init_enum ctx context_init e d p =
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
+		let ctx = { ctx with type_params = e.e_params } in
+		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
+		TypeloadCheck.check_global_metadata ctx e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
+		(match h with
+		| None -> ()
+		| Some (h,hcl) ->
+			Hashtbl.iter (fun _ _ -> typing_error "Field type patch not supported for enums" e.e_pos) h;
+			e.e_meta <- e.e_meta @ hcl.tp_meta);
+		let constructs = ref d.d_data in
+		let get_constructs() =
+			List.map (fun c ->
+				{
+					cff_name = c.ec_name;
+					cff_doc = c.ec_doc;
+					cff_meta = c.ec_meta;
+					cff_pos = c.ec_pos;
+					cff_access = [];
+					cff_kind = (match c.ec_args, c.ec_params with
+						| [], [] -> FVar (c.ec_type,None)
+						| _ -> FFun { f_params = c.ec_params; f_type = c.ec_type; f_expr = None; f_args = List.map (fun (n,o,t) -> (n,null_pos),o,[],Some t,None) c.ec_args });
+				}
+			) (!constructs)
+		in
+		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
+			match e with
+			| EVars [{ ev_type = Some (CTAnonymous fields,p); ev_expr = None }] ->
+				constructs := List.map (fun f ->
+					let args, params, t = (match f.cff_kind with
+					| FVar (t,None) -> [], [], t
+					| FFun { f_params = pl; f_type = t; f_expr = (None|Some (EBlock [],_)); f_args = al } ->
+						let al = List.map (fun ((n,_),o,_,t,_) -> match t with None -> typing_error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) al in
+						al, pl, t
+					| _ ->
+						typing_error "Invalid enum constructor in @:build result" p
+					) in
+					{
+						ec_name = f.cff_name;
+						ec_doc = f.cff_doc;
+						ec_meta = f.cff_meta;
+						ec_pos = f.cff_pos;
+						ec_args = args;
+						ec_params = params;
+						ec_type = t;
+					}
+				) fields
+			| _ -> typing_error "Enum build macro must return a single variable with anonymous object fields" p
+		);
+		let et = TEnum (e,extract_param_types e.e_params) in
+		let names = ref [] in
+		let index = ref 0 in
+		let is_flat = ref true in
+		let fields = ref PMap.empty in
+		List.iter (fun c ->
+			if PMap.mem (fst c.ec_name) e.e_constrs then typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
+			let f,cf = load_enum_field ctx e et is_flat index c in
+			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
+			fields := PMap.add cf.cf_name cf !fields;
+			incr index;
+			names := (fst c.ec_name) :: !names;
+			if Meta.has Meta.InheritDoc f.ef_meta then
+				delay ctx PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx f);
+		) (!constructs);
+		e.e_names <- List.rev !names;
+		e.e_extern <- e.e_extern;
+		e.e_type.t_params <- e.e_params;
+		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
+		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
+		if Meta.has Meta.InheritDoc e.e_meta then
+			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
+		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
+			delay ctx PTypeField (fun () ->
+				let metas = StrictMeta.check_strict_meta ctx e.e_meta in
+				e.e_meta <- metas @ e.e_meta;
+				PMap.iter (fun _ ef ->
+					let metas = StrictMeta.check_strict_meta ctx ef.ef_meta in
+					if metas <> [] then ef.ef_meta <- metas @ ef.ef_meta
+				) e.e_constrs
+			)
+
+	let init_typedef ctx context_init t d p =
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
+		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
+		let ctx = { ctx with type_params = t.t_params } in
+		let tt = load_complex_type ctx true d.d_data in
+		let tt = (match fst d.d_data with
+		| CTExtend _ -> tt
+		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
+			(* we need to follow MacroType immediately since it might define other module types that we will load afterwards *)
+			if t.t_type == follow tt then typing_error "Recursive typedef is not allowed" p;
+			tt
+		| _ ->
+			if (Meta.has Meta.Eager d.d_meta) then
+				follow tt
+			else begin
+				let rec check_rec tt =
+					if tt == t.t_type then typing_error "Recursive typedef is not allowed" p;
+					match tt with
+					| TMono r ->
+						(match r.tm_type with
+						| None -> ()
+						| Some t -> check_rec t)
+					| TLazy f ->
+						check_rec (lazy_type f);
+					| TType (td,tl) ->
+						if td == t then typing_error "Recursive typedef is not allowed" p;
+						check_rec (apply_typedef td tl)
+					| _ ->
+						()
+				in
+				let r = exc_protect ctx (fun r ->
+					r := lazy_processing (fun() -> tt);
+					check_rec tt;
+					tt
+				) "typedef_rec_check" in
+				TLazy r
+			end
+		) in
+		(match t.t_type with
+		| TMono r ->
+			(match r.tm_type with
+			| None -> Monomorph.bind r tt;
+			| Some _ -> die "" __LOC__);
+		| _ -> die "" __LOC__);
+		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ());
+		if ctx.com.platform = Cs && t.t_meta <> [] then
+			delay ctx PTypeField (fun () ->
+				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
+				if metas <> [] then t.t_meta <- metas @ t.t_meta;
+			)
+
+	let init_abstract ctx context_init a d p =
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
+		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
+		let ctx = { ctx with type_params = a.a_params } in
+		let is_type = ref false in
+		let load_type t from =
+			let _, pos = t in
+			let t = load_complex_type ctx true t in
+			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
+				if !is_type then begin
+					let r = exc_protect ctx (fun r ->
+						r := lazy_processing (fun() -> t);
+						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> typing_error "You can only declare from/to with compatible types" pos);
+						t
+					) "constraint" in
+					TLazy r
+				end else
+					typing_error "Missing underlying type declaration or @:coreType declaration" p;
+			end else begin
+				if Meta.has Meta.Callable a.a_meta then
+					typing_error "@:coreType abstracts cannot be @:callable" p;
+				t
+			end in
+			t
+		in
+		List.iter (function
+			| AbFrom t -> a.a_from <- (load_type t true) :: a.a_from
+			| AbTo t -> a.a_to <- (load_type t false) :: a.a_to
+			| AbOver t ->
+				if a.a_impl = None then typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
+				if Meta.has Meta.CoreType a.a_meta then typing_error "@:coreType abstracts cannot have an underlying type" p;
+				let at = load_complex_type ctx true t in
+				delay ctx PForce (fun () ->
+					let rec loop stack t =
+						match follow t with
+						| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
+							if List.memq a stack then
+								typing_error "Abstract underlying type cannot be recursive" a.a_pos
+							else
+								loop (a :: stack) a.a_this
+						| _ -> ()
+					in
+					loop [] at
+				);
+				a.a_this <- at;
+				is_type := true;
+			| AbExtern ->
+				(match a.a_impl with Some c -> add_class_flag c CExtern | None -> (* Hmmmm.... *) ())
+			| AbPrivate | AbEnum -> ()
+		) d.d_flags;
+		a.a_from <- List.rev a.a_from;
+		a.a_to <- List.rev a.a_to;
+		if not !is_type then begin
+			if Meta.has Meta.CoreType a.a_meta then
+				a.a_this <- TAbstract(a,extract_param_types a.a_params)
+			else
+				typing_error "Abstract is missing underlying type declaration" a.a_pos
+		end;
+		if Meta.has Meta.InheritDoc a.a_meta then
+			delay ctx PConnectField (fun() -> InheritDoc.build_abstract_doc ctx a)
+
 	(*
 		In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
 		since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
@@ -419,268 +683,16 @@ module TypeLevel = struct
 			ImportHandling.init_using ctx context_init path p
 		| EClass d ->
 			let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
-			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
-				DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
-			TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
-			let herits = d.d_flags in
-			List.iter (fun (m,_,p) ->
-				if m = Meta.Final then begin
-					add_class_flag c CFinal;
-				end
-			) d.d_meta;
-			let prev_build_count = ref (!build_count - 1) in
-			let build() =
-				c.cl_build <- (fun()-> Building [c]);
-				let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
-				let rec build() =
-					c.cl_build <- (fun()-> Building [c]);
-					try
-						List.iter (fun f -> f()) fl;
-						TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
-						c.cl_build <- (fun()-> Built);
-						incr build_count;
-						List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
-						Built;
-					with TypeloadCheck.Build_canceled state ->
-						c.cl_build <- make_pass ctx build;
-						let rebuild() =
-							delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
-						in
-						(match state with
-						| Built -> die "" __LOC__
-						| Building cl ->
-							if !build_count = !prev_build_count then typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
-							prev_build_count := !build_count;
-							rebuild();
-							Building (c :: cl)
-						| BuildMacro f ->
-							f := rebuild :: !f;
-							state);
-					| exn ->
-						c.cl_build <- (fun()-> Built);
-						raise exn
-				in
-				build()
-			in
-			ctx.pass <- PBuildClass;
-			ctx.curclass <- c;
-			c.cl_build <- make_pass ctx build;
-			ctx.pass <- PBuildModule;
-			ctx.curclass <- null_class;
-			delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
-			if Meta.has Meta.InheritDoc c.cl_meta then
-					delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c);
-			if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
-				delay ctx PTypeField (fun () ->
-					let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
-					if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
-					let rec run_field cf =
-						let metas = StrictMeta.check_strict_meta ctx cf.cf_meta in
-						if metas <> [] then cf.cf_meta <- metas @ cf.cf_meta;
-						List.iter run_field cf.cf_overloads
-					in
-					List.iter run_field c.cl_ordered_statics;
-					List.iter run_field c.cl_ordered_fields;
-					match c.cl_constructor with
-						| Some f -> run_field f
-						| _ -> ()
-				);
+			init_class ctx context_init c d p
 		| EEnum d ->
 			let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> die "" __LOC__) in
-			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
-				DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
-			let ctx = { ctx with type_params = e.e_params } in
-			let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
-			TypeloadCheck.check_global_metadata ctx e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
-			(match h with
-			| None -> ()
-			| Some (h,hcl) ->
-				Hashtbl.iter (fun _ _ -> typing_error "Field type patch not supported for enums" e.e_pos) h;
-				e.e_meta <- e.e_meta @ hcl.tp_meta);
-			let constructs = ref d.d_data in
-			let get_constructs() =
-				List.map (fun c ->
-					{
-						cff_name = c.ec_name;
-						cff_doc = c.ec_doc;
-						cff_meta = c.ec_meta;
-						cff_pos = c.ec_pos;
-						cff_access = [];
-						cff_kind = (match c.ec_args, c.ec_params with
-							| [], [] -> FVar (c.ec_type,None)
-							| _ -> FFun { f_params = c.ec_params; f_type = c.ec_type; f_expr = None; f_args = List.map (fun (n,o,t) -> (n,null_pos),o,[],Some t,None) c.ec_args });
-					}
-				) (!constructs)
-			in
-			TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
-				match e with
-				| EVars [{ ev_type = Some (CTAnonymous fields,p); ev_expr = None }] ->
-					constructs := List.map (fun f ->
-						let args, params, t = (match f.cff_kind with
-						| FVar (t,None) -> [], [], t
-						| FFun { f_params = pl; f_type = t; f_expr = (None|Some (EBlock [],_)); f_args = al } ->
-							let al = List.map (fun ((n,_),o,_,t,_) -> match t with None -> typing_error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) al in
-							al, pl, t
-						| _ ->
-							typing_error "Invalid enum constructor in @:build result" p
-						) in
-						{
-							ec_name = f.cff_name;
-							ec_doc = f.cff_doc;
-							ec_meta = f.cff_meta;
-							ec_pos = f.cff_pos;
-							ec_args = args;
-							ec_params = params;
-							ec_type = t;
-						}
-					) fields
-				| _ -> typing_error "Enum build macro must return a single variable with anonymous object fields" p
-			);
-			let et = TEnum (e,extract_param_types e.e_params) in
-			let names = ref [] in
-			let index = ref 0 in
-			let is_flat = ref true in
-			let fields = ref PMap.empty in
-			List.iter (fun c ->
-				if PMap.mem (fst c.ec_name) e.e_constrs then typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-				let f,cf = load_enum_field ctx e et is_flat index c in
-				e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
-				fields := PMap.add cf.cf_name cf !fields;
-				incr index;
-				names := (fst c.ec_name) :: !names;
-				if Meta.has Meta.InheritDoc f.ef_meta then
-					delay ctx PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx f);
-			) (!constructs);
-			e.e_names <- List.rev !names;
-			e.e_extern <- e.e_extern;
-			e.e_type.t_params <- e.e_params;
-			e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
-			if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
-			if Meta.has Meta.InheritDoc e.e_meta then
-				delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
-			if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
-				delay ctx PTypeField (fun () ->
-					let metas = StrictMeta.check_strict_meta ctx e.e_meta in
-					e.e_meta <- metas @ e.e_meta;
-					PMap.iter (fun _ ef ->
-						let metas = StrictMeta.check_strict_meta ctx ef.ef_meta in
-						if metas <> [] then ef.ef_meta <- metas @ ef.ef_meta
-					) e.e_constrs
-				);
+			init_enum ctx context_init e d p
 		| ETypedef d ->
 			let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> die "" __LOC__) in
-			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
-				DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
-			TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
-			let ctx = { ctx with type_params = t.t_params } in
-			let tt = load_complex_type ctx true d.d_data in
-			let tt = (match fst d.d_data with
-			| CTExtend _ -> tt
-			| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
-				(* we need to follow MacroType immediately since it might define other module types that we will load afterwards *)
-				if t.t_type == follow tt then typing_error "Recursive typedef is not allowed" p;
-				tt
-			| _ ->
-				if (Meta.has Meta.Eager d.d_meta) then
-					follow tt
-				else begin
-					let rec check_rec tt =
-						if tt == t.t_type then typing_error "Recursive typedef is not allowed" p;
-						match tt with
-						| TMono r ->
-							(match r.tm_type with
-							| None -> ()
-							| Some t -> check_rec t)
-						| TLazy f ->
-							check_rec (lazy_type f);
-						| TType (td,tl) ->
-							if td == t then typing_error "Recursive typedef is not allowed" p;
-							check_rec (apply_typedef td tl)
-						| _ ->
-							()
-					in
-					let r = exc_protect ctx (fun r ->
-						r := lazy_processing (fun() -> tt);
-						check_rec tt;
-						tt
-					) "typedef_rec_check" in
-					TLazy r
-				end
-			) in
-			(match t.t_type with
-			| TMono r ->
-				(match r.tm_type with
-				| None -> Monomorph.bind r tt;
-				| Some _ -> die "" __LOC__);
-			| _ -> die "" __LOC__);
-			TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ());
-			if ctx.com.platform = Cs && t.t_meta <> [] then
-				delay ctx PTypeField (fun () ->
-					let metas = StrictMeta.check_strict_meta ctx t.t_meta in
-					if metas <> [] then t.t_meta <- metas @ t.t_meta;
-				);
+			init_typedef ctx context_init t d p
 		| EAbstract d ->
 			let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> die "" __LOC__) in
-			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
-				DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
-			TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
-			let ctx = { ctx with type_params = a.a_params } in
-			let is_type = ref false in
-			let load_type t from =
-				let _, pos = t in
-				let t = load_complex_type ctx true t in
-				let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
-					if !is_type then begin
-						let r = exc_protect ctx (fun r ->
-							r := lazy_processing (fun() -> t);
-							(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> typing_error "You can only declare from/to with compatible types" pos);
-							t
-						) "constraint" in
-						TLazy r
-					end else
-						typing_error "Missing underlying type declaration or @:coreType declaration" p;
-				end else begin
-					if Meta.has Meta.Callable a.a_meta then
-						typing_error "@:coreType abstracts cannot be @:callable" p;
-					t
-				end in
-				t
-			in
-			List.iter (function
-				| AbFrom t -> a.a_from <- (load_type t true) :: a.a_from
-				| AbTo t -> a.a_to <- (load_type t false) :: a.a_to
-				| AbOver t ->
-					if a.a_impl = None then typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
-					if Meta.has Meta.CoreType a.a_meta then typing_error "@:coreType abstracts cannot have an underlying type" p;
-					let at = load_complex_type ctx true t in
-					delay ctx PForce (fun () ->
-						let rec loop stack t =
-							match follow t with
-							| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
-								if List.memq a stack then
-									typing_error "Abstract underlying type cannot be recursive" a.a_pos
-								else
-									loop (a :: stack) a.a_this
-							| _ -> ()
-						in
-						loop [] at
-					);
-					a.a_this <- at;
-					is_type := true;
-				| AbExtern ->
-					(match a.a_impl with Some c -> add_class_flag c CExtern | None -> (* Hmmmm.... *) ())
-				| AbPrivate | AbEnum -> ()
-			) d.d_flags;
-			a.a_from <- List.rev a.a_from;
-			a.a_to <- List.rev a.a_to;
-			if not !is_type then begin
-				if Meta.has Meta.CoreType a.a_meta then
-					a.a_this <- TAbstract(a,extract_param_types a.a_params)
-				else
-					typing_error "Abstract is missing underlying type declaration" a.a_pos
-			end;
-			if Meta.has Meta.InheritDoc a.a_meta then
-				delay ctx PConnectField (fun() -> InheritDoc.build_abstract_doc ctx a);
+			init_abstract ctx context_init a d p
 		| EStatic _ ->
 			(* nothing to do here as module fields are collected into a special EClass *)
 			()
