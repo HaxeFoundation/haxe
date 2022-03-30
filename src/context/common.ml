@@ -294,12 +294,13 @@ type report_mode =
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
+	cs : CompilationCache.t;
 	mutable cache : CompilationCache.context_cache option;
+	is_macro_context : bool;
+	mutable json_out : json_api option;
 	(* config *)
 	version : int;
 	args : string list;
-	shared : shared_context;
-	display_information : display_information;
 	mutable sys_args : string list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
@@ -311,18 +312,24 @@ type context = {
 	mutable class_path : string list;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
+	mutable report_mode : report_mode;
+	(* communication *)
+	mutable print : string -> unit;
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
 	mutable warning : warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
+	mutable run_command : string -> int;
+	(* typing setup *)
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
-	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
-	mutable run_command : string -> int;
+	(* typing state *)
+	shared : shared_context;
+	display_information : display_information;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	file_keys : file_keys;
 	readdir_cache : (string * string,(string array) option) Hashtbl.t;
@@ -333,17 +340,17 @@ type context = {
 	pass_debug_messages : string DynArray.t;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) Hashtbl.t;
 	mutable has_error : bool;
-	mutable report_mode : report_mode;
-	(* output *)
-	mutable file : string;
-	mutable flash_version : float;
-	mutable features : (string,bool) Hashtbl.t;
-	mutable modules : Type.module_def list;
 	module_lut : (path , module_def) Hashtbl.t;
 	type_to_module : (path, path) Hashtbl.t;
+	(* output *)
+	mutable file : string;
+	mutable features : (string,bool) Hashtbl.t;
+	mutable modules : Type.module_def list;
 	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	(* target-specific *)
+	mutable flash_version : float;
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
@@ -351,12 +358,9 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : json_api option;
-	is_macro_context : bool;
-	(* typing *)
+	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
-	cs : CompilationCache.t;
 }
 
 exception Abort of string * pos

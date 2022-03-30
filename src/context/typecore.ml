@@ -74,7 +74,6 @@ type typer_globals = {
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
-	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
@@ -89,11 +88,8 @@ type typer_globals = {
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
-	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> (typed_type_param list * path * (t list -> t));
 	do_format_string : typer -> string -> pos -> Ast.expr;
-	do_finalize : typer -> unit;
-	do_generate : typer -> (texpr option * module_type list * module_def list);
 	do_load_core_class : typer -> tclass -> tclass;
 }
 

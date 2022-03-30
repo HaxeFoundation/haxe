@@ -421,8 +421,8 @@ let rec init_macro_interp ctx mctx mint =
 and flush_macro_context mint ctx =
 	let t = macro_timer ctx ["flush"] in
 	let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
-	ctx.g.do_finalize mctx;
-	let _, types, modules = ctx.g.do_generate mctx in
+	Finalization.finalize mctx;
+	let _, types, modules = Finalization.generate mctx in
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
@@ -558,7 +558,7 @@ let load_macro' ctx display cpath f p =
 				match mloaded.m_statics with
 				| None -> raise Not_found
 				| Some c ->
-					mctx.g.do_finalize mctx;
+					Finalization.finalize mctx;
 					c, PMap.find f c.cl_statics
 			with Not_found ->
 				let name = Option.default (snd mpath) sub in
@@ -566,7 +566,7 @@ let load_macro' ctx display cpath f p =
 				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_typing_error (Type_not_found (mloaded.m_path,name,Not_defined)) p in
 				match mt with
 				| TClassDecl c ->
-					mctx.g.do_finalize mctx;
+					Finalization.finalize mctx;
 					c, (try PMap.find f c.cl_statics with Not_found -> typing_error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 				| _ -> typing_error "Macro should be called on a class" p
 		in
