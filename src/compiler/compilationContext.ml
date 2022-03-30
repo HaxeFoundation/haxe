@@ -12,8 +12,6 @@ type arg_context = {
 	mutable swf_header : (int * int * float * int) option;
 	mutable cmds : string list;
 	mutable config_macros : string list;
-	mutable cp_libs : string list;
-	added_libs : (string,unit) Hashtbl.t;
 	mutable no_output : bool;
 	mutable did_something : bool;
 	mutable force_typing : bool;

@@ -760,17 +760,77 @@ let create_context comm cs compilation_step params = {
 }
 
 module HighLevel = struct
+	let add_libs libs args cs has_display =
+		let global_repo = List.exists (fun a -> a = "--haxelib-global") args in
+		let fail msg =
+			raise (Arg.Bad msg)
+		in
+		let call_haxelib() =
+			let t = Timer.timer ["haxelib"] in
+			let cmd = "haxelib" ^ (if global_repo then " --global" else "") ^ " path " ^ String.concat " " libs in
+			let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
+			let lines = Std.input_list pin in
+			let err = Std.input_list perr in
+			let ret = Unix.close_process_full (pin,pout,perr) in
+			if ret <> Unix.WEXITED 0 then fail (match lines, err with
+				| [], [] -> "Failed to call haxelib (command not found ?)"
+				| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found: path" -> "The haxelib command has been strip'ed, please install it again"
+				| _ -> String.concat "\n" (lines@err));
+			t();
+			lines
+		in
+		match libs with
+		| [] ->
+			[]
+		| _ ->
+			let lines =
+				try
+					(* if we are compiling, really call haxelib since library path might have changed *)
+					if not has_display then raise Not_found;
+					cs#find_haxelib libs
+				with Not_found -> try
+					let lines = call_haxelib() in
+					cs#cache_haxelib libs lines;
+					lines
+				with Unix.Unix_error(code,msg,arg) ->
+					fail ((Printf.sprintf "%s (%s)" (Unix.error_message code) arg))
+			in
+			let lines = List.fold_left (fun acc l ->
+				let l = ExtString.String.strip l in
+				if l = "" then
+					acc
+				else if l.[0] <> '-' then
+					"-cp" :: l :: acc
+				else match (try ExtString.String.split l " " with _ -> l, "") with
+				| ("-L",dir) ->
+					"--neko-lib" :: (String.sub l 3 (String.length l - 3)) :: acc
+				| param, value ->
+					let acc = if value <> "" then value :: acc else acc in
+					let acc = param :: acc in
+					acc
+			) [] lines in
+			lines
+
 	(* Returns a list of contexts, but doesn't do anything yet *)
 	let process_params server_api create pl =
 		let each_params = ref [] in
 		let compilations = DynArray.create () in
 		let curdir = Unix.getcwd () in
+		let has_display = ref false in
+		let added_libs = Hashtbl.create 0 in
 		let add_context args =
 			let ctx = create (server_api.on_context_create()) args in
 			(* --cwd triggers immediately, so let's reset *)
 			Unix.chdir curdir;
 			DynArray.add compilations ctx;
+			Hashtbl.clear added_libs;
 			ctx;
+		in
+		let rec find_subsequent_libs acc args = match args with
+		| ("-L" | "--library" | "-lib") :: name :: args ->
+			find_subsequent_libs (name :: acc) args
+		| _ ->
+			List.rev acc,args
 		in
 		let rec loop acc = function
 			| [] ->
@@ -796,16 +856,31 @@ module HighLevel = struct
 				let acc = cl :: "-x" :: acc in
 				let ctx = add_context (!each_params @ (List.rev acc)) in
 				ctx.com.sys_args <- args;
+			| ("-L" | "--library" | "-lib") :: name :: args ->
+				let libs,args = find_subsequent_libs [name] args in
+				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
+				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
+				let lines = add_libs libs pl server_api.cache !has_display in
+				loop acc (lines @ args)
+			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
+				loop_lib arg dir "hxjava" acc args
+			| ("--cs" | "-cs" as arg) :: dir :: args ->
+				loop_lib arg dir "hxcs" acc args
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
 				| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
 					let acc, l = (try acc, Helper.parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
 					loop acc l
-				| _ -> loop (arg :: acc) l
+				| _ ->
+					loop (arg :: acc) l
+		and loop_lib arg dir lib acc args =
+			loop (dir :: arg :: acc) ("-lib" :: lib :: args)
 		in
 		(* put --display in front if it was last parameter *)
 		let pl = (match List.rev pl with
-			| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
+			| file :: "--display" :: pl when file <> "memory" ->
+				has_display := true;
+				"--display" :: file :: List.rev pl
 			| _ -> pl
 		) in
 		loop [] pl;
