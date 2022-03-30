@@ -26,18 +26,9 @@ let usage_string ?(print_cat=true) arg_spec usage =
 	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
 
 let process_args arg_spec =
-	(* Takes a list of arg specs including some custom info, and generates a
-	list in the format Arg.parse_argv wants. Handles multiple official or
-	deprecated names for the same arg; deprecated versions will display a
-	warning. *)
 	List.flatten(List.map (fun (cat, ok, dep, spec, hint, doc) ->
 		(* official argument names *)
 		(List.map (fun (arg) -> (arg, spec, doc)) ok) @
-		(* deprecated argument names *)
-		(* let dep_msg arg = (Printf.sprintf "WARNING: %s is deprecated" arg) ^ (if List.length ok > 0 then (Printf.sprintf ". Use %s instead" (String.concat "/" ok)) else "") in *)
-		(* For now, these warnings are a noop. Can replace this function to
-		enable error output: *)
-		(* let dep_fun = prerr_endline (dep_msg arg) in *)
 		let dep_fun arg spec = () in
 		let dep_spec arg spec = match spec with
 			| Arg.String f -> Arg.String (fun x -> dep_fun arg spec; f x)
@@ -56,7 +47,6 @@ let parse_args com =
 		classes = [([],"Std")];
 		xml_out = None;
 		json_out = None;
-		swf_header = None;
 		cmds = [];
 		config_macros = [];
 		no_output = false;
@@ -69,10 +59,12 @@ let parse_args com =
 		native_libs = [];
 		raise_usage = (fun () -> ());
 		display_arg = None;
+		deprecations = [];
 	} in
+	let add_deprecation s =
+		actx.deprecations <- s :: actx.deprecations
+	in
 	let add_native_lib file extern = actx.native_libs <- (file,extern) :: actx.native_libs in
-	let define f = Arg.Unit (fun () -> Common.define com f) in
-	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
 		("Target",["--js"],["-js"],Arg.String (set_platform com Js),"<file>","generate JavaScript code into target file");
 		("Target",["--lua"],["-lua"],Arg.String (set_platform com Lua),"<file>","generate Lua code into target file");
@@ -177,27 +169,20 @@ let parse_args com =
 			if not actx.swf_version || com.flash_version < v then com.flash_version <- v;
 			actx.swf_version <- true;
 		),"<version>","change the SWF version");
-		(* FIXME: replace with -D define *)
 		("Target-specific",["--swf-header"],["-swf-header"],Arg.String (fun h ->
-			try
-				actx.swf_header <- Some (match ExtString.String.nsplit h ":" with
-				| [width; height; fps] ->
-					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
-				| [width; height; fps; color] ->
-					let color = if ExtString.String.starts_with color "0x" then color else "0x" ^ color in
-					(int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
-				| _ -> raise Exit)
-			with
-				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
+			add_deprecation "-swf-header has been deprecated, use -D swf-header instead";
+			define_value com Define.SwfHeader h
 		),"<header>","define SWF header (width:height:fps:color)");
-		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
+		("Target-specific",["--flash-strict"],[],Arg.Unit (fun () ->
+			add_deprecation "--flash-strict has been deprecated, use -D flash-strict instead";
+			Common.define com Define.FlashStrict
+		), "","more type strict flash API");
 		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>","add the SWF library to the compiled SWF");
 		("Target-specific",["--neko-lib"],[],Arg.String (fun file ->
 			com.neko_libs <- file :: com.neko_libs
 		),"<file>","add the neko library");
-		(* FIXME: replace with -D define *)
 		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
 			add_native_lib file true;
 		),"<file>","use the SWF library for type checking");
@@ -213,7 +198,6 @@ let parse_args com =
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file
 		),"<file>","add a root std .NET DLL search path");
-		(* FIXME: replace with -D define *)
 		("Target-specific",["--c-arg"],["-c-arg"],Arg.String (fun arg ->
 			com.c_args <- arg :: com.c_args
 		),"<arg>","pass option <arg> to the native Java/C# compiler");
@@ -239,8 +223,10 @@ let parse_args com =
 		("Compilation",["--cmd"],["-cmd"], Arg.String (fun cmd ->
 			actx.cmds <- Helper.unquote cmd :: actx.cmds
 		),"<command>","run the specified command after successful compilation");
-		(* FIXME: replace with -D define *)
-		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
+		("Optimization",["--no-traces"],[], Arg.Unit (fun () ->
+			add_deprecation "--no-traces has been deprecated, use -D no-traces instead";
+			Common.define com Define.NoTraces
+		), "","don't compile trace calls in the program");
 		("Batch",["--next"],[], Arg.Unit (fun() -> die "" __LOC__), "","separate several haxe compilations");
 		("Batch",["--each"],[], Arg.Unit (fun() -> die "" __LOC__), "","append preceding parameters to all Haxe compilations separated by --next");
 		("Services",["--display"],[], Arg.String (fun input ->
@@ -254,7 +240,10 @@ let parse_args com =
 		),"<file>","generate JSON types description");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
-		("Optimization",["--no-inline"],[], define Define.NoInline, "","disable inlining");
+		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
+			add_deprecation "--no-inline has been deprecated, use -D no-inline instead";
+			Common.define com Define.NoInline
+		), "","disable inlining");
 		("Optimization",["--no-opt"],[], Arg.Unit (fun() ->
 			com.foptimize <- false;
 			Common.define com Define.NoOpt;

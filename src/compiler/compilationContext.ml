@@ -9,7 +9,6 @@ type arg_context = {
 	mutable classes : Globals.path list;
 	mutable xml_out : string option;
 	mutable json_out : string option;
-	mutable swf_header : (int * int * float * int) option;
 	mutable cmds : string list;
 	mutable config_macros : string list;
 	mutable no_output : bool;
@@ -22,6 +21,7 @@ type arg_context = {
 	mutable native_libs : (string * bool) list;
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
+	mutable deprecations : string list;
 }
 
 type communication = {
