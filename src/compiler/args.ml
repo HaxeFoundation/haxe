@@ -68,7 +68,6 @@ let parse_args com =
 		swf_version = false;
 		native_libs = [];
 		raise_usage = (fun () -> ());
-		server_mode = SMNone;
 	} in
 	let add_native_lib file extern = actx.native_libs <- (file,extern) :: actx.native_libs in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -274,10 +273,10 @@ let parse_args com =
 			actx.config_macros <- e :: actx.config_macros
 		),"<macro>","call the given macro before typing anything else");
 		("Compilation Server",["--server-listen"],["--wait"], Arg.String (fun hp ->
-			actx.server_mode <- SMListen hp;
+			die "" __LOC__
 		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run");
 		("Compilation Server",["--server-connect"],[], Arg.String (fun hp ->
-			actx.server_mode <- SMConnect hp;
+			die "" __LOC__
 		),"[host:]port]","connect to the given port and wait for commands to run");
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
 			die "" __LOC__

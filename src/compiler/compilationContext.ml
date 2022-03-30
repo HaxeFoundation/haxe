@@ -21,7 +21,6 @@ type arg_context = {
 	mutable swf_version : bool;
 	mutable native_libs : (string * bool) list;
 	mutable raise_usage : unit -> unit;
-	mutable server_mode : server_mode;
 }
 
 type communication = {
@@ -40,17 +39,21 @@ and compilation_context = {
 	comm : communication;
 }
 
+type compilation_callbacks = {
+	before_anything : compilation_context -> unit;
+	after_arg_parsing : compilation_context -> unit;
+	after_compilation : compilation_context -> unit;
+}
+
 type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) * (unit -> unit))
 
 type server_api = {
 	cache : CompilationCache.t;
+	callbacks : compilation_callbacks;
 	on_context_create : unit -> int;
-	before_anything : compilation_context -> unit;
-	after_arg_parsing : compilation_context -> unit;
-	after_compilation : compilation_context -> unit;
 	init_wait_socket : string -> int -> server_accept;
 	init_wait_connect : string -> int -> server_accept;
 	init_wait_stdio : unit -> server_accept;
-	wait_loop : bool -> server_accept -> unit;
+	wait_loop : bool -> server_accept -> int;
 	do_connect : string -> int -> string list -> unit;
 }
