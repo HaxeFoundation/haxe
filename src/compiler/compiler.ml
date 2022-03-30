@@ -312,7 +312,18 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let generate tctx ext actx =
+
+let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
+		| [width; height; fps] ->
+			Some (int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
+		| [width; height; fps; color] ->
+			let color = if ExtString.String.starts_with color "0x" then color else "0x" ^ color in
+			Some (int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
+		| _ ->
+			error ctx "Invalid SWF header format, expected width:height:fps[:color]" null_pos;
+			None
+
+let generate ctx tctx ext actx =
 	let com = tctx.Typecore.com in
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
@@ -342,7 +353,12 @@ let generate tctx ext actx =
 	else begin
 		let generate,name = match com.platform with
 		| Flash ->
-			Genswf.generate actx.swf_header,"swf"
+			let header = try
+				parse_swf_header ctx (defined_value com Define.SwfHeader)
+			with Not_found ->
+				None
+			in
+			Genswf.generate header,"swf"
 		| Neko ->
 			Genneko.generate,"neko"
 		| Js ->
@@ -533,7 +549,7 @@ let compile ctx actx =
 		if ctx.has_error then raise Abort;
 		check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
-		if not actx.no_output then generate tctx ext actx;
+		if not actx.no_output then generate ctx tctx ext actx;
 		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;
@@ -729,6 +745,11 @@ let process_display_arg ctx actx =
 	| None ->
 		()
 
+let process_actx ctx actx =
+	List.iter (fun s ->
+		ctx.com.warning WDeprecated [] s null_pos
+	) actx.deprecations
+
 let compile_ctx callbacks ctx =
 	let run ctx =
 		callbacks.before_anything ctx;
@@ -736,6 +757,7 @@ let compile_ctx callbacks ctx =
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_display_arg ctx actx;
+			process_actx ctx actx;
 			callbacks.after_arg_parsing ctx;
 			compile ctx actx;
 		);
