@@ -68,8 +68,6 @@ type typer_module = {
 }
 
 type typer_globals = {
-	types_module : (path, path) Hashtbl.t;
-	modules : (path , module_def) Hashtbl.t;
 	mutable delayed : (typer_pass * (unit -> unit) list) list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
@@ -441,7 +439,7 @@ let create_fake_module ctx file =
 		Hashtbl.add fake_modules key mdep;
 		mdep
 	) in
-	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
+	Hashtbl.replace ctx.com.module_lut mdep.m_path mdep;
 	mdep
 
 let push_this ctx e = match e.eexpr with

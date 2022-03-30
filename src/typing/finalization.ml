@@ -86,7 +86,7 @@ let finalize ctx =
 			()
 		| fl ->
 			let rec loop handled_types =
-				let all_types = Hashtbl.fold (fun _ m acc -> m.m_types @ acc) ctx.g.modules [] in
+				let all_types = Hashtbl.fold (fun _ m acc -> m.m_types @ acc) ctx.com.module_lut [] in
 				match (List.filter (fun mt -> not (List.memq mt handled_types)) all_types) with
 				| [] ->
 					()
@@ -198,5 +198,5 @@ let sort_types com modules =
 	List.rev !types, sorted_modules
 
 let generate ctx =
-	let types,modules = sort_types ctx.com ctx.g.modules in
+	let types,modules = sort_types ctx.com ctx.com.module_lut in
 	get_main ctx types,types,modules

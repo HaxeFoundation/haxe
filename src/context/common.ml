@@ -339,6 +339,8 @@ type context = {
 	mutable flash_version : float;
 	mutable features : (string,bool) Hashtbl.t;
 	mutable modules : Type.module_def list;
+	module_lut : (path , module_def) Hashtbl.t;
+	type_to_module : (path, path) Hashtbl.t;
 	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
@@ -745,6 +747,8 @@ let create compilation_step cs version args =
 		types = [];
 		callbacks = new compiler_callbacks;
 		modules = [];
+		module_lut = Hashtbl.create 0;
+		type_to_module = Hashtbl.create 0;
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
@@ -828,6 +832,8 @@ let clone com is_macro_context =
 		native_libs = create_native_libs();
 		overload_cache = Hashtbl.create 0;
 		is_macro_context = is_macro_context;
+		module_lut = Hashtbl.create 0;
+		type_to_module = Hashtbl.create 0;
 	}
 
 let file_time file = Extc.filetime file

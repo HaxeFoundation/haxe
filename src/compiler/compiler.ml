@@ -158,13 +158,13 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 				display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
 			if clear then begin
 				begin try
-					let m = Hashtbl.find mctx.g.modules cpath in
-					Hashtbl.remove mctx.g.modules cpath;
-					Hashtbl.remove mctx.g.types_module cpath;
+					let m = Hashtbl.find mctx.com.module_lut cpath in
+					Hashtbl.remove mctx.com.module_lut cpath;
+					Hashtbl.remove mctx.com.type_to_module cpath;
 					List.iter (fun mt ->
 						let ti = t_infos mt in
-						Hashtbl.remove mctx.g.modules ti.mt_path;
-						Hashtbl.remove mctx.g.types_module ti.mt_path;
+						Hashtbl.remove mctx.com.module_lut ti.mt_path;
+						Hashtbl.remove mctx.com.type_to_module ti.mt_path;
 					) m.m_types
 				with Not_found ->
 					()
