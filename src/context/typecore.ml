@@ -136,7 +136,6 @@ and typer = {
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	mutable monomorphs : monomorphs;
 	(* events *)
-	mutable on_error : typer -> string -> pos -> unit;
 	memory_marker : float array;
 }
 
@@ -596,6 +595,40 @@ let merge_core_doc ctx mt =
 			| _ -> ()
 		end
 	| _ -> ())
+
+let field_to_type_path com e =
+	let rec loop e pack name = match e with
+		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+			| [] | _ :: [] ->
+				loop e pack (f :: name)
+			| _ -> (* too many name paths *)
+				display_error com ("Unexpected " ^ f) p;
+				raise Exit)
+		| EField(e,f,_),_ ->
+			loop e (f :: pack) name
+		| EConst(Ident f),_ ->
+			let pack, name, sub = match name with
+				| [] ->
+					let fchar = String.get f 0 in
+					if Char.uppercase fchar = fchar then
+						pack, f, None
+					else begin
+						display_error com "A class name must start with an uppercase letter" (snd e);
+						raise Exit
+					end
+				| [name] ->
+					f :: pack, name, None
+				| [name; sub] ->
+					f :: pack, name, Some sub
+				| _ ->
+					die "" __LOC__
+			in
+			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
+		| _,pos ->
+			display_error com "Unexpected expression when building strict meta" pos;
+			raise Exit
+	in
+	loop e [] []
 
 let safe_mono_close ctx m p =
 	try

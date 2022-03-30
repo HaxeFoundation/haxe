@@ -753,40 +753,6 @@ let load_type_hint ?(opt=false) ctx pcur t =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
-let field_to_type_path com e =
-	let rec loop e pack name = match e with
-		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
-			| [] | _ :: [] ->
-				loop e pack (f :: name)
-			| _ -> (* too many name paths *)
-				display_error com ("Unexpected " ^ f) p;
-				raise Exit)
-		| EField(e,f,_),_ ->
-			loop e (f :: pack) name
-		| EConst(Ident f),_ ->
-			let pack, name, sub = match name with
-				| [] ->
-					let fchar = String.get f 0 in
-					if Char.uppercase fchar = fchar then
-						pack, f, None
-					else begin
-						display_error com "A class name must start with an uppercase letter" (snd e);
-						raise Exit
-					end
-				| [name] ->
-					f :: pack, name, None
-				| [name; sub] ->
-					f :: pack, name, Some sub
-				| _ ->
-					die "" __LOC__
-			in
-			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
-		| _,pos ->
-			display_error com "Unexpected expression when building strict meta" pos;
-			raise Exit
-	in
-	loop e [] []
-
 type type_param_host =
 	| TPHType
 	| TPHConstructor
