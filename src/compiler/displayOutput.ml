@@ -210,15 +210,6 @@ let print_signature tl display_arg =
 
 exception Completion of string
 
-let unquote v =
-	let len = String.length v in
-	if len > 0 then
-		match v.[0], v.[len - 1] with
-			| '"', '"'
-			| '\'', '\'' -> String.sub v 1 (len - 2)
-			| _ -> v
-	else v
-
 let handle_display_argument com file_pos actx =
 	match file_pos with
 	| "classes" ->
@@ -232,7 +223,7 @@ let handle_display_argument com file_pos actx =
 		com.report_mode <- RMDiagnostics []
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
-		let file = unquote file in
+		let file = Helper.unquote file in
 		let file_unique = com.file_keys#get file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let create mode =

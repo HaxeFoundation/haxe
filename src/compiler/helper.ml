@@ -20,8 +20,16 @@ let expand_env ?(h=None) path  =
 			"%" ^ key ^ "%"
 	) path
 
+let unquote v =
+	let len = String.length v in
+	if len > 0 then
+		match v.[0], v.[len - 1] with
+			| '"', '"'
+			| '\'', '\'' -> String.sub v 1 (len - 2)
+			| _ -> v
+	else v
+
 let parse_hxml_data data =
-	let open DisplayOutput in
 	let lines = Str.split (Str.regexp "[\r\n]+") data in
 	List.concat (List.map (fun l ->
 		let l = unquote (ExtString.String.strip l) in
