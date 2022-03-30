@@ -651,18 +651,24 @@ let handle_structure_display ctx e fields origin =
 		let rec loop subj fl = match fl with
 			| [] -> subj
 			| ((n,p,_),e) :: fl ->
+				let wt () =
+					try
+						let cf = List.find (fun { cf_name = name } -> name = n) !fields in
+						WithType.with_type cf.cf_type
+					with Not_found -> WithType.value
+				in
 				let subj = if DisplayPosition.display_position#enclosed_in p then
 					Some(n,p)
 				else begin
-					if DisplayPosition.display_position#enclosed_in ({ (pos e) with pmin = p.pmax + 1 }) then begin
-						let e = fst e, { (pos e) with pmin = p.pmax + 1 } in
-						let wt =
-							try
-								let cf = List.find (fun { cf_name = name } -> name = n) !fields in
-								WithType.with_type cf.cf_type
-							with Not_found -> WithType.value
-						in
-						ignore(handle_display ctx e DKMarked MGet wt)
+					if DisplayPosition.display_position#enclosed_in (pos e) then
+						ignore(handle_display ctx e DKMarked MGet (wt()))
+					else begin
+						(* If we are between the : and the expression, we don't want to use the actual expression as a filter string (issue #10414) *)
+						let p_between = { p with pmin = p.pmax + 1; pmax = (pos e).pmin - 1} in
+						if DisplayPosition.display_position#enclosed_in p_between then begin
+							let e = (EConst(Ident "null"),p_between) in
+							ignore(handle_display ctx e DKMarked MGet (wt()))
+						end;
 					end;
 					fields := List.filter (fun cf -> cf.cf_name <> n) !fields;
 					subj
