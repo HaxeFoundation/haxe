@@ -25,52 +25,6 @@ let usage_string ?(print_cat=true) arg_spec usage =
 		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
 	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
 
-let add_libs com libs =
-	let global_repo = List.exists (fun a -> a = "--haxelib-global") com.args in
-	let call_haxelib() =
-		let t = Timer.timer ["haxelib"] in
-		let cmd = "haxelib" ^ (if global_repo then " --global" else "") ^ " path " ^ String.concat " " libs in
-		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
-		let lines = Std.input_list pin in
-		let err = Std.input_list perr in
-		let ret = Unix.close_process_full (pin,pout,perr) in
-		if ret <> Unix.WEXITED 0 then failwith (match lines, err with
-			| [], [] -> "Failed to call haxelib (command not found ?)"
-			| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found: path" -> "The haxelib command has been strip'ed, please install it again"
-			| _ -> String.concat "\n" (lines@err));
-		t();
-		lines
-	in
-	match libs with
-	| [] -> []
-	| _ ->
-		let lines =
-			try
-				(* if we are compiling, really call haxelib since library path might have changed *)
-				if com.display.dms_full_typing then raise Not_found;
-				com.cs#find_haxelib libs
-			with Not_found ->
-				let lines = call_haxelib() in
-				com.cs#cache_haxelib libs lines;
-				lines
-		in
-		let extra_args = ref [] in
-		let lines = List.fold_left (fun acc l ->
-			let l = ExtString.String.strip l in
-			if l = "" then acc else
-			if l.[0] <> '-' then l :: acc else
-			match (try ExtString.String.split l " " with _ -> l, "") with
-			| ("-L",dir) ->
-				com.neko_libs <- String.sub l 3 (String.length l - 3) :: com.neko_libs;
-				acc
-			| param, value ->
-				extra_args := param :: !extra_args;
-				if value <> "" then extra_args := value :: !extra_args;
-				acc
-		) [] lines in
-		com.class_path <- lines @ com.class_path;
-		List.rev !extra_args
-
 let process_args arg_spec =
 	(* Takes a list of arg specs including some custom info, and generates a
 	list in the format Arg.parse_argv wants. Handles multiple official or
@@ -105,8 +59,6 @@ let parse_args com =
 		swf_header = None;
 		cmds = [];
 		config_macros = [];
-		cp_libs = [];
-		added_libs = Hashtbl.create 0;
 		no_output = false;
 		did_something = false;
 		force_typing = false;
@@ -120,16 +72,6 @@ let parse_args com =
 	} in
 	let add_native_lib file extern = actx.native_libs <- (file,extern) :: actx.native_libs in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
-	let process_ref = ref (fun args -> ()) in
-	let process_libs() =
-		let libs = List.filter (fun l -> not (Hashtbl.mem actx.added_libs l)) (List.rev actx.cp_libs) in
-		actx.cp_libs <- [];
-		List.iter (fun l -> Hashtbl.add actx.added_libs l ()) libs;
-		(* immediately process the arguments to insert them at the place -lib was defined *)
-		match add_libs com libs with
-		| [] -> ()
-		| args -> (!process_ref) args
-	in
 	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
 		("Target",["--js"],["-js"],Arg.String (set_platform com Js),"<file>","generate JavaScript code into target file");
@@ -148,15 +90,12 @@ let parse_args com =
 			set_platform com Cpp file;
 		),"<file>","generate Cppia bytecode into target file");
 		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
-			actx.cp_libs <- "hxcs" :: actx.cp_libs;
 			set_platform com Cs dir;
 		),"<directory>","generate C# code into target directory");
 		("Target",["--java"],["-java"],Arg.String (fun dir ->
-			actx.cp_libs <- "hxjava" :: actx.cp_libs;
 			set_platform com Java dir;
 		),"<directory>","generate Java code into target directory");
 		("Target",["--jvm"],[],Arg.String (fun dir ->
-			actx.cp_libs <- "hxjava" :: actx.cp_libs;
 			Common.define com Define.Jvm;
 			actx.jvm_flag <- true;
 			set_platform com Java dir;
@@ -186,7 +125,6 @@ let parse_args com =
 			raise (Arg.Bad "--run requires an argument: a Haxe module name")
 		), "<module> [args...]","interpret a Haxe module with command line arguments");
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
-			process_libs();
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path>","add a directory to find source files");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
@@ -195,10 +133,6 @@ let parse_args com =
 			com.main_class <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
-		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun l ->
-			actx.cp_libs <- l :: actx.cp_libs;
-			Common.external_define com l;
-		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			let flag, value = try let split = ExtString.String.split var "=" in (fst split, Some (snd split)) with _ -> var, None in
 			match value with
@@ -258,9 +192,11 @@ let parse_args com =
 		),"<header>","define SWF header (width:height:fps:color)");
 		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
 		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
-			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
 			add_native_lib file false;
 		),"<file>","add the SWF library to the compiled SWF");
+		("Target-specific",["--neko-lib"],[],Arg.String (fun file ->
+			com.neko_libs <- file :: com.neko_libs
+		),"<file>","add the neko library");
 		(* FIXME: replace with -D define *)
 		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
 			add_native_lib file true;
@@ -427,9 +363,6 @@ let parse_args com =
 		end;
 	in
 	actx.raise_usage <- (fun () -> raise (Helper.HelpMessage (usage_string basic_args_spec usage)));
-	process_ref := process;
 	(* Handle CLI arguments *)
 	process com.args;
-	(* Process haxelibs *)
-	process_libs();
 	actx
