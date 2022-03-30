@@ -701,13 +701,13 @@ with
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
 
-let catch_completion_and_exit ctx server_api run =
+let catch_completion_and_exit ctx callbacks run =
 	try
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
 		| DisplayOutput.Completion str ->
-			server_api.after_compilation ctx;
+			callbacks.after_compilation ctx;
 			ServerMessage.completion str;
 			ctx.comm.write_err str;
 			1
@@ -716,40 +716,23 @@ let catch_completion_and_exit ctx server_api run =
 			finalize ctx;
 			i
 
-let compile_ctx server_api ctx =
+let compile_ctx callbacks ctx =
 	let run ctx =
-		server_api.before_anything ctx;
+		callbacks.before_anything ctx;
 		setup_common_context ctx;
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
-			begin match actx.server_mode with
-			| SMListen hp ->
-				let accept = match hp with
-				| "stdio" ->
-					server_api.init_wait_stdio()
-				| _ ->
-					let host, port = Helper.parse_host_port hp in
-					server_api.init_wait_socket host port
-				in
-				server_api.wait_loop ctx.com.verbose accept
-			| SMConnect hp ->
-				let host, port = Helper.parse_host_port hp in
-				let accept = server_api.init_wait_connect host port in
-				server_api.wait_loop ctx.com.verbose accept
-			| SMNone ->
-				()
-			end;
-			server_api.after_arg_parsing ctx;
+			callbacks.after_arg_parsing ctx;
 			compile ctx actx;
 		);
 		finalize ctx;
-		server_api.after_compilation ctx;
+		callbacks.after_compilation ctx;
 	in
 	if ctx.has_error then begin
 		finalize ctx;
 		1 (* can happen if process_params fails already *)
 	end else
-		catch_completion_and_exit ctx server_api run
+		catch_completion_and_exit ctx callbacks run
 
 let create_context comm cs compilation_step params = {
 	com = Common.create compilation_step cs version params;
@@ -819,13 +802,14 @@ module HighLevel = struct
 		let curdir = Unix.getcwd () in
 		let has_display = ref false in
 		let added_libs = Hashtbl.create 0 in
+		let server_mode = ref SMNone in
 		let add_context args =
 			let ctx = create (server_api.on_context_create()) args in
 			(* --cwd triggers immediately, so let's reset *)
 			Unix.chdir curdir;
-			DynArray.add compilations ctx;
-			Hashtbl.clear added_libs;
-			ctx;
+			DynArray.add compilations (ctx,!server_mode);
+			server_mode := SMNone;
+			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
 		| ("-L" | "--library" | "-lib") :: name :: args ->
@@ -853,6 +837,12 @@ module HighLevel = struct
 			| "--connect" :: hp :: l ->
 				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+			| "--server-connect" :: hp :: l ->
+				server_mode := SMConnect hp;
+				loop acc l
+			| ("--server-listen" | "--wait") :: hp :: l ->
+				server_mode := SMListen hp;
+				loop acc l
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
 				let ctx = add_context (!each_params @ (List.rev acc)) in
@@ -887,6 +877,28 @@ module HighLevel = struct
 		loop [] pl;
 		DynArray.to_list compilations
 
+	let execute_ctx server_api ctx server_mode =
+		begin match server_mode with
+		| SMListen hp ->
+			(* parse for com.verbose *)
+			ignore(Args.parse_args ctx.com);
+			let accept = match hp with
+			| "stdio" ->
+				server_api.init_wait_stdio()
+			| _ ->
+				let host, port = Helper.parse_host_port hp in
+				server_api.init_wait_socket host port
+			in
+			server_api.wait_loop ctx.com.verbose accept
+		| SMConnect hp ->
+			ignore(Args.parse_args ctx.com);
+			let host, port = Helper.parse_host_port hp in
+			let accept = server_api.init_wait_connect host port in
+			server_api.wait_loop ctx.com.verbose accept
+		| SMNone ->
+			compile_ctx server_api.callbacks ctx
+		end
+
 	let entry server_api comm args =
 		let create = create_context comm server_api.cache in
 		let ctxs = try
@@ -894,11 +906,11 @@ module HighLevel = struct
 		with Arg.Bad msg ->
 			let ctx = create 0 args in
 			error ctx ("Error: " ^ msg) null_pos;
-			[ctx]
+			[ctx,SMNone]
 		in
-		let code = List.fold_left (fun code ctx ->
+		let code = List.fold_left (fun code (ctx,server_mode) ->
 			if code = 0 then
-				compile_ctx server_api ctx
+				execute_ctx server_api ctx server_mode
 			else
 				code
 		) 0 ctxs in

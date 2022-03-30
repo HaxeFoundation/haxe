@@ -638,9 +638,11 @@ let rec process sctx comm args =
 			sctx.compilation_step;
 		);
 		cache = sctx.cs;
-		before_anything = before_anything sctx;
-		after_arg_parsing = after_arg_parsing sctx;
-		after_compilation = after_compilation sctx;
+		callbacks = {
+			before_anything = before_anything sctx;
+			after_arg_parsing = after_arg_parsing sctx;
+			after_compilation = after_compilation sctx;
+		};
 		init_wait_socket = init_wait_socket;
 		init_wait_connect = init_wait_connect;
 		init_wait_stdio = init_wait_stdio;
@@ -731,7 +733,8 @@ and wait_loop verbose accept =
 			while cs#has_task do cs#get_task#run done
 		else if sctx.was_compilation then
 			cs#add_task (new Tasks.server_exploration_task cs)
-	done
+	done;
+	0
 
 (* Connect to given host/port and return accept function for communication *)
 and init_wait_connect host port =
