@@ -322,6 +322,7 @@ type context = {
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable run_command : string -> int;
+	mutable run_command_args : string -> string list -> int;
 	(* typing setup *)
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
@@ -716,7 +717,7 @@ let memory_marker = [|Unix.time()|]
 
 let create compilation_step cs version args =
 	let m = Type.mk_mono() in
-	{
+	let rec com = {
 		compilation_step = compilation_step;
 		cs = cs;
 		cache = None;
@@ -743,6 +744,7 @@ let create compilation_step cs version args =
 		config = default_config;
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
+		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		std_path = [];
 		class_path = [];
 		main_class = None;
@@ -798,7 +800,8 @@ let create compilation_step cs version args =
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
-	}
+	} in
+	com
 
 let is_diagnostics com = match com.report_mode with
 	| RMDiagnostics _ -> true
