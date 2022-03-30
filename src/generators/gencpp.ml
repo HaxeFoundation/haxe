@@ -6971,9 +6971,9 @@ let write_build_options common_ctx filename defines =
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
       | _ ->  writer#write (Printf.sprintf "%s=%s\n" name (escape_command value))) defines;
-   let cmd = Unix.open_process_in "haxelib path hxcpp" in
-   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line cmd));
-   Pervasives.ignore (Unix.close_process_in cmd);
+   let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
+   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line pin));
+   Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
 
 let create_member_types common_ctx =
@@ -8588,18 +8588,15 @@ let generate_source ctx =
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
-      let cmd_buffer = Buffer.create 128 in
-      Buffer.add_string cmd_buffer "haxelib run hxcpp Build.xml haxe";
-      if (common_ctx.debug) then Buffer.add_string cmd_buffer " -Ddebug";
+      let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
+	  if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
       PMap.iter ( fun name value -> match name with
          | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
-         | _ -> Printf.bprintf cmd_buffer " -D%s=\"%s\"" name (escape_command value);
+         | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
       ) common_ctx.defines.values;
-      List.iter (fun path -> Printf.bprintf cmd_buffer " -I\"%s\"" (escape_command path)) common_ctx.class_path;
-      Buffer.add_char cmd_buffer '\n';
-      let cmd = Buffer.contents cmd_buffer in
-      common_ctx.print cmd;
-      if common_ctx.run_command cmd <> 0 then failwith "Build failed";
+      List.iter (fun path -> cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]) common_ctx.class_path;
+      common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
+      if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
       t()
    end
