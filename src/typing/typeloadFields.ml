@@ -563,12 +563,6 @@ let create_typer_context_for_class ctx cctx p =
 				| TMono r when r.tm_type = None -> TAbstract (a,extract_param_types c.cl_params)
 				| t -> t)
 			| None -> TInst (c,extract_param_types c.cl_params));
-		on_error = (fun ctx msg ep ->
-			ctx.com.error msg ep;
-			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-			let open TFunctions in
-			if not (ExtString.String.starts_with msg "...") && !locate_macro_error && (is_pos_outside_class c ep) && not (is_module_fields_class c) then ctx.com.error (compl_msg "Defined in this class") c.cl_pos
-		);
 	} in
 	ctx
 
