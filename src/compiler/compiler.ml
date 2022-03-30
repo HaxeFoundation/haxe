@@ -845,6 +845,7 @@ module HighLevel = struct
 			Unix.chdir curdir;
 			DynArray.add compilations (ctx,!server_mode);
 			server_mode := SMNone;
+			Hashtbl.clear added_libs;
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
