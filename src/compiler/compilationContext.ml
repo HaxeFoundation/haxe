@@ -21,6 +21,7 @@ type arg_context = {
 	mutable swf_version : bool;
 	mutable native_libs : (string * bool) list;
 	mutable raise_usage : unit -> unit;
+	mutable display_arg : string option;
 }
 
 type communication = {

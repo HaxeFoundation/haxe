@@ -68,6 +68,7 @@ let parse_args com =
 		swf_version = false;
 		native_libs = [];
 		raise_usage = (fun () -> ());
+		display_arg = None;
 	} in
 	let add_native_lib file extern = actx.native_libs <- (file,extern) :: actx.native_libs in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -236,20 +237,14 @@ let parse_args com =
 		),"<file>[@name]","add a named resource file");
 		("Debug",["--prompt"],["-prompt"], Arg.Unit (fun() -> Helper.prompt := true),"","prompt on error");
 		("Compilation",["--cmd"],["-cmd"], Arg.String (fun cmd ->
-			actx.cmds <- DisplayOutput.unquote cmd :: actx.cmds
+			actx.cmds <- Helper.unquote cmd :: actx.cmds
 		),"<command>","run the specified command after successful compilation");
 		(* FIXME: replace with -D define *)
 		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
 		("Batch",["--next"],[], Arg.Unit (fun() -> die "" __LOC__), "","separate several haxe compilations");
 		("Batch",["--each"],[], Arg.Unit (fun() -> die "" __LOC__), "","append preceding parameters to all Haxe compilations separated by --next");
 		("Services",["--display"],[], Arg.String (fun input ->
-			let input = String.trim input in
-			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-				actx.did_something <- true;
-				actx.force_typing <- true;
-				DisplayJson.parse_input com input Timer.measure_times
-			end else
-				DisplayOutput.handle_display_argument com input actx;
+			actx.display_arg <- Some input;
 		),"","display code tips");
 		("Services",["--xml"],["-xml"],Arg.String (fun file ->
 			actx.xml_out <- Some file

@@ -716,12 +716,26 @@ let catch_completion_and_exit ctx callbacks run =
 			finalize ctx;
 			i
 
+let process_display_arg ctx actx =
+	match actx.display_arg with
+	| Some input ->
+		let input = String.trim input in
+		if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
+			actx.did_something <- true;
+			actx.force_typing <- true;
+			DisplayJson.parse_input ctx.com input Timer.measure_times
+		end else
+			DisplayOutput.handle_display_argument ctx.com input actx;
+	| None ->
+		()
+
 let compile_ctx callbacks ctx =
 	let run ctx =
 		callbacks.before_anything ctx;
 		setup_common_context ctx;
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
+			process_display_arg ctx actx;
 			callbacks.after_arg_parsing ctx;
 			compile ctx actx;
 		);
