@@ -1777,8 +1777,8 @@ let macro_api ccom get_api =
 		);
 		"flush_disk_cache", vfun0 (fun () ->
 			let com = (get_api()).get_com() in
-			Hashtbl.clear com.file_lookup_cache;
-			Hashtbl.clear com.readdir_cache;
+			com.file_lookup_cache#clear;
+			com.readdir_cache#clear;
 			vnull
 		);
 		"get_pos_infos", vfun1 (fun p ->
@@ -1882,8 +1882,8 @@ let macro_api ccom get_api =
 				mcom.class_path <- cp :: mcom.class_path;
 			| None ->
 				());
-			Hashtbl.clear com.file_lookup_cache;
-			Hashtbl.clear com.readdir_cache;
+			com.file_lookup_cache#clear;
+			com.readdir_cache#clear;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->

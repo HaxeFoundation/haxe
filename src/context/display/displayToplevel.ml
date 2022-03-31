@@ -488,7 +488,7 @@ let collect ctx tk with_type sort =
 		end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 			()
 		else begin
-			Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) cfile.c_file_path;
+			ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
 			if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 		end
 	) files;

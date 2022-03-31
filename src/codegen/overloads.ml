@@ -84,10 +84,10 @@ let collect_overloads map c i =
 
 let get_overloads (com : Common.context) c i =
 	try
-		Hashtbl.find com.overload_cache (c.cl_path,i)
+		com.overload_cache#find (c.cl_path,i)
 	with Not_found ->
 		let l = collect_overloads (fun t -> t) c i in
-		Hashtbl.add com.overload_cache (c.cl_path,i) l;
+		com.overload_cache#add (c.cl_path,i) l;
 		l
 
 (** Overload resolution **)

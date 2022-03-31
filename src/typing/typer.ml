@@ -516,7 +516,7 @@ and handle_efield ctx e p0 mode with_type =
 							in
 							let pack,name,sub,p = loop [] None path in
 							let mpath = (pack,name) in
-							if Hashtbl.mem ctx.com.module_lut mpath then
+							if ctx.com.module_lut#mem mpath then
 								let tname = Option.default name sub in
 								raise (Error (Type_not_found (mpath,tname,Not_defined),p))
 							else

@@ -138,10 +138,10 @@ let resolve_module_file com m remap p =
 
 let resolve_module_file com m remap p =
 	try
-		Hashtbl.find com.module_to_file m
+		com.module_to_file#find m
 	with Not_found ->
 		let file = resolve_module_file com m remap p in
-		Hashtbl.add com.module_to_file m file;
+		com.module_to_file#add m file;
 		file
 
 (* let resolve_module_file com m remap p =

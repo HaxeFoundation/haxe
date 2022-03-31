@@ -157,7 +157,7 @@ let static_method_container gctx c cf p =
 		| TInst(cg,_) -> cg
 		| _ -> typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.com.module_lut (Hashtbl.find ctx.com.type_to_module c.cl_path) with Not_found -> die "" __LOC__) in
+		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
@@ -168,7 +168,7 @@ let static_method_container gctx c cf p =
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
-		Hashtbl.add ctx.com.module_lut mg.m_path mg;
+		ctx.com.module_lut#add mg.m_path mg;
 		add_dependency mg m;
 		add_dependency ctx.m.curmod mg;
 		cg
@@ -232,7 +232,7 @@ let rec build_generic_class ctx c p tl =
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.com.module_lut (Hashtbl.find ctx.com.type_to_module c.cl_path) with Not_found -> die "" __LOC__) in
+		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
@@ -259,7 +259,7 @@ let rec build_generic_class ctx c p tl =
 		) c.cl_meta;
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		mg.m_types <- [TClassDecl cg];
-		Hashtbl.add ctx.com.module_lut mg.m_path mg;
+		ctx.com.module_lut#add mg.m_path mg;
 		add_dependency mg m;
 		add_dependency ctx.m.curmod mg;
 		set_type_parameter_dependencies mg tl;

@@ -112,7 +112,7 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p =
 	let mk_typeexpr path =
-		let m = (try Hashtbl.find ctx.com.module_lut path with Not_found -> die "" __LOC__) in
+		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		Option.get (ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)

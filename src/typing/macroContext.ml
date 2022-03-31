@@ -318,7 +318,7 @@ let make_macro_api ctx p =
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
 			begin try
-				let m = Hashtbl.find ctx.com.module_lut mpath in
+				let m = ctx.com.module_lut#find mpath in
 				ignore(TypeloadModule.type_types_into_module ctx m types pos)
 			with Not_found ->
 				let mnew = TypeloadModule.type_module ctx mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
@@ -364,7 +364,7 @@ let make_macro_api ctx p =
 		MacroApi.add_module_check_policy = (fun sl il b i ->
 			let add ctx =
 				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
-				Hashtbl.iter (fun _ m -> m.m_extra.m_check_policy <- TypeloadModule.get_policy ctx.g m.m_path) ctx.com.module_lut;
+				ctx.com.module_lut#iter (fun _ m -> m.m_extra.m_check_policy <- TypeloadModule.get_policy ctx.g m.m_path);
 			in
 			let add_macro ctx = match ctx.g.macros with
 				| None -> ()
@@ -526,7 +526,7 @@ let get_macro_context ctx p =
 
 let load_macro_module ctx cpath display p =
 	let api, mctx = get_macro_context ctx p in
-	let m = (try Hashtbl.find ctx.com.type_to_module cpath with Not_found -> cpath) in
+	let m = (try ctx.com.type_to_module#find cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
 	if display then mctx.com.display <- ctx.com.display;
@@ -545,7 +545,7 @@ let load_macro_module ctx cpath display p =
 let load_macro' ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
-	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
+	let (meth,mloaded) = try mctx.com.cached_macros#find (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
 		let mpath, sub = (match List.rev (fst cpath) with
 			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
@@ -574,7 +574,7 @@ let load_macro' ctx display cpath f p =
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> typing_error "Macro call should be a method" p) in
 		restore();
 		if not ctx.com.is_macro_context then flush_macro_context mint ctx;
-		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
+		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
 			module_imports = [];

@@ -265,6 +265,68 @@ type report_mode =
 	| RMDiagnostics of Path.UniqueKey.t list
 	| RMStatistics
 
+class virtual ['key,'value] lookup = object(self)
+	method virtual add : 'key -> 'value -> unit
+	method virtual remove : 'key -> unit
+	method virtual find : 'key -> 'value
+	method virtual iter : ('key -> 'value -> unit) -> unit
+	method virtual fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc
+	method virtual mem : 'key -> bool
+	method virtual clear : unit
+end
+
+class ['key,'value] pmap_lookup = object(self)
+	inherit ['key,'value] lookup
+	val mutable lut : ('key,'value) PMap.t = PMap.empty
+
+	method add (key : 'key) (value : 'value) =
+		lut <- PMap.add key value lut
+
+	method remove (key : 'key) =
+		lut <- PMap.remove key lut
+
+	method find (key : 'key) : 'value =
+		PMap.find key lut
+
+	method iter (f : 'key -> 'value -> unit) =
+		PMap.iter f lut
+
+	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
+		PMap.foldi f lut acc
+
+	method mem (key : 'key) =
+		PMap.mem key lut
+
+	method clear =
+		lut <- PMap.empty
+end
+
+class ['key,'value] hashtbl_lookup = object(self)
+	inherit ['key,'value] lookup
+	val lut : ('key,'value) Hashtbl.t = Hashtbl.create 0
+
+	method add (key : 'key) (value : 'value) =
+		Hashtbl.replace lut key value
+
+	method remove (key : 'key) =
+		Hashtbl.remove lut key
+
+	method find (key : 'key) : 'value =
+		Hashtbl.find lut key
+
+	method iter (f : 'key -> 'value -> unit) =
+		Hashtbl.iter f lut
+
+	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
+		Hashtbl.fold f lut acc
+
+	method mem (key : 'key) =
+		Hashtbl.mem lut key
+
+	method clear =
+		Hashtbl.clear lut
+end
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -305,18 +367,18 @@ type context = {
 	(* typing state *)
 	shared : shared_context;
 	display_information : display_information;
-	file_lookup_cache : (string,string option) Hashtbl.t;
+	file_lookup_cache : (string,string option) lookup;
 	file_keys : file_keys;
-	readdir_cache : (string * string,(string array) option) Hashtbl.t;
-	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
-	module_to_file : (path,string) Hashtbl.t;
-	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
-	mutable stored_typed_exprs : (int, texpr) PMap.t;
-	pass_debug_messages : string DynArray.t;
-	overload_cache : ((path * string),(Type.t * tclass_field) list) Hashtbl.t;
+	readdir_cache : (string * string,(string array) option) lookup;
+	parser_cache : (string,(type_def * pos) list) lookup;
+	module_to_file : (path,string) lookup;
+	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
+	stored_typed_exprs : (int, texpr) lookup;
+	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
+	module_lut : (path,module_def) lookup;
+	type_to_module : (path,path) lookup;
 	mutable has_error : bool;
-	module_lut : (path , module_def) Hashtbl.t;
-	type_to_module : (path, path) Hashtbl.t;
+	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
@@ -727,8 +789,8 @@ let create compilation_step cs version args =
 		types = [];
 		callbacks = new compiler_callbacks;
 		modules = [];
-		module_lut = Hashtbl.create 0;
-		type_to_module = Hashtbl.create 0;
+		module_lut = new hashtbl_lookup;
+		type_to_module = new hashtbl_lookup;
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
@@ -752,7 +814,6 @@ let create compilation_step cs version args =
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
-		overload_cache = Hashtbl.create 0;
 		basic = {
 			tvoid = m;
 			tint = m;
@@ -762,14 +823,15 @@ let create compilation_step cs version args =
 			tstring = m;
 			tarray = (fun _ -> die "" __LOC__);
 		};
-		file_lookup_cache = Hashtbl.create 0;
+		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
-		readdir_cache = Hashtbl.create 0;
-		module_to_file = Hashtbl.create 0;
-		stored_typed_exprs = PMap.empty;
-		cached_macros = Hashtbl.create 0;
+		readdir_cache = new hashtbl_lookup;
+		module_to_file = new hashtbl_lookup;
+		stored_typed_exprs = new hashtbl_lookup;
+		cached_macros = new hashtbl_lookup;
 		memory_marker = memory_marker;
-		parser_cache = Hashtbl.create 0;
+		parser_cache = new hashtbl_lookup;
+		overload_cache = new hashtbl_lookup;
 		json_out = None;
 		has_error = false;
 		report_mode = RMNone;
@@ -796,10 +858,6 @@ let clone com is_macro_context =
 		basic = { t with tvoid = t.tvoid };
 		main_class = None;
 		features = Hashtbl.create 0;
-		file_lookup_cache = Hashtbl.create 0;
-		readdir_cache = Hashtbl.create 0;
-		parser_cache = Hashtbl.create 0;
-		module_to_file = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
@@ -811,10 +869,14 @@ let clone com is_macro_context =
 			defines_signature = com.defines.defines_signature;
 		};
 		native_libs = create_native_libs();
-		overload_cache = Hashtbl.create 0;
 		is_macro_context = is_macro_context;
-		module_lut = Hashtbl.create 0;
-		type_to_module = Hashtbl.create 0;
+		file_lookup_cache = new hashtbl_lookup;
+		readdir_cache = new hashtbl_lookup;
+		parser_cache = new hashtbl_lookup;
+		module_to_file = new hashtbl_lookup;
+		overload_cache = new hashtbl_lookup;
+		module_lut = new hashtbl_lookup;
+		type_to_module = new hashtbl_lookup;
 	}
 
 let file_time file = Extc.filetime file
@@ -957,7 +1019,7 @@ let cache_directory ctx class_path dir f_dir =
 		try Some (Sys.readdir dir);
 		with Sys_error _ -> None
 	in
-	Hashtbl.add ctx.readdir_cache (class_path,dir) dir_listing;
+	ctx.readdir_cache#add (class_path,dir) dir_listing;
 	(*
 		This function is invoked for each file in the `dir`.
 		Each file is checked if it's specific for current platform
@@ -991,23 +1053,23 @@ let cache_directory ctx class_path dir f_dir =
 			- or this is a platform-specific file for `representation`
 			- this `representation` was never found before
 		*)
-		if is_loading_core_api || is_platform_specific || not (Hashtbl.mem ctx.file_lookup_cache representation) then begin
+		if is_loading_core_api || is_platform_specific || not (ctx.file_lookup_cache#mem representation) then begin
 			let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
-			Hashtbl.replace ctx.file_lookup_cache representation (Some full_path);
+			ctx.file_lookup_cache#add representation (Some full_path);
 		end
 	in
 	Option.may (Array.iter prepare_file) dir_listing
 
 let find_file ctx f =
 	try
-		match Hashtbl.find ctx.file_lookup_cache f with
+		match ctx.file_lookup_cache#find f with
 		| None -> raise Exit
 		| Some f -> f
 	with
 	| Exit ->
 		raise Not_found
 	| Not_found when Path.is_absolute_path f ->
-		Hashtbl.add ctx.file_lookup_cache f (Some f);
+		ctx.file_lookup_cache#add f (Some f);
 		f
 	| Not_found ->
 		let f_dir = Filename.dirname f in
@@ -1019,13 +1081,13 @@ let find_file ctx f =
 				let dir = Filename.dirname file in
 				(* If we have seen the directory before, we can assume that the file isn't in there because the else case
 				   below would have added it to `file_lookup_cache`, which we check before we get here. *)
-				if Hashtbl.mem ctx.readdir_cache (p,dir) then
+				if ctx.readdir_cache#mem (p,dir) then
 					loop (had_empty || p = "") l
 				else begin
 					cache_directory ctx p dir f_dir;
 					(* Caching might have located the file we're looking for, so check the lookup cache again. *)
 					try
-						begin match Hashtbl.find ctx.file_lookup_cache f with
+						begin match ctx.file_lookup_cache#find f with
 						| Some f -> f
 						| None -> raise Not_found
 						end
@@ -1034,7 +1096,7 @@ let find_file ctx f =
 				end
 		in
 		let r = try Some (loop false ctx.class_path) with Not_found -> None in
-		Hashtbl.add ctx.file_lookup_cache f r;
+		ctx.file_lookup_cache#add f r;
 		match r with
 		| None -> raise Not_found
 		| Some f -> f

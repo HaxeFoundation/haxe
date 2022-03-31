@@ -28,7 +28,7 @@ open DisplayTypes
 open Display
 
 let get_submodule_fields ctx path =
-	let m = Hashtbl.find ctx.com.module_lut path in
+	let m = ctx.com.module_lut#find path in
 	let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
 	let tl = List.map (fun mt ->
 		make_ci_type (CompletionItem.CompletionModuleType.of_module_type mt) ImportStatus.Imported None

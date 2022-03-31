@@ -435,7 +435,7 @@ let create_fake_module ctx file =
 		Hashtbl.add fake_modules key mdep;
 		mdep
 	) in
-	Hashtbl.replace ctx.com.module_lut mdep.m_path mdep;
+	ctx.com.module_lut#add mdep.m_path mdep;
 	mdep
 
 let push_this ctx e = match e.eexpr with
@@ -704,12 +704,12 @@ let get_next_stored_typed_expr_id =
 	(fun() -> incr uid; !uid)
 
 let get_stored_typed_expr com id =
-	let e = PMap.find id com.stored_typed_exprs in
+	let e = com.stored_typed_exprs#find id in
 	Texpr.duplicate_tvars e
 
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
-	com.stored_typed_exprs <- PMap.add id te com.stored_typed_exprs;
+	com.stored_typed_exprs#add id te;
 	let eid = (EConst (Int (string_of_int id, None))), p in
 	(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
 
