@@ -2,12 +2,12 @@ open Globals
 open Common
 open Json
 open DisplayTypes
-open DiagnosticsKind
 open DisplayTypes
 open Type
 open Genjson
+open MessageKind
 
-type t = DiagnosticsKind.t * pos
+(* type t = DiagnosticsKind.t * pos *)
 
 let is_diagnostics_file com file_key =
 	match com.report_mode with
@@ -52,7 +52,7 @@ let json_of_diagnostics com dctx =
 			| DKInactiveBlock ->
 				false
 			| DKUnresolvedIdentifier
-			| DKCompilerError
+			| DKCompilerMessage
 			| DKParserError
 			| DKMissingFields ->
 				true
@@ -77,7 +77,7 @@ let json_of_diagnostics com dctx =
 					"name",JString s;
 				])
 		) suggestions in
-		add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray suggestions);
+		add DKUnresolvedIdentifier p MessageSeverity.Error (JArray suggestions);
 	) dctx.unresolved_identifiers;
 	List.iter (fun (s,p,kind,sev) ->
 		add kind p sev (JString s)
@@ -143,22 +143,22 @@ let json_of_diagnostics com dctx =
 			"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mt).mt_module.m_extra.m_file);
 			"entries",jarray l
 		] in
-		add DKMissingFields p DiagnosticsSeverity.Error j
+		add DKMissingFields p MessageSeverity.Error j
 	) dctx.missing_fields;
 	(* non-append from here *)
 	begin match Warning.get_mode WDeprecated com.warning_options with
 	| WMEnable ->
 		Hashtbl.iter (fun _ (s,p) ->
-			add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
+			add DKDeprecationWarning p MessageSeverity.Warning (JString s);
 		) DeprecationCheck.warned_positions;
 	| WMDisable ->
 		()
 	end;
 	PMap.iter (fun p r ->
-		if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
+		if not !r then add DKUnusedImport p MessageSeverity.Warning (JArray [])
 	) dctx.import_positions;
 	List.iter (fun (s,p,prange) ->
-		add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
+		add DKRemovableCode p MessageSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 	) dctx.removable_code;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->
@@ -167,14 +167,14 @@ let json_of_diagnostics com dctx =
 					"string",JString (Ast.Printer.s_expr e)
 				]
 			] in
-			add DKInactiveBlock p DiagnosticsSeverity.Hint jo
+			add DKInactiveBlock p MessageSeverity.Hint jo
 		) ranges
 	) dctx.dead_blocks;
 	let jl = Hashtbl.fold (fun file diag acc ->
 		let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 			(JObject [
-				"kind",JInt (DiagnosticsKind.to_int dk);
-				"severity",JInt (DiagnosticsSeverity.to_int sev);
+				"kind",JInt (MessageKind.to_int dk);
+				"severity",JInt (MessageSeverity.to_int sev);
 				"range",Genjson.generate_pos_as_range p;
 				"args",jargs
 			]) :: acc

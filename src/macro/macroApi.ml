@@ -375,11 +375,11 @@ and encode_display_kind dk =
 	in
 	encode_enum ~pos:None IDisplayKind tag pl
 
-and encode_message msg =
-	let tag, pl = match msg with
-		| CMInfo(msg,p) -> 0, [(encode_string msg); (encode_pos p)]
-		| CMWarning(msg,p) -> 1, [(encode_string msg); (encode_pos p)]
-		| CMError(_,_) -> Globals.die "" __LOC__
+and encode_message (msg,p,_,sev) =
+	let tag, pl = match sev with
+		| Globals.MessageSeverity.Information -> 0, [(encode_string msg); (encode_pos p)]
+		| Warning | Hint -> 1, [(encode_string msg); (encode_pos p)]
+		| Error -> Globals.die "" __LOC__
 	in
 	encode_enum ~pos:None IMessage tag pl
 

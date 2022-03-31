@@ -6,18 +6,18 @@ let run_or_diagnose ctx f arg =
 	let com = ctx.com in
 	let handle_diagnostics msg p kind =
 		ctx.has_error <- true;
-		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
+		add_diagnostics_message com msg p kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
 		| Error.Error(msg,p) ->
-			handle_diagnostics (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
+			handle_diagnostics (Error.error_msg msg) p DKCompilerMessage
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DKParserError
 		end
 	else
 		f arg
@@ -211,24 +211,24 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
+		com.info <- (fun msg p -> message ctx (msg,p,DKCompilerMessage,Information));
 		com.warning <- (fun w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
-				message ctx (CMWarning(msg,p))
+				message ctx (msg,p,DKCompilerMessage,Warning)
 			| WMDisable ->
 				()
 		);
 		com.error <- error ctx;
-		let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
-			(match msg with
-			| CMError(_,_) -> keep_errors;
-			| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
+		let filter_messages = (fun keep_errors predicate -> (List.filter (fun ((_,_,_,sev) as cm) ->
+			(match sev with
+			| MessageSeverity.Error -> keep_errors;
+			| Information | Warning | Hint -> predicate cm;)
 		) (List.rev ctx.messages))) in
-		com.get_messages <- (fun () -> (List.map (fun msg ->
-			(match msg with
-			| CMError(_,_) -> die "" __LOC__;
-			| CMInfo(_,_) | CMWarning(_,_) -> msg;)
+		com.get_messages <- (fun () -> (List.map (fun ((_,_,_,sev) as cm) ->
+			(match sev with
+			| MessageSeverity.Error -> die "" __LOC__;
+			| Information | Warning | Hint -> cm;)
 		) (filter_messages false (fun _ -> true))));
 		com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
 		com.run_command <- run_command ctx;

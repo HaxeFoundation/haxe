@@ -63,42 +63,6 @@ module SymbolInformation = struct
 	}
 end
 
-module DiagnosticsSeverity = struct
-	type t =
-		| Error
-		| Warning
-		| Information
-		| Hint
-
-	let to_int = function
-		| Error -> 1
-		| Warning -> 2
-		| Information -> 3
-		| Hint -> 4
-end
-
-module DiagnosticsKind = struct
-	type t =
-		| DKUnusedImport
-		| DKUnresolvedIdentifier
-		| DKCompilerError
-		| DKRemovableCode
-		| DKParserError
-		| DKDeprecationWarning
-		| DKInactiveBlock
-		| DKMissingFields
-
-	let to_int = function
-		| DKUnusedImport -> 0
-		| DKUnresolvedIdentifier -> 1
-		| DKCompilerError -> 2
-		| DKRemovableCode -> 3
-		| DKParserError -> 4
-		| DKDeprecationWarning -> 5
-		| DKInactiveBlock -> 6
-		| DKMissingFields -> 7
-end
-
 module CompletionResultKind = struct
 	type expected_type_completion = {
 		expected_type : CompletionItem.CompletionType.t;
@@ -368,7 +332,7 @@ type diagnostics_context = {
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable diagnostics_messages : (string * pos * DiagnosticsKind.t * DiagnosticsSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
 	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
 }
 
