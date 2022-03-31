@@ -58,3 +58,10 @@ type server_api = {
 	wait_loop : bool -> server_accept -> int;
 	do_connect : string -> int -> string list -> unit;
 }
+
+let message ctx msg =
+	ctx.messages <- msg :: ctx.messages
+
+let error ctx msg p =
+	message ctx (CMError(msg,p));
+	ctx.has_error <- true

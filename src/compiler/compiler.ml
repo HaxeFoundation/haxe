@@ -2,20 +2,10 @@ open Extlib_leftovers
 open Globals
 open Common
 open CompilationContext
-open Type
 open DisplayException
 open DisplayTypes.CompletionResultKind
 
 exception Abort
-
-let message ctx msg =
-	ctx.messages <- msg :: ctx.messages
-
-let error ctx msg p =
-	message ctx (CMError(msg,p));
-	ctx.has_error <- true
-
-let delete_file f = try Sys.remove f with _ -> ()
 
 let initialize_target ctx com actx =
 	let add_std dir =
@@ -162,7 +152,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 					Hashtbl.remove mctx.com.module_lut cpath;
 					Hashtbl.remove mctx.com.type_to_module cpath;
 					List.iter (fun mt ->
-						let ti = t_infos mt in
+						let ti = Type.t_infos mt in
 						Hashtbl.remove mctx.com.module_lut ti.mt_path;
 						Hashtbl.remove mctx.com.type_to_module ti.mt_path;
 					) m.m_types
@@ -293,103 +283,6 @@ let filter ctx tctx display_file_dot_path =
 	DeprecationCheck.run com;
 	Filters.run com tctx main;
 	t()
-
-let check_auxiliary_output com actx =
-	begin match actx.xml_out with
-		| None -> ()
-		| Some "hx" ->
-			Genhxold.generate com
-		| Some file ->
-			Common.log com ("Generating xml: " ^ file);
-			Path.mkdir_from_path file;
-			Genxml.generate com file
-	end;
-	begin match actx.json_out with
-		| None -> ()
-		| Some file ->
-			Common.log com ("Generating json : " ^ file);
-			Path.mkdir_from_path file;
-			Genjson.generate com.types file
-	end
-
-
-let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
-		| [width; height; fps] ->
-			Some (int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
-		| [width; height; fps; color] ->
-			let color = if ExtString.String.starts_with color "0x" then color else "0x" ^ color in
-			Some (int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
-		| _ ->
-			error ctx "Invalid SWF header format, expected width:height:fps[:color]" null_pos;
-			None
-
-let generate ctx tctx ext actx =
-	let com = tctx.Typecore.com in
-	(* check file extension. In case of wrong commandline, we don't want
-		to accidentaly delete a source file. *)
-	if file_extension com.file = ext then delete_file com.file;
-	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
-	if Common.defined com Define.Dump then begin
-		Codegen.Dump.dump_types com;
-		Option.may Codegen.Dump.dump_types (com.get_macros())
-	end;
-	if Common.defined com Define.DumpDependencies then begin
-		Codegen.Dump.dump_dependencies com;
-		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
-			| None -> ()
-			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
-	end;
-	begin match com.platform with
-		| Neko | Hl | Eval when actx.interp -> ()
-		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Php -> Path.mkdir_from_path (com.file ^ "/.")
-		| Java when not actx.jvm_flag -> Path.mkdir_from_path (com.file ^ "/.")
-		| _ -> Path.mkdir_from_path com.file
-	end;
-	if actx.interp then
-		Std.finally (Timer.timer ["interp"]) MacroContext.interpret tctx
-	else if com.platform = Cross then
-		()
-	else begin
-		let generate,name = match com.platform with
-		| Flash ->
-			let header = try
-				parse_swf_header ctx (defined_value com Define.SwfHeader)
-			with Not_found ->
-				None
-			in
-			Genswf.generate header,"swf"
-		| Neko ->
-			Genneko.generate,"neko"
-		| Js ->
-			Genjs.generate,"js"
-		| Lua ->
-			Genlua.generate,"lua"
-		| Php ->
-			Genphp7.generate,"php"
-		| Cpp ->
-			Gencpp.generate,"cpp"
-		| Cs ->
-			Gencs.generate,"cs"
-		| Java ->
-			if Common.defined com Jvm then
-				Genjvm.generate actx.jvm_flag,"java"
-			else
-				Genjava.generate,"java"
-		| Python ->
-			Genpy.generate,"python"
-		| Hl ->
-			Genhl.generate,"hl"
-		| Eval ->
-			(fun _ -> MacroContext.interpret tctx),"eval"
-		| Cross ->
-			die "" __LOC__
-		in
-		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-		let t = Timer.timer ["generate";name] in
-		generate com;
-		t()
-	end
 
 let run_command ctx cmd =
 	let t = Timer.timer ["command"] in
@@ -547,9 +440,9 @@ let compile ctx actx =
 		handle_display ctx tctx display_file_dot_path;
 		filter ctx tctx display_file_dot_path;
 		if ctx.has_error then raise Abort;
-		check_auxiliary_output com actx;
+		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
-		if not actx.no_output then generate ctx tctx ext actx;
+		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;

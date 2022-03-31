@@ -545,7 +545,7 @@ let remove_debug_infos as3 =
 
 let parse_swf com file =
 	let t = Timer.timer ["read";"swf"] in
-	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
+	let is_swc = Path.file_extension file = "swc" || Path.file_extension file = "ane" in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
 		try

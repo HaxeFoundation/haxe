@@ -384,7 +384,7 @@ let check_module sctx ctx m p =
 		let check () =
 			try
 				if not (has_policy NoCheckShadowing) then check_module_path();
-				if not (has_policy NoCheckFileTimeModification) || file_extension (Path.UniqueKey.lazy_path m.m_extra.m_file) <> "hx" then check_file();
+				if not (has_policy NoCheckFileTimeModification) || Path.file_extension (Path.UniqueKey.lazy_path m.m_extra.m_file) <> "hx" then check_file();
 				if not (has_policy NoCheckDependencies) then check_dependencies();
 				None
 			with

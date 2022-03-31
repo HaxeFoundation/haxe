@@ -4132,7 +4132,7 @@ let generate com =
 		"\"" ^ Buffer.contents b ^ "\""
 	in
 
-	if file_extension com.file = "c" then begin
+	if Path.file_extension com.file = "c" then begin
 		let gnames = Array.create (Array.length code.globals) "" in
 		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		if not (Common.defined com Define.SourceHeader) then begin
