@@ -91,25 +91,14 @@ let process_display_arg ctx actx =
 
 let process_display_configuration ctx =
 	let com = ctx.com in
-	if com.display.dms_kind <> DMNone then begin
-		com.warning <-
-			if is_diagnostics com then
-				(fun w options s p ->
-					match Warning.get_mode w (com.warning_options @ options) with
-					| WMEnable ->
-						add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning
-					| WMDisable ->
-						()
-				)
-			else
-				(fun w options msg p ->
-					match Warning.get_mode w (com.warning_options @ options) with
-					| WMEnable ->
-						message ctx (CMWarning(msg,p))
-					| WMDisable ->
-						()
-				);
-		com.error <- error ctx;
+	if is_diagnostics com then begin
+		com.warning <- (fun w options s p ->
+			match Warning.get_mode w (com.warning_options @ options) with
+			| WMEnable ->
+				add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning
+			| WMDisable ->
+				()
+		);
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
 	if !Lexer.old_format && !Parser.in_display then begin
