@@ -8,6 +8,7 @@ open DisplayTypes.DisplayMode
 open Timer
 open Genjson
 open Type
+open DisplayProcessingGlobals
 
 (* Generate the JSON of our times. *)
 let json_of_times root =
@@ -39,7 +40,7 @@ let create_json_context jsonrpc may_resolve =
 	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string j =
-	raise (DisplayOutput.Completion j)
+	raise (Completion j)
 
 let send_json json =
 	send_string (string_of_json json)
@@ -58,7 +59,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		let file = jsonrpc#get_opt_param (fun () ->
 			let file = jsonrpc#get_string_param "file" in
 			Path.get_full_path file
-		) DisplayOutput.file_input_marker in
+		) file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in

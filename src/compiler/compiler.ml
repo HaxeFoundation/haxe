@@ -1,193 +1,13 @@
-open Extlib_leftovers
 open Globals
 open Common
 open CompilationContext
-open DisplayException
-open DisplayTypes.CompletionResultKind
-
-exception Abort
-
-let initialize_target ctx com actx =
-	let add_std dir =
-		com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
-	in
-	match com.platform with
-		| Cross ->
-			(* no platform selected *)
-			set_platform com Cross "";
-			"?"
-		| Flash ->
-			let rec loop = function
-				| [] -> ()
-				| (v,_) :: _ when v > com.flash_version -> ()
-				| (v,def) :: l ->
-					Common.raw_define com ("flash" ^ def);
-					loop l
-			in
-			loop Common.flash_versions;
-			com.package_rules <- PMap.remove "flash" com.package_rules;
-			add_std "flash";
-			"swf"
-		| Neko ->
-			add_std "neko";
-			"n"
-		| Js ->
-			let es_version =
-				try
-					int_of_string (Common.defined_value com Define.JsEs)
-				with
-				| Not_found ->
-					(Common.define_value com Define.JsEs "5"; 5)
-				| _ ->
-					0
-			in
-
-			if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
-				failwith "Invalid -D js-es value";
-
-			if es_version >= 5 then Common.raw_define com "js_es5"; (* backward-compatibility *)
-
-			add_std "js";
-			"js"
-		| Lua ->
-			add_std "lua";
-			"lua"
-		| Php ->
-			add_std "php";
-			"php"
-		| Cpp ->
-			Common.define_value com Define.HxcppApiLevel "430";
-			add_std "cpp";
-			if Common.defined com Define.Cppia then
-				actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
-			"cpp"
-		| Cs ->
-			Dotnet.before_generate com;
-			add_std "cs"; "cs"
-		| Java ->
-			Java.before_generate com;
-			if defined com Define.Jvm then begin
-				add_std "jvm";
-				com.package_rules <- PMap.remove "jvm" com.package_rules;
-			end;
-			add_std "java";
-			"java"
-		| Python ->
-			add_std "python";
-			if not (Common.defined com Define.PythonVersion) then
-				Common.define_value com Define.PythonVersion "3.3";
-			"python"
-		| Hl ->
-			add_std "hl";
-			if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "" __LOC__);
-			"hl"
-		| Eval ->
-			add_std "eval";
-			"eval"
-
-let process_display_configuration ctx =
-	let com = ctx.com in
-	if com.display.dms_kind <> DMNone then begin
-		com.warning <-
-			if is_diagnostics com then
-				(fun w options s p ->
-					match Warning.get_mode w (com.warning_options @ options) with
-					| WMEnable ->
-						add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning
-					| WMDisable ->
-						()
-				)
-			else
-				(fun w options msg p ->
-					match Warning.get_mode w (com.warning_options @ options) with
-					| WMEnable ->
-						message ctx (CMWarning(msg,p))
-					| WMDisable ->
-						()
-				);
-		com.error <- error ctx;
-	end;
-	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && !Parser.in_display then begin
-		let p = DisplayPosition.display_position#get in
-		(* convert byte position to utf8 position *)
-		try
-			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
-			let pos = UTF8.length (String.sub content 0 p.pmin) in
-			DisplayPosition.display_position#set { p with pmin = pos; pmax = pos }
-		with _ ->
-			() (* ignore *)
-	end
-
-let create_typer_context ctx native_libs =
-	let com = ctx.com in
-	Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
-	let buffer = Buffer.create 64 in
-	Buffer.add_string buffer "Defines: ";
-	PMap.iter (fun k v -> match v with
-		| "1" -> Printf.bprintf buffer "%s;" k
-		| _ -> Printf.bprintf buffer "%s=%s;" k v
-	) com.defines.values;
-	Buffer.truncate buffer (Buffer.length buffer - 1);
-	Common.log com (Buffer.contents buffer);
-	Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
-	List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
-	(* Native lib pass 1: Register *)
-	let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
-	(* Native lib pass 2: Initialize *)
-	List.iter (fun f -> f()) fl;
-	Typer.create com
-
-let load_display_module_in_macro tctx display_file_dot_path clear = match display_file_dot_path with
-	| Some cpath ->
-		let p = null_pos in
-		begin try
-			let open Typecore in
-			let _, mctx = MacroContext.get_macro_context tctx p in
-			(* Tricky stuff: We want to remove the module from our lookups and load it again in
-				display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
-			if clear then begin
-				begin try
-					let m = Hashtbl.find mctx.com.module_lut cpath in
-					Hashtbl.remove mctx.com.module_lut cpath;
-					Hashtbl.remove mctx.com.type_to_module cpath;
-					List.iter (fun mt ->
-						let ti = Type.t_infos mt in
-						Hashtbl.remove mctx.com.module_lut ti.mt_path;
-						Hashtbl.remove mctx.com.type_to_module ti.mt_path;
-					) m.m_types
-				with Not_found ->
-					()
-				end;
-			end;
-			let _ = MacroContext.load_macro_module tctx cpath true p in
-			Finalization.finalize mctx;
-			Some mctx
-		with DisplayException _ | Parser.TypePath _ as exc ->
-			raise exc
-		| _ ->
-			None
-		end
-	| None ->
-		None
-
-let emit_diagnostics ctx =
-	let dctx = Diagnostics.run ctx.com in
-	let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics ctx.com dctx) in
-	DisplayPosition.display_position#reset;
-	raise (DisplayOutput.Completion s)
-
-let emit_statistics ctx tctx =
-	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
-	let s = Statistics.Printer.print_statistics stats in
-	raise (DisplayOutput.Completion s)
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
 	let handle_diagnostics msg p kind =
 		ctx.has_error <- true;
 		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-		emit_diagnostics ctx
+		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
@@ -201,88 +21,6 @@ let run_or_diagnose ctx f arg =
 		end
 	else
 		f arg
-
-(** Creates the typer context and types [classes] into it. *)
-let do_type ctx tctx actx =
-	let com = tctx.Typecore.com in
-	let t = Timer.timer ["typing"] in
-	let cs = com.cs in
-	CommonCache.maybe_add_context_sign cs com "before_init_macros";
-	com.stage <- CInitMacrosStart;
-	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
-	com.stage <- CInitMacrosDone;
-	CommonCache.lock_signature com "after_init_macros";
-	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
-	run_or_diagnose ctx (fun () ->
-		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
-		Finalization.finalize tctx;
-	) ();
-	com.stage <- CTypingDone;
-	(* If we are trying to find references, let's syntax-explore everything we know to check for the
-		identifier we are interested in. We then type only those modules that contain the identifier. *)
-	begin match com.display.dms_kind with
-		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
-		| _ -> ()
-	end;
-	t()
-
-let handle_display ctx tctx display_file_dot_path =
-	let com = ctx.com in
-	if ctx.com.display.dms_kind = DMNone & ctx.has_error then raise Abort;
-	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
-		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
-		| _ -> ()
-	end;
-	if ctx.com.display.dms_exit_during_typing then begin
-		if ctx.has_next || ctx.has_error then raise Abort;
-		(* If we didn't find a completion point, load the display file in macro mode. *)
-		if com.display_information.display_module_has_macro_defines then
-			ignore(load_display_module_in_macro tctx display_file_dot_path true);
-		let no_completion_point_found = "No completion point was found" in
-		match com.json_out with
-		| Some _ ->
-			raise (DisplayException DisplayNoResult)
-		| None ->
-			failwith no_completion_point_found;
-	end
-
-let filter ctx tctx display_file_dot_path =
-	let com = ctx.com in
-	com.stage <- CFilteringStart;
-	let t = Timer.timer ["filters"] in
-	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
-	com.main <- main;
-	com.types <- types;
-	com.modules <- modules;
-	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
-		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
-	let should_load_in_macro =
-		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
-		   type the module in macro context. (#8682). *)
-		not (is_diagnostics com) || com.display_information.display_module_has_macro_defines
-	in
-	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
-		match load_display_module_in_macro  tctx display_file_dot_path false with
-		| None -> ()
-		| Some mctx ->
-			(* We don't need a full macro flush here because we're not going to run any macros. *)
-			let _, types, modules = Finalization.generate mctx in
-			mctx.Typecore.com.types <- types;
-			mctx.Typecore.com.Common.modules <- modules
-	end;
-	DisplayOutput.process_global_display_mode com tctx;
-	begin match com.report_mode with
-	| RMDiagnostics _ ->
-		emit_diagnostics ctx
-	| RMStatistics ->
-		emit_statistics ctx tctx
-	| RMNone ->
-		()
-	end;
-	DeprecationCheck.run com;
-	Filters.run com tctx main;
-	t()
 
 let run_command ctx cmd =
 	let t = Timer.timer ["command"] in
@@ -327,85 +65,226 @@ let run_command ctx cmd =
 	t();
 	result
 
-let executable_path() =
-	Extc.executable_path()
-
-let get_std_class_paths () =
-	try
-		let p = Sys.getenv "HAXE_STD_PATH" in
-		let rec loop = function
-			| drive :: path :: l ->
-				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
-					(drive ^ ":" ^ path) :: loop l
-				else
-					drive :: loop (path :: l)
-			| l ->
-				l
+module Setup = struct
+	let initialize_target ctx com actx =
+		let add_std dir =
+			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 		in
-		let parts = Str.split_delim (Str.regexp "[;:]") p in
-		"" :: List.map Path.add_trailing_slash (loop parts)
-	with Not_found ->
-		let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
-		if Sys.os_type = "Unix" then
-			let prefix_path = Filename.dirname base_path in
-			let lib_path = Filename.concat prefix_path "lib" in
-			let share_path = Filename.concat prefix_path "share" in
-			[
-				"";
-				Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
-				Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
-				Path.add_trailing_slash (Filename.concat share_path "haxe/std");
-				Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
-				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
-			]
-		else
-			[
-				"";
-				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
-			]
+		match com.platform with
+			| Cross ->
+				(* no platform selected *)
+				set_platform com Cross "";
+				"?"
+			| Flash ->
+				let rec loop = function
+					| [] -> ()
+					| (v,_) :: _ when v > com.flash_version -> ()
+					| (v,def) :: l ->
+						Common.raw_define com ("flash" ^ def);
+						loop l
+				in
+				loop Common.flash_versions;
+				com.package_rules <- PMap.remove "flash" com.package_rules;
+				add_std "flash";
+				"swf"
+			| Neko ->
+				add_std "neko";
+				"n"
+			| Js ->
+				let es_version =
+					try
+						int_of_string (Common.defined_value com Define.JsEs)
+					with
+					| Not_found ->
+						(Common.define_value com Define.JsEs "5"; 5)
+					| _ ->
+						0
+				in
 
-let setup_common_context ctx =
+				if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
+					failwith "Invalid -D js-es value";
+
+				if es_version >= 5 then Common.raw_define com "js_es5"; (* backward-compatibility *)
+
+				add_std "js";
+				"js"
+			| Lua ->
+				add_std "lua";
+				"lua"
+			| Php ->
+				add_std "php";
+				"php"
+			| Cpp ->
+				Common.define_value com Define.HxcppApiLevel "430";
+				add_std "cpp";
+				if Common.defined com Define.Cppia then
+					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
+				"cpp"
+			| Cs ->
+				Dotnet.before_generate com;
+				add_std "cs"; "cs"
+			| Java ->
+				Java.before_generate com;
+				if defined com Define.Jvm then begin
+					add_std "jvm";
+					com.package_rules <- PMap.remove "jvm" com.package_rules;
+				end;
+				add_std "java";
+				"java"
+			| Python ->
+				add_std "python";
+				if not (Common.defined com Define.PythonVersion) then
+					Common.define_value com Define.PythonVersion "3.3";
+				"python"
+			| Hl ->
+				add_std "hl";
+				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "" __LOC__);
+				"hl"
+			| Eval ->
+				add_std "eval";
+				"eval"
+
+	let create_typer_context ctx native_libs =
+		let com = ctx.com in
+		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
+		let buffer = Buffer.create 64 in
+		Buffer.add_string buffer "Defines: ";
+		PMap.iter (fun k v -> match v with
+			| "1" -> Printf.bprintf buffer "%s;" k
+			| _ -> Printf.bprintf buffer "%s=%s;" k v
+		) com.defines.values;
+		Buffer.truncate buffer (Buffer.length buffer - 1);
+		Common.log com (Buffer.contents buffer);
+		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
+		List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
+		(* Native lib pass 1: Register *)
+		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
+		(* Native lib pass 2: Initialize *)
+		List.iter (fun f -> f()) fl;
+		Typer.create com
+
+	let executable_path() =
+		Extc.executable_path()
+
+	let get_std_class_paths () =
+		try
+			let p = Sys.getenv "HAXE_STD_PATH" in
+			let rec loop = function
+				| drive :: path :: l ->
+					if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
+						(drive ^ ":" ^ path) :: loop l
+					else
+						drive :: loop (path :: l)
+				| l ->
+					l
+			in
+			let parts = Str.split_delim (Str.regexp "[;:]") p in
+			"" :: List.map Path.add_trailing_slash (loop parts)
+		with Not_found ->
+			let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
+			if Sys.os_type = "Unix" then
+				let prefix_path = Filename.dirname base_path in
+				let lib_path = Filename.concat prefix_path "lib" in
+				let share_path = Filename.concat prefix_path "share" in
+				[
+					"";
+					Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
+					Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
+					Path.add_trailing_slash (Filename.concat share_path "haxe/std");
+					Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
+					Path.add_trailing_slash (Filename.concat base_path "std");
+					Path.add_trailing_slash (Filename.concat base_path "extraLibs")
+				]
+			else
+				[
+					"";
+					Path.add_trailing_slash (Filename.concat base_path "std");
+					Path.add_trailing_slash (Filename.concat base_path "extraLibs")
+				]
+
+	let setup_common_context ctx =
+		let com = ctx.com in
+		ctx.com.print <- ctx.comm.write_out;
+		Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
+		Common.raw_define com "haxe3";
+		Common.raw_define com "haxe4";
+		Common.define_value com Define.Haxe s_version;
+		Common.raw_define com "true";
+		Common.define_value com Define.Dce "std";
+		com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
+		com.warning <- (fun w options msg p ->
+			match Warning.get_mode w (com.warning_options @ options) with
+			| WMEnable ->
+				message ctx (CMWarning(msg,p))
+			| WMDisable ->
+				()
+		);
+		com.error <- error ctx;
+		let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
+			(match msg with
+			| CMError(_,_) -> keep_errors;
+			| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
+		) (List.rev ctx.messages))) in
+		com.get_messages <- (fun () -> (List.map (fun msg ->
+			(match msg with
+			| CMError(_,_) -> die "" __LOC__;
+			| CMInfo(_,_) | CMWarning(_,_) -> msg;)
+		) (filter_messages false (fun _ -> true))));
+		com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
+		com.run_command <- run_command ctx;
+		com.class_path <- get_std_class_paths ();
+		com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
+
+end
+
+(** Creates the typer context and types [classes] into it. *)
+let do_type ctx tctx actx =
+	let com = tctx.Typecore.com in
+	let t = Timer.timer ["typing"] in
+	let cs = com.cs in
+	CommonCache.maybe_add_context_sign cs com "before_init_macros";
+	com.stage <- CInitMacrosStart;
+	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
+	com.stage <- CInitMacrosDone;
+	CommonCache.lock_signature com "after_init_macros";
+	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
+	run_or_diagnose ctx (fun () ->
+		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
+		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
+		Finalization.finalize tctx;
+	) ();
+	com.stage <- CTypingDone;
+	(* If we are trying to find references, let's syntax-explore everything we know to check for the
+		identifier we are interested in. We then type only those modules that contain the identifier. *)
+	begin match com.display.dms_kind with
+		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
+		| _ -> ()
+	end;
+	t()
+
+let finalize_typing ctx tctx =
+	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
-	ctx.com.print <- ctx.comm.write_out;
-	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
-	Common.raw_define com "haxe3";
-	Common.raw_define com "haxe4";
-	Common.define_value com Define.Haxe s_version;
-	Common.raw_define com "true";
-	Common.define_value com Define.Dce "std";
-	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
-	com.warning <- (fun w options msg p ->
-		match Warning.get_mode w (com.warning_options @ options) with
-		| WMEnable ->
-			message ctx (CMWarning(msg,p))
-		| WMDisable ->
-			()
-	);
-	com.error <- error ctx;
-	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
-		(match msg with
-		| CMError(_,_) -> keep_errors;
-		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
-	) (List.rev ctx.messages))) in
-	com.get_messages <- (fun () -> (List.map (fun msg ->
-		(match msg with
-		| CMError(_,_) -> die "" __LOC__;
-		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
-	) (filter_messages false (fun _ -> true))));
-	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
-	com.run_command <- run_command ctx;
-	com.class_path <- get_std_class_paths ();
-	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
+	com.stage <- CFilteringStart;
+	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
+	com.main <- main;
+	com.types <- types;
+	com.modules <- modules;
+	t()
+
+let filter ctx tctx =
+	let t = Timer.timer ["filters"] in
+	DeprecationCheck.run ctx.com;
+	Filters.run ctx.com tctx ctx.com.main;
+	t()
 
 let compile ctx actx =
 	let com = ctx.com in
 	(* Set up display configuration *)
-	process_display_configuration ctx;
-	let display_file_dot_path = DisplayOutput.process_display_file com actx in
+	DisplayProcessing.process_display_configuration ctx;
+	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
-	let ext = initialize_target ctx com actx in
+	let ext = Setup.initialize_target ctx com actx in
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
@@ -415,30 +294,18 @@ let compile ctx actx =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let tctx = create_typer_context ctx actx.native_libs in
+		let tctx = Setup.create_typer_context ctx actx.native_libs in
 		com.stage <- CTyperCreated;
-		let display_file_dot_path = match display_file_dot_path with
-			| DPKMacro path ->
-				ignore(load_display_module_in_macro tctx (Some path) true);
-				Some path
-			| DPKNormal path ->
-				Some path
-			| DPKNone ->
-				None
-			| DPKDirect file ->
-				DisplayOutput.load_display_file_standalone tctx file;
-				None
-			| DPKInput input ->
-				DisplayOutput.load_display_content_standalone tctx input;
-				None
-		in
+		let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 		begin try
 			do_type ctx tctx actx
 		with TypeloadParse.DisplayInMacroBlock ->
-			ignore(load_display_module_in_macro tctx display_file_dot_path true);
+			ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true);
 		end;
-		handle_display ctx tctx display_file_dot_path;
-		filter ctx tctx display_file_dot_path;
+		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
+		finalize_typing ctx tctx;
+		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
+		filter ctx tctx;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
@@ -453,88 +320,6 @@ let compile ctx actx =
 			if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
 		) (List.rev actx.cmds)
 	end
-
-let finalize ctx =
-	ctx.comm.flush ctx;
-	(* In server mode any open libs are closed by the lib_build_task. In offline mode
-	   we should do it here to be safe. *)
-	if not ctx.comm.is_server then begin
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
-	end
-
-open DisplayTypes
-
-let handle_display_exception_old ctx dex = match dex with
-	| DisplayPackage pack ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayFields r ->
-		DisplayPosition.display_position#reset;
-		let fields = if !Timer.measure_times then begin
-			Timer.close_times();
-			(List.map (fun (name,value) ->
-				CompletionItem.make_ci_timer ("@TIME " ^ name) value
-			) (DisplayOutput.get_timer_fields !Helper.start_time)) @ r.fitems
-		end else
-			r.fitems
-		in
-		let s = match r.fkind with
-			| CRToplevel _
-			| CRTypeHint
-			| CRExtends
-			| CRImplements
-			| CRStructExtension _
-			| CRImport
-			| CRUsing
-			| CRNew
-			| CRPattern _
-			| CRTypeRelation
-			| CRTypeDecl ->
-				DisplayOutput.print_toplevel fields
-			| CRField _
-			| CRStructureField
-			| CRMetadata
-			| CROverride ->
-				DisplayOutput.print_fields fields
-		in
-		raise (DisplayOutput.Completion s)
-	| DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover) ->
-		DisplayPosition.display_position#reset;
-		let doc = CompletionItem.get_documentation hover.hitem in
-		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
-	| DisplaySignatures (signatures,_,display_arg,_) ->
-		DisplayPosition.display_position#reset;
-		if ctx.com.display.dms_kind = DMSignature then
-			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
-		else
-			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
-	| DisplayPositions pl ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
-	| ModuleSymbols s | Metadata s ->
-		DisplayPosition.display_position#reset;
-		raise (DisplayOutput.Completion s)
-	| DisplayHover _ | DisplayNoResult ->
-		raise (DisplayOutput.Completion "")
-
-let handle_display_exception_json ctx dex api =
-	match dex with
-	| DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ ->
-		DisplayPosition.display_position#reset;
-		let ctx = DisplayJson.create_json_context api.jsonrpc (match dex with DisplayFields _ -> true | _ -> false) in
-		api.send_result (DisplayException.to_json ctx dex)
-	| DisplayNoResult ->
-		api.send_result JNull
-	| _ ->
-		handle_display_exception_old ctx dex
-
-let handle_display_exception ctx dex = match ctx.com.json_out with
-	| Some api ->
-		handle_display_exception_json ctx dex api
-	| None ->
-		handle_display_exception_old ctx dex
 
 let compile_safe ctx f =
 	let com = ctx.com in
@@ -570,52 +355,35 @@ with
 	| Helper.HelpMessage msg ->
 		com.info msg null_pos
 	| Parser.TypePath (p,c,is_import,pos) ->
-		let fields =
-			try begin match c with
-				| None ->
-					DisplayPath.TypePathHandler.complete_type_path com p
-				| Some (c,cur_package) ->
-					let ctx = Typer.create com in
-					DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
-			end with Common.Abort(msg,p) ->
-				error ctx msg p;
-				None
-		in
-		begin match ctx.com.json_out,fields with
-		| None,None ->
-			()
-		| None,Some fields ->
-			raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
-		| Some api,None when is_legacy_completion com ->
-			api.send_result JNull
-		| Some api,fields ->
-			let fields = Option.default [] fields in
-			let ctx = DisplayJson.create_json_context api.jsonrpc false in
-			let path = match List.rev p with
-				| name :: pack -> List.rev pack,name
-				| [] -> [],""
-			in
-			let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-			api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
-		end
+		DisplayOutput.handle_type_path_exception ctx p c is_import pos
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
 		error ctx ("Error: No completion point was found") null_pos
 	| EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ as exc ->
 		raise exc
-	| DisplayException dex ->
-		handle_display_exception ctx dex
+	| DisplayException.DisplayException dex ->
+		DisplayOutput.handle_display_exception ctx dex
 	| Out_of_memory as exc ->
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error ctx (Printexc.to_string e) null_pos
+
+let finalize ctx =
+	ctx.comm.flush ctx;
+	(* In server mode any open libs are closed by the lib_build_task. In offline mode
+		we should do it here to be safe. *)
+	if not ctx.comm.is_server then begin
+		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
+		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
+		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
+	end
 
 let catch_completion_and_exit ctx callbacks run =
 	try
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
-		| DisplayOutput.Completion str ->
+		| DisplayProcessingGlobals.Completion str ->
 			callbacks.after_compilation ctx;
 			ServerMessage.completion str;
 			ctx.comm.write_err str;
@@ -625,20 +393,8 @@ let catch_completion_and_exit ctx callbacks run =
 			finalize ctx;
 			i
 
-let process_display_arg ctx actx =
-	match actx.display_arg with
-	| Some input ->
-		let input = String.trim input in
-		if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-			actx.did_something <- true;
-			actx.force_typing <- true;
-			DisplayJson.parse_input ctx.com input Timer.measure_times
-		end else
-			DisplayOutput.handle_display_argument ctx.com input actx;
-	| None ->
-		()
-
 let process_actx ctx actx =
+	DisplayProcessing.process_display_arg ctx actx;
 	List.iter (fun s ->
 		ctx.com.warning WDeprecated [] s null_pos
 	) actx.deprecations
@@ -646,10 +402,9 @@ let process_actx ctx actx =
 let compile_ctx callbacks ctx =
 	let run ctx =
 		callbacks.before_anything ctx;
-		setup_common_context ctx;
+		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
-			process_display_arg ctx actx;
 			process_actx ctx actx;
 			callbacks.after_arg_parsing ctx;
 			compile ctx actx;

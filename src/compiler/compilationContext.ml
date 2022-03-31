@@ -1,5 +1,7 @@
 open Globals
 
+exception Abort
+
 type server_mode =
 	| SMNone
 	| SMListen of string

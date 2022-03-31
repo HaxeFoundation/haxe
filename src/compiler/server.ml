@@ -5,7 +5,7 @@ open Common
 open CompilationCache
 open Timer
 open Type
-open DisplayOutput
+open DisplayProcessingGlobals
 open Json
 open Compiler
 open CompilationContext

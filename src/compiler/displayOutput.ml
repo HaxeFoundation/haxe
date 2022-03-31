@@ -2,7 +2,6 @@ open Globals
 open Ast
 open Common
 open Filename
-open CompilationContext
 open Timer
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
@@ -17,6 +16,8 @@ open DisplayTypes
 open CompletionModuleType
 open Typecore
 open Genjson
+open CompilationContext
+open DisplayProcessingGlobals
 
 (* Old XML stuff *)
 
@@ -208,215 +209,6 @@ let print_signature tl display_arg =
 
 (* Mode processing *)
 
-exception Completion of string
-
-let handle_display_argument com file_pos actx =
-	match file_pos with
-	| "classes" ->
-		actx.pre_compilation <- (fun() -> raise (Parser.TypePath (["."],None,true,null_pos))) :: actx.pre_compilation;
-	| "keywords" ->
-		raise (Completion (print_keywords ()))
-	| "memory" ->
-		actx.did_something <- true;
-		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
-	| "diagnostics" ->
-		com.report_mode <- RMDiagnostics []
-	| _ ->
-		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
-		let file = Helper.unquote file in
-		let file_unique = com.file_keys#get file in
-		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		let create mode =
-			Parser.display_mode := mode;
-			DisplayMode.create mode
-		in
-		let dm = match smode with
-			| "position" ->
-				create DMDefinition
-			| "usage" ->
-				create (DMUsage (false,false,false))
-			| "package" ->
-				create DMPackage
-			| "type" ->
-				create DMHover
-			| "toplevel" ->
-				create DMDefault
-			| "module-symbols" ->
-				create (DMModuleSymbols None)
-			| "diagnostics" ->
-				com.report_mode <- RMDiagnostics [file_unique];
-				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true}
-			| "statistics" ->
-				com.report_mode <- RMStatistics;
-				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_error_policy = EPIgnore; dms_per_file = true}
-			| "signature" ->
-				create DMSignature
-			| "" ->
-				create DMDefault
-			| _ ->
-				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
-				match smode with
-					| "workspace-symbols" ->
-						create (DMModuleSymbols (Some arg))
-					| _ ->
-						create DMDefault
-		in
-		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
-		com.display <- dm;
-		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
-		DisplayPosition.display_position#set {
-			pfile = Path.get_full_path file;
-			pmin = pos;
-			pmax = pos;
-		}
-
-let file_input_marker = Path.get_full_path "? input"
-
-type display_path_kind =
-	| DPKNormal of path
-	| DPKMacro of path
-	| DPKDirect of string
-	| DPKInput of string
-	| DPKNone
-
-let process_display_file com actx =
-	let get_module_path_from_file_path com spath =
-		let rec loop = function
-			| [] -> None
-			| cp :: l ->
-				let cp = (if cp = "" then "./" else cp) in
-				let c = Path.add_trailing_slash (Path.get_real_path cp) in
-				let clen = String.length c in
-				if clen < String.length spath && String.sub spath 0 clen = c then begin
-					let path = String.sub spath clen (String.length spath - clen) in
-					(try
-						let path = Path.parse_path path in
-						(match loop l with
-						| Some x as r when String.length (s_type_path x) < String.length (s_type_path path) -> r
-						| _ -> Some path)
-					with _ -> loop l)
-				end else
-					loop l
-		in
-		loop com.class_path
-	in
-	match com.display.dms_display_file_policy with
-		| DFPNo ->
-			DPKNone
-		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
-			actx.classes <- [];
-			com.main_class <- None;
-			begin match !TypeloadParse.current_stdin with
-			| Some input ->
-				TypeloadParse.current_stdin := None;
-				DPKInput input
-			| None ->
-				DPKNone
-			end
-		| dfp ->
-			if dfp = DFPOnly then begin
-				actx.classes <- [];
-				com.main_class <- None;
-			end;
-			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
-			let path = match get_module_path_from_file_path com real with
-			| Some path ->
-				if com.display.dms_kind = DMPackage then raise_package (fst path);
-				let path = match ExtString.String.nsplit (snd path) "." with
-					| [name;"macro"] ->
-						(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
-						   This can happen if we're completing in such a file. *)
-						DPKMacro (fst path,name)
-					| [name] ->
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| [name;target] ->
-						let path = fst path, name in
-						actx.classes <- path :: actx.classes;
-						DPKNormal path
-					| e ->
-						die "" __LOC__
-				in
-				path
-			| None ->
-				if not (Sys.file_exists real) then failwith "Display file does not exist";
-				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
-				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
-				| _ -> ());
-				DPKDirect real
-			in
-			Common.log com ("Display file : " ^ real);
-			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path actx.classes)) ^ "]");
-			path
-
-let load_display_file_standalone ctx file =
-	let com = ctx.com in
-	let pack,decls = TypeloadParse.parse_module_file com file null_pos in
-	let path = Path.FilePath.parse file in
-	let name = match path.file_name with
-		| None -> "?DISPLAY"
-		| Some name -> name
-	in
-	begin match path.directory with
-		| None -> ()
-		| Some dir ->
-			(* Chop off number of package parts from the dir and use that as class path. *)
-			let parts = ExtString.String.nsplit dir (if path.backslash then "\\" else "/") in
-			let parts = List.rev (ExtList.List.drop (List.length pack) (List.rev parts)) in
-			let dir = ExtString.String.join (if path.backslash then "\\" else "/") parts in
-			com.class_path <- dir :: com.class_path
-	end;
-	ignore(TypeloadModule.type_module ctx (pack,name) file ~dont_check_path:true decls null_pos)
-
-let load_display_content_standalone ctx input =
-	let com = ctx.com in
-	let file = file_input_marker in
-	let p = {pfile = file; pmin = 0; pmax = 0} in
-	let parsed = TypeloadParse.parse_file_from_string com file p input in
-	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
-	ignore(TypeloadModule.type_module ctx (pack,"?DISPLAY") file ~dont_check_path:true decls p)
-
-let promote_type_hints tctx =
-	let rec explore_type_hint (md,p,t) =
-		match t with
-		| TMono r -> (match r.tm_type with None -> () | Some t -> explore_type_hint (md,p,t))
-		| TLazy f -> explore_type_hint (md,p,lazy_type f)
-		| TInst(({cl_name_pos = pn;cl_path = (_,name)}),_)
-		| TEnum(({e_name_pos = pn;e_path = (_,name)}),_)
-		| TType(({t_name_pos = pn;t_path = (_,name)}),_)
-		| TAbstract(({a_name_pos = pn;a_path = (_,name)}),_) ->
-			md.m_type_hints <- (p,pn) :: md.m_type_hints;
-		| TDynamic _ -> ()
-		| TFun _ | TAnon _ -> ()
-	in
-	List.iter explore_type_hint tctx.g.type_hints
-
-let process_global_display_mode com tctx =
-	promote_type_hints tctx;
-	match com.display.dms_kind with
-	| DMUsage (with_definition,_,_) ->
-		FindReferences.find_references tctx com with_definition
-	| DMImplementation ->
-		FindReferences.find_implementations tctx com
-	| DMModuleSymbols (Some "") -> ()
-	| DMModuleSymbols filter ->
-		let open CompilationCache in
-		let cs = com.cs in
-		let symbols =
-			let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
-			List.fold_left (fun acc (file_key,cfile) ->
-				let file = cfile.c_file_path in
-				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
-					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
-				else
-					acc
-			) [] l
-		in
-		raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com symbols filter)
-	| _ -> ()
-
 let find_doc t =
 	let doc = match follow t with
 		| TAnon an ->
@@ -477,3 +269,116 @@ let handle_syntax_completion com kind subj =
 		| Some api ->
 			let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
 			api.send_result(fields_to_json ctx l kind subj)
+
+let handle_display_exception_old ctx dex = match dex with
+	| DisplayPackage pack ->
+		DisplayPosition.display_position#reset;
+		raise (Completion (String.concat "." pack))
+	| DisplayFields r ->
+		DisplayPosition.display_position#reset;
+		let fields = if !Timer.measure_times then begin
+			Timer.close_times();
+			(List.map (fun (name,value) ->
+				CompletionItem.make_ci_timer ("@TIME " ^ name) value
+			) (get_timer_fields !Helper.start_time)) @ r.fitems
+		end else
+			r.fitems
+		in
+		let s = match r.fkind with
+			| CRToplevel _
+			| CRTypeHint
+			| CRExtends
+			| CRImplements
+			| CRStructExtension _
+			| CRImport
+			| CRUsing
+			| CRNew
+			| CRPattern _
+			| CRTypeRelation
+			| CRTypeDecl ->
+				print_toplevel fields
+			| CRField _
+			| CRStructureField
+			| CRMetadata
+			| CROverride ->
+				print_fields fields
+		in
+		raise (Completion s)
+	| DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover) ->
+		DisplayPosition.display_position#reset;
+		let doc = CompletionItem.get_documentation hover.hitem in
+		raise (Completion (print_type t hover.hpos doc))
+	| DisplaySignatures (signatures,_,display_arg,_) ->
+		DisplayPosition.display_position#reset;
+		if ctx.com.display.dms_kind = DMSignature then
+			raise (Completion (print_signature signatures display_arg))
+		else
+			raise (Completion (print_signatures signatures))
+	| DisplayPositions pl ->
+		DisplayPosition.display_position#reset;
+		raise (Completion (print_positions pl))
+	| ModuleSymbols s | Metadata s ->
+		DisplayPosition.display_position#reset;
+		raise (Completion s)
+	| DisplayHover _ | DisplayNoResult ->
+		raise (Completion "")
+
+let handle_display_exception_json ctx dex api =
+	match dex with
+	| DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ ->
+		DisplayPosition.display_position#reset;
+		let ctx = DisplayJson.create_json_context api.jsonrpc (match dex with DisplayFields _ -> true | _ -> false) in
+		api.send_result (DisplayException.to_json ctx dex)
+	| DisplayNoResult ->
+		api.send_result JNull
+	| _ ->
+		handle_display_exception_old ctx dex
+
+let handle_display_exception ctx dex = match ctx.com.json_out with
+	| Some api ->
+		handle_display_exception_json ctx dex api
+	| None ->
+		handle_display_exception_old ctx dex
+
+let handle_type_path_exception ctx p c is_import pos =
+	let open DisplayTypes.CompletionResultKind in
+	let com = ctx.com in
+	let fields =
+		try begin match c with
+			| None ->
+				DisplayPath.TypePathHandler.complete_type_path com p
+			| Some (c,cur_package) ->
+				let ctx = Typer.create com in
+				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
+		end with Common.Abort(msg,p) ->
+			error ctx msg p;
+			None
+	in
+	begin match ctx.com.json_out,fields with
+	| None,None ->
+		()
+	| None,Some fields ->
+		raise (Completion (print_fields fields))
+	| Some api,None when is_legacy_completion com ->
+		api.send_result JNull
+	| Some api,fields ->
+		let fields = Option.default [] fields in
+		let ctx = DisplayJson.create_json_context api.jsonrpc false in
+		let path = match List.rev p with
+			| name :: pack -> List.rev pack,name
+			| [] -> [],""
+		in
+		let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
+		api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
+	end
+
+let emit_diagnostics com =
+	let dctx = Diagnostics.run com in
+	let s = Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics com dctx) in
+	DisplayPosition.display_position#reset;
+	raise (Completion s)
+
+let emit_statistics tctx =
+	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
+	let s = Statistics.Printer.print_statistics stats in
+	raise (Completion s)
