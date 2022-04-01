@@ -2507,7 +2507,7 @@ and eval_expr ctx e =
 			| HUI8 -> 0xFFl
 			| HUI16 -> 0xFFFFl
 			| HI32 -> 0xFFFFFFFFl
-			| _ -> abort (tstr t) e.epos
+			| _ -> abort ("Unsupported " ^ tstr t) e.epos
 		) in
 		hold ctx r;
 		let r2 = alloc_tmp ctx t in
