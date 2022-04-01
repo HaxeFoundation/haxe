@@ -46,32 +46,6 @@ type stats = {
 	s_macros_called : int ref;
 }
 
-type compiler_message =
-	| CMInfo of string * pos
-	| CMWarning of string * pos
-	| CMError of string * pos
-
-let compiler_message_string msg =
-	let (str,p) = match msg with
-		| CMInfo(str,p) | CMError(str,p) -> (str,p)
-		| CMWarning(str,p) -> ("Warning : " ^ str, p)
-	in
-	if p = null_pos then
-		str
-	else begin
-		let error_printer file line = Printf.sprintf "%s:%d:" file line in
-		let epos = Lexer.get_error_pos error_printer p in
-		let str =
-			let lines =
-				match (ExtString.String.nsplit str "\n") with
-				| first :: rest -> first :: List.map Error.compl_msg rest
-				| l -> l
-			in
-			String.concat ("\n" ^ epos ^ " : ") lines
-		in
-		Printf.sprintf "%s : %s" epos str
-	end
-
 (**
 	The capture policy tells which handling we make of captured locals
 	(the locals which are referenced in local functions)
@@ -248,7 +222,7 @@ class file_keys = object(self)
 end
 
 type shared_display_information = {
-	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
 }
 
 type display_information = {
@@ -1164,13 +1138,13 @@ let utf16_to_utf8 str =
 	Buffer.contents b
 
 let add_diagnostics_message com s p kind sev =
-	if sev = DisplayTypes.DiagnosticsSeverity.Error then com.has_error <- true;
+	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 let display_error com msg p =
 	if is_diagnostics com then
-		add_diagnostics_message com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
+		add_diagnostics_message com msg p MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
 		com.error msg p
 

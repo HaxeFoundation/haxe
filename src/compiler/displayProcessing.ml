@@ -95,7 +95,7 @@ let process_display_configuration ctx =
 		com.warning <- (fun w options s p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
-				add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning
+				add_diagnostics_message com s p DKCompilerMessage Warning
 			| WMDisable ->
 				()
 		);

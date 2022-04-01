@@ -36,7 +36,7 @@ type communication = {
 
 and compilation_context = {
 	com : Common.context;
-	mutable messages : Common.compiler_message list;
+	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
 	comm : communication;
@@ -65,5 +65,5 @@ let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
 let error ctx msg p =
-	message ctx (CMError(msg,p));
+	message ctx (msg,p,DKCompilerMessage,Error);
 	ctx.has_error <- true

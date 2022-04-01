@@ -22,7 +22,6 @@
 open Globals
 open Ast
 open Parser
-open DisplayTypes.DiagnosticsSeverity
 open DisplayTypes.DisplayMode
 open Common
 open Type

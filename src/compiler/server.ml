@@ -19,27 +19,17 @@ let has_error ctx =
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		if is_diagnostics ctx.com then begin
-			List.iter (fun msg ->
-				let msg,p,kind = match msg with
-					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
-					| CMWarning(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Warning
-					| CMError(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Error
-				in
-				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
+			List.iter (fun (msg,p,kind,sev) ->
+				add_diagnostics_message ctx.com msg p kind sev
 			) (List.rev ctx.messages);
 			raise (Completion (Diagnostics.print ctx.com))
 		end else
 			f_otherwise ()
 	| Some api ->
 		if has_error ctx then begin
-			let errors = List.map (fun msg ->
-				let msg,p,i = match msg with
-					| CMInfo(msg,p) -> msg,p,3
-					| CMWarning(msg,p) -> msg,p,2
-					| CMError(msg,p) -> msg,p,1
-				in
+			let errors = List.map (fun (msg,p,_,sev) ->
 				JObject [
-					"severity",JInt i;
+					"severity",JInt (MessageSeverity.to_int sev);
 					"location",Genjson.generate_pos_as_location p;
 					"message",JString msg;
 				]
@@ -168,6 +158,28 @@ end
 open ServerCompilationContext
 
 module Communication = struct
+
+	let compiler_message_string (str,p,_,sev) =
+		let str = match sev with
+			| MessageSeverity.Warning -> "Warning : " ^ str
+			| Information | Error | Hint -> str
+		in
+		if p = null_pos then
+			str
+		else begin
+			let error_printer file line = Printf.sprintf "%s:%d:" file line in
+			let epos = Lexer.get_error_pos error_printer p in
+			let str =
+				let lines =
+					match (ExtString.String.nsplit str "\n") with
+					| first :: rest -> first :: List.map Error.compl_msg rest
+					| l -> l
+				in
+				String.concat ("\n" ^ epos ^ " : ") lines
+			in
+			Printf.sprintf "%s : %s" epos str
+		end
+
 	let create_stdio () = {
 		write_out = (fun s ->
 			print_string s;
@@ -177,9 +189,9 @@ module Communication = struct
 			prerr_string s;
 		);
 		flush = (fun ctx ->
-			List.iter (fun msg -> match msg with
-				| CMInfo _ -> print_endline (compiler_message_string msg)
-				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			List.iter (fun ((_,_,_,sev) as cm) -> match sev with
+				| MessageSeverity.Information -> print_endline (compiler_message_string cm)
+				| Warning | Error | Hint -> prerr_endline (compiler_message_string cm)
 			) (List.rev ctx.messages);
 			if has_error ctx && !Helper.prompt then begin
 				print_endline "Press enter to exit...";
