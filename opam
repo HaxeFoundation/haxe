@@ -22,7 +22,6 @@ depends: [
   "ocaml" {>= "4.02"}
   "ocamlfind" {build}
   "dune" {>= "1.11"}
-  "camlp5" {build & = "8.00"}
   "sedlex" {>= "2.0"}
   "xml-light"
   "extlib" {>= "1.7.8"}
