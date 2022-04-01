@@ -98,6 +98,7 @@ typedef JsonModule = {
 	final types:Array<JsonTypePath>;
 	final file:String;
 	final sign:String;
+	final dirty:Null<String>;
 	final dependencies:Array<ModuleId>;
 }
 
