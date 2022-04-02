@@ -13,7 +13,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			| [],[] ->
 				true
 			| tp1 :: params1,tp2 :: params2 ->
-				let constraints_equal t1 t2 = match follow t1,t2 with
+				let constraints_equal t1 t2 = match follow t1,follow t2 with
 					| TInst({cl_kind = KTypeParameter tl1},_),TInst({cl_kind = KTypeParameter tl2},_) ->
 						Ast.safe_for_all2 f_eq tl1 tl2
 					| _ ->
