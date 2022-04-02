@@ -86,6 +86,7 @@ Std.parseInt("23e2") == 23;
 #end
 Std.parseInt("0x10z") == 16;
 Std.parseInt("0x10x123") == 16;
+Std.parseInt("0xff\n") == 255;
 // hexadecimals
 Std.parseInt("0xff") == 255;
 Std.parseInt("0x123") == 291;
