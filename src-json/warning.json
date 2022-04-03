@@ -1,0 +1,88 @@
+[
+	{
+		"name": "WInternal",
+		"code": 0,
+		"doc": "Reserved for internal use"
+	},
+	{
+		"name": "WTemp",
+		"code": 1,
+		"doc": "Reserved for internal use"
+	},
+	{
+		"name": "WInfo",
+		"code": 2,
+		"doc": "Generic information like $type"
+	},
+	{
+		"name": "WUser",
+		"code": 3,
+		"doc": "Custom user warnings, e.g. from Context.warning"
+	},
+	{
+		"name": "WCompiler",
+		"code": 1000,
+		"doc": "Warnings from the compiler frontend, e.g. argument parsing"
+	},
+	{
+		"name": "WParser",
+		"code": 2000,
+		"doc": "Warnings related to lexing and parsing"
+	},
+	{
+		"name": "WTyper",
+		"code": 3000,
+		"doc": "Warnings from the typer"
+	},
+	{
+		"name": "WMacro",
+		"code": 4000,
+		"doc": "Warning related to macros"
+	},
+	{
+		"name": "WOptimizer",
+		"code": 5000,
+		"doc": "Warnings related to optimization"
+	},
+	{
+		"name": "WGenerator",
+		"code": 6000,
+		"doc": "Warnings related to code generation"
+	},
+	{
+		"name": "WDeprecated",
+		"code": 3001,
+		"doc": "This is deprecated and should no longer be used"
+	},
+	{
+		"name": "WVarInit",
+		"code": 3002,
+		"doc": "A local variable might be used before being assigned a value"
+	},
+	{
+		"name": "WVarShadow",
+		"code": 3003,
+		"doc": "A local variable hides another by using the same name"
+	},
+	{
+		"name": "WExternWithExpr",
+		"code": 3004,
+		"doc": "A non-inline field marked as extern has an expression"
+	},
+	{
+		"name": "WStaticInitOrder",
+		"code": 3005,
+		"doc": "The compiler could not determine a type order due to mutually dependent static initializations"
+	},
+	{
+		"name": "WClosureCompare",
+		"code": 3006,
+		"doc": "Closures are being compared, which might be undefined"
+	},
+	{
+		"name": "WReservedTypePath",
+		"code": 3007,
+		"doc": "A type path is being used that is supposed to be reserved on the current target"
+	}
+
+]

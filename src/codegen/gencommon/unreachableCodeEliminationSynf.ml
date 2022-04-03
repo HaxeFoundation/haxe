@@ -67,7 +67,7 @@ let init gen java_mode =
 	let should_warn = false in
 
 	let do_warn =
-		if should_warn then gen.gwarning WGencommon "Unreachable code" else (fun pos -> ())
+		if should_warn then gen.gwarning WGenerator "Unreachable code" else (fun pos -> ())
 	in
 
 	let return_loop expr kind =

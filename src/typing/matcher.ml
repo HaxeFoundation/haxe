@@ -252,7 +252,7 @@ module Pattern = struct
 								| _ -> ""
 							in
 							let fields = List.map (fun (el) -> tpath ^ el) l in
-							warning pctx.ctx WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
+							warning pctx.ctx WTyper ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
 					end;
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
@@ -321,7 +321,7 @@ module Pattern = struct
 							()
 							(* if toplevel then
 								warning pctx.ctx (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
-						| l -> warning pctx.ctx WMatcher ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
+						| l -> warning pctx.ctx WTyper ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
 					let v = add_local false s p in
 					PatVariable v
@@ -935,8 +935,8 @@ module Useless = struct
 	let check_case ctx p (case,bindings,patterns) =
 		let p = List.map (fun (_,_,patterns) -> patterns) p in
 		match u' p (copy p) (copy p) patterns [] [] with
-			| False -> Typecore.warning ctx WMatcher "This case is unused" case.case_pos
-			| Pos p -> Typecore.warning ctx WMatcher "This pattern is unused" p
+			| False -> Typecore.warning ctx WTyper "This case is unused" case.case_pos
+			| Pos p -> Typecore.warning ctx WTyper "This pattern is unused" p
 			| True -> ()
 
 	let check ctx cases =

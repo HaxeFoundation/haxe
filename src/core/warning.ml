@@ -1,28 +1,6 @@
 open Globals
 open Error
-
-type warning =
-	(* general *)
-	| WInternal
-	| WInfo
-	| WUser
-	| WTemp
-	(* subsystem *)
-	| WTyper
-	| WMatcher
-	| WMacro
-	| WAnalyzer
-	| WInliner
-	| WGencommon
-	| WGenerator
-	(* specific *)
-	| WDeprecated
-	| WVarShadow
-	| WExternInit
-	| WStaticInitOrder
-	| WClosureCompare
-	| WVarInit
-	| WReservedTypePath
+include WarningList
 
 type warning_range =
 	| WRExact of int
@@ -36,28 +14,6 @@ type warning_option = {
 	wo_range : warning_range;
 	wo_mode  : warning_mode;
 }
-
-let warning_id = function
-	| WInternal -> 0
-	| WInfo -> 1
-	| WUser -> 2
-	| WTemp -> 3
-	(* subsystem *)
-	| WTyper -> 100
-	| WMacro -> 200
-	| WMatcher -> 300
-	| WInliner -> 400
-	| WAnalyzer -> 500
-	| WGencommon -> 600
-	| WGenerator -> 700
-	(* specific *)
-	| WDeprecated -> 101
-	| WVarInit -> 102
-	| WVarShadow -> 103
-	| WExternInit -> 104
-	| WStaticInitOrder -> 105
-	| WClosureCompare -> 106
-	| WReservedTypePath -> 107
 
 let parse_options s ps lexbuf =
 	let fail msg p =

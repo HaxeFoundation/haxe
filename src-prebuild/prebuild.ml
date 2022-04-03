@@ -6,6 +6,10 @@ let as_string = function
 	| JString s -> Some s
 	| _ -> None
 
+let as_int = function
+	| JInt i -> Some i
+	| _ -> None
+
 let as_params = function
 	| JArray s -> Some (List.map (function
 			| JString s -> s
@@ -99,6 +103,15 @@ let parse_meta json =
 	(* internal *) get_optional_field "internal" as_bool false fields,
 	(* links *) get_optional_field "links" as_links [] fields
 
+let parse_warning json =
+	let fields = match json with
+		| JObject fl -> fl
+		| _ -> raise (Prebuild_error "not an object")
+	in
+	(* name *) get_field "name" as_string fields,
+	(* code *) get_field "code" as_int fields,
+	(* doc *)  get_field "doc" as_string fields
+
 let parse_file_array path map =
 	let file = open_in path in
 	let data = Std.input_all file in
@@ -108,6 +121,20 @@ let parse_file_array path map =
 	match json with
 	| JArray s -> List.map map s
 	| _ -> raise (Prebuild_error "not an array")
+
+let s_escape ?(hex=true) s =
+	let b = Buffer.create (String.length s) in
+	for i = 0 to (String.length s) - 1 do
+		match s.[i] with
+		| '\n' -> Buffer.add_string b "\\n"
+		| '\t' -> Buffer.add_string b "\\t"
+		| '\r' -> Buffer.add_string b "\\r"
+		| '"' -> Buffer.add_string b "\\\""
+		| '\\' -> Buffer.add_string b "\\\\"
+		| c when int_of_char c < 32 && hex -> Buffer.add_string b (Printf.sprintf "\\x%.2X" (int_of_char c))
+		| c -> Buffer.add_char b c
+	done;
+	Buffer.contents b
 
 let gen_platforms = function
 	| [] -> []
@@ -156,6 +183,33 @@ let gen_meta_info metas =
 			"\t| " ^ name ^ " -> \"" ^ metadata ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ targets_str @ internal_str @ links_str)) ^ "])"
 	) metas in
 	String.concat "\n" meta_str
+
+let gen_warning_type warnings =
+	let warning_str = List.map (function
+		(name,code,doc) ->
+			Printf.sprintf "\t| %s" name
+	) warnings in
+	String.concat "\n" warning_str
+
+let gen_warning_ids warnings =
+	let seen = Hashtbl.create 0 in
+	let warning_str = List.map (function
+		(name,code,doc) ->
+			try
+				let prev = Hashtbl.find seen code in
+				failwith (Printf.sprintf "Duplicate warning code %i: Used for %s and %s" code prev name)
+			with Not_found ->
+				Hashtbl.add seen code name;
+				Printf.sprintf "\t| %s -> %i" name code
+	) warnings in
+	String.concat "\n" warning_str
+
+let gen_warning_doc warnings =
+	let warning_str = List.map (function
+		(name,code,doc) ->
+			Printf.sprintf "\t| %s -> \"%s\"" name (s_escape doc)
+	) warnings in
+	String.concat "\n" warning_str
 
 let autogen_header = "(* This file is auto-generated using prebuild from files in src-json *)
 (* Do not edit manually! *)
@@ -216,6 +270,16 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "let get_info = function\n";
 		Printf.printf "%s" (gen_meta_info metas);
 		Printf.printf "\n\t| Last -> die \"\" __LOC__\n\t| Dollar s -> \"$\" ^ s,(\"\",[])\n\t| Custom s -> s,(\"\",[])\n"
+	| [_; "warning"; warning_path]->
+		let warnings = parse_file_array warning_path parse_warning in
+		print_endline "type warning =";
+		print_endline (gen_warning_type warnings);
+		print_endline "";
+		print_endline "let warning_id = function";
+		print_endline (gen_warning_ids warnings);
+		print_endline "";
+		print_endline "let warning_doc = function";
+		print_endline (gen_warning_doc warnings);
 	| _ :: "libparams" :: params ->
 		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
 	| [_ ;"version";add_revision;branch;sha] ->

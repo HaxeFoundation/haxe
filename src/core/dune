@@ -9,3 +9,9 @@
 	(deps ../../src-json/define.json)
 	(action (with-stdout-to defineList.ml (run %{bin:haxe_prebuild} define ../../src-json/define.json)))
 )
+
+(rule
+	(targets warningList.ml)
+	(deps ../../src-json/warning.json)
+	(action (with-stdout-to warningList.ml (run %{bin:haxe_prebuild} warning ../../src-json/warning.json)))
+)
