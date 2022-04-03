@@ -433,12 +433,11 @@ module HighLevel = struct
 		in
 		let call_haxelib() =
 			let t = Timer.timer ["haxelib"] in
-			let cmd = "haxelib" in
-			let args = Array.of_list ("haxelib"::(if global_repo then "--global"::"path"::libs else "path"::libs)) in
-			let pin, pout, perr, pid = Process_helper.open_process_args_full_pid cmd args (Unix.environment()) in
+			let cmd = "haxelib" ^ (if global_repo then " --global" else "") ^ " path " ^ String.concat " " libs in
+			let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 			let lines = Std.input_list pin in
 			let err = Std.input_list perr in
-			let ret = Process_helper.close_process_full_pid (pin,pout,perr,pid) in
+			let ret = Unix.close_process_full (pin,pout,perr) in
 			if ret <> Unix.WEXITED 0 then fail (match lines, err with
 				| [], [] -> "Failed to call haxelib (command not found ?)"
 				| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found: path" -> "The haxelib command has been strip'ed, please install it again"
