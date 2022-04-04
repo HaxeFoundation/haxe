@@ -603,9 +603,5 @@ module HighLevel = struct
 			else
 				code
 		) 0 ctxs in
-		if code = 0 then begin
-			Timer.close_times();
-			if !Timer.measure_times then Timer.report_times (fun s -> comm.write_err (s ^ "\n"));
-		end;
 		comm.exit code
 end

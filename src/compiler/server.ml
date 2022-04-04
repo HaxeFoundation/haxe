@@ -180,28 +180,36 @@ module Communication = struct
 			Printf.sprintf "%s : %s" epos str
 		end
 
-	let create_stdio () = {
-		write_out = (fun s ->
-			print_string s;
-			flush stdout;
-		);
-		write_err = (fun s ->
-			prerr_string s;
-		);
-		flush = (fun ctx ->
-			List.iter (fun ((_,_,_,sev) as cm) -> match sev with
-				| MessageSeverity.Information -> print_endline (compiler_message_string cm)
-				| Warning | Error | Hint -> prerr_endline (compiler_message_string cm)
-			) (List.rev ctx.messages);
-			if has_error ctx && !Helper.prompt then begin
-				print_endline "Press enter to exit...";
-				ignore(read_line());
-			end;
-			flush stdout;
-		);
-		exit = exit;
-		is_server = false;
-	}
+	let create_stdio () =
+		let rec self = {
+			write_out = (fun s ->
+				print_string s;
+				flush stdout;
+			);
+			write_err = (fun s ->
+				prerr_string s;
+			);
+			flush = (fun ctx ->
+				List.iter (fun ((_,_,_,sev) as cm) -> match sev with
+					| MessageSeverity.Information -> print_endline (compiler_message_string cm)
+					| Warning | Error | Hint -> prerr_endline (compiler_message_string cm)
+				) (List.rev ctx.messages);
+				if has_error ctx && !Helper.prompt then begin
+					print_endline "Press enter to exit...";
+					ignore(read_line());
+				end;
+				flush stdout;
+			);
+			exit = (fun code ->
+				if code = 0 then begin
+					Timer.close_times();
+					if !Timer.measure_times then Timer.report_times (fun s -> self.write_err (s ^ "\n"));
+				end;
+				exit code;
+			);
+			is_server = false;
+		} in
+		self
 
 	let create_pipe sctx write = {
 		write_out = (fun s ->

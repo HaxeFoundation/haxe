@@ -46,7 +46,7 @@ class FPHelper {
 	public static function doubleToI64(v:Float):Int64 {
 		helper.setF64(0, v);
 		#if (hl_ver >= version("1.12.0") && !hl_legacy32)
-		return Int64.make(helper.getI32(0),helper.getI32(4));
+		return Int64.make(helper.getI32(4),helper.getI32(0));
 		#else
 		var i64 = i64tmp;
 		@:privateAccess {
