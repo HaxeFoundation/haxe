@@ -4,8 +4,8 @@ exception Prebuild_error of string
 
 type parsed_warning = {
 	w_name : string;
-	w_code : int;
 	w_doc : string;
+	w_parent : string option;
 	w_generic : bool;
 }
 
@@ -77,6 +77,16 @@ let get_optional_field name map default fields =
 		| Some v -> v
 	with Not_found -> default
 
+let get_optional_field2 name map fields =
+	try
+		let field = List.find (fun (n, _) -> n = name) fields in
+		let value = map (snd field) in
+		match value with
+		| None -> raise (Prebuild_error ("field `" ^ name ^ "` has invalid data"))
+		| Some v -> Some v
+	with Not_found ->
+		None
+
 let get_field name map fields =
 	let field = try List.find (fun (n, _) -> n = name) fields with Not_found -> raise (Prebuild_error ("no `" ^ name ^ "` field")) in
 	let value = map (snd field) in
@@ -117,8 +127,8 @@ let parse_warning json =
 	in
 	{
 		w_name = get_field "name" as_string fields;
-		w_code = get_field "code" as_int fields;
 		w_doc = get_field "doc" as_string fields;
+		w_parent = get_optional_field2 "parent" as_string fields;
 		w_generic = get_optional_field "generic" as_bool false fields;
 	}
 
@@ -201,26 +211,6 @@ let gen_warning_type warnings =
 	) warnings in
 	String.concat "\n" warning_str
 
-let gen_warning_ids warnings =
-	let seen = Hashtbl.create 0 in
-	let warning_str = List.map (function
-		w ->
-			try
-				let prev = Hashtbl.find seen w.w_code in
-				failwith (Printf.sprintf "Duplicate warning code %i: Used for %s and %s" w.w_code prev w.w_name)
-			with Not_found ->
-				Hashtbl.add seen w.w_code w.w_name;
-				Printf.sprintf "\t| %s -> %i" w.w_name w.w_code
-	) warnings in
-	String.concat "\n" warning_str
-
-let gen_warning_doc warnings =
-	let warning_str = List.map (function
-		w ->
-			Printf.sprintf "\t| %s -> \"%s\"" w.w_name (s_escape w.w_doc)
-	) warnings in
-	String.concat "\n" warning_str
-
 let gen_warning_parse warnings =
 	let warning_str = List.map (function
 		w ->
@@ -230,20 +220,15 @@ let gen_warning_parse warnings =
 	String.concat "\n" warning_str
 
 
-let gen_warning_print warnings =
-	let warning_str = List.map (function
-		w ->
-			Printf.sprintf "\t| %s -> \"%s\"" w.w_name w.w_name
+let gen_warning_obj warnings =
+	let warning_str = List.map (fun w ->
+		let w_parent = match w.w_parent with
+			| None -> if w.w_name = "WAll" then "None" else "Some WAll"
+			| Some w -> Printf.sprintf "Some %s" w
+		in
+		Printf.sprintf "\t| %s -> {w_name = \"%s\"; w_doc = \"%s\"; w_generic = %b; w_parent = %s}" w.w_name w.w_name (s_escape w.w_doc) w.w_generic w_parent
 	) warnings in
 	String.concat "\n" warning_str
-
-let gen_warning_generic warnings =
-	let yes,no = List.partition (fun w -> w.w_generic) warnings in
-	let warning_str = List.map (function
-		w ->
-			Printf.sprintf "\t| %s" w.w_name
-	) yes in
-	Printf.sprintf "%s ->\n\t\ttrue\n\t| _ ->\n\t\tfalse" (String.concat "\n" warning_str)
 
 let autogen_header = "(* This file is auto-generated using prebuild from files in src-json *)
 (* Do not edit manually! *)
@@ -309,20 +294,18 @@ match Array.to_list (Sys.argv) with
 		print_endline "type warning =";
 		print_endline (gen_warning_type warnings);
 		print_endline "";
-		print_endline "let warning_id = function";
-		print_endline (gen_warning_ids warnings);
+		print_endline "type warning_obj = {";
+		print_endline "\tw_name : string;";
+		print_endline "\tw_doc : string;";
+		print_endline "\tw_generic : bool;";
+		print_endline "\tw_parent : warning option;";
+		print_endline "}";
 		print_endline "";
-		print_endline "let warning_doc = function";
-		print_endline (gen_warning_doc warnings);
+		print_endline "let warning_obj = function";
+		print_endline (gen_warning_obj warnings);
 		print_endline "";
 		print_endline "let from_string = function";
 		print_endline (gen_warning_parse warnings);
-		print_endline "";
-		print_endline "let to_string = function";
-		print_endline (gen_warning_print warnings);
-		print_endline "";
-		print_endline "let is_generic = function";
-		print_endline (gen_warning_generic warnings);
 	| _ :: "libparams" :: params ->
 		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
 	| [_ ;"version";add_revision;branch;sha] ->

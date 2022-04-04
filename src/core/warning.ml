@@ -2,17 +2,13 @@ open Globals
 open Error
 include WarningList
 
-type warning_range =
-	| WRExact of int
-	| WRRange of int * int
-
 type warning_mode =
 	| WMEnable
 	| WMDisable
 
 type warning_option = {
-	wo_range : warning_range;
-	wo_mode  : warning_mode;
+	wo_warning : warning;
+	wo_mode : warning_mode;
 }
 
 let parse_options s ps lexbuf =
@@ -21,34 +17,25 @@ let parse_options s ps lexbuf =
 	in
 	let parse_string s p =
 		begin try
-			warning_id (from_string s)
+			from_string s
 		with Exit ->
 			fail (Printf.sprintf "Unknown warning: %s" s) p
 		end
 	in
-	let parse_range () = match Lexer.token lexbuf with
-		| Const (Int(i,_)),_ ->
-			WRExact (int_of_string i)
+	let parse_warning () = match Lexer.token lexbuf with
 		| Const (Ident s),p ->
-			WRExact (parse_string s p)
-		| IntInterval i1,_ ->
-			begin match Lexer.token lexbuf with
-			| Const (Int(i2,_)),_ ->
-				WRRange(int_of_string i1,int_of_string i2)
-			| (_,p) ->
-				fail "Expected number" p
-			end
+			parse_string s p
 		| (_,p) ->
-			fail "Expected number or identifier" p
+			fail "Expected identifier" p
 	in
-	let add acc mode range =
-		{ wo_range = range; wo_mode = mode } :: acc
+	let add acc mode warning =
+		{ wo_warning = warning; wo_mode = mode } :: acc
 	in
 	let rec next acc = match Lexer.token lexbuf with
 		| Binop OpAdd,_ ->
-			next (add acc WMEnable (parse_range()))
+			next (add acc WMEnable (parse_warning()))
 		| Binop OpSub,_ ->
-			next (add acc WMDisable (parse_range()))
+			next (add acc WMDisable (parse_warning()))
 		| Eof,_ ->
 			List.rev acc
 		| (_,p) ->
@@ -87,10 +74,10 @@ let from_meta ml =
 	loop [] ml
 
 let get_mode w (l : warning_option list list) =
-	let code = warning_id w in
-	let in_range range = match range with
-		| WRExact i -> i = code
-		| WRRange(i1,i2) -> code >= i1 && code <= i2
+	let rec matches w id =
+		id = w || match (warning_obj w).w_parent with
+			| None -> false
+			| Some w' -> matches w' id
 	in
 	let rec loop mode l = match l with
 		| [] ->
@@ -100,7 +87,7 @@ let get_mode w (l : warning_option list list) =
 				| [] ->
 					mode
 				| opt :: l ->
-					let mode = if in_range opt.wo_range then opt.wo_mode else mode in
+					let mode = if matches w opt.wo_warning then opt.wo_mode else mode in
 					loop2 mode l
 			in
 			loop (loop2 mode l2) l

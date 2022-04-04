@@ -1,108 +1,107 @@
 [
 	{
+		"name": "WAll",
+		"doc": "The mother of all warnings",
+		"generic": true
+	},
+	{
 		"name": "WInternal",
-		"code": 0,
 		"doc": "Reserved for internal use",
 		"generic": true
 	},
 	{
 		"name": "WTemp",
-		"code": 1,
 		"doc": "Reserved for internal use",
 		"generic": true
 	},
 	{
 		"name": "WInfo",
-		"code": 2,
 		"doc": "Generic information like $type",
 		"generic": true
 	},
 	{
 		"name": "WUser",
-		"code": 3,
 		"doc": "Custom user warnings, e.g. from Context.warning",
 		"generic": true
 	},
 	{
 		"name": "WCompiler",
-		"code": 1000,
 		"doc": "Warnings from the compiler frontend, e.g. argument parsing",
 		"generic": true
 	},
 	{
 		"name": "WParser",
-		"code": 2000,
 		"doc": "Warnings related to lexing and parsing",
 		"generic": true
 	},
 	{
 		"name": "WTyper",
-		"code": 3000,
 		"doc": "Warnings from the typer",
 		"generic": true
 	},
 	{
 		"name": "WMacro",
-		"code": 4000,
 		"doc": "Warning related to macros",
 		"generic": true
 	},
 	{
 		"name": "WOptimizer",
-		"code": 5000,
 		"doc": "Warnings related to optimization",
 		"generic": true
 	},
 	{
 		"name": "WGenerator",
-		"code": 6000,
 		"doc": "Warnings related to code generation",
 		"generic": true
 	},
 	{
 		"name": "WDeprecated",
-		"code": 3001,
 		"doc": "This is deprecated and should no longer be used"
 	},
 	{
 		"name": "WVarInit",
-		"code": 3002,
-		"doc": "A local variable might be used before being assigned a value"
+		"doc": "A local variable might be used before being assigned a value",
+		"parent": "WTyper"
 	},
 	{
 		"name": "WVarShadow",
-		"code": 3003,
-		"doc": "A local variable hides another by using the same name"
+		"doc": "A local variable hides another by using the same name",
+		"parent": "WTyper"
 	},
 	{
 		"name": "WExternWithExpr",
-		"code": 3004,
-		"doc": "A non-inline field marked as extern has an expression"
+		"doc": "A non-inline field marked as extern has an expression",
+		"parent": "WTyper"
 	},
 	{
 		"name": "WStaticInitOrder",
-		"code": 3005,
-		"doc": "The compiler could not determine a type order due to mutually dependent static initializations"
+		"doc": "The compiler could not determine a type order due to mutually dependent static initializations",
+		"parent": "WTyper"
 	},
 	{
 		"name": "WClosureCompare",
-		"code": 3006,
-		"doc": "Closures are being compared, which might be undefined"
+		"doc": "Closures are being compared, which might be undefined",
+		"parent": "WTyper"
 	},
 	{
 		"name": "WReservedTypePath",
-		"code": 3007,
-		"doc": "A type path is being used that is supposed to be reserved on the current target"
+		"doc": "A type path is being used that is supposed to be reserved on the current target",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WPatternMatcher",
+		"doc": "Warnings related to the pattern matcher",
+		"parent": "WTyper"
 	},
 	{
 		"name": "WUnusedPattern",
-		"code": 3008,
-		"doc": "The pattern is not used because previous cases cover"
+		"doc": "The pattern is not used because previous cases cover",
+		"parent": "WPatternMatcher"
 	},
 	{
 		"name": "WConstructorInliningCancelled",
-		"code": 3009,
-		"doc": "Constructor call could not be inlined because a field is uninitialized"
+		"doc": "Constructor call could not be inlined because a field is uninitialized",
+		"parent": "WTyper"
 	}
 
 ]
