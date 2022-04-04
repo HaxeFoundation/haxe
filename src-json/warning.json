@@ -93,6 +93,16 @@
 		"name": "WReservedTypePath",
 		"code": 3007,
 		"doc": "A type path is being used that is supposed to be reserved on the current target"
+	},
+	{
+		"name": "WUnusedPattern",
+		"code": 3008,
+		"doc": "The pattern is not used because previous cases cover"
+	},
+	{
+		"name": "WConstructorInliningCancelled",
+		"code": 3009,
+		"doc": "Constructor call could not be inlined because a field is uninitialized"
 	}
 
 ]

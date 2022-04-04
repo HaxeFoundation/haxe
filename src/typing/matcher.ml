@@ -935,8 +935,8 @@ module Useless = struct
 	let check_case ctx p (case,bindings,patterns) =
 		let p = List.map (fun (_,_,patterns) -> patterns) p in
 		match u' p (copy p) (copy p) patterns [] [] with
-			| False -> Typecore.warning ctx WTyper "This case is unused" case.case_pos
-			| Pos p -> Typecore.warning ctx WTyper "This pattern is unused" p
+			| False -> Typecore.warning ctx WUnusedPattern "This case is unused" case.case_pos
+			| Pos p -> Typecore.warning ctx WUnusedPattern "This pattern is unused" p
 			| True -> ()
 
 	let check ctx cases =
