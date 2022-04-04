@@ -386,7 +386,7 @@ let catch_completion_and_exit ctx callbacks run =
 			callbacks.after_compilation ctx;
 			ServerMessage.completion str;
 			ctx.comm.write_err str;
-			1
+			0
 		| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
 			finalize ctx;
