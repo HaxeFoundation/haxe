@@ -2,6 +2,13 @@ open Json
 
 exception Prebuild_error of string
 
+type parsed_warning = {
+	w_name : string;
+	w_code : int;
+	w_doc : string;
+	w_generic : bool;
+}
+
 let as_string = function
 	| JString s -> Some s
 	| _ -> None
@@ -108,9 +115,12 @@ let parse_warning json =
 		| JObject fl -> fl
 		| _ -> raise (Prebuild_error "not an object")
 	in
-	(* name *) get_field "name" as_string fields,
-	(* code *) get_field "code" as_int fields,
-	(* doc *)  get_field "doc" as_string fields
+	{
+		w_name = get_field "name" as_string fields;
+		w_code = get_field "code" as_int fields;
+		w_doc = get_field "doc" as_string fields;
+		w_generic = get_optional_field "generic" as_bool false fields;
+	}
 
 let parse_file_array path map =
 	let file = open_in path in
@@ -186,30 +196,54 @@ let gen_meta_info metas =
 
 let gen_warning_type warnings =
 	let warning_str = List.map (function
-		(name,code,doc) ->
-			Printf.sprintf "\t| %s" name
+		w ->
+			Printf.sprintf "\t| %s" w.w_name
 	) warnings in
 	String.concat "\n" warning_str
 
 let gen_warning_ids warnings =
 	let seen = Hashtbl.create 0 in
 	let warning_str = List.map (function
-		(name,code,doc) ->
+		w ->
 			try
-				let prev = Hashtbl.find seen code in
-				failwith (Printf.sprintf "Duplicate warning code %i: Used for %s and %s" code prev name)
+				let prev = Hashtbl.find seen w.w_code in
+				failwith (Printf.sprintf "Duplicate warning code %i: Used for %s and %s" w.w_code prev w.w_name)
 			with Not_found ->
-				Hashtbl.add seen code name;
-				Printf.sprintf "\t| %s -> %i" name code
+				Hashtbl.add seen w.w_code w.w_name;
+				Printf.sprintf "\t| %s -> %i" w.w_name w.w_code
 	) warnings in
 	String.concat "\n" warning_str
 
 let gen_warning_doc warnings =
 	let warning_str = List.map (function
-		(name,code,doc) ->
-			Printf.sprintf "\t| %s -> \"%s\"" name (s_escape doc)
+		w ->
+			Printf.sprintf "\t| %s -> \"%s\"" w.w_name (s_escape w.w_doc)
 	) warnings in
 	String.concat "\n" warning_str
+
+let gen_warning_parse warnings =
+	let warning_str = List.map (function
+		w ->
+			Printf.sprintf "\t| \"%s\" -> %s" w.w_name w.w_name
+	) warnings in
+	let warning_str = warning_str @ ["\t| _ -> raise Exit"] in
+	String.concat "\n" warning_str
+
+
+let gen_warning_print warnings =
+	let warning_str = List.map (function
+		w ->
+			Printf.sprintf "\t| %s -> \"%s\"" w.w_name w.w_name
+	) warnings in
+	String.concat "\n" warning_str
+
+let gen_warning_generic warnings =
+	let yes,no = List.partition (fun w -> w.w_generic) warnings in
+	let warning_str = List.map (function
+		w ->
+			Printf.sprintf "\t| %s" w.w_name
+	) yes in
+	Printf.sprintf "%s ->\n\t\ttrue\n\t| _ ->\n\t\tfalse" (String.concat "\n" warning_str)
 
 let autogen_header = "(* This file is auto-generated using prebuild from files in src-json *)
 (* Do not edit manually! *)
@@ -280,6 +314,15 @@ match Array.to_list (Sys.argv) with
 		print_endline "";
 		print_endline "let warning_doc = function";
 		print_endline (gen_warning_doc warnings);
+		print_endline "";
+		print_endline "let from_string = function";
+		print_endline (gen_warning_parse warnings);
+		print_endline "";
+		print_endline "let to_string = function";
+		print_endline (gen_warning_print warnings);
+		print_endline "";
+		print_endline "let is_generic = function";
+		print_endline (gen_warning_generic warnings);
 	| _ :: "libparams" :: params ->
 		Printf.printf "(%s)" (String.concat " " (List.map (fun s -> Printf.sprintf "\"%s\"" s) params))
 	| [_ ;"version";add_revision;branch;sha] ->

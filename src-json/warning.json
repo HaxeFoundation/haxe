@@ -2,52 +2,62 @@
 	{
 		"name": "WInternal",
 		"code": 0,
-		"doc": "Reserved for internal use"
+		"doc": "Reserved for internal use",
+		"generic": true
 	},
 	{
 		"name": "WTemp",
 		"code": 1,
-		"doc": "Reserved for internal use"
+		"doc": "Reserved for internal use",
+		"generic": true
 	},
 	{
 		"name": "WInfo",
 		"code": 2,
-		"doc": "Generic information like $type"
+		"doc": "Generic information like $type",
+		"generic": true
 	},
 	{
 		"name": "WUser",
 		"code": 3,
-		"doc": "Custom user warnings, e.g. from Context.warning"
+		"doc": "Custom user warnings, e.g. from Context.warning",
+		"generic": true
 	},
 	{
 		"name": "WCompiler",
 		"code": 1000,
-		"doc": "Warnings from the compiler frontend, e.g. argument parsing"
+		"doc": "Warnings from the compiler frontend, e.g. argument parsing",
+		"generic": true
 	},
 	{
 		"name": "WParser",
 		"code": 2000,
-		"doc": "Warnings related to lexing and parsing"
+		"doc": "Warnings related to lexing and parsing",
+		"generic": true
 	},
 	{
 		"name": "WTyper",
 		"code": 3000,
-		"doc": "Warnings from the typer"
+		"doc": "Warnings from the typer",
+		"generic": true
 	},
 	{
 		"name": "WMacro",
 		"code": 4000,
-		"doc": "Warning related to macros"
+		"doc": "Warning related to macros",
+		"generic": true
 	},
 	{
 		"name": "WOptimizer",
 		"code": 5000,
-		"doc": "Warnings related to optimization"
+		"doc": "Warnings related to optimization",
+		"generic": true
 	},
 	{
 		"name": "WGenerator",
 		"code": 6000,
-		"doc": "Warnings related to code generation"
+		"doc": "Warnings related to code generation",
+		"generic": true
 	},
 	{
 		"name": "WDeprecated",

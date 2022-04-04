@@ -26,7 +26,7 @@ abstract Bar(Int) from Int {
 }
 #end
 
-@:haxe.warning("-600")
+@:haxe.warning("-WGenerator")
 class Issue10073 extends Test {
 	function test() {
 		var foo:Foo = [];

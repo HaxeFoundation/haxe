@@ -19,9 +19,18 @@ let parse_options s ps lexbuf =
 	let fail msg p =
 		Error.typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
 	in
+	let parse_string s p =
+		begin try
+			warning_id (from_string s)
+		with Exit ->
+			fail (Printf.sprintf "Unknown warning: %s" s) p
+		end
+	in
 	let parse_range () = match Lexer.token lexbuf with
 		| Const (Int(i,_)),_ ->
 			WRExact (int_of_string i)
+		| Const (Ident s),p ->
+			WRExact (parse_string s p)
 		| IntInterval i1,_ ->
 			begin match Lexer.token lexbuf with
 			| Const (Int(i2,_)),_ ->
@@ -30,7 +39,7 @@ let parse_options s ps lexbuf =
 				fail "Expected number" p
 			end
 		| (_,p) ->
-			fail "Expected number" p
+			fail "Expected number or identifier" p
 	in
 	let add acc mode range =
 		{ wo_range = range; wo_mode = mode } :: acc

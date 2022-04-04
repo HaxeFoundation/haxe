@@ -1,4 +1,4 @@
-Macro2.hx:12: characters 25-39 : Warning : This typedef is deprecated in favor of String
+Macro2.hx:12: characters 25-39 : Warning : (WDeprecated) This typedef is deprecated in favor of String
 Warning : 1
 Warning : 2
 Warning : 3

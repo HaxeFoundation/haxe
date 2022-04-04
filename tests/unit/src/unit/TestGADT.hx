@@ -42,7 +42,7 @@ class TestGADT extends Test {
 		eq(s, true);
 	}
 
-	@:haxe.warning("-600")
+	@:haxe.warning("-WGenerator")
 	static function evalConst<T>(c:Constant<T>):T {
 		return switch (c) {
 			case CString(s): s;
@@ -51,7 +51,7 @@ class TestGADT extends Test {
 		}
 	}
 
-	@:haxe.warning("-600")
+	@:haxe.warning("-WGenerator")
 	static function evalBinop<T, C>(op:Binop<C, T>, e1:Expr<C>, e2:Expr<C>):T {
 		return switch (op) {
 			case OpAdd: eval(e1) + eval(e2);
