@@ -542,7 +542,7 @@ module HighLevel = struct
 				loop_lib arg dir "hxcs" acc args
 			| arg :: l ->
 				match List.rev (ExtString.String.nsplit arg ".") with
-				| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
+				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
 					let acc, l = (try acc, Helper.parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
 					loop acc l
 				| _ ->
