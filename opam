@@ -30,7 +30,6 @@ depends: [
   "sha"
   "conf-libpcre"
   "conf-zlib"
-  "conf-mbedtls"
   "conf-neko"
   "luv" {<= "0.5.8"} (* see https://github.com/aantron/luv/issues/121 *)
 ]
