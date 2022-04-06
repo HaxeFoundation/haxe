@@ -713,7 +713,6 @@ let destruction tctx detail_times main locals =
 	List.iter (fun t ->
 		remove_generic_base t;
 		remove_extern_fields com t;
-		Codegen.update_cache_dependencies t;
 		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 		check_remove_metadata t;
 	) com.types;
@@ -770,6 +769,56 @@ let destruction tctx detail_times main locals =
 	t();
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
 	com.stage <- CFilteringDone
+
+let update_cache_dependencies com t =
+	let visited_anons = ref [] in
+	let rec check_t m t = match t with
+		| TInst(c,tl) ->
+			add_dependency m c.cl_module;
+			List.iter (check_t m) tl;
+		| TEnum(en,tl) ->
+			add_dependency m en.e_module;
+			List.iter (check_t m) tl;
+		| TType(t,tl) ->
+			add_dependency m t.t_module;
+			List.iter (check_t m) tl;
+		| TAbstract(a,tl) ->
+			add_dependency m a.a_module;
+			List.iter (check_t m) tl;
+		| TFun(targs,tret) ->
+			List.iter (fun (_,_,t) -> check_t m t) targs;
+			check_t m tret;
+		| TAnon an ->
+			if not (List.memq an !visited_anons) then begin
+				visited_anons := an :: !visited_anons;
+				PMap.iter (fun _ cf -> check_t m cf.cf_type) an.a_fields
+			end
+		| TMono r ->
+			begin match r.tm_type with
+				| Some t ->
+					check_t m t
+				| _ ->
+					()
+		end
+		| TLazy f ->
+			check_t m (lazy_type f)
+		| TDynamic t ->
+			if t == t_dynamic then
+				()
+			else
+				check_t m t
+	in
+	let rec check_field m cf =
+		check_t m cf.cf_type;
+		List.iter (check_field m) cf.cf_overloads
+	in
+	match t with
+		| TClassDecl c ->
+			List.iter (check_field c.cl_module) c.cl_ordered_statics;
+			List.iter (check_field c.cl_module) c.cl_ordered_fields;
+			(match c.cl_constructor with None -> () | Some cf -> check_field c.cl_module cf);
+		| _ ->
+			()
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
 let save_class_state ctx t = match t with
@@ -933,7 +982,10 @@ let run com tctx main =
 	t();
 	com.stage <- CSaveStart;
 	let t = filter_timer detail_times ["save state"] in
-	List.iter (save_class_state tctx) new_types;
+	List.iter (fun mt ->
+		update_cache_dependencies com mt;
+		save_class_state tctx mt
+	) new_types;
 	t();
 	com.stage <- CSaveDone;
 	let t = filter_timer detail_times ["callbacks"] in
