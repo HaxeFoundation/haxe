@@ -75,51 +75,6 @@ let escape_res_name name allow_dirs =
 		else
 			"-x" ^ (string_of_int (Char.code chr))) name
 
-let update_cache_dependencies t =
-	let visited_anons = ref [] in
-	let rec check_t m t = match t with
-		| TInst(c,tl) ->
-			add_dependency m c.cl_module;
-			List.iter (check_t m) tl;
-		| TEnum(en,tl) ->
-			add_dependency m en.e_module;
-			List.iter (check_t m) tl;
-		| TType(t,tl) ->
-			add_dependency m t.t_module;
-			List.iter (check_t m) tl;
-		| TAbstract(a,tl) ->
-			add_dependency m a.a_module;
-			List.iter (check_t m) tl;
-		| TFun(targs,tret) ->
-			List.iter (fun (_,_,t) -> check_t m t) targs;
-			check_t m tret;
-		| TAnon an ->
-			if not (List.memq an !visited_anons) then begin
-				visited_anons := an :: !visited_anons;
-				PMap.iter (fun _ cf -> check_field m cf) an.a_fields
-			end
-		| TMono r ->
-			(match r.tm_type with
-			| Some t -> check_t m t
-			| _ -> ())
-		| TLazy f ->
-			check_t m (lazy_type f)
-		| TDynamic t ->
-			if t == t_dynamic then
-				()
-			else
-				check_t m t
-	and check_field m cf =
-		check_t m cf.cf_type
-	in
-	match t with
-		| TClassDecl c ->
-			List.iter (check_field c.cl_module) c.cl_ordered_statics;
-			List.iter (check_field c.cl_module) c.cl_ordered_fields;
-			(match c.cl_constructor with None -> () | Some cf -> check_field c.cl_module cf);
-		| _ ->
-			()
-
 (* -------------------------------------------------------------------------- *)
 (* FIX OVERRIDES *)
 

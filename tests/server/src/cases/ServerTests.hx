@@ -78,6 +78,7 @@ class ServerTests extends TestCase {
 		var args = ["-main", "BuiltClass.hx", "--interp"];
 		runHaxe(args);
 		runHaxe(args);
+		trace(lastResult);
 		assertReuse("BuiltClass");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
