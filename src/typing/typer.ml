@@ -1990,6 +1990,7 @@ let rec create com =
 		in_function = false;
 		in_loop = false;
 		in_display = false;
+		allow_inline = true;
 		get_build_infos = (fun() -> None);
 		ret = mk_mono();
 		locals = PMap.empty;

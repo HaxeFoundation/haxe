@@ -642,6 +642,15 @@ class Context {
 		return load("with_imports", 3)(imports, usings, code);
 	}
 
+
+	/**
+		Executes `code` in a context that has some compiler options set, restore the compiler to its
+		default behavior afterwards.
+	**/
+	public static function withOptions<X>(options:{?inlining:Bool}, code : () -> X) : X {
+		return load("with_options", 2)(options, code);
+	}
+
 	@:deprecated
 	public static function registerModuleReuseCall(modulePath:String, macroCall:String) {
 		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";

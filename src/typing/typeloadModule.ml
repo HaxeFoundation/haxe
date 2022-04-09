@@ -720,6 +720,7 @@ let create_typer_context_for_module ctx m = {
 		get_build_infos = (fun() -> None);
 		macro_depth = 0;
 		curclass = null_class;
+		allow_inline = true;
 		curfield = null_field;
 		tthis = mk_mono();
 		ret = mk_mono();

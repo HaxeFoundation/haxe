@@ -403,6 +403,19 @@ let make_macro_api ctx p =
 			in
 			Std.finally restore run ()
 		);
+		MacroApi.with_options = (fun opts f ->
+			let old_inline = ctx.allow_inline in
+			(match opts.opt_inlining with
+			| None -> ()
+			| Some v -> ctx.allow_inline <- v);
+			let run() =
+				f();
+			in
+			let restore() =
+				ctx.allow_inline <- old_inline;
+			in
+			Std.finally restore run ()
+		);
 		MacroApi.warning = (fun w msg p ->
 			warning ctx w msg p
 		);

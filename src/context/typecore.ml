@@ -114,6 +114,7 @@ and typer = {
 	mutable type_params : type_params;
 	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
+	mutable allow_inline : bool;
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
 	mutable in_function : bool;

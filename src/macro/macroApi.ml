@@ -5,6 +5,10 @@ open Common
 exception Invalid_expr
 exception Abort
 
+type compiler_options = {
+	opt_inlining : bool option;
+}
+
 (**
 	Our access to the compiler from the macro api
 **)
@@ -52,6 +56,7 @@ type 'value compiler_api = {
 	flush_context : (unit -> t) -> t;
 	display_error : (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
+	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	warning : Warning.warning -> string -> pos -> unit;
 }
 
@@ -2042,5 +2047,18 @@ let macro_api ccom get_api =
 			let f = prepare_callback f 0 in
 			(get_api()).with_imports imports usings (fun () -> f [])
 		);
+		"with_options", vfun2(fun opts f ->
+			let o = {
+				opt_inlining = opt decode_bool (field opts "inlining");
+			} in
+			let f = prepare_callback f 0 in
+			(get_api()).with_options o (fun() -> f []);
+		);
+		"set_var_name", vfun2(fun v name ->
+			let v = decode_tvar v in
+			let name = decode_string name in
+			v.v_name <- name;
+			vnull;
+		)
 	]
 end
