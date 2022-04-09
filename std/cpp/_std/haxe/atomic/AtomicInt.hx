@@ -3,7 +3,7 @@ package haxe.atomic;
 #if cppia
 extern
 #end
-abstract AtomicInt(cpp.Pointer<Int>) {
+abstract AtomicInt(cpp.Pointer<cpp.AtomicInt>) {
 	public #if !(scriptable || cppia) inline #end function new(value:Int) {
 		this = cpp.Pointer.ofArray([value]);
 	}
