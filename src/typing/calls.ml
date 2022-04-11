@@ -215,7 +215,7 @@ let rec acc_get ctx g p =
 			else
 				typing_error "Invalid macro access" p
 		| _ ->
-			if fa.fa_inline then
+			if fa.fa_inline && ctx.allow_inline then
 				inline_read fa
 			else
 				FieldAccess.get_field_expr fa FRead
@@ -394,8 +394,14 @@ let array_access ctx e1 e2 mode p =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
-				AKExpr e
+				let f = AbstractCast.find_array_access ctx a pl e2 None p in
+				if not ctx.allow_inline then
+					let _,_,r,_,_ = f in
+					AKExpr { eexpr = TArray(e1,e2); epos = p; etype = r }
+				else begin
+					let e = mk_array_get_call ctx f c e1 p in
+					AKExpr e
+				end
 			end
 		| _ -> raise Not_found)
 	with Not_found ->
