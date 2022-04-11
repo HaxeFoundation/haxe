@@ -78,7 +78,7 @@ function main() {
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
-		#if (!no_http && (!github || !(php && Windows))) new TestHttp(),
+		#if !no_http new TestHttp(),
 		#end
 		#if !no_pattern_matching
 		new TestMatch(),
