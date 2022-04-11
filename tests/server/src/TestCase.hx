@@ -41,10 +41,10 @@ class TestCase implements ITest {
 		}
 	}
 
-	public function setup() {
+	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir]));
+		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir], {}, () -> async.done()));
 	}
 
 	public function teardown() {
