@@ -150,7 +150,7 @@ let is_extern_field f =
 
 let is_array_class name =
 	match name with
-	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_F32" | "hl.types.ArrayBytes_hl_UI16" -> true
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_hl_F32" | "hl.types.ArrayBytes_hl_UI16" -> true
 	| _ -> false
 
 let is_array_type t =
@@ -355,7 +355,7 @@ let make_debug ctx arr =
 let fake_tnull =
 	{null_abstract with
 		a_path = [],"Null";
-		a_params = ["T",t_dynamic];
+		a_params = [{ttp_name = "T"; ttp_type = t_dynamic; ttp_default = None}];
 	}
 
 let get_rec_cache ctx t none_callback not_found_callback =
@@ -380,7 +380,7 @@ let rec to_type ?tref ctx t =
 		let t =
 			get_rec_cache ctx t
 				(fun() -> abort "Unsupported recursive type" td.t_pos)
-				(fun tref -> to_type ~tref ctx (apply_params td.t_params tl td.t_type))
+				(fun tref -> to_type ~tref ctx (apply_typedef td tl))
 		in
 		(match td.t_path with
 		| ["haxe";"macro"], name -> Hashtbl.replace ctx.macro_typedefs name t; t
@@ -395,7 +395,7 @@ let rec to_type ?tref ctx t =
 	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
 		(match !(a.a_status) with
 		| Statics c ->
-			class_type ctx c (List.map snd c.cl_params) true
+			class_type ctx c (extract_param_types c.cl_params) true
 		| EnumStatics e ->
 			enum_class ctx e
 		| _ -> die "" __LOC__)
@@ -761,7 +761,7 @@ and alloc_global ctx name t =
 and class_global ?(resolve=true) ctx c =
 	let static = c != ctx.base_class in
 	let c = if resolve && is_array_type (HObj { null_proto with pname = s_type_path c.cl_path }) then ctx.array_impl.abase else c in
-	let c = resolve_class ctx c (List.map snd c.cl_params) static in
+	let c = resolve_class ctx c (extract_param_types c.cl_params) static in
 	let t = class_type ctx c [] static in
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
 
@@ -1327,7 +1327,7 @@ and get_access ctx e =
 		(match a, follow ethis.etype with
 		| FStatic (c,({ cf_kind = Var _ | Method MethDynamic } as f)), _ ->
 			let g, t = class_global ctx c in
-			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> die "" __LOC__) | _ -> die "" __LOC__))
+			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> die ~p:e.epos "" __LOC__) | _ -> die ~p:e.epos "" __LOC__))
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), f), TInst (c,_)
@@ -2484,7 +2484,7 @@ and eval_expr ctx e =
 					free ctx r;
 					binop r r b;
 					r))
-		| OpInterval | OpArrow | OpIn ->
+		| OpInterval | OpArrow | OpIn | OpNullCoal ->
 			die "" __LOC__)
 	| TUnop (Not,_,v) ->
 		let tmp = alloc_tmp ctx HBool in
@@ -2497,6 +2497,8 @@ and eval_expr ctx e =
 		let r = eval_to ctx v t in
 		op ctx (ONeg (tmp,r));
 		tmp
+	| TUnop (Spread,_,_) ->
+		die ~p:e.epos "Unexpected spread operator" __LOC__
 	| TUnop (NegBits,_,v) ->
 		let t = to_type ctx e.etype in
 		let tmp = alloc_tmp ctx t in
@@ -2505,7 +2507,7 @@ and eval_expr ctx e =
 			| HUI8 -> 0xFFl
 			| HUI16 -> 0xFFFFl
 			| HI32 -> 0xFFFFFFFFl
-			| _ -> abort (tstr t) e.epos
+			| _ -> abort ("Unsupported " ^ tstr t) e.epos
 		) in
 		hold ctx r;
 		let r2 = alloc_tmp ctx t in
@@ -2597,6 +2599,11 @@ and eval_expr ctx e =
 			free ctx env;
 			op ctx (OInstanceClosure (r, fid, env)));
 		r
+	(* throwing a catch var means we want to rethrow an exception *)
+	| TThrow ({ eexpr = TLocal v } as e1) when has_var_flag v VCaught ->
+		let r = alloc_tmp ctx HVoid in
+		op ctx (ORethrow (eval_to ctx e1 HDyn));
+		r
 	| TThrow v ->
 		op ctx (OThrow (eval_to ctx v HDyn));
 		alloc_tmp ctx HDyn
@@ -2639,8 +2646,8 @@ and eval_expr ctx e =
 		ctx.m.mloop_trys <- oldtrys;
 		alloc_tmp ctx HVoid
 	| TCast ({ eexpr = TCast (v,None) },None) when not (is_number (to_type ctx e.etype)) ->
-        (* coalesce double casts into a single runtime check - temp fix for Map accesses *)
-        eval_expr ctx { e with eexpr = TCast(v,None) }
+		(* coalesce double casts into a single runtime check - temp fix for Map accesses *)
+		eval_expr ctx { e with eexpr = TCast(v,None) }
 	| TCast (v,None) ->
 		let t = to_type ctx e.etype in
 		let rv = eval_expr ctx v in
@@ -3311,7 +3318,7 @@ let generate_static ctx c f =
 				add_native lib name
 			| (Meta.HlNative,[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
-			| (Meta.HlNative,[(EConst(Float(ver)),_)] ,_ ) :: _ ->
+			| (Meta.HlNative,[(EConst(Float(ver,_)),_)] ,_ ) :: _ ->
 				let cur_ver = (try Common.defined_value ctx.com Define.HlVer with Not_found -> "") in
 				if cur_ver < ver then
 					let gen_content() =
@@ -3339,7 +3346,7 @@ let rec generate_member ctx c f =
 	| Method m ->
 		let gen_content = if f.cf_name <> "new" then None else Some (fun() ->
 
-			let o = (match class_type ctx c (List.map snd c.cl_params) false with
+			let o = (match class_type ctx c (extract_param_types c.cl_params) false with
 				| HObj o | HStruct o -> o
 				| _ -> die "" __LOC__
 			) in
@@ -3381,8 +3388,8 @@ let rec generate_member ctx c f =
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
-			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
-			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,List.map snd c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
+			let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) p in
+			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,extract_param_types c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
 			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> die "" __LOC__) with Not_found -> die "" __LOC__) in
 			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
 			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
@@ -3441,7 +3448,7 @@ let generate_static_init ctx types main =
 
 				let g, ct = class_global ~resolve:false ctx c in
 				let ctype = if c == ctx.array_impl.abase then ctx.array_impl.aall else c in
-				let t = class_type ctx ctype (List.map snd ctype.cl_params) false in
+				let t = class_type ctx ctype (extract_param_types ctype.cl_params) false in
 
 				let index name =
 					match ct with
@@ -3962,7 +3969,7 @@ let create_context com is_macro dump =
 	let ctx = {
 		com = com;
 		is_macro = is_macro;
-		optimize = not (Common.raw_defined com "hl-no-opt");
+		optimize = not (Common.raw_defined com "hl_no_opt");
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();
@@ -4082,7 +4089,7 @@ let prev_sign = ref "" and prev_data = ref ""
 
 let generate com =
 	let dump = Common.defined com Define.Dump in
-	let hl_check = Common.raw_defined com "hl-check" in
+	let hl_check = Common.raw_defined com "hl_check" in
 
 	let sign = make_context_sign com in
 	if sign = !prev_sign && not dump && not hl_check then begin
@@ -4102,7 +4109,7 @@ let generate com =
 		Hlcode.dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;
 	end;
-	(*if Common.raw_defined com "hl-dump-spec" then begin
+	(*if Common.raw_defined com "hl_dump_spec" then begin
 		let ch = open_out_bin "dump/hlspec.txt" in
 		let write s = output_string ch (s ^ "\n") in
 		Array.iter (fun f ->
@@ -4125,16 +4132,22 @@ let generate com =
 		"\"" ^ Buffer.contents b ^ "\""
 	in
 
-	if file_extension com.file = "c" then begin
+	if Path.file_extension com.file = "c" then begin
 		let gnames = Array.create (Array.length code.globals) "" in
 		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
+		if not (Common.defined com Define.SourceHeader) then begin
+			let version_major = com.version / 1000 in
+			let version_minor = (com.version mod 1000) / 100 in
+			let version_revision = (com.version mod 100) in
+			Common.define_value com Define.SourceHeader (Printf.sprintf "Generated by HLC %d.%d.%d (HL v%d)" version_major version_minor version_revision code.version);
+		end;
 		Hl2c.write_c com com.file code gnames;
 		let t = Timer.timer ["nativecompile";"hl"] in
-		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
+		if not (Common.defined com Define.NoCompilation) && com.run_command_args "haxelib" ["run";"hashlink";"build";escape_command com.file] <> 0 then failwith "Build failed";
 		t();
 	end else begin
 		let ch = IO.output_string() in
-		write_code ch code (not (Common.raw_defined com "hl-no-debug"));
+		write_code ch code (not (Common.raw_defined com "hl_no_debug"));
 		let str = IO.close_out ch in
 		let ch = open_out_bin com.file in
 		output_string ch str;
@@ -4145,7 +4158,7 @@ let generate com =
 	Hlopt.clean_cache();
 	t();
 	if Common.raw_defined com "run" then begin
-		if com.run_command ("haxelib run hashlink run " ^ escape_command com.file) <> 0 then failwith "Failed to run HL";
+		if com.run_command_args "haxelib" ["run";"hashlink";"run";escape_command com.file] <> 0 then failwith "Failed to run HL";
 	end;
 	if Common.defined com Define.Interp then
 		try

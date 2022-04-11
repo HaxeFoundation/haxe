@@ -28,7 +28,7 @@ open DisplayTypes
 open Display
 
 let get_submodule_fields ctx path =
-	let m = Hashtbl.find ctx.g.modules path in
+	let m = ctx.com.module_lut#find path in
 	let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
 	let tl = List.map (fun mt ->
 		make_ci_type (CompletionItem.CompletionModuleType.of_module_type mt) ImportStatus.Imported None
@@ -46,48 +46,50 @@ let collect_static_extensions ctx items e p =
 		| _ ->
 			t
 	in
+	let rec dup t = Type.map dup t in
+	let handle_field c f acc =
+		let f = { f with cf_type = opt_type f.cf_type } in
+		let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
+		let map = apply_params f.cf_params monos in
+		match follow (map f.cf_type) with
+		| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
+		| TFun((_,_,t) :: args, ret) ->
+			begin try
+				let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
+				List.iter2 (fun m tp -> match follow tp.ttp_type with
+					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+						List.iter (fun tc -> unify_raise m (map tc) e.epos) constr
+					| _ -> ()
+				) monos f.cf_params;
+				if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
+					acc
+				else begin
+					let f = prepare_using_field f in
+					let f = { f with cf_params = []; cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic); cf_type = TFun(args,ret) } in
+					let decl = match c.cl_kind with
+						| KAbstractImpl a -> TAbstractDecl a
+						| _ -> TClassDecl c
+					in
+					let origin = StaticExtension(decl) in
+					let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta f.cf_meta) f.cf_type in
+					let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
+					PMap.add f.cf_name item acc
+				end
+			with Error (Unify _,_) | Unify_error _ ->
+				acc
+			end
+		| _ ->
+			acc
+		in
 	let rec loop acc = function
 		| [] ->
 			acc
 		| (c,_) :: l ->
-			let rec dup t = Type.map dup t in
 			let acc = List.fold_left (fun acc f ->
 				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || has_class_field_flag f CfImpl || PMap.mem f.cf_name acc then
 					acc
-				else begin
-					let f = { f with cf_type = opt_type f.cf_type } in
-					let monos = List.map (fun _ -> spawn_monomorph ctx p) f.cf_params in
-					let map = apply_params f.cf_params monos in
-					match follow (map f.cf_type) with
-					| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
-					| TFun((_,_,t) :: args, ret) ->
-						begin try
-							let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
-							List.iter2 (fun m (name,t) -> match follow t with
-								| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-									List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
-								| _ -> ()
-							) monos f.cf_params;
-							if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
-								acc
-							else begin
-								let f = prepare_using_field f in
-								let f = { f with cf_params = []; cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic); cf_type = TFun(args,ret) } in
-								let decl = match c.cl_kind with
-									| KAbstractImpl a -> TAbstractDecl a
-									| _ -> TClassDecl c
-								in
-								let origin = StaticExtension(decl) in
-								let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta f.cf_meta) f.cf_type in
-								let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
-								PMap.add f.cf_name item acc
-							end
-						with Error (Unify _,_) | Unify_error _ ->
-							acc
-						end
-					| _ ->
-						acc
-				end
+				else
+					List.fold_left (fun acc f -> handle_field c f acc) acc (f :: f.cf_overloads)
 			) acc c.cl_ordered_statics in
 			loop acc l
 	in
@@ -137,7 +139,7 @@ let collect ctx e_ast e dk with_type p =
 		in
 		match follow t with
 		| TMono m ->
-			begin match Monomorph.classify_constraints m with
+			let rec fold_constraints items = function
 			| CStructural(fields,is_open) ->
 				if not is_open then begin
 					Monomorph.close m;
@@ -151,7 +153,10 @@ let collect ctx e_ast e dk with_type p =
 				items
 			| CUnknown ->
 				items
-			end
+			| CMixed l ->
+				List.fold_left fold_constraints items l
+			in
+			fold_constraints items (Monomorph.classify_down_constraints m)
 		| TInst ({cl_kind = KTypeParameter tl},_) ->
 			(* Type parameters can access the fields of their constraints *)
 			List.fold_left (fun acc t -> loop acc t) items tl

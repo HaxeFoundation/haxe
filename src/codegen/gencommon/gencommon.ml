@@ -110,7 +110,7 @@ let follow_once t =
 	| TLazy f ->
 		lazy_type f
 	| TType (t,tl) ->
-		apply_params t.t_params tl t.t_type
+		apply_typedef t tl
 	| TAbstract({a_path = [],"Null"},[t]) ->
 		t
 	| _ ->
@@ -384,6 +384,8 @@ type generator_ctx =
 
 	gtools : gen_tools;
 
+	gwarning : Warning.warning -> string -> pos -> unit;
+
 	(*
 		module filters run before module filters and they should generate valid haxe syntax as a result.
 		Module filters shouldn't go through the expressions as it adds an unnecessary burden to the GC,
@@ -573,6 +575,11 @@ let new_ctx con =
 
 	let rec gen = {
 		gcon = con;
+		gwarning = (fun w msg p ->
+			let options = Option.map_default (fun c -> Warning.from_meta c.cl_meta) [] gen.gcurrent_class in
+			let options = options @ Option.map_default (fun cf -> Warning.from_meta cf.cf_meta) [] gen.gcurrent_classfield in
+			con.warning w options msg p
+		);
 		gentry_point = get_entry_point con;
 		gclasses = {
 			cl_reflect = get_cl (get_type ([], "Reflect"));
@@ -612,7 +619,7 @@ let new_ctx con =
 
 		greal_field_types = Hashtbl.create 0;
 		ghandle_cast = (fun to_t from_t e -> mk_cast to_t e);
-		gon_unsafe_cast = (fun t t2 pos -> (gen.gcon.warning ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
+		gon_unsafe_cast = (fun t t2 pos -> (gen.gwarning WGenerator ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
 		gneeds_box = (fun t -> false);
 		gspecial_needs_cast = (fun to_t from_t -> false);
 		gsupported_conversions = Hashtbl.create 0;
@@ -665,7 +672,7 @@ let init_ctx gen =
 		| TLazy f ->
 			follow_f (lazy_type f)
 		| TType (t,tl) ->
-			follow_f (apply_params t.t_params tl t.t_type)
+			follow_f (apply_typedef t tl)
 		| TAbstract({a_path = [],"Null"},[t]) ->
 			follow_f t
 		| _ -> Some t
@@ -996,6 +1003,66 @@ let get_real_fun gen t =
 let mk_nativearray_decl gen t el pos =
 	mk (TCall (mk (TIdent "__array__") t_dynamic pos, el)) (gen.gclasses.nativearray t) pos
 
+
+let get_boxed gen t =
+	let get path =
+		try type_of_module_type (Hashtbl.find gen.gtypes path)
+		with Not_found -> t
+	in
+	match follow t with
+	| TAbstract({ a_path = ([],"Bool") }, []) ->
+		get (["java";"lang"], "Boolean")
+	| TAbstract({ a_path = ([],"Float") }, []) ->
+		get (["java";"lang"], "Double")
+	| TAbstract({ a_path = ([],"Int") }, []) ->
+		get (["java";"lang"], "Integer")
+	| TAbstract({ a_path = (["java"],"Int8") }, []) ->
+		get (["java";"lang"], "Byte")
+	| TAbstract({ a_path = (["java"],"Int16") }, []) ->
+		get (["java";"lang"], "Short")
+	| TAbstract({ a_path = (["java"],"Char16") }, []) ->
+		get (["java";"lang"], "Character")
+	| TAbstract({ a_path = ([],"Single") }, []) ->
+		get (["java";"lang"], "Float")
+	| TAbstract({ a_path = (["java"],"Int64") }, [])
+	| TAbstract({ a_path = (["haxe"],"Int64") }, []) ->
+		get (["java";"lang"], "Long")
+	| _ -> t
+
+(**
+	Wraps rest arguments into a native array.
+	E.g. transforms params from `callee(param, rest1, rest2, ..., restN)` into
+	`callee(param, untyped __array__(rest1, rest2, ..., restN))`
+*)
+let wrap_rest_args gen callee_type params p =
+	match follow callee_type with
+	| TFun(args, _) ->
+		let rec loop args params =
+			match args, params with
+			(* last argument expects rest parameters *)
+			| [(_,_,t)], params when ExtType.is_rest (follow t) ->
+				(match params with
+				(* In case of `...rest` just use `rest` *)
+				| [{ eexpr = TUnop(Spread,Prefix,e) }] -> [e]
+				(* In other cases: `untyped __array__(param1, param2, ...)` *)
+				| _ ->
+					match Abstract.follow_with_abstracts t with
+					| TInst ({ cl_path = _,"NativeArray" }, [t1]) ->
+						let t1 = if Common.defined gen.gcon Define.EraseGenerics then t_dynamic else get_boxed gen t1 in
+						[mk_nativearray_decl gen t1 params (punion_el p params)]
+					| _ ->
+						die ~p "Unexpected rest arguments type" __LOC__
+				)
+			| a :: args, e :: params ->
+				e :: loop args params
+			| [], params ->
+				params
+			| _ :: _, [] ->
+				[]
+		in
+		loop args params
+	| _ -> params
+
 let ensure_local com block name e =
 	match e.eexpr with
 	| TLocal _ -> e
@@ -1008,7 +1075,7 @@ let follow_module follow_func md = match md with
 	| TClassDecl _
 	| TEnumDecl _
 	| TAbstractDecl _ -> md
-	| TTypeDecl tdecl -> match (follow_func (TType(tdecl, List.map snd tdecl.t_params))) with
+	| TTypeDecl tdecl -> match (follow_func (TType(tdecl, extract_param_types tdecl.t_params))) with
 		| TInst(cl,_) -> TClassDecl cl
 		| TEnum(e,_) -> TEnumDecl e
 		| TType(t,_) -> TTypeDecl t
@@ -1128,7 +1195,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 				loop_cl (depth+1) sup tl tlch
 			) c.cl_implements
 	in
-	loop_cl 0 orig_cl (List.map snd orig_cl.cl_params) (List.map snd orig_cl.cl_params);
+	loop_cl 0 orig_cl (extract_param_types orig_cl.cl_params) (extract_param_types orig_cl.cl_params);
 	match !chosen with
 	| None ->
 		None
@@ -1236,7 +1303,7 @@ let field_access_esp gen t field = match field with
 		in
 		let p = match follow (run_follow gen t) with
 			| TInst(_,p) -> p
-			| _ -> List.map snd cl.cl_params
+			| _ -> extract_param_types cl.cl_params
 		in
 		FClassField(cl,p,cl,cf,static,cf.cf_type,cf.cf_type)
 	| _ -> field_access gen t (field_name field)

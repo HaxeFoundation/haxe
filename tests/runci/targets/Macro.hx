@@ -1,6 +1,5 @@
 package runci.targets;
 
-import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 
@@ -21,18 +20,18 @@ class Macro {
 		infoMsg("Js-es6 null safety:");
 		runCommand("haxe", ["test-js-es6.hxml"]);
 
-		changeDirectory(miscDir);
+		changeDirectory(getMiscSubDir());
 		runCommand("haxe", ["compile.hxml"]);
 
-		changeDirectory(miscDir + "resolution");
+		changeDirectory(getMiscSubDir("resolution"));
 		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-macro.hxml"].concat(args));
+		runSysTest("haxe", ["compile-macro.hxml"].concat(args));
 
 		switch Sys.systemName() {
 			case 'Linux':
-				changeDirectory(miscDir + 'compiler_loops');
+				changeDirectory(getMiscSubDir('compiler_loops'));
 				runCommand("haxe", ["run.hxml"]);
 			case _: // TODO
 		}

@@ -31,6 +31,13 @@ type module_check_policy =
 	| NoCheckDependencies
 	| NoCheckShadowing
 
+type module_skip_reason =
+	| DependencyDirty of path
+	| Tainted of string
+	| FileChanged of string
+	| Shadowed of string
+	| LibraryChanged
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -44,7 +51,15 @@ type t =
 
 and tmono = {
 	mutable tm_type : t option;
-	mutable tm_constraints : tmono_constraint list;
+	(*
+		```
+		function fn<A,B:A>() {}
+		```
+		`A` is a down-constraint for `B`
+		`B` is an up-constraint for `A`
+	*)
+	mutable tm_down_constraints : tmono_constraint list;
+	mutable tm_up_constraints : (t * string option) list;
 }
 
 and tmono_constraint =
@@ -57,6 +72,7 @@ and tmono_constraint =
 and tmono_constraint_kind =
 	| CUnknown
 	| CStructural of (string,tclass_field) PMap.t * bool
+	| CMixed of tmono_constraint_kind list
 	| CTypes of (t * string option) list
 
 and tlazy =
@@ -68,7 +84,13 @@ and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 
-and type_params = (string * t) list
+and typed_type_param = {
+	ttp_name : string;
+	ttp_type : t;
+	ttp_default : t option;
+}
+
+and type_params = typed_type_param list
 
 and tconstant =
 	| TInt of int32
@@ -184,7 +206,7 @@ and tclass_field = {
 	mutable cf_kind : field_kind;
 	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
-	mutable cf_expr_unoptimized : tfunc option;
+	mutable cf_expr_unoptimized : texpr option;
 	mutable cf_overloads : tclass_field list;
 	mutable cf_flags : int;
 }
@@ -311,6 +333,7 @@ and tabstract = {
 	mutable a_array : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
+	mutable a_call : tclass_field option;
 	a_enum : bool;
 }
 
@@ -340,11 +363,11 @@ and module_def_extra = {
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : path option;
+	mutable m_dirty : module_skip_reason option;
 	mutable m_added : int;
-	mutable m_mark : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_checked : int;
 	mutable m_processed : int;
+	mutable m_deps : (int,module_def) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
@@ -396,8 +419,18 @@ type flag_tclass_field =
 	| CfImpl
 	| CfEnum
 	| CfGeneric
+	| CfDefault (* Interface field with default implementation (only valid on Java) *)
+	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
+
+(* Order has to match declaration for printing*)
+let flag_tclass_field_names = [
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault"
+]
 
 type flag_tvar =
 	| VCaptured
 	| VFinal
 	| VUsed (* used by the analyzer *)
+	| VAssigned
+	| VCaught
+	| VStatic

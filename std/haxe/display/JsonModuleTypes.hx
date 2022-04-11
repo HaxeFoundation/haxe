@@ -163,6 +163,7 @@ enum abstract JsonBinopKind<T>(String) {
 	var OpInterval;
 	var OpArrow;
 	var OpIn;
+	var OpNullCoal;
 }
 
 typedef JsonBinop<T> = {
@@ -250,6 +251,7 @@ typedef JsonClassField = {
 	var type:JsonType<Dynamic>;
 	var isPublic:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var params:JsonTypeParameters;
 	var meta:JsonMetadata;
 	var kind:JsonFieldKind<Dynamic>;
@@ -301,6 +303,7 @@ typedef JsonClass = {
 	var isInterface:Bool;
 	var isExtern:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var superClass:Null<JsonTypePathWithParams>;
 	var interfaces:Array<JsonTypePathWithParams>;
 	var fields:JsonClassFields;

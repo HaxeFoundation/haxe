@@ -148,6 +148,7 @@ let rec generate_binop ctx op =
 	| OpInterval -> "OpInterval",None
 	| OpArrow -> "OpArrow",None
 	| OpIn -> "OpIn",None
+	| OpNullCoal -> "OpNullCoal",None
 	in
 	generate_adt ctx (Some (["haxe";"macro"],"Binop")) name args
 
@@ -158,6 +159,7 @@ let generate_unop ctx op =
 		| Not -> "OpNot"
 		| Neg -> "OpNeg"
 		| NegBits -> "OpNegBits"
+		| Spread -> "OpSpread"
 	in
 	jstring name
 
@@ -273,14 +275,15 @@ and generate_type_path_with_params ctx mpath tpath tl meta =
 
 (* type parameter *)
 
-and generate_type_parameter ctx (s,t) =
-	let generate_constraints () = match follow t with
+and generate_type_parameter ctx tp =
+	let generate_constraints () = match follow tp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
 		| _ -> die "" __LOC__
 	in
 	jobject [
-		"name",jstring s;
+		"name",jstring tp.ttp_name;
 		"constraints",generate_constraints ();
+		"defaultType",jopt (generate_type ctx) tp.ttp_default;
 	]
 
 (* texpr *)
@@ -555,6 +558,7 @@ and generate_class_field' ctx cfs cf =
 		"type",generate_type ctx cf.cf_type;
 		"isPublic",jbool (has_class_field_flag cf CfPublic);
 		"isFinal",jbool (has_class_field_flag cf CfFinal);
+		"isAbstract",jbool (has_class_field_flag cf CfAbstract);
 		"params",jlist (generate_type_parameter ctx) cf.cf_params;
 		"meta",generate_metadata ctx cf.cf_meta;
 		"kind",generate_class_kind ();
@@ -626,6 +630,7 @@ let generate_class ctx c =
 		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);
+		"isAbstract",jbool (has_class_flag c CAbstract);
 	]
 
 let generate_enum ctx e =
@@ -708,6 +713,7 @@ let generate_module ctx m =
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path (t_infos mt).mt_meta) m.m_types;
 		"file",jstring (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		"dirty",Option.map_default (fun reason -> jstring (Printer.s_module_skip_reason reason)) jnull m.m_extra.m_dirty;
 		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
 			"path",jstring (s_type_path m.m_path);
 			"sign",jstring (Digest.to_hex m.m_extra.m_sign);

@@ -50,7 +50,7 @@ package haxe.ds;
 
 	public function keys():Iterator<Int> {
 		var a = [];
-		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}.push(key | 0)", h, a);
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}.push(+key)", h, a);
 		return a.iterator();
 	}
 

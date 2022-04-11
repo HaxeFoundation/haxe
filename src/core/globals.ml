@@ -24,7 +24,7 @@ type platform =
 	| Hl
 	| Eval
 
-let version = 4200
+let version = 4300
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
@@ -82,14 +82,14 @@ let get_error_pos_ref : ((string -> int -> string) -> pos -> string) ref = ref (
 	Printf.sprintf "%s: characters %d-%d" p.pfile p.pmin p.pmax
 )
 
-let s_version with_build =
+let s_version =
 	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
-	let build =
-		match with_build, Version.version_extra with
-			| true, Some (_,build) -> "+" ^ build
-			| _, _ -> ""
-	in
-	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
+	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision pre
+
+let s_version_full =
+	match Version.version_extra with
+		| Some (_,build) -> s_version ^ "+" ^ build
+		| _ -> s_version
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
@@ -111,7 +111,45 @@ let die ?p msg ml_loc =
 		try snd (ExtString.String.split backtrace "\n")
 		with ExtString.Invalid_string -> backtrace
 	in
-	let ver = s_version true
+	let ver = s_version_full
 	and os_type = if Sys.unix then "unix" else "windows" in
 	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
 	assert false
+
+module MessageSeverity = struct
+	type t =
+		| Error
+		| Warning
+		| Information
+		| Hint
+
+	let to_int = function
+		| Error -> 1
+		| Warning -> 2
+		| Information -> 3
+		| Hint -> 4
+end
+
+module MessageKind = struct
+	type t =
+		| DKUnusedImport
+		| DKUnresolvedIdentifier
+		| DKCompilerMessage
+		| DKRemovableCode
+		| DKParserError
+		| DKDeprecationWarning
+		| DKInactiveBlock
+		| DKMissingFields
+
+	let to_int = function
+		| DKUnusedImport -> 0
+		| DKUnresolvedIdentifier -> 1
+		| DKCompilerMessage -> 2
+		| DKRemovableCode -> 3
+		| DKParserError -> 4
+		| DKDeprecationWarning -> 5
+		| DKInactiveBlock -> 6
+		| DKMissingFields -> 7
+end
+
+type compiler_message = string * pos * MessageKind.t * MessageSeverity.t

@@ -25,7 +25,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args);
-		assertSkipping("HelloWorld");
+		assertSkipping("HelloWorld", Tainted("server/invalidate"));
 		// assertNotCacheModified("HelloWorld");
 	}
 
@@ -36,7 +36,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		assertSkipping("WithDependency", "Dependency");
+		assertSkipping("WithDependency", DependencyDirty("Dependency"));
 		// assertNotCacheModified("Dependency");
 		runHaxe(args);
 		assertReuse("Dependency");
@@ -78,12 +78,13 @@ class ServerTests extends TestCase {
 		var args = ["-main", "BuiltClass.hx", "--interp"];
 		runHaxe(args);
 		runHaxe(args);
+		trace(lastResult);
 		assertReuse("BuiltClass");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
 		// assertNotCacheModified("BuildMacro");
-		assertSkipping("BuiltClass", "BuildMacro");
-		assertSkipping("BuildMacro");
+		assertSkipping("BuiltClass", DependencyDirty("BuildMacro"));
+		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}
 
 	function testBrokenSyntaxDiagnostics() {
@@ -105,7 +106,6 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
-	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testDisplayModuleRecache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
@@ -124,11 +124,9 @@ class ServerTests extends TestCase {
 		runHaxe(args2);
 
 		runHaxe(args);
-		assertSkipping("HelloWorld");
+		assertSkipping("HelloWorld", Tainted("check_display_file"));
 	}
-	#end
 
-	#if false // @see https://github.com/HaxeFoundation/haxe/issues/8596#issuecomment-518815594
 	function testMutuallyDependent() {
 		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
 		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
@@ -140,7 +138,40 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
-	#end
+
+	function testDiagnosticsRecache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+	 	runHaxe(args);
+	 	assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	}
+
+	function testDiagnosticsRecache2() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	}
+
+	function testDiagnosticsRecache3() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertReuse("HelloWorld");
+	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
+		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
+		assertReuse("HelloWorld");
+	}
 
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
@@ -236,4 +267,15 @@ class ServerTests extends TestCase {
 	// 	var content = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
 	// 	Assert.isTrue(content.indexOf("this1.use(v1)") != -1);
 	// }
+
+	function test9918() {
+		vfs.putContent("Issue9918.hx", getTemplate("Issue9918.hx"));
+		var args = ["-main", "Issue9918.hx"];
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+		runHaxe(args);
+		assertHasPrint('Issue9918.hx:22: correct ECast count');
+	}
 }

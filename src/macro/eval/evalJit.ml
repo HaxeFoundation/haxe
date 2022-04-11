@@ -172,6 +172,10 @@ and unop jit op flag e1 p =
 		end
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
+	| Spread ->
+		match flag with
+		| Postfix -> die ~p:p "Postfix spread operator is not supported" __LOC__
+		| Prefix -> jit_expr jit false e1
 
 and jit_default jit return def =
 	match def with
@@ -231,7 +235,7 @@ and jit_expr jit return e =
 		List.iter (fun var -> ignore(get_capture_slot jit var)) jit_closure.captures_outside_scope;
 		let captures = ExtList.List.filter_map (fun (i,vid,declared) ->
 			if declared then None
-			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.error "Something went wrong" e.epos))
+			else Some (i,fst (try Hashtbl.find jit.captures vid with Not_found -> Error.typing_error "Something went wrong" e.epos))
 		) captures in
 		let mapping = Array.of_list captures in
 		emit_closure ctx mapping eci hasret exec fl
@@ -629,7 +633,7 @@ and jit_expr jit return e =
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	| TIdent s ->
-		Error.error ("Unknown identifier: " ^ s) e.epos
+		Error.typing_error ("Unknown identifier: " ^ s) e.epos
 	in
 	let f = loop e in
 	begin match ctx.debug.debug_socket with

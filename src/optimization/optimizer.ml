@@ -55,6 +55,7 @@ let standard_precedence op =
 	| OpBoolAnd -> 14, left
 	| OpBoolOr -> 15, left
 	| OpArrow -> 16, left
+	| OpNullCoal -> 17, right
 	| OpAssignOp OpAssign -> 18, right (* mimics ?: *)
 	| OpAssign | OpAssignOp _ -> 19, right
 
@@ -198,7 +199,7 @@ let reduce_expr com e =
 		List.iter (fun (cl,_) ->
 			List.iter (fun e ->
 				match e.eexpr with
-				| TCall ({ eexpr = TField (_,FEnum _) },_) -> error "Not-constant enum in switch cannot be matched" e.epos
+				| TCall ({ eexpr = TField (_,FEnum _) },_) -> typing_error "Not-constant enum in switch cannot be matched" e.epos
 				| _ -> ()
 			) cl
 		) cases;
@@ -237,24 +238,68 @@ let check_enum_construction_args el i =
 	) (true,0) el in
 	b
 
+let rec extract_constant_value e = match e.eexpr with
+	| TConst (TInt _ | TFloat _ | TString _ | TBool _ | TNull) ->
+		Some e
+	| TConst (TThis | TSuper) ->
+		None
+	| TField(_,FStatic(c,({cf_kind = Var {v_write = AccNever}} as cf))) ->
+		begin match cf.cf_expr with
+		| Some e ->
+			(* Don't care about inline, if we know the value it makes no difference. *)
+			extract_constant_value e
+		| None ->
+			None
+		end
+	| TField(_,FEnum _) ->
+		Some e
+	| TParenthesis e1 ->
+		extract_constant_value e1
+	| _ ->
+		None
+
 let check_constant_switch e1 cases def =
 	let rec loop e1 cases = match cases with
 		| (el,e) :: cases ->
-			if List.exists (Texpr.equal e1) el then Some e
-			else loop e1 cases
+			(* Map everything first so that we find unknown things eagerly. *)
+			let el = List.map (fun e2 -> match extract_constant_value e2 with
+				| Some e2 -> e2
+				| None -> raise Exit
+			) el in
+			if List.exists (fun e2 ->
+				Texpr.equal e1 e2
+			) el then
+				Some e
+			else
+				loop e1 cases
 		| [] ->
 			begin match def with
 			| None -> None
 			| Some e -> Some e
 			end
 	in
+	let is_empty e = match e.eexpr with
+		| TBlock [] -> true
+		| _ -> false
+	in
+	let is_empty_def () = match def with
+		| None -> true
+		| Some e -> is_empty e
+in
 	match Texpr.skip e1 with
 		| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
-			loop e1 cases
+			begin try
+				loop e1 cases
+			with Exit ->
+				None
+			end
 		| _ ->
-			None
+			if List.for_all (fun (_,e) -> is_empty e) cases && is_empty_def() then
+				Some e1
+			else
+				None
 
-let reduce_control_flow ctx e = match e.eexpr with
+let reduce_control_flow com e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
@@ -279,10 +324,10 @@ let reduce_control_flow ctx e = match e.eexpr with
 		(try List.nth el i with Failure _ -> e)
 	| TCast(e1,None) ->
 		(* TODO: figure out what's wrong with these targets *)
-		let require_cast = match ctx.com.platform with
+		let require_cast = match com.platform with
 			| Cpp | Flash -> true
-			| Java -> defined ctx.com Define.Jvm
-			| Cs -> defined ctx.com Define.EraseGenerics || defined ctx.com Define.FastCast
+			| Java -> defined com Define.Jvm
+			| Cs -> defined com Define.EraseGenerics || defined com Define.FastCast
 			| _ -> false
 		in
 		Texpr.reduce_unsafe_casts ~require_cast e e.etype
@@ -325,7 +370,7 @@ let rec reduce_loop ctx e =
 				reduce_expr ctx e
 		end
 	| _ ->
-		reduce_expr ctx (reduce_control_flow ctx e))
+		reduce_expr ctx (reduce_control_flow ctx.com e))
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then

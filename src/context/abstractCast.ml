@@ -35,14 +35,17 @@ and do_check_cast ctx uctx tleft eright p =
 		if cf.cf_kind = Method MethMacro then begin
 			match cast_stack.rec_stack with
 			| previous_from :: _ when previous_from == cf ->
-				raise (Error (Unify [cannot_unify eright.etype tleft], eright.epos));
+				(try
+					Type.unify_custom uctx eright.etype tleft;
+				with Unify_error l ->
+					raise (Error (Unify l, eright.epos)))
 			| _ -> ()
 		end;
-		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
+		if cf == ctx.curfield || rec_stack_memq cf cast_stack then typing_error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
-		if (Meta.has Meta.MultiType a.a_meta) then
+		if (Meta.has Meta.MultiType cf.cf_meta) then
 			mk_cast eright tleft p
 		else match a.a_impl with
 			| Some c -> recurse cf (fun () ->
@@ -99,7 +102,7 @@ and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 	try
 		do_check_cast ctx uctx tleft eright p
 	with Not_found ->
-		unify_raise_custom uctx ctx eright.etype tleft p;
+		unify_raise_custom uctx eright.etype tleft p;
 		eright
 
 and cast_or_unify ctx tleft eright p =
@@ -119,7 +122,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 			let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
 			let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
 			let check_constraints () =
-				List.iter2 (fun m (name,t) -> match follow t with
+				List.iter2 (fun m tp -> match follow tp.ttp_type with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
 						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
 					| _ -> ()
@@ -130,7 +133,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				else TAbstract(a,pl)
 			in
 			match follow (map cf.cf_type) with
-			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_set && is_empty_or_pos_infos args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
@@ -140,7 +143,7 @@ let find_array_access_raise ctx a pl e1 e2o p =
 				with Unify_error _ | Error (Unify _,_) ->
 					loop cfl
 				end
-			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when not is_set && is_empty_or_pos_infos args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
@@ -159,68 +162,51 @@ let find_array_access ctx a tl e1 e2o p =
 		let s_type = s_type (print_context()) in
 		match e2o with
 		| None ->
-			error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
+			typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 		| Some e2 ->
-			error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
+			typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
 	let uctx = default_unification_context in
 	let m = mk_mono() in
-	let tl = match Meta.get Meta.MultiType a.a_meta with
-		| _,[],_ -> pl
-		| _,el,_ ->
-			let relevant = Hashtbl.create 0 in
-			List.iter (fun e ->
-				let rec loop f e = match fst e with
-					| EConst(Ident s) ->
-						Hashtbl.replace relevant s f
-					| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
-						loop Abstract.follow_with_abstracts e1;
-					| _ ->
-						error "Type parameter expected" (pos e)
-				in
-				loop (fun t -> t) e
-			) el;
-			let tl = List.map2 (fun (n,_) t ->
-				try
-					(Hashtbl.find relevant n) t
-				with Not_found ->
-					if not (has_mono t) then t
-					else t_dynamic
-			) a.a_params pl in
-			if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
-				| t1 :: _ ->
-					let stack = ref [] in
-					let rec loop t =
-						if List.exists (fun t2 -> fast_eq t t2) !stack then
-							t
-						else begin
-							stack := t :: !stack;
-							match follow t with
-							| TAbstract ({ a_path = [],"Class" },_) ->
-								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
-							| TEnum(en,tl) ->
-								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
-								Type.map loop t
-							| t ->
-								Type.map loop t
-						end
-					in
-					ignore(loop t1)
-				| _ -> die "" __LOC__
-			end;
-			tl
-	in
+	let tl,definitive_types = Abstract.find_multitype_params a pl in
+	if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
+		| t1 :: _ ->
+			let stack = ref [] in
+			let rec loop t =
+				if List.exists (fun t2 -> fast_eq t t2) !stack then
+					t
+				else begin
+					stack := t :: !stack;
+					match follow t with
+					| TAbstract ({ a_path = [],"Class" },_) ->
+						typing_error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
+					| TEnum(en,tl) ->
+						PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
+						Type.map loop t
+					| t ->
+						Type.map loop t
+				end
+			in
+			ignore(loop t1)
+		| _ -> die "" __LOC__
+	end;
 	let _,cf =
 		try
-			Abstract.find_to uctx m a tl
+			let t = Abstract.find_to uctx m a tl in
+			if List.exists (fun t -> has_mono t) definitive_types then begin
+				let at = apply_params a.a_params pl a.a_this in
+				let st = s_type (print_context()) at in
+				typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+			end;
+			t
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in
 			if has_mono at then
-				error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
 			else
-				error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
+				typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 	in
 	cf, follow m
 
@@ -232,7 +218,7 @@ let handle_abstract_casts ctx e =
 					let's construct the underlying type. *)
 				match Abstract.get_underlying_type a pl with
 				| TInst(c,tl) as t -> {e with eexpr = TNew(c,tl,el); etype = t}
-				| _ -> error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
+				| _ -> typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
 				let cf,m = find_multitype_specialization ctx.com a pl e.epos in
@@ -275,21 +261,43 @@ let handle_abstract_casts ctx e =
 						begin try
 							let fa = quick_field m fname in
 							let get_fun_type t = match follow t with
-								| TFun(_,tr) as tf -> tf,tr
+								| TFun(args,tr) as tf -> tf,args,tr
 								| _ -> raise Not_found
 							in
-							let tf,tr = match fa with
+							let tf,args,tr = match fa with
 								| FStatic(_,cf) -> get_fun_type cf.cf_type
 								| FInstance(c,tl,cf) -> get_fun_type (apply_params c.cl_params tl cf.cf_type)
 								| FAnon cf -> get_fun_type cf.cf_type
 								| _ -> raise Not_found
 							in
+							let maybe_cast e t p =
+								if type_iseq e.etype t then e
+								else mk (TCast(e,None)) t p
+							in
 							let ef = mk (TField({e2 with etype = m},fa)) tf e2.epos in
+							let el =
+								if has_meta Meta.MultiType a.a_meta then
+									let rec add_casts orig_args args el =
+										match orig_args, args, el with
+										| _, [], _ | _, _, [] -> el
+										| [], (_,_,t) :: args, e :: el ->
+											maybe_cast e t e.epos :: add_casts orig_args args el
+										| (_,_,orig_t) :: orig_args, (_,_,t) :: args, e :: el ->
+											let t =
+												match follow t with
+												| TMono _ -> (match follow orig_t with TDynamic _ -> orig_t | _ -> t)
+												| _ -> t
+											in
+											maybe_cast e t e.epos :: add_casts orig_args args el
+									in
+									match follow e1.etype with
+									| TFun (orig_args,_) -> add_casts orig_args args el
+									| _ -> el
+								else
+									el
+							in
 							let ecall = make_call ctx ef el tr e.epos in
-							if not (type_iseq ecall.etype e.etype) then
-								mk (TCast(ecall,None)) e.etype e.epos
-							else
-								ecall
+							maybe_cast ecall e.etype e.epos
 						with Not_found ->
 							(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 							match follow m with

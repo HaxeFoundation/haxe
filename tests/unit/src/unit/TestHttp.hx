@@ -27,7 +27,7 @@ class TestHttp extends Test {
 			return;
 		}
 		test();
-		#elseif (github && (hl || java || (flash && (Linux || Mac)) || (cs && Windows)))
+		#elseif (github && (hl || java || (flash && (Linux || Mac || Windows)) || (cs && Windows)))
 		noAssert();
 		async.done();
 		return;

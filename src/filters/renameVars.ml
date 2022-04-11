@@ -311,7 +311,7 @@ let rec rename_vars rc scope =
 (**
 	Rename local variables in `e` expression if needed.
 *)
-let run ctx ri e =
+let run cl_path ri e =
 	(try
 		let rc = {
 			rc_scope = ri.ri_scope;
@@ -322,7 +322,7 @@ let run ctx ri e =
 			rc_reserved = ri.ri_reserved;
 		} in
 		if ri.ri_reserve_current_top_level_symbol then begin
-			match ctx.curclass.cl_path with
+			match cl_path with
 			| s :: _,_ | [],s -> reserve_ctx rc s
 		end;
 		let scope = create_scope None in

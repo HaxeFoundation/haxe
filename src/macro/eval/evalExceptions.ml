@@ -100,13 +100,19 @@ let handle_stack_overflow eval f =
 	with Stack_overflow -> exc_string "Stack overflow"
 
 let catch_exceptions ctx ?(final=(fun() -> ())) f p =
-	let prev = !GlobalState.get_ctx_ref in
+	let reset_ctx =
+		if !GlobalState.initialized then
+			let prev = !GlobalState.get_ctx_ref in
+			(fun() -> GlobalState.get_ctx_ref := prev)
+		else
+			(fun() -> ())
+	in
 	select ctx;
 	let eval = get_eval ctx in
 	let env = eval.env in
 	let r = try
 		let v = handle_stack_overflow eval f in
-		GlobalState.get_ctx_ref := prev;
+		reset_ctx();
 		final();
 		Some v
 	with
@@ -117,7 +123,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_exception_message in
 			let v2 = field v key_pos in
-			GlobalState.get_ctx_ref := prev;
+			reset_ctx();
 			final();
 			match v1 with
 				| VString s ->
@@ -139,7 +145,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 					in
 					raise (Error.Error (Error.Custom s.sstring,p))
 				| _ ->
-					Error.error "Something went wrong" null_pos
+					Error.typing_error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
 			let stack = match stack with
@@ -148,15 +154,15 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
 			in
 			let msg = get_exc_error_message ctx v stack (if p' = null_pos then p else p') in
-			GlobalState.get_ctx_ref := prev;
+			reset_ctx();
 			final();
-			Error.error msg null_pos
+			Error.typing_error msg null_pos
 		end
 	| MacroApi.Abort ->
 		final();
 		None
 	| exc ->
-		GlobalState.get_ctx_ref := prev;
+		reset_ctx();
 		final();
 		raise exc
 	in

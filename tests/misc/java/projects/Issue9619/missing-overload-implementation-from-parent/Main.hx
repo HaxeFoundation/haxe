@@ -18,5 +18,5 @@ class Main extends IntermissionAbstract {
 	}
 
 	@:overload
-	override function abstractFunction():Void {}
+	function abstractFunction():Void {}
 }

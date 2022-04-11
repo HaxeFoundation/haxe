@@ -43,7 +43,7 @@ and sourcemap_pos = {
 type ctx = {
 	com : Common.context;
 	buf : Rbuffer.t;
-	chan : out_channel;
+	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
 	js_modern : bool;
@@ -261,7 +261,15 @@ let handle_newlines ctx str =
 	) ctx.smap
 
 let flush ctx =
-	Rbuffer.output_buffer ctx.chan ctx.buf;
+	let chan =
+		match ctx.chan with
+		| Some chan -> chan
+		| None ->
+			let chan = open_out_bin ctx.com.file in
+			ctx.chan <- Some chan;
+			chan
+	in
+	Rbuffer.output_buffer chan ctx.buf;
 	Rbuffer.clear ctx.buf
 
 let spr ctx s =
@@ -287,9 +295,9 @@ let write_mappings ctx smap =
 	output_string channel "{\n";
 	output_string channel "\"version\":3,\n";
 	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"file:///\",\n");
+	output_string channel ("\"sourceRoot\":\"\",\n");
 	output_string channel ("\"sources\":[" ^
-		(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
+		(String.concat "," (List.map (fun s -> "\"file:///" ^ to_url s ^ "\"") sources)) ^
 		"],\n");
 	if Common.defined ctx.com Define.SourceMapContent then begin
 		output_string channel ("\"sourcesContent\":[" ^
@@ -325,6 +333,27 @@ let rec concat ctx s f = function
 		f x;
 		spr ctx s;
 		concat ctx s f l
+
+(**
+	Produce expressions to declare arguments of a function with `Rest<T>` trailing argument.
+	Used for ES5 and older standards, which don't support "rest parameters" syntax.
+	`args` is a list of explicitly defined arguments.
+	`rest_arg` is the argument of `Rest<T>` type.
+
+	This implementation copies rest arguments into a new array in a loop.
+	It's the only way to avoid disabling javascript VM optimizations of functions
+	with rest arguments.
+*)
+let declare_rest_args_legacy com offset rest_arg =
+	let i = string_of_int offset in
+	let new_array = mk (TIdent ("new Array($l>" ^ i ^ "?$l-"^ i ^":0)")) t_dynamic rest_arg.v_pos
+	and populate = mk (TIdent ("for(var $i=" ^ i ^ ";$i<$l;++$i){" ^ (ident rest_arg.v_name) ^ "[$i-" ^ i ^ "]=arguments[$i];}")) com.basic.tvoid rest_arg.v_pos
+	in
+	[
+		mk (TIdent ("var $l=arguments.length")) com.basic.tvoid rest_arg.v_pos;
+		mk (TVar (rest_arg,Some new_array)) com.basic.tvoid rest_arg.v_pos;
+		populate
+	]
 
 let fun_block ctx f p =
 	let e = List.fold_left (fun e (a,c) ->
@@ -395,13 +424,42 @@ let is_code_injection_function e =
 let var ctx =
 	if ctx.es_version >= 6 then "let" else "var"
 
+(**
+	Returns `(needs_apply,element_list)` tuple where `needs_apply` indicates if
+	a call should be generated as `<function>.apply(<this>, element_list)` instead
+	of `<function>(el)`.
+
+	If `add_null_context` is provided then `element_list` will have `null` as the
+	first expr if needed.
+*)
+let apply_args ?(add_null_context=false) ctx el =
+	if ctx.es_version < 6 then
+		match List.rev el with
+		| [{ eexpr = TUnop (Spread,Ast.Prefix,rest) }] when not add_null_context ->
+			true,[rest]
+		| { eexpr = TUnop (Spread,Ast.Prefix,rest) } :: args_rev ->
+			(* [arg1, arg2, ..., argN].concat(rest) *)
+			let args =
+				if add_null_context then (null t_dynamic null_pos) :: List.rev args_rev
+				else List.rev args_rev
+			in
+			let arr = mk (TArrayDecl args) t_dynamic null_pos in
+			let concat = mk (TField (arr, FDynamic "concat")) t_dynamic null_pos in
+			true,[mk (TCall (concat, [rest])) t_dynamic null_pos]
+		| _ ->
+			false,el
+	else
+		false,el
+
 let rec gen_call ctx e el in_value =
+	let apply,el = apply_args ctx el in
 	match e.eexpr , el with
 	| TConst TSuper , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
 		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "%s.call(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			let call = if apply then "apply" else "call" in
+			print ctx "%s.%s(%s" (ctx.type_accessor (TClassDecl c)) call (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -410,17 +468,22 @@ let rec gen_call ctx e el in_value =
 		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
-			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
+			let call = if apply then "apply" else "call" in
+			print ctx "%s.prototype%s.%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) call (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
 	| TCall (x,_) , el when not (is_code_injection_function x) ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
+		if apply then
+			gen_call_with_apply ctx e el
+		else begin
+			spr ctx "(";
+			gen_value ctx e;
+			spr ctx ")";
+			spr ctx "(";
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")";
+		end
 	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
 		gen_syntax ctx meth args e.epos
 	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "rethrow" })), [] ->
@@ -507,9 +570,32 @@ let rec gen_call ctx e el in_value =
 		gen_value ctx x;
 		print ctx ")";
 	| _ ->
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
+		if apply then
+			gen_call_with_apply ctx e el
+		else begin
+			gen_value ctx e;
+			spr ctx "(";
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")"
+		end
+
+and gen_call_with_apply ctx target args =
+	(match args with
+	| [_] -> ()
+	| _ -> die ~p:target.epos "`args` for `gen_call_with_apply` must contain exactly one item" __LOC__
+	);
+	match target.eexpr with
+	| TField (this, (FInstance (_,_,{ cf_name = field }) | FAnon { cf_name = field } | FDynamic field | FClosure (_,{ cf_name = field }))) ->
+		add_feature ctx "thisForCallWithRestArgs";
+		spr ctx "($_=";
+		gen_value ctx this;
+		spr ctx (",$_." ^ field ^ ".apply($_,");
+		concat ctx "," (gen_value ctx) args;
+		spr ctx "))"
+	| _ ->
+		gen_value ctx target;
+		spr ctx ".apply(null,";
+		concat ctx "," (gen_value ctx) args;
 		spr ctx ")"
 
 (*
@@ -630,7 +716,7 @@ and gen_expr ctx e =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+	| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 		(match e.eexpr with
 		| TWhile _ | TFor _ ->
 			print ctx "_hx_loop%s: " n;
@@ -685,12 +771,20 @@ and gen_expr ctx e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		print ctx "[]"
 	| TNew (c,_,el) ->
+		let apply,el = apply_args ~add_null_context:true ctx el in
 		(match c.cl_constructor with
 		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
-		| _ -> print ctx "new ");
-		print ctx "%s(" (ctx.type_accessor (TClassDecl c));
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		| _ -> print ctx (if apply then "(new" else "new "));
+		let cls = ctx.type_accessor (TClassDecl c) in
+		if apply then begin
+			print ctx "(Function.prototype.bind.apply(%s," cls;
+			concat ctx "," (gen_value ctx) el;
+			print ctx ")))"
+		end else begin
+			print ctx "%s(" cls;
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")"
+		end;
 	| TIf (cond,e,eelse) ->
 		spr ctx "if";
 		gen_value ctx cond;
@@ -822,10 +916,40 @@ and gen_function ?(keyword="function") ctx f pos =
 	let old = ctx.in_value, ctx.in_loop in
 	ctx.in_value <- None;
 	ctx.in_loop <- false;
-	let args = List.map (fun (v,_) ->
-		check_var_declaration v;
-		ident v.v_name
-	) f.tf_args in
+	let mk_non_rest_arg_names =
+		List.map (fun (v,_) ->
+			check_var_declaration v;
+			ident v.v_name
+		)
+	in
+	let f,args =
+		match List.rev f.tf_args with
+		| (v,None) :: args_rev when ExtType.is_rest (follow v.v_type) ->
+			(* Use ES6 rest args syntax: `...arg` *)
+			if ctx.es_version >= 6 then
+				f, List.map (fun (a,_) ->
+					check_var_declaration a;
+					if a == v then ("..." ^ ident a.v_name)
+					else ident a.v_name
+				) f.tf_args
+			(* Resort to `arguments` special object for ES < 6 *)
+			else begin
+				check_var_declaration v;
+				let non_rest_args = List.rev args_rev in
+				let args_decl = declare_rest_args_legacy ctx.com (List.length non_rest_args) v in
+				let body =
+					let el =
+						match f.tf_expr.eexpr with
+						| TBlock el -> args_decl @ el
+						| _ -> args_decl @ [f.tf_expr]
+					in
+					mk (TBlock el) f.tf_expr.etype f.tf_expr.epos
+				in
+				{ f with tf_args = non_rest_args; tf_expr = body }, mk_non_rest_arg_names non_rest_args
+			end
+		| _ ->
+			f, mk_non_rest_arg_names f.tf_args
+	in
 	print ctx "%s(%s) " keyword (String.concat "," args);
 	gen_expr ctx (fun_block ctx f pos);
 	ctx.in_value <- fst old;
@@ -1147,6 +1271,8 @@ let gen_class_static_field ctx c cl_path f =
 
 let can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
+		false
+	| f when has_class_field_flag f CfExtern ->
 		false
 	| f ->
 		is_physical_field f
@@ -1671,7 +1797,7 @@ let alloc_ctx com es_version =
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
-		chan = open_out_bin com.file;
+		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
@@ -1792,19 +1918,24 @@ let generate com =
 		| _ -> ()
 	) include_files;
 
-	let var_console = (
-		"console",
-		"typeof console != \"undefined\" ? console : {log:function(){}}"
-	) in
+	let defined_global_value = Common.defined_value_safe com Define.JsGlobal in
+
+	let defined_global = defined_global_value <> "" in
+
+	let rec typeof_join = function
+	| x :: [] -> x
+	| x :: l -> "typeof " ^ x ^ " != \"undefined\" ? " ^ x ^ " : " ^ (typeof_join l)
+	| _ -> ""
+	in
 
 	let var_exports = (
 		"$hx_exports",
-		"typeof exports != \"undefined\" ? exports : typeof window != \"undefined\" ? window : typeof self != \"undefined\" ? self : this"
+		typeof_join (if defined_global then ["exports"; defined_global_value] else ["exports"; "window"; "self"; "this"])
 	) in
 
 	let var_global = (
 		"$global",
-		"typeof window != \"undefined\" ? window : typeof global != \"undefined\" ? global : typeof self != \"undefined\" ? self : this"
+		typeof_join (if defined_global then [defined_global_value] else ["window"; "global"; "self"; "this"])
 	) in
 
 	let closureArgs = [var_global] in
@@ -1815,7 +1946,7 @@ let generate com =
 	in
 	(* Provide console for environments that may not have it. *)
 	let closureArgs = if ctx.es_version < 5 then
-		var_console :: closureArgs
+		("console", typeof_join ["console"; "{log:function(){}}"]) :: closureArgs
 	else
 		closureArgs
 	in
@@ -1876,9 +2007,9 @@ let generate com =
 	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then "$hxEnums = $hxEnums || {}" :: vars else vars in
 	let vars,has_dollar_underscore =
 		if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then
-			"$_" :: vars,true
+			"$_" :: vars,ref true
 		else
-			vars,false
+			vars,ref false
 	in
 	(match List.rev vars with
 	| [] -> ()
@@ -1938,9 +2069,10 @@ let generate com =
 	end;
 	if has_feature ctx "use.$bind" then begin
 		add_feature ctx "$global.$haxeUID";
-		if not has_dollar_underscore then begin
+		if not !has_dollar_underscore then begin
 			print ctx "var $_";
 			newline ctx;
+			has_dollar_underscore := true
 		end;
 		(if ctx.es_version < 5 then
 			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
@@ -1957,6 +2089,11 @@ let generate com =
 		add_feature ctx "js.Lib.global";
 		print ctx "$global.$haxeUID |= 0;\n";
 	end;
+	if not !has_dollar_underscore && has_feature ctx "thisForCallWithRestArgs" then begin
+		print ctx "var $_";
+		newline ctx;
+		has_dollar_underscore := true
+	end;
 	List.iter (gen_block_element ~newline_after:true ~keep_blocks:(ctx.es_version >= 6) ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	(match com.main with
@@ -1964,7 +2101,7 @@ let generate com =
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.js_modern then begin
 		let closureArgs =
-			if has_feature ctx "js.Lib.global" then
+			if has_feature ctx "js.Lib.global" || defined_global then
 				closureArgs
 			else
 				(* no need for `typeof window != "undefined" ? window : typeof global != "undefined" ? <...>` *)
@@ -1995,5 +2132,6 @@ let generate com =
 	| Some smap -> write_mappings ctx smap
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
-	close_out ctx.chan)
+	Option.may (fun chan -> close_out chan) ctx.chan
+	)
 

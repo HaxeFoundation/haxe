@@ -4,7 +4,7 @@ import sys.thread.IThreadPool;
 import sys.thread.ElasticThreadPool;
 
 class TestElasticThreadPool extends misc.TestThreadPoolBase {
-	override function createThreadPool(count:Int):IThreadPool {
+	function createThreadPool(count:Int):IThreadPool {
 		return new ElasticThreadPool(count);
 	}
 

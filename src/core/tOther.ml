@@ -91,7 +91,7 @@ module TExprToExpr = struct
 		| TLocal v -> EConst (mk_ident v.v_name)
 		| TArray (e1,e2) -> EArray (convert_expr e1,convert_expr e2)
 		| TBinop (op,e1,e2) -> EBinop (op, convert_expr e1, convert_expr e2)
-		| TField (e,f) -> EField (convert_expr e, field_name f)
+		| TField (e,f) -> EField (convert_expr e, field_name f, EFNormal)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
@@ -180,6 +180,11 @@ module ExtType = struct
 		| TAbstract({a_path=[],"Bool"},_) -> true
 		| _ -> false
 
+	let is_rest t = match t with
+		| TType({t_path=["haxe"; "extern"],"Rest"},_)
+		| TAbstract({a_path=["haxe"],"Rest"},_) -> true
+		| _ -> false
+
 	let is_type_param t =
 		match t with
 		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
@@ -203,7 +208,7 @@ module ExtType = struct
 		let rec loop t = match t with
 			| TInst(c,_) -> check c.cl_meta
 			| TEnum(en,_) -> check en.e_meta
-			| TType(t,tl) -> check t.t_meta || (loop (apply_params t.t_params tl t.t_type))
+			| TType(t,tl) -> check t.t_meta || (loop (apply_typedef t tl))
 			| TAbstract(a,_) -> check a.a_meta
 			| TLazy f -> loop (lazy_type f)
 			| TMono r ->
@@ -222,44 +227,20 @@ end
 
 let no_meta = []
 
-let class_module_type c = {
-	t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
-	t_module = c.cl_module;
-	t_doc = None;
-	t_pos = c.cl_pos;
-	t_name_pos = null_pos;
-	t_type = mk_anon ~fields:c.cl_statics (ref (Statics c));
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let class_module_type c =
+	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
+	let t = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
-let enum_module_type m path p  = {
-	t_path = [], "Enum<" ^ (s_type_path path) ^ ">";
-	t_module = m;
-	t_doc = None;
-	t_pos = p;
-	t_name_pos = null_pos;
-	t_type = mk_mono();
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = [];
-}
+let enum_module_type m path p  =
+	let path = ([], "Enum<" ^ (s_type_path path) ^ ">") in
+	let t = mk_mono() in
+	{(mk_typedef m path p null_pos t) with t_private = true}
 
-let abstract_module_type a tl = {
-	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
-	t_module = a.a_module;
-	t_doc = None;
-	t_pos = a.a_pos;
-	t_name_pos = null_pos;
-	t_type = mk_anon (ref (AbstractStatics a));
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let abstract_module_type a tl =
+	let path = ([],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl)) in
+	let t = mk_anon (ref (AbstractStatics a)) in
+	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
 
 module TClass = struct
 	let get_member_fields' self_too c0 tl =
@@ -282,7 +263,7 @@ module TClass = struct
 		loop PMap.empty c0 tl
 
 	let get_all_super_fields c =
-		get_member_fields' false c (List.map snd c.cl_params)
+		get_member_fields' false c (extract_param_types c.cl_params)
 
 	let get_all_fields c tl =
 		get_member_fields' true c tl

@@ -247,6 +247,7 @@ typedef DisplayModuleType = {
 	var doc:JsonDoc;
 	var isExtern:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var kind:DisplayModuleTypeKind;
 }
 

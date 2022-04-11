@@ -58,16 +58,16 @@ let check_field_access ctx cff =
 			try
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
-					display_error ctx (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
-					display_error ctx (compl_msg "Previously defined here") p2;
+					display_error ctx.com (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
+					display_error ctx.com (compl_msg "Previously defined here") p2;
 				end;
 				loop p1 acc l
 			with Not_found -> match access with
 				| APublic | APrivate ->
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
-						display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-						display_error ctx (compl_msg "Conflicts with this") p2;
+						display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
+						display_error ctx.com (compl_msg "Conflicts with this") p2;
 						loop p1 acc l
 					with Not_found ->
 						loop p1 ((access,p1) :: acc) l
@@ -92,14 +92,14 @@ let find_type_in_module_raise ctx m tname p =
 			let infos = t_infos mt in
 			if snd infos.mt_path = tname then
 				if ctx.m.curmod != infos.mt_module && infos.mt_private then
-					raise_error (Type_not_found (m.m_path,tname,Private_type)) p
+					raise_typing_error (Type_not_found (m.m_path,tname,Private_type)) p
 				else
 					true
 			else
 				false
 		) m.m_types
 	with Not_found ->
-		raise_error (Type_not_found (m.m_path,tname,Not_defined)) p
+		raise_typing_error (Type_not_found (m.m_path,tname,Not_defined)) p
 
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
@@ -126,7 +126,7 @@ let find_type_in_current_module_context ctx pack name =
 		List.find path_matches ctx.m.curmod.m_types
 	with Not_found ->
 		(* Check the local imports *)
-		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
+		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_imports in
 		ImportHandling.mark_import_position ctx pi;
 		t
 
@@ -254,9 +254,9 @@ let is_redefined ctx cf1 fields p =
 		let cf2 = PMap.find cf1.cf_name fields in
 		let st = s_type (print_context()) in
 		if not (type_iseq cf1.cf_type cf2.cf_type) then begin
-			display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
-			display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
-			error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
+			display_error ctx.com ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
+			display_error ctx.com ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
+			typing_error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
 		end else
 			true
 	with Not_found ->
@@ -270,7 +270,7 @@ let make_extension_type ctx tl =
 				else fields
 			) a.a_fields fields
 		| _ ->
-			error "Can only extend structures" p
+			typing_error "Can only extend structures" p
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
 	let tl = List.map (fun (t,_) -> t) tl in
@@ -285,15 +285,15 @@ let check_param_constraints ctx t map c p =
 		List.iter (fun ti ->
 			let ti = map ti in
 			try
-				unify_raise ctx t ti p
+				unify_raise t ti p
 			with Error(Unify l,p) ->
 				let fail() =
-					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
+					if not ctx.untyped then display_error ctx.com (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
 					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
-					begin try unify_raise ctx e.etype ti p
+					begin try unify_raise e.etype ti p
 					with Error (Unify _,_) -> fail() end
 				| _ ->
 					fail()
@@ -304,8 +304,8 @@ let check_param_constraints ctx t map c p =
 let rec load_instance' ctx (t,p) allow_no_params =
 	let t = try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
-		let pt = List.assoc t.tname ctx.type_params in
-		if t.tparams <> [] then error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
+		let pt = lookup_param t.tname ctx.type_params in
+		if t.tparams <> [] then typing_error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx p t in
@@ -328,7 +328,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| _ -> false,false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
-		let is_rest = is_generic_build && (match types with ["Rest",_] -> true | _ -> false) in
+		let is_rest = is_generic_build && (match types with [{ttp_name="Rest"}] -> true | _ -> false) in
 		if allow_no_params && t.tparams = [] && not is_rest then begin
 			let monos = Monomorph.spawn_constrained_monos (fun t -> t) types in
 			f (monos)
@@ -336,7 +336,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			match t.tparams with
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (load_complex_type ctx true t)
-			| _ -> error "Too many parameters for Dynamic" p
+			| _ -> typing_error "Too many parameters for Dynamic" p
 		else begin
 			let is_java_rest = ctx.com.platform = Java && is_extern in
 			let is_rest = is_rest || is_java_rest in
@@ -345,8 +345,8 @@ let rec load_instance' ctx (t,p) allow_no_params =
 				| TPExpr e ->
 					let name = (match fst e with
 						| EConst (String(s,_)) -> "S" ^ s
-						| EConst (Int i) -> "I" ^ i
-						| EConst (Float f) -> "F" ^ f
+						| EConst (Int (_,_) as c) -> "I" ^ s_constant c
+						| EConst (Float (_,_) as c) -> "F" ^ s_constant c
 						| EDisplay _ ->
 							ignore(type_expr ctx e WithType.value);
 							"Expr"
@@ -359,7 +359,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			in
 			let checks = DynArray.create () in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
-				| t :: tl1,(name,t2) :: tl2 ->
+				| t :: tl1,({ttp_name=name;ttp_type=t2}) :: tl2 ->
 					let t,pt = load_param t in
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
@@ -367,9 +367,9 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						let accepts_expression = name = "Rest" in
 						if is_expression then begin
 							if not expects_expression && not accepts_expression then
-								error "Constant value unexpected here" p
+								typing_error "Constant value unexpected here" p
 						end else if expects_expression then
-							error "Type parameter is expected to be a constant value" p
+							typing_error "Type parameter is expected to be a constant value" p
 					in
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
@@ -385,23 +385,28 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					t :: loop tl1 tl2 is_rest
 				| [],[] ->
 					[]
-				| [],["Rest",_] when is_generic_build ->
+				| [],[{ttp_name="Rest"}] when is_generic_build ->
 					[]
-				| [],(_,t) :: tl ->
+				| [],({ttp_type=t;ttp_default=def}) :: tl ->
 					if is_java_rest then
 						t_dynamic :: loop [] tl is_rest
-					else if ctx.com.display.dms_error_policy = EPIgnore then
-						t :: loop [] tl is_rest
-					else
-						error ("Not enough type parameters for " ^ s_type_path path) p
+					else begin match def with
+						| None ->
+							if ignore_error ctx.com then
+								t :: loop [] tl is_rest
+							else
+								typing_error ("Not enough type parameters for " ^ s_type_path path) p
+						| Some t ->
+							t :: loop [] tl is_rest
+					end
 				| t :: tl,[] ->
 					let t,pt = load_param t in
 					if is_rest then
 						t :: loop tl [] true
-					else if ctx.com.display.dms_error_policy = EPIgnore then
+					else if ignore_error ctx.com then
 						[]
 					else
-						error ("Too many type parameters for " ^ s_type_path path) pt
+						typing_error ("Too many type parameters for " ^ s_type_path path) pt
 			in
 			let params = loop t.tparams types false in
 			if not is_rest then begin
@@ -442,14 +447,15 @@ and load_instance ctx ?(allow_display=false) ((_,pn) as tp) allow_no_params =
 and load_complex_type' ctx allow_display (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
+	| CTPath { tpackage = ["$"]; tname = "_hx_mono" } -> spawn_monomorph ctx p
 	| CTPath t -> load_instance ~allow_display ctx (t,p) false
-	| CTOptional _ -> error "Optional type not allowed here" p
-	| CTNamed _ -> error "Named type not allowed here" p
+	| CTOptional _ -> typing_error "Optional type not allowed here" p
+	| CTNamed _ -> typing_error "Named type not allowed here" p
 	| CTIntersection tl ->
 		let tl = List.map (fun (t,pn) ->
 			try
 				(load_complex_type ctx allow_display (t,pn),pn)
-			with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
+			with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 				let l = List.filter (fun item -> match item.ci_kind with
 					| ITType({kind = Struct},_) -> true
 					| _ -> false
@@ -471,13 +477,13 @@ and load_complex_type' ctx allow_display (t,p) =
 			let mk_extension (t,p) =
 				match follow t with
 				| TInst ({cl_kind = KTypeParameter _},_) ->
-					error "Cannot structurally extend type parameters" p
+					typing_error "Cannot structurally extend type parameters" p
 				| TMono _ ->
-					error "Loop found in cascading signatures definitions. Please change order/import" p
+					typing_error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun _ cf -> ignore(is_redefined ctx cf a2.a_fields p)) a.a_fields;
 					mk_anon ~fields:(PMap.foldi PMap.add a.a_fields a2.a_fields) (ref (Extend [t]))
-				| _ -> error "Can only extend structures" p
+				| _ -> typing_error "Can only extend structures" p
 			in
 			let loop (t,p) = match follow t with
 				| TAnon a2 ->
@@ -486,12 +492,12 @@ and load_complex_type' ctx allow_display (t,p) =
 							a.a_fields <- PMap.add f cf a.a_fields
 					) a2.a_fields
 				| _ ->
-					error "Can only extend structures" p
+					typing_error "Can only extend structures" p
 			in
 			let il = List.map (fun (t,pn) ->
 				try
 					(load_instance ctx ~allow_display (t,pn) false,pn)
-				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
+				with DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
@@ -519,15 +525,15 @@ and load_complex_type' ctx allow_display (t,p) =
 		let rec loop acc f =
 			let n = fst f.cff_name in
 			let p = f.cff_pos in
-			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
+			if PMap.mem n acc then typing_error ("Duplicate field declaration : " ^ n) p;
 			let topt = function
-				| None -> error ("Explicit type required for field " ^ n) p
+				| None -> typing_error ("Explicit type required for field " ^ n) p
 				| Some t -> load_complex_type ctx allow_display t
 			in
-			if n = "new" then ctx.com.warning "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
+			if n = "new" then warning ctx WDeprecated "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
 			let no_expr = function
 				| None -> ()
-				| Some (_,p) -> error "Expression not allowed here" p
+				| Some (_,p) -> typing_error "Expression not allowed here" p
 			in
 			let pub = ref true in
 			let dyn = ref false in
@@ -540,19 +546,19 @@ and load_complex_type' ctx allow_display (t,p) =
 				| APrivate ->
 					let p = pos a in
 					if Filename.basename p.pfile <> "NativeIterable.hx" then (* Terrible workaround for #7436 *)
-						ctx.com.warning "private structure fields are deprecated" p;
+						warning ctx WDeprecated "private structure fields are deprecated" p;
 					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern | AAbstract | AOverload as a -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern | AAbstract | AOverload as a -> typing_error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar(t,e) when !final ->
 					no_expr e;
-					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
+					let t = (match t with None -> typing_error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx allow_display t, Var { v_read = AccNormal; v_write = AccNever }
 				| FVar (Some (CTPath({tpackage=[];tname="Void"}),_), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"}),_),_) ->
-					error "Fields of type Void are not allowed in structures" p
+					typing_error "Fields of type Void are not allowed in structures" p
 				| FVar (t, e) ->
 					no_expr e;
 					topt t, Var { v_read = AccNormal; v_write = AccNormal }
@@ -578,9 +584,9 @@ and load_complex_type' ctx allow_display (t,p) =
 						| x when get && x = "get_" ^ n -> AccCall
 						| x when not get && x = "set_" ^ n -> AccCall
 						| _ ->
-							error "Custom property access is no longer supported in Haxe 3" f.cff_pos;
+							typing_error "Custom property access is no longer supported in Haxe 3" f.cff_pos;
 					in
-					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
+					let t = (match t with None -> typing_error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx allow_display t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
@@ -622,10 +628,10 @@ and load_complex_type ctx allow_display (t,pn) =
 	try
 		load_complex_type' ctx allow_display (t,pn)
 	with Error(Module_not_found(([],name)),p) as exc ->
-		if Diagnostics.is_diagnostics_run ctx.com p then begin
+		if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
 			t_dynamic
-		end else if ctx.com.display.dms_display && not (DisplayPosition.display_position#enclosed_in pn) then
+		end else if ignore_error ctx.com && not (DisplayPosition.display_position#enclosed_in pn) then
 			t_dynamic
 		else
 			raise exc
@@ -640,18 +646,23 @@ and init_meta_overloads ctx co cf =
 	cf.cf_meta <- List.filter (fun m ->
 		match m with
 		| (Meta.Overload,[(EFunction (kind,f),p)],_)  ->
-			(match kind with FKNamed _ -> error "Function name must not be part of @:overload" p | _ -> ());
-			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
+			(match kind with FKNamed _ -> typing_error "Function name must not be part of @:overload" p | _ -> ());
+			(match f.f_expr with Some (EBlock [], _) -> () | _ -> typing_error "Overload must only declare an empty method body {}" p);
 			(match cf.cf_kind with
-				| Method MethInline -> error "Cannot @:overload inline function" p
+				| Method MethInline -> typing_error "Cannot @:overload inline function" p
 				| _ -> ());
 			let old = ctx.type_params in
-			(match cf.cf_params with
-			| [] -> ()
-			| l -> ctx.type_params <- List.filter (fun t -> not (List.mem t l)) ctx.type_params);
-			let params = (!type_function_params_rec) ctx f cf.cf_name p in
+			begin match cf.cf_params with
+				| [] ->
+					()
+				| l ->
+					ctx.type_params <- List.filter (fun t ->
+						not (List.mem t l) (* TODO: this still looks suspicious *)
+					) ctx.type_params
+			end;
+			let params : type_params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
-			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
+			let topt = function None -> typing_error "Explicit type required" p | Some t -> load_complex_type ctx true t in
 			let args =
 				List.map
 					(fun ((a,_),opt,_,t,cto) ->
@@ -668,15 +679,15 @@ and init_meta_overloads ctx co cf =
 			false
 		| (Meta.Overload,[],_) when ctx.com.config.pf_overload ->
 			add_class_field_flag cf CfOverload;
-			let topt (n,_,t) = match t with | TMono t when t.tm_type = None -> error ("Explicit type required for overload functions\n... For function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
+			let topt (n,_,t) = match t with | TMono t when t.tm_type = None -> typing_error ("Explicit type required for overload functions\n... For function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
 			(match follow cf.cf_type with
 			| TFun (args,_) -> List.iter topt args
 			| _ -> () (* could be a variable *));
 			true
 		| (Meta.Overload,[],p) ->
-				error "This platform does not support this kind of overload declaration. Try @:overload(function()... {}) instead" p
+			typing_error "This platform does not support this kind of overload declaration. Try @:overload(function()... {}) instead" p
 		| (Meta.Overload,_,p) ->
-				error "Invalid @:overload metadata format" p
+			typing_error "Invalid @:overload metadata format" p
 		| _ ->
 			true
 	) cf.cf_meta;
@@ -688,11 +699,11 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		module_types = [];
+		module_imports = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
-		module_imports = [];
+		import_statements = [];
 	};
 	ctx.type_params <- [];
 	(fun() ->
@@ -725,7 +736,7 @@ let t_iterator ctx =
 		add_dependency ctx.m.curmod t.t_module;
 		if List.length t.t_params <> 1 then die "" __LOC__;
 		let pt = mk_mono() in
-		apply_params t.t_params [pt] t.t_type, pt
+		apply_typedef t [pt], pt
 	| _ ->
 		die "" __LOC__
 
@@ -742,65 +753,54 @@ let load_type_hint ?(opt=false) ctx pcur t =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
-let field_to_type_path ctx e =
-	let rec loop e pack name = match e with
-		| EField(e,f),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
-			| [] | _ :: [] ->
-				loop e pack (f :: name)
-			| _ -> (* too many name paths *)
-				display_error ctx ("Unexpected " ^ f) p;
-				raise Exit)
-		| EField(e,f),_ ->
-			loop e (f :: pack) name
-		| EConst(Ident f),_ ->
-			let pack, name, sub = match name with
-				| [] ->
-					let fchar = String.get f 0 in
-					if Char.uppercase fchar = fchar then
-						pack, f, None
-					else begin
-						display_error ctx "A class name must start with an uppercase letter" (snd e);
-						raise Exit
-					end
-				| [name] ->
-					f :: pack, name, None
-				| [name; sub] ->
-					f :: pack, name, Some sub
-				| _ ->
-					die "" __LOC__
-			in
-			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
-		| _,pos ->
-			display_error ctx "Unexpected expression when building strict meta" pos;
-			raise Exit
-	in
-	loop e [] []
+type type_param_host =
+	| TPHType
+	| TPHConstructor
+	| TPHMethod
+	| TPHEnumConstructor
 
-let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
+let rec type_type_param ctx host path get_params p tp =
 	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
-	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
+	c.cl_params <- type_type_params ctx host c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
-	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
-	let t = TInst (c,List.map snd c.cl_params) in
+	if host = TPHEnumConstructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
+	let t = TInst (c,extract_param_types c.cl_params) in
 	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
+	let default = match tp.tp_default with
+		| None ->
+			None
+		| Some ct ->
+			let t = load_complex_type ctx true ct in
+			begin match host with
+			| TPHType ->
+				()
+			| TPHConstructor
+			| TPHMethod
+			| TPHEnumConstructor ->
+				display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+			end;
+			Some t
+	in
 	match tp.tp_constraints with
 	| None ->
-		n, t
+		mk_type_param n t default
 	| Some th ->
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			let constr = match fst th with
+			let rec loop th = match fst th with
 				| CTIntersection tl -> List.map (load_complex_type ctx true) tl
+				| CTParent ct -> loop ct
 				| _ -> [load_complex_type ctx true th]
 			in
+			let constr = loop th in
 			(* check against direct recursion *)
 			let rec loop t =
 				match follow t with
-				| TInst (c2,_) when c == c2 -> error "Recursive constraint parameter is not allowed" p
+				| TInst (c2,_) when c == c2 -> typing_error "Recursive constraint parameter is not allowed" p
 				| TInst ({ cl_kind = KTypeParameter cl },_) ->
 					List.iter loop cl
 				| _ ->
@@ -810,25 +810,25 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 			c.cl_kind <- KTypeParameter constr;
 			t
 		) "constraint" in
-		n, TLazy r
+		mk_type_param n (TLazy r) default
 
-and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
+and type_type_params ctx host path get_params p tpl =
 	let names = ref [] in
 	List.map (fun tp ->
-		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
+		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx.com ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
 		names := (fst tp.tp_name) :: !names;
-		type_type_param ~enum_constructor ctx path get_params p tp
+		type_type_param ctx host path get_params p tp
 	) tpl
 
 let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
-			let com2 = Common.clone ctx.com in
+			let com2 = Common.clone ctx.com ctx.com.is_macro_context in
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
 			Define.raw_define_value com2.defines "target.threaded" "true"; (* hack because we check this in sys.thread classes *)
-			if ctx.in_macro then Common.define com2 Define.Macro;
+			if ctx.com.is_macro_context then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			CommonCache.lock_signature com2 "load_core_class";
@@ -853,23 +853,23 @@ let load_core_class ctx c =
 let init_core_api ctx c =
 	let ccore = load_core_class ctx c in
 	begin try
-		List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
+		List.iter2 (fun tp1 tp2 -> match follow tp1.ttp_type, follow tp2.ttp_type with
 			| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
 				begin try
 					List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
 				with
 					| Invalid_argument _ ->
-						error "Type parameters must have the same number of constraints as core type" c.cl_pos
+						typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
 					| Unify_error l ->
-						display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
-						display_error ctx (error_msg (Unify l)) c.cl_pos
+						display_error ctx.com ("Type parameter " ^ tp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
+						display_error ctx.com (error_msg (Unify l)) c.cl_pos
 				end
 			| t1,t2 ->
 				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
 				die "" __LOC__
 		) ccore.cl_params c.cl_params;
 	with Invalid_argument _ ->
-		error "Class must have the same number of type parameters as core type" c.cl_pos
+		typing_error "Class must have the same number of type parameters as core type" c.cl_pos
 	end;
 	(match c.cl_doc with
 	| None -> c.cl_doc <- ccore.cl_doc
@@ -877,11 +877,11 @@ let init_core_api ctx c =
 	let compare_fields f f2 =
 		let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
 		(try
-			type_eq EqCoreType (apply_params ccore.cl_params (List.map snd c.cl_params) f.cf_type) f2.cf_type
+			type_eq EqCoreType (apply_params ccore.cl_params (extract_param_types c.cl_params) f.cf_type) f2.cf_type
 		with Unify_error l ->
-			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
-			display_error ctx (error_msg (Unify l)) p);
-		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
+			display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in core type") p;
+			display_error ctx.com (error_msg (Unify l)) p);
+		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then typing_error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
 		(match f2.cf_doc with
 		| None -> f2.cf_doc <- f.cf_doc
 		| Some _ -> ());
@@ -890,25 +890,25 @@ let init_core_api ctx c =
 			| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
 			| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
 			| _ ->
-				error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
+				typing_error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
 		end;
 		(match follow f.cf_type, follow f2.cf_type with
 		| TFun (pl1,_), TFun (pl2,_) ->
-			if List.length pl1 != List.length pl2 then error "Argument count mismatch" p;
+			if List.length pl1 != List.length pl2 then typing_error "Argument count mismatch" p;
 			List.iter2 (fun (n1,_,_) (n2,_,_) ->
-				if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
+				if n1 <> n2 then typing_error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
 			) pl1 pl2;
 		| _ -> ());
 	in
 	let check_fields fcore fl =
 		PMap.iter (fun i f ->
 			if not (has_class_field_flag f CfPublic) then () else
-			let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
+			let f2 = try PMap.find f.cf_name fl with Not_found -> typing_error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
 			compare_fields f f2;
 		) fcore;
 		PMap.iter (fun i f ->
 			let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-			if (has_class_field_flag f CfPublic) && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (has_class_field_flag f CfOverride) then error ("Public field " ^ i ^ " is not part of core type") p;
+			if (has_class_field_flag f CfPublic) && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (has_class_field_flag f CfOverride) then typing_error ("Public field " ^ i ^ " is not part of core type") p;
 		) fl;
 	in
 	check_fields ccore.cl_fields c.cl_fields;
@@ -918,43 +918,8 @@ let init_core_api ctx c =
 	| Some cf, _ when not (has_class_field_flag cf CfPublic) -> ()
 	| Some f, Some f2 -> compare_fields f f2
 	| None, Some cf when not (has_class_field_flag cf CfPublic) -> ()
-	| _ -> error "Constructor differs from core type" c.cl_pos)
+	| _ -> typing_error "Constructor differs from core type" c.cl_pos)
 
 let string_list_of_expr_path (e,p) =
 	try string_list_of_expr_path_raise (e,p)
-	with Exit -> error "Invalid path" p
-
-let handle_using ctx path p =
-	let t = match List.rev path with
-		| (s1,_) :: (s2,_) :: sl ->
-			if is_lower_ident s2 then mk_type_path ((List.rev (s2 :: List.map fst sl)),s1)
-			else mk_type_path ~sub:s1 (List.rev (List.map fst sl),s2)
-		| (s1,_) :: sl ->
-			mk_type_path (List.rev (List.map fst sl),s1)
-		| [] ->
-			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
-	in
-	let types = (match t.tsub with
-		| None ->
-			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-			Option.map_default (fun c -> (TClassDecl c) :: types) types md.m_statics
-		| Some _ ->
-			let t = load_type_def ctx p t in
-			[t]
-	) in
-	(* delay the using since we need to resolve typedefs *)
-	let filter_classes types =
-		let rec loop acc types = match types with
-			| td :: l ->
-				(match resolve_typedef td with
-				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-					loop ((c,p) :: acc) l
-				| td ->
-					loop acc l)
-			| [] ->
-				acc
-		in
-		loop [] types
-	in
-	types,filter_classes
+	with Exit -> typing_error "Invalid path" p

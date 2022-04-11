@@ -91,6 +91,7 @@ type binop =
 	| OpInterval
 	| OpArrow
 	| OpIn
+	| OpNullCoal
 
 type unop =
 	| Increment
@@ -98,6 +99,7 @@ type unop =
 	| Not
 	| Neg
 	| NegBits
+	| Spread
 
 type string_literal_kind =
 	| SDoubleQuotes
@@ -105,8 +107,8 @@ type string_literal_kind =
 	(* | SMarkup *)
 
 type constant =
-	| Int of string
-	| Float of string
+	| Int of string * string option
+	| Float of string * string option
 	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
@@ -129,12 +131,14 @@ type token =
 	| PClose
 	| Dot
 	| DblDot
+	| QuestionDot
 	| Arrow
 	| IntInterval of string
 	| Sharp of string
 	| Question
 	| At
 	| Dollar of string
+	| Spread
 
 type unop_flag =
 	| Prefix
@@ -194,11 +198,15 @@ and display_kind =
 	| DKMarked
 	| DKPattern of bool
 
+and efield_kind =
+	| EFNormal
+	| EFSafe
+
 and expr_def =
 	| EConst of constant
 	| EArray of expr * expr
 	| EBinop of binop * expr * expr
-	| EField of expr * string
+	| EField of expr * string * efield_kind
 	| EParenthesis of expr
 	| EObjectDecl of ((string * pos * quote_status) * expr) list
 	| EArrayDecl of expr list
@@ -221,7 +229,6 @@ and expr_def =
 	| ECast of expr * type_hint option
 	| EIs of expr * type_hint
 	| EDisplay of expr * display_kind
-	| EDisplayNew of placed_type_path
 	| ETernary of expr * expr * expr
 	| ECheckType of expr * type_hint
 	| EMeta of metadata_entry * expr
@@ -232,6 +239,7 @@ and type_param = {
 	tp_name : placed_name;
 	tp_params :	type_param list;
 	tp_constraints : type_hint option;
+	tp_default : type_hint option;
 	tp_meta : metadata;
 }
 
@@ -312,10 +320,14 @@ and class_field = {
 and evar = {
 	ev_name : placed_name;
 	ev_final : bool;
+	ev_static : bool;
 	ev_type : type_hint option;
 	ev_expr : expr option;
 	ev_meta : metadata;
 }
+
+(* TODO: should we introduce CTMono instead? *)
+let ct_mono = CTPath { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
 
 type enum_flag =
 	| EPrivate
@@ -382,10 +394,11 @@ let mk_type_path ?(params=[]) ?sub (pack,name) =
 		raise (Invalid_argument "Empty module name is not allowed");
 	{ tpackage = pack; tname = name; tsub = sub; tparams = params; }
 
-let mk_evar ?(final=false) ?(t:type_hint option) ?eo ?(meta=[]) name =
+let mk_evar ?(final=false) ?(static=false) ?(t:type_hint option) ?eo ?(meta=[]) name =
 	{
 		ev_name = name;
 		ev_final = final;
+		ev_static = static;
 		ev_type = t;
 		ev_expr = eo;
 		ev_meta = meta;
@@ -429,11 +442,7 @@ let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
 
 let rec is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
-	| Neg | NegBits -> false
-
-let is_prefix = function
-	| Increment | Decrement -> true
-	| Not | Neg | NegBits -> true
+	| Neg | NegBits | Spread -> false
 
 let base_class_name = snd
 
@@ -458,8 +467,10 @@ let parse_path s =
 	| x :: l -> List.rev l, x
 
 let s_constant = function
-	| Int s -> s
-	| Float s -> s
+	| Int (s, None) -> s
+	| Int (s, Some suffix) -> s ^ suffix
+	| Float (s, None) -> s
+	| Float (s, Some suffix) -> s ^ suffix
 	| String(s,qs) ->
 		begin match qs with
 		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
@@ -555,6 +566,7 @@ let rec s_binop = function
 	| OpInterval -> "..."
 	| OpArrow -> "=>"
 	| OpIn -> " in "
+	| OpNullCoal -> "??"
 
 let s_unop = function
 	| Increment -> "++"
@@ -562,6 +574,7 @@ let s_unop = function
 	| Not -> "!"
 	| Neg -> "-"
 	| NegBits -> "~"
+	| Spread -> "..."
 
 let s_token = function
 	| Eof -> "<end of file>"
@@ -581,14 +594,19 @@ let s_token = function
 	| PClose -> ")"
 	| Dot -> "."
 	| DblDot -> ":"
+	| QuestionDot -> "?."
 	| Arrow -> "->"
 	| IntInterval s -> s ^ "..."
 	| Sharp s -> "#" ^ s
 	| Question -> "?"
 	| At -> "@"
 	| Dollar v -> "$" ^ v
+	| Spread -> "..."
 
 exception Invalid_escape_sequence of char * int * (string option)
+
+let efield (e,s) =
+	EField(e,s,EFNormal)
 
 let unescape s =
 	let b = Buffer.create 0 in
@@ -689,8 +707,9 @@ let map_expr loop (e,p) =
 		),p
 	and tparamdecl t =
 		let constraints = opt type_hint t.tp_constraints in
+		let default = opt type_hint t.tp_default in
 		let params = List.map tparamdecl t.tp_params in
-		{ tp_name = t.tp_name; tp_constraints = constraints; tp_params = params; tp_meta = t.tp_meta }
+		{ tp_name = t.tp_name; tp_constraints = constraints; tp_default = default; tp_params = params; tp_meta = t.tp_meta }
 	and func f =
 		let params = List.map tparamdecl f.f_params in
 		let args = List.map (fun (n,o,m,t,e) ->
@@ -718,7 +737,7 @@ let map_expr loop (e,p) =
 		let e1 = loop e1 in
 		let e2 = loop e2 in
 		EBinop (op,e1,e2)
-	| EField (e,f) -> EField (loop e, f)
+	| EField (e,f,efk) -> EField (loop e, f, efk)
 	| EParenthesis e -> EParenthesis (loop e)
 	| EObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k,loop e) fl)
 	| EArrayDecl el -> EArrayDecl (List.map loop el)
@@ -780,7 +799,6 @@ let map_expr loop (e,p) =
 		let t = type_hint t in
 		EIs (e,t)
 	| EDisplay (e,f) -> EDisplay (loop e,f)
-	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) ->
 		let e1 = loop e1 in
 		let e2 = loop e2 in
@@ -798,8 +816,8 @@ let iter_expr loop (e,p) =
 	let opt eo = match eo with None -> () | Some e -> loop e in
 	let exprs = List.iter loop in
 	match e with
-	| EConst _ | EContinue | EBreak | EDisplayNew _ | EReturn None -> ()
-	| EParenthesis e1 | EField(e1,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
+	| EConst _ | EContinue | EBreak | EReturn None -> ()
+	| EParenthesis e1 | EField(e1,_,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
 	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EIs(e1,_) | EUntyped e1 -> loop e1;
 	| EArray(e1,e2) | EBinop(_,e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
 	| ETernary(e1,e2,e3) | EIf(e1,e2,Some e3) -> loop e1; loop e2; loop e3;
@@ -839,7 +857,7 @@ module Printer = struct
 		| EConst c -> s_constant c
 		| EArray (e1,e2) -> s_expr_inner tabs e1 ^ "[" ^ s_expr_inner tabs e2 ^ "]"
 		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ " " ^ s_binop op ^ " " ^ s_expr_inner tabs e2
-		| EField (e,f) -> s_expr_inner tabs e ^ "." ^ f
+		| EField (e,f,efk) -> s_expr_inner tabs e ^ (match efk with EFNormal -> "." | EFSafe -> "?.") ^ f
 		| EParenthesis e -> "(" ^ (s_expr_inner tabs e) ^ ")"
 		| EObjectDecl fl -> "{ " ^ (String.concat ", " (List.map (fun ((n,_,qs),e) -> (s_object_key_name n qs) ^ " : " ^ (s_expr_inner tabs e)) fl)) ^ " }"
 		| EArrayDecl el -> "[" ^ s_expr_list tabs el ", " ^ "]"
@@ -874,7 +892,6 @@ module Printer = struct
 		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
 		| EDisplay (e1,dk) -> Printf.sprintf "#DISPLAY(%s, %s)" (s_expr_inner tabs e1) (s_display_kind dk)
-		| EDisplayNew tp -> Printf.sprintf "#DISPLAY_NEW(%s)" (s_complex_type_path tabs tp)
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
 	and s_complex_type_path tabs (t,_) =
@@ -992,13 +1009,13 @@ let get_value_meta meta =
 let rec string_list_of_expr_path_raise (e,p) =
 	match e with
 	| EConst (Ident i) -> [i]
-	| EField (e,f) -> f :: string_list_of_expr_path_raise e
+	| EField (e,f,_) -> f :: string_list_of_expr_path_raise e
 	| _ -> raise Exit
 
 let rec string_pos_list_of_expr_path_raise (e,p) =
 	match e with
 	| EConst (Ident i) -> [i,p]
-	| EField (e,f) -> (f,p) :: string_pos_list_of_expr_path_raise e (* wrong p? *)
+	| EField (e,f,_) -> (f,p) :: string_pos_list_of_expr_path_raise e (* wrong p? *)
 	| _ -> raise Exit
 
 let expr_of_type_path (sl,s) p =
@@ -1006,26 +1023,26 @@ let expr_of_type_path (sl,s) p =
 	| [] -> (EConst(Ident s),p)
 	| s1 :: sl ->
 		let e1 = (EConst(Ident s1),p) in
-		let e = List.fold_left (fun e s -> (EField(e,s),p)) e1 sl in
-		EField(e,s),p
+		let e = List.fold_left (fun e s -> (efield(e,s),p)) e1 sl in
+		efield(e,s),p
 
 let match_path recursive sl sl_pattern =
-	let rec loop sl1 sl2 = match sl1,sl2 with
+	let rec loop top sl1 sl2 = match sl1,sl2 with
 		| [],[] ->
 			true
 		(* always recurse into types of package paths *)
 		| (s1 :: s11 :: _),[s2] when is_lower_ident s2 && not (is_lower_ident s11)->
 			s1 = s2
-		| [_],[""] ->
+		| [_],[] when top ->
 			true
-		| _,([] | [""]) ->
+		| _,[] ->
 			recursive
 		| [],_ ->
 			false
 		| (s1 :: sl1),(s2 :: sl2) ->
-			s1 = s2 && loop sl1 sl2
+			s1 = s2 && loop false sl1 sl2
 	in
-	loop sl sl_pattern
+	loop true sl sl_pattern
 
 let full_dot_path2 mpath tpath =
 	if mpath = tpath then
@@ -1078,7 +1095,7 @@ module Expr = struct
 				add ("EBinop " ^ (s_binop op));
 				loop e1;
 				loop e2;
-			| EField(e1,s) ->
+			| EField(e1,s,_) ->
 				add ("EField " ^ s);
 				loop e1
 			| EParenthesis e1 ->
@@ -1183,8 +1200,6 @@ module Expr = struct
 			| EMeta((m,_,_),e1) ->
 				add ("EMeta " ^ fst (Meta.get_info m));
 				loop e1
-			| EDisplayNew _ ->
-				die "" __LOC__
 		in
 		loop' "" e;
 		Buffer.contents buf

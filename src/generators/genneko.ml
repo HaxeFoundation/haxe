@@ -172,7 +172,7 @@ let gen_constant ctx pe c =
 		with _ ->
 			if ctx.version < 2 then abort "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe;
 			(EConst (Int32 i),p))
-	| TFloat f -> (EConst (Float f),p)
+	| TFloat f -> (EConst (Float (Texpr.replace_separators f "")),p)
 	| TString s -> call p (field p (ident p "String") "new") [gen_big_string ctx p s]
 	| TBool b -> (EConst (if b then True else False),p)
 	| TNull -> null p
@@ -189,6 +189,7 @@ and gen_unop ctx p op flag e =
 	| Not -> call p (builtin p "not") [gen_expr ctx e]
 	| Neg -> (EBinop ("-",int p 0, gen_expr ctx e),p)
 	| NegBits -> (EBinop ("-",int p (-1), gen_expr ctx e),p)
+	| Spread -> die ~p:e.epos "Unhandled spread operator" __LOC__
 
 and gen_call ctx p e el =
 	match e.eexpr , el with
@@ -266,7 +267,7 @@ and gen_expr ctx e =
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
 		gen_call ctx p e el
-	| TNew (c,_,params) ->
+	| TNew (c,tl,params) ->
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
@@ -809,16 +810,16 @@ let generate com =
 			in
 			abort msg (loop 0)
 	end;
-	let command cmd = try com.run_command cmd with _ -> -1 in
+	let command cmd args = try com.run_command_args cmd args with _ -> -1 in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
 	if source || use_nekoc then begin
 		let ch = IO.output_channel (open_out_bin neko_file) in
 		Binast.write ch e;
 		IO.close_out ch;
 	end;
-	if use_nekoc && command ("nekoc" ^ (if ctx.version > 1 then " -version " ^ string_of_int ctx.version else "") ^ " \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	if use_nekoc && command "nekoc" (if ctx.version > 1 then ["-version"; (string_of_int ctx.version); neko_file] else [neko_file]) <> 0 then failwith "Neko compilation failure";
 	if source then begin
-		if command ("nekoc -p \"" ^ neko_file ^ "\"") <> 0 then failwith "Failed to print neko code";
+		if command "nekoc" ["-p"; neko_file] <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
 		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
 	end

@@ -40,6 +40,7 @@ class builder path_this path_super = object(self)
 	val methods = DynArray.create ()
 	val method_sigs = Hashtbl.create 0
 	val inner_classes = Hashtbl.create 0
+	val closure_ids_per_name = Hashtbl.create 0
 	val mutable spawned_methods = []
 	val mutable static_init_method = None
 	val mutable source_file = None
@@ -77,6 +78,16 @@ class builder path_this path_super = object(self)
 
 	method has_method (name : string) (jsig : jsignature) =
 		Hashtbl.mem method_sigs (name,generate_method_signature false jsig)
+
+	method get_next_closure_id (name : string) =
+		try
+			let r = Hashtbl.find closure_ids_per_name name in
+			incr r;
+			!r
+		with Not_found ->
+			let r = ref 0 in
+			Hashtbl.add closure_ids_per_name name r;
+			!r
 
 	method spawn_inner_class (jm : JvmMethod.builder option) (path_super : jpath) (name : string option) =
 		let path = match name with

@@ -22,4 +22,8 @@ M haxe.UpperCasePackage.SomeClass
 C haxe.UpperCasePackage.SomeClass
 M haxe.UpperCasePackage.lowercase
 C haxe.UpperCasePackage.lowercase
+M haxe.test.MyDefaultInterface
+C haxe.test.MyDefaultInterface
+M haxe.test.MyDefaultSubInterface
+C haxe.test.MyDefaultSubInterface
 end modules

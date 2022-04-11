@@ -1,6 +1,7 @@
 package cases.display.issues;
 
 import haxe.display.Protocol;
+using Lambda;
 
 class Issue9423 extends DisplayTestCase {
 	/**
@@ -13,15 +14,16 @@ class Issue9423 extends DisplayTestCase {
 	function test(_) {
 		vfs.putContent("Mod9423.hx", getTemplate("issues/Issue9423/Mod9423.hx"));
 		vfs.putContent("Mod9423.whatever.hx", getTemplate("issues/Issue9423/Mod9423.whatever.hx"));
-		runHaxeJson([], DisplayMethods.Completion, {
+		runHaxeJson(["-cp", "."], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: false
 		});
 		var result = parseCompletion().result;
-		// TODO: this test does not pass, but the same setup works fine in vscode
-		// TODO: Another test which does not work here, but works in vshaxe: #9423.
-		// Assert.equals(1, result.items.length);
-		Assert.pass();
+		final l = result.items.filter(di -> switch [di.kind, di.args] {
+			case [Type, args]: args.path.typeName == "Mod9423";
+			case _: false;
+		});
+		Assert.equals(1, l.length);
 	}
 }

@@ -60,6 +60,14 @@ class Context {
 	}
 
 	/**
+		Displays a compilation error `msg` at the given `Position` `pos`
+		without aborting the current macro call.
+	**/
+	public static function reportError(msg:String, pos:Position):Void {
+		load("report_error", 2)(msg, pos);
+	}
+
+	/**
 		Displays a compilation warning `msg` at the given `Position` `pos`.
 	**/
 	public static function warning(msg:String, pos:Position) {
@@ -76,16 +84,16 @@ class Context {
 	/**
 		Gets a list of all current compilation info/warning messages.
 	**/
-	public static function getMessages() : Array<Message> {
-		return load("get_messages",0)();
+	public static function getMessages():Array<Message> {
+		return load("get_messages", 0)();
 	}
 
 	/**
 		Filters all current info/warning messages. Filtered out messages will
 		not be displayed by the compiler.
 	**/
-	public static function filterMessages( predicate : Message -> Bool ) {
-		load("filter_messages",1)(predicate);
+	public static function filterMessages(predicate:Message->Bool) {
+		load("filter_messages", 1)(predicate);
 	}
 
 	/**
@@ -408,7 +416,10 @@ class Context {
 		Types expression `e` and returns the corresponding `TypedExpr`.
 
 		Typing the expression may result in a compiler error which can be
-		caught using `try ... catch`.
+		caught using `try ... catch`. Note that not all compiler errors can
+		be caught this way because the compiler might delay various checks
+		to a later stage, at which point the exception handler is no longer
+		active.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
 		return load("type_expr", 1)(e);
@@ -580,6 +591,14 @@ class Context {
 	}
 
 	/**
+		This function works like `storeExpr`, but also returns access to the expression's
+		type through the `type` field of the return value.
+	**/
+	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
+		return load("type_and_store_expr", 1)(e);
+	}
+
+	/**
 		Manually adds a dependency between module `modulePath` and an external
 		file `externFile`.
 
@@ -606,8 +625,30 @@ class Context {
 		stopTimer();
 		```
 	**/
-	public static function timer(id:String):()->Void {
+	public static function timer(id:String):() -> Void {
 		return load("timer", 1)(id);
+	}
+
+	/**
+		Executes `code` in a context that has `imports` and `usings` added.
+
+		This is equivalent to temporarily having `import` and `using` statements in a file. These
+		are only active during the execution of `code` and do not affect anything afterwards. This
+		is true even if `code` throws an exception.
+
+		If any argument is `null`, the result is unspecified.
+	**/
+	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		return load("with_imports", 3)(imports, usings, code);
+	}
+
+
+	/**
+		Executes `code` in a context that has some compiler options set, restore the compiler to its
+		default behavior afterwards.
+	**/
+	public static function withOptions<X>(options:{?inlining:Bool}, code : () -> X) : X {
+		return load("with_options", 2)(options, code);
 	}
 
 	@:deprecated

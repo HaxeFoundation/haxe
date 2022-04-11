@@ -1058,6 +1058,7 @@ module Printer = struct
 		| Not -> "not "
 		| Neg -> "-";
 		| NegBits -> "~"
+		| Spread -> "*"
 
 	let print_binop = function
 		| OpAdd -> "+"
@@ -1080,7 +1081,7 @@ module Printer = struct
 		| OpShr -> ">>"
 		| OpUShr -> ">>"
 		| OpMod -> "%"
-		| OpInterval | OpArrow | OpIn | OpAssignOp _ -> die "" __LOC__
+		| OpInterval | OpArrow | OpIn | OpNullCoal | OpAssignOp _ -> die "" __LOC__
 
 	let print_string s =
 		Printf.sprintf "\"%s\"" (StringHelper.s_escape s)
@@ -1128,7 +1129,7 @@ module Printer = struct
 					if !had_kw_args then abort "Arguments after KwArgs are not allowed" p;
 					had_kw_args := true;
 					"**" ^ name
-				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
+				| TAbstract({a_path = (["python"],"VarArgs" | ["haxe"],"Rest")},_) ->
 					check_err ();
 					had_var_args := true;
 					"*" ^ name
@@ -1341,16 +1342,7 @@ module Printer = struct
 			| TParenthesis e1 ->
 				Printf.sprintf "(%s)" (print_expr pctx e1)
 			| TObjectDecl fl ->
-				let fl2 = ref fl in
-				begin match follow e.etype with
-					| TAnon an ->
-						PMap.iter (fun s cf ->
-							if not (Expr.field_mem_assoc s fl) then fl2 := ((s,null_pos,NoQuotes),null cf.cf_type cf.cf_pos) :: !fl2
-						) an.a_fields
-					| _ ->
-						()
-				end;
-				Printf.sprintf "_hx_AnonObject(%s)" (print_exprs_named pctx ", " !fl2)
+				Printf.sprintf "_hx_AnonObject(%s)" (print_exprs_named pctx ", " fl)
 			| TArrayDecl el ->
 				Printf.sprintf "[%s]" (print_exprs pctx ", " el)
 			| TCall(e1,el) ->
@@ -1890,7 +1882,7 @@ module Generator = struct
 		let py_metas = filter_py_metas cf.cf_meta in
 		begin match cf.cf_expr with
 			| Some ({eexpr = TFunction f} as ef) ->
-				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_params)) cf.cf_pos in
+				let ethis = mk (TConst TThis) (TInst(c,extract_param_types c.cl_params)) cf.cf_pos in
 				let assigned_fields = ref [] in
 				(* Collect all fields that are assigned to but panic out as soon as `this`,
 				   `super`, `return` or `throw` appears (regardless of control flow). *)

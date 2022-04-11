@@ -35,6 +35,14 @@ class Lib {
 	}
 
 	/**
+		Inserts an `import` expression that loads JavaScript object from
+		a module or file specified in the `module` argument.
+	**/
+	public static inline function dynamicImport(module:String):js.lib.Promise<Dynamic> {
+		return js.Syntax.code("import({0})", module);
+	}
+
+	/**
 		Display an alert message box containing the given message.
 		@deprecated Use Browser.alert() instead.
 	**/
@@ -124,7 +132,7 @@ class Lib {
 	}
 
 	/**
-		Re-throw last cathed exception, preserving original stack information.
+		Re-throw last caught exception, preserving original stack information.
 
 		Calling this is only possible inside a catch statement.
 	**/

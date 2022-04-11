@@ -47,6 +47,7 @@ class Printer {
 			case OpNot: "!";
 			case OpNeg: "-";
 			case OpNegBits: "~";
+			case OpSpread: "...";
 		}
 
 	public function printBinop(op:Binop)
@@ -74,13 +75,15 @@ class Printer {
 			case OpInterval: "...";
 			case OpArrow: "=>";
 			case OpIn: "in";
+			case OpNullCoal: "??";
 			case OpAssignOp(op):
 				printBinop(op) + "=";
 		}
 
 	function escapeString(s:String, delim:String) {
 		return delim
-			+ s.replace("\n", "\\n")
+			+ s.replace('\\', '\\\\')
+				.replace("\n", "\\n")
 				.replace("\t", "\\t")
 				.replace("\r", "\\r")
 				.replace("'", "\\'")
@@ -99,8 +102,10 @@ class Printer {
 		return switch (c) {
 			case CString(s, SingleQuotes): printFormatString(s);
 			case CString(s, _): printString(s);
-			case CIdent(s), CInt(s), CFloat(s):
+			case CIdent(s), CInt(s, null), CFloat(s, null):
 				s;
+			case CInt(s, suffix), CFloat(s, suffix):
+				s + suffix;
 			case CRegexp(s, opt): '~/$s/$opt';
 		}
 
@@ -191,7 +196,8 @@ class Printer {
 		return (tpd.meta != null && tpd.meta.length > 0 ? tpd.meta.map(printMetadata).join(" ") + " " : "")
 			+ tpd.name
 			+ (tpd.params != null && tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(", ") + ">" : "")
-			+ (tpd.constraints != null && tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(", ") + ")" : "");
+			+ (tpd.constraints != null && tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(", ") + ")" : "")
+			+ (tpd.defaultType != null ? "=" + printComplexType(tpd.defaultType) : "");
 
 	public function printFunctionArg(arg:FunctionArg)
 		return (arg.opt ? "?" : "") + arg.name + opt(arg.type, printComplexType, ":") + opt(arg.value, printExpr, " = ");
@@ -245,7 +251,8 @@ class Printer {
 			case EUnop(op, false, e1): printUnop(op) + printExpr(e1);
 			case EFunction(FNamed(no,inlined), func): (inlined ? 'inline ' : '') + 'function $no' + printFunction(func);
 			case EFunction(kind, func): (kind != FArrow ? "function" : "") + printFunction(func, kind);
-			case EVars(vl): "var " + vl.map(printVar).join(", ");
+			case EVars([]): "var ";
+			case EVars(vl): ((vl[0].isStatic) ? "static " : "") + ((vl[0].isFinal) ? "final " : "var ") + vl.map(printVar).join(", ");
 			case EBlock([]): '{ }';
 			case EBlock(el):
 				var old = tabs;
@@ -280,7 +287,6 @@ class Printer {
 			case ECast(e1, _): "cast " + printExpr(e1);
 			case EIs(e1, ct): '${printExpr(e1)} is ${printComplexType(ct)}';
 			case EDisplay(e1, _): '#DISPLAY(${printExpr(e1)})';
-			case EDisplayNew(tp): '#DISPLAY(${printTypePath(tp)})';
 			case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse)}';
 			case ECheckType(e1, ct): '(${printExpr(e1)} : ${printComplexType(ct)})';
 			case EMeta({ name:":implicitReturn" }, { expr:EReturn(e1) }): printExpr(e1);
@@ -542,8 +548,6 @@ class Printer {
 				case EDisplay(e, displayKind):
 					add("EDisplay");
 					loopI(e);
-				case EDisplayNew(t):
-					add("EDisplayNew");
 				case ETernary(econd, eif, eelse):
 					add("ETernary");
 					loopI(econd);

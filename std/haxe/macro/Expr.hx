@@ -60,12 +60,12 @@ enum Constant {
 	/**
 		Represents an integer literal.
 	**/
-	CInt(v:String);
+	CInt(v:String, ?s:String);
 
 	/**
 		Represents a float literal.
 	**/
-	CFloat(f:String);
+	CFloat(f:String, ?s:String);
 
 	/**
 		Represents a string literal.
@@ -214,6 +214,11 @@ enum Binop {
 		`in`
 	**/
 	OpIn;
+
+	/**
+		`??`
+	**/
+	OpNullCoal;
 }
 
 /**
@@ -245,6 +250,16 @@ enum Unop {
 		`~`
 	**/
 	OpNegBits;
+
+	/**
+		`...`
+	**/
+	OpSpread;
+}
+
+enum EFieldKind {
+	Normal;
+	Safe;
 }
 
 /**
@@ -315,6 +330,11 @@ typedef Var = {
 		Whether or not the variable can be assigned to.
 	**/
 	var ?isFinal:Bool;
+
+	/**
+		Whether or not the variable is static.
+	**/
+	var ?isStatic:Bool;
 
 	/**
 		Metadata associatied with the variable, if available.
@@ -419,8 +439,10 @@ enum ExprDef {
 
 	/**
 		Field access on `e.field`.
+
+		If `kind` is null, it is equal to Normal.
 	**/
-	EField(e:Expr, field:String);
+	EField(e:Expr, field:String, ?kind:EFieldKind);
 
 	/**
 		Parentheses `(e)`.
@@ -539,11 +561,6 @@ enum ExprDef {
 		Used internally to provide completion.
 	**/
 	EDisplay(e:Expr, displayKind:DisplayKind);
-
-	/**
-		Used internally to provide completion.
-	**/
-	EDisplayNew(t:TypePath);
 
 	/**
 		A `(econd) ? eif : eelse` expression.
@@ -675,6 +692,11 @@ typedef TypeParamDecl = {
 		The optional constraints of the type parameter.
 	**/
 	var ?constraints:Array<ComplexType>;
+
+	/**
+		The optional default type of the type parameter.
+	**/
+	var ?defaultType:Null<ComplexType>;
 
 	/**
 		The optional parameters of the type parameter.

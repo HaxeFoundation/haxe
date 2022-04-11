@@ -1084,6 +1084,10 @@ let generate con =
 					Some t
 			| TAbstract (({ a_path = [],"Null" } as tab),[t2]) ->
 					Some (TAbstract(tab,[gen.gfollow#run_f t2]))
+			| TType ({ t_path = ["haxe";"_Rest"],"NativeRest" } as td, [t2]) ->
+					Some (gen.gfollow#run_f (follow (TType (td,[get_boxed gen t2]))))
+			| TAbstract ({ a_path = ["haxe"],"Rest" } as a, [t2]) ->
+					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a [get_boxed gen t2]) )
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
@@ -1520,7 +1524,7 @@ let generate con =
 				| TTypeExpr mt -> write w (md_s e.epos mt)
 				| TParenthesis e ->
 					write w "("; expr_s w e; write w ")"
-				| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+				| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 					(match e.eexpr with
 					| TFor _ | TWhile _ ->
 						print w "label%s:" n;
@@ -1530,6 +1534,11 @@ let generate con =
 					| _ -> die "" __LOC__)
 				| TMeta (_,e) ->
 					expr_s w e
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["haxe";"_Rest"],"Rest_Impl_") }, { cf_name = "createNative" })) }, el) ->
+					(match follow e.etype with
+					| TInst (cls, params) ->
+						expr_s w { e with eexpr = TNew(cls,params,el) }
+					| _ -> die ~p:e.epos "Unexpected return type of haxe.Rest.createNative" __LOC__)
 				| TCall ({ eexpr = TIdent "__array__" }, el)
 				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el when t_has_type_param e.etype ->
@@ -1666,6 +1675,7 @@ let generate con =
 						acc + 1
 					) 0 el);
 					write w ")"
+				| TUnop (Ast.Spread, Prefix, e) -> expr_s w e
 				| TUnop ((Ast.Increment as op), flag, e)
 				| TUnop ((Ast.Decrement as op), flag, e) ->
 					(match flag with
@@ -1814,7 +1824,7 @@ let generate con =
 	let rec gen_fpart_attrib w = function
 		| EConst( Ident i ), _ ->
 			write w i
-		| EField( ef, f ), _ ->
+		| EField( ef, f, _ ), _ ->
 			gen_fpart_attrib w ef;
 			write w ".";
 			write w f
@@ -1824,14 +1834,14 @@ let generate con =
 
 	let rec gen_spart w = function
 		| EConst c, p -> (match c with
-			| Int s | Float s | Ident s ->
+			| Int (s, _) | Float (s, _) | Ident s ->
 				write w s
 			| String(s,_) ->
 				write w "\"";
 				write w (escape s);
 				write w "\""
 			| _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
-		| EField( ef, f ), _ ->
+		| EField( ef, f, _ ), _ ->
 			gen_spart w ef;
 			write w ".";
 			write w f
@@ -1899,8 +1909,8 @@ let generate con =
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
-				let params_extends = List.fold_left (fun acc (name, t) ->
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> match follow tp.ttp_type with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
+				let params_extends = List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
 					match run_follow gen t with
 						| TInst (cl, p) ->
 							(match cl.cl_implements with
@@ -1991,12 +2001,22 @@ let generate con =
 				let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 				let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
 				let v_n = if is_static then "static" else if is_override && not is_interface then "" else if not is_virtual then "final" else "" in
-				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, extract_param_types cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 
-				let params = List.map snd cl.cl_params in
-				let ret_type, args = match follow cf_type, follow cf.cf_type with
+				let params = extract_param_types cl.cl_params in
+				let ret_type, args, has_rest_args = match follow cf_type, follow cf.cf_type with
 					| TFun (strbtl, t), TFun(rargs, _) ->
-							(apply_params cl.cl_params params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_params params (real_type t))) strbtl rargs)
+						let ret_type = apply_params cl.cl_params params (real_type t)
+						and args =
+							List.map2 (fun(_,_,t) (n,o,_) ->
+								(n,o,apply_params cl.cl_params params (real_type t))
+							) strbtl rargs
+						and rest =
+							match List.rev rargs with
+							| (_,_,t) :: _ -> ExtType.is_rest (follow t)
+							| _ -> false
+						in
+						ret_type,args,rest
 					| _ -> die "" __LOC__
 				in
 
@@ -2008,12 +2028,26 @@ let generate con =
 				write_parts w (visibility :: v_n :: modifiers @ [params; (if is_new then "" else rett_s cf.cf_pos (run_follow gen ret_type)); (change_field name)]);
 
 				(* <T>(string arg1, object arg2) with T : object *)
-				(match cf.cf_expr with
+				let arg_names =
+					match cf.cf_expr with
 					| Some { eexpr = TFunction tf } ->
-							print w "(%s)" (String.concat ", " (List.map2 (fun (var,_) (_,_,t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id var.v_name)) tf.tf_args args))
+						List.map (fun (var,_) -> change_id var.v_name) tf.tf_args
 					| _ ->
-							print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
-				);
+						List.map (fun (name,_,_) -> change_id name) args
+				in
+				let rec loop acc names args =
+					match names, args with
+					| [], [] -> acc
+					| _, [] | [], _ ->
+						die "" __LOC__
+					| [name], [_,_,TInst ({ cl_path = ["java"],"NativeArray" }, [t])] when has_rest_args ->
+						let arg = sprintf "%s ...%s" (argt_s cf.cf_pos (run_follow gen t)) name in
+						arg :: acc
+					| name :: names, (_,_,t) :: args ->
+						let arg = sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) name in
+						loop (arg :: acc) names args
+				in
+				print w "(%s)" (String.concat ", " (List.rev (loop [] arg_names args)));
 				if is_interface || List.mem "native" modifiers || is_abstract then
 					write w ";"
 				else begin
@@ -2057,6 +2091,11 @@ let generate con =
 				end);
 			newline w;
 			newline w
+	in
+
+	let gen_class_field w ?(is_overload=false) is_static cl is_final cf =
+		(* This should probably be handled somewhere earlier in the unholy gencommon machinery, but whatever *)
+		if not (has_class_field_flag cf CfExtern) then gen_class_field w ~is_overload is_static cl is_final cf
 	in
 
 	let gen_class w cl =
@@ -2668,17 +2707,18 @@ let generate con =
 	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
-		let cmd = "haxelib run hxjava hxjava_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) ^ " --feature-level 1" in
-		let cmd =
+		let cmd = "haxelib" in
+		let args = ["run";"hxjava";"hxjava_build.txt";"--haxe-version";(string_of_int gen.gcon.version);"--feature-level";"1"] in
+		let args =
 			match gen.gentry_point with
 			| Some (name,_,_) ->
 				let name = if gen.gcon.debug then name ^ "-Debug" else name in
-				cmd ^ " --out " ^ gen.gcon.file ^ "/" ^ name
+				args @ ["--out";gen.gcon.file ^ "/" ^ name]
 			| _ ->
-				cmd
+				args
 		in
-		print_endline cmd;
-		if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
+		print_endline (cmd ^ " " ^ (String.concat " " args));
+		if gen.gcon.run_command_args cmd args <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end
 

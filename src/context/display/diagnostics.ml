@@ -11,7 +11,10 @@ open DisplayException
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
-let is_diagnostics_run com p = DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get p.pfile)
+let error_in_diagnostics_run com p =
+	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
+	if b then com.has_error <- true;
+	b
 
 let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
@@ -40,10 +43,10 @@ let find_unused_variables com e =
 let check_other_things com e =
 	let had_effect = ref false in
 	let no_effect p =
-		add_diagnostics_message com "This code has no effect" p DKCompilerError DiagnosticsSeverity.Warning;
+		add_diagnostics_message com "This code has no effect" p DKCompilerMessage Warning;
 	in
 	let pointless_compound s p =
-		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerError DiagnosticsSeverity.Warning;
+		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerMessage Warning;
 	in
 	let rec compound s el p =
 		let old = !had_effect in
@@ -97,17 +100,10 @@ let prepare_field dctx com cf = match cf.cf_expr with
 		check_other_things com e;
 		DeprecationCheck.run_on_expr ~force:true com e
 
-let prepare com =
-	let dctx = {
-		removable_code = [];
-		import_positions = PMap.empty;
-		dead_blocks = Hashtbl.create 0;
-		diagnostics_messages = [];
-		unresolved_identifiers = [];
-		missing_fields = PMap.empty;
-	} in
+let collect_diagnostics dctx com =
+	let open CompilationCache in
 	List.iter (function
-		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file (com.file_keys#get c.cl_pos.pfile) ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
 			List.iter (prepare_field dctx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx com) c.cl_ordered_statics;
 			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
@@ -116,14 +112,13 @@ let prepare com =
 	) com.types;
 	let handle_dead_blocks com = match com.cache with
 		| Some cc ->
-			let macro_defines = adapt_defines_to_macro_context com.defines in
-			let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
+			let display_defines = adapt_defines_to_display_context com.defines in
 			let is_true defines e =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
 			Hashtbl.iter (fun file_key cfile ->
-				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.CompilationServer.c_file_path) then begin
-					let dead_blocks = cfile.CompilationServer.c_pdi.pd_dead_blocks in
+				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path) then begin
+					let dead_blocks = cfile.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try
 						let dead_blocks2 = Hashtbl.find dctx.dead_blocks file_key in
@@ -137,7 +132,19 @@ let prepare com =
 		| None ->
 			()
 	in
-	handle_dead_blocks com;
+	handle_dead_blocks com
+
+let prepare com =
+	let dctx = {
+		removable_code = [];
+		import_positions = PMap.empty;
+		dead_blocks = Hashtbl.create 0;
+		diagnostics_messages = [];
+		unresolved_identifiers = [];
+		missing_fields = PMap.empty;
+	} in
+	if not (List.exists (fun (_,_,_,sev) -> sev = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
+		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
 			PMap.iter (fun p b ->
@@ -171,12 +178,14 @@ let prepare com =
 	dctx
 
 let secure_generated_code ctx e =
-	if is_diagnostics_run ctx.com e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
+	(* This causes problems and sucks in general... need a different solution. But I forgot which problem this solved anyway. *)
+	(* mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos *)
+	e
 
 let print com =
 	let dctx = prepare com in
-	Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics dctx)
+	Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics com dctx)
 
 let run com =
 	let dctx = prepare com in
-	DisplayException.raise_diagnostics dctx
+	dctx

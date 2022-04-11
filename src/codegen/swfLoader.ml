@@ -47,7 +47,7 @@ let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
 let ct_dyn = CTPath tp_dyn
 
 let ct_rest = CTPath {
-	tpackage = ["haxe"; "extern"];
+	tpackage = ["haxe"];
 	tname = "Rest";
 	tparams = [TPType (ct_dyn,null_pos)];
 	tsub = None;
@@ -270,9 +270,9 @@ let build_class com c file =
 							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
 							| HVInt i | HVUInt i ->
-								Some (Int (Int32.to_string i))
+								Some (Int (Int32.to_string i, None))
 							| HVFloat f ->
-								Some (Float (Numeric.float_repres f))
+								Some (Float (Numeric.float_repres f, None))
 							) in
 							match v with
 							| None -> None
@@ -545,7 +545,7 @@ let remove_debug_infos as3 =
 
 let parse_swf com file =
 	let t = Timer.timer ["read";"swf"] in
-	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
+	let is_swc = Path.file_extension file = "swc" || Path.file_extension file = "ane" in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
 		try
@@ -569,7 +569,7 @@ let parse_swf com file =
 	IO.close_in ch;
 	List.iter (fun t ->
 		match t.tdata with
-		| TActionScript3 (id,as3) when not com.debug && not com.display.DisplayTypes.DisplayMode.dms_display ->
+		| TActionScript3 (id,as3) ->
 			t.tdata <- TActionScript3 (id,remove_debug_infos as3)
 		| _ -> ()
 	) tags;

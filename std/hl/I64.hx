@@ -22,4 +22,46 @@
 
 package hl;
 
-@:coreType @:notNull @:runtimeValue abstract I64 to Int from Int {}
+@:coreType @:notNull @:runtimeValue abstract I64 from Int {
+
+	/**
+		Destructively cast to Int
+	**/
+	public inline function toInt():Int {
+		return cast this;
+	}
+
+	@:to
+	@:deprecated("Implicit cast from I64 to Int (32 bits) is deprecated. Use .toInt() or explicitly cast instead.")
+	inline function implicitToInt(): Int {
+		return toInt();
+	}
+
+	#if (hl_ver >= version("1.12.0") && !hl_legacy32)
+	@:op(a+b) function add(v:I64) : I64;
+	@:op(a-b) function sub(v:I64) : I64;
+	@:op(a*b) function mul(v:I64) : I64;
+	@:op(a/b) function div(v:I64) : I64;
+	@:op(a%b) function mod(v:I64) : I64;
+	@:op(a<<b) function shl(v:Int) : I64;
+	@:op(a>>b) function shr(v:Int) : I64;
+	@:op(a>>>b) function ushr(v:Int) : I64;
+	@:op(a|b) function or(v:I64) : I64;
+	@:op(a&b) function and(v:I64) : I64;
+	@:op(a^b) function xor(v:I64) : I64;
+
+	@:op(-a) function neg() : I64;
+	@:op(~a) inline function compl() : I64 { return (-1:I64) - this; }
+	@:op(++a) function incr() : I64;
+	@:op(--a) function decr() : I64;
+	@:op(a++) function pincr() : I64;
+	@:op(a--) function pdecr() : I64;
+
+	@:op(a==b) function eq(v:I64) : Bool;
+	@:op(a>=b) function gte(v:I64) : Bool;
+	@:op(a<=b) function lte(v:I64) : Bool;
+	@:op(a>b) function gt(v:I64) : Bool;
+	@:op(a<b) function lt(v:I64) : Bool;
+	#end
+
+}

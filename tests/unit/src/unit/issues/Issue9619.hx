@@ -18,10 +18,10 @@ private class ConcreteOverloadChild extends AbstractOverloadParent {
 	}
 
 	@:overload
-	override function abstractFunction():Void {}
+	function abstractFunction():Void {}
 
 	@:overload
-	override function abstractFunction(i:Int):Void {}
+	function abstractFunction(i:Int):Void {}
 }
 
 private interface InterfaceToBeImplemented {
@@ -35,12 +35,12 @@ abstract class AbstractThatImplementsInterface implements InterfaceToBeImplement
 
 class ConcreteChildThatImplements extends AbstractThatImplementsInterface {
 	@:overload
-	public override function toBeImplemented() {
+	public function toBeImplemented() {
 		return true;
 	}
 
 	@:overload
-	public override function toBeImplemented(i:Int) {
+	public function toBeImplemented(i:Int) {
 		return i * 2;
 	}
 }
@@ -56,7 +56,7 @@ abstract class AbstractThatImplementsInterfaceNO implements InterfaceToBeImpleme
 }
 
 class ConcreteChildThatImplementsNO extends AbstractThatImplementsInterfaceNO {
-	public override function toBeImplemented() {
+	public function toBeImplemented() {
 		return true;
 	}
 }
@@ -72,7 +72,7 @@ private class ConcreteChild extends AbstractParent {
 		super();
 	}
 
-	override public function abstractFunction():Bool {
+	public function abstractFunction():Bool {
 		return true;
 	}
 }

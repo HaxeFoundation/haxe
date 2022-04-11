@@ -1187,7 +1187,7 @@ module StdFileSystem = struct
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->
-		catch_unix_error Path.mkdir_from_path (Path.add_trailing_slash (decode_string path));
+		catch_unix_error Path.mkdir_from_path_unix_err (Path.add_trailing_slash (decode_string path));
 		vnull
 	)
 
@@ -1741,25 +1741,47 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.lock mutex.mmutex;
-		mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		(match mutex.mowner with
+		| None ->
+			Mutex.lock mutex.mmutex;
+			mutex.mowner <- Some (thread_id,1)
+		| Some (id,n) ->
+			if id = thread_id then
+				mutex.mowner <- Some (thread_id,n + 1)
+			else begin
+				Mutex.lock mutex.mmutex;
+				mutex.mowner <- Some (thread_id,1)
+			end
+		);
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		mutex.mowner <- None;
-		Mutex.unlock mutex.mmutex;
+		(match mutex.mowner with
+		| Some (id,n) when n > 1 ->
+			mutex.mowner <- Some (id,n - 1)
+		| _ ->
+			mutex.mowner <- None;
+			Mutex.unlock mutex.mmutex;
+		);
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		if Mutex.try_lock mutex.mmutex then begin
-			mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		match mutex.mowner with
+		| Some (id,n) when id = thread_id ->
+			mutex.mowner <- Some (thread_id,n + 1);
 			vtrue
-		end else
-			vfalse
+		| _ ->
+			if Mutex.try_lock mutex.mmutex then begin
+				mutex.mowner <- Some (thread_id,1);
+				vtrue
+			end else
+				vfalse
 	)
 end
 
@@ -1860,19 +1882,26 @@ module StdReflect = struct
 		let name = hash (decode_vstring name).sstring in
 		match vresolve o with
 		| VObject o ->
-			let found = ref false in
-			let fields = IntMap.fold (fun name' i acc ->
-				if name = name' then begin
-					found := true;
-					acc
+			begin match o.oproto with
+			| OProto proto ->
+				let found = ref false in
+				let fields = IntMap.fold (fun name' i acc ->
+					if name = name' then begin
+						found := true;
+						acc
+					end else
+						(name',o.ofields.(i)) :: acc
+				) proto.pinstance_names [] in
+				if !found then begin
+					update_object_prototype o fields;
+					vtrue
 				end else
-					(name',o.ofields.(i)) :: acc
-			) o.oproto.pinstance_names [] in
-			if !found then begin
-				update_object_prototype o fields;
-				vtrue
-			end else
-				vfalse
+					vfalse
+			| ODictionary d ->
+				let has = IntMap.mem name d in
+				if has then o.oproto <- ODictionary (IntMap.remove name d);
+				vbool has
+			end
 		| _ ->
 			vfalse
 	)
@@ -1909,7 +1938,11 @@ module StdReflect = struct
 	let hasField = vfun2 (fun o field ->
 		let name = hash (decode_vstring field).sstring in
 		let b = match vresolve o with
-			| VObject o -> IntMap.mem name o.oproto.pinstance_names
+			| VObject o ->
+				begin match o.oproto with
+				| OProto proto -> IntMap.mem name proto.pinstance_names
+				| ODictionary d -> IntMap.mem name d
+				end
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
 			| _ -> unexpected_value o "object"
@@ -1938,7 +1971,7 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		(try set_field o (hash (decode_vstring name).sstring) v with Not_found -> ()); vnull
+		(try set_field_runtime o (hash (decode_vstring name).sstring) v with Not_found -> ()); vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
@@ -1947,7 +1980,7 @@ module StdReflect = struct
 		let vset = field o name_set in
 		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			(try set_field o (hash name.sstring) v with Not_found -> ());
+			(try set_field_runtime o (hash name.sstring) v with Not_found -> ());
 			vnull
 		end
 	)
@@ -2552,8 +2585,6 @@ module StdSys = struct
 	)
 
 	let exit = vfun1 (fun code ->
-		(* TODO: Borrowed from interp.ml *)
-		if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
 		raise (Sys_exit(decode_int code));
 	)
 
@@ -2604,11 +2635,14 @@ module StdSys = struct
 			| _ -> vnull
 	)
 
-	let putEnv = vfun2 (fun s v ->
-		let s = decode_string s in
-		let v = decode_string v in
-		catch_unix_error Unix.putenv s v;
-		vnull
+	let putEnv = vfun2 (fun s -> function
+		| v when v = vnull ->
+			let _ = Luv.Env.unsetenv (decode_string s) in vnull
+		| v ->
+			let s = decode_string s in
+			let v = decode_string v in
+			catch_unix_error Unix.putenv s v;
+			vnull
 	)
 
 	let setCwd = vfun1 (fun s ->
@@ -2646,12 +2680,12 @@ module StdSys = struct
 					(match !cached_sys_name with
 					| Some n -> n
 					| None ->
-						let ic = catch_unix_error Unix.open_process_in "uname" in
+						let ic, pid = catch_unix_error Process_helper.open_process_args_in_pid "uname" [| "uname" |] in
 						let uname = (match input_line ic with
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						close_in ic;
+						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -3075,8 +3109,9 @@ end
 
 module StdNativeString = struct
 	let from_string = vfun1 (fun v ->
-		let s = decode_vstring v in
-		vnative_string s.sstring
+		match decode_optional decode_vstring v with
+		| None -> vnull
+		| Some s -> vnative_string s.sstring
 	)
 
 	let from_bytes = vfun1 (fun v ->

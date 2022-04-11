@@ -288,13 +288,13 @@ and s_call_error = function
 	| Could_not_unify err -> error_msg err
 	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
 
-let error msg p = raise (Error (Custom msg,p))
+let typing_error msg p = raise (Error (Custom msg,p))
 
-let raise_error err p = raise (Error(err,p))
+let raise_typing_error err p = raise (Error(err,p))
 
 let error_require r p =
 	if r = "" then
-		error "This field is not available with the current compilation flags" p
+		typing_error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
@@ -305,6 +305,6 @@ let error_require r p =
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
-	error ("Accessing this field requires " ^ r) p
+	typing_error ("Accessing this field requires " ^ r) p
 
-let invalid_assign p = error "Invalid assign" p
+let invalid_assign p = typing_error "Invalid assign" p

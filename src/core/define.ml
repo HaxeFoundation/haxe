@@ -6,6 +6,9 @@ type define = {
 	mutable defines_signature : string option;
 }
 
+let get_define_key d =
+	fst (infos d)
+
 let get_documentation_list() =
 	let m = ref 0 in
 	let rec loop i =
@@ -24,18 +27,18 @@ let get_documentation_list() =
 			) in
 			let pfs = platform_list_help (List.rev !pfs) in
 			if String.length t > !m then m := String.length t;
-			((String.concat "-" (ExtString.String.nsplit t "_")),params ^ doc ^ pfs) :: (loop (i + 1))
+			((String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs) :: (loop (i + 1))
 		end else
 			[]
 	in
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
 	all,!m
 
-let raw_defined ctx v =
-	PMap.mem v ctx.values
+let raw_defined ctx k =
+	PMap.mem k ctx.values
 
-let defined ctx v =
-	raw_defined ctx (fst (infos v))
+let defined ctx k =
+	raw_defined ctx (get_define_key k)
 
 let raw_defined_value ctx k =
 	PMap.find k ctx.values
@@ -49,19 +52,16 @@ let defined_value_safe ?default ctx v =
 
 let raw_define_value ctx k v =
 	ctx.values <- PMap.add k v ctx.values;
-	let k = String.concat "_" (ExtString.String.nsplit k "-") in
-	ctx.values <- PMap.add k v ctx.values;
 	ctx.defines_signature <- None
 
-let raw_define ctx v =
-	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
-	raw_define_value ctx k v
-
 let define_value ctx k v =
-	raw_define ctx (fst (infos k) ^ "=" ^ v)
+	raw_define_value ctx (get_define_key k) v
 
-let define ctx v =
-	raw_define ctx (fst (infos v))
+let raw_define ctx k =
+	raw_define_value ctx k "1"
+
+let define ctx k =
+	raw_define_value ctx (get_define_key k) "1"
 
 let get_signature def =
 	match def.defines_signature with

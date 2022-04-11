@@ -1,3 +1,5 @@
+open Globals
+open Ast
 open Meta
 open TType
 open TFunctions
@@ -65,7 +67,47 @@ let find_to uctx b ab tl =
 
 let underlying_type_stack = new_rec_stack()
 
-let rec get_underlying_type ?(return_first=false) a pl =
+(**
+	Returns type parameters and the list of types, which should be known at compile time
+	to be able to choose multitype specialization.
+*)
+let rec find_multitype_params a pl =
+	match Meta.get Meta.MultiType a.a_meta with
+	| _,[],_ -> pl,pl
+	| _,el,_ ->
+		let relevant = Hashtbl.create 0 in
+		List.iter (fun e ->
+			let rec loop f e = match fst e with
+				| EConst(Ident s) ->
+					Hashtbl.replace relevant s f
+				| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
+					loop follow_with_abstracts e1;
+				| _ ->
+					typing_error "Type parameter expected" (pos e)
+			in
+			loop (fun t -> t) e
+		) el;
+		let definitive_types = ref [] in
+		let tl = List.map2 (fun tp t ->
+			try
+				let t = (Hashtbl.find relevant tp.ttp_name) t in
+				definitive_types := t :: !definitive_types;
+				t
+			with Not_found ->
+				if not (has_mono t) then t
+				else t_dynamic
+		) a.a_params pl in
+		tl,!definitive_types
+
+and find_multitype_specialization_type a pl =
+	let uctx = default_unification_context in
+	let m = mk_mono() in
+	let tl,definitive_types = find_multitype_params a pl in
+	ignore(find_to uctx m a tl);
+	if List.exists (fun t -> has_mono t) definitive_types then raise Not_found;
+	follow m
+
+and get_underlying_type ?(return_first=false) a pl =
 	let maybe_recurse t =
 		let rec loop t = match t with
 			| TMono r ->
@@ -77,12 +119,12 @@ let rec get_underlying_type ?(return_first=false) a pl =
 			| TAbstract({a_path=([],"Null")} as a,[t1]) ->
 				TAbstract(a,[loop t1])
 			| TType (t,tl) ->
-				loop (apply_params t.t_params tl t.t_type)
+				loop (apply_typedef t tl)
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				if rec_stack_exists (fast_eq t) underlying_type_stack then begin
 					let pctx = print_context() in
 					let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: underlying_type_stack.rec_stack))) in
-					error ("Abstract chain detected: " ^ s) a.a_pos
+					typing_error ("Abstract chain detected: " ^ s) a.a_pos
 				end;
 				get_underlying_type a tl
 			| _ ->
@@ -98,18 +140,18 @@ let rec get_underlying_type ?(return_first=false) a pl =
 	in
 	try
 		if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
-		(* TODO:
-			Look into replacing `mk_mono` & `find_to` with `build_abstract a` & `TAbstract(a, pl)`.
-			`find_to` is probably needed for `@:multiType`
-		*)
-		let m = mk_mono() in
-		let _ = find_to default_unification_context m a pl in
-		maybe_recurse (follow m)
+		find_multitype_specialization_type a pl
 	with Not_found ->
 		if Meta.has Meta.CoreType a.a_meta then
 			t_dynamic
 		else
 			maybe_recurse (apply_params a.a_params pl a.a_this)
+
+and follow_with_abstracts t = match follow t with
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+		follow_with_abstracts (get_underlying_type a tl)
+	| t ->
+		t
 
 let rec follow_with_forward_ctor ?(build=false) t = match follow t with
 	| TAbstract(a,tl) as t ->
@@ -121,12 +163,6 @@ let rec follow_with_forward_ctor ?(build=false) t = match follow t with
 			follow_with_forward_ctor (get_underlying_type ~return_first:true a tl)
 		else
 			t
-	| t ->
-		t
-
-let rec follow_with_abstracts t = match follow t with
-	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-		follow_with_abstracts (get_underlying_type a tl)
 	| t ->
 		t
 

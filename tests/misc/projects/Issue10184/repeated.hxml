@@ -1,0 +1,18 @@
+# test defining the same define twice sets it to the most recent value,
+# regardless of if it uses a dash or underscore.
+
+# dash first, then underscore
+-D value-a=old value
+-D value_a=new value
+
+--macro define("value-b", "old value")
+--macro define("value_b", "new value")
+
+# underscore first, then dash
+-D value_c=old value
+-D value-c=new value
+
+--macro define("value_d", "old value")
+--macro define("value-d", "new value")
+
+--run Repeated

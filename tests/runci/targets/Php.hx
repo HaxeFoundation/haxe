@@ -1,17 +1,15 @@
 package runci.targets;
 
-import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 
 class Php {
-	static var miscPhpDir(get,never):String;
-	static inline function get_miscPhpDir() return miscDir + 'php/';
+	static final miscPhpDir = getMiscSubDir('php');
 
 	static public function getPhpDependencies() {
-		var phpCmd = commandResult("php", ["-v"]);
-		var phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
-		var phpVer = if (phpVerReg.match(phpCmd.stdout))
+		final phpCmd = commandResult("php", ["-v"]);
+		final phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
+		final phpVer = if (phpVerReg.match(phpCmd.stdout))
 			Std.parseFloat(phpVerReg.matched(1));
 		else
 			null;
@@ -25,16 +23,17 @@ class Php {
 					}
 				case _:
 			}
-			infoMsg('php ${phpVer} has already been installed.');
+			infoMsg('php $phpVer has already been installed.');
 			return;
 		}
 		switch systemName {
 			case "Linux":
+				// TODO: install php-sqlite3?
 				Linux.requireAptPackages(["php-cli", "php-mbstring"]);
 			case "Mac":
-				runCommand("brew", ["install", "php"], true);
+				runNetworkCommand("brew", ["install", "php"]);
 			case "Windows":
-				runCommand("cinst", ["php", "-version", "7.1.8", "-y"], true);
+				runNetworkCommand("cinst", ["php", "-version", "7.1.8", "-y"]);
 			case _:
 				throw 'unknown system: $systemName';
 		}
@@ -47,9 +46,9 @@ class Php {
 		changeDirectory(miscPhpDir);
 		runCommand("haxe", ["run.hxml"]);
 
-		var binDir = "bin/php";
+		final binDir = "bin/php";
 
-		var prefixes = [[]];
+		final prefixes = [[]];
 		if(isCi()) {
 			prefixes.push(['-D', 'php-prefix=haxe']);
 			prefixes.push(['-D', 'php-prefix=my.pack']);
@@ -57,30 +56,18 @@ class Php {
 
 		for(prefix in prefixes) {
 			changeDirectory(unitDir);
-			if(isCi()) {
+			if(isCi())
 				deleteDirectoryRecursively(binDir);
-			}
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runCommand.bind(_, [binDir + "/index.php"]));
+			runCommand("php", [binDir + "/index.php"]);
 
 			changeDirectory(sysDir);
-			if(isCi()) {
+			if(isCi())
 				deleteDirectoryRecursively(binDir);
-			}
-			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runCommand.bind(_, ["bin/php/Main/index.php"]));
-		}
-	}
 
-	static function runThroughPhpVersions(fn:(phpCmd:String)->Void) {
-		switch [ci, systemName] {
-			case [GithubActions, "Linux"]:
-				for(version in ['7.1', '7.2', '7.3', '7.4']) {
-					fn('php$version');
-				}
-			case _:
-				fn('php');
+			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
+			runSysTest("php", ["bin/php/Main/index.php"]);
 		}
 	}
 }

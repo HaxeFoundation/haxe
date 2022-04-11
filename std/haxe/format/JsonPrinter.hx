@@ -128,8 +128,8 @@ class JsonPrinter {
 				} else
 					classString(v);
 			case TEnum(_):
-				var i:Dynamic = Type.enumIndex(v);
-				add(i);
+				var i = Type.enumIndex(v);
+				add(Std.string(i));
 			case TBool:
 				add(#if (php || jvm || hl) (v ? 'true' : 'false') #else v #end);
 			case TNull:
