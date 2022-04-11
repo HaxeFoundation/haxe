@@ -9,61 +9,6 @@ open Calls
 open Fields
 open FieldAccess
 
-class value_reference (ctx : typer) =
-
-object(self)
-	val vars = DynArray.create ()
-
-	method get_vars = DynArray.to_list vars
-
-	method as_var name e =
-		let v = alloc_var VGenerated name e.etype e.epos in
-		DynArray.add vars (v,e);
-		mk (TLocal v) v.v_type v.v_pos
-
-	method private get_expr_aux depth name e =
-		let rec loop depth name e = match (Texpr.skip e).eexpr with
-			| TLocal _ | TTypeExpr _ | TConst _ ->
-				e
-			| TField(ef,fa) when depth = 0 ->
-				let ef = loop (depth + 1) "fh" ef in
-				{e with eexpr = TField(ef,fa)}
-			| TArray(e1,e2) when depth = 0 ->
-				let e1 = loop (depth + 1) "base" e1 in
-				let e2 = loop (depth + 1) "index" e2 in
-				{e with eexpr = TArray(e1,e2)}
-			| _ ->
-				self#as_var name e
-		in
-		loop depth name e
-
-	method get_expr name e =
-		self#get_expr_aux 0 name e
-
-	method get_expr_part name e =
-		self#get_expr_aux 1 name e
-
-	method to_texpr e =
-		begin match self#get_vars with
-		| [] ->
-			e
-		| vl ->
-			let el = List.map (fun (v,e) ->
-				mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
-			) vl in
-			let e = mk (TBlock (el @ [e])) e.etype e.epos in
-			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-		end
-
-	method to_texpr_el el e =
-		let vl = self#get_vars in
-		let el_vars = List.map (fun (v,e) ->
-			mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
-		) vl in
-		let e = mk (TBlock (el_vars @ el @ [e])) e.etype e.epos in
-		{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-end
-
 module BinopResult = struct
 
 	type normal_binop = {
@@ -134,15 +79,16 @@ module BinopResult = struct
 end
 
 let check_assign ctx e =
-	if ctx.com.display.dms_error_policy <> EPIgnore then match e.eexpr with
-	| TLocal v when has_var_flag v VFinal ->
+	match e.eexpr with
+	| TLocal v when has_var_flag v VFinal && not (Common.ignore_error ctx.com) ->
 		typing_error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
-		invalid_assign e.epos
+		if not (Common.ignore_error ctx.com) then
+			invalid_assign e.epos
 
 type type_class =
 	| KInt
@@ -387,7 +333,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		| TConst TNull , _ | _ , TConst TNull -> ()
 		| _ ->
 			match follow e1.etype, follow e2.etype with
-			| TFun _ , _ | _, TFun _ -> ctx.com.warning "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
+			| TFun _ , _ | _, TFun _ -> warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
 			| _ -> ()
 		end;
 		mk_op e1 e2 ctx.t.tbool
@@ -453,13 +399,13 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive operator method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				(* for non core-types we require that the return type is compatible to the native result type *)
 				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op with_type p in
 				let t_expected = BinopResult.get_type result in
 				begin try
-					unify_raise ctx tret t_expected p
+					unify_raise tret t_expected p
 				with Error (Unify _,_) ->
 					match follow tret with
 						| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->

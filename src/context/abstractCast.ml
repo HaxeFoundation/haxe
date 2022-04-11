@@ -102,7 +102,7 @@ and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 	try
 		do_check_cast ctx uctx tleft eright p
 	with Not_found ->
-		unify_raise_custom uctx ctx eright.etype tleft p;
+		unify_raise_custom uctx eright.etype tleft p;
 		eright
 
 and cast_or_unify ctx tleft eright p =

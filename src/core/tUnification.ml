@@ -1012,7 +1012,7 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			let athis = map ab.a_this in
 			(* we cannot allow implicit casts when the this type is not completely known yet *)
-			if has_mono athis then raise (Unify_error []);
+			if Meta.has Meta.MultiType ab.a_meta && has_mono athis then raise (Unify_error []);
 			with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
 			unify_func (map t) b;
 		| _ -> die "" __LOC__)
@@ -1209,6 +1209,15 @@ class unification_matrix (arity : int) = object(self)
 			Some t
 		| _ ->
 			None
+
+	method dump =
+		let pctx = print_context() in
+		let s_unification_matrix_state = function
+			| STop -> "STop"
+			| SType t -> "SType " ^ (s_type pctx t)
+			| SBottom -> "SBottom"
+		in
+		String.concat " ; " (List.map s_unification_matrix_state (Array.to_list values))
 end
 
 ;;

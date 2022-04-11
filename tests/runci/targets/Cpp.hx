@@ -6,7 +6,7 @@ import runci.Config.*;
 
 class Cpp {
 	static public var gotCppDependencies = false;
-	static final miscCppDir = miscDir + 'cpp/';
+	static final miscCppDir = getMiscSubDir('cpp');
 
 	static public function getCppDependencies() {
 		if (gotCppDependencies) return;
@@ -25,11 +25,11 @@ class Cpp {
 
 		//install and build hxcpp
 		try {
-			var path = getHaxelibPath("hxcpp");
+			final path = getHaxelibPath("hxcpp");
 			infoMsg('hxcpp has already been installed in $path.');
 		} catch(e:Dynamic) {
 			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
-			var oldDir = Sys.getCwd();
+			final oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
 			runCommand("haxe", ["-D", "source-header=''", "compile.hxml"]);
 			changeDirectory(oldDir);
@@ -47,7 +47,9 @@ class Cpp {
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
 		getCppDependencies();
 
-		var archFlag = switch systemName {
+		final isLinuxArm64 = systemName == 'Linux' && Linux.arch == Arm64;
+
+		final archFlag = switch systemName {
 			case 'Windows':
 				'HXCPP_M32';
 			case 'Linux' if(Linux.arch == Arm64):
@@ -55,7 +57,7 @@ class Cpp {
 			case _:
 				'HXCPP_M64';
 		}
-				
+
 		if (testCompiled) {
 			runCommand("rm", ["-rf", "cpp"]);
 			runCommand("haxe", ["compile-cpp.hxml", "-D", archFlag].concat(args));
@@ -66,8 +68,8 @@ class Cpp {
 			runCommand("haxe", ["compile-cppia-host.hxml", "-D", archFlag].concat(args));
 			runCommand("haxe", ["compile-cppia.hxml"].concat(args));
 			runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
-			
-			if(systemName != 'Linux' && Linux.arch != Arm64) // FIXME
+
+			if (!isLinuxArm64) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
@@ -75,7 +77,7 @@ class Cpp {
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
-		if(systemName != 'Linux' && Linux.arch != Arm64) { // FIXME 
+		if (!isLinuxArm64) { // FIXME
 			changeDirectory(threadsDir);
 			runCommand("haxe", ["-D", archFlag, "build.hxml", "-cpp", "export/cpp"]);
 			runCpp("export/cpp/Main");
@@ -83,7 +85,7 @@ class Cpp {
 
 		// if (Sys.systemName() == "Mac")
 		// {
-		// 	changeDirectory(miscDir + "cppObjc");
+		// 	changeDirectory(getMiscSubDir("cppObjc"));
 		// 	runCommand("haxe", ["build.hxml"]);
 		// 	runCpp("bin/TestObjc-debug");
 		// }

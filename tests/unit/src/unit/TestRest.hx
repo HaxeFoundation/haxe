@@ -20,7 +20,7 @@ class TestRest extends Test {
 	function testToArray() {
 		function rest(...r:Int):Array<Int> {
 			var a = r.toArray();
-			a[0] = 999; //make sure array modification doesn't affect rest arguments object
+			a[0] = 999; // make sure array modification doesn't affect rest arguments object
 			return r.toArray();
 		}
 		aeq([1, 2, 3, 4], rest(1, 2, 3, 4));
@@ -36,7 +36,7 @@ class TestRest extends Test {
 
 	function testIterator() {
 		function rest(...r:Int):Array<Int> {
-			return [for(i in r) i];
+			return [for (i in r) i];
 		}
 		aeq([3, 2, 1], rest(3, 2, 1));
 	}
@@ -45,11 +45,11 @@ class TestRest extends Test {
 		function rest(...r:Int):{keys:Array<Int>, values:Array<Int>} {
 			var keys = [];
 			var values = [];
-			for(k => v in r) {
+			for (k => v in r) {
 				keys.push(k);
 				values.push(v);
 			}
-			return {keys:keys, values:values}
+			return {keys: keys, values: values}
 		}
 		var r = rest(3, 2, 1, 0);
 		aeq([0, 1, 2, 3], r.keys);
@@ -57,10 +57,11 @@ class TestRest extends Test {
 	}
 
 	@:depends(testToArray)
+	@:haxe.warning("-WGenerator")
 	function testAppend() {
 		function rest(...r:Int) {
 			var appended = r.append(9);
-			return {initial:r.toArray(), appended:appended.toArray()}
+			return {initial: r.toArray(), appended: appended.toArray()}
 		}
 		var result = rest(1, 2);
 		aeq([1, 2], result.initial);
@@ -71,7 +72,7 @@ class TestRest extends Test {
 	function testPrepend() {
 		function rest(...r:Int) {
 			var prepended = r.prepend(9);
-			return {initial:r.toArray(), prepended:prepended.toArray()}
+			return {initial: r.toArray(), prepended: prepended.toArray()}
 		}
 		var result = rest(1, 2);
 		aeq([1, 2], result.initial);
@@ -112,7 +113,7 @@ class TestRest extends Test {
 
 	@:depends(testToArray)
 	function testClosure() {
-		var fn:(...r:Int)->Array<Int>;
+		var fn:(...r:Int) -> Array<Int>;
 		fn = staticRest;
 		aeq([1, 2, 3], fn(1, 2, 3));
 		aeq([1, 2, 3], fn(...[1, 2, 3]));
@@ -120,9 +121,11 @@ class TestRest extends Test {
 		aeq([3, 2, 1], fn(3, 2, 1));
 		aeq([3, 2, 1], fn(...[3, 2, 1]));
 	}
+
 	function instanceRest(...r:Int):Array<Int> {
 		return r.toArray();
 	}
+
 	static function staticRest(...r:Int):Array<Int> {
 		return r.toArray();
 	}
@@ -140,14 +143,14 @@ class TestRest extends Test {
 		function rest(...r:{f:Int}) {
 			return r.toArray();
 		}
-		aeq([{f:2}, {f:1}], rest({f:2}, {f:1}));
+		aeq([{f: 2}, {f: 1}], rest({f: 2}, {f: 1}));
 	}
 
 	function testInferred() {
 		function rest(...r) {
 			(r[0] : Int);
 		}
-		HelperMacros.typedAs(rest, (null : (r : Rest<Int>)->Void));
+		HelperMacros.typedAs(rest, (null : (r:Rest<Int>) -> Void));
 	}
 
 	function testToString() {

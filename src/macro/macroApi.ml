@@ -5,6 +5,10 @@ open Common
 exception Invalid_expr
 exception Abort
 
+type compiler_options = {
+	opt_inlining : bool option;
+}
+
 (**
 	Our access to the compiler from the macro api
 **)
@@ -19,6 +23,7 @@ type 'value compiler_api = {
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
+	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	store_typed_expr : Type.texpr -> Ast.expr;
@@ -50,11 +55,15 @@ type 'value compiler_api = {
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
 	display_error : (string -> pos -> unit);
+	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
+	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
+	warning : Warning.warning -> string -> pos -> unit;
 }
 
 
 type enum_type =
 	| IExpr
+	| IEFieldKind
 	| IBinop
 	| IUnop
 	| IConst
@@ -150,53 +159,18 @@ module type InterpApi = sig
 	val get_api_call_pos : unit -> pos
 end
 
-let enum_name = function
-	| IExpr -> "ExprDef"
-	| IBinop -> "Binop"
-	| IUnop -> "Unop"
-	| IConst -> "Constant"
-	| ITParam -> "TypeParam"
-	| ICType -> "ComplexType"
-	| IField -> "FieldType"
-	| IType -> "Type"
-	| IFieldKind -> "FieldKind"
-	| IMethodKind -> "MethodKind"
-	| IVarAccess -> "VarAccess"
-	| IAccess -> "Access"
-	| IClassKind -> "ClassKind"
-	| ITypedExpr -> "TypedExprDef"
-	| ITConstant -> "TConstant"
-	| IModuleType -> "ModuleType"
-	| IFieldAccess -> "FieldAccess"
-	| IAnonStatus -> "AnonStatus"
-	| IImportMode -> "ImportMode"
-	| IQuoteStatus -> "QuoteStatus"
-	| IDisplayKind -> "DisplayKind"
-	| IMessage -> "Message"
-	| IFunctionKind -> "FunctionKind"
-	| IStringLiteralKind -> "StringLiteralKind"
-
-let all_enums =
-	let last = IImportMode in
-	let rec loop i =
-		let e : enum_type = Obj.magic i in
-		if e = last then [e] else e :: loop (i + 1)
-	in
-	loop 0
-
-
 let s_type_path = Globals.s_type_path
 
 (* convert float value to haxe expression, handling inf/-inf/nan *)
 let haxe_float f p =
 	let std = (Ast.EConst (Ast.Ident "std"), p) in
-	let math = (Ast.EField (std, "Math"), p) in
+	let math = (efield (std, "Math"), p) in
 	if (f = infinity) then
-		(Ast.EField (math, "POSITIVE_INFINITY"), p)
+		(efield (math, "POSITIVE_INFINITY"), p)
 	else if (f = neg_infinity) then
-		(Ast.EField (math, "NEGATIVE_INFINITY"), p)
+		(efield (math, "NEGATIVE_INFINITY"), p)
 	else if (f <> f) then
-		(Ast.EField (math, "NaN"), p)
+		(efield (math, "NaN"), p)
 	else
 		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
@@ -406,13 +380,20 @@ and encode_display_kind dk =
 	in
 	encode_enum ~pos:None IDisplayKind tag pl
 
-and encode_message msg =
-	let tag, pl = match msg with
-		| CMInfo(msg,p) -> 0, [(encode_string msg); (encode_pos p)]
-		| CMWarning(msg,p) -> 1, [(encode_string msg); (encode_pos p)]
-		| CMError(_,_) -> Globals.die "" __LOC__
+and encode_message (msg,p,_,sev) =
+	let tag, pl = match sev with
+		| Globals.MessageSeverity.Information -> 0, [(encode_string msg); (encode_pos p)]
+		| Warning | Hint -> 1, [(encode_string msg); (encode_pos p)]
+		| Error -> Globals.die "" __LOC__
 	in
 	encode_enum ~pos:None IMessage tag pl
+
+and encode_efield_kind efk =
+	let i = match efk with
+		| EFNormal -> 0
+		| EFSafe -> 1
+	in
+	encode_enum IEFieldKind i []
 
 and encode_expr e =
 	let rec loop (e,p) =
@@ -423,8 +404,8 @@ and encode_expr e =
 				1, [loop e1;loop e2]
 			| EBinop (op,e1,e2) ->
 				2, [encode_binop op;loop e1;loop e2]
-			| EField (e,f) ->
-				3, [loop e;encode_string f]
+			| EField (e,f,efk) ->
+				3, [loop e;encode_string f;encode_efield_kind efk]
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
@@ -769,8 +750,15 @@ and decode_expr v =
 			EArray (loop e1, loop e2)
 		| 2, [op;e1;e2] ->
 			EBinop (decode_op op, loop e1, loop e2)
-		| 3, [e;f] ->
-			EField (loop e, decode_string f)
+		| 3, [e;f;efk] ->
+			let efk = if efk == vnull then
+				EFNormal
+			else match decode_enum efk with
+				| 0,[] -> EFNormal
+				| 1,[] -> EFSafe
+				| _ -> raise Invalid_expr
+			in
+			EField (loop e, decode_string f, efk)
 		| 4, [e] ->
 			EParenthesis (loop e)
 		| 5, [a] ->
@@ -938,7 +926,7 @@ and encode_tabstract a =
 		"type", encode_type a.a_this;
 		"impl", (match a.a_impl with None -> vnull | Some c -> encode_clref c);
 		"binops", encode_array (List.map (fun (op,cf) -> encode_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops);
-		"unops", encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "isPostfix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
+		"unops", encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "postFix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
 		"from", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field));
 		"to", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
 		"array", encode_array (List.map encode_cfield a.a_array);
@@ -1607,7 +1595,7 @@ let macro_api ccom get_api =
 		"warning", vfun2 (fun msg p ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).warning msg p;
+			(get_api()).warning WUser msg p;
 			vnull
 		);
 		"info", vfun2 (fun msg p ->
@@ -1638,7 +1626,7 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			if com.stage <> CInitMacrosStart then begin
 				let v = if v = vnull then "" else ", " ^ (decode_string v) in
-				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
+				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
 			end;
 			(* TODO: use external_define and external_define_value for #8690 *)
 			if v = vnull then
@@ -1794,8 +1782,8 @@ let macro_api ccom get_api =
 		);
 		"flush_disk_cache", vfun0 (fun () ->
 			let com = (get_api()).get_com() in
-			Hashtbl.clear com.file_lookup_cache;
-			Hashtbl.clear com.readdir_cache;
+			com.file_lookup_cache#clear;
+			com.readdir_cache#clear;
 			vnull
 		);
 		"get_pos_infos", vfun1 (fun p ->
@@ -1891,7 +1879,7 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			let cp = decode_string cp in
 			if com.stage <> CInitMacrosStart then
-				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addClassPath(" ^ cp ^ ")") Globals.null_pos;
+				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.addClassPath(" ^ cp ^ ")") Globals.null_pos;
 			let cp = Path.add_trailing_slash cp in
 			com.class_path <- cp :: com.class_path;
 			(match com.get_macros() with
@@ -1899,15 +1887,15 @@ let macro_api ccom get_api =
 				mcom.class_path <- cp :: mcom.class_path;
 			| None ->
 				());
-			Hashtbl.clear com.file_lookup_cache;
-			Hashtbl.clear com.readdir_cache;
+			com.file_lookup_cache#clear;
+			com.readdir_cache#clear;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
 			if com.stage <> CInitMacrosStart then
-				com.warning ("Should be used in initialization macros only: haxe.macro.Compiler.addNativeLib(" ^ file ^ ")") Globals.null_pos;
+				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.addNativeLib(" ^ file ^ ")") Globals.null_pos;
 			NativeLibraryHandler.add_native_lib com file false ();
 			vnull
 		);
@@ -1998,12 +1986,12 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"server_invalidate_files", vfun1 (fun a ->
-			let cs = match CompilationServer.get() with Some cs -> cs | None -> failwith "compilation server not running" in
 			let com = ccom() in
+			let cs = com.cs in
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s;
+				cs#taint_modules s "server_invalidate_files";
 				cs#remove_files s;
 			) (decode_array a);
 			vnull
@@ -2050,8 +2038,27 @@ let macro_api ccom get_api =
 			match map (fun t -> decode_type (fn [encode_type t])) (TAnon a) with
 			| TAnon a -> encode_ref a encode_tanon (fun() -> "<anonymous>")
 			| _ -> Globals.die "" __LOC__
+		);
+		"with_imports", vfun3(fun imports usings f ->
+			let imports = List.map decode_string (decode_array imports) in
+			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let usings = List.map decode_string (decode_array usings) in
+			let usings = List.map ((get_api()).parse (fun s -> Grammar.parse_using' s Globals.null_pos)) usings in
+			let f = prepare_callback f 0 in
+			(get_api()).with_imports imports usings (fun () -> f [])
+		);
+		"with_options", vfun2(fun opts f ->
+			let o = {
+				opt_inlining = opt decode_bool (field opts "inlining");
+			} in
+			let f = prepare_callback f 0 in
+			(get_api()).with_options o (fun() -> f []);
+		);
+		"set_var_name", vfun2(fun v name ->
+			let v = decode_tvar v in
+			let name = decode_string name in
+			v.v_name <- name;
+			vnull;
 		)
 	]
-
-
 end

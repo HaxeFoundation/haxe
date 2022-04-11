@@ -9,3 +9,4 @@
 --next compile-php.hxml
 --next compile-hl.hxml
 --next compile-js.hxml
+--next compile-lua.hxml

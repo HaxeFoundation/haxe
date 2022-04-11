@@ -6,7 +6,6 @@ enum E<T> {
 }
 
 class Issue2778 extends Test {
-
 	function test() {
 		eq(true, sameType(BoolLit(true), BoolLit(true)));
 		eq(false, sameType(BoolLit(false), BoolLit(true)));
@@ -17,6 +16,7 @@ class Issue2778 extends Test {
 		t(unit.HelperMacros.typeError(sameType(BoolLit(true), IntLit(1))));
 	}
 
+	@:haxe.warning("-WGenerator")
 	static function sameType<S>(o1:E<S>, o2:E<S>):S {
 		return switch [o1, o2] {
 			case [BoolLit(b1), BoolLit(b2)]: b1 && b2;

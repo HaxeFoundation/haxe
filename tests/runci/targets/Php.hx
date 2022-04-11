@@ -1,14 +1,12 @@
 package runci.targets;
 
-import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 
 using haxe.io.Path;
 
 class Php {
-	static var miscPhpDir(get,never):String;
-	static inline function get_miscPhpDir() return miscDir + 'php/';
+	static final miscPhpDir = getMiscSubDir('php');
 
 	static final windowsPhpIni = cwd + 'PHP.ini';
 
@@ -35,9 +33,9 @@ class Php {
 	}
 
 	static public function getPhpDependencies() {
-		var phpCmd = commandResult("php", ["-v"]);
-		var phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
-		var phpVer = if (phpVerReg.match(phpCmd.stdout))
+		final phpCmd = commandResult("php", ["-v"]);
+		final phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
+		final phpVer = if (phpVerReg.match(phpCmd.stdout))
 			Std.parseFloat(phpVerReg.matched(1));
 		else
 			null;
@@ -58,9 +56,9 @@ class Php {
 			case "Linux":
 				Linux.requireAptPackages(["php-cli", "php-mbstring", "php-sqlite3"]);
 			case "Mac":
-				runCommand("brew", ["install", "php"], true);
+				runNetworkCommand("brew", ["install", "php"]);
 			case "Windows":
-				runCommand("cinst", ["php", "-version", "7.1.8", "-y"], true);
+				runNetworkCommand("cinst", ["php", "-version", "7.1.8", "-y"]);
 			case _:
 				throw 'unknown system: $systemName';
 		}
@@ -73,9 +71,9 @@ class Php {
 		changeDirectory(miscPhpDir);
 		runCommand("haxe", ["run.hxml"]);
 
-		var binDir = "bin/php";
+		final binDir = "bin/php";
 
-		var prefixes = [[]];
+		final prefixes = [[]];
 		if(isCi()) {
 			prefixes.push(['-D', 'php-prefix=haxe']);
 			prefixes.push(['-D', 'php-prefix=my.pack']);

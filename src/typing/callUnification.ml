@@ -1,6 +1,7 @@
 open Globals
 open Ast
 open Type
+open Common
 open Typecore
 open Error
 open FieldAccess
@@ -141,7 +142,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.is_display_file && not (Diagnostics.is_diagnostics_run ctx.com p) then begin
+					if ctx.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
 						ignore(type_expr ctx (e,p) WithType.value);
 						ignore(loop el [])
 					end;
@@ -149,12 +150,14 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
+			let might_skip = List.length el < List.length args in
 			begin try
-				let e = type_against name t e in
+				let restore_report_mode = if might_skip then Common.disable_report_mode ctx.com else (fun () -> ()) in
+				let e = Std.finally restore_report_mode (type_against name t) e in
 				e :: loop el args
 			with
 				WithTypeError (ul,p)->
-					if opt && List.length el < List.length args then
+					if opt && might_skip then
 						let e_def = skip name ul t p in
 						e_def :: loop (e :: el) args
 					else
@@ -199,7 +202,7 @@ let unify_typed_args ctx tmap args el_typed call_pos =
 			List.rev acc_args,args
 		| ((_,opt,t0) as arg) :: args,e :: el ->
 			begin try
-				unify_raise ctx (tmap e.etype) t0 e.epos;
+				unify_raise (tmap e.etype) t0 e.epos;
 			with Error(Unify _ as msg,p) ->
 				let call_error = Call_error(Could_not_unify msg) in
 				raise(Error(call_error,p))
@@ -256,7 +259,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			| Some s -> new Javadoc.javadoc s
 		in
 		match de with
-		| DisplayHover (Some hover) ->
+		| DisplayHover hover ->
 			begin match hover.hexpected with
 			| Some (WithType(t,Some si)) ->
 				let si = match si with
@@ -364,7 +367,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
 			commit_delayed_display (attempt_call cf false)
-		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
+		with Error _ when Common.ignore_error ctx.com ->
 			fail_fun();
 		end
 	| _ ->
@@ -382,10 +385,10 @@ let unify_field_call ctx fa el_typed el p inline =
 			| [_,msg,p] ->
 				typing_error msg p
 			| _ ->
-				display_error ctx "Could not find a suitable overload, reasons follow" p;
+				display_error ctx.com "Could not find a suitable overload, reasons follow" p;
 				List.iter (fun (cf,msg,p2) ->
-					display_error ctx ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
-					display_error ctx msg p2;
+					display_error ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
+					display_error ctx.com msg p2;
 				) failures;
 				typing_error "End of overload failure reasons" p
 			end
@@ -396,10 +399,10 @@ let unify_field_call ctx fa el_typed el p inline =
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
 			| fcc :: l ->
-				display_error ctx "Ambiguous overload, candidates follow" p;
+				display_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
 				List.iter (fun fcc ->
-					display_error ctx (Printf.sprintf "... %s" (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
+					display_error ctx.com (Printf.sprintf "... %s" (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
 				) (fcc :: l);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
@@ -414,7 +417,7 @@ class call_dispatcher
 	(p : pos)
 =
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	let check_assign () = if is_set && ctx.com.display.dms_error_policy <> EPIgnore then invalid_assign p in
+	let check_assign () = if is_set && not (Common.ignore_error ctx.com) then invalid_assign p in
 
 object(self)
 
@@ -424,7 +427,7 @@ object(self)
 			!type_generic_function_ref ctx fa fcc with_type p
 		end else begin
 			if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
-				| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+				| TConst TSuper -> display_error ctx.com (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 				| _ -> ()
 			end;
 			fcc.fc_data()
@@ -465,26 +468,26 @@ object(self)
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
-		let old = ctx.on_error in
-		ctx.on_error <- (fun ctx msg ep ->
+		let old = ctx.com.error in
+		ctx.com.error <- (fun msg ep ->
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				locate_macro_error := false;
-				old ctx msg ep;
+				old msg ep;
 				locate_macro_error := true;
 				ctx.com.error (compl_msg "Called from macro here") p;
 			end else
-				old ctx msg ep;
+				old msg ep;
 		);
 		let e = try
 			f()
 		with exc ->
-			ctx.on_error <- old;
+			ctx.com.error <- old;
 			!ethis_f();
 			raise exc
 		in
 		let e = Diagnostics.secure_generated_code ctx e in
-		ctx.on_error <- old;
+		ctx.com.error <- old;
 		!ethis_f();
 		e
 

@@ -91,6 +91,13 @@ class virtual server_task (id : string list) (priority : int) = object(self)
 	method get_id = id
 end
 
+class arbitrary_task (id : string list) (priority : int) (f : unit -> unit) = object(self)
+	inherit server_task id priority
+
+	method private execute =
+		f ()
+end
+
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []
@@ -160,10 +167,10 @@ class cache = object(self)
 			) cc#get_modules acc
 		) contexts []
 
-	method taint_modules file_key =
+	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_dirty <- Some m.m_path
+				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_dirty <- Some (Tainted reason)
 			) cc#get_modules
 		) contexts
 
@@ -257,21 +264,6 @@ type context_options =
 	| NormalContext
 	| MacroContext
 	| NormalAndMacroContext
-
-let instance : t option ref = ref None
-
-let create () =
-	let cs = new cache in
-	instance := Some cs;
-	cs
-
-let get () =
-	!instance
-
-let runs () =
-	!instance <> None
-
-let force () = match !instance with None -> die "" __LOC__ | Some i -> i
 
 let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| None ->

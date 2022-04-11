@@ -99,19 +99,33 @@ devcontainer:
 
     USER root
 
-    ARG GIT_SHA
-    ENV GIT_SHA="$GIT_SHA"
     ARG IMAGE_NAME="$DEVCONTAINER_IMAGE_NAME_DEFAULT"
     ARG IMAGE_TAG="development"
     ARG IMAGE_CACHE="$IMAGE_NAME:$IMAGE_TAG"
     SAVE IMAGE --cache-from="$IMAGE_CACHE" --push "$IMAGE_NAME:$IMAGE_TAG"
+
+devcontainer-multiarch-amd64:
+    ARG IMAGE_NAME="$DEVCONTAINER_IMAGE_NAME_DEFAULT"
+    ARG IMAGE_TAG="development"
+    FROM --platform=linux/amd64 +devcontainer --IMAGE_NAME="$IMAGE_NAME" --IMAGE_TAG="$IMAGE_TAG-amd64"
+    SAVE IMAGE --push "$IMAGE_NAME:$IMAGE_TAG"
+
+devcontainer-multiarch-arm64:
+    ARG IMAGE_NAME="$DEVCONTAINER_IMAGE_NAME_DEFAULT"
+    ARG IMAGE_TAG="development"
+    FROM --platform=linux/arm64 +devcontainer --IMAGE_NAME="$IMAGE_NAME" --IMAGE_TAG="$IMAGE_TAG-arm64"
+    SAVE IMAGE --push "$IMAGE_NAME:$IMAGE_TAG"
+
+devcontainer-multiarch:
+    BUILD +devcontainer-multiarch-amd64
+    BUILD +devcontainer-multiarch-arm64
 
 # Usage:
 # COPY +earthly/earthly /usr/local/bin/
 # RUN earthly bootstrap --no-buildkit --with-autocomplete
 earthly:
     ARG --required TARGETARCH
-    RUN curl -fsSL https://github.com/earthly/earthly/releases/download/v0.6.5/earthly-linux-${TARGETARCH} -o /usr/local/bin/earthly \
+    RUN curl -fsSL https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-${TARGETARCH} -o /usr/local/bin/earthly \
         && chmod +x /usr/local/bin/earthly
     SAVE ARTIFACT /usr/local/bin/earthly
 
@@ -279,6 +293,13 @@ test-environment-cpp:
 
     SAVE IMAGE --cache-hint
 
+test-environment-flash:
+    # apache flex requires java
+    FROM +test-environment-java
+    # requirements for running flash player
+    DO +INSTALL_PACKAGES --PACKAGES="libglib2.0-0 libfreetype6 xvfb libxcursor1 libnss3 libgtk2.0-0"
+    SAVE IMAGE --cache-hint
+
 RUN_CI:
     COMMAND
     COPY tests tests
@@ -354,6 +375,12 @@ test-lua:
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
     DO +RUN_CI --TEST=lua
 
+test-flash:
+    FROM +test-environment-flash
+    ARG GITHUB_ACTIONS
+    ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
+    DO +RUN_CI --TEST=flash9
+
 test-all:
     ARG TARGETPLATFORM
 
@@ -365,8 +392,9 @@ test-all:
     BUILD +test-jvm
     BUILD +test-cs
     BUILD +test-cpp
-    BUILD +test-lua
+    # BUILD +test-lua
     BUILD +test-js
+    BUILD +test-flash
 
     IF [ "$TARGETPLATFORM" = "linux/amd64" ]
         BUILD +test-hl # FIXME: hl can't compile on arm64 (JIT issue?)
@@ -380,3 +408,7 @@ github-actions:
     WORKDIR extra/github-actions
     RUN haxe build.hxml
     SAVE ARTIFACT --keep-ts "$WORKDIR"/.github/workflows AS LOCAL .github/workflows
+
+ghcr-login:
+    LOCALLY
+    RUN echo "$GITHUB_CR_PAT" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin

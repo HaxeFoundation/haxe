@@ -7,7 +7,7 @@ let expr_to_target e =
 	let rec loop (e,p) =
 		match e with
 		| EConst (Ident s) when s <> "" -> [s]
-		| EField (e,s) -> s :: loop e
+		| EField (e,s,_) -> s :: loop e
 		| _ -> Error.typing_error "Invalid target expression for @:inheritDoc" p
 	in
 	match loop e with
