@@ -27,6 +27,7 @@ package neko;
 	for the Neko target, such as conversion from Haxe types to native types
 	and vice-versa.
 **/
+@:haxe.warning("-WUnboundMonomorph")
 class Lib {
 	/**
 		Load and return a Neko primitive from a NDLL library.

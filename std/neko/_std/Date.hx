@@ -22,6 +22,7 @@
 
 import neko.Lib;
 
+@:haxe.warning("-WUnboundMonomorph")
 @:coreApi final class Date {
 	private var __t:Dynamic;
 

@@ -322,6 +322,26 @@ let iter loop t =
 	| TDynamic t2 ->
 		if t != t2 then	loop t2
 
+let check_type predicate t =
+	match t with
+	| TMono r ->
+		begin match r.tm_type with
+		| Some t ->
+			predicate t
+		| None ->
+			false
+		end
+	| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+		List.exists predicate tl
+	| TFun(args,ret) ->
+		List.exists (fun (_,_,t) -> predicate t) args || predicate ret
+	| TAnon an ->
+		PMap.fold (fun  cf b -> b || predicate cf.cf_type) an.a_fields false
+	| TLazy f ->
+		predicate (lazy_type f)
+	| TDynamic t2 ->
+		if t2 != t then predicate t2 else false
+
 let duplicate t =
 	let monos = ref [] in
 	let rec loop t =

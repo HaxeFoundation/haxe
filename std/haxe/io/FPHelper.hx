@@ -26,6 +26,7 @@ package haxe.io;
 	Helper that converts between floating point and binary representation.
 	Always works in low-endian encoding.
 **/
+@:haxe.warning("-WUnboundMonomorph")
 class FPHelper {
 	#if neko_v21
 	// stored in helper

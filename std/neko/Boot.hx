@@ -24,6 +24,7 @@ package neko;
 
 @:dox(hide)
 @:keep
+@:haxe.warning("-WUnboundMonomorph")
 class Boot {
 	private static function __tmp_str() {
 		return untyped "<...>".__s;

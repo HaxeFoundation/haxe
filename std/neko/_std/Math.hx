@@ -24,6 +24,7 @@ import neko.Lib;
 
 @:native("Math")
 @:keep
+@:haxe.warning("-WUnboundMonomorph")
 private class MathImpl {
 	static var __rnd:Dynamic;
 	static var _rand_float = Lib.load("std", "random_float", 1);

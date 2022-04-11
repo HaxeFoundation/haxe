@@ -23,6 +23,7 @@
 package sys.thread;
 
 @:coreApi
+@:haxe.warning("-WUnboundMonomorph")
 class Tls<T> {
 	var t:Dynamic;
 

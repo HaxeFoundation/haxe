@@ -22,6 +22,7 @@
 
 package sys.io;
 
+@:haxe.warning("-WUnboundMonomorph")
 @:coreApi class FileInput extends haxe.io.Input {
 	private var __f:File.FileHandle;
 

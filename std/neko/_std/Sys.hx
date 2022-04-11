@@ -21,6 +21,7 @@
  */
 import haxe.SysTools;
 
+@:haxe.warning("-WUnboundMonomorph")
 @:coreApi class Sys {
 
 	public static function print( v : Dynamic ) : Void {

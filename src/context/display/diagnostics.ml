@@ -93,20 +93,34 @@ let check_other_things com e =
 	in
 	loop true e
 
-let prepare_field dctx com cf = match cf.cf_expr with
+let check_unbound_monos com options t p =
+	let rec has_unbound_mono t = match t with
+		| TMono m when m.tm_type = None -> true
+		| _ -> check_type has_unbound_mono t
+	in
+	if has_unbound_mono t then begin
+		com.warning WUnboundMonomorph [] ("Unbound monomorph in " ^ (s_type (print_context()) t)) p
+	end
+
+let prepare_field dctx com options cf =
+	let options = options @ Warning.from_meta cf.cf_meta in
+	check_unbound_monos com options cf.cf_type cf.cf_name_pos;
+	begin match cf.cf_expr with
 	| None -> ()
 	| Some e ->
 		find_unused_variables dctx e;
 		check_other_things com e;
 		DeprecationCheck.run_on_expr ~force:true com e
+	end
 
 let collect_diagnostics dctx com =
 	let open CompilationCache in
 	List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
-			List.iter (prepare_field dctx com) c.cl_ordered_fields;
-			List.iter (prepare_field dctx com) c.cl_ordered_statics;
-			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
+			let options = Warning.from_meta c.cl_meta in
+			List.iter (prepare_field dctx com options) c.cl_ordered_fields;
+			List.iter (prepare_field dctx com options) c.cl_ordered_statics;
+			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com options cf);
 		| _ ->
 			()
 	) com.types;
@@ -187,5 +201,4 @@ let print com =
 	Json.string_of_json (DiagnosticsPrinter.json_of_diagnostics com dctx)
 
 let run com =
-	let dctx = prepare com in
-	dctx
+	prepare com

@@ -44,6 +44,7 @@ abstract LoaderHandle {}
 	primitives can be loaded by this module or by rewrapping them at loading-time
 	with custom secured versions. Loaders are inherited in loaded submodules.
 **/
+@:haxe.warning("-WUnboundMonomorph")
 class Loader {
 	/**
 		The abstract handle.

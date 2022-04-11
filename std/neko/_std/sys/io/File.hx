@@ -24,6 +24,7 @@ package sys.io;
 
 enum FileHandle {}
 
+@:haxe.warning("-WUnboundMonomorph")
 @:coreApi class File {
 	public static function getContent(path:String):String {
 		return new String(file_contents(untyped path.__s));

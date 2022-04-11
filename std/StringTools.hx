@@ -211,7 +211,7 @@ class StringTools {
 	public static inline function contains(s:String, value:String):Bool {
 		#if (js && js_es >= 6)
 		return (cast s).includes(value);
-		#else 
+		#else
 		return s.indexOf(value) != -1;
 		#end
 	}
@@ -622,7 +622,9 @@ class StringTools {
 	#end
 
 	#if neko
+	@:haxe.warning("-WUnboundMonomorph")
 	private static var _urlEncode = neko.Lib.load("std", "url_encode", 1);
+	@:haxe.warning("-WUnboundMonomorph")
 	private static var _urlDecode = neko.Lib.load("std", "url_decode", 1);
 	#end
 

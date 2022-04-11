@@ -29,6 +29,7 @@ private enum FileKind {
 }
 
 @:coreApi
+@:haxe.warning("-WUnboundMonomorph")
 class FileSystem {
 	public static function exists(path:String):Bool {
 		return sys_exists(untyped (makeCompatiblePath(path)).__s);

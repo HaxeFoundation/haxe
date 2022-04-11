@@ -102,6 +102,11 @@
 		"name": "WConstructorInliningCancelled",
 		"doc": "Constructor call could not be inlined because a field is uninitialized",
 		"parent": "WTyper"
+	},
+	{
+		"name": "WUnboundMonomorph",
+		"doc": "At least a part of a publicly visible type is incomplete after typing",
+		"parent": "WTyper"
 	}
 
 ]
