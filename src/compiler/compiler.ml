@@ -215,6 +215,12 @@ module Setup = struct
 		com.warning <- (fun w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
+				let wobj = Warning.warning_obj w in
+				let msg = if wobj.w_generic then
+					msg
+				else
+					Printf.sprintf "(%s) %s" wobj.w_name msg
+				in
 				message ctx (msg,p,DKCompilerMessage,Warning)
 			| WMDisable ->
 				()

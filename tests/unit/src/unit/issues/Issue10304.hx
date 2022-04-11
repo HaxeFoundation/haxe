@@ -24,6 +24,7 @@ private class PairIter<T> {
 }
 
 class Issue10304 extends Test {
+	@:haxe.warning("-WConstructorInliningCancelled")
 	function test() {
 		var buf = new StringBuf();
 		for (p in new PairIter(["1", "2", "3"])) {

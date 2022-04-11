@@ -1400,7 +1400,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			delay ctx PTypeField (fun () -> args#verify_extern);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then display_error ctx.com "Abstract methods may not have an expression" p
-			else if not (fctx.is_inline || fctx.is_macro) then warning ctx WExternInit "Extern non-inline function may not have an expression" p;
+			else if not (fctx.is_inline || fctx.is_macro) then warning ctx WExternWithExpr "Extern non-inline function may not have an expression" p;
 		end;
 	end;
 	cf
