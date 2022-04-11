@@ -721,6 +721,7 @@ let create_typer_context_for_module ctx m = {
 		macro_depth = 0;
 		curclass = null_class;
 		allow_inline = true;
+		allow_transform = true;
 		curfield = null_field;
 		tthis = mk_mono();
 		ret = mk_mono();

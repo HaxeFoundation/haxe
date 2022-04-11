@@ -215,7 +215,7 @@ let rec acc_get ctx g p =
 			else
 				typing_error "Invalid macro access" p
 		| _ ->
-			if fa.fa_inline && ctx.allow_inline then
+			if fa.fa_inline then
 				inline_read fa
 			else
 				FieldAccess.get_field_expr fa FRead
@@ -329,7 +329,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
 					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls then
+				else if ctx.com.config.pf_pad_nulls && ctx.allow_transform then
 					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
 				else
 					ordered_args
@@ -395,7 +395,7 @@ let array_access ctx e1 e2 mode p =
 			| _ ->
 				has_abstract_array_access := true;
 				let f = AbstractCast.find_array_access ctx a pl e2 None p in
-				if not ctx.allow_inline then
+				if not ctx.allow_transform then
 					let _,_,r,_,_ = f in
 					AKExpr { eexpr = TArray(e1,e2); epos = p; etype = r }
 				else begin

@@ -405,16 +405,18 @@ let make_macro_api ctx p =
 		);
 		MacroApi.with_options = (fun opts f ->
 			let old_inline = ctx.allow_inline in
+			let old_transform = ctx.allow_transform in
 			(match opts.opt_inlining with
 			| None -> ()
 			| Some v -> ctx.allow_inline <- v);
-			let run() =
-				f();
-			in
+			(match opts.opt_transform with
+			| None -> ()
+			| Some v -> ctx.allow_transform <- v);
 			let restore() =
 				ctx.allow_inline <- old_inline;
+				ctx.allow_transform <- old_transform;
 			in
-			Std.finally restore run ()
+			Std.finally restore f ()
 		);
 		MacroApi.warning = (fun w msg p ->
 			warning ctx w msg p
