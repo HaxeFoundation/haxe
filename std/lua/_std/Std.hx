@@ -79,7 +79,7 @@ import lua.NativeStringTools;
 	public static function parseFloat(x:String):Float {
 		if (x == null || x == "")
 			return Math.NaN;
-		var digitMatch = NativeStringTools.match(x, "^ *[%.%-+]?[0-9]%d*");
+		var digitMatch = NativeStringTools.match(x, "^%s*[%.%-+]?[0-9]%d*");
 		if (digitMatch == null) {
 			return Math.NaN;
 		}

@@ -28,6 +28,8 @@ open Globals
 *)
 let follow = Abstract.follow_with_abstracts
 
+let replace_float_separators s = Texpr.replace_separators s ""
+
 (*
    Code for generating source files.
    It manages creating diretories, indents, blocks and only modifying files
@@ -416,6 +418,20 @@ let join_class_path_remap path separator =
    | x -> x
 ;;
 
+let make_path_absolute path pos =
+   try
+      if (String.sub path 0 2) = "./" then begin
+         let base = if (Filename.is_relative pos.pfile) then
+            Filename.concat (Sys.getcwd()) pos.pfile
+         else
+            pos.pfile
+         in
+         Path.normalize_path (Filename.concat (Filename.dirname base) (String.sub path 2 ((String.length path) -2)))
+      end else
+         path
+   with Invalid_argument _ -> path
+;;
+
 let get_meta_string meta key =
    let rec loop = function
       | [] -> ""
@@ -425,28 +441,27 @@ let get_meta_string meta key =
    loop meta
 ;;
 
-
-
 let get_meta_string_path meta key =
    let rec loop = function
       | [] -> ""
       | (k,[Ast.EConst (Ast.String(name,_)),_], pos) :: _  when k=key->
-           (try
-           if (String.sub name 0 2) = "./" then begin
-              let base = if (Filename.is_relative pos.pfile) then
-                 Filename.concat (Sys.getcwd()) pos.pfile
-              else
-                 pos.pfile
-              in
-              Path.normalize_path (Filename.concat (Filename.dirname base) (String.sub name 2 ((String.length name) -2)  ))
-           end else
-              name
-           with Invalid_argument _ -> name)
+           make_path_absolute name pos
       | _ :: l -> loop l
       in
    loop meta
 ;;
 
+let get_all_meta_string_path meta_list key =
+   let extract_path pos expr =
+      match expr with
+      | (Ast.EConst (Ast.String(name, _)), _) -> make_path_absolute name pos
+      | _ -> "" in
+   let extract_meta meta =
+      match meta with
+      | (k, exprs, pos) when k = key -> Some (extract_path pos (List.hd exprs))
+      | _ -> None in
+   ExtList.List.filter_map extract_meta meta_list
+;;
 
 let get_meta_string_full_filename meta key =
    let rec loop = function
@@ -1672,7 +1687,7 @@ and cpp_class_path_of klass =
 let cpp_const_type cval = match cval with
    | TInt i -> CppInt(i) , TCppScalar("int")
    | TBool b -> CppBool(b) , TCppScalar("bool")
-   | TFloat f -> CppFloat(f) , TCppScalar("Float")
+   | TFloat f -> CppFloat(replace_float_separators f) , TCppScalar("Float")
    | TString s -> CppString(s) , TCppString
    | _ -> (* TNull, TThis & TSuper should already be handled *)
       CppNull, TCppNull
@@ -1707,7 +1722,7 @@ let rec const_int_of expr =
 let rec const_float_of expr =
    match expr.eexpr with
    | TConst TInt x -> Printf.sprintf "%ld" x
-   | TConst TFloat x -> x
+   | TConst TFloat x -> (replace_float_separators x)
    | TConst TBool x -> if x then "1" else "0"
    | TParenthesis e -> const_float_of e
    | _ -> raise Not_found
@@ -3333,7 +3348,7 @@ let string_of_path path =
 let default_value_string ctx value =
 match value.eexpr with
    | TConst (TInt i) -> Printf.sprintf "%ld" i
-   | TConst (TFloat float_as_string) -> "((Float)" ^ float_as_string ^ ")"
+   | TConst (TFloat float_as_string) -> "((Float)" ^ (replace_float_separators float_as_string) ^ ")"
    | TConst (TString s) -> strq ctx s
    | TConst (TBool b) -> (if b then "true" else "false")
    | TConst TNull -> "null()"
@@ -4218,6 +4233,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | OpInterval -> "..."
       | OpArrow -> "->"
       | OpIn -> " in "
+      | OpNullCoal -> "??"
       | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
 
    and gen_closure closure =
@@ -4713,7 +4729,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (if return_type="Void" then "void" else return_type );
          output (" " ^ remap_name ^ "(" );
          output (ctx_arg_list ctx tl "" );
-         output ") = 0;\n";
+         output (") " ^ (if return_type="void" then "{}" else "{ return 0; }" ) ^ "\n");
          if doDynamic then
             output ("		::Dynamic " ^ remap_name ^ "_dyn();\n" );
       | _ when has_decl ->
@@ -4766,9 +4782,9 @@ let path_of_string path =
 let find_referenced_types_flags ctx obj field_name super_deps constructor_deps header_only for_depends include_super_args =
    let types = ref PMap.empty in
    if for_depends then begin
-      let include_file = get_meta_string_path (t_infos obj).mt_meta Meta.Depend in
-      if (include_file<>"") then
-         types := (PMap.add ( path_of_string include_file ) true !types);
+      let include_files = get_all_meta_string_path (t_infos obj).mt_meta Meta.Depend in
+      let include_adder = fun inc -> types := (PMap.add ( path_of_string inc ) true !types) in
+      List.iter include_adder include_files;
    end;
    let rec add_type_flag isNative in_path =
       if ( not (PMap.mem in_path !types)) then begin
@@ -4782,9 +4798,9 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
    in
    let add_extern_type decl =
       let tinfo = t_infos decl in
-      let include_file = get_meta_string_path tinfo.mt_meta (if for_depends then Meta.Depend else Meta.Include) in
-      if (include_file<>"") then
-         add_type ( path_of_string include_file )
+      let include_files = get_all_meta_string_path tinfo.mt_meta (if for_depends then Meta.Depend else Meta.Include) in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> add_type(path_of_string inc)) include_files
       else if (not for_depends) && (has_meta_key tinfo.mt_meta Meta.Include) then
          add_type tinfo.mt_path
    in
@@ -4793,9 +4809,9 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
       add_extern_type (TClassDecl klass)
    in
    let add_native_gen_class klass =
-      let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
-      if (include_file<>"") then
-         add_type ( path_of_string include_file )
+      let include_files = get_all_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> add_type ( path_of_string inc )) include_files
       else if for_depends then
          add_type klass.cl_path
       else begin
@@ -5884,9 +5900,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    cpp_file#write_h "\n";
 
    output_cpp ( get_class_code class_def Meta.CppFileCode );
-   let inc = get_meta_string_path class_def.cl_meta Meta.CppInclude in
-   if (inc<>"") then
-      output_cpp ("#include \"" ^ inc ^ "\"\n");
+   let includes = get_all_meta_string_path class_def.cl_meta Meta.CppInclude in
+   let printer  = fun inc -> output_cpp ("#include \"" ^ inc ^ "\"\n") in
+   List.iter printer includes;
 
    gen_open_namespace output_cpp class_path;
    output_cpp "\n";
@@ -6503,7 +6519,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let class_name_text = join_class_path class_path "." in
 
    (* Initialise static in boot function ... *)
-   if (not (has_class_flag class_def CInterface) && not nativeGen) && not (has_class_flag class_def CAbstract) then begin
+   if (not (has_class_flag class_def CInterface) && not nativeGen) then begin
       (* Remap the specialised "extern" classes back to the generic names *)
       output_cpp ("::hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
@@ -6527,13 +6543,17 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       in
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-      output_cpp ("\t" ^ class_name ^ " _hx_dummy;\n");
-      output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)&_hx_dummy;\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_cpp ("\t" ^ class_name ^ " _hx_dummy;\n");
+         output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)&_hx_dummy;\n");
+      end;
       output_cpp ("\t::hx::Static(__mClass) = new ::hx::Class_obj();\n");
       output_cpp ("\t__mClass->mName = " ^  (strq class_name_text)  ^ ";\n");
       output_cpp ("\t__mClass->mSuper = &super::__SGetClass();\n");
-      output_cpp ("\t__mClass->mConstructEmpty = &__CreateEmpty;\n");
-      output_cpp ("\t__mClass->mConstructArgs = &__Create;\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_cpp ("\t__mClass->mConstructEmpty = &__CreateEmpty;\n");
+         output_cpp ("\t__mClass->mConstructArgs = &__Create;\n");
+      end;
       output_cpp ("\t__mClass->mGetStaticField = &" ^ (
          if (has_get_static_field class_def) then class_name ^ "::__GetStatic;\n" else "::hx::Class_obj::GetNoStaticField;\n" ));
       output_cpp ("\t__mClass->mSetStaticField = &" ^ (
@@ -6635,15 +6655,21 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    (match class_def.cl_super with
    | Some super ->
       let klass = fst super in
-      let include_file = get_meta_string_path klass.cl_meta Meta.Include in
-      h_file#add_include (if include_file="" then klass.cl_path else path_of_string include_file)
+      let include_files = get_all_meta_string_path klass.cl_meta Meta.Include in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> h_file#add_include (path_of_string inc)) include_files
+      else
+         h_file#add_include klass.cl_path
    | _ -> () );
 
    (* And any interfaces ... *)
    List.iter (fun imp->
       let interface = fst imp in
-      let include_file = get_meta_string_path interface.cl_meta Meta.Include in
-      h_file#add_include (if include_file="" then interface.cl_path else path_of_string include_file) )
+      let include_files = get_all_meta_string_path interface.cl_meta Meta.Include in
+      if List.length include_files > 0 then
+         List.iter (fun inc -> h_file#add_include (path_of_string inc)) include_files
+      else
+         h_file#add_include interface.cl_path)
       (real_interfaces class_def.cl_implements);
 
    (* Only need to forward-declare classes that are mentioned in the header file
@@ -6653,9 +6679,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    output_h "\n";
 
    output_h ( get_class_code class_def Meta.HeaderCode );
-   let inc = get_meta_string_path class_def.cl_meta Meta.HeaderInclude in
-   if (inc<>"") then
-      output_h ("#include \"" ^ inc ^ "\"\n");
+   let includes = get_all_meta_string_path class_def.cl_meta Meta.HeaderInclude in
+   let printer  = fun inc -> output_h ("#include \"" ^ inc ^ "\"\n") in
+   List.iter printer includes;
 
    gen_open_namespace output_h class_path;
    output_h "\n\n";
@@ -6710,9 +6736,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
              output_h ("\t\tstatic " ^ptr_name^ " __alloc(::hx::Ctx *_hx_ctx" ^
                  (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
       end;
-      output_h ("\t\tstatic void * _hx_vtable;\n");
-      output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
-      output_h ("\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
+      if (not (has_class_flag class_def CAbstract)) then begin
+         output_h ("\t\tstatic void * _hx_vtable;\n");
+         output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
+         output_h ("\t\tstatic Dynamic __Create(::hx::DynamicArray inArgs);\n");
+      end;
       if (List.length dynamic_functions > 0) then
          output_h ("\t\tstatic void __alloc_dynamic_functions(::hx::Ctx *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
       if (scriptable) then
@@ -6943,9 +6971,9 @@ let write_build_options common_ctx filename defines =
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
       | _ ->  writer#write (Printf.sprintf "%s=%s\n" name (escape_command value))) defines;
-   let cmd = Unix.open_process_in "haxelib path hxcpp" in
-   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line cmd));
-   Pervasives.ignore (Unix.close_process_in cmd);
+   let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
+   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line pin));
+   Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
 
 let create_member_types common_ctx =
@@ -7295,6 +7323,7 @@ let cppia_op_info = function
 	| IaBinOp OpInterval -> ("...", 121)
 	| IaBinOp OpArrow -> ("=>", 122)
 	| IaBinOp OpIn -> (" in ", 123)
+	| IaBinOp OpNullCoal -> ("??", 124)
 	| IaBinOp OpAssignOp OpAdd -> ("+=", 201)
 	| IaBinOp OpAssignOp OpMult -> ("*=", 202)
 	| IaBinOp OpAssignOp OpDiv -> ("/=", 203)
@@ -7312,6 +7341,7 @@ let cppia_op_info = function
 	| IaBinOp OpAssignOp OpMod -> ("%=", 220)
 
 	| IaBinOp OpAssignOp OpIn
+	| IaBinOp OpAssignOp OpNullCoal
 	| IaBinOp OpAssignOp OpInterval
 	| IaBinOp OpAssignOp OpAssign
 	| IaBinOp OpAssignOp OpEq
@@ -7433,7 +7463,7 @@ class script_writer ctx filename asciiOut =
       end
    method constText c = match c with
    | TInt i -> (this#op IaConstInt) ^ (Printf.sprintf "%ld " i)
-   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText f)
+   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText (replace_float_separators f))
    | TString s -> (this#op IaConstString) ^ (this#stringText s)
    | TBool true -> (this#op IaConstTrue)
    | TBool false -> (this#op IaConstFalse)
@@ -8558,18 +8588,15 @@ let generate_source ctx =
       let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
-      let cmd_buffer = Buffer.create 128 in
-      Buffer.add_string cmd_buffer "haxelib run hxcpp Build.xml haxe";
-      if (common_ctx.debug) then Buffer.add_string cmd_buffer " -Ddebug";
+      let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
+	  if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
       PMap.iter ( fun name value -> match name with
          | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
-         | _ -> Printf.bprintf cmd_buffer " -D%s=\"%s\"" name (escape_command value);
+         | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
       ) common_ctx.defines.values;
-      List.iter (fun path -> Printf.bprintf cmd_buffer " -I\"%s\"" (escape_command path)) common_ctx.class_path;
-      Buffer.add_char cmd_buffer '\n';
-      let cmd = Buffer.contents cmd_buffer in
-      common_ctx.print cmd;
-      if common_ctx.run_command cmd <> 0 then failwith "Build failed";
+      List.iter (fun path -> cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]) common_ctx.class_path;
+      common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
+      if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
       t()
    end

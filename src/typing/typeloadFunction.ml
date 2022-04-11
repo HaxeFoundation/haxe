@@ -47,7 +47,7 @@ let save_field_state ctx =
 
 let type_function_params ctx fd fname p =
 	let params = ref [] in
-	params := Typeload.type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
+	params := Typeload.type_type_params ctx TPHMethod ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
 let type_function ctx (args : function_arguments) ret fmode e do_display p =
@@ -59,7 +59,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 	args#bring_into_context;
 	let e = match e with
 		| None ->
-			if ctx.com.display.dms_error_policy = EPIgnore then
+			if ignore_error ctx.com then
 				(* when we don't care because we're in display mode, just act like
 				   the function has an empty block body. this is fine even if function
 				   defines a return type, because returns aren't checked in this mode
@@ -104,7 +104,6 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 		   can _not_ use type_iseq to avoid the Void check above because that
 		   would turn Dynamic returns to Void returns. *)
 		| TMono t when not (has_return e) -> ignore(link t ret ctx.t.tvoid)
-		| _ when ctx.com.display.dms_error_policy = EPIgnore -> ()
 		| _ -> (try TypeloadCheck.return_flow ctx e with Exit -> ())
 	end;
 	let rec loop e =
@@ -137,7 +136,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 					let e_super_call = mk (TCall(e_super,[])) ctx.t.tvoid e.epos in
 					concat e_super_call e
 				else begin
-					display_error ctx "Missing super constructor call" p;
+					display_error ctx.com "Missing super constructor call" p;
 					e
 				end
 			with
@@ -183,16 +182,13 @@ let type_function ctx args ret fmode e do_display p =
 
 let add_constructor ctx c force_constructor p =
 	if c.cl_constructor <> None then () else
-	let constructor = try Some (Type.get_constructor_class c (List.map snd c.cl_params)) with Not_found -> None in
+	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with
 	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
-		let cf = {
-			cfsup with
-			cf_pos = p;
-			cf_meta = List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
-			cf_doc = None;
-			cf_expr = None;
-		} in
+		let cf = mk_field "new" cfsup.cf_type p null_pos in
+		cf.cf_kind <- cfsup.cf_kind;
+		cf.cf_params <- cfsup.cf_params;
+		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
 		let r = exc_protect ctx (fun r ->
 			let t = mk_mono() in
 			r := lazy_processing (fun() -> t);

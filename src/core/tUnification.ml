@@ -260,9 +260,9 @@ module Monomorph = struct
 
 	let spawn_constrained_monos map params =
 		let checks = DynArray.create () in
-		let monos = List.map (fun (s,t) ->
+		let monos = List.map (fun tp ->
 			let mono = create () in
-			begin match follow t with
+			begin match follow tp.ttp_type with
 				| TInst ({ cl_kind = KTypeParameter constr; cl_path = path },_) when constr <> [] ->
 					DynArray.add checks (mono,constr,s_type_path path)
 				| _ ->
@@ -912,7 +912,7 @@ and unify_anons uctx a b a1 a2 =
 			Not_found ->
 				match !(a1.a_status) with
 				| Const when Meta.has Meta.Optional f2.cf_meta ->
-					()
+					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields
 				| _ ->
 					error [has_no_field a n];
 		) a2.a_fields;
@@ -1012,6 +1012,7 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			let athis = map ab.a_this in
 			(* we cannot allow implicit casts when the this type is not completely known yet *)
+			if Meta.has Meta.MultiType ab.a_meta && has_mono athis then raise (Unify_error []);
 			with_variance uctx (type_eq {uctx with equality_kind = EqStrict}) athis (map ta);
 			unify_func (map t) b;
 		| _ -> die "" __LOC__)
@@ -1184,6 +1185,41 @@ module UnifyMinT = struct
 			let common_types = collect_base_types t0 in
 			unify_min' uctx common_types tl
 end
+
+type unification_matrix_state =
+	| STop
+	| SType of t
+	| SBottom
+
+class unification_matrix (arity : int) = object(self)
+	val values = Array.make arity STop
+
+	method join (t : t) (at : int) =
+		match values.(at) with
+		| STop ->
+			values.(at) <- SType t
+		| SBottom ->
+			()
+		| SType t' ->
+			if not (type_iseq t t') then values.(at) <- SBottom
+
+	method get_type (at : int) =
+		match values.(at) with
+		| SType t ->
+			Some t
+		| _ ->
+			None
+
+	method dump =
+		let pctx = print_context() in
+		let s_unification_matrix_state = function
+			| STop -> "STop"
+			| SType t -> "SType " ^ (s_type pctx t)
+			| SBottom -> "SBottom"
+		in
+		String.concat " ; " (List.map s_unification_matrix_state (Array.to_list values))
+end
+
 ;;
 unify_ref := unify_custom;;
 unify_min_ref := UnifyMinT.unify_min;;

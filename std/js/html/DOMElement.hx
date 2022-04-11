@@ -504,8 +504,8 @@ extern class DOMElement extends Node {
 		Asynchronously asks the browser to make the element full-screen.
 		@throws DOMError
 	**/
-	function requestFullscreen() : Void;
-	
+	function requestFullscreen(?options: FullscreenOptions) : js.lib.Promise<Void>;
+
 	/**
 		Allows to asynchronously ask for the pointer to be locked on the given element.
 	**/

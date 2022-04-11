@@ -623,6 +623,12 @@
 		"platforms": ["flash"]
 	},
 	{
+		"name": "SwfHeader",
+		"define": "swf-header",
+		"doc": "define SWF header (width:height:fps:color)",
+		"platforms": ["flash"]
+	},
+	{
 		"name": "SwfMetadata",
 		"define": "swf-metadata",
 		"doc": "Include contents of the given file as metadata in the SWF.",

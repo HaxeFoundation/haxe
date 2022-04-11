@@ -91,7 +91,7 @@ module TExprToExpr = struct
 		| TLocal v -> EConst (mk_ident v.v_name)
 		| TArray (e1,e2) -> EArray (convert_expr e1,convert_expr e2)
 		| TBinop (op,e1,e2) -> EBinop (op, convert_expr e1, convert_expr e2)
-		| TField (e,f) -> EField (convert_expr e, field_name f)
+		| TField (e,f) -> EField (convert_expr e, field_name f, EFNormal)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
@@ -263,7 +263,7 @@ module TClass = struct
 		loop PMap.empty c0 tl
 
 	let get_all_super_fields c =
-		get_member_fields' false c (List.map snd c.cl_params)
+		get_member_fields' false c (extract_param_types c.cl_params)
 
 	let get_all_fields c tl =
 		get_member_fields' true c tl

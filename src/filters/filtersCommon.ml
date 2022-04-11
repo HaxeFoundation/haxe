@@ -26,7 +26,7 @@ let rec is_removable_class c =
 		(match c.cl_super with
 			| Some (c,_) -> is_removable_class c
 			| _ -> false) ||
-		List.exists (fun (_,t) -> match follow t with
+		List.exists (fun tp -> match follow tp.ttp_type with
 			| TInst(c,_) ->
 				has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
 			| _ ->
@@ -48,7 +48,7 @@ let is_overridden cls field =
 	in
 	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
 
-let run_expression_filters time_details ctx filters t =
+let run_expression_filters ?(ignore_processed_status=false) time_details ctx filters t =
 	let run e =
 		List.fold_left
 			(fun e (filter_name,f) ->
@@ -67,11 +67,13 @@ let run_expression_filters time_details ctx filters t =
 	| TClassDecl c ->
 		ctx.curclass <- c;
 		let rec process_field f =
-			ctx.curfield <- f;
-			(match f.cf_expr with
-			| Some e when not (is_removable_field ctx f) ->
-				f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f run e);
-			| _ -> ());
+			if ignore_processed_status || not (has_class_field_flag f CfPostProcessed) then begin
+				ctx.curfield <- f;
+				(match f.cf_expr with
+				| Some e when not (is_removable_field ctx.com f) ->
+					f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f run e);
+				| _ -> ());
+			end;
 			List.iter process_field f.cf_overloads
 		in
 		List.iter process_field c.cl_ordered_fields;

@@ -30,6 +30,62 @@ type object_decl_kind =
 
 let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
 let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
+let acc_get_ref : (typer -> access_kind -> pos -> texpr) ref = ref (fun _ _ _ -> assert false)
+
+class value_reference (ctx : typer) =
+
+object(self)
+	val vars = DynArray.create ()
+
+	method get_vars = DynArray.to_list vars
+
+	method as_var name e =
+		let v = alloc_var VGenerated name e.etype e.epos in
+		DynArray.add vars (v,e);
+		mk (TLocal v) v.v_type v.v_pos
+
+	method private get_expr_aux depth name e =
+		let rec loop depth name e = match (Texpr.skip e).eexpr with
+			| TLocal _ | TTypeExpr _ | TConst _ ->
+				e
+			| TField(ef,fa) when depth = 0 ->
+				let ef = loop (depth + 1) "fh" ef in
+				{e with eexpr = TField(ef,fa)}
+			| TArray(e1,e2) when depth = 0 ->
+				let e1 = loop (depth + 1) "base" e1 in
+				let e2 = loop (depth + 1) "index" e2 in
+				{e with eexpr = TArray(e1,e2)}
+			| _ ->
+				self#as_var name e
+		in
+		loop depth name e
+
+	method get_expr name e =
+		self#get_expr_aux 0 name e
+
+	method get_expr_part name e =
+		self#get_expr_aux 1 name e
+
+	method to_texpr e =
+		begin match self#get_vars with
+		| [] ->
+			e
+		| vl ->
+			let el = List.map (fun (v,e) ->
+				mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
+			) vl in
+			let e = mk (TBlock (el @ [e])) e.etype e.epos in
+			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
+		end
+
+	method to_texpr_el el e =
+		let vl = self#get_vars in
+		let el_vars = List.map (fun (v,e) ->
+			mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
+		) vl in
+		let e = mk (TBlock (el_vars @ el @ [e])) e.etype e.epos in
+		{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
+end
 
 let is_lower_ident s p =
 	try Ast.is_lower_ident s
@@ -191,10 +247,13 @@ let unify_static_extension ctx e t p =
 		e
 	end
 
-let get_abstract_froms a pl =
+let get_abstract_froms ctx a pl =
 	let l = List.map (apply_params a.a_params pl) a.a_from in
 	List.fold_left (fun acc (t,f) ->
-		match follow (Type.field_type f) with
+		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
+		if f == ctx.curfield then
+			acc
+		else match follow (Type.field_type f) with
 		| TFun ([_,_,v],t) ->
 			(try
 				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)

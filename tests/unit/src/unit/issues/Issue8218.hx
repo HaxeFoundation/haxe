@@ -26,17 +26,6 @@ private class Child extends Lib2 {
 		test.eq(f(), "hello");
 		test.eq(call(f), "hello");
 
-		// super. protected access
-		test.eq(super.x, 50);
-		super.x = 55;
-		test.eq(super.x, 55);
-
-		test.eq(super.i, 10);
-		super.i = 15;
-		test.eq(super.i, 15);
-
-		test.eq(super.f(), "hello");
-
 		// static protected access
 		test.eq(Lib.sx, 42);
 		Lib.sx = 50;

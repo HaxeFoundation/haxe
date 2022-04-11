@@ -31,6 +31,13 @@ type module_check_policy =
 	| NoCheckDependencies
 	| NoCheckShadowing
 
+type module_skip_reason =
+	| DependencyDirty of path
+	| Tainted of string
+	| FileChanged of string
+	| Shadowed of string
+	| LibraryChanged
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -77,7 +84,13 @@ and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 
-and type_params = (string * t) list
+and typed_type_param = {
+	ttp_name : string;
+	ttp_type : t;
+	ttp_default : t option;
+}
+
+and type_params = typed_type_param list
 
 and tconstant =
 	| TInt of int32
@@ -193,7 +206,7 @@ and tclass_field = {
 	mutable cf_kind : field_kind;
 	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
-	mutable cf_expr_unoptimized : tfunc option;
+	mutable cf_expr_unoptimized : texpr option;
 	mutable cf_overloads : tclass_field list;
 	mutable cf_flags : int;
 }
@@ -350,11 +363,11 @@ and module_def_extra = {
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : path option;
+	mutable m_dirty : module_skip_reason option;
 	mutable m_added : int;
-	mutable m_mark : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_checked : int;
 	mutable m_processed : int;
+	mutable m_deps : (int,module_def) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
@@ -407,6 +420,7 @@ type flag_tclass_field =
 	| CfEnum
 	| CfGeneric
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
+	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
@@ -419,3 +433,4 @@ type flag_tvar =
 	| VUsed (* used by the analyzer *)
 	| VAssigned
 	| VCaught
+	| VStatic

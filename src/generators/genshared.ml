@@ -195,7 +195,7 @@ module Info = struct
 
 		method get_class_info (c : tclass) =
 			let rec loop ml = match ml with
-			| (Meta.Custom ":jvm.classInfo",[(EConst (Int s),_)],_) :: _ ->
+			| (Meta.Custom ":jvm.classInfo",[(EConst (Int (s, _)),_)],_) :: _ ->
 				DynArray.get class_infos (int_of_string s)
 			| _ :: ml ->
 				loop ml
@@ -206,7 +206,7 @@ module Info = struct
 					implicit_ctors = PMap.empty;
 				} in
 				DynArray.add class_infos infos;
-				c.cl_meta <- (Meta.Custom ":jvm.classInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: c.cl_meta;
+				c.cl_meta <- (Meta.Custom ":jvm.classInfo",[(EConst (Int (string_of_int index, None)),null_pos)],null_pos) :: c.cl_meta;
 				infos
 			in
 			loop c.cl_meta
@@ -241,7 +241,7 @@ object(self)
 
 	method get_field_info (ml : metadata) =
 		let rec loop ml = match ml with
-		| (Meta.Custom ":jvm.fieldInfo",[(EConst (Int s),_)],_) :: _ ->
+		| (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (s, _)),_)],_) :: _ ->
 			Some (DynArray.get field_infos (int_of_string s))
 		| _ :: ml ->
 			loop ml
@@ -367,7 +367,7 @@ object(self)
 					let info = self#preprocess_constructor_expr c cf e in
 					let index = DynArray.length field_infos in
 					DynArray.add field_infos info;
-					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index)),null_pos)],null_pos) :: cf.cf_meta;
+					cf.cf_meta <- (Meta.Custom ":jvm.fieldInfo",[(EConst (Int (string_of_int index, None)),null_pos)],null_pos) :: cf.cf_meta;
 					if not (Meta.has Meta.HxGen cf.cf_meta) then begin
 						let rec loop next c =
 							if (has_class_flag c CExtern) then make_native cf
@@ -413,7 +413,10 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 
 	method private implements (c : tclass) (path_interface : path) =
 		let info = infos#get_class_info c in
-		match info.typedef_implements with
+		List.exists (fun (c,_) ->
+			c.cl_path = path_interface
+		) c.cl_implements
+		|| match info.typedef_implements with
 		| None ->
 			false
 		| Some l ->
@@ -424,7 +427,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 			| Some (c,_) -> self#implements_recursively c path
 			| None -> false
 
-	method private make_interface_class (pfm : 'a path_field_mapping) =
+	method private make_interface_class (pfm : 'a path_field_mapping) (path : path) (is_extern : bool) =
 		let path_inner = (fst pfm.pfm_path,snd pfm.pfm_path ^ "$Interface") in
 		try
 			Hashtbl.find interfaces path_inner
@@ -436,7 +439,6 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 					acc
 			) pfm.pfm_fields PMap.empty in
 			if PMap.is_empty fields then raise (Unify_error [Unify_custom "no fields"]);
-			let path,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
 			let c = mk_class null_module path null_pos null_pos in
 			add_class_flag c CInterface;
 			c.cl_fields <- fields;
@@ -450,14 +452,17 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 			| Some(c,_) -> self#process_class c
 			| None -> ()
 		end;
-		let tc = TInst(c,List.map snd c.cl_params) in
+		let tc = TInst(c,extract_param_types c.cl_params) in
+		(* TODO: this entire architecture looks slightly retarded because typedef_implements is only modified at the end of the
+		   loop, which I think could cause items to be missed. *)
 		let l = Hashtbl.fold (fun _ pfm acc ->
 			let path = pfm.pfm_path in
 			let path_inner = (fst path,snd path ^ "$Interface") in
 			try
+				let path_inner,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
 				if self#implements_recursively c path_inner then raise (Unify_error [Unify_custom "already implemented"]);
 				anon_identification#unify tc pfm;
-				let ci = self#make_interface_class pfm in
+				let ci = self#make_interface_class pfm path_inner is_extern in
 				c.cl_implements <- (ci,[]) :: c.cl_implements;
 				(* print_endline (Printf.sprintf "%s IMPLEMENTS %s" (s_type_path c.cl_path) (s_type_path path_inner)); *)
 				(ci :: acc)

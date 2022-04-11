@@ -1,0 +1,24 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.202.5/containers/docker-from-docker-compose
+{
+	"name": "haxe",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "workspace",
+	"workspaceFolder": "/workspace",
+
+	// Use this environment variable if you need to bind mount your local source code into a new container.
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+	
+	// Set *default* container specific settings.json values on container create.
+	"settings": {},
+
+	"extensions": [
+		"nadako.vshaxe",
+		"ms-azuretools.vscode-docker",
+		"earthly.earthfile-syntax-highlighting",
+	],
+
+	"remoteUser": "vscode"
+}

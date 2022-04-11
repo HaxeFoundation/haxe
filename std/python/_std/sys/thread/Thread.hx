@@ -22,6 +22,9 @@
 
 package sys.thread;
 
+import python.lib.threading.Thread as NativeThread;
+import python.lib.Threading;
+
 import haxe.ds.ObjectMap;
 
 private typedef ThreadImpl = HxThread;
@@ -33,8 +36,8 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		return HxThread.current();
 	}
 
-	public static inline function create(callb:Void->Void):Thread {
-		return HxThread.create(callb, false);
+	public static inline function create(job:Void->Void):Thread {
+		return HxThread.create(job, false);
 	}
 
 	public static inline function runWithEventLoop(job:()->Void):Void {
@@ -79,7 +82,7 @@ private class HxThread {
 	static function __init__() {
 		threads = new ObjectMap();
 		threadsMutex = new Mutex();
-		mainThread = new HxThread(PyThreadingAPI.current_thread());
+		mainThread = new HxThread(Threading.current_thread());
 		mainThread.events = new EventLoop();
 	}
 
@@ -93,8 +96,8 @@ private class HxThread {
 
 	public static function current():HxThread {
 		threadsMutex.acquire();
-		var ct = PyThreadingAPI.current_thread();
-		if (ct == PyThreadingAPI.main_thread()) {
+		var ct = Threading.current_thread();
+		if (ct == Threading.main_thread()) {
 			threadsMutex.release();
 			return mainThread;
 		}
@@ -122,7 +125,7 @@ private class HxThread {
 			}
 			dropThread(nt);
 		}
-		nt = new NativeThread(null, wrappedCallB);
+		nt = new NativeThread({target:wrappedCallB});
 		t = new HxThread(nt);
 		if(withEventLoop)
 			t.events = new EventLoop();
@@ -159,18 +162,4 @@ private class HxThread {
 	public static function readMessage(block:Bool):Dynamic {
 		return current().messages.pop(block);
 	}
-}
-
-@:pythonImport("threading", "Thread")
-@:native("Thread")
-private extern class NativeThread {
-	function new(group:Dynamic, target:Void->Void);
-	function start():Void;
-}
-
-@:pythonImport("threading")
-@:native("threading")
-private extern class PyThreadingAPI {
-	static function current_thread():NativeThread;
-	static function main_thread():NativeThread;
 }

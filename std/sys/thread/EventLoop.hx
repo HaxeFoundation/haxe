@@ -38,16 +38,41 @@ class EventLoop {
 		mutex.acquire();
 		var interval = 0.001 * intervalMs;
 		var event = new RegularEvent(event, Sys.time() + interval, interval);
-		switch regularEvents {
-			case null:
-			case current:
-				event.next = current;
-				current.previous = event;
-		}
-		regularEvents = event;
+		inline insertEventByTime(event);
 		waitLock.release();
 		mutex.release();
 		return event;
+	}
+
+	function insertEventByTime(event:RegularEvent):Void {
+		switch regularEvents {
+			case null:
+				regularEvents = event;
+			case current:
+				var previous = null;
+				while(true) {
+					if(current == null) {
+						previous.next = event;
+						event.previous = previous;
+						break;
+					} else if(event.nextRunTime < current.nextRunTime) {
+						event.next = current;
+						current.previous = event;
+						switch previous {
+							case null:
+								regularEvents = event;
+								case _:
+								event.previous = previous;
+								previous.next = event;
+								current.previous = event;
+						}
+						break;
+					} else {
+						previous = current;
+						current = current.next;
+					}
+				}
+		}
 	}
 
 	/**
@@ -56,6 +81,7 @@ class EventLoop {
 	public function cancel(eventHandler:EventHandler):Void {
 		mutex.acquire();
 		var event:RegularEvent = eventHandler;
+		event.cancelled = true;
 		if(regularEvents == event) {
 			regularEvents = event.next;
 		}
@@ -67,6 +93,7 @@ class EventLoop {
 			case null:
 			case e: e.next = event.next;
 		}
+		event.next = event.previous = null;
 		mutex.release();
 	}
 
@@ -111,7 +138,7 @@ class EventLoop {
 		not be called from event callbacks.
 	**/
 	public function progress():NextEventTime {
-		return switch __progress(Sys.time(), []) {
+		return switch __progress(Sys.time(), [], []) {
 			case {nextEventAt:-2}: Now;
 			case {nextEventAt:-1, anyTime:false}: Never;
 			case {nextEventAt:-1, anyTime:true}: AnyTime(null);
@@ -145,9 +172,10 @@ class EventLoop {
 		not be called from event callbacks.
 	**/
 	public function loop():Void {
-		var events = [];
+		var recycleRegular = [];
+		var recycleOneTimers = [];
 		while(true) {
-			var r = __progress(Sys.time(), events);
+			var r = __progress(Sys.time(), recycleRegular, recycleOneTimers);
 			switch r {
 				case {nextEventAt:-2}:
 				case {nextEventAt:-1, anyTime:false}:
@@ -169,8 +197,8 @@ class EventLoop {
 		* -2 - now
 		* other values - at specified time
 	**/
-	inline function __progress(now:Float, recycle:Array<()->Void>):{nextEventAt:Float, anyTime:Bool} {
-		var eventsToRun = recycle;
+	inline function __progress(now:Float, recycleRegular:Array<RegularEvent>, recycleOneTimers:Array<()->Void>):{nextEventAt:Float, anyTime:Bool} {
+		var regularsToRun = recycleRegular;
 		var eventsToRunIdx = 0;
 		// When the next event is expected to run
 		var nextEventAt:Float = -1;
@@ -182,7 +210,7 @@ class EventLoop {
 		var current = regularEvents;
 		while(current != null) {
 			if(current.nextRunTime <= now) {
-				eventsToRun[eventsToRunIdx++] = current.run;
+				regularsToRun[eventsToRunIdx++] = current;
 				current.nextRunTime += current.interval;
 				nextEventAt = -2;
 			} else if(nextEventAt == -1 || current.nextRunTime < nextEventAt) {
@@ -194,11 +222,13 @@ class EventLoop {
 
 		// Run regular events
 		for(i in 0...eventsToRunIdx) {
-			eventsToRun[i]();
-			eventsToRun[i] = null;
+			if(!regularsToRun[i].cancelled) 
+				regularsToRun[i].run();
+			regularsToRun[i] = null;
 		}
 		eventsToRunIdx = 0;
 
+		var oneTimersToRun = recycleOneTimers;
 		// Collect pending one-time events
 		mutex.acquire();
 		for(i => event in oneTimeEvents) {
@@ -206,7 +236,7 @@ class EventLoop {
 				case null:
 					break;
 				case _:
-					eventsToRun[eventsToRunIdx++] = event;
+					oneTimersToRun[eventsToRunIdx++] = event;
 					oneTimeEvents[i] = null;
 			}
 		}
@@ -216,8 +246,8 @@ class EventLoop {
 
 		//run events
 		for(i in 0...eventsToRunIdx) {
-			eventsToRun[i]();
-			eventsToRun[i] = null;
+			oneTimersToRun[i]();
+			oneTimersToRun[i] = null;
 		}
 
 		// Some events were executed. They could add new events to run.
@@ -236,6 +266,7 @@ private class RegularEvent {
 	public final run:()->Void;
 	public var next:Null<RegularEvent>;
 	public var previous:Null<RegularEvent>;
+	public var cancelled:Bool = false;
 
 	public function new(run:()->Void, nextRunTime:Float, interval:Float) {
 		this.run = run;

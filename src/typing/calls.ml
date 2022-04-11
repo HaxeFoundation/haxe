@@ -66,10 +66,10 @@ let make_call ctx e params t ?(force_inline=false) p =
 						typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
-		let params = List.map (ctx.g.do_optimize ctx) params in
+		let params = List.map (Optimizer.reduce_expression ctx) params in
 		let force_inline = is_forced_inline cl f in
 		(match f.cf_expr_unoptimized,f.cf_expr with
-		| Some fd,_
+		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
 			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
 			| None ->
@@ -88,7 +88,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 
 let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
-		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array get method" p;
+		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
 		let et = type_module_type ctx (TClassDecl c) None p in
@@ -99,7 +99,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 	let evalue = match e2o with None -> die "" __LOC__ | Some e -> e in
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
@@ -166,12 +166,12 @@ let rec acc_get ctx g p =
 			let e_def = FieldAccess.get_field_expr fa FRead in
 			begin match follow fa.fa_on.etype with
 				| TInst (c,_) when chk_class c ->
-					display_error ctx "Can't create closure on an extern inline member method" p;
+					display_error ctx.com "Can't create closure on an extern inline member method" p;
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
 						| Statics c when has_class_field_flag cf CfExtern ->
-							display_error ctx "Cannot create closure on @:extern inline method" p;
+							display_error ctx.com "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
 						| _ -> e_def
@@ -185,8 +185,6 @@ let rec acc_get ctx g p =
 			let tf = apply_params cf.cf_type in
 			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
-		| Var _,None when ctx.com.display.dms_display ->
-			 FieldAccess.get_field_expr fa FRead
 		| Var _,None ->
 			typing_error "Recursive inline is not supported" p
 		end
@@ -420,7 +418,7 @@ let array_access ctx e1 e2 mode p =
 				let pt = spawn_monomorph ctx p in
 				let t = ctx.t.tarray pt in
 				begin try
-					unify_raise ctx et t p
+					unify_raise et t p
 				with Error(Unify _,_) ->
 					if not ctx.untyped then begin
 						let msg = if !has_abstract_array_access then
@@ -443,15 +441,21 @@ let array_access ctx e1 e2 mode p =
 	return a new `access_mode->access_kind` getter for the whole field access chain.
 *)
 let field_chain ctx path access mode with_type =
+	let type_field e part =
+		let cfg = {TypeFieldConfig.default with
+			safe = part.kind = EFSafe
+		} in
+		type_field cfg ctx e part.name part.pos
+	in
 	let rec loop access path = match path with
 		| [] ->
 			access
-		| [(name,_,p)] ->
-			let e = acc_get ctx access p in
-			type_field_default_cfg ctx e name p mode with_type
-		| (name,_,p) :: path ->
-			let e = acc_get ctx access p in
-			let access = type_field_default_cfg ctx e name p MGet WithType.value in
+		| [part] ->
+			let e = acc_get ctx access part.pos in
+			type_field e part mode with_type
+		| part :: path ->
+			let e = acc_get ctx access part.pos in
+			let access = type_field e part MGet WithType.value in
 			loop access path
 	in
 	loop access path

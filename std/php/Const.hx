@@ -664,4 +664,15 @@ extern class Const {
 	static final CONNECTION_ABORTED: Int;
 	static final CONNECTION_NORMAL: Int;
 	static final CONNECTION_TIMEOUT: Int;
+
+	/**
+		@see http://php.net/manual/fr/filesystem.constants.php
+	**/
+	static final FILE_APPEND: Int;
+	static final FILE_BINARY: Int;
+	static final FILE_IGNORE_NEW_LINES: Int;
+	static final FILE_NO_DEFAULT_CONTEXT: Int;
+	static final FILE_SKIP_EMPTY_LINES: Int;
+	static final FILE_TEXT: Int;
+	static final FILE_USE_INCLUDE_PATH: Int;
 }

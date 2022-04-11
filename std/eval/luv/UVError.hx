@@ -164,6 +164,10 @@ enum abstract UVError(Int) {
 	var UV_EFTYPE = 76;
 	/** illegal byte sequence */
 	var UV_EILSEQ = 77;
+	/** value too large for defined data type **/
+	var UV_EOVERFLOW = 78;
+	/** socket type not supported**/
+	var UV_ESOCKTNOSUPPORT = 79;
 
 	/**
 		Converts a system error code to a libuv error.

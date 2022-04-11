@@ -27,6 +27,10 @@ class RunCi {
 			changeDirectory(cwd);
 		}
 
+		final downloadPath = getDownloadPath();
+		if (!sys.FileSystem.exists(downloadPath))
+			sys.FileSystem.createDirectory(downloadPath);
+
 		for (test in tests) {
 			switch (systemName) {
 				case "Windows":
@@ -40,10 +44,9 @@ class RunCi {
 			var echoServer = new sys.io.Process('nekotools', ['server', '-d', 'echoServer/www/', '-p', '20200']);
 
 			infoMsg('test $test');
-			var success = true;
 			try {
 				changeDirectory(unitDir);
-				haxelibInstallGit("haxe-utest", "utest", "master");
+				haxelibInstallGit("haxe-utest", "utest", "master", "--always");
 
 				var args = switch (ci) {
 					case null:
@@ -82,25 +85,17 @@ class RunCi {
 					case t:
 						throw new Exception("unknown target: " + t);
 				}
-			} catch(f:Failure) {
-				success = false;
+			} catch(f:CommandFailure) {
+				failMsg('test ${test} failed');
+				Sys.exit(f.exitCode);
 			}
 
-			if (success) {
-				successMsg('test ${test} succeeded');
-			} else {
-				failMsg('test ${test} failed');
-				break;
-			}
+			successMsg('test ${test} succeeded');
 
 			echoServer.kill();
 			echoServer.close();
 		}
 
-		if (success) {
-			deploy();
-		} else {
-			Sys.exit(1);
-		}
+		deploy();
 	}
 }

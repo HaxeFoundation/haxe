@@ -172,8 +172,8 @@ and convert_signature ctx p jsig =
 let convert_constant ctx p const =
 	Option.map_default (function
 		| ConstString s -> Some (EConst (String(s,SDoubleQuotes)), p)
-		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i)), p)
-		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
+		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i, None)), p)
+		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f, None)), p)
 		| _ -> None) None const
 
 let convert_constraints ctx p tl = match tl with
@@ -192,6 +192,7 @@ let convert_param ctx p parent param =
 			tp_name = jname_to_hx name,null_pos;
 			tp_params = [];
 			tp_constraints = convert_constraints ctx p constraints;
+			tp_default = None;
 			tp_meta = [];
 		}
 
@@ -373,6 +374,7 @@ let convert_java_enum ctx p pe =
 								tp_name = name,null_pos;
 								tp_params = [];
 								tp_constraints = convert_constraints ctx p (ext :: impl);
+								tp_default = None;
 								tp_meta = [];
 							}
 						| (name, None, impl) ->
@@ -380,6 +382,7 @@ let convert_java_enum ctx p pe =
 								tp_name = name,null_pos;
 								tp_params = [];
 								tp_constraints = convert_constraints ctx p impl;
+								tp_default = None;
 								tp_meta = [];
 							}
 					) field.jf_types in

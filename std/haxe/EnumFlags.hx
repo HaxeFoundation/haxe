@@ -77,6 +77,22 @@ abstract EnumFlags<T:EnumValue>(Int) {
 	}
 
 	/**
+		Depending on the value of `condition` sets (`condition=true`) or unsets (`condition=false`)
+		the index of enum instance `v`.
+
+		This method is optimized if `v` is an enum instance expression such as
+		`SomeEnum.SomeCtor`.
+
+		If `v` is `null`, the result is unspecified.
+	**/
+	public inline function setTo(v:T, condition:Bool):Void {
+		if(condition)
+			set(v)
+		else
+			unset(v);
+	}
+
+	/**
 		Convert a integer bitflag into a typed one (this is a no-op, it does not
 		have any impact on speed).
 	**/

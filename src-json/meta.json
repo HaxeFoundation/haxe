@@ -112,9 +112,9 @@
 	{
 		"name": "Build",
 		"metadata": ":build",
-		"doc": "Builds a class or enum from a macro.",
+		"doc": "Builds a class, enum, or abstract from a macro.",
 		"params": ["Build macro call"],
-		"targets": ["TClass", "TEnum"],
+		"targets": ["TClass", "TEnum", "TAbstract"],
 		"links": ["https://haxe.org/manual/macro-type-building.html"]
 	},
 	{
@@ -923,6 +923,13 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "PhpAttribute",
+		"metadata": ":php.attribute",
+		"doc": "Adds a PHP attribute to the annotated symbol. Meta argument expects a string constant. E.g. `@:php.attribute('\\\\my\\\\Attr(123)')` will be generated as `#[\\my\\Attr(123)]` in the compiled php file.",
+		"platforms": ["php"],
+		"links": ["https://www.php.net/manual/en/language.attributes.overview.php"]
+	},
+	{
 		"name": "PhpGlobal",
 		"metadata": ":phpGlobal",
 		"doc": "Indicates that static fields of an extern class actually are located in the global PHP namespace.",
@@ -1278,6 +1285,12 @@
 		"doc": "Used to store function arguments.",
 		"targets": ["TClassField"],
 		"internal": true
+	},
+	{
+		"name": "HaxeWarning",
+		"metadata": ":haxe.warning",
+		"doc": "Modifies warning options, equivalent to the -w CLI argument",
+		"targets": ["TClass","TClassField"]
 	},
 	{
 		"name": "Void",
