@@ -566,6 +566,7 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 	let write = Buffer.add_string bout in
 
 	let close = fun() ->
+		flush stdout;
 		IO.write_i32 chout (Buffer.length bout);
 		IO.nwrite_string chout (Buffer.contents bout);
 		IO.flush chout
