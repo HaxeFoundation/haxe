@@ -85,7 +85,7 @@ class TypeTools {
 					pos: cf.pos,
 					meta: cf.meta.get(),
 				} else {
-				throw "Invalid TAnonymous";
+					throw "Invalid TAnonymous";
 			}
 		}
 
@@ -363,6 +363,13 @@ class TypeTools {
 		return null;
 		#end
 	}
+
+	/**
+		Changes the name of the variable in the typed expression.
+	**/
+	static public function setVarName(t:TVar, name:String) {
+		Context.load("set_var_name", 2)(t, name);
+	}
 	#end
 
 	/**
@@ -381,12 +388,4 @@ class TypeTools {
 		var field = (isStatic ? c.statics : c.fields).get().find(function(field) return field.name == name);
 		return if (field != null) field; else if (c.superClass != null) findField(c.superClass.t.get(), name, isStatic); else null;
 	}
-	
-	/**
-		Changes the name of the variable in the typed expression.
-	**/
-	static public function setVarName(t:TVar, name:String) {
-		Context.load("set_var_name",2)(t,name);
-	}
-
 }
