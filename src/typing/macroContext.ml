@@ -804,7 +804,7 @@ let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
 	mctx.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
-	call (List.map (fun e -> try Interp.make_const e with Exit -> typing_error "Parameter should be a constant" e.epos) el)
+	call (List.map (fun e -> try Interp.make_const e with Exit -> typing_error "Argument should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
