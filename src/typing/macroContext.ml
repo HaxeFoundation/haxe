@@ -452,6 +452,7 @@ and flush_macro_context mint ctx =
 		let's save the minimal amount of information we need
 	*)
 	let minimal_restore t =
+		(t_infos t).mt_module.m_extra.m_processed <- mctx.com.compilation_step;
 		match t with
 		| TClassDecl c ->
 			let mk_field_restore f =
