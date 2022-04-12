@@ -64,25 +64,14 @@ class Php {
 				deleteDirectoryRecursively(binDir);
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runSysTest.bind(_, ["bin/php/Main/index.php"]));
+			runSysTest("php", generateArgs(binDir + "/Main/index.php"));
 
 			changeDirectory(asysDir);
 			if (isCi()) {
 				deleteDirectoryRecursively(binDir);
 			}
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runThroughPhpVersions(runCommand.bind(_, ['$binDir/index.php']));
-		}
-	}
-
-	static function runThroughPhpVersions(fn:(phpCmd:String) -> Void) {
-		switch [ci, systemName] {
-			case [GithubActions, "Linux"]:
-				for (version in ['7.4', '8.0']) {
-					fn('php$version');
-				}
-			case _:
-				fn('php');
+			runCommand("php", generateArgs(binDir + "/index.php"));
 		}
 	}
 }
