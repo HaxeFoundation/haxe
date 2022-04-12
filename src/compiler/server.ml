@@ -95,6 +95,7 @@ module ServerCompilationContext = struct
 		class_paths : (Digest.t,string list) Hashtbl.t;
 		(* Increased for each compilation *)
 		mutable compilation_step : int;
+		mutable mark_loop : int;
 		(* A list of delays which are run after compilation *)
 		mutable delays : (unit -> unit) list;
 		(* True if it's an actual compilation, false if it's a display operation *)
@@ -109,6 +110,7 @@ module ServerCompilationContext = struct
 		class_paths = Hashtbl.create 0;
 		changed_directories = Hashtbl.create 0;
 		compilation_step = 0;
+		mark_loop = 0;
 		delays = [];
 		was_compilation = false;
 		macro_context_setup = false;
@@ -337,7 +339,7 @@ let check_module sctx ctx m p =
 			end
 		) paths
 	in
-	let start_mark = ctx.com.compilation_step in
+	let start_mark = sctx.mark_loop in
 	let rec check m =
 		let check_module_path () =
 			let directories = get_changed_directories sctx ctx in
@@ -426,7 +428,12 @@ let check_module sctx ctx m p =
 					check ()
 			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
-			m.m_extra.m_dirty <- dirty;
+			begin match dirty with
+			| Some _ ->
+				m.m_extra.m_dirty <- dirty;
+			| None ->
+				()
+			end;
 			dirty
 		end
 	in
@@ -474,6 +481,7 @@ let add_modules sctx ctx m p =
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
+	sctx.mark_loop <- sctx.mark_loop + 1;
 	let cc = CommonCache.get_cache com in
 	try
 		let m = cc#find_module mpath in
