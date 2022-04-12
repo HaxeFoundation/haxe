@@ -1991,6 +1991,7 @@ let rec create com =
 		in_loop = false;
 		in_display = false;
 		allow_inline = true;
+		allow_transform = true;
 		get_build_infos = (fun() -> None);
 		ret = mk_mono();
 		locals = PMap.empty;

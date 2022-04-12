@@ -204,7 +204,7 @@ let field_access ctx mode f fh e pfield =
 				if ctx.untyped then normal false else AKNo f.cf_name)
 		| AccNormal | AccNo ->
 			normal false
-		| AccCall when (not ctx.allow_inline) || (ctx.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
+		| AccCall when (not ctx.allow_transform) || (ctx.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
 			normal false
 		| AccCall ->
 			let m = (match mode with MSet _ -> "set_" | _ -> "get_") ^ f.cf_name in

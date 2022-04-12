@@ -646,8 +646,13 @@ class Context {
 	/**
 		Executes `code` in a context that has some compiler options set, restore the compiler to its
 		default behavior afterwards.
+
+		`allowInlining`: enable or disable inlining during typing with `typeExpr`.
+
+		`allowTransform`: when disabled, the code typed with `typeExpr` will be almost exactly the same
+		as the input code. This will disable some abstract types transformations.
 	**/
-	public static function withOptions<X>(options:{?inlining:Bool}, code : () -> X) : X {
+	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
 		return load("with_options", 2)(options, code);
 	}
 
