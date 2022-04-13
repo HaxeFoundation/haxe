@@ -1251,3 +1251,11 @@ let get_meta_options metas meta =
 			[]
 	in
 	loop metas
+
+let get_meta_string meta key =
+	let rec loop = function
+		| [] -> None
+		| (k,[EConst (String(name,_)),_],_) :: _ when k = key -> Some name
+		| _ :: l -> loop l
+	in
+	loop meta
