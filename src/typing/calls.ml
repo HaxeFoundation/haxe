@@ -283,6 +283,9 @@ let rec needs_temp_var e =
 	| _ -> true
 
 let call_to_string ctx ?(resume=false) e =
+	if not ctx.allow_transform then
+		{ e with etype = ctx.t.tstring }
+	else
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
 		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
