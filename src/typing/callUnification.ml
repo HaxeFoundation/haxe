@@ -478,7 +478,7 @@ object(self)
 				locate_macro_error := false;
 				old msg ep;
 				locate_macro_error := true;
-				ctx.com.error (compl_msg "Called from macro here") p;
+				old (compl_msg "Called from macro here") p;
 			end else
 				old msg ep;
 		);
