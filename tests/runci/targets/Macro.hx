@@ -1,5 +1,6 @@
 package runci.targets;
 
+import sys.io.File;
 import runci.System.*;
 import runci.Config.*;
 
@@ -38,5 +39,22 @@ class Macro {
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--interp"]);
+
+		deleteDirectoryRecursively(partyDir);
+		runCommand("mkdir", [partyDir]);
+		changeDirectory(partyDir);
+		party();
+	}
+
+	static function party() {
+		runCommand("git", ["clone", "https://github.com/haxetink/tink_core", "tink_core"]);
+		changeDirectory("tink_core");
+		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
+		// <derp>
+		final c = File.getContent("tests/RunTests.hx");
+		final c = StringTools.replace(c, "new Futures(),", "");
+		File.saveContent("tests/RunTests.hx", c);
+		// </derp>
+		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp"]);
 	}
 }
