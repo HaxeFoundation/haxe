@@ -1060,7 +1060,8 @@ let generate_function ctx f =
 			(* insert end switch *)
 			output_at2 pend ([OODecreaseIndent;OODecreaseIndent;OOEndBlock] @ List.rev old);
 		| ONullCheck r ->
-			sexpr "if( %s == NULL ) hl_null_access()" (reg r)
+			(* sexpr "if( %s == NULL ) hl_null_access()" (reg r) *)
+			()
 		| OTrap (r,d) ->
 			sexpr "hl_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
 			incr trap_depth

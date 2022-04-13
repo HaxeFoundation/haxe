@@ -1429,7 +1429,7 @@ and array_read ctx ra (at,vt) ridx p =
 		let harr = alloc_tmp ctx HArray in
 		op ctx (OField (harr,ra,1));
 		op ctx (OGetArray (tmp,harr,ridx));
-		op ctx (OMov (r,unsafe_cast_to ctx tmp vt p));
+		op ctx (OMov (r,unsafe_cast_to ~debugchk:false ctx tmp vt p));
 		jend();
 		r
 
