@@ -48,9 +48,10 @@ class Macro {
 
 	static function party() {
 		runCommand("git", ["clone", "https://github.com/haxetink/tink_core", "tink_core"]);
-		runCommand("haxelib", ["dev", "tink_core", "tink_core"]);
 		changeDirectory("tink_core");
+		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
+		runCommand("haxelib", ["dev", "tink_core", "."]);
 		// <derp>
 		final c = File.getContent("tests/RunTests.hx");
 		final c = StringTools.replace(c, "new Futures(),", "");
