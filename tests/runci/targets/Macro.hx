@@ -1,6 +1,5 @@
 package runci.targets;
 
-import sys.io.File;
 import runci.System.*;
 import runci.Config.*;
 
@@ -52,11 +51,6 @@ class Macro {
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
 		runCommand("haxelib", ["dev", "tink_core", "."]);
-		// <derp>
-		final c = File.getContent("tests/RunTests.hx");
-		final c = StringTools.replace(c, "new Futures(),", "");
-		File.saveContent("tests/RunTests.hx", c);
-		// </derp>
 		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp"]);
 	}
 }
