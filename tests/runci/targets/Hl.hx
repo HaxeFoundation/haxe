@@ -35,7 +35,7 @@ class Hl {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev"]);
+				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
 			case "Mac":
 				runNetworkCommand("brew", ["update", '--preinstall']);
 				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
@@ -47,12 +47,11 @@ class Hl {
 		final generator = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
 		runCommand("cmake", generator.concat([
 			"-DBUILD_TESTING=OFF",
-			"-DWITH_BULLET=OFF",
 			"-DWITH_DIRECTX=OFF",
 			"-DWITH_FMT=ON",
 			"-DWITH_OPENAL=OFF",
 			"-DWITH_SDL=OFF",
-			"-DWITH_SQLITE=OFF",
+			"-DWITH_SQLITE=ON",
 			"-DWITH_SSL=OFF",
 			"-DWITH_UI=OFF",
 			"-DWITH_UV=OFF",

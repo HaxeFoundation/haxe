@@ -230,7 +230,10 @@ let handle_abstract_casts ctx e =
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
-						make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
+						if not ctx.allow_transform then
+							{ e1 with etype = ctx.t.tstring; epos = e.epos }
+						else
+							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
 					with Not_found ->
 						e
 					end

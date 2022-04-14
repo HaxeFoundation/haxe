@@ -283,6 +283,9 @@ let rec needs_temp_var e =
 	| _ -> true
 
 let call_to_string ctx ?(resume=false) e =
+	if not ctx.allow_transform then
+		{ e with etype = ctx.t.tstring }
+	else
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
 		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
@@ -329,7 +332,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
 					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls then
+				else if ctx.com.config.pf_pad_nulls && ctx.allow_transform then
 					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
 				else
 					ordered_args
@@ -394,8 +397,14 @@ let array_access ctx e1 e2 mode p =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
-				AKExpr e
+				let f = AbstractCast.find_array_access ctx a pl e2 None p in
+				if not ctx.allow_transform then
+					let _,_,r,_,_ = f in
+					AKExpr { eexpr = TArray(e1,e2); epos = p; etype = r }
+				else begin
+					let e = mk_array_get_call ctx f c e1 p in
+					AKExpr e
+				end
 			end
 		| _ -> raise Not_found)
 	with Not_found ->

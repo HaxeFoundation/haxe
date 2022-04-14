@@ -7,6 +7,7 @@ exception Abort
 
 type compiler_options = {
 	opt_inlining : bool option;
+	opt_transform : bool option;
 }
 
 (**
@@ -2049,7 +2050,8 @@ let macro_api ccom get_api =
 		);
 		"with_options", vfun2(fun opts f ->
 			let o = {
-				opt_inlining = opt decode_bool (field opts "inlining");
+				opt_inlining = opt decode_bool (field opts "allowInlining");
+				opt_transform = opt decode_bool (field opts "allowTransform");
 			} in
 			let f = prepare_callback f 0 in
 			(get_api()).with_options o (fun() -> f []);

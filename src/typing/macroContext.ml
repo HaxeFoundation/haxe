@@ -405,16 +405,18 @@ let make_macro_api ctx p =
 		);
 		MacroApi.with_options = (fun opts f ->
 			let old_inline = ctx.allow_inline in
+			let old_transform = ctx.allow_transform in
 			(match opts.opt_inlining with
 			| None -> ()
 			| Some v -> ctx.allow_inline <- v);
-			let run() =
-				f();
-			in
+			(match opts.opt_transform with
+			| None -> ()
+			| Some v -> ctx.allow_transform <- v);
 			let restore() =
 				ctx.allow_inline <- old_inline;
+				ctx.allow_transform <- old_transform;
 			in
-			Std.finally restore run ()
+			Std.finally restore f ()
 		);
 		MacroApi.warning = (fun w msg p ->
 			warning ctx w msg p
@@ -450,6 +452,7 @@ and flush_macro_context mint ctx =
 		let's save the minimal amount of information we need
 	*)
 	let minimal_restore t =
+		(t_infos t).mt_module.m_extra.m_processed <- mctx.com.compilation_step;
 		match t with
 		| TClassDecl c ->
 			let mk_field_restore f =
@@ -804,7 +807,7 @@ let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
 	mctx.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
-	call (List.map (fun e -> try Interp.make_const e with Exit -> typing_error "Parameter should be a constant" e.epos) el)
+	call (List.map (fun e -> try Interp.make_const e with Exit -> typing_error "Argument should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in

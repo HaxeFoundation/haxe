@@ -455,6 +455,7 @@ let type_generic_function ctx fa fcc with_type p =
 					{fa with fa_field = cf2}
 				end
 			end else begin
+				set_type_parameter_dependencies c.cl_module monos;
 				let cf2 = mk_cf2 name in
 				if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
 				c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;

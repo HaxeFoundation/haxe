@@ -1197,6 +1197,64 @@ let type_opt (ctx,cctx,fctx) p t =
 	| _ ->
 		Typeload.load_type_hint ctx p t
 
+let setup_args_ret ctx cctx fctx f fd p =
+	let name = fst f.cff_name in
+	let c = cctx.tclass in
+	let mk = lazy (
+		if String.length name < 4 then
+			MKNormal
+		else match String.sub name 0 4 with
+		| "get_" ->
+			begin match fd.f_args with
+			| [] -> MKGetter
+			| _ -> MKNormal
+			end
+		| "set_" ->
+			begin match fd.f_args with
+			| [_] -> MKSetter
+			| _ -> MKNormal
+			end
+		| _ ->
+			MKNormal
+	) in
+	let try_find_property_type () =
+		let name = String.sub name 4 (String.length name - 4) in
+		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
+		cf.cf_type
+	in
+	let maybe_use_property_type th check def =
+		if th = None && check() then
+			try
+				try_find_property_type()
+			with Not_found ->
+				def()
+		else
+			def()
+	in
+	let ret = if fctx.field_kind = FKConstructor then
+		ctx.t.tvoid
+	else begin
+		let def () =
+			type_opt (ctx,cctx,fctx) p fd.f_type
+		in
+		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
+	end in
+	let abstract_this = match cctx.abstract with
+		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+			Some a.a_this
+		| _ ->
+			None
+	in
+	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
+	let type_arg i opt cto p =
+		let def () =
+			type_opt (ctx,cctx,fctx) p cto
+		in
+		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
+	in
+	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
+	args,ret
+
 let create_method (ctx,cctx,fctx) c f fd p =
 	let name = fst f.cff_name in
 	let params = TypeloadFunction.type_function_params ctx fd name p in
@@ -1270,59 +1328,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let mk = lazy (
-		if String.length name < 4 then
-			MKNormal
-		else match String.sub name 0 4 with
-		| "get_" ->
-			begin match fd.f_args with
-			| [] -> MKGetter
-			| _ -> MKNormal
-			end
-		| "set_" ->
-			begin match fd.f_args with
-			| [_] -> MKSetter
-			| _ -> MKNormal
-			end
-		| _ ->
-			MKNormal
-	) in
-	let try_find_property_type () =
-		let name = String.sub name 4 (String.length name - 4) in
-		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
-		cf.cf_type
-	in
-	let maybe_use_property_type th check def =
-		if th = None && check() then
-			try
-				try_find_property_type()
-			with Not_found ->
-				def()
-		else
-			def()
-	in
-	let ret = if fctx.field_kind = FKConstructor then
-		ctx.t.tvoid
-	else begin
-		let def () =
-			type_opt (ctx,cctx,fctx) p fd.f_type
-		in
-		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
-	end in
-	let abstract_this = match cctx.abstract with
-		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
-			Some a.a_this
-		| _ ->
-			None
-	in
-	let is_extern = fctx.is_extern || has_class_flag ctx.curclass CExtern in
-	let type_arg i opt cto p =
-		let def () =
-			type_opt (ctx,cctx,fctx) p cto
-		in
-		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
-	in
-	let args = new FunctionArguments.function_arguments ctx type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
+	let args,ret = setup_args_ret ctx cctx fctx f fd p in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with

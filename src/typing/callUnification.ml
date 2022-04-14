@@ -131,7 +131,10 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| [],(_,false,_) :: _ ->
 			call_error (Not_enough_arguments args) callp
 		| [],(name,true,t) :: args ->
-			begin match loop [] args with
+			if not ctx.allow_transform then begin
+				ignore(loop [] args);
+				[]
+			end else begin match loop [] args with
 				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
 					if is_pos_infos t then [mk_pos_infos t]
 					else []
@@ -475,7 +478,7 @@ object(self)
 				locate_macro_error := false;
 				old msg ep;
 				locate_macro_error := true;
-				ctx.com.error (compl_msg "Called from macro here") p;
+				old (compl_msg "Called from macro here") p;
 			end else
 				old msg ep;
 		);

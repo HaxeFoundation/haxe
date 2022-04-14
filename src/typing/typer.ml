@@ -1220,10 +1220,13 @@ and type_local_function ctx kind f with_type p =
 				begin match follow t with
 				| TFun(args,ret) when List.length args = arity ->
 					List.iteri (fun i (_,_,t) ->
+						(* We don't want to bind monomorphs because we want the widest type *)
+						let t = dynamify_monos t in
 						m#join t (i + 1);
 					) args;
+					let ret = dynamify_monos ret in
 					m#join ret 0;
-				| _ ->
+				| t ->
 					()
 				end;
 				loop l
@@ -1991,6 +1994,7 @@ let rec create com =
 		in_loop = false;
 		in_display = false;
 		allow_inline = true;
+		allow_transform = true;
 		get_build_infos = (fun() -> None);
 		ret = mk_mono();
 		locals = PMap.empty;

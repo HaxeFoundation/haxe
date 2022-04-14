@@ -308,7 +308,8 @@ class inline_state ctx ethis params cf f p = object(self)
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
-			let v' = alloc_var (match v.v_kind with VUser _ -> VInlined | k -> k) v.v_name v.v_type v.v_pos in
+			let name = Option.default v.v_name (get_meta_string v.v_meta Meta.RealPath) in
+			let v' = alloc_var (match v.v_kind with VUser _ -> VInlined | k -> k) name v.v_type v.v_pos in
 			v'.v_extra <- v.v_extra;
 			let i = {
 				i_var = v;

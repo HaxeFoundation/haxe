@@ -338,6 +338,16 @@ let duplicate t =
 	in
 	loop t
 
+let dynamify_monos t =
+	let rec loop t =
+		match t with
+		| TMono { tm_type = None } ->
+			t_dynamic
+		| _ ->
+			map loop t
+	in
+	loop t
+
 exception ApplyParamsRecursion
 
 (* substitute parameters with other types *)

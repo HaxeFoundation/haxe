@@ -660,8 +660,7 @@ let check_reserved_type_paths ctx t =
 
 let is_cached com t =
 	let m = (t_infos t).mt_module.m_extra in
-	if m.m_processed = 0 then m.m_processed <- com.compilation_step;
-	m.m_processed <> com.compilation_step
+	m.m_processed <> 0 && m.m_processed < com.compilation_step
 
 let apply_filters_once ctx filters t =
 	if not (is_cached ctx.com t) then run_expression_filters None ctx filters t
@@ -821,66 +820,70 @@ let update_cache_dependencies com t =
 			()
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
-let save_class_state ctx t = match t with
-| TClassDecl c ->
-	let vars = ref [] in
-	let rec save_vars e =
-		let add v = vars := (v, v.v_type) :: !vars in
-		match e.eexpr with
-			| TFunction fn ->
-				List.iter (fun (v, _) -> add v) fn.tf_args;
-				save_vars fn.tf_expr
-			| TVar (v, e) ->
-				add v;
-				Option.may save_vars e
-			| _ ->
-				iter save_vars e
-	in
-	let mk_field_restore f =
-		Option.may save_vars f.cf_expr;
-		let rec mk_overload_restore f =
-			add_class_field_flag f CfPostProcessed;
-			f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
+let save_class_state ctx t =
+	(* Update m_processed here. This means that nothing should add a dependency afterwards because
+	   then the module is immediately considered uncached again *)
+	(t_infos t).mt_module.m_extra.m_processed <- ctx.com.compilation_step;
+	match t with
+	| TClassDecl c ->
+		let vars = ref [] in
+		let rec save_vars e =
+			let add v = vars := (v, v.v_type) :: !vars in
+			match e.eexpr with
+				| TFunction fn ->
+					List.iter (fun (v, _) -> add v) fn.tf_args;
+					save_vars fn.tf_expr
+				| TVar (v, e) ->
+					add v;
+					Option.may save_vars e
+				| _ ->
+					iter save_vars e
 		in
-		( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
-	in
-	let restore_field (f,res,overloads) =
-		let restore_field (f,(name,kind,expr,t,meta,params)) =
-			f.cf_name <- name; f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
+		let mk_field_restore f =
+			Option.may save_vars f.cf_expr;
+			let rec mk_overload_restore f =
+				add_class_field_flag f CfPostProcessed;
+				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
+			in
+			( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
+		in
+		let restore_field (f,res,overloads) =
+			let restore_field (f,(name,kind,expr,t,meta,params)) =
+				f.cf_name <- name; f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
+				f
+			in
+			let f = restore_field (f,res) in
+			f.cf_overloads <- List.map restore_field overloads;
 			f
 		in
-		let f = restore_field (f,res) in
-		f.cf_overloads <- List.map restore_field overloads;
-		f
-	in
-	let mk_pmap lst =
-		List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
-	in
+		let mk_pmap lst =
+			List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
+		in
 
-	let meta = c.cl_meta and path = c.cl_path and ext = (has_class_flag c CExtern) in
-	let sup = c.cl_super and impl = c.cl_implements in
-	let csr = Option.map (mk_field_restore) c.cl_constructor in
-	let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
-	let osr = List.map (mk_field_restore) c.cl_ordered_statics in
-	let init = c.cl_init in
-	Option.may save_vars init;
-	c.cl_restore <- (fun() ->
-		c.cl_super <- sup;
-		c.cl_implements <- impl;
-		c.cl_meta <- meta;
-		if ext then add_class_flag c CExtern else remove_class_flag c CExtern;
-		c.cl_path <- path;
-		c.cl_init <- init;
-		c.cl_ordered_fields <- List.map restore_field ofr;
-		c.cl_ordered_statics <- List.map restore_field osr;
-		c.cl_fields <- mk_pmap c.cl_ordered_fields;
-		c.cl_statics <- mk_pmap c.cl_ordered_statics;
-		c.cl_constructor <- Option.map restore_field csr;
-		c.cl_descendants <- [];
-		List.iter (fun (v, t) -> v.v_type <- t) !vars;
-	)
-| _ ->
-	()
+		let meta = c.cl_meta and path = c.cl_path and ext = (has_class_flag c CExtern) in
+		let sup = c.cl_super and impl = c.cl_implements in
+		let csr = Option.map (mk_field_restore) c.cl_constructor in
+		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
+		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
+		let init = c.cl_init in
+		Option.may save_vars init;
+		c.cl_restore <- (fun() ->
+			c.cl_super <- sup;
+			c.cl_implements <- impl;
+			c.cl_meta <- meta;
+			if ext then add_class_flag c CExtern else remove_class_flag c CExtern;
+			c.cl_path <- path;
+			c.cl_init <- init;
+			c.cl_ordered_fields <- List.map restore_field ofr;
+			c.cl_ordered_statics <- List.map restore_field osr;
+			c.cl_fields <- mk_pmap c.cl_ordered_fields;
+			c.cl_statics <- mk_pmap c.cl_ordered_statics;
+			c.cl_constructor <- Option.map restore_field csr;
+			c.cl_descendants <- [];
+			List.iter (fun (v, t) -> v.v_type <- t) !vars;
+		)
+	| _ ->
+		()
 
 let run com tctx main =
 	let detail_times = Common.defined com DefineList.FilterTimes in
