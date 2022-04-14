@@ -1303,5 +1303,11 @@
 		"metadata": ":needsExceptionStack",
 		"doc": "Internally used for some of auto-generated `catch` vars",
 		"internal": true
+	},
+	{
+		"name": "WrappedException",
+		"metadata": ":wrappedException",
+		"doc": "Internally used for exceptions wrapping in `throw` expressions.",
+		"internal": true
 	}
 ]
