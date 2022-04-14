@@ -1220,7 +1220,7 @@ and type_local_function ctx kind f with_type p =
 				begin match follow t with
 				| TFun(args,ret) when List.length args = arity ->
 					List.iteri (fun i (_,_,t) ->
-						(* We don't wand to bind monomorphs because we want the widest type *)
+						(* We don't want to bind monomorphs because we want the widest type *)
 						let t = dynamify_monos t in
 						m#join t (i + 1);
 					) args;

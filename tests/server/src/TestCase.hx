@@ -18,7 +18,12 @@ using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
 class TestCase implements ITest {
-	static public var debugLastResult:{hasError:Bool, stdout:String, stderr:String, prints:Array<String>};
+	static public var debugLastResult:{
+		hasError:Bool,
+		stdout:String,
+		stderr:String,
+		prints:Array<String>
+	};
 
 	var server:HaxeServerAsync;
 	var vfs:Vfs;
@@ -51,7 +56,7 @@ class TestCase implements ITest {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, done:()->Void) {
+	function runHaxe(args:Array<String>, done:() -> Void) {
 		messages = [];
 		errorMessages = [];
 		server.rawRequest(args, null, function(result) {
@@ -74,10 +79,23 @@ class TestCase implements ITest {
 		}, sendErrorMessage);
 	}
 
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:()->Void) {
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:() -> Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		runHaxe(args, done);
+	}
+
+	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
+			callback:TResponse->Void, done:() -> Void) {
+		var methodArgs = {method: method, id: 1, params: methodArgs};
+		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		server.rawRequest(args, null, function(result) {
+			callback(Json.parse(result.stderr).result.result);
+			done();
+		}, function(msg) {
+			sendErrorMessage(msg);
+			done();
+		});
 	}
 
 	function sendErrorMessage(msg:String) {
@@ -204,10 +222,10 @@ class TestCase implements ITest {
 		}
 	}
 
-	function assertClassField(completion:CompletionResult, name:String, ?callback:(field:JsonClassField)->Void, ?pos:PosInfos) {
+	function assertClassField(completion:CompletionResult, name:String, ?callback:(field:JsonClassField) -> Void, ?pos:PosInfos) {
 		for (item in completion.result.items) {
 			switch item.kind {
-				case ClassField if(item.args.field.name == name):
+				case ClassField if (item.args.field.name == name):
 					switch callback {
 						case null: Assert.pass(pos);
 						case fn: fn(item.args.field);
