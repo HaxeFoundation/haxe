@@ -1174,6 +1174,7 @@ module Compile = struct
 				loop bindings (List.hd patterns)
 			) cases;
 			let sigma = ConTable.fold (fun con arg_positions acc -> (con,ConTable.mem unguarded con,arg_positions) :: acc) sigma [] in
+			let sigma = List.sort (fun ((_,p1),_,_)  ((_,p2),_,_) -> p1.pmin - p2.pmin) sigma in
 			sigma,List.rev !null
 		in
 		let sigma,null = get_column_sigma cases in
