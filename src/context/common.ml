@@ -376,6 +376,7 @@ type context = {
 	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : (path,module_def) lookup;
+	module_nonexistent_lut : (path,bool) lookup;
 	type_to_module : (path,path) lookup;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
@@ -790,6 +791,7 @@ let create compilation_step cs version args =
 		callbacks = new compiler_callbacks;
 		modules = [];
 		module_lut = new hashtbl_lookup;
+		module_nonexistent_lut = new hashtbl_lookup;
 		type_to_module = new hashtbl_lookup;
 		main = None;
 		flash_version = 10.;

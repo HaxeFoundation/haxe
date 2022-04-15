@@ -795,6 +795,10 @@ let load_module' ctx g m p =
 		| Some m ->
 			m
 		| None ->
+			let raise_not_found () =
+				raise (Error (Module_not_found m,p))
+			in
+			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
@@ -803,7 +807,8 @@ let load_module' ctx g m p =
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
 					| [] ->
-						raise (Error (Module_not_found m,p))
+						ctx.com.module_nonexistent_lut#add m true;
+						raise_not_found()
 					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
