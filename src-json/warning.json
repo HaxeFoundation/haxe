@@ -1,0 +1,107 @@
+[
+	{
+		"name": "WAll",
+		"doc": "The mother of all warnings",
+		"generic": true
+	},
+	{
+		"name": "WInternal",
+		"doc": "Reserved for internal use",
+		"generic": true
+	},
+	{
+		"name": "WTemp",
+		"doc": "Reserved for internal use",
+		"generic": true
+	},
+	{
+		"name": "WInfo",
+		"doc": "Generic information like $type",
+		"generic": true
+	},
+	{
+		"name": "WUser",
+		"doc": "Custom user warnings, e.g. from Context.warning",
+		"generic": true
+	},
+	{
+		"name": "WCompiler",
+		"doc": "Warnings from the compiler frontend, e.g. argument parsing",
+		"generic": true
+	},
+	{
+		"name": "WParser",
+		"doc": "Warnings related to lexing and parsing",
+		"generic": true
+	},
+	{
+		"name": "WTyper",
+		"doc": "Warnings from the typer",
+		"generic": true
+	},
+	{
+		"name": "WMacro",
+		"doc": "Warning related to macros",
+		"generic": true
+	},
+	{
+		"name": "WOptimizer",
+		"doc": "Warnings related to optimization",
+		"generic": true
+	},
+	{
+		"name": "WGenerator",
+		"doc": "Warnings related to code generation",
+		"generic": true
+	},
+	{
+		"name": "WDeprecated",
+		"doc": "This is deprecated and should no longer be used"
+	},
+	{
+		"name": "WVarInit",
+		"doc": "A local variable might be used before being assigned a value",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WVarShadow",
+		"doc": "A local variable hides another by using the same name",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WExternWithExpr",
+		"doc": "A non-inline field marked as extern has an expression",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WStaticInitOrder",
+		"doc": "The compiler could not determine a type order due to mutually dependent static initializations",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WClosureCompare",
+		"doc": "Closures are being compared, which might be undefined",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WReservedTypePath",
+		"doc": "A type path is being used that is supposed to be reserved on the current target",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WPatternMatcher",
+		"doc": "Warnings related to the pattern matcher",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WUnusedPattern",
+		"doc": "The pattern is not used because previous cases cover",
+		"parent": "WPatternMatcher"
+	},
+	{
+		"name": "WConstructorInliningCancelled",
+		"doc": "Constructor call could not be inlined because a field is uninitialized",
+		"parent": "WTyper"
+	}
+
+]

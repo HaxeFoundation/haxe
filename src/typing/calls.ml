@@ -66,10 +66,10 @@ let make_call ctx e params t ?(force_inline=false) p =
 						typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
-		let params = List.map (ctx.g.do_optimize ctx) params in
+		let params = List.map (Optimizer.reduce_expression ctx) params in
 		let force_inline = is_forced_inline cl f in
 		(match f.cf_expr_unoptimized,f.cf_expr with
-		| Some fd,_
+		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
 			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
 			| None ->
@@ -88,7 +88,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 
 let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
-		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array get method" p;
+		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
 		let et = type_module_type ctx (TClassDecl c) None p in
@@ -99,7 +99,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 	let evalue = match e2o with None -> die "" __LOC__ | Some e -> e in
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
@@ -166,12 +166,12 @@ let rec acc_get ctx g p =
 			let e_def = FieldAccess.get_field_expr fa FRead in
 			begin match follow fa.fa_on.etype with
 				| TInst (c,_) when chk_class c ->
-					display_error ctx "Can't create closure on an extern inline member method" p;
+					display_error ctx.com "Can't create closure on an extern inline member method" p;
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
 						| Statics c when has_class_field_flag cf CfExtern ->
-							display_error ctx "Cannot create closure on @:extern inline method" p;
+							display_error ctx.com "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
 						| _ -> e_def
@@ -185,8 +185,6 @@ let rec acc_get ctx g p =
 			let tf = apply_params cf.cf_type in
 			if not (type_iseq tf e.etype) then mk (TCast(e,None)) tf e.epos
 			else e
-		| Var _,None when ctx.com.display.dms_display ->
-			 FieldAccess.get_field_expr fa FRead
 		| Var _,None ->
 			typing_error "Recursive inline is not supported" p
 		end
@@ -285,6 +283,9 @@ let rec needs_temp_var e =
 	| _ -> true
 
 let call_to_string ctx ?(resume=false) e =
+	if not ctx.allow_transform then
+		{ e with etype = ctx.t.tstring }
+	else
 	let gen_to_string e =
 		(* Ignore visibility of the toString field. *)
 		ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
@@ -331,7 +332,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
 					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
-				else if ctx.com.config.pf_pad_nulls then
+				else if ctx.com.config.pf_pad_nulls && ctx.allow_transform then
 					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
 				else
 					ordered_args
@@ -396,8 +397,14 @@ let array_access ctx e1 e2 mode p =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
-				AKExpr e
+				let f = AbstractCast.find_array_access ctx a pl e2 None p in
+				if not ctx.allow_transform then
+					let _,_,r,_,_ = f in
+					AKExpr { eexpr = TArray(e1,e2); epos = p; etype = r }
+				else begin
+					let e = mk_array_get_call ctx f c e1 p in
+					AKExpr e
+				end
 			end
 		| _ -> raise Not_found)
 	with Not_found ->
@@ -420,7 +427,7 @@ let array_access ctx e1 e2 mode p =
 				let pt = spawn_monomorph ctx p in
 				let t = ctx.t.tarray pt in
 				begin try
-					unify_raise ctx et t p
+					unify_raise et t p
 				with Error(Unify _,_) ->
 					if not ctx.untyped then begin
 						let msg = if !has_abstract_array_access then

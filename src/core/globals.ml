@@ -115,3 +115,41 @@ let die ?p msg ml_loc =
 	and os_type = if Sys.unix then "unix" else "windows" in
 	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
 	assert false
+
+module MessageSeverity = struct
+	type t =
+		| Error
+		| Warning
+		| Information
+		| Hint
+
+	let to_int = function
+		| Error -> 1
+		| Warning -> 2
+		| Information -> 3
+		| Hint -> 4
+end
+
+module MessageKind = struct
+	type t =
+		| DKUnusedImport
+		| DKUnresolvedIdentifier
+		| DKCompilerMessage
+		| DKRemovableCode
+		| DKParserError
+		| DKDeprecationWarning
+		| DKInactiveBlock
+		| DKMissingFields
+
+	let to_int = function
+		| DKUnusedImport -> 0
+		| DKUnresolvedIdentifier -> 1
+		| DKCompilerMessage -> 2
+		| DKRemovableCode -> 3
+		| DKParserError -> 4
+		| DKDeprecationWarning -> 5
+		| DKInactiveBlock -> 6
+		| DKMissingFields -> 7
+end
+
+type compiler_message = string * pos * MessageKind.t * MessageSeverity.t

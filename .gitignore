@@ -135,3 +135,4 @@ tests/server/test.js.map
 *.merlin
 lib.sexp
 src/compiler/version.ml
+tests/party

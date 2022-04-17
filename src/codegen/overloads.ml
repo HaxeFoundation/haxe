@@ -13,7 +13,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			| [],[] ->
 				true
 			| tp1 :: params1,tp2 :: params2 ->
-				let constraints_equal t1 t2 = match follow t1,t2 with
+				let constraints_equal t1 t2 = match follow t1,follow t2 with
 					| TInst({cl_kind = KTypeParameter tl1},_),TInst({cl_kind = KTypeParameter tl2},_) ->
 						Ast.safe_for_all2 f_eq tl1 tl2
 					| _ ->
@@ -84,10 +84,10 @@ let collect_overloads map c i =
 
 let get_overloads (com : Common.context) c i =
 	try
-		Hashtbl.find com.overload_cache (c.cl_path,i)
+		com.overload_cache#find (c.cl_path,i)
 	with Not_found ->
 		let l = collect_overloads (fun t -> t) c i in
-		Hashtbl.add com.overload_cache (c.cl_path,i) l;
+		com.overload_cache#add (c.cl_path,i) l;
 		l
 
 (** Overload resolution **)

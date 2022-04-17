@@ -102,7 +102,7 @@ and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 	try
 		do_check_cast ctx uctx tleft eright p
 	with Not_found ->
-		unify_raise_custom uctx ctx eright.etype tleft p;
+		unify_raise_custom uctx eright.etype tleft p;
 		eright
 
 and cast_or_unify ctx tleft eright p =
@@ -230,7 +230,10 @@ let handle_abstract_casts ctx e =
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
-						make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
+						if not ctx.allow_transform then
+							{ e1 with etype = ctx.t.tstring; epos = e.epos }
+						else
+							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
 					with Not_found ->
 						e
 					end

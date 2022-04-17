@@ -92,6 +92,8 @@ let encode_uv_error (e:Error.t) =
 	| `ENOTTY -> 75
 	| `EFTYPE -> 76
 	| `EILSEQ -> 77
+	| `EOVERFLOW -> 78
+	| `ESOCKTNOSUPPORT -> 79
 	)
 
 let decode_uv_error v : Error.t =
@@ -174,6 +176,8 @@ let decode_uv_error v : Error.t =
 	| 75 -> `ENOTTY
 	| 76 -> `EFTYPE
 	| 77 -> `EILSEQ
+	| 78 -> `EOVERFLOW
+	| 79 -> `ESOCKTNOSUPPORT
 	| _ -> unexpected_value v "eval.luv.UVError"
 
 let luv_exception e =

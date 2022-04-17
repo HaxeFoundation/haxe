@@ -5,6 +5,11 @@ open Common
 exception Invalid_expr
 exception Abort
 
+type compiler_options = {
+	opt_inlining : bool option;
+	opt_transform : bool option;
+}
+
 (**
 	Our access to the compiler from the macro api
 **)
@@ -52,6 +57,7 @@ type 'value compiler_api = {
 	flush_context : (unit -> t) -> t;
 	display_error : (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
+	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	warning : Warning.warning -> string -> pos -> unit;
 }
 
@@ -375,11 +381,11 @@ and encode_display_kind dk =
 	in
 	encode_enum ~pos:None IDisplayKind tag pl
 
-and encode_message msg =
-	let tag, pl = match msg with
-		| CMInfo(msg,p) -> 0, [(encode_string msg); (encode_pos p)]
-		| CMWarning(msg,p) -> 1, [(encode_string msg); (encode_pos p)]
-		| CMError(_,_) -> Globals.die "" __LOC__
+and encode_message (msg,p,_,sev) =
+	let tag, pl = match sev with
+		| Globals.MessageSeverity.Information -> 0, [(encode_string msg); (encode_pos p)]
+		| Warning | Hint -> 1, [(encode_string msg); (encode_pos p)]
+		| Error -> Globals.die "" __LOC__
 	in
 	encode_enum ~pos:None IMessage tag pl
 
@@ -921,7 +927,7 @@ and encode_tabstract a =
 		"type", encode_type a.a_this;
 		"impl", (match a.a_impl with None -> vnull | Some c -> encode_clref c);
 		"binops", encode_array (List.map (fun (op,cf) -> encode_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops);
-		"unops", encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "isPostfix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
+		"unops", encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "postFix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
 		"from", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field));
 		"to", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
 		"array", encode_array (List.map encode_cfield a.a_array);
@@ -1777,8 +1783,8 @@ let macro_api ccom get_api =
 		);
 		"flush_disk_cache", vfun0 (fun () ->
 			let com = (get_api()).get_com() in
-			Hashtbl.clear com.file_lookup_cache;
-			Hashtbl.clear com.readdir_cache;
+			com.file_lookup_cache#clear;
+			com.readdir_cache#clear;
 			vnull
 		);
 		"get_pos_infos", vfun1 (fun p ->
@@ -1882,8 +1888,8 @@ let macro_api ccom get_api =
 				mcom.class_path <- cp :: mcom.class_path;
 			| None ->
 				());
-			Hashtbl.clear com.file_lookup_cache;
-			Hashtbl.clear com.readdir_cache;
+			com.file_lookup_cache#clear;
+			com.readdir_cache#clear;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->
@@ -1981,12 +1987,12 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"server_invalidate_files", vfun1 (fun a ->
-			let cs = match CompilationServer.get() with Some cs -> cs | None -> failwith "compilation server not running" in
 			let com = ccom() in
+			let cs = com.cs in
 			List.iter (fun v ->
 				let s = decode_string v in
 				let s = com.file_keys#get s in
-				cs#taint_modules s;
+				cs#taint_modules s "server_invalidate_files";
 				cs#remove_files s;
 			) (decode_array a);
 			vnull
@@ -2042,5 +2048,19 @@ let macro_api ccom get_api =
 			let f = prepare_callback f 0 in
 			(get_api()).with_imports imports usings (fun () -> f [])
 		);
+		"with_options", vfun2(fun opts f ->
+			let o = {
+				opt_inlining = opt decode_bool (field opts "allowInlining");
+				opt_transform = opt decode_bool (field opts "allowTransform");
+			} in
+			let f = prepare_callback f 0 in
+			(get_api()).with_options o (fun() -> f []);
+		);
+		"set_var_name", vfun2(fun v name ->
+			let v = decode_tvar v in
+			let name = decode_string name in
+			v.v_name <- name;
+			vnull;
+		)
 	]
 end

@@ -100,13 +100,13 @@ let update_config_from_meta com config ml =
 						| "as_var" -> config
 						| _ ->
 							let options = Warning.from_meta ml in
-							com.warning WAnalyzer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+							com.warning WOptimizer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 							config
 					end
 				| _ ->
 					let s = Ast.Printer.s_expr e in
 					let options = Warning.from_meta ml in
-					com.warning WAnalyzer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+					com.warning WOptimizer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el
 		| (Meta.HasUntyped,_,_) ->

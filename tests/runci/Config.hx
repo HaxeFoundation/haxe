@@ -19,6 +19,8 @@ class Config {
 	static public final sourcemapsDir = Path.join([cwd, "sourcemaps"]);
 	static public final nullSafetyDir = Path.join([cwd, "nullsafety"]);
 	static public final threadsDir = Path.join([cwd, "threads"]);
+	// this stands for third-party, but I've always wanted a party directory
+	static public final partyDir = Path.join([cwd, "party"]);
 
 	static public function getMiscSubDir(...subDir:String)
 		return Path.join([cwd, "misc"].concat(subDir.toArray()));
