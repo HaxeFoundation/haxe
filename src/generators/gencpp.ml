@@ -319,13 +319,18 @@ module DebugDatabase = struct
 
    type hx_class = {
       name : name_mapping;
-      fields : (string, name_mapping) PMap.t;
+      fields : name_mapping list;
+   }
+
+   type hx_enum = {
+      name : name_mapping;
+      constructors : (string, name_mapping) PMap.t;
    }
 
    type db = {
       files : generated_file list;
       classes : hx_class list;
-      enums : hx_class list;
+      enums : hx_enum list;
    }
 
    let create () = { files = []; classes = []; enums = [] }
@@ -366,8 +371,8 @@ module DebugDatabase = struct
    let create_class name fields =
       { name = name; fields = fields }
 
-   let create_enum name arguments =
-      { name = name; fields = arguments }
+   let create_enum name constructors =
+      { name = name; constructors = constructors }
 
    let print_name_mapping map =
       Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\" }" map.haxe_var map.cpp_var map.haxe_type
@@ -391,15 +396,21 @@ module DebugDatabase = struct
       Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ] }" f.haxe_file f.cpp_file f.haxe_type printed_funcs
 
    let print_class c =
+      let fields         = List.map print_name_mapping c.fields in
       let name           = print_name_mapping c.name in
-      let fields         = pmap_values c.fields in
-      let printed_fields = String.concat ", " (List.map print_name_mapping fields) in
+      let printed_fields = String.concat ", " fields in
       "{ \"name\" : " ^ name ^ ", \"fields\" : [ " ^ printed_fields ^ " ] }"
+
+   let print_enum e =
+      let constructors   = pmap_values e.constructors in
+      let name           = print_name_mapping e.name in
+      let printed_fields = String.concat ", " (List.map print_name_mapping constructors) in
+      "{ \"name\" : " ^ name ^ ", \"constructors\" : [ " ^ printed_fields ^ " ] }"
 
    let print db =
       let printed_files   = String.concat ", " (List.map print_generated_file db.files) in
       let printed_classes = String.concat ", " (List.map print_class db.classes) in
-      let printed_enums   = String.concat ", " (List.map print_class db.enums) in
+      let printed_enums   = String.concat ", " (List.map print_enum db.enums) in
       "{ \"files\" : [ " ^ printed_files ^ " ], \"classes\" : [ " ^ printed_classes ^ " ], \"enums\" : [ " ^ printed_enums ^ " ] }"
 
 end
@@ -8764,7 +8775,8 @@ let generate_source ctx =
          |> List.map (fun class_def ->
             let cpp_name  = (join_class_path_remap class_def.cl_path "::") ^ "_obj" in
             let haxe_name = s_type_path class_def.cl_path in
-            let fields    = PMap.map (fun f -> DebugDatabase.create_name_mapping f.cf_name (type_string f.cf_type) (Printer.s_type f.cf_type)) class_def.cl_fields in
+            let variables = pmap_values class_def.cl_fields |> ExtList.List.filter_map (fun f -> match is_physical_var_field f with true -> Some f | false -> None) in
+            let fields    = List.map (fun f -> DebugDatabase.create_name_mapping f.cf_name (type_string f.cf_type) (Printer.s_type f.cf_type)) variables in
             let mapping   = DebugDatabase.create_name_mapping haxe_name cpp_name haxe_name in
             DebugDatabase.create_class mapping fields)
    in
