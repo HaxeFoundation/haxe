@@ -8763,9 +8763,7 @@ let generate_source ctx =
          |> ExtList.List.filter_map (fun object_def -> match object_def with TClassDecl d -> Some d | _ -> None)
          |> List.map (fun class_def ->
             let cpp_name  = (join_class_path_remap class_def.cl_path "::") ^ "_obj" in
-            (* let cpp_name  = "cpp_name" in *)
-            (* let haxe_name = s_type_path class_def.cl_path in *)
-            let haxe_name = "haxe_name" in
+            let haxe_name = s_type_path class_def.cl_path in
             let fields    = PMap.map (fun f -> DebugDatabase.create_name_mapping f.cf_name (type_string f.cf_type) (Printer.s_type f.cf_type)) class_def.cl_fields in
             let mapping   = DebugDatabase.create_name_mapping haxe_name cpp_name haxe_name in
             DebugDatabase.create_class mapping fields)
@@ -8775,9 +8773,7 @@ let generate_source ctx =
          |> ExtList.List.filter_map (fun object_def -> match object_def with TEnumDecl d -> Some d | _ -> None)
          |> List.map (fun enum_def ->
             let cpp_name  = (join_class_path_remap enum_def.e_path "::") ^ "_obj" in
-            (* let cpp_name  = "enum_name" in *)
-            (* let haxe_name = s_type_path enum_def.e_path in *)
-            let haxe_name = "haxe_name" in
+            let haxe_name = s_type_path enum_def.e_path in
             let fields    = PMap.map (fun f -> DebugDatabase.create_name_mapping f.ef_name (type_string f.ef_type) (Printer.s_type f.ef_type)) enum_def.e_constrs in
             let mapping   = DebugDatabase.create_name_mapping haxe_name cpp_name haxe_name in
             DebugDatabase.create_enum mapping fields)
