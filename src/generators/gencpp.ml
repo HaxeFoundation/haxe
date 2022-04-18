@@ -8771,7 +8771,7 @@ let generate_source ctx =
 
    let hx_classes =
       common_ctx.types
-         |> ExtList.List.filter_map (fun object_def -> match object_def with TClassDecl d -> Some d | _ -> None)
+         |> ExtList.List.filter_map (fun object_def -> match object_def with TClassDecl d when (is_extern_class d) = false -> Some d | _ -> None)
          |> List.map (fun class_def ->
             let cpp_name  = (join_class_path_remap class_def.cl_path "::") ^ "_obj" in
             let haxe_name = s_type_path class_def.cl_path in
