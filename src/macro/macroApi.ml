@@ -2061,6 +2061,18 @@ let macro_api ccom get_api =
 			let name = decode_string name in
 			v.v_name <- name;
 			vnull;
-		)
+		);
+		"send_json", vfun1 (fun json ->
+			begin match (ccom()).json_out with
+			| Some api ->
+				let json = decode_string json in
+				let lexbuf = Sedlexing.Utf8.from_string json in
+				let parse = Json.Reader.read_json lexbuf in
+				api.send_result parse;
+				vbool true
+			| None ->
+				vbool false
+			end
+		);
 	]
 end
