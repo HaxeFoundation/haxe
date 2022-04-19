@@ -51,6 +51,6 @@ class Macro {
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
 		runCommand("haxelib", ["dev", "tink_core", "."]);
-		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp"]);
+		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 	}
 }
