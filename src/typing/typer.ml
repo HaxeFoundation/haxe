@@ -1774,7 +1774,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EBinop (OpNullCoal,e1,e2) ->
 		let vr = new value_reference ctx in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
-		let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
+		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
