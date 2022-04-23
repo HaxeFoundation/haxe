@@ -3548,17 +3548,18 @@ let generate con =
 		if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 			let old_dir = Sys.getcwd() in
 			Sys.chdir gen.gcon.file;
-			let cmd = "haxelib run hxcs hxcs_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) ^ " --feature-level 1" in
-			let cmd =
+			let cmd = "haxelib" in
+			let args = ["run"; "hxcs"; "hxcs_build.txt"; "--haxe-version"; (string_of_int gen.gcon.version); "--feature-level"; "1"] in
+			let args =
 				match gen.gentry_point with
 				| Some (name,_,_) ->
 					let name = if gen.gcon.debug then name ^ "-Debug" else name in
-					cmd ^ " --out " ^ gen.gcon.file ^ "/bin/" ^ name
+					args@["--out"; gen.gcon.file ^ "/bin/" ^ name]
 				| _ ->
-					cmd
+					args
 			in
-			print_endline cmd;
-			if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
+			print_endline (cmd ^ " " ^ (String.concat " " args));
+			if gen.gcon.run_command_args cmd args <> 0 then failwith "Build failed";
 			Sys.chdir old_dir;
 		end
 

@@ -23,7 +23,7 @@ let type_function_arg_value ctx t c do_display =
 		| Some e ->
 			let p = pos e in
 			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
-			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType.with_type t)) in
+			let e = Optimizer.reduce_expression ctx (type_expr ctx e (WithType.with_type t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
@@ -31,8 +31,8 @@ let type_function_arg_value ctx t c do_display =
 				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
-					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
-						display_error ctx "Parameter default value should be constant" p;
+					if ctx.com.display.dms_kind = DMNone || Common.is_diagnostics ctx.com then
+						Common.display_error ctx.com "Default argument value should be constant" p;
 					None
 			in
 			loop e

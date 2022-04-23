@@ -112,9 +112,9 @@
 	{
 		"name": "Build",
 		"metadata": ":build",
-		"doc": "Builds a class or enum from a macro.",
+		"doc": "Builds a class, enum, or abstract from a macro.",
 		"params": ["Build macro call"],
-		"targets": ["TClass", "TEnum"],
+		"targets": ["TClass", "TEnum", "TAbstract"],
 		"links": ["https://haxe.org/manual/macro-type-building.html"]
 	},
 	{
@@ -1302,6 +1302,12 @@
 		"name": "NeedsExceptionStack",
 		"metadata": ":needsExceptionStack",
 		"doc": "Internally used for some of auto-generated `catch` vars",
+		"internal": true
+	},
+	{
+		"name": "WrappedException",
+		"metadata": ":wrappedException",
+		"doc": "Internally used for exceptions wrapping in `throw` expressions.",
 		"internal": true
 	}
 ]

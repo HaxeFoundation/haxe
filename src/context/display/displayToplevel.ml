@@ -18,7 +18,7 @@
 *)
 open Ast
 open Common
-open CompilationServer
+open CompilationCache
 open Type
 open Typecore
 open CompletionItem
@@ -55,15 +55,17 @@ let maybe_resolve_macro_field ctx t c cf =
 
 let exclude : string list ref = ref []
 
-class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
+class explore_class_path_task com checked recursive f_pack f_module dir pack = object(self)
 	inherit server_task ["explore";dir] 50
 	val platform_str = platform_name_macro com
 
 	method private execute : unit =
+		let unique_dir = Path.UniqueKey.create dir in
 		let dot_path = (String.concat "." (List.rev pack)) in
-		if (List.mem dot_path !exclude) then
+		if (List.mem dot_path !exclude) || Hashtbl.mem checked unique_dir then
 			()
 		else try
+			Hashtbl.add checked unique_dir true;
 			let entries = Sys.readdir dir in
 			Array.iter (fun file ->
 				match file with
@@ -78,11 +80,7 @@ class explore_class_path_task cs com recursive f_pack f_module dir pack = object
 						with Not_found ->
 							f_pack (List.rev pack,file);
 							if recursive then begin
-								let task = new explore_class_path_task cs com recursive f_pack f_module (dir ^ file ^ "/") (file :: pack) in
-								begin match cs with
-									| None -> task#run
-									| Some cs' -> cs'#add_task task
-								end
+								(new explore_class_path_task com checked recursive f_pack f_module (dir ^ file ^ "/") (file :: pack))#run
 							end
 						end
 					| _ ->
@@ -112,15 +110,16 @@ class explore_class_path_task cs com recursive f_pack f_module dir pack = object
 end
 
 let explore_class_paths com timer class_paths recursive f_pack f_module =
-	let cs = CompilationServer.get() in
+	let cs = com.cs in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
+	let checked = Hashtbl.create 0 in
 	let tasks = List.map (fun dir ->
-		new explore_class_path_task cs com recursive f_pack f_module dir []
+		new explore_class_path_task com checked recursive f_pack f_module dir []
 	) class_paths in
-	begin match cs with
-	| None -> List.iter (fun task -> task#run) tasks
-	| Some cs -> List.iter (fun task -> cs#add_task task) tasks
-	end;
+	let task = new arbitrary_task ["explore"] 50 (fun () ->
+		List.iter (fun task -> task#run) tasks
+	) in
+	cs#add_task task;
 	t()
 
 let read_class_paths com timer =
@@ -128,17 +127,15 @@ let read_class_paths com timer =
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
 		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
-			match CompilationServer.get() with
-			| Some cs when pack <> fst path ->
+			if pack <> fst path then begin
 				let file_key = com.file_keys#get file in
-				(CommonCache.get_cache cs com)#remove_file_for_real file_key
-			| _ ->
-				()
+				(CommonCache.get_cache com)#remove_file_for_real file_key
+			end
 		end
 	)
 
 let init_or_update_server cs com timer_name =
-	let cc = CommonCache.get_cache cs com in
+	let cc = CommonCache.get_cache com in
 	if not cc#is_initialized then begin
 		cc#set_initialized true;
 		read_class_paths com timer_name
@@ -464,58 +461,46 @@ let collect ctx tk with_type sort =
 	List.iter add_type (List.rev_map fst ctx.m.module_imports); (* reverse! *)
 
 	(* types from files *)
-	begin match !CompilationServer.instance with
-	| None ->
-		(* offline: explore class paths *)
-		let class_paths = ctx.com.class_path in
-		let class_paths = List.filter (fun s -> s <> "") class_paths in
-		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun file path ->
-			if not (path_exists cctx path) then begin
-				let _,decls = Display.parse_module ctx path Globals.null_pos in
-				ignore(process_decls (fst path) (snd path) decls)
-			end
-		)
-	| Some cs ->
-		(* online: iter context files *)
-		init_or_update_server cs ctx.com ["display";"toplevel"];
-		let cc = CommonCache.get_cache cs ctx.com in
-		let files = cc#get_files in
-		(* Sort files by reverse distance of their package to our current package. *)
-		let files = Hashtbl.fold (fun file cfile acc ->
-			let i = pack_similarity curpack cfile.c_package in
-			((file,cfile),i) :: acc
-		) files [] in
-		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
-		let check_package pack = match List.rev pack with
-			| [] -> ()
-			| s :: sl -> add_package (List.rev sl,s)
-		in
-		List.iter (fun ((file_key,cfile),_) ->
-			let module_name = CompilationServer.get_module_name_of_cfile cfile.c_file_path cfile in
-			let dot_path = s_type_path (cfile.c_package,module_name) in
-			(* In legacy mode we only show toplevel types. *)
-			if is_legacy_completion && cfile.c_package <> [] then begin
-				(* And only toplevel packages. *)
-				match cfile.c_package with
-				| [s] -> add_package ([],s)
-				| _ -> ()
-			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
-				()
-			else begin
-				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) cfile.c_file_path;
-				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
-			end
-		) files;
-		List.iter (fun file ->
-			match cs#get_native_lib file with
-			| Some lib ->
-				Hashtbl.iter (fun path (pack,decls) ->
-					if process_decls pack (snd path) decls then check_package pack;
-				) lib.c_nl_files
-			| None ->
-				()
-		) ctx.com.native_libs.all_libs
-	end;
+	let cs = ctx.com.cs in
+	(* online: iter context files *)
+	init_or_update_server cs ctx.com ["display";"toplevel"];
+	let cc = CommonCache.get_cache ctx.com in
+	let files = cc#get_files in
+	(* Sort files by reverse distance of their package to our current package. *)
+	let files = Hashtbl.fold (fun file cfile acc ->
+		let i = pack_similarity curpack cfile.c_package in
+		((file,cfile),i) :: acc
+	) files [] in
+	let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
+	let check_package pack = match List.rev pack with
+		| [] -> ()
+		| s :: sl -> add_package (List.rev sl,s)
+	in
+	List.iter (fun ((file_key,cfile),_) ->
+		let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path cfile in
+		let dot_path = s_type_path (cfile.c_package,module_name) in
+		(* In legacy mode we only show toplevel types. *)
+		if is_legacy_completion && cfile.c_package <> [] then begin
+			(* And only toplevel packages. *)
+			match cfile.c_package with
+			| [s] -> add_package ([],s)
+			| _ -> ()
+		end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+			()
+		else begin
+			ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
+			if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
+		end
+	) files;
+	List.iter (fun file ->
+		match cs#get_native_lib file with
+		| Some lib ->
+			Hashtbl.iter (fun path (pack,decls) ->
+				if process_decls pack (snd path) decls then check_package pack;
+			) lib.c_nl_files
+		| None ->
+			()
+	) ctx.com.native_libs.all_libs;
 
 	(* packages *)
 	Hashtbl.iter (fun path _ ->

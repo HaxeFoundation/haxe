@@ -9,7 +9,7 @@ class Issue6561 extends unit.Test {
 		eq("hello", apply(NotLog("hello")));
 	}
 
-	@:haxe.warning("-600")
+	@:haxe.warning("-WGenerator")
 	static function apply<A>(f:Log<A>):A {
 		return switch f {
 			case NotLog(msg):

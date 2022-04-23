@@ -93,6 +93,7 @@ class EventLoop {
 			case null:
 			case e: e.next = event.next;
 		}
+		event.next = event.previous = null;
 		mutex.release();
 	}
 

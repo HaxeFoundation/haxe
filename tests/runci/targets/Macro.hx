@@ -38,5 +38,19 @@ class Macro {
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--interp"]);
+
+		deleteDirectoryRecursively(partyDir);
+		runCommand("mkdir", [partyDir]);
+		changeDirectory(partyDir);
+		party();
+	}
+
+	static function party() {
+		runCommand("git", ["clone", "https://github.com/haxetink/tink_core", "tink_core"]);
+		changeDirectory("tink_core");
+		runCommand("haxelib", ["newrepo"]);
+		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
+		runCommand("haxelib", ["dev", "tink_core", "."]);
+		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 	}
 }
