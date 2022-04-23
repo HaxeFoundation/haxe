@@ -87,6 +87,27 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	/**
+		Creates a new Vector of length `length` filled with `defaultValue` elements.
+
+		Can be faster than `new Vector` for iteration on some targets for non-nullable elements.
+
+		If `length` is less than or equal to 0, the result is unspecified.
+	**/
+	public static inline function filled<T>(length:Int, defaultValue:T):Vector<T> {
+		#if js
+		final vector = [for (_ in 0...length) defaultValue];
+		return cast vector;
+		#elseif python
+		final vector = python.Syntax.code("[{0}]*{1}", defaultValue, length);
+		return cast vector;
+		#else
+		final vector = new Vector(length);
+		vector.fill(defaultValue);
+		return vector;
+		#end
+	}
+
+	/**
 		Returns the value at index `index`.
 
 		If `index` is negative or exceeds `this.length`, the result is
@@ -140,6 +161,12 @@ abstract Vector<T>(VectorData<T>) {
 		return untyped this.length;
 		#end
 	}
+
+	/**
+		Sets all `length` elements of `this` Vector to `value`.
+	**/
+	public inline function fill(value:T):Void
+		for (i in 0...length) this[i] = value;
 
 	/**
 		Copies `length` of elements from `src` Vector, beginning at `srcPos` to
