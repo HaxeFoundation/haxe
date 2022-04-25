@@ -38,8 +38,11 @@ class Type {
 	static inline function get_allTypes():hl.types.BytesMap
 		return untyped $allTypes();
 
-	@:keep static function init():Void {
+	@:keep static function init():Bool {
+		if( allTypes != null )
+			return false;
 		untyped $allTypes(new hl.types.BytesMap());
+		return true;
 	}
 
 	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class@:privateAccess {

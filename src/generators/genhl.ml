@@ -3437,7 +3437,9 @@ let generate_static_init ctx types main =
 
 	let gen_content() =
 
-		op ctx (OCall0 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "init"));
+		let is_init = alloc_tmp ctx HBool in
+		op ctx (OCall0 (is_init, alloc_fun_path ctx ([],"Type") "init"));
+		hold ctx is_init;
 
 		(* init class values *)
 		List.iter (fun t ->
@@ -3609,6 +3611,11 @@ let generate_static_init ctx types main =
 				()
 
 		) types;
+
+		let j = jump ctx (fun d -> OJTrue (is_init,d)) in
+		op ctx (ORet (alloc_tmp ctx HVoid));
+		j();
+		free ctx is_init;
 	in
 	(* init class statics *)
 	let init_exprs = ref [] in
