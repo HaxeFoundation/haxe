@@ -30,6 +30,7 @@ type module_check_policy =
 	| CheckFileContentModification
 	| NoCheckDependencies
 	| NoCheckShadowing
+	| Retype
 
 type module_skip_reason =
 	| DependencyDirty of path

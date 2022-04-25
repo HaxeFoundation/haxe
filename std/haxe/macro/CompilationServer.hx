@@ -52,6 +52,10 @@ enum abstract ModuleCheckPolicy(Int) {
 		of the current module file.
 	**/
 	var NoCheckShadowing = 3;
+	/**
+		Retype the module's contents if its file is invalidated. This is currently experimental.
+	**/
+	var Retype = 4;
 }
 
 enum abstract ContextOptions(Int) {

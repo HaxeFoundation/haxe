@@ -1658,6 +1658,15 @@ let check_overloads ctx c =
 	List.iter check_field c.cl_ordered_statics;
 	Option.may check_field c.cl_constructor
 
+let finalize_class ctx cctx =
+	(* push delays in reverse order so they will be run in correct order *)
+	List.iter (fun (ctx,r) ->
+		init_class_done ctx;
+		(match r with
+		| None -> ()
+		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
+	) cctx.delayed_expr
+
 let init_class ctx c p context_init herits fields =
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class ctx cctx p in
@@ -1851,10 +1860,4 @@ let init_class ctx c p context_init herits fields =
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then TypeloadFunction.add_constructor ctx c cctx.force_constructor p;
-	(* push delays in reverse order so they will be run in correct order *)
-	List.iter (fun (ctx,r) ->
-		init_class_done ctx;
-		(match r with
-		| None -> ()
-		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
-	) cctx.delayed_expr
+	finalize_class ctx cctx

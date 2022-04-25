@@ -427,6 +427,15 @@ let check_module sctx ctx m p =
 					(* Otherwise, run the checks *)
 					check ()
 			in
+			let dirty = match dirty with
+				| Some (FileChanged _ | Tainted _) when has_policy Retype ->
+					if Retyper.attempt_retyping ctx m p then
+						None
+					else
+						dirty
+				| _ ->
+					dirty
+			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
 			begin match dirty with
 			| Some _ ->
