@@ -46,7 +46,10 @@ class Type {
 	}
 
 	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class@:privateAccess {
-		var c:hl.BaseType.Class = ct.allocObject();
+		var c:hl.BaseType.Class = cast t.getGlobal();
+		if( c != null )
+			return c;
+		c = ct.allocObject();
 		t.setGlobal(c);
 		c.__type__ = t;
 		c.__name__ = String.fromUCS2(name);
@@ -55,7 +58,10 @@ class Type {
 	}
 
 	@:keep static function initEnum(et:hl.Type, t:hl.Type):hl.BaseType.Enum@:privateAccess {
-		var e:hl.BaseType.Enum = et.allocObject();
+		var e:hl.BaseType.Enum = cast t.getGlobal();
+		if( e != null )
+			return e;
+		e = et.allocObject();
 		e.__type__ = t;
 		e.__evalues__ = t.getEnumValues();
 		e.__ename__ = t.getTypeName();
