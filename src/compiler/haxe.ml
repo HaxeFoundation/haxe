@@ -49,6 +49,6 @@ Sys.catch_break true;
 let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
-let sctx = ServerCompilationContext.create false in
+let sctx = ServerCompilationContext.create false false in
 Server.process sctx (Communication.create_stdio ()) args;
 other()

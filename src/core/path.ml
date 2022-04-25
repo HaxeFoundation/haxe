@@ -299,7 +299,7 @@ let find_directories target recursive paths =
 	List.fold_left (fun acc dir -> loop acc dir) [] paths
 
 let make_valid_filename s =
-	let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
+	let r = Str.regexp "[^-A-Za-z0-9_\\.,]" in
 	Str.global_substitute r (fun s -> "_") s
 
 let module_name_of_file file =

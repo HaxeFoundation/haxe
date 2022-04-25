@@ -102,9 +102,20 @@ module ServerCompilationContext = struct
 		mutable was_compilation : bool;
 		(* True if the macro context has been set up *)
 		mutable macro_context_setup : bool;
+		(* Replay information *)
+		replay : Replay.replay option;
+		(* Things to run when the server stops *)
+		mutable atexit : (unit -> unit) list;
 	}
 
-	let create verbose = {
+	let create verbose enable_replay =
+	let replay,atexit = if enable_replay then begin
+		let replay = Replay.create() in
+		Some replay,[fun () -> Replay.close replay]
+	end else
+		None,[]
+	in
+	{
 		verbose = verbose;
 		cs = new CompilationCache.cache;
 		class_paths = Hashtbl.create 0;
@@ -114,6 +125,8 @@ module ServerCompilationContext = struct
 		delays = [];
 		was_compilation = false;
 		macro_context_setup = false;
+		replay = replay;
+		atexit = atexit;
 	}
 
 	let add_delay sctx f =
@@ -155,6 +168,11 @@ module ServerCompilationContext = struct
 	let cleanup () = match !MacroContext.macro_interp_cache with
 		| Some interp -> EvalContext.GlobalState.cleanup interp
 		| None -> ()
+
+	let close sctx =
+		let l = sctx.atexit in
+		sctx.atexit <- [];
+		List.iter (fun f -> f()) l
 end
 
 open ServerCompilationContext
@@ -504,6 +522,10 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		None
 
 let before_anything sctx ctx =
+	begin match sctx.replay with
+		| None -> ()
+		| Some replay -> Replay.add_entry replay (Replay.create_entry_now (CompileContext ctx.com.args));
+	end;
 	ensure_macro_setup sctx
 
 let after_arg_parsing sctx ctx =
@@ -678,6 +700,10 @@ let rec process sctx comm args =
 		wait_loop = wait_loop;
 		do_connect = do_connect;
 	} in
+	begin match sctx.replay with
+		| None -> ()
+		| Some replay -> Replay.add_entry replay (Replay.create_entry_now (InitCompilation args));
+	end;
 	Compiler.HighLevel.entry api comm args;
 	run_delays sctx;
 	ServerMessage.stats stats (get_time() -. t0)
@@ -688,7 +714,8 @@ and wait_loop verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Create server context and set up hooks for parsing and typing *)
-	let sctx = ServerCompilationContext.create verbose in
+	let sctx = ServerCompilationContext.create verbose true in
+	at_exit (fun () -> close sctx);
 	let cs = sctx.cs in
 	enable_cache_mode sctx;
 	let ring = Ring.create 10 0. in
