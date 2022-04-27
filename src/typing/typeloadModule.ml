@@ -799,6 +799,7 @@ let load_module' ctx g m p =
 				raise (Error (Module_not_found m,p))
 			in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
+			if ctx.g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)

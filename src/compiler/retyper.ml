@@ -57,8 +57,17 @@ let pair_classes ctx context_init m mt d p =
 		in
 		begin match cff.cff_kind with
 		| FFun fd ->
-			let args,ret = setup_args_ret ctx cctx fctx cff fd p in
-			let t = TFun (args#for_type,ret) in
+			let load_args_ret () =
+				setup_args_ret ctx cctx fctx cff fd p
+			in
+			let old = ctx.g.load_only_cached_modules in
+			ctx.g.load_only_cached_modules <- true;
+			let args,ret = try
+				Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) load_args_ret ()
+			with (Error.Error (Module_not_found path,_)) ->
+				fail (Printf.sprintf "Could not load module %s" (s_type_path path))
+			in
+			let t = TFun(args#for_type,ret) in
 			let old_t = cf.cf_type in
 			cf.cf_type <- t;
 			TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> cff.cff_pos);
