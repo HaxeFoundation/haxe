@@ -44,5 +44,6 @@ extern class Api {
 	#if (hl_ver >= version("1.12.0"))
 	@:hlNative("std", "is_prim_loaded") static function isPrimLoaded(f:haxe.Constraints.Function):Bool;
 	@:hlNative("?std", "mem_compact") static function compact<T>( v : T, exclude : hl.NativeArray<Dynamic>, flags : Int, outCount : hl.Ref<Int> ) : T;
+	@:hlNative("?std", "sys_check_reload") static function checkReload( ?debugFile : hl.Bytes ) : Bool;
 	#end
 }
