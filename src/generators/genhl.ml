@@ -3683,7 +3683,7 @@ let write_code ch code debug =
 	let write_index = write_index_gen byte in
 
 	let rec write_type t =
-		write_index (try PMap.find t htypes with Not_found -> die "" __LOC__)
+		write_index (try PMap.find t htypes with Not_found -> die (tstr t) __LOC__)
 	in
 
 	let write_op op =
