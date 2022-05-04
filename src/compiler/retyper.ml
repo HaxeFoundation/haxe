@@ -117,12 +117,13 @@ let attempt_retyping ctx m p =
 			end;
 	in
 	try
-		m.m_extra.m_dirty <- None;
+		m.m_extra.m_cache_state <- MSUnknown;
 		let pairs = loop [] decls in
 		List.iter (fun (d,mt) ->
 			pair_classes ctx context_init m mt d p
 		) pairs;
 		delay ctx PConnectField (fun () -> context_init#run);
+		m.m_extra.m_cache_state <- MSGood;
 		m.m_extra.m_time <- Common.file_time file;
 		true
 	with Fail s ->
