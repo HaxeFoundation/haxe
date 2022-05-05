@@ -382,7 +382,10 @@ let gather_types (code:code) =
 	let types = ref PMap.empty in
 	let arr = DynArray.create() in
 	let rec get_type t =
-		(match t with HObj { psuper = Some p } -> get_type (HObj p) | _ -> ());
+		(match t with
+		| HObj { psuper = Some p } -> get_type (HObj p)
+		| HStruct { psuper = Some p } -> get_type (HStruct p)
+		| _ -> ());
 		if PMap.mem t !types then () else
 		let index = DynArray.length arr in
 		DynArray.add arr t;
