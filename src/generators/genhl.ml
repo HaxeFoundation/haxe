@@ -644,7 +644,13 @@ and class_type ?(tref=None) ctx c pl statics =
 			| Method MethDynamic when has_class_field_flag f CfOverride ->
 				Some (try fst (get_index f.cf_name p) with Not_found -> die "" __LOC__)
 			| _ ->
-				let fid = add_field f.cf_name (fun() -> to_type ctx f.cf_type) in
+				let fid = add_field f.cf_name (fun() ->
+					let t = to_type ctx f.cf_type in
+					if has_meta (Meta.Custom ":packed") f.cf_meta then begin
+						(match t with HStruct _ -> () | _ -> abort "Packed field should be struct" f.cf_pos);
+						HPacked t
+					end else t
+				) in
 				Some fid
 			) in
 			match f.cf_kind, fid with
@@ -3877,6 +3883,9 @@ let write_code ch code debug =
 			) e.efields
 		| HNull t ->
 			byte 19;
+			write_type t
+		| HPacked t ->
+			byte 22;
 			write_type t
 	) all_types;
 
