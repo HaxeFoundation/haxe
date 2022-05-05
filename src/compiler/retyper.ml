@@ -33,7 +33,7 @@ let pair_classes ctx context_init m mt d p =
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class ctx cctx p in
 	log 1 "Found matching type kind";
-	List.iter (fun cff ->
+	let fl = List.map (fun cff ->
 		let name = fst cff.cff_name in
 		log 2 (Printf.sprintf "Pairing field [%s]" name);
 		let display_modifier = Typeload.check_field_access ctx cff in
@@ -55,7 +55,7 @@ let pair_classes ctx context_init m mt d p =
 			| FKInit ->
 				fail "TODO"
 		in
-		begin match cff.cff_kind with
+		match cff.cff_kind with
 		| FFun fd ->
 			let load_args_ret () =
 				setup_args_ret ctx cctx fctx cff fd p
@@ -68,24 +68,21 @@ let pair_classes ctx context_init m mt d p =
 				fail (Printf.sprintf "Could not load module %s" (s_type_path path))
 			in
 			let t = TFun(args#for_type,ret) in
-			let old_t = cf.cf_type in
-			cf.cf_type <- t;
-			TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> cff.cff_pos);
-			delay ctx PCheckConstraint (fun () ->
-				if not (type_iseq old_t cf.cf_type) then begin
-					let st = s_type (print_context()) in
-					log 1 (Printf.sprintf "Field type mismatch for %s:\n\twas: %s\n\t is: %s" cf.cf_name (st old_t) (st cf.cf_type))
-				end;
-			);
-			if ctx.com.display.dms_full_typing then
-				remove_class_field_flag cf CfPostProcessed;
+			(fun () ->
+				(* This is the only part that should actually modify anything. *)
+				cf.cf_type <- t;
+				TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> cff.cff_pos);
+				if ctx.com.display.dms_full_typing then
+					remove_class_field_flag cf CfPostProcessed;
+				log 2 ("Field updated")
+			)
 		| _ ->
 			(* TODO *)
-			()
-		end;
-		log 2 ("Field updated")
-	) d.d_data;
-	TypeloadFields.finalize_class ctx cctx
+			(fun () ->
+				()
+			)
+	) d.d_data in
+	cctx,fl
 
 let attempt_retyping ctx m p =
 	let com = ctx.com in
@@ -119,10 +116,14 @@ let attempt_retyping ctx m p =
 	try
 		m.m_extra.m_cache_state <- MSUnknown;
 		let pairs = loop [] decls in
-		List.iter (fun (d,mt) ->
+		let fl = List.map (fun (d,mt) ->
 			pair_classes ctx context_init m mt d p
-		) pairs;
+		) pairs in
+		(* If we get here we know that the everything is ok. *)
 		delay ctx PConnectField (fun () -> context_init#run);
+		List.iter (fun (cctx,fl) ->
+			TypeloadFields.finalize_class ctx cctx
+		) fl;
 		m.m_extra.m_cache_state <- MSGood;
 		m.m_extra.m_time <- Common.file_time file;
 		true
