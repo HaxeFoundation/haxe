@@ -3836,7 +3836,7 @@ let write_code ch code debug =
 			write_index p.pid;
 			(match p.psuper with
 			| None -> write_index (-1)
-			| Some t -> write_type (HObj t));
+			| Some tsup -> write_type (match t with HObj _ -> HObj tsup | _ -> HStruct tsup));
 			(match p.pclassglobal with
 			| None -> write_index 0
 			| Some g -> write_index (g + 1));
