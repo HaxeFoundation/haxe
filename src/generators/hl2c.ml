@@ -555,7 +555,9 @@ let generate_function ctx f =
 		let assign = reg r ^ " = " in
 		if tsame t rt then assign else
 		if not (safe_cast t rt) then Globals.die "" __LOC__
-		else assign ^ "(" ^ ctype rt ^ ")"
+		else
+			let cast = assign ^ "(" ^ ctype rt ^ ")" in
+			(match t with HPacked _ -> cast ^ "&" | _ -> cast)
 	in
 
 	let ocall r fid args =
