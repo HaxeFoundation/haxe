@@ -143,7 +143,7 @@ using haxe.Int64;
 
 	public static function programPath():String {
 		final uri:URI = java.Lib.toNativeType(Sys).getProtectionDomain().getCodeSource().getLocation().toURI();
-		return Paths.get(uri).toString();
+		return Std.string(Paths.get(uri));
 	}
 
 	public static function getChar(echo:Bool):Int {
