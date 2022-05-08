@@ -788,7 +788,7 @@ let type_unop ctx op flag e with_type p =
 		in
 		let t = match op with
 			| Not ->
-				if flag = Postfix then typing_error "Postfix ! is not supported" p;
+				if flag = Postfix then Common.display_error ctx.com "Postfix ! is not supported" p;
 				unify ctx e.etype ctx.t.tbool e.epos;
 				ctx.t.tbool
 			| NegBits ->
