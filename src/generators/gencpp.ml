@@ -317,13 +317,20 @@ module DebugDatabase = struct
       header_offset : int;
    }
 
+   type hx_type = {
+      pack : string list;
+      modu : string;
+      name : string;
+      cpp : string;
+   }
+
    type hx_class = {
-      name : name_mapping;
+      info : hx_type;
       fields : name_mapping list;
    }
 
    type hx_enum = {
-      name : name_mapping;
+      info : hx_type;
       constructors : (string, name_mapping) PMap.t;
    }
 
@@ -368,11 +375,17 @@ module DebugDatabase = struct
       let (line_start, col_start, line_end, col_end) = hx_pos in
       { cpp_line = cpp_line; haxe = { e_start = { line = line_start; col = col_start; }; e_end = { line = line_end; col = col_end } } }
 
-   let create_class name fields =
-      { name = name; fields = fields }
+   let create_class info fields =
+      { info = info; fields = fields }
 
-   let create_enum name constructors =
-      { name = name; constructors = constructors }
+   let create_enum info constructors =
+      { info = info; constructors = constructors }
+
+   let create_type_from_class cl cpp_name =
+      { pack = fst cl.cl_module.m_path; modu = snd cl.cl_module.m_path; name = snd cl.cl_path; cpp = cpp_name }
+
+   let create_type_from_enum e cpp_name =
+      { pack = fst e.e_module.m_path; modu = snd e.e_module.m_path; name = snd e.e_path; cpp = cpp_name }
 
    let print_name_mapping map =
       Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\" }" map.haxe_var map.cpp_var map.haxe_type
@@ -395,17 +408,21 @@ module DebugDatabase = struct
       let printed_funcs = String.concat ", " (List.map (print_function f.header_offset) f.functions) in
       Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ] }" f.haxe_file f.cpp_file f.haxe_type printed_funcs
 
+   let print_type t =
+      let printed_package = String.concat ", " (List.map (fun m -> "\"" ^ m ^ "\"") t.pack) in
+      "{ \"pack\" : [ " ^ printed_package ^ " ], \"module\" : \"" ^ t.modu ^ "\", \"name\" : \"" ^ t.name ^ "\", \"cpp\" : \"" ^ t.cpp ^ "\" }"
+
    let print_class c =
       let fields         = List.map print_name_mapping c.fields in
-      let name           = print_name_mapping c.name in
+      let printed_type   = print_type c.info in
       let printed_fields = String.concat ", " fields in
-      "{ \"name\" : " ^ name ^ ", \"fields\" : [ " ^ printed_fields ^ " ] }"
+      "{ \"type\" : " ^ printed_type ^ ", \"fields\" : [ " ^ printed_fields ^ " ] }"
 
    let print_enum e =
       let constructors   = pmap_values e.constructors in
-      let name           = print_name_mapping e.name in
+      let printed_type   = print_type e.info in
       let printed_fields = String.concat ", " (List.map print_name_mapping constructors) in
-      "{ \"name\" : " ^ name ^ ", \"constructors\" : [ " ^ printed_fields ^ " ] }"
+      "{ \"type\" : " ^ printed_type ^ ", \"constructors\" : [ " ^ printed_fields ^ " ] }"
 
    let print db =
       let printed_files   = String.concat ", " (List.map print_generated_file db.files) in
@@ -8774,21 +8791,19 @@ let generate_source ctx =
          |> ExtList.List.filter_map (fun object_def -> match object_def with TClassDecl d when (is_extern_class d) = false -> Some d | _ -> None)
          |> List.map (fun class_def ->
             let cpp_name  = (join_class_path_remap class_def.cl_path "::") ^ "_obj" in
-            let haxe_name = s_type_path class_def.cl_path in
             let variables = pmap_values class_def.cl_fields |> ExtList.List.filter_map (fun f -> match is_physical_var_field f with true -> Some f | false -> None) in
             let fields    = List.map (fun f -> DebugDatabase.create_name_mapping f.cf_name (type_string f.cf_type) (Printer.s_type f.cf_type)) variables in
-            let mapping   = DebugDatabase.create_name_mapping haxe_name cpp_name haxe_name in
-            DebugDatabase.create_class mapping fields)
+            let hx_type   = DebugDatabase.create_type_from_class class_def cpp_name in
+            DebugDatabase.create_class hx_type fields)
    in
    let hx_enums =
       common_ctx.types
          |> ExtList.List.filter_map (fun object_def -> match object_def with TEnumDecl d -> Some d | _ -> None)
          |> List.map (fun enum_def ->
             let cpp_name  = (join_class_path_remap enum_def.e_path "::") ^ "_obj" in
-            let haxe_name = s_type_path enum_def.e_path in
             let fields    = PMap.map (fun f -> DebugDatabase.create_name_mapping f.ef_name (type_string f.ef_type) (Printer.s_type f.ef_type)) enum_def.e_constrs in
-            let mapping   = DebugDatabase.create_name_mapping haxe_name cpp_name haxe_name in
-            DebugDatabase.create_enum mapping fields)
+            let hx_type   = DebugDatabase.create_type_from_enum enum_def cpp_name in
+            DebugDatabase.create_enum hx_type fields)
    in
    let current_db = !(ctx.debug_database) in
    ctx.debug_database := { current_db with classes = hx_classes; enums = hx_enums };
