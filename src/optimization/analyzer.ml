@@ -1071,21 +1071,23 @@ module Run = struct
 				Debug.dot_debug actx c cf;
 				print_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
 			in
+			let maybe_debug () = match config.debug_kind with
+				| DebugNone -> ()
+				| DebugDot -> Debug.dot_debug actx c cf;
+				| DebugFull -> debug()
+			in
 			let e = try
 				run_on_expr actx e
 			with
 			| Error.Error _ | Abort _ | Sys.Break as exc ->
+				maybe_debug();
 				raise exc
 			| exc ->
 				debug();
 				raise exc
 			in
 			let e = reduce_control_flow com e in
-			begin match config.debug_kind with
-				| DebugNone -> ()
-				| DebugDot -> Debug.dot_debug actx c cf;
-				| DebugFull -> debug()
-			end;
+			maybe_debug();
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
