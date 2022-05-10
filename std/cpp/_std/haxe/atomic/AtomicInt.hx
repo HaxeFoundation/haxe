@@ -5,7 +5,7 @@ extern
 #end
 abstract AtomicInt(cpp.Pointer<cpp.AtomicInt>) {
 	public #if !(scriptable || cppia) inline #end function new(value:Int) {
-		this = cpp.Pointer.ofArray([value]);
+		this = cpp.Pointer.ofArray([(value:cpp.AtomicInt)]);
 	}
 
 	public #if !(scriptable || cppia) inline #end function add(b:Int):Int {
