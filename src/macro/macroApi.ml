@@ -809,7 +809,7 @@ and decode_expr v =
 			let cases = List.map (fun c ->
 				(List.map loop (decode_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (decode_array cases) in
-			ESwitch (loop e,cases,opt (fun v -> (if field v "expr" = vnull then None else Some (decode_expr v)),Globals.null_pos) eo)
+			ESwitch (loop e,cases,opt (fun v -> (if field v "expr" = vnull then None else Some (decode_expr v)),p) eo)
 		| 17, [e;catches] ->
 			let catches = List.map (fun c ->
 				((decode_placed_name (field c "name_pos") (field c "name")),(opt decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
@@ -1399,8 +1399,9 @@ let rec decode_tfunc v =
 
 and decode_texpr v =
 	let rec loop v =
-		mk (decode (field v "expr")) (decode_type (field v "t")) (decode_pos (field v "pos"))
-	and decode e =
+		let p = decode_pos (field v "pos") in
+		mk (decode (field v "expr") p) (decode_type (field v "t")) p
+	and decode e p =
 		match decode_enum e with
 		| 0, [c] ->	TConst(decode_tconst c)
 		| 1, [v] -> TLocal(decode_tvar v)
@@ -1409,7 +1410,7 @@ and decode_texpr v =
 		| 4, [v1;fa] -> TField(loop v1,decode_field_access fa)
 		| 5, [mt] -> TTypeExpr(decode_module_type mt)
 		| 6, [v1] -> TParenthesis(loop v1)
-		| 7, [v] -> TObjectDecl(List.map (fun v -> (decode_string (field v "name"),Globals.null_pos,NoQuotes),loop (field v "expr")) (decode_array v))
+		| 7, [v] -> TObjectDecl(List.map (fun v -> (decode_string (field v "name"),p,NoQuotes),loop (field v "expr")) (decode_array v))
 		| 8, [vl] -> TArrayDecl(List.map loop (decode_array vl))
 		| 9, [v1;vl] -> TCall(loop v1,List.map loop (decode_array vl))
 		| 10, [c;tl;vl] -> TNew(decode_ref c,List.map decode_type (decode_array tl),List.map loop (decode_array vl))
@@ -1484,7 +1485,7 @@ let decode_type_def v =
 		in
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
-		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,Globals.null_pos))
+		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,pos))
 	| 2, [ext;impl;interf;final;abstract] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
