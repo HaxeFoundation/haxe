@@ -400,7 +400,8 @@ let collect ctx tk with_type sort =
 						| _ -> TClassDecl c,make_ci_class_field
 					in
 					let origin = StaticImport decl in
-					add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
+					if not (has_class_field_flag cf CfPublic) || (Meta.has Meta.NoCompletion cf.cf_meta) then ()
+					else add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
 				in
 				match resolve_typedef mt with
 					| TClassDecl c -> class_import c;
