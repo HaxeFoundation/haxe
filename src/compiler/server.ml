@@ -435,7 +435,8 @@ let check_module sctx ctx m p =
 			in
 			let dirty = match dirty with
 				| Some (DependencyDirty _) when has_policy Retype ->
-					if Retyper.attempt_retyping ctx m p then
+					let result,log = Retyper.attempt_retyping ctx m p in
+					if result then
 						None
 					else
 						dirty

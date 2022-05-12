@@ -7,14 +7,19 @@ open TypeloadFields
 
 exception Fail of string
 
+type retyping_context = {
+	typer : typer;
+	mutable log : string list;
+}
+
 let fail s =
 	raise (Fail s)
 
-let log indent message =
-	print_endline (Printf.sprintf "[retyper] %*s%s" (indent * 4) "" message)
+let log rctx indent message =
+	rctx.log <- (Printf.sprintf "[retyper] %*s%s" (indent * 4) "" message) :: rctx.log
 
-let pair_classes ctx context_init m mt d p =
-	log 1 (Printf.sprintf "Pairing class [%s]" (s_type_path (t_infos mt).mt_path));
+let pair_classes rctx context_init m mt d p =
+	log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path (t_infos mt).mt_path));
 	let kind_fail want got =
 		fail (Printf.sprintf "Expected %s  for %s, found %s" want (s_type_path (t_infos mt).mt_path) got)
 	in
@@ -31,11 +36,11 @@ let pair_classes ctx context_init m mt d p =
 	c.cl_restore();
 	(* TODO: check various things *)
 	let cctx = create_class_context c context_init p in
-	let ctx = create_typer_context_for_class ctx cctx p in
-	log 1 "Found matching type kind";
+	let ctx = create_typer_context_for_class rctx.typer cctx p in
+	log rctx 1 "Found matching type kind";
 	let fl = List.map (fun cff ->
 		let name = fst cff.cff_name in
-		log 2 (Printf.sprintf "Pairing field [%s]" name);
+		log rctx 2 (Printf.sprintf "Pairing field [%s]" name);
 		let display_modifier = Typeload.check_field_access ctx cff in
 		let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
 		let cf = match fctx.field_kind with
@@ -74,7 +79,7 @@ let pair_classes ctx context_init m mt d p =
 				TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> cff.cff_pos);
 				if ctx.com.display.dms_full_typing then
 					remove_class_field_flag cf CfPostProcessed;
-				log 2 ("Field updated")
+				log rctx 2 ("Field updated")
 			)
 		| _ ->
 			(* TODO *)
@@ -87,8 +92,12 @@ let pair_classes ctx context_init m mt d p =
 let attempt_retyping ctx m p =
 	let com = ctx.com in
 	let file,remap,pack,decls = TypeloadParse.parse_module' com m.m_path p in
-	log 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path));
 	let ctx = create_typer_context_for_module ctx m in
+	let rctx = {
+		typer = ctx;
+		log = []
+	} in
+	log rctx 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path));
 	let context_init = new TypeloadFields.context_init in
 	let rec loop acc decls = match decls with
 		| [] ->
@@ -113,11 +122,11 @@ let attempt_retyping ctx m p =
 				loop acc decls
 			end;
 	in
-	try
+	let result = try
 		m.m_extra.m_cache_state <- MSUnknown;
 		let pairs = loop [] decls in
 		let fl = List.map (fun (d,mt) ->
-			pair_classes ctx context_init m mt d p
+			pair_classes rctx context_init m mt d p
 		) pairs in
 		(* If we get here we know that the everything is ok. *)
 		delay ctx PConnectField (fun () -> context_init#run);
@@ -128,5 +137,7 @@ let attempt_retyping ctx m p =
 		m.m_extra.m_time <- Common.file_time file;
 		true
 	with Fail s ->
-		log 0 (Printf.sprintf "Failed: %s" s);
+		log rctx 0 (Printf.sprintf "Failed: %s" s);
 		false
+	in
+	result,rctx.log
