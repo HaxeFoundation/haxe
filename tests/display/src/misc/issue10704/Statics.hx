@@ -1,4 +1,4 @@
-package cases;
+package misc.issue10704;
 
 class Statics {
 	public static final fooPublic = 0;
