@@ -16,7 +16,7 @@ let fail s =
 	raise (Fail s)
 
 let log rctx indent message =
-	rctx.log <- (Printf.sprintf "[retyper] %*s%s" (indent * 4) "" message) :: rctx.log
+	print_endline (Printf.sprintf "[retyper] %*s%s" (indent * 4) "" message)
 
 let pair_classes rctx context_init m mt d p =
 	log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path (t_infos mt).mt_path));
@@ -135,9 +135,11 @@ let attempt_retyping ctx m p =
 		) fl;
 		m.m_extra.m_cache_state <- MSGood;
 		m.m_extra.m_time <- Common.file_time file;
+		log rctx 0 (Printf.sprintf "Retyped module %s" (s_type_path m.m_path));
 		true
 	with Fail s ->
-		log rctx 0 (Printf.sprintf "Failed: %s" s);
+		log rctx 0 (Printf.sprintf "Failed retyping module %s" (s_type_path m.m_path));
+		log rctx 1 s;
 		false
 	in
-	result,rctx.log
+	result
