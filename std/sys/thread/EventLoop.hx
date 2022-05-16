@@ -28,8 +28,13 @@ class EventLoop {
 	final waitLock = new Lock();
 	var promisedEventsCount = 0;
 	var regularEvents:Null<RegularEvent>;
+	var isMainThread:Bool;
+	static var CREATED : Bool;
 
-	public function new():Void {}
+	public function new():Void {
+		isMainThread = !CREATED;
+		CREATED = true;
+	}
 
 	/**
 		Schedule event for execution every `intervalMs` milliseconds in current loop.
@@ -222,7 +227,7 @@ class EventLoop {
 
 		// Run regular events
 		for(i in 0...eventsToRunIdx) {
-			if(!regularsToRun[i].cancelled) 
+			if(!regularsToRun[i].cancelled)
 				regularsToRun[i].run();
 			regularsToRun[i] = null;
 		}
@@ -248,6 +253,16 @@ class EventLoop {
 		for(i in 0...eventsToRunIdx) {
 			oneTimersToRun[i]();
 			oneTimersToRun[i] = null;
+		}
+
+		// run main events
+		if( isMainThread ) {
+			var next = @:privateAccess haxe.MainLoop.tick();
+			if( haxe.MainLoop.hasEvents() ) {
+				eventsToRunIdx++;
+				if( nextEventAt > next )
+					nextEventAt = next;
+			}
 		}
 
 		// Some events were executed. They could add new events to run.
