@@ -970,6 +970,14 @@ module TypeBinding = struct
 		bind_type ctx cctx fctx cf r p
 end
 
+let load_variable_type_hint ctx eo p = function
+	| None when eo = None ->
+		typing_error ("Variable requires type-hint or initialization") p;
+	| None ->
+		mk_mono()
+	| Some t ->
+		lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
+
 let create_variable (ctx,cctx,fctx) c f t eo p =
 	let is_abstract_enum_field = Meta.has Meta.Enum f.cff_meta in
 	if fctx.is_abstract_member && not is_abstract_enum_field then typing_error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
@@ -982,14 +990,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	in
 	if missing_initialization && fctx.is_static && fctx.is_final then
 		typing_error (fst f.cff_name ^ ": Static final variable must be initialized") p;
-	let t = (match t with
-		| None when eo = None ->
-			typing_error ("Variable requires type-hint or initialization") (pos f.cff_name);
-		| None ->
-			mk_mono()
-		| Some t ->
-			lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
-	) in
+	let t = load_variable_type_hint ctx eo (pos f.cff_name) t in
 	let kind = if fctx.is_inline then
 		{ v_read = AccInline ; v_write = AccNever }
 	else if fctx.is_final then

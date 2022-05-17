@@ -60,18 +60,20 @@ let pair_classes rctx context_init m mt d p =
 			| FKInit ->
 				fail "TODO"
 		in
+		let disable_typeloading f =
+			let old = ctx.g.load_only_cached_modules in
+			ctx.g.load_only_cached_modules <- true;
+			try
+				Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
+			with (Error.Error (Module_not_found path,_)) ->
+				fail (Printf.sprintf "Could not load module %s" (s_type_path path))
+		in
 		match cff.cff_kind with
 		| FFun fd ->
 			let load_args_ret () =
 				setup_args_ret ctx cctx fctx cff fd p
 			in
-			let old = ctx.g.load_only_cached_modules in
-			ctx.g.load_only_cached_modules <- true;
-			let args,ret = try
-				Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) load_args_ret ()
-			with (Error.Error (Module_not_found path,_)) ->
-				fail (Printf.sprintf "Could not load module %s" (s_type_path path))
-			in
+			let args,ret = disable_typeloading load_args_ret in
 			let t = TFun(args#for_type,ret) in
 			(fun () ->
 				(* This is the only part that should actually modify anything. *)
@@ -81,10 +83,14 @@ let pair_classes rctx context_init m mt d p =
 					remove_class_field_flag cf CfPostProcessed;
 				log rctx 2 ("Field updated")
 			)
-		| _ ->
-			(* TODO *)
+		| FVar(th,eo) | FProp(_,_,th,eo) ->
+			let t = disable_typeloading (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
 			(fun () ->
-				()
+				cf.cf_type <- t;
+				TypeBinding.bind_var ctx cctx fctx cf eo;
+				if ctx.com.display.dms_full_typing then
+					remove_class_field_flag cf CfPostProcessed;
+				log rctx 2 ("Field updated")
 			)
 	) d.d_data in
 	cctx,fl

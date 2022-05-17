@@ -46,6 +46,44 @@ class RetyperTests extends TestCase {
 		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
 	}
 
+	function testSignatureVariable() {
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyVariable.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"-main",
+			"WithSignatureDependency.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+	}
+
+	function testSignatureProperty() {
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyProperty.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"-main",
+			"WithSignatureDependency.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+	}
+
 	function testMutual() {
 		vfs.putContent("WithMutualDependency.hx", getTemplate("WithMutualDependency.hx"));
 		vfs.putContent("MutualDependency.hx", getTemplate("MutualDependency.hx"));
