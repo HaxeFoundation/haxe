@@ -68,10 +68,36 @@ let pair_classes rctx context_init m mt d p =
 			with (Error.Error (Module_not_found path,_)) ->
 				fail (Printf.sprintf "Could not load module %s" (s_type_path path))
 		in
+		let pair_type th t = match th with
+			| None ->
+				Some (TExprToExpr.convert_type t,null_pos)
+			| Some t ->
+				Some t
+		in
 		match cff.cff_kind with
 		| FFun fd ->
+			(* Fill in blanks by using typed information *)
+			let targs,tret = match follow cf.cf_type with
+				| TFun(args,ret) ->
+					args,ret
+				| _ ->
+					fail "Type change"
+			in
+			let args = try
+				List.map2 (fun (name,opt,meta,th,eo) (_,_,t) ->
+					(name,opt,meta,pair_type th t,eo)
+				) fd.f_args targs
+			with Invalid_argument _ ->
+				fail "Type change"
+			in
+			let ret = pair_type fd.f_type tret in
+			let fd = {
+				fd with
+				f_args = args;
+				f_type = ret
+			} in
 			let load_args_ret () =
-				setup_args_ret ctx cctx fctx cff fd p
+				setup_args_ret ctx cctx fctx (fst cff.cff_name) fd p
 			in
 			let args,ret = disable_typeloading load_args_ret in
 			let t = TFun(args#for_type,ret) in
@@ -84,6 +110,7 @@ let pair_classes rctx context_init m mt d p =
 				log rctx 2 ("Field updated")
 			)
 		| FVar(th,eo) | FProp(_,_,th,eo) ->
+			let th = pair_type th cf.cf_type in
 			let t = disable_typeloading (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
 			(fun () ->
 				cf.cf_type <- t;

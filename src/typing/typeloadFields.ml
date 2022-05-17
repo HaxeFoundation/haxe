@@ -1198,8 +1198,7 @@ let type_opt (ctx,cctx,fctx) p t =
 	| _ ->
 		Typeload.load_type_hint ctx p t
 
-let setup_args_ret ctx cctx fctx f fd p =
-	let name = fst f.cff_name in
+let setup_args_ret ctx cctx fctx name fd p =
 	let c = cctx.tclass in
 	let mk = lazy (
 		if String.length name < 4 then
@@ -1241,7 +1240,7 @@ let setup_args_ret ctx cctx fctx f fd p =
 		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
 	let abstract_this = match cctx.abstract with
-		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+		| Some a when fctx.is_abstract_member && name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			Some a.a_this
 		| _ ->
 			None
@@ -1329,7 +1328,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let args,ret = setup_args_ret ctx cctx fctx f fd p in
+	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
