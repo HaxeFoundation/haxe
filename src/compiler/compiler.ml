@@ -480,24 +480,18 @@ module HighLevel = struct
 					let acc = if value <> "" then value :: acc else acc in
 					let acc = param :: acc in
 					acc
-			) [] lines in
+			) [] (List.rev lines) in
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api create pl =
-		let each_params = ref [] in
-		let compilations = DynArray.create () in
+	let process_params server_api create each_params has_display pl =
 		let curdir = Unix.getcwd () in
-		let has_display = ref false in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
 		let add_context args =
 			let ctx = create (server_api.on_context_create()) args in
 			(* --cwd triggers immediately, so let's reset *)
 			Unix.chdir curdir;
-			DynArray.add compilations (ctx,!server_mode);
-			server_mode := SMNone;
-			Hashtbl.clear added_libs;
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
@@ -508,13 +502,13 @@ module HighLevel = struct
 		in
 		let rec loop acc = function
 			| [] ->
-				ignore(add_context (!each_params @ (List.rev acc)));
+				[],add_context (!each_params @ (List.rev acc));
 			| "--next" :: l when acc = [] -> (* skip empty --next *)
 				loop [] l
 			| "--next" :: l ->
 				let ctx = add_context (!each_params @ (List.rev acc)) in
 				ctx.has_next <- true;
-				loop [] l
+				l,ctx
 			| "--each" :: l ->
 				each_params := List.rev acc;
 				loop [] l
@@ -525,7 +519,8 @@ module HighLevel = struct
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->
 				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+				[],add_context []
 			| "--server-connect" :: hp :: l ->
 				server_mode := SMConnect hp;
 				loop acc l
@@ -536,11 +531,12 @@ module HighLevel = struct
 				let acc = cl :: "-x" :: acc in
 				let ctx = add_context (!each_params @ (List.rev acc)) in
 				ctx.com.sys_args <- args;
+				[],ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs libs pl server_api.cache !has_display in
+				let lines = add_libs libs pl server_api.cache has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
@@ -556,15 +552,8 @@ module HighLevel = struct
 		and loop_lib arg dir lib acc args =
 			loop (dir :: arg :: acc) ("-lib" :: lib :: args)
 		in
-		(* put --display in front if it was last parameter *)
-		let pl = (match List.rev pl with
-			| file :: "--display" :: pl when file <> "memory" ->
-				has_display := true;
-				"--display" :: file :: List.rev pl
-			| _ -> pl
-		) in
-		loop [] pl;
-		DynArray.to_list compilations
+		let args,ctx = loop [] pl in
+		args,!server_mode,ctx
 
 	let execute_ctx server_api ctx server_mode =
 		begin match server_mode with
@@ -590,18 +579,33 @@ module HighLevel = struct
 
 	let entry server_api comm args =
 		let create = create_context comm server_api.cache in
-		let ctxs = try
-			process_params server_api create args
-		with Arg.Bad msg ->
-			let ctx = create 0 args in
-			error ctx ("Error: " ^ msg) null_pos;
-			[ctx,SMNone]
+		let each_args = ref [] in
+		let has_display = ref false in
+		(* put --display in front if it was last parameter *)
+		let args = match List.rev args with
+			| file :: "--display" :: pl when file <> "memory" ->
+				has_display := true;
+				"--display" :: file :: List.rev pl
+			| _ ->
+				args
 		in
-		let code = List.fold_left (fun code (ctx,server_mode) ->
-			if code = 0 then
-				execute_ctx server_api ctx server_mode
-			else
-				code
-		) 0 ctxs in
+		let rec loop args = match args with
+			| [] ->
+				0
+			| args ->
+				let args,server_mode,ctx = try
+					process_params server_api create each_args !has_display args
+				with Arg.Bad msg ->
+					let ctx = create 0 args in
+					error ctx ("Error: " ^ msg) null_pos;
+					[],SMNone,ctx
+				in
+				let code = execute_ctx server_api ctx server_mode in
+				if code = 0 then
+					loop args
+				else
+					code
+		in
+		let code = loop args in
 		comm.exit code
 end
