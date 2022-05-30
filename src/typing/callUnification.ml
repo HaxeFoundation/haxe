@@ -155,8 +155,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| e :: el,(name,opt,t) :: args ->
 			let might_skip = List.length el < List.length args in
 			begin try
-				let restore_report_mode = if might_skip then Common.disable_report_mode ctx.com else (fun () -> ()) in
-				let e = Std.finally restore_report_mode (type_against name t) e in
+				let e = type_against name t e in
 				e :: loop el args
 			with
 				WithTypeError (ul,p)->
