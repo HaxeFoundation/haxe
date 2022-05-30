@@ -589,22 +589,19 @@ module HighLevel = struct
 			| _ ->
 				args
 		in
-		let rec loop args = match args with
-			| [] ->
-				0
-			| args ->
-				let args,server_mode,ctx = try
-					process_params server_api create each_args !has_display args
-				with Arg.Bad msg ->
-					let ctx = create 0 args in
-					error ctx ("Error: " ^ msg) null_pos;
-					[],SMNone,ctx
-				in
-				let code = execute_ctx server_api ctx server_mode in
-				if code = 0 then
-					loop args
-				else
-					code
+		let rec loop args =
+			let args,server_mode,ctx = try
+				process_params server_api create each_args !has_display args
+			with Arg.Bad msg ->
+				let ctx = create 0 args in
+				error ctx ("Error: " ^ msg) null_pos;
+				[],SMNone,ctx
+			in
+			let code = execute_ctx server_api ctx server_mode in
+			if code = 0 && args <> [] then
+				loop args
+			else
+				code
 		in
 		let code = loop args in
 		comm.exit code
