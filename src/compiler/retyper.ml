@@ -18,26 +18,25 @@ let fail s =
 let log rctx indent message =
 	print_endline (Printf.sprintf "[retyper] %*s%s" (indent * 4) "" message)
 
-let pair_classes rctx context_init m mt d p =
-	log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path (t_infos mt).mt_path));
-	let kind_fail want got =
-		fail (Printf.sprintf "Expected %s  for %s, found %s" want (s_type_path (t_infos mt).mt_path) got)
-	in
-	let c = match mt with
-		| TClassDecl c ->
-			c
-		| TEnumDecl _ ->
-			kind_fail "class" "enum"
-		| TTypeDecl _ ->
-			kind_fail "class" "typedef"
-		| TAbstractDecl _ ->
-			kind_fail "class" "abstract"
-	in
+let disable_typeloading ctx f =
+	let old = ctx.g.load_only_cached_modules in
+	ctx.g.load_only_cached_modules <- true;
+	try
+		Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
+	with (Error.Error (Module_not_found path,_)) ->
+		fail (Printf.sprintf "Could not load module %s" (s_type_path path))
+
+let pair_type th t = match th with
+	| None ->
+		Some (TExprToExpr.convert_type t,null_pos)
+	| Some t ->
+		Some t
+
+let pair_classes rctx context_init m c d p =
+	log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path c.cl_path));
 	c.cl_restore();
-	(* TODO: check various things *)
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class rctx.typer cctx p in
-	log rctx 1 "Found matching type kind";
 	let fl = List.map (fun cff ->
 		let name = fst cff.cff_name in
 		log rctx 2 (Printf.sprintf "Pairing field [%s]" name);
@@ -59,20 +58,6 @@ let pair_classes rctx context_init m mt d p =
 				end
 			| FKInit ->
 				fail "TODO"
-		in
-		let disable_typeloading f =
-			let old = ctx.g.load_only_cached_modules in
-			ctx.g.load_only_cached_modules <- true;
-			try
-				Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
-			with (Error.Error (Module_not_found path,_)) ->
-				fail (Printf.sprintf "Could not load module %s" (s_type_path path))
-		in
-		let pair_type th t = match th with
-			| None ->
-				Some (TExprToExpr.convert_type t,null_pos)
-			| Some t ->
-				Some t
 		in
 		match cff.cff_kind with
 		| FFun fd ->
@@ -99,7 +84,7 @@ let pair_classes rctx context_init m mt d p =
 			let load_args_ret () =
 				setup_args_ret ctx cctx fctx (fst cff.cff_name) fd p
 			in
-			let args,ret = disable_typeloading load_args_ret in
+			let args,ret = disable_typeloading ctx load_args_ret in
 			let t = TFun(args#for_type,ret) in
 			(fun () ->
 				(* This is the only part that should actually modify anything. *)
@@ -111,7 +96,7 @@ let pair_classes rctx context_init m mt d p =
 			)
 		| FVar(th,eo) | FProp(_,_,th,eo) ->
 			let th = pair_type th cf.cf_type in
-			let t = disable_typeloading (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
+			let t = disable_typeloading ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
 			(fun () ->
 				cf.cf_type <- t;
 				TypeBinding.bind_var ctx cctx fctx cf eo;
@@ -120,7 +105,7 @@ let pair_classes rctx context_init m mt d p =
 				log rctx 2 ("Field updated")
 			)
 	) d.d_data in
-	cctx,fl
+	fl @ [fun () -> TypeloadFields.finalize_class ctx cctx]
 
 let attempt_retyping ctx m p =
 	let com = ctx.com in
@@ -132,6 +117,11 @@ let attempt_retyping ctx m p =
 	} in
 	log rctx 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path));
 	let context_init = new TypeloadFields.context_init in
+	let find_type name = try
+		List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types
+	with Not_found ->
+		fail (Printf.sprintf "Type %s not found in module %s" name (s_type_path m.m_path))
+	in
 	let rec loop acc decls = match decls with
 		| [] ->
 			List.rev acc
@@ -144,12 +134,17 @@ let attempt_retyping ctx m p =
 			| EUsing path ->
 				ImportHandling.init_using ctx context_init path p;
 				loop acc decls
-			| EClass d ->
-				let mt = try
-					List.find (fun t -> snd (t_infos t).mt_path = fst d.d_name) ctx.m.curmod.m_types
-				with Not_found ->
-					fail (Printf.sprintf "Type %s not found in module %s" (fst d.d_name) (s_type_path m.m_path))
-				in
+			| EClass c ->
+				let mt = find_type (fst c.d_name) in
+				loop ((d,mt) :: acc) decls
+			| EEnum en ->
+				let mt = find_type (fst en.d_name) in
+				loop ((d,mt) :: acc) decls
+			| ETypedef td ->
+				let mt = find_type (fst td.d_name) in
+				loop ((d,mt) :: acc) decls
+			| EAbstract a ->
+				let mt = find_type (fst a.d_name) in
 				loop ((d,mt) :: acc) decls
 			| _ ->
 				loop acc decls
@@ -158,13 +153,16 @@ let attempt_retyping ctx m p =
 	let result = try
 		m.m_extra.m_cache_state <- MSUnknown;
 		let pairs = loop [] decls in
-		let fl = List.map (fun (d,mt) ->
-			pair_classes rctx context_init m mt d p
+		let fl = List.map (fun (d,mt) -> match d,mt with
+			| EClass d,TClassDecl c ->
+				pair_classes rctx context_init m c d p
+			| _ ->
+				fail "?"
 		) pairs in
 		(* If we get here we know that the everything is ok. *)
 		delay ctx PConnectField (fun () -> context_init#run);
-		List.iter (fun (cctx,fl) ->
-			TypeloadFields.finalize_class ctx cctx
+		List.iter (fun fl ->
+			List.iter (fun f -> f()) fl
 		) fl;
 		m.m_extra.m_cache_state <- MSGood;
 		m.m_extra.m_time <- Common.file_time file;
