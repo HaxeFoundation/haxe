@@ -1,0 +1,7 @@
+--cmd haxelib dev lib1 lib1
+--cmd haxelib dev lib2 lib2
+--next
+--main Main
+-lib lib1
+-lib lib2
+--interp

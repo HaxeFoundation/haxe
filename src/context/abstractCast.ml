@@ -230,10 +230,16 @@ let handle_abstract_casts ctx e =
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
+						let call() = make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos in
 						if not ctx.allow_transform then
 							{ e1 with etype = ctx.t.tstring; epos = e.epos }
-						else
-							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
+						else if not (is_nullable e1.etype) then
+							call()
+						else begin
+							let p = e.epos in
+							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) ctx.com.basic.tbool p in
+							mk (TIf (chk_null, mk (TConst (TString "null")) ctx.com.basic.tstring p, Some (call()))) ctx.com.basic.tstring p
+						end
 					with Not_found ->
 						e
 					end

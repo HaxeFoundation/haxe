@@ -785,7 +785,7 @@ and type_object_decl ctx fl with_type p =
 				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
 				(match List.fold_left fold [] froms with
 				| [t] -> t
-				| _ -> ODKPlain)
+				| _ -> ODKFailed)
 			| TDynamic t when (follow t != t_dynamic) ->
 				dynamic_parameter := Some t;
 				ODKWithStructure {
@@ -865,7 +865,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TObjectDecl (List.rev fields)) (mk_anon ~fields:types x) p
 	in
 	(match a with
-	| ODKPlain -> type_plain_fields()
+	| ODKPlain | ODKFailed  -> type_plain_fields()
 	| ODKWithStructure a when PMap.is_empty a.a_fields && !dynamic_parameter = None -> type_plain_fields()
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in

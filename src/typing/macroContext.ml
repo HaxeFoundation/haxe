@@ -572,7 +572,7 @@ let load_macro' ctx display cpath f p =
 		let mloaded,restore = load_macro_module ctx mpath display p in
 		let cl, meth =
 			try
-				if sub <> None then raise Not_found;
+				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
 				match mloaded.m_statics with
 				| None -> raise Not_found
 				| Some c ->
