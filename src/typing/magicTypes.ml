@@ -54,8 +54,8 @@ let extend_remoting ctx c t p async prot =
 			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
 			let expr = ECall (
 				(efield (
-					(ECall ((efield ((EConst (Ident "__cnx"),p),"resolve"),p),[id]),p),
-					"call")
+					(ECall ((efield ((EConst (Ident "__cnx"),p),("resolve",null_pos)),p),[id]),p),
+					("call",null_pos))
 				,p),eargs),p
 			in
 			let expr = if async || ftype = None then expr else (EReturn (Some expr),p) in

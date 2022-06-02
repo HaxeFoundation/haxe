@@ -206,7 +206,7 @@ and expr_def =
 	| EConst of constant
 	| EArray of expr * expr
 	| EBinop of binop * expr * expr
-	| EField of expr * string * efield_kind
+	| EField of expr * placed_name * efield_kind
 	| EParenthesis of expr
 	| EObjectDecl of ((string * pos * quote_status) * expr) list
 	| EArrayDecl of expr list
@@ -605,8 +605,8 @@ let s_token = function
 
 exception Invalid_escape_sequence of char * int * (string option)
 
-let efield (e,s) =
-	EField(e,s,EFNormal)
+let efield (e,(s,p)) =
+	EField(e,(s,p),EFNormal)
 
 let unescape s =
 	let b = Buffer.create 0 in
@@ -857,7 +857,7 @@ module Printer = struct
 		| EConst c -> s_constant c
 		| EArray (e1,e2) -> s_expr_inner tabs e1 ^ "[" ^ s_expr_inner tabs e2 ^ "]"
 		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ " " ^ s_binop op ^ " " ^ s_expr_inner tabs e2
-		| EField (e,f,efk) -> s_expr_inner tabs e ^ (match efk with EFNormal -> "." | EFSafe -> "?.") ^ f
+		| EField (e,(f,_),efk) -> s_expr_inner tabs e ^ (match efk with EFNormal -> "." | EFSafe -> "?.") ^ f
 		| EParenthesis e -> "(" ^ (s_expr_inner tabs e) ^ ")"
 		| EObjectDecl fl -> "{ " ^ (String.concat ", " (List.map (fun ((n,_,qs),e) -> (s_object_key_name n qs) ^ " : " ^ (s_expr_inner tabs e)) fl)) ^ " }"
 		| EArrayDecl el -> "[" ^ s_expr_list tabs el ", " ^ "]"
@@ -1009,13 +1009,13 @@ let get_value_meta meta =
 let rec string_list_of_expr_path_raise (e,p) =
 	match e with
 	| EConst (Ident i) -> [i]
-	| EField (e,f,_) -> f :: string_list_of_expr_path_raise e
+	| EField (e,(f,_),_) -> f :: string_list_of_expr_path_raise e
 	| _ -> raise Exit
 
 let rec string_pos_list_of_expr_path_raise (e,p) =
 	match e with
 	| EConst (Ident i) -> [i,p]
-	| EField (e,f,_) -> (f,p) :: string_pos_list_of_expr_path_raise e (* wrong p? *)
+	| EField (e,(f,p),_) -> (f,p) :: string_pos_list_of_expr_path_raise e
 	| _ -> raise Exit
 
 let expr_of_type_path (sl,s) p =
@@ -1023,8 +1023,8 @@ let expr_of_type_path (sl,s) p =
 	| [] -> (EConst(Ident s),p)
 	| s1 :: sl ->
 		let e1 = (EConst(Ident s1),p) in
-		let e = List.fold_left (fun e s -> (efield(e,s),p)) e1 sl in
-		efield(e,s),p
+		let e = List.fold_left (fun e s -> (efield(e,(s,null_pos)),p)) e1 sl in
+		efield(e,(s,null_pos)),p
 
 let match_path recursive sl sl_pattern =
 	let rec loop top sl1 sl2 = match sl1,sl2 with
@@ -1095,7 +1095,7 @@ module Expr = struct
 				add ("EBinop " ^ (s_binop op));
 				loop e1;
 				loop e2;
-			| EField(e1,s,_) ->
+			| EField(e1,(s,_),_) ->
 				add ("EField " ^ s);
 				loop e1
 			| EParenthesis e1 ->

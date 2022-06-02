@@ -424,7 +424,7 @@ let rec value_to_expr v p =
 			let rec loop = function
 				| [] -> die "" __LOC__
 				| [name] -> (EConst (Ident name),p)
-				| name :: l -> (efield (loop l,name),p)
+				| name :: l -> (efield (loop l,(name,null_pos)),p)
 			in
 			let t = t_infos t in
 			loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
@@ -459,7 +459,7 @@ let rec value_to_expr v p =
 				| PEnum names -> fst (List.nth names e.eindex)
 				| _ -> die "" __LOC__
 			in
-			(efield (expr, name), p)
+			(efield (expr, (name,null_pos)), p)
 		in
 		begin
 			match e.eargs with

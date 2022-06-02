@@ -56,7 +56,7 @@ let find_in_syntax symbols (pack,decls) =
 		begin match e with
 		| EConst(Ident s) ->
 			check KIdent s
-		| EField(e1,s,_) ->
+		| EField(e1,(s,_),_) ->
 			expr e1;
 			check KAnyField s;
 		| EVars vl ->

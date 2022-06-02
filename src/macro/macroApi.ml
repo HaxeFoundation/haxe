@@ -1,3 +1,4 @@
+open Globals
 open Ast
 open Type
 open Common
@@ -165,13 +166,13 @@ let s_type_path = Globals.s_type_path
 (* convert float value to haxe expression, handling inf/-inf/nan *)
 let haxe_float f p =
 	let std = (Ast.EConst (Ast.Ident "std"), p) in
-	let math = (efield (std, "Math"), p) in
+	let math = (efield (std, ("Math",null_pos)), p) in
 	if (f = infinity) then
-		(efield (math, "POSITIVE_INFINITY"), p)
+		(efield (math, ("POSITIVE_INFINITY",null_pos)), p)
 	else if (f = neg_infinity) then
-		(efield (math, "NEGATIVE_INFINITY"), p)
+		(efield (math, ("NEGATIVE_INFINITY",null_pos)), p)
 	else if (f <> f) then
-		(efield (math, "NaN"), p)
+		(efield (math, ("NaN",null_pos)), p)
 	else
 		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
@@ -405,7 +406,7 @@ and encode_expr e =
 				1, [loop e1;loop e2]
 			| EBinop (op,e1,e2) ->
 				2, [encode_binop op;loop e1;loop e2]
-			| EField (e,f,efk) ->
+			| EField (e,(f,_),efk) ->
 				3, [loop e;encode_string f;encode_efield_kind efk]
 			| EParenthesis e ->
 				4, [loop e]
@@ -759,7 +760,7 @@ and decode_expr v =
 				| 1,[] -> EFSafe
 				| _ -> raise Invalid_expr
 			in
-			EField (loop e, decode_string f, efk)
+			EField (loop e, (decode_string f,null_pos), efk)
 		| 4, [e] ->
 			EParenthesis (loop e)
 		| 5, [a] ->

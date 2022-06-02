@@ -653,7 +653,7 @@ let convert_delegate ctx p ilcls =
 		let clsname = match ilcls.cpath with
 			| (ns,inner,n) -> get_clsname ctx (ns,inner,"Delegate_"^n)
 		in
-		let expr = (ECall( (efield( (EConst(Ident (clsname)),p), fn_name ),p), [(EConst(Ident"arg1"),p);(EConst(Ident"arg2"),p)]),p) in
+		let expr = (ECall( (efield( (EConst(Ident (clsname)),p), (fn_name,null_pos) ),p), [(EConst(Ident"arg1"),p);(EConst(Ident"arg2"),p)]),p) in
 		FFun {
 			f_params = types;
 			f_args = [("arg1",null_pos),false,[],Some (abs_type,null_pos),None;("arg2",null_pos),false,[],Some (abs_type,null_pos),None];

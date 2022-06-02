@@ -224,7 +224,7 @@ let rec expr_to_value ctx env e =
 				| VEnumValue ev -> Array.get ev.eargs idx
 				| _ -> raise NoValueExpr
 			end
-		| EField(e1,s,_) ->
+		| EField(e1,(s,_),_) ->
 			let v1 = loop e1 in
 			let s' = hash s in
 			begin match v1 with
@@ -294,7 +294,7 @@ let rec expr_to_value ctx env e =
 			end
 		| ECall(e1,el) ->
 			begin match fst e1 with
-			| EField(ethis,s,_) ->
+			| EField(ethis,(s,_),_) ->
 				let vthis = loop ethis in
 				let v1 = EvalField.field vthis (hash s) in
 				let vl = List.map loop el in
@@ -370,7 +370,7 @@ let rec expr_to_value ctx env e =
 
 and write_expr ctx env expr value =
 	begin match fst expr with
-		| EField(e1,s,_) ->
+		| EField(e1,(s,_),_) ->
 			let s' = hash s in
 			let v1 = expr_to_value ctx env e1 in
 			begin match v1 with

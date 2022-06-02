@@ -476,7 +476,7 @@ let rec can_access ctx c cf stat =
 	in
 	let rec expr_path acc e =
 		match fst e with
-		| EField (e,f,_) -> expr_path (f :: acc) e
+		| EField (e,(f,_),_) -> expr_path (f :: acc) e
 		| EConst (Ident n) -> n :: acc
 		| _ -> []
 	in
@@ -594,13 +594,13 @@ let merge_core_doc ctx mt =
 
 let field_to_type_path com e =
 	let rec loop e pack name = match e with
-		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+		| EField(e,(f,_),_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
 			| [] | _ :: [] ->
 				loop e pack (f :: name)
 			| _ -> (* too many name paths *)
 				display_error com ("Unexpected " ^ f) p;
 				raise Exit)
-		| EField(e,f,_),_ ->
+		| EField(e,(f,_),_),_ ->
 			loop e (f :: pack) name
 		| EConst(Ident f),_ ->
 			let pack, name, sub = match name with

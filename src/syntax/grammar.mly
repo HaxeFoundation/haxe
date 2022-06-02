@@ -1558,13 +1558,13 @@ and expr_next' e1 = parser
 and parse_field e1 efk p s =
 	check_resume p (fun () -> (EDisplay (e1,DKDot),p)) (fun () ->
 		begin match s with parser
-		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro",efk) , punion (pos e1) p2) s
-		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern",efk) , punion (pos e1) p2) s
-		| [< '(Kwd Function,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"function",efk) , punion (pos e1) p2) s
-		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new",efk) , punion (pos e1) p2) s
-		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
-		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f,efk) , punion (pos e1) p2) s
-		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v,efk) , punion (pos e1) p2) s
+		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,("macro",p2),efk) , punion (pos e1) p2) s
+		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,("extern",p2),efk) , punion (pos e1) p2) s
+		| [< '(Kwd Function,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,("function",p2),efk) , punion (pos e1) p2) s
+		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,("new",p2),efk) , punion (pos e1) p2) s
+		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,(s_keyword k,p2),efk) , punion (pos e1) p2) s
+		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,(f,p2),efk) , punion (pos e1) p2) s
+		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,("$"^v,p2),efk) , punion (pos e1) p2) s
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with

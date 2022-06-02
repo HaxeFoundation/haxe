@@ -117,9 +117,9 @@ let reify in_macro =
 					 type parameters. *)
 				let ea = to_array to_tparam t.tparams p in
 				let fields = [
-					("pack", (efield(ei,"pack"),p));
-					("name", (efield(ei,"name"),p));
-					("sub", (efield(ei,"sub"),p));
+					("pack", (efield(ei,("pack",null_pos)),p));
+					("name", (efield(ei,("name",null_pos)),p));
+					("sub", (efield(ei,("sub",null_pos)),p));
 					("params", ea);
 				] in
 				to_obj fields p
@@ -234,7 +234,9 @@ let reify in_macro =
 		match !cur_pos with
 		| Some p -> p
 		| None when in_macro -> to_pos p
-		| None -> (ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makePosition"),p),[to_pos p]),p)
+		| None ->
+			let ef = expr_of_type_path (["haxe";"macro";"Context"],"makePosition") p in
+			(ECall (ef,[to_pos p]),p)
 	and to_expr_array a p = match a with
 		| [EMeta ((Meta.Dollar "a",[],_),e1),_] -> (match fst e1 with EArrayDecl el -> to_expr_array el p | _ -> e1)
 		| _ -> to_array to_expr a p
@@ -254,8 +256,7 @@ let reify in_macro =
 			expr "EArray" [loop e1;loop e2]
 		| EBinop (op,e1,e2) ->
 			expr "EBinop" [to_binop op p; loop e1; loop e2]
-		| EField (e,s,efk) ->
-			let p = patch_string_pos p s in
+		| EField (e,(s,p),efk) ->
 			let efk = match efk with
 				| EFNormal -> "Normal"
 				| EFSafe -> "Safe"
@@ -363,12 +364,14 @@ let reify in_macro =
 				| EConst (Int (s, Some "i64")) ->
 					expr "EConst" [mk_enum "Constant" "CInt" [ (EConst(String (s, SDoubleQuotes)),(pos e1)); (EConst(String ("i64", SDoubleQuotes)),(pos e1)) ] (pos e1)]
 				| _ ->
-					(ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e1; to_enc_pos (pos e1)]),p)
+					let ef = expr_of_type_path (["haxe";"macro";"Context"],"makeExpr") p in
+					(ECall (ef,[e1; to_enc_pos (pos e1)]),p)
 				end
 			| Meta.Dollar "i", _ ->
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]
 			| Meta.Dollar "p", _ ->
-				(ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"MacroStringTools"),p),"toFieldExpr"),p),[e]),p)
+				let ef = expr_of_type_path (["haxe";"macro";"MacroStringTools"],"toFieldExpr") p in
+				(ECall (ef,[e]),p)
 			| Meta.Pos, [pexpr] ->
 				let old = !cur_pos in
 				cur_pos := Some pexpr;

@@ -7,7 +7,7 @@ open Error
 let get_macro_path ctx e args p =
 	let rec loop e =
 		match fst e with
-		| EField (e,f,_) -> f :: loop e
+		| EField (e,(f,_),_) -> f :: loop e
 		| EConst (Ident i) -> [i]
 		| _ -> typing_error "Invalid macro call" p
 	in
