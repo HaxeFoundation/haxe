@@ -91,6 +91,9 @@ let s_version_full =
 		| Some (_,build) -> s_version ^ "+" ^ build
 		| _ -> s_version
 
+
+let patch_string_pos p s = { p with pmin = p.pmax - String.length s }
+
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
 	Usage: `die message __LOC__`, where `__LOC__` is a built-in ocaml constant

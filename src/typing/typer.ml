@@ -1588,10 +1588,10 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			let e = e () in
 			(if ctx.bypass_accessor > old_counter then display_error ctx.com "Field access expression expected after @:bypassAccessor metadata" p);
 			e
-		| (Meta.Inline,_,_) ->
+		| (Meta.Inline,_,pinline) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
-				type_call ctx e1 el WithType.value true p
+				type_call ctx e1 el WithType.value (Some pinline) p
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
@@ -1609,29 +1609,31 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	ctx.meta <- old;
 	e
 
-and type_call_target ctx e el with_type inline p =
+and type_call_target ctx e el with_type p_inline =
+	let p = (pos e) in
 	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) (MCall el) with_type) with_type true p in
-	let check_inline cf =
+	let check_inline cf p =
 		if (has_class_field_flag cf CfAbstract) then display_error ctx.com "Cannot force inline on abstract method" p
 	in
-	if not inline then
+	match p_inline with
+	| None ->
 		e
-	else match e with
+	| Some pinline -> match e with
 		| AKField fa ->
-			check_inline fa.fa_field;
+			check_inline fa.fa_field pinline;
 			AKField({fa with fa_inline = true})
 		| AKUsingField sea ->
-			check_inline sea.se_access.fa_field;
+			check_inline sea.se_access.fa_field pinline;
 			AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
 		| AKExpr {eexpr = TLocal _} ->
-			display_error ctx.com "Cannot force inline on local functions" p;
+			display_error ctx.com "Cannot force inline on local functions" pinline;
 			e
 		| _ ->
 			e
 
-and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
+and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) p_inline p =
 	let def () =
-		let e = type_call_target ctx e el with_type inline p in
+		let e = type_call_target ctx e el with_type p_inline in
 		build_call ~mode ctx e el with_type p;
 	in
 	match e, el with
@@ -1886,7 +1888,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = type_expr ctx e WithType.value in
 		mk (TThrow e) (spawn_monomorph ctx p) p
 	| ECall (e,el) ->
-		type_call ~mode ctx e el with_type false p
+		type_call ~mode ctx e el with_type None p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->

@@ -99,7 +99,6 @@ let collect_statistics ctx pos_filters with_expressions =
 		| _,None -> raise Not_found
 	in
 	let var_decl v = declare (SKVariable v) v.v_pos in
-	let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
 	let related_fields = Hashtbl.create 0 in
 	let field_reference co cf p =
 		let p1 = patch_string_pos p cf.cf_name in
