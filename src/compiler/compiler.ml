@@ -488,7 +488,7 @@ module HighLevel = struct
 		let curdir = Unix.getcwd () in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
-		let add_context args =
+		let create_context args =
 			let ctx = create (server_api.on_context_create()) args in
 			(* --cwd triggers immediately, so let's reset *)
 			Unix.chdir curdir;
@@ -502,13 +502,13 @@ module HighLevel = struct
 		in
 		let rec loop acc = function
 			| [] ->
-				[],add_context (!each_params @ (List.rev acc));
+				[],Some (create_context (!each_params @ (List.rev acc)))
 			| "--next" :: l when acc = [] -> (* skip empty --next *)
 				loop [] l
 			| "--next" :: l ->
-				let ctx = add_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (!each_params @ (List.rev acc)) in
 				ctx.has_next <- true;
-				l,ctx
+				l,Some ctx
 			| "--each" :: l ->
 				each_params := List.rev acc;
 				loop [] l
@@ -520,7 +520,7 @@ module HighLevel = struct
 			| "--connect" :: hp :: l ->
 				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
-				[],add_context []
+				[],None
 			| "--server-connect" :: hp :: l ->
 				server_mode := SMConnect hp;
 				loop acc l
@@ -529,9 +529,9 @@ module HighLevel = struct
 				loop acc l
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
-				let ctx = add_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (!each_params @ (List.rev acc)) in
 				ctx.com.sys_args <- args;
-				[],ctx
+				[],Some ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
@@ -595,9 +595,15 @@ module HighLevel = struct
 			with Arg.Bad msg ->
 				let ctx = create 0 args in
 				error ctx ("Error: " ^ msg) null_pos;
-				[],SMNone,ctx
+				[],SMNone,Some ctx
 			in
-			let code = execute_ctx server_api ctx server_mode in
+			let code = match ctx with
+				| Some ctx ->
+					execute_ctx server_api ctx server_mode
+				| None ->
+					(* caused by --connect *)
+					0
+			in
 			if code = 0 && args <> [] then
 				loop args
 			else
