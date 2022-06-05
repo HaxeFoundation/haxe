@@ -170,7 +170,7 @@ class EventLoop {
 
 	/**
 		Execute all pending events.
-		Wait and execute as many events as many times `promiseEvent()` was called.
+		Wait and execute as many events as many times `promise()` was called.
 		Runs until all repeating events are cancelled and no more events is expected.
 
 		Depending on a target platform this method may be non-reentrant. It must
