@@ -1006,7 +1006,7 @@ class texpr_to_jvm
 
 	method do_compare op =
 		match code#get_stack#get_stack_items 2 with
-		| [TInt | TByte | TChar | TBool;TInt | TByte | TChar | TBool] ->
+		| [TInt | TByte | TChar | TShort | TBool;TInt | TByte | TChar | TShort | TBool] ->
 			let op = flip_cmp_op op in
 			CmpSpecial (code#if_icmp op)
 		| [TObject((["java";"lang"],"String"),[]);TObject((["java";"lang"],"String"),[])] ->
