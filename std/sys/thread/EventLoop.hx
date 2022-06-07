@@ -104,8 +104,8 @@ class EventLoop {
 
 	/**
 		Notify this loop about an upcoming event.
-		This makes the thread to stay alive and wait for as many events as many times
-		`.promise()` was called. These events should be added via `.runPromised()`
+		This makes the thread stay alive and wait for as many events as the number of
+		times `.promise()` was called. These events should be added via `.runPromised()`.
 	**/
 	public function promise():Void {
 		mutex.acquire();
@@ -170,8 +170,8 @@ class EventLoop {
 
 	/**
 		Execute all pending events.
-		Wait and execute as many events as many times `promiseEvent()` was called.
-		Runs until all repeating events are cancelled and no more events is expected.
+		Wait and execute as many events as the number of times `promise()` was called.
+		Runs until all repeating events are cancelled and no more events are expected.
 
 		Depending on a target platform this method may be non-reentrant. It must
 		not be called from event callbacks.
