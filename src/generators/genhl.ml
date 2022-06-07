@@ -78,6 +78,7 @@ type array_impl = {
 	ai32 : tclass;
 	af32 : tclass;
 	af64 : tclass;
+	ai64 : tclass;
 }
 
 type constval =
@@ -150,7 +151,7 @@ let is_extern_field f =
 
 let is_array_class name =
 	match name with
-	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_hl_F32" | "hl.types.ArrayBytes_hl_UI16" -> true
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_hl_F32" | "hl.types.ArrayBytes_hl_UI16" | "hl.types.ArrayBytes_hl_I64" -> true
 	| _ -> false
 
 let is_array_type t =
@@ -286,6 +287,8 @@ let array_class ctx t =
 		ctx.array_impl.af32
 	| HF64 ->
 		ctx.array_impl.af64
+	| HI64 ->
+		ctx.array_impl.ai64
 	| HDyn ->
 		ctx.array_impl.adyn
 	| _ ->
@@ -1393,7 +1396,7 @@ and get_access ctx e =
 
 and array_read ctx ra (at,vt) ridx p =
 	match at with
-	| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
+	| HUI8 | HUI16 | HI32 | HF32 | HF64 | HI64 ->
 		(* check bounds *)
 		hold ctx ridx;
 		let length = alloc_tmp ctx HI32 in
@@ -1402,7 +1405,7 @@ and array_read ctx ra (at,vt) ridx p =
 		let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
 		let r = alloc_tmp ctx (match at with HUI8 | HUI16 -> HI32 | _ -> at) in
 		(match at with
-		| HUI8 | HUI16 | HI32 ->
+		| HUI8 | HUI16 | HI32 | HI64 ->
 			op ctx (OInt (r,alloc_i32 ctx 0l));
 		| HF32 | HF64 ->
 			op ctx (OFloat (r,alloc_float ctx 0.));
@@ -2428,7 +2431,7 @@ and eval_expr ctx e =
 					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 					j();
 					match at with
-					| HI32 | HF64 | HUI16 | HF32 ->
+					| HI32 | HF64 | HUI16 | HF32 | HI64 ->
 						let b = alloc_tmp ctx HBytes in
 						op ctx (OField (b,ra,1));
 						write_mem ctx b (shl ctx ridx (type_size_bits at)) at v
@@ -2699,6 +2702,8 @@ and eval_expr ctx e =
 			array_bytes 2 HF32 "F32" (fun b i r -> OSetMem (b,i,r))
 		| HF64 ->
 			array_bytes 3 HF64 "F64" (fun b i r -> OSetMem (b,i,r))
+		| HI64 ->
+			array_bytes 3 HI64 "I64" (fun b i r -> OSetMem (b,i,r))
 		| _ ->
 			let at = if is_dynamic et then et else HDyn in
 			let a = alloc_tmp ctx HArray in
@@ -3007,7 +3012,7 @@ and gen_assign_op ctx acc e1 f =
 			op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 			j();
 			match at with
-			| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
+			| HUI8 | HUI16 | HI32 | HF32 | HF64 | HI64 ->
 				let hbytes = alloc_tmp ctx HBytes in
 				op ctx (OField (hbytes, ra, 1));
 				let ridx = shl ctx ridx (type_size_bits at) in
@@ -4011,6 +4016,7 @@ let create_context com is_macro dump =
 			ai32 = get_class "ArrayBytes_Int";
 			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
+			ai64 = get_class "ArrayBytes_hl_I64";
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";
