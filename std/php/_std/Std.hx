@@ -52,22 +52,21 @@ import php.Syntax;
 	}
 
 	public static function parseInt(x:String):Null<Int> {
-		if (Global.is_numeric(x)) {
-			return Global.intval(x, 10);
-		} else {
-			x = Global.ltrim(x);
-			var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
-			var firstCharCode = x.charCodeAt(firstCharIndex);
-			if (!isDigitCode(firstCharCode)) {
+		x = Global.ltrim(x, " \t\n\x0b\x0c\r");
+		final digitsOnly = Global.ltrim(x, "+-");
+		if (Global.str_starts_with(digitsOnly, '0x') || Global.str_starts_with(digitsOnly, '0X')) {
+			final val = Global.intval(x, 16); // hexadecimal
+			// if the value was 0, ensure there is only a maximum of one + or - sign
+			if (val == 0 && digitsOnly.length + 1 < x.length)
 				return null;
-			}
-			var secondChar = x.charAt(firstCharIndex + 1);
-			if (secondChar == 'x' || secondChar == 'X') {
-				return Global.intval(x, 0);
-			} else {
-				return Global.intval(x, 10);
-			}
+			return val;
 		}
+		final val = Global.intval(x, 10);
+		// if the value was 0, make sure it wasn't because the string had no valid digits
+		// last check ensures there is only a maximum of one + or - sign
+		if (val == 0 && (Global.strspn(digitsOnly, "0123456789", 0, 1) == 0 || digitsOnly.length + 1 < x.length))
+			return null;
+		return val;
 	}
 
 	public static function parseFloat(x:String):Float {
