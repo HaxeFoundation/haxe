@@ -531,6 +531,16 @@ class Context {
 	}
 
 	/**
+		Creates and returns a new instance of monomorph (`TMono`) type.
+
+		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
+		bind the monomorph to an actual type and let macro further process the resulting type.
+	**/
+	public static function makeMonomorph():Type {
+		return load("make_monomorph", 0)();
+	}
+
+	/**
 		Defines a new module as `modulePath` with several `TypeDefinition`
 		`types`. This is analogous to defining a .hx file.
 
