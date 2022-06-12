@@ -18,6 +18,7 @@ class Issue8748 extends TestCase {
 		assertReuse("Dependency");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("res/dep.dep")});
 		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("WithDependency.hx"), offset: 65});
+		trace(messages.join('\n'));
 		// check messages manually because module file contains awkward absolute path
 		var r = ~/skipping Dependency \(.*dep.dep\)/;
 		Assert.isTrue(messages.exists(message -> r.match(message)));
