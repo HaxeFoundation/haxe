@@ -28,11 +28,11 @@ let disable_typeloading ctx f =
 
 let pair_type th t = match th with
 	| None ->
-		Some (TExprToExpr.convert_type t,null_pos)
+		TExprToExpr.convert_type t,null_pos
 	| Some t ->
-		Some t
+		t
 
-let pair_classes rctx context_init m c d p =
+let pair_classes rctx context_init c d p =
 	log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path c.cl_path));
 	c.cl_restore();
 	let cctx = create_class_context c context_init p in
@@ -70,7 +70,7 @@ let pair_classes rctx context_init m c d p =
 			in
 			let args = try
 				List.map2 (fun (name,opt,meta,th,eo) (_,_,t) ->
-					(name,opt,meta,pair_type th t,eo)
+					(name,opt,meta,Some (pair_type th t),eo)
 				) fd.f_args targs
 			with Invalid_argument _ ->
 				fail "Type change"
@@ -79,7 +79,7 @@ let pair_classes rctx context_init m c d p =
 			let fd = {
 				fd with
 				f_args = args;
-				f_type = ret
+				f_type = Some ret
 			} in
 			let load_args_ret () =
 				setup_args_ret ctx cctx fctx (fst cff.cff_name) fd p
@@ -95,7 +95,7 @@ let pair_classes rctx context_init m c d p =
 				log rctx 2 ("Field updated")
 			)
 		| FVar(th,eo) | FProp(_,_,th,eo) ->
-			let th = pair_type th cf.cf_type in
+			let th = Some (pair_type th cf.cf_type) in
 			let t = disable_typeloading ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
 			(fun () ->
 				cf.cf_type <- t;
@@ -107,9 +107,29 @@ let pair_classes rctx context_init m c d p =
 	) d.d_data in
 	fl @ [fun () -> TypeloadFields.finalize_class ctx cctx]
 
+let pair_enums ctx rctx en d =
+	let ctx = { ctx with type_params = en.e_params } in
+	List.iter (fun eff ->
+		let name = fst eff.ec_name in
+		log rctx 2 (Printf.sprintf "Pairing field [%s]" name);
+		let ef = try
+			PMap.find name en.e_constrs
+		with Not_found ->
+			fail "Field not found"
+		in
+		let th = pair_type eff.ec_type ef.ef_type in
+		ignore (disable_typeloading ctx (fun () -> Typeload.load_complex_type ctx false th))
+	) d.d_data;
+	[]
+
+let pair_typedefs ctx rctx td d =
+	let ctx = { ctx with type_params = td.t_params } in
+	ignore (disable_typeloading ctx (fun () -> Typeload.load_complex_type ctx false d.d_data));
+	[]
+
 let attempt_retyping ctx m p =
 	let com = ctx.com in
-	let file,remap,pack,decls = TypeloadParse.parse_module' com m.m_path p in
+	let file,_,_,decls = TypeloadParse.parse_module' com m.m_path p in
 	let ctx = create_typer_context_for_module ctx m in
 	let rctx = {
 		typer = ctx;
@@ -155,7 +175,11 @@ let attempt_retyping ctx m p =
 		let pairs = loop [] decls in
 		let fl = List.map (fun (d,mt) -> match d,mt with
 			| EClass d,TClassDecl c ->
-				pair_classes rctx context_init m c d p
+				pair_classes rctx context_init c d p
+			| EEnum d,TEnumDecl en ->
+				pair_enums ctx rctx en d
+			| ETypedef d,TTypeDecl td ->
+				pair_typedefs ctx rctx td d
 			| _ ->
 				fail "?"
 		) pairs in

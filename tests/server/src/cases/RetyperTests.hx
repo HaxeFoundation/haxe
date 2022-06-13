@@ -178,4 +178,76 @@ class RetyperTests extends TestCase {
 		Assert.isTrue(hasMessage('Retyping module WithMutualDependency'));
 		Assert.isTrue(hasMessage('Retyped module WithMutualDependency'));
 	}
+
+	function testIndependentEnum() {
+		vfs.putContent("IndependentEnum.hx", getTemplate("IndependentEnum.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"IndependentEnum.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['IndependentEnum'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyping module IndependentEnum'));
+		Assert.isTrue(hasMessage('Retyped module IndependentEnum'));
+	}
+
+	function testDependentEnum() {
+		vfs.putContent("DependentEnum.hx", getTemplate("DependentEnum.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"DependentEnum.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['DependentEnum'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyping module DependentEnum'));
+		Assert.isTrue(hasMessage('Failed retyping module DependentEnum'));
+	}
+
+	function testIndependentTypedef() {
+		vfs.putContent("IndependentTypedef.hx", getTemplate("IndependentTypedef.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"IndependentTypedef.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['IndependentTypedef'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyping module IndependentTypedef'));
+		Assert.isTrue(hasMessage('Retyped module IndependentTypedef'));
+	}
+
+	function testDependentTypedef() {
+		vfs.putContent("DependentTypedef.hx", getTemplate("DependentTypedef.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"DependentTypedef.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['DependentTypedef'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyping module DependentTypedef'));
+		Assert.isTrue(hasMessage('Failed retyping module DependentTypedef'));
+	}
 }
