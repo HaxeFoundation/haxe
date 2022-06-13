@@ -1873,6 +1873,10 @@ let macro_api ccom get_api =
 			(get_api()).define_type v (opt decode_string m);
 			vnull
 		);
+		"make_monomorph", vfun0 (fun() ->
+			let t = TMono (Monomorph.create ()) in
+			encode_type t
+		);
 		"define_module", vfun4 (fun path vl ui ul ->
 			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map fst (List.map decode_path (decode_array ul)));
 			vnull
