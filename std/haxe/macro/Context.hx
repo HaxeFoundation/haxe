@@ -582,6 +582,13 @@ class Context {
 	}
 
 	/**
+		TODO: dorkument
+	**/
+	public static function storeType(t:Type.Type, p:Position):ComplexType {
+		return load("store_type", 2)(t, p);
+	}
+
+	/**
 		Types expression `e`, stores the resulting typed expression internally and
 		returns a syntax-level expression that can be returned from a macro and
 		will be replaced by the stored typed expression.
@@ -652,7 +659,6 @@ class Context {
 		return load("with_imports", 3)(imports, usings, code);
 	}
 
-
 	/**
 		Executes `code` in a context that has some compiler options set, restore the compiler to its
 		default behavior afterwards.
@@ -662,7 +668,7 @@ class Context {
 		`allowTransform`: when disabled, the code typed with `typeExpr` will be almost exactly the same
 		as the input code. This will disable some abstract types transformations.
 	**/
-	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
+	public static function withOptions<X>(options:{?allowInlining:Bool, ?allowTransform:Bool}, code:() -> X):X {
 		return load("with_options", 2)(options, code);
 	}
 

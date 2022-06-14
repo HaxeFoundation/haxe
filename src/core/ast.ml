@@ -174,6 +174,8 @@ and complex_type =
 	| CTOptional of type_hint
 	| CTNamed of placed_name * type_hint
 	| CTIntersection of type_hint list
+	| CTMono
+	| CTStoredType of int
 
 and type_hint = complex_type * pos
 
@@ -325,9 +327,6 @@ and evar = {
 	ev_expr : expr option;
 	ev_meta : metadata;
 }
-
-(* TODO: should we introduce CTMono instead? *)
-let ct_mono = CTPath { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
 
 type enum_flag =
 	| EPrivate
@@ -704,6 +703,8 @@ let map_expr loop (e,p) =
 		| CTOptional t -> CTOptional (type_hint t)
 		| CTNamed (n,t) -> CTNamed (n,type_hint t)
 		| CTIntersection tl -> CTIntersection(List.map type_hint tl)
+		| CTMono -> CTMono
+		| CTStoredType i -> CTStoredType i
 		),p
 	and tparamdecl t =
 		let constraints = opt type_hint t.tp_constraints in
@@ -917,6 +918,8 @@ module Printer = struct
 		| CTNamed((n,_),(t,_)) -> n ^ ":" ^ s_complex_type tabs t
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
 		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
+		| CTMono -> "$._hx_mono"
+		| CTStoredType i -> Printf.sprintf "$._hx_type<%i>" i
 	and s_class_field tabs f =
 		let doc = match f.cff_doc with
 			| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"

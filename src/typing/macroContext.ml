@@ -207,6 +207,9 @@ let make_macro_api ctx p =
 			let p = te.epos in
 			Typecore.store_typed_expr ctx.com te p
 		);
+		MacroApi.store_type = (fun t ->
+			Typecore.store_type ctx.com t
+		);
 		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
 		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->

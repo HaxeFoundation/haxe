@@ -28,6 +28,7 @@ type 'value compiler_api = {
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	store_typed_expr : Type.texpr -> Ast.expr;
+	store_type : Type.t -> Ast.complex_type;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> pos -> unit;
@@ -340,6 +341,10 @@ and encode_ctype t =
 		6, [encode_placed_name n; encode_ctype t]
 	| CTIntersection tl ->
 		7, [(encode_array (List.map encode_ctype tl))]
+	| CTMono ->
+		8, []
+	| CTStoredType i ->
+		9, [vint i]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
@@ -722,6 +727,10 @@ and decode_ctype t =
 		CTNamed ((decode_string n,p), decode_ctype t)
 	| 7, [tl] ->
 		CTIntersection (List.map decode_ctype (decode_array tl))
+	| 8, [] ->
+		CTMono
+	| 9, [v] ->
+		CTStoredType (decode_int v)
 	| _ ->
 		raise Invalid_expr),p
 
@@ -1930,6 +1939,11 @@ let macro_api ccom get_api =
 		"store_typed_expr", vfun1 (fun e ->
 			let e = decode_texpr e in
 			encode_expr ((get_api()).store_typed_expr e)
+		);
+		"store_type", vfun2 (fun t p ->
+			let t = decode_type t in
+			let p = decode_pos p in
+			encode_ctype ((get_api()).store_type t,p)
 		);
 		"type_and_store_expr", vfun1 (fun e ->
 			let api = get_api() in

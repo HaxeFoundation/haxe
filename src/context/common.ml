@@ -374,6 +374,7 @@ type context = {
 	module_to_file : (path,string) lookup;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
 	stored_typed_exprs : (int, texpr) lookup;
+	stored_types : (int, Type.t) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : (path,module_def) lookup;
 	module_nonexistent_lut : (path,bool) lookup;
@@ -830,6 +831,7 @@ let create compilation_step cs version args =
 		readdir_cache = new hashtbl_lookup;
 		module_to_file = new hashtbl_lookup;
 		stored_typed_exprs = new hashtbl_lookup;
+		stored_types = new hashtbl_lookup;
 		cached_macros = new hashtbl_lookup;
 		memory_marker = memory_marker;
 		parser_cache = new hashtbl_lookup;

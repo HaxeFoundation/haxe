@@ -715,6 +715,18 @@ let store_typed_expr com te p =
 	let eid = (EConst (Int (string_of_int id, None))), p in
 	(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
 
+let get_next_stored_type_id =
+	let uid = ref 0 in
+	(fun() -> incr uid; !uid)
+
+let get_stored_type com id =
+	com.stored_types#find id
+
+let store_type com te =
+	let id = get_next_stored_type_id() in
+	com.stored_types#add id te;
+	CTStoredType id
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 

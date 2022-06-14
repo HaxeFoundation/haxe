@@ -49,6 +49,9 @@ let find_in_syntax symbols (pack,decls) =
 			List.iter field cffl;
 		| CTIntersection tl ->
 			List.iter type_hint tl
+		| CTMono
+		| CTStoredType _ ->
+			()
 	and type_param tp =
 		List.iter type_param tp.tp_params;
 		Option.may type_hint tp.tp_constraints

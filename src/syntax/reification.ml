@@ -93,6 +93,9 @@ let reify in_macro =
 		| None -> to_null p
 		| Some v -> f v p
 	in
+	let to_int i p =
+		(EConst (Int (string_of_int i,None)),p)
+	in
 	let to_bool o p =
 		(EConst (Ident (if o then "true" else "false")),p)
 	in
@@ -144,6 +147,8 @@ let reify in_macro =
 		| CTOptional t -> ct "TOptional" [to_type_hint t p]
 		| CTNamed (n,t) -> ct "TNamed" [to_placed_name n; to_type_hint t p]
 		| CTIntersection tl -> ct "TIntersection" [to_array to_ctype tl p]
+		| CTMono -> ct "TMono" []
+		| CTStoredType i -> ct "TStoredType" [to_int i p]
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p

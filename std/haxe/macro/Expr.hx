@@ -639,6 +639,17 @@ enum ComplexType {
 		Represents an intersection type `T1 & T2 & ... & TN`.
 	**/
 	TIntersection(tl:Array<ComplexType>);
+
+	/**
+		Represents an unknown type, also known as a monomorph.
+	**/
+	TMono;
+
+	/**
+		Represents a type which is stored in the current context. This value only has
+		meaning within that context and should not be used otherwise.
+	**/
+	TStoredType(i:Int);
 }
 
 /**
@@ -1000,6 +1011,7 @@ enum TypeDefKind {
 		Represents a module-level field.
 	**/
 	TDField(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
+
 }
 
 /**
