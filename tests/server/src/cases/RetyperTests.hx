@@ -24,7 +24,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyped module WithDependency'));
+		Assert.isTrue(hasMessage('retyped WithDependency'));
 	}
 
 	function testSignature() {
@@ -42,8 +42,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
 	}
 
 	function testSignatureInferredArg() {
@@ -61,8 +60,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
 	}
 
 	function testSignatureInferredRet() {
@@ -80,8 +78,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
 	}
 
 	function testSignatureVariable() {
@@ -99,8 +96,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
 	}
 
 	function testSignatureInferredVariable() {
@@ -118,8 +114,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
 	}
 
 	function testSignatureProperty() {
@@ -137,8 +132,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
 	}
 
 	function testSignatureInferredProperty() {
@@ -156,8 +150,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module WithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
 	}
 
 	function testMutual() {
@@ -175,8 +168,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MutualDependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module WithMutualDependency'));
-		Assert.isTrue(hasMessage('Retyped module WithMutualDependency'));
+		Assert.isTrue(hasMessage('retyped WithMutualDependency'));
 	}
 
 	function testIndependentEnum() {
@@ -193,8 +185,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module IndependentEnum'));
-		Assert.isTrue(hasMessage('Retyped module IndependentEnum'));
+		Assert.isTrue(hasMessage('retyped IndependentEnum'));
 	}
 
 	function testDependentEnum() {
@@ -211,8 +202,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module DependentEnum'));
-		Assert.isTrue(hasMessage('Failed retyping module DependentEnum'));
+		Assert.isTrue(hasMessage('failed retyping DependentEnum'));
 	}
 
 	function testIndependentTypedef() {
@@ -229,8 +219,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module IndependentTypedef'));
-		Assert.isTrue(hasMessage('Retyped module IndependentTypedef'));
+		Assert.isTrue(hasMessage('retyped IndependentTypedef'));
 	}
 
 	function testDependentTypedef() {
@@ -247,8 +236,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module DependentTypedef'));
-		Assert.isTrue(hasMessage('Failed retyping module DependentTypedef'));
+		Assert.isTrue(hasMessage('failed retyping DependentTypedef'));
 	}
 
 	function testAbstractNonSignature() {
@@ -265,7 +253,7 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyped module AbstractWithDependency'));
+		Assert.isTrue(hasMessage('retyped AbstractWithDependency'));
 	}
 
 	function testAbstractSignature() {
@@ -282,7 +270,6 @@ class RetyperTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		Assert.isTrue(hasMessage('Retyping module AbstractWithSignatureDependency'));
-		Assert.isTrue(hasMessage('Failed retyping module AbstractWithSignatureDependency'));
+		Assert.isTrue(hasMessage('failed retyping AbstractWithSignatureDependency'));
 	}
 }

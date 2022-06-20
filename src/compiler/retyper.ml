@@ -9,14 +9,10 @@ exception Fail of string
 
 type retyping_context = {
 	typer : typer;
-	mutable log : string list;
 }
 
 let fail s =
 	raise (Fail s)
-
-let log rctx indent message =
-	print_endline (Printf.sprintf "[retyper] %*s%s" (indent * 4) "" message)
 
 let disable_typeloading ctx f =
 	let old = ctx.g.load_only_cached_modules in
@@ -66,7 +62,6 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 			TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> cff.cff_pos);
 			if ctx.com.display.dms_full_typing then
 				remove_class_field_flag cf CfPostProcessed;
-			log rctx 2 ("Field updated")
 		)
 	| FVar(th,eo) | FProp(_,_,th,eo) ->
 		let th = Some (pair_type th cf.cf_type) in
@@ -76,17 +71,20 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 			TypeBinding.bind_var ctx cctx fctx cf eo;
 			if ctx.com.display.dms_full_typing then
 				remove_class_field_flag cf CfPostProcessed;
-			log rctx 2 ("Field updated")
 		)
 
 let pair_classes rctx context_init c d p =
-	log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path c.cl_path));
+	let fail s =
+		fail (Printf.sprintf "[Class %s] %s" (s_type_path c.cl_path) s)
+	in
 	c.cl_restore();
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class rctx.typer cctx p in
 	let fl = List.map (fun cff ->
 		let name = fst cff.cff_name in
-		log rctx 2 (Printf.sprintf "Pairing field [%s]" name);
+		let fail s =
+			fail (Printf.sprintf "[Field %s] %s" name s)
+		in
 		let display_modifier = Typeload.check_field_access ctx cff in
 		let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
 		let cf = match fctx.field_kind with
@@ -112,9 +110,14 @@ let pair_classes rctx context_init c d p =
 
 let pair_enums ctx rctx en d =
 	let ctx = { ctx with type_params = en.e_params } in
+	let fail s =
+		fail (Printf.sprintf "[Enum %s] %s" (s_type_path en.e_path) s)
+	in
 	List.iter (fun eff ->
 		let name = fst eff.ec_name in
-		log rctx 2 (Printf.sprintf "Pairing field [%s]" name);
+		let fail s =
+			fail (Printf.sprintf "[Field %s] %s" name s)
+		in
 		let ef = try
 			PMap.find name en.e_constrs
 		with Not_found ->
@@ -131,16 +134,20 @@ let pair_typedefs ctx rctx td d =
 	[]
 
 let pair_abstracts ctx rctx context_init a d p =
+	let fail s =
+		fail (Printf.sprintf "[Abstract %s] %s" (s_type_path a.a_path) s)
+	in
 	match a.a_impl with
 	| Some c ->
-		log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path c.cl_path));
 		c.cl_restore();
 		let cctx = create_class_context c context_init p in
 		let ctx = create_typer_context_for_class rctx.typer cctx p in
 		let fl = List.map (fun cff ->
 			let cff = TypeloadFields.transform_abstract_field2 ctx a cff in
 			let name = fst cff.cff_name in
-			log rctx 2 (Printf.sprintf "Pairing field [%s]" name);
+			let fail s =
+				fail (Printf.sprintf "[Field %s] %s" name s)
+			in
 			let display_modifier = Typeload.check_field_access ctx cff in
 			let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
 			let cf = try
@@ -161,9 +168,8 @@ let attempt_retyping ctx m p =
 	let ctx = create_typer_context_for_module ctx m in
 	let rctx = {
 		typer = ctx;
-		log = []
 	} in
-	log rctx 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path));
+	(* log rctx 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path)); *)
 	let context_init = new TypeloadFields.context_init in
 	let find_type name = try
 		List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types
@@ -198,7 +204,7 @@ let attempt_retyping ctx m p =
 				loop acc decls
 			end;
 	in
-	let result = try
+	try
 		m.m_extra.m_cache_state <- MSUnknown;
 		let pairs = loop [] decls in
 		let fl = List.map (fun (d,mt) -> match d,mt with
@@ -220,11 +226,6 @@ let attempt_retyping ctx m p =
 		) fl;
 		m.m_extra.m_cache_state <- MSGood;
 		m.m_extra.m_time <- Common.file_time file;
-		log rctx 0 (Printf.sprintf "Retyped module %s" (s_type_path m.m_path));
-		true
+		None
 	with Fail s ->
-		log rctx 0 (Printf.sprintf "Failed retyping module %s" (s_type_path m.m_path));
-		log rctx 1 s;
-		false
-	in
-	result
+		Some s
