@@ -670,12 +670,15 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
+let transform_abstract_field2 ctx a cff =
+	let a_t = TExprToExpr.convert_type' (TAbstract(a,extract_param_types a.a_params)) in
+	let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
+	transform_abstract_field ctx.com this_t a_t a cff
+
 let transform_field (ctx,cctx) c f fields p =
 	let f = match cctx.abstract with
 		| Some a ->
-			let a_t = TExprToExpr.convert_type' (TAbstract(a,extract_param_types a.a_params)) in
-			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
-			transform_abstract_field ctx.com this_t a_t a f
+			transform_abstract_field2 ctx a f
 		| None ->
 			f
 	in

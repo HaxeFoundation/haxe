@@ -250,4 +250,39 @@ class RetyperTests extends TestCase {
 		Assert.isTrue(hasMessage('Retyping module DependentTypedef'));
 		Assert.isTrue(hasMessage('Failed retyping module DependentTypedef'));
 	}
+
+	function testAbstractNonSignature() {
+		vfs.putContent("AbstractWithDependency.hx", getTemplate("AbstractWithDependency.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"AbstractWithDependency.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['AbstractWithDependency'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyped module AbstractWithDependency'));
+	}
+
+	function testAbstractSignature() {
+		vfs.putContent("AbstractWithSignatureDependency.hx", getTemplate("AbstractWithSignatureDependency.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = [
+			"AbstractWithSignatureDependency.hx",
+			"--no-output",
+			"-js",
+			"no.js",
+			"--macro",
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['AbstractWithSignatureDependency'], [Retype], false)"
+		];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('Retyping module AbstractWithSignatureDependency'));
+		Assert.isTrue(hasMessage('Failed retyping module AbstractWithSignatureDependency'));
+	}
 }

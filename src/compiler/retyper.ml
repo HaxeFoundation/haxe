@@ -32,6 +32,53 @@ let pair_type th t = match th with
 	| Some t ->
 		t
 
+let pair_class_field rctx ctx cctx fctx cf cff p =
+	match cff.cff_kind with
+	| FFun fd ->
+		(* Fill in blanks by using typed information *)
+		let targs,tret = match follow cf.cf_type with
+			| TFun(args,ret) ->
+				args,ret
+			| _ ->
+				fail "Type change"
+		in
+		let args = try
+			List.map2 (fun (name,opt,meta,th,eo) (_,_,t) ->
+				(name,opt,meta,Some (pair_type th t),eo)
+			) fd.f_args targs
+		with Invalid_argument _ ->
+			fail "Type change"
+		in
+		let ret = pair_type fd.f_type tret in
+		let fd = {
+			fd with
+			f_args = args;
+			f_type = Some ret
+		} in
+		let load_args_ret () =
+			setup_args_ret ctx cctx fctx (fst cff.cff_name) fd p
+		in
+		let args,ret = disable_typeloading ctx load_args_ret in
+		let t = TFun(args#for_type,ret) in
+		(fun () ->
+			(* This is the only part that should actually modify anything. *)
+			cf.cf_type <- t;
+			TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> cff.cff_pos);
+			if ctx.com.display.dms_full_typing then
+				remove_class_field_flag cf CfPostProcessed;
+			log rctx 2 ("Field updated")
+		)
+	| FVar(th,eo) | FProp(_,_,th,eo) ->
+		let th = Some (pair_type th cf.cf_type) in
+		let t = disable_typeloading ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
+		(fun () ->
+			cf.cf_type <- t;
+			TypeBinding.bind_var ctx cctx fctx cf eo;
+			if ctx.com.display.dms_full_typing then
+				remove_class_field_flag cf CfPostProcessed;
+			log rctx 2 ("Field updated")
+		)
+
 let pair_classes rctx context_init c d p =
 	log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path c.cl_path));
 	c.cl_restore();
@@ -59,51 +106,7 @@ let pair_classes rctx context_init c d p =
 			| FKInit ->
 				fail "TODO"
 		in
-		match cff.cff_kind with
-		| FFun fd ->
-			(* Fill in blanks by using typed information *)
-			let targs,tret = match follow cf.cf_type with
-				| TFun(args,ret) ->
-					args,ret
-				| _ ->
-					fail "Type change"
-			in
-			let args = try
-				List.map2 (fun (name,opt,meta,th,eo) (_,_,t) ->
-					(name,opt,meta,Some (pair_type th t),eo)
-				) fd.f_args targs
-			with Invalid_argument _ ->
-				fail "Type change"
-			in
-			let ret = pair_type fd.f_type tret in
-			let fd = {
-				fd with
-				f_args = args;
-				f_type = Some ret
-			} in
-			let load_args_ret () =
-				setup_args_ret ctx cctx fctx (fst cff.cff_name) fd p
-			in
-			let args,ret = disable_typeloading ctx load_args_ret in
-			let t = TFun(args#for_type,ret) in
-			(fun () ->
-				(* This is the only part that should actually modify anything. *)
-				cf.cf_type <- t;
-				TypeBinding.bind_method ctx cctx fctx cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> cff.cff_pos);
-				if ctx.com.display.dms_full_typing then
-					remove_class_field_flag cf CfPostProcessed;
-				log rctx 2 ("Field updated")
-			)
-		| FVar(th,eo) | FProp(_,_,th,eo) ->
-			let th = Some (pair_type th cf.cf_type) in
-			let t = disable_typeloading ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
-			(fun () ->
-				cf.cf_type <- t;
-				TypeBinding.bind_var ctx cctx fctx cf eo;
-				if ctx.com.display.dms_full_typing then
-					remove_class_field_flag cf CfPostProcessed;
-				log rctx 2 ("Field updated")
-			)
+		pair_class_field rctx ctx cctx fctx cf cff p
 	) d.d_data in
 	fl @ [fun () -> TypeloadFields.finalize_class ctx cctx]
 
@@ -126,6 +129,31 @@ let pair_typedefs ctx rctx td d =
 	let ctx = { ctx with type_params = td.t_params } in
 	ignore (disable_typeloading ctx (fun () -> Typeload.load_complex_type ctx false d.d_data));
 	[]
+
+let pair_abstracts ctx rctx context_init a d p =
+	match a.a_impl with
+	| Some c ->
+		log rctx 1 (Printf.sprintf "Pairing class [%s]" (s_type_path c.cl_path));
+		c.cl_restore();
+		let cctx = create_class_context c context_init p in
+		let ctx = create_typer_context_for_class rctx.typer cctx p in
+		let fl = List.map (fun cff ->
+			let cff = TypeloadFields.transform_abstract_field2 ctx a cff in
+			let name = fst cff.cff_name in
+			log rctx 2 (Printf.sprintf "Pairing field [%s]" name);
+			let display_modifier = Typeload.check_field_access ctx cff in
+			let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
+			let cf = try
+				PMap.find name c.cl_statics
+			with Not_found ->
+				fail "Field not found"
+			in
+			pair_class_field rctx ctx cctx fctx cf cff p
+		) d.d_data in
+		fl @ [fun () -> TypeloadFields.finalize_class ctx cctx]
+	| None ->
+		(* ?*)
+		[]
 
 let attempt_retyping ctx m p =
 	let com = ctx.com in
@@ -180,6 +208,8 @@ let attempt_retyping ctx m p =
 				pair_enums ctx rctx en d
 			| ETypedef d,TTypeDecl td ->
 				pair_typedefs ctx rctx td d
+			| EAbstract d,TAbstractDecl a ->
+				pair_abstracts ctx rctx context_init  a d p
 			| _ ->
 				fail "?"
 		) pairs in
