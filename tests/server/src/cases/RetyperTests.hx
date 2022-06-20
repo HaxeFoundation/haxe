@@ -43,6 +43,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module WithSignatureDependency] [Class WithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 
 	function testSignatureInferredArg() {
@@ -61,6 +62,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module WithSignatureDependency] [Class WithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 
 	function testSignatureInferredRet() {
@@ -79,6 +81,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module WithSignatureDependency] [Class WithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 
 	function testSignatureVariable() {
@@ -97,6 +100,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module WithSignatureDependency] [Class WithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 
 	function testSignatureInferredVariable() {
@@ -115,6 +119,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module WithSignatureDependency] [Class WithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 
 	function testSignatureProperty() {
@@ -133,6 +138,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module WithSignatureDependency] [Class WithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 
 	function testSignatureInferredProperty() {
@@ -151,6 +157,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping WithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module WithSignatureDependency] [Class WithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 
 	function testMutual() {
@@ -203,6 +210,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping DependentEnum'));
+		Assert.isTrue(hasMessage('[Module DependentEnum] [Enum DependentEnum] [Field Constructor]: Could not load [Module Dependency]'));
 	}
 
 	function testIndependentTypedef() {
@@ -237,6 +245,7 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping DependentTypedef'));
+		Assert.isTrue(hasMessage('[Module DependentTypedef] [Typedef DependentTypedef]: Could not load [Module Dependency]'));
 	}
 
 	function testAbstractNonSignature() {
@@ -271,5 +280,6 @@ class RetyperTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
 		Assert.isTrue(hasMessage('failed retyping AbstractWithSignatureDependency'));
+		Assert.isTrue(hasMessage('[Module AbstractWithSignatureDependency] [Abstract AbstractWithSignatureDependency] [Field test]: Could not load [Module Dependency]'));
 	}
 }

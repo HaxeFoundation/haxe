@@ -9,18 +9,20 @@ exception Fail of string
 
 type retyping_context = {
 	typer : typer;
+	print_stack : string list;
 }
 
-let fail s =
-	raise (Fail s)
+let fail rctx s =
+	let stack = String.concat " " (List.rev rctx.print_stack) in
+	raise (Fail (Printf.sprintf "%s: %s" stack s))
 
-let disable_typeloading ctx f =
+let disable_typeloading rctx ctx f =
 	let old = ctx.g.load_only_cached_modules in
 	ctx.g.load_only_cached_modules <- true;
 	try
 		Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
 	with (Error.Error (Module_not_found path,_)) ->
-		fail (Printf.sprintf "Could not load module %s" (s_type_path path))
+		fail rctx (Printf.sprintf "Could not load [Module %s]" (s_type_path path))
 
 let pair_type th t = match th with
 	| None ->
@@ -36,14 +38,14 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 			| TFun(args,ret) ->
 				args,ret
 			| _ ->
-				fail "Type change"
+				fail rctx "Type change"
 		in
 		let args = try
 			List.map2 (fun (name,opt,meta,th,eo) (_,_,t) ->
 				(name,opt,meta,Some (pair_type th t),eo)
 			) fd.f_args targs
 		with Invalid_argument _ ->
-			fail "Type change"
+			fail rctx "Type change"
 		in
 		let ret = pair_type fd.f_type tret in
 		let fd = {
@@ -54,7 +56,7 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 		let load_args_ret () =
 			setup_args_ret ctx cctx fctx (fst cff.cff_name) fd p
 		in
-		let args,ret = disable_typeloading ctx load_args_ret in
+		let args,ret = disable_typeloading rctx ctx load_args_ret in
 		let t = TFun(args#for_type,ret) in
 		(fun () ->
 			(* This is the only part that should actually modify anything. *)
@@ -65,7 +67,7 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 		)
 	| FVar(th,eo) | FProp(_,_,th,eo) ->
 		let th = Some (pair_type th cf.cf_type) in
-		let t = disable_typeloading ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
+		let t = disable_typeloading rctx ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
 		(fun () ->
 			cf.cf_type <- t;
 			TypeBinding.bind_var ctx cctx fctx cf eo;
@@ -74,24 +76,24 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 		)
 
 let pair_classes rctx context_init c d p =
-	let fail s =
-		fail (Printf.sprintf "[Class %s] %s" (s_type_path c.cl_path) s)
-	in
+	let rctx = {rctx with
+		print_stack = (Printf.sprintf "[Class %s]" (s_type_path c.cl_path)) :: rctx.print_stack
+	} in
 	c.cl_restore();
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class rctx.typer cctx p in
 	let fl = List.map (fun cff ->
 		let name = fst cff.cff_name in
-		let fail s =
-			fail (Printf.sprintf "[Field %s] %s" name s)
-		in
+		let rctx = {rctx with
+			print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
+		} in
 		let display_modifier = Typeload.check_field_access ctx cff in
 		let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
 		let cf = match fctx.field_kind with
 			| FKConstructor ->
 				begin match c.cl_constructor with
 				| None ->
-					fail "Constructor not found"
+					fail rctx "Constructor not found"
 				| Some cf ->
 					cf
 				end
@@ -99,10 +101,10 @@ let pair_classes rctx context_init c d p =
 				begin try
 					PMap.find name (if fctx.is_static then c.cl_statics else c.cl_fields)
 				with Not_found ->
-					fail "Field not found"
+					fail rctx "Field not found"
 				end
 			| FKInit ->
-				fail "TODO"
+				fail rctx "TODO"
 		in
 		pair_class_field rctx ctx cctx fctx cf cff p
 	) d.d_data in
@@ -110,33 +112,36 @@ let pair_classes rctx context_init c d p =
 
 let pair_enums ctx rctx en d =
 	let ctx = { ctx with type_params = en.e_params } in
-	let fail s =
-		fail (Printf.sprintf "[Enum %s] %s" (s_type_path en.e_path) s)
-	in
+	let rctx = {rctx with
+		print_stack = (Printf.sprintf "[Enum %s]" (s_type_path en.e_path)) :: rctx.print_stack
+	} in
 	List.iter (fun eff ->
 		let name = fst eff.ec_name in
-		let fail s =
-			fail (Printf.sprintf "[Field %s] %s" name s)
-		in
+		let rctx = {rctx with
+			print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
+		} in
 		let ef = try
 			PMap.find name en.e_constrs
 		with Not_found ->
-			fail "Field not found"
+			fail rctx "Field not found"
 		in
 		let th = pair_type eff.ec_type ef.ef_type in
-		ignore (disable_typeloading ctx (fun () -> Typeload.load_complex_type ctx false th))
+		ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false th))
 	) d.d_data;
 	[]
 
 let pair_typedefs ctx rctx td d =
+	let rctx = {rctx with
+		print_stack = (Printf.sprintf "[Typedef %s]" (s_type_path td.t_path)) :: rctx.print_stack
+	} in
 	let ctx = { ctx with type_params = td.t_params } in
-	ignore (disable_typeloading ctx (fun () -> Typeload.load_complex_type ctx false d.d_data));
+	ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false d.d_data));
 	[]
 
 let pair_abstracts ctx rctx context_init a d p =
-	let fail s =
-		fail (Printf.sprintf "[Abstract %s] %s" (s_type_path a.a_path) s)
-	in
+	let rctx = {rctx with
+		print_stack = (Printf.sprintf "[Abstract %s]" (s_type_path a.a_path)) :: rctx.print_stack
+	} in
 	match a.a_impl with
 	| Some c ->
 		c.cl_restore();
@@ -145,15 +150,15 @@ let pair_abstracts ctx rctx context_init a d p =
 		let fl = List.map (fun cff ->
 			let cff = TypeloadFields.transform_abstract_field2 ctx a cff in
 			let name = fst cff.cff_name in
-			let fail s =
-				fail (Printf.sprintf "[Field %s] %s" name s)
-			in
+			let rctx = {rctx with
+				print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
+			} in
 			let display_modifier = Typeload.check_field_access ctx cff in
 			let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
 			let cf = try
 				PMap.find name c.cl_statics
 			with Not_found ->
-				fail "Field not found"
+				fail rctx "Field not found"
 			in
 			pair_class_field rctx ctx cctx fctx cf cff p
 		) d.d_data in
@@ -168,13 +173,14 @@ let attempt_retyping ctx m p =
 	let ctx = create_typer_context_for_module ctx m in
 	let rctx = {
 		typer = ctx;
+		print_stack = [Printf.sprintf "[Module %s]" (s_type_path m.m_path)];
 	} in
 	(* log rctx 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path)); *)
 	let context_init = new TypeloadFields.context_init in
 	let find_type name = try
 		List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types
 	with Not_found ->
-		fail (Printf.sprintf "Type %s not found in module %s" name (s_type_path m.m_path))
+		fail rctx (Printf.sprintf "Type %s not found" name)
 	in
 	let rec loop acc decls = match decls with
 		| [] ->
@@ -215,9 +221,9 @@ let attempt_retyping ctx m p =
 			| ETypedef d,TTypeDecl td ->
 				pair_typedefs ctx rctx td d
 			| EAbstract d,TAbstractDecl a ->
-				pair_abstracts ctx rctx context_init  a d p
+				pair_abstracts ctx rctx context_init a d p
 			| _ ->
-				fail "?"
+				fail rctx "?"
 		) pairs in
 		(* If we get here we know that the everything is ok. *)
 		delay ctx PConnectField (fun () -> context_init#run);
