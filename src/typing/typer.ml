@@ -781,11 +781,18 @@ and type_object_decl ctx fl with_type p =
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
-				let froms = get_abstract_froms ctx a pl
-				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
-				(match List.fold_left fold [] froms with
-				| [t] -> t
-				| _ -> ODKFailed)
+				let froms = get_abstract_froms ctx a pl in
+				begin match froms with
+				| [] ->
+					(* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
+					ODKPlain
+				| _ ->
+					let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+					begin match List.fold_left fold [] froms with
+						| [t] -> t
+						| _ -> ODKFailed
+					end
+				end
 			| TDynamic t when (follow t != t_dynamic) ->
 				dynamic_parameter := Some t;
 				ODKWithStructure {
