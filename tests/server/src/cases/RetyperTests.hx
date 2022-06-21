@@ -8,18 +8,21 @@ using StringTools;
 using Lambda;
 
 class RetyperTests extends TestCase {
-	function testNonSignature() {
-		vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
-		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithDependency.hx",
+	static function getBaseArgs(moduleName:String) {
+		return [
+			moduleName + ".hx",
 			"--no-output",
 			"-js",
 			"no.js",
 			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithDependency'], [Retype], false)"
+			"haxe.macro.CompilationServer.setModuleCheckPolicy(['" + moduleName + "'], [Retype], false)"
 		];
+	}
+
+	function testNonSignature() {
+		vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = getBaseArgs("WithDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -29,15 +32,7 @@ class RetyperTests extends TestCase {
 	function testSignature() {
 		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -48,15 +43,7 @@ class RetyperTests extends TestCase {
 	function testSignatureInferredArg() {
 		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredArg.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -67,15 +54,7 @@ class RetyperTests extends TestCase {
 	function testSignatureInferredRet() {
 		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredRet.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -86,15 +65,7 @@ class RetyperTests extends TestCase {
 	function testSignatureVariable() {
 		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyVariable.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -105,15 +76,7 @@ class RetyperTests extends TestCase {
 	function testSignatureInferredVariable() {
 		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredVariable.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -124,15 +87,7 @@ class RetyperTests extends TestCase {
 	function testSignatureProperty() {
 		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyProperty.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -143,15 +98,7 @@ class RetyperTests extends TestCase {
 	function testSignatureInferredProperty() {
 		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredProperty.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"-main",
-			"WithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -162,15 +109,7 @@ class RetyperTests extends TestCase {
 	function testMutual() {
 		vfs.putContent("WithMutualDependency.hx", getTemplate("retyper/WithMutualDependency.hx"));
 		vfs.putContent("MutualDependency.hx", getTemplate("retyper/MutualDependency.hx"));
-		var args = [
-			"-main",
-			"WithMutualDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['WithMutualDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("WithMutualDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MutualDependency.hx")});
 		runHaxe(args);
@@ -180,14 +119,7 @@ class RetyperTests extends TestCase {
 	function testIndependentEnum() {
 		vfs.putContent("IndependentEnum.hx", getTemplate("retyper/IndependentEnum.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"IndependentEnum.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['IndependentEnum'], [Retype], false)"
-		];
+		var args = getBaseArgs("IndependentEnum");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -197,14 +129,7 @@ class RetyperTests extends TestCase {
 	function testDependentEnum() {
 		vfs.putContent("DependentEnum.hx", getTemplate("retyper/DependentEnum.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"DependentEnum.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['DependentEnum'], [Retype], false)"
-		];
+		var args = getBaseArgs("DependentEnum");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -215,14 +140,7 @@ class RetyperTests extends TestCase {
 	function testIndependentTypedef() {
 		vfs.putContent("IndependentTypedef.hx", getTemplate("retyper/IndependentTypedef.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"IndependentTypedef.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['IndependentTypedef'], [Retype], false)"
-		];
+		var args = getBaseArgs("IndependentTypedef");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -232,14 +150,7 @@ class RetyperTests extends TestCase {
 	function testDependentTypedef() {
 		vfs.putContent("DependentTypedef.hx", getTemplate("retyper/DependentTypedef.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"DependentTypedef.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['DependentTypedef'], [Retype], false)"
-		];
+		var args = getBaseArgs("DependentTypedef");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -250,14 +161,7 @@ class RetyperTests extends TestCase {
 	function testAbstractNonSignature() {
 		vfs.putContent("AbstractWithDependency.hx", getTemplate("retyper/AbstractWithDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"AbstractWithDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['AbstractWithDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("AbstractWithDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
@@ -267,14 +171,7 @@ class RetyperTests extends TestCase {
 	function testAbstractSignature() {
 		vfs.putContent("AbstractWithSignatureDependency.hx", getTemplate("retyper/AbstractWithSignatureDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-		var args = [
-			"AbstractWithSignatureDependency.hx",
-			"--no-output",
-			"-js",
-			"no.js",
-			"--macro",
-			"haxe.macro.CompilationServer.setModuleCheckPolicy(['AbstractWithSignatureDependency'], [Retype], false)"
-		];
+		var args = getBaseArgs("AbstractWithSignatureDependency");
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
