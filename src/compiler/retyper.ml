@@ -33,7 +33,6 @@ let pair_type th t = match th with
 let pair_class_field rctx ctx cctx fctx cf cff p =
 	match cff.cff_kind with
 	| FFun fd ->
-		(* Fill in blanks by using typed information *)
 		let targs,tret = match follow cf.cf_type with
 			| TFun(args,ret) ->
 				args,ret
@@ -80,8 +79,51 @@ let pair_classes rctx context_init c d p =
 		print_stack = (Printf.sprintf "[Class %s]" (s_type_path c.cl_path)) :: rctx.print_stack
 	} in
 	c.cl_restore();
+	(* TODO: What do we do with build macros? *)
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class rctx.typer cctx p in
+	let _ =
+		let rctx = {rctx with
+			print_stack = (Printf.sprintf "[Relations]") :: rctx.print_stack
+		} in
+		let has_extends = ref false in
+		let implements = ref c.cl_implements in
+		List.iter (function
+			| HExtends(path,p) ->
+				has_extends := true;
+				begin match c.cl_super with
+				| None ->
+					fail rctx (Printf.sprintf "parent %s appeared" (Ast.Printer.s_complex_type_path "" (path,p)))
+				| Some(c,tl) ->
+					let th = pair_type (Some(CTPath path,p)) (TInst(c,tl)) in
+					ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false th))
+				end
+			| HImplements(path,p) ->
+				begin match !implements with
+					| (c,tl) :: rest ->
+						(* TODO: I think this should somehow check if it's actually the same interface. There could be cases
+						   where the order changes or something like that... Maybe we can compare the loaded type.
+						   However, this doesn't matter until we start retyping invalidated modules.
+						*)
+						implements := rest;
+						let th = pair_type (Some(CTPath path,p)) (TInst(c,tl)) in
+						ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false th));
+					| [] ->
+						fail rctx (Printf.sprintf "interface %s appeared" (Ast.Printer.s_complex_type_path "" (path,p)))
+				end
+			| _ ->
+				()
+		) d.d_flags;
+		(* TODO: There are probably cases where the compiler generates a cl_super even though it's not in syntax *)
+		if not !has_extends then begin match c.cl_super with
+			| None -> ()
+			| Some(c,_) -> fail rctx (Printf.sprintf "parent %s disappeared" (s_type_path c.cl_path))
+		end;
+		begin match !implements with
+			| (c,_) :: _ -> fail rctx (Printf.sprintf "interface %s disappeared" (s_type_path c.cl_path))
+			| [] -> ()
+		end
+	in
 	let fl = List.map (fun cff ->
 		let name = fst cff.cff_name in
 		let rctx = {rctx with

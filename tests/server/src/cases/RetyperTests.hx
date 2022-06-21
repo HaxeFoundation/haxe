@@ -116,6 +116,28 @@ class RetyperTests extends TestCase {
 		Assert.isTrue(hasMessage('retyped WithMutualDependency'));
 	}
 
+	function testParent() {
+		vfs.putContent("WithParentDependency.hx", getTemplate("retyper/WithParentDependency.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = getBaseArgs("WithParentDependency");
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('failed retyping WithParentDependency'));
+		Assert.isTrue(hasMessage('[Module WithParentDependency] [Class WithParentDependency] [Relations]: Could not load [Module Dependency]'));
+	}
+
+	function testInterface() {
+		vfs.putContent("WithInterfaceDependency.hx", getTemplate("retyper/WithInterfaceDependency.hx"));
+		vfs.putContent("InterfaceDependency.hx", getTemplate("retyper/InterfaceDependency.hx"));
+		var args = getBaseArgs("WithInterfaceDependency");
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("InterfaceDependency.hx")});
+		runHaxe(args);
+		Assert.isTrue(hasMessage('failed retyping WithInterfaceDependency'));
+		Assert.isTrue(hasMessage('[Module WithInterfaceDependency] [Class WithInterfaceDependency] [Relations]: Could not load [Module InterfaceDependency]'));
+	}
+
 	function testIndependentEnum() {
 		vfs.putContent("IndependentEnum.hx", getTemplate("retyper/IndependentEnum.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
