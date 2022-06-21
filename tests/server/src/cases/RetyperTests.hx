@@ -1,6 +1,5 @@
 package cases;
 
-import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
 import utest.Assert;
@@ -28,7 +27,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testSignature() {
-		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependency.hx"));
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"-main",
@@ -47,7 +46,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testSignatureInferredArg() {
-		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyInferredArg.hx"));
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredArg.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"-main",
@@ -66,7 +65,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testSignatureInferredRet() {
-		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyInferredRet.hx"));
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredRet.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"-main",
@@ -85,7 +84,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testSignatureVariable() {
-		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyVariable.hx"));
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyVariable.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"-main",
@@ -104,7 +103,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testSignatureInferredVariable() {
-		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyInferredVariable.hx"));
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredVariable.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"-main",
@@ -123,7 +122,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testSignatureProperty() {
-		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyProperty.hx"));
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyProperty.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"-main",
@@ -142,7 +141,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testSignatureInferredProperty() {
-		vfs.putContent("WithSignatureDependency.hx", getTemplate("WithSignatureDependencyInferredProperty.hx"));
+		vfs.putContent("WithSignatureDependency.hx", getTemplate("retyper/WithSignatureDependencyInferredProperty.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"-main",
@@ -161,8 +160,8 @@ class RetyperTests extends TestCase {
 	}
 
 	function testMutual() {
-		vfs.putContent("WithMutualDependency.hx", getTemplate("WithMutualDependency.hx"));
-		vfs.putContent("MutualDependency.hx", getTemplate("MutualDependency.hx"));
+		vfs.putContent("WithMutualDependency.hx", getTemplate("retyper/WithMutualDependency.hx"));
+		vfs.putContent("MutualDependency.hx", getTemplate("retyper/MutualDependency.hx"));
 		var args = [
 			"-main",
 			"WithMutualDependency.hx",
@@ -179,7 +178,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testIndependentEnum() {
-		vfs.putContent("IndependentEnum.hx", getTemplate("IndependentEnum.hx"));
+		vfs.putContent("IndependentEnum.hx", getTemplate("retyper/IndependentEnum.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"IndependentEnum.hx",
@@ -196,7 +195,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testDependentEnum() {
-		vfs.putContent("DependentEnum.hx", getTemplate("DependentEnum.hx"));
+		vfs.putContent("DependentEnum.hx", getTemplate("retyper/DependentEnum.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"DependentEnum.hx",
@@ -214,7 +213,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testIndependentTypedef() {
-		vfs.putContent("IndependentTypedef.hx", getTemplate("IndependentTypedef.hx"));
+		vfs.putContent("IndependentTypedef.hx", getTemplate("retyper/IndependentTypedef.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"IndependentTypedef.hx",
@@ -231,7 +230,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testDependentTypedef() {
-		vfs.putContent("DependentTypedef.hx", getTemplate("DependentTypedef.hx"));
+		vfs.putContent("DependentTypedef.hx", getTemplate("retyper/DependentTypedef.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"DependentTypedef.hx",
@@ -249,7 +248,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testAbstractNonSignature() {
-		vfs.putContent("AbstractWithDependency.hx", getTemplate("AbstractWithDependency.hx"));
+		vfs.putContent("AbstractWithDependency.hx", getTemplate("retyper/AbstractWithDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"AbstractWithDependency.hx",
@@ -266,7 +265,7 @@ class RetyperTests extends TestCase {
 	}
 
 	function testAbstractSignature() {
-		vfs.putContent("AbstractWithSignatureDependency.hx", getTemplate("AbstractWithSignatureDependency.hx"));
+		vfs.putContent("AbstractWithSignatureDependency.hx", getTemplate("retyper/AbstractWithSignatureDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 		var args = [
 			"AbstractWithSignatureDependency.hx",
