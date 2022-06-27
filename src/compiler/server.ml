@@ -361,6 +361,21 @@ let check_module sctx ctx m p =
 					m.m_extra.m_cache_state <- MSUnknown;
 					check ()
 			in
+			let dirty = match dirty with
+				| Some (DependencyDirty _) when has_policy Retype ->
+					let result = Retyper.attempt_retyping ctx m p in
+					begin match result with
+					| None ->
+						ServerMessage.retyper_ok com "" m;
+						None
+					| Some reason ->
+						ServerMessage.retyper_fail com "" m reason;
+						dirty
+					end
+				| _ ->
+					dirty
+			in
+			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
 			begin match dirty with
 			| Some reason ->
 				(* Update the state if we're dirty. *)

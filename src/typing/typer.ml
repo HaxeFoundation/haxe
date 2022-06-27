@@ -1971,6 +1971,7 @@ let rec create com =
 			global_using = [];
 			complete = false;
 			type_hints = [];
+			load_only_cached_modules = false;
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;

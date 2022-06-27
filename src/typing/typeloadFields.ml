@@ -670,12 +670,15 @@ let rec get_parent c name =
 		with
 			Not_found -> get_parent csup name
 
+let transform_abstract_field2 ctx a cff =
+	let a_t = TExprToExpr.convert_type' (TAbstract(a,extract_param_types a.a_params)) in
+	let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
+	transform_abstract_field ctx.com this_t a_t a cff
+
 let transform_field (ctx,cctx) c f fields p =
 	let f = match cctx.abstract with
 		| Some a ->
-			let a_t = TExprToExpr.convert_type' (TAbstract(a,extract_param_types a.a_params)) in
-			let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
-			transform_abstract_field ctx.com this_t a_t a f
+			transform_abstract_field2 ctx a f
 		| None ->
 			f
 	in
@@ -970,6 +973,14 @@ module TypeBinding = struct
 		bind_type ctx cctx fctx cf r p
 end
 
+let load_variable_type_hint ctx eo p = function
+	| None when eo = None ->
+		typing_error ("Variable requires type-hint or initialization") p;
+	| None ->
+		mk_mono()
+	| Some t ->
+		lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
+
 let create_variable (ctx,cctx,fctx) c f t eo p =
 	let is_abstract_enum_field = Meta.has Meta.Enum f.cff_meta in
 	if fctx.is_abstract_member && not is_abstract_enum_field then typing_error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
@@ -982,14 +993,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	in
 	if missing_initialization && fctx.is_static && fctx.is_final then
 		typing_error (fst f.cff_name ^ ": Static final variable must be initialized") p;
-	let t = (match t with
-		| None when eo = None ->
-			typing_error ("Variable requires type-hint or initialization") (pos f.cff_name);
-		| None ->
-			mk_mono()
-		| Some t ->
-			lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
-	) in
+	let t = load_variable_type_hint ctx eo (pos f.cff_name) t in
 	let kind = if fctx.is_inline then
 		{ v_read = AccInline ; v_write = AccNever }
 	else if fctx.is_final then
@@ -1197,8 +1201,7 @@ let type_opt (ctx,cctx,fctx) p t =
 	| _ ->
 		Typeload.load_type_hint ctx p t
 
-let setup_args_ret ctx cctx fctx f fd p =
-	let name = fst f.cff_name in
+let setup_args_ret ctx cctx fctx name fd p =
 	let c = cctx.tclass in
 	let mk = lazy (
 		if String.length name < 4 then
@@ -1240,7 +1243,7 @@ let setup_args_ret ctx cctx fctx f fd p =
 		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
 	let abstract_this = match cctx.abstract with
-		| Some a when fctx.is_abstract_member && fst f.cff_name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
+		| Some a when fctx.is_abstract_member && name <> "_new" (* TODO: this sucks *) && not fctx.is_macro ->
 			Some a.a_this
 		| _ ->
 			None
@@ -1328,7 +1331,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 
 	ctx.type_params <- if fctx.is_static && not fctx.is_abstract_member then params else params @ ctx.type_params;
 	(* TODO is_lib: avoid forcing the return type to be typed *)
-	let args,ret = setup_args_ret ctx cctx fctx f fd p in
+	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
 	let t = TFun (args#for_type,ret) in
 	let cf = {
 		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
@@ -1658,6 +1661,15 @@ let check_overloads ctx c =
 	List.iter check_field c.cl_ordered_statics;
 	Option.may check_field c.cl_constructor
 
+let finalize_class ctx cctx =
+	(* push delays in reverse order so they will be run in correct order *)
+	List.iter (fun (ctx,r) ->
+		init_class_done ctx;
+		(match r with
+		| None -> ()
+		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
+	) cctx.delayed_expr
+
 let init_class ctx c p context_init herits fields =
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class ctx cctx p in
@@ -1851,10 +1863,4 @@ let init_class ctx c p context_init herits fields =
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then TypeloadFunction.add_constructor ctx c cctx.force_constructor p;
-	(* push delays in reverse order so they will be run in correct order *)
-	List.iter (fun (ctx,r) ->
-		init_class_done ctx;
-		(match r with
-		| None -> ()
-		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
-	) cctx.delayed_expr
+	finalize_class ctx cctx
