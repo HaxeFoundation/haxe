@@ -488,6 +488,8 @@ class TestJs {
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	@:pure(false)
 	static public function use<T>(t:T) { return t; }
+	@:pure(false)
+	static function run(f:()->Void) {}
 
 	static var intField = 12;
 	static var stringField(default, never) = "foo";
@@ -647,6 +649,25 @@ class TestJs {
 		var f = Issue9227.new.bind(1);
 		f(3);
 	}
+
+	@:js('
+		var c = new Issue10737();
+		var value = 42;
+		TestJs.run(function() {c.process(value);});
+	')
+	static function testIssue10737_avoidInstanceMethodClosure() {
+		var c = new Issue10737();
+		run(c.process.bind(42));
+	}
+
+	@:js('
+		var _g = new Issue10737();
+		var value = 42;
+		TestJs.run(function() {_g.process(value);});
+	')
+	static function testIssue10737_avoidInstanceMethodClosure2() {
+		run(new Issue10737().process.bind(42));
+	}
 }
 
 class Issue9227 {
@@ -665,4 +686,9 @@ abstract Issue8751Int(Int) from Int {
 	inline public function toInt():Int {
 		return this;
 	}
+}
+
+class Issue10737 {
+	public function new() {}
+	public function process(value:Int) {}
 }
