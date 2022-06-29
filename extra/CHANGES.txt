@@ -1,3 +1,18 @@
+2021-03-06 4.2.5:
+
+	New features:
+
+	php : support PHP attributes generation (#9964)
+
+	Bugfixes:
+
+	all : fixed compiler crash in complex constraints chains (#10445)
+	all : fixed timers execution order for timers with small time delta (#10567)
+	js : fixed constructors with rest arguments when compiling for ES3, ES5 (#10490)
+	php : excluded E_DEPRECATED notices from error reporting (#10502)
+	php : fixed safe casts to native arrays (#10576)
+	nullsafety : fixed false error on extern var fields without initialization (#10448)
+
 2021-10-22 4.2.4:
 
 	New features:
@@ -27,7 +42,7 @@
 	lua : fixed `string.length` when `string` has type of a type parameter constrained to `String` (#10343)
 	jvm : fixed `Reflect.compare()` for different number types (#10350)
 	python : fixed exceptions on tracing some native values (#10440)
-	
+
 2021-07-01 4.2.3:
 
 	General improvements:
