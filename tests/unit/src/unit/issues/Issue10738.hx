@@ -5,14 +5,10 @@ class Issue10738 extends Test {
 		var c = new C();
 		func = c.process.bind(42);
 		c = null;
-		eq(42, run());
+		eq(42, func());
 	}
 
 	var func:()->Int;
-
-	function run():Int {
-		return func();
-	}
 }
 
 private class C {
