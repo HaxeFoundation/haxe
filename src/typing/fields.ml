@@ -108,7 +108,6 @@ let check_no_closure_meta ctx cf fa mode p =
 	| _ ->
 		()
 
-(* Note: `p` is the position of the field access expression. *)
 let field_access ctx mode f fh e pfield =
 	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
