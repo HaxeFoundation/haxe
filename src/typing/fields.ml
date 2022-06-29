@@ -586,7 +586,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			ethen
 		in
 		let eelse = Builder.make_null tnull ethen.epos in
-		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull e.epos in
+		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull p in
 		AKExpr (vr#to_texpr eif)
 	end
 
