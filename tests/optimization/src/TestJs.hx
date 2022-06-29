@@ -652,12 +652,15 @@ class TestJs {
 
 	@:js('
 		var c = new Issue10737();
+		var _g = c;
 		var value = 42;
-		TestJs.run(function() {c.process(value);});
+		TestJs.run(function() {_g.process(value);});
+		c = null;
 	')
 	static function testIssue10737_avoidInstanceMethodClosure() {
 		var c = new Issue10737();
 		run(c.process.bind(42));
+		c = null;
 	}
 
 	@:js('

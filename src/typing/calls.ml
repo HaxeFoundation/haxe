@@ -367,16 +367,10 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 				since we'll create a closure for the binding anyway, instead store the instance and
 				call its method inside a bind-generated closure
 			*)
-			let eobj, var_decls = match eobj.eexpr with
-				| TLocal _ ->
-					eobj, var_decls
-				| _ ->
-					let v_obj = alloc_var VGenerated "`" eobj.etype eobj.epos in
-					let e_var_decl = mk (TVar(v_obj,Some eobj)) ctx.t.tvoid eobj.epos in
-					let e_local = mk (TLocal v_obj) eobj.etype eobj.epos in
-					e_local, e_var_decl :: var_decls
-			in
-			{ e with eexpr = TField(eobj, FInstance (cl, tp, cf)) }, var_decls
+			let vobj = alloc_var VGenerated "`" eobj.etype eobj.epos in
+			let var_decl = mk (TVar(vobj, Some eobj)) ctx.t.tvoid eobj.epos in
+			let eobj = { eobj with eexpr = TLocal vobj } in
+			{ e with eexpr = TField(eobj, FInstance (cl, tp, cf)) }, var_decl :: var_decls
 		| _ ->
 			let e_var = alloc_var VGenerated "`" e.etype e.epos in
 			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
