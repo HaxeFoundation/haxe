@@ -193,7 +193,6 @@ type dot_path_part_case =
 type dot_path_part = {
 	name : string;
 	case : dot_path_part_case;
-	kind : efield_kind;
 	pos : pos
 }
 
