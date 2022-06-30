@@ -1639,10 +1639,22 @@ and type_call_target ctx e el with_type p_inline =
 			e
 
 and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) p_inline p =
-	let def () =
-		let e = type_call_target ctx e el with_type p_inline in
-		build_call ~mode ctx e el with_type p;
-	in
+	try
+		type_call_builtin ctx e el mode with_type p
+	with Exit ->
+		let acc = type_call_target ctx e el with_type p_inline in
+		let e = build_call ~mode ctx acc el with_type p in
+		check_dynamic_super_method_call ctx e;
+		e
+
+and check_dynamic_super_method_call ctx e =
+	match e.eexpr with
+	| TCall ({ eexpr = TField ({ eexpr = TConst TSuper }, FInstance(_, _, { cf_kind = Method MethDynamic; cf_name = name })); epos = p }, _) ->
+		ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p
+	| _ ->
+		()
+
+and type_call_builtin ctx e el mode with_type p =
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
 		if Common.defined ctx.com Define.NoTraces then
@@ -1664,18 +1676,14 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) p_inline p =
 			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((efield ((efield ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
-	| (EField ((EConst (Ident "super"),_),_,_),_), _ -> (* <- ??? *)
-		(match def() with
-			| { eexpr = TCall ({ eexpr = TField (_, FInstance(_, _, { cf_kind = Method MethDynamic; cf_name = name })); epos = p }, _) } as e ->
-				ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p;
-				e
-			| e -> e
-		)
+	| (EField ((EConst (Ident "super"),_),_,_),_), _ ->
+		(* no builtins can be applied to super as it can't be a value *)
+		raise Exit
 	| (EField (e,"bind",efk_todo),p), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
 			| TFun signature -> type_bind ctx e signature args p
-			| _ -> def ())
+			| _ -> raise Exit)
 	| (EConst (Ident "$type"),_) , [e] ->
 		begin match fst e with
 		| EConst (Ident "_") ->
@@ -1700,7 +1708,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) p_inline p =
 		if has_enum_match et.etype then
 			Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
 		else
-			def ()
+			raise Exit
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e WithType.value in
 		if Common.platform ctx.com Flash then
@@ -1728,7 +1736,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) p_inline p =
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p
 	| _ ->
-		def ()
+		raise Exit
 
 and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
