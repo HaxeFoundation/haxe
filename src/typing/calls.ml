@@ -205,8 +205,8 @@ let rec acc_get ctx g p =
 		else
 			ethen
 		in
-		let eelse = Builder.make_null tnull ethen.epos in
-		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull p in
+		let eelse = Builder.make_null tnull sn.sn_pos in
+		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
 		(match sn.sn_temp_var with
 		| None -> eif
 		| Some evar -> { eif with eexpr = TBlock [evar; eif] })
