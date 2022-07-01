@@ -1618,7 +1618,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 
 and type_call_target ctx e el with_type p_inline =
 	let p = (pos e) in
-	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) (MCall el) with_type) with_type true p in
+	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) (MCall el) WithType.value) with_type true p in
 	let check_inline cf p =
 		if (has_class_field_flag cf CfAbstract) then display_error ctx.com "Cannot force inline on abstract method" p
 	in
