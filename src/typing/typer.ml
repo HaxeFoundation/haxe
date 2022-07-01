@@ -1633,7 +1633,6 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Inline,_,pinline) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
-				(* TODO: inline inside a safe-navigation *)
 				acc_get ctx (type_call_access ctx e1 el MGet WithType.value (Some pinline) p) p
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
