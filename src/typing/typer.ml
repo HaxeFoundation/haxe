@@ -1661,18 +1661,24 @@ and type_call_target ctx e el with_type p_inline =
 	match p_inline with
 	| None ->
 		e
-	| Some pinline -> match e with
-		| AKField fa ->
-			check_inline fa.fa_field pinline;
-			AKField({fa with fa_inline = true})
-		| AKUsingField sea ->
-			check_inline sea.se_access.fa_field pinline;
-			AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
-		| AKExpr {eexpr = TLocal _} ->
-			display_error ctx.com "Cannot force inline on local functions" pinline;
-			e
-		| _ ->
-			e
+	| Some pinline ->
+		let rec loop e =
+			match e with
+			| AKSafeNav sn ->
+				AKSafeNav { sn with sn_access = loop sn.sn_access }
+			| AKField fa ->
+				check_inline fa.fa_field pinline;
+				AKField({fa with fa_inline = true})
+			| AKUsingField sea ->
+				check_inline sea.se_access.fa_field pinline;
+				AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
+			| AKExpr {eexpr = TLocal _} ->
+				display_error ctx.com "Cannot force inline on local functions" pinline;
+				e
+			| _ ->
+				e
+		in
+		loop e
 
 and type_call_access ctx e el mode with_type p_inline p =
 	try
