@@ -11,7 +11,7 @@ class Issue10740 extends Test {
 			field1: 42,
 			field2: "hallo",
 			field3: {field4: true},
-			field5: () -> {
+			field5: function() {
 				sideEffectCount++;
 				return [{field6: 28}];
 			},
