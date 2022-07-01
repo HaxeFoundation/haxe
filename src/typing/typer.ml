@@ -599,9 +599,9 @@ and type_access ctx e p mode with_type =
 	| EArray (e1,e2) ->
 		type_array_access ctx e1 e2 p mode
 	| EDisplay (e,dk) ->
-		AKExpr (TyperDisplay.handle_edisplay ctx e dk mode WithType.value)
+		AKExpr (TyperDisplay.handle_edisplay ctx e dk mode with_type)
 	| _ ->
-		AKExpr (type_expr ~mode ctx (e,p) WithType.value)
+		AKExpr (type_expr ~mode ctx (e,p) with_type)
 
 and type_array_access ctx e1 e2 p mode =
 	let e1 = type_expr ctx e1 WithType.value in
