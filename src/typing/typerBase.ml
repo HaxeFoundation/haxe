@@ -9,6 +9,8 @@ type access_kind =
 	| AKNo of string
 	(* Access on arbitrary expression. *)
 	| AKExpr of texpr
+	(* Safe navigation access chain *)
+	| AKSafeNav of safe_nav_access
 	(* Access on non-property field. *)
 	| AKField of field_access
 	(* Access on property field. The field is the property, not the accessor. *)
@@ -22,6 +24,17 @@ type access_kind =
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 	(* Access on abstract via resolve method. *)
 	| AKResolve of static_extension_access * string
+
+and safe_nav_access = {
+	(* position of the safe navigation chain start (the initial ?.field expression) *)
+	sn_pos : pos;
+	(* starting value to be checked for null *)
+	sn_base : texpr;
+	(* temp var declaration to store complex base expression *)
+	sn_temp_var : texpr option;
+	(* safe navigation access to be done if the base value is not null *)
+	sn_access : access_kind;
+}
 
 type object_decl_kind =
 	| ODKWithStructure of tanon
@@ -192,18 +205,28 @@ let s_static_extension_access sea =
 		"se_access",s_field_access "\t" sea.se_access
 	]
 
-let s_access_kind acc =
+let rec s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
+	| AKSafeNav sn -> Printf.sprintf  "AKSafeNav(%s)" (s_safe_nav_access sn)
 	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
 	| AKAccessor fa -> Printf.sprintf "AKAccessor(%s)" (s_field_access "" fa)
 	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
 	| AKUsingAccessor sea -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKResolve(_) -> ""
+
+and s_safe_nav_access sn =
+	let st = s_type (print_context()) in
+	let se = s_expr_pretty true "" false st in
+	Printer.s_record_fields "" [
+		"sn_base",se sn.sn_base;
+		"sn_temp_var",Option.map_default (fun e -> "Some " ^ (se e)) "None" sn.sn_temp_var;
+		"sn_access",s_access_kind sn.sn_access
+	]
 
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with

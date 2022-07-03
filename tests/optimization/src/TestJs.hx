@@ -671,6 +671,16 @@ class TestJs {
 	static function testIssue10737_avoidInstanceMethodClosure2() {
 		run(new Issue10737().process.bind(42));
 	}
+
+	@:js('
+		var tmp = Issue10740.inst;
+		if(tmp != null) {
+			Issue10740.use(tmp.value);
+		}
+	')
+	static function testIssue10740_forceInlineInSafeNav() {
+		inline Issue10740.inst?.f();
+	}
 }
 
 class Issue9227 {
@@ -694,4 +704,18 @@ abstract Issue8751Int(Int) from Int {
 class Issue10737 {
 	public function new() {}
 	public function process(value:Int) {}
+}
+
+class Issue10740 {
+	public static var inst:Issue10740;
+
+	public final value:Int;
+	public function new() {
+		value = 42;
+	}
+	public function f() {
+		use(value);
+	}
+	@:pure(false)
+	static function use(v:Int) {}
 }
