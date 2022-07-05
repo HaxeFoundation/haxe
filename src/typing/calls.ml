@@ -279,6 +279,10 @@ let check_dynamic_super_method_call ctx fa p =
 		()
 
 let rec build_call_access ctx acc el mode with_type p =
+	let get_accessor_to_call fa args =
+		let dispatch = new call_dispatcher ctx MGet WithType.value fa.fa_pos in
+		dispatch#field_call fa args []
+	in
 	let dispatch = new call_dispatcher ctx mode with_type p in
 	match acc with
 	| AKField fa ->
@@ -293,10 +297,10 @@ let rec build_call_access ctx acc el mode with_type p =
 		ignore(acc_get ctx acc p);
 		typing_error ("Unexpected access mode, please report this: " ^ (s_access_kind acc)) p
 	| AKAccessor fa ->
-		let e = dispatch#field_call fa [] [] in
+		let e = get_accessor_to_call fa [] in
 		AKExpr (dispatch#expr_call e [] el)
 	| AKUsingAccessor sea ->
-		let e = dispatch#field_call sea.se_access [sea.se_this] [] in
+		let e = get_accessor_to_call sea.se_access [sea.se_this] in
 		AKExpr (dispatch#expr_call e [] el)
 	| AKExpr e ->
 		AKExpr (dispatch#expr_call e [] el)
