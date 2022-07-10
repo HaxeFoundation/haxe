@@ -27,6 +27,7 @@ import haxe.math.bigint.BigIntHelper;
 import haxe.ds.Vector;
 import haxe.io.Bytes;
 
+@:allow(unit)
 @:allow(haxe.math.bigint)
 class MutableBigInt_ extends BigInt_ 
 {

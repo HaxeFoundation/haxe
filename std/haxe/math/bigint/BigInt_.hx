@@ -25,6 +25,7 @@ package haxe.math.bigint;
 import haxe.ds.Vector;
 import haxe.io.Bytes;
 
+@:allow(unit)
 @:allow(haxe.math.bigint)
 class BigInt_
 {
