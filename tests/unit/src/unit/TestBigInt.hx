@@ -11,6 +11,7 @@ import haxe.math.bigint.BigIntExceptions;
 import haxe.math.bigint.BigIntTools;
 import haxe.math.bigint.MutableBigInt;
 import haxe.math.bigint.BigInt;
+import haxe.math.bigint.BigIntHelper;
 
 class TestBigInt extends Test {
 	public function testBigInt():Void {
@@ -2226,6 +2227,450 @@ class TestBigInt extends Test {
 			MultiwordArithmetic.toHex(vActual, (length != 0) ? length : vActual.length), c);
 		return;
 	}
+	
+		public function test_nlz():Void 
+	{
+		eq(32, BigIntHelper.nlz(0));
+		eq(31, BigIntHelper.nlz(1));
+		eq(30, BigIntHelper.nlz(2));
+		eq(30, BigIntHelper.nlz(3));
+		eq(29, BigIntHelper.nlz(4));
+		eq(29, BigIntHelper.nlz(5));
+		eq(29, BigIntHelper.nlz(7));
+		eq(28, BigIntHelper.nlz(8));
+		eq(28, BigIntHelper.nlz(9));
+		eq(28, BigIntHelper.nlz(15));
+		eq(27, BigIntHelper.nlz(16));
+		eq(27, BigIntHelper.nlz(17));
+		eq(27, BigIntHelper.nlz(31));
+		eq(26, BigIntHelper.nlz(32));
+		eq(26, BigIntHelper.nlz(33));
+		eq(26, BigIntHelper.nlz(63));
+		eq(25, BigIntHelper.nlz(64));
+		eq(25, BigIntHelper.nlz(65));
+		eq(25, BigIntHelper.nlz(127));
+		eq(24, BigIntHelper.nlz(128));
+		eq(24, BigIntHelper.nlz(129));
+		eq(24, BigIntHelper.nlz(255));
+		eq(23, BigIntHelper.nlz(256));
+		eq(23, BigIntHelper.nlz(257));
+		eq(23, BigIntHelper.nlz(511));
+		eq(22, BigIntHelper.nlz(512));
+		eq(22, BigIntHelper.nlz(513));
+		eq(22, BigIntHelper.nlz(1023));
+		eq(21, BigIntHelper.nlz(1024));
+		eq(21, BigIntHelper.nlz(1025));
+		eq(21, BigIntHelper.nlz(2047));
+		eq(20, BigIntHelper.nlz(2048));
+		eq(20, BigIntHelper.nlz(2049));
+		eq(20, BigIntHelper.nlz(4095));
+		eq(19, BigIntHelper.nlz(4096));
+		eq(19, BigIntHelper.nlz(4097));
+		eq(19, BigIntHelper.nlz(8191));
+		eq(18, BigIntHelper.nlz(8192));
+		eq(18, BigIntHelper.nlz(8193));
+		eq(18, BigIntHelper.nlz(16383));
+		eq(17, BigIntHelper.nlz(16384));
+		eq(17, BigIntHelper.nlz(16385));
+		eq(17, BigIntHelper.nlz(32767));
+		eq(16, BigIntHelper.nlz(32768));
+		eq(16, BigIntHelper.nlz(32769));
+		eq(16, BigIntHelper.nlz(65535));
+		eq(15, BigIntHelper.nlz(65536));
+		eq(15, BigIntHelper.nlz(65537));
+		eq(15, BigIntHelper.nlz(131071));
+		eq(14, BigIntHelper.nlz(131072));
+		eq(14, BigIntHelper.nlz(131073));
+		eq(14, BigIntHelper.nlz(262143));
+		eq(13, BigIntHelper.nlz(262144));
+		eq(13, BigIntHelper.nlz(262145));
+		eq(13, BigIntHelper.nlz(524287));
+		eq(12, BigIntHelper.nlz(524288));
+		eq(12, BigIntHelper.nlz(524289));
+		eq(12, BigIntHelper.nlz(1048575));
+		eq(11, BigIntHelper.nlz(1048576));
+		eq(11, BigIntHelper.nlz(1048577));
+		eq(11, BigIntHelper.nlz(2097151));
+		eq(10, BigIntHelper.nlz(2097152));
+		eq(10, BigIntHelper.nlz(2097153));
+		eq(10, BigIntHelper.nlz(4194303));
+		eq(9, BigIntHelper.nlz(4194304));
+		eq(9, BigIntHelper.nlz(4194305));
+		eq(9, BigIntHelper.nlz(8388607));
+		eq(8, BigIntHelper.nlz(8388608));
+		eq(8, BigIntHelper.nlz(8388609));
+		eq(8, BigIntHelper.nlz(16777215));
+		eq(7, BigIntHelper.nlz(16777216));
+		eq(7, BigIntHelper.nlz(16777217));
+		eq(7, BigIntHelper.nlz(33554431));
+		eq(6, BigIntHelper.nlz(33554432));
+		eq(6, BigIntHelper.nlz(33554433));
+		eq(6, BigIntHelper.nlz(67108863));
+		eq(5, BigIntHelper.nlz(67108864));
+		eq(5, BigIntHelper.nlz(67108865));
+		eq(5, BigIntHelper.nlz(134217727));
+		eq(4, BigIntHelper.nlz(134217728));
+		eq(4, BigIntHelper.nlz(134217729));
+		eq(4, BigIntHelper.nlz(268435455));
+		eq(3, BigIntHelper.nlz(268435456));
+		eq(3, BigIntHelper.nlz(268435457));
+		eq(3, BigIntHelper.nlz(536870911));
+		eq(2, BigIntHelper.nlz(536870912));
+		eq(2, BigIntHelper.nlz(536870913));
+		eq(2, BigIntHelper.nlz(1073741823));
+		eq(1, BigIntHelper.nlz(1073741824));
+		eq(1, BigIntHelper.nlz(1073741825));
+		eq(1, BigIntHelper.nlz(2147483647));
+		eq(0, BigIntHelper.nlz(-2147483648));
+		eq(0, BigIntHelper.nlz(-2147483647));
+		eq(0, BigIntHelper.nlz(-1));
+	}
+
+	public function test_ntz():Void 
+	{
+		eq(32, BigIntHelper.ntz(0));
+		eq(31, BigIntHelper.ntz(-2147483648));
+		eq(30, BigIntHelper.ntz(1073741824));
+		eq(29, BigIntHelper.ntz(536870912));
+		eq(28, BigIntHelper.ntz(268435456));
+		eq(27, BigIntHelper.ntz(134217728));
+		eq(26, BigIntHelper.ntz(67108864));
+		eq(25, BigIntHelper.ntz(33554432));
+		eq(24, BigIntHelper.ntz(16777216));
+		eq(23, BigIntHelper.ntz(8388608));
+		eq(22, BigIntHelper.ntz(4194304));
+		eq(21, BigIntHelper.ntz(2097152));
+		eq(20, BigIntHelper.ntz(1048576));
+		eq(19, BigIntHelper.ntz(524288));
+		eq(18, BigIntHelper.ntz(262144));
+		eq(17, BigIntHelper.ntz(131072));
+		eq(16, BigIntHelper.ntz(65536));
+		eq(15, BigIntHelper.ntz(32768));
+		eq(14, BigIntHelper.ntz(16384));
+		eq(13, BigIntHelper.ntz(8192));
+		eq(12, BigIntHelper.ntz(4096));
+		eq(11, BigIntHelper.ntz(2048));
+		eq(10, BigIntHelper.ntz(1024));
+		eq(9, BigIntHelper.ntz(512));
+		eq(8, BigIntHelper.ntz(256));
+		eq(7, BigIntHelper.ntz(128));
+		eq(6, BigIntHelper.ntz(64));
+		eq(5, BigIntHelper.ntz(32));
+		eq(4, BigIntHelper.ntz(16));
+		eq(3, BigIntHelper.ntz(8));
+		eq(2, BigIntHelper.ntz(4));
+		eq(1, BigIntHelper.ntz(2));
+		eq(0, BigIntHelper.ntz(-2147483647));
+		eq(0, BigIntHelper.ntz(-1));
+		eq(0, BigIntHelper.ntz(1));
+		eq(0, BigIntHelper.ntz(3));
+	}
+
+	public function test_clp2():Void 
+	{
+		eq(0, BigIntHelper.clp2(0));
+		eq(1, BigIntHelper.clp2(1));
+		eq(2, BigIntHelper.clp2(2));
+		eq(4, BigIntHelper.clp2(3));
+		eq(4, BigIntHelper.clp2(4));
+		eq(8, BigIntHelper.clp2(5));
+		eq(8, BigIntHelper.clp2(7));
+		eq(8, BigIntHelper.clp2(8));
+		eq(16, BigIntHelper.clp2(9));
+		eq(16, BigIntHelper.clp2(15));
+		eq(16, BigIntHelper.clp2(16));
+		eq(32, BigIntHelper.clp2(17));
+		eq(32, BigIntHelper.clp2(31));
+		eq(32, BigIntHelper.clp2(32));
+		eq(64, BigIntHelper.clp2(33));
+		eq(64, BigIntHelper.clp2(63));
+		eq(64, BigIntHelper.clp2(64));
+		eq(128, BigIntHelper.clp2(65));
+		eq(128, BigIntHelper.clp2(127));
+		eq(128, BigIntHelper.clp2(128));
+		eq(256, BigIntHelper.clp2(129));
+		eq(256, BigIntHelper.clp2(255));
+		eq(256, BigIntHelper.clp2(256));
+		eq(512, BigIntHelper.clp2(257));
+		eq(512, BigIntHelper.clp2(511));
+		eq(512, BigIntHelper.clp2(512));
+		eq(1024, BigIntHelper.clp2(513));
+		eq(1024, BigIntHelper.clp2(1023));
+		eq(1024, BigIntHelper.clp2(1024));
+		eq(2048, BigIntHelper.clp2(1025));
+		eq(2048, BigIntHelper.clp2(2047));
+		eq(2048, BigIntHelper.clp2(2048));
+		eq(4096, BigIntHelper.clp2(2049));
+		eq(4096, BigIntHelper.clp2(4095));
+		eq(4096, BigIntHelper.clp2(4096));
+		eq(8192, BigIntHelper.clp2(4097));
+		eq(8192, BigIntHelper.clp2(8191));
+		eq(8192, BigIntHelper.clp2(8192));
+		eq(16384, BigIntHelper.clp2(8193));
+		eq(16384, BigIntHelper.clp2(16383));
+		eq(16384, BigIntHelper.clp2(16384));
+		eq(32768, BigIntHelper.clp2(16385));
+		eq(32768, BigIntHelper.clp2(32767));
+		eq(32768, BigIntHelper.clp2(32768));
+		eq(65536, BigIntHelper.clp2(32769));
+		eq(65536, BigIntHelper.clp2(65535));
+		eq(65536, BigIntHelper.clp2(65536));
+		eq(131072, BigIntHelper.clp2(65537));
+		eq(131072, BigIntHelper.clp2(131071));
+		eq(131072, BigIntHelper.clp2(131072));
+		eq(262144, BigIntHelper.clp2(131073));
+		eq(262144, BigIntHelper.clp2(262143));
+		eq(262144, BigIntHelper.clp2(262144));
+		eq(524288, BigIntHelper.clp2(262145));
+		eq(524288, BigIntHelper.clp2(524287));
+		eq(524288, BigIntHelper.clp2(524288));
+		eq(1048576, BigIntHelper.clp2(524289));
+		eq(1048576, BigIntHelper.clp2(1048575));
+		eq(1048576, BigIntHelper.clp2(1048576));
+		eq(2097152, BigIntHelper.clp2(1048577));
+		eq(2097152, BigIntHelper.clp2(2097151));
+		eq(2097152, BigIntHelper.clp2(2097152));
+		eq(4194304, BigIntHelper.clp2(2097153));
+		eq(4194304, BigIntHelper.clp2(4194303));
+		eq(4194304, BigIntHelper.clp2(4194304));
+		eq(8388608, BigIntHelper.clp2(4194305));
+		eq(8388608, BigIntHelper.clp2(8388607));
+		eq(8388608, BigIntHelper.clp2(8388608));
+		eq(16777216, BigIntHelper.clp2(8388609));
+		eq(16777216, BigIntHelper.clp2(16777215));
+		eq(16777216, BigIntHelper.clp2(16777216));
+		eq(33554432, BigIntHelper.clp2(16777217));
+		eq(33554432, BigIntHelper.clp2(33554431));
+		eq(33554432, BigIntHelper.clp2(33554432));
+		eq(67108864, BigIntHelper.clp2(33554433));
+		eq(67108864, BigIntHelper.clp2(67108863));
+		eq(67108864, BigIntHelper.clp2(67108864));
+		eq(134217728, BigIntHelper.clp2(67108865));
+		eq(134217728, BigIntHelper.clp2(134217727));
+		eq(134217728, BigIntHelper.clp2(134217728));
+		eq(268435456, BigIntHelper.clp2(134217729));
+		eq(268435456, BigIntHelper.clp2(268435455));
+		eq(268435456, BigIntHelper.clp2(268435456));
+		eq(536870912, BigIntHelper.clp2(268435457));
+		eq(536870912, BigIntHelper.clp2(536870911));
+		eq(536870912, BigIntHelper.clp2(536870912));
+		eq(1073741824, BigIntHelper.clp2(536870913));
+		eq(1073741824, BigIntHelper.clp2(1073741823));
+		eq(1073741824, BigIntHelper.clp2(1073741824));
+		eq(-2147483648, BigIntHelper.clp2(1073741825));
+		eq(-2147483648, BigIntHelper.clp2(2147483647));
+		eq(-2147483648, BigIntHelper.clp2(-2147483648));
+		eq(0, BigIntHelper.clp2(-2147483647));
+		eq(0, BigIntHelper.clp2(-1));
+	}
+
+	public function test_u32gtu32():Void 
+	{
+		checkUnsignedRelation(0, 0);
+		checkUnsignedRelation(1, 0);
+		checkUnsignedRelation(2147483647, 2147483647);
+		checkUnsignedRelation(-2147483648, 2147483647);
+		checkUnsignedRelation(-2147483648, -2147483648);
+		checkUnsignedRelation(-2147483647, -2147483648);
+		checkUnsignedRelation(-1, -1);
+		checkUnsignedRelation(-1, -2);
+	}
+
+	private function checkUnsignedRelation(a:Int, b:Int):Void 
+	{
+		eq(a != b, BigIntHelper.u32gtu32(a, b));
+		f(BigIntHelper.u32gtu32(b, a));
+		t(BigIntHelper.u32geu32(a, b));
+		eq(a == b, BigIntHelper.u32geu32(b, a));
+	}
+
+	public function testDivision():Void 
+		{
+		divide1(0, 1, 0, 0);
+		divide1(0, 2147483647, 0, 0);
+		divide1(0, -2147483648, 0, 0);
+		divide1(0, -1, 0, 0);
+
+		divide1(1, 1, 1, 0);
+		divide1(1, 2, 0, 1);
+		divide1(1, 2147483647, 0, 1);
+		divide1(1, -2147483648, 0, 1);
+		divide1(1, -1, 0, 1);
+
+		divide1(-1, 2147483647, 2, 1);
+		divide1(-2, 2147483647, 2, 0);
+		divide1(-3, 2147483647, 1, 2147483646);
+		divide1(-4, 2147483647, 1, 2147483645);
+		divide1(-2147483648, 2147483647, 1, 1);
+		divide1(2147483647, 2147483647, 1, 0);
+		divide1(2147483646, 2147483647, 0, 2147483646);
+		divide1(2147483645, 2147483647, 0, 2147483645);
+
+		divide1(-1, -2147483648, 1, 2147483647);
+		divide1(-2, -2147483648, 1, 2147483646);
+		divide1(-3, -2147483648, 1, 2147483645);
+		divide1(-2147483646, -2147483648, 1, 2);
+		divide1(-2147483647, -2147483648, 1, 1);
+		divide1(-2147483648, -2147483648, 1, 0);
+		divide1(2147483647, -2147483648, 0, 2147483647);
+		divide1(2147483646, -2147483648, 0, 2147483646);
+		divide1(2147483645, -2147483648, 0, 2147483645);
+
+		divide1(0, -2147483647, 0, 0);
+		divide1(2147483647, -2147483647, 0, 2147483647);
+		divide1(-2147483648, -2147483647, 0, -2147483648);
+		divide1(-2147483647, -2147483647, 1, 0);
+		divide1(-2147483646, -2147483647, 1, 1);
+		divide1(-2147483645, -2147483647, 1, 2);
+
+		divide1(4500, 501, 8, 492);
+
+		divide1(-1, 1, -1, 0);
+		divide1(-1, 2, 2147483647, 1);
+		divide1(-1, 3, 1431655765, 0);
+		divide1(-1, 4, 1073741823, 3);
+		divide1(-1, 5, 858993459, 0);
+		divide1(-1, 6, 715827882, 3);
+		divide1(-1, 7, 613566756, 3);
+		divide1(-1, 8, 536870911, 7);
+		divide1(-1, 9, 477218588, 3);
+		divide1(-1, 10, 429496729, 5);
+		divide1(-1, 11, 390451572, 3);
+
+		divide1(-2147483648, 1, -2147483648, 0);
+		divide1(-2147483648, 2, 1073741824, 0);
+		divide1(-2147483648, 3, 715827882, 2);
+		divide1(-2147483648, 4, 536870912, 0);
+		divide1(-2147483648, 5, 429496729, 3);
+		divide1(-2147483648, 6, 357913941, 2);
+		divide1(-2147483648, 7, 306783378, 2);
+		divide1(-2147483648, 8, 268435456, 0);
+		divide1(-2147483648, 9, 238609294, 2);
+		divide1(-2147483648, 10, 214748364, 8);
+		divide1(-2147483648, 11, 195225786, 2);
+
+		divide1(0, 65535, 0, 0);
+		divide1(1, 65535, 0, 1);
+		divide1(65534, 65535, 0, 65534);
+		divide1(65535, 65535, 1, 0);
+		divide1(65536, 65535, 1, 1);
+		divide1(2147483647, 65535, 32768, 32767);
+		divide1(-2147483648, 65535, 32768, 32768);
+		divide1(-2, 65535, 65536, 65534);
+		divide1(-1, 65535, 65537, 0);
+	}
+
+	private function divide1(dividend:Int, divisor:Int, expectedQuotient:Int, expectedRemainder:Int):Void {
+		if ((0 < divisor) && (divisor < 65536)) {
+			eq(expectedQuotient, BigIntHelper.u32divu16(dividend, divisor));
+		}
+	}
+
+	public function testAbs():Void
+	{
+		var an:BigInt = -1;
+		var am:MutableBigInt = -1;
+		eq("1",an.abs().toString());
+		eq("1",am.abs().toString());
+		an = -2147483648;
+		am = -2147483648;
+		eq("2147483648",an.abs().toString());
+		eq("2147483648",am.abs().toString());
+		an = 0;
+		am = 0;
+		eq("0",an.abs().toString());
+		eq("0",am.abs().toString());
+		am = 2147483647;
+		an = 2147483647;
+		eq("2147483647",an.abs().toString());
+		eq("2147483647",am.abs().toString());
+	}
+
+	public function testPow():Void 
+	{
+		var b:BigInt = 2;
+		var bm:MutableBigInt = 2;
+		for (i in 0...(s_powersOfTwo.length-3)) {
+			var s = s_powersOfTwo[i];
+			eq(s,b.pow(i).toString());
+			eq(s,bm.pow(i).toString());
+		}
+	}
+
+	public function testModPow():Void
+	{
+		var b:BigInt = 2;
+		var bm:MutableBigInt = 2;
+		var exp:BigInt = 3;
+		var mod:BigInt = 5;
+		eq("3",b.modPow(exp,mod).toString());
+		eq("3",b.modPow(exp,mod).toString());
+		exp = 5;
+		mod = 13;
+		eq("6",b.modPow(exp,mod).toString());
+		eq("6",b.modPow(exp,mod).toString());
+	}
+
+	public function testPrimeNumber():Void
+	{
+		for(i in 0...s_primeNumbers.length) {
+			var b:BigInt = s_primeNumbers[i];
+			var bm:BigInt = s_primeNumbers[i];
+			t(b.isProbablePrime(5));
+			t(bm.isProbablePrime(5));
+		}
+		for(i in 0...s_notPrimeNumbers.length) {
+			var b:BigInt = s_notPrimeNumbers[i];
+			var bm:BigInt = s_notPrimeNumbers[i];
+			f(b.isProbablePrime(5));
+			f(bm.isProbablePrime(5));
+		}
+	}
+
+	public function testLowestSetBit():Void
+	{
+		var b:BigInt = 2162;
+		var bm:MutableBigInt = 2162;
+		eq(1, b.getLowestSetBit());
+		eq(1, bm.getLowestSetBit());
+		b = 5607;
+		bm = 5607;
+		eq(0, b.getLowestSetBit());
+		eq(0, bm.getLowestSetBit());
+		b = 3520;
+		bm = 3520;
+		eq(6, b.getLowestSetBit());
+		eq(6, bm.getLowestSetBit());
+		b = 2068;
+		bm = 2068;
+		eq(2, b.getLowestSetBit());
+		eq(2, bm.getLowestSetBit());
+		b = 4583952;
+		bm = 4583952;
+		eq(4, b.getLowestSetBit());
+		eq(4, bm.getLowestSetBit());
+	}
+
+	public function testBitLength():Void
+	{
+		var b:BigInt = 4036232;
+		var bm:MutableBigInt = 6661810;
+		eq(22, b.bitLength());
+		eq(23, bm.bitLength());
+		b = 54342;
+		bm = 4471;
+		eq(16, b.bitLength());
+		eq(13, bm.bitLength());
+		b = 241;
+		bm = 519;
+		eq(8, b.bitLength());
+		eq(10, bm.bitLength());
+	}
+	
+	private static var s_primeNumbers = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,151,157,163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,431,433,439,443,449,457,461,463,467,479,487,491,499,503,509,521,523,541,547,557,563,569,571,577,587,593,599,601,607,613,617,619,631,641,643,647,653,659,661,673,677,683,691,701,709,719,727,733,739,743,751,757,761,769,773,787,797,809,811,821,823,827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997];
+	
+	private static var s_notPrimeNumbers = [0,1,4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,33,34,35,36,38,39,40,42,44,45,46,48,49,50,51,52,54,55,56,57,58,60,62,63,64,65,66,68,69,70,72,74,75,76,77,78,80,81,82,84,85,86,87,88,90,91,92,93,94,95,96,98,99,100,102,104,105,106,108,110,111,112,114,115,116,117,118,119,120,121,122,123,124,125,126,128,129,130,132,133,134,135,136,138,140,141,142,143,144,145,146,147,148,150,152,153,154,155,156,158,159,160,161,162,164,165,166,168,169,170,171,172,174,175,176,177,178,180,182,183,184,185,186,187,188,189,190,192,194,195,196,198,200,201,202,203,204,205,206,207,208,209,210,212,213,214,215,216,217,218,219,220,221,222,224,225,226,228,230,231,232,234,235,236,237,238,240,242,243,244,245,246,247,248,249,250,252,253,254,255,256,258,259,260,261,262,264,265,266,267,268,270,272,273,274,275,276,278,279,280,282,284,285,286,287,288,289,290,291,292,294,295,296,297,298,299,300,301,302,303,304,305,306,308,309,310,312,314,315,316,318,319,320,321,322,323,324,325,326,327,328,329,330,332,333,334,335,336,338,339,340,341,342,343,344,345,346,348,350,351,352,354,355,356,357,358,360,361,362,363,364,365,366,368,369,370,371,372,374,375,376,377,378,380,381,382,384,385,386,387,388,390,391,392,393,394,395,396,398,399,400,402,403,404,405,406,407,408,410,411,412,413,414,415,416,417,418,420,422,423,424,425,426,427,428,429,430,432,434,435,436,437,438,440,441,442,444,445,446,447,448,450,451,452,453,454,455,456,458,459,460,462,464,465,466,468,469,470,471,472,473,474,475,476,477,478,480,481,482,483,484,485,486,488,489,490,492,493,494,495,496,497,498,500,501,502,504,505,506,507,508,510,511,512,513,514,515,516,517,518,519,520,522,524,525,526,527,528,529,530,531,532,533,534,535,536,537,538,539,540,542,543,544,545,546,548,549,550,551,552,553,554,555,556,558,559,560,561,562,564,565,566,567,568,570,572,573,574,575,576,578,579,580,581,582,583,584,585,586,588,589,590,591,592,594,595,596,597,598,600,602,603,604,605,606,608,609,610,611,612,614,615,616,618,620,621,622,623,624,625,626,627,628,629,630,632,633,634,635,636,637,638,639,640,642,644,645,646,648,649,650,651,652,654,655,656,657,658,660,662,663,664,665,666,667,668,669,670,671,672,674,675,676,678,679,680,681,682,684,685,686,687,688,689,690,692,693,694,695,696,697,698,699,700,702,703,704,705,706,707,708,710,711,712,713,714,715,716,717,718,720,721,722,723,724,725,726,728,729,730,731,732,734,735,736,737,738,740,741,742,744,745,746,747,748,749,750,752,753,754,755,756,758,759,760,762,763,764,765,766,767,768,770,771,772,774,775,776,777,778,779,780,781,782,783,784,785,786,788,789,790,791,792,793,794,795,796,798,799,800,801,802,803,804,805,806,807,808,810,812,813,814,815,816,817,818,819,820,822,824,825,826,828,830,831,832,833,834,835,836,837,838,840,841,842,843,844,845,846,847,848,849,850,851,852,854,855,856,858,860,861,862,864,865,866,867,868,869,870,871,872,873,874,875,876,878,879,880,882,884,885,886,888,889,890,891,892,893,894,895,896,897,898,899,900,901,902,903,904,905,906,908,909,910,912,913,914,915,916,917,918,920,921,922,923,924,925,926,927,928,930,931,932,933,934,935,936,938,939,940,942,943,944,945,946,948,949,950,951,952,954,955,956,957,958,959,960,961,962,963,964,965,966,968,969,970,972,973,974,975,976,978,979,980,981,982,984,985,986,987,988,989,990,992,993,994,995,996,998,999];
+	
 
 	private static var s_powersOfTwo = [
 		"1",

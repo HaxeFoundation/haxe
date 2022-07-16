@@ -114,14 +114,30 @@ class BigIntHelper
 		return q + c;
 	}
 
-		/**
+	/**
 		Unsigned greater than or equal comparison.
 		Returns `true` if `a >= b` when both `a` and `b` are
 		interpreted as unsigned integers; `false` otherwise.
 	**/
 	public static inline function u32geu32(a : Int, b : Int) : Bool
-		{
+	{
 			return (a ^ -2147483648) >= (b ^ -2147483648);		// unsigned comparison, see "Hacker's Delight" p. 25.
-		}
+	}
+	
+	/**
+		Number of trailing zeros - return the number of trailing
+		0-value bits 
+	**/
+	public static function ntz( x : Int ):Int
+	{
+		if (x == 0) return 32;
+		var y:Int;
+		var n:Int = 31;
+		y = x << 16; if (y != 0) { n -= 16; x = y; }
+		y = x <<  8; if (y != 0) { n -=  8; x = y; }
+		y = x <<  4; if (y != 0) { n -=  4; x = y; }
+		y = x <<  2; if (y != 0) { n -=  2; x = y; }
+		return   (n - ((x << 1) >>> 31));
+	}
 
 }
