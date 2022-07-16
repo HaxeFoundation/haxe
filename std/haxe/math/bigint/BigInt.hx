@@ -34,6 +34,7 @@ abstract BigInt(BigInt_)
 
 	public static var ZERO(default, null) : BigInt = new BigInt(BigInt_.fromInt(0));
 	public static var ONE(default, null) : BigInt = new BigInt(BigInt_.fromInt(1));
+	public static var TWO(default, null) : BigInt = new BigInt(BigInt_.fromInt(2));
 	public static var NEGATIVE_ONE(default, null) : BigInt = new BigInt(BigInt_.fromInt(-1));
 
 	//-----------------------------------------------------------------------
@@ -108,6 +109,35 @@ abstract BigInt(BigInt_)
 	public inline function getBit(index : Int) : Int
 	{
 		return BigIntArithmetic.getBit(this, index);
+	}
+	
+	public function abs() : BigInt
+	{
+		return new BigInt(this.abs());
+	}
+	
+	public function pow(exponent:UInt) : BigInt
+	{
+		return new BigInt(BigInt_.pow(exponent,this));
+	}
+
+	public function modPow(exponent:BigInt, modulus:BigInt) : BigInt
+	{
+		return new BigInt(BigInt_.modPow(exponent,modulus,this));
+	}
+
+	public function  isProbablePrime(tolerance:UInt):Bool
+	{
+		return this.isProbablePrime(tolerance);
+	}
+
+	public function getLowestSetBit():Int
+	{
+		return this.getLowestSetBit();
+	}
+
+	public function bitLength():Int {
+		return this.bitLength();
 	}
 
 	//-----------------------------------------------------------------------

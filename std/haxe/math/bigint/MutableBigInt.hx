@@ -121,6 +121,35 @@ abstract MutableBigInt(MutableBigInt_)
 		r.setFromLittleEndianBytesUnsigned(value);
 		return new MutableBigInt(r);
 	}
+	
+	public function abs() : MutableBigInt
+	{
+		return this.abs();
+	}
+	
+	public function pow(exponent:UInt) : MutableBigInt
+	{
+		return BigInt_.pow(exponent,this);
+	}
+	
+	public function modPow(exponent:BigInt, modulus:BigInt) : MutableBigInt
+	{
+		return BigInt_.modPow(exponent,modulus,this);
+	}
+	
+	public function  isProbablePrime(tolerance:UInt):Bool
+	{
+		return this.isProbablePrime(tolerance);
+	}
+	
+	public function getLowestSetBit():Int
+	{
+		return this.getLowestSetBit();
+	}
+	
+	public function bitLength():Int {
+		return this.bitLength();
+	}
 
 	//-----------------------------------------------------------------------
 	// Operators

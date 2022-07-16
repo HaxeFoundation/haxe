@@ -33,6 +33,16 @@ class BigInt_
 	// Public interface
 	//-----------------------------------------------------------------------
 
+	public inline function abs():BigInt_
+	{
+		if ( this.sign() < 0) {
+			return BigInt_.negate1(this);
+		} 
+		var r = new MutableBigInt_();
+		r.copyFrom(this);
+		return r;
+	}
+	
 	/**
 		Returns `true` if this big integer is equivalent to 0, otherwise returns `false`.
 	**/
@@ -55,6 +65,48 @@ class BigInt_
 	public inline function sign() : Int
 	{
 		return m_data.get(m_count - 1) >> 31;
+	}
+	
+	public function getLowestSetBit():Int
+	{
+		if ( this.isZero() ) return -1;
+		var result:Int = -1;
+		var i:Int = 0;
+		var b = m_data.get(0);
+		while ( b == 0  ) { i++; b = m_data.get(i); }
+		result = (i<<5) +BigIntHelper.ntz(b);
+		return result;
+	}
+
+	public function bitLength():Int {
+		if ( m_count <=0) return 0;
+		return ( 32 * m_count  - BigIntHelper.nlz(m_data.get(m_count-1)^sign()) );
+	}
+	
+	public function isProbablePrime(tolerance:UInt):Bool
+	{
+		if ( tolerance <= 0 ) return true;
+		var b:BigInt_ = this.abs();
+		if ( equals2Int(b,1) ) return false;
+		if ( equals2Int(b,2) ) return true;
+		if ( b.m_data.get(0) & 1 == 0 ) return false;
+
+		var rounds:UInt = 0;
+		if ( b.m_count <= 4) {
+			rounds = (tolerance>64)?64:tolerance;
+		} else if ( b.m_count < 8) {
+			rounds = 32;
+		} else if ( b.m_count < 16) {
+			rounds = 16;
+		} else if ( b.m_count < 24) {
+			rounds = 8;
+		} else if ( b.m_count < 32) {
+			rounds = 4;
+		} else {
+			rounds = 2;
+		}
+		rounds = (tolerance<rounds)?tolerance:rounds;
+		return b.millerRabin(rounds);
 	}
 
 	/**
@@ -209,6 +261,36 @@ class BigInt_
 		bi.setFromUnsignedInts(value, length);
 		return bi;
 	}
+	
+	public static function modPow(exponent:BigInt_, modulus:BigInt_, n:BigInt_) : BigInt_
+	{
+		if (BigIntArithmetic.compareInt(exponent,0) < 0) throw BigIntExceptions.NEGATIVE_EXPONENT;
+		if ( n.isZero() ) return ( BigIntArithmetic.compareInt(exponent,0) == 0 ? BigInt.fromInt(1) : n);
+		var r = BigInt_.newFromInt(1);
+		var p:BigInt_ = BigInt_.fromString(n.toString());
+		while(true) {
+			if ( BigIntArithmetic.bitwiseAndInt(exponent,1) == 1 ) r = modulus2(multiply2(p,r),modulus);
+			exponent= BigInt_.arithmeticShiftRight2(exponent, 1);
+			if (BigIntArithmetic.compareInt(exponent,0) == 0) break;
+			p = modulus2(multiply2(p,p),modulus); 
+		 }
+		return r;
+	}
+	
+	public static function pow(exponent:UInt, n:BigInt_) : BigInt_
+	{
+		if (exponent < 0) throw BigIntExceptions.NEGATIVE_EXPONENT;
+		if ( n.isZero() ) return ( exponent == 0 ? BigInt.fromInt(1) : n);
+		var r = BigInt_.newFromInt(1);
+		var p:BigInt_ = BigInt_.fromString(n.toString());
+		while(true) {
+			if ( (exponent & 1) == 1 ) r = multiply2(p,r);
+			exponent= exponent >> 1;
+			if (exponent == 0) break;
+			p = multiply2(p,p); 
+		 }
+		return r;
+	}
 
 	//-----------------------------------------------------------------------
 	// Private implementation
@@ -258,6 +340,49 @@ class BigInt_
 				}
 			}
 		}
+	}
+	
+	private function random():BigInt_
+	{
+		var r = new MutableBigInt_();
+		var countBits:Int = bitLength();
+		var countBytes:Int = Std.int((countBits+7)/8);
+		var randomBytes = Bytes.alloc(countBytes);
+		for(j in 0...countBytes) {
+			var rnd = Std.int(( Math.random() * 256 ));
+			randomBytes.set(j,rnd);
+		}
+		r.setFromHexUnsigned(randomBytes.toHex());
+		r.compact();
+		return r;
+	}
+	
+	private function millerRabin(rounds:UInt):Bool
+	{
+		var minusOne:BigInt_ = subInt2(this,1);
+		var m = subInt2(this,1);
+		var lsb = m.getLowestSetBit();
+		if ( lsb <=0 ) return false;
+		m = arithmeticShiftRight2(m,lsb);
+		var num:BigInt_;
+		for(i in 0...rounds) {
+			do { 
+				num =random();
+			} while (BigIntArithmetic.compare(num, BigInt.ONE) <= 0 ||  BigIntArithmetic.compare(num, this) >= 0  );
+			var z:BigInt_ = BigInt_.modPow(m,this,num);
+			if ( BigIntArithmetic.compare(z, BigInt.ONE) != 0 && BigIntArithmetic.compare(z, minusOne) != 0) {
+				var j:Int = 1;
+				while ( j<=lsb  && BigIntArithmetic.compare(z, minusOne) != 0) 
+				{
+					if ( BigIntArithmetic.compare(z, BigInt.ONE) == 0 || j == lsb) {
+					  return false;
+					}
+					z = BigInt_.modPow(BigInt.TWO,this,z);
+					j++;
+				}
+			}
+		}
+		return true;
 	}
 
 	private static function newFromInt(value : Int) : BigInt_
