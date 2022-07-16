@@ -27,4 +27,5 @@ class BigIntExceptions
     public static inline var INVALID_ARGUMENT = "invalid argument";
     public static inline var BUFFER_TOO_SMALL = "buffer too small";
 	public static inline var DIVISION_BY_ZERO = "division by zero";
+	public static inline var NEGATIVE_EXPONENT = "Negative exponent";
 }
