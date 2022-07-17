@@ -461,7 +461,7 @@ class MultiwordArithmetic
 		setZero(quotientOut, quotientLength);
 
 		// Main loop.
-		var qhat : Int, rhat : Int, p : Int, t : Int;
+		var qhat : Int32, rhat : Int32, p : Int32, t : Int32;
 		var vn : Int = getShort(work, n - 1);
 		j = m - n + 1;
 		while (--j >= 0)

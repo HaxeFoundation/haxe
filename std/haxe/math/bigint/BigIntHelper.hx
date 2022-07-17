@@ -65,7 +65,7 @@ class BigIntHelper
 		greater than or equal to input `x`, which is interpreted as
 		unsigned.
 	**/
-	public static function clp2(x : Int) : Int
+	public static function clp2(x : Int32) : Int
 	{
 		// From "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013. Figure 3-3, p. 62.
 		x = x - 1;
