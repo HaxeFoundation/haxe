@@ -670,7 +670,7 @@ class MultiwordArithmetic
 		if (a != b)
 		{
 			var an : Int, bn : Int, d : Int;
-			var x : Int = -2147483648;
+			var x : Int32 = -2147483648;
 			while (--length >= 0)
 			{
 				an = a.get(length) + x;

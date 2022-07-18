@@ -14,6 +14,7 @@ import haxe.math.bigint.BigInt;
 import haxe.math.bigint.BigIntHelper;
 
 class TestBigInt extends Test {
+
 	public function testBigInt():Void {
 		MutableBigInt_.s_testAllocation = false;
 		bigIntAllChecks();
@@ -739,17 +740,17 @@ class TestBigInt extends Test {
 		var am:MutableBigInt = a;
 		var bm:MutableBigInt = b;
 
-		eq(expected.toHex(), (a * b).toHex());
-		eq(expected.toHex(), (am * b).toHex());
-		eq(expected.toHex(), (a * bm).toHex());
-		eq(expected.toHex(), (am * bm).toHex());
+		eq(expected.toString(), (a * b).toString());
+		eq(expected.toString(), (am * b).toString());
+		eq(expected.toString(), (a * bm).toString());
+		eq(expected.toString(), (am * bm).toString());
 
 		am = a;
 		am *= b;
-		eq(expected.toHex(), am.toHex());
+		eq(expected.toString(), am.toString());
 		am = a;
 		am *= bm;
-		eq(expected.toHex(), am.toHex());
+		eq(expected.toString(), am.toString());
 	}
 
 	private function checkDivInt(dividend:BigInt, divisor:Int, expectedQuotient:BigInt, expectedRemainder:Int):Void {
@@ -790,32 +791,32 @@ class TestBigInt extends Test {
 		var quotient:MutableBigInt = 0;
 		var remainder:MutableBigInt = 0;
 		BigIntArithmetic.divide(dividend, divisor, quotient, remainder);
-		eq(expectedRemainder.toHex(), remainder.toHex());
-		eq(expectedQuotient.toHex(), quotient.toHex());
+		eq(expectedRemainder.toString(), remainder.toString());
+		eq(expectedQuotient.toString(), quotient.toString());
 
-		eq(dividend.toHex(), (quotient * divisor + remainder).toHex());
+		eq(dividend.toString(), (quotient * divisor + remainder).toString());
 
-		eq(expectedQuotient.toHex(), (dividend / divisor).toHex());
-		eq(expectedQuotient.toHex(), (dividendM / divisor).toHex());
-		eq(expectedQuotient.toHex(), (dividend / divisorM).toHex());
-		eq(expectedQuotient.toHex(), (dividendM / divisorM).toHex());
-		eq(expectedRemainder.toHex(), (dividend % divisor).toHex());
-		eq(expectedRemainder.toHex(), (dividendM % divisor).toHex());
-		eq(expectedRemainder.toHex(), (dividend % divisorM).toHex());
-		eq(expectedRemainder.toHex(), (dividendM % divisorM).toHex());
+		eq(expectedQuotient.toString(), (dividend / divisor).toString());
+		eq(expectedQuotient.toString(), (dividendM / divisor).toString());
+		eq(expectedQuotient.toString(), (dividend / divisorM).toString());
+		eq(expectedQuotient.toString(), (dividendM / divisorM).toString());
+		eq(expectedRemainder.toString(), (dividend % divisor).toString());
+		eq(expectedRemainder.toString(), (dividendM % divisor).toString());
+		eq(expectedRemainder.toString(), (dividend % divisorM).toString());
+		eq(expectedRemainder.toString(), (dividendM % divisorM).toString());
 
 		dividendM = dividend;
 		dividendM /= divisor;
-		eq(expectedQuotient.toHex(), dividendM.toHex());
+		eq(expectedQuotient.toString(), dividendM.toString());
 		dividendM = dividend;
 		dividendM /= divisorM;
-		eq(expectedQuotient.toHex(), dividendM.toHex());
+		eq(expectedQuotient.toString(), dividendM.toString());
 		dividendM = dividend;
 		dividendM %= divisor;
-		eq(expectedRemainder.toHex(), dividendM.toHex());
+		eq(expectedRemainder.toString(), dividendM.toString());
 		dividendM = dividend;
 		dividendM %= divisorM;
-		eq(expectedRemainder.toHex(), dividendM.toHex());
+		eq(expectedRemainder.toString(), dividendM.toString());
 	}
 
 	public function bigIntEquality():Void {
@@ -902,28 +903,28 @@ class TestBigInt extends Test {
 		var em:MutableBigInt = expected;
 
 		// addition
-		eq(expected.toHex(), (a + b).toHex());
-		eq(expected.toHex(), (am + bm).toHex());
-		eq(expected.toHex(), (am + b).toHex());
-		eq(expected.toHex(), (a + bm).toHex());
+		eq(expected.toString(), (a + b).toString());
+		eq(expected.toString(), (am + bm).toString());
+		eq(expected.toString(), (am + b).toString());
+		eq(expected.toString(), (a + bm).toString());
 		am = a;
 		am += b;
-		eq(expected.toHex(), am.toHex());
+		eq(expected.toString(), am.toString());
 		am = a;
 		am += bm;
-		eq(expected.toHex(), am.toHex());
+		eq(expected.toString(), am.toString());
 
 		// subtraction
-		eq(a.toHex(), (expected - b).toHex());
-		eq(a.toHex(), (expected - bm).toHex());
-		eq(a.toHex(), (em - b).toHex());
-		eq(a.toHex(), (em - bm).toHex());
+		eq(a.toString(), (expected - b).toString());
+		eq(a.toString(), (expected - bm).toString());
+		eq(a.toString(), (em - b).toString());
+		eq(a.toString(), (em - bm).toString());
 		em = expected;
 		em -= b;
-		eq(a.toHex(), em.toHex());
+		eq(a.toString(), em.toString());
 		em = expected;
 		em -= bm;
-		eq(a.toHex(), em.toHex());
+		eq(a.toString(), em.toString());
 	}
 
 	public function bigIntAddAssignDoesntClobber():Void {

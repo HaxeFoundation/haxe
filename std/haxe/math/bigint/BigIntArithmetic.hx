@@ -98,7 +98,7 @@ class BigIntArithmetic
 	public static function negate(result : MutableBigInt_, operand : BigInt_) : Void
 	{
 		var c : Int = 1;
-		var x : Int = 0;
+		var x : Int32 = 0;
 		var z : Int = 0;
 		result.ensureCapacity(operand.m_count + 1, result == operand);		// overflow may add a digit
 		for (i in 0 ... operand.m_count)
@@ -236,7 +236,7 @@ class BigIntArithmetic
 	**/
 	public static function subtract(result : MutableBigInt_, operand1 : BigInt_, operand2 : BigInt_) : Void
 	{
-		var c : Int = 0;
+		var c : Int32 = 0;
 		var x : Int = 0, y : Int = 0, z : Int = 0;
 		if (operand1.m_count == operand2.m_count)
 		{
