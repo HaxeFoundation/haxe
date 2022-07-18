@@ -2670,7 +2670,7 @@ class TestBigInt extends Test {
 	
 	public function testMacroCrash():Void 
 	{
-		trace("Start testMacroCrash")
+		trace("Start testMacroCrash");
 		var y:BigInt = BigInt.fromHex("080000000");
 		var a:BigInt = BigInt.fromInt(1);
 		var x:BigInt = BigInt.fromHex("080000000");
