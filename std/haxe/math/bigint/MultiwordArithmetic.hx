@@ -347,13 +347,12 @@ class MultiwordArithmetic
 		}
 
 		// special cases
-		var dh : Int = divisor.get(divisorLength - 1);
+		var dh : Int32 = divisor.get(divisorLength - 1);
 		if (divisorLength < 2)
 		{
 			switch (dh)
 			{
 				case 0:
-					trace(" Divisor: "+divisor+", Length: "+divisorLength);
 					throw BigIntExceptions.DIVISION_BY_ZERO;
 				case 1:
 					copy(quotientOut, dividend, dividendLength);	// quotientLength == dividendLength
