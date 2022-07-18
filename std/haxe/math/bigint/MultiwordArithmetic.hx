@@ -353,6 +353,7 @@ class MultiwordArithmetic
 			switch (dh)
 			{
 				case 0:
+					trace(" Divisor: "+divisor+", Length: "+divisorLength);
 					throw BigIntExceptions.DIVISION_BY_ZERO;
 				case 1:
 					copy(quotientOut, dividend, dividendLength);	// quotientLength == dividendLength
