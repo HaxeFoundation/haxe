@@ -877,10 +877,10 @@ class TestBigInt extends Test {
 
 	private function checkAddInt(a:BigInt, b:Int, expected:BigInt):Void {
 		var am:MutableBigInt = a;
-		eq(expected.toHex(), (a + b).toHex());
-		eq(expected.toHex(), (am + b).toHex());
+		eq(expected.toString(), (a + b).toString());
+		eq(expected.toString(), (am + b).toString());
 		am += b;
-		eq(expected.toHex(), am.toHex());
+		eq(expected.toString(), am.toString());
 
 		checkAdd(a, BigInt.fromInt(b), expected);
 	}

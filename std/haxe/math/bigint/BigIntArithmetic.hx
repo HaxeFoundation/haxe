@@ -190,7 +190,7 @@ class BigIntArithmetic
 	public static function addInt(result : MutableBigInt_, operand1 : BigInt_, operand2 : Int) : Void
 	{
 		var c : Int = 0;
-		var x : Int;
+		var x : Int32;
 		var y : Int = operand2;
 		var z : Int;
 
