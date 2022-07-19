@@ -739,7 +739,7 @@ class MultiwordArithmetic
 		}
 		var pos : Int = 0;
 		var bit : Int = 0;
-		var acc : Int = 0;
+		var acc : Int32 = 0;
 		while (index > start)
 		{
 			c = value.charCodeAt(--index);
