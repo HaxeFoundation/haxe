@@ -760,16 +760,16 @@ class TestBigInt extends Test {
 		var remainder:Int;
 		remainder = BigIntArithmetic.divideInt(dividend, divisor, quotient);
 		eq(expectedRemainder, remainder);
-		eq(expectedQuotient.toHex(), quotient.toHex());
+		eq(expectedQuotient.toString(), quotient.toString());
 
-		eq(expectedQuotient.toHex(), (dividend / divisor).toHex());
-		eq(expectedQuotient.toHex(), (dividendM / divisor).toHex());
+		eq(expectedQuotient.toString(), (dividend / divisor).toString());
+		eq(expectedQuotient.toString(), (dividendM / divisor).toString());
 		eq(expectedRemainder, (dividend % divisor));
 		eq(expectedRemainder, (dividendM % divisor));
 
 		dividendM = dividend;
 		dividendM /= divisor;
-		eq(expectedQuotient.toHex(), dividendM.toHex());
+		eq(expectedQuotient.toString(), dividendM.toString());
 		dividendM = dividend;
 		dividendM %= divisor;
 		eq(Std.string(expectedRemainder), dividendM.toString());
@@ -989,8 +989,8 @@ class TestBigInt extends Test {
 
 		var a:MutableBigInt = 1;
 		for (i in 0...96) {
-			eq(a.toHex(), BigInt.fromString(s_powersOfTwo[i]).toHex());
-			eq((-a).toHex(), BigInt.fromString("-" + s_powersOfTwo[i]).toHex());
+			eq(a.toString(), BigInt.fromString(s_powersOfTwo[i]).toString());
+			eq((-a).toString(), BigInt.fromString("-" + s_powersOfTwo[i]).toString());
 			a <<= 1;
 		}
 	}

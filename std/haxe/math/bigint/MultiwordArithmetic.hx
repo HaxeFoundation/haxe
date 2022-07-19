@@ -951,7 +951,7 @@ class MultiwordArithmetic
 		return (v.get(n >> 1) >> ((n & 1) << 4)) & 0xffff;
 	}
 
-	private static inline function setShort(a : Vector<Int>, n : Int, v : Int) : Void
+	private static inline function setShort(a : Vector<Int>, n : Int, v : Int32) : Void
 	{
 		var s : Int = (n & 1) << 4;
 		var t : Int = a.get(n >> 1) & (~0xffff >>> s);
