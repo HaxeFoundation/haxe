@@ -94,7 +94,7 @@ class BigIntHelper
 
 		Result is undefined when `divisor` <= 0 or `divisor` >= 2^16.
 	**/
-	public static function u32divu16(dividend : Int, divisor : Int) : Int
+	public static function u32divu16(dividend : Int32, divisor : Int32) : Int
 	{
 		/*
 			Complicated because Haxe's division is always performed as
@@ -108,7 +108,7 @@ class BigIntHelper
 		// From "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013. Section 9-3, p. 192.
 		var t : Int = divisor >> 31;
 		var nprime : Int = dividend & ~t;
-		var q : Int = Std.int((nprime >>> 1) / divisor) << 1;
+		var q : Int32 = Std.int((nprime >>> 1) / divisor) << 1;
 		var r : Int = dividend - q * divisor;
 		var c : Int = u32geu32(r, divisor) ? 1 : 0;
 		return q + c;
@@ -128,7 +128,7 @@ class BigIntHelper
 		Number of trailing zeros - return the number of trailing
 		0-value bits 
 	**/
-	public static function ntz( x : Int ):Int
+	public static function ntz( x : Int32 ):Int
 	{
 		if (x == 0) return 32;
 		var y:Int;

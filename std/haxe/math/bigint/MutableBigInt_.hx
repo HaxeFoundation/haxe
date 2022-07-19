@@ -230,7 +230,7 @@ class MutableBigInt_ extends BigInt_
 	// Private implementation
 	//-----------------------------------------------------------------------
 
-	private inline function setShort(n : Int, v : Int) : Void
+	private inline function setShort(n : Int32, v : Int32) : Void
 	{
 		var s : Int = (n & 1) << 4;
 		var t : Int = m_data.get(n >> 1) & (~0xffff >>> s);
@@ -366,7 +366,7 @@ class MutableBigInt_ extends BigInt_
 		ensureCapacity(((index + 7) >> 3) + extra, false);
 		var pos = -1;
 		var bit : Int = 32;
-		var c : Int = 0;
+		var c : Int32 = 0;
 		while (index > 0)
 		{
 			c = value.charCodeAt(--index);

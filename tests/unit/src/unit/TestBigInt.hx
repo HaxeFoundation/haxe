@@ -103,10 +103,10 @@ class TestBigInt extends Test {
 		v1[1] = 1;
 		v1[2] = -2147483648;
 		t1.setFromUnsignedInts(v1, 3);
-		eq(BigInt.fromHexUnsigned("80000000 00000001 00000000").toHex(), t1.toHex());
+		eq(BigInt.fromHexUnsigned("80000000 00000001 00000000").toString(), t1.toString());
 		v1[1] = -2147483648;
 		t1.setFromUnsignedInts(v1, 2);
-		eq(BigInt.fromHexUnsigned("80000000 00000000").toHex(), t1.toHex());
+		eq(BigInt.fromHexUnsigned("80000000 00000000").toString(), t1.toString());
 	}
 
 	function bigIntSetFromUnsignedInts():Void {
@@ -130,7 +130,7 @@ class TestBigInt extends Test {
 	private function checkSetFromBytesUnsigned(hex:String):Void {
 		var t:MutableBigInt = 0;
 		t.setFromBigEndianBytesUnsigned(Bytes.ofHex(hex));
-		eq(BigInt.fromHexUnsigned(hex).toHex(), t.toHex());
+		eq(BigInt.fromHexUnsigned(hex).toString(), t.toString());
 
 		var sb = new StringBuf();
 		var i = hex.length;
@@ -140,14 +140,14 @@ class TestBigInt extends Test {
 			sb.addChar(hex.charCodeAt(i + 1));
 		}
 		t.setFromLittleEndianBytesUnsigned(Bytes.ofHex(sb.toString()));
-		eq(BigInt.fromHexUnsigned(hex).toHex(), t.toHex());
+		eq(BigInt.fromHexUnsigned(hex).toString(), t.toString());
 	}
 
 	private function checkSetFromUnsignedInts(hex:String, arr:Array<Int>):Void {
 		var v = Vector.fromArrayCopy(arr);
 		var t:MutableBigInt = 0;
 		t.setFromUnsignedInts(v, v.length);
-		eq(BigInt.fromHexUnsigned(hex).toHex(), t.toHex());
+		eq(BigInt.fromHexUnsigned(hex).toString(), t.toString());
 	}
 
 	public function bigIntCompare():Void {
