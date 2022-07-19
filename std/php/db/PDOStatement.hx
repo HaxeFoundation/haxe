@@ -37,7 +37,7 @@ extern class PDOStatement {
 	function execute(?input_parameters:NativeArray):Bool;
 	function fetch(?fetch_style:Int = 4, ?cursor_orientation:Int = 0, ?cursor_offset:Int = 0):Dynamic;
 	function fetchAll(?fetch_style:Int, ?fetch_argument:Dynamic, ?ctor_args:NativeArray):NativeArray;
-	function fetchColumn(?column_number:Int = 0):String;
+	function fetchColumn(?column_number:Int = 0):Dynamic;
 	function fetchObject(?class_name:String, ?ctor_args:NativeArray):Dynamic;
 	function getAttribute(attribute:Int):Dynamic;
 	function getColumnMeta(column:Int):NativeArray;
