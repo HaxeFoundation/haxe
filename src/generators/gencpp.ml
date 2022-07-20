@@ -1364,6 +1364,7 @@ type tcpp =
    | TCppFastIterator of tcpp
    | TCppPointer of string * tcpp
    | TCppRawPointer of string * tcpp
+   | TCppClosure of tcpp list * tcpp
    | TCppFunction of tcpp list * tcpp * string
    | TCppObjCBlock of tcpp list * tcpp
    | TCppRest of tcpp
@@ -1619,6 +1620,11 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppAutoCast -> "::cpp::AutoCast"
    | TCppVariant -> "::cpp::Variant"
    | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
+   | TCppClosure(args, return) ->
+      let string_args = match args with
+      | [] -> "void"
+      | vs -> (String.concat "," (List.map tcpp_to_string vs)) in
+      "::hx::Closure< " ^ (tcpp_to_string return) ^ ", " ^ string_args ^ ">"
    | TCppScalar(scalar) -> scalar
    | TCppString -> "::String"
    | TCppFastIterator it -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (tcpp_to_string it) ^ " >";
@@ -1790,7 +1796,8 @@ let rec cpp_type_of stack ctx haxe_type =
          cpp_type_from_path stack ctx type_def.t_path params (fun () ->
             cpp_type_of stack ctx (apply_typedef type_def params) )
 
-      | TFun _ -> TCppObject
+      | TFun (args, return) ->
+         TCppClosure ((List.map (fun (_, _, a) -> cpp_type_of stack ctx a) args), (cpp_type_of stack ctx return))
       | TAnon _ -> TCppObject
       | TDynamic _ -> TCppDynamic
       | TLazy func -> cpp_type_of stack ctx (lazy_type func)
@@ -2058,6 +2065,7 @@ let cpp_variant_type_of t = match t with
    | TCppClass
    | TCppGlobal
    | TCppNull
+   | TCppClosure _
    | TCppEnum _ -> TCppDynamic
    | TCppString -> TCppString
    | TCppFunction _
@@ -2876,6 +2884,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             List.iter ( fun (tvar,_) ->
                Hashtbl.add !declarations tvar.v_name () ) func.tf_args;
             let cppExpr = retype TCppVoid (mk_block func.tf_expr) in
+            let tcpp_args = List.map (fun (v,_) -> cpp_type_of v.v_type  ) func.tf_args in
             let result = { close_expr=cppExpr;
                            close_id= !closureId;
                            close_undeclared= !undeclared;
@@ -2895,7 +2904,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             uses_this := if !uses_this != None then Some old_this_real else old_uses_this;
             gc_stack := old_gc_stack;
             rev_closures := result:: !rev_closures;
-            CppClosure(result), TCppDynamic
+            CppClosure(result), (TCppClosure (tcpp_args, result.close_type))
 
          | TArray (e1,e2) ->
             let retypedObj = retype TCppDynamic e1 in
@@ -3824,7 +3833,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
 
       | CppClosure closure ->
-          out (" ::Dynamic(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
+          let tcpp_args = match closure.close_args with
+          | [] -> "void"
+          | vs ->  String.concat "," (List.map (fun (v,_) -> tcpp_to_string (cpp_type_of ctx v.v_type)) vs) in
+          let tcpp_return = tcpp_to_string closure.close_type in
+          out (" ::hx::Closure<" ^ tcpp_return ^ ", " ^ tcpp_args ^ ">(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
           let separator = ref "" in
           (match closure.close_this with
           | Some this ->
@@ -7088,6 +7101,7 @@ let rec script_cpptype_string cppType = match cppType with
    | TCppDynamic
    | TCppUnchanged
    | TCppWrapped _
+   | TCppClosure _
    | TCppObject -> "Dynamic"
    | TCppObjectPtr -> ".*.hx.Object*"
    | TCppReference t -> ".ref." ^ (script_cpptype_string t)
