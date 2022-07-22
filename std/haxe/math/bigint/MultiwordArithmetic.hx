@@ -899,7 +899,7 @@ class MultiwordArithmetic
 
 	// assumes 0 < shiftBits < 32
 	// assumes shiftDigits < length
-	private static function _asr32(result : Vector<Int>, input : Vector<Int>, length : Int, shiftDigits : Int, shiftBits : Int) : Void
+	private static function _asr32(result : Vector<Int>, input : Vector<Int>, length : Int, shiftDigits : Int, shiftBits : Int32) : Void
 	{
 		var r : Int = 32 - shiftBits;
 		var i : Int = 0;
@@ -913,7 +913,7 @@ class MultiwordArithmetic
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static function _lsr32(output : Vector<Int>, input : Vector<Int>, inputSize : Int, inputOffset : Int, shift : Int) : Void
+	private static function _lsr32(output : Vector<Int>, input : Vector<Int>, inputSize : Int, inputOffset : Int, shift : Int32) : Void
 	{
 		var r : Int = 32 - shift;
 		var i : Int = 0;

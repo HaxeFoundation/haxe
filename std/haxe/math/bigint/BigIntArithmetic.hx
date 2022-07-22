@@ -705,7 +705,7 @@ class BigIntArithmetic
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static inline function asl32(output : Vector<Int>, outputOffset : Int, input : Vector<Int>, inputSize : Int, shift : Int) : Void
+	private static inline function asl32(output : Vector<Int>, outputOffset : Int, input : Vector<Int>, inputSize : Int, shift : Int32) : Void
 	{
 		var x : Int = input.get(inputSize - 1) >> 31;	// sign extend
 		var r : Int = 32 - shift;
@@ -723,7 +723,7 @@ class BigIntArithmetic
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static inline function lsl32(output : Vector<Int>, outputOffset : Int, input : Vector<Int>, inputSize : Int, shift : Int) : Void
+	private static inline function lsl32(output : Vector<Int>, outputOffset : Int, input : Vector<Int>, inputSize : Int, shift : Int32) : Void
 	{
 		var x : Int = 0;
 		var r : Int = 32 - shift;
@@ -741,7 +741,7 @@ class BigIntArithmetic
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static inline function lsr32(output : Vector<Int>, input : Vector<Int>, inputSize : Int, inputOffset : Int, shift : Int) : Void
+	private static inline function lsr32(output : Vector<Int>, input : Vector<Int>, inputSize : Int, inputOffset : Int, shift : Int32) : Void
 	{
 		var r : Int = 32 - shift;
 		var i : Int = 0;
