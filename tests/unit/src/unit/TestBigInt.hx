@@ -2616,13 +2616,13 @@ class TestBigInt extends Test {
 	{
 		for(i in 0...s_primeNumbers.length) {
 			var b:BigInt = s_primeNumbers[i];
-			var bm:BigInt = s_primeNumbers[i];
+			var bm:MutableBigInt = s_primeNumbers[i];
 			t(b.isProbablePrime(5));
 			t(bm.isProbablePrime(5));
 		}
 		for(i in 0...s_notPrimeNumbers.length) {
 			var b:BigInt = s_notPrimeNumbers[i];
-			var bm:BigInt = s_notPrimeNumbers[i];
+			var bm:MutableBigInt = s_notPrimeNumbers[i];
 			f(b.isProbablePrime(5));
 			f(bm.isProbablePrime(5));
 		}
