@@ -116,6 +116,41 @@ class MutableBigInt_ extends BigInt_
 		m_count = length + neg;
 		compact();
 	}
+	
+	public function setFromBigEndianBytesSigned(value:Bytes, offset:Int = 0, valueLength:Int = 0):Void 
+	{
+		if ( value == null) {
+			throw BigIntExceptions.INVALID_ARGUMENT;
+		}
+		if (valueLength <= 0) {
+			valueLength = value.length;
+		}
+		if (offset + valueLength > value.length) {
+			throw BigIntExceptions.BUFFER_TOO_SMALL;
+		}
+		if (valueLength < 1) {
+			setFromInt(0);
+			return;
+		}
+		var length = (valueLength + 3) >> 2;
+		ensureCapacity(length, false);
+		m_data.set(length - 1, 0);
+		var pos = 0;
+		var i = offset + valueLength;
+		while (i >= offset + 4) {
+			m_data.set(pos++, (value.get(i - 1) << 0) | (value.get(i - 2) << 8) | (value.get(i - 3) << 16) | (value.get(i - 4) << 24));
+			i -= 4;
+		}
+		if (i > offset) {
+			var x:Int = 0;
+			for (j in offset...i) {
+				x = (x << 8) | value.get(j);
+			}
+			m_data.set(pos++, x);
+		}
+		m_count = length;
+		compact();
+	}
 
 	public function setFromBigEndianBytesUnsigned(value : Bytes, offset : Int = 0, valueLength : Int = 0) : Void
 	{

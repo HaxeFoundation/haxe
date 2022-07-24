@@ -251,6 +251,16 @@ class BigInt_
 		bi.setFromHexUnsigned(value);
 		return bi;
 	}
+	
+	/**
+		Creates a big integer with the signed value represented by bytes
+	**/
+	public static function fromBytes(value : Bytes, offset : Int = 0, length : Int = 0) : BigInt_
+	{
+		var bi = new MutableBigInt_();
+		bi.setFromBigEndianBytesSigned(value, offset, length);
+		return bi;
+	}
 
 	/**
 		Creates a big integer with the value represented by the integer vector `value`.

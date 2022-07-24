@@ -42,6 +42,7 @@ class TestBigInt extends Test {
 		bigIntAddAssignDoesntClobber();
 		bigIntNegate();
 		bigIntFromString();
+		bigIntFromBytes();
 		bigIntArithmeticShiftLeftAssignDoesntClobber();
 		bigIntArithmeticShiftRightAssignDoesntClobber();
 		bigIntArithmeticShiftLeft();
@@ -993,6 +994,23 @@ class TestBigInt extends Test {
 			eq((-a).toString(), BigInt.fromString("-" + s_powersOfTwo[i]).toString());
 			a <<= 1;
 		}
+	}
+	
+	public function bigIntFromBytes():Void 
+	{
+		try {
+			var x = BigInt.fromBytes(null);
+		} catch (e:String) {
+			eq(BigIntExceptions.INVALID_ARGUMENT, e);
+		}
+		eq("0", BigInt.fromBytes(Bytes.ofHex("00")).toString());
+		eq("1", BigInt.fromBytes(Bytes.ofHex("01")).toString());
+		eq("ffffffff", BigInt.fromBytes(Bytes.ofHex("ffffffff")).toHex());
+		eq("100", BigInt.fromBytes(Bytes.ofHex("64")).toString());
+		eq(BigInt.fromInt(-100).toHex(), BigInt.fromBytes(Bytes.ofHex("ffffff9c")).toHex());
+		eq("7fffffff", BigInt.fromBytes(Bytes.ofHex("7fffffff")).toHex());
+		eq(BigInt.fromInt(-2147483648).toHex(), BigInt.fromBytes(Bytes.ofHex("80000000")).toHex());
+		eq(BigInt.fromHex("f7fffffff").toHex(), BigInt.fromBytes(Bytes.ofHex("ffffffff7fffffff")).toHex());
 	}
 
 	public function bigIntArithmeticShiftLeftAssignDoesntClobber():Void {
@@ -2617,14 +2635,14 @@ class TestBigInt extends Test {
 		for(i in 0...s_primeNumbers.length) {
 			var b:BigInt = s_primeNumbers[i];
 			var bm:MutableBigInt = s_primeNumbers[i];
-			t(b.isProbablePrime(5));
-			t(bm.isProbablePrime(5));
+			t(b.isProbablePrime(10));
+			t(bm.isProbablePrime(10));
 		}
 		for(i in 0...s_notPrimeNumbers.length) {
 			var b:BigInt = s_notPrimeNumbers[i];
 			var bm:MutableBigInt = s_notPrimeNumbers[i];
-			f(b.isProbablePrime(5));
-			f(bm.isProbablePrime(5));
+			f(b.isProbablePrime(10));
+			f(bm.isProbablePrime(10));
 		}
 	}
 

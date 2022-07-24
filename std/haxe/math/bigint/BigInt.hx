@@ -105,6 +105,11 @@ abstract BigInt(BigInt_)
 	{
 		return new BigInt(BigInt_.fromUnsignedInts(value, length));
 	}
+	
+	public static inline function fromBytes(value : Bytes, offset : Int = 0, length : Int = 0) : BigInt
+	{
+		return new BigInt(BigInt_.fromBytes(value, offset, length));
+	}
 
 	public inline function getBit(index : Int) : Int
 	{
