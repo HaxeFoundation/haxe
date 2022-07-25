@@ -43,6 +43,19 @@ class BigInt_
 		return r;
 	}
 	
+	public function gcd( b : BigInt_) : BigInt_ 
+	{
+		var m:BigInt_ = this.abs();
+		b = b.abs();
+		var t:BigInt_;
+		while ( !equals2Int(b, 0) ) {
+			  t = m;
+			  m = b;
+			  b = modulus2(t , m);
+		}
+		return m;
+	}
+	
 	/**
 		Returns `true` if this big integer is equivalent to 0, otherwise returns `false`.
 	**/

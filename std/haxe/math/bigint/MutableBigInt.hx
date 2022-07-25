@@ -127,6 +127,11 @@ abstract MutableBigInt(MutableBigInt_)
 		return this.abs();
 	}
 	
+	public function gcd(b:BigInt) : MutableBigInt
+	{
+		return this.gcd(b);
+	}
+	
 	public function pow(exponent:UInt) : MutableBigInt
 	{
 		return BigInt_.pow(exponent,this);

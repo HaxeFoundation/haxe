@@ -121,6 +121,12 @@ abstract BigInt(BigInt_)
 		return new BigInt(this.abs());
 	}
 	
+	// Finds the greatest common denominator of this and b
+	public function gcd(b:BigInt) : BigInt
+	{
+		return new BigInt(this.gcd(b));
+	}
+	
 	public function pow(exponent:UInt) : BigInt
 	{
 		return new BigInt(BigInt_.pow(exponent,this));
