@@ -341,6 +341,11 @@ abstract BigInt(BigInt_)
 	{
 		return new BigInt(BigInt_.fromInt(a));
 	}
+	
+	@:from @:noCompletion public static inline function fromString_(a : String) : BigInt
+	{
+		return new BigInt(BigInt_.fromString(a));
+	}
 
 	@:to @:noCompletion public inline function toBigInt_() : BigInt_
 	{
