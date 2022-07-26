@@ -347,6 +347,21 @@ class BigInt_
 		 }
 		return r;
 	}
+	
+	public static function random(bits:Int32) : BigInt_
+	{
+		if ( bits <= 0 ) return BigInt.ZERO;
+		var r = new MutableBigInt_();
+		var countBytes:Int = Std.int((bits+7)/8);
+		var randomBytes = Bytes.alloc(countBytes);
+		for(j in 0...countBytes) {
+			var rndN = Math.floor( Math.random() * 256 );
+			randomBytes.set(j,rndN);
+		}
+		r.setFromBigEndianBytesSigned(randomBytes);
+		r.compact();
+		return r;
+	}
 
 	//-----------------------------------------------------------------------
 	// Private implementation
@@ -396,20 +411,6 @@ class BigInt_
 				}
 			}
 		}
-	}
-	
-	public static function random(bits:Int32 = 0):BigInt_
-	{
-		var r = new MutableBigInt_();
-		var countBytes:Int = Std.int((bits+7)/8);
-		var randomBytes = Bytes.alloc(countBytes);
-		for(j in 0...countBytes) {
-			var rndN = Math.floor( Math.random() * 256 );
-			randomBytes.set(j,rndN);
-		}
-		r.setFromBigEndianBytesUnsigned(randomBytes);
-		r.compact();
-		return r;
 	}
 	
 	private function millerRabin(rounds:UInt):Bool
