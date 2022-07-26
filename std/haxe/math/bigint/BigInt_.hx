@@ -57,6 +57,16 @@ class BigInt_
 	}
 	
 	/**
+		Calculates the least common multiple of the specified big integer numbers.
+	**/
+	public function lcm( b : BigInt_) : BigInt_
+	{
+		var m:BigInt_ = this.abs();
+		var n:BigInt_ = b.abs();
+		return BigInt_.divide2(BigInt_.multiply2(m,n),m.gcd(n));
+	}
+	
+	/**
 		Returns `true` if this big integer is equivalent to 0, otherwise returns `false`.
 	**/
 	public inline function isZero() : Bool
@@ -121,6 +131,21 @@ class BigInt_
 		rounds = (tolerance<rounds)?tolerance:rounds;
 		return b.millerRabin(rounds);
 	}
+	
+	/**
+		Returns the first integer greater than this BigInteger that is probably prime.
+	**/
+	public function nextProbablePrime() : BigInt_
+	{
+		var r = new MutableBigInt_();
+		r.copyFrom(this);
+		if ( m_data.get(0) & 1 == 0 ) BigIntArithmetic.addInt(r, r, 1);
+		do {
+			BigIntArithmetic.addInt(r, r, 2);
+		} while (!r.isProbablePrime(1));
+		r.compact();
+		return r;
+	}
 
 	/**
 		Test for numeric equality between this big integer and another.
@@ -151,6 +176,14 @@ class BigInt_
 			return false;
 		}
 		return m_data.get(0) == other;
+	}
+	
+	public function min(other : BigInt_ ) : BigInt_ {
+		return (BigIntArithmetic.compare(this,other) < 0) ? this : other;
+	}
+
+	public function max(other : BigInt_ ) : BigInt_ {
+		return (BigIntArithmetic.compare(this,other) > 0) ? this : other;
 	}
 
 	/**

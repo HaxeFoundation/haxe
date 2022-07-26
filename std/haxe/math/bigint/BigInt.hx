@@ -55,6 +55,14 @@ abstract BigInt(BigInt_)
 	{
 		return BigInt_.isNegative1(this);
 	}
+	
+	public inline function min(other : BigInt ) : BigInt {
+		return new BigInt(this.min(other));
+	}
+
+	public inline function max(other : BigInt) : BigInt {
+		return new BigInt(this.max(other));
+	}
 
 	public inline function toString() : String
 	{
@@ -127,6 +135,11 @@ abstract BigInt(BigInt_)
 		return new BigInt(this.gcd(b));
 	}
 	
+	public function lcm( b : BigInt) : BigInt
+	{
+		return new BigInt(this.lcm(b));
+	}
+	
 	public function pow(exponent:UInt) : BigInt
 	{
 		return new BigInt(BigInt_.pow(exponent,this));
@@ -137,9 +150,14 @@ abstract BigInt(BigInt_)
 		return new BigInt(BigInt_.modPow(exponent,modulus,this));
 	}
 
-	public function  isProbablePrime(tolerance:UInt):Bool
+	public function isProbablePrime(tolerance:UInt) : Bool
 	{
 		return this.isProbablePrime(tolerance);
+	}
+	
+	public function nextProbablePrime() : BigInt
+	{
+		return new BigInt(this.nextProbablePrime());
 	}
 
 	public function getLowestSetBit():Int
