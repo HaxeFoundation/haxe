@@ -532,6 +532,8 @@ let inline_constructors ctx original_e =
 				List.iter (fun ca -> ignore(analyze_aliases false ca)) call_args;
 				None
 			end
+		| TFunction tf ->
+			analyze_aliases true tf.tf_expr
 		| _ ->
 			handle_default_case e
 	in
