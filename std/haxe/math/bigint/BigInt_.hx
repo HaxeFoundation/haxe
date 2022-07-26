@@ -398,17 +398,16 @@ class BigInt_
 		}
 	}
 	
-	private function random():BigInt_
+	public static function random(bits:Int32 = 0):BigInt_
 	{
 		var r = new MutableBigInt_();
-		var countBits:Int = bitLength();
-		var countBytes:Int = Std.int((countBits+7)/8);
+		var countBytes:Int = Std.int((bits+7)/8);
 		var randomBytes = Bytes.alloc(countBytes);
 		for(j in 0...countBytes) {
-			var rnd = Std.int(( Math.random() * 256 ));
-			randomBytes.set(j,rnd);
+			var rndN = Math.floor( Math.random() * 256 );
+			randomBytes.set(j,rndN);
 		}
-		r.setFromHexUnsigned(randomBytes.toHex());
+		r.setFromBigEndianBytesUnsigned(randomBytes);
 		r.compact();
 		return r;
 	}
@@ -423,7 +422,7 @@ class BigInt_
 		var num:BigInt_;
 		for(i in 0...rounds) {
 			do { 
-				num =random();
+				num = random(bitLength());
 			} while (BigIntArithmetic.compare(num, BigInt.ONE) <= 0 ||  BigIntArithmetic.compare(num, this) >= 0  );
 			var z:BigInt_ = BigInt_.modPow(m,this,num);
 			if ( BigIntArithmetic.compare(z, BigInt.ONE) != 0 && BigIntArithmetic.compare(z, minusOne) != 0) {

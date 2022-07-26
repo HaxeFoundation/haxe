@@ -118,6 +118,11 @@ abstract BigInt(BigInt_)
 	{
 		return new BigInt(BigInt_.fromBytes(value, offset, length));
 	}
+	
+	public static inline function random(bits : Int32):BigInt
+	{
+		return new BigInt(BigInt_.random(bits));
+	}
 
 	public inline function getBit(index : Int) : Int
 	{
