@@ -157,7 +157,7 @@ abstract BigInt(BigInt_)
 	
 	public function pow(exponent:UInt) : BigInt
 	{
-		return new BigInt(BigInt_.pow(exponent,this));
+		return new BigInt(this.pow(exponent));
 	}
 
 	public function modPow(exponent:BigInt, modulus:BigInt) : BigInt
