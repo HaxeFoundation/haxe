@@ -366,7 +366,7 @@ class BigInt_
 				}
 			}
 		} while (!r.isProbablePrime(tolerance));
-		BigIntArithmetic.negate(r, r);
+		if ( r.sign() < 0) BigIntArithmetic.negate(r, r);
 		return r;
 	}
 	
