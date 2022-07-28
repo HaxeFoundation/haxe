@@ -2802,6 +2802,7 @@ class TestBigInt extends Test {
 		t( (randomBigInt>=a && randomBigInt<=b) );
 		a = "100000";
 		b = "1000000";
+		randomBigInt = BigInt.randomInRange(a,b);
 		t( (randomBigInt>=a && randomBigInt<=b) );
 		a = 1;
 		b = "151115727451828646838272";
