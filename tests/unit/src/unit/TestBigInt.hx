@@ -2791,7 +2791,6 @@ class TestBigInt extends Test {
 		randomPrimeNumber = BigInt.randomPrime(128,5);
 		t(randomPrimeNumber.isProbablePrime(5));
 		randomPrimeNumber = BigInt.randomPrime(156,5);
-		trace("randomPrimeNumber: "+randomPrimeNumber.toString());
 		t(randomPrimeNumber.isProbablePrime(5));
 	}
 
