@@ -134,12 +134,12 @@ abstract MutableBigInt(MutableBigInt_)
 	
 	public function pow(exponent:UInt) : MutableBigInt
 	{
-		return BigInt_.pow(exponent,this);
+		return this.pow(exponent);
 	}
 	
 	public function modPow(exponent:BigInt, modulus:BigInt) : MutableBigInt
 	{
-		return BigInt_.modPow(exponent,modulus,this);
+		return this.modPow(exponent,modulus);
 	}
 	
 	public function  isProbablePrime(tolerance:UInt):Bool

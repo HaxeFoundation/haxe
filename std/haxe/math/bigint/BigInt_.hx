@@ -318,12 +318,12 @@ class BigInt_
 		return bi;
 	}
 	
-	public static function modPow(exponent:BigInt_, modulus:BigInt_, n:BigInt_) : BigInt_
+	public function modPow(exponent:BigInt_, modulus:BigInt_) : BigInt_
 	{
 		if (BigIntArithmetic.compareInt(exponent,0) < 0) throw BigIntExceptions.NEGATIVE_EXPONENT;
-		if ( n.isZero() ) return ( BigIntArithmetic.compareInt(exponent,0) == 0 ? BigInt.fromInt(1) : n);
+		if ( this.isZero() ) return ( BigIntArithmetic.compareInt(exponent,0) == 0 ? BigInt.fromInt(1) : this);
 		var r = BigInt_.newFromInt(1);
-		var p:BigInt_ = BigInt_.fromString(n.toString());
+		var p:BigInt_ = this;
 		while(true) {
 			if ( BigIntArithmetic.bitwiseAndInt(exponent,1) == 1 ) r = modulus2(multiply2(p,r),modulus);
 			exponent= BigInt_.arithmeticShiftRight2(exponent, 1);
@@ -333,12 +333,12 @@ class BigInt_
 		return r;
 	}
 	
-	public static function pow(exponent:UInt, n:BigInt_) : BigInt_
+	public function pow(exponent:UInt) : BigInt_
 	{
 		if (exponent < 0) throw BigIntExceptions.NEGATIVE_EXPONENT;
-		if ( n.isZero() ) return ( exponent == 0 ? BigInt.fromInt(1) : n);
+		if ( this.isZero() ) return ( exponent == 0 ? BigInt.fromInt(1) : this);
 		var r = BigInt_.newFromInt(1);
-		var p:BigInt_ = BigInt_.fromString(n.toString());
+		var p:BigInt_ = this;
 		while(true) {
 			if ( (exponent & 1) == 1 ) r = multiply2(p,r);
 			exponent= exponent >> 1;
@@ -348,17 +348,48 @@ class BigInt_
 		return r;
 	}
 	
-	public static function random(bits:Int32) : BigInt_
+	public static function randomPrime(bits:Int32 , tolerance:UInt):BigInt_
+	{
+		if ( bits < 2 ) throw BigIntExceptions.INVALID_ARGUMENT;
+		if ( bits == 2 ) return ( (Math.random()<0.5)?BigInt.TWO:BigInt.fromInt(3));
+		var r = new MutableBigInt_();
+		do {
+			var bytes = randomBytes(bits);
+			var  excessBits = 8 * bytes.length - bits;
+			bytes.set(0,bytes.get(0)|(1 << (7 - excessBits)));
+			bytes.set(bytes.length-1,bytes.get(bytes.length-1)|1);
+			r.setFromBigEndianBytesSigned(bytes);
+			if ( bits > 10 ) {
+				while(!equals2Int(r.gcd(BigInt.SMALL_PRIMES_PRODUCT),1)) 
+				{
+					BigIntArithmetic.addInt(r, r, 2);
+				}
+			}
+		} while (!r.isProbablePrime(tolerance));
+		BigIntArithmetic.negate(r, r);
+		return r;
+	}
+	
+	public static function randomInRange(min:BigInt_, max:BigInt_):BigInt_
+	{
+		var initCheck = BigIntArithmetic.compare(min, max);
+		if ( initCheck == 0) return min;
+		if ( initCheck > 0 ) throw BigIntExceptions.INVALID_ARGUMENT;
+		if ( min.bitLength() > (max.bitLength()>>1)) return add2(randomInRange(BigInt.ZERO,sub2(max,min)),min);
+		for(i in 0...1000) {
+			var rnd = random(max.bitLength());
+			if ( BigIntArithmetic.compare(rnd, min) >= 0 && BigIntArithmetic.compare(rnd, max) <= 0) {
+				return rnd;
+			}
+		}
+		return add2(random(sub2(max,min).bitLength()-1),min);
+	}
+	
+	public static function random(bits:Int32 ):BigInt_
 	{
 		if ( bits <= 0 ) return BigInt.ZERO;
 		var r = new MutableBigInt_();
-		var countBytes:Int = Std.int((bits+7)/8);
-		var randomBytes = Bytes.alloc(countBytes);
-		for(j in 0...countBytes) {
-			var rndN = Math.floor( Math.random() * 256 );
-			randomBytes.set(j,rndN);
-		}
-		r.setFromBigEndianBytesSigned(randomBytes);
+		r.setFromBigEndianBytesSigned(randomBytes(bits));
 		r.compact();
 		return r;
 	}
@@ -422,10 +453,8 @@ class BigInt_
 		m = arithmeticShiftRight2(m,lsb);
 		var num:BigInt_;
 		for(i in 0...rounds) {
-			do { 
-				num = random(bitLength());
-			} while (BigIntArithmetic.compare(num, BigInt.ONE) <= 0 ||  BigIntArithmetic.compare(num, this) >= 0  );
-			var z:BigInt_ = BigInt_.modPow(m,this,num);
+			num = randomInRange(BigInt.TWO,minusOne);
+			var z:BigInt_ = num.modPow(m,this);
 			if ( BigIntArithmetic.compare(z, BigInt.ONE) != 0 && BigIntArithmetic.compare(z, minusOne) != 0) {
 				var j:Int = 1;
 				while ( j<=lsb  && BigIntArithmetic.compare(z, minusOne) != 0) 
@@ -433,7 +462,7 @@ class BigInt_
 					if ( BigIntArithmetic.compare(z, BigInt.ONE) == 0 || j == lsb) {
 					  return false;
 					}
-					z = BigInt_.modPow(BigInt.TWO,this,z);
+					z = z.modPow(BigInt.TWO,this);
 					j++;
 				}
 			}
@@ -446,6 +475,20 @@ class BigInt_
 		var bi = new MutableBigInt_();
 		bi.setFromInt(value);
 		return bi;
+	}
+	
+	private static function randomBytes(bits:Int32) : Bytes
+	{
+		var countBytes:Int = Std.int((bits+7)/8);
+		var randomBytes = Bytes.alloc(countBytes);
+		for(j in 0...countBytes) {
+			var rndN = Math.floor( Math.random() * 256 );
+			randomBytes.set(j,rndN);
+		}
+		var excessBits:Int = 8 * countBytes - bits;
+		if ( excessBits > 0)
+			randomBytes.set(0, randomBytes.get(0)&(255 >>> excessBits));
+		return randomBytes;
 	}
 
 	private function new() : Void
