@@ -372,13 +372,15 @@ class BigInt_
 	
 	public static function randomInRange(min:BigInt_, max:BigInt_):BigInt_
 	{
-		var initCheck = MultiwordArithmetic.compareUnsigned(min.m_data, max.m_data, min.m_count);
+		min = min.abs();
+		max = max.abs();
+		var initCheck = BigIntArithmetic.compare(min,max);
 		if ( initCheck == 0) return min;
 		if ( initCheck > 0 ) throw BigIntExceptions.INVALID_ARGUMENT;
 		if ( min.bitLength() > (max.bitLength()>>1)) return add2(randomInRange(BigInt.ZERO,sub2(max,min)),min);
 		for(i in 0...1000) {
 			var rnd = random(max.bitLength());
-			if ( MultiwordArithmetic.compareUnsigned(rnd.m_data, min.m_data, rnd.m_count) >= 0 && MultiwordArithmetic.compareUnsigned(rnd.m_data, max.m_data, rnd.m_count) <= 0) {
+			if ( BigIntArithmetic.compare(rnd,min) >= 0 &&  BigIntArithmetic.compare(rnd,max) <= 0) {
 				return rnd;
 			}
 		}
