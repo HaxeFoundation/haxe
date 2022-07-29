@@ -87,7 +87,7 @@ class BigInt_
 	**/
 	public inline function sign() : Int
 	{
-		return m_data.get(m_count - 1) >> 31;
+		return ( ((m_data.get(m_count - 1) >> 31)& 1)==1) ?-1:0;
 	}
 	
 	public function getLowestSetBit():Int
