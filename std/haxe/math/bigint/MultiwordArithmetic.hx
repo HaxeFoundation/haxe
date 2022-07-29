@@ -408,7 +408,7 @@ class MultiwordArithmetic
 
 		// Based on Figure 9-1 (p. 185) from "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013.
 
-		var j : Int, k : Int, t : Int;
+		var j : Int, k : Int32, t : Int;
 		var m : Int = dividendLength << 1;
 		var un : Int = divisorLength << 1;
 		var n : Int = un;
