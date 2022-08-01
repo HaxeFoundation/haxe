@@ -422,6 +422,7 @@ class TypeApi {
 
 		If `r1` or `r2` are `null`, the result is unspecified.
 	**/
+	@:haxe.warning("-WDeepEnumEquality")
 	public static function rightsEq(r1:Rights, r2:Rights) {
 		if (r1 == r2)
 			return true;

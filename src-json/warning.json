@@ -102,6 +102,11 @@
 		"name": "WConstructorInliningCancelled",
 		"doc": "Constructor call could not be inlined because a field is uninitialized",
 		"parent": "WTyper"
+	},
+	{
+		"name": "WDeepEnumEquality",
+		"doc": "Enum equality checks are physical, consider using Type.enumEq instead",
+		"parent": "WTyper"
 	}
 
 ]

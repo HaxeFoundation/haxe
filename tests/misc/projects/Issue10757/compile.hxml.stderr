@@ -1,0 +1,1 @@
+Main.hx:10: characters 10-18 : Warning : (WDeepEnumEquality) Enum equality checks are physical, consider using Type.enumEq instead

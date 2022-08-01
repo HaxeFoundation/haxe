@@ -36,6 +36,7 @@ using Lambda;
 #if hl
 @:hlNative("macro")
 #end
+@:haxe.warning("-WDeepEnumEquality")
 class TypeTools {
 	static function nullable(complexType:ComplexType):ComplexType
 		return macro:Null<$complexType>;
