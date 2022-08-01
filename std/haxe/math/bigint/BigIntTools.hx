@@ -24,6 +24,7 @@ package haxe.math.bigint;
 
 import haxe.math.bigint.BigIntExceptions;
 
+/* Original code courtesy Chuck Batson (github.com/cbatson) */
 class BigIntTools
 {
 	public static inline function isNull(value : BigInt) : Bool

@@ -22,6 +22,7 @@
  
 package haxe.math.bigint;
 
+/* Original code courtesy Chuck Batson (github.com/cbatson) */
 class BigIntHelper
 {
 

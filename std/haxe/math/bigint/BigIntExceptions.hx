@@ -22,6 +22,7 @@
  
 package haxe.math.bigint;
 
+/* Original code courtesy Chuck Batson (github.com/cbatson) */
 class BigIntExceptions
 {
     public static inline var INVALID_ARGUMENT = "invalid argument";

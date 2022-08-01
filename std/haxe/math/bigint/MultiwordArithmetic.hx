@@ -26,6 +26,7 @@ import haxe.math.bigint.BigIntExceptions;
 import haxe.math.bigint.BigIntHelper;
 import haxe.ds.Vector;
 
+/* Original code courtesy Chuck Batson (github.com/cbatson) */
 @:allow(haxe.math.bigint)
 class MultiwordArithmetic
 {

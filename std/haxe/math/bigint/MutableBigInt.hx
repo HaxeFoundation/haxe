@@ -25,6 +25,7 @@ package haxe.math.bigint;
 import haxe.ds.Vector;
 import haxe.io.Bytes;
 
+/* Original code courtesy Chuck Batson (github.com/cbatson) */
 @:allow(haxe.math.bigint)
 abstract MutableBigInt(MutableBigInt_)
 {
