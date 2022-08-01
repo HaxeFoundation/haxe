@@ -356,7 +356,7 @@ module Inheritance = struct
 			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
 			let make_implicit_field () =
-				let cf = {f with cf_overloads = []} in
+				let cf = {f with cf_overloads = []; cf_type = apply_params intf.cl_params params f.cf_type} in
 				begin try
 					let cf' = PMap.find cf.cf_name c.cl_fields in
 					ctx.com.overload_cache#remove (c.cl_path,f.cf_name);
