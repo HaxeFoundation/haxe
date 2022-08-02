@@ -797,7 +797,8 @@ let update_cache_dependencies com t =
 				| Some t ->
 					check_t m t
 				| _ ->
-					()
+					(* Bind any still open monomorph that's part of a signature to Dynamic now (issue #10653) *)
+					Monomorph.do_bind r t_dynamic;
 		end
 		| TLazy f ->
 			check_t m (lazy_type f)
