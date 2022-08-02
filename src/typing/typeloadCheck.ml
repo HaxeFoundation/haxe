@@ -366,6 +366,10 @@ module Inheritance = struct
 				end;
 				cf
 			in
+			let is_method () = match f.cf_kind with
+				| Method _ -> true
+				| Var _ -> false
+			in
 			try
 				let map2, t2, f2 = class_field_no_interf c f.cf_name in
 				let t2, f2 =
@@ -399,16 +403,16 @@ module Inheritance = struct
 								display_error ctx.com (compl_msg (error_msg (Unify l))) p;
 							end
 				)
-			with
-				| Not_found when (has_class_flag c CAbstract) ->
+			with Not_found ->
+				if (has_class_flag c CAbstract) && is_method() then begin
 					let cf = make_implicit_field () in
 					add_class_field_flag cf CfAbstract;
-				| Not_found when has_class_field_flag f CfDefault ->
+				end else if has_class_field_flag f CfDefault then begin
 					let cf = make_implicit_field () in
 					cf.cf_expr <- None;
 					add_class_field_flag cf CfExtern;
 					add_class_field_flag cf CfOverride;
-				| Not_found when not (has_class_flag c CInterface) ->
+				end else if not (has_class_flag c CInterface) then begin
 					if Diagnostics.error_in_diagnostics_run ctx.com c.cl_pos then
 						DynArray.add missing (f,t)
 					else begin
@@ -421,7 +425,7 @@ module Inheritance = struct
 						in
 						display_error ctx.com msg p
 					end
-				| Not_found -> ()
+				end
 		in
 		let check_field _ cf =
 			check_field cf;
