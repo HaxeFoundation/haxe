@@ -36,6 +36,12 @@ open Operators
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
 
+let mono_or_dynamic ctx with_type p = match with_type with
+	| WithType.NoValue ->
+		t_dynamic
+	| Value _ | WithType _ ->
+		spawn_monomorph ctx p
+
 let get_iterator_param t =
 	match follow t with
 	| TAnon a ->
@@ -1476,7 +1482,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 	match e with
 	| None when is_abstract_ctor ->
 		let e_cast = mk (TCast(get_this ctx p,None)) ctx.ret p in
-		mk (TReturn (Some e_cast)) t_dynamic p
+		mk (TReturn (Some e_cast)) (mono_or_dynamic ctx with_type p) p
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
@@ -1485,7 +1491,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 			| WithType.Value (Some ImplicitReturn) -> true
 			| _ -> false
 		in
-		mk (TReturn None) (if expect_void then v else t_dynamic) p
+		mk (TReturn None) (if expect_void then v else (mono_or_dynamic ctx with_type p)) p
 	| Some e ->
 		if is_abstract_ctor then begin
 			match fst e with
@@ -1511,18 +1517,19 @@ and type_return ?(implicit=false) ctx e with_type p =
 					| _ -> ()
 					end;
 					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+					let t = mono_or_dynamic ctx with_type p in
 					mk (TBlock [
 						e;
-						mk (TReturn None) t_dynamic p
-					]) t_dynamic e.epos;
+						mk (TReturn None) t p
+					]) t e.epos;
 				| _ ->
-					mk (TReturn (Some e)) t_dynamic p
+					mk (TReturn (Some e)) (mono_or_dynamic ctx with_type p) p
 		with Error(err,p) ->
 			check_error ctx err p;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
 				follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
 			let e_null = mk (TConst TNull) (mk_mono()) p in
-			mk (TReturn (Some e_null)) t_dynamic p
+			mk (TReturn (Some e_null)) (mono_or_dynamic ctx with_type p) p
 
 and type_cast ctx e t p =
 	let tpos = pos t in
@@ -1915,7 +1922,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->
-				Texpr.Builder.make_null t_dynamic p
+				Texpr.Builder.make_null (mono_or_dynamic ctx with_type p) p
 			| Some e ->
 				(* type the return expression to see if there are more errors
 				   as well as use its type as if there was no `return`, since
@@ -1925,17 +1932,17 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			type_return ctx e with_type p
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx.com "Break outside loop" p;
-		mk TBreak t_dynamic p
+		mk TBreak (mono_or_dynamic ctx with_type p) p
 	| EContinue ->
 		if not ctx.in_loop then display_error ctx.com "Continue outside loop" p;
-		mk TContinue t_dynamic p
+		mk TContinue (mono_or_dynamic ctx with_type p) p
 	| ETry (e1,[]) ->
 		type_expr ctx e1 with_type
 	| ETry (e1,catches) ->
 		type_try ctx e1 catches with_type p
 	| EThrow e ->
 		let e = type_expr ctx e WithType.value in
-		mk (TThrow e) (spawn_monomorph ctx p) p
+		mk (TThrow e) (mono_or_dynamic ctx with_type p) p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
