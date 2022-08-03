@@ -1999,10 +1999,12 @@ class texpr_to_jvm
 			jm#return;
 		| TReturn (Some e1) ->
 			self#texpr rvalue_any e1;
-			let jsig = Option.get return_type in
-			jm#cast jsig;
-			self#emit_block_exits false;
-			jm#return;
+			if not (jm#is_terminated) then begin
+				let jsig = Option.get return_type in
+				jm#cast jsig;
+				self#emit_block_exits false;
+				jm#return;
+			end
 		| TFunction tf ->
 			self#tfunction ret e tf
 		| TArrayDecl el when not (need_val ret) ->

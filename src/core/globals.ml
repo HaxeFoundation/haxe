@@ -156,3 +156,5 @@ module MessageKind = struct
 end
 
 type compiler_message = string * pos * MessageKind.t * MessageSeverity.t
+
+let i32_31 = Int32.of_int 31

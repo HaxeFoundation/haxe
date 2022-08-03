@@ -557,7 +557,7 @@ let type_assign ctx e1 e2 with_type p =
 	in
 	match e1 with
 	| AKNo s -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
-	| AKUsingField _ ->
+	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 		typing_error ("Cannot access function " ^ name ^ " for writing") p
@@ -654,7 +654,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		(try type_non_assign_op ctx op e1 e2 true true with_type p
 		with Not_found -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		)
-	| AKUsingField _ ->
+	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr e ->
 		let e,vr = process_lhs_expr ctx "lhs" e in
@@ -898,5 +898,5 @@ let type_unop ctx op flag e with_type p =
 				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				find_overload_or_make e
 			end
-		| AKUsingField _ | AKResolve _ ->
+		| AKUsingField _ | AKResolve _ | AKSafeNav _ ->
 			typing_error "Invalid operation" p

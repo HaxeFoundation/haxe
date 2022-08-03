@@ -11,7 +11,6 @@ module TypeFieldConfig = struct
 	type t = {
 		allow_resolve : bool;
 		do_resume : bool;
-		safe : bool;
 	}
 
 	let allow_resolve cfg = cfg.allow_resolve
@@ -21,13 +20,11 @@ module TypeFieldConfig = struct
 	let default = {
 		allow_resolve = true;
 		do_resume = false;
-		safe = false;
 	}
 
 	let create resume = {
 		allow_resolve = true;
 		do_resume = resume;
-		safe = false;
 	}
 
 	let with_resume cfg = {cfg with do_resume = true}
@@ -566,29 +563,6 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
-
-(* Deal with safe-access mode here *)
-let type_field cfg ctx e i p mode (with_type : WithType.t) =
-	if not cfg.TypeFieldConfig.safe then
-		type_field cfg ctx e i p mode with_type
-	else begin
-		let vr = new value_reference ctx in
-		let e1 = vr#get_expr "tmp" e in
-		let enull = Builder.make_null e.etype e.epos in
-		let eneq = Builder.binop OpNotEq e1 enull ctx.t.tbool e.epos in
-		let acc_then = type_field cfg ctx e1 i p mode with_type in
-		(* SAFE TODO: check if we want a custom AK mode for this *)
-		let ethen = !acc_get_ref ctx acc_then p in
-		let tnull = ctx.t.tnull ethen.etype in
-		let ethen = if not (is_nullable ethen.etype) then
-			mk (TCast(ethen,None)) tnull e.epos
-		else
-			ethen
-		in
-		let eelse = Builder.make_null tnull ethen.epos in
-		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull p in
-		AKExpr (vr#to_texpr eif)
-	end
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
 

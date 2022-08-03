@@ -1838,8 +1838,6 @@ let init_class ctx c p context_init herits fields =
 	if has_struct_init then
 		if (has_class_flag c CInterface) then
 			display_error ctx.com "@:structInit is not allowed on interfaces" struct_init_pos
-		else if (has_class_flag c CAbstract) then
-			display_error ctx.com "@:structInit is not allowed on abstract classes" struct_init_pos
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
