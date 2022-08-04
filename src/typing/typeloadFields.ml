@@ -1101,7 +1101,14 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					a.a_to_field <- (TLazy r, cf) :: a.a_to_field
 				| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 					if fctx.is_macro then typing_error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
-					a.a_array <- cf :: a.a_array;
+					begin match follow cf.cf_type with
+					| TFun(_ :: _ :: args,_) when is_empty_or_pos_infos args ->
+						a.a_array_read <- cf :: a.a_array_read;
+					| TFun(_ :: _ :: _ :: args,_) when is_empty_or_pos_infos args ->
+						a.a_array_write <- cf :: a.a_array_write;
+					| _ ->
+						typing_error (cf.cf_name ^ ": Invalid number of arguments for array access function") p
+					end;
 					allow_no_expr();
 				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
 					typing_error (cf.cf_name ^ ": Assignment overloading is not supported") p;
@@ -1798,7 +1805,8 @@ let init_class ctx c p context_init herits fields =
 		a.a_from_field <- List.rev a.a_from_field;
 		a.a_ops <- List.rev a.a_ops;
 		a.a_unops <- List.rev a.a_unops;
-		a.a_array <- List.rev a.a_array;
+		a.a_array_read <- List.rev a.a_array_read;
+		a.a_array_write <- List.rev a.a_array_write;
 	| None -> ());
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;

@@ -336,7 +336,8 @@ and tabstract = {
 	mutable a_from_field : (t * tclass_field) list;
 	mutable a_to : t list;
 	mutable a_to_field : (t * tclass_field) list;
-	mutable a_array : tclass_field list;
+	mutable a_array_read : tclass_field list;
+	mutable a_array_write : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;

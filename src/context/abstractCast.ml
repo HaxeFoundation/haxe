@@ -123,8 +123,7 @@ let prepare_array_access_field ctx a pl cf p =
 		) monos cf.cf_params;
 	in
 	let get_ta() =
-		let ta = apply_params a.a_params pl a.a_this in
-		if has_class_field_flag cf CfImpl then ta
+		if has_class_field_flag cf CfImpl then apply_params a.a_params pl a.a_this
 		else TAbstract(a,pl)
 	in
 	map,check_constraints,get_ta
@@ -147,9 +146,9 @@ let find_array_read_access_raise ctx a pl e1 p =
 				end
 			| _ -> loop cfl
 	in
-	loop a.a_array
+	loop a.a_array_read
 
-let find_array_write_access_raise ctx a pl e1 e2  p =
+let find_array_write_access_raise ctx a pl e1 e2 p =
 	let rec loop cfl =
 		match cfl with
 		| [] -> raise Not_found
@@ -168,7 +167,7 @@ let find_array_write_access_raise ctx a pl e1 e2  p =
 				end
 			| _ -> loop cfl
 	in
-	loop a.a_array
+	loop a.a_array_write
 
 let find_array_read_access ctx a tl e1 p =
 	try

@@ -321,7 +321,7 @@ let rec handle_signature_display ctx e_ast with_type =
 						end
 					| _ ->
 						None
-				) a.a_array in
+				) (a.a_array_read @ a.a_array_write) in
 				raise_signatures sigs 0 0 SKArrayAccess
 			| _ ->
 				raise_signatures [] 0 0 SKArrayAccess

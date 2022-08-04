@@ -434,7 +434,7 @@ let array_access ctx e1 e2 mode p =
 	let has_abstract_array_access = ref false in
 	try
 		(match follow e1.etype with
-		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
+		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array_write <> [] || a.a_array_read <> [] ->
 			begin match mode with
 			| MSet _ ->
 				(* resolve later *)

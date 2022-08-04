@@ -544,7 +544,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			let has_special_field a =
 				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
 				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
-				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
+				|| List.exists (fun cf -> cf.cf_name = i) a.a_array_read
+				|| List.exists (fun cf -> cf.cf_name = i) a.a_array_write
 			in
 			match follow t with
 			| TAnon { a_status = { contents = Statics { cl_kind = KAbstractImpl a } } }
