@@ -570,8 +570,13 @@ let type_assign ctx e1 e2 with_type p =
 		let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
 		dispatcher#accessor_call fa [] [e2]
 	| AKAccess(a,tl,c,ebase,ekey) ->
-		let e2 = type_rhs WithType.value in
-		mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey e2 p) c ebase p
+		let candidates = AbstractCast.ArrayWrite.get_list_from_key ctx a tl ekey p in
+		let with_type = match candidates with
+			| [(_,t)] -> WithType.with_type t
+			| _ -> WithType.value
+		in
+		let e2 = type_rhs with_type in
+		mk_array_set_call ctx (AbstractCast.ArrayWrite.filter_by_value a tl ekey.etype e2 p candidates) c ebase p
 	| AKResolve(sea,name) ->
 		let eparam = sea.se_this in
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
@@ -694,7 +699,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let vr = new value_reference ctx in
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
-		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
+		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.ArrayWrite.find_array_write_access ctx a tl ekey eget p in
 		let et = type_module_type ctx (TClassDecl c) None p in
 		let e = match cf_set.cf_expr,cf_get.cf_expr with
 			| None,None ->
@@ -890,7 +895,7 @@ let type_unop ctx op flag e with_type p =
 				let e_one = mk (TConst (TInt (Int32.of_int 1))) ctx.com.basic.tint p in
 				let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
 				(* set *)
-				let e_set = mk_array_set_call ctx (AbstractCast.find_array_write_access_raise ctx a tl ekey e_op p) c ebase p in
+				let e_set = mk_array_set_call ctx (AbstractCast.ArrayWrite.find_array_write_access_raise ctx a tl ekey e_op p) c ebase p in
 				let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
 				mk (TBlock el) e_set.etype p
 			with Not_found ->

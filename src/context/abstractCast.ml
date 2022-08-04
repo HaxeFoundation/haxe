@@ -148,27 +148,6 @@ let find_array_read_access_raise ctx a pl e1 p =
 	in
 	loop a.a_array_read
 
-let find_array_write_access_raise ctx a pl e1 e2 p =
-	let rec loop cfl =
-		match cfl with
-		| [] -> raise Not_found
-		| cf :: cfl ->
-			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
-			match follow (map cf.cf_type) with
-			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
-				begin try
-					Type.unify tab (get_ta());
-					let e1 = cast_or_unify_raise ctx ta1 e1 p in
-					let e2 = cast_or_unify_raise ctx ta2 e2 p in
-					check_constraints();
-					cf,tf,r,e1,e2
-				with Unify_error _ | Error (Unify _,_) ->
-					loop cfl
-				end
-			| _ -> loop cfl
-	in
-	loop a.a_array_write
-
 let find_array_read_access ctx a tl e1 p =
 	try
 		find_array_read_access_raise ctx a tl e1 p
@@ -176,12 +155,61 @@ let find_array_read_access ctx a tl e1 p =
 		let s_type = s_type (print_context()) in
 		typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 
-let find_array_write_access ctx a tl e1 e2 p =
-	try
-		find_array_write_access_raise ctx a tl e1 e2 p
-	with Not_found ->
-		let s_type = s_type (print_context()) in
-		typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
+module ArrayWrite = struct
+	let get_list_from_key ctx a pl e1 p =
+		let rec loop acc cfl =
+			match cfl with
+			| [] ->
+				List.rev acc
+			| cf :: cfl ->
+				let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
+				match follow (map cf.cf_type) with
+				| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
+					begin try
+						Type.unify tab (get_ta());
+						let e1 = cast_or_unify_raise ctx ta1 e1 p in
+						let f e2 =
+							let e2 = cast_or_unify_raise ctx ta2 e2 p in
+							check_constraints();
+							cf,tf,r,e1,e2
+						in
+						loop ((f,ta2) :: acc) cfl
+					with Unify_error _ | Error (Unify _,_) ->
+						loop acc cfl
+					end
+				| _ -> loop acc cfl
+		in
+		loop [] a.a_array_write
+
+	let filter_by_value_raise candidates e2 =
+		let rec loop candidates = match candidates with
+			| [] ->
+				raise Not_found
+			| (f,_) :: candidates ->
+				try
+					f e2
+				with Unify_error _ | Error (Unify _,_) ->
+					loop candidates
+		in
+		loop candidates
+
+	let catch_write_exception a tl t1 t2 p f =
+		try
+			f ()
+		with Not_found ->
+			let s_type = s_type (print_context()) in
+			typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type t1) (s_type t2)) p
+
+	let filter_by_value a tl t1 e2 p candidates =
+		catch_write_exception a tl t1 e2.etype p (fun () -> filter_by_value_raise candidates e2)
+
+	let find_array_write_access_raise ctx a tl e1 e2 p =
+		let candidates = get_list_from_key ctx a tl e1 p in
+		filter_by_value_raise candidates e2
+
+	let find_array_write_access ctx a tl e1 e2 p =
+		catch_write_exception a tl e1.etype e2.etype p (fun () -> find_array_write_access_raise ctx a tl e1 e2 p)
+end
 
 let find_multitype_specialization com a pl p =
 	let uctx = default_unification_context in
