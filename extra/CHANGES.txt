@@ -1,4 +1,10 @@
-2021-03-06 4.2.5:
+2022-XX-XX 4.2.6:
+
+	Bugfixes:
+
+	php : fixed serialization/unserialization of anonymous functions in two different haxe-generated applications (#10736)
+
+2022-03-06 4.2.5:
 
 	New features:
 
