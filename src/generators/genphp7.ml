@@ -2387,57 +2387,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match fields with
 				| [] -> self#write ("new " ^ (self#use hxanon_type_path) ^ "()")
 				| _ ->
-					let inits,args_exprs,args_names =
-						List.fold_left (fun (inits,args_exprs,args_names) ((name,p,quotes), e) ->
-							let field,arg_name =
-								if quotes = NoQuotes then name,name
-								else "{" ^ (quote_string name) ^ "}", "_hx_" ^ (string_of_int (List.length args_exprs))
-							in
-							(field,mk (TIdent ("$"^arg_name)) e.etype p) :: inits, e :: args_exprs, arg_name :: args_names
-						) ([],[],[]) fields
-					in
-					let anon_name, declare_class =
-						let key = List.map (fun ((name,_,_),_) -> name) fields in
-						try
-							Hashtbl.find ctx.pgc_anons key, false
-						with Not_found ->
-							let name = "_HxAnon_" ^ self#get_name ^ (string_of_int (Hashtbl.length ctx.pgc_anons)) in
-							Hashtbl.add ctx.pgc_anons key name;
-							name, true
-					in
-					self#write ("new " ^ anon_name ^ "(");
-					write_args self#write self#write_expr (List.rev args_exprs);
-					self#write ")";
-					if declare_class then begin
-						(* save writer's state *)
-						let original_buffer = buffer
-						and original_indentation = self#get_indentation in
-						let sm_pointer_before_body = get_sourcemap_pointer sourcemap in
-						(* generate a class for this anon *)
-						buffer <- ctx.pgc_bottom_buffer;
-						self#set_indentation 0;
-						self#write ("\nclass " ^ anon_name ^ " extends " ^ (self#use hxanon_type_path) ^ " {\n");
-						self#indent_more;
-						self#write_with_indentation "function __construct(";
-						write_args self#write (fun name -> self#write ("$" ^ name)) (List.rev args_names);
-						self#write ") {\n";
-						self#indent_more;
-						List.iter (fun (field,e) ->
-							self#write_with_indentation "$this->";
-							self#write field;
-							self#write " = ";
-							self#write_expr e;
-							self#write ";\n";
-						) (List.rev inits);
-						self#indent_less;
-						self#write_line "}";
-						self#indent_less;
-						self#write_with_indentation "}\n";
-						(* restore writer's state *)
-						buffer <- original_buffer;
-						self#set_indentation original_indentation;
-						set_sourcemap_pointer sourcemap sm_pointer_before_body
-					end
+					self#write ("new " ^ (self#use hxanon_type_path)  ^ "(");
+					self#write_assoc_array_decl fields;
+					self#write ")"
 		(**
 			Writes specified type to output buffer depending on type of expression.
 		*)
