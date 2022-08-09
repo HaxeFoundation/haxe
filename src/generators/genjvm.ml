@@ -130,7 +130,7 @@ class file_output
 	method add_entry (content : string) (name : string) =
 		let path = base_path ^ name in
 		Path.mkdir_from_path path;
-		let ch = open_out path in
+		let ch = open_out_bin path in
 		output_string ch content;
 		close_out ch
 
