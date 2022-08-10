@@ -37,6 +37,13 @@
   shell: pwsh
   run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
 
+# required to be able to retrieve the revision
+- name: Mark directory as safe
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
+
 - name: Set ADD_REVISION=1 for non-release
   if: ${{ !startsWith(github.ref, 'refs/tags/') }}
   shell: pwsh
