@@ -312,7 +312,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		if mode = MGet then
-			AKExpr (null (spawn_monomorph ctx p) p)
+			AKExpr (null (ctx.t.tnull (spawn_monomorph ctx p)) p)
 		else
 			AKNo i
 	| _ ->
