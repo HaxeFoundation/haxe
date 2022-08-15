@@ -311,9 +311,25 @@ let rec type_ident_raise ctx i p mode with_type =
 		| FunMemberClassLocal | FunMemberAbstractLocal -> typing_error "Cannot access super inside a local function" p);
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
-		if mode = MGet then
-			AKExpr (null (ctx.t.tnull (spawn_monomorph ctx p)) p)
-		else
+		if mode = MGet then begin
+			let tnull () = ctx.t.tnull (spawn_monomorph ctx p) in
+			let t = match with_type with
+				| WithType.WithType(t,_) ->
+					begin match follow t with
+					| TMono r ->
+						(* If our expected type is a monomorph, bind it to Null<?>. *)
+						Monomorph.do_bind r (tnull())
+					| _ ->
+						(* Otherwise there's no need to create a monomorph, we can just type the null literal
+						   the way we expect it. *)
+						()
+					end;
+					t
+				| _ ->
+					tnull()
+			in
+			AKExpr (null t p)
+		end else
 			AKNo i
 	| _ ->
 	try
