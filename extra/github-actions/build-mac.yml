@@ -20,13 +20,16 @@
     cd zlib-$ZLIB_VERSION
     ./configure
     make && make install
+    cd ..
     curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
     cd mbedtls-$MBEDTLS_VERSION
     make && make install
+    cd ..
     curl -L https://github.com/PhilipHazel/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-$PCRE2_VERSION.tar.gz | tar xz
     cd pcre2-$PCRE2_VERSION
     ./configure --enable-utf8 --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
     make && make install
+    cd ..
 
 
 - name: Install OCaml libraries
