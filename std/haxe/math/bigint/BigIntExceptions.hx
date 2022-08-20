@@ -25,8 +25,11 @@ package haxe.math.bigint;
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
 class BigIntExceptions
 {
-    public static inline var INVALID_ARGUMENT = "invalid argument";
-    public static inline var BUFFER_TOO_SMALL = "buffer too small";
-	public static inline var DIVISION_BY_ZERO = "division by zero";
-	public static inline var NEGATIVE_EXPONENT = "Negative exponent";
+    public static inline var INVALID_ARGUMENT = "Invalid argument";
+    public static inline var BUFFER_TOO_SMALL = "Buffer too small";
+    public static inline var DIVISION_BY_ZERO = "Division by zero";
+    public static inline var NEGATIVE_EXPONENT = "Negative exponent";
+    public static inline var INVALID_OPERATION = "Invalid operation";
+    public static inline var NEGATIVE_MODULUS = "Modulus should be positive";
+    public static inline var EVEN_VALUES = "Both values are even";
 }

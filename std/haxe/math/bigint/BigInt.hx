@@ -145,6 +145,11 @@ abstract BigInt(BigInt_)
 		return new BigInt(this.abs());
 	}
 	
+	public function modInverse(modulus:BigInt_) : BigInt
+	{
+		return new BigInt(this.modInverse(modulus));
+	}
+	
 	// Finds the greatest common denominator of this and b
 	public function gcd(b:BigInt) : BigInt
 	{

@@ -349,6 +349,89 @@ class BigInt_
 		return r;
 	}
 	
+	/* hac 14.61, pp. 608 */
+	public function modInverse(modulus:BigInt_):BigInt_ 
+	{
+		if (modulus.sign() == -1 || modulus.isZero())
+			throw BigIntExceptions.NEGATIVE_MODULUS;
+		if (equals2Int(modulus, 1))
+			return BigInt.ZERO;
+
+		var isModulusEven:Bool = (BigIntArithmetic.bitwiseAndInt(modulus, 1) == 0);
+		if ((BigIntArithmetic.bitwiseAndInt(this, 1) == 0) && isModulusEven || modulus.isZero())
+			return BigInt.ZERO;
+
+		var x:BigInt_ = MutableBigInt_.fromBigInt(this);
+		var y:BigInt_ = MutableBigInt_.fromBigInt(modulus);
+
+		if (x.sign() == -1 || BigIntArithmetic.compare(x, modulus) >= 0)
+			x = modulus2(x, modulus);
+		if (equals2Int(x, 1))
+			return BigInt.ONE;
+
+		if ((BigIntArithmetic.bitwiseAndInt(x, 1) == 0) && (BigIntArithmetic.bitwiseAndInt(y, 1) == 0))
+			throw BigIntExceptions.EVEN_VALUES;
+
+		if (!isModulusEven) {
+			// fast odd calculation
+			return modInverseOdd(x, y);
+		}
+
+		var a:BigInt_ = fromInt(1);
+		var b:BigInt_ = fromInt(0);
+		var c:BigInt_ = fromInt(0);
+		var d:BigInt_ = fromInt(1);
+		var u:BigInt_ = MutableBigInt_.fromBigInt(x);
+		var v:BigInt_ = MutableBigInt_.fromBigInt(y);
+
+		do {
+			while ((BigIntArithmetic.bitwiseAndInt(u, 1) == 0)) {
+				u = arithmeticShiftRight2(u, 1);
+				if ((BigIntArithmetic.bitwiseAndInt(a, 1) == 1) || (BigIntArithmetic.bitwiseAndInt(b, 1) == 1)) {
+					a = add2(a, y);
+					b = sub2(b, x);
+				}
+				a = arithmeticShiftRight2(a, 1);
+				b = arithmeticShiftRight2(b, 1);
+			}
+
+			while ((BigIntArithmetic.bitwiseAndInt(v, 1) == 0)) {
+				v = arithmeticShiftRight2(v, 1);
+				if ((BigIntArithmetic.bitwiseAndInt(c, 1) == 1) || (BigIntArithmetic.bitwiseAndInt(d, 1) == 1)) {
+					c = add2(c, y);
+					d = sub2(d, x);
+				}
+
+				c = arithmeticShiftRight2(c, 1);
+				d = arithmeticShiftRight2(d, 1);
+			}
+
+			if (BigIntArithmetic.compare(u, v) >= 0) {
+				u = sub2(u, v);
+				a = sub2(a, c);
+				b = sub2(b, d);
+			} else {
+				v = sub2(v, u);
+				c = sub2(c, a);
+				d = sub2(d, b);
+			}
+		} while (!u.isZero());
+
+		if (!equals2Int(v, 1)) {
+			return BigInt.ZERO;
+		}
+
+		while (BigIntArithmetic.compareInt(c, 0) < 0) {
+			c = add2(c, modulus);
+		}
+
+		while (BigIntArithmetic.compare(c, modulus) >= 0) {
+			c = sub2(c, modulus);
+		}
+
+		return c;
+	}
+	
 	public static function randomPrime(bits:Int32 , tolerance:UInt):BigInt_
 	{
 		if ( bits < 2 ) throw BigIntExceptions.INVALID_ARGUMENT;
@@ -471,6 +554,51 @@ class BigInt_
 			}
 		}
 		return true;
+	}
+	
+	/* hac 14.64, pp. 610 */
+	private function modInverseOdd(y:BigInt_, x:BigInt_):BigInt_ 
+	{
+		var b:BigInt_ = fromInt(0);
+		var d:BigInt_ = fromInt(1);
+		var u:BigInt_ = MutableBigInt_.fromBigInt(x);
+		var v:BigInt_ = MutableBigInt_.fromBigInt(y);
+		do {
+			while ((BigIntArithmetic.bitwiseAndInt(u, 1) == 0)) {
+				u = arithmeticShiftRight2(u, 1);
+				if (BigIntArithmetic.bitwiseAndInt(b, 1) == 1)
+					b = sub2(b, x);
+				b = arithmeticShiftRight2(b, 1);
+			}
+			while ((BigIntArithmetic.bitwiseAndInt(v, 1) == 0)) {
+				v = arithmeticShiftRight2(v, 1);
+				if (BigIntArithmetic.bitwiseAndInt(d, 1) == 1)
+					d = sub2(d, x);
+
+				d = arithmeticShiftRight2(d, 1);
+			}
+			if (BigIntArithmetic.compare(u, v) >= 0) {
+				u = sub2(u, v);
+				b = sub2(b, d);
+			} else {
+				v = sub2(v, u);
+				d = sub2(d, b);
+			}
+		} while (!u.isZero());
+
+		if (!equals2Int(v, 1)) {
+			return BigInt.ZERO;
+		}
+
+		while (BigIntArithmetic.compareInt(d, 0) < 0) {
+			d = add2(d, x);
+		}
+
+		while (BigIntArithmetic.compare(d, x) >= 0) {
+			d = sub2(d, x);
+		}
+
+		return d;
 	}
 
 	private static function newFromInt(value : Int) : BigInt_
