@@ -57,6 +57,21 @@ abstract BigInt(BigInt_)
 		return BigInt_.isNegative1(this);
 	}
 	
+	public inline function isPositive() : Bool
+	{
+		return BigInt_.isPositive1(this);
+	}
+	
+	public inline function isOdd() : Bool
+	{
+		return BigInt_.isOdd1(this);
+	}
+	
+	public inline function isEven() : Bool
+	{
+		return BigInt_.isEven1(this);
+	}
+	
 	public inline function min(other : BigInt ) : BigInt {
 		return new BigInt(this.min(other));
 	}
@@ -188,6 +203,11 @@ abstract BigInt(BigInt_)
 
 	public function bitLength():Int {
 		return this.bitLength();
+	}
+	
+	public function bitCount():Int
+	{
+		return this.bitCount();
 	}
 
 	//-----------------------------------------------------------------------

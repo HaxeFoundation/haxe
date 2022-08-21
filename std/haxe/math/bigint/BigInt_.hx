@@ -82,6 +82,21 @@ class BigInt_
 	{
 		return m_data.get(m_count - 1) < 0;
 	}
+	
+	public function isPositive():Bool
+	{
+		return m_data.get(m_count - 1) >= 0;
+	}
+
+	public function isOdd():Bool
+	{
+		return ( ( m_data.get(0) & 1) == 1 );
+	}
+	
+	public function isEven():Bool
+	{
+		return ( (m_data.get(0) & 1) == 0);
+	}
 
 	/**
 		Retrieve the sign value of this big integer; 0 if positive, -1 if negative.
@@ -105,6 +120,25 @@ class BigInt_
 	public function bitLength():Int {
 		if ( m_count <=0) return 0;
 		return ( 32 * m_count  - BigIntHelper.nlz(m_data.get(m_count-1)^sign()) );
+	}
+	
+	public function bitCount():Int 
+	{
+		var totalBits:Int = 0;
+		var x:Int, m:Int;
+		for (n in 0...this.m_count) {
+			x = this.m_data.get(n);
+			m = (x >> 1) & 0x77777777;
+			x = x - m;
+			m = (m >> 1) & 0x77777777;
+			x = x - m;
+			m = (m >> 1) & 0x77777777;
+			x = x - m;
+			x = (x + (x >> 4)) & 0x0F0F0F0F;
+			x = x * 0x01010101;
+			totalBits += x >> 24;
+		}
+		return totalBits;
 	}
 	
 	public function isProbablePrime(tolerance:UInt):Bool
@@ -791,6 +825,24 @@ class BigInt_
 	private static inline function isNegative1(a : BigInt_) : Bool
 	{
 		return a.isNegative();
+	}
+	
+	@:noCompletion
+	private static inline function isPositive1(a : BigInt_) : Bool
+	{
+		return a.isPositive();
+	}
+
+	@:noCompletion
+	private static inline function isOdd1(a : BigInt_) : Bool
+	{
+		return a.isOdd();
+	}
+
+	@:noCompletion
+	private static inline function isEven1(a : BigInt_) : Bool
+	{
+		return a.isEven();
 	}
 
 	@:noCompletion
