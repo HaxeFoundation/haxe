@@ -141,6 +141,14 @@ class BigInt_
 		return totalBits;
 	}
 	
+	public function testBit(n:Int):Bool
+	{
+		if ( n < 0 ) throw BigIntExceptions.INVALID_ARGUMENT;
+		var chunk = n >> 5; //divide by 32
+		if ( chunk >= m_count) return false;
+		return ( ( m_data.get(chunk) & (1<<(n & 0x1f))) != 0);
+	}
+	
 	public function isProbablePrime(tolerance:UInt):Bool
 	{
 		if ( tolerance <= 0 ) return true;

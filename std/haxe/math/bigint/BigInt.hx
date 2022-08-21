@@ -209,6 +209,11 @@ abstract BigInt(BigInt_)
 	{
 		return this.bitCount();
 	}
+	
+	public function testBit(n:Int):Bool
+	{
+		return this.testBit(n);
+	}
 
 	//-----------------------------------------------------------------------
 	// Operators
