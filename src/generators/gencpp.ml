@@ -6162,13 +6162,31 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
+   let cpp_file_name   = match (String.concat "/" (fst class_path)) with
+      | "" -> (snd class_path) ^ ".cpp"
+      | prefix -> prefix ^ "/" ^ (snd class_path) ^ ".cpp" in
+   let haxe_file_name  = class_def.cl_pos.pfile in
+   let abs_haxe_file   = match Filename.is_relative haxe_file_name with
+      | true -> Path.normalize_path (Filename.concat (Sys.getcwd()) haxe_file_name)
+      | false -> haxe_file_name in
+
+   Printf.printf "%s (%i)\n" cpp_file_name (cpp_file#get_header_size());
+
+   ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name);
+
    if (not (has_class_flag class_def CInterface)) && not nativeGen then begin
       output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
       (match class_def.cl_constructor with
          | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
             with_debug ctx definition.cf_meta (fun no_debug ->
+               ctx.current_func := (DebugDatabase.create_function "new" "__construct");
+
                gen_cpp_function_body ctx class_def false "new" function_def "" "" no_debug;
                output_cpp "\n";
+
+               let current_file = !(ctx.current_file) in
+               let current_func = !(ctx.current_func) in
+               ctx.current_file := { current_file with functions = current_func :: current_file.functions };
             )
          | _ ->  output_cpp " { }\n\n"
       );
@@ -6296,17 +6314,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
 
    let dump_field_name = (fun field -> output_cpp ("\t" ^  (strq field.cf_name) ^ ",\n")) in
-   let cpp_file_name   = match (String.concat "/" (fst class_path)) with
-      | "" -> (snd class_path) ^ ".cpp"
-      | prefix -> prefix ^ "/" ^ (snd class_path) ^ ".cpp" in
-   let haxe_file_name  = class_def.cl_pos.pfile in
-   let abs_haxe_file   = match Filename.is_relative haxe_file_name with
-      | true -> Path.normalize_path (Filename.concat (Sys.getcwd()) haxe_file_name)
-      | false -> haxe_file_name in
-
-   Printf.printf "%s (%i)\n" cpp_file_name (cpp_file#get_header_size());
-
-   ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name);
 
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name false (has_class_flag class_def CInterface))
