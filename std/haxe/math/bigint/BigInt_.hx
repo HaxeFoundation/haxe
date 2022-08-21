@@ -125,18 +125,18 @@ class BigInt_
 	public function bitCount():Int 
 	{
 		var totalBits:Int = 0;
-		var x:Int, m:Int;
+		var x:Int32, m:Int32;
 		for (n in 0...this.m_count) {
 			x = this.m_data.get(n);
-			m = (x >>> 1) & 0x77777777;
+			m = (x >> 1) & 0x77777777;
 			x = x - m;
-			m = (m >>> 1) & 0x77777777;
+			m = (m >> 1) & 0x77777777;
 			x = x - m;
-			m = (m >>> 1) & 0x77777777;
+			m = (m >> 1) & 0x77777777;
 			x = x - m;
-			x = (x + (x >>> 4)) & 0x0F0F0F0F;
+			x = (x + (x >> 4)) & 0x0F0F0F0F;
 			x = x * 0x01010101;
-			totalBits += x >>> 24;
+			totalBits += x >> 24;
 		}
 		return totalBits;
 	}
