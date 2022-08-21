@@ -6066,8 +6066,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
                with_debug ctx definition.cf_meta (fun no_debug ->
                   ctx.ctx_real_this_ptr <- false;
+
+                  ctx.current_func := (DebugDatabase.create_function "new" "__alloc");
+
                   gen_cpp_function_body ctx class_def false "new" function_def "" "" no_debug;
                   out "\n";
+
+                  let current_file = !(ctx.current_file) in
+                  let current_func = !(ctx.current_func) in
+                  ctx.current_file := { current_file with functions = current_func :: current_file.functions };
                )
             | _ -> ()
          end else
@@ -7006,8 +7013,26 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if has_class_flag class_def CAbstract then
          output_h "\n"
       else if inlineContructor then begin
+         let cpp_file_name   = match (String.concat "/" (fst class_path)) with
+            | "" -> (snd class_path) ^ ".h"
+            | prefix -> prefix ^ "/" ^ (snd class_path) ^ ".h" in
+         let haxe_file_name  = class_def.cl_pos.pfile in
+         let abs_haxe_file   = match Filename.is_relative haxe_file_name with
+            | true -> Path.normalize_path (Filename.concat (Sys.getcwd()) haxe_file_name)
+            | false -> haxe_file_name in
+      
+         Printf.printf "%s (%i)\n" cpp_file_name (cpp_file#get_header_size());
+      
+         ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name);
+         
          output_h "\n";
-         outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
+         outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true;
+
+         let current_db   = !(ctx.debug_database) in
+         let current_file = !(ctx.current_file) in
+         let header_size  = cpp_file#get_header_size() in
+         let new_files    = { current_file with header_offset = header_size } :: current_db.files in
+         ctx.debug_database := { current_db with files = new_files }
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
          if can_quick_alloc then
