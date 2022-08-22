@@ -125,28 +125,15 @@ class BigInt_
 	public function bitCount():Int 
 	{
 		var totalBits:Int = 0;
-		var x:Int32, m:Int32;
+		var x:Int32;
 		for (n in 0...this.m_count) {
 			x = this.m_data.get(n);
-			#if cpp trace("x:"+x); #end
-			m = (x >> 1) & 0x77777777;
-			#if cpp trace("m:"+m); #end
-			x = x - m;
-			#if cpp trace("x:"+x); #end
-			m = (m >> 1) & 0x77777777;
-			#if cpp trace("m:"+m); #end
-			x = x - m;
-			#if cpp trace("x:"+x); #end
-			m = (m >> 1) & 0x77777777;
-			#if cpp trace("m:"+m); #end
-			x = x - m;
-			#if cpp trace("x:"+x); #end
+			x = x - ((x >> 1) & 0x55555555);
+			x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
 			x = (x + (x >> 4)) & 0x0F0F0F0F;
-			#if cpp trace("x:"+x); #end
-			x = x * 0x01010101;
-			#if cpp trace("x:"+x); #end
-			totalBits += x >> 24;
-			#if cpp trace("totalBits:"+totalBits); #end
+			x = x + (x >> 8);
+			x = x + (x >> 16);
+			totalBits += x & 0x0000003F;
 		}
 		return totalBits;
 	}
