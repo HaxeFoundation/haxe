@@ -5,7 +5,9 @@ package haxe.atomic;
 #end
 import hl.Atomics;
 
-abstract AtomicObject<T:{}>(hl.NativeArray<T>) {
+// use hl.NativeArray<Dynamic> instead of hl.NativeArray<T>
+// so that the compiler doesn't get confused and emit hl.Ref.make(this.getRef())
+abstract AtomicObject<T:{}>(hl.NativeArray<Dynamic>) {
 	public inline function new(value:T):Void {
 		this = new hl.NativeArray(1);
 		this[0] = value;
