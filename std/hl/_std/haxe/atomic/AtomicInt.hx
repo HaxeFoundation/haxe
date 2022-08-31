@@ -1,8 +1,9 @@
 package haxe.atomic;
 
-#if (hl_ver < version("1.12.0") && !doc_gen)
-#error "Atomic operations require HL 1.12+"
+#if (hl_ver < version("1.13.0") && !doc_gen)
+#error "Atomic operations require HL 1.13+"
 #end
+import hl.Atomics;
 
 abstract AtomicInt(hl.NativeArray<Int>) {
 	public inline function new(value:Int):Void {
@@ -11,38 +12,38 @@ abstract AtomicInt(hl.NativeArray<Int>) {
 	}
 
 	public inline function add(b:Int):Int {
-		return untyped $atomicAdd(this.getRef(), b);
+		return Atomics.add32(this.getRef(), b);
 	}
 
 	public inline function sub(b:Int):Int {
-		return untyped $atomicSub(this.getRef(), b);
+		return Atomics.sub32(this.getRef(), b);
 	}
 
 	public inline function and(b:Int):Int {
-		return untyped $atomicAnd(this.getRef(), b);
+		return Atomics.and32(this.getRef(), b);
 	}
 
 	public inline function or(b:Int):Int {
-		return untyped $atomicOr(this.getRef(), b);
+		return Atomics.or32(this.getRef(), b);
 	}
 
 	public inline function xor(b:Int):Int {
-		return untyped $atomicXor(this.getRef(), b);
+		return Atomics.xor32(this.getRef(), b);
 	}
 
 	public inline function compareExchange(expected:Int, replacement:Int):Int {
-		return untyped $atomicCompareExchange(this.getRef(), expected, replacement);
+		return Atomics.compareExchange32(this.getRef(), expected, replacement);
 	}
 
 	public inline function exchange(value:Int):Int {
-		return untyped $atomicExchange(this.getRef(), value);
+		return Atomics.exchange32(this.getRef(), value);
 	}
 
 	public inline function load():Int {
-		return untyped $atomicLoad(this.getRef());
+		return Atomics.load32(this.getRef());
 	}
 
 	public inline function store(value:Int):Int {
-		return untyped $atomicStore(this.getRef(), value);
+		return Atomics.store32(this.getRef(), value);
 	}
 }

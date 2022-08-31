@@ -1156,11 +1156,6 @@ let interp ctx f args =
 			| _ -> Globals.die "" __LOC__)
 		| ONop _ ->
 			()
-		| (OAtomicAdd (_, _, _)|OAtomicSub (_, _, _)|OAtomicAnd (_, _, _)|
-OAtomicOr (_, _, _)|OAtomicXor (_, _, _)|OAtomicCompareExchange (_, _, _, _)|
-OAtomicExchange (_, _, _)|OAtomicLoad (_, _)|
-OAtomicStore (_, _, _)) ->
-			failwith "Atomics not yet implemented for hl interp"
 		);
 		loop()
 	in
@@ -2284,9 +2279,6 @@ let check code macros =
 				is_obj o;
 				HVoid
 		in
-		let is_atomic r =
-			(match rtype r with HBool | HF32 | HF64 -> error (reg_inf r ^ " should a an integer or a pointer") | _ -> ());
-		in
 		list_iteri reg targs;
 		Array.iteri (fun i op ->
 			pos := i;
@@ -2555,30 +2547,6 @@ let check code macros =
 				reg off HI32;
 			| ONop _ ->
 				();
-			| OAtomicAdd (r, a, b)
-			| OAtomicSub (r, a, b)
-			| OAtomicAnd (r, a, b)
-			| OAtomicOr (r, a, b)
-			| OAtomicXor (r, a, b)  ->
-				int r;
-				reg a (HRef (rtype r));
-				reg b (rtype r);
-			| OAtomicCompareExchange (r, a, expected, replacement) ->
-				is_atomic r;
-				reg a (HRef (rtype r));
-				reg expected (rtype r);
-				reg replacement (rtype r);
-			| OAtomicExchange (r, a, b) ->
-				is_atomic r;
-				reg a (HRef (rtype r));
-				reg b (rtype r);
-			| OAtomicLoad (r, a) ->
-				is_atomic r;
-				reg a (HRef (rtype r));
-			| OAtomicStore (r, a, b) ->
-				is_atomic r;
-				reg a (HRef (rtype r));
-				reg b (rtype r)
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

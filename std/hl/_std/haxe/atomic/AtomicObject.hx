@@ -1,8 +1,9 @@
 package haxe.atomic;
 
-#if (hl_ver < version("1.12.0") && !doc_gen)
-#error "Atomic operations require HL 1.12+"
+#if (hl_ver < version("1.13.0") && !doc_gen)
+#error "Atomic operations require HL 1.13+"
 #end
+import hl.Atomics;
 
 abstract AtomicObject<T:{}>(hl.NativeArray<T>) {
 	public inline function new(value:T):Void {
@@ -11,18 +12,18 @@ abstract AtomicObject<T:{}>(hl.NativeArray<T>) {
 	}
 
 	public inline function compareExchange(expected:T, replacement:T):T {
-		return untyped $atomicCompareExchange(this.getRef(), expected, replacement);
+		return Atomics.compareExchangePtr(this.getRef(), expected, replacement);
 	}
 
 	public inline function exchange(value:T):T {
-		return untyped $atomicExchange(this.getRef(), value);
+		return Atomics.exchangePtr(this.getRef(), value);
 	}
 
 	public inline function load():T {
-		return untyped $atomicLoad(this.getRef());
+		return Atomics.loadPtr(this.getRef());
 	}
 
 	public inline function store(value:T):T {
-		return untyped $atomicStore(this.getRef(), value);
+		return Atomics.storePtr(this.getRef(), value);
 	}
 }
