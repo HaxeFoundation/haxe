@@ -22,6 +22,8 @@
 
 package hl;
 
+import haxe.io.Path;
+
 typedef SentinelHandle = hl.Abstract<"ui_sentinel">;
 
 abstract Sentinel(SentinelHandle) {
@@ -134,6 +136,11 @@ typedef FileOptions = {
 	var ?title:String;
 }
 
+typedef MultipleFileResult = {
+	var path: String;
+	var files: Array<String>;
+}
+
 /**
 	These are the bindings for the HL `ui.hdll` library, which contains some low level system access.
 **/
@@ -168,11 +175,15 @@ class UI {
 		return chooseFile(false, opts);
 	}
 
+	public static function loadFileMultiple(opts:FileOptions) {
+		return chooseFileMultiple(opts);
+	}
+
 	public static function saveFile(opts:FileOptions) {
 		return chooseFile(true, opts);
 	}
 
-	static function chooseFile(save:Bool, opts:FileOptions) @:privateAccess {
+	static function chooseFileOpts(save: Bool, opts: FileOptions, multiple=false ) @:privateAccess {
 		var out:Dynamic = {};
 		if (opts.fileName != null) {
 			var file = sys.FileSystem.absolutePath(opts.fileName);
@@ -206,15 +217,65 @@ class UI {
 		}
 		if (opts.window != null)
 			out.window = opts.window.h;
-		var str = _chooseFile(save, out);
+		if( multiple )
+			out.multiple = true;
+
+		return out;
+	}
+
+	static function chooseFile(save:Bool, opts:FileOptions) @:privateAccess {
+		var str = _chooseFile(save, chooseFileOpts(save, opts) );
 		return str == null ? null : String.fromUCS2(str);
+	}
+
+	static function chooseFileMultiple(opts:FileOptions) : MultipleFileResult @:privateAccess {
+		var loadOpts = chooseFileOpts(false, opts);
+		loadOpts.multiple = true;
+		var bytes = _chooseFile(false, loadOpts );
+		if( bytes == null )
+			return null;
+
+		var path = null;
+		var files = [];
+		var idx = 0;
+		var start = 0;
+		var c: Int;
+		do {
+			c = bytes.getUI16(idx);
+			idx+=2;
+			if( c == 0 ) {
+				var len = idx - start;
+				// Double null means end of list
+				if( len == 2 )
+					break;
+
+				if( path == null )
+					path = String.fromUCS2( bytes.sub(start, idx - start ) );
+				else
+					files.push( String.fromUCS2( bytes.sub(start, idx - start ) ) );
+
+				start = idx;
+			}
+		} while( idx < 2048 );
+
+		// Special case: If only one file is returned, it will be added to path. Separate it out
+		// here for API consistency
+		if( files.length == 0 )	{
+			files.push( Path.withoutDirectory( path ) );
+			path = Path.directory( path );
+		}
+
+		return {
+			path: path,
+			files: files
+		};
 	}
 
 	@:hlNative("ui", "ui_choose_file")
 	static function _chooseFile(forSave:Bool, obj:Dynamic):hl.Bytes {
 		return null;
 	}
-	
+
 	#if (hl_ver >= version("1.12.0"))
 	public static function setClipboardText(text:String):Bool {
 		if(text == null)
@@ -246,5 +307,5 @@ class UI {
 		return null;
 	}
 	#end
-	
+
 }
