@@ -238,22 +238,17 @@ class UI {
 		var path = null;
 		var files = [];
 		var idx = 0;
-		var len = 0;
+		var len = bytes.ucs2Length(idx);
 
-		do {
-			len = bytes.ucs2Length(idx);
-			if( len == 0 )
-				break;
-
+		while( len > 0 ) {
 			var str = String.fromUCS2( bytes.sub(idx, len * 2 + 2 ) );
 			if( path == null )
 				path = str;
 			else
 				files.push( str );
-
 			idx += len * 2 + 2;
 			len = bytes.ucs2Length(idx);
-		} while ( idx < 2048 );
+		}
 
 		// Special case: If only one file is returned, it will be added to path. Separate it out
 		// here for API consistency
