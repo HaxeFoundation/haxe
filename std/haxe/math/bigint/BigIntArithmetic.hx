@@ -392,6 +392,11 @@ class BigIntArithmetic
 			result.setFromInt(0);
 			return;
 		}
+		
+		if ((operand1.bitLength() >= 2500) && (operand2.bitLength() >= 2500)) {
+			multiplyKaratsuba(result, operand1,operand2);
+			return;
+		}
 
 		var resultSize : Int = operand1.m_count + operand2.m_count;
 		result.ensureCapacity(resultSize, false);	// always overwrite result
@@ -698,6 +703,42 @@ class BigIntArithmetic
 	public static function floorLog2(input : BigInt_) : Int
 	{
 		return (input.m_count << 5) - BigIntHelper.nlz(input.m_data.get(input.m_count - 1));
+	}
+	
+	public static function multiplyKaratsuba(result:MutableBigInt_, x:BigInt_, y:BigInt_):Void 
+	{
+		var n = (x.bitLength()>y.bitLength())?x.bitLength():y.bitLength();
+		if ( n < 2500 ) {
+			 multiply(result,x,y);
+			return;
+		}
+		n = (n+1) >> 1; 
+		var b = new MutableBigInt_();
+		arithmeticShiftRight(b,x,n);
+		var a = new MutableBigInt_();
+		arithmeticShiftLeft(a,b,n);
+		subtract(a,x,a);
+		var d = new MutableBigInt_();
+		arithmeticShiftRight(d,y,n);
+		var c = new MutableBigInt_();
+		arithmeticShiftLeft(c,d,n);
+		subtract(c,y,c);
+		var ac = new MutableBigInt_();
+		multiplyKaratsuba(ac,a,c);
+		var bd = new MutableBigInt_();
+		multiplyKaratsuba(bd,b,d);
+		var abcd = new MutableBigInt_();
+		add(a,a,b);
+		add(c,c,d);
+		multiplyKaratsuba(abcd,a,c);
+		var op1 = new MutableBigInt_();
+		arithmeticShiftLeft(op1,bd,2*n);
+        var op2 = new MutableBigInt_();
+		subtract(op2,abcd,ac);
+		subtract(op2,op2,bd);
+		arithmeticShiftLeft(op2,op2,n);
+		add(op2,ac,op2);
+        add(result,op1,op2);
 	}
 
 	//-----------------------------------------------------------------------

@@ -185,6 +185,11 @@ abstract BigInt(BigInt_)
 	{
 		return new BigInt(this.modPow(exponent,modulus));
 	}
+	
+	public function square():BigInt 
+	{
+		return new BigInt(this.square());
+	}
 
 	public function isProbablePrime(tolerance:UInt) : Bool
 	{

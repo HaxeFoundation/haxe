@@ -358,6 +358,13 @@ class BigInt_
 		return bi;
 	}
 	
+	public function square():BigInt_
+	{
+		var  r:MutableBigInt_ = new MutableBigInt_();
+		BigIntArithmetic.multiply(r,this,this); 
+		return r;
+	}
+	
 	public function modPow(exponent:BigInt_, modulus:BigInt_) : BigInt_
 	{
 		if (BigIntArithmetic.compareInt(exponent,0) < 0) throw BigIntExceptions.NEGATIVE_EXPONENT;
