@@ -441,6 +441,28 @@ let get_meta_string meta key =
    loop meta
 ;;
 
+let get_meta_string_list meta key =
+   let rec loop m lst =
+      match m with
+      | [] -> lst
+      | (k,params,_) :: m2  when k=key-> (
+         let rec param_loop p lst = (
+            match p with
+            | [] -> lst
+            | ((Ast.EConst (Ast.String(name,_))),_) :: p2 -> param_loop p2 (lst @ [name])
+            | _ :: p2 -> param_loop p2 lst
+         ) in
+         (loop m2 (lst @ (param_loop params [])))
+      )
+      | _ :: m2 -> (loop m2 lst)
+      in
+   loop meta []
+;;
+
+let get_meta_string_list_combined sep meta key =
+   String.concat sep (get_meta_string_list meta key)
+;;
+
 let get_meta_string_path meta key =
    let rec loop = function
       | [] -> ""
@@ -4669,6 +4691,9 @@ let gen_member_def ctx class_def is_static is_interface field =
    let remap_name = keyword_remap field.cf_name in
    let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
 
+   let hdp = get_meta_string_list_combined "\n\t\t" field.cf_meta Meta.HeaderDefinitionPrepend in
+   if ((String.length hdp) > 0) then output ("\t\t" ^ hdp ^ "\n");
+
    if (is_interface) then begin
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
@@ -4787,7 +4812,11 @@ let gen_member_def ctx class_def is_static is_interface field =
             )
          )
       );
-      end
+   end;
+
+   let hda = get_meta_string_list_combined "\n\t\t" field.cf_meta Meta.HeaderDefinitionAppend in
+   if ((String.length hda) > 0) then output ("\t\t" ^ hda ^ "\n");
+
    ;;
 
 let path_of_string path =
@@ -5347,8 +5376,14 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    gen_open_namespace output_h class_path;
 
+   let attribs = get_meta_string_list_combined " " enum_def.e_meta Meta.HeaderClassNamePrepend in
+
    output_h "\n\n";
-   output_h ("class " ^ class_name ^ " : public " ^ super ^ "\n");
+
+   let hdp = get_meta_string_list_combined "\n" enum_def.e_meta Meta.HeaderDefinitionPrepend in
+   if String.length hdp > 0 then output_h ( hdp ^ "\n" );
+
+   output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super ^ "\n");
    output_h ("{\n\ttypedef " ^ super ^ " super;\n");
    output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
    output_h "\n\tpublic:\n";
@@ -5362,6 +5397,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
 
    PMap.iter (fun _ constructor ->
+      let hdp = get_meta_string_list_combined "\n" constructor.ef_meta Meta.HeaderDefinitionPrepend in
+      if String.length hdp > 0 then output_h ( "\t\t" ^ hdp ^ "\n" );
       let name = keyword_remap constructor.ef_name in
       output_h ( "\t\tstatic " ^  remap_class_name ^ " " ^ name );
       match constructor.ef_type with
@@ -5372,9 +5409,16 @@ let generate_enum_files baseCtx enum_def super_deps meta =
          output_h ";\n";
          output_h ( "\t\tstatic inline " ^  remap_class_name ^ " " ^ name ^
                   "_dyn() { return " ^name ^ "; }\n" );
+      let hda = get_meta_string_list_combined "\n" constructor.ef_meta Meta.HeaderDefinitionAppend in
+      if String.length hda > 0 then output_h ( "\t\t" ^ hda ^ "\n" );
    ) enum_def.e_constrs;
 
-   output_h "};\n\n";
+   output_h "};\n";
+
+   let hda = get_meta_string_list_combined "\n" enum_def.e_meta Meta.HeaderDefinitionAppend in
+   if String.length hda > 0 then output_h ( hda ^ "\n" );
+
+   output_h "\n";
 
    gen_close_namespace output_h class_path;
 
@@ -6709,9 +6753,13 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    gen_open_namespace output_h class_path;
    output_h "\n\n";
    output_h ( get_class_code class_def Meta.HeaderNamespaceCode );
+   output_h ( get_meta_string_list_combined "\n" class_def.cl_meta Meta.HeaderDefinitionPrepend );
 
    let extern_class =  Common.defined common_ctx Define.DllExport in
-   let attribs = "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES" in
+   let custom_attribs = get_meta_string_list_combined " " class_def.cl_meta Meta.HeaderClassNamePrepend in
+   let attribs =
+      "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES" ^
+      (if (String.length custom_attribs) > 0 then " " ^ custom_attribs else "") in
 
    let dump_native_interfaces () =
       List.iter ( fun(c,params) ->
@@ -6850,6 +6898,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    output_h ( get_class_code class_def Meta.HeaderClassCode );
    output_h "};\n\n";
+
+   output_h ( get_meta_string_list_combined "\n" class_def.cl_meta Meta.HeaderDefinitionAppend );
 
    gen_close_namespace output_h class_path;
 

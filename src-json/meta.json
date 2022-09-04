@@ -493,10 +493,31 @@
 		"platforms": ["cpp"]
 	},
 	{
+		"name": "HeaderClassNamePrepend",
+		"metadata": ":headerClassNamePrepend",
+		"doc": "Code to be injected after the class keyword, but before the class name, in the header.",
+		"platforms": ["cpp"],
+		"targets": ["TClass", "TEnum"]
+	},
+	{
 		"name": "HeaderCode",
 		"metadata": ":headerCode",
 		"doc": "Code to be injected into the generated header file.",
 		"platforms": ["cpp"]
+	},
+	{
+		"name": "HeaderDefinitionAppend",
+		"metadata": ":headerDefinitionAppend",
+		"doc": "Code to be injected directly after the definition, in the header.",
+		"platforms": ["cpp"],
+		"targets": ["TClass", "TEnum", "TAbstract", "TClassField"]
+	},
+	{
+		"name": "HeaderDefinitionPrepend",
+		"metadata": ":headerDefinitionPrepend",
+		"doc": "Code to be injected directly before the definition, in the header.",
+		"platforms": ["cpp"],
+		"targets": ["TClass", "TEnum", "TAbstract", "TClassField"]
 	},
 	{
 		"name": "HeaderInclude",
