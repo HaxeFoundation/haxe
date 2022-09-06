@@ -289,6 +289,16 @@ let rec build_call_access ctx acc el mode with_type p =
 		AKExpr (dispatch#field_call fa [] el)
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
+		let e = dispatch#field_call sea.se_access [eparam] el in
+		let e = match sea.se_access.fa_host with
+		| FHAbstract _ when not ctx.allow_transform ->
+			(* transform XXXImpl.field(this,args) back into this.field(args) *)
+			(match e.eexpr with
+			| TCall ({ eexpr = TField(_,name) } as f, abs :: el) -> { e with eexpr = TCall(mk (TField(abs,name)) t_dynamic f.epos, el) }
+			| _ -> assert false)
+		| _ ->
+			e
+		in
 		AKExpr (dispatch#field_call sea.se_access [eparam] el)
 	| AKResolve(sea,name) ->
 		AKExpr (dispatch#expr_call (dispatch#resolve_call sea name) [] el)
