@@ -82,6 +82,13 @@ jobs:
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
 
+      # required to be able to retrieve the revision
+      - name: Mark directory as safe
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
+
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         shell: pwsh
@@ -173,6 +180,13 @@ jobs:
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
 
+      # required to be able to retrieve the revision
+      - name: Mark directory as safe
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
+
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         shell: pwsh
@@ -218,24 +232,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
       - name: Set CONTAINER_ vars
         run: |
           echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
           echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
 
       - name: Build devcontainer
-        run: earthly +devcontainer --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-amd64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-amd64"
+        run: earthly +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-amd64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-amd64"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_USE_INLINE_CACHE: true
           EARTHLY_SAVE_INLINE_CACHE: true
 
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
       - name: Build
-        run: earthly +build --ADD_REVISION="$ADD_REVISION"
+        run: earthly +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-amd64"
@@ -289,24 +303,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
       - name: Set CONTAINER_ vars
         run: |
           echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
           echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
 
       - name: Build devcontainer
-        run: earthly --platform=linux/arm64 +devcontainer --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
+        run: earthly --platform=linux/arm64 +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_USE_INLINE_CACHE: true
           EARTHLY_SAVE_INLINE_CACHE: true
 
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
       - name: Build
-        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION"
+        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-arm64"
@@ -348,21 +362,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
       - name: Set CONTAINER_ vars
         run: |
           echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
           echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
 
       - name: Build devcontainer
-        run: earthly +devcontainer-multiarch --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}"
+        run: earthly +devcontainer-multiarch --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_USE_INLINE_CACHE: true
           EARTHLY_SAVE_INLINE_CACHE: true
+
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
   mac-build:
     runs-on: macos-latest
