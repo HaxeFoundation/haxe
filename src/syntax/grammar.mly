@@ -1272,8 +1272,14 @@ and parse_macro_expr p = parser
 	| [< e = secure_expr >] ->
 		reify_expr e !in_macro
 
-and parse_function p1 inl = parser
-	| [< name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
+and parse_function p1 inl s =
+	let name = match s with parser
+		| [< name = dollar_ident >] -> Some name
+		| [< >] -> None
+	in
+	let pl = parse_constraint_params s in
+	match s with parser
+	| [< '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let make e =
 			let f = {
 				f_params = pl;
@@ -1284,6 +1290,24 @@ and parse_function p1 inl = parser
 			EFunction ((match name with None -> FKAnonymous | Some (name,pn) -> FKNamed ((name,pn),inl)),f), punion p1 (pos e)
 		in
 		make (secure_expr s)
+	| [< >] ->
+		(* Generate pseudo function to avoid toplevel-completion (issue #10691). We check against p1 here in order to cover cases
+		   like `function a|b` *)
+		if would_skip_display_position p1 false s then begin
+			let null_func =
+				let f = {
+					f_params = [];
+					f_type = None;
+					f_args = [];
+					f_expr = None
+				} in
+				let p = punion p1 (next_pos s) in
+				let name = ("_hx_magic",p) in
+				EFunction(FKNamed(name,inl),f),p
+			in
+			null_func
+		end else
+			serror()
 
 and arrow_expr = parser
 	| [< '(Arrow,_); e = expr >] -> e

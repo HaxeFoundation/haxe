@@ -821,9 +821,9 @@ let create compilation_step cs version args =
 			tint = m;
 			tfloat = m;
 			tbool = m;
-			tnull = (fun _ -> die "" __LOC__);
+			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tstring = m;
-			tarray = (fun _ -> die "" __LOC__);
+			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;

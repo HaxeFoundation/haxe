@@ -255,7 +255,7 @@ let reify in_macro =
 		| EBinop (op,e1,e2) ->
 			expr "EBinop" [to_binop op p; loop e1; loop e2]
 		| EField (e,s,efk) ->
-			let p = {p with pmin = p.pmax - String.length s} in
+			let p = patch_string_pos p s in
 			let efk = match efk with
 				| EFNormal -> "Normal"
 				| EFSafe -> "Safe"

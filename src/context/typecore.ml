@@ -81,6 +81,7 @@ type typer_globals = {
 	(* Indicates that Typer.create() finished building this instance *)
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;
+	mutable load_only_cached_modules : bool;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
@@ -192,7 +193,6 @@ type dot_path_part_case =
 type dot_path_part = {
 	name : string;
 	case : dot_path_part_case;
-	kind : efield_kind;
 	pos : pos
 }
 

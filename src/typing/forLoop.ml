@@ -78,7 +78,6 @@ module IterationKind = struct
 	let type_field_config = {
 		Fields.TypeFieldConfig.do_resume = true;
 		allow_resolve = false;
-		safe = false;
 	}
 
 	let get_next_array_element arr iexpr pt p =
@@ -121,14 +120,14 @@ module IterationKind = struct
 					)
 			in
 			try
-				let acc = type_field ({do_resume = true;allow_resolve = false;safe = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 				try_acc acc;
 			with Not_found ->
 				try_last_resort (fun () ->
 					match !dynamic_iterator with
 					| Some e -> e
 					| None ->
-						let acc = type_field ({do_resume = resume;allow_resolve = false;safe = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 						try_acc acc
 				)
 		in
@@ -155,7 +154,7 @@ module IterationKind = struct
 			(try
 				(* first try: do we have an @:arrayAccess getter field? *)
 				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r,_,_ = AbstractCast.find_array_access_raise ctx a tl todo None p in
+				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
 				let get_next e_base e_index t p =
 					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
 				in
