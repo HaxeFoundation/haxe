@@ -261,7 +261,15 @@ let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 		dispatch#field_call fa [] el
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
-		dispatch#field_call sea.se_access [eparam] el
+		let e = dispatch#field_call sea.se_access [eparam] el in
+		(match sea.se_access.fa_host with
+		| FHAbstract _ when not ctx.allow_transform ->
+			(* transform XXXImpl.field(this,args) back into this.field(args) *)
+			(match e.eexpr with
+			| TCall ({ eexpr = TField(_,name) } as f, abs :: el) -> { e with eexpr = TCall(mk (TField(abs,name)) t_dynamic f.epos, el) }
+			| _ -> assert false)
+		| _ ->
+			e)
 	| AKResolve(sea,name) ->
 		dispatch#expr_call (dispatch#resolve_call sea name) [] el
 	| AKNo _ | AKAccess _ ->
