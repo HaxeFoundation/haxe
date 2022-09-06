@@ -1861,6 +1861,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| TWhile (_, body, DoWhile) -> is_dead_end body
 			| TIf (_, if_body, Some else_body) -> is_dead_end if_body && is_dead_end else_body
 			| TBlock exprs -> List.exists is_dead_end exprs
+			| TCall (ecall, args) -> List.exists is_dead_end args
 			| TMeta (_, e) -> is_dead_end e
 			| TCast (e, _) -> is_dead_end e
 			| _ -> false in

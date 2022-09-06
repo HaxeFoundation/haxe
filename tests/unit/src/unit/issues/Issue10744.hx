@@ -20,5 +20,14 @@ class Issue10744 extends Test {
 			else
 				v;
 		}));
+		eq("Int", typeString(v ?? {
+			if (Std.random(0) == 0)
+				return;
+			else
+				throw "nope";
+		}));
+		eq("Int", typeString(v ?? {
+			Std.parseInt(return);
+		}));
 	}
 }
