@@ -615,6 +615,24 @@ let rec has_mono t = match t with
 	| TLazy f ->
 		has_mono (lazy_type f)
 
+(*
+	Checks if execution of provided expression is guaranteed to be terminated with `return`, `throw`, `break` or `continue`.
+*)
+let rec has_dead_end e = match e.eexpr with
+	| TParenthesis e -> has_dead_end e
+	| TThrow _ -> true
+	| TReturn _ -> true
+	| TBreak -> true
+	| TContinue -> true
+	| TWhile (_, body, DoWhile) -> has_dead_end body
+	| TIf (_, if_body, Some else_body) -> has_dead_end if_body && has_dead_end else_body
+	| TBlock exprs -> List.exists has_dead_end exprs
+	| TCall (ecall, args) -> has_dead_end ecall || List.exists has_dead_end args
+	(* | TArrayDecl els -> List.exists has_dead_end els *)
+	| TMeta (_, e) -> has_dead_end e
+	| TCast (e, _) -> has_dead_end e
+	| _ -> false
+
 let concat e1 e2 =
 	let e = (match e1.eexpr, e2.eexpr with
 		| TBlock el1, TBlock el2 -> TBlock (el1@el2)

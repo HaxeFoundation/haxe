@@ -1852,25 +1852,13 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
-		let rec is_dead_end e = match e.eexpr with
-			| TParenthesis e -> is_dead_end e
-			| TThrow _ -> true
-			| TReturn _ -> true
-			| TBreak -> true
-			| TContinue -> true
-			| TWhile (_, body, DoWhile) -> is_dead_end body
-			| TIf (_, if_body, Some else_body) -> is_dead_end if_body && is_dead_end else_body
-			| TBlock exprs -> List.exists is_dead_end exprs
-			| TCall (ecall, args) -> List.exists is_dead_end args
-			| TMeta (_, e) -> is_dead_end e
-			| TCast (e, _) -> is_dead_end e
-			| _ -> false in
+
 		let follow_null_once t =
 			match t with
 			| TAbstract({a_path = [],"Null"},[t]) -> t
 			| _ -> t
 		in
-		let iftype = if is_dead_end e2 then
+		let iftype = if TFunctions.has_dead_end e2 then
 			WithType.with_type (follow_null_once e1.etype)
 		else
 			WithType.WithType(e2.etype,None)

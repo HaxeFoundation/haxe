@@ -29,5 +29,8 @@ class Issue10744 extends Test {
 		eq("Int", typeString(v ?? {
 			Std.parseInt(return);
 		}));
+		eq("Int", typeString(v ?? {
+			(return)();
+		}));
 	}
 }
