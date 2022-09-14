@@ -6204,7 +6204,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
-   let cpp_file_name   = (make_full_dir ctx.ctx_common ctx.ctx_common.file "cpp" ".cpp" class_path) ^ "/" ^ (snd class_path) ^ ".cpp" in
+   let cpp_file_name   = (make_full_dir ctx.ctx_common ctx.ctx_common.file "src" ".cpp" class_path) ^ "/" ^ (snd class_path) ^ ".cpp" in
    let abs_cpp_file    = match Filename.is_relative cpp_file_name with
       | true -> Filename.concat (Sys.getcwd()) cpp_file_name
       | false -> cpp_file_name in
