@@ -125,7 +125,7 @@ let tname str =
 	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
 
 let is_ptr = function
@@ -154,6 +154,9 @@ let rec ctype_no_ptr = function
 	| HEnum _ -> "venum",1
 	| HNull _ -> "vdynamic",1
 	| HMethod _ -> "void",1
+	| HPacked t ->
+		let name,v = ctype_no_ptr t in
+		"struct _" ^ name, v
 
 let ctype t =
 	let t, nptr = ctype_no_ptr t in
@@ -200,6 +203,7 @@ let type_id t =
 	| HNull _ -> "HNULL"
 	| HMethod _ -> "HMETHOD"
 	| HStruct _  -> "HSTRUCT"
+	| HPacked _ -> "HPACKED"
 
 let var_type n t =
 	ctype t ^ " " ^ ident n
@@ -224,7 +228,7 @@ let hash ctx sid =
 		h
 
 let type_name ctx t =
-	try PMap.find t ctx.htypes with Not_found -> Globals.die "" __LOC__
+	try PMap.find t ctx.htypes with Not_found -> Globals.die (tstr t) __LOC__
 
 let define ctx s =
 	if not (Hashtbl.mem ctx.hdefines s) then begin
@@ -246,6 +250,8 @@ let rec define_type ctx t =
 	| HVirtual vp when not (PMap.exists t ctx.defined_types) ->
 		ctx.defined_types <- PMap.add t () ctx.defined_types;
 		Array.iter (fun (_,_,t) -> define_type ctx t) vp.vfields
+	| HPacked t ->
+		define_type ctx t
 	| HEnum _ | HObj _ | HStruct _ | HVirtual _ ->
 		()
 
@@ -549,7 +555,9 @@ let generate_function ctx f =
 		let assign = reg r ^ " = " in
 		if tsame t rt then assign else
 		if not (safe_cast t rt) then Globals.die "" __LOC__
-		else assign ^ "(" ^ ctype rt ^ ")"
+		else
+			let cast = assign ^ "(" ^ ctype rt ^ ")" in
+			(match t with HPacked _ -> cast ^ "&" | _ -> cast)
 	in
 
 	let ocall r fid args =
@@ -735,7 +743,7 @@ let generate_function ctx f =
 				one way for comparisons
 			*)
 			match rtype a, rtype b with
-			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool) ->
+			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64) ->
 				phys_compare()
 			| HType, HType ->
 				sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_comp op) (label d)
@@ -1111,6 +1119,10 @@ let make_types_idents htypes =
 			DFun (List.map make_desc tl, make_desc t, false)
 		| HObj p | HStruct p ->
 			DNamed p.pname
+		| HPacked t ->
+			(match make_desc t with
+			| DNamed n -> DNamed ("packed_" ^ n)
+			| _ -> Globals.die "" __LOC__)
 		| HAbstract (n,_) ->
 			DNamed n
 		| HEnum e when e.ename = "" ->
@@ -1607,7 +1619,7 @@ let write_c com file (code:code) gnames =
 				string_of_int (Array.length o.pproto);
 				string_of_int (List.length o.pbindings);
 				sprintf "(const uchar*)%s" (string ctx o.pid);
-				(match o.psuper with None -> "NULL" | Some c -> type_value ctx (HObj c));
+				(match o.psuper with None -> "NULL" | Some c -> type_value ctx (match t with HObj _ -> HObj c | _ -> HStruct c));
 				fields;
 				proto;
 				bindings

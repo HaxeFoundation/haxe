@@ -204,7 +204,7 @@
 		"devcomment": "force-lib-check is only here as a debug facility - compiler checking allows errors to be found more easily",
 		"name": "ForceLibCheck",
 		"define": "force-lib-check",
-		"doc": "Force the compiler to check `--net-lib` and `–-java-lib` added classes (internal).",
+		"doc": "Force the compiler to check `--net-lib` and `--java-lib` added classes (internal).",
 		"platforms": ["cs", "java"]
 	},
 	{

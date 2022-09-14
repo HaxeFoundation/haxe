@@ -2082,7 +2082,7 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPush" then begin
-		print ctx "function $arrayPush(x) { this.push(x); }";
+		print ctx "function $arrayPush(x) { return this.push(x); }";
 		newline ctx
 	end;
 	if has_feature ctx "$global.$haxeUID" then begin

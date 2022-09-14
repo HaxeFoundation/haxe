@@ -36,6 +36,12 @@ open Operators
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
 
+let mono_or_dynamic ctx with_type p = match with_type with
+	| WithType.NoValue ->
+		t_dynamic
+	| Value _ | WithType _ ->
+		spawn_monomorph ctx p
+
 let get_iterator_param t =
 	match follow t with
 	| TAnon a ->
@@ -305,9 +311,25 @@ let rec type_ident_raise ctx i p mode with_type =
 		| FunMemberClassLocal | FunMemberAbstractLocal -> typing_error "Cannot access super inside a local function" p);
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
-		if mode = MGet then
-			AKExpr (null (spawn_monomorph ctx p) p)
-		else
+		if mode = MGet then begin
+			let tnull () = ctx.t.tnull (spawn_monomorph ctx p) in
+			let t = match with_type with
+				| WithType.WithType(t,_) ->
+					begin match follow t with
+					| TMono r ->
+						(* If our expected type is a monomorph, bind it to Null<?>. *)
+						Monomorph.do_bind r (tnull())
+					| _ ->
+						(* Otherwise there's no need to create a monomorph, we can just type the null literal
+						   the way we expect it. *)
+						()
+					end;
+					t
+				| _ ->
+					tnull()
+			in
+			AKExpr (null t p)
+		end else
 			AKNo i
 	| _ ->
 	try
@@ -535,23 +557,48 @@ and handle_efield ctx e p0 mode with_type =
 	in
 
 	(* loop through the given EField expression to figure out whether it's a dot-path that we have to resolve,
-	   or a simple field access chain *)
+	   or a field access chain *)
 	let rec loop dot_path_acc (e,p) =
 		match e with
-		| EField (e,s,efk) ->
+		| EField (e,s,EFNormal) ->
 			(* field access - accumulate and check further *)
-			loop ((mk_dot_path_part s efk p) :: dot_path_acc) e
+			loop ((mk_dot_path_part s p) :: dot_path_acc) e
 		| EConst (Ident i) ->
 			(* it's a dot-path, so it might be either fully-qualified access (pack.Class.field)
 			   or normal field access of a local/global/field identifier, proceed figuring this out *)
-			dot_path (mk_dot_path_part i EFNormal p) dot_path_acc
+			dot_path (mk_dot_path_part i p) dot_path_acc mode with_type
+		| EField ((eobj,pobj),s,EFSafe) ->
+			(* safe navigation field access - definitely NOT a fully-qualified access,
+			   create safe navigation chain from the object expression *)
+			let acc_obj = type_access ctx eobj pobj MGet WithType.value in
+			let eobj = acc_get ctx acc_obj pobj in
+			let eobj, tempvar = match (Texpr.skip eobj).eexpr with
+				| TLocal _ | TTypeExpr _ | TConst _ ->
+					eobj, None
+				| _ ->
+					let v = alloc_var VGenerated "tmp" eobj.etype eobj.epos in
+					let temp_var = mk (TVar(v, Some eobj)) ctx.t.tvoid v.v_pos in
+					let eobj = mk (TLocal v) v.v_type v.v_pos in
+					eobj, Some temp_var
+			in
+			let access = field_chain ctx ((mk_dot_path_part s p) :: dot_path_acc) (AKExpr eobj) mode with_type in
+			AKSafeNav {
+				sn_pos = p;
+				sn_base = eobj;
+				sn_temp_var = tempvar;
+				sn_access = access;
+			}
 		| _ ->
 			(* non-ident expr occured: definitely NOT a fully-qualified access,
 			   resolve the field chain against this expression *)
-			let e = type_access ctx e p MGet WithType.value in
-			field_chain ctx dot_path_acc e
+			(match (type_access ctx e p MGet WithType.value) with
+			| AKSafeNav sn ->
+				(* further field access continues the safe navigation chain (after a non-field access inside the chain) *)
+				AKSafeNav { sn with sn_access = field_chain ctx dot_path_acc sn.sn_access mode with_type }
+			| e ->
+				field_chain ctx dot_path_acc e mode with_type)
 	in
-	loop [] (e,p0) mode with_type
+	loop [] (e,p0)
 
 and type_access ctx e p mode with_type =
 	match e with
@@ -598,15 +645,25 @@ and type_access ctx e p mode with_type =
 		handle_efield ctx e p mode with_type
 	| EArray (e1,e2) ->
 		type_array_access ctx e1 e2 p mode
+	| ECall (e, el) ->
+		type_call_access ctx e el mode with_type None p
 	| EDisplay (e,dk) ->
-		AKExpr (TyperDisplay.handle_edisplay ctx e dk mode WithType.value)
+		AKExpr (TyperDisplay.handle_edisplay ctx e dk mode with_type)
 	| _ ->
-		AKExpr (type_expr ~mode ctx (e,p) WithType.value)
+		AKExpr (type_expr ~mode ctx (e,p) with_type)
 
 and type_array_access ctx e1 e2 p mode =
-	let e1 = type_expr ctx e1 WithType.value in
+	let e1, p1 = e1 in
+	let a1 = type_access ctx e1 p1 MGet WithType.value in
 	let e2 = type_expr ctx e2 WithType.value in
-	Calls.array_access ctx e1 e2 mode p
+	match a1 with
+	| AKSafeNav sn ->
+		(* pack the array access inside the safe navigation chain *)
+		let e1 = acc_get ctx sn.sn_access sn.sn_pos in
+		AKSafeNav { sn with sn_access = Calls.array_access ctx e1 e2 mode p }
+	| _ ->
+		let e1 = acc_get ctx a1 p1 in
+		Calls.array_access ctx e1 e2 mode p
 
 and type_vars ctx vl p =
 	let vl = List.map (fun ev ->
@@ -781,11 +838,18 @@ and type_object_decl ctx fl with_type p =
 			| TAbstract (a,pl) as t
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
-				let froms = get_abstract_froms ctx a pl
-				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
-				(match List.fold_left fold [] froms with
-				| [t] -> t
-				| _ -> ODKPlain)
+				let froms = get_abstract_froms ctx a pl in
+				begin match froms with
+				| [] ->
+					(* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
+					ODKPlain
+				| _ ->
+					let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+					begin match List.fold_left fold [] froms with
+						| [t] -> t
+						| _ -> ODKFailed
+					end
+				end
 			| TDynamic t when (follow t != t_dynamic) ->
 				dynamic_parameter := Some t;
 				ODKWithStructure {
@@ -865,7 +929,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TObjectDecl (List.rev fields)) (mk_anon ~fields:types x) p
 	in
 	(match a with
-	| ODKPlain -> type_plain_fields()
+	| ODKPlain | ODKFailed  -> type_plain_fields()
 	| ODKWithStructure a when PMap.is_empty a.a_fields && !dynamic_parameter = None -> type_plain_fields()
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
@@ -1434,7 +1498,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 	match e with
 	| None when is_abstract_ctor ->
 		let e_cast = mk (TCast(get_this ctx p,None)) ctx.ret p in
-		mk (TReturn (Some e_cast)) t_dynamic p
+		mk (TReturn (Some e_cast)) (mono_or_dynamic ctx with_type p) p
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
@@ -1443,7 +1507,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 			| WithType.Value (Some ImplicitReturn) -> true
 			| _ -> false
 		in
-		mk (TReturn None) (if expect_void then v else t_dynamic) p
+		mk (TReturn None) (if expect_void then v else (mono_or_dynamic ctx with_type p)) p
 	| Some e ->
 		if is_abstract_ctor then begin
 			match fst e with
@@ -1469,18 +1533,19 @@ and type_return ?(implicit=false) ctx e with_type p =
 					| _ -> ()
 					end;
 					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+					let t = mono_or_dynamic ctx with_type p in
 					mk (TBlock [
 						e;
-						mk (TReturn None) t_dynamic p
-					]) t_dynamic e.epos;
+						mk (TReturn None) t p
+					]) t e.epos;
 				| _ ->
-					mk (TReturn (Some e)) t_dynamic p
+					mk (TReturn (Some e)) (mono_or_dynamic ctx with_type p) p
 		with Error(err,p) ->
 			check_error ctx err p;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
 				follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
 			let e_null = mk (TConst TNull) (mk_mono()) p in
-			mk (TReturn (Some e_null)) t_dynamic p
+			mk (TReturn (Some e_null)) (mono_or_dynamic ctx with_type p) p
 
 and type_cast ctx e t p =
 	let tpos = pos t in
@@ -1588,10 +1653,10 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			let e = e () in
 			(if ctx.bypass_accessor > old_counter then display_error ctx.com "Field access expression expected after @:bypassAccessor metadata" p);
 			e
-		| (Meta.Inline,_,_) ->
+		| (Meta.Inline,_,pinline) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
-				type_call ctx e1 el WithType.value true p
+				acc_get ctx (type_call_access ctx e1 el MGet WithType.value (Some pinline) p) p
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
@@ -1609,31 +1674,43 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	ctx.meta <- old;
 	e
 
-and type_call_target ctx e el with_type inline p =
-	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) (MCall el) with_type) with_type true p in
-	let check_inline cf =
+and type_call_target ctx e el with_type p_inline =
+	let p = (pos e) in
+	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) (MCall el) WithType.value) with_type true p in
+	let check_inline cf p =
 		if (has_class_field_flag cf CfAbstract) then display_error ctx.com "Cannot force inline on abstract method" p
 	in
-	if not inline then
+	match p_inline with
+	| None ->
 		e
-	else match e with
-		| AKField fa ->
-			check_inline fa.fa_field;
-			AKField({fa with fa_inline = true})
-		| AKUsingField sea ->
-			check_inline sea.se_access.fa_field;
-			AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
-		| AKExpr {eexpr = TLocal _} ->
-			display_error ctx.com "Cannot force inline on local functions" p;
-			e
-		| _ ->
-			e
+	| Some pinline ->
+		let rec loop e =
+			match e with
+			| AKSafeNav sn ->
+				AKSafeNav { sn with sn_access = loop sn.sn_access }
+			| AKField fa ->
+				check_inline fa.fa_field pinline;
+				AKField({fa with fa_inline = true})
+			| AKUsingField sea ->
+				check_inline sea.se_access.fa_field pinline;
+				AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
+			| AKExpr {eexpr = TLocal _} ->
+				display_error ctx.com "Cannot force inline on local functions" pinline;
+				e
+			| _ ->
+				e
+		in
+		loop e
 
-and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
-	let def () =
-		let e = type_call_target ctx e el with_type inline p in
-		build_call ~mode ctx e el with_type p;
-	in
+and type_call_access ctx e el mode with_type p_inline p =
+	try
+		let e = type_call_builtin ctx e el mode with_type p in
+		AKExpr e
+	with Exit ->
+		let acc = type_call_target ctx e el with_type p_inline in
+		build_call_access ctx acc el mode with_type p
+
+and type_call_builtin ctx e el mode with_type p =
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
 		if Common.defined ctx.com Define.NoTraces then
@@ -1655,18 +1732,14 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((efield ((efield ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
-	| (EField ((EConst (Ident "super"),_),_,_),_), _ -> (* <- ??? *)
-		(match def() with
-			| { eexpr = TCall ({ eexpr = TField (_, FInstance(_, _, { cf_kind = Method MethDynamic; cf_name = name })); epos = p }, _) } as e ->
-				ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p;
-				e
-			| e -> e
-		)
+	| (EField ((EConst (Ident "super"),_),_,_),_), _ ->
+		(* no builtins can be applied to super as it can't be a value *)
+		raise Exit
 	| (EField (e,"bind",efk_todo),p), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
 			| TFun signature -> type_bind ctx e signature args p
-			| _ -> def ())
+			| _ -> raise Exit)
 	| (EConst (Ident "$type"),_) , [e] ->
 		begin match fst e with
 		| EConst (Ident "_") ->
@@ -1691,7 +1764,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		if has_enum_match et.etype then
 			Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
 		else
-			def ()
+			raise Exit
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e WithType.value in
 		if Common.platform ctx.com Flash then
@@ -1719,7 +1792,7 @@ and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p
 	| _ ->
-		def ()
+		raise Exit
 
 and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
@@ -1733,7 +1806,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode with_type) with_type false p in
 		acc_get ctx e p
 	| EField _
-	| EArray _ ->
+	| EArray _
+	| ECall _ ->
 		acc_get ctx (type_access ctx e p mode with_type) p
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
@@ -1774,7 +1848,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EBinop (OpNullCoal,e1,e2) ->
 		let vr = new value_reference ctx in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
-		let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
+		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
@@ -1864,7 +1938,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->
-				Texpr.Builder.make_null t_dynamic p
+				Texpr.Builder.make_null (mono_or_dynamic ctx with_type p) p
 			| Some e ->
 				(* type the return expression to see if there are more errors
 				   as well as use its type as if there was no `return`, since
@@ -1874,19 +1948,17 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			type_return ctx e with_type p
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx.com "Break outside loop" p;
-		mk TBreak t_dynamic p
+		mk TBreak (mono_or_dynamic ctx with_type p) p
 	| EContinue ->
 		if not ctx.in_loop then display_error ctx.com "Continue outside loop" p;
-		mk TContinue t_dynamic p
+		mk TContinue (mono_or_dynamic ctx with_type p) p
 	| ETry (e1,[]) ->
 		type_expr ctx e1 with_type
 	| ETry (e1,catches) ->
 		type_try ctx e1 catches with_type p
 	| EThrow e ->
 		let e = type_expr ctx e WithType.value in
-		mk (TThrow e) (spawn_monomorph ctx p) p
-	| ECall (e,el) ->
-		type_call ~mode ctx e el with_type false p
+		mk (TThrow e) (mono_or_dynamic ctx with_type p) p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
@@ -1962,6 +2034,7 @@ let rec create com =
 			global_using = [];
 			complete = false;
 			type_hints = [];
+			load_only_cached_modules = false;
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;

@@ -639,12 +639,17 @@ module Printer = struct
 		| Shadowed file -> "Shadowed " ^ file
 		| LibraryChanged -> "LibraryChanged"
 
+	let s_module_cache_state = function
+		| MSGood -> "Good"
+		| MSBad reason -> "Bad: " ^ (s_module_skip_reason reason)
+		| MSUnknown -> "Unknown"
+
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [
 			"m_file",Path.UniqueKey.lazy_path me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
-			"m_dirty",s_opt s_module_skip_reason me.m_dirty;
+			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
 			"m_checked",string_of_int me.m_checked;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
