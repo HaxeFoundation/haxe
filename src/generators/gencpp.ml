@@ -215,14 +215,10 @@ let make_base_directory dir =
 
 let make_full_dir common_ctx base_dir sub_dir include_prefix class_path =
    if (sub_dir="include") && (include_prefix<>"") then begin
-      let dir = match fst class_path with
-         | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
-         | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
-      in
-      make_class_directories base_dir (["include";include_prefix]@(fst class_path));
-      dir
+      match fst class_path with
+      | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
+      | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
    end else begin
-      make_class_directories base_dir ( sub_dir :: (fst class_path));
       base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
    end
 ;;
@@ -230,6 +226,11 @@ let make_full_dir common_ctx base_dir sub_dir include_prefix class_path =
 let new_source_file common_ctx base_dir sub_dir extension class_path =
    let include_prefix = get_include_prefix common_ctx true in
    let full_dir = make_full_dir common_ctx base_dir sub_dir include_prefix class_path in
+   if (sub_dir="include") && (include_prefix<>"") then begin
+      make_class_directories base_dir (["include";include_prefix]@(fst class_path));
+   end else begin
+      make_class_directories base_dir ( sub_dir :: (fst class_path));
+   end;
    let file = cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension)) in
    Codegen.map_source_header common_ctx (fun s -> file#write_h (Printf.sprintf "// %s\n" s));
    file
