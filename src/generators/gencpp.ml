@@ -406,7 +406,7 @@ module DebugDatabase = struct
 
    let print_generated_file f =
       let printed_funcs = String.concat ", " (List.map (print_function f.header_offset) f.functions) in
-      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ] }" f.haxe_file f.cpp_file f.haxe_type printed_funcs
+      Printf.sprintf "{ \"haxe\" : \"%s\", \"cpp\" : \"%s\", \"type\" : \"%s\", \"functions\" : [ %s ] }" (Path.normalize_path f.haxe_file) (Path.normalize_path f.cpp_file) f.haxe_type printed_funcs
 
    let print_type t =
       let printed_package = String.concat ", " (List.map (fun m -> "\"" ^ m ^ "\"") t.pack) in
