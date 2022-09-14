@@ -213,21 +213,23 @@ let make_class_directories = Path.mkdir_recursive;;
 let make_base_directory dir =
    make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
 
+let make_full_dir common_ctx base_dir sub_dir include_prefix class_path =
+   if (sub_dir="include") && (include_prefix<>"") then begin
+      let dir = match fst class_path with
+         | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
+         | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
+      in
+      make_class_directories base_dir (["include";include_prefix]@(fst class_path));
+      dir
+   end else begin
+      make_class_directories base_dir ( sub_dir :: (fst class_path));
+      base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
+   end
+;;
+
 let new_source_file common_ctx base_dir sub_dir extension class_path =
    let include_prefix = get_include_prefix common_ctx true in
-   let full_dir =
-      if (sub_dir="include") && (include_prefix<>"") then begin
-         let dir = match fst class_path with
-            | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
-            | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
-         in
-         make_class_directories base_dir (["include";include_prefix]@(fst class_path));
-         dir
-      end else begin
-         make_class_directories base_dir ( sub_dir :: (fst class_path));
-         base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
-      end
-   in
+   let full_dir = make_full_dir common_ctx base_dir sub_dir include_prefix class_path in
    let file = cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension)) in
    Codegen.map_source_header common_ctx (fun s -> file#write_h (Printf.sprintf "// %s\n" s));
    file
@@ -6201,17 +6203,18 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
-   let cpp_file_name   = match (String.concat "/" (fst class_path)) with
-      | "" -> (snd class_path) ^ ".cpp"
-      | prefix -> prefix ^ "/" ^ (snd class_path) ^ ".cpp" in
+   let cpp_file_name   = (make_full_dir ctx.ctx_common ctx.ctx_common.file "cpp" ".cpp" class_path) ^ "/" ^ (snd class_path) ^ ".cpp" in
+   let abs_cpp_file    = match Filename.is_relative cpp_file_name with
+      | true -> Filename.concat (Sys.getcwd()) cpp_file_name
+      | false -> cpp_file_name in
    let haxe_file_name  = class_def.cl_pos.pfile in
    let abs_haxe_file   = match Filename.is_relative haxe_file_name with
-      | true -> Path.normalize_path (Filename.concat (Sys.getcwd()) haxe_file_name)
+      | true -> Filename.concat (Sys.getcwd()) haxe_file_name
       | false -> haxe_file_name in
 
-   Printf.printf "%s (%i)\n" cpp_file_name (cpp_file#get_header_size());
+   Printf.printf "%s (%i)\n" abs_cpp_file (cpp_file#get_header_size());
 
-   ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name);
+   ctx.current_file := (DebugDatabase.create_file abs_cpp_file abs_haxe_file dot_name);
 
    if (not (has_class_flag class_def CInterface)) && not nativeGen then begin
       output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
@@ -7045,17 +7048,18 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if has_class_flag class_def CAbstract then
          output_h "\n"
       else if inlineContructor then begin
-         let cpp_file_name   = match (String.concat "/" (fst class_path)) with
-            | "" -> (snd class_path) ^ ".h"
-            | prefix -> prefix ^ "/" ^ (snd class_path) ^ ".h" in
+         let hpp_file_name   = (make_full_dir ctx.ctx_common ctx.ctx_common.file "include" ".h" class_path) ^ "/" ^ (snd class_path) ^ ".h" in
+         let abs_hpp_file    = match Filename.is_relative hpp_file_name with
+            | true -> Filename.concat (Sys.getcwd()) hpp_file_name
+            | false -> hpp_file_name in
          let haxe_file_name  = class_def.cl_pos.pfile in
          let abs_haxe_file   = match Filename.is_relative haxe_file_name with
-            | true -> Path.normalize_path (Filename.concat (Sys.getcwd()) haxe_file_name)
+            | true -> Filename.concat (Sys.getcwd()) haxe_file_name
             | false -> haxe_file_name in
       
-         Printf.printf "%s (%i)\n" cpp_file_name (cpp_file#get_header_size());
+         Printf.printf "%s (%i)\n" abs_hpp_file (cpp_file#get_header_size());
       
-         ctx.current_file := (DebugDatabase.create_file cpp_file_name abs_haxe_file dot_name);
+         ctx.current_file := (DebugDatabase.create_file abs_hpp_file abs_haxe_file dot_name);
          
          output_h "\n";
          outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true;
