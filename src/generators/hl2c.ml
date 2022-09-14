@@ -125,7 +125,7 @@ let tname str =
 	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ | HPacked _ -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
 
 let is_ptr = function
@@ -154,6 +154,9 @@ let rec ctype_no_ptr = function
 	| HEnum _ -> "venum",1
 	| HNull _ -> "vdynamic",1
 	| HMethod _ -> "void",1
+	| HPacked t ->
+		let name,v = ctype_no_ptr t in
+		"struct _" ^ name, v
 
 let ctype t =
 	let t, nptr = ctype_no_ptr t in
@@ -200,6 +203,7 @@ let type_id t =
 	| HNull _ -> "HNULL"
 	| HMethod _ -> "HMETHOD"
 	| HStruct _  -> "HSTRUCT"
+	| HPacked _ -> "HPACKED"
 
 let var_type n t =
 	ctype t ^ " " ^ ident n
@@ -224,7 +228,7 @@ let hash ctx sid =
 		h
 
 let type_name ctx t =
-	try PMap.find t ctx.htypes with Not_found -> Globals.die "" __LOC__
+	try PMap.find t ctx.htypes with Not_found -> Globals.die (tstr t) __LOC__
 
 let define ctx s =
 	if not (Hashtbl.mem ctx.hdefines s) then begin
@@ -246,6 +250,8 @@ let rec define_type ctx t =
 	| HVirtual vp when not (PMap.exists t ctx.defined_types) ->
 		ctx.defined_types <- PMap.add t () ctx.defined_types;
 		Array.iter (fun (_,_,t) -> define_type ctx t) vp.vfields
+	| HPacked t ->
+		define_type ctx t
 	| HEnum _ | HObj _ | HStruct _ | HVirtual _ ->
 		()
 
@@ -549,7 +555,9 @@ let generate_function ctx f =
 		let assign = reg r ^ " = " in
 		if tsame t rt then assign else
 		if not (safe_cast t rt) then Globals.die "" __LOC__
-		else assign ^ "(" ^ ctype rt ^ ")"
+		else
+			let cast = assign ^ "(" ^ ctype rt ^ ")" in
+			(match t with HPacked _ -> cast ^ "&" | _ -> cast)
 	in
 
 	let ocall r fid args =
@@ -735,7 +743,7 @@ let generate_function ctx f =
 				one way for comparisons
 			*)
 			match rtype a, rtype b with
-			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool) ->
+			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64) ->
 				phys_compare()
 			| HType, HType ->
 				sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_comp op) (label d)
@@ -1096,6 +1104,9 @@ let valid_ident =
 	let e = Str.regexp "[^A-Za-z0-9_]+" in
 	(fun str -> Str.global_replace e "_" str)
 
+let native_name str =
+	if str.[0] = '?' then String.sub str 1 (String.length str - 1) else str
+
 let make_types_idents htypes =
 	let types_descs = ref PMap.empty in
 	let rec make_desc t =
@@ -1108,6 +1119,10 @@ let make_types_idents htypes =
 			DFun (List.map make_desc tl, make_desc t, false)
 		| HObj p | HStruct p ->
 			DNamed p.pname
+		| HPacked t ->
+			(match make_desc t with
+			| DNamed n -> DNamed ("packed_" ^ n)
+			| _ -> Globals.die "" __LOC__)
 		| HAbstract (n,_) ->
 			DNamed n
 		| HEnum e when e.ename = "" ->
@@ -1125,8 +1140,13 @@ let make_types_idents htypes =
 				Array.iteri (fun i (f,_,t) -> arr.(i) <- (f,make_desc t)) vp.vfields;
 				td
 	in
+	let hashes = Hashtbl.create 0 in
 	let make_sign d =
-		String.sub (Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32]))) 0 7
+		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32])) in
+		let h = String.sub dig 0 7 in
+		let h = if Hashtbl.mem hashes h then dig else h in
+		Hashtbl.add hashes h ();
+		h
 	in
 	let rec desc_string d =
 		match d with
@@ -1182,8 +1202,11 @@ let make_function_table code =
 	Array.iter (fun (lib,name,t,idx) ->
 		let fname =
 			let lib = code.strings.(lib) in
-			let lib = if lib = "std" then "hl" else lib in
-			lib ^ "_" ^ code.strings.(name)
+			let lib = if lib.[0] = '?' then String.sub lib 1 (String.length lib - 1) else lib in
+ 			let lib = if lib = "std" then "hl" else lib in
+			let str = lib ^ "_" ^ code.strings.(name) in
+			(* create wrappers defines for invalid definitions *)
+			if str = "hl_tls_get" then str ^ "_w" else str
 		in
 		match t with
 		| HFun (args, t) ->
@@ -1443,6 +1466,7 @@ let write_c com file (code:code) gnames =
 	define ctx "// Abstract decls";
 	let rec get_abstracts = function
 		| [] -> []
+		| HAbstract (("hl_tls" | "hl_mutex" | "hl_thread"), _) :: l -> get_abstracts l (* ignore / defined in hl.h already *)
 		| HAbstract (name,_) :: l -> name :: get_abstracts l
 		| _ :: l -> get_abstracts l
 	in
@@ -1457,7 +1481,13 @@ let write_c com file (code:code) gnames =
 		Hashtbl.replace native_libs code.strings.(lib) ();
 		let ft = ctx.ftable.(idx) in
 		define_type ctx (HFun (ft.fe_args,ft.fe_ret));
-		sexpr "HL_API %s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
+		match ft.fe_name with
+		| "hl_tls_get_w" ->
+			define ctx "#define hl_tls_get_w(tls) ((vdynamic*)hl_tls_get(tls))";
+		| "hl_tls_set" ->
+			() (* don't redefine *)
+		| _ ->
+			sexpr "HL_API %s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
 	) sorted_natives;
 	line "#endif";
 	line "";
@@ -1589,7 +1619,7 @@ let write_c com file (code:code) gnames =
 				string_of_int (Array.length o.pproto);
 				string_of_int (List.length o.pbindings);
 				sprintf "(const uchar*)%s" (string ctx o.pid);
-				(match o.psuper with None -> "NULL" | Some c -> type_value ctx (HObj c));
+				(match o.psuper with None -> "NULL" | Some c -> type_value ctx (match t with HObj _ -> HObj c | _ -> HStruct c));
 				fields;
 				proto;
 				bindings
@@ -1721,7 +1751,10 @@ let write_c com file (code:code) gnames =
 	open_file ctx "hl/functions.c";
 	define ctx "#define HLC_BOOT";
 	define ctx "#include <hlc.h>";
-	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat "," (List.map (fun f -> define_function ctx f.fe_index) (Array.to_list ctx.ftable)));
+	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat ",\\\n\t" (List.map (fun f ->
+		let name = define_function ctx f.fe_index in
+		if name = "hl_tls_get_w" then "hl_tls_get" else name
+	) (Array.to_list ctx.ftable)));
 	let rec loop i =
 		if i = Array.length ctx.ftable then [] else
 		let ft = ctx.ftable.(i) in
@@ -1729,7 +1762,7 @@ let write_c com file (code:code) gnames =
 		define ctx (sprintf "extern hl_type %s;" n);
 		("&" ^ n) :: loop (i + 1)
 	in
-	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat "," (loop 0));
+	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat ",\\\n\t" (loop 0));
 	line "";
 	Array.iter (fun f ->
 		if f.fe_module = None then (match f.fe_decl with None -> () | Some f -> generate_function ctx f);

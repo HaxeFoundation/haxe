@@ -271,11 +271,11 @@ let precedence op =
 	| OpInterval -> 7, left
 	| OpBoolAnd -> 8, left
 	| OpBoolOr -> 9, left
-	| OpArrow -> 10, right
+	| OpArrow | OpNullCoal -> 10, right
 	| OpAssign | OpAssignOp _ -> 11, right
 
-let is_not_assign = function
-	| OpAssign | OpAssignOp _ -> false
+let is_higher_than_ternary = function
+	| OpAssign | OpAssignOp _ | OpArrow -> false
 	| _ -> true
 
 let swap op1 op2 =
@@ -288,7 +288,7 @@ let rec make_binop op e ((v,p2) as e2) =
 	| EBinop (_op,_e,_e2) when swap op _op ->
 		let _e = make_binop op e _e in
 		EBinop (_op,_e,_e2) , punion (pos _e) (pos _e2)
-	| ETernary (e1,e2,e3) when is_not_assign op ->
+	| ETernary (e1,e2,e3) when is_higher_than_ternary op ->
 		let e = make_binop op e e1 in
 		ETernary (e,e2,e3) , punion (pos e) (pos e3)
 	| _ ->
@@ -302,8 +302,8 @@ let rec make_unop op ((v,p2) as e) p1 =
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
 	| EIs (e, t) -> EIs (make_unop op e p1, t), punion p1 p2
-	| EConst (Int i) when op = Neg -> EConst (Int (neg i)),punion p1 p2
-	| EConst (Float j) when op = Neg -> EConst (Float (neg j)),punion p1 p2
+	| EConst (Int (i, suffix)) when op = Neg -> EConst (Int (neg i, suffix)),punion p1 p2
+	| EConst (Float (j, suffix)) when op = Neg -> EConst (Float (neg j, suffix)),punion p1 p2
 	| _ -> EUnop (op,Prefix,e), punion p1 p2
 
 let rec make_meta name params ((v,p2) as e) p1 =
@@ -399,7 +399,7 @@ let check_type_decl_completion mode pmax s =
 		if pmax <= p.pmin && pmin >= p.pmax then begin
 			let so,p = match Stream.peek s with
 			| Some((Const(Ident name),p)) when display_position#enclosed_in p -> (Some name),p
-			| Some(e,p) -> print_endline (s_token e); None,p
+			| Some(e,p) -> None,p
 			| _ -> None,p
 			in
 			delay_syntax_completion (SCTypeDecl mode) so p

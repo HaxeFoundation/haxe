@@ -35,20 +35,54 @@ module TExprToExpr = struct
 		| TAbstract (a,pl) ->
 			tpath a.a_path a.a_module.m_path (List.map tparam pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
+			CTFunction (List.map (fun (n,o,t) ->
+				let ct = convert_type' t in
+					let ct = if n = "" then ct else CTNamed((n,null_pos),ct),null_pos in
+					if o then CTOptional ct,null_pos else ct
+				) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
 			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
 			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
+					let access = ref [] in
+					let add flag =
+						access := (flag,null_pos) :: !access;
+					in
+					if has_class_field_flag f CfPublic then add APublic else add APrivate;
+					if has_class_field_flag f CfFinal then add AFinal;
+					if has_class_field_flag f CfExtern then add AExtern;
+					let kind = match (f.cf_kind,follow f.cf_type) with
+						| (Var v,ret) ->
+							let var_access_to_string va get_or_set = match va with
+								| AccNormal | AccCtor | AccInline | AccRequire _ -> "default"
+								| AccNo -> "null"
+								| AccNever -> "never"
+								| AccCall -> get_or_set
+							in
+							let read = (var_access_to_string v.v_read "get",null_pos) in
+							let write = (var_access_to_string v.v_write "set",null_pos) in
+							FProp (read,write,mk_type_hint f.cf_type null_pos,None)
+						| Method _,TFun(args,ret) ->
+							FFun({
+								f_params = [];
+								f_args = List.map (fun (n,o,t) ->
+									((n,null_pos),o,[],Some (convert_type t,null_pos),None)
+								) args;
+								f_type = Some (convert_type ret,null_pos);
+								f_expr = None;
+							})
+						| _ ->
+							die "" __LOC__
+					in
 					{
 						cff_name = f.cf_name,null_pos;
-						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
+						cff_kind = kind;
 						cff_pos = f.cf_pos;
 						cff_doc = f.cf_doc;
 						cff_meta = f.cf_meta;
-						cff_access = [];
+						cff_access = !access;
 					} :: acc
 				) a.a_fields [])
 			end
@@ -91,7 +125,7 @@ module TExprToExpr = struct
 		| TLocal v -> EConst (mk_ident v.v_name)
 		| TArray (e1,e2) -> EArray (convert_expr e1,convert_expr e2)
 		| TBinop (op,e1,e2) -> EBinop (op, convert_expr e1, convert_expr e2)
-		| TField (e,f) -> EField (convert_expr e, field_name f)
+		| TField (e,f) -> EField (convert_expr e, field_name f, EFNormal)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
@@ -208,7 +242,7 @@ module ExtType = struct
 		let rec loop t = match t with
 			| TInst(c,_) -> check c.cl_meta
 			| TEnum(en,_) -> check en.e_meta
-			| TType(t,tl) -> check t.t_meta || (loop (apply_params t.t_params tl t.t_type))
+			| TType(t,tl) -> check t.t_meta || (loop (apply_typedef t tl))
 			| TAbstract(a,_) -> check a.a_meta
 			| TLazy f -> loop (lazy_type f)
 			| TMono r ->
@@ -227,44 +261,20 @@ end
 
 let no_meta = []
 
-let class_module_type c = {
-	t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
-	t_module = c.cl_module;
-	t_doc = None;
-	t_pos = c.cl_pos;
-	t_name_pos = null_pos;
-	t_type = mk_anon ~fields:c.cl_statics (ref (Statics c));
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let class_module_type c =
+	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
+	let t = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
-let enum_module_type m path p  = {
-	t_path = [], "Enum<" ^ (s_type_path path) ^ ">";
-	t_module = m;
-	t_doc = None;
-	t_pos = p;
-	t_name_pos = null_pos;
-	t_type = mk_mono();
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = [];
-}
+let enum_module_type m path p  =
+	let path = ([], "Enum<" ^ (s_type_path path) ^ ">") in
+	let t = mk_mono() in
+	{(mk_typedef m path p null_pos t) with t_private = true}
 
-let abstract_module_type a tl = {
-	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
-	t_module = a.a_module;
-	t_doc = None;
-	t_pos = a.a_pos;
-	t_name_pos = null_pos;
-	t_type = mk_anon (ref (AbstractStatics a));
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let abstract_module_type a tl =
+	let path = ([],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl)) in
+	let t = mk_anon (ref (AbstractStatics a)) in
+	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
 
 module TClass = struct
 	let get_member_fields' self_too c0 tl =
@@ -287,7 +297,7 @@ module TClass = struct
 		loop PMap.empty c0 tl
 
 	let get_all_super_fields c =
-		get_member_fields' false c (List.map snd c.cl_params)
+		get_member_fields' false c (extract_param_types c.cl_params)
 
 	let get_all_fields c tl =
 		get_member_fields' true c tl

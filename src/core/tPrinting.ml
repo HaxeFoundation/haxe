@@ -487,16 +487,31 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param (s,t) = match follow t with
+	let s_type_param tp = match follow tp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-			begin match tl1 with
-			| [] -> s
-			| _ -> Printf.sprintf "%s:%s" s (String.concat " & " (List.map s_type tl1))
+			let s = match tl1 with
+				| [] -> tp.ttp_name
+				| _ -> Printf.sprintf "%s:%s" tp.ttp_name (String.concat " & " (List.map s_type tl1))
+			in
+			begin match tp.ttp_default with
+			| None ->
+				s
+			| Some t ->
+				Printf.sprintf "%s = %s" s (s_type t)
 			end
 		| _ -> die "" __LOC__
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl
+
+	let s_flags flags all_flags =
+		let _,l = List.fold_left (fun (i,acc) name ->
+			if has_flag flags i then (i + 1,name :: acc) else (i + 1,acc)
+		) (0,[]) all_flags in
+		String.concat " " l
+
+	let s_tclass_field_flags flags =
+		s_flags flags flag_tclass_field_names
 
 	let s_tclass_field tabs cf =
 		s_record_fields tabs [
@@ -509,6 +524,7 @@ module Printer = struct
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
+			"cf_flags",s_tclass_field_flags cf.cf_flags;
 		]
 
 	let s_tclass tabs c =
@@ -616,14 +632,26 @@ module Printer = struct
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
+	let s_module_skip_reason = function
+		| DependencyDirty path -> "DependencyDirty " ^ (s_type_path path)
+		| Tainted cause -> "Tainted " ^ cause
+		| FileChanged file -> "FileChanged " ^ file
+		| Shadowed file -> "Shadowed " ^ file
+		| LibraryChanged -> "LibraryChanged"
+
+	let s_module_cache_state = function
+		| MSGood -> "Good"
+		| MSBad reason -> "Bad: " ^ (s_module_skip_reason reason)
+		| MSUnknown -> "Unknown"
+
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [
 			"m_file",Path.UniqueKey.lazy_path me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
-			"m_dirty",s_opt s_type_path me.m_dirty;
+			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
-			"m_mark",string_of_int me.m_mark;
+			"m_checked",string_of_int me.m_checked;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;

@@ -9,7 +9,7 @@ import sys.io.Process;
 using StringTools;
 
 class Js {
-	static final miscJsDir = miscDir + 'js/';
+	static final miscJsDir = getMiscSubDir('js');
 
 	static public function getJSDependencies() {
 		switch [ci, systemName] {
@@ -26,28 +26,45 @@ class Js {
 		runCommand("node", ["-v"]);
 	}
 
+	static function installNpmPackages(packages:Array<String>) {
+		final required = if (isCi()) {
+			packages;
+		} else {
+			final filtered = packages.filter( (lib) -> {
+				final isInstalled = commandSucceed("npm", ["list", lib]);
+				if (isInstalled)
+					infoMsg('npm package `$lib` has already been installed.');
+				return !isInstalled;
+			});
+			if (filtered.length == 0)
+				return;
+			filtered;
+		};
+		runNetworkCommand("npm", ["install"].concat(required));
+	}
+
 	static public function run(args:Array<String>) {
 		getJSDependencies();
 
-		var jsOutputs = [
+		final jsOutputs = [
 			for (es_ver in    [[], ["-D", "js-es=3"], ["-D", "js-es=6"]])
 			for (unflatten in [[], ["-D", "js-unflatten"]])
 			for (classic in   [[], ["-D", "js-classic"]])
 			for (enums_as_objects in [[], ["-D", "js-enums-as-arrays"]])
 			{
-				var extras = args.concat(es_ver).concat(unflatten).concat(classic).concat(enums_as_objects);
+				final extras = args.concat(es_ver).concat(unflatten).concat(classic).concat(enums_as_objects);
 
 				runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
-				var output = if (extras.length > 0) {
+				final output = if (extras.length > 0) {
 					"bin/js/" + extras.join("") + "/unit.js";
 				} else {
 					"bin/js/default/unit.js";
 				}
-				var outputDir = Path.directory(output);
-				if (!FileSystem.exists(outputDir)) {
+				final outputDir = Path.directory(output);
+				if (!FileSystem.exists(outputDir))
 					FileSystem.createDirectory(outputDir);
-				}
+
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
 				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
@@ -56,17 +73,17 @@ class Js {
 		];
 
 		infoMsg("Test ES6:");
-		changeDirectory(miscDir + "es6");
+		changeDirectory(getMiscSubDir("es6"));
 		runCommand("haxe", ["run.hxml"]);
 
 		haxelibInstallGit("HaxeFoundation", "hxnodejs");
-		var env = Sys.environment();
+		final env = Sys.environment();
 		if (
 			env.exists("SAUCE") &&
 			env.exists("SAUCE_USERNAME") &&
 			env.exists("SAUCE_ACCESS_KEY")
 		) {
-			var sc = switch (ci) {
+			final sc = switch (ci) {
 				// TODO: figure out SauceConnect for GitHub Actions
 				// case AzurePipelines:
 				// 	var scVersion = "sc-4.5.3-linux";
@@ -89,9 +106,9 @@ class Js {
 			}
 
 			changeDirectory(unitDir);
-			runCommand("npm", ["install", "wd", "q"], true);
+			installNpmPackages(["wd", "q"]);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
-			var server = new Process("nekotools", ["server"]);
+			final server = new Process("nekotools", ["server"]);
 			runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
 
 			server.close();
@@ -111,9 +128,9 @@ class Js {
 		runCommand("node", ["test.js"]);
 
 		changeDirectory(sysDir);
-		runCommand("npm", ["install", "deasync"], true);
+		installNpmPackages(["deasync"]);
 		runCommand("haxe", ["compile-js.hxml"].concat(args));
-		runCommand("node", ["bin/js/sys.js"]);
+		runSysTest("node", ["bin/js/sys.js"]);
 
 		changeDirectory(miscJsDir);
 		runCommand("haxe", ["run.hxml"]);

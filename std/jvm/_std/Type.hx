@@ -234,7 +234,15 @@ class Type {
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		var clInfo:java.lang.Class<EnumReflectionInformation> = cast EnumReflectionInformation;
 		var annotation = e.native().getAnnotation(clInfo);
-		return @:privateAccess Array.ofNative(annotation.constructorNames());
+		if (annotation != null) {
+			return @:privateAccess Array.ofNative(annotation.constructorNames());
+		}
+		var vals = e.values();
+		var ret = [];
+		for (i in 0...vals.length) {
+			ret[i] = vals[i].name();
+		}
+		return ret;
 	}
 
 	public static function typeof(v:Dynamic):ValueType {
@@ -296,7 +304,7 @@ class Type {
 		var ret = [];
 		for (name in all) {
 			var v = Jvm.readField(e, name);
-			if (Jvm.instanceof(v, jvm.Enum)) {
+			if (Jvm.instanceof(v, java.lang.Enum)) {
 				ret.push(v);
 			}
 		}

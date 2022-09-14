@@ -391,6 +391,11 @@ extern class Global {
 	static function strcmp(str1:String, str2:String):Int;
 
 	/**
+		@see https://www.php.net/manual/en/function.strspn.php
+	**/
+	static function strspn(string:String, characters:String, offset:Int = 0, ?length:Int):Int;
+
+	/**
 		@see http://php.net/manual/en/function.strtr.php
 	**/
 	@:overload(function(str:String, from:NativeAssocArray<String>):String {})
@@ -406,6 +411,11 @@ extern class Global {
 	**/
 	static function str_replace(search:EitherType<String, NativeArray>, replace:EitherType<String, NativeArray>, subject:EitherType<String, NativeArray>,
 		?count:Int):EitherType<String, NativeArray>;
+
+	/**
+		@see https://www.php.net/manual/en/function.str-starts-with.php
+	**/
+	static function str_starts_with(haystack:String, needle:String):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.explode.php
@@ -2083,4 +2093,34 @@ extern class Global {
 		@see http://php.net/manual/en/function.ftp-systype.php
 	**/
 	static function ftp_systype(ftp: Resource): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.connection-aborted.php
+	**/
+	static function connection_aborted(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.connection-status.php
+	**/
+	static function connection_status(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ignore-user-abort.php
+	**/
+	static function ignore_user_abort(enable: Null<Bool> = null): Int;
+
+	/**
+		@see http://php.net/manual/en/function.highlight-file.php
+	**/
+	static function highlight_file(filename: String, returns: Bool = false): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.highlight-string.php
+	**/
+	static function highlight_string(string: String, returns: Bool = false): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.php-strip-whitespace.php
+	**/
+	static function php_strip_whitespace(filename: String): String;
 }

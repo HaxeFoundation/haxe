@@ -22,7 +22,6 @@
 open Globals
 open Ast
 open Parser
-open DisplayTypes.DiagnosticsSeverity
 open DisplayTypes.DisplayMode
 open Common
 open Type
@@ -40,7 +39,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	with
 		| Sedlexing.MalFormed ->
 			t();
-			error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+			typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
 		| e ->
 			t();
 			raise e
@@ -77,7 +76,7 @@ let parse_file com file p =
 		in
 		parse_file_from_string com file p s
 	else
-		let ch = try open_in_bin file with _ -> error ("Could not open " ^ file) p in
+		let ch = try open_in_bin file with _ -> typing_error ("Could not open " ^ file) p in
 		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
 let parse_hook = ref parse_file
@@ -139,10 +138,10 @@ let resolve_module_file com m remap p =
 
 let resolve_module_file com m remap p =
 	try
-		Hashtbl.find com.module_to_file m
+		com.module_to_file#find m
 	with Not_found ->
 		let file = resolve_module_file com m remap p in
-		Hashtbl.add com.module_to_file m file;
+		com.module_to_file#add m file;
 		file
 
 (* let resolve_module_file com m remap p =
@@ -251,7 +250,7 @@ module PdiHandler = struct
 					raise DisplayInMacroBlock;
 				begin match com.display.dms_kind with
 				| DMHover ->
-					raise (DisplayException.DisplayException(DisplayHover None))
+					raise (DisplayException.DisplayException(DisplayNoResult))
 				| _ ->
 					()
 				end;
@@ -270,9 +269,11 @@ let handle_parser_result com p result =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
-			| EPShow -> error msg p
-			| EPIgnore -> ()
-			| EPCollect -> add_diagnostics_message com msg p DKParserError Error
+			| EPShow ->
+				if is_diagnostics com then add_diagnostics_message com msg p DKParserError Error
+				else typing_error msg p
+			| EPIgnore ->
+				com.has_error <- true
 	in
 	match result with
 		| ParseSuccess(data,is_display_file,pdi) ->
@@ -302,9 +303,9 @@ let parse_module ctx m p =
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in
 		if p == null_pos then
-			display_error ctx ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
+			display_error ctx.com ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
-			display_error ctx (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
+			display_error ctx.com (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
 	end;
 	file, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)

@@ -29,7 +29,6 @@
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam init mingw "https://github.com/fdopen/opam-repository-mingw.git#opam2" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes 2>&1')
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
-    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam pin add ctypes 0.17.1 --yes 2>&1')
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
@@ -37,6 +36,13 @@
 - name: Expose mingw dll files
   shell: pwsh
   run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
+
+# required to be able to retrieve the revision
+- name: Mark directory as safe
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
 
 - name: Set ADD_REVISION=1 for non-release
   if: ${{ !startsWith(github.ref, 'refs/tags/') }}

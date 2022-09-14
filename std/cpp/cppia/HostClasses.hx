@@ -46,6 +46,8 @@ class HostClasses {
 		"sys.thread.Mutex",
 		"sys.thread.Thread",
 		"sys.thread.Tls",
+		"sys.thread.Semaphore",
+		"sys.thread.Condition",
 		"cpp.vm.ExecutionTrace",
 		"cpp.vm.Gc",
 		"cpp.vm.Profiler",

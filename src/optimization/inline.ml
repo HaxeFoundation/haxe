@@ -7,7 +7,7 @@ open Typecore
 open Error
 
 let needs_inline ctx is_extern_class cf =
-	cf.cf_kind = Method MethInline
+	cf.cf_kind = Method MethInline && ctx.allow_inline
 	&& (ctx.g.doinline || is_extern_class || has_class_field_flag cf CfExtern)
 
 let mk_untyped_call name p params =
@@ -112,7 +112,7 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p =
 	let mk_typeexpr path =
-		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> die "" __LOC__) in
+		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		Option.get (ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
@@ -254,7 +254,7 @@ let inline_config cls_opt cf call_args return_type =
 		let t = if cf.cf_name = "_new" then
 			return_type
 		else if call_args = [] then
-			error "Invalid abstract implementation function" cf.cf_pos
+			typing_error "Invalid abstract implementation function" cf.cf_pos
 		else
 			follow (List.hd call_args).etype
 		in
@@ -308,7 +308,8 @@ class inline_state ctx ethis params cf f p = object(self)
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
-			let v' = alloc_var (match v.v_kind with VUser _ -> VInlined | k -> k) v.v_name v.v_type v.v_pos in
+			let name = Option.default v.v_name (get_meta_string v.v_meta Meta.RealPath) in
+			let v' = alloc_var (match v.v_kind with VUser _ -> VInlined | k -> k) name v.v_type v.v_pos in
 			v'.v_extra <- v.v_extra;
 			let i = {
 				i_var = v;
@@ -386,7 +387,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				(i.i_subst,Some e) :: acc
 			in
 			if i.i_abstract_this && i.i_write then begin
-				if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
+				if not (is_writable e) then typing_error "Cannot modify the abstract value, store it into a local first" p;
 				accept VIInline
 			end else if i.i_force_temp || (i.i_captured && not (is_constant e)) then
 				reject()
@@ -397,7 +398,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					| TLocal _ | TConst _ ->
 						if not i.i_write then VIInline else VIDoNotInline
 					| TFunction _ ->
-						if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
+						if i.i_write then typing_error "Cannot modify a closure parameter inside inline method" p;
 						if i.i_read <= 1 then VIInline else VIInlineIfCalled
 					| _ ->
 						if not i.i_write && (i.i_read + i.i_called) <= 1 then VIInline else VIDoNotInline
@@ -583,14 +584,14 @@ class inline_state ctx ethis params cf f p = object(self)
 		let e = Diagnostics.secure_generated_code ctx e in
 		if has_params then begin
 			let mt = map_type cf.cf_type in
-			let unify_func () = unify_raise ctx mt (TFun (tl,tret)) p in
+			let unify_func () = unify_raise mt (TFun (tl,tret)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
 				| Statics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
 					if cf.cf_name <> "_new" then begin
 						(* the first argument must unify with a_this for abstract implementation functions *)
 						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
-						unify_raise ctx mt tb p
+						unify_raise mt tb p
 					end
 				| _ -> unify_func())
 			| _ -> unify_func());
@@ -689,7 +690,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 				{ e with eexpr = TLocal l.i_subst }
 			| None ->
-				error "Could not inline `this` outside of an instance context" po
+				typing_error "Could not inline `this` outside of an instance context" po
 			)
 		| TVar (v,eo) ->
 			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
@@ -697,9 +698,9 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			if not term then begin
 				match cf.cf_kind with
 				| Method MethInline ->
-					error "Cannot inline a not final return" po
+					typing_error "Cannot inline a not final return" po
 				| _ ->
-					error ("Function " ^ cf.cf_name ^ " cannot be inlined because of a not final return") p
+					typing_error ("Function " ^ cf.cf_name ^ " cannot be inlined because of a not final return") p
 			end;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
@@ -816,9 +817,9 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
 				begin match type_inline_ctor ctx c cf tf ethis el po with
 				| Some e -> map term false e
-				| None -> error "Could not inline super constructor call" po
+				| None -> typing_error "Could not inline super constructor call" po
 				end
-			| _ -> error "Cannot inline function containing super" po
+			| _ -> typing_error "Cannot inline function containing super" po
 			end
 		| TCall(e1,el) ->
 			state#set_side_effect;
@@ -826,7 +827,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let el = List.map (map false false) el in
 			{e with eexpr = TCall(e1,el)}
 		| TConst TSuper ->
-			error "Cannot inline function containing super" po
+			typing_error "Cannot inline function containing super" po
 		| TMeta((Meta.Ast,_,_) as m,e1) when term ->
 			(* Special case for @:ast-wrapped TSwitch nodes: If the recursion alters the type of the TSwitch node, we also want
 			   to alter the type of the TMeta node. *)
@@ -864,7 +865,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 (* Same as type_inline, but modifies the function body to add field inits *)
 and type_inline_ctor ctx c cf tf ethis el po =
 	let field_inits =
-		let cparams = List.map snd c.cl_params in
+		let cparams = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst (c,cparams)) c.cl_pos in
 		let el = List.fold_left (fun acc cf ->
 			match cf.cf_kind,cf.cf_expr with

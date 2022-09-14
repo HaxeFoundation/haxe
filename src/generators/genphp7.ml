@@ -1416,6 +1416,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 								| TAbstract ({ a_path = ["php"],"NativeIndexedArray" }, [param]) -> (self#use_t param) ^ "[]"
 								| _ -> "array"
 							)
+						| (["php"],"NativeArray") -> "array"
 						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
 		(**
@@ -2072,6 +2073,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							| "float" -> "'Float'"
 							| "bool" -> "'Bool'"
 							| "string" -> "'String'"
+							| "array" -> "'array'"
 							| "mixed" -> "'Dynamic'"
 							| "Enum" -> "'Enum'"
 							| "Class" -> "'Class'"
@@ -2385,57 +2387,9 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match fields with
 				| [] -> self#write ("new " ^ (self#use hxanon_type_path) ^ "()")
 				| _ ->
-					let inits,args_exprs,args_names =
-						List.fold_left (fun (inits,args_exprs,args_names) ((name,p,quotes), e) ->
-							let field,arg_name =
-								if quotes = NoQuotes then name,name
-								else "{" ^ (quote_string name) ^ "}", "_hx_" ^ (string_of_int (List.length args_exprs))
-							in
-							(field,mk (TIdent ("$"^arg_name)) e.etype p) :: inits, e :: args_exprs, arg_name :: args_names
-						) ([],[],[]) fields
-					in
-					let anon_name, declare_class =
-						let key = List.map (fun ((name,_,_),_) -> name) fields in
-						try
-							Hashtbl.find ctx.pgc_anons key, false
-						with Not_found ->
-							let name = "_HxAnon_" ^ self#get_name ^ (string_of_int (Hashtbl.length ctx.pgc_anons)) in
-							Hashtbl.add ctx.pgc_anons key name;
-							name, true
-					in
-					self#write ("new " ^ anon_name ^ "(");
-					write_args self#write self#write_expr (List.rev args_exprs);
-					self#write ")";
-					if declare_class then begin
-						(* save writer's state *)
-						let original_buffer = buffer
-						and original_indentation = self#get_indentation in
-						let sm_pointer_before_body = get_sourcemap_pointer sourcemap in
-						(* generate a class for this anon *)
-						buffer <- ctx.pgc_bottom_buffer;
-						self#set_indentation 0;
-						self#write ("\nclass " ^ anon_name ^ " extends " ^ (self#use hxanon_type_path) ^ " {\n");
-						self#indent_more;
-						self#write_with_indentation "function __construct(";
-						write_args self#write (fun name -> self#write ("$" ^ name)) (List.rev args_names);
-						self#write ") {\n";
-						self#indent_more;
-						List.iter (fun (field,e) ->
-							self#write_with_indentation "$this->";
-							self#write field;
-							self#write " = ";
-							self#write_expr e;
-							self#write ";\n";
-						) (List.rev inits);
-						self#indent_less;
-						self#write_line "}";
-						self#indent_less;
-						self#write_with_indentation "}\n";
-						(* restore writer's state *)
-						buffer <- original_buffer;
-						self#set_indentation original_indentation;
-						set_sourcemap_pointer sourcemap sm_pointer_before_body
-					end
+					self#write ("new " ^ (self#use hxanon_type_path)  ^ "(");
+					self#write_assoc_array_decl fields;
+					self#write ")"
 		(**
 			Writes specified type to output buffer depending on type of expression.
 		*)
@@ -3100,10 +3054,10 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 				writer#write_line ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
 			writer#write_use
 		(**
-			Generates PHP docblock to output buffer.
+			Generates PHP docblock and attributes to output buffer.
 		*)
-		method private write_doc doc_block =
-			match doc_block with
+		method private write_doc doc_block meta =
+			(match doc_block with
 				| DocVar (type_name, doc) ->
 					writer#write_line "/**";
 					writer#write_line (" * @var " ^ type_name);
@@ -3122,6 +3076,8 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 					)
 				| DocMethod (args, return, doc) ->
 					self#write_method_docblock args return doc
+			);
+			self#write_attributes meta;
 		(**
 			Writes description section of docblocks
 		*)
@@ -3298,6 +3254,32 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			else
 				false
 		(**
+			Generates PHP attributes to output buffer based on `@:php.attribute` metas.
+		*)
+		method private write_attributes meta =
+			let rec traverse found meta =
+				match meta with
+					| [] -> ()
+					| (m,el,p) :: rest ->
+						let found =
+							if m == PhpAttribute then begin
+								writer#write_indentation;
+								writer#write "#[";
+								(match el with
+									| [EConst (String (s,_)),p] ->
+										writer#write s
+									| _ ->
+										ctx.pgc_common.error ("@:php.attribute meta expects a single string constant as an argument.") p
+								);
+								writer#write "]\n";
+								true
+							end else
+								found
+						in
+						traverse found rest
+			in
+			traverse false meta
+		(**
 			Set sourcemap generator
 		*)
 		method set_sourcemap_generator generator = writer#set_sourcemap_generator generator
@@ -3318,7 +3300,7 @@ class enum_builder ctx (enm:tenum) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
-			self#write_doc (DocClass (gen_doc_text_opt enm.e_doc));
+			self#write_doc (DocClass (gen_doc_text_opt enm.e_doc)) enm.e_meta;
 			writer#write ("class " ^ self#get_name ^ " extends " ^ (writer#use hxenum_type_path))
 		(**
 			Writes type body to output buffer.
@@ -3347,7 +3329,7 @@ class enum_builder ctx (enm:tenum) =
 					| _ -> fail field.ef_pos __LOC__
 			in
 			writer#indent 1;
-			self#write_doc (DocMethod (args, TEnum (enm, []), (gen_doc_text_opt field.ef_doc)));
+			self#write_doc (DocMethod (args, TEnum (enm, []), (gen_doc_text_opt field.ef_doc))) field.ef_meta;
 			writer#write_with_indentation ("static public function " ^ name ^ " (");
 			write_args writer#write (writer#write_arg true) (fix_tsignature_args args);
 			writer#write ") {\n";
@@ -3538,7 +3520,7 @@ class class_builder ctx (cls:tclass) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
-			self#write_doc (DocClass (gen_doc_text_opt cls.cl_doc));
+			self#write_doc (DocClass (gen_doc_text_opt cls.cl_doc)) cls.cl_meta;
 			if self#is_final then writer#write "final ";
 			if has_class_flag cls CAbstract then writer#write "abstract ";
 			writer#write (if (has_class_flag cls CInterface) then "interface " else "class ");
@@ -3772,7 +3754,7 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_var field is_static =
 			writer#indent 1;
-			self#write_doc (DocVar (writer#use_t ~for_doc:true field.cf_type, (gen_doc_text_opt field.cf_doc)));
+			self#write_doc (DocVar (writer#use_t ~for_doc:true field.cf_type, (gen_doc_text_opt field.cf_doc))) field.cf_meta;
 			writer#write_indentation;
 			if is_static then writer#write "static ";
 			let visibility = get_visibility field.cf_meta in
@@ -3799,7 +3781,7 @@ class class_builder ctx (cls:tclass) =
 				| Some expr when not (is_constant expr) -> ()
 				| Some expr ->
 					writer#indent 1;
-					self#write_doc (DocVar (writer#use_t field.cf_type, (gen_doc_text_opt field.cf_doc)));
+					self#write_doc (DocVar (writer#use_t field.cf_type, (gen_doc_text_opt field.cf_doc))) field.cf_meta;
 					writer#write_with_indentation ("const " ^ (field_name field) ^ " = ");
 					writer#write_expr expr;
 					writer#write ";\n"
@@ -3812,7 +3794,7 @@ class class_builder ctx (cls:tclass) =
 			writer#indent 1;
 			let (args, return_type) = get_function_signature field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
-			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc)));
+			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc))) field.cf_meta;
 			writer#write_indentation;
 			if self#is_final_field field then writer#write "final ";
 			if has_class_field_flag field CfAbstract then writer#write "abstract ";
@@ -3839,7 +3821,7 @@ class class_builder ctx (cls:tclass) =
 			writer#indent 1;
 			let (args, return_type) = get_function_signature field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
-			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc)));
+			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc))) field.cf_meta;
 			writer#write_with_indentation ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
 			(match field.cf_expr with
 				| None -> (* interface *)

@@ -34,7 +34,7 @@ extern class NativeSys {
 	extern static function get_env(v:String):String;
 
 	@:native("_hx_std_put_env")
-	extern static function put_env(e:String, v:String):Void;
+	extern static function put_env(e:String, v:Null<String>):Void;
 
 	@:native("_hx_std_sys_sleep")
 	extern static function sys_sleep(f:Float):Void;

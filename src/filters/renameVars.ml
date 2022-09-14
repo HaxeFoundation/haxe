@@ -280,10 +280,14 @@ let trailing_numbers = Str.regexp "[0-9]+$"
 	Rename `v` if needed
 *)
 let maybe_rename_var rc reserved (v,overlaps) =
+	let commit name =
+		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: v.v_meta;
+		v.v_name <- name
+	in
 	(* chop escape char for all local variables generated *)
 	if is_gen_local v then begin
 		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
-		v.v_name <- "_g" ^ (Str.replace_first trailing_numbers "" name)
+		commit ("_g" ^ (Str.replace_first trailing_numbers "" name))
 	end;
 	let name = ref v.v_name in
 	let count = ref 0 in
@@ -295,7 +299,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		incr count;
 		name := v.v_name ^ (string_of_int !count);
 	done;
-	v.v_name <- !name;
+	commit !name;
 	if rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting) then reserve reserved v.v_name
 
 (**
@@ -311,7 +315,7 @@ let rec rename_vars rc scope =
 (**
 	Rename local variables in `e` expression if needed.
 *)
-let run ctx ri e =
+let run cl_path ri e =
 	(try
 		let rc = {
 			rc_scope = ri.ri_scope;
@@ -322,7 +326,7 @@ let run ctx ri e =
 			rc_reserved = ri.ri_reserved;
 		} in
 		if ri.ri_reserve_current_top_level_symbol then begin
-			match ctx.curclass.cl_path with
+			match cl_path with
 			| s :: _,_ | [],s -> reserve_ctx rc s
 		end;
 		let scope = create_scope None in

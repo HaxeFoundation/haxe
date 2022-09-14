@@ -9,6 +9,8 @@ type access_kind =
 	| AKNo of string
 	(* Access on arbitrary expression. *)
 	| AKExpr of texpr
+	(* Safe navigation access chain *)
+	| AKSafeNav of safe_nav_access
 	(* Access on non-property field. *)
 	| AKField of field_access
 	(* Access on property field. The field is the property, not the accessor. *)
@@ -23,22 +25,90 @@ type access_kind =
 	(* Access on abstract via resolve method. *)
 	| AKResolve of static_extension_access * string
 
+and safe_nav_access = {
+	(* position of the safe navigation chain start (the initial ?.field expression) *)
+	sn_pos : pos;
+	(* starting value to be checked for null *)
+	sn_base : texpr;
+	(* temp var declaration to store complex base expression *)
+	sn_temp_var : texpr option;
+	(* safe navigation access to be done if the base value is not null *)
+	sn_access : access_kind;
+}
+
 type object_decl_kind =
 	| ODKWithStructure of tanon
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
+	| ODKFailed
 
-let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> pos option -> access_kind) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
+let acc_get_ref : (typer -> access_kind -> pos -> texpr) ref = ref (fun _ _ _ -> assert false)
+
+class value_reference (ctx : typer) =
+
+object(self)
+	val vars = DynArray.create ()
+
+	method get_vars = DynArray.to_list vars
+
+	method as_var name e =
+		let v = alloc_var VGenerated name e.etype e.epos in
+		DynArray.add vars (v,e);
+		mk (TLocal v) v.v_type v.v_pos
+
+	method private get_expr_aux depth name e =
+		let rec loop depth name e = match (Texpr.skip e).eexpr with
+			| TLocal _ | TTypeExpr _ | TConst _ ->
+				e
+			| TField(ef,fa) when depth = 0 ->
+				let ef = loop (depth + 1) "fh" ef in
+				{e with eexpr = TField(ef,fa)}
+			| TArray(e1,e2) when depth = 0 ->
+				let e1 = loop (depth + 1) "base" e1 in
+				let e2 = loop (depth + 1) "index" e2 in
+				{e with eexpr = TArray(e1,e2)}
+			| _ ->
+				self#as_var name e
+		in
+		loop depth name e
+
+	method get_expr name e =
+		self#get_expr_aux 0 name e
+
+	method get_expr_part name e =
+		self#get_expr_aux 1 name e
+
+	method to_texpr e =
+		begin match self#get_vars with
+		| [] ->
+			e
+		| vl ->
+			let el = List.map (fun (v,e) ->
+				mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
+			) vl in
+			let e = mk (TBlock (el @ [e])) e.etype e.epos in
+			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
+		end
+
+	method to_texpr_el el e =
+		let vl = self#get_vars in
+		let el_vars = List.map (fun (v,e) ->
+			mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
+		) vl in
+		let e = mk (TBlock (el_vars @ el @ [e])) e.etype e.epos in
+		{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
+end
 
 let is_lower_ident s p =
 	try Ast.is_lower_ident s
-	with Invalid_argument msg -> error msg p
+	with Invalid_argument msg -> typing_error msg p
 
 let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
-		error "Cannot access this from a static function" p
+		typing_error "Cannot access this from a static function" p
 	| FunMemberClassLocal | FunMemberAbstractLocal ->
 		let v = match ctx.vthis with
 			| None ->
@@ -55,7 +125,7 @@ let get_this ctx p =
 		in
 		mk (TLocal v) ctx.tthis p
 	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> error "Cannot reference this abstract here" p) in
+		let v = (try PMap.find "this" ctx.locals with Not_found -> typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
@@ -79,7 +149,7 @@ let rec type_module_type ctx t tparams p =
 			module_type_of_type t
 		with Exit ->
 			if follow t == t_dynamic then Typeload.load_type_def ctx p (mk_type_path ([],"Dynamic"))
-			else error "Invalid module type" p
+			else typing_error "Invalid module type" p
 		in
 		type_module_type ctx mt None p
 	| TClassDecl c ->
@@ -89,7 +159,7 @@ let rec type_module_type ctx t tparams p =
 		let types = (match tparams with None -> Monomorph.spawn_constrained_monos (fun t -> t) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
-		let t = apply_params s.t_params (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) s.t_type in
+		let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
 		DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
@@ -99,11 +169,11 @@ let rec type_module_type ctx t tparams p =
 		| TAbstract (a,params) ->
 			type_module_type ctx (TAbstractDecl a) (Some params) p
 		| _ ->
-			error (s_type_path s.t_path ^ " is not a value") p)
+			typing_error (s_type_path s.t_path ^ " is not a value") p)
 	| TAbstractDecl { a_impl = Some c } ->
 		type_module_type ctx (TClassDecl c) tparams p
 	| TAbstractDecl a ->
-		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
+		if not (Meta.has Meta.RuntimeValue a.a_meta) then typing_error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = abstract_module_type a [] in
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 
@@ -135,12 +205,13 @@ let s_static_extension_access sea =
 		"se_access",s_field_access "\t" sea.se_access
 	]
 
-let s_access_kind acc =
+let rec s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
 	match acc with
 	| AKNo s -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
+	| AKSafeNav sn -> Printf.sprintf  "AKSafeNav(%s)" (s_safe_nav_access sn)
 	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
 	| AKAccessor fa -> Printf.sprintf "AKAccessor(%s)" (s_field_access "" fa)
 	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
@@ -148,10 +219,19 @@ let s_access_kind acc =
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKResolve(_) -> ""
 
+and s_safe_nav_access sn =
+	let st = s_type (print_context()) in
+	let se = s_expr_pretty true "" false st in
+	Printer.s_record_fields "" [
+		"sn_base",se sn.sn_base;
+		"sn_temp_var",Option.map_default (fun e -> "Some " ^ (se e)) "None" sn.sn_temp_var;
+		"sn_access",s_access_kind sn.sn_access
+	]
+
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
 		| TFun(tl,tr) -> tl,tr
-		| _ -> error "Constructible type parameter should be function" p
+		| _ -> typing_error "Constructible type parameter should be function" p
 	in
 	let rec loop tl = match tl with
 		| [] -> None
@@ -191,10 +271,13 @@ let unify_static_extension ctx e t p =
 		e
 	end
 
-let get_abstract_froms a pl =
+let get_abstract_froms ctx a pl =
 	let l = List.map (apply_params a.a_params pl) a.a_from in
 	List.fold_left (fun acc (t,f) ->
-		match follow (Type.field_type f) with
+		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
+		if f == ctx.curfield then
+			acc
+		else match follow (Type.field_type f) with
 		| TFun ([_,_,v],t) ->
 			(try
 				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)

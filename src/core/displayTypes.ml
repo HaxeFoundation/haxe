@@ -63,42 +63,6 @@ module SymbolInformation = struct
 	}
 end
 
-module DiagnosticsSeverity = struct
-	type t =
-		| Error
-		| Warning
-		| Information
-		| Hint
-
-	let to_int = function
-		| Error -> 1
-		| Warning -> 2
-		| Information -> 3
-		| Hint -> 4
-end
-
-module DiagnosticsKind = struct
-	type t =
-		| DKUnusedImport
-		| DKUnresolvedIdentifier
-		| DKCompilerError
-		| DKRemovableCode
-		| DKParserError
-		| DKDeprecationWarning
-		| DKInactiveBlock
-		| DKMissingFields
-
-	let to_int = function
-		| DKUnusedImport -> 0
-		| DKUnresolvedIdentifier -> 1
-		| DKCompilerError -> 2
-		| DKRemovableCode -> 3
-		| DKParserError -> 4
-		| DKDeprecationWarning -> 5
-		| DKInactiveBlock -> 6
-		| DKMissingFields -> 7
-end
-
 module CompletionResultKind = struct
 	type expected_type_completion = {
 		expected_type : CompletionItem.CompletionType.t;
@@ -211,17 +175,13 @@ module DisplayMode = struct
 		| DMDefinition
 		| DMTypeDefinition
 		| DMImplementation
-		| DMResolve of string
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
-		| DMDiagnostics of Path.UniqueKey.t list
-		| DMStatistics
 		| DMSignature
 
 	type error_policy =
 		| EPIgnore
-		| EPCollect
 		| EPShow
 
 	type display_file_policy =
@@ -231,7 +191,6 @@ module DisplayMode = struct
 
 	type settings = {
 		dms_kind : t;
-		dms_display : bool;
 		dms_full_typing : bool;
 		dms_force_macro_typing : bool;
 		dms_error_policy : error_policy;
@@ -244,7 +203,6 @@ module DisplayMode = struct
 
 	let default_display_settings = {
 		dms_kind = DMDefault;
-		dms_display = true;
 		dms_full_typing = false;
 		dms_force_macro_typing = false;
 		dms_error_policy = EPIgnore;
@@ -257,7 +215,6 @@ module DisplayMode = struct
 
 	let default_compilation_settings = {
 		dms_kind = DMNone;
-		dms_display = false;
 		dms_full_typing = true;
 		dms_force_macro_typing = true;
 		dms_error_policy = EPShow;
@@ -272,7 +229,7 @@ module DisplayMode = struct
 		let settings = { default_display_settings with dms_kind = dm } in
 		match dm with
 		| DMNone -> default_compilation_settings
-		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
+		| DMDefault | DMDefinition | DMTypeDefinition | DMPackage | DMHover | DMSignature -> settings
 		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
@@ -285,20 +242,6 @@ module DisplayMode = struct
 				dms_force_macro_typing = false;
 				dms_per_file = true;
 			}
-		| DMDiagnostics files -> { default_compilation_settings with
-				dms_kind = DMDiagnostics files;
-				dms_error_policy = EPCollect;
-				dms_display_file_policy = if files = [] then DFPNo else DFPAlso;
-				dms_per_file = true;
-			}
-		| DMStatistics -> { settings with
-				dms_full_typing = true;
-				dms_inline = false;
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false;
-				dms_force_macro_typing = true;
-				dms_per_file = true;
-			}
 
 	let to_string = function
 		| DMNone -> "none"
@@ -306,15 +249,12 @@ module DisplayMode = struct
 		| DMDefinition -> "position"
 		| DMTypeDefinition -> "type-definition"
 		| DMImplementation -> "implementation"
-		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
 		| DMUsage (true,_,_) -> "rename"
 		| DMUsage (false,_,_) -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMDiagnostics _ -> "diagnostics"
-		| DMStatistics -> "statistics"
 		| DMSignature -> "signature"
 end
 
@@ -392,17 +332,16 @@ type diagnostics_context = {
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable diagnostics_messages : (string * pos * DiagnosticsKind.t * DiagnosticsSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
 	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
 }
 
 type display_exception_kind =
-	| DisplayDiagnostics of diagnostics_context
-	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string
-	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind) option
-	| DisplayHover of hover_result option
+	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind)
+	| DisplayHover of hover_result
 	| DisplayPositions of pos list
-	| DisplayFields of fields_result option
+	| DisplayFields of fields_result
 	| DisplayPackage of string list
+	| DisplayNoResult

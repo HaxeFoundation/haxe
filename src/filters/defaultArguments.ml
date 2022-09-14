@@ -61,6 +61,8 @@ let rec change_func com cl cf =
 	List.iter (change_func com cl) cf.cf_overloads;
 
 	match cf.cf_kind, follow cf.cf_type with
+	| _ when has_class_field_flag cf CfPostProcessed ->
+		()
 	| Var _, _ | Method MethDynamic, _ ->
 		()
 	| _, TFun(args, ret) ->

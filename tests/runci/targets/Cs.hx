@@ -5,8 +5,7 @@ import runci.System.*;
 import runci.Config.*;
 
 class Cs {
-	static var miscCsDir(get,never):String;
-	static inline function get_miscCsDir() return miscDir + 'cs/';
+	static final miscCsDir = getMiscSubDir('cs');
 
 	static public function getCsDependencies() {
 		switch (systemName) {
@@ -20,7 +19,7 @@ class Cs {
 				if (commandSucceed("mono", ["--version"]))
 					infoMsg('mono has already been installed.');
 				else
-					runCommand("brew", ["install", "mono"], true);
+					runNetworkCommand("brew", ["install", "mono"]);
 				runCommand("mono", ["--version"]);
 			case "Windows":
 				//pass
@@ -33,7 +32,7 @@ class Cs {
 		if (args == null) args = [];
 		exe = FileSystem.fullPath(exe);
 		switch (systemName) {
-			case "Linux", "Mac":
+			case "Linux" | "Mac":
 				runCommand("mono", [exe].concat(args));
 			case "Windows":
 				runCommand(exe, args);
@@ -47,7 +46,7 @@ class Cs {
 		for (noroot in        [[], ["-D", "no_root"]])
 		for (erasegenerics in [[], ["-D", "erase_generics"]])
 		{
-			var extras = fastcast.concat(erasegenerics).concat(noroot);
+			final extras = fastcast.concat(erasegenerics).concat(noroot);
 			runCommand("haxe", ['compile-cs.hxml'].concat(extras).concat(args));
 			runCs("bin/cs/bin/TestMain-Debug.exe");
 
@@ -60,7 +59,13 @@ class Cs {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
-		runCs("bin/cs/bin/Main-Debug.exe", []);
+		final exe = FileSystem.fullPath("bin/cs/bin/Main-Debug.exe");
+		switch (systemName) {
+			case "Windows":
+				runSysTest(exe);
+			case _:
+				runSysTest("mono", [exe]);
+		}
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
@@ -69,7 +74,7 @@ class Cs {
 		changeDirectory(miscCsDir);
 		runCommand("haxe", ["run.hxml"]);
 
-		changeDirectory(miscCsDir + "csTwoLibs");
+		changeDirectory(getMiscSubDir("cs", "csTwoLibs"));
 		for (i in 1...5)
 		{
 			runCommand("haxe", ['compile-$i.hxml','-D','fast_cast']);
