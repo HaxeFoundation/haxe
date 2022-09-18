@@ -5183,9 +5183,13 @@ let generate_files common_ctx file_info =
    files_file#close;;
 
 
-let begin_header_file output_h def_string nativeGen =
-   output_h ("#ifndef INCLUDED_" ^ def_string ^ "\n");
-   output_h ("#define INCLUDED_" ^ def_string ^ "\n\n");
+let begin_header_file output_h def_string nativeGen pragmaOnce =
+   if pragmaOnce then begin
+      output_h ("#pragma once\n\n");
+   end else begin
+      output_h ("#ifndef INCLUDED_" ^ def_string ^ "\n");
+      output_h ("#define INCLUDED_" ^ def_string ^ "\n\n");
+   end;
    output_h "#ifndef HXCPP_H\n";
    if nativeGen then begin
       output_h "#ifdef HXCPP_API_LEVEL\n";
@@ -5198,8 +5202,11 @@ let begin_header_file output_h def_string nativeGen =
    end;
    output_h "#endif\n\n";;
 
-let end_header_file output_h def_string =
-   output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n");;
+let end_header_file output_h def_string pragmaOnce =
+   if pragmaOnce then
+      output_h ( "\n" )
+   else
+      output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n");;
 
 let new_placed_cpp_file common_ctx class_path =
    let base_dir = common_ctx.file in
@@ -5368,7 +5375,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    let ctx = file_context baseCtx h_file debug true in
 
-   begin_header_file (h_file#write_h) def_string false;
+   let pragmaOnce = has_meta_key enum_def.e_meta Meta.PragmaOnce in
+   begin_header_file (h_file#write_h) def_string false pragmaOnce;
 
    List.iter2 (fun r f -> gen_forward_decl h_file r f) referenced flags;
 
@@ -5422,7 +5430,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    gen_close_namespace output_h class_path;
 
-   end_header_file output_h def_string;
+   end_header_file output_h def_string pragmaOnce;
    h_file#close
 ;;
 
@@ -6715,8 +6723,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let output_h = (h_file#write) in
    let def_string = join_class_path class_path "_"  in
 
-
-   begin_header_file (h_file#write_h) def_string nativeGen;
+   let pragmaOnce = has_meta_key class_def.cl_meta Meta.PragmaOnce in
+   begin_header_file (h_file#write_h) def_string nativeGen pragmaOnce;
 
    (* Include the real header file for the super class *)
    (match class_def.cl_super with
@@ -6753,13 +6761,17 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    gen_open_namespace output_h class_path;
    output_h "\n\n";
    output_h ( get_class_code class_def Meta.HeaderNamespaceCode );
-   output_h ( get_meta_string_list_combined "\n" class_def.cl_meta Meta.HeaderDefinitionPrepend );
+
+   let hdp = get_meta_string_list_combined "\n" class_def.cl_meta Meta.HeaderDefinitionPrepend in
+   if ((String.length hdp) > 0) then output_h ( hdp ^ "\n" );
 
    let extern_class =  Common.defined common_ctx Define.DllExport in
-   let custom_attribs = get_meta_string_list_combined " " class_def.cl_meta Meta.HeaderClassNamePrepend in
    let attribs =
-      "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES" ^
-      (if (String.length custom_attribs) > 0 then " " ^ custom_attribs else "") in
+      if has_meta_key class_def.cl_meta Meta.HeaderClassNamePrepend then
+         get_meta_string_list_combined " " class_def.cl_meta Meta.HeaderClassNamePrepend
+      else
+         "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES"
+      in
 
    let dump_native_interfaces () =
       List.iter ( fun(c,params) ->
@@ -6903,7 +6915,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    gen_close_namespace output_h class_path;
 
-   end_header_file output_h def_string;
+   end_header_file output_h def_string pragmaOnce;
    h_file#close;
 
   in

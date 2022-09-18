@@ -1000,6 +1000,13 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "PragmaOnce",
+		"metadata": ":pragmaOnce",
+		"doc": "Marks a class to use `#pragma once` in their header files instead of macro guards.",
+		"platforms": ["cpp"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Private",
 		"metadata": ":private",
 		"doc": "Marks a class field as being private.",
