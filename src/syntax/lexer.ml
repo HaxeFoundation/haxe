@@ -663,6 +663,12 @@ and not_xml ctx depth in_open =
 	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
 		store lexbuf;
 		not_xml ctx depth in_open
+	(* Incomplete opening tag, will raise an error later
+	   but we're allowing it to pass lex to allow completion. *)
+	| '<' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		not_xml ctx depth in_open
 	| _ ->
 		die "" __LOC__
 
