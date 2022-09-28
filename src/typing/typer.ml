@@ -1460,7 +1460,7 @@ and type_array_decl ctx el with_type p =
 and type_array_comprehension ctx e with_type p =
 	let v = gen_local ctx (spawn_monomorph ctx p) p in
 	let ev = mk (TLocal v) v.v_type p in
-	let e_ref = store_typed_expr ctx.com ev p in
+	let e_ref = snd (store_typed_expr ctx.com ev p) in
 	let et = ref (EConst(Ident "null"),p) in
 	let comprehension_pos = p in
 	let rec map_compr (e,p) =
@@ -1616,16 +1616,6 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 				| _ -> e)
 		| (Meta.Markup,_,_) ->
 			typing_error "Markup literals must be processed by a macro" p
-		| (Meta.This,_,_) ->
-			let e = match ctx.this_stack with
-				| [] -> typing_error "Cannot type @:this this here" p
-				| e :: _ -> e
-			in
-			let rec loop e = match e.eexpr with
-				| TConst TThis -> get_this ctx e.epos
-				| _ -> Type.map_expr loop e
-			in
-			loop e
 		| (Meta.Analyzer,_,_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
@@ -2056,7 +2046,6 @@ let rec create com =
 		is_display_file = false;
 		bypass_accessor = 0;
 		meta = [];
-		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
