@@ -933,7 +933,7 @@ let run com tctx main =
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
 		"check_local_vars_init",check_local_vars_init tctx;
 		"check_abstract_as_value",check_abstract_as_value;
-		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
+		(* "Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e); *)
 		"reduce_expression",Optimizer.reduce_expression tctx;
 		"inline_constructors",InlineConstructors.inline_constructors tctx;
 		"Exceptions_filter",Exceptions.filter tctx;
