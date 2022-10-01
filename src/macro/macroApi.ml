@@ -1,4 +1,5 @@
 open Ast
+open DisplayTypes.DisplayMode
 open Type
 open Common
 
@@ -85,6 +86,7 @@ type enum_type =
 	| IQuoteStatus
 	| IImportMode
 	| IDisplayKind
+	| IDisplayMode
 	| IMessage
 	| IFunctionKind
 	| IStringLiteralKind
@@ -380,6 +382,23 @@ and encode_display_kind dk =
 	| DKPattern outermost -> 4, [vbool outermost]
 	in
 	encode_enum ~pos:None IDisplayKind tag pl
+
+and encode_display_mode dm =
+	let tag, pl = match dm with
+		| DMNone -> 0, []
+		| DMDefault -> 1, []
+		| DMDefinition -> 2, []
+		| DMTypeDefinition -> 3, []
+		| DMImplementation -> 4, []
+		| DMPackage -> 5, []
+		| DMHover -> 6, []
+		| DMUsage (true,findDescendants,findBase) -> 7, [(vbool findDescendants); (vbool findBase)]
+		| DMUsage (false,findDescendants,findBase) -> 8, [(vbool findDescendants); (vbool findBase)]
+		| DMModuleSymbols None -> 9, []
+		| DMModuleSymbols (Some s) -> 10, [(encode_string s)]
+		| DMSignature -> 11, []
+	in
+	encode_enum ~pos:None IDisplayMode tag pl
 
 and encode_message (msg,p,_,sev) =
 	let tag, pl = match sev with
@@ -1951,6 +1970,9 @@ let macro_api ccom get_api =
 				vnull
 			else
 				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
+		);
+		"get_display_mode", vfun0 (fun() ->
+			encode_display_mode !Parser.display_mode
 		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
