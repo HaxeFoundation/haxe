@@ -392,11 +392,10 @@ and encode_display_mode dm =
 		| DMImplementation -> 4, []
 		| DMPackage -> 5, []
 		| DMHover -> 6, []
-		| DMUsage (true,findDescendants,findBase) -> 7, [(vbool findDescendants); (vbool findBase)]
-		| DMUsage (false,findDescendants,findBase) -> 8, [(vbool findDescendants); (vbool findBase)]
-		| DMModuleSymbols None -> 9, []
-		| DMModuleSymbols (Some s) -> 10, [(encode_string s)]
-		| DMSignature -> 11, []
+		| DMUsage (withDefinition,findDescendants,findBase) -> 7, [(vbool withDefinition); (vbool findDescendants); (vbool findBase)]
+		| DMModuleSymbols None -> 8, []
+		| DMModuleSymbols (Some s) -> 9, [(encode_string s)]
+		| DMSignature -> 10, []
 	in
 	encode_enum ~pos:None IDisplayMode tag pl
 
