@@ -8,7 +8,7 @@ enum DisplayMode {
 	Implementation;
 	Package;
 	Hover;
-	Usage(withDefinition:Bool, findDescendants:Bool, findBase:Bool);
+	References(withDefinition:Bool, findDescendants:Bool, findBase:Bool);
 	ModuleSymbols;
 	WorkspaceSymbols(filter:String);
 	Signature;
