@@ -204,7 +204,7 @@
 		"devcomment": "force-lib-check is only here as a debug facility - compiler checking allows errors to be found more easily",
 		"name": "ForceLibCheck",
 		"define": "force-lib-check",
-		"doc": "Force the compiler to check `--net-lib` and `–-java-lib` added classes (internal).",
+		"doc": "Force the compiler to check `--net-lib` and `--java-lib` added classes (internal).",
 		"platforms": ["cs", "java"]
 	},
 	{
@@ -620,6 +620,12 @@
 		"name": "SwfGpu",
 		"define": "swf-gpu",
 		"doc": "Use GPU compositing features when drawing graphics.",
+		"platforms": ["flash"]
+	},
+	{
+		"name": "SwfHeader",
+		"define": "swf-header",
+		"doc": "define SWF header (width:height:fps:color)",
 		"platforms": ["flash"]
 	},
 	{

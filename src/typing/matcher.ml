@@ -252,7 +252,7 @@ module Pattern = struct
 								| _ -> ""
 							in
 							let fields = List.map (fun (el) -> tpath ^ el) l in
-							pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
+							warning pctx.ctx WTyper ("Potential typo detected (expected similar values are " ^ (String.concat ", " fields) ^ ")") p
 					end;
 					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| TTypeExpr mt ->
@@ -269,12 +269,14 @@ module Pattern = struct
 			if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 		in
 		let catch_errors () =
-			let old = ctx.on_error in
-			ctx.on_error <- (fun _ _ _ ->
+			let old = ctx.com.error in
+			let restore_report_mode = disable_report_mode ctx.com in
+			ctx.com.error <- (fun _ _ ->
 				raise Exit
 			);
 			(fun () ->
-				ctx.on_error <- old
+				restore_report_mode();
+				ctx.com.error <- old
 			)
 		in
 		let try_typing e =
@@ -312,14 +314,14 @@ module Pattern = struct
 				with _ ->
 					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-						display_error ctx ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
+						display_error ctx.com ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
 					end;
 					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->
 							()
 							(* if toplevel then
-								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
-						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
+								warning pctx.ctx (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
+						| l -> warning pctx.ctx WTyper ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
 					let v = add_local false s p in
 					PatVariable v
@@ -422,7 +424,7 @@ module Pattern = struct
 						) el in
 						PatConstructor(con_array (List.length patterns) (pos e),patterns)
 					| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
-						begin match TyperBase.get_abstract_froms a tl with
+						begin match TyperBase.get_abstract_froms ctx a tl with
 							| [t2] -> pattern (t :: seen) t2
 							| _ -> fail()
 						end
@@ -930,16 +932,16 @@ module Useless = struct
 
 	(* Sane part *)
 
-	let check_case com p (case,bindings,patterns) =
+	let check_case ctx p (case,bindings,patterns) =
 		let p = List.map (fun (_,_,patterns) -> patterns) p in
 		match u' p (copy p) (copy p) patterns [] [] with
-			| False -> com.warning "This case is unused" case.case_pos
-			| Pos p -> com.warning "This pattern is unused" p
+			| False -> Typecore.warning ctx WUnusedPattern "This case is unused" case.case_pos
+			| Pos p -> Typecore.warning ctx WUnusedPattern "This pattern is unused" p
 			| True -> ()
 
-	let check com cases =
+	let check ctx cases =
 		ignore(List.fold_left (fun acc (case,bindings,patterns) ->
-			check_case com acc (case,bindings,patterns);
+			check_case ctx acc (case,bindings,patterns);
 			if case.case_guard = None then acc @ [case,bindings,patterns] else acc
 		) [] cases)
 end
@@ -1172,6 +1174,7 @@ module Compile = struct
 				loop bindings (List.hd patterns)
 			) cases;
 			let sigma = ConTable.fold (fun con arg_positions acc -> (con,ConTable.mem unguarded con,arg_positions) :: acc) sigma [] in
+			let sigma = List.sort (fun ((_,p1),_,_)  ((_,p2),_,_) -> p1.pmin - p2.pmin) sigma in
 			sigma,List.rev !null
 		in
 		let sigma,null = get_column_sigma cases in
@@ -1279,7 +1282,7 @@ module Compile = struct
 			switch mctx subject [] dt_fail
 		| _ ->
 			let dt = compile mctx subjects cases in
-			Useless.check mctx.ctx.com cases;
+			Useless.check mctx.ctx cases;
 			match vars with
 				| [] -> dt
 				| _ -> bind mctx vars dt
@@ -1472,7 +1475,7 @@ module TexprConverter = struct
 		let p = dt.dt_pos in
 		let c_type = match follow (Typeload.load_instance ctx (mk_type_path (["std"],"Type"),p) true) with TInst(c,_) -> c | t -> die "" __LOC__ in
 		let mk_index_call e =
-			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
+			if not ctx.com.is_macro_context && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
 				   (correctly typed) neutral value because it doesn't actually matter. *)
 				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
@@ -1480,7 +1483,7 @@ module TexprConverter = struct
 				mk (TEnumIndex e) com.basic.tint e.epos
 		in
 		let mk_name_call e =
-			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
+			if not ctx.com.is_macro_context && not ctx.com.display.DisplayMode.dms_full_typing then
 				mk (TConst (TString "")) ctx.t.tstring e.epos
 			else
 				let cf = PMap.find "enumConstructor" c_type.cl_statics in
@@ -1510,7 +1513,7 @@ module TexprConverter = struct
 								begin match with_type,finiteness with
 								| WithType.NoValue,Infinite when toplevel -> None
 								| _,CompileTimeFinite when unmatched = [] -> None
-								| _ when ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore -> None
+								| _ when ignore_error ctx.com -> None
 								| _ -> report_not_exhaustive !v_lookup e_subject unmatched
 								end
 							| Some e ->
@@ -1623,7 +1626,7 @@ module TexprConverter = struct
 						| None ->
 							if toplevel then
 								loop dt_rec params dt2
-							else if ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore then
+							else if ignore_error ctx.com then
 								Some (mk (TConst TNull) (mk_mono()) dt2.dt_pos)
 							else
 								report_not_exhaustive !v_lookup e [(ConConst TNull,dt.dt_pos),dt.dt_pos]

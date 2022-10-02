@@ -134,8 +134,8 @@ class TestStrict {
 	function get_str() {
 		shouldFail(return (null:Null<String>));
 	}
-	function set_str(v) {
-		shouldFail(return (v:Null<String>));
+	function set_str(v:Null<String>) {
+		shouldFail(return v);
 	}
 
 	/**

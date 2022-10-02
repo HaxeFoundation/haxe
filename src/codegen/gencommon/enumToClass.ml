@@ -99,7 +99,7 @@ struct
 
 		(match gen.gcon.platform with
 			| Cs when Common.defined gen.gcon Define.CoreApiSerialize ->
-				cl.cl_meta <- ( Meta.Meta, [ (EField( (EConst (Ident "System"), null_pos ), "Serializable" ), null_pos) ], null_pos ) :: cl.cl_meta
+				cl.cl_meta <- ( Meta.Meta, [ (efield( (EConst (Ident "System"), null_pos ), "Serializable" ), null_pos) ], null_pos ) :: cl.cl_meta
 			| _ -> ());
 		let c_types =
 			if handle_type_params then

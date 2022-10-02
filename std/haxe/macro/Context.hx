@@ -127,6 +127,10 @@ class Context {
 		return load("contains_display_position", 1)(pos);
 	}
 
+	public static function getDisplayMode():DisplayMode {
+		return load("get_display_mode", 0)();
+	}
+
 	/**
 		Returns the position at which the macro was called.
 	**/
@@ -416,7 +420,10 @@ class Context {
 		Types expression `e` and returns the corresponding `TypedExpr`.
 
 		Typing the expression may result in a compiler error which can be
-		caught using `try ... catch`.
+		caught using `try ... catch`. Note that not all compiler errors can
+		be caught this way because the compiler might delay various checks
+		to a later stage, at which point the exception handler is no longer
+		active.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
 		return load("type_expr", 1)(e);
@@ -528,6 +535,16 @@ class Context {
 	}
 
 	/**
+		Creates and returns a new instance of monomorph (`TMono`) type.
+
+		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
+		bind the monomorph to an actual type and let macro further process the resulting type.
+	**/
+	public static function makeMonomorph():Type {
+		return load("make_monomorph", 0)();
+	}
+
+	/**
 		Defines a new module as `modulePath` with several `TypeDefinition`
 		`types`. This is analogous to defining a .hx file.
 
@@ -624,6 +641,33 @@ class Context {
 	**/
 	public static function timer(id:String):() -> Void {
 		return load("timer", 1)(id);
+	}
+
+	/**
+		Executes `code` in a context that has `imports` and `usings` added.
+
+		This is equivalent to temporarily having `import` and `using` statements in a file. These
+		are only active during the execution of `code` and do not affect anything afterwards. This
+		is true even if `code` throws an exception.
+
+		If any argument is `null`, the result is unspecified.
+	**/
+	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		return load("with_imports", 3)(imports, usings, code);
+	}
+
+
+	/**
+		Executes `code` in a context that has some compiler options set, restore the compiler to its
+		default behavior afterwards.
+
+		`allowInlining`: enable or disable inlining during typing with `typeExpr`.
+
+		`allowTransform`: when disabled, the code typed with `typeExpr` will be almost exactly the same
+		as the input code. This will disable some abstract types transformations.
+	**/
+	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
+		return load("with_options", 2)(options, code);
 	}
 
 	@:deprecated

@@ -214,6 +214,11 @@ enum Binop {
 		`in`
 	**/
 	OpIn;
+
+	/**
+		`??`
+	**/
+	OpNullCoal;
 }
 
 /**
@@ -250,6 +255,11 @@ enum Unop {
 		`...`
 	**/
 	OpSpread;
+}
+
+enum EFieldKind {
+	Normal;
+	Safe;
 }
 
 /**
@@ -429,8 +439,10 @@ enum ExprDef {
 
 	/**
 		Field access on `e.field`.
+
+		If `kind` is null, it is equal to Normal.
 	**/
-	EField(e:Expr, field:String);
+	EField(e:Expr, field:String, ?kind:EFieldKind);
 
 	/**
 		Parentheses `(e)`.

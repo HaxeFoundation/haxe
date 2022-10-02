@@ -35,20 +35,54 @@ module TExprToExpr = struct
 		| TAbstract (a,pl) ->
 			tpath a.a_path a.a_module.m_path (List.map tparam pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
+			CTFunction (List.map (fun (n,o,t) ->
+				let ct = convert_type' t in
+					let ct = if n = "" then ct else CTNamed((n,null_pos),ct),null_pos in
+					if o then CTOptional ct,null_pos else ct
+				) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
 			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
 			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
+					let access = ref [] in
+					let add flag =
+						access := (flag,null_pos) :: !access;
+					in
+					if has_class_field_flag f CfPublic then add APublic else add APrivate;
+					if has_class_field_flag f CfFinal then add AFinal;
+					if has_class_field_flag f CfExtern then add AExtern;
+					let kind = match (f.cf_kind,follow f.cf_type) with
+						| (Var v,ret) ->
+							let var_access_to_string va get_or_set = match va with
+								| AccNormal | AccCtor | AccInline | AccRequire _ -> "default"
+								| AccNo -> "null"
+								| AccNever -> "never"
+								| AccCall -> get_or_set
+							in
+							let read = (var_access_to_string v.v_read "get",null_pos) in
+							let write = (var_access_to_string v.v_write "set",null_pos) in
+							FProp (read,write,mk_type_hint f.cf_type null_pos,None)
+						| Method _,TFun(args,ret) ->
+							FFun({
+								f_params = [];
+								f_args = List.map (fun (n,o,t) ->
+									((n,null_pos),o,[],Some (convert_type t,null_pos),None)
+								) args;
+								f_type = Some (convert_type ret,null_pos);
+								f_expr = None;
+							})
+						| _ ->
+							die "" __LOC__
+					in
 					{
 						cff_name = f.cf_name,null_pos;
-						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
+						cff_kind = kind;
 						cff_pos = f.cf_pos;
 						cff_doc = f.cf_doc;
 						cff_meta = f.cf_meta;
-						cff_access = [];
+						cff_access = !access;
 					} :: acc
 				) a.a_fields [])
 			end
@@ -91,7 +125,7 @@ module TExprToExpr = struct
 		| TLocal v -> EConst (mk_ident v.v_name)
 		| TArray (e1,e2) -> EArray (convert_expr e1,convert_expr e2)
 		| TBinop (op,e1,e2) -> EBinop (op, convert_expr e1, convert_expr e2)
-		| TField (e,f) -> EField (convert_expr e, field_name f)
+		| TField (e,f) -> EField (convert_expr e, field_name f, EFNormal)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)

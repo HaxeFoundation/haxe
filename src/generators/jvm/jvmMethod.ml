@@ -31,15 +31,28 @@ let rec pow a b = match b with
 	| _ -> Int32.mul a (pow a (b - 1))
 
 let java_hash s =
+	let high_surrogate c = (c lsr 10) + 0xD7C0 in
+	let low_surrogate c = (c land 0x3FF) lor 0xDC00 in
 	let h = ref Int32.zero in
-	let l = UTF8.length s in
-	let i31 = Int32.of_int 31 in
-	let i = ref 0 in
-	UTF8.iter (fun char ->
-		let char = Int32.of_int (UCharExt.uint_code char) in
-		h := Int32.add !h (Int32.mul char (pow i31 (l - (!i + 1))));
-		incr i;
-	) s;
+	let thirtyone = Int32.of_int 31 in
+	(try
+		UTF8.validate s;
+		UTF8.iter (fun c ->
+			let c = (UCharExt.code c) in
+			if c > 0xFFFF then
+				(h := Int32.add (Int32.mul thirtyone !h)
+					(Int32.of_int (high_surrogate c));
+				h := Int32.add (Int32.mul thirtyone !h)
+					(Int32.of_int (low_surrogate c)))
+			else
+				h := Int32.add (Int32.mul thirtyone !h)
+					(Int32.of_int c)
+			) s
+	with UTF8.Malformed_code ->
+		String.iter (fun c ->
+			h := Int32.add (Int32.mul thirtyone !h)
+				(Int32.of_int (Char.code c))) s
+	);
 	!h
 
 module HashtblList = struct
@@ -143,7 +156,6 @@ class builder jc name jsig = object(self)
 	val mutable argument_locals = []
 	val mutable argument_annotations = Hashtbl.create 0
 	val mutable thrown_exceptions = Hashtbl.create 0
-	val mutable closure_count = 0
 	val mutable regex_count = 0
 
 	(* per-frame *)
@@ -191,11 +203,6 @@ class builder jc name jsig = object(self)
 			| None -> JvmVerificationTypeInfo.VTop
 			| _ -> JvmVerificationTypeInfo.of_signature jc#get_pool t
 		) locals
-
-	method get_next_closure_id =
-		let id = closure_count in
-		closure_count <- closure_count + 1;
-		id
 
 	method get_next_regex_id =
 		let id = regex_count in

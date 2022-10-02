@@ -159,11 +159,19 @@ let rec contains_throw_or_try e =
 	| _ -> check_expr contains_throw_or_try e
 
 (**
+	Check if expression represents an exception wrapped with `haxe.Exception.thrown`
+*)
+let is_wrapped_exception e =
+	match e.eexpr with 
+	| TMeta ((Meta.WrappedException, _, _), _) -> true
+	| _ -> false
+
+(**
 	Returns `true` if `e` has to be wrapped with `haxe.Exception.thrown(e)`
 	to be thrown.
 *)
 let requires_wrapped_throw ctx e =
-	if ctx.throws_anything || ctx.config.ec_special_throw e then
+	if ctx.throws_anything || is_wrapped_exception e || ctx.config.ec_special_throw e then
 		false
 	else
 		(*
@@ -188,8 +196,11 @@ let throw_native ctx e_thrown t p =
 	let e_native =
 		if requires_wrapped_throw ctx e_thrown then
 			let thrown = haxe_exception_static_call ctx "thrown" [e_thrown] p in
-			if is_dynamic ctx.base_throw_type then thrown
-			else mk_cast thrown ctx.base_throw_type p
+			let wrapped = 
+				if is_dynamic ctx.base_throw_type then thrown
+				else mk_cast thrown ctx.base_throw_type p
+			in
+			mk (TMeta ((Meta.WrappedException,[],p),wrapped)) thrown.etype p
 		else
 			e_thrown
 	in

@@ -45,26 +45,6 @@ class BytesIterator<T> extends ArrayIterator<T> {
 }
 
 @:keep
-@:generic
-class BytesKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
-	var a : ArrayBytes<T>;
-
-	public function new(a) {
-		super((null:Dynamic));
-		this.a = a;
-	}
-
-	override public function hasNext():Bool {
-		return current < a.length;
-	}
-
-	override public function next():{key:Int, value:T} {
-		var v = @:privateAccess a.bytes.get(current);
-		return {key:current++, value:v};
-	}
-}
-
-@:keep
 @:generic class ArrayBytes<T> extends ArrayBase {
 	var bytes:hl.BytesAccess<T>;
 	var size:Int;
@@ -285,7 +265,7 @@ class BytesKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
 	}
 
 	public function keyValueIterator() : ArrayKeyValueIterator<T> {
-		return new BytesKeyValueIterator<T>(this);
+		return new ArrayKeyValueIterator<T>(cast this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn@:privateAccess {

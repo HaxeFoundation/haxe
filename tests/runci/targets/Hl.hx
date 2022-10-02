@@ -3,32 +3,29 @@ package runci.targets;
 import haxe.io.Path;
 import sys.FileSystem;
 import runci.System.*;
-import runci.System.Failure;
 import runci.Config.*;
 
-class Hl {
-	static var hlSrc = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink"]);
-	};
-	static var hlBuild = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink_build";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
-	};
-	static var hlBinDir = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink_build\\bin";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin"]);
-	};
-	static var hlBinary = switch [ci, systemName] {
-	  case [GithubActions, "Windows"]: "C:\\hashlink_build\\bin\\hl.exe";
-	  case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin", "hl"]);
-	};
+using StringTools;
 
-	static final miscHlDir = miscDir + 'hl/';
+class Hl {
+	static final hlSrc = Path.join([getDownloadPath(), "hashlink"]);
+
+	static final hlBuild = Path.join([getInstallPath(), "hashlink_build"]);
+
+	static final hlBuildBinDir = Path.join([getInstallPath(), "hashlink_build", "bin"]);
+
+	static final hlBinary =
+		if (isCi() || !commandSucceed("hl", ["--version"])){
+			Path.join([hlBuildBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
+		} else {
+			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
+		};
+
+	static final miscHlDir = getMiscSubDir('hl');
 
 	static public function getHlDependencies() {
-		if (commandSucceed("hl", ["--version"])) {
-			infoMsg('hl has already been installed.');
+		if (!isCi() && FileSystem.exists(hlBinary)) {
+			infoMsg('hl has already been installed at $hlBinary.');
 			return;
 		}
 		if (!FileSystem.exists(hlSrc))
@@ -38,24 +35,23 @@ class Hl {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev"]);
+				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
 			case "Mac":
-				runCommand("brew", ["update", '--preinstall'], true);
-				runCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile'], true);
+				runNetworkCommand("brew", ["update", '--preinstall']);
+				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
 			case "Windows":
 				//pass
 		}
 
 		FileSystem.createDirectory(hlBuild);
-		var generator = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
+		final generator = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
 		runCommand("cmake", generator.concat([
 			"-DBUILD_TESTING=OFF",
-			"-DWITH_BULLET=OFF",
 			"-DWITH_DIRECTX=OFF",
 			"-DWITH_FMT=ON",
 			"-DWITH_OPENAL=OFF",
 			"-DWITH_SDL=OFF",
-			"-DWITH_SQLITE=OFF",
+			"-DWITH_SQLITE=ON",
 			"-DWITH_SSL=OFF",
 			"-DWITH_UI=OFF",
 			"-DWITH_UV=OFF",
@@ -68,21 +64,13 @@ class Hl {
 		]);
 
 		runCommand(hlBinary, ["--version"]);
-		addToPATH(hlBinDir);
+		addToPATH(hlBuildBinDir);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 	}
 
 	static public function run(args:Array<String>) {
 		getHlDependencies();
-
-		var hlBinary = try {
-			if(!isCi())
-				runCommand(hlBinary, ["--version"]);
-			hlBinary;
-		} catch(e:Failure) {
-			'hl';
-		}
 
 		switch (systemName) {
 			case "Windows":

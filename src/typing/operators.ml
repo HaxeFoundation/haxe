@@ -9,61 +9,6 @@ open Calls
 open Fields
 open FieldAccess
 
-class value_reference (ctx : typer) =
-
-object(self)
-	val vars = DynArray.create ()
-
-	method get_vars = DynArray.to_list vars
-
-	method as_var name e =
-		let v = alloc_var VGenerated name e.etype e.epos in
-		DynArray.add vars (v,e);
-		mk (TLocal v) v.v_type v.v_pos
-
-	method private get_expr_aux depth name e =
-		let rec loop depth name e = match (Texpr.skip e).eexpr with
-			| TLocal _ | TTypeExpr _ | TConst _ ->
-				e
-			| TField(ef,fa) when depth = 0 ->
-				let ef = loop (depth + 1) "fh" ef in
-				{e with eexpr = TField(ef,fa)}
-			| TArray(e1,e2) when depth = 0 ->
-				let e1 = loop (depth + 1) "base" e1 in
-				let e2 = loop (depth + 1) "index" e2 in
-				{e with eexpr = TArray(e1,e2)}
-			| _ ->
-				self#as_var name e
-		in
-		loop depth name e
-
-	method get_expr name e =
-		self#get_expr_aux 0 name e
-
-	method get_expr_part name e =
-		self#get_expr_aux 1 name e
-
-	method to_texpr e =
-		begin match self#get_vars with
-		| [] ->
-			e
-		| vl ->
-			let el = List.map (fun (v,e) ->
-				mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
-			) vl in
-			let e = mk (TBlock (el @ [e])) e.etype e.epos in
-			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-		end
-
-	method to_texpr_el el e =
-		let vl = self#get_vars in
-		let el_vars = List.map (fun (v,e) ->
-			mk (TVar(v,Some e)) ctx.t.tvoid v.v_pos
-		) vl in
-		let e = mk (TBlock (el_vars @ el @ [e])) e.etype e.epos in
-		{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-end
-
 module BinopResult = struct
 
 	type normal_binop = {
@@ -134,15 +79,16 @@ module BinopResult = struct
 end
 
 let check_assign ctx e =
-	if ctx.com.display.dms_error_policy <> EPIgnore then match e.eexpr with
-	| TLocal v when has_var_flag v VFinal ->
+	match e.eexpr with
+	| TLocal v when has_var_flag v VFinal && not (Common.ignore_error ctx.com) ->
 		typing_error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
-		invalid_assign e.epos
+		if not (Common.ignore_error ctx.com) then
+			invalid_assign e.epos
 
 type type_class =
 	| KInt
@@ -387,7 +333,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		| TConst TNull , _ | _ , TConst TNull -> ()
 		| _ ->
 			match follow e1.etype, follow e2.etype with
-			| TFun _ , _ | _, TFun _ -> ctx.com.warning "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
+			| TFun _ , _ | _, TFun _ -> warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
 			| _ -> ()
 		end;
 		mk_op e1 e2 ctx.t.tbool
@@ -444,6 +390,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 		typing_error "Unexpected =>" p
 	| OpIn ->
 		typing_error "Unexpected in" p
+	| OpNullCoal
 	| OpAssign
 	| OpAssignOp _ ->
 		die "" __LOC__
@@ -452,13 +399,13 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive operator method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				(* for non core-types we require that the return type is compatible to the native result type *)
 				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op with_type p in
 				let t_expected = BinopResult.get_type result in
 				begin try
-					unify_raise ctx tret t_expected p
+					unify_raise tret t_expected p
 				with Error (Unify _,_) ->
 					match follow tret with
 						| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
@@ -610,7 +557,7 @@ let type_assign ctx e1 e2 with_type p =
 	in
 	match e1 with
 	| AKNo s -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
-	| AKUsingField _ ->
+	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 		typing_error ("Cannot access function " ^ name ^ " for writing") p
@@ -624,7 +571,7 @@ let type_assign ctx e1 e2 with_type p =
 		dispatcher#accessor_call fa [] [e2]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let e2 = type_rhs WithType.value in
-		mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
+		mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey e2 p) c ebase p
 	| AKResolve(sea,name) ->
 		let eparam = sea.se_this in
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
@@ -707,7 +654,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		(try type_non_assign_op ctx op e1 e2 true true with_type p
 		with Not_found -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		)
-	| AKUsingField _ ->
+	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr e ->
 		let e,vr = process_lhs_expr ctx "lhs" e in
@@ -730,7 +677,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
 		set vr sea.se_access t_lhs e_rhs [ef]
 	| AKAccess(a,tl,c,ebase,ekey) ->
-		let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
+		let cf_get,tf_get,r_get,ekey = AbstractCast.find_array_read_access ctx a tl ekey p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
 		let save = save_locals ctx in
 		let maybe_bind_to_temp e = match Optimizer.make_constant_expression ctx e with
@@ -742,13 +689,12 @@ let type_assign_op ctx op e1 e2 with_type p =
 		in
 		let ekey,ekey' = maybe_bind_to_temp ekey in
 		let ebase,ebase' = maybe_bind_to_temp ebase in
-		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
+		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey) c ebase p in
 		let eget = type_binop2 ctx op eget e2 true WithType.value p in
 		let vr = new value_reference ctx in
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
-		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
-		let eget = match eget with None -> die "" __LOC__ | Some e -> e in
+		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
 		let et = type_module_type ctx (TClassDecl c) None p in
 		let e = match cf_set.cf_expr,cf_get.cf_expr with
 			| None,None ->
@@ -841,7 +787,7 @@ let type_unop ctx op flag e with_type p =
 		in
 		let t = match op with
 			| Not ->
-				if flag = Postfix then typing_error "Postfix ! is not supported" p;
+				if flag = Postfix then Common.display_error ctx.com "Postfix ! is not supported" p;
 				unify ctx e.etype ctx.t.tbool e.epos;
 				ctx.t.tbool
 			| NegBits ->
@@ -936,7 +882,7 @@ let type_unop ctx op flag e with_type p =
 				let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
 				let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
 				(* get *)
-				let e_get = mk_array_get_call ctx (AbstractCast.find_array_access_raise ctx a tl ekey None p) c ebase p in
+				let e_get = mk_array_get_call ctx (AbstractCast.find_array_read_access_raise ctx a tl ekey p) c ebase p in
 				let v_get = alloc_var VGenerated "tmp" e_get.etype e_get.epos in
 				let ev_get = mk (TLocal v_get) v_get.v_type p in
 				let evar_get = mk (TVar(v_get,Some e_get)) ctx.com.basic.tvoid p in
@@ -944,12 +890,12 @@ let type_unop ctx op flag e with_type p =
 				let e_one = mk (TConst (TInt (Int32.of_int 1))) ctx.com.basic.tint p in
 				let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
 				(* set *)
-				let e_set = mk_array_set_call ctx (AbstractCast.find_array_access_raise ctx a tl ekey (Some e_op) p) c ebase p in
+				let e_set = mk_array_set_call ctx (AbstractCast.find_array_write_access_raise ctx a tl ekey e_op p) c ebase p in
 				let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
 				mk (TBlock el) e_set.etype p
 			with Not_found ->
-				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
+				let e = mk_array_get_call ctx (AbstractCast.find_array_read_access ctx a tl ekey p) c ebase p in
 				find_overload_or_make e
 			end
-		| AKUsingField _ | AKResolve _ ->
+		| AKUsingField _ | AKResolve _ | AKSafeNav _ ->
 			typing_error "Invalid operation" p

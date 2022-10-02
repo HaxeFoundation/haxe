@@ -148,6 +148,7 @@ let rec generate_binop ctx op =
 	| OpInterval -> "OpInterval",None
 	| OpArrow -> "OpArrow",None
 	| OpIn -> "OpIn",None
+	| OpNullCoal -> "OpNullCoal",None
 	in
 	generate_adt ctx (Some (["haxe";"macro"],"Binop")) name args
 
@@ -712,6 +713,10 @@ let generate_module ctx m =
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path (t_infos mt).mt_meta) m.m_types;
 		"file",jstring (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		"cacheState",jstring (match m.m_extra.m_cache_state with
+			| MSGood -> "Good"
+			| MSBad reason -> Printer.s_module_skip_reason reason
+			| MSUnknown -> "Unknown");
 		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
 			"path",jstring (s_type_path m.m_path);
 			"sign",jstring (Digest.to_hex m.m_extra.m_sign);

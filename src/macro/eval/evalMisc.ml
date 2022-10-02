@@ -248,15 +248,24 @@ let op_xor p v1 v2 = match v1,v2 with
 	| _ -> invalid_binop OpXor v1 v2 p
 
 let op_shl p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.shift_left i1 (Int32.to_int i2))
+	| VInt32 i1,VInt32 i2 ->
+		let i2 = Int32.logand i2 i32_31 in
+		let i2 = Int32.to_int i2 in
+		vint32 (Int32.shift_left i1 i2)
 	| _ -> invalid_binop OpShl v1 v2 p
 
 let op_shr p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.shift_right i1 (Int32.to_int i2))
+	| VInt32 i1,VInt32 i2 ->
+		let i2 = Int32.logand i2 i32_31 in
+		let i2 = Int32.to_int i2 in
+		vint32 (Int32.shift_right i1 i2)
 	| _ -> invalid_binop OpShr v1 v2 p
 
 let op_ushr p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.shift_right_logical i1 (Int32.to_int i2))
+	| VInt32 i1,VInt32 i2 ->
+		let i2 = Int32.logand i2 i32_31 in
+		let i2 = Int32.to_int i2 in
+		vint32 (Int32.shift_right_logical i1 i2)
 	| _ -> invalid_binop OpUShr v1 v2 p
 
 let op_mod p v1 v2 = match v1,v2 with
@@ -284,7 +293,7 @@ let get_binop_fun op p = match op with
 	| OpShr -> op_shr p
 	| OpUShr -> op_ushr p
 	| OpMod -> op_mod p
-	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> die ~p "" __LOC__
+	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn | OpNullCoal -> die ~p "" __LOC__
 
 let prepare_callback v n =
 	match v with

@@ -153,6 +153,15 @@ let init file =
 let save() =
 	!cur
 
+let reinit file =
+	let old_file = try Some (Hashtbl.find all_files file) with Not_found -> None in
+	let old_cur = !cur in
+	init file;
+	(fun () ->
+		cur := old_cur;
+		Option.may (Hashtbl.replace all_files file) old_file;
+	)
+
 let restore c =
 	cur := c
 
@@ -393,6 +402,7 @@ let rec token lexbuf =
 	| "<<=" -> mk lexbuf (Binop (OpAssignOp OpShl))
 	| "||=" -> mk lexbuf (Binop (OpAssignOp OpBoolOr))
 	| "&&=" -> mk lexbuf (Binop (OpAssignOp OpBoolAnd))
+	| "??=" -> mk lexbuf (Binop (OpAssignOp OpNullCoal))
 (*//| ">>=" -> mk lexbuf (Binop (OpAssignOp OpShr)) *)
 (*//| ">>>=" -> mk lexbuf (Binop (OpAssignOp OpUShr)) *)
 	| "==" -> mk lexbuf (Binop OpEq)
@@ -412,6 +422,7 @@ let rec token lexbuf =
 	| ":" -> mk lexbuf DblDot
 	| "," -> mk lexbuf Comma
 	| "." -> mk lexbuf Dot
+	| "?." -> mk lexbuf QuestionDot
 	| "%" -> mk lexbuf (Binop OpMod)
 	| "&" -> mk lexbuf (Binop OpAnd)
 	| "|" -> mk lexbuf (Binop OpOr)
@@ -427,6 +438,7 @@ let rec token lexbuf =
 	| "}" -> mk lexbuf BrClose
 	| "(" -> mk lexbuf POpen
 	| ")" -> mk lexbuf PClose
+	| "??" -> mk lexbuf (Binop OpNullCoal)
 	| "?" -> mk lexbuf Question
 	| "@" -> mk lexbuf At
 

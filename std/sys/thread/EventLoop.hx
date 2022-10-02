@@ -28,8 +28,13 @@ class EventLoop {
 	final waitLock = new Lock();
 	var promisedEventsCount = 0;
 	var regularEvents:Null<RegularEvent>;
+	var isMainThread:Bool;
+	static var CREATED : Bool;
 
-	public function new():Void {}
+	public function new():Void {
+		isMainThread = !CREATED;
+		CREATED = true;
+	}
 
 	/**
 		Schedule event for execution every `intervalMs` milliseconds in current loop.
@@ -93,13 +98,14 @@ class EventLoop {
 			case null:
 			case e: e.next = event.next;
 		}
+		event.next = event.previous = null;
 		mutex.release();
 	}
 
 	/**
 		Notify this loop about an upcoming event.
-		This makes the thread to stay alive and wait for as many events as many times
-		`.promise()` was called. These events should be added via `.runPromised()`
+		This makes the thread stay alive and wait for as many events as the number of
+		times `.promise()` was called. These events should be added via `.runPromised()`.
 	**/
 	public function promise():Void {
 		mutex.acquire();
@@ -164,8 +170,8 @@ class EventLoop {
 
 	/**
 		Execute all pending events.
-		Wait and execute as many events as many times `promiseEvent()` was called.
-		Runs until all repeating events are cancelled and no more events is expected.
+		Wait and execute as many events as the number of times `promise()` was called.
+		Runs until all repeating events are cancelled and no more events are expected.
 
 		Depending on a target platform this method may be non-reentrant. It must
 		not be called from event callbacks.
@@ -221,7 +227,7 @@ class EventLoop {
 
 		// Run regular events
 		for(i in 0...eventsToRunIdx) {
-			if(!regularsToRun[i].cancelled) 
+			if(!regularsToRun[i].cancelled)
 				regularsToRun[i].run();
 			regularsToRun[i] = null;
 		}
@@ -247,6 +253,16 @@ class EventLoop {
 		for(i in 0...eventsToRunIdx) {
 			oneTimersToRun[i]();
 			oneTimersToRun[i] = null;
+		}
+
+		// run main events
+		if( isMainThread ) {
+			var next = @:privateAccess haxe.MainLoop.tick();
+			if( haxe.MainLoop.hasEvents() ) {
+				eventsToRunIdx++;
+				if( nextEventAt > next )
+					nextEventAt = next;
+			}
 		}
 
 		// Some events were executed. They could add new events to run.

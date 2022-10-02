@@ -70,7 +70,8 @@ let handle_override_dynfun acc e this field =
 	| None -> e :: acc
 	| Some add_expr -> add_expr :: e :: acc
 
-let handle_class com cl =
+let handle_class gen cl =
+	let com = gen.gcon in
 	let init = match cl.cl_init with
 		| None -> []
 		| Some i -> [i]
@@ -78,10 +79,10 @@ let handle_class com cl =
 	let init = List.fold_left (fun acc cf ->
 		match cf.cf_kind with
 			| Var v when Meta.has Meta.ReadOnly cf.cf_meta ->
-					if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then com.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+					if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then gen.gwarning WGenerator "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 					(match cf.cf_expr with
-					| None -> com.warning "Uninitialized readonly variable" cf.cf_pos
-					| Some e -> ensure_simple_expr com e);
+					| None -> gen.gwarning WGenerator "Uninitialized readonly variable" cf.cf_pos
+					| Some e -> ensure_simple_expr gen.gcon e);
 					acc
 			| Var _
 			| Method MethDynamic when Type.is_physical_field cf ->
@@ -115,7 +116,7 @@ let handle_class com cl =
 	let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->
 		match cf.cf_kind with
 		| Var v when Meta.has Meta.ReadOnly cf.cf_meta ->
-				if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then com.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+				if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then gen.gwarning WGenerator "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 				Option.may (ensure_simple_expr com) cf.cf_expr;
 				(acc_vars,acc_funs)
 		| Var _
@@ -224,15 +225,15 @@ let handle_class com cl =
 		List.iter process (ctors :: ctors.cf_overloads)
 	)
 
-let mod_filter com md =
+let mod_filter gen md =
 	match md with
 	| TClassDecl cl when not (has_class_flag cl CExtern) ->
-		handle_class com cl
+		handle_class gen cl
 	| _ -> ()
 
 let name = "init_funcs"
 let priority = solve_deps name [DBefore OverloadingConstructor.priority]
 
 let configure gen =
-	let run = (fun md -> mod_filter gen.gcon md; md) in
+	let run = (fun md -> mod_filter gen md; md) in
 	gen.gmodule_filters#add name (PCustom priority) run

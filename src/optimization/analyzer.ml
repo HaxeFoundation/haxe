@@ -1053,14 +1053,14 @@ module Run = struct
 		end;
 		back_again actx is_real_function
 
-	let rec reduce_control_flow ctx e =
-		let e = Type.map_expr (reduce_control_flow ctx) e in
-		Optimizer.reduce_control_flow ctx e
+	let rec reduce_control_flow com e =
+		let e = Type.map_expr (reduce_control_flow com) e in
+		Optimizer.reduce_control_flow com e
 
-	let run_on_field ctx config c cf = match cf.cf_expr with
-		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field ctx cf) ->
-			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
-			let actx = create_analyzer_context ctx.Typecore.com config e in
+	let run_on_field com config c cf = match cf.cf_expr with
+		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field com cf) && not (has_class_field_flag cf CfPostProcessed) ->
+			let config = update_config_from_meta com config cf.cf_meta in
+			let actx = create_analyzer_context com config e in
 			let debug() =
 				print_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
@@ -1071,33 +1071,35 @@ module Run = struct
 				Debug.dot_debug actx c cf;
 				print_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
 			in
+			let maybe_debug () = match config.debug_kind with
+				| DebugNone -> ()
+				| DebugDot -> Debug.dot_debug actx c cf;
+				| DebugFull -> debug()
+			in
 			let e = try
 				run_on_expr actx e
 			with
 			| Error.Error _ | Abort _ | Sys.Break as exc ->
+				maybe_debug();
 				raise exc
 			| exc ->
 				debug();
 				raise exc
 			in
-			let e = reduce_control_flow ctx e in
-			begin match config.debug_kind with
-				| DebugNone -> ()
-				| DebugDot -> Debug.dot_debug actx c cf;
-				| DebugFull -> debug()
-			end;
+			let e = reduce_control_flow com e in
+			maybe_debug();
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
-	let run_on_field ctx config c cf =
-		run_on_field ctx config c cf;
-		List.iter (run_on_field ctx config c) cf.cf_overloads
+	let run_on_field com config c cf =
+		run_on_field com config c cf;
+		List.iter (run_on_field com config c) cf.cf_overloads
 
-	let run_on_class ctx config c =
-		let config = update_config_from_meta ctx.Typecore.com config c.cl_meta in
+	let run_on_class com config c =
+		let config = update_config_from_meta com config c.cl_meta in
 		let process_field stat cf = match cf.cf_kind with
 			| Var _ when not stat -> ()
-			| _ -> run_on_field ctx config c cf
+			| _ -> run_on_field com config c cf
 		in
 		List.iter (process_field false) c.cl_ordered_fields;
 		List.iter (process_field true) c.cl_ordered_statics;
@@ -1111,7 +1113,7 @@ module Run = struct
 			| Some e ->
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
 				let e = mk (TFunction tf) (tfun [] e.etype) e.epos in
-				let actx = create_analyzer_context ctx.Typecore.com {config with optimize = false} e in
+				let actx = create_analyzer_context com {config with optimize = false} e in
 				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
@@ -1120,21 +1122,20 @@ module Run = struct
 				c.cl_init <- Some e
 		end
 
-	let run_on_type ctx config t =
+	let run_on_type com config t =
 		match t with
 		| TClassDecl c when (is_ignored c.cl_meta) -> ()
-		| TClassDecl c -> run_on_class ctx config c
+		| TClassDecl c -> run_on_class com config c
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types ctx types =
-		let com = ctx.Typecore.com in
+	let run_on_types com types =
 		let config = get_base_config com in
 		with_timer config.detail_times ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
 				with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com);
-			List.iter (run_on_type ctx config) types
+			List.iter (run_on_type com config) types
 		)
 end
 ;;

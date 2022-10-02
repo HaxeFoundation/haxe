@@ -7,7 +7,7 @@ open Error
 let get_macro_path ctx e args p =
 	let rec loop e =
 		match fst e with
-		| EField (e,f) -> f :: loop e
+		| EField (e,f,_) -> f :: loop e
 		| EConst (Ident i) -> [i]
 		| _ -> typing_error "Invalid macro call" p
 	in
@@ -77,7 +77,7 @@ let build_instance ctx mtype p =
 				let t = spawn_monomorph ctx p in
 				r := lazy_processing (fun() -> t);
 				let tf = (f()) in
-				unify_raise ctx tf t p;
+				unify_raise tf t p;
 				link_dynamic t tf;
 				(match tf with
 					| TInst (c, _) -> ignore(c.cl_build())
@@ -91,7 +91,7 @@ let build_instance ctx mtype p =
 		let ft = (fun pl ->
 			match c.cl_kind with
 			| KGeneric ->
-				build (fun () -> Generic.build_generic ctx c p pl) "build_generic"
+				build (fun () -> Generic.build_generic_class ctx c p pl) "build_generic"
 			| KMacroType ->
 				build (fun () -> build_macro_type ctx pl p) "macro_type"
 			| KGenericBuild cfl ->

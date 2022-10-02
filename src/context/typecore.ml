@@ -60,23 +60,20 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_types : (module_type * pos) list;
+	mutable module_imports : (module_type * pos) list;
 	mutable module_using : (tclass * pos) list;
 	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
 	mutable wildcard_packages : (string list * pos) list;
-	mutable module_imports : import list;
+	mutable import_statements : import list;
 }
 
 type typer_globals = {
-	types_module : (path, path) Hashtbl.t;
-	modules : (path , module_def) Hashtbl.t;
 	mutable delayed : (typer_pass * (unit -> unit) list) list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
-	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
@@ -84,6 +81,7 @@ type typer_globals = {
 	(* Indicates that Typer.create() finished building this instance *)
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;
+	mutable load_only_cached_modules : bool;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
@@ -91,11 +89,8 @@ type typer_globals = {
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
 	do_load_type_def : typer -> pos -> type_path -> module_type;
-	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> (typed_type_param list * path * (t list -> t));
 	do_format_string : typer -> string -> pos -> Ast.expr;
-	do_finalize : typer -> unit;
-	do_generate : typer -> (texpr option * module_type list * module_def list);
 	do_load_core_class : typer -> tclass -> tclass;
 }
 
@@ -106,7 +101,6 @@ and typer = {
 	g : typer_globals;
 	mutable bypass_accessor : int;
 	mutable meta : metadata;
-	mutable this_stack : texpr list;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	(* variable *)
@@ -120,12 +114,13 @@ and typer = {
 	mutable type_params : type_params;
 	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
+	mutable allow_inline : bool;
+	mutable allow_transform : bool;
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
 	mutable in_function : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
-	mutable in_macro : bool;
 	mutable macro_depth : int;
 	mutable curfun : current_fun;
 	mutable ret : t;
@@ -137,7 +132,6 @@ and typer = {
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	mutable monomorphs : monomorphs;
 	(* events *)
-	mutable on_error : typer -> string -> pos -> unit;
 	memory_marker : float array;
 }
 
@@ -191,6 +185,16 @@ type static_extension_access = {
 	se_access : field_access;
 }
 
+type dot_path_part_case =
+	| PUppercase
+	| PLowercase
+
+type dot_path_part = {
+	name : string;
+	case : dot_path_part_case;
+	pos : pos
+}
+
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
@@ -217,9 +221,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
-	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
-	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
+let warning ctx w msg p =
+	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
+	ctx.com.warning w options msg p
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -253,11 +257,11 @@ let make_static_call ctx c cf map args t p =
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
 	else if ctx.in_call_args then raise (WithTypeError(Unify l,p))
-	else display_error ctx (error_msg (Unify l)) p
+	else display_error ctx.com (error_msg (Unify l)) p
 
 let raise_or_display_message ctx msg p =
 	if ctx.in_call_args then raise (WithTypeError (Custom msg,p))
-	else display_error ctx msg p
+	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
 	try
@@ -266,7 +270,7 @@ let unify ctx t1 t2 p =
 		Unify_error l ->
 			raise_or_display ctx l p
 
-let unify_raise_custom uctx (ctx : typer) t1 t2 p =
+let unify_raise_custom uctx t1 t2 p =
 	try
 		Type.unify_custom uctx t1 t2
 	with
@@ -287,8 +291,8 @@ let add_local ctx k n t p =
 			let v' = PMap.find n ctx.locals in
 			(* ignore std lib *)
 			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
-				ctx.com.warning "This variable shadows a previously declared variable" p;
-				ctx.com.warning (compl_msg "Previous variable was here") v'.v_pos
+				warning ctx WVarShadow "This variable shadows a previously declared variable" p;
+				warning ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 			end
 		with Not_found ->
 			()
@@ -298,7 +302,7 @@ let add_local ctx k n t p =
 
 let display_identifier_error ctx ?prepend_msg msg p =
 	let prepend = match prepend_msg with Some s -> s ^ " " | _ -> "" in
-	display_error ctx (prepend ^ msg) p
+	display_error ctx.com (prepend ^ msg) p
 
 let check_identifier_name ?prepend_msg ctx name kind p =
 	if starts_with name '$' then
@@ -325,8 +329,8 @@ let check_module_path ctx (pack,name) p =
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
-		display_error ctx ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
-		display_error ctx msg p
+		display_error ctx.com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
+		display_error ctx.com msg p
 
 let check_local_variable_name ctx name origin p =
 	match name with
@@ -350,15 +354,7 @@ let add_local_with_origin ctx origin n t p =
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =
-	(* ensure that our generated local does not mask an existing one *)
-	let rec loop n =
-		let nv = (if n = 0 then gen_local_prefix else gen_local_prefix ^ string_of_int n) in
-		if PMap.mem nv ctx.locals then
-			loop (n+1)
-		else
-			nv
-	in
-	add_local ctx VGenerated (loop 0) t p
+	add_local ctx VGenerated "`" t p
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
@@ -386,6 +382,12 @@ let delay_late ctx p f =
 				(p,[f]) :: (p2,l) :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
+
+let delay_if_mono ctx p t f = match follow t with
+	| TMono _ ->
+		delay ctx p f
+	| _ ->
+		f()
 
 let rec flush_pass ctx p (where:string) =
 	match ctx.g.delayed with
@@ -434,23 +436,15 @@ let create_fake_module ctx file =
 		Hashtbl.add fake_modules key mdep;
 		mdep
 	) in
-	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
+	ctx.com.module_lut#add mdep.m_path mdep;
 	mdep
 
-let push_this ctx e = match e.eexpr with
-	| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
-		(EConst (tconst_to_const ct),e.epos),fun () -> ()
-	| _ ->
-		ctx.this_stack <- e :: ctx.this_stack;
-		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
-		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
-
-let is_removable_field ctx f =
+let is_removable_field com f =
 	not (has_class_field_flag f CfOverride) && (
 		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
 		|| (match f.cf_kind with
 			| Var {v_read = AccRequire (s,_)} -> true
-			| Method MethMacro -> not ctx.in_macro
+			| Method MethMacro -> not com.is_macro_context
 			| _ -> false)
 	)
 
@@ -473,7 +467,7 @@ let rec can_access ctx c cf stat =
 	in
 	let rec expr_path acc e =
 		match fst e with
-		| EField (e,f) -> expr_path (f :: acc) e
+		| EField (e,f,_) -> expr_path (f :: acc) e
 		| EConst (Ident n) -> n :: acc
 		| _ -> []
 	in
@@ -555,7 +549,7 @@ let rec can_access ctx c cf stat =
 
 let check_field_access ctx c f stat p =
 	if not ctx.untyped && not (can_access ctx c f stat) then
-		display_error ctx ("Cannot access private field " ^ f.cf_name) p
+		display_error ctx.com ("Cannot access private field " ^ f.cf_name) p
 
 (** removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match follow cf.cf_type with
@@ -588,6 +582,40 @@ let merge_core_doc ctx mt =
 			| _ -> ()
 		end
 	| _ -> ())
+
+let field_to_type_path com e =
+	let rec loop e pack name = match e with
+		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+			| [] | _ :: [] ->
+				loop e pack (f :: name)
+			| _ -> (* too many name paths *)
+				display_error com ("Unexpected " ^ f) p;
+				raise Exit)
+		| EField(e,f,_),_ ->
+			loop e (f :: pack) name
+		| EConst(Ident f),_ ->
+			let pack, name, sub = match name with
+				| [] ->
+					let fchar = String.get f 0 in
+					if Char.uppercase fchar = fchar then
+						pack, f, None
+					else begin
+						display_error com "A class name must start with an uppercase letter" (snd e);
+						raise Exit
+					end
+				| [name] ->
+					f :: pack, name, None
+				| [name; sub] ->
+					f :: pack, name, Some sub
+				| _ ->
+					die "" __LOC__
+			in
+			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
+		| _,pos ->
+			display_error com "Unexpected expression when building strict meta" pos;
+			raise Exit
+	in
+	loop e [] []
 
 let safe_mono_close ctx m p =
 	try
@@ -631,7 +659,7 @@ let relative_path ctx file =
 	loop ctx.com.Common.class_path
 
 let mk_infos ctx p params =
-	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+	let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
 	(EObjectDecl (
 		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p), None)),p)) ::
@@ -663,6 +691,27 @@ let is_empty_or_pos_infos args =
 	| [_,true,t] -> is_pos_infos t
 	| [] -> true
 	| _ -> false
+
+let get_next_stored_typed_expr_id =
+	let uid = ref 0 in
+	(fun() -> incr uid; !uid)
+
+let get_stored_typed_expr com id =
+	let e = com.stored_typed_exprs#find id in
+	Texpr.duplicate_tvars e
+
+let store_typed_expr com te p =
+	let id = get_next_stored_typed_expr_id() in
+	com.stored_typed_exprs#add id te;
+	let eid = (EConst (Int (string_of_int id, None))), p in
+	id,((EMeta ((Meta.StoredTypedExpr,[],p), eid)),p)
+
+let push_this ctx e = match e.eexpr with
+| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
+	(EConst (tconst_to_const ct),e.epos),fun () -> ()
+| _ ->
+	let id,er = store_typed_expr ctx.com e e.epos in
+	er,fun () -> ctx.com.stored_typed_exprs#remove id
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
@@ -737,9 +786,9 @@ let pending_passes ctx =
 	| [] -> ""
 	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,i,_) -> i) l) ^ "]"
 
-let display_error ctx msg p =
+let display_error ctx.com msg p =
 	debug ctx ("ERROR " ^ msg);
-	display_error ctx msg p
+	display_error ctx.com msg p
 
 let make_pass ?inf ctx f =
 	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in

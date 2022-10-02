@@ -44,10 +44,10 @@ class Base64 {
 
 	public static inline function decode(str:String, complement = true):Bytes {
 		if (!complement) {
-			switch (strlen(str) % 3) {
-				case 1:
-					str += "==";
+			switch (strlen(str) % 4) {
 				case 2:
+					str += "==";
+				case 3:
 					str += "=";
 				default:
 			}
@@ -65,10 +65,10 @@ class Base64 {
 
 	public static inline function urlDecode(str:String, complement = false):Bytes {
 		if (complement) {
-			switch (strlen(str) % 3) {
-				case 1:
-					str += "==";
+			switch (strlen(str) % 4) {
 				case 2:
+					str += "==";
+				case 3:
 					str += "=";
 				default:
 			}

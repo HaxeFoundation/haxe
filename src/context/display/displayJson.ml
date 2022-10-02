@@ -8,6 +8,7 @@ open DisplayTypes.DisplayMode
 open Timer
 open Genjson
 open Type
+open DisplayProcessingGlobals
 
 (* Generate the JSON of our times. *)
 let json_of_times root =
@@ -39,12 +40,12 @@ let create_json_context jsonrpc may_resolve =
 	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string j =
-	raise (DisplayOutput.Completion j)
+	raise (Completion j)
 
 let send_json json =
 	send_string (string_of_json json)
 
-class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t) = object(self)
+class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) = object(self)
 	val cs = cs;
 
 	method get_cs = cs
@@ -58,7 +59,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationServer.t)
 		let file = jsonrpc#get_opt_param (fun () ->
 			let file = jsonrpc#get_string_param "file" in
 			Path.get_full_path file
-		) DisplayOutput.file_input_marker in
+		) file_input_marker in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		TypeloadParse.current_stdin := jsonrpc#get_opt_param (fun () ->
 			let s = jsonrpc#get_string_param "contents" in
@@ -82,7 +83,7 @@ type handler_context = {
 }
 
 let handler =
-	let open CompilationServer in
+	let open CompilationCache in
 	let h = Hashtbl.create 0 in
 	let l = [
 		"initialize", (fun hctx ->
@@ -168,6 +169,7 @@ let handler =
 		);
 		"server/contexts", (fun hctx ->
 			let l = List.map (fun cc -> cc#get_json) hctx.display#get_cs#get_contexts in
+			let l = List.filter (fun json -> json <> JNull) l in
 			hctx.send_result (jarray l)
 		);
 		"server/modules", (fun hctx ->
@@ -188,6 +190,33 @@ let handler =
 				hctx.send_error [jstring "No such module"]
 			in
 			hctx.send_result (generate_module () m)
+		);
+		"server/type", (fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
+			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
+			let typeName = hctx.jsonrpc#get_string_param "typeName" in
+			let cc = hctx.display#get_cs#get_context sign in
+			let m = try
+				cc#find_module path
+			with Not_found ->
+				hctx.send_error [jstring "No such module"]
+			in
+			let rec loop mtl = match mtl with
+				| [] ->
+					hctx.send_error [jstring "No such type"]
+				| mt :: mtl ->
+					begin match mt with
+					| TClassDecl c -> c.cl_restore()
+					| _ -> ()
+					end;
+					let infos = t_infos mt in
+					if snd infos.mt_path = typeName then begin
+						let ctx = Genjson.create_context GMMinimum in
+						hctx.send_result (Genjson.generate_module_type ctx mt)
+					end else
+						loop mtl
+			in
+			loop m.m_types
 		);
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
@@ -218,7 +247,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let fkey = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
-			cs#taint_modules fkey;
+			cs#taint_modules fkey "server/invalidate";
 			cs#remove_files fkey;
 			hctx.send_result jnull
 		);
@@ -279,6 +308,8 @@ let parse_input com input report_times =
 	let jsonrpc = new jsonrpc_handler input in
 
 	let send_result json =
+		flush stdout;
+		flush stderr;
 		let fl = [
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());
@@ -310,10 +341,7 @@ let parse_input com input report_times =
 		jsonrpc = jsonrpc
 	});
 
-	let cs = match CompilationServer.get() with
-		| Some cs -> cs
-		| None -> send_error [jstring "compilation server not running for some reason"];
-	in
+	let cs = com.cs in
 
 	let display = new display_handler jsonrpc com cs in
 

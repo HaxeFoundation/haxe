@@ -14,9 +14,9 @@ class TestEvents extends utest.Test {
 			events.cancel(e1);
 			events.cancel(e2);
 			events.cancel(e3);
-		}, 2);
-		e1 = events.repeat(() -> checks.push(1), 1);
-		e3 = events.repeat(() -> checks.push(3), 3);
+		}, 20);
+		e1 = events.repeat(() -> checks.push(1), 10);
+		e3 = events.repeat(() -> checks.push(3), 30);
 		Sys.sleep(0.1);
 
 		var checker = null;

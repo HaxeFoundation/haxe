@@ -6,7 +6,6 @@ enum abstract TestTarget(String) from String {
 	var Js = "js";
 	var Lua = "lua";
 	var Php = "php";
-	var Php7 = "php7";
 	var Cpp = "cpp";
 	var Cppia = "cppia";
 	var Flash9 = "flash9";
