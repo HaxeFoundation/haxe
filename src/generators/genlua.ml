@@ -1318,6 +1318,13 @@ and gen_tbinop ctx op e1 e2 =
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
+          | TField(e3, (FInstance _ as lhs)), TField(e4, (FInstance _ as rhs)) when not (is_dot_access e3 lhs) && (is_dot_access e4 rhs) ->
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
           | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when not (is_dot_access e3 ci) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
