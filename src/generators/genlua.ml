@@ -352,7 +352,7 @@ let rec is_function_type t =
 
 and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+    | TField (x, ((FInstance (_, _, f) | FAnon(f) | FClosure(_,f)) as i)) when ((is_function_type e.etype) && (not(is_dot_access x i))) ->
             (
             if reflect then (
               add_feature ctx "use._hx_funcToField";
@@ -1469,7 +1469,7 @@ and gen_return ctx e eo =
          spr ctx "do return end"
      | Some e ->
          (match e.eexpr with
-          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when (is_function_type tcf.cf_type) ->
+          | TField (e2, ((FAnon tcf | FInstance (_,_,tcf)) as t)) when ((is_function_type tcf.cf_type) && (not(is_dot_access e2 t)))->
               (* See issue #6259 *)
               add_feature ctx "use._hx_bind";
               spr ctx "do return ";
