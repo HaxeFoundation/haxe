@@ -222,8 +222,15 @@ let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
 let is_dot_access e cf =
     match follow(e.etype), cf with
-    | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotMethod c.cl_meta || Meta.has Meta.LuaDotMethod icf.cf_meta)->
-        true;
+    | TInst (c, _), FInstance(_, _, icf) -> (match icf.cf_kind with
+        | Var _ ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod c.cl_meta ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod icf.cf_meta ->
+            true
+        | Method _ ->
+            false)
     | _ ->
         false
 
