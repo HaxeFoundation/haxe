@@ -3639,17 +3639,23 @@ class class_builder ctx (cls:tclass) =
 			(* Generate `__toString()` if not defined by user, but has `toString()` *)
 			self#write_toString_if_required
 		method private write_toString_if_required =
-			if PMap.exists "toString" cls.cl_fields then
+			try 
+				let toString = PMap.find "toString" cls.cl_fields in
 				if (not (has_class_flag cls CInterface)) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
 					begin
 						writer#write_empty_lines;
 						writer#indent 1;
 						writer#write_line "public function __toString() {";
 						writer#indent_more;
-						writer#write_line "return $this->toString();";
+						let callee_str = match toString.cf_kind with
+							| Var _ -> "($this->toString)"
+							| Method _ -> "$this->toString"
+						in
+						writer#write_line ("return " ^ callee_str ^ "();");
 						writer#indent_less;
 						writer#write_line "}"
 					end
+			with Not_found -> ()
 		(**
 			Check if this class requires constructor to be generated even if there is no user-defined one
 		*)
