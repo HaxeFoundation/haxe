@@ -685,6 +685,7 @@ let get_config com =
 				vs_scope = FunctionScope;
 				vs_flags = [NoShadowing]
 			};
+			pf_supports_atomics = true;
 		}
 	| Java ->
 		{
@@ -946,6 +947,7 @@ let init_platform com pf =
 	raw_define_value com.defines "target.name" name;
 	raw_define com name;
 	if com.config.pf_supports_atomics then begin
+		Printf.printf "atomics!\n";
 		raw_define com "target.atomics"
 	end
 
