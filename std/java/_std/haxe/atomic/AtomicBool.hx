@@ -20,7 +20,7 @@ abstract AtomicBool(AtomicBoolean) {
 	}
 
 	public inline function exchange(value:Bool):Bool {
-		return this.getAndSet(Bool);
+		return this.getAndSet(value);
 	}
 
 	public inline function load():Bool {
