@@ -18,7 +18,7 @@ abstract AtomicBool(AtomicInt) {
 		return v == 1;
 	}
 
-	public function new(value:Bool):Void {
+	public inline function new(value:Bool):Void {
 		this = new AtomicInt(toInt(value));
 	}
 
@@ -26,7 +26,7 @@ abstract AtomicBool(AtomicInt) {
 		Atomically compares the value of `a` with `expected` and replaces `a` with `replacement` if they are equal..
 		Returns the original value of `a`.
 	**/
-	public function compareExchange(expected:Bool, replacement:Bool):Bool {
+	public inline function compareExchange(expected:Bool, replacement:Bool):Bool {
 		return toBool(this.compareExchange(toInt(expected), toInt(replacement)));
 	}
 
@@ -34,14 +34,14 @@ abstract AtomicBool(AtomicInt) {
 		Atomically exchanges `a` with `value`.
 		Returns the original value of `a`.
 	**/
-	public function exchange(value:Bool):Bool {
+	public inline function exchange(value:Bool):Bool {
 		return toBool(this.exchange(toInt(value)));
 	}
 
 	/**
 		Atomically fetches the value of `a`.
 	**/
-	public function load():Bool {
+	public inline function load():Bool {
 		return toBool(this.load());
 	}
 
@@ -49,7 +49,7 @@ abstract AtomicBool(AtomicInt) {
 		Atomically stores `value` into `a`.
 		Returns the value that has been stored.
 	**/
-	public function store(value:Bool):Bool {
+	public inline function store(value:Bool):Bool {
 		return toBool(this.store(toInt(value)));
 	}
 }
