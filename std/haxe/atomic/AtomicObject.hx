@@ -1,6 +1,6 @@
 package haxe.atomic;
 
-#if !target.atomics
+#if !(target.atomics || core_api)
 #error "This target does not support atomic operations."
 #end
 
