@@ -2099,6 +2099,7 @@ let cpp_cast_variant_type_of t = match t with
 let enum_getter_type t =
    match cpp_variant_type_of t with
    | TCppString -> "String"
+   | TCppScalar "int" -> "Int"
    | TCppScalar x  -> x
    | _  -> "Object"
 ;;
