@@ -2096,13 +2096,9 @@ let cpp_cast_variant_type_of t = match t with
    | _ -> cpp_variant_type_of t;
 ;;
 
-let cpp_base_type_of t =
+let enum_getter_type t =
    match cpp_variant_type_of t with
-   | TCppDynamic -> "Object"
    | TCppString -> "String"
-   | TCppVoidStar -> "Pointer"
-   | TCppScalar "int"  -> "Int"
-   | TCppScalar "bool"  -> "Bool"
    | TCppScalar x  -> x
    | _  -> "Object"
 ;;
@@ -3956,7 +3952,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       | CppEnumParameter(obj,field,index) ->
          let valueType = cpp_type_of ctx (get_nth_type field index) in
-         let baseType = cpp_base_type_of valueType in
+         let baseType = enum_getter_type valueType in
          gen obj;
          if cpp_is_dynamic_type obj.cpptype then
             out ".StaticCast< ::hx::EnumBase >()";
