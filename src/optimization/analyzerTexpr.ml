@@ -599,21 +599,24 @@ module Fusion = struct
 					)
 				| _ -> check_expr is_impure_extern e
 			in
+			let is_impure_extern = (is_impure_extern e) in
+			let has_variable_semantics = ExtType.has_variable_semantics v.v_type in
+			let is_variable_expression = (match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true) in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
 					not (
-						ExtType.has_variable_semantics v.v_type &&
-						(match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true)
+						has_variable_semantics &&
+						is_variable_expression
 					) && (
-						is_compiler_generated || config.optimize &&
-						config.fusion && config.user_var_fusion && not has_type_params && not (is_impure_extern e)
+						is_compiler_generated ||
+						config.optimize && config.fusion && config.user_var_fusion && not has_type_params && not is_impure_extern
 					)
 			in
 			if config.fusion_debug then begin
 				print_endline (Printf.sprintf "\nFUSION: %s\n\tvar %s<%i> = %s" (if b then "true" else "false") v.v_name v.v_id (s_expr_pretty e));
-				print_endline (Printf.sprintf "CONDITION:\n\tnum_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b)"
-					num_uses num_writes can_be_used_as_value is_compiler_generated config.optimize config.fusion config.user_var_fusion)
+				print_endline (Printf.sprintf "CONDITION:\n\tnum_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && not (has_variable_semantics:%b && e.eexpr=TLocal:%b) (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b && not has_type_params:%b && not is_impuare_extern:%b)"
+					num_uses num_writes can_be_used_as_value has_variable_semantics is_variable_expression is_compiler_generated config.optimize config.fusion config.user_var_fusion has_type_params is_impure_extern)
 			end;
 			b
 		in

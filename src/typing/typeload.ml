@@ -439,7 +439,7 @@ and load_instance ctx ?(allow_display=false) ((_,pn) as tp) allow_no_params =
 		t
 	with Error (Module_not_found path,_) when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
-		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) {pn with pmin = pn.pmax - String.length s;}
+		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) (patch_string_pos pn s)
 
 (*
 	build an instance from a complex type

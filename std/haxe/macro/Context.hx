@@ -127,6 +127,10 @@ class Context {
 		return load("contains_display_position", 1)(pos);
 	}
 
+	public static function getDisplayMode():DisplayMode {
+		return load("get_display_mode", 0)();
+	}
+
 	/**
 		Returns the position at which the macro was called.
 	**/
@@ -528,6 +532,16 @@ class Context {
 	**/
 	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
 		load("define_type", 2)(t, moduleDependency);
+	}
+
+	/**
+		Creates and returns a new instance of monomorph (`TMono`) type.
+
+		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
+		bind the monomorph to an actual type and let macro further process the resulting type.
+	**/
+	public static function makeMonomorph():Type {
+		return load("make_monomorph", 0)();
 	}
 
 	/**

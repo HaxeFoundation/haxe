@@ -391,6 +391,11 @@ extern class Global {
 	static function strcmp(str1:String, str2:String):Int;
 
 	/**
+		@see https://www.php.net/manual/en/function.strspn.php
+	**/
+	static function strspn(string:String, characters:String, offset:Int = 0, ?length:Int):Int;
+
+	/**
 		@see http://php.net/manual/en/function.strtr.php
 	**/
 	@:overload(function(str:String, from:NativeAssocArray<String>):String {})
@@ -406,6 +411,11 @@ extern class Global {
 	**/
 	static function str_replace(search:EitherType<String, NativeArray>, replace:EitherType<String, NativeArray>, subject:EitherType<String, NativeArray>,
 		?count:Int):EitherType<String, NativeArray>;
+
+	/**
+		@see https://www.php.net/manual/en/function.str-starts-with.php
+	**/
+	static function str_starts_with(haystack:String, needle:String):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.explode.php

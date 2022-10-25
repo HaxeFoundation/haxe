@@ -205,7 +205,7 @@ let make_macro_api ctx p =
 		);
 		MacroApi.store_typed_expr = (fun te ->
 			let p = te.epos in
-			Typecore.store_typed_expr ctx.com te p
+			snd (Typecore.store_typed_expr ctx.com te p)
 		);
 		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
 		MacroApi.type_patch = (fun t f s v ->
@@ -572,7 +572,7 @@ let load_macro' ctx display cpath f p =
 		let mloaded,restore = load_macro_module ctx mpath display p in
 		let cl, meth =
 			try
-				if sub <> None then raise Not_found;
+				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
 				match mloaded.m_statics with
 				| None -> raise Not_found
 				| Some c ->
