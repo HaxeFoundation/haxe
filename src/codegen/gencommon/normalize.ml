@@ -50,13 +50,7 @@ let rec filter_param (stack:t list) t =
 	| TAbstract({ a_path = (["haxe"],"Rest") } as a,tl) ->
 		TAbstract(a, List.map (filter_param stack) tl)
 	| TAbstract({a_path = [],"Null"} as a,[t]) ->
-		(* Null<TypeParameter> is the same as TypeParameter *)
-		begin match follow t with
-		| TInst({cl_kind = KTypeParameter _},_) ->
-			filter_param stack t
-		| _ ->
-			TAbstract(a,[filter_param stack t])
-		end
+		TAbstract(a,[filter_param stack t])
 	| TAbstract(a,tl) when (Meta.has Meta.MultiType a.a_meta) ->
 		filter_param stack (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) ->

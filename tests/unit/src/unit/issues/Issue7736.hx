@@ -1,6 +1,7 @@
 package unit.issues;
 
 class Issue7736 extends Test {
+	#if !cs
 	@:nullSafety
 	function test() {
 		var found = null;
@@ -16,4 +17,5 @@ class Issue7736 extends Test {
 			eq(5, x);
 		}
 	}
+	#end
 }
