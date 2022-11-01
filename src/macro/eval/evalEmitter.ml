@@ -94,7 +94,12 @@ let emit_new_array env =
 
 let emit_new_vector_int i p env =
 	if i < 0 then exc_string_p "Vector size must be >= 0" p;
-	encode_vector_instance (Array.make i vnull)
+	let a = try
+		Array.make i vnull
+	with Invalid_argument _ ->
+		exc_string_p (Printf.sprintf "Not enough memory to allocate Vector of size %i" i) p;
+	in
+	encode_vector_instance a
 
 let emit_new_vector exec p env =
 	let i = decode_int_p (exec env) p in
