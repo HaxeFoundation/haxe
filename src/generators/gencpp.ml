@@ -1687,8 +1687,8 @@ and cpp_class_path_of klass params =
       let typeParams = match params with
       | [] -> ""
       | _ -> "<" ^ String.concat "," (List.map tcpp_to_string params) ^ ">" in
-      (join_class_path_remap klass.cl_path "::") ^ typeParams
-   | false -> "::" ^ (join_class_path_remap klass.cl_path "::")
+      (" " ^ (join_class_path_remap klass.cl_path "::") ^ typeParams)
+   | false -> " ::" ^ (join_class_path_remap klass.cl_path "::")
 ;;
 
 

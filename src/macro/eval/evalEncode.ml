@@ -182,6 +182,7 @@ let encode_enum i pos index pl =
 		| IImportMode -> key_haxe_macro_ImportMode
 		| IQuoteStatus -> key_haxe_macro_QuoteStatus
 		| IDisplayKind -> key_haxe_macro_DisplayKind
+		| IDisplayMode -> key_haxe_macro_DisplayMode
 		| IMessage -> key_haxe_macro_Message
 		| IFunctionKind -> key_haxe_macro_FunctionKind
 		| IStringLiteralKind -> key_haxe_macro_StringLiteralKind

@@ -127,6 +127,10 @@ class Context {
 		return load("contains_display_position", 1)(pos);
 	}
 
+	public static function getDisplayMode():DisplayMode {
+		return load("get_display_mode", 0)();
+	}
+
 	/**
 		Returns the position at which the macro was called.
 	**/
