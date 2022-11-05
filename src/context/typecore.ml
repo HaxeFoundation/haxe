@@ -101,7 +101,6 @@ and typer = {
 	g : typer_globals;
 	mutable bypass_accessor : int;
 	mutable meta : metadata;
-	mutable this_stack : texpr list;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	(* variable *)
@@ -440,14 +439,6 @@ let create_fake_module ctx file =
 	ctx.com.module_lut#add mdep.m_path mdep;
 	mdep
 
-let push_this ctx e = match e.eexpr with
-	| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
-		(EConst (tconst_to_const ct),e.epos),fun () -> ()
-	| _ ->
-		ctx.this_stack <- e :: ctx.this_stack;
-		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
-		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
-
 let is_removable_field com f =
 	not (has_class_field_flag f CfOverride) && (
 		has_class_field_flag f CfExtern || has_class_field_flag f CfGeneric
@@ -713,7 +704,14 @@ let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
 	com.stored_typed_exprs#add id te;
 	let eid = (EConst (Int (string_of_int id, None))), p in
-	(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
+	id,((EMeta ((Meta.StoredTypedExpr,[],p), eid)),p)
+
+let push_this ctx e = match e.eexpr with
+| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
+	(EConst (tconst_to_const ct),e.epos),fun () -> ()
+| _ ->
+	let id,er = store_typed_expr ctx.com e e.epos in
+	er,fun () -> ctx.com.stored_typed_exprs#remove id
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

@@ -1,6 +1,7 @@
 - name: Install dependencies
   env:
-    ZLIB_VERSION: 1.2.12
+    # For compatibility with macOS 10.13
+    ZLIB_VERSION: 1.2.13
     MBEDTLS_VERSION: 2.25.0
     PCRE_VERSION: 10.39
   run: |

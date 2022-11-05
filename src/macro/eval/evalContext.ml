@@ -403,6 +403,8 @@ let exc v = throw v null_pos
 
 let exc_string str = exc (vstring (EvalString.create_ascii str))
 
+let exc_string_p str p = throw (vstring (EvalString.create_ascii str)) p
+
 let error_message = exc_string
 
 let flush_core_context f =

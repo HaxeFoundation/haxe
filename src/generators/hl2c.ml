@@ -576,7 +576,7 @@ let generate_function ctx f =
 	in
 
 	let type_value_opt t =
-		match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t
+		match t with HF32 | HF64 | HI64 -> "" | _ -> "," ^ type_value t
 	in
 
 	let dyn_call r f pl =
