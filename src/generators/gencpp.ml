@@ -2080,6 +2080,7 @@ let cpp_variant_type_of t = match t with
    | TCppScalar "Int"
    | TCppScalar "bool"
    | TCppScalar "Float"  -> t
+   | TCppScalar "::cpp::Int64" -> TCppScalar("Int64")
    | TCppScalar "double"
    | TCppScalar "float" -> TCppScalar("Float")
    | TCppScalar _  -> TCppScalar("int")
