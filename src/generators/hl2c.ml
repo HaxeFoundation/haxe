@@ -1478,7 +1478,9 @@ let write_c com file (code:code) gnames =
 	let sorted_natives = Array.copy code.natives in
 	Array.sort (fun n1 n2 -> let mk (lib,name,_,_) = code.strings.(lib), code.strings.(name) in compare (mk n1) (mk n2)) sorted_natives;
 	Array.iter (fun (lib,_,_,idx) ->
-		Hashtbl.replace native_libs code.strings.(lib) ();
+		let name = code.strings.(lib) in
+		let name = if name.[0] = '?' then String.sub name 1 (String.length name - 1) else name in
+		Hashtbl.replace native_libs name ();
 		let ft = ctx.ftable.(idx) in
 		define_type ctx (HFun (ft.fe_args,ft.fe_ret));
 		match ft.fe_name with
