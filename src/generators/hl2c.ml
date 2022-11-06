@@ -1692,7 +1692,7 @@ let write_c com file (code:code) gnames =
 				define_global ctx g;
 				sexpr "obj%s.global_value = (void**)&%s" name gnames.(g));
 			sexpr "%s.obj = &obj%s" name name
-		| HNull r | HRef r ->
+		| HNull r | HRef r | HPacked r ->
 			sexpr "%s.tparam = %s" (type_name ctx t) (type_value ctx r)
 		| HEnum e ->
 			let name = type_name ctx t in
