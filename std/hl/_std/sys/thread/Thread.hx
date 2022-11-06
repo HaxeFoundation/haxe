@@ -59,7 +59,7 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 	}
 
 	#if (hl_ver >= version("1.13.0"))
-	@:hlNative("std", "thread_set_name") static function set_name( t : ThreadHandle, name : hl.Bytes ) {}
+	@:hlNative("?std", "thread_set_name") static function set_name( t : ThreadHandle, name : hl.Bytes ) {}
 	#end
 
 	function get_events():EventLoop {
