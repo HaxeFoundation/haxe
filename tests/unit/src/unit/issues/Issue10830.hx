@@ -2,7 +2,7 @@ package unit.issues;
 
 import utest.Assert;
 
-#if cpp
+#if (cpp && !cppia)
 
 @:native('customnamespace::MyExternEnum')
 extern enum MyExternEnum {
@@ -86,7 +86,7 @@ namespace customnamespace {
 #end
 class Issue10830 extends Test {
 
-    #if cpp
+    #if (cpp && !cppia)
     function test() {
         switch create() {
 			case First:
