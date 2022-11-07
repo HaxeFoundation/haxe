@@ -287,14 +287,19 @@ let save_locals ctx =
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
 	if Define.defined ctx.com.defines Define.WarnVarShadowing && n <> "_" then begin
-		try
-			let v' = PMap.find n ctx.locals in
-			(* ignore std lib *)
-			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
-				warning ctx WVarShadow "This variable shadows a previously declared variable" p;
-				warning ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+		match k with
+		| VUser _ ->
+			begin try
+				let v' = PMap.find n ctx.locals in
+				(* ignore std lib *)
+				if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
+					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
+					warning ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+				end
+			with Not_found ->
+				()
 			end
-		with Not_found ->
+		| _ ->
 			()
 	end;
 	ctx.locals <- PMap.add n v ctx.locals;
