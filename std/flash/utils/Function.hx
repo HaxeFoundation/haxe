@@ -1,3 +1,3 @@
 package flash.utils;
 
-typedef Function = Dynamic
+typedef Function = Dynamic;

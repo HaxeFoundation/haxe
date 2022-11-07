@@ -281,9 +281,7 @@ and parse_type_decl mode s =
 		| [< n , p1 = parse_class_flags >] ->
 			parse_class_content doc meta c n p1 s
 		| [< '(Kwd Typedef,p1); name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type_at p2; s >] ->
-			(match s with parser
-			| [< '(Semicolon,_) >] -> ()
-			| [< >] -> ());
+			ignore(popt semicolon s);
 			(ETypedef {
 				d_name = name;
 				d_doc = doc_from_string_opt doc;

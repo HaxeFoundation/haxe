@@ -42,6 +42,7 @@ private typedef VectorData<T> =
 	#else
 	Array<T>
 	#end
+;
 
 /**
 	A Vector is a storage of fixed size. It can be faster than Array on some

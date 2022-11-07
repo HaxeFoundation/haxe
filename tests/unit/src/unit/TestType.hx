@@ -1,13 +1,12 @@
 package unit;
 
 import haxe.ds.List;
-import unit.MyEnum;
-import unit.MyClass;
 import unit.HelperMacros.*;
+import unit.MyClass;
+import unit.MyEnum;
 
 class TestType extends Test {
-
-	static inline function u( s : String ) : String {
+	static inline function u(s:String):String {
 		#if flash
 		return untyped __unprotect__(s);
 		#else
@@ -16,53 +15,60 @@ class TestType extends Test {
 	}
 
 	public function testType() {
-		var name = u("unit")+"."+u("MyClass");
-		eq( Type.resolveClass(name), unit.MyClass );
-		eq( Type.getClassName(unit.MyClass), name );
-		eq( Type.getClassFields(unit.MyClass).length , 0 );
+		var name = u("unit") + "." + u("MyClass");
+		eq(Type.resolveClass(name), unit.MyClass);
+		eq(Type.getClassName(unit.MyClass), name);
+		eq(Type.getClassFields(unit.MyClass).length, 0);
 	}
 
 	public function testFields() {
 		var sfields = Type.getClassFields(unit.MySubClass);
-		eq( sfields.length , 1 );
-		eq( sfields[0], u("XXX") );
+		eq(sfields.length, 1);
+		eq(sfields[0], u("XXX"));
 
-		var fields = [u("add"),u("get"),u("intValue"),u("ref"),u("set"),u("stringValue"),u("val")];
+		var fields = [
+			u("add"),
+			u("get"),
+			u("intValue"),
+			u("ref"),
+			u("set"),
+			u("stringValue"),
+			u("val")
+		];
 		var fl = Type.getInstanceFields(unit.MyClass);
 		fl.sort(Reflect.compare);
-		eq( fl.join("|"), fields.join("|") );
+		eq(fl.join("|"), fields.join("|"));
 		var fl = Type.getInstanceFields(unit.MySubClass);
 		fl.sort(Reflect.compare);
-		eq( fl.join("|"), fields.join("|") );
+		eq(fl.join("|"), fields.join("|"));
 
 		// x should not be listed since it's not a variable
 		var fl = Type.getInstanceFields(VarProps);
-		var fields = ["get_x","get_y","set_x","set_y","set_z","y","z"];
+		var fields = ["get_x", "get_y", "set_x", "set_y", "set_z", "y", "z"];
 		fl.sort(Reflect.compare);
-		eq( fl.join("|"), fields.join("|"));
+		eq(fl.join("|"), fields.join("|"));
 
 		// same for statics
 		var fl = Type.getClassFields(VarProps);
 		var fields = ["SY", "get_SX", "get_SY", "set_SX", "set_SY"];
 		fl.sort(Reflect.compare);
-		eq( fl.join("|"), fields.join("|"));
+		eq(fl.join("|"), fields.join("|"));
 	}
 
 	public function testEnumEq() {
-		t( Type.enumEq(null,null) );
-		f( Type.enumEq(A,null) );
-		f( Type.enumEq(null,D(A)) );
+		t(Type.enumEq(null, null));
+		f(Type.enumEq(A, null));
+		f(Type.enumEq(null, D(A)));
 
-		t( Type.enumEq(A,A) );
-		t( Type.enumEq(B,B) );
-		f( Type.enumEq(A,B) );
+		t(Type.enumEq(A, A));
+		t(Type.enumEq(B, B));
+		f(Type.enumEq(A, B));
 
-		t( Type.enumEq(C(1,"hello"),C(1,"hello")) );
-		f( Type.enumEq(C(1,"hello"),C(1,"hellox")) );
+		t(Type.enumEq(C(1, "hello"), C(1, "hello")));
+		f(Type.enumEq(C(1, "hello"), C(1, "hellox")));
 
-		t( Type.enumEq(D(A),D(A)) );
-		f( Type.enumEq(D(A),D(B)) );
-
+		t(Type.enumEq(D(A), D(A)));
+		f(Type.enumEq(D(A), D(B)));
 	}
 
 	function testPossibleBug() {
@@ -87,7 +93,7 @@ class TestType extends Test {
 	}
 
 	function testAllField() {
-		eq( Type.allEnums(MyEnum).join("#"), "A#B" );
+		eq(Type.allEnums(MyEnum).join("#"), "A#B");
 	}
 
 	function testWiderVisibility() {
@@ -129,54 +135,76 @@ class TestType extends Test {
 		typedAs([new Base(), new Child1()], tbase);
 		typedAs([new Child1(), new Base()], tbase);
 		typedAs([new Child1(), new Child1()], tchild1);
-		typedAs([ { s:"foo" }, new Unrelated()], ts);
-		typedAs([new Unrelated(), { s:"foo" } ], ts);
+		typedAs([{s: "foo"}, new Unrelated()], ts);
+		typedAs([new Unrelated(), {s: "foo"}], ts);
 
 		// if
 
 		var tbase:Base;
 		var ti1:I1;
 		var tnullbool:Null<Bool>;
-		var ts: { s:String };
+		var ts:{s:String};
 
 		typedAs(if (false) new Child1(); else new Child2(), tbase);
-		typedAs(
-			if (false) new Child1();
-			else if (true) new Child2();
-			else new Base(), tbase);
-		typedAs(
-			if (false) new Child1();
-			else if (true) new Child2_1();
-			else new Base(), tbase);
+		typedAs(if (false) new Child1(); else if (true) new Child2(); else new Base(), tbase);
+		typedAs(if (false) new Child1(); else if (true) new Child2_1(); else new Base(), tbase);
 		typedAs(if (false) new Child2(); else new Unrelated(), ti1);
 		typedAs(if (false) new Child2_1(); else new Unrelated(), ti1);
 
 		typedAs(if (false) null; else false, tnullbool);
 		typedAs(if (false) true; else null, tnullbool);
-		typedAs(if (false) new Unrelated(); else {s:"foo"}, ts);
-		typedAs(if (false) { s:"foo" }; else new Unrelated(), ts);
+		typedAs(if (false) new Unrelated(); else {s: "foo"}, ts);
+		typedAs(if (false) {s: "foo"}; else new Unrelated(), ts);
 
-		//switch
+		// switch
 
-		typedAs(switch(false) { case true: new Child1(); case false: new Child2(); }, tbase);
-		typedAs(switch(1) { case 0: new Child1(); case 1: new Child2_1(); default: new Base(); }, tbase);
-		typedAs(switch(false) { case true: new Child2(); case false: new Unrelated(); }, ti1);
-		typedAs(switch(false) { case true: new Child2_1(); case false: new Unrelated(); }, ti1);
+		typedAs(switch (false) {
+			case true: new Child1();
+			case false: new Child2();
+		}, tbase);
+		typedAs(switch (1) {
+			case 0: new Child1();
+			case 1: new Child2_1();
+			default: new Base();
+		}, tbase);
+		typedAs(switch (false) {
+			case true: new Child2();
+			case false: new Unrelated();
+		}, ti1);
+		typedAs(switch (false) {
+			case true: new Child2_1();
+			case false: new Unrelated();
+		}, ti1);
 
-		typedAs(switch(false) { case true: null; default: false; }, tnullbool);
-		typedAs(switch(false) { case true: true; default: null; }, tnullbool);
-		typedAs(switch(false) { case true: new Unrelated(); default: {s:"foo"}; }, ts);
-		typedAs(switch(false) { case true: { s:"foo" }; default: new Unrelated(); }, ts);
+		typedAs(switch (false) {
+			case true: null;
+			default: false;
+		}, tnullbool);
+		typedAs(switch (false) {
+			case true: true;
+			default: null;
+		}, tnullbool);
+		typedAs(switch (false) {
+			case true: new Unrelated();
+			default: {s: "foo"};
+		}, ts);
+		typedAs(switch (false) {
+			case true: {s: "foo"};
+			default: new Unrelated();
+		}, ts);
 
-		typedAs([ { x : new Child1() }, { x : new Child2() } ], [{ x: new Base() }]);
+		typedAs([{x: new Child1()}, {x: new Child2()}], [{x: new Base()}]);
 
 		#if flash
-		typedAs((function() { return 0; var v:UInt = 0; return v; }) (), 1);
+		typedAs((function() {
+			return 0;
+			var v:UInt = 0;
+			return v;
+		})(), 1);
 		#end
 	}
 
-	function testCallback()
-	{
+	function testCallback() {
 		var func = function(a:Int, b:String, c:Float) return a;
 
 		var tstringfloat = function(b:String, c:Float) return 0;
@@ -238,7 +266,7 @@ class TestType extends Test {
 		var b = "foo";
 		var cb = func.bind(a);
 		a = 6;
-		func = function(a,b,c):Int return throw "error";
+		func = function(a, b, c):Int return throw "error";
 		eq(5, cb(b, 0));
 
 		var optfunc = function(a:Int, b:Int, ?c:Int = 2) return a + b + c;
@@ -248,11 +276,15 @@ class TestType extends Test {
 		eq(7, optfunc.bind(_, _, _)(1, 2, 4));
 		eq(7, optfunc.bind(_, 2, _)(1, 4));
 
-		var foo = function ( x : Int, ?p : haxe.PosInfos ) { return "foo" + x; }
-		var f : () -> String = foo.bind(0);
- 		eq("foo0", f());
+		var foo = function(x:Int, ?p:haxe.PosInfos) {
+			return "foo" + x;
+		}
+		var f:() -> String = foo.bind(0);
+		eq("foo0", f());
 
-		var foo = function(bar = 2) { return bar; };
+		var foo = function(bar = 2) {
+			return bar;
+		};
 		#if flash // Cannot skip not-nullable argument
 		t(typeError(foo.bind(_)));
 		#else
@@ -261,37 +293,37 @@ class TestType extends Test {
 		#end
 
 		// note that this does not
-		var foo = function(bar:Null<Int> = 2) { return bar; };
+		var foo = function(bar:Null<Int> = 2) {
+			return bar;
+		};
 		var l = foo.bind(_);
 		eq(2, l());
 	}
 
-	function testConstantAnonCovariance()
-	{
-		var func = function (str:String, ?str1: { x:Float, y:Int }, ?str2: { w:Float, h:Int } ) { };
-		var a: { v:Float };
+	function testConstantAnonCovariance() {
+		var func = function(str:String, ?str1:{x:Float, y:Int}, ?str2:{w:Float, h:Int}) {};
+		var a:{v:Float};
 		var b:Dynamic = "bar";
-		f(typeError(a = { v:0.2 } ));
-		f(typeError(a = { v:0 } ));
-		typedAs(a = { v: 0 }, a);
-		typedAs(a = { v: 0.2 }, a);
-		t(typeError(a = { v: "foo" } ));
-		f(typeError(a = { v: untyped "foo" } ));
-		f(typeError(a = { v: b } ));
-		f(typeError( { var b: { v:Dynamic } = { v: "foo" };} ));
-		t(typeError( { var b: { v:Int } = { v: 1.2 }; } ));
-		t(typeError( { var b: { v:Int } = { v:0, w:"foo" }; }));
-		t(typeError( { var b: { v:Int } = { v:0, v:2 }; } ));
-		t(typeError( { var b: { v:Int, w:String } = { v:0 }; } ));
-		typedAs({ v: 0.2, " foo":2 }, a);
+		f(typeError(a = {v: 0.2}));
+		f(typeError(a = {v: 0}));
+		typedAs(a = {v: 0}, a);
+		typedAs(a = {v: 0.2}, a);
+		t(typeError(a = {v: "foo"}));
+		f(typeError(a = {v: untyped "foo"}));
+		f(typeError(a = {v: b}));
+		f(typeError({var b:{v:Dynamic} = {v: "foo"};}));
+		t(typeError({var b:{v:Int} = {v: 1.2};}));
+		t(typeError({var b:{v:Int} = {v: 0, w: "foo"};}));
+		t(typeError({var b:{v:Int} = {v: 0, v: 2};}));
+		t(typeError({var b:{v:Int, w:String} = {v: 0};}));
+		typedAs({v: 0.2, " foo": 2}, a);
 		// this is allowed now (https://github.com/HaxeFoundation/haxe/issues/3547)
-		//t(typeError(a = { v:0, " foo":2 } ));
-		f(typeError(func("foo", { x:1.2, y:2 } )));
-		f(typeError(func("foo", { w:1.2, h:2 } )));
+		// t(typeError(a = { v:0, " foo":2 } ));
+		f(typeError(func("foo", {x: 1.2, y: 2})));
+		f(typeError(func("foo", {w: 1.2, h: 2})));
 	}
 
-	function testCovariantReturn()
-	{
+	function testCovariantReturn() {
 		var b:Base = null;
 		var c1:Child1 = null;
 		var c2_1:Child2_1 = null;
@@ -321,14 +353,13 @@ class TestType extends Test {
 		t((c3.covariant() is Child2_1));
 	}
 
-	function testContravariantArgs()
-	{
-		var b = function(arg:Base):Void { };
-		var c1 = function(arg:Child1):Void { };
+	function testContravariantArgs() {
+		var b = function(arg:Base):Void {};
+		var c1 = function(arg:Child1):Void {};
 
 		var c = new Ctrv2();
 		typedAs(c.contravariant, b);
-		typedAs(cast (c, Ctrv1).contravariant, c1);
+		typedAs(cast(c, Ctrv1).contravariant, c1);
 	}
 
 	function testInlineCast() {
@@ -336,8 +367,7 @@ class TestType extends Test {
 		eq(s, "I am the greatest.");
 	}
 
-	function testInitFields()
-	{
+	function testInitFields() {
 		var c = new InitBase();
 		eq(c.i, 2);
 		eq(c.s, "foo");
@@ -368,12 +398,9 @@ class TestType extends Test {
 		exc(function() c.accFunc = 4);
 	}
 
-	function testReturnFlow()
-	{
-		var l = function():String
-		{
-			while (true)
-			{
+	function testReturnFlow() {
+		var l = function():String {
+			while (true) {
 				return "foo";
 			}
 			// some platforms may have to add an implicit return null here
@@ -382,7 +409,7 @@ class TestType extends Test {
 	}
 
 	function testOptionalParamsSkip() {
-		function foo( a : MyEnum, ?b : Bool, ?c : MyEnum ) {
+		function foo(a:MyEnum, ?b:Bool, ?c:MyEnum) {
 			return "";
 		}
 		typedAs(foo(A), "");
@@ -391,8 +418,7 @@ class TestType extends Test {
 		t(typeError(foo(A, A, false)));
 	}
 
-	function testParamConstraints()
-	{
+	function testParamConstraints() {
 		var pcc = new ParamConstraintsClass();
 		var b = new Base();
 		var c1 = new Child1();
@@ -402,61 +428,58 @@ class TestType extends Test {
 		eq(ParamConstraintsClass.staticSingle(b), b);
 		eq(ParamConstraintsClass.staticSingle(c1), c1);
 		// TODO: these should fail (param is constrained to Base)
-		//ParamConstraintsClass.staticSingle(u);
-		//ParamConstraintsClass.staticSingle(1);
-		//ParamConstraintsClass.staticSingle("foo");
+		// ParamConstraintsClass.staticSingle(u);
+		// ParamConstraintsClass.staticSingle(1);
+		// ParamConstraintsClass.staticSingle("foo");
 
 		eq(pcc.memberSingle(b), b);
 		eq(pcc.memberSingle(c1), c1);
-		//typeError(pcc.memberSingle(u));
+		// typeError(pcc.memberSingle(u));
 
 		eq(pcc.memberMultiple(ci1), ci1);
-		//typeError(pcc.memberMultiple(b));
-		//typeError(pcc.memberMultiple(c1));
+		// typeError(pcc.memberMultiple(b));
+		// typeError(pcc.memberMultiple(c1));
 
 		var l = new List();
 		l.push(ci1);
 		var lmono = new List();
 		eq(pcc.memberComplex(ci1, l), l);
-		//eq(pcc.memberComplex(ci1, lmono), lmono);
-		//typeError(pcc.memberComplex(ci1, [ci1]));
+		// eq(pcc.memberComplex(ci1, lmono), lmono);
+		// typeError(pcc.memberComplex(ci1, [ci1]));
 
 		eq(pcc.memberBasic("foo", ["bar"]), "bar");
 
-		eq(pcc.memberAnon( { x : 1, y : 3. } ), 4);
-		//typeError(pcc.memberAnon( { x : 1 } ));
-		//typeError(pcc.memberAnon( { y : 3. } ));
+		eq(pcc.memberAnon({x: 1, y: 3.}), 4);
+		// typeError(pcc.memberAnon( { x : 1 } ));
+		// typeError(pcc.memberAnon( { y : 3. } ));
 
-		#if !(java || cs)
-		// pcc.memberOverload("foo", "bar");
+		#if !(java || cs) // pcc.memberOverload("foo", "bar");
 		#end
 		// TODO: this should not fail (overload accepts)
-		//pcc.memberOverload(1, [2]);
-		//t(typeError(pcc.memberOverload(1, ["foo"])));
+		// pcc.memberOverload(1, [2]);
+		// t(typeError(pcc.memberOverload(1, ["foo"])));
 
 		var pcc2 = new ParamConstraintsClass2();
 		pcc2.check([1]);
-		//typeError(pcc2.check(["foo"]));
+		// typeError(pcc2.check(["foo"]));
 
 		var pcc2 = new ParamConstraintsClass2();
 		pcc2.bind("foo");
-		//typeError(pcc2.check([1]));
+		// typeError(pcc2.check([1]));
 		pcc2.check(["foo"]);
 
 		var pcc2 = new ParamConstraintsClass2<String>();
-		//t(typeError(pcc2.check([1])));
+		// t(typeError(pcc2.check([1])));
 		pcc2.check(["foo"]);
 	}
 
-	function testUsing()
-	{
+	function testUsing() {
 		eq(UsingChild1.test(), "FOOFOOFOO");
 		eq(UsingChild2.test(), "FOO");
 		eq(UsingUnrelated.test(), "trueFOOFOO");
 	}
 
-	function testInlineInit()
-	{
+	function testInlineInit() {
 		eq(InitBase.si, 2);
 		eq(InitBase.sop, 27);
 		eq(InitBase.sp, 6);
@@ -464,10 +487,9 @@ class TestType extends Test {
 		eq(InitBase.sinline, 60000.);
 	}
 
-	function testInline()
-	{
-		typedAs(inlineTest1([1]), (function():Void{})());
-		typedAs(inlineTest2([1]), (function():Void{})());
+	function testInline() {
+		typedAs(inlineTest1([1]), (function():Void {})());
+		typedAs(inlineTest2([1]), (function():Void {})());
 	}
 
 	inline function inlineTest1<T>(map:Array<T>) {
@@ -478,11 +500,10 @@ class TestType extends Test {
 		map[0];
 	}
 
-	public function testMacroFollowWithAbstracts()
-	{
+	public function testMacroFollowWithAbstracts() {
 		#if !macro
-		eq(MyMacro.MyMacroHelper.followWithAbstracts(new Map<String,String>()), "TInst(haxe.ds.StringMap,[TInst(String,[])])");
-		eq(MyMacro.MyMacroHelper.followWithAbstractsOnce({ var x:TypedefToStringMap<String>; x; }), "TType(Map,[TInst(String,[]),TInst(String,[])])");
+		eq(MyMacro.MyMacroHelper.followWithAbstracts(new Map<String, String>()), "TInst(haxe.ds.StringMap,[TInst(String,[])])");
+		eq(MyMacro.MyMacroHelper.followWithAbstractsOnce({var x:TypedefToStringMap<String>; x;}), "TType(Map,[TInst(String,[]),TInst(String,[])])");
 		eq(MyMacro.MyMacroHelper.followWithAbstracts(new TypedefToStringMap<String>()), "TInst(haxe.ds.StringMap,[TInst(String,[])])");
 		#end
 	}
@@ -495,7 +516,7 @@ class TestType extends Test {
 		eq(r[1], 2);
 		eq(r[2], 3);
 
-		var r : Array<Dynamic> = MyMacro.MyRestMacro.testRest1(1, [2, 3]);
+		var r:Array<Dynamic> = MyMacro.MyRestMacro.testRest1(1, [2, 3]);
 		eq(r.length, 2);
 		eq(r[0], 1);
 		eq(r[1][0], 2);
@@ -517,7 +538,7 @@ class TestType extends Test {
 		eq(r[0], 1);
 		eq(r[1], 2);
 
-		var r : Array<Dynamic> = MyMacro.MyRestMacro.testRest2(1, 2, [3]);
+		var r:Array<Dynamic> = MyMacro.MyRestMacro.testRest2(1, 2, [3]);
 		eq(r.length, 3);
 		eq(r[0], 1);
 		eq(r[1], 2);
@@ -570,11 +591,11 @@ class TestType extends Test {
 		return a;
 	}
 
-	@:generic static function gf2<A,B>(a:A, b:Array<B>) {
+	@:generic static function gf2<A, B>(a:A, b:Array<B>) {
 		return Std.string(a) + Std.string(b);
 	}
 
-	@:generic static function gf3 < A:haxe.Constraints.Constructible<String -> Void>, B:Array<A> > (a:A, b:B) {
+	@:generic static function gf3<A:haxe.Constraints.Constructible<String->Void>, B:Array<A>>(a:A, b:B) {
 		var clone = new A("foo");
 		b.push(clone);
 		return b;
@@ -597,18 +618,36 @@ class TestType extends Test {
 	}
 
 	function testVoidFunc() {
-		exc(function() { throw null; return 1; } );
-		exc(function() { throw null; return "foo"; } );
-		exc(function() { throw null; return MyEnum.A; } );
-		exc(function() { throw null; return new haxe.Template("foo"); } );
-		exc(function() { throw null; return null; } );
-		exc(function() { throw null; return { foo: 1}; } );
+		exc(function() {
+			throw null;
+			return 1;
+		});
+		exc(function() {
+			throw null;
+			return "foo";
+		});
+		exc(function() {
+			throw null;
+			return MyEnum.A;
+		});
+		exc(function() {
+			throw null;
+			return new haxe.Template("foo");
+		});
+		exc(function() {
+			throw null;
+			return null;
+		});
+		exc(function() {
+			throw null;
+			return {foo: 1};
+		});
 	}
 
 	function testAbstractCastConstraints() {
 		var z:unit.MyAbstract.AbstractZ<String> = new unit.MyAbstract.AbstractBase("foo");
 		var s:String = z;
-		t(typeError( {
+		t(typeError({
 			var i:Int = z;
 		}));
 		eq("foo", s);
@@ -616,20 +655,20 @@ class TestType extends Test {
 		var z:unit.MyAbstract.AbstractZ<Int> = new unit.MyAbstract.AbstractBase(12);
 		var i:Int = z;
 		eq(12, i);
-		t(typeError( {
+		t(typeError({
 			var s:String = z;
 		}));
 	}
 
 	function testOpArrow() {
-		var m = new Map<Int,Int>();
+		var m = new Map<Int, Int>();
 		var map = [1 => 2, 3 => 4];
 		typedAs(map, m);
 		t((map is haxe.ds.IntMap));
 		eq(map.get(1), 2);
 		eq(map.get(3), 4);
 
-		var m = new Map<String,Int>();
+		var m = new Map<String, Int>();
 		var map = ["1" => 2, "3" => 4];
 		typedAs(map, m);
 		t((map is haxe.ds.StringMap));
@@ -638,10 +677,10 @@ class TestType extends Test {
 
 		var a = new unit.MyAbstract.ClassWithHashCode(1);
 		var b = new unit.MyAbstract.ClassWithHashCode(2);
-		var m = new Map<unit.MyAbstract.ClassWithHashCode,Int>();
+		var m = new Map<unit.MyAbstract.ClassWithHashCode, Int>();
 		var map = [a => 2, b => 4];
 		typedAs(map, m);
-		//t((map is haxe.ds.IntMap));
+		// t((map is haxe.ds.IntMap));
 		eq(map.get(a), 2);
 		eq(map.get(b), 4);
 
@@ -669,7 +708,7 @@ class TestType extends Test {
 		map.set(b, "bar");
 		eq(map.get(a), "foo");
 		eq(map.get(b), "bar");
-		//t((map is haxe.ds.IntMap));
+		// t((map is haxe.ds.IntMap));
 
 		var map = new Map();
 		var a = new unit.MyAbstract.ClassWithoutHashCode(1);
@@ -679,24 +718,24 @@ class TestType extends Test {
 		eq(map.get(a), "foo");
 		eq(map.get(b), "bar");
 		// this may be specialized
-		//t((map is haxe.ds.ObjectMap));
+		// t((map is haxe.ds.ObjectMap));
 
-		//var map = new unit.MyAbstract.MyMap();
-		//map.set(new haxe.Template("foo"), 99);
-		//t((map is unit.MyAbstract.PseudoObjectHash));
+		// var map = new unit.MyAbstract.MyMap();
+		// map.set(new haxe.Template("foo"), 99);
+		// t((map is unit.MyAbstract.PseudoObjectHash));
 
 		// all these cause a compilation error, but we cannot typeError test that because it happens
 		// during a post-process check
-		//var map = new Map(); // Could not determine type for IMap<Float, Int>
-		//map.set(1.1, 1);
+		// var map = new Map(); // Could not determine type for IMap<Float, Int>
+		// map.set(1.1, 1);
 
-		//var map = new Map(); // Could not determine type for IMap<x : String -> String, Int>
-		//map.set(function(x:String) return x, 1);
+		// var map = new Map(); // Could not determine type for IMap<x : String -> String, Int>
+		// map.set(function(x:String) return x, 1);
 
-		//var map = new Map(); // Could not determine type for IMap<Unknown<0>, Unknown<1>>
+		// var map = new Map(); // Could not determine type for IMap<Unknown<0>, Unknown<1>>
 	}
 
-	static function _mapMe(map:Map < Int, String > ) { }
+	static function _mapMe(map:Map<Int, String>) {}
 
 	function testAbstractOverload() {
 		var ms1:unit.MyAbstract.MyString = "foo";
@@ -725,8 +764,8 @@ class TestType extends Test {
 		eq(vec2.toString(), "(-1,-2,-3)");
 
 		var my = new unit.MyAbstract.MyInt2(12);
-		eq( (-my).get(), -12);
-		typedAs( -my, my);
+		eq((-my).get(), -12);
+		typedAs(-my, my);
 		++my;
 		eq(my.get(), 13);
 		// not defined op
@@ -799,11 +838,11 @@ class TestType extends Test {
 	}
 
 	function testGADTEnumAbstract() {
-		var expectedA:unit.MyAbstract.GADTEnumAbstract<()->Void>;
+		var expectedA:unit.MyAbstract.GADTEnumAbstract<() -> Void>;
 		var expectedB:unit.MyAbstract.GADTEnumAbstract<Int->Void>;
 		typedAs(unit.MyAbstract.GADTEnumAbstract.A, expectedA);
 		typedAs(unit.MyAbstract.GADTEnumAbstract.B, expectedB);
 	}
 }
 
-typedef TypedefToStringMap<T> = Map<String,T>
+typedef TypedefToStringMap<T> = Map<String, T>;
