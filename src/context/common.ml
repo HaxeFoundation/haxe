@@ -650,7 +650,8 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
 			pf_scoping = { default_config.pf_scoping with
-				vs_flags = [NoShadowing]
+				vs_flags = [NoShadowing];
+				vs_scope = FunctionScope;
 			}
 		}
 	| Cs ->
