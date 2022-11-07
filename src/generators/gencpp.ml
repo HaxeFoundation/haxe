@@ -718,6 +718,17 @@ let is_native_class class_def =
    ((is_extern_class class_def) || (is_native_gen_class class_def)) && (not (is_internal_class class_def.cl_path))
 ;;
 
+let cpp_enum_path_of enum =
+   (*
+   let rename = get_meta_string enum.e_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+   *)
+   let globalNamespace = if (get_meta_string enum.e_meta Meta.Native)<>"" then "" else "::" in
+   globalNamespace ^ (join_class_path_remap enum.e_path "::")
+;;
+
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
    pointer class or the pointee (_obj class *)
@@ -798,7 +809,7 @@ and type_string_suff suffix haxe_type remap =
 		| TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
 		| t when type_has_meta_key t Meta.NotNull -> "Dynamic" ^ suffix
 		| _ -> type_string_suff suffix t remap)
-   | TEnum (enum,params) ->  "::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
+   | TEnum (enum,_) ->  (cpp_enum_path_of enum) ^ suffix
    | TInst (klass,params) ->  (class_string klass suffix params remap)
    | TType (type_def,params) ->
       (match type_def.t_path with
@@ -1991,18 +2002,6 @@ let cpp_member_return_type ctx member =
 let is_cpp_objc_type cpptype = match cpptype with
    | TCppObjC(_) -> true;
    | _ -> false
-;;
-
-
-let cpp_enum_path_of enum =
-   (*
-   let rename = get_meta_string enum.e_meta Meta.Native in
-   if rename <> "" then
-      rename
-   else
-   *)
-   let globalNamespace = if (get_meta_string enum.e_meta Meta.Native)<>"" then "" else "::" in
-   globalNamespace ^ (join_class_path_remap enum.e_path "::")
 ;;
 
 
