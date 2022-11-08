@@ -33,6 +33,8 @@ class Http extends haxe.http.HttpBase {
 	public var cnxTimeout:Float;
 	public var responseHeaders:Map<String, String>;
 
+	private var responseHeadersSameKey:Map<String, Array<String>>;
+
 	var chunk_size:Null<Int>;
 	var chunk_buf:haxe.io.Bytes;
 	var file:{
@@ -252,6 +254,23 @@ class Http extends haxe.http.HttpBase {
 		}
 	}
 
+	/**
+		Returns an array of values for a single response header or returns
+		null if no such header exists.
+		This method can be useful when you need to get a multiple headers with
+		the same name (e.g. `Set-Cookie`), that are unreachable via the
+		`responseHeaders` variable.
+	**/
+	public function getResponseHeaderValues(key:String):Null<Array<String>> {
+		var array = responseHeadersSameKey.get(key);
+		if (array == null) {
+			var singleValue = responseHeaders.get(key);
+			return (singleValue == null) ? null : [ singleValue ];
+		} else {
+			return array;
+		}
+	}
+
 	function writeBody(body:Null<BytesOutput>, fileInput:Null<Input>, fileSize:Int, boundary:Null<String>, sock:Socket) {
 		if (body != null) {
 			var bytes = body.getBytes();
@@ -366,6 +385,22 @@ class Http extends haxe.http.HttpBase {
 			var hname = a.shift();
 			var hval = if (a.length == 1) a[0] else a.join(": ");
 			hval = StringTools.ltrim(StringTools.rtrim(hval));
+
+			{
+				var previousValue = responseHeaders.get(hname);
+				if (previousValue != null) {
+					if (responseHeadersSameKey == null) {
+						responseHeadersSameKey = new haxe.ds.Map<String, Array<String>>();
+					}
+					var array = responseHeadersSameKey.get(hname);
+					if (array == null) {
+						array = new Array<String>();
+						array.push(previousValue);
+						responseHeadersSameKey.set(hname, array);
+					}
+					array.push(hval);
+				}
+			}
 			responseHeaders.set(hname, hval);
 			switch (hname.toLowerCase()) {
 				case "content-length":
