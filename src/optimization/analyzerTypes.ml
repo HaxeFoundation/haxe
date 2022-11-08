@@ -595,6 +595,7 @@ type analyzer_context = {
 	graph : Graph.t;
 	temp_var_name : string;
 	with_timer : 'a . string list -> (unit -> 'a) -> 'a;
+	identifier : string;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;

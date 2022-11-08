@@ -933,13 +933,20 @@ module Run = struct
 	open AnalyzerConfig
 	open Graph
 
-	let with_timer detailed s f =
-		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
+	let with_timer level identifier s f =
+		let name = match level with
+			| 0 -> ["analyzer"]
+			| 1 -> "analyzer" :: s
+			| 2 when identifier = "" -> "analyzer" :: s
+			| 2 -> "analyzer" :: s @ [identifier]
+			| _ -> ["analyzer"] (* whatever *)
+		in
+		let timer = Timer.timer name in
 		let r = f() in
 		timer();
 		r
 
-	let create_analyzer_context com config e =
+	let create_analyzer_context com config identifier e =
 		let g = Graph.create e.etype e.epos in
 		let ctx = {
 			com = com;
@@ -949,8 +956,9 @@ module Run = struct
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
 			with_timer = (fun s f ->
-				with_timer config.detail_times s f
+				with_timer config.detail_times identifier s f
 			);
+			identifier = identifier;
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
@@ -1063,7 +1071,7 @@ module Run = struct
 	let run_on_field com config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field com cf) && not (has_class_field_flag cf CfPostProcessed) ->
 			let config = update_config_from_meta com config cf.cf_meta in
-			let actx = create_analyzer_context com config e in
+			let actx = create_analyzer_context com config (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name) e in
 			let debug() =
 				print_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
@@ -1116,7 +1124,7 @@ module Run = struct
 			| Some e ->
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
 				let e = mk (TFunction tf) (tfun [] e.etype) e.epos in
-				let actx = create_analyzer_context com {config with optimize = false} e in
+				let actx = create_analyzer_context com {config with optimize = false} (Printf.sprintf "%s.__init__" (s_type_path c.cl_path)) e in
 				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
@@ -1135,18 +1143,18 @@ module Run = struct
 
 	let run_on_types com types =
 		let config = get_base_config com in
-		with_timer config.detail_times ["other"] (fun () ->
+		with_timer config.detail_times "" ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
-				with_timer config.detail_times ["optimize";"purity-inference"] (fun () -> Purity.infer com);
+				with_timer config.detail_times "" ["optimize";"purity-inference"] (fun () -> Purity.infer com);
 			List.iter (run_on_type com config) types
 		)
 end
 ;;
-Typecore.analyzer_run_on_expr_ref := (fun com e ->
+Typecore.analyzer_run_on_expr_ref := (fun com identifier e ->
 	let config = AnalyzerConfig.get_base_config com in
 	(* We always want to optimize because const propagation might be required to obtain
 	   a constant expression for inline field initializations (see issue #4977). *)
 	let config = {config with AnalyzerConfig.optimize = true} in
-	let actx = Run.create_analyzer_context com config e in
+	let actx = Run.create_analyzer_context com config identifier e in
 	Run.run_on_expr actx e
 )

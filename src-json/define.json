@@ -16,6 +16,12 @@
 		"doc": "Perform advanced optimizations."
 	},
 	{
+		"name": "AnalyzerTimes",
+		"define": "analyzer-times",
+		"doc": "Record detailed timers for the analyzer",
+		"params": ["level: 0 | 1 | 2"]
+	},
+	{
 		"name": "AnnotateSource",
 		"define": "annotate-source",
 		"doc": "Add additional comments to generated source code.",
