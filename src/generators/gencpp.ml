@@ -710,8 +710,23 @@ let is_extern_class class_def =
        | _ -> false );
 ;;
 
+let is_extern_enum enum_def =
+   (enum_def.e_extern) || (has_meta_key enum_def.e_meta Meta.Extern)
+;;
+
 let is_native_class class_def =
    ((is_extern_class class_def) || (is_native_gen_class class_def)) && (not (is_internal_class class_def.cl_path))
+;;
+
+let cpp_enum_path_of enum =
+   (*
+   let rename = get_meta_string enum.e_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+   *)
+   let globalNamespace = if (get_meta_string enum.e_meta Meta.Native)<>"" then "" else "::" in
+   globalNamespace ^ (join_class_path_remap enum.e_path "::")
 ;;
 
 (*  Get a string to represent a type.
@@ -794,7 +809,7 @@ and type_string_suff suffix haxe_type remap =
 		| TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
 		| t when type_has_meta_key t Meta.NotNull -> "Dynamic" ^ suffix
 		| _ -> type_string_suff suffix t remap)
-   | TEnum (enum,params) ->  "::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
+   | TEnum (enum,_) ->  (cpp_enum_path_of enum) ^ suffix
    | TInst (klass,params) ->  (class_string klass suffix params remap)
    | TType (type_def,params) ->
       (match type_def.t_path with
@@ -1987,18 +2002,6 @@ let cpp_member_return_type ctx member =
 let is_cpp_objc_type cpptype = match cpptype with
    | TCppObjC(_) -> true;
    | _ -> false
-;;
-
-
-let cpp_enum_path_of enum =
-   (*
-   let rename = get_meta_string enum.e_meta Meta.Native in
-   if rename <> "" then
-      rename
-   else
-   *)
-   let globalNamespace = if (get_meta_string enum.e_meta Meta.Native)<>"" then "" else "::" in
-   globalNamespace ^ (join_class_path_remap enum.e_path "::")
 ;;
 
 
@@ -4827,6 +4830,9 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
    let add_extern_class klass =
       add_extern_type (TClassDecl klass)
    in
+   let add_extern_enum enum =
+      add_extern_type (TEnumDecl enum)
+   in
    let add_native_gen_class klass =
       let include_files = get_all_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
       if List.length include_files > 0 then
@@ -4849,7 +4855,10 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          visited := in_type :: !visited;
          begin match follow in_type with
          | TMono r -> (match r.tm_type with None -> () | Some t -> visit_type t)
-         | TEnum (enum,params) -> add_type enum.e_path
+         | TEnum (enum,_) ->
+            (match is_extern_enum enum with
+            | true -> add_extern_enum enum
+            | false -> add_type enum.e_path)
          (* If a class has a template parameter, then we treat it as dynamic - except
             for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
          | TInst (klass,params) ->
@@ -4880,6 +4889,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
             | TTypeExpr type_def -> ( match type_def with
                | TClassDecl class_def when is_native_gen_class class_def -> add_native_gen_class class_def
                | TClassDecl class_def when is_extern_class class_def -> add_extern_class class_def
+               | TEnumDecl enum_def when is_extern_enum enum_def -> add_extern_enum enum_def
                | _ -> add_type (t_path type_def)
                )
 
