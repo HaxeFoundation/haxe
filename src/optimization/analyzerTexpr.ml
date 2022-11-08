@@ -519,9 +519,11 @@ module Fusion = struct
 			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
 			| _ -> true
 
-	let apply com config e =
+	let apply actx e =
+		let config = actx.AnalyzerTypes.config in
+		let com = actx.com in
 		let state = new fusion_state in
-		state#infer_from_texpr e;
+		actx.with_timer ["<-";"fusion";"infer_from_texpr"] (fun () -> state#infer_from_texpr e);
 		(* Handles block-level expressions, e.g. by removing side-effect-free ones and recursing into compound constructs like
 		   array or object declarations. The resulting element list is reversed.
 		   INFO: `el` is a reversed list of expressions in a block.
@@ -584,6 +586,9 @@ module Fusion = struct
 				block_element (e1 :: acc) el
 			| [] ->
 				acc
+		in
+		let block_element ?(loop_bottom=false) acc el =
+			actx.with_timer ["<-";"fusion";"block_element"] (fun () -> block_element ~loop_bottom acc el)
 		in
 		let can_be_fused v e =
 			let num_uses = state#get_reads v in
@@ -862,6 +867,9 @@ module Fusion = struct
 						| _ ->
 							Type.map_expr replace e
 				in
+				let replace e =
+					actx.with_timer ["<-";"fusion";"fuse";"replace"] (fun () -> replace e)
+				in
 				begin try
 					let rec loop acc el = match el with
 						| e :: el ->
@@ -952,6 +960,9 @@ module Fusion = struct
 				fuse (e1 :: acc) el
 			| [] ->
 				acc
+		in
+		let fuse acc el =
+			actx.with_timer ["<-";"fusion";"fuse"] (fun () -> fuse [] el)
 		in
 		let rec loop e = match e.eexpr with
 			| TWhile(condition,{ eexpr = TBlock el; etype = t; epos = p },flag) ->

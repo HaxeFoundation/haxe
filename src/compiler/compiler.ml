@@ -23,7 +23,7 @@ let run_or_diagnose ctx f arg =
 		f arg
 
 let run_command ctx cmd =
-	let t = Timer.timer ["command"] in
+	let t = Timer.timer ["command";cmd] in
 	(* TODO: this is a hack *)
 	let cmd = if ctx.comm.is_server then begin
 		let h = Hashtbl.create 0 in

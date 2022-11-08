@@ -948,6 +948,9 @@ module Run = struct
 			(* For CPP we want to use variable names which are "probably" not used by users in order to
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
+			with_timer = (fun s f ->
+				with_timer config.detail_times s f
+			);
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
@@ -963,7 +966,7 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
-		let e = with_timer actx.config.detail_times ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
+		let e = actx.with_timer ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,t,is_real_function = match e.eexpr with
 			| TFunction tf ->
@@ -975,18 +978,18 @@ module Run = struct
 				let tf = { tf_args = []; tf_type = t; tf_expr = e; } in
 				tf,tfun [] t,false
 		in
-		with_timer actx.config.detail_times ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
+		actx.with_timer ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
 		is_real_function
 
 	let back_again actx is_real_function =
-		let e = with_timer actx.config.detail_times ["<-";"to-texpr"] (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
+		let e = actx.with_timer ["<-";"to-texpr"] (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
 		if actx.com.debug then add_debug_expr actx "after to-texpr" e;
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
-		let e = if actx.config.fusion then with_timer actx.config.detail_times ["<-";"fusion"] (fun () -> Fusion.apply actx.com actx.config e) else e in
+		let e = if actx.config.fusion then actx.with_timer ["<-";"fusion"] (fun () -> Fusion.apply actx e) else e in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
-		let e = with_timer actx.config.detail_times ["<-";"cleanup"] (fun () -> Cleanup.apply actx.com e) in
+		let e = actx.with_timer ["<-";"cleanup"] (fun () -> Cleanup.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after cleanup" e;
 		let e = if is_real_function then
 			e
@@ -1040,16 +1043,16 @@ module Run = struct
 
 	let run_on_expr actx e =
 		let is_real_function = there actx e in
-		with_timer actx.config.detail_times ["->";"idom"] (fun () -> Graph.infer_immediate_dominators actx.graph);
-		with_timer actx.config.detail_times ["->";"infer_scopes"] (fun () -> Graph.infer_scopes actx.graph);
-		with_timer actx.config.detail_times ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
+		actx.with_timer ["->";"idom"] (fun () -> Graph.infer_immediate_dominators actx.graph);
+		actx.with_timer ["->";"infer_scopes"] (fun () -> Graph.infer_scopes actx.graph);
+		actx.with_timer ["->";"var writes"] (fun () -> Graph.infer_var_writes actx.graph);
 		if actx.com.debug then Graph.check_integrity actx.graph;
 		if actx.config.optimize && not actx.has_unbound then begin
 			actx.did_optimize <- true;
-			with_timer actx.config.detail_times ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
-			if actx.config.const_propagation then with_timer actx.config.detail_times ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
-			if actx.config.copy_propagation then with_timer actx.config.detail_times ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);
-			with_timer actx.config.detail_times ["optimize";"local-dce"] (fun () -> LocalDce.apply actx);
+			actx.with_timer ["optimize";"ssa-apply"] (fun () -> Ssa.apply actx);
+			if actx.config.const_propagation then actx.with_timer ["optimize";"const-propagation"] (fun () -> ConstPropagation.apply actx);
+			if actx.config.copy_propagation then actx.with_timer ["optimize";"copy-propagation"] (fun () -> CopyPropagation.apply actx);
+			actx.with_timer ["optimize";"local-dce"] (fun () -> LocalDce.apply actx);
 		end;
 		back_again actx is_real_function
 
