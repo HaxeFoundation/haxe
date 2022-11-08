@@ -2083,6 +2083,7 @@ let cpp_variant_type_of t = match t with
    | TCppScalar "Int"
    | TCppScalar "bool"
    | TCppScalar "Float"  -> t
+   | TCppScalar "::cpp::Int64" -> TCppScalar("Int64")
    | TCppScalar "double"
    | TCppScalar "float" -> TCppScalar("Float")
    | TCppScalar _  -> TCppScalar("int")
@@ -2273,6 +2274,7 @@ let is_array_splice_call obj member =
 let is_map_get_call obj member =
    member.cf_name="get" &&
    (match obj.cpptype  with
+   | TCppInst({cl_path=(["cpp"],"Int64Map")}, _) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}, _) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}, _) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}, _) -> true
@@ -2283,6 +2285,7 @@ let is_map_get_call obj member =
 let is_map_set_call obj member =
    member.cf_name="set" &&
    (match obj.cpptype  with
+   | TCppInst({cl_path=(["cpp"],"Int64Map")}, _) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}, _) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}, _) -> true
    | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}, _) -> true
@@ -2767,6 +2770,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   let fname, cppType = match return_type with
                   | TCppVoid | TCppScalar("bool")  -> (if forCppia then "getBool" else "get_bool"), return_type
                   | TCppScalar("int")  -> (if forCppia then "getInt" else "get_int"), return_type
+                  | TCppScalar("::cpp::Int64") -> (if forCppia then "getInt64" else "get_int64"), return_type
                   | TCppScalar("Float")  -> (if forCppia then "getFloat" else "get_float"), return_type
                   | TCppString  -> (if forCppia then "getString" else "get_string"), return_type
                   | _ -> "get", TCppDynamic
@@ -2786,6 +2790,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   let fname = match retypedArgs with
                   | [_;{cpptype=TCppScalar("bool")}]  -> "setBool"
                   | [_;{cpptype=TCppScalar("int")}]  -> "setInt"
+                  | [_;{cpptype=TCppScalar("::cpp::Int64")}]  -> "setInt64"
                   | [_;{cpptype=TCppScalar("Float")}]  -> "setFloat"
                   | [_;{cpptype=TCppString}]  -> "setString"
                   | _ -> "set"
@@ -2947,7 +2952,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
                arrayExpr, elemType
 
          | TTypeExpr module_type ->
-            let path = t_path module_type in
+            (* If we try and use the coreType / runtimeValue cpp.Int64 abstract with Class<T> then we get a class decl of the abstract *)
+            (* as that abstract has functions in its declaration *)
+            (* Intercept it and replace it with the path of the actual int64 type so the generated cpp is correct *)
+            let path = match module_type with
+            | TClassDecl ({ cl_path = ["cpp";"_Int64"],"Int64_Impl_" }) -> ["cpp"],"Int64"
+            | _ -> t_path module_type in
             CppClassOf(path, is_native_gen_module module_type), TCppClass
 
          | TBinop (op,left,right) ->
