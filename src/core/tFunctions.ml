@@ -624,11 +624,15 @@ let rec has_dead_end e = match e.eexpr with
 	| TReturn _ -> true
 	| TBreak -> true
 	| TContinue -> true
-	| TWhile (_, body, DoWhile) -> has_dead_end body
+	| TArray (target, index) -> has_dead_end index
+	| TBinop (OpBoolAnd, e1, e2) -> has_dead_end e1
+	| TBinop (_, e1, e2) -> has_dead_end e1 || has_dead_end e2
+	| TVar (_, e) -> (match e with | Some e -> has_dead_end e | None -> false)
 	| TIf (_, if_body, Some else_body) -> has_dead_end if_body && has_dead_end else_body
 	| TBlock exprs -> List.exists has_dead_end exprs
 	| TCall (ecall, args) -> has_dead_end ecall || List.exists has_dead_end args
-	(* | TArrayDecl els -> List.exists has_dead_end els *)
+	| TNew (_, _, args) -> List.exists has_dead_end args
+	| TArrayDecl els -> List.exists has_dead_end els
 	| TMeta (_, e) -> has_dead_end e
 	| TCast (e, _) -> has_dead_end e
 	| _ -> false

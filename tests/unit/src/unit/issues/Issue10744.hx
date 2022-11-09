@@ -20,6 +20,11 @@ class Issue10744 extends Test {
 			else
 				v;
 		}));
+		eq("Null<Int>", typeString(v ?? {
+			function foo()
+				return;
+			v;
+		}));
 		eq("Int", typeString(v ?? {
 			if (Std.random(0) == 0)
 				return;
@@ -31,6 +36,56 @@ class Issue10744 extends Test {
 		}));
 		eq("Int", typeString(v ?? {
 			(return)();
+		}));
+		eq("Int", typeString(v ?? {
+			v + return;
+			v;
+		}));
+		eq("Null<Int>", typeString(v ?? {
+			false && return ;
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			final a = return;
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			[0, return, 2];
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			switch (null) {
+				case _: return;
+			}
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			switch (return) {
+				case _: null;
+			}
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			final arr = [];
+			arr[return];
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			new EReg("", return);
+			v;
+		}));
+		eq("Null<Int>", typeString(v ?? {
+			do {
+				break;
+				return;
+			} while (true);
+			v;
+		}));
+		eq("Null<Int>", typeString(v ?? {
+			try {
+				throw null;
+			} catch (e) {}
+			v;
 		}));
 	}
 }
