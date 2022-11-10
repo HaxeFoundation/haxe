@@ -1858,7 +1858,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| TAbstract({a_path = [],"Null"},[t]) -> t
 			| _ -> t
 		in
-		let iftype = if TFunctions.has_dead_end e2 then
+		let iftype = if DeadEnd.has_dead_end e2 then
 			WithType.with_type (follow_null_once e1.etype)
 		else
 			WithType.WithType(e2.etype,None)

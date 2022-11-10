@@ -25,11 +25,6 @@ open Globals
 
 let s_expr_pretty e = s_expr_pretty false "" false (s_type (print_context())) e
 
-let rec is_true_expr e1 = match e1.eexpr with
-	| TConst(TBool true) -> true
-	| TParenthesis e1 -> is_true_expr e1
-	| _ -> false
-
 let is_stack_allocated c = Meta.has Meta.StructAccess c.cl_meta
 
 let map_values ?(allow_control_flow=true) f e =

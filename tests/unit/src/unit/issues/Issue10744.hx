@@ -46,6 +46,14 @@ class Issue10744 extends Test {
 			v;
 		}));
 		eq("Int", typeString(v ?? {
+			true && return ;
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			false || return ;
+			v;
+		}));
+		eq("Int", typeString(v ?? {
 			final a = return;
 			v;
 		}));
@@ -81,10 +89,78 @@ class Issue10744 extends Test {
 			} while (true);
 			v;
 		}));
+		eq("Int", typeString(v ?? {
+			do {
+				break; // die
+				return;
+			} while (true); // resurrect
+			return; // die again
+			v;
+		}));
 		eq("Null<Int>", typeString(v ?? {
 			try {
 				throw null;
 			} catch (e) {}
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			try {
+				throw null;
+			} catch (e) {
+				return;
+			}
+			v;
+		}));
+		eq("Null<Int>", typeString(v ?? {
+			try {
+				throw null;
+			} catch (e:String) {
+				// fall through
+			} catch (e) {
+				return;
+			}
+			v;
+		}));
+		eq("Null<Int>", typeString(v ?? {
+			try {
+				return;
+			} catch (e:String) {
+				// fall through
+			} catch (e) {
+				return;
+			}
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			try {
+				return;
+			} catch (e:String) {
+				return;
+			} catch (e) {
+				return;
+			}
+			v;
+		}));
+		eq("Null<Int>", typeString(v ?? {
+			try {
+				// something here COULD throw and end up in the fall through case
+			} catch (e:String) {
+				// fall through
+			} catch (e) {
+				return;
+			}
+			v;
+		}));
+		eq("Int", typeString(v ?? {
+			try {
+				return;
+			}
+			v;
+		}));
+		eq("Null<Int>", typeString(v ?? {
+			try {
+				// fall through
+			}
 			v;
 		}));
 	}

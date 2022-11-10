@@ -907,7 +907,7 @@ class local_safety (mode:safety_mode) =
 					self#get_current_scope#reset_to initial_safe;
 					(** execute `else_body` with known not-null variables *)
 					let handle_dead_end body safe_vars =
-						if TFunctions.has_dead_end body then
+						if DeadEnd.has_dead_end body then
 							List.iter self#get_current_scope#add_to_safety safe_vars
 					in
 					(match else_body with
