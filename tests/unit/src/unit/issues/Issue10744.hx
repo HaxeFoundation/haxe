@@ -61,6 +61,12 @@ class Issue10744 extends Test {
 			[0, return, 2];
 			v;
 		}));
+		eq("Null<Int>", typeString(v ?? {
+			for (i in 0...Std.random(1)) {
+				return;
+			}
+			v;
+		}));
 		eq("Int", typeString(v ?? {
 			switch (null) {
 				case _: return;

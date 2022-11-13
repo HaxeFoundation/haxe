@@ -898,7 +898,7 @@ module DeadEnd = struct
 				in
 				loop e1 || check_exhaustive ()
 			| TFor(_, e1, _) ->
-				loop e1 (* I think? *)
+				false
 			| TBinop(OpBoolAnd, e1, e2) ->
 				loop e1 || is_true_expr e1 && loop e2
 			| TBinop(OpBoolOr, e1, e2) ->
