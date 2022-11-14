@@ -68,6 +68,12 @@ class Issue10744 extends Test {
 			v;
 		}));
 		eq("Int", typeString(v ?? {
+			for (i in [0, return, 2]) {
+				break;
+			}
+			v;
+		}));
+		eq("Int", typeString(v ?? {
 			switch (null) {
 				case _: return;
 			}
