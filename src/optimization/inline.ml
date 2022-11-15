@@ -723,7 +723,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
 		| TSwitch (e1,cases,def) when term ->
-			let term = term && (def <> None || is_exhaustive e1) in
+			let term = term && (is_exhaustive e1 def) in
 			let cases = List.map (fun (el,e) ->
 				let el = List.map (map false false) el in
 				el, map term false e

@@ -21,12 +21,6 @@ let has_side_effect e =
 	with Exit ->
 		true
 
-let rec is_exhaustive e1 = match e1.eexpr with
-	| TMeta((Meta.Exhaustive,_,_),_) -> true
-	| TMeta(_, e1) | TParenthesis e1 -> is_exhaustive e1
-	| _ -> false
-
-
 let is_read_only_field_access e fa = match fa with
 	| FEnum _ ->
 		true

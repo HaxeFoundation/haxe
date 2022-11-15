@@ -1847,7 +1847,17 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
-		let iftype = WithType.WithType(e2.etype,None) in
+
+		let follow_null_once t =
+			match t with
+			| TAbstract({a_path = [],"Null"},[t]) -> t
+			| _ -> t
+		in
+		let iftype = if DeadEnd.has_dead_end e2 then
+			WithType.with_type (follow_null_once e1.etype)
+		else
+			WithType.WithType(e2.etype,None)
+		in
 		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
 		vr#to_texpr e_if
 	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
