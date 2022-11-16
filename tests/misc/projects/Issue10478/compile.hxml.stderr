@@ -1,0 +1,6 @@
+Main.hx:5: characters 7-13 : Warning : (WUnnecessaryNullCheck) The left operand is not nullable, so the right operand can be not executed
+Main.hx:6: characters 3-10 : Warning : (WUnnecessaryNullCheck) The left operand is not nullable, so the right operand can be not executed
+Main.hx:10: characters 7-13 : Warning : (WUnnecessaryNullCheck) The left operand is not nullable, so the right operand can be not executed
+Main.hx:11: characters 3-10 : Warning : (WUnnecessaryNullCheck) The left operand is not nullable, so the right operand can be not executed
+Main.hx:21: characters 12-18 : Warning : (WUnnecessaryNullCheck) The left operand is not nullable, so the right operand can be not executed
+Main.hx:21: characters 7-18 : Warning : (WUnnecessaryNullCheck) The left operand is not nullable, so the right operand can be not executed

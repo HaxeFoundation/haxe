@@ -1844,6 +1844,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let vr = new value_reference ctx in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
+		if not (is_nullable e1.etype) then
+			Typecore.warning ctx WUnnecessaryNullCheck "The left operand is not nullable, so the right operand can be not executed" p;
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
@@ -1863,7 +1865,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
 		let e_cond = EBinop(OpNotEq,e1,(EConst(Ident "null"), p)) in
 		let e_if = EIf ((e_cond, p),e1,Some e2) in
-		type_assign ctx e1 (e_if, p) with_type p
+		let e_assign = type_assign ctx e1 (e_if, p) with_type p in
+		if not (is_nullable e_assign.etype) then
+			Typecore.warning ctx WUnnecessaryNullCheck "The left operand is not nullable, so the right operand can be not executed" p;
+		e_assign;
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when (match with_type with

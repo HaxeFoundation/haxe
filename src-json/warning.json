@@ -102,6 +102,11 @@
 		"name": "WConstructorInliningCancelled",
 		"doc": "Constructor call could not be inlined because a field is uninitialized",
 		"parent": "WTyper"
+	},
+	{
+		"name": "WUnnecessaryNullCheck",
+		"doc": "Value can't be null, so comparison with null is excessive",
+		"parent": "WTyper"
 	}
 
 ]
