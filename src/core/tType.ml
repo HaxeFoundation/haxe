@@ -33,7 +33,7 @@ type module_check_policy =
 	| Retype
 
 type module_skip_reason =
-	| DependencyDirty of path
+	| DependencyDirty of path * module_skip_reason
 	| Tainted of string
 	| FileChanged of string
 	| Shadowed of string
