@@ -10,7 +10,32 @@ import haxe.Constraints;
 @:phpGlobal
 extern class Global {
 	/**
-		@see https://php.net/manual/en/function.fastcgi-finish-request.php
+		@see http://php.net/manual/en/function.get-browser.php
+	**/
+	static function get_browser(?user_agent:String, ?return_array:Bool = false):EitherType<Dynamic, EitherType<NativeArray, Bool>>;
+
+	/**
+		@see http://php.net/manual/en/function.get-defined-constants.php
+	**/
+	static function get_defined_constants(categorize:Bool = false):NativeArray;
+	
+	/**
+		@see http://php.net/manual/en/function.finfo-file.php
+	**/
+	static function finfo_file(finfo:Finfo, filename:String, flags:Int = 0, ?context:Resource):EitherType<String, Bool>;
+	
+	/**
+		@see http://php.net/manual/en/function.finfo-open.php
+	**/
+	static function finfo_open(flags:Int = 0, ?magic_database:String):EitherType<Finfo, Bool>;
+	
+	/**
+		@see http://php.net/manual/en/function.finfo-close.php
+	**/
+	static function finfo_close(finfo:Finfo):Bool;
+	
+	/**
+		@see http://php.net/manual/en/function.fastcgi-finish-request.php
 	**/
 	static function fastcgi_finish_request():Bool;
 	
