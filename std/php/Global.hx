@@ -10,6 +10,11 @@ import haxe.Constraints;
 @:phpGlobal
 extern class Global {
 	/**
+		@see https://php.net/manual/en/function.fastcgi-finish-request.php
+	**/
+	static function fastcgi_finish_request():Void;
+	
+	/**
 		@see http://php.net/manual/en/function.exit.php
 	**/
 	static function exit(status:EitherType<String, Int>):Void;
