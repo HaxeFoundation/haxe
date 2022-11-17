@@ -116,6 +116,16 @@ class RetyperTests extends TestCase {
 		Assert.isTrue(hasMessage('retyped WithMutualDependency'));
 	}
 
+	function testMutualSignature() {
+		vfs.putContent("WithMutualSignatureDependency.hx", getTemplate("retyper/WithMutualSignatureDependency.hx"));
+		vfs.putContent("MutualSignatureDependency.hx", getTemplate("retyper/MutualSignatureDependency.hx"));
+		var args = getBaseArgs("WithMutualSignatureDependency");
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MutualSignatureDependency.hx")});
+		runHaxe(["MutualSignatureDependency.hx", "--no-output", "-js", "no.js"]);
+		Assert.isFalse(hasMessage('Type name MutualSignatureDependency is redefined from module MutualSignatureDependency'));
+	}
+
 	function testParent() {
 		vfs.putContent("WithParentDependency.hx", getTemplate("retyper/WithParentDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
