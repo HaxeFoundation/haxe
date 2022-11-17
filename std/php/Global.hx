@@ -12,7 +12,7 @@ extern class Global {
 	/**
 		@see https://php.net/manual/en/function.fastcgi-finish-request.php
 	**/
-	static function fastcgi_finish_request():Void;
+	static function fastcgi_finish_request():Bool;
 	
 	/**
 		@see http://php.net/manual/en/function.exit.php
