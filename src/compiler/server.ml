@@ -83,78 +83,6 @@ let parse_file cs com file p =
 		) () in
 		data
 
-module ServerCompilationContext = struct
-	type t = {
-		(* If true, prints some debug information *)
-		verbose : bool;
-		(* The list of changed directories per-signature *)
-		changed_directories : (Digest.t,cached_directory list) Hashtbl.t;
-		(* A reference to the compilation server instance *)
-		cs : CompilationCache.t;
-		(* A list of class paths per-signature *)
-		class_paths : (Digest.t,string list) Hashtbl.t;
-		(* Increased for each compilation *)
-		mutable compilation_step : int;
-		(* A list of delays which are run after compilation *)
-		mutable delays : (unit -> unit) list;
-		(* True if it's an actual compilation, false if it's a display operation *)
-		mutable was_compilation : bool;
-		(* True if the macro context has been set up *)
-		mutable macro_context_setup : bool;
-	}
-
-	let create verbose = {
-		verbose = verbose;
-		cs = new CompilationCache.cache;
-		class_paths = Hashtbl.create 0;
-		changed_directories = Hashtbl.create 0;
-		compilation_step = 0;
-		delays = [];
-		was_compilation = false;
-		macro_context_setup = false;
-	}
-
-	let add_delay sctx f =
-		sctx.delays <- f :: sctx.delays
-
-	let run_delays sctx =
-		let fl = sctx.delays in
-		sctx.delays <- [];
-		List.iter (fun f -> f()) fl
-
-	(* Resets the state for a new compilation *)
-	let reset sctx =
-		Hashtbl.clear sctx.changed_directories;
-		sctx.was_compilation <- false;
-		Parser.reset_state();
-		return_partial_type := false;
-		measure_times := false;
-		Hashtbl.clear DeprecationCheck.warned_positions;
-		close_times();
-		stats.s_files_parsed := 0;
-		stats.s_classes_built := 0;
-		stats.s_methods_typed := 0;
-		stats.s_macros_called := 0;
-		Hashtbl.clear Timer.htimers;
-		Helper.start_time := get_time()
-
-	let maybe_cache_context sctx com =
-		if com.display.dms_full_typing then begin
-			CommonCache.cache_context sctx.cs com;
-			ServerMessage.cached_modules com "" (List.length com.modules);
-		end
-
-	let ensure_macro_setup sctx =
-		if not sctx.macro_context_setup then begin
-			sctx.macro_context_setup <- true;
-			MacroContext.setup();
-		end
-
-	let cleanup () = match !MacroContext.macro_interp_cache with
-		| Some interp -> EvalContext.GlobalState.cleanup interp
-		| None -> ()
-end
-
 open ServerCompilationContext
 
 module Communication = struct
@@ -337,7 +265,8 @@ let check_module sctx ctx m p =
 			end
 		) paths
 	in
-	let start_mark = ctx.com.compilation_step in
+	let start_mark = sctx.compilation_step in
+	let unknown_state_modules = ref [] in
 	let rec check m =
 		let check_module_path () =
 			let directories = get_changed_directories sctx ctx in
@@ -398,7 +327,7 @@ let check_module sctx ctx m p =
 		let check_dependencies () =
 			PMap.iter (fun _ m2 -> match check m2 with
 				| None -> ()
-				| Some _ -> raise (Dirty (DependencyDirty m2.m_path))
+				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
 			) m.m_extra.m_deps;
 		in
 		let check () =
@@ -412,25 +341,71 @@ let check_module sctx ctx m p =
 				Some reason
 		in
 		(* If the module mark matches our compilation mark, we are done *)
-		if m.m_extra.m_checked = start_mark then
-			m.m_extra.m_dirty
-		else begin
+		if m.m_extra.m_checked = start_mark then begin match m.m_extra.m_cache_state with
+			| MSGood | MSUnknown ->
+				None
+			| MSBad reason ->
+				Some reason
+		end else begin
 			(* Otherwise, set to current compilation mark for recursion *)
 			m.m_extra.m_checked <- start_mark;
-			let dirty = match m.m_extra.m_dirty with
-				| Some _ as dirty ->
+			let dirty = match m.m_extra.m_cache_state with
+				| MSBad reason ->
 					(* If we are already dirty, stick to it. *)
-					dirty
-				| None ->
+					Some reason
+				| MSUnknown	->
+					(* This should not happen because any MSUnknown module is supposed to have the current m_checked. *)
+					die "" __LOC__
+				| MSGood ->
 					(* Otherwise, run the checks *)
+					m.m_extra.m_cache_state <- MSUnknown;
 					check ()
 			in
+			let dirty = match dirty with
+				| Some (DependencyDirty _) when has_policy Retype ->
+					let result = Retyper.attempt_retyping ctx m p in
+					begin match result with
+					| None ->
+						ServerMessage.retyper_ok com "" m;
+						None
+					| Some reason ->
+						ServerMessage.retyper_fail com "" m reason;
+						dirty
+					end
+				| _ ->
+					dirty
+			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
-			m.m_extra.m_dirty <- dirty;
+			begin match dirty with
+			| Some reason ->
+				(* Update the state if we're dirty. *)
+				m.m_extra.m_cache_state <- MSBad reason;
+			| None ->
+				(* We cannot update if we're clean because at this point it might just be an assumption.
+				   Instead We add the module to a list which is updated at the end of handling this subgraph. *)
+				unknown_state_modules := m :: !unknown_state_modules;
+			end;
 			dirty
 		end
 	in
-	check m
+	let state = check m in
+	begin match state with
+	| None ->
+		(* If the entire subgraph is clean, we can set all modules to good state *)
+		List.iter (fun m -> m.m_extra.m_cache_state <- MSGood) !unknown_state_modules;
+	| Some _ ->
+		(* Otherwise, unknown state module may or may not be dirty. We didn't check everything eagerly, so we have
+		   to make sure that the module is checked again if it appears in a different check. This is achieved by
+		   setting m_checked to a lower value and assuming Good state again. *)
+		List.iter (fun m -> match m.m_extra.m_cache_state with
+			| MSUnknown ->
+				m.m_extra.m_checked <- start_mark - 1;
+				m.m_extra.m_cache_state <- MSGood;
+			| MSGood | MSBad _ ->
+				()
+		) !unknown_state_modules
+	end;
+	state
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
    context. *)

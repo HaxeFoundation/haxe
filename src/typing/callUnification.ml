@@ -155,8 +155,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| e :: el,(name,opt,t) :: args ->
 			let might_skip = List.length el < List.length args in
 			begin try
-				let restore_report_mode = if might_skip then Common.disable_report_mode ctx.com else (fun () -> ()) in
-				let e = Std.finally restore_report_mode (type_against name t) e in
+				let e = type_against name t e in
 				e :: loop el args
 			with
 				WithTypeError (ul,p)->
@@ -478,7 +477,7 @@ object(self)
 				locate_macro_error := false;
 				old msg ep;
 				locate_macro_error := true;
-				ctx.com.error (compl_msg "Called from macro here") p;
+				old (compl_msg "Called from macro here") p;
 			end else
 				old msg ep;
 		);
@@ -586,10 +585,9 @@ object(self)
 			| [] ->
 				self#macro_call fa.fa_on fa.fa_field el
 			| el_typed ->
-				let cur = ctx.this_stack in
-				let el' = List.map (fun e -> fst (push_this ctx e)) el_typed in
+				let el',fl = List.split (List.map (fun e -> push_this ctx e) el_typed) in
 				let e = self#macro_call fa.fa_on fa.fa_field (el' @ el) in
-				ctx.this_stack <- cur;
+				List.iter (fun f -> f()) fl;
 				e
 			end;
 		| Var v ->

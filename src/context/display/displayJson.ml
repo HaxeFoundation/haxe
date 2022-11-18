@@ -308,6 +308,8 @@ let parse_input com input report_times =
 	let jsonrpc = new jsonrpc_handler input in
 
 	let send_result json =
+		flush stdout;
+		flush stderr;
 		let fl = [
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());

@@ -162,7 +162,7 @@ class TypeTools {
 			}
 		}
 
-	#if (macro || display)
+	#if macro
 	/**
 		Follows all typedefs of `t` to reach the actual type.
 

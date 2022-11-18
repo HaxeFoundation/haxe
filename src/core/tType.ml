@@ -30,13 +30,19 @@ type module_check_policy =
 	| CheckFileContentModification
 	| NoCheckDependencies
 	| NoCheckShadowing
+	| Retype
 
 type module_skip_reason =
-	| DependencyDirty of path
+	| DependencyDirty of path * module_skip_reason
 	| Tainted of string
 	| FileChanged of string
 	| Shadowed of string
 	| LibraryChanged
+
+type module_cache_state =
+	| MSGood
+	| MSBad of module_skip_reason
+	| MSUnknown
 
 type t =
 	| TMono of tmono
@@ -363,7 +369,7 @@ and module_def_extra = {
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : module_skip_reason option;
+	mutable m_cache_state : module_cache_state;
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;

@@ -376,6 +376,7 @@ type context = {
 	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : (path,module_def) lookup;
+	module_nonexistent_lut : (path,bool) lookup;
 	type_to_module : (path,path) lookup;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
@@ -649,7 +650,8 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
 			pf_scoping = { default_config.pf_scoping with
-				vs_flags = [NoShadowing]
+				vs_flags = [NoShadowing];
+				vs_scope = FunctionScope;
 			}
 		}
 	| Cs ->
@@ -790,6 +792,7 @@ let create compilation_step cs version args =
 		callbacks = new compiler_callbacks;
 		modules = [];
 		module_lut = new hashtbl_lookup;
+		module_nonexistent_lut = new hashtbl_lookup;
 		type_to_module = new hashtbl_lookup;
 		main = None;
 		flash_version = 10.;
@@ -819,9 +822,9 @@ let create compilation_step cs version args =
 			tint = m;
 			tfloat = m;
 			tbool = m;
-			tnull = (fun _ -> die "" __LOC__);
+			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tstring = m;
-			tarray = (fun _ -> die "" __LOC__);
+			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;

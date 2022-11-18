@@ -158,7 +158,7 @@ let module_extra file sign time kind policy =
 			m_type_hints = [];
 			m_import_positions = PMap.empty;
 		};
-		m_dirty = None;
+		m_cache_state = MSGood;
 		m_added = 0;
 		m_checked = 0;
 		m_time = time;
@@ -333,6 +333,16 @@ let duplicate t =
 				let m = mk_mono() in
 				monos := (t,m) :: !monos;
 				m)
+		| _ ->
+			map loop t
+	in
+	loop t
+
+let dynamify_monos t =
+	let rec loop t =
+		match t with
+		| TMono { tm_type = None } ->
+			t_dynamic
 		| _ ->
 			map loop t
 	in

@@ -8,7 +8,7 @@ class Issue10634 extends DisplayTestCase {
 			test(EBreak);
 		}
 	**/
-	function test() {
-		arrayEq([], diagnostics());
-	}
+	// function test() {
+	// 	arrayEq([], diagnostics());
+	// }
 }

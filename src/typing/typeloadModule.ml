@@ -698,22 +698,23 @@ module TypeLevel = struct
 			()
 end
 
+let make_curmod ctx m = {
+	curmod = m;
+	module_imports = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
+	module_using = [];
+	module_globals = PMap.empty;
+	wildcard_packages = [];
+	import_statements = [];
+}
+
 let create_typer_context_for_module ctx m = {
 		com = ctx.com;
 		g = ctx.g;
 		t = ctx.com.basic;
-		m = {
-			curmod = m;
-			module_imports = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
-			module_using = [];
-			module_globals = PMap.empty;
-			wildcard_packages = [];
-			import_statements = [];
-		};
+		m = make_curmod ctx m;
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		bypass_accessor = 0;
 		meta = [];
-		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
@@ -785,19 +786,29 @@ let type_module_hook = ref (fun _ _ _ -> None)
 
 let load_module' ctx g m p =
 	try
+		(* Check current context *)
 		ctx.com.module_lut#find m
-	with
-		Not_found ->
-			match !type_module_hook ctx m p with
-			| Some m -> m
-			| None ->
+	with Not_found ->
+		(* Check cache *)
+		match !type_module_hook ctx m p with
+		| Some m ->
+			m
+		| None ->
+			let raise_not_found () =
+				raise (Error (Module_not_found m,p))
+			in
+			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
+			if ctx.g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
-			let file, decls = (try
+			let file, decls = try
+				(* Try parsing *)
 				TypeloadParse.parse_module ctx m p
 			with Not_found ->
+				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
 					| [] ->
-						raise (Error (Module_not_found m,p))
+						ctx.com.module_nonexistent_lut#add m true;
+						raise_not_found()
 					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
@@ -805,7 +816,7 @@ let load_module' ctx g m p =
 				in
 				is_extern := true;
 				loop ctx.com.load_extern_type
-			) in
+			in
 			let is_extern = !is_extern in
 			try
 				type_module ctx m file ~is_extern decls p

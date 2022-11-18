@@ -205,7 +205,7 @@ let make_macro_api ctx p =
 		);
 		MacroApi.store_typed_expr = (fun te ->
 			let p = te.epos in
-			Typecore.store_typed_expr ctx.com te p
+			snd (Typecore.store_typed_expr ctx.com te p)
 		);
 		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
 		MacroApi.type_patch = (fun t f s v ->
@@ -295,6 +295,7 @@ let make_macro_api ctx p =
 				let mnew = TypeloadModule.type_module ctx ~dont_check_path:(has_native_meta) m (Path.UniqueKey.lazy_path mdep.m_extra.m_file) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep;
+				ctx.com.module_nonexistent_lut#clear;
 			in
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
@@ -324,6 +325,7 @@ let make_macro_api ctx p =
 				let mnew = TypeloadModule.type_module ctx mpath (Path.UniqueKey.lazy_path ctx.m.curmod.m_extra.m_file) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod;
+				ctx.com.module_nonexistent_lut#clear;
 			end
 		);
 		MacroApi.module_dependency = (fun mpath file ->
@@ -570,7 +572,7 @@ let load_macro' ctx display cpath f p =
 		let mloaded,restore = load_macro_module ctx mpath display p in
 		let cl, meth =
 			try
-				if sub <> None then raise Not_found;
+				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
 				match mloaded.m_statics with
 				| None -> raise Not_found
 				| Some c ->
@@ -807,7 +809,7 @@ let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
 	mctx.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
-	call (List.map (fun e -> try Interp.make_const e with Exit -> typing_error "Parameter should be a constant" e.epos) el)
+	call (List.map (fun e -> try Interp.make_const e with Exit -> typing_error "Argument should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in

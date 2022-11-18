@@ -60,16 +60,6 @@ class MainEvent {
 
 @:access(haxe.MainEvent)
 class MainLoop {
-	#if (target.threaded && !cppia)
-	static var eventLoopHandler:Null<EventHandler>;
-	static var mutex = new sys.thread.Mutex();
-	static var mainThread(get,never) : Thread;
-	static var _mainThread : Thread = Thread.current();
-	static function get_mainThread() {
-		if( _mainThread == null ) _mainThread = Thread.current();
-		return _mainThread;
-	}
-	#end
 
 	static var pending:MainEvent;
 
@@ -99,7 +89,7 @@ class MainLoop {
 	/**
 		Add a pending event to be run into the main loop.
 	**/
-	public static function add(f:Void->Void, priority = 0):MainEvent@:privateAccess {
+	public static function add(f:Void->Void, priority = 0) : MainEvent {
 		if (f == null)
 			throw "Event function is null";
 		var e = new MainEvent(f, priority);
@@ -108,27 +98,7 @@ class MainLoop {
 			head.prev = e;
 		e.next = head;
 		pending = e;
-		injectIntoEventLoop(0);
 		return e;
-	}
-
-	static function injectIntoEventLoop(waitMs:Int) {
-		#if (target.threaded && !cppia)
-			mutex.acquire();
-			if(eventLoopHandler != null)
-				mainThread.events.cancel(eventLoopHandler);
-			eventLoopHandler = mainThread.events.repeat(
-				() -> {
-					mainThread.events.cancel(eventLoopHandler);
-					var wait = tick();
-					if(hasEvents()) {
-						injectIntoEventLoop(Std.int(wait * 1000));
-					}
-				},
-				waitMs
-			);
-			mutex.release();
-		#end
 	}
 
 	static function sortEvents() {

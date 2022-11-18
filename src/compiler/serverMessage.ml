@@ -13,6 +13,7 @@ type server_message_options = {
 	mutable print_parsed : bool;
 	mutable print_removed_directory : bool;
 	mutable print_reusing : bool;
+	mutable print_retyping : bool;
 	mutable print_skipping_dep : bool;
 	mutable print_unchanged_content : bool;
 	mutable print_cached_modules : bool;
@@ -38,6 +39,7 @@ let config = {
 	print_parsed = false;
 	print_removed_directory = false;
 	print_reusing = false;
+	print_retyping = false;
 	print_skipping_dep = false;
 	print_unchanged_content = false;
 	print_cached_modules = false;
@@ -84,6 +86,15 @@ let removed_directory com tabs dir =
 
 let reusing com tabs m =
 	if config.print_reusing then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path))
+
+let retyper_ok com tabs m =
+	if config.print_retyping then print_endline (Printf.sprintf "%s%sretyped %s" (sign_string com) tabs (s_type_path m.m_path))
+
+let retyper_fail com tabs m reason =
+	if config.print_retyping then begin
+		print_endline (Printf.sprintf "%s%sfailed retyping %s" (sign_string com) tabs (s_type_path m.m_path));
+		print_endline (Printf.sprintf "%s%s%s" (sign_string com) (tabs ^ "  ") reason);
+	end
 
 let skipping_dep com tabs (m,reason) =
 	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path m.m_path) reason)
@@ -154,6 +165,7 @@ let enable_all () =
 	config.print_parsed <- true;
 	config.print_removed_directory <- true;
 	config.print_reusing <- true;
+	config.print_retyping <- true;
 	config.print_skipping_dep <- true;
 	config.print_unchanged_content <- true;
 	config.print_cached_modules <- true;
@@ -177,6 +189,7 @@ let set_by_name name value = match name with
 	| "parsed" -> config.print_parsed <- value;
 	| "removedDirectory" -> config.print_removed_directory <- value;
 	| "reusing" -> config.print_reusing <- value;
+	| "retyping" -> config.print_retyping <- value;
 	| "skippingDep" -> config.print_skipping_dep <- value;
 	| "unchangedContent" -> config.print_unchanged_content <- value;
 	| "cachedModules" -> config.print_cached_modules <- value;

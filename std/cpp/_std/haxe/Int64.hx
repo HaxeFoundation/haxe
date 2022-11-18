@@ -22,13 +22,8 @@
 
 package haxe;
 
-import haxe.Int64Helper;
-
-@:notNull
 @:include("cpp/Int64.h")
-@:native("cpp::Int64Struct")
-private extern class ___Int64 {
-
+private extern class NativeInt64Helper {
 	@:native("_hx_int64_make")
 	static function make(high:Int32, low:Int32):__Int64;
 
@@ -132,21 +127,21 @@ private extern class ___Int64 {
 	static function low(a:__Int64):Int32;
 }
 
-private typedef __Int64 = ___Int64;
+private typedef __Int64 = cpp.Int64;
 
 @:coreApi
 @:transitive
-abstract Int64(__Int64) from __Int64 to __Int64 {
+@:notNull
+abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 	public #if !cppia inline #end function copy():Int64
 		return this;
 
 	public static #if !cppia inline #end function make(high:Int32, low:Int32):Int64 {
-		return __Int64.make(high, low);
+		return NativeInt64Helper.make(high, low);
 	}
 
-	@:from
 	public static #if !cppia inline #end function ofInt(x:Int):Int64 {
-		return __Int64.ofInt(x);
+		return x;
 	}
 
 	public static #if !cppia inline #end function toInt(x:Int64):Int {
@@ -158,11 +153,11 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool {
-		return isInt64(val);
+		return val is cpp.Int64;
 	}
 
 	public static #if !cppia inline #end function isInt64(val:Dynamic):Bool
-		return __Int64.isInt64(val);
+		return val is cpp.Int64;
 
 	@:deprecated("Use high instead")
 	public static #if !cppia inline #end function getHigh(x:Int64):Int32
@@ -173,22 +168,22 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x.low;
 
 	public static #if !cppia inline #end function isNeg(x:Int64):Bool
-		return __Int64.isNeg(x);
+		return NativeInt64Helper.isNeg(x);
 
 	public static #if !cppia inline #end function isZero(x:Int64):Bool
-		return __Int64.isZero(x);
+		return NativeInt64Helper.isZero(x);
 
 	public static #if !cppia inline #end function compare(a:Int64, b:Int64):Int
-		return __Int64.compare(a, b);
+		return NativeInt64Helper.compare(a, b);
 
 	public static #if !cppia inline #end function ucompare(a:Int64, b:Int64):Int
-		return __Int64.ucompare(a, b);
+		return NativeInt64Helper.ucompare(a, b);
 
 	public static #if !cppia inline #end function toStr(x:Int64):String
-		return x.toString();
+		return cast x.val;
 
 	private #if !cppia inline #end function toString():String
-		return __Int64.toString(this);
+		return cast this;
 
 	public static function parseString(sParam:String):Int64 {
 		return Int64Helper.parseString(sParam);
@@ -201,7 +196,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
 		var q = dividend / divisor;
 
-		if (isZero(divisor))
+		if (divisor == 0)
 			throw "divide by zero";
 
 		var m = dividend - q * divisor;
@@ -209,16 +204,16 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return {quotient: q, modulus: m};
 	}
 
-	@:op(-A)
+@:op(-A)
 	public static #if !cppia inline #end function neg(x:Int64):Int64
-		return __Int64.neg(x);
+		return NativeInt64Helper.neg(x);
 
 	@:op(++A) private inline function preIncrement():Int64 {
 		#if cppia
 		this = this + make(0, 1);
 		return this;
 		#else
-		return __Int64.preIncrement(this);
+		return NativeInt64Helper.preIncrement(this);
 		#end
 	}
 
@@ -228,7 +223,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		this = this + make(0, 1);
 		return result;
 		#else
-		return __Int64.postIncrement(this);
+		return NativeInt64Helper.postIncrement(this);
 		#end
 	}
 
@@ -237,7 +232,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		untyped this = this - make(0, 1);
 		return this;
 		#else
-		return __Int64.preDecrement(this);
+		return NativeInt64Helper.preDecrement(this);
 		#end
 	}
 
@@ -247,35 +242,35 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		this = this - make(0, 1);
 		return result;
 		#else
-		return __Int64.postDecrement(this);
+		return NativeInt64Helper.postDecrement(this);
 		#end
 	}
 
 	@:op(A + B)
 	public static #if !cppia inline #end function add(a:Int64, b:Int64):Int64
-		return __Int64.add(a, b);
+		return NativeInt64Helper.add(a, b);
 
 	@:op(A + B)
 	@:commutative
 	private static #if !cppia inline #end function addInt(a:Int64, b:Int):Int64
-		return __Int64.addInt(a, b);
+		return NativeInt64Helper.addInt(a, b);
 
 	@:op(A - B)
 	public static #if !cppia inline #end function sub(a:Int64, b:Int64):Int64 {
-		return __Int64.sub(a, b);
+		return NativeInt64Helper.sub(a, b);
 	}
 
 	@:op(A - B)
 	private static #if !cppia inline #end function subInt(a:Int64, b:Int):Int64
-		return __Int64.subInt(a, b);
+		return NativeInt64Helper.subInt(a, b);
 
 	@:op(A - B)
 	private static #if !cppia inline #end function intSub(a:Int, b:Int64):Int64
-		return __Int64.intSub(a, b);
+		return NativeInt64Helper.intSub(a, b);
 
 	@:op(A * B)
 	public static #if !cppia inline #end function mul(a:Int64, b:Int64):Int64
-		return __Int64.mul(a, b);
+		return NativeInt64Helper.mul(a, b);
 
 	@:op(A * B)
 	@:commutative
@@ -284,9 +279,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:op(A / B)
 	public static #if !cppia inline #end function div(a:Int64, b:Int64):Int64 {
-		if (__Int64.isZero(b))
+		if (NativeInt64Helper.isZero(b))
 			throw "divide by zero";
-		return __Int64.div(a, b);
+		return NativeInt64Helper.div(a, b);
 	}
 
 	@:op(A / B)
@@ -299,9 +294,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:op(A % B)
 	public static #if !cppia inline #end function mod(a:Int64, b:Int64):Int64 {
-		if (__Int64.isZero(b))
+		if (NativeInt64Helper.isZero(b))
 			throw "divide by zero";
-		return __Int64.mod(a, b);
+		return NativeInt64Helper.mod(a, b);
 	}
 
 	@:op(A % B)
@@ -314,16 +309,16 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:op(A == B)
 	public static #if !cppia inline #end function eq(a:Int64, b:Int64):Bool
-		return __Int64.eq(a, b);
+		return NativeInt64Helper.eq(a, b);
 
 	@:op(A == B)
 	@:commutative
 	private static #if !cppia inline #end function eqInt(a:Int64, b:Int):Bool
-		return __Int64.eqInt(a, b);
+		return NativeInt64Helper.eqInt(a, b);
 
 	@:op(A != B)
 	public static #if !cppia inline #end function neq(a:Int64, b:Int64):Bool
-		return __Int64.neq(a, b);
+		return NativeInt64Helper.neq(a, b);
 
 	@:op(A != B)
 	@:commutative
@@ -380,39 +375,44 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:op(~A)
 	private static #if !cppia inline #end function complement(a:Int64):Int64
-		return __Int64.complement(a);
+		return NativeInt64Helper.complement(a);
 
 	@:op(A & B)
 	public static #if !cppia inline #end function and(a:Int64, b:Int64):Int64
-		return __Int64.bitAnd(a, b);
+		return NativeInt64Helper.bitAnd(a, b);
 
 	@:op(A | B)
 	public static #if !cppia inline #end function or(a:Int64, b:Int64):Int64
-		return __Int64.bitOr(a, b);
+		return NativeInt64Helper.bitOr(a, b);
 
 	@:op(A ^ B)
 	public static #if !cppia inline #end function xor(a:Int64, b:Int64):Int64
-		return __Int64.bitXor(a, b);
+		return NativeInt64Helper.bitXor(a, b);
 
 	@:op(A << B)
 	public static #if !cppia inline #end function shl(a:Int64, b:Int):Int64
-		return __Int64.shl(a, b);
+		return NativeInt64Helper.shl(a, b);
 
 	@:op(A >> B)
 	public static #if !cppia inline #end function shr(a:Int64, b:Int):Int64
-		return __Int64.shr(a, b);
+		return NativeInt64Helper.shr(a, b);
 
 	@:op(A >>> B)
 	public static #if !cppia inline #end function ushr(a:Int64, b:Int):Int64
-		return __Int64.ushr(a, b);
+		return NativeInt64Helper.ushr(a, b);
 
 	public var high(get, never):Int32;
 
 	private #if !cppia inline #end function get_high():Int32
-		return __Int64.high(this);
+		return NativeInt64Helper.high(this);
 
 	public var low(get, never):Int32;
 
 	private #if !cppia inline #end function get_low():Int32
-		return __Int64.low(this);
+		return NativeInt64Helper.low(this);
+
+	private var val(get, never):__Int64;
+
+	private #if !cppia inline #end function get_val():__Int64
+		return this;
 }

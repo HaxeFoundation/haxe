@@ -440,7 +440,12 @@ module StdBytes = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		(create_unknown (Bytes.to_string (this vthis)))
+		let this = this vthis in
+		try
+			UTF8.validate (Bytes.unsafe_to_string this);
+			(create_unknown (Bytes.to_string this))
+		with UTF8.Malformed_code ->
+			exc_string "Invalid string"
 	)
 end
 
