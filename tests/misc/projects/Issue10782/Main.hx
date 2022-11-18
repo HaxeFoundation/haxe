@@ -15,8 +15,8 @@ class Main {
 		}
 
 		var g = function(a) { return a * a; } + f;
-        if (g(10) != 121) {
-            throw "Incorrect function return value";
-        }
+		if (g(10) != 121) {
+			throw "Incorrect function return value";
+		}
 	}
 }
