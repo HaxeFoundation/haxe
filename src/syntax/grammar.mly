@@ -1140,7 +1140,7 @@ and parse_block_elt = parser
 		(EVars vl,p)
 	| [< '(Kwd Inline,p1); s >] ->
 		begin match s with parser
-		| [< '(Kwd Function,_); e = parse_function p1 true; _ = semicolon >] -> e
+		| [< '(Kwd Function,_); e = parse_function p1 true true; _ = semicolon >] -> e
 		| [< e = secure_expr; _ = semicolon >] -> make_meta Meta.Inline [] e p1
 		| [< >] -> serror()
 		end
@@ -1159,6 +1159,7 @@ and parse_block_elt = parser
 			| [< >] -> ()
 		end;
 		e
+	| [< '(Kwd Function,p1); e = parse_function p1 false true; _ = semicolon >] -> e
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl name e p0 s =
@@ -1272,7 +1273,7 @@ and parse_macro_expr p = parser
 	| [< e = secure_expr >] ->
 		reify_expr e !in_macro
 
-and parse_function p1 inl s =
+and parse_function p1 inl toplevel s =
 	let name = match s with parser
 		| [< name = dollar_ident >] -> Some name
 		| [< >] -> None
@@ -1289,7 +1290,10 @@ and parse_function p1 inl s =
 			} in
 			EFunction ((match name with None -> FKAnonymous | Some (name,pn) -> FKNamed ((name,pn),inl)),f), punion p1 (pos e)
 		in
-		make (secure_expr s)
+		if toplevel then
+			make (secure_expr s)
+		else
+			expr_next (make (secure_expr s)) s
 	| [< >] ->
 		(* Generate pseudo function to avoid toplevel-completion (issue #10691). We check against p1 here in order to cover cases
 		   like `function a|b` *)
@@ -1439,7 +1443,7 @@ and expr = parser
 				syntax_error (Expected [")";",";":"]) s (expr_next (EParenthesis e, punion p1 (pos e)) s))
 		)
 	| [< '(BkOpen,p1); e = parse_array_decl p1; s >] -> expr_next e s
-	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
+	| [< '(Kwd Function,p1); e = parse_function p1 false false; >] -> e
 	| [< '(Unop op,p1); e = expr >] -> make_unop op e p1
 	| [< '(Spread,p1); e = expr >] -> make_unop Spread e (punion p1 (pos e))
 	| [< '(Binop OpSub,p1); e = expr >] ->
