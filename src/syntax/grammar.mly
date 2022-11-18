@@ -1545,7 +1545,7 @@ and expr_next' e1 = parser
 		let e2 = check_signature_mark e2 p1 p2 in
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
-		let er = expr s in
+		let er = secure_expr s in
 		arrow_function (snd e1) [arrow_first_param e1 s] er s
 	| [< '(Binop OpGt,p1); s >] ->
 		(match s with parser
