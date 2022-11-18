@@ -1769,6 +1769,13 @@ let rec cpp_is_struct_access t =
    | _ -> false
 ;;
 
+let rec cpp_is_native_array_access t =
+   match t with
+   | TCppStruct s -> cpp_is_native_array_access s
+   | TCppReference s -> cpp_is_native_array_access s
+   | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && has_meta_key klass.cl_meta Meta.NativeArrayAccess -> true
+   | _ -> false
+;;
 
 let cpp_is_dynamic_type = function
    | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
@@ -2925,26 +2932,32 @@ let retype_expression ctx request_type function_args function_type expression_tr
             CppClosure(result), TCppDynamic
 
          | TArray (e1,e2) ->
-            let retypedObj = retype TCppDynamic e1 in
-            let retypedIdx = retype (TCppScalar("int")) e2 in
-            let arrayExpr, elemType = (match retypedObj.cpptype with
-              | TCppScalarArray scalar ->
-                 CppArray( ArrayTyped(retypedObj,retypedIdx,scalar) ), scalar
-              | TCppPointer (_,elem) ->
-                 CppArray( ArrayPointer(retypedObj, retypedIdx) ), elem
-              | TCppRawPointer (_,elem) ->
-                 CppArray( ArrayRawPointer(retypedObj, retypedIdx) ), elem
-              | TCppObjectArray TCppDynamic ->
-                 CppArray( ArrayObject(retypedObj,retypedIdx,TCppDynamic) ), TCppDynamic
-              | TCppObjectArray elem ->
-                 CppArray( ArrayObject(retypedObj,retypedIdx,elem) ), elem
-              | TCppInst({cl_array_access = Some _ } as klass, _) ->
-                 CppArray( ArrayImplements(klass, retypedObj,retypedIdx) ), cpp_type_of expr.etype
-              | TCppDynamicArray ->
-                 CppArray( ArrayVirtual(retypedObj, retypedIdx) ), TCppDynamic
-              | _ ->
-                 CppArray( ArrayDynamic(retypedObj, retypedIdx) ), TCppDynamic
-            ) in
+            let arrayExpr, elemType = match cpp_is_native_array_access (cpp_type_of e1.etype) with
+            | true ->
+               let retypedObj = retype TCppUnchanged e1 in
+               let retypedIdx = retype (TCppScalar("int")) e2 in
+               CppArray( ArrayRawPointer(retypedObj, retypedIdx) ), cpp_type_of expr.etype
+            | false ->
+               let retypedObj = retype TCppDynamic e1 in
+               let retypedIdx = retype (TCppScalar("int")) e2 in
+               (match retypedObj.cpptype with
+               | TCppScalarArray scalar ->
+                  CppArray( ArrayTyped(retypedObj,retypedIdx,scalar) ), scalar
+               | TCppPointer (_,elem) ->
+                  CppArray( ArrayPointer(retypedObj, retypedIdx) ), elem
+               | TCppRawPointer (_,elem) ->
+                  CppArray( ArrayRawPointer(retypedObj, retypedIdx) ), elem
+               | TCppObjectArray TCppDynamic ->
+                  CppArray( ArrayObject(retypedObj,retypedIdx,TCppDynamic) ), TCppDynamic
+               | TCppObjectArray elem ->
+                  CppArray( ArrayObject(retypedObj,retypedIdx,elem) ), elem
+               | TCppInst({cl_array_access = Some _ } as klass, _) ->
+                  CppArray( ArrayImplements(klass, retypedObj,retypedIdx) ), cpp_type_of expr.etype
+               | TCppDynamicArray ->
+                  CppArray( ArrayVirtual(retypedObj, retypedIdx) ), TCppDynamic
+               | _ ->
+                  CppArray( ArrayDynamic(retypedObj, retypedIdx) ), TCppDynamic)
+            in
             let returnType = cpp_type_of expr.etype in
             if cpp_can_static_cast elemType returnType then
                CppCastStatic(mk_cppexpr arrayExpr returnType, returnType), returnType
