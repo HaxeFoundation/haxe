@@ -17,6 +17,7 @@ type arg_context = {
 	mutable did_something : bool;
 	mutable force_typing : bool;
 	mutable pre_compilation : (unit -> unit) list;
+	mutable after_generation : (unit -> unit) list;
 	mutable interp : bool;
 	mutable jvm_flag : bool;
 	mutable swf_version : bool;

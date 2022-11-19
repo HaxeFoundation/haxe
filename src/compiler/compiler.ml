@@ -320,6 +320,7 @@ let compile ctx actx =
 	end;
 	Sys.catch_break false;
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);
+	List.iter (fun f -> f()) (List.rev (actx.after_generation));
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in
