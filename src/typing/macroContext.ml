@@ -378,6 +378,7 @@ let make_macro_api ctx p =
 			| MacroContext -> add_macro ctx
 			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
+		MacroApi.register_metadata = (fun s data -> Meta.register_user_meta s data);
 		MacroApi.decode_expr = Interp.decode_expr;
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;

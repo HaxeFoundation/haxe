@@ -451,6 +451,25 @@ class Compiler {
 	}
 
 	/**
+		Reference a json file describing user-defined metadata
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
+	**/
+	public static function addMetadataDescriptionFile(path:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
+		for (m in content) registerCustomMetadata(m);
+	}
+
+	/**
+		Register a custom medatada for documentation and completion purposes
+	**/
+	public static function registerCustomMetadata(meta:MetadataDescription):Void {
+		#if (neko || eval)
+		load("register_metadata_impl", 6)(meta.metadata, meta.doc, meta.platforms, meta.targets, meta.params, meta.links);
+		#end
+	}
+
+	/**
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator(callb:JSGenApi->Void) {
@@ -576,4 +595,13 @@ enum abstract NullSafetyMode(String) to String {
 		The only nullable thing could be safe are local variables.
 	**/
 	var StrictThreaded;
+}
+
+typedef MetadataDescription = {
+	final metadata:String;
+	final doc:String;
+	@:optional final platforms:Array<String>;
+	@:optional final params:Array<String>;
+	@:optional final targets:Array<String>;
+	@:optional final links:Array<String>;
 }

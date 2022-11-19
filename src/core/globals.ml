@@ -64,6 +64,21 @@ let platform_name = function
 	| Hl -> "hl"
 	| Eval -> "eval"
 
+let parse_platform = function
+	| "cross" -> Cross
+	| "js" -> Js
+	| "lua" -> Lua
+	| "neko" -> Neko
+	| "flash" -> Flash
+	| "php" -> Php
+	| "cpp" -> Cpp
+	| "cs" -> Cs
+	| "java" -> Java
+	| "python" -> Python
+	| "hl" -> Hl
+	| "eval" -> Eval
+	| p -> raise (failwith ("invalid platform " ^ p))
+
 let platform_list_help = function
 	| [] -> ""
 	| [p] -> " (" ^ platform_name p ^ " only)"

@@ -10,6 +10,12 @@ let rec remove m = function
 	| (m2,_,_) :: l when m = m2 -> l
 	| x :: l -> x :: remove m l
 
+let user_meta : (string, string * meta_parameter list) Hashtbl.t = Hashtbl.create 0
+
+let get_info m = match m with
+	| Custom(s) when (Hashtbl.mem user_meta s) -> s, (Hashtbl.find user_meta s)
+	| _ -> MetaList.get_info m
+
 let to_string m = fst (get_info m)
 
 let hmeta =
@@ -23,6 +29,9 @@ let hmeta =
 	in
 	loop 0;
 	h
+
+let register_user_meta s data =
+	Hashtbl.replace user_meta s data
 
 let parse s = try Hashtbl.find hmeta (":" ^ s) with Not_found -> Custom (":" ^ s)
 
@@ -74,7 +83,27 @@ let get_all () =
 		if d <> Last then d :: loop (i + 1)
 		else []
 	in
-	loop 0
+	(* loop 0 *)
+
+	(* TODO: find a better way to merge with above loop *)
+	List.append (loop 0) (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta [])
+
+let get_user_documentation_list () =
+	let m = ref 0 in
+	let rec loop acc = function
+		| h :: t ->
+			begin match get_documentation h with
+				| None -> loop acc t
+				| Some (str, desc) ->
+					if String.length str > !m then m := String.length str;
+					loop ((str,desc) :: acc) t
+			end
+		| [] -> List.rev acc in
+
+	(* TODO: there should be a cleaner way to do that in one loop *)
+	let user_meta_list = (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta []) in
+	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop [] user_meta_list) in
+	all,!m
 
 let copy_from_to m src dst =
 	try (get m src) :: dst
