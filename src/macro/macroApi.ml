@@ -2,6 +2,7 @@ open Ast
 open DisplayTypes.DisplayMode
 open Type
 open Common
+open DefineList
 open MetaList
 
 exception Invalid_expr
@@ -51,6 +52,7 @@ type 'value compiler_api = {
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
+	register_define : string -> (string * define_parameter list) -> unit;
 	register_metadata : string -> (string * meta_parameter list) -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
@@ -1748,6 +1750,24 @@ let macro_api ccom get_api =
 		);
 		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
 			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
+			vnull
+		);
+		"register_define_impl", vfun5 (fun s1 s2 a1 a2 a3 ->
+			let flags : define_parameter list = [] in
+
+			let platforms = decode_opt_array decode_string a1 in
+			let flags =
+				if (List.length platforms) = 0 then flags
+				else (Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+			in
+
+			let params = decode_opt_array decode_string a2 in
+			let flags = List.append flags (List.map (fun p -> (HasParam p : define_parameter)) params) in
+
+			let links = decode_opt_array decode_string a3 in
+			let flags = List.append flags (List.map (fun l -> (Link l : define_parameter)) links) in
+
+			(get_api()).register_define (decode_string s1) ((decode_string s2), flags);
 			vnull
 		);
 		"register_metadata_impl", vfun6 (fun s1 s2 a1 a2 a3 a4 ->

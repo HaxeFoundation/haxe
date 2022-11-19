@@ -276,10 +276,10 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "%s" define_header;
 		Printf.printf "type strict_defined =\n";
 		Printf.printf "%s" (gen_define_type defines);
-		Printf.printf "\n\t| Last\n\n"; (* must be last *)
+		Printf.printf "\n\t| Last\n\t| Custom of string\n\n";
 		Printf.printf "let infos = function\n";
 		Printf.printf "%s" (gen_define_info defines);
-		Printf.printf "\n\t| Last -> die \"\" __LOC__\n"
+		Printf.printf "\n\t| Last -> die \"\" __LOC__\n\t| Custom s -> s,(\"\",[])\n"
 	| [_; "meta"; meta_path]->
 		let metas = parse_file_array meta_path parse_meta in
 		Printf.printf "%s" meta_header;

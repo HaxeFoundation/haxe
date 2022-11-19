@@ -461,11 +461,30 @@ class Compiler {
 	}
 
 	/**
+		Reference a json file describing user-defined defines
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
+	**/
+	public static function addDefinesDescriptionFile(path:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<DefineDescription> =  haxe.Json.parse(f);
+		for (d in content) registerCustomDefine(d);
+	}
+
+	/**
 		Register a custom medatada for documentation and completion purposes
 	**/
 	public static function registerCustomMetadata(meta:MetadataDescription):Void {
 		#if (neko || eval)
 		load("register_metadata_impl", 6)(meta.metadata, meta.doc, meta.platforms, meta.targets, meta.params, meta.links);
+		#end
+	}
+
+	/**
+		Register a custom define for documentation purposes
+	**/
+	public static function registerCustomDefine(define:DefineDescription):Void {
+		#if (neko || eval)
+		load("register_define_impl", 5)(define.define, define.doc, define.platforms, define.params, define.links);
 		#end
 	}
 
@@ -603,5 +622,13 @@ typedef MetadataDescription = {
 	@:optional final platforms:Array<String>;
 	@:optional final params:Array<String>;
 	@:optional final targets:Array<String>;
+	@:optional final links:Array<String>;
+}
+
+typedef DefineDescription = {
+	final define:String;
+	final doc:String;
+	@:optional final platforms:Array<String>;
+	@:optional final params:Array<String>;
 	@:optional final links:Array<String>;
 }

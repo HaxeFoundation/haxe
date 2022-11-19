@@ -6,32 +6,59 @@ type define = {
 	mutable defines_signature : string option;
 }
 
+let user_defines : (string, string * define_parameter list) Hashtbl.t = Hashtbl.create 0
+
+let register_user_define s data =
+	Hashtbl.replace user_defines s data
+
+let infos d = match d with
+	| Custom(s) when (Hashtbl.mem user_defines s) -> s, (Hashtbl.find user_defines s)
+	| _ -> DefineList.infos d
+
 let get_define_key d =
 	fst (infos d)
+
+let get_documentation d =
+	let t, (doc,flags) = infos d in
+	let params = ref [] and pfs = ref [] in
+	List.iter (function
+		| HasParam s -> params := s :: !params
+		| Platforms fl -> pfs := fl @ !pfs
+		| Link _ -> ()
+	) flags;
+	let params = (match List.rev !params with
+		| [] -> ""
+		| l -> "<" ^ String.concat ">, <" l ^ "> "
+	) in
+	let pfs = platform_list_help (List.rev !pfs) in
+	(String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs
 
 let get_documentation_list() =
 	let m = ref 0 in
 	let rec loop i =
 		let d = Obj.magic i in
 		if d <> Last then begin
-			let t, (doc,flags) = infos d in
-			let params = ref [] and pfs = ref [] in
-			List.iter (function
-				| HasParam s -> params := s :: !params
-				| Platforms fl -> pfs := fl @ !pfs
-				| Link _ -> ()
-			) flags;
-			let params = (match List.rev !params with
-				| [] -> ""
-				| l -> "<" ^ String.concat ">, <" l ^ "> "
-			) in
-			let pfs = platform_list_help (List.rev !pfs) in
-			if String.length t > !m then m := String.length t;
-			((String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs) :: (loop (i + 1))
+			let (str,desc) = get_documentation d in
+			if String.length str > !m then m := String.length str;
+			(str,desc) :: loop (i + 1)
 		end else
 			[]
 	in
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
+	all,!m
+
+let get_user_documentation_list () =
+	let m = ref 0 in
+	let rec loop acc = function
+		| h :: t ->
+			let (str,desc) = get_documentation h in
+			if String.length str > !m then m := String.length str;
+			loop ((str,desc) :: acc) t
+		| [] -> List.rev acc in
+
+	(* TODO: there should be a cleaner way to do that in one loop *)
+	let user_defines_list = (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_defines []) in
+	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop [] user_defines_list) in
 	all,!m
 
 let raw_defined ctx k =
