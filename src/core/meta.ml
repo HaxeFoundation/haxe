@@ -83,7 +83,6 @@ let get_all () =
 		if d <> Last then d :: loop (i + 1)
 		else []
 	in
-	(* loop 0 *)
 
 	(* TODO: find a better way to merge with above loop *)
 	List.append (loop 0) (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta [])
