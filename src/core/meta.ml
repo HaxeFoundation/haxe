@@ -103,19 +103,16 @@ let get_all () =
 
 let get_user_documentation_list () =
 	let m = ref 0 in
-	let rec loop acc = function
-		| h :: t ->
-			begin match get_documentation h with
-				| None -> loop acc t
-				| Some (str, desc) ->
-					if String.length str > !m then m := String.length str;
-					loop ((str,desc) :: acc) t
-			end
-		| [] -> List.rev acc in
+	let user_meta_list = (Hashtbl.fold (fun meta _ acc ->
+		begin match get_documentation (Custom meta) with
+			| None -> acc
+			| Some (str, desc) ->
+				if String.length str > !m then m := String.length str;
+				(str,desc) :: acc
+		end
+	) user_meta []) in
 
-	(* TODO: there should be a cleaner way to do that in one loop *)
-	let user_meta_list = (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta []) in
-	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop [] user_meta_list) in
+	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) user_meta_list in
 	all,!m
 
 let copy_from_to m src dst =

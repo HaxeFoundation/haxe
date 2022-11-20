@@ -63,16 +63,13 @@ let get_documentation_list() =
 
 let get_user_documentation_list () =
 	let m = ref 0 in
-	let rec loop acc = function
-		| h :: t ->
-			let (str,desc) = get_documentation h in
-			if String.length str > !m then m := String.length str;
-			loop ((str,desc) :: acc) t
-		| [] -> List.rev acc in
+	let user_defines_list = (Hashtbl.fold (fun d _ acc ->
+		let (str,desc) = get_documentation (Custom d) in
+		if String.length str > !m then m := String.length str;
+		(str,desc) :: acc
+	) user_defines []) in
 
-	(* TODO: there should be a cleaner way to do that in one loop *)
-	let user_defines_list = (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_defines []) in
-	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop [] user_defines_list) in
+	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) user_defines_list in
 	all,!m
 
 let raw_defined ctx k =
