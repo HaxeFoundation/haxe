@@ -98,7 +98,8 @@ let get_all () =
 		else acc
 	in
 
-	(loop 0 (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta []))
+	let all = loop 0 (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta []) in
+	List.sort (fun m1 m2 -> String.compare (to_string m1) (to_string m2)) all
 
 let get_user_documentation_list () =
 	let m = ref 0 in
