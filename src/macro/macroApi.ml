@@ -1785,19 +1785,7 @@ let macro_api ccom get_api =
 			let targets = decode_opt_array decode_string (field m "targets") in
 			let flags =
 				if (List.length targets) = 0 then flags
-				else (UsedOn (List.map (function
-					| "TClass" -> TClass
-					| "TClassField" -> TClassField
-					| "TAbstract" -> TAbstract
-					| "TAbstractField" -> TAbstractField
-					| "TEnum" -> TEnum
-					| "TTypedef" -> TTypedef
-					| "TAnyField" -> TAnyField
-					| "TExpr" -> TExpr
-					| "TTypeParameter" -> TTypeParameter
-					| "TVariable" -> TVariable
-					| t -> raise (failwith ("invalid metadata target " ^ t))
-				) targets)) :: flags
+				else (UsedOn (List.map MetaList.parse_meta_usage targets)) :: flags
 			in
 
 			let params = decode_opt_array decode_string (field m "params") in

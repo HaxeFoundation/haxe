@@ -259,6 +259,19 @@ type meta_usage =
 	| TTypeParameter
 	| TVariable
 
+let parse_meta_usage = function
+	| \"TClass\" -> TClass
+	| \"TClassField\" -> TClassField
+	| \"TAbstract\" -> TAbstract
+	| \"TAbstractField\" -> TAbstractField
+	| \"TEnum\" -> TEnum
+	| \"TTypedef\" -> TTypedef
+	| \"TAnyField\" -> TAnyField
+	| \"TExpr\" -> TExpr
+	| \"TTypeParameter\" -> TTypeParameter
+	| \"TVariable\" -> TVariable
+	| t -> raise (failwith (\"invalid metadata target \" ^ t))
+
 type meta_parameter =
 	| HasParam of string
 	| Platforms of platform list
