@@ -92,14 +92,13 @@ let get_documentation_list () =
 	all,!m
 
 let get_all () =
-	let rec loop i =
+	let rec loop i acc =
 		let d = Obj.magic i in
-		if d <> Last then d :: loop (i + 1)
-		else []
+		if d <> Last then d :: loop (i + 1) acc
+		else acc
 	in
 
-	(* TODO: find a better way to merge with above loop *)
-	List.append (loop 0) (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta [])
+	(loop 0 (Hashtbl.fold (fun str _ acc -> (Custom str) :: acc) user_meta []))
 
 let get_user_documentation_list () =
 	let m = ref 0 in
