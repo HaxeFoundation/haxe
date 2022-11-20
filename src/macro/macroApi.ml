@@ -52,8 +52,8 @@ type 'value compiler_api = {
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
-	register_define : string -> (string * define_parameter list) -> unit;
-	register_metadata : string -> (string * meta_parameter list) -> unit;
+	register_define : string -> Define.user_define -> unit;
+	register_metadata : string -> Meta.user_meta -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
@@ -119,7 +119,6 @@ module type InterpApi = sig
 	val vfun3 : (value -> value -> value -> value) -> value
 	val vfun4 : (value -> value -> value -> value -> value) -> value
 	val vfun5 : (value -> value -> value -> value -> value -> value) -> value
-	val vfun6 : (value -> value -> value -> value -> value -> value -> value) -> value
 
 	val encode_pos : Globals.pos -> value
 	val encode_enum : enum_type -> Globals.pos option -> int -> value list -> value
@@ -1752,34 +1751,38 @@ let macro_api ccom get_api =
 			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
 			vnull
 		);
-		"register_define_impl", vfun5 (fun s1 s2 a1 a2 a3 ->
+		"register_define_impl", vfun2 (fun d src ->
 			let flags : define_parameter list = [] in
 
-			let platforms = decode_opt_array decode_string a1 in
+			let platforms = decode_opt_array decode_string (field d "platforms") in
 			let flags =
 				if (List.length platforms) = 0 then flags
 				else (Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
 			in
 
-			let params = decode_opt_array decode_string a2 in
+			let params = decode_opt_array decode_string (field d "params") in
 			let flags = List.append flags (List.map (fun p -> (HasParam p : define_parameter)) params) in
 
-			let links = decode_opt_array decode_string a3 in
+			let links = decode_opt_array decode_string (field d "links") in
 			let flags = List.append flags (List.map (fun l -> (Link l : define_parameter)) links) in
 
-			(get_api()).register_define (decode_string s1) ((decode_string s2), flags);
+			(get_api()).register_define (decode_string (field d "define")) {
+				doc = decode_string (field d "doc");
+				flags = flags;
+				source = opt decode_string (field d "source");
+			};
 			vnull
 		);
-		"register_metadata_impl", vfun6 (fun s1 s2 a1 a2 a3 a4 ->
+		"register_metadata_impl", vfun2 (fun m src ->
 			let flags : meta_parameter list = [] in
 
-			let platforms = decode_opt_array decode_string a1 in
+			let platforms = decode_opt_array decode_string (field m "platforms") in
 			let flags =
 				if (List.length platforms) = 0 then flags
 				else (Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
 			in
 
-			let targets = decode_opt_array decode_string a2 in
+			let targets = decode_opt_array decode_string (field m "targets") in
 			let flags =
 				if (List.length targets) = 0 then flags
 				else (UsedOn (List.map (function
@@ -1797,13 +1800,17 @@ let macro_api ccom get_api =
 				) targets)) :: flags
 			in
 
-			let params = decode_opt_array decode_string a3 in
+			let params = decode_opt_array decode_string (field m "params") in
 			let flags = List.append flags (List.map (fun p -> HasParam p) params) in
 
-			let links = decode_opt_array decode_string a4 in
+			let links = decode_opt_array decode_string (field m "links") in
 			let flags = List.append flags (List.map (fun l -> Link l) links) in
 
-			(get_api()).register_metadata (decode_string s1) ((decode_string s2), flags);
+			(get_api()).register_metadata (decode_string (field m "metadata")) {
+				doc = decode_string (field m "doc");
+				flags = flags;
+				source = opt decode_string (field m "source");
+			};
 			vnull
 		);
 		"set_custom_js_generator", vfun1 (fun f ->

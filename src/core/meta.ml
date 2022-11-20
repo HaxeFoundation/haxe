@@ -10,20 +10,34 @@ let rec remove m = function
 	| (m2,_,_) :: l when m = m2 -> l
 	| x :: l -> x :: remove m l
 
-let user_meta : (string, string * meta_parameter list) Hashtbl.t = Hashtbl.create 0
+type user_meta = {
+	doc : string;
+	flags : meta_parameter list;
+	source : string option;
+}
+
+let user_meta : (string, user_meta) Hashtbl.t = Hashtbl.create 0
+
+type meta_origin =
+	| Compiler
+	| UserDefined of string option
 
 let get_info m = match m with
-	| Custom(s) when (Hashtbl.mem user_meta s) -> s, (Hashtbl.find user_meta s)
-	| _ -> MetaList.get_info m
+	| Custom(s) when (Hashtbl.mem user_meta s) ->
+		let infos = Hashtbl.find user_meta s in
+		(s, (infos.doc, infos.flags), (UserDefined infos.source))
+	| _ ->
+		let doc,flags = MetaList.get_info m in
+		(doc, flags, Compiler)
 
-let to_string m = fst (get_info m)
+let to_string m = match (get_info m) with (s,_,_) -> s
 
 let hmeta =
 	let h = Hashtbl.create 0 in
 	let rec loop i =
 		let m = Obj.magic i in
 		if m <> Last then begin
-			Hashtbl.add h (fst (get_info m)) m;
+			Hashtbl.add h (to_string m) m;
 			loop (i + 1);
 		end;
 	in
@@ -42,7 +56,7 @@ let from_string s =
 	| _ -> Custom s
 
 let get_documentation d =
-	let t, (doc,flags) = get_info d in
+	let t, (doc,flags), _ = get_info d in
 	if not (List.mem UsedInternally flags) then begin
 		let params = ref [] and used = ref [] and pfs = ref [] in
 		List.iter (function

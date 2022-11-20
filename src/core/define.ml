@@ -6,20 +6,34 @@ type define = {
 	mutable defines_signature : string option;
 }
 
-let user_defines : (string, string * define_parameter list) Hashtbl.t = Hashtbl.create 0
+type user_define = {
+	doc : string;
+	flags : define_parameter list;
+	source : string option;
+}
+
+let user_defines : (string, user_define) Hashtbl.t = Hashtbl.create 0
 
 let register_user_define s data =
 	Hashtbl.replace user_defines s data
 
+type define_origin =
+	| Compiler
+	| UserDefined of string option
+
 let infos d = match d with
-	| Custom(s) when (Hashtbl.mem user_defines s) -> s, (Hashtbl.find user_defines s)
-	| _ -> DefineList.infos d
+	| Custom(s) when (Hashtbl.mem user_defines s) ->
+		let infos = Hashtbl.find user_defines s in
+		(s, (infos.doc, infos.flags), (UserDefined infos.source))
+	| _ ->
+		let doc,flags = DefineList.infos d in
+		(doc, flags, Compiler)
 
 let get_define_key d =
-	fst (infos d)
+	match (infos d) with (s,_,_) -> s
 
 let get_documentation d =
-	let t, (doc,flags) = infos d in
+	let t, (doc,flags), _ = infos d in
 	let params = ref [] and pfs = ref [] in
 	List.iter (function
 		| HasParam s -> params := s :: !params
@@ -71,7 +85,7 @@ let raw_defined_value ctx k =
 	PMap.find k ctx.values
 
 let defined_value ctx v =
-	raw_defined_value ctx (fst (infos v))
+	raw_defined_value ctx (get_define_key v)
 
 let defined_value_safe ?default ctx v =
 	try defined_value ctx v

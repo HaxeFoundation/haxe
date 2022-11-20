@@ -454,37 +454,37 @@ class Compiler {
 		Reference a json file describing user-defined metadata
 		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
 	**/
-	public static function addMetadataDescriptionFile(path:String):Void {
+	public static function addMetadataDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
 		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
-		for (m in content) registerCustomMetadata(m);
+		for (m in content) registerCustomMetadata(m, null);
 	}
 
 	/**
 		Reference a json file describing user-defined defines
 		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
 	**/
-	public static function addDefinesDescriptionFile(path:String):Void {
+	public static function addDefinesDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
 		var content:Array<DefineDescription> =  haxe.Json.parse(f);
-		for (d in content) registerCustomDefine(d);
+		for (d in content) registerCustomDefine(d, source);
 	}
 
 	/**
 		Register a custom medatada for documentation and completion purposes
 	**/
-	public static function registerCustomMetadata(meta:MetadataDescription):Void {
+	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
 		#if (neko || eval)
-		load("register_metadata_impl", 6)(meta.metadata, meta.doc, meta.platforms, meta.targets, meta.params, meta.links);
+		load("register_metadata_impl", 2)(meta, source);
 		#end
 	}
 
 	/**
 		Register a custom define for documentation purposes
 	**/
-	public static function registerCustomDefine(define:DefineDescription):Void {
+	public static function registerCustomDefine(define:DefineDescription, ?source:String):Void {
 		#if (neko || eval)
-		load("register_define_impl", 5)(define.define, define.doc, define.platforms, define.params, define.links);
+		load("register_define_impl", 2)(define, source);
 		#end
 	}
 

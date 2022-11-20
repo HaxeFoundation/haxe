@@ -760,7 +760,7 @@ let dump_with_pos tabs e =
 			add "TCast";
 			loop e1;
 		| TMeta((m,_,_),e1) ->
-			add ("TMeta " ^ fst (Meta.get_info m));
+			add ("TMeta " ^ (Meta.to_string m));
 			loop e1
 	in
 	loop' tabs e;

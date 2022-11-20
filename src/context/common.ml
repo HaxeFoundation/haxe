@@ -543,7 +543,7 @@ let default_config =
 	}
 
 let get_config com =
-	let defined f = PMap.mem (fst (Define.infos f)) com.defines.values in
+	let defined f = PMap.mem (Define.get_define_key f) com.defines.values in
 	match com.platform with
 	| Cross ->
 		default_config

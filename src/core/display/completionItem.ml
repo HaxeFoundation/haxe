@@ -759,7 +759,7 @@ let to_json ctx index item =
 		]
 		| ITMetadata meta ->
 			let open Meta in
-			let name,(doc,params) = Meta.get_info meta in
+			let name,(doc,params),source = Meta.get_info meta in
 			let name = "@" ^ name in
 			let usage_to_string = function
 				| TClass -> "TClass"
@@ -782,6 +782,7 @@ let to_json ctx index item =
 				| [] -> internal,params,platforms,targets,links
 			in
 			let internal,params,platforms,targets,links = loop false [] [] [] [] params in
+			(* TODO: send source there too *)
 			"Metadata",jobject [
 				"name",jstring name;
 				"doc",jstring doc;
