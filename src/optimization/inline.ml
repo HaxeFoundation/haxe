@@ -369,11 +369,23 @@ class inline_state ctx ethis params cf f p = object(self)
 			in
 			try loop e; true with Exit -> false
 		in
-		let rec is_writable e =
+		let rec check_write e =
 			match e.eexpr with
-			| TField _ | TEnumParameter _ | TLocal _ | TArray _ -> true
-			| TCast(e1,None) -> is_writable e1
-			| _  -> false
+			| TLocal v when has_var_flag v VFinal ->
+				typing_error "Cannot modify abstract value of final local" p
+			| TField(_,fa) ->
+				begin match extract_field fa with
+				| Some cf when has_class_field_flag cf CfFinal ->
+					typing_error "Cannot modify abstract value of final field" p
+				| _ ->
+					()
+				end
+			| TLocal _ | TEnumParameter _ | TArray _ ->
+				()
+			| TCast(e1,None) ->
+				check_write e1
+			| _  ->
+				typing_error "Cannot modify the abstract value, store it into a local first" p;
 		in
 		let vars = List.fold_left (fun acc (i,e) ->
 			let accept vik =
@@ -387,7 +399,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				(i.i_subst,Some e) :: acc
 			in
 			if i.i_abstract_this && i.i_write then begin
-				if not (is_writable e) then typing_error "Cannot modify the abstract value, store it into a local first" p;
+				check_write e;
 				accept VIInline
 			end else if i.i_force_temp || (i.i_captured && not (is_constant e)) then
 				reject()
