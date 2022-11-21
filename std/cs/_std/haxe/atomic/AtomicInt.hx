@@ -44,11 +44,11 @@ abstract AtomicInt(IntWrapper) to IntWrapper {
 	}
 
 	public inline function compareExchange(expected:Int, replacement:Int):Int {
-		return untyped __cs__("System.Threading.Interlocked.CompareExchange(ref {0}.value, {1}, {2})", this, replacement, expected);
+		return cs.Syntax.code("System.Threading.Interlocked.CompareExchange(ref ({0}).value, {1}, {2})", this, replacement, expected);
 	}
 
 	public inline function exchange(value:Int):Int {
-		return untyped __cs__("System.Threading.Interlocked.Exchange(ref {0}.value, {1})", this, value);
+		return cs.Syntax.code("System.Threading.Interlocked.Exchange(ref ({0}).value, {1})", this, value);
 	}
 
 	public inline function load():Int {

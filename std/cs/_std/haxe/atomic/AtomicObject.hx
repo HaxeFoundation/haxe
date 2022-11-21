@@ -16,11 +16,11 @@ extern abstract AtomicObject<T:{}>(ObjectWrapper<T>) {
 	}
 
 	public inline function compareExchange(expected:T, replacement:T):T {
-		return untyped __cs__("System.Threading.Interlocked.CompareExchange(ref {0}.value, {1}, {2})", this, replacement, expected);
+		return cs.Syntax.code("System.Threading.Interlocked.CompareExchange(ref ({0}).value, {1}, {2})", this, replacement, expected);
 	}
 
 	public inline function exchange(value:T):T {
-		return untyped __cs__("System.Threading.Interlocked.Exchange(ref {0}.value, {1})", this, value);
+		return cs.Syntax.code("System.Threading.Interlocked.Exchange(ref ({0}).value, {1})", this, value);
 	}
 
 	public inline function load():T {
