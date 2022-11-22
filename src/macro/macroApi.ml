@@ -1769,7 +1769,7 @@ let macro_api ccom get_api =
 			(get_api()).register_define (decode_string (field d "define")) {
 				doc = decode_string (field d "doc");
 				flags = flags;
-				source = opt decode_string (field d "source");
+				source = opt decode_string src;
 			};
 			vnull
 		);
@@ -1797,7 +1797,7 @@ let macro_api ccom get_api =
 			(get_api()).register_metadata (decode_string (field m "metadata")) {
 				doc = decode_string (field m "doc");
 				flags = flags;
-				source = opt decode_string (field m "source");
+				source = opt decode_string src;
 			};
 			vnull
 		);

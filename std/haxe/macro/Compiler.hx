@@ -457,7 +457,7 @@ class Compiler {
 	public static function addMetadataDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
 		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
-		for (m in content) registerCustomMetadata(m, null);
+		for (m in content) registerCustomMetadata(m, source);
 	}
 
 	/**
