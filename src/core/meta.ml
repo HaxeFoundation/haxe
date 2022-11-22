@@ -72,7 +72,7 @@ let get_documentation d =
 		) in
 		let pfs = platform_list_help (List.rev !pfs) in
 		let source = match src with
-			| UserDefined Some s -> " (" ^ s ^ ")"
+			| UserDefined Some s -> " (from " ^ s ^ ")"
 			| Compiler | UserDefined None -> ""
 		in
 		let str = "@" ^ t in
