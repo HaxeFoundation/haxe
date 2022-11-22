@@ -18,7 +18,7 @@ type user_meta = {
 
 let user_meta : (string, user_meta) Hashtbl.t = Hashtbl.create 0
 
-type meta_origin =
+type meta_source =
 	| Compiler
 	| UserDefined of string option
 

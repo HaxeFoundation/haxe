@@ -759,7 +759,7 @@ let to_json ctx index item =
 		]
 		| ITMetadata meta ->
 			let open Meta in
-			let name,(doc,params),source = Meta.get_info meta in
+			let name,(doc,params),src = Meta.get_info meta in
 			let name = "@" ^ name in
 			let usage_to_string = function
 				| TClass -> "TClass"
@@ -773,6 +773,10 @@ let to_json ctx index item =
 				| TTypeParameter -> "TTypeParameter"
 				| TVariable -> "TVariable"
 			in
+			let source = match src with
+				| Compiler -> Some "haxe compiler"
+				| UserDefined s -> s
+			in
 			let rec loop internal params platforms targets links l = match l with
 				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
 				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets links l
@@ -782,7 +786,6 @@ let to_json ctx index item =
 				| [] -> internal,params,platforms,targets,links
 			in
 			let internal,params,platforms,targets,links = loop false [] [] [] [] params in
-			(* TODO: send source there too *)
 			"Metadata",jobject [
 				"name",jstring name;
 				"doc",jstring doc;
@@ -791,6 +794,7 @@ let to_json ctx index item =
 				"targets",jlist jstring targets;
 				"internal",jbool internal;
 				"links",jlist jstring links;
+				"source",jopt jstring source;
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
