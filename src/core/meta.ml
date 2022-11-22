@@ -56,7 +56,7 @@ let from_string s =
 	| _ -> Custom s
 
 let get_documentation d =
-	let t, (doc,flags), _ = get_info d in
+	let t, (doc,flags), src = get_info d in
 	if not (List.mem UsedInternally flags) then begin
 		let params = ref [] and used = ref [] and pfs = ref [] in
 		List.iter (function
@@ -71,8 +71,12 @@ let get_documentation d =
 			| l -> "(<" ^ String.concat ">, <" l ^ ">) "
 		) in
 		let pfs = platform_list_help (List.rev !pfs) in
+		let source = match src with
+			| UserDefined Some s -> " (" ^ s ^ ")"
+			| Compiler | UserDefined None -> ""
+		in
 		let str = "@" ^ t in
-		Some (str,params ^ doc ^ pfs)
+		Some (str,params ^ doc ^ pfs ^ source)
 	end else
 		None
 

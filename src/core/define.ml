@@ -33,7 +33,7 @@ let get_define_key d =
 	match (infos d) with (s,_,_) -> s
 
 let get_documentation d =
-	let t, (doc,flags), _ = infos d in
+	let t, (doc,flags), src = infos d in
 	let params = ref [] and pfs = ref [] in
 	List.iter (function
 		| HasParam s -> params := s :: !params
@@ -44,8 +44,12 @@ let get_documentation d =
 		| [] -> ""
 		| l -> "<" ^ String.concat ">, <" l ^ "> "
 	) in
+	let source = match src with
+		| UserDefined Some s -> " (" ^ s ^ ")"
+		| Compiler | UserDefined None -> ""
+	in
 	let pfs = platform_list_help (List.rev !pfs) in
-	(String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs
+	(String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs ^ source
 
 let get_documentation_list() =
 	let m = ref 0 in
