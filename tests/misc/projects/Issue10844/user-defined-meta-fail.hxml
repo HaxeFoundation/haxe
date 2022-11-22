@@ -1,0 +1,2 @@
+--macro haxe.macro.Compiler.registerCustomMetadata({metdata: ':zzz', doc: 'something'}, 'myapp')
+--help-user-metas

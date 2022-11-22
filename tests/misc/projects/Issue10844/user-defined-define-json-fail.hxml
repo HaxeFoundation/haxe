@@ -1,0 +1,2 @@
+--macro haxe.macro.Compiler.addDefinesDescriptionFile('define.jsno', 'myapp')
+--help-user-defines

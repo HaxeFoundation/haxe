@@ -1,0 +1,4 @@
+-lib dummy_doc
+--macro haxe.macro.Compiler.addMetadataDescriptionFile('meta.json', 'myapp')
+--macro haxe.macro.Compiler.registerCustomMetadata({metadata: ':custom', doc: 'Some user meta'}, 'myapp')
+--help-user-metas

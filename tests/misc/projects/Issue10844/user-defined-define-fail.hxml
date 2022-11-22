@@ -1,0 +1,2 @@
+--macro haxe.macro.Compiler.registerCustomDefine({dfine: 'zzz', doc: 'something'}, 'myapp')
+--help-user-defines

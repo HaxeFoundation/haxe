@@ -1,0 +1,4 @@
+-lib dummy_doc
+--macro haxe.macro.Compiler.addDefinesDescriptionFile('define.json', 'myapp')
+--macro haxe.macro.Compiler.registerCustomDefine({define: 'custom', doc: 'Some user define'}, 'myapp')
+--help-user-defines

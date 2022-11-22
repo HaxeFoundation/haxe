@@ -1,0 +1,2 @@
+--macro haxe.macro.Compiler.addMetadataDescriptionFile('meta.jsno', 'myapp')
+--help-user-metas
