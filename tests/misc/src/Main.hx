@@ -12,6 +12,8 @@ typedef Result = {
 }
 
 class Main {
+	static public final stdDir = FileSystem.fullPath("../../std");
+
 	static public function main() {
 		var result:Result = compileProjects();
 		Sys.println('Done running ${result.count} tests with ${result.failures} failures');
@@ -67,8 +69,9 @@ class Main {
 		s = s.replace("\r\n", "\n"); // get rid of windows newlines
 
 		var cwd = Path.removeTrailingSlashes(FileSystem.fullPath(Sys.getCwd()));
+		var std = Path.removeTrailingSlashes(stdDir);
 
-		var context = {cwd: cwd};
+		var context = {cwd: cwd, std: std};
 		var macros = {normPath: normPath};
 
 		return new haxe.Template(s).execute(context, macros);
