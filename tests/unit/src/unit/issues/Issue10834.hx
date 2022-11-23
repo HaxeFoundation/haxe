@@ -7,6 +7,6 @@ class Issue10834 extends Test {
 	function test() {
 		tmp = a[0];
 		eq(0, a.length);
-		eq('[]', a.toString());
+		eq(#if (js || flash) '' #else '[]' #end, a.toString());
 	}
 }
