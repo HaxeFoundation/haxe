@@ -454,7 +454,7 @@ class Compiler {
 		Reference a json file describing user-defined metadata
 		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
 	**/
-	public static function addMetadataDescriptionFile(path:String, ?source:String):Void {
+	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
 		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
 		for (m in content) registerCustomMetadata(m, source);
@@ -464,7 +464,7 @@ class Compiler {
 		Reference a json file describing user-defined defines
 		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
 	**/
-	public static function addDefinesDescriptionFile(path:String, ?source:String):Void {
+	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
 		var content:Array<DefineDescription> =  haxe.Json.parse(f);
 		for (d in content) registerCustomDefine(d, source);
