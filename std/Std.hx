@@ -106,8 +106,7 @@ extern class Std {
 		notations are not supported.
 
 		Parsing continues until an invalid character is detected, in which case the result up to
-		that point is returned. However, in decimal mode, the effect of `x` containing an e or E
-		is unspecified, and it may be taken as scientific exponential notation.
+		that point is returned. Scientific notation is not supported. That is `Std.parseInt('10e2')` produces `10`.
 
 		If `x` is `null`, the result is `null`.
 		If `x` cannot be parsed as integer or is empty, the result is `null`.
