@@ -1141,13 +1141,13 @@ let type_name_used_in_namespace ctx type_path as_name namespace =
 				List.iter
 					(fun ctx_type ->
 						let wrapper = get_wrapper ctx_type in
-						Hashtbl.add ctx.pgc_namespaces_types_cache wrapper#get_namespace wrapper#get_name
+						Hashtbl.add ctx.pgc_namespaces_types_cache wrapper#get_namespace (StringHelper.uppercase wrapper#get_name)
 					)
 					ctx.pgc_common.types;
 				Hashtbl.find_all ctx.pgc_namespaces_types_cache namespace
 			| types -> types
 	in
-	List.mem as_name types
+	List.mem (StringHelper.uppercase as_name) types
 	&& (namespace, as_name) <> type_path
 
 (**
