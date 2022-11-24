@@ -53,7 +53,6 @@ let parse_args com =
 		did_something = false;
 		force_typing = false;
 		pre_compilation = [];
-		after_generation = [];
 		interp = false;
 		jvm_flag = false;
 		swf_version = false;
