@@ -152,12 +152,12 @@ let parse_args com =
 			actx.did_something <- true
 		),"","print help for all compiler specific defines");
 		("Miscellaneous",["--help-user-defines"],[], Arg.Unit (fun() ->
-			actx.no_output <- true;
-			actx.after_generation <- (fun() ->
+			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Define.get_user_documentation_list() in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			) :: actx.after_generation
+				exit 0
+			)
 		),"","print help for all user defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
 			let all,max_length = Meta.get_documentation_list() in
@@ -166,12 +166,12 @@ let parse_args com =
 			actx.did_something <- true
 		),"","print help for all compiler metadatas");
 		("Miscellaneous",["--help-user-metas"],[], Arg.Unit (fun() ->
-			actx.no_output <- true;
-			actx.after_generation <- (fun() ->
+			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Meta.get_user_documentation_list() in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 				List.iter (fun msg -> com.print (msg ^ "\n")) all;
-			) :: actx.after_generation
+				exit 0
+			)
 		),"","print help for all user metadatas");
 	] in
 	let adv_args_spec = [
