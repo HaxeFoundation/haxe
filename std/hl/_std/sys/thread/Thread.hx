@@ -58,8 +58,18 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 		#end
 	}
 
+	public function getName() : Null<String> {
+		#if (hl_ver >= version("1.13.0"))
+		var name = get_name(@:privateAccess this.handle);
+		return name == null ? null : @:privateAccess String.fromUTF8(name);
+		#else
+		return null;
+		#end
+	}
+
 	#if (hl_ver >= version("1.13.0"))
 	@:hlNative("?std", "thread_set_name") static function set_name( t : ThreadHandle, name : hl.Bytes ) {}
+	@:hlNative("?std", "thread_get_name") static function get_name( t : ThreadHandle ) : hl.Bytes { return null; }
 	#end
 
 	function get_events():EventLoop {
