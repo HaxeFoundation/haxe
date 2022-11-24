@@ -150,6 +150,7 @@ class HostClasses {
 		"List",
 		"Map",
 		"String",
+		"haxe.atomic.AtomicInt"
 	];
 
 	static function parseClassInfo(externs:Map<String, Bool>, filename:String) {

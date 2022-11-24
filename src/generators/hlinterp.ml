@@ -2546,7 +2546,7 @@ let check code macros =
 				reg r (rtype r2);
 				reg off HI32;
 			| ONop _ ->
-				()
+				();
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
