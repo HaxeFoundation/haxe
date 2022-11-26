@@ -1755,9 +1755,9 @@ let macro_api ccom get_api =
 			let flags : define_parameter list = [] in
 
 			let platforms = decode_opt_array decode_string (field d "platforms") in
-			let flags =
-				if (List.length platforms) = 0 then flags
-				else (Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+			let flags = match platforms with
+				| [] -> flags
+				| _ ->(Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
 			in
 
 			let params = decode_opt_array decode_string (field d "params") in

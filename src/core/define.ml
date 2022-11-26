@@ -25,9 +25,11 @@ let infos d = match d with
 	| Custom(s) when (Hashtbl.mem user_defines s) ->
 		let infos = Hashtbl.find user_defines s in
 		(s, (infos.doc, infos.flags), (UserDefined infos.source))
+	| Custom(s) ->
+		(s, ("", []), Compiler)
 	| _ ->
-		let doc,flags = DefineList.infos d in
-		(doc, flags, Compiler)
+		let def,infos = DefineList.infos d in
+		(def, infos, Compiler)
 
 let get_define_key d =
 	match (infos d) with (s,_,_) -> s
