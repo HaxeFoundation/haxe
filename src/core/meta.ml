@@ -18,7 +18,7 @@ type user_meta = {
 
 let user_meta : (string, user_meta) Hashtbl.t = Hashtbl.create 0
 
-type meta_source =
+type meta_origin =
 	| Compiler
 	| UserDefined of string option
 
@@ -56,7 +56,7 @@ let from_string s =
 	| _ -> Custom s
 
 let get_documentation d =
-	let t, (doc,flags), src = get_info d in
+	let t, (doc,flags), origin = get_info d in
 	if not (List.mem UsedInternally flags) then begin
 		let params = ref [] and used = ref [] and pfs = ref [] in
 		List.iter (function
@@ -71,12 +71,12 @@ let get_documentation d =
 			| l -> "(<" ^ String.concat ">, <" l ^ ">) "
 		) in
 		let pfs = platform_list_help (List.rev !pfs) in
-		let source = match src with
+		let origin = match origin with
 			| UserDefined Some s -> " (from " ^ s ^ ")"
 			| Compiler | UserDefined None -> ""
 		in
 		let str = "@" ^ t in
-		Some (str,params ^ doc ^ pfs ^ source)
+		Some (str,params ^ doc ^ pfs ^ origin)
 	end else
 		None
 

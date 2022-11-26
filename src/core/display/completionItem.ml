@@ -759,7 +759,7 @@ let to_json ctx index item =
 		]
 		| ITMetadata meta ->
 			let open Meta in
-			let name,(doc,params),src = Meta.get_info meta in
+			let name,(doc,params),origin = Meta.get_info meta in
 			let name = "@" ^ name in
 			let usage_to_string = function
 				| TClass -> "TClass"
@@ -773,7 +773,7 @@ let to_json ctx index item =
 				| TTypeParameter -> "TTypeParameter"
 				| TVariable -> "TVariable"
 			in
-			let source = match src with
+			let origin = match origin with
 				| Compiler -> Some "haxe compiler"
 				| UserDefined s -> s
 			in
@@ -794,7 +794,7 @@ let to_json ctx index item =
 				"targets",jlist jstring targets;
 				"internal",jbool internal;
 				"links",jlist jstring links;
-				"source",jopt jstring source;
+				"origin",jopt jstring origin;
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
