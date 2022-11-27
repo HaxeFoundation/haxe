@@ -620,16 +620,44 @@ enum abstract NullSafetyMode(String) to String {
 typedef MetadataDescription = {
 	final metadata:String;
 	final doc:String;
+
+	/**
+		External resources for more information about this metadata.
+	**/
 	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this metadata accepts.
+	**/
 	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this metadata is used.
+	**/
 	@:optional final platforms:Array<Platform>;
+
+	/**
+		Places where this metadata can be applied.
+	**/
 	@:optional final targets:Array<MetadataTarget>;
 }
 
 typedef DefineDescription = {
 	final define:String;
 	final doc:String;
+
+	/**
+		External resources for more information about this define.
+	**/
 	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this define accepts.
+	**/
 	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this define is used.
+	**/
 	@:optional final platforms:Array<Platform>;
 }
