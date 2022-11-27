@@ -22,6 +22,7 @@
 
 package haxe.macro;
 
+import haxe.display.Display;
 import haxe.macro.Expr;
 
 /**
@@ -619,16 +620,16 @@ enum abstract NullSafetyMode(String) to String {
 typedef MetadataDescription = {
 	final metadata:String;
 	final doc:String;
-	@:optional final platforms:Array<String>;
-	@:optional final params:Array<String>;
-	@:optional final targets:Array<String>;
 	@:optional final links:Array<String>;
+	@:optional final params:Array<String>;
+	@:optional final platforms:Array<Platform>;
+	@:optional final targets:Array<MetadataTarget>;
 }
 
 typedef DefineDescription = {
 	final define:String;
 	final doc:String;
-	@:optional final platforms:Array<String>;
-	@:optional final params:Array<String>;
 	@:optional final links:Array<String>;
+	@:optional final params:Array<String>;
+	@:optional final platforms:Array<Platform>;
 }
