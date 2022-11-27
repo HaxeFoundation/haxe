@@ -12,20 +12,18 @@ type user_define = {
 	source : string option;
 }
 
-let user_defines : (string, user_define) Hashtbl.t = Hashtbl.create 0
-
-let register_user_define s data =
+let register_user_define user_defines s data =
 	Hashtbl.replace user_defines s data
 
 type define_origin =
 	| Compiler
 	| UserDefined of string option
 
-let infos d = match d with
-	| Custom(s) when (Hashtbl.mem user_defines s) ->
+let infos ?user_defines d = match (user_defines,d) with
+	| (Some(user_defines), Custom(s)) when (Hashtbl.mem user_defines s) ->
 		let infos = Hashtbl.find user_defines s in
 		(s, (infos.doc, infos.flags), (UserDefined infos.source))
-	| Custom(s) ->
+	| (_, Custom(s)) ->
 		(s, ("", []), Compiler)
 	| _ ->
 		let def,infos = DefineList.infos d in
@@ -34,8 +32,8 @@ let infos d = match d with
 let get_define_key d =
 	match (infos d) with (s,_,_) -> s
 
-let get_documentation d =
-	let t, (doc,flags), origin = infos d in
+let get_documentation user_defines d =
+	let t, (doc,flags), origin = infos ~user_defines:user_defines d in
 	let params = ref [] and pfs = ref [] in
 	List.iter (function
 		| HasParam s -> params := s :: !params
@@ -53,12 +51,12 @@ let get_documentation d =
 	let pfs = platform_list_help (List.rev !pfs) in
 	(String.concat "-" (ExtString.String.nsplit t "_")), params ^ doc ^ pfs ^ origin
 
-let get_documentation_list() =
+let get_documentation_list user_defines =
 	let m = ref 0 in
 	let rec loop i =
 		let d = Obj.magic i in
 		if d <> Last then begin
-			let (str,desc) = get_documentation d in
+			let (str,desc) = get_documentation user_defines d in
 			if String.length str > !m then m := String.length str;
 			(str,desc) :: loop (i + 1)
 		end else
@@ -67,10 +65,10 @@ let get_documentation_list() =
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
 	all,!m
 
-let get_user_documentation_list () =
+let get_user_documentation_list user_defines =
 	let m = ref 0 in
 	let user_defines_list = (Hashtbl.fold (fun d _ acc ->
-		let (str,desc) = get_documentation (Custom d) in
+		let (str,desc) = get_documentation user_defines (Custom d) in
 		if String.length str > !m then m := String.length str;
 		(str,desc) :: acc
 	) user_defines []) in

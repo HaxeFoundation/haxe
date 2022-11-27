@@ -363,6 +363,7 @@ type context = {
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
+	mutable user_defines : (string, Define.user_define) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
 	shared : shared_context;
@@ -809,6 +810,7 @@ let create compilation_step cs version args =
 			defines_signature = None;
 			values = PMap.empty;
 		};
+		user_defines = Hashtbl.create 0;
 		get_macros = (fun() -> None);
 		info = (fun _ _ -> die "" __LOC__);
 		warning = (fun _ _ _ -> die "" __LOC__);
