@@ -1,0 +1,8 @@
+ @:bar     : Some documentation for the TClass metadata '@:bar' (from
+             dummy_doc)
+ @:baz     : Some documentation for the @:baz metadata (from dummy_doc_dep)
+ @:custom  : Some user meta (from myapp)
+ @:foo     : Some documentation for the @:foo metadata for cpp platform (cpp
+             only) (from dummy_doc)
+ @:foobar  : Some documentation for @:foobar (cpp only) (from dummy_doc)
+ @:fromjson: Custom user metadata from json (from myapp)

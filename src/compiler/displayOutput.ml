@@ -71,7 +71,7 @@ let print_fields fields =
 		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule path -> "type",snd path,"",None
 		| ITMetadata  meta ->
-			let s,(doc,_) = Meta.get_info meta in
+			let s,(doc,_),_ = Meta.get_info meta in
 			"metadata","@" ^ s,"",doc_from_string doc
 		| ITTimer(name,value) -> "timer",name,"",doc_from_string value
 		| ITLiteral s ->

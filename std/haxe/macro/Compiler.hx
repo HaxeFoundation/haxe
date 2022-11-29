@@ -22,6 +22,7 @@
 
 package haxe.macro;
 
+import haxe.display.Display;
 import haxe.macro.Expr;
 
 /**
@@ -451,6 +452,44 @@ class Compiler {
 	}
 
 	/**
+		Reference a json file describing user-defined metadata
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
+	**/
+	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
+		for (m in content) registerCustomMetadata(m, source);
+	}
+
+	/**
+		Reference a json file describing user-defined defines
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
+	**/
+	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<DefineDescription> =  haxe.Json.parse(f);
+		for (d in content) registerCustomDefine(d, source);
+	}
+
+	/**
+		Register a custom medatada for documentation and completion purposes
+	**/
+	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_metadata_impl", 2)(meta, source);
+		#end
+	}
+
+	/**
+		Register a custom define for documentation purposes
+	**/
+	public static function registerCustomDefine(define:DefineDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_define_impl", 2)(define, source);
+		#end
+	}
+
+	/**
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator(callb:JSGenApi->Void) {
@@ -576,4 +615,49 @@ enum abstract NullSafetyMode(String) to String {
 		The only nullable thing could be safe are local variables.
 	**/
 	var StrictThreaded;
+}
+
+typedef MetadataDescription = {
+	final metadata:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this metadata.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this metadata accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this metadata is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+
+	/**
+		Places where this metadata can be applied.
+	**/
+	@:optional final targets:Array<MetadataTarget>;
+}
+
+typedef DefineDescription = {
+	final define:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this define.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this define accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this define is used.
+	**/
+	@:optional final platforms:Array<Platform>;
 }
