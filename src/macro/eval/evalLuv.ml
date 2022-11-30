@@ -546,11 +546,11 @@ let uv_error_fields = [
 		Error.set_on_unhandled_exception (fun ex ->
 			let msg =
 				match ex with
-				| HaxeError.Error (Custom msg,_) ->
+				| HaxeError.Error (Custom msg,_,_) ->
 					(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
 					(try fst (ExtString.String.split msg "\n")
 					with _ -> msg)
-				| HaxeError.Error (err,_) -> HaxeError.error_msg err
+				| HaxeError.Error (err,_,_) -> HaxeError.error_msg err
 				| _ -> Printexc.to_string ex
 			in
 			let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in

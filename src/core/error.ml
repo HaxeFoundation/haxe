@@ -26,8 +26,8 @@ and type_not_found_reason =
 	| Private_type
 	| Not_defined
 
-exception Fatal_error of string * Globals.pos
-exception Error of error_msg * Globals.pos
+exception Fatal_error of string * Globals.pos * int
+exception Error of error_msg * Globals.pos * int
 
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
@@ -290,9 +290,9 @@ and s_call_error = function
 	| Could_not_unify err -> error_msg err
 	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
 
-let typing_error msg p = raise (Error (Custom msg,p))
+let typing_error ?(nesting_level=0) msg p = raise (Error (Custom msg,p,nesting_level))
 
-let raise_typing_error err p = raise (Error(err,p))
+let raise_typing_error ?(nesting_level=0) err p = raise (Error(err,p,nesting_level))
 
 let error_require r p =
 	if r = "" then

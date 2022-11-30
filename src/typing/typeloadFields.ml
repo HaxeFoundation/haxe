@@ -418,7 +418,7 @@ let build_enum_abstract ctx c a fields p =
 					()
 				| VPublic(access,p2) | VPrivate(access,p2) ->
 					display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-					display_error ctx.com "Conflicts with this" p2;
+					display_error ~nesting_level:1 ctx.com "Conflicts with this" p2;
 			in
 			let rec loop visibility acc = match acc with
 				| (AExtern,p) :: acc ->
@@ -486,7 +486,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> typing_error "Invalid build parameters" p
 				) in
-				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> typing_error "Build call parameter must be a class path" p in
+				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p,nl) -> typing_error ~nesting_level:nl "Build call parameter must be a class path" p in
 				if ctx.com.is_macro_context then typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
@@ -1095,7 +1095,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					(* TODO: this doesn't seem quite right... *)
 					if not (has_class_field_flag cf CfImpl) then add_class_field_flag cf CfImpl;
 					let resolve_m args =
-						(try unify_raise t (tfun (tthis :: args) m) cf.cf_pos with Error (Unify l,p) -> typing_error (error_msg (Unify l)) p);
+						(try unify_raise t (tfun (tthis :: args) m) cf.cf_pos with Error (Unify l,p,nl) -> typing_error ~nesting_level:nl (error_msg (Unify l)) p);
 						match follow m with
 							| TMono _ when (match t with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
 							| m -> m
@@ -1159,7 +1159,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
 					if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
-					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),cf.cf_pos)));
+					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),cf.cf_pos,0)));
 					a.a_unops <- (op,flag,cf) :: a.a_unops;
 					allow_no_expr();
 				| (Meta.Op,[ECall _,_],_) :: _ ->
@@ -1501,13 +1501,13 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					(match f2.cf_kind with
 						| Method MethMacro ->
 							display_error ctx.com (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-							display_error ctx.com (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
+							display_error ~nesting_level:1 ctx.com (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
 						| _ -> ());
 					unify_raise t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
 						display_error ctx.com "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
-				with Error (Unify l,p) ->
-					raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
+				with Error (Unify l,p,nl) ->
+					raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p,nl+1))
 			)
 		with
 			| Not_found ->
@@ -1659,7 +1659,7 @@ let check_overload ctx f fs =
 			) fs
 		in
 		display_error ctx.com ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-		display_error ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		display_error ~nesting_level:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
 		false
 	with Not_found -> try
 		(* OVERLOADTODO: generalize this and respect whether or not we actually generate the functions *)
@@ -1676,7 +1676,7 @@ let check_overload ctx f fs =
 			f.cf_name ^
 			"\nThe signatures are different in Haxe, but not in the target language"
 		) f.cf_pos;
-		display_error ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		display_error ~nesting_level:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
 		false
 	with Not_found ->
 		true
@@ -1825,8 +1825,8 @@ let init_class ctx c p context_init herits fields =
 				else
 				if fctx.do_add then TClass.add_field c cf
 			end
-		with Error (Custom str,p2) when p = p2 ->
-			display_error ctx.com str p
+		with Error (Custom str,p2,nl) when p = p2 ->
+			display_error ~nesting_level:nl ctx.com str p
 	) fields;
 	(match cctx.abstract with
 	| Some a ->

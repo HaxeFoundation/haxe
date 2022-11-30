@@ -59,7 +59,7 @@ let check_field_access ctx cff =
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
 					display_error ctx.com (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
-					display_error ctx.com (compl_msg "Previously defined here") p2;
+					display_error ~nesting_level:1 ctx.com (compl_msg "Previously defined here") p2;
 				end;
 				loop p1 acc l
 			with Not_found -> match access with
@@ -67,7 +67,7 @@ let check_field_access ctx cff =
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
 						display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-						display_error ctx.com (compl_msg "Conflicts with this") p2;
+						display_error ~nesting_level:1 ctx.com (compl_msg "Conflicts with this") p2;
 						loop p1 acc l
 					with Not_found ->
 						loop p1 ((access,p1) :: acc) l
@@ -109,7 +109,7 @@ let load_type_raise ctx mpath tname p =
 (* raises Not_found *)
 let load_type ctx mpath tname p = try
 	load_type_raise ctx mpath tname p
-with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
+with Error((Module_not_found _ | Type_not_found _),p2,_) when p = p2 ->
 	raise Not_found
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
@@ -142,7 +142,7 @@ let find_in_wildcard_imports ctx mname p f =
 				let m =
 					try
 						ctx.g.do_load_module ctx path p
-					with Error (Module_not_found mpath,_) when mpath = path ->
+					with Error (Module_not_found mpath,_,_) when mpath = path ->
 						raise Not_found
 				in
 				let r = f m ~resume:true in
@@ -163,7 +163,7 @@ let find_in_modules_starting_from_current_package ~resume ctx mname p f =
 			let m =
 				try
 					ctx.g.do_load_module ctx path p
-				with Error (Module_not_found mpath,_) when resume && mpath = path ->
+				with Error (Module_not_found mpath,_,_) when resume && mpath = path ->
 					raise Not_found
 			in
 			f m ~resume:resume
@@ -172,7 +172,7 @@ let find_in_modules_starting_from_current_package ~resume ctx mname p f =
 				let m =
 					try
 						ctx.g.do_load_module ctx path p
-					with Error (Module_not_found mpath,_) when mpath = path ->
+					with Error (Module_not_found mpath,_,_) when mpath = path ->
 						raise Not_found
 					in
 				f m ~resume:true;
@@ -200,7 +200,7 @@ let load_unqualified_type_def ctx mname tname p =
 let load_module ctx path p =
 	try
 		ctx.g.do_load_module ctx path p
-	with Error (Module_not_found mpath,_) as exc when mpath = path ->
+	with Error (Module_not_found mpath,_,_) as exc when mpath = path ->
 		match path with
 		| ("std" :: pack, name) ->
 			ctx.g.do_load_module ctx (pack,name) p
@@ -286,7 +286,7 @@ let check_param_constraints ctx t map c p =
 			let ti = map ti in
 			try
 				unify_raise t ti p
-			with Error(Unify l,p) ->
+			with Error(Unify l,p,n) ->
 				let fail() =
 					if not ctx.untyped then display_error ctx.com (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
 				in
@@ -294,7 +294,7 @@ let check_param_constraints ctx t map c p =
 				| TInst({cl_kind = KExpr e},_) ->
 					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
 					begin try unify_raise e.etype ti p
-					with Error (Unify _,_) -> fail() end
+					with Error (Unify _,_,_) -> fail() end
 				| _ ->
 					fail()
 
@@ -437,7 +437,7 @@ and load_instance ctx ?(allow_display=false) ((_,pn) as tp) allow_no_params =
 		let t = load_instance' ctx tp allow_no_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t tp;
 		t
-	with Error (Module_not_found path,_) when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
+	with Error (Module_not_found path,_,_) when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
 		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) (patch_string_pos pn s)
 
@@ -627,7 +627,7 @@ and load_complex_type' ctx allow_display (t,p) =
 and load_complex_type ctx allow_display (t,pn) =
 	try
 		load_complex_type' ctx allow_display (t,pn)
-	with Error(Module_not_found(([],name)),p) as exc ->
+	with Error(Module_not_found(([],name)),p,_) as exc ->
 		if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
 			t_dynamic

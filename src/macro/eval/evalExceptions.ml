@@ -143,7 +143,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 							)
 						| _ -> null_pos
 					in
-					raise (Error.Error (Error.Custom s.sstring,p))
+					raise (Error.Error (Error.Custom s.sstring,p,0))
 				| _ ->
 					Error.typing_error "Something went wrong" null_pos
 		end else begin

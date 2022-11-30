@@ -12,7 +12,7 @@ let run_or_diagnose ctx f arg =
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p) ->
+		| Error.Error(msg,p,_) ->
 			handle_diagnostics (Error.error_msg msg) p DKCompilerMessage
 		| Parser.Error(msg,p) ->
 			handle_diagnostics (Parser.error_msg msg) p DKParserError
@@ -211,8 +211,8 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun msg p -> message ctx (msg,p,DKCompilerMessage,Information));
-		com.warning <- (fun w options msg p ->
+		com.info <- (fun ?(nesting_level=0) msg p -> message ctx (msg,p,nesting_level,DKCompilerMessage,Information));
+		com.warning <- (fun ?(nesting_level=0) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
@@ -221,17 +221,17 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (msg,p,DKCompilerMessage,Warning)
+				message ctx (msg,p,nesting_level,DKCompilerMessage,Warning)
 			| WMDisable ->
 				()
 		);
 		com.error <- error ctx;
-		let filter_messages = (fun keep_errors predicate -> (List.filter (fun ((_,_,_,sev) as cm) ->
+		let filter_messages = (fun keep_errors predicate -> (List.filter (fun ((_,_,_,_,sev) as cm) ->
 			(match sev with
 			| MessageSeverity.Error -> keep_errors;
 			| Information | Warning | Hint -> predicate cm;)
 		) (List.rev ctx.messages))) in
-		com.get_messages <- (fun () -> (List.map (fun ((_,_,_,sev) as cm) ->
+		com.get_messages <- (fun () -> (List.map (fun ((_,_,_,_,sev) as cm) ->
 			(match sev with
 			| MessageSeverity.Error -> die "" __LOC__;
 			| Information | Warning | Hint -> cm;)
@@ -334,8 +334,8 @@ try
 with
 	| Abort ->
 		()
-	| Error.Fatal_error (m,p) ->
-		error ctx m p
+	| Error.Fatal_error (m,p,nl) ->
+		error ~nesting_level:nl ctx m p
 	| Common.Abort (m,p) ->
 		error ctx m p
 	| Lexer.Error (m,p) ->
@@ -348,10 +348,10 @@ with
 			ctx.messages <- [];
 		end else begin
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
-			List.iter (error ctx (Error.compl_msg "referenced here")) (List.rev pl);
+			List.iter (error ~nesting_level:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
-	| Error.Error (m,p) ->
-		error ctx (Error.error_msg m) p
+	| Error.Error (m,p,nl) ->
+		error ~nesting_level:nl ctx (Error.error_msg m) p
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->

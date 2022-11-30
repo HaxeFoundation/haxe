@@ -70,7 +70,7 @@ module ModuleLevel = struct
 			DeprecationCheck.check_is com name meta p;
 			let error prev_pos =
 				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
-				typing_error (compl_msg "Previous declaration here") prev_pos;
+				typing_error ~nesting_level:1 (compl_msg "Previous declaration here") prev_pos;
 			in
 			List.iter (fun (t2,(_,p2)) ->
 				if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
@@ -677,8 +677,8 @@ module TypeLevel = struct
 				check_path_display path p;
 				ImportHandling.init_import ctx context_init path mode p;
 				ImportHandling.commit_import ctx path mode p;
-			with Error(err,p) ->
-				display_error ctx.com (Error.error_msg err) p
+			with Error(err,p,nl) ->
+				display_error ~nesting_level:nl ctx.com (Error.error_msg err) p
 			end
 		| EUsing path ->
 			check_path_display path p;
@@ -797,7 +797,7 @@ let load_module' ctx g m p =
 			m
 		| None ->
 			let raise_not_found () =
-				raise (Error (Module_not_found m,p))
+				raise (Error (Module_not_found m,p,0))
 			in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();

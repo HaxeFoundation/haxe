@@ -438,7 +438,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 							end
 						| _ ->
 							check()
-					with Unify_error el | Error (Unify el,_) ->
+					with Unify_error el | Error (Unify el,_,_) ->
 						check_constant_struct := !check_constant_struct || List.exists (function
 							| Has_extra_field _ -> true
 							| _ -> false

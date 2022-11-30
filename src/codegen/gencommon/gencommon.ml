@@ -732,7 +732,7 @@ let run_filters_from gen t filters =
 let run_filters gen =
 	let last_error = gen.gcon.error in
 	let has_errors = ref false in
-	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
+	gen.gcon.error <- (fun ?nesting_level msg pos -> has_errors := true; last_error msg pos);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);

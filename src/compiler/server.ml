@@ -19,7 +19,7 @@ let has_error ctx =
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		if is_diagnostics ctx.com then begin
-			List.iter (fun (msg,p,kind,sev) ->
+			List.iter (fun (msg,p,_,kind,sev) ->
 				add_diagnostics_message ctx.com msg p kind sev
 			) (List.rev ctx.messages);
 			raise (Completion (Diagnostics.print ctx.com))
@@ -27,7 +27,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 			f_otherwise ()
 	| Some api ->
 		if has_error ctx then begin
-			let errors = List.map (fun (msg,p,_,sev) ->
+			let errors = List.map (fun (msg,p,_,_,sev) ->
 				JObject [
 					"severity",JInt (MessageSeverity.to_int sev);
 					"location",Genjson.generate_pos_as_location p;
@@ -87,7 +87,7 @@ open ServerCompilationContext
 
 module Communication = struct
 
-	let compiler_message_string (str,p,_,sev) =
+	let compiler_message_string (str,p,_,_,sev) =
 		let str = match sev with
 			| MessageSeverity.Warning -> "Warning : " ^ str
 			| Information | Error | Hint -> str
@@ -118,7 +118,7 @@ module Communication = struct
 				prerr_string s;
 			);
 			flush = (fun ctx ->
-				List.iter (fun ((_,_,_,sev) as cm) -> match sev with
+				List.iter (fun ((_,_,_,_,sev) as cm) -> match sev with
 					| MessageSeverity.Information -> print_endline (compiler_message_string cm)
 					| Warning | Error | Hint -> prerr_endline (compiler_message_string cm)
 				) (List.rev ctx.messages);

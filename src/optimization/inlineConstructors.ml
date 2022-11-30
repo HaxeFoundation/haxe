@@ -123,7 +123,7 @@ let inline_constructors ctx original_e =
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
 					display_error ctx.com "Forced inline constructor could not be inlined" io.io_pos;
-					display_error ctx.com (compl_msg "Cancellation happened here") p;
+					display_error ~nesting_level:1 ctx.com (compl_msg "Cancellation happened here") p;
 				end
 			| _ -> ()
 		end

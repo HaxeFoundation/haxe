@@ -197,7 +197,7 @@ type dot_path_part = {
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
-exception WithTypeError of error_msg * pos
+exception WithTypeError of error_msg * pos * int
 
 let memory_marker = [|Unix.time()|]
 
@@ -221,9 +221,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let warning ctx w msg p =
+let warning ?(nesting_level=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning w options msg p
+	ctx.com.warning ~nesting_level:nesting_level w options msg p
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -256,11 +256,11 @@ let make_static_call ctx c cf map args t p =
 
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError(Unify l,p))
+	else if ctx.in_call_args then raise (WithTypeError(Unify l,p,0))
 	else display_error ctx.com (error_msg (Unify l)) p
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise (WithTypeError (Custom msg,p))
+	if ctx.in_call_args then raise (WithTypeError (Custom msg,p,0))
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
@@ -276,7 +276,7 @@ let unify_raise_custom uctx t1 t2 p =
 	with
 		Unify_error l ->
 			(* no untyped check *)
-			raise (Error (Unify l,p))
+			raise (Error (Unify l,p,0))
 
 let unify_raise = unify_raise_custom default_unification_context
 
@@ -294,7 +294,7 @@ let add_local ctx k n t p =
 				(* ignore std lib *)
 				if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
-					warning ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+					warning ~nesting_level:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 				end
 			with Not_found ->
 				()
@@ -420,8 +420,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p) ->
-				raise (Fatal_error ((error_msg m),p))
+			| Error (m,p,nl) ->
+				raise (Fatal_error ((error_msg m),p,nl))
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r

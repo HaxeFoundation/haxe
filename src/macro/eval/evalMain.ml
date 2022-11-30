@@ -151,7 +151,7 @@ let create com api is_macro =
 		| _ ->
 			let msg =
 				match ex with
-				| Error.Error (err,_) -> Error.error_msg err
+				| Error.Error (err,_,_) -> Error.error_msg err
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;

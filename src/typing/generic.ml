@@ -156,7 +156,7 @@ let static_method_container gctx c cf p =
 		match t with
 		| TInst(cg,_) -> cg
 		| _ -> typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
-	with Error(Module_not_found path,_) when path = (pack,name) ->
+	with Error(Module_not_found path,_,_) when path = (pack,name) ->
 		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		let mg = {
 			m_id = alloc_mid();
@@ -233,7 +233,7 @@ let rec build_generic_class ctx c p tl =
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
-	with Error(Module_not_found path,_) when path = (pack,name) ->
+	with Error(Module_not_found path,_,_) when path = (pack,name) ->
 		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
@@ -383,9 +383,9 @@ let type_generic_function ctx fa fcc with_type p =
 		let name = cf.cf_name ^ "_" ^ gctx.name in
 		let unify_existing_field tcf pcf = try
 			unify_raise tcf fcc.fc_type p
-		with Error(Unify _,_) as err ->
-			display_error ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_error ctx.com (compl_msg "Conflicting field was defined here") pcf;
+		with Error(Unify _,_,nl) as err ->
+			display_error ~nesting_level:nl ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
+			display_error ~nesting_level:(nl+1) ctx.com (compl_msg "Conflicting field was defined here") pcf;
 			raise err
 		in
 		let fa = try

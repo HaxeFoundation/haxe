@@ -64,6 +64,6 @@ type server_api = {
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
-let error ctx msg p =
-	message ctx (msg,p,DKCompilerMessage,Error);
+let error ctx ?(nesting_level=0) msg p =
+	message ctx (msg,p,nesting_level,DKCompilerMessage,Error);
 	ctx.has_error <- true
