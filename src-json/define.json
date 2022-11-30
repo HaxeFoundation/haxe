@@ -720,9 +720,9 @@
 		"doc": "Disable tail recursion elimination."
 	},
 	{
-		"name": "VerboseErrors",
-		"define": "verbose-errors",
-		"doc": "Enable rich output for errors and warnings."
+		"name": "PrettyErrors",
+		"define": "pretty-errors",
+		"doc": "Enable pretty-printing for errors and warnings."
 	},
 	{
 		"name": "NoColor",

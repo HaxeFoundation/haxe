@@ -259,7 +259,7 @@ module Communication = struct
 		else !out
 
 	let compiler_message_string ctx ectx (str,p,nl,_,sev) =
-		if Define.defined ctx.com.defines Define.VerboseErrors then
+		if Define.defined ctx.com.defines Define.PrettyErrors then
 			compiler_verbose_message_string ctx ectx (str,p,nl,sev)
 		else
 			let str = apply_severity str sev in
@@ -301,7 +301,7 @@ module Communication = struct
 				ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
 
 				let is_filtered = function
-					| _ when not (Define.defined ctx.com.defines Define.VerboseErrors) -> false
+					| _ when not (Define.defined ctx.com.defines Define.PrettyErrors) -> false
 					| "End of overload failure reasons" -> true
 					| _ -> false
 				in
