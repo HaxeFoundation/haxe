@@ -475,9 +475,9 @@ object(self)
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				locate_macro_error := false;
-				old msg ep;
+				old msg (if ep = null_pos then p else ep);
 				locate_macro_error := true;
-				old (compl_msg "Called from macro here") p;
+				if ep <> null_pos then old (compl_msg "Called from macro here") p;
 			end else
 				old msg ep;
 		);
