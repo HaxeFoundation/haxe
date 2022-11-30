@@ -1222,7 +1222,7 @@ let add_diagnostics_message com s p kind sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
-let display_error ?(nesting_level = 0) com msg p =
+let display_error com ?(nesting_level = 0) msg p =
 	if is_diagnostics com then
 		add_diagnostics_message com msg p MessageKind.DKCompilerMessage MessageSeverity.Error
 	else

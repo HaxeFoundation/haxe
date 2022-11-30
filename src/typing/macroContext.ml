@@ -422,8 +422,8 @@ let make_macro_api ctx p =
 			in
 			Std.finally restore f ()
 		);
-		MacroApi.warning = (fun w msg p ->
-			warning ctx w msg p
+		MacroApi.warning = (fun ?(nesting_level=0) w msg p ->
+			warning ~nesting_level:nesting_level ctx w msg p
 		);
 	}
 

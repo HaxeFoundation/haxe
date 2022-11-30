@@ -47,38 +47,38 @@ class Context {
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
 	**/
-	public static function error(msg:String, pos:Position):Dynamic {
-		return load("error", 2)(msg, pos);
+	public static function error(msg:String, pos:Position, ?nestingLevel:Int = 0):Dynamic {
+		return load("error", 2)(msg, pos, nestingLevel);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the compilation.
 	**/
-	public static function fatalError(msg:String, pos:Position):Dynamic {
-		return load("fatal_error", 2)(msg, pos);
+	public static function fatalError(msg:String, pos:Position, ?nestingLevel:Int = 0):Dynamic {
+		return load("fatal_error", 2)(msg, pos, nestingLevel);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		without aborting the current macro call.
 	**/
-	public static function reportError(msg:String, pos:Position):Void {
-		load("report_error", 2)(msg, pos);
+	public static function reportError(msg:String, pos:Position, ?nestingLevel:Int = 0):Void {
+		load("report_error", 2)(msg, pos, nestingLevel);
 	}
 
 	/**
 		Displays a compilation warning `msg` at the given `Position` `pos`.
 	**/
-	public static function warning(msg:String, pos:Position) {
-		load("warning", 2)(msg, pos);
+	public static function warning(msg:String, pos:Position, ?nestingLevel:Int = 0) {
+		load("warning", 2)(msg, pos, nestingLevel);
 	}
 
 	/**
 		Displays a compilation info `msg` at the given `Position` `pos`.
 	**/
-	public static function info(msg:String, pos:Position) {
-		load("info", 2)(msg, pos);
+	public static function info(msg:String, pos:Position, ?nestingLevel:Int = 0) {
+		load("info", 2)(msg, pos, nestingLevel);
 	}
 
 	/**

@@ -61,10 +61,10 @@ type 'value compiler_api = {
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
-	display_error : (string -> pos -> unit);
+	display_error : ?nesting_level:int -> (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
-	warning : Warning.warning -> string -> pos -> unit;
+	warning : ?nesting_level:int -> Warning.warning -> string -> pos -> unit;
 }
 
 
@@ -1689,33 +1689,38 @@ let macro_api ccom get_api =
 		"current_pos", vfun0 (fun() ->
 			encode_pos (get_api()).pos
 		);
-		"error", vfun2 (fun msg p ->
+		"error", vfun3 (fun msg p nl ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).error msg p;
+			let nl = decode_int nl in
+			(ccom()).error ~nesting_level:nl msg p;
 			raise Abort
 		);
-		"fatal_error", vfun2 (fun msg p ->
+		"fatal_error", vfun3 (fun msg p nl ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			raise (Error.Fatal_error (msg,p,0))
+			let nl = decode_int nl in
+			raise (Error.Fatal_error (msg,p,nl))
 		);
-		"report_error", vfun2 (fun msg p ->
+		"report_error", vfun3 (fun msg p nl ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(get_api()).display_error msg p;
+			let nl = decode_int nl in
+			(get_api()).display_error ~nesting_level:nl msg p;
 			vnull
 		);
-		"warning", vfun2 (fun msg p ->
+		"warning", vfun3 (fun msg p nl ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(get_api()).warning WUser msg p;
+			let nl = decode_int nl in
+			(get_api()).warning ~nesting_level:nl WUser msg p;
 			vnull
 		);
-		"info", vfun2 (fun msg p ->
+		"info", vfun3 (fun msg p nl ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).info msg p;
+			let nl = decode_int nl in
+			(ccom()).info ~nesting_level:nl msg p;
 			vnull
 		);
 		"get_messages", vfun0 (fun() ->
