@@ -242,7 +242,7 @@ module Communication = struct
 			out
 			(String.make gutter_len ' ')
 			(* Remove "... " prefix *)
-			(if (String.starts_with ~prefix:"... " str) then String.sub str 4 ((String.length str) - 4) else str)
+			(if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str)
 		) !out (ExtString.String.nsplit str "\n");
 
 		(* Indent sub errors *)
