@@ -90,16 +90,14 @@ module Communication = struct
 		mutable last_positions : pos IntMap.t;
 		mutable max_lines : int IntMap.t;
 		mutable gutter : int IntMap.t;
-		mutable previous_pos : pos;
-		mutable previous_sev : MessageSeverity.t option;
+		mutable previous : (pos * MessageSeverity.t * int) option;
 	}
 
 	let create_error_context () = {
 		last_positions = IntMap.empty;
 		max_lines = IntMap.empty;
 		gutter = IntMap.empty;
-		previous_pos = null_pos;
-		previous_sev = None;
+		previous = None;
 	}
 
 	let error_printer file line = Printf.sprintf "%s:%d:" file line
@@ -153,14 +151,28 @@ module Communication = struct
 			| _ -> lines
 		in
 
-		let parent_pos = if nl = 0 then null_pos else (try IntMap.find (nl-1) ectx.last_positions with Not_found -> null_pos) in
-		let same_pos = (parent_pos <> null_pos && p == parent_pos) || p == ectx.previous_pos in
-		let sev_changed = ectx.previous_sev = None || Some sev <> ectx.previous_sev in
+		let parent_pos =
+			if nl = 0 then null_pos
+			else (try IntMap.find (nl-1) ectx.last_positions with Not_found -> null_pos)
+		in
 
-		let gutter_len =
-			if p = parent_pos then 0
-			else (String.length (Printf.sprintf "%d" (try IntMap.find nl ectx.max_lines with Not_found -> 0))) + 2 in
-		if gutter_len > 0 then ectx.gutter <- (IntMap.add nl gutter_len ectx.gutter);
+		let prev_pos,prev_sev,prev_nl = match ectx.previous with
+			| None -> (null_pos, None, 0)
+			| Some (p, sev, nl) -> (p, Some sev, nl)
+		in
+
+		let pos_changed =
+			(prev_pos = null_pos || p <> prev_pos || (nl <> prev_nl && nl <> prev_nl + 1))
+			&& (parent_pos = null_pos || p <> parent_pos)
+		in
+
+		let sev_changed = prev_sev = None || Some sev <> prev_sev in
+
+		let display_heading = sev_changed || prev_pos = null_pos || (pos_changed && p.pfile <> prev_pos.pfile) in
+		let display_source = sev_changed || pos_changed in
+		let display_pos_marker = p <> null_pos && (sev_changed  || pos_changed) in
+
+		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find nl ectx.max_lines)) with Not_found -> 0) + 2 in
 
 		let no_color = Define.defined ctx.com.defines Define.NoColor in
 		let c_reset = if no_color then "" else "\x1b[0m" in
@@ -184,7 +196,7 @@ module Communication = struct
 
 		let out = ref "" in
 
-		if sev_changed || (not same_pos && p.pfile <> ectx.previous_pos.pfile) then
+		if display_heading then
 			out := Printf.sprintf "%s%s\n\n"
 				(* Severity heading *)
 				(c_sev_bg ^ sev_label ^ c_reset ^ " ")
@@ -192,7 +204,7 @@ module Communication = struct
 				epos;
 
 		(* Error source *)
-		if sev_changed || not same_pos then
+		if display_source then
 			out := List.fold_left (fun out (l, line) ->
 				let nb_len = String.length (string_of_int l) in
 
@@ -228,7 +240,7 @@ module Communication = struct
 			) !out lines;
 
 		(* Error position marker *)
-		if p <> null_pos && (sev_changed  || not same_pos) then
+		if display_pos_marker then
 			out := Printf.sprintf "%s%s|%s%s%s%s\n"
 				!out
 				(String.make gutter_len ' ')
@@ -245,17 +257,16 @@ module Communication = struct
 			(if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str)
 		) !out (ExtString.String.nsplit str "\n");
 
+		ectx.previous <- Some (p, sev, nl);
+		ectx.gutter <- (IntMap.add nl gutter_len ectx.gutter);
+
 		(* Indent sub errors *)
-		let rec indent acc nl =
+		let rec indent ?(acc=0) nl =
 			if nl = 0 then acc
-			else indent (try IntMap.find (nl-1) ectx.gutter with Not_found -> 3) (nl-1)
+			else indent ~acc:(acc + try IntMap.find (nl-1) ectx.gutter with Not_found -> 3) (nl-1)
 		in
 
-		(* Update last position / severity *)
-		ectx.previous_pos <- p;
-		ectx.previous_sev <- Some sev;
-
-		if nl > 0 then String.concat "\n" (List.map (fun str -> (String.make (indent 0 nl) ' ') ^ str) (ExtString.String.nsplit !out "\n"))
+		if nl > 0 then String.concat "\n" (List.map (fun str -> (String.make (indent nl) ' ') ^ str) (ExtString.String.nsplit !out "\n"))
 		else !out
 
 	let compiler_message_string ctx ectx (str,p,nl,_,sev) =
