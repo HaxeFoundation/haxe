@@ -107,12 +107,18 @@ module Communication = struct
 
 	let compiler_verbose_message_string ctx ectx (str,p,nl,sev) =
 		ectx.last_positions <- (IntMap.add nl p ectx.last_positions);
+		let is_null_pos = p = null_pos || p.pmin = -1 in
 
 		(* Extract informations from position *)
 		let l1, p1, l2, p2, epos, lines =
-			if p.pmin = -1 then
-				(-1, -1, -1, -1, "(unknown position)", [])
-			else begin
+			if is_null_pos then begin
+				let epos = match p.pfile with
+					| "" | "?" -> "(unknown position)"
+					| p -> p
+				in
+
+				(-1, -1, -1, -1, epos, [])
+			end else begin
 				let f =
 					try Common.find_file ctx.com p.pfile
 					with Not_found -> failwith ("File not found '" ^ p.pfile ^ "'")
@@ -170,7 +176,7 @@ module Communication = struct
 
 		let display_heading = sev_changed || prev_pos = null_pos || (pos_changed && p.pfile <> prev_pos.pfile) in
 		let display_source = sev_changed || pos_changed in
-		let display_pos_marker = p <> null_pos && (sev_changed  || pos_changed) in
+		let display_pos_marker = (not is_null_pos) && (sev_changed  || pos_changed) in
 
 		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find nl ectx.max_lines)) with Not_found -> 0) + 2 in
 
@@ -257,7 +263,7 @@ module Communication = struct
 			(if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str)
 		) !out (ExtString.String.nsplit str "\n");
 
-		ectx.previous <- Some (p, sev, nl);
+		ectx.previous <- Some ((if is_null_pos then null_pos else p), sev, nl);
 		ectx.gutter <- (IntMap.add nl gutter_len ectx.gutter);
 
 		(* Indent sub errors *)
