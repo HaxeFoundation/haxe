@@ -86,27 +86,206 @@ let parse_file cs com file p =
 open ServerCompilationContext
 
 module Communication = struct
+	type error_context = {
+		mutable last_positions : pos IntMap.t;
+		mutable max_lines : int IntMap.t;
+		mutable gutter : int IntMap.t;
+		mutable previous_pos : pos;
+		mutable previous_sev : MessageSeverity.t option;
+	}
 
-	let compiler_message_string (str,p,_,_,sev) =
-		let str = match sev with
-			| MessageSeverity.Warning -> "Warning : " ^ str
-			| Information | Error | Hint -> str
-		in
-		if p = null_pos then
-			str
-		else begin
-			let error_printer file line = Printf.sprintf "%s:%d:" file line in
-			let epos = Lexer.get_error_pos error_printer p in
-			let str =
-				let lines =
-					match (ExtString.String.nsplit str "\n") with
-					| first :: rest -> first :: List.map Error.compl_msg rest
-					| l -> l
+	let create_error_context () = {
+		last_positions = IntMap.empty;
+		max_lines = IntMap.empty;
+		gutter = IntMap.empty;
+		previous_pos = null_pos;
+		previous_sev = None;
+	}
+
+	let error_printer file line = Printf.sprintf "%s:%d:" file line
+	let apply_severity str sev = match sev with
+		| MessageSeverity.Warning -> "Warning : " ^ str
+		| Information | Error | Hint -> str
+
+	let compiler_verbose_message_string ctx ectx (str,p,nl,sev) =
+		ectx.last_positions <- (IntMap.add nl p ectx.last_positions);
+
+		(* Extract informations from position *)
+		let l1, p1, l2, p2, epos, lines =
+			if p.pmin = -1 then
+				(-1, -1, -1, -1, "(unknown position)", [])
+			else begin
+				let f =
+					try Common.find_file ctx.com p.pfile
+					with Not_found -> failwith ("File not found '" ^ p.pfile ^ "'")
+					in
+
+				let l1, p1, l2, p2 = Lexer.get_pos_coords p in
+				let ch = open_in f in
+				seek_in ch (p.pmin - p1 + 1);
+
+				let rec get_lines l lines =
+					let line = input_line ch in
+					if l < l2 then get_lines (l+1) ((l,line) :: lines)
+					else (l,line) :: lines
 				in
-				String.concat ("\n" ^ epos ^ " : ") lines
-			in
-			Printf.sprintf "%s : %s" epos str
-		end
+
+				let lines = List.rev (get_lines l1 []) in
+				close_in ch;
+
+				(l1, p1, l2, p2, (error_printer p.pfile l1), lines)
+			end in
+
+		(* If 4 lines or less, display all; if more, crop the middle *)
+		let lines = match lines with
+			| _ :: (_ :: (_ :: (_ :: []))) -> lines
+			| hd :: (_ :: (_ :: (_ :: l))) ->
+				let _,line = hd in
+				let indent = ref 0 in
+				let found = ref false in
+
+				while (not !found) && (!indent < (String.length line - 1)) do
+					found := not (Lexer.is_whitespace (String.unsafe_get line !indent));
+					indent := !indent + 1
+				done;
+
+				[hd; (0, (String.make (!indent+1) ' ') ^ "[...]"); List.hd (List.rev l)]
+			| _ -> lines
+		in
+
+		let parent_pos = if nl = 0 then null_pos else (try IntMap.find (nl-1) ectx.last_positions with Not_found -> null_pos) in
+		let same_pos = (parent_pos <> null_pos && p == parent_pos) || p == ectx.previous_pos in
+		let sev_changed = ectx.previous_sev = None || Some sev <> ectx.previous_sev in
+
+		let gutter_len =
+			if p = parent_pos then 0
+			else (String.length (Printf.sprintf "%d" (try IntMap.find nl ectx.max_lines with Not_found -> 0))) + 2 in
+		if gutter_len > 0 then ectx.gutter <- (IntMap.add nl gutter_len ectx.gutter);
+
+		let no_color = Define.defined ctx.com.defines Define.NoColor in
+		let c_reset = if no_color then "" else "\x1b[0m" in
+		let c_bold = if no_color then "" else "\x1b[1m" in
+		let c_dim = if no_color then "" else "\x1b[2m" in
+
+		let (c_sev, c_sev_bg) = if no_color then ("", "") else match sev with
+			| MessageSeverity.Warning -> ("\x1b[33m", "\x1b[30;43m")
+			| Information | Hint -> ("\x1b[34m", "\x1b[30;44m")
+			| Error -> ("\x1b[31m", "\x1b[30;41m")
+		in
+
+		let sev_label = if nl > 0 then " -> " else Printf.sprintf
+			(if no_color then "[%s]" else " %s ")
+			(match sev with
+				| MessageSeverity.Warning -> "WARNING"
+				| Information -> "INFO"
+				| Hint -> "HINT"
+				| Error -> "ERROR"
+			) in
+
+		let out = ref "" in
+
+		if sev_changed || (not same_pos && p.pfile <> ectx.previous_pos.pfile) then
+			out := Printf.sprintf "%s%s\n\n"
+				(* Severity heading *)
+				(c_sev_bg ^ sev_label ^ c_reset ^ " ")
+				(* File + line pointer *)
+				epos;
+
+		(* Error source *)
+		if sev_changed || not same_pos then
+			out := List.fold_left (fun out (l, line) ->
+				let nb_len = String.length (string_of_int l) in
+
+				(* Replace tabs with 1 space to avoid column misalignments *)
+				let line = String.concat " " (ExtString.String.nsplit line "\t") in
+				let len = String.length line in
+
+				out ^ Printf.sprintf "%s%s | %s\n"
+					(* left-padded line number *)
+					(String.make (gutter_len-nb_len-1) ' ')
+					(if l = 0 then "-" else Printf.sprintf "%d" l)
+					(* Source code at that line *)
+					(
+						if l = 0 then
+							c_dim ^ line ^ c_reset
+						else if l1 = l2 then
+							(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
+							^ c_reset ^ c_bold ^ (String.sub line (p1-1) (p2-p1))
+							^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len - p2 + 1))
+							^ c_reset
+						else begin
+							(if (l = l1) then
+								(if p1 > 1 then c_dim ^ (String.sub line 0 (p1-1)) else "")
+								^ c_reset ^ c_bold ^ (String.sub line (p1-1) (len-p1+1))
+								^ c_reset
+							else if (l = l2) then
+								(if p2 > 1 then c_bold ^ (String.sub line 0 (p2-1)) else "")
+								^ c_reset ^ c_dim ^ (String.sub line (p2-1) (len-p2+1))
+								^ c_reset
+							else c_bold ^ line ^ c_reset)
+						end
+					)
+			) !out lines;
+
+		(* Error position marker *)
+		if p <> null_pos && (sev_changed  || not same_pos) then
+			out := Printf.sprintf "%s%s|%s%s%s%s\n"
+				!out
+				(String.make gutter_len ' ')
+				(String.make p1 ' ')
+				c_sev
+				(if l1 = l2 then String.make (p2-p1) '^' else "")
+				c_reset;
+
+		(* Error message *)
+		out := List.fold_left (fun out str -> Printf.sprintf "%s%s| %s\n"
+			out
+			(String.make gutter_len ' ')
+			(* Remove "... " prefix *)
+			(if (String.starts_with ~prefix:"... " str) then String.sub str 4 ((String.length str) - 4) else str)
+		) !out (ExtString.String.nsplit str "\n");
+
+		(* Indent sub errors *)
+		let rec indent acc nl =
+			if nl = 0 then acc
+			else indent (try IntMap.find (nl-1) ectx.gutter with Not_found -> 3) (nl-1)
+		in
+
+		(* Update last position / severity *)
+		ectx.previous_pos <- p;
+		ectx.previous_sev <- Some sev;
+
+		if nl > 0 then String.concat "\n" (List.map (fun str -> (String.make (indent 0 nl) ' ') ^ str) (ExtString.String.nsplit !out "\n"))
+		else !out
+
+	let compiler_message_string ctx ectx (str,p,nl,_,sev) =
+		if Define.defined ctx.com.defines Define.VerboseErrors then
+			compiler_verbose_message_string ctx ectx (str,p,nl,sev)
+		else
+			let str = apply_severity str sev in
+			if p = null_pos then
+				str
+			else begin
+				let epos = Lexer.get_error_pos error_printer p in
+				let str =
+					let lines =
+						match (ExtString.String.nsplit str "\n") with
+						| first :: rest -> first :: List.map Error.compl_msg rest
+						| l -> l
+					in
+					String.concat ("\n" ^ epos ^ " : ") lines
+				in
+				Printf.sprintf "%s : %s" epos str
+			end
+
+	let get_max_line max_lines messages =
+		List.fold_left (fun max_lines (str,p,nl,_,_) ->
+			let _,_,l2,_ = Lexer.get_pos_coords p in
+			let old = try IntMap.find nl max_lines with Not_found -> 0 in
+
+			if l2 > old then IntMap.add nl l2 max_lines
+			else max_lines
+		) max_lines messages
 
 	let create_stdio () =
 		let rec self = {
@@ -118,9 +297,19 @@ module Communication = struct
 				prerr_string s;
 			);
 			flush = (fun ctx ->
-				List.iter (fun ((_,_,_,_,sev) as cm) -> match sev with
-					| MessageSeverity.Information -> print_endline (compiler_message_string cm)
-					| Warning | Error | Hint -> prerr_endline (compiler_message_string cm)
+				let ectx = create_error_context () in
+				ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
+
+				let is_filtered = function
+					| _ when not (Define.defined ctx.com.defines Define.VerboseErrors) -> false
+					| "End of overload failure reasons" -> true
+					| _ -> false
+				in
+
+				List.iter (fun ((str,_,_,_,sev) as cm) -> if not (is_filtered str) then
+					match sev with
+						| MessageSeverity.Information -> print_endline (compiler_message_string ctx ectx cm)
+						| Warning | Error | Hint -> prerr_endline (compiler_message_string ctx ectx cm)
 				) (List.rev ctx.messages);
 				if has_error ctx && !Helper.prompt then begin
 					print_endline "Press enter to exit...";
@@ -148,9 +337,12 @@ module Communication = struct
 		);
 		flush = (fun ctx ->
 			check_display_flush ctx (fun () ->
+				let ectx = create_error_context () in
+				ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
+
 				List.iter
 					(fun msg ->
-						let s = compiler_message_string msg in
+						let s = compiler_message_string ctx ectx msg in
 						write (s ^ "\n");
 						ServerMessage.message s;
 					)

@@ -718,5 +718,15 @@
 		"name": "NoTre",
 		"define": "no-tre",
 		"doc": "Disable tail recursion elimination."
+	},
+	{
+		"name": "VerboseErrors",
+		"define": "verbose-errors",
+		"doc": "Enable rich output for errors and warnings."
+	},
+	{
+		"name": "NoColor",
+		"define": "no-color",
+		"doc": "Disable ANSI color codes when using rich output."
 	}
 ]
