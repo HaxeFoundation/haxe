@@ -27,6 +27,7 @@ import python.lib.os.Path;
 
 @:coreApi
 class FileSystem {
+	@:pure(true)
 	public static function exists(path:String):Bool {
 		return Path.exists(path);
 	}
@@ -52,10 +53,12 @@ class FileSystem {
 		Os.rename(path, newPath);
 	}
 
+	@:pure(true)
 	public static function fullPath(relPath:String):String {
 		return Path.realpath(relPath);
 	}
 
+	@:pure(true)
 	public static function absolutePath(relPath:String):String {
 		if (haxe.io.Path.isAbsolute(relPath))
 			return relPath;

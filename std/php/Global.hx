@@ -783,6 +783,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.realpath.php
 	**/
+	@:pure(true)
 	static function realpath(path:String):EitherType<String, Bool>;
 
 	/**

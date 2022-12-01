@@ -131,6 +131,9 @@ let rec keep_field dce cf c is_static =
 		| Var { v_read = AccCall } -> check_accessor "get_"
 		| Var { v_write = AccCall } -> check_accessor "set_"
 		| _ -> false
+	|| match cf.cf_expr with
+		| Some ({ eexpr = TCall ({ eexpr = TField(ef, fa) }, args) }) -> not (PurityState.is_pure_field_access fa)
+		| _ -> false
 	end
 
 (* marking *)

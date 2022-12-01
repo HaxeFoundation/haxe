@@ -33,6 +33,7 @@ private enum FileKind {
 
 @:coreApi
 class FileSystem {
+	@:pure(true)
 	public static inline function exists(path:String):Bool {
 		Global.clearstatcache(true, path);
 		return Global.file_exists(path);
@@ -64,10 +65,12 @@ class FileSystem {
 		};
 	}
 
+	@:pure(true)
 	public static inline function fullPath(relPath:String):String {
 		return Syntax.shortTernary(Global.realpath(relPath), null);
 	}
 
+	@:pure(true)
 	public static function absolutePath(relPath:String):String {
 		if (Path.isAbsolute(relPath))
 			return relPath;
