@@ -87,7 +87,7 @@ let rec eval ctx (e,p) =
 		in
 		(match op with
 		| OpEq -> compare (=)
-		| OpNotEq -> compare (<>)
+		| OpNotEq -> TBool (not (is_true (compare (=))))
 		| OpGt -> compare (>)
 		| OpGte -> compare (>=)
 		| OpLt -> compare (<)
