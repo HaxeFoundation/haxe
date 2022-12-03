@@ -2027,6 +2027,30 @@ let macro_api ccom get_api =
 		"get_display_mode", vfun0 (fun() ->
 			encode_display_mode !Parser.display_mode
 		);
+		"get_version", vfun0 (fun() ->
+			vint (ccom()).version
+		);
+		"get_args", vfun0 (fun() ->
+			encode_array (List.map encode_string (ccom()).args)
+		);
+		"get_main_class_path", vfun0 (fun() ->
+			match (ccom()).main_class with None -> vnull | Some path -> (
+				let (pack, name) = path in
+				encode_obj [
+					"pack", encode_array (List.map encode_string pack);
+					"name", encode_string name
+				]
+			)
+		);
+		"get_main_expr", vfun0 (fun() ->
+			match (ccom()).main with None -> vnull | Some e -> encode_texpr e
+		);
+		"get_module_types", vfun0 (fun() ->
+			encode_array (List.map encode_module_type (ccom()).types)
+		);
+		"get_types", vfun0 (fun() ->
+			encode_array (List.map (fun t -> encode_type (type_of_module_type t)) (ccom()).types)
+		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
 			let tpl = List.map (fun v ->

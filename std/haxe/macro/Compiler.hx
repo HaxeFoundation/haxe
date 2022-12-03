@@ -164,6 +164,45 @@ class Compiler {
 	}
 
 	/**
+		Returns the version integer of the current Haxe compiler build.
+
+		Usage of this function outside a macro context returns `0`.
+	**/
+	public static function getVersionInt():Int {
+		#if (neko || eval)
+		return load("get_version", 0)();
+		#else
+		return 0;
+		#end
+	}
+
+	/**
+		Returns an array of the arguments passed to the compiler from either the `.hxml` file or the command line.
+
+		Usage of this function outside a macro context returns an empty array.
+	**/
+	public static function getArguments():Array<String> {
+		#if (neko || eval)
+		return load("get_args", 0)();
+		#else
+		return [];
+		#end
+	}
+
+	/**
+		Returns the path of the class passed using the `-main` argument.
+
+		Usage of this function outside a macro context returns `null`.
+	**/
+	public static function getMainClassPath():Null<TypePath> {
+		#if (neko || eval)
+		return load("get_main_class_path", 0)();
+		#else
+		return null;
+		#end
+	}
+
+	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 
 		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
