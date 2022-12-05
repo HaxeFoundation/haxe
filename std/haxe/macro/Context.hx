@@ -333,18 +333,6 @@ class Context {
 	}
 
 	/**
-		Returns an array of types to be generated in the output.
-		
-		This list may change depending on the phase of compilation and
-		should not be treated as conclusive until the generation phase.
-
-		Modifying the returned array has no effect on the compilation.
-	**/
-	public static function getAllTypes():Array<Type> {
-		return load("get_types", 0)();
-	}
-
-	/**
 		Parses `expr` as Haxe code, returning the corresponding AST.
 
 		String interpolation of single quote strings within `expr` is not
