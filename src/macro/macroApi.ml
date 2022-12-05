@@ -418,21 +418,7 @@ and encode_display_mode dm =
 
 (** encoded to haxe.display.Display.Platform, an enum abstract of String *)
 and encode_platform p =
-	let s = match p with
-		| Cross -> "cross"
-		| Js -> "js"
-		| Lua -> "lua"
-		| Neko -> "neko"
-		| Flash -> "flash"
-		| Php -> "php"
-		| Cpp -> "cpp"
-		| Cs -> "cs"
-		| Java -> "java"
-		| Python -> "python"
-		| Hl -> "hl"
-		| Eval -> "eval"
-	in
-	encode_string s
+	encode_string (platform_name p)
 
 and encode_platform_config pc =
 	encode_obj [
