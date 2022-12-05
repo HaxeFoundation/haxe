@@ -2,6 +2,14 @@ package haxe.macro;
 
 import haxe.macro.Expr;
 
+/**
+	Represents the internal structure generated with options assigned based on
+	the target platform.
+
+	Warning: `PlatformConfig` and the typedefs unique to its fields correspond to
+	compiler-internal data structures and might change in minor Haxe releases in
+	order to adapt to internal changes.
+**/
 typedef PlatformConfig = {
 	/**
 		Has a static type system, with not-nullable basic types (Int/Float/Bool)
