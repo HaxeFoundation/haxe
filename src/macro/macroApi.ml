@@ -276,12 +276,14 @@ let encode_import (path,mode) =
 let encode_placed_name (s,p) =
 	encode_string s
 
+(* Globals.path *)
 let encode_path (p,n) =
 	encode_obj [
 		"pack", encode_array (List.map encode_string p);
 		"name", encode_string n;
 	]
 
+(* Ast.placed_type_path *)
 let rec encode_ast_path (t,p) =
 	let fields = [
 		"pack", encode_array (List.map encode_string t.tpackage);
@@ -733,7 +735,8 @@ let decode_placed_name vp v =
 let decode_opt_array f v =
 	if v = vnull then [] else List.map f (decode_array v)
 
-let rec decode_path t =
+(* Ast.placed_type_path *)
+let rec decode_ast_path t =
 	let p = field t "pos" in
 	let pack = List.map decode_string (decode_array (field t "pack"))
 	and name = decode_string (field t "name")
@@ -831,7 +834,7 @@ and decode_ctype t =
 	let (i,args),p = decode_enum_with_pos t in
 	(match i,args with
 	| 0, [p] ->
-		CTPath (fst (decode_path p))
+		CTPath (fst (decode_ast_path p))
 	| 1, [a;r] ->
 		CTFunction (List.map decode_ctype (decode_array a), decode_ctype r)
 	| 2, [fl] ->
@@ -839,7 +842,7 @@ and decode_ctype t =
 	| 3, [t] ->
 		CTParent (decode_ctype t)
 	| 4, [tl;fl] ->
-		CTExtend (List.map decode_path (decode_array tl), List.map decode_field (decode_array fl))
+		CTExtend (List.map decode_ast_path (decode_array tl), List.map decode_field (decode_array fl))
 	| 5, [t] ->
 		CTOptional (decode_ctype t)
 	| 6, [n;t] ->
@@ -903,7 +906,7 @@ and decode_expr v =
 		| 7, [e;el] ->
 			ECall (loop e,List.map loop (decode_array el))
 		| 8, [t;el] ->
-			ENew (decode_path t,List.map loop (decode_array el))
+			ENew (decode_ast_path t,List.map loop (decode_array el))
 		| 9, [op;f;e] ->
 			EUnop (decode_unop op,(if decode_bool f then Postfix else Prefix),loop e)
 		| 10, [vl] ->
@@ -1615,8 +1618,8 @@ let decode_type_def v =
 		let is_interface = decode_opt_bool interf in
 		let is_final = decode_opt_bool final in
 		let is_abstract = decode_opt_bool abstract in
-		let interfaces = (match opt (fun v -> List.map decode_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
-		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
+		let interfaces = (match opt (fun v -> List.map decode_ast_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
+		let flags = (match opt decode_ast_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = if is_interface then begin
 				let flags = HInterface :: flags in
 				List.map (fun t -> HExtends t) interfaces @ flags
@@ -2052,7 +2055,7 @@ let macro_api ccom get_api =
 			encode_type t
 		);
 		"define_module", vfun4 (fun path vl ui ul ->
-			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map fst (List.map decode_path (decode_array ul)));
+			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map fst (List.map decode_ast_path (decode_array ul)));
 			vnull
 		);
 		"add_class_path", vfun1 (fun cp ->
