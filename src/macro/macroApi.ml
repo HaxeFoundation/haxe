@@ -449,10 +449,10 @@ and encode_capture_policy cp =
 	in
 	encode_enum ~pos:None ICapturePolicy tag []
 
-and encode_var_scoping_config ec =
+and encode_var_scoping_config vsc =
 	encode_obj [
-		"scope", encode_var_scope ec.vs_scope;
-		"flags", encode_array (List.map encode_var_scoping_flags ec.vs_flags);
+		"scope", encode_var_scope vsc.vs_scope;
+		"flags", encode_array (List.map encode_var_scoping_flags vsc.vs_flags);
 	]
 
 and encode_var_scope vs =
@@ -475,13 +475,13 @@ and encode_var_scoping_flags vsf =
 	in
 	encode_enum ~pos:None IVarScopingFlags tag pl
 
-and encode_exceptions_config vsc =
+and encode_exceptions_config ec =
 	encode_obj [
-		"nativeThrows", encode_array (List.map encode_path vsc.ec_native_throws);
-		"nativeCatches", encode_array (List.map encode_path vsc.ec_native_catches);
-		"avoidWrapping", vbool vsc.ec_avoid_wrapping;
-		"wildcardCatch", encode_path vsc.ec_wildcard_catch;
-		"baseThrow", encode_path vsc.ec_base_throw;
+		"nativeThrows", encode_array (List.map encode_path ec.ec_native_throws);
+		"nativeCatches", encode_array (List.map encode_path ec.ec_native_catches);
+		"avoidWrapping", vbool ec.ec_avoid_wrapping;
+		"wildcardCatch", encode_path ec.ec_wildcard_catch;
+		"baseThrow", encode_path ec.ec_base_throw;
 		(* skipping "specialThrow" since cannot use "decode_texpr" here *)
 	]
 
