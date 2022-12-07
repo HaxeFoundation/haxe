@@ -333,6 +333,16 @@ module Communication = struct
 			Some (Printf.sprintf "%s : %s" epos str)
 		end
 
+	let compiler_diagnostics_message_string ctx ectx ((str,_,nl,_,_) as msg) =
+		(* TODO: merge with filter from pretty errors? *)
+		match str with
+		(* Filter some messages that don't add much when using this message renderer *)
+		| "End of overload failure reasons" -> None
+		| _ ->
+			match (compiler_message_string ctx ectx msg) with
+			| None -> None
+			| Some s -> Some (if nl > 0 then String.concat "\n" (List.map (fun str -> (String.make (nl*2) ' ') ^ str) (ExtString.String.nsplit s "\n")) else s)
+
 	let get_max_line max_lines messages =
 		List.fold_left (fun max_lines (str,p,nl,_,_) ->
 			let _,_,l2,_ = Lexer.get_pos_coords p in
@@ -349,7 +359,7 @@ module Communication = struct
 		let format_mode = Define.defined_value_safe ~default:"classic" ctx.com.defines Define.MessageReporting in
 		let format_message ctx ectx msg = match format_mode with
 			| "pretty" -> compiler_pretty_message_string ctx ectx msg
-			| "diagnostics" -> raise (failwith "TODO")
+			| "diagnostics" -> compiler_diagnostics_message_string ctx ectx msg
 			| "classic" -> compiler_message_string ctx ectx msg
 			| _ -> raise (failwith "TODO: error message for bad message reporting mode")
 		in
@@ -364,9 +374,7 @@ module Communication = struct
 			let format_log_message ctx ectx msg = match format_mode with
 				| "pretty" -> compiler_pretty_message_string ctx ectx msg
 				| "classic" -> compiler_message_string ctx ectx msg
-				| "diagnostics" ->
-					(* TODO: switch to diagnostics mode when implemented *)
-					compiler_message_string ctx ectx msg
+				| "diagnostics" -> compiler_diagnostics_message_string ctx ectx msg
 				| _ -> raise (failwith "TODO: error message for bad message reporting mode")
 			in
 
