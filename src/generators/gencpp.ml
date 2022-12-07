@@ -2314,6 +2314,8 @@ let cpp_can_static_cast funcType inferredType =
    | TCppReference(_) | TCppStar(_) | TCppStruct(_) -> false
    | _ ->
       (match inferredType with
+      | TCppInst (cls, _) when is_extern_class cls -> false
+      | TCppEnum e when is_extern_enum e -> false
       | TCppInst _
       | TCppClass
       | TCppEnum _
