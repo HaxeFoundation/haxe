@@ -106,6 +106,50 @@ module Communication = struct
 		| MessageSeverity.Warning -> "Warning : " ^ str
 		| Information | Error | Hint -> str
 
+	let resolve_source file l1 p1 l2 p2 =
+		let ch = open_in_bin file in
+		let curline = ref 1 in
+		let lines = ref [] in
+		let rec loop p line =
+			let inc i line () =
+				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
+				curline := !curline + 1;
+				(i, "")
+			in
+
+			try
+				let i line = match input_char ch with
+					| '\n' -> inc 1 line
+					| '\r' ->
+						ignore(input_char ch);
+						inc 2 line
+					| c -> (fun () ->
+						let line = ref (line ^ (String.make 1 c)) in
+						let rec skip n =
+							if n > 0 then begin
+								let c = input_char ch in
+								line := !line ^ (String.make 1 c);
+								skip (n - 1)
+							end
+						in
+						let code = int_of_char c in
+						if code < 0xC0 then ()
+						else if code < 0xE0 then skip 1
+						else if code < 0xF0 then skip 2
+						else skip 3;
+						(1, !line)
+					)
+				in
+				let (i, line) = (i line)() in
+				loop (p + i) line
+
+			with End_of_file ->
+				close_in ch;
+		in
+
+		loop 0 "";
+		List.rev !lines
+
 	let compiler_pretty_message_string ctx ectx (str,p,nl,_,sev) =
 		match str with
 		(* Filter some messages that don't add much when using this message renderer *)
@@ -130,18 +174,7 @@ module Communication = struct
 						in
 
 					let l1, p1, l2, p2 = Lexer.get_pos_coords p in
-					let ch = open_in f in
-					seek_in ch (p.pmin - p1 + 1);
-
-					let rec get_lines l lines =
-						let line = input_line ch in
-						if l < l2 then get_lines (l+1) ((l,line) :: lines)
-						else (l,line) :: lines
-					in
-
-					let lines = List.rev (get_lines l1 []) in
-					close_in ch;
-
+					let lines = resolve_source f l1 p1 l2 p2 in
 					let epos = Lexer.get_error_pos error_printer p in
 					(l1, p1, l2, p2, epos, lines)
 				end in
