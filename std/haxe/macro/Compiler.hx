@@ -164,6 +164,19 @@ class Compiler {
 	}
 
 	/**
+		Returns all the configuration settings applied to the compiler.
+
+		Usage of this function outside a macro context returns `null`.
+	**/
+	public static function getConfiguration():Null<CompilerConfiguration> {
+		#if (neko || eval)
+		return load("get_configuration", 0)();
+		#else
+		return null;
+		#end
+	}
+
+	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 
 		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
@@ -660,4 +673,64 @@ typedef DefineDescription = {
 		Haxe target(s) for which this define is used.
 	**/
 	@:optional final platforms:Array<Platform>;
+}
+
+typedef CompilerConfiguration = {
+	/**
+		The version integer of the current Haxe compiler build.
+	**/
+	final version:Int;
+
+	/**
+		Returns an array of the arguments passed to the compiler from either the `.hxml` file or the command line.
+	**/
+	final args:Array<String>;
+
+	/**
+		If `--debug` mode is enabled, this is `true`.
+	**/
+	final debug:Bool;
+
+	/**
+		If `--verbose` mode is enabled, this is `true`.
+	**/
+	final verbose:Bool;
+
+	/**
+		If `--no-opt` is enabled, this is `false`.
+	**/
+	final foptimize:Bool;
+
+	/**
+		The target platform.
+	**/
+	final platform:haxe.display.Display.Platform;
+
+	/**
+		The compilation configuration for the target platform. 
+	**/
+	final platformConfig:PlatformConfig;
+
+	/**
+		A list of paths being used for the standard library.
+	**/
+	final stdPath:Array<String>;
+
+	/**
+		The path of the class passed using the `-main` argument.
+	**/
+	final mainClass:TypePath;
+
+	/**
+		Special access rules for packages depending on the compiler configuration.
+
+		For example, the "java" package is "Forbidden" when the target platform is Python.
+	**/
+	final packageRules:Map<String,PackageRule>;
+}
+
+enum PackageRule {
+	Forbidden;
+	Directory(path:String);
+	Remap(path:String);
 }

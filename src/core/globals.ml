@@ -50,6 +50,7 @@ let platforms = [
 	Eval;
 ]
 
+(** Expected to match `haxe.display.Display.Platform`. *)
 let platform_name = function
 	| Cross -> "cross"
 	| Js -> "js"
