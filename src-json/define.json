@@ -720,13 +720,25 @@
 		"doc": "Disable tail recursion elimination."
 	},
 	{
-		"name": "PrettyErrors",
-		"define": "pretty-errors",
-		"doc": "Enable pretty-printing for errors and warnings."
+		"name": "MessageReporting",
+		"define": "message-reporting",
+		"doc": "Select message reporting mode for compiler output.",
+		"params": ["mode: classic | pretty | diagnostics"]
 	},
 	{
 		"name": "NoColor",
 		"define": "no-color",
 		"doc": "Disable ANSI color codes when using rich output."
+	},
+	{
+		"name": "MessagesLogFile",
+		"define": "messages-log-file",
+		"doc": "Path to a text file to write messages log to."
+	},
+	{
+		"name": "MessagesLogFormat",
+		"define": "messages-log-format",
+		"doc": "Select message reporting mode for messages log output.",
+		"params": ["format: classic | pretty | diagnostics"]
 	}
 ]
