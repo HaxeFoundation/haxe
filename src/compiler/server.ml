@@ -327,7 +327,7 @@ let check_module sctx ctx m p =
 		let check_dependencies () =
 			PMap.iter (fun _ m2 -> match check m2 with
 				| None -> ()
-				| Some _ -> raise (Dirty (DependencyDirty m2.m_path))
+				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
 			) m.m_extra.m_deps;
 		in
 		let check () =

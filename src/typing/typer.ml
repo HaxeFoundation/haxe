@@ -312,23 +312,28 @@ let rec type_ident_raise ctx i p mode with_type =
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		if mode = MGet then begin
-			let tnull () = ctx.t.tnull (spawn_monomorph ctx p) in
-			let t = match with_type with
-				| WithType.WithType(t,_) ->
-					begin match follow t with
-					| TMono r ->
-						(* If our expected type is a monomorph, bind it to Null<?>. *)
-						Monomorph.do_bind r (tnull())
+			(* Hack for #10787 *)
+			if ctx.com.platform = Cs then
+				AKExpr (null (spawn_monomorph ctx p) p)
+			else begin
+				let tnull () = ctx.t.tnull (spawn_monomorph ctx p) in
+				let t = match with_type with
+					| WithType.WithType(t,_) ->
+						begin match follow t with
+						| TMono r ->
+							(* If our expected type is a monomorph, bind it to Null<?>. *)
+							Monomorph.do_bind r (tnull())
+						| _ ->
+							(* Otherwise there's no need to create a monomorph, we can just type the null literal
+							the way we expect it. *)
+							()
+						end;
+						t
 					| _ ->
-						(* Otherwise there's no need to create a monomorph, we can just type the null literal
-						   the way we expect it. *)
-						()
-					end;
-					t
-				| _ ->
-					tnull()
-			in
-			AKExpr (null t p)
+						tnull()
+				in
+				AKExpr (null t p)
+			end
 		end else
 			AKNo i
 	| _ ->
@@ -1460,7 +1465,7 @@ and type_array_decl ctx el with_type p =
 and type_array_comprehension ctx e with_type p =
 	let v = gen_local ctx (spawn_monomorph ctx p) p in
 	let ev = mk (TLocal v) v.v_type p in
-	let e_ref = store_typed_expr ctx.com ev p in
+	let e_ref = snd (store_typed_expr ctx.com ev p) in
 	let et = ref (EConst(Ident "null"),p) in
 	let comprehension_pos = p in
 	let rec map_compr (e,p) =
@@ -1616,16 +1621,6 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 				| _ -> e)
 		| (Meta.Markup,_,_) ->
 			typing_error "Markup literals must be processed by a macro" p
-		| (Meta.This,_,_) ->
-			let e = match ctx.this_stack with
-				| [] -> typing_error "Cannot type @:this this here" p
-				| e :: _ -> e
-			in
-			let rec loop e = match e.eexpr with
-				| TConst TThis -> get_this ctx e.epos
-				| _ -> Type.map_expr loop e
-			in
-			loop e
 		| (Meta.Analyzer,_,_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
@@ -1852,7 +1847,17 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
-		let iftype = WithType.WithType(e2.etype,None) in
+
+		let follow_null_once t =
+			match t with
+			| TAbstract({a_path = [],"Null"},[t]) -> t
+			| _ -> t
+		in
+		let iftype = if DeadEnd.has_dead_end e2 then
+			WithType.with_type (follow_null_once e1.etype)
+		else
+			WithType.WithType(e2.etype,None)
+		in
 		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
 		vr#to_texpr e_if
 	| EBinop (OpAssignOp OpNullCoal,e1,e2) ->
@@ -2056,7 +2061,6 @@ let rec create com =
 		is_display_file = false;
 		bypass_accessor = 0;
 		meta = [];
-		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;

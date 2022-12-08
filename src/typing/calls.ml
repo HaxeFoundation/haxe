@@ -299,7 +299,7 @@ let rec build_call_access ctx acc el mode with_type p =
 		| _ ->
 			e
 		in
-		AKExpr (dispatch#field_call sea.se_access [eparam] el)
+		AKExpr e
 	| AKResolve(sea,name) ->
 		AKExpr (dispatch#expr_call (dispatch#resolve_call sea name) [] el)
 	| AKNo _ | AKAccess _ ->

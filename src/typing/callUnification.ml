@@ -585,10 +585,9 @@ object(self)
 			| [] ->
 				self#macro_call fa.fa_on fa.fa_field el
 			| el_typed ->
-				let cur = ctx.this_stack in
-				let el' = List.map (fun e -> fst (push_this ctx e)) el_typed in
+				let el',fl = List.split (List.map (fun e -> push_this ctx e) el_typed) in
 				let e = self#macro_call fa.fa_on fa.fa_field (el' @ el) in
-				ctx.this_stack <- cur;
+				List.iter (fun f -> f()) fl;
 				e
 			end;
 		| Var v ->

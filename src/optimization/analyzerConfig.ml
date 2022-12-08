@@ -35,7 +35,7 @@ type t = {
 	fusion : bool;
 	purity_inference : bool;
 	debug_kind : debug_kind;
-	detail_times : bool;
+	detail_times : int;
 	user_var_fusion : bool;
 	fusion_debug : bool;
 }
@@ -71,7 +71,7 @@ let get_base_config com =
 		fusion = not (Common.raw_defined com "analyzer_no_fusion");
 		purity_inference = not (Common.raw_defined com "analyzer_no_purity_inference");
 		debug_kind = DebugNone;
-		detail_times = Common.raw_defined com "analyzer_times";
+		detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.AnalyzerTimes) with _ -> 0);
 		user_var_fusion = (match com.platform with Flash | Java -> false | _ -> true) && (Common.raw_defined com "analyzer_user_var_fusion" || (not com.debug && not (Common.raw_defined com "analyzer_no_user_var_fusion")));
 		fusion_debug = false;
 	}

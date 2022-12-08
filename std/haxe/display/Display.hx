@@ -294,6 +294,7 @@ typedef Metadata = {
 	var parameters:Array<String>;
 	var platforms:Array<Platform>;
 	var targets:Array<MetadataTarget>;
+	var origin:String;
 	var internal:Bool;
 	var ?links:Array<String>;
 }

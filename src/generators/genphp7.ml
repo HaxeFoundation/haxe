@@ -1141,13 +1141,13 @@ let type_name_used_in_namespace ctx type_path as_name namespace =
 				List.iter
 					(fun ctx_type ->
 						let wrapper = get_wrapper ctx_type in
-						Hashtbl.add ctx.pgc_namespaces_types_cache wrapper#get_namespace wrapper#get_name
+						Hashtbl.add ctx.pgc_namespaces_types_cache wrapper#get_namespace (StringHelper.uppercase wrapper#get_name)
 					)
 					ctx.pgc_common.types;
 				Hashtbl.find_all ctx.pgc_namespaces_types_cache namespace
 			| types -> types
 	in
-	List.mem as_name types
+	List.mem (StringHelper.uppercase as_name) types
 	&& (namespace, as_name) <> type_path
 
 (**
@@ -3639,17 +3639,23 @@ class class_builder ctx (cls:tclass) =
 			(* Generate `__toString()` if not defined by user, but has `toString()` *)
 			self#write_toString_if_required
 		method private write_toString_if_required =
-			if PMap.exists "toString" cls.cl_fields then
+			try 
+				let toString = PMap.find "toString" cls.cl_fields in
 				if (not (has_class_flag cls CInterface)) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
 					begin
 						writer#write_empty_lines;
 						writer#indent 1;
 						writer#write_line "public function __toString() {";
 						writer#indent_more;
-						writer#write_line "return $this->toString();";
+						let callee_str = match toString.cf_kind with
+							| Var _ -> "($this->toString)"
+							| Method _ -> "$this->toString"
+						in
+						writer#write_line ("return " ^ callee_str ^ "();");
 						writer#indent_less;
 						writer#write_line "}"
 					end
+			with Not_found -> ()
 		(**
 			Check if this class requires constructor to be generated even if there is no user-defined one
 		*)
@@ -3822,27 +3828,36 @@ class class_builder ctx (cls:tclass) =
 			let (args, return_type) = get_function_signature field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
 			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc))) field.cf_meta;
-			writer#write_with_indentation ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
+			let visibility_kwd = get_visibility field.cf_meta in
+			writer#write_with_indentation (visibility_kwd ^ " function " ^ (field_name field));
 			(match field.cf_expr with
 				| None -> (* interface *)
 					writer#write " (";
 					write_args writer#write (writer#write_arg true) (fix_tsignature_args args);
 					writer#write ");\n";
 				| Some { eexpr = TFunction fn } -> (* normal class *)
-					writer#write " (";
-					write_args writer#write writer#write_function_arg (fix_tfunc_args fn.tf_args);
-					writer#write ")\n";
+					let write_args() =
+						writer#write " (";
+						write_args writer#write writer#write_function_arg (fix_tfunc_args fn.tf_args);
+						writer#write ")\n"
+					in
+					write_args();
 					writer#write_line "{";
 					writer#indent_more;
 					writer#write_indentation;
-					let field_access = "$this->" ^ (field_name field)
-					and default_value = "$this->__hx__default__" ^ (field_name field) in
-					writer#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return call_user_func_array(" ^ field_access ^ ", func_get_args());\n");
-					writer#write_fake_block fn.tf_expr;
+					let field_access = "$this->" ^ (field_name field) in
+					writer#write ("return call_user_func_array(" ^ field_access ^ ", func_get_args());\n");
 					writer#indent_less;
 					writer#write_line "}";
 					(* Don't forget to create a field for default value *)
-					writer#write_statement ("protected $__hx__default__" ^ (field_name field))
+					writer#write_indentation;
+					writer#write (visibility_kwd ^ " function __hx__default__" ^ (field_name field));
+					write_args();
+					writer#write_line "{";
+					writer#indent_more;
+					writer#write_fake_block fn.tf_expr;
+					writer#indent_less;
+					writer#write_line "}"
 				| _ -> fail field.cf_pos __LOC__
 			);
 		(**
@@ -3859,14 +3874,9 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_instance_initialization =
 			let init_dynamic_method field =
-				let field_name = field_name field in
-				let default_field = "$this->__hx__default__" ^ field_name in
-				writer#write_line ("if (!" ^ default_field ^ ") {");
-				writer#indent_more;
-				writer#write_statement (default_field ^ " = new " ^ (writer#use hxclosure_type_path) ^ "($this, '" ^ field_name ^ "')");
-				writer#write_statement ("if ($this->" ^ field_name ^ " === null) $this->" ^ field_name ^ " = " ^ default_field);
-				writer#indent_less;
-				writer#write_line "}"
+				let field_name = field_name field 
+				and hx_closure = writer#use hxclosure_type_path in
+				writer#write_statement ("if ($this->" ^ field_name ^ " === null) $this->" ^ field_name ^ " = new " ^ hx_closure ^ "($this, '__hx__default__" ^ field_name ^ "')");
 			in
 			List.iter
 				(fun field ->

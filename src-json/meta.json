@@ -1309,5 +1309,11 @@
 		"metadata": ":wrappedException",
 		"doc": "Internally used for exceptions wrapping in `throw` expressions.",
 		"internal": true
+	},
+	{
+		"name": "NativeArrayAccess",
+		"metadata": ":nativeArrayAccess",
+		"doc": "When used on an extern class which implements haxe.ArrayAccess native array access syntax will be generated",
+		"platforms": ["cpp"]
 	}
 ]

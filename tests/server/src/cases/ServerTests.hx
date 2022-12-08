@@ -36,7 +36,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		assertSkipping("WithDependency", DependencyDirty("Dependency"));
+		assertSkipping("WithDependency", DependencyDirty("Dependency - Tainted server/invalidate"));
 		// assertNotCacheModified("Dependency");
 		runHaxe(args);
 		assertReuse("Dependency");
@@ -79,14 +79,15 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxe(args);
 		/* This often fails on our CI because the reported stdout is empty. I don't know why this is the case,
-		   but it's probably some obscure timing issue related to pipes which has nothing to do with that we
-		   actually want to test here. */
+			but it's probably some obscure timing issue related to pipes which has nothing to do with that we
+			actually want to test here. */
 		// trace(lastResult);
 		// assertReuse("BuiltClass");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
 		// assertNotCacheModified("BuildMacro");
-		assertSkipping("BuiltClass", DependencyDirty("BuildMacro"));
+		trace(lastResult);
+		assertSkipping("BuiltClass", DependencyDirty("BuildMacro - Tainted server/invalidate"));
 		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}
 
@@ -148,9 +149,9 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
-	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-	 	runHaxe(args);
-	 	assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+		runHaxe(args);
+		assertSkipping("HelloWorld", Tainted("server/invalidate"));
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
 		runHaxe(args);
 		assertReuse("HelloWorld");
@@ -170,7 +171,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
-	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
 		assertReuse("HelloWorld");

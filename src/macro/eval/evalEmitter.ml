@@ -92,11 +92,18 @@ let emit_const v _ = v
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
-let emit_new_vector_int i env =
-	encode_vector_instance (Array.make i vnull)
+let emit_new_vector_int i p env =
+	if i < 0 then exc_string_p "Vector size must be >= 0" p;
+	let a = try
+		Array.make i vnull
+	with Invalid_argument _ ->
+		exc_string_p (Printf.sprintf "Not enough memory to allocate Vector of size %i" i) p;
+	in
+	encode_vector_instance a
 
 let emit_new_vector exec p env =
-	encode_vector_instance (Array.make (decode_int_p (exec env) p) vnull)
+	let i = decode_int_p (exec env) p in
+	emit_new_vector_int i p env
 
 let emit_special_instance f execs env =
 	let vl = List.map (apply env) execs in

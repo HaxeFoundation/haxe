@@ -1,8 +1,9 @@
 - name: Install dependencies
   env:
-    ZLIB_VERSION: 1.2.12
+    # For compatibility with macOS 10.13
+    ZLIB_VERSION: 1.2.13
     MBEDTLS_VERSION: 2.25.0
-    PCRE_VERSION: 10.39
+    PCRE_VERSION: 8.44
   run: |
     set -ex
     brew uninstall openssl@1.0.2t || echo
@@ -19,13 +20,16 @@
     cd zlib-$ZLIB_VERSION
     ./configure
     make && make install
+    cd ..
     curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
     cd mbedtls-$MBEDTLS_VERSION
     make && make install
-    curl -L https://github.com/PhilipHazel/pcre2/releases/download/pcre2-10.39/pcre2-$PCRE_VERSION.tar.gz | tar xz
-    cd pcre2-$PCRE_VERSION
-    ./configure --enable-utf8 --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
+    cd ..
+    curl -L https://downloads.sourceforge.net/project/pcre/pcre/$PCRE_VERSION/pcre-$PCRE_VERSION.tar.gz | tar xz
+    cd pcre-$PCRE_VERSION
+    ./configure --enable-utf8 --enable-pcre8 --enable-pcre16 --enable-pcre32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
     make && make install
+    cd ..
 
 
 - name: Install OCaml libraries
