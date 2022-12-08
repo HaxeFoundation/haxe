@@ -709,7 +709,7 @@ let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
 	com.stored_typed_exprs#add id te;
 	let eid = (EConst (Int (string_of_int id, None))), p in
-	id,((EMeta ((Meta.StoredTypedExpr,[],p), eid)),p)
+	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
 let push_this ctx e = match e.eexpr with
 | TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
