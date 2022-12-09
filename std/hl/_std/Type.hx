@@ -255,6 +255,7 @@ class Type {
 	}
 
 	public static function enumParameters(e:EnumValue):Array<Dynamic> {
+		if( e == null ) (e:Dynamic)(); // trigger null access
 		var arr = _enumParameters(e);
 		return cast hl.types.ArrayObj.alloc(arr);
 	}
