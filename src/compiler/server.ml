@@ -392,7 +392,7 @@ module Communication = struct
 			log_message := (Some (fun msg ->
 				match (format_log_message ctx ectx msg) with
 					| None -> ()
-				| Some str -> Rbuffer.add_string buf (str ^ "\n")));
+					| Some str -> Rbuffer.add_string buf (str ^ "\n")));
 
 			close_logs := (Some (fun () ->
 				Rbuffer.output_buffer chan buf;
