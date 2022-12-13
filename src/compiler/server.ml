@@ -104,7 +104,8 @@ module Communication = struct
 	let error_printer file line = Printf.sprintf "%s:%d:" file line
 	let apply_severity str sev = match sev with
 		| MessageSeverity.Warning -> "Warning : " ^ str
-		| Information | Error | Hint -> str
+		| Information -> "Info : " ^ str
+		| Error | Hint -> str
 
 	let resolve_source file l1 p1 l2 p2 =
 		let ch = open_in_bin file in
