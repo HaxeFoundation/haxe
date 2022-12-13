@@ -50,6 +50,7 @@ let platforms = [
 	Eval;
 ]
 
+(** Expected to match `haxe.display.Display.Platform`. *)
 let platform_name = function
 	| Cross -> "cross"
 	| Js -> "js"
@@ -63,6 +64,21 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
+
+let parse_platform = function
+	| "cross" -> Cross
+	| "js" -> Js
+	| "lua" -> Lua
+	| "neko" -> Neko
+	| "flash" -> Flash
+	| "php" -> Php
+	| "cpp" -> Cpp
+	| "cs" -> Cs
+	| "java" -> Java
+	| "python" -> Python
+	| "hl" -> Hl
+	| "eval" -> Eval
+	| p -> raise (failwith ("invalid platform " ^ p))
 
 let platform_list_help = function
 	| [] -> ""
@@ -156,3 +172,5 @@ module MessageKind = struct
 end
 
 type compiler_message = string * pos * MessageKind.t * MessageSeverity.t
+
+let i32_31 = Int32.of_int 31

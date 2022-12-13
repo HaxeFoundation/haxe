@@ -507,7 +507,7 @@ and jit_expr jit return e =
 	| TNew({cl_path=["eval"],"Vector"},_,[e1]) ->
 		begin match e1.eexpr with
 			| TConst (TInt i32) ->
-				emit_new_vector_int (Int32.to_int i32)
+				emit_new_vector_int (Int32.to_int i32) e1.epos
 			| _ ->
 				let exec1 = jit_expr jit false e1 in
 				emit_new_vector exec1 e1.epos

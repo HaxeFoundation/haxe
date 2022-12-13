@@ -162,7 +162,7 @@ class TypeTools {
 			}
 		}
 
-	#if (macro || display)
+	#if macro
 	/**
 		Follows all typedefs of `t` to reach the actual type.
 
@@ -369,6 +369,28 @@ class TypeTools {
 	**/
 	static public function setVarName(t:TVar, name:String) {
 		Context.load("set_var_name", 2)(t, name);
+	}
+
+	/**
+		Converts type `t` to `haxe.macro.Type.ModuleType`.
+	**/
+	static public function toModuleType(t:Type):ModuleType {
+		#if (neko || eval)
+		return Context.load("type_to_module_type", 1)(t);
+		#else
+		return null;
+		#end
+	}
+
+	/**
+		Creates a type from the `haxe.macro.Type.ModuleType` argument.
+	**/
+	static public function fromModuleType(mt:ModuleType):Type {
+		#if (neko || eval)
+		return Context.load("module_type_to_type", 1)(mt);
+		#else
+		return null;
+		#end
 	}
 	#end
 

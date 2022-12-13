@@ -82,6 +82,13 @@ jobs:
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
 
+      # required to be able to retrieve the revision
+      - name: Mark directory as safe
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
+
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         shell: pwsh
@@ -117,6 +124,7 @@ jobs:
       MINGW_ARCH: i686
       CYGWIN_SETUP: https://cygwin.com/setup-x86.exe
       CYG_ROOT: C:/cygwin
+      CYG_CIRCA_URL: http://ctm.crouchingtigerhiddenfruitbat.org/pub/cygwin/circa/2022/11/23/063457
     steps:
       - uses: actions/checkout@main
         with:
@@ -152,7 +160,7 @@ jobs:
         run: |
           Set-PSDebug -Trace 1
           curl.exe -fsSL -o cygwin-setup.exe --retry 3 $($env:CYGWIN_SETUP)
-          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre" -Wait
+          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre --allow-unsupported-windows --site $($env:CYG_CIRCA_URL)" -Wait
           curl.exe -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam$($env:ARCH).tar.xz
           curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'curl -L https://cpanmin.us | perl - App::cpanminus')
@@ -172,6 +180,13 @@ jobs:
       - name: Expose mingw dll files
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
+
+      # required to be able to retrieve the revision
+      - name: Mark directory as safe
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -218,24 +233,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
       - name: Set CONTAINER_ vars
         run: |
           echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
           echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
 
       - name: Build devcontainer
-        run: earthly +devcontainer --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-amd64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-amd64"
+        run: earthly +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-amd64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-amd64"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_USE_INLINE_CACHE: true
           EARTHLY_SAVE_INLINE_CACHE: true
 
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
       - name: Build
-        run: earthly +build --ADD_REVISION="$ADD_REVISION"
+        run: earthly +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-amd64"
@@ -289,24 +304,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
       - name: Set CONTAINER_ vars
         run: |
           echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
           echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
 
       - name: Build devcontainer
-        run: earthly --platform=linux/arm64 +devcontainer --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
+        run: earthly --platform=linux/arm64 +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_USE_INLINE_CACHE: true
           EARTHLY_SAVE_INLINE_CACHE: true
 
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
       - name: Build
-        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION"
+        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-arm64"
@@ -348,21 +363,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
       - name: Set CONTAINER_ vars
         run: |
           echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
           echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
 
       - name: Build devcontainer
-        run: earthly +devcontainer-multiarch --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}"
+        run: earthly +devcontainer-multiarch --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_USE_INLINE_CACHE: true
           EARTHLY_SAVE_INLINE_CACHE: true
+
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
   mac-build:
     runs-on: macos-latest
@@ -394,9 +409,10 @@ jobs:
 
       - name: Install dependencies
         env:
-          ZLIB_VERSION: 1.2.12
+          # For compatibility with macOS 10.13
+          ZLIB_VERSION: 1.2.13
           MBEDTLS_VERSION: 2.25.0
-          PCRE_VERSION: 10.39
+          PCRE_VERSION: 8.44
         run: |
           set -ex
           brew uninstall openssl@1.0.2t || echo
@@ -413,13 +429,16 @@ jobs:
           cd zlib-$ZLIB_VERSION
           ./configure
           make && make install
+          cd ..
           curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
           cd mbedtls-$MBEDTLS_VERSION
           make && make install
-          curl -L https://github.com/PhilipHazel/pcre2/releases/download/pcre2-10.39/pcre2-$PCRE_VERSION.tar.gz | tar xz
-          cd pcre2-$PCRE_VERSION
-          ./configure --enable-utf8 --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
+          cd ..
+          curl -L https://downloads.sourceforge.net/project/pcre/pcre/$PCRE_VERSION/pcre-$PCRE_VERSION.tar.gz | tar xz
+          cd pcre-$PCRE_VERSION
+          ./configure --enable-utf8 --enable-pcre8 --enable-pcre16 --enable-pcre32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
           make && make install
+          cd ..
 
 
       - name: Install OCaml libraries

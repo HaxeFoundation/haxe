@@ -1,0 +1,18 @@
+Main.hx:16: [--main,Main,--macro,Main.MacroClass.start(),--interp]
+Main.hx:17: false
+Main.hx:18: false
+Main.hx:19: true
+Main.hx:20: eval
+Main.hx:21: []
+Main.hx:22: Main
+Main.hx:26: python is forbidden
+Main.hx:26: php is forbidden
+Main.hx:26: neko is forbidden
+Main.hx:26: lua is forbidden
+Main.hx:26: jvm is forbidden
+Main.hx:26: js is forbidden
+Main.hx:26: java is forbidden
+Main.hx:26: hl is forbidden
+Main.hx:26: flash is forbidden
+Main.hx:26: cs is forbidden
+Main.hx:26: cpp is forbidden

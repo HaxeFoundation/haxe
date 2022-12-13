@@ -853,7 +853,7 @@ module TypeBinding = struct
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
-					| _ -> !analyzer_run_on_expr_ref ctx.com e
+					| _ -> !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path cctx.tclass.cl_path) cf.cf_name) e
 				in
 				let require_constant_expression e msg =
 					match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
@@ -1838,8 +1838,6 @@ let init_class ctx c p context_init herits fields =
 	if has_struct_init then
 		if (has_class_flag c CInterface) then
 			display_error ctx.com "@:structInit is not allowed on interfaces" struct_init_pos
-		else if (has_class_flag c CAbstract) then
-			display_error ctx.com "@:structInit is not allowed on abstract classes" struct_init_pos
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with

@@ -1142,11 +1142,8 @@ let generate con =
 				| TAbstract( { a_path = (["java"], "Int64") }, [] )
 				| TAbstract( { a_path = (["haxe"], "Int64") }, [] ) ->
 					TInst(cl_long, [])
-				| _ -> (match follow t with
-					| TInst( { cl_kind = KTypeParameter _ }, []) ->
-							t_dynamic
-					| _ -> real_type t
-				)
+				| _ ->
+					real_type t
 			)
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				real_type (Abstract.get_underlying_type a pl)

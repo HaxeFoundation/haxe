@@ -154,7 +154,7 @@ module IterationKind = struct
 			(try
 				(* first try: do we have an @:arrayAccess getter field? *)
 				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r,_,_ = AbstractCast.find_array_access_raise ctx a tl todo None p in
+				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
 				let get_next e_base e_index t p =
 					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
 				in
@@ -260,7 +260,7 @@ module IterationKind = struct
 		{
 			it_kind = it;
 			it_type = pt;
-			it_expr = e1;
+			it_expr = if not ctx.allow_transform then e else e1;
 		}
 
 	let to_texpr ctx v iterator e2 p =
@@ -315,6 +315,8 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
+		| _ when not ctx.allow_transform ->
+			mk (TFor(v,e1,e2)) t_void p
 		| IteratorIntUnroll(offset,length,ascending) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then typing_error "Cannot iterate backwards" p;

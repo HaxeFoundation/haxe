@@ -576,7 +576,7 @@ let generate_function ctx f =
 	in
 
 	let type_value_opt t =
-		match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t
+		match t with HF32 | HF64 | HI64 -> "" | _ -> "," ^ type_value t
 	in
 
 	let dyn_call r f pl =
@@ -1478,7 +1478,9 @@ let write_c com file (code:code) gnames =
 	let sorted_natives = Array.copy code.natives in
 	Array.sort (fun n1 n2 -> let mk (lib,name,_,_) = code.strings.(lib), code.strings.(name) in compare (mk n1) (mk n2)) sorted_natives;
 	Array.iter (fun (lib,_,_,idx) ->
-		Hashtbl.replace native_libs code.strings.(lib) ();
+		let name = code.strings.(lib) in
+		let name = if name.[0] = '?' then String.sub name 1 (String.length name - 1) else name in
+		Hashtbl.replace native_libs name ();
 		let ft = ctx.ftable.(idx) in
 		define_type ctx (HFun (ft.fe_args,ft.fe_ret));
 		match ft.fe_name with
@@ -1692,7 +1694,7 @@ let write_c com file (code:code) gnames =
 				define_global ctx g;
 				sexpr "obj%s.global_value = (void**)&%s" name gnames.(g));
 			sexpr "%s.obj = &obj%s" name name
-		| HNull r | HRef r ->
+		| HNull r | HRef r | HPacked r ->
 			sexpr "%s.tparam = %s" (type_name ctx t) (type_value ctx r)
 		| HEnum e ->
 			let name = type_name ctx t in

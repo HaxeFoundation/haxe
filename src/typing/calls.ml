@@ -86,7 +86,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 	with Exit ->
 		mk (TCall (e,params)) t p
 
-let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
+let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
 		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
@@ -95,8 +95,7 @@ let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 		make_call ctx ef [ebase;e1] r p
 
-let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
-	let evalue = match e2o with None -> die "" __LOC__ | Some e -> e in
+let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
@@ -290,7 +289,17 @@ let rec build_call_access ctx acc el mode with_type p =
 		AKExpr (dispatch#field_call fa [] el)
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
-		AKExpr (dispatch#field_call sea.se_access [eparam] el)
+		let e = dispatch#field_call sea.se_access [eparam] el in
+		let e = match sea.se_access.fa_host with
+		| FHAbstract _ when not ctx.allow_transform ->
+			(* transform XXXImpl.field(this,args) back into this.field(args) *)
+			(match e.eexpr with
+			| TCall ({ eexpr = TField(_,name) } as f, abs :: el) -> { e with eexpr = TCall(mk (TField(abs,name)) t_dynamic f.epos, el) }
+			| _ -> assert false)
+		| _ ->
+			e
+		in
+		AKExpr e
 	| AKResolve(sea,name) ->
 		AKExpr (dispatch#expr_call (dispatch#resolve_call sea name) [] el)
 	| AKNo _ | AKAccess _ ->
@@ -442,9 +451,9 @@ let array_access ctx e1 e2 mode p =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let f = AbstractCast.find_array_access ctx a pl e2 None p in
+				let f = AbstractCast.find_array_read_access ctx a pl e2 p in
 				if not ctx.allow_transform then
-					let _,_,r,_,_ = f in
+					let _,_,r,_ = f in
 					AKExpr { eexpr = TArray(e1,e2); epos = p; etype = r }
 				else begin
 					let e = mk_array_get_call ctx f c e1 p in

@@ -371,6 +371,11 @@ extern class Global {
 	static function strpos(haystack:String, needle:String, offset:Int = 0):EitherType<Bool, Int>;
 
 	/**
+		@see http://php.net/manual/en/function.stripos.php
+	**/
+	static function stripos(haystack:String, needle:String, offset:Int = 0):EitherType<Bool, Int>;
+
+	/**
 		@see http://php.net/manual/en/function.strrpos.php
 	**/
 	static function strrpos(haystack:String, needle:String, offset:Int = 0):EitherType<Bool, Int>;
