@@ -372,8 +372,14 @@ module Communication = struct
 
 		if log_messages then begin
 			let buf = Rbuffer.create 16000 in
-			(* TODO: error handling; create directories if needed *)
-			let chan = open_out_bin (Define.defined_value ctx.com.defines Define.MessagesLogFile) in
+
+			let file = Define.defined_value ctx.com.defines Define.MessagesLogFile in
+			let chan = try begin
+				Path.mkdir_from_path file;
+				open_out_bin file
+			end with
+				Failure e -> raise (failwith (Printf.sprintf "Error opening log file %s: %s" file e))
+			in
 
 			let format_mode = Define.defined_value_safe ~default:"diagnostics" ctx.com.defines Define.MessagesLogFormat in
 			let format_log_message ctx ectx msg = match format_mode with
