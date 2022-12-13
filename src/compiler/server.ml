@@ -102,10 +102,6 @@ module Communication = struct
 	}
 
 	let error_printer file line = Printf.sprintf "%s:%d:" file line
-	let apply_severity str sev = match sev with
-		| MessageSeverity.Warning -> "Warning : " ^ str
-		| Information -> "Info : " ^ str
-		| Error | Hint -> str
 
 	let resolve_source file l1 p1 l2 p2 =
 		let ch = open_in_bin file in
@@ -317,8 +313,13 @@ module Communication = struct
 			)
 		end
 
-	let compiler_message_string ctx ectx (str,p,nl,_,sev) =
-		let str = apply_severity str sev in
+	let compiler_message_string ?(info_prefix="") ctx ectx (str,p,nl,_,sev) =
+		let str = match sev with
+			| MessageSeverity.Warning -> "Warning : " ^ str
+			| Information -> info_prefix ^ str
+			| Error | Hint -> str
+		in
+
 		if p = null_pos then
 			Some str
 		else begin
@@ -340,7 +341,7 @@ module Communication = struct
 		(* Filter some messages that don't add much when using this message renderer *)
 		| "End of overload failure reasons" -> None
 		| _ ->
-			match (compiler_message_string ctx ectx msg) with
+			match (compiler_message_string ~info_prefix:"Info : " ctx ectx msg) with
 			| None -> None
 			| Some s -> Some (if nl > 0 then String.concat "\n" (List.map (fun str -> (String.make (nl*2) ' ') ^ str) (ExtString.String.nsplit s "\n")) else s)
 
