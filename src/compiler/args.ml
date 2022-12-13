@@ -152,6 +152,7 @@ let parse_args com =
 			actx.did_something <- true
 		),"","print help for all compiler specific defines");
 		("Miscellaneous",["--help-user-defines"],[], Arg.Unit (fun() ->
+			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Define.get_user_documentation_list com.user_defines in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
@@ -166,6 +167,7 @@ let parse_args com =
 			actx.did_something <- true
 		),"","print help for all compiler metadatas");
 		("Miscellaneous",["--help-user-metas"],[], Arg.Unit (fun() ->
+			actx.did_something <- true;
 			com.callbacks#add_after_init_macros (fun() ->
 				let all,max_length = Meta.get_user_documentation_list com.user_metas in
 				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
