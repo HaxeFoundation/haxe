@@ -458,6 +458,19 @@ class StringTools {
 		#end
 		return s;
 	}
+	
+	/**
+		Encodes `n` into a binary representation.
+	**/
+	public static function binary(n:Int) {
+		var s = "";
+		while (n != 0) {
+			var isOdd = (n & 1) == 1;
+			s = ((isOdd) ? "1" : "0") + s;
+			n >>>= 1;
+		}
+		return s;
+	}
 
 	/**
 		Returns the character code at position `index` of String `s`, or an
