@@ -366,7 +366,10 @@ module Communication = struct
 		in
 
 		let log_messages = Define.defined ctx.com.defines Define.MessagesLogFile in
-		let log_message, close_logs = if not log_messages then (None, None) else
+		let log_message = ref None in
+		let close_logs = ref None in
+
+		if log_messages then begin
 			let buf = Rbuffer.create 16000 in
 			(* TODO: error handling; create directories if needed *)
 			let chan = open_out_bin (Define.defined_value ctx.com.defines Define.MessagesLogFile) in
@@ -379,25 +382,27 @@ module Communication = struct
 				| _ -> raise (failwith "TODO: error message for bad message reporting mode")
 			in
 
-			(Some (fun msg ->
+			log_message := (Some (fun msg ->
 				match (format_log_message ctx ectx msg) with
 					| None -> ()
-					| Some str -> Rbuffer.add_string buf (str ^ "\n"))),
-			(Some (fun () ->
+				| Some str -> Rbuffer.add_string buf (str ^ "\n")));
+
+			close_logs := (Some (fun () ->
 				Rbuffer.output_buffer chan buf;
-				Rbuffer.clear buf
-			))
-		in
+				Rbuffer.clear buf;
+				close_out chan
+			));
+		end;
 
 		List.iter (fun ((_,_,_,_,sev) as msg) ->
-			if log_messages then (Option.get log_message) msg;
+			if log_messages then (Option.get !log_message) msg;
 
 			match (format_message ctx ectx msg) with
 				| None -> ()
 				| Some str -> on_message sev str
 		) (List.rev ctx.messages);
 
-		if log_messages then (Option.get close_logs) ();
+		if log_messages then (Option.get !close_logs) ();
 	end
 
 	let create_stdio () =
