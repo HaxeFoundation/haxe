@@ -1747,8 +1747,10 @@ let init_class ctx c p context_init herits fields =
 			(match req with
 			| None -> ()
 			| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
-			begin match fctx.field_kind with
-			| FKConstructor ->
+			begin match req, fctx.field_kind with
+			| Some _, _ ->
+				()
+			| _, FKConstructor ->
 				begin match c.cl_super with
 				| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
 					ctx.com.error "Cannot override final constructor" cf.cf_pos
@@ -1765,9 +1767,9 @@ let init_class ctx c p context_init herits fields =
 				| Some ctor ->
 							display_error ctx.com "Duplicate constructor" p
 				end
-			| FKInit ->
+			| _, FKInit ->
 				()
-			| FKNormal ->
+			| _, FKNormal ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 				if not cctx.is_native && not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
 				if fctx.override <> None then
