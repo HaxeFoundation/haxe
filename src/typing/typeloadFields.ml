@@ -1744,49 +1744,55 @@ let init_class ctx c p context_init herits fields =
 			List.iter set_feature (check_if_feature cf.cf_meta);
 			let req = check_require f.cff_meta in
 			let req = (match req with None -> if fctx.is_static || fctx.field_kind = FKConstructor then cl_req else None | _ -> req) in
-			match req with
-			| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) }
-			| None -> match fctx.field_kind with
-				| FKConstructor ->
-					begin match c.cl_super with
-					| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
-						ctx.com.error "Cannot override final constructor" cf.cf_pos
-					| _ -> ()
-					end;
-					begin match c.cl_constructor with
-					| None ->
-							c.cl_constructor <- Some cf
-					| Some ctor when ctx.com.config.pf_overload ->
-						if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
-							ctor.cf_overloads <- cf :: ctor.cf_overloads
-						else
-							display_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
-					| Some ctor ->
-								display_error ctx.com "Duplicate constructor" p
-					end
-				| FKInit ->
-					()
-				| FKNormal ->
-					let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
-					if not cctx.is_native && not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
-					if fctx.override <> None then
-						add_class_field_flag cf CfOverride;
-					let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
-					if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
-						if has_class_field_flag cf CfOverload && not (is_var cf) then
-							let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
-							if is_var mainf then display_error ctx.com "Cannot declare a variable with same name as a method" mainf.cf_pos;
-							(if not (has_class_field_flag mainf CfOverload) then display_error ctx.com ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
-							mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
-						else
-							let type_kind,path = match c.cl_kind with
-								| KAbstractImpl a -> "abstract",a.a_path
-								| KModuleFields m -> "module",m.m_path
-								| _ -> "class",c.cl_path
-							in
-							display_error ctx.com ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
+			(match req with
+			| None -> ()
+			| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
+			begin match fctx.field_kind with
+			| FKConstructor ->
+				begin match c.cl_super with
+				| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
+					ctx.com.error "Cannot override final constructor" cf.cf_pos
+				| _ -> ()
+				end;
+				begin match c.cl_constructor with
+				| None ->
+						c.cl_constructor <- Some cf
+				| Some ctor when ctx.com.config.pf_overload ->
+					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
+						ctor.cf_overloads <- cf :: ctor.cf_overloads
 					else
-					if fctx.do_add then TClass.add_field c cf
+						display_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+				| Some ctor ->
+							display_error ctx.com "Duplicate constructor" p
+				end
+			| FKInit ->
+				()
+			| FKNormal ->
+				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
+				if not cctx.is_native && not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
+				if fctx.override <> None then
+					add_class_field_flag cf CfOverride;
+				let is_var cf = match cf.cf_kind with
+					| Var {v_read = AccRequire _; v_write = AccRequire _} -> false
+					| Var _ -> true
+					| _ -> false
+				in
+				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
+					if has_class_field_flag cf CfOverload && not (is_var cf) then
+						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
+						if is_var mainf then display_error ctx.com "Cannot declare a variable with same name as a method" mainf.cf_pos;
+						(if not (has_class_field_flag mainf CfOverload) then display_error ctx.com ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
+						mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
+					else
+						let type_kind,path = match c.cl_kind with
+							| KAbstractImpl a -> "abstract",a.a_path
+							| KModuleFields m -> "module",m.m_path
+							| _ -> "class",c.cl_path
+						in
+						display_error ctx.com ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
+				else
+				if fctx.do_add then TClass.add_field c cf
+			end
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx.com str p
 	) fields;
