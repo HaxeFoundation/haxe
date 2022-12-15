@@ -6,5 +6,9 @@ extern class Main {
 class Bar {
 	function bar():Void {}
 	@:require(true) static function bar():Void {}
-	@:require(true) var bar:String;
+}
+
+class Baz {
+	function baz():Void {}
+	@:require(true) var baz:String;
 }
