@@ -31,6 +31,8 @@ jobs:
           submodules: recursive
 
       @import install-neko-windows.yml
+      @import install-nsis.yml
+      @import install-ocaml-windows64.yml
       @import build-windows.yml
 
   windows-build:
@@ -44,12 +46,15 @@ jobs:
       MINGW_ARCH: i686
       CYGWIN_SETUP: https://cygwin.com/setup-x86.exe
       CYG_ROOT: C:/cygwin
+      CYG_CIRCA_URL: http://ctm.crouchingtigerhiddenfruitbat.org/pub/cygwin/circa/2022/11/23/063457
     steps:
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
       @import install-neko-windows.yml
+      @import install-nsis.yml
+      @import install-ocaml-windows.yml
       @import build-windows.yml
 
   linux-amd64:
