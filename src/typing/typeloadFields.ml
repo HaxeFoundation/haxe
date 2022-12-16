@@ -1772,7 +1772,11 @@ let init_class ctx c p context_init herits fields =
 				if not cctx.is_native && not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
 				if fctx.override <> None then
 					add_class_field_flag cf CfOverride;
-				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
+				let is_var cf = match cf.cf_kind with
+					| Var {v_read = AccRequire _; v_write = AccRequire _} -> false
+					| Var _ -> true
+					| _ -> false
+				in
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
 					if has_class_field_flag cf CfOverload && not (is_var cf) then
 						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
