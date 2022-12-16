@@ -339,10 +339,7 @@ jobs:
 
       - name: Setup Haxe
         run: |
-          # mkdir ./linuxBinaries
-          # curl -sSL https://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz -o ./linuxBinaries/haxe_bin.tar.gz
-
-          sudo apt install -qqy libmbedtls-dev libgtk2.0-0
+          sudo apt install -qqy libmbedtls-dev
 
           set -ex
           tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
@@ -369,7 +366,6 @@ jobs:
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
       - name: Test
-        # if: success()
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
 
