@@ -490,6 +490,8 @@ and gen_call ctx e el =
          print ctx (":%s(") (field_name ef);
          concat ctx "," (gen_value ctx) el;
          spr ctx ")";
+     (* | TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" } )),[{eexpr = (TConst (TString str))} as expr] ->
+      *     gen_value ctx expr; *)
      | TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" })),[{eexpr = TCall({eexpr=TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" }))}, _)} as el] ->
          (* unwrap recursive Std.string(Std.string(...)) declarations to Std.string(...) *)
          gen_value ctx el;
@@ -1185,6 +1187,9 @@ and gen_value ctx e =
         gen_expr ctx e
     | TMeta (_,e1) ->
         gen_value ctx e1
+    | TCall ({eexpr = (TField (e, s))},el) when (is_string_expr e) ->
+        spr ctx ("String.prototype." ^ (field_name s));
+        gen_paren_arguments ctx (e :: el)
     | TCall (e,el) ->
         gen_call ctx e el
     | TReturn _
@@ -1389,17 +1394,33 @@ and gen_tbinop ctx op e1 e2 =
          spr ctx ", ";
          gen_expr ctx e2;
          spr ctx ")";
+     | Ast.OpAdd,_,_ when (is_string_expr e1) && (not (is_string_expr e2))->
+        (* spr ctx "Std.string("; *)
+        (* print_endline ("left1: " ^ (s_expr_debug e1));
+         * print_endline ("right1: " ^ (s_expr_debug e2)); *)
+        gen_value ctx e1;
+        spr ctx " .. Std.string(";
+        gen_value ctx e2;
+        spr ctx ")";
+     | Ast.OpAdd,_,_ when (is_string_expr e2) && (not (is_string_expr e1)) ->
+        (* print_endline ("left2: " ^ (s_expr_debug e1));
+         * print_endline ("right2: " ^ (s_expr_debug e2)); *)
+        spr ctx "Std.string(";
+        gen_value ctx e1;
+        spr ctx ") .. "; (* "Std.string("; *)
+        gen_value ctx e2;
+     | Ast.OpAdd,_,_ when (is_string_expr e1) && (is_string_expr e2) ->
+        (* print_endline ("left3: " ^ (s_expr_debug e1));
+         * print_endline ("right3: " ^ (s_expr_debug e2)); *)
+        gen_value ctx e1;
+        spr ctx " .. "; (* "Std.string("; *)
+        gen_value ctx e2;
+     (* spr ctx ")";          *)
      | Ast.OpAdd, _, _ when (is_dynamic_expr e1 && is_dynamic_expr e2) ->
-         add_feature ctx "use._hx_dyn_add";
+        add_feature ctx "use._hx_dyn_add";
          spr ctx "_hx_dyn_add(";
          gen_value ctx e1;
          spr ctx ",";
-         gen_value ctx e2;
-         spr ctx ")";
-     | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
-         spr ctx "Std.string(";
-         gen_value ctx e1;
-         spr ctx ") .. Std.string(";
          gen_value ctx e2;
          spr ctx ")";
      | _ -> begin
@@ -1949,7 +1970,7 @@ let generate com =
         let file_content = Std.input_file ~bin:true path in
         print ctx "%s\n" file_content;
     in
-
+    print ctx "pcall(function () require\"luarocks.loader\" end)\n";
     (* base table-to-array helpers and metatables *)
     print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
 
@@ -2120,18 +2141,18 @@ let generate com =
 
     Option.may (fun e ->
         spr ctx "_G.xpcall(";
-            let luv_run =
-                (* Runs libuv loop if needed *)
-                mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
-            in
-            let fn =
-                {
-                    tf_args = [];
-                    tf_type = com.basic.tvoid;
-                    tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
-                }
-            in
-            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
+        let luv_run =
+          (* Runs libuv loop if needed *)
+          mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
+        in
+        let fn =
+          {
+            tf_args = [];
+            tf_type = com.basic.tvoid;
+            tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
+          }
+        in
+        gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
         spr ctx ", _hx_error)";
         newline ctx
     ) com.main;

@@ -41,7 +41,7 @@ function _hx_tostring(obj, depth)
     end
 
     local tstr = _G.type(obj)
-    if tstr == "string" then return obj
+    if tstr == "string" then return obj --'"' .. obj .. '"'
     elseif tstr == "nil" then return "null"
     elseif tstr == "number" then
         if obj == _G.math.POSITIVE_INFINITY then return "Infinity"
@@ -65,15 +65,23 @@ function _hx_tostring(obj, depth)
             return _hx_print_enum(obj, depth)
         elseif obj.toString ~= nil and not _hx_is_array(obj) then return obj:toString()
         elseif _hx_is_array(obj) then
-            if obj.length > 5 then
-                return "[...]"
+            if obj.length > 15 then
+                local str = ""
+                for i=0, 14 do
+                    if i == 0 then
+                        str = str .. _hx_tostring(obj[i], depth+1)
+                    else
+                        str = str .. ", " .. _hx_tostring(obj[i], depth+1)
+                    end
+                end
+                return "[" .. str .. ", ...]"
             else
                 local str = ""
                 for i=0, (obj.length-1) do
                     if i == 0 then
                         str = str .. _hx_tostring(obj[i], depth+1)
                     else
-                        str = str .. "," .. _hx_tostring(obj[i], depth+1)
+                        str = str .. ", " .. _hx_tostring(obj[i], depth+1)
                     end
                 end
                 return "[" .. str .. "]"
