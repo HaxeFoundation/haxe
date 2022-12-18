@@ -20,6 +20,7 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       OPAMYES: 1
+      OPAMROOT: D:\.opam
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
       ARCH: 64
       MINGW_ARCH: x86_64
@@ -30,9 +31,22 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: D:\.opam
+          key: ${{ runner.os }}64-${{ hashFiles('./opam') }}-1
+
       @import install-neko-windows.yml
       @import install-nsis.yml
       @import install-ocaml-windows64.yml
+      @import install-ocaml-libs-windows.yml
       @import build-windows.yml
 
   windows-build:
@@ -41,6 +55,7 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
       OPAMYES: 1
+      OPAMROOT: D:\.opam
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
       ARCH: 32
       MINGW_ARCH: i686
@@ -52,9 +67,22 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: D:\.opam
+          key: ${{ runner.os }}32-${{ hashFiles('./opam') }}-1
+
       @import install-neko-windows.yml
       @import install-nsis.yml
       @import install-ocaml-windows.yml
+      @import install-ocaml-libs-windows.yml
       @import build-windows.yml
 
   linux-build:
