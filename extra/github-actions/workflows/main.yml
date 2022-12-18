@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache@v3.0.11
         with:
           path: D:\.opam
-          key: ${{ runner.os }}64-${{ hashFiles('./opam') }}-1
+          key: ${{ runner.os }}64-${{ hashFiles('./opam', './libs/') }}
 
       @import install-neko-windows.yml
       @import install-nsis.yml
@@ -77,7 +77,7 @@ jobs:
         uses: actions/cache@v3.0.11
         with:
           path: D:\.opam
-          key: ${{ runner.os }}32-${{ hashFiles('./opam') }}-1
+          key: ${{ runner.os }}32-${{ hashFiles('./opam', './libs/') }}
 
       @import install-neko-windows.yml
       @import install-nsis.yml
