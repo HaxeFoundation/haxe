@@ -978,7 +978,7 @@ module Compile = struct
 	let fail mctx p = hashcons mctx Fail p
 	let switch mctx subject cases default = hashcons mctx (Switch(subject,cases,default)) subject.epos
 	let bind mctx bindings dt = hashcons mctx (Bind(bindings,dt)) dt.dt_pos
-	let guard mctx e dt1 dt2 = hashcons mctx (Guard(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
+	let guard mctx e dt1 dt2 = hashcons mctx (Guard({e with epos = mctx.match_pos},dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 	let guard_null mctx e dt1 dt2 = hashcons mctx (GuardNull(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 
 	let rec get_sub_subjects mctx e con arg_positions =
@@ -1596,10 +1596,10 @@ module TexprConverter = struct
 							let e_else = loop dt_rec params dt2 in
 							begin match e_else with
 							| Some e_else ->
-								Some (mk (TIf(e,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos))
+								Some (mk (TIf(e,e_then,Some e_else)) t_switch e.epos)
 							| None ->
 								if with_type = NoValue && toplevel then
-									Some (mk (TIf(e,e_then,None)) ctx.t.tvoid (punion e.epos e_then.epos))
+									Some (mk (TIf(e,e_then,None)) ctx.t.tvoid e.epos)
 								else
 									None
 							end
