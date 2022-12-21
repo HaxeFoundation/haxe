@@ -147,9 +147,9 @@ class Main {
 				.join('\n');
 
 			if (content != expected) {
-				println('Actual $name output doesn\'t match the expected one');
-				println('Expected:\n"$expected"');
-				println('Actual:\n"$content"');
+				println('Expected:\n$expected');
+				println('Actual:\n$content');
+				println('');
 				return false;
 			}
 		}
