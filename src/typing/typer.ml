@@ -272,12 +272,12 @@ let rec type_ident_raise ctx i p mode with_type =
 		if mode = MGet then
 			AKExpr (mk (TConst (TBool true)) ctx.t.tbool p)
 		else
-			AKNo i
+			AKNo(i,p)
 	| "false" ->
 		if mode = MGet then
 			AKExpr (mk (TConst (TBool false)) ctx.t.tbool p)
 		else
-			AKNo i
+			AKNo(i,p)
 	| "this" ->
 		if is_set then add_class_field_flag ctx.curfield CfModifiesThis;
 		(match mode, ctx.curclass.cl_kind with
@@ -286,7 +286,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				typing_error "Abstract 'this' value can only be modified inside an inline function" p;
 			AKExpr (get_this ctx p)
 		| (MCall _, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
-		| _ -> AKNo i)
+		| _ -> AKNo(i,p))
 	| "abstract" ->
 		begin match mode, ctx.curclass.cl_kind with
 			| MSet _, KAbstractImpl ab -> typing_error "Property 'abstract' is read-only" p;
@@ -335,7 +335,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				AKExpr (null t p)
 			end
 		end else
-			AKNo i
+			AKNo(i,p)
 	| _ ->
 	try
 		let v = PMap.find i ctx.locals in
@@ -395,7 +395,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		)
 	with Not_found -> try
 		let wrap e = if is_set then
-				AKNo i
+				AKNo(i,p)
 			else
 				AKExpr e
 		in

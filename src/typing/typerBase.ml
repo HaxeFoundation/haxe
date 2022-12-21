@@ -6,7 +6,7 @@ open Error
 
 type access_kind =
 	(* Access is not possible or allowed. *)
-	| AKNo of string
+	| AKNo of placed_name
 	(* Access on arbitrary expression. *)
 	| AKExpr of texpr
 	(* Safe navigation access chain *)
@@ -209,7 +209,7 @@ let rec s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
 	match acc with
-	| AKNo s -> "AKNo " ^ s
+	| AKNo(s,_) -> "AKNo " ^ s
 	| AKExpr e -> "AKExpr " ^ (se e)
 	| AKSafeNav sn -> Printf.sprintf  "AKSafeNav(%s)" (s_safe_nav_access sn)
 	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)

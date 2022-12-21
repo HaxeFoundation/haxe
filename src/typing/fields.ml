@@ -195,9 +195,9 @@ let field_access ctx mode f fh e pfield =
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
-				| _ -> if ctx.untyped then normal false else AKNo f.cf_name)
+				| _ -> if ctx.untyped then normal false else AKNo(f.cf_name, pfield))
 			| _ ->
-				if ctx.untyped then normal false else AKNo f.cf_name)
+				if ctx.untyped then normal false else AKNo(f.cf_name,pfield))
 		| AccNormal | AccNo ->
 			normal false
 		| AccCall when (not ctx.allow_transform) || (ctx.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
@@ -233,7 +233,7 @@ let field_access ctx mode f fh e pfield =
 				AKAccessor (make_access false)
 			end
 		| AccNever ->
-			if ctx.untyped then normal false else AKNo f.cf_name
+			if ctx.untyped then normal false else AKNo(f.cf_name,pfield)
 		| AccInline ->
 			normal true
 		| AccCtor ->
@@ -242,7 +242,7 @@ let field_access ctx mode f fh e pfield =
 			in
 			(match ctx.curfun, fh with
 				| FunConstructor, FHInstance(c,_) when c == ctx.curclass || is_child_of_abstract c -> normal false
-				| _ -> AKNo f.cf_name
+				| _ -> AKNo(f.cf_name,pfield)
 			)
 		| AccRequire (r,msg) ->
 			match msg with

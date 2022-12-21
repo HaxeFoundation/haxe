@@ -1,3 +1,4 @@
+import haxe.io.Bytes;
 import haxe.macro.Compiler;
 import sys.FileSystem;
 import sys.io.File;
@@ -147,9 +148,17 @@ class Main {
 				.join('\n');
 
 			if (content != expected) {
-				println('Expected:\n$expected');
-				println('Actual:\n$content');
-				println('');
+				final a = new diff.FileData(Bytes.ofString(expected), "expected", Date.now());
+				final b = new diff.FileData(Bytes.ofString(content), "actual", Date.now());
+				var ctx:diff.Context = {
+					file1: a,
+					file2: b,
+					context: 10
+				}
+				final script = diff.Analyze.diff2Files(ctx);
+				var diff = diff.Printer.printUnidiff(ctx, script);
+				diff = diff.split("\n").slice(3).join("\n");
+				println(diff);
 				return false;
 			}
 		}

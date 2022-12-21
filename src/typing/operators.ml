@@ -556,7 +556,7 @@ let type_assign ctx e1 e2 with_type p =
 		mk (TBinop (OpAssign,e1,e2)) e1.etype p
 	in
 	match e1 with
-	| AKNo s -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
+	| AKNo(s,p) -> typing_error ("Cannot access " ^ s ^ " for writing") p
 	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
@@ -649,10 +649,10 @@ let type_assign_op ctx op e1 e2 with_type p =
 		vr#to_texpr e
 	in
 	(match !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
-	| AKNo s ->
+	| AKNo(s,p) ->
 		(* try abstract operator overloading *)
 		(try type_non_assign_op ctx op e1 e2 true true with_type p
-		with Not_found -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		with Not_found -> typing_error ("Cannot access " ^ s ^ " for writing") p
 		)
 	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
@@ -839,8 +839,8 @@ let type_unop ctx op flag e with_type p =
 		in
 		let access_set = !type_access_ref ctx (fst e) (snd e) (MSet None) WithType.value (* WITHTYPETODO *) in
 		match access_set with
-		| AKNo name ->
-			typing_error ("The field or identifier " ^ name ^ " is not accessible for writing") p
+		| AKNo(s,p) ->
+			typing_error ("Cannot access " ^ s ^ " for writing") p
 		| AKExpr e ->
 			find_overload_or_make e
 		| AKField fa ->

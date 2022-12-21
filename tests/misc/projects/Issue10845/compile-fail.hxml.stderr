@@ -1,10 +1,10 @@
-Main.hx:21: characters 3-10 : The field or identifier field is not accessible for writing
+Main.hx:21: characters 3-8 : Cannot access field for writing
 Main.hx:22: characters 3-10 : Cannot modify abstract value of final local
-Main.hx:24: characters 3-13 : Cannot modify abstract value of final field
+Main.hx:24: characters 3-8 : Cannot modify abstract value of final field
 Main.hx:25: characters 3-13 : Cannot modify abstract value of final local
-Main.hx:29: characters 3-10 : The field or identifier field is not accessible for writing
+Main.hx:29: characters 3-8 : Cannot access field for writing
 Main.hx:30: characters 3-8 : Cannot assign to final
-Main.hx:32: characters 3-13 : Cannot access field or identifier field for writing
+Main.hx:32: characters 3-8 : Cannot access field for writing
 Main.hx:33: characters 3-8 : Cannot assign to final
 Main.hx:37: characters 3-17 : Cannot modify abstract value of final field
 Main.hx:38: characters 3-17 : Cannot modify abstract value of final local
