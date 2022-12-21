@@ -66,7 +66,7 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 		)
 	| FVar(th,eo) | FProp(_,_,th,eo) ->
 		let th = Some (pair_type th cf.cf_type) in
-		let t = disable_typeloading rctx ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
+		let t = disable_typeloading rctx ctx (fun () -> load_variable_type_hint ctx fctx eo (pos cff.cff_name) th) in
 		(fun () ->
 			cf.cf_type <- t;
 			TypeBinding.bind_var ctx cctx fctx cf eo;
