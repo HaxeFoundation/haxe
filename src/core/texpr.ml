@@ -888,6 +888,8 @@ module DeadEnd = struct
 				false (* This isn't executed, so don't recurse *)
 			| TIf (cond, if_body, Some else_body) ->
 				loop cond || loop if_body && loop else_body
+			| TIf (cond, _, None) ->
+				loop cond
 			| TSwitch(e1, cases, def) ->
 				let check_exhaustive () =
 					(is_exhaustive e1 def) && List.for_all (fun (el,e) ->

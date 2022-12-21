@@ -270,12 +270,6 @@ let rec return_flow ctx e =
 		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
 	in
 	let return_flow = return_flow ctx in
-	let rec uncond e = match e.eexpr with
-		| TIf _ | TWhile _ | TSwitch _ | TTry _ | TFunction _ -> ()
-		| TReturn _ | TThrow _ -> raise Exit
-		| _ -> Type.iter uncond e
-	in
-	let has_unconditional_flow e = try uncond e; false with Exit -> true in
 	match e.eexpr with
 	| TReturn _ | TThrow _ -> ()
 	| TParenthesis e | TMeta(_,e) ->
@@ -284,7 +278,7 @@ let rec return_flow ctx e =
 		let rec loop = function
 			| [] -> error()
 			| [e] -> return_flow e
-			| e :: _ when has_unconditional_flow e -> ()
+			| e :: _ when DeadEnd.has_dead_end e -> ()
 			| _ :: l -> loop l
 		in
 		loop el
@@ -309,7 +303,7 @@ let rec return_flow ctx e =
 		in
 		loop e
 	| _ ->
-		error()
+		if not (DeadEnd.has_dead_end e) then error()
 
 let check_global_metadata ctx meta f_add mpath tpath so =
 	let sl1 = full_dot_path2 mpath tpath in
