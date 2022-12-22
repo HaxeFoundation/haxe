@@ -1,4 +1,4 @@
-name: Cancel
+name: Cancel previous jobs
 on:
   workflow_run:
     workflows: ["CI"]
