@@ -549,6 +549,17 @@ module Inheritance = struct
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends p =
+			let rec check_interfaces_or_delay () =
+				match c.cl_build() with
+				| BuildMacro pending ->
+					(* Ok listen... we're still building this class, which means we can't check its interfaces yet. However,
+					   we do want to check them at SOME point. So we use this pending list which was maybe designed for this
+					   purpose. However, we STILL have to delay the check because at the time pending is handled, the class
+					   is not built yet. See issue #10847. *)
+					pending := (fun () -> delay ctx PConnectField check_interfaces_or_delay) :: !pending
+				| _ ->
+					check_interfaces ctx c
+			in
 			if is_extends then begin
 				if c.cl_super <> None then typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -556,7 +567,7 @@ module Inheritance = struct
 					if not (has_class_flag csup CInterface) then typing_error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
-						if not is_lib then delay ctx PConnectField (fun() -> check_interfaces ctx c);
+						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
@@ -578,7 +589,7 @@ module Inheritance = struct
 					if not (has_class_flag intf CInterface) then typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
-						delay ctx PConnectField (fun() -> check_interfaces ctx c);
+						delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end;
 					(fun () ->
