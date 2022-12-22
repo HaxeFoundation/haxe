@@ -429,14 +429,18 @@ and jit_expr jit return e =
 				let i = get_proto_field_index proto name in
 				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
 			in
-			let instance_call c =
+			let jit_with_null_check ef =
 				let exec = jit_expr jit false ef in
+				emit_null_check exec ef.epos
+			in
+			let instance_call c =
+				let exec = jit_with_null_check ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 				let v = lazy_proto_field proto in
 				emit_proto_field_call v (exec :: execs) e.epos
 			in
 			let default () =
-				let exec = jit_expr jit false ef in
+				let exec = jit_with_null_check ef in
 				emit_method_call exec name execs e.epos
 			in
 			begin match fa with
@@ -472,7 +476,7 @@ and jit_expr jit return e =
 					end else
 						default()
 				| _ ->
-					let exec = jit_expr jit false ef in
+					let exec = jit_with_null_check ef in
 					emit_field_call exec name execs e.epos
 			end
 		| TConst TSuper ->

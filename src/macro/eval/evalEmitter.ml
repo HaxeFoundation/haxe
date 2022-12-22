@@ -89,6 +89,10 @@ let emit_capture_declaration i exec env =
 
 let emit_const v _ = v
 
+let emit_null_check exec p env = match exec env with
+	| VNull -> throw_string "Null Access" p
+	| v -> v
+
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
