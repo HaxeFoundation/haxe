@@ -5,16 +5,6 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  cancel:
-    name: "Cancel previous runs"
-    runs-on: ubuntu-18.04
-    timeout-minutes: 3
-    steps:
-      - uses: styfle/cancel-workflow-action@0.3.1
-        with:
-          workflow_id: 1447568
-          access_token: ${{ github.token }}
-
   windows64-build:
     runs-on: windows-latest
     env:
