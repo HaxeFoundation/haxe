@@ -1,2 +1,2 @@
-Main.hx:3: characters 9-13 : null cannot be called
+Main.hx:3: characters 9-13 : This expression cannot be called
 Main.hx:3: characters 9-13 : ... For function argument 'v'

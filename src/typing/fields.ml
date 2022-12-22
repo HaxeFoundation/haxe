@@ -187,6 +187,9 @@ let field_access ctx mode f fh e pfield =
 		let normal inline =
 			AKField (make_access inline)
 		in
+		let normal_failure ()=
+			AKNo((normal false),pfield)
+		in
 		match (match mode with MGet | MCall _ -> v.v_read | MSet _ -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
@@ -195,9 +198,9 @@ let field_access ctx mode f fh e pfield =
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
-				| _ -> if ctx.untyped then normal false else AKNo(f.cf_name, pfield))
+				| _ -> if ctx.untyped then normal false else normal_failure())
 			| _ ->
-				if ctx.untyped then normal false else AKNo(f.cf_name,pfield))
+				if ctx.untyped then normal false else normal_failure())
 		| AccNormal | AccNo ->
 			normal false
 		| AccCall when (not ctx.allow_transform) || (ctx.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
@@ -233,7 +236,7 @@ let field_access ctx mode f fh e pfield =
 				AKAccessor (make_access false)
 			end
 		| AccNever ->
-			if ctx.untyped then normal false else AKNo(f.cf_name,pfield)
+			if ctx.untyped then normal false else normal_failure()
 		| AccInline ->
 			normal true
 		| AccCtor ->
@@ -242,7 +245,7 @@ let field_access ctx mode f fh e pfield =
 			in
 			(match ctx.curfun, fh with
 				| FunConstructor, FHInstance(c,_) when c == ctx.curclass || is_child_of_abstract c -> normal false
-				| _ -> AKNo(f.cf_name,pfield)
+				| _ -> normal_failure()
 			)
 		| AccRequire (r,msg) ->
 			match msg with

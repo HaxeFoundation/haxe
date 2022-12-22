@@ -76,6 +76,10 @@ module BinopResult = struct
 	let get_type br = match br with
 		| BinopNormal bn -> bn.binop_type
 		| BinopSpecial(e,_) -> e.etype
+
+	let needs_assign = function
+		| BinopNormal _ -> true
+		| BinopSpecial(_,needs_assign) -> needs_assign
 end
 
 let check_assign ctx e =
@@ -556,7 +560,8 @@ let type_assign ctx e1 e2 with_type p =
 		mk (TBinop (OpAssign,e1,e2)) e1.etype p
 	in
 	match e1 with
-	| AKNo(s,p) -> typing_error ("Cannot access " ^ s ^ " for writing") p
+	| AKNo(_,p) ->
+		typing_error "This expression cannot be accessed for writing" p
 	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
@@ -627,7 +632,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
 	in
 	let assign vr e r_rhs =
-		check_assign ctx e;
+		if BinopResult.needs_assign r_rhs then check_assign ctx e;
 		let assign e_rhs =
 			let e_rhs = AbstractCast.cast_or_unify ctx e.etype e_rhs p in
 			match e_rhs.eexpr with
@@ -649,11 +654,13 @@ let type_assign_op ctx op e1 e2 with_type p =
 		vr#to_texpr e
 	in
 	(match !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
-	| AKNo(s,p) ->
+	| AKNo(_,p) ->
 		(* try abstract operator overloading *)
-		(try type_non_assign_op ctx op e1 e2 true true with_type p
-		with Not_found -> typing_error ("Cannot access " ^ s ^ " for writing") p
-		)
+		begin try
+			type_non_assign_op ctx op e1 e2 true true with_type p
+		with Not_found ->
+			typing_error "This expression cannot be accessed for writing" p
+		end
 	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr e ->
@@ -839,8 +846,12 @@ let type_unop ctx op flag e with_type p =
 		in
 		let access_set = !type_access_ref ctx (fst e) (snd e) (MSet None) WithType.value (* WITHTYPETODO *) in
 		match access_set with
-		| AKNo(s,p) ->
-			typing_error ("Cannot access " ^ s ^ " for writing") p
+		| AKNo(acc,p) ->
+			begin try
+				try_abstract_unop_overloads (acc_get ctx acc p)
+			with Not_found ->
+				typing_error "This expression cannot be accessed for writing" p
+			end
 		| AKExpr e ->
 			find_overload_or_make e
 		| AKField fa ->

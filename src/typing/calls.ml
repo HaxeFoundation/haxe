@@ -190,7 +190,7 @@ let rec acc_get ctx g p =
 	in
 	let dispatcher () = new call_dispatcher ctx MGet WithType.value p in
 	match g with
-	| AKNo(name,p) -> typing_error (name ^ " cannot be accessed for reading") p
+	| AKNo(_,p) -> typing_error ("This expression cannot be accessed for reading") p
 	| AKExpr e -> e
 	| AKSafeNav sn ->
 		(* generate null-check branching for the safe navigation chain *)
@@ -302,8 +302,8 @@ let rec build_call_access ctx acc el mode with_type p =
 		AKExpr e
 	| AKResolve(sea,name) ->
 		AKExpr (dispatch#expr_call (dispatch#resolve_call sea name) [] el)
-	| AKNo(s,p) ->
-		typing_error (s ^ " cannot be called") p
+	| AKNo(_,p) ->
+		typing_error "This expression cannot be called" p
 	| AKAccess _ ->
 		typing_error "This expression cannot be called" p
 	| AKAccessor fa ->

@@ -269,24 +269,40 @@ let rec type_ident_raise ctx i p mode with_type =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	match i with
 	| "true" ->
+		let acc = AKExpr (mk (TConst (TBool true)) ctx.t.tbool p) in
 		if mode = MGet then
-			AKExpr (mk (TConst (TBool true)) ctx.t.tbool p)
+			acc
 		else
-			AKNo(i,p)
+			AKNo(acc,p)
 	| "false" ->
+		let acc = AKExpr (mk (TConst (TBool false)) ctx.t.tbool p) in
 		if mode = MGet then
-			AKExpr (mk (TConst (TBool false)) ctx.t.tbool p)
+			acc
 		else
-			AKNo(i,p)
+			AKNo(acc,p)
 	| "this" ->
-		if is_set then add_class_field_flag ctx.curfield CfModifiesThis;
-		(match mode, ctx.curclass.cl_kind with
-		| MSet _, KAbstractImpl _ ->
-			if not (assign_to_this_is_allowed ctx) then
-				typing_error "Abstract 'this' value can only be modified inside an inline function" p;
-			AKExpr (get_this ctx p)
-		| (MCall _, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
-		| _ -> AKNo(i,p))
+		let acc = AKExpr(get_this ctx p) in
+		begin match mode with
+		| MSet _ ->
+			add_class_field_flag ctx.curfield CfModifiesThis;
+			begin match ctx.curclass.cl_kind with
+			| KAbstractImpl _ ->
+				if not (assign_to_this_is_allowed ctx) then
+					typing_error "Abstract 'this' value can only be modified inside an inline function" p;
+				acc
+			| _ ->
+				AKNo(acc,p)
+			end
+		| MCall _ ->
+			begin match ctx.curclass.cl_kind with
+			| KAbstractImpl _ ->
+				acc
+			| _ ->
+				AKNo(acc,p)
+			end
+		| MGet ->
+			acc
+		end;
 	| "abstract" ->
 		begin match mode, ctx.curclass.cl_kind with
 			| MSet _, KAbstractImpl ab -> typing_error "Property 'abstract' is read-only" p;
@@ -311,7 +327,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		| FunMemberClassLocal | FunMemberAbstractLocal -> typing_error "Cannot access super inside a local function" p);
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
-		if mode = MGet then begin
+		let acc =
 			(* Hack for #10787 *)
 			if ctx.com.platform = Cs then
 				AKExpr (null (spawn_monomorph ctx p) p)
@@ -334,8 +350,8 @@ let rec type_ident_raise ctx i p mode with_type =
 				in
 				AKExpr (null t p)
 			end
-		end else
-			AKNo(i,p)
+		in
+		if mode = MGet then acc else AKNo(acc,p)
 	| _ ->
 	try
 		let v = PMap.find i ctx.locals in
@@ -394,10 +410,12 @@ let rec type_ident_raise ctx i p mode with_type =
 			field_access ctx mode f (FHStatic c) e p
 		)
 	with Not_found -> try
-		let wrap e = if is_set then
-				AKNo(i,p)
+		let wrap e =
+			let acc = AKExpr e in
+			if is_set then
+				AKNo(acc,p)
 			else
-				AKExpr e
+				acc
 		in
 		(* lookup imported enums *)
 		let rec loop l =
