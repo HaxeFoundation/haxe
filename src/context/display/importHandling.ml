@@ -88,14 +88,14 @@ let init_import ctx context_init path mode p =
 		let has_name name t = snd (t_infos t).mt_path = name in
 
 		let fail_usefully name p =
-			let target,candidates = match String.get name 0 with
+			let target_kind,candidates = match String.get name 0 with
 				(* TODO: cleaner way to get module fields? *)
 				| 'a'..'z' -> "field", PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
 				| _ -> "type", (List.map (fun mt -> snd (t_infos mt).mt_path) types)
 			in
 			typing_error (StringError.string_error name
 				candidates
-				("Module " ^ s_type_path md.m_path ^ " does not define " ^ target ^ " " ^ name)
+				("Module " ^ s_type_path md.m_path ^ " does not define " ^ target_kind ^ " " ^ name)
 			) p
 		in
 
@@ -170,7 +170,7 @@ let init_import ctx context_init path mode p =
 							begin try
 								add_static_init tmain name tsub
 							with Not_found ->
-								let parent,target,candidates = match resolve_typedef tmain with
+								let parent,target_kind,candidates = match resolve_typedef tmain with
 									| TClassDecl c ->
 										"Class<" ^ (s_type_path c.cl_path) ^ ">",
 										"field",
@@ -190,7 +190,7 @@ let init_import ctx context_init path mode p =
 										PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
 								in
 
-								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target ^ " " ^ tsub)) p
+								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p
 							end
 						with Not_found ->
 							fail_usefully tsub p
