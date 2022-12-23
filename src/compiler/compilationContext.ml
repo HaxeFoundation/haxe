@@ -13,6 +13,7 @@ type arg_context = {
 	mutable json_out : string option;
 	mutable cmds : string list;
 	mutable config_macros : string list;
+	mutable init_plugins : string list;
 	mutable no_output : bool;
 	mutable did_something : bool;
 	mutable force_typing : bool;

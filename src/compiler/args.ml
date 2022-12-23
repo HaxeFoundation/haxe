@@ -49,6 +49,7 @@ let parse_args com =
 		json_out = None;
 		cmds = [];
 		config_macros = [];
+		init_plugins = [];
 		no_output = false;
 		did_something = false;
 		force_typing = false;
@@ -293,6 +294,10 @@ let parse_args com =
 			let l = Warning.parse_options s p in
 			com.warning_options <- l :: com.warning_options
 		),"<warning list>","enable or disable specific warnings");
+		("Compilation",["-lp";"--load-plugin"],[], Arg.String (fun file ->
+			let file = (try Common.find_file com file with Not_found -> file) in
+			actx.init_plugins <- file :: actx.init_plugins
+		),"<file>","run plugin at startup");
 	] in
 	let args_callback cl =
 		begin try

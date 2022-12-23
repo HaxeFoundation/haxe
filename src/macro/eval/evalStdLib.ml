@@ -622,23 +622,36 @@ module StdContext = struct
 
 	let plugin_data = ref None
 
+	let is_init = ref false
+
 	let register data = plugin_data := Some data
 
-	let loadPlugin = vfun1 (fun filePath ->
-		let filePath = decode_string filePath in
+	let load_plugin_internal init filePath =
+		is_init := init;
 		let filePath = Dynlink.adapt_filename filePath in
 		if PMap.mem filePath !plugins then
 			PMap.find filePath !plugins
 		else begin
-			(try Dynlink.loadfile filePath with Dynlink.Error error -> exc_string (Dynlink.error_message error));
-			match !plugin_data with
+			(try Dynlink.loadfile filePath with
+				Dynlink.Error error -> (
+					let msg = Dynlink.error_message error in
+					if init then failwith (filePath ^ ": " ^ msg)
+					else exc_string (msg)
+				));
+			if not init then begin
+				match !plugin_data with
 				| Some l ->
 					let vapi = encode_obj_s l in
 					plugins := PMap.add filePath vapi !plugins;
 					vapi
 				| None ->
 					vnull
+			end else vnull
 		end
+
+	let loadPlugin = vfun1 (fun filePath ->
+		let filePath = decode_string filePath in
+		load_plugin_internal false filePath
 	)
 end
 
@@ -2677,24 +2690,28 @@ module StdSys = struct
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stdout)
 	)
 
+	let system_name_internal =
+		match Sys.os_type with
+			| "Unix" ->
+				let ic, pid = catch_unix_error Process_helper.open_process_args_in_pid "uname" [| "uname" |] in
+				let uname = (match input_line ic with
+					| "Darwin" -> "Mac"
+					| n -> n
+				) in
+				Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
+				uname
+			| "Win32" | "Cygwin" -> "Windows"
+			| s -> s
+
 	let systemName =
 		let cached_sys_name = ref None in
 		vfun0 (fun () ->
-			let s = match Sys.os_type with
-				| "Unix" ->
-					(match !cached_sys_name with
-					| Some n -> n
-					| None ->
-						let ic, pid = catch_unix_error Process_helper.open_process_args_in_pid "uname" [| "uname" |] in
-						let uname = (match input_line ic with
-							| "Darwin" -> "Mac"
-							| n -> n
-						) in
-						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
-						cached_sys_name := Some uname;
-						uname)
-				| "Win32" | "Cygwin" -> "Windows"
-				| s -> s
+			let s = match !cached_sys_name with
+			| Some n -> n
+			| None ->
+				let name = system_name_internal in
+				cached_sys_name := Some name;
+				name
 			in
 			encode_string s
 		)

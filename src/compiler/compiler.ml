@@ -398,6 +398,14 @@ let catch_completion_and_exit ctx callbacks run =
 			finalize ctx;
 			i
 
+let initialize_plugins actx =
+	let system_name = EvalStdLib.StdSys.system_name_internal in
+	let r = Str.regexp {|\$SystemName|} in
+	List.iter (fun file ->
+		let file = Str.replace_first r system_name file in
+		ignore(EvalStdLib.StdContext.load_plugin_internal true file)
+	) actx.init_plugins
+
 let process_actx ctx actx =
 	DisplayProcessing.process_display_arg ctx actx;
 	List.iter (fun s ->
@@ -411,6 +419,7 @@ let compile_ctx callbacks ctx =
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_actx ctx actx;
+			initialize_plugins actx;
 			callbacks.after_arg_parsing ctx;
 			compile ctx actx;
 		);
