@@ -3,7 +3,7 @@
 ```
 $ make plugin PLUGIN=example
 ```
-This command builds plugin for current OS only.
+This command builds plugin for current OS only. Be sure to include `-f Makefile.win` on Windows.
 
 # How to use your plugins in a Haxe project
 

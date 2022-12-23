@@ -57,6 +57,13 @@ class plugin =
 	end
 ;;
 
+(**
+	This plugin is designed to be loaded using `eval.vm.Context.loadPlugin`.
+	If it is loaded using `--load-plugin`, ensure it fails.
+*)
+if !EvalStdLib.StdContext.is_init then
+	(failwith "example - This plugin must be loaded using eval.vm.Context.loadPlugin");
+
 let api = new plugin in
 
 (**
