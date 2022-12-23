@@ -218,6 +218,11 @@ and parse_class_content doc meta flags n p1 s =
 	}, punion p1 p2)
 
 and parse_type_decl mode s =
+	match (call_hooks hooks.on_type_decl (s, mode)) with
+	| Some hook_expr -> hook_expr
+	| None -> parse_type_decl' mode s
+
+and parse_type_decl' mode s =
 	match s with parser
 	| [< '(Kwd Import,p1) >] -> parse_import s p1
 	| [< '(Kwd Using,p1) >] -> parse_using s p1
@@ -926,6 +931,11 @@ and parse_var_field_assignment = parser
 	| [< >] -> serror()
 
 and parse_class_field tdecl s =
+	match (call_hooks hooks.on_class_field (s, tdecl)) with
+	| Some hook_cf -> hook_cf
+	| None -> parse_class_field' tdecl s
+
+and parse_class_field' tdecl s =
 	let doc = get_doc s in
 	let meta = parse_meta s in
 	match s with parser
@@ -1344,7 +1354,13 @@ and arrow_first_param e s =
 	| _ ->
 		serror())
 
-and expr = parser
+and expr s =
+	let hook_result = call_hooks hooks.on_expr s in
+	match hook_result with
+	| Some e -> e
+	| None -> expr' s
+
+and expr' = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
 		begin try
 			make_meta name params (secure_expr s) p
@@ -1527,7 +1543,10 @@ and expr = parser
 
 and expr_next e1 s =
 	try
-		expr_next' e1 s
+		let hook_result = call_hooks hooks.on_expr_next (s, e1) in
+		match hook_result with
+		| Some e -> e
+		| None -> expr_next' e1 s
 	with Stream.Error msg when !in_display ->
 		handle_stream_error msg s;
 		e1
@@ -1688,15 +1707,19 @@ and parse_call_params f p1 s =
 and secure_expr = parser
 	| [< e = expr >] -> e
 	| [< s >] ->
-		syntax_error (Expected ["expression"]) s (
-			let last = last_token s in
-			let plast = pos last in
-			let offset = match fst last with
-				| Const _ | Kwd _ | Dollar _ -> 1
-				| _ -> 0
-			in
-			let plast = {plast with pmin = plast.pmax + offset} in
-			mk_null_expr (punion_next plast s)
+		match (call_hooks hooks.on_expr_expected s) with
+		| Some e -> e
+		| None -> (
+			syntax_error (Expected ["expression"]) s (
+				let last = last_token s in
+				let plast = pos last in
+				let offset = match fst last with
+					| Const _ | Kwd _ | Dollar _ -> 1
+					| _ -> 0
+				in
+				let plast = {plast with pmin = plast.pmax + offset} in
+				mk_null_expr (punion_next plast s)
+			)
 		)
 
 let rec validate_macro_cond s e = match fst e with
