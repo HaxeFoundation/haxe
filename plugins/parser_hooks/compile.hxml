@@ -1,0 +1,7 @@
+-cp hx
+
+-main Main
+
+--load-plugin cmxs/$SystemName/plugin.cmxs
+
+--interp

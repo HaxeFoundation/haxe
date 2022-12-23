@@ -1,0 +1,7 @@
+(data_only_dirs cmxs hx)
+(include_subdirs unqualified)
+
+(library
+	(name parser_hooks)
+	(libraries haxe)
+)
