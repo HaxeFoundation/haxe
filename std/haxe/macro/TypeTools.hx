@@ -174,11 +174,16 @@ class TypeTools {
 
 		If `t` is null, an internal exception is thrown.
 
-		Usage example:
+		Usage example with monomorphs:
 			var t = Context.typeof(macro null); // TMono(<mono>)
 			var ts = Context.typeof(macro "foo"); //TInst(String,[])
 			Context.unify(t, ts);
 			trace(t); // TMono(<mono>)
+			trace(t.follow()); //TInst(String,[])
+
+		Usage example with typedefs:
+			var t = Context.typeof(macro ("foo" :MyString)); // typedef MyString = String
+			trace(t); // TType(MyString,[])
 			trace(t.follow()); //TInst(String,[])
 	**/
 	static public inline function follow(t:Type, ?once:Bool):Type
