@@ -23,7 +23,7 @@ let get_main ctx types =
 				| None ->
 					raise Not_found
 				| Some c ->
-					p := c.cl_pos;
+					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found -> try
 				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
@@ -31,7 +31,7 @@ let get_main ctx types =
 				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 					typing_error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
 				| TClassDecl c ->
-					p := c.cl_pos;
+					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found ->
 				typing_error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
