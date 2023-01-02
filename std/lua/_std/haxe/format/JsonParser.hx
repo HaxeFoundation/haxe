@@ -87,8 +87,7 @@ class JsonParser {
 							case '}'.code:
 								if (field != null || comma == false)
 									invalidChar();
-								
-								obj;
+								return obj;
 							case ':'.code:
 								if (field == null)
 									invalidChar();
