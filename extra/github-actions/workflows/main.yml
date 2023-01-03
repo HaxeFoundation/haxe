@@ -94,7 +94,7 @@ jobs:
           sudo add-apt-repository ppa:avsm/ppa -y # provides OPAM 2
           sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
           sudo apt-get update -qqy
-          sudo apt-get install -qqy ocaml-nox camlp5 opam libc6 libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libipc-system-simple-perl
+          sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libipc-system-simple-perl
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
@@ -420,8 +420,13 @@ jobs:
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
     needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
+      - name: Install dependencies
+        run: |
+          set -ex
+          sudo apt-get install -qqy libc6
+
       - name: Download Haxe
         uses: actions/download-artifact@v2
         with:
