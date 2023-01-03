@@ -164,8 +164,8 @@ jobs:
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
           - target: cpp
             APT_PACKAGES: gcc-multilib g++-multilib
-          # - target: lua
-          #   APT_PACKAGES: ncurses-dev
+          - target: lua
+            APT_PACKAGES: ncurses-dev
     steps:
       - uses: actions/checkout@main
         with:
