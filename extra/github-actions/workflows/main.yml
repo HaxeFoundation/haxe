@@ -10,6 +10,7 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       OPAMYES: 1
+      OPAMROOT: D:\.opam
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
       ARCH: 64
       MINGW_ARCH: x86_64
@@ -20,9 +21,22 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: D:\.opam
+          key: ${{ runner.os }}64-${{ hashFiles('./opam', './libs/') }}
+
       @import install-neko-windows.yml
       @import install-nsis.yml
       @import install-ocaml-windows64.yml
+      @import install-ocaml-libs-windows.yml
       @import build-windows.yml
 
   windows-build:
@@ -31,6 +45,7 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
       OPAMYES: 1
+      OPAMROOT: D:\.opam
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
       ARCH: 32
       MINGW_ARCH: i686
@@ -42,56 +57,89 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: D:\.opam
+          key: ${{ runner.os }}32-${{ hashFiles('./opam', './libs/') }}
+
       @import install-neko-windows.yml
       @import install-nsis.yml
       @import install-ocaml-windows.yml
+      @import install-ocaml-libs-windows.yml
       @import build-windows.yml
 
-  linux-amd64:
-    runs-on: ubuntu-18.04
-    permissions:
-      packages: write
+  linux-build:
+    runs-on: ubuntu-20.04
     env:
-      FORCE_COLOR: 1
+      PLATFORM: linux64
+      OPAMYES: 1
     steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
-      - name: Set CONTAINER_ vars
+      @import cache-opam.yml
+      @import install-neko-unix.yml
+
+      - name: Install dependencies
         run: |
-          echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
-          echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
+          set -ex
+          sudo add-apt-repository ppa:avsm/ppa -y # provides OPAM 2
+          sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
+          sudo apt-get update -qqy
+          sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre3-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libipc-system-simple-perl
 
-      - name: Build devcontainer
-        run: earthly +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-amd64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-amd64"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_USE_INLINE_CACHE: true
-          EARTHLY_SAVE_INLINE_CACHE: true
+      - name: Install OCaml libraries
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+          set -ex
+          opam init # --disable-sandboxing
+          opam update
+          opam pin add haxe . --no-action
+          opam install haxe --deps-only --assume-depexts
+          opam list
+          ocamlopt -v
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+      - name: Build Haxe
+        run: |
+          set -ex
+          eval $(opam env)
+          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
+          opam config exec -- make -s haxelib
+          make -s package_unix
+          ls -l out
+          ldd -v ./haxe
+          ldd -v ./haxelib
 
-      - name: Build
-        run: earthly +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-amd64"
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
 
       - name: Build xmldoc
-        run: earthly +xmldoc --COMMIT="${{ github.sha }}" --BRANCH="${{ github.ref_name }}"
+        run: |
+          set -ex
+          make -s xmldoc
+          cat >extra/doc/info.json <<EOL
+            {
+              "commit": "$GITHUB_SHA",
+              "branch": "${{ steps.extract_branch.outputs.branch }}"
+            }
+          EOL
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linuxBinaries
+          path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v1.0.0
@@ -99,17 +147,66 @@ jobs:
           name: xmldoc
           path: extra/doc
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1.0.0
+  linux-test:
+    needs: linux-build
+    runs-on: ubuntu-20.04
+    env:
+      PLATFORM: linux64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+    strategy:
+      fail-fast: false
+      matrix:
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, neko]
+        include:
+          - target: hl
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: cpp
+            APT_PACKAGES: gcc-multilib g++-multilib
+          # - target: lua
+          #   APT_PACKAGES: ncurses-dev
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
         with:
           name: linuxBinaries
-          path: out/linux/amd64
+
+      @import install-neko-unix.yml
+
+      - name: Setup Haxe
+        run: |
+          sudo apt install -qqy libmbedtls-dev
+
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Print Haxe version
+        run: haxe -version
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+
+      - name: Install apt packages
+        if: matrix.APT_PACKAGES
+        run: |
+          set -ex
+          sudo apt update -qqy
+          sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
       - name: Test
-        run: earthly +test-all --GITHUB_ACTIONS="$GITHUB_ACTIONS"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:test-${{env.CONTAINER_TAG}}-amd64"
+        run: haxe RunCi.hxml
+        working-directory: ${{github.workspace}}/tests
 
   linux-arm64:
     runs-on: ubuntu-18.04
@@ -167,53 +264,6 @@ jobs:
           name: linuxArm64Binaries
           path: out/linux/arm64
 
-      # Do not run test for arm64 for now
-
-  linux-multiarch:
-    needs: [linux-amd64, linux-arm64]
-    runs-on: ubuntu-18.04
-    permissions:
-      packages: write
-    env:
-      FORCE_COLOR: 1
-    steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v1
-        with:
-            image: tonistiigi/binfmt:latest
-            platforms: all
-
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-
-      - name: Set CONTAINER_ vars
-        run: |
-          echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
-          echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
-
-      - name: Build devcontainer
-        run: earthly +devcontainer-multiarch --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_USE_INLINE_CACHE: true
-          EARTHLY_SAVE_INLINE_CACHE: true
-
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
   mac-build:
     runs-on: macos-latest
     env:
@@ -225,6 +275,7 @@ jobs:
         with:
           submodules: recursive
 
+      @import cache-opam.yml
       @import install-neko-unix.yml
       @import build-mac.yml
 
@@ -306,7 +357,7 @@ jobs:
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-amd64, linux-arm64, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-18.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
@@ -382,9 +433,14 @@ jobs:
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-amd64, linux-arm64, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-18.04
+    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
+    runs-on: ubuntu-20.04
     steps:
+      - name: Install dependencies
+        run: |
+          set -ex
+          sudo apt-get install -qqy libc6
+
       - name: Download Haxe
         uses: actions/download-artifact@v2
         with:
