@@ -158,7 +158,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, neko]
         include:
           - target: hl
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
@@ -292,7 +292,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash9, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -318,7 +318,7 @@ jobs:
       matrix:
         # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+        target: [macro, js, hl, cpp, java, cs, php, python, lua, neko]
     steps:
       - uses: actions/checkout@main
         with:
