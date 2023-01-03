@@ -345,14 +345,14 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, neko]
         include:
           - target: hl
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
           - target: cpp
             APT_PACKAGES: gcc-multilib g++-multilib
-          # - target: lua
-          #   APT_PACKAGES: ncurses-dev
+          - target: lua
+            APT_PACKAGES: ncurses-dev
     steps:
       - uses: actions/checkout@main
         with:
