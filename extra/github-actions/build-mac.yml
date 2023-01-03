@@ -33,6 +33,7 @@
 
 
 - name: Install OCaml libraries
+  if: steps.cache-opam.outputs.cache-hit != 'true'
   run: |
     set -ex
     opam init # --disable-sandboxing
