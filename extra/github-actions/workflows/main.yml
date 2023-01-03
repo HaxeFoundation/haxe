@@ -131,7 +131,6 @@ jobs:
           cat >extra/doc/info.json <<EOL
             {
               "commit": "$GITHUB_SHA",
-              "branch": "$GITHUB_REF"
               "branch": "${{ steps.extract_branch.outputs.branch }}"
             }
           EOL
