@@ -305,8 +305,23 @@ jobs:
           ldd -v ./haxe
           ldd -v ./haxelib
 
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+
       - name: Build xmldoc
-        run: make xmldoc
+        run: |
+          set -ex
+          make -s xmldoc
+          cat >extra/doc/info.json <<EOL
+            {
+              "commit": "$GITHUB_SHA",
+              "branch": "$GITHUB_REF"
+              "branch": "${{ steps.extract_branch.outputs.branch }}"
+            }
+          EOL
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1.0.0
