@@ -24,7 +24,7 @@ class Lua {
 				
 				//Install libs for pcre
 				runCommand("choco", ["install", "msys2"]);
-				attemptCommand("msys2", ["pacman", "-S", "mingw-w64-x86_64-pcre"]);
+				attemptCommand("pacman", ["-S", "mingw-w64-x86_64-pcre"]);
 				
 			case "Linux":
 				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
