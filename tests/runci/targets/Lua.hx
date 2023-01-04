@@ -10,6 +10,9 @@ class Lua {
 
 	static public function getLuaDependencies(){
 		switch (systemName){
+			case "Windows":
+				//choco install openssl
+				runCommand("choco", ["install", "openssl"]);
 			case "Linux":
 				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
@@ -70,9 +73,7 @@ class Lua {
 			// Note: don't use a user config
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
-			if (systemName != "Windows"){
-				installLib("luasec", "1.0.2-1");
-			}
+			installLib("luasec", "1.0.2-1");
 			
 			installLib("lrexlib-pcre", "2.9.1-1");
 			installLib("luv", "1.36.0-0");
