@@ -70,9 +70,20 @@ class Lua {
 			// Note: don't use a user config
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
-			installLib("haxe-deps", "0.0.1-6");
 			installLib("luasec", "1.0.2-1");
 
+			installLib("lrexlib-pcre", "2.9.1-1");
+			installLib("luv", "1.36.0-0");
+			installLib("luasocket", "3.0rc1-2");
+			installLib("luautf8", "0.1.1-1");
+			
+			//Install bit32 for lua 5.1
+			if(lv == "-l5.1"){
+				installLib("bit32", "5.2.2-1");
+			}
+			
+			installLib("hx-lua-simdjson", "0.0.1-1");
+			
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/unit.lua"]);

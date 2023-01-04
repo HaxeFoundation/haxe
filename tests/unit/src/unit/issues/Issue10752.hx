@@ -4,7 +4,7 @@ class Issue10752 extends Test {
 	function shl(x, y)
 		return x << y;
 
-	#if (!php && !python)
+	#if (!php && !python && !lua)
 	function test() {
 		eq(2, shl(1, 33));
 		eq(2, 1 << 33);
