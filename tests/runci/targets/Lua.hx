@@ -22,6 +22,10 @@ class Lua {
 				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libssl-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libssl32MD.dll"]);
 				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto32MD.dll"]);
 				
+				//Install libs for pcre
+				runCommand("choco", ["install", "msys2"]);
+				attemptCommand("msys2", ["pacman", "-S", "mingw-w64-x86_64-pcre"]);
+				
 			case "Linux":
 				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
