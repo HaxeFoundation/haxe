@@ -76,7 +76,12 @@ class Lua {
 			installLib("luv", "1.36.0-0");
 			installLib("luasocket", "3.0rc1-2");
 			installLib("luautf8", "0.1.1-1");
-			installLib("bit32", "5.2.2-1");
+			
+			//Install bit32 for lua 5.1
+			if(lv == "-l5.1"){
+				installLib("bit32", "5.2.2-1");
+			}
+			
 			installLib("hx-lua-simdjson", "0.0.1-1");
 			
 			changeDirectory(unitDir);
