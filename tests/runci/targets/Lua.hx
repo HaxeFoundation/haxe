@@ -14,8 +14,14 @@ class Lua {
 				//choco install openssl
 				runCommand("choco", ["install", "openssl"]);
 				
-				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\lib\\libssl-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\lib\\libssl32MD.dll"]);
-				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\lib\\libcrypto-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\lib\\libcrypto32MD.dll"]);
+				//Try to rename openssl bins for 64 bit
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libssl-1_1-x64.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libssl32MD.dll"]);
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto-1_1-x64.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto32MD.dll"]);
+				
+				//Try to rename openssl bins for 32 bit
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libssl-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libssl32MD.dll"]);
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto32MD.dll"]);
+				
 			case "Linux":
 				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
