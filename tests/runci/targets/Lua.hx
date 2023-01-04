@@ -13,6 +13,9 @@ class Lua {
 			case "Windows":
 				//choco install openssl
 				runCommand("choco", ["install", "openssl"]);
+				
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\libssl-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\libssl32MD.dll"]);
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\libcrypto-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\libcrypto32MD.dll"]);
 			case "Linux":
 				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
