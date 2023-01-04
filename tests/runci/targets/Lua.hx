@@ -26,7 +26,7 @@ class Lua {
 				runCommand("choco", ["install", "msys2"]);
 				
 				//Invoke pacman from msys2 to install pcre
-				attemptCommand("C:\\tools\\msys64\\usr\\bin\\bash", ["-lc", "\"pacman -S mingw-w64-x86_64-pcre\""]);
+				attemptCommand("C:\\tools\\msys64\\usr\\bin\\bash.exe", ["-lc", "\"pacman -S mingw-w64-x86_64-pcre\""]);
 				//attemptCommand("pacman", ["-S", "mingw-w64-x86_64-pcre"]);
 				
 			case "Linux":
