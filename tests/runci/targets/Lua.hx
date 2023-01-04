@@ -38,7 +38,7 @@ class Lua {
 				args.push('OPENSSL_DIR=/usr/local/opt/openssl@3');
 			}
 			if (systemName == "Windows") {
-				args.push('OPENSSL_DIR=C:\Program Files\OpenSSL-Win64');	
+				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL-Win64');	
 			}
             if (server != null){
                 final server_arg = '--server=$server';
