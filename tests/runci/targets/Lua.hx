@@ -117,7 +117,9 @@ class Lua {
 				installLib("bit32", "5.2.2-1");
 			}
 			
-			installLib("hx-lua-simdjson", "0.0.1-1");
+			if (systemName != "Windows") {
+				installLib("hx-lua-simdjson", "0.0.1-1");
+			}
 			
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
