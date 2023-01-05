@@ -47,7 +47,7 @@ class Lua {
 		}
 	}
 
-	static function installLib(lib : String, version : String, ?server :String){
+	static function installLib(lib:String, version:String, ?server:String, ?envpath:String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
             final args = ["install", lib, version];
 			if (systemName == "Mac") {
@@ -56,7 +56,10 @@ class Lua {
 			if (systemName == "Windows") {
 				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL-Win64');	
 				args.push('PCRE_DIR=C:\\tools\\msys64\\mingw64');	
-				args.push('PCRE_INCDIR=C:\\tools\\msys64\\mingw64\\include');	
+				args.push('PCRE_INCDIR=C:\\tools\\msys64\\mingw64\\include');
+				if (envpath != null) {
+					args.push('LUA_LIBDIR='+envpath+'\lib');
+				}
 			}
             if (server != null){
                 final server_arg = '--server=$server';
@@ -97,7 +100,7 @@ class Lua {
 			installLib("luasec", "1.0.2-1");
 			
 			installLib("lrexlib-pcre", "2.9.1-1");
-			installLib("luv", "1.36.0-0");
+			installLib("luv", "1.36.0-0", null, envpath);
 			installLib("luasocket", "3.0rc1-2");
 			installLib("luautf8", "0.1.1-1");
 			
