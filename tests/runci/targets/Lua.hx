@@ -55,8 +55,8 @@ class Lua {
 			}
 			if (systemName == "Windows") {
 				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL-Win64');	
-				args.push('PCRE_DIR=C:\\tools\\msys64\\usr\\local\\bin');	
-				args.push('PCRE_INCDIR=C:\\tools\\msys64\\usr\\local\\include');	
+				args.push('PCRE_DIR=C:\\tools\\msys64\\mingw64\\bin');	
+				args.push('PCRE_INCDIR=C:\\tools\\msys64\\mingw64\\include');	
 			}
             if (server != null){
                 final server_arg = '--server=$server';
