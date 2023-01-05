@@ -584,7 +584,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash9, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -675,7 +676,8 @@ jobs:
       fail-fast: false
       matrix:
         # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
-        target: [macro, js, hl, cpp, java, cs, php, python, lua, neko]
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
+        target: [macro, js, hl, cpp, java, cs, php, python, neko]
     steps:
       - uses: actions/checkout@main
         with:
