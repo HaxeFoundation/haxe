@@ -49,7 +49,10 @@ class Lua {
 
 	static function installLib(lib:String, version:String, ?server:String, ?envpath:String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
-            final args = ["install", lib, version];
+            		final args = ["install", lib, version];
+			
+			args.push('--verbose');
+			
 			if (systemName == "Mac") {
 				args.push('OPENSSL_DIR=/usr/local/opt/openssl@3');
 			}
@@ -58,13 +61,16 @@ class Lua {
 				args.push('PCRE_DIR=C:\\tools\\msys64\\mingw64');	
 				args.push('PCRE_INCDIR=C:\\tools\\msys64\\mingw64\\include');
 				if (envpath != null) {
-					args.push('LUA_LIBDIR='+envpath+'\\lib');
+					args.push('LUA_LIBDIR='+envpath+'/lib');
 				}
 			}
-            if (server != null){
-                final server_arg = '--server=$server';
-                args.push(server_arg);
-            }
+			
+			if (server != null){
+				final server_arg = '--server=$server';
+				args.push(server_arg);
+			}
+			
+			
 			runCommand("luarocks", args);
 		} else {
 			infoMsg('Lua dependency $lib is already installed at version $version');
