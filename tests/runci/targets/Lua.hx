@@ -61,7 +61,8 @@ class Lua {
 				args.push('PCRE_DIR=C:\\tools\\msys64\\mingw64');	
 				args.push('PCRE_INCDIR=C:\\tools\\msys64\\mingw64\\include');
 				if (envpath != null) {
-					args.push('LUA_LIBDIR='+envpath+'/lib');
+					args.push('LUA_LIBDIR='+envpath+'/bin');
+					
 					attemptCommand("dir", ['/S', envpath]);
 				}
 			}
