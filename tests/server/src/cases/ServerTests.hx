@@ -86,7 +86,6 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
 		// assertNotCacheModified("BuildMacro");
-		trace(lastResult);
 		assertSkipping("BuiltClass", DependencyDirty("BuildMacro - Tainted server/invalidate"));
 		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}

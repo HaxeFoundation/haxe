@@ -747,11 +747,11 @@ let create_typer_context_for_module ctx m = {
 (*
 	Creates a module context for [m] and types [tdecls] using it.
 *)
-let type_types_into_module ?(check=true) ctx m tdecls p =
+let type_types_into_module ctx m tdecls p =
 	let ctx = create_typer_context_for_module ctx m in
 	let decls,tdecls = ModuleLevel.create_module_types ctx m tdecls p in
 	let types = List.map fst decls in
-	if check then List.iter (TypeloadCheck.check_module_types ctx m p) types;
+	List.iter (TypeloadCheck.check_module_types ctx m p) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
 	if ctx.g.std != null_module then begin
