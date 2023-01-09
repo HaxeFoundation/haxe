@@ -29,7 +29,7 @@ class NativeStackTrace {
 		var count = callStackRaw(null);
 		var arr = new NativeArray(count);
 		callStackRaw(arr);
-		return arr.sub(1, arr.length - 1);
+		return arr;
 	}
 
 	@:hlNative("std", "exception_stack_raw")
