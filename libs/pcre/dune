@@ -2,6 +2,8 @@
 
 (library
 	(name pcre)
-	(c_names pcre_stubs)
+	(foreign_stubs
+		(language c)
+		(names pcre_stubs))
 	(wrapped false)
 )

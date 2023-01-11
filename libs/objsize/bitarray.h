@@ -14,7 +14,7 @@ void PRF(_set)(TYPE arr[], size_t i, TYPE val);
 
 #define ALLOC_TYPE unsigned char
 #define ALLOC_PRF(x) ALPRF(x)
-#include "alloc.c"
+#include "alloc.h"
 
 
 size_t wordalign(size_t n)
