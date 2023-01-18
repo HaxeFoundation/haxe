@@ -149,6 +149,12 @@ abstract BigInt(BigInt_)
 	{
 		return new BigInt(BigInt_.randomPrime(bits,tolerance));
 	}
+	
+	public static function divMod(dividend:BigInt, divisor:BigInt):{quotient:BigInt, remainder:BigInt} 
+	{
+		var result:{quotient:BigInt_, remainder:BigInt_} = BigInt_.divMod(dividend,divisor);
+		return {quotient:(new BigInt(result.quotient)), remainder:(new BigInt(result.remainder)) };
+	}
 
 	public inline function getBit(index : Int) : Int
 	{
@@ -218,6 +224,11 @@ abstract BigInt(BigInt_)
 	public function testBit(n:Int):Bool
 	{
 		return this.testBit(n);
+	}
+	
+	public function hashCode():Int
+	{
+		return this.hashCode();
 	}
 
 	//-----------------------------------------------------------------------

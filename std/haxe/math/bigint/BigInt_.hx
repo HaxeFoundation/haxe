@@ -146,6 +146,16 @@ class BigInt_
 		return ( ( m_data.get(chunk) & (1<<(n & 0x1f))) != 0);
 	}
 	
+	public function hashCode():Int
+	{
+		var hash:Int32 = 0;
+		for (n in 0 ... this.m_count)
+		{
+			hash = 31*hash + this.m_data.get(n);
+		}
+		return hash;
+	}
+	
 	public function isProbablePrime(tolerance:UInt):Bool
 	{
 		if ( tolerance <= 0 ) return true;
@@ -524,6 +534,14 @@ class BigInt_
 		r.setFromBigEndianBytesSigned(randomBytes(bits));
 		r.compact();
 		return r;
+	}
+	
+	public static function divMod(dividend:BigInt_, divisor:BigInt_):{quotient:BigInt_, remainder:BigInt_}
+	{
+		var q = new MutableBigInt_();
+		var r = new MutableBigInt_();
+		BigIntArithmetic.divide(dividend, divisor, q, r);
+		return {quotient:q, remainder:r};
 	}
 
 	//-----------------------------------------------------------------------
