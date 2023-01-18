@@ -319,6 +319,17 @@ abstract BigInt(BigInt_)
 	{
 		return BigIntArithmetic.compare(a, b) >= 0;
 	}
+	
+	// String conversions
+	@:op(A + B) @:noCompletion public static inline function toStr_left(a : String, b : BigInt) : String
+	{
+		return a+b.toString();
+	}
+
+	@:op(A + B) @:noCompletion public static inline function toStr_right(a : BigInt, b : String) : String
+	{
+		return a.toString()+b;
+	}
 
 	// Binary addition
 	@:op(A + B) @:noCompletion public static inline function addInt_(a : BigInt, b : Int) : BigInt
