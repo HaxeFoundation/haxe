@@ -132,7 +132,7 @@ class BigIntArithmetic
 	public static function add(result : MutableBigInt_, operand1 : BigInt_, operand2 : BigInt_) : Void
 	{
 		var c : Int = 0;
-		var x : Int = 0, y : Int = 0, z : Int = 0;
+		var x : Int32 = 0, y : Int32 = 0, z : Int = 0;
 		if (operand1.m_count == operand2.m_count)
 		{
 			result.ensureCapacity(operand1.m_count + 1, (result == operand1) || (result == operand2));
