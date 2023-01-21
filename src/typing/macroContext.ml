@@ -607,7 +607,7 @@ let load_macro' ctx display cpath f p =
 		t();
 		meth
 	in
-	add_dependency ctx.m.curmod mloaded;
+	add_dependency ~rerun_postprocess:true ctx.m.curmod mloaded;
 	meth
 
 let load_macro ctx display cpath f p =

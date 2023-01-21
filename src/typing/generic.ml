@@ -78,7 +78,7 @@ let rec generic_substitute_type gctx t =
 		(* maybe loop, or generate cascading generics *)
 		let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c2) gctx.p in
 		let t = f (List.map (generic_substitute_type gctx) tl2) in
-		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module | _ -> ());
+		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency ~rerun_postprocess:true m c.cl_module | _ -> ());
 		t
 	| _ ->
 		try
@@ -169,8 +169,8 @@ let static_method_container gctx c cf p =
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
 		mg.m_types <- [TClassDecl cg];
 		ctx.com.module_lut#add mg.m_path mg;
-		add_dependency mg m;
-		add_dependency ctx.m.curmod mg;
+		add_dependency ~rerun_postprocess:true mg m;
+		add_dependency ~rerun_postprocess:true ctx.m.curmod mg;
 		cg
 
 let set_type_parameter_dependencies mg tl =
@@ -260,8 +260,8 @@ let rec build_generic_class ctx c p tl =
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		mg.m_types <- [TClassDecl cg];
 		ctx.com.module_lut#add mg.m_path mg;
-		add_dependency mg m;
-		add_dependency ctx.m.curmod mg;
+		add_dependency ~rerun_postprocess:true mg m;
+		add_dependency ~rerun_postprocess:true ctx.m.curmod mg;
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			(* We have to clone the type parameters (issue #4672). We cannot substitute the constraints immediately because

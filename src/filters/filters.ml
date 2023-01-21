@@ -773,16 +773,16 @@ let update_cache_dependencies com t =
 	let visited_anons = ref [] in
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->
-			add_dependency m c.cl_module;
+			add_dependency ~rerun_postprocess:true m c.cl_module;
 			List.iter (check_t m) tl;
 		| TEnum(en,tl) ->
-			add_dependency m en.e_module;
+			add_dependency ~rerun_postprocess:true m en.e_module;
 			List.iter (check_t m) tl;
 		| TType(t,tl) ->
-			add_dependency m t.t_module;
+			add_dependency ~rerun_postprocess:true m t.t_module;
 			List.iter (check_t m) tl;
 		| TAbstract(a,tl) ->
-			add_dependency m a.a_module;
+			add_dependency ~rerun_postprocess:true m a.a_module;
 			List.iter (check_t m) tl;
 		| TFun(targs,tret) ->
 			List.iter (fun (_,_,t) -> check_t m t) targs;

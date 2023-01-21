@@ -720,7 +720,7 @@ let load_core_type ctx name =
 	let show = hide_params ctx in
 	let t = load_instance ctx (mk_type_path ([],name),null_pos) false in
 	show();
-	add_dependency ctx.m.curmod (match t with
+	add_dependency ~rerun_postprocess:true ctx.m.curmod (match t with
 	| TInst (c,_) -> c.cl_module
 	| TType (t,_) -> t.t_module
 	| TAbstract (a,_) -> a.a_module
@@ -733,7 +733,7 @@ let t_iterator ctx =
 	match load_type_def ctx null_pos (mk_type_path ([],"Iterator")) with
 	| TTypeDecl t ->
 		show();
-		add_dependency ctx.m.curmod t.t_module;
+		add_dependency ~rerun_postprocess:true ctx.m.curmod t.t_module;
 		if List.length t.t_params <> 1 then die "" __LOC__;
 		let pt = mk_mono() in
 		apply_typedef t [pt], pt
