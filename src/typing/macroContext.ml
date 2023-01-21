@@ -335,7 +335,7 @@ let make_macro_api ctx p =
 				ctx.m.curmod.m_extra.m_deps <- old_deps;
 				m
 			) in
-			add_dependency ~rerun_postprocess:true m (create_fake_module ctx file);
+			add_dependency m (create_fake_module ctx file);
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
@@ -607,7 +607,7 @@ let load_macro' ctx display cpath f p =
 		t();
 		meth
 	in
-	add_dependency ~rerun_postprocess:true ctx.m.curmod mloaded;
+	add_dependency ctx.m.curmod mloaded;
 	meth
 
 let load_macro ctx display cpath f p =

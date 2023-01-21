@@ -294,7 +294,7 @@ module ModuleLevel = struct
 			let decls = try
 				let r = com.parser_cache#find path in
 				let mimport = com.module_lut#find ([],path) in
-				if mimport.m_extra.m_kind <> MFake then add_dependency ~rerun_postprocess:true m mimport;
+				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport;
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
@@ -303,7 +303,7 @@ module ModuleLevel = struct
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> typing_error "Only import and using is allowed in import.hx files" p) r;
-					add_dependency ~rerun_postprocess:true m (make_import_module path r);
+					add_dependency m (make_import_module path r);
 					r
 				end else begin
 					let r = [] in
@@ -755,7 +755,7 @@ let type_types_into_module ctx m tdecls p =
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
 	if ctx.g.std != null_module then begin
-		add_dependency ~rerun_postprocess:true m ctx.g.std;
+		add_dependency m ctx.g.std;
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_core_type ctx "String");
 	end;
@@ -825,7 +825,7 @@ let load_module' ctx g m p =
 
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
-	add_dependency ctx.m.curmod m2;
+	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
 	m2
 

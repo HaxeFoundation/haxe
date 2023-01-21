@@ -77,7 +77,7 @@ let extend_remoting ctx c t p async prot =
 		| _ -> d
 	) decls in
 	let m = type_module ctx (t.tpackage,new_name) file decls p in
-	add_dependency ~rerun_postprocess:true ctx.m.curmod m;
+	add_dependency ctx.m.curmod m;
 	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
 	with Not_found ->

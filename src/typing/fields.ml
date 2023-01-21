@@ -484,7 +484,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found ->
 				match loop ctx.g.global_using with
 				| AKUsingField { se_access = { fa_host = FHStatic c } } as acc ->
-					add_dependency ~rerun_postprocess:true ctx.m.curmod c.cl_module;
+					add_dependency ctx.m.curmod c.cl_module;
 					acc
 				| _ -> die "" __LOC__
 		) t e in

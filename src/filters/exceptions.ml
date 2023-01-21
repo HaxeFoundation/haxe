@@ -43,7 +43,7 @@ let haxe_exception_static_call ctx method_name args p =
 		| TFun(_,t) -> t
 		| _ -> typing_error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
-	add_dependency ~rerun_postprocess:true ctx.typer.curclass.cl_module ctx.haxe_exception_class.cl_module;
+	add_dependency ctx.typer.curclass.cl_module ctx.haxe_exception_class.cl_module;
 	make_static_call ctx.typer ctx.haxe_exception_class method_field (fun t -> t) args return_type p
 
 (**
@@ -626,7 +626,7 @@ let insert_save_stacks tctx =
 				in
 				let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 				begin
-					add_dependency ~rerun_postprocess:true tctx.curclass.cl_module native_stack_trace_cls.cl_module;
+					add_dependency tctx.curclass.cl_module native_stack_trace_cls.cl_module;
 					make_static_call tctx native_stack_trace_cls method_field (fun t -> t) [catch_local] return_type catch_var.v_pos
 				end
 			else
