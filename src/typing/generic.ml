@@ -199,7 +199,7 @@ let set_type_parameter_dependencies mg tl =
 			loop ret
 		end
 	and add_dep m tl =
-		add_dependency mg m;
+		add_dependency ~rerun_postprocess:true mg m;
 		List.iter loop tl
 	in
 	List.iter loop tl
