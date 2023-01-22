@@ -76,7 +76,7 @@ jobs:
       @import build-windows.yml
 
   linux-build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-18.04
     env:
       PLATFORM: linux64
       OPAMYES: 1
@@ -149,7 +149,7 @@ jobs:
 
   linux-test:
     needs: linux-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-18.04
     env:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
@@ -433,7 +433,7 @@ jobs:
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
     needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-18.04
     steps:
       - name: Install dependencies
         run: |
