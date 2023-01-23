@@ -179,32 +179,32 @@ class TestCase implements ITest {
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
-		Assert.isTrue(0 == errorMessages.length, p);
+		return Assert.isTrue(0 == errorMessages.length, p);
 	}
 
 	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasErrorMessage(message), p);
+		return Assert.isTrue(hasErrorMessage(message), p);
 	}
 
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage("Haxe print: " + line), null, p);
+		return Assert.isTrue(hasMessage("Haxe print: " + line), null, p);
 	}
 
 	function assertReuse(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage('reusing $module'), null, p);
+		return Assert.isTrue(hasMessage('reusing $module'), null, p);
 	}
 
 	function assertSkipping(module:String, reason:SkipReason, ?p:haxe.PosInfos) {
 		var msg = 'skipping $module (${printSkipReason(reason))})';
-		Assert.isTrue(hasMessage(msg), null, p);
+		return Assert.isTrue(hasMessage(msg), null, p);
 	}
 
 	function assertNotCacheModified(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
+		return Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
 	}
 
 	function assertHasType(typePackage:String, typeName:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(getStoredType(typePackage, typeName) != null, null, p);
+		return Assert.isTrue(getStoredType(typePackage, typeName) != null, null, p);
 	}
 
 	function assertHasField(typePackage:String, typeName:String, fieldName:String, isStatic:Bool, ?p:haxe.PosInfos) {
