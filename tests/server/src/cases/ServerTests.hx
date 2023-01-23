@@ -286,16 +286,17 @@ class ServerTests extends TestCase {
 		utest.Assert.equals('2', counter);
 	}
 
-	// function testIssue8616() {
-	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8616/Main.hx"));
-	// 	vfs.putContent("A.hx", getTemplate("issues/Issue8616/A.hx"));
-	// 	var args = ["-main", "Main", "-js", "out.js"];
-	// 	runHaxe(args);
-	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-	// 	runHaxe(args);
-	// 	var content = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
-	// 	Assert.isTrue(content.indexOf("this1.use(v1)") != -1);
-	// }
+	function testIssue8616() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8616/Main.hx"));
+		vfs.putContent("A.hx", getTemplate("issues/Issue8616/A.hx"));
+		var args = ["-main", "Main", "-js", "out.js"];
+		runHaxe(args);
+		var originalContent = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxe(args);
+		var content = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
+		Assert.isTrue(content == originalContent);
+	}
 
 	function test9918() {
 		vfs.putContent("Issue9918.hx", getTemplate("Issue9918.hx"));
