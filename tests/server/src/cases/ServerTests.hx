@@ -249,6 +249,32 @@ class ServerTests extends TestCase {
 	}
 	#end
 
+	function testXRedefinedFromX_2() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8368/Main2.hx"));
+		var transform = Marker.extractMarkers(getTemplate("issues/Issue8368/MyMacro2.macro.hx"));
+		var args = ["-main", "Main", "--macro", "define('whatever')"];
+
+		vfs.putContent(
+			"MyMacro.macro.hx",
+			transform.source.substr(0, transform.markers[1])
+			+ transform.source.substr(transform.markers[2], transform.source.length)
+		);
+
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MyMacro.macro.hx")});
+
+		var completionRequest = {file: new FsPath("MyMacro.macro.hx"), contents: transform.source, offset: transform.markers[2], wasAutoTriggered: false};
+		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
+		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
+		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
+
+		runHaxe(args);
+		assertSuccess();
+	}
+
 	function testMacroStaticsReset() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8631/Main.hx"));
 		vfs.putContent("Init.hx", getTemplate("issues/Issue8631/Init.hx"));
