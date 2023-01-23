@@ -275,6 +275,24 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
+	@:async function testStackOverflow(async:utest.Async) {
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty.hx", "--macro", "allowPackage('sys')", "--interp", "--no-output"];
+		var runs = 0;
+
+		function runLoop() {
+			runHaxe(args.concat(["--display", "Empty.hx@0@diagnostics"]), () -> {
+				runHaxe(args.concat(["-D", "compile-only-define"]), () -> {
+					if (assertSuccess() && ++runs < 20) runLoop();
+					else async.done();
+				});
+			});
+		}
+
+		async.setTimeout(20000);
+		runLoop();
+	}
+
 	function testMacroStaticsReset() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8631/Main.hx"));
 		vfs.putContent("Init.hx", getTemplate("issues/Issue8631/Init.hx"));
