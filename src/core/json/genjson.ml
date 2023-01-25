@@ -724,12 +724,10 @@ let generate_module cc m =
 		"dependents",jarray (List.map (fun m -> (jobject [
 			"path",jstring (s_type_path m.m_path);
 			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		])) (
-			Hashtbl.fold (fun _ m' acc ->
-				if PMap.mem m.m_id m'.m_extra.m_deps then m' :: acc
-				else acc
-			) cc#get_modules []
-		));
+		])) (Hashtbl.fold (fun _ m' acc ->
+			if PMap.mem m.m_id m'.m_extra.m_deps then m' :: acc
+			else acc
+		) cc#get_modules []));
 	]
 
 let create_context ?jsonrpc gm = {
