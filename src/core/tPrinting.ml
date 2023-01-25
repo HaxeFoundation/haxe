@@ -632,12 +632,16 @@ module Printer = struct
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
-	let s_module_skip_reason = function
-		| DependencyDirty path -> "DependencyDirty " ^ (s_type_path path)
-		| Tainted cause -> "Tainted " ^ cause
-		| FileChanged file -> "FileChanged " ^ file
-		| Shadowed file -> "Shadowed " ^ file
-		| LibraryChanged -> "LibraryChanged"
+	let s_module_skip_reason reason =
+		let rec loop stack = function
+			| DependencyDirty(path,reason) ->
+				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
+			| Tainted cause -> "Tainted " ^ cause
+			| FileChanged file -> "FileChanged " ^ file
+			| Shadowed file -> "Shadowed " ^ file
+			| LibraryChanged -> "LibraryChanged"
+		in
+		loop [] reason
 
 	let s_module_cache_state = function
 		| MSGood -> "Good"

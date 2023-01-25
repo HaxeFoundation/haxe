@@ -222,8 +222,15 @@ let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
 let is_dot_access e cf =
     match follow(e.etype), cf with
-    | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotMethod c.cl_meta || Meta.has Meta.LuaDotMethod icf.cf_meta)->
-        true;
+    | TInst (c, _), FInstance(_, _, icf) -> (match icf.cf_kind with
+        | Var _ ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod c.cl_meta ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod icf.cf_meta ->
+            true
+        | Method _ ->
+            false)
     | _ ->
         false
 
@@ -345,7 +352,7 @@ let rec is_function_type t =
 
 and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+    | TField (x, ((FInstance (_, _, f) | FAnon(f) | FClosure(_,f)) as i)) when ((is_function_type e.etype) && (not(is_dot_access x i))) ->
             (
             if reflect then (
               add_feature ctx "use._hx_funcToField";
@@ -1265,10 +1272,14 @@ and gen_value ctx e =
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
-     | Ast.OpAssign, TField(e3, FInstance _), TFunction f ->
+     | Ast.OpAssign, TField(e3, (FInstance _ as ci)), TFunction f ->
          gen_expr ctx e1;
          spr ctx " = " ;
-         print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
+         let fn_args = List.map ident (List.map arg_name f.tf_args) in
+         print ctx "function(%s) " (String.concat ","
+             (if is_dot_access e3 ci
+                 then fn_args
+                 else "self" :: fn_args));
          let fblock = fun_block ctx f e1.epos in
          (match fblock.eexpr with
           | TBlock el ->
@@ -1300,14 +1311,28 @@ and gen_tbinop ctx op e1 e2 =
               gen_value ctx e1;
               spr ctx " = ";
               gen_value ctx e3;
-          | TField(e3, (FInstance _| FClosure _ | FAnon _ ) ), TField(e4, (FClosure _| FStatic _ | FAnon _) )  ->
+          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
-          | TField(_, FInstance _ ), TLocal t  when (is_function_type t.v_type)   ->
+          | TField(e3, (FInstance _ as lhs)), TField(e4, (FInstance _ as rhs)) when not (is_dot_access e3 lhs) && (is_dot_access e4 rhs) ->
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when not (is_dot_access e3 ci) ->
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance _ as ci)), TLocal t when ((is_function_type t.v_type) && (not (is_dot_access e3 ci))) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
@@ -1444,7 +1469,7 @@ and gen_return ctx e eo =
          spr ctx "do return end"
      | Some e ->
          (match e.eexpr with
-          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when (is_function_type tcf.cf_type) ->
+          | TField (e2, ((FAnon tcf | FInstance (_,_,tcf)) as t)) when ((is_function_type tcf.cf_type) && (not(is_dot_access e2 t)))->
               (* See issue #6259 *)
               add_feature ctx "use._hx_bind";
               spr ctx "do return ";

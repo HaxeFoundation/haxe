@@ -184,7 +184,14 @@ build:
 
     # Build Haxe
     COPY --dir extra libs plugins src* std dune* Makefile* .
-    COPY .git .git # the Makefile calls git to get commit sha
+
+    # the Makefile calls git to get commit sha
+    COPY .git .git
+    ARG SET_SAFE_DIRECTORY="false"
+    IF [ "$SET_SAFE_DIRECTORY" = "true" ]
+        RUN git config --global --add safe.directory "$WORKDIR"
+    END
+
     ARG ADD_REVISION
     ENV ADD_REVISION=$ADD_REVISION
     RUN opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && ldd -v ./haxe
@@ -392,7 +399,7 @@ test-all:
     BUILD +test-jvm
     BUILD +test-cs
     BUILD +test-cpp
-    # BUILD +test-lua
+    BUILD +test-lua
     BUILD +test-js
     BUILD +test-flash
 

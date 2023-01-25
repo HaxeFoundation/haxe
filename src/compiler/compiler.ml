@@ -23,7 +23,7 @@ let run_or_diagnose ctx f arg =
 		f arg
 
 let run_command ctx cmd =
-	let t = Timer.timer ["command"] in
+	let t = Timer.timer ["command";cmd] in
 	(* TODO: this is a hack *)
 	let cmd = if ctx.comm.is_server then begin
 		let h = Hashtbl.create 0 in
@@ -484,7 +484,7 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api create each_params has_display pl =
+	let process_params server_api create each_params has_display is_server pl =
 		let curdir = Unix.getcwd () in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
@@ -518,9 +518,14 @@ module HighLevel = struct
 				(* Push the --cwd arg so the arg processor know we did something. *)
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->
-				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
-				[],None
+				if is_server then
+					(* If we are already connected, ignore (issue #10813) *)
+					loop acc l
+				else begin
+					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+					server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+					[],None
+				end
 			| "--server-connect" :: hp :: l ->
 				server_mode := SMConnect hp;
 				loop acc l
@@ -591,7 +596,7 @@ module HighLevel = struct
 		in
 		let rec loop args =
 			let args,server_mode,ctx = try
-				process_params server_api create each_args !has_display args
+				process_params server_api create each_args !has_display comm.is_server args
 			with Arg.Bad msg ->
 				let ctx = create 0 args in
 				error ctx ("Error: " ^ msg) null_pos;

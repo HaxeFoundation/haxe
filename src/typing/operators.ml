@@ -76,6 +76,10 @@ module BinopResult = struct
 	let get_type br = match br with
 		| BinopNormal bn -> bn.binop_type
 		| BinopSpecial(e,_) -> e.etype
+
+	let needs_assign = function
+		| BinopNormal _ -> true
+		| BinopSpecial(_,needs_assign) -> needs_assign
 end
 
 let check_assign ctx e =
@@ -556,8 +560,9 @@ let type_assign ctx e1 e2 with_type p =
 		mk (TBinop (OpAssign,e1,e2)) e1.etype p
 	in
 	match e1 with
-	| AKNo s -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
-	| AKUsingField _ ->
+	| AKNo(_,p) ->
+		typing_error "This expression cannot be accessed for writing" p
+	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
 		typing_error ("Cannot access function " ^ name ^ " for writing") p
@@ -571,7 +576,7 @@ let type_assign ctx e1 e2 with_type p =
 		dispatcher#accessor_call fa [] [e2]
 	| AKAccess(a,tl,c,ebase,ekey) ->
 		let e2 = type_rhs WithType.value in
-		mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
+		mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey e2 p) c ebase p
 	| AKResolve(sea,name) ->
 		let eparam = sea.se_this in
 		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
@@ -627,7 +632,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		field_rhs_by_name op cf.cf_name ev (WithType.with_type cf.cf_type)
 	in
 	let assign vr e r_rhs =
-		check_assign ctx e;
+		if BinopResult.needs_assign r_rhs then check_assign ctx e;
 		let assign e_rhs =
 			let e_rhs = AbstractCast.cast_or_unify ctx e.etype e_rhs p in
 			match e_rhs.eexpr with
@@ -649,12 +654,14 @@ let type_assign_op ctx op e1 e2 with_type p =
 		vr#to_texpr e
 	in
 	(match !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type with
-	| AKNo s ->
+	| AKNo(_,p) ->
 		(* try abstract operator overloading *)
-		(try type_non_assign_op ctx op e1 e2 true true with_type p
-		with Not_found -> typing_error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		)
-	| AKUsingField _ ->
+		begin try
+			type_non_assign_op ctx op e1 e2 true true with_type p
+		with Not_found ->
+			typing_error "This expression cannot be accessed for writing" p
+		end
+	| AKUsingField _ | AKSafeNav _ ->
 		typing_error "Invalid operation" p
 	| AKExpr e ->
 		let e,vr = process_lhs_expr ctx "lhs" e in
@@ -677,7 +684,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let t_lhs,e_rhs = field_rhs op fa.fa_field ef in
 		set vr sea.se_access t_lhs e_rhs [ef]
 	| AKAccess(a,tl,c,ebase,ekey) ->
-		let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
+		let cf_get,tf_get,r_get,ekey = AbstractCast.find_array_read_access ctx a tl ekey p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
 		let save = save_locals ctx in
 		let maybe_bind_to_temp e = match Optimizer.make_constant_expression ctx e with
@@ -689,13 +696,12 @@ let type_assign_op ctx op e1 e2 with_type p =
 		in
 		let ekey,ekey' = maybe_bind_to_temp ekey in
 		let ebase,ebase' = maybe_bind_to_temp ebase in
-		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
+		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey) c ebase p in
 		let eget = type_binop2 ctx op eget e2 true WithType.value p in
 		let vr = new value_reference ctx in
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
-		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
-		let eget = match eget with None -> die "" __LOC__ | Some e -> e in
+		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
 		let et = type_module_type ctx (TClassDecl c) None p in
 		let e = match cf_set.cf_expr,cf_get.cf_expr with
 			| None,None ->
@@ -840,8 +846,12 @@ let type_unop ctx op flag e with_type p =
 		in
 		let access_set = !type_access_ref ctx (fst e) (snd e) (MSet None) WithType.value (* WITHTYPETODO *) in
 		match access_set with
-		| AKNo name ->
-			typing_error ("The field or identifier " ^ name ^ " is not accessible for writing") p
+		| AKNo(acc,p) ->
+			begin try
+				try_abstract_unop_overloads (acc_get ctx acc p)
+			with Not_found ->
+				typing_error "This expression cannot be accessed for writing" p
+			end
 		| AKExpr e ->
 			find_overload_or_make e
 		| AKField fa ->
@@ -883,7 +893,7 @@ let type_unop ctx op flag e with_type p =
 				let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
 				let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
 				(* get *)
-				let e_get = mk_array_get_call ctx (AbstractCast.find_array_access_raise ctx a tl ekey None p) c ebase p in
+				let e_get = mk_array_get_call ctx (AbstractCast.find_array_read_access_raise ctx a tl ekey p) c ebase p in
 				let v_get = alloc_var VGenerated "tmp" e_get.etype e_get.epos in
 				let ev_get = mk (TLocal v_get) v_get.v_type p in
 				let evar_get = mk (TVar(v_get,Some e_get)) ctx.com.basic.tvoid p in
@@ -891,12 +901,12 @@ let type_unop ctx op flag e with_type p =
 				let e_one = mk (TConst (TInt (Int32.of_int 1))) ctx.com.basic.tint p in
 				let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
 				(* set *)
-				let e_set = mk_array_set_call ctx (AbstractCast.find_array_access_raise ctx a tl ekey (Some e_op) p) c ebase p in
+				let e_set = mk_array_set_call ctx (AbstractCast.find_array_write_access_raise ctx a tl ekey e_op p) c ebase p in
 				let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
 				mk (TBlock el) e_set.etype p
 			with Not_found ->
-				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
+				let e = mk_array_get_call ctx (AbstractCast.find_array_read_access ctx a tl ekey p) c ebase p in
 				find_overload_or_make e
 			end
-		| AKUsingField _ | AKResolve _ ->
+		| AKUsingField _ | AKResolve _ | AKSafeNav _ ->
 			typing_error "Invalid operation" p

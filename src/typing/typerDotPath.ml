@@ -26,12 +26,11 @@ open Fields
 open TFunctions
 open Error
 
-let mk_dot_path_part s efk p : dot_path_part =
+let mk_dot_path_part s p : dot_path_part =
 	let case = if is_lower_ident s p then PLowercase else PUppercase in
 	{
 		name = s;
 		case = case;
-		kind = efk;
 		pos = p
 	}
 

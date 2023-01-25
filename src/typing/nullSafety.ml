@@ -321,22 +321,6 @@ class unificator =
 	end
 
 (**
-	Checks if execution of provided expression is guaranteed to be terminated with `return`, `throw`, `break` or `continue`.
-*)
-let rec is_dead_end e =
-	match e.eexpr with
-		| TThrow _ -> true
-		| TReturn _ -> true
-		| TBreak -> true
-		| TContinue -> true
-		| TWhile (_, body, DoWhile) -> is_dead_end body
-		| TIf (_, if_body, Some else_body) -> is_dead_end if_body && is_dead_end else_body
-		| TBlock exprs -> List.exists is_dead_end exprs
-		| TMeta (_, e) -> is_dead_end e
-		| TCast (e, _) -> is_dead_end e
-		| _ -> false
-
-(**
 	Check if `expr` is a `trace` (not a call, but identifier itself)
 *)
 let is_trace expr =
@@ -923,7 +907,7 @@ class local_safety (mode:safety_mode) =
 					self#get_current_scope#reset_to initial_safe;
 					(** execute `else_body` with known not-null variables *)
 					let handle_dead_end body safe_vars =
-						if is_dead_end body then
+						if DeadEnd.has_dead_end body then
 							List.iter self#get_current_scope#add_to_safety safe_vars
 					in
 					(match else_body with

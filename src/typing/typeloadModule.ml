@@ -715,7 +715,6 @@ let create_typer_context_for_module ctx m = {
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		bypass_accessor = 0;
 		meta = [];
-		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
@@ -748,11 +747,11 @@ let create_typer_context_for_module ctx m = {
 (*
 	Creates a module context for [m] and types [tdecls] using it.
 *)
-let type_types_into_module ?(check=true) ctx m tdecls p =
+let type_types_into_module ctx m tdecls p =
 	let ctx = create_typer_context_for_module ctx m in
 	let decls,tdecls = ModuleLevel.create_module_types ctx m tdecls p in
 	let types = List.map fst decls in
-	if check then List.iter (TypeloadCheck.check_module_types ctx m p) types;
+	List.iter (TypeloadCheck.check_module_types ctx m p) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
 	if ctx.g.std != null_module then begin
@@ -799,6 +798,7 @@ let load_module' ctx g m p =
 				raise (Error (Module_not_found m,p))
 			in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
+			if ctx.g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
@@ -825,7 +825,7 @@ let load_module' ctx g m p =
 
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
-	add_dependency ctx.m.curmod m2;
+	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
 	m2
 

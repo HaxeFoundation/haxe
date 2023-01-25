@@ -127,6 +127,10 @@ class Context {
 		return load("contains_display_position", 1)(pos);
 	}
 
+	public static function getDisplayMode():DisplayMode {
+		return load("get_display_mode", 0)();
+	}
+
 	/**
 		Returns the position at which the macro was called.
 	**/
@@ -303,6 +307,29 @@ class Context {
 	**/
 	public static function getModule(name:String):Array<Type> {
 		return load("get_module", 1)(name);
+	}
+
+	/**
+		Returns the typed expression of the call to the main function.
+		
+		This function will only work in the generation phase. Any calls
+		made outside a function passed to `haxe.macro.Context.onGenerate`
+		or `haxe.macro.Context.onAfterGenerate` will return `null`.
+	**/
+	public static function getMainExpr():Null<TypedExpr> {
+		return load("get_main_expr", 0)();
+	}
+
+	/**
+		Returns an array of module types to be generated in the output.
+		
+		This list may change depending on the phase of compilation and
+		should not be treated as conclusive until the generation phase.
+
+		Modifying the returned array has no effect on the compilation.
+	**/
+	public static function getAllModuleTypes():Array<haxe.macro.Type.ModuleType> {
+		return load("get_module_types", 0)();
 	}
 
 	/**
@@ -528,6 +555,16 @@ class Context {
 	**/
 	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
 		load("define_type", 2)(t, moduleDependency);
+	}
+
+	/**
+		Creates and returns a new instance of monomorph (`TMono`) type.
+
+		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
+		bind the monomorph to an actual type and let macro further process the resulting type.
+	**/
+	public static function makeMonomorph():Type {
+		return load("make_monomorph", 0)();
 	}
 
 	/**

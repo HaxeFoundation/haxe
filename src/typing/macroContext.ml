@@ -205,7 +205,7 @@ let make_macro_api ctx p =
 		);
 		MacroApi.store_typed_expr = (fun te ->
 			let p = te.epos in
-			Typecore.store_typed_expr ctx.com te p
+			snd (Typecore.store_typed_expr ctx.com te p)
 		);
 		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
 		MacroApi.type_patch = (fun t f s v ->
@@ -378,6 +378,8 @@ let make_macro_api ctx p =
 			| MacroContext -> add_macro ctx
 			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
+		MacroApi.register_define = (fun s data -> Define.register_user_define ctx.com.user_defines s data);
+		MacroApi.register_metadata = (fun s data -> Meta.register_user_meta ctx.com.user_metas s data);
 		MacroApi.decode_expr = Interp.decode_expr;
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
@@ -429,7 +431,6 @@ let rec init_macro_interp ctx mctx mint =
 	let p = null_pos in
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);
-	flush_macro_context mint ctx;
 	Interp.init mint;
 	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then begin
 		macro_interp_cache := Some mint;
@@ -454,7 +455,9 @@ and flush_macro_context mint ctx =
 		let's save the minimal amount of information we need
 	*)
 	let minimal_restore t =
-		(t_infos t).mt_module.m_extra.m_processed <- mctx.com.compilation_step;
+		if (t_infos t).mt_module.m_extra.m_processed = 0 then
+			(t_infos t).mt_module.m_extra.m_processed <- mctx.com.compilation_step;
+
 		match t with
 		| TClassDecl c ->
 			let mk_field_restore f =

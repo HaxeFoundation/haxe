@@ -32,7 +32,7 @@ import haxe.macro.Expr;
 @:hlNative("macro")
 #end
 class MacroStringTools {
-	#if (macro || display)
+	#if macro
 	/**
 		Formats `String` `s` using the usual interpolation rules.
 
