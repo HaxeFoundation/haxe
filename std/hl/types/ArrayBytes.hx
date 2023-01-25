@@ -174,9 +174,8 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		ret.size = ret.length = len;
 		var end = pos + len;
 		(bytes : Bytes).blit(pos << bytes.sizeBits, bytes, end << bytes.sizeBits, (length - end) << bytes.sizeBits);
+		(bytes : Bytes).fill((length - len) << bytes.sizeBits, (len) << bytes.sizeBits, 0);
 		length -= len;
-		while (--len >= 0)
-			bytes[this.length + len] = cast 0;
 		return ret;
 	}
 
