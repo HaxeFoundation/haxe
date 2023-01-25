@@ -1250,7 +1250,9 @@ let setup_args_ret ctx cctx fctx name fd p =
 	let try_find_property_type () =
 		let name = String.sub name 4 (String.length name - 4) in
 		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
-		cf.cf_type
+		match Lazy.force mk, cf.cf_kind with
+			| MKGetter, Var({v_read = AccCall}) | MKSetter, Var({v_write = AccCall}) -> cf.cf_type
+			| _ -> raise Not_found;
 	in
 	let maybe_use_property_type th check def =
 		if th = None && check() then
