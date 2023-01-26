@@ -100,6 +100,7 @@ typedef JsonModule = {
 	final sign:String;
 	final dirty:Null<String>;
 	final dependencies:Array<ModuleId>;
+	final dependents:Array<ModuleId>;
 }
 
 typedef JsonServerFile = {
