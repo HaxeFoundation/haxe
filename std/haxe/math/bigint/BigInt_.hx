@@ -417,7 +417,7 @@ class BigInt_
 		if ((BigIntArithmetic.bitwiseAndInt(this, 1) == 0) && isModulusEven || modulus.isZero())
 			return BigInt.ZERO;
 
-		var x:BigInt_ = MutableBigInt_.fromBigInt(this);
+		var x:BigInt_ = this.abs();
 		var y:BigInt_ = MutableBigInt_.fromBigInt(modulus);
 
 		if (x.sign() == -1 || BigIntArithmetic.compare(x, modulus) >= 0)
@@ -483,6 +483,10 @@ class BigInt_
 
 		while (BigIntArithmetic.compare(c, modulus) >= 0) {
 			c = sub2(c, modulus);
+		}
+		
+		if ( this.sign() < 0) {
+			 c = sub2(modulus,c);
 		}
 
 		return c;

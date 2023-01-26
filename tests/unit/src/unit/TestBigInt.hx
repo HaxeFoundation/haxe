@@ -2839,6 +2839,12 @@ class TestBigInt extends Test {
 				pos++;
 			}
 		}
+		
+		// Negative base test
+		var a:BigInt = BigInt.fromString("-1000000007");
+		var b:BigInt = BigInt.fromString("4294967296");
+		var r = a.modInverse(b);
+		eq("2226617417",r.toString());
 	}
 
 	public function testBitCount():Void
