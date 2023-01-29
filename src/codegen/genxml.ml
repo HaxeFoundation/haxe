@@ -216,7 +216,7 @@ let rec gen_type_decl com pos t =
 	match t with
 	| TClassDecl c ->
 		let stats = List.filter (fun cf ->
-			cf.cf_name <> "__meta__" && not (Meta.has Meta.GenericInstance cf.cf_meta)
+			cf.cf_name <> "__meta__" && not (Meta.has Meta.GenericInstance cf.cf_meta) && not (Meta.has Meta.NoDoc cf.cf_meta)
 		) c.cl_ordered_statics in
 		let stats = List.map (gen_field ["static","1"]) stats in
 		let fields = List.filter (fun cf ->
@@ -226,7 +226,10 @@ let rec gen_type_decl com pos t =
 			| None -> List.map (fun f -> f,[]) fields
 			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) fields
 		) in
-		let fields = List.map (fun (f,att) -> gen_field att f) fields in
+		let fields = List.filter_map (fun (f,att) ->
+			if Meta.has Meta.NoDoc f.cf_meta then None
+			else Some (gen_field att f)
+		) fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
 		let impl = List.map (gen_class_path (if (has_class_flag c CInterface) then "extends" else "implements")) c.cl_implements in
 		let tree = (match c.cl_super with
@@ -253,9 +256,11 @@ let rec gen_type_decl com pos t =
 		let doc = gen_doc_opt a.a_doc in
 		let meta = gen_meta a.a_meta in
 		let mk_cast t = node "icast" [] [gen_type t] in
-		let mk_field_cast (t,cf) = node "icast" ["field",cf.cf_name] [gen_type t] in
-		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (List.map mk_field_cast l2))]) in
-		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (List.map mk_field_cast l2))]) in
+		let mk_field_cast (t,cf) =
+			if Meta.has Meta.NoDoc cf.cf_meta then None
+			else Some (node "icast" ["field",cf.cf_name] [gen_type t]) in
+		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (List.filter_map mk_field_cast l2))]) in
+		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (List.filter_map mk_field_cast l2))]) in
 		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
 		let this = [node "this" [] [gen_type a.a_this]] in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_params a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)
