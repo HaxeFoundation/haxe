@@ -226,7 +226,7 @@ let rec gen_type_decl com pos t =
 			| None -> List.map (fun f -> f,[]) fields
 			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) fields
 		) in
-		let fields = List.filter_map (fun (f,att) ->
+		let fields = ExtList.List.filter_map (fun (f,att) ->
 			if Meta.has Meta.NoDoc f.cf_meta then None
 			else Some (gen_field att f)
 		) fields in
@@ -259,8 +259,8 @@ let rec gen_type_decl com pos t =
 		let mk_field_cast (t,cf) =
 			if Meta.has Meta.NoDoc cf.cf_meta then None
 			else Some (node "icast" ["field",cf.cf_name] [gen_type t]) in
-		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (List.filter_map mk_field_cast l2))]) in
-		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (List.filter_map mk_field_cast l2))]) in
+		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
+		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
 		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
 		let this = [node "this" [] [gen_type a.a_this]] in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_params a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)
