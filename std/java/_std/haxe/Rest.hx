@@ -37,9 +37,11 @@ abstract Rest<T>(NativeRest<T>) {
 		return new Rest(cast result);
 	}
 
+	@:dox(hide)
 	@:from static function ofNativeInt(collection:NativeArray<Int>):Rest<Int>
 		return ofNativePrimitive(new NativeRest<java.lang.Integer>(collection.length), collection);
 
+	@:dox(hide)
 	@:from static function ofNativeFloat(collection:NativeArray<Float>):Rest<Float>
 		return ofNativePrimitive(new NativeRest<java.lang.Double>(collection.length), collection);
 
