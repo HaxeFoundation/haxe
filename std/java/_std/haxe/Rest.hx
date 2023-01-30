@@ -30,6 +30,7 @@ abstract Rest<T>(NativeRest<T>) {
 	}
 	#end
 
+	@:noDoc
 	@:generic
 	static function ofNativePrimitive<TBoxed,TRest>(result:NativeRest<TBoxed>, collection:NativeArray<TRest>):Rest<TRest> {
 		for(i in 0...collection.length)
@@ -45,24 +46,31 @@ abstract Rest<T>(NativeRest<T>) {
 	@:from static function ofNativeFloat(collection:NativeArray<Float>):Rest<Float>
 		return ofNativePrimitive(new NativeRest<java.lang.Double>(collection.length), collection);
 
+	@:noDoc
 	@:from static function ofNativeBool(collection:NativeArray<Bool>):Rest<Bool>
 		return ofNativePrimitive(new NativeRest<java.lang.Boolean>(collection.length), collection);
 
+	@:noDoc
 	@:from static function ofNativeInt8(collection:NativeArray<Int8>):Rest<Int8>
 		return ofNativePrimitive(new NativeRest<java.lang.Byte>(collection.length), collection);
 
+	@:noDoc
 	@:from static function ofNativeInt16(collection:NativeArray<Int16>):Rest<Int16>
 		return ofNativePrimitive(new NativeRest<java.lang.Short>(collection.length), collection);
 
+	@:noDoc
 	@:from static function ofNativeChar16(collection:NativeArray<Char16>):Rest<Char16>
 		return ofNativePrimitive(new NativeRest<java.lang.Character>(collection.length), collection);
 
+	@:noDoc
 	@:from static function ofNativeHaxeInt64(collection:NativeArray<haxe.Int64>):Rest<haxe.Int64>
 		return ofNativePrimitive(new NativeRest<java.lang.Long>(collection.length), collection);
 
+	@:noDoc
 	@:from static function ofNativeInt64(collection:NativeArray<Int64>):Rest<Int64>
 		return ofNativePrimitive(new NativeRest<java.lang.Long>(collection.length), collection);
 
+	@:noDoc
 	@:from static function ofNative<T>(collection:NativeArray<T>):Rest<T> {
 		return new Rest(collection);
 	}
