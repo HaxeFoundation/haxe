@@ -107,6 +107,10 @@ jobs:
           opam list
           ocamlopt -v
 
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
       - name: Build Haxe
         run: |
           set -ex
