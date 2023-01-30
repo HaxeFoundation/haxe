@@ -253,9 +253,7 @@ let rec gen_type_decl com pos t =
 		let doc = gen_doc_opt a.a_doc in
 		let meta = gen_meta a.a_meta in
 		let mk_cast t = node "icast" [] [gen_type t] in
-		let mk_field_cast (t,cf) =
-			if Meta.has Meta.NoDoc cf.cf_meta then None
-			else Some (node "icast" ["field",cf.cf_name] [gen_type t]) in
+		let mk_field_cast (t,cf) = if Meta.has Meta.NoDoc cf.cf_meta then None else Some (node "icast" ["field",cf.cf_name] [gen_type t]) in
 		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
 		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
 		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
