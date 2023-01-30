@@ -207,6 +207,67 @@ jobs:
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
 
+  test-docgen:
+    needs: linux-build
+    runs-on: ubuntu-18.04
+    env:
+      PLATFORM: linux64
+      HXCPP_COMPILE_CACHE: ~/hxcache
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      - uses: actions/download-artifact@v1
+        with:
+          name: linuxBinaries
+
+      - name: Download xmldoc artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: xmldoc
+          path: xmldoc
+
+      @import install-neko-unix.yml
+
+      - name: Setup Haxe
+        run: |
+          sudo apt install -qqy libmbedtls-dev
+
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Print Haxe version
+        run: haxe -version
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+
+      - name: Test documentation generation
+        run: |
+          set -ex
+          haxelib git dox https://github.com/HaxeFoundation/dox.git
+          haxelib git hxtemplo https://github.com/Simn/hxtemplo.git
+          haxelib git hxargs https://github.com/Simn/hxargs.git
+          haxelib git markdown https://github.com/dpeek/haxe-markdown.git
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          cd $(haxelib libpath hxcpp)/tools/hxcpp
+          haxe compile.hxml
+          cd -
+          haxe dox.hxml
+          mkdir resources
+          cp ../../src-json/* resources
+          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -ex cs.internal -theme $(haxelib libpath dox)/themes/default
+        working-directory: ${{github.workspace}}/tests/docgen
+
   linux-arm64:
     runs-on: ubuntu-18.04
     permissions:
