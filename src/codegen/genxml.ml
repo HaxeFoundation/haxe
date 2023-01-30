@@ -226,10 +226,7 @@ let rec gen_type_decl com pos t =
 			| None -> List.map (fun f -> f,[]) fields
 			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) fields
 		) in
-		let fields = ExtList.List.filter_map (fun (f,att) ->
-			if Meta.has Meta.NoDoc f.cf_meta then None
-			else Some (gen_field att f)
-		) fields in
+		let fields = List.map (fun (f,att) -> gen_field att f) fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
 		let impl = List.map (gen_class_path (if (has_class_flag c CInterface) then "extends" else "implements")) c.cl_implements in
 		let tree = (match c.cl_super with
