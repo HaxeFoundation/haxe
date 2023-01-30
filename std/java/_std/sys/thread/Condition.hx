@@ -3,6 +3,7 @@ package sys.thread;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.Condition as NativeCondition;
 
+@:noDoc
 @:access(sys.thread.Mutex)
 @:coreApi
 @:native('haxe.java.vm.Condition')

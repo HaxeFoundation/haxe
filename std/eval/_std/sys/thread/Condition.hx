@@ -1,5 +1,6 @@
 package sys.thread;
 
+@:noDoc
 @:coreApi class Condition {
 	final cond:eval.luv.Condition;
 	final mutex:eval.luv.Mutex;

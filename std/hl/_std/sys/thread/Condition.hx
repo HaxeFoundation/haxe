@@ -1,5 +1,6 @@
 package sys.thread;
 
+@:noDoc
 abstract Condition(hl.Abstract<"hl_condition">) {
 	public function new():Void {
 		this = alloc();

@@ -1,5 +1,6 @@
 package sys.thread;
 
+@:noDoc
 @:coreApi
 class Condition {
 	var c:Dynamic;
