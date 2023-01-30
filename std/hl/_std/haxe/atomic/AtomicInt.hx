@@ -5,6 +5,7 @@ package haxe.atomic;
 #end
 import hl.Atomics;
 
+@:noDoc
 abstract AtomicInt(hl.NativeArray<Int>) {
 	public inline function new(value:Int):Void {
 		this = new hl.NativeArray(1);

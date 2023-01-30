@@ -2,6 +2,7 @@ package haxe.atomic;
 
 import js.lib.Atomics;
 
+@:noDoc
 abstract AtomicInt(js.lib.Int32Array) to js.lib.Int32Array {
 	public inline function new(value:Int) {
 		this = new js.lib.Int32Array(new js.lib.SharedArrayBuffer(js.lib.Int32Array.BYTES_PER_ELEMENT));
