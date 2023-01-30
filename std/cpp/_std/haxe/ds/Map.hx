@@ -177,7 +177,8 @@ abstract Map<K, V>(IMap<K, V>) {
 		return new IntMap<V>();
 	}
 
-    @:to static inline function toInt64Map<K:Int64, V>(t:IMap<K, V>):Int64Map<V> {
+	@:noDoc
+	@:to static inline function toInt64Map<K:Int64, V>(t:IMap<K, V>):Int64Map<V> {
 		return new Int64Map<V>();
 	}
 
@@ -197,6 +198,7 @@ abstract Map<K, V>(IMap<K, V>) {
 		return cast map;
 	}
 
+	@:noDoc
 	@:from static inline function fromInt64Map<V>(map:Int64Map<V>):Map<Int64, V> {
 		return cast map;
 	}
