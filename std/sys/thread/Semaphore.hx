@@ -3,7 +3,6 @@ package sys.thread;
 #if (!target.threaded)
 #error "This class is not available on this target"
 #end
-@:noDoc
 @:coreApi extern class Semaphore {
 	/**
 		Creates a new semaphore with an initial value.

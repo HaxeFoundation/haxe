@@ -10,7 +10,6 @@ package sys.thread;
 	until another thread modifies a shared variable (the condition)
 	and signals the condition variable.
 **/
-@:noDoc
 @:coreApi extern class Condition {
 	/**
 		Create a new condition variable.
