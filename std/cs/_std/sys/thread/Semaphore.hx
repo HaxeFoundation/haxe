@@ -1,5 +1,6 @@
 package sys.thread;
 
+@:noDoc
 @:coreApi
 class Semaphore {
 	final native:cs.system.threading.Semaphore;

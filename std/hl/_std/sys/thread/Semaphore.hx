@@ -1,5 +1,6 @@
 package sys.thread;
 
+@:noDoc
 abstract Semaphore(hl.Abstract<"hl_semaphore">) {
 	public function new(value:Int):Void {
 		this = alloc(value);
