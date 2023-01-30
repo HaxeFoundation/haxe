@@ -1,6 +1,5 @@
 package haxe.atomic;
 
-@:noDoc
 #if cppia
 extern
 #end

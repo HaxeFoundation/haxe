@@ -2,7 +2,6 @@ package sys.thread;
 
 import java.util.concurrent.TimeUnit;
 
-@:noDoc
 @:coreApi
 @:native('haxe.java.vm.Semaphore')
 class Semaphore {

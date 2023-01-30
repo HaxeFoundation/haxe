@@ -2,7 +2,6 @@ package sys.thread;
 
 import python.lib.threading.Semaphore as NativeSemaphore;
 
-@:noDoc
 @:coreApi
 class Semaphore {
 	final semaphore:NativeSemaphore;

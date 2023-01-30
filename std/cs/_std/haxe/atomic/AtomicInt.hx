@@ -8,8 +8,7 @@ private class IntWrapper {
 	}
 }
 
-@:noDoc
-abstract AtomicInt(IntWrapper) to IntWrapper {
+abstract AtomicInt(IntWrapper) {
 	public inline function new(value:Int) {
 		this = new IntWrapper(value);
 	}

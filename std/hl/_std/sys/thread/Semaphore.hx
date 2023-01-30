@@ -1,6 +1,13 @@
 package sys.thread;
 
-@:noDoc
+#if doc_gen
+@:coreApi extern class Semaphore {
+	function new(value:Int):Void;
+	function acquire():Void;
+	function tryAcquire(?timeout:Float):Bool;
+	function release():Void;
+}
+#else
 abstract Semaphore(hl.Abstract<"hl_semaphore">) {
 	public function new(value:Int):Void {
 		this = alloc(value);
@@ -22,3 +29,4 @@ abstract Semaphore(hl.Abstract<"hl_semaphore">) {
 		return null;
 	}
 }
+#end

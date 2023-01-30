@@ -1,6 +1,5 @@
 package sys.thread;
 
-@:noDoc
 @:coreApi
 class Semaphore {
 	var m:Dynamic;

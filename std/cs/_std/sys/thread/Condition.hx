@@ -2,7 +2,6 @@ package sys.thread;
 
 import cs.system.threading.Monitor;
 
-@:noDoc
 @:coreApi
 @:access(sys.thread.Mutex)
 class Condition {

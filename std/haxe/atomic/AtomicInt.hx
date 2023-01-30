@@ -8,7 +8,6 @@ package haxe.atomic;
 	Atomic integer.
 	(js) The Atomics and SharedArrayBuffer objects need to be available. Errors will be thrown if this is not the case.
 **/
-@:noDoc
 @:coreType
 abstract AtomicInt {
 	public function new(value:Int):Void;

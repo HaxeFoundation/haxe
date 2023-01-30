@@ -1,6 +1,5 @@
 package sys.thread;
 
-@:noDoc
 @:coreApi class Semaphore {
 	final native:eval.luv.Semaphore;
 
