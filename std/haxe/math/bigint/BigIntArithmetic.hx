@@ -727,11 +727,13 @@ class BigIntArithmetic
 		var result:MutableBigInt_ = new MutableBigInt_();
 		result.m_count = (operand1.m_count > operand2.m_count)?operand1.m_count : operand2.m_count;
 		result.ensureCapacity(result.m_count, false);
+		var operand1Positive:Bool = operand1.sign()==0;
+		var operand2Positive:Bool = operand2.sign()==0;
 		for (i in 0...result.m_count) {
 			if ( i > (operand1.m_count-1) ) {
-				result.m_data.set(i, ((operand1.sign()==0)?operand2.m_data.get(i):0xffffffff) );
+				result.m_data.set(i, (operand1Positive?operand2.m_data.get(i):0xffffffff) );
 			} else if ( i > (operand2.m_count-1) ) {
-				result.m_data.set(i, ((operand2.sign()==0)?operand1.m_data.get(i):0xffffffff));
+				result.m_data.set(i, (operand2Positive?operand1.m_data.get(i):0xffffffff));
 			} else {
 			 result.m_data.set(i, (operand1.m_data.get(i) | operand2.m_data.get(i)));
 			}
