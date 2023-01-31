@@ -741,6 +741,37 @@ class BigIntArithmetic
 		result.compact();
 		return result;
 	}
+	
+	public static inline function bitwiseXor(operand1:BigInt_, operand2:BigInt_):BigInt_ 
+	{
+		var result:MutableBigInt_ = new MutableBigInt_();
+		result.m_count = (operand1.m_count > operand2.m_count) ? operand1.m_count : operand2.m_count;
+		result.ensureCapacity(result.m_count, false);
+		var operand1Positive:Bool = operand1.sign() == 0;
+		var operand2Positive:Bool = operand2.sign() == 0;
+		for (i in 0...result.m_count) {
+			if (i > (operand1.m_count - 1)) {
+				result.m_data.set(i, (operand1Positive ? operand2.m_data.get(i) : (operand2.m_data.get(i) ^ 0xffffffff)));
+			} else if (i > (operand2.m_count - 1)) {
+				result.m_data.set(i, (operand2Positive ? operand1.m_data.get(i) : (operand1.m_data.get(i) ^0xffffffff)));
+			} else {
+				result.m_data.set(i, (operand1.m_data.get(i) ^ operand2.m_data.get(i)));
+			}
+		}
+		result.compact();
+		return result;
+	}
+	
+	public static inline function bitwiseNot(operand:BigInt_):BigInt_ 
+	{
+		var result:MutableBigInt_ = new MutableBigInt_();
+		result.copyFrom(operand);
+		for (i in 0...result.m_count) {
+			result.m_data.set(i, ~operand.m_data.get(i));
+		}
+		result.compact();
+		return result;
+	}
 
 	/**
 		Returns `floor(log2(input))`.

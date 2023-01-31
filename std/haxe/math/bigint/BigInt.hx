@@ -422,6 +422,21 @@ abstract BigInt(BigInt_)
 	{
 		return new BigInt(BigIntArithmetic.bitwiseOr(a, b));
 	}
+	
+	@:op(A ^ B) @:noCompletion public static inline function xorInt_(a:BigInt, b:Int):BigInt 
+	{
+		return xor_(a, b);
+	}
+
+	@:op(A ^ B) @:noCompletion public static inline function xor_(a:BigInt, b:BigInt):BigInt 
+	{
+		return new BigInt(BigIntArithmetic.bitwiseXor(a, b));
+	}
+	
+	@:op(~A) @:noCompletion public static inline function not_(a:BigInt):BigInt
+	{
+		return new BigInt(BigIntArithmetic.bitwiseNot(a));
+	}
 
 	// Binary AND
 	@:op(A & B) @:noCompletion public static inline function andInt_(a : BigInt, b : Int) : Int
