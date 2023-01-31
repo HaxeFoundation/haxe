@@ -411,11 +411,22 @@ abstract BigInt(BigInt_)
 	{
 		return new BigInt(BigInt_.modulus2(a, b));
 	}
+	
+	// Binary OR
+	@:op(A | B) @:noCompletion public static inline function orInt_(a : BigInt, b : Int) : Int
+	{
+		return BigIntArithmetic.bitwiseOrInt(a, b);
+	}
 
 	// Binary AND
 	@:op(A & B) @:noCompletion public static inline function andInt_(a : BigInt, b : Int) : Int
 	{
 		return BigIntArithmetic.bitwiseAndInt(a, b);
+	}
+	
+	@:op(A & B) @:noCompletion public static inline function and_(a : BigInt, b : BigInt) : BigInt
+	{
+		return new BigInt(BigIntArithmetic.bitwiseAnd(a, b));
 	}
 
 	// Binary shift left
