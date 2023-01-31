@@ -287,6 +287,7 @@ and context = {
 	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
+	max_print_depth : int;
 }
 
 module GlobalState = struct

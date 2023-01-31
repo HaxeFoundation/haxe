@@ -160,6 +160,13 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "EvalPrintDepth",
+		"define": "eval-print-depth",
+		"doc": "Set maximum print depth (before replacing with '<...>') for eval. (default: 5)",
+		"platforms": ["eval"],
+		"params": ["depth"]
+	},
+	{
 		"name": "EvalStack",
 		"define": "eval-stack",
 		"doc": "Record stack information in macro/interp mode.",
