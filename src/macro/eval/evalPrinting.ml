@@ -107,7 +107,7 @@ and s_value depth v =
 		let vf = field_raise v EvalHash.key_toString in
 		s_value (depth + 1) (call_value_on v vf [])
 	in
-	if depth > 5 then rstop
+	if depth > (get_ctx()).max_print_depth then rstop
 	else match v with
 	| VNull -> rnull
 	| VInt32 i32 -> create_ascii(Int32.to_string i32)
