@@ -413,9 +413,14 @@ abstract BigInt(BigInt_)
 	}
 	
 	// Binary OR
-	@:op(A | B) @:noCompletion public static inline function orInt_(a : BigInt, b : Int) : Int
+	@:op(A | B) @:noCompletion public static inline function orInt_(a : BigInt, b : Int) : BigInt
 	{
-		return BigIntArithmetic.bitwiseOrInt(a, b);
+		return or_(a, b);
+	}
+
+	@:op(A | B) @:noCompletion public static inline function or_(a : BigInt, b : BigInt) : BigInt
+	{
+		return new BigInt(BigIntArithmetic.bitwiseOr(a, b));
 	}
 
 	// Binary AND

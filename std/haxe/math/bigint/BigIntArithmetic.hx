@@ -722,9 +722,22 @@ class BigIntArithmetic
 	/**
 		Returns the bitwise OR of `operand1` with `operand2`.
 	**/
-	public static inline function bitwiseOrInt(operand1 : BigInt_, operand2 : Int) : Int
+	public static inline function bitwiseOr(operand1 : BigInt_, operand2 : BigInt_) : BigInt_
 	{
-		return operand1.m_data.get(0) | operand2;
+		var result:MutableBigInt_ = new MutableBigInt_();
+		result.m_count = (operand1.m_count > operand2.m_count)?operand1.m_count : operand2.m_count;
+		result.ensureCapacity(result.m_count, false);
+		for (i in 0...result.m_count) {
+			if ( i > (operand1.m_count-1) ) {
+				result.m_data.set(i, ((operand1.sign()==0)?operand2.m_data.get(i):0xffffffff) );
+			} else if ( i > (operand2.m_count-1) ) {
+				result.m_data.set(i, ((operand2.sign()==0)?operand1.m_data.get(i):0xffffffff));
+			} else {
+			 result.m_data.set(i, (operand1.m_data.get(i) | operand2.m_data.get(i)));
+			}
+		}
+		result.compact();
+		return result;
 	}
 
 	/**
