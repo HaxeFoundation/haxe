@@ -700,10 +700,20 @@ class BigIntArithmetic
 	public static inline function bitwiseAnd(operand1:BigInt_, operand2:BigInt_):BigInt_ 
 	{
 		var result:MutableBigInt_ = new MutableBigInt_();
-		result.m_count = (operand1.m_count > operand2.m_count) ? operand2.m_count : operand1.m_count;
+		if ( (operand1.m_count > operand2.m_count)) {
+			result.m_count = (operand2.sign() == 0)?operand2.m_count : operand1.m_count;
+		} else {
+			result.m_count = (operand1.sign() == 0)?operand1.m_count : operand2.m_count;
+		}
 		result.ensureCapacity(result.m_count, false);
 		for (i in 0...result.m_count) {
-			result.m_data.set(i, (operand1.m_data.get(i) & operand2.m_data.get(i)));
+			if ( i > (operand1.m_count-1) ) {
+				result.m_data.set(i, operand2.m_data.get(i));
+			} else if ( i > (operand2.m_count-1) ) {
+				result.m_data.set(i, operand1.m_data.get(i));
+			} else {
+			 result.m_data.set(i, (operand1.m_data.get(i) & operand2.m_data.get(i)));
+			}
 		}
 		result.compact();
 		return result;
