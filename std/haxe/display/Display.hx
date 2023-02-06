@@ -493,10 +493,10 @@ enum abstract FindReferencesKind(String) to String {
 }
 
 /** GotoDefinition **/
-typedef GotoDefinitionResult = Response<Array<Null<Location>>>;
+typedef GotoDefinitionResult = Response<Array<Location>>;
 
 /** GotoTypeDefinition **/
-typedef GotoTypeDefinitionResult = Response<Array<Null<Location>>>;
+typedef GotoTypeDefinitionResult = Response<Array<Location>>;
 
 /** Hover **/
 typedef HoverResult = Response<Null<HoverDisplayItemOccurence<Dynamic>>>;
