@@ -288,6 +288,7 @@ and context = {
 	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
 	max_print_depth : int;
+	print_indentation : string option;
 }
 
 module GlobalState = struct

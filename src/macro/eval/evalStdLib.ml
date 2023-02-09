@@ -239,7 +239,7 @@ module StdArray = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		vstring (s_array 0 (this vthis))
+		vstring (s_array 0 0 (this vthis))
 	)
 
 	let unshift = vifun1 (fun vthis v ->
