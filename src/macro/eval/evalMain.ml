@@ -130,6 +130,8 @@ let create com api is_macro =
 		exception_stack = [];
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
+		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
+			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
