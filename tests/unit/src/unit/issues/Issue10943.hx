@@ -11,10 +11,10 @@ class Issue10943 extends Test {
 		eq(1, m);
 		#end
 		
-		var x:Int32 = 1<<32;
+		var x:haxe.Int32 = 1<<32;
 		eq(1, x);
-		var n:Int32 = 1;
-		var m:Int32 = n << 32;
+		var n:haxe.Int32 = 1;
+		var m:haxe.Int32 = n << 32;
 		eq(1, m);
 	}
 
