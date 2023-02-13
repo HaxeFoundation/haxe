@@ -1396,6 +1396,9 @@ class texpr_to_jvm
 				| TDouble ->
 					code#dconst 1.;
 					if op = Increment then code#dadd else code#dsub
+				| TFloat ->
+					code#fconst 1.;
+					if op = Increment then code#fadd else code#fsub
 				| TByte | TShort | TInt ->
 					code#iconst Int32.one;
 					if op = Increment then code#iadd else code#isub;
@@ -1412,6 +1415,7 @@ class texpr_to_jvm
 			begin match jsig with
 			| TLong -> code#lneg;
 			| TDouble -> code#dneg;
+			| TFloat -> code#fneg;
 			| TByte | TShort | TInt -> code#ineg;
 			| _ -> jm#invokestatic haxe_jvm_path "opNeg" (method_sig [object_sig] (Some object_sig))
 			end;
