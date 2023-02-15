@@ -23,7 +23,7 @@
 package haxe.format;
 
 /**
-	An implementation of JSON parser in Haxe.
+	An implementation of the JSON parser in Haxe.
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
@@ -37,7 +37,7 @@ class JsonParser {
 		JSON objects are parsed into anonymous structures and JSON arrays
 		are parsed into `Array<Dynamic>`.
 
-		If given `str` is not valid JSON, an exception will be thrown.
+		If given `str` is not a valid JSON, an exception will be thrown.
 
 		If `str` is null, the result is unspecified.
 	**/
