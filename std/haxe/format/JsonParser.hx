@@ -23,7 +23,7 @@
 package haxe.format;
 
 /**
-	An implementation of the JSON parser in Haxe.
+	An implementation of a JSON parser in Haxe.
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
