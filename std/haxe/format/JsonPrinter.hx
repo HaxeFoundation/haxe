@@ -23,7 +23,7 @@
 package haxe.format;
 
 /**
-	An implementation of the JSON printer in Haxe.
+	An implementation of a JSON printer in Haxe.
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
