@@ -71,6 +71,7 @@ type typer_globals = {
 	mutable delayed : (typer_pass * (unit -> unit) list) list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
+	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;

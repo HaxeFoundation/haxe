@@ -1685,7 +1685,12 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Dollar s,_,p) ->
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
-		| _ -> e()
+		| _ ->
+			if ctx.g.retain_meta then
+				let e = e() in
+				{e with eexpr = TMeta(m,e)}
+			else
+				e()
 	in
 	ctx.meta <- old;
 	e
@@ -2056,6 +2061,7 @@ let rec create com =
 			delayed = [];
 			debug_delayed = [];
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
+			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			std = null_module;
 			global_using = [];
 			complete = false;
