@@ -261,6 +261,26 @@ class MutableBigInt_ extends BigInt_
 			m_count = other.m_count;
 		}
 	}
+	
+	private function fixedSizeCopyFrom(other:BigInt_, size:Int, value:Int = 0):Void 
+	{
+		if (other != this) 
+		{
+			ensureCapacity(size, false);
+			var maxSize:Int = (size > other.m_count) ? other.m_count : size;
+			for (i in 0...maxSize) 
+			{
+				m_data.set(i, other.m_data.get(i));
+			}
+			var diffSize = size - maxSize;
+			while (diffSize > 0) 
+			{
+				m_data.set(maxSize++, value);
+				diffSize--;
+			}
+			m_count = size;
+		}
+	}
 
 	//-----------------------------------------------------------------------
 	// Private implementation

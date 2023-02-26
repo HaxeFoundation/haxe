@@ -226,6 +226,26 @@ abstract BigInt(BigInt_)
 		return this.testBit(n);
 	}
 	
+	public function setBit(n:Int):BigInt 
+	{
+		return new BigInt(this.setBit(n));
+	}
+
+	public function clearBit(n:Int):BigInt
+	{
+		return new BigInt(this.clearBit(n));
+	}
+
+	public function flipBit(n:Int):BigInt
+	{
+		return new BigInt(this.flipBit(n));
+	}
+	
+	public static function getPowerOfTwo(exponent:Int):BigInt
+	{
+		return new BigInt(BigInt_.getPowerOfTwo(exponent));
+	}
+	
 	public function hashCode():Int
 	{
 		return this.hashCode();

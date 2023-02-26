@@ -146,6 +146,44 @@ class BigInt_
 		return ( ( m_data.get(chunk) & (1<<(n & 0x1f))) != 0);
 	}
 	
+	public function setBit(n:Int):BigInt_ 
+	{
+		return (testBit(n)) ? this : flipBit(n);
+	}
+
+	public function clearBit(n:Int):BigInt_ 
+	{
+		return (testBit(n)) ? flipBit(n) : this;
+	}
+
+	public function flipBit(n:Int):BigInt_ 
+	{
+		if (n < 0) throw BigIntExceptions.INVALID_ARGUMENT;
+		var isNegative:Bool = sign() < 0;
+		var chunk = (n >> 5) + 1;
+		var changeBit:Int = (n & 0x1f);
+		var r:MutableBigInt_ = new MutableBigInt_();
+		if (chunk > m_count) {
+			r.fixedSizeCopyFrom(this, ((changeBit == 0x1f) ? (chunk + 1) : chunk), isNegative ? 0xffffffff : 0x0);
+		} else {
+			if (chunk == m_count && changeBit == 0x1f) {
+				r.fixedSizeCopyFrom(this, chunk + 1, (isNegative ? 0xffffffff : 0));
+			} else {
+				r.fixedSizeCopyFrom(this, m_count, 0);
+			}
+		}
+		r.m_data.set(chunk - 1, r.m_data.get(chunk - 1) ^ (1 << changeBit));
+		r.compact();
+		return r;
+	}
+	
+	public static inline function getPowerOfTwo(exponent:Int):BigInt_
+	{
+		var num = BigInt_.fromInt(1);
+		var r = arithmeticShiftLeft2(num,exponent);
+		return r;
+	}
+	
 	public function hashCode():Int
 	{
 		var hash:Int32 = 0;
