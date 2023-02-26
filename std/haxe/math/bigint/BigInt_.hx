@@ -142,7 +142,7 @@ class BigInt_
 	{
 		if ( n < 0 ) throw BigIntExceptions.INVALID_ARGUMENT;
 		var chunk = n >> 5; //divide by 32
-		if ( chunk >= m_count) return false;
+		if ( chunk >= m_count) return (sign()<0);
 		return ( ( m_data.get(chunk) & (1<<(n & 0x1f))) != 0);
 	}
 	
