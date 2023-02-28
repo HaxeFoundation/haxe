@@ -32,6 +32,12 @@ abstract Vector<T>(VectorData<T>) {
 			this[length - 1] = @:nullSafety(Off) cast null;
 	}
 
+	public static inline function createFilled<T>(length:Int, defaultValue:T):Vector<T> {
+		final vector = new Vector(length);
+		vector.fill(defaultValue);
+		return vector;
+	}
+
 	@:op([]) public inline function get(index:Int):T {
 		return this[index];
 	}
@@ -45,6 +51,9 @@ abstract Vector<T>(VectorData<T>) {
 	inline function get_length():Int {
 		return this.length;
 	}
+
+	public inline function fill(value:T):Void
+		for (i in 0...length) this[i] = value;
 
 	public static inline function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
 		(cast dest : hl.types.ArrayBase.ArrayAccess).blit(destPos, (cast src : hl.types.ArrayBase.ArrayAccess), srcPos, len);
