@@ -169,7 +169,7 @@ jobs:
             APT_PACKAGES: gcc-multilib g++-multilib
           - target: lua
             APT_PACKAGES: ncurses-dev
-          - target: flash
+          - target: flash9
             APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
     steps:
       - uses: actions/checkout@main
