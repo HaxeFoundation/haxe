@@ -93,7 +93,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
-	public static inline function filled<T>(length:Int, defaultValue:T):Vector<T> {
+	public static inline function createFilled<T>(length:Int, defaultValue:T):Vector<T> {
 		#if js
 		final vector = [for (_ in 0...length) defaultValue];
 		return cast vector;
