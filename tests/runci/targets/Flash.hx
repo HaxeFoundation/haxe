@@ -260,8 +260,8 @@ class Flash {
 	static public function run(args:Array<String>) {
 		setupFlashPlayerDebugger();
 		setupFlexSdk();
-		for (argsVariant in [[], ["--swf-version", "32"]]) {
-			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args).concat(argsVariant));
+		for (flashVersion in ["11", "32"]) {
+			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids", "--swf-version", flashVersion].concat(args));
 			runFlash("bin/unit9.swf");
 		}
 
