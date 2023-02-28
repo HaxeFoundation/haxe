@@ -166,6 +166,20 @@ class Path {
 	}
 
 	/**
+		Returns the file name of `path`.
+
+		If `path` has no file name, the empty String `""` is returned.
+
+		If `path` is `null`, the result is unspecified.
+	**/
+	public static function file(path):String {
+		var s = new Path(path);
+		if (s.file == null)
+			return "";
+		return s.file;
+	}
+				
+	/**
 		Returns a String representation of `path` where the extension is `ext`.
 
 		If `path` has no extension, `ext` is added as extension.
