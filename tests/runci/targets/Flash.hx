@@ -64,14 +64,15 @@ class Flash {
 
 		// download playerglobal.swc
 		final playerGlobalSwcFolder = flexSdkPath + "/player";
-		FileSystem.createDirectory(playerGlobalSwcFolder + "/11.1");
-		final flashVersion = getLatestFPVersion();
+		final playerGlobalSwcSubFolder = playerGlobalSwcFolder + "/27.0";
+		FileSystem.createDirectory(playerGlobalSwcSubFolder);
 
-		final playerGlobalSwcPath = playerGlobalSwcFolder + "/11.1/playerglobal.swc";
+		final playerGlobalSwcPath = '$playerGlobalSwcSubFolder/playerglobal.swc';
 
 		if (FileSystem.exists(playerGlobalSwcPath)) {
 			infoMsg('playerglobal.swc found at $playerGlobalSwcPath');
 		} else {
+			final flashVersion = getLatestFPVersion();
 			runNetworkCommand("wget", [
 				"-nv",
 				'https://fpdownload.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc',
