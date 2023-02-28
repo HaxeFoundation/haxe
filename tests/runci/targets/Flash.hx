@@ -52,7 +52,7 @@ class Flash {
 			return;
 		}
 		// download flex sdk
-		final flexVersion = "4.16.0";
+		final flexVersion = "4.16.1";
 		final flexSdkPath = Path.normalize(getInstallPath() + '/apache-flex-sdk-${flexVersion}-bin');
 
 		if (FileSystem.exists(flexSdkPath)) {
