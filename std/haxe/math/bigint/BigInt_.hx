@@ -28,102 +28,94 @@ import haxe.io.Bytes;
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
 @:allow(unit)
 @:allow(haxe.math.bigint)
-class BigInt_
-{
+class BigInt_ {
 	//-----------------------------------------------------------------------
 	// Public interface
 	//-----------------------------------------------------------------------
-
-	public inline function abs():BigInt_
-	{
-		if ( this.sign() < 0) {
+	public inline function abs():BigInt_ {
+		if (this.sign() < 0) {
 			return BigInt_.negate1(this);
-		} 
+		}
 		var r = new MutableBigInt_();
 		r.copyFrom(this);
 		return r;
 	}
-	
-	public function gcd( b : BigInt_) : BigInt_ 
-	{
+
+	public function gcd(b:BigInt_):BigInt_ {
 		var m:BigInt_ = this.abs();
 		b = b.abs();
 		var t:BigInt_;
-		while ( !equals2Int(b, 0) ) {
-			  t = m;
-			  m = b;
-			  b = modulus2(t , m);
+		while (!equals2Int(b, 0)) {
+			t = m;
+			m = b;
+			b = modulus2(t, m);
 		}
 		return m;
 	}
-	
+
 	/**
 		Calculates the least common multiple of the specified big integer numbers.
 	**/
-	public function lcm( b : BigInt_) : BigInt_
-	{
+	public function lcm(b:BigInt_):BigInt_ {
 		var m:BigInt_ = this.abs();
 		var n:BigInt_ = b.abs();
-		return BigInt_.divide2(BigInt_.multiply2(m,n),m.gcd(n));
+		return BigInt_.divide2(BigInt_.multiply2(m, n), m.gcd(n));
 	}
-	
+
 	/**
 		Returns `true` if this big integer is equivalent to 0, otherwise returns `false`.
 	**/
-	public inline function isZero() : Bool
-	{
+	public inline function isZero():Bool {
 		return (m_count == 1) && (m_data.get(0) == 0);
 	}
 
 	/**
 		Returns `true` if this big integer is less than 0, otherwise returns `false`.
 	**/
-	public inline function isNegative() : Bool
-	{
+	public inline function isNegative():Bool {
 		return m_data.get(m_count - 1) < 0;
 	}
-	
-	public function isPositive():Bool
-	{
+
+	public function isPositive():Bool {
 		return m_data.get(m_count - 1) >= 0;
 	}
 
-	public function isOdd():Bool
-	{
-		return ( ( m_data.get(0) & 1) == 1 );
+	public function isOdd():Bool {
+		return ((m_data.get(0) & 1) == 1);
 	}
-	
-	public function isEven():Bool
-	{
-		return ( (m_data.get(0) & 1) == 0);
+
+	public function isEven():Bool {
+		return ((m_data.get(0) & 1) == 0);
 	}
 
 	/**
 		Retrieve the sign value of this big integer; 0 if positive, -1 if negative.
 	**/
-	public inline function sign() : Int
-	{
-		return ( m_data.get(m_count - 1)>>31 !=0 )?-1:0;
+	public inline function sign():Int {
+		return (m_data.get(m_count - 1) >> 31 != 0) ? -1 : 0;
 	}
-	
-	public function getLowestSetBit():Int
-	{
-		if ( this.isZero() ) return -1;
+
+	public function getLowestSetBit():Int {
+		if (this.isZero())
+			return -1;
 		var result:Int = -1;
 		var i:Int = 0;
 		var b = m_data.get(0);
-		while ( b == 0  ) { i++; b = m_data.get(i); }
-		result = (i<<5) +BigIntHelper.ntz(b);
+		while (b == 0) {
+			i++;
+			b = m_data.get(i);
+		}
+		result = (i << 5) + BigIntHelper.ntz(b);
 		return result;
 	}
 
 	public function bitLength():Int {
-		if ( m_count <=0) return 0;
-		return ( 32 * m_count  - BigIntHelper.nlz(m_data.get(m_count-1)^sign()) );
+		if (m_count <= 0)
+			return 0;
+		return (32 * m_count - BigIntHelper.nlz(m_data.get(m_count - 1) ^ sign()));
 	}
-	
-	public function bitCount():Int 
-	{
+
+	public function bitCount():Int {
 		var totalBits:Int = 0;
 		var x:Int32;
 		for (n in 0...this.m_count) {
@@ -137,28 +129,27 @@ class BigInt_
 		}
 		return totalBits;
 	}
-	
-	public function testBit(n:Int):Bool
-	{
-		if ( n < 0 ) throw BigIntExceptions.INVALID_ARGUMENT;
-		var chunk = n >> 5; //divide by 32
-		if ( chunk >= m_count) return (sign()<0);
-		return ( ( m_data.get(chunk) & (1<<(n & 0x1f))) != 0);
+
+	public function testBit(n:Int):Bool {
+		if (n < 0)
+			throw BigIntExceptions.INVALID_ARGUMENT;
+		var chunk = n >> 5; // divide by 32
+		if (chunk >= m_count)
+			return (sign() < 0);
+		return ((m_data.get(chunk) & (1 << (n & 0x1f))) != 0);
 	}
-	
-	public function setBit(n:Int):BigInt_ 
-	{
+
+	public function setBit(n:Int):BigInt_ {
 		return (testBit(n)) ? this : flipBit(n);
 	}
 
-	public function clearBit(n:Int):BigInt_ 
-	{
+	public function clearBit(n:Int):BigInt_ {
 		return (testBit(n)) ? flipBit(n) : this;
 	}
 
-	public function flipBit(n:Int):BigInt_ 
-	{
-		if (n < 0) throw BigIntExceptions.INVALID_ARGUMENT;
+	public function flipBit(n:Int):BigInt_ {
+		if (n < 0)
+			throw BigIntExceptions.INVALID_ARGUMENT;
 		var isNegative:Bool = sign() < 0;
 		var chunk = (n >> 5) + 1;
 		var changeBit:Int = (n & 0x1f);
@@ -176,58 +167,58 @@ class BigInt_
 		r.compact();
 		return r;
 	}
-	
-	public static inline function getPowerOfTwo(exponent:Int):BigInt_
-	{
+
+	public static inline function getPowerOfTwo(exponent:Int):BigInt_ {
 		var num = BigInt_.fromInt(1);
-		var r = arithmeticShiftLeft2(num,exponent);
+		var r = arithmeticShiftLeft2(num, exponent);
 		return r;
 	}
-	
-	public function hashCode():Int
-	{
+
+	public function hashCode():Int {
 		var hash:Int32 = 0;
-		for (n in 0 ... this.m_count)
-		{
-			hash = 31*hash + this.m_data.get(n);
+		for (n in 0...this.m_count) {
+			hash = 31 * hash + this.m_data.get(n);
 		}
 		return hash;
 	}
-	
-	public function isProbablePrime(tolerance:UInt):Bool
-	{
-		if ( tolerance <= 0 ) return true;
+
+	public function isProbablePrime(tolerance:UInt):Bool {
+		if (tolerance <= 0)
+			return true;
 		var b:BigInt_ = this.abs();
-		if ( equals2Int(b,1) ) return false;
-		if ( equals2Int(b,2) ) return true;
-		if ( b.m_data.get(0) & 1 == 0 ) return false;
+		if (equals2Int(b, 1))
+			return false;
+		if (equals2Int(b, 2))
+			return true;
+		if (b.m_data.get(0) & 1 == 0)
+			return false;
 
 		var rounds:UInt = 0;
-		if ( b.m_count <= 4) {
-			rounds = (tolerance>64)?64:tolerance;
-		} else if ( b.m_count < 8) {
+		if (b.m_count <= 4) {
+			rounds = (tolerance > 64) ? 64 : tolerance;
+		} else if (b.m_count < 8) {
 			rounds = 32;
-		} else if ( b.m_count < 16) {
+		} else if (b.m_count < 16) {
 			rounds = 16;
-		} else if ( b.m_count < 24) {
+		} else if (b.m_count < 24) {
 			rounds = 8;
-		} else if ( b.m_count < 32) {
+		} else if (b.m_count < 32) {
 			rounds = 4;
 		} else {
 			rounds = 2;
 		}
-		rounds = (tolerance<rounds)?tolerance:rounds;
+		rounds = (tolerance < rounds) ? tolerance : rounds;
 		return b.millerRabin(rounds);
 	}
-	
+
 	/**
 		Returns the first integer greater than this BigInteger that is probably prime.
 	**/
-	public function nextProbablePrime() : BigInt_
-	{
+	public function nextProbablePrime():BigInt_ {
 		var r = new MutableBigInt_();
 		r.copyFrom(this);
-		if ( m_data.get(0) & 1 == 0 ) BigIntArithmetic.addInt(r, r, 1);
+		if (m_data.get(0) & 1 == 0)
+			BigIntArithmetic.addInt(r, r, 1);
 		do {
 			BigIntArithmetic.addInt(r, r, 2);
 		} while (!r.isProbablePrime(1));
@@ -238,16 +229,12 @@ class BigInt_
 	/**
 		Test for numeric equality between this big integer and another.
 	**/
-	public function equals(other : BigInt_) : Bool
-	{
-		if (this.m_count != other.m_count)
-		{
+	public function equals(other:BigInt_):Bool {
+		if (this.m_count != other.m_count) {
 			return false;
 		}
-		for (n in 0 ... this.m_count)
-		{
-			if (this.m_data.get(n) != other.m_data.get(n))
-			{
+		for (n in 0...this.m_count) {
+			if (this.m_data.get(n) != other.m_data.get(n)) {
 				return false;
 			}
 		}
@@ -257,44 +244,38 @@ class BigInt_
 	/**
 		Test for numeric equality between this big integer and another.
 	**/
-	public function equalsInt(other : Int) : Bool
-	{
-		if (this.m_count != 1)
-		{
+	public function equalsInt(other:Int):Bool {
+		if (this.m_count != 1) {
 			return false;
 		}
 		return m_data.get(0) == other;
 	}
-	
-	public function min(other : BigInt_ ) : BigInt_ {
-		return (BigIntArithmetic.compare(this,other) < 0) ? this : other;
+
+	public function min(other:BigInt_):BigInt_ {
+		return (BigIntArithmetic.compare(this, other) < 0) ? this : other;
 	}
 
-	public function max(other : BigInt_ ) : BigInt_ {
-		return (BigIntArithmetic.compare(this,other) > 0) ? this : other;
+	public function max(other:BigInt_):BigInt_ {
+		return (BigIntArithmetic.compare(this, other) > 0) ? this : other;
 	}
 
 	/**
 		Get the value in decimal form.
 	**/
-	public inline function toString() : String
-	{
+	public inline function toString():String {
 		return MultiwordArithmetic.toDecimalSigned(m_data, m_count);
 	}
 
 	/**
 		Get the value in hexadecimal form.
 	**/
-	public function toHex() : String
-	{
+	public function toHex():String {
 		var sb = new StringBuf();
-		var i : Int = m_count;
-		while (--i >= 0)
-		{
+		var i:Int = m_count;
+		while (--i >= 0) {
 			var v = m_data.get(i);
-			for (j in 0 ... 8)
-			{
-				var c : Int = (v >> 28) & 0x0f;
+			for (j in 0...8) {
+				var c:Int = (v >> 28) & 0x0f;
 				v <<= 4;
 				c = (c < 10) ? (c + 48) : (c - 10 + 97);
 				sb.addChar(c);
@@ -306,16 +287,14 @@ class BigInt_
 	/**
 		Get the value as bytes, big endian order.
 	**/
-	public function toBytes() : Bytes
-	{
+	public function toBytes():Bytes {
 		var result = Bytes.alloc(m_count << 2);
-		for (i in 0 ... m_count)
-		{
-			var v : Int = m_data.get(m_count - i - 1);
+		for (i in 0...m_count) {
+			var v:Int = m_data.get(m_count - i - 1);
 			result.set((i << 2) + 0, (v >> 24) & 0xff);
 			result.set((i << 2) + 1, (v >> 16) & 0xff);
-			result.set((i << 2) + 2, (v >>  8) & 0xff);
-			result.set((i << 2) + 3, (v >>  0) & 0xff);
+			result.set((i << 2) + 2, (v >> 8) & 0xff);
+			result.set((i << 2) + 3, (v >> 0) & 0xff);
 		}
 		return result;
 	}
@@ -328,13 +307,10 @@ class BigInt_
 
 		Returns the number of Ints required to store the value.
 	**/
-	public function toInts(output : Vector<Int>) : Int
-	{
-		if (output != null)
-		{
-			var n : Int = (m_count > output.length) ? output.length : m_count;
-			for (i in 0 ... n)
-			{
+	public function toInts(output:Vector<Int>):Int {
+		if (output != null) {
+			var n:Int = (m_count > output.length) ? output.length : m_count;
+			for (i in 0...n) {
 				output.set(i, m_data.get(i));
 			}
 		}
@@ -344,11 +320,9 @@ class BigInt_
 	/**
 		Creates a big integer with value `value`.
 	**/
-	public static function fromInt(value : Int) : BigInt_
-	{
+	public static function fromInt(value:Int):BigInt_ {
 		var c = getCachedValue(value);
-		if (c == null)
-		{
+		if (c == null) {
 			c = newFromInt(value);
 		}
 		return c;
@@ -357,8 +331,7 @@ class BigInt_
 	/**
 		Creates a big integer with the value represented by the decimal string `value`.
 	**/
-	public static function fromString(value : String) : BigInt_
-	{
+	public static function fromString(value:String):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromString(value);
 		return bi;
@@ -368,8 +341,7 @@ class BigInt_
 		Creates a big integer with the signed value represented by
 		the hexadecimal string `value`.
 	**/
-	public static function fromHexSigned(value : String) : BigInt_
-	{
+	public static function fromHexSigned(value:String):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromHexSigned(value);
 		return bi;
@@ -379,18 +351,16 @@ class BigInt_
 		Creates a big integer with the unsigned value represented by
 		the hexadecimal string `value`.
 	**/
-	public static function fromHexUnsigned(value : String) : BigInt_
-	{
+	public static function fromHexUnsigned(value:String):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromHexUnsigned(value);
 		return bi;
 	}
-	
+
 	/**
 		Creates a big integer with the signed value represented by bytes
 	**/
-	public static function fromBytes(value : Bytes, offset : Int = 0, length : Int = 0) : BigInt_
-	{
+	public static function fromBytes(value:Bytes, offset:Int = 0, length:Int = 0):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromBigEndianBytesSigned(value, offset, length);
 		return bi;
@@ -399,53 +369,56 @@ class BigInt_
 	/**
 		Creates a big integer with the value represented by the integer vector `value`.
 	**/
-	public static function fromUnsignedInts(value : Vector<Int>, length : Int = 0) : BigInt_
-	{
+	public static function fromUnsignedInts(value:Vector<Int>, length:Int = 0):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromUnsignedInts(value, length);
 		return bi;
 	}
-	
-	public function square():BigInt_
-	{
-		var  r:MutableBigInt_ = new MutableBigInt_();
-		BigIntArithmetic.multiply(r,this,this); 
+
+	public function square():BigInt_ {
+		var r:MutableBigInt_ = new MutableBigInt_();
+		BigIntArithmetic.multiply(r, this, this);
 		return r;
 	}
-	
-	public function modPow(exponent:BigInt_, modulus:BigInt_) : BigInt_
-	{
-		if (BigIntArithmetic.compareInt(exponent,0) < 0) throw BigIntExceptions.NEGATIVE_EXPONENT;
-		if ( this.isZero() ) return ( BigIntArithmetic.compareInt(exponent,0) == 0 ? BigInt.fromInt(1) : this);
+
+	public function modPow(exponent:BigInt_, modulus:BigInt_):BigInt_ {
+		if (BigIntArithmetic.compareInt(exponent, 0) < 0)
+			throw BigIntExceptions.NEGATIVE_EXPONENT;
+		if (this.isZero())
+			return (BigIntArithmetic.compareInt(exponent, 0) == 0 ? BigInt.fromInt(1) : this);
 		var r = BigInt_.newFromInt(1);
 		var p:BigInt_ = this;
-		while(true) {
-			if ( BigIntArithmetic.bitwiseAndInt(exponent,1) == 1 ) r = modulus2(multiply2(p,r),modulus);
-			exponent= BigInt_.arithmeticShiftRight2(exponent, 1);
-			if (BigIntArithmetic.compareInt(exponent,0) == 0) break;
-			p = modulus2(multiply2(p,p),modulus); 
-		 }
+		while (true) {
+			if (BigIntArithmetic.bitwiseAndInt(exponent, 1) == 1)
+				r = modulus2(multiply2(p, r), modulus);
+			exponent = BigInt_.arithmeticShiftRight2(exponent, 1);
+			if (BigIntArithmetic.compareInt(exponent, 0) == 0)
+				break;
+			p = modulus2(multiply2(p, p), modulus);
+		}
 		return r;
 	}
-	
-	public function pow(exponent:UInt) : BigInt_
-	{
-		if (exponent < 0) throw BigIntExceptions.NEGATIVE_EXPONENT;
-		if ( this.isZero() ) return ( exponent == 0 ? BigInt.fromInt(1) : this);
+
+	public function pow(exponent:UInt):BigInt_ {
+		if (exponent < 0)
+			throw BigIntExceptions.NEGATIVE_EXPONENT;
+		if (this.isZero())
+			return (exponent == 0 ? BigInt.fromInt(1) : this);
 		var r = BigInt_.newFromInt(1);
 		var p:BigInt_ = this;
-		while(true) {
-			if ( (exponent & 1) == 1 ) r = multiply2(p,r);
-			exponent= exponent >> 1;
-			if (exponent == 0) break;
-			p = multiply2(p,p); 
-		 }
+		while (true) {
+			if ((exponent & 1) == 1)
+				r = multiply2(p, r);
+			exponent = exponent >> 1;
+			if (exponent == 0)
+				break;
+			p = multiply2(p, p);
+		}
 		return r;
 	}
-	
+
 	/* hac 14.61, pp. 608 */
-	public function modInverse(modulus:BigInt_):BigInt_ 
-	{
+	public function modInverse(modulus:BigInt_):BigInt_ {
 		if (modulus.sign() == -1 || modulus.isZero())
 			throw BigIntExceptions.NEGATIVE_MODULUS;
 		if (equals2Int(modulus, 1))
@@ -522,149 +495,134 @@ class BigInt_
 		while (BigIntArithmetic.compare(c, modulus) >= 0) {
 			c = sub2(c, modulus);
 		}
-		
-		if ( this.sign() < 0) {
-			 c = sub2(modulus,c);
+
+		if (this.sign() < 0) {
+			c = sub2(modulus, c);
 		}
 
 		return c;
 	}
-	
-	public static function randomPrime(bits:Int32 , tolerance:UInt):BigInt_
-	{
-		if ( bits < 2 ) throw BigIntExceptions.INVALID_ARGUMENT;
-		if ( bits == 2 ) return ( (Math.random()<0.5)?BigInt.TWO:BigInt.fromInt(3));
+
+	public static function randomPrime(bits:Int32, tolerance:UInt):BigInt_ {
+		if (bits < 2)
+			throw BigIntExceptions.INVALID_ARGUMENT;
+		if (bits == 2)
+			return ((Math.random() < 0.5) ? BigInt.TWO : BigInt.fromInt(3));
 		var r = new MutableBigInt_();
 		do {
 			var bytes = randomBytes(bits);
-			var  excessBits = 8 * bytes.length - bits;
-			bytes.set(0,bytes.get(0)|(1 << (7 - excessBits)));
-			bytes.set(bytes.length-1,bytes.get(bytes.length-1)|1);
+			var excessBits = 8 * bytes.length - bits;
+			bytes.set(0, bytes.get(0) | (1 << (7 - excessBits)));
+			bytes.set(bytes.length - 1, bytes.get(bytes.length - 1) | 1);
 			r.setFromBigEndianBytesSigned(bytes);
-			if ( bits > 10 ) {
-				while(!equals2Int(r.gcd(BigInt.SMALL_PRIMES_PRODUCT),1)) 
-				{
+			if (bits > 10) {
+				while (!equals2Int(r.gcd(BigInt.SMALL_PRIMES_PRODUCT), 1)) {
 					BigIntArithmetic.addInt(r, r, 2);
 				}
 			}
 		} while (!r.isProbablePrime(tolerance));
-		if ( r.sign() < 0) BigIntArithmetic.negate(r, r);
+		if (r.sign() < 0)
+			BigIntArithmetic.negate(r, r);
 		return r;
 	}
-	
-	public static function randomInRange(min:BigInt_, max:BigInt_):BigInt_
-	{
+
+	public static function randomInRange(min:BigInt_, max:BigInt_):BigInt_ {
 		min = min.abs();
 		max = max.abs();
-		var initCheck = BigIntArithmetic.compare(min,max);
-		if ( initCheck == 0) return min;
-		if ( initCheck > 0 ) throw BigIntExceptions.INVALID_ARGUMENT;
-		if ( min.bitLength() > (max.bitLength()>>1)) return add2(randomInRange(BigInt.ZERO,sub2(max,min)),min);
-		for(i in 0...1000) {
+		var initCheck = BigIntArithmetic.compare(min, max);
+		if (initCheck == 0)
+			return min;
+		if (initCheck > 0)
+			throw BigIntExceptions.INVALID_ARGUMENT;
+		if (min.bitLength() > (max.bitLength() >> 1))
+			return add2(randomInRange(BigInt.ZERO, sub2(max, min)), min);
+		for (i in 0...1000) {
 			var rnd = random(max.bitLength());
-			if ( BigIntArithmetic.compare(rnd,min) >= 0 &&  BigIntArithmetic.compare(rnd,max) <= 0) {
+			if (BigIntArithmetic.compare(rnd, min) >= 0 && BigIntArithmetic.compare(rnd, max) <= 0) {
 				return rnd;
 			}
 		}
-		return add2(random(sub2(max,min).bitLength()-1),min);
+		return add2(random(sub2(max, min).bitLength() - 1), min);
 	}
-	
-	public static function random(bits:Int32 ):BigInt_
-	{
-		if ( bits <= 0 ) return BigInt.ZERO;
+
+	public static function random(bits:Int32):BigInt_ {
+		if (bits <= 0)
+			return BigInt.ZERO;
 		var r = new MutableBigInt_();
 		r.setFromBigEndianBytesSigned(randomBytes(bits));
 		r.compact();
 		return r;
 	}
-	
-	public static function divMod(dividend:BigInt_, divisor:BigInt_):{quotient:BigInt_, remainder:BigInt_}
-	{
+
+	public static function divMod(dividend:BigInt_, divisor:BigInt_):{quotient:BigInt_, remainder:BigInt_} {
 		var q = new MutableBigInt_();
 		var r = new MutableBigInt_();
 		BigIntArithmetic.divide(dividend, divisor, q, r);
-		return {quotient:q, remainder:r};
+		return {quotient: q, remainder: r};
 	}
 
 	//-----------------------------------------------------------------------
 	// Private implementation
 	//-----------------------------------------------------------------------
 
-	private inline function getUnsignedDigitCount() : Int
-	{
-		if ((m_count > 1) && (m_data.get(m_count - 1) == 0))
-		{
+	private inline function getUnsignedDigitCount():Int {
+		if ((m_count > 1) && (m_data.get(m_count - 1) == 0)) {
 			return m_count - 1;
 		}
 		return m_count;
 	}
 
-	private inline function getShort(n : Int) : Int
-	{
+	private inline function getShort(n:Int):Int {
 		return MultiwordArithmetic.getShort(m_data, n);
 	}
 
-	private function compact() : Void
-	{
-		if (isNegative())
-		{
-			while (m_count > 1)
-			{
-				if ((m_data.get(m_count - 1) == -1) && (m_data.get(m_count - 2) < 0))
-				{
+	private function compact():Void {
+		if (isNegative()) {
+			while (m_count > 1) {
+				if ((m_data.get(m_count - 1) == -1) && (m_data.get(m_count - 2) < 0)) {
 					--m_count;
-				}
-				else
-				{
+				} else {
 					break;
 				}
 			}
-		}
-		else
-		{
-			while (m_count > 1)
-			{
-				if ((m_data.get(m_count - 1) == 0) && (m_data.get(m_count - 2) >= 0))
-				{
+		} else {
+			while (m_count > 1) {
+				if ((m_data.get(m_count - 1) == 0) && (m_data.get(m_count - 2) >= 0)) {
 					--m_count;
-				}
-				else
-				{
+				} else {
 					break;
 				}
 			}
 		}
 	}
-	
-	private function millerRabin(rounds:UInt):Bool
-	{
-		var minusOne:BigInt_ = subInt2(this,1);
-		var m = subInt2(this,1);
+
+	private function millerRabin(rounds:UInt):Bool {
+		var minusOne:BigInt_ = subInt2(this, 1);
+		var m = subInt2(this, 1);
 		var lsb = m.getLowestSetBit();
-		if ( lsb <=0 ) return false;
-		m = arithmeticShiftRight2(m,lsb);
+		if (lsb <= 0)
+			return false;
+		m = arithmeticShiftRight2(m, lsb);
 		var num:BigInt_;
-		for(i in 0...rounds) {
-			num = randomInRange(BigInt.TWO,minusOne);
-			var z:BigInt_ = num.modPow(m,this);
-			if ( BigIntArithmetic.compare(z, BigInt.ONE) != 0 && BigIntArithmetic.compare(z, minusOne) != 0) {
+		for (i in 0...rounds) {
+			num = randomInRange(BigInt.TWO, minusOne);
+			var z:BigInt_ = num.modPow(m, this);
+			if (BigIntArithmetic.compare(z, BigInt.ONE) != 0 && BigIntArithmetic.compare(z, minusOne) != 0) {
 				var j:Int = 1;
-				while ( j<=lsb  && BigIntArithmetic.compare(z, minusOne) != 0) 
-				{
-					if ( BigIntArithmetic.compare(z, BigInt.ONE) == 0 || j == lsb) {
-					  return false;
+				while (j <= lsb && BigIntArithmetic.compare(z, minusOne) != 0) {
+					if (BigIntArithmetic.compare(z, BigInt.ONE) == 0 || j == lsb) {
+						return false;
 					}
-					z = z.modPow(BigInt.TWO,this);
+					z = z.modPow(BigInt.TWO, this);
 					j++;
 				}
 			}
 		}
 		return true;
 	}
-	
+
 	/* hac 14.64, pp. 610 */
-	private function modInverseOdd(y:BigInt_, x:BigInt_):BigInt_ 
-	{
+	private function modInverseOdd(y:BigInt_, x:BigInt_):BigInt_ {
 		var b:BigInt_ = fromInt(0);
 		var d:BigInt_ = fromInt(1);
 		var u:BigInt_ = MutableBigInt_.fromBigInt(x);
@@ -707,158 +665,136 @@ class BigInt_
 		return d;
 	}
 
-	private static function newFromInt(value : Int) : BigInt_
-	{
+	private static function newFromInt(value:Int):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromInt(value);
 		return bi;
 	}
-	
-	private static function randomBytes(bits:Int32) : Bytes
-	{
-		var countBytes:Int = Std.int((bits+7)/8);
+
+	private static function randomBytes(bits:Int32):Bytes {
+		var countBytes:Int = Std.int((bits + 7) / 8);
 		var randomBytes = Bytes.alloc(countBytes);
-		for(j in 0...countBytes) {
-			var rndN = Math.floor( Math.random() * 256 );
-			randomBytes.set(j,rndN);
+		for (j in 0...countBytes) {
+			var rndN = Math.floor(Math.random() * 256);
+			randomBytes.set(j, rndN);
 		}
 		var excessBits:Int = 8 * countBytes - bits;
-		if ( excessBits > 0)
-			randomBytes.set(0, randomBytes.get(0)&(255 >>> excessBits));
+		if (excessBits > 0)
+			randomBytes.set(0, randomBytes.get(0) & (255 >>> excessBits));
 		return randomBytes;
 	}
 
-	private function new() : Void
-	{
-	}
+	private function new():Void {}
 
-	private static function getCachedValue(value : Int) : BigInt_
-	{
-		if ((s_firstCachedValue <= value) && (value <= s_lastCachedValue))
-		{
+	private static function getCachedValue(value:Int):BigInt_ {
+		if ((s_firstCachedValue <= value) && (value <= s_lastCachedValue)) {
 			initCache();
 			return s_cache[value - s_firstCachedValue];
 		}
 		return null;
 	}
 
-	private static function initCache() : Void
-	{
-		if (s_cache == null)
-		{
+	private static function initCache():Void {
+		if (s_cache == null) {
 			s_cache = new Vector<BigInt_>(s_lastCachedValue + 1 - s_firstCachedValue);
-			for (i in 0 ... s_cache.length)
-			{
+			for (i in 0...s_cache.length) {
 				s_cache[i] = newFromInt(i + s_firstCachedValue);
 			}
 		}
 	}
 
-	private var m_count : Int;
-	private var m_data : Vector<Int>;
+	private var m_count:Int;
+	private var m_data:Vector<Int>;
 
-	private static inline var s_firstCachedValue : Int = -16;
-	private static inline var s_lastCachedValue : Int = 16;
-	private static var s_cache : Vector<BigInt_> = null;
+	private static inline var s_firstCachedValue:Int = -16;
+	private static inline var s_lastCachedValue:Int = 16;
+	private static var s_cache:Vector<BigInt_> = null;
 
 	//-----------------------------------------------------------------------
 	// Static helpers
 	//-----------------------------------------------------------------------
 
 	@:noCompletion
-	private static inline function negate1(a : BigInt_) : BigInt_
-	{
+	private static inline function negate1(a:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.negate(r, a);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function equals2Int(a : BigInt_, b : Int) : Bool
-	{
+	private static inline function equals2Int(a:BigInt_, b:Int):Bool {
 		return a.equalsInt(b);
 	}
 
 	@:noCompletion
-	private static inline function equals2(a : BigInt_, b : BigInt_) : Bool
-	{
+	private static inline function equals2(a:BigInt_, b:BigInt_):Bool {
 		return a.equals(b);
 	}
 
 	@:noCompletion
-	private static inline function addInt2(a : BigInt_, b : Int) : BigInt_
-	{
+	private static inline function addInt2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.addInt(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function add2(a : BigInt_, b : BigInt_) : BigInt_
-	{
+	private static inline function add2(a:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.add(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function subInt2(a : BigInt_, b : Int) : BigInt_
-	{
+	private static inline function subInt2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.subtractInt(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function sub2(a : BigInt_, b : BigInt_) : BigInt_
-	{
+	private static inline function sub2(a:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.subtract(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function multiplyInt2(a : BigInt_, b : Int) : BigInt_
-	{
+	private static inline function multiplyInt2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.multiplyInt(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function multiply2(a : BigInt_, b : BigInt_) : BigInt_
-	{
+	private static inline function multiply2(a:BigInt_, b:BigInt_):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.multiply(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function divideInt2(a : BigInt_, b : Int) : BigInt_
-	{
+	private static inline function divideInt2(a:BigInt_, b:Int):BigInt_ {
 		var q = new MutableBigInt_();
 		BigIntArithmetic.divideInt(a, b, q);
 		return q;
 	}
 
 	@:noCompletion
-	private static inline function divide2(a : BigInt_, b : BigInt_) : BigInt_
-	{
+	private static inline function divide2(a:BigInt_, b:BigInt_):BigInt_ {
 		var q = new MutableBigInt_();
 		BigIntArithmetic.divide(a, b, q, null);
 		return q;
 	}
 
 	@:noCompletion
-	private static inline function modulusInt2(a : BigInt_, b : Int) : Int
-	{
+	private static inline function modulusInt2(a:BigInt_, b:Int):Int {
 		var q = new MutableBigInt_();
 		return BigIntArithmetic.divideInt(a, b, q);
 	}
 
 	@:noCompletion
-	private static inline function modulus2(a : BigInt_, b : BigInt_) : BigInt_
-	{
+	private static inline function modulus2(a:BigInt_, b:BigInt_):BigInt_ {
 		var q = new MutableBigInt_();
 		var r = new MutableBigInt_();
 		BigIntArithmetic.divide(a, b, q, r);
@@ -866,78 +802,66 @@ class BigInt_
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftLeft2(a : BigInt_, b : Int) : BigInt_
-	{
+	private static inline function arithmeticShiftLeft2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.arithmeticShiftLeft(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function arithmeticShiftRight2(a : BigInt_, b : Int) : BigInt_
-	{
+	private static inline function arithmeticShiftRight2(a:BigInt_, b:Int):BigInt_ {
 		var r = new MutableBigInt_();
 		BigIntArithmetic.arithmeticShiftRight(r, a, b);
 		return r;
 	}
 
 	@:noCompletion
-	private static inline function sign1(a : BigInt_) : Int
-	{
+	private static inline function sign1(a:BigInt_):Int {
 		return a.sign();
 	}
 
 	@:noCompletion
-	private static inline function isZero1(a : BigInt_) : Bool
-	{
+	private static inline function isZero1(a:BigInt_):Bool {
 		return a.isZero();
 	}
 
 	@:noCompletion
-	private static inline function isNegative1(a : BigInt_) : Bool
-	{
+	private static inline function isNegative1(a:BigInt_):Bool {
 		return a.isNegative();
 	}
-	
+
 	@:noCompletion
-	private static inline function isPositive1(a : BigInt_) : Bool
-	{
+	private static inline function isPositive1(a:BigInt_):Bool {
 		return a.isPositive();
 	}
 
 	@:noCompletion
-	private static inline function isOdd1(a : BigInt_) : Bool
-	{
+	private static inline function isOdd1(a:BigInt_):Bool {
 		return a.isOdd();
 	}
 
 	@:noCompletion
-	private static inline function isEven1(a : BigInt_) : Bool
-	{
+	private static inline function isEven1(a:BigInt_):Bool {
 		return a.isEven();
 	}
 
 	@:noCompletion
-	private static inline function toString1(a : BigInt_) : String
-	{
+	private static inline function toString1(a:BigInt_):String {
 		return a.toString();
 	}
 
 	@:noCompletion
-	private static inline function toHex1(a : BigInt_) : String
-	{
+	private static inline function toHex1(a:BigInt_):String {
 		return a.toHex();
 	}
 
 	@:noCompletion
-	private static inline function toBytes1(a : BigInt_) : Bytes
-	{
+	private static inline function toBytes1(a:BigInt_):Bytes {
 		return a.toBytes();
 	}
 
 	@:noCompletion
-	private static inline function toInts1(a : BigInt_, v : Vector<Int>) : Int
-	{
+	private static inline function toInts1(a:BigInt_, v:Vector<Int>):Int {
 		return a.toInts(v);
 	}
 }

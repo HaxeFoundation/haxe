@@ -19,66 +19,50 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- 
+
 package haxe.math.bigint;
 
 import haxe.math.bigint.BigIntExceptions;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
-class BigIntTools
-{
-	public static inline function isNull(value : BigInt) : Bool
-	{
-		var a : BigInt_ = value;
+class BigIntTools {
+	public static inline function isNull(value:BigInt):Bool {
+		var a:BigInt_ = value;
 		return a == null;
 	}
 
-	public static inline function isBigInt(value : Dynamic) : Bool
-	{
+	public static inline function isBigInt(value:Dynamic):Bool {
 		return Std.isOfType(value, BigInt_);
 	}
 
-	public static inline function castFrom(value : Dynamic) : BigInt
-	{
+	public static inline function castFrom(value:Dynamic):BigInt {
 		return new BigInt(Std.downcast(value, BigInt_));
 	}
 
-	public static function parseValueUnsigned(value : Dynamic) : BigInt
-	{
-		var bi : BigInt;
-		if (Std.isOfType(value, String))
-		{
+	public static function parseValueUnsigned(value:Dynamic):BigInt {
+		var bi:BigInt;
+		if (Std.isOfType(value, String)) {
 			bi = parseStringUnsigned(cast(value, String));
-		}
-		else if (isBigInt(value))
-		{
+		} else if (isBigInt(value)) {
 			var t = new MutableBigInt_();
 			t.copyFrom(castFrom(value));
 			return new BigInt(t);
-		}
-		else if (Std.isOfType(value, Int))
-		{
+		} else if (Std.isOfType(value, Int)) {
 			bi = BigInt.fromInt(cast(value, Int));
-		}
-		else
-		{
+		} else {
 			throw BigIntExceptions.INVALID_ARGUMENT;
 		}
 		return bi;
 	}
 
-	private static function parseStringUnsigned(value : String) : BigInt
-	{
+	private static function parseStringUnsigned(value:String):BigInt {
 		var result = new MutableBigInt_();
-		if (StringTools.startsWith(value, "0x"))
-		{
+		if (StringTools.startsWith(value, "0x")) {
 			result.setFromHexUnsigned(value.substr(2));
-		}
-		else
-		{
+		} else {
 			result.setFromString(value);
 		}
-		var result2 : MutableBigInt = result;
+		var result2:MutableBigInt = result;
 		return result2;
 	}
 }
