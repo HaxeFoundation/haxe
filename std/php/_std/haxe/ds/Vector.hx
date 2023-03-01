@@ -36,11 +36,18 @@ private class PhpVectorData<T> {
 
 private typedef VectorData<T> = PhpVectorData<T>;
 
+@:coreApi
 abstract Vector<T>(VectorData<T>) {
 	public var length(get, never):Int;
 
 	public inline function new(length:Int) {
 		this = new VectorData(length);
+	}
+
+	public static inline function createFilled<T>(length:Int, defaultValue:T):Vector<T> {
+		final vector = new Vector(length);
+		vector.fill(defaultValue);
+		return vector;
 	}
 
 	@:op([]) public inline function get(index:Int):T {
@@ -54,6 +61,9 @@ abstract Vector<T>(VectorData<T>) {
 	inline function get_length():Int {
 		return this.length;
 	}
+
+	public inline function fill(value:T):Void
+		for (i in 0...length) this.data[i] = value;
 
 	public static function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
 		if (src == dest) {
@@ -127,7 +137,7 @@ abstract Vector<T>(VectorData<T>) {
 		return result;
 	}
 
-	public inline function sort<T>(f:T->T->Int):Void {
+	public inline function sort(f:T->T->Int):Void {
 		Global.usort(this.data, f);
 	}
 }
