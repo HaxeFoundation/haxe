@@ -52,7 +52,7 @@ class Flash {
 			return;
 		}
 		// download flex sdk
-		final flexVersion = "4.16.0";
+		final flexVersion = "4.16.1";
 		final flexSdkPath = Path.normalize(getInstallPath() + '/apache-flex-sdk-${flexVersion}-bin');
 
 		if (FileSystem.exists(flexSdkPath)) {
@@ -64,14 +64,15 @@ class Flash {
 
 		// download playerglobal.swc
 		final playerGlobalSwcFolder = flexSdkPath + "/player";
-		FileSystem.createDirectory(playerGlobalSwcFolder + "/11.1");
-		final flashVersion = getLatestFPVersion();
+		final playerGlobalSwcSubFolder = playerGlobalSwcFolder + "/27.0";
+		FileSystem.createDirectory(playerGlobalSwcSubFolder);
 
-		final playerGlobalSwcPath = playerGlobalSwcFolder + "/11.1/playerglobal.swc";
+		final playerGlobalSwcPath = '$playerGlobalSwcSubFolder/playerglobal.swc';
 
 		if (FileSystem.exists(playerGlobalSwcPath)) {
 			infoMsg('playerglobal.swc found at $playerGlobalSwcPath');
 		} else {
+			final flashVersion = getLatestFPVersion();
 			runNetworkCommand("wget", [
 				"-nv",
 				'https://fpdownload.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc',
@@ -259,8 +260,8 @@ class Flash {
 	static public function run(args:Array<String>) {
 		setupFlashPlayerDebugger();
 		setupFlexSdk();
-		for (argsVariant in [[], ["--swf-version", "32"]]) {
-			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args).concat(argsVariant));
+		for (flashVersion in ["11", "32"]) {
+			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids", "--swf-version", flashVersion].concat(args));
 			runFlash("bin/unit9.swf");
 		}
 
