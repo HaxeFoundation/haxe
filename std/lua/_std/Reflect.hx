@@ -116,7 +116,7 @@ import lua.Boot;
 		untyped {
 			if (v == null)
 				return false;
-			var t = __lua__("type(v)");
+			var t = lua.Lua.type(v);
 			return (t == "string" || (t == "table" && v.__enum__ == null))
 				|| (t == "function" && (lua.Boot.isClass(v) || lua.Boot.isEnum(v)) != null);
 		}
