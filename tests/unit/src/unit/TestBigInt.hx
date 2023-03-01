@@ -2817,9 +2817,9 @@ class TestBigInt extends Test {
 		}
 	}
 	
-		public function testModInverse():Void
+	public function testModInverse():Void
 	{
-		var m:Array<String> = [	"2885628006", "3452672361", "2693781441",  "3446368347", "1495928706" , "3144152002", "1680946273"];
+		var m:Array<String> = [	"2885628006", "3452672361", "2693781441",  "3446368347", "1495928706" , "3144152002", "1680946273","-9223372036854775808","-8192","-2147483648"];
 		var n:Array<String> = [ "898595849", "2540385371", "1304452195", "2448267533", "2053023521", "4287024253", "1920144361",	"504475217", "887965291", "300193913", "2394418165" ];
 		var mn:Array<String> = ["681936597","980871030","323007506","112883568","683798641","1331447622","1514136460","438360889","585723972","102755466","818276521",
 		"565144203","2230262406","55288816","1361792736","293899217","244543810","1508822196","237344825","670834209","151186306","1741057836",
@@ -2827,7 +2827,10 @@ class TestBigInt extends Test {
 		"500716917","910017586","666455683","1268170143","751080606","3325520905","1230560432","124770931","580887745","121788521","1422101743",
 		"858074026","791210169","823419966","1678016129","1682774644","1196897481","244305979","462331726","867267019","166516939","1303195691",
 		"712131840","2106472611","967422418","273950480","1682853299","4248168436","1597159081","254025827","233894683","63539412","736767788",
-		"279559525","387786944","1228135902","494650428","146720719","1425245481","1438770027","120084998","310304596","244283899","1212900932"];
+		"279559525","387786944","1228135902","494650428","146720719","1425245481","1438770027","120084998","310304596","244283899","1212900932",
+		"493541265","1302212172","774141982","2347206816","1101394049","2159509590","1432890654","292669872","867212529","222172747","2347398892",
+		"386883247","331502925","1088688923","170649507","200239965","2567923341","699193192","83689187","270226742","133350299","1768630898",
+		"530941007","522306373","1263806667","20481954","1522248974","3285124637","954156434","247829081","734364965","178328821","1058287987"];
 		
 		var pos = 0;
 		for(i in 0...m.length) {
@@ -2897,6 +2900,107 @@ class TestBigInt extends Test {
 		t(b.testBit(200));
 		f(b.testBit(12345));
 		t(b.testBit(12347));
+		var nb:BigInt = "-57406576";
+		t(nb.testBit(350));
+		nb = "57406576";
+		f(nb.testBit(350));
+	}
+	
+	public function testSetBit():Void
+	{
+		var b:BigInt = 0;
+		eq("1024",b.setBit(10).toString());
+		b = "51929243614239128348340";
+		eq("51929243614239136736948",b.setBit(23).toString());
+		b = "-39972617095";
+		eq("-39972617095",b.setBit(68).toString());
+	}
+	
+	public function testClearBit():Void
+	{
+		var b:BigInt = 0;
+		eq("0",b.clearBit(10).toString());
+		b = "51929243614239128348340";
+		eq("51929243614236980864692",b.clearBit(31).toString());
+		b = "-39972617095";
+		eq("-295147905219325442951",b.clearBit(68).toString());
+	}
+	
+	public function testFlipBit():Void
+	{
+		var b:BigInt ="-4611686018427387904";
+		eq("-4611686016279904256",b.flipBit(31).toString());
+		b = "-4611686018427387904";
+		eq("-13835058055282163712",b.flipBit(63).toString());
+		b = "-9223372036854775808";
+		eq("-18446744073709551616",b.flipBit(63).toString());
+	}
+	
+	public function testGetPowerOfTwo():Void
+	{
+		for (i in 0...96) {
+			eq(s_powersOfTwo[i], BigInt.getPowerOfTwo(i).toString());
+		}
+		eq(s_powersOfTwo[96], BigInt.getPowerOfTwo(128).toString());
+		eq(s_powersOfTwo[97], BigInt.getPowerOfTwo(256).toString());
+		eq(s_powersOfTwo[98], BigInt.getPowerOfTwo(512).toString());
+	}
+	
+	public function testStringConversion():Void
+	{
+		var b:BigInt ="-4611686018427387904";
+		eq("-4611686018427387904",b);
+		eq("-46116860184273879041",(b+"1"));
+		b = "9876543210";
+		eq("29876543210",("2"+b));
+	}
+
+	public function testDivMod():Void
+	{
+		var b:BigInt = BigInt.random(48);
+		var result = BigInt.divMod(b,b);
+		eq("1",result.quotient);
+		eq("0",result.remainder);
+		result = BigInt.divMod(b,1);
+		eq(b.toString(),result.quotient);
+		eq("0",result.remainder);
+		for(i in 0...10) {
+			var a:BigInt = BigInt.random(100-i).abs();
+			var b:BigInt = BigInt.random(100+i).abs();
+			var c:BigInt = BigInt.random(10+i).abs();
+			var d:BigInt = (a*b)+c;
+			var result = BigInt.divMod(d,a);
+			eq(result.quotient.toString(),b.toString());
+			eq(result.remainder.toString(),c.toString());
+		}
+	}
+	
+	public function testHashCode():Void
+	{
+		var b:BigInt = "248576108700009";
+		eq(845966795,b.hashCode());
+		b = "101096178448040";
+		eq(-269403574,b.hashCode());
+		b = "1194923254814264634767542811261";
+		eq(1465720594,b.hashCode());
+		b = "2568876284867254520019857975684381983699779161674564743775191726214883120720241149248282662729370472124792889942528657175";
+		eq(965626026,b.hashCode());
+	}
+	
+	public function testBitwiseOperations():Void
+	{
+		var a:BigInt = "-4611686016279904256";
+		var b:BigInt = "4611686023796097025";
+		var result = a & b;
+		eq("4611686018427387904",result.toString());
+		result = a | b;
+		eq("-4611686010911195135",result.toString());
+		result = a ^ b;
+		eq("-9223372029338583039",result.toString());
+		result = ~a;
+		eq("4611686016279904255",result.toString());
+		result = ~b;
+		eq("-4611686023796097026",result.toString());
 	}
 	
 	public function testSquare():Void 
