@@ -148,12 +148,14 @@ private class HaxeThread {
 				item.handle = currentHandle();
 			}
 			try {
+				hl.Api.setErrorHandler(function(_){});
 				callb();
 				if(withEventLoop)
 					item.events.loop();
 			} catch(e) {
+				hl.Api.setErrorHandler(null);
 				dropThread(item);
-				throw e;
+				hl.Api.rethrow(e);
 			}
 			dropThread(item);
 		});
