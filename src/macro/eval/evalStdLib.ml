@@ -1950,7 +1950,7 @@ module StdReflect = struct
 				end
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
-			| _ -> unexpected_value o "object"
+			| _ -> false (* issue #10993 *)
 		in
 		vbool b
 	)
