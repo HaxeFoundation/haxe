@@ -61,7 +61,7 @@ class TestBigInt extends Test {
 		var remainder:MutableBigInt = 0;
 		try {
 			BigIntArithmetic.divide(dividend, divisor, quotient, remainder, dividend);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		eq("00000000", dividend.toHex());
@@ -390,23 +390,23 @@ class TestBigInt extends Test {
 		var a:MutableBigInt = 2;
 		try {
 			BigIntArithmetic.multiply(a, a, BigInt.fromInt(2));
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			BigIntArithmetic.multiply(a, BigInt.fromInt(2), a);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		// division by zero should throw exception
 		try {
 			BigInt.fromInt(1) / 0;
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.DIVISION_BY_ZERO, e);
 		}
 		try {
 			BigInt.fromInt(0) / 0;
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.DIVISION_BY_ZERO, e);
 		}
 
@@ -544,19 +544,19 @@ class TestBigInt extends Test {
 		// quotient and remainder cannot be the same object
 		try {
 			BigIntArithmetic.divide(BigInt.fromInt(1), BigInt.fromInt(10), quotient, quotient);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		// quotient cannot be null
 		try {
 			BigIntArithmetic.divideInt(BigInt.fromInt(1), 10, null);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			BigIntArithmetic.divide(BigInt.fromInt(1), BigInt.fromInt(10), null, remainder);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -573,22 +573,22 @@ class TestBigInt extends Test {
 		// work may not overlap any input
 		try {
 			BigIntArithmetic.divide(dividend, divisor, quotient, remainder, dividend);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			BigIntArithmetic.divide(dividend, divisor, quotient, remainder, divisor);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			BigIntArithmetic.divide(dividend, divisor, quotient, remainder, quotient);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			BigIntArithmetic.divide(dividend, divisor, quotient, remainder, remainder);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 	}
@@ -952,27 +952,27 @@ class TestBigInt extends Test {
 	public function bigIntFromString():Void {
 		try {
 			var x = BigInt.fromString(null);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			var x = BigInt.fromString("");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			var x = BigInt.fromString("-");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			var x = BigInt.fromString(" 0");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			var x = BigInt.fromString("0 ");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1000,7 +1000,7 @@ class TestBigInt extends Test {
 	{
 		try {
 			var x = BigInt.fromBytes(null);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		eq("0", BigInt.fromBytes(Bytes.ofHex("00")).toString());
@@ -1038,17 +1038,17 @@ class TestBigInt extends Test {
 		var a:MutableBigInt = BigInt.ZERO;
 		try {
 			a <<= -1;
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			a << -1;
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			BigInt.ONE << -1;
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1122,17 +1122,17 @@ class TestBigInt extends Test {
 
 		try {
 			var x = BigInt.fromHex(null);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			var x = BigInt.fromHex("");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			var x = BigInt.fromHex("0q0");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1265,30 +1265,30 @@ class TestBigInt extends Test {
 		MultiwordArithmetic.arithmeticShiftRight(fromInt(0, 2), fromInt(1, 2), 2, 1);
 		try {
 			MultiwordArithmetic.arithmeticShiftRight(fromInt(0, 2), fromInt(1, 2), 2, -1); // shift negative
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.arithmeticShiftRight(fromInt(0, 2), fromInt(1, 2), 2, 32); // shift 32
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.arithmeticShiftRight(fromInt(0, 1), fromInt(1, 2), 2, 1); // result too short
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.arithmeticShiftRight(fromInt(0, 2), fromInt(1, 1), 2, 1); // input too short
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.arithmeticShiftRight(fromInt(0, 2), fromInt(1, 2), 0, 1); // length too short
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1325,30 +1325,30 @@ class TestBigInt extends Test {
 		MultiwordArithmetic.logicalShiftRight(fromInt(0, 2), fromInt(1, 2), 2, 1);
 		try {
 			MultiwordArithmetic.logicalShiftRight(fromInt(0, 2), fromInt(1, 2), 2, -1); // shift negative
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.logicalShiftRight(fromInt(0, 2), fromInt(1, 2), 2, 32); // shift 32
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.logicalShiftRight(fromInt(0, 1), fromInt(1, 2), 2, 1); // result too short
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.logicalShiftRight(fromInt(0, 2), fromInt(1, 1), 2, 1); // input too short
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.logicalShiftRight(fromInt(0, 2), fromInt(1, 2), 0, 1); // length too short
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1417,22 +1417,22 @@ class TestBigInt extends Test {
 		MultiwordArithmetic.subtract(fromInt(0, 2), fromInt(0, 2), fromInt(0, 2), 2);
 		try {
 			MultiwordArithmetic.subtract(fromInt(0, 1), fromInt(0, 2), fromInt(0, 2), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.subtract(fromInt(0, 2), fromInt(0, 1), fromInt(0, 2), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.subtract(fromInt(0, 2), fromInt(0, 2), fromInt(0, 1), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.subtract(fromInt(0, 2), fromInt(0, 2), fromInt(0, 2), 0);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 	}
@@ -1463,23 +1463,23 @@ class TestBigInt extends Test {
 		MultiwordArithmetic.add(fromInt(0, 2), fromInt(0, 2), fromInt(0, 2), 2);
 		try {
 			MultiwordArithmetic.add(fromInt(0, 1), fromInt(0, 2), fromInt(0, 2), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.add(fromInt(0, 2), fromInt(0, 1), fromInt(0, 2), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.add(fromInt(0, 2), fromInt(0, 2), fromInt(0, 1), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.add(fromInt(0, 2), fromInt(0, 2), fromInt(0, 2), 0);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 	}
@@ -1636,27 +1636,27 @@ class TestBigInt extends Test {
 
 		try {
 			MultiwordArithmetic.setFromHexUnsigned(value, 1, null);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.setFromHexUnsigned(value, 1, "");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.setFromHexUnsigned(null, 1, "0");
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.setFromHexUnsigned(value, 2, "0"); // buffer too small
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.setFromHexUnsigned(value, 1, "0g0"); // invalid char
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1707,18 +1707,18 @@ class TestBigInt extends Test {
 		result = fromInt(2, 4);
 		try {
 			MultiwordArithmetic.multiplyUnsigned(result, result, 1, fromInt(2), 1);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.multiplyUnsigned(result, fromInt(2), 1, result, 1);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.multiplyIntUnsigned(result, result, 1, 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1731,29 +1731,29 @@ class TestBigInt extends Test {
 		// check for result length too short
 		try {
 			MultiwordArithmetic.multiplyUnsigned(fromInt(0), fromInt(2), 1, fromInt(2), 1);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.multiplyIntUnsigned(fromInt(0), fromInt(2), 1, 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		// check input lengths
 		try {
 			MultiwordArithmetic.multiplyUnsigned(fromInt(0, 2), fromInt(2), 0, fromInt(2), 1);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.multiplyUnsigned(fromInt(0, 2), fromInt(2), 1, fromInt(2), 0);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.multiplyIntUnsigned(fromInt(0, 2), fromInt(2), 0, 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1761,17 +1761,17 @@ class TestBigInt extends Test {
 		MultiwordArithmetic.multiplyUnsigned(fromInt(0, 4), fromInt(2, 2), 2, fromInt(2, 2), 2);
 		try {
 			MultiwordArithmetic.multiplyUnsigned(fromInt(0, 4), fromInt(2, 1), 2, fromInt(2, 2), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.multiplyUnsigned(fromInt(0, 4), fromInt(2, 2), 2, fromInt(2, 1), 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.multiplyIntUnsigned(fromInt(0, 4), fromInt(2, 1), 2, 2);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 	}
@@ -1915,32 +1915,32 @@ class TestBigInt extends Test {
 		// quotient and remainder cannot be the same object
 		try {
 			MultiwordArithmetic.divideUnsigned(fromInt(1), 1, fromInt(10), 1, quotient, quotient, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		// quotient cannot be null
 		try {
 			MultiwordArithmetic.divideIntUnsigned(fromInt(1), 1, 10, null, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.divideUnsigned(fromInt(1), 1, fromInt(10), 1, null, remainder, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		// work cannot be null
 		try {
 			MultiwordArithmetic.divideIntUnsigned(fromInt(1), 1, 10, quotient, null);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.divideUnsigned(fromInt(1), 1, fromInt(10), 1, quotient, remainder, null);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1957,23 +1957,23 @@ class TestBigInt extends Test {
 		// work may not overlap any input
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, divisor, divisor.length, quotient, remainder, dividend);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, divisor, divisor.length, quotient, remainder, divisor);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, divisor, divisor.length, quotient, remainder, quotient);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, divisor, divisor.length, quotient, remainder, remainder);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
@@ -1981,36 +1981,36 @@ class TestBigInt extends Test {
 		MultiwordArithmetic.divideUnsigned(dividend, dividend.length, divisor, divisor.length, quotient, remainder, work);
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, 0, divisor, divisor.length, quotient, remainder, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, divisor, 0, quotient, remainder, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, divisor, divisor.length, new Vector<Int>(0), remainder, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 
 		// division by zero
 		try {
 			MultiwordArithmetic.divideIntUnsigned(dividend, dividend.length, 0, quotient, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.DIVISION_BY_ZERO, e);
 		}
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, fromInt(0), 1, quotient, remainder, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.DIVISION_BY_ZERO, e);
 		}
 
 		// divisor with leading 0
 		try {
 			MultiwordArithmetic.divideUnsigned(dividend, dividend.length, fromHex("1", 2), 2, quotient, remainder, work);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 	}
@@ -2812,7 +2812,7 @@ class TestBigInt extends Test {
 		b = "604462909807314587353088";
 		try {
 			randomBigInt = BigInt.randomInRange(a,b);
-		} catch (e:String) {
+		} catch (e) {
 			eq(BigIntExceptions.INVALID_ARGUMENT, e);
 		}
 	}
