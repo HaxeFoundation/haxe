@@ -163,7 +163,16 @@ class BigInt_ {
 				r.fixedSizeCopyFrom(this, m_count, 0);
 			}
 		}
+		#if (python || php)
+		// Temp fix for issues #10995
+		if ( changeBit == 31) {
+			r.m_data.set(chunk - 1, r.m_data.get(chunk - 1) ^ (1 << 31));
+		} else {
+			r.m_data.set(chunk - 1, r.m_data.get(chunk - 1) ^ (1 << changeBit));
+		}
+		#else
 		r.m_data.set(chunk - 1, r.m_data.get(chunk - 1) ^ (1 << changeBit));
+		#end
 		r.compact();
 		return r;
 	}
