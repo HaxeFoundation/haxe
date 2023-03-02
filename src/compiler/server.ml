@@ -471,6 +471,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		None
 
 let before_anything sctx ctx =
+	if ctx.com.display.dms_full_typing then sctx.cs#init_temp ();
 	ensure_macro_setup sctx
 
 let after_arg_parsing sctx ctx =

@@ -23,12 +23,26 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
+(* This may be very expensive to clone... *)
+(* Maybe not so much actually, since module_def objects are only mutated with
+	 retyper (which I'll just ignore for now) *)
 class context_cache (index : int) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
+
+	method clone () =
+		let ret = new context_cache index in
+		Hashtbl.iter (fun key file ->
+			ret#cache_file key file.c_file_path file.c_time (file.c_package, file.c_decls) file.c_pdi
+		) files;
+		Hashtbl.iter (fun key m ->
+			ret#cache_module key m
+		) modules;
+		ret#set_initialized initialized;
+		ret
 
 	(* files *)
 
@@ -102,12 +116,27 @@ class arbitrary_task (id : string list) (priority : int) (f : unit -> unit) = ob
 end
 
 class cache = object(self)
-	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
+	val mutable commited_contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
+	val mutable commited_context_list = []
+	val mutable contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []
 	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
+
+	(* temp context *)
+
+	method init_temp () =
+		contexts <- Hashtbl.create 0;
+		context_list <- Hashtbl.fold (fun s ctx acc ->
+			Hashtbl.add contexts s (ctx#clone ());
+				ctx :: acc
+		) commited_contexts [];
+
+	method commit () =
+		commited_contexts <- contexts;
+		commited_context_list <- context_list;
 
 	(* contexts *)
 
