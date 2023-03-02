@@ -2949,7 +2949,7 @@ class TestBigInt extends Test {
 	public function testStringConversion():Void
 	{
 		var b:BigInt ="-4611686018427387904";
-		eq("-4611686018427387904",b);
+		eq("-4611686018427387904",b+"");
 		eq("-46116860184273879041",(b+"1"));
 		b = "9876543210";
 		eq("29876543210",("2"+b));
@@ -2959,11 +2959,11 @@ class TestBigInt extends Test {
 	{
 		var b:BigInt = BigInt.random(48);
 		var result = BigInt.divMod(b,b);
-		eq("1",result.quotient);
-		eq("0",result.remainder);
+		eq("1",result.quotient.toString());
+		eq("0",result.remainder.toString());
 		result = BigInt.divMod(b,1);
-		eq(b.toString(),result.quotient);
-		eq("0",result.remainder);
+		eq(b.toString(),result.quotient.toString());
+		eq("0",result.remainder.toString());
 		for(i in 0...10) {
 			var a:BigInt = BigInt.random(100-i).abs();
 			var b:BigInt = BigInt.random(100+i).abs();
