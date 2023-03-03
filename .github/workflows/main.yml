@@ -765,7 +765,7 @@ jobs:
       matrix:
         # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+        target: [macro, js, hl, cpp, java, cs, php, python, flash9, neko]
     steps:
       - uses: actions/checkout@main
         with:
