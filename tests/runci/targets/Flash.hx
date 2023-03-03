@@ -89,17 +89,9 @@ class Flash {
 	}
 
 	static var playerLocation:String;
-	static var flashlogPath:String;
-
-	static function createConfigFile(location:String):Void {
-		final mmcfgPath = location + "/mm.cfg";
-		if (!FileSystem.exists(mmcfgPath))
-			File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-	}
 
 	static function setupFlashDebuggerMac():Void {
 		playerLocation = getInstallPath() + "/Flash Player.app";
-		flashlogPath = Sys.getEnv("HOME") + "/Library/Preferences/Macromedia/Flash Player/Logs/flashlog.txt";
 
 		if (FileSystem.exists(playerLocation))
 			infoMsg('Flash player found at $playerLocation');
@@ -121,19 +113,10 @@ class Flash {
 			runCommand("xattr", ["-d", "-r", "com.apple.quarantine", playerLocation]);
 		}
 
-		final configLocation = "/Library/Application Support/Macromedia";
-		if (!FileSystem.exists(configLocation)) {
-			runCommand("sudo", ["mkdir", "-p", configLocation]);
-			runCommand("sudo", ["chmod", "a+w", configLocation]);
-		}
-		createConfigFile(configLocation);
-
 		runCommand("open", ["-a", playerLocation, "-v"]);
 	}
 
 	static function setupFlashDebuggerLinux():Void {
-		flashlogPath = Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
-
 		final debuggerName = "flashplayerdebugger";
 		playerLocation = Path.join([getInstallPath(), debuggerName]);
 		if (Sys.command("type", [debuggerName]) == 0) {
@@ -154,8 +137,6 @@ class Flash {
 			runCommand("tar", ["-xf", getDownloadPath() + '/$tarFileName', "-C", getInstallPath()]);
 		}
 
-		createConfigFile(Sys.getEnv("HOME"));
-
 		// ensure the debugger works
 		switch (ci) {
 			case GithubActions:
@@ -166,7 +147,6 @@ class Flash {
 	}
 
 	static function setupFlashDebuggerWindows():Void {
-		flashlogPath = Sys.getEnv("APPDATA") + "\\Macromedia\\Flash Player\\Logs\\flashlog.txt";
 		final exeName = "flashplayer_32_sa_debug.exe";
 		playerLocation = Path.join([getInstallPath(), exeName]);
 
@@ -180,8 +160,6 @@ class Flash {
 				"-O",
 				playerLocation
 			]);
-
-		createConfigFile(Sys.getEnv("HOMEDRIVE") + "\\" + Sys.getEnv("HOMEPATH"));
 	}
 
 	static function setupFlashPlayerDebugger():Void {
@@ -197,62 +175,69 @@ class Flash {
 		}
 	}
 
+	static function readUntil(stdout:haxe.io.Input, expected:String) {
+		var output = "";
+		while (true) {
+			output += try {
+				String.fromCharCode(stdout.readByte());
+			} catch (e:haxe.io.Eof) {
+				failMsg('Expected to find "$expected". Output was:');
+				Sys.print(output);
+				throw new CommandFailure();
+			};
+			if (output.endsWith(expected)) {
+				break;
+			}
+		}
+		return output;
+	}
+
 	/**
 		Run a Flash swf file.
 		Throws `CommandFailure` if unsuccessful.
-		It detemines the test result by reading the flashlog.txt, looking for "success: true".
 	*/
 	static function runFlash(swf:String):Void {
 		swf = FileSystem.fullPath(swf);
 		infoMsg('Running .swf file: $swf');
 
-		final runProcess = switch (systemName) {
+		final debuggerProcess = new Process("fdb");
+
+		var output = "";
+
+		// waits for the fdb prompt and runs a command
+		function runDebuggerCommand(command:String) {
+			output += readUntil(debuggerProcess.stdout, "(fdb) ") + '$command\n';
+			debuggerProcess.stdin.writeString('$command\n');
+		}
+
+		runDebuggerCommand("run");
+
+		final playerProcess = switch (systemName) {
 			case "Linux" if (ci == GithubActions):
 				new Process("xvfb-run", ["-a", playerLocation, swf]);
 			case "Mac":
 				new Process("open", ["-a", playerLocation, swf]);
 			default:
 				new Process(playerLocation, [swf]);
-		}
+		};
 
-		// wait a little until flashlog.txt is created
-		for (_ in 0...5) {
-			infoMsg("Waiting 2 seconds for flash log file...");
-			Sys.sleep(2);
-			if (FileSystem.exists(flashlogPath))
-				break;
-		}
-		if (!FileSystem.exists(flashlogPath)) {
-			failMsg('$flashlogPath not found.');
-			throw new CommandFailure();
-		}
+		runDebuggerCommand("continue");
 
-		// read flashlog.txt continously
-		final traceProcess = switch (systemName) {
-			case "Windows":
-				new Process("powershell", ["-command", '& {Get-Content "$flashlogPath" -Wait -Tail 1}']);
-			default:
-				new Process("tail", ["-f", flashlogPath]);
-		}
-		var success = false;
-		while (true) {
-			try {
-				final line = traceProcess.stdout.readLine();
-				if (line.indexOf("success: ") >= 0) {
-					success = line.indexOf("success: true") >= 0;
-					break;
-				}
-			} catch (e:haxe.io.Eof) {
-				break;
-			}
-		}
-		runProcess.kill();
-		runProcess.close();
+		output += readUntil(debuggerProcess.stdout, "results: ");
 
-		traceProcess.kill();
-		traceProcess.close();
-		final cmd = (systemName == "Windows") ? "type" : "cat";
-		Sys.command(cmd, [flashlogPath]);
+		final results = readUntil(debuggerProcess.stdout, "\n");
+		final success = results.contains("(success: true)");
+		output += results;
+
+		runDebuggerCommand("quit");
+
+		Sys.print(output);
+
+		debuggerProcess.kill();
+		debuggerProcess.close();
+		playerProcess.kill();
+		playerProcess.close();
+
 		if (!success)
 			throw new CommandFailure();
 	}
