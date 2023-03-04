@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2022 Haxe Foundation
+ * Copyright (C)2005-2023 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -219,199 +219,199 @@ abstract BigInt(BigInt_) {
 	//	* BigInt <binOp> BigInt
 	//	* BigInt <binOp> MutableBigInt
 	// Unary negation
-	@:op(-A) @:noCompletion public static inline function negate_(a:BigInt):BigInt {
+	@:op(-A) @:noCompletion @:noDoc public static inline function negate_(a:BigInt):BigInt {
 		return new BigInt(BigInt_.negate1(a));
 	}
 
 	// Binary equality
-	@:op(A == B) @:noCompletion public static inline function eqInt_(a:BigInt, b:Int):Bool {
+	@:op(A == B) @:noCompletion @:noDoc public static inline function eqInt_(a:BigInt, b:Int):Bool {
 		return BigInt_.equals2Int(a, b);
 	}
 
-	@:op(A == B) @:noCompletion public static inline function eq_(a:BigInt, b:BigInt):Bool {
+	@:op(A == B) @:noCompletion @:noDoc public static inline function eq_(a:BigInt, b:BigInt):Bool {
 		return BigInt_.equals2(a, b);
 	}
 
-	@:op(A == B) @:noCompletion public static inline function eqMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A == B) @:noCompletion @:noDoc public static inline function eqMutable_(a:BigInt, b:MutableBigInt):Bool {
 		return BigInt_.equals2(a, b);
 	}
 
 	// Binary inequality
-	@:op(A != B) @:noCompletion public static inline function ineqInt_(a:BigInt, b:Int):Bool {
+	@:op(A != B) @:noCompletion @:noDoc public static inline function ineqInt_(a:BigInt, b:Int):Bool {
 		return !BigInt_.equals2Int(a, b);
 	}
 
-	@:op(A != B) @:noCompletion public static inline function ineq_(a:BigInt, b:BigInt):Bool {
+	@:op(A != B) @:noCompletion @:noDoc public static inline function ineq_(a:BigInt, b:BigInt):Bool {
 		return !BigInt_.equals2(a, b);
 	}
 
-	@:op(A != B) @:noCompletion public static inline function ineqMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A != B) @:noCompletion @:noDoc public static inline function ineqMutable_(a:BigInt, b:MutableBigInt):Bool {
 		return !BigInt_.equals2(a, b);
 	}
 
 	// Binary less than
-	@:op(A < B) @:noCompletion public static inline function ltInt_(a:BigInt, b:Int):Bool {
+	@:op(A < B) @:noCompletion @:noDoc public static inline function ltInt_(a:BigInt, b:Int):Bool {
 		return BigIntArithmetic.compareInt(a, b) < 0;
 	}
 
-	@:op(A < B) @:noCompletion public static inline function lt_(a:BigInt, b:BigInt):Bool {
+	@:op(A < B) @:noCompletion @:noDoc public static inline function lt_(a:BigInt, b:BigInt):Bool {
 		return BigIntArithmetic.compare(a, b) < 0;
 	}
 
-	@:op(A < B) @:noCompletion public static inline function ltMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A < B) @:noCompletion @:noDoc public static inline function ltMutable_(a:BigInt, b:MutableBigInt):Bool {
 		return BigIntArithmetic.compare(a, b) < 0;
 	}
 
 	// Binary less than or equal
-	@:op(A <= B) @:noCompletion public static inline function lteInt_(a:BigInt, b:Int):Bool {
+	@:op(A <= B) @:noCompletion @:noDoc public static inline function lteInt_(a:BigInt, b:Int):Bool {
 		return BigIntArithmetic.compareInt(a, b) <= 0;
 	}
 
-	@:op(A <= B) @:noCompletion public static inline function lte_(a:BigInt, b:BigInt):Bool {
+	@:op(A <= B) @:noCompletion @:noDoc public static inline function lte_(a:BigInt, b:BigInt):Bool {
 		return BigIntArithmetic.compare(a, b) <= 0;
 	}
 
-	@:op(A <= B) @:noCompletion public static inline function lteMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A <= B) @:noCompletion @:noDoc public static inline function lteMutable_(a:BigInt, b:MutableBigInt):Bool {
 		return BigIntArithmetic.compare(a, b) <= 0;
 	}
 
 	// Binary greater than
-	@:op(A > B) @:noCompletion public static inline function gtInt_(a:BigInt, b:Int):Bool {
+	@:op(A > B) @:noCompletion @:noDoc public static inline function gtInt_(a:BigInt, b:Int):Bool {
 		return BigIntArithmetic.compareInt(a, b) > 0;
 	}
 
-	@:op(A > B) @:noCompletion public static inline function gt_(a:BigInt, b:BigInt):Bool {
+	@:op(A > B) @:noCompletion @:noDoc public static inline function gt_(a:BigInt, b:BigInt):Bool {
 		return BigIntArithmetic.compare(a, b) > 0;
 	}
 
-	@:op(A > B) @:noCompletion public static inline function gtMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A > B) @:noCompletion @:noDoc public static inline function gtMutable_(a:BigInt, b:MutableBigInt):Bool {
 		return BigIntArithmetic.compare(a, b) > 0;
 	}
 
 	// Binary greater than or equal
-	@:op(A >= B) @:noCompletion public static inline function gteInt_(a:BigInt, b:Int):Bool {
+	@:op(A >= B) @:noCompletion @:noDoc public static inline function gteInt_(a:BigInt, b:Int):Bool {
 		return BigIntArithmetic.compareInt(a, b) >= 0;
 	}
 
-	@:op(A >= B) @:noCompletion public static inline function gte_(a:BigInt, b:BigInt):Bool {
+	@:op(A >= B) @:noCompletion @:noDoc public static inline function gte_(a:BigInt, b:BigInt):Bool {
 		return BigIntArithmetic.compare(a, b) >= 0;
 	}
 
-	@:op(A >= B) @:noCompletion public static inline function gteMutable_(a:BigInt, b:MutableBigInt):Bool {
+	@:op(A >= B) @:noCompletion @:noDoc public static inline function gteMutable_(a:BigInt, b:MutableBigInt):Bool {
 		return BigIntArithmetic.compare(a, b) >= 0;
 	}
 
 	// String conversions
-	@:op(A + B) @:noCompletion public static inline function toStr_left(a:String, b:BigInt):String {
+	@:op(A + B) @:noCompletion @:noDoc public static inline function toStr_left(a:String, b:BigInt):String {
 		return a + b.toString();
 	}
 
-	@:op(A + B) @:noCompletion public static inline function toStr_right(a:BigInt, b:String):String {
+	@:op(A + B) @:noCompletion @:noDoc public static inline function toStr_right(a:BigInt, b:String):String {
 		return a.toString() + b;
 	}
 
 	// Binary addition
-	@:op(A + B) @:noCompletion public static inline function addInt_(a:BigInt, b:Int):BigInt {
+	@:op(A + B) @:noCompletion @:noDoc public static inline function addInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.addInt2(a, b));
 	}
 
-	@:op(A + B) @:noCompletion public static inline function add_(a:BigInt, b:BigInt):BigInt {
+	@:op(A + B) @:noCompletion @:noDoc public static inline function add_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigInt_.add2(a, b));
 	}
 
-	@:op(A + B) @:noCompletion public static inline function addMutable_(a:BigInt, b:MutableBigInt):BigInt {
+	@:op(A + B) @:noCompletion @:noDoc public static inline function addMutable_(a:BigInt, b:MutableBigInt):BigInt {
 		return new BigInt(BigInt_.add2(a, b));
 	}
 
 	// Binary subtraction
-	@:op(A - B) @:noCompletion public static inline function subInt_(a:BigInt, b:Int):BigInt {
+	@:op(A - B) @:noCompletion @:noDoc public static inline function subInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.subInt2(a, b));
 	}
 
-	@:op(A - B) @:noCompletion public static inline function sub_(a:BigInt, b:BigInt):BigInt {
+	@:op(A - B) @:noCompletion @:noDoc public static inline function sub_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigInt_.sub2(a, b));
 	}
 
-	@:op(A - B) @:noCompletion public static inline function subMutable_(a:BigInt, b:MutableBigInt):BigInt {
+	@:op(A - B) @:noCompletion @:noDoc public static inline function subMutable_(a:BigInt, b:MutableBigInt):BigInt {
 		return new BigInt(BigInt_.sub2(a, b));
 	}
 
 	// Binary multiplication
-	@:op(A * B) @:noCompletion public static inline function mulInt_(a:BigInt, b:Int):BigInt {
+	@:op(A * B) @:noCompletion @:noDoc public static inline function mulInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.multiplyInt2(a, b));
 	}
 
-	@:op(A * B) @:noCompletion public static inline function mul_(a:BigInt, b:BigInt):BigInt {
+	@:op(A * B) @:noCompletion @:noDoc public static inline function mul_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigInt_.multiply2(a, b));
 	}
 
-	@:op(A * B) @:noCompletion public static inline function mulMutable_(a:BigInt, b:MutableBigInt):BigInt {
+	@:op(A * B) @:noCompletion @:noDoc public static inline function mulMutable_(a:BigInt, b:MutableBigInt):BigInt {
 		return new BigInt(BigInt_.multiply2(a, b));
 	}
 
 	// Binary division
-	@:op(A / B) @:noCompletion public static inline function divInt_(a:BigInt, b:Int):BigInt {
+	@:op(A / B) @:noCompletion @:noDoc public static inline function divInt_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.divideInt2(a, b));
 	}
 
-	@:op(A / B) @:noCompletion public static inline function div_(a:BigInt, b:BigInt):BigInt {
+	@:op(A / B) @:noCompletion @:noDoc public static inline function div_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigInt_.divide2(a, b));
 	}
 
-	@:op(A / B) @:noCompletion public static inline function divMutable_(a:BigInt, b:MutableBigInt):BigInt {
+	@:op(A / B) @:noCompletion @:noDoc public static inline function divMutable_(a:BigInt, b:MutableBigInt):BigInt {
 		return new BigInt(BigInt_.divide2(a, b));
 	}
 
 	// Binary modulus
-	@:op(A % B) @:noCompletion public static inline function modInt_(a:BigInt, b:Int):Int {
+	@:op(A % B) @:noCompletion @:noDoc public static inline function modInt_(a:BigInt, b:Int):Int {
 		return BigInt_.modulusInt2(a, b);
 	}
 
-	@:op(A % B) @:noCompletion public static inline function mod_(a:BigInt, b:BigInt):BigInt {
+	@:op(A % B) @:noCompletion @:noDoc public static inline function mod_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigInt_.modulus2(a, b));
 	}
 
-	@:op(A % B) @:noCompletion public static inline function modMutable_(a:BigInt, b:MutableBigInt):BigInt {
+	@:op(A % B) @:noCompletion @:noDoc public static inline function modMutable_(a:BigInt, b:MutableBigInt):BigInt {
 		return new BigInt(BigInt_.modulus2(a, b));
 	}
 
 	// Binary OR
-	@:op(A | B) @:noCompletion public static inline function orInt_(a:BigInt, b:Int):BigInt {
+	@:op(A | B) @:noCompletion @:noDoc public static inline function orInt_(a:BigInt, b:Int):BigInt {
 		return or_(a, b);
 	}
 
-	@:op(A | B) @:noCompletion public static inline function or_(a:BigInt, b:BigInt):BigInt {
+	@:op(A | B) @:noCompletion @:noDoc public static inline function or_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigIntArithmetic.bitwiseOr(a, b));
 	}
 
-	@:op(A ^ B) @:noCompletion public static inline function xorInt_(a:BigInt, b:Int):BigInt {
+	@:op(A ^ B) @:noCompletion @:noDoc public static inline function xorInt_(a:BigInt, b:Int):BigInt {
 		return xor_(a, b);
 	}
 
-	@:op(A ^ B) @:noCompletion public static inline function xor_(a:BigInt, b:BigInt):BigInt {
+	@:op(A ^ B) @:noCompletion @:noDoc public static inline function xor_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigIntArithmetic.bitwiseXor(a, b));
 	}
 
-	@:op(~A) @:noCompletion public static inline function not_(a:BigInt):BigInt {
+	@:op(~A) @:noCompletion @:noDoc public static inline function not_(a:BigInt):BigInt {
 		return new BigInt(BigIntArithmetic.bitwiseNot(a));
 	}
 
 	// Binary AND
-	@:op(A & B) @:noCompletion public static inline function andInt_(a:BigInt, b:Int):Int {
+	@:op(A & B) @:noCompletion @:noDoc public static inline function andInt_(a:BigInt, b:Int):Int {
 		return BigIntArithmetic.bitwiseAndInt(a, b);
 	}
 
-	@:op(A & B) @:noCompletion public static inline function and_(a:BigInt, b:BigInt):BigInt {
+	@:op(A & B) @:noCompletion @:noDoc public static inline function and_(a:BigInt, b:BigInt):BigInt {
 		return new BigInt(BigIntArithmetic.bitwiseAnd(a, b));
 	}
 
 	// Binary shift left
-	@:op(A << B) @:noCompletion public static inline function asl_(a:BigInt, b:Int):BigInt {
+	@:op(A << B) @:noCompletion @:noDoc public static inline function asl_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.arithmeticShiftLeft2(a, b));
 	}
 
 	// Binary shift right
-	@:op(A >> B) @:noCompletion public static inline function asr_(a:BigInt, b:Int):BigInt {
+	@:op(A >> B) @:noCompletion @:noDoc public static inline function asr_(a:BigInt, b:Int):BigInt {
 		return new BigInt(BigInt_.arithmeticShiftRight2(a, b));
 	}
 
@@ -419,19 +419,19 @@ abstract BigInt(BigInt_) {
 	// Automatic conversions
 	//-----------------------------------------------------------------------
 
-	@:from @:noCompletion public static inline function fromInt_(a:Int):BigInt {
+	@:from @:noCompletion @:noDoc public static inline function fromInt_(a:Int):BigInt {
 		return new BigInt(BigInt_.fromInt(a));
 	}
 
-	@:from @:noCompletion public static inline function fromString_(a:String):BigInt {
+	@:from @:noCompletion @:noDoc public static inline function fromString_(a:String):BigInt {
 		return new BigInt(BigInt_.fromString(a));
 	}
 
-	@:to @:noCompletion public inline function toBigInt_():BigInt_ {
+	@:to @:noCompletion @:noDoc public inline function toBigInt_():BigInt_ {
 		return this;
 	}
 
-	@:to @:noCompletion public inline function toMutableBigInt():MutableBigInt {
+	@:to @:noCompletion @:noDoc public inline function toMutableBigInt():MutableBigInt {
 		return new MutableBigInt(MutableBigInt_.fromBigInt(this));
 	}
 
@@ -439,7 +439,7 @@ abstract BigInt(BigInt_) {
 	// Private implementation
 	//-----------------------------------------------------------------------
 
-	@:noCompletion private inline function new(a:BigInt_) {
+	@:noCompletion @:noDoc private inline function new(a:BigInt_) {
 		this = a;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2022 Haxe Foundation
+ * Copyright (C)2005-2023 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +26,8 @@ import haxe.ds.Vector;
 import haxe.io.Bytes;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
+@:noCompletion
+@:noDoc
 @:allow(unit)
 @:allow(haxe.math.bigint)
 class BigInt_ {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2022 Haxe Foundation
+ * Copyright (C)2005-2023 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@
 package haxe.math.bigint;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
-enum abstract BigIntExceptions(String) {
+enum abstract BigIntExceptions(String) to String {
 	var INVALID_ARGUMENT = "Invalid argument";
 	var BUFFER_TOO_SMALL = "Buffer too small";
 	var DIVISION_BY_ZERO = "Division by zero";
