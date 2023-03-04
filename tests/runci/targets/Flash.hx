@@ -15,34 +15,29 @@ using StringTools;
 
 class Flash {
 	static final miscFlashDir = getMiscSubDir('flash');
+	static var playerLocation:String;
 
-	static function getLatestFPVersion():Array<Int> {
-		final appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
-		final versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
-		return versionStr.split(",").map(Std.parseInt);
-	}
-
-	static final defaultApacheMirror = "https://downloads.apache.org/";
+	static final DEFAULT_APACHE_MIRROR = "https://downloads.apache.org/";
 
 	static function getPreferredApacheMirror() {
 		return try {
 			Json.parse(Http.requestUrl("https://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
 		} catch (e) {
-			failMsg('Unable to determine preferred Apache mirror. Defaulting to $defaultApacheMirror');
-			defaultApacheMirror;
-		}
+			failMsg('Unable to determine preferred Apache mirror. Defaulting to $DEFAULT_APACHE_MIRROR');
+			DEFAULT_APACHE_MIRROR;
+		};
 	}
 
-	static function downloadFlexSdk(version:String, sdkPath:String):Void {
+	static function downloadAndExtractFlexSdk(version:String, sdkPath:String):Void {
 		final apacheMirror = getPreferredApacheMirror();
+		final archiveExtension = if (systemName == "Windows") "zip" else "tar.gz";
+		final archiveName = 'apache-flex-sdk-${version}-bin.$archiveExtension';
+		runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${version}/binaries/$archiveName', "-O", getDownloadPath() + '/$archiveName']);
+
 		if (systemName == "Windows") {
-			final zipName = 'apache-flex-sdk-${version}-bin.zip';
-			runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${version}/binaries/$zipName', "-O", getDownloadPath() + '/$zipName']);
-			runCommand("7z", ["x", getDownloadPath() + '/$zipName', "-o" + sdkPath, "-y"]);
+			runCommand("7z", ["x", getDownloadPath() + '/$archiveName', "-o" + sdkPath, "-y"]);
 		} else {
-			final tarName = 'apache-flex-sdk-${version}-bin.tar.gz';
-			runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${version}/binaries/$tarName', "-O", getDownloadPath() + '/$tarName']);
-			runCommand("tar", ["-xf", getDownloadPath() + '/$tarName', "-C", getInstallPath()]);
+			runCommand("tar", ["-xf", getDownloadPath() + '/$archiveName', "-C", getInstallPath()]);
 		}
 	}
 
@@ -58,7 +53,7 @@ class Flash {
 		if (FileSystem.exists(flexSdkPath)) {
 			infoMsg('Flex SDK found at $flexSdkPath');
 		} else {
-			downloadFlexSdk(flexVersion, flexSdkPath);
+			downloadAndExtractFlexSdk(flexVersion, flexSdkPath);
 		}
 		addToPATH(flexSdkPath + "/bin");
 
@@ -79,7 +74,6 @@ class Flash {
 				"-O",
 				playerGlobalSwcPath
 			]);
-
 		}
 		// set playerglobal.swc
 		File.saveContent(flexSdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerGlobalSwcFolder');
@@ -88,22 +82,30 @@ class Flash {
 		runCommand("mxmlc", ["--version"]);
 	}
 
-	static var playerLocation:String;
+	static function getLatestFPVersion():Array<Int> {
+		final appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		final versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
+		return versionStr.split(",").map(Std.parseInt);
+	}
 
-	static function setupFlashDebuggerMac():Void {
+	static function downloadPlayer(version:Int, fileName:String, outputPath:String) {
+		runNetworkCommand("wget", [
+			"-nv",
+			'https://fpdownload.macromedia.com/pub/flashplayer/updaters/$version/$fileName',
+			"-O",
+			'$outputPath/$fileName'
+		]);
+	}
+
+	static function setupFlashPlayerMac():Void {
 		playerLocation = getInstallPath() + "/Flash Player.app";
 
 		if (FileSystem.exists(playerLocation))
 			infoMsg('Flash player found at $playerLocation');
 		else {
 			final majorVersion = getLatestFPVersion()[0];
-			final packageName = "flashplayer_32_sa_debug.dmg";
-			runNetworkCommand("wget", [
-				"-nv",
-				'https://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/$packageName',
-				"-O",
-				getDownloadPath() + '/$packageName'
-			]);
+			final packageName = 'flashplayer_${majorVersion}_sa_debug.dmg';
+			downloadPlayer(majorVersion, packageName, getDownloadPath());
 			runCommand("hdiutil", ["attach", getDownloadPath() + '/$packageName']);
 
 			runCommand("cp", ["-R", "/Volumes/Flash Player/Flash Player.app", getInstallPath()]);
@@ -116,24 +118,18 @@ class Flash {
 		runCommand("open", ["-a", playerLocation, "-v"]);
 	}
 
-	static function setupFlashDebuggerLinux():Void {
-		final debuggerName = "flashplayerdebugger";
-		playerLocation = Path.join([getInstallPath(), debuggerName]);
-		if (Sys.command("type", [debuggerName]) == 0) {
-			playerLocation = debuggerName;
-			infoMsg('Using $debuggerName from PATH');
+	static function setupFlashPlayerLinux():Void {
+		final playerName = "flashplayerdebugger";
+		playerLocation = Path.join([getInstallPath(), playerName]);
+		if (Sys.command("type", [playerName]) == 0) {
+			playerLocation = playerName;
+			infoMsg('Using $playerName from PATH');
 		} else if(FileSystem.exists(playerLocation)) {
 			infoMsg('Flash player found at $playerLocation');
 		} else {
 			Linux.requireAptPackages(["libglib2.0-0", "libfreetype6"]);
-			final majorVersion = getLatestFPVersion()[0];
 			final tarFileName = 'flash_player_sa_linux_debug.x86_64.tar.gz';
-			runNetworkCommand("wget", [
-				"-nv",
-				'https://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/$tarFileName',
-				"-O",
-				getDownloadPath() + '/$tarFileName'
-			]);
+			downloadPlayer(getLatestFPVersion()[0], tarFileName, getDownloadPath());
 			runCommand("tar", ["-xf", getDownloadPath() + '/$tarFileName', "-C", getInstallPath()]);
 		}
 
@@ -146,30 +142,25 @@ class Flash {
 		}
 	}
 
-	static function setupFlashDebuggerWindows():Void {
-		final exeName = "flashplayer_32_sa_debug.exe";
+	static function setupFlashPlayerWindows():Void {
+		final majorVersion = getLatestFPVersion()[0];
+		final exeName = 'flashplayer_${majorVersion}_sa_debug.exe';
 		playerLocation = Path.join([getInstallPath(), exeName]);
 
-		final majorVersion = getLatestFPVersion()[0];
 		if (FileSystem.exists(playerLocation))
 			infoMsg('Flash player found at $playerLocation');
 		else
-			runNetworkCommand("wget", [
-				"-nv",
-				'https://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/$exeName',
-				"-O",
-				playerLocation
-			]);
+			downloadPlayer(majorVersion, exeName, getInstallPath());
 	}
 
-	static function setupFlashPlayerDebugger():Void {
+	static function setupFlashPlayer():Void {
 		switch (systemName) {
 			case "Linux":
-				setupFlashDebuggerLinux();
+				setupFlashPlayerLinux();
 			case "Mac":
-				setupFlashDebuggerMac();
+				setupFlashPlayerMac();
 			case "Windows":
-				setupFlashDebuggerWindows();
+				setupFlashPlayerWindows();
 			case _:
 				throw "unsupported system";
 		}
@@ -243,7 +234,7 @@ class Flash {
 	}
 
 	static public function run(args:Array<String>) {
-		setupFlashPlayerDebugger();
+		setupFlashPlayer();
 		setupFlexSdk();
 		for (flashVersion in ["11", "32"]) {
 			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids", "--swf-version", flashVersion].concat(args));
