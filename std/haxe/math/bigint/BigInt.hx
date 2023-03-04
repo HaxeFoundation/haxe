@@ -34,7 +34,7 @@ abstract BigInt(BigInt_) {
 	public static var ZERO(default, null):BigInt = new BigInt(BigInt_.fromInt(0));
 	public static var ONE(default, null):BigInt = new BigInt(BigInt_.fromInt(1));
 	public static var TWO(default, null):BigInt = new BigInt(BigInt_.fromInt(2));
-	public static var NEGATIVE_ONE(default, null):BigInt = new BigInt(BigInt_.fromInt(-1));
+	public static var MINUS_ONE(default, null):BigInt = new BigInt(BigInt_.fromInt(-1));
 
 	//-----------------------------------------------------------------------
 	// Public interface

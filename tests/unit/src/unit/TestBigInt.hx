@@ -1092,13 +1092,13 @@ class TestBigInt extends Test {
 	public function bigIntIsZero():Void {
 		t(BigInt.ZERO.isZero());
 		f(BigInt.ONE.isZero());
-		f(BigInt.NEGATIVE_ONE.isZero());
+		f(BigInt.MINUS_ONE.isZero());
 	}
 
 	public function bigIntSign():Void {
 		eq(0, BigInt.ZERO.sign());
 		eq(0, BigInt.ONE.sign());
-		eq(-1, BigInt.NEGATIVE_ONE.sign());
+		eq(-1, BigInt.MINUS_ONE.sign());
 		eq(0, BigInt.fromInt(2147483647).sign());
 		eq(-1, BigInt.fromInt(-2147483648).sign());
 	}
@@ -1114,7 +1114,7 @@ class TestBigInt extends Test {
 	public function bigIntHexStrings():Void {
 		eq("00000000", BigInt.ZERO.toHex());
 		eq("00000001", BigInt.ONE.toHex());
-		eq("ffffffff", BigInt.NEGATIVE_ONE.toHex());
+		eq("ffffffff", BigInt.MINUS_ONE.toHex());
 
 		eq("0", BigInt.fromHex("0").toString());
 		eq("1", BigInt.fromHex("1").toString());
