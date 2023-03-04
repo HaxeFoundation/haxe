@@ -134,7 +134,7 @@ class BigInt_ {
 
 	public function testBit(n:Int):Bool {
 		if (n < 0)
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		var chunk = n >> 5; // divide by 32
 		if (chunk >= m_count)
 			return (sign() < 0);
@@ -151,7 +151,7 @@ class BigInt_ {
 
 	public function flipBit(n:Int):BigInt_ {
 		if (n < 0)
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		var isNegative:Bool = sign() < 0;
 		var chunk = (n >> 5) + 1;
 		var changeBit:Int = (n & 0x1f);
@@ -394,7 +394,7 @@ class BigInt_ {
 
 	public function modPow(exponent:BigInt_, modulus:BigInt_):BigInt_ {
 		if (BigIntArithmetic.compareInt(exponent, 0) < 0)
-			throw BigIntExceptions.NEGATIVE_EXPONENT;
+			throw new BigIntException(BigIntError.NEGATIVE_EXPONENT);
 		if (this.isZero())
 			return (BigIntArithmetic.compareInt(exponent, 0) == 0 ? BigInt.fromInt(1) : this);
 		var r = BigInt_.newFromInt(1);
@@ -412,7 +412,7 @@ class BigInt_ {
 
 	public function pow(exponent:UInt):BigInt_ {
 		if (exponent < 0)
-			throw BigIntExceptions.NEGATIVE_EXPONENT;
+			throw new BigIntException(BigIntError.NEGATIVE_EXPONENT);
 		if (this.isZero())
 			return (exponent == 0 ? BigInt.fromInt(1) : this);
 		var r = BigInt_.newFromInt(1);
@@ -431,7 +431,7 @@ class BigInt_ {
 	/* hac 14.61, pp. 608 */
 	public function modInverse(modulus:BigInt_):BigInt_ {
 		if (modulus.sign() == -1 || modulus.isZero())
-			throw BigIntExceptions.NEGATIVE_MODULUS;
+			throw new BigIntException(BigIntError.NEGATIVE_MODULUS);
 		if (equals2Int(modulus, 1))
 			return BigInt.ZERO;
 
@@ -448,7 +448,7 @@ class BigInt_ {
 			return BigInt.ONE;
 
 		if ((BigIntArithmetic.bitwiseAndInt(x, 1) == 0) && (BigIntArithmetic.bitwiseAndInt(y, 1) == 0))
-			throw BigIntExceptions.EVEN_VALUES;
+			throw new BigIntException(BigIntError.EVEN_VALUES);
 
 		if (!isModulusEven) {
 			// fast odd calculation
@@ -516,7 +516,7 @@ class BigInt_ {
 
 	public static function randomPrime(bits:Int32, tolerance:UInt):BigInt_ {
 		if (bits < 2)
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		if (bits == 2)
 			return ((Math.random() < 0.5) ? BigInt.TWO : BigInt.fromInt(3));
 		var r = new MutableBigInt_();
@@ -544,7 +544,7 @@ class BigInt_ {
 		if (initCheck == 0)
 			return min;
 		if (initCheck > 0)
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		if (min.bitLength() > (max.bitLength() >> 1))
 			return add2(randomInRange(BigInt.ZERO, sub2(max, min)), min);
 		for (i in 0...1000) {

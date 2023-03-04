@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2022 Haxe Foundation
+ * Copyright (C)2005-2023 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,8 @@
 
 package haxe.math.bigint;
 
-import haxe.math.bigint.BigIntExceptions;
+import haxe.math.bigint.BigIntException;
+import haxe.math.bigint.BigIntError;
 import haxe.math.bigint.BigIntHelper;
 import haxe.ds.Vector;
 
@@ -31,7 +32,7 @@ import haxe.ds.Vector;
 class MultiwordArithmetic {
 	public static function isZero(value:Vector<Int>, length:Int):Bool {
 		if (length < 1) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		for (i in 0...length) {
 			if (value.get(i) != 0) {
@@ -47,7 +48,7 @@ class MultiwordArithmetic {
 
 	public static function getLengthUnsigned(value:Vector<Int>, length:Int):Int {
 		if (length < 1) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		while (--length > 0) {
 			if (value.get(length) != 0) {
@@ -114,7 +115,7 @@ class MultiwordArithmetic {
 	**/
 	public static function add(result:Vector<Int>, operand1:Vector<Int>, operand2:Vector<Int>, length:Int):Int {
 		if ((length < 1) || (result.length < length) || (operand1.length < length) || (operand2.length < length)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		var c:Int = 0;
 		var x:Int = 0, y:Int = 0, z:Int = 0;
@@ -138,7 +139,7 @@ class MultiwordArithmetic {
 	**/
 	public static function subtract(result:Vector<Int>, operand1:Vector<Int>, operand2:Vector<Int>, length:Int):Int {
 		if ((length < 1) || (result.length < length) || (operand1.length < length) || (operand2.length < length)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		var c:Int = 0;
 		var x:Int = 0, y:Int = 0, z:Int = 0;
@@ -184,18 +185,18 @@ class MultiwordArithmetic {
 		// Implements Figure 8-1 (p. 172) from "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013.
 
 		if ((operand1 == result) || (operand2 == result)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if ((operand1Length < 1) || (operand2Length < 1)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if ((operand1.length < operand1Length) || (operand2.length < operand2Length)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		var resultSize:Int = operand1Length + operand2Length;
 		if (result.length < resultSize) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		setZero(result, resultSize);
 
@@ -279,27 +280,27 @@ class MultiwordArithmetic {
 	public static function divideUnsigned(dividend:Vector<Int>, dividendLength:Int, divisor:Vector<Int>, divisorLength:Int, quotientOut:Vector<Int>,
 			remainderOut:Vector<Int>, work:Vector<Int>):Void {
 		if ((quotientOut == null) || (work == null) || (quotientOut == remainderOut)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if ((work == dividend) || (work == divisor) || (work == quotientOut) || (work == remainderOut)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if ((divisorLength < 1) || (dividendLength < 1)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		var quotientLength:Int = getDivisionQuotientLengthUnsigned(dividendLength, divisorLength);
 		if (quotientOut.length < quotientLength) {
 			// quotient storage too small
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if ((remainderOut != null) && (remainderOut.length < divisorLength)) {
 			// remainder storage too small
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if (work.length < dividendLength + divisorLength + 1) {
 			// quotient storage too small
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		// special cases
@@ -307,7 +308,7 @@ class MultiwordArithmetic {
 		if (divisorLength < 2) {
 			switch (dh) {
 				case 0:
-					throw BigIntExceptions.DIVISION_BY_ZERO;
+					throw new BigIntException(BigIntError.DIVISION_BY_ZERO);
 				case 1:
 					copy(quotientOut, dividend, dividendLength); // quotientLength == dividendLength
 					if (remainderOut != null) {
@@ -317,7 +318,7 @@ class MultiwordArithmetic {
 			}
 		} else if (dh == 0) {
 			// leading zero
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		// trim leading zeros
@@ -463,10 +464,10 @@ class MultiwordArithmetic {
 	**/
 	public static function arithmeticShiftRight(result:Vector<Int>, input:Vector<Int>, length:Int, shift:Int):Void {
 		if ((length < 1) || (result.length < length) || (input.length < length)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if (shift < 0) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		} else if (shift == 0) {
 			if (input != result) {
 				Vector.blit(input, 0, result, 0, length);
@@ -474,7 +475,7 @@ class MultiwordArithmetic {
 		} else if (shift < 32) {
 			_asr32(result, input, length, 0, shift);
 		} else {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 	}
 
@@ -489,10 +490,10 @@ class MultiwordArithmetic {
 	**/
 	public static function logicalShiftRight(result:Vector<Int>, input:Vector<Int>, length:Int, shift:Int):Void {
 		if ((length < 1) || (result.length < length) || (input.length < length)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if (shift < 0) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		} else if (shift == 0) {
 			if (input != result) {
 				Vector.blit(input, 0, result, 0, length);
@@ -500,7 +501,7 @@ class MultiwordArithmetic {
 		} else if (shift < 32) {
 			_lsr32(result, input, length, 0, shift);
 		} else {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 	}
 
@@ -515,10 +516,10 @@ class MultiwordArithmetic {
 	**/
 	public static function shiftLeft(result:Vector<Int>, input:Vector<Int>, length:Int, shift:Int):Void {
 		if ((length < 1) || (result.length < length) || (input.length < length)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if (shift < 0) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		} else if (shift == 0) {
 			if (input != result) {
 				Vector.blit(input, 0, result, 0, length);
@@ -526,7 +527,7 @@ class MultiwordArithmetic {
 		} else if (shift < 32) {
 			_lsl32(result, 0, input, length, shift);
 		} else {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 	}
 
@@ -575,7 +576,7 @@ class MultiwordArithmetic {
 
 	public static function setZero(dest:Vector<Int>, length:Int):Void {
 		if (dest.length < length) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		for (i in 0...length) {
 			dest.set(i, 0);
@@ -584,7 +585,7 @@ class MultiwordArithmetic {
 
 	public static function setFromIntUnsigned(dest:Vector<Int>, length:Int, value:Int):Void {
 		if (dest.length < length) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		dest.set(0, value);
 		for (i in 1...length) {
@@ -594,14 +595,14 @@ class MultiwordArithmetic {
 
 	public static function setFromHexUnsigned(dest:Vector<Int>, length:Int, value:String):Bool {
 		if ((value == null) || (dest == null)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if (dest.length < length) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		var index = value.length;
 		if (index <= 0) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if (length < 1) {
 			return false;
@@ -629,7 +630,7 @@ class MultiwordArithmetic {
 			} else if (c == 32) {
 				continue;
 			} else {
-				throw BigIntExceptions.INVALID_ARGUMENT;
+				throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 			}
 			acc |= c << bit;
 			bit += 4;
@@ -695,7 +696,7 @@ class MultiwordArithmetic {
 
 	public static function copy(dest:Vector<Int>, source:Vector<Int>, length:Int):Void {
 		if (dest.length < length) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		Vector.blit(source, 0, dest, 0, length);
 	}

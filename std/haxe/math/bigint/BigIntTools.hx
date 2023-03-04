@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2022 Haxe Foundation
+ * Copyright (C)2005-2023 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,8 @@
 
 package haxe.math.bigint;
 
-import haxe.math.bigint.BigIntExceptions;
+import haxe.math.bigint.BigIntException;
+import haxe.math.bigint.BigIntError;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
 class BigIntTools {
@@ -50,7 +51,7 @@ class BigIntTools {
 		} else if (Std.isOfType(value, Int)) {
 			bi = BigInt.fromInt(cast(value, Int));
 		} else {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		return bi;
 	}

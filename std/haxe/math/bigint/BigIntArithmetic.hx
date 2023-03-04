@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2022 Haxe Foundation
+ * Copyright (C)2005-2023 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,8 @@
 
 package haxe.math.bigint;
 
-import haxe.math.bigint.BigIntExceptions;
+import haxe.math.bigint.BigIntException;
+import haxe.math.bigint.BigIntError;
 import haxe.math.bigint.BigIntHelper;
 import haxe.ds.Vector;
 
@@ -332,7 +333,7 @@ class BigIntArithmetic {
 		// Implements Figure 8-1 (p. 172) from "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013.
 
 		if ((operand1 == result) || (operand2 == result)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		if (operand1.isZero() || operand2.isZero()) {
@@ -475,10 +476,10 @@ class BigIntArithmetic {
 	private static function multiwordUnsignedDivide(dividend:BigInt_, divisor:BigInt_, quotientOut:MutableBigInt_, remainderOut:MutableBigInt_,
 			work:MutableBigInt_ = null):Void {
 		if ((quotientOut == null) || (dividend == null) || (divisor == null)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if ((work == dividend) || (work == divisor) || (work == quotientOut)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		var dividendInts:Int = dividend.getUnsignedDigitCount();
@@ -488,7 +489,7 @@ class BigIntArithmetic {
 
 		if (remainderOut != null) {
 			if (work == remainderOut) {
-				throw BigIntExceptions.INVALID_ARGUMENT;
+				throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 			}
 			remainderOut.ensureCapacity(divisor.m_count, (remainderOut == dividend) || (remainderOut == divisor));
 		}
@@ -527,7 +528,7 @@ class BigIntArithmetic {
 	**/
 	public static function arithmeticShiftLeft(result:MutableBigInt_, operand1:BigInt_, operand2:Int):Void {
 		if (operand2 < 0) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		if ((operand2 == 0) || operand1.isZero()) {
@@ -562,7 +563,7 @@ class BigIntArithmetic {
 	**/
 	public static function arithmeticShiftRight(result:MutableBigInt_, operand1:BigInt_, operand2:Int):Void {
 		if (operand2 < 0) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 
 		if ((operand2 == 0) || operand1.isZero()) {

@@ -22,13 +22,8 @@
 
 package haxe.math.bigint;
 
-/* Original code courtesy Chuck Batson (github.com/cbatson) */
-enum abstract BigIntExceptions(String) to String {
-	var INVALID_ARGUMENT = "Invalid argument";
-	var BUFFER_TOO_SMALL = "Buffer too small";
-	var DIVISION_BY_ZERO = "Division by zero";
-	var NEGATIVE_EXPONENT = "Negative exponent";
-	var INVALID_OPERATION = "Invalid operation";
-	var NEGATIVE_MODULUS = "Modulus should be positive";
-	var EVEN_VALUES = "Both values are even";
+class BigIntException extends haxe.Exception {
+	public function new(error:BigIntError, ?previous:haxe.Exception) {
+		super( error, previous);
+	}
 }

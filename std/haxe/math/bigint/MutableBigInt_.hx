@@ -22,7 +22,8 @@
 
 package haxe.math.bigint;
 
-import haxe.math.bigint.BigIntExceptions;
+import haxe.math.bigint.BigIntException;
+import haxe.math.bigint.BigIntError;
 import haxe.math.bigint.BigIntHelper;
 import haxe.ds.Vector;
 import haxe.io.Bytes;
@@ -67,12 +68,12 @@ class MutableBigInt_ extends BigInt_ {
 	**/
 	public function setFromString(value:String):Void {
 		if ((value == null) || (value.length < 1)) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		var negate = value.charCodeAt(0) == 0x2d;
 		var index = negate ? 1 : 0;
 		if (value.length <= index) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		this.setFromInt(0);
 		var t = new MutableBigInt_();
@@ -82,7 +83,7 @@ class MutableBigInt_ extends BigInt_ {
 				BigIntArithmetic.multiplyInt(t, this, 10);
 				BigIntArithmetic.addInt(this, t, c - 48);
 			} else {
-				throw BigIntExceptions.INVALID_ARGUMENT;
+				throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 			}
 		}
 		if (negate) {
@@ -108,13 +109,13 @@ class MutableBigInt_ extends BigInt_ {
 
 	public function setFromBigEndianBytesSigned(value:Bytes, offset:Int = 0, valueLength:Int = 0):Void {
 		if (value == null) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if (valueLength <= 0) {
 			valueLength = value.length;
 		}
 		if (offset + valueLength > value.length) {
-			throw BigIntExceptions.BUFFER_TOO_SMALL;
+			throw new BigIntException(BigIntError.BUFFER_TOO_SMALL);
 		}
 		if (valueLength < 1) {
 			setFromInt(0);
@@ -145,7 +146,7 @@ class MutableBigInt_ extends BigInt_ {
 			valueLength = value.length;
 		}
 		if (offset + valueLength > value.length) {
-			throw BigIntExceptions.BUFFER_TOO_SMALL;
+			throw new BigIntException(BigIntError.BUFFER_TOO_SMALL);
 		}
 		if (valueLength < 1) {
 			setFromInt(0);
@@ -177,7 +178,7 @@ class MutableBigInt_ extends BigInt_ {
 			valueLength = value.length;
 		}
 		if (offset + valueLength > value.length) {
-			throw BigIntExceptions.BUFFER_TOO_SMALL;
+			throw new BigIntException(BigIntError.BUFFER_TOO_SMALL);
 		}
 		if (valueLength < 1) {
 			setFromInt(0);
@@ -292,7 +293,7 @@ class MutableBigInt_ extends BigInt_ {
 	@:noCompletion
 	private function ensureCapacityProd(n:Int, preserve:Bool):Void {
 		if (n < 1) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		if ((!m_owned) || (m_data == null) || (n > m_data.length)) {
 			n = BigIntHelper.clp2(n);
@@ -344,11 +345,11 @@ class MutableBigInt_ extends BigInt_ {
 
 	private function _setFromHex(value:String, signed:Bool):Void {
 		if (value == null) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		var index = value.length;
 		if (index <= 0) {
-			throw BigIntExceptions.INVALID_ARGUMENT;
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
 		var extra:Int = signed ? 0 : 1;
 		ensureCapacity(((index + 7) >> 3) + extra, false);
@@ -366,7 +367,7 @@ class MutableBigInt_ extends BigInt_ {
 			} else if (c == 32) {
 				continue;
 			} else {
-				throw BigIntExceptions.INVALID_ARGUMENT;
+				throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 			}
 			if (bit >= 32) {
 				m_data.set(++pos, 0);
