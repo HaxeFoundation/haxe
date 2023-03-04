@@ -169,13 +169,14 @@ class Flash {
 	static function readUntil(stdout:haxe.io.Input, expected:String) {
 		var output = "";
 		while (true) {
-			output += try {
+			final char = try {
 				String.fromCharCode(stdout.readByte());
 			} catch (e:haxe.io.Eof) {
-				failMsg('Expected to find "$expected". Output was:');
-				Sys.print(output);
+				failMsg('Expected to find "$expected" in stdout');
 				throw new CommandFailure();
 			};
+			Sys.print(char);
+			output += char;
 			if (output.endsWith(expected)) {
 				break;
 			}
@@ -193,11 +194,10 @@ class Flash {
 
 		final debuggerProcess = new Process("fdb");
 
-		var output = "";
-
 		// waits for the fdb prompt and runs a command
 		function runDebuggerCommand(command:String) {
-			output += readUntil(debuggerProcess.stdout, "(fdb) ") + '$command\n';
+			readUntil(debuggerProcess.stdout, "(fdb) ");
+			Sys.println(command);
 			debuggerProcess.stdin.writeString('$command\n');
 		}
 
@@ -214,15 +214,12 @@ class Flash {
 
 		runDebuggerCommand("continue");
 
-		output += readUntil(debuggerProcess.stdout, "results: ");
+		readUntil(debuggerProcess.stdout, "results: ");
 
 		final results = readUntil(debuggerProcess.stdout, "\n");
 		final success = results.contains("(success: true)");
-		output += results;
 
 		runDebuggerCommand("quit");
-
-		Sys.print(output);
 
 		debuggerProcess.kill();
 		debuggerProcess.close();
