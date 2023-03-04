@@ -348,7 +348,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash9, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash, neko]
         include:
           - target: hl
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
@@ -356,7 +356,7 @@ jobs:
             APT_PACKAGES: gcc-multilib g++-multilib
           - target: lua
             APT_PACKAGES: ncurses-dev
-          - target: flash9
+          - target: flash
             APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
     steps:
       - uses: actions/checkout@main
@@ -413,7 +413,7 @@ jobs:
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
       - name: Flash setup
-        if: matrix.target == 'flash9'
+        if: matrix.target == 'flash'
         run: export DISPLAY=:99.0
 
       - name: Test
@@ -673,7 +673,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash9, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -733,7 +733,7 @@ jobs:
           call lua53/bin/activate
 
       - name: Install wget
-        if: matrix.target == 'flash9'
+        if: matrix.target == 'flash'
         shell: cmd
         run: |
           choco install wget
@@ -765,7 +765,7 @@ jobs:
       matrix:
         # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+        target: [macro, js, hl, cpp, java, cs, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -825,7 +825,7 @@ jobs:
           call lua53/bin/activate
 
       - name: Install wget
-        if: matrix.target == 'flash9'
+        if: matrix.target == 'flash'
         shell: cmd
         run: |
           choco install wget
@@ -853,7 +853,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash9, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash, neko]
         include:
           - target: hl
             BREW_PACKAGES: ninja
