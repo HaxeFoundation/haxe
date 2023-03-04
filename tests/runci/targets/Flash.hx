@@ -237,8 +237,8 @@ class Flash {
 		setupFlashPlayer();
 		setupFlexSdk();
 		for (flashVersion in ["11", "32"]) {
-			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids", "--swf-version", flashVersion].concat(args));
-			runFlash("bin/unit9.swf");
+			runCommand("haxe", ["compile-flash.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids", "--swf-version", flashVersion].concat(args));
+			runFlash("bin/unit.swf");
 		}
 
 		changeDirectory(miscFlashDir);

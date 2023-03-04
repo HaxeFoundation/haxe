@@ -386,7 +386,7 @@ test-flash:
     FROM +test-environment-flash
     ARG GITHUB_ACTIONS
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
-    DO +RUN_CI --TEST=flash9
+    DO +RUN_CI --TEST=flash
 
 test-all:
     ARG TARGETPLATFORM
