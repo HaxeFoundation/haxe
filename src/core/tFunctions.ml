@@ -147,6 +147,7 @@ let mk_typedef m path pos name_pos t =
 		t_params = [];
 		t_using = [];
 		t_type = t;
+		t_restore = (fun () -> ());
 	}
 
 let module_extra file sign time kind policy =
@@ -215,6 +216,7 @@ let null_abstract = {
 	a_meta = [];
 	a_params = [];
 	a_using = [];
+	a_restore = (fun () -> ());
 	a_ops = [];
 	a_unops = [];
 	a_impl = None;

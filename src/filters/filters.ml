@@ -883,8 +883,23 @@ let save_class_state ctx t =
 			c.cl_descendants <- [];
 			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)
-	| _ ->
+	| TEnumDecl en ->
+		en.e_restore <- (fun () ->
+			let rec loop acc = function
+				| [] -> ()
+				| (Meta.RealPath,[Ast.EConst (Ast.String(path,_)),_],_) :: l ->
+					en.e_path <- Ast.parse_path path;
+					en.e_meta <- (List.rev acc) @ l;
+				| x :: l -> loop (x::acc) l
+			in
+			loop [] en.e_meta
+		)
+	| TTypeDecl td ->
 		()
+	| TAbstractDecl a ->
+		a.a_restore <- (fun () ->
+			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
+		)
 
 let run com tctx main =
 	let detail_times = Common.defined com DefineList.FilterTimes in
