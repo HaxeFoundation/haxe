@@ -58,10 +58,14 @@ let reset sctx =
 	Helper.start_time := get_time()
 
 let maybe_cache_context sctx com =
-	if com.display.dms_full_typing then begin
+	if not com.display.dms_full_typing then
+		(* TODO FIXME *)
+		(* sctx.cs#restore () *)
+		()
+	else begin
+		sctx.cs#commit ();
 		CommonCache.cache_context sctx.cs com;
 		ServerMessage.cached_modules com "" (List.length com.modules);
-		sctx.cs#commit ()
 	end
 
 let ensure_macro_setup sctx =

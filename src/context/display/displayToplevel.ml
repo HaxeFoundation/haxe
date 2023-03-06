@@ -156,7 +156,7 @@ let init_or_update_server cs com timer_name =
 		with Not_found ->
 			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with _ -> ()
 	) removed_files;
-	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
+	DynArray.iter cc#remove_removed_file removed_removed_files
 
 module CollectionContext = struct
 	open ImportStatus

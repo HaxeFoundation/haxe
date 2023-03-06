@@ -249,7 +249,7 @@ let handler =
 			let key = hctx.com.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
-				Hashtbl.replace cc#get_removed_files key file
+				cc#replace_removed_file key file
 			) cs#get_contexts;
 			hctx.send_result (jstring file);
 		);

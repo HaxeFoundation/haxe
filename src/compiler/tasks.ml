@@ -63,5 +63,9 @@ class server_exploration_task (cs : CompilationCache.t) = object(self)
 	inherit server_task ["server explore"] 90
 
 	method private execute =
-		cs#iter_modules (fun m -> cs#add_task (new module_maintenance_task cs m))
+		(* TODO *)
+		(* Failing to revert the changes that this is bringing, so disabling for now. *)
+		(* Maybe a better solution would be to make sure this task runs only when cache is commited *)
+		(* cs#iter_modules (fun m -> cs#add_task (new module_maintenance_task cs m)) *)
+		()
 end

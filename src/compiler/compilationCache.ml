@@ -23,26 +23,67 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
-(* This may be very expensive to clone... *)
-(* Maybe not so much actually, since module_def objects are only mutated with
-	 retyper (which I'll just ignore for now) *)
 class context_cache (index : int) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
+	val mutable record_changes = false
 
-	method clone () =
-		let ret = new context_cache index in
+	val mutable was_initialized = false
+	val files_changes : (Path.UniqueKey.t,cached_file option) Hashtbl.t = Hashtbl.create 0
+	val removed_files_changes : (Path.UniqueKey.t,string option) Hashtbl.t = Hashtbl.create 0
+	val module_changes : (path, module_def option) Hashtbl.t = Hashtbl.create 0
+	val module_state_changes : (path, module_cache_state) Hashtbl.t = Hashtbl.create 0
+
+	method prepare () =
+		was_initialized <- initialized;
+		self#discard_changes ~record:true ();
+
+	method commit () = self#discard_changes ()
+
+	method restore () =
 		Hashtbl.iter (fun key file ->
-			ret#cache_file key file.c_file_path file.c_time (file.c_package, file.c_decls) file.c_pdi
-		) files;
-		Hashtbl.iter (fun key m ->
-			ret#cache_module key m
-		) modules;
-		ret#set_initialized initialized;
-		ret
+			match file with
+			| None -> Hashtbl.remove files key
+			| Some file -> Hashtbl.replace files key file
+		) files_changes;
+		Hashtbl.iter (fun key file ->
+			match file with
+			| None -> Hashtbl.remove removed_files key
+			| Some file -> Hashtbl.replace removed_files key file
+		) removed_files_changes;
+		Hashtbl.iter (fun p m ->
+			match m with
+			| None -> Hashtbl.remove modules p
+			| Some m -> begin
+				Hashtbl.replace modules p m;
+				(* Failed attempt at reverting server_exploration task which led me to get recursive inline issues *)
+				(* Disabling the task for now... *)
+				(* TODO apply to all types after rebase? See https://github.com/HaxeFoundation/haxe/pull/11001 *)
+				(* List.iter (fun mt -> match mt with *)
+				(* 	| TClassDecl c -> c.cl_restore () *)
+				(* 	| _ -> () *)
+				(* ) m.m_types *)
+			end
+		) module_changes;
+		Hashtbl.iter (fun p state ->
+			try
+				let m = Hashtbl.find modules p in
+				m.m_extra.m_cache_state <- state
+			with Not_found -> ()
+		) module_state_changes;
+		initialized <- was_initialized;
+		self#discard_changes ();
+		self
+
+	method discard_changes ?(record=false) () =
+		record_changes <- record;
+		Hashtbl.reset files_changes;
+		Hashtbl.reset removed_files_changes;
+		Hashtbl.reset module_changes;
+		Hashtbl.reset module_state_changes;
 
 	(* files *)
 
@@ -50,18 +91,39 @@ class context_cache (index : int) = object(self)
 		Hashtbl.find files key
 
 	method cache_file key path time data pdi =
+		if record_changes && not (Hashtbl.mem files_changes key) then
+			Hashtbl.add files_changes key (Hashtbl.find_opt files key);
 		Hashtbl.replace files key { c_file_path = path; c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None; c_pdi = pdi }
 
 	method remove_file key =
 		try
 			let f = Hashtbl.find files key in
+			if record_changes then begin
+				if not (Hashtbl.mem files_changes key) then
+					Hashtbl.add files_changes key (Hashtbl.find_opt files key);
+				if not (Hashtbl.mem removed_files_changes key) then
+					Hashtbl.add removed_files_changes key (Hashtbl.find_opt removed_files key);
+			end;
 			Hashtbl.remove files key;
 			Hashtbl.replace removed_files key f.c_file_path
 		with Not_found -> ()
 
 	(* Like remove_file, but doesn't keep track of the file *)
 	method remove_file_for_real key =
+		(* Below lines actually break the initial fix if uncommented *)
+		(* if record_changes && not (Hashtbl.mem files_changes key) then *)
+		(* 	Hashtbl.add files_changes key (Hashtbl.find_opt files key); *)
 		Hashtbl.remove files key
+
+	method replace_removed_file key file =
+		if record_changes && not (Hashtbl.mem removed_files_changes key) then
+			Hashtbl.add removed_files_changes key (Hashtbl.find_opt removed_files key);
+		Hashtbl.replace removed_files key file
+
+	method remove_removed_file key =
+		if record_changes && not (Hashtbl.mem removed_files_changes key) then
+			Hashtbl.add removed_files_changes key (Hashtbl.find_opt removed_files key);
+		Hashtbl.remove removed_files key
 
 	(* modules *)
 
@@ -72,7 +134,14 @@ class context_cache (index : int) = object(self)
 		Hashtbl.find_opt modules path
 
 	method cache_module path value =
+		if record_changes && not (Hashtbl.mem module_changes path) then
+			Hashtbl.add module_changes path (Hashtbl.find_opt modules path);
 		Hashtbl.replace modules path value
+
+	method taint_module path m reason =
+		if record_changes && not (Hashtbl.mem module_changes path) && not (Hashtbl.mem module_state_changes path) then
+			Hashtbl.add module_state_changes path m.m_extra.m_cache_state;
+		m.m_extra.m_cache_state <- MSBad (Tainted reason)
 
 	(* initialization *)
 
@@ -116,27 +185,57 @@ class arbitrary_task (id : string list) (priority : int) (f : unit -> unit) = ob
 end
 
 class cache = object(self)
-	val mutable commited_contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
-	val mutable commited_context_list = []
-	val mutable contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
+	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []
 	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
 
-	(* temp context *)
+	val mutable record_changes = false
+	val mutable added_contexts = []
+	val haxelib_changes : (string list, string list option) Hashtbl.t = Hashtbl.create 0
+	val native_lib_changes : (string, cached_native_lib option) Hashtbl.t = Hashtbl.create 0
+	val directory_changes : (string, cached_directory list option) Hashtbl.t = Hashtbl.create 0
 
-	method init_temp () =
-		contexts <- Hashtbl.create 0;
-		context_list <- Hashtbl.fold (fun s ctx acc ->
-			Hashtbl.add contexts s (ctx#clone ());
-				ctx :: acc
-		) commited_contexts [];
+	(* TODO FIXME *)
+	(* Note: running restore at the end (well, was it really?) of the request was not *)
+	(* fixing the original issue. This seems to work better but ehhh that's ugly and *)
+	(* I don't have much confidence in it. *)
+	method prepare () =
+		self#restore ();
+		record_changes <- true;
 
 	method commit () =
-		commited_contexts <- contexts;
-		commited_context_list <- context_list;
+		self#discard_changes ();
+		List.iter (fun c -> c#commit ()) context_list;
+
+	method restore () =
+		List.iter (Hashtbl.remove contexts) added_contexts;
+		context_list <- Hashtbl.fold (fun _ ctx acc -> ctx#restore () :: acc) contexts [];
+		Hashtbl.iter (fun key value ->
+			match value with
+			| None -> Hashtbl.remove haxelib key
+			| Some value -> Hashtbl.replace haxelib key value
+		) haxelib_changes;
+		Hashtbl.iter (fun key value ->
+			match value with
+			| None -> Hashtbl.remove native_libs key
+			| Some value -> Hashtbl.replace native_libs key value
+		) native_lib_changes;
+		Hashtbl.iter (fun key value ->
+			match value with
+			| None -> Hashtbl.remove directories key
+			| Some value -> Hashtbl.replace directories key value
+		) directory_changes;
+		self#discard_changes ();
+
+	method discard_changes () =
+		record_changes <- false;
+		added_contexts <- [];
+		Hashtbl.reset haxelib_changes;
+		Hashtbl.reset native_lib_changes;
+		Hashtbl.reset directory_changes;
 
 	(* contexts *)
 
@@ -146,6 +245,7 @@ class cache = object(self)
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) in
 			context_list <- cache :: context_list;
+			added_contexts <- sign :: added_contexts;
 			Hashtbl.add contexts sign cache;
 			cache
 
@@ -201,8 +301,8 @@ class cache = object(self)
 
 	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
-			Hashtbl.iter (fun _ m ->
-				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
+			Hashtbl.iter (fun path m ->
+				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then cc#taint_module path m reason
 			) cc#get_modules
 		) contexts
 
@@ -212,6 +312,8 @@ class cache = object(self)
 		Hashtbl.find haxelib key
 
 	method cache_haxelib key value =
+		if record_changes && not (Hashtbl.mem haxelib_changes key) then
+				Hashtbl.add haxelib_changes key (Hashtbl.find_opt haxelib key);
 		Hashtbl.replace haxelib key value
 
 	(* directories *)
@@ -220,9 +322,13 @@ class cache = object(self)
 		Hashtbl.find directories key
 
 	method add_directories key value =
+		if record_changes && not (Hashtbl.mem directory_changes key) then
+				Hashtbl.add directory_changes key (Hashtbl.find_opt directories key);
 		Hashtbl.replace directories key value
 
 	method remove_directory key value =
+		if record_changes && not (Hashtbl.mem directory_changes key) then
+				Hashtbl.add directory_changes key (Hashtbl.find_opt directories key);
 		try
 			let current = self#find_directories key in
 			Hashtbl.replace directories key (List.filter (fun dir -> dir.c_path <> value) current);
@@ -243,11 +349,15 @@ class cache = object(self)
 			self#add_directories key [value]
 
 	method clear_directories key =
+		if record_changes && not (Hashtbl.mem directory_changes key) then
+				Hashtbl.add directory_changes key (Hashtbl.find_opt directories key);
 		Hashtbl.remove directories key
 
 	(* native lib *)
 
 	method add_native_lib key files timestamp =
+		if record_changes && not (Hashtbl.mem native_lib_changes key) then
+				Hashtbl.add native_lib_changes key (Hashtbl.find_opt native_libs key);
 		Hashtbl.replace native_libs key { c_nl_files = files; c_nl_mtime = timestamp }
 
 	method get_native_lib key =

@@ -471,7 +471,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 		None
 
 let before_anything sctx ctx =
-	if ctx.com.display.dms_full_typing then sctx.cs#init_temp ();
+	if ctx.com.display.dms_full_typing then sctx.cs#prepare ();
 	ensure_macro_setup sctx
 
 let after_arg_parsing sctx ctx =
@@ -493,7 +493,11 @@ let after_arg_parsing sctx ctx =
 		()
 
 let after_compilation sctx ctx =
-	if not (has_error ctx) then
+	if has_error ctx then
+		(* TODO FIXME *)
+		(* sctx.cs#restore () *)
+		()
+	else
 		maybe_cache_context sctx ctx.com
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
