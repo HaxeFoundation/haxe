@@ -359,7 +359,7 @@ jobs:
           - target: lua
             APT_PACKAGES: ncurses-dev
           - target: flash
-            APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
+            APT_PACKAGES: libglib2.0-0 libgtk2.0-0 libfreetype6 xvfb
     steps:
       - uses: actions/checkout@main
         with:
