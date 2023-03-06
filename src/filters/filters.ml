@@ -884,9 +884,11 @@ let save_class_state ctx t =
 			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)
 	| TEnumDecl en ->
+		let path = en.e_path in
 		en.e_restore <- (fun () ->
 			let rec loop acc = function
-				| [] -> ()
+				| [] ->
+					en.e_path <- path;
 				| (Meta.RealPath,[Ast.EConst (Ast.String(path,_)),_],_) :: l ->
 					en.e_path <- Ast.parse_path path;
 					en.e_meta <- (List.rev acc) @ l;
@@ -895,9 +897,14 @@ let save_class_state ctx t =
 			loop [] en.e_meta
 		)
 	| TTypeDecl td ->
-		()
+		let path = td.t_path in
+		td.t_restore <- (fun () ->
+			td.t_path <- path
+		);
 	| TAbstractDecl a ->
+		let path = a.a_path in
 		a.a_restore <- (fun () ->
+			a.a_path <- path;
 			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 		)
 
