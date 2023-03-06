@@ -1,0 +1,3 @@
+--main Main
+--jvm Main.jar
+# --cmd java -jar bin/Main.jar
