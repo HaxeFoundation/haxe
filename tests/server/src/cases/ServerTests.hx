@@ -176,50 +176,50 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
-	// function testSyntaxCache() {
-	// 	vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-	// 	runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
-	// 	vfs.putContent("Empty.hx", "");
-	// 	runHaxeJson([], ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
-	// 	vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-	// 	runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
-	// 	var completion = parseCompletion();
-	// 	assertHasCompletion(completion, module -> switch (module.kind) {
-	// 		case Type: module.args.path.typeName == "HelloWorld";
-	// 		case _: false;
-	// 	});
-	// 	assertHasCompletion(completion, module -> switch (module.kind) {
-	// 		case Type: module.args.path.typeName == "Empty";
-	// 		case _: false;
-	// 	});
-	// 	// check removal
-	// 	vfs.putContent("Empty.hx", "");
-	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
-	// 	runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
-	// 	var completion = parseCompletion();
-	// 	assertHasCompletion(completion, module -> switch (module.kind) {
-	// 		case Type: module.args.path.typeName == "HelloWorld";
-	// 		case _: false;
-	// 	});
-	// 	assertHasNoCompletion(completion, module -> switch (module.kind) {
-	// 		case Type: module.args.path.typeName == "Empty";
-	// 		case _: false;
-	// 	});
-	// }
+	function testSyntaxCache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
+		vfs.putContent("Empty.hx", "");
+		runHaxeJson([], ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "HelloWorld";
+			case _: false;
+		});
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+		// check removal
+		vfs.putContent("Empty.hx", "");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "HelloWorld";
+			case _: false;
+		});
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+	}
 
-	// function testSyntaxCache2() {
-	// 	vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-	// 	var args = ["-cp", ".", "--interp"];
-	// 	runHaxeJson(args, ServerMethods.ReadClassPaths, null);
-	// 	vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-	// 	runHaxeJson([] /* No args here because file watchers don't generally know */, ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
-	// 	runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
-	// 	var completion = parseCompletion();
-	// 	assertHasCompletion(completion, module -> switch (module.kind) {
-	// 		case Type: module.args.path.typeName == "Empty";
-	// 		case _: false;
-	// 	});
-	// }
+	function testSyntaxCache2() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["-cp", ".", "--interp"];
+		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		runHaxeJson([] /* No args here because file watchers don't generally know */, ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
+		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+	}
 
 	function testVectorInliner() {
 		vfs.putContent("Vector.hx", getTemplate("Vector.hx"));
