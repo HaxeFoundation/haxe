@@ -62,28 +62,6 @@ abstract Vector<T>(VectorData<T>) {
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
 	extern overload public inline function new(length:Int) {
-		init(length);
-	}
-
-	/**
-		Creates a new Vector of length `length` filled with `defaultValue` elements.
-
-		Can be faster than `new Vector(length)` for iteration on some targets for non-nullable elements.
-
-		If `length` is less than or equal to 0, the result is unspecified.
-	**/
-	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
-		#if js
-		this = [for (_ in 0...length) defaultValue];
-		#elseif python
-		this = python.Syntax.code("[{0}]*{1}", defaultValue, length);
-		#else
-		init(length);
-		fill(defaultValue);
-		#end
-	}
-
-	inline function init(length:Int) {
 		#if flash10
 		this = new flash.Vector<T>(length, true);
 		#elseif neko
@@ -105,6 +83,43 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		this = [];
 		untyped this.length = length;
+		#end
+	}
+
+	/**
+		Creates a new Vector of length `length` filled with `defaultValue` elements.
+
+		Can be faster than `new Vector(length)` for iteration on some targets for non-nullable elements.
+
+		If `length` is less than or equal to 0, the result is unspecified.
+	**/
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		#if js
+		this = [for (_ in 0...length) defaultValue];
+		#elseif python
+		this = python.Syntax.code("[{0}]*{1}", defaultValue, length);
+		#else
+
+		#if flash10
+		this = new flash.Vector<T>(length, true);
+		#elseif neko
+		this = untyped __dollar__amake(length);
+		#elseif cs
+		this = new cs.NativeArray(length);
+		#elseif java
+		this = new java.NativeArray(length);
+		#elseif cpp
+		this = NativeArray.create(length);
+		#elseif lua
+		this = untyped __lua_table__({length: length});
+		#elseif eval
+		this = new eval.Vector(length);
+		#else
+		this = [];
+		untyped this.length = length;
+		#end
+		fill(defaultValue);
+
 		#end
 	}
 
