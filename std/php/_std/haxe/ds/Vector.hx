@@ -40,12 +40,12 @@ private typedef VectorData<T> = PhpVectorData<T>;
 abstract Vector<T>(VectorData<T>) {
 	public var length(get, never):Int;
 
-	public inline function new(length:Int) {
+	extern overload public inline function new(length:Int) {
 		this = new VectorData(length, new NativeIndexedArray());
 	}
 
-	public static inline function createFilled<T>(length:Int, defaultValue:T):Vector<T> {
-		return cast new VectorData(length, Global.array_fill(0, length, defaultValue));
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		this = new VectorData(length, Global.array_fill(0, length, defaultValue));
 	}
 
 	@:op([]) public inline function get(index:Int):T {

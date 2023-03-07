@@ -26,16 +26,16 @@ private typedef VectorData<T> = Array<T>
 
 @:coreApi
 abstract Vector<T>(VectorData<T>) {
-	public inline function new(length:Int) {
+	extern overload public inline function new(length:Int) {
 		this = [];
 		if (length > 0)
 			this[length - 1] = @:nullSafety(Off) cast null;
 	}
 
-	public static inline function createFilled<T>(length:Int, defaultValue:T):Vector<T> {
-		final vector = new Vector(length);
-		vector.fill(defaultValue);
-		return vector;
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		this = [
+			for (i in 0...length) defaultValue
+		];
 	}
 
 	@:op([]) public inline function get(index:Int):T {

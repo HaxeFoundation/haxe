@@ -93,7 +93,7 @@ vec3[4] == 4;
 vec3[5] == 5;
 vec3[6] == 6;
 
-var vec5 = haxe.ds.Vector.createFilled(3, 5);
+var vec5 = new haxe.ds.Vector(3, 5);
 vec5[0] == 5;
 vec5[1] == 5;
 vec5[2] == 5;
@@ -102,7 +102,7 @@ vec5[0] == 1;
 vec5[1] == 1;
 vec5[2] == 1;
 
-var vec5 = haxe.ds.Vector.createFilled(3, true);
+var vec5 = new haxe.ds.Vector(3, true);
 vec5[0] == true;
 vec5[1] == true;
 vec5[2] == true;

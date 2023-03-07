@@ -61,7 +61,29 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
-	public inline function new(length:Int) {
+	extern overload public inline function new(length:Int) {
+		init(length);
+	}
+
+	/**
+		Creates a new Vector of length `length` filled with `defaultValue` elements.
+
+		Can be faster than `new Vector(length)` for iteration on some targets for non-nullable elements.
+
+		If `length` is less than or equal to 0, the result is unspecified.
+	**/
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		#if js
+		this = [for (_ in 0...length) defaultValue];
+		#elseif python
+		this = python.Syntax.code("[{0}]*{1}", defaultValue, length);
+		#else
+		init(length);
+		fill(defaultValue);
+		#end
+	}
+
+	inline function init(length:Int) {
 		#if flash10
 		this = new flash.Vector<T>(length, true);
 		#elseif neko
@@ -83,27 +105,6 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		this = [];
 		untyped this.length = length;
-		#end
-	}
-
-	/**
-		Creates a new Vector of length `length` filled with `defaultValue` elements.
-
-		Can be faster than `new Vector` for iteration on some targets for non-nullable elements.
-
-		If `length` is less than or equal to 0, the result is unspecified.
-	**/
-	public static inline function createFilled<T>(length:Int, defaultValue:T):Vector<T> {
-		#if js
-		final vector = [for (_ in 0...length) defaultValue];
-		return cast vector;
-		#elseif python
-		final vector = python.Syntax.code("[{0}]*{1}", defaultValue, length);
-		return cast vector;
-		#else
-		final vector = new Vector(length);
-		vector.fill(defaultValue);
-		return vector;
 		#end
 	}
 
