@@ -100,7 +100,7 @@ function _hx_tostring(obj, depth)
     end
 end
 
-function _hx_error(obj)
+function _hx_print_error(obj)
     if obj.value then
         _G.print("runtime error:\n " .. _hx_tostring(obj.value));
     else
@@ -112,3 +112,7 @@ function _hx_error(obj)
     end
 end
 
+function _hx_print_error_and_exit(obj)
+    _hx_print_error(obj);
+    _G.os.exit(1);
+end

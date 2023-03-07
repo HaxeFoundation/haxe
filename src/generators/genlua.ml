@@ -47,6 +47,7 @@ type ctx = {
     mutable separator : bool;
     mutable found_expose : bool;
     mutable lua_jit : bool;
+    mutable lua_standalone : bool;
     mutable lua_vanilla : bool;
     mutable lua_ver : float;
 }
@@ -445,7 +446,7 @@ and gen_call ctx e el =
                   if List.length(fields) > 0 then incr count;
               | { eexpr = TConst(TNull)} -> ()
               | _ ->
-				typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+                typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
              )) el;
          spr ctx "})";
      | TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
@@ -1876,6 +1877,7 @@ let alloc_ctx com =
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
+        lua_standalone = Common.defined com Define.LuaStandalone;
         lua_vanilla = Common.defined com Define.LuaVanilla;
         lua_ver = try
                 float_of_string (Common.defined_value com Define.LuaVer)
@@ -2157,7 +2159,7 @@ let generate com =
                 }
             in
             gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
-        spr ctx ", _hx_error)";
+        spr ctx (if ctx.lua_standalone then ", _hx_print_error_and_exit)" else ", _hx_print_error)";);
         newline ctx
     ) com.main;
 
