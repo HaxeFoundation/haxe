@@ -240,6 +240,7 @@ and tinfos = {
 	mutable mt_meta : metadata;
 	mt_params : type_params;
 	mutable mt_using : (tclass * pos) list;
+	mutable mt_restore : unit -> unit;
 }
 
 and tclass = {
@@ -252,6 +253,7 @@ and tclass = {
 	mutable cl_meta : metadata;
 	mutable cl_params : type_params;
 	mutable cl_using : (tclass * pos) list;
+	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
@@ -267,7 +269,6 @@ and tclass = {
 	mutable cl_init : texpr option;
 
 	mutable cl_build : unit -> build_state;
-	mutable cl_restore : unit -> unit;
 	(*
 		These are classes which directly extend or directly implement this class.
 		Populated automatically in post-processing step (Filters.run)
@@ -296,6 +297,7 @@ and tenum = {
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
 	mutable e_using : (tclass * pos) list;
+	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
 	e_type : tdef;
 	mutable e_extern : bool;
@@ -313,6 +315,7 @@ and tdef = {
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
 	mutable t_using : (tclass * pos) list;
+	mutable t_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -327,6 +330,7 @@ and tabstract = {
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;
+	mutable a_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;

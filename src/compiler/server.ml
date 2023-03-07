@@ -421,20 +421,7 @@ let add_modules sctx ctx m p =
 				m.m_extra.m_added <- ctx.com.compilation_step;
 				ServerMessage.reusing com tabs m;
 				List.iter (fun t ->
-					match t with
-					| TClassDecl c -> c.cl_restore()
-					| TEnumDecl e ->
-						let rec loop acc = function
-							| [] -> ()
-							| (Meta.RealPath,[Ast.EConst (Ast.String(path,_)),_],_) :: l ->
-								e.e_path <- Ast.parse_path path;
-								e.e_meta <- (List.rev acc) @ l;
-							| x :: l -> loop (x::acc) l
-						in
-						loop [] e.e_meta
-					| TAbstractDecl a ->
-						a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
-					| _ -> ()
+					(t_infos t).mt_restore()
 				) m.m_types;
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;

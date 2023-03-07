@@ -235,6 +235,17 @@ class ServerTests extends TestCase {
 		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
 	}
 
+	function test10986() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue10986/Main.hx"));
+		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
+		var args = ["-main", "Main", "--jvm", "Main.jar"];
+		runHaxe(args);
+		vfs.touchFile("haxe/ds/Vector.hx");
+		runHaxe(args);
+		assertSuccess();
+
+	}
+
 	// See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
 	#if false
 	function testXRedefinedFromX() {
