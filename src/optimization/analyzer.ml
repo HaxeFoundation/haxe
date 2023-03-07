@@ -671,8 +671,14 @@ module LocalDce = struct
 				add_var_flag v VUsed;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
 				begin match Ssa.get_reaching_def ctx.graph v with
-					| None -> use (get_var_origin ctx.graph v)
-					| Some v -> use v;
+					| None ->
+						(* We don't want to fully recurse for the origin variable because we don't care about its
+						   reaching definition (issue #10972). Simply marking it as being used should be sufficient. *)
+						let v' = get_var_origin ctx.graph v in
+						if not (is_used v') then
+							add_var_flag v' VUsed
+					| Some v ->
+						use v;
 				end
 			end
 		and expr e = match e.eexpr with
