@@ -196,7 +196,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) with_type) e.epos in
+				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos (MCall []) with_type) in
 				ignore(follow acc.etype);
 				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
@@ -625,7 +625,7 @@ let process_lhs_expr ctx name e_lhs =
 let type_assign_op ctx op e1 e2 with_type p =
 	let field_rhs_by_name op name ev with_type =
 		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
-		let e_get = acc_get ctx access_get p in
+		let e_get = acc_get ctx access_get in
 		e_get.etype,type_binop2 ctx op e_get e2 true WithType.value p
 	in
 	let field_rhs op cf ev =
@@ -822,7 +822,7 @@ let type_unop ctx op flag e with_type p =
 		unexpected_spread p
 	| Not | Neg | NegBits ->
 		let access_get = !type_access_ref ctx (fst e) (snd e) MGet WithType.value (* WITHTYPETODO *) in
-		let e = acc_get ctx access_get p in
+		let e = acc_get ctx access_get in
 		find_overload_or_make e
 	| Increment | Decrement ->
 		let binop = if op = Increment then OpAdd else OpSub in
@@ -836,7 +836,7 @@ let type_unop ctx op flag e with_type p =
 		in
 		let read_on vr ef fa =
 			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
-			let e_lhs = acc_get ctx access_get p in
+			let e_lhs = acc_get ctx access_get in
 			let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
 			e_lhs,e_out
 		in
@@ -848,7 +848,7 @@ let type_unop ctx op flag e with_type p =
 		match access_set with
 		| AKNo(acc,p) ->
 			begin try
-				try_abstract_unop_overloads (acc_get ctx acc p)
+				try_abstract_unop_overloads (acc_get ctx acc)
 			with Not_found ->
 				typing_error "This expression cannot be accessed for writing" p
 			end
@@ -864,7 +864,7 @@ let type_unop ctx op flag e with_type p =
 				find_overload_or_make e,None
 			| _ ->
 				let e_set = FieldAccess.get_field_expr {fa with fa_on = ef} FWrite in
-				let e_lhs = acc_get ctx access_get p in
+				let e_lhs = acc_get ctx access_get in
 				let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
 				let e_op = mk (TBinop(binop,e_lhs,e_one)) e_lhs.etype p in
 				mk (TBinop(OpAssign,e_set,e_op)) e_set.etype p,e_out

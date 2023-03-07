@@ -261,7 +261,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		| ECall(e1,el) ->
 			let def () =
 				try
-					acc_get ctx (!type_call_target_ref ctx e1 el with_type None) (pos e1)
+					acc_get ctx (!type_call_target_ref ctx e1 el with_type None)
 				with
 				| Error (Unknown_ident "trace",_) ->
 					let e = expr_of_type_path (["haxe";"Log"],"trace") p in

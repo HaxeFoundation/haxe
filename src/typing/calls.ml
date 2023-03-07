@@ -110,9 +110,10 @@ let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| TAbstract(a,tl) when has_class_field_flag sea.se_access.fa_field CfImpl -> apply_params a.a_params tl a.a_this
 	| _ -> sea.se_this.etype
 
-let rec acc_get ctx g p =
+let rec acc_get ctx g =
 	let inline_read fa =
 		let cf = fa.fa_field in
+		let p = fa.fa_pos in
 		(* do not create a closure for static calls *)
 		let apply_params = match fa.fa_host with
 			| FHStatic c ->
@@ -188,7 +189,7 @@ let rec acc_get ctx g p =
 			typing_error "Recursive inline is not supported" p
 		end
 	in
-	let dispatcher () = new call_dispatcher ctx MGet WithType.value p in
+	let dispatcher p = new call_dispatcher ctx MGet WithType.value p in
 	match g with
 	| AKNo(_,p) -> typing_error ("This expression cannot be accessed for reading") p
 	| AKExpr e -> e
@@ -197,7 +198,7 @@ let rec acc_get ctx g p =
 		let eobj = sn.sn_base in
 		let enull = Builder.make_null eobj.etype sn.sn_pos in
 		let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
-		let ethen = acc_get ctx sn.sn_access p in
+		let ethen = acc_get ctx sn.sn_access in
 		let tnull = ctx.t.tnull ethen.etype in
 		let ethen = if not (is_nullable ethen.etype) then
 			mk (TCast(ethen,None)) tnull ethen.epos
@@ -211,7 +212,7 @@ let rec acc_get ctx g p =
 		| Some evar -> { eif with eexpr = TBlock [evar; eif] })
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
-		(dispatcher ())#resolve_call sea name
+		(dispatcher sea.se_access.fa_pos)#resolve_call sea name
 	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
@@ -229,7 +230,7 @@ let rec acc_get ctx g p =
 			if ctx.in_display then
 				FieldAccess.get_field_expr fa FRead
 			else
-				typing_error "Invalid macro access" p
+				typing_error "Invalid macro access" fa.fa_pos
 		| _ ->
 			if fa.fa_inline then
 				inline_read fa
@@ -237,15 +238,16 @@ let rec acc_get ctx g p =
 				FieldAccess.get_field_expr fa FRead
 		end
 	| AKAccessor fa ->
-		(dispatcher())#field_call fa [] []
+		(dispatcher fa.fa_pos)#field_call fa [] []
 	| AKUsingAccessor sea ->
-		(dispatcher())#field_call sea.se_access [sea.se_this] []
+		(dispatcher sea.se_access.fa_pos)#field_call sea.se_access [sea.se_this] []
 	| AKUsingField sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* build a closure with first parameter applied *)
 		(match follow e_field.etype with
 		| TFun ((_,_,t0) :: args,ret) ->
+			let p = sea.se_access.fa_pos in
 			let te = abstract_using_param_type sea in
 			unify ctx te t0 e.epos;
 			let tcallb = TFun (args,ret) in
@@ -319,7 +321,7 @@ let rec build_call_access ctx acc el mode with_type p =
 		AKSafeNav { sn with sn_access = build_call_access ctx sn.sn_access el mode with_type p }
 
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
-	acc_get ctx (build_call_access ctx acc el mode with_type p) p
+	acc_get ctx (build_call_access ctx acc el mode with_type p)
 
 let rec needs_temp_var e =
 	match e.eexpr with
@@ -509,7 +511,7 @@ let field_chain ctx path access mode with_type =
 		| [] ->
 			access
 		| part :: path ->
-			let e = acc_get ctx access part.pos in
+			let e = acc_get ctx access in
 			let mode, with_type =
 				if path <> [] then
 					(* intermediate field access are just reading the value *)

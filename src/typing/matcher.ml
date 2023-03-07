@@ -39,7 +39,7 @@ let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
 let type_field_access ctx ?(resume=false) e name =
-	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet WithType.value) e.epos
+	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet WithType.value)
 
 let unapply_type_parameters params monos =
 	let unapplied = ref [] in
@@ -1011,7 +1011,7 @@ module Compile = struct
 		| ConArray i ->
 			ExtList.List.init i (fun i ->
 				let ei = make_int mctx.ctx.com.basic i e.epos in
-				Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos) e.epos
+				Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos)
 			)
 		| ConConst _ | ConTypeExpr _ | ConStatic _ ->
 			[]

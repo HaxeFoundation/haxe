@@ -44,7 +44,6 @@ type object_decl_kind =
 
 let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> pos option -> access_kind) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
-let acc_get_ref : (typer -> access_kind -> pos -> texpr) ref = ref (fun _ _ _ -> assert false)
 
 class value_reference (ctx : typer) =
 
@@ -196,7 +195,8 @@ let s_field_access tabs fa =
 		"fa_on",se fa.fa_on;
 		"fa_field",fa.fa_field.cf_name;
 		"fa_host",sfa fa.fa_host;
-		"fa_inline",string_of_bool fa.fa_inline
+		"fa_inline",string_of_bool fa.fa_inline;
+		"fa_pos",(Printf.sprintf "%s(%i-%i)" fa.fa_pos.pfile fa.fa_pos.pmin fa.fa_pos.pmax);
 	]
 
 let s_static_extension_access sea =
@@ -226,6 +226,13 @@ and s_safe_nav_access sn =
 		"sn_base",se sn.sn_base;
 		"sn_temp_var",Option.map_default (fun e -> "Some " ^ (se e)) "None" sn.sn_temp_var;
 		"sn_access",s_access_kind sn.sn_access
+	]
+
+let s_dot_path_part part =
+	Printer.s_record_fields "" [
+		"name",part.name;
+		"case",(match part.case with PUppercase -> "PUppercase" | PLowercase -> "PLowercase");
+		"pos",(Printf.sprintf "%s(%i-%i)" part.pos.pfile part.pos.pmin part.pos.pmax);
 	]
 
 let get_constructible_constraint ctx tl p =

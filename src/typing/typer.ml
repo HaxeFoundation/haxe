@@ -594,7 +594,7 @@ and handle_efield ctx e p0 mode with_type =
 			(* safe navigation field access - definitely NOT a fully-qualified access,
 			   create safe navigation chain from the object expression *)
 			let acc_obj = type_access ctx eobj pobj MGet WithType.value in
-			let eobj = acc_get ctx acc_obj pobj in
+			let eobj = acc_get ctx acc_obj in
 			let eobj, tempvar = match (Texpr.skip eobj).eexpr with
 				| TLocal _ | TTypeExpr _ | TConst _ ->
 					eobj, None
@@ -682,10 +682,10 @@ and type_array_access ctx e1 e2 p mode =
 	match a1 with
 	| AKSafeNav sn ->
 		(* pack the array access inside the safe navigation chain *)
-		let e1 = acc_get ctx sn.sn_access sn.sn_pos in
+		let e1 = acc_get ctx sn.sn_access in
 		AKSafeNav { sn with sn_access = Calls.array_access ctx e1 e2 mode p }
 	| _ ->
-		let e1 = acc_get ctx a1 p1 in
+		let e1 = acc_get ctx a1 in
 		Calls.array_access ctx e1 e2 mode p
 
 and type_vars ctx vl p =
@@ -1669,7 +1669,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Inline,_,pinline) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
-				acc_get ctx (type_call_access ctx e1 el MGet WithType.value (Some pinline) p) p
+				acc_get ctx (type_call_access ctx e1 el MGet WithType.value (Some pinline) p)
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
@@ -1820,11 +1820,11 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then typing_error "Cannot use super as value" p;
 		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode with_type) with_type false p in
-		acc_get ctx e p
+		acc_get ctx e
 	| EField _
 	| EArray _
 	| ECall _ ->
-		acc_get ctx (type_access ctx e p mode with_type) p
+		acc_get ctx (type_access ctx e p mode with_type)
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
@@ -2186,4 +2186,3 @@ make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
 type_block_ref := type_block;
-acc_get_ref := acc_get
