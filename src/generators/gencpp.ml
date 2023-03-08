@@ -8440,6 +8440,7 @@ let generate_script_enum common_ctx script enum_def meta =
 let generate_cppia ctx =
    let common_ctx = ctx.ctx_common in
    let debug = ctx.ctx_debug_level in
+   Path.mkdir_from_path common_ctx.file;
    let script = new script_writer ctx common_ctx.file common_ctx.debug in
    ignore (script#stringId "");
    ignore (script#typeId "");
