@@ -1674,11 +1674,11 @@ and parse_call_params f p1 s =
 				let e = check_signature_mark e p1 p2 in
 				f (List.rev (e :: acc)) p2
 			| [< '(Comma,p2) >] ->
-				match s with parser
+				(* match s with parser
 				| [< '(PClose,p3) >] ->
 					let e = check_signature_mark e p1 p3 in
 					f (List.rev (e :: acc)) p3
-				| [< >] ->
+				| [< >] -> *)
 					let e = check_signature_mark e p1 p2 in
 					parse_next_param (e :: acc) p2
 			| [< >] ->
