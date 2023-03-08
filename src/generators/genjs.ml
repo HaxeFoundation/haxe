@@ -1332,15 +1332,17 @@ let generate_class_es3 ctx c =
 
 	let p = s_path ctx cl_path in
 	let dotp = dot_path cl_path in
-
 	let added_to_hxClasses = ctx.has_resolveClass && not is_abstract_impl in
 
-	if ctx.js_modern || not added_to_hxClasses then
+	(* Do not add to $hxClasses on same line as declaration to make sure not to trip js debugger *)
+	(* when it tries to get a string representation of a class. Will be added below *)
+	if ctx.com.debug || ctx.js_modern || not added_to_hxClasses then
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
 
-	process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	if not ctx.com.debug then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 
 	if is_abstract_impl then begin
 		(* abstract implementations only contain static members and don't need to have constructor functions *)
@@ -1354,10 +1356,16 @@ let generate_class_es3 ctx c =
 
 	newline ctx;
 
-	if ctx.js_modern && added_to_hxClasses then begin
+	if (ctx.js_modern || ctx.com.debug) && added_to_hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" dotp p;
 		newline ctx;
 	end;
+
+	if ctx.com.debug then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> begin
+			print ctx "$hx_exports%s = %s" (path_to_brackets s) p;
+			newline ctx;
+		end);
 
 	if not is_abstract_impl then begin
 		generate_class___name__ ctx cl_path;
