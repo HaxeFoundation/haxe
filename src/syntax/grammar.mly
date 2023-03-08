@@ -42,6 +42,11 @@ let rec psep sep f = parser
 	| [< r = psep_nonempty sep f >] -> r
 	| [< >] -> []
 
+let rec psep_trailing sep f = parser
+	| [< v = f; '(sep2,_) when sep2 = sep; l = psep_trailing sep f >] -> v :: l
+	| [< v = f >] -> [v]
+	| [< >] -> []
+
 let pignore f =
 	try
 		ignore(f())
@@ -223,7 +228,7 @@ and parse_type_decl mode s =
 	| [< '(Kwd Using,p1) >] -> parse_using s p1
 	| [< doc = get_doc; meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
-		| [< '(Kwd Function,p1); name = dollar_ident; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
+		| [< '(Kwd Function,p1); name = dollar_ident; pl = parse_constraint_params; '(POpen,_); args = psep_trailing Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 			let e, p2 = (match s with parser
 				| [< e = expr; s >] ->
 					ignore(semicolon s);
@@ -571,7 +576,7 @@ and parse_meta_argument_expr s =
 	end
 
 and parse_meta_params pname s = match s with parser
-	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep Comma parse_meta_argument_expr; >] ->
+	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep_trailing Comma parse_meta_argument_expr; >] ->
 		ignore(expect_unless_resume_p PClose s);
 		params
 	| [< >] -> []
@@ -640,7 +645,7 @@ and parse_type_opt = parser
 and parse_complex_type s = parse_complex_type_maybe_named false s
 
 and parse_complex_type_maybe_named allow_named = parser
-	| [< '(POpen,p1); tl = psep Comma (parse_complex_type_maybe_named true); '(PClose,p2); s >] ->
+	| [< '(POpen,p1); tl = psep_trailing Comma (parse_complex_type_maybe_named true); '(PClose,p2); s >] ->
 		begin match tl with
 		| [] | [(CTNamed _,_)] ->
 			(* it was () or (a:T) - clearly a new function type syntax, proceed with parsing return type *)
@@ -869,7 +874,7 @@ and parse_enum s =
 	match s with parser
 	| [< name, p1 = ident; params = parse_constraint_params; s >] ->
 		let args = (match s with parser
-		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_) >] -> l
+		| [< '(POpen,_); l = psep_trailing Comma parse_enum_param; '(PClose,_) >] -> l
 		| [< >] -> []
 		) in
 		let t = popt parse_type_hint s in
@@ -892,7 +897,7 @@ and parse_enum_param = parser
 	| [< name, _ = ident; t = parse_type_hint >] -> (name,false,t)
 
 and parse_function_field doc meta al = parser
-	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
+	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep_trailing Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let e, p2 = (match s with parser
 			| [< e = expr; s >] ->
 				ignore(semicolon s);
@@ -1279,7 +1284,7 @@ and parse_function p1 inl s =
 	in
 	let pl = parse_constraint_params s in
 	match s with parser
-	| [< '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
+	| [< '(POpen,_); al = psep_trailing Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let make e =
 			let f = {
 				f_params = pl;
@@ -1410,16 +1415,16 @@ and expr = parser
 	| [< '(POpen,p1); s >] -> (match s with parser
 		| [< '(PClose,p2); er = arrow_expr; >] ->
 			arrow_function p1 [] er s
-		| [< '(Question,p2); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
+		| [< '(Question,p2); al = psep_trailing Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 			let al = (match al with | (np,_,_,topt,e) :: al -> (np,true,[],topt,e) :: al | _ -> die "" __LOC__ ) in
 			arrow_function p1 al er s
 		| [<  e = expr; s >] -> (match s with parser
 			| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
-			| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
+			| [< '(Comma,pc); al = psep_trailing Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 				arrow_function p1 ((arrow_first_param e s) :: al) er s
 			| [< t,pt = parse_type_hint; s >] -> (match s with parser
 				| [< '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
-				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
+				| [< '(Comma,pc); al = psep_trailing Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 					let (np,_) = arrow_ident_checktype e in
 					arrow_function p1 ((np,false,[],(Some(t,pt)),None) :: al) er s
 				| [< '((Binop OpAssign),p2); ea1 = expr; s >] ->
@@ -1431,7 +1436,7 @@ and expr = parser
 					(match s with parser
 					| [< '(PClose,p2); er = arrow_expr; >] ->
 						with_args [] er
-					| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
+					| [< '(Comma,pc); al = psep_trailing Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 						with_args al er
 					| [< >] -> serror())
 				| [< >] -> serror())
@@ -1645,7 +1650,7 @@ and parse_catches etry catches pmax = parser
 
 and parse_call_params f p1 s =
 	if not !in_display_file then begin
-		let el = psep Comma expr s in
+		let el = psep_trailing Comma expr s in
 		match s with parser
 		| [< '(PClose,p2) >] -> f el p2
 		| [< >] ->
@@ -1669,8 +1674,13 @@ and parse_call_params f p1 s =
 				let e = check_signature_mark e p1 p2 in
 				f (List.rev (e :: acc)) p2
 			| [< '(Comma,p2) >] ->
-				let e = check_signature_mark e p1 p2 in
-				parse_next_param (e :: acc) p2
+				match s with parser
+				| [< '(PClose,p3) >] ->
+					let e = check_signature_mark e p1 p3 in
+					f (List.rev (e :: acc)) p3
+				| [< >] ->
+					let e = check_signature_mark e p1 p2 in
+					parse_next_param (e :: acc) p2
 			| [< >] ->
 				let p2 = next_pos s in
 				syntax_error (Expected [",";")"]) s ();
