@@ -23,7 +23,7 @@
 package haxe.format;
 
 /**
-	An implementation of JSON printer in Haxe.
+	An implementation of a JSON printer in Haxe.
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
@@ -34,7 +34,7 @@ class JsonPrinter {
 	/**
 		Encodes `o`'s value and returns the resulting JSON string.
 
-		If `replacer` is given and is not null, it is used to retrieve
+		If `replacer` is given and is not null, it is used to retrieve the
 		actual object to be encoded. The `replacer` function takes two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
 
