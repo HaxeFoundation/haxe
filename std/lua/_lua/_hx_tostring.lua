@@ -99,20 +99,3 @@ function _hx_tostring(obj, depth)
         return ""
     end
 end
-
-function _hx_print_error(obj)
-    if obj.value then
-        _G.print("runtime error:\n " .. _hx_tostring(obj.value));
-    else
-        _G.print("runtime error:\n " .. tostring(obj));
-    end
-
-    if _G.debug and _G.debug.traceback then
-        _G.print(debug.traceback());
-    end
-end
-
-function _hx_print_error_and_exit(obj)
-    _hx_print_error(obj);
-    _G.os.exit(1);
-end

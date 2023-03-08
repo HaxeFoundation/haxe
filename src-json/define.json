@@ -400,7 +400,7 @@
 	{
 		"name": "LuaStandalone",
 		"define": "lua-standalone",
-		"doc": "Exit the lua process in case of an unhandled error instead of just printing the error.",
+		"doc": "Print uncaught error before exiting the lua script.",
 		"platforms": ["lua"]
 	},
 	{

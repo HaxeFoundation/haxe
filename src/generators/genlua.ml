@@ -2141,25 +2141,35 @@ let generate com =
         print_file (Common.find_file com "lua/_lua/_hx_dyn_add.lua");
     end;
 
+    if ctx.lua_standalone && Option.is_some com.main then begin
+        print_file (Common.find_file com "lua/_lua/_hx_handle_error.lua");
+    end;
+
     println ctx "_hx_static_init();";
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
     Option.may (fun e ->
-        spr ctx "_G.xpcall(";
-            let luv_run =
-                (* Runs libuv loop if needed *)
-                mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
-            in
-            let fn =
-                {
-                    tf_args = [];
-                    tf_type = com.basic.tvoid;
-                    tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
-                }
-            in
-            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
-        spr ctx (if ctx.lua_standalone then ", _hx_print_error_and_exit)" else ", _hx_print_error)";);
+        let luv_run =
+            (* Runs libuv loop if needed *)
+            mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
+        in
+        if ctx.lua_standalone then begin
+            spr ctx "_G.xpcall(";
+                let fn =
+                    {
+                        tf_args = [];
+                        tf_type = com.basic.tvoid;
+                        tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
+                    }
+                in
+                gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
+            spr ctx ", _hx_handle_error)";
+        end else begin
+            gen_expr ctx e;
+            newline ctx;
+            gen_expr ctx luv_run;
+        end;
         newline ctx
     ) com.main;
 
@@ -2169,4 +2179,3 @@ let generate com =
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);
     close_out ch
-
