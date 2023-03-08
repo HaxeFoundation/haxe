@@ -166,21 +166,26 @@ class Flash {
 		}
 	}
 
-	static function readUntil(stdout:haxe.io.Input, expected:String) {
+	static function readUntil(stdout:haxe.io.Input, expected:String, ?unexpectedStrings:Map<String, ()->Void>) {
+		final possibleStrings = unexpectedStrings?.copy() ?? [];
+		possibleStrings[expected] = function() {};
 		var output = "";
 		while (true) {
-			output += try {
+			final char = try {
 				String.fromCharCode(stdout.readByte());
 			} catch (e:haxe.io.Eof) {
-				failMsg('Expected to find "$expected". Output was:');
-				Sys.print(output);
+				failMsg('Expected to find "$expected" in stdout');
 				throw new CommandFailure();
 			};
-			if (output.endsWith(expected)) {
-				break;
+			Sys.print(char);
+			output += char;
+			for (string => onMatch in possibleStrings) {
+				if (output.endsWith(string)) {
+					onMatch();
+					return;
+				}
 			}
 		}
-		return output;
 	}
 
 	/**
@@ -193,16 +198,23 @@ class Flash {
 
 		final debuggerProcess = new Process("fdb");
 
-		var output = "";
-
+		final FDB_PROMPT = "(fdb) ";
 		// waits for the fdb prompt and runs a command
 		function runDebuggerCommand(command:String) {
-			output += readUntil(debuggerProcess.stdout, "(fdb) ") + '$command\n';
+			readUntil(debuggerProcess.stdout, FDB_PROMPT);
+			Sys.println(command);
 			debuggerProcess.stdin.writeString('$command\n');
 		}
 
 		runDebuggerCommand("run");
 
+		function onUnexpectedPrompt() {
+			Sys.println("quit");
+			debuggerProcess.stdin.writeString("quit\n");
+			throw new CommandFailure();
+		}
+
+		readUntil(debuggerProcess.stdout, "Waiting for Player to connect", [FDB_PROMPT => onUnexpectedPrompt]);
 		final playerProcess = switch (systemName) {
 			case "Linux" if (ci == GithubActions):
 				new Process("xvfb-run", ["-a", playerLocation, swf]);
@@ -212,17 +224,16 @@ class Flash {
 				new Process(playerLocation, [swf]);
 		};
 
+		readUntil(debuggerProcess.stdout, "Player connected; session starting.", [FDB_PROMPT => onUnexpectedPrompt]);
 		runDebuggerCommand("continue");
 
-		output += readUntil(debuggerProcess.stdout, "results: ");
-
-		final results = readUntil(debuggerProcess.stdout, "\n");
-		final success = results.contains("(success: true)");
-		output += results;
+		var success = true;
+		readUntil(debuggerProcess.stdout, "(success: true)", [
+			FDB_PROMPT => onUnexpectedPrompt,
+			"(success: false)" => () -> { success = false; }
+		]);
 
 		runDebuggerCommand("quit");
-
-		Sys.print(output);
 
 		debuggerProcess.kill();
 		debuggerProcess.close();
