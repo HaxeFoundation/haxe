@@ -335,7 +335,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		end else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (load_complex_type ctx true t)
+			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
 			| _ -> typing_error "Too many parameters for Dynamic" p
 		else begin
 			let is_java_rest = ctx.com.platform = Java && is_extern in

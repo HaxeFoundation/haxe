@@ -873,7 +873,7 @@ and type_object_decl ctx fl with_type p =
 						| _ -> ODKFailed
 					end
 				end
-			| TDynamic t when (follow t != t_dynamic) ->
+			| TDynamic (Some t) ->
 				dynamic_parameter := Some t;
 				ODKWithStructure {
 					a_status = ref Closed;

@@ -219,7 +219,8 @@ let rec generate_type ctx t =
 			let t = lazy_type f in
 			(* return_partial_type := false; *)
 			loop t
-		| TDynamic t -> "TDynamic",Some (if t == t_dynamic then jnull else generate_type ctx t)
+		| TDynamic None -> "TDynamic", Some jnull
+		| TDynamic (Some t) -> "TDynamic",Some (generate_type ctx t)
 		| TInst(c,tl) -> "TInst",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl c.cl_meta)
 		| TEnum(en,tl) -> "TEnum",Some (generate_type_path_with_params ctx en.e_module.m_path en.e_path tl en.e_meta)
 		| TType(td,tl) -> "TType",Some (generate_type_path_with_params ctx td.t_module.m_path td.t_path tl td.t_meta)

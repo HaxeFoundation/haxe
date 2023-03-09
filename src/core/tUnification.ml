@@ -296,11 +296,10 @@ let rec link e a b =
 		| TEnum (_,tl) -> List.exists loop tl
 		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
-		| TDynamic t2 ->
-			if t == t2 then
-				false
-			else
-				loop t2
+		| TDynamic None ->
+			false
+		| TDynamic (Some t2) ->
+			loop t2
 		| TLazy f ->
 			loop (lazy_type f)
 		| TAnon a ->
@@ -508,7 +507,9 @@ let rec type_eq uctx a b =
 		(match t.tm_type with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq uctx a t)
-	| TDynamic a , TDynamic b ->
+	| TDynamic None, TDynamic None ->
+		()
+	| TDynamic (Some a) , TDynamic (Some b) ->
 		type_eq uctx a b
 	| _ , _ when a == t_dynamic && param = EqBothDynamic ->
 		()
@@ -835,30 +836,34 @@ let rec unify (uctx : unification_context) a b =
 		with Not_found ->
 			error [has_no_field a "new"]
 		end
-	| TDynamic t , _ ->
-		if t == a && uctx.allow_dynamic_to_cast then
+	| TDynamic None , _ ->
+		if uctx.allow_dynamic_to_cast then
 			()
-		else (match b with
-		| TDynamic t2 ->
-			if t2 != b then
+		else begin match b with
+			| TDynamic None ->
+				()
+			| _ ->
+				error [cannot_unify a b]
+		end
+	| TDynamic (Some t1) , _ ->
+		begin match b with
+		| TDynamic None ->
+			()
+		| TDynamic (Some t2) ->
+			if t2 != t1 then
 				(try
-					type_eq {uctx with equality_kind = EqRightDynamic} t t2
+					type_eq {uctx with equality_kind = EqRightDynamic} t1 t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
 		| TAbstract(bb,tl) ->
 			unify_from uctx a b bb tl
 		| _ ->
-			error [cannot_unify a b])
-	| _ , TDynamic t ->
-		if t == b then
-			()
-		else (match a with
-		| TDynamic t2 ->
-			if t2 != a then
-				(try
-					type_eq {uctx with equality_kind = EqRightDynamic} t t2
-				with
-					Unify_error l -> error (cannot_unify a b :: l));
+			error [cannot_unify a b]
+		end
+	| _ , TDynamic None ->
+		()
+	| _ , TDynamic (Some t1) ->
+		begin match a with
 		| TAnon an ->
 			(try
 				(match !(an.a_status) with
@@ -866,7 +871,7 @@ let rec unify (uctx : unification_context) a b =
 				| _ -> ());
 				PMap.iter (fun _ f ->
 					try
-						type_eq uctx (field_type f) t
+						type_eq uctx (field_type f) t1
 					with Unify_error l ->
 						error (invalid_field f.cf_name :: l)
 				) an.a_fields
@@ -875,7 +880,8 @@ let rec unify (uctx : unification_context) a b =
 		| TAbstract(aa,tl) ->
 			unify_to uctx a b aa tl
 		| _ ->
-			error [cannot_unify a b])
+			error [cannot_unify a b]
+		end
 	| TAbstract (aa,tl), _  ->
 		unify_to uctx a b aa tl
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->

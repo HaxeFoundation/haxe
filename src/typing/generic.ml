@@ -190,8 +190,10 @@ let set_type_parameter_dependencies mg tl =
 			| Some t -> loop t)
 		| TLazy f ->
 			loop (lazy_type f);
-		| TDynamic t2 ->
-			if t == t2 then () else loop t2
+		| TDynamic None ->
+			()
+		| TDynamic (Some t2) ->
+			loop t2
 		| TAnon a ->
 			PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
 		| TFun (args,ret) ->

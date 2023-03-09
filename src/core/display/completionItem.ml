@@ -506,8 +506,10 @@ module CompletionType = struct
 					ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
 					ct_status = !(an.a_status);
 				}
-			| TDynamic t ->
-				CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
+			| TDynamic None ->
+				CTDynamic None
+			| TDynamic (Some t) ->
+				CTDynamic (Some (from_type PMap.empty t))
 		in
 		from_type values t
 end

@@ -91,7 +91,7 @@ let null t p = mk (TConst TNull) t p
 
 let mk_mono() = TMono (!monomorph_create_ref ())
 
-let rec t_dynamic = TDynamic t_dynamic
+let t_dynamic = TDynamic None
 
 let mk_anon ?fields status =
 	let fields = match fields with Some fields -> fields | None -> PMap.empty in
@@ -294,8 +294,10 @@ let map loop t =
 		let ft = lazy_type f in
 		let ft2 = loop ft in
 		if ft == ft2 then t else ft2
-	| TDynamic t2 ->
-		if t == t2 then	t else TDynamic (loop t2)
+	| TDynamic None ->
+		t
+	| TDynamic (Some t2) ->
+		TDynamic (Some (loop t2))
 
 let iter loop t =
 	match t with
@@ -321,8 +323,10 @@ let iter loop t =
 	| TLazy f ->
 		let ft = lazy_type f in
 		loop ft
-	| TDynamic t2 ->
-		if t != t2 then	loop t2
+	| TDynamic None ->
+		()
+	| TDynamic (Some t2) ->
+		loop t2
 
 let duplicate t =
 	let monos = ref [] in
@@ -458,11 +462,10 @@ let apply_params ?stack cparams params t =
 				t
 			else
 				ft2
-		| TDynamic t2 ->
-			if t == t2 then
-				t
-			else
-				TDynamic (loop t2)
+		| TDynamic None ->
+			t
+		| TDynamic (Some t2) ->
+			TDynamic (Some (loop t2))
 	in
 	loop t
 

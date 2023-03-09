@@ -802,11 +802,10 @@ let update_cache_dependencies com t =
 		end
 		| TLazy f ->
 			check_t m (lazy_type f)
-		| TDynamic t ->
-			if t == t_dynamic then
-				()
-			else
-				check_t m t
+		| TDynamic None ->
+			()
+		| TDynamic (Some t) ->
+			check_t m t
 	in
 	let rec check_field m cf =
 		check_t m cf.cf_type;

@@ -518,7 +518,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
 		| TDynamic t ->
-			AKExpr (mk (TField (e,FDynamic i)) t p)
+			AKExpr (mk (TField (e,FDynamic i)) (match t with None -> t_dynamic | Some t -> t) p)
 		| TAbstract (a,tl) ->
 			(try
 				if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;

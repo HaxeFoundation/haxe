@@ -603,7 +603,7 @@ module Inheritance = struct
 				| TDynamic t ->
 					if c.cl_dynamic <> None then typing_error "Cannot have several dynamics" p;
 					if not (has_class_flag c CExtern) then display_error ctx.com "In haxe 4, implements Dynamic is only supported on externs" p;
-					c.cl_dynamic <- Some t;
+					c.cl_dynamic <- Some (match t with None -> t_dynamic | Some t -> t);
 					(fun () -> ())
 				| _ ->
 					typing_error "Should implement by using an interface" p
