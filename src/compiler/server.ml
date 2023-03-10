@@ -363,6 +363,8 @@ module Communication = struct
 			else max_lines
 		) max_lines messages
 
+	let bad_mode m = failwith (Printf.sprintf "Wrong message reporting mode: \"%s\". Accepted values are \"classic\", \"pretty\" and \"indent\"." m)
+
 	let display_messages ctx on_message = begin
 		let ectx = create_error_context () in
 		ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
@@ -370,9 +372,9 @@ module Communication = struct
 		let format_mode = Define.defined_value_safe ~default:"classic" ctx.com.defines Define.MessageReporting in
 		let format_message ctx ectx msg = match format_mode with
 			| "pretty" -> compiler_pretty_message_string ctx ectx msg
-			| "indented" -> compiler_indented_message_string ctx ectx msg
+			| "indent" -> compiler_indented_message_string ctx ectx msg
 			| "classic" -> compiler_message_string ctx ectx msg
-			| _ -> raise (failwith "TODO: error message for bad message reporting mode")
+			| m -> bad_mode m
 		in
 
 		let log_messages = Define.defined ctx.com.defines Define.MessagesLogFile in
@@ -395,7 +397,7 @@ module Communication = struct
 				| "pretty" -> compiler_pretty_message_string ctx ectx msg
 				| "classic" -> compiler_message_string ctx ectx msg
 				| "indent" -> compiler_indented_message_string ctx ectx msg
-				| _ -> raise (failwith "TODO: error message for bad message reporting mode")
+				| m -> bad_mode m
 			in
 
 			log_message := (Some (fun msg ->
