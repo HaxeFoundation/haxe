@@ -722,8 +722,8 @@
 	{
 		"name": "MessageReporting",
 		"define": "message-reporting",
-		"doc": "Select message reporting mode for compiler output.",
-		"params": ["mode: classic | pretty | diagnostics"]
+		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"params": ["mode: classic | pretty | indent"]
 	},
 	{
 		"name": "NoColor",
@@ -738,7 +738,7 @@
 	{
 		"name": "MessagesLogFormat",
 		"define": "messages-log-format",
-		"doc": "Select message reporting mode for messages log output.",
-		"params": ["format: classic | pretty | diagnostics"]
+		"doc": "Select message reporting mode for messages log output. (default: indent)",
+		"params": ["format: classic | pretty | indent"]
 	}
 ]

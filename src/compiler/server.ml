@@ -335,7 +335,7 @@ module Communication = struct
 			Some (Printf.sprintf "%s : %s" epos str)
 		end
 
-	let compiler_diagnostics_message_string ctx ectx ((str,_,nl,_,_) as msg) =
+	let compiler_indented_message_string ctx ectx ((str,_,nl,_,_) as msg) =
 		(* TODO: merge with filter from pretty errors? *)
 		match str with
 		(* Filter some messages that don't add much when using this message renderer *)
@@ -361,7 +361,7 @@ module Communication = struct
 		let format_mode = Define.defined_value_safe ~default:"classic" ctx.com.defines Define.MessageReporting in
 		let format_message ctx ectx msg = match format_mode with
 			| "pretty" -> compiler_pretty_message_string ctx ectx msg
-			| "diagnostics" -> compiler_diagnostics_message_string ctx ectx msg
+			| "indented" -> compiler_indented_message_string ctx ectx msg
 			| "classic" -> compiler_message_string ctx ectx msg
 			| _ -> raise (failwith "TODO: error message for bad message reporting mode")
 		in
@@ -381,11 +381,11 @@ module Communication = struct
 				Failure e -> raise (failwith (Printf.sprintf "Error opening log file %s: %s" file e))
 			in
 
-			let format_mode = Define.defined_value_safe ~default:"diagnostics" ctx.com.defines Define.MessagesLogFormat in
+			let format_mode = Define.defined_value_safe ~default:"indent" ctx.com.defines Define.MessagesLogFormat in
 			let format_log_message ctx ectx msg = match format_mode with
 				| "pretty" -> compiler_pretty_message_string ctx ectx msg
 				| "classic" -> compiler_message_string ctx ectx msg
-				| "diagnostics" -> compiler_diagnostics_message_string ctx ectx msg
+				| "indent" -> compiler_indented_message_string ctx ectx msg
 				| _ -> raise (failwith "TODO: error message for bad message reporting mode")
 			in
 
