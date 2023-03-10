@@ -108,38 +108,47 @@ module Communication = struct
 		let curline = ref 1 in
 		let lines = ref [] in
 		let rec loop p line =
-			let inc i line () =
+			let inc i line =
 				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
 				curline := !curline + 1;
 				(i, "")
 			in
 
+			let input_char_or_done ch line =
+				try input_char ch with End_of_file -> begin
+					ignore(inc 0 line);
+					raise End_of_file
+				end
+			in
+
 			try
-				let i line = match input_char ch with
+				let read_char line = match input_char_or_done ch line with
 					| '\n' -> inc 1 line
 					| '\r' ->
-						ignore(input_char ch);
+						ignore(input_char_or_done ch line);
 						inc 2 line
-					| c -> (fun () ->
+					| c -> begin
 						let line = ref (line ^ (String.make 1 c)) in
 						let rec skip n =
 							if n > 0 then begin
-								let c = input_char ch in
+								let c = input_char_or_done ch !line in
 								line := !line ^ (String.make 1 c);
 								skip (n - 1)
 							end
 						in
+
 						let code = int_of_char c in
 						if code < 0xC0 then ()
 						else if code < 0xE0 then skip 1
 						else if code < 0xF0 then skip 2
 						else skip 3;
-						(1, !line)
-					)
-				in
-				let (i, line) = (i line)() in
-				loop (p + i) line
 
+						(1, !line)
+					end
+				in
+
+				let (delta, line) = read_char line in
+				loop (p + delta) line
 			with End_of_file ->
 				close_in ch;
 		in
