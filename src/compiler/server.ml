@@ -308,7 +308,10 @@ module Communication = struct
 			in
 
 			Some (
-				if nl > 0 then String.concat "\n" (List.map (fun str -> (String.make (indent nl) ' ') ^ str) (ExtString.String.nsplit !out "\n"))
+				if nl > 0 then String.concat "\n" (List.map (fun str -> match str with
+					| "" -> ""
+					| _ -> (String.make (indent nl) ' ') ^ str
+				) (ExtString.String.nsplit !out "\n"))
 				else !out
 			)
 		end
