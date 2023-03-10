@@ -163,15 +163,12 @@ module Communication = struct
 		| _ -> begin
 			ectx.last_positions <- (IntMap.add nl p ectx.last_positions);
 			let is_null_pos = p = null_pos || p.pmin = -1 in
+			let is_unknown_file f = f = "" || f = "?" in
 
 			(* Extract informations from position *)
 			let l1, p1, l2, p2, epos, lines =
 				if is_null_pos then begin
-					let epos = match p.pfile with
-						| "" | "?" -> "(unknown position)"
-						| p -> p
-					in
-
+					let epos = if is_unknown_file p.pfile then "(unknown position)" else p.pfile in
 					(-1, -1, -1, -1, epos, [])
 				end else begin
 					let f =
@@ -208,18 +205,18 @@ module Communication = struct
 			in
 
 			let prev_pos,prev_sev,prev_nl = match ectx.previous with
-				| None -> (null_pos, None, 0)
-				| Some (p, sev, nl) -> (p, Some sev, nl)
-			in
-
-			let pos_changed =
-				(prev_pos = null_pos || p <> prev_pos || (nl <> prev_nl && nl <> prev_nl + 1))
-				&& (parent_pos = null_pos || p <> parent_pos)
+				| None -> (None, None, 0)
+				| Some (p, sev, nl) -> (Some p, Some sev, nl)
 			in
 
 			let sev_changed = prev_sev = None || Some sev <> prev_sev in
+			let pos_changed = (prev_pos = None || p <> Option.get prev_pos || (nl <> prev_nl && nl <> prev_nl + 1)) && (parent_pos = null_pos || p <> parent_pos) in
+			let file_changed = prev_pos = None || (pos_changed && match (p.pfile, (Option.get prev_pos).pfile) with
+				| (f1, f2) when (is_unknown_file f1) && (is_unknown_file f2) -> false
+				| (f1, f2) -> f1 <> f2
+			) in
 
-			let display_heading = nl = 0 || sev_changed || prev_pos = null_pos || (pos_changed && p.pfile <> prev_pos.pfile) in
+			let display_heading = nl = 0 || sev_changed || file_changed in
 			let display_source = nl = 0 || sev_changed || pos_changed in
 			let display_pos_marker = (not is_null_pos) && (nl = 0 || sev_changed  || pos_changed) in
 
