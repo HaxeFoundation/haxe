@@ -1,0 +1,14 @@
+Main.hx:8: characters 9-18 : Could not find a suitable overload, reasons follow
+  Main.hx:8: characters 9-18 : Overload resolution failed for () -> Void
+    Main.hx:8: characters 13-17 : Too many arguments
+  Main.hx:8: characters 9-18 : Overload resolution failed for (t : f.T) -> Void
+    Main.hx:8: characters 13-17 : Constraint check failure for f.T
+    Main.hx:8: characters 13-17 : ... String should be Int
+    Main.hx:8: characters 13-17 : ... For function argument 't'
+Main.hx:9: characters 9-16 : Could not find a suitable overload, reasons follow
+  Main.hx:9: characters 9-16 : Overload resolution failed for () -> Void
+    Main.hx:9: characters 13-15 : Too many arguments
+  Main.hx:9: characters 9-16 : Overload resolution failed for (t : f.T) -> Void
+    Main.hx:9: characters 13-15 : Constraint check failure for f.T
+    Main.hx:9: characters 13-15 : ... { } should be Int
+    Main.hx:9: characters 13-15 : ... For function argument 't'
