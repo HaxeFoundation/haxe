@@ -291,13 +291,10 @@ module Communication = struct
 
 			(* Error position marker *)
 			if display_pos_marker then
-				out := Printf.sprintf "%s%s|%s%s%s%s\n"
+				out := Printf.sprintf "%s%s|%s\n"
 					!out
 					(String.make gutter_len ' ')
-					(String.make p1 ' ')
-					c_sev
-					(if l1 = l2 then String.make (p2-p1) '^' else "")
-					c_reset;
+					(if l1 = l2 then String.make p1 ' ' ^ c_sev ^ String.make (p2-p1) '^' ^ c_reset else "");
 
 			(* Error message *)
 			out := List.fold_left (fun out str -> Printf.sprintf "%s%s| %s\n"
