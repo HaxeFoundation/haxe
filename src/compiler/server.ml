@@ -360,7 +360,8 @@ module Communication = struct
 					| first :: rest -> (nl, first) :: List.map (fun msg -> (nl+1, msg)) rest
 					| l -> [(nl, List.hd l)]
 				in
-				Some (String.concat "\n" (List.map (fun (nl, msg) -> (String.make (nl*2) ' ') ^ epos ^ " : " ^ msg) lines))
+				let rm_prefix str = if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str in
+				Some (String.concat "\n" (List.map (fun (nl, msg) -> (String.make (nl*2) ' ') ^ epos ^ " : " ^ (rm_prefix msg)) lines))
 			end
 
 	let get_max_line max_lines messages =
