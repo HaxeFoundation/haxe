@@ -319,11 +319,10 @@ module Communication = struct
 			)
 		end
 
-	let compiler_message_string ?(info_prefix="") ctx ectx (str,p,nl,_,sev) =
+	let compiler_message_string  ctx ectx (str,p,nl,_,sev) =
 		let str = match sev with
 			| MessageSeverity.Warning -> "Warning : " ^ str
-			| Information -> info_prefix ^ str
-			| Error | Hint -> str
+			| Information | Error | Hint -> str
 		in
 
 		if p = null_pos then
@@ -341,15 +340,28 @@ module Communication = struct
 			Some (Printf.sprintf "%s : %s" epos str)
 		end
 
-	let compiler_indented_message_string ctx ectx ((str,_,nl,_,_) as msg) =
-		(* TODO: merge with filter from pretty errors? *)
+	let compiler_indented_message_string ctx ectx (str,p,nl,kind,sev) =
 		match str with
 		(* Filter some messages that don't add much when using this message renderer *)
 		| "End of overload failure reasons" -> None
 		| _ ->
-			match (compiler_message_string ~info_prefix:"Info : " ctx ectx msg) with
-			| None -> None
-			| Some s -> Some (if nl > 0 then String.concat "\n" (List.map (fun str -> (String.make (nl*2) ' ') ^ str) (ExtString.String.nsplit s "\n")) else s)
+			let str = match sev with
+				| MessageSeverity.Warning -> "Warning : " ^ str
+				| Information -> "Info : " ^ str
+				| Error | Hint -> str
+			in
+
+			if p = null_pos then
+				Some str
+			else begin
+				let epos = Lexer.get_error_pos error_printer p in
+				let lines =
+					match (ExtString.String.nsplit str "\n") with
+					| first :: rest -> (nl, first) :: List.map (fun msg -> (nl+1, msg)) rest
+					| l -> [(nl, List.hd l)]
+				in
+				Some (String.concat "\n" (List.map (fun (nl, msg) -> (String.make (nl*2) ' ') ^ epos ^ " : " ^ msg) lines))
+			end
 
 	let get_max_line max_lines messages =
 		List.fold_left (fun max_lines (str,p,nl,_,_) ->
