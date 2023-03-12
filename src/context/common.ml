@@ -1217,16 +1217,22 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p kind sev =
+let add_diagnostics_message com msg kind sev =
+	let p = Globals.extract_located_pos msg in
+	let s = Globals.extract_located_msg msg in
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
-let display_error com ?(nesting_level = 0) msg p =
+let display_error com ?(nesting_level = 0) msg =
 	if is_diagnostics com then
-		add_diagnostics_message com msg p MessageKind.DKCompilerMessage MessageSeverity.Error
+		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
-		com.error msg p ~nesting_level:nesting_level
+		(* TODO com.located_error or something *)
+		com.error (Globals.extract_located_msg msg) (Globals.extract_located_pos msg) ~nesting_level:nesting_level
+
+let display_str_error com ?(nesting_level = 0) msg p =
+	display_error com ~nesting_level (Globals.located_msg msg p)
 
 open Printer
 

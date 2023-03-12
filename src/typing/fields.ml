@@ -76,8 +76,8 @@ let no_abstract_constructor c p =
 	if has_class_flag c CAbstract then raise_typing_error (Abstract_class (TClassDecl c)) p
 
 let check_constructor_access ctx c f p =
-	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
-	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx.com (error_msg p (No_constructor (TClassDecl c)));
+	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_str_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx cf fa mode p =
 	match mode with
@@ -89,7 +89,7 @@ let check_no_closure_meta ctx cf fa mode p =
 					Meta.has Meta.NoClosure cl_meta
 					|| Meta.has Meta.NoClosure f.cf_meta
 				then
-					typing_error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
+					str_typing_error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
 			| _ -> ()
 		in
 		begin match cf.cf_kind with
@@ -114,7 +114,7 @@ let field_access ctx mode f fh e pfield =
 	match f.cf_kind with
 	| Method m ->
 		let normal () = AKField(make_access false) in
-		if is_set && m <> MethDynamic && not ctx.untyped then typing_error "Cannot rebind this method : please use 'dynamic' before method declaration" pfield;
+		if is_set && m <> MethDynamic && not ctx.untyped then str_typing_error "Cannot rebind this method : please use 'dynamic' before method declaration" pfield;
 		let maybe_check_visibility c static =
 			(* For overloads we have to resolve the actual field before we can check accessibility. *)
 			begin match mode with
@@ -129,9 +129,9 @@ let field_access ctx mode f fh e pfield =
 			| MethInline, _ when ctx.g.doinline && ctx.allow_inline ->
 				AKField (make_access true)
 			| MethMacro, MGet ->
-				display_error ctx.com "Macro functions must be called immediately" pfield; normal()
+				display_str_error ctx.com "Macro functions must be called immediately" pfield; normal()
 			| _ , MGet ->
-				if has_class_field_flag f CfGeneric then display_error ctx.com "Cannot create closure on generic function" pfield;
+				if has_class_field_flag f CfGeneric then display_str_error ctx.com "Cannot create closure on generic function" pfield;
 				normal()
 			| _ ->
 				normal()
@@ -140,7 +140,7 @@ let field_access ctx mode f fh e pfield =
 		| FHInstance(c,tl) ->
 			if e.eexpr = TConst TSuper then begin match mode with
 				| MSet _ | MGet ->
-					display_error ctx.com "Cannot create closure on super method" pfield
+					display_str_error ctx.com "Cannot create closure on super method" pfield
 				| MCall _ ->
 					()
 			end;
@@ -179,7 +179,7 @@ let field_access ctx mode f fh e pfield =
 				| MSet _ when v.v_write = AccCall ->
 					()
 				| _ ->
-					display_error ctx.com "Normal variables cannot be accessed with 'super', use 'this' instead" pfield;
+					display_str_error ctx.com "Normal variables cannot be accessed with 'super', use 'this' instead" pfield;
 			end;
 		| FHAnon ->
 			()
@@ -223,8 +223,8 @@ let field_access ctx mode f fh e pfield =
 			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
 				if not (is_physical_field f) then begin
-					display_error ctx.com "This field cannot be accessed because it is not a real variable" pfield;
-					display_error ctx.com "Add @:isVar here to enable it" f.cf_pos;
+					display_str_error ctx.com "This field cannot be accessed because it is not a real variable" pfield;
+					display_str_error ctx.com "Add @:isVar here to enable it" f.cf_pos;
 				end;
 				normal false
 			)
@@ -250,7 +250,7 @@ let field_access ctx mode f fh e pfield =
 		| AccRequire (r,msg) ->
 			match msg with
 			| None -> error_require r pfield
-			| Some msg -> typing_error msg pfield
+			| Some msg -> str_typing_error msg pfield
 
 let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
@@ -285,7 +285,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		let _,el,_ = Meta.get meta a.a_meta in
 		if el <> [] && not (List.exists (fun e -> match fst e with
 			| EConst (Ident i' | String (i',_)) -> i' = i
-			| _ -> typing_error "Identifier or string expected as argument to @:forward" (pos e)
+			| _ -> str_typing_error "Identifier or string expected as argument to @:forward" (pos e)
 		) el) then raise Not_found;
 		f()
 	in
@@ -331,7 +331,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| TAnon a ->
 			(try
 				let f = PMap.find i a.a_fields in
-				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
+				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_str_error ctx.com "Cannot access non-static abstract field statically" pfield;
 				match !(a.a_status) with
 				| EnumStatics en ->
 					let c = try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__ in
@@ -515,7 +515,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				in
 				loop c tl
 			with Not_found when PMap.mem i c.cl_statics ->
-				typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
+				str_typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
 		| TDynamic t ->
 			AKExpr (mk (TField (e,FDynamic i)) (match t with None -> t_dynamic | Some t -> t) p)
@@ -529,7 +529,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found -> try
 				type_field_by_forward_member type_field_by_fallback e a tl
 			with Not_found when not (has_class_field_flag (PMap.find i (find_some a.a_impl).cl_statics) CfImpl) ->
-				typing_error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
+				str_typing_error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
 			)
 		| _ -> raise Not_found
 	in
@@ -554,16 +554,16 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| TInst ({ cl_kind = KAbstractImpl a },_)
 			| TAbstract (a,_) when has_special_field a ->
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
-				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
+				display_str_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
-				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
+				display_str_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
 				let tthis = e.etype in
 				try
 					if not (Diagnostics.error_in_diagnostics_run ctx.com pfield) then raise Exit;
 					DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
 				with Exit ->
-					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
+					display_str_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 

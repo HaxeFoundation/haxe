@@ -148,12 +148,12 @@ let get_native_name meta =
 	| [] ->
 		raise Not_found
 	| _ ->
-		typing_error "String expected" mp
+		str_typing_error "String expected" mp
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
-		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ~nesting_level:1 ctx.com (compl_msg "Base field is defined here") base_pos
+		display_str_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
+		display_str_error ~nesting_level:1 ctx.com (compl_msg "Base field is defined here") base_pos
 	in
 	try
 		let child_name, child_pos = get_native_name child.cf_meta in
@@ -168,14 +168,14 @@ let check_native_name_override ctx child base =
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
-		if has_class_field_flag f CfOverride then display_error ctx.com ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
+		if has_class_field_flag f CfOverride then display_str_error ctx.com ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		let p = f.cf_name_pos in
 		let i = f.cf_name in
 		let check_field f get_super_field is_overload = try
 			(if is_overload && not (has_class_field_flag f CfOverload) then
-				display_error ctx.com ("Missing overload declaration for field " ^ i) p);
+				display_str_error ctx.com ("Missing overload declaration for field " ^ i) p);
 			let f_has_override = has_class_field_flag f CfOverride in
 			let t, f2 = get_super_field csup i in
 			check_native_name_override ctx f f2;
@@ -185,35 +185,35 @@ let check_overriding ctx c f =
 			| _ -> ());
 			if has_class_field_flag f2 CfAbstract then begin
 				if f_has_override then
-					display_error ctx.com ("Field " ^ i ^ " is declared 'override' but parent field " ^ i ^ " is 'abstract' and does not provide any implementation to override") p
+					display_str_error ctx.com ("Field " ^ i ^ " is declared 'override' but parent field " ^ i ^ " is 'abstract' and does not provide any implementation to override") p
 				else
 					add_class_field_flag f CfOverride (* our spec requires users to not "override" abstract functions, but our implementation depends on implementations to be declared with "override" ¯\_(ツ)_/¯ *)
 			end;
 			if (has_class_field_flag f2 CfOverload && not (has_class_field_flag f CfOverload)) then
-				display_error ctx.com ("Field " ^ i ^ " should be declared with overload since it was already declared as overload in superclass") p
+				display_str_error ctx.com ("Field " ^ i ^ " should be declared with overload since it was already declared as overload in superclass") p
 			else if not f_has_override && not (has_class_field_flag f2 CfAbstract) then begin
 				if has_class_flag c CExtern then add_class_field_flag f CfOverride
-				else display_error ctx.com ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
+				else display_str_error ctx.com ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
 			end else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
-				display_error ctx.com ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
+				display_str_error ctx.com ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 			else (match f.cf_kind, f2.cf_kind with
 			| _, Method MethInline ->
-				display_error ctx.com ("Field " ^ i ^ " is inlined and cannot be overridden") p
+				display_str_error ctx.com ("Field " ^ i ^ " is inlined and cannot be overridden") p
 			| a, b when a = b -> ()
 			| Method MethInline, Method MethNormal ->
 				() (* allow to redefine a method as inlined *)
 			| _ ->
-				display_error ctx.com ("Field " ^ i ^ " has different property access than in superclass") p);
-			if (has_class_field_flag f2 CfFinal) then display_error ctx.com ("Cannot override final method " ^ i) p;
+				display_str_error ctx.com ("Field " ^ i ^ " has different property access than in superclass") p);
+			if (has_class_field_flag f2 CfFinal) then display_str_error ctx.com ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
 				let map = TClass.get_map_function csup params in
 				valid_redefinition ctx map map f f.cf_type f2 t;
 			with
 				Unify_error l ->
-					display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ~nesting_level:1 ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
-					display_error ~nesting_level:1 ctx.com (compl_msg (error_msg (Unify l))) p;
+					display_str_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
+					display_str_error ~nesting_level:1 ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
+					display_error ~nesting_level:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
 		with
 			Not_found ->
 				if has_class_field_flag f CfOverride then
@@ -227,7 +227,7 @@ let check_overriding ctx c f =
 						) fields [] in
 						StringError.string_error i fields ("Field " ^ i ^ " is declared 'override' but doesn't override any field")
 					end in
-					display_error ctx.com msg p
+					display_str_error ctx.com msg p
 		in
 		if has_class_field_flag f CfOverload then begin
 			let overloads = Overloads.get_overloads ctx.com csup i in
@@ -235,7 +235,7 @@ let check_overriding ctx c f =
 				(* check if any super class fields are vars *)
 				match f2.cf_kind with
 				| Var _ ->
-					display_error ctx.com ("A variable named '" ^ f2.cf_name ^ "' was already declared in a superclass") f.cf_pos
+					display_str_error ctx.com ("A variable named '" ^ f2.cf_name ^ "' was already declared in a superclass") f.cf_pos
 				| _ -> ()
 			) overloads;
 			List.iter (fun f ->
@@ -267,7 +267,7 @@ let class_field_no_interf c i =
 
 let rec return_flow ctx e =
 	let error() =
-		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
+		display_str_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
 	in
 	let return_flow = return_flow ctx in
 	match e.eexpr with
@@ -318,12 +318,12 @@ let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
 		let path2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then str_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		let m2 = ctx.com.module_lut#find path2 in
 		let hex1 = Digest.to_hex m.m_extra.m_sign in
 		let hex2 = Digest.to_hex m2.m_extra.m_sign in
 		let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
-		typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+		str_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
 	with
 		Not_found ->
 			ctx.com.type_to_module#add t.mt_path m.m_path
@@ -335,15 +335,15 @@ module Inheritance = struct
 
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
-			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then typing_error "Cannot extend basic class" p;
-			if extends csup c then typing_error "Recursive class" p;
+			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then str_typing_error "Cannot extend basic class" p;
+			if extends csup c then str_typing_error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
-					if is_generic_parameter ctx csup then typing_error "Extending generic type parameters is no longer allowed in Haxe 4" p;
-					typing_error "Cannot extend type parameters" p
+					if is_generic_parameter ctx csup then str_typing_error "Extending generic type parameters is no longer allowed in Haxe 4" p;
+					str_typing_error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
-		| _ -> typing_error "Should extend by using a class" p
+		| _ -> str_typing_error "Should extend by using a class" p
 
 	let rec check_interface ctx missing c intf params =
 		List.iter (fun (i2,p2) ->
@@ -387,18 +387,18 @@ module Inheritance = struct
 						| MethMacro -> 2
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
-						display_error ctx.com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
+						display_str_error ctx.com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 					else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-						display_error ctx.com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+						display_str_error ctx.com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 					else try
 						let map1 = TClass.get_map_function  intf params in
 						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
-								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ~nesting_level:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
-								display_error ~nesting_level:1 ctx.com (compl_msg (error_msg (Unify l))) p;
+								display_str_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+								display_str_error ~nesting_level:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
+								display_error ~nesting_level:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
 							end
 				)
 			with Not_found ->
@@ -421,7 +421,7 @@ module Inheritance = struct
 						else
 							("Field " ^ f.cf_name ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
 						in
-						display_error ctx.com msg p
+						display_str_error ctx.com msg p
 					end
 				end
 		in
@@ -488,8 +488,8 @@ module Inheritance = struct
 			display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 		| l ->
 			let singular = match l with [_] -> true | _ -> false in
-			display_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
-			display_error ctx.com (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
+			display_str_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
+			display_str_error ctx.com (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
 			let pctx = print_context() in
 			List.iter (fun (cf,_) ->
 				let s = match follow cf.cf_type with
@@ -498,7 +498,7 @@ module Inheritance = struct
 					| t ->
 						s_type pctx t
 				in
-				display_error ~nesting_level:1 ctx.com (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s)) cf.cf_name_pos
+				display_str_error ~nesting_level:1 ctx.com (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s)) cf.cf_name_pos
 			) (List.rev !missing)
 
 	let set_heritance ctx c herits p =
@@ -512,7 +512,7 @@ module Inheritance = struct
 				| _ -> ()
 			) csup.cl_meta;
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
-				typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
+				str_typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
 		let check_cancel_build csup =
 			match csup.cl_build() with
@@ -565,17 +565,17 @@ module Inheritance = struct
 					check_interfaces ctx c
 			in
 			if is_extends then begin
-				if c.cl_super <> None then typing_error "Cannot extend several classes" p;
+				if c.cl_super <> None then str_typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
-					if not (has_class_flag csup CInterface) then typing_error "Cannot extend by using a class" p;
+					if not (has_class_flag csup CInterface) then str_typing_error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
-					if (has_class_flag csup CInterface) then typing_error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then str_typing_error "Cannot extend by using an interface" p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
@@ -584,13 +584,13 @@ module Inheritance = struct
 				)
 			end else begin match follow t with
 				| TInst ({ cl_path = [],"ArrayAccess" } as ca,[t]) when (has_class_flag ca CExtern) ->
-					if c.cl_array_access <> None then typing_error "Duplicate array access" p;
+					if c.cl_array_access <> None then str_typing_error "Duplicate array access" p;
 					c.cl_array_access <- Some t;
 					(fun () -> ())
 				| TInst (intf,params) ->
-					if extends intf c then typing_error "Recursive class" p;
-					if (has_class_flag c CInterface) then typing_error "Interfaces cannot implement another interface (use extends instead)" p;
-					if not (has_class_flag intf CInterface) then typing_error "You can only implement an interface" p;
+					if extends intf c then str_typing_error "Recursive class" p;
+					if (has_class_flag c CInterface) then str_typing_error "Interfaces cannot implement another interface (use extends instead)" p;
+					if not (has_class_flag intf CInterface) then str_typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 						delay ctx PConnectField check_interfaces_or_delay;
@@ -601,12 +601,12 @@ module Inheritance = struct
 						process_meta intf;
 					)
 				| TDynamic t ->
-					if c.cl_dynamic <> None then typing_error "Cannot have several dynamics" p;
-					if not (has_class_flag c CExtern) then display_error ctx.com "In haxe 4, implements Dynamic is only supported on externs" p;
+					if c.cl_dynamic <> None then str_typing_error "Cannot have several dynamics" p;
+					if not (has_class_flag c CExtern) then display_str_error ctx.com "In haxe 4, implements Dynamic is only supported on externs" p;
 					c.cl_dynamic <- Some (match t with None -> t_dynamic | Some t -> t);
 					(fun () -> ())
 				| _ ->
-					typing_error "Should implement by using an interface" p
+					str_typing_error "Should implement by using an interface" p
 			end
 		in
 		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
@@ -652,6 +652,6 @@ let check_final_vars ctx e =
 		in
 		find_inits e;
 		Hashtbl.iter (fun _ cf ->
-			display_error ctx.com ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
+			display_str_error ctx.com ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
 		) final_vars
 	end

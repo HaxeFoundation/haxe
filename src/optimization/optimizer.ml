@@ -199,7 +199,7 @@ let reduce_expr com e =
 		List.iter (fun (cl,_) ->
 			List.iter (fun e ->
 				match e.eexpr with
-				| TCall ({ eexpr = TField (_,FEnum _) },_) -> typing_error "Not-constant enum in switch cannot be matched" e.epos
+				| TCall ({ eexpr = TField (_,FEnum _) },_) -> str_typing_error "Not-constant enum in switch cannot be matched" e.epos
 				| _ -> ()
 			) cl
 		) cases;

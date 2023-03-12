@@ -32,7 +32,7 @@ let type_function_arg_value ctx t c do_display =
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || Common.is_diagnostics ctx.com then
-						Common.display_error ctx.com "Default argument value should be constant" p;
+						Common.display_str_error ctx.com "Default argument value should be constant" p;
 					None
 			in
 			loop e
@@ -76,9 +76,9 @@ object(self)
 
 	method private check_rest (is_last : bool) (eo : expr option) (opt : bool) (t : Type.t) (pn : pos) =
 		if ExtType.is_rest (follow t) then begin
-			if opt then typing_error "Rest argument cannot be optional" pn;
-			begin match eo with None -> () | Some (_,p) -> typing_error "Rest argument cannot have default value" p end;
-			if not is_last then typing_error "Rest should only be used for the last function argument" pn;
+			if opt then str_typing_error "Rest argument cannot be optional" pn;
+			begin match eo with None -> () | Some (_,p) -> str_typing_error "Rest argument cannot have default value" p end;
+			if not is_last then str_typing_error "Rest should only be used for the last function argument" pn;
 		end
 
 	(* Returns the `(tvar * texpr option) list` for `tf_args`. Also checks the validity of argument names and whether or not

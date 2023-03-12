@@ -67,9 +67,9 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 				EBlock [],p
 			else
 				if fmode = FunMember && has_class_flag ctx.curclass CAbstract then
-					typing_error "Function body or abstract modifier required" p
+					str_typing_error "Function body or abstract modifier required" p
 				else
-					typing_error "Function body required" p
+					str_typing_error "Function body required" p
 		| Some e -> e
 	in
 	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
@@ -136,7 +136,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 					let e_super_call = mk (TCall(e_super,[])) ctx.t.tvoid e.epos in
 					concat e_super_call e
 				else begin
-					display_error ctx.com "Missing super constructor call" p;
+					display_str_error ctx.com "Missing super constructor call" p;
 					e
 				end
 			with

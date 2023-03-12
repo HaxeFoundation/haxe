@@ -43,10 +43,10 @@ let find_unused_variables com e =
 let check_other_things com e =
 	let had_effect = ref false in
 	let no_effect p =
-		add_diagnostics_message com "This code has no effect" p DKCompilerMessage Warning;
+		add_diagnostics_message com (Globals.located_msg "This code has no effect" p) DKCompilerMessage Warning;
 	in
 	let pointless_compound s p =
-		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerMessage Warning;
+		add_diagnostics_message com (Globals.located_msg (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p) DKCompilerMessage Warning;
 	in
 	let rec compound s el p =
 		let old = !had_effect in

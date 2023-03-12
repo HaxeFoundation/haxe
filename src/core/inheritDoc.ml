@@ -8,7 +8,7 @@ let expr_to_target e =
 		match e with
 		| EConst (Ident s) when s <> "" -> [s]
 		| EField (e,s,_) -> s :: loop e
-		| _ -> Error.typing_error "Invalid target expression for @:inheritDoc" p
+		| _ -> Error.str_typing_error "Invalid target expression for @:inheritDoc" p
 	in
 	match loop e with
 	| sub_name :: type_name :: pack when not (is_lower_ident type_name) ->
@@ -16,7 +16,7 @@ let expr_to_target e =
 	| type_name :: pack ->
 		(List.rev pack, type_name), None
 	| [] ->
-		Error.typing_error "Invalid target path for @:inheritDoc" (snd e)
+		Error.str_typing_error "Invalid target path for @:inheritDoc" (snd e)
 
 let rec get_constructor c =
 	match c.cl_constructor, c.cl_super with

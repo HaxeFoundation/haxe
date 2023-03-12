@@ -76,14 +76,14 @@ let init_import ctx context_init path mode p =
 			(match List.rev path with
 			(* p spans `import |` (to the display position), so we take the pmax here *)
 			| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
-			| (_,p) :: _ -> Error.typing_error "Module name must start with an uppercase letter" p))
+			| (_,p) :: _ -> Error.str_typing_error "Module name must start with an uppercase letter" p))
 	| (tname,p2) :: rest ->
 		let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
 		let p_type = punion p1 p2 in
 		let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
 		let types = md.m_types in
 		let no_private (t,_) = not (t_infos t).mt_private in
-		let error_private p = typing_error "Importing private declarations from a module is not allowed" p in
+		let error_private p = str_typing_error "Importing private declarations from a module is not allowed" p in
 		let chk_private t p = if ctx.m.curmod != (t_infos t).mt_module && (t_infos t).mt_private then error_private p in
 		let has_name name t = snd (t_infos t).mt_path = name in
 
@@ -93,7 +93,7 @@ let init_import ctx context_init path mode p =
 				| 'a'..'z' -> "field", PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
 				| _ -> "type", List.map (fun mt -> snd (t_infos mt).mt_path) types
 			in
-			typing_error (StringError.string_error name
+			str_typing_error (StringError.string_error name
 				candidates
 				("Module " ^ s_type_path md.m_path ^ " does not define " ^ target_kind ^ " " ^ name)
 			) p
@@ -111,7 +111,7 @@ let init_import ctx context_init path mode p =
 		in
 		let rebind t name p =
 			if not (name.[0] >= 'A' && name.[0] <= 'Z') then
-				typing_error "Type aliases must start with an uppercase letter" p;
+				str_typing_error "Type aliases must start with an uppercase letter" p;
 			let _, _, f = ctx.g.do_build_instance ctx t p_type in
 			(* create a temp private typedef, does not register it in module *)
 			let t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name) in
@@ -190,7 +190,7 @@ let init_import ctx context_init path mode p =
 										PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
 								in
 
-								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p
+								display_str_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p
 							end
 						with Not_found ->
 							fail_usefully tsub p
@@ -223,20 +223,20 @@ let init_import ctx context_init path mode p =
 			| (tsub,p2) :: (fname,p3) :: rest ->
 				(match rest with
 				| [] -> ()
-				| (n,p) :: _ -> typing_error ("Unexpected " ^ n) p);
+				| (n,p) :: _ -> str_typing_error ("Unexpected " ^ n) p);
 				let tsub = get_type tsub in
 				context_init#add (fun() ->
 					try
 						add_static_init tsub name fname
 					with Not_found ->
-						display_error ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+						display_str_error ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
 				);
 			)
 		| IAll ->
 			let t = (match rest with
 				| [] -> get_type tname
 				| [tsub,_] -> get_type tsub
-				| _ :: (n,p) :: _ -> typing_error ("Unexpected " ^ n) p
+				| _ :: (n,p) :: _ -> str_typing_error ("Unexpected " ^ n) p
 			) in
 			context_init#add (fun() ->
 				match resolve_typedef t with
@@ -247,7 +247,7 @@ let init_import ctx context_init path mode p =
 				| TEnumDecl e ->
 					PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
 				| _ ->
-					typing_error "No statics to import from this type" p
+					str_typing_error "No statics to import from this type" p
 			)
 		))
 

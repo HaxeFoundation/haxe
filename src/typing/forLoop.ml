@@ -114,8 +114,8 @@ module IterationKind = struct
 						| Some e -> e
 						| None ->
 							if resume then raise Not_found;
-							display_error ~nesting_level:nl ctx.com "Field iterator has an invalid type" acc_expr.epos;
-							display_error ~nesting_level:(nl+1) ctx.com (error_msg (Unify l)) p;
+							display_str_error ~nesting_level:nl ctx.com "Field iterator has an invalid type" acc_expr.epos;
+							display_error ~nesting_level:(nl+1) ctx.com (error_msg p (Unify l));
 							mk (TConst TNull) t_dynamic p
 					)
 			in
@@ -172,7 +172,7 @@ module IterationKind = struct
 
 	let of_texpr ?(resume=false) ctx e unroll p =
 		let dynamic_iterator e =
-			display_error ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
+			display_str_error ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
 			IteratorDynamic,e,t_dynamic
 		in
 		let check_iterator () =
@@ -280,7 +280,7 @@ module IterationKind = struct
 				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
 				| TUnop (Increment,_,{ eexpr = TLocal l })
 				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
-					typing_error "Loop variable cannot be modified" e.epos
+					str_typing_error "Loop variable cannot be modified" e.epos
 				| _ ->
 					Type.iter loop e
 			in
@@ -319,7 +319,7 @@ module IterationKind = struct
 			mk (TFor(v,e1,e2)) t_void p
 		| IteratorIntUnroll(offset,length,ascending) ->
 			check_loop_var_modification [v] e2;
-			if not ascending then typing_error "Cannot iterate backwards" p;
+			if not ascending then str_typing_error "Cannot iterate backwards" p;
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
@@ -332,7 +332,7 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
 			check_loop_var_modification [v] e2;
-			if not ascending then typing_error "Cannot iterate backwards" p;
+			if not ascending then str_typing_error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int a.epos in
 			let evar_index = mk (TVar(v_index,Some a)) t_void a.epos in
 			let ev_index = make_local v_index v_index.v_pos in
@@ -462,7 +462,7 @@ let type_for_loop ctx handle_display it e2 p =
 	let rec loop_ident dko e1 = match e1 with
 		| EConst(Ident i),p -> i,p,dko
 		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
-		| _ -> typing_error "Identifier expected" (pos e1)
+		| _ -> str_typing_error "Identifier expected" (pos e1)
 	in
 	let rec loop dko e1 = match fst e1 with
 		| EBinop(OpIn,e1,e2) ->
@@ -477,7 +477,7 @@ let type_for_loop ctx handle_display it e2 p =
 			| Some dk -> ignore(handle_display ctx e1 dk MGet WithType.value);
 			| None -> ()
 			end;
-			typing_error "For expression should be 'v in expr'" (snd it)
+			str_typing_error "For expression should be 'v in expr'" (snd it)
 	in
 	let ik,e1 = loop None it in
 	let e1 = type_expr ctx e1 WithType.value in
@@ -505,7 +505,7 @@ let type_for_loop ctx handle_display it e2 p =
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		(match follow e1.etype with
 		| TDynamic _ | TMono _ ->
-			display_error ctx.com "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
+			display_str_error ctx.com "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
 		| _ -> ()
 		);
 		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in

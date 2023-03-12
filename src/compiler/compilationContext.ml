@@ -67,3 +67,7 @@ let message ctx msg =
 let error ctx ?(nesting_level=0) msg p =
 	message ctx (msg,p,nesting_level,DKCompilerMessage,Error);
 	ctx.has_error <- true
+
+let located_error ctx ?(nesting_level=0) msg =
+	message ctx ((extract_located_msg msg),(extract_located_pos msg),nesting_level,DKCompilerMessage,Error);
+	ctx.has_error <- true

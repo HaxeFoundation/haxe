@@ -257,11 +257,11 @@ let make_static_call ctx c cf map args t p =
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
 	else if ctx.in_call_args then raise (WithTypeError(Unify l,p,0))
-	else display_error ctx.com (error_msg (Unify l)) p
+	else display_error ctx.com (error_msg p (Unify l))
 
 let raise_or_display_message ctx msg p =
 	if ctx.in_call_args then raise (WithTypeError (Custom msg,p,0))
-	else display_error ctx.com msg p
+	else display_str_error ctx.com msg p
 
 let unify ctx t1 t2 p =
 	try
@@ -307,7 +307,7 @@ let add_local ctx k n t p =
 
 let display_identifier_error ctx ?prepend_msg msg p =
 	let prepend = match prepend_msg with Some s -> s ^ " " | _ -> "" in
-	display_error ctx.com (prepend ^ msg) p
+	display_str_error ctx.com (prepend ^ msg) p
 
 let check_identifier_name ?prepend_msg ctx name kind p =
 	if starts_with name '$' then
@@ -334,8 +334,8 @@ let check_module_path ctx (pack,name) p =
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
-		display_error ctx.com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
-		display_error ctx.com msg p
+		display_str_error ctx.com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
+		display_str_error ctx.com msg p
 
 let check_local_variable_name ctx name origin p =
 	match name with
@@ -421,7 +421,7 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			t
 		with
 			| Error (m,p,nl) ->
-				raise (Fatal_error ((error_msg m),p,nl))
+				raise (Fatal_error ((error_msg p m),nl))
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
@@ -554,7 +554,7 @@ let rec can_access ctx c cf stat =
 
 let check_field_access ctx c f stat p =
 	if not ctx.untyped && not (can_access ctx c f stat) then
-		display_error ctx.com ("Cannot access private field " ^ f.cf_name) p
+		display_str_error ctx.com ("Cannot access private field " ^ f.cf_name) p
 
 (** removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match follow cf.cf_type with
@@ -594,7 +594,7 @@ let field_to_type_path com e =
 			| [] | _ :: [] ->
 				loop e pack (f :: name)
 			| _ -> (* too many name paths *)
-				display_error com ("Unexpected " ^ f) p;
+				display_str_error com ("Unexpected " ^ f) p;
 				raise Exit)
 		| EField(e,f,_),_ ->
 			loop e (f :: pack) name
@@ -605,7 +605,7 @@ let field_to_type_path com e =
 					if Char.uppercase fchar = fchar then
 						pack, f, None
 					else begin
-						display_error com "A class name must start with an uppercase letter" (snd e);
+						display_str_error com "A class name must start with an uppercase letter" (snd e);
 						raise Exit
 					end
 				| [name] ->
@@ -617,7 +617,7 @@ let field_to_type_path com e =
 			in
 			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
 		| _,pos ->
-			display_error com "Unexpected expression when building strict meta" pos;
+			display_str_error com "Unexpected expression when building strict meta" pos;
 			raise Exit
 	in
 	loop e [] []

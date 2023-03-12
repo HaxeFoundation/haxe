@@ -4,20 +4,20 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics msg p kind =
+	let handle_diagnostics msg kind =
 		ctx.has_error <- true;
-		add_diagnostics_message com msg p kind Error;
+		add_diagnostics_message com msg kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
 		| Error.Error(msg,p,_) ->
-			handle_diagnostics (Error.error_msg msg) p DKCompilerMessage
+			handle_diagnostics (Error.error_msg p msg) DKCompilerMessage
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (Parser.error_msg msg) p DKParserError
+			handle_diagnostics (Globals.located_msg (Parser.error_msg msg) p) DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (Lexer.error_msg msg) p DKParserError
+			handle_diagnostics (Globals.located_msg (Lexer.error_msg msg) p) DKParserError
 		end
 	else
 		f arg
@@ -334,8 +334,8 @@ try
 with
 	| Abort ->
 		()
-	| Error.Fatal_error (m,p,nl) ->
-		error ~nesting_level:nl ctx m p
+	| Error.Fatal_error (m,nl) ->
+		error ~nesting_level:nl ctx (Globals.extract_located_msg m) (Globals.extract_located_pos m)
 	| Common.Abort (m,p) ->
 		error ctx m p
 	| Lexer.Error (m,p) ->
@@ -350,8 +350,10 @@ with
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ~nesting_level:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
+	| Error.Error (Stack stack,p,nl) ->
+			List.iter (fun (e,p) -> located_error ~nesting_level:(nl+1) ctx (Error.error_msg p e)) stack
 	| Error.Error (m,p,nl) ->
-		error ~nesting_level:nl ctx (Error.error_msg m) p
+		located_error ~nesting_level:nl ctx (Error.error_msg p m)
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->

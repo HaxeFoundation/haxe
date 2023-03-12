@@ -17,7 +17,7 @@ and error_msg =
 	| Unify of unify_error list
 	| Custom of string
 	| Unknown_ident of string
-	| Stack of error_msg * error_msg
+	| Stack of (error_msg * Globals.pos) list
 	| Call_error of call_error
 	| No_constructor of module_type
 	| Abstract_class of module_type
@@ -26,7 +26,7 @@ and type_not_found_reason =
 	| Private_type
 	| Not_defined
 
-exception Fatal_error of string * Globals.pos * int
+exception Fatal_error of Globals.located_msg * int
 exception Error of error_msg * Globals.pos * int
 
 let string_source t = match follow t with
@@ -43,6 +43,9 @@ let short_type ctx t =
 	Should be called for each complementary error message.
 *)
 let compl_msg s = "... " ^ s
+let rec compl_located_msg = function
+	 | Message (s,p) -> Message (compl_msg s,p)
+	 | Stack stack -> Stack (List.map compl_located_msg stack)
 
 let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
@@ -270,33 +273,38 @@ module BetterErrors = struct
 			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
 end
 
-let rec error_msg = function
-	| Module_not_found m -> "Type not found : " ^ s_type_path m
-	| Type_not_found (m,t,Private_type) -> "Cannot access private type " ^ t ^ " in module " ^ s_type_path m
-	| Type_not_found (m,t,Not_defined) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
-	| Unify l -> BetterErrors.better_error_message l
-	| Unknown_ident s -> "Unknown identifier : " ^ s
-	| Custom s -> s
-	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
-	| Call_error err -> s_call_error err
-	| No_constructor mt -> (s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
-	| Abstract_class mt -> (s_type_path (t_infos mt).mt_path) ^ " is abstract and cannot be constructed"
+let rec error_msg p = function
+	| Module_not_found m -> Globals.located_msg ("Type not found : " ^ s_type_path m) p
+	| Type_not_found (m,t,Private_type) -> Globals.located_msg ("Cannot access private type " ^ t ^ " in module " ^ s_type_path m) p
+	| Type_not_found (m,t,Not_defined) -> Globals.located_msg ("Module " ^ s_type_path m ^ " does not define type " ^ t) p
+	| Unify l -> Globals.located_msg (BetterErrors.better_error_message l) p
+	| Unknown_ident s -> Globals.located_msg ("Unknown identifier : " ^ s) p
+	| Custom s -> Globals.located_msg s p
+	| Stack stack -> Globals.located_stack (List.map (fun (e,p) -> error_msg p e) stack)
+	| Call_error err -> s_call_error p err
+	| No_constructor mt -> Globals.located_msg (s_type_path (t_infos mt).mt_path ^ " does not have a constructor") p
+	| Abstract_class mt -> Globals.located_msg (s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed") p
 
-and s_call_error = function
+and s_call_error p = function
 	| Not_enough_arguments tl ->
 		let pctx = print_context() in
-		"Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))
-	| Too_many_arguments -> "Too many arguments"
-	| Could_not_unify err -> error_msg err
-	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
+		Globals.located_msg ("Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))) p
+	| Too_many_arguments -> Globals.located_msg "Too many arguments" p
+	| Could_not_unify err -> error_msg p err
+	| Cannot_skip_non_nullable s -> Globals.located_msg ("Cannot skip non-nullable argument " ^ s) p
 
-let typing_error ?(nesting_level=0) msg p = raise (Error (Custom msg,p,nesting_level))
+(* TODO handle stacks there too? *)
+let typing_error ?(nesting_level=0) msg = raise (Error (Custom (Globals.extract_located_msg msg),(Globals.extract_located_pos msg),nesting_level))
+let str_typing_error ?(nesting_level=0) msg p = raise (Error (Custom msg,p,nesting_level))
+
+let call_stack_error ?(nesting_level=0) msg stack p =
+	raise (Error (Stack (((Custom ("Uncaught exception " ^ msg)),p) :: (List.map (fun p -> ((Custom "Called from here"),p)) stack)),p,nesting_level))
 
 let raise_typing_error ?(nesting_level=0) err p = raise (Error(err,p,nesting_level))
 
 let error_require r p =
 	if r = "" then
-		typing_error "This field is not available with the current compilation flags" p
+		str_typing_error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
@@ -307,6 +315,6 @@ let error_require r p =
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
-	typing_error ("Accessing this field requires " ^ r) p
+	str_typing_error ("Accessing this field requires " ^ r) p
 
-let invalid_assign p = typing_error "Invalid assign" p
+let invalid_assign p = str_typing_error "Invalid assign" p
