@@ -294,13 +294,13 @@ and s_call_error p = function
 	| Cannot_skip_non_nullable s -> Globals.located_msg ("Cannot skip non-nullable argument " ^ s) p
 
 (* TODO handle stacks there too? *)
-let typing_error ?(nesting_level=0) msg = raise (Error (Custom (Globals.extract_located_msg msg),(Globals.extract_located_pos msg),nesting_level))
-let str_typing_error ?(nesting_level=0) msg p = raise (Error (Custom msg,p,nesting_level))
+let typing_error ?(depth=0) msg = raise (Error (Custom (Globals.extract_located_msg msg),(Globals.extract_located_pos msg),depth))
+let str_typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
 
-let call_stack_error ?(nesting_level=0) msg stack p =
-	raise (Error (Stack (((Custom ("Uncaught exception " ^ msg)),p) :: (List.map (fun p -> ((Custom "Called from here"),p)) stack)),p,nesting_level))
+let call_stack_error ?(depth=0) msg stack p =
+	raise (Error (Stack (((Custom ("Uncaught exception " ^ msg)),p) :: (List.map (fun p -> ((Custom "Called from here"),p)) stack)),p,depth))
 
-let raise_typing_error ?(nesting_level=0) err p = raise (Error(err,p,nesting_level))
+let raise_typing_error ?(depth=0) err p = raise (Error(err,p,depth))
 
 let error_require r p =
 	if r = "" then

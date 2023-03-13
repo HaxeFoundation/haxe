@@ -88,7 +88,7 @@ let typing_timer ctx need_type f =
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
 	(*if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
-	ctx.com.error <- (fun ?(nesting_level=0) e p -> raise (Error(Custom e,p,nesting_level)));
+	ctx.com.error <- (fun ?(depth=0) e p -> raise (Error(Custom e,p,depth)));
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;
 		flush_pass ctx PBuildClass "typing_timer";
@@ -422,8 +422,8 @@ let make_macro_api ctx p =
 			in
 			Std.finally restore f ()
 		);
-		MacroApi.warning = (fun ?(nesting_level=0) w msg p ->
-			warning ~nesting_level:nesting_level ctx w msg p
+		MacroApi.warning = (fun ?(depth=0) w msg p ->
+			warning ~depth ctx w msg p
 		);
 	}
 
@@ -508,7 +508,7 @@ let create_macro_interp ctx mctx =
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.error in
-	com2.error <- (fun ?nesting_level e p ->
+	com2.error <- (fun ?depth e p ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
 		on_error e p

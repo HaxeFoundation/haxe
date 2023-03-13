@@ -59,7 +59,7 @@ let check_field_access ctx cff =
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
 					display_str_error ctx.com (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
-					display_str_error ~nesting_level:1 ctx.com (compl_msg "Previously defined here") p2;
+					display_str_error ~depth:1 ctx.com (compl_msg "Previously defined here") p2;
 				end;
 				loop p1 acc l
 			with Not_found -> match access with
@@ -67,7 +67,7 @@ let check_field_access ctx cff =
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
 						display_str_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-						display_str_error ~nesting_level:1 ctx.com (compl_msg "Conflicts with this") p2;
+						display_str_error ~depth:1 ctx.com (compl_msg "Conflicts with this") p2;
 						loop p1 acc l
 					with Not_found ->
 						loop p1 ((access,p1) :: acc) l

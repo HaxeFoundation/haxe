@@ -92,7 +92,7 @@ let process_display_arg ctx actx =
 let process_display_configuration ctx =
 	let com = ctx.com in
 	if is_diagnostics com then begin
-		com.warning <- (fun ?nesting_level w options s p ->
+		com.warning <- (fun ?depth w options s p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				add_diagnostics_message com (Globals.located_msg s p) DKCompilerMessage Warning

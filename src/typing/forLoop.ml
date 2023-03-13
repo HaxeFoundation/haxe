@@ -94,7 +94,7 @@ module IterationKind = struct
 				dynamic_iterator := Some e;
 				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p, 0))
 			| _ -> e
-		with Error (Unify _,_,nl) ->
+		with Error (Unify _,_,depth) ->
 			let try_last_resort after =
 				try
 					match last_resort with
@@ -114,8 +114,8 @@ module IterationKind = struct
 						| Some e -> e
 						| None ->
 							if resume then raise Not_found;
-							display_str_error ~nesting_level:nl ctx.com "Field iterator has an invalid type" acc_expr.epos;
-							display_error ~nesting_level:(nl+1) ctx.com (error_msg p (Unify l));
+							display_str_error ~depth ctx.com "Field iterator has an invalid type" acc_expr.epos;
+							display_error ~depth:(depth+1) ctx.com (error_msg p (Unify l));
 							mk (TConst TNull) t_dynamic p
 					)
 			in

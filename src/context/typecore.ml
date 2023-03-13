@@ -221,9 +221,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let warning ?(nesting_level=0) ctx w msg p =
+let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning ~nesting_level:nesting_level w options msg p
+	ctx.com.warning ~depth w options msg p
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -294,7 +294,7 @@ let add_local ctx k n t p =
 				(* ignore std lib *)
 				if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
-					warning ~nesting_level:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+					warning ~depth:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 				end
 			with Not_found ->
 				()

@@ -254,8 +254,8 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 
 let unify_min ctx el =
 	try unify_min_raise ctx el
-	with Error (Unify l,p,nl) ->
-		if not ctx.untyped then display_error ~nesting_level:nl ctx.com (error_msg p (Unify l));
+	with Error (Unify l,p,depth) ->
+		if not ctx.untyped then display_error ~depth ctx.com (error_msg p (Unify l));
 		(List.hd el).etype
 
 let unify_min_for_type_source ctx el src =
@@ -926,7 +926,7 @@ and type_object_decl ctx fl with_type p =
 			(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) field_map [] with
 				| [] -> ()
 				| [n] -> raise_or_display ctx [Unify_custom ("Object requires field " ^ n)] p
-				| nl -> raise_or_display ctx [Unify_custom ("Object requires fields: " ^ (String.concat ", " nl))] p);
+				| depth -> raise_or_display ctx [Unify_custom ("Object requires fields: " ^ (String.concat ", " depth))] p);
 			(match !extra_fields with
 			| [] -> ()
 			| _ -> raise_or_display ctx (List.map (fun n -> has_extra_field t n) !extra_fields) p);
@@ -1030,8 +1030,8 @@ and type_new ctx path el with_type force_inline p =
 			let fcc = unify_field_call ctx fa [] el p fa.fa_inline in
 			check_constructor_access ctx c fcc.fc_field p;
 			fcc
-		with Error (e,p,nl) ->
-			typing_error ~nesting_level:nl (error_msg p e);
+		with Error (e,p,depth) ->
+			typing_error ~depth (error_msg p e);
 	in
 	let display_position_in_el () =
 		List.exists (fun e -> DisplayPosition.display_position#enclosed_in (pos e)) el
@@ -1115,8 +1115,8 @@ and type_new ctx path el with_type force_inline p =
 		mk (TNew (c,params,el)) t p
 	| _ ->
 		str_typing_error (s_type (print_context()) t ^ " cannot be constructed") p
-	end with Error(No_constructor _ as err,p,nl) when ctx.com.display.dms_kind <> DMNone ->
-		display_error ~nesting_level:nl ctx.com (error_msg p err);
+	end with Error(No_constructor _ as err,p,depth) when ctx.com.display.dms_kind <> DMNone ->
+		display_error ~depth ctx.com (error_msg p err);
 		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
 
 and type_try ctx e1 catches with_type p =
@@ -1215,7 +1215,7 @@ and type_map_declaration ctx e1 el with_type p =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
 			display_str_error ctx.com "Duplicate key" e_key.epos;
-			str_typing_error ~nesting_level:1 (compl_msg "Previously defined here") p
+			str_typing_error ~depth:1 (compl_msg "Previously defined here") p
 		with Not_found ->
 			begin match e_key.eexpr with
 			| TConst _ -> Hashtbl.add keys e_key.eexpr e_key.epos;

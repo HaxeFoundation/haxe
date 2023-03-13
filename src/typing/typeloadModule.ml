@@ -70,7 +70,7 @@ module ModuleLevel = struct
 			DeprecationCheck.check_is com name meta p;
 			let error prev_pos =
 				display_str_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
-				str_typing_error ~nesting_level:1 (compl_msg "Previous declaration here") prev_pos;
+				str_typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
 			in
 			List.iter (fun (t2,(_,p2)) ->
 				if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
@@ -677,8 +677,8 @@ module TypeLevel = struct
 				check_path_display path p;
 				ImportHandling.init_import ctx context_init path mode p;
 				ImportHandling.commit_import ctx path mode p;
-			with Error(err,p,nl) ->
-				display_error ~nesting_level:nl ctx.com (Error.error_msg p err)
+			with Error(err,p,depth) ->
+				display_error ~depth ctx.com (Error.error_msg p err)
 			end
 		| EUsing path ->
 			check_path_display path p;

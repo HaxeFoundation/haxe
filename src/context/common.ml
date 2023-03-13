@@ -353,9 +353,9 @@ type context = {
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : ?nesting_level:int -> string -> pos -> unit;
-	mutable info : ?nesting_level:int -> string -> pos -> unit;
-	mutable warning : ?nesting_level:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable info : ?depth:int -> string -> pos -> unit;
+	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -822,10 +822,10 @@ let create compilation_step cs version args =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun ?nesting_level _ _ -> die "" __LOC__);
-		warning = (fun ?nesting_level _ _ _ -> die "" __LOC__);
+		info = (fun ?depth _ _ -> die "" __LOC__);
+		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [];
-		error = (fun ?nesting_level _ _ -> die "" __LOC__);
+		error = (fun ?depth _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -1013,7 +1013,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort ?nesting_level msg p = raise (Abort (msg,p))
+let abort ?depth msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 
@@ -1224,15 +1224,15 @@ let add_diagnostics_message com msg kind sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
-let display_error com ?(nesting_level = 0) msg =
+let display_error com ?(depth = 0) msg =
 	if is_diagnostics com then
 		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
 		(* TODO com.located_error or something *)
-		com.error (Globals.extract_located_msg msg) (Globals.extract_located_pos msg) ~nesting_level:nesting_level
+		com.error (Globals.extract_located_msg msg) (Globals.extract_located_pos msg) ~depth
 
-let display_str_error com ?(nesting_level = 0) msg p =
-	display_error com ~nesting_level (Globals.located_msg msg p)
+let display_str_error com ?(depth = 0) msg p =
+	display_error com ~depth (Globals.located_msg msg p)
 
 open Printer
 

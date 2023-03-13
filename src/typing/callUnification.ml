@@ -390,8 +390,8 @@ let unify_field_call ctx fa el_typed el p inline =
 			| _ ->
 				display_str_error ctx.com "Could not find a suitable overload, reasons follow" p;
 				List.iter (fun (cf,msg) ->
-					display_str_error ~nesting_level:1 ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
-					display_error ~nesting_level:2 ctx.com msg;
+					display_str_error ~depth:1 ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
+					display_error ~depth:2 ctx.com msg;
 				) failures;
 				str_typing_error "End of overload failure reasons" p
 			end
@@ -405,7 +405,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				display_str_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
 				List.iter (fun fcc ->
-					display_str_error ~nesting_level:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
+					display_str_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
 				) (fcc :: l);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
@@ -472,13 +472,13 @@ object(self)
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.com.error in
-		ctx.com.error <- (fun ?(nesting_level=0) msg ep ->
+		ctx.com.error <- (fun ?(depth=0) msg ep ->
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				locate_macro_error := false;
 				old msg (if ep = null_pos then p else ep);
 				locate_macro_error := true;
-				if ep <> null_pos then old ~nesting_level:(nesting_level+1) (compl_msg "Called from macro here") p;
+				if ep <> null_pos then old ~depth:(depth+1) (compl_msg "Called from macro here") p;
 			end else
 				old msg ep;
 		);

@@ -383,9 +383,9 @@ let type_generic_function ctx fa fcc with_type p =
 		let name = cf.cf_name ^ "_" ^ gctx.name in
 		let unify_existing_field tcf pcf = try
 			unify_raise tcf fcc.fc_type p
-		with Error(Unify _,_,nl) as err ->
-			display_str_error ~nesting_level:nl ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_str_error ~nesting_level:(nl+1) ctx.com (compl_msg "Conflicting field was defined here") pcf;
+		with Error(Unify _,_,depth) as err ->
+			display_str_error ~depth ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
+			display_str_error ~depth:(depth+1) ctx.com (compl_msg "Conflicting field was defined here") pcf;
 			raise err
 		in
 		let fa = try

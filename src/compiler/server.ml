@@ -156,12 +156,12 @@ module Communication = struct
 		loop 0 "";
 		List.rev !lines
 
-	let compiler_pretty_message_string ctx ectx (str,p,nl,_,sev) =
+	let compiler_pretty_message_string ctx ectx (str,p,depth,_,sev) =
 		match str with
 		(* Filter some messages that don't add much when using this message renderer *)
 		| "End of overload failure reasons" -> None
 		| _ -> begin
-			ectx.last_positions <- (IntMap.add nl p ectx.last_positions);
+			ectx.last_positions <- (IntMap.add depth p ectx.last_positions);
 			let is_null_pos = p = null_pos || p.pmin = -1 in
 			let is_unknown_file f = f = "" || f = "?" in
 
@@ -200,27 +200,27 @@ module Communication = struct
 			in
 
 			let parent_pos =
-				if nl = 0 then null_pos
-				else (try IntMap.find (nl-1) ectx.last_positions with Not_found -> null_pos)
+				if depth = 0 then null_pos
+				else (try IntMap.find (depth-1) ectx.last_positions with Not_found -> null_pos)
 			in
 
 			let prev_pos,prev_sev,prev_nl = match ectx.previous with
 				| None -> (None, None, 0)
-				| Some (p, sev, nl) -> (Some p, Some sev, nl)
+				| Some (p, sev, depth) -> (Some p, Some sev, depth)
 			in
 
 			let sev_changed = prev_sev = None || Some sev <> prev_sev in
-			let pos_changed = (prev_pos = None || p <> Option.get prev_pos || (nl <> prev_nl && nl <> prev_nl + 1)) && (parent_pos = null_pos || p <> parent_pos) in
+			let pos_changed = (prev_pos = None || p <> Option.get prev_pos || (depth <> prev_nl && depth <> prev_nl + 1)) && (parent_pos = null_pos || p <> parent_pos) in
 			let file_changed = prev_pos = None || (pos_changed && match (p.pfile, (Option.get prev_pos).pfile) with
 				| (f1, f2) when (is_unknown_file f1) && (is_unknown_file f2) -> false
 				| (f1, f2) -> f1 <> f2
 			) in
 
-			let display_heading = nl = 0 || sev_changed || file_changed in
-			let display_source = nl = 0 || sev_changed || pos_changed in
-			let display_pos_marker = (not is_null_pos) && (nl = 0 || sev_changed  || pos_changed) in
+			let display_heading = depth = 0 || sev_changed || file_changed in
+			let display_source = depth = 0 || sev_changed || pos_changed in
+			let display_pos_marker = (not is_null_pos) && (depth = 0 || sev_changed || pos_changed) in
 
-			let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find nl ectx.max_lines)) with Not_found -> 0) + 2 in
+			let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
 			let no_color = Define.defined ctx.com.defines Define.NoColor in
 			let c_reset = if no_color then "" else "\x1b[0m" in
@@ -233,7 +233,7 @@ module Communication = struct
 				| Error -> ("\x1b[31m", "\x1b[30;41m")
 			in
 
-			let sev_label = if nl > 0 then " -> " else Printf.sprintf
+			let sev_label = if depth > 0 then " -> " else Printf.sprintf
 				(if no_color then "[%s]" else " %s ")
 				(match sev with
 					| MessageSeverity.Warning -> "WARNING"
@@ -301,25 +301,25 @@ module Communication = struct
 				(if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str)
 			) !out (ExtString.String.nsplit str "\n");
 
-			ectx.previous <- Some ((if is_null_pos then null_pos else p), sev, nl);
-			ectx.gutter <- (IntMap.add nl gutter_len ectx.gutter);
+			ectx.previous <- Some ((if is_null_pos then null_pos else p), sev, depth);
+			ectx.gutter <- (IntMap.add depth gutter_len ectx.gutter);
 
 			(* Indent sub errors *)
-			let rec indent ?(acc=0) nl =
-				if nl = 0 then acc
-				else indent ~acc:(acc + try IntMap.find (nl-1) ectx.gutter with Not_found -> 3) (nl-1)
+			let rec indent ?(acc=0) depth =
+				if depth = 0 then acc
+				else indent ~acc:(acc + try IntMap.find (depth-1) ectx.gutter with Not_found -> 3) (depth-1)
 			in
 
 			Some (
-				if nl > 0 then String.concat "\n" (List.map (fun str -> match str with
+				if depth > 0 then String.concat "\n" (List.map (fun str -> match str with
 					| "" -> ""
-					| _ -> (String.make (indent nl) ' ') ^ str
+					| _ -> (String.make (indent depth) ' ') ^ str
 				) (ExtString.String.nsplit !out "\n"))
 				else !out
 			)
 		end
 
-	let compiler_message_string  ctx ectx (str,p,nl,_,sev) =
+	let compiler_message_string ctx ectx (str,p,depth,_,sev) =
 		let str = match sev with
 			| MessageSeverity.Warning -> "Warning : " ^ str
 			| Information | Error | Hint -> str
@@ -340,7 +340,7 @@ module Communication = struct
 			Some (Printf.sprintf "%s : %s" epos str)
 		end
 
-	let compiler_indented_message_string ctx ectx (str,p,nl,kind,sev) =
+	let compiler_indented_message_string ctx ectx (str,p,depth,kind,sev) =
 		match str with
 		(* Filter some messages that don't add much when using this message renderer *)
 		| "End of overload failure reasons" -> None
@@ -357,19 +357,19 @@ module Communication = struct
 				let epos = Lexer.get_error_pos error_printer p in
 				let lines =
 					match (ExtString.String.nsplit str "\n") with
-					| first :: rest -> (nl, first) :: List.map (fun msg -> (nl+1, msg)) rest
-					| l -> [(nl, List.hd l)]
+					| first :: rest -> (depth, first) :: List.map (fun msg -> (depth+1, msg)) rest
+					| l -> [(depth, List.hd l)]
 				in
 				let rm_prefix str = if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str in
-				Some (String.concat "\n" (List.map (fun (nl, msg) -> (String.make (nl*2) ' ') ^ epos ^ " : " ^ (rm_prefix msg)) lines))
+				Some (String.concat "\n" (List.map (fun (depth, msg) -> (String.make (depth*2) ' ') ^ epos ^ " : " ^ (rm_prefix msg)) lines))
 			end
 
 	let get_max_line max_lines messages =
-		List.fold_left (fun max_lines (str,p,nl,_,_) ->
+		List.fold_left (fun max_lines (str,p,depth,_,_) ->
 			let _,_,l2,_ = Lexer.get_pos_coords p in
-			let old = try IntMap.find nl max_lines with Not_found -> 0 in
+			let old = try IntMap.find depth max_lines with Not_found -> 0 in
 
-			if l2 > old then IntMap.add nl l2 max_lines
+			if l2 > old then IntMap.add depth l2 max_lines
 			else max_lines
 		) max_lines messages
 
@@ -820,8 +820,8 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 	let unblock () = Unix.set_nonblock sin in
 
 	let read_nonblock _ =
-        let len = IO.read_i32 chin in
-        Some (IO.really_nread_string chin len)
+		let len = IO.read_i32 chin in
+		Some (IO.really_nread_string chin len)
 	in
 	let read = if allow_nonblock then fun do_block ->
 		if do_block then begin
