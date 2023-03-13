@@ -733,7 +733,7 @@
 	{
 		"name": "MessagesLogFile",
 		"define": "messages-log-file",
-		"doc": "Path to a text file to write messages log to."
+		"doc": "Path to a text file to write messages log to, in addition to regular output."
 	},
 	{
 		"name": "MessagesLogFormat",
