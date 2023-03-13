@@ -1,6 +1,6 @@
-    ->  (unknown position)
+[ERROR] (unknown position)
 
-       | Uncaught exception Stack overflow
+   | Uncaught exception Stack overflow
 
     ->  Main.hx:1: character 1
 
