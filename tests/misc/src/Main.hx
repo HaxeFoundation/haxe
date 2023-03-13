@@ -70,7 +70,7 @@ class Main {
 		s = s.replace("\r\n", "\n"); // get rid of windows newlines
 
 		var cwd = Path.removeTrailingSlashes(FileSystem.fullPath(Sys.getCwd()));
-		var std = Path.removeTrailingSlashes(FileSystem.fullPath(Path.directory(Context.resolvePath("Any.hx"))));
+		var std = Path.removeTrailingSlashes(getStd());
 
 		var context = {cwd: cwd, std: std};
 		var macros = {normPath: normPath};
@@ -166,5 +166,10 @@ class Main {
 		}
 
 		return true;
+	}
+
+	static macro function getStd() {
+		var std = Compiler.getConfiguration().stdPath.shift();
+		return macro $v{std};
 	}
 }
