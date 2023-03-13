@@ -373,64 +373,67 @@ module Communication = struct
 			else max_lines
 		) max_lines messages
 
-	let bad_mode m = failwith (Printf.sprintf "Wrong message reporting mode: \"%s\". Accepted values are \"classic\", \"pretty\" and \"indent\"." m)
-
 	let display_messages ctx on_message = begin
 		let ectx = create_error_context () in
 		ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
 
-		let format_mode = Define.defined_value_safe ~default:"classic" ctx.com.defines Define.MessageReporting in
-		let format_message ctx ectx msg = match format_mode with
-			| "pretty" -> compiler_pretty_message_string ctx ectx msg
-			| "indent" -> compiler_indented_message_string ctx ectx msg
-			| "classic" -> compiler_message_string ctx ectx msg
-			| m -> bad_mode m
-		in
+		let get_formatter def default =
+			let format_mode = Define.defined_value_safe ~default ctx.com.defines def in
+			match format_mode with
+				| "pretty" -> compiler_pretty_message_string ctx ectx
+				| "indent" -> compiler_indented_message_string ctx ectx
+				| "classic" -> compiler_message_string ctx ectx
+				| m -> begin
+					let def = Define.get_define_key def in
+					error ctx (Printf.sprintf "Invalid message reporting mode: \"%s\", expected classic | pretty | indent (for -D %s)." m def) null_pos;
+					compiler_message_string ctx ectx
+				end
+			in
 
-		let log_messages = Define.defined ctx.com.defines Define.MessagesLogFile in
+		let message_formatter = get_formatter Define.MessageReporting "classic" in
+		let log_formatter = get_formatter Define.MessagesLogFormat "indent" in
+
+		let log_messages = ref (Define.defined ctx.com.defines Define.MessagesLogFile) in
 		let log_message = ref None in
 		let close_logs = ref None in
 
-		if log_messages then begin
-			let buf = Rbuffer.create 16000 in
+		if !log_messages then begin
+			try begin
+				let buf = Rbuffer.create 16000 in
 
-			let file = Define.defined_value ctx.com.defines Define.MessagesLogFile in
-			let chan = try begin
-				Path.mkdir_from_path file;
-				open_out_bin file
+				let file = Define.defined_value ctx.com.defines Define.MessagesLogFile in
+				let chan =
+					Path.mkdir_from_path file;
+					open_out_bin file
+				in
+
+				log_message := (Some (fun msg ->
+					match (log_formatter msg) with
+						| None -> ()
+						| Some str -> Rbuffer.add_string buf (str ^ "\n")));
+
+				close_logs := (Some (fun () ->
+					Rbuffer.output_buffer chan buf;
+					Rbuffer.clear buf;
+					close_out chan
+				));
 			end with
-				Failure e -> raise (failwith (Printf.sprintf "Error opening log file %s: %s" file e))
-			in
-
-			let format_mode = Define.defined_value_safe ~default:"indent" ctx.com.defines Define.MessagesLogFormat in
-			let format_log_message ctx ectx msg = match format_mode with
-				| "pretty" -> compiler_pretty_message_string ctx ectx msg
-				| "classic" -> compiler_message_string ctx ectx msg
-				| "indent" -> compiler_indented_message_string ctx ectx msg
-				| m -> bad_mode m
-			in
-
-			log_message := (Some (fun msg ->
-				match (format_log_message ctx ectx msg) with
-					| None -> ()
-					| Some str -> Rbuffer.add_string buf (str ^ "\n")));
-
-			close_logs := (Some (fun () ->
-				Rbuffer.output_buffer chan buf;
-				Rbuffer.clear buf;
-				close_out chan
-			));
+				| Failure e | Sys_error e -> begin
+					let def = Define.get_define_key Define.MessagesLogFile in
+					error ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
+					log_messages := false;
+				end
 		end;
 
 		List.iter (fun ((_,_,_,_,sev) as msg) ->
-			if log_messages then (Option.get !log_message) msg;
+			if !log_messages then (Option.get !log_message) msg;
 
-			match (format_message ctx ectx msg) with
+			match (message_formatter msg) with
 				| None -> ()
 				| Some str -> on_message sev str
 		) (List.rev ctx.messages);
 
-		if log_messages then (Option.get !close_logs) ();
+		if !log_messages then (Option.get !close_logs) ();
 	end
 
 	let create_stdio () =
