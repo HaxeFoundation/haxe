@@ -29,12 +29,12 @@ let get_purity_from_meta meta =
 			| "true" | "inferredPure" -> Pure
 			| "false" -> Impure
 			| "expect" -> ExpectPure p
-			| _ -> str_typing_error ("Unsupported purity value " ^ s ^ ", expected true or false") p
+			| _ -> typing_error ("Unsupported purity value " ^ s ^ ", expected true or false") p
 			end
 		| (_,[],_) ->
 			Pure
 		| (_,_,p) ->
-			str_typing_error "Unsupported purity value" p
+			typing_error "Unsupported purity value" p
 		end
 	with Not_found ->
 		MaybePure

@@ -506,7 +506,7 @@ let get_static_prototype_raise ctx path =
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path
-	with Not_found -> Error.str_typing_error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_static_prototype_as_value ctx path p =
 	(get_static_prototype ctx path p).pvalue
@@ -516,14 +516,14 @@ let get_instance_prototype_raise ctx path =
 
 let get_instance_prototype ctx path p =
 	try get_instance_prototype_raise ctx path
-	with Not_found -> Error.str_typing_error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_instance_constructor_raise ctx path =
 	IntMap.find path ctx.constructors
 
 let get_instance_constructor ctx path p =
 	try get_instance_constructor_raise ctx path
-	with Not_found -> Error.str_typing_error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_special_instance_constructor_raise ctx path =
 	Hashtbl.find (get_ctx()).builtins.constructor_builtins path
@@ -533,14 +533,14 @@ let get_proto_field_index_raise proto name =
 
 let get_proto_field_index proto name =
 	try get_proto_field_index_raise proto name
-	with Not_found -> Error.str_typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
+	with Not_found -> Error.typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
 
 let get_instance_field_index_raise proto name =
 	IntMap.find name proto.pinstance_names
 
 let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
-	with Not_found -> Error.str_typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
 
 let is v path =
 	if path = key_Dynamic then

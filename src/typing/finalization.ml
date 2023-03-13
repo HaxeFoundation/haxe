@@ -29,20 +29,20 @@ let get_main ctx types =
 				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
 				match t with
 				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
-					str_typing_error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
+					typing_error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
 				| TClassDecl c ->
 					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found ->
-				str_typing_error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
+				typing_error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
 		in
 		let ft = Type.field_type f in
 		let fmode, r =
 			match follow ft with
 			| TFun ([],r) -> FStatic (c,f), r
-			| _ -> str_typing_error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
+			| _ -> typing_error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
 		in
-		if not (ExtType.is_void (follow r)) then str_typing_error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
+		if not (ExtType.is_void (follow r)) then typing_error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
 		f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
 		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in

@@ -294,8 +294,8 @@ and s_call_error p = function
 	| Cannot_skip_non_nullable s -> located ("Cannot skip non-nullable argument " ^ s) p
 
 (* TODO handle stacks there too? *)
-let typing_error ?(depth=0) msg = raise (Error (Custom (extract_located_msg msg),(extract_located_pos msg),depth))
-let str_typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
+let located_typing_error ?(depth=0) msg = raise (Error (Custom (extract_located_msg msg),(extract_located_pos msg),depth))
+let typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
 
 let call_stack_error ?(depth=0) msg stack p =
 	raise (Error (Stack (((Custom ("Uncaught exception " ^ msg)),p) :: (List.map (fun p -> ((Custom "Called from here"),p)) stack)),p,depth))
@@ -304,7 +304,7 @@ let raise_typing_error ?(depth=0) err p = raise (Error(err,p,depth))
 
 let error_require r p =
 	if r = "" then
-		str_typing_error "This field is not available with the current compilation flags" p
+		typing_error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
@@ -315,6 +315,6 @@ let error_require r p =
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
-	str_typing_error ("Accessing this field requires " ^ r) p
+	typing_error ("Accessing this field requires " ^ r) p
 
-let invalid_assign p = str_typing_error "Invalid assign" p
+let invalid_assign p = typing_error "Invalid assign" p

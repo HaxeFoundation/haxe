@@ -148,7 +148,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 					in
 					raise (Error.Error (Error.Custom s.sstring,p,0))
 				| _ ->
-					Error.str_typing_error "Something went wrong" null_pos
+					Error.typing_error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
 			let stack = match stack with

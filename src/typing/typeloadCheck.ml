@@ -148,7 +148,7 @@ let get_native_name meta =
 	| [] ->
 		raise Not_found
 	| _ ->
-		str_typing_error "String expected" mp
+		typing_error "String expected" mp
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
@@ -318,12 +318,12 @@ let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
 		let path2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then str_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		let m2 = ctx.com.module_lut#find path2 in
 		let hex1 = Digest.to_hex m.m_extra.m_sign in
 		let hex2 = Digest.to_hex m2.m_extra.m_sign in
 		let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
-		str_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+		typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
 	with
 		Not_found ->
 			ctx.com.type_to_module#add t.mt_path m.m_path
@@ -335,15 +335,15 @@ module Inheritance = struct
 
 	let check_extends ctx c t p = match follow t with
 		| TInst (csup,params) ->
-			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then str_typing_error "Cannot extend basic class" p;
-			if extends csup c then str_typing_error "Recursive class" p;
+			if is_basic_class_path csup.cl_path && not ((has_class_flag c CExtern) && (has_class_flag csup CExtern)) then typing_error "Cannot extend basic class" p;
+			if extends csup c then typing_error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
-					if is_generic_parameter ctx csup then str_typing_error "Extending generic type parameters is no longer allowed in Haxe 4" p;
-					str_typing_error "Cannot extend type parameters" p
+					if is_generic_parameter ctx csup then typing_error "Extending generic type parameters is no longer allowed in Haxe 4" p;
+					typing_error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
-		| _ -> str_typing_error "Should extend by using a class" p
+		| _ -> typing_error "Should extend by using a class" p
 
 	let rec check_interface ctx missing c intf params =
 		List.iter (fun (i2,p2) ->
@@ -512,7 +512,7 @@ module Inheritance = struct
 				| _ -> ()
 			) csup.cl_meta;
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
-				str_typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
+				typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
 		let check_cancel_build csup =
 			match csup.cl_build() with
@@ -565,17 +565,17 @@ module Inheritance = struct
 					check_interfaces ctx c
 			in
 			if is_extends then begin
-				if c.cl_super <> None then str_typing_error "Cannot extend several classes" p;
+				if c.cl_super <> None then typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
-					if not (has_class_flag csup CInterface) then str_typing_error "Cannot extend by using a class" p;
+					if not (has_class_flag csup CInterface) then typing_error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
-					if (has_class_flag csup CInterface) then str_typing_error "Cannot extend by using an interface" p;
+					if (has_class_flag csup CInterface) then typing_error "Cannot extend by using an interface" p;
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
@@ -584,13 +584,13 @@ module Inheritance = struct
 				)
 			end else begin match follow t with
 				| TInst ({ cl_path = [],"ArrayAccess" } as ca,[t]) when (has_class_flag ca CExtern) ->
-					if c.cl_array_access <> None then str_typing_error "Duplicate array access" p;
+					if c.cl_array_access <> None then typing_error "Duplicate array access" p;
 					c.cl_array_access <- Some t;
 					(fun () -> ())
 				| TInst (intf,params) ->
-					if extends intf c then str_typing_error "Recursive class" p;
-					if (has_class_flag c CInterface) then str_typing_error "Interfaces cannot implement another interface (use extends instead)" p;
-					if not (has_class_flag intf CInterface) then str_typing_error "You can only implement an interface" p;
+					if extends intf c then typing_error "Recursive class" p;
+					if (has_class_flag c CInterface) then typing_error "Interfaces cannot implement another interface (use extends instead)" p;
+					if not (has_class_flag intf CInterface) then typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 						delay ctx PConnectField check_interfaces_or_delay;
@@ -601,12 +601,12 @@ module Inheritance = struct
 						process_meta intf;
 					)
 				| TDynamic t ->
-					if c.cl_dynamic <> None then str_typing_error "Cannot have several dynamics" p;
+					if c.cl_dynamic <> None then typing_error "Cannot have several dynamics" p;
 					if not (has_class_flag c CExtern) then display_str_error ctx.com "In haxe 4, implements Dynamic is only supported on externs" p;
 					c.cl_dynamic <- Some (match t with None -> t_dynamic | Some t -> t);
 					(fun () -> ())
 				| _ ->
-					str_typing_error "Should implement by using an interface" p
+					typing_error "Should implement by using an interface" p
 			end
 		in
 		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->

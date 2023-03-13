@@ -72,7 +72,7 @@ module LocalStatic = struct
 		begin try
 			let cf = PMap.find name ctx.curclass.cl_statics in
 			display_str_error ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
-			str_typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
+			typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
 		with Not_found ->
 			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
 			begin match eo with
@@ -81,11 +81,11 @@ module LocalStatic = struct
 			| Some e ->
 				let rec loop e = match e.eexpr with
 					| TLocal _ | TFunction _ ->
-						str_typing_error "Accessing local variables in static initialization is not allowed" e.epos
+						typing_error "Accessing local variables in static initialization is not allowed" e.epos
 					| TConst (TThis | TSuper) ->
-						str_typing_error "Accessing `this` in static initialization is not allowed" e.epos
+						typing_error "Accessing `this` in static initialization is not allowed" e.epos
 					| TReturn _ | TBreak | TContinue ->
-						str_typing_error "This kind of control flow in static initialization is not allowed" e.epos
+						typing_error "This kind of control flow in static initialization is not allowed" e.epos
 					| _ ->
 						iter loop e
 				in
@@ -117,7 +117,7 @@ module LocalStatic = struct
 					let cf = find_local_static local_static_lut v in
 					Texpr.Builder.make_static_field c cf e.epos
 				with Not_found ->
-					str_typing_error (Printf.sprintf "Could not find local static %s (id %i)" v.v_name v.v_id) e.epos
+					typing_error (Printf.sprintf "Could not find local static %s (id %i)" v.v_name v.v_id) e.epos
 				end
 			| _ ->
 				Type.map_expr run e
@@ -156,8 +156,8 @@ let check_local_vars_init ctx e =
 					if v.v_name = "this" then warning ctx WVarInit "this might be used before assigning a value to it" e.epos
 					else warning ctx WVarInit ("Local variable " ^ v.v_name ^ " might be used before being initialized") e.epos
 				else
-					if v.v_name = "this" then str_typing_error "Missing this = value" e.epos
-					else str_typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
+					if v.v_name = "this" then typing_error "Missing this = value" e.epos
+					else typing_error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
 		| TVar (v,eo) ->
 			begin
@@ -337,7 +337,7 @@ let check_abstract_as_value e =
 		match e.eexpr with
 		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
 		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-			str_typing_error "Cannot use abstract as value" e.epos
+			typing_error "Cannot use abstract as value" e.epos
 		| _ -> Type.iter loop e
 	in
 	loop e;
@@ -380,7 +380,7 @@ let remove_extern_fields com t = match t with
 let check_private_path ctx t = match t with
 	| TClassDecl c when c.cl_private ->
 		let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
-		if ctx.com.type_to_module#mem rpath then str_typing_error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
+		if ctx.com.type_to_module#mem rpath then typing_error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 	| _ ->
 		()
 
@@ -567,7 +567,7 @@ let check_cs_events com t = match t with
 		let check fields f =
 			match f.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta && not (has_class_field_flag f CfPostProcessed) ->
-				if (has_class_field_flag f CfPublic) then str_typing_error "@:event fields must be private" f.cf_pos;
+				if (has_class_field_flag f CfPublic) then typing_error "@:event fields must be private" f.cf_pos;
 
 				(* prevent generating reflect helpers for the event in gencommon *)
 				f.cf_meta <- (Meta.SkipReflection, [], f.cf_pos) :: f.cf_meta;
@@ -576,7 +576,7 @@ let check_cs_events com t = match t with
 				let tmeth = (tfun [f.cf_type] com.basic.tvoid) in
 
 				let process_event_method name =
-					let m = try PMap.find name fields with Not_found -> str_typing_error ("Missing event method: " ^ name) f.cf_pos in
+					let m = try PMap.find name fields with Not_found -> typing_error ("Missing event method: " ^ name) f.cf_pos in
 
 					(* check method signature *)
 					begin
@@ -617,7 +617,7 @@ let check_remove_metadata t = match t with
 let check_void_field t = match t with
 	| TClassDecl c ->
 		let check f =
-			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> str_typing_error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
+			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> typing_error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
 		in
 		List.iter check c.cl_ordered_fields;
 		List.iter check c.cl_ordered_statics;

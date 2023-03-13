@@ -11,7 +11,7 @@ open Error
 (* REMOTING PROXYS *)
 
 let extend_remoting ctx c t p async prot =
-	if c.cl_super <> None then str_typing_error "Cannot extend several classes" p;
+	if c.cl_super <> None then typing_error "Cannot extend several classes" p;
 	(* remove forbidden packages *)
 	let rules = ctx.com.package_rules in
 	ctx.com.package_rules <- PMap.foldi (fun key r acc -> match r with Forbidden -> acc | _ -> PMap.add key r acc) rules PMap.empty;
@@ -28,7 +28,7 @@ let extend_remoting ctx c t p async prot =
 	let file, decls = (try
 		TypeloadParse.parse_module ctx path p
 	with
-		| Not_found -> ctx.com.package_rules <- rules; str_typing_error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
+		| Not_found -> ctx.com.package_rules <- rules; typing_error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
 		| e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
@@ -41,7 +41,7 @@ let extend_remoting ctx c t p async prot =
 			acc
 		else match f.cff_kind with
 		| FFun fd when (is_public || List.mem_assoc APublic f.cff_access) && not (List.mem_assoc AStatic f.cff_access) ->
-			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then str_typing_error ("Field " ^ fst f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
+			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then typing_error ("Field " ^ fst f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
 			let eargs = [EArrayDecl (List.map (fun ((a,_),_,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
 			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" },_) -> None | _ -> fd.f_type) in
 			let fargs, eargs = if async then match ftype with
@@ -81,11 +81,11 @@ let extend_remoting ctx c t p async prot =
 	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
 	with Not_found ->
-		str_typing_error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
+		typing_error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
 	) in
 	match t with
 	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
-	| _ -> str_typing_error "Remoting proxy must be a class without parameters" p
+	| _ -> typing_error "Remoting proxy must be a class without parameters" p
 
 let on_inherit ctx c p (is_extends,tp) =
 	if not is_extends then

@@ -113,7 +113,7 @@ let get_strict_meta ctx meta params pos =
 				in
 				ef, fields, CTPath tpath
 			| _ ->
-				Error.str_typing_error "@:strict is not supported on this target" p
+				Error.typing_error "@:strict is not supported on this target" p
 			end
 		| [EConst(Ident i),p as expr] ->
 			let tpath = { tpackage=[]; tname=i; tparams=[]; tsub=None } in

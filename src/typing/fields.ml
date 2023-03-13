@@ -89,7 +89,7 @@ let check_no_closure_meta ctx cf fa mode p =
 					Meta.has Meta.NoClosure cl_meta
 					|| Meta.has Meta.NoClosure f.cf_meta
 				then
-					str_typing_error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
+					typing_error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
 			| _ -> ()
 		in
 		begin match cf.cf_kind with
@@ -114,7 +114,7 @@ let field_access ctx mode f fh e pfield =
 	match f.cf_kind with
 	| Method m ->
 		let normal () = AKField(make_access false) in
-		if is_set && m <> MethDynamic && not ctx.untyped then str_typing_error "Cannot rebind this method : please use 'dynamic' before method declaration" pfield;
+		if is_set && m <> MethDynamic && not ctx.untyped then typing_error "Cannot rebind this method : please use 'dynamic' before method declaration" pfield;
 		let maybe_check_visibility c static =
 			(* For overloads we have to resolve the actual field before we can check accessibility. *)
 			begin match mode with
@@ -250,7 +250,7 @@ let field_access ctx mode f fh e pfield =
 		| AccRequire (r,msg) ->
 			match msg with
 			| None -> error_require r pfield
-			| Some msg -> str_typing_error msg pfield
+			| Some msg -> typing_error msg pfield
 
 let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
@@ -285,7 +285,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		let _,el,_ = Meta.get meta a.a_meta in
 		if el <> [] && not (List.exists (fun e -> match fst e with
 			| EConst (Ident i' | String (i',_)) -> i' = i
-			| _ -> str_typing_error "Identifier or string expected as argument to @:forward" (pos e)
+			| _ -> typing_error "Identifier or string expected as argument to @:forward" (pos e)
 		) el) then raise Not_found;
 		f()
 	in
@@ -515,7 +515,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				in
 				loop c tl
 			with Not_found when PMap.mem i c.cl_statics ->
-				str_typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
+				typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
 		| TDynamic t ->
 			AKExpr (mk (TField (e,FDynamic i)) (match t with None -> t_dynamic | Some t -> t) p)
@@ -529,7 +529,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found -> try
 				type_field_by_forward_member type_field_by_fallback e a tl
 			with Not_found when not (has_class_field_flag (PMap.find i (find_some a.a_impl).cl_statics) CfImpl) ->
-				str_typing_error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
+				typing_error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
 			)
 		| _ -> raise Not_found
 	in
