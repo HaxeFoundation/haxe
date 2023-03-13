@@ -350,8 +350,12 @@ with
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ~nesting_level:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
-	| Error.Error (Stack stack,p,nl) ->
-			List.iter (fun (e,p) -> located_error ~nesting_level:(nl+1) ctx (Error.error_msg p e)) stack
+	| Error.Error (Stack stack,_,nl) -> (match stack with
+			| [] -> ()
+			| (e,p) :: stack -> begin
+				located_error ~nesting_level:nl ctx (Error.error_msg p e);
+				List.iter (fun (e,p) -> located_error ~nesting_level:(nl+1) ctx (Error.error_msg p e)) stack;
+			end)
 	| Error.Error (m,p,nl) ->
 		located_error ~nesting_level:nl ctx (Error.error_msg p m)
 	| Generic.Generic_Exception(m,p) ->
