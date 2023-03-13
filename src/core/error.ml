@@ -26,7 +26,7 @@ and type_not_found_reason =
 	| Private_type
 	| Not_defined
 
-exception Fatal_error of Globals.located_msg * int
+exception Fatal_error of Globals.located * int
 exception Error of error_msg * Globals.pos * int
 
 let string_source t = match follow t with
@@ -274,27 +274,27 @@ module BetterErrors = struct
 end
 
 let rec error_msg p = function
-	| Module_not_found m -> Globals.located_msg ("Type not found : " ^ s_type_path m) p
-	| Type_not_found (m,t,Private_type) -> Globals.located_msg ("Cannot access private type " ^ t ^ " in module " ^ s_type_path m) p
-	| Type_not_found (m,t,Not_defined) -> Globals.located_msg ("Module " ^ s_type_path m ^ " does not define type " ^ t) p
-	| Unify l -> Globals.located_msg (BetterErrors.better_error_message l) p
-	| Unknown_ident s -> Globals.located_msg ("Unknown identifier : " ^ s) p
-	| Custom s -> Globals.located_msg s p
-	| Stack stack -> Globals.located_stack (List.map (fun (e,p) -> error_msg p e) stack)
+	| Module_not_found m -> located ("Type not found : " ^ s_type_path m) p
+	| Type_not_found (m,t,Private_type) -> located ("Cannot access private type " ^ t ^ " in module " ^ s_type_path m) p
+	| Type_not_found (m,t,Not_defined) -> located ("Module " ^ s_type_path m ^ " does not define type " ^ t) p
+	| Unify l -> located (BetterErrors.better_error_message l) p
+	| Unknown_ident s -> located ("Unknown identifier : " ^ s) p
+	| Custom s -> located s p
+	| Stack stack -> located_stack (List.map (fun (e,p) -> error_msg p e) stack)
 	| Call_error err -> s_call_error p err
-	| No_constructor mt -> Globals.located_msg (s_type_path (t_infos mt).mt_path ^ " does not have a constructor") p
-	| Abstract_class mt -> Globals.located_msg (s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed") p
+	| No_constructor mt -> located (s_type_path (t_infos mt).mt_path ^ " does not have a constructor") p
+	| Abstract_class mt -> located (s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed") p
 
 and s_call_error p = function
 	| Not_enough_arguments tl ->
 		let pctx = print_context() in
-		Globals.located_msg ("Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))) p
-	| Too_many_arguments -> Globals.located_msg "Too many arguments" p
+		located ("Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))) p
+	| Too_many_arguments -> located "Too many arguments" p
 	| Could_not_unify err -> error_msg p err
-	| Cannot_skip_non_nullable s -> Globals.located_msg ("Cannot skip non-nullable argument " ^ s) p
+	| Cannot_skip_non_nullable s -> located ("Cannot skip non-nullable argument " ^ s) p
 
 (* TODO handle stacks there too? *)
-let typing_error ?(depth=0) msg = raise (Error (Custom (Globals.extract_located_msg msg),(Globals.extract_located_pos msg),depth))
+let typing_error ?(depth=0) msg = raise (Error (Custom (extract_located_msg msg),(extract_located_pos msg),depth))
 let str_typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
 
 let call_stack_error ?(depth=0) msg stack p =

@@ -270,7 +270,7 @@ let handle_parser_result com p result =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
 			| EPShow ->
-				if is_diagnostics com then add_diagnostics_message com (Globals.located_msg msg p) DKParserError Error
+				if is_diagnostics com then add_diagnostics_message com (located msg p) DKParserError Error
 				else str_typing_error msg p
 			| EPIgnore ->
 				com.has_error <- true

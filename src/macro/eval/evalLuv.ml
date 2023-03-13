@@ -550,7 +550,7 @@ let uv_error_fields = [
 					(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
 					(try fst (ExtString.String.split msg "\n")
 					with _ -> msg)
-				| HaxeError.Error (err,p,_) -> Globals.extract_located_msg (HaxeError.error_msg p err)
+				| HaxeError.Error (err,p,_) -> extract_located_msg (HaxeError.error_msg p err)
 				| _ -> Printexc.to_string ex
 			in
 			let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in

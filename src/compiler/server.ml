@@ -21,7 +21,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		if is_diagnostics ctx.com then begin
 			List.iter (fun (msg,p,_,kind,sev) ->
-				add_diagnostics_message ctx.com (located_msg msg p) kind sev
+				add_diagnostics_message ctx.com (located msg p) kind sev
 			) (List.rev ctx.messages);
 			raise (Completion (Diagnostics.print ctx.com))
 		end else

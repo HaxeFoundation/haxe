@@ -5,9 +5,9 @@ type pos = {
 }
 
 type path = string list * string
-type located_msg =
+type located =
 	| Message of string * pos
-	| Stack of located_msg list
+	| Stack of located list
 
 module IntMap = Ptmap
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
@@ -35,7 +35,7 @@ let version_pre = Some "rc.1"
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
-let located_msg msg p = Message (msg,p)
+let located msg p = Message (msg,p)
 let located_stack stack = Stack stack
 
 let rec extract_located_msg = function

@@ -15,9 +15,9 @@ let run_or_diagnose ctx f arg =
 		| Error.Error(msg,p,_) ->
 			handle_diagnostics (Error.error_msg p msg) DKCompilerMessage
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (Globals.located_msg (Parser.error_msg msg) p) DKParserError
+			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (Globals.located_msg (Lexer.error_msg msg) p) DKParserError
+			handle_diagnostics (located (Lexer.error_msg msg) p) DKParserError
 		end
 	else
 		f arg
@@ -335,7 +335,7 @@ with
 	| Abort ->
 		()
 	| Error.Fatal_error (m,depth) ->
-		error ~depth ctx (Globals.extract_located_msg m) (Globals.extract_located_pos m)
+		located_error ~depth ctx m
 	| Common.Abort (m,p) ->
 		error ctx m p
 	| Lexer.Error (m,p) ->
@@ -351,11 +351,11 @@ with
 			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
 	| Error.Error (Stack stack,_,depth) -> (match stack with
-			| [] -> ()
-			| (e,p) :: stack -> begin
-				located_error ~depth ctx (Error.error_msg p e);
-				List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
-			end)
+		| [] -> ()
+		| (e,p) :: stack -> begin
+			located_error ~depth ctx (Error.error_msg p e);
+			List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
+		end)
 	| Error.Error (m,p,depth) ->
 		located_error ~depth ctx (Error.error_msg p m)
 	| Generic.Generic_Exception(m,p) ->
