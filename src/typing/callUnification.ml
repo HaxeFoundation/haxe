@@ -382,7 +382,6 @@ let unify_field_call ctx fa el_typed el p inline =
 				) delayed_display;
 				cf,error_msg p err
 			) failures in
-			(* TODO check equality check below *)
 			let failures = remove_duplicates (fun (_,msg1) (_,msg2) -> msg1 <> msg2) failures in
 			begin match failures with
 			| [_,msg] ->
