@@ -291,7 +291,7 @@ module Communication = struct
 				out := Printf.sprintf "%s%s|%s\n"
 					!out
 					(String.make gutter_len ' ')
-					(if l1 = l2 then String.make p1 ' ' ^ c_sev ^ String.make (p2-p1) '^' ^ c_reset else "");
+					(if l1 = l2 then String.make p1 ' ' ^ c_sev ^ String.make (if p1 = p2 then 1 else p2-p1) '^' ^ c_reset else "");
 
 			(* Error message *)
 			out := List.fold_left (fun out str -> Printf.sprintf "%s%s| %s\n"
