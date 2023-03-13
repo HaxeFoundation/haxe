@@ -388,10 +388,10 @@ let unify_field_call ctx fa el_typed el p inline =
 			| [_,msg] ->
 				located_typing_error msg
 			| _ ->
-				display_str_error ctx.com "Could not find a suitable overload, reasons follow" p;
+				display_error ctx.com "Could not find a suitable overload, reasons follow" p;
 				List.iter (fun (cf,msg) ->
-					display_str_error ~depth:1 ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
-					display_error ~depth:2 ctx.com msg;
+					display_error ~depth:1 ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
+					located_display_error ~depth:2 ctx.com msg;
 				) failures;
 				typing_error "End of overload failure reasons" p
 			end
@@ -402,10 +402,10 @@ let unify_field_call ctx fa el_typed el p inline =
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
 			| fcc :: l ->
-				display_str_error ctx.com "Ambiguous overload, candidates follow" p;
+				display_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
 				List.iter (fun fcc ->
-					display_str_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
+					display_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
 				) (fcc :: l);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
@@ -430,7 +430,7 @@ object(self)
 			!type_generic_function_ref ctx fa fcc with_type p
 		end else begin
 			if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
-				| TConst TSuper -> display_str_error ctx.com (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+				| TConst TSuper -> display_error ctx.com (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 				| _ -> ()
 			end;
 			fcc.fc_data()

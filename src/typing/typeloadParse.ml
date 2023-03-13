@@ -303,9 +303,9 @@ let parse_module ctx m p =
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in
 		if p == null_pos then
-			display_str_error ctx.com ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
+			display_error ctx.com ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
-			display_str_error ctx.com (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
+			display_error ctx.com (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
 	end;
 	file, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)

@@ -58,7 +58,7 @@ let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 	| TTypeExpr md ->
 		get_native_repr md expr.epos
 	| _ ->
-		display_str_error ctx.com "This expression is too complex to be a strict metadata argument" expr.epos;
+		display_error ctx.com "This expression is too complex to be a strict metadata argument" expr.epos;
 		(EConst(Ident "null"), expr.epos)
 
 let handle_fields ctx fields_to_check with_type_expr =
@@ -85,7 +85,7 @@ let make_meta ctx texpr extra =
 		| TTypeExpr(md) ->
 			ECall(get_native_repr md texpr.epos, extra), texpr.epos
 		| _ ->
-			display_str_error ctx.com "Unexpected expression" texpr.epos; die "" __LOC__
+			display_error ctx.com "Unexpected expression" texpr.epos; die "" __LOC__
 
 let get_strict_meta ctx meta params pos =
 	let pf = ctx.com.platform in
@@ -108,7 +108,7 @@ let get_strict_meta ctx meta params pos =
 				| [] ->
 					[]
 				| (_,p) :: _ ->
-					display_str_error ctx.com "Object declaration expected" p;
+					display_error ctx.com "Object declaration expected" p;
 					[]
 				in
 				ef, fields, CTPath tpath
@@ -128,7 +128,7 @@ let get_strict_meta ctx meta params pos =
 			else
 				field, [], CTPath tpath
 		| _ ->
-			display_str_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
+			display_error ctx.com "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 			raise Exit
 	in
 	let texpr = type_expr ctx changed_expr NoValue in

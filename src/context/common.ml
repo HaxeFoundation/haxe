@@ -1224,14 +1224,14 @@ let add_diagnostics_message com msg kind sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
-let display_error com ?(depth = 0) msg =
+let located_display_error com ?(depth = 0) msg =
 	if is_diagnostics com then
 		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
 		com.error (Globals.extract_located_msg msg) (Globals.extract_located_pos msg) ~depth
 
-let display_str_error com ?(depth = 0) msg p =
-	display_error com ~depth (Globals.located msg p)
+let display_error com ?(depth = 0) msg p =
+	located_display_error com ~depth (Globals.located msg p)
 
 open Printer
 

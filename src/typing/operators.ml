@@ -403,7 +403,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_str_error ctx.com "Recursive operator method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				(* for non core-types we require that the return type is compatible to the native result type *)
 				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op with_type p in
@@ -794,7 +794,7 @@ let type_unop ctx op flag e with_type p =
 		in
 		let t = match op with
 			| Not ->
-				if flag = Postfix then Common.display_str_error ctx.com "Postfix ! is not supported" p;
+				if flag = Postfix then Common.display_error ctx.com "Postfix ! is not supported" p;
 				unify ctx e.etype ctx.t.tbool e.epos;
 				ctx.t.tbool
 			| NegBits ->

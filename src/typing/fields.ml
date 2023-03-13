@@ -76,8 +76,8 @@ let no_abstract_constructor c p =
 	if has_class_flag c CAbstract then raise_typing_error (Abstract_class (TClassDecl c)) p
 
 let check_constructor_access ctx c f p =
-	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx.com (error_msg p (No_constructor (TClassDecl c)));
-	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_str_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+	if (Meta.has Meta.CompilerGenerated f.cf_meta) then located_display_error ctx.com (error_msg p (No_constructor (TClassDecl c)));
+	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx cf fa mode p =
 	match mode with
@@ -129,9 +129,9 @@ let field_access ctx mode f fh e pfield =
 			| MethInline, _ when ctx.g.doinline && ctx.allow_inline ->
 				AKField (make_access true)
 			| MethMacro, MGet ->
-				display_str_error ctx.com "Macro functions must be called immediately" pfield; normal()
+				display_error ctx.com "Macro functions must be called immediately" pfield; normal()
 			| _ , MGet ->
-				if has_class_field_flag f CfGeneric then display_str_error ctx.com "Cannot create closure on generic function" pfield;
+				if has_class_field_flag f CfGeneric then display_error ctx.com "Cannot create closure on generic function" pfield;
 				normal()
 			| _ ->
 				normal()
@@ -140,7 +140,7 @@ let field_access ctx mode f fh e pfield =
 		| FHInstance(c,tl) ->
 			if e.eexpr = TConst TSuper then begin match mode with
 				| MSet _ | MGet ->
-					display_str_error ctx.com "Cannot create closure on super method" pfield
+					display_error ctx.com "Cannot create closure on super method" pfield
 				| MCall _ ->
 					()
 			end;
@@ -179,7 +179,7 @@ let field_access ctx mode f fh e pfield =
 				| MSet _ when v.v_write = AccCall ->
 					()
 				| _ ->
-					display_str_error ctx.com "Normal variables cannot be accessed with 'super', use 'this' instead" pfield;
+					display_error ctx.com "Normal variables cannot be accessed with 'super', use 'this' instead" pfield;
 			end;
 		| FHAnon ->
 			()
@@ -223,8 +223,8 @@ let field_access ctx mode f fh e pfield =
 			if bypass_accessor then (
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
 				if not (is_physical_field f) then begin
-					display_str_error ctx.com "This field cannot be accessed because it is not a real variable" pfield;
-					display_str_error ctx.com "Add @:isVar here to enable it" f.cf_pos;
+					display_error ctx.com "This field cannot be accessed because it is not a real variable" pfield;
+					display_error ctx.com "Add @:isVar here to enable it" f.cf_pos;
 				end;
 				normal false
 			)
@@ -331,7 +331,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| TAnon a ->
 			(try
 				let f = PMap.find i a.a_fields in
-				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_str_error ctx.com "Cannot access non-static abstract field statically" pfield;
+				if has_class_field_flag f CfImpl && not (has_class_field_flag f CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
 				match !(a.a_status) with
 				| EnumStatics en ->
 					let c = try PMap.find f.cf_name en.e_constrs with Not_found -> die "" __LOC__ in
@@ -554,16 +554,16 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| TInst ({ cl_kind = KAbstractImpl a },_)
 			| TAbstract (a,_) when has_special_field a ->
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
-				display_str_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
+				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| TAnon { a_status = { contents = Statics c } } when PMap.mem i c.cl_fields ->
-				display_str_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
+				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
 				let tthis = e.etype in
 				try
 					if not (Diagnostics.error_in_diagnostics_run ctx.com pfield) then raise Exit;
 					DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
 				with Exit ->
-					display_str_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
+					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 

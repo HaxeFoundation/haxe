@@ -95,7 +95,7 @@ module FieldError = struct
 	let maybe_display_error com fctx s p =
 		if not fctx.had_error then begin
 			fctx.had_error <- true;
-			display_str_error com s p
+			display_error com s p
 		end
 
 	let invalid_modifier_combination fctx com fctx a b p =
@@ -279,7 +279,7 @@ let transform_abstract_field com this_t a_t a f =
 		let meta = (Meta.NoCompletion,[],null_pos) :: f.cff_meta in
 		if Meta.has Meta.MultiType a.a_meta then begin
 			if List.mem_assoc AInline f.cff_access then typing_error "inline on MultiType constructor" f.cff_pos;
-			if fu.f_expr <> None then display_str_error com "MultiType constructors cannot have a body" f.cff_pos;
+			if fu.f_expr <> None then display_error com "MultiType constructors cannot have a body" f.cff_pos;
 			f.cff_access <- (AExtern,null_pos) :: f.cff_access;
 		end;
 		(try
@@ -417,12 +417,12 @@ let build_enum_abstract ctx c a fields p =
 				| VUnknown ->
 					()
 				| VPublic(access,p2) | VPrivate(access,p2) ->
-					display_str_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-					display_str_error ~depth:1 ctx.com "Conflicts with this" p2;
+					display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
+					display_error ~depth:1 ctx.com "Conflicts with this" p2;
 			in
 			let rec loop visibility acc = match acc with
 				| (AExtern,p) :: acc ->
-					display_str_error ctx.com "Invalid modifier: extern on field of enum abstract" p;
+					display_error ctx.com "Invalid modifier: extern on field of enum abstract" p;
 					loop visibility acc
 				| (APrivate,p) as access :: acc ->
 					check_visibility_conflict visibility p;
@@ -451,7 +451,7 @@ let build_enum_abstract ctx c a fields p =
 							set_field field ct (EConst (Int (string_of_int !i, None)),null_pos);
 							incr i;
 						| EAOther ->
-							display_str_error ctx.com "Value required" field.cff_pos
+							display_error ctx.com "Value required" field.cff_pos
 					end else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
 				| Some e ->
 					begin match mode,e with
@@ -576,7 +576,7 @@ let create_typer_context_for_class ctx cctx p =
 	incr stats.s_classes_built;
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
-	if Meta.has Meta.Macro c.cl_meta then display_str_error ctx.com "Macro classes are no longer allowed in haxe 3" c.cl_pos;
+	if Meta.has Meta.Macro c.cl_meta then display_error ctx.com "Macro classes are no longer allowed in haxe 3" c.cl_pos;
 	let ctx = {
 		ctx with
 		curclass = c;
@@ -670,8 +670,8 @@ let create_typer_context_for_field ctx cctx fctx cff =
 		else if fctx.is_inline then
 			invalid_modifier_combination fctx ctx.com fctx "abstract" "inline" (pos cff.cff_name)
 		else if not (has_class_flag c CAbstract) then begin
-			display_str_error ctx.com "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
-			display_str_error ctx.com "First abstract field was here" (pos cff.cff_name);
+			display_error ctx.com "This class should be declared abstract because it has at least one abstract field" c.cl_name_pos;
+			display_error ctx.com "First abstract field was here" (pos cff.cff_name);
 			add_class_flag c CAbstract;
 		end;
 	end;
@@ -849,7 +849,7 @@ module TypeBinding = struct
 				| Some (csup,_) ->
 					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
 					if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
-						display_str_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
 		end
 
 	let bind_var_expression ctx cctx fctx cf e =
@@ -884,7 +884,7 @@ module TypeBinding = struct
 				let require_constant_expression e msg =
 					match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 					| Some e -> e
-					| None -> display_str_error ctx.com msg p; e
+					| None -> display_error ctx.com msg p; e
 				in
 				let e = (match cf.cf_kind with
 				| Var v when (has_class_flag c CExtern) || fctx.is_extern ->
@@ -902,10 +902,10 @@ module TypeBinding = struct
 					let e = begin
 						let rec check_this e = match e.eexpr with
 							| TConst TThis ->
-								display_str_error ctx.com "Cannot access this or other member field in variable initialization" e.epos;
+								display_error ctx.com "Cannot access this or other member field in variable initialization" e.epos;
 								raise Exit
 							| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
-								display_str_error ctx.com "Cannot access this or other member field in variable initialization" e.epos;
+								display_error ctx.com "Cannot access this or other member field in variable initialization" e.epos;
 								raise Exit
 							| _ ->
 							Type.iter check_this e
@@ -1217,13 +1217,13 @@ let type_opt (ctx,cctx,fctx) p t =
 	in
 	match t with
 	| None when is_truly_extern || (has_class_flag c CInterface) ->
-		display_str_error ctx.com "Type required for extern classes and interfaces" p;
+		display_error ctx.com "Type required for extern classes and interfaces" p;
 		t_dynamic
 	| None when cctx.is_core_api ->
-		display_str_error ctx.com "Type required for core api classes" p;
+		display_error ctx.com "Type required for core api classes" p;
 		t_dynamic
 	| None when fctx.is_abstract ->
-		display_str_error ctx.com "Type required for abstract functions" p;
+		display_error ctx.com "Type required for abstract functions" p;
 		t_dynamic
 	| _ ->
 		Typeload.load_type_hint ctx p t
@@ -1500,12 +1500,12 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 				try
 					(match f2.cf_kind with
 						| Method MethMacro ->
-							display_str_error ctx.com (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-							display_str_error ~depth:1 ctx.com (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
+							display_error ctx.com (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
+							display_error ~depth:1 ctx.com (compl_msg (f2.cf_name ^ ": Accessor method is here")) f2.cf_pos;
 						| _ -> ());
 					unify_raise t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
-						display_str_error ctx.com "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
+						display_error ctx.com "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
 				with Error (Unify l,p,depth) ->
 					raise (Error (Stack [(Custom ("In method " ^ m ^ " required by property " ^ name),p);(Unify l,p)],p,depth+1))
 			)
@@ -1536,9 +1536,9 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 				end else if not (has_class_flag c CExtern) then begin
 					try
 						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (extract_param_types c.cl_params) m) in
-						display_str_error ctx.com (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m (name) (if fctx.is_static then "not " else "")) f2.cf_pos
+						display_error ctx.com (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m (name) (if fctx.is_static then "not " else "")) f2.cf_pos
 					with Not_found ->
-						display_str_error ctx.com ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
+						display_error ctx.com ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 				end
 	in
 	let display_accessor m p =
@@ -1560,7 +1560,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccCall
 		| _,pget ->
-			display_str_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `get`") pget;
+			display_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `get`") pget;
 			AccCall
 	) in
 	let set = (match set with
@@ -1579,7 +1579,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccCall
 		| _,pset ->
-			display_str_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
+			display_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
 	if (set = AccNever && get = AccNever)  then typing_error (name ^ ": Unsupported property combination") p;
@@ -1615,8 +1615,8 @@ let init_field (ctx,cctx,fctx) f =
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _ | AOverload, FFun _ -> ()
-		| _, FVar _ -> display_str_error ctx.com ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
-		| _, FProp _ -> display_str_error ctx.com ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
+		| _, FVar _ -> display_error ctx.com ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
+		| _, FProp _ -> display_error ctx.com ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
 	) f.cff_access;
 	begin match fctx.override with
 		| Some _ ->
@@ -1658,8 +1658,8 @@ let check_overload ctx f fs =
 				Overloads.same_overload_args f.cf_type f2.cf_type f f2
 			) fs
 		in
-		display_str_error ctx.com ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-		display_str_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		display_error ctx.com ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
+		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
 		false
 	with Not_found -> try
 		(* OVERLOADTODO: generalize this and respect whether or not we actually generate the functions *)
@@ -1671,12 +1671,12 @@ let check_overload ctx f fs =
 				Overloads.same_overload_args ~get_vmtype f.cf_type f2.cf_type f f2
 			) fs
 		in
-		display_str_error ctx.com (
+		display_error ctx.com (
 			"Another overloaded field of similar signature was already declared : " ^
 			f.cf_name ^
 			"\nThe signatures are different in Haxe, but not in the target language"
 		) f.cf_pos;
-		display_str_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
+		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
 		false
 	with Not_found ->
 		true
@@ -1762,7 +1762,7 @@ let init_class ctx c p context_init herits fields =
 			let cf = init_field (ctx,cctx,fctx) f in
 			if fctx.field_kind = FKInit then begin
 				if !has_init then
-					display_str_error ctx.com ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
+					display_error ctx.com ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
 					has_init := true
 			end;
@@ -1793,9 +1793,9 @@ let init_class ctx c p context_init herits fields =
 					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
 						ctor.cf_overloads <- cf :: ctor.cf_overloads
 					else
-						display_str_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
+						display_error ctx.com ("If using overloaded constructors, all constructors must be declared with 'overload'") (if has_class_field_flag cf CfOverload then ctor.cf_pos else cf.cf_pos)
 				| Some ctor ->
-						display_str_error ctx.com "Duplicate constructor" p
+						display_error ctx.com "Duplicate constructor" p
 				end
 			| FKInit ->
 				()
@@ -1812,8 +1812,8 @@ let init_class ctx c p context_init herits fields =
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
 					if has_class_field_flag cf CfOverload && not (is_var cf) then
 						let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
-						if is_var mainf then display_str_error ctx.com "Cannot declare a variable with same name as a method" mainf.cf_pos;
-						(if not (has_class_field_flag mainf CfOverload) then display_str_error ctx.com ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
+						if is_var mainf then display_error ctx.com "Cannot declare a variable with same name as a method" mainf.cf_pos;
+						(if not (has_class_field_flag mainf CfOverload) then display_error ctx.com ("Overloaded methods must have 'overload' accessor") mainf.cf_pos);
 						mainf.cf_overloads <- cf :: cf.cf_overloads @ mainf.cf_overloads
 					else
 						let type_kind,path = match c.cl_kind with
@@ -1821,12 +1821,12 @@ let init_class ctx c p context_init herits fields =
 							| KModuleFields m -> "module",m.m_path
 							| _ -> "class",c.cl_path
 						in
-						display_str_error ctx.com ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
+						display_error ctx.com ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
 				if fctx.do_add then TClass.add_field c cf
 			end
 		with Error (Custom str,p2,depth) when p = p2 ->
-			display_str_error ~depth ctx.com str p
+			display_error ~depth ctx.com str p
 	) fields;
 	(match cctx.abstract with
 	| Some a ->
@@ -1873,7 +1873,7 @@ let init_class ctx c p context_init herits fields =
 	in
 	if has_struct_init then
 		if (has_class_flag c CInterface) then
-			display_str_error ctx.com "@:structInit is not allowed on interfaces" struct_init_pos
+			display_error ctx.com "@:structInit is not allowed on interfaces" struct_init_pos
 		else
 			ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
@@ -1888,8 +1888,8 @@ let init_class ctx c p context_init herits fields =
 				let display = ctx.com.display_information in
 				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 			end else begin
-				display_str_error ctx.com "This class has uninitialized final vars, which requires a constructor" p;
-				display_str_error ctx.com "Example of an uninitialized final var" cf.cf_name_pos;
+				display_error ctx.com "This class has uninitialized final vars, which requires a constructor" p;
+				display_error ctx.com "Example of an uninitialized final var" cf.cf_name_pos;
 			end
 		| _ ->
 			()
