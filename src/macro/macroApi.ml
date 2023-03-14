@@ -493,10 +493,10 @@ and encode_package_rule pr =
 	in
 	encode_enum ~pos:None IPackageRule tag pl
 
-and encode_message (msg,p,n,_,sev) =
-	let tag, pl = match sev with
-		| Globals.MessageSeverity.Information -> 0, [(encode_string msg); (encode_pos p)]
-		| Warning | Hint -> 1, [(encode_string msg); (encode_pos p)]
+and encode_message cm =
+	let tag, pl = match cm.cm_severity with
+		| Globals.MessageSeverity.Information -> 0, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
+		| Warning | Hint -> 1, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Error -> Globals.die "" __LOC__
 	in
 	encode_enum ~pos:None IMessage tag pl

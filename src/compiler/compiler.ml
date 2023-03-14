@@ -211,7 +211,7 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun ?(depth=0) msg p -> message ctx (msg,p,depth,DKCompilerMessage,Information));
+		com.info <- (fun ?(depth=0) msg p -> message ctx (make_compiler_message msg p depth DKCompilerMessage Information));
 		com.warning <- (fun ?(depth=0) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
@@ -221,18 +221,18 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (msg,p,depth,DKCompilerMessage,Warning)
+				message ctx (make_compiler_message msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);
 		com.error <- error ctx;
-		let filter_messages = (fun keep_errors predicate -> (List.filter (fun ((_,_,_,_,sev) as cm) ->
-			(match sev with
+		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
+			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
 			| Information | Warning | Hint -> predicate cm;)
 		) (List.rev ctx.messages))) in
-		com.get_messages <- (fun () -> (List.map (fun ((_,_,_,_,sev) as cm) ->
-			(match sev with
+		com.get_messages <- (fun () -> (List.map (fun cm ->
+			(match cm.cm_severity with
 			| MessageSeverity.Error -> die "" __LOC__;
 			| Information | Warning | Hint -> cm;)
 		) (filter_messages false (fun _ -> true))));

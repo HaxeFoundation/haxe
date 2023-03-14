@@ -20,19 +20,19 @@ let has_error ctx =
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		if is_diagnostics ctx.com then begin
-			List.iter (fun (msg,p,_,kind,sev) ->
-				add_diagnostics_message ctx.com (located msg p) kind sev
+			List.iter (fun cm ->
+				add_diagnostics_message ctx.com (located cm.cm_message cm.cm_pos) cm.cm_kind cm.cm_severity
 			) (List.rev ctx.messages);
 			raise (Completion (Diagnostics.print ctx.com))
 		end else
 			f_otherwise ()
 	| Some api ->
 		if has_error ctx then begin
-			let errors = List.map (fun (msg,p,_,_,sev) ->
+			let errors = List.map (fun cm ->
 				JObject [
-					"severity",JInt (MessageSeverity.to_int sev);
-					"location",Genjson.generate_pos_as_location p;
-					"message",JString msg;
+					"severity",JInt (MessageSeverity.to_int cm.cm_severity);
+					"location",Genjson.generate_pos_as_location cm.cm_pos;
+					"message",JString cm.cm_message;
 				]
 			) (List.rev ctx.messages) in
 			api.send_error errors
@@ -156,29 +156,29 @@ module Communication = struct
 		loop 0 "";
 		List.rev !lines
 
-	let compiler_pretty_message_string ctx ectx (str,p,depth,_,sev) =
-		match str with
+	let compiler_pretty_message_string ctx ectx cm =
+		match cm.cm_message with
 		(* Filter some messages that don't add much when using this message renderer *)
 		| "End of overload failure reasons" -> None
 		| _ -> begin
-			ectx.last_positions <- (IntMap.add depth p ectx.last_positions);
-			let is_null_pos = p = null_pos || p.pmin = -1 in
+			ectx.last_positions <- (IntMap.add cm.cm_depth cm.cm_pos ectx.last_positions);
+			let is_null_pos = cm.cm_pos = null_pos || cm.cm_pos.pmin = -1 in
 			let is_unknown_file f = f = "" || f = "?" in
 
 			(* Extract informations from position *)
 			let l1, p1, l2, p2, epos, lines =
 				if is_null_pos then begin
-					let epos = if is_unknown_file p.pfile then "(unknown position)" else p.pfile in
+					let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
 					(-1, -1, -1, -1, epos, [])
 				end else begin
 					let f =
-						try Common.find_file ctx.com p.pfile
-						with Not_found -> failwith ("File not found '" ^ p.pfile ^ "'")
+						try Common.find_file ctx.com cm.cm_pos.pfile
+						with Not_found -> failwith ("File not found '" ^ cm.cm_pos.pfile ^ "'")
 						in
 
-					let l1, p1, l2, p2 = Lexer.get_pos_coords p in
+					let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
 					let lines = resolve_source f l1 p1 l2 p2 in
-					let epos = Lexer.get_error_pos error_printer p in
+					let epos = Lexer.get_error_pos error_printer cm.cm_pos in
 					(l1, p1, l2, p2, epos, lines)
 				end in
 
@@ -200,8 +200,8 @@ module Communication = struct
 			in
 
 			let parent_pos =
-				if depth = 0 then null_pos
-				else (try IntMap.find (depth-1) ectx.last_positions with Not_found -> null_pos)
+				if cm.cm_depth = 0 then null_pos
+				else (try IntMap.find (cm.cm_depth-1) ectx.last_positions with Not_found -> null_pos)
 			in
 
 			let prev_pos,prev_sev,prev_nl = match ectx.previous with
@@ -209,33 +209,33 @@ module Communication = struct
 				| Some (p, sev, depth) -> (Some p, Some sev, depth)
 			in
 
-			let sev_changed = prev_sev = None || Some sev <> prev_sev in
-			let pos_changed = (prev_pos = None || p <> Option.get prev_pos || (depth <> prev_nl && depth <> prev_nl + 1)) && (parent_pos = null_pos || p <> parent_pos) in
-			let file_changed = prev_pos = None || (pos_changed && match (p.pfile, (Option.get prev_pos).pfile) with
+			let sev_changed = prev_sev = None || Some cm.cm_severity <> prev_sev in
+			let pos_changed = (prev_pos = None || cm.cm_pos <> Option.get prev_pos || (cm.cm_depth <> prev_nl && cm.cm_depth <> prev_nl + 1)) && (parent_pos = null_pos || cm.cm_pos <> parent_pos) in
+			let file_changed = prev_pos = None || (pos_changed && match (cm.cm_pos.pfile, (Option.get prev_pos).pfile) with
 				| (f1, f2) when (is_unknown_file f1) && (is_unknown_file f2) -> false
 				| (f1, f2) -> f1 <> f2
 			) in
 
-			let display_heading = depth = 0 || sev_changed || file_changed in
-			let display_source = depth = 0 || sev_changed || pos_changed in
-			let display_pos_marker = (not is_null_pos) && (depth = 0 || sev_changed || pos_changed) in
+			let display_heading = cm.cm_depth = 0 || sev_changed || file_changed in
+			let display_source = cm.cm_depth = 0 || sev_changed || pos_changed in
+			let display_pos_marker = (not is_null_pos) && (cm.cm_depth = 0 || sev_changed || pos_changed) in
 
-			let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find depth ectx.max_lines)) with Not_found -> 0) + 2 in
+			let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
 			let no_color = Define.defined ctx.com.defines Define.NoColor in
 			let c_reset = if no_color then "" else "\x1b[0m" in
 			let c_bold = if no_color then "" else "\x1b[1m" in
 			let c_dim = if no_color then "" else "\x1b[2m" in
 
-			let (c_sev, c_sev_bg) = if no_color then ("", "") else match sev with
+			let (c_sev, c_sev_bg) = if no_color then ("", "") else match cm.cm_severity with
 				| MessageSeverity.Warning -> ("\x1b[33m", "\x1b[30;43m")
 				| Information | Hint -> ("\x1b[34m", "\x1b[30;44m")
 				| Error -> ("\x1b[31m", "\x1b[30;41m")
 			in
 
-			let sev_label = if depth > 0 then " -> " else Printf.sprintf
+			let sev_label = if cm.cm_depth > 0 then " -> " else Printf.sprintf
 				(if no_color then "[%s]" else " %s ")
-				(match sev with
+				(match cm.cm_severity with
 					| MessageSeverity.Warning -> "WARNING"
 					| Information -> "INFO"
 					| Hint -> "HINT"
@@ -299,10 +299,10 @@ module Communication = struct
 				(String.make gutter_len ' ')
 				(* Remove "... " prefix *)
 				(if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str)
-			) !out (ExtString.String.nsplit str "\n");
+			) !out (ExtString.String.nsplit cm.cm_message "\n");
 
-			ectx.previous <- Some ((if is_null_pos then null_pos else p), sev, depth);
-			ectx.gutter <- (IntMap.add depth gutter_len ectx.gutter);
+			ectx.previous <- Some ((if is_null_pos then null_pos else cm.cm_pos), cm.cm_severity, cm.cm_depth);
+			ectx.gutter <- (IntMap.add cm.cm_depth gutter_len ectx.gutter);
 
 			(* Indent sub errors *)
 			let rec indent ?(acc=0) depth =
@@ -311,24 +311,24 @@ module Communication = struct
 			in
 
 			Some (
-				if depth > 0 then String.concat "\n" (List.map (fun str -> match str with
+				if cm.cm_depth > 0 then String.concat "\n" (List.map (fun str -> match str with
 					| "" -> ""
-					| _ -> (String.make (indent depth) ' ') ^ str
+					| _ -> (String.make (indent cm.cm_depth) ' ') ^ str
 				) (ExtString.String.nsplit !out "\n"))
 				else !out
 			)
 		end
 
-	let compiler_message_string ctx ectx (str,p,depth,_,sev) =
-		let str = match sev with
-			| MessageSeverity.Warning -> "Warning : " ^ str
-			| Information | Error | Hint -> str
+	let compiler_message_string ctx ectx cm =
+		let str = match cm.cm_severity with
+			| MessageSeverity.Warning -> "Warning : " ^ cm.cm_message
+			| Information | Error | Hint -> cm.cm_message
 		in
 
-		if p = null_pos then
+		if cm.cm_pos = null_pos then
 			Some str
 		else begin
-			let epos = Lexer.get_error_pos error_printer p in
+			let epos = Lexer.get_error_pos error_printer cm.cm_pos in
 			let str =
 				let lines =
 					match (ExtString.String.nsplit str "\n") with
@@ -340,36 +340,36 @@ module Communication = struct
 			Some (Printf.sprintf "%s : %s" epos str)
 		end
 
-	let compiler_indented_message_string ctx ectx (str,p,depth,kind,sev) =
-		match str with
+	let compiler_indented_message_string ctx ectx cm =
+		match cm.cm_message with
 		(* Filter some messages that don't add much when using this message renderer *)
 		| "End of overload failure reasons" -> None
 		| _ ->
-			let str = match sev with
-				| MessageSeverity.Warning -> "Warning : " ^ str
-				| Information -> "Info : " ^ str
-				| Error | Hint -> str
+			let str = match cm.cm_severity with
+				| MessageSeverity.Warning -> "Warning : " ^ cm.cm_message
+				| Information -> "Info : " ^ cm.cm_message
+				| Error | Hint -> cm.cm_message
 			in
 
-			if p = null_pos then
+			if cm.cm_pos = null_pos then
 				Some str
 			else begin
-				let epos = Lexer.get_error_pos error_printer p in
+				let epos = Lexer.get_error_pos error_printer cm.cm_pos in
 				let lines =
 					match (ExtString.String.nsplit str "\n") with
-					| first :: rest -> (depth, first) :: List.map (fun msg -> (depth+1, msg)) rest
-					| l -> [(depth, List.hd l)]
+					| first :: rest -> (cm.cm_depth, first) :: List.map (fun msg -> (cm.cm_depth+1, msg)) rest
+					| l -> [(cm.cm_depth, List.hd l)]
 				in
 				let rm_prefix str = if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str in
 				Some (String.concat "\n" (List.map (fun (depth, msg) -> (String.make (depth*2) ' ') ^ epos ^ " : " ^ (rm_prefix msg)) lines))
 			end
 
 	let get_max_line max_lines messages =
-		List.fold_left (fun max_lines (str,p,depth,_,_) ->
-			let _,_,l2,_ = Lexer.get_pos_coords p in
-			let old = try IntMap.find depth max_lines with Not_found -> 0 in
+		List.fold_left (fun max_lines cm ->
+			let _,_,l2,_ = Lexer.get_pos_coords cm.cm_pos in
+			let old = try IntMap.find cm.cm_depth max_lines with Not_found -> 0 in
 
-			if l2 > old then IntMap.add depth l2 max_lines
+			if l2 > old then IntMap.add cm.cm_depth l2 max_lines
 			else max_lines
 		) max_lines messages
 
@@ -425,12 +425,12 @@ module Communication = struct
 				end
 		end;
 
-		List.iter (fun ((_,_,_,_,sev) as msg) ->
-			if !log_messages then (Option.get !log_message) msg;
+		List.iter (fun cm ->
+			if !log_messages then (Option.get !log_message) cm;
 
-			match (message_formatter msg) with
+			match (message_formatter cm) with
 				| None -> ()
-				| Some str -> on_message sev str
+				| Some str -> on_message cm.cm_severity str
 		) (List.rev ctx.messages);
 
 		if !log_messages then (Option.get !close_logs) ();

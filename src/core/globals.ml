@@ -186,6 +186,20 @@ module MessageKind = struct
 		| DKMissingFields -> 7
 end
 
-type compiler_message = string * pos * int * MessageKind.t * MessageSeverity.t
+type compiler_message = {
+	cm_message : string;
+	cm_pos : pos;
+	cm_depth : int;
+	cm_kind : MessageKind.t;
+	cm_severity : MessageSeverity.t;
+}
+
+let make_compiler_message msg p depth kind sev = {
+		cm_message = msg;
+		cm_pos = p;
+		cm_depth = depth;
+		cm_kind = kind;
+		cm_severity = sev;
+}
 
 let i32_31 = Int32.of_int 31
