@@ -456,7 +456,6 @@ module Communication = struct
 					print_endline "Press enter to exit...";
 					ignore(read_line());
 				end;
-
 				flush stdout;
 			);
 			exit = (fun code ->
@@ -485,7 +484,6 @@ module Communication = struct
 				);
 
 				sctx.was_compilation <- ctx.com.display.dms_full_typing;
-
 				if has_error ctx then begin
 					measure_times := false;
 					write "\x02\n"
@@ -823,8 +821,8 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 	let unblock () = Unix.set_nonblock sin in
 
 	let read_nonblock _ =
-		let len = IO.read_i32 chin in
-		Some (IO.really_nread_string chin len)
+        let len = IO.read_i32 chin in
+        Some (IO.really_nread_string chin len)
 	in
 	let read = if allow_nonblock then fun do_block ->
 		if do_block then begin
