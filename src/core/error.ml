@@ -26,8 +26,8 @@ and type_not_found_reason =
 	| Private_type
 	| Not_defined
 
-exception Fatal_error of Globals.located * int
-exception Error of error_msg * Globals.pos * int
+exception Fatal_error of Globals.located * int (* depth *)
+exception Error of error_msg * Globals.pos * int (* depth *)
 
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
