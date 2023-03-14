@@ -197,7 +197,7 @@ type dot_path_part = {
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
-exception WithTypeError of error_msg * pos * int
+exception WithTypeError of error_msg * pos * int (* depth *)
 
 let memory_marker = [|Unix.time()|]
 
