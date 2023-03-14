@@ -293,9 +293,13 @@ and s_call_error p = function
 	| Could_not_unify err -> error_msg p err
 	| Cannot_skip_non_nullable s -> located ("Cannot skip non-nullable argument " ^ s) p
 
-(* TODO handle stacks there too? *)
-let located_typing_error ?(depth=0) msg = raise (Error (Custom (extract_located_msg msg),(extract_located_pos msg),depth))
 let typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
+let located_typing_error ?(depth=0) msg =
+	let err = match msg with
+		| Message (msg,p) -> Custom msg
+		| Stack stack -> Stack (List.map (fun msg -> (Custom (extract_located_msg msg),(extract_located_pos msg))) stack)
+	in
+	raise (Error (err,(extract_located_pos msg),depth))
 
 let call_stack_error ?(depth=0) msg stack p =
 	raise (Error (Stack (((Custom ("Uncaught exception " ^ msg)),p) :: (List.map (fun p -> ((Custom "Called from here"),p)) stack)),p,depth))
