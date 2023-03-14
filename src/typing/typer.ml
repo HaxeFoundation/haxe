@@ -510,7 +510,7 @@ and type_ident ctx i p mode with_type =
 						| DMNone ->
 							raise (Error(err,p,0))
 						| _ ->
-								located_display_error ctx.com (error_msg p err);
+							located_display_error ctx.com (error_msg p err);
 							let t = mk_mono() in
 							(* Add a fake local for #8751. *)
 							if !ServerConfig.legacy_completion then
