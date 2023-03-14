@@ -169,7 +169,7 @@ class Main {
 	}
 
 	static macro function getStd() {
-		var std = Compiler.getConfiguration().stdPath.shift();
-		return macro $v{std};
+		var std = Compiler.getConfiguration().stdPath;
+		return macro $v{std.shift()};
 	}
 }
