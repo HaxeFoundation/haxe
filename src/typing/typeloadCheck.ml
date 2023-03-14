@@ -153,7 +153,7 @@ let get_native_name meta =
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ctx.com (compl_msg "Base field is defined here") base_pos
+		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
 	in
 	try
 		let child_name, child_pos = get_native_name child.cf_meta in
@@ -212,8 +212,8 @@ let check_overriding ctx c f =
 			with
 				Unify_error l ->
 					display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
-					display_error ctx.com (compl_msg (error_msg (Unify l))) p;
+					display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
+					located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
 		with
 			Not_found ->
 				if has_class_field_flag f CfOverride then
@@ -397,8 +397,8 @@ module Inheritance = struct
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
 								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
-								display_error ctx.com (compl_msg (error_msg (Unify l))) p;
+								display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
+								located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
 							end
 				)
 			with Not_found ->
@@ -498,7 +498,7 @@ module Inheritance = struct
 					| t ->
 						s_type pctx t
 				in
-				display_error ctx.com (Printf.sprintf "... %s(%s)" cf.cf_name s) cf.cf_name_pos
+				display_error ~depth:1 ctx.com (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s)) cf.cf_name_pos
 			) (List.rev !missing)
 
 	let set_heritance ctx c herits p =
@@ -627,7 +627,7 @@ module Inheritance = struct
 					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
 				Some (check_herit t is_extends p)
-			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
+			with Error(Module_not_found(([],name)),p,_) when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in

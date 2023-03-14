@@ -15,10 +15,10 @@ let is_forced_inline c cf =
 
 let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p =
-		raise (Error (Call_error err,p))
+		raise (Error (Call_error err,p,0))
 	in
 	let arg_error ul name opt p =
-		let err = Stack (ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")) in
+		let err = Stack [(ul,p); (Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'"), p)] in
 		call_error (Could_not_unify err) p
 	in
 	let mk_pos_infos t =
@@ -42,8 +42,8 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 	let handle_errors fn =
 		try
 			fn()
-		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
-			raise (WithTypeError (l,p))
+		with Error(l,p,nl) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
+			raise (WithTypeError (l,p,nl))
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
 	let type_against name t e =
@@ -61,7 +61,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 			[]
 		| _,[name,false,TAbstract({ a_path = ["cpp"],"Rest" },[t])] ->
 			(try List.map (fun e -> type_against name t e) el
-			with WithTypeError(ul,p) -> arg_error ul name false p)
+			with WithTypeError(ul,p,_) -> arg_error ul name false p)
 		| _,[name,false,t] when ExtType.is_rest (follow t) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe"],"Rest")},[arg_t]) ->
@@ -80,28 +80,28 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 						match el with
 						| [(EUnop (Spread,Prefix,e),p)] ->
 							(try [mk (TUnop (Spread, Prefix, type_against name t e)) t p]
-							with WithTypeError(ul,p) -> arg_error ul name false p)
+							with WithTypeError(ul,p,_) -> arg_error ul name false p)
 						| _ when ExtType.is_mono (follow arg_t) ->
 							(try
 								let el = type_rest mk_mono in
 								unify ctx (unify_min ctx el) arg_t (punion_el callp el);
 								el
-							with WithTypeError(ul,p) ->
+							with WithTypeError(ul,p,_) ->
 								arg_error ul name false p)
 						| _ ->
 							(try
 								type_rest (fun() -> arg_t)
-							with WithTypeError(ul,p) ->
+							with WithTypeError(ul,p,_) ->
 								arg_error ul name false p)
 					(* for other platforms make sure rest arguments are wrapped in an array *)
 					else begin
 						match el with
 						| [(EUnop (Spread,Prefix,e),p)] ->
 							(try [type_against name t e]
-							with WithTypeError(ul,p) -> arg_error ul name false p)
+							with WithTypeError(ul,p,_) -> arg_error ul name false p)
 						| [] ->
 							(try [type_against name t (EArrayDecl [],callp)]
-							with WithTypeError(ul,p) -> arg_error ul name false p)
+							with WithTypeError(ul,p,_) -> arg_error ul name false p)
 						| (_,p1) :: _ ->
 							let p =
 								List.fold_left (fun p (e1,p2) ->
@@ -121,7 +121,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 									do_type (ECheckType(e,(CTPath tp, p)),p) (* ([arg1, arg2...]:Array<Dynamic>) *)
 								end else
 									do_type e
-							with WithTypeError(ul,p) ->
+							with WithTypeError(ul,p,_) ->
 								arg_error ul name false p
 							)
 					end
@@ -158,7 +158,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 				let e = type_against name t e in
 				e :: loop el args
 			with
-				WithTypeError (ul,p)->
+				WithTypeError (ul,p,_)->
 					if opt && might_skip then
 						let e_def = skip name ul t p in
 						e_def :: loop (e :: el) args
@@ -199,15 +199,15 @@ let unify_typed_args ctx tmap args el_typed call_pos =
 		match args,el with
 		| [], _ :: _ ->
 			let call_error = Call_error(Too_many_arguments) in
-			raise(Error(call_error,call_pos))
+			raise(Error(call_error,call_pos,0))
 		| _, [] ->
 			List.rev acc_args,args
 		| ((_,opt,t0) as arg) :: args,e :: el ->
 			begin try
 				unify_raise (tmap e.etype) t0 e.epos;
-			with Error(Unify _ as msg,p) ->
+			with Error(Unify _ as msg,p,nl) ->
 				let call_error = Call_error(Could_not_unify msg) in
-				raise(Error(call_error,p))
+				raise(Error(call_error,p,nl))
 			end;
 			loop (arg :: acc_args) (fun t -> t) args el
 	in
@@ -310,13 +310,13 @@ let unify_field_call ctx fa el_typed el p inline =
 			typing_error (s_type (print_context()) t ^ " cannot be called") p
 	in
 	let maybe_raise_unknown_ident cerr p =
-		let rec loop err =
+		let rec loop err p =
 			match err with
-			| Unknown_ident _ -> typing_error (error_msg err) p
-			| Stack (e1,e2) -> (loop e1; loop e2)
+			| Unknown_ident _ -> located_typing_error (error_msg p err)
+			| Stack stack -> List.iter (fun (e,p) -> loop e p) stack
 			| _ -> ()
 		in
-		match cerr with Could_not_unify err -> loop err | _ -> ()
+		match cerr with Could_not_unify err -> loop err p | _ -> ()
 	in
 	let attempt_calls candidates =
 		let rec loop candidates = match candidates with
@@ -334,7 +334,7 @@ let unify_field_call ctx fa el_typed el p inline =
 						candidate :: candidates,failures
 					end else
 						[candidate],[]
-				with Error ((Call_error cerr as err),p) ->
+				with Error ((Call_error cerr as err),p,_) ->
 					List.iter (fun (m,t,constr) ->
 						if t != m.tm_type then m.tm_type <- t;
 						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
@@ -380,17 +380,17 @@ let unify_field_call ctx fa el_typed el p inline =
 				Option.may (fun de ->
 					raise_augmented_display_exception cf de;
 				) delayed_display;
-				cf,error_msg err,p
+				cf,error_msg p err
 			) failures in
-			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in
+			let failures = remove_duplicates (fun (_,msg1) (_,msg2) -> msg1 <> msg2) failures in
 			begin match failures with
-			| [_,msg,p] ->
-				typing_error msg p
+			| [_,msg] ->
+				located_typing_error msg
 			| _ ->
 				display_error ctx.com "Could not find a suitable overload, reasons follow" p;
-				List.iter (fun (cf,msg,p2) ->
-					display_error ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
-					display_error ctx.com msg p2;
+				List.iter (fun (cf,msg) ->
+					display_error ~depth:1 ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
+					located_display_error ~depth:2 ctx.com msg;
 				) failures;
 				typing_error "End of overload failure reasons" p
 			end
@@ -404,7 +404,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				display_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
 				List.iter (fun fcc ->
-					display_error ctx.com (Printf.sprintf "... %s" (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
+					display_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
 				) (fcc :: l);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
@@ -471,13 +471,13 @@ object(self)
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.com.error in
-		ctx.com.error <- (fun msg ep ->
+		ctx.com.error <- (fun ?(depth=0) msg ep ->
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				locate_macro_error := false;
-				old msg ep;
+				old msg (if ep = null_pos then p else ep);
 				locate_macro_error := true;
-				old (compl_msg "Called from macro here") p;
+				if ep <> null_pos then old ~depth:(depth+1) (compl_msg "Called from macro here") p;
 			end else
 				old msg ep;
 		);

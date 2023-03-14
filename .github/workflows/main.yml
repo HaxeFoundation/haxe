@@ -347,6 +347,7 @@ jobs:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
+      HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
@@ -852,6 +853,7 @@ jobs:
       PLATFORM: mac
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
+      HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:

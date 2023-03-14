@@ -1,0 +1,12 @@
+[ERROR] --macro haxe.macro.Compiler.registerMetadataDescriptionFile('meta.jsno', 'myapp')
+
+   | Uncaught exception Could not read file meta.jsno
+
+    ->  $$normPath(::std::)/haxe/macro/Compiler.hx:472: characters 11-39
+
+    472 |   var f = sys.io.File.getContent(path);
+        |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        | Called from here
+
+        | Called from here
+

@@ -76,7 +76,7 @@ let no_abstract_constructor c p =
 	if has_class_flag c CAbstract then raise_typing_error (Abstract_class (TClassDecl c)) p
 
 let check_constructor_access ctx c f p =
-	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
+	if (Meta.has Meta.CompilerGenerated f.cf_meta) then located_display_error ctx.com (error_msg p (No_constructor (TClassDecl c)));
 	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx cf fa mode p =
@@ -438,7 +438,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 							end
 						| _ ->
 							check()
-					with Unify_error el | Error (Unify el,_) ->
+					with Unify_error el | Error (Unify el,_,_) ->
 						check_constant_struct := !check_constant_struct || List.exists (function
 							| Has_extra_field _ -> true
 							| _ -> false
