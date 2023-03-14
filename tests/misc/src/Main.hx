@@ -1,6 +1,5 @@
 import haxe.io.Bytes;
 import haxe.macro.Compiler;
-import haxe.macro.Context;
 import sys.FileSystem;
 import sys.io.File;
 import haxe.io.Path;
