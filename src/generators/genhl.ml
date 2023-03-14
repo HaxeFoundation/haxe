@@ -644,7 +644,13 @@ and class_type ?(tref=None) ctx c pl statics =
 			| Method MethDynamic when has_class_field_flag f CfOverride ->
 				Some (try fst (get_index f.cf_name p) with Not_found -> die "" __LOC__)
 			| _ ->
-				let fid = add_field f.cf_name (fun() -> to_type ctx f.cf_type) in
+				let fid = add_field f.cf_name (fun() ->
+					let t = to_type ctx f.cf_type in
+					if has_meta (Meta.Custom ":packed") f.cf_meta then begin
+						(match t with HStruct _ -> () | _ -> abort "Packed field should be struct" f.cf_pos);
+						HPacked t
+					end else t
+				) in
 				Some fid
 			) in
 			match f.cf_kind, fid with
@@ -2507,7 +2513,7 @@ and eval_expr ctx e =
 			| HUI8 -> 0xFFl
 			| HUI16 -> 0xFFFFl
 			| HI32 -> 0xFFFFFFFFl
-			| _ -> abort (tstr t) e.epos
+			| _ -> abort ("Unsupported " ^ tstr t) e.epos
 		) in
 		hold ctx r;
 		let r2 = alloc_tmp ctx t in
@@ -3437,7 +3443,9 @@ let generate_static_init ctx types main =
 
 	let gen_content() =
 
-		op ctx (OCall0 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "init"));
+		let is_init = alloc_tmp ctx HBool in
+		op ctx (OCall0 (is_init, alloc_fun_path ctx ([],"Type") "init"));
+		hold ctx is_init;
 
 		(* init class values *)
 		List.iter (fun t ->
@@ -3609,6 +3617,11 @@ let generate_static_init ctx types main =
 				()
 
 		) types;
+
+		let j = jump ctx (fun d -> OJTrue (is_init,d)) in
+		op ctx (ORet (alloc_tmp ctx HVoid));
+		j();
+		free ctx is_init;
 	in
 	(* init class statics *)
 	let init_exprs = ref [] in
@@ -3676,7 +3689,7 @@ let write_code ch code debug =
 	let write_index = write_index_gen byte in
 
 	let rec write_type t =
-		write_index (try PMap.find t htypes with Not_found -> die "" __LOC__)
+		write_index (try PMap.find t htypes with Not_found -> die (tstr t) __LOC__)
 	in
 
 	let write_op op =
@@ -3829,7 +3842,7 @@ let write_code ch code debug =
 			write_index p.pid;
 			(match p.psuper with
 			| None -> write_index (-1)
-			| Some t -> write_type (HObj t));
+			| Some tsup -> write_type (match t with HObj _ -> HObj tsup | _ -> HStruct tsup));
 			(match p.pclassglobal with
 			| None -> write_index 0
 			| Some g -> write_index (g + 1));
@@ -3870,6 +3883,9 @@ let write_code ch code debug =
 			) e.efields
 		| HNull t ->
 			byte 19;
+			write_type t
+		| HPacked t ->
+			byte 22;
 			write_type t
 	) all_types;
 
@@ -4132,7 +4148,7 @@ let generate com =
 		"\"" ^ Buffer.contents b ^ "\""
 	in
 
-	if file_extension com.file = "c" then begin
+	if Path.file_extension com.file = "c" then begin
 		let gnames = Array.create (Array.length code.globals) "" in
 		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		if not (Common.defined com Define.SourceHeader) then begin
@@ -4143,7 +4159,7 @@ let generate com =
 		end;
 		Hl2c.write_c com com.file code gnames;
 		let t = Timer.timer ["nativecompile";"hl"] in
-		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
+		if not (Common.defined com Define.NoCompilation) && com.run_command_args "haxelib" ["run";"hashlink";"build";escape_command com.file] <> 0 then failwith "Build failed";
 		t();
 	end else begin
 		let ch = IO.output_string() in
@@ -4158,7 +4174,7 @@ let generate com =
 	Hlopt.clean_cache();
 	t();
 	if Common.raw_defined com "run" then begin
-		if com.run_command ("haxelib run hashlink run " ^ escape_command com.file) <> 0 then failwith "Failed to run HL";
+		if com.run_command_args "haxelib" ["run";"hashlink";"run";escape_command com.file] <> 0 then failwith "Failed to run HL";
 	end;
 	if Common.defined com Define.Interp then
 		try

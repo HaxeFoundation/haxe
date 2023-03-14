@@ -122,8 +122,8 @@ let inline_constructors ctx original_e =
 			| IOKCtor(ioc) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
-					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
-					display_error ctx (compl_msg "Cancellation happened here") p;
+					display_error ctx.com "Forced inline constructor could not be inlined" io.io_pos;
+					display_error ctx.com (compl_msg "Cancellation happened here") p;
 				end
 			| _ -> ()
 		end
@@ -317,7 +317,7 @@ let inline_constructors ctx original_e =
 						if is_lvalue && iv_is_const fiv then raise Not_found;
 						if fiv.iv_closed then raise Not_found;
 						if not is_lvalue && fiv.iv_state == IVSUnassigned then (
-							warning ctx WInliner ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
+							warning ctx WConstructorInliningCancelled ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
 							raise Not_found
 						);
 						if not captured then cancel_iv fiv efield.epos;
@@ -399,7 +399,7 @@ let inline_constructors ctx original_e =
 						Some iv
 					| _ ->
 						List.iter (fun v -> cancel_v v v.v_pos) argvs;
-						if is_extern_ctor c cf then display_error ctx "Extern constructor could not be inlined" e.epos;
+						if is_extern_ctor c cf then display_error ctx.com "Extern constructor could not be inlined" e.epos;
 						None
 				end
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
@@ -532,6 +532,8 @@ let inline_constructors ctx original_e =
 				List.iter (fun ca -> ignore(analyze_aliases false ca)) call_args;
 				None
 			end
+		| TFunction tf ->
+			analyze_aliases true tf.tf_expr
 		| _ ->
 			handle_default_case e
 	in

@@ -760,7 +760,7 @@ let dump_with_pos tabs e =
 			add "TCast";
 			loop e1;
 		| TMeta((m,_,_),e1) ->
-			add ("TMeta " ^ fst (Meta.get_info m));
+			add ("TMeta " ^ (Meta.to_string m));
 			loop e1
 	in
 	loop' tabs e;
@@ -842,3 +842,82 @@ let punion_el default_pos el =
 			default_pos
 		else
 			punion first last
+
+let is_exhaustive e1 def =
+	let rec loop e1 = match e1.eexpr with
+		| TMeta((Meta.Exhaustive,_,_),_) -> true
+		| TMeta(_, e1) | TParenthesis e1 -> loop e1
+		| _ -> false
+	in
+	def <> None || loop e1
+
+let rec is_true_expr e1 = match e1.eexpr with
+	| TConst(TBool true) -> true
+	| TParenthesis e1 -> is_true_expr e1
+	| _ -> false
+
+let rec is_false_expr e1 = match e1.eexpr with
+	| TConst(TBool false) -> true
+	| TParenthesis e1 -> is_false_expr e1
+	| _ -> false
+
+module DeadEnd = struct
+	exception BreakOrContinue
+
+	(*
+		Checks if execution of provided expression is guaranteed to be terminated with `return`, `throw`, `break` or `continue`.
+	*)
+	let has_dead_end e =
+		let rec loop e =
+			let in_loop e =
+				try
+					loop e
+				with BreakOrContinue ->
+					false
+			in
+			match e.eexpr with
+			| TContinue | TBreak ->
+				raise BreakOrContinue
+			| TThrow e1 ->
+				loop e1 || true
+			| TReturn (Some e1) ->
+				loop e1 || true (* recurse first, could be `return continue` *)
+			| TReturn None ->
+				true
+			| TFunction _ ->
+				false (* This isn't executed, so don't recurse *)
+			| TIf (cond, if_body, Some else_body) ->
+				loop cond || loop if_body && loop else_body
+			| TIf (cond, _, None) ->
+				loop cond
+			| TSwitch(e1, cases, def) ->
+				let check_exhaustive () =
+					(is_exhaustive e1 def) && List.for_all (fun (el,e) ->
+						List.exists loop el ||
+						loop e
+					) cases &&
+					Option.map_default (loop ) true def (* true because we know it's exhaustive *)
+				in
+				loop e1 || check_exhaustive ()
+			| TFor(_, e1, _) ->
+				loop e1
+			| TBinop(OpBoolAnd, e1, e2) ->
+				loop e1 || is_true_expr e1 && loop e2
+			| TBinop(OpBoolOr, e1, e2) ->
+				loop e1 || is_false_expr e1 && loop e2
+			| TWhile(cond, body, flag) ->
+				loop cond || ((flag = DoWhile || is_true_expr cond) && in_loop body)
+			| TTry(e1,[]) ->
+				loop e1
+			| TTry(_,catches) ->
+				(* The try expression is irrelevant because we have to conservatively assume that
+				   anything could throw control flow into the catch expressions. *)
+				List.for_all (fun (_,e) -> loop e) catches
+			| _ ->
+				check_expr loop e
+		in
+		try
+			loop e
+		with BreakOrContinue ->
+			true
+end

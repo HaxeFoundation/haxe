@@ -1198,7 +1198,7 @@ module Expr = struct
 				add "ECheckType";
 				loop e1;
 			| EMeta((m,_,_),e1) ->
-				add ("EMeta " ^ fst (Meta.get_info m));
+				add ("EMeta " ^ (Meta.to_string m));
 				loop e1
 		in
 		loop' "" e;
@@ -1251,3 +1251,11 @@ let get_meta_options metas meta =
 			[]
 	in
 	loop metas
+
+let get_meta_string meta key =
+	let rec loop = function
+		| [] -> None
+		| (k,[EConst (String(name,_)),_],_) :: _ when k = key -> Some name
+		| _ :: l -> loop l
+	in
+	loop meta

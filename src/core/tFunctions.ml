@@ -91,7 +91,7 @@ let null t p = mk (TConst TNull) t p
 
 let mk_mono() = TMono (!monomorph_create_ref ())
 
-let rec t_dynamic = TDynamic t_dynamic
+let t_dynamic = TDynamic None
 
 let mk_anon ?fields status =
 	let fields = match fields with Some fields -> fields | None -> PMap.empty in
@@ -147,6 +147,7 @@ let mk_typedef m path pos name_pos t =
 		t_params = [];
 		t_using = [];
 		t_type = t;
+		t_restore = (fun () -> ());
 	}
 
 let module_extra file sign time kind policy =
@@ -158,9 +159,9 @@ let module_extra file sign time kind policy =
 			m_type_hints = [];
 			m_import_positions = PMap.empty;
 		};
-		m_dirty = None;
+		m_cache_state = MSGood;
 		m_added = 0;
-		m_mark = 0;
+		m_checked = 0;
 		m_time = time;
 		m_processed = 0;
 		m_deps = PMap.empty;
@@ -215,6 +216,7 @@ let null_abstract = {
 	a_meta = [];
 	a_params = [];
 	a_using = [];
+	a_restore = (fun () -> ());
 	a_ops = [];
 	a_unops = [];
 	a_impl = None;
@@ -230,8 +232,12 @@ let null_abstract = {
 	a_enum = false;
 }
 
-let add_dependency m mdep =
-	if m != null_module && m != mdep then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
+let add_dependency ?(skip_postprocess=false) m mdep =
+	if m != null_module && m != mdep then begin
+		m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps;
+		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
+		if not skip_postprocess then m.m_extra.m_processed <- 0
+	end
 
 let arg_name (a,_) = a.v_name
 
@@ -288,8 +294,10 @@ let map loop t =
 		let ft = lazy_type f in
 		let ft2 = loop ft in
 		if ft == ft2 then t else ft2
-	| TDynamic t2 ->
-		if t == t2 then	t else TDynamic (loop t2)
+	| TDynamic None ->
+		t
+	| TDynamic (Some t2) ->
+		TDynamic (Some (loop t2))
 
 let iter loop t =
 	match t with
@@ -315,8 +323,10 @@ let iter loop t =
 	| TLazy f ->
 		let ft = lazy_type f in
 		loop ft
-	| TDynamic t2 ->
-		if t != t2 then	loop t2
+	| TDynamic None ->
+		()
+	| TDynamic (Some t2) ->
+		loop t2
 
 let duplicate t =
 	let monos = ref [] in
@@ -329,6 +339,16 @@ let duplicate t =
 				let m = mk_mono() in
 				monos := (t,m) :: !monos;
 				m)
+		| _ ->
+			map loop t
+	in
+	loop t
+
+let dynamify_monos t =
+	let rec loop t =
+		match t with
+		| TMono { tm_type = None } ->
+			t_dynamic
 		| _ ->
 			map loop t
 	in
@@ -442,11 +462,10 @@ let apply_params ?stack cparams params t =
 				t
 			else
 				ft2
-		| TDynamic t2 ->
-			if t == t2 then
-				t
-			else
-				TDynamic (loop t2)
+		| TDynamic None ->
+			t
+		| TDynamic (Some t2) ->
+			TDynamic (Some (loop t2))
 	in
 	loop t
 

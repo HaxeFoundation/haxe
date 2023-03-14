@@ -46,7 +46,7 @@ class RunCi {
 			infoMsg('test $test');
 			try {
 				changeDirectory(unitDir);
-				haxelibInstallGit("haxe-utest", "utest", "master");
+				haxelibInstallGit("haxe-utest", "utest", "master", "--always");
 
 				var args = switch (ci) {
 					case null:
@@ -78,7 +78,7 @@ class RunCi {
 						runci.targets.Jvm.run(args);
 					case Cs:
 						runci.targets.Cs.run(args);
-					case Flash9:
+					case Flash:
 						runci.targets.Flash.run(args);
 					case Hl:
 						runci.targets.Hl.run(args);

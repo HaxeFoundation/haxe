@@ -1142,11 +1142,8 @@ let generate con =
 				| TAbstract( { a_path = (["java"], "Int64") }, [] )
 				| TAbstract( { a_path = (["haxe"], "Int64") }, [] ) ->
 					TInst(cl_long, [])
-				| _ -> (match follow t with
-					| TInst( { cl_kind = KTypeParameter _ }, []) ->
-							t_dynamic
-					| _ -> real_type t
-				)
+				| _ ->
+					real_type t
 			)
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				real_type (Abstract.get_underlying_type a pl)
@@ -2707,17 +2704,18 @@ let generate con =
 	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
-		let cmd = "haxelib run hxjava hxjava_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) ^ " --feature-level 1" in
-		let cmd =
+		let cmd = "haxelib" in
+		let args = ["run";"hxjava";"hxjava_build.txt";"--haxe-version";(string_of_int gen.gcon.version);"--feature-level";"1"] in
+		let args =
 			match gen.gentry_point with
 			| Some (name,_,_) ->
 				let name = if gen.gcon.debug then name ^ "-Debug" else name in
-				cmd ^ " --out " ^ gen.gcon.file ^ "/" ^ name
+				args @ ["--out";gen.gcon.file ^ "/" ^ name]
 			| _ ->
-				cmd
+				args
 		in
-		print_endline cmd;
-		if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
+		print_endline (cmd ^ " " ^ (String.concat " " args));
+		if gen.gcon.run_command_args cmd args <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end
 

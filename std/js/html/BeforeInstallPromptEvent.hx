@@ -8,6 +8,7 @@ import js.lib.Promise;
 
 	@see https://developer.mozilla.org/en-US/docs/Web/API/BeforeInstallPromptEvent
 **/
+@:native("BeforeInstallPromptEvent")
 extern class BeforeInstallPromptEvent extends Event {
 
 	/** The platforms on which this event was dispatched. **/

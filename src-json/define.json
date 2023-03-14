@@ -16,6 +16,12 @@
 		"doc": "Perform advanced optimizations."
 	},
 	{
+		"name": "AnalyzerTimes",
+		"define": "analyzer-times",
+		"doc": "Record detailed timers for the analyzer",
+		"params": ["level: 0 | 1 | 2"]
+	},
+	{
 		"name": "AnnotateSource",
 		"define": "annotate-source",
 		"doc": "Add additional comments to generated source code.",
@@ -154,6 +160,19 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "EvalPrintDepth",
+		"define": "eval-print-depth",
+		"doc": "Set maximum print depth (before replacing with '<...>') for eval. (default: 5)",
+		"platforms": ["eval"],
+		"params": ["depth"]
+	},
+	{
+		"name": "EvalPrettyPrint",
+		"define": "eval-pretty-print",
+		"doc": "Enable indented output for eval printing.",
+		"platforms": ["eval"]
+	},
+	{
 		"name": "EvalStack",
 		"define": "eval-stack",
 		"doc": "Record stack information in macro/interp mode.",
@@ -204,7 +223,7 @@
 		"devcomment": "force-lib-check is only here as a debug facility - compiler checking allows errors to be found more easily",
 		"name": "ForceLibCheck",
 		"define": "force-lib-check",
-		"doc": "Force the compiler to check `--net-lib` and `–-java-lib` added classes (internal).",
+		"doc": "Force the compiler to check `--net-lib` and `--java-lib` added classes (internal).",
 		"platforms": ["cs", "java"]
 	},
 	{
@@ -620,6 +639,12 @@
 		"name": "SwfGpu",
 		"define": "swf-gpu",
 		"doc": "Use GPU compositing features when drawing graphics.",
+		"platforms": ["flash"]
+	},
+	{
+		"name": "SwfHeader",
+		"define": "swf-header",
+		"doc": "define SWF header (width:height:fps:color)",
 		"platforms": ["flash"]
 	},
 	{

@@ -127,6 +127,10 @@ class Context {
 		return load("contains_display_position", 1)(pos);
 	}
 
+	public static function getDisplayMode():DisplayMode {
+		return load("get_display_mode", 0)();
+	}
+
 	/**
 		Returns the position at which the macro was called.
 	**/
@@ -306,6 +310,29 @@ class Context {
 	}
 
 	/**
+		Returns the typed expression of the call to the main function.
+		
+		This function will only work in the generation phase. Any calls
+		made outside a function passed to `haxe.macro.Context.onGenerate`
+		or `haxe.macro.Context.onAfterGenerate` will return `null`.
+	**/
+	public static function getMainExpr():Null<TypedExpr> {
+		return load("get_main_expr", 0)();
+	}
+
+	/**
+		Returns an array of module types to be generated in the output.
+		
+		This list may change depending on the phase of compilation and
+		should not be treated as conclusive until the generation phase.
+
+		Modifying the returned array has no effect on the compilation.
+	**/
+	public static function getAllModuleTypes():Array<haxe.macro.Type.ModuleType> {
+		return load("get_module_types", 0)();
+	}
+
+	/**
 		Parses `expr` as Haxe code, returning the corresponding AST.
 
 		String interpolation of single quote strings within `expr` is not
@@ -416,7 +443,10 @@ class Context {
 		Types expression `e` and returns the corresponding `TypedExpr`.
 
 		Typing the expression may result in a compiler error which can be
-		caught using `try ... catch`.
+		caught using `try ... catch`. Note that not all compiler errors can
+		be caught this way because the compiler might delay various checks
+		to a later stage, at which point the exception handler is no longer
+		active.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
 		return load("type_expr", 1)(e);
@@ -525,6 +555,16 @@ class Context {
 	**/
 	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
 		load("define_type", 2)(t, moduleDependency);
+	}
+
+	/**
+		Creates and returns a new instance of monomorph (`TMono`) type.
+
+		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
+		bind the monomorph to an actual type and let macro further process the resulting type.
+	**/
+	public static function makeMonomorph():Type {
+		return load("make_monomorph", 0)();
 	}
 
 	/**
@@ -637,6 +677,20 @@ class Context {
 	**/
 	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
 		return load("with_imports", 3)(imports, usings, code);
+	}
+
+
+	/**
+		Executes `code` in a context that has some compiler options set, restore the compiler to its
+		default behavior afterwards.
+
+		`allowInlining`: enable or disable inlining during typing with `typeExpr`.
+
+		`allowTransform`: when disabled, the code typed with `typeExpr` will be almost exactly the same
+		as the input code. This will disable some abstract types transformations.
+	**/
+	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
+		return load("with_options", 2)(options, code);
 	}
 
 	@:deprecated

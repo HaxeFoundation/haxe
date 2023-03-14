@@ -87,8 +87,10 @@ let rec s_type ctx t =
 				let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
 				"{" ^ String.concat "," fl ^ " }"
 		end
-	| TDynamic t2 ->
-		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+	| TDynamic None ->
+		"Dynamic"
+	| TDynamic (Some t2) ->
+		"Dynamic" ^ s_type_params ctx [t2]
 	| TLazy f ->
 		s_type ctx (lazy_type f)
 
@@ -632,14 +634,30 @@ module Printer = struct
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
+	let s_module_skip_reason reason =
+		let rec loop stack = function
+			| DependencyDirty(path,reason) ->
+				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
+			| Tainted cause -> "Tainted " ^ cause
+			| FileChanged file -> "FileChanged " ^ file
+			| Shadowed file -> "Shadowed " ^ file
+			| LibraryChanged -> "LibraryChanged"
+		in
+		loop [] reason
+
+	let s_module_cache_state = function
+		| MSGood -> "Good"
+		| MSBad reason -> "Bad: " ^ (s_module_skip_reason reason)
+		| MSUnknown -> "Unknown"
+
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [
 			"m_file",Path.UniqueKey.lazy_path me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
-			"m_dirty",s_opt s_type_path me.m_dirty;
+			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
-			"m_mark",string_of_int me.m_mark;
+			"m_checked",string_of_int me.m_checked;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;

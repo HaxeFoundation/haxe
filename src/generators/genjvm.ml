@@ -130,7 +130,7 @@ class file_output
 	method add_entry (content : string) (name : string) =
 		let path = base_path ^ name in
 		Path.mkdir_from_path path;
-		let ch = open_out path in
+		let ch = open_out_bin path in
 		output_string ch content;
 		close_out ch
 
@@ -1010,7 +1010,7 @@ class texpr_to_jvm
 
 	method do_compare op =
 		match code#get_stack#get_stack_items 2 with
-		| [TInt | TByte | TChar | TBool;TInt | TByte | TChar | TBool] ->
+		| [TInt | TByte | TChar | TShort | TBool;TInt | TByte | TChar | TShort | TBool] ->
 			let op = flip_cmp_op op in
 			CmpSpecial (code#if_icmp op)
 		| [TObject((["java";"lang"],"String"),[]);TObject((["java";"lang"],"String"),[])] ->
@@ -1400,6 +1400,9 @@ class texpr_to_jvm
 				| TDouble ->
 					code#dconst 1.;
 					if op = Increment then code#dadd else code#dsub
+				| TFloat ->
+					code#fconst 1.;
+					if op = Increment then code#fadd else code#fsub
 				| TByte | TShort | TInt ->
 					code#iconst Int32.one;
 					if op = Increment then code#iadd else code#isub;
@@ -1416,6 +1419,7 @@ class texpr_to_jvm
 			begin match jsig with
 			| TLong -> code#lneg;
 			| TDouble -> code#dneg;
+			| TFloat -> code#fneg;
 			| TByte | TShort | TInt -> code#ineg;
 			| _ -> jm#invokestatic haxe_jvm_path "opNeg" (method_sig [object_sig] (Some object_sig))
 			end;
@@ -2003,10 +2007,12 @@ class texpr_to_jvm
 			jm#return;
 		| TReturn (Some e1) ->
 			self#texpr rvalue_any e1;
-			let jsig = Option.get return_type in
-			jm#cast jsig;
-			self#emit_block_exits false;
-			jm#return;
+			if not (jm#is_terminated) then begin
+				let jsig = Option.get return_type in
+				jm#cast jsig;
+				self#emit_block_exits false;
+				jm#return;
+			end
 		| TFunction tf ->
 			self#tfunction ret e tf
 		| TArrayDecl el when not (need_val ret) ->

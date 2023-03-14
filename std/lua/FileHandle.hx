@@ -29,6 +29,7 @@ import sys.io.FileInput;
 extern class FileHandle extends UserData {
 	function flush():Void;
 	function read(arg:Rest<EitherType<String, Int>>):String;
+	function lines():NativeIterator<String>;
 	function close():Void;
 
 	function write(str:String):Void;

@@ -211,7 +211,7 @@ class StringTools {
 	public static inline function contains(s:String, value:String):Bool {
 		#if (js && js_es >= 6)
 		return (cast s).includes(value);
-		#else 
+		#else
 		return s.indexOf(value) != -1;
 		#end
 	}
@@ -234,6 +234,8 @@ class StringTools {
 		return python.NativeStringTools.startswith(s, start);
 		#elseif (js && js_es >= 6)
 		return (cast s).startsWith(start);
+		#elseif lua
+		return untyped __lua__("{0}:sub(1, #{1}) == {1}", s, start);
 		#else
 		return (s.length >= start.length && s.lastIndexOf(start, 0) == 0);
 		#end
@@ -259,6 +261,8 @@ class StringTools {
 		return python.NativeStringTools.endswith(s, end);
 		#elseif (js && js_es >= 6)
 		return (cast s).endsWith(end);
+		#elseif lua
+		return end == "" || untyped __lua__("{0}:sub(-#{1}) == {1}", s, end);
 		#else
 		var elen = end.length;
 		var slen = s.length;

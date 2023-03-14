@@ -376,6 +376,11 @@ let mkdir_from_path path =
 let full_dot_path pack mname tname =
 	if tname = mname then (pack,mname) else (pack @ [mname],tname)
 
+let file_extension file =
+	match List.rev (ExtString.String.nsplit file ".") with
+	| e :: _ -> String.lowercase e
+	| [] -> ""
+
 module FilePath = struct
 	type t = {
 		directory : string option;

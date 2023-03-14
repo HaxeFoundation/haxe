@@ -29,7 +29,7 @@ private class IUnOp<X, Y, S:TList> implements Instr<TCons<X, S>, TCons<Y, S>> {
 	}
 }
 
-@:haxe.warning("-600")
+@:haxe.warning("-WGenerator")
 class Issue4578 extends Test {
 	function test() {
 		var i = new IUnOp(function(x) return x * 2);

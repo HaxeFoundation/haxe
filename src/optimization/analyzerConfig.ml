@@ -35,7 +35,7 @@ type t = {
 	fusion : bool;
 	purity_inference : bool;
 	debug_kind : debug_kind;
-	detail_times : bool;
+	detail_times : int;
 	user_var_fusion : bool;
 	fusion_debug : bool;
 }
@@ -71,7 +71,7 @@ let get_base_config com =
 		fusion = not (Common.raw_defined com "analyzer_no_fusion");
 		purity_inference = not (Common.raw_defined com "analyzer_no_purity_inference");
 		debug_kind = DebugNone;
-		detail_times = Common.raw_defined com "analyzer_times";
+		detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.AnalyzerTimes) with _ -> 0);
 		user_var_fusion = (match com.platform with Flash | Java -> false | _ -> true) && (Common.raw_defined com "analyzer_user_var_fusion" || (not com.debug && not (Common.raw_defined com "analyzer_no_user_var_fusion")));
 		fusion_debug = false;
 	}
@@ -100,13 +100,13 @@ let update_config_from_meta com config ml =
 						| "as_var" -> config
 						| _ ->
 							let options = Warning.from_meta ml in
-							com.warning WAnalyzer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+							com.warning WOptimizer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 							config
 					end
 				| _ ->
 					let s = Ast.Printer.s_expr e in
 					let options = Warning.from_meta ml in
-					com.warning WAnalyzer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+					com.warning WOptimizer options (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el
 		| (Meta.HasUntyped,_,_) ->

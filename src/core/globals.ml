@@ -50,6 +50,7 @@ let platforms = [
 	Eval;
 ]
 
+(** Expected to match `haxe.display.Display.Platform`. *)
 let platform_name = function
 	| Cross -> "cross"
 	| Js -> "js"
@@ -63,6 +64,21 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
+
+let parse_platform = function
+	| "cross" -> Cross
+	| "js" -> Js
+	| "lua" -> Lua
+	| "neko" -> Neko
+	| "flash" -> Flash
+	| "php" -> Php
+	| "cpp" -> Cpp
+	| "cs" -> Cs
+	| "java" -> Java
+	| "python" -> Python
+	| "hl" -> Hl
+	| "eval" -> Eval
+	| p -> raise (failwith ("invalid platform " ^ p))
 
 let platform_list_help = function
 	| [] -> ""
@@ -91,6 +107,9 @@ let s_version_full =
 		| Some (_,build) -> s_version ^ "+" ^ build
 		| _ -> s_version
 
+
+let patch_string_pos p s = { p with pmin = p.pmax - String.length s }
+
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
 	Usage: `die message __LOC__`, where `__LOC__` is a built-in ocaml constant
@@ -115,3 +134,43 @@ let die ?p msg ml_loc =
 	and os_type = if Sys.unix then "unix" else "windows" in
 	Printf.eprintf "%s\nHaxe: %s; OS type: %s;\n%s\n%s" msg ver os_type ml_loc backtrace;
 	assert false
+
+module MessageSeverity = struct
+	type t =
+		| Error
+		| Warning
+		| Information
+		| Hint
+
+	let to_int = function
+		| Error -> 1
+		| Warning -> 2
+		| Information -> 3
+		| Hint -> 4
+end
+
+module MessageKind = struct
+	type t =
+		| DKUnusedImport
+		| DKUnresolvedIdentifier
+		| DKCompilerMessage
+		| DKRemovableCode
+		| DKParserError
+		| DKDeprecationWarning
+		| DKInactiveBlock
+		| DKMissingFields
+
+	let to_int = function
+		| DKUnusedImport -> 0
+		| DKUnresolvedIdentifier -> 1
+		| DKCompilerMessage -> 2
+		| DKRemovableCode -> 3
+		| DKParserError -> 4
+		| DKDeprecationWarning -> 5
+		| DKInactiveBlock -> 6
+		| DKMissingFields -> 7
+end
+
+type compiler_message = string * pos * MessageKind.t * MessageSeverity.t
+
+let i32_31 = Int32.of_int 31

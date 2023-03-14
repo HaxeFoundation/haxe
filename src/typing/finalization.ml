@@ -23,7 +23,7 @@ let get_main ctx types =
 				| None ->
 					raise Not_found
 				| Some c ->
-					p := c.cl_pos;
+					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found -> try
 				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
@@ -31,7 +31,7 @@ let get_main ctx types =
 				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 					typing_error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
 				| TClassDecl c ->
-					p := c.cl_pos;
+					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found ->
 				typing_error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
@@ -86,7 +86,7 @@ let finalize ctx =
 			()
 		| fl ->
 			let rec loop handled_types =
-				let all_types = Hashtbl.fold (fun _ m acc -> m.m_types @ acc) ctx.g.modules [] in
+				let all_types = ctx.com.module_lut#fold (fun _ m acc -> m.m_types @ acc) [] in
 				match (List.filter (fun mt -> not (List.memq mt handled_types)) all_types) with
 				| [] ->
 					()
@@ -102,7 +102,7 @@ type state =
 	| Done
 	| NotYet
 
-let sort_types com modules =
+let sort_types com (modules : (path,module_def) lookup) =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -193,10 +193,10 @@ let sort_types com modules =
 		) c.cl_statics
 
 	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (modules#fold (fun _ m acc -> m :: acc) []) in
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	List.rev !types, sorted_modules
 
 let generate ctx =
-	let types,modules = sort_types ctx.com ctx.g.modules in
+	let types,modules = sort_types ctx.com ctx.com.module_lut in
 	get_main ctx types,types,modules

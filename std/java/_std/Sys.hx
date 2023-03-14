@@ -21,6 +21,8 @@
  */
 
 import java.lang.System;
+import java.net.URI;
+import java.nio.file.Paths;
 import sys.io.Process;
 
 using haxe.Int64;
@@ -140,7 +142,8 @@ using haxe.Int64;
 	}
 
 	public static function programPath():String {
-		return java.Lib.toNativeType(Sys).getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+		final uri:URI = java.Lib.toNativeType(Sys).getProtectionDomain().getCodeSource().getLocation().toURI();
+		return Std.string(Paths.get(uri));
 	}
 
 	public static function getChar(echo:Bool):Int {

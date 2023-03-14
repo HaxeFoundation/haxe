@@ -619,7 +619,7 @@ let new_ctx con =
 
 		greal_field_types = Hashtbl.create 0;
 		ghandle_cast = (fun to_t from_t e -> mk_cast to_t e);
-		gon_unsafe_cast = (fun t t2 pos -> (gen.gwarning WGencommon ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
+		gon_unsafe_cast = (fun t t2 pos -> (gen.gwarning WGenerator ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
 		gneeds_box = (fun t -> false);
 		gspecial_needs_cast = (fun to_t from_t -> false);
 		gsupported_conversions = Hashtbl.create 0;
@@ -1291,7 +1291,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ when PMap.mem field gen.gbase_class_fields ->
 			let cf = PMap.find field gen.gbase_class_fields in
 			FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type, cf.cf_type)
-		| TDynamic t -> FDynamicField t
+		| TDynamic t -> FDynamicField (match t with None -> t_dynamic | Some t -> t)
 		| TMono _ -> FDynamicField t_dynamic
 		| _ -> FNotFound
 

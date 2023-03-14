@@ -239,7 +239,7 @@ module StdArray = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		vstring (s_array 0 (this vthis))
+		vstring (s_array 0 0 (this vthis))
 	)
 
 	let unshift = vifun1 (fun vthis v ->
@@ -440,7 +440,12 @@ module StdBytes = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		(create_unknown (Bytes.to_string (this vthis)))
+		let this = this vthis in
+		try
+			UTF8.validate (Bytes.unsafe_to_string this);
+			(create_unknown (Bytes.to_string this))
+		with UTF8.Malformed_code ->
+			exc_string "Invalid string"
 	)
 end
 
@@ -1945,7 +1950,7 @@ module StdReflect = struct
 				end
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
-			| _ -> unexpected_value o "object"
+			| _ -> false (* issue #10993 *)
 		in
 		vbool b
 	)
@@ -2585,8 +2590,6 @@ module StdSys = struct
 	)
 
 	let exit = vfun1 (fun code ->
-		(* TODO: Borrowed from interp.ml *)
-		if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
 		raise (Sys_exit(decode_int code));
 	)
 
@@ -2682,12 +2685,12 @@ module StdSys = struct
 					(match !cached_sys_name with
 					| Some n -> n
 					| None ->
-						let ic = catch_unix_error Unix.open_process_in "uname" in
+						let ic, pid = catch_unix_error Process_helper.open_process_args_in_pid "uname" [| "uname" |] in
 						let uname = (match input_line ic with
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						close_in ic;
+						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"

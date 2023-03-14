@@ -99,19 +99,33 @@ devcontainer:
 
     USER root
 
-    ARG GIT_SHA
-    ENV GIT_SHA="$GIT_SHA"
     ARG IMAGE_NAME="$DEVCONTAINER_IMAGE_NAME_DEFAULT"
     ARG IMAGE_TAG="development"
     ARG IMAGE_CACHE="$IMAGE_NAME:$IMAGE_TAG"
     SAVE IMAGE --cache-from="$IMAGE_CACHE" --push "$IMAGE_NAME:$IMAGE_TAG"
+
+devcontainer-multiarch-amd64:
+    ARG IMAGE_NAME="$DEVCONTAINER_IMAGE_NAME_DEFAULT"
+    ARG IMAGE_TAG="development"
+    FROM --platform=linux/amd64 +devcontainer --IMAGE_NAME="$IMAGE_NAME" --IMAGE_TAG="$IMAGE_TAG-amd64"
+    SAVE IMAGE --push "$IMAGE_NAME:$IMAGE_TAG"
+
+devcontainer-multiarch-arm64:
+    ARG IMAGE_NAME="$DEVCONTAINER_IMAGE_NAME_DEFAULT"
+    ARG IMAGE_TAG="development"
+    FROM --platform=linux/arm64 +devcontainer --IMAGE_NAME="$IMAGE_NAME" --IMAGE_TAG="$IMAGE_TAG-arm64"
+    SAVE IMAGE --push "$IMAGE_NAME:$IMAGE_TAG"
+
+devcontainer-multiarch:
+    BUILD +devcontainer-multiarch-amd64
+    BUILD +devcontainer-multiarch-arm64
 
 # Usage:
 # COPY +earthly/earthly /usr/local/bin/
 # RUN earthly bootstrap --no-buildkit --with-autocomplete
 earthly:
     ARG --required TARGETARCH
-    RUN curl -fsSL https://github.com/earthly/earthly/releases/download/v0.6.5/earthly-linux-${TARGETARCH} -o /usr/local/bin/earthly \
+    RUN curl -fsSL https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-${TARGETARCH} -o /usr/local/bin/earthly \
         && chmod +x /usr/local/bin/earthly
     SAVE ARTIFACT /usr/local/bin/earthly
 
@@ -170,7 +184,14 @@ build:
 
     # Build Haxe
     COPY --dir extra libs plugins src* std dune* Makefile* .
-    COPY .git .git # the Makefile calls git to get commit sha
+
+    # the Makefile calls git to get commit sha
+    COPY .git .git
+    ARG SET_SAFE_DIRECTORY="false"
+    IF [ "$SET_SAFE_DIRECTORY" = "true" ]
+        RUN git config --global --add safe.directory "$WORKDIR"
+    END
+
     ARG ADD_REVISION
     ENV ADD_REVISION=$ADD_REVISION
     RUN opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && ldd -v ./haxe
@@ -254,7 +275,7 @@ test-environment-cs:
 
 test-environment-hl:
     FROM +test-environment
-    DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev"
+    DO +INSTALL_PACKAGES --PACKAGES="cmake ninja-build libturbojpeg-dev libpng-dev zlib1g-dev libvorbis-dev libsqlite3-dev"
     SAVE IMAGE --cache-hint
 
 test-environment-lua:
@@ -365,7 +386,7 @@ test-flash:
     FROM +test-environment-flash
     ARG GITHUB_ACTIONS
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
-    DO +RUN_CI --TEST=flash9
+    DO +RUN_CI --TEST=flash
 
 test-all:
     ARG TARGETPLATFORM
@@ -394,3 +415,7 @@ github-actions:
     WORKDIR extra/github-actions
     RUN haxe build.hxml
     SAVE ARTIFACT --keep-ts "$WORKDIR"/.github/workflows AS LOCAL .github/workflows
+
+ghcr-login:
+    LOCALLY
+    RUN echo "$GITHUB_CR_PAT" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
