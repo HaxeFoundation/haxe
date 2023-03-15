@@ -156,6 +156,15 @@ module Communication = struct
 		loop 0 "";
 		List.rev !lines
 
+	let resolve_file ctx f =
+			let ext = Common.extension f in
+			let second_ext = Common.extension (Common.remove_extension f) in
+			let platform_ext = "." ^ (platform_name_macro ctx) in
+			if platform_ext = second_ext then
+				(Common.remove_extension (Common.remove_extension f)) ^ ext
+			else
+				f
+
 	let compiler_pretty_message_string ctx ectx cm =
 		match cm.cm_message with
 		(* Filter some messages that don't add much when using this message renderer *)
@@ -171,8 +180,9 @@ module Communication = struct
 					let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
 					(-1, -1, -1, -1, epos, [])
 				end else begin
+					let f = resolve_file ctx.com cm.cm_pos.pfile in
 					let f =
-						try Common.find_file ctx.com cm.cm_pos.pfile
+						try Common.find_file ctx.com f
 						with Not_found -> failwith ("File not found '" ^ cm.cm_pos.pfile ^ "'")
 						in
 

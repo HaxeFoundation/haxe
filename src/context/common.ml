@@ -1020,19 +1020,19 @@ let platform ctx p = ctx.platform = p
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
+let remove_extension file =
+	try String.sub file 0 (String.rindex file '.')
+	with Not_found -> file
+
+let extension file =
+	try
+		let dot_pos = String.rindex file '.' in
+		String.sub file dot_pos (String.length file - dot_pos)
+	with Not_found -> file
+
 let cache_directory ctx class_path dir f_dir =
 	let platform_ext = "." ^ (platform_name_macro ctx)
 	and is_loading_core_api = defined ctx Define.CoreApi in
-	let remove_extension file =
-		try String.sub file 0 (String.rindex file '.')
-		with Not_found -> file
-	in
-	let extension file =
-		try
-			let dot_pos = String.rindex file '.' in
-			String.sub file dot_pos (String.length file - dot_pos)
-		with Not_found -> file
-	in
 	let dir_listing =
 		try Some (Sys.readdir dir);
 		with Sys_error _ -> None
