@@ -1693,7 +1693,8 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			let depth = decode_int depth in
-			(ccom()).error ~depth msg p;
+			(* (ccom()).error ~depth msg p; *)
+			(get_api()).display_error ~depth msg p;
 			raise Abort
 		);
 		"fatal_error", vfun3 (fun msg p depth ->
