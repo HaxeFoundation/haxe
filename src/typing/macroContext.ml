@@ -422,6 +422,9 @@ let make_macro_api ctx p =
 			in
 			Std.finally restore f ()
 		);
+		MacroApi.info = (fun ?(depth=0) msg p ->
+			ctx.com.info ~depth msg p
+		);
 		MacroApi.warning = (fun ?(depth=0) w msg p ->
 			warning ~depth ctx w msg p
 		);
