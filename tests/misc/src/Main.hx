@@ -77,11 +77,14 @@ class Main {
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(_, p:String):String {
+	static function normPath(_, p:String, escape:String = "false"):String {
+		var escape = escape != "false";
+
 		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
+			if (escape) p = p.replace("\\", "\\\\");
 		}
 		return p;
 	}
