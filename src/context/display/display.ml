@@ -121,7 +121,7 @@ module ExprPreprocessing = struct
 				mk_null (pos e)
 			| EBlock [] when is_annotated (pos e) ->
 				annotate e DKStructure
-			| EBlock [EDisplay((EConst(Ident s),pn),DKMarked),_] when is_completion ->
+			| EBlock ((EDisplay((EConst(Ident s),pn),DKMarked),_) :: tail) when is_completion ->
 				let e = EObjectDecl [(s,pn,NoQuotes),(EConst (Ident "null"),null_pos)],(pos e) in
 				annotate e DKStructure
 			| EBlock el when is_annotated (pos e) && is_completion ->
