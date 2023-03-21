@@ -118,9 +118,21 @@ class EventLoop {
 		}
 	}
 
+	/**
+		Blocks until a new event is added or `timeout` (in seconds) to expires.
+
+		Depending on a target platform this method may also automatically execute arriving
+		events while waiting. However if any event is executed it will stop waiting.
+
+		Returns `true` if more events are expected.
+		Returns `false` if no more events expected.
+
+		Depending on a target platform this method may be non-reentrant. It must
+		not be called from event callbacks.
+	**/
 	public function wait(?timeout:Float):Bool {
 		//TODO: throw if loop is already running
-		if(timeout == null) {
+		if(timeout != null) {
 			var timer = LuvTimer.init(handle).resolve();
 			timer.start(() -> {
 				timer.stop().resolve();
