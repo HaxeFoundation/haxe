@@ -48,9 +48,6 @@ class Main {
 				trace(String.fromCharCode("A".code + count++));
 				if( count == 5 ) event.stop();
 			});
-			#if sys
-			Sys.sleep(3);
-			#end
 		});
 	}
 
