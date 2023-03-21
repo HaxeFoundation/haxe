@@ -1,4 +1,3 @@
 --main Main
 --dce full
 -hl eventLoop.hl
--cmd "hl eventLoop.hl"

@@ -91,6 +91,11 @@ class Hl {
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
 		runSysTest(hlBinary, ["bin/hl/sys.hl"]);
 
+		changeDirectory(getMiscSubDir("eventLoop"));
+		runCommand("haxe", ["build-hl.hxml"]);
+		// TODO: check output like misc tests do
+		runCommand(hlBinary, ["eventLoop.hl"]);
+
 		changeDirectory(miscHlDir);
 		runCommand("haxe", ["run.hxml"]);
 	}
