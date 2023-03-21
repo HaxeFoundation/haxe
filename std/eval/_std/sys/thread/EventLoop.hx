@@ -3,6 +3,7 @@ package sys.thread;
 import eval.luv.Loop;
 import eval.luv.Async;
 import eval.luv.Timer as LuvTimer;
+import haxe.MainLoop;
 
 @:coreApi
 enum NextEventTime {
@@ -40,7 +41,12 @@ class EventLoop {
 	var pending:Array<()->Void> = [];
 	var looping = false;
 
+	var isMainThread:Bool;
+	static var CREATED : Bool;
+
 	public function new():Void {
+		isMainThread = !CREATED;
+		CREATED = true;
 		handle = Loop.init().resolve();
 		wakeup = Async.init(handle, consumePending).resolve();
 		wakeup.unref();
@@ -120,21 +126,24 @@ class EventLoop {
 				timer.stop().resolve();
 				timer.close(() -> {});
 			}, Std.int(timeout * 1000));
-			return (handle:Loop).run(ONCE);
+			return handle.run(ONCE);
 		} else {
-			return (handle:Loop).run(ONCE);
+			return handle.run(ONCE);
 		}
 	}
 
 	public function loop():Void {
 		//TODO: throw if loop is already running
 		consumePending();
-		(handle:Loop).run(DEFAULT);
+		handle.run(DEFAULT);
 	}
 
 	function consumePending(?_:Async):Void {
 		var p = pending;
 		pending = [];
 		for(fn in p) fn();
+		if (isMainThread && MainLoop.hasEvents()) {
+			runPromised(() -> @:privateAccess MainLoop.tick());
+		}
 	}
 }
