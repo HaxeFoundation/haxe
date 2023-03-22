@@ -1,0 +1,5 @@
+-main Main
+-js js.js
+-D message-reporting=pretty
+-D no-color
+--no-output

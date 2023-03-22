@@ -47,38 +47,38 @@ class Context {
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
 	**/
-	public static function error(msg:String, pos:Position):Dynamic {
-		return load("error", 2)(msg, pos);
+	public static function error(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
+		return load("error", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the compilation.
 	**/
-	public static function fatalError(msg:String, pos:Position):Dynamic {
-		return load("fatal_error", 2)(msg, pos);
+	public static function fatalError(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
+		return load("fatal_error", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		without aborting the current macro call.
 	**/
-	public static function reportError(msg:String, pos:Position):Void {
-		load("report_error", 2)(msg, pos);
+	public static function reportError(msg:String, pos:Position, ?depth:Int = 0):Void {
+		load("report_error", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation warning `msg` at the given `Position` `pos`.
 	**/
-	public static function warning(msg:String, pos:Position) {
-		load("warning", 2)(msg, pos);
+	public static function warning(msg:String, pos:Position, ?depth:Int = 0) {
+		load("warning", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation info `msg` at the given `Position` `pos`.
 	**/
-	public static function info(msg:String, pos:Position) {
-		load("info", 2)(msg, pos);
+	public static function info(msg:String, pos:Position, ?depth:Int = 0) {
+		load("info", 2)(msg, pos, depth);
 	}
 
 	/**
@@ -311,7 +311,7 @@ class Context {
 
 	/**
 		Returns the typed expression of the call to the main function.
-		
+
 		This function will only work in the generation phase. Any calls
 		made outside a function passed to `haxe.macro.Context.onGenerate`
 		or `haxe.macro.Context.onAfterGenerate` will return `null`.
@@ -322,7 +322,7 @@ class Context {
 
 	/**
 		Returns an array of module types to be generated in the output.
-		
+
 		This list may change depending on the phase of compilation and
 		should not be treated as conclusive until the generation phase.
 

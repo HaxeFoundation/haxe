@@ -203,7 +203,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 			| KAbstract (a,tl) ->
 				try
 					AbstractCast.cast_or_unify_raise ctx tstring e p
-				with Error (Unify _,_) ->
+				with Error (Unify _,_,_) ->
 					loop (Abstract.get_underlying_type a tl)
 		in
 		loop e.etype
@@ -330,7 +330,7 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 			(* we only have to check one type here, because unification fails if one is Void and the other is not *)
 			(match follow e2.etype with TAbstract({a_path=[],"Void"},_) -> typing_error "Cannot compare Void" p | _ -> ());
 			AbstractCast.cast_or_unify_raise ctx e2.etype e1 p,e2
-		with Error (Unify _,_) ->
+		with Error (Unify _,_,_) ->
 			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
 		in
 		if not ctx.com.config.pf_supports_function_equality then begin match e1.eexpr, e2.eexpr with
@@ -410,13 +410,13 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 				let t_expected = BinopResult.get_type result in
 				begin try
 					unify_raise tret t_expected p
-				with Error (Unify _,_) ->
+				with Error (Unify _,_,depth) ->
 					match follow tret with
 						| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
 							()
 						| _ ->
 							let st = s_type (print_context()) in
-							typing_error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
+							typing_error ~depth (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 				end;
 			end;
 			(*
@@ -490,10 +490,10 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op with_type
 					in
 					begin try
 						check e1 e2 false
-					with Error (Unify _,_) | Unify_error _ -> try
+					with Error (Unify _,_,_) | Unify_error _ -> try
 						if not (Meta.has Meta.Commutative cf.cf_meta) then raise Not_found;
 						check e2 e1 true
-					with Not_found | Error (Unify _,_) | Unify_error _ ->
+					with Not_found | Error (Unify _,_,_) | Unify_error _ ->
 						loop find_op ol
 					end
 				| _ ->

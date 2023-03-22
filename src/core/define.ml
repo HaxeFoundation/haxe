@@ -117,6 +117,7 @@ let get_signature def =
 			   Note that we should removed flags like use_rtti_doc here.
 			*)
 			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin"
+			| "message_reporting" | "messages_log_file" | "messages_log_format" | "no_color"
 			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in

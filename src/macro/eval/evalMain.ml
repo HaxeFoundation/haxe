@@ -151,7 +151,7 @@ let create com api is_macro =
 		| _ ->
 			let msg =
 				match ex with
-				| Error.Error (err,_) -> Error.error_msg err
+				| Error.Error (err,p,_) -> extract_located_msg (Error.error_msg p err)
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
@@ -401,7 +401,9 @@ let set_error ctx b =
 let add_types ctx types ready =
 	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
-let compiler_error msg pos =
+let compiler_error msg =
+	let pos = extract_located_pos msg in
+	let msg = extract_located_msg msg in
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->

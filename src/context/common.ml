@@ -353,9 +353,9 @@ type context = {
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : string -> pos -> unit;
-	mutable info : string -> pos -> unit;
-	mutable warning : warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable info : ?depth:int -> string -> pos -> unit;
+	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -822,10 +822,10 @@ let create compilation_step cs version args =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun _ _ -> die "" __LOC__);
-		warning = (fun _ _ _ -> die "" __LOC__);
+		info = (fun ?depth _ _ -> die "" __LOC__);
+		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [];
-		error = (fun _ _ -> die "" __LOC__);
+		error = (fun ?depth _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -1013,26 +1013,26 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort msg p = raise (Abort (msg,p))
+let abort ?depth msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
+let remove_extension file =
+	try String.sub file 0 (String.rindex file '.')
+	with Not_found -> file
+
+let extension file =
+	try
+		let dot_pos = String.rindex file '.' in
+		String.sub file dot_pos (String.length file - dot_pos)
+	with Not_found -> file
+
 let cache_directory ctx class_path dir f_dir =
 	let platform_ext = "." ^ (platform_name_macro ctx)
 	and is_loading_core_api = defined ctx Define.CoreApi in
-	let remove_extension file =
-		try String.sub file 0 (String.rindex file '.')
-		with Not_found -> file
-	in
-	let extension file =
-		try
-			let dot_pos = String.rindex file '.' in
-			String.sub file dot_pos (String.length file - dot_pos)
-		with Not_found -> file
-	in
 	let dir_listing =
 		try Some (Sys.readdir dir);
 		with Sys_error _ -> None
@@ -1217,16 +1217,21 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p kind sev =
+let add_diagnostics_message com msg kind sev =
+	let p = Globals.extract_located_pos msg in
+	let s = Globals.extract_located_msg msg in
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
-let display_error com msg p =
+let located_display_error com ?(depth = 0) msg =
 	if is_diagnostics com then
-		add_diagnostics_message com msg p MessageKind.DKCompilerMessage MessageSeverity.Error
+		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
-		com.error msg p
+		com.error (Globals.extract_located_msg msg) (Globals.extract_located_pos msg) ~depth
+
+let display_error com ?(depth = 0) msg p =
+	located_display_error com ~depth (Globals.located msg p)
 
 open Printer
 

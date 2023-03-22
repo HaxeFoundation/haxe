@@ -485,7 +485,7 @@ let array_access ctx e1 e2 mode p =
 				let t = ctx.t.tarray pt in
 				begin try
 					unify_raise et t p
-				with Error(Unify _,_) ->
+				with Error(Unify _,_,_) ->
 					if not ctx.untyped then begin
 						let msg = if !has_abstract_array_access then
 							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)

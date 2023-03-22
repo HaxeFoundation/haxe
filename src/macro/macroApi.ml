@@ -61,10 +61,11 @@ type 'value compiler_api = {
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
-	display_error : (string -> pos -> unit);
+	info : ?depth:int -> string -> pos -> unit;
+	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
+	display_error : ?depth:int -> (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
-	warning : Warning.warning -> string -> pos -> unit;
 }
 
 
@@ -152,7 +153,7 @@ module type InterpApi = sig
 	val encode_ref : 'a -> ('a -> value) -> (unit -> string) -> value
 	val decode_ref : value -> 'a
 
-	val compiler_error : string -> Globals.pos -> 'a
+	val compiler_error : Globals.located -> 'a
 	val error_message : string -> 'a
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
@@ -493,10 +494,10 @@ and encode_package_rule pr =
 	in
 	encode_enum ~pos:None IPackageRule tag pl
 
-and encode_message (msg,p,_,sev) =
-	let tag, pl = match sev with
-		| Globals.MessageSeverity.Information -> 0, [(encode_string msg); (encode_pos p)]
-		| Warning | Hint -> 1, [(encode_string msg); (encode_pos p)]
+and encode_message cm =
+	let tag, pl = match cm.cm_severity with
+		| Globals.MessageSeverity.Information -> 0, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
+		| Warning | Hint -> 1, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Error -> Globals.die "" __LOC__
 	in
 	encode_enum ~pos:None IMessage tag pl
@@ -1689,33 +1690,38 @@ let macro_api ccom get_api =
 		"current_pos", vfun0 (fun() ->
 			encode_pos (get_api()).pos
 		);
-		"error", vfun2 (fun msg p ->
+		"error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).error msg p;
+			let depth = decode_int depth in
+			(get_api()).display_error ~depth msg p;
 			raise Abort
 		);
-		"fatal_error", vfun2 (fun msg p ->
+		"fatal_error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			raise (Error.Fatal_error (msg,p))
+			let depth = decode_int depth in
+			raise (Error.Fatal_error ((Globals.located msg p),depth))
 		);
-		"report_error", vfun2 (fun msg p ->
+		"report_error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(get_api()).display_error msg p;
+			let depth = decode_int depth in
+			(get_api()).display_error ~depth msg p;
 			vnull
 		);
-		"warning", vfun2 (fun msg p ->
+		"warning", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(get_api()).warning WUser msg p;
+			let depth = decode_int depth in
+			(get_api()).warning ~depth WUser msg p;
 			vnull
 		);
-		"info", vfun2 (fun msg p ->
+		"info", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).info msg p;
+			let depth = decode_int depth in
+			(get_api()).info ~depth msg p;
 			vnull
 		);
 		"get_messages", vfun0 (fun() ->
