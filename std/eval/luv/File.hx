@@ -151,7 +151,7 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Closes the file.
 	**/
-	public function close(loop:Loop, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function close(loop:Loop, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Reads from the file.
@@ -173,12 +173,12 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Deletes the file at the given path.
 	**/
-	static public function unlink(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function unlink(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Moves the file at the given path to the path given by `toPath`
 	**/
-	static public function rename(loop:Loop, path:NativeString, toPath:NativeString, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function rename(loop:Loop, path:NativeString, toPath:NativeString, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Creates a temporary file with name based on the given pattern.
@@ -193,12 +193,12 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Creates a directory.
 	**/
-	static public function mkdir(loop:Loop, path:NativeString, ?mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function mkdir(loop:Loop, path:NativeString, ?mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Deletes a directory.
 	**/
-	static public function rmdir(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function rmdir(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Retrieves status information for the file at the given path.
@@ -223,22 +223,22 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Flushes file changes to storage.
 	**/
-	public function fsync(loop:Loop, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function fsync(loop:Loop, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Like `eval.luv.File.fsync`, but may omit some metadata.
 	**/
-	public function fdataSync(loop:Loop, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function fdataSync(loop:Loop, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Truncates the given file to the given length.
 	**/
-	public function ftruncate(loop:Loop, length:Int64, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function ftruncate(loop:Loop, length:Int64, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Copies the file at the given path to the path given by `toPath`.
 	**/
-	static public function copyFile(loop:Loop, path:NativeString, toPath:NativeString, ?flags:Array<FileCopyFlag>, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function copyFile(loop:Loop, path:NativeString, toPath:NativeString, ?flags:Array<FileCopyFlag>, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Transfers data between file descriptors.
@@ -248,42 +248,42 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Checks whether the calling process can access the file at the given path.
 	**/
-	static public function access(loop:Loop, path:NativeString, flags:Array<FileAccessFlag>, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function access(loop:Loop, path:NativeString, flags:Array<FileAccessFlag>, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Changes permissions of the file at the given path.
 	**/
-	static public function chmod(loop:Loop, path:NativeString, mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function chmod(loop:Loop, path:NativeString, mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Changes permissions of the file.
 	**/
-	public function fchmod(loop:Loop, mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function fchmod(loop:Loop, mode:Array<FileMode>, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Sets timestamps of the file at the given path.
 	**/
-	static public function utime(loop:Loop, path:NativeString, atime:Float, mtime:Float, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function utime(loop:Loop, path:NativeString, atime:Float, mtime:Float, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Sets timestamps of the file.
 	**/
-	public function futime(loop:Loop, atime:Float, mtime:Float, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function futime(loop:Loop, atime:Float, mtime:Float, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Sets timestamps of the file at the given path without dereferencing symlinks.
 	**/
-	static public function lutime(loop:Loop, path:NativeString, atime:Float, mtime:Float, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function lutime(loop:Loop, path:NativeString, atime:Float, mtime:Float, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Hardlinks a file at the location given by `link`.
 	**/
-	static public function link(loop:Loop, path:NativeString, link:NativeString, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function link(loop:Loop, path:NativeString, link:NativeString, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Symlinks a file at the location given by `link`.
 	**/
-	static public function symlink(loop:Loop, path:NativeString, link:NativeString, ?flags:Array<FileSymlinkFlag>, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function symlink(loop:Loop, path:NativeString, link:NativeString, ?flags:Array<FileSymlinkFlag>, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Reads the target path of a symlink.
@@ -298,17 +298,17 @@ enum abstract FileSymlinkFlag(Int) {
 	/**
 		Changes owneship of the file at the given path.
 	**/
-	static public function chown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function chown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Changes owneship of the file at the given path. without dereferencing symlinks.
 	**/
-	static public function lchown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	static public function lchown(loop:Loop, path:NativeString, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Changes owneship of the file.
 	**/
-	public function fchown(loop:Loop, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function fchown(loop:Loop, uid:Int, gid:Int, ?request:FileRequest, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Returns the integer representation of `eval.luv.File`.
@@ -329,7 +329,7 @@ extern class FileSync {
 	static function open(path:NativeString, flags:Array<FileOpenFlag>, ?mode:Array<FileMode>):Result<File>;
 
 	@:inheritDoc(eval.luv.File.close)
-	static function close(file:File):Result<Result.NoData>;
+	static function close(file:File):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.read)
 	static function read(file:File, fileOffset:Int64, buffers:Array<Buffer>):Result<UInt64>;
@@ -338,10 +338,10 @@ extern class FileSync {
 	static function write(file:File, fileOffset:Int64, buffers:Array<Buffer>):Result<UInt64>;
 
 	@:inheritDoc(eval.luv.File.unlink)
-	static function unlink(path:NativeString):Result<Result.NoData>;
+	static function unlink(path:NativeString):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.rename)
-	static function rename(path:NativeString, toPath:NativeString):Result<Result.NoData>;
+	static function rename(path:NativeString, toPath:NativeString):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.mkstemp)
 	static function mkstemp(pattern:NativeString):Result<{name:NativeString,file:File}>;
@@ -350,10 +350,10 @@ extern class FileSync {
 	static function mkdtemp(pattern:NativeString):Result<NativeString>;
 
 	@:inheritDoc(eval.luv.File.mkdir)
-	static function mkdir(path:NativeString, ?mode:Array<FileMode>):Result<Result.NoData>;
+	static function mkdir(path:NativeString, ?mode:Array<FileMode>):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.rmdir)
-	static function rmdir(path:NativeString):Result<Result.NoData>;
+	static function rmdir(path:NativeString):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.stat)
 	static function stat(path:NativeString):Result<FileStat>;
@@ -368,43 +368,43 @@ extern class FileSync {
 	static function statFs(path:NativeString):Result<FileStatFs>;
 
 	@:inheritDoc(eval.luv.File.fsync)
-	static function fsync(file:File):Result<Result.NoData>;
+	static function fsync(file:File):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.fdataSync)
-	static function fdataSync(file:File):Result<Result.NoData>;
+	static function fdataSync(file:File):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.ftruncate)
-	static function ftruncate(file:File, length:Int64):Result<Result.NoData>;
+	static function ftruncate(file:File, length:Int64):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.copyFile)
-	static function copyFile(path:NativeString, toPath:NativeString, ?flags:Array<FileCopyFlag>):Result<Result.NoData>;
+	static function copyFile(path:NativeString, toPath:NativeString, ?flags:Array<FileCopyFlag>):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.sendFile)
 	static function sendFile(file:File, toFile:File, offset:Int64, length:UInt64):Result<UInt64>;
 
 	@:inheritDoc(eval.luv.File.access)
-	static function access(path:NativeString, flags:Array<FileAccessFlag>):Result<Result.NoData>;
+	static function access(path:NativeString, flags:Array<FileAccessFlag>):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.chmod)
-	static function chmod(path:NativeString, mode:Array<FileMode>):Result<Result.NoData>;
+	static function chmod(path:NativeString, mode:Array<FileMode>):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.fchmod)
-	static function fchmod(file:File, mode:Array<FileMode>):Result<Result.NoData>;
+	static function fchmod(file:File, mode:Array<FileMode>):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.utime)
-	static function utime(path:NativeString, atime:Float, mtime:Float):Result<Result.NoData>;
+	static function utime(path:NativeString, atime:Float, mtime:Float):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.futime)
-	static function futime(file:File, atime:Float, mtime:Float):Result<Result.NoData>;
+	static function futime(file:File, atime:Float, mtime:Float):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.lutime)
-	static function lutime(path:NativeString, atime:Float, mtime:Float):Result<Result.NoData>;
+	static function lutime(path:NativeString, atime:Float, mtime:Float):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.link)
-	static function link(path:NativeString, link:NativeString):Result<Result.NoData>;
+	static function link(path:NativeString, link:NativeString):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.symlink)
-	static function symlink(path:NativeString, link:NativeString, ?flags:Array<FileSymlinkFlag>):Result<Result.NoData>;
+	static function symlink(path:NativeString, link:NativeString, ?flags:Array<FileSymlinkFlag>):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.readLink)
 	static function readLink(path:NativeString):Result<NativeString>;
@@ -413,12 +413,12 @@ extern class FileSync {
 	static function realPath(path:NativeString):Result<NativeString>;
 
 	@:inheritDoc(eval.luv.File.chown)
-	static function chown(path:NativeString, uid:Int, gid:Int):Result<Result.NoData>;
+	static function chown(path:NativeString, uid:Int, gid:Int):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.lchown)
-	static function lchown(path:NativeString, uid:Int, gid:Int):Result<Result.NoData>;
+	static function lchown(path:NativeString, uid:Int, gid:Int):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.File.fchown)
-	static function fchown(file:File, uid:Int, gid:Int):Result<Result.NoData>;
+	static function fchown(file:File, uid:Int, gid:Int):Result<haxe.NoData>;
 
 }

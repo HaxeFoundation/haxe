@@ -124,6 +124,11 @@ extern class Global {
 	static function is_null(value:Dynamic):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.is-resource.php
+	**/
+	static function is_resource(value:Dynamic):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.is-subclass-of.php
 	**/
 	static function is_subclass_of(value:Dynamic, className:String, allow_string:Bool = true):Bool;
@@ -696,6 +701,11 @@ extern class Global {
 	static function fclose(handle:Resource):Bool;
 
 	/**
+		@see http://php.net/manual/en/function.flock.php
+	**/
+	static function flock(handle:Resource, operation:Int, ?wouldblock:Ref<Int>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.feof.php
 	**/
 	static function feof(handle:Resource):Bool;
@@ -709,6 +719,16 @@ extern class Global {
 		@see http://php.net/manual/en/function.ftell.php
 	**/
 	static function ftell(handle:Resource):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftruncate.php
+	**/
+	static function ftruncate(handle:Resource, size:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.touch.php
+	**/
+	static function touch(filename:String, ?time:Int, ?atime:Int):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.rewind.php
@@ -729,11 +749,6 @@ extern class Global {
 		@see http://php.net/manual/en/function.fflush.php
 	**/
 	static function fflush(handle:Resource):Bool;
-
-	/**
-		@see http://php.net/manual/en/function.flock.php
-	**/
-	static function flock(handle:Resource, operation:Int, ?wouldblock:Ref<Int>):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.fwrite.php
@@ -801,6 +816,36 @@ extern class Global {
 	static function stat(filename:String):EitherType<NativeArray, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.lstat.php
+	**/
+	static function lstat(filename:String):EitherType<NativeArray, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.chmod.php
+	**/
+	static function chmod(filename:String, mode:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.chown.php
+	**/
+	static function chown(filename:String, user:EitherType<Int,String>):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.chgrp.php
+	**/
+	static function chgrp(filename:String, group:EitherType<Int,String>):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.lchown.php
+	**/
+	static function lchown(filename:String, user:EitherType<Int,String>):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.lchgrp.php
+	**/
+	static function lchgrp(filename:String, group:EitherType<Int,String>):Bool;
+
+	/**
 		@see http://php.net/manual/en/function.fnmatch.php
 	**/
 	static function fnmatch(pattern:String, string:String, flags:Int = 0):Bool;
@@ -859,6 +904,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.glob.php
 	**/
 	static function glob(pattern:String, flags:Int = 0):NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.scandir.php
+	**/
+	static function scandir(directory:String, ?sorting_order:Int, ?context:Resource):EitherType<Bool,NativeIndexedArray<String>>;
 
 	/**
 		@see http://php.net/manual/en/function.opendir.php
@@ -1321,6 +1371,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.stream-get-contents.php
 	**/
 	static function stream_get_contents(handle:Resource, maxlength:Int = -1, offset:Int = -1):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.stream-get-meta-data.php
+	**/
+	static function stream_get_meta_data(handle:Resource):NativeArray;
 
 	/**
 		@see http://php.net/manual/en/function.stream-socket-shutdown.php
@@ -1837,11 +1892,6 @@ extern class Global {
 		@see http://php.net/manual/en/function.opcache-reset.php
 	**/
 	static function opcache_reset():Bool;
-
-	/**
-		@see http://php.net/manual/en/function.touch.php
-	**/
-	static function touch(filename:String, ?time:Int, ?atime: Int):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.checkdnsrr.php

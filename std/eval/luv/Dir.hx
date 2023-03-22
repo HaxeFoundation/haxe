@@ -37,22 +37,22 @@ typedef DirectoryScan = {
 	/**
 		Opens the directory at the given path for listing.
 	**/
-	static public function open(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<Dir>)->Void):Void;
+	static public function open(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<Dir>) -> Void):Void;
 
 	/**
 		Closes the directory.
 	**/
-	public function close(loop:Loop, ?request:FileRequest, callback:(result:Result<Result.NoData>)->Void):Void;
+	public function close(loop:Loop, ?request:FileRequest, callback:(result:Result<haxe.NoData>) -> Void):Void;
 
 	/**
 		Retrieves a directory entry.
 	**/
-	public function read(loop:Loop, ?numberOfEntries:Int, ?request:FileRequest, callback:(result:Result<Array<Dirent>>)->Void):Void;
+	public function read(loop:Loop, ?numberOfEntries:Int, ?request:FileRequest, callback:(result:Result<Array<Dirent>>) -> Void):Void;
 
 	/**
 		Begins directory listing.
 	**/
-	static public function scan(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<DirectoryScan>)->Void):Void;
+	static public function scan(loop:Loop, path:NativeString, ?request:FileRequest, callback:(result:Result<DirectoryScan>) -> Void):Void;
 }
 
 /**
@@ -63,7 +63,7 @@ extern class DirSync {
 	static public function open(path:NativeString):Result<Dir>;
 
 	@:inheritDoc(eval.luv.Dir.close)
-	static public function close(dir:Dir):Result<Result.NoData>;
+	static public function close(dir:Dir):Result<haxe.NoData>;
 
 	@:inheritDoc(eval.luv.Dir.read)
 	static public function read(dir:Dir, ?numberOfEntries:Int):Result<Array<Dirent>>;

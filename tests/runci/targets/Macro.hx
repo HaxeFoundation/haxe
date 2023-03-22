@@ -29,6 +29,9 @@ class Macro {
 		changeDirectory(sysDir);
 		runSysTest("haxe", ["compile-macro.hxml"].concat(args));
 
+		changeDirectory(asysDir);
+		runCommand("haxe", ["compile-macro.hxml"].concat(args));
+
 		switch Sys.systemName() {
 			case 'Linux':
 				changeDirectory(getMiscSubDir('compiler_loops'));

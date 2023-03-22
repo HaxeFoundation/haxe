@@ -17,10 +17,10 @@ package eval.luv;
 	/**
 		Starts the handle with the given callback.
 	**/
-	public function start(callback:()->Void):Result<Result.NoData>;
+	public function start(callback:()->Void):Result<haxe.NoData>;
 
 	/**
 		Stops the handle.
 	**/
-	public function stop():Result<Result.NoData>;
+	public function stop():Result<haxe.NoData>;
 }

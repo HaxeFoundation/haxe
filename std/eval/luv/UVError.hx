@@ -1,5 +1,7 @@
 package eval.luv;
 
+import asys.native.IoErrorType;
+
 /**
 	Error handling.
 
@@ -188,4 +190,23 @@ enum abstract UVError(Int) {
 		Returns the error message corresponding to the given error.
 	**/
 	extern public function toString():String;
+
+	@:to public function toIoErrorType():IoErrorType {
+		return switch (cast this:UVError) {
+			case UV_ENOENT: FileNotFound;
+			case UV_EEXIST: FileExists;
+			case UV_ESRCH: ProcessNotFound;
+			case UV_EACCES: AccessDenied;
+			case UV_ENOTDIR: NotDirectory;
+			case UV_EMFILE: TooManyOpenFiles;
+			case UV_EPIPE: BrokenPipe;
+			case UV_ENOTEMPTY: NotEmpty;
+			case UV_EADDRNOTAVAIL: AddressNotAvailable;
+			case UV_ECONNRESET: ConnectionReset;
+			case UV_ETIMEDOUT: TimedOut;
+			case UV_ECONNREFUSED: ConnectionRefused;
+			case UV_EBADF: BadFile;
+			case _: CustomError(toString());
+		}
+	}
 }

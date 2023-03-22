@@ -70,9 +70,10 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 	}
 
 	function get_events():EventLoop {
-		if(this.events == null)
-			throw new NoEventLoopException();
-		return this.events;
+		switch this.events {
+			case null: throw new NoEventLoopException();
+			case events: return events;
+		}
 	}
 
 	@:keep //TODO: keep only if events are actually used

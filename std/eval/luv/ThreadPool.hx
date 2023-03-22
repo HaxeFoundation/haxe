@@ -19,7 +19,7 @@ extern class ThreadPool {
 		`callback` will be called by the `loop` after `work` completes, or
 		immediately, in case there is an error scheduling `work`.
 	**/
-	static function queueWork(loop:Loop, ?request:ThreadPoolRequest, work:()->Void, callback:(result:Result<Result.NoData>)->Void):Void;
+	static function queueWork(loop:Loop, ?request:ThreadPoolRequest, work:()->Void, callback:(result:Result<haxe.NoData>)->Void):Void;
 
 	/**
 		Sets thread pool size.

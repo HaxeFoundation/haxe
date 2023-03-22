@@ -59,7 +59,7 @@ package eval.luv;
 
 		@see https://aantron.github.io/luv/luv/Luv/Handle/#val-set_send_buffer_size
 	**/
-	static public function setSendBufferSize(handle:SocketHandle, size:Int):Result<Result.NoData>;
+	static public function setSendBufferSize(handle:SocketHandle, size:Int):Result<haxe.NoData>;
 
 	/**
 		Gets the size of the OS receive buffer for a socket.
@@ -73,7 +73,7 @@ package eval.luv;
 
 		@see https://aantron.github.io/luv/luv/Luv/Handle/#val-set_recv_buffer_size
 	**/
-	static public function setRecvBufferSize(handle:SocketHandle, size:Int):Result<Result.NoData>;
+	static public function setRecvBufferSize(handle:SocketHandle, size:Int):Result<haxe.NoData>;
 
 // TODO
 	// /**

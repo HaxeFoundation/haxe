@@ -14,7 +14,7 @@ extern class Env {
 	/**
 		Sets an environment variable.
 	**/
-	static function setEnv(name:String, value:NativeString):Result<Result.NoData>;
+	static function setEnv(name:String, value:NativeString):Result<haxe.NoData>;
 
 	/**
 		Deletes an environment variable.

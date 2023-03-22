@@ -22,7 +22,15 @@
 
 package python.lib;
 
+import python.lib.io.IOBase;
+
 @:pythonImport("tempfile")
 extern class Tempfile {
 	static function gettempdir():String;
+
+	static function TemporaryFile(?mode:String, ?buffering:Int, ?encoding:String,
+		?newline:String, ?suffix:String, ?prefix:String, ?dir:String):IOBase;
+
+	static function NamedTemporaryFile(?mode:String, ?buffering:Int, ?encoding:String,
+		?newline:String, ?suffix:String, ?prefix:String, ?dir:String):IOBase;
 }

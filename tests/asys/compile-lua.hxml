@@ -1,0 +1,3 @@
+compile-each.hxml
+
+--lua bin/asys.lua

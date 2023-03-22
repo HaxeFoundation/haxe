@@ -91,6 +91,10 @@ class Hl {
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
 		runSysTest(hlBinary, ["bin/hl/sys.hl"]);
 
+		changeDirectory(asysDir);
+		runCommand("haxe", ["compile-hl.hxml"].concat(args));
+		runCommand(hlBinary, ["bin/asys.hl"]);
+
 		changeDirectory(miscHlDir);
 		runCommand("haxe", ["run.hxml"]);
 	}

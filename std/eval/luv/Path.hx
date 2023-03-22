@@ -23,7 +23,7 @@ extern class Path {
 	/**
 		Changes the current working directory.
 	**/
-	static function chdir(dir:NativeString):Result<Result.NoData>;
+	static function chdir(dir:NativeString):Result<haxe.NoData>;
 
 	/**
 		Evaluates to the path of the home directory.

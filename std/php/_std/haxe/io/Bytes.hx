@@ -30,7 +30,7 @@ class Bytes {
 
 	var b:BytesData;
 
-	function new(length:Int, b:BytesData):Void {
+	inline function new(length:Int, b:BytesData):Void {
 		this.length = length;
 		this.b = b;
 	}

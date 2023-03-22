@@ -25,6 +25,9 @@ package python.lib;
 import python.Exceptions.OSError;
 import python.Tuple;
 import python.Dict;
+import python.lib.io.IOBase;
+import python.lib.os.DirEntry;
+import python.NativeIterator.NativeIteratorRaw;
 
 extern class Stat {
 	var st_mode:Int;
@@ -51,8 +54,33 @@ extern class Stat {
 	@:optional var st_type:Int;
 }
 
+typedef ScandirIterator = NativeIteratorRaw<DirEntry> & {
+	function close():Void; // since Python 3.6
+}
+
 @:pythonImport("os")
 extern class Os {
+
+	static final O_RDONLY:Int;
+	static final O_WRONLY:Int;
+	static final O_RDWR:Int;
+	static final O_APPEND:Int;
+	static final O_CREAT:Int;
+	static final O_EXCL:Int;
+	static final O_TRUNC:Int;
+	static final O_BINARY:Int;
+
+	static final F_OK:Int;
+	static final R_OK:Int;
+	static final W_OK:Int;
+	static final X_OK:Int;
+
+	static final SEEK_SET:Int;
+	static final SEEK_CUR:Int;
+	static final SEEK_END:Int;
+
+	static final name:String;
+
 	static var environ:Dict<String, String>;
 
 	static function putenv(name:String, value:String):Void;
@@ -78,9 +106,14 @@ extern class Os {
 
 	static function renames(oldName:String, newName:String):Void;
 
+	static function replace(src:String, dest:String):Void;
+
 	static function rmdir(path:String):Void;
 
+	@:overload(function (fd:Int):Stat {})
 	static function stat(path:String):Stat;
+
+	static function lstat(path:String):Stat;
 
 	static function fchdir(fd:FileDescriptor):Void;
 
@@ -95,4 +128,41 @@ extern class Os {
 	static function makedirs(path:String, mode:Int = 511 /* Oktal 777 */, exist_ok:Bool = false):Void;
 
 	static function mkdir(path:String, mode:Int = 511 /* Oktal 777 */):Void;
+
+	static function open(path:String, flags:Int, mode:Int = 511):Int;
+
+	static function fdopen(fd:Int, ...args:Any):IOBase;
+
+	static function close(fd:Int):Void;
+
+	static function ftruncate(fd:Int, length:Int):Void;
+
+	static function truncate(path:String, length:Int):Void;
+
+	static function readlink(path:String):String;
+
+	static function symlink(src:String, dst:String, target_is_directory:Bool = false):Void;
+
+	static function link(src:String, dst:String):Void;
+
+	@:overload(function (fd:Int, uid:Int, gid:Int):Void {})
+	static function chown(path:String, uid:Int, gid:Int):Void;
+
+	static function lchown(path:String, uid:Int, gid:Int):Void;
+
+	static function fchown(fd:Int, uid:Int, gid:Int):Void;
+
+	@:overload(function (fd:Int, mode:Int):Void {})
+	static function chmod(path:String, mode:Int):Void;
+
+	static function lchmod(path:String, mode:Int):Void;
+
+	@:overload(function (fd:Int, ?times:Tuple2<Int,Int>):Void {})
+	static function utime(path:String, ?times:Tuple2<Int,Int>):Void;
+
+	static function access(path:String, mode:Int):Bool;
+
+	static function lseek(fd:String, pos:Int, how:Int):Void;
+
+	static function scandir(?path:String):ScandirIterator;
 }

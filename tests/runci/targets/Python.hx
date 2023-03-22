@@ -85,5 +85,11 @@ class Python {
 		for (py in pys) {
 			runCommand(py, ["export/threads.py"]);
 		}
+
+		changeDirectory(asysDir);
+		runCommand("haxe", ["compile-python.hxml"].concat(args));
+		for (py in pys) {
+			runCommand(py, ["bin/test.py"]);
+		}
 	}
 }
