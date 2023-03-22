@@ -47,12 +47,10 @@ class EventLoop {
 	final handle:Loop;
 
 	final mutex = new Mutex();
-	final oneTimeEvents = new Array<Null<()->Void>>();
-	var oneTimeEventsIdx = 0;
 	final wakeup:Async;
 	var promisedEventsCount = 0;
 	var pending:Array<()->Void> = [];
-	var looping = false;
+	var started:Bool = false;
 
 	var isMainThread:Bool;
 	static var CREATED : Bool;
@@ -71,10 +69,8 @@ class EventLoop {
 	public function repeat(event:()->Void, intervalMs:Int):EventHandler {
 		var e = new RegularEvent(event);
 		mutex.acquire();
-		pending.push(() -> {
-			e.timer = LuvTimer.init(handle).resolve();
-			e.timer.start(e.run, intervalMs, intervalMs < 1 ? 1 : intervalMs).resolve();
-		});
+		e.timer = LuvTimer.init(handle).resolve();
+		e.timer.start(e.run, intervalMs, intervalMs < 1 ? 1 : intervalMs).resolve();
 		mutex.release();
 		wakeup.send();
 		return e;
@@ -132,24 +128,17 @@ class EventLoop {
 	}
 
 	function refUnref():Void {
-		if(promisedEventsCount > 0) {
+		if (promisedEventsCount > 0 || (isMainThread && haxe.MainLoop.hasEvents())) {
 			wakeup.ref();
 		} else {
 			wakeup.unref();
 		}
 	}
 
-	/**
-		Executes all pending events.
-
-		The returned time stamps can be used with `Sys.time()` for calculations.
-
-		Depending on a target platform this method may be non-reentrant. It must
-		not be called from event callbacks.
-	**/
 	public function progress():NextEventTime {
-		//TODO: throw if loop is already running
-		if((handle:Loop).run(NOWAIT)) {
+		if (started) throw "Event loop already started";
+
+		if (handle.run(NOWAIT)) {
 			return AnyTime(null);
 		} else {
 			return Never;
@@ -169,7 +158,8 @@ class EventLoop {
 		not be called from event callbacks.
 	**/
 	public function wait(?timeout:Float):Bool {
-		//TODO: throw if loop is already running
+		if (started) throw "Event loop already started";
+
 		if(timeout != null) {
 			var timer = LuvTimer.init(handle).resolve();
 			timer.start(() -> {
@@ -191,17 +181,26 @@ class EventLoop {
 		not be called from event callbacks.
 	**/
 	public function loop():Void {
-		//TODO: throw if loop is already running
+		if (started) throw "Event loop already started";
 		consumePending();
+		started = true;
 		handle.run(DEFAULT);
 	}
 
 	function consumePending(?_:Async):Void {
+		mutex.acquire();
 		var p = pending;
 		pending = [];
+		mutex.release();
 		for(fn in p) fn();
-		if (isMainThread && MainLoop.hasEvents()) {
-			runPromised(() -> @:privateAccess MainLoop.tick());
+
+		if (started && isMainThread) {
+			var next = @:privateAccess MainLoop.tick();
+			if (haxe.MainLoop.hasEvents()) {
+				wakeup.send();
+			} else {
+				refUnref();
+			}
 		}
 	}
 }
