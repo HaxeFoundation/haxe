@@ -85,14 +85,18 @@ class Php {
 				deleteDirectoryRecursively(binDir);
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runCommand("php", generateArgs(binDir + "/index.php"));
+			var arguments:Array<String>  = generateArgs(binDir + "/index.php");
+			arguments.push("-d memory_limit=-1");
+			runCommand("php", arguments);
 
 			changeDirectory(sysDir);
 			if(isCi())
 				deleteDirectoryRecursively(binDir);
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			runSysTest("php", generateArgs(binDir + "/Main/index.php"));
+			arguments = generateArgs(binDir + "/Main/index.php");
+			arguments.push("-d memory_limit=-1");
+			runSysTest("php", arguments);
 		}
 	}
 }
