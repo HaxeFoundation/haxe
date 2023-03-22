@@ -1,11 +1,3 @@
---cmd javac -d bin test/Main.java test/MathOperation.java -g
---cmd cd bin
---cmd jar cf test.jar test/Main.class test/MathOperation.class
---cmd cd ..
-
---next
-
---main Run
---java-lib bin/test.jar
+--main Main
 --jvm bin/run.jar
 --cmd java -jar bin/run.jar
