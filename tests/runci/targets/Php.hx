@@ -22,12 +22,14 @@ class Php {
 
 	static function generateArgs(file:String) {
 		if (systemName != "Windows")
-			return [file];
+			return ["-d","memory_limit=-1",file];
 		return [
 			"-c",
 			windowsPhpIni,
 			"-d",
 			'extension_dir=$windowsPhpExtPath',
+			"-d",
+			"memory_limit=-1",
 			file
 		];
 	}
@@ -85,18 +87,14 @@ class Php {
 				deleteDirectoryRecursively(binDir);
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			var arguments:Array<String>  = generateArgs(binDir + "/index.php");
-			arguments.push("-d memory_limit=-1");
-			runCommand("php", arguments);
+			runCommand("php", generateArgs(binDir + "/index.php"));
 
 			changeDirectory(sysDir);
 			if(isCi())
 				deleteDirectoryRecursively(binDir);
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
-			arguments = generateArgs(binDir + "/Main/index.php");
-			arguments.push("-d memory_limit=-1");
-			runSysTest("php", arguments);
+			runSysTest("php", generateArgs(binDir + "/Main/index.php"));
 		}
 	}
 }
