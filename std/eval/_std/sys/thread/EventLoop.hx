@@ -182,8 +182,8 @@ class EventLoop {
 	**/
 	public function loop():Void {
 		if (started) throw "Event loop already started";
-		consumePending();
 		started = true;
+		consumePending();
 		handle.run(DEFAULT);
 	}
 
