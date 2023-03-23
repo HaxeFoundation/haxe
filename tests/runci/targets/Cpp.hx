@@ -83,6 +83,11 @@ class Cpp {
 			runCpp("export/cpp/Main");
 		}
 
+		changeDirectory(getMiscSubDir("eventLoop"));
+		runCommand("haxe", ["build-cpp.hxml"]);
+		// TODO: check output like misc tests do
+		runCpp("cpp/Main");
+
 		// if (Sys.systemName() == "Mac")
 		// {
 		// 	changeDirectory(getMiscSubDir("cppObjc"));
