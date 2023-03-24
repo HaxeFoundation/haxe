@@ -770,6 +770,7 @@ module StdEReg = struct
 			| BadUTFOffset -> "BadUTFOffset"
 			| MatchLimit -> "MatchLimit"
 			| DepthLimit -> "DepthLimit"
+			| WorkspaceSize -> "WorkspaceSize"
 			| InternalError s -> "InternalError: " ^ s
 		in
 		let global = ref false in

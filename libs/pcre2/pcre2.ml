@@ -22,9 +22,6 @@
 
 (* Public exceptions and their registration with the C runtime *)
 
-let string_copy str = str
-let buffer_add_subbytes = Buffer.add_subbytes
-
 type error =
   | Partial
   | BadPattern of string * int
@@ -32,6 +29,7 @@ type error =
   | BadUTFOffset
   | MatchLimit
   | DepthLimit
+  | WorkspaceSize
   | InternalError of string
 
 exception Error of error
@@ -248,19 +246,22 @@ let rflag_list irflags =
 
 external pcre2_version : unit -> string = "pcre2_version_stub"
 
-external pcre2_config_unicode : unit -> bool = "pcre2_config_unicode_stub" [@@noalloc]
+external pcre2_config_unicode : unit -> bool
+  = "pcre2_config_unicode_stub" [@@noalloc]
 
-external pcre2_config_newline :
-  unit -> char = "pcre2_config_newline_stub" [@@noalloc]
+external pcre2_config_newline : unit -> char
+  = "pcre2_config_newline_stub" [@@noalloc]
 
-external pcre2_config_link_size :
-  unit -> int = "pcre2_config_link_size_stub" [@@noalloc]
+external pcre2_config_link_size : unit -> (int [@untagged])
+  = "pcre2_config_link_size_stub_bc" "pcre2_config_link_size_stub" [@@noalloc]
 
-external pcre2_config_match_limit :
-  unit -> int = "pcre2_config_match_limit_stub" [@@noalloc]
+external pcre2_config_match_limit : unit -> (int [@untagged])
+  = "pcre2_config_match_limit_stub_bc" "pcre2_config_match_limit_stub"
+  [@@noalloc]
 
-external pcre2_config_depth_limit :
-  unit -> int = "pcre2_config_depth_limit_stub" [@@noalloc]
+external pcre2_config_depth_limit : unit -> (int [@untagged])
+  = "pcre2_config_depth_limit_stub_bc" "pcre2_config_depth_limit_stub"
+  [@@noalloc]
 
 external pcre2_config_stackrecurse :
   unit -> bool = "pcre2_config_stackrecurse_stub" [@@noalloc]
@@ -283,13 +284,25 @@ type firstcodeunit_info =
 
 type regexp
 
-external options : regexp -> icflag = "pcre2_argoptions_stub"
-external size : regexp -> int = "pcre2_size_stub"
-external capturecount : regexp -> int = "pcre2_capturecount_stub"
-external backrefmax : regexp -> int = "pcre2_backrefmax_stub"
-external namecount : regexp -> int = "pcre2_namecount_stub"
+external options : regexp -> (icflag [@untagged])
+  = "pcre2_argoptions_stub_bc" "pcre2_argoptions_stub"
+
+external size : regexp -> (int [@untagged])
+  = "pcre2_size_stub_bc" "pcre2_size_stub"
+
+external capturecount : regexp -> (int [@untagged])
+  = "pcre2_capturecount_stub_bc" "pcre2_capturecount_stub"
+
+external backrefmax : regexp -> (int [@untagged])
+  = "pcre2_backrefmax_stub_bc" "pcre2_backrefmax_stub"
+
+external namecount : regexp -> (int [@untagged])
+  = "pcre2_namecount_stub_bc" "pcre2_namecount_stub"
+
+external nameentrysize : regexp -> (int [@untagged])
+  = "pcre2_nameentrysize_stub_bc" "pcre2_nameentrysize_stub"
+
 external names : regexp -> string array = "pcre2_names_stub"
-external nameentrysize : regexp -> int = "pcre2_nameentrysize_stub"
 external firstcodeunit : regexp -> firstcodeunit_info = "pcre2_firstcodeunit_stub"
 external lastcodeunit : regexp -> char option = "pcre2_lastcodeunit_stub"
 
@@ -299,23 +312,27 @@ type chtables
 
 external maketables : unit -> chtables = "pcre2_maketables_stub"
 
-external compile :
-  icflag -> chtables option -> string -> regexp = "pcre2_compile_stub"
+external compile : (icflag  [@untagged]) -> chtables option -> string -> regexp
+  = "pcre2_compile_stub_bc" "pcre2_compile_stub"
 
 (* external get_match_limit : regexp -> int option = "pcre2_get_match_limit_stub" *)
 
 (* Internal use only! *)
-external set_imp_match_limit :
-  regexp -> int -> regexp = "pcre2_set_imp_match_limit_stub" [@@noalloc]
+external set_imp_match_limit : regexp -> (int [@untagged]) -> regexp
+  = "pcre2_set_imp_match_limit_stub_bc" "pcre2_set_imp_match_limit_stub"
+  [@@noalloc]
 
 (* external get_depth_limit :
   regexp -> int option = "pcre2_get_depth_limit_stub" *)
 
 (* Internal use only! *)
-external set_imp_depth_limit :
-  regexp -> int -> regexp = "pcre2_set_imp_depth_limit_stub" [@@noalloc]
+external set_imp_depth_limit : regexp -> (int [@untagged]) -> regexp
+  = "pcre2_set_imp_depth_limit_stub_bc" "pcre2_set_imp_depth_limit_stub"
+  [@@noalloc]
 
+(* TODO implement jit using new pcre2_jit_compile api *)
 let regexp
+      (* ?(jit_compile = false) *)
       ?limit ?depth_limit
       ?(iflags = 0) ?flags ?chtables pat =
   let rex =
@@ -333,7 +350,7 @@ let regexp
   | Some lim -> set_imp_depth_limit rex lim
 
 let regexp_or
-      ?limit ?depth_limit ?(iflags = 0) ?flags ?chtables pats =
+      (* ?jit_compile *) ?limit ?depth_limit ?(iflags = 0) ?flags ?chtables pats =
   let check pat =
     try ignore (regexp ~iflags ?flags ?chtables pat)
     with Error error -> raise (Regexp_or (pat, error))
@@ -343,7 +360,7 @@ let regexp_or
     let cnv pat = "(?:" ^ pat ^ ")" in
     String.concat "|" (List.rev (List.rev_map cnv pats))
   in
-  regexp ?limit ?depth_limit ~iflags ?flags ?chtables big_pat
+  regexp (* ?jit_compile *) ?limit ?depth_limit ~iflags ?flags ?chtables big_pat
 
 let bytes_unsafe_blit_string str str_ofs bts bts_ofs len =
   let str_bts = Bytes.unsafe_of_string str in
@@ -374,7 +391,7 @@ let quote s =
 (* Matching of patterns and subpattern extraction *)
 
 (* Default regular expression when none is provided by the user *)
-let def_rex = regexp "\\s+"
+let def_rex = regexp (* ~jit_compile:true *) "\\s+"
 
 type substrings = string * int array
 
@@ -443,8 +460,10 @@ let get_opt_substrings ?(full_match = true) (_, ovector as substrings) =
     let len = (Array.length ovector / 3) - 1 in
     Array.init len (fun n -> unsafe_get_opt_substring substrings (n + 1))
 
-external get_stringnumber :
-  regexp -> string -> int = "pcre2_substring_number_from_name_stub"
+external get_stringnumber : regexp -> string -> (int [@untagged])
+  =
+  "pcre2_substring_number_from_name_stub_bc"
+  "pcre2_substring_number_from_name_stub"
 
 let get_named_substring rex name substrings =
   get_substring substrings (get_stringnumber rex name)
@@ -453,10 +472,10 @@ let get_named_substring_ofs rex name substrings =
   get_substring_ofs substrings (get_stringnumber rex name)
 
 external unsafe_pcre2_match :
-  irflag ->
+  (irflag [@untagged]) ->
   regexp ->
-  pos : int ->
-  subj_start : int ->
+  pos : (int [@untagged]) ->
+  subj_start : (int [@untagged]) ->
   subj : string ->
   int array ->
   callout option ->
@@ -466,6 +485,26 @@ let make_ovector rex =
   let subgroups1 = capturecount rex + 1 in
   let subgroups2 = subgroups1 lsl 1 in
   subgroups2, Array.make (subgroups1 + subgroups2) 0
+
+external unsafe_pcre2_dfa_match :
+  (irflag [@untagged]) ->
+  regexp ->
+  pos : (int [@untagged]) ->
+  subj_start : (int [@untagged]) ->
+  subj : string ->
+  int array ->
+  callout option ->
+  workspace : int array ->
+  unit = "pcre2_dfa_match_stub_bc" "pcre2_match_stub0"
+
+let pcre2_dfa_match ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
+                  ?callout ?(workspace = Array.make 20 0) subj =
+  let rex = match pat with Some str -> regexp str | _ -> rex in
+  let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
+  let _, ovector = make_ovector rex in
+  unsafe_pcre2_dfa_match
+    iflags rex ~pos ~subj_start:0 ~subj ovector callout ~workspace;
+  ovector
 
 let pcre2_match ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
               ?callout subj =
@@ -819,7 +858,7 @@ let replace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
     let ofs = List.fold_left coll first trans_lst in
     bytes_unsafe_blit_string subj last res ofs rest;
     Bytes.unsafe_to_string res
-  with Not_found -> string_copy subj
+  with Not_found -> subj
 
 let qreplace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
                    ?(pos = 0) ?(templ = "") ?callout subj =
@@ -838,7 +877,7 @@ let qreplace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     bytes_unsafe_blit_string templ 0 res first len;
     bytes_unsafe_blit_string subj last res postfix_start rest;
     Bytes.unsafe_to_string res
-  with Not_found -> string_copy subj
+  with Not_found -> subj
 
 let substitute_substrings_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
                                 ?(pos = 0) ?callout ~subst subj =
@@ -859,7 +898,7 @@ let substitute_substrings_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     bytes_unsafe_blit_string templ 0 res prefix_len templ_len;
     bytes_unsafe_blit_string subj last res postfix_start postfix_len;
     Bytes.unsafe_to_string res
-  with Not_found -> string_copy subj
+  with Not_found -> subj
 
 let substitute_first ?iflags ?flags ?rex ?pat ?pos
                      ?callout ~subst:str_subst subj =
@@ -876,7 +915,7 @@ let substitute_first ?iflags ?flags ?rex ?pat ?pos
 let internal_psplit flags rex max pos callout subj =
   let subj_len = String.length subj in
   if subj_len = 0 then []
-  else if max = 1 then [string_copy subj]
+  else if max = 1 then [subj]
   else
     let subgroups2, ovector = make_ovector rex in
 
@@ -995,7 +1034,7 @@ let full_split ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
   let subj_len = String.length subj in
   if subj_len = 0 then []
-  else if max = 1 then [Text (string_copy subj)]
+  else if max = 1 then [Text (subj)]
   else
     let subgroups2, ovector = make_ovector rex in
 
