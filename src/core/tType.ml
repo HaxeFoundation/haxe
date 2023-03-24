@@ -416,6 +416,7 @@ type flag_tclass =
 	| CFinal
 	| CInterface
 	| CAbstract
+	| CFunctionalInterface
 
 type flag_tclass_field =
 	| CfPublic

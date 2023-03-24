@@ -1,0 +1,3 @@
+--main Main
+--jvm bin/run.jar
+--cmd java -jar bin/run.jar

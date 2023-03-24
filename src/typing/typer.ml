@@ -2061,6 +2061,7 @@ let rec create com =
 			complete = false;
 			type_hints = [];
 			load_only_cached_modules = false;
+			functional_interface_lut = new pmap_lookup;
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;

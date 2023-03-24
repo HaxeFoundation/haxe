@@ -1702,6 +1702,30 @@ let finalize_class ctx cctx =
 		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
 	) cctx.delayed_expr
 
+let check_functional_interface ctx c =
+	let is_normal_field cf =
+		(* TODO: more? *)
+		not (has_class_field_flag cf CfDefault)
+	in
+	let rec loop o l = match l with
+		| cf :: l ->
+			if is_normal_field cf then begin
+				if o = None then
+					loop (Some cf) l
+				else
+					None
+			end else
+				loop o l
+		| [] ->
+			o
+	in
+	match loop None c.cl_ordered_fields with
+	| None ->
+		()
+	| Some cf ->
+		add_class_flag c CFunctionalInterface;
+		ctx.g.functional_interface_lut#add c.cl_path cf
+
 let init_class ctx c p context_init herits fields =
 	let cctx = create_class_context c context_init p in
 	let ctx = create_typer_context_for_class ctx cctx p in
@@ -1828,14 +1852,16 @@ let init_class ctx c p context_init herits fields =
 		with Error (Custom str,p2,depth) when p = p2 ->
 			display_error ~depth ctx.com str p
 	) fields;
-	(match cctx.abstract with
-	| Some a ->
-		a.a_to_field <- List.rev a.a_to_field;
-		a.a_from_field <- List.rev a.a_from_field;
-		a.a_ops <- List.rev a.a_ops;
-		a.a_unops <- List.rev a.a_unops;
-		a.a_array <- List.rev a.a_array;
-	| None -> ());
+		begin match cctx.abstract with
+		| Some a ->
+			a.a_to_field <- List.rev a.a_to_field;
+			a.a_from_field <- List.rev a.a_from_field;
+			a.a_ops <- List.rev a.a_ops;
+			a.a_unops <- List.rev a.a_unops;
+			a.a_array <- List.rev a.a_array;
+		| None ->
+			if (has_class_flag c CInterface) && ctx.com.platform = Java then check_functional_interface ctx c;
+	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
 	(* if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin

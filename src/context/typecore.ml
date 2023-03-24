@@ -82,6 +82,7 @@ type typer_globals = {
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
+	functional_interface_lut : (path,tclass_field) lookup;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
