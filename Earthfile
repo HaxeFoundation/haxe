@@ -63,7 +63,7 @@ devcontainer:
             ocaml-nox \
             camlp5 \
             opam \
-            libpcre3-dev \
+            libpcre2-dev \
             zlib1g-dev \
             libgtk2.0-dev \
             libmbedtls-dev \

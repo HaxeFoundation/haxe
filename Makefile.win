@@ -48,7 +48,7 @@ endif
 
 PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" \
-	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre-1.dll | sed -e 's/^\s*//')" \
+	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre2-8-0.dll | sed -e 's/^\s*//')" \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedcrypto.dll | sed -e 's/^\s*//')" \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedtls.dll | sed -e 's/^\s*//')" \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedx509.dll | sed -e 's/^\s*//')"
