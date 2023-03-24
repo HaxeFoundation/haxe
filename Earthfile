@@ -281,7 +281,7 @@ test-environment-hl:
 test-environment-lua:
     # hererocks uses pip
     FROM +test-environment-python
-    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre3-dev cmake"
+    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre2-dev cmake"
     RUN ln -s /root/.local/bin/hererocks /bin/
     SAVE IMAGE --cache-hint
 
