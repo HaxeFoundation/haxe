@@ -5,22 +5,13 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  cancel:
-    name: "Cancel previous runs"
-    runs-on: ubuntu-18.04
-    timeout-minutes: 3
-    steps:
-      - uses: styfle/cancel-workflow-action@0.3.1
-        with:
-          workflow_id: 1447568
-          access_token: ${{ github.token }}
-
   windows64-build:
     runs-on: windows-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       OPAMYES: 1
+      OPAMROOT: D:\.opam
       CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
       ARCH: 64
       MINGW_ARCH: x86_64
@@ -30,6 +21,18 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: D:\.opam
+          key: ${{ runner.os }}64-${{ hashFiles('./opam', './libs/') }}
 
       - name: Install Neko from S3
         shell: pwsh
@@ -56,12 +59,13 @@ jobs:
         shell: pwsh
         run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
 
-      - name: Install OCaml and OCaml libraries
+      - name: Install OCaml
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
           curl.exe -fsSL -o cygwin-setup.exe --retry 3 $($env:CYGWIN_SETUP)
-          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre" -Wait
+          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre2-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre2" -Wait -RedirectStandardOutput cygwin-setup-out.txt
+          Get-Content cygwin-setup-out.txt
           curl.exe -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam$($env:ARCH).tar.xz
           curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'curl -L https://cpanmin.us | perl - App::cpanminus')
@@ -71,6 +75,12 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -xf opam.tar.xz')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && bash opam${ARCH}/install.sh')
+
+      - name: Install OCaml libraries
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam init mingw "https://github.com/fdopen/opam-repository-mingw.git#opam2" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
@@ -81,6 +91,13 @@ jobs:
       - name: Expose mingw dll files
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
+
+      # required to be able to retrieve the revision
+      - name: Mark directory as safe
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -112,7 +129,8 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
       OPAMYES: 1
-      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
+      OPAMROOT: D:\.opam
+      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin-archive/20221123
       ARCH: 32
       MINGW_ARCH: i686
       CYGWIN_SETUP: https://cygwin.com/setup-x86.exe
@@ -121,6 +139,18 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: D:\.opam
+          key: ${{ runner.os }}32-${{ hashFiles('./opam', './libs/') }}
 
       - name: Install Neko from S3
         shell: pwsh
@@ -147,12 +177,14 @@ jobs:
         shell: pwsh
         run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
 
-      - name: Install OCaml and OCaml libraries
+      - name: Install OCaml
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
           curl.exe -fsSL -o cygwin-setup.exe --retry 3 $($env:CYGWIN_SETUP)
-          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre" -Wait
+          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre2-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre2 --allow-unsupported-windows" -Wait -RedirectStandardOutput cygwin-setup-out.txt
+          Get-Content cygwin-setup-out.txt
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('--norc', '--noprofile', '/etc/postinstall/ca-certificates.sh')
           curl.exe -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam$($env:ARCH).tar.xz
           curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'curl -L https://cpanmin.us | perl - App::cpanminus')
@@ -162,6 +194,12 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -xf opam.tar.xz')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && bash opam${ARCH}/install.sh')
+
+      - name: Install OCaml libraries
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam init mingw "https://github.com/fdopen/opam-repository-mingw.git#opam2" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
@@ -172,6 +210,13 @@ jobs:
       - name: Expose mingw dll files
         shell: pwsh
         run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
+
+      # required to be able to retrieve the revision
+      - name: Mark directory as safe
+        shell: pwsh
+        run: |
+          Set-PSDebug -Trace 1
+          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -197,51 +242,97 @@ jobs:
           path: out
 
 
-  linux-amd64:
+  linux-build:
     runs-on: ubuntu-18.04
-    permissions:
-      packages: write
     env:
-      FORCE_COLOR: 1
+      PLATFORM: linux64
+      OPAMYES: 1
     steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-
       - uses: actions/checkout@main
         with:
           submodules: recursive
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: ~/.opam/
+          key: ${{ runner.os }}-${{ hashFiles('./opam', './libs/') }}-1
+
+      - name: Install Neko from S3
+        run: |
+          set -ex
+
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+
+      - name: Print Neko version
+        run: neko -version 2>&1
+
+
+      - name: Install dependencies
+        run: |
+          set -ex
+          sudo add-apt-repository ppa:avsm/ppa -y # provides OPAM 2
+          sudo add-apt-repository ppa:haxe/ocaml -y # provides newer version of mbedtls
+          sudo apt-get update -qqy
+          sudo apt-get install -qqy ocaml-nox camlp5 opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build libstring-shellquote-perl libipc-system-simple-perl
+
+      - name: Install OCaml libraries
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+          set -ex
+          opam init # --disable-sandboxing
+          opam update
+          opam pin add haxe . --no-action
+          opam install haxe --deps-only --assume-depexts
+          opam list
+          ocamlopt -v
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: echo "ADD_REVISION=1" >> $GITHUB_ENV
 
-      - name: Set CONTAINER_ vars
+      - name: Build Haxe
         run: |
-          echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
-          echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
+          set -ex
+          eval $(opam env)
+          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
+          opam config exec -- make -s haxelib
+          make -s package_unix
+          ls -l out
+          ldd -v ./haxe
+          ldd -v ./haxelib
 
-      - name: Build devcontainer
-        run: earthly +devcontainer --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-amd64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-amd64"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_USE_INLINE_CACHE: true
-          EARTHLY_SAVE_INLINE_CACHE: true
-
-      - name: Build
-        run: earthly +build --ADD_REVISION="$ADD_REVISION"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-amd64"
+      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
 
       - name: Build xmldoc
-        run: earthly +xmldoc --COMMIT="${{ github.sha }}" --BRANCH="${{ github.ref_name }}"
+        run: |
+          set -ex
+          make -s xmldoc
+          cat >extra/doc/info.json <<EOL
+            {
+              "commit": "$GITHUB_SHA",
+              "branch": "${{ steps.extract_branch.outputs.branch }}"
+            }
+          EOL
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linuxBinaries
+          path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v1.0.0
@@ -249,17 +340,165 @@ jobs:
           name: xmldoc
           path: extra/doc
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1.0.0
+  linux-test:
+    needs: linux-build
+    runs-on: ubuntu-18.04
+    env:
+      PLATFORM: linux64
+      TEST: ${{matrix.target}}
+      HXCPP_COMPILE_CACHE: ~/hxcache
+      HAXE_STD_PATH: /usr/local/share/haxe/std
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash, neko]
+        include:
+          - target: hl
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: cpp
+            APT_PACKAGES: gcc-multilib g++-multilib
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+          - target: flash
+            APT_PACKAGES: libglib2.0-0 libfreetype6 xvfb
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v1
         with:
           name: linuxBinaries
-          path: out/linux/amd64
+
+      - name: Install Neko from S3
+        run: |
+          set -ex
+
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+
+      - name: Print Neko version
+        run: neko -version 2>&1
+
+
+      - name: Setup Haxe
+        run: |
+          sudo apt install -qqy libmbedtls-dev
+
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Print Haxe version
+        run: haxe -version
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+
+      - name: Install apt packages
+        if: matrix.APT_PACKAGES
+        run: |
+          set -ex
+          sudo apt update -qqy
+          sudo apt install -qqy ${{matrix.APT_PACKAGES}}
+
+      - name: Flash setup
+        if: matrix.target == 'flash'
+        run: export DISPLAY=:99.0
 
       - name: Test
-        run: earthly +test-all --GITHUB_ACTIONS="$GITHUB_ACTIONS"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:test-${{env.CONTAINER_TAG}}-amd64"
+        run: haxe RunCi.hxml
+        working-directory: ${{github.workspace}}/tests
+
+  test-docgen:
+    needs: linux-build
+    runs-on: ubuntu-18.04
+    env:
+      PLATFORM: linux64
+      HXCPP_COMPILE_CACHE: ~/hxcache
+    steps:
+      - uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      - uses: actions/download-artifact@v1
+        with:
+          name: linuxBinaries
+
+      - name: Download xmldoc artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: xmldoc
+          path: xmldoc
+
+      - name: Install Neko from S3
+        run: |
+          set -ex
+
+          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /usr/local/lib/neko
+          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+
+      - name: Print Neko version
+        run: neko -version 2>&1
+
+
+      - name: Setup Haxe
+        run: |
+          sudo apt install -qqy libmbedtls-dev
+
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Print Haxe version
+        run: haxe -version
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+
+      - name: Test documentation generation
+        run: |
+          set -ex
+          haxelib git dox https://github.com/HaxeFoundation/dox.git
+          haxelib git hxtemplo https://github.com/Simn/hxtemplo.git
+          haxelib git hxargs https://github.com/Simn/hxargs.git
+          haxelib git markdown https://github.com/dpeek/haxe-markdown.git
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          cd $(haxelib libpath hxcpp)/tools/hxcpp
+          haxe compile.hxml
+          cd -
+          haxe dox.hxml
+          mkdir resources
+          cp ../../src-json/* resources
+          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -ex cs.internal -theme $(haxelib libpath dox)/themes/default
+        working-directory: ${{github.workspace}}/tests/docgen
 
   linux-arm64:
     runs-on: ubuntu-18.04
@@ -289,24 +528,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
       - name: Set CONTAINER_ vars
         run: |
           echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
           echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
 
       - name: Build devcontainer
-        run: earthly --platform=linux/arm64 +devcontainer --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
+        run: earthly --platform=linux/arm64 +devcontainer --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}-arm64" --IMAGE_CACHE="ghcr.io/haxefoundation/haxe_devcontainer:development-arm64"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_USE_INLINE_CACHE: true
           EARTHLY_SAVE_INLINE_CACHE: true
 
+      - name: Set ADD_REVISION=1 for non-release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
       - name: Build
-        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION"
+        run: earthly --platform=linux/arm64 +build --ADD_REVISION="$ADD_REVISION" --SET_SAFE_DIRECTORY="true"
         env:
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
           EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-arm64"
@@ -316,53 +555,6 @@ jobs:
         with:
           name: linuxArm64Binaries
           path: out/linux/arm64
-
-      # Do not run test for arm64 for now
-
-  linux-multiarch:
-    needs: [linux-amd64, linux-arm64]
-    runs-on: ubuntu-18.04
-    permissions:
-      packages: write
-    env:
-      FORCE_COLOR: 1
-    steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Earthly
-        run: sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.6.13/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v1
-        with:
-            image: tonistiigi/binfmt:latest
-            platforms: all
-
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
-      - name: Set CONTAINER_ vars
-        run: |
-          echo "CONTAINER_REG=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV;
-          echo "CONTAINER_TAG=$(echo ${{ github.ref_name }} | sed -e 's/[^A-Za-z0-9\.]/-/g')" >> $GITHUB_ENV;
-
-      - name: Build devcontainer
-        run: earthly +devcontainer-multiarch --ADD_REVISION="$ADD_REVISION" --IMAGE_NAME="ghcr.io/${CONTAINER_REG}_devcontainer" --IMAGE_TAG="${CONTAINER_TAG}"
-        env:
-          EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
-          EARTHLY_USE_INLINE_CACHE: true
-          EARTHLY_SAVE_INLINE_CACHE: true
 
   mac-build:
     runs-on: macos-latest
@@ -374,6 +566,13 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v3.0.11
+        with:
+          path: ~/.opam/
+          key: ${{ runner.os }}-${{ hashFiles('./opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -394,9 +593,10 @@ jobs:
 
       - name: Install dependencies
         env:
-          ZLIB_VERSION: 1.2.12
+          # For compatibility with macOS 10.13
+          ZLIB_VERSION: 1.2.13
           MBEDTLS_VERSION: 2.25.0
-          PCRE_VERSION: 10.39
+          PCRE2_VERSION: 10.42
         run: |
           set -ex
           brew uninstall openssl@1.0.2t || echo
@@ -406,6 +606,7 @@ jobs:
           brew update
           # brew unlink python@2
           brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
+          brew install libunistring
           brew install cpanminus
           cpanm IPC::System::Simple
           cpanm String::ShellQuote
@@ -413,16 +614,20 @@ jobs:
           cd zlib-$ZLIB_VERSION
           ./configure
           make && make install
+          cd ..
           curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
           cd mbedtls-$MBEDTLS_VERSION
           make && make install
-          curl -L https://github.com/PhilipHazel/pcre2/releases/download/pcre2-10.39/pcre2-$PCRE_VERSION.tar.gz | tar xz
-          cd pcre2-$PCRE_VERSION
-          ./configure --enable-utf8 --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
+          cd ..
+          curl -L https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-$PCRE2_VERSION.tar.gz | tar xz
+          cd pcre2-$PCRE2_VERSION
+          ./configure --enable-unicode --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcre2grep-libz --enable-pcre2grep-libbz2 --enable-jit
           make && make install
+          cd ..
 
 
       - name: Install OCaml libraries
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
           opam init # --disable-sandboxing
@@ -444,7 +649,7 @@ jobs:
         run: |
           set -ex
           eval $(opam env)
-          opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/lib/libz.a /usr/local/lib/libpcre.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
+          opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/lib/libz.a /usr/local/lib/libpcre2-8.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
           opam config exec -- make -s haxelib
           make -s package_unix package_installer_mac
           ls -l out
@@ -470,8 +675,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash9, neko]
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -531,7 +736,7 @@ jobs:
           call lua53/bin/activate
 
       - name: Install wget
-        if: matrix.target == 'flash9'
+        if: matrix.target == 'flash'
         shell: cmd
         run: |
           choco install wget
@@ -562,8 +767,8 @@ jobs:
       fail-fast: false
       matrix:
         # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
-        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/5024
-        target: [macro, js, hl, cpp, java, cs, php, python, neko]
+        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
+        target: [macro, js, hl, cpp, java, cs, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -623,7 +828,7 @@ jobs:
           call lua53/bin/activate
 
       - name: Install wget
-        if: matrix.target == 'flash9'
+        if: matrix.target == 'flash'
         shell: cmd
         run: |
           choco install wget
@@ -648,10 +853,11 @@ jobs:
       PLATFORM: mac
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
+      HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash9, neko]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash, neko]
         include:
           - target: hl
             BREW_PACKAGES: ninja
@@ -716,7 +922,7 @@ jobs:
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-amd64, linux-arm64, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-18.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
@@ -792,9 +998,14 @@ jobs:
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-amd64, linux-arm64, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-18.04
     steps:
+      - name: Install dependencies
+        run: |
+          set -ex
+          sudo apt-get install -qqy libc6
+
       - name: Download Haxe
         uses: actions/download-artifact@v2
         with:

@@ -1,6 +1,10 @@
 open Ast
+open DisplayTypes.DisplayMode
 open Type
 open Common
+open DefineList
+open MetaList
+open Globals
 
 exception Invalid_expr
 exception Abort
@@ -49,16 +53,19 @@ type 'value compiler_api = {
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
+	register_define : string -> Define.user_define -> unit;
+	register_metadata : string -> Meta.user_meta -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
-	display_error : (string -> pos -> unit);
+	info : ?depth:int -> string -> pos -> unit;
+	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
+	display_error : ?depth:int -> (string -> pos -> unit);
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
-	warning : Warning.warning -> string -> pos -> unit;
 }
 
 
@@ -85,6 +92,11 @@ type enum_type =
 	| IQuoteStatus
 	| IImportMode
 	| IDisplayKind
+	| IDisplayMode
+	| ICapturePolicy
+	| IVarScope
+	| IVarScopingFlags
+	| IPackageRule
 	| IMessage
 	| IFunctionKind
 	| IStringLiteralKind
@@ -141,7 +153,7 @@ module type InterpApi = sig
 	val encode_ref : 'a -> ('a -> value) -> (unit -> string) -> value
 	val decode_ref : value -> 'a
 
-	val compiler_error : string -> Globals.pos -> 'a
+	val compiler_error : Globals.located -> 'a
 	val error_message : string -> 'a
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
@@ -265,7 +277,15 @@ let encode_import (path,mode) =
 let encode_placed_name (s,p) =
 	encode_string s
 
-let rec encode_path (t,p) =
+(* Globals.path *)
+let encode_path (p,n) =
+	encode_obj [
+		"pack", encode_array (List.map encode_string p);
+		"name", encode_string n;
+	]
+
+(* Ast.placed_type_path *)
+let rec encode_ast_path (t,p) =
 	let fields = [
 		"pack", encode_array (List.map encode_string t.tpackage);
 		"name", encode_string t.tname;
@@ -325,7 +345,7 @@ and encode_field (f:class_field) =
 and encode_ctype t =
 	let tag, pl = match fst t with
 	| CTPath p ->
-		0, [encode_path (p,Globals.null_pos)]
+		0, [encode_ast_path (p,Globals.null_pos)]
 	| CTFunction (pl,r) ->
 		1, [encode_array (List.map encode_ctype pl);encode_ctype r]
 	| CTAnonymous fl ->
@@ -333,7 +353,7 @@ and encode_ctype t =
 	| CTParent t ->
 		3, [encode_ctype t]
 	| CTExtend (tl,fields) ->
-		4, [encode_array (List.map encode_path tl); encode_array (List.map encode_field fields)]
+		4, [encode_array (List.map encode_ast_path tl); encode_array (List.map encode_field fields)]
 	| CTOptional t ->
 		5, [encode_ctype t]
 	| CTNamed (n,t) ->
@@ -381,10 +401,103 @@ and encode_display_kind dk =
 	in
 	encode_enum ~pos:None IDisplayKind tag pl
 
-and encode_message (msg,p,_,sev) =
-	let tag, pl = match sev with
-		| Globals.MessageSeverity.Information -> 0, [(encode_string msg); (encode_pos p)]
-		| Warning | Hint -> 1, [(encode_string msg); (encode_pos p)]
+and encode_display_mode dm =
+	let tag, pl = match dm with
+		| DMNone -> 0, []
+		| DMDefault -> 1, []
+		| DMDefinition -> 2, []
+		| DMTypeDefinition -> 3, []
+		| DMImplementation -> 4, []
+		| DMPackage -> 5, []
+		| DMHover -> 6, []
+		| DMUsage (withDefinition,findDescendants,findBase) -> 7, [(vbool withDefinition); (vbool findDescendants); (vbool findBase)]
+		| DMModuleSymbols None -> 8, []
+		| DMModuleSymbols (Some s) -> 9, [(encode_string s)]
+		| DMSignature -> 10, []
+	in
+	encode_enum ~pos:None IDisplayMode tag pl
+
+(** encoded to haxe.display.Display.Platform, an enum abstract of String *)
+and encode_platform p =
+	encode_string (platform_name p)
+
+and encode_platform_config pc =
+	encode_obj [
+		"staticTypeSystem", vbool pc.pf_static;
+		"sys", vbool pc.pf_sys;
+		"capturePolicy", encode_capture_policy pc.pf_capture_policy;
+		"padNulls", vbool pc.pf_pad_nulls;
+		"addFinalReturn", vbool pc.pf_add_final_return;
+		"overloadFunctions", vbool pc.pf_overload;
+		"canSkipNonNullableArgument", vbool pc.pf_can_skip_non_nullable_argument;
+		"reservedTypePaths", encode_array (List.map encode_path pc.pf_reserved_type_paths);
+		"supportsFunctionEquality", vbool pc.pf_supports_function_equality;
+		"usesUtf16", vbool pc.pf_uses_utf16;
+		"thisBeforeSuper", vbool pc.pf_this_before_super;
+		"supportsThreads", vbool pc.pf_supports_threads;
+		"supportsUnicode", vbool pc.pf_supports_unicode;
+		"supportsRestArgs", vbool pc.pf_supports_rest_args;
+		"exceptions", encode_exceptions_config pc.pf_exceptions;
+		"scoping", encode_var_scoping_config pc.pf_scoping;
+		"supportsAtomics", vbool pc.pf_supports_atomics;
+	]
+
+and encode_capture_policy cp =
+	let tag = match cp with
+		| CPNone -> 0
+		| CPWrapRef -> 1
+		| CPLoopVars -> 2
+	in
+	encode_enum ~pos:None ICapturePolicy tag []
+
+and encode_var_scoping_config vsc =
+	encode_obj [
+		"scope", encode_var_scope vsc.vs_scope;
+		"flags", encode_array (List.map encode_var_scoping_flags vsc.vs_flags);
+	]
+
+and encode_var_scope vs =
+	let tag = match vs with
+		| FunctionScope -> 0
+		| BlockScope -> 1
+	in
+	encode_enum ~pos:None IVarScope tag []
+
+and encode_var_scoping_flags vsf =
+	let tag, pl = match vsf with
+		| VarHoisting -> 0, []
+		| NoShadowing -> 1, []
+		| NoCatchVarShadowing -> 2, []
+		| ReserveCurrentTopLevelSymbol -> 3, []
+		| ReserveAllTopLevelSymbols -> 4, []
+		| ReserveAllTypesFlat -> 5, []
+		| ReserveNames (names) -> 6, [encode_array (List.map encode_string names)]
+		| SwitchCasesNoBlocks -> 7, []
+	in
+	encode_enum ~pos:None IVarScopingFlags tag pl
+
+and encode_exceptions_config ec =
+	encode_obj [
+		"nativeThrows", encode_array (List.map encode_path ec.ec_native_throws);
+		"nativeCatches", encode_array (List.map encode_path ec.ec_native_catches);
+		"avoidWrapping", vbool ec.ec_avoid_wrapping;
+		"wildcardCatch", encode_path ec.ec_wildcard_catch;
+		"baseThrow", encode_path ec.ec_base_throw;
+		(* skipping "specialThrow" since cannot use "decode_texpr" here *)
+	]
+
+and encode_package_rule pr =
+	let tag, pl = match pr with
+		| Forbidden -> 0, []
+		| Directory (path) -> 1, [encode_string path]
+		| Remap (path) -> 2, [encode_string path]
+	in
+	encode_enum ~pos:None IPackageRule tag pl
+
+and encode_message cm =
+	let tag, pl = match cm.cm_severity with
+		| Globals.MessageSeverity.Information -> 0, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
+		| Warning | Hint -> 1, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Error -> Globals.die "" __LOC__
 	in
 	encode_enum ~pos:None IMessage tag pl
@@ -421,7 +534,7 @@ and encode_expr e =
 			| ECall (e,el) ->
 				7, [loop e;encode_array (List.map loop el)]
 			| ENew (p,el) ->
-				8, [encode_path p; encode_array (List.map loop el)]
+				8, [encode_ast_path p; encode_array (List.map loop el)]
 			| EUnop (op,flag,e) ->
 				9, [encode_unop op; vbool (match flag with Prefix -> false | Postfix -> true); loop e]
 			| EVars vl ->
@@ -609,7 +722,8 @@ let decode_placed_name vp v =
 let decode_opt_array f v =
 	if v = vnull then [] else List.map f (decode_array v)
 
-let rec decode_path t =
+(* Ast.placed_type_path *)
+let rec decode_ast_path t =
 	let p = field t "pos" in
 	let pack = List.map decode_string (decode_array (field t "pack"))
 	and name = decode_string (field t "name")
@@ -707,7 +821,7 @@ and decode_ctype t =
 	let (i,args),p = decode_enum_with_pos t in
 	(match i,args with
 	| 0, [p] ->
-		CTPath (fst (decode_path p))
+		CTPath (fst (decode_ast_path p))
 	| 1, [a;r] ->
 		CTFunction (List.map decode_ctype (decode_array a), decode_ctype r)
 	| 2, [fl] ->
@@ -715,7 +829,7 @@ and decode_ctype t =
 	| 3, [t] ->
 		CTParent (decode_ctype t)
 	| 4, [tl;fl] ->
-		CTExtend (List.map decode_path (decode_array tl), List.map decode_field (decode_array fl))
+		CTExtend (List.map decode_ast_path (decode_array tl), List.map decode_field (decode_array fl))
 	| 5, [t] ->
 		CTOptional (decode_ctype t)
 	| 6, [n;t] ->
@@ -779,7 +893,7 @@ and decode_expr v =
 		| 7, [e;el] ->
 			ECall (loop e,List.map loop (decode_array el))
 		| 8, [t;el] ->
-			ENew (decode_path t,List.map loop (decode_array el))
+			ENew (decode_ast_path t,List.map loop (decode_array el))
 		| 9, [op;f;e] ->
 			EUnop (decode_unop op,(if decode_bool f then Postfix else Prefix),loop e)
 		| 10, [vl] ->
@@ -1094,11 +1208,10 @@ and encode_type t =
 			4 , [encode_array pl; encode_type ret]
 		| TAnon a ->
 			5, [encode_ref a encode_tanon (fun() -> "<anonymous>")]
-		| TDynamic tsub as t ->
-			if t == t_dynamic then
-				6, [vnull]
-			else
-				6, [encode_type tsub]
+		| TDynamic None ->
+			6, [vnull]
+		| TDynamic (Some tsub) ->
+			6, [encode_type tsub]
 		| TLazy f ->
 			loop (lazy_type f)
 		| TAbstract (a, pl) ->
@@ -1142,7 +1255,7 @@ and decode_type t =
 	| 3, [t; pl] -> TType (decode_ref t, List.map decode_type (decode_array pl))
 	| 4, [pl; r] -> TFun (List.map (fun p -> decode_string (field p "name"), decode_bool (field p "opt"), decode_type (field p "t")) (decode_array pl), decode_type r)
 	| 5, [a] -> TAnon (decode_ref a)
-	| 6, [t] -> if t = vnull then t_dynamic else TDynamic (decode_type t)
+	| 6, [t] -> if t = vnull then t_dynamic else TDynamic (Some (decode_type t))
 	| 7, [f] -> TLazy (decode_lazytype f)
 	| 8, [a; pl] -> TAbstract (decode_ref a, List.map decode_type (decode_array pl))
 	| _ -> raise Invalid_expr
@@ -1491,8 +1604,8 @@ let decode_type_def v =
 		let is_interface = decode_opt_bool interf in
 		let is_final = decode_opt_bool final in
 		let is_abstract = decode_opt_bool abstract in
-		let interfaces = (match opt (fun v -> List.map decode_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
-		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
+		let interfaces = (match opt (fun v -> List.map decode_ast_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
+		let flags = (match opt decode_ast_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = if is_interface then begin
 				let flags = HInterface :: flags in
 				List.map (fun t -> HExtends t) interfaces @ flags
@@ -1577,33 +1690,38 @@ let macro_api ccom get_api =
 		"current_pos", vfun0 (fun() ->
 			encode_pos (get_api()).pos
 		);
-		"error", vfun2 (fun msg p ->
+		"error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).error msg p;
+			let depth = decode_int depth in
+			(get_api()).display_error ~depth msg p;
 			raise Abort
 		);
-		"fatal_error", vfun2 (fun msg p ->
+		"fatal_error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			raise (Error.Fatal_error (msg,p))
+			let depth = decode_int depth in
+			raise (Error.Fatal_error ((Globals.located msg p),depth))
 		);
-		"report_error", vfun2 (fun msg p ->
+		"report_error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(get_api()).display_error msg p;
+			let depth = decode_int depth in
+			(get_api()).display_error ~depth msg p;
 			vnull
 		);
-		"warning", vfun2 (fun msg p ->
+		"warning", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(get_api()).warning WUser msg p;
+			let depth = decode_int depth in
+			(get_api()).warning ~depth WUser msg p;
 			vnull
 		);
-		"info", vfun2 (fun msg p ->
+		"info", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			(ccom()).info msg p;
+			let depth = decode_int depth in
+			(get_api()).info ~depth msg p;
 			vnull
 		);
 		"get_messages", vfun0 (fun() ->
@@ -1727,6 +1845,56 @@ let macro_api ccom get_api =
 		);
 		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
 			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
+			vnull
+		);
+		"register_define_impl", vfun2 (fun d src ->
+			let flags : define_parameter list = [] in
+
+			let platforms = decode_opt_array decode_string (field d "platforms") in
+			let flags = match platforms with
+				| [] -> flags
+				| _ ->(Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+			in
+
+			let params = decode_opt_array decode_string (field d "params") in
+			let flags = List.append flags (List.map (fun p -> (HasParam p : define_parameter)) params) in
+
+			let links = decode_opt_array decode_string (field d "links") in
+			let flags = List.append flags (List.map (fun l -> (Link l : define_parameter)) links) in
+
+			(get_api()).register_define (decode_string (field d "define")) {
+				doc = decode_string (field d "doc");
+				flags = flags;
+				source = opt decode_string src;
+			};
+			vnull
+		);
+		"register_metadata_impl", vfun2 (fun m src ->
+			let flags : meta_parameter list = [] in
+
+			let platforms = decode_opt_array decode_string (field m "platforms") in
+			let flags =
+				if (List.length platforms) = 0 then flags
+				else (Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+			in
+
+			let targets = decode_opt_array decode_string (field m "targets") in
+			let flags =
+				if (List.length targets) = 0 then flags
+				else (UsedOn (List.map MetaList.parse_meta_usage targets)) :: flags
+			in
+
+			let params = decode_opt_array decode_string (field m "params") in
+			let flags = List.append flags (List.map (fun p -> HasParam p) params) in
+
+			let links = decode_opt_array decode_string (field m "links") in
+			let flags = List.append flags (List.map (fun l -> Link l) links) in
+
+			(get_api()).register_metadata (decode_string (field m "metadata")) {
+				doc = decode_string (field m "doc");
+				flags = flags;
+				source = opt decode_string src;
+			};
 			vnull
 		);
 		"set_custom_js_generator", vfun1 (fun f ->
@@ -1878,7 +2046,7 @@ let macro_api ccom get_api =
 			encode_type t
 		);
 		"define_module", vfun4 (fun path vl ui ul ->
-			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map fst (List.map decode_path (decode_array ul)));
+			(get_api()).define_module (decode_string path) (decode_array vl) (List.map decode_import (decode_array ui)) (List.map fst (List.map decode_ast_path (decode_array ul)));
 			vnull
 		);
 		"add_class_path", vfun1 (fun cp ->
@@ -1951,6 +2119,36 @@ let macro_api ccom get_api =
 				vnull
 			else
 				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
+		);
+		"get_display_mode", vfun0 (fun() ->
+			encode_display_mode !Parser.display_mode
+		);
+		"get_configuration", vfun0 (fun() ->
+			let com = ccom() in
+			encode_obj [
+				"version", vint com.version;
+				"args", encode_array (List.map encode_string com.args);
+				"debug", vbool com.debug;
+				"verbose", vbool com.verbose;
+				"foptimize", vbool com.foptimize;
+				"platform", encode_platform com.platform;
+				"platformConfig", encode_platform_config com.config;
+				"stdPath", encode_array (List.map encode_string com.std_path);
+				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
+				"packageRules", encode_string_map encode_package_rule com.package_rules;
+			]
+		);
+		"get_main_expr", vfun0 (fun() ->
+			match (ccom()).main with None -> vnull | Some e -> encode_texpr e
+		);
+		"get_module_types", vfun0 (fun() ->
+			encode_array (List.map encode_module_type (ccom()).types)
+		);
+		"type_to_module_type", vfun1 (fun(t) ->
+			encode_module_type (module_type_of_type (decode_type t))
+		);
+		"module_type_to_type", vfun1 (fun(t) ->
+			encode_type (type_of_module_type (decode_module_type t))
 		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in

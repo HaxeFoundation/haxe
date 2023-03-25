@@ -239,7 +239,7 @@ module StdArray = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		vstring (s_array 0 (this vthis))
+		vstring (s_array 0 0 (this vthis))
 	)
 
 	let unshift = vifun1 (fun vthis v ->
@@ -440,7 +440,12 @@ module StdBytes = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		(create_unknown (Bytes.to_string (this vthis)))
+		let this = this vthis in
+		try
+			UTF8.validate (Bytes.unsafe_to_string this);
+			(create_unknown (Bytes.to_string this))
+		with UTF8.Malformed_code ->
+			exc_string "Invalid string"
 	)
 end
 
@@ -754,18 +759,18 @@ module StdDeque = struct
 end
 
 module StdEReg = struct
-	open Pcre
+	open Pcre2
 
 	let create r opt =
-		let open Pcre in
+		let open Pcre2 in
 		let string_of_pcre_error = function
 			| BadPattern(s,i) -> Printf.sprintf "at %i: %s" i s
 			| Partial -> "Partial"
-			| BadPartial -> "BadPartial"
-			| BadUTF8 -> "BadUTF8"
-			| BadUTF8Offset -> "BadUTF8Offset"
+			| BadUTF -> "BadUTF"
+			| BadUTFOffset -> "BadUTFOffset"
 			| MatchLimit -> "MatchLimit"
-			| RecursionLimit -> "RecursionLimit"
+			| DepthLimit -> "DepthLimit"
+			| WorkspaceSize -> "WorkspaceSize"
 			| InternalError s -> "InternalError: " ^ s
 		in
 		let global = ref false in
@@ -777,7 +782,7 @@ module StdEReg = struct
 			| 'g' -> global := true; None
 			| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 		) (ExtString.String.explode opt) in
-		let flags = `UTF8 :: `UCP :: flags in
+		let flags = `UTF :: `UCP :: flags in
 		let rex = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
 		let pcre = {
 			r = rex;
@@ -844,17 +849,17 @@ module StdEReg = struct
 
 	let match' = vifun1 (fun vthis s ->
 		let this = this vthis in
-		let open Pcre in
+		let open Pcre2 in
 		let s = decode_string s in
 		this.r_string <- s;
 		try
-			let a = exec_all ~iflags:0x2000 ~rex:this.r s in
+			let a = exec_all ~flags:[`NO_UTF_CHECK] ~rex:this.r s in
 			this.r_groups <- a;
 			vtrue
 		with Not_found ->
 			this.r_groups <- [||];
 			vfalse
-		| Pcre.Error _ ->
+		| Pcre2.Error _ ->
 			exc_string "PCRE Error (invalid unicode string?)"
 	)
 
@@ -908,7 +913,7 @@ module StdEReg = struct
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
-			let a = Pcre.exec_all ~iflags:0x2000 ~rex:this.r ~pos str in
+			let a = Pcre2.exec_all ~flags:[`NO_UTF_CHECK] ~rex:this.r ~pos str in
 			this.r_string <- s;
 			this.r_groups <- a;
 			vtrue
@@ -921,7 +926,7 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let by = decode_string by in
-		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~iflags:0x2000 ~rex:this.r ~templ:by s in
+		let s = (if this.r_global then Pcre2.replace else Pcre2.replace_first) ~flags:[`NO_UTF_CHECK] ~rex:this.r ~templ:by s in
 		create_unknown s
 	)
 
@@ -938,11 +943,11 @@ module StdEReg = struct
 				let sub = String.sub s first (last - first) in
 				DynArray.add acc (create_unknown sub)
 			in
-			let exec = Pcre.exec ~iflags:0x2000 ~rex:this.r in
+			let exec = Pcre2.exec ~flags:[`NO_UTF_CHECK] ~rex:this.r in
 			let step pos =
 				try
 					let substrings = exec ~pos s in
-					let (first,last) = Pcre.get_substring_ofs substrings 0 in
+					let (first,last) = Pcre2.get_substring_ofs substrings 0 in
 					add !copy_offset first;
 					copy_offset := last;
 					let next_start = if pos = last then last + 1 else last in
@@ -1945,7 +1950,7 @@ module StdReflect = struct
 				end
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
-			| _ -> unexpected_value o "object"
+			| _ -> false (* issue #10993 *)
 		in
 		vbool b
 	)
@@ -3343,7 +3348,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
-	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
+	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre2.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));

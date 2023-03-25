@@ -274,11 +274,10 @@ class TestJs {
 
 	@:js('
 		var x = TestJs.getInt();
-		var tmp = [x,"foo"];
-		x = TestJs.getInt();
-		TestJs.call(tmp,TestJs.getInt());
+		TestJs.getInt();
+		TestJs.call([x,"foo"],TestJs.getInt());
 	')
-	static function testMightBeAffected2() {
+	static function testMightActuallyNotBeAffected() {
 		var x = getInt();
 		call([x, "foo"], {
 			x = getInt();
@@ -287,8 +286,22 @@ class TestJs {
 	}
 
 	@:js('
+		TestJs.getInt();
+		var tmp = TestJs.getImpureArray();
+		TestJs.getInt();
+		TestJs.call(tmp,TestJs.getInt());
+	')
+	static function testMightBeAffected2() {
+		var x = getInt();
+		call(getImpureArray(), {
+			x = getInt();
+			getInt();
+		});
+	}
+
+	@:js('
 		var x = TestJs.getInt();
-		TestJs.call(x++,TestJs.getInt());
+		TestJs.call(x,TestJs.getInt());
 	')
 	static function testMightBeAffected3() {
 		var x = getInt();
@@ -324,6 +337,29 @@ class TestJs {
 	}
 
 	@:js('
+		var a = Std.random(100);
+		var b = Std.random(100);
+		var c = Std.random(100);
+		var d = Std.random(100);
+		Std.random(100);
+		a = b + c;
+		b -= d;
+		TestJs.use(a + b);
+	')
+	static function testIssue10972() {
+		var a = Std.random(100);
+		var b = Std.random(100);
+		var c = Std.random(100);
+		var d = Std.random(100);
+		var e = Std.random(100);
+		a = b + c;
+		b = b - d;
+		c = c + d;
+		e = b + c;
+		use(a + b);
+	}
+
+	@:js('
 		var a = TestJs.getInt();
 		TestJs.use(a);
 	')
@@ -336,7 +372,7 @@ class TestJs {
 	@:js('
 		var a = TestJs.getInt();
 		var b = a;
-		a = TestJs.getInt();
+		TestJs.getInt();
 		TestJs.use(b);
 	')
 	static function testCopyPropagation2() {
@@ -484,6 +520,10 @@ class TestJs {
 	@:pure(false)
 	static function getInt(?d:Dynamic) { return 1; }
 	static function getArray() { return [0, 1]; }
+
+	@:pure(false)
+	static function getImpureArray() { return [0, 1]; }
+
 	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	@:pure(false)
@@ -655,7 +695,6 @@ class TestJs {
 		var _g = c;
 		var value = 42;
 		TestJs.run(function() {_g.process(value);});
-		c = null;
 	')
 	static function testIssue10737_avoidInstanceMethodClosure() {
 		var c = new Issue10737();

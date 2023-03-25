@@ -19,7 +19,7 @@ let rec make_static_call ctx c cf a pl args t p =
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
-				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_) -> raise Not_found in
+				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_,_) -> raise Not_found in
 				f();
 				e
 			| _ -> die "" __LOC__
@@ -38,7 +38,7 @@ and do_check_cast ctx uctx tleft eright p =
 				(try
 					Type.unify_custom uctx eright.etype tleft;
 				with Unify_error l ->
-					raise (Error (Unify l, eright.epos)))
+					raise (Error (Unify l, eright.epos,0)))
 			| _ -> ()
 		end;
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then typing_error "Recursive implicit cast" p;
@@ -87,6 +87,10 @@ and do_check_cast ctx uctx tleft eright p =
 						in
 						loop2 a.a_to
 					end
+				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
+					let cf = ctx.g.functional_interface_lut#find c.cl_path in
+					unify_raise_custom uctx eright.etype (apply_params c.cl_params tl cf.cf_type) p;
+					eright
 				| _ ->
 					raise Not_found
 			end
@@ -108,63 +112,81 @@ and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
-	with Error (Unify l,p) ->
+	with Error (Unify l,p,_) ->
 		raise_or_display ctx l p;
 		eright
 
-let find_array_access_raise ctx a pl e1 e2o p =
-	let is_set = e2o <> None in
-	let ta = apply_params a.a_params pl a.a_this in
+let prepare_array_access_field ctx a pl cf p =
+	let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
+	let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+	let check_constraints () =
+		List.iter2 (fun m tp -> match follow tp.ttp_type with
+			| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+				List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
+			| _ -> ()
+		) monos cf.cf_params;
+	in
+	let get_ta() =
+		let ta = apply_params a.a_params pl a.a_this in
+		if has_class_field_flag cf CfImpl then ta
+		else TAbstract(a,pl)
+	in
+	map,check_constraints,get_ta
+
+let find_array_read_access_raise ctx a pl e1 p =
 	let rec loop cfl =
 		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
-			let monos = List.map (fun _ -> spawn_monomorph ctx p) cf.cf_params in
-			let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
-			let check_constraints () =
-				List.iter2 (fun m tp -> match follow tp.ttp_type with
-					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
-					| _ -> ()
-				) monos cf.cf_params;
-			in
-			let get_ta() =
-				if has_class_field_flag cf CfImpl then ta
-				else TAbstract(a,pl)
-			in
+			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
 			match follow (map cf.cf_type) with
-			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_set && is_empty_or_pos_infos args ->
-				begin try
-					Type.unify tab (get_ta());
-					let e1 = cast_or_unify_raise ctx ta1 e1 p in
-					let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
-					check_constraints();
-					cf,tf,r,e1,e2o
-				with Unify_error _ | Error (Unify _,_) ->
-					loop cfl
-				end
-			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when not is_set && is_empty_or_pos_infos args ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when is_empty_or_pos_infos args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
-					cf,tf,r,e1,None
-				with Unify_error _ | Error (Unify _,_) ->
+					cf,tf,r,e1
+				with Unify_error _ | Error (Unify _,_,_) ->
 					loop cfl
 				end
 			| _ -> loop cfl
 	in
 	loop a.a_array
 
-let find_array_access ctx a tl e1 e2o p =
-	try find_array_access_raise ctx a tl e1 e2o p
+let find_array_write_access_raise ctx a pl e1 e2  p =
+	let rec loop cfl =
+		match cfl with
+		| [] -> raise Not_found
+		| cf :: cfl ->
+			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
+			match follow (map cf.cf_type) with
+			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
+				begin try
+					Type.unify tab (get_ta());
+					let e1 = cast_or_unify_raise ctx ta1 e1 p in
+					let e2 = cast_or_unify_raise ctx ta2 e2 p in
+					check_constraints();
+					cf,tf,r,e1,e2
+				with Unify_error _ | Error (Unify _,_,_) ->
+					loop cfl
+				end
+			| _ -> loop cfl
+	in
+	loop a.a_array
+
+let find_array_read_access ctx a tl e1 p =
+	try
+		find_array_read_access_raise ctx a tl e1 p
 	with Not_found ->
 		let s_type = s_type (print_context()) in
-		match e2o with
-		| None ->
-			typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
-		| Some e2 ->
-			typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
+		typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
+
+let find_array_write_access ctx a tl e1 e2 p =
+	try
+		find_array_write_access_raise ctx a tl e1 e2 p
+	with Not_found ->
+		let s_type = s_type (print_context()) in
+		typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
 	let uctx = default_unification_context in

@@ -11,7 +11,7 @@ class Lua {
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
+				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
 				final pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
 				addToPATH(Path.join([pyUserBase, "bin"]));
@@ -21,7 +21,7 @@ class Lua {
 				else
 					runNetworkCommand("brew", ["install", "python3"]);
 
-				attemptCommand("brew", ["install", "pcre"]);
+				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("pip3", ["install", "hererocks"]);
 				runCommand("brew", ["install", "openssl"]);
 			}
@@ -70,8 +70,19 @@ class Lua {
 			// Note: don't use a user config
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
-			installLib("haxe-deps", "0.0.1-6");
 			installLib("luasec", "1.0.2-1");
+
+			installLib("lrexlib-pcre2", "2.9.1-1");
+			installLib("luv", "1.36.0-0");
+			installLib("luasocket", "3.0rc1-2");
+			installLib("luautf8", "0.1.1-1");
+
+			//Install bit32 for lua 5.1
+			if(lv == "-l5.1"){
+				installLib("bit32", "5.2.2-1");
+			}
+
+			installLib("hx-lua-simdjson", "0.0.1-1");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));

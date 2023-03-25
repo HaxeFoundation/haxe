@@ -732,7 +732,7 @@ let run_filters_from gen t filters =
 let run_filters gen =
 	let last_error = gen.gcon.error in
 	let has_errors = ref false in
-	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
+	gen.gcon.error <- (fun ?(depth=0) msg pos -> has_errors := true; last_error ~depth msg pos);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
@@ -1291,7 +1291,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ when PMap.mem field gen.gbase_class_fields ->
 			let cf = PMap.find field gen.gbase_class_fields in
 			FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type, cf.cf_type)
-		| TDynamic t -> FDynamicField t
+		| TDynamic t -> FDynamicField (match t with None -> t_dynamic | Some t -> t)
 		| TMono _ -> FDynamicField t_dynamic
 		| _ -> FNotFound
 

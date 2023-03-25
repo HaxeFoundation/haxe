@@ -129,6 +129,9 @@ let create com api is_macro =
 		evals = evals;
 		exception_stack = [];
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
+		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
+		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
+			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
@@ -148,7 +151,7 @@ let create com api is_macro =
 		| _ ->
 			let msg =
 				match ex with
-				| Error.Error (err,_) -> Error.error_msg err
+				| Error.Error (err,p,_) -> extract_located_msg (Error.error_msg p err)
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
@@ -398,7 +401,9 @@ let set_error ctx b =
 let add_types ctx types ready =
 	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
-let compiler_error msg pos =
+let compiler_error msg =
+	let pos = extract_located_pos msg in
+	let msg = extract_located_msg msg in
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->

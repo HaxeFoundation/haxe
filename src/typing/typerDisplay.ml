@@ -212,7 +212,7 @@ let rec handle_signature_display ctx e_ast with_type =
 						let _ = unify_call_args ctx el args r p false false false in
 						true
 					with
-					| Error(Call_error (Not_enough_arguments _),_) -> true
+					| Error(Call_error (Not_enough_arguments _),_,_) -> true
 					| _ -> false
 					end
 				in
@@ -261,12 +261,12 @@ let rec handle_signature_display ctx e_ast with_type =
 		| ECall(e1,el) ->
 			let def () =
 				try
-					acc_get ctx (!type_call_target_ref ctx e1 el with_type None) (pos e1)
+					acc_get ctx (!type_call_target_ref ctx e1 el with_type None)
 				with
-				| Error (Unknown_ident "trace",_) ->
+				| Error (Unknown_ident "trace",_,_) ->
 					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
 					type_expr ctx e WithType.value
-				| Error (Unknown_ident "$type",p) ->
+				| Error (Unknown_ident "$type",p,_) ->
 					display_dollar_type ctx p (fun t -> t,(CompletionType.from_type (get_import_status ctx) t))
 			in
 			let e1 = match e1 with
@@ -536,10 +536,10 @@ let handle_display ctx e_ast dk mode with_type =
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
 		type_expr ~mode ctx e_ast with_type
-	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
+	with Error (Unknown_ident n,_,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (n,p)
-	| Error ((Type_not_found (path,_,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
+	| Error ((Type_not_found (path,_,_) | Module_not_found path),_,_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if is_legacy_completion ctx.com then begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
 		with Not_found ->
@@ -615,7 +615,7 @@ let handle_display ctx e_ast dk mode with_type =
 		| WithType.WithType(t,_) ->
 			(* We don't want to actually use the transformed expression which may have inserted implicit cast calls.
 			   It only matters that unification takes place. *)
-			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p) -> ());
+			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p,_) -> ());
 		| _ ->
 			()
 	end;

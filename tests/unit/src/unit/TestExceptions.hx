@@ -242,6 +242,10 @@ class TestExceptions extends Test {
 			var expected = null;
 			var lineShift = 0;
 			for(s in stacks) {
+				// TODO: fix hl vs other targets difference with callstacks
+				// See https://github.com/HaxeFoundation/haxe/issues/10926
+				#if hl @:privateAccess s.asArray().shift(); #end
+
 				if(expected == null) {
 					expected = stackItemData(s[0]);
 				} else {

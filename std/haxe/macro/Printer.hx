@@ -240,7 +240,7 @@ class Printer {
 			case EConst(c): printConstant(c);
 			case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
 			case EBinop(op, e1, e2): '${printExpr(e1)} ${printBinop(op)} ${printExpr(e2)}';
-			case EField(e1, n): '${printExpr(e1)}.$n';
+			case EField(e1, n, kind): kind == Safe ? '${printExpr(e1)}?.$n' : '${printExpr(e1)}.$n';
 			case EParenthesis(e1): '(${printExpr(e1)})';
 			case EObjectDecl(fl):
 				"{ " + fl.map(function(fld) return printObjectField(fld)).join(", ") + " }";

@@ -16,6 +16,12 @@
 		"doc": "Perform advanced optimizations."
 	},
 	{
+		"name": "AnalyzerTimes",
+		"define": "analyzer-times",
+		"doc": "Record detailed timers for the analyzer",
+		"params": ["level: 0 | 1 | 2"]
+	},
+	{
 		"name": "AnnotateSource",
 		"define": "annotate-source",
 		"doc": "Add additional comments to generated source code.",
@@ -151,6 +157,19 @@
 		"name": "EvalDebugger",
 		"define": "eval-debugger",
 		"doc": "Support debugger in macro/interp mode. Allows `host:port` value to open a socket. Implies eval-stack.",
+		"platforms": ["eval"]
+	},
+	{
+		"name": "EvalPrintDepth",
+		"define": "eval-print-depth",
+		"doc": "Set maximum print depth (before replacing with '<...>') for eval. (default: 5)",
+		"platforms": ["eval"],
+		"params": ["depth"]
+	},
+	{
+		"name": "EvalPrettyPrint",
+		"define": "eval-pretty-print",
+		"doc": "Enable indented output for eval printing.",
 		"platforms": ["eval"]
 	},
 	{
@@ -376,6 +395,12 @@
 		"name": "LuaJit",
 		"define": "lua-jit",
 		"doc": "Enable the jit compiler for lua (version 5.2 only).",
+		"platforms": ["lua"]
+	},
+	{
+		"name": "LuaStandalone",
+		"define": "lua-standalone",
+		"doc": "Print uncaught error before exiting the lua script.",
 		"platforms": ["lua"]
 	},
 	{
@@ -699,5 +724,27 @@
 		"name": "NoTre",
 		"define": "no-tre",
 		"doc": "Disable tail recursion elimination."
+	},
+	{
+		"name": "MessageReporting",
+		"define": "message-reporting",
+		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"params": ["mode: classic | pretty | indent"]
+	},
+	{
+		"name": "NoColor",
+		"define": "no-color",
+		"doc": "Disable ANSI color codes when using rich output."
+	},
+	{
+		"name": "MessagesLogFile",
+		"define": "messages-log-file",
+		"doc": "Path to a text file to write messages log to, in addition to regular output."
+	},
+	{
+		"name": "MessagesLogFormat",
+		"define": "messages-log-format",
+		"doc": "Select message reporting mode for messages log output. (default: indent)",
+		"params": ["format: classic | pretty | indent"]
 	}
 ]

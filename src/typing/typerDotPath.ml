@@ -74,7 +74,7 @@ let resolve_qualified ctx pack name next_path p mode with_type =
 	try
 		let m = Typeload.load_module ctx (pack,name) p in
 		resolve_in_module ctx m next_path p mode with_type
-	with Error (Module_not_found mpath,_) when mpath = (pack,name) ->
+	with Error (Module_not_found mpath,_,_) when mpath = (pack,name) ->
 		(* might be an instance of https://github.com/HaxeFoundation/haxe/issues/9150
 		   so let's also check (pack,name) of a TYPE in the current module context ¯\_(ツ)_/¯ *)
 		let t = Typeload.find_type_in_current_module_context ctx pack name in (* raises Not_found *)

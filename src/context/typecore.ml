@@ -82,6 +82,7 @@ type typer_globals = {
 	mutable complete : bool;
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
+	functional_interface_lut : (path,tclass_field) lookup;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
@@ -101,7 +102,6 @@ and typer = {
 	g : typer_globals;
 	mutable bypass_accessor : int;
 	mutable meta : metadata;
-	mutable this_stack : texpr list;
 	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	(* variable *)
@@ -198,7 +198,7 @@ type dot_path_part = {
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
-exception WithTypeError of error_msg * pos
+exception WithTypeError of error_msg * pos * int (* depth *)
 
 let memory_marker = [|Unix.time()|]
 
@@ -209,7 +209,7 @@ let type_expr_ref : (?mode:access_mode -> typer -> expr -> WithType.t -> texpr) 
 let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> die "" __LOC__)
 let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_source option -> t) ref = ref (fun _ _ _ -> die "" __LOC__)
-let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> die "" __LOC__)
+let analyzer_run_on_expr_ref : (Common.context -> string -> texpr -> texpr) ref = ref (fun _ _ _ -> die "" __LOC__)
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
 let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
@@ -222,9 +222,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let warning ctx w msg p =
+let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curclass.cl_meta) @ (Warning.from_meta ctx.curfield.cf_meta) in
-	ctx.com.warning w options msg p
+	ctx.com.warning ~depth w options msg p
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -257,11 +257,11 @@ let make_static_call ctx c cf map args t p =
 
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError(Unify l,p))
-	else display_error ctx.com (error_msg (Unify l)) p
+	else if ctx.in_call_args then raise (WithTypeError(Unify l,p,0))
+	else located_display_error ctx.com (error_msg p (Unify l))
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise (WithTypeError (Custom msg,p))
+	if ctx.in_call_args then raise (WithTypeError (Custom msg,p,0))
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
@@ -277,7 +277,7 @@ let unify_raise_custom uctx t1 t2 p =
 	with
 		Unify_error l ->
 			(* no untyped check *)
-			raise (Error (Unify l,p))
+			raise (Error (Unify l,p,0))
 
 let unify_raise = unify_raise_custom default_unification_context
 
@@ -288,14 +288,19 @@ let save_locals ctx =
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
 	if Define.defined ctx.com.defines Define.WarnVarShadowing && n <> "_" then begin
-		try
-			let v' = PMap.find n ctx.locals in
-			(* ignore std lib *)
-			if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
-				warning ctx WVarShadow "This variable shadows a previously declared variable" p;
-				warning ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+		match k with
+		| VUser _ ->
+			begin try
+				let v' = PMap.find n ctx.locals in
+				(* ignore std lib *)
+				if not (List.exists (ExtLib.String.starts_with p.pfile) ctx.com.std_path) then begin
+					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
+					warning ~depth:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
+				end
+			with Not_found ->
+				()
 			end
-		with Not_found ->
+		| _ ->
 			()
 	end;
 	ctx.locals <- PMap.add n v ctx.locals;
@@ -416,8 +421,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p) ->
-				raise (Fatal_error ((error_msg m),p))
+			| Error (m,p,nl) ->
+				raise (Fatal_error ((error_msg p m),nl))
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
@@ -439,14 +444,6 @@ let create_fake_module ctx file =
 	) in
 	ctx.com.module_lut#add mdep.m_path mdep;
 	mdep
-
-let push_this ctx e = match e.eexpr with
-	| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
-		(EConst (tconst_to_const ct),e.epos),fun () -> ()
-	| _ ->
-		ctx.this_stack <- e :: ctx.this_stack;
-		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
-		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
 let is_removable_field com f =
 	not (has_class_field_flag f CfOverride) && (
@@ -713,7 +710,14 @@ let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
 	com.stored_typed_exprs#add id te;
 	let eid = (EConst (Int (string_of_int id, None))), p in
-	(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
+	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
+
+let push_this ctx e = match e.eexpr with
+| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
+	(EConst (tconst_to_const ct),e.epos),fun () -> ()
+| _ ->
+	let id,er = store_typed_expr ctx.com e e.epos in
+	er,fun () -> ctx.com.stored_typed_exprs#remove id
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
@@ -791,6 +795,10 @@ let pending_passes ctx =
 let display_error ctx.com msg p =
 	debug ctx ("ERROR " ^ msg);
 	display_error ctx.com msg p
+
+let located_display_error ctx.com msg =
+	debug ctx ("ERROR " ^ msg);
+	located_display_error ctx.com msg
 
 let make_pass ?inf ctx f =
 	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in

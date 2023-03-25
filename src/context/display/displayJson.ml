@@ -189,7 +189,7 @@ let handler =
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module () m)
+			hctx.send_result (generate_module cc m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -217,6 +217,31 @@ let handler =
 						loop mtl
 			in
 			loop m.m_types
+		);
+		"server/typeContexts", (fun hctx ->
+			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
+			let typeName = hctx.jsonrpc#get_string_param "typeName" in
+			let contexts = hctx.display#get_cs#get_contexts in
+
+			hctx.send_result (jarray (List.fold_left (fun acc cc ->
+				match cc#find_module_opt path with
+				| None -> acc
+				| Some(m) ->
+					let rec loop mtl = match mtl with
+						| [] ->
+							acc
+						| mt :: mtl ->
+							begin match mt with
+							| TClassDecl c -> c.cl_restore()
+							| _ -> ()
+							end;
+							if snd (t_infos mt).mt_path = typeName then
+								cc#get_json :: acc
+							else
+								loop mtl
+					in
+					loop m.m_types
+			) [] contexts))
 		);
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in

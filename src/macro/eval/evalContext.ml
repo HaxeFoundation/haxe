@@ -287,6 +287,8 @@ and context = {
 	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
+	max_print_depth : int;
+	print_indentation : string option;
 }
 
 module GlobalState = struct
@@ -402,6 +404,8 @@ let throw v p =
 let exc v = throw v null_pos
 
 let exc_string str = exc (vstring (EvalString.create_ascii str))
+
+let exc_string_p str p = throw (vstring (EvalString.create_ascii str)) p
 
 let error_message = exc_string
 

@@ -72,7 +72,7 @@ module LocalStatic = struct
 		begin try
 			let cf = PMap.find name ctx.curclass.cl_statics in
 			display_error ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
-			typing_error "Conflicting field was found here" cf.cf_name_pos;
+			typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
 		with Not_found ->
 			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
 			begin match eo with
@@ -797,15 +797,15 @@ let update_cache_dependencies com t =
 				| Some t ->
 					check_t m t
 				| _ ->
-					()
+					(* Bind any still open monomorph that's part of a signature to Dynamic now (issue #10653) *)
+					Monomorph.do_bind r t_dynamic;
 		end
 		| TLazy f ->
 			check_t m (lazy_type f)
-		| TDynamic t ->
-			if t == t_dynamic then
-				()
-			else
-				check_t m t
+		| TDynamic None ->
+			()
+		| TDynamic (Some t) ->
+			check_t m t
 	in
 	let rec check_field m cf =
 		check_t m cf.cf_type;
@@ -882,8 +882,30 @@ let save_class_state ctx t =
 			c.cl_descendants <- [];
 			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)
-	| _ ->
-		()
+	| TEnumDecl en ->
+		let path = en.e_path in
+		en.e_restore <- (fun () ->
+			let rec loop acc = function
+				| [] ->
+					en.e_path <- path;
+				| (Meta.RealPath,[Ast.EConst (Ast.String(path,_)),_],_) :: l ->
+					en.e_path <- Ast.parse_path path;
+					en.e_meta <- (List.rev acc) @ l;
+				| x :: l -> loop (x::acc) l
+			in
+			loop [] en.e_meta
+		)
+	| TTypeDecl td ->
+		let path = td.t_path in
+		td.t_restore <- (fun () ->
+			td.t_path <- path
+		);
+	| TAbstractDecl a ->
+		let path = a.a_path in
+		a.a_restore <- (fun () ->
+			a.a_path <- path;
+			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
+		)
 
 let run com tctx main =
 	let detail_times = Common.defined com DefineList.FilterTimes in

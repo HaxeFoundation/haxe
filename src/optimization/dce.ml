@@ -312,12 +312,9 @@ let rec to_string dce t = match t with
 		| _ -> ())
 	| TLazy f ->
 		to_string dce (lazy_type f)
-	| TDynamic t ->
-		if t == t_dynamic then
-			()
-		else
-			to_string dce t
-	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) ->
+	| TDynamic (Some t) ->
+		to_string dce t
+	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) | TDynamic None ->
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 
@@ -585,11 +582,11 @@ and expr dce e =
 		check_and_add_feature dce "unsafe_string_concat";
 		expr dce e1;
 		expr dce e2;
-	| TArray(({etype = TDynamic t} as e1),e2) when t == t_dynamic ->
+	| TArray(({etype = TDynamic None} as e1),e2) ->
 		check_and_add_feature dce "dynamic_array_read";
 		expr dce e1;
 		expr dce e2;
-	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = TDynamic t},_)} as e1), e2) when t == t_dynamic ->
+	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
 		check_and_add_feature dce "dynamic_array_write";
 		expr dce e1;
 		expr dce e2;

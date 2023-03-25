@@ -21,7 +21,7 @@ let disable_typeloading rctx ctx f =
 	ctx.g.load_only_cached_modules <- true;
 	try
 		Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
-	with (Error.Error (Module_not_found path,_)) ->
+	with (Error.Error (Module_not_found path,_,_)) ->
 		fail rctx (Printf.sprintf "Could not load [Module %s]" (s_type_path path))
 
 let pair_type th t = match th with
@@ -66,7 +66,7 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 		)
 	| FVar(th,eo) | FProp(_,_,th,eo) ->
 		let th = Some (pair_type th cf.cf_type) in
-		let t = disable_typeloading rctx ctx (fun () -> load_variable_type_hint ctx eo (pos cff.cff_name) th) in
+		let t = disable_typeloading rctx ctx (fun () -> load_variable_type_hint ctx fctx eo (pos cff.cff_name) th) in
 		(fun () ->
 			cf.cf_type <- t;
 			TypeBinding.bind_var ctx cctx fctx cf eo;

@@ -432,7 +432,7 @@ let rec func ctx bb tf t p =
 				end
 			end
 		| TSwitch(e1,cases,edef) ->
-			let is_exhaustive = edef <> None || is_exhaustive e1 in
+			let is_exhaustive = is_exhaustive e1 edef in
 			let bb,e1 = bind_to_temp bb false e1 in
 			bb.bb_terminator <- TermCondBranch e1;
 			let reachable = ref [] in

@@ -52,7 +52,7 @@ class EReg {
 			}
 		}
 
-		ropt |= FLAGS.UTF8; // always check validity of utf8 string
+		ropt |= FLAGS.UTF; // always check validity of utf8 string
 		ropt |= FLAGS.UCP; // always enable utf8 character properties
 
 		if (global == null)
@@ -208,7 +208,7 @@ class EReg {
 
 	static function __init__():Void {
 		if (Rex == null) {
-			throw "Rex is missing.  Please install lrexlib-pcre.";
+			throw "Rex is missing.  Please install lrexlib-pcre2.";
 		}
 	}
 }

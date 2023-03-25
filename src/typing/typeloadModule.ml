@@ -70,7 +70,7 @@ module ModuleLevel = struct
 			DeprecationCheck.check_is com name meta p;
 			let error prev_pos =
 				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
-				typing_error (compl_msg "Previous declaration here") prev_pos;
+				typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
 			in
 			List.iter (fun (t2,(_,p2)) ->
 				if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
@@ -141,6 +141,7 @@ module ModuleLevel = struct
 					e_meta = d.d_meta;
 					e_params = [];
 					e_using = [];
+					e_restore = (fun () -> ());
 					e_private = priv;
 					e_extern = List.mem EExtern d.d_flags;
 					e_constrs = PMap.empty;
@@ -183,6 +184,7 @@ module ModuleLevel = struct
 					a_doc = d.d_doc;
 					a_params = [];
 					a_using = [];
+					a_restore = (fun () -> ());
 					a_meta = d.d_meta;
 					a_from = [];
 					a_to = [];
@@ -675,8 +677,8 @@ module TypeLevel = struct
 				check_path_display path p;
 				ImportHandling.init_import ctx context_init path mode p;
 				ImportHandling.commit_import ctx path mode p;
-			with Error(err,p) ->
-				display_error ctx.com (Error.error_msg err) p
+			with Error(err,p,depth) ->
+				located_display_error ~depth ctx.com (Error.error_msg p err)
 			end
 		| EUsing path ->
 			check_path_display path p;
@@ -715,7 +717,6 @@ let create_typer_context_for_module ctx m = {
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 		bypass_accessor = 0;
 		meta = [];
-		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
@@ -748,11 +749,11 @@ let create_typer_context_for_module ctx m = {
 (*
 	Creates a module context for [m] and types [tdecls] using it.
 *)
-let type_types_into_module ?(check=true) ctx m tdecls p =
+let type_types_into_module ctx m tdecls p =
 	let ctx = create_typer_context_for_module ctx m in
 	let decls,tdecls = ModuleLevel.create_module_types ctx m tdecls p in
 	let types = List.map fst decls in
-	if check then List.iter (TypeloadCheck.check_module_types ctx m p) types;
+	List.iter (TypeloadCheck.check_module_types ctx m p) types;
 	m.m_types <- m.m_types @ types;
 	(* define the per-module context for the next pass *)
 	if ctx.g.std != null_module then begin
@@ -796,7 +797,7 @@ let load_module' ctx g m p =
 			m
 		| None ->
 			let raise_not_found () =
-				raise (Error (Module_not_found m,p))
+				raise (Error (Module_not_found m,p,0))
 			in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
@@ -826,7 +827,7 @@ let load_module' ctx g m p =
 
 let load_module ctx m p =
 	let m2 = load_module' ctx ctx.g m p in
-	add_dependency ctx.m.curmod m2;
+	add_dependency ~skip_postprocess:true ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
 	m2
 

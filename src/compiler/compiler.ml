@@ -4,26 +4,26 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics msg p kind =
+	let handle_diagnostics msg kind =
 		ctx.has_error <- true;
-		add_diagnostics_message com msg p kind Error;
+		add_diagnostics_message com msg kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p) ->
-			handle_diagnostics (Error.error_msg msg) p DKCompilerMessage
+		| Error.Error(msg,p,_) ->
+			handle_diagnostics (Error.error_msg p msg) DKCompilerMessage
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (Parser.error_msg msg) p DKParserError
+			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (Lexer.error_msg msg) p DKParserError
+			handle_diagnostics (located (Lexer.error_msg msg) p) DKParserError
 		end
 	else
 		f arg
 
 let run_command ctx cmd =
-	let t = Timer.timer ["command"] in
+	let t = Timer.timer ["command";cmd] in
 	(* TODO: this is a hack *)
 	let cmd = if ctx.comm.is_server then begin
 		let h = Hashtbl.create 0 in
@@ -211,8 +211,8 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun msg p -> message ctx (msg,p,DKCompilerMessage,Information));
-		com.warning <- (fun w options msg p ->
+		com.info <- (fun ?(depth=0) msg p -> message ctx (make_compiler_message msg p depth DKCompilerMessage Information));
+		com.warning <- (fun ?(depth=0) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
@@ -221,18 +221,18 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (msg,p,DKCompilerMessage,Warning)
+				message ctx (make_compiler_message msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);
 		com.error <- error ctx;
-		let filter_messages = (fun keep_errors predicate -> (List.filter (fun ((_,_,_,sev) as cm) ->
-			(match sev with
+		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
+			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
 			| Information | Warning | Hint -> predicate cm;)
 		) (List.rev ctx.messages))) in
-		com.get_messages <- (fun () -> (List.map (fun ((_,_,_,sev) as cm) ->
-			(match sev with
+		com.get_messages <- (fun () -> (List.map (fun cm ->
+			(match cm.cm_severity with
 			| MessageSeverity.Error -> die "" __LOC__;
 			| Information | Warning | Hint -> cm;)
 		) (filter_messages false (fun _ -> true))));
@@ -334,8 +334,8 @@ try
 with
 	| Abort ->
 		()
-	| Error.Fatal_error (m,p) ->
-		error ctx m p
+	| Error.Fatal_error (m,depth) ->
+		located_error ~depth ctx m
 	| Common.Abort (m,p) ->
 		error ctx m p
 	| Lexer.Error (m,p) ->
@@ -348,10 +348,16 @@ with
 			ctx.messages <- [];
 		end else begin
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
-			List.iter (error ctx (Error.compl_msg "referenced here")) (List.rev pl);
+			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
-	| Error.Error (m,p) ->
-		error ctx (Error.error_msg m) p
+	| Error.Error (Stack stack,_,depth) -> (match stack with
+		| [] -> ()
+		| (e,p) :: stack -> begin
+			located_error ~depth ctx (Error.error_msg p e);
+			List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
+		end)
+	| Error.Error (m,p,depth) ->
+		located_error ~depth ctx (Error.error_msg p m)
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
@@ -484,7 +490,7 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api create each_params has_display pl =
+	let process_params server_api create each_params has_display is_server pl =
 		let curdir = Unix.getcwd () in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
@@ -518,9 +524,14 @@ module HighLevel = struct
 				(* Push the --cwd arg so the arg processor know we did something. *)
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->
-				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
-				[],None
+				if is_server then
+					(* If we are already connected, ignore (issue #10813) *)
+					loop acc l
+				else begin
+					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+					server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+					[],None
+				end
 			| "--server-connect" :: hp :: l ->
 				server_mode := SMConnect hp;
 				loop acc l
@@ -591,7 +602,7 @@ module HighLevel = struct
 		in
 		let rec loop args =
 			let args,server_mode,ctx = try
-				process_params server_api create each_args !has_display args
+				process_params server_api create each_args !has_display comm.is_server args
 			with Arg.Bad msg ->
 				let ctx = create 0 args in
 				error ctx ("Error: " ^ msg) null_pos;

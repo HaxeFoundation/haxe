@@ -12,6 +12,9 @@ class TestBuilder {
 				continue;
 			}
 			switch (field.kind) {
+				case FFun(f) if (field.meta.exists(m -> m.name == ":async")):
+					// Async is already manually handled, nothing to do
+
 				case FFun(f):
 					var asyncName = switch f.args {
 						case []:

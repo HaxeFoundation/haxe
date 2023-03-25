@@ -63,7 +63,7 @@ devcontainer:
             ocaml-nox \
             camlp5 \
             opam \
-            libpcre3-dev \
+            libpcre2-dev \
             zlib1g-dev \
             libgtk2.0-dev \
             libmbedtls-dev \
@@ -184,7 +184,14 @@ build:
 
     # Build Haxe
     COPY --dir extra libs plugins src* std dune* Makefile* .
-    COPY .git .git # the Makefile calls git to get commit sha
+
+    # the Makefile calls git to get commit sha
+    COPY .git .git
+    ARG SET_SAFE_DIRECTORY="false"
+    IF [ "$SET_SAFE_DIRECTORY" = "true" ]
+        RUN git config --global --add safe.directory "$WORKDIR"
+    END
+
     ARG ADD_REVISION
     ENV ADD_REVISION=$ADD_REVISION
     RUN opam config exec -- make -s -j`nproc` STATICLINK=1 haxe && ldd -v ./haxe
@@ -274,7 +281,7 @@ test-environment-hl:
 test-environment-lua:
     # hererocks uses pip
     FROM +test-environment-python
-    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre3-dev cmake"
+    DO +INSTALL_PACKAGES --PACKAGES="libssl-dev libreadline-dev python3-pip unzip libpcre2-dev cmake"
     RUN ln -s /root/.local/bin/hererocks /bin/
     SAVE IMAGE --cache-hint
 
@@ -379,7 +386,7 @@ test-flash:
     FROM +test-environment-flash
     ARG GITHUB_ACTIONS
     ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
-    DO +RUN_CI --TEST=flash9
+    DO +RUN_CI --TEST=flash
 
 test-all:
     ARG TARGETPLATFORM
@@ -392,7 +399,7 @@ test-all:
     BUILD +test-jvm
     BUILD +test-cs
     BUILD +test-cpp
-    # BUILD +test-lua
+    BUILD +test-lua
     BUILD +test-js
     BUILD +test-flash
 

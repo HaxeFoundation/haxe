@@ -86,8 +86,26 @@ let init_import ctx context_init path mode p =
 		let error_private p = typing_error "Importing private declarations from a module is not allowed" p in
 		let chk_private t p = if ctx.m.curmod != (t_infos t).mt_module && (t_infos t).mt_private then error_private p in
 		let has_name name t = snd (t_infos t).mt_path = name in
+
+		let fail_usefully name p =
+			let target_kind,candidates = match String.get name 0 with
+				(* TODO: cleaner way to get module fields? *)
+				| 'a'..'z' -> "field", PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
+				| _ -> "type", List.map (fun mt -> snd (t_infos mt).mt_path) types
+			in
+			typing_error (StringError.string_error name
+				candidates
+				("Module " ^ s_type_path md.m_path ^ " does not define " ^ target_kind ^ " " ^ name)
+			) p
+		in
+
+		let find_type tname = List.find (has_name tname) types in
 		let get_type tname =
-			let t = (try List.find (has_name tname) types with Not_found -> typing_error (StringError.string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p_type) in
+			let t = try
+				find_type tname
+			with Not_found ->
+				fail_usefully tname p_type
+			in
 			chk_private t p_type;
 			t
 		in
@@ -147,12 +165,35 @@ let init_import ctx context_init path mode p =
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
 					let find_main_type_static () =
-						let tmain = get_type tname in
 						try
-							add_static_init tmain name tsub
+							let tmain = find_type tname in
+							begin try
+								add_static_init tmain name tsub
+							with Not_found ->
+								let parent,target_kind,candidates = match resolve_typedef tmain with
+									| TClassDecl c ->
+										"Class<" ^ (s_type_path c.cl_path) ^ ">",
+										"field",
+										PMap.foldi (fun name _ acc -> name :: acc) c.cl_statics []
+									| TAbstractDecl {a_impl = Some c} ->
+										"Abstract<" ^ (s_type_path md.m_path) ^ ">",
+										"field",
+										PMap.foldi (fun name _ acc -> name :: acc) c.cl_statics []
+									| TEnumDecl e ->
+										"Enum<" ^ s_type_path md.m_path ^ ">",
+										"field",
+										PMap.foldi (fun name _ acc -> name :: acc) e.e_constrs []
+									| _ ->
+										"Module " ^ s_type_path md.m_path,
+										"field or subtype",
+										(* TODO: cleaner way to get module fields? *)
+										PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
+								in
+
+								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p
+							end
 						with Not_found ->
-							(* TODO: mention module-level declarations in the error message? *)
-							display_error ctx.com (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
+							fail_usefully tsub p
 					in
 					context_init#add (fun() ->
 						match md.m_statics with

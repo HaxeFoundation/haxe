@@ -9,7 +9,7 @@
 (library
 	(name haxe)
 	(libraries
-		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre swflib ttflib ziplib
+		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre2 swflib ttflib ziplib
 		json
 		unix str bigarray threads dynlink
 		xml-light extlib ptmap sha

@@ -5,6 +5,9 @@ type pos = {
 }
 
 type path = string list * string
+type located =
+	| Message of string * pos
+	| Stack of located list
 
 module IntMap = Ptmap
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
@@ -30,6 +33,20 @@ let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
 let version_pre = Some "rc.1"
 
+let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
+
+let located msg p = Message (msg,p)
+let located_stack stack = Stack stack
+
+let rec extract_located_msg = function
+	 | Message (msg,p) -> msg
+	 | Stack stack -> String.concat "\n" (List.map extract_located_msg stack)
+
+let rec extract_located_pos = function
+	 | Message (_,p) -> p
+	 | Stack [] -> null_pos
+	 | Stack (hd :: _) -> extract_located_pos hd
+
 let macro_platform = ref Neko
 
 let return_partial_type = ref false
@@ -50,6 +67,7 @@ let platforms = [
 	Eval;
 ]
 
+(** Expected to match `haxe.display.Display.Platform`. *)
 let platform_name = function
 	| Cross -> "cross"
 	| Js -> "js"
@@ -64,12 +82,25 @@ let platform_name = function
 	| Hl -> "hl"
 	| Eval -> "eval"
 
+let parse_platform = function
+	| "cross" -> Cross
+	| "js" -> Js
+	| "lua" -> Lua
+	| "neko" -> Neko
+	| "flash" -> Flash
+	| "php" -> Php
+	| "cpp" -> Cpp
+	| "cs" -> Cs
+	| "java" -> Java
+	| "python" -> Python
+	| "hl" -> Hl
+	| "eval" -> Eval
+	| p -> raise (failwith ("invalid platform " ^ p))
+
 let platform_list_help = function
 	| [] -> ""
 	| [p] -> " (" ^ platform_name p ^ " only)"
 	| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-
-let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let mk_zero_range_pos p = { p with pmax = p.pmin }
 
@@ -155,4 +186,20 @@ module MessageKind = struct
 		| DKMissingFields -> 7
 end
 
-type compiler_message = string * pos * MessageKind.t * MessageSeverity.t
+type compiler_message = {
+	cm_message : string;
+	cm_pos : pos;
+	cm_depth : int;
+	cm_kind : MessageKind.t;
+	cm_severity : MessageSeverity.t;
+}
+
+let make_compiler_message msg p depth kind sev = {
+		cm_message = msg;
+		cm_pos = p;
+		cm_depth = depth;
+		cm_kind = kind;
+		cm_severity = sev;
+}
+
+let i32_31 = Int32.of_int 31

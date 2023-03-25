@@ -61,6 +61,12 @@ import php.Syntax;
 				return null;
 			return val;
 		}
+
+		switch Global.stripos(x, 'e') {
+			case false:
+			case ePos: x = Global.substr(x, 0, ePos);
+		}
+
 		final val = Global.intval(x, 10);
 		// if the value was 0, make sure it wasn't because the string had no valid digits
 		// last check ensures there is only a maximum of one + or - sign

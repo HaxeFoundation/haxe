@@ -185,7 +185,9 @@ let rec type_eq gen param a b =
 			) l1 l2
 		with
 			Unify_error l -> Type.error (cannot_unify a b :: l))
-	| TDynamic a , TDynamic b ->
+	| TDynamic None , TDynamic None ->
+		()
+	| TDynamic (Some a) , TDynamic (Some b) ->
 		type_eq gen param a b
 	| TAnon a1, TAnon a2 ->
 		(try
