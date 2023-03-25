@@ -181,7 +181,13 @@ CAMLprim value pcre2_ocaml_init(value __unused v_unit)
 
 /* Finalizing deallocation function for chartable sets */
 static void pcre2_dealloc_tables(value v_tables)
-{ pcre2_maketables_free(NULL, get_tables(v_tables)); }
+{
+#if PCRE2_MINOR >= 34
+  pcre2_maketables_free(NULL, get_tables(v_tables));
+#else
+  free((void*)get_tables(v_tables));
+#endif
+}
 
 /* Finalizing deallocation function for compiled regular expressions */
 static void pcre2_dealloc_regexp(value v_rex)
