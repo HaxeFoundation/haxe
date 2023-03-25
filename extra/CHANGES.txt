@@ -3,6 +3,7 @@
 	General improvements:
 
 	all : optimize `.bind` for instance methods (#10737)
+	lua : add lua-standalone global compiler flag (#10979)
 
 2021-03-06 4.2.5:
 
