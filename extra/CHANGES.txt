@@ -1,3 +1,203 @@
+2022-xx-xx 4.3.0
+
+	General improvements:
+
+	all : optimize `.bind` for instance methods (#10737)
+
+2021-03-06 4.2.5:
+
+	New features:
+
+	php : support PHP attributes generation (#9964)
+
+	Bugfixes:
+
+	all : fixed compiler crash in complex constraints chains (#10445)
+	all : fixed timers execution order for timers with small time delta (#10567)
+	js : fixed constructors with rest arguments when compiling for ES3, ES5 (#10490)
+	php : excluded E_DEPRECATED notices from error reporting (#10502)
+	php : fixed safe casts to native arrays (#10576)
+	nullsafety : fixed false error on extern var fields without initialization (#10448)
+
+2021-10-22 4.2.4:
+
+	New features:
+
+	hl : add clipboard support in hl 1.12 (#10320)
+
+	General improvements:
+
+	all : improved error messages upon directory creation failures (#10361)
+	eval : added `%` operator to `eval.numbers.Int64` and `eval.numbers.UInt64` (#10411)
+
+	Bugfixes:
+
+	all : fixed errors on final vars modification with `+=`, `*=` etc operations (#10325)
+	all : fixed hanging of MainLoop.add on threaded targets (#10308, #10329)
+	all : fixed compiler crash when resolving overloads with not enough arguments (#10434)
+	all : fixed non-static `@:to` methods on `@:multiType` abstracts (#10145)
+	analyzer : fixed analyzer on overloads (#10405)
+	analyzer : fixed issues with fields initialization expressions (#10405)
+	display : improved code completion in anonymous objects declarations (#10414)
+	js : fixed IntMap for keys greater than 2^31 (#10316)
+	js : workaround to fix sourcemaps on Firefox in Windows (#10217)
+	js : delayed truncation of the output file on `Compiler.setCustomJSGenerator` (#10387)
+	cs/java : fixed rest arguments for cases when only one argument is provided (#10315)
+	php : fixed type of `php.db.PDO.ATTR_DRIVER_NAME` (#10319)
+	eval : fixed signature of `eval.luv.Tcp.noDelay` method
+	lua : fixed `string.length` when `string` has type of a type parameter constrained to `String` (#10343)
+	jvm : fixed `Reflect.compare()` for different number types (#10350)
+	python : fixed exceptions on tracing some native values (#10440)
+
+2021-07-01 4.2.3:
+
+	General improvements:
+
+	all : analyzer optimizations
+	macro : support maps in `haxe.macro.Context.makeExpr` (#10259)
+	js : added `-D js-global=globalThis` to customize global object name (#10282)
+	php : added externs for `quoted_printable_decode`, `quoted_printable_encode`, `Attribute`, `NumberFormat`, `IntlCalendar` and other `Intl*` classes
+
+	Bugfixes:
+
+	all : fixed compiler crash on some unreachable code blocks (#10261)
+	jvm : fixed `@:native` (#10280)
+	jvm : fixed `--xml` generation (#10279)
+
+2021-05-14 4.2.2:
+
+	Bugfixes:
+
+	all : fixed piping stdin/stdout in `--cmd` (#4669, #6726)
+	all : fixed rest args typing for overloaded functions (#10143)
+	all : fixed using `var` fields as static extensions (#10144)
+	all : fixed completion for a type in `expr is Type` (#10167)
+	all : fixed subtypes in `expr is Module.SubType` expressions (#10174)
+	all : fixed typing chains of calls with constrained type params (#10198)
+	all : fixed mixed constraints of anonymous structures and other types (#10162)
+	all : fixed operator overloading for enum abstracts (#10173)
+	hl : fixed debugging of `catch` blocks (#10109)
+	jvm : fixed manifest generation for cases with a lot of jar libraries (#10157)
+	js : fixed extending extern classes for es5 (#10192)
+	js : fixed checking `this` before `super` for es6 (#10193)
+	eval : fixed null pointer exception in `eval.NativeString.fromString(null)`
+	eval : fixed multiple locks of `sys.thread.Mutex` from the same thread (#10249)
+
+2021-02-26 4.2.1:
+
+	General improvements:
+
+	threads : changed main thread initialization to make main event loop available during static initialization (#10114)
+	php : added extern for `number_format` function (#10115)
+	python : rewrote `sys.thread.Thread`, `Mutex` and `Lock` as classes instead of abstracts.
+
+	Bugfixes:
+
+	all : fixed compiler compatibility with OS X 10.13 (#10110)
+	all : fixed compiler hanging on `switch` for abstracts with implicit casts involving type parameters and constraints (#10082)
+	all : fixed inlining of `haxe.DynamicAccess.keyValueIterator` (#10118)
+	all : fixed rest arguments typing against type parameters (#10124)
+	analyzer : fixed side effect handling for enums (#10032)
+	cpp : fixed handling of `cpp.ConstCharStar` with analyzer enabled (#9733)
+	php : fixed failure with trailing slash in output dir (#6212)
+	hl : fixed call stack of rethrown exceptions (#10109)
+
+2021-02-09 4.2.0:
+
+	New features:
+
+	all : implemented "classic" abstract classes and functions (see [haxe-evolution#69](https://github.com/HaxeFoundation/haxe-evolution/pull/69)) (#9716)
+	all : module-level static declarations (#8460)
+	all : implemented rest arguments (variadic functions) for all targets with `haxe.Rest` type (#9961)
+	all : per-thread event loops `sys.thread.Thread.events` (#9868)
+	all : added `@:inheritDoc` meta to inherit documentation for a type or field from another type or field (#9817)
+	all : support method overloading for extern methods on all targets (#9793)
+	all : constructors forwarding for abstracts with `@:forward.new` (#9735)
+	all : added `EIs` constructor to `haxe.macro.Expr` (#9689)
+	all : added variance forwarding with `@:forward.variance` (#9741)
+	all : treat `Any` as `Dynamic` in variance unification (#6649)
+	all : added some common exception types to `haxe.exceptions` package
+	all : support metadata in var declaration syntax (#9618)
+	all : added `StringTools.unsafeCharAt` (#9467)
+	eval : added libuv bindings under `eval.luv` package (#9903)
+	eval : added bindings to native `Int64` and `UInt64` implementations under `eval.integers` package (#9903)
+	cs : UDP socket implementation (#8498)
+	cs : added `cs.Syntax` module (#10051)
+	jvm : added `-D jvm.dynamic-level` to control the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures
+	java,jvm : support `--java-lib <directory>` (#9551)
+	python : threading API implementation (#9754)
+
+	General improvements:
+
+	all : `expr is SomeType` doesn't require parentheses anymore (#9672)
+	all : increased priority of @:using extensions (#9681)
+	all : allowed usage of static extensions with super (#10062)
+	all : allow @:noDoc on fields too (#9893)
+	all : made `Map` abstract transitive (#9877)
+	all : support `@:native` on enum constructors (#9806)
+	all : support `@:using` on typedefs (#9749)
+	all : changed multiline errors format to use "..." as a prefix for subsequent lines (#9651)
+	all : improved type inference with constrained monomorphs (#9549)
+	all : print no-argument function types as `()->...` instead of `Void->...` (#8148)
+	all : allow `function` as package name
+	all : improved object inlining (#9599)
+	display : narrow range for hover on parametrized types (#8073)
+	cs : added .NET 5.0 support (#10043)
+	cpp : support native constructors on extern classes (#9516)
+	php: `php.Syntax.customArrayDecl` (#9113)
+	php : added externs for various php functions and classes
+	php : optimized anonymous objects instantiation (#7916)
+	hl : skip compilation if no module has been changed (#9922)
+	lua : use hx-lua-simdjson for Lua json parsing (#9885)
+	jvm : less CPU consuming `sys.thread.Lock` implementation
+
+	Bugfixes:
+
+	all : fixed Template.resolve when current context is not an object (#9372)
+	all : `get` and `set` functions of `haxe.io.Float64Array` actually use 64-bit floats now (#9972)
+	all : treat empty blocks `{}` as object declarations in array comprehension (fixes #9971)
+	all : `haxe.format.JsonParser`: preserve Float-typed values when they are written as such in JSON (ie. "5.0" or "0.0") (#9844)
+	all : fixed priority of forwarded static extensions (#9680)
+	all : fixed some inconsistency in variance unification for abstracts (#9743)
+	display : fixed completion with platform-specific files (#9423)
+	cpp : fixed conversion of `cpp.Int64` to/from `haxe.Int64` (#10101)
+	cpp : fixed extending extern classes with `@:nativeGen` classes (#9431)
+	php : fixed generation with subdirectories in `-D php-front=subdir/index.php` (#10037)
+	php : fixed local vars with the same names as super global vars (#9924)
+	eval : allow full range of 32bit integers in `Std.random` (#9974)
+	js : fixed `haxe.CallStack.exceptionStack` (#9968)
+	js : fixed compatibility issue with closure compiler upon unused `catch` vars (#9617)
+	lua : fixed anonymous object printing issue with null fields on tables
+	hl : drop data of terminated threads (#9875)
+	macro : fixed `haxe.macro.Context.storeTypedExpr` for enum constructs (#9828)
+	macro : emit a deprecation warning upon a macro call instead of upon a macro function declaration (#9425)
+	macro : fixed uncatchable error from `haxe.macro.Context.getType` (#9449)
+	jvm : fixed `Type.resolveEnum` for enums in the root package (#9809)
+	jvm : fixed `Type.resolveEnumName` for enums in the root package (#9759)
+	cs : fixed cs.Lib.rethrow (#9738)
+	nullsafety : respect `@:nullSafety(Off)` on var declarations: `var @:nullSafety(Off) v`
+	nullsafety : respect `@:nullSafety(Off)` in closures in constructors (#9643)
+	nullsafety : fixed error "Type not found : haxe.macro._Compiler.NullSafetyMode_Impl_" (#9483)
+
+2020-12-31 4.1.5:
+
+	General improvements:
+
+	all : added an argument to `haxe.CallStack.exceptionStack` to return full stack up to the topmost call (#9947)
+	php : compatibility with PHP 8
+
+	Bugfixes:
+
+	all : fixed empty object declarations in array comprehension (#9971)
+	jvm : fixed equality checks for `Null<Float>` and `Null<Int>` (#9897)
+	hl : fixed crash if a thread finishes without invoking `sendMessage`/`readMessage` (#9920)
+	php : fixed local vars with certain names (_SERVER, _GET etc) overriding super global values (#9924)
+	php : fixed generation with directories in `-D php-front`. For example `-D php-front=sub/index.php` (#10037)
+	macro : added return type hint to haxe.macro.MacroStringTools.formatString (#9928)
+	cs : fixed catching exceptions from static closures (#9957)
+	eval : fixed `Std.random(arg)` for `arg` values of more than 30 bits (#9974)
+	js : fixed `haxe.CallStack.exceptionStack` (#9968)
+
 2020-09-11 4.1.4:
 
 	General improvements:
@@ -18,7 +218,7 @@
 	flash : fixed loading swc libraries containing `Vector` without a type parameter (#9805)
 	hl : fixed messages being send to wrong threads with `sendMessage`/`readMessage` in `sys.thread.Thread` (#9875)
 	cpp : fixed `cpp.Lib.stringReference()` (#8457)
-	
+
 2020-07-22 4.1.3
 
 	General improvements:

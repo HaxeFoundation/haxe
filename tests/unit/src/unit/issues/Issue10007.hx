@@ -11,7 +11,7 @@ class Issue10007 extends unit.Test {
 @:forward.new
 private abstract Abstract(Impl) {
 	public function isImpl():Bool
-		return Std.is(this, Impl);
+		return Std.isOfType(this, Impl);
 }
 
 private class Impl {

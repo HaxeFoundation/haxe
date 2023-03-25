@@ -172,8 +172,8 @@ and convert_signature ctx p jsig =
 let convert_constant ctx p const =
 	Option.map_default (function
 		| ConstString s -> Some (EConst (String(s,SDoubleQuotes)), p)
-		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i)), p)
-		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
+		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i, None)), p)
+		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f, None)), p)
 		| _ -> None) None const
 
 let convert_constraints ctx p tl = match tl with
@@ -192,6 +192,7 @@ let convert_param ctx p parent param =
 			tp_name = jname_to_hx name,null_pos;
 			tp_params = [];
 			tp_constraints = convert_constraints ctx p constraints;
+			tp_default = None;
 			tp_meta = [];
 		}
 
@@ -214,6 +215,17 @@ let show_in_completion ctx jc =
 	else match fst jc.cpath with
 		| ("java" | "javax" | "org") :: _ -> true
 		| _ -> false
+
+(**
+	`haxe.Rest<T>` auto-boxes primitive types.
+	That means we can't use it as varargs for extern methods.
+	E.g externs with `int` varargs are represented as `int[]` at run time
+	while `haxe.Rest<Int>` is actually `java.lang.Integer[]`.
+*)
+let is_eligible_for_haxe_rest_args arg_type =
+	match arg_type with
+	| TByte | TChar | TDouble | TFloat | TInt | TLong | TShort | TBool -> false
+	| _ -> true
 
 let convert_java_enum ctx p pe =
 	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath,SDoubleQuotes) ), p], p ]) in
@@ -254,6 +266,7 @@ let convert_java_enum ctx p pe =
 		in
 		let jf_constant = ref field.jf_constant in
 		let readonly = ref false in
+		let is_varargs = ref false in
 
 		List.iter (function
 			| JPublic -> cff_access := (APublic,null_pos) :: !cff_access
@@ -274,7 +287,7 @@ let convert_java_enum ctx p pe =
 			(* | JSynchronized -> cff_meta := (Meta.Synchronized, [], p) :: !cff_meta *)
 			| JVolatile -> cff_meta := (Meta.Volatile, [], p) :: !cff_meta
 			| JTransient -> cff_meta := (Meta.Transient, [], p) :: !cff_meta
-			(* | JVarArgs -> cff_meta := (Meta.VarArgs, [], p) :: !cff_meta *)
+			| JVarArgs -> is_varargs := true
 			| JAbstract when not is_interface ->
 				cff_access := (AAbstract, p) :: !cff_access
 			| _ -> ()
@@ -341,9 +354,17 @@ let convert_java_enum ctx p pe =
 					| c :: others -> ctx.jtparams <- (c @ field.jf_types) :: others
 					| [] -> ctx.jtparams <- field.jf_types :: []);
 					let i = ref 0 in
+					let args_count = List.length args in
 					let args = List.map (fun s ->
 						incr i;
-						(local_names !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
+						let hx_sig =
+							match s with
+							| TArray (s1,_) when !is_varargs && !i = args_count && is_eligible_for_haxe_rest_args s1 ->
+								mk_type_path ctx (["haxe"], "Rest") [TPType (convert_signature ctx p s1,null_pos)]
+							| _ ->
+								convert_signature ctx null_pos s
+						in
+						(local_names !i,null_pos), false, [], Some(hx_sig,null_pos), None
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
 					cff_access := (AOverload,p) :: !cff_access;
@@ -353,6 +374,7 @@ let convert_java_enum ctx p pe =
 								tp_name = name,null_pos;
 								tp_params = [];
 								tp_constraints = convert_constraints ctx p (ext :: impl);
+								tp_default = None;
 								tp_meta = [];
 							}
 						| (name, None, impl) ->
@@ -360,6 +382,7 @@ let convert_java_enum ctx p pe =
 								tp_name = name,null_pos;
 								tp_params = [];
 								tp_constraints = convert_constraints ctx p impl;
+								tp_default = None;
 								tp_meta = [];
 							}
 					) field.jf_types in
@@ -373,6 +396,7 @@ let convert_java_enum ctx p pe =
 					})
 				| _ -> error "Method signature was expected" p
 		in
+		if field.jf_code <> None && is_interface then cff_meta := (Meta.JavaDefault,[],cff_pos) :: !cff_meta;
 		let cff_name, cff_meta =
 			match String.get cff_name 0 with
 				| '%' ->
@@ -391,7 +415,7 @@ let convert_java_enum ctx p pe =
 							String.concat "_" parts,
 							(Meta.Native, [EConst (String (cff_name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 		in
-		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
+		if Common.raw_defined ctx.jcom "java_loader_debug" then
 			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem_assoc AStatic !cff_access then "static " else "") (if List.mem_assoc AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
 
 		{
@@ -433,7 +457,7 @@ let convert_java_enum ctx p pe =
 				[convert_java_enum ctx p jc]
 		| false ->
 			let flags = ref [HExtern] in
-			if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then begin
+			if Common.raw_defined ctx.jcom "java_loader_debug" then begin
 				let sup = jc.csuper :: jc.cinterfaces in
 				print_endline ("converting " ^ (if List.mem JAbstract jc.cflags then "abstract " else "") ^ JData.path_s jc.cpath ^ " : " ^ (String.concat ", " (List.map s_sig sup)));
 			end;
@@ -1242,7 +1266,7 @@ let add_java_lib com name std extern modern =
 
 let before_generate con =
 	let java_ver = try
-			int_of_string (PMap.find "java_ver" con.defines.Define.values)
+			int_of_string (Common.defined_value con Define.JavaVer)
 		with | Not_found ->
 			Common.define_value con Define.JavaVer "7";
 			7

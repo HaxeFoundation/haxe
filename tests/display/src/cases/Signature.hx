@@ -232,4 +232,54 @@ class Signature extends DisplayTestCase {
 		sigEq(4, sig, signature(pos(14)));
 		sigEq(4, sig, signature(pos(15)));
 	}
+
+	/**
+		class NotMain {
+			overload public function new(s:String) {}
+			overload function new(i:Int) {}
+		}
+
+		class Main {
+			static function main() {
+				new NotMain({-1-}
+			}
+		}
+	**/
+	function testCtorVisibility() {
+		sigEq(0, [["s:String"]], signature(pos(1)));
+	}
+
+	/**
+		class NotMain {
+			overload public function new() {}
+
+			overload public function f(s:String) {}
+			overload function f(i:Int) {}
+		}
+
+		class Main {
+			static function main() {
+				new NotMain().f({-1-})
+			}
+		}
+	**/
+	function testMemberVisibility() {
+		sigEq(0, [["s:String"]], signature(pos(1)));
+	}
+
+	/**
+		class NotMain {
+			overload static public function f(s:String) {}
+			overload static function f(i:Int) {}
+		}
+
+		class Main {
+			static function main() {
+				NotMain.f({-1-})
+			}
+		}
+	**/
+	function testStaticVisibility() {
+		sigEq(0, [["s:String"]], signature(pos(1)));
+	}
 }

@@ -40,6 +40,14 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		this = i;
 	}
 
+	@:from static function from<T:EnumValue>(e:T) : EnumFlags<T> {
+		return new EnumFlags(1 << e.getIndex());
+	}
+
+	@:op(a|b) function or(f:haxe.EnumFlags<T>) : haxe.EnumFlags<T>;
+	@:op(a&b) function and(f:haxe.EnumFlags<T>) : haxe.EnumFlags<T>;
+	@:op(a^b) function xor(f:haxe.EnumFlags<T>) : haxe.EnumFlags<T>;
+
 	/**
 		Checks if the index of enum instance `v` is set.
 
@@ -74,6 +82,22 @@ abstract EnumFlags<T:EnumValue>(Int) {
 	**/
 	public inline function unset(v:T):Void {
 		this &= 0xFFFFFFFF - (1 << Type.enumIndex(v));
+	}
+
+	/**
+		Depending on the value of `condition` sets (`condition=true`) or unsets (`condition=false`)
+		the index of enum instance `v`.
+
+		This method is optimized if `v` is an enum instance expression such as
+		`SomeEnum.SomeCtor`.
+
+		If `v` is `null`, the result is unspecified.
+	**/
+	public inline function setTo(v:T, condition:Bool):Void {
+		if(condition)
+			set(v)
+		else
+			unset(v);
 	}
 
 	/**

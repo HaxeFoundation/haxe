@@ -27,18 +27,15 @@ class ArrayKeyValueIterator<T> {
 	var current:Int = 0;
 	var array:Array<T>;
 
-	#if !hl inline #end
-	public function new(array:Array<T>) {
+	public inline function new(array:Array<T>) {
 		this.array = array;
 	}
 
-	#if !hl inline #end
-	public function hasNext():Bool {
+	public inline function hasNext():Bool {
 		return current < array.length;
 	}
 
-	#if !hl inline #end
-	public function next():{key:Int,value:T} {
+	public inline function next():{key:Int,value:T} {
 		return {value:array[current], key:current++};
 	}
 }

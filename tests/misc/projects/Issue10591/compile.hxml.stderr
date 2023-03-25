@@ -1,0 +1,14 @@
+Main
+meta0: true
+meta1: true
+meta2: true
+meta3: true
+meta4: false
+meta5: false
+MainSub
+meta0: false
+meta1: true
+meta2: false
+meta3: true
+meta4: true
+meta5: true

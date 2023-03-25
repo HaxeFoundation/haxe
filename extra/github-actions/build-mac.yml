@@ -1,4 +1,9 @@
 - name: Install dependencies
+  env:
+    # For compatibility with macOS 10.13
+    ZLIB_VERSION: 1.2.13
+    MBEDTLS_VERSION: 2.25.0
+    PCRE_VERSION: 8.44
   run: |
     set -ex
     brew uninstall openssl@1.0.2t || echo
@@ -8,14 +13,38 @@
     brew update
     # brew unlink python@2
     brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
+    brew install libunistring
+    brew install cpanminus
+    cpanm IPC::System::Simple
+    cpanm String::ShellQuote
+    curl -L https://www.zlib.net/zlib-$ZLIB_VERSION.tar.gz | tar xz
+    cd zlib-$ZLIB_VERSION
+    ./configure
+    make && make install
+    cd ..
+    curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
+    cd mbedtls-$MBEDTLS_VERSION
+    make && make install
+    cd ..
+    curl -L https://downloads.sourceforge.net/project/pcre/pcre/$PCRE_VERSION/pcre-$PCRE_VERSION.tar.gz | tar xz
+    cd pcre-$PCRE_VERSION
+    ./configure --enable-utf8 --enable-pcre8 --enable-pcre16 --enable-pcre32 --enable-unicode-properties --enable-pcregrep-libz --enable-pcregrep-libbz2 --enable-jit
+    make && make install
+    cd ..
+
 
 - name: Install OCaml libraries
+  if: steps.cache-opam.outputs.cache-hit != 'true'
   run: |
     set -ex
     opam init # --disable-sandboxing
     opam update
+    opam switch create 4.07.1
+    eval $(opam env)
+    opam env
+    opam pin add ctypes 0.17.1 --yes
     opam pin add haxe . --no-action
-    opam install haxe --deps-only
+    opam install haxe --deps-only --assume-depexts
     opam list
     ocamlopt -v
 
@@ -27,7 +56,7 @@
   run: |
     set -ex
     eval $(opam env)
-    opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
+    opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/lib/libz.a /usr/local/lib/libpcre.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
     opam config exec -- make -s haxelib
     make -s package_unix package_installer_mac
     ls -l out

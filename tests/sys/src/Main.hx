@@ -10,26 +10,14 @@ class Main {
 		runner.addCase(new TestFileSystem());
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
+		#if !js
 		runner.addCase(new io.TestProcess());
-		#if !(java || cs || lua || python || eval) // Sqlite is not implemented for these targets
-		#if !hl // Idk how to resolve "FATAL ERROR : Failed to load library sqlite.hdll"
-		var testSqlite = #if php Sys.systemName() != 'Windows' #else true #end; //our CI doesn't have sqlite php module
-		if(testSqlite) {
-			runner.addCase(new db.TestSqliteConnection());
-			runner.addCase(new db.TestSqliteResultSet());
-		}
 		#end
+		#if !(java || cs || lua || python || eval || js) // Sqlite is not implemented for these targets
+		runner.addCase(new db.TestSqliteConnection());
+		runner.addCase(new db.TestSqliteResultSet());
 		#end
-		#if php
-		switch (Sys.systemName()) {
-			case "Windows":
-				// pass
-			case _:
-				runner.addCase(new net.TestSocket());
-		}
-		#else
-			runner.addCase(new net.TestSocket());
-		#end
+		runner.addCase(new net.TestSocket());
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;

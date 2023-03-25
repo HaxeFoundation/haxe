@@ -262,7 +262,10 @@ let captured_vars com e =
 		| Use v ->
 			(try
 				let d = PMap.find v.v_id !vars in
-				if d <> !depth then used := PMap.add v.v_id v !used;
+				if d <> !depth then begin
+					used := PMap.add v.v_id v !used;
+					if has_var_flag v VAssigned then assigned := PMap.add v.v_id v !assigned;
+				end
 			with Not_found -> ())
 		| Assign v ->
 			(try
@@ -274,7 +277,9 @@ let captured_vars com e =
 				end
 				(* same depth but assigned after being used on a different depth - needs wrap *)
 				else if PMap.mem v.v_id !used then
-					assigned := PMap.add v.v_id v !assigned;
+					assigned := PMap.add v.v_id v !assigned
+				else
+					add_var_flag v VAssigned;
 			with Not_found -> ())
 		in
 		local_usage collect_vars e;

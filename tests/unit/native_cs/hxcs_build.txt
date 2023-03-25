@@ -18,6 +18,8 @@ M haxe.test.GenericHelper
 C haxe.test.GenericHelper
 M haxe.test.StaticAndInstanceClash
 C haxe.test.StaticAndInstanceClash
+M haxe.test.AttrWithNullType
+C haxe.test.AttrWithNullType
 M NoPackage
 C NoPackage
 end modules

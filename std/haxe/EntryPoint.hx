@@ -36,10 +36,7 @@ class EntryPoint {
 	#if sys
 		static var mutex = new Mutex();
 		#if (target.threaded && !cppia)
-			static var mainThread:Thread;
-			@:keep static function init() {
-				mainThread = Thread.current();
-			}
+			static var mainThread:Thread = Thread.current();
 		#else
 			static var sleepLock = new Lock();
 		#end
@@ -153,6 +150,23 @@ class EntryPoint {
 		flash.Lib.current.stage.addEventListener(flash.events.Event.ENTER_FRAME, function(_) processEvents());
 		#elseif (target.threaded && !cppia)
 		//everything is delegated to sys.thread.EventLoop
+		#elseif lua
+		inline function luvRun(mode:String):Bool
+			return untyped __lua__('_hx_luv.run({0})', mode);
+		while (true) {
+			var nextTick = processEvents();
+			if(untyped __lua__('_hx_luv.loop_alive()')) {
+				if(nextTick < 0)
+					luvRun("once")
+				else
+					luvRun("nowait");
+			} else {
+				if (nextTick < 0)
+					break;
+				if (nextTick > 0)
+					sleepLock.wait(nextTick);
+			}
+		}
 		#elseif sys
 		while (true) {
 			var nextTick = processEvents();

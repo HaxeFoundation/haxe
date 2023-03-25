@@ -38,7 +38,7 @@ To install the native libraries, use the appropriate system package manager.
  * Mac OS X
     * Use [Homebrew](https://brew.sh/), `brew install zlib pcre`.
  * Debian / Ubuntu
-    * `sudo apt install libpcre3-dev zlib1g-dev`.
+    * `sudo apt install libpcre3-dev zlib1g-dev libmbedtls-dev`.
  * Windows (Cygwin)
     * Run the Cygwin [setup-x86_64.exe](https://cygwin.com/install.html) against the Cygwin installation directory. Install `make`, `git`, `zlib-devel`, `libpcre-devel`, `mingw64-x86_64-gcc-core`, `mingw64-x86_64-zlib`, and `mingw64-x86_64-pcre`. You may need to select "Not Installed" in the dropdown list to see the packages. Copy `zlib1.dll` and `libpcre-1.dll` from `path/to/cygwin/usr/x86_64-w64-mingw32/sys-root/mingw/bin` to the checked out Haxe source directory.
     * Install Neko by either

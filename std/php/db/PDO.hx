@@ -61,7 +61,7 @@ extern class PDO {
 	@:phpClassConst static final ATTR_CASE:Int;
 	@:phpClassConst static final ATTR_CURSOR_NAME:Int;
 	@:phpClassConst static final ATTR_CURSOR:Int;
-	@:phpClassConst static final ATTR_DRIVER_NAME:String;
+	@:phpClassConst static final ATTR_DRIVER_NAME:Int;
 	@:phpClassConst static final ATTR_ORACLE_NULLS:Int;
 	@:phpClassConst static final ATTR_PERSISTENT:Int;
 	@:phpClassConst static final ATTR_STATEMENT_CLASS:Int;
@@ -99,7 +99,7 @@ extern class PDO {
 	function errorInfo():NativeArray;
 	function exec(statement:String):Int;
 	function getAttribute(attribute:Int):Dynamic;
-	function getAvailableDrivers():NativeArray;
+	static function getAvailableDrivers():NativeIndexedArray<String>;
 	function lastInsertId(?name:String):String;
 	function prepare(statement:String, ?driver_options:NativeArray):PDOStatement;
 	function query(statement:String, ?mode:Int):PDOStatement;

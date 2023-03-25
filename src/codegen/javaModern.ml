@@ -196,33 +196,34 @@ module JReaderHoldovers = struct
 
 	let parse_formal_type_params s = match s.[0] with
 		| '<' ->
-			let rec read_id i =
-			match s.[i] with
-			| ':' | '>' -> i
-			| _ -> read_id (i + 1)
+			let rec read_id i = match s.[i] with
+				| ':' | '>' -> i
+				| _ -> read_id (i + 1)
 			in
 			let len = String.length s in
 			let rec parse_params idx acc =
-			let idi = read_id (idx + 1) in
-			let id = String.sub s (idx + 1) (idi - idx - 1) in
-			(* next must be a : *)
-			(match s.[idi] with | ':' -> () | _ -> failwith ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
-			let ext, l = match s.[idi + 1] with
-				| ':' | '>' -> None, idi + 1
-				| _ ->
-				let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
-				Some sgn, l + idi + 1
-			in
-			let rec loop idx acc =
-				match s.[idx] with
-				| ':' ->
-				let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
-				loop (idx + ifacei + 1) (ifacesig :: acc)
-				| _ -> acc, idx
-			in
-			let ifaces, idx = loop l [] in
-			let acc = (id, ext, ifaces) :: acc in
-			if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
+				let idi = read_id (idx + 1) in
+				let id = String.sub s (idx + 1) (idi - idx - 1) in
+				(* next must be a : *)
+				(match s.[idi] with | ':' -> () | _ -> failwith ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
+				let ext, l = match s.[idi + 1] with
+					| ':' | '>' ->
+						None, idi + 1
+					| _ ->
+						let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
+						Some sgn, l + idi + 1
+				in
+				let rec loop idx acc =
+					match s.[idx] with
+					| ':' ->
+						let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
+						loop (idx + ifacei + 1) (ifacesig :: acc)
+					| _ ->
+						acc, idx
+				in
+				let ifaces, idx = loop l [] in
+				let acc = (id, ext, ifaces) :: acc in
+				if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
 			in
 			parse_params 0 []
 		| _ -> [], 0
@@ -720,9 +721,10 @@ module Converter = struct
 			tp_name = (name,p);
 			tp_params = [];
 			tp_meta = [];
+			tp_default = None;
 			tp_constraints = match constraints with
 				| [] -> None
-				| _ -> Some (CTIntersection constraints,p)
+				| _ -> Some (CTIntersection constraints,p);
 		} in
 		tp
 
@@ -758,6 +760,17 @@ module Converter = struct
 			PMap.add s (ct_type_param s) acc
 		) acc params
 
+	(**
+		`haxe.Rest<T>` auto-boxes primitive types.
+		That means we can't use it as varargs for extern methods.
+		E.g externs with `int` varargs are represented as `int[]` at run time
+		while `haxe.Rest<Int>` is actually `java.lang.Integer[]`.
+	*)
+	let is_eligible_for_haxe_rest_args arg_type =
+		match arg_type with
+		| TByte | TChar | TDouble | TFloat | TInt | TLong | TShort | TBool -> false
+		| _ -> true
+
 	let convert_field ctx is_method (jc : jclass) (is_interface : bool) (jf : jfield) p =
 		let ctx = {
 			type_params = type_param_lut ctx.type_params jf.jf_types;
@@ -778,6 +791,8 @@ module Converter = struct
 						add_access (AOverride,null_pos);
 					| _ -> ()
 				) ann
+			| AttrCode _ when is_interface ->
+				add_meta (Meta.JavaDefault,[],p)
 			| _ -> ()
 		) jf.jf_attributes;
 		let add_native_meta () =
@@ -845,9 +860,18 @@ module Converter = struct
 				begin match jf.jf_descriptor with
 				| TMethod(args,ret) ->
 					let local_names = extract_local_names() in
+					let args_count = List.length args
+					and is_varargs = AccessFlags.has_flag jf.jf_flags MVarargs in
 					let convert_arg i jsig =
 						let name = local_names (i + 1) in
-						((name,p),false,[],Some (convert_signature ctx p jsig,p),None)
+						let hx_sig =
+							match jsig with
+							| TArray (jsig1,_) when is_varargs && i + 1 = args_count && is_eligible_for_haxe_rest_args jsig1 ->
+								mk_type_path (["haxe"], "Rest") [TPType (convert_signature ctx p jsig1,p)]
+							| _ ->
+								convert_signature ctx p jsig
+						in
+						((name,p),false,[],Some (hx_sig,p),None)
 					in
 					let f = {
 						f_params = List.map (fun tp -> convert_type_parameter ctx tp p) jf.jf_types;
@@ -903,6 +927,9 @@ module Converter = struct
 		let known_sigs = Hashtbl.create 0 in
 		let should_generate jf =
 			not (AccessFlags.has_flag jf.jf_flags MPrivate)
+			(* We might need member synthetics for proper call resolution, but we should never need static ones (issue #10279). *)
+			&& (not (AccessFlags.has_flag jf.jf_flags MSynthetic) || not (AccessFlags.has_flag jf.jf_flags MStatic))
+			&& jf.jf_name <> "<clinit>"
 		in
 		if jc.jc_path <> (["java";"lang"], "CharSequence") then begin
 			List.iter (fun jf ->

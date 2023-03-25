@@ -148,6 +148,7 @@ let rec generate_binop ctx op =
 	| OpInterval -> "OpInterval",None
 	| OpArrow -> "OpArrow",None
 	| OpIn -> "OpIn",None
+	| OpNullCoal -> "OpNullCoal",None
 	in
 	generate_adt ctx (Some (["haxe";"macro"],"Binop")) name args
 
@@ -176,7 +177,7 @@ and generate_metadata_entry ctx (m,el,p) =
 
 and generate_metadata ctx ml =
 	let ml = List.filter (fun (m,_,_) ->
-		let (_,(_,flags)) = Meta.get_info m in
+		let (_,(_,flags),_) = Meta.get_info m in
 		not (List.mem UsedInternally flags)
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
@@ -218,7 +219,8 @@ let rec generate_type ctx t =
 			let t = lazy_type f in
 			(* return_partial_type := false; *)
 			loop t
-		| TDynamic t -> "TDynamic",Some (if t == t_dynamic then jnull else generate_type ctx t)
+		| TDynamic None -> "TDynamic", Some jnull
+		| TDynamic (Some t) -> "TDynamic",Some (generate_type ctx t)
 		| TInst(c,tl) -> "TInst",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl c.cl_meta)
 		| TEnum(en,tl) -> "TEnum",Some (generate_type_path_with_params ctx en.e_module.m_path en.e_path tl en.e_meta)
 		| TType(td,tl) -> "TType",Some (generate_type_path_with_params ctx td.t_module.m_path td.t_path tl td.t_meta)
@@ -274,14 +276,15 @@ and generate_type_path_with_params ctx mpath tpath tl meta =
 
 (* type parameter *)
 
-and generate_type_parameter ctx (s,t) =
-	let generate_constraints () = match follow t with
+and generate_type_parameter ctx tp =
+	let generate_constraints () = match follow tp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl},_) -> generate_types ctx tl
 		| _ -> die "" __LOC__
 	in
 	jobject [
-		"name",jstring s;
+		"name",jstring tp.ttp_name;
 		"constraints",generate_constraints ();
+		"defaultType",jopt (generate_type ctx) tp.ttp_default;
 	]
 
 (* texpr *)
@@ -704,17 +707,28 @@ let generate_module_type ctx mt =
 
 (* module *)
 
-let generate_module ctx m =
+let generate_module cc m =
 	jobject [
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path (t_infos mt).mt_meta) m.m_types;
 		"file",jstring (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		"cacheState",jstring (match m.m_extra.m_cache_state with
+			| MSGood -> "Good"
+			| MSBad reason -> Printer.s_module_skip_reason reason
+			| MSUnknown -> "Unknown");
 		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
 			"path",jstring (s_type_path m.m_path);
 			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
 		]) :: acc) m.m_extra.m_deps []);
+		"dependents",jarray (List.map (fun m -> (jobject [
+			"path",jstring (s_type_path m.m_path);
+			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		])) (Hashtbl.fold (fun _ m' acc ->
+			if PMap.mem m.m_id m'.m_extra.m_deps then m' :: acc
+			else acc
+		) cc#get_modules []));
 	]
 
 let create_context ?jsonrpc gm = {

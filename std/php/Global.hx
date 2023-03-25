@@ -10,6 +10,36 @@ import haxe.Constraints;
 @:phpGlobal
 extern class Global {
 	/**
+		@see http://php.net/manual/en/function.get-browser.php
+	**/
+	static function get_browser(?user_agent:String, ?return_array:Bool = false):EitherType<Dynamic, EitherType<NativeArray, Bool>>;
+
+	/**
+		@see http://php.net/manual/en/function.get-defined-constants.php
+	**/
+	static function get_defined_constants(categorize:Bool = false):NativeArray;
+	
+	/**
+		@see http://php.net/manual/en/function.finfo-file.php
+	**/
+	static function finfo_file(finfo:Finfo, filename:String, flags:Int = 0, ?context:Resource):EitherType<String, Bool>;
+	
+	/**
+		@see http://php.net/manual/en/function.finfo-open.php
+	**/
+	static function finfo_open(flags:Int = 0, ?magic_database:String):EitherType<Finfo, Bool>;
+	
+	/**
+		@see http://php.net/manual/en/function.finfo-close.php
+	**/
+	static function finfo_close(finfo:Finfo):Bool;
+	
+	/**
+		@see http://php.net/manual/en/function.fastcgi-finish-request.php
+	**/
+	static function fastcgi_finish_request():Bool;
+	
+	/**
 		@see http://php.net/manual/en/function.exit.php
 	**/
 	static function exit(status:EitherType<String, Int>):Void;
@@ -371,6 +401,11 @@ extern class Global {
 	static function strpos(haystack:String, needle:String, offset:Int = 0):EitherType<Bool, Int>;
 
 	/**
+		@see http://php.net/manual/en/function.stripos.php
+	**/
+	static function stripos(haystack:String, needle:String, offset:Int = 0):EitherType<Bool, Int>;
+
+	/**
 		@see http://php.net/manual/en/function.strrpos.php
 	**/
 	static function strrpos(haystack:String, needle:String, offset:Int = 0):EitherType<Bool, Int>;
@@ -391,6 +426,11 @@ extern class Global {
 	static function strcmp(str1:String, str2:String):Int;
 
 	/**
+		@see https://www.php.net/manual/en/function.strspn.php
+	**/
+	static function strspn(string:String, characters:String, offset:Int = 0, ?length:Int):Int;
+
+	/**
 		@see http://php.net/manual/en/function.strtr.php
 	**/
 	@:overload(function(str:String, from:NativeAssocArray<String>):String {})
@@ -406,6 +446,11 @@ extern class Global {
 	**/
 	static function str_replace(search:EitherType<String, NativeArray>, replace:EitherType<String, NativeArray>, subject:EitherType<String, NativeArray>,
 		?count:Int):EitherType<String, NativeArray>;
+
+	/**
+		@see https://www.php.net/manual/en/function.str-starts-with.php
+	**/
+	static function str_starts_with(haystack:String, needle:String):Bool;
 
 	/**
 		@see http://php.net/manual/en/function.explode.php
@@ -731,6 +776,11 @@ extern class Global {
 	static function filemtime(filename:String):EitherType<Int, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.fileowner.php
+	**/
+	static function fileowner(filename:String):EitherType<Int, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.filesize.php
 	**/
 	static function filesize(filename:String):EitherType<Int, Bool>;
@@ -920,6 +970,26 @@ extern class Global {
 		@see http://php.net/manual/en/function.hash.php
 	**/
 	static function hash(algo:String, str:String, raw_output:Bool = false):String;
+
+	/**
+		@see http://php.net/manual/en/function.hash-algos.php
+	**/
+	static function hash_algos():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac.php
+	**/
+	static function hash_hmac(algo:String, data:String, key:String, binary:Bool = false):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac-algos.php
+	**/
+	static function hash_hmac_algos():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.hash-hmac-file.php
+	**/
+	static function hash_hmac_file(algo:String, data:String, key:String, binary:Bool = false):EitherType<String, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.pack.php
@@ -1172,7 +1242,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.mb-strlen.php
 	**/
-	static function mb_strlen(str:String, ?encoding:String):EitherType<Int, Bool>;
+	static function mb_strlen(str:String, ?encoding:String):Int;
 
 	/**
 		@see http://php.net/manual/en/function.mb-substr.php
@@ -1428,6 +1498,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.base64-decode.php
 	**/
 	static function base64_decode(data:String, strict:Bool = false):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.gethostname.php
+	**/
+	static function gethostname():EitherType<String, Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.gethostbyname.php
@@ -1808,4 +1883,279 @@ extern class Global {
 		@see http://php.net/manual/en/function.intl-is-failure.php
 	**/
 	static function intl_is_failure(error_code:Int):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-has-var.php
+	**/
+	static function filter_has_var(input_type:Int, var_name:String):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.filter-id.php
+	**/
+	static function filter_id(name:String):EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-input.php
+	**/
+	static function filter_input(type:Int, var_name:String, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.filter-list.php
+	**/
+	static function filter_list():NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.filter-var.php
+	**/
+	static function filter_var(value: Any, ?filter:Int, ?options: EitherType<NativeAssocArray<Dynamic>, Int>):Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.number-format.php
+	**/
+	static function number_format(num:Float, ?decimals:Int, ?decimal_separator:String, ?thousands_separator:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.empty.php
+	**/
+	static function empty(variable:Any):Bool;
+
+	/**
+		@see http://php.net/manual/en/function.quoted-printable-decode.php
+	**/
+	static function quoted_printable_decode(string:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.quoted-printable-encode.php
+	**/
+	static function quoted_printable_encode(string:String):String;
+
+	/**
+		@see http://php.net/manual/en/function.easter-date.php
+	**/
+	static function easter_date(?year:Int, ?mode:Int): Int;
+
+	/**
+		@see http://php.net/manual/en/function.easter-days.php
+	**/
+	static function easter_days(?year:Int, ?mode:Int): Int;
+
+	/**
+		@see http://php.net/manual/en/function.sys-get-temp-dir.php
+	**/
+	static function sys_get_temp_dir():String;
+
+	/**
+		@see http://php.net/manual/en/function.tempnam.php
+	**/
+	static function tempnam(directory:String, prefix:String):EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.tmpfile.php
+	**/
+	static function tmpfile():EitherType<Resource, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-alloc.php
+	**/
+	static function ftp_alloc(ftp: Resource, size: Int, ?response: Ref<String>): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-append.php
+	**/
+	static function ftp_append(ftp: Resource, remote_filename: String, local_filename: String, ?mode: Int): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-cdup.php
+	**/
+	static function ftp_cdup(ftp: Resource): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-chdir.php
+	**/
+	static function ftp_chdir(ftp: Resource, directory: String): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-chmod.php
+	**/
+	static function ftp_chmod(ftp: Resource, permissions: Int, filename: String): EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-close.php
+	**/
+	static function ftp_close(ftp: Resource): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-connect.php
+	**/
+	static function ftp_connect(hostname: String, port: Int = 21, timeout: Int = 90): EitherType<Resource, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-delete.php
+	**/
+	static function ftp_delete(ftp: Resource, filename: String): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-exec.php
+	**/
+	static function ftp_exec(ftp: Resource, command: String): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-fget.php
+	**/
+	static function ftp_fget(ftp: Resource, stream: Resource, remote_filename: String, ?mode: Int, offset: Int = 0): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-fput.php
+	**/
+	static function ftp_fput(ftp: Resource, remote_filename: String, stream: Resource, ?mode: Int, offset: Int = 0): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-get.php
+	**/
+	static function ftp_get(ftp: Resource, local_filename: String, remote_filename: String, offset: Int = 0): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-get-option.php
+	**/
+	static function ftp_get_option(ftp: Resource, option: Int): EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-login.php
+	**/
+	static function ftp_login(ftp: Resource, username: String, password: String): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-mdtm.php
+	**/
+	static function ftp_mdtm(ftp: Resource, filename: String): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-mkdir.php
+	**/
+	static function ftp_mkdir(ftp: Resource, directory: String): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-mlsd.php
+	**/
+	static function ftp_mlsd(ftp: Resource, directory: String): EitherType<NativeIndexedArray<NativeAssocArray<String>>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-nb-continue.php
+	**/
+	static function ftp_nb_continue(ftp: Resource): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-nb-fget.php
+	**/
+	static function ftp_nb_fget(ftp: Resource, stream: Resource, remote_filename: String, ?mode: Int, offset: Int = 0): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-nb-fput.php
+	**/
+	static function ftp_nb_fput(ftp: Resource, remote_filename: String, stream: Resource, ?mode: Int, offset: Int = 0): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-nb-get.php
+	**/
+	static function ftp_nb_get(ftp: Resource, local_filename: String, remote_filename: String, offset: Int = 0): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-nb-put.php
+	**/
+	static function ftp_nb_put(ftp: Resource, remote_filename: String, local_filename: String, offset: Int = 0): EitherType<Int, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-nlist.php
+	**/
+	static function ftp_nlist(ftp: Resource, directory: String): EitherType<NativeIndexedArray<String>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-pasv.php
+	**/
+	static function ftp_pasv(ftp: Resource, enable: Bool): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-put.php
+	**/
+	static function ftp_put(ftp: Resource, remote_filename: String, local_filename: String, offset: Int = 0): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-pwd.php
+	**/
+	static function ftp_pwd(ftp: Resource): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-raw.php
+	**/
+	static function ftp_raw(ftp: Resource, command: String): NativeIndexedArray<String>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-rawlist.php
+	**/
+	static function ftp_rawlist(ftp: Resource, directory: String, recursive: Bool = false): EitherType<NativeIndexedArray<String>, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-rename.php
+	**/
+	static function ftp_rename(ftp: Resource, from: String, to: String): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-rmdir.php
+	**/
+	static function ftp_rmdir(ftp: Resource, directory: String): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-set-option.php
+	**/
+	static function ftp_set_option(ftp: Resource, option: Int, value: EitherType<Int, Bool>): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-site.php
+	**/
+	static function ftp_site(ftp: Resource, command: String): Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-size.php
+	**/
+	static function ftp_size(ftp: Resource, filename: String): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-ssl-connect.php
+	**/
+	static function ftp_ssl_connect(hostname: String, port: Int = 21, timeout: Int = 90): EitherType<Resource, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftp-systype.php
+	**/
+	static function ftp_systype(ftp: Resource): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.connection-aborted.php
+	**/
+	static function connection_aborted(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.connection-status.php
+	**/
+	static function connection_status(): Int;
+
+	/**
+		@see http://php.net/manual/en/function.ignore-user-abort.php
+	**/
+	static function ignore_user_abort(enable: Null<Bool> = null): Int;
+
+	/**
+		@see http://php.net/manual/en/function.highlight-file.php
+	**/
+	static function highlight_file(filename: String, returns: Bool = false): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.highlight-string.php
+	**/
+	static function highlight_string(string: String, returns: Bool = false): EitherType<String, Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.php-strip-whitespace.php
+	**/
+	static function php_strip_whitespace(filename: String): String;
 }

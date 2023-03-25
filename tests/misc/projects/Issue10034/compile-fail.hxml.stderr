@@ -1,0 +1,2 @@
+Main.hx:9: characters 19-28 : haxe.macro.Expr should be () -> Void
+Main.hx:9: characters 19-28 : ... For function argument 'f'

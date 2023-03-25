@@ -22,15 +22,17 @@
 
 package sys.thread;
 
+import python.lib.threading.Condition;
+
 using python.internal.UBuiltins;
 
 class Deque<T> {
 	var deque:NativeDeque<T>;
-	var lock:NativeCondition;
+	var lock:Condition;
 
 	public function new() {
 		deque = new NativeDeque<T>();
-		lock = new NativeCondition();
+		lock = new Condition();
 	}
 
 	public function add(i:T) {
@@ -63,21 +65,9 @@ class Deque<T> {
 
 @:pythonImport("collections", "deque")
 @:native("deque")
-extern class NativeDeque<T> {
+private extern class NativeDeque<T> {
 	function new();
 	function append(x:T):Void;
 	function appendleft(x:T):Void;
 	function popleft():T;
-}
-
-@:pythonImport("threading", "Condition")
-@:native("Condition")
-private extern class NativeCondition {
-	function new(?lock:Dynamic);
-	function acquire(blocking:Bool = true, timeout:Float = -1):Bool;
-	function release():Void;
-	function wait(?timeout:Float):Bool;
-	function wait_for(predicate:()->Bool, ?timeout:Float):Bool;
-	function notify(n:Int = 1):Void;
-	function notify_all():Void;
 }

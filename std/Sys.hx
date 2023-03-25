@@ -57,12 +57,24 @@ extern class Sys {
 	/**
 		Sets the value of the given environment variable.
 
+		If `v` is `null`, the environment variable is removed.
+
 		(java) This functionality is not available on Java; calling this function will throw.
 	**/
-	static function putEnv(s:String, v:String):Void;
+	static function putEnv(s:String, v:Null<String>):Void;
 
 	/**
-		Returns all environment variables.
+		Returns a map of the current environment variables and their values
+		as of the invocation of the function.
+
+		(python) On Windows, the variable names are always in upper case.
+
+		(cpp)(hl)(neko) On Windows, the variable names match the last capitalization used when modifying
+		the variable if the variable has been modified, otherwise they match their capitalization at
+		the start of the process.
+
+		On Windows on remaining targets, variable name capitalization matches however they were capitalized
+		at the start of the process or at the moment of their creation.
 	**/
 	static function environment():Map<String, String>;
 

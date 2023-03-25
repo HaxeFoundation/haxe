@@ -1,3 +1,4 @@
+import haxe.io.Bytes;
 import haxe.macro.Compiler;
 import sys.FileSystem;
 import sys.io.File;
@@ -44,8 +45,9 @@ class Main {
 					Sys.setCwd(dirPath);
 					Sys.println('Running haxe $path');
 					var expectFailure = file.endsWith("-fail.hxml");
+					var expectStdout = if (FileSystem.exists('$file.stdout')) prepareExpectedOutput(File.getContent('$file.stdout')) else null;
 					var expectStderr = if (FileSystem.exists('$file.stderr')) prepareExpectedOutput(File.getContent('$file.stderr')) else null;
-					var result = runCommand("haxe", [file], expectFailure, expectStderr);
+					var result = runCommand("haxe", [file], expectFailure, expectStdout, expectStderr);
 					++count;
 					if (!result.success) {
 						failures++;
@@ -67,23 +69,27 @@ class Main {
 		s = s.replace("\r\n", "\n"); // get rid of windows newlines
 
 		var cwd = Path.removeTrailingSlashes(FileSystem.fullPath(Sys.getCwd()));
+		var std = Path.removeTrailingSlashes(getStd());
 
-		var context = {cwd: cwd};
+		var context = {cwd: cwd, std: std};
 		var macros = {normPath: normPath};
 
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(_, p:String):String {
+	static function normPath(_, p:String, escape:String = "false"):String {
+		var escape = escape != "false";
+
 		if (Sys.systemName() == "Windows") {
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
 			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
+			if (escape) p = p.replace("\\", "\\\\");
 		}
 		return p;
 	}
 
-	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String):{success:Bool, summary:String} {
+	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStdout:String, expectStderr:String):{success:Bool, summary:String} {
 		var summary = [];
 		function println(msg:String) {
 			summary.push(msg);
@@ -121,28 +127,51 @@ class Main {
 				false;
 		}
 
-		if (stdout.length > 0) {
+		if (result && expectStdout != null) {
+			result = checkOutput(println, "stdout", stdout.toString(), expectStdout);
+		} else if (stdout.length > 0) {
 			println(stdout.toString());
 		}
 
 		if (result && expectStderr != null) {
-			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n").trim();
-			var expected = expectStderr.trim();
-			if (stderr != expected) {
-				// "Picked up JAVA_TOOL_OPTIONS: <...>" is printed by JVM sometimes.
-				// @see https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars002.html
-				stderr = stderr.split('\n')
-					.filter(s -> 0 != s.indexOf('Picked up JAVA_TOOL_OPTIONS:'))
-					.join('\n');
-				if(stderr != expected) {
-					println("Actual stderr output doesn't match the expected one");
-					println('Expected:\n"$expectStderr"');
-					println('Actual:\n"$stderr"');
-					result = false;
-				}
-			}
+			result = checkOutput(println, "stderr", proc.stderr.readAll().toString(), expectStderr);
 		}
+
 		proc.close();
 		return {success:result, summary:summary.join('\n')};
+	}
+
+	static function checkOutput(println:String->Void, name:String, content:String, expected:String):Bool {
+		var content = content.replace("\r\n", "\n").trim();
+		var expected = expected.trim();
+		if (content != expected) {
+			// "Picked up JAVA_TOOL_OPTIONS: <...>" is printed by JVM sometimes.
+			// @see https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars002.html
+			content = content.split('\n')
+				.filter(s -> 0 != s.indexOf('Picked up JAVA_TOOL_OPTIONS:'))
+				.join('\n');
+
+			if (content != expected) {
+				final a = new diff.FileData(Bytes.ofString(expected), "expected", Date.now());
+				final b = new diff.FileData(Bytes.ofString(content), "actual", Date.now());
+				var ctx:diff.Context = {
+					file1: a,
+					file2: b,
+					context: 10
+				}
+				final script = diff.Analyze.diff2Files(ctx);
+				var diff = diff.Printer.printUnidiff(ctx, script);
+				diff = diff.split("\n").slice(3).join("\n");
+				println(diff);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	static macro function getStd() {
+		var std = Compiler.getConfiguration().stdPath;
+		return macro $v{std.shift()};
 	}
 }

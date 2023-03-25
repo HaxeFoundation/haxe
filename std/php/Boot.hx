@@ -59,7 +59,7 @@ class Boot {
 	static function __init__() {
 		Global.mb_internal_encoding('UTF-8');
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
-			var previousLevel = Global.error_reporting(Const.E_ALL);
+			var previousLevel = Global.error_reporting(Const.E_ALL & ~Const.E_DEPRECATED);
 			var previousHandler = Global.set_error_handler(function(errno:Int, errstr:String, errfile:String, errline:Int) {
 				if (Global.error_reporting() & errno == 0) {
 					return false;
@@ -339,7 +339,7 @@ class Boot {
 				if (value.is_string()) {
 					return value;
 				}
-			case 'php\\NativeArray':
+			case 'array':
 				if (value.is_array()) {
 					return value;
 				}
@@ -559,10 +559,8 @@ class Boot {
 	/**
 		Create Haxe-compatible anonymous structure of `data` associative array
 	**/
-	static public function createAnon(data:NativeArray):Dynamic {
-		var o = new HxAnon();
-		Syntax.foreach(data, (field:String, value:Any) -> Syntax.setField(o, field, value));
-		return o;
+	static public inline function createAnon(data:NativeArray):Dynamic {
+		return new HxAnon(data);
 	}
 
 	/**
@@ -948,6 +946,13 @@ private class HxDynamicStr extends HxClosure {
 @:keep
 @:dox(hide)
 private class HxAnon extends StdClass {
+	public function new(fields:NativeArray = null) {
+		super();
+		if (fields != null) {
+			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
+		}
+	}
+	
 	@:phpMagic
 	function __get(name:String) {
 		return null;

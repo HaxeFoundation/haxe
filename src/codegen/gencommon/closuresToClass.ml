@@ -283,13 +283,15 @@ let rec get_type_params acc t =
 			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
-		| TDynamic t ->
-			(match t with | TDynamic _ -> acc | _ -> get_type_params acc t)
+		| TDynamic None ->
+			acc
+		| TDynamic (Some t) ->
+			get_type_params acc t
 		| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				get_type_params acc ( Abstract.get_underlying_type a pl)
 		| TAnon a ->
 			PMap.fold (fun cf acc ->
-				let params = List.map (fun (_,t) -> match follow t with
+				let params = List.map (fun tp -> match follow tp.ttp_type with
 					| TInst(c,_) -> c
 					| _ -> die "" __LOC__) cf.cf_params
 				in
@@ -396,7 +398,7 @@ let configure gen ft =
 		in
 
 		(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
-		let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
+		let cltypes = List.map (fun cl -> mk_type_param (snd cl.cl_path) (TInst(cl, [])) None) tparams in
 
 		(* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
 		let cfield = match gen.gcurrent_classfield with
@@ -426,7 +428,7 @@ let configure gen ft =
 
 		let mk_this v pos =
 			{
-				(mk_field_access gen { eexpr = TConst TThis; etype = TInst(cls, List.map snd cls.cl_params); epos = pos } v.v_name pos)
+				(mk_field_access gen { eexpr = TConst TThis; etype = TInst(cls, extract_param_types cls.cl_params); epos = pos } v.v_name pos)
 				with etype = v.v_type
 			}
 		in
@@ -476,9 +478,9 @@ let configure gen ft =
 					eexpr = TCall({
 						eexpr = TField({
 							eexpr = TConst TThis;
-							etype = TInst(cls, List.map snd cls.cl_params);
+							etype = TInst(cls, extract_param_types cls.cl_params);
 							epos = pos;
-						}, FInstance(cls, List.map snd cls.cl_params, cf));
+						}, FInstance(cls, extract_param_types cls.cl_params, cf));
 						etype = cf.cf_type;
 						epos = pos;
 					}, List.map (fun (v,_) -> mk_local v pos) tfunc.tf_args);
@@ -617,17 +619,17 @@ let configure gen ft =
 				| TInst(c,_), TInst(c2,_) -> c == c2
 				| _ -> false
 			in
-			let passoc = List.map2 (fun (_,t) m -> t,m) types monos in
-			let cltparams = List.map (fun (_,t) ->
+			let passoc = List.map2 (fun tp m -> tp.ttp_type,m) types monos in
+			let cltparams = List.map (fun tp ->
 				try
-					snd (List.find (fun (t2,_) -> same_cl t t2) passoc)
-				with | Not_found -> t) cls.cl_params
+					snd (List.find (fun (t2,_) -> same_cl tp.ttp_type t2) passoc)
+				with | Not_found -> tp.ttp_type) cls.cl_params
 			in
 			{ e with eexpr = TNew(cls, cltparams, List.rev captured) }
 		with
 			| Not_found ->
 				if in_tparam then begin
-					gen.gcon.warning "This expression may be invalid" e.epos;
+					gen.gwarning WGenerator "This expression may be invalid" e.epos;
 					e
 				end else
 					(* It is possible that we are recursively calling a function
@@ -642,8 +644,8 @@ let configure gen ft =
 						(Meta.Custom(":tparamcall"), [], e.epos), e
 					) }
 			| Unify_error el ->
-				List.iter (fun el -> gen.gcon.warning (Error.unify_error_msg (print_context()) el) e.epos) el;
-				gen.gcon.warning "This expression may be invalid" e.epos;
+				List.iter (fun el -> gen.gwarning WGenerator (Error.unify_error_msg (print_context()) el) e.epos) el;
+				gen.gwarning WGenerator "This expression may be invalid" e.epos;
 				e
 		)
 		(* (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
@@ -899,7 +901,7 @@ struct
 
 		let map_base_classfields cl map_fn =
 			let pos = cl.cl_pos in
-			let this_t = TInst(cl,List.map snd cl.cl_params) in
+			let this_t = TInst(cl,extract_param_types cl.cl_params) in
 			let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 			let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
@@ -1091,7 +1093,7 @@ struct
 				loop arity []
 			in
 
-			let this = mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) pos in
+			let this = mk (TConst TThis) (TInst (cl, extract_param_types cl.cl_params)) pos in
 			let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
 			let mk_invoke_switch i api =

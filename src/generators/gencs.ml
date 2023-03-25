@@ -110,7 +110,7 @@ let rec is_null t =
 	match t with
 		| TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
 		| TAbstract( { a_path = ([], "Null") }, _ ) -> true
-		| TType( t, tl ) -> is_null (apply_params t.t_params tl t.t_type)
+		| TType( t, tl ) -> is_null (apply_typedef t tl)
 		| TMono r ->
 			(match r.tm_type with
 			| Some t -> is_null t
@@ -158,7 +158,7 @@ let get_overloads_for_optional_args gen cl cf is_static =
 	| [],Method (MethNormal | MethDynamic | MethInline) ->
 		(match cf.cf_expr, follow cf.cf_type with
 		| Some ({ eexpr = TFunction fn } as method_expr), TFun (args, return_type) ->
-			let type_params = List.map snd cl.cl_params in
+			let type_params = extract_param_types cl.cl_params in
 			let rec collect_overloads tf_args_rev args_rev default_values_rev =
 				match tf_args_rev, args_rev with
 				| (_, Some default_value) :: rest_tf_args_rev, _ :: rest_args_rev ->
@@ -1369,6 +1369,7 @@ let generate con =
 									| _ -> ()
 								*)
 							| TFloat s ->
+								let s = Texpr.replace_separators s "" in
 								let len = String.length s in
 								let rec loop i prev_c =
 									if i >= len then begin
@@ -1466,7 +1467,7 @@ let generate con =
 						)
 					| TParenthesis e ->
 						write w "("; expr_s w e; write w ")"
-					| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+					| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 						(match e.eexpr with
 						| TFor _ | TWhile _ ->
 							expr_s w e;
@@ -1507,6 +1508,8 @@ let generate con =
 						write w " as ";
 						write w (t_s e.etype);
 						write w " )";
+					| TCall({ eexpr = TField (_, FStatic ({ cl_path = ["cs"],"Syntax" }, { cf_name = meth })) }, args) ->
+						gen_syntax meth args e.epos
 					| TCall ({ eexpr = TIdent "__cs__" }, [ { eexpr = TConst(TString(s)) } ] ) ->
 						write w s
 					| TCall ({ eexpr = TIdent "__cs__" }, { eexpr = TConst(TString(s)) } :: tl ) ->
@@ -1789,7 +1792,40 @@ let generate con =
 					| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then die "" __LOC__
 					| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then die "" __LOC__
 					| TIdent s -> write w "[ ident not supported ]"; if !strict_mode then die "" __LOC__
-			)
+				)
+			and gen_syntax meth args pos =
+				match meth, args with
+				| "code", code :: args ->
+					let code, code_pos =
+						match code.eexpr with
+						| TConst (TString s) -> s, code.epos
+						| _ -> abort "The `code` argument for cs.Syntax.code must be a string constant" code.epos
+					in
+					begin
+						let rec reveal_expr expr =
+							match expr.eexpr with
+								| TCast (e, _) | TMeta (_, e) -> reveal_expr e
+								| _ -> expr
+						in
+						let args = List.map
+							(fun arg ->
+								match (reveal_expr arg).eexpr with
+									| TIf _ | TBinop _ | TUnop _ -> { arg with eexpr = TParenthesis arg }
+									| _ -> arg
+							)
+							args
+						in
+						Codegen.interpolate_code gen.gcon code args (write w) (expr_s w) code_pos
+					end
+				| "plainCode", [code] ->
+					let code =
+						match code.eexpr with
+						| TConst (TString s) -> s
+						| _ -> abort "The `code` argument for cs.Syntax.plainCode must be a string constant" code.epos
+					in
+					write w (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+				| _ ->
+					abort (Printf.sprintf "Unknown cs.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 			and do_call w e el =
 				let params, el = extract_tparams [] el in
 				let params = List.rev params in
@@ -1854,7 +1890,7 @@ let generate con =
 		let rec gen_fpart_attrib w = function
 			| EConst( Ident i ), _ ->
 				write w i
-			| EField( ef, f ), _ ->
+			| EField( ef, f, _ ), _ ->
 				gen_fpart_attrib w ef;
 				write w ".";
 				write w f
@@ -1864,14 +1900,14 @@ let generate con =
 
 		let rec gen_spart w = function
 			| EConst c, p -> (match c with
-				| Int s | Float s | Ident s ->
+				| Int (s, _) | Float (s, _) | Ident s ->
 					write w s
 				| String(s,_) ->
 					write w "\"";
 					write w (escape s);
 					write w "\""
 				| _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
-			| EField( ef, f ), _ ->
+			| EField( ef, f, _ ), _ ->
 				gen_spart w ef;
 				write w ".";
 				write w f
@@ -1978,12 +2014,12 @@ let generate con =
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
-					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
+					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
-							List.fold_left (fun acc (name, t) ->
+							List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
 								match run_follow gen t with
 									| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
 										(* base class should come before interface constraints *)
@@ -2292,7 +2328,7 @@ let generate con =
 					let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 					let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
 					let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
-					let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+					let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, extract_param_types cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 					let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> die "" __LOC__ in
 					gen_nocompletion w cf.cf_meta;
 
@@ -2400,7 +2436,7 @@ let generate con =
 					let args,ret = get_fun cf.cf_type in
 					match args with
 					| [_,_,idx] -> pairs := PMap.add (t_s idx) ( t_s ret, Some cf, None ) !pairs
-					| _ -> gen.gcon.warning "The __get function must have exactly one argument (the index)" cf.cf_pos
+					| _ -> gen.gwarning WGenerator "The __get function must have exactly one argument (the index)" cf.cf_pos
 				) (get :: get.cf_overloads)
 			with | Not_found -> ());
 			(try
@@ -2411,12 +2447,12 @@ let generate con =
 					| [_,_,idx; _,_,v] -> (try
 						let vt, g, _ = PMap.find (t_s idx) !pairs in
 						let tvt = t_s v in
-						if vt <> tvt then gen.gcon.warning "The __get function of same index has a different type from this __set function" cf.cf_pos;
+						if vt <> tvt then gen.gwarning WGenerator "The __get function of same index has a different type from this __set function" cf.cf_pos;
 						pairs := PMap.add (t_s idx) (vt, g, Some cf) !pairs
 					with | Not_found ->
 						pairs := PMap.add (t_s idx) (t_s v, None, Some cf) !pairs)
 					| _ ->
-						gen.gcon.warning "The __set function must have exactly two arguments (index, value)" cf.cf_pos
+						gen.gwarning WGenerator "The __set function must have exactly two arguments (index, value)" cf.cf_pos
 				) (set :: set.cf_overloads)
 			with | Not_found -> ());
 			PMap.iter (fun idx (v, get, set) ->
@@ -2533,7 +2569,7 @@ let generate con =
 						let this = if static then
 							make_static_this cl f.cf_pos
 						else
-							{ eexpr = TConst TThis; etype = TInst(cl,List.map snd cl.cl_params); epos = f.cf_pos }
+							{ eexpr = TConst TThis; etype = TInst(cl,extract_param_types cl.cl_params); epos = f.cf_pos }
 						in
 						print w "public %s%s %s" (if static then "static " else "") (t_s f.cf_type) (Dotnet.netname_to_hx f.cf_name);
 						begin_block w;
@@ -2598,7 +2634,7 @@ let generate con =
 					else
 						"object" :: (loop (pred i) acc)
 				in
-				let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> die "" __LOC__) [] in
+				let tparams = loop (match m with [(EConst(Int (s, _)),_)] -> int_of_string s | _ -> die "" __LOC__) [] in
 				cl.cl_meta <- (Meta.Meta, [
 					EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))",SDoubleQuotes) ), cl.cl_pos
 				], cl.cl_pos) :: cl.cl_meta
@@ -2720,11 +2756,11 @@ let generate con =
 
 				let events, nonprops = !events, !nonprops in
 
-				let t = TInst(cl, List.map snd cl.cl_params) in
+				let t = TInst(cl, extract_param_types cl.cl_params) in
 				let find_prop name = try
 						List.assoc name !props
 					with | Not_found -> match field_access gen t name with
-						| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,List.map snd cl.cl_params)) name ->
+						| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,extract_param_types cl.cl_params)) name ->
 							let ret = ref (v,t,None,None) in
 							props := (name, ret) :: !props;
 							ret
@@ -3098,7 +3134,7 @@ let generate con =
 
 		add_cast_handler gen;
 		if not erase_generics then
-			RealTypeParams.configure gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
+			RealTypeParams.configure gen (fun e t -> gen.gwarning WGenerator ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
 		else
 			RealTypeParams.RealTypeParamsModf.configure gen (RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen);
 
@@ -3428,11 +3464,11 @@ let generate con =
 			let net_lib = List.find (function net_lib -> is_some (net_lib#lookup (["haxe";"lang"], "FieldLookup"))) gen.gcon.native_libs.net_libs in
 			let name = net_lib#get_name in
 			if not (Common.defined gen.gcon Define.DllImport) then begin
-				gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly. Please define `-D dll_import` to handle Haxe-generated dll import correctly") null_pos;
+				gen.gwarning WGenerator ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly. Please define `-D dll_import` to handle Haxe-generated dll import correctly") null_pos;
 				raise Not_found
 			end;
 			if not (List.exists (function net_lib -> net_lib#get_name = name) haxe_libs) then
-				gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
+				gen.gwarning WGenerator ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
 			(* it has; in this case, we need to add the used fields on each __init__ *)
 			add_class_flag flookup_cl CExtern;
 			let hashs_by_path = Hashtbl.create !nhash in
@@ -3512,17 +3548,18 @@ let generate con =
 		if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 			let old_dir = Sys.getcwd() in
 			Sys.chdir gen.gcon.file;
-			let cmd = "haxelib run hxcs hxcs_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) ^ " --feature-level 1" in
-			let cmd =
+			let cmd = "haxelib" in
+			let args = ["run"; "hxcs"; "hxcs_build.txt"; "--haxe-version"; (string_of_int gen.gcon.version); "--feature-level"; "1"] in
+			let args =
 				match gen.gentry_point with
 				| Some (name,_,_) ->
 					let name = if gen.gcon.debug then name ^ "-Debug" else name in
-					cmd ^ " --out " ^ gen.gcon.file ^ "/bin/" ^ name
+					args@["--out"; gen.gcon.file ^ "/bin/" ^ name]
 				| _ ->
-					cmd
+					args
 			in
-			print_endline cmd;
-			if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
+			print_endline (cmd ^ " " ^ (String.concat " " args));
+			if gen.gcon.run_command_args cmd args <> 0 then failwith "Build failed";
 			Sys.chdir old_dir;
 		end
 

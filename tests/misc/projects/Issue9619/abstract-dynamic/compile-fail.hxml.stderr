@@ -1,1 +1,1 @@
-Main.hx:2: characters 2-52 : Abstract methods may not be dynamic
+Main.hx:2: characters 2-52 : Invalid modifier combination: abstract + dynamic

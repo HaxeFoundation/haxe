@@ -12,6 +12,9 @@ class TestBuilder {
 				continue;
 			}
 			switch (field.kind) {
+				case FFun(f) if (field.meta.exists(m -> m.name == ":async")):
+					// Async is already manually handled, nothing to do
+
 				case FFun(f):
 					var asyncName = switch f.args {
 						case []:
@@ -22,7 +25,7 @@ class TestBuilder {
 							});
 							name;
 						case [arg]:
-							if(arg.name == "_") {
+							if (arg.name == "_") {
 								arg.name = "async";
 								arg.type = macro:utest.Async;
 							}
@@ -63,6 +66,10 @@ class TestBuilder {
 					var e = transformHaxeCalls(asyncName, el);
 					args.push(macro() -> ${failOnException(asyncName, e)});
 					macro runHaxeJson($a{args});
+				case macro runHaxeJsonCb($a{args}):
+					var e = transformHaxeCalls(asyncName, el);
+					args.push(macro() -> ${failOnException(asyncName, e)});
+					macro runHaxeJsonCb($a{args});
 				case macro complete($a{args}):
 					var e = transformHaxeCalls(asyncName, el);
 					args.push(macro function(response, markers) ${failOnException(asyncName, e)});
@@ -76,12 +83,13 @@ class TestBuilder {
 	}
 
 	static function failOnException(asyncName:String, e:Expr):Expr {
-		return macro @:pos(e.pos) try {
-			$e;
-		} catch(e) {
-			Assert.fail(e.details());
-			$i{asyncName}.done();
-			return;
-		}
+		return macro
+			@:pos(e.pos) try {
+				$e;
+			} catch (e) {
+				Assert.fail(e.details());
+				$i{asyncName}.done();
+				return;
+			}
 	}
 }

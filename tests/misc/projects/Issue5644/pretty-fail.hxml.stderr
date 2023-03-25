@@ -1,0 +1,6 @@
+[ERROR] User.hx:1: characters 20-47
+
+ 1 | class User extends ThisObviouslyDoesntExist<T> {}
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   | Type not found : ThisObviouslyDoesntExist
+

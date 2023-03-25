@@ -1,0 +1,1 @@
+Deprecated.hx:3: characters 2-8 : Warning : (WDeprecated) Std.is is deprecated. Use Std.isOfType instead.

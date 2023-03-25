@@ -1,1 +1,1 @@
-Main.hx:2: characters 27-43 : Static methods may not be abstract
+Main.hx:2: characters 27-43 : Invalid modifier combination: abstract + static

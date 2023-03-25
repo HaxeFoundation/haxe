@@ -46,6 +46,8 @@ class HostClasses {
 		"sys.thread.Mutex",
 		"sys.thread.Thread",
 		"sys.thread.Tls",
+		"sys.thread.Semaphore",
+		"sys.thread.Condition",
 		"cpp.vm.ExecutionTrace",
 		"cpp.vm.Gc",
 		"cpp.vm.Profiler",
@@ -53,6 +55,7 @@ class HostClasses {
 		"cpp.vm.WeakRef",
 		"cpp.Object",
 		"cpp.Int64",
+		"cpp.Int64Map",
 		"cpp.Finalizable",
 		"Std",
 		"StringBuf",
@@ -147,6 +150,7 @@ class HostClasses {
 		"List",
 		"Map",
 		"String",
+		"haxe.atomic.AtomicInt"
 	];
 
 	static function parseClassInfo(externs:Map<String, Bool>, filename:String) {
