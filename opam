@@ -28,7 +28,7 @@ depends: [
   "extlib" {>= "1.7.8"}
   "ptmap" {>= "2.0.0"}
   "sha"
-  "conf-libpcre"
+  "conf-libpcre2-8"
   "conf-zlib"
   "conf-neko"
   "luv"

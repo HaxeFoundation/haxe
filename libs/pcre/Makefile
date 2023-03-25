@@ -21,7 +21,7 @@ pcre_stubs.o: pcre_stubs.c
 
 clean:
 	rm -f pcre.cma pcre.cmi pcre.cmx pcre.cmxa pcre.o pcre.obj pcre_stubs.obj pcre_stubs.o
-	rm -f pcre.a libpcre.a libpcre.lib pcre.cmo
+	rm -f pcre.a libpcre2-8.a libpcre2-8.lib pcre.cmo
 
 .PHONY: all bytecode native clean
 Makefile: ;
