@@ -12,7 +12,7 @@ class Test<T:A> {
 		test(function() return new WeakReference_1(a));
 	}
 
-	function test(cb:Void->WeakReference_1<T>):Void {}
+	function test(cb:()->WeakReference_1<T>):Void {}
 
 
 }

@@ -22,9 +22,11 @@
 
 import cs.Boot;
 import cs.Lib;
-import cs.internal.Exceptions;
+
+using StringTools;
 
 @:coreApi @:nativeGen class Std {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -79,54 +81,74 @@ import cs.internal.Exceptions;
 		return cast x;
 	}
 
+	static inline function isSpaceChar(code:Int):Bool
+		return (code > 8 && code < 14) || code == 32;
+
+	static inline function isHexPrefix(cur:Int, next:Int):Bool
+		return cur == '0'.code && (next == 'x'.code || next == 'X'.code);
+
+	static inline function isDecimalDigit(code:Int):Bool
+		return '0'.code <= code && code <= '9'.code;
+
+	static inline function isHexadecimalDigit(code:Int):Bool
+		return isDecimalDigit(code) || ('a'.code <= code && code <= 'f'.code) || ('A'.code <= code && code <= 'F'.code);
+
 	public static function parseInt(x:String):Null<Int> {
 		if (x == null)
 			return null;
 
-		var base = 10;
-		var len = x.length;
-		var foundCount = 0;
-		var sign = 0;
-		var firstDigitIndex = 0;
-		var lastDigitIndex = -1;
-		var previous = 0;
+		final len = x.length;
+		var index = 0;
 
-		for(i in 0...len) {
-			var c = StringTools.fastCodeAt(x, i);
-			switch c {
-				case _ if((c > 8 && c < 14) || c == 32):
-					if(foundCount > 0) {
-						return null;
-					}
-					continue;
-				case '-'.code if(foundCount == 0):
-					sign = -1;
-				case '+'.code if(foundCount == 0):
-					sign = 1;
-				case '0'.code if(foundCount == 0 || (foundCount == 1 && sign != 0)):
-				case 'x'.code | 'X'.code if(previous == '0'.code && ((foundCount == 1 && sign == 0) || (foundCount == 2 && sign != 0))):
-					base = 16;
-				case _ if('0'.code <= c && c <= '9'.code):
-				case _ if(base == 16 && (('a'.code <= c && c <= 'z'.code) || ('A'.code <= c && c <= 'Z'.code))):
-				case _:
-					break;
-			}
-			if((foundCount == 0 && sign == 0) || (foundCount == 1 && sign != 0)) {
-				firstDigitIndex = i;
-			}
-			foundCount++;
-			lastDigitIndex = i;
-			previous = c;
+		inline function hasIndex(index:Int)
+			return index < len;
+
+		// skip whitespace
+		while (hasIndex(index)) {
+			if (!isSpaceChar(x.unsafeCodeAt(index)))
+				break;
+			++index;
 		}
-		if(firstDigitIndex <= lastDigitIndex) {
-			var digits = x.substring(firstDigitIndex, lastDigitIndex + 1);
-			return try {
-				(sign == -1 ? -1 : 1) * cs.system.Convert.ToInt32(digits, base);
-			} catch(e:cs.system.FormatException) {
-				null;
+
+		// handle sign
+		final isNegative = hasIndex(index) && {
+			final sign = x.unsafeCodeAt(index);
+			if (sign == '-'.code || sign == '+'.code) {
+				++index;
 			}
+			sign == '-'.code;
 		}
-		return null;
+
+		// handle base
+		final isHexadecimal = hasIndex(index + 1) && isHexPrefix(x.unsafeCodeAt(index), x.unsafeCodeAt(index + 1));
+		if (isHexadecimal)
+			index += 2; // skip prefix
+
+		// handle digits
+		final firstInvalidIndex = {
+			var cur = index;
+			if (isHexadecimal) {
+				while (hasIndex(cur)) {
+					if (!isHexadecimalDigit(x.unsafeCodeAt(cur)))
+						break;
+					++cur;
+				}
+			} else {
+				while (hasIndex(cur)) {
+					if (!isDecimalDigit(x.unsafeCodeAt(cur)))
+						break;
+					++cur;
+				}
+			}
+			cur;
+		}
+
+		// no valid digits
+		if (index == firstInvalidIndex)
+			return null;
+
+		final result = cs.system.Convert.ToInt32(x.substring(index, firstInvalidIndex), if (isHexadecimal) 16 else 10);
+		return if (isNegative) -result else result;
 	}
 
 	public static function parseFloat(x:String):Float {

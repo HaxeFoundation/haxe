@@ -44,19 +44,19 @@ let run types =
 	let get_cls t =
 		match follow t with
 		| TInst(cl,_) -> cl
-		| _ -> assert false
+		| _ -> Globals.die "" __LOC__
 	in
 
-	let iter_types (nt,t) =
-		let cls = get_cls t in
+	let iter_types tp =
+		let cls = get_cls tp.ttp_type in
 		let orig = cls.cl_path in
 		check_type (snd orig) (fun name -> cls.cl_path <- (fst orig, name))
 	in
 
 	let save_params save params =
-		List.fold_left (fun save (_,t) ->
-			let cls = get_cls t in
-			(cls.cl_path,t) :: save) save params
+		List.fold_left (fun save tp ->
+			let cls = get_cls tp.ttp_type in
+			(cls.cl_path,tp.ttp_type) :: save) save params
 	in
 
 	List.iter (function

@@ -21,12 +21,6 @@ let has_side_effect e =
 	with Exit ->
 		true
 
-let rec is_exhaustive e1 = match e1.eexpr with
-	| TMeta((Meta.Exhaustive,_,_),_) -> true
-	| TMeta(_, e1) | TParenthesis e1 -> is_exhaustive e1
-	| _ -> false
-
-
 let is_read_only_field_access e fa = match fa with
 	| FEnum _ ->
 		true
@@ -37,7 +31,7 @@ let is_read_only_field_access e fa = match fa with
 		begin match cf.cf_kind with
 			| Method MethDynamic -> false
 			| Method _ -> true
-			| Var {v_write = AccNever} when not c.cl_interface -> true
+			| Var {v_write = AccNever} when not (has_class_flag c CInterface) -> true
 			| _ -> false
 		end
 	| FAnon cf | FClosure(None,cf) ->
@@ -52,6 +46,7 @@ let create_affection_checker () =
 	let rec might_be_affected e =
 		let rec loop e = match e.eexpr with
 			| TConst _ | TFunction _ | TTypeExpr _ -> ()
+			| TLocal v when has_var_flag v VCaptured -> raise Exit
 			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
 			| TField(e1,fa) when not (is_read_only_field_access e1 fa) -> raise Exit
 			| TCall _ | TNew _ -> raise Exit
@@ -135,9 +130,9 @@ let optimize_binop e op e1 e2 =
 		| OpAnd -> opt Int32.logand
 		| OpOr -> opt Int32.logor
 		| OpXor -> opt Int32.logxor
-		| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int b))
-		| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int b))
-		| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
+		| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int (Int32.logand b i32_31)))
+		| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int (Int32.logand b i32_31)))
+		| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int (Int32.logand b i32_31)))
 		| OpEq -> ebool (=)
 		| OpNotEq -> ebool (<>)
 		| OpGt -> ebool (>)
@@ -149,12 +144,12 @@ let optimize_binop e op e1 e2 =
 		let fa = (match ca with
 			| TFloat a -> float_of_string a
 			| TInt a -> Int32.to_float a
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		) in
 		let fb = (match cb with
 			| TFloat b -> float_of_string b
 			| TInt b -> Int32.to_float b
-			| _ -> assert false
+			| _ -> die "" __LOC__
 		) in
 		let fop op = check_float op fa fb in
 		let ebool t =
@@ -214,7 +209,7 @@ let optimize_binop e op e1 e2 =
 		| OpAssign,_ ->
 			e
 		| _ ->
-			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos
+			typing_error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos
 		end
 	| _ ->
 		e)

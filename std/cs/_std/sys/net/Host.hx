@@ -45,11 +45,18 @@ class Host {
 
 	public function new(name:String):Void {
 		host = name;
-		hostEntry = Dns.GetHostEntry(name);
-		for (i in 0...hostEntry.AddressList.Length) {
-			if (hostEntry.AddressList[i].AddressFamily == InterNetwork) {
-				ipAddress = hostEntry.AddressList[i];
-				break;
+		try{
+			hostEntry = Dns.GetHostEntry(host);
+			for (i in 0...hostEntry.AddressList.Length) {
+				if (hostEntry.AddressList[i].AddressFamily == InterNetwork) {
+					ipAddress = hostEntry.AddressList[i];
+					break;
+				}
+			}
+		}catch (e:Dynamic){
+			ipAddress = IPAddress.Any;
+			if (!IPAddress.TryParse(host, ipAddress)){
+				throw "Unknown host.";
 			}
 		}
 	}

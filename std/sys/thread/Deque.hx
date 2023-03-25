@@ -38,11 +38,15 @@ package sys.thread;
 
 	/**
 		Adds an element at the end of `this` Deque.
+
+		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
 	**/
 	function add(i:T):Void;
 
 	/**
 		Adds an element at the front of `this` Deque.
+
+		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
 	**/
 	function push(i:T):Void;
 

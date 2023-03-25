@@ -20,6 +20,7 @@ module CompletionModuleKind = struct
 		| TypeAlias
 		| Struct
 		| TypeParameter
+		| Static
 
 	let to_int = function
 		| Class -> 0
@@ -30,6 +31,7 @@ module CompletionModuleKind = struct
 		| TypeAlias -> 5
 		| Struct -> 6
 		| TypeParameter -> 7
+		| Static -> 8
 end
 
 module ImportStatus = struct
@@ -68,6 +70,7 @@ module CompletionModuleType = struct
 		doc : documentation;
 		is_extern : bool;
 		is_final : bool;
+		is_abstract : bool;
 		kind : CompletionModuleKind.t;
 		has_constructor : not_bool;
 		source : module_type_source;
@@ -95,6 +98,7 @@ module CompletionModuleType = struct
 				doc = d.d_doc;
 				is_extern = List.mem HExtern d.d_flags;
 				is_final = List.mem HFinal d.d_flags;
+				is_abstract = List.mem HAbstract d.d_flags;
 				kind = if List.mem HInterface d.d_flags then Interface else Class;
 				has_constructor = ctor;
 				source = Syntax td;
@@ -110,6 +114,7 @@ module CompletionModuleType = struct
 				doc = d.d_doc;
 				is_extern = List.mem EExtern d.d_flags;
 				is_final = false;
+				is_abstract = false;
 				kind = Enum;
 				has_constructor = No;
 				source = Syntax td;
@@ -127,6 +132,7 @@ module CompletionModuleType = struct
 				doc = d.d_doc;
 				is_extern = List.mem EExtern d.d_flags;
 				is_final = false;
+				is_abstract = false;
 				kind = kind;
 				has_constructor = if kind = Struct then No else Maybe;
 				source = Syntax td;
@@ -150,8 +156,26 @@ module CompletionModuleType = struct
 				doc = d.d_doc;
 				is_extern = List.mem AbExtern d.d_flags;
 				is_final = false;
-				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
+				is_abstract = false;
+				kind = if List.mem AbEnum d.d_flags then EnumAbstract else Abstract;
 				has_constructor = ctor;
+				source = Syntax td;
+			}
+		| EStatic d ->
+			{
+				pack = pack;
+				name = fst d.d_name;
+				module_name = module_name;
+				pos = p;
+				is_private = List.exists (fun (f,_) -> f = APrivate) d.d_flags;
+				params = d.d_params;
+				meta = d.d_meta;
+				doc = d.d_doc;
+				is_extern = List.exists (fun (f,_) -> f = AExtern) d.d_flags;
+				is_final = true;
+				is_abstract = false;
+				kind = Static;
+				has_constructor = No;
 				source = Syntax td;
 			}
 		| EImport _ | EUsing _ ->
@@ -163,43 +187,52 @@ module CompletionModuleType = struct
 			| Some c ->
 				try
 					let cf = PMap.find "_new" c.cl_statics in
-					if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+					if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 				with Not_found ->
 					No
 		in
 		let ctor c =
 			try
-				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
-				if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
+				if has_class_flag c CAbstract then raise Not_found;
+				let cf = get_constructor c in
+				if (has_class_flag c CExtern) || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 			with Not_found ->
 				No
 		in
-		let is_extern,is_final,kind,ctor = match mt with
+		let rec ctor_info = function
 			| TClassDecl c ->
-				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),ctor c
+				(has_class_flag c CExtern),has_class_flag c CFinal,has_class_flag c CAbstract,(if (has_class_flag c CInterface) then Interface else Class),ctor c
 			| TEnumDecl en ->
-				en.e_extern,false,Enum,No
+				en.e_extern,false,false,Enum,No
 			| TTypeDecl td ->
 				let kind,ctor = match follow td.t_type with
 					| TAnon _ -> Struct,No
 					| TInst(c,_) -> TypeAlias,ctor c
-					| TAbstract(a,_) -> TypeAlias,actor a
+					| TAbstract(a,_) -> let _,_,_,_,ctor = ctor_info (TAbstractDecl a) in TypeAlias,ctor
 					| _ -> TypeAlias,No
 				in
-				false,false,kind,ctor
+				false,false,false,kind,ctor
 			| TAbstractDecl a ->
-				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),actor a
+				let kind = if a.a_enum then EnumAbstract else Abstract in
+				let is_extern,is_final,is_abstract,ctor = match Abstract.follow_with_forward_ctor (TAbstract(a,extract_param_types a.a_params)) with
+					| TInst(c,_) -> let is_extern,is_final,is_abstract,_,ctor = ctor_info (TClassDecl c) in is_extern,is_final,is_abstract,ctor
+					| TAbstract(a,_) -> false,false,false,actor a
+					| _ -> false,false,false,No
+				in
+				is_extern,is_final,is_abstract,kind,ctor
 		in
+		let is_extern,is_final,is_abstract,kind,ctor = ctor_info mt in
 		let infos = t_infos mt in
-		let convert_type_param (s,t) = match follow t with
+		let convert_type_param tp = match follow tp.ttp_type with
 			| TInst(c,_) -> {
-				tp_name = s,null_pos;
+				tp_name = tp.ttp_name,null_pos;
 				tp_params = [];
 				tp_constraints = None; (* TODO? *)
+				tp_default = None; (* TODO? *)
 				tp_meta = c.cl_meta
 			}
 			| _ ->
-				assert false
+				die "" __LOC__
 		in
 		{
 			pack = fst infos.mt_path;
@@ -212,6 +245,7 @@ module CompletionModuleType = struct
 			doc = infos.mt_doc;
 			is_extern = is_extern;
 			is_final = is_final;
+			is_abstract = is_abstract;
 			kind = kind;
 			has_constructor = ctor;
 			source = Typed mt;
@@ -235,6 +269,7 @@ module CompletionModuleType = struct
 				("params",jlist (generate_ast_type_param ctx) cm.params) ::
 				("isExtern",jbool cm.is_extern) ::
 				("isFinal",jbool cm.is_final) ::
+				("isAbstract",jbool cm.is_abstract) ::
 				(if ctx.generation_mode = GMFull then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
 			| GMMinimum ->
 				match generate_minimum_metadata ctx cm.meta with
@@ -471,8 +506,10 @@ module CompletionType = struct
 					ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
 					ct_status = !(an.a_status);
 				}
-			| TDynamic t ->
-				CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
+			| TDynamic None ->
+				CTDynamic None
+			| TDynamic (Some t) ->
+				CTDynamic (Some (from_type PMap.empty t))
 		in
 		from_type values t
 end
@@ -724,7 +761,7 @@ let to_json ctx index item =
 		]
 		| ITMetadata meta ->
 			let open Meta in
-			let name,(doc,params) = Meta.get_info meta in
+			let name,(doc,params),origin = Meta.get_info meta in
 			let name = "@" ^ name in
 			let usage_to_string = function
 				| TClass -> "TClass"
@@ -737,6 +774,10 @@ let to_json ctx index item =
 				| TExpr -> "TExpr"
 				| TTypeParameter -> "TTypeParameter"
 				| TVariable -> "TVariable"
+			in
+			let origin = match origin with
+				| Compiler -> Some "haxe compiler"
+				| UserDefined s -> s
 			in
 			let rec loop internal params platforms targets links l = match l with
 				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
@@ -755,6 +796,7 @@ let to_json ctx index item =
 				"targets",jlist jstring targets;
 				"internal",jbool internal;
 				"links",jlist jstring links;
+				"origin",jopt jstring origin;
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
@@ -769,7 +811,7 @@ let to_json ctx index item =
 					"meta",generate_metadata ctx c.cl_meta;
 					"constraints",jlist (generate_type ctx) tl;
 				]
-			| _ -> assert false
+			| _ -> die "" __LOC__
 			end
 		| ITDefine(n,v) -> "Define",jobject [
 			"name",jstring n;

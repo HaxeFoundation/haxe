@@ -34,6 +34,7 @@ extern class Std {
 
 		If `t` is a class or interface with `@:generic` meta, the result is `false`.
 	**/
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	static function is(v:Dynamic, t:Dynamic):Bool;
 
 	/**
@@ -96,21 +97,22 @@ extern class Std {
 
 		Leading whitespaces are ignored.
 
-		If `x` starts with 0x or 0X, hexadecimal notation is recognized where the following digits may
-		contain 0-9 and A-F.
+		`x` may optionally start with a + or - to denote a postive or negative value respectively.
 
-		Otherwise `x` is read as decimal number with 0-9 being allowed characters. `x` may also start with
-		a - to denote a negative value.
+		If the optional sign is followed 0x or 0X, hexadecimal notation is recognized where the following
+		digits may contain 0-9 and A-F. Both the prefix and digits are case insensitive.
 
-		In decimal mode, parsing continues until an invalid character is detected, in which case the
-		result up to that point is returned. For hexadecimal notation, the effect of invalid characters
-		is unspecified.
+		Otherwise `x` is read as decimal number with 0-9 being allowed characters. Octal and binary
+		notations are not supported.
 
-		Leading 0s that are not part of the 0x/0X hexadecimal notation are ignored, which means octal
-		notation is not supported.
+		Parsing continues until an invalid character is detected, in which case the result up to
+		that point is returned. Scientific notation is not supported. That is `Std.parseInt('10e2')` produces `10`.
 
-		If `x` is null, the result is unspecified.
-		If `x` cannot be parsed as integer, the result is `null`.
+		If `x` is `null`, the result is `null`.
+		If `x` cannot be parsed as integer or is empty, the result is `null`.
+
+		If `x` starts with a hexadecimal prefix which is not followed by at least one valid hexadecimal
+		digit, the result is unspecified.
 	**/
 	static function parseInt(x:String):Null<Int>;
 
@@ -118,9 +120,12 @@ extern class Std {
 		Converts a `String` to a `Float`.
 
 		The parsing rules for `parseInt` apply here as well, with the exception of invalid input
-		resulting in a `NaN` value instead of null.
+		resulting in a `NaN` value instead of `null`. Also, hexadecimal support is **not** specified.
 
 		Additionally, decimal notation may contain a single `.` to denote the start of the fractions.
+
+		It may also end with `e` or `E` followed by optional minus or plus sign and a sequence of
+		digits (defines exponent to base 10).
 	**/
 	static function parseFloat(x:String):Float;
 

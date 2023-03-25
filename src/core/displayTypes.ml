@@ -10,7 +10,7 @@ module SymbolKind = struct
 		| Class
 		| Interface
 		| Enum
-		| Typedef
+		| TypeAlias
 		| Abstract
 		| Field
 		| Property
@@ -18,12 +18,18 @@ module SymbolKind = struct
 		| Constructor
 		| Function
 		| Variable
+		| Struct
+		| EnumAbstract
+		| Operator
+		| EnumMember
+		| Constant
+		| Module
 
 	let to_int = function
 		| Class -> 1
 		| Interface -> 2
 		| Enum -> 3
-		| Typedef -> 4
+		| TypeAlias -> 4
 		| Abstract -> 5
 		| Field -> 6
 		| Property -> 7
@@ -31,6 +37,12 @@ module SymbolKind = struct
 		| Constructor -> 9
 		| Function -> 10
 		| Variable -> 11
+		| Struct -> 12
+		| EnumAbstract -> 13
+		| Operator -> 14
+		| EnumMember -> 15
+		| Constant -> 16
+		| Module -> 17
 end
 
 module SymbolInformation = struct
@@ -51,45 +63,17 @@ module SymbolInformation = struct
 	}
 end
 
-module DiagnosticsSeverity = struct
-	type t =
-		| Error
-		| Warning
-		| Information
-		| Hint
-
-	let to_int = function
-		| Error -> 1
-		| Warning -> 2
-		| Information -> 3
-		| Hint -> 4
-end
-
-module DiagnosticsKind = struct
-	type t =
-		| DKUnusedImport
-		| DKUnresolvedIdentifier
-		| DKCompilerError
-		| DKRemovableCode
-		| DKParserError
-		| DKDeprecationWarning
-		| DKInactiveBlock
-
-	let to_int = function
-		| DKUnusedImport -> 0
-		| DKUnresolvedIdentifier -> 1
-		| DKCompilerError -> 2
-		| DKRemovableCode -> 3
-		| DKParserError -> 4
-		| DKDeprecationWarning -> 5
-		| DKInactiveBlock -> 6
-end
-
 module CompletionResultKind = struct
+	type expected_type_completion = {
+		expected_type : CompletionItem.CompletionType.t;
+		expected_type_followed : CompletionItem.CompletionType.t;
+		compatible_types : CompletionItem.CompletionType.t list;
+	}
+
 	type t =
 		| CRField of CompletionItem.t * pos * Type.t option * (Type.t * Type.t) option
 		| CRStructureField
-		| CRToplevel of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option
+		| CRToplevel of expected_type_completion option
 		| CRMetadata
 		| CRTypeHint
 		| CRExtends
@@ -98,7 +82,7 @@ module CompletionResultKind = struct
 		| CRImport
 		| CRUsing
 		| CRNew
-		| CRPattern of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option * bool
+		| CRPattern of expected_type_completion option * bool
 		| CROverride
 		| CRTypeRelation
 		| CRTypeDecl
@@ -106,9 +90,10 @@ module CompletionResultKind = struct
 	let to_json ctx kind =
 		let expected_type_fields t = match t with
 			| None -> []
-			| Some(ct1,ct2) -> [
-					"expectedType",CompletionItem.CompletionType.to_json ctx ct1;
-					"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ct2;
+			| Some ext -> [
+					"expectedType",CompletionItem.CompletionType.to_json ctx ext.expected_type;
+					"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ext.expected_type_followed;
+					"compatibleTypes",jarray (List.map (CompletionItem.CompletionType.to_json ctx) ext.compatible_types);
 				]
 		in
 		let i,args = match kind with
@@ -180,21 +165,23 @@ module DisplayMode = struct
 	type t =
 		| DMNone
 		| DMDefault
-		| DMUsage of bool (* true = also report definition *)
+		(**
+			Find usages/references of the requested symbol.
+			@param bool - add symbol definition to the response
+			@param bool - also find usages of descendants of the symbol (e.g methods, which override the requested one)
+			@param bool - look for a base method if requested for a method with `override` accessor.
+		*)
+		| DMUsage of bool * bool * bool
 		| DMDefinition
 		| DMTypeDefinition
 		| DMImplementation
-		| DMResolve of string
 		| DMPackage
 		| DMHover
 		| DMModuleSymbols of string option
-		| DMDiagnostics of string list
-		| DMStatistics
 		| DMSignature
 
 	type error_policy =
 		| EPIgnore
-		| EPCollect
 		| EPShow
 
 	type display_file_policy =
@@ -204,7 +191,6 @@ module DisplayMode = struct
 
 	type settings = {
 		dms_kind : t;
-		dms_display : bool;
 		dms_full_typing : bool;
 		dms_force_macro_typing : bool;
 		dms_error_policy : error_policy;
@@ -217,7 +203,6 @@ module DisplayMode = struct
 
 	let default_display_settings = {
 		dms_kind = DMDefault;
-		dms_display = true;
 		dms_full_typing = false;
 		dms_force_macro_typing = false;
 		dms_error_policy = EPIgnore;
@@ -230,7 +215,6 @@ module DisplayMode = struct
 
 	let default_compilation_settings = {
 		dms_kind = DMNone;
-		dms_display = false;
 		dms_full_typing = true;
 		dms_force_macro_typing = true;
 		dms_error_policy = EPShow;
@@ -245,7 +229,7 @@ module DisplayMode = struct
 		let settings = { default_display_settings with dms_kind = dm } in
 		match dm with
 		| DMNone -> default_compilation_settings
-		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
+		| DMDefault | DMDefinition | DMTypeDefinition | DMPackage | DMHover | DMSignature -> settings
 		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
@@ -258,20 +242,6 @@ module DisplayMode = struct
 				dms_force_macro_typing = false;
 				dms_per_file = true;
 			}
-		| DMDiagnostics files -> { default_compilation_settings with
-				dms_kind = DMDiagnostics files;
-				dms_error_policy = EPCollect;
-				dms_display_file_policy = if files = [] then DFPNo else DFPAlso;
-				dms_per_file = true;
-			}
-		| DMStatistics -> { settings with
-				dms_full_typing = true;
-				dms_inline = false;
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false;
-				dms_force_macro_typing = true;
-				dms_per_file = true;
-			}
 
 	let to_string = function
 		| DMNone -> "none"
@@ -279,15 +249,12 @@ module DisplayMode = struct
 		| DMDefinition -> "position"
 		| DMTypeDefinition -> "type-definition"
 		| DMImplementation -> "implementation"
-		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
-		| DMUsage true -> "rename"
-		| DMUsage false -> "references"
+		| DMUsage (true,_,_) -> "rename"
+		| DMUsage (false,_,_) -> "references"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMDiagnostics _ -> "diagnostics"
-		| DMStatistics -> "statistics"
 		| DMSignature -> "signature"
 end
 
@@ -297,7 +264,7 @@ type symbol =
 	| SKEnum of tenum
 	| SKTypedef of tdef
 	| SKAbstract of tabstract
-	| SKField of tclass_field
+	| SKField of tclass_field * path option (* path - class path *)
 	| SKConstructor of tclass_field
 	| SKEnumField of tenum_field
 	| SKVariable of tvar
@@ -320,7 +287,61 @@ let string_of_symbol = function
 	| SKEnum en -> snd en.e_path
 	| SKTypedef td -> snd td.t_path
 	| SKAbstract a -> snd a.a_path
-	| SKField cf | SKConstructor cf -> cf.cf_name
+	| SKField (cf,_) | SKConstructor cf -> cf.cf_name
 	| SKEnumField ef -> ef.ef_name
 	| SKVariable v -> v.v_name
 	| SKOther -> ""
+
+type hover_result = {
+	hitem : CompletionItem.t;
+	hpos : pos;
+	hexpected : WithType.t option;
+}
+
+type fields_result = {
+	fitems : CompletionItem.t list;
+	fkind : CompletionResultKind.t;
+	fsubject : completion_subject;
+}
+
+type signature_kind =
+	| SKCall
+	| SKArrayAccess
+
+(* diagnostics *)
+
+type missing_field_cause =
+	| AbstractParent of tclass * tparams
+	| ImplementedInterface of tclass * tparams
+	| PropertyAccessor of tclass_field * bool (* true = getter *)
+	| FieldAccess
+	| FinalFields of tclass_field list
+
+and missing_fields_diagnostics = {
+	mf_pos : pos;
+	mf_on : module_type;
+	mf_fields : (tclass_field * Type.t * CompletionItem.CompletionType.t) list;
+	mf_cause : missing_field_cause;
+}
+
+and module_diagnostics =
+	| MissingFields of missing_fields_diagnostics
+
+type diagnostics_context = {
+	mutable removable_code : (string * pos * pos) list;
+	mutable import_positions : (pos,bool ref) PMap.t;
+	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
+	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
+	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
+}
+
+type display_exception_kind =
+	| ModuleSymbols of string
+	| Metadata of string
+	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind)
+	| DisplayHover of hover_result
+	| DisplayPositions of pos list
+	| DisplayFields of fields_result
+	| DisplayPackage of string list
+	| DisplayNoResult

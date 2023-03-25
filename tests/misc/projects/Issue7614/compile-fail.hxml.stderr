@@ -1,3 +1,2 @@
 Main.hx:13: characters 1-24 : Abstract chain detected: Test2 -> Test -> Test2
-Main.hx:6: lines 6-10 : Defined in this class
 Main.hx:6: lines 6-10 : Abstract underlying type cannot be recursive

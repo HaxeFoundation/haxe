@@ -23,6 +23,7 @@
 package hl.types;
 
 import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
 
 @:keep
 @:generic
@@ -77,7 +78,9 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		if (length == 0)
 			return null;
 		length--;
-		return bytes[length];
+		var v = bytes[length];
+		bytes[length] = cast 0;
+		return v;
 	}
 
 	public function push(x:T):Int {
@@ -105,6 +108,7 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		var v = bytes[0];
 		length--;
 		(bytes : Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
+		bytes[length] = cast 0;
 		return v;
 	}
 
@@ -170,6 +174,7 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		ret.size = ret.length = len;
 		var end = pos + len;
 		(bytes : Bytes).blit(pos << bytes.sizeBits, bytes, end << bytes.sizeBits, (length - end) << bytes.sizeBits);
+		(bytes : Bytes).fill((length - len) << bytes.sizeBits, (len) << bytes.sizeBits, 0);
 		length -= len;
 		return ret;
 	}
@@ -261,6 +266,10 @@ class BytesIterator<T> extends ArrayIterator<T> {
 
 	public function iterator():ArrayIterator<T> {
 		return new BytesIterator(this);
+	}
+
+	public function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator<T>(cast this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn@:privateAccess {

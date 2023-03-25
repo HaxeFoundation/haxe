@@ -73,7 +73,7 @@ let pop_scope jit = match jit.scopes with
 		jit.scopes <- tl;
 		jit.num_locals <- jit.num_locals - (num_locals scope);
 	| [] ->
-		assert false
+		Globals.die "" __LOC__
 
 (* Increases number of locals and updates maximum number of locals if necessary *)
 let increase_num_locals jit =
@@ -91,7 +91,7 @@ let add_capture jit var declared =
 
 (* Adds variable [var] to the current top scope of context [jit]. *)
 let add_local jit var = match jit.scopes with
-	| [] -> assert false
+	| [] -> Globals.die "" __LOC__
 	| scope :: _ ->
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals var.v_id i;
@@ -111,7 +111,7 @@ let add_local jit var = match jit.scopes with
 	Returns either [Env slot] if the variable is captured or [Local slot] otherwise.
 *)
 let declare_local jit var =
-	if var.v_capture then Env (add_capture jit var true)
+	if has_var_flag var VCaptured then Env (add_capture jit var true)
 	else Local (add_local jit var)
 
 (*
@@ -122,11 +122,11 @@ let declare_local jit var =
 *)
 let declare_arg jit var =
 	let varacc = add_local jit var in
-	if var.v_capture then add_capture jit var true,Some varacc else varacc,None
+	if has_var_flag var VCaptured then add_capture jit var true,Some varacc else varacc,None
 
 (* Declares a variable for `this` in context [jit]. *)
 let declare_local_this jit = match jit.scopes with
-	| [] -> assert false
+	| [] -> Globals.die "" __LOC__
 	| scope :: _ ->
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals 0 i;

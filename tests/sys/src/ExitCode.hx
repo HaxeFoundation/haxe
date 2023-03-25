@@ -25,12 +25,8 @@ class ExitCode {
 		#else
 			"bin/cs/bin/ExitCode.exe";
 		#end
-	#elseif (java && jvm)
-		#if debug
-			"bin/jvm/ExitCode-Debug.jar";
-		#else
-			"bin/jvm/ExitCode.jar";
-		#end
+	#elseif jvm
+		"bin/jvm/ExitCode.jar";
 	#elseif java
 		#if debug
 			"bin/java/ExitCode-Debug.jar";
@@ -43,6 +39,8 @@ class ExitCode {
 		"bin/php/ExitCode/index.php";
 	#elseif lua
 		"bin/lua/ExitCode.lua";
+	#elseif js
+		"bin/js/ExitCode.js";
 	#else
 		null;
 	#end

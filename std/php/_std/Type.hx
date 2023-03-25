@@ -42,7 +42,7 @@ enum ValueType {
 	public static function getClass<T>(o:T):Class<T> {
 		if (Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
 			var cls = Boot.getClass(Global.get_class(cast o));
-			return (cls == Boot.getHxAnon() ? null : cast cls);
+			return (Boot.isAnon(o) ? null : cast cls);
 		} else if (Global.is_string(o)) {
 			return cast String;
 		} else {
@@ -59,7 +59,11 @@ enum ValueType {
 	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
 		if (c == null)
 			return null;
-		var parentClass = Global.get_parent_class((cast c).phpClassName);
+		var parentClass = try {
+			Global.get_parent_class((cast c).phpClassName);
+		} catch(e) {
+			return null;
+		}
 		if (!parentClass)
 			return null;
 		return cast Boot.getClass(parentClass);

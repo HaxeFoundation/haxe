@@ -10,17 +10,14 @@ class Main {
 		runner.addCase(new TestFileSystem());
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
+		#if !js
 		runner.addCase(new io.TestProcess());
-		#if php
-		switch (Sys.systemName()) {
-			case "Windows":
-				// pass
-			case _:
-				runner.addCase(new net.TestSocket());
-		}
-		#else
-			runner.addCase(new net.TestSocket());
 		#end
+		#if !(java || cs || lua || python || eval || js) // Sqlite is not implemented for these targets
+		runner.addCase(new db.TestSqliteConnection());
+		runner.addCase(new db.TestSqliteResultSet());
+		#end
+		runner.addCase(new net.TestSocket());
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;

@@ -143,10 +143,12 @@ enum ValueType {
 			}
 		}
 
+	@:native("__hxcpp_enum_eq")
+	extern private static function nativeEnumEq(a:Dynamic, b:Dynamic):Bool;
+
+   #if !cppia inline #end
 	public static function enumEq<T>(a:T, b:T):Bool
-		untyped {
-			return a == b;
-		}
+		return nativeEnumEq(a,b);
 
 	public static function enumConstructor(e:EnumValue):String {
 		var value:cpp.EnumBase = cast e;

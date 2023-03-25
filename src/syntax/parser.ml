@@ -38,6 +38,12 @@ type decl_flag =
 	| DPrivate
 	| DExtern
 	| DFinal
+	| DMacro
+	| DDynamic
+	| DInline
+	| DPublic
+	| DStatic
+	| DOverload
 
 type type_decl_completion_mode =
 	| TCBeforePackage
@@ -61,6 +67,7 @@ exception TypePath of string list * (string * bool) option * bool (* in import *
 exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
 
 let error_msg = function
+	| Unexpected (Kwd k) -> "Unexpected keyword \""^(s_keyword k)^"\""
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
@@ -87,27 +94,23 @@ type 'a parse_result =
 	(* Parsed non-display file with errors *)
 	| ParseError of 'a * parse_error * parse_error list
 
+let s_decl_flag = function
+	| DPrivate -> "private"
+	| DExtern -> "extern"
+	| DFinal -> "final"
+	| DMacro -> "macro"
+	| DDynamic -> "dynamic"
+	| DInline -> "inline"
+	| DPublic -> "public"
+	| DStatic -> "static"
+	| DOverload -> "overload"
+
 let syntax_completion kind so p =
 	raise (SyntaxCompletion(kind,DisplayTypes.make_subject so p))
 
 let error m p = raise (Error (m,p))
 
-let special_identifier_files : (string,string) Hashtbl.t = Hashtbl.create 0
-
-let decl_flag_to_class_flag (flag,p) = match flag with
-	| DPrivate -> HPrivate
-	| DExtern -> HExtern
-	| DFinal -> HFinal
-
-let decl_flag_to_enum_flag (flag,p) = match flag with
-	| DPrivate -> EPrivate
-	| DExtern -> EExtern
-	| DFinal -> error (Custom "final on enums is not allowed") p
-
-let decl_flag_to_abstract_flag (flag,p) = match flag with
-	| DPrivate -> AbPrivate
-	| DExtern -> AbExtern
-	| DFinal -> error (Custom "final on abstracts is not allowed") p
+let special_identifier_files : (Path.UniqueKey.t,string) Hashtbl.t = Hashtbl.create 0
 
 module TokenCache = struct
 	let cache = ref (DynArray.create ())
@@ -161,12 +164,15 @@ let in_display_file = ref false
 let last_doc : (string * int) option ref = ref None
 let syntax_errors = ref []
 
-let syntax_error error_msg ?(pos=None) s v =
-	let p = (match pos with Some p -> p | None -> next_pos s) in
+let syntax_error_with_pos error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
 	if not !in_display then error error_msg p;
 	syntax_errors := (error_msg,p) :: !syntax_errors;
 	v
+
+let syntax_error error_msg ?(pos=None) s v =
+	let p = (match pos with Some p -> p | None -> next_pos s) in
+	syntax_error_with_pos error_msg p v
 
 let handle_stream_error msg s =
 	let err,pos = if msg = "" then begin
@@ -187,6 +193,40 @@ let get_doc s =
 		| Some (d,pos) ->
 			last_doc := None;
 			if pos = p.pmin then Some d else None
+
+let unsupported_decl_flag decl flag pos =
+	let msg = (s_decl_flag flag) ^ " modifier is not supported for " ^ decl in
+	syntax_error_with_pos (Custom msg) pos None
+
+let unsupported_decl_flag_class = unsupported_decl_flag "classes"
+let unsupported_decl_flag_enum = unsupported_decl_flag "enums"
+let unsupported_decl_flag_abstract = unsupported_decl_flag "abstracts"
+let unsupported_decl_flag_module_field = unsupported_decl_flag "module-level fields"
+
+let decl_flag_to_class_flag (flag,p) = match flag with
+	| DPrivate -> Some HPrivate
+	| DExtern -> Some HExtern
+	| DFinal -> Some HFinal
+	| DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_class flag p
+
+let decl_flag_to_enum_flag (flag,p) = match flag with
+	| DPrivate -> Some EPrivate
+	| DExtern -> Some EExtern
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_enum flag p
+
+let decl_flag_to_abstract_flag (flag,p) = match flag with
+	| DPrivate -> Some AbPrivate
+	| DExtern -> Some AbExtern
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p
+
+let decl_flag_to_module_field_flag (flag,p) = match flag with
+	| DPrivate -> Some (APrivate,p)
+	| DMacro -> Some (AMacro,p)
+	| DDynamic -> Some (ADynamic,p)
+	| DInline -> Some (AInline,p)
+	| DOverload -> Some (AOverload,p)
+	| DExtern -> Some (AExtern,p)
+	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
 
 let serror() = raise (Stream.Error "")
 
@@ -231,11 +271,11 @@ let precedence op =
 	| OpInterval -> 7, left
 	| OpBoolAnd -> 8, left
 	| OpBoolOr -> 9, left
-	| OpArrow -> 10, right
+	| OpArrow | OpNullCoal -> 10, right
 	| OpAssign | OpAssignOp _ -> 11, right
 
-let is_not_assign = function
-	| OpAssign | OpAssignOp _ -> false
+let is_higher_than_ternary = function
+	| OpAssign | OpAssignOp _ | OpArrow -> false
 	| _ -> true
 
 let swap op1 op2 =
@@ -248,7 +288,7 @@ let rec make_binop op e ((v,p2) as e2) =
 	| EBinop (_op,_e,_e2) when swap op _op ->
 		let _e = make_binop op e _e in
 		EBinop (_op,_e,_e2) , punion (pos _e) (pos _e2)
-	| ETernary (e1,e2,e3) when is_not_assign op ->
+	| ETernary (e1,e2,e3) when is_higher_than_ternary op ->
 		let e = make_binop op e e1 in
 		ETernary (e,e2,e3) , punion (pos e) (pos e3)
 	| _ ->
@@ -261,8 +301,9 @@ let rec make_unop op ((v,p2) as e) p1 =
 	match v with
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
-	| EConst (Int i) when op = Neg -> EConst (Int (neg i)),punion p1 p2
-	| EConst (Float j) when op = Neg -> EConst (Float (neg j)),punion p1 p2
+	| EIs (e, t) -> EIs (make_unop op e p1, t), punion p1 p2
+	| EConst (Int (i, suffix)) when op = Neg -> EConst (Int (neg i, suffix)),punion p1 p2
+	| EConst (Float (j, suffix)) when op = Neg -> EConst (Float (neg j, suffix)),punion p1 p2
 	| _ -> EUnop (op,Prefix,e), punion p1 p2
 
 let rec make_meta name params ((v,p2) as e) p1 =
@@ -271,11 +312,6 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| EBinop (bop,e,e2) -> EBinop (bop, make_meta name params e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
-
-let make_is e (t,p_t) p p_is =
-	let e_is = EField((EConst(Ident "Std"),null_pos),"isOfType"),p_is in
-	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
-	ECall(e_is,[e;e2]),p
 
 let handle_xml_literal p1 =
 	Lexer.reset();
@@ -363,7 +399,7 @@ let check_type_decl_completion mode pmax s =
 		if pmax <= p.pmin && pmin >= p.pmax then begin
 			let so,p = match Stream.peek s with
 			| Some((Const(Ident name),p)) when display_position#enclosed_in p -> (Some name),p
-			| Some(e,p) -> print_endline (s_token e); None,p
+			| Some(e,p) -> None,p
 			| _ -> None,p
 			in
 			delay_syntax_completion (SCTypeDecl mode) so p
@@ -382,3 +418,11 @@ let check_signature_mark e p1 p2 =
 			else e
 		end
 	end
+
+let convert_abstract_flags flags =
+	ExtList.List.filter_map decl_flag_to_abstract_flag flags
+
+let no_keyword what s =
+	match Stream.peek s with
+	| Some (Kwd kwd,p) -> error (Custom ("Keyword " ^ (s_keyword kwd) ^ " cannot be used as " ^ what)) p
+	| _ -> raise Stream.Failure

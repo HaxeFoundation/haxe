@@ -72,8 +72,8 @@ let rec eval ctx (e,p) =
 	| EConst (Ident i) ->
 		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
 	| EConst (String(s,_)) -> TString s
-	| EConst (Int i) -> TFloat (float_of_string i)
-	| EConst (Float f) -> TFloat (float_of_string f)
+	| EConst (Int (i, _)) -> TFloat (float_of_string i)
+	| EConst (Float (f, _)) -> TFloat (float_of_string f)
 	| ECall ((EConst (Ident "version"),_),[(EConst (String(s,_)), p)]) -> parse_version s p
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
@@ -87,7 +87,7 @@ let rec eval ctx (e,p) =
 		in
 		(match op with
 		| OpEq -> compare (=)
-		| OpNotEq -> compare (<>)
+		| OpNotEq -> TBool (not (is_true (compare (=))))
 		| OpGt -> compare (>)
 		| OpGte -> compare (>=)
 		| OpLt -> compare (<)
@@ -153,13 +153,13 @@ class condition_handler = object(self)
 		| e :: el ->
 			conditional_stack <- (self#negate e) :: el
 		| [] ->
-			assert false
+			die "" __LOC__
 
 	method cond_elseif (e : expr) =
 		self#cond_else;
 		self#cond_if' e;
 		match depths with
-		| [] -> assert false
+		| [] -> die "" __LOC__
 		| depth :: depths' ->
 			depths <- (depth + 1) :: depths'
 
@@ -169,7 +169,7 @@ class condition_handler = object(self)
 			else loop (d - 1) (List.tl el)
 		in
 		match depths with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| depth :: depths' ->
 				conditional_stack <- loop depth conditional_stack;
 				depths <- depths'
@@ -204,7 +204,7 @@ class dead_block_collector conds = object(self)
 end
 
 (* parse main *)
-let parse ctx code file =
+let parse entry ctx code file =
 	let old = Lexer.save() in
 	let restore_cache = TokenCache.clear () in
 	let was_display = !in_display in
@@ -213,7 +213,7 @@ let parse ctx code file =
 	let old_macro = !in_macro in
 	code_ref := code;
 	in_display := display_position#get <> null_pos;
-	in_display_file := !in_display && Path.unique_full_path file = (display_position#get).pfile;
+	in_display_file := !in_display && display_position#is_in_file (Path.UniqueKey.create file);
 	syntax_errors := [];
 	let restore =
 		(fun () ->
@@ -252,7 +252,8 @@ let parse ctx code file =
 				let p = pos tk in
 				(* Completion at the / should not pick up the comment (issue #9133) *)
 				let p = if is_completion() then {p with pmin = p.pmin + 1} else p in
-				if display_position#enclosed_in p then syntax_completion SCComment None (pos tk);
+				(* The > 0 check is to deal with the special case of line comments at the beginning of the file (issue #10322) *)
+				if display_position#enclosed_in p && p.pmin > 0 then syntax_completion SCComment None (pos tk);
 			end;
 			next_token()
 		| Sharp "end" ->
@@ -289,7 +290,7 @@ let parse ctx code file =
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
-				| (Const (Int s),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
+				| (Const (Int (s, _)),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;
@@ -360,7 +361,7 @@ let parse ctx code file =
 		Some t
 	) in
 	try
-		let l = parse_file s in
+		let l = entry s in
 		(match !mstack with p :: _ -> syntax_error Unclosed_conditional ~pos:(Some p) sraw () | _ -> ());
 		let was_display_file = !in_display_file in
 		restore();
@@ -384,7 +385,7 @@ let parse ctx code file =
 			restore();
 			raise e
 
-let parse_string com s p error inlined =
+let parse_string entry com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
 	let old_display = display_position#get in
@@ -402,13 +403,14 @@ let parse_string com s p error inlined =
 		syntax_errors := old_syntax_errors;
 		Lexer.restore old
 	in
-	Lexer.init p.pfile;
-	if not inlined then begin
+	if inlined then
+		Lexer.init p.pfile
+	else begin
 		display_position#reset;
 		in_display_file := false;
 	end;
 	let result = try
-		parse com (Sedlexing.Utf8.from_string s) p.pfile
+		parse entry com (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)
@@ -420,13 +422,16 @@ let parse_string com s p error inlined =
 	result
 
 let parse_expr_string com s p error inl =
-	let head = "class X{static function main() " in
-	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
-	let extract_expr (_,decls) = match decls with
-		| [EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> (if inl then e else loop e)
-		| _ -> raise Exit
-	in
-	match parse_string com (head ^ s ^ ";}") p error inl with
-	| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(extract_expr data,is_display_file,pdi)
-	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
+	let s = if p.pmin > 0 then (String.make p.pmin ' ') ^ s else s in
+	let result = parse_string expr com s p error inl in
+	if inl then
+		result
+	else begin
+		let rec loop e =
+			let e = map_expr loop e in
+			(fst e,p)
+		in
+		match result with
+		| ParseSuccess(data,is_display_file,pdi) -> ParseSuccess(loop data,is_display_file,pdi)
+		| ParseError(data,error,errors) -> ParseError(loop data,error,errors)
+	end

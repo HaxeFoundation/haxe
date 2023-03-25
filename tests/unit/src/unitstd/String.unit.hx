@@ -71,9 +71,7 @@ s.indexOf("oo") == 1;
 //s.indexOf("r", -1) == -1;
 //s.indexOf("r", -10) == -1;
 s.indexOf("", 2) == 2;
-#if !lua //See https://github.com/HaxeFoundation/haxe/issues/7609
 s.indexOf("", 200) == s.length;
-#end
 s.indexOf("o", 1) == 1;
 s.indexOf("o", 2) == 2;
 s.indexOf("o", 3) == -1;

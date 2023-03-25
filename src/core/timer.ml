@@ -63,9 +63,9 @@ let rec close now t =
 				| current :: _ ->
 					match current.pauses with
 					| pauses :: rest -> current.pauses <- (dt +. pauses) :: rest
-					| _ -> assert false
+					| _ -> Globals.die "" __LOC__
 				)
-			| _ -> assert false
+			| _ -> Globals.die "" __LOC__
 		end else
 			close now tt
 
@@ -115,7 +115,7 @@ let build_times_tree () =
 	} in
 	Hashtbl.iter (fun _ timer ->
 		let rec loop parent sl = match sl with
-			| [] -> assert false
+			| [] -> Globals.die "" __LOC__
 			| s :: sl ->
 				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
 				let node = try
@@ -191,3 +191,23 @@ let report_times print =
 	List.iter (loop 0) root.children;
 	print sep;
 	print_time "total" root
+
+class timer (id : string list) = object(self)
+	method run_finally : 'a . (unit -> 'a) -> (unit -> unit) -> 'a = fun f finally ->
+		let timer = timer id in
+		try
+			let r = f() in
+			timer();
+			finally();
+			r
+		with exc ->
+			timer();
+			finally();
+			raise exc
+
+	method run : 'a . (unit -> 'a) -> 'a = fun f ->
+		self#run_finally f (fun () -> ())
+
+	method nest (name : string) =
+		new timer (id @ [name])
+end

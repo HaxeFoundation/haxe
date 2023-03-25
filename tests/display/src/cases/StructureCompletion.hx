@@ -32,7 +32,7 @@ class StructureCompletion extends DisplayTestCase {
 				test({{-1-}
 			}
 
-			static function test(o:{a:Float, b:String}) { }
+			public static function test(o:{a:Float, b:String}) { }
 		}
 	**/
 	function testStructureCompletion4() {
@@ -46,7 +46,7 @@ class StructureCompletion extends DisplayTestCase {
 				test(0, {{-1-}
 			}
 
-			static function test(x, o:{a:Float, b:String}) { }
+			public static function test(x, o:{a:Float, b:String}) { }
 		}
 	**/
 	function testStructureCompletion5() {
@@ -168,12 +168,12 @@ class StructureCompletion extends DisplayTestCase {
 			var field2:String;
 		}
 		class Main {
-			static function test1():Foo return { f{-1-}ie{-2-}
-			static function test2():Foo return { f{-3-}ie{-4-}:
-			static function test3():Foo return { f{-5-}ie{-6-} }
-			static function test4():Foo return { f{-7-}ie{-8-} : }
-			static function test5():Foo return { f{-9-}ie{-10-} : null }
-			static function test6():Foo return { f{-11-}ie{-12-} : null
+			public static function test1():Foo return { f{-1-}ie{-2-}
+			public static function test2():Foo return { f{-3-}ie{-4-}:
+			public static function test3():Foo return { f{-5-}ie{-6-} }
+			public static function test4():Foo return { f{-7-}ie{-8-} : }
+			public static function test5():Foo return { f{-9-}ie{-10-} : null }
+			public static function test6():Foo return { f{-11-}ie{-12-} : null
 	**/
 	function testStructureVsToplevel9() {
 		for (i in 1...13) {

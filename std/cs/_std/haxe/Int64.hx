@@ -29,6 +29,7 @@ import haxe.Int64Helper;
 private typedef __Int64 = cs.StdTypes.Int64;
 
 @:coreApi
+@:transitive
 abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function make(high:Int32, low:Int32):Int64
 		return new Int64((cast(high, __Int64) << 32) | (cast(low, __Int64) & (untyped __cs__('0xffffffffL') : Int64)));
@@ -46,12 +47,12 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	public var high(get, never):Int32;
 
-	public inline function get_high():Int32
+	inline function get_high():Int32
 		return cast(this >> 32);
 
 	public var low(get, never):Int32;
 
-	public inline function get_low():Int32
+	inline function get_low():Int32
 		return cast this;
 
 	public inline function copy():Int64

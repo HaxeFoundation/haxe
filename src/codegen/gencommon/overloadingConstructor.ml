@@ -114,9 +114,9 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 	| false ->
 		let static_ctor_name = make_static_ctor_name cl in
 		(* create the static constructor *)
-		let ctor_types = List.map (fun (s,t) -> (s, TInst(map_param (get_cl_t t), []))) cl.cl_params in
-		let ctor_type_params = List.map snd ctor_types in
-		List.iter (function (_,TInst(c,[])) -> (
+		let ctor_types = List.map (fun tp -> {tp with ttp_type = TInst(map_param (get_cl_t tp.ttp_type), [])}) cl.cl_params in
+		let ctor_type_params = extract_param_types ctor_types in
+		List.iter (function {ttp_type=TInst(c,[])} -> (
 			match c.cl_kind with
 			| KTypeParameter (hd :: tail) ->
 				let before = hd :: tail in
@@ -124,15 +124,15 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 				c.cl_kind <- KTypeParameter(after)
 			| _ -> ())
 		| _ -> ()) ctor_types;
-		let me = alloc_var "__hx_this" (TInst(cl, List.map snd ctor_types)) in
-		me.v_capture <- true;
+		let me = alloc_var "__hx_this" (TInst(cl, extract_param_types ctor_types)) in
+		add_var_flag me VCaptured;
 
 		let fn_args, _ = get_fun ctor.cf_type in
-		let ctor_params = List.map snd ctor_types in
+		let ctor_params = extract_param_types ctor_types in
 		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, com.basic.tvoid) in
 		let cur_tf_args = match ctor.cf_expr with
 		| Some { eexpr = TFunction(tf) } -> tf.tf_args
-		| _ -> assert false
+		| _ -> Globals.die "" __LOC__
 		in
 
 		let changed_tf_args = List.map (fun (v,_) -> (v,None)) cur_tf_args in
@@ -140,13 +140,13 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let local_map = Hashtbl.create (List.length cur_tf_args) in
 		let static_tf_args = (me, None) :: List.map (fun (v,b) ->
 			let new_v = alloc_var v.v_name (apply_params cl.cl_params ctor_params v.v_type) in
-			new_v.v_capture <- v.v_capture;
+			add_var_flag new_v VCaptured;
 			Hashtbl.add local_map v.v_id new_v;
 			(new_v, b)
 		) cur_tf_args in
 
-		let static_ctor = mk_class_field static_ctor_name fn_type false ctor.cf_pos (Method MethNormal) ctor_types in
-		let static_ctor_meta = if cl.cl_final then Meta.Private else Meta.Protected in
+		let static_ctor = mk_class_field ~static:true static_ctor_name fn_type false ctor.cf_pos (Method MethNormal) ctor_types in
+		let static_ctor_meta = if has_class_flag cl CFinal then Meta.Private else Meta.Protected in
 		static_ctor.cf_meta <- (static_ctor_meta,[],ctor.cf_pos) :: static_ctor.cf_meta;
 
 		(* change ctor contents to reference the 'me' var instead of 'this' *)
@@ -185,7 +185,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		let expr = match expr.eexpr with
 		| TFunction(tf) ->
 			{ expr with etype = fn_type; eexpr = TFunction({ tf with tf_args = static_tf_args }) }
-		| _ -> assert false in
+		| _ -> Globals.die "" __LOC__ in
 		static_ctor.cf_expr <- Some expr;
 		(* add to the statics *)
 		(try
@@ -201,23 +201,39 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 			| None -> [], ctor.cf_pos
 			| Some super -> [super], super.epos
 			in
+			let el_args =
+				let rec loop fn_args cur_args =
+					match cur_args with
+					| [] -> []
+					| (v,_) :: cur_args ->
+						let local = mk_local v p in
+						match fn_args, cur_args with
+						| [_,_,t], [] when ExtType.is_rest (follow t) ->
+							[mk (TUnop(Spread,Prefix,local)) v.v_type p]
+						| [], _ ->
+							local :: loop fn_args cur_args
+						| _ :: fn_args, _ ->
+							local :: loop fn_args cur_args
+				in
+				loop fn_args cur_tf_args
+			in
 			let block_contents = block_contents @ [{
 				eexpr = TCall(
 					{
 						eexpr = TField(
 							Texpr.Builder.make_static_this cl p,
 							FStatic(cl, static_ctor));
-						etype = apply_params static_ctor.cf_params (List.map snd cl.cl_params) static_ctor.cf_type;
+						etype = apply_params static_ctor.cf_params (extract_param_types cl.cl_params) static_ctor.cf_type;
 						epos = p
 					},
-					[{ eexpr = TConst TThis; etype = TInst(cl, List.map snd cl.cl_params); epos = p }]
-					@ List.map (fun (v,_) -> mk_local v p) cur_tf_args
+					[{ eexpr = TConst TThis; etype = TInst(cl, extract_param_types cl.cl_params); epos = p }]
+					@ el_args
 				);
 				etype = com.basic.tvoid;
 				epos = p
 			}] in
 			ctor.cf_expr <- Some { e with eexpr = TFunction({ tf with tf_expr = { tf.tf_expr with eexpr = TBlock block_contents }; tf_args = changed_tf_args }) }
-		| _ -> assert false
+		| _ -> Globals.die "" __LOC__
 
 (* makes constructors that only call super() for the 'ctor' argument *)
 let clone_ctors com ctor sup stl cl =
@@ -234,7 +250,7 @@ let clone_ctors com ctor sup stl cl =
 		let super_call =
 		{
 			eexpr = TCall(
-				{ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = ctor.cf_pos },
+				{ eexpr = TConst TSuper; etype = TInst(cl, extract_param_types cl.cl_params); epos = ctor.cf_pos },
 				List.map (fun (v,_) -> mk_local v ctor.cf_pos) tf_args);
 			etype = com.basic.tvoid;
 			epos = ctor.cf_pos;
@@ -257,10 +273,10 @@ let clone_ctors com ctor sup stl cl =
 	match clones with
 	| [] ->
 		(* raise Not_found *)
-		assert false (* should never happen *)
+		Globals.die "" __LOC__ (* should never happen *)
 	| cf :: [] -> cf
 	| cf :: overl ->
-		cf.cf_meta <- (Meta.Overload,[],cf.cf_pos) :: cf.cf_meta;
+		add_class_field_flag cf CfOverload;
 		cf.cf_overloads <- overl; cf
 
 let rec descends_from_native_or_skipctor cl =
@@ -284,7 +300,7 @@ let ensure_super_is_first com cf =
 
 let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t -> t) =
 	let basic = com.basic in
-	let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
+	let should_change cl = not (has_class_flag cl CInterface) && (not (has_class_flag cl CExtern) || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) in
 	let msize = List.length com.types in
 	let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
 
@@ -312,7 +328,7 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 						ctor
 					| None ->
 						try
-							let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
+							let sctor, sup, stl = prev_ctor cl (extract_param_types cl.cl_params) in
 							(* we'll make constructors that will only call super() *)
 							let ctor = clone_ctors com sctor sup stl cl in
 							cl.cl_constructor <- Some ctor;
@@ -367,12 +383,12 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 					| Some (sup,_) ->
 						try
 							ignore (get_last_empty sup);
-							let esuper = mk (TConst TSuper) (TInst (cl, List.map snd cl.cl_params)) cl.cl_pos in
+							let esuper = mk (TConst TSuper) (TInst (cl, extract_param_types cl.cl_params)) cl.cl_pos in
 							[mk (TCall (esuper, [empty_ctor_expr])) basic.tvoid cl.cl_pos]
 						with Not_found ->
 							try
 								(* super type is native: find super constructor with least arguments *)
-								let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
+								let sctor, sup, stl = prev_ctor cl (extract_param_types cl.cl_params) in
 								let rec loop remaining (best,n) =
 									match remaining with
 									| [] -> best

@@ -73,7 +73,7 @@ class ImportAll {
 		case "tools", "build-tool", "jar-tool": return;
 		}
 		for( p in Context.getClassPath() ) {
-			if( p == "/" )
+			if( p == "/" || p == "" )
 				continue;
 			// skip if we have a classpath to haxe
 			if( pack.length == 0 && sys.FileSystem.exists(p+"std") )
@@ -99,6 +99,9 @@ class ImportAll {
 					case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
 					case "neko.vm.Ui" | "sys.db.Sqlite" | "sys.db.Mysql" if ( Context.defined("interp") ): continue;
 					case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet" if ( Context.defined("cs") ): continue;
+					case "haxe.atomic.AtomicBool" if(!Context.defined("target.atomics")): continue;
+					case "haxe.atomic.AtomicInt" if(!Context.defined("target.atomics")): continue;
+					case "haxe.atomic.AtomicObject" if(!Context.defined("target.atomics") || Context.defined("js") || Context.defined("cpp")): continue;
 					}
 					Context.getModule(cl);
 				} else if( sys.FileSystem.isDirectory(p + "/" + file) )

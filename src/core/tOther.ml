@@ -7,18 +7,9 @@ open TPrinting
 module TExprToExpr = struct
 	let tpath p mp pl =
 		if snd mp = snd p then
-			CTPath {
-				tpackage = fst p;
-				tname = snd p;
-				tparams = pl;
-				tsub = None;
-			}
-		else CTPath {
-				tpackage = fst mp;
-				tname = snd mp;
-				tparams = pl;
-				tsub = Some (snd p);
-			}
+			CTPath (mk_type_path ~params:pl p)
+		else
+			CTPath (mk_type_path ~params:pl ~sub:(snd p) mp)
 
 	let rec convert_type = function
 		| TMono r ->
@@ -29,12 +20,7 @@ module TExprToExpr = struct
 		| TEnum ({e_private = true; e_path=_,name},tl)
 		| TType ({t_private = true; t_path=_,name},tl)
 		| TAbstract ({a_private = true; a_path=_,name},tl) ->
-			CTPath {
-				tpackage = [];
-				tname = name;
-				tparams = List.map tparam tl;
-				tsub = None;
-			}
+			CTPath (mk_type_path ~params:(List.map tparam tl) ([],name))
 		| TEnum (e,pl) ->
 			tpath e.e_path e.e_module.m_path (List.map tparam pl)
 		| TInst({cl_kind = KExpr e} as c,pl) ->
@@ -49,25 +35,61 @@ module TExprToExpr = struct
 		| TAbstract (a,pl) ->
 			tpath a.a_path a.a_module.m_path (List.map tparam pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
+			CTFunction (List.map (fun (n,o,t) ->
+				let ct = convert_type' t in
+					let ct = if n = "" then ct else CTNamed((n,null_pos),ct),null_pos in
+					if o then CTOptional ct,null_pos else ct
+				) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
 			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
 			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
+					let access = ref [] in
+					let add flag =
+						access := (flag,null_pos) :: !access;
+					in
+					if has_class_field_flag f CfPublic then add APublic else add APrivate;
+					if has_class_field_flag f CfFinal then add AFinal;
+					if has_class_field_flag f CfExtern then add AExtern;
+					let kind = match (f.cf_kind,follow f.cf_type) with
+						| (Var v,ret) ->
+							let var_access_to_string va get_or_set = match va with
+								| AccNormal | AccCtor | AccInline | AccRequire _ -> "default"
+								| AccNo -> "null"
+								| AccNever -> "never"
+								| AccCall -> get_or_set
+							in
+							let read = (var_access_to_string v.v_read "get",null_pos) in
+							let write = (var_access_to_string v.v_write "set",null_pos) in
+							FProp (read,write,mk_type_hint f.cf_type null_pos,None)
+						| Method _,TFun(args,ret) ->
+							FFun({
+								f_params = [];
+								f_args = List.map (fun (n,o,t) ->
+									((n,null_pos),o,[],Some (convert_type t,null_pos),None)
+								) args;
+								f_type = Some (convert_type ret,null_pos);
+								f_expr = None;
+							})
+						| _ ->
+							die "" __LOC__
+					in
 					{
 						cff_name = f.cf_name,null_pos;
-						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
+						cff_kind = kind;
 						cff_pos = f.cf_pos;
 						cff_doc = f.cf_doc;
 						cff_meta = f.cf_meta;
-						cff_access = [];
+						cff_access = !access;
 					} :: acc
 				) a.a_fields [])
 			end
-		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [tparam t2])
+		| TDynamic None ->
+			tpath ([],"Dynamic") ([],"Dynamic") []
+		| TDynamic (Some t2) ->
+			tpath ([],"Dynamic") ([],"Dynamic") [tparam t2]
 		| TLazy f ->
 			convert_type (lazy_type f)
 
@@ -105,19 +127,22 @@ module TExprToExpr = struct
 		| TLocal v -> EConst (mk_ident v.v_name)
 		| TArray (e1,e2) -> EArray (convert_expr e1,convert_expr e2)
 		| TBinop (op,e1,e2) -> EBinop (op, convert_expr e1, convert_expr e2)
-		| TField (e,f) -> EField (convert_expr e, field_name f)
+		| TField (e,f) -> EField (convert_expr e, field_name f, EFNormal)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
-		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)
+		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> die "" __LOC__),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
 			EFunction (FKAnonymous,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([(v.v_name,v.v_pos), v.v_final, mk_type_hint v.v_type v.v_pos, eopt eo])
+			let final = has_var_flag v VFinal
+			and t = mk_type_hint v.v_type v.v_pos
+			and eo = eopt eo in
+			EVars ([mk_evar ~final ?t ?eo ~meta:v.v_meta (v.v_name,v.v_pos)])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
@@ -133,13 +158,13 @@ module TExprToExpr = struct
 		| TEnumIndex _
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
-			assert false
+			die "" __LOC__
 		| TTry (e,catches) ->
 			let e1 = convert_expr e in
 			let catches = List.map (fun (v,e) ->
-				let ct = try convert_type v.v_type,null_pos with Exit -> assert false in
+				let ct = try convert_type v.v_type,null_pos with Exit -> die "" __LOC__ in
 				let e = convert_expr e in
-				(v.v_name,v.v_pos),ct,e,(pos e)
+				(v.v_name,v.v_pos),(Some ct),e,(pos e)
 			) catches in
 			ETry (e1,catches)
 		| TReturn e -> EReturn (eopt e)
@@ -151,7 +176,7 @@ module TExprToExpr = struct
 				| None -> None
 				| Some t ->
 					let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
-					Some (try convert_type t,null_pos with Exit -> assert false)
+					Some (try convert_type t,null_pos with Exit -> die "" __LOC__)
 			) in
 			ECast (convert_expr e,t)
 		| TMeta ((Meta.Ast,[e1,_],_),_) -> e1
@@ -191,6 +216,16 @@ module ExtType = struct
 		| TAbstract({a_path=[],"Bool"},_) -> true
 		| _ -> false
 
+	let is_rest t = match t with
+		| TType({t_path=["haxe"; "extern"],"Rest"},_)
+		| TAbstract({a_path=["haxe"],"Rest"},_) -> true
+		| _ -> false
+
+	let is_type_param t =
+		match t with
+		| TInst({ cl_kind = KTypeParameter _ }, _) -> true
+		| _ -> false
+
 	type semantics =
 		| VariableSemantics
 		| ReferenceSemantics
@@ -209,7 +244,7 @@ module ExtType = struct
 		let rec loop t = match t with
 			| TInst(c,_) -> check c.cl_meta
 			| TEnum(en,_) -> check en.e_meta
-			| TType(t,tl) -> check t.t_meta || (loop (apply_params t.t_params tl t.t_type))
+			| TType(t,tl) -> check t.t_meta || (loop (apply_typedef t tl))
 			| TAbstract(a,_) -> check a.a_meta
 			| TLazy f -> loop (lazy_type f)
 			| TMono r ->
@@ -228,50 +263,20 @@ end
 
 let no_meta = []
 
-let class_module_type c = {
-	t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
-	t_module = c.cl_module;
-	t_doc = None;
-	t_pos = c.cl_pos;
-	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = c.cl_statics;
-		a_status = ref (Statics c);
-	};
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let class_module_type c =
+	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
+	let t = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
+	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
-let enum_module_type m path p  = {
-	t_path = [], "Enum<" ^ (s_type_path path) ^ ">";
-	t_module = m;
-	t_doc = None;
-	t_pos = p;
-	t_name_pos = null_pos;
-	t_type = mk_mono();
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = [];
-}
+let enum_module_type m path p  =
+	let path = ([], "Enum<" ^ (s_type_path path) ^ ">") in
+	let t = mk_mono() in
+	{(mk_typedef m path p null_pos t) with t_private = true}
 
-let abstract_module_type a tl = {
-	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
-	t_module = a.a_module;
-	t_doc = None;
-	t_pos = a.a_pos;
-	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (AbstractStatics a);
-	};
-	t_private = true;
-	t_params = [];
-	t_using = [];
-	t_meta = no_meta;
-}
+let abstract_module_type a tl =
+	let path = ([],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl)) in
+	let t = mk_anon (ref (AbstractStatics a)) in
+	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
 
 module TClass = struct
 	let get_member_fields' self_too c0 tl =
@@ -284,7 +289,7 @@ module TClass = struct
 				end else acc
 			in
 			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
-			if c.cl_interface then
+			if (has_class_flag c CInterface) then
 				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc c.cl_implements
 			else
 				match c.cl_super with
@@ -294,7 +299,7 @@ module TClass = struct
 		loop PMap.empty c0 tl
 
 	let get_all_super_fields c =
-		get_member_fields' false c (List.map snd c.cl_params)
+		get_member_fields' false c (extract_param_types c.cl_params)
 
 	let get_all_fields c tl =
 		get_member_fields' true c tl
@@ -312,6 +317,27 @@ module TClass = struct
 				end
 		in
 		loop [] c
+
+	let add_field c cf =
+		let is_static = has_class_field_flag cf CfStatic in
+		if is_static then begin
+			c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
+			c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+		end else begin
+			c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
+			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+		end
+
+	let get_map_function c tl =
+		let rec loop map c = match c.cl_super with
+			| Some(csup,tl) ->
+				let map t = map (apply_params csup.cl_params tl t) in
+				loop map csup
+			| None ->
+				map
+		in
+		let apply = apply_params c.cl_params tl in
+		loop apply c
 end
 
 let s_class_path c =

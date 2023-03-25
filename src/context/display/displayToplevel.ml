@@ -18,7 +18,7 @@
 *)
 open Ast
 open Common
-open CompilationServer
+open CompilationCache
 open Type
 open Typecore
 open CompletionItem
@@ -27,24 +27,45 @@ open DisplayTypes
 open Genjson
 open Globals
 
+(* Merges argument and return types from macro and non-macro context, preferring the one that isn't Dynamic.
+   WARNING: Merging types from boths contexts like this is dangerous. The resuling type must never be
+   persisted on the compilation server, or else the compiler gets COVID. *)
+let perform_type_voodoo t tl' tr' =
+	match t with
+	| TFun(tl,tr) ->
+		let rec loop acc tl tl' = match tl,tl' with
+			| ((_,_,t1) as a1 :: tl),((_,_,t1') as a1' :: tl') ->
+				let a = if t1 == t_dynamic then a1' else a1 in
+				loop (a :: acc) tl tl'
+			| _ -> (List.rev acc) @ tl'
+		in
+		let tl = loop [] tl tl' in
+		TFun(tl,if tr == t_dynamic then tr' else tr')
+	| _ ->
+		TFun(tl',tr')
+
 let maybe_resolve_macro_field ctx t c cf =
 	try
 		if cf.cf_kind <> Method MethMacro then raise Exit;
 		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
-		(TFun(tl,tr)),c,cf
+		let t = perform_type_voodoo t tl tr in
+		t,{cf with cf_type = t}
 	with _ ->
-		t,c,cf
+		t,cf
 
 let exclude : string list ref = ref []
 
-class explore_class_path_task cs com recursive f_pack f_module dir pack = object(self)
+class explore_class_path_task com checked recursive f_pack f_module dir pack = object(self)
 	inherit server_task ["explore";dir] 50
+	val platform_str = platform_name_macro com
 
 	method private execute : unit =
+		let unique_dir = Path.UniqueKey.create dir in
 		let dot_path = (String.concat "." (List.rev pack)) in
-		if (List.mem dot_path !exclude) then
+		if (List.mem dot_path !exclude) || Hashtbl.mem checked unique_dir then
 			()
 		else try
+			Hashtbl.add checked unique_dir true;
 			let entries = Sys.readdir dir in
 			Array.iter (fun file ->
 				match file with
@@ -59,18 +80,23 @@ class explore_class_path_task cs com recursive f_pack f_module dir pack = object
 						with Not_found ->
 							f_pack (List.rev pack,file);
 							if recursive then begin
-								let task = new explore_class_path_task cs com recursive f_pack f_module (dir ^ file ^ "/") (file :: pack) in
-								begin match cs with
-									| None -> task#run
-									| Some cs' -> cs'#add_task task
-								end
+								(new explore_class_path_task com checked recursive f_pack f_module (dir ^ file ^ "/") (file :: pack))#run
 							end
 						end
 					| _ ->
 						let l = String.length file in
 						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
 							try
-								let name = String.sub file 0 (l - 3) in
+								let name =
+									let name = String.sub file 0 (l - 3) in
+									try
+										let dot_pos = String.rindex name '.' in
+										if platform_str = String.sub file dot_pos (String.length name - dot_pos) then
+											String.sub file 0 dot_pos
+										else
+											raise Exit
+									with Not_found -> name
+								in
 								let path = (List.rev pack,name) in
 								let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
 								if (List.mem dot_path !exclude) then () else f_module (dir ^ file) path;
@@ -84,33 +110,32 @@ class explore_class_path_task cs com recursive f_pack f_module dir pack = object
 end
 
 let explore_class_paths com timer class_paths recursive f_pack f_module =
-	let cs = CompilationServer.get() in
+	let cs = com.cs in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
+	let checked = Hashtbl.create 0 in
 	let tasks = List.map (fun dir ->
-		new explore_class_path_task cs com recursive f_pack f_module dir []
+		new explore_class_path_task com checked recursive f_pack f_module dir []
 	) class_paths in
-	begin match cs with
-	| None -> List.iter (fun task -> task#run) tasks
-	| Some cs -> List.iter (fun task -> cs#add_task task) tasks
-	end;
+	let task = new arbitrary_task ["explore"] 50 (fun () ->
+		List.iter (fun task -> task#run) tasks
+	) in
+	cs#add_task task;
 	t()
 
 let read_class_paths com timer =
 	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
-		if not (DisplayPosition.display_position#is_in_file file) then begin
+		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
 			let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
-			match CompilationServer.get() with
-			| Some cs when pack <> fst path ->
-				let file = Path.unique_full_path file in
-				(CommonCache.get_cache cs com)#remove_file_for_real file
-			| _ ->
-				()
+			if pack <> fst path then begin
+				let file_key = com.file_keys#get file in
+				(CommonCache.get_cache com)#remove_file_for_real file_key
+			end
 		end
 	)
 
 let init_or_update_server cs com timer_name =
-	let cc = CommonCache.get_cache cs com in
+	let cc = CommonCache.get_cache com in
 	if not cc#is_initialized then begin
 		cc#set_initialized true;
 		read_class_paths com timer_name
@@ -124,12 +149,12 @@ let init_or_update_server cs com timer_name =
 		re-parse them and remove them from c_removed_files. *)
 	let removed_files = cc#get_removed_files in
 	let removed_removed_files = DynArray.create () in
-	Hashtbl.iter (fun file () ->
-		DynArray.add removed_removed_files file;
+	Hashtbl.iter (fun file_key file_path ->
+		DynArray.add removed_removed_files file_key;
 		try
-			ignore(cc#find_file file);
+			ignore(cc#find_file file_key);
 		with Not_found ->
-			try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with _ -> ()
 	) removed_files;
 	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
@@ -213,7 +238,7 @@ let collect ctx tk with_type sort =
 
 	let add_type mt =
 		match mt with
-		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
+		| TClassDecl {cl_kind = KAbstractImpl _ | KModuleFields _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
 			let mname = snd (t_infos mt).mt_module.m_path in
@@ -241,7 +266,8 @@ let collect ctx tk with_type sort =
 					| EEnum d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
 					| ETypedef d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
 					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags,d.d_meta
-					| _ -> raise Exit
+					| EStatic d -> fst d.d_name,List.exists (fun (a,_) -> a = APrivate) d.d_flags,d.d_meta
+					| EImport _ | EUsing _ -> raise Exit
 				in
 				let path = Path.full_dot_path pack name tname in
 				if not (path_exists cctx path) && not is_private && not (Meta.has Meta.NoCompletion meta) then begin
@@ -278,16 +304,16 @@ let collect ctx tk with_type sort =
 		let add_field scope origin cf =
 			let origin,cf = match origin with
 				| Self (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					Self (TClassDecl c),cf
 				| StaticImport (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					StaticImport (TClassDecl c),cf
 				| Parent (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					Parent (TClassDecl c),cf
 				| StaticExtension (TClassDecl c) ->
-					let _,c,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
+					let _,cf = maybe_resolve_macro_field ctx cf.cf_type c cf in
 					StaticExtension (TClassDecl c),cf
 				| _ ->
 					origin,cf
@@ -300,7 +326,7 @@ let collect ctx tk with_type sort =
 		in
 		(* member fields *)
 		if ctx.curfun <> FunStatic then begin
-			let all_fields = Type.TClass.get_all_fields ctx.curclass (List.map snd ctx.curclass.cl_params) in
+			let all_fields = Type.TClass.get_all_fields ctx.curclass (extract_param_types ctx.curclass.cl_params) in
 			PMap.iter (fun _ (c,cf) ->
 				let origin = if c == ctx.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
 				maybe_add_field CFSMember origin cf
@@ -313,7 +339,7 @@ let collect ctx tk with_type sort =
 		| KAbstractImpl ({a_impl = Some c} as a) ->
 			let origin = Self (TAbstractDecl a) in
 			List.iter (fun cf ->
-				if Meta.has Meta.Impl cf.cf_meta then begin
+				if has_class_field_flag cf CfImpl then begin
 					if ctx.curfun = FunStatic then ()
 					else begin
 						let cf = prepare_using_field cf in
@@ -329,11 +355,11 @@ let collect ctx tk with_type sort =
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) && ctx.curclass != c ->
+			| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum && not (path_exists cctx a.a_path) && ctx.curclass != c ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
-					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
+					if (has_class_field_flag cf CfEnum) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
 						add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
 				) c.cl_ordered_statics
 			| TTypeDecl t ->
@@ -352,7 +378,7 @@ let collect ctx tk with_type sort =
 				()
 		in
 		List.iter enum_ctors ctx.m.curmod.m_types;
-		List.iter enum_ctors (List.map fst ctx.m.module_types);
+		List.iter enum_ctors (List.map fst ctx.m.module_imports);
 
 		(* enum constructors of expected type *)
 		begin match with_type with
@@ -370,11 +396,13 @@ let collect ctx tk with_type sort =
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
 					let decl,make = match c.cl_kind with
 						| KAbstractImpl a -> TAbstractDecl a,
-							if Meta.has Meta.Enum cf.cf_meta then make_ci_enum_abstract_field a else make_ci_class_field
+							if has_class_field_flag cf CfEnum then make_ci_enum_abstract_field a else make_ci_class_field
 						| _ -> TClassDecl c,make_ci_class_field
 					in
 					let origin = StaticImport decl in
-					add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
+					if can_access ctx c cf true && not (Meta.has Meta.NoCompletion cf.cf_meta) then begin
+						add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
+					end
 				in
 				match resolve_typedef mt with
 					| TClassDecl c -> class_import c;
@@ -395,12 +423,15 @@ let collect ctx tk with_type sort =
 		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
 		begin match ctx.curfun with
 			| FunMember | FunConstructor | FunMemberClassLocal ->
-				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
+				let t = TInst(ctx.curclass,extract_param_types ctx.curclass.cl_params) in
 				add (make_ci_literal "this" (tpair t)) (Some "this");
 				begin match ctx.curclass.cl_super with
 					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
 					| None -> ()
 				end
+			| FunMemberAbstract ->
+				let t = TInst(ctx.curclass,extract_param_types ctx.curclass.cl_params) in
+				add (make_ci_literal "abstract" (tpair t)) (Some "abstract");
 			| _ ->
 				()
 		end;
@@ -419,71 +450,59 @@ let collect ctx tk with_type sort =
 	end;
 
 	(* type params *)
-	List.iter (fun (s,t) -> match follow t with
+	List.iter (fun tp -> match follow tp.ttp_type with
 		| TInst(c,_) ->
-			add (make_ci_type_param c (tpair t)) (Some (snd c.cl_path))
-		| _ -> assert false
+			add (make_ci_type_param c (tpair tp.ttp_type)) (Some (snd c.cl_path))
+		| _ -> die "" __LOC__
 	) ctx.type_params;
 
 	(* module types *)
 	List.iter add_type ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter add_type (List.rev_map fst ctx.m.module_types); (* reverse! *)
+	List.iter add_type (List.rev_map fst ctx.m.module_imports); (* reverse! *)
 
 	(* types from files *)
-	begin match !CompilationServer.instance with
-	| None ->
-		(* offline: explore class paths *)
-		let class_paths = ctx.com.class_path in
-		let class_paths = List.filter (fun s -> s <> "") class_paths in
-		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun file path ->
-			if not (path_exists cctx path) then begin
-				let _,decls = Display.parse_module ctx path Globals.null_pos in
-				ignore(process_decls (fst path) (snd path) decls)
-			end
-		)
-	| Some cs ->
-		(* online: iter context files *)
-		init_or_update_server cs ctx.com ["display";"toplevel"];
-		let cc = CommonCache.get_cache cs ctx.com in
-		let files = cc#get_files in
-		(* Sort files by reverse distance of their package to our current package. *)
-		let files = Hashtbl.fold (fun file cfile acc ->
-			let i = pack_similarity curpack cfile.c_package in
-			((file,cfile),i) :: acc
-		) files [] in
-		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
-		let check_package pack = match List.rev pack with
-			| [] -> ()
-			| s :: sl -> add_package (List.rev sl,s)
-		in
-		List.iter (fun ((file,cfile),_) ->
-			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
-			let dot_path = s_type_path (cfile.c_package,module_name) in
-			(* In legacy mode we only show toplevel types. *)
-			if is_legacy_completion && cfile.c_package <> [] then begin
-				(* And only toplevel packages. *)
-				match cfile.c_package with
-				| [s] -> add_package ([],s)
-				| _ -> ()
-			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
-				()
-			else begin
-				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
-				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
-			end
-		) files;
-		List.iter (fun file ->
-			match cs#get_native_lib file with
-			| Some lib ->
-				Hashtbl.iter (fun path (pack,decls) ->
-					if process_decls pack (snd path) decls then check_package pack;
-				) lib.c_nl_files
-			| None ->
-				()
-		) ctx.com.native_libs.all_libs
-	end;
+	let cs = ctx.com.cs in
+	(* online: iter context files *)
+	init_or_update_server cs ctx.com ["display";"toplevel"];
+	let cc = CommonCache.get_cache ctx.com in
+	let files = cc#get_files in
+	(* Sort files by reverse distance of their package to our current package. *)
+	let files = Hashtbl.fold (fun file cfile acc ->
+		let i = pack_similarity curpack cfile.c_package in
+		((file,cfile),i) :: acc
+	) files [] in
+	let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
+	let check_package pack = match List.rev pack with
+		| [] -> ()
+		| s :: sl -> add_package (List.rev sl,s)
+	in
+	List.iter (fun ((file_key,cfile),_) ->
+		let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path cfile in
+		let dot_path = s_type_path (cfile.c_package,module_name) in
+		(* In legacy mode we only show toplevel types. *)
+		if is_legacy_completion && cfile.c_package <> [] then begin
+			(* And only toplevel packages. *)
+			match cfile.c_package with
+			| [s] -> add_package ([],s)
+			| _ -> ()
+		end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+			()
+		else begin
+			ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
+			if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
+		end
+	) files;
+	List.iter (fun file ->
+		match cs#get_native_lib file with
+		| Some lib ->
+			Hashtbl.iter (fun path (pack,decls) ->
+				if process_decls pack (snd path) decls then check_package pack;
+			) lib.c_nl_files
+		| None ->
+			()
+	) ctx.com.native_libs.all_libs;
 
 	(* packages *)
 	Hashtbl.iter (fun path _ ->

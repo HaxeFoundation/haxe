@@ -31,8 +31,8 @@ class Sqlite {
 		Also note that this will try to open an assembly named `Mono.Data.Sqlite`
 		if it wasn't loaded yet.
 
-		(java) You will need a SQLite JDBC driver (e.g. 
-		https://bitbucket.org/xerial/sqlite-jdbc).
+		(java) You will need a SQLite JDBC driver (e.g.
+		https://github.com/xerial/sqlite-jdbc/releases).
 	**/
 	public static function open(file:String):Connection {
 		throw "Not implemented for this platform";

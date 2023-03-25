@@ -22,6 +22,15 @@
 
 import jvm.Jvm;
 
+import java.lang.Number;
+import java.lang.Long.LongClass;
+import java.lang.Double.DoubleClass;
+import java.lang.Float.FloatClass;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
+using jvm.NativeTools.NativeClassTools;
+
 @:coreApi
 class Reflect {
 	public static function hasField(o:Dynamic, field:String):Bool {
@@ -38,6 +47,9 @@ class Reflect {
 	}
 
 	public static function field(o:Dynamic, field:String):Dynamic {
+		if (o == null) {
+			return null;
+		}
 		return Jvm.readField(o, field);
 	}
 
@@ -97,8 +109,27 @@ class Reflect {
 		if (b == null) {
 			return 1;
 		}
-		if (Jvm.instanceof(a, java.lang.Number) && Jvm.instanceof(b, java.lang.Number)) {
-			return java.lang.Long.compare((cast a : java.lang.Number).longValue(), (cast b : java.lang.Number).longValue());
+		if (Jvm.instanceof(a, Number) && Jvm.instanceof(b, Number)) {
+			var a = (cast a:Number);
+			var b = (cast b:Number);
+			inline function isBig(v:Number)
+				return Jvm.instanceof(v, BigDecimal) || Jvm.instanceof(v, BigInteger);
+			inline function cmpLongTo(long:Number, another:Number) {
+				if(Jvm.instanceof(another, DoubleClass)) {
+					return new BigDecimal(long.longValue()).compareTo(new BigDecimal(another.doubleValue()));
+				} else if(Jvm.instanceof(another, FloatClass)) {
+					return new BigDecimal(long.longValue()).compareTo(new BigDecimal(another.floatValue()));
+				} else {
+					return LongClass.compare(long.longValue(), another.longValue());
+				}
+			}
+			if(isBig(a) || isBig(b))
+				return new BigDecimal((cast a:java.lang.Object).toString()).compareTo((cast a:java.lang.Object).toString());
+			if(Jvm.instanceof(a, LongClass))
+				return cmpLongTo(a, b);
+			if(Jvm.instanceof(b, LongClass))
+				return -1 * cmpLongTo(b, a);
+			return DoubleClass.compare(a.doubleValue(), b.doubleValue());
 		}
 		if (Jvm.instanceof(a, java.NativeString)) {
 			if (!Jvm.instanceof(b, java.NativeString)) {
@@ -120,8 +151,8 @@ class Reflect {
 		if (c1 != (f2 : java.lang.Object).getClass()) {
 			return false;
 		}
-		if (Std.is(f1, jvm.Function)) {
-			if (!Std.is(f2, jvm.Function)) {
+		if (Std.isOfType(f1, jvm.Function)) {
+			if (!Std.isOfType(f2, jvm.Function)) {
 				return false;
 			}
 			return (f1 : jvm.Function).equals(f2);

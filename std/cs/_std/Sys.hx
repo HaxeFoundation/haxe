@@ -26,7 +26,6 @@ import cs.system.threading.Thread;
 
 @:coreApi
 class Sys {
-	private static var _env:haxe.ds.StringMap<String>;
 	private static var _args:Array<String>;
 
 	public static inline function print(v:Dynamic):Void {
@@ -50,22 +49,17 @@ class Sys {
 		return Environment.GetEnvironmentVariable(s);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		Environment.SetEnvironmentVariable(s, v);
-		if (_env != null)
-			_env.set(s, v);
 	}
 
 	public static function environment():Map<String, String> {
-		if (_env == null) {
-			var e = _env = new haxe.ds.StringMap();
-			var nenv = Environment.GetEnvironmentVariables().GetEnumerator();
-			while (nenv.MoveNext()) {
-				e.set(nenv.Key, nenv.Value);
-			}
+		final env = new haxe.ds.StringMap();
+		final nenv = Environment.GetEnvironmentVariables().GetEnumerator();
+		while (nenv.MoveNext()) {
+			env.set(nenv.Key, nenv.Value);
 		}
-
-		return _env;
+		return env;
 	}
 
 	public static inline function sleep(seconds:Float):Void {
@@ -78,7 +72,7 @@ class Sys {
 	}
 
 	public static inline function getCwd():String {
-		return cs.system.io.Directory.GetCurrentDirectory();
+		return haxe.io.Path.addTrailingSlash(cs.system.io.Directory.GetCurrentDirectory());
 	}
 
 	public static inline function setCwd(s:String):Void {

@@ -1,0 +1,6 @@
+[
+  {
+    "define": "fromjson",
+    "doc": "Custom user define from json"
+  }
+]

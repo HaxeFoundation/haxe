@@ -26,16 +26,16 @@ import java.NativeArray;
 
 @:keep
 @:native('haxe.jvm.Enum')
-class Enum<T> extends java.lang.Enum<T> {
+class Enum<T:EnumValue> extends java.lang.Enum<T> {
 	@:nativeGen public function new(index:Int, name:String) {
 		super(name, index);
 	}
 
-	@:overload public function equals<T>(other:Enum<T>) {
+	@:overload public function equals<T:EnumValue>(other:Enum<T>) {
 		return super.equals(other);
 	}
 
-	public function _hx_getParameters() {
+	@:jvm.synthetic public function _hx_getParameters() {
 		return new java.NativeArray(0);
 	}
 

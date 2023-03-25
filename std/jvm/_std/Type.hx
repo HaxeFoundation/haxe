@@ -86,7 +86,10 @@ class Type {
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
-		return e.native().getName();
+		return switch e.native().getName() {
+			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s: s;
+		}
 	}
 
 	public static function resolveClass(name:String):Class<Dynamic> {
@@ -105,6 +108,9 @@ class Type {
 	}
 
 	public static function resolveEnum(name:String):Enum<Dynamic> {
+		if (name.indexOf(".") == -1) {
+			name = "haxe.root." + name;
+		}
 		return try {
 			var c = java.lang.Class.forName(name);
 			if (!isEnumClass(c)) {
@@ -117,17 +123,9 @@ class Type {
 		}
 	}
 
-	static final emptyArg = {
-		var a = new java.NativeArray(1);
-		a[0] = (null : jvm.EmptyConstructor);
-		a;
-	}
+	static final emptyArg = (null : jvm.EmptyConstructor);
 
-	static final emptyClass = {
-		var a = new java.NativeArray(1);
-		a[0] = jvm.EmptyConstructor.native();
-		a;
-	}
+	static final emptyClass = jvm.EmptyConstructor.native();
 
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		var args = @:privateAccess args.getNative();
@@ -144,7 +142,7 @@ class Type {
 			switch (Jvm.unifyCallArguments(args, params, true)) {
 				case Some(args):
 					ctor.setAccessible(true);
-					return ctor.newInstance(args);
+					return ctor.newInstance(...args);
 				case None:
 			}
 		}
@@ -160,7 +158,7 @@ class Type {
 					case Some(args):
 						var obj = emptyCtor.newInstance(emptyArg);
 						method.setAccessible(true);
-						method.invoke(obj, args);
+						method.invoke(obj, ...args);
 						return obj;
 					case None:
 				}
@@ -172,7 +170,8 @@ class Type {
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var annotation = (cl.native().getAnnotation((cast ClassReflectionInformation : java.lang.Class<ClassReflectionInformation>)));
 		if (annotation != null) {
-			return cl.native().getConstructor(emptyClass).newInstance(emptyArg);
+			return cl.native().getConstructor(emptyClass)
+				.newInstance(emptyArg);
 		} else {
 			return cl.native().newInstance();
 		}
@@ -235,7 +234,15 @@ class Type {
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		var clInfo:java.lang.Class<EnumReflectionInformation> = cast EnumReflectionInformation;
 		var annotation = e.native().getAnnotation(clInfo);
-		return @:privateAccess Array.ofNative(annotation.constructorNames());
+		if (annotation != null) {
+			return @:privateAccess Array.ofNative(annotation.constructorNames());
+		}
+		var vals = e.values();
+		var ret = [];
+		for (i in 0...vals.length) {
+			ret[i] = vals[i].name();
+		}
+		return ret;
 	}
 
 	public static function typeof(v:Dynamic):ValueType {
@@ -297,7 +304,7 @@ class Type {
 		var ret = [];
 		for (name in all) {
 			var v = Jvm.readField(e, name);
-			if (Jvm.instanceof(v, jvm.Enum)) {
+			if (Jvm.instanceof(v, java.lang.Enum)) {
 				ret.push(v);
 			}
 		}

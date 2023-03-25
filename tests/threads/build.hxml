@@ -1,4 +1,7 @@
--cp src
+--class-path src
+--main Main
+--library utest
+--dce full
 -D analyzer-optimize
--main Main
--lib utest
+-D UTEST_PRINT_TESTS
+-D hl-ver=1.13.0

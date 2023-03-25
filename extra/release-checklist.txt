@@ -9,6 +9,7 @@
 
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in globals.ml has the correct value
+- Update `version` in `./opam`
 - Check if the protocolVersion in displayJson.ml has to be updated
 - Make an empty GitHub release in https://github.com/HaxeFoundation/haxe/releases (do this first because we need the tag for the builds)
 - Wait for the CI to build (check https://build.haxe.org/builds/haxe/)
@@ -19,6 +20,10 @@
 - Write the announcement to `./haxe-version/RELEASE.md`
 - If everything was working, run the command again without `--dry` (and probably without the `-d`)
 - Update https://github.com/HaxeFoundation/haxe.org/blob/staging/downloads/versions.json
+
+# Cleanup
+
+- Remove issues with released fixes from the "Hotfix" milestone: https://github.com/HaxeFoundation/haxe/milestone/18
 
 # Announcing the release
 

@@ -44,6 +44,7 @@ package cpp;
 	function lastIndexOf(x:Dynamic, ?fromIndex:Int):Int;
 	function copy():VirtualArray;
 	function iterator():Iterator<Dynamic>;
+	function keyValueIterator():KeyValueIterator<Int, Dynamic>;
 	function map<S>(f:Dynamic->S):VirtualArray;
 	function filter(f:Dynamic->Bool):VirtualArray;
 	function resize(len:Int):Void;
@@ -120,6 +121,9 @@ abstract VirtualArray(NativeVirtualArray) {
 
 	extern inline public function iterator():Iterator<Dynamic>
 		return this.iterator();
+
+	extern inline public function keyValueIterator():KeyValueIterator<Int, Dynamic>
+		return this.keyValueIterator();
 
 	extern inline public function map<S>(f:Dynamic->S):VirtualArray
 		return this.map(f);

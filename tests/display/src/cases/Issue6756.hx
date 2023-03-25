@@ -7,6 +7,6 @@ class Issue6756 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq("Void -> Void", type(pos(1)));
+		eq("() -> Void", type(pos(1)));
 	}
 }

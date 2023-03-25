@@ -39,11 +39,11 @@ class Test implements utest.ITest {
 		Assert.fail(message, pos);
 	}
 
-	function exc( f : Void -> Void, ?pos:haxe.PosInfos ) {
+	function exc( f : () -> Void, ?pos:haxe.PosInfos ) {
 		Assert.raises(f, pos);
 	}
 
-	function unspec( f : Void -> Void, ?pos ) {
+	function unspec( f : () -> Void, ?pos ) {
 		try {
 			f();
 		} catch( e : Dynamic ) {

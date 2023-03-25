@@ -39,7 +39,7 @@ class RunSauceLabs {
 	}
 
 	static function isEs5(b:Dynamic):Bool {
-		return 
+		return
 			// not IE <= 8
 			!(b.browserName == "internet explorer" && Std.parseInt(b.version) <= 8);
 	}
@@ -136,10 +136,9 @@ class RunSauceLabs {
 		);
 
 		var tags = [];
-		if (Sys.getEnv("TRAVIS") != null)
-			tags.push("TravisCI");
-		if (Sys.getEnv("TF_BUILD") != null)
-			tags.push("AzurePipelines");
+		// TODO: figure out SauceLabs for Github Actions
+		// if (Sys.getEnv("TF_BUILD") != null)
+		// 	tags.push("AzurePipelines");
 
 		var maxDuration = 60 * 5; //5 min
 		var commandTimeout = 60;  //60s
@@ -149,15 +148,11 @@ class RunSauceLabs {
 			var browserName = caps.hasField("version") ? '${caps.browserName} ${caps.version}' : caps.browserName;
 			console.log('Requesting: ${browserName} on ${caps.platform}');
 
-			caps.setField("name", Sys.getEnv("TRAVIS") != null ? Sys.getEnv("TRAVIS_REPO_SLUG") : "haxe");
+			caps.setField("name", "haxe");
 			caps.setField("tags", tags);
 			caps.setField("maxDuration", maxDuration);
 			caps.setField("commandTimeout", commandTimeout);
 			caps.setField("avoidProxy", true);
-			if (Sys.getEnv("TRAVIS") != null) {
-				caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
-				caps.setField("build", Sys.getEnv("TRAVIS_BUILD_NUMBER"));
-			}
 			switch (Sys.getEnv("SAUCE_TUNNEL_ID")) {
 				case null:
 					//pass

@@ -1,6 +1,6 @@
 class F {
     @:generic
-    public static function make<T:haxe.Constraints.Constructible<Void->Void>>() {
+    public static function make<T:haxe.Constraints.Constructible<()->Void>>() {
         return new T();
     }
 }

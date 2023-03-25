@@ -23,6 +23,7 @@
 import flash.Boot;
 
 @:coreApi class Std {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -48,13 +49,12 @@ import flash.Boot;
 		return untyped __int__(x);
 	}
 
-	public static function parseInt(x:String):Null<Int>
-		untyped {
-			var v = __global__["parseInt"](x);
-			if (__global__["isNaN"](v))
-				return null;
-			return v;
-		}
+	public static function parseInt(x:String):Null<Int> {
+		final v = flash.Lib.parseInt(x);
+		if (Math.isNaN(v))
+			return null;
+		return cast v;
+	}
 
 	public static function parseFloat(x:String):Float {
 		return untyped __global__["parseFloat"](x);

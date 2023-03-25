@@ -1,0 +1,70 @@
+- name: Install dependencies
+  env:
+    # For compatibility with macOS 10.13
+    ZLIB_VERSION: 1.2.13
+    MBEDTLS_VERSION: 2.25.0
+    PCRE2_VERSION: 10.42
+  run: |
+    set -ex
+    brew uninstall openssl@1.0.2t || echo
+    brew uninstall python@2.7.17 || echo
+    brew untap local/openssl || echo
+    brew untap local/python2 || echo
+    brew update
+    # brew unlink python@2
+    brew bundle --file=tests/Brewfile --no-upgrade || brew link --overwrite awscli
+    brew install libunistring
+    brew install cpanminus
+    cpanm IPC::System::Simple
+    cpanm String::ShellQuote
+    curl -L https://www.zlib.net/zlib-$ZLIB_VERSION.tar.gz | tar xz
+    cd zlib-$ZLIB_VERSION
+    ./configure
+    make && make install
+    cd ..
+    curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
+    cd mbedtls-$MBEDTLS_VERSION
+    make && make install
+    cd ..
+    curl -L https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-$PCRE2_VERSION.tar.gz | tar xz
+    cd pcre2-$PCRE2_VERSION
+    ./configure --enable-unicode --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcre2grep-libz --enable-pcre2grep-libbz2 --enable-jit
+    make && make install
+    cd ..
+
+
+- name: Install OCaml libraries
+  if: steps.cache-opam.outputs.cache-hit != 'true'
+  run: |
+    set -ex
+    opam init # --disable-sandboxing
+    opam update
+    opam switch create 4.07.1
+    eval $(opam env)
+    opam env
+    opam pin add ctypes 0.17.1 --yes
+    opam pin add haxe . --no-action
+    opam install haxe --deps-only --assume-depexts
+    opam list
+    ocamlopt -v
+
+- name: Set ADD_REVISION=1 for non-release
+  if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  run: echo "ADD_REVISION=1" >> $GITHUB_ENV
+
+- name: Build Haxe
+  run: |
+    set -ex
+    eval $(opam env)
+    opam config exec -- make -s -j`sysctl -n hw.ncpu` STATICLINK=1 "LIB_PARAMS=/usr/local/lib/libz.a /usr/local/lib/libpcre2-8.a /usr/local/lib/libmbedtls.a /usr/local/lib/libmbedcrypto.a /usr/local/lib/libmbedx509.a -cclib '-framework Security -framework CoreFoundation'" haxe
+    opam config exec -- make -s haxelib
+    make -s package_unix package_installer_mac
+    ls -l out
+    otool -L ./haxe
+    otool -L ./haxelib
+
+- name: Upload artifact
+  uses: actions/upload-artifact@v1.0.0
+  with:
+    name: macBinaries
+    path: out

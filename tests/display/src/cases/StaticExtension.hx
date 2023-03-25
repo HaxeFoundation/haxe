@@ -19,8 +19,8 @@ class StaticExtension extends DisplayTestCase {
 	**/
 	function test1() {
 		var fields = fields(pos(1));
-		eq(true, hasField(fields, "doSomething", "Void -> Void"));
-		eq(true, hasField(fields, "doSomethingElse", "Void -> Void"));
+		eq(true, hasField(fields, "doSomething", "() -> Void"));
+		eq(true, hasField(fields, "doSomethingElse", "() -> Void"));
 	}
 
 	/**
@@ -41,8 +41,8 @@ class StaticExtension extends DisplayTestCase {
 	**/
 	function test2() {
 		var fields = fields(pos(1));
-		eq(true, hasField(fields, "doSomething", "Void -> Void"));
-		eq(true, hasField(fields, "doSomethingElse", "Void -> Void"));
+		eq(true, hasField(fields, "doSomething", "() -> Void"));
+		eq(true, hasField(fields, "doSomethingElse", "() -> Void"));
 	}
 
 	/**

@@ -1,7 +1,0 @@
-compile-cs.hxml
-
---net-lib cs_drivers/System.Data.dll
---net-lib cs_drivers/System.Xml.dll@std
---net-lib cs_drivers/Mono.Data.Sqlite.dll
-
--D travis

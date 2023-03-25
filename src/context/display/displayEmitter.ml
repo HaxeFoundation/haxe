@@ -56,12 +56,19 @@ let rec display_type ctx t p =
 			| _ ->
 				()
 
-let check_display_type ctx t p =
+let check_display_type ctx t path =
 	let add_type_hint () =
-		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,p,t) :: ctx.g.type_hints;
+		ctx.g.type_hints <- (ctx.m.curmod.m_extra.m_display,pos path,t) :: ctx.g.type_hints;
 	in
 	let maybe_display_type () =
-		if ctx.is_display_file && display_position#enclosed_in p then
+		if ctx.is_display_file && display_position#enclosed_in (pos path) then
+			let p =
+				match path with
+				| ({ tpackage = pack; tname = name; tsub = sub },p) ->
+					let strings = match sub with None -> name :: pack | Some s -> s :: name :: pack in
+					let length = String.length (String.concat "." strings) in
+					{ p with pmax = p.pmin + length }
+			in
 			display_type ctx t p
 	in
 	add_type_hint();
@@ -101,18 +108,20 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
 				(* For constructors, we care about the class name so we don't end up looking for "new". *)
 				snd c.cl_path,SKConstructor cf
+			| _,(Self (TClassDecl c) | Parent(TClassDecl c)) ->
+				cf.cf_name,SKField (cf,Some c.cl_path)
 			| _ ->
-				cf.cf_name,SKField cf
+				cf.cf_name,SKField (cf,None)
 		in
 		ReferencePosition.set (name,cf.cf_name_pos,kind)
 	| DMHover ->
-		let cf = if Meta.has Meta.Impl cf.cf_meta then
+		let cf = if has_class_field_flag cf CfImpl then
 			prepare_using_field cf
 		else
 			cf
 		in
         let cf = match origin,scope,follow cf.cf_type with
-            | Self (TClassDecl c),CFSConstructor,TFun(tl,_) -> {cf with cf_type = TFun(tl,TInst(c,List.map snd c.cl_params))}
+            | Self (TClassDecl c),CFSConstructor,TFun(tl,_) -> {cf with cf_type = TFun(tl,TInst(c,extract_param_types c.cl_params))}
             | _ -> cf
         in
 		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
@@ -136,7 +145,7 @@ let display_meta com meta p = match com.display.dms_kind with
 		begin match meta with
 		| Meta.Custom _ | Meta.Dollar _ -> ()
 		| _ ->
-			if com.json_out = None then begin match Meta.get_documentation meta with
+			if com.json_out = None then begin match Meta.get_documentation com.user_metas meta with
 				| None -> ()
 				| Some (_,s) ->
 					raise_metadata ("<metadata>" ^ s ^ "</metadata>")
@@ -144,9 +153,9 @@ let display_meta com meta p = match com.display.dms_kind with
 				raise_hover (make_ci_metadata meta) None p
 		end
 	| DMDefault ->
-		let all = Meta.get_all() in
+		let all = Meta.get_all com.user_metas in
 		let all = List.map make_ci_metadata all in
-		let subject = if meta = Meta.Last then None else Some (Meta.to_string meta) in
+		let subject = if meta = Meta.HxCompletion then None else Some (Meta.to_string meta) in
 		raise_fields all CRMetadata (make_subject subject p);
 	| _ ->
 		()

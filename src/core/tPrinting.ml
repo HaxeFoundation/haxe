@@ -39,7 +39,17 @@ let rec s_type ctx t =
 			with Not_found ->
 				let id = List.length !ctx in
 				ctx := (t,id) :: !ctx;
-				Printf.sprintf "Unknown<%d>" id
+			let s_const =
+				let rec loop = function
+				| CUnknown -> ""
+				| CTypes tl -> String.concat " & " (List.map (fun (t,_) -> s_type ctx t) tl)
+				| CStructural(fields,_) -> s_type ctx (mk_anon ~fields (ref Closed))
+				| CMixed l -> String.concat " & " (List.map loop l)
+				in
+				let s = loop (!monomorph_classify_constraints_ref r) in
+				if s = "" then s else " : " ^ s
+			in
+				Printf.sprintf "Unknown<%d>%s" id s_const
 			end
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
@@ -55,7 +65,7 @@ let rec s_type ctx t =
 	| TAbstract (a,tl) ->
 		s_type_path a.a_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
-		"Void -> " ^ s_fun ctx t false
+		"() -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
 		let args = match l with
 			| [] -> "()"
@@ -75,10 +85,12 @@ let rec s_type ctx t =
 			| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 			| _ ->
 				let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
-				"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
+				"{" ^ String.concat "," fl ^ " }"
 		end
-	| TDynamic t2 ->
-		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+	| TDynamic None ->
+		"Dynamic"
+	| TDynamic (Some t2) ->
+		"Dynamic" ^ s_type_params ctx [t2]
 	| TLazy f ->
 		s_type ctx (lazy_type f)
 
@@ -101,11 +113,17 @@ and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
 
+and s_constraint = function
+	| MMono(m,_) -> Printf.sprintf "MMono %s" (s_type_kind (TMono m))
+	| MField cf -> Printf.sprintf "MField %s" cf.cf_name
+	| MType(t,_) -> Printf.sprintf "MType %s" (s_type_kind t)
+	| MOpenStructure -> "MOpenStructure"
+	| MEmptyStructure -> "MEmptyStructure"
+
 let s_access is_read = function
 	| AccNormal -> "default"
 	| AccNo -> "null"
 	| AccNever -> "never"
-	| AccResolve -> "resolve"
 	| AccCall -> if is_read then "get" else "set"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
@@ -174,7 +192,7 @@ let rec s_expr s_type e =
 	let sprintf = Printf.sprintf in
 	let slist f l = String.concat "," (List.map f l) in
 	let loop = s_expr s_type in
-	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id ^ if v.v_capture then "[c]" else "" in
+	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id ^ if has_var_flag v VCaptured then "[c]" else "" in
 	let str = (match e.eexpr with
 	| TConst c ->
 		"Const " ^ s_const c
@@ -402,6 +420,12 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TIdent s ->
 		tag "Ident" [s]
 
+(**
+	Shortcut to pretty-printing expressions for debugging purposes.
+*)
+let s_expr_debug e =
+	s_expr_pretty false "  " false (s_type (print_context())) e
+
 let s_types ?(sep = ", ") tl =
 	let pctx = print_context() in
 	String.concat sep (List.map (s_type pctx) tl)
@@ -423,6 +447,8 @@ let s_class_kind = function
 		"KGenericBuild"
 	| KAbstractImpl a ->
 		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
+	| KModuleFields m ->
+		Printf.sprintf "KModuleFields %s" (s_type_path m.m_path)
 
 module Printer = struct
 
@@ -463,16 +489,31 @@ module Printer = struct
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
 
-	let s_type_param (s,t) = match follow t with
+	let s_type_param tp = match follow tp.ttp_type with
 		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-			begin match tl1 with
-			| [] -> s
-			| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
+			let s = match tl1 with
+				| [] -> tp.ttp_name
+				| _ -> Printf.sprintf "%s:%s" tp.ttp_name (String.concat " & " (List.map s_type tl1))
+			in
+			begin match tp.ttp_default with
+			| None ->
+				s
+			| Some t ->
+				Printf.sprintf "%s = %s" s (s_type t)
 			end
-		| _ -> assert false
+		| _ -> die "" __LOC__
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl
+
+	let s_flags flags all_flags =
+		let _,l = List.fold_left (fun (i,acc) name ->
+			if has_flag flags i then (i + 1,name :: acc) else (i + 1,acc)
+		) (0,[]) all_flags in
+		String.concat " " l
+
+	let s_tclass_field_flags flags =
+		s_flags flags flag_tclass_field_names
 
 	let s_tclass_field tabs cf =
 		s_record_fields tabs [
@@ -485,6 +526,7 @@ module Printer = struct
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
+			"cf_flags",s_tclass_field_flags cf.cf_flags;
 		]
 
 	let s_tclass tabs c =
@@ -498,13 +540,9 @@ module Printer = struct
 			"cl_meta",s_metadata c.cl_meta;
 			"cl_params",s_type_params c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
-			"cl_extern",string_of_bool c.cl_extern;
-			"cl_final",string_of_bool c.cl_final;
-			"cl_interface",string_of_bool c.cl_interface;
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
 			"cl_array_access",s_opt s_type c.cl_array_access;
-			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
 			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
 			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) c.cl_constructor;
 			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_fields;
@@ -575,15 +613,15 @@ module Printer = struct
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
 		]
 
-	let s_tvar_extra (tl,eo) =
-		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_opt (s_expr_ast true "" s_type) eo)
+	let s_tvar_extra ve =
+		Printf.sprintf "Some(%s, %s)" (s_type_params ve.v_params) (s_opt (s_expr_ast true "" s_type) ve.v_expr)
 
 	let s_tvar v =
 		s_record_fields "" [
 			"v_id",string_of_int v.v_id;
 			"v_name",v.v_name;
 			"v_type",s_type v.v_type;
-			"v_capture",string_of_bool v.v_capture;
+			"v_capture",string_of_bool (has_var_flag v VCaptured);
 			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
 			"v_pos",s_pos v.v_pos;
@@ -596,14 +634,30 @@ module Printer = struct
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
+	let s_module_skip_reason reason =
+		let rec loop stack = function
+			| DependencyDirty(path,reason) ->
+				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
+			| Tainted cause -> "Tainted " ^ cause
+			| FileChanged file -> "FileChanged " ^ file
+			| Shadowed file -> "Shadowed " ^ file
+			| LibraryChanged -> "LibraryChanged"
+		in
+		loop [] reason
+
+	let s_module_cache_state = function
+		| MSGood -> "Good"
+		| MSBad reason -> "Bad: " ^ (s_module_skip_reason reason)
+		| MSUnknown -> "Unknown"
+
 	let s_module_def_extra tabs me =
 		s_record_fields tabs [
-			"m_file",me.m_file;
+			"m_file",Path.UniqueKey.lazy_path me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
-			"m_dirty",s_opt s_type_path me.m_dirty;
+			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
-			"m_mark",string_of_int me.m_mark;
+			"m_checked",string_of_int me.m_checked;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
@@ -634,6 +688,7 @@ module Printer = struct
 		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
 		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
 		| HFinal -> "HFinal"
+		| HAbstract -> "HAbstract"
 
 	let s_placed f (x,p) =
 		s_pair (f x) (s_pos p)

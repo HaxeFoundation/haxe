@@ -94,15 +94,15 @@ let rec has_type_params t =
 let rec follow_all_md md =
 	let t = match md with
 		| TClassDecl { cl_kind = KAbstractImpl a } ->
-			TAbstract(a, List.map snd a.a_params)
+			TAbstract(a, extract_param_types a.a_params)
 		| TClassDecl c ->
-			TInst(c, List.map snd c.cl_params)
+			TInst(c, extract_param_types c.cl_params)
 		| TEnumDecl e ->
-			TEnum(e, List.map snd e.e_params)
+			TEnum(e, extract_param_types e.e_params)
 		| TTypeDecl t ->
-			TType(t, List.map snd t.t_params)
+			TType(t, extract_param_types t.t_params)
 		| TAbstractDecl a ->
-			TAbstract(a, List.map snd a.a_params)
+			TAbstract(a, extract_param_types a.a_params)
 	in
 	Abstract.follow_with_abstracts t
 
@@ -279,7 +279,7 @@ let rec set_hxgeneric gen mds isfirst md =
 								Some true
 							end
 				end
-			| _ -> assert false
+			| _ -> Globals.die "" __LOC__
 	end
 
 let path_s = function
@@ -294,7 +294,7 @@ let set_hxgeneric gen md =
 					let md = match t with
 						| TInst(cl,_) -> TClassDecl cl
 						| TEnum(e,_) -> TEnumDecl e
-						| _ -> assert false
+						| _ -> Globals.die "" __LOC__
 					in
 					let ret = set_hxgeneric gen [] true md in
 					if ret = None then get (set_hxgeneric gen [] false md) else get ret)
@@ -309,7 +309,7 @@ let set_hxgeneric gen md =
 		if not ret then begin
 			match md with
 			| TClassDecl c ->
-				let set_hxgeneric (_,param) = match follow param with
+				let set_hxgeneric tp = match follow tp.ttp_type with
 					| TInst(c,_) ->
 						c.cl_meta <- (Meta.NativeGeneric, [], c.cl_pos) :: c.cl_meta
 					| _ -> ()
@@ -341,7 +341,7 @@ let set_hxgeneric gen md =
 				"because it explicitly has the metadata @:nativeGeneric set"
 		in
 		gen.gcon.error (reason) pos;
-		assert false
+		Globals.die "" __LOC__
 
 let params_has_tparams params =
 	List.fold_left (fun acc t -> acc || has_type_params t) false params
@@ -397,16 +397,16 @@ struct
 	let create_stub_casts gen cl cast_cfield =
 		(* go through superclasses and interfaces *)
 		let p = cl.cl_pos in
-		let this = { eexpr = TConst TThis; etype = (TInst(cl, List.map snd cl.cl_params)); epos = p } in
+		let this = { eexpr = TConst TThis; etype = (TInst(cl, extract_param_types cl.cl_params)); epos = p } in
 
 		let rec loop curcls params level reverse_params =
-			if (level <> 0 || curcls.cl_interface) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
-				let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) curcls.cl_params in
+			if (level <> 0 || (has_class_flag curcls CInterface) || (has_class_flag curcls CAbstract) ) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
+				let cparams = List.map (fun tp -> {tp with ttp_type=TInst (map_param (get_cl_t tp.ttp_type), [])}) curcls.cl_params in
 				let name = get_cast_name curcls in
 				if not (PMap.mem name cl.cl_fields) then begin
 					let reverse_params = List.map (apply_params curcls.cl_params params) reverse_params in
 					let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
-					let field = { eexpr = TField(this, FInstance(cl,List.map snd cl.cl_params, cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
+					let field = { eexpr = TField(this, FInstance(cl,extract_param_types cl.cl_params, cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
 					let call =
 					{
 						eexpr = TCall(field, []);
@@ -430,7 +430,7 @@ struct
 					gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
 					cl.cl_ordered_fields <- cfield :: cl.cl_ordered_fields;
 					cl.cl_fields <- PMap.add cfield.cf_name cfield cl.cl_fields;
-					if level <> 0 then cl.cl_overrides <- cfield :: cl.cl_overrides
+					if level <> 0 then add_class_field_flag cfield CfOverride
 				end
 			end;
 			let get_reverse super supertl =
@@ -446,7 +446,7 @@ struct
 				loop iface (iface_params) level (get_reverse iface iface_params);
 			) curcls.cl_implements
 		in
-		loop cl (List.map snd cl.cl_params) 0 (List.map snd cl.cl_params)
+		loop cl (extract_param_types cl.cl_params) 0 (extract_param_types cl.cl_params)
 
 	(*
 		Creates a cast classfield, with the desired name
@@ -460,11 +460,11 @@ struct
 	let create_cast_cfield gen cl name =
 		reset_temps();
 		let basic = gen.gcon.basic in
-		let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cl.cl_params in
+		let cparams = List.map (fun tp -> {tp with ttp_type = TInst (map_param (get_cl_t tp.ttp_type), [])}) cl.cl_params in
 		let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
-		let params = List.map snd cparams in
+		let params = extract_param_types cparams in
 
-		let fields = get_fields gen cl (List.map snd cl.cl_params) params [] in
+		let fields = get_fields gen cl (extract_param_types cl.cl_params) params [] in
 		let fields = List.filter (fun (cf,_,_) -> Type.is_physical_field cf) fields in
 
 		(* now create the contents of the function *)
@@ -490,7 +490,7 @@ struct
 
 		let new_me_var = alloc_var "new_me" (TInst (cl, params)) in
 		let local_new_me = mk_local new_me_var pos in
-		let this = mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) pos in
+		let this = mk (TConst TThis) (TInst (cl, extract_param_types cl.cl_params)) pos in
 		let field_var = alloc_var "field" basic.tstring in
 		let local_field = mk_local field_var pos in
 		let i_var = alloc_var "i" basic.tint in
@@ -506,19 +506,19 @@ struct
 				| TEnum (e,_) -> e.e_path
 				| TAbstract (a,_) -> a.a_path
 				| TMono _ | TDynamic _ -> ([], "Dynamic")
-				| _ -> assert false
+				| _ -> Globals.die "" __LOC__
 			in
 			List.map (fun (cf, t_cl, t_cf) ->
 				let t_cf = follow (gen.greal_type t_cf) in
-				let this_field = mk (TField (this, FInstance (cl, List.map snd cl.cl_params, cf))) t_cl pos in
+				let this_field = mk (TField (this, FInstance (cl, extract_param_types cl.cl_params, cf))) t_cl pos in
 				let expr =
 					binop
 						OpAssign
-						(mk (TField (local_new_me, FInstance(cl, List.map snd cl.cl_params, cf))) t_cf pos)
+						(mk (TField (local_new_me, FInstance(cl, extract_param_types cl.cl_params, cf))) t_cf pos)
 						(try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with Not_found ->
 							(* if not found tparam cast, it shouldn't be a valid hxgeneric *)
 							print_endline ("Could not find a gtparam_cast for " ^ (String.concat "." (fst (get_path t_cf)) ^ "." ^ (snd (get_path t_cf))));
-							assert false)
+							Globals.die "" __LOC__)
 						t_cf
 						pos
 				in
@@ -543,15 +543,15 @@ struct
 				| (TInst(cl1,[]) as v), (TInst(cl2,[]) as v2) ->
 					mk_typehandle_cond (v :: hd) (v2 :: hd2)
 				| _ ->
-					assert false)
-			| _ -> assert false
+					Globals.die "" __LOC__)
+			| _ -> Globals.die "" __LOC__
 		in
 		let fn = {
 			tf_args = [];
 			tf_type = t_dynamic;
 			tf_expr = mk (TBlock [
 				(* if (typeof(T) == typeof(T2)) return this *)
-				mk (TIf (mk_typehandle_cond (List.map snd cl.cl_params) params, mk_return this, None)) basic.tvoid pos;
+				mk (TIf (mk_typehandle_cond (extract_param_types cl.cl_params) params, mk_return this, None)) basic.tvoid pos;
 				(* var new_me = /*special create empty with tparams construct*/ *)
 				mk (TVar (new_me_var, Some (gen.gtools.r_create_empty cl params pos))) basic.tvoid pos;
 				(* var fields = Reflect.fields(this); *)
@@ -587,13 +587,13 @@ struct
 	let create_static_cast_cf gen iface cf =
 		let p = iface.cl_pos in
 		let basic = gen.gcon.basic in
-		let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst (map_param (get_cl_t t), []))) cf.cf_params in
+		let cparams = List.map (fun tp -> {tp with ttp_name = "To_" ^ tp.ttp_name;ttp_type = TInst (map_param (get_cl_t tp.ttp_type), [])}) cf.cf_params in
 		let me_type = TInst(iface,[]) in
-		let cfield = mk_class_field "__hx_cast" (TFun(["me",false,me_type], t_dynamic)) false iface.cl_pos (Method MethNormal) (cparams) in
-		let params = List.map snd cparams in
+		let cfield = mk_class_field ~static:true "__hx_cast" (TFun(["me",false,me_type], t_dynamic)) false iface.cl_pos (Method MethNormal) (cparams) in
+		let params = extract_param_types cparams in
 
 		let me = alloc_var "me" me_type in
-		let field = { eexpr = TField(mk_local me p, FInstance(iface, List.map snd iface.cl_params, cf)); etype = apply_params cf.cf_params params cf.cf_type; epos = p } in
+		let field = { eexpr = TField(mk_local me p, FInstance(iface, extract_param_types iface.cl_params, cf)); etype = apply_params cf.cf_params params cf.cf_type; epos = p } in
 		let call =
 		{
 			eexpr = TCall(field, []);
@@ -634,9 +634,9 @@ struct
 		let implement_stub_cast cthis iface tl =
 			let name = get_cast_name iface in
 			if not (PMap.mem name cthis.cl_fields) then begin
-				let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst(map_param (get_cl_t t), []))) iface.cl_params in
+				let cparams = List.map (fun tp -> {tp with ttp_name = "To_" ^ tp.ttp_name;ttp_type = TInst(map_param (get_cl_t tp.ttp_type), [])}) iface.cl_params in
 				let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
-				let this = { eexpr = TConst TThis; etype = TInst(cthis, List.map snd cthis.cl_params); epos = cthis.cl_pos } in
+				let this = { eexpr = TConst TThis; etype = TInst(cthis, extract_param_types cthis.cl_params); epos = cthis.cl_pos } in
 				field.cf_expr <- Some {
 					etype = TFun([],t_dynamic);
 					epos = this.epos;
@@ -666,24 +666,24 @@ struct
 				| TClassDecl ({ cl_params = hd :: tl } as cl) when set_hxgeneric gen md ->
 					let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
 					iface.cl_array_access <- Option.map (apply_params (cl.cl_params) (List.map (fun _ -> t_dynamic) cl.cl_params)) cl.cl_array_access;
-					iface.cl_extern <- cl.cl_extern;
+					if (has_class_flag cl CExtern) then add_class_flag iface CExtern;
 					iface.cl_module <- cl.cl_module;
 					iface.cl_private <- cl.cl_private;
 					iface.cl_meta <-
 						(Meta.HxGen, [], cl.cl_pos)
 						::
-						(Meta.Custom "generic_iface", [(EConst(Int(string_of_int(List.length cl.cl_params))), cl.cl_pos)], cl.cl_pos)
+						(Meta.Custom "generic_iface", [(EConst(Int(string_of_int(List.length cl.cl_params), None)), cl.cl_pos)], cl.cl_pos)
 						::
 						iface.cl_meta;
 					Hashtbl.add ifaces cl.cl_path iface;
 
 					iface.cl_implements <- (base_generic, []) :: iface.cl_implements;
-					iface.cl_interface <- true;
+					add_class_flag iface CInterface;
 					cl.cl_implements <- (iface, []) :: cl.cl_implements;
 
 					let name = get_cast_name cl in
 					let cast_cf = create_cast_cfield gen cl name in
-					if not cl.cl_interface then create_stub_casts gen cl cast_cf;
+					if not (has_class_flag cl CInterface) then create_stub_casts gen cl cast_cf;
 
 					let rec loop c = match c.cl_super with
 						| None -> ()
@@ -695,7 +695,7 @@ struct
 					in
 					loop cl;
 
-					(if not cl.cl_interface then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
+					(if not (has_class_flag cl CInterface) && not (has_class_flag cl CAbstract) then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
 					let iface_cf = mk_class_field name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
 					let cast_static_cf, delay = create_static_cast_cf gen iface iface_cf in
 
@@ -707,12 +707,13 @@ struct
 					iface.cl_fields <- PMap.add name iface_cf iface.cl_fields;
 					let fields = List.filter (fun cf -> match cf.cf_kind with
 						| Var _ | Method MethDynamic -> false
+						| Method _ when has_class_field_flag cf CfAbstract -> false
 						| _ ->
-							let is_override = List.memq cf cl.cl_overrides in
-							let cf_type = if is_override && not (Meta.has Meta.Overload cf.cf_meta) then
+							let is_override = has_class_field_flag cf CfOverride in
+							let cf_type = if is_override && not (has_class_field_flag cf CfOverload) then
 								match find_first_declared_field gen cl cf.cf_name with
 									| Some(_,_,declared_t,_,_,_,_) -> declared_t
-									| _ -> assert false
+									| _ -> Globals.die "" __LOC__
 							else
 								cf.cf_type
 							in
@@ -721,7 +722,7 @@ struct
 						) cl.cl_ordered_fields
 					in
 					let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type (has_class_field_flag f CfPublic) f.cf_pos f.cf_kind f.cf_params) fields in
-					let fields = iface_cf :: fields in
+					let fields = if has_class_flag cl CAbstract then fields else iface_cf :: fields in
 					iface.cl_ordered_fields <- fields;
 					List.iter (fun f -> iface.cl_fields <- PMap.add f.cf_name f iface.cl_fields) fields;
 
@@ -765,7 +766,7 @@ let default_implementation gen (dyn_tparam_cast:texpr->t->texpr) ifaces =
 							false)
 						| _ -> false
 					in
-					let unifies = unifies && not (PMap.mem "cs_safe_casts" gen.gcon.defines.Define.values) in
+					let unifies = unifies && not (Common.raw_defined gen.gcon "cs_safe_casts") in
 					(match follow t with
 						| TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) && not unifies && not (Meta.has Meta.Enum cl.cl_meta) ->
 							let iface = Hashtbl.find ifaces cl.cl_path in

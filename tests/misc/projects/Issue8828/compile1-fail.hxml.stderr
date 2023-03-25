@@ -1,1 +1,1 @@
-Main1.hx:2: characters 2-8 : extern modifier is not allowed on enum abstract fields
+Main1.hx:2: characters 2-8 : Invalid modifier: extern on field of enum abstract

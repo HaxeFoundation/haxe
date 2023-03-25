@@ -96,7 +96,7 @@ extern class Utf8 {
 	**/
 	static function lower(str:String):String;
 
-	static function codes(str:String):Void->StringCodePoint;
+	static function codes(str:String):String->Int->StringCodePoint;
 }
 
 @:multiReturn extern class StringFind {
