@@ -10,6 +10,25 @@ class Lua {
 
 	static public function getLuaDependencies(){
 		switch (systemName){
+			case "Windows":
+				//choco install openssl
+				runCommand("choco", ["install", "openssl"]);
+				
+				//Try to rename openssl bins for 64 bit
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libssl-1_1-x64.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libssl32MD.dll"]);
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto-1_1-x64.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto32MD.dll"]);
+				
+				//Try to rename openssl bins for 32 bit
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libssl-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libssl32MD.dll"]);
+				attemptCommand("cp", ["C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto-1_1.dll", "C:\\Program Files\\OpenSSL-Win64\\bin\\libcrypto32MD.dll"]);
+				
+				//Install libs for pcre
+				runCommand("choco", ["install", "msys2"]);
+				
+				//Invoke pacman from msys2 to install pcre
+				//attemptCommand("C:\\tools\\msys64\\usr\\bin\\bash.exe", ["-lc", "pacman", "-S", "mingw-w64-x86_64-pcre"]);
+				attemptCommand("C:\\tools\\msys64\\usr\\bin\\pacman.exe", ["-S", "--noconfirm", "mingw-w64-x86_64-pcre"]);
+				
 			case "Linux":
 				Linux.requireAptPackages(["libpcre3-dev", "libssl-dev", "libreadline-dev"]);
 				runCommand("pip", ["install", "--user", "hererocks"]);
@@ -28,16 +47,32 @@ class Lua {
 		}
 	}
 
-	static function installLib(lib : String, version : String, ?server :String){
+	static function installLib(lib:String, version:String, ?server:String, ?envpath:String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
-            final args = ["install", lib, version];
+            		final args = ["install", lib, version];
+			
+			args.push('--verbose');
+			
 			if (systemName == "Mac") {
 				args.push('OPENSSL_DIR=/usr/local/opt/openssl@3');
 			}
-            if (server != null){
-                final server_arg = '--server=$server';
-                args.push(server_arg);
-            }
+			if (systemName == "Windows") {
+				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL-Win64');	
+				args.push('PCRE_DIR=C:\\tools\\msys64\\mingw64');	
+				args.push('PCRE_INCDIR=C:\\tools\\msys64\\mingw64\\include');
+				if (envpath != null) {
+					args.push('LUA_LIBDIR='+envpath+'/bin');
+					
+					attemptCommand("dir", ['/S', envpath]);
+				}
+			}
+			
+			if (server != null){
+				final server_arg = '--server=$server';
+				args.push(server_arg);
+			}
+			
+			
 			runCommand("luarocks", args);
 		} else {
 			infoMsg('Lua dependency $lib is already installed at version $version');
@@ -71,10 +106,10 @@ class Lua {
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
 			installLib("luasec", "1.0.2-1");
-
+			
 			installLib("lrexlib-pcre", "2.9.1-1");
-			installLib("luv", "1.36.0-0");
-			installLib("luasocket", "3.0rc1-2");
+			installLib("luv", "1.44.2-1", null, envpath);
+			installLib("luasocket", "3.1.0-1");
 			installLib("luautf8", "0.1.1-1");
 			
 			//Install bit32 for lua 5.1
@@ -82,7 +117,7 @@ class Lua {
 				installLib("bit32", "5.2.2-1");
 			}
 			
-			installLib("hx-lua-simdjson", "0.0.1-1");
+			installLib("inklit/hx-lua-simdjson", "0.0.1-0");
 			
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
