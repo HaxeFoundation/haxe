@@ -36,11 +36,11 @@ You need to install some native libraries as well as some OCaml libraries.
 To install the native libraries, use the appropriate system package manager.
 
  * Mac OS X
-    * Use [Homebrew](https://brew.sh/), `brew install zlib pcre`.
+    * Use [Homebrew](https://brew.sh/), `brew install zlib pcre2`.
  * Debian / Ubuntu
-    * `sudo apt install libpcre3-dev zlib1g-dev libmbedtls-dev`.
+    * `sudo apt install libpcre2-dev zlib1g-dev libmbedtls-dev`.
  * Windows (Cygwin)
-    * Run the Cygwin [setup-x86_64.exe](https://cygwin.com/install.html) against the Cygwin installation directory. Install `make`, `git`, `zlib-devel`, `libpcre-devel`, `mingw64-x86_64-gcc-core`, `mingw64-x86_64-zlib`, and `mingw64-x86_64-pcre`. You may need to select "Not Installed" in the dropdown list to see the packages. Copy `zlib1.dll` and `libpcre-1.dll` from `path/to/cygwin/usr/x86_64-w64-mingw32/sys-root/mingw/bin` to the checked out Haxe source directory.
+    * Run the Cygwin [setup-x86_64.exe](https://cygwin.com/install.html) against the Cygwin installation directory. Install `make`, `git`, `zlib-devel`, `libpcre2-devel`, `mingw64-x86_64-gcc-core`, `mingw64-x86_64-zlib`, and `mingw64-x86_64-pcre2`. You may need to select "Not Installed" in the dropdown list to see the packages. Copy `zlib1.dll` and `libpcre2-8-0.dll` from `path/to/cygwin/usr/x86_64-w64-mingw32/sys-root/mingw/bin` to the checked out Haxe source directory.
     * Install Neko by either
       * Download the [Neko binaries](https://nekovm.org/download/), and add the extracted directory to the beginning of PATH.
       * Install the [Chocolatey Neko package](https://chocolatey.org/packages/neko).
