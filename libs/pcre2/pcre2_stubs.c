@@ -280,7 +280,7 @@ static struct custom_operations regexp_ops = {
 /* Makes compiled regular expression from compilation options, an optional
    value of chartables and the pattern string */
 
-CAMLprim value pcre2_compile_stub(intnat v_opt, value v_tables, value v_pat)
+CAMLprim value pcre2_compile_stub(int64_t v_opt, value v_tables, value v_pat)
 {
   value v_rex;  /* Final result -> value of type [regexp] */
   int error_code = 0;  /* error code for potential error */
@@ -320,7 +320,7 @@ CAMLprim value pcre2_compile_stub(intnat v_opt, value v_tables, value v_pat)
 
 CAMLprim value pcre2_compile_stub_bc(value v_opt, value v_tables, value v_pat)
 {
-  return pcre2_compile_stub(Int_val(v_opt), v_tables, v_pat);
+  return pcre2_compile_stub(Long_val(v_opt), v_tables, v_pat);
 }
 
 /* Gets the depth limit of a regular expression if it exists */
@@ -379,12 +379,22 @@ static inline int pcre2_pattern_info_stub(value v_rex, int what, void* where)
   CAMLprim value pcre2_##name##_stub_bc(value v_rex) \
   { return Val_int(pcre2_##name##_stub(v_rex)); }
 
-make_intnat_info(unsigned long, argoptions, ARGOPTIONS)
 make_intnat_info(size_t, size, SIZE)
 make_intnat_info(int, capturecount, CAPTURECOUNT)
 make_intnat_info(int, backrefmax, BACKREFMAX)
 make_intnat_info(int, namecount, NAMECOUNT)
 make_intnat_info(int, nameentrysize, NAMEENTRYSIZE)
+
+CAMLprim int64_t pcre2_argoptions_stub(value v_rex)
+{
+  uint32_t options;
+  const int ret = pcre2_pattern_info_stub(v_rex, PCRE2_INFO_ARGOPTIONS, &options);
+  if (ret != 0) raise_internal_error("pcre2_##name##_stub");
+  return (int64_t)options;
+}
+
+CAMLprim value pcre2_argoptions_stub_bc(value v_rex)
+{ return Val_long(pcre2_argoptions_stub(v_rex)); }
 
 CAMLprim value pcre2_firstcodeunit_stub(value v_rex)
 {
@@ -481,7 +491,7 @@ static inline void handle_pcre2_match_result(
    function */
 
 CAMLprim value pcre2_match_stub0(
-    intnat v_opt, value v_rex, intnat v_pos, intnat v_subj_start, value v_subj,
+    int64_t v_opt, value v_rex, intnat v_pos, intnat v_subj_start, value v_subj,
     value v_ovec, value v_maybe_cof, value v_workspace)
 {
   int ret;
@@ -506,7 +516,6 @@ CAMLprim value pcre2_match_stub0(
     const pcre2_code *code = get_rex(v_rex);  /* Compiled pattern */
     pcre2_match_context* mcontext = get_mcontext(v_rex);  /* Match context */
     PCRE2_SPTR ocaml_subj = (PCRE2_SPTR)String_val(v_subj) + subj_start;  /* Subject string */
-    const int opt = v_opt;  /* Runtime options */
 
     pcre2_match_data* match_data = pcre2_match_data_create_from_pattern(code, NULL);
 
@@ -515,10 +524,10 @@ CAMLprim value pcre2_match_stub0(
       /* Performs the match */
       if (is_dfa)
         ret =
-          pcre2_dfa_match(code, ocaml_subj, len, pos, opt, match_data, mcontext,
+          pcre2_dfa_match(code, ocaml_subj, len, pos, v_opt, match_data, mcontext,
               (int *) &Field(v_workspace, 0), Wosize_val(v_workspace));
       else
-        ret = pcre2_match(code, ocaml_subj, len, pos, opt, match_data, mcontext);
+        ret = pcre2_match(code, ocaml_subj, len, pos, v_opt, match_data, mcontext);
 
       size_t *ovec = pcre2_get_ovector_pointer(match_data);
 
@@ -560,11 +569,11 @@ CAMLprim value pcre2_match_stub0(
           workspace_len = Wosize_val(v_workspace);
           workspace = caml_stat_alloc(sizeof(int) * workspace_len);
           ret =
-            pcre2_dfa_match(code, subj, len, pos, opt, match_data, new_mcontext,
+            pcre2_dfa_match(code, subj, len, pos, v_opt, match_data, new_mcontext,
                 (int *) &Field(v_workspace, 0), workspace_len);
         } else
           ret =
-            pcre2_match(code, subj, len, pos, opt, match_data, new_mcontext);
+            pcre2_match(code, subj, len, pos, v_opt, match_data, new_mcontext);
 
         caml_stat_free(subj);
       End_roots();
@@ -599,7 +608,7 @@ CAMLprim value pcre2_match_stub0(
 }
 
 CAMLprim value pcre2_match_stub(
-    intnat v_opt, value v_rex, intnat v_pos, intnat v_subj_start, value v_subj,
+    int64_t v_opt, value v_rex, intnat v_pos, intnat v_subj_start, value v_subj,
     value v_ovec, value v_maybe_cof)
 {
   return pcre2_match_stub0(v_opt, v_rex, v_pos, v_subj_start, v_subj,
@@ -612,7 +621,7 @@ CAMLprim value pcre2_match_stub_bc(value *argv, int __unused argn)
 {
   return
     pcre2_match_stub0(
-        Int_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
+        Long_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
         argv[4], argv[5], argv[6], (value) NULL);
 }
 
@@ -622,7 +631,7 @@ CAMLprim value pcre2_dfa_match_stub_bc(value *argv, int __unused argn)
 {
   return
     pcre2_match_stub0(
-        Int_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
+        Long_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
         argv[4], argv[5], argv[6], argv[7]);
 }
 

@@ -48,8 +48,8 @@ let () =
 
 (* Compilation and runtime flags and their conversion functions *)
 
-type icflag = int
-type irflag = int
+type icflag = int64
+type irflag = int64
 
 (* Compilation flags *)
 
@@ -88,89 +88,90 @@ type cflag =
   ]
 
 let int_of_cflag = function
-  | `ALLOW_EMPTY_CLASS -> 0x00000001
-  | `ALT_BSUX -> 0x00000002
-  | `AUTO_CALLOUT -> 0x00000004
-  | `CASELESS -> 0x00000008
-  | `DOLLAR_ENDONLY -> 0x00000010
-  | `DOTALL -> 0x00000020
-  | `DUPNAMES -> 0x00000040
-  | `EXTENDED -> 0x00000080
-  | `FIRSTLINE -> 0x00000100
-  | `MATCH_UNSET_BACKREF -> 0x00000200
-  | `MULTILINE -> 0x00000400
-  | `NEVER_UCP -> 0x00000800
-  | `NEVER_UTF -> 0x00001000
-  | `NO_AUTO_CAPTURE -> 0x00002000
-  | `NO_AUTO_POSSESS -> 0x00004000
-  | `NO_DOTSTAR_ANCHOR -> 0x00008000
-  | `NO_START_OPTIMIZE -> 0x00010000
-  | `UCP -> 0x00020000
-  | `UNGREEDY -> 0x00040000
-  | `UTF -> 0x00080000
-  | `NEVER_BACKSLASH_C -> 0x00100000
-  | `ALT_CIRCUMFLEX -> 0x00200000
-  | `ALT_VERBNAMES -> 0x00400000
-  | `USE_OFFSET_LIMIT -> 0x00800000
-  | `EXTENDED_MORE -> 0x01000000
-  | `LITERAL -> 0x02000000
-  | `MATCH_INVALID_UTF -> 0x04000000
-  | `ENDANCHORED -> 0x20000000
-  | `NO_UTF_CHECK -> 0x40000000
-  | `ANCHORED -> 0x80000000
+  | `ALLOW_EMPTY_CLASS -> 0x00000001L
+  | `ALT_BSUX -> 0x00000002L
+  | `AUTO_CALLOUT -> 0x00000004L
+  | `CASELESS -> 0x00000008L
+  | `DOLLAR_ENDONLY -> 0x00000010L
+  | `DOTALL -> 0x00000020L
+  | `DUPNAMES -> 0x00000040L
+  | `EXTENDED -> 0x00000080L
+  | `FIRSTLINE -> 0x00000100L
+  | `MATCH_UNSET_BACKREF -> 0x00000200L
+  | `MULTILINE -> 0x00000400L
+  | `NEVER_UCP -> 0x00000800L
+  | `NEVER_UTF -> 0x00001000L
+  | `NO_AUTO_CAPTURE -> 0x00002000L
+  | `NO_AUTO_POSSESS -> 0x00004000L
+  | `NO_DOTSTAR_ANCHOR -> 0x00008000L
+  | `NO_START_OPTIMIZE -> 0x00010000L
+  | `UCP -> 0x00020000L
+  | `UNGREEDY -> 0x00040000L
+  | `UTF -> 0x00080000L
+  | `NEVER_BACKSLASH_C -> 0x00100000L
+  | `ALT_CIRCUMFLEX -> 0x00200000L
+  | `ALT_VERBNAMES -> 0x00400000L
+  | `USE_OFFSET_LIMIT -> 0x00800000L
+  | `EXTENDED_MORE -> 0x01000000L
+  | `LITERAL -> 0x02000000L
+  | `MATCH_INVALID_UTF -> 0x04000000L
+  | `ENDANCHORED -> 0x20000000L
+  | `NO_UTF_CHECK -> 0x40000000L
+  | `ANCHORED -> 0x80000000L
 
-let coll_icflag icflag flag = int_of_cflag flag lor icflag
-let cflags flags = List.fold_left coll_icflag 0 flags
+
+let coll_icflag icflag flag = Int64.logor (int_of_cflag flag) icflag
+let cflags flags = List.fold_left coll_icflag 0L flags
 
 let cflag_of_int = function
-  | 0x00000001 -> `ALLOW_EMPTY_CLASS
-  | 0x00000002 -> `ALT_BSUX
-  | 0x00000004 -> `AUTO_CALLOUT
-  | 0x00000008 -> `CASELESS
-  | 0x00000010 -> `DOLLAR_ENDONLY
-  | 0x00000020 -> `DOTALL
-  | 0x00000040 -> `DUPNAMES
-  | 0x00000080 -> `EXTENDED
-  | 0x00000100 -> `FIRSTLINE
-  | 0x00000200 -> `MATCH_UNSET_BACKREF
-  | 0x00000400 -> `MULTILINE
-  | 0x00000800 -> `NEVER_UCP
-  | 0x00001000 -> `NEVER_UTF
-  | 0x00002000 -> `NO_AUTO_CAPTURE
-  | 0x00004000 -> `NO_AUTO_POSSESS
-  | 0x00008000 -> `NO_DOTSTAR_ANCHOR
-  | 0x00010000 -> `NO_START_OPTIMIZE
-  | 0x00020000 -> `UCP
-  | 0x00040000 -> `UNGREEDY
-  | 0x00080000 -> `UTF
-  | 0x00100000 -> `NEVER_BACKSLASH_C
-  | 0x00200000 -> `ALT_CIRCUMFLEX
-  | 0x00400000 -> `ALT_VERBNAMES
-  | 0x00800000 -> `USE_OFFSET_LIMIT
-  | 0x01000000 -> `EXTENDED_MORE
-  | 0x02000000 -> `LITERAL
-  | 0x04000000 -> `MATCH_INVALID_UTF
-  | 0x20000000 -> `ENDANCHORED
-  | 0x40000000 -> `NO_UTF_CHECK
-  | 0x80000000 -> `ANCHORED
+  | 0x00000001L -> `ALLOW_EMPTY_CLASS
+  | 0x00000002L -> `ALT_BSUX
+  | 0x00000004L -> `AUTO_CALLOUT
+  | 0x00000008L -> `CASELESS
+  | 0x00000010L -> `DOLLAR_ENDONLY
+  | 0x00000020L -> `DOTALL
+  | 0x00000040L -> `DUPNAMES
+  | 0x00000080L -> `EXTENDED
+  | 0x00000100L -> `FIRSTLINE
+  | 0x00000200L -> `MATCH_UNSET_BACKREF
+  | 0x00000400L -> `MULTILINE
+  | 0x00000800L -> `NEVER_UCP
+  | 0x00001000L -> `NEVER_UTF
+  | 0x00002000L -> `NO_AUTO_CAPTURE
+  | 0x00004000L -> `NO_AUTO_POSSESS
+  | 0x00008000L -> `NO_DOTSTAR_ANCHOR
+  | 0x00010000L -> `NO_START_OPTIMIZE
+  | 0x00020000L -> `UCP
+  | 0x00040000L -> `UNGREEDY
+  | 0x00080000L -> `UTF
+  | 0x00100000L -> `NEVER_BACKSLASH_C
+  | 0x00200000L -> `ALT_CIRCUMFLEX
+  | 0x00400000L -> `ALT_VERBNAMES
+  | 0x00800000L -> `USE_OFFSET_LIMIT
+  | 0x01000000L -> `EXTENDED_MORE
+  | 0x02000000L -> `LITERAL
+  | 0x04000000L -> `MATCH_INVALID_UTF
+  | 0x20000000L -> `ENDANCHORED
+  | 0x40000000L -> `NO_UTF_CHECK
+  | 0x80000000L -> `ANCHORED
   | _ -> failwith "Pcre2.cflag_list: unknown compilation flag"
 
 let all_cflags =
   [
-    0x00000001; 0x00000002; 0x00000004; 0x00000008;
-    0x00000010; 0x00000020; 0x00000040; 0x00000080;
-    0x00000100; 0x00000200; 0x00000400; 0x00000800;
-    0x00001000; 0x00002000; 0x00004000; 0x00008000;
-    0x00010000; 0x00020000; 0x00040000; 0x00080000;
-    0x00100000; 0x00200000; 0x00400000; 0x00800000;
-    0x01000000; 0x02000000; 0x04000000;
-    0x20000000; 0x40000000; 0x80000000;
+    0x00000001L; 0x00000002L; 0x00000004L; 0x00000008L;
+    0x00000010L; 0x00000020L; 0x00000040L; 0x00000080L;
+    0x00000100L; 0x00000200L; 0x00000400L; 0x00000800L;
+    0x00001000L; 0x00002000L; 0x00004000L; 0x00008000L;
+    0x00010000L; 0x00020000L; 0x00040000L; 0x00080000L;
+    0x00100000L; 0x00200000L; 0x00400000L; 0x00800000L;
+    0x01000000L; 0x02000000L; 0x04000000L;
+    0x20000000L; 0x40000000L; 0x80000000L;
   ]
 
 let cflag_list icflags =
   let coll flag_list flag =
-    if icflags land flag <> 0 then cflag_of_int flag :: flag_list
-    else flag_list in
+    if Int64.equal (Int64.logand icflags flag) 0L then flag_list
+    else cflag_of_int flag :: flag_list in
   List.fold_left coll [] all_cflags
 
 
@@ -194,51 +195,51 @@ type rflag =
   ]
 
 let int_of_rflag = function
-  | `NOTBOL -> 0x00000001
-  | `NOTEOL -> 0x00000002
-  | `NOTEMPTY ->  0x00000004
-  | `NOTEMPTY_ATSTART -> 0x00000008
-  | `PARTIAL_SOFT -> 0x00000010
-  | `PARTIAL_HARD -> 0x00000020
-  | `DFA_RESTART -> 0x00000040
-  | `DFA_SHORTEST -> 0x00000080
-  | `NO_JIT -> 0x00002000
-  | `COPY_MATCHED_SUBJECT -> 0x00004000
-  | `ENDANCHORED -> 0x20000000
-  | `NO_UTF_CHECK -> 0x40000000
-  | `ANCHORED -> 0x80000000
+  | `NOTBOL -> 0x00000001L
+  | `NOTEOL -> 0x00000002L
+  | `NOTEMPTY ->  0x00000004L
+  | `NOTEMPTY_ATSTART -> 0x00000008L
+  | `PARTIAL_SOFT -> 0x00000010L
+  | `PARTIAL_HARD -> 0x00000020L
+  | `DFA_RESTART -> 0x00000040L
+  | `DFA_SHORTEST -> 0x00000080L
+  | `NO_JIT -> 0x00002000L
+  | `COPY_MATCHED_SUBJECT -> 0x00004000L
+  | `ENDANCHORED -> 0x20000000L
+  | `NO_UTF_CHECK -> 0x40000000L
+  | `ANCHORED -> 0x80000000L
 
-let coll_irflag irflag flag = int_of_rflag flag lor irflag
-let rflags flags = List.fold_left coll_irflag 0 flags
+let coll_irflag irflag flag = Int64.logor (int_of_rflag flag) irflag
+let rflags flags = List.fold_left coll_irflag 0L flags
 
 let rflag_of_int = function
-  | 0x00000001 -> `NOTBOL
-  | 0x00000002 -> `NOTEOL
-  | 0x00000004 -> `NOTEMPTY
-  | 0x00000008 -> `NOTEMPTY_ATSTART
-  | 0x00000010 -> `PARTIAL_SOFT
-  | 0x00000020 -> `PARTIAL_HARD
-  | 0x00000040 -> `DFA_RESTART
-  | 0x00000080 -> `DFA_SHORTEST
-  | 0x00002000 -> `NO_JIT
-  | 0x00004000 -> `COPY_MATCHED_SUBJECT
-  | 0x20000000 -> `ENDANCHORED
-  | 0x40000000 -> `NO_UTF_CHECK
-  | 0x80000000 -> `ANCHORED
+  | 0x00000001L -> `NOTBOL
+  | 0x00000002L -> `NOTEOL
+  | 0x00000004L -> `NOTEMPTY
+  | 0x00000008L -> `NOTEMPTY_ATSTART
+  | 0x00000010L -> `PARTIAL_SOFT
+  | 0x00000020L -> `PARTIAL_HARD
+  | 0x00000040L -> `DFA_RESTART
+  | 0x00000080L -> `DFA_SHORTEST
+  | 0x00002000L -> `NO_JIT
+  | 0x00004000L -> `COPY_MATCHED_SUBJECT
+  | 0x20000000L -> `ENDANCHORED
+  | 0x40000000L -> `NO_UTF_CHECK
+  | 0x80000000L -> `ANCHORED
   | _ -> failwith "Pcre2.rflag_list: unknown runtime flag"
 
 let all_rflags =
   [
-    0x00000001; 0x00000002; 0x00000004; 0x00000008;
-    0x00000010; 0x00000020; 0x00000040; 0x00000080;
-    0x00002000; 0x00004000;
-    0x20000000; 0x40000000; 0x80000000;
+    0x00000001L; 0x00000002L; 0x00000004L; 0x00000008L;
+    0x00000010L; 0x00000020L; 0x00000040L; 0x00000080L;
+    0x00002000L; 0x00004000L;
+    0x20000000L; 0x40000000L; 0x80000000L;
   ]
 
 let rflag_list irflags =
   let coll flag_list flag =
-    if irflags land flag <> 0 then rflag_of_int flag :: flag_list
-    else flag_list in
+    if Int64.equal (Int64.logand irflags flag) 0L then flag_list
+    else rflag_of_int flag :: flag_list in
   List.fold_left coll [] all_rflags
 
 
@@ -284,7 +285,7 @@ type firstcodeunit_info =
 
 type regexp
 
-external options : regexp -> (icflag [@untagged])
+external options : regexp -> (icflag [@unboxed])
   = "pcre2_argoptions_stub_bc" "pcre2_argoptions_stub"
 
 external size : regexp -> (int [@untagged])
@@ -312,7 +313,7 @@ type chtables
 
 external maketables : unit -> chtables = "pcre2_maketables_stub"
 
-external compile : (icflag  [@untagged]) -> chtables option -> string -> regexp
+external compile : (icflag [@unboxed]) -> chtables option -> string -> regexp
   = "pcre2_compile_stub_bc" "pcre2_compile_stub"
 
 (* external get_match_limit : regexp -> int option = "pcre2_get_match_limit_stub" *)
@@ -334,7 +335,7 @@ external set_imp_depth_limit : regexp -> (int [@untagged]) -> regexp
 let regexp
       (* ?(jit_compile = false) *)
       ?limit ?depth_limit
-      ?(iflags = 0) ?flags ?chtables pat =
+      ?(iflags = 0L) ?flags ?chtables pat =
   let rex =
     match flags with
     | Some flag_list -> compile (cflags flag_list) chtables pat
@@ -350,7 +351,7 @@ let regexp
   | Some lim -> set_imp_depth_limit rex lim
 
 let regexp_or
-      (* ?jit_compile *) ?limit ?depth_limit ?(iflags = 0) ?flags ?chtables pats =
+      (* ?jit_compile *) ?limit ?depth_limit ?(iflags = 0L) ?flags ?chtables pats =
   let check pat =
     try ignore (regexp ~iflags ?flags ?chtables pat)
     with Error error -> raise (Regexp_or (pat, error))
@@ -472,7 +473,7 @@ let get_named_substring_ofs rex name substrings =
   get_substring_ofs substrings (get_stringnumber rex name)
 
 external unsafe_pcre2_match :
-  (irflag [@untagged]) ->
+  (irflag [@unboxed]) ->
   regexp ->
   pos : (int [@untagged]) ->
   subj_start : (int [@untagged]) ->
@@ -487,7 +488,7 @@ let make_ovector rex =
   subgroups2, Array.make (subgroups1 + subgroups2) 0
 
 external unsafe_pcre2_dfa_match :
-  (irflag [@untagged]) ->
+  (irflag [@unboxed]) ->
   regexp ->
   pos : (int [@untagged]) ->
   subj_start : (int [@untagged]) ->
@@ -497,7 +498,7 @@ external unsafe_pcre2_dfa_match :
   workspace : int array ->
   unit = "pcre2_dfa_match_stub_bc" "pcre2_match_stub0"
 
-let pcre2_dfa_match ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
+let pcre2_dfa_match ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
                   ?callout ?(workspace = Array.make 20 0) subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -506,7 +507,7 @@ let pcre2_dfa_match ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
     iflags rex ~pos ~subj_start:0 ~subj ovector callout ~workspace;
   ovector
 
-let pcre2_match ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
+let pcre2_match ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
               ?callout subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -528,11 +529,11 @@ let rec copy_lst ar n = function
   | [] -> ar
   | h :: t -> Array.unsafe_set ar n h; copy_lst ar (n - 1) t
 
-let exec_all ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?pos ?callout subj =
+let exec_all ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat ?pos ?callout subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
   let (_, ovector as sstrs) = exec ~iflags ~rex ?pos ?callout subj in
-  let null_flags = iflags lor 0x00000004 in (* `NOTEMPTY *)
+  let null_flags = Int64.logor iflags 0x00000004L in (* `NOTEMPTY *)
   let subj_len = String.length subj in
   let rec loop pos (subj, ovector as sstrs) n lst =
     let maybe_ovector =
@@ -671,7 +672,7 @@ let calc_trans_lst subgroups2 ovector subj templ subst_lst =
         return_lst (subj, !ix, Array.unsafe_get ovector (!pos + 1) - !ix) in
   List.fold_left coll (0, []) subst_lst
 
-let replace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
+let replace ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat
             ?(pos = 0) ?(itempl = def_subst) ?templ ?callout subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -729,7 +730,7 @@ let replace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
       else loop full_len trans_lsts last in
   loop 0 [] pos
 
-let qreplace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
+let qreplace ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat
              ?(pos = 0) ?(templ = "") ?callout subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -778,7 +779,7 @@ let qreplace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
       else loop full_len subst_lst last in
   loop 0 [] pos
 
-let substitute_substrings ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
+let substitute_substrings ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat
                           ?(pos = 0) ?callout ~subst subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -831,7 +832,7 @@ let substitute ?iflags ?flags ?rex ?pat ?pos ?callout ~subst:str_subst subj =
     str_subst (string_unsafe_sub subj first (last - first)) in
   substitute_substrings ?iflags ?flags ?rex ?pat ?pos ?callout ~subst subj
 
-let replace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
+let replace_first ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
                   ?(itempl = def_subst) ?templ ?callout subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -860,7 +861,7 @@ let replace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
     Bytes.unsafe_to_string res
   with Not_found -> subj
 
-let qreplace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
+let qreplace_first ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat
                    ?(pos = 0) ?(templ = "") ?callout subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -879,7 +880,7 @@ let qreplace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     Bytes.unsafe_to_string res
   with Not_found -> subj
 
-let substitute_substrings_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
+let substitute_substrings_first ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat
                                 ?(pos = 0) ?callout ~subst subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -973,7 +974,7 @@ let internal_psplit flags rex max pos callout subj =
                   try
                     unsafe_pcre2_match
                       (* `ANCHORED | `NOTEMPTY *)
-                      (flags lor 0x80000004) rex ~pos ~subj_start:pos ~subj
+                      (Int64.logor flags 0x80000004L) rex ~pos ~subj_start:pos ~subj
                       ovector callout;
                     true
                   with Not_found -> false
@@ -999,7 +1000,7 @@ let rec find_no_space ix len str =
   if ix = len || not (isspace (String.unsafe_get str ix)) then ix
   else find_no_space (ix + 1) len str
 
-let split ?(iflags = 0) ?flags ?rex ?pat ?(pos = 0) ?(max = 0) ?callout subj =
+let split ?(iflags = 0L) ?flags ?rex ?pat ?(pos = 0) ?(max = 0) ?callout subj =
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
   let res =
     match pat, rex with
@@ -1028,7 +1029,7 @@ let rec strip_all_empty_full = function
   | Delim _ :: rest -> strip_all_empty_full rest
   | l -> l
 
-let full_split ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
+let full_split ?(iflags = 0L) ?flags ?(rex = def_rex) ?pat
                ?(pos = 0) ?(max = 0) ?callout subj =
   let rex = match pat with Some str -> regexp str | _ -> rex in
   let iflags = match flags with Some flags -> rflags flags | _ -> iflags in
@@ -1102,7 +1103,7 @@ let full_split ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
                     try
                       unsafe_pcre2_match
                         (* `ANCHORED | `NOTEMPTY *)
-                        (iflags lor 0x80000004) rex ~pos ~subj_start:pos ~subj
+                        (Int64.logor iflags 0x80000004L) rex ~pos ~subj_start:pos ~subj
                         ovector callout;
                       true
                     with Not_found -> false
