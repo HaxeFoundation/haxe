@@ -152,9 +152,9 @@ and convert_signature ctx p jsig =
 	| TObjectInner (pack, (name, params) :: inners) ->
 			let actual_param = match List.rev inners with
 			| (_, p) :: _ -> p
-			| _ -> assert false in
+			| _ -> die "" __LOC__ in
 			mk_type_path ctx (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
-	| TObjectInner (pack, inners) -> assert false
+	| TObjectInner (pack, inners) -> die "" __LOC__
 	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,null_pos) ]
 	| TMethod _ -> JReader.error "TMethod cannot be converted directly into Complex Type"
 	| TTypeParameter s -> (match ctx.jtparams with
@@ -172,18 +172,9 @@ and convert_signature ctx p jsig =
 let convert_constant ctx p const =
 	Option.map_default (function
 		| ConstString s -> Some (EConst (String(s,SDoubleQuotes)), p)
-		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i)), p)
-		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
+		| ConstInt i -> Some (EConst (Int (Printf.sprintf "%ld" i, None)), p)
+		| ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f, None)), p)
 		| _ -> None) None const
-
-let rec same_sig parent jsig =
-	match jsig with
-	| TObject (p,targs) -> parent = p || List.exists (function | TType (_,s) -> same_sig parent s | _ -> false) targs
-	| TObjectInner(p, ntargs) ->
-			parent = (p, String.concat "$" (List.map fst ntargs)) ||
-			List.exists (fun (_,targs) -> List.exists (function | TType(_,s) -> same_sig parent s | _ -> false) targs) ntargs
-	| TArray(s,_) -> same_sig parent s
-	| _ -> false
 
 let convert_constraints ctx p tl = match tl with
 	| [] -> None
@@ -197,15 +188,15 @@ let convert_param ctx p parent param =
 		| (name, None, implemem_sig) ->
 			name, implemem_sig
 		in
-		let constraints = List.map (fun s -> if same_sig parent s then (TObject( (["java";"lang"], "Object"), [])) else s) constraints in
 		{
 			tp_name = jname_to_hx name,null_pos;
 			tp_params = [];
 			tp_constraints = convert_constraints ctx p constraints;
+			tp_default = None;
 			tp_meta = [];
 		}
 
-let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
+let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> die "" __LOC__
 
 let is_override field =
 	List.exists (function | AttrVisibleAnnotations [{ ann_type = TObject( (["java";"lang"], "Override"), _ ) }] -> true | _ -> false) field.jf_attributes
@@ -224,6 +215,17 @@ let show_in_completion ctx jc =
 	else match fst jc.cpath with
 		| ("java" | "javax" | "org") :: _ -> true
 		| _ -> false
+
+(**
+	`haxe.Rest<T>` auto-boxes primitive types.
+	That means we can't use it as varargs for extern methods.
+	E.g externs with `int` varargs are represented as `int[]` at run time
+	while `haxe.Rest<Int>` is actually `java.lang.Integer[]`.
+*)
+let is_eligible_for_haxe_rest_args arg_type =
+	match arg_type with
+	| TByte | TChar | TDouble | TFloat | TInt | TLong | TShort | TBool -> false
+	| _ -> true
 
 let convert_java_enum ctx p pe =
 	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath,SDoubleQuotes) ), p], p ]) in
@@ -247,7 +249,7 @@ let convert_java_enum ctx p pe =
 		d_data = List.rev !data;
 	}
 
-	let convert_java_field ctx p jc field =
+	let convert_java_field ctx p jc is_interface field =
 		let p = { p with pfile =	p.pfile ^" (" ^field.jf_name ^")" } in
 		let cff_doc = None in
 		let cff_pos = p in
@@ -264,6 +266,7 @@ let convert_java_enum ctx p pe =
 		in
 		let jf_constant = ref field.jf_constant in
 		let readonly = ref false in
+		let is_varargs = ref false in
 
 		List.iter (function
 			| JPublic -> cff_access := (APublic,null_pos) :: !cff_access
@@ -284,7 +287,9 @@ let convert_java_enum ctx p pe =
 			(* | JSynchronized -> cff_meta := (Meta.Synchronized, [], p) :: !cff_meta *)
 			| JVolatile -> cff_meta := (Meta.Volatile, [], p) :: !cff_meta
 			| JTransient -> cff_meta := (Meta.Transient, [], p) :: !cff_meta
-			(* | JVarArgs -> cff_meta := (Meta.VarArgs, [], p) :: !cff_meta *)
+			| JVarArgs -> is_varargs := true
+			| JAbstract when not is_interface ->
+				cff_access := (AAbstract, p) :: !cff_access
 			| _ -> ()
 		) field.jf_flags;
 
@@ -307,6 +312,34 @@ let convert_java_enum ctx p pe =
 				| _ -> ()
 		) field.jf_throws;
 
+		let extract_local_names () =
+			let default i =
+				"param" ^ string_of_int i
+			in
+			match field.jf_code with
+			| None ->
+				default
+			| Some attribs -> try
+				let rec loop attribs = match attribs with
+					| AttrLocalVariableTable locals :: _ ->
+						locals
+					| _ :: attribs ->
+						loop attribs
+					| [] ->
+						raise Not_found
+				in
+				let locals = loop attribs in
+				let h = Hashtbl.create 0 in
+				List.iter (fun local ->
+					Hashtbl.replace h local.ld_index local.ld_name
+				) locals;
+				(fun i ->
+					try Hashtbl.find h (i - 1) (* they are 1-based *)
+					with Not_found -> "param" ^ string_of_int i
+				)
+			with Not_found ->
+				default
+		in
 		let kind = match field.jf_kind with
 			| JKField when !readonly ->
 				FProp (("default",null_pos), ("null",null_pos), Some (convert_signature ctx p field.jf_signature,null_pos), None)
@@ -315,23 +348,33 @@ let convert_java_enum ctx p pe =
 			| JKMethod ->
 				match field.jf_signature with
 				| TMethod (args, ret) ->
+					let local_names = extract_local_names() in
 					let old_types = ctx.jtparams in
 					(match ctx.jtparams with
 					| c :: others -> ctx.jtparams <- (c @ field.jf_types) :: others
 					| [] -> ctx.jtparams <- field.jf_types :: []);
 					let i = ref 0 in
+					let args_count = List.length args in
 					let args = List.map (fun s ->
 						incr i;
-						("param" ^ string_of_int !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
+						let hx_sig =
+							match s with
+							| TArray (s1,_) when !is_varargs && !i = args_count && is_eligible_for_haxe_rest_args s1 ->
+								mk_type_path ctx (["haxe"], "Rest") [TPType (convert_signature ctx p s1,null_pos)]
+							| _ ->
+								convert_signature ctx null_pos s
+						in
+						(local_names !i,null_pos), false, [], Some(hx_sig,null_pos), None
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
-					cff_meta := (Meta.Overload, [], p) :: !cff_meta;
+					cff_access := (AOverload,p) :: !cff_access;
 					let types = List.map (function
 						| (name, Some ext, impl) ->
 							{
 								tp_name = name,null_pos;
 								tp_params = [];
 								tp_constraints = convert_constraints ctx p (ext :: impl);
+								tp_default = None;
 								tp_meta = [];
 							}
 						| (name, None, impl) ->
@@ -339,6 +382,7 @@ let convert_java_enum ctx p pe =
 								tp_name = name,null_pos;
 								tp_params = [];
 								tp_constraints = convert_constraints ctx p impl;
+								tp_default = None;
 								tp_meta = [];
 							}
 					) field.jf_types in
@@ -352,6 +396,7 @@ let convert_java_enum ctx p pe =
 					})
 				| _ -> error "Method signature was expected" p
 		in
+		if field.jf_code <> None && is_interface then cff_meta := (Meta.JavaDefault,[],cff_pos) :: !cff_meta;
 		let cff_name, cff_meta =
 			match String.get cff_name 0 with
 				| '%' ->
@@ -370,7 +415,7 @@ let convert_java_enum ctx p pe =
 							String.concat "_" parts,
 							(Meta.Native, [EConst (String (cff_name,SDoubleQuotes) ), cff_pos], cff_pos) :: !cff_meta
 		in
-		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
+		if Common.raw_defined ctx.jcom "java_loader_debug" then
 			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem_assoc AStatic !cff_access then "static " else "") (if List.mem_assoc AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
 
 		{
@@ -412,7 +457,7 @@ let convert_java_enum ctx p pe =
 				[convert_java_enum ctx p jc]
 		| false ->
 			let flags = ref [HExtern] in
-			if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then begin
+			if Common.raw_defined ctx.jcom "java_loader_debug" then begin
 				let sup = jc.csuper :: jc.cinterfaces in
 				print_endline ("converting " ^ (if List.mem JAbstract jc.cflags then "abstract " else "") ^ JData.path_s jc.cpath ^ " : " ^ (String.concat ", " (List.map s_sig sup)));
 			end;
@@ -423,16 +468,20 @@ let convert_java_enum ctx p pe =
 				meta := (Meta.LibType,[],p) :: !meta;
 
 			let is_interface = ref false in
+			let is_abstract =  ref false in
 			List.iter (fun f -> match f with
 				| JFinal -> flags := HFinal :: !flags
 				| JInterface ->
 						is_interface := true;
 						flags := HInterface :: !flags
-				| JAbstract -> meta := (Meta.Abstract, [], p) :: !meta
+				| JAbstract ->
+					meta := (Meta.Abstract, [], p) :: !meta;
+					is_abstract := true;
 				| JAnnotation -> meta := (Meta.Annotation, [], p) :: !meta
 				| _ -> ()
 			) jc.cflags;
 
+			if !is_abstract && not !is_interface then flags := HAbstract :: !flags;
 			(match jc.csuper with
 				| TObject( (["java";"lang"], "Object"), _ ) -> ()
 				| TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
@@ -458,7 +507,7 @@ let convert_java_enum ctx p pe =
 						if !is_interface && List.mem JStatic f.jf_flags then
 							()
 						else begin
-							fields := convert_java_field ctx p jc f :: !fields;
+							fields := convert_java_field ctx p jc !is_interface f :: !fields;
 							jfields := f :: !jfields
 						end
 					with
@@ -472,7 +521,7 @@ let convert_java_enum ctx p pe =
 						| CTPath path ->
 							let pos = { p with pfile = p.pfile ^ " (" ^ f.jf_name ^" @:throws)" } in
 							EImport( List.map (fun s -> s,pos) (path.tpackage @ [path.tname]), INormal )
-						| _ -> assert false
+						| _ -> die "" __LOC__
 				) f.jf_throws
 			) jc.cmethods) in
 
@@ -638,7 +687,7 @@ let compare_type com s1 s2 =
 					p1, p2
 				| TObjectInner(_, npl1), TObjectInner(_, npl2) ->
 					snd (List.hd (List.rev npl1)), snd (List.hd (List.rev npl2))
-				| _ -> assert false (* not tobject *)
+				| _ -> die "" __LOC__ (* not tobject *)
 				in
 				let p1, p2 = simplify_args p1, simplify_args p2 in
 				let lp1 = List.length p1 in
@@ -660,7 +709,7 @@ let compare_type com s1 s2 =
 				let implements = List.map (japply_params jparams) c.cinterfaces in
 				loop ~first_error:first_error super s2 || List.exists (fun super -> loop ~first_error:first_error super s2) implements
 			with | Not_found ->
-				print_endline ("-java-lib: The type " ^ (s_sig s1) ^ " is referred but was not found. Compilation may not occur correctly.");
+				print_endline ("--java-lib: The type " ^ (s_sig s1) ^ " is referred but was not found. Compilation may not occur correctly.");
 				print_endline "Did you forget to include a needed lib?";
 				if first_error then
 					not (loop ~first_error:false s2 s1)
@@ -697,7 +746,7 @@ let select_best com flist =
 					if com.verbose then print_endline (f.jf_name ^ ": The types " ^ (s_sig r) ^ " and " ^ (s_sig r2) ^ " are incompatible");
 					(* bet that the current best has "beaten" other types *)
 					loop cur_best flist
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			with | Exit -> (* incompatible type parameters *)
 				(* error mode *)
 				if com.verbose then print_endline (f.jf_name ^ ": Incompatible argument return signatures: " ^ (s_sig r) ^ " and " ^ (s_sig r2));
@@ -994,7 +1043,7 @@ class virtual java_library com name file_path = object(self)
 									match ncls with
 									| EClass c :: imports ->
 										(EClass { c with d_name = (fst c.d_name ^ "_Statics"),snd c.d_name }, pos) :: inner @ List.map (fun i -> i,pos) imports
-									| _ -> assert false
+									| _ -> die "" __LOC__
 								with | Not_found ->
 									inner
 								in
@@ -1071,20 +1120,24 @@ class java_library_jar com name file_path = object(self)
 	val zip = lazy (Zip.open_in file_path)
 	val mutable cached_files = None
 	val cached_types = Hashtbl.create 12
+	val mutable loaded = false
 	val mutable closed = false
 
 	method load =
-		List.iter (function
-			| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
-				let pack = String.nsplit filename "/" in
-				(match List.rev pack with
-					| [] -> ()
-					| name :: pack ->
-						let name = String.sub name 0 (String.length name - 6) in
-						let pack = List.rev pack in
-						Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
-			| _ -> ()
-		) (Zip.entries (Lazy.force zip))
+		if not loaded then begin
+			loaded <- true;
+			List.iter (function
+				| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
+					let pack = String.nsplit filename "/" in
+					(match List.rev pack with
+						| [] -> ()
+						| name :: pack ->
+							let name = String.sub name 0 (String.length name - 6) in
+							let pack = List.rev pack in
+							Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
+				| _ -> ()
+			) (Zip.entries (Lazy.force zip))
+		end
 
 	method private lookup' ((pack,name) : path) : java_lib_type =
 		try
@@ -1101,17 +1154,18 @@ class java_library_jar com name file_path = object(self)
 		try
 			Hashtbl.find cached_types path
 		with | Not_found -> try
+			self#load;
 			let pack, name = self#convert_path path in
 			let try_file (pack,name) =
 				match self#lookup' (pack,name) with
 				| None ->
-						Hashtbl.add cached_types path None;
-						None
+					Hashtbl.add cached_types path None;
+					None
 				| Some (i, p1, p2) ->
-						Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
-						let ret = Some (normalize_jclass com i, p1, p2) in
-						Hashtbl.replace cached_types path ret;
-						ret
+					Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
+					let ret = Some (normalize_jclass com i, p1, p2) in
+					Hashtbl.replace cached_types path ret;
+					ret
 			in
 			try_file (pack,name)
 		with Not_found ->
@@ -1188,7 +1242,7 @@ class java_library_dir com name file_path = object(self)
 			| _ -> None
 end
 
-let add_java_lib com name std extern =
+let add_java_lib com name std extern modern =
 	let file = if Sys.file_exists name then
 		name
 	else try Common.find_file com name with
@@ -1196,11 +1250,14 @@ let add_java_lib com name std extern =
 		| Not_found ->
 			failwith ("Java lib " ^ name ^ " not found")
 	in
-	let java_lib = match (Unix.stat file).st_kind with
+	let java_lib =
+		if modern then
+			(new JavaModern.java_library_modern com name file :> (java_lib_type,unit) native_library)
+		else match (Unix.stat file).st_kind with
 		| S_DIR ->
-			(new java_library_dir com name file :> java_library)
+			(new java_library_dir com name file :> (java_lib_type,unit) native_library)
 		| _ ->
-			(new java_library_jar com name file :> java_library)
+			(new java_library_jar com name file :> (java_lib_type,unit) native_library)
 	in
 	if std then java_lib#add_flag FlagIsStd;
 	if extern then java_lib#add_flag FlagIsExtern;
@@ -1209,7 +1266,7 @@ let add_java_lib com name std extern =
 
 let before_generate con =
 	let java_ver = try
-			int_of_string (PMap.find "java_ver" con.defines.Define.values)
+			int_of_string (Common.defined_value con Define.JavaVer)
 		with | Not_found ->
 			Common.define_value con Define.JavaVer "7";
 			7

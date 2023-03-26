@@ -39,11 +39,11 @@ class Test implements utest.ITest {
 		Assert.fail(message, pos);
 	}
 
-	function exc( f : Void -> Void, ?pos:haxe.PosInfos ) {
+	function exc( f : () -> Void, ?pos:haxe.PosInfos ) {
 		Assert.raises(f, pos);
 	}
 
-	function unspec( f : Void -> Void, ?pos ) {
+	function unspec( f : () -> Void, ?pos ) {
 		try {
 			f();
 		} catch( e : Dynamic ) {
@@ -60,18 +60,18 @@ class Test implements utest.ITest {
 	}
 
 	function hf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		t(Lambda.has(Type.getInstanceFields(c), n));
+		t(Lambda.has(Type.getInstanceFields(c), n), pos);
 	}
 
 	function nhf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		f(Lambda.has(Type.getInstanceFields(c), n));
+		f(Lambda.has(Type.getInstanceFields(c), n), pos);
 	}
 
 	function hsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		t(Lambda.has(Type.getClassFields(c), n));
+		t(Lambda.has(Type.getClassFields(c), n), pos);
 	}
 
 	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		f(Lambda.has(Type.getClassFields(c), n));
+		f(Lambda.has(Type.getClassFields(c), n), pos);
 	}
 }

@@ -115,6 +115,24 @@ Lambda.indexOf([1,2,3,3],3) == 2;
 Lambda.indexOf([1,2,3],4) == -1;
 Lambda.indexOf([],1) == -1;
 
+// find
+Lambda.find([1,2,3,4,5],i -> i % 2 == 0) == 2;
+Lambda.find([1,2,3,4,5],i -> i % 4 == 0) == 4;
+Lambda.find([1,2,3,4,5],i -> i % 8 == 0) == null;
+Lambda.find([1,2,3,4,5],i -> true) == 1;
+Lambda.find([1,2,3,4,5],i -> false) == null;
+Lambda.find([],i -> true) == null;
+Lambda.find([],i -> false) == null;
+
+// findIndex
+Lambda.findIndex([1,2,3,4,5],i -> i % 2 == 0) == 1;
+Lambda.findIndex([1,2,3,4,5],i -> i % 4 == 0) == 3;
+Lambda.findIndex([1,2,3,4,5],i -> i % 8 == 0) == -1;
+Lambda.findIndex([1,2,3,4,5],i -> true) == 0;
+Lambda.findIndex([1,2,3,4,5],i -> false) == -1;
+Lambda.findIndex([],i -> true) == -1;
+Lambda.findIndex([],i -> false) == -1;
+
 // concat
 Lambda.array(Lambda.concat([1,2,3],[3,4,5])) == [1,2,3,3,4,5];
 Lambda.array(Lambda.concat([1,2,3],[])) == [1,2,3];

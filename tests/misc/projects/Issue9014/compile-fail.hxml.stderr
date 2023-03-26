@@ -1,0 +1,2 @@
+Main.hx:3: characters 2-40 : Invalid modifier combination: override + static
+Main.hx:4: characters 2-39 : Invalid modifier combination: dynamic + inline

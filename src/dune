@@ -2,17 +2,18 @@
 
 (env
 	(_
-		(flags (:standard -w -3 -thread))
+		(flags (:standard -w -3 -w -23 -thread))
 	)
 )
 
 (library
 	(name haxe)
 	(libraries
-		extc extproc extlib_leftovers ilib javalib neko objsize pcre swflib ttflib ziplib
+		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre2 swflib ttflib ziplib
 		json
-		unix str threads dynlink
+		unix str bigarray threads dynlink
 		xml-light extlib ptmap sha
+		luv
 	)
 	(modules (:standard \ haxe))
 	(preprocess (per_module
@@ -28,4 +29,6 @@
 	(libraries haxe)
 	(modules haxe)
 	(link_flags (:include ../lib.sexp))
+	; Uncomment to enable bytecode output for ocamldebug support
+	; (modes byte)
 )

@@ -1,7 +1,6 @@
-import java.lang.invoke.*;
 import java.lang.NoSuchMethodException;
-import jvm.annotation.*;
 import jvm.Jvm;
+import jvm.annotation.*;
 
 using jvm.NativeTools.NativeClassTools;
 using jvm.NativeTools.NativeEnumTools;
@@ -87,7 +86,10 @@ class Type {
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
-		return e.native().getName();
+		return switch e.native().getName() {
+			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s: s;
+		}
 	}
 
 	public static function resolveClass(name:String):Class<Dynamic> {
@@ -106,6 +108,9 @@ class Type {
 	}
 
 	public static function resolveEnum(name:String):Enum<Dynamic> {
+		if (name.indexOf(".") == -1) {
+			name = "haxe.root." + name;
+		}
 		return try {
 			var c = java.lang.Class.forName(name);
 			if (!isEnumClass(c)) {
@@ -118,65 +123,55 @@ class Type {
 		}
 	}
 
-	static final emptyArg = {
-		var a = new java.NativeArray(1);
-		a[0] = (null : jvm.EmptyConstructor);
-		a;
-	}
+	static final emptyArg = (null : jvm.EmptyConstructor);
 
-	static final emptyClass = {
-		var a = new java.NativeArray(1);
-		a[0] = jvm.EmptyConstructor.native();
-		a;
-	}
+	static final emptyClass = jvm.EmptyConstructor.native();
 
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		var args = @:privateAccess args.getNative();
 		var cl = cl.native();
-		var argTypes = Jvm.getArgumentTypes(args);
-		var methodType = MethodType.methodType(cast Void, argTypes);
-		// 1. attempt: direct constructor lookup
-		try {
-			var ctor = MethodHandles.lookup().findConstructor(cl, methodType);
-			return ctor.invokeWithArguments(args);
-		} catch (_:NoSuchMethodException) {}
-
-		// 2. attempt direct new lookup
-		try {
-			var ctor = MethodHandles.lookup().findVirtual(cl, "new", methodType);
-			var obj = cl.getConstructor(emptyClass).newInstance(emptyArg);
-			ctor.bindTo(obj).invokeWithArguments(args);
-			return obj;
-		} catch (_:NoSuchMethodException) {}
-
-		// 3. attempt: unify actual constructor
-		for (ctor in cl.getDeclaredConstructors()) {
-			switch (Jvm.unifyCallArguments(args, ctor.getParameterTypes())) {
-				case Some(args):
-					return MethodHandles.lookup().unreflectConstructor(ctor).invokeWithArguments(args);
-				case None:
-			}
-		}
-
-		// 4. attempt: unify new
-		for (ctor in cl.getDeclaredMethods()) {
-			if (ctor.getName() != "new") {
+		var ctors = cl.getConstructors();
+		var emptyCtor:Null<java.lang.reflect.Constructor<T>> = null;
+		// 1. Look for real constructor. If we find the EmptyConstructor constructor, store it
+		for (ctor in ctors) {
+			var params = ctor.getParameterTypes();
+			if (params.length == 1 && params[0] == jvm.EmptyConstructor.native()) {
+				emptyCtor = cast ctor;
 				continue;
 			}
-			switch (Jvm.unifyCallArguments(args, ctor.getParameterTypes())) {
+			switch (Jvm.unifyCallArguments(args, params, true)) {
 				case Some(args):
-					return MethodHandles.lookup().unreflect(ctor).invokeWithArguments(args);
+					ctor.setAccessible(true);
+					return ctor.newInstance(...args);
 				case None:
 			}
 		}
-
+		// 2. If there was the EmptyConstructor constructor, look for a matching new method
+		if (emptyCtor != null) {
+			var methods = cl.getMethods();
+			for (method in methods) {
+				if (method.getName() != "new") {
+					continue;
+				}
+				var params = method.getParameterTypes();
+				switch (Jvm.unifyCallArguments(args, params, true)) {
+					case Some(args):
+						var obj = emptyCtor.newInstance(emptyArg);
+						method.setAccessible(true);
+						method.invoke(obj, ...args);
+						return obj;
+					case None:
+				}
+			}
+		}
 		return null;
 	}
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var annotation = (cl.native().getAnnotation((cast ClassReflectionInformation : java.lang.Class<ClassReflectionInformation>)));
 		if (annotation != null) {
-			return cl.native().getConstructor(emptyClass).newInstance(emptyArg);
+			return cl.native().getConstructor(emptyClass)
+				.newInstance(emptyArg);
 		} else {
 			return cl.native().newInstance();
 		}
@@ -239,7 +234,15 @@ class Type {
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		var clInfo:java.lang.Class<EnumReflectionInformation> = cast EnumReflectionInformation;
 		var annotation = e.native().getAnnotation(clInfo);
-		return @:privateAccess Array.ofNative(annotation.constructorNames());
+		if (annotation != null) {
+			return @:privateAccess Array.ofNative(annotation.constructorNames());
+		}
+		var vals = e.values();
+		var ret = [];
+		for (i in 0...vals.length) {
+			ret[i] = vals[i].name();
+		}
+		return ret;
 	}
 
 	public static function typeof(v:Dynamic):ValueType {
@@ -260,7 +263,7 @@ class Type {
 		if (Jvm.instanceof(v, jvm.DynamicObject)) {
 			return TObject;
 		}
-		if (Jvm.instanceof(v, java.lang.invoke.MethodHandle)) {
+		if (Jvm.instanceof(v, jvm.Function)) {
 			return TFunction;
 		}
 		var c = (cast v : java.lang.Object).getClass();
@@ -278,31 +281,9 @@ class Type {
 		if (a == null) {
 			return b == null;
 		}
-		if (b == null) {
-			return false;
-		}
 		var a:jvm.Enum<Dynamic> = cast a;
 		var b:jvm.Enum<Dynamic> = cast b;
-		if (a.ordinal() != b.ordinal()) {
-			return false;
-		}
-		var params1 = a._hx_getParameters();
-		var params2 = b._hx_getParameters();
-		if (params1.length != params2.length) {
-			return false;
-		}
-		for (i in 0...params1.length) {
-			if (params1[i] != params2[i]) {
-				if (Jvm.instanceof(params1[i], jvm.Enum)) {
-					if (!enumEq(params1[i], params2[i])) {
-						return false;
-					}
-				} else {
-					return false;
-				}
-			}
-		}
-		return true;
+		return a.equals(b);
 	}
 
 	public static function enumConstructor(e:EnumValue):String {
@@ -323,7 +304,7 @@ class Type {
 		var ret = [];
 		for (name in all) {
 			var v = Jvm.readField(e, name);
-			if (Jvm.instanceof(v, jvm.Enum)) {
+			if (Jvm.instanceof(v, java.lang.Enum)) {
 				ret.push(v);
 			}
 		}

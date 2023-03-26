@@ -162,8 +162,9 @@ let write_font2 ch b f2 =
 	IO.write_bits b 1 (bi f2.font_is_italic);
 	IO.write_bits b 1 (bi f2.font_is_bold);
 	IO.write_byte ch (int_from_langcode f2.font_language);
-	IO.write_byte ch (String.length f2.font_name);
+	IO.write_byte ch ((String.length f2.font_name) + 1);
 	IO.nwrite_string ch f2.font_name;
+	IO.write_byte ch 0;
 	IO.write_ui16 ch (Array.length f2.font_glyphs);
 	let glyph_offset = ref (((Array.length f2.font_glyphs) * 4)+4) in
 	Array.iter (fun g ->

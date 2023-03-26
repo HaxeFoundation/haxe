@@ -246,7 +246,7 @@ let switch_case ctx pos field_name =
 let call_super ctx fn_args ret_t cf cl this_t pos =
 	{
 		eexpr = TCall({
-			eexpr = TField({ eexpr = TConst(TSuper); etype = this_t; epos = pos }, FInstance(cl,List.map snd cl.cl_params,cf));
+			eexpr = TField({ eexpr = TConst(TSuper); etype = this_t; epos = pos }, FInstance(cl,extract_param_types cl.cl_params,cf));
 			etype = TFun(fun_args fn_args, ret_t);
 			epos = pos;
 		}, List.map (fun (v,_) -> mk_local v pos) fn_args);
@@ -280,7 +280,7 @@ let enumerate_dynamic_fields ctx cl when_found base_arr =
 		]
 	in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, extract_param_types cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
@@ -467,7 +467,7 @@ let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value
 
 let get_delete_field ctx cl is_dynamic =
 	let pos = cl.cl_pos in
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, extract_param_types cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 	let gen = ctx.rcf_gen in
 	let basic = gen.gcon.basic in
@@ -536,7 +536,7 @@ let get_delete_field ctx cl is_dynamic =
 		] in
 
 		if ctx.rcf_optimize then
-			let v_name = match tf_args with (v,_) :: _ -> v | _ -> assert false in
+			let v_name = match tf_args with (v,_) :: _ -> v | _ -> Globals.die "" __LOC__ in
 			let local_name = mk_local v_name pos in
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
@@ -647,7 +647,7 @@ let implement_dynamic_object_ctor ctx cl =
 			match e1.eexpr, e2.eexpr with
 				| TConst(TInt i1), TConst(TInt i2) -> compare i1 i2
 				| TConst(TString s1), TConst(TString s2) -> compare s1 s2
-				| _ -> assert false
+				| _ -> Globals.die "" __LOC__
 		in
 
 		let odecl, odecl_f = List.sort sort_fn odecl, List.sort sort_fn odecl_f in
@@ -687,7 +687,7 @@ let implement_final_lookup ctx cl =
 	let pos = cl.cl_pos in
 	let is_override = is_override cl in
 
-	(* let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in *)
+	(* let this = { eexpr = TConst(TThis); etype = TInst(cl, extract_param_types cl.cl_params); epos = pos } in *)
 
 	let mk_throw str pos =
 		let e = ctx.rcf_mk_exception str pos in
@@ -777,7 +777,7 @@ let implement_final_lookup ctx cl =
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ cfs;
 		List.iter (fun cf ->
 			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-			if is_override then cl.cl_overrides <- cf :: cl.cl_overrides
+			if is_override then add_class_field_flag cf CfOverride
 		) cfs
 	in
 	if not is_override then begin
@@ -806,7 +806,7 @@ let implement_get_set ctx cl =
 		let handle_prop = alloc_var "handleProperties" basic.tbool in
 		let handle_prop_local = mk_local handle_prop pos in
 
-		let this = { eexpr = TConst TThis; etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in
+		let this = { eexpr = TConst TThis; etype = TInst(cl, extract_param_types cl.cl_params); epos = pos } in
 		let mk_this_call_raw name fun_t params =
 			{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t; }, params ); etype = snd (get_fun fun_t); epos = pos }
 		in
@@ -817,7 +817,7 @@ let implement_get_set ctx cl =
 
 		let maybe_cast e = e in
 
-		let t = TInst(cl, List.map snd cl.cl_params) in
+		let t = TInst(cl, extract_param_types cl.cl_params) in
 
 		(* if it's not latest hxgen class -> check super *)
 		let mk_do_default args do_default =
@@ -829,7 +829,7 @@ let implement_get_set ctx cl =
 					fun () ->
 						mk_return {
 							eexpr = TCall(
-								{ eexpr = TField({ eexpr = TConst TSuper; etype = t; epos = pos }, FInstance(cl, List.map snd cl.cl_params, cfield)); etype = !fun_type; epos = pos },
+								{ eexpr = TField({ eexpr = TConst TSuper; etype = t; epos = pos }, FInstance(cl, extract_param_types cl.cl_params, cfield)); etype = !fun_type; epos = pos },
 								(List.map (fun (v,_) -> mk_local v pos) args) );
 							etype = if is_float then basic.tfloat else t_dynamic;
 							epos = pos;
@@ -849,7 +849,7 @@ let implement_get_set ctx cl =
 			in
 
 			let do_field cf cf_type =
-				let get_field ethis = { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos } in
+				let get_field ethis = { eexpr = TField (ethis, FInstance(cl, extract_param_types cl.cl_params, cf)); etype = cf_type; epos = pos } in
 				let this = { eexpr = TConst(TThis); etype = t; epos = pos } in
 				let value_local = if is_float then match follow cf_type with
 					| TInst({ cl_kind = KTypeParameter _ }, _) ->
@@ -936,15 +936,15 @@ let implement_get_set ctx cl =
 							eexpr = TIf(
 								handle_prop_local,
 								mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [],
-								Some { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos }
+								Some { eexpr = TField (ethis, FInstance(cl, extract_param_types cl.cl_params, cf)); etype = cf_type; epos = pos }
 							);
 							etype = cf_type;
 							epos = pos;
 						}
 					| Var _
-					| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,List.map snd cl.cl_params,cf)); etype = cf_type; epos = pos }
+					| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,extract_param_types cl.cl_params,cf)); etype = cf_type; epos = pos }
 					| _ ->
-							{ eexpr = TField (this, FClosure(Some (cl,List.map snd cl.cl_params), cf)); etype = cf_type; epos = pos }
+							{ eexpr = TField (this, FClosure(Some (cl,extract_param_types cl.cl_params), cf)); etype = cf_type; epos = pos }
 			in
 
 			let do_field cf cf_type =
@@ -999,7 +999,7 @@ let implement_get_set ctx cl =
 			in
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->
-				(if names = [] then assert false);
+				(if names = [] then Globals.die "" __LOC__);
 				(List.map (switch_case ctx pos) names, do_field cf cf.cf_type)
 			) fields in
 			let default = Some(do_default()) in
@@ -1028,7 +1028,7 @@ let implement_get_set ctx cl =
 			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cfield];
 			cl.cl_fields <- PMap.add fun_name cfield cl.cl_fields;
 
-			(if is_override then cl.cl_overrides <- cfield	:: cl.cl_overrides)
+			(if is_override then add_class_field_flag cfield CfOverride)
 		end else ()
 	in
 	mk_cfield true true;
@@ -1065,7 +1065,7 @@ let implement_getFields ctx cl =
 		List.map (fun (_,cf) ->
 			match cf.cf_kind with
 				| Var _
-				| Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
+				| Method MethDynamic when not (has_class_field_flag cf CfOverride) ->
 					has_value := true;
 					mk_push (make_string gen.gcon.basic cf.cf_name pos)
 				| _ -> null basic.tvoid pos
@@ -1077,7 +1077,7 @@ let implement_getFields ctx cl =
 	*)
 	let exprs =
 		if is_override cl then
-			let tparams = List.map snd cl.cl_params in
+			let tparams = extract_param_types cl.cl_params in
 			let esuper = mk (TConst TSuper) (TInst(cl, tparams)) pos in
 			let efield = mk (TField (esuper, FInstance (cl, tparams, cf))) t pos in
 			[mk (TCall (efield, [base_arr])) basic.tvoid pos]
@@ -1100,7 +1100,7 @@ let implement_getFields ctx cl =
 	if !has_value || not (is_override cl) then begin
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
 		cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-		(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
+		(if is_override cl then add_class_field_flag cf CfOverride)
 	end
 
 
@@ -1140,7 +1140,7 @@ let implement_invokeField ctx slow_invoke cl =
 	let all_args = field_args @ [ dynamic_arg, None ] in
 	let fun_t = TFun(fun_args all_args, t_dynamic) in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, extract_param_types cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 
 	let mk_this_call_raw name fun_t params =
@@ -1182,6 +1182,12 @@ let implement_invokeField ctx slow_invoke cl =
 					mk_this_call cf (List.map (fun (name,optional,t) ->
 						let idx = make_int ctx.rcf_gen.gcon.basic !i pos in
 						let ret = { eexpr = TArray(dyn_arg_local, idx); etype = t_dynamic; epos = pos } in
+						let ret =
+							if ExtType.is_rest t then
+								{ ret with eexpr = TUnop(Spread,Prefix,{ ret with etype = t }) }
+							else
+								ret
+						in
 						incr i;
 						if optional then
 							let condition = binop OpGt dyn_arg_length idx ctx.rcf_gen.gcon.basic.tbool pos in
@@ -1194,7 +1200,7 @@ let implement_invokeField ctx slow_invoke cl =
 		in
 
 		let cfs = List.filter (fun (_,cf) -> match cf.cf_kind with
-			| Method _ -> if List.memq cf cl.cl_overrides then false else true
+			| Method _ -> if has_class_field_flag cf CfOverride then false else true
 			| _ -> true) cfs
 		in
 
@@ -1244,7 +1250,7 @@ let implement_invokeField ctx slow_invoke cl =
 
 		let nonstatics =
 			List.filter (fun (n,cf) ->
-				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.memq cf cl.cl_overrides in
+				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || has_class_field_flag cf CfOverride in
 				(if is_old then old_nonstatics := cf :: !old_nonstatics);
 				not is_old
 			) nonstatics
@@ -1267,14 +1273,14 @@ let implement_invokeField ctx slow_invoke cl =
 	if !is_override && not (!has_method) then () else begin
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [dyn_fun];
 		cl.cl_fields <- PMap.add dyn_fun.cf_name dyn_fun cl.cl_fields;
-		(if !is_override then cl.cl_overrides <- dyn_fun :: cl.cl_overrides)
+		(if !is_override then add_class_field_flag dyn_fun CfOverride)
 	end
 
 let implement_varargs_cl ctx cl =
 	let pos = cl.cl_pos in
 	let gen = ctx.rcf_gen in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, extract_param_types cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
@@ -1322,7 +1328,7 @@ let implement_varargs_cl ctx cl =
 	) all_cfs;
 
 	List.iter (fun cf ->
-		cl.cl_overrides <- cf :: cl.cl_overrides
+		add_class_field_flag cf CfOverride
 	) cl.cl_ordered_fields
 
 let implement_closure_cl ctx cl =
@@ -1333,7 +1339,7 @@ let implement_closure_cl ctx cl =
 	let field_args, _ = field_type_args ctx pos in
 	let obj_arg = alloc_var "target" (TInst(ctx.rcf_object_iface, [])) in
 
-	let this_t = TInst(cl, List.map snd cl.cl_params) in
+	let this_t = TInst(cl, extract_param_types cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
@@ -1380,7 +1386,7 @@ let implement_closure_cl ctx cl =
 	let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl map_fn) in
 
 	List.iter (fun cf ->
-		cl.cl_overrides <- cf :: cl.cl_overrides
+		add_class_field_flag cf CfOverride
 	) all_cfs;
 	let all_cfs = cfs @ all_cfs in
 
@@ -1480,10 +1486,10 @@ struct
 		let rec run md =
 			if is_hxgen md then
 				match md with
-				| TClassDecl ({ cl_interface = true } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+				| TClassDecl cl when (has_class_flag cl CInterface) && cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 					cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-				| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
-					(* don't add any base classes to abstract implementations *)
+				| TClassDecl ({ cl_kind = KAbstractImpl _ | KModuleFields _ }) ->
+					(* don't add any base classes to abstract implementations and module field containers *)
 					()
 				| TClassDecl ({ cl_super = None } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 					cl.cl_super <- Some (baseclass,[])
@@ -1502,15 +1508,10 @@ end;;
 *)
 let priority = solve_deps name [DAfter UniversalBaseClass.priority]
 
-let add_override cl cf =
-	if List.memq cf cl.cl_overrides then
-		cl.cl_overrides
-	else
-		cf :: cl.cl_overrides
-
 let has_field_override cl name =
 	try
-		cl.cl_overrides <- add_override cl (PMap.find name cl.cl_fields);
+		let cf = PMap.find name cl.cl_fields in
+		add_class_field_flag cf CfOverride;
 		true
 	with | Not_found ->
 		false
@@ -1518,7 +1519,7 @@ let has_field_override cl name =
 let configure ctx baseinterface ~slow_invoke =
 	let run md =
 		(match md with
-		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
+		| TClassDecl cl when not (has_class_flag cl CExtern) && is_hxgen md && ( not (has_class_flag cl CInterface) || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ | KModuleFields _ -> false | _ -> true) ->
 			if is_some cl.cl_super then begin
 				ignore (has_field_override cl (mk_internal_name "hx" "setField"));
 				ignore (has_field_override cl (mk_internal_name "hx" "setField_f"));

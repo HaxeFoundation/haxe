@@ -53,7 +53,7 @@ module TypePathHandler = struct
 						else
 							packages := f :: !packages
 					end;
-				end else if file_extension f = "hx" && f <> "import.hx" then begin
+				end else if Path.file_extension f = "hx" && f <> "import.hx" then begin
 					let c = Filename.chop_extension f in
 					try
 						ignore(String.index c '.')
@@ -183,7 +183,7 @@ let handle_path_display ctx path p =
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
 				| s :: sl -> List.rev sl
-				| [] -> assert false
+				| [] -> die "" __LOC__
 			in
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKPackage _,_),_ ->
@@ -192,7 +192,7 @@ let handle_path_display ctx path p =
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
-			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
+			let p = { pfile = (Path.UniqueKey.lazy_path mt.m_extra.m_file); pmin = 0; pmax = 0} in
 			raise_positions [p]
 		| (IDKModule(sl,s),_),DMHover ->
 			let m = ctx.g.do_load_module ctx (sl,s) p in
@@ -214,7 +214,7 @@ let handle_path_display ctx path p =
 		| (IDKModule(sl,s),p),_ ->
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKSubType(sl,sm,st),p),(DMDefinition | DMTypeDefinition) ->
-			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
+			resolve_position_by_path ctx (Ast.mk_type_path ~sub:st (sl,sm)) p
 		| (IDKSubType(sl,sm,st),p),_ ->
 			raise (Parser.TypePath(sl,Some(sm,false),true,p))
 		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),DMDefault ->

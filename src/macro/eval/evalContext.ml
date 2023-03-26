@@ -279,6 +279,7 @@ and context = {
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : static_prototypes;
 	mutable constructors : value Lazy.t IntMap.t;
+	file_keys : Common.file_keys;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
 	toplevel : value;
@@ -286,10 +287,13 @@ and context = {
 	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
 	max_stack_depth : int;
+	max_print_depth : int;
+	print_indentation : string option;
 }
 
 module GlobalState = struct
-	let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
+	let get_ctx_ref : (unit -> context) ref = ref (fun() -> die "GlobalState.get_ctx_ref called before initialization" __LOC__)
+	let initialized = ref false
 
 	let sid : int ref = ref (-1)
 
@@ -306,7 +310,9 @@ module GlobalState = struct
 end
 
 let get_ctx () = (!GlobalState.get_ctx_ref)()
-let select ctx = GlobalState.get_ctx_ref := (fun() -> ctx)
+let select ctx =
+	GlobalState.initialized := true;
+	GlobalState.get_ctx_ref := (fun() -> ctx)
 
 let s_debug_state = function
 	| DbgRunning -> "DbgRunning"
@@ -318,8 +324,15 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-    let id = Thread.id (Thread.self()) in
-    if id = 0 then ctx.eval else IntMap.find id ctx.evals
+	let id = Thread.id (Thread.self()) in
+	if id = 0 then
+		ctx.eval
+	else
+		try
+			IntMap.find id ctx.evals
+		with Not_found ->
+			die "Cannot run Haxe code in a non-Haxe thread" __LOC__
+
 
 let rec kind_name eval kind =
 	let rec loop kind env = match kind with
@@ -342,10 +355,13 @@ let rec kind_name eval kind =
 
 let call_function f vl = f vl
 
-let object_fields o =
-	IntMap.fold (fun key index acc ->
-		(key,(o.ofields.(index))) :: acc
-	) o.oproto.pinstance_names []
+let object_fields o = match o.oproto with
+	| OProto proto ->
+		IntMap.fold (fun key index acc ->
+			(key,(o.ofields.(index))) :: acc
+		) proto.pinstance_names []
+	| ODictionary d ->
+		IntMap.fold (fun k v acc -> (k,v) :: acc) d []
 
 let instance_fields i =
 	IntMap.fold (fun name key acc ->
@@ -389,6 +405,8 @@ let exc v = throw v null_pos
 
 let exc_string str = exc (vstring (EvalString.create_ascii str))
 
+let exc_string_p str p = throw (vstring (EvalString.create_ascii str)) p
+
 let error_message = exc_string
 
 let flush_core_context f =
@@ -409,12 +427,12 @@ let no_debug = {
 	debug_pos = null_pos;
 }
 
-let create_env_info static pfile kind capture_infos num_locals num_captures =
+let create_env_info static pfile pfile_key kind capture_infos num_locals num_captures =
 	let info = {
 		static = static;
 		kind = kind;
 		pfile = hash pfile;
-		pfile_unique = hash (Path.unique_full_path pfile);
+		pfile_unique = hash (Path.UniqueKey.to_string pfile_key);
 		capture_infos = capture_infos;
 		num_locals = num_locals;
 		num_captures = num_captures;
@@ -488,7 +506,7 @@ let get_static_prototype_raise ctx path =
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_static_prototype_as_value ctx path p =
 	(get_static_prototype ctx path p).pvalue
@@ -498,14 +516,14 @@ let get_instance_prototype_raise ctx path =
 
 let get_instance_prototype ctx path p =
 	try get_instance_prototype_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_instance_constructor_raise ctx path =
 	IntMap.find path ctx.constructors
 
 let get_instance_constructor ctx path p =
 	try get_instance_constructor_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_special_instance_constructor_raise ctx path =
 	Hashtbl.find (get_ctx()).builtins.constructor_builtins path
@@ -515,11 +533,42 @@ let get_proto_field_index_raise proto name =
 
 let get_proto_field_index proto name =
 	try get_proto_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
+	with Not_found -> Error.typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
 
 let get_instance_field_index_raise proto name =
 	IntMap.find name proto.pinstance_names
 
 let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
+	with Not_found -> Error.typing_error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
+
+let is v path =
+	if path = key_Dynamic then
+		v <> vnull
+	else match v with
+	| VInt32 _ -> path = key_Int || path = key_Float
+	| VFloat f -> path = key_Float || (path = key_Int && f = (float_of_int (int_of_float f)) && f <= 2147483647. && f >= -2147483648.)
+	| VTrue | VFalse -> path = key_Bool
+	| VPrototype {pkind = PClass _} -> path = key_Class
+	| VPrototype {pkind = PEnum _} -> path = key_Enum
+	| VEnumValue ve -> path = key_EnumValue || path = ve.epath
+	| VString _ -> path = key_String
+	| VArray _ -> path = key_Array
+	| VVector _ -> path = key_eval_Vector
+	| VInstance vi ->
+		let has_interface path' =
+			try begin match (get_static_prototype_raise (get_ctx()) path').pkind with
+				| PClass interfaces -> List.mem path interfaces
+				| _ -> false
+			end with Not_found ->
+				false
+		in
+		let rec loop proto =
+			if path = proto.ppath || has_interface proto.ppath then true
+			else begin match proto.pparent with
+				| Some proto -> loop proto
+				| None -> false
+			end
+		in
+		loop vi.iproto
+	| _ -> false

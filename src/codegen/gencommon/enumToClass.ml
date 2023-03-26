@@ -82,7 +82,7 @@ struct
 
 		(match Texpr.build_metadata gen.gcon.basic (TEnumDecl en) with
 			| Some expr ->
-				let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+				let cf = mk_class_field ~static:true "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
 				cf.cf_expr <- Some expr;
 				cl.cl_statics <- PMap.add "__meta__" cf cl.cl_statics;
 				cl.cl_ordered_statics <- cf :: cl.cl_ordered_statics
@@ -92,18 +92,18 @@ struct
 		let super, has_params = if Meta.has Meta.FlatEnum en.e_meta then base_class, false else base_param_class, true in
 
 		cl.cl_super <- Some(super,[]);
-		cl.cl_extern <- en.e_extern;
+		if en.e_extern then add_class_flag cl CExtern;
 		en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 		cl.cl_module <- en.e_module;
 		cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;
 
 		(match gen.gcon.platform with
 			| Cs when Common.defined gen.gcon Define.CoreApiSerialize ->
-				cl.cl_meta <- ( Meta.Meta, [ (EField( (EConst (Ident "System"), null_pos ), "Serializable" ), null_pos) ], null_pos ) :: cl.cl_meta
+				cl.cl_meta <- ( Meta.Meta, [ (efield( (EConst (Ident "System"), null_pos ), "Serializable" ), null_pos) ], null_pos ) :: cl.cl_meta
 			| _ -> ());
 		let c_types =
 			if handle_type_params then
-				List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_params
+				List.map (fun tp -> {tp with ttp_type=TInst (map_param (get_cl_t tp.ttp_type), [])}) en.e_params
 			else
 				[]
 		in
@@ -121,13 +121,13 @@ struct
 				| TFun(params,ret) ->
 					let dup_types =
 						if handle_type_params then
-							List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_params
+							List.map (fun tp -> {tp with ttp_type = TInst (map_param (get_cl_t tp.ttp_type), [])}) en.e_params
 						else
 							[]
 					in
 
 					let ef_type =
-						let fn, types = if handle_type_params then snd, dup_types else (fun _ -> t_dynamic), en.e_params in
+						let fn, types = if handle_type_params then extract_param_type, dup_types else (fun _ -> t_dynamic), en.e_params in
 						let t = apply_params en.e_params (List.map fn types) ef.ef_type in
 						apply_params ef.ef_params (List.map fn ef.ef_params) t
 					in
@@ -144,7 +144,7 @@ struct
 						eexpr = TFunction({
 							tf_args = tf_args;
 							tf_type = ret;
-							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
+							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,extract_param_types dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, extract_param_types dup_types); epos = pos } );
 						});
 						etype = ef_type;
 						epos = pos
@@ -154,7 +154,7 @@ struct
 				| _ ->
 					let actual_t = match follow ef.ef_type with
 						| TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_dynamic) p)
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					in
 					let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					let args = if has_params then
@@ -173,7 +173,7 @@ struct
 			cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
 			cf
 		) en.e_names in
-		let constructs_cf = mk_class_field "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+		let constructs_cf = mk_class_field ~static:true "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 		constructs_cf.cf_meta <- [Meta.ReadOnly,[],pos];
 		constructs_cf.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
 
@@ -204,7 +204,7 @@ struct
 
 		cl.cl_ordered_fields <- getTag_cf :: cl.cl_ordered_fields ;
 		cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
-		cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
+		add_class_field_flag getTag_cf CfOverride;
 		cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
 		gen.gadd_to_module (TClassDecl cl) (max_dep);
 

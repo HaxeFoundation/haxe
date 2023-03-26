@@ -69,7 +69,7 @@ class String {
 		var startByte = 0;
 		if (startIndex != null && startIndex > 0) {
 			if (startIndex >= length)
-				return -1;
+				return str == '' ? length : -1;
 			startByte = startIndex << 1;
 		}
 		var p = findChar(startByte, length << 1, str.bytes, str.length << 1);

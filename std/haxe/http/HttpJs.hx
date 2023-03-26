@@ -30,6 +30,7 @@ import haxe.io.Bytes;
 class HttpJs extends haxe.http.HttpBase {
 	public var async:Bool;
 	public var withCredentials:Bool;
+	public var responseHeaders:Map<String, String>;
 
 	var req:js.html.XMLHttpRequest;
 
@@ -53,12 +54,13 @@ class HttpJs extends haxe.http.HttpBase {
 	public override function request(?post:Bool) {
 		this.responseAsString = null;
 		this.responseBytes = null;
+		this.responseHeaders = null;
 		var r = req = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
 			if (r.readyState != 4)
 				return;
 			var s = try r.status catch (e:Dynamic) null;
-			if (s == 0 && js.Browser.supported) {
+			if (s == 0 && js.Browser.supported && js.Browser.location != null) {
 				// If the request is local and we have data: assume a success (jQuery approach):
 				var protocol = js.Browser.location.protocol.toLowerCase();
 				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
@@ -73,6 +75,21 @@ class HttpJs extends haxe.http.HttpBase {
 				onStatus(s);
 			if (s != null && s >= 200 && s < 400) {
 				req = null;
+
+				// split headers and remove the last \r\n\r\n
+				var headers = r.getAllResponseHeaders().split('\r\n');
+				headers = headers.filter(h -> h != '');
+
+				// store response headers
+				responseHeaders = new haxe.ds.StringMap();
+				for (hline in headers) {
+					var a = hline.split(": ");
+					var hname = a.shift();
+					var hval = if (a.length == 1) a[0] else a.join(": ");
+					hval = StringTools.ltrim(StringTools.rtrim(hval));
+					responseHeaders.set(hname, hval);
+				}
+
 				success(Bytes.ofData(r.response));
 			} else if (s == null || (s == 0 && r.response == null)) {
 				req = null;

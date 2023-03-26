@@ -328,6 +328,7 @@ class TestMisc extends Test {
 		eq("Héllow", haxe.crypto.Base64.decode("SMOpbGxvdw", false).toString());
 		eq("Héllo", haxe.crypto.Base64.decode("SMOpbGxv").toString());
 		eq("Héll", haxe.crypto.Base64.decode("SMOpbGw=").toString());
+		exc(() -> haxe.crypto.Base64.decode("invalid string"));
 
 		// alternative base64
 		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
@@ -595,5 +596,12 @@ class TestMisc extends Test {
 		function test():String throw "never call me";
 		var s = try test() catch(e:String) e;
 		eq(s,"never call me");
+	}
+
+	static var nf1:Base = null;
+	static var nf2:{s:String} = null;
+	function testNullFieldAccess() {
+		eq("NPE", try nf1.s catch (e:Any) "NPE");
+		eq("NPE", try nf2.s catch (e:Any) "NPE");
 	}
 }

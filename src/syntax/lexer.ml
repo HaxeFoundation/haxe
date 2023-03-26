@@ -58,7 +58,6 @@ type lexer_file = {
 	mutable lmaxline : int;
 	mutable llines : (int * int) list;
 	mutable lalines : (int * int) array;
-	mutable lstrings : int list;
 	mutable llast : int;
 	mutable llastindex : int;
 }
@@ -70,7 +69,6 @@ let make_file file =
 		lmaxline = 1;
 		llines = [0,1];
 		lalines = [|0,1|];
-		lstrings = [];
 		llast = max_int;
 		llastindex = 0;
 	}
@@ -113,6 +111,40 @@ let is_valid_identifier s =
 		with Exit ->
 			false
 
+let split_suffix s is_int =
+	let len = String.length s in
+	let rec loop i pivot =
+		if i = len then begin
+			match pivot with
+			| None ->
+				(s,None)
+			| Some pivot ->
+				(* There might be a _ at the end of the literal because we allow _f64 and such *)
+				let literal_length = if String.unsafe_get s (pivot - 1) = '_' then pivot - 1 else pivot in
+				let literal = String.sub s 0 literal_length in
+				let suffix  = String.sub s pivot (len - pivot) in
+				(literal, Some suffix)
+		end else begin
+			let c = String.unsafe_get s i in
+			match c with
+			| 'i' | 'u' ->
+				loop (i + 1) (Some i)
+			| 'f' when not is_int ->
+				loop (i + 1) (Some i)
+			| _ ->
+				loop (i + 1) pivot
+		end
+	in
+	loop 0 None
+
+let split_int_suffix s =
+	let (literal,suffix) = split_suffix s true in
+	Const (Int (literal,suffix))
+
+let split_float_suffix s =
+	let (literal,suffix) = split_suffix s false in
+	Const (Float (literal,suffix))
+
 let init file =
 	let f = make_file file in
 	cur := f;
@@ -121,6 +153,15 @@ let init file =
 let save() =
 	!cur
 
+let reinit file =
+	let old_file = try Some (Hashtbl.find all_files file) with Not_found -> None in
+	let old_cur = !cur in
+	init file;
+	(fun () ->
+		cur := old_cur;
+		Option.may (Hashtbl.replace all_files file) old_file;
+	)
+
 let restore c =
 	cur := c
 
@@ -128,37 +169,6 @@ let newline lexbuf =
 	let cur = !cur in
 	cur.lline <- cur.lline + 1;
 	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines
-
-let fmt_pos p =
-	p.pmin + (p.pmax - p.pmin) * 1000000
-
-let add_fmt_string p =
-	let file = (try
-		Hashtbl.find all_files p.pfile
-	with Not_found ->
-		let f = make_file p.pfile in
-		Hashtbl.replace all_files p.pfile f;
-		f
-	) in
-	file.lstrings <- (fmt_pos p) :: file.lstrings
-
-let fast_add_fmt_string p =
-	let cur = !cur in
-	cur.lstrings <- (fmt_pos p) :: cur.lstrings
-
-let is_fmt_string p =
-	try
-		let file = Hashtbl.find all_files p.pfile in
-		List.mem (fmt_pos p) file.lstrings
-	with Not_found ->
-		false
-
-let remove_fmt_string p =
-	try
-		let file = Hashtbl.find all_files p.pfile in
-		file.lstrings <- List.filter ((<>) (fmt_pos p)) file.lstrings
-	with Not_found ->
-		()
 
 let find_line p f =
 	(* rebuild cache if we have a new line *)
@@ -226,7 +236,15 @@ let resolve_pos file =
 		f
 
 let find_file file =
-	try Hashtbl.find all_files file with Not_found -> try resolve_pos file with Sys_error _ -> make_file file
+	try
+		Hashtbl.find all_files file
+	with Not_found ->
+		try
+			let f = resolve_pos file in
+			Hashtbl.add all_files file f;
+			f
+		with Sys_error _ ->
+			make_file file
 
 let find_pos p =
 	find_line p.pmin (find_file p.pfile)
@@ -256,6 +274,8 @@ let get_error_pos printer p =
 			Printf.sprintf "%s character%s" (printer p.pfile l1) s
 		end else
 			Printf.sprintf "%s lines %d-%d" (printer p.pfile l1) l1 l2
+;;
+Globals.get_error_pos_ref := get_error_pos
 
 let reset() = Buffer.reset buf
 let contents() = Buffer.contents buf
@@ -306,9 +326,33 @@ let sharp_ident = [%sedlex.regexp?
 	)
 ]
 
+let is_whitespace = function
+	| ' ' | '\n' | '\r' | '\t' -> true
+	| _ -> false
+
+let string_is_whitespace s =
+	try
+		for i = 0 to String.length s - 1 do
+			if not (is_whitespace (String.unsafe_get s i)) then
+				raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
-let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
+let digit = [%sedlex.regexp? '0'..'9']
+let sep_digit = [%sedlex.regexp? Opt '_', digit]
+let integer_digits = [%sedlex.regexp? (digit, Star sep_digit)]
+let hex_digit = [%sedlex.regexp? '0'..'9'|'a'..'f'|'A'..'F']
+let sep_hex_digit = [%sedlex.regexp? Opt '_', hex_digit]
+let hex_digits = [%sedlex.regexp? (hex_digit, Star sep_hex_digit)]
+let integer = [%sedlex.regexp? ('1'..'9', Star sep_digit) | '0']
+
+let integer_suffix = [%sedlex.regexp? Opt '_', ('i'|'u'), Plus integer]
+
+let float_suffix = [%sedlex.regexp? Opt '_', 'f', Plus integer]
 
 (* https://www.w3.org/TR/xml/#sec-common-syn plus '$' for JSX *)
 let xml_name_start_char = [%sedlex.regexp? '$' | ':' | 'A'..'Z' | '_' | 'a'..'z' | 0xC0 .. 0xD6 | 0xD8 .. 0xF6 | 0xF8 .. 0x2FF | 0x370 .. 0x37D | 0x37F .. 0x1FFF | 0x200C .. 0x200D | 0x2070 .. 0x218F | 0x2C00 .. 0x2FEF | 0x3001 .. 0xD7FF | 0xF900 .. 0xFDCF | 0xFDF0 .. 0xFFFD | 0x10000 .. 0xEFFFF]
@@ -320,7 +364,7 @@ let rec skip_header lexbuf =
 	| 0xfeff -> skip_header lexbuf
 	| "#!", Star (Compl ('\n' | '\r')) -> skip_header lexbuf
 	| "" | eof -> ()
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 let rec token lexbuf =
 	match%sedlex lexbuf with
@@ -328,12 +372,16 @@ let rec token lexbuf =
 	| Plus (Chars " \t") -> token lexbuf
 	| "\r\n" -> newline lexbuf; token lexbuf
 	| '\n' | '\r' -> newline lexbuf; token lexbuf
-	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F') -> mk lexbuf (Const (Int (lexeme lexbuf)))
-	| integer -> mk lexbuf (Const (Int (lexeme lexbuf)))
-	| integer, '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
-	| integer, '.', Star '0'..'9', ('e'|'E'), Opt ('+'|'-'), Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))
+	| "0x", Plus hex_digits, Opt integer_suffix ->
+		mk lexbuf (split_int_suffix (lexeme lexbuf))
+	| integer, Opt integer_suffix ->
+		mk lexbuf (split_int_suffix (lexeme lexbuf))
+	| integer, float_suffix ->
+		mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, '.', Star digit, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| integer, "..." ->
 		let s = lexeme lexbuf in
 		mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))
@@ -354,6 +402,7 @@ let rec token lexbuf =
 	| "<<=" -> mk lexbuf (Binop (OpAssignOp OpShl))
 	| "||=" -> mk lexbuf (Binop (OpAssignOp OpBoolOr))
 	| "&&=" -> mk lexbuf (Binop (OpAssignOp OpBoolAnd))
+	| "??=" -> mk lexbuf (Binop (OpAssignOp OpNullCoal))
 (*//| ">>=" -> mk lexbuf (Binop (OpAssignOp OpShr)) *)
 (*//| ">>>=" -> mk lexbuf (Binop (OpAssignOp OpUShr)) *)
 	| "==" -> mk lexbuf (Binop OpEq)
@@ -364,7 +413,7 @@ let rec token lexbuf =
 	| "||" -> mk lexbuf (Binop OpBoolOr)
 	| "<<" -> mk lexbuf (Binop OpShl)
 	| "->" -> mk lexbuf Arrow
-	| "..." -> mk lexbuf (Binop OpInterval)
+	| "..." -> mk lexbuf Spread
 	| "=>" -> mk lexbuf (Binop OpArrow)
 	| "!" -> mk lexbuf (Unop Not)
 	| "<" -> mk lexbuf (Binop OpLt)
@@ -373,6 +422,7 @@ let rec token lexbuf =
 	| ":" -> mk lexbuf DblDot
 	| "," -> mk lexbuf Comma
 	| "." -> mk lexbuf Dot
+	| "?." -> mk lexbuf QuestionDot
 	| "%" -> mk lexbuf (Binop OpMod)
 	| "&" -> mk lexbuf (Binop OpAnd)
 	| "|" -> mk lexbuf (Binop OpOr)
@@ -388,6 +438,7 @@ let rec token lexbuf =
 	| "}" -> mk lexbuf BrClose
 	| "(" -> mk lexbuf POpen
 	| ")" -> mk lexbuf PClose
+	| "??" -> mk lexbuf (Binop OpNullCoal)
 	| "?" -> mk lexbuf Question
 	| "@" -> mk lexbuf At
 
@@ -407,9 +458,7 @@ let rec token lexbuf =
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i,msg) -> error (Invalid_escape (c,msg)) (pmin + i)) in
-		let t = mk_tok (Const (String(str,SSingleQuotes))) pmin pmax in
-		fast_add_fmt_string (snd t);
-		t
+		mk_tok (Const (String(str,SSingleQuotes))) pmin pmax;
 	| "~/" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
@@ -486,7 +535,7 @@ and comment lexbuf =
 	| "*/" -> lexeme_end lexbuf
 	| '*' -> store lexbuf; comment lexbuf
 	| Plus (Compl ('*' | '\n' | '\r')) -> store lexbuf; comment lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and string lexbuf =
 	match%sedlex lexbuf with
@@ -497,7 +546,7 @@ and string lexbuf =
 	| '\\' -> store lexbuf; string lexbuf
 	| '"' -> lexeme_end lexbuf
 	| Plus (Compl ('"' | '\\' | '\r' | '\n')) -> store lexbuf; string lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and string2 lexbuf =
 	match%sedlex lexbuf with
@@ -514,7 +563,7 @@ and string2 lexbuf =
 		(try code_string lexbuf 0 with Exit -> error Unclosed_code pmin);
 		string2 lexbuf;
 	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store lexbuf; string2 lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and code_string lexbuf open_braces =
 	match%sedlex lexbuf with
@@ -534,9 +583,8 @@ and code_string lexbuf open_braces =
 	| "'" ->
 		add "'";
 		let pmin = lexeme_start lexbuf in
-		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
+		(try ignore(string2 lexbuf) with Exit -> error Unterminated_string pmin);
 		add "'";
-		fast_add_fmt_string { pfile = !cur.lfile; pmin = pmin; pmax = pmax };
 		code_string lexbuf open_braces
 	| "/*" ->
 		let pmin = lexeme_start lexbuf in
@@ -548,7 +596,7 @@ and code_string lexbuf open_braces =
 		code_string lexbuf open_braces
 	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and regexp lexbuf =
 	match%sedlex lexbuf with
@@ -563,7 +611,7 @@ and regexp lexbuf =
 	| '\\', Compl '\\' -> error (Invalid_character (Uchar.to_int (lexeme_char lexbuf 0))) (lexeme_end lexbuf - 1)
 	| '/' -> regexp_options lexbuf, lexeme_end lexbuf
 	| Plus (Compl ('\\' | '/' | '\r' | '\n')) -> store lexbuf; regexp lexbuf
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and regexp_options lexbuf =
 	match%sedlex lexbuf with
@@ -572,7 +620,7 @@ and regexp_options lexbuf =
 		l ^ regexp_options lexbuf
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
-	| _ -> assert false
+	| _ -> die "" __LOC__
 
 and not_xml ctx depth in_open =
 	let lexbuf = ctx.lexbuf in
@@ -616,7 +664,7 @@ and not_xml ctx depth in_open =
 		store lexbuf;
 		not_xml ctx depth in_open
 	| _ ->
-		assert false
+		die "" __LOC__
 
 let rec sharp_token lexbuf =
 	match%sedlex lexbuf with
@@ -624,6 +672,11 @@ let rec sharp_token lexbuf =
 	| Plus (Chars " \t") -> sharp_token lexbuf
 	| "\r\n" -> newline lexbuf; sharp_token lexbuf
 	| '\n' | '\r' -> newline lexbuf; sharp_token lexbuf
+	| "/*" ->
+		reset();
+		let pmin = lexeme_start lexbuf in
+		ignore(try comment lexbuf with Exit -> error Unclosed_comment pmin);
+		sharp_token lexbuf
 	| _ -> token lexbuf
 
 let lex_xml p lexbuf =

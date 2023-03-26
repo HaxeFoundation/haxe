@@ -108,7 +108,30 @@ let vfun5 f = vstatic_function (fun vl -> match vl with
 	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull
 	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull
 	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4
-	| _ -> invalid_call_arg_number 4 (List.length  vl
+	| _ -> invalid_call_arg_number 5 (List.length  vl
+))
+
+let vfun6 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4 vnull
+	| [v0;v1;v2;v3;v4;v5] -> f v0 v1 v2 v3 v4 v5
+	| _ -> invalid_call_arg_number 6 (List.length  vl
+))
+
+let vfun7 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull vnull vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4 vnull vnull
+	| [v0;v1;v2;v3;v4;v5] -> f v0 v1 v2 v3 v4 v5 vnull
+	| [v0;v1;v2;v3;v4;v5;v6] -> f v0 v1 v2 v3 v4 v5 v6
+	| _ -> invalid_call_arg_number 7 (List.length  vl
 ))
 
 (* Objects *)
@@ -118,7 +141,7 @@ let encode_obj l =
 	let proto,sorted = ctx.get_object_prototype ctx l in
 	vobject {
 		ofields = Array.of_list (List.map snd sorted);
-		oproto = proto;
+		oproto = OProto proto;
 	}
 
 let encode_obj_s l =
@@ -138,6 +161,7 @@ let encode_enum i pos index pl =
 	let open MacroApi in
 	let key = match i with
 		| IExpr -> key_haxe_macro_ExprDef
+		| IEFieldKind -> key_haxe_macro_EFieldKind
 		| IBinop -> key_haxe_macro_Binop
 		| IUnop -> key_haxe_macro_Unop
 		| IConst -> key_haxe_macro_Constant
@@ -158,6 +182,11 @@ let encode_enum i pos index pl =
 		| IImportMode -> key_haxe_macro_ImportMode
 		| IQuoteStatus -> key_haxe_macro_QuoteStatus
 		| IDisplayKind -> key_haxe_macro_DisplayKind
+		| IDisplayMode -> key_haxe_macro_DisplayMode
+		| ICapturePolicy -> key_haxe_macro_CapturePolicy
+		| IVarScope -> key_haxe_macro_VarScope
+		| IVarScopingFlags -> key_haxe_macro_VarScopingFlags
+		| IPackageRule -> key_haxe_macro_PackageRule
 		| IMessage -> key_haxe_macro_Message
 		| IFunctionKind -> key_haxe_macro_FunctionKind
 		| IStringLiteralKind -> key_haxe_macro_StringLiteralKind
@@ -192,6 +221,9 @@ let encode_vector_instance v =
 
 let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
+
+let encode_array_a a =
+	encode_array_instance (EvalArray.create a)
 
 let encode_string s =
 	create_unknown s
@@ -290,3 +322,13 @@ let encode_lazy f =
 		v
 	) in
 	VLazy r
+
+let encode_option encode_value o =
+	match o with
+	| Some v -> encode_enum_value key_haxe_ds_Option 0 [|encode_value v|] None
+	| None -> encode_enum_value key_haxe_ds_Option 1 [||] None
+
+let encode_nullable encode_value o =
+	match o with
+	| Some v -> encode_value v
+	| None -> VNull

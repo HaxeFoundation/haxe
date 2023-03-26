@@ -68,6 +68,10 @@ private abstract BytesDataAbstract(Container) from Container to Container {
 		this.s = Global.substr(this.s, 0, pos).concat(Global.substr(src, srcpos, len)).concat(Global.substr(this.s, pos + len));
 	}
 
+	public inline function fill(pos:Int, len:Int, value:Int):Void {
+		this.s = Global.substr(this.s, 0, pos).concat(Global.str_repeat(Global.chr(value), len)).concat(Global.substr(this.s, pos + len));
+	}
+
 	inline function get_length():Int {
 		return Global.strlen(this.s);
 	}

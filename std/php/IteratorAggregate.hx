@@ -27,10 +27,5 @@ package php;
 **/
 @:native('IteratorAggregate')
 extern interface IteratorAggregate<T> extends Traversable {
-	/**
-		This method is not public to not induce Haxe users to use it ;)
-		Use iterator() instead.
-	**/
-	private function getIterator():Traversable;
-
+	function getIterator():Traversable;
 }

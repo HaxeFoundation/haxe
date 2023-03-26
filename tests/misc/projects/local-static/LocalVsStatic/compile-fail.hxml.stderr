@@ -1,0 +1,2 @@
+Main.hx:4: characters 14-15 : The expanded name of this local (main_x) conflicts with another static field
+Main.hx:2: characters 13-19 : Conflicting field was found here

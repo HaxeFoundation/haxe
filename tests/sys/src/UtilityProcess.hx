@@ -1,5 +1,5 @@
 /**
-	Used by TestUnicode.
+	Used by TestUnicode and TestSys.
 	Runs a given simple program based on the first argument.
  */
 
@@ -16,7 +16,7 @@ class UtilityProcess {
 		Path.join(["bin", "hl"]);
 #elseif lua
 		Path.join(["bin", "lua"]);
-#elseif (java && jvm)
+#elseif jvm
 		Path.join(["bin", "jvm"]);
 #elseif java
 		Path.join(["bin", "java"]);
@@ -28,6 +28,8 @@ class UtilityProcess {
 		Path.join(["bin", "python"]);
 #elseif eval
 		Path.join(["src"]);
+#elseif js
+		Path.join(["bin", "js"]);
 #else
 		null;
 #end
@@ -48,6 +50,8 @@ class UtilityProcess {
 		"UtilityProcess.hl";
 #elseif lua
 		"UtilityProcess.lua";
+#elseif jvm
+		"UtilityProcess.jar";
 #elseif java
 		#if debug
 			"UtilityProcess-Debug.jar";
@@ -62,6 +66,8 @@ class UtilityProcess {
 		"UtilityProcess.py";
 #elseif eval
 		"UtilityProcess.hx";
+#elseif js
+		"UtilityProcess.js";
 #else
 		null;
 #end
@@ -116,22 +122,68 @@ class UtilityProcess {
 			stderr: stderr
 		};
 	}
-	
+
+	/** Runs the utility program via Sys.command rather than as a separate process,
+		for compatiblity with hxnodejs.
+
+		Returns the exit code of the command.
+	 **/
+	public static function runUtilityAsCommand(args:Array<String>, ?options:{?stdin:String, ?execPath:String, ?execName:String}):Int {
+		if (options == null) options = {};
+		if (options.execPath == null) options.execPath = BIN_PATH;
+		if (options.execName == null) options.execName = BIN_NAME;
+		final execFull = Path.join([options.execPath, options.execName]);
+		final exitCode =
+		#if (macro || interp)
+		Sys.command("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
+		#elseif cpp
+		Sys.command(execFull, args);
+		#elseif cs
+		(switch (Sys.systemName()) {
+			case "Windows":
+				Sys.command(execFull, args);
+			case _:
+				Sys.command("mono", [execFull].concat(args));
+		});
+		#elseif java
+		Sys.command(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", execFull].concat(args));
+		#elseif python
+		Sys.command(python.lib.Sys.executable, [execFull].concat(args));
+		#elseif neko
+		Sys.command("neko", [execFull].concat(args));
+		#elseif hl
+		Sys.command("hl", [execFull].concat(args));
+		#elseif php
+		Sys.command(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [execFull].concat(args));
+		#elseif lua
+		Sys.command("lua", [execFull].concat(args));
+		#elseif js
+		Sys.command("node", [execFull].concat(args));
+		#else
+		1;
+		#end
+
+		return exitCode;
+	}
+
 	public static function main():Void {
 		var args = Sys.args();
-		function sequenceIndex(d:String, mode:String):String return (switch (UnicodeSequences.valid[Std.parseInt(d)]) {
+		function sequenceIndex(d:String, mode:String):String
+			return switch UnicodeSequences.valid[Std.parseInt(d)] {
 				case Only(ref): UnicodeSequences.codepointsToString(ref);
 				case Normal(nfc, nfd): UnicodeSequences.codepointsToString(mode == "nfc" ? nfc : nfd);
-			});
+			};
 		switch (args) {
 			case _.slice(0, 1) => ["putEnv"]:
-			// ["putEnv", var name, index, nfc mode, next args...]
-			Sys.putEnv(args[1], sequenceIndex(args[2], args[3]));
-			var out = runUtility(args.slice(4));
-			Sys.print(out.stdout);
-			Sys.exit(out.exitCode);
+				// ["putEnv", var name, index, nfc mode, next args...]
+				Sys.putEnv(args[1], sequenceIndex(args[2], args[3]));
+				var out = runUtility(args.slice(4));
+				Sys.print(out.stdout);
+				Sys.exit(out.exitCode);
 			case ["getCwd"]: Sys.println(Sys.getCwd());
 			case ["getEnv", name]: Sys.println(Sys.getEnv(name));
+			case ["checkEnv", name, value]:
+				Sys.exit(value == Sys.getEnv(name) ? 0 : 1);
 			case ["environment", name]: Sys.println(Sys.environment().get(name));
 			case ["exitCode", Std.parseInt(_) => code]: Sys.exit(code);
 			case ["args", data]: Sys.println(data);
@@ -142,9 +194,9 @@ class UtilityProcess {
 			case ["stdin.readString", Std.parseInt(_) => len]: Sys.println(Sys.stdin().readString(len, UTF8));
 			case ["stdin.readUntil", Std.parseInt(_) => end]: Sys.println(Sys.stdin().readUntil(end));
 			case ["stderr.writeString", d, mode]:
-			var stream = Sys.stderr(); stream.writeString(sequenceIndex(d, mode)); stream.flush();
+				var stream = Sys.stderr(); stream.writeString(sequenceIndex(d, mode)); stream.flush();
 			case ["stdout.writeString", d, mode]:
-			var stream = Sys.stdout(); stream.writeString(sequenceIndex(d, mode)); stream.flush();
+				var stream = Sys.stdout(); stream.writeString(sequenceIndex(d, mode)); stream.flush();
 			case ["programPath"]: Sys.println(Sys.programPath());
 			case _: // no-op
 		}

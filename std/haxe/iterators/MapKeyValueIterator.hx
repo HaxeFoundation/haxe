@@ -49,6 +49,6 @@ class MapKeyValueIterator<K, V> {
 	**/
 	public inline function next():{key:K, value:V} {
 		var key = keys.next();
-		return {value: map.get(key), key: key};
+		return {value: @:nullSafety(Off) (map.get(key) : V), key: key};
 	}
 }

@@ -1,0 +1,25 @@
+abstract A(Int) {
+	public inline function new() {
+		this = 42;
+	}
+
+	//inline
+	public function f():B {
+		return new B(new C().f);
+	}
+}
+
+class C {
+	public final f:Int;
+
+	public function new() {
+		f = 3;
+		throw ("side effect!");
+	}
+}
+
+class Main {
+	static function main() {
+		new A().f();
+	}
+}

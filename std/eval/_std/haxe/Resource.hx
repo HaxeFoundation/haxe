@@ -24,7 +24,7 @@ package haxe;
 
 @:coreApi
 extern class Resource {
-	public static function listNames():Array<String>;
-	public static function getString(name:String):String;
-	public static function getBytes(name:String):haxe.io.Bytes;
+	static function listNames():Array<String>;
+	static function getString(name:String):String;
+	static function getBytes(name:String):haxe.io.Bytes;
 }

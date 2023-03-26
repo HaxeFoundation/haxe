@@ -22,6 +22,7 @@
 
 package haxe.macro;
 
+import haxe.display.Display;
 import haxe.macro.Expr;
 
 /**
@@ -163,6 +164,19 @@ class Compiler {
 	}
 
 	/**
+		Returns all the configuration settings applied to the compiler.
+
+		Usage of this function outside a macro context returns `null`.
+	**/
+	public static function getConfiguration():Null<CompilerConfiguration> {
+		#if (neko || eval)
+		return load("get_configuration", 0)();
+		#else
+		return null;
+		#end
+	}
+
+	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 
 		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
@@ -192,6 +206,7 @@ class Compiler {
 		If you want to specify a different set of paths to search for modules, you can use the optional
 		argument `classPath`.
 
+		@param pack The package dot-path as String. Use `''` to include the root package.
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
 			   You can use `module*` with a * at the end for Wildcard matching
@@ -282,6 +297,7 @@ class Compiler {
 		Exclude a specific class, enum, or all classes and enums in a
 		package from being generated. Excluded types become `extern`.
 
+		@param pack The package dot-path as String. Use `''` to exclude the root package.
 		@param rec If true, recursively excludes all sub-packages.
 	**/
 	public static function exclude(pack:String, ?rec = true) {
@@ -419,7 +435,7 @@ class Compiler {
 	/**
 		Enables null safety for a type or a package.
 
-		@param path A package, module or sub-type dot path to keep.
+		@param path A package, module or sub-type dot path to enable null safety for.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
@@ -445,6 +461,44 @@ class Compiler {
 		load("add_global_metadata_impl", 5)(pathFilter, meta, recursive, toTypes, toFields);
 		#else
 		addGlobalMetadataImpl(pathFilter, meta, recursive, toTypes, toFields);
+		#end
+	}
+
+	/**
+		Reference a json file describing user-defined metadata
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
+	**/
+	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
+		for (m in content) registerCustomMetadata(m, source);
+	}
+
+	/**
+		Reference a json file describing user-defined defines
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
+	**/
+	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<DefineDescription> =  haxe.Json.parse(f);
+		for (d in content) registerCustomDefine(d, source);
+	}
+
+	/**
+		Register a custom medatada for documentation and completion purposes
+	**/
+	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_metadata_impl", 2)(meta, source);
+		#end
+	}
+
+	/**
+		Register a custom define for documentation purposes
+	**/
+	public static function registerCustomDefine(define:DefineDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_define_impl", 2)(define, source);
 		#end
 	}
 
@@ -486,8 +540,11 @@ class Compiler {
 
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch (e:Dynamic) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
-				var magic = if (Context.defined("js")) "__js__" else "__lua__";
-				{expr: EUntyped({expr: ECall({expr: EConst(CIdent(magic)), pos: p}, [{expr: EConst(CString(f)), pos: p}]), pos: p}), pos: p};
+				if(Context.defined("js")) {
+					macro @:pos(p) js.Syntax.plainCode($v{f});
+				} else {
+					macro @:pos(p) untyped __lua__($v{f});
+				}
 			case Top | Closure:
 				@:privateAccess Context.includeFile(file, position);
 				macro {};
@@ -571,4 +628,109 @@ enum abstract NullSafetyMode(String) to String {
 		The only nullable thing could be safe are local variables.
 	**/
 	var StrictThreaded;
+}
+
+typedef MetadataDescription = {
+	final metadata:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this metadata.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this metadata accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this metadata is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+
+	/**
+		Places where this metadata can be applied.
+	**/
+	@:optional final targets:Array<MetadataTarget>;
+}
+
+typedef DefineDescription = {
+	final define:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this define.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this define accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this define is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+}
+
+typedef CompilerConfiguration = {
+	/**
+		The version integer of the current Haxe compiler build.
+	**/
+	final version:Int;
+
+	/**
+		Returns an array of the arguments passed to the compiler from either the `.hxml` file or the command line.
+	**/
+	final args:Array<String>;
+
+	/**
+		If `--debug` mode is enabled, this is `true`.
+	**/
+	final debug:Bool;
+
+	/**
+		If `--verbose` mode is enabled, this is `true`.
+	**/
+	final verbose:Bool;
+
+	/**
+		If `--no-opt` is enabled, this is `false`.
+	**/
+	final foptimize:Bool;
+
+	/**
+		The target platform.
+	**/
+	final platform:haxe.display.Display.Platform;
+
+	/**
+		The compilation configuration for the target platform. 
+	**/
+	final platformConfig:PlatformConfig;
+
+	/**
+		A list of paths being used for the standard library.
+	**/
+	final stdPath:Array<String>;
+
+	/**
+		The path of the class passed using the `-main` argument.
+	**/
+	final mainClass:TypePath;
+
+	/**
+		Special access rules for packages depending on the compiler configuration.
+
+		For example, the "java" package is "Forbidden" when the target platform is Python.
+	**/
+	final packageRules:Map<String,PackageRule>;
+}
+
+enum PackageRule {
+	Forbidden;
+	Directory(path:String);
+	Remap(path:String);
 }

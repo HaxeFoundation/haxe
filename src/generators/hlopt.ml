@@ -508,7 +508,7 @@ let remap_fun ctx f dump get_str old_code =
 	let reg_remap = ctx.r_used_regs <> nregs in
 	let assigns = ref f.assigns in
 	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (Bytes.unsafe_of_string (str ^ "\n")) in
-	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> assert false) in
+	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> Globals.die "" __LOC__) in
 
 	let live_bits = ctx.r_live_bits in
 	let reg_map = ctx.r_reg_map in
@@ -550,7 +550,7 @@ let remap_fun ctx f dump get_str old_code =
 							if bp.bstart > b.bstart then acc else
 							try
 								let wp = PMap.find reg bp.bwrite in
-								if wp > p then assert false;
+								if wp > p then Globals.die "" __LOC__;
 								loop wp @ acc
 							with Not_found ->
 								gather bp @ acc
@@ -682,7 +682,7 @@ let remap_fun ctx f dump get_str old_code =
 			| OJAlways d -> OJAlways (pos d)
 			| OSwitch (r,cases,send) -> OSwitch (r, Array.map pos cases, pos send)
 			| OTrap (r,d) -> OTrap (r,pos d)
-			| _ -> assert false)
+			| _ -> Globals.die "" __LOC__)
 		) !jumps;
 
 		let assigns = !assigns in
@@ -726,7 +726,7 @@ let _optimize (f:fundecl) =
 	let set_live r min max =
 		let offset = r / bit_regs in
 		let mask = 1 lsl (r - offset * bit_regs) in
-		if min < 0 || max >= Array.length f.code then assert false;
+		if min < 0 || max >= Array.length f.code then Globals.die "" __LOC__;
 		for i=min to max do
 			let p = i * stride + offset in
 			Array.unsafe_set live_bits p ((Array.unsafe_get live_bits p) lor mask);
@@ -746,6 +746,18 @@ let _optimize (f:fundecl) =
 		r.ralias <- r;
 		r
 	) in
+
+	let is_packed_field o fid =
+		match f.regs.(o) with
+		| HStruct p | HObj p ->
+			let ft = (try snd (resolve_field p fid) with Not_found -> assert false) in
+			(match ft with
+			| HPacked _ -> true
+			| _ -> false)
+		| _ ->
+			false
+	in
+
 (*
 	let print_state i s =
 		let state_str s =
@@ -764,7 +776,7 @@ let _optimize (f:fundecl) =
 		| b2 :: l ->
 			let s = get_state b2 in
 			let s = (match b2.bnext with
-			| [] -> assert false
+			| [] -> Globals.die "" __LOC__
 			| [_] -> s (* reuse *)
 			| _ :: l ->
 				let s2 = empty_state() in
@@ -856,6 +868,13 @@ let _optimize (f:fundecl) =
 				do_read o;
 				do_write v;
 				state.(v).rnullcheck <- state.(o).rnullcheck
+			| OField (r,o,fid) when (match f.regs.(r) with HStruct _ -> true | _ -> false) ->
+				do_read o;
+				do_write r;
+				if is_packed_field o fid then state.(r).rnullcheck <- true;
+			| OGetThis (r,fid) when (match f.regs.(r) with HStruct _ -> true | _ -> false) ->
+				do_write r;
+				if is_packed_field 0 fid then state.(r).rnullcheck <- true;
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r
@@ -964,7 +983,7 @@ let _optimize (f:fundecl) =
 
 	let used_regs = ref 0 in
 	let reg_map = read_counts in
-	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> assert false) in
+	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> Globals.die "" __LOC__) in
 	for i=0 to nregs-1 do
 		if read_counts.(i) > 0 || write_counts.(i) > 0 || i < nargs then begin
 			reg_map.(i) <- !used_regs;
@@ -997,7 +1016,7 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 	try
 		let c = PMap.find hxf (!opt_cache) in
 		c.c_last_used <- !used_mark;
-		if Array.length f.code <> Array.length c.c_code then assert false;
+		if Array.length f.code <> Array.length c.c_code then Globals.die "" __LOC__;
 		let code = c.c_code in
 		Array.iter (fun i ->
 			let op = (match Array.unsafe_get code i, Array.unsafe_get f.code i with
@@ -1018,7 +1037,7 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 			| ODynGet (r,o,_), ODynGet (_,_,idx) -> ODynGet (r,o,idx)
 			| ODynSet (o,_,v), ODynSet (_,idx,_) -> ODynSet (o,idx,v)
 			| OType (r,_), OType (_,t) -> OType (r,t)
-			| _ -> assert false) in
+			| _ -> Globals.die "" __LOC__) in
 			Array.unsafe_set code i op
 		) c.c_remap_indexes;
 		remap_fun c.c_rctx { f with code = code } dump get_str old_code

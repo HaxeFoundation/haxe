@@ -50,4 +50,22 @@ namespace { //Namespace declaration is required because this file is included un
 		}
 	}
 
+	/**
+	 * @see http://php.net/manual/en/function.mb-scrub.php
+	 */
+	if(!function_exists('mb_scrub')) {
+		function mb_scrub($s, $encoding = null) {
+			$encoding = null === $encoding ? mb_internal_encoding() : $encoding;
+			return mb_convert_encoding($s, $encoding, $encoding);
+		}
+	}
+
+	/**
+	 * @see https://www.php.net/manual/en/function.str-starts-with.php
+	 */
+	if (!function_exists('str_starts_with')) {
+		function str_starts_with($str, $start) {
+    		return (@substr_compare($str, $start, 0, strlen($start))==0);
+		}
+	}
 }

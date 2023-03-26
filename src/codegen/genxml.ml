@@ -52,7 +52,7 @@ let gen_doc s =
 let gen_doc_opt d =
 	match d with
 	| None -> []
-	| Some s -> [gen_doc s]
+	| Some d -> [gen_doc (Ast.gen_doc_text d)]
 
 let gen_arg_name (name,opt,_) =
 	(if opt then "?" else "") ^ name
@@ -122,7 +122,8 @@ let rec gen_type ?(values=None) t =
 		) args in
 		node "f" (("a",names) :: values) (List.map gen_type (args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) }) a.a_fields)
-	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
+	| TDynamic None -> node "d" [] []
+	| TDynamic (Some t2) -> node "d" [] [gen_type t2]
 	| TLazy f -> gen_type (lazy_type f)
 
 and gen_type_decl n t pl =
@@ -132,7 +133,7 @@ and gen_type_decl n t pl =
 and gen_field att f =
 	let add_get_set acc name att =
 		match acc with
-		| AccNormal | AccResolve | AccRequire _ | AccCtor -> att
+		| AccNormal | AccRequire _ | AccCtor -> att
 		| AccNo | AccNever -> (name, "null") :: att
 		| AccCall -> (name,"accessor") :: att
 		| AccInline -> (name,"inline") :: att
@@ -157,7 +158,7 @@ and gen_field att f =
 			in
 			att,get_value_meta f.cf_meta
 	) in
-	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
+	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map extract_param_name l)) :: att) in
 	let overloads = match List.map (gen_field []) f.cf_overloads with
 		| [] -> []
 		| nl -> [node "overloads" [] nl]
@@ -173,6 +174,7 @@ and gen_field att f =
 	in
 	let att = if has_class_field_flag f CfPublic then ("public","1") :: att else att in
 	let att = if has_class_field_flag f CfFinal then ("final","1") :: att else att in
+	let att = if has_class_field_flag f CfAbstract then ("abstract","1") :: att else att in
 	node (field_name f) att (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
@@ -199,7 +201,7 @@ let gen_type_params ipos priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
 	let mpath = (if m.m_path <> path then [("module",snd (gen_path m.m_path false))] else []) in
 	let file = (if ipos && pos <> null_pos then [("file",pos.pfile)] else []) in
-	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: (file @ mpriv @ mpath)
+	gen_path path priv :: ("params", String.concat ":" (List.map extract_param_name params)) :: (file @ mpriv @ mpath)
 
 let gen_class_path name (c,pl) =
 	node name [("path",s_type_path (tpath (TClassDecl c)))] (List.map gen_type pl)
@@ -215,11 +217,11 @@ let rec gen_type_decl com pos t =
 	match t with
 	| TClassDecl c ->
 		let stats = List.filter (fun cf ->
-			cf.cf_name <> "__meta__" && not (Meta.has Meta.GenericInstance cf.cf_meta)
+			cf.cf_name <> "__meta__" && not (Meta.has Meta.GenericInstance cf.cf_meta) && not (Meta.has Meta.NoDoc cf.cf_meta)
 		) c.cl_ordered_statics in
 		let stats = List.map (gen_field ["static","1"]) stats in
 		let fields = List.filter (fun cf ->
-			not (Meta.has Meta.GenericInstance cf.cf_meta)
+			not (Meta.has Meta.GenericInstance cf.cf_meta) && not (Meta.has Meta.NoDoc cf.cf_meta)
 		) c.cl_ordered_fields in
 		let fields = (match c.cl_super with
 			| None -> List.map (fun f -> f,[]) fields
@@ -227,16 +229,18 @@ let rec gen_type_decl com pos t =
 		) in
 		let fields = List.map (fun (f,att) -> gen_field att f) fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
-		let impl = List.map (gen_class_path (if c.cl_interface then "extends" else "implements")) c.cl_implements in
+		let impl = List.map (gen_class_path (if (has_class_flag c CInterface) then "extends" else "implements")) c.cl_implements in
 		let tree = (match c.cl_super with
 			| None -> impl
 			| Some x -> gen_class_path "extends" x :: impl
 		) in
 		let doc = gen_doc_opt c.cl_doc in
 		let meta = gen_meta c.cl_meta in
-		let ext = (if c.cl_extern then [("extern","1")] else []) in
-		let interf = (if c.cl_interface then [("interface","1")] else []) in
-		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ meta)
+		let ext = (if (has_class_flag c CExtern) then [("extern","1")] else []) in
+		let interf = (if (has_class_flag c CInterface) then [("interface","1")] else []) in
+		let final = (if has_class_flag c CFinal then [("final","1")] else []) in
+		let abstract = (if has_class_flag c CAbstract then [("abstract","1")] else []) in
+		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf @ final @ abstract) (tree @ stats @ fields @ constr @ doc @ meta)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		let meta = gen_meta e.e_meta in
@@ -250,9 +254,9 @@ let rec gen_type_decl com pos t =
 		let doc = gen_doc_opt a.a_doc in
 		let meta = gen_meta a.a_meta in
 		let mk_cast t = node "icast" [] [gen_type t] in
-		let mk_field_cast (t,cf) = node "icast" ["field",cf.cf_name] [gen_type t] in
-		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (List.map mk_field_cast l2))]) in
-		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (List.map mk_field_cast l2))]) in
+		let mk_field_cast (t,cf) = if Meta.has Meta.NoDoc cf.cf_meta then None else Some (node "icast" ["field",cf.cf_name] [gen_type t]) in
+		let sub = (match a.a_from,a.a_from_field with [],[] -> [] | l1,l2 -> [node "from" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
+		let super = (match a.a_to,a.a_to_field with [],[] -> [] | l1,l2 -> [node "to" [] ((List.map mk_cast l1) @ (ExtList.List.filter_map mk_field_cast l2))]) in
 		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
 		let this = [node "this" [] [gen_type a.a_this]] in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_params a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)

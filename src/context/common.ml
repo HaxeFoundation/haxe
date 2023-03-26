@@ -16,13 +16,13 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Ast
-open CompilationServer
 open Type
 open Globals
 open Define
 open NativeLibraries
+open Warning
 
 type package_rule =
 	| Forbidden
@@ -46,25 +46,6 @@ type stats = {
 	s_macros_called : int ref;
 }
 
-type compiler_message =
-	| CMInfo of string * pos
-	| CMWarning of string * pos
-	| CMError of string * pos
-
-let compiler_message_string msg =
-	let (str,p) = match msg with
-		| CMInfo(str,p) | CMError(str,p) -> (str,p)
-		| CMWarning(str,p) -> ("Warning : " ^ str, p)
-	in
-	if p = null_pos then
-		str
-	else begin
-		let error_printer file line = Printf.sprintf "%s:%d:" file line in
-		let epos = Lexer.get_error_pos error_printer p in
-		let str = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit str "\n") in
-		Printf.sprintf "%s : %s" epos str
-	end
-
 (**
 	The capture policy tells which handling we make of captured locals
 	(the locals which are referenced in local functions)
@@ -78,6 +59,76 @@ type capture_policy =
 	| CPWrapRef
 	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
 	| CPLoopVars
+
+type exceptions_config = {
+	(* Base types which may be thrown from Haxe code without wrapping. *)
+	ec_native_throws : path list;
+	(* Base types which may be caught from Haxe code without wrapping. *)
+	ec_native_catches : path list;
+	(*
+		Hint exceptions filter to avoid wrapping for targets, which can throw/catch any type
+		Ignored on targets with a specific native base type for exceptions.
+	*)
+	ec_avoid_wrapping : bool;
+	(* Path of a native class or interface, which can be used for wildcard catches. *)
+	ec_wildcard_catch : path;
+	(*
+		Path of a native base class or interface, which can be thrown.
+		This type is used to cast `haxe.Exception.thrown(v)` calls to.
+		For example `throw 123` is compiled to `throw (cast Exception.thrown(123):ec_base_throw)`
+	*)
+	ec_base_throw : path;
+	(*
+		Checks if throwing this expression is a special case for current target
+		and should not be modified.
+	*)
+	ec_special_throw : texpr -> bool;
+}
+
+type var_scope =
+	| FunctionScope
+	| BlockScope
+
+type var_scoping_flags =
+	(**
+		Variables are hoisted in their scope
+	*)
+	| VarHoisting
+	(**
+		It's not allowed to shadow existing variables in a scope.
+	*)
+	| NoShadowing
+	(**
+		It's not allowed to shadow a `catch` variable.
+	*)
+	| NoCatchVarShadowing
+	(**
+		Local vars cannot have the same name as the current top-level package or
+		(if in the root package) current class name
+	*)
+	| ReserveCurrentTopLevelSymbol
+	(**
+		Local vars cannot have a name used for any top-level symbol
+		(packages and classes in the root package)
+	*)
+	| ReserveAllTopLevelSymbols
+	(**
+		Reserve all type-paths converted to "flat path" with `Path.flat_path`
+	*)
+	| ReserveAllTypesFlat
+	(**
+		List of names cannot be taken by local vars
+	*)
+	| ReserveNames of string list
+	(**
+		Cases in a `switch` won't have blocks, but will share the same outer scope.
+	*)
+	| SwitchCasesNoBlocks
+
+type var_scoping_config = {
+	vs_flags : var_scoping_flags list;
+	vs_scope : var_scope;
+}
 
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
@@ -106,6 +157,14 @@ type platform_config = {
 	pf_supports_threads : bool;
 	(** target supports Unicode **)
 	pf_supports_unicode : bool;
+	(** target supports rest arguments **)
+	pf_supports_rest_args : bool;
+	(** exceptions handling config **)
+	pf_exceptions : exceptions_config;
+	(** the scoping of local variables *)
+	pf_scoping : var_scoping_config;
+	(** target supports atomic operations via haxe.Atomic **)
+	pf_supports_atomics : bool;
 }
 
 class compiler_callbacks = object(self)
@@ -152,15 +211,26 @@ class compiler_callbacks = object(self)
 	method get_null_safety_report = null_safety_report
 end
 
+class file_keys = object(self)
+	val cache = Hashtbl.create 0
+
+	method get file =
+		try
+			Hashtbl.find cache file
+		with Not_found ->
+			let key = Path.UniqueKey.create file in
+			Hashtbl.add cache file key;
+			key
+end
+
 type shared_display_information = {
-	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable dead_blocks : (string,(pos * expr) list) Hashtbl.t;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 	mutable display_module_has_macro_defines : bool;
+	mutable module_diagnostics : DisplayTypes.module_diagnostics list;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -192,14 +262,83 @@ type compiler_stage =
 	| CGenerationStart  (* Generation is about to begin. *)
 	| CGenerationDone   (* Generation just finished. *)
 
+type report_mode =
+	| RMNone
+	| RMDiagnostics of Path.UniqueKey.t list
+	| RMStatistics
+
+class virtual ['key,'value] lookup = object(self)
+	method virtual add : 'key -> 'value -> unit
+	method virtual remove : 'key -> unit
+	method virtual find : 'key -> 'value
+	method virtual iter : ('key -> 'value -> unit) -> unit
+	method virtual fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc
+	method virtual mem : 'key -> bool
+	method virtual clear : unit
+end
+
+class ['key,'value] pmap_lookup = object(self)
+	inherit ['key,'value] lookup
+	val mutable lut : ('key,'value) PMap.t = PMap.empty
+
+	method add (key : 'key) (value : 'value) =
+		lut <- PMap.add key value lut
+
+	method remove (key : 'key) =
+		lut <- PMap.remove key lut
+
+	method find (key : 'key) : 'value =
+		PMap.find key lut
+
+	method iter (f : 'key -> 'value -> unit) =
+		PMap.iter f lut
+
+	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
+		PMap.foldi f lut acc
+
+	method mem (key : 'key) =
+		PMap.mem key lut
+
+	method clear =
+		lut <- PMap.empty
+end
+
+class ['key,'value] hashtbl_lookup = object(self)
+	inherit ['key,'value] lookup
+	val lut : ('key,'value) Hashtbl.t = Hashtbl.create 0
+
+	method add (key : 'key) (value : 'value) =
+		Hashtbl.replace lut key value
+
+	method remove (key : 'key) =
+		Hashtbl.remove lut key
+
+	method find (key : 'key) : 'value =
+		Hashtbl.find lut key
+
+	method iter (f : 'key -> 'value -> unit) =
+		Hashtbl.iter f lut
+
+	method fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc = fun f acc ->
+		Hashtbl.fold f lut acc
+
+	method mem (key : 'key) =
+		Hashtbl.mem lut key
+
+	method clear =
+		Hashtbl.clear lut
+end
+
 type context = {
+	compilation_step : int;
 	mutable stage : compiler_stage;
-	mutable cache : context_cache option;
+	cs : CompilationCache.t;
+	mutable cache : CompilationCache.context_cache option;
+	is_macro_context : bool;
+	mutable json_out : json_api option;
 	(* config *)
 	version : int;
 	args : string list;
-	shared : shared_context;
-	display_information : display_information;
 	mutable sys_args : string list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
@@ -211,32 +350,49 @@ type context = {
 	mutable class_path : string list;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
-	mutable error : string -> pos -> unit;
-	mutable info : string -> pos -> unit;
-	mutable warning : string -> pos -> unit;
+	mutable report_mode : report_mode;
+	(* communication *)
+	mutable print : string -> unit;
+	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable info : ?depth:int -> string -> pos -> unit;
+	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
+	mutable run_command : string -> int;
+	mutable run_command_args : string -> string list -> int;
+	(* typing setup *)
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
-	mutable print : string -> unit;
+	mutable user_defines : (string, Define.user_define) Hashtbl.t;
+	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
-	mutable run_command : string -> int;
-	file_lookup_cache : (string,string option) Hashtbl.t;
-	readdir_cache : (string * string,(string array) option) Hashtbl.t;
-	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
-	module_to_file : (path,string) Hashtbl.t;
-	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
-	mutable stored_typed_exprs : (int, texpr) PMap.t;
+	(* typing state *)
+	shared : shared_context;
+	display_information : display_information;
+	file_lookup_cache : (string,string option) lookup;
+	file_keys : file_keys;
+	readdir_cache : (string * string,(string array) option) lookup;
+	parser_cache : (string,(type_def * pos) list) lookup;
+	module_to_file : (path,string) lookup;
+	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
+	stored_typed_exprs : (int, texpr) lookup;
+	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
+	module_lut : (path,module_def) lookup;
+	module_nonexistent_lut : (path,bool) lookup;
+	type_to_module : (path,path) lookup;
+	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
-	mutable flash_version : float;
 	mutable features : (string,bool) Hashtbl.t;
 	mutable modules : Type.module_def list;
 	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	(* target-specific *)
+	mutable flash_version : float;
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
@@ -244,13 +400,18 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : json_api option;
-	(* typing *)
+	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
 }
 
 exception Abort of string * pos
+
+let ignore_error com =
+	let b = com.display.dms_error_policy = EPIgnore in
+	if b then
+		if b then com.has_error <- true;
+	b
 
 (* Defines *)
 
@@ -279,8 +440,56 @@ let raw_define com v =
 let define_value com k v =
 	Define.define_value com.defines k v
 
-let raw_defined_value com k =
-	Define.raw_defined_value com.defines k
+let convert_define k =
+	String.concat "_" (ExtString.String.nsplit k "-")
+
+let external_defined ctx k =
+	Define.raw_defined ctx.defines (convert_define k)
+
+let external_defined_value ctx k =
+	Define.raw_defined_value ctx.defines (convert_define k)
+
+let reserved_flags = [
+	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
+	]
+
+let reserved_flag_namespaces = ["target"]
+
+let convert_and_validate k =
+	let converted_flag = convert_define k in
+	let raise_reserved description =
+		raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
+	in
+	if List.mem converted_flag reserved_flags then
+		raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" k);
+	List.iter (fun ns ->
+		if ExtString.String.starts_with converted_flag (ns ^ ".") then
+			raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" k ns)
+	) reserved_flag_namespaces;
+	converted_flag
+
+let external_define_value ctx k v =
+	raw_define_value ctx.defines (convert_and_validate k) v
+
+(* TODO: Temporary function until #8690, remove after *)
+let external_define_value_no_check ctx k v =
+	Define.raw_define_value ctx.defines (convert_define k) v
+
+let external_define ctx k =
+	Define.raw_define ctx.defines (convert_and_validate k)
+
+(* TODO: Temporary function until #8690, remove after *)
+let external_define_no_check ctx k =
+	Define.raw_define ctx.defines (convert_define k)
+
+let defines_for_external ctx =
+	PMap.foldi (fun k v acc ->
+		let added_underscore = PMap.add k v acc in
+		match ExtString.String.nsplit k "_" with
+			| [_] -> added_underscore
+			| split -> PMap.add (String.concat "-" split) v added_underscore;
+	) ctx.defines.values PMap.empty
 
 let get_es_version com =
 	try int_of_string (defined_value com Define.JsEs) with _ -> 0
@@ -322,21 +531,51 @@ let default_config =
 		pf_this_before_super = true;
 		pf_supports_threads = false;
 		pf_supports_unicode = true;
+		pf_supports_rest_args = false;
+		pf_exceptions = {
+			ec_native_throws = [];
+			ec_native_catches = [];
+			ec_wildcard_catch = (["StdTypes"],"Dynamic");
+			ec_base_throw = (["StdTypes"],"Dynamic");
+			ec_avoid_wrapping = true;
+			ec_special_throw = fun _ -> false;
+		};
+		pf_scoping = {
+			vs_scope = BlockScope;
+			vs_flags = [];
+		};
+		pf_supports_atomics = false;
 	}
 
 let get_config com =
-	let defined f = PMap.mem (fst (Define.infos f)) com.defines.values in
+	let defined f = PMap.mem (Define.get_define_key f) com.defines.values in
 	match com.platform with
 	| Cross ->
 		default_config
 	| Js ->
+		let es6 = get_es_version com >= 6 in
 		{
 			default_config with
 			pf_static = false;
 			pf_sys = false;
-			pf_capture_policy = CPLoopVars;
+			pf_capture_policy = if es6 then CPNone else CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
-			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_this_before_super = not es6; (* cannot access `this` before `super()` when generating ES6 classes *)
+			pf_supports_rest_args = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["js";"lib"],"Error";
+					["haxe"],"Exception";
+				];
+				ec_avoid_wrapping = false;
+			};
+			pf_scoping = {
+				vs_scope = if es6 then BlockScope else FunctionScope;
+				vs_flags =
+					(if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat)
+					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting; NoCatchVarShadowing];
+			};
+			pf_supports_atomics = true;
 		}
 	| Lua ->
 		{
@@ -344,6 +583,10 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_supports_rest_args = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_avoid_wrapping = false;
+			}
 		}
 	| Neko ->
 		{
@@ -353,6 +596,9 @@ let get_config com =
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
 			pf_supports_unicode = false;
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [ReserveAllTopLevelSymbols];
+			}
 		}
 	| Flash ->
 		{
@@ -361,12 +607,45 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_supports_rest_args = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["flash";"errors"],"Error";
+					["haxe"],"Exception";
+				];
+				ec_avoid_wrapping = false;
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting];
+			};
 		}
 	| Php ->
 		{
 			default_config with
 			pf_static = false;
 			pf_uses_utf16 = false;
+			pf_supports_rest_args = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["php"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["php"],"Throwable");
+				ec_base_throw = (["php"],"Throwable");
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			}
 		}
 	| Cpp ->
 		{
@@ -376,6 +655,11 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
+			pf_scoping = { default_config.pf_scoping with
+				vs_flags = [NoShadowing];
+				vs_scope = FunctionScope;
+			};
+			pf_supports_atomics = true;
 		}
 	| Cs ->
 		{
@@ -384,6 +668,26 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_supports_rest_args = true;
+			pf_this_before_super = false;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["cs";"system"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["cs";"system"],"Exception");
+				ec_base_throw = (["cs";"system"],"Exception");
+				ec_special_throw = fun e -> e.eexpr = TIdent "__rethrow__"
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [NoShadowing]
+			};
+			pf_supports_atomics = true;
 		}
 	| Java ->
 		{
@@ -392,7 +696,29 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_supports_rest_args = true;
 			pf_this_before_super = false;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["java";"lang"],"RuntimeException";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["java";"lang"],"Throwable";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["java";"lang"],"Throwable");
+				ec_base_throw = (["java";"lang"],"RuntimeException");
+			};
+			pf_scoping =
+				if defined Jvm then
+					default_config.pf_scoping
+				else
+					{
+						vs_scope = FunctionScope;
+						vs_flags = [NoShadowing; ReserveAllTopLevelSymbols; ReserveNames(["_"])];
+					};
+			pf_supports_atomics = true;
 		}
 	| Python ->
 		{
@@ -400,6 +726,22 @@ let get_config com =
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
 			pf_uses_utf16 = false;
+			pf_supports_threads = true;
+			pf_supports_rest_args = true;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_native_catches = [
+					["python";"Exceptions"],"BaseException";
+				];
+				ec_wildcard_catch = ["python";"Exceptions"],"BaseException";
+				ec_base_throw = ["python";"Exceptions"],"BaseException";
+			};
+			pf_scoping = {
+				vs_scope = FunctionScope;
+				vs_flags = [VarHoisting]
+			};
 		}
 	| Hl ->
 		{
@@ -407,6 +749,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
+			pf_supports_atomics = true;
 		}
 	| Eval ->
 		{
@@ -420,14 +763,11 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create version s_version args =
+let create compilation_step cs version args =
 	let m = Type.mk_mono() in
-	let defines =
-		PMap.add "true" "1" (
-			PMap.add "source-header" ("Generated by Haxe " ^ s_version) PMap.empty
-		)
-	in
-	{
+	let rec com = {
+		compilation_step = compilation_step;
+		cs = cs;
 		cache = None;
 		stage = CCreated;
 		version = version;
@@ -435,13 +775,12 @@ let create version s_version args =
 		shared = {
 			shared_display_information = {
 				diagnostics_messages = [];
-				dead_blocks = Hashtbl.create 0;
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
+			module_diagnostics = [];
 		};
 		sys_args = args;
 		debug = false;
@@ -453,6 +792,7 @@ let create version s_version args =
 		config = default_config;
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
+		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		std_path = [];
 		class_path = [];
 		main_class = None;
@@ -461,6 +801,9 @@ let create version s_version args =
 		types = [];
 		callbacks = new compiler_callbacks;
 		modules = [];
+		module_lut = new hashtbl_lookup;
+		module_nonexistent_lut = new hashtbl_lookup;
+		type_to_module = new hashtbl_lookup;
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
@@ -474,12 +817,15 @@ let create version s_version args =
 		load_extern_type = [];
 		defines = {
 			defines_signature = None;
-			values = defines;
+			values = PMap.empty;
 		};
+		user_defines = Hashtbl.create 0;
+		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun _ _ -> assert false);
-		warning = (fun _ _ -> assert false);
-		error = (fun _ _ -> assert false);
+		info = (fun ?depth _ _ -> die "" __LOC__);
+		warning = (fun ?depth _ _ _ -> die "" __LOC__);
+		warning_options = [];
+		error = (fun ?depth _ _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -488,53 +834,67 @@ let create version s_version args =
 			tint = m;
 			tfloat = m;
 			tbool = m;
-			tnull = (fun _ -> assert false);
+			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tstring = m;
-			tarray = (fun _ -> assert false);
+			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
-		file_lookup_cache = Hashtbl.create 0;
-		readdir_cache = Hashtbl.create 0;
-		module_to_file = Hashtbl.create 0;
-		stored_typed_exprs = PMap.empty;
-		cached_macros = Hashtbl.create 0;
+		file_lookup_cache = new hashtbl_lookup;
+		file_keys = new file_keys;
+		readdir_cache = new hashtbl_lookup;
+		module_to_file = new hashtbl_lookup;
+		stored_typed_exprs = new hashtbl_lookup;
+		cached_macros = new hashtbl_lookup;
 		memory_marker = memory_marker;
-		parser_cache = Hashtbl.create 0;
+		parser_cache = new hashtbl_lookup;
+		overload_cache = new hashtbl_lookup;
 		json_out = None;
-	}
+		has_error = false;
+		report_mode = RMNone;
+		is_macro_context = false;
+	} in
+	com
+
+let is_diagnostics com = match com.report_mode with
+	| RMDiagnostics _ -> true
+	| _ -> false
+
+let disable_report_mode com =
+	let old = com.report_mode in
+	com.report_mode <- RMNone;
+	(fun () -> com.report_mode <- old)
 
 let log com str =
 	if com.verbose then com.print (str ^ "\n")
 
-let clone com =
+let clone com is_macro_context =
 	let t = com.basic in
 	{ com with
 		cache = None;
 		basic = { t with tvoid = t.tvoid };
 		main_class = None;
 		features = Hashtbl.create 0;
-		file_lookup_cache = Hashtbl.create 0;
-		readdir_cache = Hashtbl.create 0;
-		parser_cache = Hashtbl.create 0;
-		module_to_file = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
-			interface_field_implementations = [];
 			display_module_has_macro_defines = false;
+			module_diagnostics = [];
 		};
 		defines = {
 			values = com.defines.values;
 			defines_signature = com.defines.defines_signature;
 		};
 		native_libs = create_native_libs();
+		is_macro_context = is_macro_context;
+		file_lookup_cache = new hashtbl_lookup;
+		readdir_cache = new hashtbl_lookup;
+		parser_cache = new hashtbl_lookup;
+		module_to_file = new hashtbl_lookup;
+		overload_cache = new hashtbl_lookup;
+		module_lut = new hashtbl_lookup;
+		type_to_module = new hashtbl_lookup;
 	}
 
 let file_time file = Extc.filetime file
-
-let file_extension file =
-	match List.rev (ExtString.String.nsplit file ".") with
-	| e :: _ -> String.lowercase e
-	| [] -> ""
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
@@ -570,26 +930,38 @@ let init_platform com pf =
 	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
 	com.config <- get_config com;
 	if com.config.pf_static then begin
-		raw_define_value com.defines "target.static" "true";
+		raw_define com "target.static";
 		define com Define.Static;
 	end;
 	if com.config.pf_sys then begin
-		raw_define_value com.defines "target.sys" "true";
+		raw_define com "target.sys";
 		define com Define.Sys
 	end else
 		com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
 	if com.config.pf_uses_utf16 then begin
-		raw_define_value com.defines "target.utf16" "true";
+		raw_define com "target.utf16";
 		define com Define.Utf16;
 	end;
 	if com.config.pf_supports_threads then begin
-		raw_define_value com.defines "target.threaded" "true";
+		raw_define com "target.threaded";
 	end;
 	if com.config.pf_supports_unicode then begin
-		raw_define_value com.defines "target.unicode" "true";
+		raw_define com "target.unicode";
 	end;
 	raw_define_value com.defines "target.name" name;
-	raw_define com name
+	raw_define com name;
+	if com.config.pf_supports_atomics then begin
+		raw_define com "target.atomics"
+	end
+
+let set_platform com pf file =
+	if com.platform <> Cross then failwith "Multiple targets";
+	init_platform com pf;
+	com.file <- file;
+	if (pf = Flash) && Path.file_extension file = "swc" then define com Define.Swc;
+	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
+	if not (defined com Define.SourceHeader) && (pf <> Hl) then
+		define_value com Define.SourceHeader ("Generated by Haxe " ^ s_version_full)
 
 let add_feature com f =
 	Hashtbl.replace com.features f true
@@ -614,7 +986,7 @@ let rec has_feature com f =
 	with Not_found ->
 		if com.types = [] then not (has_dce com) else
 		match List.rev (ExtString.String.nsplit f ".") with
-		| [] -> assert false
+		| [] -> die "" __LOC__
 		| [cl] -> has_feature com (cl ^ ".*")
 		| field :: cl :: pack ->
 			let r = (try
@@ -623,7 +995,7 @@ let rec has_feature com f =
 				| t when field = "*" ->
 					not (has_dce com) ||
 					(match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ -> Meta.has Meta.Used (t_infos t).mt_meta)
-				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
+				| TClassDecl c when (has_class_flag c CExtern) && (com.platform <> Js || cl <> "Array" && cl <> "Math") ->
 					not (has_dce com) || Meta.has Meta.Used (try PMap.find field c.cl_statics with Not_found -> PMap.find field c.cl_fields).cf_meta
 				| TClassDecl c ->
 					PMap.exists field c.cl_statics || PMap.exists field c.cl_fields
@@ -641,85 +1013,108 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort msg p = raise (Abort (msg,p))
+let abort ?depth msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
-let normalize_dir_separator path =
-	if is_windows then String.map (fun c -> if c = '/' then '\\' else c) path
-	else path
+let remove_extension file =
+	try String.sub file 0 (String.rindex file '.')
+	with Not_found -> file
+
+let extension file =
+	try
+		let dot_pos = String.rindex file '.' in
+		String.sub file dot_pos (String.length file - dot_pos)
+	with Not_found -> file
+
+let cache_directory ctx class_path dir f_dir =
+	let platform_ext = "." ^ (platform_name_macro ctx)
+	and is_loading_core_api = defined ctx Define.CoreApi in
+	let dir_listing =
+		try Some (Sys.readdir dir);
+		with Sys_error _ -> None
+	in
+	ctx.readdir_cache#add (class_path,dir) dir_listing;
+	(*
+		This function is invoked for each file in the `dir`.
+		Each file is checked if it's specific for current platform
+		(e.g. ends with `.js.hx` while compiling for JS).
+		If it's not platform-specific:
+			Check the lookup cache and if the file is not there store full file path in the cache.
+		If the file is platform-specific:
+			Store the full file path in the lookup cache probably replacing the cached path to a
+			non-platform-specific file.
+	*)
+	let prepare_file file_own_name =
+		let relative_to_classpath = if f_dir = "." then file_own_name else f_dir ^ "/" ^ file_own_name in
+		(* `representation` is how the file is referenced to. E.g. when it's deduced from a module path. *)
+		let is_platform_specific,representation =
+			(* Platform specific file extensions are not allowed for loading @:coreApi types. *)
+			if is_loading_core_api then
+				false,relative_to_classpath
+			else begin
+				let ext = extension relative_to_classpath in
+				let second_ext = extension (remove_extension relative_to_classpath) in
+				(* The file contains double extension and the secondary one matches current platform *)
+				if platform_ext = second_ext then
+					true,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+				else
+					false,relative_to_classpath
+			end
+		in
+		(*
+			Store current full path for `representation` if
+			- we're loading @:coreApi
+			- or this is a platform-specific file for `representation`
+			- this `representation` was never found before
+		*)
+		if is_loading_core_api || is_platform_specific || not (ctx.file_lookup_cache#mem representation) then begin
+			let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
+			ctx.file_lookup_cache#add representation (Some full_path);
+		end
+	in
+	Option.may (Array.iter prepare_file) dir_listing
 
 let find_file ctx f =
 	try
-		match Hashtbl.find ctx.file_lookup_cache f with
+		match ctx.file_lookup_cache#find f with
 		| None -> raise Exit
 		| Some f -> f
-	with Exit ->
+	with
+	| Exit ->
 		raise Not_found
+	| Not_found when Path.is_absolute_path f ->
+		ctx.file_lookup_cache#add f (Some f);
+		f
 	| Not_found ->
-		let remove_extension file =
-			try String.sub file 0 (String.rindex file '.')
-			with Not_found -> file
-		in
-		let extension file =
-			try
-				let dot_pos = String.rindex file '.' in
-				String.sub file dot_pos (String.length file - dot_pos)
-			with Not_found -> file
-		in
-		let f_dir = Filename.dirname f
-		and platform_ext = "." ^ (platform_name_macro ctx)
-		and is_core_api = defined ctx Define.CoreApi in
+		let f_dir = Filename.dirname f in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
 			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
 				let dir = Filename.dirname file in
-				if Hashtbl.mem ctx.readdir_cache (p,dir) then
+				(* If we have seen the directory before, we can assume that the file isn't in there because the else case
+				   below would have added it to `file_lookup_cache`, which we check before we get here. *)
+				if ctx.readdir_cache#mem (p,dir) then
 					loop (had_empty || p = "") l
 				else begin
-					let found = ref "" in
-					let dir_listing =
-						try Some (Sys.readdir dir);
-						with Sys_error _ -> None
-					in
-					Hashtbl.add ctx.readdir_cache (p,dir) dir_listing;
-					let normalized_f = normalize_dir_separator f in
-					Option.may
-						(Array.iter (fun file_name ->
-							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
-							let pf,current_f =
-								if is_core_api then false,current_f
-								else begin
-									let ext = extension current_f in
-									let pf_ext = extension (remove_extension current_f) in
-									if platform_ext = pf_ext then
-										true,(remove_extension (remove_extension current_f)) ^ ext
-									else
-										false,current_f
-								end
-							in
-							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
-							if is_core_api || pf || not is_cached then begin
-								let full_path = if dir = "." then file_name else dir ^ "/" ^ file_name in
-								if is_cached then
-									Hashtbl.remove ctx.file_lookup_cache current_f;
-								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
-								if normalize_dir_separator current_f = normalized_f then
-									found := full_path;
-							end
-						))
-						dir_listing;
-					if !found <> "" then !found
-					else loop (had_empty || p = "") l
+					cache_directory ctx p dir f_dir;
+					(* Caching might have located the file we're looking for, so check the lookup cache again. *)
+					try
+						begin match ctx.file_lookup_cache#find f with
+						| Some f -> f
+						| None -> raise Not_found
+						end
+					with Not_found ->
+						loop (had_empty || p = "") l
 				end
 		in
-		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
-		Hashtbl.add ctx.file_lookup_cache f r;
+		let r = try Some (loop false ctx.class_path) with Not_found -> None in
+		ctx.file_lookup_cache#add f r;
 		match r with
 		| None -> raise Not_found
 		| Some f -> f
@@ -816,42 +1211,63 @@ let utf16_to_utf8 str =
 				add (c lsr 8);
 				loop (i + 2);
 			end else
-				assert false;
+				die "" __LOC__;
 		end
 	in
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p kind sev =
+let add_diagnostics_message com msg kind sev =
+	let p = Globals.extract_located_pos msg in
+	let s = Globals.extract_located_msg msg in
+	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
-open Printer
+let located_display_error com ?(depth = 0) msg =
+	if is_diagnostics com then
+		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
+	else
+		com.error (Globals.extract_located_msg msg) (Globals.extract_located_pos msg) ~depth
 
-let dump_context com = s_record_fields "" [
-	"version",string_of_int com.version;
-	"args",s_list ", " (fun s -> s) com.args;
-	"debug",string_of_bool com.debug;
-	"platform",platform_name com.platform;
-	"std_path",s_list ", " (fun s -> s) com.std_path;
-	"class_path",s_list ", " (fun s -> s) com.class_path;
-	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
-	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
-]
+let display_error com ?(depth = 0) msg p =
+	located_display_error com ~depth (Globals.located msg p)
+
+open Printer
 
 let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 
 let adapt_defines_to_macro_context defines =
-	let values = ref defines.values in
-	List.iter (fun p -> values := PMap.remove (Globals.platform_name p) !values) Globals.platforms;
-	let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
-	let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) flash_versions in
-	values := PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) !values PMap.empty;
-	values := PMap.add "macro" "1" !values;
-	values := PMap.add (platform_name !Globals.macro_platform) "1" !values;
-	{values = !values; defines_signature = None }
+	let to_remove = List.map Globals.platform_name Globals.platforms in
+	let to_remove = List.fold_left (fun acc d -> Define.get_define_key d :: acc) to_remove [Define.NoTraces] in
+	let to_remove = List.fold_left (fun acc (_, d) -> ("flash" ^ d) :: acc) to_remove flash_versions in
+	let macro_defines = {
+		values = PMap.foldi (fun k v acc ->
+			if List.mem k to_remove then acc else PMap.add k v acc) defines.values PMap.empty;
+		defines_signature = None
+	} in
+	Define.define macro_defines Define.Macro;
+	Define.raw_define macro_defines (platform_name !Globals.macro_platform);
+	macro_defines
+
+let adapt_defines_to_display_context defines =
+	let defines = adapt_defines_to_macro_context defines in
+	Define.define defines Define.Display;
+	defines
 
 let is_legacy_completion com = match com.json_out with
 	| None -> true
 	| Some api -> !ServerConfig.legacy_completion
+
+let get_entry_point com =
+	Option.map (fun path ->
+		let m = List.find (fun m -> m.m_path = path) com.modules in
+		let c =
+			match m.m_statics with
+			| Some c when (PMap.mem "main" c.cl_statics) -> c
+			| _ -> Option.get (ExtList.List.find_map (fun t -> match t with TClassDecl c when c.cl_path = path -> Some c | _ -> None) m.m_types)
+		in
+		let e = Option.get com.main in (* must be present at this point *)
+		(snd path, c, e)
+	) com.main_class

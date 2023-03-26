@@ -59,6 +59,8 @@ let int_of_machine_type t = match t with
 	| TTriCore -> 0x0520 (* 0x0520 Infineon *)
 	| TAmd64 -> 0x8664 (* 0x8664 AMD x64 and Intel E64T *)
 	| TM32R -> 0x9041 (* 0x9041 M32R *)
+	| TOSXAmd64 -> 0xC020 (* 0xC020 = 0x8664 xor 0x4644 OSX AMD x64 *)
+	| TLinuxAmd64 -> 0xFD1D (* 0xFD1D = 0x8664 xor 0x7B79 Linux AMD x64 *)
 
 let int_of_coff_props props = List.fold_left (fun acc prop ->
 		(match prop with

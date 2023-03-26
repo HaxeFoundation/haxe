@@ -8,7 +8,7 @@ class TestIO extends Test {
 		check(true);
 	}
 
-	function excv<T>( f:Void -> Void, e : T, ?pos ) {
+	function excv<T>( f:() -> Void, e : T, ?pos ) {
 		try {
 			f();
 			eq(null,e,pos);

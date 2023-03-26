@@ -1,0 +1,5 @@
+[ERROR] --macro haxe.macro.Compiler.registerCustomMetadata({metdata: ':zzz', doc: 'something'}, 'myapp')
+
+   | Object requires field metadata
+   | For function argument 'meta'
+

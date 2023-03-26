@@ -1,6 +1,10 @@
 package haxe;
 
 import haxe.EntryPoint;
+#if (target.threaded && !cppia)
+import sys.thread.EventLoop;
+import sys.thread.Thread;
+#end
 
 class MainEvent {
 	var f:Void->Void;
@@ -56,6 +60,7 @@ class MainEvent {
 
 @:access(haxe.MainEvent)
 class MainLoop {
+
 	static var pending:MainEvent;
 
 	public static var threadCount(get, never):Int;
@@ -84,7 +89,7 @@ class MainLoop {
 	/**
 		Add a pending event to be run into the main loop.
 	**/
-	public static function add(f:Void->Void, priority = 0):MainEvent@:privateAccess {
+	public static function add(f:Void->Void, priority = 0) : MainEvent {
 		if (f == null)
 			throw "Event function is null";
 		var e = new MainEvent(f, priority);

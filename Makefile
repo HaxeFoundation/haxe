@@ -46,7 +46,7 @@ endif
 
 ADD_REVISION?=0
 
-BRANCH=$(shell echo $$APPVEYOR_REPO_NAME | grep -q /haxe && echo $$APPVEYOR_REPO_BRANCH || echo $$TRAVIS_REPO_SLUG | grep -q /haxe && echo $$TRAVIS_BRANCH || git rev-parse --abbrev-ref HEAD)
+BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 COMMIT_SHA=$(shell git rev-parse --short HEAD)
 COMMIT_DATE=$(shell \
 	if [ "$$(uname)" = "Darwin" ]; then \
@@ -60,9 +60,12 @@ HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}'
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
 ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic '
+	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre2-8 -lz -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-Bdynamic '
 else
-	LIB_PARAMS?= -cclib -lpcre -cclib -lz
+	LIB_PARAMS?= -cclib -lpcre2-8 -cclib -lz -cclib -lmbedtls -cclib -lmbedx509 -cclib -lmbedcrypto
+endif
+ifeq ($(SYSTEM_NAME),Mac)
+	LIB_PARAMS+= -cclib '-framework Security -framework CoreFoundation'
 endif
 
 all: haxe tools
@@ -70,9 +73,9 @@ all: haxe tools
 haxe:
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev src-prebuild/prebuild.exe
 	_build/default/src-prebuild/prebuild.exe libparams $(LIB_PARAMS) > lib.sexp
-	_build/default/src-prebuild/prebuild.exe version $(ADD_REVISION) $(BRANCH) $(COMMIT_SHA) > src/compiler/version.ml
+	_build/default/src-prebuild/prebuild.exe version "$(ADD_REVISION)" "$(BRANCH)" "$(COMMIT_SHA)" > src/compiler/version.ml
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev src/haxe.exe
-	cp -f _build/default/src/haxe.exe ./${HAXE_OUTPUT}
+	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
 plugin: haxe
 	$(DUNE_COMMAND) build --workspace dune-workspace.dev plugins/$(PLUGIN)/$(PLUGIN).cmxs
@@ -97,6 +100,7 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 	cp $< $@
 endif
 
+# haxelib should depends on haxe, but we don't want to do that...
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
 	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
@@ -233,3 +237,6 @@ FORCE:
 	$(CC_CMD)
 
 .PHONY: haxe haxelib
+
+# our "all:" target doens't work in parallel mode
+.NOTPARALLEL:

@@ -39,13 +39,15 @@ let rec filter_param (stack:t list) t =
 		| Some t -> filter_param stack t)
 	| TInst(_,[]) | TEnum(_,[]) | TAbstract(_,[]) ->
 		t
+	| TType({ t_path = (["haxe";"extern"],"Rest") },_) ->
+		filter_param stack (follow t)
 	| TType(td,tl) ->
 		TType(td,List.map (filter_param stack) tl)
 	| TInst(c,tl) ->
 		TInst(c,List.map (filter_param stack) tl)
 	| TEnum(e,tl) ->
 		TEnum(e,List.map (filter_param stack) tl)
-	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) ->
+	| TAbstract({ a_path = (["haxe"],"Rest") } as a,tl) ->
 		TAbstract(a, List.map (filter_param stack) tl)
 	| TAbstract({a_path = [],"Null"} as a,[t]) ->
 		TAbstract(a,[filter_param stack t])
@@ -54,10 +56,8 @@ let rec filter_param (stack:t list) t =
 	| TAbstract(a,tl) ->
 		TAbstract(a, List.map (filter_param stack) tl)
 	| TAnon a ->
-		TAnon {
-			a_fields = PMap.map (fun f -> { f with cf_type = filter_param stack f.cf_type }) a.a_fields;
-			a_status = a.a_status
-		}
+		let fields = PMap.map (fun f -> { f with cf_type = filter_param stack f.cf_type }) a.a_fields in
+		mk_anon ~fields a.a_status
 	| TFun(args,ret) ->
 		TFun(List.map (fun (n,o,t) -> (n,o,filter_param stack t)) args, filter_param stack ret)
 	| TDynamic _ ->

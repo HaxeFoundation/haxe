@@ -84,7 +84,7 @@ let build_dependencies t =
 		| TAnon a ->
 			PMap.iter (fun _ f -> add_type_rec (t::l) f.cf_type) a.a_fields
 		| TDynamic t2 ->
-			add_type_rec (t::l) t2;
+			add_type_rec (t::l) (match t2 with None -> t_dynamic | Some t2 -> t2);
 		| TLazy f ->
 			add_type_rec l (lazy_type f)
 		| TMono r ->
@@ -133,7 +133,7 @@ let build_dependencies t =
 		List.iter add_type pl;
 	in
 	(match t with
-	| TClassDecl c when not c.cl_extern ->
+	| TClassDecl c when not (has_class_flag c CExtern) ->
 		List.iter add_field c.cl_ordered_fields;
 		List.iter add_field c.cl_ordered_statics;
 		(match c.cl_constructor with
@@ -148,9 +148,9 @@ let build_dependencies t =
 		(match c.cl_super with
 		| None -> add_path ([],"Object") DKInherit;
 		| Some x -> add_inherit x);
-		List.iter (fun (_,t) ->
+		List.iter (fun tp ->
 			(* add type-parameters constraints dependencies *)
-			match follow t with
+			match follow tp.ttp_type with
 			| TInst (c,_) -> List.iter add_inherit c.cl_implements
 			| _ -> ()
 		) c.cl_params;
@@ -343,7 +343,7 @@ let build_swf9 com file swc =
 								(match h.Png.png_color with
 								| Png.ClTrueColor (Png.TBits8,Png.NoAlpha) ->
 									if h.Png.png_width * h.Png.png_height * 4 > Sys.max_string_length then begin
-										com.warning "Flash will loose some color information for this file, add alpha channel to preserve it" p;
+										com.warning WGenerator [] "Flash will loose some color information for this file, add alpha channel to preserve it" p;
 										raise Exit;
 									end;
 									let data = Extc.unzip (Png.data png) in
@@ -580,7 +580,7 @@ let generate swf_header com =
 				List.iter (fun e ->
 					if e.f9_cid <> None then List.iter (fun t ->
 						let extern = (match t with
-							| TClassDecl c -> c.cl_extern
+							| TClassDecl c -> (has_class_flag c CExtern)
 							| TEnumDecl e -> e.e_extern
 							| TAbstractDecl a -> false
 							| TTypeDecl t -> false

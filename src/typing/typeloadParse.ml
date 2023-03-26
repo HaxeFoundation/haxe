@@ -22,7 +22,6 @@
 open Globals
 open Ast
 open Parser
-open DisplayTypes.DiagnosticsSeverity
 open DisplayTypes.DisplayMode
 open Common
 open Type
@@ -36,19 +35,19 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file;
 	incr stats.s_files_parsed;
 	let parse_result = try
-		ParserEntry.parse com.defines lexbuf file
+		ParserEntry.parse Grammar.parse_file com.defines lexbuf file
 	with
 		| Sedlexing.MalFormed ->
 			t();
-			error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+			typing_error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
 		| e ->
 			t();
 			raise e
 	in
 	begin match !Parser.display_mode,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
-		| DMModuleSymbols filter,(ParseSuccess data | ParseDisplayFile(data,_)) when filter = None && DisplayPosition.display_position#is_in_file file ->
-			let ds = DocumentSymbols.collect_module_symbols (filter = None) data in
+		| DMModuleSymbols filter,(ParseSuccess(data,_,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
+			let ds = DocumentSymbols.collect_module_symbols None (filter = None) data in
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
 		| _ ->
 			()
@@ -63,7 +62,7 @@ let parse_file_from_string com file p string =
 let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
 
 let parse_file com file p =
-	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file in
+	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file (com.file_keys#get file) in
 	if use_stdin then
 		let s =
 			match !current_stdin with
@@ -77,7 +76,7 @@ let parse_file com file p =
 		in
 		parse_file_from_string com file p s
 	else
-		let ch = try open_in_bin file with _ -> error ("Could not open " ^ file) p in
+		let ch = try open_in_bin file with _ -> typing_error ("Could not open " ^ file) p in
 		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
 let parse_hook = ref parse_file
@@ -112,8 +111,8 @@ let resolve_module_file com m remap p =
 	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
 	(match fst m with
 	| "std" :: _ ->
-		let file = Path.unique_full_path file in
-		if List.exists (fun path -> ExtString.String.starts_with file (try Path.unique_full_path path with _ -> path)) com.std_path then raise Not_found;
+		let file_key = com.file_keys#get file in
+		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (com.file_keys#get path)) com.std_path then raise Not_found;
 	| _ -> ());
 	if !forbid then begin
 		let parse_result = (!parse_hook) com file p in
@@ -123,14 +122,15 @@ let resolve_module_file com m remap p =
 			| (EEnum d,_) :: _ -> d.d_meta
 			| (EAbstract d,_) :: _ -> d.d_meta
 			| (ETypedef d,_) :: _ -> d.d_meta
+			| (EStatic d,_) :: _ -> d.d_meta
 			| [] -> []
 		in
-		let meta =  match parse_result with
-			| ParseSuccess(_,decls) | ParseDisplayFile((_,decls),_) -> loop decls
+		let meta = match parse_result with
+			| ParseSuccess((_,decls),_,_) -> loop decls
 			| ParseError _ -> []
 		in
 		if not (Meta.has Meta.NoPackageRestrict meta) then begin
-			let x = (match fst m with [] -> assert false | x :: _ -> x) in
+			let x = (match fst m with [] -> die "" __LOC__ | x :: _ -> x) in
 			raise (Forbid_package ((x,m,p),[],platform_name_macro com));
 		end;
 	end;
@@ -138,10 +138,10 @@ let resolve_module_file com m remap p =
 
 let resolve_module_file com m remap p =
 	try
-		Hashtbl.find com.module_to_file m
+		com.module_to_file#find m
 	with Not_found ->
 		let file = resolve_module_file com m remap p in
-		Hashtbl.add com.module_to_file m file;
+		com.module_to_file#add m file;
 		file
 
 (* let resolve_module_file com m remap p =
@@ -182,7 +182,7 @@ module ConditionDisplay = struct
 								cf_type = t;
 								cf_pos = null_pos;
 								cf_name_pos = null_pos;
-								cf_doc = Some (
+								cf_doc = doc_from_string (
 "Allows comparing defines (such as the version of a Haxelib or Haxe) with SemVer semantics.
 Both the define and the string passed to `version()` must be valid semantic versions.
 
@@ -212,7 +212,7 @@ so it should be avoided if backwards-compatibility with earlier versions is need
 					DisplayException.raise_hover (CompletionItem.make_ci_define n (match v with
 						| TNull -> None
 						| TString s -> Some (StringHelper.s_escape s)
-						| _ -> assert false
+						| _ -> die "" __LOC__
 					) (tpair com.basic.tstring)) None p
 				| _ ->
 					()
@@ -235,7 +235,7 @@ module PdiHandler = struct
 	let is_true defines e =
 		ParserEntry.is_true (ParserEntry.eval defines e)
 
-	let handle_pdi com file pdi =
+	let handle_pdi com pdi =
 		let macro_defines = adapt_defines_to_macro_context com.defines in
 		let check = (if com.display.dms_kind = DMHover then
 			encloses_position_gt
@@ -250,7 +250,7 @@ module PdiHandler = struct
 					raise DisplayInMacroBlock;
 				begin match com.display.dms_kind with
 				| DMHover ->
-					raise (DisplayException.DisplayException(DisplayHover None))
+					raise (DisplayException.DisplayException(DisplayNoResult))
 				| _ ->
 					()
 				end;
@@ -262,42 +262,35 @@ module PdiHandler = struct
 		| _ ->
 			()
 		end;
-		let display_defines = {macro_defines with values = PMap.add "display" "1" macro_defines.values} in
-		let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) pdi.pd_dead_blocks in
-		let sdi = com.shared.shared_display_information in
-		begin try
-			let dead_blocks2 = Hashtbl.find sdi.dead_blocks file in
-			(* Intersect *)
-			let dead_blocks2 = List.filter (fun (p,_) -> List.mem_assoc p dead_blocks) dead_blocks2 in
-			Hashtbl.replace sdi.dead_blocks file dead_blocks2
-		with Not_found ->
-			Hashtbl.add sdi.dead_blocks file dead_blocks
-		end;
+		()
 end
 
-let handle_parser_result com file p result =
+let handle_parser_result com p result =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
-			| EPShow -> error msg p
-			| EPIgnore -> ()
-			| EPCollect -> add_diagnostics_message com msg p DKParserError Error
+			| EPShow ->
+				if is_diagnostics com then add_diagnostics_message com (located msg p) DKParserError Error
+				else typing_error msg p
+			| EPIgnore ->
+				com.has_error <- true
 	in
 	match result with
-		| ParseSuccess data -> data
-		| ParseDisplayFile(data,pdi) ->
-			begin match pdi.pd_errors with
-			| (msg,p) :: _ -> handle_parser_error msg p
-			| [] -> ()
+		| ParseSuccess(data,is_display_file,pdi) ->
+			if is_display_file then begin
+				begin match pdi.pd_errors with
+				| (msg,p) :: _ -> handle_parser_error msg p
+				| [] -> ()
+				end;
+				PdiHandler.handle_pdi com pdi;
 			end;
-			PdiHandler.handle_pdi com file pdi;
 			data
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;
 			data
 
 let parse_module_file com file p =
-	handle_parser_result com file p ((!parse_hook) com file p)
+	handle_parser_result com p ((!parse_hook) com file p)
 
 let parse_module' com m p =
 	let remap = ref (fst m) in
@@ -310,9 +303,9 @@ let parse_module ctx m p =
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in
 		if p == null_pos then
-			display_error ctx ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
+			display_error ctx.com ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
-			display_error ctx (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
+			display_error ctx.com (spack pack ^ " in " ^ file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
 	end;
 	file, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
@@ -325,15 +318,20 @@ let parse_module ctx m p =
 					d_meta = [];
 					d_params = d.d_params;
 					d_flags = if priv then [EPrivate] else [];
-					d_data = CTPath (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else
-						{
-							tpackage = !remap;
-							tname = fst d.d_name;
-							tparams = List.map (fun tp ->
-								TPType (CTPath { tpackage = []; tname = fst tp.tp_name; tparams = []; tsub = None; },null_pos)
-							) d.d_params;
-							tsub = None;
-						}),null_pos;
+					d_data = begin
+						let tp =
+							if priv then
+								mk_type_path ([],"Dynamic")
+							else
+								let params =
+									List.map (fun tp ->
+										TPType (CTPath (mk_type_path ([],fst tp.tp_name)),null_pos)
+									) d.d_params
+								in
+								mk_type_path ~params (!remap,fst d.d_name)
+						in
+						CTPath (tp),null_pos;
+					end
 				},p) :: acc
 			in
 			match t with
@@ -341,6 +339,7 @@ let parse_module ctx m p =
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
 			| EAbstract d -> build AbPrivate d
+			| EStatic d -> build (AStatic,null_pos) d
 			| EImport _ | EUsing _ -> acc
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else

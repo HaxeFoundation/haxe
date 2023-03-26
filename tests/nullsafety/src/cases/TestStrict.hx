@@ -78,6 +78,19 @@ private class TestWithoutConstructor {
 	@:shouldFail var notInitializedField:String;
 }
 
+class Issue9643 {
+	static var tmp:Null<()->Void>;
+
+	final field: String;
+
+	public function new() {
+		tmp = () -> @:nullSafety(Off) method();
+		field = 'hello';
+	}
+
+	function method() {}
+}
+
 class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 	var v:Int;
 
@@ -99,6 +112,8 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 
 @:build(Validator.checkFields())
 class TestStrict {
+	extern static final something:String;
+
 	public var field:Null<String>;
 	// @:shouldWarn public var publiclyModifiableField:String = 'hello';
 	@:shouldFail var notInitializedField:Int;
@@ -119,8 +134,8 @@ class TestStrict {
 	function get_str() {
 		shouldFail(return (null:Null<String>));
 	}
-	function set_str(v) {
-		shouldFail(return (v:Null<String>));
+	function set_str(v:Null<String>) {
+		shouldFail(return v);
 	}
 
 	/**
@@ -185,12 +200,12 @@ class TestStrict {
 	}
 
 	static function call_onNullableValue_shouldFail() {
-		var fn:Null<Void->Void> = null;
+		var fn:Null<()->Void> = null;
 		shouldFail(fn());
 	}
 
 	static function call_onNotNullableValue_shouldPass() {
-		var fn:Void->Void = function() {}
+		var fn:()->Void = function() {}
 		fn();
 	}
 
@@ -222,6 +237,13 @@ class TestStrict {
 		var v:Null<String> = null;
 		shouldFail(var s:String = v);
 		shouldFail(var s:String = null);
+	}
+
+	static function unsafeNullableVar_assignedToNonNullablePlases_shouldPass() {
+		var @:nullSafety(Off) n:Null<String> = null;
+		var s:String = n;
+		function test(s:String) {}
+		test(n);
 	}
 
 	static function assign_nullableValueToNotNullable_shouldFail() {
@@ -734,8 +756,8 @@ class TestStrict {
 	}
 
 	static function functionWithNullableReturnType_toVoidFunction_shouldPass() {
-		var n:Void->Null<String> = () -> null;
-		var f:Void->Void = n;
+		var n:()->Null<String> = () -> null;
+		var f:()->Void = n;
 	}
 
 	static public function tryBlock_couldNotBeDeadEndForOuterBlock() {
@@ -804,7 +826,7 @@ class TestStrict {
 			recursive(() -> a.length);
 		}
 	}
-	static function recursive(cb:Void->Int) {
+	static function recursive(cb:()->Int) {
 		if(Std.random(10) == 0) {
 			recursive(cb);
 		} else {
@@ -910,10 +932,26 @@ class TestStrict {
 		}
 	}
 
+	function safetyOffArgument_shouldPass(?a:String) {
+		staticSafetyOffArgument(a);
+		instanceSafetyOffArgument(a);
+		inline instanceSafetyOffArgument(a);
+	}
+	static function staticSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {}
+	function instanceSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {
+		return staticSafetyOffArgument(b);
+	}
+
 	static function issue8122_abstractOnTopOfNullable() {
 		var x:NullFloat = null;
 		var y:Float = x.val();
 		x += x;
+	}
+
+	static function issue9649_nullCheckedAbstractShouldUnify_shouldPass() {
+		var x:NullFloat = null;
+		var y:Float = 0.0;
+		if(x!=null) y = x;
 	}
 
 	static function issue8443_nullPassedToInline_shouldPass() {
@@ -933,6 +971,60 @@ class TestStrict {
 
 	@:shouldFail @:nullSafety(InvalidArgument)
 	static function invalidMetaArgument_shouldFail() {}
+
+	static function issue9474_becomesSafeInIf() {
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = null
+		else a = 'hello';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hello'
+		else a = null;
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(a == null) a = 'hi';
+		var s:String = a;
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi'
+		else a = 'hello';
+		var s:String = a;
+	}
+
+	/**
+	 * @see https://github.com/HaxeFoundation/haxe/pull/10428#issuecomment-951574457
+	 */
+	static function issue10428() {
+		final arr:Array<Int> = [
+			{
+				var tmp = (1 : Null<Int>);
+				if (tmp != null) tmp else 2;
+			}
+		];
+	}
+
+	static function issue9588_DynamicIsNullable_AnyIsNotNullable(?a:String) {
+		function dyn(v:Dynamic):Dynamic
+			return v;
+		var d:Dynamic = dyn(a);
+		// TODO: decide if 'dynamic to non-nullable' should fail since we allow 'nullable to dynamic now'.
+		//shouldFail(var s:String = d);
+
+		function any(v:Any):Any
+			return v;
+		shouldFail(any(a));
+		var s:String = any('');
+	}
+
+	static function issue10272_nullableConcatString_shouldPass(msg:Null<Dynamic>) {
+		trace("Message: " + msg);
+	}
 }
 
 private class FinalNullableFields {

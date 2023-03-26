@@ -33,6 +33,7 @@ open EvalHash
 open EvalEncode
 open EvalField
 open MacroApi
+open Extlib_leftovers
 
 (* Create *)
 
@@ -95,6 +96,7 @@ let create com api is_macro =
 	let thread = {
 		tthread = Thread.self();
 		tstorage = IntMap.empty;
+		tevents = vnull;
 		tdeque = EvalThread.Deque.create();
 	} in
 	let eval = EvalThread.create_eval thread in
@@ -116,16 +118,20 @@ let create com api is_macro =
 		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
+		file_keys = com.file_keys;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
-			oproto = fake_proto key_eval_toplevel;
+			oproto = OProto (fake_proto key_eval_toplevel);
 		};
 		eval = eval;
 		evals = evals;
 		exception_stack = [];
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
+		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
+		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
+			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
@@ -137,6 +143,20 @@ let create com api is_macro =
 		select ctx;
 		ignore(Event.sync(Event.receive eval.debug_channel));
 	end;
+	(* If no user-defined exception handler is set then follow libuv behavior.
+		Which is printing an error to stderr and exiting with code 2 *)
+	Luv.Error.set_on_unhandled_exception (fun ex ->
+		match ex with
+		| Sys_exit _ -> raise ex
+		| _ ->
+			let msg =
+				match ex with
+				| Error.Error (err,p,_) -> extract_located_msg (Error.error_msg p err)
+				| _ -> Printexc.to_string ex
+			in
+			Printf.eprintf "%s\n" msg;
+			exit 2
+	);
 	t();
 	ctx
 
@@ -149,14 +169,14 @@ let call_path ctx path f vl api =
 		let old = ctx.curapi in
 		ctx.curapi <- api;
 		let path = match List.rev path with
-			| [] -> assert false
+			| [] -> die "" __LOC__
 			| name :: path -> List.rev path,name
 		in
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) 0 0 in
+			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) EKEntrypoint (Hashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
@@ -197,7 +217,15 @@ let value_signature v =
 			incr cache_length;
 			f()
 	in
-	let function_count = ref 0 in
+	let custom_count = ref 0 in
+	(* Custom format: enumerate custom entities as name_char0, name_char1 etc. *)
+	let custom_name name_char =
+		cache v (fun () ->
+			addc 'F';
+			add (string_of_int !custom_count);
+			incr custom_count
+		)
+	in
 	let rec loop v = match v with
 		| VNull -> addc 'n'
 		| VTrue -> addc 't'
@@ -206,6 +234,12 @@ let value_signature v =
 		| VInt32 i ->
 			addc 'i';
 			add (Int32.to_string i)
+		| VInt64 i ->
+			add "i64";
+			add (Signed.Int64.to_string i)
+		| VUInt64 u ->
+			add "u64";
+			add (Unsigned.UInt64.to_string u)
 		| VFloat f ->
 			if f = neg_infinity then addc 'm'
 			else if f = infinity then addc 'p'
@@ -288,6 +322,8 @@ let value_signature v =
 			)
 		| VString s ->
 			adds s.sstring
+		| VNativeString s ->
+			add s
 		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
@@ -316,14 +352,11 @@ let value_signature v =
 			addc 'B';
 			adds (rev_hash path)
 		| VPrototype _ ->
-			assert false
+			die "" __LOC__
 		| VFunction _ | VFieldClosure _ ->
-			(* Custom format: enumerate functions as F0, F1 etc. *)
-			cache v (fun () ->
-				addc 'F';
-				add (string_of_int !function_count);
-				incr function_count
-			)
+			custom_name 'F'
+		| VHandle _ ->
+			custom_name 'H'
 		| VLazy f ->
 			loop (!f())
 	and loop_fields fields =
@@ -335,15 +368,7 @@ let value_signature v =
 	loop v;
 	Digest.string (Buffer.contents buf)
 
-let prepare_callback v n =
-	match v with
-	| VFunction _ | VFieldClosure _ ->
-		let ctx = get_ctx() in
-		(fun args -> match catch_exceptions ctx (fun() -> call_value v args) null_pos with
-			| Some v -> v
-			| None -> vnull)
-	| _ ->
-		raise Invalid_expr
+let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()
 
@@ -361,7 +386,7 @@ let setup get_api =
 			in
 			let v = VFunction (f,b) in
 			Hashtbl.replace GlobalState.macro_lib n v
-		| _ -> assert false
+		| _ -> die "" __LOC__
 	) api;
 	Globals.macro_platform := Globals.Eval
 
@@ -376,35 +401,50 @@ let set_error ctx b =
 let add_types ctx types ready =
 	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
-let compiler_error msg pos =
+let compiler_error msg =
+	let pos = extract_located_pos msg in
+	let msg = extract_located_msg msg in
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->
-		set_instance_field i key_message (EvalString.create_unknown msg);
+		let msg = EvalString.create_unknown msg in
+		set_instance_field i key_exception_message msg;
 		set_instance_field i key_pos (encode_pos pos);
+		set_instance_field i key_native_exception msg;
+		let ctx = get_ctx() in
+		let eval = get_eval ctx in
+		(match eval.env with
+		| Some _ ->
+			let stack = EvalStackTrace.make_stack_value (call_stack eval) in
+			set_instance_field i key_native_stack stack;
+		| None -> ());
 		exc vi
 	| _ ->
-		assert false
+		die "" __LOC__
 
 let rec value_to_expr v p =
 	let path i =
 		let mt = IntMap.find i (get_ctx()).type_cache in
 		let make_path t =
 			let rec loop = function
-				| [] -> assert false
+				| [] -> die "" __LOC__
 				| [name] -> (EConst (Ident name),p)
-				| name :: l -> (EField (loop l,name),p)
+				| name :: l -> (efield (loop l,name),p)
 			in
 			let t = t_infos t in
 			loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
 		in
 		make_path mt
 	in
+	let make_map_entry e_key v =
+		let e_value = value_to_expr v p in
+		(EBinop(OpArrow,e_key,e_value),p)
+	in
 	match vresolve v with
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
 	| VFalse -> (EConst (Ident "false"),p)
-	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
+	| VInt32 i -> (EConst (Int (Int32.to_string i,None)),p)
 	| VFloat f -> haxe_float f p
 	| VString s -> (EConst (String(s.sstring,SDoubleQuotes)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
@@ -422,9 +462,9 @@ let rec value_to_expr v p =
 			let expr = path e.epath in
 			let name = match proto.pkind with
 				| PEnum names -> fst (List.nth names e.eindex)
-				| _ -> assert false
+				| _ -> die "" __LOC__
 			in
-			(EField (expr, name), p)
+			(efield (expr, name), p)
 		in
 		begin
 			match e.eargs with
@@ -433,6 +473,24 @@ let rec value_to_expr v p =
 				let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
 				(ECall (epath, args), p)
 		end
+	| VInstance {ikind = IIntMap m} ->
+		let el = IntHashtbl.fold (fun k v acc ->
+			let e_key = (EConst (Int (string_of_int k, None)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IStringMap m} ->
+		let el = StringHashtbl.fold (fun k (_,v) acc ->
+			let e_key = (EConst (String(k,SDoubleQuotes)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IObjectMap m} ->
+		let el = Hashtbl.fold (fun k v acc ->
+			let e_key = value_to_expr k p in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s
@@ -502,7 +560,7 @@ let handle_decoding_error f v t =
 				| _ -> error "expected Bool" v
 			end
 		| TType(t,tl) ->
-			loop tabs (apply_params t.t_params tl t.t_type) v
+			loop tabs (apply_typedef t tl) v
 		| TAbstract({a_path=["haxe";"macro"],"Position"},_) ->
 			begin match v with
 				| VInstance {ikind=IPos _} -> f "#pos"
@@ -534,7 +592,7 @@ let handle_decoding_error f v t =
 			end
 		| TInst _ | TAbstract _ | TFun _ ->
 			(* TODO: might need some more of these, not sure *)
-			assert false
+			die "" __LOC__
 		| TMono r ->
 			begin match r.tm_type with
 				| None -> ()

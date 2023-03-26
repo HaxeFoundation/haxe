@@ -1,0 +1,55 @@
+# - name: Quick test
+#   shell: pwsh
+#   run: |
+#     $DOWNLOADDIR="./win$($env:ARCH)Binaries"
+#     new-item -Name $DOWNLOADDIR -ItemType directory
+#     Invoke-WebRequest https://build.haxe.org/builds/haxe/$env:PLATFORM/haxe_latest.zip -OutFile $DOWNLOADDIR/haxe_bin.zip
+
+- name: Setup Haxe
+  shell: pwsh
+  run: |
+    $DOWNLOADDIR="./win$($env:ARCH)Binaries"
+    Expand-Archive $DOWNLOADDIR/*_bin.zip -DestinationPath $DOWNLOADDIR
+    Set-PSDebug -Trace 1
+    $HAXEPATH = Get-ChildItem $DOWNLOADDIR/haxe_*_* -Directory
+    Write-Host "::add-path::$HAXEPATH"
+    Write-Host "::set-env name=HAXELIB_ROOT::$HAXEPATH\lib"
+
+- name: Print Haxe version
+  shell: pwsh
+  run: haxe -version
+
+- name: "Make Python 3 be available as python3 in the cmdline"
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    $pypath = python -c "import sys; print(sys.executable)"
+    $py3path = $pypath.replace("python.exe","python3.exe")
+    cmd /c mklink $py3path $pypath
+    python3 -V
+
+- name: Install hererocks
+  if: matrix.target == 'lua'
+  shell: cmd
+  run: |
+    pip install hererocks
+    hererocks lua53 -l5.3 -rlatest
+    call lua53/bin/activate
+
+- name: Install wget
+  if: matrix.target == 'flash'
+  shell: cmd
+  run: |
+    choco install wget
+    wget --version
+
+- name: Setup haxelib
+  shell: pwsh
+  run: |
+    mkdir "$env:HAXELIB_ROOT"
+    haxelib setup "$env:HAXELIB_ROOT"
+
+- name: Test
+  shell: pwsh
+  run: haxe RunCi.hxml
+  working-directory: ${{github.workspace}}/tests

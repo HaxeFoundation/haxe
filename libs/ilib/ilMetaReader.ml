@@ -1556,8 +1556,11 @@ let read_custom_attr ctx attr_type s pos =
 			let pos, cons = read_constant ctx (sig_to_const ilsig) s pos in
 			pos, InstConstant (cons)
 		| SClass c when is_type (["System"],"Type") c ->
-			let pos, len = read_compressed_i32 s pos in
-			pos+len, InstType (String.sub s pos len)
+			if (sget s pos) == 0xff then
+				pos+1, InstConstant INull
+			else
+				let pos, len = read_compressed_i32 s pos in
+				pos+len, InstType (String.sub s pos len)
 		| SType ->
 			let pos, len = read_compressed_i32 s pos in
 			pos+len, InstType (String.sub s pos len)

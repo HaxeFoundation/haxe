@@ -1,4 +1,4 @@
 Main.hx:16: characters 9-29 : Class<C> should be { member : Int }
-Main.hx:16: characters 9-29 : The field member is not public
+Main.hx:16: characters 9-29 : ... The field member is not public
 Main.hx:17: characters 9-29 : Abstract<A> should be { member : Int }
-Main.hx:17: characters 9-29 : The field member is not public
+Main.hx:17: characters 9-29 : ... The field member is not public

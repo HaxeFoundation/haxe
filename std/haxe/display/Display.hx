@@ -23,8 +23,8 @@
 package haxe.display;
 
 import haxe.display.JsonModuleTypes;
-import haxe.display.Protocol;
 import haxe.display.Position;
+import haxe.display.Protocol;
 
 /**
 	Methods of the JSON-RPC-based `--display` protocol in Haxe 4.
@@ -46,12 +46,17 @@ class DisplayMethods {
 	/**
 		The find references request is sent from the client to Haxe to find locations that reference the symbol at a given text document position.
 	**/
-	static inline var FindReferences = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/references");
+	static inline var FindReferences = new HaxeRequestMethod<FindReferencesParams, GotoDefinitionResult>("display/references");
 
 	/**
 		The goto definition request is sent from the client to Haxe to resolve the definition location(s) of a symbol at a given text document position.
 	**/
 	static inline var GotoDefinition = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/definition");
+
+	/**
+		The goto implementation request is sent from the client to Haxe to resolve the implementation location(s) of a symbol at a given text document position.
+	**/
+	static inline var GotoImplementation = new HaxeRequestMethod<PositionParams, GotoDefinitionResult>("display/implementation");
 
 	/**
 		The goto type definition request is sent from the client to Haxe to resolve the type definition location(s) of a symbol at a given text document position.
@@ -242,6 +247,7 @@ typedef DisplayModuleType = {
 	var doc:JsonDoc;
 	var isExtern:Bool;
 	var isFinal:Bool;
+	var isAbstract:Bool;
 	var kind:DisplayModuleTypeKind;
 }
 
@@ -289,6 +295,7 @@ typedef Metadata = {
 	var platforms:Array<Platform>;
 	var targets:Array<MetadataTarget>;
 	var internal:Bool;
+	var ?origin:String;
 	var ?links:Array<String>;
 }
 
@@ -337,6 +344,7 @@ enum abstract KeywordKind(String) to String {
 	var Extern = "extern";
 	var Dynamic = "dynamic";
 	var Override = "override";
+	var Overload = "overload";
 	var Class = "class";
 	var Interface = "interface";
 	var Enum = "enum";
@@ -407,6 +415,7 @@ typedef FieldCompletionSubject<T> = DisplayItemOccurrence<T> & {
 typedef ToplevelCompletion<T> = {
 	var ?expectedType:JsonType<T>;
 	var ?expectedTypeFollowed:JsonType<T>;
+	var ?compatibleTypes:Array<JsonType<Dynamic>>;
 }
 
 typedef StructExtensionCompletion = {
@@ -459,6 +468,30 @@ typedef CompletionItemResolveResult = Response<{
 	var item:DisplayItem<Dynamic>;
 }>;
 
+/** FindReferences **/
+typedef FindReferencesParams = PositionParams & {
+	var ?kind:FindReferencesKind;
+}
+
+enum abstract FindReferencesKind(String) to String {
+	/**
+		Find only direct references to the requested symbol.
+		Does not look for references to parent or overriding methods.
+	**/
+	var Direct = "direct";
+
+	/**
+		Find references to the base field and all the overidding fields in the inheritance chain.
+	**/
+	var WithBaseAndDescendants = "withBaseAndDescendants";
+
+	/**
+		Find references to the requested field and references to all
+		descendants of the requested field.
+	**/
+	var WithDescendants = "withDescendants";
+}
+
 /** GotoDefinition **/
 typedef GotoDefinitionResult = Response<Array<Location>>;
 
@@ -474,6 +507,7 @@ typedef HoverDisplayItemOccurence<T> = DisplayItemOccurrence<T> & {
 		var ?name:{
 			var name:String;
 			var kind:HoverExpectedNameKind;
+			var ?doc:String;
 		};
 	};
 }

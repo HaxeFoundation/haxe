@@ -1,0 +1,33 @@
+- name: Expose mingw dll files
+  shell: pwsh
+  run: Write-Host "::add-path::${env:CYG_ROOT}/usr/$($env:MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
+
+# required to be able to retrieve the revision
+- name: Mark directory as safe
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'git config --global --add safe.directory "$OLDPWD"')
+
+- name: Set ADD_REVISION=1 for non-release
+  if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  shell: pwsh
+  run: echo "ADD_REVISION=1" >> $Env:GITHUB_ENV
+
+- name: Build Haxe
+  shell: pwsh
+  run: |
+    Set-PSDebug -Trace 1
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win -j`nproc` haxe 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win haxelib 2>&1')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -f Makefile.win echo_package_files package_bin package_installer_win package_choco 2>&1')
+    dir out
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxe.exe')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxelib.exe')
+    & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && ls ./out')
+
+- name: Upload artifact
+  uses: actions/upload-artifact@v1.0.0
+  with:
+    name: win${{env.ARCH}}Binaries
+    path: out

@@ -18,6 +18,7 @@ type t =
 	| Pure
 	| Impure
 	| MaybePure
+	| InferredPure
 	| ExpectPure of pos
 
 let get_purity_from_meta meta =
@@ -25,21 +26,21 @@ let get_purity_from_meta meta =
 		begin match Meta.get Meta.Pure meta with
 		| (_,[EConst(Ident s),p],_) ->
 			begin match s with
-			| "true" -> Pure
+			| "true" | "inferredPure" -> Pure
 			| "false" -> Impure
 			| "expect" -> ExpectPure p
-			| _ -> error ("Unsupported purity value " ^ s ^ ", expected true or false") p
+			| _ -> typing_error ("Unsupported purity value " ^ s ^ ", expected true or false") p
 			end
 		| (_,[],_) ->
 			Pure
 		| (_,_,p) ->
-			error "Unsupported purity value" p
+			typing_error "Unsupported purity value" p
 		end
 	with Not_found ->
 		MaybePure
 
 let get_purity c cf = match get_purity_from_meta cf.cf_meta with
-	| Pure -> Pure
+	| Pure | InferredPure -> Pure
 	| Impure -> Impure
 	| ExpectPure p -> ExpectPure p
 	| _ -> get_purity_from_meta c.cl_meta
@@ -63,5 +64,6 @@ let is_explicitly_impure fa = match fa with
 let to_string = function
 	| Pure -> "pure"
 	| Impure -> "impure"
+	| InferredPure -> "inferredPure"
 	| MaybePure -> "maybe"
 	| ExpectPure _ -> "expect"

@@ -32,36 +32,31 @@ class builder path_this path_super = object(self)
 	val jsig = TObject(path_this,[])
 	val mutable offset_this = 0
 	val mutable offset_super = 0
+	val mutable type_parameters = []
+	val mutable super_type_parameters = []
+	val mutable interfaces = []
 	val mutable interface_offsets = []
 	val fields = DynArray.create ()
 	val methods = DynArray.create ()
 	val method_sigs = Hashtbl.create 0
 	val inner_classes = Hashtbl.create 0
-	val mutable closure_count = 0
-	val mutable bootstrap_methods = []
-	val mutable num_bootstrap_methods = 0
+	val closure_ids_per_name = Hashtbl.create 0
 	val mutable spawned_methods = []
-	val mutable field_init_method = None
+	val mutable static_init_method = None
+	val mutable source_file = None
 
-	method add_interface path =
-		interface_offsets <- (pool#add_path path) :: interface_offsets
+	method add_interface (path : jpath) (params : jtype_argument list) =
+		interface_offsets <- (pool#add_path path) :: interface_offsets;
+		interfaces <- (path,params) :: interfaces
+
+	method set_type_parameters (sl : (string * jsignature list) list) =
+		type_parameters <- sl
+
+	method set_super_parameters (params : jtype_argument list) =
+		super_type_parameters <- params
 
 	method add_field (f : jvm_field) =
 		DynArray.add fields f
-
-	method get_bootstrap_method path name jsig (consts : jvm_constant_pool_index list) =
-		try
-			fst (List.assoc (path,name,consts) bootstrap_methods)
-		with Not_found ->
-			let offset = pool#add_field path name jsig FKMethod in
-			let offset = pool#add (ConstMethodHandle(6, offset)) in
-			let bm = {
-				bm_method_ref = offset;
-				bm_arguments = Array.of_list consts;
-			} in
-			bootstrap_methods <- ((path,name,consts),(offset,bm)) :: bootstrap_methods;
-			num_bootstrap_methods <- num_bootstrap_methods + 1;
-			num_bootstrap_methods - 1
 
 	method get_pool = pool
 
@@ -71,13 +66,28 @@ class builder path_this path_super = object(self)
 	method get_offset_this = offset_this
 	method get_access_flags = access_flags
 
-	method get_next_closure_name =
-		let name = Printf.sprintf "hx_closure$%i" closure_count in
-		closure_count <- closure_count + 1;
-		name
+	method set_source_file (file : string) =
+		source_file <- Some file
+
+	method get_static_init_method = match static_init_method with
+		| Some jm -> jm
+		| None ->
+			let jm = self#spawn_method "<clinit>" (method_sig [] None) [MethodAccessFlags.MStatic] in
+			static_init_method <- Some jm;
+			jm
 
 	method has_method (name : string) (jsig : jsignature) =
 		Hashtbl.mem method_sigs (name,generate_method_signature false jsig)
+
+	method get_next_closure_id (name : string) =
+		try
+			let r = Hashtbl.find closure_ids_per_name name in
+			incr r;
+			!r
+		with Not_found ->
+			let r = ref 0 in
+			Hashtbl.add closure_ids_per_name name r;
+			!r
 
 	method spawn_inner_class (jm : JvmMethod.builder option) (path_super : jpath) (name : string option) =
 		let path = match name with
@@ -99,6 +109,12 @@ class builder path_this path_super = object(self)
 		end;
 		let offset = pool#add_path path in
 		Hashtbl.add inner_classes offset jc;
+		begin match source_file with
+		| None ->
+			()
+		| Some file ->
+			jc#set_source_file file
+		end;
 		jc
 
 	method spawn_method (name : string) (jsig_method : jsignature) (flags : MethodAccessFlags.t list) =
@@ -144,16 +160,45 @@ class builder path_this path_super = object(self)
 			self#add_attribute (AttributeInnerClasses a)
 		end
 
-	method private commit_bootstrap_methods =
-		match bootstrap_methods with
-		| [] ->
-			()
-		| _ ->
-			let l = List.fold_left (fun acc (_,(_,bm)) -> bm :: acc) [] bootstrap_methods in
-			self#add_attribute (AttributeBootstrapMethods (Array.of_list l))
+	method private generate_signature =
+		let stl = match type_parameters with
+			| [] -> ""
+			| params ->
+				let stl = String.concat "" (List.map (fun (n,jsigs) ->
+					let jsigs = match jsigs with
+						| [] -> [object_sig]
+						| _ -> jsigs
+					in
+					let s = String.concat "" (List.map (fun jsig ->
+						Printf.sprintf ":%s" (generate_signature true jsig)
+					) jsigs) in
+					Printf.sprintf "%s%s" n s
+				) params) in
+				Printf.sprintf "<%s>" stl
+		in
+		let ssuper = generate_method_signature true (TObject(path_super,super_type_parameters)) in
+		let sinterfaces = String.concat "" (List.map (fun (path,params) ->
+			generate_method_signature true (TObject(path,params))
+		) interfaces) in
+		let s = Printf.sprintf "%s%s%s" stl ssuper sinterfaces in
+		let offset = self#get_pool#add_string s in
+		self#add_attribute (AttributeSignature offset)
 
 	method export_class (config : export_config) =
 		assert (not was_exported);
+		begin match source_file with
+		| None ->
+			()
+		| Some file ->
+			self#add_attribute (AttributeSourceFile (self#get_pool#add_string file));
+		end;
+		begin match static_init_method with
+		| None ->
+			()
+		| Some jm ->
+			if not jm#is_terminated then jm#return;
+		end;
+		self#generate_signature;
 		was_exported <- true;
 		List.iter (fun (jm,pop_scope) ->
 			begin match pop_scope with
@@ -164,7 +209,6 @@ class builder path_this path_super = object(self)
 				self#add_field jm#export_field
 			end;
 		) (List.rev spawned_methods);
-		self#commit_bootstrap_methods;
 		self#commit_inner_classes;
 		self#commit_annotations pool;
 		let attributes = self#export_attributes pool in

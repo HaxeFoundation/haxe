@@ -85,12 +85,8 @@ class TestArguments extends utest.Test {
 		#else
 			"bin/cs/bin/TestArguments.exe";
 		#end
-	#elseif (java && jvm)
-		#if debug
-			"bin/jvm/TestArguments-Debug.jar";
-		#else
-			"bin/jvm/TestArguments.jar";
-		#end
+	#elseif jvm
+		"bin/jvm/TestArguments.jar";
 	#elseif java
 		#if debug
 			"bin/java/TestArguments-Debug.jar";
@@ -103,6 +99,8 @@ class TestArguments extends utest.Test {
 		"bin/php/TestArguments/index.php";
 	#elseif lua
 		"bin/lua/TestArguments.lua";
+	#elseif js
+		"bin/js/TestArguments.js";
 	#else
 		null;
 	#end

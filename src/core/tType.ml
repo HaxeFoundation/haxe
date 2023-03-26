@@ -15,7 +15,6 @@ and var_access =
 	| AccNo             (* can't be accessed outside of the class itself and its subclasses *)
 	| AccNever          (* can't be accessed, even in subclasses *)
 	| AccCtor           (* can only be accessed from the constructor *)
-	| AccResolve        (* call resolve("field") when accessed *)
 	| AccCall           (* perform a method call when accessed *)
 	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
@@ -31,6 +30,19 @@ type module_check_policy =
 	| CheckFileContentModification
 	| NoCheckDependencies
 	| NoCheckShadowing
+	| Retype
+
+type module_skip_reason =
+	| DependencyDirty of path * module_skip_reason
+	| Tainted of string
+	| FileChanged of string
+	| Shadowed of string
+	| LibraryChanged
+
+type module_cache_state =
+	| MSGood
+	| MSBad of module_skip_reason
+	| MSUnknown
 
 type t =
 	| TMono of tmono
@@ -39,13 +51,35 @@ type t =
 	| TType of tdef * tparams
 	| TFun of tsignature
 	| TAnon of tanon
-	| TDynamic of t
+	| TDynamic of t option
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
 
 and tmono = {
 	mutable tm_type : t option;
+	(*
+		```
+		function fn<A,B:A>() {}
+		```
+		`A` is a down-constraint for `B`
+		`B` is an up-constraint for `A`
+	*)
+	mutable tm_down_constraints : tmono_constraint list;
+	mutable tm_up_constraints : (t * string option) list;
 }
+
+and tmono_constraint =
+	| MMono of tmono * string option
+	| MField of tclass_field
+	| MType of t * string option
+	| MOpenStructure
+	| MEmptyStructure
+
+and tmono_constraint_kind =
+	| CUnknown
+	| CStructural of (string,tclass_field) PMap.t * bool
+	| CMixed of tmono_constraint_kind list
+	| CTypes of (t * string option) list
 
 and tlazy =
 	| LAvailable of t
@@ -56,7 +90,13 @@ and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 
-and type_params = (string * t) list
+and typed_type_param = {
+	ttp_name : string;
+	ttp_type : t;
+	ttp_default : t option;
+}
+
+and type_params = typed_type_param list
 
 and tconstant =
 	| TInt of int32
@@ -67,7 +107,10 @@ and tconstant =
 	| TThis
 	| TSuper
 
-and tvar_extra = (type_params * texpr option) option
+and tvar_extra = {
+	v_params : type_params;
+	v_expr : texpr option;
+}
 
 and tvar_origin =
 	| TVOLocalVariable
@@ -89,10 +132,9 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
-	mutable v_capture : bool;
-	mutable v_final : bool;
-	mutable v_extra : tvar_extra;
+	mutable v_extra : tvar_extra option;
 	mutable v_meta : metadata;
+	mutable v_flags : int;
 	v_pos : pos;
 }
 
@@ -104,7 +146,6 @@ and tfunc = {
 
 and anon_status =
 	| Closed
-	| Opened
 	| Const
 	| Extend of t list
 	| Statics of tclass
@@ -171,7 +212,7 @@ and tclass_field = {
 	mutable cf_kind : field_kind;
 	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
-	mutable cf_expr_unoptimized : tfunc option;
+	mutable cf_expr_unoptimized : texpr option;
 	mutable cf_overloads : tclass_field list;
 	mutable cf_flags : int;
 }
@@ -185,11 +226,12 @@ and tclass_kind =
 	| KMacroType
 	| KGenericBuild of class_field list
 	| KAbstractImpl of tabstract
+	| KModuleFields of module_def
 
 and metadata = Ast.metadata
 
 and tinfos = {
-	mt_path : path;
+	mutable mt_path : path;
 	mt_module : module_def;
 	mt_pos : pos;
 	mt_name_pos : pos;
@@ -198,6 +240,7 @@ and tinfos = {
 	mutable mt_meta : metadata;
 	mt_params : type_params;
 	mutable mt_using : (tclass * pos) list;
+	mutable mt_restore : unit -> unit;
 }
 
 and tclass = {
@@ -210,11 +253,10 @@ and tclass = {
 	mutable cl_meta : metadata;
 	mutable cl_params : type_params;
 	mutable cl_using : (tclass * pos) list;
+	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
-	mutable cl_extern : bool;
-	mutable cl_final : bool;
-	mutable cl_interface : bool;
+	mutable cl_flags : int;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string, tclass_field) PMap.t;
@@ -225,10 +267,8 @@ and tclass = {
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
-	mutable cl_overrides : tclass_field list;
 
 	mutable cl_build : unit -> build_state;
-	mutable cl_restore : unit -> unit;
 	(*
 		These are classes which directly extend or directly implement this class.
 		Populated automatically in post-processing step (Filters.run)
@@ -237,11 +277,11 @@ and tclass = {
 }
 
 and tenum_field = {
-	ef_name : string;
+	mutable ef_name : string;
 	mutable ef_type : t;
 	ef_pos : pos;
 	ef_name_pos : pos;
-	ef_doc : Ast.documentation;
+	mutable ef_doc : Ast.documentation;
 	ef_index : int;
 	mutable ef_params : type_params;
 	mutable ef_meta : metadata;
@@ -253,10 +293,11 @@ and tenum = {
 	e_pos : pos;
 	e_name_pos : pos;
 	e_private : bool;
-	e_doc : Ast.documentation;
+	mutable e_doc : Ast.documentation;
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
 	mutable e_using : (tclass * pos) list;
+	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
 	e_type : tdef;
 	mutable e_extern : bool;
@@ -265,7 +306,7 @@ and tenum = {
 }
 
 and tdef = {
-	t_path : path;
+	mutable t_path : path;
 	t_module : module_def;
 	t_pos : pos;
 	t_name_pos : pos;
@@ -274,6 +315,7 @@ and tdef = {
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
 	mutable t_using : (tclass * pos) list;
+	mutable t_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -284,10 +326,11 @@ and tabstract = {
 	a_pos : pos;
 	a_name_pos : pos;
 	a_private : bool;
-	a_doc : Ast.documentation;
+	mutable a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;
+	mutable a_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
@@ -300,6 +343,8 @@ and tabstract = {
 	mutable a_array : tclass_field list;
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
+	mutable a_call : tclass_field option;
+	a_enum : bool;
 }
 
 and module_type =
@@ -312,6 +357,7 @@ and module_def = {
 	m_id : int;
 	m_path : path;
 	mutable m_types : module_type list;
+	mutable m_statics : tclass option;
 	m_extra : module_def_extra;
 }
 
@@ -322,16 +368,16 @@ and module_def_display = {
 }
 
 and module_def_extra = {
-	m_file : string;
+	m_file : Path.UniqueKey.lazy_t;
 	m_sign : string;
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : path option;
+	mutable m_cache_state : module_cache_state;
 	mutable m_added : int;
-	mutable m_mark : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_checked : int;
 	mutable m_processed : int;
+	mutable m_deps : (int,module_def) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
@@ -365,8 +411,37 @@ type class_field_scope =
 	| CFSMember
 	| CFSConstructor
 
+type flag_tclass =
+	| CExtern
+	| CFinal
+	| CInterface
+	| CAbstract
+	| CFunctionalInterface
+
 type flag_tclass_field =
 	| CfPublic
+	| CfStatic
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
+	| CfOverride
+	| CfAbstract
+	| CfOverload
+	| CfImpl
+	| CfEnum
+	| CfGeneric
+	| CfDefault (* Interface field with default implementation (only valid on Java) *)
+	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
+
+(* Order has to match declaration for printing*)
+let flag_tclass_field_names = [
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault"
+]
+
+type flag_tvar =
+	| VCaptured
+	| VFinal
+	| VUsed (* used by the analyzer *)
+	| VAssigned
+	| VCaught
+	| VStatic

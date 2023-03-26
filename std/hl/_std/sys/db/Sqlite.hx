@@ -114,6 +114,10 @@ private class SqliteConnection implements Connection {
 				s.add(v);
 			case TBool:
 				s.add(v ? 1 : 0);
+			case TClass(haxe.io.Bytes):
+				s.add("x'");
+				s.add((v : haxe.io.Bytes).toHex());
+				s.add("'");
 			case _:
 				s.add(quote(Std.string(v)));
 		}
@@ -133,12 +137,10 @@ private class SqliteConnection implements Connection {
 
 	public function commit():Void {
 		request("COMMIT");
-		startTransaction(); // match mysql usage
 	}
 
 	public function rollback():Void {
 		request("ROLLBACK");
-		startTransaction(); // match mysql usage
 	}
 }
 
@@ -208,10 +210,20 @@ private class SqliteResultSet implements ResultSet {
 		while (i < l) {
 			var n:String = names[i];
 			var v:Dynamic = a[i];
-			if (hl.Type.getDynamic(v).kind == hl.Type.TypeKind.HBytes)
-				Reflect.setField(o, n, String.fromUCS2(v));
-			else
-				Reflect.setField(o, n, v);
+			switch (hl.Type.getDynamic(v).kind) {
+				case hl.Type.TypeKind.HArray:
+					var pair:hl.NativeArray<Dynamic> = v;
+					var bytes:hl.Bytes = pair[0];
+					var len:Int = pair[1];
+					var data = new haxe.io.BytesData(bytes, len);
+					Reflect.setField(o, n, haxe.io.Bytes.ofData(data));
+
+				case hl.Type.TypeKind.HBytes:
+					Reflect.setField(o, n, String.fromUCS2(v));
+
+				default:
+					Reflect.setField(o, n, v);
+			}
 			i++;
 		}
 		return o;

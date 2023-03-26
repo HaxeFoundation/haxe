@@ -16,7 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-
+open Extlib_leftovers
 open Globals
 
 type keyword =
@@ -91,6 +91,7 @@ type binop =
 	| OpInterval
 	| OpArrow
 	| OpIn
+	| OpNullCoal
 
 type unop =
 	| Increment
@@ -98,6 +99,7 @@ type unop =
 	| Not
 	| Neg
 	| NegBits
+	| Spread
 
 type string_literal_kind =
 	| SDoubleQuotes
@@ -105,8 +107,8 @@ type string_literal_kind =
 	(* | SMarkup *)
 
 type constant =
-	| Int of string
-	| Float of string
+	| Int of string * string option
+	| Float of string * string option
 	| String of string * string_literal_kind
 	| Ident of string
 	| Regexp of string * string
@@ -129,12 +131,14 @@ type token =
 	| PClose
 	| Dot
 	| DblDot
+	| QuestionDot
 	| Arrow
 	| IntInterval of string
 	| Sharp of string
 	| Question
 	| At
 	| Dollar of string
+	| Spread
 
 type unop_flag =
 	| Prefix
@@ -194,33 +198,37 @@ and display_kind =
 	| DKMarked
 	| DKPattern of bool
 
+and efield_kind =
+	| EFNormal
+	| EFSafe
+
 and expr_def =
 	| EConst of constant
 	| EArray of expr * expr
 	| EBinop of binop * expr * expr
-	| EField of expr * string
+	| EField of expr * string * efield_kind
 	| EParenthesis of expr
 	| EObjectDecl of ((string * pos * quote_status) * expr) list
 	| EArrayDecl of expr list
 	| ECall of expr * expr list
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
-	| EVars of (placed_name * bool * type_hint option * expr option) list
+	| EVars of evar list
 	| EFunction of function_kind * func
 	| EBlock of expr list
 	| EFor of expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
-	| ETry of expr * (placed_name * type_hint * expr * pos) list
+	| ETry of expr * (placed_name * type_hint option * expr * pos) list
 	| EReturn of expr option
 	| EBreak
 	| EContinue
 	| EUntyped of expr
 	| EThrow of expr
 	| ECast of expr * type_hint option
+	| EIs of expr * type_hint
 	| EDisplay of expr * display_kind
-	| EDisplayNew of placed_type_path
 	| ETernary of expr * expr * expr
 	| ECheckType of expr * type_hint
 	| EMeta of metadata_entry * expr
@@ -231,10 +239,51 @@ and type_param = {
 	tp_name : placed_name;
 	tp_params :	type_param list;
 	tp_constraints : type_hint option;
+	tp_default : type_hint option;
 	tp_meta : metadata;
 }
 
-and documentation = string option
+(**
+	This structure represents a documentation comment of a symbol.
+
+	Use `Ast.get_doc_text` to generate a final user-readable text for a doc_block.
+*)
+and doc_block = {
+	(** Contains own docs written nearby the symbol in Haxe code *)
+	doc_own: string option;
+	(**
+		This field is for docs pointed by @:inheritDoc meta.
+
+		It's populated with `InheritDoc.build_*` functions.
+		Each string in this list is compiled of a doc a single @:inheritDoc points to.
+
+		E.g. calling `InheritDoc.build_class_field_doc` for `field4` (from sample below)
+		will produce `doc_inherited = ["Own field3 doc"; "Own field2 doc\nOwn field1 doc"]`.
+
+		Sample:
+		```
+		class MyClass {
+
+			/** Own field1 doc */
+			function field1();
+
+			/** Own field2 doc */
+			@:inheritDoc(MyClass.field1) function field2();
+
+			/** Own field3 doc */
+			function field2();
+
+			/** Own field4 doc */
+			@:inheritDoc(MyClass.field3)
+			@:inheritDoc(MyClass.field2)
+			function field4();
+		}
+		```
+	*)
+	mutable doc_inherited: string list;
+}
+
+and documentation = doc_block option
 
 and metadata_entry = (Meta.strict_meta * expr list * pos)
 and metadata = metadata_entry list
@@ -249,6 +298,8 @@ and access =
 	| AMacro
 	| AFinal
 	| AExtern
+	| AAbstract
+	| AOverload
 
 and placed_access = access * pos
 
@@ -266,6 +317,18 @@ and class_field = {
 	mutable cff_kind : class_field_kind;
 }
 
+and evar = {
+	ev_name : placed_name;
+	ev_final : bool;
+	ev_static : bool;
+	ev_type : type_hint option;
+	ev_expr : expr option;
+	ev_meta : metadata;
+}
+
+(* TODO: should we introduce CTMono instead? *)
+let ct_mono = CTPath { tpackage = ["$"]; tname = "_hx_mono"; tparams = []; tsub = None }
+
 type enum_flag =
 	| EPrivate
 	| EExtern
@@ -277,6 +340,7 @@ type class_flag =
 	| HExtends of placed_type_path
 	| HImplements of placed_type_path
 	| HFinal
+	| HAbstract
 
 type abstract_flag =
 	| AbPrivate
@@ -284,6 +348,7 @@ type abstract_flag =
 	| AbTo of type_hint
 	| AbOver of type_hint
 	| AbExtern
+	| AbEnum
 
 type enum_constructor = {
 	ec_name : placed_name;
@@ -316,12 +381,28 @@ type type_def =
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
+	| EStatic of (placed_access, class_field_kind) definition
 	| EImport of import
 	| EUsing of placed_name list
 
 type type_decl = type_def * pos
 
 type package = string list * type_decl list
+
+let mk_type_path ?(params=[]) ?sub (pack,name) =
+	if name = "" then
+		raise (Invalid_argument "Empty module name is not allowed");
+	{ tpackage = pack; tname = name; tsub = sub; tparams = params; }
+
+let mk_evar ?(final=false) ?(static=false) ?(t:type_hint option) ?eo ?(meta=[]) name =
+	{
+		ev_name = name;
+		ev_final = final;
+		ev_static = static;
+		ev_type = t;
+		ev_expr = eo;
+		ev_meta = meta;
+	}
 
 let is_lower_ident i =
 	if String.length i = 0 then
@@ -337,13 +418,31 @@ let is_lower_ident i =
 
 let pos = snd
 
+let doc_from_string s = Some { doc_own = Some s; doc_inherited = []; }
+
+let doc_from_string_opt = Option.map (fun s -> { doc_own = Some s; doc_inherited = []; })
+
+(**
+	Generates full doc block text out of `doc_block` structure
+	by concatenating `d.doc_own` and all entries of `d.doc_inherited` with new lines
+	in between.
+*)
+let gen_doc_text d =
+	let docs =
+		match d.doc_own with
+		| Some s -> s :: d.doc_inherited
+		| None -> d.doc_inherited
+	in
+	String.concat "\n" docs
+
+
+let gen_doc_text_opt = Option.map gen_doc_text
+
+let get_own_doc_opt = Option.map_default (fun d -> d.doc_own) None
+
 let rec is_postfix (e,_) op = match op with
 	| Increment | Decrement | Not -> true
-	| Neg | NegBits -> false
-
-let is_prefix = function
-	| Increment | Decrement -> true
-	| Not | Neg | NegBits -> true
+	| Neg | NegBits | Spread -> false
 
 let base_class_name = snd
 
@@ -368,8 +467,10 @@ let parse_path s =
 	| x :: l -> List.rev l, x
 
 let s_constant = function
-	| Int s -> s
-	| Float s -> s
+	| Int (s, None) -> s
+	| Int (s, Some suffix) -> s ^ suffix
+	| Float (s, None) -> s
+	| Float (s, Some suffix) -> s ^ suffix
 	| String(s,qs) ->
 		begin match qs with
 		| SDoubleQuotes -> "\"" ^ StringHelper.s_escape s ^ "\""
@@ -388,6 +489,8 @@ let s_access = function
 	| AMacro -> "macro"
 	| AFinal -> "final"
 	| AExtern -> "extern"
+	| AAbstract -> "abstract"
+	| AOverload -> "overload"
 
 let s_placed_access (a,_) = s_access a
 
@@ -463,6 +566,7 @@ let rec s_binop = function
 	| OpInterval -> "..."
 	| OpArrow -> "=>"
 	| OpIn -> " in "
+	| OpNullCoal -> "??"
 
 let s_unop = function
 	| Increment -> "++"
@@ -470,6 +574,7 @@ let s_unop = function
 	| Not -> "!"
 	| Neg -> "-"
 	| NegBits -> "~"
+	| Spread -> "..."
 
 let s_token = function
 	| Eof -> "<end of file>"
@@ -489,14 +594,19 @@ let s_token = function
 	| PClose -> ")"
 	| Dot -> "."
 	| DblDot -> ":"
+	| QuestionDot -> "?."
 	| Arrow -> "->"
 	| IntInterval s -> s ^ "..."
 	| Sharp s -> "#" ^ s
 	| Question -> "?"
 	| At -> "@"
 	| Dollar v -> "$" ^ v
+	| Spread -> "..."
 
 exception Invalid_escape_sequence of char * int * (string option)
+
+let efield (e,s) =
+	EField(e,s,EFNormal)
 
 let unescape s =
 	let b = Buffer.create 0 in
@@ -597,8 +707,9 @@ let map_expr loop (e,p) =
 		),p
 	and tparamdecl t =
 		let constraints = opt type_hint t.tp_constraints in
+		let default = opt type_hint t.tp_default in
 		let params = List.map tparamdecl t.tp_params in
-		{ tp_name = t.tp_name; tp_constraints = constraints; tp_params = params; tp_meta = t.tp_meta }
+		{ tp_name = t.tp_name; tp_constraints = constraints; tp_default = default; tp_params = params; tp_meta = t.tp_meta }
 	and func f =
 		let params = List.map tparamdecl f.f_params in
 		let args = List.map (fun (n,o,m,t,e) ->
@@ -626,7 +737,7 @@ let map_expr loop (e,p) =
 		let e1 = loop e1 in
 		let e2 = loop e2 in
 		EBinop (op,e1,e2)
-	| EField (e,f) -> EField (loop e, f)
+	| EField (e,f,efk) -> EField (loop e, f, efk)
 	| EParenthesis e -> EParenthesis (loop e)
 	| EObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k,loop e) fl)
 	| EArrayDecl el -> EArrayDecl (List.map loop el)
@@ -640,10 +751,10 @@ let map_expr loop (e,p) =
 		ENew (t,el)
 	| EUnop (op,f,e) -> EUnop (op,f,loop e)
 	| EVars vl ->
-		EVars (List.map (fun (n,b,t,eo) ->
-			let t = opt type_hint t in
-			let eo = opt loop eo in
-			n,b,t,eo
+		EVars (List.map (fun v ->
+			let t = opt type_hint v.ev_type in
+			let eo = opt loop v.ev_expr in
+			{ v with ev_type = t; ev_expr = eo }
 		) vl)
 	| EFunction (kind,f) -> EFunction (kind,func f)
 	| EBlock el -> EBlock (List.map loop el)
@@ -672,7 +783,7 @@ let map_expr loop (e,p) =
 		ESwitch (e, cases, def)
 	| ETry (e,catches) ->
 		let e = loop e in
-		let catches = List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches in
+		let catches = List.map (fun (n,t,e,p) -> n,Option.map type_hint t,loop e,p) catches in
 		ETry (e,catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
@@ -683,8 +794,11 @@ let map_expr loop (e,p) =
 		let e = loop e in
 		let t = opt type_hint t in
 		ECast (e,t)
+	| EIs (e,t) ->
+		let e = loop e in
+		let t = type_hint t in
+		EIs (e,t)
 	| EDisplay (e,f) -> EDisplay (loop e,f)
-	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) ->
 		let e1 = loop e1 in
 		let e2 = loop e2 in
@@ -702,9 +816,9 @@ let iter_expr loop (e,p) =
 	let opt eo = match eo with None -> () | Some e -> loop e in
 	let exprs = List.iter loop in
 	match e with
-	| EConst _ | EContinue | EBreak | EDisplayNew _ | EReturn None -> ()
-	| EParenthesis e1 | EField(e1,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
-	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EUntyped e1 -> loop e1;
+	| EConst _ | EContinue | EBreak | EReturn None -> ()
+	| EParenthesis e1 | EField(e1,_,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
+	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EIs(e1,_) | EUntyped e1 -> loop e1;
 	| EArray(e1,e2) | EBinop(_,e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
 	| ETernary(e1,e2,e3) | EIf(e1,e2,Some e3) -> loop e1; loop e2; loop e3;
 	| EArrayDecl el | ENew(_,el) | EBlock el -> List.iter loop el
@@ -724,7 +838,7 @@ let iter_expr loop (e,p) =
 	| EFunction(_,f) ->
 		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
 		opt f.f_expr
-	| EVars vl -> List.iter (fun (_,_,_,eo) -> opt eo) vl
+	| EVars vl -> List.iter (fun v -> opt v.ev_expr) vl
 
 let s_object_key_name name =  function
 	| DoubleQuotes -> "\"" ^ StringHelper.s_escape name ^ "\""
@@ -743,7 +857,7 @@ module Printer = struct
 		| EConst c -> s_constant c
 		| EArray (e1,e2) -> s_expr_inner tabs e1 ^ "[" ^ s_expr_inner tabs e2 ^ "]"
 		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ " " ^ s_binop op ^ " " ^ s_expr_inner tabs e2
-		| EField (e,f) -> s_expr_inner tabs e ^ "." ^ f
+		| EField (e,f,efk) -> s_expr_inner tabs e ^ (match efk with EFNormal -> "." | EFSafe -> "?.") ^ f
 		| EParenthesis e -> "(" ^ (s_expr_inner tabs e) ^ ")"
 		| EObjectDecl fl -> "{ " ^ (String.concat ", " (List.map (fun ((n,_,qs),e) -> (s_object_key_name n qs) ^ " : " ^ (s_expr_inner tabs e)) fl)) ^ " }"
 		| EArrayDecl el -> "[" ^ s_expr_list tabs el ", " ^ "]"
@@ -773,11 +887,11 @@ module Printer = struct
 		| EThrow e -> "throw " ^ s_expr_inner tabs e
 		| ECast (e,Some (t,_)) -> "cast (" ^ s_expr_inner tabs e ^ ", " ^ s_complex_type tabs t ^ ")"
 		| ECast (e,None) -> "cast " ^ s_expr_inner tabs e
+		| EIs (e,(t,_)) -> s_expr_inner tabs e ^ " is " ^ s_complex_type tabs t
 		| ETernary (e1,e2,e3) -> s_expr_inner tabs e1 ^ " ? " ^ s_expr_inner tabs e2 ^ " : " ^ s_expr_inner tabs e3
 		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
 		| EDisplay (e1,dk) -> Printf.sprintf "#DISPLAY(%s, %s)" (s_expr_inner tabs e1) (s_display_kind dk)
-		| EDisplayNew tp -> Printf.sprintf "#DISPLAY_NEW(%s)" (s_complex_type_path tabs tp)
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
 	and s_complex_type_path tabs (t,_) =
@@ -804,15 +918,35 @@ module Printer = struct
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
 		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
-		match f.cff_doc with
-		| Some s -> "/**\n\t" ^ tabs ^ s ^ "\n**/\n"
-		| None -> "" ^
-		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
-		if List.length f.cff_access > 0 then String.concat " " (List.map s_placed_access f.cff_access) else "" ^
-		match f.cff_kind with
-		| FVar (t,e) -> "var " ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FProp ((get,_),(set,_),t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FFun func -> "function " ^ (fst f.cff_name) ^ s_func tabs func
+		let doc = match f.cff_doc with
+			| Some d -> "/**\n\t" ^ tabs ^ (gen_doc_text d) ^ "\n**/\n"
+			| None -> ""
+		in
+		let s_separated f sep list =
+			if list <> [] then ((String.concat sep (List.map f list)) ^ sep) else ""
+		in
+		let s_meta = s_separated (s_metadata tabs) ("\n" ^ tabs) in
+		let s_access = s_separated s_placed_access " " in
+		(match f.cff_kind with
+		| FVar (t,e) ->
+			doc ^
+			let keyword = ref "var " in
+			let question = ref "" in
+			let access = List.filter (fun (a,_) -> if a = AFinal then (keyword := "final "; false) else true) f.cff_access in
+			let meta = List.filter (fun (m,_,_) -> if m = Meta.Optional then (question := "?"; false) else true) f.cff_meta in
+			s_meta meta ^
+			s_access access ^
+			!keyword ^ !question ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FProp ((get,_),(set,_),t,e) ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FFun func ->
+			doc ^
+			s_meta f.cff_meta ^
+			s_access f.cff_access ^
+			"function " ^ (fst f.cff_name) ^ s_func tabs func)
 	and s_metadata tabs (s,e,_) =
 		"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list tabs e ", " ^ ")" else ""
 	and s_opt_expr tabs e pre =
@@ -839,14 +973,17 @@ module Printer = struct
 		if List.length tl > 0 then "<" ^ String.concat ", " (List.map (s_type_param tabs) tl) ^ ">" else ""
 	and s_func_arg tabs ((n,_),o,_,t,e) =
 		if o then "?" else "" ^ n ^ s_opt_type_hint tabs t ":" ^ s_opt_expr tabs e " = "
-	and s_var tabs ((n,_),_,t,e) =
-		n ^ (s_opt_type_hint tabs t ":") ^ s_opt_expr tabs e " = "
+	and s_var tabs v =
+		let s = (fst v.ev_name) ^ (s_opt_type_hint tabs v.ev_type ":") ^ s_opt_expr tabs v.ev_expr " = " in
+		if v.ev_meta = [] then s
+		else (String.concat " " (List.map (s_metadata tabs) v.ev_meta)) ^ " " ^ s
 	and s_case tabs (el,e1,e2,_) =
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
-	and s_catch tabs ((n,_),(t,_),e,_) =
-		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
+	and s_catch tabs ((n,_),t,e,_) =
+		let hint = Option.map_default (fun (t,_) -> ":" ^ s_complex_type tabs t) "" t in
+		" catch(" ^ n ^ hint ^ ") " ^ s_expr_inner tabs e
 	and s_block tabs el opn nl cls =
 		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls
 	and s_expr_omit_block tabs e =
@@ -872,13 +1009,13 @@ let get_value_meta meta =
 let rec string_list_of_expr_path_raise (e,p) =
 	match e with
 	| EConst (Ident i) -> [i]
-	| EField (e,f) -> f :: string_list_of_expr_path_raise e
+	| EField (e,f,_) -> f :: string_list_of_expr_path_raise e
 	| _ -> raise Exit
 
 let rec string_pos_list_of_expr_path_raise (e,p) =
 	match e with
 	| EConst (Ident i) -> [i,p]
-	| EField (e,f) -> (f,p) :: string_pos_list_of_expr_path_raise e (* wrong p? *)
+	| EField (e,f,_) -> (f,p) :: string_pos_list_of_expr_path_raise e (* wrong p? *)
 	| _ -> raise Exit
 
 let expr_of_type_path (sl,s) p =
@@ -886,26 +1023,26 @@ let expr_of_type_path (sl,s) p =
 	| [] -> (EConst(Ident s),p)
 	| s1 :: sl ->
 		let e1 = (EConst(Ident s1),p) in
-		let e = List.fold_left (fun e s -> (EField(e,s),p)) e1 sl in
-		EField(e,s),p
+		let e = List.fold_left (fun e s -> (efield(e,s),p)) e1 sl in
+		efield(e,s),p
 
 let match_path recursive sl sl_pattern =
-	let rec loop sl1 sl2 = match sl1,sl2 with
+	let rec loop top sl1 sl2 = match sl1,sl2 with
 		| [],[] ->
 			true
 		(* always recurse into types of package paths *)
 		| (s1 :: s11 :: _),[s2] when is_lower_ident s2 && not (is_lower_ident s11)->
 			s1 = s2
-		| [_],[""] ->
+		| [_],[] when top ->
 			true
-		| _,([] | [""]) ->
+		| _,[] ->
 			recursive
 		| [],_ ->
 			false
 		| (s1 :: sl1),(s2 :: sl2) ->
-			s1 = s2 && loop sl1 sl2
+			s1 = s2 && loop false sl1 sl2
 	in
-	loop sl sl_pattern
+	loop true sl sl_pattern
 
 let full_dot_path2 mpath tpath =
 	if mpath = tpath then
@@ -958,7 +1095,7 @@ module Expr = struct
 				add ("EBinop " ^ (s_binop op));
 				loop e1;
 				loop e2;
-			| EField(e1,s) ->
+			| EField(e1,s,_) ->
 				add ("EField " ^ s);
 				loop e1
 			| EParenthesis e1 ->
@@ -985,9 +1122,14 @@ module Expr = struct
 				loop e1
 			| EVars vl ->
 				add "EVars";
-				List.iter (fun ((n,p),_,cto,eo) ->
-					add (Printf.sprintf "%s  %s%s" tabs n (match cto with None -> "" | Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct));
-					match eo with
+				List.iter (fun v ->
+					let t_hint =
+						match v.ev_type with
+						| None -> ""
+						| Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct
+					in
+					add (Printf.sprintf "%s  %s%s" tabs (fst v.ev_name) t_hint);
+					match v.ev_expr with
 					| None -> ()
 					| Some e ->
 						loop' (Printf.sprintf "%s      " tabs) e
@@ -1041,6 +1183,9 @@ module Expr = struct
 			| ECast(e1,_) ->
 				add "ECast";
 				loop e1;
+			| EIs(e1,_) ->
+				add "EIs";
+				loop e1;
 			| EDisplay(e1,dk) ->
 				add ("EDisplay " ^ (s_display_kind dk));
 				loop e1
@@ -1053,13 +1198,25 @@ module Expr = struct
 				add "ECheckType";
 				loop e1;
 			| EMeta((m,_,_),e1) ->
-				add ("EMeta " ^ fst (Meta.get_info m));
+				add ("EMeta " ^ (Meta.to_string m));
 				loop e1
-			| EDisplayNew _ ->
-				assert false
 		in
 		loop' "" e;
 		Buffer.contents buf
+
+	let find_ident e =
+		let rec loop e = match fst e with
+			| EConst ct ->
+				begin match ct with
+				| Ident s ->
+					Some s
+				| _ ->
+					None
+				end
+			| _ ->
+				None
+		in
+		loop e
 end
 
 let has_meta_option metas meta s =
@@ -1094,3 +1251,11 @@ let get_meta_options metas meta =
 			[]
 	in
 	loop metas
+
+let get_meta_string meta key =
+	let rec loop = function
+		| [] -> None
+		| (k,[EConst (String(name,_)),_],_) :: _ when k = key -> Some name
+		| _ :: l -> loop l
+	in
+	loop meta

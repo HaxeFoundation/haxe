@@ -1,8 +1,8 @@
-IncompatibleCombinations.hx:5: characters 1-72 : The new() constraint cannot be combined with the struct constraint.
-IncompatibleCombinations.hx:8: characters 1-72 : The new() constraint cannot be combined with the struct constraint.
+IncompatibleCombinations.hx:5: characters 1-70 : The new() constraint cannot be combined with the struct constraint.
+IncompatibleCombinations.hx:8: characters 1-70 : The new() constraint cannot be combined with the struct constraint.
 IncompatibleCombinations.hx:11: characters 1-46 : The class constraint cannot be combined with the struct constraint.
 IncompatibleCombinations.hx:14: characters 1-46 : The class constraint cannot be combined with the struct constraint.
 IncompatibleCombinations.hx:18: characters 1-54 : The unmanaged constraint cannot be combined with the struct constraint.
 IncompatibleCombinations.hx:21: characters 1-54 : The unmanaged constraint cannot be combined with the struct constraint.
-IncompatibleCombinations.hx:24: characters 1-78 : The unmanaged constraint cannot be combined with the new() constraint.
-IncompatibleCombinations.hx:27: characters 1-78 : The unmanaged constraint cannot be combined with the new() constraint.
+IncompatibleCombinations.hx:24: characters 1-76 : The unmanaged constraint cannot be combined with the new() constraint.
+IncompatibleCombinations.hx:27: characters 1-76 : The unmanaged constraint cannot be combined with the new() constraint.

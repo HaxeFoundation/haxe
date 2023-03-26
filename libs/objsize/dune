@@ -2,8 +2,7 @@
 
 (library
 	(name objsize)
-	(c_names c_objsize)
-	(c_flags (-I../../../../libs/objsize)) ; TODO: This is stupid
+	(foreign_stubs (language c) (names c_objsize) (flags -O1 -W -Wall -Werror -fPIC))
+	(flags :standard -warn-error -a+8)
 	(wrapped false)
-	(modules objsize)
-)
+	(modules objsize))

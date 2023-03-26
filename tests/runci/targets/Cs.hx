@@ -5,8 +5,7 @@ import runci.System.*;
 import runci.Config.*;
 
 class Cs {
-	static var miscCsDir(get,never):String;
-	static inline function get_miscCsDir() return miscDir + 'cs/';
+	static final miscCsDir = getMiscSubDir('cs');
 
 	static public function getCsDependencies() {
 		switch (systemName) {
@@ -20,16 +19,10 @@ class Cs {
 				if (commandSucceed("mono", ["--version"]))
 					infoMsg('mono has already been installed.');
 				else
-					runCommand("brew", ["install", "mono"], true);
+					runNetworkCommand("brew", ["install", "mono"]);
 				runCommand("mono", ["--version"]);
 			case "Windows":
-				switch (ci) {
-					case AppVeyor:
-						addToPATH("C:\\Program Files (x86)\\Mono\\bin");
-						runCommand("mono", ["--version"]);
-					case _:
-						//pass
-				}
+				//pass
 		}
 
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
@@ -39,7 +32,7 @@ class Cs {
 		if (args == null) args = [];
 		exe = FileSystem.fullPath(exe);
 		switch (systemName) {
-			case "Linux", "Mac":
+			case "Linux" | "Mac":
 				runCommand("mono", [exe].concat(args));
 			case "Windows":
 				runCommand(exe, args);
@@ -49,40 +42,39 @@ class Cs {
 	static public function run(args:Array<String>) {
 		getCsDependencies();
 
-		var compl = switch [ci, systemName] {
-			case [TravisCI, "Linux"]:
-				"-travis";
-			case _:
-				"";
-		};
-
 		for (fastcast in      [[], ["-D", "fast_cast"]])
 		for (noroot in        [[], ["-D", "no_root"]])
 		for (erasegenerics in [[], ["-D", "erase_generics"]])
 		{
-			var extras = fastcast.concat(erasegenerics).concat(noroot);
-			runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras).concat(args));
+			final extras = fastcast.concat(erasegenerics).concat(noroot);
+			runCommand("haxe", ['compile-cs.hxml'].concat(extras).concat(args));
 			runCs("bin/cs/bin/TestMain-Debug.exe");
 
-			runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras).concat(args));
+			runCommand("haxe", ['compile-cs-unsafe.hxml'].concat(extras).concat(args));
 			runCs("bin/cs_unsafe/bin/TestMain-Debug.exe");
 		}
 
-		runCommand("haxe", ['compile-cs$compl.hxml','-dce','no'].concat(args));
+		runCommand("haxe", ['compile-cs.hxml','-dce','no'].concat(args));
 		runCs("bin/cs/bin/TestMain-Debug.exe");
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast'].concat(args));
-		runCs("bin/cs/bin/Main-Debug.exe", []);
+		final exe = FileSystem.fullPath("bin/cs/bin/Main-Debug.exe");
+		switch (systemName) {
+			case "Windows":
+				runSysTest(exe);
+			case _:
+				runSysTest("mono", [exe]);
+		}
 
-		// changeDirectory(threadsDir);
-		// runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
-		// runCs("export/cs/bin/Main.exe");
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
+		runCs("export/cs/bin/Main.exe");
 
 		changeDirectory(miscCsDir);
 		runCommand("haxe", ["run.hxml"]);
 
-		changeDirectory(miscCsDir + "csTwoLibs");
+		changeDirectory(getMiscSubDir("cs", "csTwoLibs"));
 		for (i in 1...5)
 		{
 			runCommand("haxe", ['compile-$i.hxml','-D','fast_cast']);

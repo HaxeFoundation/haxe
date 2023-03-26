@@ -23,18 +23,45 @@
 package sys.thread;
 
 import cs.system.threading.Thread as NativeThread;
+import cs.system.threading.Mutex as NativeMutex;
 import cs.system.WeakReference;
 import cs.Lib;
 
-abstract Thread(HaxeThread) {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
+	public var events(get,never):EventLoop;
+
 	inline function new(thread:HaxeThread) {
 		this = thread;
 	}
 
-	public static function create(cb:Void->Void):Thread {
-		var native = new NativeThread(cb);
+	public static function create(job:Void->Void):Thread {
+		var hx:Null<HaxeThread> = null;
+		var native = new NativeThread(job);
 		native.IsBackground = true;
-		var hx = HaxeThread.allocate(native);
+		hx = HaxeThread.allocate(native, false);
+		native.Start();
+
+		return new Thread(hx);
+	}
+
+	public static inline function runWithEventLoop(job:()->Void):Void {
+		HaxeThread.runWithEventLoop(job);
+	}
+
+	public static inline function createWithEventLoop(job:()->Void):Thread {
+		var hx:Null<HaxeThread> = null;
+		var native = new NativeThread(() -> {
+			job();
+			if(hx == null) {
+				HaxeThread.get(NativeThread.CurrentThread).events.loop();
+			} else {
+				hx.events.loop();
+			}
+		});
+		native.IsBackground = true;
+		hx = HaxeThread.allocate(native, true);
 		native.Start();
 
 		return new Thread(hx);
@@ -55,30 +82,57 @@ abstract Thread(HaxeThread) {
 	inline function readMessageImpl(block:Bool):Dynamic {
 		return this.readMessage(block);
 	}
+
+	function get_events():EventLoop {
+		if(this.events == null)
+			throw new NoEventLoopException();
+		return this.events;
+	}
+
+	@:keep
+	static function processEvents():Void {
+		HaxeThread.get(NativeThread.CurrentThread).events.loop();
+	}
 }
 
 private class HaxeThread {
-	static final threads = new Map<Int, WeakReference>();
-	static var allocateCount = 0;
+	static var mainNativeThread:NativeThread;
+	static var mainHaxeThread:HaxeThread;
+	static var threads:Map<Int, WeakReference>;
+	static var threadsMutex:NativeMutex;
+	static var allocateCount:Int;
+
+	static function __init__() {
+		threads = new Map();
+		threadsMutex = new NativeMutex();
+		allocateCount = 0;
+		mainNativeThread = NativeThread.CurrentThread;
+		mainHaxeThread = new HaxeThread(NativeThread.CurrentThread);
+		mainHaxeThread.events = new EventLoop();
+	}
 
 	public final native:NativeThread;
+	public var events(default,null):Null<EventLoop>;
 
 	final messages = new Deque<Dynamic>();
 
 	public static function get(native:NativeThread):HaxeThread {
+		if(native == mainNativeThread) {
+			return mainHaxeThread;
+		}
 		var native = NativeThread.CurrentThread;
-		var ref:Null<WeakReference> = null;
-		Lib.lock(threads, {
-			var key = native.ManagedThreadId;
-			ref = threads.get(key);
-		});
+		var key = native.ManagedThreadId;
+		threadsMutex.WaitOne();
+		var ref = threads.get(key);
+		threadsMutex.ReleaseMutex();
 		if (ref == null || !ref.IsAlive) {
-			return allocate(native);
+			return allocate(native, false);
 		}
 		return ref.Target;
 	}
 
-	public static function allocate(native:NativeThread):HaxeThread {
+	public static function allocate(native:NativeThread, withEventLoop:Bool):HaxeThread {
+		threadsMutex.WaitOne();
 		allocateCount++;
 		inline function cleanup() {
 			if (allocateCount % 100 == 0) {
@@ -90,15 +144,33 @@ private class HaxeThread {
 			}
 		}
 		var hx = new HaxeThread(native);
+		if(withEventLoop)
+			hx.events = new EventLoop();
 		var ref = new WeakReference(hx);
-		Lib.lock(threads, {
-			cleanup();
-			threads.set(native.ManagedThreadId, ref);
-		});
+		cleanup();
+		threads.set(native.ManagedThreadId, ref);
+		threadsMutex.ReleaseMutex();
 		return hx;
 	}
 
-	public function new(native:NativeThread) {
+	public static function runWithEventLoop(job:()->Void):Void {
+		var thread = get(NativeThread.CurrentThread);
+		if(thread.events == null) {
+			thread.events = new EventLoop();
+			try {
+				job();
+				thread.events.loop();
+				thread.events = null;
+			} catch(e) {
+				thread.events = null;
+				throw e;
+			}
+		} else {
+			job();
+		}
+	}
+
+	function new(native:NativeThread) {
 		this.native = native;
 	}
 

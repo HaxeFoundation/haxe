@@ -51,6 +51,7 @@ extern class Object {
 	/**
 		Adds the named property described by a given descriptor to an object.
 	**/
+	@:overload(function<T:{}>(obj:T, prop:Symbol, descriptor:ObjectPropertyDescriptor):T {})
 	static function defineProperty<T:{}>(obj:T, prop:String, descriptor:ObjectPropertyDescriptor):T;
 
 	/**
@@ -73,6 +74,8 @@ extern class Object {
 	/**
 		Returns a property descriptor for a named property on an object.
 	**/
+	@:overload(function<T>(target:Array<T>, propertyKey:Int):Null<ObjectPropertyDescriptor> {})
+	@:overload(function(obj:{}, prop:Symbol):Null<ObjectPropertyDescriptor> {})
 	@:pure static function getOwnPropertyDescriptor(obj:{}, prop:String):Null<ObjectPropertyDescriptor>;
 
 	/**

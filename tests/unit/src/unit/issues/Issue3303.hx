@@ -7,7 +7,7 @@ class Issue3303 extends Test {
 		eq(null,ret());
 	}
 
-	static function createClosure<T>(v:Vector<T>):Void->Vector<T>
+	static function createClosure<T>(v:Vector<T>):()->Vector<T>
 	{
 		return function() return v;
 	}

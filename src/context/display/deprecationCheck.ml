@@ -4,15 +4,18 @@ open Common
 open Ast
 
 let curclass = ref null_class
+let curfield = ref null_field
 
 let warned_positions = Hashtbl.create 0
 
 let warn_deprecation com s p_usage =
-	if not (Hashtbl.mem warned_positions p_usage) then begin
-		Hashtbl.replace warned_positions p_usage s;
-		match com.display.dms_kind with
-		| DMDiagnostics _ -> ()
-		| _ -> com.warning s p_usage;
+	let pkey p = (p.pfile,p.pmin) in
+	if not (Hashtbl.mem warned_positions (pkey p_usage)) then begin
+		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
+		if not (is_diagnostics com) then begin
+			let options = Warning.from_meta (!curclass.cl_meta @ !curfield.cf_meta) in
+			com.warning WDeprecated options s p_usage;
+		end
 	end
 
 let print_deprecation_message com meta s p_usage =
@@ -80,7 +83,14 @@ let run_on_expr com e =
 	in
 	expr e
 
-let run_on_field com cf = match cf.cf_expr with None -> () | Some e -> run_on_expr com e
+let run_on_field com cf =
+	match cf.cf_expr with
+	| None ->
+		()
+	| Some e ->
+		curfield := cf;
+		run_on_expr com e;
+		curfield := null_field
 
 let run com =
 	List.iter (fun t -> match t with
@@ -94,3 +104,35 @@ let run com =
 		| _ ->
 			()
 	) com.types
+
+let if_enabled ?(force=false) com fn =
+	if force || not (defined com Define.NoDeprecationWarnings) then fn()
+
+let warn_deprecation ?(force=false) com s p_usage = if_enabled ~force com (fun() -> warn_deprecation com s p_usage)
+
+let print_deprecation_message ?(force=false) com meta s p_usage = if_enabled ~force com (fun() -> print_deprecation_message com meta s p_usage)
+
+let check_meta ?(force=false) com meta s p_usage = if_enabled ~force com (fun() -> check_meta com meta s p_usage)
+
+let check_cf ?(force=false) com cf p = if_enabled ~force com (fun() -> check_cf com cf p)
+
+let check_class ?(force=false) com c p = if_enabled ~force com (fun() -> check_class com c p)
+
+let check_enum ?(force=false) com en p = if_enabled ~force com (fun() -> check_enum com en p)
+
+let check_ef ?(force=false) com ef p = if_enabled ~force com (fun() -> check_ef com ef p)
+
+let check_typedef ?(force=false) com t p = if_enabled ~force com (fun() -> check_typedef com t p)
+
+let check_module_type ?(force=false) com mt p = if_enabled ~force com (fun() -> check_module_type com mt p)
+
+let run_on_expr ?(force=false) com e = if_enabled ~force com (fun() -> run_on_expr com e)
+
+let run_on_field ?(force=false) com cf = if_enabled ~force com (fun() -> run_on_field com cf)
+
+let run ?(force=false) com = if_enabled ~force com (fun() -> run com)
+
+let check_is com name meta p =
+	()
+	(* if name = "is" && not (Meta.has Meta.Deprecated meta) then
+		warn_deprecation com "Using \"is\" as an identifier is deprecated" p *)

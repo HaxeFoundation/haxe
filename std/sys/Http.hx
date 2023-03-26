@@ -33,6 +33,8 @@ class Http extends haxe.http.HttpBase {
 	public var cnxTimeout:Float;
 	public var responseHeaders:Map<String, String>;
 
+	private var responseHeadersSameKey:Map<String, Array<String>>;
+
 	var chunk_size:Null<Int>;
 	var chunk_buf:haxe.io.Bytes;
 	var file:{
@@ -104,12 +106,12 @@ class Http extends haxe.http.HttpBase {
 				sock = new java.net.SslSocket();
 				#elseif python
 				sock = new python.net.SslSocket();
-				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp))))
+				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp) || eval) || (lua && !lua_vanilla)))
 				sock = new sys.ssl.Socket();
 				#elseif (neko || cpp)
 				throw "Https is only supported with -lib hxssl";
 				#else
-				throw "Https support in haxe.Http is not implemented for this target";
+				throw new haxe.exceptions.NotImplementedException("Https support in haxe.Http is not implemented for this target");
 				#end
 			} else {
 				sock = new Socket();
@@ -239,9 +241,9 @@ class Http extends haxe.http.HttpBase {
 			else
 				sock.connect(new Host(host), port);
 			if (multipart)
-				writeBody(b,file.io,file.size,boundary,sock)
+				writeBody(b, file.io, file.size, boundary, sock)
 			else
-				writeBody(b,null,0,null,sock);
+				writeBody(b, null, 0, null, sock);
 			readHttpResponse(api, sock);
 			sock.close();
 		} catch (e:Dynamic) {
@@ -249,6 +251,23 @@ class Http extends haxe.http.HttpBase {
 				sock.close()
 			catch (e:Dynamic) {};
 			onError(Std.string(e));
+		}
+	}
+
+	/**
+		Returns an array of values for a single response header or returns
+		null if no such header exists.
+		This method can be useful when you need to get a multiple headers with
+		the same name (e.g. `Set-Cookie`), that are unreachable via the
+		`responseHeaders` variable.
+	**/
+	public function getResponseHeaderValues(key:String):Null<Array<String>> {
+		var array = responseHeadersSameKey.get(key);
+		if (array == null) {
+			var singleValue = responseHeaders.get(key);
+			return (singleValue == null) ? null : [ singleValue ];
+		} else {
+			return array;
 		}
 	}
 
@@ -284,9 +303,13 @@ class Http extends haxe.http.HttpBase {
 		var s = haxe.io.Bytes.alloc(4);
 		sock.setTimeout(cnxTimeout);
 		while (true) {
-			var p = sock.input.readBytes(s, 0, k);
-			while (p != k)
-				p += sock.input.readBytes(s, p, k - p);
+			var p = 0;
+			while (p != k) {
+				try {
+					p += sock.input.readBytes(s, p, k - p);
+				}
+				catch (e:haxe.io.Eof) { }
+			}
 			b.addBytes(s, 0, k);
 			switch (k) {
 				case 1:
@@ -362,6 +385,22 @@ class Http extends haxe.http.HttpBase {
 			var hname = a.shift();
 			var hval = if (a.length == 1) a[0] else a.join(": ");
 			hval = StringTools.ltrim(StringTools.rtrim(hval));
+
+			{
+				var previousValue = responseHeaders.get(hname);
+				if (previousValue != null) {
+					if (responseHeadersSameKey == null) {
+						responseHeadersSameKey = new haxe.ds.Map<String, Array<String>>();
+					}
+					var array = responseHeadersSameKey.get(hname);
+					if (array == null) {
+						array = new Array<String>();
+						array.push(previousValue);
+						responseHeadersSameKey.set(hname, array);
+					}
+					array.push(hval);
+				}
+			}
 			responseHeaders.set(hname, hval);
 			switch (hname.toLowerCase()) {
 				case "content-length":
@@ -478,13 +517,13 @@ class Http extends haxe.http.HttpBase {
 	}
 
 	/**
-		Makes a synchronous request to `url`.
+	Makes a synchronous request to `url`.
 
-		This creates a new Http instance and makes a GET request by calling its
-		`request(false)` method.
+	This creates a new Http instance and makes a GET request by calling its
+	`request(false)` method.
 
-		If `url` is null, the result is unspecified.
-	**/
+	If `url` is null, the result is unspecified.
+**/
 	public static function requestUrl(url:String):String {
 		var h = new Http(url);
 		var r = null;

@@ -49,6 +49,14 @@ private typedef NativeString = String;
 
 	@:functionCode('
 			int sIndex = (startIndex != null ) ? (haxe.lang.Runtime.toInt(startIndex)) : 0;
+			if(str == "") {
+				int length = me.length();
+				if(sIndex < 0) {
+					sIndex = length + sIndex;
+					if(sIndex < 0) sIndex = 0;
+				}
+				return sIndex > length ? length : sIndex;
+			}
 			if (sIndex >= me.length() || sIndex < 0)
 				return -1;
 			return me.indexOf(str, sIndex);
@@ -63,6 +71,9 @@ private typedef NativeString = String;
 				sIndex = me.length() - 1;
 			else if (sIndex < 0)
 				return -1;
+			if (str.length() == 0) {
+				return startIndex == null || haxe.lang.Runtime.toInt(startIndex) > me.length() ? me.length() : haxe.lang.Runtime.toInt(startIndex);
+			}
 			return me.lastIndexOf(str, sIndex);
 	')
 	public static function lastIndexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int {
