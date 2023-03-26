@@ -470,7 +470,8 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HNull t -> "null(" ^ tstr t ^ ")"
 	| HPacked t -> "packed(" ^ tstr t ^ ")"
 
-let ostr fstr o =
+let ostr fstr i o =
+	let jump_target d = Printf.sprintf "@%X" (i + d + 1) in
 	match o with
 	| OMov (a,b) -> Printf.sprintf "mov %d,%d" a b
 	| OInt (r,i) -> Printf.sprintf "int %d,@%d" r i
@@ -511,21 +512,21 @@ let ostr fstr o =
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| ORet r -> Printf.sprintf "ret %d" r
-	| OJTrue (r,d) -> Printf.sprintf "jtrue %d,%d" r d
-	| OJFalse (r,d) -> Printf.sprintf "jfalse %d,%d" r d
-	| OJNull (r,d) -> Printf.sprintf "jnull %d,%d" r d
-	| OJNotNull (r,d) -> Printf.sprintf "jnotnull %d,%d" r d
-	| OJSLt (a,b,i) -> Printf.sprintf "jslt %d,%d,%d" a b i
-	| OJSGte (a,b,i) -> Printf.sprintf "jsgte %d,%d,%d" a b i
-	| OJSGt (r,a,b) -> Printf.sprintf "jsgt %d,%d,%d" r a b
-	| OJSLte (r,a,b) -> Printf.sprintf "jslte %d,%d,%d" r a b
-	| OJULt (a,b,i) -> Printf.sprintf "jult %d,%d,%d" a b i
-	| OJUGte (a,b,i) -> Printf.sprintf "jugte %d,%d,%d" a b i
-	| OJNotLt (a,b,i) -> Printf.sprintf "jnotlt %d,%d,%d" a b i
-	| OJNotGte (a,b,i) -> Printf.sprintf "jnotgte %d,%d,%d" a b i
-	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
-	| OJNotEq (a,b,i) -> Printf.sprintf "jnoteq %d,%d,%d" a b i
-	| OJAlways d -> Printf.sprintf "jalways %d" d
+	| OJTrue (r,d) -> Printf.sprintf "jtrue %d,%s" r (jump_target d)
+	| OJFalse (r,d) -> Printf.sprintf "jfalse %d,%s" r (jump_target d)
+	| OJNull (r,d) -> Printf.sprintf "jnull %d,%s" r (jump_target d)
+	| OJNotNull (r,d) -> Printf.sprintf "jnotnull %d,%s" r (jump_target d)
+	| OJSLt (a,b,i) -> Printf.sprintf "jslt %d,%d,%s" a b (jump_target i)
+	| OJSGte (a,b,i) -> Printf.sprintf "jsgte %d,%d,%s" a b (jump_target i)
+	| OJSGt (r,a,b) -> Printf.sprintf "jsgt %d,%d,%s" r a (jump_target b)
+	| OJSLte (r,a,b) -> Printf.sprintf "jslte %d,%d,%s" r a (jump_target b)
+	| OJULt (a,b,i) -> Printf.sprintf "jult %d,%d,%s" a b (jump_target i)
+	| OJUGte (a,b,i) -> Printf.sprintf "jugte %d,%d,%s" a b (jump_target i)
+	| OJNotLt (a,b,i) -> Printf.sprintf "jnotlt %d,%d,%s" a b (jump_target i)
+	| OJNotGte (a,b,i) -> Printf.sprintf "jnotgte %d,%d,%s" a b (jump_target i)
+	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%s" a b (jump_target i)
+	| OJNotEq (a,b,i) -> Printf.sprintf "jnoteq %d,%d,%s" a b (jump_target i)
+	| OJAlways d -> Printf.sprintf "jalways %s" (jump_target d)
 	| OToDyn (r,a) -> Printf.sprintf "todyn %d,%d" r a
 	| OToSFloat (r,a) -> Printf.sprintf "tosfloat %d,%d" r a
 	| OToUFloat (r,a) -> Printf.sprintf "toufloat %d,%d" r a
@@ -635,13 +636,15 @@ let dump pr code =
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
+		let max_istr = String.length (Printf.sprintf "@%X" (Array.length f.code)) in
 		Array.iteri (fun i o ->
 			let fid, line = f.debug.(i) in
 			if fid <> !cur_fid then begin
 				cur_fid := fid;
 				pr (Printf.sprintf "	; %s" (debug_infos (fid,line)));
 			end;
-			pr (Printf.sprintf "		.%-5d @%X %s" line i (ostr fstr o))
+			let istr = Printf.sprintf "@%X" i in
+			pr (Printf.sprintf "		.%-5d %*s %s" line max_istr istr (ostr fstr i o))
 		) f.code;
 	) code.functions;
 	let protos = Hashtbl.fold (fun _ p acc -> p :: acc) all_protos [] in

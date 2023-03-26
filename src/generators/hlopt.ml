@@ -614,7 +614,7 @@ let remap_fun ctx f dump get_str old_code =
 			let live = "LIVE=" ^ String.concat "," (List.map string_of_int (live_loop 0 [])) in
 			let var_set = (try let v = Hashtbl.find old_assigns i in "set " ^ get_str v with Not_found -> "") in
 			let nvar_set = (try let v = Hashtbl.find new_assigns i in "set " ^ String.concat "," (List.map get_str !v) with Not_found -> "") in
-			write (Printf.sprintf "\t@%-3X %-20s %-20s %-20s %-20s %s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op) var_set nvar_set live);
+			write (Printf.sprintf "\t@%-3X %-20s %-20s %-20s %-20s %s" i (ostr string_of_int i old) (if opcode_eq old op then "" else ostr string_of_int i op) var_set nvar_set live);
 			loop (i + 1) block
 		in
 		write (Printf.sprintf "%s@%d" (fundecl_name f) f.findex);

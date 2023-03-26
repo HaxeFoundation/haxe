@@ -731,7 +731,7 @@ let generate_function ctx f =
 			label
 		in
 		let todo() =
-			sexpr "hl_fatal(\"%s\")" (ostr (fun id -> "f" ^ string_of_int id) op)
+			sexpr "hl_fatal(\"%s\")" (ostr (fun id -> "f" ^ string_of_int id) i op)
 		in
 		let rec compare_op op a b d =
 			let phys_compare() =
