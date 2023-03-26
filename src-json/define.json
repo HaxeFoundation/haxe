@@ -580,6 +580,11 @@
 		"platforms": ["cs", "java"]
 	},
 	{
+		"name": "RetainUntypedMeta",
+		"define": "retain-untyped-meta",
+		"doc": "Prevents arbitrary expression metadata from being discarded upon typing."
+	},
+	{
 		"name": "Scriptable",
 		"define": "scriptable",
 		"doc": "GenCPP internal.",
