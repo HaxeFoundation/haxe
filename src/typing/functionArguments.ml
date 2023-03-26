@@ -46,7 +46,7 @@ class function_arguments
 	(syntax : (placed_name * bool * metadata * type_hint option * expr option) list)
 =
 	let with_default =
-		let l = List.mapi (fun i ((name,pn),opt,m,t,eo) ->
+		let l = List.mapi (fun i ((name,pn),opt,_,t,eo) ->
 			let t = type_arg i opt t pn in
 			let t,eo = type_function_arg ctx t eo opt pn in
 			(name,eo,t)

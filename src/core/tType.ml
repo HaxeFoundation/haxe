@@ -126,6 +126,7 @@ and tvar_kind =
 	| VInlined
 	| VInlinedConstructorVariable
 	| VExtractorVariable
+	| VAbstractThis
 
 and tvar = {
 	mutable v_id : int;

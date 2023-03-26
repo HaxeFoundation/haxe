@@ -273,7 +273,7 @@ let transform_abstract_field com this_t a_t a f =
 	| FProp _ when not stat && not (Meta.has Meta.Enum f.cff_meta) ->
 		typing_error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
-		let init p = (EVars [mk_evar ~t:this_t ("this",null_pos)],p) in
+		let init p = (EVars [mk_evar ~t:this_t ~meta:([Meta.This,[],null_pos]) ("this",null_pos)],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 		let meta = (Meta.NoCompletion,[],null_pos) :: f.cff_meta in

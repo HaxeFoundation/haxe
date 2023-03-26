@@ -704,7 +704,11 @@ and type_vars ctx vl p =
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			let v = add_local_with_origin ctx TVOLocalVariable n t pv in
+			let v = if Meta.has Meta.This ev.ev_meta then
+				add_local ctx VAbstractThis n t pv
+			else
+				add_local_with_origin ctx TVOLocalVariable n t pv
+			in
 			v.v_meta <- ev.ev_meta;
 			DisplayEmitter.check_display_metadata ctx v.v_meta;
 			if ev.ev_final then add_var_flag v VFinal;
