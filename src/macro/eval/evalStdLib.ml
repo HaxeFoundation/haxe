@@ -1401,7 +1401,7 @@ module StdHost = struct
 
 	let resolve = vfun1 (fun name ->
 		let name = decode_string name in
-		let h = catch_unix_error Unix.gethostbyname name in
+		let h = try Unix.gethostbyname name with Not_found -> exc_string (Printf.sprintf "Could not resolve host %s" name) in
 		let addr = catch_unix_error Unix.string_of_inet_addr h.h_addr_list.(0) in
 		let a, b, c, d = Scanf.sscanf addr "%d.%d.%d.%d" (fun a b c d -> a,b,c,d) in
 		vint32 (Int32.logor (Int32.shift_left (Int32.of_int a) 24) (Int32.of_int (d lor (c lsl 8) lor (b lsl 16))))
