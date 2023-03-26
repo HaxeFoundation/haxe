@@ -37,8 +37,7 @@ private class Complex {
 class Issue10765 {
 	@:js('
 		var buffer = new ArrayBuffer(80);
-		var this1 = new DataView(buffer,0,buffer.byteLength);
-		var array = this1;
+		var array = new DataView(buffer,0,buffer.byteLength);
 		var real = array.getFloat32(0);
 		var imag = array.getFloat32(4);
 		array.setFloat32(0,real + real);
