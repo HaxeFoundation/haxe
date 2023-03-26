@@ -67,9 +67,12 @@ let format_pos p =
 let uncaught_exception_string v p extra =
 	(Printf.sprintf "%s : Uncaught exception %s%s" (format_pos p) (value_string v) extra)
 
-let get_exc_error_message ctx v stack p =
+let get_exc_error_stack ctx stack =
 	let pl = List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
-	let pl = List.filter (fun p -> p <> null_pos) pl in
+	List.filter (fun p -> p <> null_pos) pl
+
+let get_exc_error_message ctx v stack p =
+	let pl = get_exc_error_stack ctx stack in
 	match pl with
 	| [] ->
 		uncaught_exception_string v p ""
@@ -143,9 +146,9 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 							)
 						| _ -> null_pos
 					in
-					raise (Error.Error (Error.Custom s.sstring,p))
+					raise (Error.Error (Error.Custom s.sstring,p,0))
 				| _ ->
-					Error.error "Something went wrong" null_pos
+					Error.typing_error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
 			let stack = match stack with
@@ -153,10 +156,10 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
 				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
 			in
-			let msg = get_exc_error_message ctx v stack (if p' = null_pos then p else p') in
+			let stack = get_exc_error_stack ctx stack in
 			reset_ctx();
 			final();
-			Error.error msg null_pos
+			Error.call_stack_error (value_string v) stack (if p' = null_pos then p else p')
 		end
 	| MacroApi.Abort ->
 		final();

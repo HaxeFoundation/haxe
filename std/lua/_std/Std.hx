@@ -58,28 +58,24 @@ import lua.NativeStringTools;
 	public static function parseInt(x:String):Null<Int> {
 		if (x == null)
 			return null;
-		var hexMatch = NativeStringTools.match(x, "^[ \t\r\n]*([%-+]*0[xX][%da-fA-F]*)");
-		if (hexMatch != null) {
-			var sign = switch StringTools.fastCodeAt(hexMatch, 0) {
-				case '-'.code: -1;
-				case '+'.code: 1;
-				case _: 0;
-			}
-			return (sign == -1 ? -1 : 1) * lua.Lua.tonumber(hexMatch.substr(sign == 0 ? 2 : 3), 16);
-		} else {
-			var intMatch = NativeStringTools.match(x, "^ *[%-+]?%d*");
-			if (intMatch != null) {
-				return lua.Lua.tonumber(intMatch);
-			} else {
-				return null;
-			}
+		untyped {
+			__lua__("local sign, numString = {0}", NativeStringTools.match(x, "^%s*([%-+]?)0[xX]([%da-fA-F]*)"));
+			if (numString != null)
+				return switch sign {
+					case '-': -lua.Lua.tonumber(numString, 16);
+					case _: lua.Lua.tonumber(numString, 16);
+				}
 		}
+		final intMatch = NativeStringTools.match(x, "^%s*[%-+]?%d*");
+		if (intMatch == null)
+			return null;
+		return lua.Lua.tonumber(intMatch);
 	}
 
 	public static function parseFloat(x:String):Float {
 		if (x == null || x == "")
 			return Math.NaN;
-		var digitMatch = NativeStringTools.match(x, "^ *[%.%-+]?[0-9]%d*");
+		var digitMatch = NativeStringTools.match(x, "^%s*[%.%-+]?[0-9]%d*");
 		if (digitMatch == null) {
 			return Math.NaN;
 		}

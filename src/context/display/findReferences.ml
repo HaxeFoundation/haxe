@@ -4,7 +4,6 @@ open DisplayTypes
 open Common
 open Type
 open Typecore
-open CompilationServer
 open ImportHandling
 
 let find_possible_references tctx cs =

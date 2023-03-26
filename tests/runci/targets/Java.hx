@@ -1,13 +1,13 @@
 package runci.targets;
 
 import sys.FileSystem;
+import haxe.io.Path;
 import runci.System.*;
 import runci.Config.*;
 using StringTools;
 
 class Java {
-	static var miscJavaDir(get,never):String;
-	static inline function get_miscJavaDir() return miscDir + 'java/';
+	static final miscJavaDir = getMiscSubDir('java');
 
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
@@ -29,27 +29,24 @@ class Java {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-java.hxml"].concat(args));
-		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
+		runSysTest("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-java", "export/java"].concat(args));
 		runCommand("java", ["-jar", "export/java/Main.jar"]);
 
 		infoMsg("Testing java-lib extras");
-		changeDirectory('$unitDir/bin');
-		if (!FileSystem.exists('java-lib-tests')) {
-			runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
-		}
-		for (dir in FileSystem.readDirectory('java-lib-tests'))
-		{
-			var path = 'java-lib-tests/$dir';
-			if (FileSystem.isDirectory(path)) for (file in FileSystem.readDirectory(path))
-			{
-				if (file.endsWith('.hxml'))
-				{
-					runCommand("haxe", ["--cwd",'java-lib-tests/$dir',file]);
-				}
-			}
+		changeDirectory(Path.join([unitDir, 'bin']));
+		final libTestDir = 'java-lib-tests';
+		if (!FileSystem.exists(libTestDir))
+			runNetworkCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"]);
+
+		for (dir in FileSystem.readDirectory(libTestDir)) {
+			final path = Path.join([libTestDir, dir]);
+			if (FileSystem.isDirectory(path))
+				for (file in FileSystem.readDirectory(path))
+					if (file.endsWith('.hxml'))
+						runCommand("haxe", ["--cwd", path, file]);
 		}
 	}
 }

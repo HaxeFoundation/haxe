@@ -43,24 +43,6 @@ class ArrayDynIterator extends ArrayIterator<Dynamic> {
 	}
 }
 
-class ArrayDynKeyValueIterator extends ArrayKeyValueIterator<Dynamic> {
-	var a : ArrayBase;
-
-	public function new(a) {
-		super((null:Dynamic));
-		this.a = a;
-	}
-
-	override public function hasNext() {
-		return current < a.length;
-	}
-
-	override public function next() {
-		var v = a.getDyn(current);
-		return {key:current++, value:v};
-	}
-}
-
 @:keep
 class ArrayDyn extends ArrayAccess {
 	public var length(get, never):Int;
@@ -195,7 +177,7 @@ class ArrayDyn extends ArrayAccess {
 	}
 
 	public function keyValueIterator() : ArrayKeyValueIterator<Dynamic> {
-		return new ArrayDynKeyValueIterator(array);
+		return new ArrayKeyValueIterator(cast array);
 	}
 
 	public function map(f:Dynamic->Dynamic):ArrayDyn {

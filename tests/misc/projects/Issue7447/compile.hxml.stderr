@@ -1,2 +1,2 @@
-Main.hx:4: characters 15-16 : Warning : Local variable v might be used before being initialized
-Main.hx:10: characters 15-19 : Warning : this might be used before assigning a value to it
+Main.hx:4: characters 15-16 : Warning : (WVarInit) Local variable v might be used before being initialized
+Main.hx:10: characters 15-19 : Warning : (WVarInit) this might be used before assigning a value to it

@@ -22,7 +22,9 @@
 
 package sys.thread;
 
-abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
+private typedef ThreadImpl = HaxeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 	public var events(get,never):EventLoop;
 
 	public inline function sendMessage(msg:Dynamic):Void {
@@ -56,11 +58,6 @@ abstract Thread(HaxeThread) from HaxeThread to HaxeThread {
 	}
 
 	@:keep
-	static function initEventLoop() {
-		@:privateAccess HaxeThread.current().events = new EventLoop();
-	}
-
-	@:keep
 	static public function processEvents() {
 		HaxeThread.current().events.loop();
 	}
@@ -74,10 +71,18 @@ private typedef ThreadHandle = NativeThreadHandle;
 
 
 private class HaxeThread {
-	static final threads = new Array<{thread:HaxeThread, handle:ThreadHandle}>();
-	static final threadsMutex = new Mutex();
-	static var mainThreadHandle:ThreadHandle = currentHandle();
-	static var mainThread:HaxeThread = new HaxeThread(currentHandle());
+	static var threads:Array<{thread:HaxeThread, handle:ThreadHandle}>;
+	static var threadsMutex:Mutex;
+	static var mainThreadHandle:ThreadHandle;
+	static var mainThread:HaxeThread;
+
+	static function __init__() {
+		threads = [];
+		threadsMutex = new Mutex();
+		mainThreadHandle = currentHandle();
+		mainThread = new HaxeThread(currentHandle());		
+		mainThread.events = new EventLoop();
+	}
 
 	public var events(default,null):Null<EventLoop>;
 	public var handle:ThreadHandle;

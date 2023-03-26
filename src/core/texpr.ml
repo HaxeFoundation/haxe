@@ -505,7 +505,7 @@ module Builder = struct
 		| TFloat f -> mk (TConst (TFloat f)) basic.tfloat p
 		| TBool b -> mk (TConst (TBool b)) basic.tbool p
 		| TNull -> mk (TConst TNull) (basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
+		| _ -> typing_error "Unsupported constant" p
 
 	let field e name t p =
 		let f =
@@ -566,19 +566,22 @@ let rec constructor_side_effects e =
 		with Exit ->
 			true
 
+let replace_separators s c =
+	String.concat c (ExtString.String.nsplit s "_")
+
 let type_constant basic c p =
 	match c with
-	| Int s ->
-		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
+	| Int (s,_) ->
+		if String.length s > 10 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
 		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
 		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
+	| Float (f,_) -> mk (TConst (TFloat f)) basic.tfloat p
 	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
 	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
-	| Ident t -> error ("Invalid constant :  " ^ t) p
-	| Regexp _ -> error "Invalid constant" p
+	| Ident t -> typing_error ("Invalid constant :  " ^ t) p
+	| Regexp _ -> typing_error "Invalid constant" p
 
 let rec type_constant_value basic (e,p) =
 	match e with
@@ -591,16 +594,16 @@ let rec type_constant_value basic (e,p) =
 	| EArrayDecl el ->
 		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->
-		error "Constant value expected" p
+		typing_error "Constant value expected" p
 
 let is_constant_value basic e =
-	try (ignore (type_constant_value basic e); true) with Error (Custom _,_) -> false
+	try (ignore (type_constant_value basic e); true) with Error (Custom _,_,_) -> false
 
 let for_remap basic v e1 e2 p =
 	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
 	let ev' = mk (TLocal v') e1.etype e1.epos in
 	let t1 = (Abstract.follow_with_abstracts e1.etype) in
-	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
+	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> typing_error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
 	let ehasnext = mk (TCall(ehasnext,[])) basic.tbool ehasnext.epos in
 	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
 	let enext = mk (TCall(enext,[])) v.v_type e1.epos in
@@ -635,7 +638,7 @@ let build_metadata api t =
 	let make_meta_field ml =
 		let h = Hashtbl.create 0 in
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
-			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
+			if Hashtbl.mem h f then typing_error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
 			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api) el)) (api.tarray t_dynamic) p
 		) ml)) t_dynamic p
@@ -757,7 +760,7 @@ let dump_with_pos tabs e =
 			add "TCast";
 			loop e1;
 		| TMeta((m,_,_),e1) ->
-			add ("TMeta " ^ fst (Meta.get_info m));
+			add ("TMeta " ^ (Meta.to_string m));
 			loop e1
 	in
 	loop' tabs e;
@@ -818,3 +821,103 @@ let reduce_unsafe_casts ?(require_cast=false) e t =
 	| { eexpr = TCast _ } as result -> result
 	| result when require_cast -> { e with eexpr = TCast(result,None) }
 	| result -> result
+
+(**
+	Returns a position spanning from the first expr to the last expr in `el`.
+	Returns `default_pos` if `el` is empty or values of `pfile` of the first and
+	the last positions are different.
+*)
+let punion_el default_pos el =
+	match el with
+	| [] -> default_pos
+	| [{ epos = p }] -> p
+	| { epos = first } :: { epos = last } :: el ->
+		let rec loop = function
+			| [] -> last
+			| [{ epos = last }] -> last
+			| _ :: el -> loop el
+		in
+		let last = loop el in
+		if first.pfile <> last.pfile then
+			default_pos
+		else
+			punion first last
+
+let is_exhaustive e1 def =
+	let rec loop e1 = match e1.eexpr with
+		| TMeta((Meta.Exhaustive,_,_),_) -> true
+		| TMeta(_, e1) | TParenthesis e1 -> loop e1
+		| _ -> false
+	in
+	def <> None || loop e1
+
+let rec is_true_expr e1 = match e1.eexpr with
+	| TConst(TBool true) -> true
+	| TParenthesis e1 -> is_true_expr e1
+	| _ -> false
+
+let rec is_false_expr e1 = match e1.eexpr with
+	| TConst(TBool false) -> true
+	| TParenthesis e1 -> is_false_expr e1
+	| _ -> false
+
+module DeadEnd = struct
+	exception BreakOrContinue
+
+	(*
+		Checks if execution of provided expression is guaranteed to be terminated with `return`, `throw`, `break` or `continue`.
+	*)
+	let has_dead_end e =
+		let rec loop e =
+			let in_loop e =
+				try
+					loop e
+				with BreakOrContinue ->
+					false
+			in
+			match e.eexpr with
+			| TContinue | TBreak ->
+				raise BreakOrContinue
+			| TThrow e1 ->
+				loop e1 || true
+			| TReturn (Some e1) ->
+				loop e1 || true (* recurse first, could be `return continue` *)
+			| TReturn None ->
+				true
+			| TFunction _ ->
+				false (* This isn't executed, so don't recurse *)
+			| TIf (cond, if_body, Some else_body) ->
+				loop cond || loop if_body && loop else_body
+			| TIf (cond, _, None) ->
+				loop cond
+			| TSwitch(e1, cases, def) ->
+				let check_exhaustive () =
+					(is_exhaustive e1 def) && List.for_all (fun (el,e) ->
+						List.exists loop el ||
+						loop e
+					) cases &&
+					Option.map_default (loop ) true def (* true because we know it's exhaustive *)
+				in
+				loop e1 || check_exhaustive ()
+			| TFor(_, e1, _) ->
+				loop e1
+			| TBinop(OpBoolAnd, e1, e2) ->
+				loop e1 || is_true_expr e1 && loop e2
+			| TBinop(OpBoolOr, e1, e2) ->
+				loop e1 || is_false_expr e1 && loop e2
+			| TWhile(cond, body, flag) ->
+				loop cond || ((flag = DoWhile || is_true_expr cond) && in_loop body)
+			| TTry(e1,[]) ->
+				loop e1
+			| TTry(_,catches) ->
+				(* The try expression is irrelevant because we have to conservatively assume that
+				   anything could throw control flow into the catch expressions. *)
+				List.for_all (fun (_,e) -> loop e) catches
+			| _ ->
+				check_expr loop e
+		in
+		try
+			loop e
+		with BreakOrContinue ->
+			true
+end

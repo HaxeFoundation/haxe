@@ -46,7 +46,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		untyped {
 			var ret = h[key];
 			if (ret == tnull) {
-				ret = null;
+				return null;
 			}
 			return ret;
 		}

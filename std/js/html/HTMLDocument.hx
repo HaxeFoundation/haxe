@@ -192,5 +192,6 @@ extern class HTMLDocument extends Document {
 	inline function createTableRowElement() : TableRowElement { return cast createElement("tr"); }
 	/** Shorthand for creating an HTML `<html>` element. */
 	inline function createHtmlElement() : HtmlElement { return cast createElement("html"); }
-	
+	/** Shorthand for creating an HTML `<dialog>` element. */
+	inline function createDialoglElement() : DialogElement { return cast createElement("dialog"); }
 }

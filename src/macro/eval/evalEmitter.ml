@@ -89,14 +89,25 @@ let emit_capture_declaration i exec env =
 
 let emit_const v _ = v
 
+let emit_null_check exec p env = match exec env with
+	| VNull -> throw_string "Null Access" p
+	| v -> v
+
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
-let emit_new_vector_int i env =
-	encode_vector_instance (Array.make i vnull)
+let emit_new_vector_int i p env =
+	if i < 0 then exc_string_p "Vector size must be >= 0" p;
+	let a = try
+		Array.make i vnull
+	with Invalid_argument _ ->
+		exc_string_p (Printf.sprintf "Not enough memory to allocate Vector of size %i" i) p;
+	in
+	encode_vector_instance a
 
 let emit_new_vector exec p env =
-	encode_vector_instance (Array.make (decode_int_p (exec env) p) vnull)
+	let i = decode_int_p (exec env) p in
+	emit_new_vector_int i p env
 
 let emit_special_instance f execs env =
 	let vl = List.map (apply env) execs in
@@ -107,7 +118,7 @@ let emit_object_declaration proto fa env =
 	Array.iter (fun (i,exec) -> a.(i) <- exec env) fa;
 	vobject {
 		ofields = a;
-		oproto = proto;
+		oproto = OProto proto;
 	}
 
 let emit_array_declaration execs env =
@@ -408,8 +419,12 @@ let emit_field_closure exec name env =
 let emit_anon_field_read exec proto i name p env =
 	match vresolve (exec env) with
 	| VObject o ->
-		if proto == o.oproto then o.ofields.(i)
-		else object_field o name
+		begin match o.oproto with
+		| OProto proto' when proto' == proto ->
+			o.ofields.(i)
+		| _ ->
+			object_field o name
+		end
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
 
@@ -481,10 +496,14 @@ let emit_anon_field_write exec1 p proto i name exec2 env =
 	let v2 = exec2 env in
 	begin match vresolve v1 with
 		| VObject o ->
-			if proto == o.oproto then begin
+			begin match o.oproto with
+			| OProto proto' when proto' == proto ->
 				o.ofields.(i) <- v2;
-			end else set_object_field o name v2
-		| VNull -> throw_string "field access on null" p
+			| _ ->
+				set_object_field o name v2
+			end
+		| VNull ->
+			throw_string "field access on null" p
 		| _ ->
 			set_field v1 name v2;
 	end;

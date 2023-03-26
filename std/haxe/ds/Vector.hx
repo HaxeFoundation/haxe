@@ -61,7 +61,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
-	public inline function new(length:Int) {
+	extern overload public inline function new(length:Int) {
 		#if flash10
 		this = new flash.Vector<T>(length, true);
 		#elseif neko
@@ -83,6 +83,43 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		this = [];
 		untyped this.length = length;
+		#end
+	}
+
+	/**
+		Creates a new Vector of length `length` filled with `defaultValue` elements.
+
+		Can be faster than `new Vector(length)` for iteration on some targets for non-nullable elements.
+
+		If `length` is less than or equal to 0, the result is unspecified.
+	**/
+	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
+		#if js
+		this = [for (_ in 0...length) defaultValue];
+		#elseif python
+		this = python.Syntax.code("[{0}]*{1}", defaultValue, length);
+		#else
+
+		#if flash10
+		this = new flash.Vector<T>(length, true);
+		#elseif neko
+		this = untyped __dollar__amake(length);
+		#elseif cs
+		this = new cs.NativeArray(length);
+		#elseif java
+		this = new java.NativeArray(length);
+		#elseif cpp
+		this = NativeArray.create(length);
+		#elseif lua
+		this = untyped __lua_table__({length: length});
+		#elseif eval
+		this = new eval.Vector(length);
+		#else
+		this = [];
+		untyped this.length = length;
+		#end
+		fill(defaultValue);
+
 		#end
 	}
 
@@ -140,6 +177,12 @@ abstract Vector<T>(VectorData<T>) {
 		return untyped this.length;
 		#end
 	}
+
+	/**
+		Sets all `length` elements of `this` Vector to `value`.
+	**/
+	public inline function fill(value:T):Void
+		for (i in 0...length) this[i] = value;
 
 	/**
 		Copies `length` of elements from `src` Vector, beginning at `srcPos` to

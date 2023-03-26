@@ -1,1 +1,1 @@
-Main1.hx:2: characters 2-17 : v: Static final variable must be initialized
+Main1.hx:2: characters 2-17 : Static final variable must be initialized

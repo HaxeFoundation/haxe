@@ -112,6 +112,8 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 
 @:build(Validator.checkFields())
 class TestStrict {
+	extern static final something:String;
+
 	public var field:Null<String>;
 	// @:shouldWarn public var publiclyModifiableField:String = 'hello';
 	@:shouldFail var notInitializedField:Int;
@@ -132,8 +134,8 @@ class TestStrict {
 	function get_str() {
 		shouldFail(return (null:Null<String>));
 	}
-	function set_str(v) {
-		shouldFail(return (v:Null<String>));
+	function set_str(v:Null<String>) {
+		shouldFail(return v);
 	}
 
 	/**
@@ -993,6 +995,35 @@ class TestStrict {
 		if(Math.random() > 0.5) a = 'hi'
 		else a = 'hello';
 		var s:String = a;
+	}
+
+	/**
+	 * @see https://github.com/HaxeFoundation/haxe/pull/10428#issuecomment-951574457
+	 */
+	static function issue10428() {
+		final arr:Array<Int> = [
+			{
+				var tmp = (1 : Null<Int>);
+				if (tmp != null) tmp else 2;
+			}
+		];
+	}
+
+	static function issue9588_DynamicIsNullable_AnyIsNotNullable(?a:String) {
+		function dyn(v:Dynamic):Dynamic
+			return v;
+		var d:Dynamic = dyn(a);
+		// TODO: decide if 'dynamic to non-nullable' should fail since we allow 'nullable to dynamic now'.
+		//shouldFail(var s:String = d);
+
+		function any(v:Any):Any
+			return v;
+		shouldFail(any(a));
+		var s:String = any('');
+	}
+
+	static function issue10272_nullableConcatString_shouldPass(msg:Null<Dynamic>) {
+		trace("Message: " + msg);
 	}
 }
 

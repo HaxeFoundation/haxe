@@ -239,7 +239,7 @@ module StdArray = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		vstring (s_array 0 (this vthis))
+		vstring (s_array 0 0 (this vthis))
 	)
 
 	let unshift = vifun1 (fun vthis v ->
@@ -440,7 +440,12 @@ module StdBytes = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		(create_unknown (Bytes.to_string (this vthis)))
+		let this = this vthis in
+		try
+			UTF8.validate (Bytes.unsafe_to_string this);
+			(create_unknown (Bytes.to_string this))
+		with UTF8.Malformed_code ->
+			exc_string "Invalid string"
 	)
 end
 
@@ -754,18 +759,18 @@ module StdDeque = struct
 end
 
 module StdEReg = struct
-	open Pcre
+	open Pcre2
 
 	let create r opt =
-		let open Pcre in
+		let open Pcre2 in
 		let string_of_pcre_error = function
 			| BadPattern(s,i) -> Printf.sprintf "at %i: %s" i s
 			| Partial -> "Partial"
-			| BadPartial -> "BadPartial"
-			| BadUTF8 -> "BadUTF8"
-			| BadUTF8Offset -> "BadUTF8Offset"
+			| BadUTF -> "BadUTF"
+			| BadUTFOffset -> "BadUTFOffset"
 			| MatchLimit -> "MatchLimit"
-			| RecursionLimit -> "RecursionLimit"
+			| DepthLimit -> "DepthLimit"
+			| WorkspaceSize -> "WorkspaceSize"
 			| InternalError s -> "InternalError: " ^ s
 		in
 		let global = ref false in
@@ -777,7 +782,7 @@ module StdEReg = struct
 			| 'g' -> global := true; None
 			| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 		) (ExtString.String.explode opt) in
-		let flags = `UTF8 :: `UCP :: flags in
+		let flags = `UTF :: `UCP :: flags in
 		let rex = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
 		let pcre = {
 			r = rex;
@@ -844,17 +849,17 @@ module StdEReg = struct
 
 	let match' = vifun1 (fun vthis s ->
 		let this = this vthis in
-		let open Pcre in
+		let open Pcre2 in
 		let s = decode_string s in
 		this.r_string <- s;
 		try
-			let a = exec_all ~iflags:0x2000 ~rex:this.r s in
+			let a = exec_all ~flags:[`NO_UTF_CHECK] ~rex:this.r s in
 			this.r_groups <- a;
 			vtrue
 		with Not_found ->
 			this.r_groups <- [||];
 			vfalse
-		| Pcre.Error _ ->
+		| Pcre2.Error _ ->
 			exc_string "PCRE Error (invalid unicode string?)"
 	)
 
@@ -908,7 +913,7 @@ module StdEReg = struct
 		begin try
 			if pos + len > String.length s then raise Not_found;
 			let str = String.sub s 0 (pos + len) in
-			let a = Pcre.exec_all ~iflags:0x2000 ~rex:this.r ~pos str in
+			let a = Pcre2.exec_all ~flags:[`NO_UTF_CHECK] ~rex:this.r ~pos str in
 			this.r_string <- s;
 			this.r_groups <- a;
 			vtrue
@@ -921,7 +926,7 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let by = decode_string by in
-		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~iflags:0x2000 ~rex:this.r ~templ:by s in
+		let s = (if this.r_global then Pcre2.replace else Pcre2.replace_first) ~flags:[`NO_UTF_CHECK] ~rex:this.r ~templ:by s in
 		create_unknown s
 	)
 
@@ -938,11 +943,11 @@ module StdEReg = struct
 				let sub = String.sub s first (last - first) in
 				DynArray.add acc (create_unknown sub)
 			in
-			let exec = Pcre.exec ~iflags:0x2000 ~rex:this.r in
+			let exec = Pcre2.exec ~flags:[`NO_UTF_CHECK] ~rex:this.r in
 			let step pos =
 				try
 					let substrings = exec ~pos s in
-					let (first,last) = Pcre.get_substring_ofs substrings 0 in
+					let (first,last) = Pcre2.get_substring_ofs substrings 0 in
 					add !copy_offset first;
 					copy_offset := last;
 					let next_start = if pos = last then last + 1 else last in
@@ -1187,7 +1192,7 @@ module StdFileSystem = struct
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->
-		catch_unix_error Path.mkdir_from_path (Path.add_trailing_slash (decode_string path));
+		catch_unix_error Path.mkdir_from_path_unix_err (Path.add_trailing_slash (decode_string path));
 		vnull
 	)
 
@@ -1741,25 +1746,47 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.lock mutex.mmutex;
-		mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		(match mutex.mowner with
+		| None ->
+			Mutex.lock mutex.mmutex;
+			mutex.mowner <- Some (thread_id,1)
+		| Some (id,n) ->
+			if id = thread_id then
+				mutex.mowner <- Some (thread_id,n + 1)
+			else begin
+				Mutex.lock mutex.mmutex;
+				mutex.mowner <- Some (thread_id,1)
+			end
+		);
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		mutex.mowner <- None;
-		Mutex.unlock mutex.mmutex;
+		(match mutex.mowner with
+		| Some (id,n) when n > 1 ->
+			mutex.mowner <- Some (id,n - 1)
+		| _ ->
+			mutex.mowner <- None;
+			Mutex.unlock mutex.mmutex;
+		);
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		if Mutex.try_lock mutex.mmutex then begin
-			mutex.mowner <- Some (Thread.id (Thread.self()));
+		let thread_id = Thread.id (Thread.self()) in
+		match mutex.mowner with
+		| Some (id,n) when id = thread_id ->
+			mutex.mowner <- Some (thread_id,n + 1);
 			vtrue
-		end else
-			vfalse
+		| _ ->
+			if Mutex.try_lock mutex.mmutex then begin
+				mutex.mowner <- Some (thread_id,1);
+				vtrue
+			end else
+				vfalse
 	)
 end
 
@@ -1860,19 +1887,26 @@ module StdReflect = struct
 		let name = hash (decode_vstring name).sstring in
 		match vresolve o with
 		| VObject o ->
-			let found = ref false in
-			let fields = IntMap.fold (fun name' i acc ->
-				if name = name' then begin
-					found := true;
-					acc
+			begin match o.oproto with
+			| OProto proto ->
+				let found = ref false in
+				let fields = IntMap.fold (fun name' i acc ->
+					if name = name' then begin
+						found := true;
+						acc
+					end else
+						(name',o.ofields.(i)) :: acc
+				) proto.pinstance_names [] in
+				if !found then begin
+					update_object_prototype o fields;
+					vtrue
 				end else
-					(name',o.ofields.(i)) :: acc
-			) o.oproto.pinstance_names [] in
-			if !found then begin
-				update_object_prototype o fields;
-				vtrue
-			end else
-				vfalse
+					vfalse
+			| ODictionary d ->
+				let has = IntMap.mem name d in
+				if has then o.oproto <- ODictionary (IntMap.remove name d);
+				vbool has
+			end
 		| _ ->
 			vfalse
 	)
@@ -1909,10 +1943,14 @@ module StdReflect = struct
 	let hasField = vfun2 (fun o field ->
 		let name = hash (decode_vstring field).sstring in
 		let b = match vresolve o with
-			| VObject o -> IntMap.mem name o.oproto.pinstance_names
+			| VObject o ->
+				begin match o.oproto with
+				| OProto proto -> IntMap.mem name proto.pinstance_names
+				| ODictionary d -> IntMap.mem name d
+				end
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
-			| _ -> unexpected_value o "object"
+			| _ -> false (* issue #10993 *)
 		in
 		vbool b
 	)
@@ -1938,7 +1976,7 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		(try set_field o (hash (decode_vstring name).sstring) v with Not_found -> ()); vnull
+		(try set_field_runtime o (hash (decode_vstring name).sstring) v with Not_found -> ()); vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
@@ -1947,7 +1985,7 @@ module StdReflect = struct
 		let vset = field o name_set in
 		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			(try set_field o (hash name.sstring) v with Not_found -> ());
+			(try set_field_runtime o (hash name.sstring) v with Not_found -> ());
 			vnull
 		end
 	)
@@ -2552,8 +2590,6 @@ module StdSys = struct
 	)
 
 	let exit = vfun1 (fun code ->
-		(* TODO: Borrowed from interp.ml *)
-		if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
 		raise (Sys_exit(decode_int code));
 	)
 
@@ -2604,11 +2640,14 @@ module StdSys = struct
 			| _ -> vnull
 	)
 
-	let putEnv = vfun2 (fun s v ->
-		let s = decode_string s in
-		let v = decode_string v in
-		catch_unix_error Unix.putenv s v;
-		vnull
+	let putEnv = vfun2 (fun s -> function
+		| v when v = vnull ->
+			let _ = Luv.Env.unsetenv (decode_string s) in vnull
+		| v ->
+			let s = decode_string s in
+			let v = decode_string v in
+			catch_unix_error Unix.putenv s v;
+			vnull
 	)
 
 	let setCwd = vfun1 (fun s ->
@@ -2646,12 +2685,12 @@ module StdSys = struct
 					(match !cached_sys_name with
 					| Some n -> n
 					| None ->
-						let ic = catch_unix_error Unix.open_process_in "uname" in
+						let ic, pid = catch_unix_error Process_helper.open_process_args_in_pid "uname" [| "uname" |] in
 						let uname = (match input_line ic with
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						close_in ic;
+						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -3075,8 +3114,9 @@ end
 
 module StdNativeString = struct
 	let from_string = vfun1 (fun v ->
-		let s = decode_vstring v in
-		vnative_string s.sstring
+		match decode_optional decode_vstring v with
+		| None -> vnull
+		| Some s -> vnative_string s.sstring
 	)
 
 	let from_bytes = vfun1 (fun v ->
@@ -3308,7 +3348,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
-	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
+	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre2.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> v_empty_string);
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));

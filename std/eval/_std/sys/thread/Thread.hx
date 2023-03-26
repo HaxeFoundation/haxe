@@ -24,8 +24,14 @@ package sys.thread;
 
 import eval.vm.NativeThread;
 
-abstract Thread(NativeThread) {
+private typedef ThreadImpl = NativeThread;
+
+abstract Thread(ThreadImpl) from ThreadImpl {
 	public var events(get,never):EventLoop;
+
+	static function __init__() {
+		NativeThread.self().events = new EventLoop();
+	}
 
 	inline function new(h:NativeThread):Void {
 		this = h;
@@ -91,12 +97,6 @@ abstract Thread(NativeThread) {
 			throw new NoEventLoopException();
 		return this.events;
 	}
-
-	@:keep
-	static function initEventLoop() {
-		NativeThread.self().events = new EventLoop();
-	}
-
 
 	@:keep
 	static function processEvents():Void {

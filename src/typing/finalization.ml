@@ -23,26 +23,26 @@ let get_main ctx types =
 				| None ->
 					raise Not_found
 				| Some c ->
-					p := c.cl_pos;
+					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found -> try
 				let t = Typeload.find_type_in_module_raise ctx m name null_pos in
 				match t with
 				| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
-					error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
+					typing_error ("Invalid -main : " ^ s_type_path path ^ " is not a class") null_pos
 				| TClassDecl c ->
-					p := c.cl_pos;
+					p := c.cl_name_pos;
 					c, PMap.find "main" c.cl_statics
 			with Not_found ->
-				error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
+				typing_error ("Invalid -main : " ^ s_type_path path ^ " does not have static function main") !p
 		in
 		let ft = Type.field_type f in
 		let fmode, r =
 			match follow ft with
 			| TFun ([],r) -> FStatic (c,f), r
-			| _ -> error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
+			| _ -> typing_error ("Invalid -main : " ^ s_type_path path ^ " has invalid main function") c.cl_pos
 		in
-		if not (ExtType.is_void (follow r)) then error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
+		if not (ExtType.is_void (follow r)) then typing_error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
 		f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
 		let emain = type_module_type ctx (TClassDecl c) None null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
@@ -59,17 +59,10 @@ let get_main ctx types =
 				[main; call_static (["haxe"],"EntryPoint") "run"]
 			with Not_found ->
 				[main]
-		and add_entry_point_init main =
-			try
-				[call_static (["haxe"],"EntryPoint") "init"; main]
-			with Not_found ->
-				[main]
-		in
 		(* add calls for event loop *)
-		let add_event_loop main =
+		and add_event_loop main =
 			(try
-				let thread = (["sys";"thread";"_Thread"],"Thread_Impl_") in
-				call_static thread "initEventLoop" :: add_entry_point_init main @ [call_static thread "processEvents"]
+				[main; call_static (["sys";"thread";"_Thread"],"Thread_Impl_") "processEvents"]
 			with Not_found ->
 				[main]
 			)
@@ -93,7 +86,7 @@ let finalize ctx =
 			()
 		| fl ->
 			let rec loop handled_types =
-				let all_types = Hashtbl.fold (fun _ m acc -> m.m_types @ acc) ctx.g.modules [] in
+				let all_types = ctx.com.module_lut#fold (fun _ m acc -> m.m_types @ acc) [] in
 				match (List.filter (fun mt -> not (List.memq mt handled_types)) all_types) with
 				| [] ->
 					()
@@ -109,7 +102,7 @@ type state =
 	| Done
 	| NotYet
 
-let sort_types com modules =
+let sort_types com (modules : (path,module_def) lookup) =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -120,7 +113,7 @@ let sort_types com modules =
 		match state p with
 		| Done -> ()
 		| Generating ->
-			com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
+			com.warning WStaticInitOrder [] ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with
@@ -200,10 +193,10 @@ let sort_types com modules =
 		) c.cl_statics
 
 	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (modules#fold (fun _ m acc -> m :: acc) []) in
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	List.rev !types, sorted_modules
 
 let generate ctx =
-	let types,modules = sort_types ctx.com ctx.g.modules in
+	let types,modules = sort_types ctx.com ctx.com.module_lut in
 	get_main ctx types,types,modules

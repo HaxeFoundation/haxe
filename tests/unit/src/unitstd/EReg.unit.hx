@@ -87,7 +87,7 @@ pos.len == 2;
 ~/a/g.replace("bab", "z") == "bzb";
 ~/a/g.replace("baba", "z") == "bzbz";
 
-#if !(hl && interp) // not allowed in local interpreter, still allowed in hl runtime
+#if !(interp) // not allowed in local interpreter, still allowed in hl runtime
 // replace + $
 ~/href="(.*?)"/.replace('lead href="foo" trail',"$1") == "lead foo trail";
 //~/href="(.*?)"/.replace('lead href="foo" trail',"$2") == "lead $2 trail";

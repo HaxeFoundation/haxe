@@ -1,0 +1,7 @@
+[ERROR] Mismatch.hx:6: characters 19-26
+
+ 6 |   p.then(x -> 10, e -> "");
+   |                   ^^^^^^^
+   | (e : Unknown<0>) -> String should be Null<js.lib.PromiseHandler<Dynamic, Int>>
+   | For optional function argument 'onRejected'
+

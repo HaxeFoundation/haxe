@@ -1,1 +1,1 @@
-Main.hx:2: characters 34-50 : Abstract methods may not be inline
+Main.hx:2: characters 34-50 : Invalid modifier combination: abstract + inline

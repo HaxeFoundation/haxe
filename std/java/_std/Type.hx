@@ -179,8 +179,8 @@ enum ValueType {
 	}
 
 	// cache empty constructor arguments so we don't allocate it on each createEmptyInstance call
-	@:protected @:readOnly static var __createEmptyInstance_EMPTY_TYPES = java.NativeArray.make(java.Lib.toNativeEnum(java.internal.Runtime.EmptyObject));
-	@:protected @:readOnly static var __createEmptyInstance_EMPTY_ARGS = java.NativeArray.make(java.internal.Runtime.EmptyObject.EMPTY);
+	@:protected @:readOnly static var __createEmptyInstance_EMPTY_TYPES = java.Lib.toNativeEnum(java.internal.Runtime.EmptyObject);
+	@:protected @:readOnly static var __createEmptyInstance_EMPTY_ARGS = java.internal.Runtime.EmptyObject.EMPTY;
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var t = java.Lib.toNativeType(cl);

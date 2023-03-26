@@ -22,24 +22,25 @@
 
 package sys.thread;
 
-@:forward("release")
-abstract Mutex(NativeRLock) {
-	inline public function new() {
-		this = new NativeRLock();
+import python.lib.threading.RLock;
+
+@:coreApi
+class Mutex {
+	final lock:RLock;
+
+	inline public function new():Void {
+		lock = new RLock();
 	}
 
 	inline public function acquire():Void {
-		this.acquire(true);
+		lock.acquire(true);
 	}
 
 	inline public function tryAcquire():Bool {
-		return this.acquire(false);
+		return lock.acquire(false);
 	}
-}
 
-@:pythonImport("threading", "RLock")
-extern class NativeRLock {
-	function new():Void;
-	function acquire(blocking:Bool):Bool;
-	function release():Void;
+	inline public function release():Void {
+		lock.release();
+	}
 }

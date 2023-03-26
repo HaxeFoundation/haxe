@@ -1,6 +1,7 @@
 open Globals
 open Ast
 open Type
+open Common
 open Typecore
 open Error
 open FieldAccess
@@ -12,54 +13,12 @@ let is_forced_inline c cf =
 	| _ when has_class_field_flag cf CfExtern -> true
 	| _ -> false
 
-let relative_path ctx file =
-	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
-	let fpath = slashes (Path.get_full_path file) in
-	let fpath_lower = String.lowercase fpath in
-	let flen = String.length fpath_lower in
-	let rec loop = function
-		| [] -> file
-		| path :: l ->
-			let spath = String.lowercase (slashes path) in
-			let slen = String.length spath in
-			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
-	in
-	loop ctx.com.Common.class_path
-
-let mk_infos ctx p params =
-	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
-	(EObjectDecl (
-		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
-		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,SDoubleQuotes)),p)) ::
-		if ctx.curfield.cf_name = "" then
-			params
-		else
-			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,SDoubleQuotes)),p)) :: params
-	) ,p)
-
-let rec is_pos_infos = function
-	| TMono r ->
-		(match r.tm_type with
-		| Some t -> is_pos_infos t
-		| _ -> false)
-	| TLazy f ->
-		is_pos_infos (lazy_type f)
-	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
-		true
-	| TType (t,tl) ->
-		is_pos_infos (apply_params t.t_params tl t.t_type)
-	| TAbstract({a_path=[],"Null"},[t]) ->
-		is_pos_infos t
-	| _ ->
-		false
-
 let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p =
-		raise (Error (Call_error err,p))
+		raise (Error (Call_error err,p,0))
 	in
 	let arg_error ul name opt p =
-		let err = Stack (ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")) in
+		let err = Stack [(ul,p); (Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'"), p)] in
 		call_error (Could_not_unify err) p
 	in
 	let mk_pos_infos t =
@@ -80,13 +39,18 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		skipped := (name,ul,p) :: !skipped;
 		default_value name t
 	in
+	let handle_errors fn =
+		try
+			fn()
+		with Error(l,p,nl) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
+			raise (WithTypeError (l,p,nl))
+	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
 	let type_against name t e =
-		try
+		handle_errors (fun() ->
 			let e = type_expr ctx e (WithType.with_argument t name) in
 			!cast_or_unify_raise_ref ctx t e e.epos
-		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
-			raise (WithTypeError (l,p))
+		)
 	in
 	let rec loop el args = match el,args with
 		| [],[] ->
@@ -97,7 +61,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 			[]
 		| _,[name,false,TAbstract({ a_path = ["cpp"],"Rest" },[t])] ->
 			(try List.map (fun e -> type_against name t e) el
-			with WithTypeError(ul,p) -> arg_error ul name false p)
+			with WithTypeError(ul,p,_) -> arg_error ul name false p)
 		| _,[name,false,t] when ExtType.is_rest (follow t) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe"],"Rest")},[arg_t]) ->
@@ -106,29 +70,38 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 					in
 					(* these platforms deal with rest args on their own *)
 					if ctx.com.config.pf_supports_rest_args then
+						let type_rest t =
+							List.map (fun e ->
+								match e with
+								| (EUnop (Spread,Prefix,_),p) -> unexpected_spread p
+								| _ -> type_against name (t()) e
+							) el
+						in
 						match el with
 						| [(EUnop (Spread,Prefix,e),p)] ->
 							(try [mk (TUnop (Spread, Prefix, type_against name t e)) t p]
-							with WithTypeError(ul,p) -> arg_error ul name false p)
+							with WithTypeError(ul,p,_) -> arg_error ul name false p)
+						| _ when ExtType.is_mono (follow arg_t) ->
+							(try
+								let el = type_rest mk_mono in
+								unify ctx (unify_min ctx el) arg_t (punion_el callp el);
+								el
+							with WithTypeError(ul,p,_) ->
+								arg_error ul name false p)
 						| _ ->
 							(try
-								List.map (fun e ->
-									match e with
-									| (EUnop (Spread,Prefix,_),p) ->
-										unexpected_spread p
-									| _ -> type_against name arg_t e
-								) el
-							with WithTypeError(ul,p) ->
+								type_rest (fun() -> arg_t)
+							with WithTypeError(ul,p,_) ->
 								arg_error ul name false p)
 					(* for other platforms make sure rest arguments are wrapped in an array *)
 					else begin
 						match el with
 						| [(EUnop (Spread,Prefix,e),p)] ->
 							(try [type_against name t e]
-							with WithTypeError(ul,p) -> arg_error ul name false p)
+							with WithTypeError(ul,p,_) -> arg_error ul name false p)
 						| [] ->
 							(try [type_against name t (EArrayDecl [],callp)]
-							with WithTypeError(ul,p) -> arg_error ul name false p)
+							with WithTypeError(ul,p,_) -> arg_error ul name false p)
 						| (_,p1) :: _ ->
 							let p =
 								List.fold_left (fun p (e1,p2) ->
@@ -148,7 +121,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 									do_type (ECheckType(e,(CTPath tp, p)),p) (* ([arg1, arg2...]:Array<Dynamic>) *)
 								end else
 									do_type e
-							with WithTypeError(ul,p) ->
+							with WithTypeError(ul,p,_) ->
 								arg_error ul name false p
 							)
 					end
@@ -158,7 +131,10 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| [],(_,false,_) :: _ ->
 			call_error (Not_enough_arguments args) callp
 		| [],(name,true,t) :: args ->
-			begin match loop [] args with
+			if not ctx.allow_transform then begin
+				ignore(loop [] args);
+				[]
+			end else begin match loop [] args with
 				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
 					if is_pos_infos t then [mk_pos_infos t]
 					else []
@@ -169,7 +145,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.is_display_file && not (Diagnostics.is_diagnostics_run ctx.com p) then begin
+					if ctx.is_display_file && not (Diagnostics.error_in_diagnostics_run ctx.com p) then begin
 						ignore(type_expr ctx (e,p) WithType.value);
 						ignore(loop el [])
 					end;
@@ -177,12 +153,13 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
+			let might_skip = List.length el < List.length args in
 			begin try
 				let e = type_against name t e in
 				e :: loop el args
 			with
-				WithTypeError (ul,p)->
-					if opt && List.length el < List.length args then
+				WithTypeError (ul,p,_)->
+					if opt && might_skip then
 						let e_def = skip name ul t p in
 						e_def :: loop (e :: el) args
 					else
@@ -209,6 +186,32 @@ type overload_kind =
 	| OverloadProper (* @:overload or overload *)
 	| OverloadMeta (* @:overload(function() {}) *)
 	| OverloadNone
+
+(**
+	Unifies `el_typed` against the types from `args` list starting at the beginning
+	of `args` list.
+
+	Returns a tuple of a part of `args` covered by `el_typed`, and a part of `args`
+	not used for `el_typed` unification.
+*)
+let unify_typed_args ctx tmap args el_typed call_pos =
+	let rec loop acc_args tmap args el =
+		match args,el with
+		| [], _ :: _ ->
+			let call_error = Call_error(Too_many_arguments) in
+			raise(Error(call_error,call_pos,0))
+		| _, [] ->
+			List.rev acc_args,args
+		| ((_,opt,t0) as arg) :: args,e :: el ->
+			begin try
+				unify_raise (tmap e.etype) t0 e.epos;
+			with Error(Unify _ as msg,p,nl) ->
+				let call_error = Call_error(Could_not_unify msg) in
+				raise(Error(call_error,p,nl))
+			end;
+			loop (arg :: acc_args) (fun t -> t) args el
+	in
+	loop [] tmap args el_typed
 
 let unify_field_call ctx fa el_typed el p inline =
 	let expand_overloads cf =
@@ -258,7 +261,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			| Some s -> new Javadoc.javadoc s
 		in
 		match de with
-		| DisplayHover (Some hover) ->
+		| DisplayHover hover ->
 			begin match hover.hexpected with
 			| Some (WithType(t,Some si)) ->
 				let si = match si with
@@ -288,22 +291,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		match follow t with
 		| TFun(args,ret) ->
-			let rec loop acc_el acc_args tmap args el_typed = match args,el_typed with
-				| ((_,opt,t0) as arg) :: args,e :: el_typed ->
-					begin try
-						unify_raise ctx (tmap e.etype) t0 e.epos;
-					with Error(Unify _ as msg,p) ->
-						let call_error = Call_error(Could_not_unify msg) in
-						raise(Error(call_error,p))
-					end;
-					loop (e :: acc_el) (arg :: acc_args) (fun t -> t) args el_typed
-				| [],_ :: _ ->
-					let call_error = Call_error(Too_many_arguments) in
-					raise(Error(call_error,p))
-				| _ ->
-					List.rev acc_el,List.rev acc_args,args
-			in
-			let el_typed,args_typed,args = loop [] [] tmap args el_typed in
+			let args_typed,args = unify_typed_args ctx tmap args el_typed p in
 			let el,_ =
 				try
 					unify_call_args ctx el args ret p inline is_forced_inline in_overload
@@ -319,23 +307,23 @@ let unify_field_call ctx fa el_typed el p inline =
 			in
 			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
 		| t ->
-			error (s_type (print_context()) t ^ " cannot be called") p
+			typing_error (s_type (print_context()) t ^ " cannot be called") p
 	in
 	let maybe_raise_unknown_ident cerr p =
-		let rec loop err =
+		let rec loop err p =
 			match err with
-			| Unknown_ident _ -> error (error_msg err) p
-			| Stack (e1,e2) -> (loop e1; loop e2)
+			| Unknown_ident _ -> located_typing_error (error_msg p err)
+			| Stack stack -> List.iter (fun (e,p) -> loop e p) stack
 			| _ -> ()
 		in
-		match cerr with Could_not_unify err -> loop err | _ -> ()
+		match cerr with Could_not_unify err -> loop err p | _ -> ()
 	in
 	let attempt_calls candidates =
 		let rec loop candidates = match candidates with
 			| [] -> [],[]
 			| cf :: candidates ->
 				let known_monos = List.map (fun (m,_) ->
-					m,m.tm_type,m.tm_constraints
+					m,m.tm_type,m.tm_down_constraints
 				) ctx.monomorphs.perfunction in
 				let current_monos = ctx.monomorphs.perfunction in
 				begin try
@@ -346,10 +334,10 @@ let unify_field_call ctx fa el_typed el p inline =
 						candidate :: candidates,failures
 					end else
 						[candidate],[]
-				with Error ((Call_error cerr as err),p) ->
+				with Error ((Call_error cerr as err),p,_) ->
 					List.iter (fun (m,t,constr) ->
 						if t != m.tm_type then m.tm_type <- t;
-						if constr != m.tm_constraints then m.tm_constraints <- constr;
+						if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
 					) known_monos;
 					ctx.monomorphs.perfunction <- current_monos;
 					maybe_raise_unknown_ident cerr p;
@@ -381,7 +369,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		if overload_kind = OverloadProper then maybe_check_access cf;
 		begin try
 			commit_delayed_display (attempt_call cf false)
-		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
+		with Error _ when Common.ignore_error ctx.com ->
 			fail_fun();
 		end
 	| _ ->
@@ -392,19 +380,19 @@ let unify_field_call ctx fa el_typed el p inline =
 				Option.may (fun de ->
 					raise_augmented_display_exception cf de;
 				) delayed_display;
-				cf,error_msg err,p
+				cf,error_msg p err
 			) failures in
-			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in
+			let failures = remove_duplicates (fun (_,msg1) (_,msg2) -> msg1 <> msg2) failures in
 			begin match failures with
-			| [_,msg,p] ->
-				error msg p
+			| [_,msg] ->
+				located_typing_error msg
 			| _ ->
-				display_error ctx "Could not find a suitable overload, reasons follow" p;
-				List.iter (fun (cf,msg,p2) ->
-					display_error ctx ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
-					display_error ctx msg p2;
+				display_error ctx.com "Could not find a suitable overload, reasons follow" p;
+				List.iter (fun (cf,msg) ->
+					display_error ~depth:1 ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
+					located_display_error ~depth:2 ctx.com msg;
 				) failures;
-				error "End of overload failure reasons" p
+				typing_error "End of overload failure reasons" p
 			end
 		in
 		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with
@@ -413,10 +401,10 @@ let unify_field_call ctx fa el_typed el p inline =
 				maybe_check_access fcc.fc_field;
 				commit_delayed_display fcc
 			| fcc :: l ->
-				display_error ctx "Ambiguous overload, candidates follow" p;
+				display_error ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
 				List.iter (fun fcc ->
-					display_error ctx (Printf.sprintf "... %s" (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
+					display_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
 				) (fcc :: l);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
@@ -431,20 +419,24 @@ class call_dispatcher
 	(p : pos)
 =
 	let is_set = match mode with MSet _ -> true | _ -> false in
-	let check_assign () = if is_set && ctx.com.display.dms_error_policy <> EPIgnore then invalid_assign p in
+	let check_assign () = if is_set && not (Common.ignore_error ctx.com) then invalid_assign p in
 
 object(self)
 
 	method private make_field_call (fa : field_access) (el_typed : texpr list) (el : expr list) =
 		let fcc = unify_field_call ctx fa el_typed el p fa.fa_inline in
-		if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
-			| TConst TSuper -> display_error ctx (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
-			| _ -> ()
-		end;
-		fcc.fc_data()
+		if has_class_field_flag fcc.fc_field CfGeneric then begin
+			!type_generic_function_ref ctx fa fcc with_type p
+		end else begin
+			if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
+				| TConst TSuper -> display_error ctx.com (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+				| _ -> ()
+			end;
+			fcc.fc_data()
+		end
 
 	method private macro_call (ethis : texpr) (cf : tclass_field) (el : expr list) =
-		if ctx.macro_depth > 300 then error "Stack overflow" p;
+		if ctx.macro_depth > 300 then typing_error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
 		let ethis_f = ref (fun () -> ()) in
@@ -478,55 +470,73 @@ object(self)
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
-		let old = ctx.on_error in
-		ctx.on_error <- (fun ctx msg ep ->
+		let old = ctx.com.error in
+		ctx.com.error <- (fun ?(depth=0) msg ep ->
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				locate_macro_error := false;
-				old ctx msg ep;
+				old msg (if ep = null_pos then p else ep);
 				locate_macro_error := true;
-				ctx.com.error (compl_msg "Called from macro here") p;
+				if ep <> null_pos then old ~depth:(depth+1) (compl_msg "Called from macro here") p;
 			end else
-				old ctx msg ep;
+				old msg ep;
 		);
 		let e = try
 			f()
 		with exc ->
-			ctx.on_error <- old;
+			ctx.com.error <- old;
 			!ethis_f();
 			raise exc
 		in
 		let e = Diagnostics.secure_generated_code ctx e in
-		ctx.on_error <- old;
+		ctx.com.error <- old;
 		!ethis_f();
 		e
 
 	(* Calls `e` with arguments `el`. Does not inspect the callee expression, so it should only be
 	   used with actual expression calls and not with something like field calls. *)
-	method expr_call (e : texpr) (el : expr list) =
+	method expr_call (e : texpr) (el_typed : texpr list) (el : expr list) =
 		check_assign();
-		let rec loop t = match follow t with
-		| TFun (args,r) ->
-			let el, tfunc = unify_call_args ctx el args r p false false false in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
-			mk (TCall (e,el)) r p
-		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
-			loop (Abstract.get_underlying_type a tl)
-		| TMono _ ->
-			let t = mk_mono() in
-			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
-			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
-			mk (TCall (e,el)) t p
-		| t ->
-			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+		let default t =
+			let el = el_typed @ List.map (fun e -> type_expr ctx e WithType.value) el in
 			let t = if t == t_dynamic then
 				t_dynamic
 			else if ctx.untyped then
 				mk_mono()
 			else
-				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+				typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
 			in
 			mk (TCall (e,el)) t p
+		in
+		let rec loop t = match follow t with
+		| TFun (args,r) ->
+			let args_typed,args_left = unify_typed_args ctx (fun t -> t) args el_typed p in
+			let el, tfunc = unify_call_args ctx el args_left r p false false false in
+			let el = el_typed @ el in
+			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
+			mk (TCall (e,el)) r p
+		| TAbstract(a,tl) as t ->
+			let check_callable () =
+				if Meta.has Meta.Callable a.a_meta then
+					loop (Abstract.get_underlying_type a tl)
+				else
+					default t
+				in
+			begin match a.a_call,a.a_impl with
+			| Some cf,Some c ->
+				let e_static = Builder.make_static_this c e.epos in
+				let fa = FieldAccess.create e_static cf (FHAbstract(a,tl,c)) false e.epos in
+				self#field_call fa (e :: el_typed) el
+			| _ ->
+				check_callable();
+			end
+		| TMono _ ->
+			let t = mk_mono() in
+			let el = el_typed @ List.map (fun e -> type_expr ctx e WithType.value) el in
+			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
+			mk (TCall (e,el)) t p
+		| t ->
+			default t
 		in
 		loop e.etype
 
@@ -555,13 +565,12 @@ object(self)
 				let name = Printf.sprintf "%s_%s" (if is_set then "set" else "get") fa.fa_field.cf_name in
 				make_call ctx (mk (TField (e,quick_field_dynamic e.etype name)) tf p) el_typed t p
 			| _ ->
-				error "Could not resolve accessor" p
+				typing_error "Could not resolve accessor" p
 
 	(* Calls the field represented by `fa` with the typed arguments `el_typed` and the syntactic arguments `el`.
 
 	   This function inspects the nature of the field being called and dispatches the call accordingly:
 
-	   * If the field is `@:generic`, call `type_generic_function`.
 	   * If the field is a non-macro method, call it via `make_field_call`.
 	   * If the field is a property, resolve the accessor (depending on `mode`) and recurse onto it.
 	   * Otherwise, call the field as a normal expression via `expr_call`.
@@ -570,19 +579,15 @@ object(self)
 		match fa.fa_field.cf_kind with
 		| Method (MethNormal | MethInline | MethDynamic) ->
 			check_assign();
-			 if has_class_field_flag fa.fa_field CfGeneric then begin
-				!type_generic_function_ref ctx fa el_typed el with_type p
-			end else
-				self#make_field_call fa el_typed el
+			self#make_field_call fa el_typed el
 		| Method MethMacro ->
 			begin match el_typed with
 			| [] ->
 				self#macro_call fa.fa_on fa.fa_field el
 			| el_typed ->
-				let cur = ctx.this_stack in
-				let el' = List.map (fun e -> fst (push_this ctx e)) el_typed in
+				let el',fl = List.split (List.map (fun e -> push_this ctx e) el_typed) in
 				let e = self#macro_call fa.fa_on fa.fa_field (el' @ el) in
-				ctx.this_stack <- cur;
+				List.iter (fun f -> f()) fl;
 				e
 			end;
 		| Var v ->
@@ -590,7 +595,7 @@ object(self)
 			| AccCall ->
 				self#accessor_call fa el_typed el
 			| _ ->
-				self#expr_call (FieldAccess.get_field_expr fa FCall) el
+				self#expr_call (FieldAccess.get_field_expr fa FCall) el_typed el
 			end
 end
 
@@ -600,7 +605,10 @@ let maybe_reapply_overload_call ctx e =
 			let recall fh cf =
 				let fa = FieldAccess.create e1 cf fh false ef.epos in
 				let fcc = unify_field_call ctx fa el [] e.epos false in
-				fcc.fc_data()
+				let e1 = fcc.fc_data() in
+				(try Type.unify e1.etype e.etype
+				with Unify_error _ -> die ~p:e.epos "Failed to reapply overload call" __LOC__);
+				e1
 			in
 			begin match fa with
 			| FStatic(c,cf) when has_class_field_flag cf CfOverload ->

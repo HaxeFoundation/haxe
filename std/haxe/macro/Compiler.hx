@@ -22,6 +22,7 @@
 
 package haxe.macro;
 
+import haxe.display.Display;
 import haxe.macro.Expr;
 
 /**
@@ -157,6 +158,19 @@ class Compiler {
 	public static function getDisplayPos():Null<{file:String, pos:Int}> {
 		#if (neko || eval)
 		return load("get_display_pos", 0)();
+		#else
+		return null;
+		#end
+	}
+
+	/**
+		Returns all the configuration settings applied to the compiler.
+
+		Usage of this function outside a macro context returns `null`.
+	**/
+	public static function getConfiguration():Null<CompilerConfiguration> {
+		#if (neko || eval)
+		return load("get_configuration", 0)();
 		#else
 		return null;
 		#end
@@ -451,6 +465,44 @@ class Compiler {
 	}
 
 	/**
+		Reference a json file describing user-defined metadata
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
+	**/
+	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
+		for (m in content) registerCustomMetadata(m, source);
+	}
+
+	/**
+		Reference a json file describing user-defined defines
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
+	**/
+	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<DefineDescription> =  haxe.Json.parse(f);
+		for (d in content) registerCustomDefine(d, source);
+	}
+
+	/**
+		Register a custom medatada for documentation and completion purposes
+	**/
+	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_metadata_impl", 2)(meta, source);
+		#end
+	}
+
+	/**
+		Register a custom define for documentation purposes
+	**/
+	public static function registerCustomDefine(define:DefineDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_define_impl", 2)(define, source);
+		#end
+	}
+
+	/**
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator(callb:JSGenApi->Void) {
@@ -576,4 +628,109 @@ enum abstract NullSafetyMode(String) to String {
 		The only nullable thing could be safe are local variables.
 	**/
 	var StrictThreaded;
+}
+
+typedef MetadataDescription = {
+	final metadata:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this metadata.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this metadata accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this metadata is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+
+	/**
+		Places where this metadata can be applied.
+	**/
+	@:optional final targets:Array<MetadataTarget>;
+}
+
+typedef DefineDescription = {
+	final define:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this define.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this define accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this define is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+}
+
+typedef CompilerConfiguration = {
+	/**
+		The version integer of the current Haxe compiler build.
+	**/
+	final version:Int;
+
+	/**
+		Returns an array of the arguments passed to the compiler from either the `.hxml` file or the command line.
+	**/
+	final args:Array<String>;
+
+	/**
+		If `--debug` mode is enabled, this is `true`.
+	**/
+	final debug:Bool;
+
+	/**
+		If `--verbose` mode is enabled, this is `true`.
+	**/
+	final verbose:Bool;
+
+	/**
+		If `--no-opt` is enabled, this is `false`.
+	**/
+	final foptimize:Bool;
+
+	/**
+		The target platform.
+	**/
+	final platform:haxe.display.Display.Platform;
+
+	/**
+		The compilation configuration for the target platform. 
+	**/
+	final platformConfig:PlatformConfig;
+
+	/**
+		A list of paths being used for the standard library.
+	**/
+	final stdPath:Array<String>;
+
+	/**
+		The path of the class passed using the `-main` argument.
+	**/
+	final mainClass:TypePath;
+
+	/**
+		Special access rules for packages depending on the compiler configuration.
+
+		For example, the "java" package is "Forbidden" when the target platform is Python.
+	**/
+	final packageRules:Map<String,PackageRule>;
+}
+
+enum PackageRule {
+	Forbidden;
+	Directory(path:String);
+	Remap(path:String);
 }

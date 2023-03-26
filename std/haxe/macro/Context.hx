@@ -47,45 +47,53 @@ class Context {
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
 	**/
-	public static function error(msg:String, pos:Position):Dynamic {
-		return load("error", 2)(msg, pos);
+	public static function error(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
+		return load("error", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the compilation.
 	**/
-	public static function fatalError(msg:String, pos:Position):Dynamic {
-		return load("fatal_error", 2)(msg, pos);
+	public static function fatalError(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
+		return load("fatal_error", 2)(msg, pos, depth);
+	}
+
+	/**
+		Displays a compilation error `msg` at the given `Position` `pos`
+		without aborting the current macro call.
+	**/
+	public static function reportError(msg:String, pos:Position, ?depth:Int = 0):Void {
+		load("report_error", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation warning `msg` at the given `Position` `pos`.
 	**/
-	public static function warning(msg:String, pos:Position) {
-		load("warning", 2)(msg, pos);
+	public static function warning(msg:String, pos:Position, ?depth:Int = 0) {
+		load("warning", 2)(msg, pos, depth);
 	}
 
 	/**
 		Displays a compilation info `msg` at the given `Position` `pos`.
 	**/
-	public static function info(msg:String, pos:Position) {
-		load("info", 2)(msg, pos);
+	public static function info(msg:String, pos:Position, ?depth:Int = 0) {
+		load("info", 2)(msg, pos, depth);
 	}
 
 	/**
 		Gets a list of all current compilation info/warning messages.
 	**/
-	public static function getMessages() : Array<Message> {
-		return load("get_messages",0)();
+	public static function getMessages():Array<Message> {
+		return load("get_messages", 0)();
 	}
 
 	/**
 		Filters all current info/warning messages. Filtered out messages will
 		not be displayed by the compiler.
 	**/
-	public static function filterMessages( predicate : Message -> Bool ) {
-		load("filter_messages",1)(predicate);
+	public static function filterMessages(predicate:Message->Bool) {
+		load("filter_messages", 1)(predicate);
 	}
 
 	/**
@@ -117,6 +125,10 @@ class Context {
 	**/
 	public static function containsDisplayPosition(pos:Position):Bool {
 		return load("contains_display_position", 1)(pos);
+	}
+
+	public static function getDisplayMode():DisplayMode {
+		return load("get_display_mode", 0)();
 	}
 
 	/**
@@ -298,6 +310,29 @@ class Context {
 	}
 
 	/**
+		Returns the typed expression of the call to the main function.
+
+		This function will only work in the generation phase. Any calls
+		made outside a function passed to `haxe.macro.Context.onGenerate`
+		or `haxe.macro.Context.onAfterGenerate` will return `null`.
+	**/
+	public static function getMainExpr():Null<TypedExpr> {
+		return load("get_main_expr", 0)();
+	}
+
+	/**
+		Returns an array of module types to be generated in the output.
+
+		This list may change depending on the phase of compilation and
+		should not be treated as conclusive until the generation phase.
+
+		Modifying the returned array has no effect on the compilation.
+	**/
+	public static function getAllModuleTypes():Array<haxe.macro.Type.ModuleType> {
+		return load("get_module_types", 0)();
+	}
+
+	/**
 		Parses `expr` as Haxe code, returning the corresponding AST.
 
 		String interpolation of single quote strings within `expr` is not
@@ -408,7 +443,10 @@ class Context {
 		Types expression `e` and returns the corresponding `TypedExpr`.
 
 		Typing the expression may result in a compiler error which can be
-		caught using `try ... catch`.
+		caught using `try ... catch`. Note that not all compiler errors can
+		be caught this way because the compiler might delay various checks
+		to a later stage, at which point the exception handler is no longer
+		active.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
 		return load("type_expr", 1)(e);
@@ -520,6 +558,16 @@ class Context {
 	}
 
 	/**
+		Creates and returns a new instance of monomorph (`TMono`) type.
+
+		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
+		bind the monomorph to an actual type and let macro further process the resulting type.
+	**/
+	public static function makeMonomorph():Type {
+		return load("make_monomorph", 0)();
+	}
+
+	/**
 		Defines a new module as `modulePath` with several `TypeDefinition`
 		`types`. This is analogous to defining a .hx file.
 
@@ -580,6 +628,14 @@ class Context {
 	}
 
 	/**
+		This function works like `storeExpr`, but also returns access to the expression's
+		type through the `type` field of the return value.
+	**/
+	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
+		return load("type_and_store_expr", 1)(e);
+	}
+
+	/**
 		Manually adds a dependency between module `modulePath` and an external
 		file `externFile`.
 
@@ -606,8 +662,35 @@ class Context {
 		stopTimer();
 		```
 	**/
-	public static function timer(id:String):()->Void {
+	public static function timer(id:String):() -> Void {
 		return load("timer", 1)(id);
+	}
+
+	/**
+		Executes `code` in a context that has `imports` and `usings` added.
+
+		This is equivalent to temporarily having `import` and `using` statements in a file. These
+		are only active during the execution of `code` and do not affect anything afterwards. This
+		is true even if `code` throws an exception.
+
+		If any argument is `null`, the result is unspecified.
+	**/
+	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		return load("with_imports", 3)(imports, usings, code);
+	}
+
+
+	/**
+		Executes `code` in a context that has some compiler options set, restore the compiler to its
+		default behavior afterwards.
+
+		`allowInlining`: enable or disable inlining during typing with `typeExpr`.
+
+		`allowTransform`: when disabled, the code typed with `typeExpr` will be almost exactly the same
+		as the input code. This will disable some abstract types transformations.
+	**/
+	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
+		return load("with_options", 2)(options, code);
 	}
 
 	@:deprecated

@@ -318,4 +318,5 @@ enum abstract Mime(String) from String to String {
 	var ApplicationXCompress = 'application/x-compress';
 	var MultipartXZip = 'multipart/x-zip';
 	var TextXScriptZsh = 'text/x-script.zsh';
+	var ImageAvif = 'image/avif';
 }
