@@ -1051,11 +1051,12 @@ module Cleanup = struct
 							| TLocal v when IntMap.mem v.v_id !locals -> true
 							| _ -> check_expr references_local e
 						in
+						let can_do = match com.platform with Hl -> false | _ -> true in
 						let rec loop2 el = match el with
-							| [{eexpr = TBreak}] when is_true_expr e1 ->
+							| [{eexpr = TBreak}] when is_true_expr e1 && can_do ->
 								do_while := Some (Texpr.Builder.make_bool com.basic true e1.epos);
 								[]
-							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) ->
+							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && can_do ->
 								do_while := Some econd;
 								[]
 							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->
