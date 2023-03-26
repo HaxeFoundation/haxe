@@ -1933,18 +1933,22 @@ class texpr_to_jvm
 				)
 		| TSwitch(e1,cases,def) ->
 			self#switch ret e1 cases def
-		| TWhile(e1,e2,flag) -> (* TODO: do-while *)
+		| TWhile(e1,e2,flag) ->
 			block_exits <- ExitLoop :: block_exits;
 			let is_true_loop = match (Texpr.skip e1).eexpr with TConst (TBool true) -> true | _ -> false in
 			let continue_label = jm#spawn_label "continue" in
 			let break_label = jm#spawn_label "break" in
 			let body_label = jm#spawn_label "body" in
+			let restore = jm#start_branch in
+			if flag = DoWhile then begin
+				body_label#goto;
+				restore();
+			end;
 			let old_continue = continue in
 			continue <- Some continue_label;
 			let old_break = break in
 			break <- Some break_label;
 			continue_label#here;
-			let restore = jm#start_branch in
 			if not is_true_loop then self#condition false e1 body_label break_label;
 			let pop_scope = jm#push_scope in
 			body_label#here;
