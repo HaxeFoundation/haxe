@@ -1032,6 +1032,13 @@ module Cleanup = struct
 			| TWhile(e1,e2,NormalWhile) ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
+				let rec has_continue e = match e.eexpr with
+					| TContinue ->
+						true
+					| _ ->
+						check_expr has_continue e
+				in
+				let has_continue = has_continue e2 in
 				begin match e2.eexpr with
 					| TBlock ({eexpr = TIf(e1,({eexpr = TBlock[{eexpr = TBreak}]} as eb),None)} :: el2) ->
 						let e1 = Texpr.skip e1 in
@@ -1053,10 +1060,10 @@ module Cleanup = struct
 						in
 						let can_do = match com.platform with Hl -> false | _ -> true in
 						let rec loop2 el = match el with
-							| [{eexpr = TBreak}] when is_true_expr e1 && can_do ->
+							| [{eexpr = TBreak}] when is_true_expr e1 && can_do && not has_continue ->
 								do_while := Some (Texpr.Builder.make_bool com.basic true e1.epos);
 								[]
-							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && can_do ->
+							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && can_do && not has_continue ->
 								do_while := Some econd;
 								[]
 							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->
