@@ -269,9 +269,15 @@ module AnnotationHandler = struct
 			| EField(e1,s,_) ->
 				let path = parse_path e1 in
 				AEnum(object_path_sig path,s)
+			| ECall(e1, el) -> 
+				let path = parse_path e1 in
+				let _,name = ExtString.String.replace (snd path) "." "$" in
+				let path = (fst path, name) in
+				let values = List.map parse_value_pair el in 
+				AAnnotation(TObject(path, []),values)	
+				
 			| _ -> Error.typing_error "Expected value expression" (pos e)
-		in
-		let parse_value_pair e = match fst e with
+		and parse_value_pair e = match fst e with
 			| EBinop(OpAssign,(EConst(Ident s),_),e1) ->
 				s,parse_value e1
 			| _ ->
