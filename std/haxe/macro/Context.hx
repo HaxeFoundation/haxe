@@ -162,7 +162,7 @@ class Context {
 		macro is not an expression-macro.
 	**/
 	public static function getExpectedType():Null<Type> {
-		assertInitMacroDone(false);
+		assertInitMacrosDone(false);
 		return load("get_expected_type", 0)();
 	}
 
@@ -308,7 +308,7 @@ class Context {
 		If no type can be found, an exception of type `String` is thrown.
 	**/
 	public static function getType(name:String):Type {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("get_type", 1)(name);
 	}
 
@@ -459,7 +459,7 @@ class Context {
 		caught using `try ... catch`.
 	**/
 	public static function typeof(e:Expr):Type {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("typeof", 1)(e);
 	}
 
@@ -473,7 +473,7 @@ class Context {
 		active.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("type_expr", 1)(e);
 	}
 
@@ -485,7 +485,7 @@ class Context {
 		Resolution is performed based on the current context in which the macro is called.
 	**/
 	public static function resolveType(t:ComplexType, p:Position):Type {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("resolve_type", 2)(t, p);
 	}
 
@@ -502,7 +502,7 @@ class Context {
 		Tries to unify `t1` and `t2` and returns `true` if successful.
 	**/
 	public static function unify(t1:Type, t2:Type):Bool {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("unify", 2)(t1, t2);
 	}
 
@@ -512,7 +512,7 @@ class Context {
 		See `haxe.macro.TypeTools.follow` for details.
 	**/
 	public static function follow(t:Type, ?once:Bool):Type {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("follow", 2)(t, once);
 	}
 
@@ -522,7 +522,7 @@ class Context {
 		See `haxe.macro.TypeTools.followWithAbstracts` for details.
 	**/
 	public static function followWithAbstracts(t:Type, once:Bool = false):Type {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("follow_with_abstracts", 2)(t, once);
 	}
 
@@ -583,7 +583,7 @@ class Context {
 		instead of the current module.
 	**/
 	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		load("define_type", 2)(t, moduleDependency);
 	}
 
@@ -594,7 +594,7 @@ class Context {
 		bind the monomorph to an actual type and let macro further process the resulting type.
 	**/
 	public static function makeMonomorph():Type {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("make_monomorph", 0)();
 	}
 
@@ -611,7 +611,7 @@ class Context {
 			imports = [];
 		if (usings == null)
 			usings = [];
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		load("define_module", 4)(modulePath, types, imports, usings);
 	}
 
@@ -621,7 +621,7 @@ class Context {
 		This process may lose some information.
 	**/
 	public static function getTypedExpr(t:Type.TypedExpr):Expr {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("get_typed_expr", 1)(t);
 	}
 
@@ -638,7 +638,7 @@ class Context {
 		compilation server.
 	**/
 	public static function storeTypedExpr(t:Type.TypedExpr):Expr {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("store_typed_expr", 1)(t);
 	}
 
@@ -658,7 +658,7 @@ class Context {
 		compilation server.
 	**/
 	public static function storeExpr(e:Expr):Expr {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("store_expr", 1)(e);
 	}
 
@@ -667,7 +667,7 @@ class Context {
 		type through the `type` field of the return value.
 	**/
 	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		return load("type_and_store_expr", 1)(e);
 	}
 
@@ -681,7 +681,7 @@ class Context {
 		Has no effect if the compilation cache is not used.
 	**/
 	public static function registerModuleDependency(modulePath:String, externFile:String) {
-		assertInitMacroDone();
+		assertInitMacrosDone();
 		load("register_module_dependency", 2)(modulePath, externFile);
 	}
 
@@ -763,7 +763,7 @@ class Context {
 	}
 
 	@:allow(haxe.macro.Compiler)
-	private static function assertInitMacro():Void {
+	private static function assertInitMacros():Void {
 		if (initMacrosDone()) {
 			var stack = getMacroStack();
 
@@ -775,7 +775,7 @@ class Context {
 	}
 
 	// @:allow(haxe.macro.Compiler)
-	private static function assertInitMacroDone(includeSuggestion = true):Void {
+	private static function assertInitMacrosDone(includeSuggestion = true):Void {
 		#if haxe_next
 		if (!initMacrosDone()) {
 			var stack = getMacroStack();
