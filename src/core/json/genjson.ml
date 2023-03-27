@@ -651,18 +651,18 @@ let generate_typedef ctx td =
 		"type",generate_type ctx td.t_type;
 	]
 
-let generate_abstract ctx a =
+let generate_casts ctx fields casts =
 	let generate_cast_relation t cfo =
 		jobject [
 			"t",generate_type ctx t;
 			"field",jopt (classfield_ref ctx) cfo
 		]
 	in
-	let generate_casts fields casts =
-		let l1 = List.map (fun (t,cf) -> generate_cast_relation t (Some cf)) fields in
-		let l2 = List.map (fun t -> generate_cast_relation t None) casts in
-		jarray (l1 @ l2)
-	in
+	let l1 = List.map (fun (t,cf) -> generate_cast_relation t (Some cf)) fields in
+	let l2 = List.map (fun t -> generate_cast_relation t None) casts in
+	jarray (l1 @ l2)
+
+let generate_abstract ctx a =
 	let generate_binop (op,cf) =
 		jobject [
 			"op",generate_binop ctx op;
@@ -687,8 +687,8 @@ let generate_abstract ctx a =
 		"impl",impl;
 		"binops",jlist generate_binop a.a_ops;
 		"unops",jlist generate_unop a.a_unops;
-		"from",generate_casts a.a_from_field a.a_from;
-		"to",generate_casts a.a_to_field a.a_to;
+		"from",generate_casts ctx a.a_from_field a.a_from;
+		"to",generate_casts ctx a.a_to_field a.a_to;
 		"array",jlist (classfield_ref ctx) a.a_array;
 		"read",jopt (classfield_ref ctx) a.a_read;
 		"write",jopt (classfield_ref ctx) a.a_write;

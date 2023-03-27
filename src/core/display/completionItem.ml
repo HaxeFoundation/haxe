@@ -359,6 +359,19 @@ module CompletionType = struct
 		ct_import_status : ImportStatus.t;
 	}
 
+	and ct_ab_path_with_params = {
+		ct_pack : string list;
+		ct_type_name : string;
+		ct_module_name : string;
+		ct_params : t list;
+		ct_import_status : ImportStatus.t;
+		(* ct_from : TType.t list;
+		ct_to : TType.t list;
+		ct_from_field : (TType.t * tclass_field) list;
+		ct_to_field : (TType.t * tclass_field) list; *)
+		ct_transitive_params : bool list;
+	}
+
 	and ct_function_argument = {
 		ct_name : string;
 		ct_optional : bool;
@@ -386,7 +399,7 @@ module CompletionType = struct
 		| CTInst of ct_path_with_params
 		| CTEnum of ct_path_with_params
 		| CTTypedef of ct_path_with_params
-		| CTAbstract of ct_path_with_params
+		| CTAbstract of ct_ab_path_with_params
 		| CTFunction of ct_function
 		| CTAnonymous of ct_anonymous
 		| CTDynamic of t option
@@ -400,6 +413,20 @@ module CompletionType = struct
 		];
 		"params",jlist (generate_type ctx) pwp.ct_params;
 	]
+
+	and generate_ab_path_with_params ctx (pwp : ct_ab_path_with_params) =
+		jobject [
+			"path",jobject [
+				"pack",jlist jstring pwp.ct_pack;
+				"moduleName",jstring pwp.ct_module_name;
+				"typeName",jstring pwp.ct_type_name;
+				"importStatus",jint (ImportStatus.to_int pwp.ct_import_status);
+			];
+			"params",jlist (generate_type ctx) pwp.ct_params;
+			(* "from_casts",generate_casts ctx pwp.ct_from_field pwp.ct_from;
+			"to_casts",generate_casts ctx pwp.ct_to_field pwp.ct_to; *)
+			"transitive_params",jlist jbool pwp.ct_transitive_params
+		]
 
 	and generate_function_argument ctx cfa = jobject [
 		"name",jstring cfa.ct_name;
@@ -438,7 +465,7 @@ module CompletionType = struct
 			| CTInst pwp -> "TInst",Some (generate_path_with_params ctx pwp)
 			| CTEnum pwp -> "TEnum",Some (generate_path_with_params ctx pwp)
 			| CTTypedef pwp -> "TType",Some (generate_path_with_params ctx pwp)
-			| CTAbstract pwp -> "TAbstract",Some (generate_path_with_params ctx pwp)
+			| CTAbstract pwp -> "TAbstract",Some (generate_ab_path_with_params ctx pwp)
 			| CTFunction ctf -> "TFun",Some (generate_function ctx ctf)
 			| CTAnonymous cta -> "TAnonymous",Some (generate_anon ctx cta)
 			| CTDynamic cto -> "TDynamic",Option.map (generate_type ctx) cto;
@@ -456,12 +483,41 @@ module CompletionType = struct
 			ct_import_status = get_import_status tpath;
 			ct_params = List.map (from_type PMap.empty) tl;
 		}
+		and ab_ppath mpath tpath a tl = {
+			ct_pack = fst tpath;
+			ct_module_name = snd mpath;
+			ct_type_name = snd tpath;
+			ct_import_status = get_import_status tpath;
+			ct_params = List.map (from_type PMap.empty) tl;
+			(* ct_from = a.a_from;
+			ct_to = a.a_to;
+			ct_from_field = a.a_from_field;
+			ct_to_field = a.a_to_field; *)
+			ct_transitive_params = List.map (is_transitive_tp PMap.empty a.a_from a.a_to) a.a_params;
+		}
 		and funarg value (name,opt,t) = {
 			ct_name = name;
 			ct_optional = opt;
 			ct_type = from_type PMap.empty t;
 			ct_value = value
 		}
+		and is_transitive_tp values a_from a_to tp =
+			(* print_endline tp.ttp_name;
+			print_endline (String.concat ", " (List.map Printer.s_type a_from)); *)
+			let has_from = List.exists (fun cast ->
+				match follow cast with
+				| TInst({cl_kind = KTypeParameter _} as c,_) ->
+					tp.ttp_name = snd c.cl_path
+				| _ -> false
+			) a_from in
+			let has_to = List.exists (fun cast ->
+				match follow cast with
+				| TInst({cl_kind = KTypeParameter _} as c,_) ->
+					tp.ttp_name = snd c.cl_path
+				| _ -> false
+			) a_to in
+			has_from && has_to
+
 		and from_type values t = match t with
 			| TMono r ->
 				begin match r.tm_type with
@@ -485,7 +541,7 @@ module CompletionType = struct
 			| TType(td,tl) ->
 				CTTypedef (ppath td.t_module.m_path td.t_path tl)
 			| TAbstract(a,tl) ->
-				CTAbstract (ppath a.a_module.m_path a.a_path tl)
+				CTAbstract (ab_ppath a.a_module.m_path a.a_path a tl)
 			| TFun(tl,t) when not (PMap.is_empty values) ->
 				let get_arg n = try Some (PMap.find n values) with Not_found -> None in
 				CTFunction {
