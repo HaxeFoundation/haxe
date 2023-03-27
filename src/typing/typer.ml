@@ -892,7 +892,7 @@ and type_object_decl ctx fl with_type p =
 		let extra_fields = ref [] in
 		let fl = List.map (fun ((n,pn,qs),e) ->
 			let is_valid = Lexer.is_valid_identifier n in
-			if PMap.mem n !fields then typing_error ("Duplicate field in object declaration : " ^ n) p;
+			if PMap.mem n !fields then typing_error ("Duplicate field in object declaration : " ^ n) pn;
 			let is_final = ref false in
 			let e = try
 				let t = match !dynamic_parameter with
@@ -935,7 +935,7 @@ and type_object_decl ctx fl with_type p =
 	let type_plain_fields () =
 		let rec loop (l,acc) ((f,pf,qs),e) =
 			let is_valid = Lexer.is_valid_identifier f in
-			if PMap.mem f acc then typing_error ("Duplicate field in object declaration : " ^ f) p;
+			if PMap.mem f acc then typing_error ("Duplicate field in object declaration : " ^ f) pf;
 			let e = type_expr ctx e (WithType.named_structure_field f) in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> typing_error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
