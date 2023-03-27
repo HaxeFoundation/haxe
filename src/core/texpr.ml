@@ -569,12 +569,23 @@ let rec constructor_side_effects e =
 let replace_separators s c =
 	String.concat c (ExtString.String.nsplit s "_")
 
-let type_constant basic c p =
+let type_constant basic with_type c p =
 	match c with
 	| Int (s,_) ->
 		if String.length s > 10 && String.sub s 0 2 = "0x" then typing_error "Invalid hexadecimal integer" p;
-		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
-		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
+		let float () =
+			mk (TConst (TFloat s)) basic.tfloat p
+		in
+		begin match with_type with
+			| WithType.WithType(t,_) when TOther.ExtType.is_float t ->
+				float()
+			| _ ->
+				begin try
+					mk (TConst (TInt (Int32.of_string s))) basic.tint p
+				with _ ->
+					float()
+				end
+			end
 	| Float (f,_) -> mk (TConst (TFloat f)) basic.tfloat p
 	| String(s,qs) -> mk (TConst (TString s)) basic.tstring p (* STRINGTODO: qs? *)
 	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
@@ -583,21 +594,21 @@ let type_constant basic c p =
 	| Ident t -> typing_error ("Invalid constant :  " ^ t) p
 	| Regexp _ -> typing_error "Invalid constant" p
 
-let rec type_constant_value basic (e,p) =
+let rec type_constant_value basic with_type (e,p) =
 	match e with
 	| EConst c ->
-		type_constant basic c p
+		type_constant basic with_type c p
 	| EParenthesis e ->
-		type_constant_value basic e
+		type_constant_value basic with_type e
 	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (mk_anon (ref Closed)) p
+		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic with_type e) el)) (mk_anon (ref Closed)) p
 	| EArrayDecl el ->
-		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
+		mk (TArrayDecl (List.map (type_constant_value basic with_type) el)) (basic.tarray t_dynamic) p
 	| _ ->
 		typing_error "Constant value expected" p
 
 let is_constant_value basic e =
-	try (ignore (type_constant_value basic e); true) with Error (Custom _,_,_) -> false
+	try (ignore (type_constant_value basic WithType.value e); true) with Error (Custom _,_,_) -> false
 
 let for_remap basic v e1 e2 p =
 	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
@@ -640,7 +651,7 @@ let build_metadata api t =
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
 			if Hashtbl.mem h f then typing_error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
-			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api) el)) (api.tarray t_dynamic) p
+			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api WithType.value) el)) (api.tarray t_dynamic) p
 		) ml)) t_dynamic p
 	in
 	let make_meta l =

@@ -1,5 +1,3 @@
-open Type
-
 type with_type_source_information = {
 	si_name : string;
 	si_doc : string option;
@@ -13,7 +11,7 @@ type with_type_source =
 type t =
 	| NoValue
 	| Value of with_type_source option
-	| WithType of Type.t * with_type_source option
+	| WithType of TType.t * with_type_source option
 
 let make_with_type_source_information name doc = {
 	si_name = name;
@@ -39,4 +37,5 @@ let to_string = function
 			| Some(FunctionArgument si | StructureField si) -> si.si_name
 			| _ -> "None"
 		in
+		let open TPrinting in
 		Printf.sprintf "WithType(%s, %s)" (s_type (print_context()) t) name

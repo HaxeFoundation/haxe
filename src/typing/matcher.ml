@@ -347,7 +347,7 @@ module Pattern = struct
 					| _ -> ()
 				end;
 				let p = pos e in
-				let e = Texpr.type_constant ctx.com.basic ct p in
+				let e = Texpr.type_constant ctx.com.basic (WithType.with_type t) ct p in
 				unify_expected e.etype;
 				let ct = match e.eexpr with TConst ct -> ct | _ -> die "" __LOC__ in
 				PatConstructor(con_const ct p,[])

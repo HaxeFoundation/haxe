@@ -1866,10 +1866,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		| other -> typing_error (other ^ " is not a valid integer suffix") p)
 	| EConst (Float (s, Some suffix) as c) ->
 		(match suffix with
-		| "f64" -> Texpr.type_constant ctx.com.basic c p
+		| "f64" -> Texpr.type_constant ctx.com.basic with_type c p
 		| other -> typing_error (other ^ " is not a valid float suffix") p)
 	| EConst c ->
-		Texpr.type_constant ctx.com.basic c p
+		Texpr.type_constant ctx.com.basic with_type c p
 	| EBinop (OpNullCoal,e1,e2) ->
 		let vr = new value_reference ctx in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
