@@ -1,3 +1,3 @@
 (unknown) : Uncaught exception Could not read file meta.jsno
-$$normPath(::std::)/haxe/macro/Compiler.hx:472: characters 11-39 : Called from here
+$$normPath(::std::)/haxe/macro/Compiler.hx:477: characters 11-39 : Called from here
 (unknown) : Called from here
