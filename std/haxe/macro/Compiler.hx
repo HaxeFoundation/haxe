@@ -70,6 +70,7 @@ class Compiler {
 	**/
 	public static function define(flag:String, ?value:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("define", 2)(flag, value);
 		#end
 	}
@@ -137,6 +138,7 @@ class Compiler {
 	**/
 	public static function addClassPath(path:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_class_path", 1)(path);
 		#end
 	}
@@ -183,6 +185,7 @@ class Compiler {
 	**/
 	public static function addNativeLib(name:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_native_lib", 1)(name);
 		#end
 	}
@@ -192,6 +195,7 @@ class Compiler {
 	**/
 	public static function addNativeArg(argument:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_native_arg", 1)(argument);
 		#end
 	}
@@ -439,6 +443,7 @@ class Compiler {
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
+		Context.assertInitMacro();
 		addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
 	}
 

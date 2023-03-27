@@ -262,6 +262,11 @@
 		"reserved": true
 	},
 	{
+		"name": "HaxeNext",
+		"define": "haxe-next",
+		"doc": "Enable warnings/errors that would otherwise only trigger starting next Haxe version."
+	},
+	{
 		"name": "HlVer",
 		"define": "hl-ver",
 		"doc": "The HashLink version to target. (default: 1.10.0)",

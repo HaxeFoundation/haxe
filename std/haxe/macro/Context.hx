@@ -97,6 +97,13 @@ class Context {
 	}
 
 	/**
+		TODO: documentation
+	**/
+	public static function initMacrosDone():Bool {
+		return load("init_macros_done", 0)();
+	}
+
+	/**
 		Resolves a file name `file` based on the current class paths.
 
 		The resolution follows the usual class path rules where the last
@@ -139,6 +146,13 @@ class Context {
 	}
 
 	/**
+		TODO: documentation
+	**/
+	public static function getMacroStack():Array<Position> {
+		return load("get_macro_stack", 0)();
+	}
+
+	/**
 		Returns the type which is expected at the place the macro is called.
 
 		This affects usages such as `var x:Int = macroCall()`, where the
@@ -148,6 +162,7 @@ class Context {
 		macro is not an expression-macro.
 	**/
 	public static function getExpectedType():Null<Type> {
+		assertInitMacroDone(false);
 		return load("get_expected_type", 0)();
 	}
 
@@ -293,6 +308,7 @@ class Context {
 		If no type can be found, an exception of type `String` is thrown.
 	**/
 	public static function getType(name:String):Type {
+		assertInitMacroDone();
 		return load("get_type", 1)(name);
 	}
 
@@ -418,6 +434,13 @@ class Context {
 	}
 
 	/**
+		TODO: documentation
+	**/
+	public static function onAfterInitMacros(callback:Void->Void):Void {
+		load("on_after_init_macros", 1)(callback);
+	}
+
+	/**
 		Adds a callback function `callback` which is invoked when a type name
 		cannot be resolved.
 
@@ -436,6 +459,7 @@ class Context {
 		caught using `try ... catch`.
 	**/
 	public static function typeof(e:Expr):Type {
+		assertInitMacroDone();
 		return load("typeof", 1)(e);
 	}
 
@@ -449,6 +473,7 @@ class Context {
 		active.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
+		assertInitMacroDone();
 		return load("type_expr", 1)(e);
 	}
 
@@ -460,6 +485,7 @@ class Context {
 		Resolution is performed based on the current context in which the macro is called.
 	**/
 	public static function resolveType(t:ComplexType, p:Position):Type {
+		assertInitMacroDone();
 		return load("resolve_type", 2)(t, p);
 	}
 
@@ -476,6 +502,7 @@ class Context {
 		Tries to unify `t1` and `t2` and returns `true` if successful.
 	**/
 	public static function unify(t1:Type, t2:Type):Bool {
+		assertInitMacroDone();
 		return load("unify", 2)(t1, t2);
 	}
 
@@ -485,6 +512,7 @@ class Context {
 		See `haxe.macro.TypeTools.follow` for details.
 	**/
 	public static function follow(t:Type, ?once:Bool):Type {
+		assertInitMacroDone();
 		return load("follow", 2)(t, once);
 	}
 
@@ -494,6 +522,7 @@ class Context {
 		See `haxe.macro.TypeTools.followWithAbstracts` for details.
 	**/
 	public static function followWithAbstracts(t:Type, once:Bool = false):Type {
+		assertInitMacroDone();
 		return load("follow_with_abstracts", 2)(t, once);
 	}
 
@@ -554,6 +583,7 @@ class Context {
 		instead of the current module.
 	**/
 	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
+		assertInitMacroDone();
 		load("define_type", 2)(t, moduleDependency);
 	}
 
@@ -564,6 +594,7 @@ class Context {
 		bind the monomorph to an actual type and let macro further process the resulting type.
 	**/
 	public static function makeMonomorph():Type {
+		assertInitMacroDone();
 		return load("make_monomorph", 0)();
 	}
 
@@ -580,6 +611,7 @@ class Context {
 			imports = [];
 		if (usings == null)
 			usings = [];
+		assertInitMacroDone();
 		load("define_module", 4)(modulePath, types, imports, usings);
 	}
 
@@ -589,6 +621,7 @@ class Context {
 		This process may lose some information.
 	**/
 	public static function getTypedExpr(t:Type.TypedExpr):Expr {
+		assertInitMacroDone();
 		return load("get_typed_expr", 1)(t);
 	}
 
@@ -605,6 +638,7 @@ class Context {
 		compilation server.
 	**/
 	public static function storeTypedExpr(t:Type.TypedExpr):Expr {
+		assertInitMacroDone();
 		return load("store_typed_expr", 1)(t);
 	}
 
@@ -624,6 +658,7 @@ class Context {
 		compilation server.
 	**/
 	public static function storeExpr(e:Expr):Expr {
+		assertInitMacroDone();
 		return load("store_expr", 1)(e);
 	}
 
@@ -632,6 +667,7 @@ class Context {
 		type through the `type` field of the return value.
 	**/
 	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
+		assertInitMacroDone();
 		return load("type_and_store_expr", 1)(e);
 	}
 
@@ -645,6 +681,7 @@ class Context {
 		Has no effect if the compilation cache is not used.
 	**/
 	public static function registerModuleDependency(modulePath:String, externFile:String) {
+		assertInitMacroDone();
 		load("register_module_dependency", 2)(modulePath, externFile);
 	}
 
@@ -723,6 +760,35 @@ class Context {
 
 	private static function sExpr(e:TypedExpr, pretty:Bool):String {
 		return haxe.macro.Context.load("s_expr", 2)(e, pretty);
+	}
+
+	@:allow(haxe.macro.Compiler)
+	private static function assertInitMacro():Void {
+		if (initMacrosDone()) {
+			var stack = getMacroStack();
+
+			warning(
+				"This API should only be used from initialization macros.",
+				if (stack.length > 2) stack[2] else currentPos()
+			);
+		}
+	}
+
+	// @:allow(haxe.macro.Compiler)
+	private static function assertInitMacroDone(includeSuggestion = true):Void {
+		#if haxe_next
+		if (!initMacrosDone()) {
+			var stack = getMacroStack();
+			var suggestion = includeSuggestion
+				? "\nUse `Context.onAfterInitMacros` to register a callback to run when context is ready."
+				: "";
+
+			warning(
+				"Cannot use this macro API from initialization macros." + suggestion,
+				if (stack.length > 2) stack[2] else currentPos()
+			);
+		}
+		#end
 	}
 	#end
 }
