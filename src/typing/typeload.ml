@@ -524,8 +524,9 @@ and load_complex_type' ctx allow_display (t,p) =
 		let displayed_field = ref None in
 		let rec loop acc f =
 			let n = fst f.cff_name in
+			let pf = snd f.cff_name in
 			let p = f.cff_pos in
-			if PMap.mem n acc then typing_error ("Duplicate field declaration : " ^ n) p;
+			if PMap.mem n acc then typing_error ("Duplicate field declaration : " ^ n) pf;
 			let topt = function
 				| None -> typing_error ("Explicit type required for field " ^ n) p
 				| Some t -> load_complex_type ctx allow_display t
