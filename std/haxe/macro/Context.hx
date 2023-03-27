@@ -784,7 +784,7 @@ class Context {
 				: "";
 
 			warning(
-				"Cannot use this macro API from initialization macros." + suggestion,
+				"Cannot use this API from initialization macros." + suggestion,
 				if (stack.length > 2) stack[2] else currentPos()
 			);
 		}
