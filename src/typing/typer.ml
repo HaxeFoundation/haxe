@@ -866,16 +866,11 @@ and type_object_decl ctx fl with_type p =
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let froms = get_abstract_froms ctx a pl in
-				begin match froms with
-				| [] ->
-					(* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
-					ODKPlain
-				| _ ->
-					let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
-					begin match List.fold_left fold [] froms with
-						| [t] -> t
-						| _ -> ODKFailed
-					end
+				let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+				begin match List.fold_left fold [] froms with
+					| [] -> ODKPlain (* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
+					| [t] -> t
+					| _ -> ODKFailed
 				end
 			| TDynamic (Some t) ->
 				dynamic_parameter := Some t;
