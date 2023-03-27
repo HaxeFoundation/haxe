@@ -335,6 +335,7 @@ let rec build_generic_class ctx c p tl =
 		TypeloadFunction.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
+		if (has_class_flag c CAbstract) then add_class_flag cg CAbstract;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor
