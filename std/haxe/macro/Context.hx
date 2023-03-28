@@ -452,7 +452,7 @@ class Context {
 
 	/**
 		Adds a callback function `callback` which is invoked after the compiler
-		is done running initialization macros, before typing.
+		is done running initialization macros, when typing begins.
 
 		`onAfterInitMacros` should be used to delay typer-dependant code from
 		your initalization macros, to properly separate configuration phase and
