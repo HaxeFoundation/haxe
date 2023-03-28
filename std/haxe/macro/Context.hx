@@ -97,7 +97,8 @@ class Context {
 	}
 
 	/**
-		TODO: documentation
+		Check if compiler is past initializations macros or not.
+		When it is, configuration phase is over and parsing/typing can start.
 	**/
 	public static function initMacrosDone():Bool {
 		return load("init_macros_done", 0)();
@@ -146,7 +147,8 @@ class Context {
 	}
 
 	/**
-		TODO: documentation
+		Get the call stack (excluding the call to `Context.getMacroStack()`
+		that led to current macro.
 	**/
 	public static function getMacroStack():Array<Position> {
 		return load("get_macro_stack", 0)();
@@ -434,7 +436,12 @@ class Context {
 	}
 
 	/**
-		TODO: documentation
+		Adds a callback function `callback` which is invoked after the compiler
+		is done running initialization macros, before typing.
+
+		`onAfterInitMacros` should be used to delay typer-dependant code from
+		your initalization macros, to properly separate configuration phase and
+		actual typing.
 	**/
 	public static function onAfterInitMacros(callback:Void->Void):Void {
 		load("on_after_init_macros", 1)(callback);

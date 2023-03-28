@@ -264,7 +264,7 @@
 	{
 		"name": "HaxeNext",
 		"define": "haxe-next",
-		"doc": "Enable warnings/errors that would otherwise only trigger starting next Haxe version."
+		"doc": "Enable experimental features that are meant to be released on next Haxe version."
 	},
 	{
 		"name": "HlVer",

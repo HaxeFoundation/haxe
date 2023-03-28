@@ -712,7 +712,7 @@ typedef CompilerConfiguration = {
 	final platform:haxe.display.Display.Platform;
 
 	/**
-		The compilation configuration for the target platform. 
+		The compilation configuration for the target platform.
 	**/
 	final platformConfig:PlatformConfig;
 
