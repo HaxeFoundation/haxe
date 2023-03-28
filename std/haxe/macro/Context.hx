@@ -308,6 +308,10 @@ class Context {
 		declared class path has priority.
 
 		If no type can be found, an exception of type `String` is thrown.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function getType(name:String):Type {
 		assertInitMacrosDone();
@@ -464,6 +468,10 @@ class Context {
 
 		Typing the expression may result in a compiler error which can be
 		caught using `try ... catch`.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function typeof(e:Expr):Type {
 		assertInitMacrosDone();
@@ -478,6 +486,10 @@ class Context {
 		be caught this way because the compiler might delay various checks
 		to a later stage, at which point the exception handler is no longer
 		active.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function typeExpr(e:Expr):TypedExpr {
 		assertInitMacrosDone();
@@ -490,6 +502,10 @@ class Context {
 		Resolving the type may result in a compiler error which can be
 		caught using `try ... catch`.
 		Resolution is performed based on the current context in which the macro is called.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function resolveType(t:ComplexType, p:Position):Type {
 		assertInitMacrosDone();
@@ -507,6 +523,10 @@ class Context {
 
 	/**
 		Tries to unify `t1` and `t2` and returns `true` if successful.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function unify(t1:Type, t2:Type):Bool {
 		assertInitMacrosDone();
@@ -517,6 +537,10 @@ class Context {
 		Follows a type.
 
 		See `haxe.macro.TypeTools.follow` for details.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function follow(t:Type, ?once:Bool):Type {
 		assertInitMacrosDone();
@@ -527,6 +551,10 @@ class Context {
 		Follows a type, including abstracts' underlying implementation
 
 		See `haxe.macro.TypeTools.followWithAbstracts` for details.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function followWithAbstracts(t:Type, once:Bool = false):Type {
 		assertInitMacrosDone();
@@ -588,6 +616,10 @@ class Context {
 		If `moduleDependency` is given and is not `null`, it should contain
 		a module path that will be used as a dependency for the newly defined module
 		instead of the current module.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function defineType(t:TypeDefinition, ?moduleDependency:String):Void {
 		assertInitMacrosDone();
@@ -599,6 +631,10 @@ class Context {
 
 		Returned monomorph can be used with e.g. `Context.unify` to make the compiler
 		bind the monomorph to an actual type and let macro further process the resulting type.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function makeMonomorph():Type {
 		assertInitMacrosDone();
@@ -612,6 +648,10 @@ class Context {
 		The individual `types` can reference each other and any identifier
 		respects the `imports` and `usings` as usual, expect that imports are
 		not allowed to have `.*` wildcards or `as s` shorthands.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function defineModule(modulePath:String, types:Array<TypeDefinition>, ?imports:Array<ImportExpr>, ?usings:Array<TypePath>):Void {
 		if (imports == null)
@@ -626,6 +666,10 @@ class Context {
 		Returns a syntax-level expression corresponding to typed expression `t`.
 
 		This process may lose some information.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function getTypedExpr(t:Type.TypedExpr):Expr {
 		assertInitMacrosDone();
@@ -643,6 +687,10 @@ class Context {
 		that is reset between compilations, so care should be taken when storing
 		the expression returned by this method in a static variable and using the
 		compilation server.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function storeTypedExpr(t:Type.TypedExpr):Expr {
 		assertInitMacrosDone();
@@ -663,6 +711,10 @@ class Context {
 		that is reset between compilations, so care should be taken when storing
 		the expression returned by this method in a static variable and using the
 		compilation server.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function storeExpr(e:Expr):Expr {
 		assertInitMacrosDone();
@@ -672,6 +724,10 @@ class Context {
 	/**
 		This function works like `storeExpr`, but also returns access to the expression's
 		type through the `type` field of the return value.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function typeAndStoreExpr(e:Expr):{final type:Type.Ref<Type>; final expr:Expr;} {
 		assertInitMacrosDone();
@@ -686,6 +742,10 @@ class Context {
 		`externFile` has changed.
 
 		Has no effect if the compilation cache is not used.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function registerModuleDependency(modulePath:String, externFile:String) {
 		assertInitMacrosDone();
