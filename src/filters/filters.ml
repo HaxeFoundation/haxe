@@ -766,7 +766,7 @@ let destruction tctx detail_times main locals =
 		List.iter (fun f -> f t) type_filters
 	) com.types;
 	t();
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters);
+	com.callbacks#run com.callbacks#get_after_filters;
 	com.stage <- CFilteringDone
 
 let update_cache_dependencies com t =
@@ -1003,7 +1003,7 @@ let run com tctx main =
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
 	let t = filter_timer detail_times ["callbacks"] in
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
+	com.callbacks#run com.callbacks#get_before_save; (* macros onGenerate etc. *)
 	t();
 	com.stage <- CSaveStart;
 	let t = filter_timer detail_times ["save state"] in
@@ -1014,6 +1014,6 @@ let run com tctx main =
 	t();
 	com.stage <- CSaveDone;
 	let t = filter_timer detail_times ["callbacks"] in
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
+	com.callbacks#run com.callbacks#get_after_save; (* macros onGenerate etc. *)
 	t();
 	destruction tctx detail_times main locals
