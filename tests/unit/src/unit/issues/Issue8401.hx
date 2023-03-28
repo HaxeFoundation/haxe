@@ -3,6 +3,7 @@ package unit.issues;
 import sys.net.Host;
 
 class Issue8401 extends unit.Test {
+#if python
 	function testNew() {
 		var sock = new python.net.SslSocket();
 		// With Issue8401, construction fails immediately; if we get this far, it's a pass
@@ -52,4 +53,5 @@ class Issue8401 extends unit.Test {
 		sock.wrapSocketWithSslContext("127.0.0.1");
 		eq(1, (cast sock.__s).getsockopt(python.lib.Socket.SOL_TCP, python.lib.Socket.TCP_NODELAY));
 	}
+#end
 }
