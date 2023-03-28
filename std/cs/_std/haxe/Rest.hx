@@ -1,20 +1,21 @@
 package haxe;
 
-import haxe.iterators.RestIterator;
-import haxe.iterators.RestKeyValueIterator;
 import cs.NativeArray;
 import cs.system.Array as CsArray;
+import haxe.iterators.RestIterator;
+import haxe.iterators.RestKeyValueIterator;
 
 private typedef NativeRest<T> = #if erase_generics NativeArray<Dynamic> #else NativeArray<T> #end;
 
 @:coreApi
 abstract Rest<T>(NativeRest<T>) {
-	public var length(get,never):Int;
+	public var length(get, never):Int;
+
 	inline function get_length():Int
 		return this.Length;
 
 	@:from static public inline function of<T>(array:Array<T>):Rest<T>
-		return new Rest(@:privateAccess array.__a);
+		return new Rest(cs.Lib.nativeArray(array, false));
 
 	inline function new(a:NativeRest<T>):Void
 		this = a;
