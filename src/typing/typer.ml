@@ -1987,7 +1987,12 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| ETry (e1,catches) ->
 		type_try ctx e1 catches with_type p
 	| EThrow e ->
-		let e = type_expr ctx e WithType.value in
+		let e = try
+			type_expr ctx e WithType.value
+		with Error(e,p,_) ->
+			check_error ctx e p;
+			Texpr.Builder.make_null t_dynamic p
+		in
 		mk (TThrow e) (mono_or_dynamic ctx with_type p) p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
