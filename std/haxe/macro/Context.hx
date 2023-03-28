@@ -326,8 +326,13 @@ class Context {
 		declared class path has priority.
 
 		If no module can be found, an exception of type `String` is thrown.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function getModule(name:String):Array<Type> {
+		assertInitMacrosDone();
 		return load("get_module", 1)(name);
 	}
 
@@ -349,8 +354,13 @@ class Context {
 		should not be treated as conclusive until the generation phase.
 
 		Modifying the returned array has no effect on the compilation.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function getAllModuleTypes():Array<haxe.macro.Type.ModuleType> {
+		assertInitMacrosDone();
 		return load("get_module_types", 0)();
 	}
 
@@ -391,6 +401,7 @@ class Context {
 		Returns a hashed MD5 signature of value `v`.
 	**/
 	public static function signature(v:Dynamic):String {
+		assertInitMacrosDone(false);
 		return load("signature", 1)(v);
 	}
 
@@ -778,8 +789,13 @@ class Context {
 		is true even if `code` throws an exception.
 
 		If any argument is `null`, the result is unspecified.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function withImports<X>(imports:Array<String>, usings:Array<String>, code:() -> X):X {
+		assertInitMacrosDone();
 		return load("with_imports", 3)(imports, usings, code);
 	}
 
@@ -792,8 +808,13 @@ class Context {
 
 		`allowTransform`: when disabled, the code typed with `typeExpr` will be almost exactly the same
 		as the input code. This will disable some abstract types transformations.
+
+		Usage of this function from initialization macros is deprecated and may
+		cause compilation server issues. Use `Context.onAfterInitMacros` to
+		run your code once typer is ready to be used.
 	**/
 	public static function withOptions<X>(options:{?allowInlining:Bool,?allowTransform:Bool}, code : () -> X) : X {
+		assertInitMacrosDone();
 		return load("with_options", 2)(options, code);
 	}
 
@@ -830,7 +851,7 @@ class Context {
 	}
 
 	@:allow(haxe.macro.Compiler)
-	private static function assertInitMacros():Void {
+	private static function assertInitMacro():Void {
 		if (initMacrosDone()) {
 			var stack = getMacroStack();
 
