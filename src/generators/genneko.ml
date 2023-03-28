@@ -675,7 +675,14 @@ let generate_libs_init = function
 					else
 						"/usr/local/lib/haxe/lib/";
 			if( try $loader.loadprim("std@sys_file_type",1)(".haxelib") == "dir" catch e false ) @b = $loader.loadprim("std@file_full_path",1)(".haxelib") + "/";
-			if( $loader.loadprim("std@sys_is64",0)() ) @s = @s + 64;
+			if( $version() >= 240 )
+				@s = @s + switch $loader.loadprim("std@sys_cpu_arch",0)() {
+					"arm64" => "Arm64"
+					"arm" => "Arm"
+					"x86_64" => "64"
+					default => ""
+				};
+			else if( $loader.loadprim("std@sys_is64",0)() ) @s = @s + 64;
 			@b = @b + "/"
 		*)
 		let p = null_pos in
@@ -705,7 +712,14 @@ let generate_libs_init = function
 				),p);
 			],p);
 			(EIf ((ETry (op "==" (call p (loadp "sys_file_type" 1) [str p ".haxelib"]) (str p "dir"),"e",(EConst False,p)),p),op "=" (ident p "@b") (op "+" (call p (loadp "file_full_path" 1) [str p ".haxelib"]) (str p "/")), None),p);
-			(EIf (call p (loadp "sys_is64" 0) [],op "=" es (op "+" es (int p 64)),None),p);
+			(EIf (op ">=" (builtin p "version") (int p 240),
+				(op "=" es (op "+" es (ESwitch (call p (loadp "sys_cpu_arch" 0) [],[
+					(str p "arm64", str p "Arm64");
+					(str p "arm", str p "Arm");
+					(str p "x86_64", str p "64");
+				], Some (str p "")),p))),
+				Some (EIf (call p (loadp "sys_is64" 0) [],op "=" es (op "+" es (int p 64)),None),p)
+			),p);
 			op "=" es (op "+" es (str p "/"));
 		] in
 		let lpath = field p (builtin p "loader") "path" in
