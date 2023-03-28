@@ -168,12 +168,6 @@ let rec jsignature_of_type gctx stack t =
 				| [t] -> TArray(jsignature_of_type t,None)
 				| _ -> die "" __LOC__
 				end
-			| ["haxe"],"Rest" ->
-				begin match tl with
-				| [t] -> TArray(get_boxed_type (jsignature_of_type t),None)
-				| _ -> die "" __LOC__
-				end
-			(* | ["haxe"],"Rest" -> TArray(object_sig,None) *)
 			| [],"Dynamic" ->
 				object_sig
 			| [],("Class" | "Enum") ->
@@ -215,8 +209,6 @@ let rec jsignature_of_type gctx stack t =
 		jsig
 	) tl) (return_of_type gctx stack tr)
 	| TAnon an -> object_sig
-	| TType({ t_path = ["haxe"],"Rest$NativeRest" },[t]) ->
-		TArray(get_boxed_type (jsignature_of_type t),None)
 	| TType(td,tl) ->
 		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
 		| Some c -> TObject(c.cl_path,[])
@@ -269,13 +261,13 @@ module AnnotationHandler = struct
 			| EField(e1,s,_) ->
 				let path = parse_path e1 in
 				AEnum(object_path_sig path,s)
-			| ECall(e1, el) -> 
+			| ECall(e1, el) ->
 				let path = parse_path e1 in
 				let _,name = ExtString.String.replace (snd path) "." "$" in
 				let path = (fst path, name) in
-				let values = List.map parse_value_pair el in 
-				AAnnotation(TObject(path, []),values)	
-				
+				let values = List.map parse_value_pair el in
+				AAnnotation(TObject(path, []),values)
+
 			| _ -> Error.typing_error "Expected value expression" (pos e)
 		and parse_value_pair e = match fst e with
 			| EBinop(OpAssign,(EConst(Ident s),_),e1) ->
@@ -1471,7 +1463,7 @@ class texpr_to_jvm
 					| TUnop (Spread,_,e) ->
 						self#texpr (rvalue_sig jsig) e
 					| _ ->
-						self#new_native_array (get_boxed_type (jsignature_of_type gctx t1)) (e :: el)
+						self#new_native_array (jsignature_of_type gctx t1) (e :: el)
 					);
 					List.rev (jsig :: acc)
 				| _ ->
@@ -1488,7 +1480,7 @@ class texpr_to_jvm
 				(match Type.follow t with
 				| TAbstract({a_path = ["haxe"],"Rest"},[t1]) ->
 					let jsig = jsignature_of_type gctx t in
-					self#new_native_array (get_boxed_type (jsignature_of_type gctx t1)) [];
+					self#new_native_array (jsignature_of_type gctx t1) [];
 					List.rev (jsig :: acc)
 				| _ -> List.rev acc)
 			| _,[] -> List.rev acc
@@ -1585,16 +1577,6 @@ class texpr_to_jvm
 			| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 				let jsig = self#vtype t in
 				self#new_native_array jsig el;
-				Some (array_sig jsig)
-			| _ ->
-				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
-			end
-		| TField(_,FStatic({cl_path = (["haxe"],"Rest$Rest_Impl_")},{cf_name = "createNative"})) ->
-			begin match tr, el with
-			| TType({ t_path = ["haxe"],"Rest$NativeRest" },[t]), [e2] ->
-				self#texpr (if need_val ret then rvalue_any else RVoid) e2;
-				let jsig = get_boxed_type (self#vtype t) in
-				ignore(NativeArray.create jm#get_code jc#get_pool jsig);
 				Some (array_sig jsig)
 			| _ ->
 				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
@@ -1748,7 +1730,16 @@ class texpr_to_jvm
 			end
 		| _ ->
 			self#texpr rvalue_any e1;
-			invoke e1.etype;
+			let t = match e1.eexpr with
+				| TLocal ({v_extra = Some {v_params = l}} as v) when l <> [] ->
+					(* If we call a local variable with type parameters, we want to use the general (unapplied)
+					   type, which is the variable type itself. This is necessary for some special situations
+					   like the Rest<T> case in issue #10906. *)
+					v.v_type
+				| _ ->
+					e1.etype
+			in
+			invoke t;
 		in
 		match need_val ret,tro with
 		| false,Some _ -> code#pop
@@ -2051,12 +2042,7 @@ class texpr_to_jvm
 			| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 				self#texpr rvalue_any e1;
 				let vt = self#vtype e1.etype in
-				let vte =
-					let vte = self#vtype t in
-					match e1.etype with
-					| TType ({ t_path = ["haxe"],"Rest$NativeRest" },_) -> get_boxed_type vte
-					| _ -> vte
-				in
+				let vte = self#vtype t in
 				self#texpr rvalue_any e2;
 				self#read_native_array vt vte
 			| t ->

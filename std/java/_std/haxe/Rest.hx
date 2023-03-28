@@ -17,11 +17,6 @@ abstract Rest<T>(NativeRest<T>) {
 	inline function get_length():Int
 		return this.length;
 
-	#if jvm
-	@:from static public function of<T>(array:Array<T>):Rest<T> {
-		return new Rest(@:privateAccess array.__a);
-	}
-	#else
 	@:from extern inline static public function of<T>(array:Array<T>):Rest<T> {
 		var result = createNative(array.length);
 		var src:NativeArray<Object> = cast @:privateAccess array.__a;
@@ -29,7 +24,6 @@ abstract Rest<T>(NativeRest<T>) {
 			result[i] = cast src[i];
 		return new Rest(result);
 	}
-	#end
 
 	@:noDoc
 	@:generic
