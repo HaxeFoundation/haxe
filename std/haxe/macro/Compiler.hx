@@ -195,7 +195,6 @@ class Compiler {
 	**/
 	public static function addNativeArg(argument:String) {
 		#if (neko || eval)
-		Context.assertInitMacros();
 		load("add_native_arg", 1)(argument);
 		#end
 	}
@@ -443,7 +442,6 @@ class Compiler {
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function nullSafety(path:String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
-		Context.assertInitMacros();
 		addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
 	}
 
