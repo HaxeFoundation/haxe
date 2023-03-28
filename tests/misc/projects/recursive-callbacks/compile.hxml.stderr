@@ -1,0 +1,7 @@
+Main.hx:5: characters 20-24 : Warning : 1
+Main.hx:9: lines 9-11 : Warning : This API should only be used from initialization macros.
+Main.hx:5: characters 20-24 : Warning : 2
+Main.hx:5: characters 20-24 : Warning : 3
+Main.hx:5: characters 20-24 : Warning : 4
+Main.hx:5: characters 20-24 : Warning : 5
+Main.hx:5: characters 20-24 : Warning : 6

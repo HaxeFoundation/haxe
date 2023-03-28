@@ -156,7 +156,7 @@ module Setup = struct
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
 		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
-		List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
+		com.callbacks#run com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
@@ -253,7 +253,7 @@ let do_type ctx tctx actx =
 	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
 	com.stage <- CInitMacrosDone;
 	CommonCache.lock_signature com "after_init_macros";
-	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
+	com.callbacks#run com.callbacks#get_after_init_macros;
 	run_or_diagnose ctx (fun () ->
 		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
@@ -319,7 +319,7 @@ let compile ctx actx =
 		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);
+	com.callbacks#run com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in
