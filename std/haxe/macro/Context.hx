@@ -863,7 +863,6 @@ class Context {
 		}
 	}
 
-	// @:allow(haxe.macro.Compiler)
 	private static function assertInitMacrosDone(includeSuggestion = true):Void {
 		#if haxe_next
 		if (!initMacrosDone()) {
