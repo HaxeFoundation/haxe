@@ -84,6 +84,7 @@ let macro_timer ctx l =
 let typing_timer ctx need_type f =
 	let t = Timer.timer ["typing"] in
 	let old = ctx.com.error and oldp = ctx.pass and oldlocals = ctx.locals in
+	let restore_report_mode = disable_report_mode ctx.com in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
@@ -98,6 +99,7 @@ let typing_timer ctx need_type f =
 		ctx.com.error <- old;
 		ctx.pass <- oldp;
 		ctx.locals <- oldlocals;
+		restore_report_mode ();
 	in
 	try
 		let r = f() in
