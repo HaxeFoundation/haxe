@@ -1,2 +1,1 @@
 Main.hx:4: characters 13-17 : Cannot use null as ternary condition
-Main.hx:4: characters 13-17 : ... For function argument 'v'

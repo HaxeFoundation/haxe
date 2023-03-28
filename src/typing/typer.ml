@@ -124,12 +124,6 @@ let maybe_type_against_enum ctx f with_type iscall p =
 	with Exit ->
 		f()
 
-let check_error ctx err p = match err with
-	| Module_not_found ([],name) when Diagnostics.error_in_diagnostics_run ctx.com p ->
-		DisplayToplevel.handle_unresolved_identifier ctx name p true
-	| _ ->
-		located_display_error ctx.com (error_msg p err)
-
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -1989,8 +1983,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EThrow e ->
 		let e = try
 			type_expr ctx e WithType.value
-		with Error(e,p,_) ->
-			check_error ctx e p;
+		with Error(e,p',_) ->
+			check_error ctx e p';
 			Texpr.Builder.make_null t_dynamic p
 		in
 		mk (TThrow e) (mono_or_dynamic ctx with_type p) p
