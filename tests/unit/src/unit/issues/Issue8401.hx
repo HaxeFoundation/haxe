@@ -1,7 +1,5 @@
 package unit.issues;
 
-import sys.net.Host;
-
 class Issue8401 extends unit.Test {
 #if python
 	function testNew() {
