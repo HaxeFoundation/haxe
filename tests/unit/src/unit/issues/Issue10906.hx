@@ -4,7 +4,7 @@ import haxe.Rest;
 import utest.Assert;
 
 class Issue10906 extends Test {
-	#if !jvm
+	#if !erase_generics
 	function test() {
 		var a:Array<Any> = new Array<Any>();
 		a.push(1);

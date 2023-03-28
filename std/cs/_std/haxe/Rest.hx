@@ -15,7 +15,12 @@ abstract Rest<T>(NativeRest<T>) {
 		return this.Length;
 
 	@:from static public inline function of<T>(array:Array<T>):Rest<T>
+		#if erase_generics
+		// This is wrong but so is everything else in my life
+		return new Rest(@:privateAccess array.__a);
+		#else
 		return new Rest(cs.Lib.nativeArray(array, false));
+		#end
 
 	inline function new(a:NativeRest<T>):Void
 		this = a;
