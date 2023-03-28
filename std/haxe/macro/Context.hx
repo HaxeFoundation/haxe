@@ -459,6 +459,7 @@ class Context {
 		actual typing.
 	**/
 	public static function onAfterInitMacros(callback:Void->Void):Void {
+		assertInitMacro();
 		load("on_after_init_macros", 1)(callback);
 	}
 
