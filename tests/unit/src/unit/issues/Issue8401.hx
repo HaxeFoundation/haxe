@@ -32,7 +32,7 @@ class Issue8401 extends unit.Test {
 		t((cast sock.__s).getblocking());
 		sock.setBlocking(false);
 		f((cast sock.__s).getblocking());
-		// This will change __s.  Make sure we set the timeout properly.
+		// This will change __s.  Make sure we set the blocking flag properly.
 		sock.wrapSocketWithSslContext("127.0.0.1");
 		f((cast sock.__s).getblocking());
 	}
@@ -46,10 +46,11 @@ class Issue8401 extends unit.Test {
 		// present in the python socket type.
 		eq(0, (cast sock.__s).getsockopt(python.lib.Socket.SOL_TCP, python.lib.Socket.TCP_NODELAY));
 		sock.setFastSend(true);
-		eq(1, (cast sock.__s).getsockopt(python.lib.Socket.SOL_TCP, python.lib.Socket.TCP_NODELAY));
-		// This will change __s.  Make sure we set the timeout properly.
+        // NOTE: this number can vary per platform; non-zero means true/enabled
+		utest.Assert.notEquals(0, (cast sock.__s).getsockopt(python.lib.Socket.SOL_TCP, python.lib.Socket.TCP_NODELAY));
+		// This will change __s.  Make sure we set the sock opt properly.
 		sock.wrapSocketWithSslContext("127.0.0.1");
-		eq(1, (cast sock.__s).getsockopt(python.lib.Socket.SOL_TCP, python.lib.Socket.TCP_NODELAY));
+		utest.Assert.notEquals(0, (cast sock.__s).getsockopt(python.lib.Socket.SOL_TCP, python.lib.Socket.TCP_NODELAY));
 	}
 #end
 }
