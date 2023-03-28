@@ -3,16 +3,17 @@ package haxe;
 import haxe.iterators.RestIterator;
 import haxe.iterators.RestKeyValueIterator;
 import java.NativeArray;
-import java.lang.System;
-import java.lang.Object;
-import java.util.Arrays;
 import java.StdTypes;
+import java.lang.Object;
+import java.lang.System;
+import java.util.Arrays;
 
 private typedef NativeRest<T> = NativeArray<T>;
 
 @:coreApi
 abstract Rest<T>(NativeRest<T>) {
-	public var length(get,never):Int;
+	public var length(get, never):Int;
+
 	inline function get_length():Int
 		return this.length;
 
@@ -24,7 +25,7 @@ abstract Rest<T>(NativeRest<T>) {
 	@:from extern inline static public function of<T>(array:Array<T>):Rest<T> {
 		var result = createNative(array.length);
 		var src:NativeArray<Object> = cast @:privateAccess array.__a;
-		for(i in 0...src.length)
+		for (i in 0...result.length)
 			result[i] = cast src[i];
 		return new Rest(result);
 	}
@@ -32,8 +33,8 @@ abstract Rest<T>(NativeRest<T>) {
 
 	@:noDoc
 	@:generic
-	static function ofNativePrimitive<TBoxed,TRest>(result:NativeRest<TBoxed>, collection:NativeArray<TRest>):Rest<TRest> {
-		for(i in 0...collection.length)
+	static function ofNativePrimitive<TBoxed, TRest>(result:NativeRest<TBoxed>, collection:NativeArray<TRest>):Rest<TRest> {
+		for (i in 0...collection.length)
 			result[i] = cast collection[i];
 		return new Rest(cast result);
 	}
@@ -88,7 +89,7 @@ abstract Rest<T>(NativeRest<T>) {
 		return this[index];
 
 	@:to public function toArray():Array<T> {
-		return [for(i in 0...this.length) this[i]];
+		return [for (i in 0...this.length) this[i]];
 	}
 
 	public inline function iterator():RestIterator<T>
@@ -100,6 +101,7 @@ abstract Rest<T>(NativeRest<T>) {
 	extern inline public function append(item:T):Rest<T> {
 		return _append(createNative(this.length + 1), item);
 	}
+
 	function _append(result:NativeRest<T>, item:T):Rest<T> {
 		System.arraycopy(this, 0, result, 0, this.length);
 		result[this.length] = cast item;
@@ -109,6 +111,7 @@ abstract Rest<T>(NativeRest<T>) {
 	extern inline public function prepend(item:T):Rest<T> {
 		return _prepend(createNative(this.length + 1), item);
 	}
+
 	function _prepend(result:NativeRest<T>, item:T):Rest<T> {
 		System.arraycopy(this, 0, result, 1, this.length);
 		result[0] = cast item;
