@@ -21,8 +21,11 @@ type compiler_options = {
 type 'value compiler_api = {
 	pos : Globals.pos;
 	get_com : unit -> Common.context;
+	get_macro_stack : unit -> pos list;
+	init_macros_done : unit -> bool;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
+	after_init_macros : (unit -> unit) -> unit;
 	after_typing : (module_type list -> unit) -> unit;
 	on_generate : (Type.t list -> unit) -> bool -> unit;
 	after_generate : (unit -> unit) -> unit;
@@ -1690,6 +1693,13 @@ let macro_api ccom get_api =
 		"current_pos", vfun0 (fun() ->
 			encode_pos (get_api()).pos
 		);
+		"get_macro_stack", vfun0 (fun () ->
+			let stack = ((get_api()).get_macro_stack ()) in
+			encode_array (List.map encode_pos stack)
+		);
+		"init_macros_done", vfun0 (fun () ->
+			vbool ((get_api()).init_macros_done ())
+		);
 		"error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
@@ -1744,10 +1754,6 @@ let macro_api ccom get_api =
 		"define", vfun2 (fun s v ->
 			let s = decode_string s in
 			let com = ccom() in
-			if com.stage <> CInitMacrosStart then begin
-				let v = if v = vnull then "" else ", " ^ (decode_string v) in
-				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.define(" ^ s ^ v ^ ")") Globals.null_pos;
-			end;
 			(* TODO: use external_define and external_define_value for #8690 *)
 			if v = vnull then
 				Common.external_define_no_check com s
@@ -1772,6 +1778,11 @@ let macro_api ccom get_api =
 		);
 		"get_module", vfun1 (fun s ->
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
+		);
+		"on_after_init_macros", vfun1 (fun f ->
+			let f = prepare_callback f 1 in
+			(get_api()).after_init_macros (fun tl -> ignore(f []));
+			vnull
 		);
 		"on_after_typing", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
@@ -2052,8 +2063,6 @@ let macro_api ccom get_api =
 		"add_class_path", vfun1 (fun cp ->
 			let com = ccom() in
 			let cp = decode_string cp in
-			if com.stage <> CInitMacrosStart then
-				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.addClassPath(" ^ cp ^ ")") Globals.null_pos;
 			let cp = Path.add_trailing_slash cp in
 			com.class_path <- cp :: com.class_path;
 			(match com.get_macros() with
@@ -2068,8 +2077,6 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			if com.stage <> CInitMacrosStart then
-				(get_api()).warning WMacro ("Should be used in initialization macros only: haxe.macro.Compiler.addNativeLib(" ^ file ^ ")") Globals.null_pos;
 			NativeLibraryHandler.add_native_lib com file false ();
 			vnull
 		);

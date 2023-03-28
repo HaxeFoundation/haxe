@@ -134,6 +134,15 @@ let make_macro_api ctx p =
 	{
 		MacroApi.pos = p;
 		MacroApi.get_com = (fun() -> ctx.com);
+		MacroApi.get_macro_stack = (fun () ->
+			let envs = Interp.call_stack (Interp.get_eval (Interp.get_ctx ())) in
+			let envs = match envs with
+				| _ :: envs -> envs (* Skip call to getMacroStack() *)
+				| _ -> envs
+			in
+			List.map (fun (env:Interp.env) -> {pfile = EvalHash.rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) envs
+		);
+		MacroApi.init_macros_done = (fun () -> ctx.com.stage >= CInitMacrosDone);
 		MacroApi.get_type = (fun s ->
 			typing_timer ctx false (fun() ->
 				let path = parse_path s in
@@ -158,6 +167,13 @@ let make_macro_api ctx p =
 				let path = parse_path s in
 				let m = List.map type_of_module_type (TypeloadModule.load_module ctx path p).m_types in
 				m
+			)
+		);
+		MacroApi.after_init_macros = (fun f ->
+			ctx.com.callbacks#add_after_init_macros (fun () ->
+				let t = macro_timer ctx ["afterInitMacros"] in
+				f ();
+				t()
 			)
 		);
 		MacroApi.after_typing = (fun f ->
