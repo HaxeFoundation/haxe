@@ -26,6 +26,8 @@ private enum EnumFlagTest {
 
 @:analyzer(no_user_var_fusion)
 class TestJs {
+	static var notFalse = true;
+
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {
 	//var x = 10;
@@ -719,6 +721,26 @@ class TestJs {
 	')
 	static function testIssue10740_forceInlineInSafeNav() {
 		inline Issue10740.inst?.f();
+	}
+
+	@:js('
+		var offset = 0;
+		do {
+			TestJs.use(offset);
+			if(offset >= 3) {
+				break;
+			}
+			offset = 3;
+		} while(TestJs.notFalse);
+	')
+	static function testDoWhile() {
+		var offset = 0;
+		do {
+			use(offset);
+			if (offset >= 3)
+				break;
+			offset = 3;
+		} while (notFalse);
 	}
 }
 

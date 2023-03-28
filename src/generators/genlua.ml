@@ -566,20 +566,26 @@ and gen_cond ctx cond =
     gen_value ctx cond;
     ctx.iife_assign <- false
 
-and gen_loop ctx label cond e =
+and gen_loop ctx cond do_while e =
     let old_in_loop = ctx.in_loop in
     ctx.in_loop <- true;
     let old_handle_continue = ctx.handle_continue in
     let will_continue = has_continue e in
     ctx.handle_continue <- has_continue e;
     ctx.break_depth <- ctx.break_depth + 1;
-    if will_continue then begin
+    if will_continue then
         println ctx "local _hx_continue_%i = false;" ctx.break_depth;
-    end;
+    if do_while then
+        println ctx "local _hx_do_first_%i = true;" ctx.break_depth;
     let b = open_block ctx in
-    print ctx "%s " label;
+    print ctx "while ";
     gen_cond ctx cond;
+    if do_while then
+        print ctx " or _hx_do_first_%i" ctx.break_depth;
     print ctx " do ";
+    if do_while then
+        newline ctx;
+        println ctx "_hx_do_first_%i = false;" ctx.break_depth;
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
     if will_continue then begin
@@ -955,11 +961,9 @@ and gen_expr ?(local=true) ctx e = begin
         gen_value ctx e;
         spr ctx (Ast.s_unop op)
     | TWhile (cond,e,Ast.NormalWhile) ->
-        gen_loop ctx "while" cond e
+        gen_loop ctx cond false e;
     | TWhile (cond,e,Ast.DoWhile) ->
-        gen_block_element ctx e;
-        newline ctx;
-        gen_loop ctx "while" cond e
+        gen_loop ctx cond true e;
     | TObjectDecl [] ->
         spr ctx "_hx_e()";
         ctx.separator <- true

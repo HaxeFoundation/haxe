@@ -704,7 +704,11 @@ and type_vars ctx vl p =
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			let v = add_local_with_origin ctx TVOLocalVariable n t pv in
+			let v = if Meta.has Meta.This ev.ev_meta then
+				add_local ctx VAbstractThis n t pv
+			else
+				add_local_with_origin ctx TVOLocalVariable n t pv
+			in
 			v.v_meta <- ev.ev_meta;
 			DisplayEmitter.check_display_metadata ctx v.v_meta;
 			if ev.ev_final then add_var_flag v VFinal;
@@ -862,16 +866,11 @@ and type_object_decl ctx fl with_type p =
 				when not (Meta.has Meta.CoreType a.a_meta)
 					&& not (List.exists (fun t' -> shallow_eq t t') seen) ->
 				let froms = get_abstract_froms ctx a pl in
-				begin match froms with
-				| [] ->
-					(* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
-					ODKPlain
-				| _ ->
-					let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
-					begin match List.fold_left fold [] froms with
-						| [t] -> t
-						| _ -> ODKFailed
-					end
+				let fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+				begin match List.fold_left fold [] froms with
+					| [] -> ODKPlain (* If the abstract has no casts in the first place, we can assume plain typing (issue #10730) *)
+					| [t] -> t
+					| _ -> ODKFailed
 				end
 			| TDynamic (Some t) ->
 				dynamic_parameter := Some t;
@@ -893,7 +892,7 @@ and type_object_decl ctx fl with_type p =
 		let extra_fields = ref [] in
 		let fl = List.map (fun ((n,pn,qs),e) ->
 			let is_valid = Lexer.is_valid_identifier n in
-			if PMap.mem n !fields then typing_error ("Duplicate field in object declaration : " ^ n) p;
+			if PMap.mem n !fields then typing_error ("Duplicate field in object declaration : " ^ n) pn;
 			let is_final = ref false in
 			let e = try
 				let t = match !dynamic_parameter with
@@ -936,7 +935,7 @@ and type_object_decl ctx fl with_type p =
 	let type_plain_fields () =
 		let rec loop (l,acc) ((f,pf,qs),e) =
 			let is_valid = Lexer.is_valid_identifier f in
-			if PMap.mem f acc then typing_error ("Duplicate field in object declaration : " ^ f) p;
+			if PMap.mem f acc then typing_error ("Duplicate field in object declaration : " ^ f) pf;
 			let e = type_expr ctx e (WithType.named_structure_field f) in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> typing_error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
@@ -1685,7 +1684,12 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Dollar s,_,p) ->
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
-		| _ -> e()
+		| _ ->
+			if ctx.g.retain_meta then
+				let e = e() in
+				{e with eexpr = TMeta(m,e)}
+			else
+				e()
 	in
 	ctx.meta <- old;
 	e
@@ -2056,6 +2060,7 @@ let rec create com =
 			delayed = [];
 			debug_delayed = [];
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
+			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			std = null_module;
 			global_using = [];
 			complete = false;

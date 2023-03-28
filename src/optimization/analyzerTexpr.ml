@@ -1032,22 +1032,56 @@ module Cleanup = struct
 			| TWhile(e1,e2,NormalWhile) ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
+				let rec has_continue e = match e.eexpr with
+					| TContinue ->
+						true
+					| _ ->
+						check_expr has_continue e
+				in
+				let has_continue = has_continue e2 in
 				begin match e2.eexpr with
 					| TBlock ({eexpr = TIf(e1,({eexpr = TBlock[{eexpr = TBreak}]} as eb),None)} :: el2) ->
 						let e1 = Texpr.skip e1 in
 						let e1 = match e1.eexpr with TUnop(_,_,e1) -> e1 | _ -> {e1 with eexpr = TUnop(Not,Prefix,e1)} in
 						{e with eexpr = TWhile(e1,{eb with eexpr = TBlock el2},NormalWhile)}
 					| TBlock el ->
+						let do_while = ref None in
+						let locals = ref IntMap.empty in
+						let rec collect_vars e = match e.eexpr with
+							| TVar(v,e1) ->
+								locals := IntMap.add v.v_id true !locals;
+								Option.may collect_vars e1
+							| _ ->
+								Type.iter collect_vars e
+						in
+						let rec references_local e = match e.eexpr with
+							| TLocal v when IntMap.mem v.v_id !locals -> true
+							| _ -> check_expr references_local e
+						in
+						let can_do = match com.platform with Hl -> false | _ -> true in
 						let rec loop2 el = match el with
+							| [{eexpr = TBreak}] when is_true_expr e1 && can_do && not has_continue ->
+								do_while := Some (Texpr.Builder.make_bool com.basic true e1.epos);
+								[]
+							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && can_do && not has_continue ->
+								do_while := Some econd;
+								[]
 							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->
 								[e]
 							| e :: el ->
+								collect_vars e;
 								e :: (loop2 el)
 							| [] ->
 								[]
 						in
 						let el = loop2 el in
-						{e with eexpr = TWhile(e1,{e2 with eexpr = TBlock el},NormalWhile)}
+						begin match !do_while with
+						| None ->
+							{e with eexpr = TWhile(e1,{e2 with eexpr = TBlock el},NormalWhile)}
+						| Some econd ->
+							let econd = {econd with eexpr = TUnop(Not,Prefix,econd)} in
+							{e with eexpr = TWhile(econd,{e2 with eexpr = TBlock el},DoWhile)}
+						end;
 					| _ ->
 						{e with eexpr = TWhile(e1,e2,NormalWhile)}
 				end
