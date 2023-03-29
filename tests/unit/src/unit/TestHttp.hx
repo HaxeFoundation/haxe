@@ -27,7 +27,7 @@ class TestHttp extends Test {
 			return;
 		}
 		test();
-		#elseif (github && (hl || java || (flash && (Linux || Mac || Windows)) || (cs && Windows)))
+		#elseif (github && (java || (flash && (Linux || Mac || Windows)) || (cs && Windows)))
 		noAssert();
 		async.done();
 		return;
@@ -35,7 +35,7 @@ class TestHttp extends Test {
 		test();
 		#end
 	}
-#if !(github && hl)
+
 	@:timeout(1000)
 	public function testPostData(async:Async) run(async, () -> {
 		var srcStr = 'hello, world';
@@ -84,5 +84,4 @@ class TestHttp extends Test {
 		d.setPostBytes(srcData);
 		d.request();
 	});
-#end
 }
