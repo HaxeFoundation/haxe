@@ -954,12 +954,26 @@ and type_object_decl ctx fl with_type p =
 		let fa = FieldAccess.get_constructor_access c tl p in
 		let ctor = fa.fa_field in
 		let args = match follow (FieldAccess.get_map_function fa ctor.cf_type) with
-			| TFun(args,_) -> args
+			| TFun(args,_) ->
+				begin match ctor.cf_expr with
+					| Some {eexpr = TFunction tf} ->
+						let rec loop acc args vl = match args,vl with
+							| arg :: args,(v,_) :: vl ->
+								loop ((arg,v.v_pos) :: acc) args vl
+							| [],_ ->
+								List.rev acc
+							| arg :: args,[] ->
+								loop ((arg,ctor.cf_name_pos) :: acc) args []
+						in
+						loop [] args tf.tf_args
+					| _ ->
+						List.map (fun args -> (args,ctor.cf_name_pos)) args
+					end
 			| _ -> die "" __LOC__
 		in
-		let fields = List.fold_left (fun acc (n,opt,t) ->
-			let f = mk_field n t ctor.cf_pos ctor.cf_name_pos in
-			if opt then f.cf_meta <- [(Meta.Optional,[],ctor.cf_pos)];
+		let fields = List.fold_left (fun acc ((n,opt,t),parg) ->
+			let f = mk_field n t parg parg in
+			if opt then f.cf_meta <- [(Meta.Optional,[],null_pos)];
 			PMap.add n f acc
 		) PMap.empty args in
 		let t,fl = type_fields fields in
@@ -977,7 +991,7 @@ and type_object_decl ctx fl with_type p =
 					evars,(s,e) :: elocs,OptimizerTexpr.has_side_effect e
 			end
 		) ([],[],false) (List.rev fl) in
-		let el = List.map (fun (n,_,t) ->
+		let el = List.map (fun ((n,_,t),parg) ->
 			try Expr.field_assoc n fl
 			with Not_found ->
 				try
