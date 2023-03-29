@@ -32,16 +32,8 @@ let find_references tctx com with_definition pos_filters =
 let collect_reference_positions com =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	match kind, com.display.dms_kind with
-	| SKField (cf,Some cl_path), DMUsage (_,find_descendants,find_base) when (find_descendants || find_base) && not (has_class_field_flag cf CfStatic) ->
+	| SKField (cf,Some c), DMUsage (_,find_descendants,find_base) when (find_descendants || find_base) && not (has_class_field_flag cf CfStatic) ->
 		let collect() =
-			let c =
-				let rec loop = function
-					| [] -> raise Exit
-					| TClassDecl c :: _ when c.cl_path = cl_path -> c
-					| _ :: types -> loop types
-				in
-				loop com.types
-			in
 			let field_class_pairs =
 				(* check classes hierarchy *)
 				let cf,c =
@@ -79,14 +71,14 @@ let collect_reference_positions com =
 					| TClassDecl child_cls when List.exists (extends child_cls) field_class_pairs ->
 						(try
 							let cf = PMap.find cf.cf_name child_cls.cl_fields in
-							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls.cl_path)) :: acc
+							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls)) :: acc
 						with Not_found -> acc
 						)
 					| _ ->
 						acc
 				) [] com.types
 			else
-				List.map (fun (cf,c) -> name,full_pos cf.cf_name_pos,SKField (cf,Some c.cl_path)) field_class_pairs;
+				List.map (fun (cf,c) -> name,full_pos cf.cf_name_pos,SKField (cf,Some c)) field_class_pairs;
 		in
 		(try collect()
 		with Exit -> [name,pos,kind])
