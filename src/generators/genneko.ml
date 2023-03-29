@@ -801,7 +801,7 @@ let build ctx types =
 let generate com =
 	Hashtbl.clear files;
 	let ctx = new_context com (if Common.defined com Define.NekoV1 then 1 else 2) false in
-	let libs = (EBlock (generate_libs_init com.neko_libs) , { psource = "<header>"; pline = 1; }) in
+	let libs = (EBlock (generate_libs_init com.neko_lib_paths) , { psource = "<header>"; pline = 1; }) in
 	let el = build ctx com.types in
 	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
