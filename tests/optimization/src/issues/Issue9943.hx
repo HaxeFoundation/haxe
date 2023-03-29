@@ -5,6 +5,7 @@ private extern class Element {
 	var offset(default,null) : Int;
 	var style(default,null) : CSSStyleDeclaration;
 }
+
 @:pure
 private extern class PureElement {
 	static function get():PureElement;
@@ -51,5 +52,6 @@ class Issue9943 {
 		final c = (el.offset + foo);
 		values(a, b, c);
 	}
-	static function values(a, b, c) trace(a, b, c);
+
+	static dynamic function values(a, b, c) trace(a, b, c);
 }

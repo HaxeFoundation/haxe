@@ -301,6 +301,9 @@ module InterferenceReport = struct
 	let has_any_var_write ir = not (IntMap.is_empty ir.ir_var_writes)
 
 	let from_texpr e =
+		let is_impure_extern_field_access c cf =
+			has_class_flag c CExtern && not (Meta.has Meta.CoreApi c.cl_meta || PurityState.is_pure c cf)
+		in
 		let ir = create () in
 		let rec loop e = match e.eexpr with
 			(* vars *)
@@ -323,6 +326,11 @@ module InterferenceReport = struct
 				set_var_read ir v;
 				set_var_write ir v;
 			(* fields *)
+			| TField(e1,(FStatic(c,cf) | FInstance(c,_,cf))) when is_impure_extern_field_access c cf ->
+				(* This could be a property accessor or some other native horror, let's assume the worst. *)
+				set_state_read ir;
+				set_state_write ir;
+				loop e1;
 			| TField(e1,fa) ->
 				loop e1;
 				if not (is_read_only_field_access e1 fa) then set_field_read ir (field_name fa);
@@ -371,6 +379,11 @@ module InterferenceReport = struct
 			| TCall({eexpr = TField(e1,FEnum _)},el) ->
 				loop e1;
 				List.iter loop el;
+			| TCall({eexpr = TField(ef,(FStatic(c,cf) | FInstance(c,_,cf)))} as e1,el) when is_impure_extern_field_access c cf ->
+				set_state_read ir;
+				set_state_write ir;
+				loop e1;
+				List.iter loop el
 			| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa ->
 				set_state_read ir;
 				loop e1;
@@ -591,15 +604,6 @@ module Fusion = struct
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
 			let has_type_params = match v.v_extra with Some ve when ve.v_params <> [] -> true | _ -> false in
-			let rec is_impure_extern e = match e.eexpr with
-				| TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf))) when has_class_flag cl CExtern ->
-					not (
-						Meta.has Meta.CoreApi cl.cl_meta ||
-						PurityState.is_pure cl cf
-					)
-				| _ -> check_expr is_impure_extern e
-			in
-			let is_impure_extern = (is_impure_extern e) in
 			let has_variable_semantics = ExtType.has_variable_semantics v.v_type in
 			let is_variable_expression = (match e.eexpr with TLocal { v_kind = VUser _ } -> false | _ -> true) in
 			let b = num_uses <= 1 &&
@@ -610,13 +614,13 @@ module Fusion = struct
 						is_variable_expression
 					) && (
 						is_compiler_generated ||
-						config.optimize && config.fusion && config.user_var_fusion && not has_type_params && not is_impure_extern
+						config.optimize && config.fusion && config.user_var_fusion && not has_type_params
 					)
 			in
 			if config.fusion_debug then begin
 				print_endline (Printf.sprintf "\nFUSION: %s\n\tvar %s<%i> = %s" (if b then "true" else "false") v.v_name v.v_id (s_expr_pretty e));
-				print_endline (Printf.sprintf "CONDITION:\n\tnum_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && not (has_variable_semantics:%b && e.eexpr=TLocal:%b) (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b && not has_type_params:%b && not is_impuare_extern:%b)"
-					num_uses num_writes can_be_used_as_value has_variable_semantics is_variable_expression is_compiler_generated config.optimize config.fusion config.user_var_fusion has_type_params is_impure_extern)
+				print_endline (Printf.sprintf "CONDITION:\n\tnum_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && not (has_variable_semantics:%b && e.eexpr=TLocal:%b) (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b && not has_type_params:%b)"
+					num_uses num_writes can_be_used_as_value has_variable_semantics is_variable_expression is_compiler_generated config.optimize config.fusion config.user_var_fusion has_type_params)
 			end;
 			b
 		in
