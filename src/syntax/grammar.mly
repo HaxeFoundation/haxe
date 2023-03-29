@@ -956,6 +956,8 @@ and parse_class_field tdecl s =
 			end
 		| [< '(Kwd Final,p1) >] ->
 			begin match s with parser
+			| [< '(Kwd Var),p2 >] ->
+				error (Custom "`final var` is not supported, use `final` instead") (punion p1 p2)
 			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
 				let meta = check_optional opt name in
 				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
@@ -1137,8 +1139,14 @@ and block_with_pos acc p s =
 and parse_block_var = parser
 	| [< '(Kwd Var,p1); vl = parse_var_decls false p1; p2 = semicolon >] ->
 		(vl,punion p1 p2)
-	| [< '(Kwd Final,p1); vl = parse_var_decls true p1; p2 = semicolon >] ->
-		(vl,punion p1 p2)
+	| [< '(Kwd Final,p1); s >] ->
+		match s with parser
+		| [< '(Kwd Var),p2 >] ->
+			error (Custom "`final var` is not supported, use `final` instead") (punion p1 p2)
+		| [< vl = parse_var_decls true p1; p2 = semicolon >] ->
+			(vl,punion p1 p2)
+		| [< >] ->
+			serror();
 
 and parse_block_elt = parser
 	| [< (vl,p) = parse_block_var >] ->
@@ -1269,8 +1277,15 @@ and parse_macro_expr p = parser
 		(ECheckType (t,(CTPath (mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr")),null_pos)),p)
 	| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
 		reify_expr (EVars vl,p1) !in_macro
-	| [< '(Kwd Final,p1); vl = psep Comma (parse_var_decl true) >] ->
-		reify_expr (EVars vl,p1) !in_macro
+	| [< '(Kwd Final,p1); s >] ->
+		begin match s with parser
+		| [< '(Kwd Var),p2 >] ->
+			error (Custom "`final var` is not supported, use `final` instead") (punion p1 p2)
+		| [< vl = psep Comma (parse_var_decl true) >] ->
+			reify_expr (EVars vl,p1) !in_macro
+		| [< >] ->
+			serror()
+		end
 	| [< d = parse_class None [] [] false >] ->
 		let _,_,to_type = reify !in_macro in
 		(ECheckType (to_type d,(CTPath (mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr")),null_pos)),p)
@@ -1385,7 +1400,15 @@ and expr = parser
 		| [< >] -> serror()
 		end
 	| [< '(Kwd Var,p1); v = parse_var_decl false >] -> (EVars [v],p1)
-	| [< '(Kwd Final,p1); v = parse_var_decl true >] -> (EVars [v],p1)
+	| [< '(Kwd Final,p1); s >] ->
+		begin match s with parser
+			| [< '(Kwd Var),p2 >] ->
+				error (Custom "`final var` is not supported, use `final` instead") (punion p1 p2)
+			| [< v = parse_var_decl true >] ->
+				(EVars [v],p1)
+			| [< >] ->
+				serror()
+		end
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd Abstract,p); s >] -> expr_next (EConst (Ident "abstract"),p) s
@@ -1608,7 +1631,15 @@ and parse_guard = parser
 
 and expr_or_var = parser
 	| [< '(Kwd Var,p1); np = dollar_ident; >] -> EVars [mk_evar np],punion p1 (snd np)
-	| [< '(Kwd Final,p1); np = dollar_ident; >] -> EVars [mk_evar ~final:true np],punion p1 (snd np)
+	| [< '(Kwd Final,p1); s >] ->
+		begin match s with parser
+			| [< '(Kwd Var),p2 >] ->
+				error (Custom "`final var` is not supported, use `final` instead") (punion p1 p2)
+			| [< np = dollar_ident; >] ->
+				EVars [mk_evar ~final:true np],punion p1 (snd np)
+			| [< >] ->
+				serror()
+		end
 	| [< e = secure_expr >] -> e
 
 and parse_switch_cases eswitch cases = parser
