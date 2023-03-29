@@ -481,7 +481,7 @@ module HighLevel = struct
 					"-cp" :: l :: acc
 				else match (try ExtString.String.split l " " with _ -> l, "") with
 				| ("-L",dir) ->
-					"--neko-lib" :: (String.sub l 3 (String.length l - 3)) :: acc
+					"--neko-lib-path" :: (String.sub l 3 (String.length l - 3)) :: acc
 				| param, value ->
 					let acc = if value <> "" then value :: acc else acc in
 					let acc = param :: acc in
