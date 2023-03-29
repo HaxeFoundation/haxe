@@ -21,6 +21,7 @@ class Issue9470 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.FindReferences, {file: file, kind: WithBaseAndDescendants, offset: offset(1)});
 		var result = parseGotoDefinitionLocations();
 		Assert.same([range(2, 3)], result.map(l -> l.range));
+		trace(lastResult);
 		Assert.pass();
 	}
 }

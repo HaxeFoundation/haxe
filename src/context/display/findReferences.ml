@@ -34,6 +34,16 @@ let collect_reference_positions com =
 	match kind, com.display.dms_kind with
 	| SKField (cf,Some c), DMUsage (_,find_descendants,find_base) when (find_descendants || find_base) && not (has_class_field_flag cf CfStatic) ->
 		let collect() =
+			let c =
+				let rec loop = function
+					| [] -> raise Exit
+					| TClassDecl c' :: _ when c'.cl_path = c.cl_path ->
+						print_endline (Printf.sprintf "%s: %b (%s, %s)" (s_type_path c.cl_path) (c == c') (Digest.to_hex c.cl_module.m_extra.m_sign) (Digest.to_hex c'.cl_module.m_extra.m_sign));
+						c'
+					| _ :: types -> loop types
+				in
+				loop com.types
+			in
 			let field_class_pairs =
 				(* check classes hierarchy *)
 				let cf,c =

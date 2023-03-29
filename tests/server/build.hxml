@@ -6,7 +6,7 @@
 -lib utest
 -lib haxeserver
 -D analyzer-optimize
-# -D UTEST_PATTERN=9087
+-D UTEST_PATTERN=9470
 # or set UTEST_PATTERN environment variable
 
 #Temporary. To find out what's wrong with random CI failures
