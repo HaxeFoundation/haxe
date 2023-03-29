@@ -178,8 +178,16 @@ let check_local_vars_init ctx e =
 			restore vars old_vars (List.rev !declared);
 			declared := old;
 		| TBinop (OpAssign,{ eexpr = TLocal v },e) when PMap.mem v.v_id !vars ->
-			loop vars e;
-			vars := PMap.add v.v_id true !vars
+			begin match (Texpr.skip e).eexpr with
+				| TFunction _ ->
+					(* We can be sure that the function doesn't execute immediately, so it's fine to
+					   consider the local initialized (issue #9919). *)
+					vars := PMap.add v.v_id true !vars;
+					loop vars e;
+				| _ ->
+					loop vars e;
+					vars := PMap.add v.v_id true !vars
+			end
 		| TIf (e1,e2,eo) ->
 			loop vars e1;
 			let vbase = !vars in

@@ -1,0 +1,1 @@
+[{"file":"$$normPath(::cwd::/,true)MainField.hx","diagnostics":[{"kind":4,"severity":1,"range":{"start":{"line":1,"character":8},"end":{"line":1,"character":17}},"args":"`final var` is not supported, use `final` instead"}]}]
