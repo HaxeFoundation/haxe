@@ -162,6 +162,59 @@ class TypeTools {
 			}
 		}
 
+	/**
+		Checks if Type `type` has the correct number of type parameters.
+
+		If incorrect, a modified version with `KTypeParameter` placeholders
+		is returned. Otherwise, the original `Type` is returned unchanged.
+
+		Malformed `Type` objects may cause internal compiler errors.
+		Therefore, this function should be called on user created `Type`
+		objects prior to passing as arguments to macro API functions
+		such as `Context.follow` or `Context.unify`.
+	**/
+	public static function validateTypeParams(type:Null<Type>):Null<Type> {
+		final result = switch (type) {
+			case null:
+				return null;
+			case TInst(t, params):
+				TInst(t, fillMissingTypeParams(params, t.get().params));
+			case TEnum(t, params):
+				TEnum(t, fillMissingTypeParams(params, t.get().params));
+			case TType(t, params):
+				TType(t, fillMissingTypeParams(params, t.get().params));
+			case TAbstract(t, params):
+				TAbstract(t, fillMissingTypeParams(params, t.get().params));
+			case _:
+				type;
+		}
+
+		return map(result, validateTypeParams);
+	}
+
+	static function fillMissingTypeParams(typeParams: Array<Type>, declParams: Array<TypeParameter>): Array<Type>
+		return {
+			if (typeParams.length > declParams.length) {
+				typeParams.slice(0, declParams.length);
+			} else {
+				var requiredParamCount = 0;
+				for (p in declParams)
+					if (p.defaultType == null) requiredParamCount++;
+					else break;
+				if (typeParams.length >= requiredParamCount) {
+					typeParams;
+				} else {
+					final result = [];
+					for (i in 0...requiredParamCount)
+						if (i < typeParams.length)
+							result.push(typeParams[i]);
+						else
+							result.push(declParams[i].t);
+					result;
+				}
+			}
+		}
+
 	#if macro
 	/**
 		Follows all typedefs of `t` to reach the actual type.
