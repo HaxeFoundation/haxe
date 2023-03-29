@@ -198,7 +198,7 @@ let parse_args com =
 		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>","add the SWF library to the compiled SWF");
-		("Target-specific",["--neko-lib-path"],[],Arg.String (fun dir ->
+		("Target-specific",[],["--neko-lib-path"],Arg.String (fun dir ->
 			com.neko_lib_paths <- dir :: com.neko_lib_paths
 		),"<directory>","add the neko library path");
 		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
