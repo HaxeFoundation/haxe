@@ -507,7 +507,10 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)
 							| _ -> t_infos mt
 					in
-					ti.mt_using <- (filter_classes types) @ ti.mt_using;
+					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
+					delay_late ctx PConnectField (fun () ->
+						ti.mt_using <- (filter_classes types) @ ti.mt_using
+					)
 				with Exit ->
 					typing_error "dot path expected" (pos e)
 			) el;
@@ -517,7 +520,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	in
 	(* let errors go through to prevent resume if build fails *)
 	let f_build = List.fold_left loop [] meta in
-	(* Go for @:using in parents and interfaces *)
 	let f_enum = match mt with
 		| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			Some (fun () ->
@@ -528,12 +530,15 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				fbuild e;
 			)
 		| TClassDecl { cl_super = csup; cl_implements = interfaces; cl_kind = kind } ->
+			(* Go for @:using in parents and interfaces *)
 			let ti = t_infos mt in
 			let inherit_using (c,_) =
 				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
 			in
-			Option.may inherit_using csup;
-			List.iter inherit_using interfaces;
+			delay_late ctx PConnectField (fun () ->
+				Option.may inherit_using csup;
+				List.iter inherit_using interfaces;
+			);
 			None
 		| _ ->
 			None
