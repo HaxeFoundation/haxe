@@ -103,7 +103,7 @@ let rec func ctx bb tf t p =
 		| TBlock [e1] ->
 			value bb e1
 		| TBlock _ | TIf _ | TSwitch _ | TTry _ ->
-			bind_to_temp bb false e
+			bind_to_temp bb e
 		| TCall({eexpr = TIdent s},el) when is_really_unbound s ->
 			check_unbound_call s el;
 			bb,e
@@ -198,19 +198,19 @@ let rec func ctx bb tf t p =
 				let had_side_effect = has_side_effect e in
 				if had_side_effect then collect_modified_locals e;
 				let opt = can_be_optimized e in
-				(had_side_effect || opt,(false,opt,e) :: acc)
+				(had_side_effect || opt,(might_be_affected e,opt,e) :: acc)
 			end
 		) (false,[]) (List.rev el) in
 		let bb,values = List.fold_left (fun (bb,acc) (aff,opt,e) ->
 			if bb == g.g_unreachable then
 				bb,acc
 			else begin
-				let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
+				let bb,value = if aff || opt then bind_to_temp bb e else value bb e in
 				bb,(value :: acc)
 			end
 		) (bb,[]) el in
 		bb,List.rev values
-	and bind_to_temp ?(v=None) bb sequential e =
+	and bind_to_temp ?(v=None) bb e =
 		let is_probably_not_affected e e1 fa = match fa with
 			| FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf) when cf.cf_kind = Method MethNormal -> true
 			| FStatic(_,{cf_kind = Method MethDynamic}) -> false
@@ -313,7 +313,7 @@ let rec func ctx bb tf t p =
 			| _ ->
 				if ExtType.has_variable_semantics t then begin
 					let v = alloc_var VGenerated "tmp" t e.epos in
-					let bb',e = bind_to_temp ~v:(Some v) !bb false e in
+					let bb',e = bind_to_temp ~v:(Some v) !bb e in
 					bb := bb';
 					e
 				end else
@@ -325,22 +325,22 @@ let rec func ctx bb tf t p =
 			| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
 			| _ -> die "" __LOC__
 	and array_assign_op bb op e ea e1 e2 e3 =
-		let bb,e1 = bind_to_temp bb false e1 in
-		let bb,e2 = bind_to_temp bb false e2 in
+		let bb,e1 = bind_to_temp bb e1 in
+		let bb,e2 = bind_to_temp bb e2 in
 		let ea = {ea with eexpr = TArray(e1,e2)} in
-		let bb,e4 = bind_to_temp bb false ea in
-		let bb,e3 = bind_to_temp bb false e3 in
+		let bb,e4 = bind_to_temp bb ea in
+		let bb,e3 = bind_to_temp bb e3 in
 		let eop = {e with eexpr = TBinop(op,e4,e3)} in
 		add_texpr bb {e with eexpr = TBinop(OpAssign,ea,eop)};
 		bb,ea
 	and field_assign_op bb op e ef e1 fa e2 =
 		let bb,e1 = match fa with
 			| FInstance(c,_,_) | FClosure(Some(c,_),_) when is_stack_allocated c -> bb,e1
-			| _ -> bind_to_temp bb false e1
+			| _ -> bind_to_temp bb e1
 		in
 		let ef = {ef with eexpr = TField(e1,fa)} in
-		let bb,e3 = bind_to_temp bb false ef in
-		let bb,e2 = bind_to_temp bb false e2 in
+		let bb,e3 = bind_to_temp bb ef in
+		let bb,e2 = bind_to_temp bb e2 in
 		let eop = {e with eexpr = TBinop(op,e3,e2)} in
 		add_texpr bb {e with eexpr = TBinop(OpAssign,ef,eop)};
 		bb,ef
@@ -389,7 +389,7 @@ let rec func ctx bb tf t p =
 				bb_sub_next
 			end
 		| TIf(e1,e2,None) ->
-			let bb,e1 = bind_to_temp bb false e1 in
+			let bb,e1 = bind_to_temp bb e1 in
 			if bb == g.g_unreachable then
 				bb
 			else begin
@@ -406,7 +406,7 @@ let rec func ctx bb tf t p =
 				bb_next
 			end
 		| TIf(e1,e2,Some e3) ->
-			let bb,e1 = bind_to_temp bb false e1 in
+			let bb,e1 = bind_to_temp bb e1 in
 			if bb == g.g_unreachable then
 				bb
 			else begin
@@ -433,7 +433,7 @@ let rec func ctx bb tf t p =
 			end
 		| TSwitch(e1,cases,edef) ->
 			let is_exhaustive = is_exhaustive e1 edef in
-			let bb,e1 = bind_to_temp bb false e1 in
+			let bb,e1 = bind_to_temp bb e1 in
 			bb.bb_terminator <- TermCondBranch e1;
 			let reachable = ref [] in
 			let make_case e =
