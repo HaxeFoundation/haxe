@@ -461,6 +461,14 @@
 		"platforms": ["neko"]
 	},
 	{
+		"name": "NekoNoHaxelibPaths",
+		"define": "neko-no-haxelib-paths",
+		"doc": "Disable hard-coded Haxelib ndll paths.",
+		"platforms": [
+			"neko"
+		]
+	},
+	{
 		"name": "NekoV1",
 		"define": "neko-v1",
 		"doc": "Keep Neko 1.x compatibility.",
