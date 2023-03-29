@@ -198,7 +198,7 @@ let rec func ctx bb tf t p =
 				let had_side_effect = has_side_effect e in
 				if had_side_effect then collect_modified_locals e;
 				let opt = can_be_optimized e in
-				(had_side_effect || opt,(might_be_affected e,opt,e) :: acc)
+				(had_side_effect || opt,(false,opt,e) :: acc)
 			end
 		) (false,[]) (List.rev el) in
 		let bb,values = List.fold_left (fun (bb,acc) (aff,opt,e) ->
