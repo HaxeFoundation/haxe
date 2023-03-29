@@ -65,5 +65,5 @@ class Socket extends sys.net.Socket {
 
     public override function close():Void {
 		_sslSocket.close();
-	}
+    }
 }
