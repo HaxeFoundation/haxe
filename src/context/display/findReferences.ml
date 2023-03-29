@@ -29,9 +29,39 @@ let find_references tctx com with_definition pos_filters =
 	Display.ReferencePosition.reset();
 	usages
 
-let collect_reference_positions com =
-	let name,pos,kind = Display.ReferencePosition.get () in
+(* This probably exists somewhere already but I can't find it *)
+let is_var_field cf = match cf.cf_kind with
+	| Method _ -> false
+	| Var _ -> true
+
+let rec collect_reference_positions com (name,pos,kind) =
 	match kind, com.display.dms_kind with
+	| SKField (cf,Some c),DMUsage (_,find_descendants,_) when find_descendants && is_var_field cf ->
+		let d = DynArray.create () in
+		DynArray.add d (name,pos,kind);
+		begin match cf.cf_kind with
+			| Var vk ->
+				let host = FieldAccess.get_host c cf in
+				let check r mode = match r with
+					| AccCall ->
+						begin match FieldAccess.find_accessor_for_field host cf cf.cf_type mode with
+						| AccessorFound (cf_acc,new_host) ->
+							let c_host = FieldAccess.get_host_class_raise new_host in
+							let new_ref = (cf_acc.cf_name,cf_acc.cf_name_pos,SKField(cf_acc,Some c_host)) in
+							DynArray.add d new_ref;
+							List.iter (DynArray.add d) (collect_reference_positions com new_ref)
+						| _ ->
+							()
+						end
+					| _ ->
+						()
+				in
+				check vk.v_read MGet;
+				check vk.v_write (MSet None);
+			| _ ->
+				()
+		end;
+		DynArray.to_list d
 	| SKField (cf,Some c), DMUsage (_,find_descendants,find_base) when (find_descendants || find_base) && not (has_class_field_flag cf CfStatic) ->
 		let collect() =
 			let c =
@@ -98,7 +128,7 @@ let find_references tctx com with_definition =
 		List.fold_left (fun acc (_,p,_) ->
 			if p = null_pos then acc
 			else Statistics.SFPos p :: acc
-		) [] (collect_reference_positions com)
+		) [] (collect_reference_positions com (Display.ReferencePosition.get ()))
 	in
 	let usages = find_references tctx com with_definition pos_filters in
 	let usages =
