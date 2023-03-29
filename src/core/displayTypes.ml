@@ -264,7 +264,7 @@ type symbol =
 	| SKEnum of tenum
 	| SKTypedef of tdef
 	| SKAbstract of tabstract
-	| SKField of tclass_field * path option (* path - class path *)
+	| SKField of tclass_field * tclass option
 	| SKConstructor of tclass_field
 	| SKEnumField of tenum_field
 	| SKVariable of tvar

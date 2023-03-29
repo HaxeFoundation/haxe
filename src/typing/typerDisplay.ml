@@ -377,7 +377,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| TField(_,(FAnon cf | FClosure (None,cf))) ->
 			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,None));
 		| TField(_,(FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some (c,_),cf))) ->
-			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
+			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c));
 		| TLocal v | TVar(v,_) ->
 			Display.ReferencePosition.set (v.v_name,v.v_pos,SKVariable v);
 		| TTypeExpr mt ->
@@ -394,7 +394,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
 				let cf,c = get_super_constructor() in
-				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
+				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c));
 			with Not_found ->
 				()
 			end

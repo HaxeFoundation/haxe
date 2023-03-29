@@ -8,5 +8,6 @@
 		"test-adapter",
 		"-cmd",
 		"node test.js"
-	]
+	],
+	"haxe.enableCompilationServer": false
 }
