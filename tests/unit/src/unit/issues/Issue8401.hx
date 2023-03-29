@@ -14,10 +14,10 @@ class Issue8401 extends unit.Test {
 		var sock = new python.net.SslSocket();
 		eq(null, sock.__s.gettimeout());
 		sock.setTimeout(500);
-		eq(500, sock.__s.gettimeout());
+		feq(500, sock.__s.gettimeout());
 		// This will change __s.  Make sure we set the timeout properly.
 		sock.wrapSocketWithSslContext("127.0.0.1");
-		eq(500, sock.__s.gettimeout());
+		feq(500, sock.__s.gettimeout());
 	}
 
 	#if (python_verion >= 3.7)
