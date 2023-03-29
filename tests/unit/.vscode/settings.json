@@ -4,6 +4,7 @@
 		{"label": "JavaScript", "args": ["compile-js.hxml", "-cmd", "node -e \"require('./bin/unit.js').unit.TestMain.main()\""]},
 		{"label": "JVM", "args": ["compile-jvm-only.hxml", "-cmd", "java -jar bin/unit.jar"]},
 		{"label": "Interp", "args": ["compile-macro.hxml"]},
+		{"label": "Lua", "args": ["compile-lua.hxml", "-cmd", "lua bin/unit.lua"]},
 	],
 	"[haxe]": {
 		"editor.formatOnSave": true,
