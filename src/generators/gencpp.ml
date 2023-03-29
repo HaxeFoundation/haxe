@@ -7028,6 +7028,7 @@ let write_build_options common_ctx filename defines =
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
       | _ ->  writer#write (Printf.sprintf "%s=%s\n" name (escape_command value))) defines;
    let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
+   set_binary_mode_in pin false;
    writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line pin));
    Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
