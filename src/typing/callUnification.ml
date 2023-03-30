@@ -18,7 +18,13 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		raise (Error (Call_error err,p,0))
 	in
 	let arg_error ul name opt p =
-		let err = Stack [(ul,p); (Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'"), p)] in
+		let msg = ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'") in
+		let err = match ul with
+			| Stack s -> Stack (s @ [(Custom msg,p)])
+			| Unify l -> Unify (l @ [(Unify_custom msg)])
+			| Custom parent -> Custom (parent ^ "\n" ^ msg)
+			| _ -> Stack [(ul,p); (Custom (compl_msg msg), p)]
+		in
 		call_error (Could_not_unify err) p
 	in
 	let mk_pos_infos t =
