@@ -125,6 +125,7 @@ let parse_args com =
 			com.main_class <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
+		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			let flag, value = try let split = ExtString.String.split var "=" in (fst split, Some (snd split)) with _ -> var, None in
 			match value with
