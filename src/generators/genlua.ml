@@ -2091,6 +2091,12 @@ let generate com =
     println ctx "_hx_array_mt.__index = Array.prototype";
     newline ctx;
 
+    (* Patch string metatable *)
+    println ctx "local _hx_str_mt = getmetatable('')";
+    println ctx "String.__oldindex = _hx_str_mt.__index";
+    println ctx "_hx_str_mt.__index = String.__index";
+    newline ctx;
+
     (* Functions to support auto-run of libuv loop *)
     print_file (Common.find_file com "lua/_lua/_hx_luv.lua");
 
