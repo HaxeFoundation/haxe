@@ -636,12 +636,22 @@ end
 
 let check_final_vars ctx e =
 	let final_vars = Hashtbl.create 0 in
-	List.iter (fun cf -> match cf.cf_kind with
-		| Var _ when (has_class_field_flag cf CfFinal) && cf.cf_expr = None ->
-			Hashtbl.add final_vars cf.cf_name cf
+	let ordered_fields = DynArray.create () in
+	let rec loop c =
+		List.iter (fun cf -> match cf.cf_kind with
+			| Var _ when (has_class_field_flag cf CfFinal) && cf.cf_expr = None && not (Hashtbl.mem final_vars cf.cf_name) ->
+				Hashtbl.add final_vars cf.cf_name false;
+				DynArray.add ordered_fields (c,cf)
+			| _ ->
+				()
+		) c.cl_ordered_fields;
+		match c.cl_super with
+		| Some(c,_) when has_class_flag c CAbstract && not (has_constructor c) ->
+			loop c
 		| _ ->
 			()
-	) ctx.curclass.cl_ordered_fields;
+	in
+	loop ctx.curclass;
 	if Hashtbl.length final_vars > 0 then begin
 		let rec find_inits e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
@@ -651,7 +661,10 @@ let check_final_vars ctx e =
 				Type.iter find_inits e
 		in
 		find_inits e;
-		Hashtbl.iter (fun _ cf ->
-			display_error ctx.com ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
-		) final_vars
+		if Hashtbl.length final_vars > 0 then
+			display_error ctx.com "Some final fields are uninitialized in this class" ctx.curclass.cl_name_pos;
+		DynArray.iter (fun (c,cf) ->
+			if Hashtbl.mem final_vars cf.cf_name then
+				display_error ~depth:1 ctx.com "Uninitialized field" cf.cf_name_pos
+		) ordered_fields
 	end
