@@ -42,6 +42,50 @@ type object_decl_kind =
 	| ODKPlain
 	| ODKFailed
 
+module MetaConfig = struct
+
+	let as_bool e = match fst e with
+		| EConst (Ident "true") -> true
+		| EConst (Ident "false") -> false
+		| _ -> raise (Invalid_argument "bool")
+
+	let read_arg_config meta f l =
+		List.iter (fun (meta',el,_) ->
+			if meta' = meta then
+				List.iter (fun e -> match fst e with
+					| EConst (Ident s) ->
+						f (s,((EConst (Ident "true"),null_pos)))
+					| EBinop(OpAssign,(EConst (Ident s),_),e2) ->
+						f (s, e2)
+					| _ ->
+						()
+				) el
+		) l
+end
+
+module AbstractFromConfig = struct
+	type t = {
+		mutable ignored_by_inference : bool;
+	}
+
+	let make () = {
+		ignored_by_inference = false;
+	}
+
+	let update_config_from_meta config ml =
+		MetaConfig.read_arg_config Meta.From (fun (s,e) -> match s with
+			| "ignoredByInference" ->
+				begin try
+					config.ignored_by_inference <- MetaConfig.as_bool e
+				with Invalid_argument _ ->
+					()
+				end
+			| _ ->
+				()
+		) ml;
+		config
+end
+
 let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> pos option -> access_kind) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
 
@@ -283,6 +327,8 @@ let get_abstract_froms ctx a pl =
 	List.fold_left (fun acc (t,f) ->
 		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
 		if f == ctx.curfield then
+			acc
+		else if (AbstractFromConfig.update_config_from_meta (AbstractFromConfig.make ()) f.cf_meta).ignored_by_inference then
 			acc
 		else match follow (Type.field_type f) with
 		| TFun ([_,_,v],t) ->
