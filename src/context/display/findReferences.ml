@@ -101,7 +101,7 @@ let rec collect_reference_positions com (name,pos,kind) =
 				| [] -> [cf,c]
 				| pairs -> pairs
 			in
-			let full_pos p = { p with pfile = Path.get_full_path p.pfile } in
+			let full_pos p = if p = null_pos then null_pos else { p with pfile = Path.get_full_path p.pfile } in
 			if find_descendants then
 				let extends child_cls (_,c) = extends child_cls c in
 				List.fold_left (fun acc t ->
