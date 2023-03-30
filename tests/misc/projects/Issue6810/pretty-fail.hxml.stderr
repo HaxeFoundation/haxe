@@ -5,7 +5,6 @@
    | error: Void should be haxe.NotVoid
    | have: (...) -> Void
    | want: (...) -> haxe.NotVoid
-   | For function argument 'f'
 
 [ERROR] Fail.hx:8: characters 8-16
 
@@ -14,5 +13,4 @@
    | error: FakeVoid should be haxe.NotVoid
    | have: (...) -> FakeVoid
    | want: (...) -> haxe.NotVoid
-   | For function argument 'f'
 
