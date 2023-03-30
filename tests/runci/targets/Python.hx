@@ -63,6 +63,8 @@ class Python {
 		runCommand("haxe", ["compile-python.hxml"].concat(args));
 		for (py in pys) {
 			runCommand(py, ["bin/unit.py"]);
+			// Additional test for python-version >= 3.4
+			runCommand(py, ["bin/unit34.py"]);
 		}
 
 		changeDirectory(sysDir);
