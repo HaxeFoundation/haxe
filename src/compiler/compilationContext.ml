@@ -64,7 +64,9 @@ type server_api = {
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
-let error ctx ?(depth=0) msg =
-	let messages = extract_located msg in
-	List.iter (fun (msg,p) -> message ctx (make_compiler_message msg p depth DKCompilerMessage Error)) messages;
-	ctx.has_error <- true
+let error ctx ?(depth=0) msg = match (extract_located msg) with
+	| [] -> ()
+	| (msg,p) :: tl ->
+		message ctx (make_compiler_message msg p depth DKCompilerMessage Error);
+		List.iter (fun (msg,p) -> message ctx (make_compiler_message msg p (depth+1) DKCompilerMessage Error)) tl;
+		ctx.has_error <- true
