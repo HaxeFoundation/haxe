@@ -41,7 +41,7 @@ private typedef VectorData<T> =
 	eval.Vector<T>
 	#else
 	Array<T>
-	#end
+	#end;
 
 /**
 	A Vector is a storage of fixed size. It can be faster than Array on some
