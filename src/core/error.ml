@@ -280,7 +280,7 @@ let rec error_msg p = function
 	| Unify l -> located (BetterErrors.better_error_message l) p
 	| Unknown_ident s -> located ("Unknown identifier : " ^ s) p
 	| Custom s -> located s p
-	| Stack stack -> located_stack (List.map (fun (e,p) -> error_msg p e) stack)
+	| Stack stack -> located_stack (List.map (fun (e,p') -> error_msg p' e) stack)
 	| Call_error err -> s_call_error p err
 	| No_constructor mt -> located (s_type_path (t_infos mt).mt_path ^ " does not have a constructor") p
 	| Abstract_class mt -> located (s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed") p
@@ -297,12 +297,9 @@ let typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
 let located_typing_error ?(depth=0) msg =
 	let err = match msg with
 		| Message (msg,p) -> Custom msg
-		| Stack stack -> Stack (List.map (fun msg -> (Custom (extract_located_msg msg),(extract_located_pos msg))) stack)
+		| Stack _ -> Stack (List.map (fun (msg,p) -> (Custom msg,p)) (extract_located msg))
 	in
 	raise (Error (err,(extract_located_pos msg),depth))
-
-let call_stack_error ?(depth=0) msg stack p =
-	raise (Error (Stack (((Custom ("Uncaught exception " ^ msg)),p) :: (List.map (fun p -> ((Custom "Called from here"),p)) stack)),p,depth))
 
 let raise_typing_error ?(depth=0) err p = raise (Error(err,p,depth))
 

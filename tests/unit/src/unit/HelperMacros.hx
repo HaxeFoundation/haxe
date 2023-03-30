@@ -52,7 +52,12 @@ class HelperMacros {
 		var result = try {
 			typeof(e);
 			null;
-		} catch (e:haxe.macro.Expr.Error) e.message;
+		} catch (e:haxe.macro.Expr.Error) {
+			var msg = e.message;
+			if (e.childErrors != null)
+				for (c in e.childErrors) msg += "\n" + c.message;
+			msg;
+		}
 		return {
 			pos: currentPos(),
 			expr: if (result == null)

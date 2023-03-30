@@ -176,7 +176,7 @@ let to_utf8 str p =
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
 		let c = UCharExt.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort (located "Invalid unicode char" p);
 		incr ccount;
 		if c >= 0x10000 then incr ccount;
 	) u8;
@@ -379,7 +379,7 @@ let rec to_type ?tref ctx t =
 	| TType (td,tl) ->
 		let t =
 			get_rec_cache ctx t
-				(fun() -> abort "Unsupported recursive type" td.t_pos)
+				(fun() -> abort (located "Unsupported recursive type" td.t_pos))
 				(fun tref -> to_type ~tref ctx (apply_typedef td tl))
 		in
 		(match td.t_path with
@@ -502,7 +502,7 @@ and field_type ctx f p =
 			with Not_found ->
 				match c.cl_super with
 				| Some (csup,_) -> loop csup
-				| None -> abort (s_type_path creal.cl_path ^ " is missing field " ^ f.cf_name) p
+				| None -> abort (located (s_type_path creal.cl_path ^ " is missing field " ^ f.cf_name) p)
 		in
 		(loop creal).cf_type
 	| FStatic (_,f) | FAnon f | FClosure (_,f) -> f.cf_type
@@ -602,7 +602,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		let start_field, virtuals = (match tsup with
 			| None -> 0, [||]
 			| Some ((HObj psup | HStruct psup) as pt) ->
-				if is_struct t <> is_struct pt then abort (if is_struct t then "Struct cannot extend a not struct class" else "Class cannot extend a struct") c.cl_pos;
+				if is_struct t <> is_struct pt then abort (located (if is_struct t then "Struct cannot extend a not struct class" else "Class cannot extend a struct") c.cl_pos);
 				if psup.pnfields < 0 then die "" __LOC__;
 				p.psuper <- Some psup;
 				psup.pnfields, psup.pvirtuals
@@ -647,7 +647,7 @@ and class_type ?(tref=None) ctx c pl statics =
 				let fid = add_field f.cf_name (fun() ->
 					let t = to_type ctx f.cf_type in
 					if has_meta (Meta.Custom ":packed") f.cf_meta then begin
-						(match t with HStruct _ -> () | _ -> abort "Packed field should be struct" f.cf_pos);
+						(match t with HStruct _ -> () | _ -> abort (located "Packed field should be struct" f.cf_pos));
 						HPacked t
 					end else t
 				) in
@@ -968,7 +968,7 @@ let common_type ctx e1 e2 for_eq p =
 		| HObj _, HVirtual _ | HVirtual _, HObj _ | HVirtual _ , HVirtual _ -> HDyn
 		| HFun _, HFun _ -> HDyn
 		| _ ->
-			abort ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
+			abort (located ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p)
 	in
 	loop t1 t2
 
@@ -1034,7 +1034,7 @@ let type_value ctx t p =
 		| [], "Class" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_class)))
 		| [], "Enum" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_enum)))
 		| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
-		| _ -> abort ("Unsupported type value " ^ s_type_path (t_path t)) p);
+		| _ -> abort (located ("Unsupported type value " ^ s_type_path (t_path t)) p));
 		r
 	| TEnumDecl e ->
 		let r = alloc_tmp ctx (enum_class ctx e) in
@@ -1256,7 +1256,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 			op ctx (OSafeCast (out, r));
 			out
 		else
-			abort ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
+			abort (located ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p)
 
 and unsafe_cast_to ?(debugchk=true) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
@@ -1313,7 +1313,7 @@ and object_access ctx eobj t f =
 	| HDyn ->
 		ADynamic (eobj, alloc_string ctx f.cf_name)
 	| _ ->
-		abort ("Unsupported field access " ^ tstr t) eobj.epos
+		abort (located ("Unsupported field access " ^ tstr t) eobj.epos)
 
 and direct_method_call ctx c f ethis =
 	if (match f.cf_kind with Method m -> m = MethDynamic | Var _ -> true) then
@@ -1349,7 +1349,7 @@ and get_access ctx e =
 				match follow t with
 				| TInst (c,pl) -> c, pl
 				| TAbstract (a,pl) -> loop (Abstract.get_underlying_type a pl)
-				| _ -> abort (s_type (print_context()) ethis.etype ^ " hl type should be interface") ethis.epos
+				| _ -> abort (located (s_type (print_context()) ethis.etype ^ " hl type should be interface") ethis.epos)
 			in
 			let cdef, pl = if (has_class_flag cdef CInterface) then loop ethis.etype else cdef,pl in
 			object_access ctx ethis (class_type ctx cdef pl false) f
@@ -1648,7 +1648,7 @@ and eval_expr ctx e =
 			)
 		| _ -> die "" __LOC__);
 	| TCall ({ eexpr = TIdent s }, el) when s.[0] = '$' ->
-		let invalid() = abort "Invalid native call" e.epos in
+		let invalid() = abort (located "Invalid native call" e.epos) in
 		(match s, el with
 		| "$new", [{ eexpr = TTypeExpr (TClassDecl _) }] ->
 			(match follow e.etype with
@@ -1738,9 +1738,9 @@ and eval_expr ctx e =
 				| HUI16 -> 1
 				| HI32 | HF32 -> 2
 				| HI64 | HF64 -> 3
-				| t -> abort ("Unsupported basic type " ^ tstr t) e.epos)
+				| t -> abort (located ("Unsupported basic type " ^ tstr t) e.epos))
 			| _ ->
-				abort "Invalid BytesAccess" eb.epos);
+				abort (located "Invalid BytesAccess" eb.epos));
 		| "$bytes_nullvalue", [eb] ->
 			(match follow eb.etype with
 			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
@@ -1752,10 +1752,10 @@ and eval_expr ctx e =
 				| HF32 | HF64 ->
 					op ctx (OFloat (r, alloc_float ctx 0.))
 				| t ->
-					abort ("Unsupported basic type " ^ tstr t) e.epos);
+					abort (located ("Unsupported basic type " ^ tstr t) e.epos));
 				r
 			| _ ->
-				abort "Invalid BytesAccess" eb.epos);
+				abort (located "Invalid BytesAccess" eb.epos));
 		| "$bget", [eb;pos] ->
 			(match follow eb.etype with
 			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
@@ -1790,9 +1790,9 @@ and eval_expr ctx e =
 					op ctx (OGetMem (r, b, shl ctx pos 3));
 					r
 				| _ ->
-					abort ("Unsupported basic type " ^ tstr t) e.epos)
+					abort (located ("Unsupported basic type " ^ tstr t) e.epos))
 			| _ ->
-				abort "Invalid BytesAccess" eb.epos);
+				abort (located "Invalid BytesAccess" eb.epos));
 		| "$bset", [eb;pos;value] ->
 			(match follow eb.etype with
 			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
@@ -1837,13 +1837,13 @@ and eval_expr ctx e =
 					free ctx v;
 					v
 				| _ ->
-					abort ("Unsupported basic type " ^ tstr t) e.epos
+					abort (located ("Unsupported basic type " ^ tstr t) e.epos)
 				) in
 				free ctx b;
 				free ctx pos;
 				v
 			| _ ->
-				abort "Invalid BytesAccess" eb.epos);
+				abort (located "Invalid BytesAccess" eb.epos));
 		| "$bgetui8", [b;pos] ->
 			let b = eval_to ctx b HBytes in
 			hold ctx b;
@@ -1936,7 +1936,7 @@ and eval_expr ctx e =
 				op ctx (OField (r,a,1));
 				r
 			| t ->
-				abort ("Invalid array type " ^ s_type (print_context()) t) a.epos)
+				abort (located ("Invalid array type " ^ s_type (print_context()) t) a.epos))
 		| "$ref", [v] ->
 			(match v.eexpr with
 			| TLocal v ->
@@ -1946,7 +1946,7 @@ and eval_expr ctx e =
 				op ctx (ORef (r,rv));
 				r
 			| _ ->
-				abort "Ref should be a local variable" v.epos)
+				abort (located "Ref should be a local variable" v.epos))
 		| "$setref", [e1;e2] ->
 			let rec loop e = match e.eexpr with
 				| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) -> loop e1
@@ -2038,7 +2038,7 @@ and eval_expr ctx e =
 				let r = alloc_tmp ctx HI32 in
 				op ctx (OInt (r,alloc_i32 ctx (hl_hash str)));
 				r
-			| _ -> abort "Constant string required" v.epos)
+			| _ -> abort (located "Constant string required" v.epos))
 		| "$enumIndex", [v] ->
 			get_enum_index ctx v
 		| "$__mk_pos__", [{ eexpr = TConst (TString file) };min;max] ->
@@ -2055,7 +2055,7 @@ and eval_expr ctx e =
 			free ctx min;
 			r
 		| _ ->
-			abort ("Unknown native call " ^ s) e.epos)
+			abort (located ("Unknown native call " ^ s) e.epos))
 	| TEnumIndex v ->
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[{ eexpr = TCast(v,_) }]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
@@ -2209,7 +2209,7 @@ and eval_expr ctx e =
 			end;
 			op ctx (OStaticClosure (r,fid));
 		| ANone | ALocal _ | AArray _ | ACaptured _ ->
-			abort "Invalid access" e.epos);
+			abort (located "Invalid access" e.epos));
 		let to_t = to_type ctx e.etype in
 		(match to_t with
 		| HFun _ -> cast_to ctx r to_t e.epos
@@ -2252,7 +2252,7 @@ and eval_expr ctx e =
 		hold ctx r;
 		(match c.cl_constructor with
 		| None -> if c.cl_implements <> [] then die "" __LOC__
-		| Some { cf_expr = None } -> abort (s_type_path c.cl_path ^ " does not have a constructor") e.epos
+		| Some { cf_expr = None } -> abort (located (s_type_path c.cl_path ^ " does not have a constructor") e.epos)
 		| Some ({ cf_expr = Some cexpr } as constr) ->
 			let rl = eval_args ctx el (to_type ctx cexpr.etype) e.epos in
 			let ret = alloc_tmp ctx HVoid in
@@ -2308,7 +2308,7 @@ and eval_expr ctx e =
 					| HDyn ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",a,b))
 					| t ->
-						abort ("Cannot add " ^ tstr t) e.epos)
+						abort (located ("Cannot add " ^ tstr t) e.epos))
 				| OpSub | OpMult | OpMod | OpDiv ->
 					(match rtype ctx r with
 					| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 ->
@@ -2513,7 +2513,7 @@ and eval_expr ctx e =
 			| HUI8 -> 0xFFl
 			| HUI16 -> 0xFFFFl
 			| HI32 -> 0xFFFFFFFFl
-			| _ -> abort ("Unsupported " ^ tstr t) e.epos
+			| _ -> abort (located ("Unsupported " ^ tstr t) e.epos)
 		) in
 		hold ctx r;
 		let r2 = alloc_tmp ctx t in
@@ -2939,7 +2939,7 @@ and eval_expr ctx e =
 			op ctx (OSafeCast (rt,re)));
 		rt
 	| TIdent s ->
-		abort ("Unbound identifier " ^ s) e.epos
+		abort (located ("Unbound identifier " ^ s) e.epos)
 
 and gen_assign_op ctx acc e1 f =
 	let f r =
@@ -3330,15 +3330,15 @@ let generate_static ctx c f =
 					let gen_content() =
 						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
-					ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
+					ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort (located "Missing function body" f.cf_pos)) None None)
 				else
 				add_native "std" f.cf_name
 			| (Meta.HlNative,[] ,_ ) :: _ ->
 				add_native "std" f.cf_name
 			| (Meta.HlNative,_ ,p) :: _ ->
-				abort "Invalid @:hlNative decl" p
+				abort (located "Invalid @:hlNative decl" p)
 			| [] ->
-				ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
+				ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort (located "Missing function body" f.cf_pos)) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -3388,7 +3388,7 @@ let rec generate_member ctx c f =
 					tf_type = tr;
 					tf_expr = mk (TThrow (mk (TConst TNull) t_dynamic null_pos)) t_dynamic null_pos;
 				}
-			| _ -> abort "Missing function body" f.cf_pos
+			| _ -> abort (located "Missing function body" f.cf_pos)
 		in
 		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) ff (Some c) None);
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
@@ -4051,7 +4051,7 @@ let add_types ctx types =
 					let lib, prefix = (match args with
 					| [(EConst (String(lib,_)),_)] -> lib, ""
 					| [(EConst (String(lib,_)),_);(EConst (String(p,_)),_)] -> lib, p
-					| _ -> abort "hlNative on class requires library name" p
+					| _ -> abort (located "hlNative on class requires library name" p)
 					) in
 					(* adds :hlNative for all empty methods *)
 					List.iter (fun f ->
@@ -4183,4 +4183,4 @@ let generate com =
 			Hlinterp.add_code ctx code;
 			t();
 		with
-			Failure msg -> abort msg null_pos
+			Failure msg -> abort (located msg null_pos)

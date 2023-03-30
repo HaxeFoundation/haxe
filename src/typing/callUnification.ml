@@ -471,15 +471,16 @@ object(self)
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.com.error in
-		ctx.com.error <- (fun ?(depth=0) msg ep ->
+		ctx.com.error <- (fun ?(depth=0) msg ->
+			let ep = extract_located_pos msg in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				locate_macro_error := false;
-				old msg (if ep = null_pos then p else ep);
+				old (if ep = null_pos then msg else (relocate msg p));
 				locate_macro_error := true;
-				if ep <> null_pos then old ~depth:(depth+1) (compl_msg "Called from macro here") p;
+				if ep <> null_pos then old ~depth:(depth+1) (located (compl_msg "Called from macro here") p);
 			end else
-				old msg ep;
+				old msg;
 		);
 		let e = try
 			f()

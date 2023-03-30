@@ -38,14 +38,19 @@ let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 let located msg p = Message (msg,p)
 let located_stack stack = Stack stack
 
-let rec extract_located_msg = function
-	 | Message (msg,p) -> msg
-	 | Stack stack -> String.concat "\n" (List.map extract_located_msg stack)
+let rec extract_located = function
+	| Message (msg,p) -> [(msg, p)]
+	| Stack stack -> List.fold_left (fun acc s -> acc @ (extract_located s)) [] stack
+
+let rec relocate msg p = match msg with
+	| Message (msg,_) -> Message (msg,p)
+	| Stack [] -> Stack []
+	| Stack (hd :: tl) -> Stack ((relocate hd p) :: tl)
 
 let rec extract_located_pos = function
-	 | Message (_,p) -> p
-	 | Stack [] -> null_pos
-	 | Stack (hd :: _) -> extract_located_pos hd
+	| Message (_,p) -> p
+	| Stack [] -> null_pos
+	| Stack (hd :: _) -> extract_located_pos hd
 
 let macro_platform = ref Neko
 

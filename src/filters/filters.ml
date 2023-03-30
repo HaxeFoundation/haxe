@@ -591,7 +591,7 @@ let check_cs_events com t = match t with
 						try
 							type_eq EqStrict m.cf_type tmeth
 						with Unify_error el ->
-							List.iter (fun e -> com.error (unify_error_msg (print_context()) e) m.cf_pos) el
+							List.iter (fun e -> com.error (located (unify_error_msg (print_context()) e) m.cf_pos)) el
 					end;
 
 					(*

@@ -275,7 +275,7 @@ let rec acc_get ctx g =
 let check_dynamic_super_method_call ctx fa p =
 	match fa with
 	| { fa_on = { eexpr = TConst TSuper } ; fa_field = { cf_kind = Method MethDynamic; cf_name = name } } ->
-		ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p
+		ctx.com.error (located ("Cannot call super." ^ name ^ " since it's a dynamic method") p)
 	| _ ->
 		()
 

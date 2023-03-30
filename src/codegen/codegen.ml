@@ -468,7 +468,7 @@ let interpolate_code com code tl f_string f_expr p =
 	let i = ref 0 in
 	let err msg =
 		let pos = { p with pmin = p.pmin + !i } in
-		com.error msg pos
+		com.error (located msg pos)
 	in
 	let regex = Str.regexp "[{}]" in
 	let rec loop m = match m with

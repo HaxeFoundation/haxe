@@ -75,7 +75,7 @@ let process_expose meta f_default f =
 		match args with
 		| [ EConst (String(s,_)), _ ] -> f s
 		| [] -> f (f_default ())
-		| _ -> abort "Invalid @:expose parameters" pos
+		| _ -> abort (located "Invalid @:expose parameters" pos)
 	with Not_found ->
 		()
 
@@ -166,7 +166,7 @@ let module_field_expose_path mpath f =
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
-let unsupported p = abort "This expression cannot be compiled to Javascript" p
+let unsupported p = abort (located "This expression cannot be compiled to Javascript" p)
 
 let encode_mapping smap pos =
 	if smap.print_comma then
@@ -456,7 +456,7 @@ let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
-		| None -> abort "Missing api.setCurrentClass" e.epos
+		| None -> abort (located "Missing api.setCurrentClass" e.epos)
 		| Some (c,_) ->
 			let call = if apply then "apply" else "call" in
 			print ctx "%s.%s(%s" (ctx.type_accessor (TClassDecl c)) call (this ctx);
@@ -465,7 +465,7 @@ let rec gen_call ctx e el in_value =
 		);
 	| TField ({ eexpr = TConst TSuper },f) , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
-		| None -> abort "Missing api.setCurrentClass" e.epos
+		| None -> abort (located "Missing api.setCurrentClass" e.epos)
 		| Some (c,_) ->
 			let name = field_name f in
 			let call = if apply then "apply" else "call" in
@@ -492,14 +492,14 @@ let rec gen_call ctx e el in_value =
 				spr ctx "throw ";
 				gen_value ctx e
 			| _ ->
-				abort "js.Lib.rethrow can only be called inside a catch block" e.epos
+				abort (located "js.Lib.rethrow can only be called inside a catch block" e.epos)
 		)
 	| TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "getOriginalException" })), [] ->
 		(match ctx.catch_vars with
 			| e :: _ ->
 				gen_value ctx e
 			| _ ->
-				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
+				abort (located "js.Lib.getOriginalException can only be called inside a catch block" e.epos)
 		)
 	| TIdent "__new__", args ->
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
@@ -864,7 +864,7 @@ and gen_expr ctx e =
 		gen_expr ctx ecatch;
 		ctx.catch_vars <- List.tl ctx.catch_vars
 	| TTry _ ->
-		abort "Unhandled try/catch, please report" e.epos
+		abort (located "Unhandled try/catch, please report" e.epos)
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx e;
@@ -1142,7 +1142,7 @@ and gen_syntax ctx meth args pos =
 		let code, code_pos =
 			match code.eexpr with
 			| TConst (TString s) -> s, code.epos
-			| _ -> abort "The `code` argument for js.Syntax.code must be a string constant" code.epos
+			| _ -> abort (located "The `code` argument for js.Syntax.code must be a string constant" code.epos)
 		in
 		begin
 			match args with
@@ -1168,7 +1168,7 @@ and gen_syntax ctx meth args pos =
 		let code =
 			match code.eexpr with
 			| TConst (TString s) -> s
-			| _ -> abort "The `code` argument for js.Syntax.plainCode must be a string constant" code.epos
+			| _ -> abort (located "The `code` argument for js.Syntax.plainCode must be a string constant" code.epos)
 		in
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| "field" , [eobj;efield] ->
@@ -1183,7 +1183,7 @@ and gen_syntax ctx meth args pos =
 			spr ctx "]";
 		)
 	| _ ->
-		abort (Printf.sprintf "Unknown js.Syntax method `%s` with %d arguments" meth (List.length args)) pos
+		abort (located (Printf.sprintf "Unknown js.Syntax method `%s` with %d arguments" meth (List.length args)) pos)
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
@@ -1215,7 +1215,7 @@ let generate_package_create ctx (p,_) =
 let check_field_name c f =
 	match f.cf_name with
 	| "prototype" | "__proto__" | "constructor" ->
-		abort ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+		abort (located ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos));
 	| _ -> ()
 
 (* convert a.b.c to ["a"]["b"]["c"] *)
@@ -1611,7 +1611,7 @@ let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
 	(match c.cl_path with
-	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
+	| [],"Function" -> abort (located "This class redefine a native one" c.cl_pos)
 	| _ -> ());
 	match c.cl_kind with
 	| KModuleFields m ->
@@ -1747,7 +1747,7 @@ let generate_require ctx path meta =
 	| [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
 		print ctx "%s = require(\"%s\").%s" p module_name object_path
 	| _ ->
-		abort "Unsupported @:jsRequire format" mp);
+		abort (located "Unsupported @:jsRequire format" mp));
 
 	newline ctx
 

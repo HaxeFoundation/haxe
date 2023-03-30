@@ -125,8 +125,8 @@ let rec follow t = match Type.follow t with
 	| t ->
 		t
 
-let invalid_expr p = abort "Invalid expression" p
-let stack_error p = abort "Stack error" p
+let invalid_expr p = abort (located "Invalid expression" p)
+let stack_error p = abort (located "Stack error" p)
 
 let index_int (x : int) : 'a index = Obj.magic (x + 1)
 let index_nz_int (x : int) : 'a index_nz = Obj.magic x
@@ -535,7 +535,7 @@ let define_local ctx ?(init=false) v p =
 let is_set v = (Obj.magic v) = Write
 
 let gen_local_access ctx v p (forset : 'a)  : 'a access =
-	match snd (try PMap.find v.v_id ctx.locals with Not_found -> abort ("Unbound variable " ^ v.v_name) p) with
+	match snd (try PMap.find v.v_id ctx.locals with Not_found -> abort (located ("Unbound variable " ^ v.v_name) p)) with
 	| LReg r ->
 		VReg r
 	| LScope n ->
@@ -761,7 +761,7 @@ let begin_fun ctx args tret el stat p =
 			| TConst (TInt i) -> if kind = KUInt then HVUInt i else HVInt i
 			| TConst (TFloat s) -> HVFloat (float_of_string s)
 			| TConst (TBool b) -> HVBool b
-			| TConst TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
+			| TConst TNull -> abort (located ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p)
 			| _ -> die "" __LOC__)
 		| _, Some {eexpr = TConst TNull} -> HVNone
 		| k, Some c ->
@@ -943,7 +943,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 				gen_expr ctx true e1;
 				property ctx fa e1.etype
 		in
-		if closure && not ctx.for_call then abort "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
+		if closure && not ctx.for_call then abort (located "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos);
 		(match k with
 		| Some t -> VCast (id,t)
 		| None ->
@@ -1194,7 +1194,7 @@ let rec gen_expr_content ctx retval e =
 	| TUnop (op,flag,e) ->
 		gen_unop ctx retval op flag e
 	| TTry (e2,cases) ->
-		if ctx.infos.istack <> 0 then abort "Cannot compile try/catch as a right-side expression in Flash9" e.epos;
+		if ctx.infos.istack <> 0 then abort (located "Cannot compile try/catch as a right-side expression in Flash9" e.epos);
 		let branch = begin_branch ctx in
 		let p = ctx.infos.ipos in
 		gen_expr ctx retval e2;
@@ -1425,7 +1425,7 @@ let rec gen_expr_content ctx retval e =
 					write ctx (HCast tid)
 		end
 	| TIdent s ->
-		abort ("Unbound variable " ^ s) e.epos
+		abort (located ("Unbound variable " ^ s) e.epos)
 and args_as_array ctx mandatory_args spread_arg p =
 	match mandatory_args with
 	| [] ->
@@ -1476,8 +1476,8 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true counter;
 		write ctx HForIn
 	| TIdent "__has_next__", [obj;counter] ->
-		let oreg = match gen_access ctx obj Read with VReg r -> r | _ -> abort "Must be a local variable" obj.epos in
-		let creg = match gen_access ctx counter Read with VReg r -> r | _ -> abort "Must be a local variable" obj.epos in
+		let oreg = match gen_access ctx obj Read with VReg r -> r | _ -> abort (located "Must be a local variable" obj.epos) in
+		let creg = match gen_access ctx counter Read with VReg r -> r | _ -> abort (located "Must be a local variable" obj.epos) in
 		write ctx (HNext (oreg.rid,creg.rid))
 	| TIdent "__hkeys__", [e2]
 	| TIdent "__foreach__", [e2]
@@ -1720,7 +1720,7 @@ and check_binop ctx e1 e2 =
 	let invalid = (match classify ctx e1.etype, classify ctx e2.etype with
 	| KInt, KUInt | KUInt, KInt -> (match e1.eexpr, e2.eexpr with TConst (TInt i) , _ | _ , TConst (TInt i) -> i < 0l | _ -> true)
 	| _ -> false) in
-	if invalid then abort "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
+	if invalid then abort (located "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos));
 
 and gen_assign ctx lhs rhs retval =
 	let acc = gen_access ctx lhs Write in
@@ -2038,12 +2038,12 @@ let generate_class_init ctx c hc =
 	| None -> ()
 	| Some e ->
 		gen_expr ctx false e;
-		if ctx.block_vars <> [] then abort "You can't have a local variable referenced from a closure inside __init__ (FP 10.1.53 crash)" e.epos;
+		if ctx.block_vars <> [] then abort (located "You can't have a local variable referenced from a closure inside __init__ (FP 10.1.53 crash)" e.epos);
 	);
 	generate_class_statics ctx c true;
 	if ctx.swc then begin
 		generate_class_statics ctx c false;
-		if ctx.block_vars <> [] then abort "You can't have a local variable referenced from a closure inside a static (FP 10.1.53 crash)" c.cl_pos;
+		if ctx.block_vars <> [] then abort (located "You can't have a local variable referenced from a closure inside a static (FP 10.1.53 crash)" c.cl_pos);
 	end
 
 let generate_enum_init ctx e hc meta =
@@ -2087,7 +2087,7 @@ let extract_meta meta =
 				match a with
 				| EConst (String(s,_)) -> (None, s)
 				| EBinop (OpAssign,(EConst (Ident n),_),(EConst (String(s,_)),_)) -> (Some n, s)
-				| _ -> abort "Invalid meta definition" p
+				| _ -> abort (located "Invalid meta definition" p)
 			in
 			{ hlmeta_name = n; hlmeta_data = Array.of_list (List.map mk_arg args) } :: loop l
 		| _ :: l -> loop l
@@ -2172,7 +2172,7 @@ let check_constructor ctx c f =
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
 		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,_,cf)) },_) when c != cc && (match classify ctx cf.cf_type with KFloat | KDynamic -> true | _ -> false) ->
-			abort "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos
+			abort (located "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos)
 		| _ -> ()
 	in
 	(* only do so if we have a call to super() *)
@@ -2383,7 +2383,7 @@ let realize_required_accessors ctx cl =
 		| Some (actual_cl, actual_tl), _, cf ->
 			Option.may (fun iface ->
 				if not (is_flash_property cf) then
-					abort (Printf.sprintf "Interface %s requires property %s to be marked with @:flash.property" (s_type_path iface.cl_path) cf.cf_name) cf.cf_pos
+					abort (located (Printf.sprintf "Interface %s requires property %s to be marked with @:flash.property" (s_type_path iface.cl_path) cf.cf_name) cf.cf_pos)
 			) native;
 			if (has_class_flag actual_cl CExtern) then begin
 				let mk_field_access () =
@@ -2661,7 +2661,7 @@ let generate_class ctx c =
 		hlc_interface = (has_class_flag c CInterface);
 		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
-			if not (has_class_flag c CInterface) then abort "Can't implement class in Flash9" c.cl_pos;
+			if not (has_class_flag c CInterface) then abort (located "Can't implement class in Flash9" c.cl_pos);
 			let pack, name = real_path c.cl_path in
 			HMMultiName (Some name,[HNPublic (Some (String.concat "." pack))])
 		) c.cl_implements);

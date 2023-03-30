@@ -362,7 +362,7 @@ type context = {
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable error : ?depth:int -> located -> unit;
 	mutable info : ?depth:int -> string -> pos -> unit;
 	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
@@ -414,7 +414,7 @@ type context = {
 	memory_marker : float array;
 }
 
-exception Abort of string * pos
+exception Abort of located
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
@@ -834,7 +834,7 @@ let create compilation_step cs version args =
 		info = (fun ?depth _ _ -> die "" __LOC__);
 		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [];
-		error = (fun ?depth _ _ -> die "" __LOC__);
+		error = (fun ?depth _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -1022,7 +1022,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort ?depth msg p = raise (Abort (msg,p))
+let abort ?depth msg = raise (Abort msg)
 
 let platform ctx p = ctx.platform = p
 
@@ -1176,7 +1176,7 @@ let to_utf8 str p =
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
 		let c = UCharExt.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort (located "Invalid unicode char" p);
 		incr ccount;
 		if c > 0x10000 then incr ccount;
 	) u8;
@@ -1227,17 +1227,24 @@ let utf16_to_utf8 str =
 	Buffer.contents b
 
 let add_diagnostics_message com msg kind sev =
-	let p = Globals.extract_located_pos msg in
-	let s = Globals.extract_located_msg msg in
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+	match (extract_located msg) with
+	| [] -> ()
+	| (s,p) :: [] ->
+		di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+	| (s,p) :: stack ->
+		(* TODO send full stack data as diagnostics attribute for better handling by editors *)
+		let s = List.fold_left (fun acc (s,p) ->
+			Printf.sprintf "%s%s\n" acc (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") p)
+		) (s ^ "\n") stack in
+		di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 let located_display_error com ?(depth = 0) msg =
 	if is_diagnostics com then
 		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
-		com.error (Globals.extract_located_msg msg) (Globals.extract_located_pos msg) ~depth
+		com.error msg ~depth
 
 let display_error com ?(depth = 0) msg p =
 	located_display_error com ~depth (Globals.located msg p)

@@ -271,7 +271,7 @@ module Pattern = struct
 		let catch_errors () =
 			let old = ctx.com.error in
 			let restore_report_mode = disable_report_mode ctx.com in
-			ctx.com.error <- (fun ?depth _ _ ->
+			ctx.com.error <- (fun ?depth _ ->
 				raise Exit
 			);
 			(fun () ->

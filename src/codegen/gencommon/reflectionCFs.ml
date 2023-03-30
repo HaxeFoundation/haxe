@@ -211,7 +211,7 @@ let hash_field ctx f pos =
 	let h = hash f in
 	(try
 		let f2 = Hashtbl.find ctx.rcf_hash_paths (ctx.rcf_gen.gcurrent_path, h) in
-		if f <> f2 then ctx.rcf_gen.gcon.error ("Field conflict between " ^ f ^ " and " ^ f2) pos
+		if f <> f2 then ctx.rcf_gen.gcon.error (Globals.located ("Field conflict between " ^ f ^ " and " ^ f2) pos)
 	with Not_found ->
 		Hashtbl.add ctx.rcf_hash_paths (ctx.rcf_gen.gcurrent_path, h) f;
 		Hashtbl.replace ctx.rcf_hash_fields h f);

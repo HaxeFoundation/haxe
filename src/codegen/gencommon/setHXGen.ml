@@ -52,7 +52,7 @@ let run_filter com types =
 							if is_hxgen_class (c,p) then
 								false
 							else if Meta.has Meta.Struct c.cl_meta then begin
-								com.error ("Struct types cannot be subclassed") c.cl_pos;
+								com.error (Globals.located "Struct types cannot be subclassed" c.cl_pos);
 								true
 							end else
 								(Meta.has Meta.NativeChildren c.cl_meta && not (Option.map_default is_hxgen_class false c.cl_super || List.exists is_hxgen_class c.cl_implements))
@@ -72,7 +72,7 @@ let run_filter com types =
 				if Meta.has Meta.FlatEnum e.e_meta then
 					false
 				else begin
-					com.error "Only flat enums may be @:nativeGen" e.e_pos;
+					com.error (Globals.located "Only flat enums may be @:nativeGen" e.e_pos);
 					true
 				end
 			else

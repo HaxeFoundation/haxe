@@ -1012,11 +1012,17 @@ class Error extends Exception {
 	public var pos:Position;
 
 	/**
+		Child error messages, if any.
+	**/
+	public var childErrors:Array<Error>;
+
+	/**
 		Instantiates an error with given message and position.
 	**/
-	public function new(message:String, pos:Position, ?previous:Exception) {
+	public function new(message:String, pos:Position, ?childErrors:Array<Error>, ?previous:Exception) {
 		super(message, previous);
 		this.pos = pos;
+		this.childErrors = childErrors;
 	}
 }
 

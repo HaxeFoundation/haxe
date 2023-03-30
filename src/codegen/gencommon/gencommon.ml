@@ -607,7 +607,7 @@ let new_ctx con =
 				mk_cast t { eexpr = TCall(fieldcall, [obj; field]); etype = t_dynamic; epos = obj.epos }
 			);
 
-			r_create_empty = (fun _ _ pos -> gen.gcon.error "r_create_empty implementation is not provided" pos; die "" __LOC__);
+			r_create_empty = (fun _ _ pos -> gen.gcon.error (located "r_create_empty implementation is not provided" pos); die "" __LOC__);
 		};
 		gexpr_filters = new rule_map_dispatcher "gexpr_filters";
 		gmodule_filters = new rule_map_dispatcher "gmodule_filters";
@@ -732,7 +732,7 @@ let run_filters_from gen t filters =
 let run_filters gen =
 	let last_error = gen.gcon.error in
 	let has_errors = ref false in
-	gen.gcon.error <- (fun ?(depth=0) msg pos -> has_errors := true; last_error ~depth msg pos);
+	gen.gcon.error <- (fun ?(depth=0) msg -> has_errors := true; last_error ~depth msg);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
@@ -820,7 +820,7 @@ let run_filters gen =
 
 	reorder_modules gen;
 	t();
-	if !has_errors then raise (Abort("Compilation aborted with errors",null_pos))
+	if !has_errors then raise (Abort (located "Compilation aborted with errors" null_pos))
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)

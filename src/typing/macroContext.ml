@@ -89,7 +89,15 @@ let typing_timer ctx need_type f =
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
 	(*if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
-	ctx.com.error <- (fun ?(depth=0) e p -> raise (Error(Custom e,p,depth)));
+	let rec located_to_error = function
+		| Message (e,p) -> (Custom e,p)
+		| Stack stack -> (Stack (List.map located_to_error stack),null_pos)
+	in
+
+	ctx.com.error <- (fun ?(depth=0) msg ->
+		let (e,p) = located_to_error msg in
+		raise (Error (e,p,depth)));
+
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;
 		flush_pass ctx PBuildClass "typing_timer";
@@ -529,10 +537,10 @@ let create_macro_interp ctx mctx =
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.error in
-	com2.error <- (fun ?depth e p ->
+	com2.error <- (fun ?depth msg ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
-		on_error e p
+		on_error msg
 	);
 	let macro = ((fun() -> Interp.select mint), mctx) in
 	ctx.g.macros <- Some macro;
