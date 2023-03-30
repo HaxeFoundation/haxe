@@ -1360,18 +1360,18 @@ and type_local_function ctx kind f with_type p =
 						(* For cases like nested EitherType, we want a flat list of all possible candidates.
 						   This might be controversial because those could be considered transitive casts,
 						   but it's unclear if that's a bad thing for this kind of inference (issue #10982). *)
-						let rec loop acc l = match l with
+						let rec loop stack acc l = match l with
 							| t :: l ->
 								begin match follow t with
-								| TAbstract(a,tl) ->
-									loop acc (l @ get_abstract_froms ctx a tl)
+								| TAbstract(a,tl) as t when not (List.exists (shallow_eq t) stack) ->
+									loop (t :: stack) acc (l @ get_abstract_froms ctx a tl)
 								| _ ->
-									loop (t :: acc) l
+									loop stack (t :: acc) l
 								end
 							| [] ->
 								List.rev acc
 						in
-						handle_abstract_matrix (loop [] l)
+						handle_abstract_matrix (loop [] [] l)
 				end
 			| _ -> ())
 		in
