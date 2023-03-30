@@ -162,18 +162,9 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 							)
 						| _ -> null_pos
 					in
-					(* In some wild cases be get to the `else` block below which already adds stack to the error, so this displays it a second time... *)
-					let stack = match eval_stack with
-						| [] -> stack
-						| _ ->
-							let eval_stack = get_exc_error_stack ctx eval_stack in
-							stack @ (List.map (fun p -> ((Error.Custom "Called from here"),p)) eval_stack)
-					in
 					(match stack with
-						| [] ->
-							raise (Error.Error (Error.Custom s.sstring,p,0))
-						| _ ->
-							raise (Error.Error (Stack ((Error.Custom ("Uncaught exception " ^ s.sstring),p) :: stack),p,0))
+						| [] -> raise (Error.Error (Error.Custom s.sstring,p,0))
+						| _ -> raise (Error.Error (Stack ((Error.Custom (s.sstring),p) :: stack),p,0))
 					);
 				| _ ->
 					Error.typing_error "Something went wrong" null_pos
