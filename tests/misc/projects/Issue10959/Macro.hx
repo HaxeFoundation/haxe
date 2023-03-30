@@ -32,24 +32,30 @@ class Macro {
 		// https://github.com/HaxeFoundation/haxe/issues/10959
 		final type = TAbstract(a, []);
 
-		// Use TypeTools.validateTypeParams
-		final valid = type.validateTypeParams();
+		// Use TypeTools.resolveTypeParameters
+		final valid = type.resolveTypeParameters(true, (tp,t,i) -> tp.defaultType ?? tp.t);
 
 		haxe.macro.Context.followWithAbstracts(valid);
 	}
 
-	// Test specific aspects of the validateTypeParams function
+	// Test specific aspects of the resolveTypeParameters function
 	static function testWithClass(c: Ref<ClassType>) {
 		// Various types to use with tests
 		final voidType = haxe.macro.Context.getType("Void");
 		final intType = haxe.macro.Context.getType("Int");
 		final floatType = haxe.macro.Context.getType("Float");
 		final stringType = haxe.macro.Context.getType("String");
-		
-		// Print type before and after using "validateTypeParams"
-		function print(t:Type) {
+
+		// Print type before and after using "resolveTypeParameters"
+		function print(t:Type, other:Null<Type> = null) {
 			Sys.println("Before: " + t.toString());
-			Sys.println("After:  " + t.validateTypeParams().toString());
+
+			// Automatically resolve to the defaultType or `KTypeParameter` for testing purposes.
+			if(other == null) {
+				other = t.resolveTypeParameters(true, (tp,t,i) -> tp.defaultType ?? tp.t);
+			}
+			Sys.println("After:  " + other.toString());
+
 			Sys.println("");
 		}
 
@@ -81,6 +87,24 @@ class Macro {
 		final inner1 = TInst(c, []);
 		final inner2 = TInst(c, [voidType, intType, floatType, stringType]);
 		print(TInst(c, [inner1, inner2]));
+
+		Sys.println("-- Fill With Specific Type --");
+		
+		print(inner1, inner1.resolveTypeParameters(true, (_,_,_) -> intType));
+		print(inner1, inner1.resolveTypeParameters(true, (_,_,_) -> stringType));
+		print(inner2, inner2.resolveTypeParameters(true, (_,_,_) -> stringType));
+
+		Sys.println("-- Recursive Param OFF --");
+
+		final recursiveType = TInst(c, [inner1, inner2]);
+		print(recursiveType, recursiveType.resolveTypeParameters(false, (_,_,_) -> stringType));
+
+		Sys.println("-- Index Print --");
+
+		recursiveType.resolveTypeParameters(true, function(tp, type, index) {
+			Sys.println(type.toString() + " - " + index);
+			return voidType;
+		});
 	}
 }
 
