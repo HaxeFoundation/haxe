@@ -243,9 +243,9 @@ let parse entry ctx code file =
 		match fst tk with
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
-			let tk = next_token() in
 			let l = String.length s in
 			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
+			let tk = next_token() in
 			tk
 		| CommentLine s ->
 			if !in_display_file then begin

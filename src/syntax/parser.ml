@@ -192,7 +192,7 @@ let get_doc s =
 		| None -> None
 		| Some (d,pos) ->
 			last_doc := None;
-			if pos = p.pmin then Some d else None
+			Some d
 
 let unsupported_decl_flag decl flag pos =
 	let msg = (s_decl_flag flag) ^ " modifier is not supported for " ^ decl in
