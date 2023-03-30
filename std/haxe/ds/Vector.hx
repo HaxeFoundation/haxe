@@ -75,7 +75,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cpp
 		this = NativeArray.create(length);
 		#elseif python
-		this = python.Syntax.code("[{0}]*{1}", null, length);
+		this = python.Syntax.code("([{0}]*{1})", null, length);
 		#elseif lua
 		this = untyped __lua_table__({length: length});
 		#elseif eval
@@ -97,7 +97,7 @@ abstract Vector<T>(VectorData<T>) {
 		#if js
 		this = [for (_ in 0...length) defaultValue];
 		#elseif python
-		this = python.Syntax.code("[{0}]*{1}", defaultValue, length);
+		this = python.Syntax.code("([{0}]*{1})", defaultValue, length);
 		#else
 
 		#if flash10
