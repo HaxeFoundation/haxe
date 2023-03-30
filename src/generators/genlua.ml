@@ -1197,6 +1197,9 @@ and gen_value ctx e =
         gen_expr ctx e
     | TMeta (_,e1) ->
         gen_value ctx e1
+    | TCall ({eexpr = (TField (e, (FInstance _ as s)))}, el) when (is_string_expr e) ->
+        spr ctx ("String.prototype." ^ (field_name s));
+        gen_paren_arguments ctx (e :: el)
     | TCall (e,el) ->
         gen_call ctx e el
     | TReturn _
@@ -1210,13 +1213,7 @@ and gen_value ctx e =
         spr ctx (ctx.type_accessor t);
         spr ctx ")"
     | TCast (e1, _) ->
-        let rec unwrap_casts e = match e.eexpr with
-			| TCast(e1,None) -> skip e1
-			| _ -> e
-		in
-        spr ctx "(";
-        gen_value ctx (unwrap_casts e1);
-        spr ctx ")"
+        gen_value ctx e1
     | TVar _
     | TFor _
     | TWhile _
@@ -2095,12 +2092,6 @@ let generate com =
 
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";
-    newline ctx;
-
-    (* Patch string metatable *)
-    println ctx "local _hx_str_mt = getmetatable('')";
-    println ctx "String.__oldindex = _hx_str_mt.__index";
-    println ctx "_hx_str_mt.__index = String.__index";
     newline ctx;
 
     (* Functions to support auto-run of libuv loop *)
