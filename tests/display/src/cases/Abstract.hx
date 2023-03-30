@@ -75,8 +75,8 @@ class Abstract extends DisplayTestCase {
 		final fields = toplevel(pos(2));
 		eq(false, hasToplevel(fields, "literal", "abstract"));
 		// TODO: improve display hints
-		// eq("cases.MyAbstract", type(pos(3)));
-		// eq("cases.AbGeneric<cases.AbGeneric.T>", type(pos(4)));
+		eq("cases.MyAbstract", type(pos(3)));
+		eq("cases.AbGeneric<cases.AbGeneric.T>", type(pos(4)));
 		eq("cases.AbGeneric.T", type(pos(5)));
 	}
 }

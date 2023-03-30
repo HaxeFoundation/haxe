@@ -48,7 +48,18 @@ let completion_item_of_expr ctx e =
 		let t = tpair e.etype in
 		make_ci_expr e t
 	in
+	let was_probably_literal_abstract v t = match follow t with
+		| TAbstract(a,tl) ->
+			type_iseq (Abstract.get_underlying_type a tl) v.v_type
+		| _ ->
+			false
+	in
 	let rec loop e = match e.eexpr with
+		| TLocal ({v_kind = VAbstractThis} as v) when was_probably_literal_abstract v e.etype ->
+			(* `abstract` is typed as ((this : Underlying) : Abstract), so we detect it like that.
+			   This could lead to false positives if somebody really tries, but even in that case
+				the displayed type is not wrong. *)
+			make_ci_literal "abstract" (tpair e.etype)
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
 			let te,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
