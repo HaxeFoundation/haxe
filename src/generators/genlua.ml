@@ -1210,7 +1210,13 @@ and gen_value ctx e =
         spr ctx (ctx.type_accessor t);
         spr ctx ")"
     | TCast (e1, _) ->
-        gen_value ctx e1
+        let rec unwrap_casts e = match e.eexpr with
+			| TCast(e1,None) -> skip e1
+			| _ -> e
+		in
+        spr ctx "(";
+        gen_value ctx (unwrap_casts e1);
+        spr ctx ")"
     | TVar _
     | TFor _
     | TWhile _
