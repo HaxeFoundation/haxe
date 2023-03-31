@@ -68,6 +68,8 @@ let error ctx ?(depth=0) msg p =
 	message ctx (make_compiler_message msg p depth DKCompilerMessage Error);
 	ctx.has_error <- true
 
-let located_error ctx ?(depth=0) msg =
-	message ctx (make_compiler_message (extract_located_msg msg) (extract_located_pos msg) depth DKCompilerMessage Error);
-	ctx.has_error <- true
+let located_error ctx ?(depth=0) msg = match (extract_located msg) with
+	| [] -> ()
+	| (msg,p) :: tl ->
+		error ~depth ctx msg p;
+		List.iter (fun (msg,p) -> error ~depth:(depth+1) ctx msg p) tl

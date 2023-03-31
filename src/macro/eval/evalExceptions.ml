@@ -119,13 +119,29 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		final();
 		Some v
 	with
-	| RunTimeException(v,stack,p') ->
+	| RunTimeException(v,eval_stack,p') ->
 		eval.caught_exception <- vnull;
 		Option.may (build_exception_stack ctx) env;
 		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_exception_message in
 			let v2 = field v key_pos in
+			let v3 = field v key_child_errors in
+			let stack = match v3 with
+				| VArray sub ->
+						List.map (fun v ->
+							if is v key_haxe_macro_Error then begin
+								let v1 = field v key_exception_message in
+								let v2 = match (field v key_pos) with
+									| VInstance {ikind=IPos p} -> p
+									| _ -> null_pos
+								in
+								(Error.Custom (value_string v1), v2)
+							end else
+								Error.typing_error "Something went wrong" null_pos
+						) (EvalArray.to_list sub)
+				| _ -> []
+			in
 			reset_ctx();
 			final();
 			match v1 with
@@ -146,12 +162,15 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 							)
 						| _ -> null_pos
 					in
-					raise (Error.Error (Error.Custom s.sstring,p,0))
+					(match stack with
+						| [] -> raise (Error.Error (Error.Custom s.sstring,p,0))
+						| _ -> raise (Error.Error (Stack ((Error.Custom (s.sstring),p) :: stack),p,0))
+					);
 				| _ ->
 					Error.typing_error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
-			let stack = match stack with
+			let stack = match eval_stack with
 				| [] -> []
 				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
 				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
@@ -159,7 +178,11 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			let stack = get_exc_error_stack ctx stack in
 			reset_ctx();
 			final();
-			Error.call_stack_error (value_string v) stack (if p' = null_pos then p else p')
+			let p = if p' = null_pos then p else p' in
+			raise (Error.Error (Stack (
+				(Error.Custom ("Uncaught exception " ^ (value_string v)),p)
+				:: (List.map (fun p -> ((Error.Custom "Called from here"),p)) stack)
+			),p,0))
 		end
 	| MacroApi.Abort ->
 		final();

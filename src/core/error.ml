@@ -105,6 +105,7 @@ module BetterErrors = struct
 		mutable acc_expected : TType.t;
 		mutable acc_actual : TType.t;
 		mutable acc_messages : unify_error list;
+		mutable acc_extra : unify_error list;
 		mutable acc_next : access option;
 	}
 
@@ -121,12 +122,16 @@ module BetterErrors = struct
 			acc_expected = expected;
 			acc_actual = actual;
 			acc_messages = [];
+			acc_extra = [];
 			acc_next = None;
 		} in
 		let root_acc = make_acc Root t_dynamic t_dynamic in
 		let current_acc = ref root_acc in
 		let add_message msg =
 			!current_acc.acc_messages <- msg :: !current_acc.acc_messages
+		in
+		let add_extra msg =
+			!current_acc.acc_extra <- msg :: !current_acc.acc_extra
 		in
 		let add_access kind =
 			let acc = make_acc kind t_dynamic t_dynamic in
@@ -146,6 +151,8 @@ module BetterErrors = struct
 				add_access FunctionReturn;
 			| Invariant_parameter i ->
 				add_access (TypeParameter i);
+			| Unify_custom _ ->
+				add_extra err
 			| _ ->
 				add_message err
 		) l;
@@ -267,7 +274,7 @@ module BetterErrors = struct
 		in
 		match access.acc_next with
 		| None ->
-			String.concat "\n" (List.rev_map (unify_error_msg ctx) access.acc_messages)
+			String.concat "\n" (List.rev_map (unify_error_msg ctx) (access.acc_extra @ access.acc_messages))
 		| Some access_next ->
 			let slhs,srhs = loop access_next access  in
 			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
@@ -297,12 +304,9 @@ let typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
 let located_typing_error ?(depth=0) msg =
 	let err = match msg with
 		| Message (msg,p) -> Custom msg
-		| Stack stack -> Stack (List.map (fun msg -> (Custom (extract_located_msg msg),(extract_located_pos msg))) stack)
+		| Stack _ -> Stack (List.map (fun (msg,p) -> (Custom msg,p)) (extract_located msg))
 	in
 	raise (Error (err,(extract_located_pos msg),depth))
-
-let call_stack_error ?(depth=0) msg stack p =
-	raise (Error (Stack (((Custom ("Uncaught exception " ^ msg)),p) :: (List.map (fun p -> ((Custom "Called from here"),p)) stack)),p,depth))
 
 let raise_typing_error ?(depth=0) err p = raise (Error(err,p,depth))
 

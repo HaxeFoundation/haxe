@@ -226,6 +226,7 @@ module Setup = struct
 				()
 		);
 		com.error <- error ctx;
+		com.located_error <- located_error ctx;
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
@@ -336,8 +337,8 @@ with
 		()
 	| Error.Fatal_error (m,depth) ->
 		located_error ~depth ctx m
-	| Common.Abort (m,p) ->
-		error ctx m p
+	| Common.Abort msg ->
+		located_error ctx msg
 	| Lexer.Error (m,p) ->
 		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->
