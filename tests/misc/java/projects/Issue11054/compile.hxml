@@ -1,5 +1,6 @@
 --cmd javac pack/ItemGroupEvents.java -g
---cmd jar cf test.jar pack/ItemGroupEvents.class 'pack/ItemGroupEvents$ModifyEntries.class'
+--main Setup
+--interp
 
 --next
 
