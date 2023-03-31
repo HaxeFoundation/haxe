@@ -1,4 +1,3 @@
---cmd javac pack/ItemGroupEvents.java -g
 --main Setup
 --interp
 
