@@ -1,14 +1,12 @@
---cmd javac -d bin pack/ItemGroupEvents.java -g
---cmd cd bin
+--cmd javac pack/ItemGroupEvents.java -g
 --cmd jar cf test.jar pack/ItemGroupEvents.class pack/ItemGroupEvents$ModifyEntries.class
---cmd cd ..
 
 --next
 
 --main Main
---java-lib bin/test.jar
---jvm bin/run.jar
+--java-lib test.jar
+--jvm run.jar
 
 --next
 
---cmd java -jar bin/run.jar
+--cmd java -jar run.jar
