@@ -48,14 +48,14 @@ class HelperMacros {
 		return { pos: currentPos(), expr: haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent(result)) };
 	}
 
+	@:access(haxe.macro.Error.childErrors)
 	static public macro function typeErrorText(e:haxe.macro.Expr) {
 		var result = try {
 			typeof(e);
 			null;
 		} catch (e:haxe.macro.Expr.Error) {
 			var msg = e.message;
-			if (e.childErrors != null)
-				for (c in e.childErrors) msg += "\n" + c.message;
+			if (e.childErrors != null) for (c in e.childErrors) msg += "\n" + c.message;
 			msg;
 		}
 		return {
