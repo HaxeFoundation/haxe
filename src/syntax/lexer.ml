@@ -73,6 +73,10 @@ let make_file file =
 		llastindex = 0;
 	}
 
+let print_file file =
+	let sllines = String.concat ";" (List.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.llines) in
+	let slalines = String.concat ";" (Array.to_list (Array.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.lalines)) in
+	Printf.sprintf "lfile: %s\nlline: %i\nlmaxline: %i\nllines: [%s]\nlalines: [%s]\nllast: %i\nllastindex: %i" file.lfile file.lline file.lmaxline sllines slalines file.llast file.llastindex
 
 let cur = ref (make_file "")
 
