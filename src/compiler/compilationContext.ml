@@ -65,8 +65,8 @@ let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
 let error ctx ?(depth=0) msg p =
-		message ctx (make_compiler_message msg p depth DKCompilerMessage Error);
-		ctx.has_error <- true
+	message ctx (make_compiler_message msg p depth DKCompilerMessage Error);
+	ctx.has_error <- true
 
 let located_error ctx ?(depth=0) msg = match (extract_located msg) with
 	| [] -> ()
