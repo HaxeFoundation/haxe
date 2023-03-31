@@ -35,7 +35,7 @@ module Utils = struct
 				| _ -> (t_infos mt).mt_path = path
 			) com.types
 		with Not_found ->
-			abort (located (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos)
+			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
 			let ta = mk_anon ~fields:c.cl_statics (ref (Statics c)) in
@@ -1122,11 +1122,11 @@ module Printer = struct
 		let had_var_args = ref false in
 		let had_kw_args = ref false in
 		let sl = List.map (fun (v,cto) ->
-			let check_err () = if !had_var_args || !had_kw_args then abort (located "Arguments after KwArgs/VarArgs are not allowed" p) in
+			let check_err () = if !had_var_args || !had_kw_args then abort "Arguments after KwArgs/VarArgs are not allowed" p in
 			let name = handle_keywords v.v_name in
 			match follow v.v_type with
 				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
-					if !had_kw_args then abort (located "Arguments after KwArgs are not allowed" p);
+					if !had_kw_args then abort "Arguments after KwArgs are not allowed" p;
 					had_kw_args := true;
 					"**" ^ name
 				| TAbstract({a_path = (["python"],"VarArgs" | ["haxe"],"Rest")},_) ->
@@ -1375,7 +1375,7 @@ module Printer = struct
 			| TWhile(econd,e1,NormalWhile) ->
 				Printf.sprintf "while %s:\n%s    %s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
-				abort (located "Currently not supported" e.epos)
+				abort "Currently not supported" e.epos
 			| TTry(e1,catches) ->
 				print_try pctx e1 catches
 			| TReturn eo ->
@@ -1492,16 +1492,16 @@ module Printer = struct
 				let interpolate () =
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let old = pctx.pc_com.error in
-				pctx.pc_com.error <- abort;
-				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
+				let old = pctx.pc_com.located_error in
+				pctx.pc_com.located_error <- abort_located;
+				Std.finally (fun() -> pctx.pc_com.located_error <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
 			| ("python_Syntax.code"), [e] ->
 				(match e.eexpr with
 					| TConst (TString py) -> ()
-					| _ -> pctx.pc_com.error (located "First argument of python.Syntax.code() must be a constant string." e1.epos)
+					| _ -> pctx.pc_com.error "First argument of python.Syntax.code() must be a constant string." e1.epos
 				);
 				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->
@@ -1802,7 +1802,7 @@ module Generator = struct
 			| [EConst(String(s,_)),_] ->
 				print ctx "%s@%s\n" indent s
 			| _ ->
-				abort (located "@:python metadata must have a string literal argument" p)
+				abort "@:python metadata must have a string literal argument" p
 		) metas
 
 	let gen_expr ctx e field indent =
@@ -2304,7 +2304,7 @@ module Generator = struct
 					| [(EConst(String(module_name,_)), _); (EConst(String(object_name,_)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 						IObject (module_name,object_name), true
 					| _ ->
-						abort (located "Unsupported @:pythonImport format" mp)
+						abort "Unsupported @:pythonImport format" mp
 				in
 
 				let import = match import_type with

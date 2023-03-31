@@ -222,7 +222,7 @@ let detect_format data p =
 	| '\xFF', i, _ when (int_of_char i) land 0xE2 = 0xE2 -> SMP3
 	| 'G', 'I', 'F' -> BGIF
 	| _ ->
-		abort (located "Unknown file format" p)
+		abort "Unknown file format" p
 
 open TTFData
 
@@ -264,7 +264,7 @@ let build_swf9 com file swc =
 		if String.length file > 5 && String.sub file 0 5 = "data:" then
 			String.sub file 5 (String.length file - 5)
 		else
-			(try Std.input_file ~bin:true file with Invalid_argument _ -> abort (located "File is too big (max 16MB allowed)" p) | _  -> abort (located "File not found" p))
+			(try Std.input_file ~bin:true file with Invalid_argument _ -> abort "File is too big (max 16MB allowed)" p | _  -> abort "File not found" p)
 	in
 	let bmp = List.fold_left (fun acc t ->
 		match t with
@@ -273,8 +273,8 @@ let build_swf9 com file swc =
 				| [] -> acc
 				| (Meta.Font,(EConst (String(file,_)),p) :: args,_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
-					let ch = try open_in_bin file with _ -> abort (located "File not found" p) in
-					let ttf = try TTFParser.parse ch with e -> abort (located ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p) in
+					let ch = try open_in_bin file with _ -> abort "File not found" p in
+					let ttf = try TTFParser.parse ch with e -> abort ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
 					let get_string e = match fst e with
 						| EConst (String(s,_)) -> s
@@ -299,13 +299,13 @@ let build_swf9 com file swc =
 										match get_string (Expr.field_assoc "fontWeight" fl) with
 										| "regular" -> TFWRegular
 										| "bold" -> TFWBold
-										| _ -> abort (located "Invalid fontWeight value. Must be `regular` or `bold`." p)
+										| _ -> abort "Invalid fontWeight value. Must be `regular` or `bold`." p
 									) with Not_found -> ());
 									(try ttf_config.ttfc_font_posture <- (
 										match get_string (Expr.field_assoc "fontStyle" fl) with
 										| "normal" -> TFPNormal
 										| "italic" -> TFPItalic
-										| _ -> abort (located "Invalid fontStyle value. Must be `normal` or `italic`." p)
+										| _ -> abort "Invalid fontStyle value. Must be `normal` or `italic`." p
 									) with Not_found -> ());
 								| _ ->
 									()
@@ -354,7 +354,7 @@ let build_swf9 com file swc =
 							with Exit ->
 								raw()
 							| _ ->
-								com.error (located ("Failed to decode this PNG " ^ file) p);
+								com.error ("Failed to decode this PNG " ^ file) p;
 								raw();
 							)
 						| _ -> raw()
@@ -365,10 +365,10 @@ let build_swf9 com file swc =
 					let adata = load_file_data afile p2 in
 					(match detect_format ddata p1 with
 					| BJPG -> ()
-					| _ -> abort (located "RGB channel must be a JPG file" p1));
+					| _ -> abort "RGB channel must be a JPG file" p1);
 					(match detect_format adata p2 with
 					| BPNG -> ()
-					| _ -> abort (located "Alpha channel must be a PNG file" p2));
+					| _ -> abort "Alpha channel must be a PNG file" p2);
 					let png = Png.parse (IO.input_string adata) in
 					let h = Png.header png in
 					let amask = (match h.Png.png_color with
@@ -380,7 +380,7 @@ let build_swf9 com file swc =
 								Bytes.unsafe_set alpha i (String.unsafe_get raw_data (i lsl 2));
 							done;
 							Extc.zip (Bytes.unsafe_to_string alpha)
-						| _ -> abort (located "PNG file must contain 8 bit alpha channel" p2)
+						| _ -> abort "PNG file must contain 8 bit alpha channel" p2
 					) in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
@@ -419,9 +419,9 @@ let build_swf9 com file swc =
 								let data = IO.nread_string i data_size in
 								make_flags 0 (chan = 1) freq bits, (data_size * 8 / (chan * bits)), data
 							with Exit | IO.No_more_input | IO.Overflow _ ->
-								abort (located "Invalid WAV file" p)
+								abort "Invalid WAV file" p
 							| Failure msg ->
-								abort (located ("Invalid WAV file (" ^ msg ^ ")") p)
+								abort ("Invalid WAV file (" ^ msg ^ ")") p
 							)
 						| SMP3 ->
 							(try
@@ -474,12 +474,12 @@ let build_swf9 com file swc =
 								read_frame();
 								make_flags 2 !mono !sampling 16, (!samples), ("\x00\x00" ^ data)
 							with Exit | IO.No_more_input | IO.Overflow _ ->
-								abort (located "Invalid MP3 file" p)
+								abort "Invalid MP3 file" p
 							| Failure msg ->
-								abort (located ("Invalid MP3 file (" ^ msg ^ ")") p)
+								abort ("Invalid MP3 file (" ^ msg ^ ")") p
 							)
 						| _ ->
-							abort (located "Sound extension not supported (only WAV or MP3)" p)
+							abort "Sound extension not supported (only WAV or MP3)" p
 					) in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
@@ -515,7 +515,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 				let path = parse_path e.exp_name in
 				let b = List.exists (fun t -> t_path t = path) com.types in
 				if not b && fst path = [] then List.iter (fun t ->
-					if snd (t_path t) = snd path then abort (located ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_infos t).mt_pos);
+					if snd (t_path t) = snd path then abort ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_infos t).mt_pos;
 				) com.types;
 				b
 			) el in
@@ -591,9 +591,9 @@ let generate swf_header com =
 								if Meta.has Meta.Bind c.cl_meta then
 									toremove := (t_path t) :: !toremove
 								else
-									abort (located ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos)
+									abort ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos
 							| _ ->
-								abort (located ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_infos t).mt_pos)
+								abort ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_infos t).mt_pos
 					) com.types;
 				) el
 			| _ -> ()
@@ -631,7 +631,7 @@ let generate swf_header com =
 	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
 	let swf_script_limits = try
 		let s = Common.defined_value com Define.SwfScriptTimeout in
-		let i = try int_of_string s with _ -> abort (located "Argument to swf_script_timeout must be an integer" null_pos) in
+		let i = try int_of_string s with _ -> abort "Argument to swf_script_timeout must be an integer" null_pos in
 		[tag(TScriptLimits (256, if i < 0 then 0 else if i > 65535 then 65535 else i))]
 	with Not_found ->
 		[]

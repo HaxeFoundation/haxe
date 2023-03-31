@@ -210,7 +210,7 @@ module BasicBlock = struct
 		bb
 
 	let in_scope bb bb' = match bb'.bb_scopes with
-		| [] -> abort (located (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos)
+		| [] -> abort (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
 		| scope :: _ -> List.mem scope bb.bb_scopes
 
 	let terminator_map f term = match term with

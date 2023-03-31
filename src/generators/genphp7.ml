@@ -2429,7 +2429,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| "assocDecl" -> self#write_expr_syntax_assoc_decl args
 				| "suppress" -> self#write_expr_syntax_suppress args
 				| "keepVar" -> ()
-				| _ -> ctx.pgc_common.error (located ("php.Syntax." ^ name ^ "() is not supported.") self#pos)
+				| _ -> ctx.pgc_common.error ("php.Syntax." ^ name ^ "() is not supported.") self#pos
 		(**
 			Writes plain php code (for `php.Syntax.code()`)
 		*)
@@ -2446,7 +2446,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						args
 					in
 					Codegen.interpolate_code ctx.pgc_common php args self#write self#write_expr self#pos
-				| _ -> ctx.pgc_common.error (located "First argument of php.Syntax.code() must be a constant string." self#pos)
+				| _ -> ctx.pgc_common.error "First argument of php.Syntax.code() must be a constant string." self#pos
 		(**
 			Writes error suppression operator (for `php.Syntax.suppress()`)
 		*)
@@ -2470,7 +2470,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			match args with
 				| [] -> self#write_assoc_array_decl []
 				| { eexpr = TObjectDecl fields } :: [] -> self#write_assoc_array_decl fields
-				| _ -> ctx.pgc_common.error (located "php.Syntax.assocDecl() accepts object declaration only." self#pos)
+				| _ -> ctx.pgc_common.error "php.Syntax.assocDecl() accepts object declaration only." self#pos
 		(**
 			Writes `e` to be used as a field access.
 			If `e` is a constant string, writes the constant without quotes.
@@ -3269,7 +3269,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 									| [EConst (String (s,_)),p] ->
 										writer#write s
 									| _ ->
-										ctx.pgc_common.error (located ("@:php.attribute meta expects a single string constant as an argument.") p)
+										ctx.pgc_common.error ("@:php.attribute meta expects a single string constant as an argument.") p
 								);
 								writer#write "]\n";
 								true
@@ -3866,7 +3866,7 @@ class class_builder ctx (cls:tclass) =
 		method private validate_method_name field =
 			let uppercased_name = StringHelper.uppercase field.cf_name in
 			if List.exists (fun n -> n = uppercased_name) used_method_names then
-				ctx.pgc_common.error (located ("Methods names are case-insensitive in PHP runtime. Cannot redeclare \"" ^ field.cf_name ^ "\".") field.cf_name_pos)
+				ctx.pgc_common.error ("Methods names are case-insensitive in PHP runtime. Cannot redeclare \"" ^ field.cf_name ^ "\".") field.cf_name_pos
 			else
 				used_method_names <- uppercased_name :: used_method_names
 		(**

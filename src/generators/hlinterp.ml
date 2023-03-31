@@ -2207,7 +2207,7 @@ let check code macros =
 					Globals.pmin = low;
 					Globals.pmax = low + (dline lsr 20);
 				} in
-				Common.abort (Globals.located msg pos)
+				Common.abort msg pos
 			end else
 				failwith (Printf.sprintf "\n%s:%d: %s" file dline msg)
 		in

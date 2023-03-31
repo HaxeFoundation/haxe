@@ -269,14 +269,14 @@ module Pattern = struct
 			if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 		in
 		let catch_errors () =
-			let old = ctx.com.error in
+			let old = ctx.com.located_error in
 			let restore_report_mode = disable_report_mode ctx.com in
-			ctx.com.error <- (fun ?depth _ ->
+			ctx.com.located_error <- (fun ?depth _ ->
 				raise Exit
 			);
 			(fun () ->
 				restore_report_mode();
-				ctx.com.error <- old
+				ctx.com.located_error <- old
 			)
 		in
 		let try_typing e =

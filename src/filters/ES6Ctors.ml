@@ -84,7 +84,7 @@ let rewrite_ctors com =
 		let rec mark_needs_ctor_skipping cl =
 			(* for non haxe-generated extern classes we can't generate any valid code, so just fail *)
 			if (has_class_flag cl CExtern) && not (Meta.has Meta.HxGen cl.cl_meta) then begin
-				abort (located "Must call `super()` constructor before accessing `this` in classes derived from an extern class with constructor" p_this_access);
+				abort "Must call `super()` constructor before accessing `this` in classes derived from an extern class with constructor" p_this_access;
 			end;
 			try
 				Hashtbl.find needs_ctor_skipping cl.cl_path

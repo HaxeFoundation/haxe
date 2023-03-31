@@ -287,7 +287,7 @@ let rec error_msg p = function
 	| Unify l -> located (BetterErrors.better_error_message l) p
 	| Unknown_ident s -> located ("Unknown identifier : " ^ s) p
 	| Custom s -> located s p
-	| Stack stack -> located_stack (List.map (fun (e,p') -> error_msg p' e) stack)
+	| Stack stack -> located_stack (List.map (fun (e,p) -> error_msg p e) stack)
 	| Call_error err -> s_call_error p err
 	| No_constructor mt -> located (s_type_path (t_infos mt).mt_path ^ " does not have a constructor") p
 	| Abstract_class mt -> located (s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed") p

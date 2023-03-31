@@ -226,6 +226,7 @@ module Setup = struct
 				()
 		);
 		com.error <- error ctx;
+		com.located_error <- located_error ctx;
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
@@ -335,49 +336,49 @@ with
 	| Abort ->
 		()
 	| Error.Fatal_error (m,depth) ->
-		error ~depth ctx m
-	| Common.Abort m ->
-		error ctx m
+		located_error ~depth ctx m
+	| Common.Abort msg ->
+		located_error ctx msg
 	| Lexer.Error (m,p) ->
-		error ctx (located (Lexer.error_msg m) p)
+		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->
-		error ctx (located (Parser.error_msg m) p)
+		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
 		if !Parser.display_mode <> DMNone && ctx.has_next then begin
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			error ctx (located (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p);
-			List.iter (fun p -> error ~depth:1 ctx (located (Error.compl_msg "referenced here") p)) (List.rev pl);
+			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
+			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
 	| Error.Error (Stack stack,_,depth) -> (match stack with
 		| [] -> ()
 		| (e,p) :: stack -> begin
-			error ~depth ctx (Error.error_msg p e);
-			List.iter (fun (e,p') -> error ~depth:(depth+1) ctx (Error.error_msg p' e)) stack;
+			located_error ~depth ctx (Error.error_msg p e);
+			List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
 		end)
 	| Error.Error (m,p,depth) ->
-		error ~depth ctx (Error.error_msg p m)
+		located_error ~depth ctx (Error.error_msg p m)
 	| Generic.Generic_Exception(m,p) ->
-		error ctx (located m p)
+		error ctx m p
 	| Arg.Bad msg ->
-		error ctx (located ("Error: " ^ msg) null_pos)
+		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not Helper.is_debug_run ->
-		error ctx (located ("Error: " ^ msg) null_pos)
+		error ctx ("Error: " ^ msg) null_pos
 	| Helper.HelpMessage msg ->
 		com.info msg null_pos
 	| Parser.TypePath (p,c,is_import,pos) ->
 		DisplayOutput.handle_type_path_exception ctx p c is_import pos
 	| Parser.SyntaxCompletion(kind,subj) ->
 		DisplayOutput.handle_syntax_completion com kind subj;
-		error ctx (located ("Error: No completion point was found") null_pos)
+		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
 	| Out_of_memory | EvalExceptions.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
-		error ctx (located (Printexc.to_string e) null_pos)
+		error ctx (Printexc.to_string e) null_pos
 
 let finalize ctx =
 	ctx.comm.flush ctx;
@@ -605,7 +606,7 @@ module HighLevel = struct
 				process_params server_api create each_args !has_display comm.is_server args
 			with Arg.Bad msg ->
 				let ctx = create 0 args in
-				error ctx (located ("Error: " ^ msg) null_pos);
+				error ctx ("Error: " ^ msg) null_pos;
 				[],SMNone,Some ctx
 			in
 			let code = match ctx with

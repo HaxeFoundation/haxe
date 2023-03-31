@@ -362,7 +362,8 @@ type context = {
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : ?depth:int -> located -> unit;
+	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable located_error : ?depth:int -> located -> unit;
 	mutable info : ?depth:int -> string -> pos -> unit;
 	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
@@ -834,7 +835,8 @@ let create compilation_step cs version args =
 		info = (fun ?depth _ _ -> die "" __LOC__);
 		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [];
-		error = (fun ?depth _ -> die "" __LOC__);
+		error = (fun ?depth _ _ -> die "" __LOC__);
+		located_error = (fun ?depth _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -1022,7 +1024,8 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort ?depth msg = raise (Abort msg)
+let abort_located ?depth msg = raise (Abort msg)
+let abort ?depth msg p = abort_located ~depth (located msg p)
 
 let platform ctx p = ctx.platform = p
 
@@ -1176,7 +1179,7 @@ let to_utf8 str p =
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
 		let c = UCharExt.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort (located "Invalid unicode char" p);
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
 		incr ccount;
 		if c > 0x10000 then incr ccount;
 	) u8;
@@ -1244,7 +1247,7 @@ let located_display_error com ?(depth = 0) msg =
 	if is_diagnostics com then
 		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
-		com.error msg ~depth
+		com.located_error msg ~depth
 
 let display_error com ?(depth = 0) msg p =
 	located_display_error com ~depth (Globals.located msg p)

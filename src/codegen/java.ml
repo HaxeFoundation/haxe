@@ -37,7 +37,7 @@ type java_lib_ctx = {
 
 exception ConversionError of located
 
-let error msg = raise (ConversionError msg)
+let error s p = raise (ConversionError (located s p))
 
 let is_haxe_keyword = function
 	| "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
@@ -394,7 +394,7 @@ let convert_java_enum ctx p pe =
 						f_type = Some (t,null_pos);
 						f_expr = None
 					})
-				| _ -> error (located "Method signature was expected" p)
+				| _ -> error "Method signature was expected" p
 		in
 		if field.jf_code <> None && is_interface then cff_meta := (Meta.JavaDefault,[],cff_pos) :: !cff_meta;
 		let cff_name, cff_meta =

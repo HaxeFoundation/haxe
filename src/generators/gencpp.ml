@@ -2357,7 +2357,7 @@ let cpp_append_block block expr =
    match block.cppexpr with
    | CppBlock(expr_list, closures, gc_stack) ->
        { block with cppexpr = CppBlock( expr_list @ [expr], closures, gc_stack) }
-   | _ -> abort (located "Internal error appending expression" block.cpppos)
+   | _ -> abort "Internal error appending expression" block.cpppos
 ;;
 
 
@@ -2419,7 +2419,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             loop_stack := tl;
             if !used then label_id else -1
          | [] ->
-            abort (located "Invalid inernal loop handling" expression_tree.epos)
+            abort "Invalid inernal loop handling" expression_tree.epos
       )
    in
 
@@ -2453,7 +2453,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
       | CppCastVariant(cppExpr) -> to_lvalue cppExpr
       | CppExtern(name,isGlobal) -> CppExternRef(name,isGlobal), false
 
-      | _ -> abort (located ("Could not convert expression to l-value (" ^ s_tcpp value.cppexpr ^ ")") value.cpppos)
+      | _ -> abort ("Could not convert expression to l-value (" ^ s_tcpp value.cppexpr ^ ")") value.cpppos
    in
 
    let rec retype return_type expr =
@@ -2465,8 +2465,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | args, [TCppRest(rest)] -> (List.rev (List.map (retype rest) args) ) @ result
             | [], [] -> result
             | a::arest, t::trest -> map_pair arest trest ((retype t a) :: result )
-            | _, [] -> abort (located "Too many args" expr.epos)
-            | [], _ -> abort (located "Too many types" expr.epos)
+            | _, [] -> abort ("Too many args") expr.epos
+            | [], _ -> abort ("Too many types") expr.epos
          in
          List.rev (map_pair args arg_types [])
       in
@@ -2704,7 +2704,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | ({ eexpr = TConst (TString code) }) :: remaining ->
                   let retypedArgs = List.map (fun arg -> retype (TCppCode(cpp_type_of arg.etype)) arg) remaining in
                   CppCode(code, retypedArgs)
-            | _ -> abort (located "__cpp__'s first argument must be a string" expr.epos);
+            | _ -> abort "__cpp__'s first argument must be a string" expr.epos;
             in
             cppExpr, TCppCode(cpp_type_of expr.etype)
 
@@ -2728,7 +2728,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   ( match retypedArgs with
                   | [ {cppexpr=CppFunction( FuncStatic(clazz,false,member), funcReturn)} ] ->
                      CppFunctionAddress(clazz,member), funcReturn
-                  | _ -> abort (located "cpp.Function.fromStaticFunction must be called on static function" expr.epos);
+                  | _ -> abort "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
                   )
                | CppEnumIndex(_) ->
                   (* Not actually a TCall...*)
@@ -2771,7 +2771,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   (match retypedArgs with
                   | {cppexpr = CppClassOf(path,native) }::rest ->
                       CppCall( FuncTemplate(obj,member,path,native), rest), returnType
-                  | _ -> abort (located "First parameter of template function must be a Class" retypedFunc.cpppos)
+                  | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                   )
 
                | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when is_map_get_call obj member ->
@@ -2886,7 +2886,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
          | TNew (class_def,params,args) ->
             let constructor_type = match OverloadResolution.maybe_resolve_constructor_overload class_def params args with
-               | None -> abort (located "Could not find overload" expr.epos)
+               | None -> abort "Could not find overload" expr.epos
                | Some (_,constructor,_) -> constructor.cf_type
             in
             let arg_types, _ = cpp_function_type_of_args_ret ctx constructor_type in
@@ -3136,7 +3136,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
           (* Switch internal return - wrap whole thing in block  *)
          | TSwitch (condition,cases,def) ->
             if return_type<>TCppVoid then
-               abort (located "Value from a switch not handled" expr.epos);
+               abort "Value from a switch not handled" expr.epos;
 
             let conditionType = cpp_type_of condition.etype in
             let condition = retype conditionType condition in
@@ -3165,7 +3165,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TTry (try_block,catches) ->
             (* TTry internal return - wrap whole thing in block ? *)
             if return_type<>TCppVoid then
-               abort (located "Value from a try-block not handled" expr.epos);
+               abort "Value from a try-block not handled" expr.epos;
             let cppBlock = retype TCppVoid try_block in
             let cppCatches = List.map (fun (tvar,catch_block) ->
                 let old_declarations = Hashtbl.copy !declarations in
@@ -3597,11 +3597,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
               out name;
          | FuncInternal(expr,name,_) ->
               gen expr; out ("->__Field(" ^ (strq name) ^ ",::hx::paccDynamic)")
-         | FuncSuper _ | FuncSuperConstruct _ -> abort (located "Can't create super closure" expr.cpppos)
-         | FuncNew _ -> abort (located "Can't create new closure" expr.cpppos)
-         | FuncEnumConstruct _ -> abort (located "Enum constructor outside of CppCall" expr.cpppos)
-         | FuncFromStaticFunction -> abort (located "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos)
-         | FuncTemplate _ -> abort (located "Can't create template function closure" expr.cpppos)
+         | FuncSuper _ | FuncSuperConstruct _ -> abort "Can't create super closure" expr.cpppos
+         | FuncNew _ -> abort "Can't create new closure" expr.cpppos
+         | FuncEnumConstruct _ -> abort "Enum constructor outside of CppCall" expr.cpppos
+         | FuncFromStaticFunction -> abort "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
+         | FuncTemplate _ -> abort "Can't create template function closure" expr.cpppos
          );
       | CppCall( FuncInterface(expr,clazz,field), args) when not (is_native_gen_class clazz)->
          out ( cpp_class_name clazz ^ "::" ^ cpp_member_name_of field ^ "(");
@@ -3633,13 +3633,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                out (" " ^ arg_name ^ ": ");
                gen arg) args arg_names
          with | Invalid_argument _ -> (* not all arguments names are known *)
-           abort (located (
+           abort (
              "The function called here with name " ^ (String.concat ":" names) ^
              " does not contain the right amount of arguments' names as required" ^
              " by the objective-c calling / naming convention:" ^
              " expected " ^ (string_of_int (List.length arg_list)) ^
              " and found " ^ (string_of_int (List.length arg_names)))
-           expr.cpppos));
+           expr.cpppos);
          out " ]"
 
       | CppCall(FuncNew( TCppInst (klass, p)), args) when can_quick_alloc klass ->
@@ -3664,7 +3664,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             | fst :: remaining ->
                argsRef := remaining;
                gen fst; out ("->" ^ (cpp_member_name_of field) );
-            | _ -> abort (located "Native static extensions must have at least 1 argument" expr.cpppos)
+            | _ -> abort "Native static extensions must have at least 1 argument" expr.cpppos
             );
 
          | FuncStatic(clazz,_,field) ->
@@ -3693,7 +3693,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
               out ("< " ^ (cpp_template_param tpath native) ^ "  >")
 
          | FuncFromStaticFunction ->
-              abort (located "Unexpected FuncFromStaticFunction" expr.cpppos)
+              abort "Unexpected FuncFromStaticFunction" expr.cpppos
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
@@ -3721,7 +3721,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             | TCppInst (klass, p) -> (cpp_class_path_of klass p) ^ "_obj::__new"
             | TCppClass -> "::hx::Class_obj::__new";
             | TCppFunction _ -> tcpp_to_string newType
-            | _ -> abort (located ("Unknown 'new' target " ^ (tcpp_to_string newType)) expr.cpppos)
+            | _ -> abort ("Unknown 'new' target " ^ (tcpp_to_string newType)) expr.cpppos
             in
             out objName
 
@@ -4256,7 +4256,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | OpShr  -> "::hx::ShrEq"
       | OpUShr  -> "::hx::UShrEq"
       | OpMod  -> "::hx::ModEq"
-      | _ -> abort (located "Bad assign op" pos)
+      | _ -> abort "Bad assign op" pos
    and string_of_op op pos = match op with
       | OpAdd -> "+"
       | OpMult -> "*"
@@ -4281,13 +4281,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | OpArrow -> "->"
       | OpIn -> " in "
       | OpNullCoal -> "??"
-      | OpAssign | OpAssignOp _ -> abort (located "Unprocessed OpAssign" pos)
+      | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
 
    and gen_closure closure =
       let argc = Hashtbl.length closure.close_undeclared in
       let size = string_of_int argc in
       if argc >= 62 then (* Limited by c++ macro size of 128 args *)
-         abort (located "Too many capture variables" closure.close_expr.cpppos);
+         abort "Too many capture variables" closure.close_expr.cpppos;
       if argc >= 20 || (List.length closure.close_args) >= 20 then
          writer#add_big_closures;
       let argsCount = list_num closure.close_args in
@@ -4787,7 +4787,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          let tcpp = cpp_type_of ctx field.cf_type in
          let tcppStr = tcpp_to_string tcpp in
          if not is_static && only_stack_access ctx field.cf_type then
-            abort (located ("Variables of type " ^ tcppStr ^ " may not be used as members") field.cf_pos);
+            abort ("Variables of type " ^ tcppStr ^ " may not be used as members") field.cf_pos;
 
          output (tcppStr ^ " " ^ remap_name ^ ";\n" );
          if not is_static && (is_gc_element ctx tcpp) then begin
@@ -5550,8 +5550,8 @@ let find_class_implementation ctx class_def name interface =
    in
    try
      find class_def;
-     abort (located ("Could not find implementation of " ^ name ^ " in " ^
-        (join_class_path class_def.cl_path ".") ^ " required by " ^ (join_class_path interface.cl_path ".")) class_def.cl_pos)
+     abort ("Could not find implementation of " ^ name ^ " in " ^
+        (join_class_path class_def.cl_path ".") ^ " required by " ^ (join_class_path interface.cl_path ".")) class_def.cl_pos
    with FieldFound field ->
       match follow field.cf_type, field.cf_kind  with
       | _, Method MethDynamic -> ""
@@ -5716,10 +5716,10 @@ let generate_protocol_delegate ctx class_def output =
                 first := false;
                 ) args argNames;
          with Invalid_argument _ -> begin
-           abort (located (
+           abort (
               let argString  = String.concat "," (List.map (fun (name,_,_) -> name) args) in
              "Invalid arg count in delegate in " ^ field.cf_name ^ " '" ^ field.cf_name ^ "," ^
-             (argString) ^ "' != '" ^ (String.concat "," argNames) ^ "'" ) field.cf_pos)
+             (argString) ^ "' != '" ^ (String.concat "," argNames) ^ "'" ) field.cf_pos
          end);
          output (" {\n");
          output ("\t::hx::NativeAttach _hx_attach;\n");
@@ -7975,9 +7975,9 @@ class script_writer ctx filename asciiOut =
          this#write ((this#op IaTCast) ^ (this#typeText (TInst(t,[])) ) ^ "\n");
          this#gen_expression cast;
    | TCast (cast,_) -> this#checkCast expression.etype cast true true;
-   | TParenthesis _ -> abort (located "Unexpected parens" expression.epos)
-   | TMeta(_,_) -> abort (located "Unexpected meta" expression.epos)
-   | TIdent _ -> abort (located "Unexpected ident" expression.epos)
+   | TParenthesis _ -> abort "Unexpected parens" expression.epos
+   | TMeta(_,_) -> abort "Unexpected meta" expression.epos
+   | TIdent _ -> abort "Unexpected ident" expression.epos
    );
    (* } *)
    method gen_expression_tree expression_tree = (* { *)
@@ -8008,12 +8008,12 @@ class script_writer ctx filename asciiOut =
          | CppBool false -> this#writeOp IaConstFalse
          | CppBool true -> this#writeOp IaConstTrue
          | CppNull -> this#writeOp IaConstNull
-         | CppNil -> abort (located "Nil not supported in cppia" expression.cpppos)
+         | CppNil -> abort "Nil not supported in cppia" expression.cpppos
          | CppThis _ -> this#writeOp IaConsThis
          | CppSuper _ -> this#writeOp IaConstSuper
          | CppBreak -> this#writeOp IaBreak
          | CppContinue -> this#writeOp IaContinue
-         | CppGoto label -> abort (located "Goto not supported in cppia" expression.cpppos)
+         | CppGoto label -> abort "Goto not supported in cppia" expression.cpppos
          | CppReturn None -> this#writeOpLine IaReturn;
 
          | CppReturn Some value ->
@@ -8043,7 +8043,7 @@ class script_writer ctx filename asciiOut =
 
          | CppVar var -> gen_var_loc var
 
-         | CppExtern (name,_) -> abort (located ("Unexpected global '"^ name ^"' in cppia") expression.cpppos)
+         | CppExtern (name,_) -> abort ("Unexpected global '"^ name ^"' in cppia") expression.cpppos
 
          | CppSet(lvalue,rvalue) ->
             this#writeOpLine IaSet;
@@ -8065,17 +8065,17 @@ class script_writer ctx filename asciiOut =
             | FuncStatic(class_def,_,field) ->
                this#write ( (this#op IaCallStatic) ^ (this#cppInstText class_def) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ (this#commentOf ( join_class_path class_def.cl_path "." ^ "." ^ field.cf_name) ) ^ "\n");
-            | FuncTemplate _ -> abort (located "Templated function call not supported in cppia" expression.cpppos)
-            | FuncFromStaticFunction -> abort (located "Unexpected FuncFromStaticFunction" expression.cpppos)
+            | FuncTemplate _ -> abort "Templated function call not supported in cppia" expression.cpppos
+            | FuncFromStaticFunction -> abort "Unexpected FuncFromStaticFunction" expression.cpppos
             | FuncEnumConstruct(enum,field) ->
                this#write ((this#op IaCreateEnum) ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^
                    (this#commentOf field.ef_name) ^ "\n");
             | FuncSuperConstruct(TCppInst (klass, _)) when (is_native_gen_class klass) && (is_native_class klass) ->
-               abort (located "Unsupported super for native class constructor" expression.cpppos);
+               abort "Unsupported super for native class constructor" expression.cpppos;
             | FuncSuperConstruct childType ->
                this#write ((this#op IaCallSuperNew) ^ (this#astType childType) ^ " " ^ argN ^ "\n");
             | FuncSuper(_,TCppInst(klass, _),_) when (is_native_gen_class klass) && (is_native_class klass) ->
-               abort (located "Unsupported super for native class method" expression.cpppos);
+               abort "Unsupported super for native class method" expression.cpppos;
             | FuncSuper(_,objType,field) ->
                this#write ( (this#op IaCallSuper) ^ (this#astType objType) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ (this#commentOf field.cf_name) ^ "\n");
@@ -8090,7 +8090,7 @@ class script_writer ctx filename asciiOut =
                      argN ^ (this#commentOf "cca") ^ "\n");
                gen_expression obj;
             | FuncInternal(obj,name,join) ->
-               (* abort (located ("Internal function call '" ^ name ^ "' not supported in cppia") expression.cpppos); *)
+               (* abort ("Internal function call '" ^ name ^ "' not supported in cppia") expression.cpppos; *)
                this#write ( (this#op IaCallMember) ^ (this#astType obj.cpptype) ^ " " ^ (this#stringText name) ^
                      argN ^ (this#commentOf name) ^ "\n");
                gen_expression obj;
@@ -8119,12 +8119,12 @@ class script_writer ctx filename asciiOut =
             | FuncStatic(class_def,_,field) ->
                this#write ( (this#op IaFStatic)  ^ (this#cppInstText class_def) ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
             | FuncExpression(expr) -> match_expr expr;
-            | FuncExtern(name,_) ->abort (located ("Can't create extern " ^ name ^ " closure") expression.cpppos)
-            | FuncSuper _ | FuncSuperConstruct _ -> abort (located "Can't create super closure" expression.cpppos)
-            | FuncNew _ -> abort (located "Can't create new closure" expression.cpppos)
-            | FuncEnumConstruct _ -> abort (located "Enum constructor outside of CppCall" expression.cpppos)
-            | FuncFromStaticFunction -> abort (located "Can't create cpp.Function.fromStaticFunction closure" expression.cpppos)
-            | FuncTemplate _ -> abort (located "Can't create template function closure" expression.cpppos)
+            | FuncExtern(name,_) ->abort ("Can't create extern " ^ name ^ " closure") expression.cpppos
+            | FuncSuper _ | FuncSuperConstruct _ -> abort "Can't create super closure" expression.cpppos
+            | FuncNew _ -> abort "Can't create new closure" expression.cpppos
+            | FuncEnumConstruct _ -> abort "Enum constructor outside of CppCall" expression.cpppos
+            | FuncFromStaticFunction -> abort "Can't create cpp.Function.fromStaticFunction closure" expression.cpppos
+            | FuncTemplate _ -> abort "Can't create template function closure" expression.cpppos
             )
 
          | CppPosition(file,line,class_name,meth) ->
@@ -8220,7 +8220,7 @@ class script_writer ctx filename asciiOut =
                gen_expression catch_expr;
             ) catches;
 
-         | CppIntSwitch _ -> abort (located "CppIntSwitch not supported in cppia" expression.cpppos);
+         | CppIntSwitch _ -> abort "CppIntSwitch not supported in cppia" expression.cpppos;
          | CppSwitch(condition,_, cases, optional_default, _) ->
             this#write ( (this#op IaSwitch) ^ (string_of_int (List.length cases)) ^ " " ^
                               (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
@@ -8282,7 +8282,7 @@ class script_writer ctx filename asciiOut =
          | CppCastObjC _
          | CppCastObjCBlock _
          | CppCastProtocol _
-         | CppCastNative _ -> abort (located ("Unsupported operation in cppia :" ^ (s_tcpp expression.cppexpr) ) expression.cpppos)
+         | CppCastNative _ -> abort ("Unsupported operation in cppia :" ^ (s_tcpp expression.cppexpr) ) expression.cpppos
 
          (*| x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );*)
          in
@@ -8296,7 +8296,7 @@ class script_writer ctx filename asciiOut =
                gen_expression arrayObj;
                gen_expression index;
             | ArrayPointer(_, _)
-            | ArrayRawPointer(_,_) -> abort (located "Unvalid array access in cppia" pos)
+            | ArrayRawPointer(_,_) -> abort "Unvalid array access in cppia" pos
             | ArrayVirtual(arrayObj, index)
             | ArrayImplements(_,arrayObj,index)
             | ArrayDynamic(arrayObj, index) ->
@@ -8309,7 +8309,7 @@ class script_writer ctx filename asciiOut =
          (match lvalue with
          | CppVarRef varLoc -> gen_var_loc varLoc
          | CppArrayRef arrayLoc -> gen_array arrayLoc pos
-         | CppExternRef(name,_) -> abort (located ("Unsupported extern '" ^ name ^ "' in cppia") pos);
+         | CppExternRef(name,_) -> abort ("Unsupported extern '" ^ name ^ "' in cppia") pos;
          | CppDynamicRef(expr,name) ->
             let typeText = this#typeTextString "Dynamic" in
             this#write ( (this#op IaFName) ^ typeText ^ " " ^ (this#stringText name) ^  (this#commentOf name) ^ "\n");
@@ -8515,7 +8515,7 @@ let generate_source ctx =
          This will guard all code changes to this flag *)
       (if not (Common.defined common_ctx Define.Objc) then match object_def with
          | TClassDecl class_def when Meta.has Meta.Objc class_def.cl_meta ->
-            abort (located "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos)
+            abort "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
          | _ -> ());
       (match object_def with
       | TClassDecl class_def when is_extern_class class_def ->
