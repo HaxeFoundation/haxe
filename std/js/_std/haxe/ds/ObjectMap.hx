@@ -106,7 +106,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(Std.string(i));
@@ -115,7 +115,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

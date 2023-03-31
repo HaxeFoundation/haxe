@@ -96,7 +96,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(i);
@@ -105,7 +105,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

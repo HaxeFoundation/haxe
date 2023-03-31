@@ -1543,7 +1543,7 @@ module StdIntMap = struct
 		let l = IntHashtbl.fold (fun key vvalue acc ->
 			(join empty_string [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join empty_string [rbropen;s;rbrclose] in
+		let s = join empty_string [rbkopen;s;rbkclose] in
 		vstring s
 	)
 
@@ -1602,7 +1602,7 @@ module StdStringMap = struct
 		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
 			(join empty_string [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join empty_string [rbropen;s;rbrclose] in
+		let s = join empty_string [rbkopen;s;rbkclose] in
 		vstring s
 	)
 
@@ -1660,7 +1660,7 @@ module StdObjectMap = struct
 		let l = ValueHashtbl.fold (fun key vvalue acc ->
 			(join empty_string [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
 		let s = join rcomma l in
-		let s = join empty_string [rbropen;s;rbrclose] in
+		let s = join empty_string [rbkopen;s;rbkclose] in
 		vstring s
 	)
 

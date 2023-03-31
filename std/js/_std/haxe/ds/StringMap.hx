@@ -87,12 +87,12 @@ import haxe.DynamicAccess;
 
 	@:analyzer(no_optimize)
 	static function stringify(h:Dynamic):String {
-		var s = "{", first = true;
+		var s = "[", first = true;
 		js.Syntax.code("for (var key in {0}) {", h);
 		js.Syntax.code("\tif ({0}) {0} = false; else {1} += ',';", first, s);
 		js.Syntax.code("\t{0} += key + ' => ' + {1}({2}[key]);", s, Std.string, h);
 		js.Syntax.code("}");
-		return s + "}";
+		return s + "]";
 	}
 }
 
@@ -286,7 +286,7 @@ private class StringMapIterator<T> {
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var keys = arrayKeys();
 		for (i in 0...keys.length) {
 			var k = keys[i];
@@ -296,7 +296,7 @@ private class StringMapIterator<T> {
 			if (i < keys.length - 1)
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

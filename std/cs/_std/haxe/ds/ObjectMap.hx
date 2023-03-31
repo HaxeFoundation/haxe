@@ -378,7 +378,7 @@ import cs.NativeArray;
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(Std.string(i));
@@ -387,7 +387,7 @@ import cs.NativeArray;
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

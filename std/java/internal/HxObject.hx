@@ -193,7 +193,7 @@ class DynamicObject extends HxObject {
 		if (ts != null)
 			return ts();
 		var ret = new StringBuf();
-		ret.add("{");
+		ret.add("[");
 		var first = true;
 		for (f in Reflect.fields(this)) {
 			if (first)
@@ -207,7 +207,7 @@ class DynamicObject extends HxObject {
 		}
 		if (!first)
 			ret.add(" ");
-		ret.add("}");
+		ret.add("]");
 		return ret.toString();
 	}
 }
