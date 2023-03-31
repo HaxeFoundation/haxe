@@ -616,7 +616,7 @@ module HighLevel = struct
 					(* caused by --connect *)
 					0
 			in
-			if code = 0 && args <> [] then
+			if code = 0 && args <> [] && not !has_display then
 				loop args
 			else
 				code
