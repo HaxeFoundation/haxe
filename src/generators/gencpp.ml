@@ -7024,11 +7024,13 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
 
 let write_build_options common_ctx filename defines =
    let writer = cached_source_writer common_ctx filename in
+   let write_define name value = writer#write (Printf.sprintf "%s=%s\n" name value) in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ ->  writer#write (Printf.sprintf "%s=%s\n" name (escape_command value))) defines;
+      | _ ->  write_define name (escape_command value)) defines;
    let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
-   writer#write (Printf.sprintf "hxcpp=%s\n" (Pervasives.input_line pin));
+   set_binary_mode_in pin false;
+   write_define "hxcpp" (Pervasives.input_line pin);
    Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
 
