@@ -26,6 +26,27 @@ class TestSqliteResultSet extends SqliteSetup {
 		equals(0, result.length);
 	}
 
+	function testIssue8728() {
+		final DB_FILE = 'temp/db.sqlite';
+		final DB_ROW_COUNT = 230;
+		final VALUE = "abxs";
+
+		if (sys.FileSystem.exists(DB_FILE))
+			sys.FileSystem.deleteFile(DB_FILE);
+		final cnx = sys.db.Sqlite.open(DB_FILE);
+		cnx.request('CREATE TABLE tbl (id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT);');
+
+		final insert = "INSERT INTO tbl (value) VALUES " + [for (_ in 0...DB_ROW_COUNT) '(\'$VALUE\')'].join(",");
+		cnx.request(insert);
+		cnx.close();
+
+		// error was random, so repeat a few times for good measure
+		for (_ in 0...20) {
+			final rows = sys.db.Sqlite.open(DB_FILE).request("SELECT * FROM tbl");
+			equals(DB_ROW_COUNT, rows.length);
+		}
+	}
+
 	function testNfields() {
 		var result = cnx.request('SELECT * FROM test');
 		equals(3, result.nfields);
