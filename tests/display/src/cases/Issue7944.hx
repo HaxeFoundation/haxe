@@ -13,6 +13,7 @@ class Issue7944 extends DisplayTestCase {
 			{
 				kind: DKParserError,
 				severity: Error,
+				depth: 0,
 				range: diagnosticsRange(pos(1), pos(2)),
 				args: "Unexpected fun"
 			}

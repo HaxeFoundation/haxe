@@ -65,5 +65,6 @@ typedef Diagnostic<T> = {
 	var kind:DiagnosticKind<T>;
 	var range:Range;
 	var severity:DiagnosticSeverity;
+	var depth:Int;
 	var args:T;
 }

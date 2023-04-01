@@ -18,6 +18,7 @@ class Issue7777 extends DisplayTestCase {
 			{
 				kind: DKUnusedImport,
 				severity: Warning,
+				depth: 0,
 				range: diagnosticsRange(pos(1), pos(2)),
 				args: []
 			}

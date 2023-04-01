@@ -21,6 +21,7 @@ class Issue7947 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				depth: 0,
 				range: diagnosticsRange(pos(1), pos(2)),
 				args: "Void should be Bool"
 			}
@@ -47,6 +48,7 @@ class Issue7947 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				depth: 0,
 				range: diagnosticsRange(pos(1), pos(2)),
 				args: "Bool should be Void"
 			}

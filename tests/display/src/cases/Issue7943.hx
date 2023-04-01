@@ -13,6 +13,7 @@ class Issue7943 extends DisplayTestCase {
 			{
 				kind: DKParserError,
 				severity: Error,
+				depth: 0,
 				range: diagnosticsRange(pos(3), pos(4)),
 				args: "Missing ;"
 			}

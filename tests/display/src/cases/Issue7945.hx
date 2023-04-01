@@ -9,6 +9,7 @@ class Issue7945 extends DisplayTestCase {
 			{
 				kind: DKParserError,
 				severity: Error,
+				depth: 0,
 				range: diagnosticsRange(pos(1), pos(2)),
 				args: "Expected { or to or from"
 			}
@@ -23,6 +24,7 @@ class Issue7945 extends DisplayTestCase {
 			{
 				kind: DKParserError,
 				severity: Error,
+				depth: 0,
 				range: diagnosticsRange(pos(1), pos(2)),
 				args: "Expected extends or implements or {"
 			}
