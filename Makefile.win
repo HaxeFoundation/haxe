@@ -75,13 +75,15 @@ package_choco:
 	mkdir -p OUTPUT
 	7z x -y out/$(PACKAGE_FILE_NAME)_bin.zip -oout > log.txt || type log.txt
 	mv out/$(PACKAGE_FILE_NAME) out/choco
-	sed -e 's/@SNAPSHOT_VERSION@/$(HAXE_VERSION_SHORT)-SNAP$(COMMIT_DATE)/g' extra/choco/haxe.nuspec > out/choco/haxe.nuspec
+	cp extra/choco/haxe.nuspec out/choco/haxe.nuspec
+	sed -i 's/@SNAPSHOT_VERSION@/$(HAXE_VERSION_SHORT)-SNAP$(COMMIT_DATE)/g' out/choco/haxe.nuspec
+	sed -i 's/@NEKO_VERSION@/$(NEKO_VERSION)/g' out/choco/haxe.nuspec
 	cd out/choco && choco pack
 	mv out/choco/haxe.*.nupkg out
 	rm -rf out/choco
 
 $(INSTALLER_TMP_DIR)/neko-win.zip: $(INSTALLER_TMP_DIR)
-	wget -nv https://github.com/HaxeFoundation/neko/releases/download/v2-3-0/neko-2.3.0-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/$(NEKO_VERSION_TAG)/neko-$(NEKO_VERSION)-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
 
 package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	$(eval OUTFILE := $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.zip)
@@ -104,6 +106,7 @@ package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	sed -i "s/%%VERSION%%/$(HAXE_VERSION_SHORT)/g" $(INSTALLER_TMP_DIR)/installer.nsi
 	sed -i "s/%%VERSTRING%%/$(HAXE_VERSION)/g" $(INSTALLER_TMP_DIR)/installer.nsi
 	sed -i "s/%%VERLONG%%/$(HAXE_VERSION)/g" $(INSTALLER_TMP_DIR)/installer.nsi
+	sed -i "s/%%NEKO_VERSION%%/$(NEKO_VERSION)/g" $(INSTALLER_TMP_DIR)/installer.nsi
 	cd $(INSTALLER_TMP_DIR) && makensis installer.nsi
 	7z a -r -tzip $(OUTFILE) $(INSTALLER_TMP_DIR)/*.exe
 	dir $(PACKAGE_OUT_DIR)
