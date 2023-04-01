@@ -67,7 +67,7 @@ class Js {
 
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
-				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
+				runCommand("node", ["--trace-sigint", "-e", "require('./" + output + "').unit.TestMain.main();"]);
 				output;
 			}
 		];
@@ -109,7 +109,7 @@ class Js {
 			installNpmPackages(["wd", "q"]);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 			final server = new Process("nekotools", ["server"]);
-			runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
+			runCommand("node", ["--trace-sigint", "bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
 
 			server.close();
 
@@ -125,12 +125,12 @@ class Js {
 		haxelibInstallGit("Simn", "haxeserver");
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
-		runCommand("node", ["test.js"]);
+		runCommand("node", ["--trace-sigint", "test.js"]);
 
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);
 		runCommand("haxe", ["compile-js.hxml"].concat(args));
-		runSysTest("node", ["bin/js/sys.js"]);
+		runSysTest("node", ["--trace-sigint", "bin/js/sys.js"]);
 
 		changeDirectory(miscJsDir);
 		runCommand("haxe", ["run.hxml"]);
