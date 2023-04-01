@@ -4,16 +4,16 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics msg kind =
+	let handle_diagnostics ?(depth = 0) msg kind =
 		ctx.has_error <- true;
-		add_diagnostics_message com msg kind Error;
+		add_diagnostics_message ~depth com msg kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p,_) ->
-			handle_diagnostics (Error.error_msg p msg) DKCompilerMessage
+		| Error.Error(msg,p,depth) ->
+			handle_diagnostics ~depth (Error.error_msg p msg) DKCompilerMessage
 		| Parser.Error(msg,p) ->
 			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
 		| Lexer.Error(msg,p) ->

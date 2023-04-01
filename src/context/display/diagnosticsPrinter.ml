@@ -31,20 +31,20 @@ open CompletionModuleType
 
 let json_of_diagnostics com dctx =
 	let diag = Hashtbl.create 0 in
-	let add append dk p sev args =
+	let add append dk p sev depth args =
 		let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
-		let diag = try
+		let fdiag = try
 			Hashtbl.find diag file
 		with Not_found ->
-			let d = Hashtbl.create 0 in
+			let d = [] in
 			Hashtbl.add diag file d;
 			d
 		in
-		if append || not (Hashtbl.mem diag p) then
-			Hashtbl.add diag p (dk,p,sev,args)
+		if append || (List.find_opt (fun (_,p',_,_,_) -> p' = p) fdiag) = None then
+			Hashtbl.replace diag file ((dk,p,sev,depth,args) :: fdiag)
 	in
 	let file_keys = new Common.file_keys in
-	let add dk p sev args =
+	let add ?(depth = 0) dk p sev args =
 		let append = match dk with
 			| DKUnusedImport
 			| DKRemovableCode
@@ -57,7 +57,8 @@ let json_of_diagnostics com dctx =
 			| DKMissingFields ->
 				true
 		in
-		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then add append dk p sev args
+		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then
+			add append dk p sev depth args
 	in
 	List.iter (fun (s,p,suggestions) ->
 		let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
@@ -79,8 +80,8 @@ let json_of_diagnostics com dctx =
 		) suggestions in
 		add DKUnresolvedIdentifier p MessageSeverity.Error (JArray suggestions);
 	) dctx.unresolved_identifiers;
-	List.iter (fun (s,p,kind,sev) ->
-		add kind p sev (JString s)
+	List.iter (fun (s,p,kind,sev,depth) ->
+		add ~depth kind p sev (JString s)
 	) (List.rev dctx.diagnostics_messages);
 	PMap.iter (fun p (mt,mfl) ->
 		let jctx = create_context GMMinimum in
@@ -171,14 +172,15 @@ let json_of_diagnostics com dctx =
 		) ranges
 	) dctx.dead_blocks;
 	let jl = Hashtbl.fold (fun file diag acc ->
-		let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
+		let jl = List.rev_map (fun (dk,p,sev,depth,jargs) ->
 			(JObject [
 				"kind",JInt (MessageKind.to_int dk);
 				"severity",JInt (MessageSeverity.to_int sev);
+				"depth",JInt depth;
 				"range",Genjson.generate_pos_as_range p;
 				"args",jargs
-			]) :: acc
-		) diag [] in
+			])
+		) diag in
 		(JObject [
 			"file",if file = "?" then JNull else JString file;
 			"diagnostics",JArray jl
