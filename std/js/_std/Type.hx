@@ -240,7 +240,7 @@ enum ValueType {
 			case "boolean":
 				return TBool;
 			case "string":
-				return TClass(String);
+				return untyped __define_feature__("Type.getClassName", TClass(String));
 			case "number":
 				// this should handle all cases : NaN, +/-Inf and Floats outside range
 				if (Math.ceil(v) == v % 2147483648.0)
@@ -259,7 +259,7 @@ enum ValueType {
 				}
 				var c = js.Boot.getClass(v);
 				if (c != null)
-					return TClass(c);
+					return untyped __define_feature__("Type.getClassName", TClass(c));
 				return TObject;
 			case "function":
 				if (js.Boot.isClass(v) || js.Boot.isEnum(v))
