@@ -1378,7 +1378,7 @@ class expr_checker mode immediate_execution report =
 				(* Local named functions like `function fn() {}`, which are generated as `var fn = null; fn = function(){}` *)
 				| Some { eexpr = TConst TNull } when v.v_kind = VUser TVOLocalFunction -> ()
 				(* `_this = null` is generated for local `inline function` *)
-				| Some { eexpr = TConst TNull } when v.v_kind = VGenerated -> ()
+				(* | Some { eexpr = TConst TNull } when v.v_kind = VGenerated -> () *)
 				| Some e ->
 					let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
 					self#check_binop OpAssign local e p
