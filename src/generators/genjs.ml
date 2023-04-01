@@ -1293,16 +1293,15 @@ let gen_class_field ctx c f =
 
 let generate_class___name__ ctx cl_path =
 	if has_feature ctx "js.Boot.isClass" then begin
-		let p = s_path ctx cl_path in
-		print ctx "%s.__name__ = " p;
 		(match has_feature ctx "Type.getClassName", cl_path with
 			| true, _
 			| _, ([], ("Array" | "String")) ->
-				print ctx "\"%s\"" (dot_path cl_path)
-			| _ ->
-				print ctx "true"
+				let p = s_path ctx cl_path in
+				print ctx "%s.__name__ = " p;
+				print ctx "\"%s\"" (dot_path cl_path);
+				newline ctx
+			| _ -> ()
 		);
-		newline ctx;
 	end
 
 let generate_class___isInterface__ ctx c =

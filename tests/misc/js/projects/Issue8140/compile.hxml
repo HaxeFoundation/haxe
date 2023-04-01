@@ -1,0 +1,14 @@
+-main Main
+-dce full
+-D analyzer-optimize
+
+--each
+
+-D with_name
+-js bin/withName.js
+
+--next
+
+-js bin/withoutName.js
+
+--cmd node run.js
