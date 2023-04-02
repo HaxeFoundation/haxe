@@ -1,4 +1,5 @@
 // from vshaxe
+import haxe.display.Position.Location;
 import haxe.display.Position.Range;
 import haxe.display.JsonModuleTypes;
 
@@ -65,6 +66,12 @@ typedef Diagnostic<T> = {
 	var kind:DiagnosticKind<T>;
 	var range:Range;
 	var severity:DiagnosticSeverity;
-	var depth:Int;
 	var args:T;
+	var relatedInformation:Array<DiagnosticRelatedInformation>;
+}
+
+typedef DiagnosticRelatedInformation = {
+	var location:Location;
+	var message:String;
+	var depth:Int;
 }

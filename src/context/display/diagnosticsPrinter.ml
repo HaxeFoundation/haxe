@@ -7,7 +7,21 @@ open Type
 open Genjson
 open MessageKind
 
-(* type t = DiagnosticsKind.t * pos *)
+type t = {
+	diag_kind : MessageKind.t;
+	diag_pos : pos;
+	diag_severity : MessageSeverity.t;
+	diag_args : Json.t;
+	mutable diag_related_informations : (pos * int * string) list;
+}
+
+let make_diagnostic kd p sev args = {
+	diag_kind = kd;
+	diag_pos = p;
+	diag_severity = sev;
+	diag_args = args;
+	diag_related_informations = [];
+}
 
 let is_diagnostics_file com file_key =
 	match com.report_mode with
@@ -30,18 +44,20 @@ open CompletionItem
 open CompletionModuleType
 
 let json_of_diagnostics com dctx =
-	let diag = Hashtbl.create 0 in
-	let add append dk p sev depth args =
+	let diagnostics = Hashtbl.create 0 in
+	let current = ref None in
+	let add append diag =
+		let p = diag.diag_pos in
 		let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
 		let fdiag = try
-			Hashtbl.find diag file
+			Hashtbl.find diagnostics file
 		with Not_found ->
 			let d = [] in
-			Hashtbl.add diag file d;
+			Hashtbl.add diagnostics file d;
 			d
 		in
-		if append || (List.find_opt (fun (_,p',_,_,_) -> p' = p) fdiag) = None then
-			Hashtbl.replace diag file ((dk,p,sev,depth,args) :: fdiag)
+		if append || (List.find_opt (fun diag -> diag.diag_pos = p) fdiag) = None then
+			Hashtbl.replace diagnostics file (diag :: fdiag)
 	in
 	let file_keys = new Common.file_keys in
 	let add ?(depth = 0) dk p sev args =
@@ -57,8 +73,11 @@ let json_of_diagnostics com dctx =
 			| DKMissingFields ->
 				true
 		in
-		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then
-			add append dk p sev depth args
+		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then begin
+			let diag = make_diagnostic dk p sev args in
+			current := Some diag;
+			add append diag
+		end else current := None
 	in
 	List.iter (fun (s,p,suggestions) ->
 		let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
@@ -80,8 +99,18 @@ let json_of_diagnostics com dctx =
 		) suggestions in
 		add DKUnresolvedIdentifier p MessageSeverity.Error (JArray suggestions);
 	) dctx.unresolved_identifiers;
-	List.iter (fun (s,p,kind,sev,depth) ->
-		add ~depth kind p sev (JString s)
+	List.iter (fun (s,p,kind,sev,depth) -> match (depth, !current) with
+		| d, Some diag when d > 0 ->
+			let lines = ExtString.String.nsplit s "\n" in
+			(match lines with
+				| [] -> ()
+				| s :: [] -> diag.diag_related_informations <- (p,d,s) :: diag.diag_related_informations
+				| s :: sub ->
+					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_informations sub in
+					diag.diag_related_informations <- (p,d,s) :: related;
+			)
+		| _ ->
+			add ~depth kind p sev (JString s)
 	) (List.rev dctx.diagnostics_messages);
 	PMap.iter (fun p (mt,mfl) ->
 		let jctx = create_context GMMinimum in
@@ -172,19 +201,25 @@ let json_of_diagnostics com dctx =
 		) ranges
 	) dctx.dead_blocks;
 	let jl = Hashtbl.fold (fun file diag acc ->
-		let jl = List.rev_map (fun (dk,p,sev,depth,jargs) ->
+		let jl = List.rev_map (fun diag ->
 			(JObject [
-				"kind",JInt (MessageKind.to_int dk);
-				"severity",JInt (MessageSeverity.to_int sev);
-				"depth",JInt depth;
-				"range",Genjson.generate_pos_as_range p;
-				"args",jargs
+				"kind",JInt (MessageKind.to_int diag.diag_kind);
+				"severity",JInt (MessageSeverity.to_int diag.diag_severity);
+				"range",Genjson.generate_pos_as_range diag.diag_pos;
+				"args",diag.diag_args;
+				"relatedInformation",JArray (
+					List.rev_map (fun (pos,depth,msg) -> (JObject [
+						"location",Genjson.generate_pos_as_location pos;
+						"depth",JInt depth;
+						"message",JString msg;
+					])) diag.diag_related_informations
+				)
 			])
 		) diag in
 		(JObject [
 			"file",if file = "?" then JNull else JString file;
 			"diagnostics",JArray jl
 		]) :: acc
-	) diag [] in
+	) diagnostics [] in
 	let js = JArray jl in
 	js
