@@ -12,7 +12,7 @@ type t = {
 	diag_pos : pos;
 	diag_severity : MessageSeverity.t;
 	diag_args : Json.t;
-	mutable diag_related_informations : (pos * int * string) list;
+	mutable diag_related_information : (pos * int * string) list;
 }
 
 let make_diagnostic kd p sev args = {
@@ -20,7 +20,7 @@ let make_diagnostic kd p sev args = {
 	diag_pos = p;
 	diag_severity = sev;
 	diag_args = args;
-	diag_related_informations = [];
+	diag_related_information = [];
 }
 
 let is_diagnostics_file com file_key =
@@ -60,7 +60,7 @@ let json_of_diagnostics com dctx =
 			Hashtbl.replace diagnostics file (diag :: fdiag)
 	in
 	let file_keys = new Common.file_keys in
-	let add ?(depth = 0) dk p sev args =
+	let add dk p sev args =
 		let append = match dk with
 			| DKUnusedImport
 			| DKRemovableCode
@@ -104,13 +104,13 @@ let json_of_diagnostics com dctx =
 			let lines = ExtString.String.nsplit s "\n" in
 			(match lines with
 				| [] -> ()
-				| s :: [] -> diag.diag_related_informations <- (p,d,s) :: diag.diag_related_informations
+				| s :: [] -> diag.diag_related_information <- (p,d,s) :: diag.diag_related_information
 				| s :: sub ->
-					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_informations sub in
-					diag.diag_related_informations <- (p,d,s) :: related;
+					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_information sub in
+					diag.diag_related_information <- (p,d,s) :: related;
 			)
 		| 0, _ ->
-			add ~depth kind p sev (JString s)
+			add kind p sev (JString s)
 		| _ ->
 			()
 	) (List.rev dctx.diagnostics_messages);
@@ -214,7 +214,7 @@ let json_of_diagnostics com dctx =
 						"location",Genjson.generate_pos_as_location pos;
 						"depth",JInt depth;
 						"message",JString msg;
-					])) diag.diag_related_informations
+					])) diag.diag_related_information
 				)
 			])
 		) diag in

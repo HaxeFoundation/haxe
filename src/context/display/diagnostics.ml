@@ -8,14 +8,6 @@ open DisplayTypes.DisplayMode
 open DisplayTypes
 open DisplayException
 
-type diagnostic = {
-	diag_severity : MessageSeverity.t;
-	diag_kind : MessageKind.t;
-	diag_pos : pos;
-	diag_args : Json.t;
-	diag_related_informations : (pos * string) list;
-}
-
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
