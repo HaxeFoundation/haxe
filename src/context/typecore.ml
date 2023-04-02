@@ -422,8 +422,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p,nl) ->
-				raise (Fatal_error ((error_msg p m),nl))
+			| Error (m,p,depth) ->
+				raise (Fatal_error ((error_msg p m),depth))
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
@@ -860,8 +860,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p) ->
-				raise (Fatal_error ((error_msg m),p))
+			| Error (m,p,depth) ->
+				raise (Fatal_error ((error_msg m),p,depth))
 	));
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
