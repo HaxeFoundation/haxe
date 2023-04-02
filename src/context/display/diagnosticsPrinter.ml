@@ -111,6 +111,9 @@ let json_of_diagnostics com dctx =
 		| 0, _ ->
 			add kind p sev (JString s)
 		| _ ->
+			(* Do not add errors with depth greater than one as top level diagnostic. *)
+			(* This could happen when running diagnostics for a file that is wentioned in *)
+			(* sub errors of a file not included for diagnostics. *)
 			()
 	) (List.rev dctx.diagnostics_messages);
 	PMap.iter (fun p (mt,mfl) ->
