@@ -25,7 +25,7 @@
 	all : improved inference of local functions typed against abstracts (#10336)
 	all : improved completion on module-level fields
 	all : improved handling of native libraries on the compilation server
-	all : improved performance when generated locals (#10648)
+	all : improved performance when generating locals (#10648)
 	all : made Std.parseInt more consistent across targets (#10664)
 	all : infer null literals as Null<?> (#7736)
 	all : made field access errors more consistent (#10896)
