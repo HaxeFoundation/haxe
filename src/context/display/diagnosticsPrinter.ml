@@ -109,8 +109,10 @@ let json_of_diagnostics com dctx =
 					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_informations sub in
 					diag.diag_related_informations <- (p,d,s) :: related;
 			)
-		| _ ->
+		| 0, _ ->
 			add ~depth kind p sev (JString s)
+		| _ ->
+			()
 	) (List.rev dctx.diagnostics_messages);
 	PMap.iter (fun p (mt,mfl) ->
 		let jctx = create_context GMMinimum in
