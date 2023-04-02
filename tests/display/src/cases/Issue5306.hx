@@ -18,21 +18,20 @@ class Issue5306 extends DisplayTestCase {
 			// 	kind: DKUnusedImport,
 			// 	range: diagnosticsRange(pos(1), pos(2)),
 			// 	severity: Warning,
-			// 	depth: 0,
 			// 	args: []
 			// },
 			{
 				kind: DKParserError,
 				range: diagnosticsRange(pos(5), pos(6)),
 				severity: Error,
-				depth: 0,
+				relatedInformation: [],
 				args: "Missing ;"
 			},
 			{
 				kind: DKCompilerError,
 				range: diagnosticsRange(pos(3), pos(4)),
 				severity: Error,
-				depth: 0,
+				relatedInformation: [],
 				args: "Type not found : InvalidType"
 			}
 		];

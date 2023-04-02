@@ -12,7 +12,7 @@ class Issue7938 extends DisplayTestCase {
 				kind: DKParserError,
 				range: diagnosticsRange(pos(1), pos(2)),
 				severity: Error,
-				depth: 0,
+				relatedInformation: [],
 				args: "Unexpected fuction"
 			}
 		], diagnostics());
