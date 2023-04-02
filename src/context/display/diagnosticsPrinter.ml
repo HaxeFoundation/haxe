@@ -104,7 +104,6 @@ let json_of_diagnostics com dctx =
 			let lines = ExtString.String.nsplit s "\n" in
 			(match lines with
 				| [] -> ()
-				| s :: [] -> diag.diag_related_information <- (p,d,s) :: diag.diag_related_information
 				| s :: sub ->
 					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_information sub in
 					diag.diag_related_information <- (p,d,s) :: related;
