@@ -7,10 +7,10 @@
 	all : support abstract keyword to reference the abstract (#10513)
 	all : support static var at expression-level (#10555)
 	all : support ?. safe navigation operator (#10561)
-	all : add -w compiler option to configure warnings (#10612)
 	all : added ?? null coalescing operator (#10428)
-	all : support custom metadata and defines (#10858)
+	all : add -w compiler option to configure warnings (#10612)
 	all : added new error reporting modes (#10863)
+	all : support custom metadata and defines (#10858)
 
 	General improvements:
 
@@ -34,14 +34,20 @@
 	all : made analyzer reconstruct do-while loops (#7979)
 	all : improved restrictions on init macros (#11043)
 	all : improved positions of @:structInit fields (#9318)
-	macro : support map literals  in Context.makeExpr (#10259)
-	eval : added dictonary mode to objects, increasing performance in some cases (#10284)
+	macro : support map literals in Context.makeExpr (#10259)
+	macro : added haxe.macro.Compiler.getConfiguration() (#10871)
+	macro : added withImports and withOption to haxe.macro.Context
+	macro : added getMacroStack and onAfterInitMacros to haxe.macro.Context (#11043)
+	macro : added haxe.macro.Context.makeMonomorph (#10728)
+	eval : added dictionary mode to objects, increasing performance in some cases (#10284)
 	eval : fixed Sys.exit handling messing up the compilation server (#10642)
-	eval: added -D eval-print-depth and -D eval-pretty-print (#10952, #10963)
+	eval : added -D eval-print-depth and -D eval-pretty-print (#10952, #10963)
 	cpp : supported type parameters on extern classes (#10415)
+	cpp : haxe.Int64 improvements (#9935)
+	cpp : non-blocking process exit code reading (#10321)
 	js : improved type names for debugger (#10894)
-	lua : added lua-standalone global compiler flag (#10979)
 	lua : added SSL implementation (#10593)
+	lua : added lua-standalone global compiler flag (#10979)
 	lua : fixed String API when -D no-inline was in place (#11057)
 	java : deal with default implementations when loading extern libraries (#10466)
 	jvm : improved closure naming (#10571)
@@ -49,12 +55,15 @@
 	jvm : added some missing TShort and TFloat handling (#10722)
 	jvm : added experimental support for functional interfaces (#11019)
 	php : added and fixed several extern functions
+
 	Standard Library:
 
 	all : added atomic operations to several targets (#10610)
 	all : added Vector.fill (#10687)
 	sys : added sys.thread.Condition and Semaphore (#10503)
 	sys : added Http.getResponseHeaderValues to deal with multiple values of same key (#10812)
+	sys : make Sys.environment consistent between targets (#10460)
+	sys : consistent way to unset environment variables with Sys.putEnv (#10402)
 
 	Bugfixes:
 
@@ -1031,7 +1040,7 @@
 	Bugfixes:
 
 	php7: fix Reflect.field() for strings (#6276)
-	php7: fix `@:enum abstract` generation  without `-dce full` (#6175)
+	php7: fix `@:enum abstract` generation without `-dce full` (#6175)
 	php7: fix using enum constructor with arguments as a call argument (#6177)
 	php7: fix `null` property access (#6281)
 	php7: fix setting values in a map stored in another map (#6257)
@@ -1077,7 +1086,7 @@
 
 	all : fixed DCE issue with interface fields (#6502)
 	cpp : fixed return typing for embedded closures (#6121)
-	php7: fixed `@:enum abstract` generation  without `-dce full` (#6175)
+	php7: fixed `@:enum abstract` generation without `-dce full` (#6175)
 	php7: fixed using enum constructor with arguments as a call argument (#6177)
 	php7: fixed accessing methods on dynamic values (#6211)
 	php7: fixed `null` property access (#6281)
@@ -1793,7 +1802,7 @@
 	all : allow to access root package with std prefix (std.Type for example)
 	all : added haxe.EnumFlags
 	sys : io.File.getChar/stdin/stdout/stderr are now in Sys class
-	cpp : Reflect.getField and Reflect.setField no longer call property functions.  Use Reflect.getProperty and Refelect.setProperty instead.
+	cpp : Reflect.getField and Reflect.setField no longer call property functions. Use Reflect.getProperty and Refelect.setProperty instead.
 	cpp : Default arguments now use Null<T> for performance increase and interface compatibility
 	cpp : Added metadata options for injecting native cpp code into headers, classes and functions
 	php : added php.Lib.mail
