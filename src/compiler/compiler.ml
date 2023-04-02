@@ -225,8 +225,8 @@ module Setup = struct
 			| WMDisable ->
 				()
 		);
-		com.error <- error ctx;
 		com.located_error <- located_error ctx;
+		com.error <- (fun ?(depth=0) msg p -> com.located_error ~depth (located msg p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
