@@ -30,7 +30,7 @@ function main() {
 	};
 
 	Sys.println('Error code: ${proc.exitCode()}');
-	Sys.println('Expected exception message: ${hasExpectedMessage}');
+	Sys.println('Has expected exception message: ${hasExpectedMessage}');
 	// 5.1 interpreter doesn't handle custom objects
 	Sys.println('Has call stack: ${hasStackTrace || isLua5_1()}');
 

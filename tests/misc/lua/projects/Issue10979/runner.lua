@@ -6,5 +6,5 @@ local has_expected_message = string.match(exception_message, arg[2]) ~= nil
 local has_stack_trace = string.match(tostring(err), 'stack traceback') ~= nil
 
 print('Success: '..tostring(success))
-print('Expected exception message: '..tostring(has_expected_message))
+print('Has expected exception message: '..tostring(has_expected_message))
 print('Has call stack: '..tostring(has_stack_trace))
