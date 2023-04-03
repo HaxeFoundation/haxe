@@ -403,12 +403,6 @@
 		"platforms": ["lua"]
 	},
 	{
-		"name": "LuaStandalone",
-		"define": "lua-standalone",
-		"doc": "Print uncaught error before exiting the lua script.",
-		"platforms": ["lua"]
-	},
-	{
 		"name": "LuaVanilla",
 		"define": "lua-vanilla",
 		"doc": "Generate code lacking compiled extern lib support (e.g. utf8).",
