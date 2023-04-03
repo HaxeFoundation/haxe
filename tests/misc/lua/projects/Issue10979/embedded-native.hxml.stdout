@@ -1,0 +1,3 @@
+Success: false
+Exception message: ./bin/native-error.lua:_: attempt to index a nil value (local 'object')
+Has call stack: true

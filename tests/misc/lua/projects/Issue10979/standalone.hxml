@@ -1,0 +1,6 @@
+--lua bin/haxe-exception.lua
+--main HaxeException
+
+--next
+--run RunScript
+bin/haxe-exception.lua
