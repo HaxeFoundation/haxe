@@ -4,3 +4,4 @@
 --next
 --run RunScript
 bin/haxe-exception.lua
+Exception thrown from Haxe
