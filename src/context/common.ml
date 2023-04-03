@@ -233,7 +233,7 @@ class file_keys = object(self)
 end
 
 type shared_display_information = {
-	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t * int (* depth *)) list;
 }
 
 type display_information = {
@@ -1229,23 +1229,20 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com msg kind sev =
+let add_diagnostics_message ?(depth = 0) com msg kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
 	match (extract_located msg) with
 	| [] -> ()
 	| (s,p) :: [] ->
-		di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+		di.diagnostics_messages <- (s,p,kind,sev,depth) :: di.diagnostics_messages
 	| (s,p) :: stack ->
-		(* TODO send full stack data as diagnostics attribute for better handling by editors *)
-		let s = List.fold_left (fun acc (s,p) ->
-			Printf.sprintf "%s%s\n" acc (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") p)
-		) (s ^ "\n") stack in
-		di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+		let stack_diag = (List.map (fun (s,p) -> (s,p,kind,sev,depth+1)) (List.rev stack)) in
+		di.diagnostics_messages <- stack_diag @ ((s,p,kind,sev,depth) :: di.diagnostics_messages)
 
 let located_display_error com ?(depth = 0) msg =
 	if is_diagnostics com then
-		add_diagnostics_message com msg MessageKind.DKCompilerMessage MessageSeverity.Error
+		add_diagnostics_message ~depth com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
 		com.located_error msg ~depth
 

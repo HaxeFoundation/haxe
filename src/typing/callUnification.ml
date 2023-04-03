@@ -398,7 +398,7 @@ let unify_field_call ctx fa el_typed el p inline =
 					display_error ~depth:1 ctx.com ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
 					located_display_error ~depth:2 ctx.com msg;
 				) failures;
-				typing_error "End of overload failure reasons" p
+				typing_error ~depth:1 "End of overload failure reasons" p
 			end
 		in
 		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with
@@ -477,16 +477,16 @@ object(self)
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.com.located_error in
-		ctx.com.located_error <- (fun ?(depth=0) msg ->
+		ctx.com.located_error <- (fun ?(depth = 0) msg ->
 			let ep = extract_located_pos msg in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
 				locate_macro_error := false;
-				old (if ep = null_pos then (relocate msg p) else msg);
+				old ~depth (if ep = null_pos then (relocate msg p) else msg);
 				locate_macro_error := true;
 				if ep <> null_pos then old ~depth:(depth+1) (located (compl_msg "Called from macro here") p);
 			end else
-				old msg;
+				old ~depth msg;
 		);
 		let e = try
 			f()

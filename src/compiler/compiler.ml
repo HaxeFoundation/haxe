@@ -4,16 +4,16 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics msg kind =
+	let handle_diagnostics ?(depth = 0) msg kind =
 		ctx.has_error <- true;
-		add_diagnostics_message com msg kind Error;
+		add_diagnostics_message ~depth com msg kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p,_) ->
-			handle_diagnostics (Error.error_msg p msg) DKCompilerMessage
+		| Error.Error(msg,p,depth) ->
+			handle_diagnostics ~depth (Error.error_msg p msg) DKCompilerMessage
 		| Parser.Error(msg,p) ->
 			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
 		| Lexer.Error(msg,p) ->
@@ -225,8 +225,8 @@ module Setup = struct
 			| WMDisable ->
 				()
 		);
-		com.error <- error ctx;
 		com.located_error <- located_error ctx;
+		com.error <- (fun ?(depth = 0) msg p -> com.located_error ~depth (located msg p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;

@@ -286,9 +286,9 @@ let check_param_constraints ctx t map c p =
 			let ti = map ti in
 			try
 				unify_raise t ti p
-			with Error(Unify l,p,n) ->
+			with Error(Unify l,p,depth) ->
 				let fail() =
-					if not ctx.untyped then located_display_error ctx.com (error_msg p (Unify (Constraint_failure (s_type_path c.cl_path) :: l)));
+					if not ctx.untyped then located_display_error ~depth ctx.com (error_msg p (Unify (Constraint_failure (s_type_path c.cl_path) :: l)));
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->

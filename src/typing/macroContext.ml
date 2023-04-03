@@ -537,10 +537,10 @@ let create_macro_interp ctx mctx =
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.located_error in
-	com2.located_error <- (fun ?depth msg ->
+	com2.located_error <- (fun ?(depth = 0) msg ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
-		on_error msg
+		on_error ~depth msg
 	);
 	let macro = ((fun() -> Interp.select mint), mctx) in
 	ctx.g.macros <- Some macro;

@@ -711,8 +711,8 @@ and type_vars ctx vl p =
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
-			Error (e,p,_) ->
-				check_error ctx e p;
+			Error (e,p,depth) ->
+				check_error ctx e p depth;
 				add_local ctx VGenerated n t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	List.iter (fun (v,_) ->
@@ -838,7 +838,7 @@ and type_block ctx el with_type p =
 	let rec loop acc = function
 		| [] -> List.rev acc
 		| e :: l ->
-			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error (e,p,_) -> check_error ctx e p; acc in
+			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error (e,p,depth) -> check_error ctx e p depth; acc in
 			loop acc l
 	in
 	let l = loop [] el in
@@ -1584,8 +1584,8 @@ and type_return ?(implicit=false) ctx e with_type p =
 					]) t e.epos;
 				| _ ->
 					mk (TReturn (Some e)) (mono_or_dynamic ctx with_type p) p
-		with Error(err,p,_) ->
-			check_error ctx err p;
+		with Error(err,p,depth) ->
+			check_error ctx err p depth;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
 				follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
 			let e_null = mk (TConst TNull) (mk_mono()) p in
@@ -2011,8 +2011,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EThrow e ->
 		let e = try
 			type_expr ctx e WithType.value
-		with Error(e,p',_) ->
-			check_error ctx e p';
+		with Error(e,p',depth) ->
+			check_error ctx e p' depth;
 			Texpr.Builder.make_null t_dynamic p
 		in
 		mk (TThrow e) (mono_or_dynamic ctx with_type p) p

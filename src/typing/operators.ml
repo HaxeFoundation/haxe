@@ -9,11 +9,11 @@ open Calls
 open Fields
 open FieldAccess
 
-let check_error ctx err p = match err with
+let check_error ctx err p depth = match err with
 	| Module_not_found ([],name) when Diagnostics.error_in_diagnostics_run ctx.com p ->
 		DisplayToplevel.handle_unresolved_identifier ctx name p true
 	| _ ->
-		Common.located_display_error ctx.com (error_msg p err)
+		Common.located_display_error ~depth ctx.com (error_msg p err)
 
 module BinopResult = struct
 
@@ -555,8 +555,8 @@ let type_assign ctx e1 e2 with_type p =
 	let e1 = !type_access_ref ctx (fst e1) (snd e1) (MSet (Some e2)) with_type in
 	let type_rhs with_type = try
 		type_expr ctx e2 with_type
-	with Error(e,p,_) ->
-		check_error ctx e p;
+	with Error(e,p,depth) ->
+		check_error ctx e p depth;
 		Texpr.Builder.make_null t_dynamic (pos e2)
 	in
 	let assign_to e1 =
