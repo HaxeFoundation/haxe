@@ -47,7 +47,6 @@ type ctx = {
     mutable separator : bool;
     mutable found_expose : bool;
     mutable lua_jit : bool;
-    mutable lua_standalone : bool;
     mutable lua_vanilla : bool;
     mutable lua_ver : float;
 }
@@ -1884,7 +1883,6 @@ let alloc_ctx com =
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
-        lua_standalone = Common.defined com Define.LuaStandalone;
         lua_vanilla = Common.defined com Define.LuaVanilla;
         lua_ver = try
                 float_of_string (Common.defined_value com Define.LuaVer)
@@ -2148,36 +2146,28 @@ let generate com =
         print_file (Common.find_file com "lua/_lua/_hx_dyn_add.lua");
     end;
 
-    if ctx.lua_standalone && Option.is_some com.main then begin
-        print_file (Common.find_file com "lua/_lua/_hx_handle_error.lua");
-    end;
+    print_file (Common.find_file com "lua/_lua/_hx_handle_error.lua");
 
     println ctx "_hx_static_init();";
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
     Option.may (fun e ->
-        let luv_run =
-            (* Runs libuv loop if needed *)
-            mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
-        in
-        if ctx.lua_standalone then begin
-            spr ctx "_G.xpcall(";
-                let fn =
-                    {
-                        tf_args = [];
-                        tf_type = com.basic.tvoid;
-                        tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
-                    }
-                in
-                gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
-            spr ctx ", _hx_handle_error)";
-        end else begin
-            gen_expr ctx e;
-            newline ctx;
-            gen_expr ctx luv_run;
-        end;
-        newline ctx
+        spr ctx "local success, err = _G.xpcall(";
+            let luv_run =
+                (* Runs libuv loop if needed *)
+                mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
+            in
+            let fn =
+                {
+                    tf_args = [];
+                    tf_type = com.basic.tvoid;
+                    tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
+                }
+            in
+            gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
+        println ctx ", _hx_handle_error)";
+        println ctx "if not success then _G.error(err) end";
     ) com.main;
 
     if anyExposed then
