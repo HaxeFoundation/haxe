@@ -804,7 +804,6 @@ class MultiwordArithmetic {
 			if ( r < 10) {
 				digits.set(--pos, r + 48);
 			} else {
-				trace(r);
 				digits.set(--pos, r + 87);
 			}
 		} while (!isZero(value, length));
