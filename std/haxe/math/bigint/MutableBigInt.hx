@@ -43,8 +43,8 @@ abstract MutableBigInt(MutableBigInt_) {
 		return BigInt_.isNegative1(this);
 	}
 
-	public inline function toString():String {
-		return BigInt_.toString1(this);
+	public inline function toString(radix:Int=10):String {
+		return BigInt_.toString1(this,radix);
 	}
 
 	public inline function toHex():String {
