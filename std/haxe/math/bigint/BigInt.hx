@@ -72,8 +72,8 @@ abstract BigInt(BigInt_) {
 		return new BigInt(this.max(other));
 	}
 
-	public inline function toString():String {
-		return BigInt_.toString1(this);
+	public inline function toString(radix:Int=10):String {
+		return BigInt_.toString1(this,radix);
 	}
 
 	public inline function toHex():String {
@@ -92,8 +92,8 @@ abstract BigInt(BigInt_) {
 		return new BigInt(BigInt_.fromInt(value));
 	}
 
-	public static inline function fromString(value:String):BigInt {
-		return new BigInt(BigInt_.fromString(value));
+	public static inline function fromString(value:String,radix:Int=10):BigInt {
+		return new BigInt(BigInt_.fromString(value,radix));
 	}
 
 	public static inline function fromHex(value:String):BigInt {

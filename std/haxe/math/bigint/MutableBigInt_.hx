@@ -66,7 +66,7 @@ class MutableBigInt_ extends BigInt_ {
 	/**
 		Set the value of this big integer with the value represented by the decimal string `value`.
 	**/
-	public function setFromString(value:String):Void {
+	public function setFromString(value:String, radix:Int = 10):Void {
 		if ((value == null) || (value.length < 1)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -75,13 +75,42 @@ class MutableBigInt_ extends BigInt_ {
 		if (value.length <= index) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
+		if ( value.charCodeAt(index) ==  0x30) {
+			if ( value.charCodeAt(index+1) ==  0x62 ) { // binary
+				radix = 2;
+				index +=2;
+			} else if ( value.charCodeAt(index+1) ==  0x6F ) { //octal
+				radix = 8;
+				index +=2;
+			} else if ( value.charCodeAt(index+1) ==  0x78 ) { // hex
+				setFromHexSigned((negate?"-":"")+value.substr(index+2));
+				return;
+			}
+		}
+		if (radix == 16) { 
+			setFromHexSigned(value);
+			return;
+		}
 		this.setFromInt(0);
 		var t = new MutableBigInt_();
+		var endDigit:Int = 57;
+		var extraEndDigit:Int=0;
+		if (  radix <= 10 ) {
+			endDigit =  48 + radix-1;
+		} else {
+			extraEndDigit =  radix-11;
+		}
 		for (i in index...value.length) {
 			var c = value.charCodeAt(i);
-			if ((48 <= c) && (c <= 57)) {
-				BigIntArithmetic.multiplyInt(t, this, 10);
-				BigIntArithmetic.addInt(this, t, c - 48);
+			if ( ((48 <= c) && (c <= endDigit)) || (radix > 10 && ( (65<=c && c<=(65+extraEndDigit)) || (97<=c && c<=(97+extraEndDigit)) ) ) ) {
+				BigIntArithmetic.multiplyInt(t, this, radix);
+				if ( c <= endDigit) {
+					BigIntArithmetic.addInt(this, t, c - 48);
+				} else if (c<=(65+extraEndDigit)) {
+					BigIntArithmetic.addInt(this, t, c - 55);
+				} else {
+					BigIntArithmetic.addInt(this, t, c - 87);
+				}
 			} else {
 				throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 			}

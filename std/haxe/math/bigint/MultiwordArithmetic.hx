@@ -683,6 +683,22 @@ class MultiwordArithmetic {
 		}
 		return _toDecimal(sb, work, length);
 	}
+	
+	public static function toBaseString(value : Vector<Int32>, length : Int, radix:Int) : String
+	{
+		var sb = new StringBuf();
+		var work = new Vector<Int32>(length);
+		if (isNegative(value, length))
+		{
+			negate(work, value, length);
+			sb.addChar(45);	// '-'
+		}
+		else
+		{
+			copy(work, value, length);
+		}
+		return _toBase(sb, work, length, radix);
+	}
 
 	/**
 		Get the value in decimal form.
@@ -770,17 +786,30 @@ class MultiwordArithmetic {
 
 	@:noCompletion
 	private static function _toDecimal(sb:StringBuf, value:Vector<Int>, length:Int):String {
+		return _toBase(sb,value,length,10);
+	}
+	
+	@:noCompletion
+	private static function _toBase(sb : StringBuf, value : Vector<Int32>, length : Int, radix:Int) : String
+	{
 		length = getLengthUnsigned(value, length);
-		var digits = new Vector<Int>(length * 10); // it is really log10 2^32 ~= 9.633, but this is close, simple, and never too little
-		var work = new Vector<Int>(length + 1 + 1);
-		var pos:Int = digits.length;
-		var r:Int;
-		do {
-			r = divideIntUnsigned(value, length, 10, value, work);
+		var digits = new Vector<Int32>(length * Math.ceil(Math.log(4294967296)/Math.log(radix)));
+		var work = new Vector<Int32>(length + 1 + 1);
+		var pos : Int = digits.length;
+		var r : Int;
+		do
+		{
+			r = divideIntUnsigned(value, length, radix, value, work);
 			length = getLengthUnsigned(value, length);
-			digits.set(--pos, r + 48);
+			if ( r < 10) {
+				digits.set(--pos, r + 48);
+			} else {
+				trace(r);
+				digits.set(--pos, r + 87);
+			}
 		} while (!isZero(value, length));
-		for (i in pos...digits.length) {
+		for (i in pos ... digits.length)
+		{
 			sb.addChar(digits.get(i));
 		}
 		return sb.toString();

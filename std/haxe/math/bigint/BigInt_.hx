@@ -276,6 +276,11 @@ class BigInt_ {
 	public inline function toString():String {
 		return MultiwordArithmetic.toDecimalSigned(m_data, m_count);
 	}
+	
+	public inline function toBase(radix:Int):String 
+	{
+		return MultiwordArithmetic.toBaseString(m_data, m_count,radix);
+	}
 
 	/**
 		Get the value in hexadecimal form.
@@ -342,9 +347,9 @@ class BigInt_ {
 	/**
 		Creates a big integer with the value represented by the decimal string `value`.
 	**/
-	public static function fromString(value:String):BigInt_ {
+	public static function fromString(value:String,radix:Int=10):BigInt_ {
 		var bi = new MutableBigInt_();
-		bi.setFromString(value);
+		bi.setFromString(value,radix);
 		return bi;
 	}
 
@@ -857,8 +862,10 @@ class BigInt_ {
 	}
 
 	@:noCompletion
-	private static inline function toString1(a:BigInt_):String {
-		return a.toString();
+	private static inline function toString1(a:BigInt_, radix:Int):String {
+		if ((radix == 10 ) || ( radix <2 || radix >36 )) return a.toString();
+		if (radix == 16 ) return a.toHex();
+		return a.toBase(radix);
 	}
 
 	@:noCompletion
