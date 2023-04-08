@@ -1075,8 +1075,26 @@ class expr_checker mode immediate_execution report =
 			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
 		*)
 		method can_pass_expr expr to_type p =
+			let try_unify expr to_type =
+				if self#is_nullable_expr expr && not (is_nullable_type ~dynamic_is_nullable:true to_type) then
+					false
+				else begin
+					let expr_type = unfold_null expr.etype in
+					try
+						new unificator#unify expr_type to_type;
+						true
+					with
+						| Safety_error err ->
+							self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
+							(* returning `true` because error is already logged in the line above *)
+							true
+						| e ->
+							fail ~msg:"Null safety unification failure" expr.epos __POS__
+				end
+			in
 			match expr.eexpr, to_type with
 				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
+				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TAnon to_type])
 				| TObjectDecl fields, TAnon to_type ->
 					List.for_all
 						(fun ((name, _, _), field_expr) ->
@@ -1085,22 +1103,20 @@ class expr_checker mode immediate_execution report =
 								self#can_pass_expr field_expr field_to_type.cf_type p
 							with Not_found -> false)
 						fields
-				| _, _ ->
-					if self#is_nullable_expr expr && not (is_nullable_type ~dynamic_is_nullable:true to_type) then
-						false
-					else begin
-						let expr_type = unfold_null expr.etype in
-						try
-							new unificator#unify expr_type to_type;
-							true
-						with
-							| Safety_error err ->
-								self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
-								(* returning `true` because error is already logged in the line above *)
-								true
-							| e ->
-								fail ~msg:"Null safety unification failure" expr.epos __POS__
-					end
+				| TObjectDecl fields, TAbstract ({ a_path = ([],"Null") }, [TType (t,tl)])
+				| TObjectDecl fields, TType (t,tl) ->
+					(match follow_without_null t.t_type with
+							| TAnon to_type ->
+								List.for_all
+									(fun ((name, _, _), field_expr) ->
+										try
+											let field_to_type = PMap.find name to_type.a_fields in
+											self#can_pass_expr field_expr field_to_type.cf_type p
+										with Not_found -> false)
+									fields
+							| _ -> try_unify expr to_type
+					)
+				| _, _ -> try_unify expr to_type
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.
 		*)
