@@ -343,7 +343,7 @@ module Inheritance = struct
 					typing_error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
-		| _ -> typing_error "Should extend by using a class" p
+		| t -> typing_error (Printf.sprintf "Should extend by using a class, found %s" (s_type_kind t)) p
 
 	let rec check_interface ctx missing c intf params =
 		List.iter (fun (i2,p2) ->
