@@ -1660,7 +1660,11 @@ let generate_class ctx c =
                     | TBlock el ->
                         let bend = open_block ctx in
                         newline ctx;
-                        if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
+                        if not (has_prototype ctx c) then
+                            println ctx "local self = _hx_new()"
+                        else if Common.defined ctx.com Define.LuaMetatableSharedInPrototype then
+                            println ctx "local self = _hx_nsh(%s.__mt__)" p
+                        else
                             println ctx "local self = _hx_new(%s.prototype)" p;
                         println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
                         if p = "String" then println ctx "self = string";
@@ -1734,6 +1738,10 @@ let generate_class ctx c =
              if has_property_reflection && Codegen.has_properties csup then
                  println ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup;
         );
+
+        (* If sharing metatables is enabled, create one specific for this class *)
+        if Common.defined ctx.com Define.LuaMetatableSharedInPrototype then
+            println ctx "%s.__mt__ = _hx_mmt(%s.prototype)" p p;
     end
 
 let generate_enum ctx e =
@@ -2022,6 +2030,10 @@ let generate com =
 
     (* base lua metatables for prototypes, inheritance, etc. *)
     print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* Helpers for creating metatables from prototypes, if enabled *)
+    if Common.defined com Define.LuaMetatableSharedInPrototype then
+        print_file (Common.find_file com "lua/_lua/_hx_objects_shared_mt.lua");
 
     (* base runtime class stubs for haxe value types (Int, Float, etc) *)
     print_file (Common.find_file com "lua/_lua/_hx_classes.lua");

@@ -469,6 +469,12 @@
 		"platforms": ["lua"]
 	},
 	{
+		"name": "LuaMetatableSharedInPrototype",
+		"define": "lua.metatable-shared-in-prototype",
+		"doc": "Constructed class instances will share a metatable. This will slightly improve performance by reducing allocations, but will also slightly increase the output size.",
+		"platforms": ["lua"]
+	},
+	{
 		"name": "LuaVanilla",
 		"define": "lua-vanilla",
 		"doc": "Generate code lacking compiled extern lib support (e.g. utf8).",
