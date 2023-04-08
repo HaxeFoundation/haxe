@@ -338,7 +338,7 @@ CAMLprim value pcre2_compile_stub_bc(value v_opt, value v_tables, value v_pat)
 
 /* Sets a match limit for a regular expression imperatively */
 
-CAMLprim value pcre2_set_imp_match_limit_stub(value v_rex, value v_lim) {
+CAMLprim value pcre2_set_imp_match_limit_stub(value v_rex, intnat v_lim) {
   pcre2_match_context* mcontext = get_mcontext(v_rex);
   pcre2_set_match_limit(mcontext, v_lim);
   return v_rex;
