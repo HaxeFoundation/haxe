@@ -627,6 +627,20 @@ module Printer = struct
 			"v_pos",s_pos v.v_pos;
 		]
 
+	let s_tvar_kind v_kind = match v_kind with
+		| VUser tvar_origin -> "VUser(" ^ (match tvar_origin with
+			| TVOLocalVariable -> "TVOLocalVariable"
+			| TVOArgument -> "TVOArgument"
+			| TVOForVariable -> "TVOForVariable"
+			| TVOPatternVariable -> "TVOPatternVariable"
+			| TVOCatchVariable -> "TVOCatchVariable"
+			| TVOLocalFunction -> "TVOLocalFunction") ^ ")"
+		| VGenerated -> "VGenerated"
+		| VInlined -> "VInlined"
+		| VInlinedConstructorVariable -> "VInlinedConstructorVariable"
+		| VExtractorVariable -> "VExtractorVariable"
+		| VAbstractThis -> "VAbstractThis"
+
 	let s_module_kind = function
 		| MCode -> "MCode"
 		| MMacro -> "MMacro"
