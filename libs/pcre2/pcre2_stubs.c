@@ -395,7 +395,7 @@ CAMLprim int64_t pcre2_argoptions_stub(value v_rex)
 {
   uint32_t options;
   const int ret = pcre2_pattern_info_stub(v_rex, PCRE2_INFO_ARGOPTIONS, &options);
-  if (ret != 0) raise_internal_error("pcre2_##name##_stub");
+  if (ret != 0) raise_internal_error("pcre2_argoptions_stub");
   return (int64_t)options;
 }
 
