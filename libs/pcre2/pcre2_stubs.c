@@ -640,7 +640,7 @@ CAMLprim value pcre2_dfa_match_stub_bc(value *argv, int __unused argn)
 {
   return
     pcre2_match_stub0(
-        Long_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
+        Int64_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
         argv[4], argv[5], argv[6], argv[7]);
 }
 
