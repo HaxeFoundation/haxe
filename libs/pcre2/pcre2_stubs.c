@@ -326,7 +326,7 @@ CAMLprim value pcre2_compile_stub(int64_t v_opt, value v_tables, value v_pat)
 
 CAMLprim value pcre2_compile_stub_bc(value v_opt, value v_tables, value v_pat)
 {
-  return pcre2_compile_stub(Long_val(v_opt), v_tables, v_pat);
+  return pcre2_compile_stub(Int64_val(v_opt), v_tables, v_pat);
 }
 
 /* Gets the depth limit of a regular expression if it exists */
@@ -338,7 +338,7 @@ CAMLprim value pcre2_compile_stub_bc(value v_opt, value v_tables, value v_pat)
 
 /* Sets a match limit for a regular expression imperatively */
 
-CAMLprim value pcre2_set_imp_match_limit_stub(value v_rex, value v_lim) {
+CAMLprim value pcre2_set_imp_match_limit_stub(value v_rex, intnat v_lim) {
   pcre2_match_context* mcontext = get_mcontext(v_rex);
   pcre2_set_match_limit(mcontext, v_lim);
   return v_rex;
@@ -395,12 +395,15 @@ CAMLprim int64_t pcre2_argoptions_stub(value v_rex)
 {
   uint32_t options;
   const int ret = pcre2_pattern_info_stub(v_rex, PCRE2_INFO_ARGOPTIONS, &options);
-  if (ret != 0) raise_internal_error("pcre2_##name##_stub");
+  if (ret != 0) raise_internal_error("pcre2_argoptions_stub");
   return (int64_t)options;
 }
 
 CAMLprim value pcre2_argoptions_stub_bc(value v_rex)
-{ return Val_long(pcre2_argoptions_stub(v_rex)); }
+{
+  CAMLparam1(v_rex);
+  CAMLreturn(caml_copy_int64(pcre2_argoptions_stub(v_rex)));
+}
 
 CAMLprim value pcre2_firstcodeunit_stub(value v_rex)
 {
@@ -627,7 +630,7 @@ CAMLprim value pcre2_match_stub_bc(value *argv, int __unused argn)
 {
   return
     pcre2_match_stub0(
-        Long_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
+        Int64_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
         argv[4], argv[5], argv[6], (value) NULL);
 }
 
@@ -637,7 +640,7 @@ CAMLprim value pcre2_dfa_match_stub_bc(value *argv, int __unused argn)
 {
   return
     pcre2_match_stub0(
-        Long_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
+        Int64_val(argv[0]), argv[1], Int_val(argv[2]), Int_val(argv[3]),
         argv[4], argv[5], argv[6], argv[7]);
 }
 
