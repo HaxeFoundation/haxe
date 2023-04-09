@@ -75,7 +75,6 @@ module TypePathHandler = struct
 			) lib#list_modules;
 		in
 		List.iter process_lib com.native_libs.swf_libs;
-		List.iter process_lib com.native_libs.net_libs;
 		List.iter process_lib com.native_libs.java_libs;
 		unique !packages, unique !classes
 

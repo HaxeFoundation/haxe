@@ -383,7 +383,6 @@ let finalize ctx =
 		we should do it here to be safe. *)
 	if not ctx.comm.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
-		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
