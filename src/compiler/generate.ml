@@ -78,13 +78,10 @@ let generate ctx tctx ext actx =
 			Genphp7.generate,"php"
 		| Cpp ->
 			Gencpp.generate,"cpp"
-		| Cs ->
-			Gencs.generate,"cs"
 		| Java ->
-			if Common.defined com Jvm then
-				Genjvm.generate actx.jvm_flag,"java"
-			else
-				Genjava.generate,"java"
+			Genjvm.generate actx.jvm_flag,"java"
+		| Cs ->
+			assert false
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->

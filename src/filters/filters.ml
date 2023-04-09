@@ -759,10 +759,6 @@ let destruction tctx detail_times main locals =
 		commit_features com;
 		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths tctx else (fun _ -> ()));
 	] in
-	let type_filters = match com.platform with
-		| Cs -> type_filters @ [ fun t -> InterfaceProps.run t ]
-		| _ -> type_filters
-	in
 	let t = filter_timer detail_times ["type 3"] in
 	List.iter (fun t ->
 		begin match t with
@@ -968,16 +964,6 @@ let run com tctx main =
 		"Exceptions_filter",Exceptions.filter tctx;
 		"captured_vars",CapturedVars.captured_vars com;
 	] in
-	let filters =
-		match com.platform with
-		| Cs ->
-			SetHXGen.run_filter com new_types;
-			filters
-		| Java when not (Common.defined com Jvm)->
-			SetHXGen.run_filter com new_types;
-			filters
-		| _ -> filters
-	in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 1"]) tctx filters) new_types;
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
