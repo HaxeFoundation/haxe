@@ -162,7 +162,6 @@ xmldoc:
 	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) git hxjava https://github.com/HaxeFoundation/hxjava  && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcs   https://github.com/HaxeFoundation/hxcs    && \
 	PATH="$(CURDIR):$(PATH)" $(CURDIR)/$(HAXE_OUTPUT) doc.hxml
 
 $(INSTALLER_TMP_DIR):

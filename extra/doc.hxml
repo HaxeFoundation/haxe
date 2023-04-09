@@ -35,11 +35,6 @@
 -xml doc/java.xml
 
 --next
--cs all_cs
--D unsafe
--xml doc/cs.xml
-
---next
 -python all_py
 -xml doc/python.xml
 
