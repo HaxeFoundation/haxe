@@ -41,7 +41,7 @@ class virtual ['a,'data] native_library (name : string) (file_path : string) = o
 	method virtual get_data : 'data
 end
 
-type java_lib_type = (JData.jclass * string * string) option
+type java_lib_type = (JClass.jclass * string * string) option
 type swf_lib_type = As3hl.hl_class option
 
 type native_libraries = {
