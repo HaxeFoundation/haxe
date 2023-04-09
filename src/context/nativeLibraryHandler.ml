@@ -36,14 +36,5 @@ let add_native_lib com file is_extern = match com.platform with
 			) (Sys.readdir file))
 		else
 			add file
-	| Globals.Cs ->
-		let file, is_std = match ExtString.String.nsplit file "@" with
-			| [file] ->
-				file,false
-			| [file;"std"] ->
-				file,true
-			| _ -> failwith ("unsupported file@`std` format: " ^ file)
-		in
-		Dotnet.add_net_lib com file is_std is_extern
 	| pf ->
 		failwith (Printf.sprintf "Target %s does not support native libraries (trying to load %s)" (platform_name pf) file);

@@ -447,7 +447,7 @@ module TypeLevel = struct
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 				delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c);
-		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
+		if (ctx.com.platform = Java) && not (has_class_flag c CExtern) then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
@@ -535,7 +535,7 @@ module TypeLevel = struct
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
-		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
+		if (ctx.com.platform = Java) && not e.e_extern then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx e.e_meta in
 				e.e_meta <- metas @ e.e_meta;
@@ -590,12 +590,7 @@ module TypeLevel = struct
 			| None -> Monomorph.bind r tt;
 			| Some _ -> die "" __LOC__);
 		| _ -> die "" __LOC__);
-		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ());
-		if ctx.com.platform = Cs && t.t_meta <> [] then
-			delay ctx PTypeField (fun () ->
-				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
-				if metas <> [] then t.t_meta <- metas @ t.t_meta;
-			)
+		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ())
 
 	let init_abstract ctx context_init a d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then

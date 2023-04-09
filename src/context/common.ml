@@ -512,7 +512,6 @@ let short_platform_name = function
 	| Flash -> "swf"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Cs -> "cs"
 	| Java -> "jav"
 	| Python -> "py"
 	| Hl -> "hl"
@@ -668,34 +667,6 @@ let get_config com =
 			pf_scoping = { default_config.pf_scoping with
 				vs_flags = [NoShadowing];
 				vs_scope = FunctionScope;
-			};
-			pf_supports_atomics = true;
-		}
-	| Cs ->
-		{
-			default_config with
-			pf_capture_policy = CPWrapRef;
-			pf_pad_nulls = true;
-			pf_overload = true;
-			pf_supports_threads = true;
-			pf_supports_rest_args = true;
-			pf_this_before_super = false;
-			pf_exceptions = { default_config.pf_exceptions with
-				ec_native_throws = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_native_catches = [
-					["cs";"system"],"Exception";
-					["haxe"],"Exception";
-				];
-				ec_wildcard_catch = (["cs";"system"],"Exception");
-				ec_base_throw = (["cs";"system"],"Exception");
-				ec_special_throw = fun e -> e.eexpr = TIdent "__rethrow__"
-			};
-			pf_scoping = {
-				vs_scope = FunctionScope;
-				vs_flags = [NoShadowing]
 			};
 			pf_supports_atomics = true;
 		}

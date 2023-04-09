@@ -120,9 +120,6 @@ module Setup = struct
 				if Common.defined com Define.Cppia then
 					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 				"cpp"
-			| Cs ->
-				Dotnet.before_generate com;
-				add_std "cs"; "cs"
 			| Java ->
 				Java.before_generate com;
 				if defined com Define.Jvm then begin

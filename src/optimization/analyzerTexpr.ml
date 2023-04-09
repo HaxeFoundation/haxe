@@ -124,7 +124,7 @@ let rec can_be_used_as_value com e =
 	in
 	try
 		begin match com.platform,e.eexpr with
-			| (Cs | Cpp | Java | Flash | Lua),TConst TNull -> raise Exit
+			| (Cpp | Java | Flash | Lua),TConst TNull -> raise Exit
 			| _ -> ()
 		end;
 		loop e;
@@ -510,9 +510,7 @@ module Fusion = struct
 		in
 		let e1 = skip e1 in
 		let e2 = skip e2 in
-		is_assign_op op && target_handles_assign_ops com e3 && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
-			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
-			| _ -> true
+		is_assign_op op && target_handles_assign_ops com e3 && Texpr.equal e1 e2 && not (has_side_effect e1)
 
 	let apply actx e =
 		let config = actx.AnalyzerTypes.config in
@@ -773,7 +771,7 @@ module Fusion = struct
 						{e with eexpr = TCall(e1,el)}
 					| TObjectDecl fl ->
 						(* The C# generator has trouble with evaluation order in structures (#7531). *)
-						let el = (match com.platform with Cs -> handle_el' | _ -> handle_el) (List.map snd fl) in
+						let el = handle_el (List.map snd fl) in
 						if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 						{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
 					| TArrayDecl el ->
@@ -1004,7 +1002,7 @@ module Cleanup = struct
 			| _,TConst (TBool false) -> optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
 			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
 			| _ -> match (Texpr.skip e2).eexpr with
-				| TBlock [] when com.platform <> Cs ->
+				| TBlock [] ->
 					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
 					let e1' = optimize_unop e1' Not Prefix e1 in
 					{e with eexpr = TIf(e1',e3,None)}

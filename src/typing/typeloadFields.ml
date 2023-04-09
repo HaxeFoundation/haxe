@@ -553,7 +553,7 @@ let create_class_context c context_init p =
 	in
 	let is_lib = Meta.has Meta.LibType c.cl_meta in
 	(* a native type will skip one check: the static vs non-static field *)
-	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
+	let is_native = Meta.has Meta.JavaNative c.cl_meta in
 	let rec extends_public c =
 		Meta.has Meta.PublicFields c.cl_meta ||
 		match c.cl_super with
@@ -852,9 +852,7 @@ module TypeBinding = struct
 		if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
 				| None -> ()
 				| Some (csup,_) ->
-					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
-					if not ((has_class_flag csup CInterface) && Meta.has Meta.CsNative c.cl_meta) then
-						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+					display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
 		end
 
 	let bind_var_expression ctx cctx fctx cf e =

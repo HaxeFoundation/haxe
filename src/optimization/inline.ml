@@ -19,21 +19,10 @@ let mk_untyped_call name p params =
 
 let api_inline2 com c field params p =
 	match c.cl_path, field, params with
-	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] -> (match com.platform with
-		| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
-			(* We don't want to optimize enums from external sources; as they might change unexpectedly *)
-			(* and since native C# enums don't have the concept of index - they have rather a value, *)
-			(* which can't be mapped to a native API - this kind of substitution is dangerous *)
-			None
-		| _ ->
-			Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p))
+	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] ->
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p)
 	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TField (_,FEnum (en,f)) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
-		(match com.platform with
-			| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
-				(* see comment above *)
-				None
-			| _ ->
-				Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p))
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p)
 	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
@@ -178,10 +167,8 @@ let api_inline ctx c field params p =
 			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
 		else
 			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
-	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
 	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
 			let platf = match ctx.com.platform with
-				| Cs -> "cs"
 				| Java -> "java"
 				| _ -> raise Exit
 			in

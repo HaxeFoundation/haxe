@@ -38,22 +38,9 @@
 		"doc": "Defined in the core API context."
 	},
 	{
-		"name": "CoreApiSerialize",
-		"define": "core-api-serialize",
-		"doc": "Mark some generated core API classes with the `Serializable` attribute on C#.",
-		"platforms": ["cs"]
-	},
-	{
 		"name": "Cppia",
 		"define": "cppia",
 		"doc": "Generate cpp instruction assembly."
-	},
-	{
-		"name": "CsVer",
-		"define": "cs-ver",
-		"doc": "The C# version to target.",
-		"platforms": ["cs"],
-		"params": ["version"]
 	},
 	{
 		"name": "NoCppiaAst",
@@ -102,12 +89,6 @@
 		"platforms": ["cpp"]
 	},
 	{
-		"name": "DllImport",
-		"define": "dll-import",
-		"doc": "Handle Haxe-generated .NET DLL imports.",
-		"platforms": ["cs"]
-	},
-	{
 		"name": "DocGen",
 		"define": "doc-gen",
 		"doc": "Do not perform any removal/change in order to correctly generate documentation."
@@ -139,12 +120,6 @@
 		"define": "dynamic-interface-closures",
 		"doc": "Use slow path for interface closures to save space.",
 		"platforms": ["cpp"]
-	},
-	{
-		"name": "EraseGenerics",
-		"define": "erase-generics",
-		"doc": "Erase generic classes on C#.",
-		"platforms": ["cs"]
 	},
 	{
 		"name": "EvalCallStackDepth",
@@ -193,7 +168,7 @@
 		"name": "FastCast",
 		"define": "fast-cast",
 		"doc": "Enables an experimental casts cleanup on C# and Java.",
-		"platforms": ["cs", "java"]
+		"platforms": ["java"]
 	},
 	{
 		"name": "Fdb",
@@ -224,7 +199,7 @@
 		"name": "ForceLibCheck",
 		"define": "force-lib-check",
 		"doc": "Force the compiler to check `--net-lib` and `--java-lib` added classes (internal).",
-		"platforms": ["cs", "java"]
+		"platforms": ["java"]
 	},
 	{
 		"name": "ForceNativeProperty",
@@ -236,7 +211,7 @@
 		"name": "GencommonDebug",
 		"define": "gencommon-debug",
 		"doc": "GenCommon internal.",
-		"platforms": ["cs", "java"]
+		"platforms": ["java"]
 	},
 	{
 		"name": "Haxe3Compat",
@@ -388,7 +363,7 @@
 		"name": "KeepOldOutput",
 		"define": "keep-old-output",
 		"doc": "Keep old source files in the output directory.",
-		"platforms": ["cs", "java"]
+		"platforms": ["java"]
 	},
 	{
 		"name": "LoopUnrollMaxCost",
@@ -428,27 +403,6 @@
 		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
-		"name": "NetVer",
-		"define": "net-ver",
-		"doc": "Sets the .NET version to be targeted.",
-		"platforms": ["cs"],
-		"params": ["version: 20-50"]
-	},
-	{
-		"name": "NetcoreVer",
-		"define": "netcore-ver",
-		"doc": "Sets the .NET core version to be targeted",
-		"platforms": ["cs"],
-		"params": ["version: x.x.x"]
-	},
-	{
-		"name": "NetTarget",
-		"define": "net-target",
-		"doc": "Sets the .NET target. `netcore` (.NET core), `xbox`, `micro` (Micro Framework), `compact` (Compact Framework) are some valid values. (default: `net`)",
-		"platforms": ["cs"],
-		"params": ["name"]
-	},
-	{
 		"name": "NekoSource",
 		"define": "neko-source",
 		"doc": "Output neko source instead of bytecode.",
@@ -478,7 +432,7 @@
 		"name": "NoCompilation",
 		"define": "no-compilation",
 		"doc": "Disable final compilation.",
-		"platforms": ["cs", "java", "cpp", "hl"]
+		"platforms": ["java", "cpp", "hl"]
 	},
 	{
 		"name": "NoDebug",
@@ -512,12 +466,6 @@
 		"define": "keep-inline-positions",
 		"doc": "Don't substitute positions of inlined expressions with the position of the place of inlining.",
 		"links": ["https://haxe.org/manual/class-field-inline.html"]
-	},
-	{
-		"name": "NoRoot",
-		"define": "no-root",
-		"doc": "Generate top-level types into the `haxe.root` namespace.",
-		"platforms": ["cs"]
 	},
 	{
 		"name": "NoMacroCache",
@@ -578,13 +526,13 @@
 		"name": "RealPosition",
 		"define": "real-position",
 		"doc": "Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output.",
-		"platforms": ["cs", "java", "php"]
+		"platforms": ["java", "php"]
 	},
 	{
 		"name": "ReplaceFiles",
 		"define": "replace-files",
 		"doc": "GenCommon internal.",
-		"platforms": ["cs", "java"]
+		"platforms": ["java"]
 	},
 	{
 		"name": "RetainUntypedMeta",
@@ -624,7 +572,7 @@
 		"name": "StdEncodingUtf8",
 		"define": "std-encoding-utf8",
 		"doc": "Force utf8 encoding for stdin, stdout and stderr",
-		"platforms": ["java", "cs", "python"]
+		"platforms": ["java", "python"]
 	},
 	{
 		"name": "Swc",
@@ -702,12 +650,6 @@
 		"define": "sys",
 		"doc": "Defined for all system platforms.",
 		"reserved": true
-	},
-	{
-		"name": "Unsafe",
-		"define": "unsafe",
-		"doc": "Allow unsafe code when targeting C#.",
-		"platforms": ["cs"]
 	},
 	{
 		"name": "UseNekoc",

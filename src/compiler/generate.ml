@@ -51,7 +51,7 @@ let generate ctx tctx ext actx =
 	begin match com.platform with
 		| Neko | Hl | Eval when actx.interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Php -> Path.mkdir_from_path (com.file ^ "/.")
+		| Cpp | Php -> Path.mkdir_from_path (com.file ^ "/.")
 		| Java when not actx.jvm_flag -> Path.mkdir_from_path (com.file ^ "/.")
 		| _ -> Path.mkdir_from_path com.file
 	end;
@@ -80,8 +80,6 @@ let generate ctx tctx ext actx =
 			Gencpp.generate,"cpp"
 		| Java ->
 			Genjvm.generate actx.jvm_flag,"java"
-		| Cs ->
-			assert false
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->

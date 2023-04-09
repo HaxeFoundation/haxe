@@ -44,7 +44,7 @@ let captured_vars com e =
 
 	let impl = match com.platform with
 	(* optimized version for C#/Java - use native arrays *)
-	| Cs | Java ->
+	| Java ->
 		let cnativearray =
 			match (List.find (fun md -> match md with
 					| TClassDecl ({ cl_path = ["cs"|"java"],"NativeArray" }) -> true
@@ -129,7 +129,7 @@ let captured_vars com e =
 			let rec browse = function
 				| Block f | Loop f | Function f -> f browse
 				| Use ({ v_extra = Some({v_params = _ :: _}) })
-				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 					(* Java and C# deal with functions with type parameters in a different way *)
 					(* so they do should not be wrapped *)
 					()
@@ -220,7 +220,7 @@ let captured_vars com e =
 					f (collect_vars false);
 					decr depth;
 				| Use ({ v_extra = Some({v_params = _ :: _}) })
-				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+				| Assign ({ v_extra = Some({v_params = _ :: _}) }) when (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 					(* Java/C# use a special handling for functions with type parmaters *)
 					()
 				| Declare v ->
@@ -257,7 +257,7 @@ let captured_vars com e =
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
 		| Use ({ v_extra = Some({v_params = _ :: _}) })
-		| Assign ({ v_extra = Some({v_params = _ :: _}) }) when com.platform = Cs || (com.platform = Java && not (Common.defined com Define.Jvm)) ->
+		| Assign ({ v_extra = Some({v_params = _ :: _}) }) when (com.platform = Java && not (Common.defined com Define.Jvm)) ->
 			()
 		| Use v ->
 			(try

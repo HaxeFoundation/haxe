@@ -169,7 +169,6 @@ let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
 		if has_class_field_flag f CfOverride then display_error ctx.com ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
-	| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		let p = f.cf_name_pos in
 		let i = f.cf_name in
@@ -395,11 +394,9 @@ module Inheritance = struct
 						valid_redefinition ctx map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
-							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
-								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
-								located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
-							end
+							display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+							display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
+							located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
 				)
 			with Not_found ->
 				if (has_class_flag c CAbstract) && is_method() then begin
@@ -435,7 +432,6 @@ module Inheritance = struct
 	let check_interfaces ctx c =
 		match c.cl_path with
 		| "Proxy" :: _ , _ -> ()
-		| _ when (has_class_flag c CExtern) && Meta.has Meta.CsNative c.cl_meta -> ()
 		| _ ->
 		List.iter (fun (intf,params) ->
 			let missing = DynArray.create () in

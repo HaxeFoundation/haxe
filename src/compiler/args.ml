@@ -81,9 +81,6 @@ let parse_args com =
 			Common.define com Define.Cppia;
 			set_platform com Cpp file;
 		),"<file>","generate Cppia bytecode into target file");
-		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
-			set_platform com Cs dir;
-		),"<directory>","generate C# code into target directory");
 		("Target",["--java"],["-java"],Arg.String (fun dir ->
 			set_platform com Java dir;
 		),"<directory>","generate Java code into target directory");
@@ -214,9 +211,6 @@ let parse_args com =
 		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>[@std]","add an external .NET DLL file");
-		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
-			Dotnet.add_net_std com file
-		),"<file>","add a root std .NET DLL search path");
 		("Target-specific",["--c-arg"],["-c-arg"],Arg.String (fun arg ->
 			com.c_args <- arg :: com.c_args
 		),"<arg>","pass option <arg> to the native Java/C# compiler");

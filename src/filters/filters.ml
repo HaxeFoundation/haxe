@@ -547,7 +547,7 @@ let add_meta_field com t = match t with
 			let cf = mk_field ~static:true "__meta__" e.etype e.epos null_pos in
 			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match com.platform with
-				| Cs | Java -> false
+				| Java -> false
 				| _ -> true
 			in
 			if (has_class_flag c CInterface) && not (can_deal_with_interface_metadata()) then begin
@@ -562,55 +562,6 @@ let add_meta_field com t = match t with
 				c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
 				c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics
 			end)
-	| _ ->
-		()
-
-(*
-	C# events have special semantics:
-	if we have an @:event var field, there should also be add_<name> and remove_<name> methods,
-	this filter checks for their existence and also adds some metadata for analyzer and C# generator
-*)
-let check_cs_events com t = match t with
-	| TClassDecl cl when not (has_class_flag cl CExtern) ->
-		let check fields f =
-			match f.cf_kind with
-			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta && not (has_class_field_flag f CfPostProcessed) ->
-				if (has_class_field_flag f CfPublic) then typing_error "@:event fields must be private" f.cf_pos;
-
-				(* prevent generating reflect helpers for the event in gencommon *)
-				f.cf_meta <- (Meta.SkipReflection, [], f.cf_pos) :: f.cf_meta;
-
-				(* type for both add and remove methods *)
-				let tmeth = (tfun [f.cf_type] com.basic.tvoid) in
-
-				let process_event_method name =
-					let m = try PMap.find name fields with Not_found -> typing_error ("Missing event method: " ^ name) f.cf_pos in
-
-					(* check method signature *)
-					begin
-						try
-							type_eq EqStrict m.cf_type tmeth
-						with Unify_error el ->
-							List.iter (fun e -> com.error (unify_error_msg (print_context()) e) m.cf_pos) el
-					end;
-
-					(*
-						add @:pure(false) to prevent purity inference, because empty add/remove methods
-						have special meaning here and they are always impure
-					*)
-					m.cf_meta <- (Meta.Pure,[EConst(Ident "false"),f.cf_pos],f.cf_pos) :: (Meta.Custom ":cs_event_impl",[],f.cf_pos) :: m.cf_meta;
-
-					(* add @:keep to event methods if the event is kept *)
-					if Meta.has Meta.Keep f.cf_meta && not (Meta.has Meta.Keep m.cf_meta) then
-						m.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: m.cf_meta;
-				in
-				process_event_method ("add_" ^ f.cf_name);
-				process_event_method ("remove_" ^ f.cf_name)
-			| _ ->
-				()
-		in
-		List.iter (check cl.cl_fields) cl.cl_ordered_fields;
-		List.iter (check cl.cl_statics) cl.cl_ordered_statics
 	| _ ->
 		()
 
@@ -752,7 +703,7 @@ let destruction tctx detail_times main locals =
 		check_private_path tctx;
 		apply_native_paths;
 		add_rtti com;
-		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
+		(match com.platform with | Java -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
 		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
@@ -968,11 +919,6 @@ let run com tctx main =
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
-		| Cs ->
-			[
-				check_cs_events tctx.com;
-				DefaultArguments.run com;
-			]
 		| Java ->
 			[
 				DefaultArguments.run com;
