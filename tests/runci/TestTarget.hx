@@ -11,7 +11,6 @@ enum abstract TestTarget(String) from String {
 	var Flash = "flash";
 	var Java = "java";
 	var Jvm = "jvm";
-	var Cs = "cs";
 	var Python = "python";
 	var Hl = "hl";
 }

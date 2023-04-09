@@ -76,8 +76,6 @@ class RunCi {
 						runci.targets.Java.run(args);
 					case Jvm:
 						runci.targets.Jvm.run(args);
-					case Cs:
-						runci.targets.Cs.run(args);
 					case Flash:
 						runci.targets.Flash.run(args);
 					case Hl:
