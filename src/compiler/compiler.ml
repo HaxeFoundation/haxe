@@ -120,12 +120,9 @@ module Setup = struct
 				if Common.defined com Define.Cppia then
 					actx.classes <- (Path.parse_path "cpp.cppia.HostClasses" ) :: actx.classes;
 				"cpp"
-			| Java ->
-				Java.before_generate com;
-				if defined com Define.Jvm then begin
-					add_std "jvm";
-					com.package_rules <- PMap.remove "jvm" com.package_rules;
-				end;
+			| Jvm ->
+				add_std "jvm";
+				com.package_rules <- PMap.remove "java" com.package_rules;
 				add_std "java";
 				"java"
 			| Python ->

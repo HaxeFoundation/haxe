@@ -522,7 +522,7 @@ let catch_native ctx catches t p =
 let filter tctx =
 	let stub e = e in
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Java | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
+	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			match List.rev pack with

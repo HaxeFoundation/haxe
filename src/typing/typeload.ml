@@ -338,7 +338,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| [TPType t] -> TDynamic (Some (load_complex_type ctx true t))
 			| _ -> typing_error "Too many parameters for Dynamic" p
 		else begin
-			let is_java_rest = ctx.com.platform = Java && is_extern in
+			let is_java_rest = ctx.com.platform = Jvm && is_extern in
 			let is_rest = is_rest || is_java_rest in
 			let load_param t =
 				match t with

@@ -547,7 +547,7 @@ let add_meta_field com t = match t with
 			let cf = mk_field ~static:true "__meta__" e.etype e.epos null_pos in
 			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match com.platform with
-				| Java -> false
+				| Jvm -> false
 				| _ -> true
 			in
 			if (has_class_flag c CInterface) && not (can_deal_with_interface_metadata()) then begin
@@ -703,7 +703,7 @@ let destruction tctx detail_times main locals =
 		check_private_path tctx;
 		apply_native_paths;
 		add_rtti com;
-		(match com.platform with | Java -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
+		(match com.platform with | Jvm -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
 		(match com.platform with Hl -> (fun _ -> ()) | _ -> add_meta_field com);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
@@ -919,7 +919,7 @@ let run com tctx main =
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
-		| Java ->
+		| Jvm ->
 			[
 				DefaultArguments.run com;
 			]

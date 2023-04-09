@@ -12,8 +12,6 @@ let get_native_repr md pos =
 		| TAbstractDecl a -> a.a_path, a.a_meta
 	in
 	let rec loop acc = function
-		| (Meta.JavaCanonical,[EConst(String(pack,_)),_; EConst(String(name,_)),_],_) :: _ ->
-			ExtString.String.nsplit pack ".", name
 		| (Meta.Native,[EConst(String(name,_)),_],_) :: meta ->
 			loop (Ast.parse_path name) meta
 		| _ :: meta ->
@@ -64,7 +62,7 @@ let handle_fields ctx fields_to_check with_type_expr =
 		let field = (efield(with_type_expr,name), pos) in
 		let fieldexpr = (EConst(Ident name),pos) in
 		let left_side = match ctx.com.platform with
-			| Java -> (ECall(field,[]),pos)
+			| Jvm -> (ECall(field,[]),pos)
 			| _ -> die "" __LOC__
 		in
 
@@ -89,7 +87,7 @@ let get_strict_meta ctx meta params pos =
 		| [ECall(ef, el),p] ->
 			let tpath = field_to_type_path ctx.com ef in
 			begin match pf with
-			| Java ->
+			| Jvm ->
 				let fields = match el with
 				| [EObjectDecl(fields),_] ->
 					fields
@@ -121,7 +119,7 @@ let get_strict_meta ctx meta params pos =
 let check_strict_meta ctx metas =
 	let pf = ctx.com.platform in
 	match pf with
-		| Java ->
+		| Jvm ->
 			let ret = ref [] in
 			List.iter (function
 				| Meta.Strict,params,pos -> (try

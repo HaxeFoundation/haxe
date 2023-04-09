@@ -23,11 +23,10 @@ open Common
 let add_native_lib com file is_extern = match com.platform with
 	| Globals.Flash ->
 		SwfLoader.add_swf_lib com file is_extern
-	| Globals.Java ->
-		let use_modern = Common.defined com Define.Jvm && not (Common.defined com Define.JarLegacyLoader) in
+	| Globals.Jvm ->
 		let add file =
 			let std = file = "lib/hxjava-std.jar" in
-			Java.add_java_lib com file std is_extern use_modern
+			JavaModern.add_java_lib com file std is_extern
 		in
 		if try Sys.is_directory file with Sys_error _ -> false then
 			let dir = file in

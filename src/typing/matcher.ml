@@ -1559,7 +1559,7 @@ module TexprConverter = struct
 							| [_,e2],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->
 								{e2 with etype = t_switch}
 							| [[e1],e2],Some _,_
-							| [[e1],e2],None,NoValue when ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
+							| [[e1],e2],None,NoValue when ctx.com.platform <> Jvm (* TODO: problem with TestJava.hx:285 *) ->
 								let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 								begin match e2.eexpr with
 									| TIf(e_op2,e3,e_default2) when (match e_default,e_default2 with Some(e1),Some(e2) when e1 == e2 -> true | _ -> false) ->

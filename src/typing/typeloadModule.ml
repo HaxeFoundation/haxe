@@ -447,7 +447,7 @@ module TypeLevel = struct
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 				delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c);
-		if (ctx.com.platform = Java) && not (has_class_flag c CExtern) then
+		if (ctx.com.platform = Jvm) && not (has_class_flag c CExtern) then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
@@ -535,7 +535,7 @@ module TypeLevel = struct
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
-		if (ctx.com.platform = Java) && not e.e_extern then
+		if (ctx.com.platform = Jvm) && not e.e_extern then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx e.e_meta in
 				e.e_meta <- metas @ e.e_meta;

@@ -21,7 +21,7 @@ type platform =
 	| Flash
 	| Php
 	| Cpp
-	| Java
+	| Jvm
 	| Python
 	| Hl
 	| Eval
@@ -64,7 +64,7 @@ let platforms = [
 	Flash;
 	Php;
 	Cpp;
-	Java;
+	Jvm;
 	Python;
 	Hl;
 	Eval;
@@ -79,7 +79,7 @@ let platform_name = function
 	| Flash -> "flash"
 	| Php -> "php"
 	| Cpp -> "cpp"
-	| Java -> "java"
+	| Jvm -> "jvm"
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
@@ -92,7 +92,7 @@ let parse_platform = function
 	| "flash" -> Flash
 	| "php" -> Php
 	| "cpp" -> Cpp
-	| "java" -> Java
+	| "jvm" -> Jvm
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval

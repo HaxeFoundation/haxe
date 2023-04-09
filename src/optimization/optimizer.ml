@@ -326,7 +326,7 @@ let reduce_control_flow com e = match e.eexpr with
 		(* TODO: figure out what's wrong with these targets *)
 		let require_cast = match com.platform with
 			| Cpp | Flash -> true
-			| Java -> defined com Define.Jvm
+			| Jvm -> true
 			| _ -> false
 		in
 		Texpr.reduce_unsafe_casts ~require_cast e e.etype

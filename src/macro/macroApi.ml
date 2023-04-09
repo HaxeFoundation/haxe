@@ -2084,7 +2084,7 @@ let macro_api ccom get_api =
 			let arg = decode_string arg in
 			let com = ccom() in
 			(match com.platform with
-			| Globals.Java | Globals.Cpp ->
+			| Globals.Jvm | Globals.Cpp ->
 				com.c_args <- arg :: com.c_args
 			| _ -> failwith "Unsupported platform");
 			vnull

@@ -45,7 +45,6 @@ end
 type class_init_ctx = {
 	tclass : tclass; (* I don't trust ctx.curclass because it's mutable. *)
 	is_lib : bool;
-	is_native : bool;
 	is_core_api : bool;
 	is_class_debug : bool;
 	extends_public : bool;
@@ -120,7 +119,6 @@ let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
 		"is_lib",string_of_bool cctx.is_lib;
-		"is_native",string_of_bool cctx.is_native;
 		"is_core_api",string_of_bool cctx.is_core_api;
 		"is_class_debug",string_of_bool cctx.is_class_debug;
 		"extends_public",string_of_bool cctx.extends_public;
@@ -552,8 +550,6 @@ let create_class_context c context_init p =
 		| _ -> None
 	in
 	let is_lib = Meta.has Meta.LibType c.cl_meta in
-	(* a native type will skip one check: the static vs non-static field *)
-	let is_native = Meta.has Meta.JavaNative c.cl_meta in
 	let rec extends_public c =
 		Meta.has Meta.PublicFields c.cl_meta ||
 		match c.cl_super with
@@ -563,7 +559,6 @@ let create_class_context c context_init p =
 	let cctx = {
 		tclass = c;
 		is_lib = is_lib;
-		is_native = is_native;
 		is_core_api = Meta.has Meta.CoreApi c.cl_meta;
 		is_class_debug = Meta.has (Meta.Custom ":debug.typeload") c.cl_meta;
 		extends_public = extends_public c;
@@ -964,7 +959,7 @@ module TypeBinding = struct
 					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 			) in
 			begin match ctx.com.platform with
-				| Java when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
+				| Jvm when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
 						warning ctx WDeprecated "@:java.native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 					cf.cf_expr <- None;
@@ -1392,7 +1387,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	begin match fctx.default with
 	| Some p ->
 		begin match ctx.com.platform with
-		| Java ->
+		| Jvm ->
 			if not (has_class_flag ctx.curclass CExtern) || not (has_class_flag c CInterface) then invalid_modifier_only ctx.com fctx "default" "on extern interfaces" p;
 			add_class_field_flag cf CfDefault;
 		| _ ->
@@ -1666,7 +1661,7 @@ let check_overload ctx f fs =
 		false
 	with Not_found -> try
 		(* OVERLOADTODO: generalize this and respect whether or not we actually generate the functions *)
-		if ctx.com.platform <> Java then raise Not_found;
+		if ctx.com.platform <> Jvm then raise Not_found;
 		let get_vmtype = ambiguate_funs in
 		let f2 =
 			List.find (fun f2 ->
@@ -1828,7 +1823,7 @@ let init_class ctx c p context_init herits fields =
 				()
 			| FKNormal ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
-				if not cctx.is_native && not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
+				if not (has_class_flag c CExtern) && dup then typing_error ("Same field name can't be used for both static and instance : " ^ cf.cf_name) p;
 				if fctx.override <> None then
 					add_class_field_flag cf CfOverride;
 				let is_var cf = match cf.cf_kind with
@@ -1863,7 +1858,7 @@ let init_class ctx c p context_init herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CInterface) && ctx.com.platform = Java then check_functional_interface ctx c;
+			if (has_class_flag c CInterface) && ctx.com.platform = Jvm then check_functional_interface ctx c;
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
