@@ -785,7 +785,7 @@ let rec class_string klass suffix params remap =
    | _ when is_native_class klass ->
       let class_params = match params with
       | [] -> ""
-      | _ -> "<" ^ (String.concat "," (List.map type_string params)) ^ ">" in
+      | _ -> "< " ^ (String.concat "," (List.map type_string params)) ^ " >" in
       (join_class_path_remap klass.cl_path "::") ^ class_params
    | _ ->
       let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
@@ -1701,7 +1701,7 @@ and cpp_class_path_of klass params =
    | true -> 
       let typeParams = match params with
       | [] -> ""
-      | _ -> "<" ^ String.concat "," (List.map tcpp_to_string params) ^ ">" in
+      | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >" in
       (" " ^ (join_class_path_remap klass.cl_path "::") ^ typeParams)
    | false -> " ::" ^ (join_class_path_remap klass.cl_path "::")
 ;;
