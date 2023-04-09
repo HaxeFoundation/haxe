@@ -4,9 +4,14 @@ import runci.System.*;
 import runci.Config.*;
 
 class Jvm {
+	static public function getJavaDependencies() {
+		haxelibInstallGit("HaxeFoundation", "hxjava", true);
+		runCommand("javac", ["-version"]);
+	}
+
 	static public function run(args:Array<String>) {
 		deleteDirectoryRecursively("bin/jvm");
-		Java.getJavaDependencies();
+		getJavaDependencies();
 
 		for (level in 0...3) {
 			final args = args.concat(["-D", "jvm.dynamic-level=" + level]);

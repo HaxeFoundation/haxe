@@ -9,7 +9,6 @@ enum abstract TestTarget(String) from String {
 	var Cpp = "cpp";
 	var Cppia = "cppia";
 	var Flash = "flash";
-	var Java = "java";
 	var Jvm = "jvm";
 	var Python = "python";
 	var Hl = "hl";
