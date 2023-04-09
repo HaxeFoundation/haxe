@@ -40,7 +40,7 @@ enum ValueType {
 
 @:access(python.Boot)
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null)
 			return null;
 

@@ -34,7 +34,7 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped {
+	public static function getClass<T>( o : T ) : Null<Class<T>> untyped {
 		if( __dollar__typeof(o) != __dollar__tobject )
 			return null;
 		var p = __dollar__objgetproto(o);
