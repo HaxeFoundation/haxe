@@ -97,10 +97,9 @@ import lua.NativeStringTools;
 		return untyped x <= 0 ? 0 : Math.floor(Math.random() * x);
 	}
 
-	static function __init__():Void
-		untyped {
-			__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", "String", true));
-			__feature__("Type.resolveClass", _hxClasses["Array"] = Array);
-			__feature__("lua.Boot.isClass", Array.__name__ = __feature__("Type.getClassName", "Array", true));
-		}
+	static function __init__():Void untyped {
+		__feature__("lua.Boot.isClass", String.__name__ = "String");
+		__feature__("Type.resolveClass", _hxClasses["Array"] = Array);
+		__feature__("lua.Boot.isClass", Array.__name__ = "Array");
+	}
 }

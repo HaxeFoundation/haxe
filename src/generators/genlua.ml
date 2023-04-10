@@ -1608,12 +1608,9 @@ let gen_class_field ctx c f =
 
 let generate_class___name__ ctx c =
     if has_feature ctx "lua.Boot.isClass" then begin
-        let p = s_path ctx c.cl_path in
-        print ctx "%s.__name__ = " p;
-        if has_feature ctx "Type.getClassName" then
-            println ctx "\"%s\"" (String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])))
-        else
-            println ctx "true";
+        let flat_path = s_path ctx c.cl_path in
+        let dot_path = String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])) in
+        println ctx "%s.__name__ = \"%s\"" flat_path dot_path;
     end
 
 let generate_class ctx c =
