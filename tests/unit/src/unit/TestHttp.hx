@@ -3,39 +3,33 @@ package unit;
 import utest.Async;
 
 class TestHttp extends Test {
+	#if flash
 	public function setupClass() {
-		#if flash
 		flash.system.Security.allowDomain("*");
 		flash.system.Security.allowInsecureDomain("*");
 		flash.system.Security.loadPolicyFile("http://localhost:20200/crossdomain.xml");
-		#end
 	}
+	#end
+
+	static final RUN_HTTP_TESTS =
+		#if !github false && #end // comment out line to run http tests locally
+		#if (github && (java || flash || (cs && Windows)))
+			false
+		#elseif (js && !nodejs)
+			js.Browser.supported
+		#else
+			true
+		#end;
 
 	function run(async:Async, test:()->Void) {
-		// { comment this out to run http tests locally
-		#if (!github || (github && js && !nodejs)) //also don't run on sauce labs
-		noAssert();
-		async.done();
-		return;
-		#end
-		// }
-
-		#if (js && !nodejs)
-		if(!js.Browser.supported) {
-			noAssert();
-			async.done();
+		if (RUN_HTTP_TESTS) {
+			test();
 			return;
 		}
-		test();
-		#elseif (github && (hl || java || (flash && (Linux || Mac || Windows)) || (cs && Windows)))
 		noAssert();
 		async.done();
-		return;
-		#else
-		test();
-		#end
 	}
-#if !(github && hl)
+
 	@:timeout(1000)
 	public function testPostData(async:Async) run(async, () -> {
 		var srcStr = 'hello, world';
@@ -84,5 +78,4 @@ class TestHttp extends Test {
 		d.setPostBytes(srcData);
 		d.request();
 	});
-#end
 }
