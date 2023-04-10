@@ -52,7 +52,7 @@ class Hl {
 			"-DWITH_OPENAL=OFF",
 			"-DWITH_SDL=OFF",
 			"-DWITH_SQLITE=ON",
-			"-DWITH_SSL=OFF",
+			"-DWITH_SSL=ON",
 			"-DWITH_UI=OFF",
 			"-DWITH_UV=OFF",
 			"-DWITH_VIDEO=OFF",
@@ -72,15 +72,7 @@ class Hl {
 	static public function run(args:Array<String>) {
 		getHlDependencies();
 
-		switch (systemName) {
-			case "Windows":
-				runCommand("haxe", ["compile-hl.hxml"].concat(args));
-			case _:
-				runCommand("haxe", [
-					"compile-hl.hxml",
-					"-D", "no_http", // hl's ssl.hdll is only built on Windows
-				].concat(args));
-		}
+		runCommand("haxe", ["compile-hl.hxml"].concat(args));
 		runCommand(hlBinary, ["bin/unit.hl"]);
 
 		changeDirectory(threadsDir);
