@@ -490,7 +490,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				if ctx.com.is_macro_context then typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
-				context_init#run;
 				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
 				ctx.get_build_infos <- old;
 				(match r with
@@ -525,7 +524,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			Some (fun () ->
 				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
 					warning ctx WDeprecated "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
-				context_init#run;
 				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
 				fbuild e;
 			)
