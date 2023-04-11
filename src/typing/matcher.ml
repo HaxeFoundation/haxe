@@ -997,21 +997,21 @@ module Compile = struct
 					in
 					let arg_and_pos = combine args arg_positions in
 					ExtList.List.mapi
-						(fun i ((_,_,t), p) ->
+						(fun i ((n,_,t), p) ->
 							let params = apply_params en.e_params tl (monomorphs ef.ef_params t) in
-							mk (TEnumParameter({ e with epos = p },ef,i)) params p
+							(n,mk (TEnumParameter({ e with epos = p },ef,i)) params p)
 						)
 						arg_and_pos
 				| _ ->
 					[]
 			end
 		| ConFields sl ->
-			List.map (type_field_access mctx.ctx e) sl
+			List.map (fun s -> s,type_field_access mctx.ctx e s) sl
 		| ConArray 0 -> []
 		| ConArray i ->
 			ExtList.List.init i (fun i ->
 				let ei = make_int mctx.ctx.com.basic i e.epos in
-				Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos)
+				Printf.sprintf "a%i" i,Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos)
 			)
 		| ConConst _ | ConTypeExpr _ | ConStatic _ ->
 			[]
@@ -1182,8 +1182,8 @@ module Compile = struct
 		let switch_cases = List.map (fun (con,unguarded,arg_positions) ->
 			let sub_subjects = get_sub_subjects mctx subject con arg_positions in
 			let rec loop bindings locals sub_subjects = match sub_subjects with
-				| e :: sub_subjects ->
-					let v = gen_local mctx.ctx e.etype e.epos in
+				| (name,e) :: sub_subjects ->
+					let v = add_local mctx.ctx VGenerated (Printf.sprintf "%s%s" gen_local_prefix name) e.etype e.epos in
 					loop ((v,v.v_pos,e) :: bindings) ((mk (TLocal v) v.v_type v.v_pos) :: locals) sub_subjects
 				| [] ->
 					List.rev bindings,List.rev locals
