@@ -1040,7 +1040,7 @@ class expr_checker mode immediate_execution report =
 				| TMeta (m, _) when contains_unsafe_meta [m] -> false
 				| TMeta (_, e) -> self#is_nullable_expr e
 				| TThrow _ -> false
-				| TReturn (Some e) -> self#is_nullable_expr e
+				| TReturn _ -> false
 				| TBinop ((OpAssign | OpAssignOp _), _, right) -> self#is_nullable_expr right
 				| TBlock exprs ->
 					local_safety#block_declared;
