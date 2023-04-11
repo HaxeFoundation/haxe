@@ -1,5 +1,6 @@
--D source-header=''
+-D source-header=
 --main TestObjc
 -cpp bin
 --debug
 -D objc
+-lib utest
