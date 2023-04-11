@@ -278,6 +278,51 @@ let abstract_module_type a tl =
 	let t = mk_anon (ref (AbstractStatics a)) in
 	{(mk_typedef a.a_module path a.a_pos null_pos t) with t_private = true}
 
+let mk_enum m path pos name_pos =
+	{
+		e_path = path;
+		e_module = m;
+		e_pos = pos;
+		e_name_pos = name_pos;
+		e_doc = None;
+		e_meta = [];
+		e_params = [];
+		e_using = [];
+		e_restore = (fun () -> ());
+		e_private = false;
+		e_extern = false;
+		e_constrs = PMap.empty;
+		e_names = [];
+		e_type = enum_module_type m path pos;
+	}
+
+let mk_abstract m path pos name_pos =
+	{
+		a_path = path;
+		a_private = false;
+		a_module = m;
+		a_pos = pos;
+		a_name_pos = name_pos;
+		a_doc = None;
+		a_params = [];
+		a_using = [];
+		a_restore = (fun () -> ());
+		a_meta = [];
+		a_from = [];
+		a_to = [];
+		a_from_field = [];
+		a_to_field = [];
+		a_ops = [];
+		a_unops = [];
+		a_impl = None;
+		a_array = [];
+		a_this = mk_mono();
+		a_read = None;
+		a_write = None;
+		a_enum = false;
+		a_call = None;
+	}
+
 module TClass = struct
 	let get_member_fields' self_too c0 tl =
 		let rec loop acc c tl =
