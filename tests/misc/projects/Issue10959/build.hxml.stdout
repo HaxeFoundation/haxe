@@ -1,0 +1,46 @@
+On Generate
+-- Too Few Params --
+Before: TestClass
+After:  TestClass<TestClass.T, TestClass.U, Void>
+
+Before: TestClass<Void>
+After:  TestClass<Void, TestClass.U, Void>
+
+-- Too Many Params --
+Before: TestClass<Void, Int, Float, String>
+After:  TestClass<Void, Int, Float>
+
+-- Correct Number of Params (3rd is optional) --
+Before: TestClass<Void, Int, Float>
+After:  TestClass<Void, Int, Float>
+
+Before: TestClass<Void, Int>
+After:  TestClass<Void, Int, Void>
+
+-- Shouldn't Have Params --
+Before: Void<Int, Float>
+After:  Void
+
+-- Recursive Test --
+Before: TestClass<TestClass, TestClass<Void, Int, Float, String>>
+After:  TestClass<TestClass<TestClass.T, TestClass.U, Void>, TestClass<Void, Int, Float>, Void>
+
+-- Fill With Specific Type --
+Before: TestClass
+After:  TestClass<Int, Int, Int>
+
+Before: TestClass
+After:  TestClass<String, String, String>
+
+Before: TestClass<Void, Int, Float, String>
+After:  TestClass<Void, Int, Float>
+
+-- Recursive Param OFF --
+Before: TestClass<TestClass, TestClass<Void, Int, Float, String>>
+After:  TestClass<TestClass, TestClass<Void, Int, Float, String>, String>
+
+-- Index Print --
+TestClass<TestClass, TestClass<Void, Int, Float, String>> - 2
+TestClass - 0
+TestClass - 1
+TestClass - 2
