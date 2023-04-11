@@ -82,7 +82,7 @@ class Type {
 		allTypes.set(b, t);
 	}
 
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		var t = hl.Type.getDynamic(o);
 		if (t.kind == HVirtual) {
 			o = hl.Api.getVirtualValue(o);

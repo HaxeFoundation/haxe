@@ -43,7 +43,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (Object.ReferenceEquals(o, null) || Std.isOfType(o, DynamicObject) || Std.isOfType(o, cs.system.Type))
 			return null;
 

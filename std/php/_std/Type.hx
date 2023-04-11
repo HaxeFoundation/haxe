@@ -39,7 +39,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
 			var cls = Boot.getClass(Global.get_class(cast o));
 			return (Boot.isAnon(o) ? null : cast cls);
