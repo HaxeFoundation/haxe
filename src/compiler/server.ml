@@ -179,18 +179,16 @@ module Communication = struct
 				if is_null_pos then begin
 					let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
 					(-1, -1, -1, -1, epos, [])
-				end else begin
+				end else try begin
 					let f = resolve_file ctx.com cm.cm_pos.pfile in
-					let f =
-						try Common.find_file ctx.com f
-						with Not_found -> failwith ("File not found '" ^ cm.cm_pos.pfile ^ "'")
-						in
-
+					let f = Common.find_file ctx.com f in
 					let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
 					let lines = resolve_source f l1 p1 l2 p2 in
 					let epos = Lexer.get_error_pos error_printer cm.cm_pos in
 					(l1, p1, l2, p2, epos, lines)
-				end in
+				end with Not_found ->
+					(1, 1, 1, 1, cm.cm_pos.pfile, [])
+				in
 
 			(* If 4 lines or less, display all; if more, crop the middle *)
 			let lines = match lines with
@@ -227,8 +225,9 @@ module Communication = struct
 			) in
 
 			let display_heading = cm.cm_depth = 0 || sev_changed || file_changed in
-			let display_source = cm.cm_depth = 0 || sev_changed || pos_changed in
-			let display_pos_marker = (not is_null_pos) && (cm.cm_depth = 0 || sev_changed || pos_changed) in
+			let has_source = match lines with | [] -> false | _ -> true in
+			let display_source = has_source && (cm.cm_depth = 0 || sev_changed || pos_changed) in
+			let display_pos_marker = (not is_null_pos) && has_source && (cm.cm_depth = 0 || sev_changed || pos_changed) in
 
 			let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
