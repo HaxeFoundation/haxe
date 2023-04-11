@@ -478,7 +478,7 @@ let apply_macro ctx mode path el p =
 	) in
 	ctx.g.do_macro ctx mode cpath meth el p
 
-let build_module_def ctx mt meta fvars context_init fbuild =
+let build_module_def ctx mt meta fvars fbuild =
 	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
 	let loop f_build = function
 		| Meta.Build,args,p when not is_typedef -> (fun () ->
@@ -738,7 +738,7 @@ let build_fields (ctx,cctx) c fields =
 	let get_fields() = !fields in
 	let pending = ref [] in
 	c.cl_build <- (fun() -> BuildMacro pending);
-	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
+	build_module_def ctx (TClassDecl c) c.cl_meta get_fields (fun (e,p) ->
 		match e with
 		| EVars [{ ev_type = Some (CTAnonymous f,p); ev_expr = None }] ->
 			let f = List.map (fun f -> transform_field (ctx,cctx) c f fields p) f in
