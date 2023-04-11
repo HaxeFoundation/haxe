@@ -250,10 +250,10 @@ and tinfos = {
 	mt_module : module_def;
 	mt_pos : pos;
 	mt_name_pos : pos;
-	mt_private : bool;
-	mt_doc : Ast.documentation;
+	mutable mt_private : bool;
+	mutable mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
-	mt_params : type_params;
+	mutable mt_params : type_params;
 	mutable mt_using : (tclass * pos) list;
 	mutable mt_restore : unit -> unit;
 }
@@ -307,7 +307,7 @@ and tenum = {
 	e_module : module_def;
 	e_pos : pos;
 	e_name_pos : pos;
-	e_private : bool;
+	mutable e_private : bool;
 	mutable e_doc : Ast.documentation;
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
@@ -325,8 +325,8 @@ and tdef = {
 	t_module : module_def;
 	t_pos : pos;
 	t_name_pos : pos;
-	t_private : bool;
-	t_doc : Ast.documentation;
+	mutable t_private : bool;
+	mutable t_doc : Ast.documentation;
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
 	mutable t_using : (tclass * pos) list;
@@ -340,7 +340,7 @@ and tabstract = {
 	a_module : module_def;
 	a_pos : pos;
 	a_name_pos : pos;
-	a_private : bool;
+	mutable a_private : bool;
 	mutable a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
@@ -359,7 +359,7 @@ and tabstract = {
 	mutable a_read : tclass_field option;
 	mutable a_write : tclass_field option;
 	mutable a_call : tclass_field option;
-	a_enum : bool;
+	mutable a_enum : bool;
 }
 
 and module_type =
