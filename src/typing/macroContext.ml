@@ -254,7 +254,6 @@ let make_macro_com_api com p =
 		current_module = (fun() ->
 			Interp.exc_string "unsupported"
 		);
-		current_macro_module = (fun () -> die "" __LOC__);
 		use_cache = (fun() ->
 			!macro_enable_cache
 		);
@@ -676,7 +675,7 @@ let load_macro_module mctx com cpath display p =
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
-let load_macro'' ctx api mctx display cpath f p =
+let load_macro'' ctx mctx display cpath f p =
 	let mint = Interp.get_ctx() in
 	let (meth,mloaded) = try mctx.com.cached_macros#find (cpath,f) with Not_found ->
 		let t = macro_timer ctx.com ["typing";s_type_path cpath ^ "." ^ f] in
@@ -703,7 +702,6 @@ let load_macro'' ctx api mctx display cpath f p =
 					c, (try PMap.find f c.cl_statics with Not_found -> typing_error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 				| _ -> typing_error "Macro should be called on a class" p
 		in
-		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> typing_error "Macro call should be a method" p) in
 		restore();
 		if not ctx.com.is_macro_context then flush_macro_context mint mctx;
@@ -726,12 +724,12 @@ let load_macro' ctx display cpath f p =
 	(* TODO: The only reason this nonsense is here is because this is the signature
 	   that typer.di_load_macro wants, and the only reason THAT exists is the stupid
 	   voodoo stuff in displayToplevel.ml *)
-	load_macro'' ctx (make_macro_api ctx p) (get_macro_context ctx p) display cpath f p
+	load_macro'' ctx (get_macro_context ctx p) display cpath f p
 
 let load_macro ctx display cpath f p =
 	let api = make_macro_api ctx p in
 	let mctx = get_macro_context ctx p in
-	let meth = load_macro'' ctx api mctx display cpath f p in
+	let meth = load_macro'' ctx mctx display cpath f p in
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
