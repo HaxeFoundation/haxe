@@ -192,7 +192,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 		let p = null_pos in
 		begin try
 			let open Typecore in
-			let _, mctx = MacroContext.get_macro_context tctx p in
+			let mctx = MacroContext.get_macro_context tctx in
 			(* Tricky stuff: We want to remove the module from our lookups and load it again in
 				display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
 			if clear then begin
@@ -209,7 +209,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 					()
 				end;
 			end;
-			let _ = MacroContext.load_macro_module tctx cpath true p in
+			let _ = MacroContext.load_macro_module (MacroContext.get_macro_context tctx) tctx.com cpath true p in
 			Finalization.finalize mctx;
 			Some mctx
 		with DisplayException.DisplayException _ | Parser.TypePath _ as exc ->

@@ -51,7 +51,6 @@ type 'value compiler_api = {
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
 	current_module : unit -> module_def;
-	mutable current_macro_module : unit -> module_def;
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
@@ -1980,7 +1979,7 @@ let macro_api ccom get_api =
 			let data = Bytes.unsafe_to_string data in
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
-			let m = if Globals.starts_with name '$' then (get_api()).current_macro_module() else (get_api()).current_module() in
+			let m = (get_api()).current_module() in
 			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
 			vnull
 		);
