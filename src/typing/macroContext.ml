@@ -636,11 +636,10 @@ let create_macro_interp ctx mctx =
 	init()
 
 let get_macro_context ctx p =
-	let api = make_macro_api ctx p in
 	match ctx.g.macros with
 	| Some (select,ctx) ->
 		select();
-		api, ctx
+		ctx
 	| None ->
 		let com2 = Common.clone ctx.com true in
 		ctx.com.get_macros <- (fun() -> Some com2);
@@ -659,9 +658,9 @@ let get_macro_context ctx p =
 		mctx.is_display_file <- false;
 		create_macro_interp ctx mctx;
 		CommonCache.lock_signature com2 "get_macro_context";
-		api, mctx
+		mctx
 
-let load_macro_module (api,mctx) com cpath display p =
+let load_macro_module api mctx com cpath display p =
 	let m = (try com.type_to_module#find cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
@@ -678,8 +677,7 @@ let load_macro_module (api,mctx) com cpath display p =
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
-let load_macro' ctx display cpath f p =
-	let api, mctx = get_macro_context ctx p in
+let load_macro'' ctx api mctx display cpath f p =
 	let mint = Interp.get_ctx() in
 	let (meth,mloaded) = try mctx.com.cached_macros#find (cpath,f) with Not_found ->
 		let t = macro_timer ctx.com ["typing";s_type_path cpath ^ "." ^ f] in
@@ -687,7 +685,7 @@ let load_macro' ctx display cpath f p =
 			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 			| _ -> cpath, None
 		) in
-		let mloaded,restore = load_macro_module (api,mctx) ctx.com mpath display p in
+		let mloaded,restore = load_macro_module api mctx ctx.com mpath display p in
 		let cl, meth =
 			try
 				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
@@ -725,9 +723,16 @@ let load_macro' ctx display cpath f p =
 	add_dependency ctx.m.curmod mloaded;
 	meth
 
+let load_macro' ctx display cpath f p =
+	(* TODO: The only reason this nonsense is here is because this is the signature
+	   that typer.di_load_macro wants, and the only reason THAT exists is the stupid
+	   voodoo stuff in displayToplevel.ml *)
+	load_macro'' ctx (make_macro_api ctx p) (get_macro_context ctx p) display cpath f p
+
 let load_macro ctx display cpath f p =
-	let meth = load_macro' ctx display cpath f p in
-	let api, mctx = get_macro_context ctx p in
+	let api = make_macro_api ctx p in
+	let mctx = get_macro_context ctx p in
+	let meth = load_macro'' ctx api mctx display cpath f p in
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");

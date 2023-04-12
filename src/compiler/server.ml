@@ -642,7 +642,7 @@ let check_module sctx ctx m p =
 					raise (ServerError ("Infinite loop in Haxe server detected. "
 						^ "Probably caused by shadowing a module of the standard library. "
 						^ "Make sure shadowed module does not pull macro context."));
-				let _, mctx = MacroContext.get_macro_context ctx p in
+				let mctx = MacroContext.get_macro_context ctx p in
 				check_module_shadowing (get_changed_directories sctx mctx) m
 		in
 		let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
