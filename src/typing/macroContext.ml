@@ -456,7 +456,7 @@ let make_macro_api ctx p =
 		);
 	}
 
-let rec init_macro_interp ctx mctx mint =
+let rec init_macro_interp mctx mint =
 	let p = null_pos in
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);
@@ -532,7 +532,7 @@ let create_macro_interp ctx mctx =
 		| None ->
 			let mint = Interp.create com2 (make_macro_api ctx null_pos) true in
 			Interp.select mint;
-			mint, (fun() -> init_macro_interp ctx mctx mint)
+			mint, (fun() -> init_macro_interp mctx mint)
 		| Some mint ->
 			Interp.do_reuse mint (make_macro_api ctx null_pos);
 			mint, (fun() -> ())
@@ -569,7 +569,7 @@ let get_macro_context ctx p =
 		com2.defines.values <- defines.values;
 		com2.defines.defines_signature <- None;
 		Common.init_platform com2 !Globals.macro_platform;
-		let mctx = ctx.g.do_create com2 in
+		let mctx = !create_context_ref com2 in
 		mctx.is_display_file <- false;
 		create_macro_interp ctx mctx;
 		CommonCache.lock_signature com2 "get_macro_context";

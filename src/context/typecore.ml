@@ -86,7 +86,6 @@ type typer_globals = {
 	functional_interface_lut : (path,tclass_field) lookup;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
-	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : typer -> path -> pos -> module_def;
@@ -213,6 +212,8 @@ let unify_min_for_type_source_ref : (typer -> texpr list -> WithType.with_type_s
 let analyzer_run_on_expr_ref : (Common.context -> string -> texpr -> texpr) ref = ref (fun _ _ _ -> die "" __LOC__)
 let cast_or_unify_raise_ref : (typer -> ?uctx:unification_context option -> Type.t -> texpr -> pos -> texpr) ref = ref (fun _ ?uctx _ _ _ -> assert false)
 let type_generic_function_ref : (typer -> field_access -> (unit -> texpr) field_call_candidate -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+
+let create_context_ref : (Common.context -> typer) ref = ref (fun _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
