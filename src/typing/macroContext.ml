@@ -675,15 +675,15 @@ let load_macro_module mctx com cpath display p =
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
-let load_macro'' ctx mctx display cpath f p =
+let load_macro'' com mctx display cpath f p =
 	let mint = Interp.get_ctx() in
-	let (meth,mloaded) = try mctx.com.cached_macros#find (cpath,f) with Not_found ->
-		let t = macro_timer ctx.com ["typing";s_type_path cpath ^ "." ^ f] in
+	try mctx.com.cached_macros#find (cpath,f) with Not_found ->
+		let t = macro_timer com ["typing";s_type_path cpath ^ "." ^ f] in
 		let mpath, sub = (match List.rev (fst cpath) with
 			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 			| _ -> cpath, None
 		) in
-		let mloaded,restore = load_macro_module mctx ctx.com mpath display p in
+		let mloaded,restore = load_macro_module mctx com mpath display p in
 		let cl, meth =
 			try
 				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
@@ -704,7 +704,7 @@ let load_macro'' ctx mctx display cpath f p =
 		in
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> typing_error "Macro call should be a method" p) in
 		restore();
-		if not ctx.com.is_macro_context then flush_macro_context mint mctx;
+		if not com.is_macro_context then flush_macro_context mint mctx;
 		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
@@ -716,22 +716,20 @@ let load_macro'' ctx mctx display cpath f p =
 		};
 		t();
 		meth
-	in
-	add_dependency ctx.m.curmod mloaded;
-	meth
 
 let load_macro' ctx display cpath f p =
 	(* TODO: The only reason this nonsense is here is because this is the signature
 	   that typer.di_load_macro wants, and the only reason THAT exists is the stupid
 	   voodoo stuff in displayToplevel.ml *)
-	load_macro'' ctx (get_macro_context ctx p) display cpath f p
+	fst (load_macro'' ctx.com (get_macro_context ctx p) display cpath f p)
 
 let load_macro ctx display cpath f p =
 	let api = make_macro_api ctx p in
 	let mctx = get_macro_context ctx p in
-	let meth = load_macro'' ctx mctx display cpath f p in
+	let meth,mloaded = load_macro'' ctx.com mctx display cpath f p in
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
+		add_dependency ctx.m.curmod mloaded;
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx.com ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
