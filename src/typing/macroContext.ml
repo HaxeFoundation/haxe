@@ -611,15 +611,15 @@ and flush_macro_context mint mctx =
 	with Error (e,p,n) -> t(); raise (Fatal_error(error_msg p e,n)));
 	t()
 
-let create_macro_interp ctx mctx =
+let create_macro_interp api mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
 		| None ->
-			let mint = Interp.create com2 (make_macro_api ctx null_pos) true in
+			let mint = Interp.create com2 api true in
 			Interp.select mint;
 			mint, (fun() -> init_macro_interp mctx mint)
 		| Some mint ->
-			Interp.do_reuse mint (make_macro_api ctx null_pos);
+			Interp.do_reuse mint api;
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.located_error in
@@ -628,35 +628,42 @@ let create_macro_interp ctx mctx =
 		macro_interp_cache := None;
 		on_error ~depth msg
 	);
-	let macro = ((fun() -> Interp.select mint), mctx) in
-	ctx.g.macros <- Some macro;
-	mctx.g.macros <- Some macro;
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
-	init()
+	init();
+	let init = (fun() -> Interp.select mint) in
+	mctx.g.macros <- Some (init,mctx);
+	init
 
-let get_macro_context ctx p =
+let create_macro_context com =
+	let com2 = Common.clone com true in
+	com.get_macros <- (fun() -> Some com2);
+	com2.package_rules <- PMap.empty;
+	com2.main_class <- None;
+	(* Inherit most display settings, but require normal typing. *)
+	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
+	com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
+	let name = platform_name !Globals.macro_platform in
+	com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
+	let defines = adapt_defines_to_macro_context com2.defines; in
+	com2.defines.values <- defines.values;
+	com2.defines.defines_signature <- None;
+	Common.init_platform com2 !Globals.macro_platform;
+	let mctx = !create_context_ref com2 in
+	mctx.is_display_file <- false;
+	CommonCache.lock_signature com2 "get_macro_context";
+	mctx
+
+let get_macro_context ctx =
 	match ctx.g.macros with
 	| Some (select,ctx) ->
 		select();
 		ctx
 	| None ->
-		let com2 = Common.clone ctx.com true in
-		ctx.com.get_macros <- (fun() -> Some com2);
-		com2.package_rules <- PMap.empty;
-		com2.main_class <- None;
-		(* Inherit most display settings, but require normal typing. *)
-		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
-		let name = platform_name !Globals.macro_platform in
-		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
-		let defines = adapt_defines_to_macro_context com2.defines; in
-		com2.defines.values <- defines.values;
-		com2.defines.defines_signature <- None;
-		Common.init_platform com2 !Globals.macro_platform;
-		let mctx = !create_context_ref com2 in
-		mctx.is_display_file <- false;
-		create_macro_interp ctx mctx;
-		CommonCache.lock_signature com2 "get_macro_context";
+		let mctx = create_macro_context ctx.com in
+		let api = make_macro_api ctx null_pos in
+		let init = create_macro_interp api mctx in
+		ctx.g.macros <- Some (init,mctx);
+		mctx.g.macros <- Some (init,mctx);
 		mctx
 
 let load_macro_module mctx com cpath display p =
@@ -721,11 +728,11 @@ let load_macro' ctx display cpath f p =
 	(* TODO: The only reason this nonsense is here is because this is the signature
 	   that typer.di_load_macro wants, and the only reason THAT exists is the stupid
 	   voodoo stuff in displayToplevel.ml *)
-	fst (load_macro'' ctx.com (get_macro_context ctx p) display cpath f p)
+	fst (load_macro'' ctx.com (get_macro_context ctx) display cpath f p)
 
 let load_macro ctx display cpath f p =
 	let api = make_macro_api ctx p in
-	let mctx = get_macro_context ctx p in
+	let mctx = get_macro_context ctx in
 	let meth,mloaded = load_macro'' ctx.com mctx display cpath f p in
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
