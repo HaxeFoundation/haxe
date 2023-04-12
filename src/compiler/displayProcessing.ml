@@ -209,7 +209,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 					()
 				end;
 			end;
-			let _ = MacroContext.load_macro_module tctx cpath true p in
+			let _ = MacroContext.load_macro_module (MacroContext.get_macro_context tctx p) tctx.com cpath true p in
 			Finalization.finalize mctx;
 			Some mctx
 		with DisplayException.DisplayException _ | Parser.TypePath _ as exc ->

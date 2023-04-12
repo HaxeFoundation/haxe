@@ -44,11 +44,11 @@ end
 let macro_enable_cache = ref false
 let macro_interp_cache = ref None
 
-let safe_decode ctx v expected t p f =
+let safe_decode com v expected t p f =
 	try
 		f ()
 	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
-		let path = [dump_path ctx.com;"decoding_error"] in
+		let path = [dump_path com;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
@@ -122,8 +122,6 @@ let typing_timer ctx need_type f =
 		| e ->
 			exit();
 			raise e
-
-let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((string * bool * t) list * t * tclass * Type.tclass_field) * (Interp.value list -> Interp.value option))) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 
 let make_macro_com_api com p =
 	{
@@ -410,7 +408,7 @@ let make_macro_api ctx p =
 			let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
-			let m, tdef, pos = safe_decode ctx v "TypeDefinition" ttype p f in
+			let m, tdef, pos = safe_decode ctx.com v "TypeDefinition" ttype p f in
 			let has_native_meta = match tdef with
 				| EClass d -> Meta.has Meta.Native d.d_meta
 				| EEnum d -> Meta.has Meta.Native d.d_meta
@@ -553,9 +551,9 @@ let rec init_macro_interp mctx mint =
 		macro_interp_cache := Some mint;
 	end
 
-and flush_macro_context mint ctx =
-	let t = macro_timer ctx.com ["flush"] in
-	let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
+and flush_macro_context mint mctx =
+	let t = macro_timer mctx.com ["flush"] in
+	let mctx = (match mctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
 	Finalization.finalize mctx;
 	let _, types, modules = Finalization.generate mctx in
 	mctx.com.types <- types;
@@ -663,12 +661,11 @@ let get_macro_context ctx p =
 		CommonCache.lock_signature com2 "get_macro_context";
 		api, mctx
 
-let load_macro_module ctx cpath display p =
-	let api, mctx = get_macro_context ctx p in
-	let m = (try ctx.com.type_to_module#find cpath with Not_found -> cpath) in
+let load_macro_module (api,mctx) com cpath display p =
+	let m = (try com.type_to_module#find cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
-	if display then mctx.com.display <- ctx.com.display;
+	if display then mctx.com.display <- com.display;
 	let mloaded = TypeloadModule.load_module mctx m p in
 	api.MacroApi.current_macro_module <- (fun() -> mloaded);
 	mctx.m <- {
@@ -690,7 +687,7 @@ let load_macro' ctx display cpath f p =
 			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 			| _ -> cpath, None
 		) in
-		let mloaded,restore = load_macro_module ctx mpath display p in
+		let mloaded,restore = load_macro_module (api,mctx) ctx.com mpath display p in
 		let cl, meth =
 			try
 				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
@@ -712,7 +709,7 @@ let load_macro' ctx display cpath f p =
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> typing_error "Macro call should be a method" p) in
 		restore();
-		if not ctx.com.is_macro_context then flush_macro_context mint ctx;
+		if not ctx.com.is_macro_context then flush_macro_context mint mctx;
 		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
@@ -917,7 +914,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						Some (EBlock [],p)
 					)
 			in
-			safe_decode ctx v expected mret p process
+			safe_decode ctx.com v expected mret p process
 	in
 	let e = if ctx.com.is_macro_context then
 		Some (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p)
@@ -974,6 +971,3 @@ let setup() =
 let type_stored_expr ctx e1 =
 	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
 	get_stored_typed_expr ctx.com id
-
-;;
-load_macro_ref := load_macro;
