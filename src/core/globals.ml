@@ -26,6 +26,7 @@ type platform =
 	| Python
 	| Hl
 	| Eval
+	| CustomTarget of string
 
 let version = 4300
 let version_major = version / 1000
@@ -58,6 +59,8 @@ let return_partial_type = ref false
 
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
+let max_custom_target_len = 16
+
 let platforms = [
 	Js;
 	Lua;
@@ -86,6 +89,11 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
+	| CustomTarget c -> "custom_" ^ c
+
+let platform_define = function
+	| CustomTarget _ -> "cross"
+	| pf -> platform_name pf
 
 let parse_platform = function
 	| "cross" -> Cross
@@ -100,7 +108,13 @@ let parse_platform = function
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval
-	| p -> raise (failwith ("invalid platform " ^ p))
+	| p ->
+		let max_len = (String.length "custom_") + max_custom_target_len in
+		let regex = Str.regexp "^custom\\_\\([a-zA-Z0-9\\_]+\\)$" in
+		if String.length p < max_len && Str.string_match regex p 0 then
+			CustomTarget (Str.matched_group 1 p)
+		else
+			raise (failwith ("invalid platform " ^ p))
 
 let platform_list_help = function
 	| [] -> ""

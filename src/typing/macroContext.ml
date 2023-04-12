@@ -563,7 +563,7 @@ let get_macro_context ctx p =
 		(* Inherit most display settings, but require normal typing. *)
 		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
-		let name = platform_name !Globals.macro_platform in
+		let name = platform_define !Globals.macro_platform in
 		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
 		let defines = adapt_defines_to_macro_context com2.defines; in
 		com2.defines.values <- defines.values;

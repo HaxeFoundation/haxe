@@ -57,7 +57,7 @@ let generate ctx tctx ext actx =
 	end;
 	if actx.interp then
 		Std.finally (Timer.timer ["interp"]) MacroContext.interpret tctx
-	else if com.platform = Cross then
+	else if platform_define com.platform = "cross" then
 		()
 	else begin
 		let generate,name = match com.platform with
@@ -91,7 +91,8 @@ let generate ctx tctx ext actx =
 			Genhl.generate,"hl"
 		| Eval ->
 			(fun _ -> MacroContext.interpret tctx),"eval"
-		| Cross ->
+		| Cross
+		| CustomTarget _ ->
 			die "" __LOC__
 		in
 		Common.log com ("Generating " ^ name ^ ": " ^ com.file);

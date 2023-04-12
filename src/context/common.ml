@@ -519,6 +519,7 @@ let short_platform_name = function
 	| Python -> "py"
 	| Hl -> "hl"
 	| Eval -> "evl"
+	| CustomTarget n -> "c_" ^ n
 
 let stats =
 	{
@@ -563,6 +564,9 @@ let get_config com =
 	let defined f = PMap.mem (Define.get_define_key f) com.defines.values in
 	match com.platform with
 	| Cross ->
+		default_config
+	| CustomTarget _ ->
+		(* TODO: allow custom configuration? *)
 		default_config
 	| Js ->
 		let es6 = get_es_version com >= 6 in
@@ -938,7 +942,7 @@ let flash_version_tag = function
 
 let init_platform com pf =
 	com.platform <- pf;
-	let name = platform_name pf in
+	let name = platform_define pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
 	com.config <- get_config com;
@@ -1032,7 +1036,12 @@ let abort ?depth msg p = abort_located ~depth (located msg p)
 let platform ctx p = ctx.platform = p
 
 let platform_name_macro com =
-	if defined com Define.Macro then "macro" else platform_name com.platform
+	if defined com Define.Macro then
+		"macro"
+	else
+		match com.platform with
+		| CustomTarget n -> n
+		| pf -> platform_define pf
 
 let remove_extension file =
 	try String.sub file 0 (String.rindex file '.')
@@ -1266,7 +1275,7 @@ let adapt_defines_to_macro_context defines =
 		defines_signature = None
 	} in
 	Define.define macro_defines Define.Macro;
-	Define.raw_define macro_defines (platform_name !Globals.macro_platform);
+	Define.raw_define macro_defines (platform_define !Globals.macro_platform);
 	macro_defines
 
 let adapt_defines_to_display_context defines =

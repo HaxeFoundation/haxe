@@ -75,6 +75,9 @@ module Setup = struct
 				(* no platform selected *)
 				set_platform com Cross "";
 				"?"
+			| CustomTarget _ ->
+				(* TODO: add std? *)
+				"?"
 			| Flash ->
 				let rec loop = function
 					| [] -> ()
