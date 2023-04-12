@@ -660,13 +660,12 @@ let get_macro_context ctx p =
 		CommonCache.lock_signature com2 "get_macro_context";
 		mctx
 
-let load_macro_module api mctx com cpath display p =
+let load_macro_module mctx com cpath display p =
 	let m = (try com.type_to_module#find cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
 	if display then mctx.com.display <- com.display;
 	let mloaded = TypeloadModule.load_module mctx m p in
-	api.MacroApi.current_macro_module <- (fun() -> mloaded);
 	mctx.m <- {
 		curmod = mloaded;
 		module_imports = [];
@@ -685,7 +684,7 @@ let load_macro'' ctx api mctx display cpath f p =
 			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 			| _ -> cpath, None
 		) in
-		let mloaded,restore = load_macro_module api mctx ctx.com mpath display p in
+		let mloaded,restore = load_macro_module mctx ctx.com mpath display p in
 		let cl, meth =
 			try
 				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
