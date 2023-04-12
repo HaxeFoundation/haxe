@@ -642,6 +642,7 @@ module Decision_tree = struct
 		b_var : tvar;
 		b_pos : pos;
 		b_expr : texpr;
+		mutable b_used : bool;
 	}
 
 	type t =
@@ -666,10 +667,11 @@ module Decision_tree = struct
 		sc_dt : dt;
 	}
 
-	let make_bind v p e = {
+	let make_bind v p e b = {
 		b_var = v;
 		b_pos = p;
 		b_expr = e;
+		b_used = b;
 	}
 
 	let tab_string = "    "
@@ -729,6 +731,7 @@ module Decision_tree = struct
 					add bind.b_var.v_name;
 					add " = ";
 					add (s_expr tabs bind.b_expr);
+					if not bind.b_used then add " // unused";
 				) bl;
 				loop tabs dt
 			| Guard(e,dt1,dt2) ->
@@ -981,6 +984,7 @@ module Compile = struct
 		match_pos : pos;
 		match_debug : bool;
 		mutable dt_count : int;
+		local_bindings : (int,bind) Hashtbl.t;
 	}
 
 	let rec hashcons mctx dt p =
@@ -1040,11 +1044,11 @@ module Compile = struct
 			| (PatConstructor(con',patterns1),_) :: patterns2 when Constructor.equal con con' ->
 				Some (case,bindings,patterns1 @ patterns2)
 			| (PatVariable v,p) :: patterns2 ->
-				Some (case,(make_bind v p subject) :: bindings,ExtList.List.make arity (PatAny,p) @ patterns2)
+				Some (case,(make_bind v p subject true) :: bindings,ExtList.List.make arity (PatAny,p) @ patterns2)
 			| (PatAny,_) as pat :: patterns2 ->
 				Some (case,bindings,ExtList.List.make arity pat @ patterns2)
 			| (PatBind(v,pat1),p) :: patterns ->
-				specialize (case,(make_bind v p subject) :: bindings,pat1 :: patterns)
+				specialize (case,(make_bind v p subject true) :: bindings,pat1 :: patterns)
 			| _ ->
 				None
 		in
@@ -1053,11 +1057,11 @@ module Compile = struct
 	let default subject cases =
 		let rec default (case,bindings,patterns) = match patterns with
 			| (PatVariable v,p) :: patterns ->
-				Some (case,((make_bind v p subject) :: bindings),patterns)
+				Some (case,((make_bind v p subject true) :: bindings),patterns)
 			| (PatAny,_) :: patterns ->
 				Some (case,bindings,patterns)
 			| (PatBind(v,pat1),p) :: patterns ->
-				default (case,((make_bind v p subject) :: bindings),pat1 :: patterns)
+				default (case,((make_bind v p subject true) :: bindings),pat1 :: patterns)
 			| _ ->
 				None
 		in
@@ -1124,6 +1128,12 @@ module Compile = struct
 		end in
 		subjects,cases
 
+	let check_local_usage mctx e = match e.eexpr with
+		| TLocal v ->
+			(try (Hashtbl.find mctx.local_bindings v.v_id).b_used <- true with Not_found -> ());
+		| _ ->
+			()
+
 	let rec compile mctx subjects cases = match cases with
 		| [] ->
 			fail mctx (match subjects with e :: _ -> e.epos | _ -> mctx.match_pos);
@@ -1152,9 +1162,11 @@ module Compile = struct
 			| [PatAny,_],_ ->
 				bindings
 			| (PatVariable v,p) :: patterns,e :: el ->
-				loop patterns el ((make_bind v p e) :: bindings)
+				check_local_usage mctx e;
+				loop patterns el ((make_bind v p e true) :: bindings)
 			| (PatBind(v,pat1),p) :: patterns,e :: el ->
-				loop (pat1 :: patterns) (e :: el) ((make_bind v p e) :: bindings)
+				check_local_usage mctx e;
+				loop (pat1 :: patterns) (e :: el) ((make_bind v p e true) :: bindings)
 			| _ :: patterns,_ :: el ->
 				loop patterns el bindings
 			| [],[] ->
@@ -1184,7 +1196,7 @@ module Compile = struct
 						if case.case_guard = None then ConTable.replace unguarded con true;
 						let arg_positions = snd (List.split patterns) in
 						ConTable.replace sigma con arg_positions;
-					| PatBind(v,pat1) -> loop ((make_bind v (pos pat) subject) :: bindings) pat1
+					| PatBind(v,pat1) -> loop ((make_bind v (pos pat) subject true) :: bindings) pat1
 					| PatVariable _ | PatAny -> ()
 					| PatExtractor _ -> raise Extractor
 					| _ -> typing_error ("Unexpected pattern: " ^ (Pattern.to_string pat)) case.case_pos;
@@ -1202,7 +1214,9 @@ module Compile = struct
 			let rec loop bindings locals sub_subjects = match sub_subjects with
 				| (name,e) :: sub_subjects ->
 					let v = add_local mctx.ctx VGenerated (Printf.sprintf "%s%s" gen_local_prefix name) e.etype e.epos in
-					loop ((make_bind v v.v_pos e) :: bindings) ((mk (TLocal v) v.v_type v.v_pos) :: locals) sub_subjects
+					let bind = make_bind v v.v_pos e false in
+					Hashtbl.add mctx.local_bindings v.v_id bind;
+					loop (bind :: bindings) ((mk (TLocal v) v.v_type v.v_pos) :: locals) sub_subjects
 				| [] ->
 					List.rev bindings,List.rev locals
 			in
@@ -1217,6 +1231,7 @@ module Compile = struct
 				sc_dt = dt;
 			}
 		) sigma in
+		check_local_usage mctx subject;
 		let default = default subject cases in
 		let switch_default = compile mctx subjects default in
 		let dt = if switch_cases = [] then switch_default else switch mctx subject switch_cases switch_default in
@@ -1235,11 +1250,12 @@ module Compile = struct
 			| [] -> raise Internal_match_failure
 			| subject :: subjects -> subject,subjects
 		in
+		check_local_usage mctx subject;
 		if mctx.match_debug then print_endline (Printf.sprintf "compile_extractor:\n\tsubject: %s\n\ttsubjects: %s\n\tcases: %s" (s_expr_pretty subject) (s_subjects subjects) (s_cases cases));
 		let num_extractors,extractors = List.fold_left (fun (i,extractors) (_,_,patterns) ->
 			let rec loop bindings pat = match pat with
 				| (PatExtractor(v,e1,pat),_) -> i + 1,Some (v,e1,pat,bindings) :: extractors
-				| (PatBind(v,pat1),p) -> loop ((make_bind v p subject) :: bindings) pat1
+				| (PatBind(v,pat1),p) -> loop ((make_bind v p subject true) :: bindings) pat1
 				| _ -> i,None :: extractors
 			in
 			loop [] (List.hd patterns)
@@ -1272,7 +1288,9 @@ module Compile = struct
 				die "" __LOC__
 		) (0,num_extractors,[],[],[]) cases (List.rev extractors) in
 		let dt = compile mctx ((subject :: List.rev ex_subjects) @ subjects) (List.rev cases) in
-		let bindings = List.map (fun (a,b,c,_,_) -> (make_bind a b c)) bindings in
+		let bindings = List.map (fun (a,b,c,_,_) ->
+			make_bind a b c true
+		) bindings in
 		bind mctx bindings dt
 
 	let compile ctx match_debug subjects cases p =
@@ -1282,6 +1300,7 @@ module Compile = struct
 			dt_table = DtTable.create 7;
 			match_pos = p;
 			dt_count = 0;
+			local_bindings = Hashtbl.create 0;
 		} in
 		let rec loop (subjects,vars) el = match el with
 			| [] ->
@@ -1293,7 +1312,7 @@ module Compile = struct
 				| _ ->
 					let v = gen_local ctx e.etype e.epos in
 					let ev = mk (TLocal v) e.etype e.epos in
-					(ev :: subjects,(make_bind v e.epos e) :: vars)
+					(ev :: subjects,(make_bind v e.epos e true) :: vars)
 				in
 				loop (subjects,vars) el
 		in
@@ -1665,6 +1684,7 @@ module TexprConverter = struct
 							end
 						end
 					| Bind(bl,dt) ->
+						let bl = List.filter (fun bind -> bind.b_used) bl in
 						let el = List.map (fun bind ->
 							v_lookup := IntMap.add bind.b_var.v_id bind.b_expr !v_lookup;
 							mk (TVar(bind.b_var,Some bind.b_expr)) com.basic.tvoid p
