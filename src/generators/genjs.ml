@@ -62,6 +62,7 @@ type ctx = {
 	mutable separator : bool;
 	mutable found_expose : bool;
 	mutable catch_vars : texpr list;
+	mutable deprecation_context : DeprecationCheck.deprecation_context;
 }
 
 type object_store = {
@@ -502,22 +503,22 @@ let rec gen_call ctx e el in_value =
 				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
 		)
 	| TIdent "__new__", args ->
-		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
-		print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__js__ is deprecated, use js.Syntax.code instead" e.epos;
 		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
-		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
 		gen_syntax ctx "instanceof" args e.epos
 	| TIdent "__typeof__",  args ->
-		print_deprecation_message ctx.com "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
 		gen_syntax ctx "typeof" args e.epos
 	| TIdent "__strict_eq__" , args ->
-		print_deprecation_message ctx.com "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
 		gen_syntax ctx "strictEq" args e.epos
 	| TIdent "__strict_neq__" , args ->
-		print_deprecation_message ctx.com "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
 		gen_syntax ctx "strictNeq" args e.epos
 	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
@@ -1278,6 +1279,7 @@ let can_gen_class_field ctx = function
 		is_physical_field f
 
 let gen_class_field ctx c f =
+	ctx.deprecation_context <- {ctx.deprecation_context with field_meta = f.cf_meta};
 	check_field_name c f;
 	match f.cf_expr with
 	| None ->
@@ -1603,6 +1605,7 @@ let generate_class_es6 ctx c =
 
 let generate_class ctx c =
 	ctx.current <- c;
+	ctx.deprecation_context <- {ctx.deprecation_context with class_meta = c.cl_meta};
 	ctx.id_counter <- 0;
 	(match c.cl_path with
 	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
@@ -1818,6 +1821,7 @@ let alloc_ctx com es_version =
 		separator = false;
 		found_expose = false;
 		catch_vars = [];
+		deprecation_context = DeprecationCheck.create_context com;
 	} in
 
 	ctx.type_accessor <- (fun t ->

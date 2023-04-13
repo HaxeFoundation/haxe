@@ -721,6 +721,12 @@ let push_this ctx e = match e.eexpr with
 	let id,er = store_typed_expr ctx.com e e.epos in
 	er,fun () -> ctx.com.stored_typed_exprs#remove id
 
+let create_deprecation_context ctx = {
+	(DeprecationCheck.create_context ctx.com) with
+	class_meta = ctx.curclass.cl_meta;
+	field_meta = ctx.curfield.cf_meta;
+}
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
