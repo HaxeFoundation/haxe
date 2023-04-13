@@ -215,9 +215,10 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		(* TODO send from_macro data somehow *)
-		com.info <- (fun ?(depth=0) msg p -> message ctx (make_compiler_message msg p depth DKCompilerMessage Information));
-		com.warning <- (fun ?(depth=0) w options msg p ->
+		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
+			message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Information)
+		);
+		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
@@ -227,7 +228,7 @@ module Setup = struct
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
 				(* TODO send from_macro data somehow *)
-				message ctx (make_compiler_message msg p depth DKCompilerMessage Warning)
+				message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);

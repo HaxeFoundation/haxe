@@ -364,8 +364,8 @@ type context = {
 	mutable print : string -> unit;
 	mutable error : Error.error -> unit;
 	mutable error_msg : ?depth:int -> string -> pos -> unit;
-	mutable info : ?depth:int -> string -> pos -> unit;
-	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
+	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -834,8 +834,8 @@ let create compilation_step cs version args =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun ?depth _ _ -> die "" __LOC__);
-		warning = (fun ?depth _ _ _ -> die "" __LOC__);
+		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
+		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [];
 		error = (fun _ -> die "" __LOC__);
 		error_msg = (fun ?depth _ _ -> die "" __LOC__);

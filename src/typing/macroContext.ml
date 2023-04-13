@@ -624,6 +624,14 @@ let create_macro_interp api mctx =
 		macro_interp_cache := None;
 		on_error { err with err_from_macro = true }
 	);
+	let on_warning = com2.warning in
+	com2.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
+		on_warning ~depth ~from_macro:true w options msg p
+	);
+	let on_info = com2.info in
+	com2.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
+		on_info ~depth ~from_macro:true msg p
+	);
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init();
 	let init = (fun() -> Interp.select mint) in
