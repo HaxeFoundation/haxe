@@ -200,7 +200,7 @@ let throw_native ctx e_thrown t p =
 				if is_dynamic ctx.base_throw_type then thrown
 				else mk_cast thrown ctx.base_throw_type p
 			in
-			mk (TMeta ((Meta.WrappedException,[],p),wrapped)) thrown.etype p
+			mk (TMeta ((Meta.WrappedException,[],p),wrapped)) wrapped.etype p
 		else
 			e_thrown
 	in
