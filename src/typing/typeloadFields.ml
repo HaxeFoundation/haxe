@@ -1655,7 +1655,7 @@ let init_field (ctx,cctx,fctx) f =
 		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
 	cf
 
-let check_overload ctx f fs =
+let check_overload ctx f fs is_extern_class =
 	try
 		let f2 =
 			List.find (fun f2 ->
@@ -1667,8 +1667,7 @@ let check_overload ctx f fs =
 		display_error ~depth:1 ctx.com (compl_msg "The second field is declared here") f2.cf_pos;
 		false
 	with Not_found -> try
-		(* OVERLOADTODO: generalize this and respect whether or not we actually generate the functions *)
-		if ctx.com.platform <> Java then raise Not_found;
+		if ctx.com.platform <> Java || is_extern_class then raise Not_found;
 		let get_vmtype = ambiguate_funs in
 		let f2 =
 			List.find (fun f2 ->
@@ -1676,6 +1675,8 @@ let check_overload ctx f fs =
 				Overloads.same_overload_args ~get_vmtype f.cf_type f2.cf_type f f2
 			) fs
 		in
+		(* Don't bother checking this on externs and assume the users know what they're doing (issue #11131) *)
+		if has_class_field_flag f CfExtern && has_class_field_flag f2 CfExtern then raise Not_found;
 		display_error ctx.com (
 			"Another overloaded field of similar signature was already declared : " ^
 			f.cf_name ^
@@ -1688,10 +1689,11 @@ let check_overload ctx f fs =
 
 let check_overloads ctx c =
 	(* check if field with same signature was declared more than once *)
+	let is_extern = has_class_flag c CExtern in
 	let check_field f =
 		if has_class_field_flag f CfOverload then begin
 			let all = f :: f.cf_overloads in
-			ignore(List.fold_left (fun b f -> b && check_overload ctx f all) true all)
+			ignore(List.fold_left (fun b f -> b && check_overload ctx f all is_extern) true all)
 		end
 	in
 	List.iter check_field c.cl_ordered_fields;
