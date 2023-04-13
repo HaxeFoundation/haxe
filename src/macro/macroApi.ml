@@ -1753,11 +1753,10 @@ let macro_api ccom get_api =
 		"define", vfun2 (fun s v ->
 			let s = decode_string s in
 			let com = ccom() in
-			(* TODO: use external_define and external_define_value for #8690 *)
 			if v = vnull then
-				Common.external_define_no_check com s
+				Common.external_define com s
 			else
-				Common.external_define_value_no_check com s (decode_string v);
+				Common.external_define_value com s (decode_string v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->

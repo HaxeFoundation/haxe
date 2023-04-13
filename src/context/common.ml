@@ -464,7 +464,7 @@ let external_defined_value ctx k =
 let reserved_flags = [
 	"true";"false";"null";"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
-	]
+]
 
 let reserved_flag_namespaces = ["target"]
 
@@ -484,16 +484,8 @@ let convert_and_validate k =
 let external_define_value ctx k v =
 	raw_define_value ctx.defines (convert_and_validate k) v
 
-(* TODO: Temporary function until #8690, remove after *)
-let external_define_value_no_check ctx k v =
-	Define.raw_define_value ctx.defines (convert_define k) v
-
 let external_define ctx k =
 	Define.raw_define ctx.defines (convert_and_validate k)
-
-(* TODO: Temporary function until #8690, remove after *)
-let external_define_no_check ctx k =
-	Define.raw_define ctx.defines (convert_define k)
 
 let defines_for_external ctx =
 	PMap.foldi (fun k v acc ->
