@@ -65,9 +65,6 @@ let short_type ctx t =
 	Should be called for each complementary error message.
 *)
 let compl_msg s = "... " ^ s
-let rec compl_located_msg = function
-	 | Message (s,p) -> Message (compl_msg s,p)
-	 | Stack stack -> Stack (List.map compl_located_msg stack)
 
 let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
