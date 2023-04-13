@@ -227,7 +227,6 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				(* TODO send from_macro data somehow *)
 				message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()

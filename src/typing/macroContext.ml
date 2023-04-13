@@ -88,11 +88,8 @@ let typing_timer ctx need_type f =
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
-	(* TODO update commented out code *)
-	(*if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
-
-	ctx.com.error <- (fun err ->
-		raise_error { err with err_from_macro = true });
+	(* if ctx.com.display.dms_kind = DMNone then ctx.com.error <- (fun e -> raise_error e); *) (* TODO: review this... *)
+	ctx.com.error <- (fun err -> raise_error { err with err_from_macro = true });
 
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;

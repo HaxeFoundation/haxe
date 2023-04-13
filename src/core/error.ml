@@ -326,14 +326,6 @@ let raise_msg ?(depth = 0) msg p = raise_error_msg ~depth (Custom msg) p
 let typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
 let raise_typing_error err = raise_error err
 
-(* TODO remove once error reporting has its own module *)
-let print_error err =
-	let ret = ref "" in
-	recurse_error (fun depth err ->
-		ret := !ret ^ (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") err.err_pos) ^ (error_msg err.err_message) ^ "\n"
-	) err;
-	!ret
-
 let error_require r p =
 	if r = "" then
 		typing_error "This field is not available with the current compilation flags" p

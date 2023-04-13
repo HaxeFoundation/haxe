@@ -313,6 +313,13 @@ let get_formatter com ectx def default =
 			raise (ConfigError (Printf.sprintf "Invalid message reporting mode: \"%s\", expected classic | pretty | indent (for -D %s)." m def))
 		end
 
+let print_error (err : Error.error) =
+	let ret = ref "" in
+	Error.recurse_error (fun depth err ->
+		ret := !ret ^ (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") err.err_pos) ^ (Error.error_msg err.err_message) ^ "\n"
+	) err;
+	!ret
+
 let format_messages com messages =
 	let ectx = create_error_context () in
 	ectx.max_lines <- get_max_line ectx.max_lines messages;

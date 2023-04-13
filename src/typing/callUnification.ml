@@ -386,7 +386,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				) delayed_display;
 				cf,err
 			) failures in
-			let failures = remove_duplicates (fun (_,e1) (_,e2) -> (print_error e1) <> (print_error e2)) failures in
+			let failures = remove_duplicates (fun (_,e1) (_,e2) -> (MessageReporting.print_error e1) <> (MessageReporting.print_error e2)) failures in
 			begin match failures with
 			| [_,err] ->
 				raise_typing_error err
