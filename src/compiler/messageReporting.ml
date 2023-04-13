@@ -174,7 +174,7 @@ let compiler_pretty_message_string com ectx cm =
 				(* Severity heading *)
 				(c_sev_bg ^ sev_label ^ c_reset ^ " ")
 				(* Macro context indicator *)
-				(if cm.cm_from_macro then "(macro) " else "")
+				(if cm.cm_from_macro then c_sev ^ "(macro) " ^ c_reset else "")
 				(* File + line pointer *)
 				epos;
 
