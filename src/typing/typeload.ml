@@ -714,21 +714,6 @@ let hide_params ctx =
 		ctx.g.std.m_extra.m_deps <- old_deps;
 	)
 
-(*
-	load a type while ignoring the current imports or local types
-*)
-let load_core_type ctx name =
-	let show = hide_params ctx in
-	let t = load_instance ctx (mk_type_path ([],name),null_pos) false in
-	show();
-	add_dependency ctx.m.curmod (match t with
-	| TInst (c,_) -> c.cl_module
-	| TType (t,_) -> t.t_module
-	| TAbstract (a,_) -> a.a_module
-	| TEnum (e,_) -> e.e_module
-	| _ -> die "" __LOC__);
-	t
-
 let t_iterator ctx =
 	let show = hide_params ctx in
 	match load_type_def ctx null_pos (mk_type_path ([],"Iterator")) with
