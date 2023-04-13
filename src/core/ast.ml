@@ -300,6 +300,7 @@ and access =
 	| AExtern
 	| AAbstract
 	| AOverload
+	| AEnum
 
 and placed_access = access * pos
 
@@ -491,6 +492,7 @@ let s_access = function
 	| AExtern -> "extern"
 	| AAbstract -> "abstract"
 	| AOverload -> "overload"
+	| AEnum -> "enum"
 
 let s_placed_access (a,_) = s_access a
 

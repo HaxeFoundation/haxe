@@ -315,6 +315,8 @@ and encode_access a =
 		| AExtern -> 8
 		| AAbstract -> 9
 		| AOverload -> 10
+		| AEnum -> 11
+
 	in
 	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
@@ -785,6 +787,7 @@ and decode_access v =
 	| 8 -> AExtern
 	| 9 -> AAbstract
 	| 10 -> AOverload
+	| 11 -> AEnum
 	| _ -> raise Invalid_expr
 	in
 	a,p

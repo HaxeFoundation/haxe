@@ -894,6 +894,11 @@ enum Access {
 		Overload access modifier.
 	**/
 	AOverload;
+
+	/**
+		Enum access modifier.
+	**/
+	AEnum;
 }
 
 /**
@@ -1000,6 +1005,7 @@ enum TypeDefKind {
 		Represents a module-level field.
 	**/
 	TDField(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
+
 }
 
 /**

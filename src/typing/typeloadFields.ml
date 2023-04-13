@@ -270,7 +270,7 @@ let transform_abstract_field com this_t a_t a f =
 	match f.cff_kind with
 	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
 		f
-	| FProp _ when not stat && not (Meta.has Meta.Enum f.cff_meta) ->
+	| FProp _ when not stat && not (List.mem_assoc AEnum f.cff_access) ->
 		raise_typing_error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
 		let init p = (EVars [mk_evar ~t:this_t ~meta:([Meta.This,[],null_pos]) ("this",null_pos)],p) in
@@ -436,8 +436,7 @@ let build_enum_abstract ctx c a fields p =
 					visibility
 			in
 			let visibility = loop VUnknown field.cff_access in
-			field.cff_access <- [match visibility with VPublic acc | VPrivate acc -> acc | VUnknown -> (APublic,null_pos)];
-			field.cff_meta <- (Meta.Enum,[],null_pos) :: field.cff_meta;
+			field.cff_access <- (AEnum,null_pos) :: [match visibility with VPublic acc | VPrivate acc -> acc | VUnknown -> (APublic,null_pos)];
 			let ct = match ct with
 				| Some _ -> ct
 				| None -> Some (TExprToExpr.convert_type (TAbstract(a,extract_param_types a.a_params)),null_pos)
@@ -1012,7 +1011,7 @@ let load_variable_type_hint ctx fctx eo p = function
 		lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
 
 let create_variable (ctx,cctx,fctx) c f t eo p =
-	let is_abstract_enum_field = Meta.has Meta.Enum f.cff_meta in
+	let is_abstract_enum_field = List.mem_assoc AEnum f.cff_access in
 	if fctx.is_abstract_member && not is_abstract_enum_field then raise_typing_error "Cannot declare member variable in abstract" p;
 	if fctx.is_inline && not fctx.is_static then invalid_modifier ctx.com fctx "inline" "non-static variable" p;
 	if fctx.is_inline && eo = None then missing_expression ctx.com fctx "Inline variable must be initialized" p;
@@ -1588,7 +1587,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	if (set = AccNever && get = AccNever)  then raise_typing_error (name ^ ": Unsupported property combination") p;
 	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
-	if Meta.has Meta.Enum cf.cf_meta then add_class_field_flag cf CfEnum;
+	if List.mem_assoc AEnum f.cff_access then add_class_field_flag cf CfEnum;
 	ctx.curfield <- cf;
 	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
@@ -1618,8 +1617,10 @@ let init_field (ctx,cctx,fctx) f =
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _ | AOverload, FFun _ -> ()
+		| AEnum, (FVar _ | FProp _) -> ()
 		| _, FVar _ -> display_error ctx.com ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) (snd acc)
 		| _, FProp _ -> display_error ctx.com ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) (snd acc)
+		| _, FFun _ -> display_error ctx.com ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for function " ^ name) (snd acc)
 	) f.cff_access;
 	begin match fctx.override with
 		| Some _ ->

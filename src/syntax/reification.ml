@@ -188,6 +188,7 @@ let reify in_macro =
 			| AExtern -> "AExtern"
 			| AAbstract -> "AAbstract"
 			| AOverload -> "AOverload"
+			| AEnum -> "AEnum"
 			) in
 			mk_enum "Access" n [] p
 		in
