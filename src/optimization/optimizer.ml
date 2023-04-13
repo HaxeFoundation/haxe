@@ -199,7 +199,7 @@ let reduce_expr com e =
 		List.iter (fun (cl,_) ->
 			List.iter (fun e ->
 				match e.eexpr with
-				| TCall ({ eexpr = TField (_,FEnum _) },_) -> typing_error "Not-constant enum in switch cannot be matched" e.epos
+				| TCall ({ eexpr = TField (_,FEnum _) },_) -> raise_typing_error "Not-constant enum in switch cannot be matched" e.epos
 				| _ -> ()
 			) cl
 		) cases;
@@ -345,7 +345,7 @@ let rec reduce_loop ctx e =
 				let cf = mk_field "" ef.etype e.epos null_pos in
 				let ethis = mk (TConst TThis) t_dynamic e.epos in
 				let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
-				let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_,_) -> None) in
+				let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error { err_message = Custom _ } -> None) in
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
@@ -354,7 +354,7 @@ let rec reduce_loop ctx e =
 				| Some {eexpr = TFunction tf} ->
 					let config = inline_config (Some cl) cf el e.etype in
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
-					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error (Custom _,_,_) -> None) in
+					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error { err_message = Custom _ } -> None) in
 					(match inl with
 					| None -> reduce_expr ctx e
 					| Some e ->

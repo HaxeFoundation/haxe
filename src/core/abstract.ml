@@ -83,7 +83,7 @@ let rec find_multitype_params a pl =
 				| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
 					loop follow_with_abstracts e1;
 				| _ ->
-					typing_error "Type parameter expected" (pos e)
+					raise_typing_error "Type parameter expected" (pos e)
 			in
 			loop (fun t -> t) e
 		) el;
@@ -124,7 +124,7 @@ and get_underlying_type ?(return_first=false) a pl =
 				if rec_stack_exists (fast_eq t) underlying_type_stack then begin
 					let pctx = print_context() in
 					let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: underlying_type_stack.rec_stack))) in
-					typing_error ("Abstract chain detected: " ^ s) a.a_pos
+					raise_typing_error ("Abstract chain detected: " ^ s) a.a_pos
 				end;
 				get_underlying_type a tl
 			| _ ->

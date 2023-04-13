@@ -53,7 +53,7 @@ let safe_decode com v expected t p f =
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
 		close_out ch;
-		typing_error (Printf.sprintf "Expected %s but got %s (see %s.txt for details)" expected (Interp.value_string v) (String.concat "/" path)) p
+		raise_typing_error (Printf.sprintf "Expected %s but got %s (see %s.txt for details)" expected (Interp.value_string v) (String.concat "/" path)) p
 
 let get_type_patch ctx t sub =
 	let new_patch() =
@@ -83,20 +83,13 @@ let macro_timer com l =
 
 let typing_timer ctx need_type f =
 	let t = Timer.timer ["typing"] in
-	let old = ctx.com.located_error and oldp = ctx.pass and oldlocals = ctx.locals in
+	let old = ctx.com.error_ext and oldp = ctx.pass and oldlocals = ctx.locals in
 	let restore_report_mode = disable_report_mode ctx.com in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
-	(*if ctx.com.display = DMNone then ctx.com.located_error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
-	let rec located_to_error = function
-		| Message (e,p) -> (Custom e,p)
-		| Stack stack -> (Stack (List.map located_to_error stack),null_pos)
-	in
-
-	ctx.com.located_error <- (fun ?(depth=0) msg ->
-		let (e,p) = located_to_error msg in
-		raise (Error (e,p,depth)));
+	(* if ctx.com.display.dms_kind = DMNone then ctx.com.error <- (fun e -> raise_error e); *) (* TODO: review this... *)
+	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
 
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;
@@ -104,7 +97,7 @@ let typing_timer ctx need_type f =
 	end;
 	let exit() =
 		t();
-		ctx.com.located_error <- old;
+		ctx.com.error_ext <- old;
 		ctx.pass <- oldp;
 		ctx.locals <- oldlocals;
 		restore_report_mode ();
@@ -113,15 +106,15 @@ let typing_timer ctx need_type f =
 		let r = f() in
 		exit();
 		r
-	with Error (ekind,p,_) ->
-			exit();
-			Interp.compiler_error (error_msg p ekind)
-		| WithTypeError (l,p,_) ->
-			exit();
-			Interp.compiler_error (error_msg p l)
-		| e ->
-			exit();
-			raise e
+	with Error err ->
+		exit();
+		Interp.compiler_error err
+	| WithTypeError err ->
+		exit();
+		Interp.compiler_error err
+	| e ->
+		exit();
+		raise e
 
 let make_macro_com_api com p =
 	{
@@ -188,7 +181,7 @@ let make_macro_com_api com p =
 			Interp.exc_string "unsupported"
 		);
 		parse = (fun entry s ->
-			match ParserEntry.parse_string entry com.defines s null_pos typing_error false with
+			match ParserEntry.parse_string entry com.defines s null_pos raise_typing_error false with
 			| ParseSuccess(r,_,_) -> r
 			| ParseError(_,(msg,p),_) -> Parser.error msg p
 		);
@@ -293,18 +286,18 @@ let make_macro_com_api com p =
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
 		typing_timer ctx false (fun() ->
-			match ParserEntry.parse_expr_string ctx.com.defines s p typing_error inl with
+			match ParserEntry.parse_expr_string ctx.com.defines s p raise_typing_error inl with
 				| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
 				| ParseSuccess(data,_,_) -> data
 				| ParseError _ -> raise MacroApi.Invalid_expr)
 	in
 	let parse_metadata s p =
 		try
-			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos typing_error false with
+			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos raise_typing_error false with
 			| ParseSuccess(meta,_,_) -> meta
-			| ParseError(_,_,_) -> typing_error "Malformed metadata string" p
+			| ParseError(_,_,_) -> raise_typing_error "Malformed metadata string" p
 		with _ ->
-			typing_error "Malformed metadata string" p
+			raise_typing_error "Malformed metadata string" p
 	in
 	let com_api = make_macro_com_api ctx.com p in
 	{
@@ -321,7 +314,7 @@ let make_macro_api ctx p =
 				try
 					let m = Some (Typeload.load_instance ctx (tp,p) true) in
 					m
-				with Error (Module_not_found _,p2,_) when p == p2 ->
+				with Error { err_message = Module_not_found _; err_pos = p2 } when p == p2 ->
 					None
 			)
 		);
@@ -345,7 +338,7 @@ let make_macro_api ctx p =
 		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
-					match ParserEntry.parse_string Grammar.parse_complex_type ctx.com.defines s null_pos typing_error false with
+					match ParserEntry.parse_string Grammar.parse_complex_type ctx.com.defines s null_pos raise_typing_error false with
 					| ParseSuccess((ct,_),_,_) -> Some ct
 					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
 				) in
@@ -473,7 +466,7 @@ let make_macro_api ctx p =
 				try
 					ignore(AbstractCast.cast_or_unify_raise ctx t e p);
 					true
-				with Error (Unify _,_,_) ->
+				with Error { err_message = Unify _ } ->
 					false
 			)
 		);
@@ -608,7 +601,7 @@ and flush_macro_context mint mctx =
 		List.iter (fun f -> f t) type_filters
 	in
 	(try Interp.add_types mint types ready
-	with Error (e,p,n) -> t(); raise (Fatal_error(error_msg p e,n)));
+	with Error err -> t(); raise (Fatal_error err));
 	t()
 
 let create_macro_interp api mctx =
@@ -622,11 +615,19 @@ let create_macro_interp api mctx =
 			Interp.do_reuse mint api;
 			mint, (fun() -> ())
 	) in
-	let on_error = com2.located_error in
-	com2.located_error <- (fun ?(depth = 0) msg ->
+	let on_error = com2.error_ext in
+	com2.error_ext <- (fun err ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
-		on_error ~depth msg
+		on_error { err with err_from_macro = true }
+	);
+	let on_warning = com2.warning in
+	com2.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
+		on_warning ~depth ~from_macro:true w options msg p
+	);
+	let on_info = com2.info in
+	com2.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
+		on_info ~depth ~from_macro:true msg p
 	);
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init();
@@ -702,14 +703,14 @@ let load_macro'' com mctx display cpath f p =
 			with Not_found ->
 				let name = Option.default (snd mpath) sub in
 				let path = fst mpath, name in
-				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_typing_error (Type_not_found (mloaded.m_path,name,Not_defined)) p in
+				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_typing_error_ext (make_error (Type_not_found (mloaded.m_path,name,Not_defined)) p) in
 				match mt with
 				| TClassDecl c ->
 					Finalization.finalize mctx;
-					c, (try PMap.find f c.cl_statics with Not_found -> typing_error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
-				| _ -> typing_error "Macro should be called on a class" p
+					c, (try PMap.find f c.cl_statics with Not_found -> raise_typing_error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
+				| _ -> raise_typing_error "Macro should be called on a class" p
 		in
-		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> typing_error "Macro call should be a method" p) in
+		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> raise_typing_error "Macro call should be a method" p) in
 		restore();
 		if not com.is_macro_context then flush_macro_context mint mctx;
 		mctx.com.cached_macros#add (cpath,f) meth;
@@ -786,7 +787,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			unify_raise mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* warning ctx WDeprecated "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
-		with Error (Unify _,_,_) ->
+		with Error { err_message = Unify _ } ->
 			let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			unify_raise mret ttype mpos;
@@ -821,7 +822,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		*)
 		let eargs = List.map (fun (n,o,t) ->
 			try unify_raise t expr p; (n, o, t_dynamic), MAExpr
-			with Error (Unify _,_,_) -> match follow t with
+			with Error { err_message = Unify _ } -> match follow t with
 				| TFun _ ->
 					(n,o,t), MAFunction
 				| _ ->
@@ -934,13 +935,13 @@ let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
 	mctx.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
-	call (List.map (fun e -> try Interp.make_const e with Exit -> typing_error "Argument should be a constant" e.epos) el)
+	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
 	let e = try
-		if String.get e (String.length e - 1) = ';' then typing_error "Unexpected ;" p;
-		begin match ParserEntry.parse_expr_string ctx.com.defines e p typing_error false with
+		if String.get e (String.length e - 1) = ';' then raise_typing_error "Unexpected ;" p;
+		begin match ParserEntry.parse_expr_string ctx.com.defines e p raise_typing_error false with
 		| ParseSuccess(data,_,_) -> data
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
 		end
@@ -954,16 +955,16 @@ let call_init_macro ctx e =
 			match fst e with
 			| EField (e,f,_) -> f :: loop e
 			| EConst (Ident i) -> [i]
-			| _ -> typing_error "Invalid macro call" p
+			| _ -> raise_typing_error "Invalid macro call" p
 		in
 		let path, meth = (match loop e with
 		| [meth] -> (["haxe";"macro"],"Compiler"), meth
 		| [meth;"server"] -> (["haxe";"macro"],"CompilationServer"), meth
 		| meth :: cl :: path -> (List.rev path,cl), meth
-		| _ -> typing_error "Invalid macro call" p) in
+		| _ -> raise_typing_error "Invalid macro call" p) in
 		ignore(call_macro ctx path meth args p);
 	| _ ->
-		typing_error "Invalid macro call" p
+		raise_typing_error "Invalid macro call" p
 
 let interpret ctx =
 	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) false in

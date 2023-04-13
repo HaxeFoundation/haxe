@@ -190,7 +190,7 @@ let display_dollar_type ctx p make_type =
 	| DMDefinition | DMTypeDefinition ->
 		raise_positions []
 	| _ ->
-		typing_error "Unsupported method" p
+		raise_typing_error "Unsupported method" p
 	end
 
 let rec handle_signature_display ctx e_ast with_type =
@@ -200,7 +200,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		let rec follow_with_callable (t,doc,values) = match follow t with
 			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc,values)
 			| TFun(args,ret) -> ((args,ret),doc,values)
-			| _ -> typing_error ("Not a callable type: " ^ (s_type (print_context()) t)) p
+			| _ -> raise_typing_error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 		in
 		let tl = List.map follow_with_callable tl in
 		let rec loop i acc el = match el with
@@ -223,7 +223,7 @@ let rec handle_signature_display ctx e_ast with_type =
 						let _ = unify_call_args ctx el args r p false false false in
 						true
 					with
-					| Error(Call_error (Not_enough_arguments _),_,_) -> true
+					| Error { err_message = Call_error (Not_enough_arguments _) } -> true
 					| _ -> false
 					end
 				in
@@ -253,7 +253,7 @@ let rec handle_signature_display ctx e_ast with_type =
 	let find_constructor_types t = match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
 			let rec loop tl = match tl with
-				| [] -> raise_typing_error (No_constructor (TClassDecl c)) p
+				| [] -> raise_typing_error_ext (make_error (No_constructor (TClassDecl c)) p)
 				| t :: tl -> match follow t with
 					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
 					| _ -> loop tl
@@ -274,10 +274,10 @@ let rec handle_signature_display ctx e_ast with_type =
 				try
 					acc_get ctx (!type_call_target_ref ctx e1 el with_type None)
 				with
-				| Error (Unknown_ident "trace",_,_) ->
+				| Error { err_message = Unknown_ident "trace" } ->
 					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
 					type_expr ctx e WithType.value
-				| Error (Unknown_ident "$type",p,_) ->
+				| Error { err_message = Unknown_ident "$type"; err_pos = p } ->
 					display_dollar_type ctx p (fun t -> t,(CompletionType.from_type (get_import_status ctx) t))
 			in
 			let e1 = match e1 with
@@ -337,11 +337,11 @@ let rec handle_signature_display ctx e_ast with_type =
 			| _ ->
 				raise_signatures [] 0 0 SKArrayAccess
 			end
-		| _ -> typing_error "Call expected" p
+		| _ -> raise_typing_error "Call expected" p
 
 and display_expr ctx e_ast e dk mode with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
-		| None -> typing_error "Current class does not have a super" p
+		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = get_constructor_access c params p in
 			fa.fa_field,c
@@ -541,20 +541,20 @@ let handle_display ctx e_ast dk mode with_type =
 		| DMDefinition | DMTypeDefinition ->
 			raise_positions []
 		| _ ->
-			typing_error "Unsupported method" p
+			raise_typing_error "Unsupported method" p
 		end
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
 		type_expr ~mode ctx e_ast with_type
-	with Error (Unknown_ident n,_,_) when ctx.com.display.dms_kind = DMDefault ->
+	with Error { err_message = Unknown_ident n } when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (n,p)
-	| Error ((Type_not_found (path,_,_) | Module_not_found path),_,_) as err when ctx.com.display.dms_kind = DMDefault ->
+	| Error ({ err_message = Type_not_found (path,_,_) | Module_not_found path } as err) when ctx.com.display.dms_kind = DMDefault ->
 		if is_legacy_completion ctx.com then begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
 		with Not_found ->
-			raise err
+			raise_error err
 		end else
 			raise_toplevel ctx dk with_type (s_type_path path,p)
 	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
@@ -626,7 +626,7 @@ let handle_display ctx e_ast dk mode with_type =
 		| WithType.WithType(t,_) ->
 			(* We don't want to actually use the transformed expression which may have inserted implicit cast calls.
 			   It only matters that unification takes place. *)
-			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p,_) -> ());
+			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error { err_message = Unify _ } -> ());
 		| _ ->
 			()
 	end;
@@ -700,7 +700,7 @@ let handle_structure_display ctx e fields origin =
 		let pinsert = DisplayPosition.display_position#with_pos (pos e) in
 		raise_fields fields CRStructureField (make_subject None pinsert)
 	| _ ->
-		typing_error "Expected object expression" p
+		raise_typing_error "Expected object expression" p
 
 let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =

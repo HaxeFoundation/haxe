@@ -5,9 +5,6 @@ type pos = {
 }
 
 type path = string list * string
-type located =
-	| Message of string * pos
-	| Stack of located list
 
 module IntMap = Ptmap
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
@@ -34,23 +31,6 @@ let version_revision = (version mod 100)
 let version_pre = None
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
-
-let located msg p = Message (msg,p)
-let located_stack stack = Stack stack
-
-let rec extract_located = function
-	| Message (msg,p) -> [(msg, p)]
-	| Stack stack -> List.fold_left (fun acc s -> acc @ (extract_located s)) [] stack
-
-let rec relocate msg p = match msg with
-	| Message (msg,_) -> Message (msg,p)
-	| Stack [] -> Stack []
-	| Stack (hd :: tl) -> Stack ((relocate hd p) :: tl)
-
-let rec extract_located_pos = function
-	| Message (_,p) -> p
-	| Stack [] -> null_pos
-	| Stack (hd :: _) -> extract_located_pos hd
 
 let macro_platform = ref Neko
 
@@ -195,14 +175,16 @@ type compiler_message = {
 	cm_message : string;
 	cm_pos : pos;
 	cm_depth : int;
+	cm_from_macro : bool;
 	cm_kind : MessageKind.t;
 	cm_severity : MessageSeverity.t;
 }
 
-let make_compiler_message msg p depth kind sev = {
+let make_compiler_message ?(from_macro = false) msg p depth kind sev = {
 		cm_message = msg;
 		cm_pos = p;
 		cm_depth = depth;
+		cm_from_macro = from_macro;
 		cm_kind = kind;
 		cm_severity = sev;
 }

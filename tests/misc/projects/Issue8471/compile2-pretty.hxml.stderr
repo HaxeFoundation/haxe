@@ -1,4 +1,4 @@
-[WARNING] Macro2.hx:12: characters 25-39
+[WARNING] (macro) Macro2.hx:12: characters 25-39
 
  12 |   Context.warning(("1" :DeprecatedType), Context.currentPos());
     |                         ^^^^^^^^^^^^^^

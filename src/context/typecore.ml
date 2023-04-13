@@ -198,7 +198,7 @@ type dot_path_part = {
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
-exception WithTypeError of error_msg * pos * int (* depth *)
+exception WithTypeError of error
 
 let memory_marker = [|Unix.time()|]
 
@@ -257,13 +257,21 @@ let make_static_call ctx c cf map args t p =
 	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
 
+let raise_with_type_error ?(depth = 0) msg p =
+	raise (WithTypeError (make_error ~depth (Custom msg) p))
+
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError(Unify l,p,0))
-	else located_display_error ctx.com (error_msg p (Unify l))
+	else if ctx.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	else display_error_ext ctx.com (make_error (Unify l) p)
+
+let raise_or_display_error ctx err =
+	if ctx.untyped then ()
+	else if ctx.in_call_args then raise (WithTypeError err)
+	else display_error_ext ctx.com err
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise (WithTypeError (Custom msg,p,0))
+	if ctx.in_call_args then raise_with_type_error msg p
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
@@ -279,7 +287,7 @@ let unify_raise_custom uctx t1 t2 p =
 	with
 		Unify_error l ->
 			(* no untyped check *)
-			raise (Error (Unify l,p,0))
+			raise_error_msg (Unify l) p
 
 let unify_raise = unify_raise_custom default_unification_context
 
@@ -337,8 +345,11 @@ let check_module_path ctx (pack,name) p =
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
-		display_error ctx.com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
-		display_error ctx.com msg p
+		display_error_ext ctx.com (make_error
+			~sub:[make_error (Custom msg) p]
+			(Custom ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:"))
+			p
+		)
 
 let check_local_variable_name ctx name origin p =
 	match name with
@@ -423,8 +434,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p,depth) ->
-				raise (Fatal_error ((error_msg p m),depth))
+			| Error e ->
+				raise (Fatal_error e)
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
@@ -804,9 +815,9 @@ let display_error ctx.com msg p =
 	debug ctx ("ERROR " ^ msg);
 	display_error ctx.com msg p
 
-let located_display_error ctx.com msg =
+let display_error_ext ctx.com msg =
 	debug ctx ("ERROR " ^ msg);
-	located_display_error ctx.com msg
+	display_error_ext ctx.com msg
 
 let make_pass ?inf ctx f =
 	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in

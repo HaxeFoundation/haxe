@@ -363,9 +363,9 @@ type context = {
 	(* communication *)
 	mutable print : string -> unit;
 	mutable error : ?depth:int -> string -> pos -> unit;
-	mutable located_error : ?depth:int -> located -> unit;
-	mutable info : ?depth:int -> string -> pos -> unit;
-	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable error_ext : Error.error -> unit;
+	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
+	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -415,7 +415,7 @@ type context = {
 	memory_marker : float array;
 }
 
-exception Abort of located
+exception Abort of Error.error
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
@@ -834,11 +834,11 @@ let create compilation_step cs version args =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun ?depth _ _ -> die "" __LOC__);
-		warning = (fun ?depth _ _ _ -> die "" __LOC__);
+		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
+		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [];
 		error = (fun ?depth _ _ -> die "" __LOC__);
-		located_error = (fun ?depth _ -> die "" __LOC__);
+		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -1026,8 +1026,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort_located ?depth msg = raise (Abort msg)
-let abort ?depth msg p = abort_located ~depth (located msg p)
+let abort ?(depth = 0) msg p = raise (Abort (Error.make_error ~depth (Custom msg) p))
 
 let platform ctx p = ctx.platform = p
 
@@ -1231,25 +1230,21 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message ?(depth = 0) com msg kind sev =
+let add_diagnostics_message ?(depth = 0) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
-	match (extract_located msg) with
-	| [] -> ()
-	| (s,p) :: [] ->
-		di.diagnostics_messages <- (s,p,kind,sev,depth) :: di.diagnostics_messages
-	| (s,p) :: stack ->
-		let stack_diag = (List.map (fun (s,p) -> (s,p,kind,sev,depth+1)) (List.rev stack)) in
-		di.diagnostics_messages <- stack_diag @ ((s,p,kind,sev,depth) :: di.diagnostics_messages)
+	di.diagnostics_messages <- (s,p,kind,sev,depth) :: di.diagnostics_messages
 
-let located_display_error com ?(depth = 0) msg =
-	if is_diagnostics com then
-		add_diagnostics_message ~depth com msg MessageKind.DKCompilerMessage MessageSeverity.Error
-	else
-		com.located_error msg ~depth
+let display_error_ext com err =
+	if is_diagnostics com then begin
+		Error.recurse_error (fun depth err ->
+			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
+		) err;
+	end else
+		com.error_ext err
 
 let display_error com ?(depth = 0) msg p =
-	located_display_error com ~depth (Globals.located msg p)
+	display_error_ext com (Error.make_error ~depth (Custom msg) p)
 
 open Printer
 
