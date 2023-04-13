@@ -149,20 +149,13 @@ let create com api is_macro =
 		match ex with
 		| Sys_exit _ -> raise ex
 		| _ ->
-			let msg =
-				match ex with
+			let msg = match ex with
 				| Error.Error err ->
-						(* TODO rewrite to use sub errors *)
-						(* TODO hook global error reporting *)
-						(* (match (extract_located (Error.error_msg p err)) with *)
-						(* | [] -> "" *)
-						(* | (s,_) :: [] -> s *)
-						(* | (s,_) :: stack -> *)
-						(* 	List.fold_left (fun acc (s,p) -> *)
-						(* 		Printf.sprintf "%s%s\n" acc (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") p) *)
-						(* 	) (s ^ "\n") stack *)
-						(* ); *)
-						assert false
+						let messages = ref [] in
+						Error.recurse_error (fun depth err ->
+							make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error
+						) err;
+						MessageReporting.format_messages com !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
