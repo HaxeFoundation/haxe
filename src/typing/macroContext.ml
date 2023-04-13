@@ -83,15 +83,15 @@ let macro_timer com l =
 
 let typing_timer ctx need_type f =
 	let t = Timer.timer ["typing"] in
-	let old = ctx.com.located_error and oldp = ctx.pass and oldlocals = ctx.locals in
+	let old = ctx.com.error and oldp = ctx.pass and oldlocals = ctx.locals in
 	let restore_report_mode = disable_report_mode ctx.com in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
 	(* TODO update commented out code *)
-	(*if ctx.com.display = DMNone then ctx.com.located_error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
+	(*if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
 
-	ctx.com.located_error <- (fun err ->
+	ctx.com.error <- (fun err ->
 		raise_error { err with err_from_macro = true });
 
 	if need_type && ctx.pass < PTypeField then begin
@@ -100,7 +100,7 @@ let typing_timer ctx need_type f =
 	end;
 	let exit() =
 		t();
-		ctx.com.located_error <- old;
+		ctx.com.error <- old;
 		ctx.pass <- oldp;
 		ctx.locals <- oldlocals;
 		restore_report_mode ();
@@ -271,7 +271,7 @@ let make_macro_com_api com p =
 		encode_expr = Interp.encode_expr;
 		encode_ctype = Interp.encode_ctype;
 		decode_type = Interp.decode_type;
-		display_error = display_error com;
+		display_error_msg = display_error_msg com;
 		with_imports = (fun imports usings f ->
 			Interp.exc_string "unsupported"
 		);
@@ -618,8 +618,8 @@ let create_macro_interp api mctx =
 			Interp.do_reuse mint api;
 			mint, (fun() -> ())
 	) in
-	let on_error = com2.located_error in
-	com2.located_error <- (fun err ->
+	let on_error = com2.error in
+	com2.error <- (fun err ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
 		on_error { err with err_from_macro = true }
@@ -941,7 +941,7 @@ let call_init_macro ctx e =
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
 		end
 	with err ->
-		display_error ctx.com ("Could not parse `" ^ e ^ "`") p;
+		display_error_msg ctx.com ("Could not parse `" ^ e ^ "`") p;
 		raise err
 	in
 	match fst e with

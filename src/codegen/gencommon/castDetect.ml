@@ -86,7 +86,7 @@ struct
 			match e.eexpr with
 			| TReturn (eopt) ->
 				(* a return must be inside a function *)
-				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; die "" __LOC__ in
+				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error_msg "Invalid return outside function declaration." e.epos; die "" __LOC__ in
 				(match eopt with
 				| None when not (ExtType.is_void ret_type) ->
 					Texpr.Builder.mk_return (null ret_type e.epos)
@@ -951,7 +951,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 	| FClassField (cl,params,_,cf,_,actual_t,_) ->
 		return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
 	| FEnumField (en, efield, true) ->
-		let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; die "" __LOC__ | Some ecall -> ecall in
+		let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error_msg "This field should be called immediately" ef.epos; die "" __LOC__ | Some ecall -> ecall in
 		(match en.e_params with
 			(*
 			| [] ->

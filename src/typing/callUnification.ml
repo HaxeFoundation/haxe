@@ -400,7 +400,7 @@ let unify_field_call ctx fa el_typed el p inline =
 					) :: acc
 				) [] failures in
 
-				located_display_error ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
+				display_error ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
 				raise_typing_error (make_error ~depth:1 (Custom "End of overload failure reasons") p)
 			end
 		in
@@ -411,10 +411,10 @@ let unify_field_call ctx fa el_typed el p inline =
 				commit_delayed_display fcc
 			| fcc :: l ->
 				(* TODO construct error with sub *)
-				display_error ctx.com "Ambiguous overload, candidates follow" p;
+				display_error_msg ctx.com "Ambiguous overload, candidates follow" p;
 				let st = s_type (print_context()) in
 				List.iter (fun fcc ->
-					display_error ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
+					display_error_msg ~depth:1 ctx.com (compl_msg (st fcc.fc_type)) fcc.fc_field.cf_name_pos;
 				) (fcc :: l);
 				commit_delayed_display fcc
 		end else begin match List.rev candidates with
@@ -439,7 +439,7 @@ object(self)
 			!type_generic_function_ref ctx fa fcc with_type p
 		end else begin
 			if has_class_field_flag fcc.fc_field CfAbstract then begin match fa.fa_on.eexpr with
-				| TConst TSuper -> display_error ctx.com (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
+				| TConst TSuper -> display_error_msg ctx.com (Printf.sprintf "abstract method %s cannot be accessed directly" fcc.fc_field.cf_name) p;
 				| _ -> ()
 			end;
 			fcc.fc_data()
@@ -480,8 +480,8 @@ object(self)
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
-		let old = ctx.com.located_error in
-		ctx.com.located_error <- (fun err ->
+		let old = ctx.com.error in
+		ctx.com.error <- (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
@@ -496,12 +496,12 @@ object(self)
 		let e = try
 			f()
 		with exc ->
-			ctx.com.located_error <- old;
+			ctx.com.error <- old;
 			!ethis_f();
 			raise exc
 		in
 		let e = Diagnostics.secure_generated_code ctx e in
-		ctx.com.located_error <- old;
+		ctx.com.error <- old;
 		!ethis_f();
 		e
 

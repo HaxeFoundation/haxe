@@ -270,12 +270,12 @@ module Pattern = struct
 			if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 		in
 		let catch_errors () =
-			let old = ctx.com.located_error in
+			let old = ctx.com.error in
 			let restore_report_mode = disable_report_mode ctx.com in
-			ctx.com.located_error <- (fun _ -> raise Exit);
+			ctx.com.error <- (fun _ -> raise Exit);
 			(fun () ->
 				restore_report_mode();
-				ctx.com.located_error <- old
+				ctx.com.error <- old
 			)
 		in
 		let try_typing e =
@@ -313,7 +313,7 @@ module Pattern = struct
 				with _ ->
 					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-						display_error ctx.com ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
+						display_error_msg ctx.com ("Unknown identifier : " ^ s ^ ", pattern variables must be lower-case or with `var ` prefix") p;
 					end;
 					begin match StringError.get_similar s (get_enumerable_idents()) with
 						| [] ->

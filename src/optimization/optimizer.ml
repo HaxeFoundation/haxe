@@ -103,7 +103,7 @@ let sanitize_expr com e =
 				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
 				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_params tl a.a_this)
-				| _ -> com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
+				| _ -> com.error_msg ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
 			in
 			loop e.etype
 		end;

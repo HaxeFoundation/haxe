@@ -1179,7 +1179,7 @@ let generate con =
 				| TLocal _ -> e
 				| TCast(e,_)
 				| TParenthesis e | TMeta(_,e) -> ensure_local e explain
-				| _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
+				| _ -> gen.gcon.error_msg ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
 		in
 
 		let rec ensure_refout e explain =
@@ -1187,7 +1187,7 @@ let generate con =
 				| TField _ | TLocal _ -> e
 				| TCast(e,_)
 				| TParenthesis e | TMeta(_,e) -> ensure_refout e explain
-				| _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
+				| _ -> gen.gcon.error_msg ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
 		in
 
 		let last_line = ref (-1) in
@@ -1564,14 +1564,14 @@ let generate con =
 								done
 							| _ ->
 								trace (debug_expr e);
-								gen.gcon.error "Invalid 'fixed' keyword format" e.epos
+								gen.gcon.error_msg "Invalid 'fixed' keyword format" e.epos
 						in
 						(match e.eexpr with
 							| TBlock bl -> loop bl
 							| _ ->
 								trace "not block";
 								trace (debug_expr e);
-								gen.gcon.error "Invalid 'fixed' keyword format" e.epos
+								gen.gcon.error_msg "Invalid 'fixed' keyword format" e.epos
 						)
 					| TCall ({ eexpr = TIdent "__addressOf__" }, [ e ] ) ->
 						let e = ensure_local e "for addressOf" in
@@ -1895,7 +1895,7 @@ let generate con =
 				write w ".";
 				write w f
 			| _, p ->
-				gen.gcon.error "Invalid expression inside @:meta metadata" p
+				gen.gcon.error_msg "Invalid expression inside @:meta metadata" p
 		in
 
 		let rec gen_spart w = function
@@ -1906,7 +1906,7 @@ let generate con =
 					write w "\"";
 					write w (escape s);
 					write w "\""
-				| _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
+				| _ -> gen.gcon.error_msg "Invalid expression inside @:meta metadata" p)
 			| EField( ef, f, _ ), _ ->
 				gen_spart w ef;
 				write w ".";
@@ -1933,7 +1933,7 @@ let generate con =
 				) args;
 				write w ")"
 			| _, p ->
-				gen.gcon.error "Invalid expression inside @:meta metadata" p
+				gen.gcon.error_msg "Invalid expression inside @:meta metadata" p
 		in
 
 		let gen_assembly_attributes w metadata =
@@ -2012,7 +2012,7 @@ let generate con =
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
 					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__ in
 					let combination_error c1 c2 =
-						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
+						gen.gcon.error_msg ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
 
 					let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> get_param_name tp.ttp_type) cl_params)) in
 					let params_extends =
@@ -2150,8 +2150,8 @@ let generate con =
 
 			let check cf = match cf with
 				| Some ({ cf_overloads = o :: _ } as cf) ->
-						gen.gcon.error "Property functions with more than one overload is currently unsupported" cf.cf_pos;
-						gen.gcon.error "Property functions with more than one overload is currently unsupported" o.cf_pos
+						gen.gcon.error_msg "Property functions with more than one overload is currently unsupported" cf.cf_pos;
+						gen.gcon.error_msg "Property functions with more than one overload is currently unsupported" o.cf_pos
 				| _ -> ()
 			in
 			check get;
@@ -2253,7 +2253,7 @@ let generate con =
 				| Var _
 				| Method (MethDynamic) when Type.is_physical_field cf ->
 					(if is_overload || List.exists (fun cf -> cf.cf_expr <> None) cf.cf_overloads then
-						gen.gcon.error "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
+						gen.gcon.error_msg "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
 					if not is_interface then begin
 						let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
 						let modifiers = modifiers @ modf in
@@ -2288,7 +2288,7 @@ let generate con =
 						(match cf.cf_expr with
 							| Some e ->
 								if not (check_empty e) then
-									gen.gcon.error "The body of a zero argument constructor of a struct should be empty" e.epos
+									gen.gcon.error_msg "The body of a zero argument constructor of a struct should be empty" e.epos
 							| _ -> ());
 						List.iter (fun cf ->
 							if (has_class_flag cl CInterface) || cf.cf_expr <> None then
@@ -2478,7 +2478,7 @@ let generate con =
 				let idx_t, v_t = match follow get.cf_type with
 					| TFun([_,_,arg_t],ret_t) ->
 						t_s (run_follow gen arg_t), t_s (run_follow gen ret_t)
-					| _ -> gen.gcon.error "The __get function must be a function with one argument. " get.cf_pos; die "" __LOC__
+					| _ -> gen.gcon.error_msg "The __get function must be a function with one argument. " get.cf_pos; die "" __LOC__
 				in
 				List.iter (fun (cl,args) ->
 					match cl.cl_array_access with
@@ -2528,7 +2528,7 @@ let generate con =
 								newline w;
 								newline w
 							| _ ->
-								gen.gcon.error "A toString() function should return a String!" cf.cf_pos
+								gen.gcon.error_msg "A toString() function should return a String!" cf.cf_pos
 						)
 					| _ -> ()
 				)
@@ -2550,7 +2550,7 @@ let generate con =
 								newline w;
 								newline w
 							| _ ->
-								gen.gcon.error "A finalize() function should be Void->Void!" cf.cf_pos
+								gen.gcon.error_msg "A finalize() function should be Void->Void!" cf.cf_pos
 						)
 					| _ -> ()
 				)
@@ -2602,9 +2602,9 @@ let generate con =
 		let gen_class w cl is_first_type =
 			if (is_first_type == false) then begin
 				if Meta.has Meta.AssemblyStrict cl.cl_meta then
-					gen.gcon.error "@:cs.assemblyStrict can only be used on the first class of a module" cl.cl_pos
+					gen.gcon.error_msg "@:cs.assemblyStrict can only be used on the first class of a module" cl.cl_pos
 				else if Meta.has Meta.AssemblyMeta cl.cl_meta then
-					gen.gcon.error "@:cs.assemblyMeta can only be used on the first class of a module" cl.cl_pos;
+					gen.gcon.error_msg "@:cs.assemblyMeta can only be used on the first class of a module" cl.cl_pos;
 			end;
 
 			write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
@@ -2614,9 +2614,9 @@ let generate con =
 					(* Should the assembly annotations be added to the class in this case? *)
 
 					if Meta.has Meta.AssemblyStrict cl.cl_meta then
-						gen.gcon.error "@:cs.assemblyStrict cannot be used on top level modules" cl.cl_pos
+						gen.gcon.error_msg "@:cs.assemblyStrict cannot be used on top level modules" cl.cl_pos
 					else if Meta.has Meta.AssemblyMeta cl.cl_meta then
-						gen.gcon.error "@:cs.assemblyMeta cannot be used on top level modules" cl.cl_pos;
+						gen.gcon.error_msg "@:cs.assemblyMeta cannot be used on top level modules" cl.cl_pos;
 
 					false
 				| ns ->
@@ -2886,14 +2886,14 @@ let generate con =
 						(if (Meta.has Meta.CsUsing cl.cl_meta) then
 							match (Meta.get Meta.CsUsing cl.cl_meta) with
 								| _,_,p when not !is_first_type ->
-									gen.gcon.error "@:cs.using can only be used on the first type of a module" p
+									gen.gcon.error_msg "@:cs.using can only be used on the first type of a module" p
 								| _,[],p ->
-									gen.gcon.error "One or several string constants expected" p
+									gen.gcon.error_msg "One or several string constants expected" p
 								| _,e,_ ->
 									(List.iter (fun e ->
 										match e with
 										| (EConst(String(s,_))),_ -> write w (Printf.sprintf "using %s;\n" s)
-										| _,p -> gen.gcon.error "One or several string constants expected" p
+										| _,p -> gen.gcon.error_msg "One or several string constants expected" p
 									) e);
 									newline w
 						);
@@ -2999,7 +2999,7 @@ let generate con =
 						let e = { e with eexpr = TParenthesis(e) } in
 						{ (mk_field_access gen e "value" e.epos) with etype = t }
 					| _ ->
-						trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; die "" __LOC__
+						trace (debug_type e.etype); gen.gcon.error_msg "This expression is not a Nullable expression" e.epos; die "" __LOC__
 			)
 			(fun v t has_value ->
 				match has_value, real_type v.etype with
@@ -3503,7 +3503,7 @@ let generate con =
 			fields.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun (i,s) -> { eexpr = TConst(TString s); etype = basic.tstring; epos = fields.cf_pos }) hashes) fields.cf_pos);
 
 		with | Not_found ->
-			gen.gcon.error "Fields 'fieldIds' and 'fields' were not found in class haxe.lang.FieldLookup" flookup_cl.cl_pos
+			gen.gcon.error_msg "Fields 'fieldIds' and 'fields' were not found in class haxe.lang.FieldLookup" flookup_cl.cl_pos
 		);
 
 		if Common.defined gen.gcon Define.DllImport then begin
@@ -3564,5 +3564,5 @@ let generate con =
 		end
 
 	with TypeNotFound path ->
-		con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.") null_pos);
+		con.error_msg ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.") null_pos);
 	debug_mode := false

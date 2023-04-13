@@ -43,7 +43,7 @@ let ensure_simple_expr com e =
 			Type.iter iter e
 		| _ ->
 			print_endline (debug_expr e);
-			com.error "Expression is too complex for a readonly variable initialization" e.epos
+			com.error_msg "Expression is too complex for a readonly variable initialization" e.epos
 	in
 	iter e
 

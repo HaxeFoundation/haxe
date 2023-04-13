@@ -123,8 +123,8 @@ let inline_constructors ctx original_e =
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
 					(* TODO construct error with sub *)
-					display_error ctx.com "Forced inline constructor could not be inlined" io.io_pos;
-					display_error ~depth:1 ctx.com (compl_msg "Cancellation happened here") p;
+					display_error_msg ctx.com "Forced inline constructor could not be inlined" io.io_pos;
+					display_error_msg ~depth:1 ctx.com (compl_msg "Cancellation happened here") p;
 				end
 			| _ -> ()
 		end
@@ -400,7 +400,7 @@ let inline_constructors ctx original_e =
 						Some iv
 					| _ ->
 						List.iter (fun v -> cancel_v v v.v_pos) argvs;
-						if is_extern_ctor c cf then display_error ctx.com "Extern constructor could not be inlined" e.epos;
+						if is_extern_ctor c cf then display_error_msg ctx.com "Extern constructor could not be inlined" e.epos;
 						None
 				end
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->

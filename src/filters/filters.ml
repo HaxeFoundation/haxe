@@ -71,7 +71,7 @@ module LocalStatic = struct
 		let name = Printf.sprintf "%s_%s" ctx.curfield.cf_name v.v_name in
 		begin try
 			let cf = PMap.find name ctx.curclass.cl_statics in
-			display_error ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
+			display_error_msg ctx.com (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name) v.v_pos;
 			typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
 		with Not_found ->
 			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
@@ -591,7 +591,7 @@ let check_cs_events com t = match t with
 						try
 							type_eq EqStrict m.cf_type tmeth
 						with Unify_error el ->
-							List.iter (fun e -> com.error (unify_error_msg (print_context()) e) m.cf_pos) el
+							List.iter (fun e -> com.error_msg (unify_error_msg (print_context()) e) m.cf_pos) el
 					end;
 
 					(*

@@ -88,7 +88,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 
 let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
-		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
+		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error_msg ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
 		let et = type_module_type ctx (TClassDecl c) None p in
@@ -98,7 +98,7 @@ let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error_msg ctx.com "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
@@ -166,12 +166,12 @@ let rec acc_get ctx g =
 			let e_def = FieldAccess.get_field_expr fa FRead in
 			begin match follow fa.fa_on.etype with
 				| TInst (c,_) when chk_class c ->
-					display_error ctx.com "Can't create closure on an extern inline member method" p;
+					display_error_msg ctx.com "Can't create closure on an extern inline member method" p;
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
 						| Statics c when has_class_field_flag cf CfExtern ->
-							display_error ctx.com "Cannot create closure on @:extern inline method" p;
+							display_error_msg ctx.com "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
 						| _ -> e_def
@@ -275,7 +275,7 @@ let rec acc_get ctx g =
 let check_dynamic_super_method_call ctx fa p =
 	match fa with
 	| { fa_on = { eexpr = TConst TSuper } ; fa_field = { cf_kind = Method MethDynamic; cf_name = name } } ->
-		ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p
+		ctx.com.error_msg ("Cannot call super." ^ name ^ " since it's a dynamic method") p
 	| _ ->
 		()
 

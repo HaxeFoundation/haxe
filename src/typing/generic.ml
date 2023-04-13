@@ -293,8 +293,8 @@ let rec build_generic_class ctx c p tl =
 						begin match cf_old.cf_kind with
 							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) && not (has_class_field_flag cf_old CfAbstract) ->
 								(* TODO use sub error *)
-								display_error ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
-								display_error ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
+								display_error_msg ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
+								display_error_msg ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
 								()
 						end
@@ -418,14 +418,14 @@ let type_generic_function ctx fa fcc with_type p =
 				let rec check e = match e.eexpr with
 					| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 						(* TODO use sub error *)
-						display_error ctx.com "Only generic type parameters can be constructed" e.epos;
-						display_error ctx.com "While specializing this call" p;
+						display_error_msg ctx.com "Only generic type parameters can be constructed" e.epos;
+						display_error_msg ctx.com "While specializing this call" p;
 					| _ ->
 						Type.iter check e
 				in
 				cf2.cf_expr <- (match cf.cf_expr with
 					| None ->
-						display_error ctx.com "Recursive @:generic function" p; None;
+						display_error_msg ctx.com "Recursive @:generic function" p; None;
 					| Some e ->
 						let e = generic_substitute_expr gctx e in
 						check e;

@@ -27,7 +27,7 @@ let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
 			let color = if ExtString.String.starts_with color "0x" then color else "0x" ^ color in
 			Some (int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
 		| _ ->
-			error ctx "Invalid SWF header format, expected width:height:fps[:color]" null_pos;
+			error_msg ctx "Invalid SWF header format, expected width:height:fps[:color]" null_pos;
 			None
 
 let delete_file f = try Sys.remove f with _ -> ()

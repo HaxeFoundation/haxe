@@ -340,7 +340,7 @@ let set_hxgeneric gen md =
 			| ReasonExplicit ->
 				"because it explicitly has the metadata @:nativeGeneric set"
 		in
-		gen.gcon.error (reason) pos;
+		gen.gcon.error_msg (reason) pos;
 		Globals.die "" __LOC__
 
 let params_has_tparams params =

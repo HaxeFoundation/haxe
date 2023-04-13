@@ -1492,16 +1492,16 @@ module Printer = struct
 				let interpolate () =
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let old = pctx.pc_com.located_error in
-				pctx.pc_com.located_error <- abort_located;
-				Std.finally (fun() -> pctx.pc_com.located_error <- old) interpolate ();
+				let old = pctx.pc_com.error in
+				pctx.pc_com.error <- (fun err -> raise (Abort err));
+				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
 			| ("python_Syntax.code"), [e] ->
 				(match e.eexpr with
 					| TConst (TString py) -> ()
-					| _ -> pctx.pc_com.error "First argument of python.Syntax.code() must be a constant string." e1.epos
+					| _ -> pctx.pc_com.error_msg "First argument of python.Syntax.code() must be a constant string." e1.epos
 				);
 				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->

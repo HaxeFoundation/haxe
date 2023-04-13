@@ -91,7 +91,7 @@ let replace_super_call com c tl with_params me p follow_type =
 					false
 			) (cf :: cf.cf_overloads)
 		with Not_found ->
-			com.error "No suitable overload for the super call arguments was found" p; cf
+			com.error_msg "No suitable overload for the super call arguments was found" p; cf
 	in
 	{
 		eexpr = TCall(
@@ -160,7 +160,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 				(* last static function was not found *)
 				actual_super_call := Some e;
 				if not is_first then
-					com.error "Super call must be the first call when extending native types" e.epos;
+					com.error_msg "Super call must be the first call when extending native types" e.epos;
 				{ e with eexpr = TBlock([]) })
 			| TFunction tf when is_first ->
 				do_map ~is_first:true e
@@ -292,7 +292,7 @@ let ensure_super_is_first com cf =
 		| TBlock []
 		| TCall({ eexpr = TConst TSuper },_) -> ()
 		| _ ->
-			com.error "Types that derive from a native class must have its super() call as the first statement in the constructor" cf.cf_pos
+			com.error_msg "Types that derive from a native class must have its super() call as the first statement in the constructor" cf.cf_pos
 	in
 	match cf.cf_expr with
 	| None -> ()

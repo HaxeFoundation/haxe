@@ -396,7 +396,7 @@ module Communication = struct
 				| "classic" -> compiler_message_string ctx ectx
 				| m -> begin
 					let def = Define.get_define_key def in
-					error ctx (Printf.sprintf "Invalid message reporting mode: \"%s\", expected classic | pretty | indent (for -D %s)." m def) null_pos;
+					error_msg ctx (Printf.sprintf "Invalid message reporting mode: \"%s\", expected classic | pretty | indent (for -D %s)." m def) null_pos;
 					compiler_message_string ctx ectx
 				end
 			in
@@ -431,7 +431,7 @@ module Communication = struct
 			end with
 				| Failure e | Sys_error e -> begin
 					let def = Define.get_define_key Define.MessagesLogFile in
-					error ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
+					error_msg ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
 					log_messages := false;
 				end
 		end;

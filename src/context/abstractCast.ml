@@ -113,7 +113,7 @@ and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
 	with Error ({ err_message = Unify _ } as err) ->
-		raise_or_display_error ctx err;
+		raise_or_display_error_msg ctx err;
 		eright
 
 let prepare_array_access_field ctx a pl cf p =
