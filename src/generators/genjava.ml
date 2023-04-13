@@ -689,7 +689,7 @@ struct
 					"numToLong"
 				| TInst({ cl_path = (["java";"lang"],"Short") },[]) ->
 					"numToShort"
-				| _ -> gen.gcon.error_msg ("Invalid boxed type " ^ (debug_type boxed_t)) expr.epos; die "" __LOC__
+				| _ -> gen.gcon.error ("Invalid boxed type " ^ (debug_type boxed_t)) expr.epos; die "" __LOC__
 			in
 			{
 				eexpr = TCall(
@@ -1183,7 +1183,7 @@ let generate con =
 		let rec loop = function
 			| (pack, n) :: _ when name = n ->
 					if path <> (pack,n) then
-						gen.gcon.error_msg ("This expression cannot be generated because " ^ path_s path meta ^ " is shadowed by the current scope and ") pos
+						gen.gcon.error ("This expression cannot be generated because " ^ path_s path meta ^ " is shadowed by the current scope and ") pos
 			| _ :: tl ->
 					loop tl
 			| [] ->
@@ -1195,13 +1195,13 @@ let generate con =
 
 	let path_s_import pos path meta = match path with
 		| [], name when PMap.mem name !scope ->
-				gen.gcon.error_msg ("This expression cannot be generated because " ^ name ^ " is shadowed by the current scope") pos;
+				gen.gcon.error ("This expression cannot be generated because " ^ name ^ " is shadowed by the current scope") pos;
 				name
 		| pack1 :: _, name when PMap.mem pack1 !scope -> (* exists in scope *)
 				add_import pos path meta;
 				(* check if name exists in scope *)
 				if PMap.mem name !scope then
-					gen.gcon.error_msg ("This expression cannot be generated because " ^ pack1 ^ " and " ^ name ^ " are both shadowed by the current scope") pos;
+					gen.gcon.error ("This expression cannot be generated because " ^ pack1 ^ " and " ^ name ^ " are both shadowed by the current scope") pos;
 				name
 		| _ -> path_s path meta
 	in
@@ -1826,7 +1826,7 @@ let generate con =
 			write w ".";
 			write w f
 		| _, p ->
-			gen.gcon.error_msg "Invalid expression inside @:meta metadata" p
+			gen.gcon.error "Invalid expression inside @:meta metadata" p
 	in
 
 	let rec gen_spart w = function
@@ -1837,7 +1837,7 @@ let generate con =
 				write w "\"";
 				write w (escape s);
 				write w "\""
-			| _ -> gen.gcon.error_msg "Invalid expression inside @:meta metadata" p)
+			| _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
 		| EField( ef, f, _ ), _ ->
 			gen_spart w ef;
 			write w ".";
@@ -1864,7 +1864,7 @@ let generate con =
 			) args;
 			write w ")"
 		| _, p ->
-			gen.gcon.error_msg "Invalid expression inside @:meta metadata" p
+			gen.gcon.error "Invalid expression inside @:meta metadata" p
 	in
 
 	let gen_annotations w ?(add_newline=true) metadata =
@@ -1937,7 +1937,7 @@ let generate con =
 			| Var _
 			| Method (MethDynamic) when Type.is_physical_field cf ->
 				(if is_overload || List.exists (fun cf -> cf.cf_expr <> None) cf.cf_overloads then
-					gen.gcon.error_msg "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
+					gen.gcon.error "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
 				if not is_interface then begin
 					let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
 					write_parts w (access :: (if is_static then "static" else "") :: modifiers @ [(t_s cf.cf_pos (run_follow gen cf.cf_type)); (change_field name)]);
@@ -1975,7 +1975,7 @@ let generate con =
 							| TFun([], ret) ->
 								(match real_type ret with
 									| TInst( { cl_path = ([], "String") }, []) -> true
-									| _ -> gen.gcon.error_msg "A toString() function should return a String!" cf.cf_pos; false
+									| _ -> gen.gcon.error "A toString() function should return a String!" cf.cf_pos; false
 								)
 							| _ -> has_class_field_flag cf CfOverride
 						)
@@ -1985,7 +1985,7 @@ let generate con =
 								(match real_type ret with
 									| TAbstract ({ a_path = ([], "Int") },[]) ->
 										true
-									| _ -> gen.gcon.error_msg "A hashCode() function should return an Int!" cf.cf_pos; false
+									| _ -> gen.gcon.error "A hashCode() function should return an Int!" cf.cf_pos; false
 								)
 							| _ -> has_class_field_flag cf CfOverride
 						)
@@ -2719,5 +2719,5 @@ let generate con =
 		Sys.chdir old_dir;
 	end
 
-	with TypeNotFound path -> con.error_msg ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.") null_pos);
+	with TypeNotFound path -> con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.") null_pos);
 	debug_mode := false

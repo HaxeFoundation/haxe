@@ -362,8 +362,8 @@ type context = {
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : Error.error -> unit;
-	mutable error_msg : ?depth:int -> string -> pos -> unit;
+	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
 	mutable warning : ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
@@ -837,8 +837,8 @@ let create compilation_step cs version args =
 		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
 		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [];
-		error = (fun _ -> die "" __LOC__);
-		error_msg = (fun ?depth _ _ -> die "" __LOC__);
+		error = (fun ?depth _ _ -> die "" __LOC__);
+		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -1241,7 +1241,7 @@ let display_error com err =
 			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
 		) err;
 	end else
-		com.error err
+		com.error_ext err
 
 let display_error_msg com ?(depth = 0) msg p =
 	display_error com (Error.make_error ~depth (Custom msg) p)

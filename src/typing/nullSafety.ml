@@ -1682,7 +1682,7 @@ let run (com:Common.context) (types:module_type list) =
 	timer();
 	match com.callbacks#get_null_safety_report with
 		| [] ->
-			List.iter (fun err -> com.error_msg err.sm_msg err.sm_pos) (List.rev report.sr_errors)
+			List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
 		| callbacks ->
 			let errors =
 				List.map (fun err -> (err.sm_msg, err.sm_pos)) report.sr_errors

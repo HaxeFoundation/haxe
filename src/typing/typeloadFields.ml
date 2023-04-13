@@ -580,7 +580,7 @@ let create_typer_context_for_class ctx cctx p =
 	locate_macro_error := true;
 	incr stats.s_classes_built;
 	let c = cctx.tclass in
-	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error_msg "@:libType can only be used in extern classes" c.cl_pos;
+	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
 	if Meta.has Meta.Macro c.cl_meta then display_error_msg ctx.com "Macro classes are no longer allowed in haxe 3" c.cl_pos;
 	let ctx = {
 		ctx with
@@ -1814,7 +1814,7 @@ let init_class ctx c p context_init herits fields =
 			| FKConstructor ->
 				begin match c.cl_super with
 				| Some ({ cl_constructor = Some ctor_sup } as c, _) when not (has_class_flag c CExtern) && has_class_field_flag ctor_sup CfFinal ->
-					ctx.com.error_msg "Cannot override final constructor" cf.cf_pos
+					ctx.com.error "Cannot override final constructor" cf.cf_pos
 				| _ -> ()
 				end;
 				begin match c.cl_constructor with

@@ -607,7 +607,7 @@ let new_ctx con =
 				mk_cast t { eexpr = TCall(fieldcall, [obj; field]); etype = t_dynamic; epos = obj.epos }
 			);
 
-			r_create_empty = (fun _ _ pos -> gen.gcon.error_msg "r_create_empty implementation is not provided" pos; die "" __LOC__);
+			r_create_empty = (fun _ _ pos -> gen.gcon.error "r_create_empty implementation is not provided" pos; die "" __LOC__);
 		};
 		gexpr_filters = new rule_map_dispatcher "gexpr_filters";
 		gmodule_filters = new rule_map_dispatcher "gmodule_filters";
@@ -730,9 +730,9 @@ let run_filters_from gen t filters =
 		()
 
 let run_filters gen =
-	let last_error = gen.gcon.error in
+	let last_error = gen.gcon.error_ext in
 	let has_errors = ref false in
-	gen.gcon.error <- (fun err -> has_errors := true; last_error err);
+	gen.gcon.error_ext <- (fun err -> has_errors := true; last_error err);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);

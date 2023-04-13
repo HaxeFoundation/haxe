@@ -480,8 +480,8 @@ object(self)
 		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
-		let old = ctx.com.error in
-		ctx.com.error <- (fun err ->
+		let old = ctx.com.error_ext in
+		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
@@ -496,12 +496,12 @@ object(self)
 		let e = try
 			f()
 		with exc ->
-			ctx.com.error <- old;
+			ctx.com.error_ext <- old;
 			!ethis_f();
 			raise exc
 		in
 		let e = Diagnostics.secure_generated_code ctx e in
-		ctx.com.error <- old;
+		ctx.com.error_ext <- old;
 		!ethis_f();
 		e
 

@@ -177,7 +177,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 						else
 							{ ret with eexpr = TBlock(block @ [ret]) }
 					with Not_found ->
-						gen.gcon.error_msg "This delegate construct is unsupported" e.epos;
+						gen.gcon.error "This delegate construct is unsupported" e.epos;
 						replace_delegate (run clean))
 
 			| TCall(({ eexpr = TIdent "__unsafe__" } as local), [arg]) ->
@@ -380,7 +380,7 @@ let configure gen ft =
 			| TFunction(_) ->
 				{ fexpr with eexpr = TFunction(tfunc) }
 			| _ ->
-				gen.gcon.error_msg "Function expected" fexpr.epos;
+				gen.gcon.error "Function expected" fexpr.epos;
 				fexpr
 		in
 		let in_unsafe = mapinfo.in_unsafe || match gen.gcurrent_class, gen.gcurrent_classfield with

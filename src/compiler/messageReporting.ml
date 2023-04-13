@@ -339,7 +339,7 @@ let display_messages ctx on_message = begin
 	let get_formatter _ _ def default =
 		try get_formatter ctx.com ectx def default
 		with | ConfigError s ->
-			error_msg ctx s null_pos;
+			error ctx s null_pos;
 			compiler_message_string
 	in
 
@@ -373,7 +373,7 @@ let display_messages ctx on_message = begin
 		end with
 			| Failure e | Sys_error e -> begin
 				let def = Define.get_define_key Define.MessagesLogFile in
-				error_msg ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
+				error ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
 				log_messages := false;
 			end
 	end;

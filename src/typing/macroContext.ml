@@ -83,13 +83,13 @@ let macro_timer com l =
 
 let typing_timer ctx need_type f =
 	let t = Timer.timer ["typing"] in
-	let old = ctx.com.error and oldp = ctx.pass and oldlocals = ctx.locals in
+	let old = ctx.com.error_ext and oldp = ctx.pass and oldlocals = ctx.locals in
 	let restore_report_mode = disable_report_mode ctx.com in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
 	(* if ctx.com.display.dms_kind = DMNone then ctx.com.error <- (fun e -> raise_error e); *) (* TODO: review this... *)
-	ctx.com.error <- (fun err -> raise_error { err with err_from_macro = true });
+	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
 
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;
@@ -97,7 +97,7 @@ let typing_timer ctx need_type f =
 	end;
 	let exit() =
 		t();
-		ctx.com.error <- old;
+		ctx.com.error_ext <- old;
 		ctx.pass <- oldp;
 		ctx.locals <- oldlocals;
 		restore_report_mode ();
@@ -615,8 +615,8 @@ let create_macro_interp api mctx =
 			Interp.do_reuse mint api;
 			mint, (fun() -> ())
 	) in
-	let on_error = com2.error in
-	com2.error <- (fun err ->
+	let on_error = com2.error_ext in
+	com2.error_ext <- (fun err ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
 		on_error { err with err_from_macro = true }

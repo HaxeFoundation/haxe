@@ -351,7 +351,7 @@ let handle_type_path_exception ctx p c is_import pos =
 				let ctx = Typer.create com in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
 		end with Common.Abort msg ->
-			error ctx msg;
+			error_ext ctx msg;
 			None
 	in
 	begin match ctx.com.json_out,fields with
