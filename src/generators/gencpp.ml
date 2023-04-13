@@ -1280,10 +1280,6 @@ and is_dynamic_in_cppia ctx expr =
    | _ -> is_dynamic_in_cpp ctx expr
 ;;
 
-let cast_if_required ctx expr to_type =
-   if (is_dynamic_in_cpp ctx expr) then
-      ctx.ctx_output (".Cast< " ^ to_type ^ " >()" )
-;;
 
 
 let is_matching_interface_type t0 t1 =
@@ -3200,6 +3196,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                | TCppPointer(_,_)
                | TCppRawPointer(_,_)
                | TCppStar(_)
+               | TCppCallable(_,_)
                | TCppInst(_) -> CppCast(baseCpp,return_type), return_type
                | TCppString -> CppCastScalar(baseCpp,"::String"), return_type
                | TCppCode(t) when baseStr <> (tcpp_to_string t)  ->
@@ -3257,6 +3254,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppDynamicArray
          | TCppObjectPtr
          | TCppVarArg
+         | TCppCallable (_, _)
          | TCppInst _
              -> mk_cppexpr (CppCast(cppExpr,return_type)) return_type
 
