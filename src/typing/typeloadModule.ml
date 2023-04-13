@@ -70,7 +70,7 @@ module ModuleLevel = struct
 			DeprecationCheck.check_is com meta [] name meta p;
 			let error prev_pos =
 				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
-				typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
+				raise_typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
 			in
 			List.iter (fun (t2,(_,p2)) ->
 				if snd (t_path t2) = name then error (t_infos t2).mt_name_pos
@@ -93,7 +93,7 @@ module ModuleLevel = struct
 			in
 			let acc = (match fst decl with
 			| EImport _ | EUsing _ ->
-				if !has_declaration then typing_error "import and using may not appear after a declaration" p;
+				if !has_declaration then raise_typing_error "import and using may not appear after a declaration" p;
 				acc
 			| EStatic d ->
 				check_name (fst d.d_name) d.d_meta false (snd d.d_name);
@@ -107,7 +107,7 @@ module ModuleLevel = struct
 				let path = make_path name priv d.d_meta (snd d.d_name) in
 				let c = mk_class m path p (pos d.d_name) in
 				(* we shouldn't load any other type until we propertly set cl_build *)
-				c.cl_build <- (fun() -> typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
+				c.cl_build <- (fun() -> raise_typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
 				c.cl_module <- m;
 				c.cl_private <- priv;
 				c.cl_doc <- d.d_doc;
@@ -131,7 +131,7 @@ module ModuleLevel = struct
 				has_declaration := true;
 				let priv = List.mem EPrivate d.d_flags in
 				let path = make_path name priv d.d_meta p in
-				if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
+				if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 				let e = {
 					e_path = path;
 					e_module = m;
@@ -304,7 +304,7 @@ module ModuleLevel = struct
 						| ParseSuccess(data,_,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
-					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> typing_error "Only import and using is allowed in import.hx files" p) r;
+					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
 					add_dependency m (make_import_module path r);
 					r
 				end else begin
@@ -326,7 +326,7 @@ module ModuleLevel = struct
 				c.cl_params <- type_type_params ctx TPHType c.cl_path (fun() -> c.cl_params) p d.d_params;
 				if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 				if Meta.has Meta.GenericBuild c.cl_meta then begin
-					if ctx.com.is_macro_context then typing_error "@:genericBuild cannot be used in macros" c.cl_pos;
+					if ctx.com.is_macro_context then raise_typing_error "@:genericBuild cannot be used in macros" c.cl_pos;
 					c.cl_kind <- KGenericBuild d.d_data;
 				end;
 				if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
@@ -356,7 +356,7 @@ module TypeLevel = struct
 				| TEnum (te,_) when te == e ->
 					()
 				| _ ->
-					typing_error "Explicit enum type must be of the same enum type" pt);
+					raise_typing_error "Explicit enum type must be of the same enum type" pt);
 				t
 		) in
 		let t = (match c.ec_args with
@@ -365,8 +365,8 @@ module TypeLevel = struct
 				is_flat := false;
 				let pnames = ref PMap.empty in
 				TFun (List.map (fun (s,opt,(t,tp)) ->
-					(match t with CTPath({tpackage=[];tname="Void"}) -> typing_error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
-					if PMap.mem s (!pnames) then typing_error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
+					(match t with CTPath({tpackage=[];tname="Void"}) -> raise_typing_error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
+					if PMap.mem s (!pnames) then raise_typing_error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
 					pnames := PMap.add s () (!pnames);
 					s, opt, load_type_hint ~opt ctx p (Some (t,tp))
 				) l, rt)
@@ -426,7 +426,7 @@ module TypeLevel = struct
 					(match state with
 					| Built -> die "" __LOC__
 					| Building cl ->
-						if !build_count = !prev_build_count then typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
+						if !build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
 						prev_build_count := !build_count;
 						rebuild();
 						Building (c :: cl)
@@ -472,7 +472,7 @@ module TypeLevel = struct
 		(match h with
 		| None -> ()
 		| Some (h,hcl) ->
-			Hashtbl.iter (fun _ _ -> typing_error "Field type patch not supported for enums" e.e_pos) h;
+			Hashtbl.iter (fun _ _ -> raise_typing_error "Field type patch not supported for enums" e.e_pos) h;
 			e.e_meta <- e.e_meta @ hcl.tp_meta);
 		let constructs = ref d.d_data in
 		let get_constructs() =
@@ -496,10 +496,10 @@ module TypeLevel = struct
 					let args, params, t = (match f.cff_kind with
 					| FVar (t,None) -> [], [], t
 					| FFun { f_params = pl; f_type = t; f_expr = (None|Some (EBlock [],_)); f_args = al } ->
-						let al = List.map (fun ((n,_),o,_,t,_) -> match t with None -> typing_error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) al in
+						let al = List.map (fun ((n,_),o,_,t,_) -> match t with None -> raise_typing_error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) al in
 						al, pl, t
 					| _ ->
-						typing_error "Invalid enum constructor in @:build result" p
+						raise_typing_error "Invalid enum constructor in @:build result" p
 					) in
 					{
 						ec_name = f.cff_name;
@@ -511,7 +511,7 @@ module TypeLevel = struct
 						ec_type = t;
 					}
 				) fields
-			| _ -> typing_error "Enum build macro must return a single variable with anonymous object fields" p
+			| _ -> raise_typing_error "Enum build macro must return a single variable with anonymous object fields" p
 		);
 		let et = TEnum (e,extract_param_types e.e_params) in
 		let names = ref [] in
@@ -519,7 +519,7 @@ module TypeLevel = struct
 		let is_flat = ref true in
 		let fields = ref PMap.empty in
 		List.iter (fun c ->
-			if PMap.mem (fst c.ec_name) e.e_constrs then typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
+			if PMap.mem (fst c.ec_name) e.e_constrs then raise_typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
 			let f,cf = load_enum_field ctx e et is_flat index c in
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
@@ -555,14 +555,14 @@ module TypeLevel = struct
 		| CTExtend _ -> tt
 		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
 			(* we need to follow MacroType immediately since it might define other module types that we will load afterwards *)
-			if t.t_type == follow tt then typing_error "Recursive typedef is not allowed" p;
+			if t.t_type == follow tt then raise_typing_error "Recursive typedef is not allowed" p;
 			tt
 		| _ ->
 			if (Meta.has Meta.Eager d.d_meta) then
 				follow tt
 			else begin
 				let rec check_rec tt =
-					if tt == t.t_type then typing_error "Recursive typedef is not allowed" p;
+					if tt == t.t_type then raise_typing_error "Recursive typedef is not allowed" p;
 					match tt with
 					| TMono r ->
 						(match r.tm_type with
@@ -571,7 +571,7 @@ module TypeLevel = struct
 					| TLazy f ->
 						check_rec (lazy_type f);
 					| TType (td,tl) ->
-						if td == t then typing_error "Recursive typedef is not allowed" p;
+						if td == t then raise_typing_error "Recursive typedef is not allowed" p;
 						check_rec (apply_typedef td tl)
 					| _ ->
 						()
@@ -610,15 +610,15 @@ module TypeLevel = struct
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
 						r := lazy_processing (fun() -> t);
-						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> typing_error "You can only declare from/to with compatible types" pos);
+						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> raise_typing_error "You can only declare from/to with compatible types" pos);
 						t
 					) "constraint" in
 					TLazy r
 				end else
-					typing_error "Missing underlying type declaration or @:coreType declaration" p;
+					raise_typing_error "Missing underlying type declaration or @:coreType declaration" p;
 			end else begin
 				if Meta.has Meta.Callable a.a_meta then
-					typing_error "@:coreType abstracts cannot be @:callable" p;
+					raise_typing_error "@:coreType abstracts cannot be @:callable" p;
 				t
 			end in
 			t
@@ -627,15 +627,15 @@ module TypeLevel = struct
 			| AbFrom t -> a.a_from <- (load_type t true) :: a.a_from
 			| AbTo t -> a.a_to <- (load_type t false) :: a.a_to
 			| AbOver t ->
-				if a.a_impl = None then typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
-				if Meta.has Meta.CoreType a.a_meta then typing_error "@:coreType abstracts cannot have an underlying type" p;
+				if a.a_impl = None then raise_typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
+				if Meta.has Meta.CoreType a.a_meta then raise_typing_error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx true t in
 				delay ctx PForce (fun () ->
 					let rec loop stack t =
 						match follow t with
 						| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
 							if List.memq a stack then
-								typing_error "Abstract underlying type cannot be recursive" a.a_pos
+								raise_typing_error "Abstract underlying type cannot be recursive" a.a_pos
 							else
 								loop (a :: stack) a.a_this
 						| _ -> ()
@@ -654,7 +654,7 @@ module TypeLevel = struct
 			if Meta.has Meta.CoreType a.a_meta then
 				a.a_this <- TAbstract(a,extract_param_types a.a_params)
 			else
-				typing_error "Abstract is missing underlying type declaration" a.a_pos
+				raise_typing_error "Abstract is missing underlying type declaration" a.a_pos
 		end;
 		if Meta.has Meta.InheritDoc a.a_meta then
 			delay ctx PConnectField (fun() -> InheritDoc.build_abstract_doc ctx a)

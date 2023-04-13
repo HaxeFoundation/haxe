@@ -323,12 +323,12 @@ let raise_error err = raise (Error err)
 let raise_error_msg ?(depth = 0) msg p = raise_error (make_error ~depth msg p)
 let raise_msg ?(depth = 0) msg p = raise_error_msg ~depth (Custom msg) p
 
-let typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
-let raise_typing_error err = raise_error err
+let raise_typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
+let raise_typing_error_ext err = raise_error err
 
 let error_require r p =
 	if r = "" then
-		typing_error "This field is not available with the current compilation flags" p
+		raise_typing_error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
@@ -339,6 +339,6 @@ let error_require r p =
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
-	typing_error ("Accessing this field requires " ^ r) p
+	raise_typing_error ("Accessing this field requires " ^ r) p
 
-let invalid_assign p = typing_error "Invalid assign" p
+let invalid_assign p = raise_typing_error "Invalid assign" p

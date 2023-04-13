@@ -312,12 +312,12 @@ let unify_field_call ctx fa el_typed el p inline =
 			in
 			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
 		| t ->
-			typing_error (s_type (print_context()) t ^ " cannot be called") p
+			raise_typing_error (s_type (print_context()) t ^ " cannot be called") p
 	in
 	let maybe_raise_unknown_ident err =
 		let rec loop err =
 			match err.err_message with
-			| Call_error (Could_not_unify Unknown_ident _) | Unknown_ident _ -> raise_typing_error err
+			| Call_error (Could_not_unify Unknown_ident _) | Unknown_ident _ -> raise_typing_error_ext err
 			| _ -> List.iter loop err.err_sub
 		in
 		loop err
@@ -389,7 +389,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			let failures = remove_duplicates (fun (_,e1) (_,e2) -> (MessageReporting.print_error e1) <> (MessageReporting.print_error e2)) failures in
 			begin match failures with
 			| [_,err] ->
-				raise_typing_error err
+				raise_typing_error_ext err
 			| _ ->
 				let sub = List.fold_left (fun acc (cf,err) ->
 					(make_error
@@ -401,7 +401,7 @@ let unify_field_call ctx fa el_typed el p inline =
 				) [] failures in
 
 				display_error_ext ctx.com (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p);
-				raise_typing_error (make_error ~depth:1 (Custom "End of overload failure reasons") p)
+				raise_typing_error_ext (make_error ~depth:1 (Custom "End of overload failure reasons") p)
 			end
 		in
 		if overload_kind = OverloadProper then begin match Overloads.Resolution.reduce_compatible candidates with
@@ -446,7 +446,7 @@ object(self)
 		end
 
 	method private macro_call (ethis : texpr) (cf : tclass_field) (el : expr list) =
-		if ctx.macro_depth > 300 then typing_error "Stack overflow" p;
+		if ctx.macro_depth > 300 then raise_typing_error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
 		let ethis_f = ref (fun () -> ()) in
@@ -516,7 +516,7 @@ object(self)
 			else if ctx.untyped then
 				mk_mono()
 			else
-				typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
 			in
 			mk (TCall (e,el)) t p
 		in
@@ -577,7 +577,7 @@ object(self)
 				let name = Printf.sprintf "%s_%s" (if is_set then "set" else "get") fa.fa_field.cf_name in
 				make_call ctx (mk (TField (e,quick_field_dynamic e.etype name)) tf p) el_typed t p
 			| _ ->
-				typing_error "Could not resolve accessor" p
+				raise_typing_error "Could not resolve accessor" p
 
 	(* Calls the field represented by `fa` with the typed arguments `el_typed` and the syntactic arguments `el`.
 

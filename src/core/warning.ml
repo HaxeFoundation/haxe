@@ -13,7 +13,7 @@ type warning_option = {
 
 let parse_options s ps lexbuf =
 	let fail msg p =
-		Error.typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
+		Error.raise_typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
 	in
 	let parse_string s p =
 		begin try
@@ -58,7 +58,7 @@ let from_meta ml =
 			let p = snd e in
 			parse_options s {p with pmin = p.pmin + 1; pmax = p.pmax - 1} (* pmin is on the quote *)
 		| _ ->
-			Error.typing_error "String expected" (snd e)
+			Error.raise_typing_error "String expected" (snd e)
 	in
 	let rec loop acc ml = match ml with
 		| (Meta.HaxeWarning,args,_) :: ml ->

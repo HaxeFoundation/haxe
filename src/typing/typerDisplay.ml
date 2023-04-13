@@ -190,7 +190,7 @@ let display_dollar_type ctx p make_type =
 	| DMDefinition | DMTypeDefinition ->
 		raise_positions []
 	| _ ->
-		typing_error "Unsupported method" p
+		raise_typing_error "Unsupported method" p
 	end
 
 let rec handle_signature_display ctx e_ast with_type =
@@ -200,7 +200,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		let rec follow_with_callable (t,doc,values) = match follow t with
 			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc,values)
 			| TFun(args,ret) -> ((args,ret),doc,values)
-			| _ -> typing_error ("Not a callable type: " ^ (s_type (print_context()) t)) p
+			| _ -> raise_typing_error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 		in
 		let tl = List.map follow_with_callable tl in
 		let rec loop i acc el = match el with
@@ -253,7 +253,7 @@ let rec handle_signature_display ctx e_ast with_type =
 	let find_constructor_types t = match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
 			let rec loop tl = match tl with
-				| [] -> raise_typing_error (make_error (No_constructor (TClassDecl c)) p)
+				| [] -> raise_typing_error_ext (make_error (No_constructor (TClassDecl c)) p)
 				| t :: tl -> match follow t with
 					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
 					| _ -> loop tl
@@ -337,11 +337,11 @@ let rec handle_signature_display ctx e_ast with_type =
 			| _ ->
 				raise_signatures [] 0 0 SKArrayAccess
 			end
-		| _ -> typing_error "Call expected" p
+		| _ -> raise_typing_error "Call expected" p
 
 and display_expr ctx e_ast e dk mode with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
-		| None -> typing_error "Current class does not have a super" p
+		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = get_constructor_access c params p in
 			fa.fa_field,c
@@ -541,7 +541,7 @@ let handle_display ctx e_ast dk mode with_type =
 		| DMDefinition | DMTypeDefinition ->
 			raise_positions []
 		| _ ->
-			typing_error "Unsupported method" p
+			raise_typing_error "Unsupported method" p
 		end
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
@@ -700,7 +700,7 @@ let handle_structure_display ctx e fields origin =
 		let pinsert = DisplayPosition.display_position#with_pos (pos e) in
 		raise_fields fields CRStructureField (make_subject None pinsert)
 	| _ ->
-		typing_error "Expected object expression" p
+		raise_typing_error "Expected object expression" p
 
 let handle_edisplay ctx e dk mode with_type =
 	let handle_display ctx e dk with_type =
