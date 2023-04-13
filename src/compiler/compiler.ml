@@ -4,20 +4,24 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics ?(depth = 0) msg kind =
+	let handle_diagnostics ?(depth = 0) msg p kind =
 		ctx.has_error <- true;
-		add_diagnostics_message ~depth com msg kind Error;
+		add_diagnostics_message ~depth com msg p kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p,depth) ->
-			handle_diagnostics ~depth (Error.error_msg p msg) DKCompilerMessage
+		| Error.Error err ->
+			ctx.has_error <- true;
+			Error.recurse_error (fun depth err ->
+				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
+			) err;
+			DisplayOutput.emit_diagnostics ctx.com
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (located (Lexer.error_msg msg) p) DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DKParserError
 		end
 	else
 		f arg
@@ -211,6 +215,7 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
+		(* TODO send from_macro data somehow *)
 		com.info <- (fun ?(depth=0) msg p -> message ctx (make_compiler_message msg p depth DKCompilerMessage Information));
 		com.warning <- (fun ?(depth=0) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
@@ -221,12 +226,13 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
+				(* TODO send from_macro data somehow *)
 				message ctx (make_compiler_message msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);
 		com.located_error <- located_error ctx;
-		com.error <- (fun ?(depth = 0) msg p -> com.located_error ~depth (located msg p));
+		com.error <- (fun ?(depth = 0) msg p -> com.located_error (Error.make_error ~depth (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
@@ -335,10 +341,10 @@ try
 with
 	| Abort ->
 		()
-	| Error.Fatal_error (m,depth) ->
-		located_error ~depth ctx m
-	| Common.Abort msg ->
-		located_error ctx msg
+	| Error.Fatal_error err ->
+		located_error ctx err
+	| Common.Abort err ->
+		located_error ctx err
 	| Lexer.Error (m,p) ->
 		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->
@@ -351,14 +357,8 @@ with
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
-	| Error.Error (Stack stack,_,depth) -> (match stack with
-		| [] -> ()
-		| (e,p) :: stack -> begin
-			located_error ~depth ctx (Error.error_msg p e);
-			List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
-		end)
-	| Error.Error (m,p,depth) ->
-		located_error ~depth ctx (Error.error_msg p m)
+	| Error.Error err ->
+		located_error ctx err
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->

@@ -64,12 +64,14 @@ type server_api = {
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
-let error ctx ?(depth=0) msg p =
-	message ctx (make_compiler_message msg p depth DKCompilerMessage Error);
+let error ctx ?(depth=0) ?(from_macro = false) msg p =
+	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error);
 	ctx.has_error <- true
 
-let located_error ctx ?(depth=0) msg = match (extract_located msg) with
-	| [] -> ()
-	| (msg,p) :: tl ->
-		error ~depth ctx msg p;
-		List.iter (fun (msg,p) -> error ~depth:(depth+1) ctx msg p) tl
+(* TODO rename *)
+(* TODO: we might actually want the reverse (error calling "located_error") *)
+let located_error ctx (err : Error.error) =
+	Error.recurse_error (fun depth err ->
+		error ~depth ~from_macro:err.err_from_macro ctx (Error.error_msg err.err_message) err.err_pos
+	) err
+

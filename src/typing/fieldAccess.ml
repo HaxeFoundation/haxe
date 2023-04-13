@@ -168,10 +168,10 @@ let get_constructor_access c tl p =
 		in
 		create e_static cf fh false p
 	with Not_found ->
-		raise_typing_error (No_constructor (match c.cl_kind with
+		raise_typing_error (make_error (No_constructor (match c.cl_kind with
 			| KAbstractImpl a -> TAbstractDecl a
 			| _ -> TClassDecl c
-		)) p
+		)) p)
 
 let make_static_extension_access c cf e_this inline p =
 	let e_static = Texpr.Builder.make_static_this c p in

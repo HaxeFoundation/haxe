@@ -486,7 +486,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> typing_error "Invalid build parameters" p
 				) in
-				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p,depth) -> typing_error ~depth "Build call parameter must be a class path" p in
+				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error { err_pos = p } -> typing_error "Build call parameter must be a class path" p in
 				if ctx.com.is_macro_context then typing_error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.get_build_infos in
 				ctx.get_build_infos <- (fun() -> Some (mt, extract_param_types (t_infos mt).mt_params, fvars()));
@@ -1071,7 +1071,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					let r = exc_protect ctx (fun r ->
 						r := lazy_processing (fun () -> t);
 						(* the return type of a from-function must be the abstract, not the underlying type *)
-						if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> located_typing_error (error_msg p (Unify l)));
+						if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error (make_error (Unify l) p));
 						match t with
 							| TFun([_,_,t],_) -> t
 							| TFun([(_,_,t1);(_,true,t2)],_) when is_pos_infos t2 -> t1
@@ -1100,7 +1100,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					(* TODO: this doesn't seem quite right... *)
 					if not (has_class_field_flag cf CfImpl) then add_class_field_flag cf CfImpl;
 					let resolve_m args =
-						(try unify_raise t (tfun (tthis :: args) m) cf.cf_pos with Error (Unify l,p,depth) -> located_typing_error ~depth (error_msg p (Unify l)));
+						(try unify_raise t (tfun (tthis :: args) m) cf.cf_pos with Error ({ err_message = Unify l; } as err) -> raise_typing_error err);
 						match follow m with
 							| TMono _ when (match t with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
 							| m -> m
@@ -1164,7 +1164,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
 					if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
-					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),cf.cf_pos,0)));
+					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise_error_msg (Unify l) cf.cf_pos);
 					a.a_unops <- (op,flag,cf) :: a.a_unops;
 					allow_no_expr();
 				| (Meta.Op,[ECall _,_],_) :: _ ->
@@ -1511,8 +1511,8 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 					unify_raise t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
 						display_error ctx.com "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
-				with Error (Unify l,p,depth) ->
-					raise (Error (Stack [(Custom ("In method " ^ m ^ " required by property " ^ name),p);(Unify l,p)],p,depth+1))
+				with Error ({ err_message = Unify _ } as err) ->
+					raise_error (make_error ~sub:[err] (Custom ("In method " ^ m ^ " required by property " ^ name)) err.err_pos)
 			)
 		with
 			| Not_found ->
@@ -1856,8 +1856,8 @@ let init_class ctx c p context_init herits fields =
 				else
 				if fctx.do_add then TClass.add_field c cf
 			end
-		with Error (Custom str,p2,depth) when p = p2 ->
-			display_error ~depth ctx.com str p
+		with Error ({ err_message = Custom _; err_pos = p2 } as err) when p = p2 ->
+			located_display_error ctx.com err
 	) fields;
 		begin match cctx.abstract with
 		| Some a ->

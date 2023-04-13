@@ -22,7 +22,7 @@ let extend_remoting ctx c t p async prot =
 	let t = (try
 		load_type_def ctx p (mk_type_path (fst path,new_name))
 	with
-		Error (Module_not_found _,p2,_) when p == p2 ->
+		Error { err_message = Module_not_found _; err_pos = p2 } when p == p2 ->
 	(* build it *)
 	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
 	let file, decls = (try

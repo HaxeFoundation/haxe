@@ -58,6 +58,7 @@ let check_field_access ctx cff =
 			try
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
+					(* TODO error with sub *)
 					display_error ctx.com (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
 					display_error ~depth:1 ctx.com (compl_msg "Previously defined here") p2;
 				end;
@@ -66,6 +67,7 @@ let check_field_access ctx cff =
 				| APublic | APrivate ->
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
+						(* TODO error with sub *)
 						display_error ctx.com (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
 						display_error ~depth:1 ctx.com (compl_msg "Conflicts with this") p2;
 						loop p1 acc l
@@ -92,14 +94,14 @@ let find_type_in_module_raise ctx m tname p =
 			let infos = t_infos mt in
 			if snd infos.mt_path = tname then
 				if ctx.m.curmod != infos.mt_module && infos.mt_private then
-					raise_typing_error (Type_not_found (m.m_path,tname,Private_type)) p
+					raise_typing_error (make_error (Type_not_found (m.m_path,tname,Private_type)) p)
 				else
 					true
 			else
 				false
 		) m.m_types
 	with Not_found ->
-		raise_typing_error (Type_not_found (m.m_path,tname,Not_defined)) p
+		raise_typing_error (make_error (Type_not_found (m.m_path,tname,Not_defined)) p)
 
 (* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
@@ -109,7 +111,7 @@ let load_type_raise ctx mpath tname p =
 (* raises Not_found *)
 let load_type ctx mpath tname p = try
 	load_type_raise ctx mpath tname p
-with Error((Module_not_found _ | Type_not_found _),p2,_) when p = p2 ->
+with Error { err_message = (Module_not_found _ | Type_not_found _); err_pos = p2 } when p = p2 ->
 	raise Not_found
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
@@ -142,7 +144,7 @@ let find_in_wildcard_imports ctx mname p f =
 				let m =
 					try
 						ctx.g.do_load_module ctx path p
-					with Error (Module_not_found mpath,_,_) when mpath = path ->
+					with Error { err_message = Module_not_found mpath } when mpath = path ->
 						raise Not_found
 				in
 				let r = f m ~resume:true in
@@ -163,7 +165,7 @@ let find_in_modules_starting_from_current_package ~resume ctx mname p f =
 			let m =
 				try
 					ctx.g.do_load_module ctx path p
-				with Error (Module_not_found mpath,_,_) when resume && mpath = path ->
+				with Error { err_message = Module_not_found mpath } when resume && mpath = path ->
 					raise Not_found
 			in
 			f m ~resume:resume
@@ -172,7 +174,7 @@ let find_in_modules_starting_from_current_package ~resume ctx mname p f =
 				let m =
 					try
 						ctx.g.do_load_module ctx path p
-					with Error (Module_not_found mpath,_,_) when mpath = path ->
+					with Error { err_message = Module_not_found mpath } when mpath = path ->
 						raise Not_found
 					in
 				f m ~resume:true;
@@ -200,7 +202,7 @@ let load_unqualified_type_def ctx mname tname p =
 let load_module ctx path p =
 	try
 		ctx.g.do_load_module ctx path p
-	with Error (Module_not_found mpath,_,_) as exc when mpath = path ->
+	with Error { err_message = Module_not_found mpath } as exc when mpath = path ->
 		match path with
 		| ("std" :: pack, name) ->
 			ctx.g.do_load_module ctx (pack,name) p
@@ -254,6 +256,7 @@ let is_redefined ctx cf1 fields p =
 		let cf2 = PMap.find cf1.cf_name fields in
 		let st = s_type (print_context()) in
 		if not (type_iseq cf1.cf_type cf2.cf_type) then begin
+			(* TODO construct error with sub? *)
 			display_error ctx.com ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
 			display_error ctx.com ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
 			typing_error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
@@ -286,15 +289,15 @@ let check_param_constraints ctx t map c p =
 			let ti = map ti in
 			try
 				unify_raise t ti p
-			with Error(Unify l,p,depth) ->
+			with Error ({ err_message = Unify l } as err) ->
 				let fail() =
-					if not ctx.untyped then located_display_error ~depth ctx.com (error_msg p (Unify (Constraint_failure (s_type_path c.cl_path) :: l)));
+					if not ctx.untyped then located_display_error ctx.com { err with err_message = (Unify (Constraint_failure (s_type_path c.cl_path) :: l)) }
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
 					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
 					begin try unify_raise e.etype ti p
-					with Error (Unify _,_,_) -> fail() end
+					with Error { err_message = Unify _ } -> fail() end
 				| _ ->
 					fail()
 
@@ -436,7 +439,7 @@ and load_instance ctx ?(allow_display=false) ((_,pn) as tp) allow_no_params =
 		let t = load_instance' ctx tp allow_no_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t tp;
 		t
-	with Error (Module_not_found path,_,_) when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
+	with Error { err_message = Module_not_found path } when ctx.macro_depth <= 0 && (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
 		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) (patch_string_pos pn s)
 
@@ -627,14 +630,14 @@ and load_complex_type' ctx allow_display (t,p) =
 and load_complex_type ctx allow_display (t,pn) =
 	try
 		load_complex_type' ctx allow_display (t,pn)
-	with Error(Module_not_found(([],name)),p,_) as exc ->
-		if Diagnostics.error_in_diagnostics_run ctx.com p then begin
-			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
+	with Error ({ err_message = Module_not_found(([],name)) } as err) ->
+		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
+			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
 			t_dynamic
 		end else if ignore_error ctx.com && not (DisplayPosition.display_position#enclosed_in pn) then
 			t_dynamic
 		else
-			raise exc
+			raise (Error err)
 
 and init_meta_overloads ctx co cf =
 	let overloads = ref [] in
@@ -846,8 +849,9 @@ let init_core_api ctx c =
 					| Invalid_argument _ ->
 						typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
 					| Unify_error l ->
+						(* TODO send as one call with sub errors *)
 						display_error ctx.com ("Type parameter " ^ tp2.ttp_name ^ " has different constraint than in core type") c.cl_pos;
-						located_display_error ctx.com (error_msg c.cl_pos (Unify l));
+						display_error ctx.com (error_msg (Unify l)) c.cl_pos;
 				end
 			| t1,t2 ->
 				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
@@ -864,8 +868,9 @@ let init_core_api ctx c =
 		(try
 			type_eq EqCoreType (apply_params ccore.cl_params (extract_param_types c.cl_params) f.cf_type) f2.cf_type
 		with Unify_error l ->
+			(* TODO send as one call with sub errors *)
 			display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in core type") p;
-			located_display_error ctx.com (error_msg p (Unify l)));
+			display_error ctx.com (error_msg (Unify l)) p);
 		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then typing_error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
 		(match f2.cf_doc with
 		| None -> f2.cf_doc <- f.cf_doc

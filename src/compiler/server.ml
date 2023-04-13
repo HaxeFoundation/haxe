@@ -21,7 +21,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
 		if is_diagnostics ctx.com then begin
 			List.iter (fun cm ->
-				add_diagnostics_message ~depth:cm.cm_depth ctx.com (located cm.cm_message cm.cm_pos) cm.cm_kind cm.cm_severity
+				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
 			) (List.rev ctx.messages);
 			raise (Completion (Diagnostics.print ctx.com))
 		end else
@@ -254,9 +254,11 @@ module Communication = struct
 			let out = ref "" in
 
 			if display_heading then
-				out := Printf.sprintf "%s%s\n\n"
+				out := Printf.sprintf "%s%s%s\n\n"
 					(* Severity heading *)
 					(c_sev_bg ^ sev_label ^ c_reset ^ " ")
+					(* Macro context indicator *)
+					(if cm.cm_from_macro then "(macro) " else "")
 					(* File + line pointer *)
 					epos;
 

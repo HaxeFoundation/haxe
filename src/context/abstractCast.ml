@@ -19,7 +19,7 @@ let rec make_static_call ctx c cf a pl args t p =
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
-				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_,_) -> raise Not_found in
+				let e = try cast_or_unify_raise ctx t e p with Error { err_message = Unify _ } -> raise Not_found in
 				f();
 				e
 			| _ -> die "" __LOC__
@@ -38,7 +38,7 @@ and do_check_cast ctx uctx tleft eright p =
 				(try
 					Type.unify_custom uctx eright.etype tleft;
 				with Unify_error l ->
-					raise (Error (Unify l, eright.epos,0)))
+					raise_error_msg (Unify l) eright.epos)
 			| _ -> ()
 		end;
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then typing_error "Recursive implicit cast" p;
@@ -112,8 +112,8 @@ and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
-	with Error (Unify l,p,_) ->
-		raise_or_display ctx l p;
+	with Error ({ err_message = Unify _ } as err) ->
+		raise_or_display_error ctx err;
 		eright
 
 let prepare_array_access_field ctx a pl cf p =
@@ -146,7 +146,7 @@ let find_array_read_access_raise ctx a pl e1 p =
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
 					cf,tf,r,e1
-				with Unify_error _ | Error (Unify _,_,_) ->
+				with Unify_error _ | Error { err_message = Unify _ } ->
 					loop cfl
 				end
 			| _ -> loop cfl
@@ -167,7 +167,7 @@ let find_array_write_access_raise ctx a pl e1 e2  p =
 					let e2 = cast_or_unify_raise ctx ta2 e2 p in
 					check_constraints();
 					cf,tf,r,e1,e2
-				with Unify_error _ | Error (Unify _,_,_) ->
+				with Unify_error _ | Error { err_message = Unify _ } ->
 					loop cfl
 				end
 			| _ -> loop cfl

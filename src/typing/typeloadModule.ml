@@ -677,8 +677,8 @@ module TypeLevel = struct
 				check_path_display path p;
 				ImportHandling.init_import ctx context_init path mode p;
 				ImportHandling.commit_import ctx path mode p;
-			with Error(err,p,depth) ->
-				located_display_error ~depth ctx.com (Error.error_msg p err)
+			with Error err ->
+				located_display_error ctx.com err
 			end
 		| EUsing path ->
 			check_path_display path p;
@@ -796,9 +796,7 @@ let load_module' ctx g m p =
 		| Some m ->
 			m
 		| None ->
-			let raise_not_found () =
-				raise (Error (Module_not_found m,p,0))
-			in
+			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in

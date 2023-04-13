@@ -88,15 +88,11 @@ let typing_timer ctx need_type f =
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
+	(* TODO update commented out code *)
 	(*if ctx.com.display = DMNone then ctx.com.located_error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
-	let rec located_to_error = function
-		| Message (e,p) -> (Custom e,p)
-		| Stack stack -> (Stack (List.map located_to_error stack),null_pos)
-	in
 
-	ctx.com.located_error <- (fun ?(depth=0) msg ->
-		let (e,p) = located_to_error msg in
-		raise (Error (e,p,depth)));
+	ctx.com.located_error <- (fun err ->
+		raise_error { err with err_from_macro = true });
 
 	if need_type && ctx.pass < PTypeField then begin
 		ctx.pass <- PTypeField;
@@ -113,15 +109,15 @@ let typing_timer ctx need_type f =
 		let r = f() in
 		exit();
 		r
-	with Error (ekind,p,_) ->
-			exit();
-			Interp.compiler_error (error_msg p ekind)
-		| WithTypeError (l,p,_) ->
-			exit();
-			Interp.compiler_error (error_msg p l)
-		| e ->
-			exit();
-			raise e
+	with Error err ->
+		exit();
+		Interp.compiler_error err
+	| WithTypeError err ->
+		exit();
+		Interp.compiler_error err
+	| e ->
+		exit();
+		raise e
 
 let make_macro_com_api com p =
 	{
@@ -321,7 +317,7 @@ let make_macro_api ctx p =
 				try
 					let m = Some (Typeload.load_instance ctx (tp,p) true) in
 					m
-				with Error (Module_not_found _,p2,_) when p == p2 ->
+				with Error { err_message = Module_not_found _; err_pos = p2 } when p == p2 ->
 					None
 			)
 		);
@@ -473,7 +469,7 @@ let make_macro_api ctx p =
 				try
 					ignore(AbstractCast.cast_or_unify_raise ctx t e p);
 					true
-				with Error (Unify _,_,_) ->
+				with Error { err_message = Unify _ } ->
 					false
 			)
 		);
@@ -608,7 +604,7 @@ and flush_macro_context mint mctx =
 		List.iter (fun f -> f t) type_filters
 	in
 	(try Interp.add_types mint types ready
-	with Error (e,p,n) -> t(); raise (Fatal_error(error_msg p e,n)));
+	with Error err -> t(); raise (Fatal_error err));
 	t()
 
 let create_macro_interp api mctx =
@@ -623,10 +619,10 @@ let create_macro_interp api mctx =
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.located_error in
-	com2.located_error <- (fun ?(depth = 0) msg ->
+	com2.located_error <- (fun err ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
-		on_error ~depth msg
+		on_error { err with err_from_macro = true }
 	);
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init();
@@ -702,7 +698,7 @@ let load_macro'' com mctx display cpath f p =
 			with Not_found ->
 				let name = Option.default (snd mpath) sub in
 				let path = fst mpath, name in
-				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_typing_error (Type_not_found (mloaded.m_path,name,Not_defined)) p in
+				let mt = try List.find (fun t2 -> (t_infos t2).mt_path = path) mloaded.m_types with Not_found -> raise_typing_error (make_error (Type_not_found (mloaded.m_path,name,Not_defined)) p) in
 				match mt with
 				| TClassDecl c ->
 					Finalization.finalize mctx;
@@ -786,7 +782,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			unify_raise mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* warning ctx WDeprecated "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
-		with Error (Unify _,_,_) ->
+		with Error { err_message = Unify _ } ->
 			let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			unify_raise mret ttype mpos;
@@ -821,7 +817,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		*)
 		let eargs = List.map (fun (n,o,t) ->
 			try unify_raise t expr p; (n, o, t_dynamic), MAExpr
-			with Error (Unify _,_,_) -> match follow t with
+			with Error { err_message = Unify _ } -> match follow t with
 				| TFun _ ->
 					(n,o,t), MAFunction
 				| _ ->

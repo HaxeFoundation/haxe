@@ -152,6 +152,7 @@ let get_native_name meta =
 
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
+		(* TODO construct error *)
 		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
 		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
 	in
@@ -211,9 +212,10 @@ let check_overriding ctx c f =
 				valid_redefinition ctx map map f f.cf_type f2 t;
 			with
 				Unify_error l ->
+					(* TODO construct error with sub *)
 					display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
 					display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
-					located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
+					display_error ~depth:1 ctx.com (compl_msg (error_msg (Unify l))) p;
 		with
 			Not_found ->
 				if has_class_field_flag f CfOverride then
@@ -396,9 +398,10 @@ module Inheritance = struct
 					with
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
+								(* TODO construct error with sub *)
 								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 								display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
-								located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
+								display_error ~depth:1 ctx.com (compl_msg (error_msg (Unify l))) p;
 							end
 				)
 			with Not_found ->
@@ -489,6 +492,7 @@ module Inheritance = struct
 		| l ->
 			let singular = match l with [_] -> true | _ -> false in
 			display_error ctx.com (Printf.sprintf "This class extends abstract class %s but doesn't implement the following method%s" (s_type_path csup.cl_path) (if singular then "" else "s")) c.cl_name_pos;
+			(* TODO sub error ? *)
 			display_error ctx.com (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path)) c.cl_name_pos;
 			let pctx = print_context() in
 			List.iter (fun (cf,_) ->
@@ -627,7 +631,7 @@ module Inheritance = struct
 					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
 				Some (check_herit t is_extends p)
-			with Error(Module_not_found(([],name)),p,_) when ctx.com.display.dms_kind <> DMNone ->
+			with Error { err_message = Module_not_found(([],name)); err_pos = p } when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in

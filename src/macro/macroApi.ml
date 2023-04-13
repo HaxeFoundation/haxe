@@ -155,7 +155,7 @@ module type InterpApi = sig
 	val encode_ref : 'a -> ('a -> value) -> (unit -> string) -> value
 	val decode_ref : value -> 'a
 
-	val compiler_error : Globals.located -> 'a
+	val compiler_error : Error.error -> 'a
 	val error_message : string -> 'a
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
@@ -1710,7 +1710,7 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			let depth = decode_int depth in
-			raise (Error.Fatal_error ((Globals.located msg p),depth))
+			raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
 		);
 		"report_error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in

@@ -156,7 +156,7 @@ let static_method_container gctx c cf p =
 		match t with
 		| TInst(cg,_) -> cg
 		| _ -> typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
-	with Error(Module_not_found path,_,_) when path = (pack,name) ->
+	with Error { err_message = Module_not_found path } when path = (pack,name) ->
 		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		let mg = {
 			m_id = alloc_mid();
@@ -233,7 +233,7 @@ let rec build_generic_class ctx c p tl =
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
-	with Error(Module_not_found path,_,_) when path = (pack,name) ->
+	with Error { err_message = Module_not_found path } when path = (pack,name) ->
 		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
@@ -292,6 +292,7 @@ let rec build_generic_class ctx c p tl =
 					| None ->
 						begin match cf_old.cf_kind with
 							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) && not (has_class_field_flag cf_old CfAbstract) ->
+								(* TODO use sub error *)
 								display_error ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
 								display_error ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
@@ -300,7 +301,7 @@ let rec build_generic_class ctx c p tl =
 					| Some e ->
 						cf_new.cf_expr <- Some (generic_substitute_expr gctx e)
 				) with Unify_error l ->
-					located_typing_error (error_msg cf_new.cf_pos (Unify l))
+					typing_error (error_msg (Unify l)) cf_new.cf_pos
 				end;
 				t
 			in
@@ -384,10 +385,13 @@ let type_generic_function ctx fa fcc with_type p =
 		let name = cf.cf_name ^ "_" ^ gctx.name in
 		let unify_existing_field tcf pcf = try
 			unify_raise tcf fcc.fc_type p
-		with Error(Unify _,_,depth) as err ->
-			display_error ~depth ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_error ~depth:(depth+1) ctx.com (compl_msg "Conflicting field was defined here") pcf;
-			raise err
+		with Error ({ err_message = Unify _; err_depth = depth } as err) ->
+			raise (Error { err with err_sub = (make_error
+				~depth
+				~sub:[make_error ~depth:(depth+1) (Custom (compl_msg "Conflicting field was defined here")) pcf]
+				(Custom ("Cannot create field " ^ name ^ " due to type mismatch"))
+				p
+			) :: err.err_sub })
 		in
 		let fa = try
 			let cf2 = if stat then
@@ -413,6 +417,7 @@ let type_generic_function ctx fa fcc with_type p =
 				ignore(follow cf.cf_type);
 				let rec check e = match e.eexpr with
 					| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
+						(* TODO use sub error *)
 						display_error ctx.com "Only generic type parameters can be constructed" e.epos;
 						display_error ctx.com "While specializing this call" p;
 					| _ ->

@@ -21,7 +21,7 @@ let disable_typeloading rctx ctx f =
 	ctx.g.load_only_cached_modules <- true;
 	try
 		Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
-	with (Error.Error (Module_not_found path,_,_)) ->
+	with (Error.Error { err_message = Module_not_found path }) ->
 		fail rctx (Printf.sprintf "Could not load [Module %s]" (s_type_path path))
 
 let pair_type th t = match th with

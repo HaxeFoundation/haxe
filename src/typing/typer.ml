@@ -97,7 +97,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			let e = try
 				f()
 			with
-			| Error (Unknown_ident n,_,_) ->
+			| Error { err_message = Unknown_ident n; err_sub = sub } ->
 				restore();
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
@@ -243,13 +243,13 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			| UnifyMinOk t ->
 				t
 			| UnifyMinError(l,index) ->
-				raise_typing_error (Unify l) (List.nth el index).epos
+				raise_typing_error (make_error (Unify l) (List.nth el index).epos)
 			end
 
 let unify_min ctx el =
 	try unify_min_raise ctx el
-	with Error (Unify l,p,depth) ->
-		if not ctx.untyped then located_display_error ~depth ctx.com (error_msg p (Unify l));
+	with Error ({ err_message = Unify l } as err) ->
+		if not ctx.untyped then located_display_error ctx.com err;
 		(List.hd el).etype
 
 let unify_min_for_type_source ctx el src =
@@ -465,7 +465,7 @@ and type_ident ctx i p mode with_type =
 	with Not_found -> try
 		(* lookup type *)
 		if is_lower_ident i p then raise Not_found;
-		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_,_) when name = i -> raise Not_found) in
+		let e = (try type_type ctx ([],i) p with Error { err_message = Module_not_found ([],name) } when name = i -> raise Not_found) in
 		AKExpr e
 	with Not_found ->
 		let resolved_to_type_parameter = ref false in
@@ -493,7 +493,7 @@ and type_ident ctx i p mode with_type =
 				end else begin
 					let err = Unknown_ident i in
 					if ctx.in_display then begin
-						raise (Error (err,p,0))
+						raise_error_msg err p
 					end;
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
@@ -502,9 +502,9 @@ and type_ident ctx i p mode with_type =
 						AKExpr (mk (TIdent i) t p)
 					end else match ctx.com.display.dms_kind with
 						| DMNone ->
-							raise (Error(err,p,0))
+							raise_error_msg err p
 						| _ ->
-							located_display_error ctx.com (error_msg p err);
+							display_error ctx.com (error_msg err) p;
 							let t = mk_mono() in
 							(* Add a fake local for #8751. *)
 							if !ServerConfig.legacy_completion then
@@ -533,7 +533,7 @@ and handle_efield ctx e p0 mode with_type =
 				try
 					(* TODO: we don't really want to do full type_ident again, just the second part of it *)
 					field_chain ctx pnext (type_ident ctx name p MGet WithType.value)
-				with Error (Unknown_ident _,p2,_) as e when p = p2 ->
+				with Error ({ err_message = Unknown_ident _; err_pos = p2 } as e) when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
 						begin
@@ -557,9 +557,9 @@ and handle_efield ctx e p0 mode with_type =
 							let mpath = (pack,name) in
 							if ctx.com.module_lut#mem mpath then
 								let tname = Option.default name sub in
-								raise (Error (Type_not_found (mpath,tname,Not_defined),p,0))
+								raise_error_msg (Type_not_found (mpath,tname,Not_defined)) p
 							else
-								raise (Error (Module_not_found mpath,p,0))
+								raise_error_msg (Module_not_found mpath) p
 						end
 					with Not_found ->
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
@@ -570,7 +570,7 @@ and handle_efield ctx e p0 mode with_type =
 							else
 								DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 						end;
-						raise e
+						raise_error e
 	in
 
 	(* loop through the given EField expression to figure out whether it's a dot-path that we have to resolve,
@@ -711,8 +711,8 @@ and type_vars ctx vl p =
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
-			Error (e,p,depth) ->
-				check_error ctx e p depth;
+			Error err ->
+				check_error ctx err;
 				add_local ctx VGenerated n t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	List.iter (fun (v,_) ->
@@ -838,7 +838,7 @@ and type_block ctx el with_type p =
 	let rec loop acc = function
 		| [] -> List.rev acc
 		| e :: l ->
-			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error (e,p,depth) -> check_error ctx e p depth; acc in
+			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error err -> check_error ctx err; acc in
 			loop acc l
 	in
 	let l = loop [] el in
@@ -1037,8 +1037,8 @@ and type_new ctx path el with_type force_inline p =
 			let fcc = unify_field_call ctx fa [] el p fa.fa_inline in
 			check_constructor_access ctx c fcc.fc_field p;
 			fcc
-		with Error (e,p,depth) ->
-			located_typing_error ~depth (error_msg p e);
+		with Error err ->
+			raise_typing_error err
 	in
 	let display_position_in_el () =
 		List.exists (fun e -> DisplayPosition.display_position#enclosed_in (pos e)) el
@@ -1108,7 +1108,7 @@ and type_new ctx path el with_type force_inline p =
 		if not (TypeloadCheck.is_generic_parameter ctx c) then typing_error "Only generic type parameters can be constructed" p;
  		begin match get_constructible_constraint ctx tl p with
 		| None ->
-			raise_typing_error (No_constructor (TClassDecl c)) p
+			raise_typing_error (make_error (No_constructor (TClassDecl c)) p)
 		| Some(tl,tr) ->
 			let el,_ = unify_call_args ctx el tl tr p false false false in
 			mk (TNew (c,params,el)) t p
@@ -1122,8 +1122,8 @@ and type_new ctx path el with_type force_inline p =
 		mk (TNew (c,params,el)) t p
 	| _ ->
 		typing_error (s_type (print_context()) t ^ " cannot be constructed") p
-	end with Error(No_constructor _ as err,p,depth) when ctx.com.display.dms_kind <> DMNone ->
-		located_display_error ~depth ctx.com (error_msg p err);
+	end with Error ({ err_message = No_constructor _ } as err) when ctx.com.display.dms_kind <> DMNone ->
+		located_display_error ctx.com err;
 		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
 
 and type_try ctx e1 catches with_type p =
@@ -1485,12 +1485,12 @@ and type_array_decl ctx el with_type p =
 		let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 		let t = try
 			unify_min_raise ctx el
-		with Error (Unify l,p,n) ->
+		with Error ({ err_message = Unify _ } as err) ->
 			if !allow_array_dynamic || ctx.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
-				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
-				raise (Error (Unify l, p,n))
+				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
+				raise_error err
 			end
 		in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
@@ -1584,8 +1584,9 @@ and type_return ?(implicit=false) ctx e with_type p =
 					]) t e.epos;
 				| _ ->
 					mk (TReturn (Some e)) (mono_or_dynamic ctx with_type p) p
-		with Error(err,p,depth) ->
-			check_error ctx err p depth;
+		with Error err ->
+			let p = err.err_pos in
+			check_error ctx err;
 			(* If we have a bad return, let's generate a return null expression at least. This surpresses various
 				follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
 			let e_null = mk (TConst TNull) (mk_mono()) p in
@@ -1826,7 +1827,7 @@ and type_call_builtin ctx e el mode with_type p =
 			let cf = fa.fa_field in
 			let t = TInst (c,params) in
 			let e = mk (TConst TSuper) t sp in
-			if (Meta.has Meta.CompilerGenerated cf.cf_meta) then located_display_error ctx.com (error_msg p (No_constructor (TClassDecl c)));
+			if (Meta.has Meta.CompilerGenerated cf.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
 			let fa = FieldAccess.create e cf (FHInstance(c,params)) false p in
 			let fcc = unify_field_call ctx fa [] el p false in
 			let el = fcc.fc_args in
@@ -2011,8 +2012,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EThrow e ->
 		let e = try
 			type_expr ctx e WithType.value
-		with Error(e,p',depth) ->
-			check_error ctx e p' depth;
+		with Error err ->
+			check_error ctx err;
 			Texpr.Builder.make_null t_dynamic p
 		in
 		mk (TThrow e) (mono_or_dynamic ctx with_type p) p
@@ -2145,7 +2146,7 @@ let rec create com =
 	ctx.g.std <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
-		Error (Module_not_found ([],"StdTypes"),_,_) ->
+		Error { err_message = Module_not_found ([],"StdTypes") } ->
 			try
 				let std_path = Sys.getenv "HAXE_STD_PATH" in
 				typing_error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos

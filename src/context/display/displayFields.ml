@@ -75,7 +75,7 @@ let collect_static_extensions ctx items e p =
 					let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
 					PMap.add f.cf_name item acc
 				end
-			with Error (Unify _,_,_) | Unify_error _ ->
+			with Error { err_message = Unify _ } | Unify_error _ ->
 				acc
 			end
 		| _ ->

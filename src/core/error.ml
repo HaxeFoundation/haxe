@@ -17,7 +17,6 @@ and error_msg =
 	| Unify of unify_error list
 	| Custom of string
 	| Unknown_ident of string
-	| Stack of (error_msg * Globals.pos) list
 	| Call_error of call_error
 	| No_constructor of module_type
 	| Abstract_class of module_type
@@ -26,8 +25,31 @@ and type_not_found_reason =
 	| Private_type
 	| Not_defined
 
-exception Fatal_error of Globals.located * int (* depth *)
-exception Error of error_msg * Globals.pos * int (* depth *)
+type error = {
+	err_message : error_msg;
+	err_pos : pos;
+	(* TODO Should probably be deprecated at some point and be derived from err_sub *)
+	err_depth : int;
+	(* Reverse list of sub errors. Use Error.recurse_error to handle an error and its sub errors with depth. *)
+	err_sub : error list;
+	err_from_macro : bool;
+}
+
+let make_error ?(depth = 0) ?(from_macro = false) ?(sub = []) msg p = {
+	err_message = msg;
+	err_pos = p;
+	err_depth = depth;
+	err_from_macro = from_macro;
+	err_sub = sub;
+}
+
+let rec recurse_error ?(depth = 0) cb err =
+	let depth = if depth > 0 then depth else err.err_depth in
+	cb depth err;
+	List.iter (recurse_error ~depth:(depth+1) cb) (List.rev err.err_sub);
+
+exception Fatal_error of error
+exception Error of error
 
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
@@ -280,35 +302,40 @@ module BetterErrors = struct
 			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
 end
 
-let rec error_msg p = function
-	| Module_not_found m -> located ("Type not found : " ^ s_type_path m) p
-	| Type_not_found (m,t,Private_type) -> located ("Cannot access private type " ^ t ^ " in module " ^ s_type_path m) p
-	| Type_not_found (m,t,Not_defined) -> located ("Module " ^ s_type_path m ^ " does not define type " ^ t) p
-	| Unify l -> located (BetterErrors.better_error_message l) p
-	| Unknown_ident s -> located ("Unknown identifier : " ^ s) p
-	| Custom s -> located s p
-	| Stack stack -> located_stack (List.map (fun (e,p) -> error_msg p e) stack)
-	| Call_error err -> s_call_error p err
-	| No_constructor mt -> located (s_type_path (t_infos mt).mt_path ^ " does not have a constructor") p
-	| Abstract_class mt -> located (s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed") p
+let rec error_msg = function
+	| Module_not_found m -> "Type not found : " ^ s_type_path m
+	| Type_not_found (m,t,Private_type) -> "Cannot access private type " ^ t ^ " in module " ^ s_type_path m
+	| Type_not_found (m,t,Not_defined) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
+	| Unify l -> BetterErrors.better_error_message l
+	| Unknown_ident s -> "Unknown identifier : " ^ s
+	| Custom s -> s
+	| Call_error err -> s_call_error err
+	| No_constructor mt -> s_type_path (t_infos mt).mt_path ^ " does not have a constructor"
+	| Abstract_class mt -> s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed"
 
-and s_call_error p = function
+and s_call_error = function
 	| Not_enough_arguments tl ->
 		let pctx = print_context() in
-		located ("Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))) p
-	| Too_many_arguments -> located "Too many arguments" p
-	| Could_not_unify err -> error_msg p err
-	| Cannot_skip_non_nullable s -> located ("Cannot skip non-nullable argument " ^ s) p
+		"Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))
+	| Too_many_arguments -> "Too many arguments"
+	| Could_not_unify err -> error_msg err
+	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
 
-let typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
-let located_typing_error ?(depth=0) msg =
-	let err = match msg with
-		| Message (msg,p) -> Custom msg
-		| Stack _ -> Stack (List.map (fun (msg,p) -> (Custom msg,p)) (extract_located msg))
-	in
-	raise (Error (err,(extract_located_pos msg),depth))
+(* Global error helpers *)
+let raise_error err = raise (Error err)
+let raise_error_msg ?(depth = 0) msg p = raise_error (make_error ~depth msg p)
+let raise_msg ?(depth = 0) msg p = raise_error_msg ~depth (Custom msg) p
 
-let raise_typing_error ?(depth=0) err p = raise (Error(err,p,depth))
+let typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
+let raise_typing_error err = raise_error err
+
+(* TODO remove once error reporting has its own module *)
+let print_error err =
+	let ret = ref "" in
+	recurse_error (fun depth err ->
+		ret := !ret ^ (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") err.err_pos) ^ (error_msg err.err_message) ^ "\n"
+	) err;
+	!ret
 
 let error_require r p =
 	if r = "" then

@@ -195,14 +195,16 @@ type compiler_message = {
 	cm_message : string;
 	cm_pos : pos;
 	cm_depth : int;
+	cm_from_macro : bool;
 	cm_kind : MessageKind.t;
 	cm_severity : MessageSeverity.t;
 }
 
-let make_compiler_message msg p depth kind sev = {
+let make_compiler_message ?(from_macro = false) msg p depth kind sev = {
 		cm_message = msg;
 		cm_pos = p;
 		cm_depth = depth;
+		cm_from_macro = from_macro;
 		cm_kind = kind;
 		cm_severity = sev;
 }

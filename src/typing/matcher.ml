@@ -272,9 +272,7 @@ module Pattern = struct
 		let catch_errors () =
 			let old = ctx.com.located_error in
 			let restore_report_mode = disable_report_mode ctx.com in
-			ctx.com.located_error <- (fun ?depth _ ->
-				raise Exit
-			);
+			ctx.com.located_error <- (fun _ -> raise Exit);
 			(fun () ->
 				restore_report_mode();
 				ctx.com.located_error <- old
