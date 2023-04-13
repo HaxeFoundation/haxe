@@ -78,7 +78,6 @@ module IterationKind = struct
 	let type_field_config = {
 		Fields.TypeFieldConfig.do_resume = true;
 		allow_resolve = false;
-		safe = false;
 	}
 
 	let get_next_array_element arr iexpr pt p =
@@ -93,9 +92,9 @@ module IterationKind = struct
 			| TDynamic _ | TMono _ ->
 				(* try to find something better than a dynamic value to iterate on *)
 				dynamic_iterator := Some e;
-				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p))
+				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p, 0))
 			| _ -> e
-		with Error (Unify _,_) ->
+		with Error (Unify _,_,depth) ->
 			let try_last_resort after =
 				try
 					match last_resort with
@@ -109,26 +108,26 @@ module IterationKind = struct
 				try
 					unify_raise acc_expr.etype t acc_expr.epos;
 					acc_expr
-				with Error (Unify(l),p) ->
+				with Error (Unify(l),p,n) ->
 					try_last_resort (fun () ->
 						match !dynamic_iterator with
 						| Some e -> e
 						| None ->
 							if resume then raise Not_found;
-							display_error ctx.com "Field iterator has an invalid type" acc_expr.epos;
-							display_error ctx.com (error_msg (Unify l)) p;
+							display_error ~depth ctx.com "Field iterator has an invalid type" acc_expr.epos;
+							located_display_error ~depth:(depth+1) ctx.com (error_msg p (Unify l));
 							mk (TConst TNull) t_dynamic p
 					)
 			in
 			try
-				let acc = type_field ({do_resume = true;allow_resolve = false;safe = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 				try_acc acc;
 			with Not_found ->
 				try_last_resort (fun () ->
 					match !dynamic_iterator with
 					| Some e -> e
 					| None ->
-						let acc = type_field ({do_resume = resume;allow_resolve = false;safe = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
 						try_acc acc
 				)
 		in
@@ -155,7 +154,7 @@ module IterationKind = struct
 			(try
 				(* first try: do we have an @:arrayAccess getter field? *)
 				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r,_,_ = AbstractCast.find_array_access_raise ctx a tl todo None p in
+				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
 				let get_next e_base e_index t p =
 					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
 				in
@@ -261,7 +260,7 @@ module IterationKind = struct
 		{
 			it_kind = it;
 			it_type = pt;
-			it_expr = e1;
+			it_expr = if not ctx.allow_transform then e else e1;
 		}
 
 	let to_texpr ctx v iterator e2 p =
@@ -316,6 +315,8 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
+		| _ when not ctx.allow_transform ->
+			mk (TFor(v,e1,e2)) t_void p
 		| IteratorIntUnroll(offset,length,ascending) ->
 			check_loop_var_modification [v] e2;
 			if not ascending then typing_error "Cannot iterate backwards" p;
@@ -514,8 +515,8 @@ let type_for_loop ctx handle_display it e2 p =
 		let enext = build_call ctx (type_field_default_cfg ctx etmp "next" etmp.epos (MCall []) WithType.value (* WITHTYPETODO *)) [] WithType.value etmp.epos in
 		let v = gen_local ctx pt e1.epos in
 		let ev = make_local v v.v_pos in
-		let ekey = Calls.acc_get ctx (type_field_default_cfg ctx ev "key" ev.epos MGet WithType.value) ev.epos in
-		let evalue = Calls.acc_get ctx (type_field_default_cfg ctx ev "value" ev.epos MGet WithType.value) ev.epos in
+		let ekey = Calls.acc_get ctx (type_field_default_cfg ctx ev "key" ev.epos MGet WithType.value) in
+		let evalue = Calls.acc_get ctx (type_field_default_cfg ctx ev "value" ev.epos MGet WithType.value) in
 		let vkey = add_local_with_origin ctx TVOForVariable ikey ekey.etype pkey in
 		let vvalue = add_local_with_origin ctx TVOForVariable ivalue evalue.etype pvalue in
 		let e2 = type_expr ctx e2 NoValue in

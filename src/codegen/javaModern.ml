@@ -196,33 +196,34 @@ module JReaderHoldovers = struct
 
 	let parse_formal_type_params s = match s.[0] with
 		| '<' ->
-			let rec read_id i =
-			match s.[i] with
-			| ':' | '>' -> i
-			| _ -> read_id (i + 1)
+			let rec read_id i = match s.[i] with
+				| ':' | '>' -> i
+				| _ -> read_id (i + 1)
 			in
 			let len = String.length s in
 			let rec parse_params idx acc =
-			let idi = read_id (idx + 1) in
-			let id = String.sub s (idx + 1) (idi - idx - 1) in
-			(* next must be a : *)
-			(match s.[idi] with | ':' -> () | _ -> failwith ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
-			let ext, l = match s.[idi + 1] with
-				| ':' | '>' -> None, idi + 1
-				| _ ->
-				let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
-				Some sgn, l + idi + 1
-			in
-			let rec loop idx acc =
-				match s.[idx] with
-				| ':' ->
-				let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
-				loop (idx + ifacei + 1) (ifacesig :: acc)
-				| _ -> acc, idx
-			in
-			let ifaces, idx = loop l [] in
-			let acc = (id, ext, ifaces) :: acc in
-			if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
+				let idi = read_id (idx + 1) in
+				let id = String.sub s (idx + 1) (idi - idx - 1) in
+				(* next must be a : *)
+				(match s.[idi] with | ':' -> () | _ -> failwith ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
+				let ext, l = match s.[idi + 1] with
+					| ':' | '>' ->
+						None, idi + 1
+					| _ ->
+						let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
+						Some sgn, l + idi + 1
+				in
+				let rec loop idx acc =
+					match s.[idx] with
+					| ':' ->
+						let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
+						loop (idx + ifacei + 1) (ifacesig :: acc)
+					| _ ->
+						acc, idx
+				in
+				let ifaces, idx = loop l [] in
+				let acc = (id, ext, ifaces) :: acc in
+				if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
 			in
 			parse_params 0 []
 		| _ -> [], 0

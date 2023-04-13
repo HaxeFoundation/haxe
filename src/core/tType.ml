@@ -30,13 +30,19 @@ type module_check_policy =
 	| CheckFileContentModification
 	| NoCheckDependencies
 	| NoCheckShadowing
+	| Retype
 
 type module_skip_reason =
-	| DependencyDirty of path
+	| DependencyDirty of path * module_skip_reason
 	| Tainted of string
 	| FileChanged of string
 	| Shadowed of string
 	| LibraryChanged
+
+type module_cache_state =
+	| MSGood
+	| MSBad of module_skip_reason
+	| MSUnknown
 
 type t =
 	| TMono of tmono
@@ -45,7 +51,7 @@ type t =
 	| TType of tdef * tparams
 	| TFun of tsignature
 	| TAnon of tanon
-	| TDynamic of t
+	| TDynamic of t option
 	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
 
@@ -120,6 +126,7 @@ and tvar_kind =
 	| VInlined
 	| VInlinedConstructorVariable
 	| VExtractorVariable
+	| VAbstractThis
 
 and tvar = {
 	mutable v_id : int;
@@ -234,6 +241,7 @@ and tinfos = {
 	mutable mt_meta : metadata;
 	mt_params : type_params;
 	mutable mt_using : (tclass * pos) list;
+	mutable mt_restore : unit -> unit;
 }
 
 and tclass = {
@@ -246,6 +254,7 @@ and tclass = {
 	mutable cl_meta : metadata;
 	mutable cl_params : type_params;
 	mutable cl_using : (tclass * pos) list;
+	mutable cl_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_flags : int;
@@ -261,7 +270,6 @@ and tclass = {
 	mutable cl_init : texpr option;
 
 	mutable cl_build : unit -> build_state;
-	mutable cl_restore : unit -> unit;
 	(*
 		These are classes which directly extend or directly implement this class.
 		Populated automatically in post-processing step (Filters.run)
@@ -290,6 +298,7 @@ and tenum = {
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
 	mutable e_using : (tclass * pos) list;
+	mutable e_restore : unit -> unit;
 	(* do not insert any fields above *)
 	e_type : tdef;
 	mutable e_extern : bool;
@@ -307,6 +316,7 @@ and tdef = {
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
 	mutable t_using : (tclass * pos) list;
+	mutable t_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -321,6 +331,7 @@ and tabstract = {
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
 	mutable a_using : (tclass * pos) list;
+	mutable a_restore : unit -> unit;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
@@ -363,7 +374,7 @@ and module_def_extra = {
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : module_skip_reason option;
+	mutable m_cache_state : module_cache_state;
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
@@ -406,6 +417,7 @@ type flag_tclass =
 	| CFinal
 	| CInterface
 	| CAbstract
+	| CFunctionalInterface
 
 type flag_tclass_field =
 	| CfPublic

@@ -125,6 +125,7 @@ let parse_args com =
 			com.main_class <- Some cpath;
 			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
+		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			let flag, value = try let split = ExtString.String.split var "=" in (fst split, Some (snd split)) with _ -> var, None in
 			match value with
@@ -146,17 +147,35 @@ let parse_args com =
 			raise (Arg.Help "")
 		),"","show extended help information");
 		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
-			let all,max_length = Define.get_documentation_list() in
+			let all,max_length = Define.get_documentation_list com.user_defines in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> com.print (msg ^ "\n")) all;
 			actx.did_something <- true
 		),"","print help for all compiler specific defines");
+		("Miscellaneous",["--help-user-defines"],[], Arg.Unit (fun() ->
+			actx.did_something <- true;
+			com.callbacks#add_after_init_macros (fun() ->
+				let all,max_length = Define.get_user_documentation_list com.user_defines in
+				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
+				List.iter (fun msg -> com.print (msg ^ "\n")) all;
+				exit 0
+			)
+		),"","print help for all user defines");
 		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
-			let all,max_length = Meta.get_documentation_list() in
+			let all,max_length = Meta.get_documentation_list com.user_metas in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> com.print (msg ^ "\n")) all;
 			actx.did_something <- true
 		),"","print help for all compiler metadatas");
+		("Miscellaneous",["--help-user-metas"],[], Arg.Unit (fun() ->
+			actx.did_something <- true;
+			com.callbacks#add_after_init_macros (fun() ->
+				let all,max_length = Meta.get_user_documentation_list com.user_metas in
+				let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
+				List.iter (fun msg -> com.print (msg ^ "\n")) all;
+				exit 0
+			)
+		),"","print help for all user metadatas");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->
@@ -180,9 +199,9 @@ let parse_args com =
 		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>","add the SWF library to the compiled SWF");
-		("Target-specific",["--neko-lib"],[],Arg.String (fun file ->
-			com.neko_libs <- file :: com.neko_libs
-		),"<file>","add the neko library");
+		("Target-specific",[],["--neko-lib-path"],Arg.String (fun dir ->
+			com.neko_lib_paths <- dir :: com.neko_lib_paths
+		),"<directory>","add the neko library path");
 		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
 			add_native_lib file true;
 		),"<file>","use the SWF library for type checking");

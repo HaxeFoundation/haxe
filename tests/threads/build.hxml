@@ -4,3 +4,4 @@
 --dce full
 -D analyzer-optimize
 -D UTEST_PRINT_TESTS
+-D hl-ver=1.13.0

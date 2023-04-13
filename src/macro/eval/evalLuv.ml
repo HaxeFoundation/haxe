@@ -546,11 +546,20 @@ let uv_error_fields = [
 		Error.set_on_unhandled_exception (fun ex ->
 			let msg =
 				match ex with
-				| HaxeError.Error (Custom msg,_) ->
+				| HaxeError.Error (Custom msg,_,_) ->
 					(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
 					(try fst (ExtString.String.split msg "\n")
 					with _ -> msg)
-				| HaxeError.Error (err,_) -> HaxeError.error_msg err
+				| HaxeError.Error (err,p,_) ->
+						(* TODO hook global error reporting *)
+						(match (extract_located (HaxeError.error_msg p err)) with
+						| [] -> ""
+						| (s,_) :: [] -> s
+						| (s,_) :: stack ->
+							List.fold_left (fun acc (s,p) ->
+								Printf.sprintf "%s%s\n" acc (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") p)
+							) (s ^ "\n") stack
+						);
 				| _ -> Printexc.to_string ex
 			in
 			let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in

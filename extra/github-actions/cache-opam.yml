@@ -1,0 +1,6 @@
+- name: Cache opam
+  id: cache-opam
+  uses: actions/cache@v3.0.11
+  with:
+    path: ~/.opam/
+    key: ${{ runner.os }}-${{ hashFiles('./opam', './libs/') }}-2

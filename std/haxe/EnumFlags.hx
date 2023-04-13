@@ -40,6 +40,14 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		this = i;
 	}
 
+	@:from static function from<T:EnumValue>(e:T) : EnumFlags<T> {
+		return new EnumFlags(1 << e.getIndex());
+	}
+
+	@:op(a|b) function or(f:haxe.EnumFlags<T>) : haxe.EnumFlags<T>;
+	@:op(a&b) function and(f:haxe.EnumFlags<T>) : haxe.EnumFlags<T>;
+	@:op(a^b) function xor(f:haxe.EnumFlags<T>) : haxe.EnumFlags<T>;
+
 	/**
 		Checks if the index of enum instance `v` is set.
 

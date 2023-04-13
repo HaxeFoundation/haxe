@@ -6,9 +6,11 @@ open Error
 
 type access_kind =
 	(* Access is not possible or allowed. *)
-	| AKNo of string
+	| AKNo of access_kind * pos
 	(* Access on arbitrary expression. *)
 	| AKExpr of texpr
+	(* Safe navigation access chain *)
+	| AKSafeNav of safe_nav_access
 	(* Access on non-property field. *)
 	| AKField of field_access
 	(* Access on property field. The field is the property, not the accessor. *)
@@ -23,14 +25,69 @@ type access_kind =
 	(* Access on abstract via resolve method. *)
 	| AKResolve of static_extension_access * string
 
+and safe_nav_access = {
+	(* position of the safe navigation chain start (the initial ?.field expression) *)
+	sn_pos : pos;
+	(* starting value to be checked for null *)
+	sn_base : texpr;
+	(* temp var declaration to store complex base expression *)
+	sn_temp_var : texpr option;
+	(* safe navigation access to be done if the base value is not null *)
+	sn_access : access_kind;
+}
+
 type object_decl_kind =
 	| ODKWithStructure of tanon
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
+	| ODKFailed
 
-let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> die "" __LOC__)
+module MetaConfig = struct
+
+	let as_bool e = match fst e with
+		| EConst (Ident "true") -> true
+		| EConst (Ident "false") -> false
+		| _ -> raise (Invalid_argument "bool")
+
+	let read_arg_config meta f l =
+		List.iter (fun (meta',el,_) ->
+			if meta' = meta then
+				List.iter (fun e -> match fst e with
+					| EConst (Ident s) ->
+						f (s,((EConst (Ident "true"),null_pos)))
+					| EBinop(OpAssign,(EConst (Ident s),_),e2) ->
+						f (s, e2)
+					| _ ->
+						()
+				) el
+		) l
+end
+
+module AbstractFromConfig = struct
+	type t = {
+		mutable ignored_by_inference : bool;
+	}
+
+	let make () = {
+		ignored_by_inference = false;
+	}
+
+	let update_config_from_meta config ml =
+		MetaConfig.read_arg_config Meta.From (fun (s,e) -> match s with
+			| "ignoredByInference" ->
+				begin try
+					config.ignored_by_inference <- MetaConfig.as_bool e
+				with Invalid_argument _ ->
+					()
+				end
+			| _ ->
+				()
+		) ml;
+		config
+end
+
+let type_call_target_ref : (typer -> expr -> expr list -> WithType.t -> pos option -> access_kind) ref = ref (fun _ _ _ _ -> die "" __LOC__)
 let type_access_ref : (typer -> expr_def -> pos -> access_mode -> WithType.t -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
-let acc_get_ref : (typer -> access_kind -> pos -> texpr) ref = ref (fun _ _ _ -> assert false)
 
 class value_reference (ctx : typer) =
 
@@ -182,7 +239,8 @@ let s_field_access tabs fa =
 		"fa_on",se fa.fa_on;
 		"fa_field",fa.fa_field.cf_name;
 		"fa_host",sfa fa.fa_host;
-		"fa_inline",string_of_bool fa.fa_inline
+		"fa_inline",string_of_bool fa.fa_inline;
+		"fa_pos",(Printf.sprintf "%s(%i-%i)" fa.fa_pos.pfile fa.fa_pos.pmin fa.fa_pos.pmax);
 	]
 
 let s_static_extension_access sea =
@@ -191,18 +249,35 @@ let s_static_extension_access sea =
 		"se_access",s_field_access "\t" sea.se_access
 	]
 
-let s_access_kind acc =
+let rec s_access_kind acc =
 	let st = s_type (print_context()) in
 	let se = s_expr_pretty true "" false st in
 	match acc with
-	| AKNo s -> "AKNo " ^ s
+	| AKNo(acc,_) -> "AKNo " ^ (s_access_kind acc)
 	| AKExpr e -> "AKExpr " ^ (se e)
+	| AKSafeNav sn -> Printf.sprintf  "AKSafeNav(%s)" (s_safe_nav_access sn)
 	| AKField fa -> Printf.sprintf "AKField(%s)" (s_field_access "" fa)
 	| AKAccessor fa -> Printf.sprintf "AKAccessor(%s)" (s_field_access "" fa)
 	| AKUsingField sea -> Printf.sprintf "AKUsingField(%s)" (s_static_extension_access sea)
 	| AKUsingAccessor sea -> Printf.sprintf "AKUsingAccessor(%s)" (s_static_extension_access sea)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKResolve(_) -> ""
+
+and s_safe_nav_access sn =
+	let st = s_type (print_context()) in
+	let se = s_expr_pretty true "" false st in
+	Printer.s_record_fields "" [
+		"sn_base",se sn.sn_base;
+		"sn_temp_var",Option.map_default (fun e -> "Some " ^ (se e)) "None" sn.sn_temp_var;
+		"sn_access",s_access_kind sn.sn_access
+	]
+
+let s_dot_path_part part =
+	Printer.s_record_fields "" [
+		"name",part.name;
+		"case",(match part.case with PUppercase -> "PUppercase" | PLowercase -> "PLowercase");
+		"pos",(Printf.sprintf "%s(%i-%i)" part.pos.pfile part.pos.pmin part.pos.pmax);
+	]
 
 let get_constructible_constraint ctx tl p =
 	let extract_function t = match follow t with
@@ -252,6 +327,8 @@ let get_abstract_froms ctx a pl =
 	List.fold_left (fun acc (t,f) ->
 		(* We never want to use the @:from we're currently in because that's recursive (see #10604) *)
 		if f == ctx.curfield then
+			acc
+		else if (AbstractFromConfig.update_config_from_meta (AbstractFromConfig.make ()) f.cf_meta).ignored_by_inference then
 			acc
 		else match follow (Type.field_type f) with
 		| TFun ([_,_,v],t) ->

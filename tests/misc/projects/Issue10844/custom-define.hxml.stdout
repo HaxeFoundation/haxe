@@ -1,0 +1,2 @@
+ dummy      : <level: 10 | 11> On a scale from 0 to 10 (from dummy_doc_dep)
+ no-bullshit: Only very important stuff should be compiled (from dummy_doc)

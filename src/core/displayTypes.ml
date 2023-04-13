@@ -264,7 +264,7 @@ type symbol =
 	| SKEnum of tenum
 	| SKTypedef of tdef
 	| SKAbstract of tabstract
-	| SKField of tclass_field * path option (* path - class path *)
+	| SKField of tclass_field * tclass option
 	| SKConstructor of tclass_field
 	| SKEnumField of tenum_field
 	| SKVariable of tvar
@@ -332,7 +332,7 @@ type diagnostics_context = {
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t * int (* depth *)) list;
 	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
 }
 

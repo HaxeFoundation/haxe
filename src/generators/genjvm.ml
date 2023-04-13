@@ -130,7 +130,7 @@ class file_output
 	method add_entry (content : string) (name : string) =
 		let path = base_path ^ name in
 		Path.mkdir_from_path path;
-		let ch = open_out path in
+		let ch = open_out_bin path in
 		output_string ch content;
 		close_out ch
 
@@ -168,12 +168,6 @@ let rec jsignature_of_type gctx stack t =
 				| [t] -> TArray(jsignature_of_type t,None)
 				| _ -> die "" __LOC__
 				end
-			| ["haxe"],"Rest" ->
-				begin match tl with
-				| [t] -> TArray(get_boxed_type (jsignature_of_type t),None)
-				| _ -> die "" __LOC__
-				end
-			(* | ["haxe"],"Rest" -> TArray(object_sig,None) *)
 			| [],"Dynamic" ->
 				object_sig
 			| [],("Class" | "Enum") ->
@@ -201,7 +195,7 @@ let rec jsignature_of_type gctx stack t =
 		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
-	| TInst({cl_kind = KTypeParameter [t]},_) -> jsignature_of_type t
+	| TInst({cl_kind = KTypeParameter [t]},_) when t != t_dynamic -> jsignature_of_type t
 	| TInst({cl_kind = KTypeParameter _; cl_path = (_,name)},_) -> TTypeParameter name
 	| TInst({cl_path = ["_Class"],"Class_Impl_"},_) -> java_class_sig
 	| TInst({cl_path = ["_Enum"],"Enum_Impl_"},_) -> java_class_sig
@@ -215,8 +209,6 @@ let rec jsignature_of_type gctx stack t =
 		jsig
 	) tl) (return_of_type gctx stack tr)
 	| TAnon an -> object_sig
-	| TType({ t_path = ["haxe"],"Rest$NativeRest" },[t]) ->
-		TArray(get_boxed_type (jsignature_of_type t),None)
 	| TType(td,tl) ->
 		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
 		| Some c -> TObject(c.cl_path,[])
@@ -269,9 +261,15 @@ module AnnotationHandler = struct
 			| EField(e1,s,_) ->
 				let path = parse_path e1 in
 				AEnum(object_path_sig path,s)
+			| ECall(e1, el) ->
+				let path = parse_path e1 in
+				let _,name = ExtString.String.replace (snd path) "." "$" in
+				let path = (fst path, name) in
+				let values = List.map parse_value_pair el in
+				AAnnotation(TObject(path, []),values)
+
 			| _ -> Error.typing_error "Expected value expression" (pos e)
-		in
-		let parse_value_pair e = match fst e with
+		and parse_value_pair e = match fst e with
 			| EBinop(OpAssign,(EConst(Ident s),_),e1) ->
 				s,parse_value e1
 			| _ ->
@@ -422,7 +420,7 @@ let create_field_closure gctx jc path_this jm name jsig =
 		| _ ->
 			die "" __LOC__
 	in
-	let jm_invoke = wf#generate_invoke args ret in
+	let jm_invoke = wf#generate_invoke args ret [] in
 	let vars = List.map (fun (name,jsig) ->
 		jm_invoke#add_local name jsig VarArgument
 	) args in
@@ -571,6 +569,10 @@ class texpr_to_jvm
 		let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncLocal name) jc jm context in
 		let jc_closure = wf#get_class in
 		ignore(wf#generate_constructor (env <> []));
+		let filter = match ret with
+			| RValue (Some (TObject(path,_)),_) -> [path]
+			| _ -> []
+		in
 		let args,ret =
 			let args = List.map (fun (v,eo) ->
 				(* TODO: Can we do this differently? *)
@@ -579,7 +581,7 @@ class texpr_to_jvm
 			) tf.tf_args in
 			args,(return_of_type gctx tf.tf_type)
 		in
-		let jm_invoke = wf#generate_invoke args ret in
+		let jm_invoke = wf#generate_invoke args ret filter in
 		let handler = new texpr_to_jvm gctx field_info jc_closure jm_invoke ret in
 		handler#set_env env;
 		let args = List.map (fun (v,eo) ->
@@ -656,7 +658,7 @@ class texpr_to_jvm
 			let wf = new JvmFunctions.typed_function gctx.typed_functions (FuncStatic(path,name)) jc jm [] in
 			let jc_closure = wf#get_class in
 			ignore(wf#generate_constructor false);
-			let jm_invoke = wf#generate_invoke args ret in
+			let jm_invoke = wf#generate_invoke args ret [] in
 			let vars = List.map (fun (name,jsig) ->
 				jm_invoke#add_local name jsig VarArgument
 			) args in
@@ -1006,7 +1008,7 @@ class texpr_to_jvm
 
 	method do_compare op =
 		match code#get_stack#get_stack_items 2 with
-		| [TInt | TByte | TChar | TBool;TInt | TByte | TChar | TBool] ->
+		| [TInt | TByte | TChar | TShort | TBool;TInt | TByte | TChar | TShort | TBool] ->
 			let op = flip_cmp_op op in
 			CmpSpecial (code#if_icmp op)
 		| [TObject((["java";"lang"],"String"),[]);TObject((["java";"lang"],"String"),[])] ->
@@ -1396,6 +1398,9 @@ class texpr_to_jvm
 				| TDouble ->
 					code#dconst 1.;
 					if op = Increment then code#dadd else code#dsub
+				| TFloat ->
+					code#fconst 1.;
+					if op = Increment then code#fadd else code#fsub
 				| TByte | TShort | TInt ->
 					code#iconst Int32.one;
 					if op = Increment then code#iadd else code#isub;
@@ -1412,6 +1417,7 @@ class texpr_to_jvm
 			begin match jsig with
 			| TLong -> code#lneg;
 			| TDouble -> code#dneg;
+			| TFloat -> code#fneg;
 			| TByte | TShort | TInt -> code#ineg;
 			| _ -> jm#invokestatic haxe_jvm_path "opNeg" (method_sig [object_sig] (Some object_sig))
 			end;
@@ -1457,7 +1463,7 @@ class texpr_to_jvm
 					| TUnop (Spread,_,e) ->
 						self#texpr (rvalue_sig jsig) e
 					| _ ->
-						self#new_native_array (get_boxed_type (jsignature_of_type gctx t1)) (e :: el)
+						self#new_native_array (jsignature_of_type gctx t1) (e :: el)
 					);
 					List.rev (jsig :: acc)
 				| _ ->
@@ -1474,7 +1480,7 @@ class texpr_to_jvm
 				(match Type.follow t with
 				| TAbstract({a_path = ["haxe"],"Rest"},[t1]) ->
 					let jsig = jsignature_of_type gctx t in
-					self#new_native_array (get_boxed_type (jsignature_of_type gctx t1)) [];
+					self#new_native_array (jsignature_of_type gctx t1) [];
 					List.rev (jsig :: acc)
 				| _ -> List.rev acc)
 			| _,[] -> List.rev acc
@@ -1571,16 +1577,6 @@ class texpr_to_jvm
 			| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 				let jsig = self#vtype t in
 				self#new_native_array jsig el;
-				Some (array_sig jsig)
-			| _ ->
-				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
-			end
-		| TField(_,FStatic({cl_path = (["haxe"],"Rest$Rest_Impl_")},{cf_name = "createNative"})) ->
-			begin match tr, el with
-			| TType({ t_path = ["haxe"],"Rest$NativeRest" },[t]), [e2] ->
-				self#texpr (if need_val ret then rvalue_any else RVoid) e2;
-				let jsig = get_boxed_type (self#vtype t) in
-				ignore(NativeArray.create jm#get_code jc#get_pool jsig);
 				Some (array_sig jsig)
 			| _ ->
 				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
@@ -1734,7 +1730,16 @@ class texpr_to_jvm
 			end
 		| _ ->
 			self#texpr rvalue_any e1;
-			invoke e1.etype;
+			let t = match e1.eexpr with
+				| TLocal ({v_extra = Some {v_params = l}} as v) when l <> [] ->
+					(* If we call a local variable with type parameters, we want to use the general (unapplied)
+					   type, which is the variable type itself. This is necessary for some special situations
+					   like the Rest<T> case in issue #10906. *)
+					v.v_type
+				| _ ->
+					e1.etype
+			in
+			invoke t;
 		in
 		match need_val ret,tro with
 		| false,Some _ -> code#pop
@@ -1925,18 +1930,22 @@ class texpr_to_jvm
 				)
 		| TSwitch(e1,cases,def) ->
 			self#switch ret e1 cases def
-		| TWhile(e1,e2,flag) -> (* TODO: do-while *)
+		| TWhile(e1,e2,flag) ->
 			block_exits <- ExitLoop :: block_exits;
 			let is_true_loop = match (Texpr.skip e1).eexpr with TConst (TBool true) -> true | _ -> false in
 			let continue_label = jm#spawn_label "continue" in
 			let break_label = jm#spawn_label "break" in
 			let body_label = jm#spawn_label "body" in
+			let restore = jm#start_branch in
+			if flag = DoWhile then begin
+				body_label#goto;
+				restore();
+			end;
 			let old_continue = continue in
 			continue <- Some continue_label;
 			let old_break = break in
 			break <- Some break_label;
 			continue_label#here;
-			let restore = jm#start_branch in
 			if not is_true_loop then self#condition false e1 body_label break_label;
 			let pop_scope = jm#push_scope in
 			body_label#here;
@@ -1999,10 +2008,12 @@ class texpr_to_jvm
 			jm#return;
 		| TReturn (Some e1) ->
 			self#texpr rvalue_any e1;
-			let jsig = Option.get return_type in
-			jm#cast jsig;
-			self#emit_block_exits false;
-			jm#return;
+			if not (jm#is_terminated) then begin
+				let jsig = Option.get return_type in
+				jm#cast jsig;
+				self#emit_block_exits false;
+				jm#return;
+			end
 		| TFunction tf ->
 			self#tfunction ret e tf
 		| TArrayDecl el when not (need_val ret) ->
@@ -2031,12 +2042,7 @@ class texpr_to_jvm
 			| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 				self#texpr rvalue_any e1;
 				let vt = self#vtype e1.etype in
-				let vte =
-					let vte = self#vtype t in
-					match e1.etype with
-					| TType ({ t_path = ["haxe"],"Rest$NativeRest" },_) -> get_boxed_type vte
-					| _ -> vte
-				in
+				let vte = self#vtype t in
 				self#texpr rvalue_any e2;
 				self#read_native_array vt vte
 			| t ->
@@ -2912,6 +2918,29 @@ module Preprocessor = struct
 		end else if fst mt.mt_path = [] then
 			mt.mt_path <- make_root mt.mt_path
 
+	let check_single_method_interface gctx c =
+		let rec loop m l = match l with
+			| [] ->
+				m
+			| cf :: l ->
+				if not (has_class_field_flag cf CfDefault) then begin match m with
+					| None ->
+						loop (Some cf) l
+					| Some _ ->
+						None
+				end else
+					loop m l
+		in
+		match loop None c.cl_ordered_fields with
+		| None ->
+			()
+		| Some cf ->
+			match jsignature_of_type gctx cf.cf_type with
+			| TMethod(args,ret) ->
+				JvmFunctions.JavaFunctionalInterfaces.add args ret c.cl_path cf.cf_name (List.map extract_param_name (c.cl_params @ cf.cf_params));
+			| _ ->
+				()
+
 	let preprocess gctx =
 		let rec has_runtime_meta = function
 			| (Meta.Custom s,_,_) :: _ when String.length s > 0 && s.[0] <> ':' ->
@@ -2941,6 +2970,7 @@ module Preprocessor = struct
 			match mt with
 			| TClassDecl c ->
 				if not (has_class_flag c CInterface) then gctx.preprocessor#preprocess_class c
+				else check_single_method_interface gctx c;
 			| _ -> ()
 		) gctx.com.types;
 		(* find typedef-interface implementations *)

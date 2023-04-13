@@ -1,0 +1,4 @@
+-cp src
+-main Main
+--interp
+--display "Main.hx@150@signature"

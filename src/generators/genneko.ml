@@ -662,21 +662,16 @@ let generate_libs_init = function
 	| libs ->
 		(*
 			var @s = $loader.loadprim("std@sys_string",0)();
-			var @env = $loader.loadprim("std@get_env",1);
-			var @b = if( @s == "Windows" )
-				@env("HAXEPATH") + "\\lib\\"
-				else try $loader.loadprim("std@file_contents",1)(@env("HOME")+"/.haxelib") + "/"
-				catch e
-					if( @s == "Linux" )
-						if( $loader(loadprim("std@sys_exists",1))("/usr/lib/haxe/lib") )
-							"/usr/lib/haxe/lib"
-						else
-							"/usr/share/haxe/lib/"
-					else
-						"/usr/local/lib/haxe/lib/";
-			if( try $loader.loadprim("std@sys_file_type",1)(".haxelib") == "dir" catch e false ) @b = $loader.loadprim("std@file_full_path",1)(".haxelib") + "/";
-			if( $loader.loadprim("std@sys_is64",0)() ) @s = @s + 64;
-			@b = @b + "/"
+			if( $version() >= 240 )
+				@s = @s + switch $loader.loadprim("std@sys_cpu_arch",0)() {
+					"arm64" => "Arm64"
+					"arm" => "Arm"
+					"x86_64" => "64"
+					default => ""
+				};
+			else if( $loader.loadprim("std@sys_is64",0)() )
+				@s = @s + 64;
+			@s = @s + "/";
 		*)
 		let p = null_pos in
 		let es = ident p "@s" in
@@ -689,34 +684,25 @@ let generate_libs_init = function
 		let boot = [
 			(EVars [
 				"@s",Some (call p (loadp "sys_string" 0) []);
-				"@env",Some (loadp "get_env" 1);
-				"@b", Some (EIf (op "==" es (str p "Windows"),
-					op "+" (call p (ident p "@env") [str p "HAXEPATH"]) (str p "\\lib\\"),
-					Some (ETry (
-						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "/.haxelib")]) (str p "/"),
-						"e",
-						(EIf (op "==" es (str p "Linux"),
-							(EIf (call p (loadp "sys_exists" 1) [ str p "/usr/lib/haxe/lib" ],
-								str p "/usr/lib/haxe/lib/",
-								Some (str p "/usr/share/haxe/lib/")),p),
-							Some (str p "/usr/local/lib/haxe/lib/")
-						),p)
-					),p)
-				),p);
 			],p);
-			(EIf ((ETry (op "==" (call p (loadp "sys_file_type" 1) [str p ".haxelib"]) (str p "dir"),"e",(EConst False,p)),p),op "=" (ident p "@b") (op "+" (call p (loadp "file_full_path" 1) [str p ".haxelib"]) (str p "/")), None),p);
-			(EIf (call p (loadp "sys_is64" 0) [],op "=" es (op "+" es (int p 64)),None),p);
+			(EIf (op ">=" (builtin p "version") (int p 240),
+				(op "=" es (op "+" es (ESwitch (call p (loadp "sys_cpu_arch" 0) [],[
+					(str p "arm64", str p "Arm64");
+					(str p "arm", str p "Arm");
+					(str p "x86_64", str p "64");
+				], Some (str p "")),p))),
+				Some (EIf (call p (loadp "sys_is64" 0) [],op "=" es (op "+" es (int p 64)),None),p)
+			),p);
 			op "=" es (op "+" es (str p "/"));
 		] in
 		let lpath = field p (builtin p "loader") "path" in
 		boot @ List.map (fun dir ->
-			let full_path = dir.[0] = '/' || dir.[1] = ':' in
 			let dstr = str p dir in
 			(*
 				// for each lib dir
-				$loader.path = $array($loader.path,@b+dir+@s);
+				$loader.path = $array(dir+@s,$loader.path);
 			*)
-			op "=" lpath (call p (builtin p "array") [op "+" (if full_path then dstr else op "+" (ident p "@b") dstr) (ident p "@s"); lpath])
+			op "=" lpath (call p (builtin p "array") [op "+" dstr (ident p "@s"); lpath])
 		) libs
 
 let new_context com ver macros =
@@ -787,7 +773,11 @@ let build ctx types =
 let generate com =
 	Hashtbl.clear files;
 	let ctx = new_context com (if Common.defined com Define.NekoV1 then 1 else 2) false in
-	let libs = (EBlock (generate_libs_init com.neko_libs) , { psource = "<header>"; pline = 1; }) in
+	let libs = (EBlock
+		(if Common.defined com Define.NekoNoHaxelibPaths then []
+		else generate_libs_init com.neko_lib_paths),
+		{ psource = "<header>"; pline = 1; }
+	) in
 	let el = build ctx com.types in
 	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in

@@ -1083,7 +1083,8 @@ let interp ctx f args =
 					| HEnum _ -> 18
 					| HNull _ -> 19
 					| HMethod _ -> 20
-					| HStruct _ -> 21)))
+					| HStruct _ -> 21
+					| HPacked _ -> 22)))
 				| _ -> Globals.die "" __LOC__);
 		| ORef (r,v) ->
 			set r (VRef (RStack (v + spos),rtype v))
@@ -2545,7 +2546,7 @@ let check code macros =
 				reg r (rtype r2);
 				reg off HI32;
 			| ONop _ ->
-				()
+				();
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

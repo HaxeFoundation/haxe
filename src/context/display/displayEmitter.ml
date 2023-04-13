@@ -109,7 +109,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 				(* For constructors, we care about the class name so we don't end up looking for "new". *)
 				snd c.cl_path,SKConstructor cf
 			| _,(Self (TClassDecl c) | Parent(TClassDecl c)) ->
-				cf.cf_name,SKField (cf,Some c.cl_path)
+				cf.cf_name,SKField (cf,Some c)
 			| _ ->
 				cf.cf_name,SKField (cf,None)
 		in
@@ -145,7 +145,7 @@ let display_meta com meta p = match com.display.dms_kind with
 		begin match meta with
 		| Meta.Custom _ | Meta.Dollar _ -> ()
 		| _ ->
-			if com.json_out = None then begin match Meta.get_documentation meta with
+			if com.json_out = None then begin match Meta.get_documentation com.user_metas meta with
 				| None -> ()
 				| Some (_,s) ->
 					raise_metadata ("<metadata>" ^ s ^ "</metadata>")
@@ -153,7 +153,7 @@ let display_meta com meta p = match com.display.dms_kind with
 				raise_hover (make_ci_metadata meta) None p
 		end
 	| DMDefault ->
-		let all = Meta.get_all() in
+		let all = Meta.get_all com.user_metas in
 		let all = List.map make_ci_metadata all in
 		let subject = if meta = Meta.HxCompletion then None else Some (Meta.to_string meta) in
 		raise_fields all CRMetadata (make_subject subject p);

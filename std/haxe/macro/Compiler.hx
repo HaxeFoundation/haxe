@@ -22,6 +22,7 @@
 
 package haxe.macro;
 
+import haxe.display.Display;
 import haxe.macro.Expr;
 
 /**
@@ -69,6 +70,7 @@ class Compiler {
 	**/
 	public static function define(flag:String, ?value:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("define", 2)(flag, value);
 		#end
 	}
@@ -136,6 +138,7 @@ class Compiler {
 	**/
 	public static function addClassPath(path:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_class_path", 1)(path);
 		#end
 	}
@@ -163,12 +166,26 @@ class Compiler {
 	}
 
 	/**
+		Returns all the configuration settings applied to the compiler.
+
+		Usage of this function outside a macro context returns `null`.
+	**/
+	public static function getConfiguration():Null<CompilerConfiguration> {
+		#if (neko || eval)
+		return load("get_configuration", 0)();
+		#else
+		return null;
+		#end
+	}
+
+	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 
 		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
 	**/
 	public static function addNativeLib(name:String) {
 		#if (neko || eval)
+		Context.assertInitMacro();
 		load("add_native_lib", 1)(name);
 		#end
 	}
@@ -201,69 +218,77 @@ class Compiler {
 		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
 	public static function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
-		var ignoreWildcard:Array<String> = [];
-		var ignoreString:Array<String> = [];
-		if (ignore != null) {
-			for (ignoreRule in ignore) {
-				if (StringTools.endsWith(ignoreRule, "*")) {
-					ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length - 1));
-				} else {
-					ignoreString.push(ignoreRule);
+		function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
+			var ignoreWildcard:Array<String> = [];
+			var ignoreString:Array<String> = [];
+			if (ignore != null) {
+				for (ignoreRule in ignore) {
+					if (StringTools.endsWith(ignoreRule, "*")) {
+						ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length - 1));
+					} else {
+						ignoreString.push(ignoreRule);
+					}
 				}
 			}
-		}
-		var skip = if (ignore == null) {
-			function(c) return false;
-		} else {
-			function(c:String) {
-				if (Lambda.has(ignoreString, c))
-					return true;
-				for (ignoreRule in ignoreWildcard)
-					if (StringTools.startsWith(c, ignoreRule))
+			var skip = if (ignore == null) {
+				function(c) return false;
+			} else {
+				function(c:String) {
+					if (Lambda.has(ignoreString, c))
 						return true;
-				return false;
+					for (ignoreRule in ignoreWildcard)
+						if (StringTools.startsWith(c, ignoreRule))
+							return true;
+					return false;
+				}
 			}
+			var displayValue = Context.definedValue("display");
+			if (classPaths == null) {
+				classPaths = Context.getClassPath();
+				// do not force inclusion when using completion
+				switch (displayValue) {
+					case null:
+					case "usage":
+					case _:
+						return;
+				}
+				// normalize class path
+				for (i in 0...classPaths.length) {
+					var cp = StringTools.replace(classPaths[i], "\\", "/");
+					if (StringTools.endsWith(cp, "/"))
+						cp = cp.substr(0, -1);
+					if (cp == "")
+						cp = ".";
+					classPaths[i] = cp;
+				}
+			}
+			var prefix = pack == '' ? '' : pack + '.';
+			var found = false;
+			for (cp in classPaths) {
+				var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
+				if (!sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path))
+					continue;
+				found = true;
+				for (file in sys.FileSystem.readDirectory(path)) {
+					if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
+						if( file == "import.hx" ) continue;
+						var cl = prefix + file.substr(0, file.length - 3);
+						if (skip(cl))
+							continue;
+						Context.getModule(cl);
+					} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
+						include(prefix + file, true, ignore, classPaths);
+				}
+			}
+			if (strict && !found)
+				Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 		}
-		var displayValue = Context.definedValue("display");
-		if (classPaths == null) {
-			classPaths = Context.getClassPath();
-			// do not force inclusion when using completion
-			switch (displayValue) {
-				case null:
-				case "usage":
-				case _:
-					return;
-			}
-			// normalize class path
-			for (i in 0...classPaths.length) {
-				var cp = StringTools.replace(classPaths[i], "\\", "/");
-				if (StringTools.endsWith(cp, "/"))
-					cp = cp.substr(0, -1);
-				if (cp == "")
-					cp = ".";
-				classPaths[i] = cp;
-			}
+
+		if (!Context.initMacrosDone()) {
+			Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
+		} else {
+			include(pack, rec, ignore, classPaths, strict);
 		}
-		var prefix = pack == '' ? '' : pack + '.';
-		var found = false;
-		for (cp in classPaths) {
-			var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
-			if (!sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path))
-				continue;
-			found = true;
-			for (file in sys.FileSystem.readDirectory(path)) {
-				if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
-					if( file == "import.hx" ) continue;
-					var cl = prefix + file.substr(0, file.length - 3);
-					if (skip(cl))
-						continue;
-					Context.getModule(cl);
-				} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
-					include(prefix + file, true, ignore, classPaths);
-			}
-		}
-		if (strict && !found)
-			Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 	}
 
 	/**
@@ -451,6 +476,44 @@ class Compiler {
 	}
 
 	/**
+		Reference a json file describing user-defined metadata
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/meta.json
+	**/
+	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<MetadataDescription> =  haxe.Json.parse(f);
+		for (m in content) registerCustomMetadata(m, source);
+	}
+
+	/**
+		Reference a json file describing user-defined defines
+		See https://github.com/HaxeFoundation/haxe/blob/development/src-json/define.json
+	**/
+	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
+		var f = sys.io.File.getContent(path);
+		var content:Array<DefineDescription> =  haxe.Json.parse(f);
+		for (d in content) registerCustomDefine(d, source);
+	}
+
+	/**
+		Register a custom medatada for documentation and completion purposes
+	**/
+	public static function registerCustomMetadata(meta:MetadataDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_metadata_impl", 2)(meta, source);
+		#end
+	}
+
+	/**
+		Register a custom define for documentation purposes
+	**/
+	public static function registerCustomDefine(define:DefineDescription, ?source:String):Void {
+		#if (neko || eval)
+		load("register_define_impl", 2)(define, source);
+		#end
+	}
+
+	/**
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator(callb:JSGenApi->Void) {
@@ -576,4 +639,109 @@ enum abstract NullSafetyMode(String) to String {
 		The only nullable thing could be safe are local variables.
 	**/
 	var StrictThreaded;
+}
+
+typedef MetadataDescription = {
+	final metadata:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this metadata.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this metadata accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this metadata is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+
+	/**
+		Places where this metadata can be applied.
+	**/
+	@:optional final targets:Array<MetadataTarget>;
+}
+
+typedef DefineDescription = {
+	final define:String;
+	final doc:String;
+
+	/**
+		External resources for more information about this define.
+	**/
+	@:optional final links:Array<String>;
+
+	/**
+		List (small description) of parameters that this define accepts.
+	**/
+	@:optional final params:Array<String>;
+
+	/**
+		Haxe target(s) for which this define is used.
+	**/
+	@:optional final platforms:Array<Platform>;
+}
+
+typedef CompilerConfiguration = {
+	/**
+		The version integer of the current Haxe compiler build.
+	**/
+	final version:Int;
+
+	/**
+		Returns an array of the arguments passed to the compiler from either the `.hxml` file or the command line.
+	**/
+	final args:Array<String>;
+
+	/**
+		If `--debug` mode is enabled, this is `true`.
+	**/
+	final debug:Bool;
+
+	/**
+		If `--verbose` mode is enabled, this is `true`.
+	**/
+	final verbose:Bool;
+
+	/**
+		If `--no-opt` is enabled, this is `false`.
+	**/
+	final foptimize:Bool;
+
+	/**
+		The target platform.
+	**/
+	final platform:haxe.display.Display.Platform;
+
+	/**
+		The compilation configuration for the target platform.
+	**/
+	final platformConfig:PlatformConfig;
+
+	/**
+		A list of paths being used for the standard library.
+	**/
+	final stdPath:Array<String>;
+
+	/**
+		The path of the class passed using the `-main` argument.
+	**/
+	final mainClass:TypePath;
+
+	/**
+		Special access rules for packages depending on the compiler configuration.
+
+		For example, the "java" package is "Forbidden" when the target platform is Python.
+	**/
+	final packageRules:Map<String,PackageRule>;
+}
+
+enum PackageRule {
+	Forbidden;
+	Directory(path:String);
+	Remap(path:String);
 }

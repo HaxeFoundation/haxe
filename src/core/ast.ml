@@ -1198,7 +1198,7 @@ module Expr = struct
 				add "ECheckType";
 				loop e1;
 			| EMeta((m,_,_),e1) ->
-				add ("EMeta " ^ fst (Meta.get_info m));
+				add ("EMeta " ^ (Meta.to_string m));
 				loop e1
 		in
 		loop' "" e;

@@ -16,6 +16,12 @@
 		"doc": "Perform advanced optimizations."
 	},
 	{
+		"name": "AnalyzerTimes",
+		"define": "analyzer-times",
+		"doc": "Record detailed timers for the analyzer",
+		"params": ["level: 0 | 1 | 2"]
+	},
+	{
 		"name": "AnnotateSource",
 		"define": "annotate-source",
 		"doc": "Add additional comments to generated source code.",
@@ -154,6 +160,19 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "EvalPrintDepth",
+		"define": "eval-print-depth",
+		"doc": "Set maximum print depth (before replacing with '<...>') for eval. (default: 5)",
+		"platforms": ["eval"],
+		"params": ["depth"]
+	},
+	{
+		"name": "EvalPrettyPrint",
+		"define": "eval-pretty-print",
+		"doc": "Enable indented output for eval printing.",
+		"platforms": ["eval"]
+	},
+	{
 		"name": "EvalStack",
 		"define": "eval-stack",
 		"doc": "Record stack information in macro/interp mode.",
@@ -204,7 +223,7 @@
 		"devcomment": "force-lib-check is only here as a debug facility - compiler checking allows errors to be found more easily",
 		"name": "ForceLibCheck",
 		"define": "force-lib-check",
-		"doc": "Force the compiler to check `--net-lib` and `–-java-lib` added classes (internal).",
+		"doc": "Force the compiler to check `--net-lib` and `--java-lib` added classes (internal).",
 		"platforms": ["cs", "java"]
 	},
 	{
@@ -241,6 +260,11 @@
 		"define": "haxe",
 		"doc": "The current Haxe version value in SemVer format.",
 		"reserved": true
+	},
+	{
+		"name": "HaxeNext",
+		"define": "haxe-next",
+		"doc": "Enable experimental features that are meant to be released on next Haxe version."
 	},
 	{
 		"name": "HlVer",
@@ -431,6 +455,14 @@
 		"platforms": ["neko"]
 	},
 	{
+		"name": "NekoNoHaxelibPaths",
+		"define": "neko-no-haxelib-paths",
+		"doc": "Disable hard-coded Haxelib ndll paths.",
+		"platforms": [
+			"neko"
+		]
+	},
+	{
 		"name": "NekoV1",
 		"define": "neko-v1",
 		"doc": "Keep Neko 1.x compatibility.",
@@ -553,6 +585,11 @@
 		"define": "replace-files",
 		"doc": "GenCommon internal.",
 		"platforms": ["cs", "java"]
+	},
+	{
+		"name": "RetainUntypedMeta",
+		"define": "retain-untyped-meta",
+		"doc": "Prevents arbitrary expression metadata from being discarded upon typing."
 	},
 	{
 		"name": "Scriptable",
@@ -699,5 +736,27 @@
 		"name": "NoTre",
 		"define": "no-tre",
 		"doc": "Disable tail recursion elimination."
+	},
+	{
+		"name": "MessageReporting",
+		"define": "message-reporting",
+		"doc": "Select message reporting mode for compiler output. (default: classic)",
+		"params": ["mode: classic | pretty | indent"]
+	},
+	{
+		"name": "NoColor",
+		"define": "no-color",
+		"doc": "Disable ANSI color codes when using rich output."
+	},
+	{
+		"name": "MessagesLogFile",
+		"define": "messages-log-file",
+		"doc": "Path to a text file to write messages log to, in addition to regular output."
+	},
+	{
+		"name": "MessagesLogFormat",
+		"define": "messages-log-format",
+		"doc": "Select message reporting mode for messages log output. (default: indent)",
+		"params": ["format: classic | pretty | indent"]
 	}
 ]

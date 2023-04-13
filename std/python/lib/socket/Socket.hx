@@ -81,6 +81,11 @@ extern class Socket {
 	function getsockname():python.lib.socket.Address;
 
 	/**
+		Return the timeout for the socket or null if no timeout has been set.
+	**/
+	function gettimeout():Null<Float>;
+
+	/**
 		Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
 	**/
 	function settimeout(timeout:Float):Void;
@@ -91,13 +96,25 @@ extern class Socket {
 	function waitForRead():Void;
 
 	/**
+		Return the current blocking mode of the socket.
+	**/
+	@:require(python_version >= 3.7)
+	function getblocking():Bool;
+
+	/**
 		Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocked value.
 	**/
 	function setblocking(b:Bool):Void;
 
 	/**
-
+		Return the current value of the sockopt as an Int or a Bytes buffer (if buflen is specified).
 	**/
+	function getsockopt(family:Int, option:Int):Int;
+
+	/**
+		Change the value of the given socket option.
+	**/
+	@:overload(function(family:Int, option:Int, value:Int):Void {})
 	function setsockopt(family:Int, option:Int, value:Bool):Void;
 
 	function fileno():Int;

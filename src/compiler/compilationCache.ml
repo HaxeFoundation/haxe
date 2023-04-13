@@ -54,6 +54,9 @@ class context_cache (index : int) = object(self)
 	method find_module path =
 		Hashtbl.find modules path
 
+	method find_module_opt path =
+		Hashtbl.find_opt modules path
+
 	method cache_module path value =
 		Hashtbl.replace modules path value
 
@@ -170,7 +173,7 @@ class cache = object(self)
 	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
-				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_dirty <- Some (Tainted reason)
+				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
 			) cc#get_modules
 		) contexts
 

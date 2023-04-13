@@ -156,7 +156,7 @@ let static_method_container gctx c cf p =
 		match t with
 		| TInst(cg,_) -> cg
 		| _ -> typing_error ("Cannot specialize @:generic static method because the generated type name is already used: " ^ name) p
-	with Error(Module_not_found path,_) when path = (pack,name) ->
+	with Error(Module_not_found path,_,_) when path = (pack,name) ->
 		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		let mg = {
 			m_id = alloc_mid();
@@ -190,8 +190,10 @@ let set_type_parameter_dependencies mg tl =
 			| Some t -> loop t)
 		| TLazy f ->
 			loop (lazy_type f);
-		| TDynamic t2 ->
-			if t == t2 then () else loop t2
+		| TDynamic None ->
+			()
+		| TDynamic (Some t2) ->
+			loop t2
 		| TAnon a ->
 			PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
 		| TFun (args,ret) ->
@@ -231,7 +233,7 @@ let rec build_generic_class ctx c p tl =
 		match t with
 		| TInst({ cl_kind = KGenericInstance (csup,_) },_) when c == csup -> t
 		| _ -> typing_error ("Cannot specialize @:generic because the generated type name is already used: " ^ name) p
-	with Error(Module_not_found path,_) when path = (pack,name) ->
+	with Error(Module_not_found path,_,_) when path = (pack,name) ->
 		let m = (try ctx.com.module_lut#find (ctx.com.type_to_module#find c.cl_path) with Not_found -> die "" __LOC__) in
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
@@ -289,7 +291,7 @@ let rec build_generic_class ctx c p tl =
 				begin try (match cf_old.cf_expr with
 					| None ->
 						begin match cf_old.cf_kind with
-							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
+							| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) && not (has_class_field_flag cf_old CfAbstract) ->
 								display_error ctx.com (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
 								display_error ctx.com (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
@@ -298,7 +300,7 @@ let rec build_generic_class ctx c p tl =
 					| Some e ->
 						cf_new.cf_expr <- Some (generic_substitute_expr gctx e)
 				) with Unify_error l ->
-					typing_error (error_msg (Unify l)) cf_new.cf_pos
+					located_typing_error (error_msg cf_new.cf_pos (Unify l))
 				end;
 				t
 			in
@@ -333,6 +335,7 @@ let rec build_generic_class ctx c p tl =
 		TypeloadFunction.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		if (has_class_flag c CInterface) then add_class_flag cg CInterface;
+		if (has_class_flag c CAbstract) then add_class_flag cg CAbstract;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor
@@ -381,9 +384,9 @@ let type_generic_function ctx fa fcc with_type p =
 		let name = cf.cf_name ^ "_" ^ gctx.name in
 		let unify_existing_field tcf pcf = try
 			unify_raise tcf fcc.fc_type p
-		with Error(Unify _,_) as err ->
-			display_error ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
-			display_error ctx.com (compl_msg "Conflicting field was defined here") pcf;
+		with Error(Unify _,_,depth) as err ->
+			display_error ~depth ctx.com ("Cannot create field " ^ name ^ " due to type mismatch") p;
+			display_error ~depth:(depth+1) ctx.com (compl_msg "Conflicting field was defined here") pcf;
 			raise err
 		in
 		let fa = try

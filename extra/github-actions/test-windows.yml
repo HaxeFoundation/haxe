@@ -37,7 +37,7 @@
     call lua53/bin/activate
 
 - name: Install wget
-  if: matrix.target == 'flash9'
+  if: matrix.target == 'flash'
   shell: cmd
   run: |
     choco install wget

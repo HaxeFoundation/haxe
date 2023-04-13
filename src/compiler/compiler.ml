@@ -4,26 +4,26 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics msg p kind =
+	let handle_diagnostics ?(depth = 0) msg kind =
 		ctx.has_error <- true;
-		add_diagnostics_message com msg p kind Error;
+		add_diagnostics_message ~depth com msg kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p) ->
-			handle_diagnostics (Error.error_msg msg) p DKCompilerMessage
+		| Error.Error(msg,p,depth) ->
+			handle_diagnostics ~depth (Error.error_msg p msg) DKCompilerMessage
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (Parser.error_msg msg) p DKParserError
+			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (Lexer.error_msg msg) p DKParserError
+			handle_diagnostics (located (Lexer.error_msg msg) p) DKParserError
 		end
 	else
 		f arg
 
 let run_command ctx cmd =
-	let t = Timer.timer ["command"] in
+	let t = Timer.timer ["command";cmd] in
 	(* TODO: this is a hack *)
 	let cmd = if ctx.comm.is_server then begin
 		let h = Hashtbl.create 0 in
@@ -156,7 +156,7 @@ module Setup = struct
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
 		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
-		List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
+		com.callbacks#run com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
@@ -211,8 +211,8 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun msg p -> message ctx (msg,p,DKCompilerMessage,Information));
-		com.warning <- (fun w options msg p ->
+		com.info <- (fun ?(depth=0) msg p -> message ctx (make_compiler_message msg p depth DKCompilerMessage Information));
+		com.warning <- (fun ?(depth=0) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
@@ -221,18 +221,19 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (msg,p,DKCompilerMessage,Warning)
+				message ctx (make_compiler_message msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);
-		com.error <- error ctx;
-		let filter_messages = (fun keep_errors predicate -> (List.filter (fun ((_,_,_,sev) as cm) ->
-			(match sev with
+		com.located_error <- located_error ctx;
+		com.error <- (fun ?(depth = 0) msg p -> com.located_error ~depth (located msg p));
+		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
+			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
 			| Information | Warning | Hint -> predicate cm;)
 		) (List.rev ctx.messages))) in
-		com.get_messages <- (fun () -> (List.map (fun ((_,_,_,sev) as cm) ->
-			(match sev with
+		com.get_messages <- (fun () -> (List.map (fun cm ->
+			(match cm.cm_severity with
 			| MessageSeverity.Error -> die "" __LOC__;
 			| Information | Warning | Hint -> cm;)
 		) (filter_messages false (fun _ -> true))));
@@ -253,7 +254,7 @@ let do_type ctx tctx actx =
 	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
 	com.stage <- CInitMacrosDone;
 	CommonCache.lock_signature com "after_init_macros";
-	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
+	com.callbacks#run com.callbacks#get_after_init_macros;
 	run_or_diagnose ctx (fun () ->
 		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
@@ -319,7 +320,7 @@ let compile ctx actx =
 		com.stage <- CGenerationDone;
 	end;
 	Sys.catch_break false;
-	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);
+	com.callbacks#run com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in
@@ -334,10 +335,10 @@ try
 with
 	| Abort ->
 		()
-	| Error.Fatal_error (m,p) ->
-		error ctx m p
-	| Common.Abort (m,p) ->
-		error ctx m p
+	| Error.Fatal_error (m,depth) ->
+		located_error ~depth ctx m
+	| Common.Abort msg ->
+		located_error ctx msg
 	| Lexer.Error (m,p) ->
 		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->
@@ -348,10 +349,16 @@ with
 			ctx.messages <- [];
 		end else begin
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
-			List.iter (error ctx (Error.compl_msg "referenced here")) (List.rev pl);
+			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
-	| Error.Error (m,p) ->
-		error ctx (Error.error_msg m) p
+	| Error.Error (Stack stack,_,depth) -> (match stack with
+		| [] -> ()
+		| (e,p) :: stack -> begin
+			located_error ~depth ctx (Error.error_msg p e);
+			List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
+		end)
+	| Error.Error (m,p,depth) ->
+		located_error ~depth ctx (Error.error_msg p m)
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
@@ -475,29 +482,23 @@ module HighLevel = struct
 					"-cp" :: l :: acc
 				else match (try ExtString.String.split l " " with _ -> l, "") with
 				| ("-L",dir) ->
-					"--neko-lib" :: (String.sub l 3 (String.length l - 3)) :: acc
+					"--neko-lib-path" :: (String.sub l 3 (String.length l - 3)) :: acc
 				| param, value ->
 					let acc = if value <> "" then value :: acc else acc in
 					let acc = param :: acc in
 					acc
-			) [] lines in
+			) [] (List.rev lines) in
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api create pl =
-		let each_params = ref [] in
-		let compilations = DynArray.create () in
+	let process_params server_api create each_params has_display is_server pl =
 		let curdir = Unix.getcwd () in
-		let has_display = ref false in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
-		let add_context args =
+		let create_context args =
 			let ctx = create (server_api.on_context_create()) args in
 			(* --cwd triggers immediately, so let's reset *)
 			Unix.chdir curdir;
-			DynArray.add compilations (ctx,!server_mode);
-			server_mode := SMNone;
-			Hashtbl.clear added_libs;
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
@@ -508,13 +509,13 @@ module HighLevel = struct
 		in
 		let rec loop acc = function
 			| [] ->
-				ignore(add_context (!each_params @ (List.rev acc)));
+				[],Some (create_context (!each_params @ (List.rev acc)))
 			| "--next" :: l when acc = [] -> (* skip empty --next *)
 				loop [] l
 			| "--next" :: l ->
-				let ctx = add_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (!each_params @ (List.rev acc)) in
 				ctx.has_next <- true;
-				loop [] l
+				l,Some ctx
 			| "--each" :: l ->
 				each_params := List.rev acc;
 				loop [] l
@@ -524,8 +525,14 @@ module HighLevel = struct
 				(* Push the --cwd arg so the arg processor know we did something. *)
 				loop (dir :: "--cwd" :: acc) l
 			| "--connect" :: hp :: l ->
-				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-				server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+				if is_server then
+					(* If we are already connected, ignore (issue #10813) *)
+					loop acc l
+				else begin
+					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+					server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+					[],None
+				end
 			| "--server-connect" :: hp :: l ->
 				server_mode := SMConnect hp;
 				loop acc l
@@ -534,13 +541,14 @@ module HighLevel = struct
 				loop acc l
 			| "--run" :: cl :: args ->
 				let acc = cl :: "-x" :: acc in
-				let ctx = add_context (!each_params @ (List.rev acc)) in
+				let ctx = create_context (!each_params @ (List.rev acc)) in
 				ctx.com.sys_args <- args;
+				[],Some ctx
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs libs pl server_api.cache !has_display in
+				let lines = add_libs libs pl server_api.cache has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "--java" | "-java" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
@@ -556,15 +564,8 @@ module HighLevel = struct
 		and loop_lib arg dir lib acc args =
 			loop (dir :: arg :: acc) ("-lib" :: lib :: args)
 		in
-		(* put --display in front if it was last parameter *)
-		let pl = (match List.rev pl with
-			| file :: "--display" :: pl when file <> "memory" ->
-				has_display := true;
-				"--display" :: file :: List.rev pl
-			| _ -> pl
-		) in
-		loop [] pl;
-		DynArray.to_list compilations
+		let args,ctx = loop [] pl in
+		args,!server_mode,ctx
 
 	let execute_ctx server_api ctx server_mode =
 		begin match server_mode with
@@ -590,18 +591,36 @@ module HighLevel = struct
 
 	let entry server_api comm args =
 		let create = create_context comm server_api.cache in
-		let ctxs = try
-			process_params server_api create args
-		with Arg.Bad msg ->
-			let ctx = create 0 args in
-			error ctx ("Error: " ^ msg) null_pos;
-			[ctx,SMNone]
+		let each_args = ref [] in
+		let has_display = ref false in
+		(* put --display in front if it was last parameter *)
+		let args = match List.rev args with
+			| file :: "--display" :: pl when file <> "memory" ->
+				has_display := true;
+				"--display" :: file :: List.rev pl
+			| _ ->
+				args
 		in
-		let code = List.fold_left (fun code (ctx,server_mode) ->
-			if code = 0 then
-				execute_ctx server_api ctx server_mode
+		let rec loop args =
+			let args,server_mode,ctx = try
+				process_params server_api create each_args !has_display comm.is_server args
+			with Arg.Bad msg ->
+				let ctx = create 0 args in
+				error ctx ("Error: " ^ msg) null_pos;
+				[],SMNone,Some ctx
+			in
+			let code = match ctx with
+				| Some ctx ->
+					execute_ctx server_api ctx server_mode
+				| None ->
+					(* caused by --connect *)
+					0
+			in
+			if code = 0 && args <> [] && not !has_display then
+				loop args
 			else
 				code
-		) 0 ctxs in
+		in
+		let code = loop args in
 		comm.exit code
 end

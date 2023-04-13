@@ -86,7 +86,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 	with Exit ->
 		mk (TCall (e,params)) t p
 
-let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
+let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
 		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
@@ -95,8 +95,7 @@ let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 		make_call ctx ef [ebase;e1] r p
 
-let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
-	let evalue = match e2o with None -> die "" __LOC__ | Some e -> e in
+let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
@@ -111,9 +110,10 @@ let abstract_using_param_type sea = match follow sea.se_this.etype with
 	| TAbstract(a,tl) when has_class_field_flag sea.se_access.fa_field CfImpl -> apply_params a.a_params tl a.a_this
 	| _ -> sea.se_this.etype
 
-let rec acc_get ctx g p =
+let rec acc_get ctx g =
 	let inline_read fa =
 		let cf = fa.fa_field in
+		let p = fa.fa_pos in
 		(* do not create a closure for static calls *)
 		let apply_params = match fa.fa_host with
 			| FHStatic c ->
@@ -189,13 +189,30 @@ let rec acc_get ctx g p =
 			typing_error "Recursive inline is not supported" p
 		end
 	in
-	let dispatcher () = new call_dispatcher ctx MGet WithType.value p in
+	let dispatcher p = new call_dispatcher ctx MGet WithType.value p in
 	match g with
-	| AKNo f -> typing_error ("Field " ^ f ^ " cannot be accessed for reading") p
+	| AKNo(_,p) -> typing_error ("This expression cannot be accessed for reading") p
 	| AKExpr e -> e
+	| AKSafeNav sn ->
+		(* generate null-check branching for the safe navigation chain *)
+		let eobj = sn.sn_base in
+		let enull = Builder.make_null eobj.etype sn.sn_pos in
+		let eneq = Builder.binop OpNotEq eobj enull ctx.t.tbool sn.sn_pos in
+		let ethen = acc_get ctx sn.sn_access in
+		let tnull = ctx.t.tnull ethen.etype in
+		let ethen = if not (is_nullable ethen.etype) then
+			mk (TCast(ethen,None)) tnull ethen.epos
+		else
+			ethen
+		in
+		let eelse = Builder.make_null tnull sn.sn_pos in
+		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull sn.sn_pos in
+		(match sn.sn_temp_var with
+		| None -> eif
+		| Some evar -> { eif with eexpr = TBlock [evar; eif] })
 	| AKAccess _ -> die "" __LOC__
 	| AKResolve(sea,name) ->
-		(dispatcher ())#resolve_call sea name
+		(dispatcher sea.se_access.fa_pos)#resolve_call sea name
 	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
@@ -213,7 +230,7 @@ let rec acc_get ctx g p =
 			if ctx.in_display then
 				FieldAccess.get_field_expr fa FRead
 			else
-				typing_error "Invalid macro access" p
+				typing_error "Invalid macro access" fa.fa_pos
 		| _ ->
 			if fa.fa_inline then
 				inline_read fa
@@ -221,15 +238,16 @@ let rec acc_get ctx g p =
 				FieldAccess.get_field_expr fa FRead
 		end
 	| AKAccessor fa ->
-		(dispatcher())#field_call fa [] []
+		(dispatcher fa.fa_pos)#field_call fa [] []
 	| AKUsingAccessor sea ->
-		(dispatcher())#field_call sea.se_access [sea.se_this] []
+		(dispatcher sea.se_access.fa_pos)#field_call sea.se_access [sea.se_this] []
 	| AKUsingField sea ->
 		let e = sea.se_this in
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
 		(* build a closure with first parameter applied *)
 		(match follow e_field.etype with
 		| TFun ((_,_,t0) :: args,ret) ->
+			let p = sea.se_access.fa_pos in
 			let te = abstract_using_param_type sea in
 			unify ctx te t0 e.epos;
 			let tcallb = TFun (args,ret) in
@@ -254,27 +272,56 @@ let rec acc_get ctx g p =
 			make_call ctx ewrap [e] tcallb p
 		| _ -> die "" __LOC__)
 
-let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
+let check_dynamic_super_method_call ctx fa p =
+	match fa with
+	| { fa_on = { eexpr = TConst TSuper } ; fa_field = { cf_kind = Method MethDynamic; cf_name = name } } ->
+		ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p
+	| _ ->
+		()
+
+let rec build_call_access ctx acc el mode with_type p =
+	let get_accessor_to_call fa args =
+		let dispatch = new call_dispatcher ctx MGet WithType.value fa.fa_pos in
+		dispatch#field_call fa args []
+	in
 	let dispatch = new call_dispatcher ctx mode with_type p in
 	match acc with
 	| AKField fa ->
-		dispatch#field_call fa [] el
+		check_dynamic_super_method_call ctx fa p;
+		AKExpr (dispatch#field_call fa [] el)
 	| AKUsingField sea ->
 		let eparam = sea.se_this in
-		dispatch#field_call sea.se_access [eparam] el
+		let e = dispatch#field_call sea.se_access [eparam] el in
+		let e = match sea.se_access.fa_host with
+		| FHAbstract _ when not ctx.allow_transform ->
+			(* transform XXXImpl.field(this,args) back into this.field(args) *)
+			(match e.eexpr with
+			| TCall ({ eexpr = TField(_,name) } as f, abs :: el) -> { e with eexpr = TCall(mk (TField(abs,name)) t_dynamic f.epos, el) }
+			| _ -> assert false)
+		| _ ->
+			e
+		in
+		AKExpr e
 	| AKResolve(sea,name) ->
-		dispatch#expr_call (dispatch#resolve_call sea name) [] el
-	| AKNo _ | AKAccess _ ->
-		ignore(acc_get ctx acc p);
-		typing_error ("Unexpected access mode, please report this: " ^ (s_access_kind acc)) p
+		AKExpr (dispatch#expr_call (dispatch#resolve_call sea name) [] el)
+	| AKNo(_,p) ->
+		typing_error "This expression cannot be called" p
+	| AKAccess _ ->
+		typing_error "This expression cannot be called" p
 	| AKAccessor fa ->
-		let e = dispatch#field_call fa [] [] in
-		dispatch#expr_call e [] el
+		let e = get_accessor_to_call fa [] in
+		AKExpr (dispatch#expr_call e [] el)
 	| AKUsingAccessor sea ->
-		let e = dispatch#field_call sea.se_access [sea.se_this] [] in
-		dispatch#expr_call e [] el
+		let e = get_accessor_to_call sea.se_access [sea.se_this] in
+		AKExpr (dispatch#expr_call e [] el)
 	| AKExpr e ->
-		dispatch#expr_call e [] el
+		AKExpr (dispatch#expr_call e [] el)
+	| AKSafeNav sn ->
+		(* pack the call inside the safe navigation chain *)
+		AKSafeNav { sn with sn_access = build_call_access ctx sn.sn_access el mode with_type p }
+
+let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
+	acc_get ctx (build_call_access ctx acc el mode with_type p)
 
 let rec needs_temp_var e =
 	match e.eexpr with
@@ -361,6 +408,16 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			e,var_decls
 		| TField(_,(FStatic(_,cf) | FInstance(_,_,cf))) when is_immutable_method cf ->
 			e,var_decls
+		| TField(eobj,FClosure(Some (cl,tp), cf)) when is_immutable_method cf ->
+			(*
+				if we're binding an instance method, we don't really need to create a closure for it,
+				since we'll create a closure for the binding anyway, instead store the instance and
+				call its method inside a bind-generated closure
+			*)
+			let vobj = alloc_var VGenerated "`" eobj.etype eobj.epos in
+			let var_decl = mk (TVar(vobj, Some eobj)) ctx.t.tvoid eobj.epos in
+			let eobj = { eobj with eexpr = TLocal vobj } in
+			{ e with eexpr = TField(eobj, FInstance (cl, tp, cf)) }, var_decl :: var_decls
 		| _ ->
 			let e_var = alloc_var VGenerated "`" e.etype e.epos in
 			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
@@ -397,9 +454,9 @@ let array_access ctx e1 e2 mode p =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let f = AbstractCast.find_array_access ctx a pl e2 None p in
+				let f = AbstractCast.find_array_read_access ctx a pl e2 p in
 				if not ctx.allow_transform then
-					let _,_,r,_,_ = f in
+					let _,_,r,_ = f in
 					AKExpr { eexpr = TArray(e1,e2); epos = p; etype = r }
 				else begin
 					let e = mk_array_get_call ctx f c e1 p in
@@ -428,7 +485,7 @@ let array_access ctx e1 e2 mode p =
 				let t = ctx.t.tarray pt in
 				begin try
 					unify_raise et t p
-				with Error(Unify _,_) ->
+				with Error(Unify _,_,_) ->
 					if not ctx.untyped then begin
 						let msg = if !has_abstract_array_access then
 							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)
@@ -450,21 +507,19 @@ let array_access ctx e1 e2 mode p =
 	return a new `access_mode->access_kind` getter for the whole field access chain.
 *)
 let field_chain ctx path access mode with_type =
-	let type_field e part =
-		let cfg = {TypeFieldConfig.default with
-			safe = part.kind = EFSafe
-		} in
-		type_field cfg ctx e part.name part.pos
-	in
 	let rec loop access path = match path with
 		| [] ->
 			access
-		| [part] ->
-			let e = acc_get ctx access part.pos in
-			type_field e part mode with_type
 		| part :: path ->
-			let e = acc_get ctx access part.pos in
-			let access = type_field e part MGet WithType.value in
+			let e = acc_get ctx access in
+			let mode, with_type =
+				if path <> [] then
+					(* intermediate field access are just reading the value *)
+					MGet, WithType.value
+				else
+					mode, with_type
+			in
+			let access = type_field_default_cfg ctx e part.name part.pos mode with_type in
 			loop access path
 	in
 	loop access path

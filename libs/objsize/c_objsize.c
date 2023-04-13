@@ -7,7 +7,7 @@
 
 
 #define PRF(x) bitarray##x
-#include "bitarray.c"
+#include "bitarray.h"
 
 #include "util.h"
 

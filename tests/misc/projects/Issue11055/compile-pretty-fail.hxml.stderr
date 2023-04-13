@@ -1,0 +1,14 @@
+[ERROR] Main.hx:8: characters 2-7
+
+ 8 |  throw "up";
+   |  ^^^^^
+   | Uncaught exception up
+
+     2 |  foo();
+       |  ^^^^^
+       | Called from here
+
+    13 |  test();
+       |  ^^^^^^
+       | Called from here
+

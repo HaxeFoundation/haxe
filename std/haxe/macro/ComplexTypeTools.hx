@@ -39,7 +39,7 @@ class ComplexTypeTools {
 	static public function toString(c:ComplexType):String
 		return new Printer().printComplexType(c);
 
-	#if (macro || display)
+	#if macro
 	/**
 		Returns a type corresponding to `c`.
 

@@ -11,7 +11,6 @@ module TypeFieldConfig = struct
 	type t = {
 		allow_resolve : bool;
 		do_resume : bool;
-		safe : bool;
 	}
 
 	let allow_resolve cfg = cfg.allow_resolve
@@ -21,13 +20,11 @@ module TypeFieldConfig = struct
 	let default = {
 		allow_resolve = true;
 		do_resume = false;
-		safe = false;
 	}
 
 	let create resume = {
 		allow_resolve = true;
 		do_resume = resume;
-		safe = false;
 	}
 
 	let with_resume cfg = {cfg with do_resume = true}
@@ -79,7 +76,7 @@ let no_abstract_constructor c p =
 	if has_class_flag c CAbstract then raise_typing_error (Abstract_class (TClassDecl c)) p
 
 let check_constructor_access ctx c f p =
-	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
+	if (Meta.has Meta.CompilerGenerated f.cf_meta) then located_display_error ctx.com (error_msg p (No_constructor (TClassDecl c)));
 	if not (can_access ctx c f true || extends ctx.curclass c) && not ctx.untyped then display_error ctx.com (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let check_no_closure_meta ctx cf fa mode p =
@@ -108,7 +105,6 @@ let check_no_closure_meta ctx cf fa mode p =
 	| _ ->
 		()
 
-(* Note: `p` is the position of the field access expression. *)
 let field_access ctx mode f fh e pfield =
 	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
@@ -191,6 +187,9 @@ let field_access ctx mode f fh e pfield =
 		let normal inline =
 			AKField (make_access inline)
 		in
+		let normal_failure ()=
+			AKNo((normal false),pfield)
+		in
 		match (match mode with MGet | MCall _ -> v.v_read | MSet _ -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
@@ -199,9 +198,9 @@ let field_access ctx mode f fh e pfield =
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal false
-				| _ -> if ctx.untyped then normal false else AKNo f.cf_name)
+				| _ -> if ctx.untyped then normal false else normal_failure())
 			| _ ->
-				if ctx.untyped then normal false else AKNo f.cf_name)
+				if ctx.untyped then normal false else normal_failure())
 		| AccNormal | AccNo ->
 			normal false
 		| AccCall when (not ctx.allow_transform) || (ctx.in_display && DisplayPosition.display_position#enclosed_in pfull) ->
@@ -237,7 +236,7 @@ let field_access ctx mode f fh e pfield =
 				AKAccessor (make_access false)
 			end
 		| AccNever ->
-			if ctx.untyped then normal false else AKNo f.cf_name
+			if ctx.untyped then normal false else normal_failure()
 		| AccInline ->
 			normal true
 		| AccCtor ->
@@ -246,7 +245,7 @@ let field_access ctx mode f fh e pfield =
 			in
 			(match ctx.curfun, fh with
 				| FunConstructor, FHInstance(c,_) when c == ctx.curclass || is_child_of_abstract c -> normal false
-				| _ -> AKNo f.cf_name
+				| _ -> normal_failure()
 			)
 		| AccRequire (r,msg) ->
 			match msg with
@@ -439,7 +438,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 							end
 						| _ ->
 							check()
-					with Unify_error el | Error (Unify el,_) ->
+					with Unify_error el | Error (Unify el,_,_) ->
 						check_constant_struct := !check_constant_struct || List.exists (function
 							| Has_extra_field _ -> true
 							| _ -> false
@@ -519,7 +518,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
 		| TDynamic t ->
-			AKExpr (mk (TField (e,FDynamic i)) t p)
+			AKExpr (mk (TField (e,FDynamic i)) (match t with None -> t_dynamic | Some t -> t) p)
 		| TAbstract (a,tl) ->
 			(try
 				if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
@@ -567,29 +566,6 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
-
-(* Deal with safe-access mode here *)
-let type_field cfg ctx e i p mode (with_type : WithType.t) =
-	if not cfg.TypeFieldConfig.safe then
-		type_field cfg ctx e i p mode with_type
-	else begin
-		let vr = new value_reference ctx in
-		let e1 = vr#get_expr "tmp" e in
-		let enull = Builder.make_null e.etype e.epos in
-		let eneq = Builder.binop OpNotEq e1 enull ctx.t.tbool e.epos in
-		let acc_then = type_field cfg ctx e1 i p mode with_type in
-		(* SAFE TODO: check if we want a custom AK mode for this *)
-		let ethen = !acc_get_ref ctx acc_then p in
-		let tnull = ctx.t.tnull ethen.etype in
-		let ethen = if not (is_nullable ethen.etype) then
-			mk (TCast(ethen,None)) tnull e.epos
-		else
-			ethen
-		in
-		let eelse = Builder.make_null tnull ethen.epos in
-		let eif = mk (TIf(eneq,ethen,Some eelse)) tnull e.epos in
-		AKExpr (vr#to_texpr eif)
-	end
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
 

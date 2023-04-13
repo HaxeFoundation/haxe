@@ -87,7 +87,7 @@ let rec eval ctx (e,p) =
 		in
 		(match op with
 		| OpEq -> compare (=)
-		| OpNotEq -> compare (<>)
+		| OpNotEq -> TBool (not (is_true (compare (=))))
 		| OpGt -> compare (>)
 		| OpGte -> compare (>=)
 		| OpLt -> compare (<)
@@ -243,9 +243,9 @@ let parse entry ctx code file =
 		match fst tk with
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
-			let tk = next_token() in
 			let l = String.length s in
 			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
+			let tk = next_token() in
 			tk
 		| CommentLine s ->
 			if !in_display_file then begin
@@ -388,6 +388,13 @@ let parse entry ctx code file =
 let parse_string entry com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
+	let restore_file_data =
+		let f = Lexer.make_file old.lfile in
+		Lexer.copy_file old f;
+		(fun () ->
+			Lexer.copy_file f old
+		)
+	in
 	let old_display = display_position#get in
 	let old_in_display_file = !in_display_file in
 	let old_syntax_errors = !syntax_errors in
@@ -401,7 +408,10 @@ let parse_string entry com s p error inlined =
 			in_display_file := old_in_display_file;
 		end;
 		syntax_errors := old_syntax_errors;
-		Lexer.restore old
+		Lexer.restore old;
+		(* String parsing might mutate lexer_file information, e.g. from newline() calls. Here we
+		   restore the actual file data (issue #10763). *)
+		restore_file_data()
 	in
 	if inlined then
 		Lexer.init p.pfile

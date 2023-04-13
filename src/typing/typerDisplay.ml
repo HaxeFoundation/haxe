@@ -48,7 +48,18 @@ let completion_item_of_expr ctx e =
 		let t = tpair e.etype in
 		make_ci_expr e t
 	in
+	let was_probably_literal_abstract v t = match follow t with
+		| TAbstract(a,tl) ->
+			type_iseq (Abstract.get_underlying_type a tl) v.v_type
+		| _ ->
+			false
+	in
 	let rec loop e = match e.eexpr with
+		| TLocal ({v_kind = VAbstractThis} as v) when was_probably_literal_abstract v e.etype ->
+			(* `abstract` is typed as ((this : Underlying) : Abstract), so we detect it like that.
+			   This could lead to false positives if somebody really tries, but even in that case
+				the displayed type is not wrong. *)
+			make_ci_literal "abstract" (tpair e.etype)
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
 			let te,cf = DisplayToplevel.maybe_resolve_macro_field ctx e.etype c cf in
@@ -212,7 +223,7 @@ let rec handle_signature_display ctx e_ast with_type =
 						let _ = unify_call_args ctx el args r p false false false in
 						true
 					with
-					| Error(Call_error (Not_enough_arguments _),_) -> true
+					| Error(Call_error (Not_enough_arguments _),_,_) -> true
 					| _ -> false
 					end
 				in
@@ -261,12 +272,12 @@ let rec handle_signature_display ctx e_ast with_type =
 		| ECall(e1,el) ->
 			let def () =
 				try
-					acc_get ctx (!type_call_target_ref ctx e1 el with_type false (pos e1)) (pos e1)
+					acc_get ctx (!type_call_target_ref ctx e1 el with_type None)
 				with
-				| Error (Unknown_ident "trace",_) ->
+				| Error (Unknown_ident "trace",_,_) ->
 					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
 					type_expr ctx e WithType.value
-				| Error (Unknown_ident "$type",p) ->
+				| Error (Unknown_ident "$type",p,_) ->
 					display_dollar_type ctx p (fun t -> t,(CompletionType.from_type (get_import_status ctx) t))
 			in
 			let e1 = match e1 with
@@ -366,7 +377,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| TField(_,(FAnon cf | FClosure (None,cf))) ->
 			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,None));
 		| TField(_,(FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some (c,_),cf))) ->
-			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
+			Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c));
 		| TLocal v | TVar(v,_) ->
 			Display.ReferencePosition.set (v.v_name,v.v_pos,SKVariable v);
 		| TTypeExpr mt ->
@@ -383,7 +394,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
 				let cf,c = get_super_constructor() in
-				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c.cl_path));
+				Display.ReferencePosition.set (cf.cf_name,cf.cf_name_pos,SKField (cf,Some c));
 			with Not_found ->
 				()
 			end
@@ -536,10 +547,10 @@ let handle_display ctx e_ast dk mode with_type =
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
 		type_expr ~mode ctx e_ast with_type
-	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
+	with Error (Unknown_ident n,_,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (n,p)
-	| Error ((Type_not_found (path,_,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
+	| Error ((Type_not_found (path,_,_) | Module_not_found path),_,_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if is_legacy_completion ctx.com then begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
 		with Not_found ->
@@ -615,7 +626,7 @@ let handle_display ctx e_ast dk mode with_type =
 		| WithType.WithType(t,_) ->
 			(* We don't want to actually use the transformed expression which may have inserted implicit cast calls.
 			   It only matters that unification takes place. *)
-			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p) -> ());
+			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p,_) -> ());
 		| _ ->
 			()
 	end;

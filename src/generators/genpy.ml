@@ -69,7 +69,7 @@ module KeywordHandler = struct
 		let h = Hashtbl.create 0 in
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"and"; "as"; "assert"; "async"; "await"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
-			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; " raise"; "return"; "try"; "while";
+			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; "raise"; "return"; "try"; "while";
 			"with"; "yield"; "None"; "True"; "False";
 		];
 		h
@@ -1492,9 +1492,9 @@ module Printer = struct
 				let interpolate () =
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let old = pctx.pc_com.error in
-				pctx.pc_com.error <- abort;
-				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
+				let old = pctx.pc_com.located_error in
+				pctx.pc_com.located_error <- abort_located;
+				Std.finally (fun() -> pctx.pc_com.located_error <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e

@@ -163,41 +163,52 @@ type platform_config = {
 	pf_exceptions : exceptions_config;
 	(** the scoping of local variables *)
 	pf_scoping : var_scoping_config;
+	(** target supports atomic operations via haxe.Atomic **)
+	pf_supports_atomics : bool;
 }
 
 class compiler_callbacks = object(self)
-	val mutable before_typer_create = [];
-	val mutable after_init_macros = [];
+	val before_typer_create = ref [];
+	val after_init_macros = ref [];
 	val mutable after_typing = [];
-	val mutable before_save = [];
-	val mutable after_save = [];
-	val mutable after_filters = [];
-	val mutable after_generation = [];
+	val before_save = ref [];
+	val after_save = ref [];
+	val after_filters = ref [];
+	val after_generation = ref [];
 	val mutable null_safety_report = [];
 
 	method add_before_typer_create (f : unit -> unit) : unit =
-		before_typer_create <- f :: before_typer_create
+		before_typer_create := f :: !before_typer_create
 
 	method add_after_init_macros (f : unit -> unit) : unit =
-		after_init_macros <- f :: after_init_macros
+		after_init_macros := f :: !after_init_macros
 
 	method add_after_typing (f : module_type list -> unit) : unit =
 		after_typing <- f :: after_typing
 
 	method add_before_save (f : unit -> unit) : unit =
-		before_save <- f :: before_save
+		before_save := f :: !before_save
 
 	method add_after_save (f : unit -> unit) : unit =
-		after_save <- f :: after_save
+		after_save := f :: !after_save
 
 	method add_after_filters (f : unit -> unit) : unit =
-		after_filters <- f :: after_filters
+		after_filters := f :: !after_filters
 
 	method add_after_generation (f : unit -> unit) : unit =
-		after_generation <- f :: after_generation
+		after_generation := f :: !after_generation
 
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
+
+	method run r =
+		match !r with
+		| [] ->
+			()
+		| l ->
+			r := [];
+			List.iter (fun f -> f()) (List.rev l);
+			self#run r
 
 	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
@@ -222,7 +233,7 @@ class file_keys = object(self)
 end
 
 type shared_display_information = {
-	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t * int (* depth *)) list;
 }
 
 type display_information = {
@@ -351,9 +362,10 @@ type context = {
 	mutable report_mode : report_mode;
 	(* communication *)
 	mutable print : string -> unit;
-	mutable error : string -> pos -> unit;
-	mutable info : string -> pos -> unit;
-	mutable warning : warning -> Warning.warning_option list list -> string -> pos -> unit;
+	mutable error : ?depth:int -> string -> pos -> unit;
+	mutable located_error : ?depth:int -> located -> unit;
+	mutable info : ?depth:int -> string -> pos -> unit;
+	mutable warning : ?depth:int -> warning -> Warning.warning_option list list -> string -> pos -> unit;
 	mutable warning_options : Warning.warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
@@ -363,6 +375,8 @@ type context = {
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
+	mutable user_defines : (string, Define.user_define) Hashtbl.t;
+	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
 	shared : shared_context;
@@ -389,7 +403,7 @@ type context = {
 	mutable resources : (string,string) Hashtbl.t;
 	(* target-specific *)
 	mutable flash_version : float;
-	mutable neko_libs : string list;
+	mutable neko_lib_paths : string list;
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
 	mutable net_std : string list;
@@ -401,7 +415,7 @@ type context = {
 	memory_marker : float array;
 }
 
-exception Abort of string * pos
+exception Abort of located
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
@@ -539,11 +553,12 @@ let default_config =
 		pf_scoping = {
 			vs_scope = BlockScope;
 			vs_flags = [];
-		}
+		};
+		pf_supports_atomics = false;
 	}
 
 let get_config com =
-	let defined f = PMap.mem (fst (Define.infos f)) com.defines.values in
+	let defined f = PMap.mem (Define.get_define_key f) com.defines.values in
 	match com.platform with
 	| Cross ->
 		default_config
@@ -569,7 +584,8 @@ let get_config com =
 				vs_flags =
 					(if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat)
 					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting; NoCatchVarShadowing];
-			}
+			};
+			pf_supports_atomics = true;
 		}
 	| Lua ->
 		{
@@ -650,8 +666,10 @@ let get_config com =
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
 			pf_scoping = { default_config.pf_scoping with
-				vs_flags = [NoShadowing]
-			}
+				vs_flags = [NoShadowing];
+				vs_scope = FunctionScope;
+			};
+			pf_supports_atomics = true;
 		}
 	| Cs ->
 		{
@@ -679,6 +697,7 @@ let get_config com =
 				vs_scope = FunctionScope;
 				vs_flags = [NoShadowing]
 			};
+			pf_supports_atomics = true;
 		}
 	| Java ->
 		{
@@ -708,7 +727,8 @@ let get_config com =
 					{
 						vs_scope = FunctionScope;
 						vs_flags = [NoShadowing; ReserveAllTopLevelSymbols; ReserveNames(["_"])];
-					}
+					};
+			pf_supports_atomics = true;
 		}
 	| Python ->
 		{
@@ -739,6 +759,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
+			pf_supports_atomics = true;
 		}
 	| Eval ->
 		{
@@ -800,7 +821,7 @@ let create compilation_step cs version args =
 		native_libs = create_native_libs();
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
-		neko_libs = [];
+		neko_lib_paths = [];
 		include_files = [];
 		js_gen = None;
 		load_extern_type = [];
@@ -808,11 +829,14 @@ let create compilation_step cs version args =
 			defines_signature = None;
 			values = PMap.empty;
 		};
+		user_defines = Hashtbl.create 0;
+		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun _ _ -> die "" __LOC__);
-		warning = (fun _ _ _ -> die "" __LOC__);
+		info = (fun ?depth _ _ -> die "" __LOC__);
+		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [];
-		error = (fun _ _ -> die "" __LOC__);
+		error = (fun ?depth _ _ -> die "" __LOC__);
+		located_error = (fun ?depth _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
@@ -821,9 +845,9 @@ let create compilation_step cs version args =
 			tint = m;
 			tfloat = m;
 			tbool = m;
-			tnull = (fun _ -> die "" __LOC__);
+			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tstring = m;
-			tarray = (fun _ -> die "" __LOC__);
+			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 		};
 		file_lookup_cache = new hashtbl_lookup;
 		file_keys = new file_keys;
@@ -936,7 +960,10 @@ let init_platform com pf =
 		raw_define com "target.unicode";
 	end;
 	raw_define_value com.defines "target.name" name;
-	raw_define com name
+	raw_define com name;
+	if com.config.pf_supports_atomics then begin
+		raw_define com "target.atomics"
+	end
 
 let set_platform com pf file =
 	if com.platform <> Cross then failwith "Multiple targets";
@@ -997,26 +1024,27 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let abort msg p = raise (Abort (msg,p))
+let abort_located ?depth msg = raise (Abort msg)
+let abort ?depth msg p = abort_located ~depth (located msg p)
 
 let platform ctx p = ctx.platform = p
 
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
+let remove_extension file =
+	try String.sub file 0 (String.rindex file '.')
+	with Not_found -> file
+
+let extension file =
+	try
+		let dot_pos = String.rindex file '.' in
+		String.sub file dot_pos (String.length file - dot_pos)
+	with Not_found -> file
+
 let cache_directory ctx class_path dir f_dir =
 	let platform_ext = "." ^ (platform_name_macro ctx)
 	and is_loading_core_api = defined ctx Define.CoreApi in
-	let remove_extension file =
-		try String.sub file 0 (String.rindex file '.')
-		with Not_found -> file
-	in
-	let extension file =
-		try
-			let dot_pos = String.rindex file '.' in
-			String.sub file dot_pos (String.length file - dot_pos)
-		with Not_found -> file
-	in
 	let dir_listing =
 		try Some (Sys.readdir dir);
 		with Sys_error _ -> None
@@ -1201,16 +1229,25 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p kind sev =
+let add_diagnostics_message ?(depth = 0) com msg kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
+	match (extract_located msg) with
+	| [] -> ()
+	| (s,p) :: [] ->
+		di.diagnostics_messages <- (s,p,kind,sev,depth) :: di.diagnostics_messages
+	| (s,p) :: stack ->
+		let stack_diag = (List.map (fun (s,p) -> (s,p,kind,sev,depth+1)) (List.rev stack)) in
+		di.diagnostics_messages <- stack_diag @ ((s,p,kind,sev,depth) :: di.diagnostics_messages)
 
-let display_error com msg p =
+let located_display_error com ?(depth = 0) msg =
 	if is_diagnostics com then
-		add_diagnostics_message com msg p MessageKind.DKCompilerMessage MessageSeverity.Error
+		add_diagnostics_message ~depth com msg MessageKind.DKCompilerMessage MessageSeverity.Error
 	else
-		com.error msg p
+		com.located_error msg ~depth
+
+let display_error com ?(depth = 0) msg p =
+	located_display_error com ~depth (Globals.located msg p)
 
 open Printer
 

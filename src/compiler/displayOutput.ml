@@ -71,7 +71,7 @@ let print_fields fields =
 		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule path -> "type",snd path,"",None
 		| ITMetadata  meta ->
-			let s,(doc,_) = Meta.get_info meta in
+			let s,(doc,_),_ = Meta.get_info meta in
 			"metadata","@" ^ s,"",doc_from_string doc
 		| ITTimer(name,value) -> "timer",name,"",doc_from_string value
 		| ITLiteral s ->
@@ -350,8 +350,8 @@ let handle_type_path_exception ctx p c is_import pos =
 			| Some (c,cur_package) ->
 				let ctx = Typer.create com in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
-		end with Common.Abort(msg,p) ->
-			error ctx msg p;
+		end with Common.Abort msg ->
+			located_error ctx msg;
 			None
 	in
 	begin match ctx.com.json_out,fields with

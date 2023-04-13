@@ -155,4 +155,8 @@ function main() {
 		});
 	#end
 	runner.run();
+
+	#if (flash && fdb)
+	flash.Lib.fscommand("quit");
+	#end
 }

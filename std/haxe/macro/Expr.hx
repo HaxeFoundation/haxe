@@ -1012,6 +1012,11 @@ class Error extends Exception {
 	public var pos:Position;
 
 	/**
+		Child error messages, if any.
+	**/
+	private var childErrors:Array<Error>;
+
+	/**
 		Instantiates an error with given message and position.
 	**/
 	public function new(message:String, pos:Position, ?previous:Exception) {

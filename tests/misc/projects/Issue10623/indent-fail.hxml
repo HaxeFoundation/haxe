@@ -1,0 +1,2 @@
+compile-fail.hxml
+-D message-reporting=indent

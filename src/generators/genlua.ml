@@ -222,8 +222,15 @@ let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
 let is_dot_access e cf =
     match follow(e.etype), cf with
-    | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotMethod c.cl_meta || Meta.has Meta.LuaDotMethod icf.cf_meta)->
-        true;
+    | TInst (c, _), FInstance(_, _, icf) -> (match icf.cf_kind with
+        | Var _ ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod c.cl_meta ->
+            true
+        | Method _ when Meta.has Meta.LuaDotMethod icf.cf_meta ->
+            true
+        | Method _ ->
+            false)
     | _ ->
         false
 
@@ -345,7 +352,7 @@ let rec is_function_type t =
 
 and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+    | TField (x, ((FInstance (_, _, f) | FAnon(f) | FClosure(_,f)) as i)) when ((is_function_type e.etype) && (not(is_dot_access x i))) ->
             (
             if reflect then (
               add_feature ctx "use._hx_funcToField";
@@ -438,7 +445,7 @@ and gen_call ctx e el =
                   if List.length(fields) > 0 then incr count;
               | { eexpr = TConst(TNull)} -> ()
               | _ ->
-				typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+                typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
              )) el;
          spr ctx "})";
      | TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
@@ -558,20 +565,26 @@ and gen_cond ctx cond =
     gen_value ctx cond;
     ctx.iife_assign <- false
 
-and gen_loop ctx label cond e =
+and gen_loop ctx cond do_while e =
     let old_in_loop = ctx.in_loop in
     ctx.in_loop <- true;
     let old_handle_continue = ctx.handle_continue in
     let will_continue = has_continue e in
     ctx.handle_continue <- has_continue e;
     ctx.break_depth <- ctx.break_depth + 1;
-    if will_continue then begin
+    if will_continue then
         println ctx "local _hx_continue_%i = false;" ctx.break_depth;
-    end;
+    if do_while then
+        println ctx "local _hx_do_first_%i = true;" ctx.break_depth;
     let b = open_block ctx in
-    print ctx "%s " label;
+    print ctx "while ";
     gen_cond ctx cond;
+    if do_while then
+        print ctx " or _hx_do_first_%i" ctx.break_depth;
     print ctx " do ";
+    if do_while then
+        newline ctx;
+        println ctx "_hx_do_first_%i = false;" ctx.break_depth;
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
     if will_continue then begin
@@ -947,11 +960,9 @@ and gen_expr ?(local=true) ctx e = begin
         gen_value ctx e;
         spr ctx (Ast.s_unop op)
     | TWhile (cond,e,Ast.NormalWhile) ->
-        gen_loop ctx "while" cond e
+        gen_loop ctx cond false e;
     | TWhile (cond,e,Ast.DoWhile) ->
-        gen_block_element ctx e;
-        newline ctx;
-        gen_loop ctx "while" cond e
+        gen_loop ctx cond true e;
     | TObjectDecl [] ->
         spr ctx "_hx_e()";
         ctx.separator <- true
@@ -1185,6 +1196,9 @@ and gen_value ctx e =
         gen_expr ctx e
     | TMeta (_,e1) ->
         gen_value ctx e1
+    | TCall ({eexpr = (TField (e, (FInstance _ as s)))}, el) when (is_string_expr e) ->
+        spr ctx ("String.prototype." ^ (field_name s));
+        gen_paren_arguments ctx (e :: el)
     | TCall (e,el) ->
         gen_call ctx e el
     | TReturn _
@@ -1265,10 +1279,14 @@ and gen_value ctx e =
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
-     | Ast.OpAssign, TField(e3, FInstance _), TFunction f ->
+     | Ast.OpAssign, TField(e3, (FInstance _ as ci)), TFunction f ->
          gen_expr ctx e1;
          spr ctx " = " ;
-         print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
+         let fn_args = List.map ident (List.map arg_name f.tf_args) in
+         print ctx "function(%s) " (String.concat ","
+             (if is_dot_access e3 ci
+                 then fn_args
+                 else "self" :: fn_args));
          let fblock = fun_block ctx f e1.epos in
          (match fblock.eexpr with
           | TBlock el ->
@@ -1300,14 +1318,28 @@ and gen_tbinop ctx op e1 e2 =
               gen_value ctx e1;
               spr ctx " = ";
               gen_value ctx e3;
-          | TField(e3, (FInstance _| FClosure _ | FAnon _ ) ), TField(e4, (FClosure _| FStatic _ | FAnon _) )  ->
+          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
-          | TField(_, FInstance _ ), TLocal t  when (is_function_type t.v_type)   ->
+          | TField(e3, (FInstance _ as lhs)), TField(e4, (FInstance _ as rhs)) when not (is_dot_access e3 lhs) && (is_dot_access e4 rhs) ->
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when not (is_dot_access e3 ci) ->
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance _ as ci)), TLocal t when ((is_function_type t.v_type) && (not (is_dot_access e3 ci))) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
@@ -1444,7 +1476,7 @@ and gen_return ctx e eo =
          spr ctx "do return end"
      | Some e ->
          (match e.eexpr with
-          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when (is_function_type tcf.cf_type) ->
+          | TField (e2, ((FAnon tcf | FInstance (_,_,tcf)) as t)) when ((is_function_type tcf.cf_type) && (not(is_dot_access e2 t)))->
               (* See issue #6259 *)
               add_feature ctx "use._hx_bind";
               spr ctx "do return ";
@@ -2114,12 +2146,14 @@ let generate com =
         print_file (Common.find_file com "lua/_lua/_hx_dyn_add.lua");
     end;
 
+    print_file (Common.find_file com "lua/_lua/_hx_handle_error.lua");
+
     println ctx "_hx_static_init();";
 
     List.iter (generate_enumMeta_fields ctx) com.types;
 
     Option.may (fun e ->
-        spr ctx "_G.xpcall(";
+        spr ctx "local success, err = _G.xpcall(";
             let luv_run =
                 (* Runs libuv loop if needed *)
                 mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
@@ -2132,8 +2166,8 @@ let generate com =
                 }
             in
             gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
-        spr ctx ", _hx_error)";
-        newline ctx
+        println ctx ", _hx_handle_error)";
+        println ctx "if not success then _G.error(err) end";
     ) com.main;
 
     if anyExposed then
@@ -2142,4 +2176,3 @@ let generate com =
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);
     close_out ch
-

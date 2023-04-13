@@ -167,7 +167,7 @@ let rec write_annotation ch ann =
 			| ValClass i ->
 				write_ui16 ch i
 			| ValAnnotation a ->
-				write_annotation ch ann
+				write_annotation ch a
 			| ValArray annl ->
 				write_array16 ch loop annl
 		in

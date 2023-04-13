@@ -506,8 +506,10 @@ module CompletionType = struct
 					ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
 					ct_status = !(an.a_status);
 				}
-			| TDynamic t ->
-				CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
+			| TDynamic None ->
+				CTDynamic None
+			| TDynamic (Some t) ->
+				CTDynamic (Some (from_type PMap.empty t))
 		in
 		from_type values t
 end
@@ -759,7 +761,7 @@ let to_json ctx index item =
 		]
 		| ITMetadata meta ->
 			let open Meta in
-			let name,(doc,params) = Meta.get_info meta in
+			let name,(doc,params),origin = Meta.get_info meta in
 			let name = "@" ^ name in
 			let usage_to_string = function
 				| TClass -> "TClass"
@@ -772,6 +774,10 @@ let to_json ctx index item =
 				| TExpr -> "TExpr"
 				| TTypeParameter -> "TTypeParameter"
 				| TVariable -> "TVariable"
+			in
+			let origin = match origin with
+				| Compiler -> Some "haxe compiler"
+				| UserDefined s -> s
 			in
 			let rec loop internal params platforms targets links l = match l with
 				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
@@ -790,6 +796,7 @@ let to_json ctx index item =
 				"targets",jlist jstring targets;
 				"internal",jbool internal;
 				"links",jlist jstring links;
+				"origin",jopt jstring origin;
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)

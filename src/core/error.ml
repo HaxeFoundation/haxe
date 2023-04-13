@@ -17,7 +17,7 @@ and error_msg =
 	| Unify of unify_error list
 	| Custom of string
 	| Unknown_ident of string
-	| Stack of error_msg * error_msg
+	| Stack of (error_msg * Globals.pos) list
 	| Call_error of call_error
 	| No_constructor of module_type
 	| Abstract_class of module_type
@@ -26,8 +26,8 @@ and type_not_found_reason =
 	| Private_type
 	| Not_defined
 
-exception Fatal_error of string * Globals.pos
-exception Error of error_msg * Globals.pos
+exception Fatal_error of Globals.located * int (* depth *)
+exception Error of error_msg * Globals.pos * int (* depth *)
 
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
@@ -43,6 +43,9 @@ let short_type ctx t =
 	Should be called for each complementary error message.
 *)
 let compl_msg s = "... " ^ s
+let rec compl_located_msg = function
+	 | Message (s,p) -> Message (compl_msg s,p)
+	 | Stack stack -> Stack (List.map compl_located_msg stack)
 
 let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
@@ -102,6 +105,7 @@ module BetterErrors = struct
 		mutable acc_expected : TType.t;
 		mutable acc_actual : TType.t;
 		mutable acc_messages : unify_error list;
+		mutable acc_extra : unify_error list;
 		mutable acc_next : access option;
 	}
 
@@ -118,12 +122,16 @@ module BetterErrors = struct
 			acc_expected = expected;
 			acc_actual = actual;
 			acc_messages = [];
+			acc_extra = [];
 			acc_next = None;
 		} in
 		let root_acc = make_acc Root t_dynamic t_dynamic in
 		let current_acc = ref root_acc in
 		let add_message msg =
 			!current_acc.acc_messages <- msg :: !current_acc.acc_messages
+		in
+		let add_extra msg =
+			!current_acc.acc_extra <- msg :: !current_acc.acc_extra
 		in
 		let add_access kind =
 			let acc = make_acc kind t_dynamic t_dynamic in
@@ -143,6 +151,8 @@ module BetterErrors = struct
 				add_access FunctionReturn;
 			| Invariant_parameter i ->
 				add_access (TypeParameter i);
+			| Unify_custom _ ->
+				add_extra err
 			| _ ->
 				add_message err
 		) l;
@@ -188,8 +198,10 @@ module BetterErrors = struct
 					let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name) :: acc) a.a_fields [] in
 					"{" ^ String.concat "," fl ^ " }"
 			end
-		| TDynamic t2 ->
-			"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+		| TDynamic None ->
+			"Dynamic"
+		| TDynamic (Some t2) ->
+			"Dynamic" ^ s_type_params ctx [t2]
 		| TLazy f ->
 			s_type ctx (lazy_type f)
 
@@ -262,35 +274,41 @@ module BetterErrors = struct
 		in
 		match access.acc_next with
 		| None ->
-			String.concat "\n" (List.rev_map (unify_error_msg ctx) access.acc_messages)
+			String.concat "\n" (List.rev_map (unify_error_msg ctx) (access.acc_extra @ access.acc_messages))
 		| Some access_next ->
 			let slhs,srhs = loop access_next access  in
 			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
 end
 
-let rec error_msg = function
-	| Module_not_found m -> "Type not found : " ^ s_type_path m
-	| Type_not_found (m,t,Private_type) -> "Cannot access private type " ^ t ^ " in module " ^ s_type_path m
-	| Type_not_found (m,t,Not_defined) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
-	| Unify l -> BetterErrors.better_error_message l
-	| Unknown_ident s -> "Unknown identifier : " ^ s
-	| Custom s -> s
-	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
-	| Call_error err -> s_call_error err
-	| No_constructor mt -> (s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
-	| Abstract_class mt -> (s_type_path (t_infos mt).mt_path) ^ " is abstract and cannot be constructed"
+let rec error_msg p = function
+	| Module_not_found m -> located ("Type not found : " ^ s_type_path m) p
+	| Type_not_found (m,t,Private_type) -> located ("Cannot access private type " ^ t ^ " in module " ^ s_type_path m) p
+	| Type_not_found (m,t,Not_defined) -> located ("Module " ^ s_type_path m ^ " does not define type " ^ t) p
+	| Unify l -> located (BetterErrors.better_error_message l) p
+	| Unknown_ident s -> located ("Unknown identifier : " ^ s) p
+	| Custom s -> located s p
+	| Stack stack -> located_stack (List.map (fun (e,p) -> error_msg p e) stack)
+	| Call_error err -> s_call_error p err
+	| No_constructor mt -> located (s_type_path (t_infos mt).mt_path ^ " does not have a constructor") p
+	| Abstract_class mt -> located (s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed") p
 
-and s_call_error = function
+and s_call_error p = function
 	| Not_enough_arguments tl ->
 		let pctx = print_context() in
-		"Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))
-	| Too_many_arguments -> "Too many arguments"
-	| Could_not_unify err -> error_msg err
-	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
+		located ("Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))) p
+	| Too_many_arguments -> located "Too many arguments" p
+	| Could_not_unify err -> error_msg p err
+	| Cannot_skip_non_nullable s -> located ("Cannot skip non-nullable argument " ^ s) p
 
-let typing_error msg p = raise (Error (Custom msg,p))
+let typing_error ?(depth=0) msg p = raise (Error (Custom msg,p,depth))
+let located_typing_error ?(depth=0) msg =
+	let err = match msg with
+		| Message (msg,p) -> Custom msg
+		| Stack _ -> Stack (List.map (fun (msg,p) -> (Custom msg,p)) (extract_located msg))
+	in
+	raise (Error (err,(extract_located_pos msg),depth))
 
-let raise_typing_error err p = raise (Error(err,p))
+let raise_typing_error ?(depth=0) err p = raise (Error(err,p,depth))
 
 let error_require r p =
 	if r = "" then

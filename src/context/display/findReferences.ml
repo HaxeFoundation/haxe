@@ -29,15 +29,45 @@ let find_references tctx com with_definition pos_filters =
 	Display.ReferencePosition.reset();
 	usages
 
-let collect_reference_positions com =
-	let name,pos,kind = Display.ReferencePosition.get () in
+(* This probably exists somewhere already but I can't find it *)
+let is_var_field cf = match cf.cf_kind with
+	| Method _ -> false
+	| Var _ -> true
+
+let rec collect_reference_positions com (name,pos,kind) =
 	match kind, com.display.dms_kind with
-	| SKField (cf,Some cl_path), DMUsage (_,find_descendants,find_base) when (find_descendants || find_base) && not (has_class_field_flag cf CfStatic) ->
+	| SKField (cf,Some c),DMUsage (_,find_descendants,_) when find_descendants && is_var_field cf ->
+		let d = DynArray.create () in
+		DynArray.add d (name,pos,kind);
+		begin match cf.cf_kind with
+			| Var vk ->
+				let host = FieldAccess.get_host c cf in
+				let check r mode = match r with
+					| AccCall ->
+						begin match FieldAccess.find_accessor_for_field host cf cf.cf_type mode with
+						| AccessorFound (cf_acc,new_host) ->
+							let c_host = FieldAccess.get_host_class_raise new_host in
+							let new_ref = (cf_acc.cf_name,cf_acc.cf_name_pos,SKField(cf_acc,Some c_host)) in
+							DynArray.add d new_ref;
+							List.iter (DynArray.add d) (collect_reference_positions com new_ref)
+						| _ ->
+							()
+						end
+					| _ ->
+						()
+				in
+				check vk.v_read MGet;
+				check vk.v_write (MSet None);
+			| _ ->
+				()
+		end;
+		DynArray.to_list d
+	| SKField (cf,Some c), DMUsage (_,find_descendants,find_base) when (find_descendants || find_base) && not (has_class_field_flag cf CfStatic) ->
 		let collect() =
 			let c =
 				let rec loop = function
 					| [] -> raise Exit
-					| TClassDecl c :: _ when c.cl_path = cl_path -> c
+					| TClassDecl c' :: _ when c.cl_path = c'.cl_path -> c'
 					| _ :: types -> loop types
 				in
 				loop com.types
@@ -71,7 +101,7 @@ let collect_reference_positions com =
 				| [] -> [cf,c]
 				| pairs -> pairs
 			in
-			let full_pos p = { p with pfile = Path.get_full_path p.pfile } in
+			let full_pos p = if p = null_pos then null_pos else { p with pfile = Path.get_full_path p.pfile } in
 			if find_descendants then
 				let extends child_cls (_,c) = extends child_cls c in
 				List.fold_left (fun acc t ->
@@ -79,14 +109,14 @@ let collect_reference_positions com =
 					| TClassDecl child_cls when List.exists (extends child_cls) field_class_pairs ->
 						(try
 							let cf = PMap.find cf.cf_name child_cls.cl_fields in
-							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls.cl_path)) :: acc
+							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls)) :: acc
 						with Not_found -> acc
 						)
 					| _ ->
 						acc
 				) [] com.types
 			else
-				List.map (fun (cf,c) -> name,full_pos cf.cf_name_pos,SKField (cf,Some c.cl_path)) field_class_pairs;
+				List.map (fun (cf,c) -> name,full_pos cf.cf_name_pos,SKField (cf,Some c)) field_class_pairs;
 		in
 		(try collect()
 		with Exit -> [name,pos,kind])
@@ -98,7 +128,7 @@ let find_references tctx com with_definition =
 		List.fold_left (fun acc (_,p,_) ->
 			if p = null_pos then acc
 			else Statistics.SFPos p :: acc
-		) [] (collect_reference_positions com)
+		) [] (collect_reference_positions com (Display.ReferencePosition.get ()))
 	in
 	let usages = find_references tctx com with_definition pos_filters in
 	let usages =

@@ -283,8 +283,10 @@ let rec get_type_params acc t =
 			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
-		| TDynamic t ->
-			(match t with | TDynamic _ -> acc | _ -> get_type_params acc t)
+		| TDynamic None ->
+			acc
+		| TDynamic (Some t) ->
+			get_type_params acc t
 		| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				get_type_params acc ( Abstract.get_underlying_type a pl)
 		| TAnon a ->

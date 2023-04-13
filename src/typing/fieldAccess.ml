@@ -12,9 +12,9 @@ type field_host =
 	(* Used as lhs, no semantic difference to FGet. *)
 	| FWrite
 
-type accessor_resolution =
+type 'a accessor_resolution =
 	(* Accessor was found. *)
-	| AccessorFound of field_access
+	| AccessorFound of 'a
 	(* Accessor was not found, but access was made on anonymous structure. *)
 	| AccessorAnon
 	(* Accessor was not found. *)
@@ -36,6 +36,21 @@ let apply_fa cf = function
 	| FHInstance(c,tl) -> FInstance(c,tl,cf)
 	| FHAbstract(a,tl,c) -> FStatic(c,cf)
 	| FHAnon -> FAnon cf
+
+let get_host c cf =
+	if has_class_field_flag cf CfStatic then
+		FHStatic c
+	else match c.cl_kind with
+		| KAbstractImpl a ->
+			FHAbstract(a,extract_param_types a.a_params,c)
+		| _ ->
+			FHInstance(c,extract_param_types c.cl_params)
+
+let get_host_class_raise = function
+	| FHStatic c -> c
+	| FHInstance(c,_) -> c
+	| FHAbstract(_,_,c) -> c
+	| FHAnon -> raise Not_found
 
 (* Returns the mapping function to apply type parameters. *)
 let get_map_function fa = match fa.fa_host with
@@ -75,19 +90,18 @@ let get_field_expr fa mode =
 	in
 	mk (TField(fa.fa_on,fa')) t fa.fa_pos
 
-(* Resolves the accessor on the field access, using the provided `mode`. *)
-let resolve_accessor fa mode = match fa.fa_field.cf_kind with
+let find_accessor_for_field host cf t mode = match cf.cf_kind with
 	| Var v ->
 		begin match (match mode with MSet _ -> v.v_write | _ -> v.v_read) with
 			| AccCall ->
-				let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ fa.fa_field.cf_name in
+				let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ cf.cf_name in
 				let forward cf_acc new_host =
-					create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
+					(cf_acc,new_host)
 				in
-				begin match fa.fa_host with
+				begin match host with
 				| FHStatic c ->
 					begin try
-						AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						AccessorFound (forward (PMap.find name c.cl_statics) host)
 					with Not_found ->
 						(* TODO: Check if this is correct, there's a case in hxcpp's VirtualArray *)
 						AccessorAnon
@@ -95,7 +109,7 @@ let resolve_accessor fa mode = match fa.fa_field.cf_kind with
 				| FHInstance(c,tl) ->
 					begin try
 						(* Accessors can be overridden, so we have to check the actual type. *)
-						let c,tl = match follow fa.fa_on.etype with
+						let c,tl = match follow t with
 							| TInst(c,tl) -> c,tl
 							| _ -> c,tl
 						in
@@ -110,7 +124,7 @@ let resolve_accessor fa mode = match fa.fa_field.cf_kind with
 					end
 				| FHAbstract(a,tl,c) ->
 					begin try
-						AccessorFound (forward (PMap.find name c.cl_statics) fa.fa_host)
+						AccessorFound (forward (PMap.find name c.cl_statics) host)
 					with Not_found ->
 						AccessorAnon
 					end
@@ -122,6 +136,21 @@ let resolve_accessor fa mode = match fa.fa_field.cf_kind with
 		end
 	| _ ->
 		AccessorInvalid
+
+(* Resolves the accessor on the field access, using the provided `mode`. *)
+let resolve_accessor fa mode =
+	let forward cf_acc new_host =
+		create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos
+	in
+	match find_accessor_for_field fa.fa_host fa.fa_field fa.fa_on.etype mode with
+	| AccessorFound(cf_acc,new_host) ->
+		AccessorFound (forward cf_acc new_host)
+	| AccessorInvalid ->
+		AccessorInvalid
+	| AccessorAnon ->
+		AccessorAnon
+	| AccessorNotFound ->
+		AccessorNotFound
 
 let get_constructor_access c tl p =
 	try

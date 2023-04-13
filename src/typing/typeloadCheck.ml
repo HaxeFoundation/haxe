@@ -153,7 +153,7 @@ let get_native_name meta =
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		display_error ctx.com ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child_pos;
-		display_error ctx.com (compl_msg "Base field is defined here") base_pos
+		display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") base_pos
 	in
 	try
 		let child_name, child_pos = get_native_name child.cf_meta in
@@ -212,8 +212,8 @@ let check_overriding ctx c f =
 			with
 				Unify_error l ->
 					display_error ctx.com ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
-					display_error ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
-					display_error ctx.com (compl_msg (error_msg (Unify l))) p;
+					display_error ~depth:1 ctx.com (compl_msg "Base field is defined here") f2.cf_name_pos;
+					located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
 		with
 			Not_found ->
 				if has_class_field_flag f CfOverride then
@@ -270,12 +270,6 @@ let rec return_flow ctx e =
 		display_error ctx.com (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
 	in
 	let return_flow = return_flow ctx in
-	let rec uncond e = match e.eexpr with
-		| TIf _ | TWhile _ | TSwitch _ | TTry _ | TFunction _ -> ()
-		| TReturn _ | TThrow _ -> raise Exit
-		| _ -> Type.iter uncond e
-	in
-	let has_unconditional_flow e = try uncond e; false with Exit -> true in
 	match e.eexpr with
 	| TReturn _ | TThrow _ -> ()
 	| TParenthesis e | TMeta(_,e) ->
@@ -284,7 +278,7 @@ let rec return_flow ctx e =
 		let rec loop = function
 			| [] -> error()
 			| [e] -> return_flow e
-			| e :: _ when has_unconditional_flow e -> ()
+			| e :: _ when DeadEnd.has_dead_end e -> ()
 			| _ :: l -> loop l
 		in
 		loop el
@@ -309,7 +303,7 @@ let rec return_flow ctx e =
 		in
 		loop e
 	| _ ->
-		error()
+		if not (DeadEnd.has_dead_end e) then error()
 
 let check_global_metadata ctx meta f_add mpath tpath so =
 	let sl1 = full_dot_path2 mpath tpath in
@@ -323,9 +317,13 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
-		let m2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.m_path) then typing_error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
-		typing_error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
+		let path2 = ctx.com.type_to_module#find t.mt_path in
+		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		let m2 = ctx.com.module_lut#find path2 in
+		let hex1 = Digest.to_hex m.m_extra.m_sign in
+		let hex2 = Digest.to_hex m2.m_extra.m_sign in
+		let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
+		typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
 	with
 		Not_found ->
 			ctx.com.type_to_module#add t.mt_path m.m_path
@@ -345,7 +343,7 @@ module Inheritance = struct
 					typing_error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
-		| _ -> typing_error "Should extend by using a class" p
+		| t -> typing_error (Printf.sprintf "Should extend by using a class, found %s" (s_type_kind t)) p
 
 	let rec check_interface ctx missing c intf params =
 		List.iter (fun (i2,p2) ->
@@ -356,7 +354,7 @@ module Inheritance = struct
 			let t = (apply_params intf.cl_params params f.cf_type) in
 			let is_overload = ref false in
 			let make_implicit_field () =
-				let cf = {f with cf_overloads = []} in
+				let cf = {f with cf_overloads = []; cf_type = apply_params intf.cl_params params f.cf_type} in
 				begin try
 					let cf' = PMap.find cf.cf_name c.cl_fields in
 					ctx.com.overload_cache#remove (c.cl_path,f.cf_name);
@@ -365,6 +363,10 @@ module Inheritance = struct
 					TClass.add_field c cf
 				end;
 				cf
+			in
+			let is_method () = match f.cf_kind with
+				| Method _ -> true
+				| Var _ -> false
 			in
 			try
 				let map2, t2, f2 = class_field_no_interf c f.cf_name in
@@ -395,20 +397,20 @@ module Inheritance = struct
 						Unify_error l ->
 							if not (Meta.has Meta.CsNative c.cl_meta && (has_class_flag c CExtern)) then begin
 								display_error ctx.com ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-								display_error ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
-								display_error ctx.com (compl_msg (error_msg (Unify l))) p;
+								display_error ~depth:1 ctx.com (compl_msg "Interface field is defined here") f.cf_pos;
+								located_display_error ~depth:1 ctx.com (compl_located_msg (error_msg p (Unify l)));
 							end
 				)
-			with
-				| Not_found when (has_class_flag c CAbstract) ->
+			with Not_found ->
+				if (has_class_flag c CAbstract) && is_method() then begin
 					let cf = make_implicit_field () in
 					add_class_field_flag cf CfAbstract;
-				| Not_found when has_class_field_flag f CfDefault ->
+				end else if has_class_field_flag f CfDefault then begin
 					let cf = make_implicit_field () in
 					cf.cf_expr <- None;
 					add_class_field_flag cf CfExtern;
 					add_class_field_flag cf CfOverride;
-				| Not_found when not (has_class_flag c CInterface) ->
+				end else if not (has_class_flag c CInterface) then begin
 					if Diagnostics.error_in_diagnostics_run ctx.com c.cl_pos then
 						DynArray.add missing (f,t)
 					else begin
@@ -421,7 +423,7 @@ module Inheritance = struct
 						in
 						display_error ctx.com msg p
 					end
-				| Not_found -> ()
+				end
 		in
 		let check_field _ cf =
 			check_field cf;
@@ -496,7 +498,7 @@ module Inheritance = struct
 					| t ->
 						s_type pctx t
 				in
-				display_error ctx.com (Printf.sprintf "... %s(%s)" cf.cf_name s) cf.cf_name_pos
+				display_error ~depth:1 ctx.com (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s)) cf.cf_name_pos
 			) (List.rev !missing)
 
 	let set_heritance ctx c herits p =
@@ -551,6 +553,17 @@ module Inheritance = struct
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends p =
+			let rec check_interfaces_or_delay () =
+				match c.cl_build() with
+				| BuildMacro pending ->
+					(* Ok listen... we're still building this class, which means we can't check its interfaces yet. However,
+					   we do want to check them at SOME point. So we use this pending list which was maybe designed for this
+					   purpose. However, we STILL have to delay the check because at the time pending is handled, the class
+					   is not built yet. See issue #10847. *)
+					pending := (fun () -> delay ctx PConnectField check_interfaces_or_delay) :: !pending
+				| _ ->
+					check_interfaces ctx c
+			in
 			if is_extends then begin
 				if c.cl_super <> None then typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -558,7 +571,7 @@ module Inheritance = struct
 					if not (has_class_flag csup CInterface) then typing_error "Cannot extend by using a class" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
-						if not is_lib then delay ctx PConnectField (fun() -> check_interfaces ctx c);
+						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
@@ -580,7 +593,7 @@ module Inheritance = struct
 					if not (has_class_flag intf CInterface) then typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
-						delay ctx PConnectField (fun() -> check_interfaces ctx c);
+						delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end;
 					(fun () ->
@@ -590,7 +603,7 @@ module Inheritance = struct
 				| TDynamic t ->
 					if c.cl_dynamic <> None then typing_error "Cannot have several dynamics" p;
 					if not (has_class_flag c CExtern) then display_error ctx.com "In haxe 4, implements Dynamic is only supported on externs" p;
-					c.cl_dynamic <- Some t;
+					c.cl_dynamic <- Some (match t with None -> t_dynamic | Some t -> t);
 					(fun () -> ())
 				| _ ->
 					typing_error "Should implement by using an interface" p
@@ -614,7 +627,7 @@ module Inheritance = struct
 					raise_fields l (if is_extends then CRExtends else CRImplements) r.fsubject
 				in
 				Some (check_herit t is_extends p)
-			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
+			with Error(Module_not_found(([],name)),p,_) when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in
@@ -623,12 +636,22 @@ end
 
 let check_final_vars ctx e =
 	let final_vars = Hashtbl.create 0 in
-	List.iter (fun cf -> match cf.cf_kind with
-		| Var _ when (has_class_field_flag cf CfFinal) && cf.cf_expr = None ->
-			Hashtbl.add final_vars cf.cf_name cf
+	let ordered_fields = DynArray.create () in
+	let rec loop c =
+		List.iter (fun cf -> match cf.cf_kind with
+			| Var _ when (has_class_field_flag cf CfFinal) && cf.cf_expr = None && not (Hashtbl.mem final_vars cf.cf_name) ->
+				Hashtbl.add final_vars cf.cf_name false;
+				DynArray.add ordered_fields (c,cf)
+			| _ ->
+				()
+		) c.cl_ordered_fields;
+		match c.cl_super with
+		| Some(c,_) when has_class_flag c CAbstract && not (has_constructor c) ->
+			loop c
 		| _ ->
 			()
-	) ctx.curclass.cl_ordered_fields;
+	in
+	loop ctx.curclass;
 	if Hashtbl.length final_vars > 0 then begin
 		let rec find_inits e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
@@ -638,7 +661,10 @@ let check_final_vars ctx e =
 				Type.iter find_inits e
 		in
 		find_inits e;
-		Hashtbl.iter (fun _ cf ->
-			display_error ctx.com ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
-		) final_vars
+		if Hashtbl.length final_vars > 0 then
+			display_error ctx.com "Some final fields are uninitialized in this class" ctx.curclass.cl_name_pos;
+		DynArray.iter (fun (c,cf) ->
+			if Hashtbl.mem final_vars cf.cf_name then
+				display_error ~depth:1 ctx.com "Uninitialized field" cf.cf_name_pos
+		) ordered_fields
 	end

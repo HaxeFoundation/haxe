@@ -36,7 +36,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		assertSkipping("WithDependency", DependencyDirty("Dependency"));
+		assertSkipping("WithDependency", DependencyDirty("Dependency - Tainted server/invalidate"));
 		// assertNotCacheModified("Dependency");
 		runHaxe(args);
 		assertReuse("Dependency");
@@ -79,14 +79,14 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxe(args);
 		/* This often fails on our CI because the reported stdout is empty. I don't know why this is the case,
-		   but it's probably some obscure timing issue related to pipes which has nothing to do with that we
-		   actually want to test here. */
+			but it's probably some obscure timing issue related to pipes which has nothing to do with that we
+			actually want to test here. */
 		// trace(lastResult);
 		// assertReuse("BuiltClass");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
 		// assertNotCacheModified("BuildMacro");
-		assertSkipping("BuiltClass", DependencyDirty("BuildMacro"));
+		assertSkipping("BuiltClass", DependencyDirty("BuildMacro - Tainted server/invalidate"));
 		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}
 
@@ -148,9 +148,9 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
-	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-	 	runHaxe(args);
-	 	assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+		runHaxe(args);
+		assertSkipping("HelloWorld", Tainted("server/invalidate"));
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
 		runHaxe(args);
 		assertReuse("HelloWorld");
@@ -170,7 +170,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
-	 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@diagnostics"]));
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
 		assertReuse("HelloWorld");
@@ -235,6 +235,17 @@ class ServerTests extends TestCase {
 		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
 	}
 
+	function test10986() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue10986/Main.hx"));
+		vfs.putContent("haxe/ds/Vector.hx", getTemplate("issues/Issue10986/Vector.hx"));
+		var args = ["-main", "Main", "--jvm", "Main.jar"];
+		runHaxe(args);
+		vfs.touchFile("haxe/ds/Vector.hx");
+		runHaxe(args);
+		assertSuccess();
+
+	}
+
 	// See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
 	#if false
 	function testXRedefinedFromX() {
@@ -249,6 +260,50 @@ class ServerTests extends TestCase {
 	}
 	#end
 
+	function testXRedefinedFromX_2() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8368/Main2.hx"));
+		var transform = Marker.extractMarkers(getTemplate("issues/Issue8368/MyMacro2.macro.hx"));
+		var args = ["-main", "Main", "--macro", "define('whatever')"];
+
+		vfs.putContent(
+			"MyMacro.macro.hx",
+			transform.source.substr(0, transform.markers[1])
+			+ transform.source.substr(transform.markers[2], transform.source.length)
+		);
+
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MyMacro.macro.hx")});
+
+		var completionRequest = {file: new FsPath("MyMacro.macro.hx"), contents: transform.source, offset: transform.markers[2], wasAutoTriggered: false};
+		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
+		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
+		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
+		Assert.isTrue(parseCompletion().result.items.length == 23);
+
+		runHaxe(args);
+		assertSuccess();
+	}
+
+	@:async function testStackOverflow(async:utest.Async) {
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "Empty.hx", "--macro", "allowPackage('sys')", "--interp", "--no-output"];
+		var runs = 0;
+
+		function runLoop() {
+			runHaxe(args.concat(["--display", "Empty.hx@0@diagnostics"]), () -> {
+				runHaxe(args.concat(["-D", "compile-only-define"]), () -> {
+					if (assertSuccess() && ++runs < 20) runLoop();
+					else async.done();
+				});
+			});
+		}
+
+		async.setTimeout(20000);
+		runLoop();
+	}
+
 	function testMacroStaticsReset() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue8631/Main.hx"));
 		vfs.putContent("Init.hx", getTemplate("issues/Issue8631/Init.hx"));
@@ -260,16 +315,17 @@ class ServerTests extends TestCase {
 		utest.Assert.equals('2', counter);
 	}
 
-	// function testIssue8616() {
-	// 	vfs.putContent("Main.hx", getTemplate("issues/Issue8616/Main.hx"));
-	// 	vfs.putContent("A.hx", getTemplate("issues/Issue8616/A.hx"));
-	// 	var args = ["-main", "Main", "-js", "out.js"];
-	// 	runHaxe(args);
-	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-	// 	runHaxe(args);
-	// 	var content = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
-	// 	Assert.isTrue(content.indexOf("this1.use(v1)") != -1);
-	// }
+	function testIssue8616() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue8616/Main.hx"));
+		vfs.putContent("A.hx", getTemplate("issues/Issue8616/A.hx"));
+		var args = ["-main", "Main", "-js", "out.js"];
+		runHaxe(args);
+		var originalContent = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
+		runHaxe(args);
+		var content = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
+		Assert.isTrue(content == originalContent);
+	}
 
 	function test9918() {
 		vfs.putContent("Issue9918.hx", getTemplate("Issue9918.hx"));

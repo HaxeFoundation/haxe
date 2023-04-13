@@ -49,6 +49,7 @@ class Exception {
 		return __nativeException;
 	}
 
+	@:keep // required for uncaught error handling
 	public function toString():String {
 		return message;
 	}

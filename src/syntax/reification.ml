@@ -255,7 +255,7 @@ let reify in_macro =
 		| EBinop (op,e1,e2) ->
 			expr "EBinop" [to_binop op p; loop e1; loop e2]
 		| EField (e,s,efk) ->
-			let p = {p with pmin = p.pmax - String.length s} in
+			let p = patch_string_pos p s in
 			let efk = match efk with
 				| EFNormal -> "Normal"
 				| EFSafe -> "Safe"
@@ -368,7 +368,7 @@ let reify in_macro =
 			| Meta.Dollar "i", _ ->
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]
 			| Meta.Dollar "p", _ ->
-				(ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"MacroStringTools"),p),"toFieldExpr"),p),[e]),p)
+				(ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"MacroStringTools"),p),"toFieldExpr"),p),[e1]),p)
 			| Meta.Pos, [pexpr] ->
 				let old = !cur_pos in
 				cur_pos := Some pexpr;
