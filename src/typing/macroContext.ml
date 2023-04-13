@@ -44,11 +44,11 @@ end
 let macro_enable_cache = ref false
 let macro_interp_cache = ref None
 
-let safe_decode ctx v expected t p f =
+let safe_decode com v expected t p f =
 	try
 		f ()
 	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
-		let path = [dump_path ctx.com;"decoding_error"] in
+		let path = [dump_path com;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
@@ -78,8 +78,8 @@ let get_type_patch ctx t sub =
 			Hashtbl.add h k tp;
 			tp
 
-let macro_timer ctx l =
-	Timer.timer (if Common.defined ctx.com Define.MacroTimes then ("macro" :: l) else ["macro"])
+let macro_timer com l =
+	Timer.timer (if Common.defined com Define.MacroTimes then ("macro" :: l) else ["macro"])
 
 let typing_timer ctx need_type f =
 	let t = Timer.timer ["typing"] in
@@ -123,7 +123,172 @@ let typing_timer ctx need_type f =
 			exit();
 			raise e
 
-let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((string * bool * t) list * t * tclass * Type.tclass_field) * (Interp.value list -> Interp.value option))) ref = ref (fun _ _ _ _ -> die "" __LOC__)
+let make_macro_com_api com p =
+	{
+		MacroApi.pos = p;
+		get_com = (fun () -> com);
+		get_macro_stack = (fun () ->
+			let envs = Interp.call_stack (Interp.get_eval (Interp.get_ctx ())) in
+			let envs = match envs with
+				| _ :: envs -> envs (* Skip call to getMacroStack() *)
+				| _ -> envs
+			in
+			List.map (fun (env:Interp.env) -> {pfile = EvalHash.rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) envs
+		);
+		init_macros_done = (fun () -> com.stage >= CInitMacrosDone);
+		get_type = (fun s ->
+			Interp.exc_string "unsupported"
+		);
+		resolve_type = (fun t p ->
+			Interp.exc_string "unsupported"
+		);
+		get_module = (fun s ->
+			Interp.exc_string "unsupported"
+		);
+		after_init_macros = (fun f ->
+			com.callbacks#add_after_init_macros (fun () ->
+				let t = macro_timer com ["afterInitMacros"] in
+				f ();
+				t()
+			)
+		);
+		after_typing = (fun f ->
+			com.callbacks#add_after_typing (fun tl ->
+				let t = macro_timer com ["afterTyping"] in
+				f tl;
+				t()
+			)
+		);
+		on_generate = (fun f b ->
+			(if b then com.callbacks#add_before_save else com.callbacks#add_after_save) (fun() ->
+				let t = macro_timer com ["onGenerate"] in
+				f (List.map type_of_module_type com.types);
+				t()
+			)
+		);
+		after_generate = (fun f ->
+			com.callbacks#add_after_generation (fun() ->
+				let t = macro_timer com ["afterGenerate"] in
+				f();
+				t()
+			)
+		);
+		on_type_not_found = (fun f ->
+			com.load_extern_type <- com.load_extern_type @ ["onTypeNotFound",fun path p ->
+				let td = f (s_type_path path) in
+				if td = Interp.vnull then
+					None
+				else
+					let (pack,name),tdef,p = Interp.decode_type_def td in
+					Some (pack,[tdef,p])
+			];
+		);
+		parse_string = (fun s p inl ->
+			(* TODO: typing_timer *)
+			Interp.exc_string "unsupported"
+		);
+		parse = (fun entry s ->
+			match ParserEntry.parse_string entry com.defines s null_pos typing_error false with
+			| ParseSuccess(r,_,_) -> r
+			| ParseError(_,(msg,p),_) -> Parser.error msg p
+		);
+		type_expr = (fun e ->
+			Interp.exc_string "unsupported"
+		);
+		flush_context = (fun f ->
+			Interp.exc_string "unsupported"
+		);
+		store_typed_expr = (fun te ->
+			let p = te.epos in
+			snd (Typecore.store_typed_expr com te p)
+		);
+		allow_package = (fun v -> Common.allow_package com v);
+		type_patch = (fun t f s v ->
+			Interp.exc_string "unsupported"
+		);
+		meta_patch = (fun m t f s p ->
+			Interp.exc_string "unsupported"
+		);
+		set_js_generator = (fun gen ->
+			com.js_gen <- Some (fun() ->
+				Path.mkdir_from_path com.file;
+				let js_ctx = Genjs.alloc_ctx com (get_es_version com) in
+				let t = macro_timer com ["jsGenerator"] in
+				gen js_ctx;
+				t()
+			);
+		);
+		get_local_type = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		get_expected_type = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		get_call_arguments = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		get_local_method = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		get_local_using = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		get_local_imports = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		get_local_vars = (fun () ->
+			Interp.exc_string "unsupported"
+		);
+		get_build_fields = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		define_type = (fun v mdep ->
+			Interp.exc_string "unsupported"
+		);
+		define_module = (fun m types imports usings ->
+			Interp.exc_string "unsupported"
+		);
+		module_dependency = (fun mpath file ->
+			Interp.exc_string "unsupported"
+		);
+		current_module = (fun() ->
+			Interp.exc_string "unsupported"
+		);
+		use_cache = (fun() ->
+			!macro_enable_cache
+		);
+		format_string = (fun s p ->
+			Interp.exc_string "unsupported"
+		);
+		cast_or_unify = (fun t e p ->
+			Interp.exc_string "unsupported"
+		);
+		add_global_metadata = (fun s1 s2 config p ->
+			Interp.exc_string "unsupported"
+		);
+		add_module_check_policy = (fun sl il b i ->
+			Interp.exc_string "unsupported"
+		);
+		register_define = (fun s data -> Define.register_user_define com.user_defines s data);
+		register_metadata = (fun s data -> Meta.register_user_meta com.user_metas s data);
+		decode_expr = Interp.decode_expr;
+		encode_expr = Interp.encode_expr;
+		encode_ctype = Interp.encode_ctype;
+		decode_type = Interp.decode_type;
+		display_error = display_error com;
+		with_imports = (fun imports usings f ->
+			Interp.exc_string "unsupported"
+		);
+		with_options = (fun opts f ->
+			Interp.exc_string "unsupported"
+		);
+		info = (fun ?(depth=0) msg p ->
+			com.info ~depth msg p
+		);
+		warning = (fun ?(depth=0) w msg p ->
+			Interp.exc_string "unsupported"
+		);
+	}
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
@@ -141,18 +306,9 @@ let make_macro_api ctx p =
 		with _ ->
 			typing_error "Malformed metadata string" p
 	in
+	let com_api = make_macro_com_api ctx.com p in
 	{
-		MacroApi.pos = p;
-		MacroApi.get_com = (fun() -> ctx.com);
-		MacroApi.get_macro_stack = (fun () ->
-			let envs = Interp.call_stack (Interp.get_eval (Interp.get_ctx ())) in
-			let envs = match envs with
-				| _ :: envs -> envs (* Skip call to getMacroStack() *)
-				| _ -> envs
-			in
-			List.map (fun (env:Interp.env) -> {pfile = EvalHash.rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) envs
-		);
-		MacroApi.init_macros_done = (fun () -> ctx.com.stage >= CInitMacrosDone);
+		com_api with
 		MacroApi.get_type = (fun s ->
 			typing_timer ctx false (fun() ->
 				let path = parse_path s in
@@ -179,61 +335,13 @@ let make_macro_api ctx p =
 				m
 			)
 		);
-		MacroApi.after_init_macros = (fun f ->
-			ctx.com.callbacks#add_after_init_macros (fun () ->
-				let t = macro_timer ctx ["afterInitMacros"] in
-				f ();
-				t()
-			)
-		);
-		MacroApi.after_typing = (fun f ->
-			ctx.com.callbacks#add_after_typing (fun tl ->
-				let t = macro_timer ctx ["afterTyping"] in
-				f tl;
-				t()
-			)
-		);
-		MacroApi.on_generate = (fun f b ->
-			(if b then ctx.com.callbacks#add_before_save else ctx.com.callbacks#add_after_save) (fun() ->
-				let t = macro_timer ctx ["onGenerate"] in
-				f (List.map type_of_module_type ctx.com.types);
-				t()
-			)
-		);
-		MacroApi.after_generate = (fun f ->
-			ctx.com.callbacks#add_after_generation (fun() ->
-				let t = macro_timer ctx ["afterGenerate"] in
-				f();
-				t()
-			)
-		);
-		MacroApi.on_type_not_found = (fun f ->
-			ctx.com.load_extern_type <- ctx.com.load_extern_type @ ["onTypeNotFound",fun path p ->
-				let td = f (s_type_path path) in
-				if td = Interp.vnull then
-					None
-				else
-					let (pack,name),tdef,p = Interp.decode_type_def td in
-					Some (pack,[tdef,p])
-			];
-		);
 		MacroApi.parse_string = parse_expr_string;
-		MacroApi.parse = (fun entry s ->
-			match ParserEntry.parse_string entry ctx.com.defines s null_pos typing_error false with
-			| ParseSuccess(r,_,_) -> r
-			| ParseError(_,(msg,p),_) -> Parser.error msg p
-		);
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
 		);
 		MacroApi.flush_context = (fun f ->
 			typing_timer ctx true f
 		);
-		MacroApi.store_typed_expr = (fun te ->
-			let p = te.epos in
-			snd (Typecore.store_typed_expr ctx.com te p)
-		);
-		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
 		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
@@ -251,15 +359,6 @@ let make_macro_api ctx p =
 			let ml = parse_metadata m p in
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
 			tp.tp_meta <- tp.tp_meta @ (List.map (fun (m,el,_) -> (m,el,p)) ml);
-		);
-		MacroApi.set_js_generator = (fun gen ->
-			ctx.com.js_gen <- Some (fun() ->
-				Path.mkdir_from_path ctx.com.file;
-				let js_ctx = Genjs.alloc_ctx ctx.com (get_es_version ctx.com) in
-				let t = macro_timer ctx ["jsGenerator"] in
-				gen js_ctx;
-				t()
-			);
 		);
 		MacroApi.get_local_type = (fun() ->
 			match ctx.get_build_infos() with
@@ -308,7 +407,7 @@ let make_macro_api ctx p =
 			let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
-			let m, tdef, pos = safe_decode ctx v "TypeDefinition" ttype p f in
+			let m, tdef, pos = safe_decode ctx.com v "TypeDefinition" ttype p f in
 			let has_native_meta = match tdef with
 				| EClass d -> Meta.has Meta.Native d.d_meta
 				| EEnum d -> Meta.has Meta.Native d.d_meta
@@ -366,10 +465,6 @@ let make_macro_api ctx p =
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
 		);
-		MacroApi.current_macro_module = (fun () -> die "" __LOC__);
-		MacroApi.use_cache = (fun() ->
-			!macro_enable_cache
-		);
 		MacroApi.format_string = (fun s p ->
 			ctx.g.do_format_string ctx s p
 		);
@@ -404,13 +499,6 @@ let make_macro_api ctx p =
 			| MacroContext -> add_macro ctx
 			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
-		MacroApi.register_define = (fun s data -> Define.register_user_define ctx.com.user_defines s data);
-		MacroApi.register_metadata = (fun s data -> Meta.register_user_meta ctx.com.user_metas s data);
-		MacroApi.decode_expr = Interp.decode_expr;
-		MacroApi.encode_expr = Interp.encode_expr;
-		MacroApi.encode_ctype = Interp.encode_ctype;
-		MacroApi.decode_type = Interp.decode_type;
-		MacroApi.display_error = display_error ctx.com;
 		MacroApi.with_imports = (fun imports usings f ->
 			let old_globals = ctx.m.module_globals in
 			let old_imports = ctx.m.module_imports in
@@ -448,15 +536,12 @@ let make_macro_api ctx p =
 			in
 			Std.finally restore f ()
 		);
-		MacroApi.info = (fun ?(depth=0) msg p ->
-			ctx.com.info ~depth msg p
-		);
 		MacroApi.warning = (fun ?(depth=0) w msg p ->
 			warning ~depth ctx w msg p
 		);
 	}
 
-let rec init_macro_interp ctx mctx mint =
+let rec init_macro_interp mctx mint =
 	let p = null_pos in
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);
@@ -465,9 +550,9 @@ let rec init_macro_interp ctx mctx mint =
 		macro_interp_cache := Some mint;
 	end
 
-and flush_macro_context mint ctx =
-	let t = macro_timer ctx ["flush"] in
-	let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
+and flush_macro_context mint mctx =
+	let t = macro_timer mctx.com ["flush"] in
+	let mctx = (match mctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
 	Finalization.finalize mctx;
 	let _, types, modules = Finalization.generate mctx in
 	mctx.com.types <- types;
@@ -526,15 +611,15 @@ and flush_macro_context mint ctx =
 	with Error (e,p,n) -> t(); raise (Fatal_error(error_msg p e,n)));
 	t()
 
-let create_macro_interp ctx mctx =
+let create_macro_interp api mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
 		| None ->
-			let mint = Interp.create com2 (make_macro_api ctx null_pos) true in
+			let mint = Interp.create com2 api true in
 			Interp.select mint;
-			mint, (fun() -> init_macro_interp ctx mctx mint)
+			mint, (fun() -> init_macro_interp mctx mint)
 		| Some mint ->
-			Interp.do_reuse mint (make_macro_api ctx null_pos);
+			Interp.do_reuse mint api;
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.located_error in
@@ -543,46 +628,50 @@ let create_macro_interp ctx mctx =
 		macro_interp_cache := None;
 		on_error ~depth msg
 	);
-	let macro = ((fun() -> Interp.select mint), mctx) in
-	ctx.g.macros <- Some macro;
-	mctx.g.macros <- Some macro;
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
-	init()
+	init();
+	let init = (fun() -> Interp.select mint) in
+	mctx.g.macros <- Some (init,mctx);
+	init
 
-let get_macro_context ctx p =
-	let api = make_macro_api ctx p in
+let create_macro_context com =
+	let com2 = Common.clone com true in
+	com.get_macros <- (fun() -> Some com2);
+	com2.package_rules <- PMap.empty;
+	com2.main_class <- None;
+	(* Inherit most display settings, but require normal typing. *)
+	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
+	com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
+	let name = platform_define !Globals.macro_platform in
+	com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
+	let defines = adapt_defines_to_macro_context com2.defines; in
+	com2.defines.values <- defines.values;
+	com2.defines.defines_signature <- None;
+	Common.init_platform com2 !Globals.macro_platform;
+	let mctx = !create_context_ref com2 in
+	mctx.is_display_file <- false;
+	CommonCache.lock_signature com2 "get_macro_context";
+	mctx
+
+let get_macro_context ctx =
 	match ctx.g.macros with
 	| Some (select,ctx) ->
 		select();
-		api, ctx
+		ctx
 	| None ->
-		let com2 = Common.clone ctx.com true in
-		ctx.com.get_macros <- (fun() -> Some com2);
-		com2.package_rules <- PMap.empty;
-		com2.main_class <- None;
-		(* Inherit most display settings, but require normal typing. *)
-		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
-		let name = platform_define !Globals.macro_platform in
-		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
-		let defines = adapt_defines_to_macro_context com2.defines; in
-		com2.defines.values <- defines.values;
-		com2.defines.defines_signature <- None;
-		Common.init_platform com2 !Globals.macro_platform;
-		let mctx = ctx.g.do_create com2 in
-		mctx.is_display_file <- false;
-		create_macro_interp ctx mctx;
-		CommonCache.lock_signature com2 "get_macro_context";
-		api, mctx
+		let mctx = create_macro_context ctx.com in
+		let api = make_macro_api ctx null_pos in
+		let init = create_macro_interp api mctx in
+		ctx.g.macros <- Some (init,mctx);
+		mctx.g.macros <- Some (init,mctx);
+		mctx
 
-let load_macro_module ctx cpath display p =
-	let api, mctx = get_macro_context ctx p in
-	let m = (try ctx.com.type_to_module#find cpath with Not_found -> cpath) in
+let load_macro_module mctx com cpath display p =
+	let m = (try com.type_to_module#find cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
 	let old = mctx.com.display in
-	if display then mctx.com.display <- ctx.com.display;
+	if display then mctx.com.display <- com.display;
 	let mloaded = TypeloadModule.load_module mctx m p in
-	api.MacroApi.current_macro_module <- (fun() -> mloaded);
 	mctx.m <- {
 		curmod = mloaded;
 		module_imports = [];
@@ -593,16 +682,15 @@ let load_macro_module ctx cpath display p =
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
 
-let load_macro' ctx display cpath f p =
-	let api, mctx = get_macro_context ctx p in
+let load_macro'' com mctx display cpath f p =
 	let mint = Interp.get_ctx() in
-	let (meth,mloaded) = try mctx.com.cached_macros#find (cpath,f) with Not_found ->
-		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
+	try mctx.com.cached_macros#find (cpath,f) with Not_found ->
+		let t = macro_timer com ["typing";s_type_path cpath ^ "." ^ f] in
 		let mpath, sub = (match List.rev (fst cpath) with
 			| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 			| _ -> cpath, None
 		) in
-		let mloaded,restore = load_macro_module ctx mpath display p in
+		let mloaded,restore = load_macro_module mctx com mpath display p in
 		let cl, meth =
 			try
 				if sub <> None || mloaded.m_path <> cpath then raise Not_found;
@@ -621,10 +709,9 @@ let load_macro' ctx display cpath f p =
 					c, (try PMap.find f c.cl_statics with Not_found -> typing_error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 				| _ -> typing_error "Macro should be called on a class" p
 		in
-		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> typing_error "Macro call should be a method" p) in
 		restore();
-		if not ctx.com.is_macro_context then flush_macro_context mint ctx;
+		if not com.is_macro_context then flush_macro_context mint mctx;
 		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
@@ -636,17 +723,22 @@ let load_macro' ctx display cpath f p =
 		};
 		t();
 		meth
-	in
-	add_dependency ctx.m.curmod mloaded;
-	meth
+
+let load_macro' ctx display cpath f p =
+	(* TODO: The only reason this nonsense is here is because this is the signature
+	   that typer.di_load_macro wants, and the only reason THAT exists is the stupid
+	   voodoo stuff in displayToplevel.ml *)
+	fst (load_macro'' ctx.com (get_macro_context ctx) display cpath f p)
 
 let load_macro ctx display cpath f p =
-	let meth = load_macro' ctx display cpath f p in
-	let api, mctx = get_macro_context ctx p in
+	let api = make_macro_api ctx p in
+	let mctx = get_macro_context ctx in
+	let meth,mloaded = load_macro'' ctx.com mctx display cpath f p in
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
+		add_dependency ctx.m.curmod mloaded;
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
-		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
+		let t = macro_timer ctx.com ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
 		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
 		t();
@@ -829,7 +921,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						Some (EBlock [],p)
 					)
 			in
-			safe_decode ctx v expected mret p process
+			safe_decode ctx.com v expected mret p process
 	in
 	let e = if ctx.com.is_macro_context then
 		Some (EThrow((EConst(String("macro-in-macro",SDoubleQuotes))),p),p)
@@ -886,6 +978,3 @@ let setup() =
 let type_stored_expr ctx e1 =
 	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
 	get_stored_typed_expr ctx.com id
-
-;;
-load_macro_ref := load_macro;
