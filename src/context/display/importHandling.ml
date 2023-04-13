@@ -190,7 +190,7 @@ let init_import ctx context_init path mode p =
 										PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
 								in
 
-								display_error_msg ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p
+								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p
 							end
 						with Not_found ->
 							fail_usefully tsub p
@@ -229,7 +229,7 @@ let init_import ctx context_init path mode p =
 					try
 						add_static_init tsub name fname
 					with Not_found ->
-						display_error_msg ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+						display_error ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
 				);
 			)
 		| IAll ->

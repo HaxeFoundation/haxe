@@ -114,7 +114,7 @@ module IterationKind = struct
 						| Some e -> e
 						| None ->
 							if resume then raise Not_found;
-							display_error ctx.com (make_error ~depth:err.err_depth ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
+							display_error_ext ctx.com (make_error ~depth:err.err_depth ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
 							mk (TConst TNull) t_dynamic p
 					)
 			in
@@ -171,7 +171,7 @@ module IterationKind = struct
 
 	let of_texpr ?(resume=false) ctx e unroll p =
 		let dynamic_iterator e =
-			display_error_msg ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
+			display_error ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
 			IteratorDynamic,e,t_dynamic
 		in
 		let check_iterator () =
@@ -504,7 +504,7 @@ let type_for_loop ctx handle_display it e2 p =
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		(match follow e1.etype with
 		| TDynamic _ | TMono _ ->
-			display_error_msg ctx.com "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
+			display_error ctx.com "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
 		| _ -> ()
 		);
 		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in

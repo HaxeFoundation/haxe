@@ -69,7 +69,7 @@ module ModuleLevel = struct
 		let check_name name meta also_statics p =
 			DeprecationCheck.check_is com meta [] name meta p;
 			let error prev_pos =
-				display_error_msg ctx.com ("Name " ^ name ^ " is already defined in this module") p;
+				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
 				typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
 			in
 			List.iter (fun (t2,(_,p2)) ->
@@ -121,8 +121,8 @@ module ModuleLevel = struct
 				) d.d_flags;
 				if not (has_class_flag c CExtern) then check_type_name name d.d_meta;
 				if has_class_flag c CAbstract then begin
-					if has_class_flag c CInterface then display_error_msg ctx.com "An interface may not be abstract" c.cl_name_pos;
-					if has_class_flag c CFinal then display_error_msg ctx.com "An abstract class may not be final" c.cl_name_pos;
+					if has_class_flag c CInterface then display_error ctx.com "An interface may not be abstract" c.cl_name_pos;
+					if has_class_flag c CFinal then display_error ctx.com "An abstract class may not be final" c.cl_name_pos;
 				end;
 				decls := (TClassDecl c, decl) :: !decls;
 				acc
@@ -678,7 +678,7 @@ module TypeLevel = struct
 				ImportHandling.init_import ctx context_init path mode p;
 				ImportHandling.commit_import ctx path mode p;
 			with Error err ->
-				display_error ctx.com err
+				display_error_ext ctx.com err
 			end
 		| EUsing path ->
 			check_path_display path p;

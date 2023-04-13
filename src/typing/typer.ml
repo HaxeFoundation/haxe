@@ -249,7 +249,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 let unify_min ctx el =
 	try unify_min_raise ctx el
 	with Error ({ err_message = Unify l } as err) ->
-		if not ctx.untyped then display_error ctx.com err;
+		if not ctx.untyped then display_error_ext ctx.com err;
 		(List.hd el).etype
 
 let unify_min_for_type_source ctx el src =
@@ -488,7 +488,7 @@ and type_ident ctx i p mode with_type =
 			end else begin
 				if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then typing_error ("Cannot access " ^ i ^ " in static function") p;
 				if !resolved_to_type_parameter then begin
-					display_error_msg ctx.com ("Only @:const type parameters on @:generic classes can be used as value") p;
+					display_error ctx.com ("Only @:const type parameters on @:generic classes can be used as value") p;
 					AKExpr (mk (TConst TNull) t_dynamic p)
 				end else begin
 					let err = Unknown_ident i in
@@ -504,7 +504,7 @@ and type_ident ctx i p mode with_type =
 						| DMNone ->
 							raise_error_msg err p
 						| _ ->
-							display_error_msg ctx.com (error_msg err) p;
+							display_error ctx.com (error_msg err) p;
 							let t = mk_mono() in
 							(* Add a fake local for #8751. *)
 							if !ServerConfig.legacy_completion then
@@ -1123,7 +1123,7 @@ and type_new ctx path el with_type force_inline p =
 	| _ ->
 		typing_error (s_type (print_context()) t ^ " cannot be constructed") p
 	end with Error ({ err_message = No_constructor _ } as err) when ctx.com.display.dms_kind <> DMNone ->
-		display_error ctx.com err;
+		display_error_ext ctx.com err;
 		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
 
 and type_try ctx e1 catches with_type p =
@@ -1131,9 +1131,9 @@ and type_try ctx e1 catches with_type p =
 	let rec check_unreachable cases t p = match cases with
 		| (v,e) :: cases ->
 			let unreachable () =
-				display_error_msg ctx.com "This block is unreachable" p;
+				display_error ctx.com "This block is unreachable" p;
 				let st = s_type (print_context()) in
-				display_error_msg ctx.com (Printf.sprintf "%s can be caught to %s, which is handled here" (st t) (st v.v_type)) e.epos
+				display_error ctx.com (Printf.sprintf "%s can be caught to %s, which is handled here" (st t) (st v.v_type)) e.epos
 			in
 			begin try
 				begin match follow t,follow v.v_type with
@@ -1221,7 +1221,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let check_key e_key =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
-			display_error_msg ctx.com "Duplicate key" e_key.epos;
+			display_error ctx.com "Duplicate key" e_key.epos;
 			typing_error ~depth:1 (compl_msg "Previously defined here") p
 		with Not_found ->
 			begin match e_key.eexpr with
@@ -1278,7 +1278,7 @@ and type_local_function ctx kind f with_type p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
-		if name = None then display_error_msg ctx.com "Type parameters not supported in unnamed local functions" p;
+		if name = None then display_error ctx.com "Type parameters not supported in unnamed local functions" p;
 		if with_type <> WithType.NoValue then typing_error "Type parameters are not supported for rvalue functions" p
 	end;
 	let v,pname = (match name with
@@ -1377,7 +1377,7 @@ and type_local_function ctx kind f with_type p =
 		in
 		loop [] t
 	| WithType.NoValue ->
-		if name = None then display_error_msg ctx.com "Unnamed lvalue functions are not supported" p
+		if name = None then display_error ctx.com "Unnamed lvalue functions are not supported" p
 	| _ ->
 		());
 	let ft = TFun (targs,rt) in
@@ -1423,7 +1423,7 @@ and type_local_function ctx kind f with_type p =
 		in
 		let exprs =
 			if is_rec then begin
-				if inline then display_error_msg ctx.com "Inline function cannot be recursive" e.epos;
+				if inline then display_error ctx.com "Inline function cannot be recursive" e.epos;
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
 				exprs
@@ -1489,7 +1489,7 @@ and type_array_decl ctx el with_type p =
 			if !allow_array_dynamic || ctx.untyped || ignore_error ctx.com then
 				t_dynamic
 			else begin
-				display_error_msg ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
+				display_error ctx.com "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" err.err_pos;
 				raise_error err
 			end
 		in
@@ -1556,7 +1556,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 		if is_abstract_ctor then begin
 			match fst e with
 			| ECast((EConst(Ident "this"),_),None) -> ()
-			| _ -> display_error_msg ctx.com "Cannot return a value from constructor" p
+			| _ -> display_error ctx.com "Cannot return a value from constructor" p
 		end;
 		try
 			let with_expected_type =
@@ -1686,7 +1686,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			let old_counter = ctx.bypass_accessor in
 			ctx.bypass_accessor <- old_counter + 1;
 			let e = e () in
-			(if ctx.bypass_accessor > old_counter then display_error_msg ctx.com "Field access expression expected after @:bypassAccessor metadata" p);
+			(if ctx.bypass_accessor > old_counter then display_error ctx.com "Field access expression expected after @:bypassAccessor metadata" p);
 			e
 		| (Meta.Inline,_,pinline) ->
 			begin match fst e1 with
@@ -1696,7 +1696,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
 			| _ ->
-				display_error_msg ctx.com "Call or function expected after inline keyword" p;
+				display_error ctx.com "Call or function expected after inline keyword" p;
 				e();
 			end
 		| (Meta.ImplicitReturn,_,_) ->
@@ -1705,7 +1705,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| _ -> e()
 			end
 		| (Meta.Dollar s,_,p) ->
-			display_error_msg ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
+			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
 		| _ ->
 			if ctx.g.retain_meta then
@@ -1721,7 +1721,7 @@ and type_call_target ctx e el with_type p_inline =
 	let p = (pos e) in
 	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) (MCall el) WithType.value) with_type true p in
 	let check_inline cf p =
-		if (has_class_field_flag cf CfAbstract) then display_error_msg ctx.com "Cannot force inline on abstract method" p
+		if (has_class_field_flag cf CfAbstract) then display_error ctx.com "Cannot force inline on abstract method" p
 	in
 	match p_inline with
 	| None ->
@@ -1738,7 +1738,7 @@ and type_call_target ctx e el with_type p_inline =
 				check_inline sea.se_access.fa_field pinline;
 				AKUsingField {sea with se_access = {sea.se_access with fa_inline = true}}
 			| AKExpr {eexpr = TLocal _} ->
-				display_error_msg ctx.com "Cannot force inline on local functions" pinline;
+				display_error ctx.com "Cannot force inline on local functions" pinline;
 				e
 			| _ ->
 				e
@@ -1827,7 +1827,7 @@ and type_call_builtin ctx e el mode with_type p =
 			let cf = fa.fa_field in
 			let t = TInst (c,params) in
 			let e = mk (TConst TSuper) t sp in
-			if (Meta.has Meta.CompilerGenerated cf.cf_meta) then display_error_msg ctx.com (error_msg (No_constructor (TClassDecl c))) p;
+			if (Meta.has Meta.CompilerGenerated cf.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
 			let fa = FieldAccess.create e cf (FHInstance(c,params)) false p in
 			let fcc = unify_field_call ctx fa [] el p false in
 			let el = fcc.fc_args in
@@ -1988,7 +1988,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		wrap e
 	| EReturn e ->
 		if not ctx.in_function then begin
-			display_error_msg ctx.com "Return outside function" p;
+			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->
 				Texpr.Builder.make_null (mono_or_dynamic ctx with_type p) p
@@ -2000,10 +2000,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		end else
 			type_return ctx e with_type p
 	| EBreak ->
-		if not ctx.in_loop then display_error_msg ctx.com "Break outside loop" p;
+		if not ctx.in_loop then display_error ctx.com "Break outside loop" p;
 		mk TBreak (mono_or_dynamic ctx with_type p) p
 	| EContinue ->
-		if not ctx.in_loop then display_error_msg ctx.com "Continue outside loop" p;
+		if not ctx.in_loop then display_error ctx.com "Continue outside loop" p;
 		mk TContinue (mono_or_dynamic ctx with_type p) p
 	| ETry (e1,[]) ->
 		type_expr ctx e1 with_type
@@ -2051,7 +2051,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EIs (e,(t,p_t)) ->
 		match t with
 		| CTPath tp ->
-			if tp.tparams <> [] then display_error_msg ctx.com "Type parameters are not supported for the `is` operator" p_t;
+			if tp.tparams <> [] then display_error ctx.com "Type parameters are not supported for the `is` operator" p_t;
 			let e = type_expr ctx e WithType.value in
 			let mt = Typeload.load_type_def ctx p_t tp in
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
@@ -2069,7 +2069,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			in
 			mk (TCall (e_Std_isOfType, [e; e_t])) ctx.com.basic.tbool p
 		| _ ->
-			display_error_msg ctx.com "Unsupported type for `is` operator" p_t;
+			display_error ctx.com "Unsupported type for `is` operator" p_t;
 			Texpr.Builder.make_bool ctx.com.basic false p
 
 (* ---------------------------------------------------------------------- *)

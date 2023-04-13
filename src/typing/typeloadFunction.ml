@@ -136,7 +136,7 @@ let type_function ctx (args : function_arguments) ret fmode e do_display p =
 					let e_super_call = mk (TCall(e_super,[])) ctx.t.tvoid e.epos in
 					concat e_super_call e
 				else begin
-					display_error_msg ctx.com "Missing super constructor call" p;
+					display_error ctx.com "Missing super constructor call" p;
 					e
 				end
 			with

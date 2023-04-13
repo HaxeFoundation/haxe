@@ -268,7 +268,7 @@ let make_macro_com_api com p =
 		encode_expr = Interp.encode_expr;
 		encode_ctype = Interp.encode_ctype;
 		decode_type = Interp.decode_type;
-		display_error_msg = display_error_msg com;
+		display_error = display_error com;
 		with_imports = (fun imports usings f ->
 			Interp.exc_string "unsupported"
 		);
@@ -946,7 +946,7 @@ let call_init_macro ctx e =
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
 		end
 	with err ->
-		display_error_msg ctx.com ("Could not parse `" ^ e ^ "`") p;
+		display_error ctx.com ("Could not parse `" ^ e ^ "`") p;
 		raise err
 	in
 	match fst e with

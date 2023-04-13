@@ -1235,7 +1235,7 @@ let add_diagnostics_message ?(depth = 0) com s p kind sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,kind,sev,depth) :: di.diagnostics_messages
 
-let display_error com err =
+let display_error_ext com err =
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
 			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
@@ -1243,8 +1243,8 @@ let display_error com err =
 	end else
 		com.error_ext err
 
-let display_error_msg com ?(depth = 0) msg p =
-	display_error com (Error.make_error ~depth (Custom msg) p)
+let display_error com ?(depth = 0) msg p =
+	display_error_ext com (Error.make_error ~depth (Custom msg) p)
 
 open Printer
 
