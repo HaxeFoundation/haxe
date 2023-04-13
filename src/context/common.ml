@@ -453,6 +453,8 @@ let define_value com k v =
 let convert_define k =
 	String.concat "_" (ExtString.String.nsplit k "-")
 
+let is_next com = defined com HaxeNext
+
 let external_defined ctx k =
 	Define.raw_defined ctx.defines (convert_define k)
 
