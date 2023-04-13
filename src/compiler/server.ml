@@ -478,32 +478,38 @@ module Communication = struct
 		} in
 		self
 
-	let create_pipe sctx write = {
-		write_out = (fun s ->
-			write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
-		);
-		write_err = (fun s ->
-			write s
-		);
-		flush = (fun ctx ->
-			check_display_flush ctx (fun () ->
-				display_messages ctx (fun _ output ->
-					write (output ^ "\n");
-					ServerMessage.message output;
-				);
+	let create_pipe sctx write =
+		let rec self = {
+			write_out = (fun s ->
+				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+			);
+			write_err = (fun s ->
+				write s
+			);
+			flush = (fun ctx ->
+				check_display_flush ctx (fun () ->
+					display_messages ctx (fun _ output ->
+						write (output ^ "\n");
+						ServerMessage.message output;
+					);
 
-				sctx.was_compilation <- ctx.com.display.dms_full_typing;
-				if has_error ctx then begin
-					measure_times := false;
-					write "\x02\n"
-				end
-			)
-		);
-		exit = (fun i ->
-			()
-		);
-		is_server = true;
-	}
+					sctx.was_compilation <- ctx.com.display.dms_full_typing;
+					if has_error ctx then begin
+						measure_times := false;
+						write "\x02\n"
+					end else begin
+						Timer.close_times();
+						if !Timer.measure_times then Timer.report_times (fun s -> self.write_err (s ^ "\n"));
+					end
+				)
+			);
+			exit = (fun i ->
+				()
+			);
+			is_server = true;
+		}
+		in
+		self
 end
 
 let stat dir =
