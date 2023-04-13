@@ -130,7 +130,7 @@ let pair_classes rctx context_init c d p =
 			print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
 		} in
 		let display_modifier = Typeload.check_field_access ctx cff in
-		let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
+		let fctx = create_field_context ctx cctx cff ctx.is_display_file display_modifier in
 		let cf = match fctx.field_kind with
 			| FKConstructor ->
 				begin match c.cl_constructor with
@@ -196,7 +196,7 @@ let pair_abstracts ctx rctx context_init a d p =
 				print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
 			} in
 			let display_modifier = Typeload.check_field_access ctx cff in
-			let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
+			let fctx = create_field_context ctx cctx cff ctx.is_display_file display_modifier in
 			let cf = try
 				PMap.find name c.cl_statics
 			with Not_found ->

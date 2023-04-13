@@ -133,5 +133,3 @@ let deprecation_lut =
 		Hashtbl.add h name reason
 	) deprecated_defines;
 	h
-
-let is_haxe3_compat def = raw_defined def "hx3compat"
