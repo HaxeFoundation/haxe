@@ -64,13 +64,12 @@ type server_api = {
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
 
-let compiler_message_from_error (err : Error.error) kind =
-	make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos err.err_depth kind Error
-
-let error ctx (err : Error.error) =
-	Error.recurse_error (fun depth err -> message ctx (compiler_message_from_error err DKCompilerMessage)) err;
+let error_msg ctx ?(depth=0) ?(from_macro = false) msg p =
+	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error);
 	ctx.has_error <- true
 
-let error_msg ctx ?(depth=0) ?(from_macro = false) msg p =
-	error ctx (Error.make_error ~depth ~from_macro (Error.Custom msg) p)
+let error ctx (err : Error.error) =
+	Error.recurse_error (fun depth err ->
+		error_msg ~depth ~from_macro:err.err_from_macro ctx (Error.error_msg err.err_message) err.err_pos
+	) err
 
