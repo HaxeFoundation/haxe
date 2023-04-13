@@ -523,8 +523,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	let f_enum = match mt with
 		| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_enum ->
 			Some (fun () ->
-				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-					warning ctx WDeprecated "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
 				context_init#run;
 				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
 				fbuild e;
@@ -596,7 +594,7 @@ let create_typer_context_for_class ctx cctx p =
 	} in
 	ctx
 
-let create_field_context cctx cff is_display_file display_modifier =
+let create_field_context ctx cctx cff is_display_file display_modifier =
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_static,is_abstract_member = if cctx.abstract <> None && not is_static then true,true else is_static,false in
 	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
@@ -606,11 +604,11 @@ let create_field_context cctx cff is_display_file display_modifier =
 		match m with
 		| Meta.Final ->
 			is_final := true;
-			(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-				warning ctx WDeprecated "`@:final` is deprecated in favor of `final`" p; *)
+			if p <> null_pos then
+				warning ctx WDeprecated "`@:final` is deprecated in favor of `final`" p;
 		| Meta.Extern ->
-			(* if not (Define.is_haxe3_compat ctx.com.defines) then
-				warning ctx WDeprecated "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
+			if p <> null_pos then
+				warning ctx WDeprecated "`@:extern` is deprecated in favor of `extern`" p;
 			is_extern := true;
 		| _ ->
 			()
@@ -1787,7 +1785,7 @@ let init_class ctx c p context_init herits fields =
 		let p = f.cff_pos in
 		try
 			let display_modifier = Typeload.check_field_access ctx f in
-			let fctx = create_field_context cctx f ctx.is_display_file display_modifier in
+			let fctx = create_field_context ctx cctx f ctx.is_display_file display_modifier in
 			let ctx = create_typer_context_for_field ctx cctx fctx f in
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
