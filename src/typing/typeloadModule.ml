@@ -67,7 +67,7 @@ module ModuleLevel = struct
 		let decls = ref [] in
 		let statics = ref [] in
 		let check_name name meta also_statics p =
-			DeprecationCheck.check_is com name meta p;
+			DeprecationCheck.check_is com meta [] name meta p;
 			let error prev_pos =
 				display_error ctx.com ("Name " ^ name ^ " is already defined in this module") p;
 				typing_error ~depth:1 (compl_msg "Previous declaration here") prev_pos;
@@ -381,7 +381,7 @@ module TypeLevel = struct
 			ef_params = params;
 			ef_meta = c.ec_meta;
 		} in
-		DeprecationCheck.check_is ctx.com f.ef_name f.ef_meta f.ef_name_pos;
+		DeprecationCheck.check_is ctx.com e.e_meta f.ef_meta f.ef_name f.ef_meta f.ef_name_pos;
 		let cf = {
 			(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
 			cf_kind = (match follow f.ef_type with

@@ -2012,7 +2012,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		*)
 		method write_expr_magic name args =
 			let msg = "untyped " ^ name ^ " is deprecated. Use php.Syntax instead." in
-			DeprecationCheck.warn_deprecation ctx.pgc_common msg self#pos;
+			DeprecationCheck.warn_deprecation (DeprecationCheck.create_context ctx.pgc_common) msg self#pos;
 			let error = ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> fail ~msg:error self#pos __LOC__
@@ -3639,7 +3639,7 @@ class class_builder ctx (cls:tclass) =
 			(* Generate `__toString()` if not defined by user, but has `toString()` *)
 			self#write_toString_if_required
 		method private write_toString_if_required =
-			try 
+			try
 				let toString = PMap.find "toString" cls.cl_fields in
 				if (not (has_class_flag cls CInterface)) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
 					begin
@@ -3874,7 +3874,7 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_instance_initialization =
 			let init_dynamic_method field =
-				let field_name = field_name field 
+				let field_name = field_name field
 				and hx_closure = writer#use hxclosure_type_path in
 				writer#write_statement ("if ($this->" ^ field_name ^ " === null) $this->" ^ field_name ^ " = new " ^ hx_closure ^ "($this, '__hx__default__" ^ field_name ^ "')");
 			in

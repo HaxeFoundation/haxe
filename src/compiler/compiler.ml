@@ -409,7 +409,10 @@ let process_actx ctx actx =
 	DisplayProcessing.process_display_arg ctx actx;
 	List.iter (fun s ->
 		ctx.com.warning WDeprecated [] s null_pos
-	) actx.deprecations
+	) actx.deprecations;
+	if defined ctx.com NoDeprecationWarnings then begin
+		ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
+	end
 
 let compile_ctx callbacks ctx =
 	let run ctx =

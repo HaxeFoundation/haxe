@@ -314,16 +314,15 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			| TClassDecl {cl_kind = KGenericBuild _} -> false,true,false
 			| TClassDecl c when (has_class_flag c CExtern) -> false,false,true
 			| TTypeDecl td ->
-				DeprecationCheck.if_enabled ctx.com (fun() ->
-					try
-						let msg = match Meta.get Meta.Deprecated td.t_meta with
-							| _,[EConst(String(s,_)),_],_ -> s
-							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
-						in
-						DeprecationCheck.warn_deprecation ctx.com msg p
-					with Not_found ->
+				begin try
+					let msg = match Meta.get Meta.Deprecated td.t_meta with
+						| _,[EConst(String(s,_)),_],_ -> s
+						| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
+					in
+					DeprecationCheck.warn_deprecation (create_deprecation_context ctx) msg p
+				with Not_found ->
 						()
-				);
+				end;
 				false,false,false
 			| _ -> false,false,false
 		in
