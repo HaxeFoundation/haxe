@@ -1636,7 +1636,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
    | TCppCallable(args, return) ->
       let string_args = match args with
-      | [] -> "void"
+      | [] -> ""
       | vs -> (String.concat "," (List.map tcpp_to_string vs)) in
       "::hx::Callable< " ^ (tcpp_to_string return) ^ "(" ^ string_args ^ ")>"
    | TCppScalar(scalar) -> scalar
