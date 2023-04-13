@@ -210,8 +210,9 @@ module Pattern = struct
 				v
 		in
 		let con_enum en ef p =
-			DeprecationCheck.check_enum pctx.ctx.com en p;
-			DeprecationCheck.check_ef pctx.ctx.com ef p;
+			let dctx = create_deprecation_context pctx.ctx in
+			DeprecationCheck.check_enum dctx en p;
+			DeprecationCheck.check_ef dctx ef p;
 			ConEnum(en,ef),p
 		in
 		let con_static c cf p = ConStatic(c,cf),p in
@@ -258,7 +259,7 @@ module Pattern = struct
 				| TTypeExpr mt ->
 					PatConstructor(con_type_expr mt e.epos,[])
 				| TMeta((Meta.Deprecated,_,_) as m, e1) ->
-					DeprecationCheck.check_meta pctx.ctx.com [m] "field" e1.epos;
+					DeprecationCheck.check_meta (create_deprecation_context pctx.ctx) [m] "field" e1.epos;
 					loop e1
 				| _ ->
 					raise Exit

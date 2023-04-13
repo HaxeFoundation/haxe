@@ -203,7 +203,7 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
 		let t = apply_typedef s (List.map (fun _ -> spawn_monomorph ctx p) s.t_params) in
-		DeprecationCheck.check_typedef ctx.com s p;
+		DeprecationCheck.check_typedef (create_deprecation_context ctx) s p;
 		(match follow t with
 		| TEnum (e,params) ->
 			type_module_type ctx (TEnumDecl e) (Some params) p

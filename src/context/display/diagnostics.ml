@@ -93,20 +93,22 @@ let check_other_things com e =
 	in
 	loop true e
 
-let prepare_field dctx com cf = match cf.cf_expr with
+let prepare_field dctx dectx com cf = match cf.cf_expr with
 	| None -> ()
 	| Some e ->
 		find_unused_variables dctx e;
 		check_other_things com e;
-		DeprecationCheck.run_on_expr ~force:true com e
+		DeprecationCheck.run_on_expr {dectx with field_meta = cf.cf_meta} e
 
 let collect_diagnostics dctx com =
 	let open CompilationCache in
+	let dectx = DeprecationCheck.create_context com in
 	List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
-			List.iter (prepare_field dctx com) c.cl_ordered_fields;
-			List.iter (prepare_field dctx com) c.cl_ordered_statics;
-			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx com cf);
+			let dectx = {dectx with class_meta = c.cl_meta} in
+			List.iter (prepare_field dctx dectx com) c.cl_ordered_fields;
+			List.iter (prepare_field dctx dectx com) c.cl_ordered_statics;
+			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx dectx com cf);
 		| _ ->
 			()
 	) com.types;
