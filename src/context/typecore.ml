@@ -743,24 +743,24 @@ let create_deprecation_context ctx = {
 
 let delay_tabs = ref ""
 
-let context_ident ctx =
-	if Common.defined ctx.com Common.Define.CoreApi then
+let context_ident com =
+	if Common.defined com Common.Define.CoreApi then
 		" core "
-	else if Common.defined ctx.com Common.Define.Macro then
+	else if Common.defined com Common.Define.Macro then
 		"macro "
 	else
 		"  out "
 
-let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then begin
-		let s = (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-		match ctx.com.json_out with
+let debug com str =
+	if Common.raw_defined com "cdebug" then begin
+		let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
+		match com.json_out with
 		| None -> print_endline s
-		| Some _ -> DynArray.add ctx.com.pass_debug_messages s
+		| Some _ -> DynArray.add com.pass_debug_messages s
 	end
 
 let init_class_done ctx =
-	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
+	debug ctx.com ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
 	init_class_done ctx
 
 let ctx_pos ctx =
@@ -787,7 +787,7 @@ let delay ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx ("add " ^ inf)
+	debug ctx.com ("add " ^ inf)
 
 let delay_late ctx p f =
 	let inf = pass_infos ctx p in
@@ -800,7 +800,7 @@ let delay_late ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx ("add late " ^ inf)
+	debug ctx.com ("add late " ^ inf)
 
 let pending_passes ctx =
 	let rec loop acc = function
@@ -811,28 +811,28 @@ let pending_passes ctx =
 	| [] -> ""
 	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,i,_) -> i) l) ^ "]"
 
-let display_error ctx.com msg p =
-	debug ctx ("ERROR " ^ msg);
-	display_error ctx.com msg p
+let display_error com ?(depth=0) msg p =
+	debug com ("ERROR " ^ msg);
+	display_error com ~depth msg p
 
-let display_error_ext ctx.com msg =
-	debug ctx ("ERROR " ^ msg);
-	display_error_ext ctx.com msg
+let display_error_ext com err =
+	debug com ("ERROR " ^ (error_msg err.err_message));
+	display_error_ext com err
 
 let make_pass ?inf ctx f =
 	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
 	(fun v ->
-		debug ctx ("run " ^ inf ^ pending_passes ctx);
+		debug ctx.com ("run " ^ inf ^ pending_passes ctx);
 		let old = !delay_tabs in
 		delay_tabs := !delay_tabs ^ "\t";
 		let t = (try
 			f v
 		with
-			| Fatal_error (e,p) ->
+			| Fatal_error _ as exc ->
 				delay_tabs := old;
-				raise (Fatal_error (e,p))
+				raise exc
 			| exc when not (Common.raw_defined ctx.com "stack") ->
-				debug ctx ("FATAL " ^ Printexc.to_string exc);
+				debug ctx.com ("FATAL " ^ Printexc.to_string exc);
 				delay_tabs := old;
 				raise exc
 		) in
@@ -859,11 +859,11 @@ let rec flush_pass ctx p where =
 	match ctx.g.debug_delayed with
 	| (p2,_) :: _ when p2 <= p ->
 		let old = !delay_tabs in
-		debug ctx ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
+		debug ctx.com ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
 		delay_tabs := !delay_tabs ^ "\t";
 		loop();
 		delay_tabs := old;
-		debug ctx "flush-done";
+		debug ctx.com "flush-done";
 	| _ ->
 		()
 
@@ -878,8 +878,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p,depth) ->
-				raise (Fatal_error ((error_msg m),p,depth))
+			| Error e ->
+				raise (Fatal_error e)
 	));
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
