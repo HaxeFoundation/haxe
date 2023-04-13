@@ -4305,7 +4305,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       let func_args = List.map (fun (t, _) -> cpp_var_type_of ctx t) closure.close_args in
       let argsCount = list_num closure.close_args in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
-      out (if closure.close_this != None then "::hx::CallableThisFunction< " else "::hx::CallableFunction< ");
+      out (if closure.close_this != None then "::hx::CallableThis_obj< " else "::hx::Callable_obj< ");
       out (func_type ^ "(" ^ (String.concat ", " func_args) ^ ")>");
       out (",_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var ->
@@ -4569,7 +4569,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             let callable_signature = (tcpp_to_string return_type) ^ "(" ^ callable_args  ^ ")" in
             let obj_ptr_class_name = "::hx::ObjectPtr<" ^ class_name ^ ">" in
             (
-               output ("struct " ^ callable_name ^ " : public ::hx::CallableFunction<" ^ callable_signature ^ ">\n");
+               output ("struct " ^ callable_name ^ " : public ::hx::Callable_obj<" ^ callable_signature ^ ">\n");
                output "{\n";
 
                (if is_static then
