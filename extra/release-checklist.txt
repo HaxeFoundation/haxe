@@ -24,6 +24,7 @@
 # Cleanup
 
 - Remove issues with released fixes from the "Hotfix" milestone: https://github.com/HaxeFoundation/haxe/milestone/18
+- Set back the version in `globals.ml` to something appropriate for nightlies
 
 # Announcing the release
 
