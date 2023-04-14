@@ -4579,6 +4579,8 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                   output ("\t" ^ callable_name ^ "(" ^ obj_ptr_class_name ^ "_obj) : obj(_obj) {}\n");
                end);
 
+               (* Implement the pure virtual function *)
+
                output ("\t" ^ (tcpp_to_string return_type) ^ " _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")\n");
                output "\t{\n";
 
@@ -4589,6 +4591,15 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                   output ("obj->" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n"));
 
                output "\t}\n";
+
+               (* Override the dynamic run functions *)
+
+               output ("\t::Dynamic __Run(const Array< ::Dynamic>& inArgs) { " ^ (if is_void then "" else "return") ^ " _hx_run(");
+               output (String.concat ", " (List.init (List.length tcpp_args) (fun i -> ("inArgs[" ^ (string_of_int i) ^ "]"))));
+               output "); return null(); }\n";
+
+               output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) tcpp_args)) ^ ")");
+               output ("{" ^ (if is_void then "" else "return") ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i _ -> ("inArg" ^ (string_of_int i))) tcpp_args)) ^ "); return null(); }\n");
 
                (* TODO : Generate mark, visit, compare, __run, etc, etc *)
 
