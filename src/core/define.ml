@@ -39,6 +39,7 @@ let get_documentation user_defines d =
 		| HasParam s -> params := s :: !params
 		| Platforms fl -> pfs := fl @ !pfs
 		| Link _ -> ()
+		| Deprecated _ -> ()
 	) flags;
 	let params = (match List.rev !params with
 		| [] -> ""
@@ -126,4 +127,9 @@ let get_signature def =
 		def.defines_signature <- Some s;
 		s
 
-let is_haxe3_compat def = raw_defined def "hx3compat"
+let deprecation_lut =
+	let h = Hashtbl.create 0 in
+	List.iter (fun (name,reason) ->
+		Hashtbl.add h name reason
+	) deprecated_defines;
+	h

@@ -198,7 +198,7 @@ type dot_path_part = {
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
-exception WithTypeError of error_msg * pos * int (* depth *)
+exception WithTypeError of error
 
 let memory_marker = [|Unix.time()|]
 
@@ -257,13 +257,21 @@ let make_static_call ctx c cf map args t p =
 	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
 
+let raise_with_type_error ?(depth = 0) msg p =
+	raise (WithTypeError (make_error ~depth (Custom msg) p))
+
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError(Unify l,p,0))
-	else located_display_error ctx.com (error_msg p (Unify l))
+	else if ctx.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	else display_error_ext ctx.com (make_error (Unify l) p)
+
+let raise_or_display_error ctx err =
+	if ctx.untyped then ()
+	else if ctx.in_call_args then raise (WithTypeError err)
+	else display_error_ext ctx.com err
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise (WithTypeError (Custom msg,p,0))
+	if ctx.in_call_args then raise_with_type_error msg p
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
@@ -279,7 +287,7 @@ let unify_raise_custom uctx t1 t2 p =
 	with
 		Unify_error l ->
 			(* no untyped check *)
-			raise (Error (Unify l,p,0))
+			raise_error_msg (Unify l) p
 
 let unify_raise = unify_raise_custom default_unification_context
 
@@ -337,8 +345,11 @@ let check_module_path ctx (pack,name) p =
 	try
 		List.iter (fun part -> Path.check_package_name part) pack;
 	with Failure msg ->
-		display_error ctx.com ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:") p;
-		display_error ctx.com msg p
+		display_error_ext ctx.com (make_error
+			~sub:[make_error (Custom msg) p]
+			(Custom ("\"" ^ (StringHelper.s_escape (String.concat "." pack)) ^ "\" is not a valid package name:"))
+			p
+		)
 
 let check_local_variable_name ctx name origin p =
 	match name with
@@ -423,8 +434,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p,depth) ->
-				raise (Fatal_error ((error_msg p m),depth))
+			| Error e ->
+				raise (Fatal_error e)
 	);
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
@@ -721,29 +732,35 @@ let push_this ctx e = match e.eexpr with
 	let id,er = store_typed_expr ctx.com e e.epos in
 	er,fun () -> ctx.com.stored_typed_exprs#remove id
 
+let create_deprecation_context ctx = {
+	(DeprecationCheck.create_context ctx.com) with
+	class_meta = ctx.curclass.cl_meta;
+	field_meta = ctx.curfield.cf_meta;
+}
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
 let delay_tabs = ref ""
 
-let context_ident ctx =
-	if Common.defined ctx.com Common.Define.CoreApi then
+let context_ident com =
+	if Common.defined com Common.Define.CoreApi then
 		" core "
-	else if Common.defined ctx.com Common.Define.Macro then
+	else if Common.defined com Common.Define.Macro then
 		"macro "
 	else
 		"  out "
 
-let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then begin
-		let s = (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-		match ctx.com.json_out with
+let debug com str =
+	if Common.raw_defined com "cdebug" then begin
+		let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
+		match com.json_out with
 		| None -> print_endline s
-		| Some _ -> DynArray.add ctx.com.pass_debug_messages s
+		| Some _ -> DynArray.add com.pass_debug_messages s
 	end
 
 let init_class_done ctx =
-	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
+	debug ctx.com ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
 	init_class_done ctx
 
 let ctx_pos ctx =
@@ -770,7 +787,7 @@ let delay ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx ("add " ^ inf)
+	debug ctx.com ("add " ^ inf)
 
 let delay_late ctx p f =
 	let inf = pass_infos ctx p in
@@ -783,7 +800,7 @@ let delay_late ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx ("add late " ^ inf)
+	debug ctx.com ("add late " ^ inf)
 
 let pending_passes ctx =
 	let rec loop acc = function
@@ -794,28 +811,28 @@ let pending_passes ctx =
 	| [] -> ""
 	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,i,_) -> i) l) ^ "]"
 
-let display_error ctx.com msg p =
-	debug ctx ("ERROR " ^ msg);
-	display_error ctx.com msg p
+let display_error com ?(depth=0) msg p =
+	debug com ("ERROR " ^ msg);
+	display_error com ~depth msg p
 
-let located_display_error ctx.com msg =
-	debug ctx ("ERROR " ^ msg);
-	located_display_error ctx.com msg
+let display_error_ext com err =
+	debug com ("ERROR " ^ (error_msg err.err_message));
+	display_error_ext com err
 
 let make_pass ?inf ctx f =
 	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
 	(fun v ->
-		debug ctx ("run " ^ inf ^ pending_passes ctx);
+		debug ctx.com ("run " ^ inf ^ pending_passes ctx);
 		let old = !delay_tabs in
 		delay_tabs := !delay_tabs ^ "\t";
 		let t = (try
 			f v
 		with
-			| Fatal_error (e,p) ->
+			| Fatal_error _ as exc ->
 				delay_tabs := old;
-				raise (Fatal_error (e,p))
+				raise exc
 			| exc when not (Common.raw_defined ctx.com "stack") ->
-				debug ctx ("FATAL " ^ Printexc.to_string exc);
+				debug ctx.com ("FATAL " ^ Printexc.to_string exc);
 				delay_tabs := old;
 				raise exc
 		) in
@@ -842,11 +859,11 @@ let rec flush_pass ctx p where =
 	match ctx.g.debug_delayed with
 	| (p2,_) :: _ when p2 <= p ->
 		let old = !delay_tabs in
-		debug ctx ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
+		debug ctx.com ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
 		delay_tabs := !delay_tabs ^ "\t";
 		loop();
 		delay_tabs := old;
-		debug ctx "flush-done";
+		debug ctx.com "flush-done";
 	| _ ->
 		()
 
@@ -861,8 +878,8 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			r := lazy_available t;
 			t
 		with
-			| Error (m,p,depth) ->
-				raise (Fatal_error ((error_msg m),p,depth))
+			| Error e ->
+				raise (Fatal_error e)
 	));
 	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r

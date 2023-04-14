@@ -9,7 +9,7 @@ let get_macro_path ctx e args p =
 		match fst e with
 		| EField (e,f,_) -> f :: loop e
 		| EConst (Ident i) -> [i]
-		| _ -> typing_error "Invalid macro call" p
+		| _ -> raise_typing_error "Invalid macro call" p
 	in
 	let path = match e with
 		| (EConst(Ident i)),_ ->
@@ -19,7 +19,7 @@ let get_macro_path ctx e args p =
 			with Not_found -> try
 				(t_infos (let path,_,_ = PMap.find i ctx.m.module_globals in path)).mt_path
 			with Not_found ->
-				typing_error "Invalid macro call" p
+				raise_typing_error "Invalid macro call" p
 			in
 			i :: (snd path) :: (fst path)
 		| _ ->
@@ -27,7 +27,7 @@ let get_macro_path ctx e args p =
 	in
 	(match path with
 	| meth :: cl :: path -> (List.rev path,cl), meth, args
-	| _ -> typing_error "Invalid macro call" p)
+	| _ -> raise_typing_error "Invalid macro call" p)
 
 let build_macro_type ctx pl p =
 	let path, field, args = (match pl with
@@ -35,7 +35,7 @@ let build_macro_type ctx pl p =
 		| [TInst ({ cl_kind = KExpr (EArrayDecl [ECall (e,args),_],_) },_)] ->
 			get_macro_path ctx e args p
 		| _ ->
-			typing_error "MacroType requires a single expression call parameter" p
+			raise_typing_error "MacroType requires a single expression call parameter" p
 	) in
 	let old = ctx.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
@@ -49,11 +49,11 @@ let build_macro_build ctx c pl cfl p =
 	let path, field, args =
 		let build_expr =
 			try Meta.get Meta.GenericBuild c.cl_meta
-			with Not_found -> typing_error ((s_type_path c.cl_path) ^ " is missing @:genericBuild meta. Was it removed by a macro?") p
+			with Not_found -> raise_typing_error ((s_type_path c.cl_path) ^ " is missing @:genericBuild meta. Was it removed by a macro?") p
 		in
 		match build_expr with
 		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
-		| _ -> typing_error "genericBuild requires a single expression call parameter" p
+		| _ -> raise_typing_error "genericBuild requires a single expression call parameter" p
 	in
 	let old = ctx.ret,ctx.get_build_infos in
 	ctx.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));

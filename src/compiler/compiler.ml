@@ -4,20 +4,24 @@ open CompilationContext
 
 let run_or_diagnose ctx f arg =
 	let com = ctx.com in
-	let handle_diagnostics ?(depth = 0) msg kind =
+	let handle_diagnostics ?(depth = 0) msg p kind =
 		ctx.has_error <- true;
-		add_diagnostics_message ~depth com msg kind Error;
+		add_diagnostics_message ~depth com msg p kind Error;
 		DisplayOutput.emit_diagnostics ctx.com
 	in
 	if is_diagnostics com then begin try
 			f arg
 		with
-		| Error.Error(msg,p,depth) ->
-			handle_diagnostics ~depth (Error.error_msg p msg) DKCompilerMessage
+		| Error.Error err ->
+			ctx.has_error <- true;
+			Error.recurse_error (fun depth err ->
+				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
+			) err;
+			DisplayOutput.emit_diagnostics ctx.com
 		| Parser.Error(msg,p) ->
-			handle_diagnostics (located (Parser.error_msg msg) p) DKParserError
+			handle_diagnostics (Parser.error_msg msg) p DKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics (located (Lexer.error_msg msg) p) DKParserError
+			handle_diagnostics (Lexer.error_msg msg) p DKParserError
 		end
 	else
 		f arg
@@ -214,8 +218,10 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		Common.define_value com Define.Dce "std";
-		com.info <- (fun ?(depth=0) msg p -> message ctx (make_compiler_message msg p depth DKCompilerMessage Information));
-		com.warning <- (fun ?(depth=0) w options msg p ->
+		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
+			message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Information)
+		);
+		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
@@ -224,12 +230,12 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (make_compiler_message msg p depth DKCompilerMessage Warning)
+				message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);
-		com.located_error <- located_error ctx;
-		com.error <- (fun ?(depth = 0) msg p -> com.located_error ~depth (located msg p));
+		com.error_ext <- error_ext ctx;
+		com.error <- (fun ?(depth = 0) msg p -> com.error_ext (Error.make_error ~depth (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
@@ -247,6 +253,18 @@ module Setup = struct
 
 end
 
+let check_defines com =
+	if is_next com then begin
+		PMap.iter (fun k _ ->
+			try
+				let reason = Hashtbl.find Define.deprecation_lut k in
+				let p = { pfile = "-D " ^ k; pmin = -1; pmax = -1 } in
+				com.warning WDeprecatedDefine [] reason p
+			with Not_found ->
+				()
+		) com.defines.values
+	end
+
 (** Creates the typer context and types [classes] into it. *)
 let do_type ctx tctx actx =
 	let com = tctx.Typecore.com in
@@ -256,6 +274,7 @@ let do_type ctx tctx actx =
 	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
 	com.stage <- CInitMacrosDone;
+	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
 	com.callbacks#run com.callbacks#get_after_init_macros;
 	run_or_diagnose ctx (fun () ->
@@ -338,10 +357,10 @@ try
 with
 	| Abort ->
 		()
-	| Error.Fatal_error (m,depth) ->
-		located_error ~depth ctx m
-	| Common.Abort msg ->
-		located_error ctx msg
+	| Error.Fatal_error err ->
+		error_ext ctx err
+	| Common.Abort err ->
+		error_ext ctx err
 	| Lexer.Error (m,p) ->
 		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->
@@ -354,14 +373,8 @@ with
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ~depth:1 ctx (Error.compl_msg "referenced here")) (List.rev pl);
 		end
-	| Error.Error (Stack stack,_,depth) -> (match stack with
-		| [] -> ()
-		| (e,p) :: stack -> begin
-			located_error ~depth ctx (Error.error_msg p e);
-			List.iter (fun (e,p) -> located_error ~depth:(depth+1) ctx (Error.error_msg p e)) stack;
-		end)
-	| Error.Error (m,p,depth) ->
-		located_error ~depth ctx (Error.error_msg p m)
+	| Error.Error err ->
+		error_ext ctx err
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
@@ -412,7 +425,10 @@ let process_actx ctx actx =
 	DisplayProcessing.process_display_arg ctx actx;
 	List.iter (fun s ->
 		ctx.com.warning WDeprecated [] s null_pos
-	) actx.deprecations
+	) actx.deprecations;
+	if defined ctx.com NoDeprecationWarnings then begin
+		ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
+	end
 
 let compile_ctx callbacks ctx =
 	let run ctx =

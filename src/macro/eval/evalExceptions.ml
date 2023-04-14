@@ -138,7 +138,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 								in
 								(Error.Custom (value_string v1), v2)
 							end else
-								Error.typing_error "Something went wrong" null_pos
+								Error.raise_typing_error "Something went wrong" null_pos
 						) (EvalArray.to_list sub)
 				| _ -> []
 			in
@@ -163,11 +163,11 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 						| _ -> null_pos
 					in
 					(match stack with
-						| [] -> raise (Error.Error (Error.Custom s.sstring,p,0))
-						| _ -> raise (Error.Error (Stack ((Error.Custom (s.sstring),p) :: stack),p,0))
+						| [] -> Error.raise_msg s.sstring p
+						| _ -> Error.raise_error (Error.make_error ~sub:(List.map (fun (msg,p) -> Error.make_error msg p) stack) (Error.Custom s.sstring) p)
 					);
 				| _ ->
-					Error.typing_error "Something went wrong" null_pos
+					Error.raise_typing_error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
 			let stack = match eval_stack with
@@ -179,10 +179,11 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			reset_ctx();
 			final();
 			let p = if p' = null_pos then p else p' in
-			raise (Error.Error (Stack (
-				(Error.Custom ("Uncaught exception " ^ (value_string v)),p)
-				:: (List.map (fun p -> ((Error.Custom "Called from here"),p)) stack)
-			),p,0))
+			Error.raise_error (Error.make_error
+				~sub:(List.map (fun p -> Error.make_error (Error.Custom "Called from here") p) (List.rev stack))
+				(Error.Custom ("Uncaught exception " ^ (value_string v)))
+				p
+			)
 		end
 	| MacroApi.Abort ->
 		final();

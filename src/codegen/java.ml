@@ -35,9 +35,9 @@ type java_lib_ctx = {
 	is_std : bool;
 }
 
-exception ConversionError of located
+exception ConversionError of string * pos
 
-let error s p = raise (ConversionError (located s p))
+let error s p = raise (ConversionError (s, p))
 
 let is_haxe_keyword = function
 	| "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true

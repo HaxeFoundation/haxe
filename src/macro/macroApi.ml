@@ -155,7 +155,7 @@ module type InterpApi = sig
 	val encode_ref : 'a -> ('a -> value) -> (unit -> string) -> value
 	val decode_ref : value -> 'a
 
-	val compiler_error : Globals.located -> 'a
+	val compiler_error : Error.error -> 'a
 	val error_message : string -> 'a
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
@@ -315,6 +315,8 @@ and encode_access a =
 		| AExtern -> 8
 		| AAbstract -> 9
 		| AOverload -> 10
+		| AEnum -> 11
+
 	in
 	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
@@ -785,6 +787,7 @@ and decode_access v =
 	| 8 -> AExtern
 	| 9 -> AAbstract
 	| 10 -> AOverload
+	| 11 -> AEnum
 	| _ -> raise Invalid_expr
 	in
 	a,p
@@ -1710,7 +1713,7 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			let depth = decode_int depth in
-			raise (Error.Fatal_error ((Globals.located msg p),depth))
+			raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
 		);
 		"report_error", vfun3 (fun msg p depth ->
 			let msg = decode_string msg in
@@ -1753,11 +1756,10 @@ let macro_api ccom get_api =
 		"define", vfun2 (fun s v ->
 			let s = decode_string s in
 			let com = ccom() in
-			(* TODO: use external_define and external_define_value for #8690 *)
 			if v = vnull then
-				Common.external_define_no_check com s
+				Common.external_define com s
 			else
-				Common.external_define_value_no_check com s (decode_string v);
+				Common.external_define_value com s (decode_string v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
