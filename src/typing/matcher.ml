@@ -646,7 +646,7 @@ module Decision_tree = struct
 	type bind = {
 		b_var : tvar;
 		b_pos : pos;
-		b_expr : texpr option;
+		b_expr : texpr;
 	}
 
 	type t =
@@ -674,13 +674,7 @@ module Decision_tree = struct
 	let make_bind v p e = {
 		b_var = v;
 		b_pos = p;
-		b_expr = Some e;
-	}
-
-	let make_bind_no_init v p = {
-		b_var = v;
-		b_pos = p;
-		b_expr = None;
+		b_expr = e;
 	}
 
 	let tab_string = "    "
@@ -738,13 +732,8 @@ module Decision_tree = struct
 				List.iter (fun bind ->
 					add_line tabs "var ";
 					add bind.b_var.v_name;
-					begin match bind.b_expr with
-					| None ->
-						()
-					| Some e ->
-						add " = ";
-						add (s_expr tabs e);
-					end
+					add " = ";
+					add (s_expr tabs bind.b_expr);
 				) bl;
 				loop tabs dt
 			| Guard(e,dt1,dt2) ->
@@ -767,10 +756,8 @@ module Decision_tree = struct
 
 	let equal_dt dt1 dt2 = dt1.dt_i = dt2.dt_i
 
-	let equal_bind_expr eo1 eo2 = match eo1,eo2 with
-		| None,None -> true
-		| Some e1,Some e2 -> Texpr.equal e1 e2
-		| _ -> false
+	let equal_bind_expr e1 e2 =
+		Texpr.equal e1 e2
 
 	let equal dt1 dt2 = match dt1,dt2 with
 		| Leaf case1,Leaf case2 ->
@@ -1108,11 +1095,8 @@ module Compile = struct
 		String.concat " " (List.map s_expr_pretty subjects)
 
 	let s_case (case,bindings,patterns) =
-		let bind_init eo = match eo with
-			| None ->
-				""
-			| Some e ->
-				Printf.sprintf " = %s" (s_expr_pretty e)
+		let bind_init e =
+			Printf.sprintf " = %s" (s_expr_pretty e)
 		in
 		let s_bindings = String.concat ", " (List.map (fun bind -> Printf.sprintf "%s<%i>%s" bind.b_var.v_name bind.b_var.v_id (bind_init bind.b_expr)) bindings) in
 		let s_patterns = String.concat " " (List.map Pattern.to_string patterns) in
@@ -1725,14 +1709,8 @@ module TexprConverter = struct
 						end
 					| Bind(bl,dt) ->
 						let el = List.map (fun bind ->
-							let eo = match bind.b_expr with
-								| None ->
-									None
-								| Some e ->
-									v_lookup := IntMap.add bind.b_var.v_id e !v_lookup;
-									Some e
-							in
-							mk (TVar(bind.b_var,eo)) com.basic.tvoid p
+							v_lookup := IntMap.add bind.b_var.v_id bind.b_expr !v_lookup;
+							mk (TVar(bind.b_var,(Some bind.b_expr))) com.basic.tvoid p
 						) bl in
 						let e = loop dt_rec params dt in
 						Option.map (fun e -> mk (TBlock (el @ [e])) e.etype dt.dt_pos) e;
