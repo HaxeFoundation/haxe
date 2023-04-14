@@ -74,14 +74,27 @@ module Setup = struct
 		let add_std dir =
 			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 		in
+		let custom_generator = find_custom_target_generator com in
 		match com.platform with
 			| Cross ->
-				(* no platform selected *)
-				set_platform com Cross "";
+				if custom_generator <> None then
+					(* --custom-target with output path *)
+					let name, path = Option.get custom_generator in
+					set_platform com (CustomTarget name) path
+				else
+					(* no platform selected *)
+					set_platform com Cross "";
 				"?"
+			| pf when (custom_generator <> None) ->
+				failwith (
+					Printf.sprintf
+						"The --custom-target \"%s\" is expected to generate code and cannot be used with -%s."
+						(fst (Option.get custom_generator))
+						(platform_name pf)
+				);
 			| CustomTarget _ ->
-				(* TODO: add std? *)
-				"?"
+				(* should be impossible to reach this *)
+				failwith "--custom-target initialized improperly.";
 			| Flash ->
 				let rec loop = function
 					| [] -> ()
