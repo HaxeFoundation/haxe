@@ -1643,6 +1643,68 @@ let decode_type_def v =
 	) in
 	(pack, name), tdef, pos
 
+let decode_path v =
+	let pack = List.map decode_string (decode_array (field v "pack"))
+	and name = decode_string (field v "name") in
+	(pack,name)
+
+let decode_platform_config v =
+	let open Common in
+	let capture_policy = match decode_enum (field v "capturePolicy") with
+		| 0, [] -> CPNone
+		| 1, [] -> CPWrapRef
+		| 2, [] -> CPLoopVars
+		| _ -> raise Invalid_expr
+	in
+	let v_exc = field v "exceptions" in
+	let exception_config = {
+		ec_native_throws = List.map decode_path (decode_array (field v_exc "nativeThrows"));
+		ec_native_catches = List.map decode_path (decode_array (field v_exc "nativeCatches"));
+		ec_avoid_wrapping = decode_bool (field v_exc "avoidWrapping");
+		ec_wildcard_catch = decode_path (field v_exc "wildcardCatch");
+		ec_base_throw = decode_path (field v_exc "baseThrow");
+		ec_special_throw = (fun _ -> (* wtf is this? *) false);
+	} in
+	let v_scoping = field v "scoping" in
+	let decode_scope_flag v = match decode_enum v with
+		| 0, [] -> VarHoisting
+		| 1, [] -> NoShadowing
+		| 2, [] -> NoCatchVarShadowing
+		| 3, [] -> ReserveCurrentTopLevelSymbol
+		| 4, [] -> ReserveAllTopLevelSymbols
+		| 5, [] -> ReserveAllTypesFlat
+		| 6, [sl] -> ReserveNames (List.map decode_string (decode_array sl))
+		| 7, [] -> SwitchCasesNoBlocks
+		| _ -> raise Invalid_expr
+	in
+	let var_scoping_config = {
+		vs_scope = (match decode_enum (field v_scoping "scope") with
+			| 0,[] -> FunctionScope
+			| 1,[] -> BlockScope
+			| _ -> raise Invalid_expr
+		);
+		vs_flags = List.map decode_scope_flag (decode_array (field v_scoping "flags"));
+	} in
+	{
+		pf_static = decode_bool (field v "staticTypeSystem");
+		pf_sys = decode_bool (field v "sys");
+		pf_capture_policy = capture_policy;
+		pf_pad_nulls = decode_bool (field v "padNulls");
+		pf_add_final_return = decode_bool (field v "addFinalReturn");
+		pf_overload = decode_bool (field v "overloadFunctions");
+		pf_can_skip_non_nullable_argument = decode_bool (field v "canSkipNonNullableArgument");
+		pf_reserved_type_paths = List.map decode_path (decode_array (field v "reservedTypePaths"));
+		pf_supports_function_equality = decode_bool (field v "supportsFunctionEquality");
+		pf_uses_utf16 = decode_bool (field v "usesUtf16");
+		pf_this_before_super = decode_bool (field v "thisBeforeSuper");
+		pf_supports_threads = decode_bool (field v "supportsThreads");
+		pf_supports_unicode = decode_bool (field v "supportsUnicode");
+		pf_supports_rest_args = decode_bool (field v "supportsRestArgs");
+		pf_exceptions = exception_config;
+		pf_scoping = var_scoping_config;
+		pf_supports_atomics = decode_bool (field v "supportsAtomics");
+	}
+
 (* ---------------------------------------------------------------------- *)
 (* VALUE-TO-CONSTANT *)
 
@@ -2145,6 +2207,10 @@ let macro_api ccom get_api =
 				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
+		);
+		"set_platform_configuration", vfun1 (fun v ->
+			(ccom()).config <- decode_platform_config v;
+			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
 			match (ccom()).main with None -> vnull | Some e -> encode_texpr e

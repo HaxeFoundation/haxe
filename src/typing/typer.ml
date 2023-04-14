@@ -2219,4 +2219,5 @@ make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
 type_block_ref := type_block;
-create_context_ref := create
+create_context_ref := create;
+type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> type_expr ~mode ctx e with_type);
