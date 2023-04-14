@@ -148,9 +148,15 @@ module Pattern = struct
 		| PatBind of tvar * pattern
 		| PatOr of pattern * pattern
 		| PatTuple of pattern list
-		| PatExtractor of tvar * texpr * pattern
+		| PatExtractor of extractor
 
 	and pattern = t * pos
+
+	and extractor = {
+		ex_var     : tvar; (* The _ local used for typing the expression *)
+		ex_expr    : texpr; (* The left side of the => *)
+		ex_pattern : pattern; (* The right side of the => *)
+	}
 
 	type pattern_context = {
 		ctx : typer;
@@ -171,7 +177,7 @@ module Pattern = struct
 		| PatBind(v,pat1) -> Printf.sprintf "%s = %s" v.v_name (to_string pat1)
 		| PatOr(pat1,pat2) -> Printf.sprintf "(%s) | (%s)" (to_string pat1) (to_string pat2)
 		| PatTuple pl -> Printf.sprintf "[%s]" (String.concat ", " (List.map to_string pl))
-		| PatExtractor(v,e,pat1) -> Printf.sprintf "%s => %s" (s_expr_pretty e) (to_string pat1)
+		| PatExtractor ex -> Printf.sprintf "%s => %s" (s_expr_pretty ex.ex_expr) (to_string ex.ex_pattern)
 
 	let unify_type_pattern ctx mt t p =
 		let tcl = get_general_module_type ctx mt p in
@@ -524,7 +530,7 @@ module Pattern = struct
 				v.v_name <- "tmp";
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
-				PatExtractor(v,e1,pat)
+				PatExtractor {ex_var = v; ex_expr = e1; ex_pattern = pat}
 			(* Special case for completion on a pattern local: We don't want to add the local to the context
 			   while displaying (#7319) *)
 			| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
@@ -640,7 +646,7 @@ module Decision_tree = struct
 	type bind = {
 		b_var : tvar;
 		b_pos : pos;
-		b_expr : texpr;
+		b_expr : texpr option;
 	}
 
 	type t =
@@ -668,7 +674,13 @@ module Decision_tree = struct
 	let make_bind v p e = {
 		b_var = v;
 		b_pos = p;
-		b_expr = e;
+		b_expr = Some e;
+	}
+
+	let make_bind_no_init v p = {
+		b_var = v;
+		b_pos = p;
+		b_expr = None;
 	}
 
 	let tab_string = "    "
@@ -726,8 +738,13 @@ module Decision_tree = struct
 				List.iter (fun bind ->
 					add_line tabs "var ";
 					add bind.b_var.v_name;
-					add " = ";
-					add (s_expr tabs bind.b_expr);
+					begin match bind.b_expr with
+					| None ->
+						()
+					| Some e ->
+						add " = ";
+						add (s_expr tabs e);
+					end
 				) bl;
 				loop tabs dt
 			| Guard(e,dt1,dt2) ->
@@ -750,6 +767,11 @@ module Decision_tree = struct
 
 	let equal_dt dt1 dt2 = dt1.dt_i = dt2.dt_i
 
+	let equal_bind_expr eo1 eo2 = match eo1,eo2 with
+		| None,None -> true
+		| Some e1,Some e2 -> Texpr.equal e1 e2
+		| _ -> false
+
 	let equal dt1 dt2 = match dt1,dt2 with
 		| Leaf case1,Leaf case2 ->
 			case1 == case2
@@ -758,7 +780,7 @@ module Decision_tree = struct
 			safe_for_all2 (fun sc1 sc2 -> Constructor.equal sc1.sc_con sc2.sc_con && sc1.sc_unguarded = sc2.sc_unguarded && equal_dt sc1.sc_dt sc2.sc_dt) cases1 cases2 &&
 			equal_dt dt1 dt2
 		| Bind(l1,dt1),Bind(l2,dt2) ->
-			safe_for_all2 (fun bind1 bind2 -> bind1.b_var == bind2.b_var && Texpr.equal bind1.b_expr bind2.b_expr) l1 l2 &&
+			safe_for_all2 (fun bind1 bind2 -> bind1.b_var == bind2.b_var && equal_bind_expr bind1.b_expr bind2.b_expr) l1 l2 &&
 			equal_dt dt1 dt2
 		| Fail,Fail ->
 			true
@@ -1086,7 +1108,13 @@ module Compile = struct
 		String.concat " " (List.map s_expr_pretty subjects)
 
 	let s_case (case,bindings,patterns) =
-		let s_bindings = String.concat ", " (List.map (fun bind -> Printf.sprintf "%s<%i> = %s" bind.b_var.v_name bind.b_var.v_id (s_expr_pretty bind.b_expr)) bindings) in
+		let bind_init eo = match eo with
+			| None ->
+				""
+			| Some e ->
+				Printf.sprintf " = %s" (s_expr_pretty e)
+		in
+		let s_bindings = String.concat ", " (List.map (fun bind -> Printf.sprintf "%s<%i>%s" bind.b_var.v_name bind.b_var.v_id (bind_init bind.b_expr)) bindings) in
 		let s_patterns = String.concat " " (List.map Pattern.to_string patterns) in
 		let s_expr = match case.case_expr with None -> "" | Some e -> Type.s_expr_pretty false "\t\t" false s_type e in
 		let s_guard = match case.case_guard with None -> "" | Some e -> Type.s_expr_pretty false "\t\t" false s_type e in
@@ -1235,44 +1263,60 @@ module Compile = struct
 			| subject :: subjects -> subject,subjects
 		in
 		if mctx.match_debug then print_endline (Printf.sprintf "compile_extractor:\n\tsubject: %s\n\ttsubjects: %s\n\tcases: %s" (s_expr_pretty subject) (s_subjects subjects) (s_cases cases));
-		let num_extractors,extractors = List.fold_left (fun (i,extractors) (_,_,patterns) ->
+		(* Find all extractors of the current column and associate them with bindings, if exist *)
+		let num_extractors,cases = List.fold_left (fun (i,extractors) ((_,_,patterns) as case) ->
 			let rec loop bindings pat = match pat with
-				| (PatExtractor(v,e1,pat),_) -> i + 1,Some (v,e1,pat,bindings) :: extractors
-				| (PatBind(v,pat1),p) -> loop ((make_bind v p subject) :: bindings) pat1
-				| _ -> i,None :: extractors
+				| (PatExtractor ex,_) ->
+					i + 1,(case,Some (ex,i + 1,bindings)) :: extractors
+				| (PatBind(v,pat1),p) ->
+					loop ((make_bind v p subject) :: bindings) pat1
+				| _ ->
+					i,(case,None) :: extractors
 			in
 			loop [] (List.hd patterns)
 		) (0,[]) cases in
 		let pat_any = (PatAny,null_pos) in
-		let _,_,ex_subjects,cases,bindings = List.fold_left2 (fun (left,right,subjects,cases,ex_bindings) (case,bindings,patterns) extractor -> match extractor,patterns with
-			| Some(v,e1,pat,bindings1), _ :: patterns ->
-				let rec loop e = match e.eexpr with
-					| TLocal v' when v' == v -> subject
-					| _ -> Type.map_expr loop e
-				in
-				let e1 = loop e1 in
-				let bindings = bindings1 @ bindings in
-				begin try
-					let v,_,_,left2,right2 = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
-					let ev = mk (TLocal v) v.v_type e1.epos in
-					let patterns = make_offset_list (left2 + 1) (right2 - 1) pat pat_any @ patterns in
-					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
-				with Not_found ->
-					let v = alloc_var VExtractorVariable "_hx_tmp" e1.etype e1.epos in
-					let ex_bindings = (v,e1.epos,e1,left,right) :: ex_bindings in
-					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
-					let ev = mk (TLocal v) v.v_type e1.epos in
-					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
-				end
-			| None,pat :: patterns ->
-				let patterns = make_offset_list 0 num_extractors pat pat_any @ patterns in
-				(left,right,subjects,((case,bindings,patterns) :: cases),ex_bindings)
-			| _,[] ->
+		let rec loop acc_cases acc_subjects acc_bind cases = match cases with
+			| ((_,_,[]),_) :: _ ->
 				die "" __LOC__
-		) (0,num_extractors,[],[],[]) cases (List.rev extractors) in
-		let dt = compile mctx ((subject :: List.rev ex_subjects) @ subjects) (List.rev cases) in
-		let bindings = List.map (fun (a,b,c,_,_) -> (make_bind a b c)) bindings in
-		bind mctx bindings dt
+ 			| ((case,bindings,(pattern1 :: patterns)),ex) :: cases ->
+				begin match ex with
+				| None ->
+					(* If there's no extractor, generate `[pattern1, _, ..., _ ]` *)
+					let patterns = make_offset_list 0 num_extractors pattern1 pat_any @ patterns in
+					loop ((case,bindings,patterns) :: acc_cases) acc_subjects acc_bind cases
+				| Some (ex,i,bindings1) ->
+					(* Replace the _ local with our subject *)
+					let rec replace e = match e.eexpr with
+						| TLocal v' when v' == ex.ex_var -> subject
+						| _ -> Type.map_expr replace e
+					in
+					let e1 = replace ex.ex_expr in
+					let bindings = bindings1 @ bindings in
+					(* Generate a local and add it to the subjects so that they become `[subject1, ..., localI = init, ...]` *)
+					let v = alloc_var VExtractorVariable "_hx_tmp" e1.etype e1.epos in
+					let ev = mk (TLocal v) v.v_type e1.epos in
+					let e = Texpr.Builder.binop OpAssign ev e1 e1.etype ev.epos in
+					let bind = make_bind_no_init v v.v_pos in
+					(* For the patterns, generate `[_, ..., extractorPatternI, ..., _] *)
+					let patterns = make_offset_list i (num_extractors - i) ex.ex_pattern pat_any @ patterns in
+					loop ((case,bindings,patterns) :: acc_cases) (e :: acc_subjects) (bind :: acc_bind) cases
+				end
+			| [] ->
+				List.rev acc_cases,List.rev acc_subjects,List.rev acc_bind
+		in
+		let cases,ex_subjects,ex_binds = loop [] [] [] (List.rev cases) in
+		(* At the end of all this we have something like this:
+			var _hx_tmp1;
+			var _hx_tmpN;
+			switch [subject, _hx_tmp1 = extractorLhs1(subject), _hx_tmpN = extractorLhsN(subject) ] {
+				case [normalSubjectMatch, _, _]:
+				case [_, extractorRhs1, _]:
+				case [_, _, extractorRhsN]:
+			}
+		*)
+		let dt = compile mctx ((subject :: ex_subjects) @ subjects) cases in
+		bind mctx ex_binds dt
 
 	let compile ctx match_debug subjects cases p =
 		let mctx = {
@@ -1665,8 +1709,14 @@ module TexprConverter = struct
 						end
 					| Bind(bl,dt) ->
 						let el = List.map (fun bind ->
-							v_lookup := IntMap.add bind.b_var.v_id bind.b_expr !v_lookup;
-							mk (TVar(bind.b_var,Some bind.b_expr)) com.basic.tvoid p
+							let eo = match bind.b_expr with
+								| None ->
+									None
+								| Some e ->
+									v_lookup := IntMap.add bind.b_var.v_id e !v_lookup;
+									Some e
+							in
+							mk (TVar(bind.b_var,eo)) com.basic.tvoid p
 						) bl in
 						let e = loop dt_rec params dt in
 						Option.map (fun e -> mk (TBlock (el @ [e])) e.etype dt.dt_pos) e;
