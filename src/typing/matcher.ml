@@ -1276,7 +1276,16 @@ module Compile = struct
 			loop [] (List.hd patterns)
 		) (0,[]) cases in
 		let pat_any = (PatAny,null_pos) in
-		let rec loop acc_cases acc_subjects acc_bind cases = match cases with
+		let lookup_expr lut e =
+			let rec loop el = match el with
+				| [] ->
+					None
+				| (e',ev) :: el ->
+					if Texpr.equal e e' then Some ev else loop el
+			in
+			loop lut
+		in
+		let rec loop acc_cases acc_subjects acc_bind expr_lut cases = match cases with
 			| ((_,_,[]),_) :: _ ->
 				die "" __LOC__
  			| ((case,bindings,(pattern1 :: patterns)),ex) :: cases ->
@@ -1284,7 +1293,7 @@ module Compile = struct
 				| None ->
 					(* If there's no extractor, generate `[pattern1, _, ..., _ ]` *)
 					let patterns = make_offset_list 0 num_extractors pattern1 pat_any @ patterns in
-					loop ((case,bindings,patterns) :: acc_cases) acc_subjects acc_bind cases
+					loop ((case,bindings,patterns) :: acc_cases) acc_subjects acc_bind expr_lut cases
 				| Some (ex,i,bindings1) ->
 					(* Replace the _ local with our subject *)
 					let rec replace e = match e.eexpr with
@@ -1293,19 +1302,26 @@ module Compile = struct
 					in
 					let e1 = replace ex.ex_expr in
 					let bindings = bindings1 @ bindings in
-					(* Generate a local and add it to the subjects so that they become `[subject1, ..., localI = init, ...]` *)
-					let v = alloc_var VExtractorVariable "_hx_tmp" e1.etype e1.epos in
-					let ev = mk (TLocal v) v.v_type e1.epos in
-					let e = Texpr.Builder.binop OpAssign ev e1 e1.etype ev.epos in
-					let bind = make_bind_no_init v v.v_pos in
 					(* For the patterns, generate `[_, ..., extractorPatternI, ..., _] *)
-					let patterns = make_offset_list i (num_extractors - i) ex.ex_pattern pat_any @ patterns in
-					loop ((case,bindings,patterns) :: acc_cases) (e :: acc_subjects) (bind :: acc_bind) cases
+					let make_patterns i = make_offset_list i (num_extractors - i) ex.ex_pattern pat_any @ patterns in
+					(* See if we already had an equal constructor. In that case we can reuse its _hx_tmp *)
+					begin match lookup_expr expr_lut e1 with
+					| None ->
+						(* Generate a local and add it to the subjects so that they become `[subject1, ..., localI, ...]` *)
+						let v = alloc_var VExtractorVariable "_hx_tmp" e1.etype e1.epos in
+						let ev = mk (TLocal v) v.v_type e1.epos in
+						let bind = make_bind v v.v_pos e1 in
+						let patterns = make_patterns i in
+						loop ((case,bindings,patterns) :: acc_cases) (ev :: acc_subjects) (bind :: acc_bind) ((e1,(ev,i)) :: expr_lut) cases
+					| Some(e,i) ->
+						let patterns = make_patterns i in
+						loop ((case,bindings,patterns) :: acc_cases) (e :: acc_subjects) acc_bind expr_lut cases
+					end
 				end
 			| [] ->
 				List.rev acc_cases,List.rev acc_subjects,List.rev acc_bind
 		in
-		let cases,ex_subjects,ex_binds = loop [] [] [] (List.rev cases) in
+		let cases,ex_subjects,ex_binds = loop [] [] [] [] (List.rev cases) in
 		(* At the end of all this we have something like this:
 			var _hx_tmp1;
 			var _hx_tmpN;
