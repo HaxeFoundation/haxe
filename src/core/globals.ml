@@ -28,7 +28,7 @@ let version = 5000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_pre = Some "preview.1"
+let version_pre = Some "alpha.1"
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
