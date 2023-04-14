@@ -1304,7 +1304,7 @@ module Compile = struct
 					let bindings = bindings1 @ bindings in
 					(* For the patterns, generate `[_, ..., extractorPatternI, ..., _] *)
 					let make_patterns i = make_offset_list i (num_extractors - i) ex.ex_pattern pat_any @ patterns in
-					(* See if we already had an equal constructor. In that case we can reuse its _hx_tmp *)
+					(* See if we already had an equal extractor expression. In that case we can reuse its _hx_tmp *)
 					begin match lookup_expr expr_lut e1 with
 					| None ->
 						(* Generate a local and add it to the subjects so that they become `[subject1, ..., localI, ...]` *)
@@ -1323,9 +1323,9 @@ module Compile = struct
 		in
 		let cases,ex_subjects,ex_binds = loop [] [] [] [] (List.rev cases) in
 		(* At the end of all this we have something like this:
-			var _hx_tmp1;
-			var _hx_tmpN;
-			switch [subject, _hx_tmp1 = extractorLhs1(subject), _hx_tmpN = extractorLhsN(subject) ] {
+			var _hx_tmp1 = extractorLhs1(subject);
+			var _hx_tmpN = extractorLhsN(subject);
+			switch [subject, _hx_tmp1, _hx_tmpN] {
 				case [normalSubjectMatch, _, _]:
 				case [_, extractorRhs1, _]:
 				case [_, _, extractorRhsN]:
