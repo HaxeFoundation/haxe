@@ -1455,10 +1455,15 @@ class expr_checker mode immediate_execution report =
 			Check if specified expressions can be passed to a call which expects `types`.
 		*)
 		method private check_args callee args types =
+			let rec expr_with_unsafe_meta e =
+				match e.eexpr with
+					| TMeta ((Meta.NullSafety, [(EConst (Ident "Off"), _)], _), e) -> true
+					| TParenthesis e -> expr_with_unsafe_meta e
+					| _ -> false in
 			let rec traverse arg_num args types meta =
 				match (args, types, meta) with
 					| (arg :: args, (arg_name, optional, t) :: types, arg_meta :: meta) ->
-						let unsafe_argument = contains_unsafe_meta arg_meta in
+						let unsafe_argument = contains_unsafe_meta arg_meta || expr_with_unsafe_meta arg in
 						if
 							not optional && not unsafe_argument
 							&& not (self#can_pass_expr arg t arg.epos)
