@@ -64,7 +64,7 @@ let actually_check_display_field ctx c cff p =
 	let ctx = TypeloadFields.create_typer_context_for_class ctx cctx p in
 	let cff = TypeloadFields.transform_field (ctx,cctx) c cff (ref []) (pos cff.cff_name) in
 	let display_modifier = Typeload.check_field_access ctx cff in
-	let fctx = TypeloadFields.create_field_context cctx cff true display_modifier in
+	let fctx = TypeloadFields.create_field_context ctx cctx cff true display_modifier in
 	let cf = TypeloadFields.init_field (ctx,cctx,fctx) cff in
 	flush_pass ctx PTypeField "check_display_field";
 	ignore(follow cf.cf_type)

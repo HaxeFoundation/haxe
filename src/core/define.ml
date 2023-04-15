@@ -39,6 +39,7 @@ let get_documentation user_defines d =
 		| HasParam s -> params := s :: !params
 		| Platforms fl -> pfs := fl @ !pfs
 		| Link _ -> ()
+		| Deprecated _ -> ()
 	) flags;
 	let params = (match List.rev !params with
 		| [] -> ""
@@ -117,7 +118,7 @@ let get_signature def =
 			   Note that we should removed flags like use_rtti_doc here.
 			*)
 			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin"
-			| "message_reporting" | "messages_log_file" | "messages_log_format" | "no_color"
+			| "message.reporting" | "message.log_file" | "message.log_format" | "message.no_color"
 			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in
@@ -126,4 +127,9 @@ let get_signature def =
 		def.defines_signature <- Some s;
 		s
 
-let is_haxe3_compat def = raw_defined def "hx3compat"
+let deprecation_lut =
+	let h = Hashtbl.create 0 in
+	List.iter (fun (name,reason) ->
+		Hashtbl.add h name reason
+	) deprecated_defines;
+	h

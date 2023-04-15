@@ -37,7 +37,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	static function getClass<T>(o:T):Class<T>;
+	static function getClass<T>(o:T):Null<Class<T>>;
 
 	/**
 		Returns the enum of enum instance `o`.

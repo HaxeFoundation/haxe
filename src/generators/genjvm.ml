@@ -244,10 +244,10 @@ let convert_fields gctx pfm =
 module AnnotationHandler = struct
 	let convert_annotations meta =
 		let parse_path e =
-			let sl = try string_list_of_expr_path_raise e with Exit -> Error.typing_error "Field expression expected" (pos e) in
+			let sl = try string_list_of_expr_path_raise e with Exit -> Error.raise_typing_error "Field expression expected" (pos e) in
 			let path = match sl with
 				| s :: sl -> List.rev sl,s
-				| _ -> Error.typing_error "Field expression expected" (pos e)
+				| _ -> Error.raise_typing_error "Field expression expected" (pos e)
 			in
 			path
 		in
@@ -268,12 +268,12 @@ module AnnotationHandler = struct
 				let values = List.map parse_value_pair el in
 				AAnnotation(TObject(path, []),values)
 
-			| _ -> Error.typing_error "Expected value expression" (pos e)
+			| _ -> Error.raise_typing_error "Expected value expression" (pos e)
 		and parse_value_pair e = match fst e with
 			| EBinop(OpAssign,(EConst(Ident s),_),e1) ->
 				s,parse_value e1
 			| _ ->
-				Error.typing_error "Assignment expression expected" (pos e)
+				Error.raise_typing_error "Assignment expression expected" (pos e)
 		in
 		let parse_expr e = match fst e with
 			| ECall(e1,el) ->
@@ -283,7 +283,7 @@ module AnnotationHandler = struct
 				let values = List.map parse_value_pair el in
 				path,values
 			| _ ->
-				Error.typing_error "Call expression expected" (pos e)
+				Error.raise_typing_error "Call expression expected" (pos e)
 		in
 		ExtList.List.filter_map (fun (m,el,_) -> match m,el with
 			| Meta.Meta,[e] ->
@@ -1516,11 +1516,11 @@ class texpr_to_jvm
 					self#expect_reference_type;
 					let path = match jsignature_of_type gctx (type_of_module_type mt) with
 						| TObject(path,_) -> path
-						| _ -> Error.typing_error "Class expected" pe
+						| _ -> Error.raise_typing_error "Class expected" pe
 					in
 					code#instanceof path;
 					Some TBool
-				| _ -> Error.typing_error "Type expression expected" e1.epos
+				| _ -> Error.raise_typing_error "Type expression expected" e1.epos
 			end;
 		| TField(_,FStatic({cl_path = (["java";"lang"],"Math")},{cf_name = ("isNaN" | "isFinite") as name})) ->
 			begin match el with
@@ -1579,7 +1579,7 @@ class texpr_to_jvm
 				self#new_native_array jsig el;
 				Some (array_sig jsig)
 			| _ ->
-				Error.typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
+				Error.raise_typing_error (Printf.sprintf "Bad __array__ type: %s" (s_type (print_context()) tr)) e1.epos;
 			end
 		| TField(_,FStatic({cl_path = (["haxe"],"EnumTools")}, {cf_name = "values"})) ->
 			begin match el with
@@ -1664,7 +1664,7 @@ class texpr_to_jvm
 					info.super_call_fields <- tl;
 					hd
 				| _ ->
-					Error.typing_error "Something went wrong" e1.epos
+					Error.raise_typing_error "Something went wrong" e1.epos
 			in
 			let kind = get_construction_mode c cf in
 			begin match kind with
@@ -1995,7 +1995,7 @@ class texpr_to_jvm
 			)
 		| TNew(c,tl,el) ->
 			begin match OverloadResolution.maybe_resolve_constructor_overload c tl el with
-			| None -> Error.typing_error "Could not find overload" e.epos
+			| None -> Error.raise_typing_error "Could not find overload" e.epos
 			| Some (c',cf,_) ->
 				let f () =
 					let tl,_ = self#call_arguments cf.cf_type el in
@@ -2163,7 +2163,7 @@ class texpr_to_jvm
 				) fl;
 			end
 		| TIdent _ ->
-			Error.typing_error (s_expr_ast false "" (s_type (print_context())) e) e.epos;
+			Error.raise_typing_error (s_expr_ast false "" (s_type (print_context())) e) e.epos;
 
 	(* api *)
 

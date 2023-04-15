@@ -37,7 +37,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (o == null || Std.isOfType(o, DynamicObject) || Std.isOfType(o, java.lang.Class)) {
 			return null;
 		}

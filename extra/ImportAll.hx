@@ -26,16 +26,13 @@ class ImportAll {
 	static function isSysTarget() {
 		return Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ||
 		       Context.defined("java") || Context.defined("python") ||
-		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval"); // TODO: have to add cs here, SPOD gets in the way at the moment
+		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval");
 	}
 
 	public static function run( ?pack ) {
 		if( pack == null ) {
 			pack = "";
 			haxe.macro.Compiler.define("doc_gen");
-		}
-		if (Context.defined("interp")) {
-			haxe.macro.Compiler.define("macro");
 		}
 		switch( pack ) {
 		case "php":

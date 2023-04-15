@@ -35,9 +35,9 @@ type java_lib_ctx = {
 	is_std : bool;
 }
 
-exception ConversionError of located
+exception ConversionError of string * pos
 
-let error s p = raise (ConversionError (located s p))
+let error s p = raise (ConversionError (s, p))
 
 let is_haxe_keyword = function
 	| "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
@@ -485,7 +485,7 @@ let convert_java_enum ctx p pe =
 			(match jc.csuper with
 				| TObject( (["java";"lang"], "Object"), _ ) -> ()
 				| TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
-				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper),null_pos) :: !flags
+				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper),p) :: !flags
 			);
 
 			List.iter (fun i ->
@@ -493,9 +493,9 @@ let convert_java_enum ctx p pe =
 				| TObject ( (["haxe";"lang"], "IHxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
 				| _ -> flags :=
 					if !is_interface then
-						HExtends (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
+						HExtends (get_type_path ctx (convert_signature ctx p i),p) :: !flags
 					else
-						HImplements (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
+						HImplements (get_type_path ctx (convert_signature ctx p i),p) :: !flags
 			) jc.cinterfaces;
 
 			let fields = ref [] in

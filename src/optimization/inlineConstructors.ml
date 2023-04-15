@@ -122,6 +122,7 @@ let inline_constructors ctx original_e =
 			| IOKCtor(ioc) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
+					(* TODO construct error with sub *)
 					display_error ctx.com "Forced inline constructor could not be inlined" io.io_pos;
 					display_error ~depth:1 ctx.com (compl_msg "Cancellation happened here") p;
 				end
@@ -403,7 +404,7 @@ let inline_constructors ctx original_e =
 						None
 				end
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
-				typing_error "Extern constructor could not be inlined" e.epos;
+				raise_typing_error "Extern constructor could not be inlined" e.epos;
 			| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
 				let v = alloc_var VGenerated "inlobj" e.etype e.epos in
 				let ev = mk (TLocal v) v.v_type e.epos in

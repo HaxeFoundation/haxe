@@ -21,7 +21,7 @@ let disable_typeloading rctx ctx f =
 	ctx.g.load_only_cached_modules <- true;
 	try
 		Std.finally (fun () -> ctx.g.load_only_cached_modules <- old) f ()
-	with (Error.Error (Module_not_found path,_,_)) ->
+	with (Error.Error { err_message = Module_not_found path }) ->
 		fail rctx (Printf.sprintf "Could not load [Module %s]" (s_type_path path))
 
 let pair_type th t = match th with
@@ -130,7 +130,7 @@ let pair_classes rctx context_init c d p =
 			print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
 		} in
 		let display_modifier = Typeload.check_field_access ctx cff in
-		let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
+		let fctx = create_field_context ctx cctx cff ctx.is_display_file display_modifier in
 		let cf = match fctx.field_kind with
 			| FKConstructor ->
 				begin match c.cl_constructor with
@@ -196,7 +196,7 @@ let pair_abstracts ctx rctx context_init a d p =
 				print_stack = (Printf.sprintf "[Field %s]" name) :: rctx.print_stack
 			} in
 			let display_modifier = Typeload.check_field_access ctx cff in
-			let fctx = create_field_context cctx cff ctx.is_display_file display_modifier in
+			let fctx = create_field_context ctx cctx cff ctx.is_display_file display_modifier in
 			let cf = try
 				PMap.find name c.cl_statics
 			with Not_found ->

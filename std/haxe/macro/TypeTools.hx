@@ -397,6 +397,61 @@ class TypeTools {
 		return null;
 		#end
 	}
+
+	/**
+		Calls `f` for each missing `TypeParameter` within Type `type`.
+		The `Type` returned from `f` fills the vacant parameter in a
+		copy returned by the function.
+
+		If `type` does not use type parameters, or all of the type
+		parameters are defined, `type` is returned unchanged.
+
+		Excessive type parameters are truncated.
+
+		If `recursive` is true, all subtypes are resolved.
+
+		The parameters provided to `f` are:
+			- The `TypeParameter` being resolved.
+			- The `Type` missing a type parameter.
+			- The `Int` index of type parameter being resolved.
+
+		Missing type parameters may cause fatal compiler errors.
+		Therefore, this function should be called on user generated
+		`Type`s prior to passing to macro API functions such as
+		`Context.follow` or `Context.unify`.
+	**/
+	public static function resolveTypeParameters(type:Type, recursive:Bool, f:(TypeParameter,Type,Int)->Type):Type {
+		function fillParams(typeParams:Array<TypeParameter>, concreteTypes:Array<Type>): Array<Type>
+			return if (concreteTypes.length > typeParams.length) {
+				concreteTypes.slice(0, typeParams.length);
+			} else {
+				[
+					for (i in 0...typeParams.length)
+						if (i < concreteTypes.length)
+							concreteTypes[i];
+						else
+							f(typeParams[i], type, i)
+				];
+			}
+
+		final result = switch (type) {
+			case TInst(t, params):
+				TInst(t, fillParams(t.get().params, params));
+			case TEnum(t, params):
+				TEnum(t, fillParams(t.get().params, params));
+			case TType(t, params):
+				TType(t, fillParams(t.get().params, params));
+			case TAbstract(t, params):
+				TAbstract(t, fillParams(t.get().params, params));
+			case _:
+				type;
+		}
+
+		return if(recursive)
+			map(result, (t) -> resolveTypeParameters(t, recursive, f));
+		else
+			result;
+	}
 	#end
 
 	/**

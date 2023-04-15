@@ -19,7 +19,7 @@ let rec make_static_call ctx c cf a pl args t p =
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
-				let e = try cast_or_unify_raise ctx t e p with Error(Unify _,_,_) -> raise Not_found in
+				let e = try cast_or_unify_raise ctx t e p with Error { err_message = Unify _ } -> raise Not_found in
 				f();
 				e
 			| _ -> die "" __LOC__
@@ -38,10 +38,10 @@ and do_check_cast ctx uctx tleft eright p =
 				(try
 					Type.unify_custom uctx eright.etype tleft;
 				with Unify_error l ->
-					raise (Error (Unify l, eright.epos,0)))
+					raise_error_msg (Unify l) eright.epos)
 			| _ -> ()
 		end;
-		if cf == ctx.curfield || rec_stack_memq cf cast_stack then typing_error "Recursive implicit cast" p;
+		if cf == ctx.curfield || rec_stack_memq cf cast_stack then raise_typing_error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
@@ -112,8 +112,8 @@ and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
-	with Error (Unify l,p,_) ->
-		raise_or_display ctx l p;
+	with Error ({ err_message = Unify _ } as err) ->
+		raise_or_display_error ctx err;
 		eright
 
 let prepare_array_access_field ctx a pl cf p =
@@ -146,7 +146,7 @@ let find_array_read_access_raise ctx a pl e1 p =
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
 					check_constraints();
 					cf,tf,r,e1
-				with Unify_error _ | Error (Unify _,_,_) ->
+				with Unify_error _ | Error { err_message = Unify _ } ->
 					loop cfl
 				end
 			| _ -> loop cfl
@@ -167,7 +167,7 @@ let find_array_write_access_raise ctx a pl e1 e2  p =
 					let e2 = cast_or_unify_raise ctx ta2 e2 p in
 					check_constraints();
 					cf,tf,r,e1,e2
-				with Unify_error _ | Error (Unify _,_,_) ->
+				with Unify_error _ | Error { err_message = Unify _ } ->
 					loop cfl
 				end
 			| _ -> loop cfl
@@ -179,14 +179,14 @@ let find_array_read_access ctx a tl e1 p =
 		find_array_read_access_raise ctx a tl e1 p
 	with Not_found ->
 		let s_type = s_type (print_context()) in
-		typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
+		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 
 let find_array_write_access ctx a tl e1 e2 p =
 	try
 		find_array_write_access_raise ctx a tl e1 e2 p
 	with Not_found ->
 		let s_type = s_type (print_context()) in
-		typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
+		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
 let find_multitype_specialization com a pl p =
 	let uctx = default_unification_context in
@@ -202,7 +202,7 @@ let find_multitype_specialization com a pl p =
 					stack := t :: !stack;
 					match follow t with
 					| TAbstract ({ a_path = [],"Class" },_) ->
-						typing_error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
+						raise_typing_error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
 					| TEnum(en,tl) ->
 						PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
 						Type.map loop t
@@ -219,16 +219,16 @@ let find_multitype_specialization com a pl p =
 			if List.exists (fun t -> has_mono t) definitive_types then begin
 				let at = apply_params a.a_params pl a.a_this in
 				let st = s_type (print_context()) at in
-				typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				raise_typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
 			end;
 			t
 		with Not_found ->
 			let at = apply_params a.a_params pl a.a_this in
 			let st = s_type (print_context()) at in
 			if has_mono at then
-				typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				raise_typing_error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
 			else
-				typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
+				raise_typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 	in
 	cf, follow m
 
@@ -240,7 +240,7 @@ let handle_abstract_casts ctx e =
 					let's construct the underlying type. *)
 				match Abstract.get_underlying_type a pl with
 				| TInst(c,tl) as t -> {e with eexpr = TNew(c,tl,el); etype = t}
-				| _ -> typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
+				| _ -> raise_typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
 				let cf,m = find_multitype_specialization ctx.com a pl e.epos in

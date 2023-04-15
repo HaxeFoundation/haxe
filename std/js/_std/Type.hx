@@ -32,7 +32,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static inline function getClass<T>(o:T):Class<T> {
+	public static inline function getClass<T>(o:T):Null<Class<T>> {
 		return @:privateAccess js.Boot.getClass(o);
 	}
 
