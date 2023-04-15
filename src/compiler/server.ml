@@ -232,7 +232,7 @@ module Communication = struct
 
 			let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
-			let no_color = Define.defined ctx.com.defines Define.NoColor in
+			let no_color = Define.defined ctx.com.defines Define.MessageNoColor in
 			let c_reset = if no_color then "" else "\x1b[0m" in
 			let c_bold = if no_color then "" else "\x1b[1m" in
 			let c_dim = if no_color then "" else "\x1b[2m" in

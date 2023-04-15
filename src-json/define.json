@@ -765,9 +765,9 @@
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{
-		"name": "NoColor",
+		"name": "MessageNoColor",
 		"define": "message.no-color",
-		"doc": "Disable ANSI color codes when using rich output."
+		"doc": "Disable ANSI color codes in message reporting."
 	},
 	{
 		"name": "MessageLogFile",
