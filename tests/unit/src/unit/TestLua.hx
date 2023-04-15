@@ -1,5 +1,7 @@
 package unit;
 
+import utest.Assert;
+
 class TestLua extends Test {
 	function testMultiReturnWrap(){
 		var multi : Multi = untyped MultiCall.doit();
@@ -45,6 +47,23 @@ class TestLua extends Test {
 		untyped _hx_box_mr = old_hx_box_mr;
 	}
 
+	function testMetatablesAreShared() {
+
+		final a = new TLA();
+		t(lua.Lua.getmetatable(a) != null);
+
+		final a2 = new TLA();
+		eq(lua.Lua.getmetatable(a), lua.Lua.getmetatable(a2));
+
+		final aChild = new TLAChild();
+		t(lua.Lua.getmetatable(aChild) != null);
+		Assert.notEquals(lua.Lua.getmetatable(a), lua.Lua.getmetatable(aChild));
+
+		final b = new TLB();
+		t(lua.Lua.getmetatable(b) != null);
+		Assert.notEquals(lua.Lua.getmetatable(a), lua.Lua.getmetatable(b));
+		Assert.notEquals(lua.Lua.getmetatable(aChild), lua.Lua.getmetatable(b));
+	}
 }
 
 @:multiReturn extern class Multi {
@@ -60,3 +79,7 @@ class MultiCall {
 		return lua.Lua.type(m) == "table";
 	}
 }
+
+class TLA { private var foo: String; public function new() { this.foo = "A"; } }
+class TLAChild extends TLA { public function new() { super(); this.foo = "AChild"; } }
+class TLB { private var foo: String; public function new() { this.foo = "B"; } }
