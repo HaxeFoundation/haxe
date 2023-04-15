@@ -4630,7 +4630,14 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) tcpp_args)) ^ ")");
                output ("{" ^ (if is_void then "" else "return") ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i _ -> ("inArg" ^ (string_of_int i))) tcpp_args)) ^ "); return null(); }\n");
 
-               (* TODO : Generate mark, visit, compare, __run, etc, etc *)
+               if (not is_static) then begin
+                  output "\tvoid __Mark(hx::MarkContext* __inCtx) { HX_MARK_MEMBER(obj); }\n";
+                  output "#ifdef HXCPP_VISIT_ALLOCS\n";
+                  output "\tvoid __Visit(hx::VisitContext* __inCtx) { HX_VISIT_MEMBER(obj); }\n";
+                  output "#endif\n";
+               end;
+
+               (* TODO : Generate, compare, etc, etc *)
 
                output "};\n\n";
                output ("::hx::Callable<" ^ callable_signature ^ "> " ^ class_name ^ "::" ^ remap_name ^ "_dyn()\n");
