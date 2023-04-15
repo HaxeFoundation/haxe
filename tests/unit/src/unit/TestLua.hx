@@ -49,20 +49,24 @@ class TestLua extends Test {
 
 	function testMetatablesAreShared() {
 
+		// New class instances get metatables assigned to them
 		final a = new TLA();
-		t(lua.Lua.getmetatable(a) != null);
+		t(lua.Lua.getmetatable(cast a) != null);
 
+		// Instances of the same class share a metatable
 		final a2 = new TLA();
-		eq(lua.Lua.getmetatable(a), lua.Lua.getmetatable(a2));
+		eq(lua.Lua.getmetatable(cast a), lua.Lua.getmetatable(cast a2));
 
+		// Subclass does not share a metatable with the parent
 		final aChild = new TLAChild();
-		t(lua.Lua.getmetatable(aChild) != null);
-		Assert.notEquals(lua.Lua.getmetatable(a), lua.Lua.getmetatable(aChild));
+		t(lua.Lua.getmetatable(cast aChild) != null);
+		Assert.notEquals(lua.Lua.getmetatable(cast a), lua.Lua.getmetatable(cast aChild));
 
+		// Neither do any other arbitrary two classes
 		final b = new TLB();
-		t(lua.Lua.getmetatable(b) != null);
-		Assert.notEquals(lua.Lua.getmetatable(a), lua.Lua.getmetatable(b));
-		Assert.notEquals(lua.Lua.getmetatable(aChild), lua.Lua.getmetatable(b));
+		t(lua.Lua.getmetatable(cast b) != null);
+		Assert.notEquals(lua.Lua.getmetatable(cast a), lua.Lua.getmetatable(cast b));
+		Assert.notEquals(lua.Lua.getmetatable(cast aChild), lua.Lua.getmetatable(cast b));
 	}
 }
 

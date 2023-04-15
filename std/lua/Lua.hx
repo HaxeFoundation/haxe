@@ -42,7 +42,7 @@ extern class Lua {
 	/**
 		Pushes onto the stack the metatable in the registry.
 	**/
-	static function getmetatable(obj:Any):Null<Table<Dynamic, Dynamic>>;
+	static function getmetatable(tbl:Table<Dynamic, Dynamic>):Table<Dynamic, Dynamic>;
 
 	/**
 		Pops a table from the stack and sets it as the new metatable for the value
