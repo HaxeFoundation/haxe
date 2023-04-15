@@ -2924,12 +2924,24 @@ let retype_expression ctx request_type function_args function_type expression_tr
             List.iter ( fun (tvar,_) ->
                Hashtbl.add !declarations tvar.v_name () ) func.tf_args;
             let cppExpr = retype TCppVoid (mk_block func.tf_expr) in
-            let tcpp_args = List.map (fun (v,o) -> (cpp_type_of v.v_type), o<>None) func.tf_args in
+            let retype_arg = (fun (tvar, default_value) ->
+               match default_value with
+               | Some _ when (ctx_cant_be_null ctx tvar.v_type) -> { tvar with v_type = TDynamic None }, default_value
+               | _ -> tvar, default_value) in
+            let retyped_args = List.map retype_arg func.tf_args in
+            let tcpp_args = List.map (fun (tvar,default_value) ->
+               let tcpp = cpp_type_of tvar.v_type in
+               let cant_be_null = match tcpp with
+               | TCppScalar _ -> true
+               | _ -> false in
+               match default_value with
+               | Some _ when cant_be_null -> tcpp, true
+               | _ -> tcpp, false) retyped_args in
             let result = { close_expr=cppExpr;
                            close_id= !closureId;
                            close_undeclared= !undeclared;
                            close_type= ret;
-                           close_args= func.tf_args;
+                           close_args= retyped_args;
                            close_this= !uses_this;
                          } in
             incr closureId;
@@ -3887,7 +3899,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       | CppCallable closure ->
           let tcpp_args = match closure.close_args with
-          | [] -> "void"
+          | [] -> ""
           | vs ->  String.concat "," (List.map (fun (v,_) -> tcpp_to_string (cpp_type_of ctx v.v_type)) vs) in
           let tcpp_return = tcpp_to_string closure.close_type in
           out (" ::hx::Callable<" ^ tcpp_return ^ "(" ^ tcpp_args ^ ")>(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
