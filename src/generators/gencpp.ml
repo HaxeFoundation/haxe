@@ -1378,7 +1378,7 @@ type tcpp =
    | TCppFastIterator of tcpp
    | TCppPointer of string * tcpp
    | TCppRawPointer of string * tcpp
-   | TCppCallable of tcpp list * tcpp
+   | TCppCallable of (tcpp * bool) list * tcpp
    | TCppFunction of tcpp list * tcpp * string
    | TCppObjCBlock of tcpp list * tcpp
    | TCppRest of tcpp
@@ -1637,7 +1637,15 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppCallable(args, return) ->
       let string_args = match args with
       | [] -> ""
-      | vs -> (String.concat "," (List.map tcpp_to_string vs)) in
+      | vs -> (String.concat "," (List.map (fun (typ, opt) ->
+         let cant_be_null = fun tcpp -> match tcpp with
+         | TCppScalar _ -> true
+         | _ -> false in
+         let type_str = tcpp_to_string typ in
+         if (opt && (cant_be_null typ) && typ<>TCppDynamic) then
+            "::hx::Null< " ^ type_str ^ " > "
+         else
+            type_str) vs)) in
       "::hx::Callable< " ^ (tcpp_to_string return) ^ "(" ^ string_args ^ ")>"
    | TCppScalar(scalar) -> scalar
    | TCppString -> "::String"
@@ -1823,7 +1831,7 @@ let rec cpp_type_of stack ctx haxe_type =
             cpp_type_of stack ctx (apply_typedef type_def params) )
 
       | TFun (args, return) ->
-         TCppCallable ((List.map (fun (_, _, a) -> cpp_type_of stack ctx a) args), (cpp_type_of stack ctx return))
+         TCppCallable ((List.map (fun (_, o, a) -> (cpp_type_of stack ctx a), o) args), (cpp_type_of stack ctx return))
       | TAnon _ -> TCppObject
       | TDynamic _ -> TCppDynamic
       | TLazy func -> cpp_type_of stack ctx (lazy_type func)
@@ -2916,7 +2924,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             List.iter ( fun (tvar,_) ->
                Hashtbl.add !declarations tvar.v_name () ) func.tf_args;
             let cppExpr = retype TCppVoid (mk_block func.tf_expr) in
-            let tcpp_args = List.map (fun (v,_) -> cpp_type_of v.v_type  ) func.tf_args in
+            let tcpp_args = List.map (fun (v,o) -> (cpp_type_of v.v_type), o<>None) func.tf_args in
             let result = { close_expr=cppExpr;
                            close_id= !closureId;
                            close_undeclared= !undeclared;
@@ -4564,8 +4572,17 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          (* generate dynamic version too ... *)
          if ( doDynamic ) then begin
             let callable_name      = "__" ^ class_name ^ remap_name in
-            let tcpp_args          = List.map (fun (v,_) -> cpp_type_of ctx v.v_type) function_def.tf_args in
-            let callable_args      = String.concat "," (List.map tcpp_to_string tcpp_args) in
+            let tcpp_args          = List.map (fun (v,o) -> (cpp_type_of ctx v.v_type), o<>None) function_def.tf_args in
+            let stringify          = (fun (tcpp, opt) ->
+               let cant_be_null = match tcpp with
+               | TCppScalar _ -> true
+               | _ -> false in
+               let type_str = tcpp_to_string tcpp in
+               if (opt && cant_be_null && tcpp<>TCppDynamic) then
+                  "::hx::Null< " ^ type_str ^ " > "
+               else
+                  type_str) in
+            let callable_args      = String.concat "," (List.map stringify tcpp_args) in
             let callable_signature = (tcpp_to_string return_type) ^ "(" ^ callable_args  ^ ")" in
             let obj_ptr_class_name = "::hx::ObjectPtr<" ^ class_name ^ ">" in
             (
@@ -4819,8 +4836,17 @@ let gen_member_def ctx class_def is_static is_interface field =
             output ");\n";
             if ( doDynamic ) then begin
                output (if is_static then "\t\tstatic " else "\t\t");
-               let args = List.map (fun (v,_) -> cpp_type_of ctx v.v_type) function_def.tf_args in
-               output ("::hx::Callable< " ^ return_type ^ "(" ^ (String.concat ", " (List.map tcpp_to_string args)) ^ ")> " ^ remap_name ^ "_dyn();\n" )
+               let args = List.map (fun (v,o) -> (cpp_type_of ctx v.v_type), o<>None) function_def.tf_args in
+               let stringify = (fun (tcpp, opt) ->
+                  let cant_be_null = match tcpp with
+                  | TCppScalar _ -> true
+                  | _ -> false in
+                  let type_str = tcpp_to_string tcpp in
+                  if (opt && cant_be_null && tcpp<>TCppDynamic) then
+                     "::hx::Null< " ^ type_str ^ " > "
+                  else
+                     type_str) in
+               output ("::hx::Callable< " ^ return_type ^ "(" ^ (String.concat ", " (List.map stringify args)) ^ ")> " ^ remap_name ^ "_dyn();\n" )
             end;
          end;
          output "\n";
