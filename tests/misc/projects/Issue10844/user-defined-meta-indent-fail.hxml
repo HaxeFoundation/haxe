@@ -1,2 +1,2 @@
 user-defined-meta-fail.hxml
--D message-reporting=indent
+-D message.reporting=indent
