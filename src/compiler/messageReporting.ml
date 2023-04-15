@@ -147,7 +147,7 @@ let compiler_pretty_message_string com ectx cm =
 
 		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
-		let no_color = Define.defined com.defines Define.NoColor in
+		let no_color = Define.defined com.defines Define.MessageNoColor in
 		let c_reset = if no_color then "" else "\x1b[0m" in
 		let c_bold = if no_color then "" else "\x1b[1m" in
 		let c_dim = if no_color then "" else "\x1b[2m" in
@@ -344,9 +344,9 @@ let display_messages ctx on_message = begin
 	in
 
 	let message_formatter = get_formatter ctx.com ectx Define.MessageReporting "classic" in
-	let log_formatter = get_formatter ctx.com ectx Define.MessagesLogFormat "indent" in
+	let log_formatter = get_formatter ctx.com ectx Define.MessageLogFormat "indent" in
 
-	let log_messages = ref (Define.defined ctx.com.defines Define.MessagesLogFile) in
+	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in
 	let log_message = ref None in
 	let close_logs = ref None in
 
@@ -354,7 +354,7 @@ let display_messages ctx on_message = begin
 		try begin
 			let buf = Rbuffer.create 16000 in
 
-			let file = Define.defined_value ctx.com.defines Define.MessagesLogFile in
+			let file = Define.defined_value ctx.com.defines Define.MessageLogFile in
 			let chan =
 				Path.mkdir_from_path file;
 				open_out_bin file
@@ -372,7 +372,7 @@ let display_messages ctx on_message = begin
 			));
 		end with
 			| Failure e | Sys_error e -> begin
-				let def = Define.get_define_key Define.MessagesLogFile in
+				let def = Define.get_define_key Define.MessageLogFile in
 				error ctx (Printf.sprintf "Error opening log file: %s. Logging to file disabled (-D %s)" e def) null_pos;
 				log_messages := false;
 			end

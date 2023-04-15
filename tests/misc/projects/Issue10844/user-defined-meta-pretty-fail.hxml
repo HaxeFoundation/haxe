@@ -1,4 +1,4 @@
 user-defined-meta-fail.hxml
--D message-reporting=pretty
--D no-color
+-D message.reporting=pretty
+-D message.no-color
 

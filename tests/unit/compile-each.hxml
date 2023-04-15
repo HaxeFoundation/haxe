@@ -10,5 +10,5 @@
 -lib utest
 -D analyzer-optimize
 -D analyzer-user-var-fusion
--D message-reporting=pretty
+-D message.reporting=pretty
 -D haxe-next
