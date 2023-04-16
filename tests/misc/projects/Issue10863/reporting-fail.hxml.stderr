@@ -1,1 +1,1 @@
-Invalid message reporting mode: "awesome", expected classic | pretty | indent (for -D message_reporting).
+Invalid message reporting mode: "awesome", expected classic | pretty | indent (for -D message.reporting).

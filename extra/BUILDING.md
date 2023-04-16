@@ -36,7 +36,7 @@ You need to install some native libraries as well as some OCaml libraries.
 To install the native libraries, use the appropriate system package manager.
 
  * Mac OS X
-    * Use [Homebrew](https://brew.sh/), `brew install zlib pcre2`.
+    * Use [Homebrew](https://brew.sh/), `brew install zlib pcre2 mbedtls@2`.
  * Debian / Ubuntu
     * `sudo apt install libpcre2-dev zlib1g-dev libmbedtls-dev`.
  * Windows (Cygwin)
