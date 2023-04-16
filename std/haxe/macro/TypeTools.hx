@@ -399,6 +399,18 @@ class TypeTools {
 	}
 
 	/**
+		Converts type `t` to `haxe.macro.Type.BaseType`.
+	**/
+	static public function toBaseType(t:Type):BaseType {
+		return switch toModuleType(t) {
+			case TClassDecl(_.get() => c): c;
+			case TEnumDecl(_.get() => e): e;
+			case TTypeDecl(_.get() => t): t;
+			case TAbstract(_.get() => a): a;
+		};
+	}
+
+	/**
 		Calls `f` for each missing `TypeParameter` within Type `type`.
 		The `Type` returned from `f` fills the vacant parameter in a
 		copy returned by the function.
