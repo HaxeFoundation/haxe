@@ -437,6 +437,7 @@ let build_enum_abstract ctx c a fields p =
 			in
 			let visibility = loop VUnknown field.cff_access in
 			field.cff_access <- (AEnum,null_pos) :: [match visibility with VPublic acc | VPrivate acc -> acc | VUnknown -> (APublic,null_pos)];
+			field.cff_meta <- (Meta.Enum,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
 				| None -> Some (TExprToExpr.convert_type (TAbstract(a,extract_param_types a.a_params)),null_pos)
