@@ -562,8 +562,19 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				try
 					if not (Diagnostics.error_in_diagnostics_run ctx.com pfield) then raise Exit;
 					DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
-				with Exit ->
-					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
+				with Exit -> begin
+					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield;
+					match follow tthis with
+					| TInst ({cl_path = ([], "String")}, _) -> (match i with
+						| ("urlEncode" | "urlDecode" | "htmlEscape" | "htmlUnescape")
+						| ("contains" | "replace" | "startsWith" | "endsWith" | "isSpace")
+						| ("ltrim" | "rtrim" | "trim" | "lpad" | "rpad")
+						| ("hex" | "fastCodeAt" | "unsafeCodeAt")
+						| ("iterator" | "keyValueIterator") ->
+							display_error ctx.com ~depth:1 "help: perhaps you missed `using StringTools;`?" pfield;
+						| _ -> ())
+					| _ -> ();
+				end
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 
