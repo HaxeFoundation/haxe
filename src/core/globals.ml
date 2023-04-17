@@ -25,11 +25,11 @@ type platform =
 	| Eval
 	| CustomTarget of string
 
-let version = 4300
+let version = 5000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_pre = None
+let version_pre = Some "alpha.1"
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 

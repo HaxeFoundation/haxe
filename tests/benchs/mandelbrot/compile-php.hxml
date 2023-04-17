@@ -1,7 +1,0 @@
---main Mandelbrot
--php bin/php
-
---next
---main Mandelbrot
--php bin/php-anon
--D anon_objects
