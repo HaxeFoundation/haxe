@@ -16,14 +16,12 @@ type match_kind =
 	| SKEnum
 	| SKLength
 
-let constructor_to_texpr ctx match_debug con =
+let constructor_to_texpr ctx con =
 	let open Typecore in
 	let open Constructor in
 	let p = pos con in
 	match fst con with
-	| ConEnum(en,ef) ->
-		if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
-		else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
+	| ConEnum(en,ef) -> mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
 	| ConConst ct -> make_const_texpr ctx.com.basic ct p
 	| ConArray i -> make_int ctx.com.basic i p
 	| ConTypeExpr mt -> TyperBase.type_module_type ctx mt None p
@@ -199,25 +197,12 @@ type dt_recursion =
 	| AfterSwitch
 	| Deep
 
-let to_texpr ctx t_switch match_debug with_type dt =
+let to_texpr ctx t_switch with_type dt =
 	let v_lookup = ref IntMap.empty in
 	let com = ctx.com in
 	let p = dt.dt_pos in
-	let c_type = match follow (Typeload.load_instance ctx (mk_type_path (["std"],"Type"),p) true) with TInst(c,_) -> c | t -> die "" __LOC__ in
 	let mk_index_call e =
-		if not ctx.com.is_macro_context && not ctx.com.display.DisplayMode.dms_full_typing then
-			(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
-			   (correctly typed) neutral value because it doesn't actually matter. *)
-			mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
-		else
-			mk (TEnumIndex e) com.basic.tint e.epos
-	in
-	let mk_name_call e =
-		if not ctx.com.is_macro_context && not ctx.com.display.DisplayMode.dms_full_typing then
-			mk (TConst (TString "")) ctx.t.tstring e.epos
-		else
-			let cf = PMap.find "enumConstructor" c_type.cl_statics in
-			make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tstring e.epos
+		mk (TEnumIndex e) com.basic.tint e.epos
 	in
 	let rec loop dt_rec params dt = match dt.dt_texpr with
 		| Some e ->
@@ -281,20 +266,20 @@ let to_texpr ctx t_switch match_debug with_type dt =
 						let eo = loop params dt in
 						begin match eo with
 							| None -> None
-							| Some e -> Some (List.map (constructor_to_texpr ctx match_debug) (List.sort Constructor.compare cons),e)
+							| Some e -> Some (List.map (constructor_to_texpr ctx) (List.sort Constructor.compare cons),e)
 						end
 					) cases in
 					let is_nullable_subject = is_explicit_null e_subject.etype in
 					let e_subject = match kind with
 						| SKValue -> e_subject
-						| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
+						| SKEnum -> mk_index_call e_subject
 						| SKLength -> ExprToPattern.type_field_access ctx e_subject "length"
 					in
 					let e = match cases,e_default,with_type with
 						| [_,e2],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->
 							{e2 with etype = t_switch}
 						| [[e1],e2],Some _,_
-						| [[e1],e2],None,NoValue when ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
+						| [[e1],e2],None,NoValue ->
 							let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 							begin match e2.eexpr with
 								| TIf(e_op2,e3,e_default2) when (match e_default,e_default2 with Some(e1),Some(e2) when e1 == e2 -> true | _ -> false) ->
