@@ -953,7 +953,6 @@ let run com tctx main =
 	(* PASS 1: general expression filters *)
 	let filters = [
 		"ForRemap",ForRemap.apply tctx;
-		"VarLazifier",VarLazifier.apply com;
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
 	] in
 	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
