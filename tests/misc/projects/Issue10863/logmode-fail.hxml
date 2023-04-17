@@ -1,3 +1,3 @@
 Any
--D messages-log-file=error.log
--D messages-log-format=awesome
+-D message.log-file=error.log
+-D message.log-format=awesome

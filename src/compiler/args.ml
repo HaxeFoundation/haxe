@@ -40,7 +40,7 @@ let process_args arg_spec =
 
 let parse_args com =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2022 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
+		"Haxe Compiler %s - (C)2005-2023 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
 		s_version_full (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let actx = {
@@ -99,16 +99,9 @@ let parse_args com =
 			set_platform com Hl file;
 		),"<file>","generate HashLink .hl bytecode or .c code into target file");
 		("Target",["--custom-target"],["-custom"],Arg.String (fun target ->
-			let name, path = try let split = ExtString.String.split target "=" in (fst split, Some (snd split)) with _ -> target, None in
-			if String.length name > max_custom_target_len then
-				raise (Arg.Bad (Printf.sprintf "--custom-target name %s exceeds the maximum of %d characters" name max_custom_target_len));
-			let name_regexp = Str.regexp "^[a-zA-Z0-9\\_]+$" in
-			if Str.string_match name_regexp name 0 then
-				let path = match path with | Some p -> p | None -> "" in
-				set_platform com (CustomTarget name) path
-			else
-				raise (Arg.Bad (Printf.sprintf "--custom-target name %s may only contain alphanumeric or underscore characters" name));
-		),"<name=[path]>","generate code for a custom target");
+			let name, path = try let split = ExtString.String.split target "=" in split with _ -> target, "" in
+			set_custom_target com name path;
+		),"<name[=path]>","add a custom target for configuration or custom code generation");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with

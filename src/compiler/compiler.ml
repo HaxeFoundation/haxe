@@ -76,12 +76,20 @@ module Setup = struct
 		in
 		match com.platform with
 			| Cross ->
-				(* no platform selected *)
-				set_platform com Cross "";
+				(match com.custom_target with
+				| Some (name,path) ->
+					(* --custom-target *)
+					set_platform com (CustomTarget name) path
+				| None ->
+					(* no platform selected *)
+					set_platform com Cross "");
 				"?"
+			| pf when (com.custom_target <> None) ->
+				(* --custom-target defined with another target *)
+				failwith "Multiple targets.";
 			| CustomTarget _ ->
-				(* TODO: add std? *)
-				"?"
+				(* should be impossible to reach this *)
+				failwith "--custom-target initialized improperly.";
 			| Flash ->
 				let rec loop = function
 					| [] -> ()

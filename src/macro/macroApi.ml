@@ -2202,6 +2202,7 @@ let macro_api ccom get_api =
 				"verbose", vbool com.verbose;
 				"foptimize", vbool com.foptimize;
 				"platform", encode_platform com.platform;
+				(* TODO: add custom_targets *)
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map encode_string com.std_path);
 				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
