@@ -210,7 +210,7 @@ let rec make pctx toplevel t e =
 					| l -> warning pctx.ctx WTyper ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 				end;
 				let v = add_local false s p in
-				PatVariable v
+				PatBind(v, (PatAny,null_pos))
 			end
 	in
 	let rec loop e = match fst e with
@@ -248,7 +248,7 @@ let rec make pctx toplevel t e =
 			end
 		| EVars([{ ev_name = (s,p); ev_final = final; ev_type = None; ev_expr = None; }]) ->
 			let v = add_local final s p in
-			PatVariable v
+			PatBind(v,(PatAny,null_pos))
 		| ECall(e1,el) ->
 			let e1 = type_expr ctx e1 (WithType.with_type t) in
 			begin match e1.eexpr,follow e1.etype with

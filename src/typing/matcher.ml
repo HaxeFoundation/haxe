@@ -103,7 +103,7 @@ module Match = struct
 			| Some t -> unify ctx t_switch t p
 			| _ -> ()
 			);
-			TexprConverter.to_texpr ctx t_switch match_debug with_type dt
+			TexprConverter.to_texpr ctx t_switch with_type dt
 		in
 		if match_debug then begin
 			print_endline "TEXPR BEGIN";

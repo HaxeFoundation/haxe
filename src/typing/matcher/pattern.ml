@@ -5,7 +5,6 @@ open MatcherGlobals
 
 type t =
 	| PatConstructor of Constructor.t * pattern list
-	| PatVariable of tvar
 	| PatAny
 	| PatBind of tvar * pattern
 	| PatOr of pattern * pattern
@@ -22,8 +21,8 @@ and extractor = {
 
 let rec to_string pat = match fst pat with
 	| PatConstructor(con,patterns) -> Printf.sprintf "%s(%s)" (Constructor.to_string con) (String.concat ", " (List.map to_string patterns))
-	| PatVariable v -> Printf.sprintf "%s<%i>" v.v_name v.v_id
 	| PatAny -> "_"
+	| PatBind(v,(PatAny,_)) -> Printf.sprintf "%s<%i>" v.v_name v.v_id
 	| PatBind(v,pat1) -> Printf.sprintf "%s = %s" v.v_name (to_string pat1)
 	| PatOr(pat1,pat2) -> Printf.sprintf "(%s) | (%s)" (to_string pat1) (to_string pat2)
 	| PatTuple pl -> Printf.sprintf "[%s]" (String.concat ", " (List.map to_string pl))
