@@ -636,6 +636,7 @@ end
 type bind_status =
 	| BindUsed
 	| BindUnused
+	| BindDeferred
 
 type bind = {
 	b_var : tvar;
@@ -653,6 +654,23 @@ class subject (e : texpr) (bind : bind option) = object (self)
 			bind.b_status <- BindUsed;
 		end;
 		e
+
+	method get_scoped_expr = match bind with
+		| Some ({b_status = BindDeferred} as bind) ->
+			(* For deferred bindings, we generate `subject = expr` and mark the binding as used so that
+			   subsequent calls to this function do not generate the assignment again. The returned function
+			   can be used to reset the status back to BindDeferred, for cases where we need to initalize
+			   again in an unrelated scope. *)
+			let e = Texpr.Builder.binop OpAssign e bind.b_expr e.etype e.epos in
+			bind.b_status <- BindUsed;
+			e,(fun () ->
+				bind.b_status <- BindDeferred
+			)
+		| Some ({b_status = BindUnused} as bind) ->
+			bind.b_status <- BindUsed;
+			e,(fun () -> ())
+		| _ ->
+			e,(fun () -> ())
 
 	method get_pos =
 		e.epos
@@ -758,6 +776,16 @@ module Decision_tree = struct
 					add "<";
 					add (string_of_int bind.b_var.v_id);
 					add ">";
+					add " = ";
+					add (s_expr tabs bind.b_expr);
+					begin match bind.b_status with
+						| BindUnused ->
+							add " // unused"
+						| BindDeferred ->
+							add " // deferred"
+						| BindUsed ->
+							()
+					end
 				) bl;
 				loop tabs dt
 			| Guard(e,dt1,dt2) ->
@@ -1207,6 +1235,7 @@ module Compile = struct
 			| [] -> raise Internal_match_failure
 			| subject :: subjects -> subject,subjects
 		in
+		let switch_subject,reset_subject = subject#get_scoped_expr in
 		let subject = subject#get_expr in
 		let get_column_sigma cases =
 			let sigma = ConTable.create 0 in
@@ -1256,18 +1285,40 @@ module Compile = struct
 				sc_dt = dt;
 			}
 		) sigma in
-		let default = default subject cases in
-		let switch_default = compile mctx subjects default in
-		let dt = if switch_cases = [] then switch_default else switch mctx subject switch_cases switch_default in
-		let null_guard dt_null =
-			guard_null mctx subject dt_null dt
+		(* This is very awkward: We need to know the first occurrence of the subject expression in the
+		   decision tree before recursing. Ideally, this would be handled automatically during the recursion,
+		   but for this to work we would have to replace some texpr occurrences with subject. *)
+		let (subject_null,subject_switch,subject_default),reset_subject =
+			let subjects = match null with
+				| [] ->
+					if is_explicit_null subject.etype then
+						switch_subject,subject,subject
+					else begin match switch_cases with
+					| [] ->
+						subject,subject,switch_subject
+					| _ ->
+						subject,switch_subject,subject
+					end
+				| _ ->
+					switch_subject,subject,subject
+			in
+			(subjects,reset_subject)
 		in
-		match null with
+		let default = default subject_default cases in
+		let switch_default = compile mctx subjects default in
+		let dt = if switch_cases = [] then switch_default else switch mctx subject_switch switch_cases switch_default in
+		let null_guard dt_null =
+			guard_null mctx subject_null dt_null dt
+		in
+		let dt = match null with
 			| [] ->
 				if is_explicit_null subject.etype then null_guard switch_default else dt
 			| cases ->
 				let dt_null = compile mctx subjects (cases @ default) in
 				null_guard dt_null
+		in
+		reset_subject();
+		dt
 
 	and compile_extractors mctx subjects cases =
 		let subject,subjects = match subjects with
@@ -1323,7 +1374,7 @@ module Compile = struct
 						(* Generate a local and add it to the subjects so that they become `[subject1, ..., localI, ...]` *)
 						let v = alloc_var VExtractorVariable "_hx_tmp" e1.etype e1.epos in
 						let ev = mk (TLocal v) v.v_type e1.epos in
-						let bind = make_bind v v.v_pos e1 in
+						let bind = make_bind_gen v v.v_pos e1 BindDeferred in
 						let patterns = make_patterns i in
 						let subject = new subject ev (Some bind) in
 						loop ((case,bindings,patterns) :: acc_cases) (subject :: acc_subjects) (bind :: acc_bind) ((e1,(subject,i)) :: expr_lut) cases
@@ -1596,8 +1647,13 @@ module TexprConverter = struct
 							| Some e -> Some e
 							| None -> Some (mk (TBlock []) ctx.t.tvoid case.case_pos)
 						end
-					| Switch(_,[{sc_con = (ConFields _,_)} as sc],_) -> (* TODO: Can we improve this by making it more general? *)
-						loop dt_rec params sc.sc_dt
+					| Switch(e_subject,[{sc_con = (ConFields _,_)} as sc],_) -> (* TODO: Can we improve this by making it more general? *)
+						begin match loop dt_rec params sc.sc_dt with
+							| None ->
+								None
+							| Some e ->
+								Some (concat e_subject e)
+						end
 					| Switch(e_subject,cases,default) ->
 						let dt_rec',toplevel = match dt_rec with
 							| Toplevel -> AfterSwitch,true
@@ -1745,6 +1801,8 @@ module TexprConverter = struct
 								| BindUsed ->
 									v_lookup := IntMap.add bind.b_var.v_id bind.b_expr !v_lookup;
 									Some (mk (TVar(bind.b_var,Some bind.b_expr)) com.basic.tvoid p)
+								| BindDeferred ->
+									Some (mk (TVar(bind.b_var,None)) com.basic.tvoid p)
 								| BindUnused ->
 									None
 							end
