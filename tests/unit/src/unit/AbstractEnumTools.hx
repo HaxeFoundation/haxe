@@ -1,4 +1,5 @@
 // From https://code.haxe.org/category/macros/enum-abstract-values.html
+package unit;
 
 #if macro
 import haxe.macro.Context;
