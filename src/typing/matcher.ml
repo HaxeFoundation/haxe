@@ -672,6 +672,11 @@ class subject (e : texpr) (bind : bind option) = object (self)
 		| _ ->
 			e,(fun () -> ())
 
+	method get_assigned_expr =
+		let e,reset = self#get_scoped_expr in
+		reset();
+		e
+
 	method get_pos =
 		e.epos
 
@@ -1215,9 +1220,9 @@ module Compile = struct
 			| [PatAny,_],_ ->
 				bindings
 			| (PatVariable v,p) :: patterns,subject :: subjects ->
-				loop patterns subjects ((make_bind v p subject#get_expr) :: bindings)
+				loop patterns subjects ((make_bind v p subject#get_assigned_expr) :: bindings)
 			| (PatBind(v,pat1),p) :: patterns,subject :: subjects ->
-				loop (pat1 :: patterns) (subject :: subjects) ((make_bind v p subject#get_expr) :: bindings)
+				loop (pat1 :: patterns) (subject :: subjects) ((make_bind v p subject#get_assigned_expr) :: bindings)
 			| _ :: patterns,_ :: subjects ->
 				loop patterns subjects bindings
 			| [],[] ->
