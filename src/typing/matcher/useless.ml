@@ -40,7 +40,7 @@ let default pM =
 	let rec loop acc pM = match pM with
 		| patterns :: pM ->
 			begin match patterns with
-				| ((PatVariable _ | PatAny),_) :: patterns ->
+				| ((PatBind(_,(PatAny,_)) | PatAny),_) :: patterns ->
 					loop (patterns :: acc) pM
 				| _ ->
 					loop acc pM
@@ -62,7 +62,7 @@ let rec u pM q =
 			| PatTuple patterns ->
 				let s = specialize true (ConConst TNull,pos pat) pM in
 				u s (patterns @ ql)
-			| (PatVariable _ | PatAny) ->
+			| PatAny ->
 				let d = default pM in
 				u d ql
 			| PatOr(pat1,pat2) ->
@@ -94,7 +94,7 @@ let rec specialize' is_tuple con pM qM rM =
 					loop ((patterns1 @ patterns2) :: pAcc) (q1 :: qAcc) (r1 :: rAcc) pM qM rM
 				| (PatTuple patterns1,_) :: patterns2 when is_tuple ->
 					loop ((patterns1 @ patterns2) :: pAcc) (q1 :: qAcc) (r1 :: rAcc) pM qM rM
-				| ((PatVariable _ | PatAny),p) :: patterns2 ->
+				| (PatAny,p) :: patterns2 ->
 					let patterns1 = ExtList.List.make arity (PatAny,p) in
 					loop ((patterns1 @ patterns2) :: pAcc) (q1 :: qAcc) (r1 :: rAcc) pM qM rM
 				| (PatOr(pat1,pat2),_) :: patterns2 ->
@@ -162,7 +162,7 @@ let rec u' pM qM rM p q r =
 			| PatTuple patterns ->
 				let pM,qM,rM = specialize' true (ConConst TNull,pos pat) pM qM rM in
 				u' pM qM rM (patterns @ pl) q r
-			| PatAny | PatVariable _ ->
+			| PatAny ->
 				let pM,qM = transfer_column pM qM in
 				u' pM qM rM pl (pat :: q) r
 			| PatOr _ ->

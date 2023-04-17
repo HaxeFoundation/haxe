@@ -81,8 +81,6 @@ let specialize subject con cases =
 	let rec specialize (case,bindings,patterns) = match patterns with
 		| (PatConstructor(con',patterns1),_) :: patterns2 when Constructor.equal con con' ->
 			Some (case,bindings,patterns1 @ patterns2)
-		| (PatVariable v,p) :: patterns2 ->
-			Some (case,(make_bind v p subject) :: bindings,ExtList.List.make arity (PatAny,p) @ patterns2)
 		| (PatAny,_) as pat :: patterns2 ->
 			Some (case,bindings,ExtList.List.make arity pat @ patterns2)
 		| (PatBind(v,pat1),p) :: patterns ->
@@ -94,8 +92,6 @@ let specialize subject con cases =
 
 let default subject cases =
 	let rec default (case,bindings,patterns) = match patterns with
-		| (PatVariable v,p) :: patterns ->
-			Some (case,((make_bind v p subject) :: bindings),patterns)
 		| (PatAny,_) :: patterns ->
 			Some (case,bindings,patterns)
 		| (PatBind(v,pat1),p) :: patterns ->
@@ -106,7 +102,7 @@ let default subject cases =
 	ExtList.List.filter_map default cases
 
 let rec is_wildcard_pattern pat = match fst pat with
-	| PatVariable _ | PatAny -> true
+	| PatAny -> true
 	| PatBind(_,pat1) -> is_wildcard_pattern pat1
 	| _ -> false
 
@@ -143,7 +139,7 @@ let s_cases cases =
 
 let select_column subjects cases =
 	let rec loop i patterns = match patterns with
-		| ((PatVariable _ | PatAny | PatExtractor _),_) :: patterns -> loop (i + 1) patterns
+		| ((PatAny | PatExtractor _),_) :: patterns -> loop (i + 1) patterns
 		| (PatBind(_,pat1),_) :: patterns -> loop i (pat1 :: patterns)
 		| [] -> 0
 		| _ -> i
@@ -196,8 +192,6 @@ and compile_leaf mctx subjects (case,bindings,patterns) cases =
 	let rec loop patterns subjects bindings = match patterns,subjects with
 		| [PatAny,_],_ ->
 			bindings
-		| (PatVariable v,p) :: patterns,subject :: subjects ->
-			loop patterns subjects ((make_bind v p subject#get_assigned_expr) :: bindings)
 		| (PatBind(v,pat1),p) :: patterns,subject :: subjects ->
 			loop (pat1 :: patterns) (subject :: subjects) ((make_bind v p subject#get_assigned_expr) :: bindings)
 		| _ :: patterns,_ :: subjects ->
@@ -231,8 +225,11 @@ and compile_switch mctx subjects cases =
 					if case.case_guard = None then ConTable.replace unguarded con true;
 					let arg_positions = snd (List.split patterns) in
 					ConTable.replace sigma con arg_positions;
-				| PatBind(v,pat1) -> loop ((make_bind v (pos pat) subject) :: bindings) pat1
-				| PatVariable _ | PatAny -> ()
+				| PatBind(_,(PatAny,_)) ->
+					()
+				| PatBind(v,pat1) ->
+					loop ((make_bind v (pos pat) subject) :: bindings) pat1
+				| PatAny -> ()
 				| PatExtractor _ -> raise Extractor
 				| _ -> raise_typing_error ("Unexpected pattern: " ^ (Pattern.to_string pat)) case.case_pos;
 			in
