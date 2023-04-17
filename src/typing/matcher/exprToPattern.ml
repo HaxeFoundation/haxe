@@ -412,6 +412,9 @@ let rec make pctx toplevel t e =
 			restore();
 			let pat = make pctx toplevel e1.etype e2 in
 			PatExtractor {ex_var = v; ex_expr = e1; ex_pattern = pat}
+		| EBinop((OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte | OpBoolAnd | OpBoolOr),_,_) ->
+			let e_rhs = (EConst (Ident "true"),null_pos) in
+			loop (EBinop(OpArrow,e,e_rhs),(pos e))
 		(* Special case for completion on a pattern local: We don't want to add the local to the context
 		   while displaying (#7319) *)
 		| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
