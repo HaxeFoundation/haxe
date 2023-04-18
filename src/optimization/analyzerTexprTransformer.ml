@@ -432,7 +432,7 @@ let rec func ctx bb tf t p =
 				end
 			end
 		| TSwitch switch ->
-			let is_exhaustive = is_exhaustive switch.switch_subject switch.switch_default in
+			let is_exhaustive = is_exhaustive switch in
 			let bb,e1 = bind_to_temp bb switch.switch_subject in
 			bb.bb_terminator <- TermCondBranch e1;
 			let reachable = ref [] in
@@ -457,15 +457,16 @@ let rec func ctx bb tf t p =
 					add_cfg_edge bb bb_case (CFGCondElse);
 					Some (bb_case)
 			in
+			let ss = { ss_cases = cases;ss_default = def;ss_pos = e.epos;ss_next = g.g_unreachable; ss_exhaustive = is_exhaustive} in
 			if is_exhaustive && !reachable = [] then begin
-				set_syntax_edge bb (SESwitch(cases,def,g.g_unreachable,e.epos));
+				set_syntax_edge bb (SESwitch ss);
 				close_node bb;
 				g.g_unreachable;
 			end else begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				if not is_exhaustive then add_cfg_edge bb bb_next CFGGoto;
 				List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) !reachable;
-				set_syntax_edge bb (SESwitch(cases,def,bb_next,e.epos));
+				set_syntax_edge bb (SESwitch {ss with ss_next = bb_next});
 				close_node bb;
 				bb_next
 			end
@@ -707,16 +708,13 @@ let rec block_to_texpr_el ctx bb =
 			| SEWhile(bb_body,bb_next,p) ->
 				let e2 = block bb_body in
 				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
-			| SESwitch(bbl,bo,bb_next,p) ->
-				let switch = {
-					switch_subject = get_terminator();
-					switch_cases = List.map (fun (el,bb) -> {
-						case_patterns = el;
-						case_expr = block bb
-					}) bbl;
-					switch_default = Option.map block bo;
-				} in
-				Some bb_next,Some (mk (TSwitch switch) ctx.com.basic.tvoid p)
+			| SESwitch ss ->
+				let cases = List.map (fun (el,bb) -> {
+					case_patterns = el;
+					case_expr = block bb
+				}) ss.ss_cases in
+				let switch = mk_switch (get_terminator()) cases (Option.map block ss.ss_default) ss.ss_exhaustive in
+				Some ss.ss_next,Some (mk (TSwitch switch) ctx.com.basic.tvoid ss.ss_pos)
 		in
 		let bb_next,e_term = loop bb bb.bb_syntax_edge in
 		let el = DynArray.to_list bb.bb_el in

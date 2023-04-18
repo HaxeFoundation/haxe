@@ -125,7 +125,7 @@ let configure gen (should_convert:texpr->bool) =
 			`switch e { case MyEnum.A: ...; case MyEnum.B: ...; }`, which is supported natively
 			by some target languages like Java and C#.
 		*)
-		| TSwitch {switch_subject = cond;switch_cases = cases;switch_default = default}  ->
+		| TSwitch ({switch_subject = cond;switch_cases = cases;switch_default = default} as switch)  ->
 			begin
 				try
 					match (simplify_expr cond).eexpr with
@@ -155,11 +155,7 @@ let configure gen (should_convert:texpr->bool) =
 							let body = run body in
 							{ case_patterns = patterns;case_expr = body}
 						) cases in
-						let switch = {
-							switch_subject = enum;
-							switch_cases = cases;
-							switch_default = Option.map run default;
-						} in
+						let switch = mk_switch enum cases (Option.map run default) switch.switch_exhaustive in
 						{ e with eexpr = TSwitch switch }
 					| _ ->
 						raise Not_found

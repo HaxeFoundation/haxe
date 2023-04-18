@@ -572,11 +572,7 @@ struct
 							let edef = gen.gtools.r_set_field basic.tvoid local_new_me local_field (gen.gtools.r_field false basic.tvoid this local_field) in
 							if fields <> [] then begin
 								(* switch(field) { ... } *)
-								let switch = {
-									switch_subject = local_field;
-									switch_cases = fields_to_cases fields;
-									switch_default = Some edef
-								} in
+								let switch = mk_switch local_field (fields_to_cases fields) (Some edef) true in
 								mk (TSwitch switch) basic.tvoid pos
 							end else
 								edef;

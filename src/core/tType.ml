@@ -193,6 +193,7 @@ and tswitch = {
 	switch_subject : texpr;
 	switch_cases : switch_case list;
 	switch_default: texpr option;
+	switch_exhaustive : bool;
 }
 
 and switch_case = {

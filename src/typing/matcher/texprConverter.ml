@@ -292,18 +292,13 @@ let to_texpr ctx t_switch with_type dt =
 						| [{case_patterns = [{eexpr = TConst (TBool false)}];case_expr = e2};{case_patterns = [{eexpr = TConst (TBool true)}];case_expr = e1}],None,_ ->
 							mk (TIf(e_subject,e1,Some e2)) t_switch dt.dt_pos
 						| _ ->
-							let e_subject = match finiteness with
+							let is_exhaustive = match finiteness with
 								| RunTimeFinite | CompileTimeFinite when e_default = None ->
-									let meta = (Meta.Exhaustive,[],dt.dt_pos) in
-									mk (TMeta(meta,e_subject)) e_subject.etype e_subject.epos
+									true
 								| _ ->
-									e_subject
+									false
 							in
-							let switch = {
-								switch_subject = e_subject;
-								switch_cases = cases;
-								switch_default = e_default;
-							} in
+							let switch = mk_switch e_subject cases e_default is_exhaustive in
 							mk (TSwitch switch) t_switch dt.dt_pos
 					in
 					Some e

@@ -290,7 +290,7 @@ let rec return_flow ctx e =
 	| TSwitch ({switch_default = Some e} as switch) ->
 		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 		return_flow e
-	| TSwitch ({switch_subject = {eexpr = TMeta((Meta.Exhaustive,_,_),_)}} as switch) ->
+	| TSwitch ({switch_exhaustive = true} as switch) ->
 		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 	| TTry (e,cases) ->
 		return_flow e;

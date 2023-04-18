@@ -1151,11 +1151,7 @@ struct
 						epos = pos;
 					} in
 
-					let switch = {
-						switch_subject = switch_cond;
-						switch_cases = loop_cases api !max_arity [];
-						switch_default = Some(make_throw (mk_arg_exception "Too many arguments" pos) pos);
-					} in
+					let switch = mk_switch switch_cond (loop_cases api !max_arity []) (Some(make_throw (mk_arg_exception "Too many arguments" pos) pos)) true in
 					{
 						eexpr = TSwitch switch;
 						etype = basic.tvoid;

@@ -1363,10 +1363,17 @@ and encode_texpr e =
 			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
 			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;vbool (flag = NormalWhile)]
-			| TSwitch switch -> 18,[
-				loop switch.switch_subject;
-				encode_array (List.map (fun case -> encode_obj ["values",encode_texpr_list case.case_patterns;"expr",loop case.case_expr]) switch.switch_cases);
-				vopt encode_texpr switch.switch_default
+			| TSwitch switch ->
+				let switch_subject = if switch.switch_exhaustive then
+					let meta = (Meta.Exhaustive,[],null_pos) in
+					{switch.switch_subject with eexpr = (TMeta(meta,switch.switch_subject))}
+				else
+					switch.switch_subject
+				in
+				18,[
+					loop switch_subject;
+					encode_array (List.map (fun case -> encode_obj ["values",encode_texpr_list case.case_patterns;"expr",loop case.case_expr]) switch.switch_cases);
+					vopt encode_texpr switch.switch_default
 				]
 			| TTry(e1,catches) -> 19,[
 				loop e1;
@@ -1540,14 +1547,22 @@ and decode_texpr v =
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
 		| 17, [vcond;v1;b] -> TWhile(loop vcond,loop v1,if decode_bool b then NormalWhile else DoWhile)
 		| 18, [v1;cl;vdef] ->
-			let switch = {
-				switch_subject = loop v1;
-				switch_cases = List.map (fun v -> {
+			let is_exhaustive e1 def =
+				let rec loop e1 = match e1.eexpr with
+					| TMeta((Meta.Exhaustive,_,_),_) -> true
+					| TMeta(_, e1) | TParenthesis e1 -> loop e1
+					| _ -> false
+				in
+				def <> None || loop e1
+			in
+			let subject = loop v1 in
+			let cases = List.map (fun v -> {
 					case_patterns = List.map loop (decode_array (field v "values"));
 					case_expr = loop (field v "expr")
-				}) (decode_array cl);
-				switch_default = opt loop vdef;
-			} in
+				}) (decode_array cl)
+			in
+			let default = opt loop vdef in
+			let switch = mk_switch subject cases default (is_exhaustive subject default) in
 			TSwitch switch
 		| 19, [v1;cl] -> TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (decode_array cl))
 		| 20, [vo] -> TReturn(opt loop vo)

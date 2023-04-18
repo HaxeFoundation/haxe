@@ -1006,11 +1006,7 @@ let implement_get_set ctx cl =
 				}
 			) fields in
 			let default = Some(do_default()) in
-			let switch = {
-				switch_subject = local_switch_var;
-				switch_cases = cases;
-				switch_default = default;
-			} in
+			let switch = mk_switch local_switch_var cases default true in
 			mk_block { eexpr = TSwitch switch; etype = basic.tvoid; epos = pos }
 		in
 
@@ -1246,11 +1242,7 @@ let implement_invokeField ctx slow_invoke cl =
 				epos = pos
 			} )
 		in
-		let switch = {
-			switch_subject = mk_local switch_var pos;
-			switch_cases = cases;
-			switch_default = Some default;
-		} in
+		let switch = mk_switch (mk_local switch_var pos) cases (Some default) true in
 		{
 			eexpr = TSwitch switch;
 			etype = basic.tvoid;

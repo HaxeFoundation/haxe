@@ -851,13 +851,15 @@ let punion_el default_pos el =
 		else
 			punion first last
 
-let is_exhaustive e1 def =
-	let rec loop e1 = match e1.eexpr with
-		| TMeta((Meta.Exhaustive,_,_),_) -> true
-		| TMeta(_, e1) | TParenthesis e1 -> loop e1
-		| _ -> false
-	in
-	def <> None || loop e1
+let is_exhaustive switch =
+	switch.switch_exhaustive
+
+let mk_switch subject cases default exhaustive = {
+	switch_subject = subject;
+	switch_cases = cases;
+	switch_default = default;
+	switch_exhaustive = exhaustive;
+}
 
 let rec is_true_expr e1 = match e1.eexpr with
 	| TConst(TBool true) -> true
@@ -900,7 +902,7 @@ module DeadEnd = struct
 				loop cond
 			| TSwitch switch ->
 				let check_exhaustive () =
-					(is_exhaustive switch.switch_subject switch.switch_default) && List.for_all (fun case ->
+					(is_exhaustive switch) && List.for_all (fun case ->
 						List.exists loop case.case_patterns ||
 						loop case.case_expr
 					) switch.switch_cases &&

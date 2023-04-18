@@ -221,7 +221,7 @@ let check_local_vars_init ctx e =
 			) catches in
 			loop vars e;
 			join vars cvars;
-		| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
+		| TSwitch ({switch_subject = e;switch_cases = cases;switch_default = def} as switch) ->
 			loop vars e;
 			let cvars = List.map (fun {case_patterns = ec;case_expr = e} ->
 				let old = !vars in
@@ -233,7 +233,7 @@ let check_local_vars_init ctx e =
 				v
 			) cases in
 			(match def with
-			| None when (match e.eexpr with TMeta((Meta.Exhaustive,_,_),_) | TParenthesis({eexpr = TMeta((Meta.Exhaustive,_,_),_)}) -> true | _ -> false) ->
+			| None when switch.switch_exhaustive ->
 				(match cvars with
 				| cv :: cvars ->
 					PMap.iter (fun i b -> if b then vars := PMap.add i b !vars) cv;

@@ -472,11 +472,7 @@ module Transformer = struct
 			let res_var = alloc_var (ae.a_next_id()) ef.etype ef.epos in
 			let res_local = {ef with eexpr = TLocal res_var} in
 			let var_expr = {ef with eexpr = TVar(res_var,Some ef)} in
-			let switch = {
-				switch_subject = res_local;
-				switch_cases = cases;
-				switch_default = edef
-			} in
+			let switch = mk_switch res_local cases edef (edef <> None) in
 			let e = mk (TBlock [
 				var_expr;
 				mk (TSwitch switch) ae.a_expr.etype e1.epos
