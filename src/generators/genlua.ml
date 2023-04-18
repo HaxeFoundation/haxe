@@ -1006,8 +1006,8 @@ and gen_expr ?(local=true) ctx e = begin
         println ctx "elseif _hx_result ~= _hx_pcall_default then";
         println ctx "  return _hx_result";
         print ctx "end";
-    | TSwitch (e,cases,def) ->
-        List.iteri (fun cnt (el,e2) ->
+    | TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
+        List.iteri (fun cnt {case_patterns = el;case_expr = e2} ->
             if cnt == 0 then spr ctx "if "
             else (newline ctx; spr ctx "elseif ");
             List.iteri (fun ccnt e3 ->
@@ -1086,7 +1086,8 @@ and gen_block_element ctx e  =
              | Increment -> print ctx " + 1;"
              | _ -> print ctx " - 1;"
             )
-        | TSwitch (e,[],def) ->
+        | TSwitch {switch_subject = e; switch_cases = [];switch_default = def} ->
+			(* TODO: this omits the subject which is not correct in the general case *)
             (match def with
              | None -> ()
              | Some e -> gen_block_element ctx e)
@@ -1262,12 +1263,15 @@ and gen_value ctx e =
         gen_elseif ctx eo;
         spr ctx " end";
         v()
-    | TSwitch (cond,cases,def) ->
-        let v = value() in
-        gen_expr ctx (mk (TSwitch (cond,
-                                   List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-                                   match def with None -> None | Some e -> Some (assign e)
-                                  )) e.etype e.epos);
+    | TSwitch switch ->
+		let v = value() in
+		let switch = { switch with
+			switch_cases = List.map (fun case -> { case with
+				case_expr = assign case.case_expr
+			}) switch.switch_cases;
+			switch_default = Option.map assign switch.switch_default
+		} in
+		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
         v()
     | TTry (b,catchs) ->
         let v = value() in

@@ -287,11 +287,11 @@ let rec return_flow ctx e =
 	| TIf (_,e1,Some e2) ->
 		return_flow e1;
 		return_flow e2;
-	| TSwitch (v,cases,Some e) ->
-		List.iter (fun (_,e) -> return_flow e) cases;
+	| TSwitch ({switch_default = Some e} as switch) ->
+		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 		return_flow e
-	| TSwitch ({eexpr = TMeta((Meta.Exhaustive,_,_),_)},cases,None) ->
-		List.iter (fun (_,e) -> return_flow e) cases;
+	| TSwitch ({switch_exhaustive = true} as switch) ->
+		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;

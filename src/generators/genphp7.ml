@@ -1682,7 +1682,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| _ ->
 							self#write_expr_while condition expr do_while
 					)
-				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
+				| TSwitch switch -> self#write_expr_switch switch.switch_subject switch.switch_cases switch.switch_default
 				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
 				| TReturn expr -> self#write_expr_return expr
 				| TBreak -> self#write "break"
@@ -1856,7 +1856,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| TFor (_, _, _) -> false
 						| TFunction _ -> false
 						| TBlock _ -> false
-						| TSwitch (_, _, _) -> false
+						| TSwitch _ -> false
 						| _ -> true
 			in
 			if needs_closure then
@@ -2836,7 +2836,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			let rec write_cases cases =
 				match cases with
 					| [] -> ()
-					| (conditions, expr) :: rest ->
+					| {case_patterns = conditions;case_expr = expr} :: rest ->
 						self#write "if (";
 						write_conditions conditions;
 						self#write ") ";
