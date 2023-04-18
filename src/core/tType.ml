@@ -458,3 +458,7 @@ type flag_tvar =
 	| VAssigned
 	| VCaught
 	| VStatic
+
+let flag_tvar_names = [
+	"VCaptured";"VFinal";"VUsed";"VAssigned";"VCaught";"VStatic"
+]

@@ -260,6 +260,12 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	| TIdent s ->
 		s
 
+let s_flags flags all_flags =
+	let _,l = List.fold_left (fun (i,acc) name ->
+		if has_flag flags i then (i + 1,name :: acc) else (i + 1,acc)
+	) (0,[]) all_flags in
+	String.concat " " l
+
 let rec s_expr_ast print_var_ids tabs s_type e =
 	let sprintf = Printf.sprintf in
 	let loop ?(extra_tabs="") = s_expr_ast print_var_ids (tabs ^ "\t" ^ extra_tabs) s_type in
@@ -280,7 +286,12 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	let var_id v = if print_var_ids then v.v_id else 0 in
 	let const c t = tag "Const" ~t [s_const c] in
 	let local v t = sprintf "[Local %s(%i):%s%s]" v.v_name (var_id v) (s_type v.v_type) (match t with None -> "" | Some t -> ":" ^ (s_type t)) in
-	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name (var_id v) (s_type v.v_type) (tag_args tabs sl) in
+	let var tag v sl =
+		let s_flags = match v.v_flags with
+			| 0 -> ""
+			| _ -> Printf.sprintf "(%s)" (s_flags v.v_flags flag_tvar_names)
+		in
+		sprintf "[%s %s<%i>%s:%s]%s" tag v.v_name (var_id v) s_flags (s_type v.v_type) (tag_args tabs sl) in
 	let module_type mt = sprintf "[TypeExpr %s:%s]" (s_type_path (t_path mt)) (s_type e.etype) in
 	match e.eexpr with
 	| TConst c -> const c (Some e.etype)
@@ -308,10 +319,10 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
 	| TFunction f ->
 		let arg (v,cto) =
-			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v None] | Some ct -> [local v None;loop ct])
+			var "Arg" v (match cto with None -> [] | Some e -> [loop e])
 		in
 		tag "Function" ((List.map arg f.tf_args) @ [loop f.tf_expr])
-	| TVar (v,eo) -> var v (match eo with None -> [] | Some e -> [loop e])
+	| TVar (v,eo) -> var "Var" v (match eo with None -> [] | Some e -> [loop e])
 	| TBlock el -> tag "Block" (List.map loop el)
 	| TIf (e,e1,e2) -> tag "If" (loop e :: (Printf.sprintf "[Then:%s] %s" (s_type e1.etype) (loop e1)) :: (match e2 with None -> [] | Some e -> [Printf.sprintf "[Else:%s] %s" (s_type e.etype) (loop e)]))
 	| TCast (e1,None) -> tag "Cast" [loop e1]
@@ -433,12 +444,6 @@ module Printer = struct
 
 	let s_type_params tl =
 		s_list ", " s_type_param tl
-
-	let s_flags flags all_flags =
-		let _,l = List.fold_left (fun (i,acc) name ->
-			if has_flag flags i then (i + 1,name :: acc) else (i + 1,acc)
-		) (0,[]) all_flags in
-		String.concat " " l
 
 	let s_tclass_field_flags flags =
 		s_flags flags flag_tclass_field_names
