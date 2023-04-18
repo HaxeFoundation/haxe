@@ -98,6 +98,7 @@ type enum_type =
 	| ICapturePolicy
 	| IVarScope
 	| IVarScopingFlags
+	| IPlatform
 	| IPackageRule
 	| IMessage
 	| IFunctionKind
@@ -421,9 +422,23 @@ and encode_display_mode dm =
 	in
 	encode_enum ~pos:None IDisplayMode tag pl
 
-(** encoded to haxe.display.Display.Platform, an enum abstract of String *)
 and encode_platform p =
-	encode_string (platform_name p)
+	let tag, pl = match p with
+		| Cross -> 0, []
+		| Js -> 1, []
+		| Lua -> 2, []
+		| Neko -> 3, []
+		| Flash -> 4, []
+		| Php -> 5, []
+		| Cpp -> 6, []
+		| Cs -> 7, []
+		| Java -> 8, []
+		| Python -> 9, []
+		| Hl -> 10, []
+		| Eval -> 11, []
+		| CustomTarget s -> 12, [(encode_string s)]
+	in
+	encode_enum ~pos:None IPlatform tag pl
 
 and encode_platform_config pc =
 	encode_obj [
@@ -2226,7 +2241,6 @@ let macro_api ccom get_api =
 				"verbose", vbool com.verbose;
 				"foptimize", vbool com.foptimize;
 				"platform", encode_platform com.platform;
-				(* TODO: add custom_targets *)
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map encode_string com.std_path);
 				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);

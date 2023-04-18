@@ -731,7 +731,7 @@ typedef CompilerConfiguration = {
 	/**
 		The target platform.
 	**/
-	final platform:haxe.display.Display.Platform;
+	final platform:Platform;
 
 	/**
 		The compilation configuration for the target platform.
@@ -754,6 +754,22 @@ typedef CompilerConfiguration = {
 		For example, the "java" package is "Forbidden" when the target platform is Python.
 	**/
 	final packageRules:Map<String, PackageRule>;
+}
+
+enum Platform {
+	Cross;
+	Js;
+	Lua;
+	Neko;
+	Flash;
+	Php;
+	Cpp;
+	Cs;
+	Java;
+	Python;
+	Hl;
+	Eval;
+	CustomTarget(name:String);
 }
 
 enum PackageRule {
