@@ -63,6 +63,8 @@ class BytesBuffer {
 
 	inline function get_length():Int {
 		#if neko
+		if (@:privateAccess StringBuf.__get_length != null)
+			return untyped StringBuf.__get_length(b);
 		return untyped __dollar__ssize(StringBuf.__to_string(b));
 		#elseif cs
 		return haxe.Int64.toInt(b.Length);

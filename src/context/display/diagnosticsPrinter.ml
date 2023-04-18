@@ -2,17 +2,31 @@ open Globals
 open Common
 open Json
 open DisplayTypes
-open DiagnosticsKind
 open DisplayTypes
 open Type
 open Genjson
+open MessageKind
 
-type t = DiagnosticsKind.t * pos
+type t = {
+	diag_kind : MessageKind.t;
+	diag_pos : pos;
+	diag_severity : MessageSeverity.t;
+	diag_args : Json.t;
+	mutable diag_related_information : (pos * int * string) list;
+}
 
-let is_diagnostics_file file_key =
-	match (!Parser.display_mode) with
-	| DMDiagnostics [] -> true
-	| DMDiagnostics file_keys -> List.exists (fun key' -> file_key = key') file_keys
+let make_diagnostic kd p sev args = {
+	diag_kind = kd;
+	diag_pos = p;
+	diag_severity = sev;
+	diag_args = args;
+	diag_related_information = [];
+}
+
+let is_diagnostics_file com file_key =
+	match com.report_mode with
+	| RMDiagnostics [] -> true
+	| RMDiagnostics file_keys -> List.exists (fun key' -> file_key = key') file_keys
 	| _ -> false
 
 module UnresolvedIdentifierSuggestion = struct
@@ -29,19 +43,21 @@ open UnresolvedIdentifierSuggestion
 open CompletionItem
 open CompletionModuleType
 
-let json_of_diagnostics dctx =
-	let diag = Hashtbl.create 0 in
-	let add append dk p sev args =
+let json_of_diagnostics com dctx =
+	let diagnostics = Hashtbl.create 0 in
+	let current = ref None in
+	let add append diag =
+		let p = diag.diag_pos in
 		let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
-		let diag = try
-			Hashtbl.find diag file
+		let fdiag = try
+			Hashtbl.find diagnostics file
 		with Not_found ->
-			let d = Hashtbl.create 0 in
-			Hashtbl.add diag file d;
+			let d = [] in
+			Hashtbl.add diagnostics file d;
 			d
 		in
-		if append || not (Hashtbl.mem diag p) then
-			Hashtbl.add diag p (dk,p,sev,args)
+		if append || (List.find_opt (fun diag -> diag.diag_pos = p) fdiag) = None then
+			Hashtbl.replace diagnostics file (diag :: fdiag)
 	in
 	let file_keys = new Common.file_keys in
 	let add dk p sev args =
@@ -52,12 +68,16 @@ let json_of_diagnostics dctx =
 			| DKInactiveBlock ->
 				false
 			| DKUnresolvedIdentifier
-			| DKCompilerError
+			| DKCompilerMessage
 			| DKParserError
 			| DKMissingFields ->
 				true
 		in
-		if p = null_pos || is_diagnostics_file (file_keys#get p.pfile) then add append dk p sev args
+		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then begin
+			let diag = make_diagnostic dk p sev args in
+			current := Some diag;
+			add append diag
+		end else current := None
 	in
 	List.iter (fun (s,p,suggestions) ->
 		let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
@@ -77,10 +97,24 @@ let json_of_diagnostics dctx =
 					"name",JString s;
 				])
 		) suggestions in
-		add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray suggestions);
+		add DKUnresolvedIdentifier p MessageSeverity.Error (JArray suggestions);
 	) dctx.unresolved_identifiers;
-	List.iter (fun (s,p,kind,sev) ->
-		add kind p sev (JString s)
+	List.iter (fun (s,p,kind,sev,depth) -> match (depth, !current) with
+		| d, Some diag when d > 0 ->
+			let lines = ExtString.String.nsplit s "\n" in
+			(match lines with
+				| [] -> ()
+				| s :: sub ->
+					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_information sub in
+					diag.diag_related_information <- (p,d,s) :: related;
+			)
+		| 0, _ ->
+			add kind p sev (JString s)
+		| _ ->
+			(* Do not add errors with depth greater than one as top level diagnostic. *)
+			(* This could happen when running diagnostics for a file that is wentioned in *)
+			(* sub errors of a file not included for diagnostics. *)
+			()
 	) (List.rev dctx.diagnostics_messages);
 	PMap.iter (fun p (mt,mfl) ->
 		let jctx = create_context GMMinimum in
@@ -143,17 +177,22 @@ let json_of_diagnostics dctx =
 			"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mt).mt_module.m_extra.m_file);
 			"entries",jarray l
 		] in
-		add DKMissingFields p DiagnosticsSeverity.Error j
+		add DKMissingFields p MessageSeverity.Error j
 	) dctx.missing_fields;
 	(* non-append from here *)
-	Hashtbl.iter (fun _ (s,p) ->
-		add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
-	) DeprecationCheck.warned_positions;
+	begin match Warning.get_mode WDeprecated com.warning_options with
+	| WMEnable ->
+		Hashtbl.iter (fun _ (s,p) ->
+			add DKDeprecationWarning p MessageSeverity.Warning (JString s);
+		) DeprecationCheck.warned_positions;
+	| WMDisable ->
+		()
+	end;
 	PMap.iter (fun p r ->
-		if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
+		if not !r then add DKUnusedImport p MessageSeverity.Warning (JArray [])
 	) dctx.import_positions;
 	List.iter (fun (s,p,prange) ->
-		add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
+		add DKRemovableCode p MessageSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 	) dctx.removable_code;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->
@@ -162,22 +201,29 @@ let json_of_diagnostics dctx =
 					"string",JString (Ast.Printer.s_expr e)
 				]
 			] in
-			add DKInactiveBlock p DiagnosticsSeverity.Hint jo
+			add DKInactiveBlock p MessageSeverity.Hint jo
 		) ranges
 	) dctx.dead_blocks;
 	let jl = Hashtbl.fold (fun file diag acc ->
-		let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
+		let jl = List.rev_map (fun diag ->
 			(JObject [
-				"kind",JInt (DiagnosticsKind.to_int dk);
-				"severity",JInt (DiagnosticsSeverity.to_int sev);
-				"range",Genjson.generate_pos_as_range p;
-				"args",jargs
-			]) :: acc
-		) diag [] in
+				"kind",JInt (MessageKind.to_int diag.diag_kind);
+				"severity",JInt (MessageSeverity.to_int diag.diag_severity);
+				"range",Genjson.generate_pos_as_range diag.diag_pos;
+				"args",diag.diag_args;
+				"relatedInformation",JArray (
+					List.rev_map (fun (pos,depth,msg) -> (JObject [
+						"location",Genjson.generate_pos_as_location pos;
+						"depth",JInt depth;
+						"message",JString msg;
+					])) diag.diag_related_information
+				)
+			])
+		) diag in
 		(JObject [
 			"file",if file = "?" then JNull else JString file;
 			"diagnostics",JArray jl
 		]) :: acc
-	) diag [] in
+	) diagnostics [] in
 	let js = JArray jl in
 	js

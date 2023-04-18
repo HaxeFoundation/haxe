@@ -39,6 +39,8 @@ class ExitCode {
 		"bin/php/ExitCode/index.php";
 	#elseif lua
 		"bin/lua/ExitCode.lua";
+	#elseif js
+		"bin/js/ExitCode.js";
 	#else
 		null;
 	#end

@@ -7,7 +7,7 @@ open Typecore
 open Error
 
 let needs_inline ctx is_extern_class cf =
-	cf.cf_kind = Method MethInline
+	cf.cf_kind = Method MethInline && ctx.allow_inline
 	&& (ctx.g.doinline || is_extern_class || has_class_field_flag cf CfExtern)
 
 let mk_untyped_call name p params =
@@ -112,7 +112,7 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p =
 	let mk_typeexpr path =
-		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> die "" __LOC__) in
+		let m = (try ctx.com.module_lut#find path with Not_found -> die "" __LOC__) in
 		add_dependency ctx.m.curmod m;
 		Option.get (ExtList.List.find_map (function
 			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
@@ -254,7 +254,7 @@ let inline_config cls_opt cf call_args return_type =
 		let t = if cf.cf_name = "_new" then
 			return_type
 		else if call_args = [] then
-			error "Invalid abstract implementation function" cf.cf_pos
+			raise_typing_error "Invalid abstract implementation function" cf.cf_pos
 		else
 			follow (List.hd call_args).etype
 		in
@@ -308,7 +308,8 @@ class inline_state ctx ethis params cf f p = object(self)
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
-			let v' = alloc_var (match v.v_kind with VUser _ -> VInlined | k -> k) v.v_name v.v_type v.v_pos in
+			let name = Option.default v.v_name (get_meta_string v.v_meta Meta.RealPath) in
+			let v' = alloc_var (match v.v_kind with VUser _ -> VInlined | k -> k) name v.v_type v.v_pos in
 			v'.v_extra <- v.v_extra;
 			let i = {
 				i_var = v;
@@ -368,11 +369,23 @@ class inline_state ctx ethis params cf f p = object(self)
 			in
 			try loop e; true with Exit -> false
 		in
-		let rec is_writable e =
+		let rec check_write e =
 			match e.eexpr with
-			| TField _ | TEnumParameter _ | TLocal _ | TArray _ -> true
-			| TCast(e1,None) -> is_writable e1
-			| _  -> false
+			| TLocal v when has_var_flag v VFinal ->
+				raise_typing_error "Cannot modify abstract value of final local" p
+			| TField(_,fa) ->
+				begin match extract_field fa with
+				| Some cf when has_class_field_flag cf CfFinal ->
+					raise_typing_error "Cannot modify abstract value of final field" p
+				| _ ->
+					()
+				end
+			| TLocal _ | TEnumParameter _ | TArray _ ->
+				()
+			| TCast(e1,None) ->
+				check_write e1
+			| _  ->
+				raise_typing_error "Cannot modify the abstract value, store it into a local first" p;
 		in
 		let vars = List.fold_left (fun acc (i,e) ->
 			let accept vik =
@@ -386,7 +399,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				(i.i_subst,Some e) :: acc
 			in
 			if i.i_abstract_this && i.i_write then begin
-				if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
+				check_write e;
 				accept VIInline
 			end else if i.i_force_temp || (i.i_captured && not (is_constant e)) then
 				reject()
@@ -397,7 +410,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					| TLocal _ | TConst _ ->
 						if not i.i_write then VIInline else VIDoNotInline
 					| TFunction _ ->
-						if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
+						if i.i_write then raise_typing_error "Cannot modify a closure parameter inside inline method" p;
 						if i.i_read <= 1 then VIInline else VIInlineIfCalled
 					| _ ->
 						if not i.i_write && (i.i_read + i.i_called) <= 1 then VIInline else VIDoNotInline
@@ -583,14 +596,14 @@ class inline_state ctx ethis params cf f p = object(self)
 		let e = Diagnostics.secure_generated_code ctx e in
 		if has_params then begin
 			let mt = map_type cf.cf_type in
-			let unify_func () = unify_raise ctx mt (TFun (tl,tret,false)) p in
+			let unify_func () = unify_raise mt (TFun (tl,tret,false)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
 				| Statics {cl_kind = KAbstractImpl a } when has_class_field_flag cf CfImpl ->
 					if cf.cf_name <> "_new" then begin
 						(* the first argument must unify with a_this for abstract implementation functions *)
 						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret,false)) in
-						unify_raise ctx mt tb p
+						unify_raise mt tb p
 					end
 				| _ -> unify_func())
 			| _ -> unify_func());
@@ -689,7 +702,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 				{ e with eexpr = TLocal l.i_subst }
 			| None ->
-				error "Could not inline `this` outside of an instance context" po
+				raise_typing_error "Could not inline `this` outside of an instance context" po
 			)
 		| TVar (v,eo) ->
 			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
@@ -697,9 +710,9 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			if not term then begin
 				match cf.cf_kind with
 				| Method MethInline ->
-					error "Cannot inline a not final return" po
+					raise_typing_error "Cannot inline a not final return" po
 				| _ ->
-					error ("Function " ^ cf.cf_name ^ " cannot be inlined because of a not final return") p
+					raise_typing_error ("Function " ^ cf.cf_name ^ " cannot be inlined because of a not final return") p
 			end;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
@@ -721,15 +734,23 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let eloop = map false false eloop in
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
-		| TSwitch (e1,cases,def) when term ->
-			let term = term && (def <> None || is_exhaustive e1) in
-			let cases = List.map (fun (el,e) ->
-				let el = List.map (map false false) el in
-				el, map term false e
-			) cases in
-			let def = opt (map term false) def in
-			let t = return_type e.etype ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) in
-			{ e with eexpr = TSwitch (map false false e1,cases,def); etype = t }
+		| TSwitch switch when term ->
+			let term = term && (is_exhaustive switch) in
+			let cases = List.map (fun case ->
+				let el = List.map (map false false) case.case_patterns in
+				{
+					case_patterns = el;
+					case_expr = map term false case.case_expr
+				}
+			) switch.switch_cases in
+			let def = opt (map term false) switch.switch_default in
+			let t = return_type e.etype ((List.map (fun case -> case.case_expr) cases) @ (match def with None -> [] | Some e -> [e])) in
+			let switch = {switch with
+				switch_subject = map false false switch.switch_subject;
+				switch_cases = cases;
+				switch_default = def;
+			} in
+			{ e with eexpr = TSwitch switch; etype = t }
 		| TTry (e1,catches) ->
 			let t = if not term then e.etype else return_type e.etype (e1::List.map snd catches) in
 			{ e with eexpr = TTry (map term false e1,List.map (fun (v,e) ->
@@ -745,10 +766,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					let r = match e.eexpr with
 					| TReturn _ -> true
 					| TFunction _ -> false
-					| TIf (_,_,None) | TSwitch (_,_,None) | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
+					| TIf (_,_,None) | TSwitch {switch_default = None} | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
 					| TTry (a, catches) -> List.for_all has_term_return (a :: List.map snd catches)
 					| TIf (cond,a,Some b) -> has_term_return cond || (has_term_return a && has_term_return b)
-					| TSwitch (cond,cases,Some def) -> has_term_return cond || List.for_all has_term_return (def :: List.map snd cases)
+					| TSwitch ({switch_default = Some def} as switch) -> has_term_return switch.switch_subject || List.for_all has_term_return (def :: List.map (fun case -> case.case_expr) switch.switch_cases)
 					| TBinop (OpBoolAnd,a,b) -> has_term_return a && has_term_return b
 					| _ -> Type.iter loop e; false
 					in
@@ -816,9 +837,9 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
 				begin match type_inline_ctor ctx c cf tf ethis el po with
 				| Some e -> map term false e
-				| None -> error "Could not inline super constructor call" po
+				| None -> raise_typing_error "Could not inline super constructor call" po
 				end
-			| _ -> error "Cannot inline function containing super" po
+			| _ -> raise_typing_error "Cannot inline function containing super" po
 			end
 		| TCall(e1,el) ->
 			state#set_side_effect;
@@ -826,7 +847,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let el = List.map (map false false) el in
 			{e with eexpr = TCall(e1,el)}
 		| TConst TSuper ->
-			error "Cannot inline function containing super" po
+			raise_typing_error "Cannot inline function containing super" po
 		| TMeta((Meta.Ast,_,_) as m,e1) when term ->
 			(* Special case for @:ast-wrapped TSwitch nodes: If the recursion alters the type of the TSwitch node, we also want
 			   to alter the type of the TMeta node. *)
@@ -864,7 +885,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 (* Same as type_inline, but modifies the function body to add field inits *)
 and type_inline_ctor ctx c cf tf ethis el po =
 	let field_inits =
-		let cparams = List.map snd c.cl_params in
+		let cparams = extract_param_types c.cl_params in
 		let ethis = mk (TConst TThis) (TInst (c,cparams)) c.cl_pos in
 		let el = List.fold_left (fun acc cf ->
 			match cf.cf_kind,cf.cf_expr with
@@ -902,7 +923,7 @@ and inline_rest_params ctx f params map_type p =
 						let cf =
 							try PMap.find "of" c.cl_statics
 							with Not_found -> die ~p:c.cl_name_pos "Can't find haxe.Rest.of function" __LOC__
-						and p = punion_el (List.map (fun e -> (),e.epos) params) in
+						and p = punion_el p params in
 						(* [param1, param2, ...] *)
 						(* If we don't know the type (e.g. the rest argument is a field type parameter) then we need
 						   to find a common type via unify_min. *)

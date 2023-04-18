@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"type": "hxml",
-			"file": "build.hxml",
+			"file": "run.hxml",
 			"group": {
 				"kind": "build",
 				"isDefault": true

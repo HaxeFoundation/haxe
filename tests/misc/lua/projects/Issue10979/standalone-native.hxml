@@ -1,0 +1,7 @@
+--lua bin/native-error.lua
+--main NativeError
+
+--next
+--run RunScript
+bin/native-error.lua
+bin/native-error\.lua:\d+: attempt to index .*

@@ -56,7 +56,7 @@ let find_in_syntax symbols (pack,decls) =
 		begin match e with
 		| EConst(Ident s) ->
 			check KIdent s
-		| EField(e1,s) ->
+		| EField(e1,s,_) ->
 			expr e1;
 			check KAnyField s;
 		| EVars vl ->
@@ -160,13 +160,14 @@ let find_in_syntax symbols (pack,decls) =
 	) decls
 
 let explore_uncached_modules tctx cs symbols =
+	let open CompilationCache in
 	DisplayToplevel.init_or_update_server cs tctx.com ["display";"references"];
-	let cc = CommonCache.get_cache cs tctx.com in
+	let cc = CommonCache.get_cache tctx.com in
 	let files = cc#get_files in
 	let modules = cc#get_modules in
 	let t = Timer.timer ["display";"references";"candidates"] in
 	let acc = Hashtbl.fold (fun file_key cfile acc ->
-		let module_name = CompilationServer.get_module_name_of_cfile cfile.CompilationServer.c_file_path cfile in
+		let module_name = get_module_name_of_cfile cfile.c_file_path cfile in
 		if Hashtbl.mem modules (cfile.c_package,module_name) then
 			acc
 		else try

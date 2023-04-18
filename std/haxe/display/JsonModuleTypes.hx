@@ -163,6 +163,7 @@ enum abstract JsonBinopKind<T>(String) {
 	var OpInterval;
 	var OpArrow;
 	var OpIn;
+	var OpNullCoal;
 }
 
 typedef JsonBinop<T> = {

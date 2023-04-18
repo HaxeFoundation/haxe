@@ -352,13 +352,11 @@ let rec expand_constant consts i =
 let parse_access_flags ch all_flags =
   let fl = read_ui16 ch in
   let flags = ref [] in
-  let fbit = ref 0 in
-  List.iter (fun f ->
-    if fl land (1 lsl !fbit) <> 0 then begin
+  List.iteri (fun fbit f ->
+    if fl land (1 lsl fbit) <> 0 then begin
       flags := f :: !flags;
       if f = JUnusable then error ("Unusable flag: " ^ string_of_int fl)
-    end;
-    incr fbit
+    end
   ) all_flags;
   (*if fl land (0x4000 - (1 lsl !fbit)) <> 0 then error ("Invalid access flags " ^ string_of_int fl);*)
   !flags

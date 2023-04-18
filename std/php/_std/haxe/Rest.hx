@@ -17,6 +17,11 @@ abstract Rest<T>(NativeRest<T>) {
 	static public inline function of<T>(array:Array<T>):Rest<T>
 		return new Rest(@:privateAccess array.arr);
 
+	@:noDoc
+	@:from
+	static inline function ofNative<T>(array:NativeIndexedArray<T>):Rest<T>
+		return new Rest(array);
+
 	inline function new(a:NativeIndexedArray<T>):Void
 		this = a;
 

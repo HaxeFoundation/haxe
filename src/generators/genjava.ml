@@ -366,8 +366,8 @@ struct
 			| TMeta ((Meta.LoopLabel,_,_), { eexpr = TBreak }) -> true
 			| TParenthesis p | TMeta (_,p) -> is_final_return_expr p
 			| TBlock bl -> is_final_return_block is_switch bl
-			| TSwitch (_, el_e_l, edef) ->
-				List.for_all (fun (_,e) -> is_final_return_expr e) el_e_l && Option.map_default is_final_return_expr false edef
+			| TSwitch switch ->
+				List.for_all (fun case -> is_final_return_expr case.case_expr) switch.switch_cases && Option.map_default is_final_return_expr false switch.switch_default
 			| TIf (_,eif, Some eelse) ->
 				is_final_return_expr eif && is_final_return_expr eelse
 			| TFor (_,_,e) ->
@@ -486,7 +486,7 @@ struct
 		let rec reorder_cases unordered ordered =
 			match unordered with
 				| [] -> ordered
-				| (el, e) :: tl ->
+				| {case_patterns = el;case_expr = e} :: tl ->
 					let current = Hashtbl.create 1 in
 					List.iter (fun e ->
 						let str = get_str e in
@@ -497,21 +497,21 @@ struct
 					let rec extract_fields cases found_cases ret_cases =
 						match cases with
 							| [] -> found_cases, ret_cases
-							| (el, e) :: tl ->
+							| {case_patterns = el;case_expr = e}  :: tl ->
 								if List.exists (fun e -> Hashtbl.mem current (java_hash (get_str e)) ) el then begin
 									has_conflict := true;
 									List.iter (fun e -> Hashtbl.add current (java_hash (get_str e)) true) el;
-									extract_fields tl ( (el, e) :: found_cases ) ret_cases
+									extract_fields tl ( {case_patterns = el;case_expr = e}  :: found_cases ) ret_cases
 								end else
-									extract_fields tl found_cases ( (el, e) :: ret_cases )
+									extract_fields tl found_cases ( {case_patterns = el;case_expr = e}  :: ret_cases )
 					in
 					let found, remaining = extract_fields tl [] [] in
 					let ret = if found <> [] then
-						let ret = List.sort (fun (e1,_) (e2,_) -> compare (List.length e2) (List.length e1) ) ( (el, e) :: found ) in
+						let ret = List.sort (fun case1 case2 -> compare (List.length case2.case_patterns) (List.length case1.case_patterns) ) ( {case_patterns = el;case_expr = e} :: found ) in
 						let rec loop ret acc =
 							match ret with
-								| (el, e) :: ( (_,_) :: _ as tl ) -> loop tl ( (true, el, e) :: acc )
-								| (el, e) :: [] -> ( (false, el, e) :: acc )
+								| {case_patterns = el;case_expr = e}  :: ( _ :: _ as tl ) -> loop tl ( (true, el, e) :: acc )
+								| {case_patterns = el;case_expr = e}  :: [] -> ( (false, el, e) :: acc )
 								| _ -> die "" __LOC__
 						in
 						List.rev (loop ret [])
@@ -574,13 +574,14 @@ struct
 
 			let e = if has_fallback then { e with eexpr = TBlock([ e; mk (TIdent "__fallback__") t_dynamic e.epos]) } else e in
 
-			(el, e)
+			{case_patterns = el;case_expr = e}
 		in
 
 		let is_not_null_check = mk (TBinop (OpNotEq, local, { local with eexpr = TConst TNull })) basic.tbool local.epos in
 		let if_not_null e = { e with eexpr = TIf (is_not_null_check, e, None) } in
+		let switch = mk_switch !local_hashcode (List.map change_case (reorder_cases ecases [])) None false (* idk *) in
 		let switch = if_not_null { eswitch with
-			eexpr = TSwitch(!local_hashcode, List.map change_case (reorder_cases ecases []), None);
+			eexpr = TSwitch switch;
 		} in
 		(if !has_case then begin
 			(if has_default then block := { e1 with eexpr = TVar(execute_def_var, Some({ e1 with eexpr = TConst(TBool true); etype = basic.tbool })); etype = basic.tvoid } :: !block);
@@ -818,9 +819,9 @@ struct
 				| TCast(expr, _) when is_string e.etype ->
 					{ e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
 
-				| TSwitch(cond, ecases, edefault) when is_string cond.etype ->
+				| TSwitch switch when is_string switch.switch_subject.etype ->
 					(*let change_string_switch gen eswitch e1 ecases edefault =*)
-					change_string_switch gen e (run cond) (List.map (fun (el,e) -> (el, run e)) ecases) (Option.map run edefault)
+					change_string_switch gen e (run switch.switch_subject) (List.map (fun case -> {case with case_expr = run case.case_expr}) switch.switch_cases) (Option.map run switch.switch_default)
 
 				| TBinop( (Ast.OpNotEq as op), e1, e2)
 				| TBinop( (Ast.OpEq as op), e1, e2) when not (is_null e2 || is_null e1) && (is_string e1.etype || is_string e2.etype || is_equatable gen e1.etype || is_equatable gen e2.etype) ->
@@ -1084,6 +1085,10 @@ let generate con =
 					Some t
 			| TAbstract (({ a_path = [],"Null" } as tab),[t2]) ->
 					Some (TAbstract(tab,[gen.gfollow#run_f t2]))
+			| TType ({ t_path = ["haxe";"_Rest"],"NativeRest" } as td, [t2]) ->
+					Some (gen.gfollow#run_f (follow (TType (td,[get_boxed gen t2]))))
+			| TAbstract ({ a_path = ["haxe"],"Rest" } as a, [t2]) ->
+					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a [get_boxed gen t2]) )
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
@@ -1138,11 +1143,8 @@ let generate con =
 				| TAbstract( { a_path = (["java"], "Int64") }, [] )
 				| TAbstract( { a_path = (["haxe"], "Int64") }, [] ) ->
 					TInst(cl_long, [])
-				| _ -> (match follow t with
-					| TInst( { cl_kind = KTypeParameter _ }, []) ->
-							t_dynamic
-					| _ -> real_type t
-				)
+				| _ ->
+					real_type t
 			)
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				real_type (Abstract.get_underlying_type a pl)
@@ -1520,7 +1522,7 @@ let generate con =
 				| TTypeExpr mt -> write w (md_s e.epos mt)
 				| TParenthesis e ->
 					write w "("; expr_s w e; write w ")"
-				| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+				| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 					(match e.eexpr with
 					| TFor _ | TWhile _ ->
 						print w "label%s:" n;
@@ -1530,6 +1532,11 @@ let generate con =
 					| _ -> die "" __LOC__)
 				| TMeta (_,e) ->
 					expr_s w e
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["haxe";"_Rest"],"Rest_Impl_") }, { cf_name = "createNative" })) }, el) ->
+					(match follow e.etype with
+					| TInst (cls, params) ->
+						expr_s w { e with eexpr = TNew(cls,params,el) }
+					| _ -> die ~p:e.epos "Unexpected return type of haxe.Rest.createNative" __LOC__)
 				| TCall ({ eexpr = TIdent "__array__" }, el)
 				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el when t_has_type_param e.etype ->
@@ -1738,11 +1745,11 @@ let generate con =
 							in_value := true;
 							expr_s w (mk_paren econd);
 					)
-				| TSwitch (econd, ele_l, default) ->
+				| TSwitch switch ->
 					write w "switch ";
-					expr_s w (mk_paren econd);
+					expr_s w (mk_paren switch.switch_subject);
 					begin_block w;
-					List.iter (fun (el, e) ->
+					List.iter (fun {case_patterns = el;case_expr = e}  ->
 						List.iter (fun e ->
 							write w "case ";
 							in_value := true;
@@ -1759,12 +1766,12 @@ let generate con =
 						expr_s w (mk_block e);
 						newline w;
 						newline w
-					) ele_l;
-					if is_some default then begin
+					) switch.switch_cases;
+					if is_some switch.switch_default then begin
 						write w "default:";
 						newline w;
 						in_value := false;
-						expr_s w (get default);
+						expr_s w (get switch.switch_default);
 						newline w;
 					end;
 					end_block w
@@ -1815,7 +1822,7 @@ let generate con =
 	let rec gen_fpart_attrib w = function
 		| EConst( Ident i ), _ ->
 			write w i
-		| EField( ef, f ), _ ->
+		| EField( ef, f, _ ), _ ->
 			gen_fpart_attrib w ef;
 			write w ".";
 			write w f
@@ -1825,14 +1832,14 @@ let generate con =
 
 	let rec gen_spart w = function
 		| EConst c, p -> (match c with
-			| Int s | Float s | Ident s ->
+			| Int (s, _) | Float (s, _) | Ident s ->
 				write w s
 			| String(s,_) ->
 				write w "\"";
 				write w (escape s);
 				write w "\""
 			| _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
-		| EField( ef, f ), _ ->
+		| EField( ef, f, _ ), _ ->
 			gen_spart w ef;
 			write w ".";
 			write w f
@@ -1900,8 +1907,8 @@ let generate con =
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
-				let params_extends = List.fold_left (fun acc (name, t) ->
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun tp -> match follow tp.ttp_type with | TInst(cl, _) -> snd cl.cl_path | _ -> die "" __LOC__) cl_params)) in
+				let params_extends = List.fold_left (fun acc {ttp_name=name;ttp_type=t} ->
 					match run_follow gen t with
 						| TInst (cl, p) ->
 							(match cl.cl_implements with
@@ -1992,9 +1999,9 @@ let generate con =
 				let modifiers = if is_abstract then "abstract" :: modifiers else modifiers in
 				let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
 				let v_n = if is_static then "static" else if is_override && not is_interface then "" else if not is_virtual then "final" else "" in
-				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
+				let cf_type = if is_override && not is_overload && not (has_class_field_flag cf CfOverload) then match field_access gen (TInst(cl, extract_param_types cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> die "" __LOC__ else cf.cf_type in
 
-				let params = List.map snd cl.cl_params in
+				let params = extract_param_types cl.cl_params in
 				let ret_type, args, has_rest_args = match follow cf_type, follow cf.cf_type with
 					| TFun (strbtl, t, _), TFun(rargs, _, _) ->
 						let ret_type = apply_params cl.cl_params params (real_type t)
@@ -2082,6 +2089,11 @@ let generate con =
 				end);
 			newline w;
 			newline w
+	in
+
+	let gen_class_field w ?(is_overload=false) is_static cl is_final cf =
+		(* This should probably be handled somewhere earlier in the unholy gencommon machinery, but whatever *)
+		if not (has_class_field_flag cf CfExtern) then gen_class_field w ~is_overload is_static cl is_final cf
 	in
 
 	let gen_class w cl =
@@ -2612,14 +2624,14 @@ let generate con =
 
 	SwitchToIf.configure gen (fun e ->
 		match e.eexpr with
-			| TSwitch(cond, cases, def) ->
-				(match gen.gfollow#run_f cond.etype with
+			| TSwitch switch ->
+				(match gen.gfollow#run_f switch.switch_subject.etype with
 					| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 					| TAbstract ({ a_path = ([], "Int") },[])
 					| TInst({ cl_path = ([], "String") },[]) ->
-						(List.exists (fun (c,_) ->
-							List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
-						) cases)
+						(List.exists (fun case ->
+							List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) case.case_patterns
+						) switch.switch_cases)
 					| _ -> true
 				)
 			| _ -> die "" __LOC__
@@ -2693,17 +2705,18 @@ let generate con =
 	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
-		let cmd = "haxelib run hxjava hxjava_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) ^ " --feature-level 1" in
-		let cmd =
+		let cmd = "haxelib" in
+		let args = ["run";"hxjava";"hxjava_build.txt";"--haxe-version";(string_of_int gen.gcon.version);"--feature-level";"1"] in
+		let args =
 			match gen.gentry_point with
 			| Some (name,_,_) ->
 				let name = if gen.gcon.debug then name ^ "-Debug" else name in
-				cmd ^ " --out " ^ gen.gcon.file ^ "/" ^ name
+				args @ ["--out";gen.gcon.file ^ "/" ^ name]
 			| _ ->
-				cmd
+				args
 		in
-		print_endline cmd;
-		if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
+		print_endline (cmd ^ " " ^ (String.concat " " args));
+		if gen.gcon.run_command_args cmd args <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end
 

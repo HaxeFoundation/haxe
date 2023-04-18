@@ -10,4 +10,4 @@
 # or set UTEST_PATTERN environment variable
 
 #Temporary. To find out what's wrong with random CI failures
---macro addMetadata('@:build(utils.macro.DebugFailures.patchAssert())', 'utest.Assert')
+#--macro addMetadata('@:build(utils.macro.DebugFailures.patchAssert())', 'utest.Assert')

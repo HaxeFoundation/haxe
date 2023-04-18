@@ -3,6 +3,7 @@ package unit.issues;
 @:callable
 abstract Example(()->String) {
 	public function new() {
+		this = null;
 		this = fun;
 	}
 

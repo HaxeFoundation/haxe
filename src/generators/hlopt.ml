@@ -746,6 +746,18 @@ let _optimize (f:fundecl) =
 		r.ralias <- r;
 		r
 	) in
+
+	let is_packed_field o fid =
+		match f.regs.(o) with
+		| HStruct p | HObj p ->
+			let ft = (try snd (resolve_field p fid) with Not_found -> assert false) in
+			(match ft with
+			| HPacked _ -> true
+			| _ -> false)
+		| _ ->
+			false
+	in
+
 (*
 	let print_state i s =
 		let state_str s =
@@ -856,6 +868,13 @@ let _optimize (f:fundecl) =
 				do_read o;
 				do_write v;
 				state.(v).rnullcheck <- state.(o).rnullcheck
+			| OField (r,o,fid) when (match f.regs.(r) with HStruct _ -> true | _ -> false) ->
+				do_read o;
+				do_write r;
+				if is_packed_field o fid then state.(r).rnullcheck <- true;
+			| OGetThis (r,fid) when (match f.regs.(r) with HStruct _ -> true | _ -> false) ->
+				do_write r;
+				if is_packed_field 0 fid then state.(r).rnullcheck <- true;
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r

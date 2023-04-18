@@ -619,4 +619,62 @@ extern class Const {
 	static final FILEINFO_PRESERVE_ATIME: Int;
 	static final FILEINFO_RAW: Int;
 	static final FILEINFO_SYMLINK: Int;
+
+	/**
+		@see http://php.net/manual/en/calendar.constants.php
+	**/
+	static final CAL_DOW_DAYNO: Int;
+	static final CAL_DOW_LONG: Int;
+	static final CAL_DOW_SHORT: Int;
+	static final CAL_EASTER_ALWAYS_GREGORIAN: Int;
+	static final CAL_EASTER_ALWAYS_JULIAN: Int;
+	static final CAL_EASTER_DEFAULT: Int;
+	static final CAL_EASTER_ROMAN: Int;
+	static final CAL_FRENCH: Int;
+	static final CAL_GREGORIAN: Int;
+	static final CAL_JEWISH: Int;
+	static final CAL_JEWISH_ADD_ALAFIM: Int;
+	static final CAL_JEWISH_ADD_ALAFIM_GERESH: Int;
+	static final CAL_JEWISH_ADD_GERESHAYIM: Int;
+	static final CAL_JULIAN: Int;
+	static final CAL_MONTH_FRENCH: Int;
+	static final CAL_MONTH_GREGORIAN_LONG: Int;
+	static final CAL_MONTH_GREGORIAN_SHORT: Int;
+	static final CAL_MONTH_JEWISH: Int;
+	static final CAL_MONTH_JULIAN_LONG: Int;
+	static final CAL_MONTH_JULIAN_SHORT: Int;
+	static final CAL_NUM_CALS: Int;
+
+	/**
+		@see http://php.net/manual/en/ftp.constants.php
+	**/
+	static final FTP_ASCII: Int;
+	static final FTP_AUTORESUME: Int;
+	static final FTP_AUTOSEEK: Int;
+	static final FTP_BINARY: Int;
+	static final FTP_FAILED: Int;
+	static final FTP_FINISHED: Int;
+	static final FTP_IMAGE: Int;
+	static final FTP_MOREDATA: Int;
+	static final FTP_TEXT: Int;
+	static final FTP_TIMEOUT_SEC: Int;
+	static final FTP_USEPASVADDRESS: Bool;
+
+	/**
+		@see http://php.net/manual/en/misc.constants.php
+	**/
+	static final CONNECTION_ABORTED: Int;
+	static final CONNECTION_NORMAL: Int;
+	static final CONNECTION_TIMEOUT: Int;
+
+	/**
+		@see http://php.net/manual/fr/filesystem.constants.php
+	**/
+	static final FILE_APPEND: Int;
+	static final FILE_BINARY: Int;
+	static final FILE_IGNORE_NEW_LINES: Int;
+	static final FILE_NO_DEFAULT_CONTEXT: Int;
+	static final FILE_SKIP_EMPTY_LINES: Int;
+	static final FILE_TEXT: Int;
+	static final FILE_USE_INCLUDE_PATH: Int;
 }

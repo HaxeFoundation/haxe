@@ -26,16 +26,13 @@ class ImportAll {
 	static function isSysTarget() {
 		return Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ||
 		       Context.defined("java") || Context.defined("python") ||
-		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval"); // TODO: have to add cs here, SPOD gets in the way at the moment
+		       Context.defined("lua") || Context.defined("hl") || Context.defined("eval");
 	}
 
 	public static function run( ?pack ) {
 		if( pack == null ) {
 			pack = "";
 			haxe.macro.Compiler.define("doc_gen");
-		}
-		if (Context.defined("interp")) {
-			haxe.macro.Compiler.define("macro");
 		}
 		switch( pack ) {
 		case "php":
@@ -99,6 +96,9 @@ class ImportAll {
 					case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
 					case "neko.vm.Ui" | "sys.db.Sqlite" | "sys.db.Mysql" if ( Context.defined("interp") ): continue;
 					case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet" if ( Context.defined("cs") ): continue;
+					case "haxe.atomic.AtomicBool" if(!Context.defined("target.atomics")): continue;
+					case "haxe.atomic.AtomicInt" if(!Context.defined("target.atomics")): continue;
+					case "haxe.atomic.AtomicObject" if(!Context.defined("target.atomics") || Context.defined("js") || Context.defined("cpp")): continue;
 					}
 					Context.getModule(cl);
 				} else if( sys.FileSystem.isDirectory(p + "/" + file) )

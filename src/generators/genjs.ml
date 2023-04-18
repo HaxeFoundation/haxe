@@ -43,7 +43,7 @@ and sourcemap_pos = {
 type ctx = {
 	com : Common.context;
 	buf : Rbuffer.t;
-	chan : out_channel;
+	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
 	js_modern : bool;
@@ -62,6 +62,7 @@ type ctx = {
 	mutable separator : bool;
 	mutable found_expose : bool;
 	mutable catch_vars : texpr list;
+	mutable deprecation_context : DeprecationCheck.deprecation_context;
 }
 
 type object_store = {
@@ -261,7 +262,15 @@ let handle_newlines ctx str =
 	) ctx.smap
 
 let flush ctx =
-	Rbuffer.output_buffer ctx.chan ctx.buf;
+	let chan =
+		match ctx.chan with
+		| Some chan -> chan
+		| None ->
+			let chan = open_out_bin ctx.com.file in
+			ctx.chan <- Some chan;
+			chan
+	in
+	Rbuffer.output_buffer chan ctx.buf;
 	Rbuffer.clear ctx.buf
 
 let spr ctx s =
@@ -287,9 +296,9 @@ let write_mappings ctx smap =
 	output_string channel "{\n";
 	output_string channel "\"version\":3,\n";
 	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"file:///\",\n");
+	output_string channel ("\"sourceRoot\":\"\",\n");
 	output_string channel ("\"sources\":[" ^
-		(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
+		(String.concat "," (List.map (fun s -> "\"file:///" ^ to_url s ^ "\"") sources)) ^
 		"],\n");
 	if Common.defined ctx.com Define.SourceMapContent then begin
 		output_string channel ("\"sourcesContent\":[" ^
@@ -416,22 +425,35 @@ let is_code_injection_function e =
 let var ctx =
 	if ctx.es_version >= 6 then "let" else "var"
 
-let rec gen_call ctx e el in_value =
-	let apply,el =
-		if ctx.es_version < 6 then
-			match List.rev el with
-			| [{ eexpr = TUnop (Spread,Ast.Prefix,rest) }] ->
-				true,[rest]
-			| { eexpr = TUnop (Spread,Ast.Prefix,rest) } :: args_rev ->
-				(* [arg1, arg2, ..., argN].concat(rest) *)
-				let arr = mk (TArrayDecl (List.rev args_rev)) t_dynamic null_pos in
-				let concat = mk (TField (arr, FDynamic "concat")) t_dynamic null_pos in
-				true,[mk (TCall (concat, [rest])) t_dynamic null_pos]
-			| _ ->
-				false,el
-		else
+(**
+	Returns `(needs_apply,element_list)` tuple where `needs_apply` indicates if
+	a call should be generated as `<function>.apply(<this>, element_list)` instead
+	of `<function>(el)`.
+
+	If `add_null_context` is provided then `element_list` will have `null` as the
+	first expr if needed.
+*)
+let apply_args ?(add_null_context=false) ctx el =
+	if ctx.es_version < 6 then
+		match List.rev el with
+		| [{ eexpr = TUnop (Spread,Ast.Prefix,rest) }] when not add_null_context ->
+			true,[rest]
+		| { eexpr = TUnop (Spread,Ast.Prefix,rest) } :: args_rev ->
+			(* [arg1, arg2, ..., argN].concat(rest) *)
+			let args =
+				if add_null_context then (null t_dynamic null_pos) :: List.rev args_rev
+				else List.rev args_rev
+			in
+			let arr = mk (TArrayDecl args) t_dynamic null_pos in
+			let concat = mk (TField (arr, FDynamic "concat")) t_dynamic null_pos in
+			true,[mk (TCall (concat, [rest])) t_dynamic null_pos]
+		| _ ->
 			false,el
-	in
+	else
+		false,el
+
+let rec gen_call ctx e el in_value =
+	let apply,el = apply_args ctx el in
 	match e.eexpr , el with
 	| TConst TSuper , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
@@ -481,22 +503,22 @@ let rec gen_call ctx e el in_value =
 				abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos
 		)
 	| TIdent "__new__", args ->
-		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
 		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
-		print_deprecation_message ctx.com "__js__ is deprecated, use js.Syntax.code instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__js__ is deprecated, use js.Syntax.code instead" e.epos;
 		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
-		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
 		gen_syntax ctx "instanceof" args e.epos
 	| TIdent "__typeof__",  args ->
-		print_deprecation_message ctx.com "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
 		gen_syntax ctx "typeof" args e.epos
 	| TIdent "__strict_eq__" , args ->
-		print_deprecation_message ctx.com "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
 		gen_syntax ctx "strictEq" args e.epos
 	| TIdent "__strict_neq__" , args ->
-		print_deprecation_message ctx.com "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
+		print_deprecation_message ctx.deprecation_context "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
 		gen_syntax ctx "strictNeq" args e.epos
 	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
@@ -695,7 +717,7 @@ and gen_expr ctx e =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+	| TMeta ((Meta.LoopLabel,[(EConst(Int (n, _)),_)],_), e) ->
 		(match e.eexpr with
 		| TWhile _ | TFor _ ->
 			print ctx "_hx_loop%s: " n;
@@ -750,12 +772,20 @@ and gen_expr ctx e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		print ctx "[]"
 	| TNew (c,_,el) ->
+		let apply,el = apply_args ~add_null_context:true ctx el in
 		(match c.cl_constructor with
 		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
-		| _ -> print ctx "new ");
-		print ctx "%s(" (ctx.type_accessor (TClassDecl c));
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		| _ -> print ctx (if apply then "(new" else "new "));
+		let cls = ctx.type_accessor (TClassDecl c) in
+		if apply then begin
+			print ctx "(Function.prototype.bind.apply(%s," cls;
+			concat ctx "," (gen_value ctx) el;
+			print ctx ")))"
+		end else begin
+			print ctx "%s(" cls;
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")"
+		end;
 	| TIf (cond,e,eelse) ->
 		spr ctx "if";
 		gen_value ctx cond;
@@ -836,12 +866,12 @@ and gen_expr ctx e =
 		ctx.catch_vars <- List.tl ctx.catch_vars
 	| TTry _ ->
 		abort "Unhandled try/catch, please report" e.epos
-	| TSwitch (e,cases,def) ->
+	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
 		spr ctx "switch";
 		gen_value ctx e;
 		spr ctx " {";
 		newline ctx;
-		List.iter (fun (el,e2) ->
+		List.iter (fun {case_patterns = el;case_expr = e2} ->
 			List.iter (fun e ->
 				match e.eexpr with
 				| TConst(c) when c = TNull ->
@@ -1048,12 +1078,15 @@ and gen_value ctx e =
 		(match eo with
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);
-	| TSwitch (cond,cases,def) ->
+	| TSwitch switch ->
 		let v = value() in
-		gen_expr ctx (mk (TSwitch (cond,
-			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-			match def with None -> None | Some e -> Some (assign e)
-		)) e.etype e.epos);
+		let switch = { switch with
+			switch_cases = List.map (fun case -> { case with
+				case_expr = assign case.case_expr
+			}) switch.switch_cases;
+			switch_default = Option.map assign switch.switch_default
+		} in
+		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
 		v()
 	| TTry (b,catchs) ->
 		let v = value() in
@@ -1243,10 +1276,13 @@ let gen_class_static_field ctx c cl_path f =
 let can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
 		false
+	| f when has_class_field_flag f CfExtern ->
+		false
 	| f ->
 		is_physical_field f
 
 let gen_class_field ctx c f =
+	ctx.deprecation_context <- {ctx.deprecation_context with field_meta = f.cf_meta};
 	check_field_name c f;
 	match f.cf_expr with
 	| None ->
@@ -1264,13 +1300,7 @@ let generate_class___name__ ctx cl_path =
 	if has_feature ctx "js.Boot.isClass" then begin
 		let p = s_path ctx cl_path in
 		print ctx "%s.__name__ = " p;
-		(match has_feature ctx "Type.getClassName", cl_path with
-			| true, _
-			| _, ([], ("Array" | "String")) ->
-				print ctx "\"%s\"" (dot_path cl_path)
-			| _ ->
-				print ctx "true"
-		);
+		print ctx "\"%s\"" (dot_path cl_path);
 		newline ctx;
 	end
 
@@ -1301,15 +1331,17 @@ let generate_class_es3 ctx c =
 
 	let p = s_path ctx cl_path in
 	let dotp = dot_path cl_path in
-
 	let added_to_hxClasses = ctx.has_resolveClass && not is_abstract_impl in
 
-	if ctx.js_modern || not added_to_hxClasses then
+	(* Do not add to $hxClasses on same line as declaration to make sure not to trip js debugger *)
+	(* when it tries to get a string representation of a class. Will be added below *)
+	if ctx.com.debug || ctx.js_modern || not added_to_hxClasses then
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
 
-	process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+	if not ctx.com.debug then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 
 	if is_abstract_impl then begin
 		(* abstract implementations only contain static members and don't need to have constructor functions *)
@@ -1323,10 +1355,16 @@ let generate_class_es3 ctx c =
 
 	newline ctx;
 
-	if ctx.js_modern && added_to_hxClasses then begin
+	if (ctx.js_modern || ctx.com.debug) && added_to_hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" dotp p;
 		newline ctx;
 	end;
+
+	if ctx.com.debug then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> begin
+			print ctx "$hx_exports%s = %s" (path_to_brackets s) p;
+			newline ctx;
+		end);
 
 	if not is_abstract_impl then begin
 		generate_class___name__ ctx cl_path;
@@ -1570,6 +1608,7 @@ let generate_class_es6 ctx c =
 
 let generate_class ctx c =
 	ctx.current <- c;
+	ctx.deprecation_context <- {ctx.deprecation_context with class_meta = c.cl_meta};
 	ctx.id_counter <- 0;
 	(match c.cl_path with
 	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
@@ -1766,7 +1805,7 @@ let alloc_ctx com es_version =
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
-		chan = open_out_bin com.file;
+		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
@@ -1785,6 +1824,7 @@ let alloc_ctx com es_version =
 		separator = false;
 		found_expose = false;
 		catch_vars = [];
+		deprecation_context = DeprecationCheck.create_context com;
 	} in
 
 	ctx.type_accessor <- (fun t ->
@@ -1887,19 +1927,24 @@ let generate com =
 		| _ -> ()
 	) include_files;
 
-	let var_console = (
-		"console",
-		"typeof console != \"undefined\" ? console : {log:function(){}}"
-	) in
+	let defined_global_value = Common.defined_value_safe com Define.JsGlobal in
+
+	let defined_global = defined_global_value <> "" in
+
+	let rec typeof_join = function
+	| x :: [] -> x
+	| x :: l -> "typeof " ^ x ^ " != \"undefined\" ? " ^ x ^ " : " ^ (typeof_join l)
+	| _ -> ""
+	in
 
 	let var_exports = (
 		"$hx_exports",
-		"typeof exports != \"undefined\" ? exports : typeof window != \"undefined\" ? window : typeof self != \"undefined\" ? self : this"
+		typeof_join (if defined_global then ["exports"; defined_global_value] else ["exports"; "window"; "self"; "this"])
 	) in
 
 	let var_global = (
 		"$global",
-		"typeof window != \"undefined\" ? window : typeof global != \"undefined\" ? global : typeof self != \"undefined\" ? self : this"
+		typeof_join (if defined_global then [defined_global_value] else ["window"; "global"; "self"; "this"])
 	) in
 
 	let closureArgs = [var_global] in
@@ -1910,7 +1955,7 @@ let generate com =
 	in
 	(* Provide console for environments that may not have it. *)
 	let closureArgs = if ctx.es_version < 5 then
-		var_console :: closureArgs
+		("console", typeof_join ["console"; "{log:function(){}}"]) :: closureArgs
 	else
 		closureArgs
 	in
@@ -2046,7 +2091,7 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPush" then begin
-		print ctx "function $arrayPush(x) { this.push(x); }";
+		print ctx "function $arrayPush(x) { return this.push(x); }";
 		newline ctx
 	end;
 	if has_feature ctx "$global.$haxeUID" then begin
@@ -2065,7 +2110,7 @@ let generate com =
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.js_modern then begin
 		let closureArgs =
-			if has_feature ctx "js.Lib.global" then
+			if has_feature ctx "js.Lib.global" || defined_global then
 				closureArgs
 			else
 				(* no need for `typeof window != "undefined" ? window : typeof global != "undefined" ? <...>` *)
@@ -2096,5 +2141,6 @@ let generate com =
 	| Some smap -> write_mappings ctx smap
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
-	close_out ctx.chan)
+	Option.may (fun chan -> close_out chan) ctx.chan
+	)
 

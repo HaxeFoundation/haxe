@@ -32,7 +32,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>>
 		untyped {
 			if (o == null || !Reflect.isObject(o))
 				return null;

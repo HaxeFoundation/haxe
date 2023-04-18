@@ -886,6 +886,7 @@ let flatten t =
 		Array.iter (browse_field ctx) s.hls_fields;
 		browse_method ctx s.hls_method;
 	) t;
+	let classes = List.sort (fun c1 c2 -> c1.hlc_index - c2.hlc_index) (List.rev !classes) in
 	let methods = List.sort (fun m1 m2 -> m1.hlmt_index - m2.hlmt_index) (List.rev !methods) in
 	(* done *)
 	let rec ctx = {
@@ -898,7 +899,7 @@ let flatten t =
 		fnames = new_lookup flatten_name;
 		fmetas = new_lookup flatten_meta;
 		fmethods = new_index_lookup methods flatten_method;
-		fclasses = new_index_lookup (List.rev !classes) flatten_class;
+		fclasses = new_index_lookup classes flatten_class;
 		fjumps = [];
 		ffunctions = [];
 	} in

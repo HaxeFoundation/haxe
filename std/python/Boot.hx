@@ -223,7 +223,7 @@ class Boot {
 	}
 
 	static inline function isMetaType(v:Dynamic, t:Dynamic):Bool {
-		return python.Syntax.binop(v, "==", t);
+		return Syntax.binop(Syntax.binop(Syntax.call(UBuiltins.type, [v]), "==", UBuiltins.type), "and", Syntax.binop(v, "==", t));
 	}
 
 	@:analyzer(no_local_dce)

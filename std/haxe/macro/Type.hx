@@ -180,6 +180,11 @@ typedef TypeParameter = {
 		`KTypeParameter` kind.
 	**/
 	var t:Type;
+
+	/**
+		The default type for this type parameter.
+	**/
+	var ?defaultType:Null<Type>;
 }
 
 /**

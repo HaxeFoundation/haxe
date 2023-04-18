@@ -40,6 +40,11 @@ import sys.thread.EventLoop;
 
 	It is also possible to extend this class and override its `run()` method in
 	the child class.
+
+	Notice for threaded targets:
+	`Timer` instances require threads they were created in to run with Haxe's event loops.
+	Main thread of a Haxe program always contains an event loop. For other cases use 
+	`sys.thread.Thread.createWithEventLoop` and `sys.thread.Thread.runWithEventLoop` methods.
 **/
 class Timer {
 	#if (flash || js)

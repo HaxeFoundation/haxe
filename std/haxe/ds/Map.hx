@@ -24,9 +24,7 @@ package haxe.ds;
 
 import haxe.ds.StringMap;
 import haxe.ds.IntMap;
-import haxe.ds.HashMap;
 import haxe.ds.ObjectMap;
-import haxe.ds.WeakMap;
 import haxe.ds.EnumValueMap;
 import haxe.Constraints.IMap;
 

@@ -2,8 +2,8 @@
 
 (library
 	(name mbedtls)
-	(c_names
-		mbedtls_stubs
-	)
+	(foreign_stubs
+		(language c)
+		(names mbedtls_stubs))
 	(wrapped false)
 )

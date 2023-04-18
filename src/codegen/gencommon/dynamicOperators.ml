@@ -119,7 +119,7 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 				{ e with eexpr = TBinop (op, mk_cast com.basic.tbool (run e1), mk_cast com.basic.tbool (run e2)) }
 			| OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr ->
 				{ e with eexpr = TBinop (op, mk_cast com.basic.tint (run e1), mk_cast com.basic.tint (run e2)) }
-			| OpAssign | OpAssignOp _ | OpInterval | OpArrow | OpIn ->
+			| OpAssign | OpAssignOp _ | OpInterval | OpArrow | OpIn | OpNullCoal ->
 				Globals.die "" __LOC__)
 
 		| TUnop (Increment as op, flag, e1)

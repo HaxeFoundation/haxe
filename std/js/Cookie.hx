@@ -29,7 +29,7 @@ class Cookie {
 		Create or update a cookie.
 		@param  expireDelay  In seconds. If null, the cookie expires at end of session.
 	**/
-	public static function set(name:String, value:String, ?expireDelay:Int, ?path:String, ?domain:String) {
+	public static function set(name:String, value:String, ?expireDelay:Int, ?path:String, ?domain:String, ?secure:Bool, ?sameSite:String) {
 		var s = name + "=" + StringTools.urlEncode(value);
 		if (expireDelay != null) {
 			var d = DateTools.delta(Date.now(), expireDelay * 1000);
@@ -40,6 +40,12 @@ class Cookie {
 		}
 		if (domain != null) {
 			s += ";domain=" + domain;
+		}
+		if (secure == true) {
+			s += ";secure";
+		}
+		if (sameSite != null) {
+			s += ";SameSite=" + sameSite;
 		}
 		Browser.document.cookie = s;
 	}

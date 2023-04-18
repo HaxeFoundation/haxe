@@ -70,7 +70,7 @@ class ExprTools {
 	**/
 	static public function iter(e:Expr, f:Expr->Void):Void {
 		switch (e.expr) {
-			case EConst(_), EContinue, EBreak, EDisplayNew(_):
+			case EConst(_), EContinue, EBreak:
 			case EField(e, _), EParenthesis(e), EUntyped(e), EThrow(e), EDisplay(e, _), ECheckType(e, _), EUnop(_, _, e), ECast(e, _), EIs(e, _) | EMeta(_, e):
 				f(e);
 			case EArray(e1, e2), EWhile(e1, e2, _), EBinop(_, e1, e2), EFor(e1, e2):
@@ -176,7 +176,7 @@ class ExprTools {
 				case EDisplay(e, dk): EDisplay(f(e), dk);
 				case ETernary(econd, eif, eelse): ETernary(f(econd), f(eif), f(eelse));
 				case ECheckType(e, t): ECheckType(f(e), t);
-				case EDisplayNew(_), EContinue, EBreak:
+				case EContinue, EBreak:
 					e.expr;
 				case ETry(e, catches):
 					var ret = [];

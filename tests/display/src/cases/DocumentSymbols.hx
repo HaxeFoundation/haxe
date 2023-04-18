@@ -120,9 +120,14 @@ class DocumentSymbols extends DisplayTestCase {
 		function main() {}
 	**/
 	function testModuleLevelFields() {
-		checkDocumentSymbols([
-			{name: "main", kind: Method, containerName: null},
-		], ctx.documentSymbols());
+		checkDocumentSymbols([{name: "main", kind: Method, containerName: null},], ctx.documentSymbols());
+	}
+
+	/*// Test
+		function main() {}
+	 */
+	function testLeadingLineComment() {
+		checkDocumentSymbols([{name: "main", kind: Method, containerName: null},], ctx.documentSymbols());
 	}
 
 	function checkDocumentSymbols(expected:Array<ModuleSymbolEntry>, actual:Array<ModuleSymbolEntry>, ?pos:haxe.PosInfos) {

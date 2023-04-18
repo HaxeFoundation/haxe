@@ -21,6 +21,8 @@
  */
 
 import java.lang.System;
+import java.net.URI;
+import java.nio.file.Paths;
 import sys.io.Process;
 
 using haxe.Int64;
@@ -48,20 +50,19 @@ using haxe.Int64;
 		return java.lang.System.getenv(s);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		// java offers no support for it (!)
 		throw new haxe.exceptions.NotImplementedException("Not implemented in this platform");
 	}
 
 	public static function environment():Map<String, String> {
-		if (_env != null)
-			return _env;
-		var _env = _env = new haxe.ds.StringMap();
-		for (mv in java.lang.System.getenv().entrySet()) {
-			_env.set(mv.getKey(), mv.getValue());
+		if (_env == null) {
+			_env = new haxe.ds.StringMap();
+			for (mv in java.lang.System.getenv().entrySet())
+				_env.set(mv.getKey(), mv.getValue());
 		}
 
-		return _env;
+		return _env.copy();
 	}
 
 	public static function sleep(seconds:Float):Void {
@@ -141,7 +142,8 @@ using haxe.Int64;
 	}
 
 	public static function programPath():String {
-		return java.Lib.toNativeType(Sys).getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+		final uri:URI = java.Lib.toNativeType(Sys).getProtectionDomain().getCodeSource().getLocation().toURI();
+		return Std.string(Paths.get(uri));
 	}
 
 	public static function getChar(echo:Bool):Int {

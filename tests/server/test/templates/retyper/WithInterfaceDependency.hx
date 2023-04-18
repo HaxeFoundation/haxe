@@ -1,0 +1,1 @@
+class WithInterfaceDependency implements InterfaceDependency {}

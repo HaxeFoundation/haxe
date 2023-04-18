@@ -87,7 +87,7 @@ class TestArrowFunctions extends Test {
 		f3_1 = (?a:Int, b:String) -> a + b.length;
 		f3_2 = (a:Int, ?b:Int) -> a + b;
 
-		#if !(flash || hl) // Cannot skip not nullable argument
+		#if !flash // Cannot skip not nullable argument
 		f3_1 = function (a=1, b:String) return a + b.length;
 		eq(f3_1("--"),3);
 

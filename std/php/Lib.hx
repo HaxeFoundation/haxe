@@ -98,7 +98,7 @@ class Lib {
 		return @:privateAccess Array.wrap(a);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr:NativeAssocArray<T>):Map<String, T> {
+	public static function hashOfAssociativeArray<T>(arr:NativeAssocArray<T>):StringMap<T> {
 		var result = new StringMap();
 		@:privateAccess result.data = arr;
 		return result;

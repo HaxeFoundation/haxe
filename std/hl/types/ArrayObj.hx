@@ -42,24 +42,6 @@ class ArrayObjIterator<T> extends ArrayIterator<T> {
 	}
 }
 
-class ArrayObjKeyValueIterator<T> extends ArrayKeyValueIterator<T> {
-	var arr:ArrayObj<T>;
-
-	public inline function new(arr:ArrayObj<T>) {
-		super((null:Dynamic));
-		this.arr = arr;
-	}
-
-	override public function hasNext():Bool {
-		return current < arr.length;
-	}
-
-	override public function next():{key:Int, value:T} {
-		var v = @:privateAccess arr.array[current];
-		return {key:current++, value:v};
-	}
-}
-
 @:keep
 class ArrayObj<T> extends ArrayBase {
 	var array:hl.NativeArray<Dynamic>;
@@ -291,7 +273,7 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function keyValueIterator():ArrayKeyValueIterator<T> {
-		return new ArrayObjKeyValueIterator<T>(this);
+		return new ArrayKeyValueIterator<T>(cast this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn {
@@ -317,7 +299,7 @@ class ArrayObj<T> extends ArrayBase {
 		if (length < len) {
 			__expand(len - 1);
 		} else if (length > len) {
-			for (i in length...len) {
+			for (i in len...length) {
 				array[i] = null;
 			}
 			this.length = len;

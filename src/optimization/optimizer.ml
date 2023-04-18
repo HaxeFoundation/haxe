@@ -55,6 +55,7 @@ let standard_precedence op =
 	| OpBoolAnd -> 14, left
 	| OpBoolOr -> 15, left
 	| OpArrow -> 16, left
+	| OpNullCoal -> 17, right
 	| OpAssignOp OpAssign -> 18, right (* mimics ?: *)
 	| OpAssign | OpAssignOp _ -> 19, right
 
@@ -184,24 +185,29 @@ let sanitize_expr com e =
 		let e1 = block e1 in
 		let catches = List.map (fun (v,e) -> v, block e) catches in
 		{ e with eexpr = TTry (e1,catches) }
-	| TSwitch (e1,cases,def) ->
-		let e1 = parent e1 in
-		let cases = List.map (fun (el,e) -> el, complex e) cases in
-		let def = (match def with None -> None | Some e -> Some (complex e)) in
-		{ e with eexpr = TSwitch (e1,cases,def) }
+	| TSwitch switch ->
+		let e1 = parent switch.switch_subject in
+		let cases = List.map (fun case -> {case with case_expr = complex case.case_expr}) switch.switch_cases in
+		let def = Option.map complex switch.switch_default in
+		let switch = { switch with
+			switch_subject = e1;
+			switch_cases = cases;
+			switch_default = def;
+		} in
+		{ e with eexpr = TSwitch switch }
 	| _ ->
 		e
 
 let reduce_expr com e =
 	match e.eexpr with
-	| TSwitch (_,cases,_) ->
-		List.iter (fun (cl,_) ->
+	| TSwitch switch ->
+		List.iter (fun case ->
 			List.iter (fun e ->
 				match e.eexpr with
-				| TCall ({ eexpr = TField (_,FEnum _) },_) -> error "Not-constant enum in switch cannot be matched" e.epos
+				| TCall ({ eexpr = TField (_,FEnum _) },_) -> raise_typing_error "Not-constant enum in switch cannot be matched" e.epos
 				| _ -> ()
-			) cl
-		) cases;
+			) case.case_patterns
+		) switch.switch_cases;
 		e
 	| TBlock l ->
 		(match List.rev l with
@@ -237,32 +243,76 @@ let check_enum_construction_args el i =
 	) (true,0) el in
 	b
 
-let check_constant_switch e1 cases def =
+let rec extract_constant_value e = match e.eexpr with
+	| TConst (TInt _ | TFloat _ | TString _ | TBool _ | TNull) ->
+		Some e
+	| TConst (TThis | TSuper) ->
+		None
+	| TField(_,FStatic(c,({cf_kind = Var {v_write = AccNever}} as cf))) ->
+		begin match cf.cf_expr with
+		| Some e ->
+			(* Don't care about inline, if we know the value it makes no difference. *)
+			extract_constant_value e
+		| None ->
+			None
+		end
+	| TField(_,FEnum _) ->
+		Some e
+	| TParenthesis e1 ->
+		extract_constant_value e1
+	| _ ->
+		None
+
+let check_constant_switch switch =
 	let rec loop e1 cases = match cases with
-		| (el,e) :: cases ->
-			if List.exists (Texpr.equal e1) el then Some e
-			else loop e1 cases
+		| case :: cases ->
+			(* Map everything first so that we find unknown things eagerly. *)
+			let el = List.map (fun e2 -> match extract_constant_value e2 with
+				| Some e2 -> e2
+				| None -> raise Exit
+			) case.case_patterns in
+			if List.exists (fun e2 ->
+				Texpr.equal e1 e2
+			) el then
+				Some case.case_expr
+			else
+				loop e1 cases
 		| [] ->
-			begin match def with
+			begin match switch.switch_default with
 			| None -> None
 			| Some e -> Some e
 			end
 	in
-	match Texpr.skip e1 with
+	let is_empty e = match e.eexpr with
+		| TBlock [] -> true
+		| _ -> false
+	in
+	let is_empty_def () = match switch.switch_default with
+		| None -> true
+		| Some e -> is_empty e
+in
+	match Texpr.skip switch.switch_subject with
 		| {eexpr = TConst ct} as e1 when (match ct with TSuper | TThis -> false | _ -> true) ->
-			loop e1 cases
+			begin try
+				loop e1 switch.switch_cases
+			with Exit ->
+				None
+			end
 		| _ ->
-			None
+			if List.for_all (fun case -> is_empty case.case_expr) switch.switch_cases && is_empty_def() then
+				Some switch.switch_subject
+			else
+				None
 
-let reduce_control_flow ctx e = match e.eexpr with
+let reduce_control_flow com e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
 		(match flag with
 		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
-	| TSwitch (e1,cases,def) ->
-		begin match check_constant_switch e1 cases def with
+	| TSwitch switch ->
+		begin match check_constant_switch switch with
 		| Some e -> e
 		| None -> e
 		end
@@ -279,10 +329,10 @@ let reduce_control_flow ctx e = match e.eexpr with
 		(try List.nth el i with Failure _ -> e)
 	| TCast(e1,None) ->
 		(* TODO: figure out what's wrong with these targets *)
-		let require_cast = match ctx.com.platform with
+		let require_cast = match com.platform with
 			| Cpp | Flash -> true
-			| Java -> defined ctx.com Define.Jvm
-			| Cs -> defined ctx.com Define.EraseGenerics || defined ctx.com Define.FastCast
+			| Java -> defined com Define.Jvm
+			| Cs -> defined com Define.EraseGenerics || defined com Define.FastCast
 			| _ -> false
 		in
 		Texpr.reduce_unsafe_casts ~require_cast e e.etype
@@ -300,7 +350,7 @@ let rec reduce_loop ctx e =
 				let cf = mk_field "" ef.etype e.epos null_pos in
 				let ethis = mk (TConst TThis) t_dynamic e.epos in
 				let rt = (match follow ef.etype with TFun (_,rt,_) -> rt | _ -> die "" __LOC__) in
-				let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
+				let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error { err_message = Custom _ } -> None) in
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
@@ -309,7 +359,7 @@ let rec reduce_loop ctx e =
 				| Some {eexpr = TFunction tf} ->
 					let config = inline_config (Some cl) cf el e.etype in
 					let rt = (match follow e1.etype with TFun (_,rt,_) -> rt | _ -> die "" __LOC__) in
-					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error (Custom _,_) -> None) in
+					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error { err_message = Custom _ } -> None) in
 					(match inl with
 					| None -> reduce_expr ctx e
 					| Some e ->
@@ -325,7 +375,7 @@ let rec reduce_loop ctx e =
 				reduce_expr ctx e
 		end
 	| _ ->
-		reduce_expr ctx (reduce_control_flow ctx e))
+		reduce_expr ctx (reduce_control_flow ctx.com e))
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then

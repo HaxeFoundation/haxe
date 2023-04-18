@@ -26,6 +26,8 @@ private enum EnumFlagTest {
 
 @:analyzer(no_user_var_fusion)
 class TestJs {
+	static var notFalse = true;
+
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {
 	//var x = 10;
@@ -274,11 +276,10 @@ class TestJs {
 
 	@:js('
 		var x = TestJs.getInt();
-		var tmp = [x,"foo"];
-		x = TestJs.getInt();
-		TestJs.call(tmp,TestJs.getInt());
+		TestJs.getInt();
+		TestJs.call([x,"foo"],TestJs.getInt());
 	')
-	static function testMightBeAffected2() {
+	static function testMightActuallyNotBeAffected() {
 		var x = getInt();
 		call([x, "foo"], {
 			x = getInt();
@@ -287,8 +288,22 @@ class TestJs {
 	}
 
 	@:js('
+		TestJs.getInt();
+		var tmp = TestJs.getImpureArray();
+		TestJs.getInt();
+		TestJs.call(tmp,TestJs.getInt());
+	')
+	static function testMightBeAffected2() {
+		var x = getInt();
+		call(getImpureArray(), {
+			x = getInt();
+			getInt();
+		});
+	}
+
+	@:js('
 		var x = TestJs.getInt();
-		TestJs.call(x++,TestJs.getInt());
+		TestJs.call(x,TestJs.getInt());
 	')
 	static function testMightBeAffected3() {
 		var x = getInt();
@@ -324,6 +339,29 @@ class TestJs {
 	}
 
 	@:js('
+		var a = Std.random(100);
+		var b = Std.random(100);
+		var c = Std.random(100);
+		var d = Std.random(100);
+		Std.random(100);
+		a = b + c;
+		b -= d;
+		TestJs.use(a + b);
+	')
+	static function testIssue10972() {
+		var a = Std.random(100);
+		var b = Std.random(100);
+		var c = Std.random(100);
+		var d = Std.random(100);
+		var e = Std.random(100);
+		a = b + c;
+		b = b - d;
+		c = c + d;
+		e = b + c;
+		use(a + b);
+	}
+
+	@:js('
 		var a = TestJs.getInt();
 		TestJs.use(a);
 	')
@@ -336,7 +374,7 @@ class TestJs {
 	@:js('
 		var a = TestJs.getInt();
 		var b = a;
-		a = TestJs.getInt();
+		TestJs.getInt();
 		TestJs.use(b);
 	')
 	static function testCopyPropagation2() {
@@ -484,10 +522,16 @@ class TestJs {
 	@:pure(false)
 	static function getInt(?d:Dynamic) { return 1; }
 	static function getArray() { return [0, 1]; }
+
+	@:pure(false)
+	static function getImpureArray() { return [0, 1]; }
+
 	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	@:pure(false)
 	static public function use<T>(t:T) { return t; }
+	@:pure(false)
+	static function run(f:()->Void) {}
 
 	static var intField = 12;
 	static var stringField(default, never) = "foo";
@@ -647,6 +691,57 @@ class TestJs {
 		var f = Issue9227.new.bind(1);
 		f(3);
 	}
+
+	@:js('
+		var c = new Issue10737();
+		var _g = c;
+		var value = 42;
+		TestJs.run(function() {_g.process(value);});
+	')
+	static function testIssue10737_avoidInstanceMethodClosure() {
+		var c = new Issue10737();
+		run(c.process.bind(42));
+		c = null;
+	}
+
+	@:js('
+		var _g = new Issue10737();
+		var value = 42;
+		TestJs.run(function() {_g.process(value);});
+	')
+	static function testIssue10737_avoidInstanceMethodClosure2() {
+		run(new Issue10737().process.bind(42));
+	}
+
+	@:js('
+		var tmp = Issue10740.inst;
+		if(tmp != null) {
+			Issue10740.use(tmp.value);
+		}
+	')
+	static function testIssue10740_forceInlineInSafeNav() {
+		inline Issue10740.inst?.f();
+	}
+
+	@:js('
+		var offset = 0;
+		do {
+			TestJs.use(offset);
+			if(offset >= 3) {
+				break;
+			}
+			offset = 3;
+		} while(TestJs.notFalse);
+	')
+	static function testDoWhile() {
+		var offset = 0;
+		do {
+			use(offset);
+			if (offset >= 3)
+				break;
+			offset = 3;
+		} while (notFalse);
+	}
 }
 
 class Issue9227 {
@@ -665,4 +760,23 @@ abstract Issue8751Int(Int) from Int {
 	inline public function toInt():Int {
 		return this;
 	}
+}
+
+class Issue10737 {
+	public function new() {}
+	public function process(value:Int) {}
+}
+
+class Issue10740 {
+	public static var inst:Issue10740;
+
+	public final value:Int;
+	public function new() {
+		value = 42;
+	}
+	public function f() {
+		use(value);
+	}
+	@:pure(false)
+	static function use(v:Int) {}
 }

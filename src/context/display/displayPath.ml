@@ -53,7 +53,7 @@ module TypePathHandler = struct
 						else
 							packages := f :: !packages
 					end;
-				end else if file_extension f = "hx" && f <> "import.hx" then begin
+				end else if Path.file_extension f = "hx" && f <> "import.hx" then begin
 					let c = Filename.chop_extension f in
 					try
 						ignore(String.index c '.')

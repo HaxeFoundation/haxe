@@ -3,12 +3,23 @@ package sys.thread;
 import eval.luv.Loop;
 import eval.luv.Async;
 import eval.luv.Timer as LuvTimer;
+import haxe.MainLoop;
 
+/**
+	When an event loop has an available event to execute.
+**/
 @:coreApi
 enum NextEventTime {
+	/** There's already an event waiting to be executed */
 	Now;
+	/** No new events are expected. */
 	Never;
+	/**
+		An event is expected to arrive at any time.
+		If `time` is specified, then the event will be ready at that time for sure.
+	*/
 	AnyTime(time:Null<Float>);
+	/** An event is expected to be ready for execution at `time`. */
 	At(time:Float);
 }
 
@@ -27,37 +38,47 @@ private class RegularEvent {
 	}
 }
 
+/**
+	An event loop implementation used for `sys.thread.Thread`
+**/
 @:coreApi
 class EventLoop {
 	@:allow(eval.luv.Loop)
 	final handle:Loop;
 
 	final mutex = new Mutex();
-	final oneTimeEvents = new Array<Null<()->Void>>();
-	var oneTimeEventsIdx = 0;
 	final wakeup:Async;
 	var promisedEventsCount = 0;
 	var pending:Array<()->Void> = [];
-	var looping = false;
+	var started:Bool = false;
+
+	var isMainThread:Bool;
+	static var CREATED : Bool;
 
 	public function new():Void {
+		isMainThread = !CREATED;
+		CREATED = true;
 		handle = Loop.init().resolve();
 		wakeup = Async.init(handle, consumePending).resolve();
 		wakeup.unref();
 	}
 
+	/**
+		Schedule event for execution every `intervalMs` milliseconds in current loop.
+	**/
 	public function repeat(event:()->Void, intervalMs:Int):EventHandler {
 		var e = new RegularEvent(event);
 		mutex.acquire();
-		pending.push(() -> {
-			e.timer = LuvTimer.init(handle).resolve();
-			e.timer.start(e.run, intervalMs, intervalMs < 1 ? 1 : intervalMs).resolve();
-		});
+		e.timer = LuvTimer.init(handle).resolve();
+		e.timer.start(e.run, intervalMs, intervalMs < 1 ? 1 : intervalMs).resolve();
 		mutex.release();
 		wakeup.send();
 		return e;
 	}
 
+	/**
+		Prevent execution of a previously scheduled event in current loop.
+	**/
 	public function cancel(eventHandler:EventHandler):Void {
 		mutex.acquire();
 		(eventHandler:RegularEvent).event = noop;
@@ -71,6 +92,11 @@ class EventLoop {
 	}
 	static final noop = function() {}
 
+	/**
+		Notify this loop about an upcoming event.
+		This makes the thread stay alive and wait for as many events as the number of
+		times `.promise()` was called. These events should be added via `.runPromised()`.
+	**/
 	public function promise():Void {
 		mutex.acquire();
 		++promisedEventsCount;
@@ -79,6 +105,9 @@ class EventLoop {
 		wakeup.send();
 	}
 
+	/**
+		Execute `event` as soon as possible.
+	**/
 	public function run(event:()->Void):Void {
 		mutex.acquire();
 		pending.push(event);
@@ -86,6 +115,9 @@ class EventLoop {
 		wakeup.send();
 	}
 
+	/**
+		Add previously promised `event` for execution.
+	**/
 	public function runPromised(event:()->Void):Void {
 		mutex.acquire();
 		--promisedEventsCount;
@@ -96,7 +128,7 @@ class EventLoop {
 	}
 
 	function refUnref():Void {
-		if(promisedEventsCount > 0) {
+		if (promisedEventsCount > 0 || (isMainThread && haxe.MainLoop.hasEvents())) {
 			wakeup.ref();
 		} else {
 			wakeup.unref();
@@ -104,37 +136,71 @@ class EventLoop {
 	}
 
 	public function progress():NextEventTime {
-		//TODO: throw if loop is already running
-		if((handle:Loop).run(NOWAIT)) {
+		if (started) throw "Event loop already started";
+
+		if (handle.run(NOWAIT)) {
 			return AnyTime(null);
 		} else {
 			return Never;
 		}
 	}
 
+	/**
+		Blocks until a new event is added or `timeout` (in seconds) to expires.
+
+		Depending on a target platform this method may also automatically execute arriving
+		events while waiting. However if any event is executed it will stop waiting.
+
+		Returns `true` if more events are expected.
+		Returns `false` if no more events expected.
+
+		Depending on a target platform this method may be non-reentrant. It must
+		not be called from event callbacks.
+	**/
 	public function wait(?timeout:Float):Bool {
-		//TODO: throw if loop is already running
-		if(timeout == null) {
+		if (started) throw "Event loop already started";
+
+		if(timeout != null) {
 			var timer = LuvTimer.init(handle).resolve();
 			timer.start(() -> {
 				timer.stop().resolve();
 				timer.close(() -> {});
 			}, Std.int(timeout * 1000));
-			return (handle:Loop).run(ONCE);
+			return handle.run(ONCE);
 		} else {
-			return (handle:Loop).run(ONCE);
+			return handle.run(ONCE);
 		}
 	}
 
+	/**
+		Execute all pending events.
+		Wait and execute as many events as the number of times `promise()` was called.
+		Runs until all repeating events are cancelled and no more events are expected.
+
+		Depending on a target platform this method may be non-reentrant. It must
+		not be called from event callbacks.
+	**/
 	public function loop():Void {
-		//TODO: throw if loop is already running
+		if (started) throw "Event loop already started";
+		started = true;
 		consumePending();
-		(handle:Loop).run(DEFAULT);
+		handle.run(DEFAULT);
 	}
 
 	function consumePending(?_:Async):Void {
+		mutex.acquire();
 		var p = pending;
 		pending = [];
+		mutex.release();
 		for(fn in p) fn();
+
+		if (started && isMainThread) {
+			var next = @:privateAccess MainLoop.tick();
+			if (haxe.MainLoop.hasEvents()) {
+				wakeup.send();
+			} else {
+				refUnref();
+			}
+		}
 	}
 }

@@ -276,10 +276,10 @@ extern class Math {
 	static function isFinite(f:Float):Bool;
 
 	/**
-		Tells if `f` is not a valid number.
+		Tells if `f` is `Math.NaN`.
 
 		If `f` is `NaN`, the result is `true`, otherwise the result is `false`.
-		In particular, both `POSITIVE_INFINITY` and `NEGATIVE_INFINITY` are
+		In particular, `null`, `POSITIVE_INFINITY` and `NEGATIVE_INFINITY` are
 		not considered `NaN`.
 	**/
 	static function isNaN(f:Float):Bool;

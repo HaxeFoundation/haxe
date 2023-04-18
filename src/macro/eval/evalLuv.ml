@@ -92,6 +92,8 @@ let encode_uv_error (e:Error.t) =
 	| `ENOTTY -> 75
 	| `EFTYPE -> 76
 	| `EILSEQ -> 77
+	| `EOVERFLOW -> 78
+	| `ESOCKTNOSUPPORT -> 79
 	)
 
 let decode_uv_error v : Error.t =
@@ -174,6 +176,8 @@ let decode_uv_error v : Error.t =
 	| 75 -> `ENOTTY
 	| 76 -> `EFTYPE
 	| 77 -> `EILSEQ
+	| 78 -> `EOVERFLOW
+	| 79 -> `ESOCKTNOSUPPORT
 	| _ -> unexpected_value v "eval.luv.UVError"
 
 let luv_exception e =
@@ -542,11 +546,19 @@ let uv_error_fields = [
 		Error.set_on_unhandled_exception (fun ex ->
 			let msg =
 				match ex with
-				| HaxeError.Error (Custom msg,_) ->
+				(* TODO beware of err_sub here *)
+				| HaxeError.Error { err_message = Custom msg } ->
 					(* Eval interpreter rethrows runtime exceptions as `Custom "Exception message\nException stack"` *)
-					(try fst (ExtString.String.split msg "\n")
-					with _ -> msg)
-				| HaxeError.Error (err,_) -> HaxeError.error_msg err
+					(try fst (ExtString.String.split msg "\n") with _ -> msg)
+				| HaxeError.Error err ->
+						let messages = ref [] in
+						HaxeError.recurse_error (fun depth err ->
+							let cm = make_compiler_message ~from_macro:err.err_from_macro (HaxeError.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error in
+							match MessageReporting.compiler_message_string cm with
+								| None -> ()
+								| Some str -> messages := str :: !messages
+						) err;
+						ExtLib.String.join "\n" (List.rev !messages)
 				| _ -> Printexc.to_string ex
 			in
 			let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in
@@ -1579,9 +1591,9 @@ module F = struct
 end
 
 let file_fields = [
-	"get_stdin", VHandle (HFile File.stdin);
-	"get_stdout", VHandle (HFile File.stdout);
-	"get_stderr", VHandle (HFile File.stderr);
+	"stdin", VHandle (HFile File.stdin);
+	"stdout", VHandle (HFile File.stdout);
+	"stderr", VHandle (HFile File.stderr);
 	"createRequest", vfun0 (fun() ->
 		VHandle (HFileRequest (File.Request.make()))
 	);
@@ -2140,6 +2152,10 @@ let env_fields = [
 		let name = decode_string v1
 		and value = decode_native_string v2 in
 		encode_unit_result (Env.setenv name ~value)
+	);
+	"unsetEnv", vfun1 (fun v ->
+		let name = decode_string v in
+		encode_unit_result (Env.unsetenv name)
 	);
 	"environ", vfun0 (fun() ->
 		let encode env =

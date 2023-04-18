@@ -29,7 +29,7 @@ let decode_haxe_i64 v =
 		let high = decode_i32 (vi.ifields.(get_instance_field_index_raise vi.iproto key_high))
 		and low = decode_i32 (vi.ifields.(get_instance_field_index_raise vi.iproto key_low)) in
 		let high64 = GInt64.shift_left (Int32.to_int64 high) 32
-		and low64 = Int32.to_int64 low in
+		and low64 = GInt64.logand (Int32.to_int64 low) 0xffffffffL in
 		GInt64.logor high64 low64
 	| _ ->
 		unexpected_value v "haxe.Int64"

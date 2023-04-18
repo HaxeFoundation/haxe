@@ -70,6 +70,8 @@ module ExprPreprocessing = struct
 		let loop e =
 			(* print_endline (Printf.sprintf "%i-%i: %s" (pos e).pmin (pos e).pmax (Ast.s_expr e)); *)
 			match fst e with
+			| EFunction(FKNamed((_,p),_),_) when is_annotated p && is_completion ->
+				raise Exit
 			| EVars vl when is_annotated (pos e) && is_completion ->
 				let rec loop2 acc mark vl = match vl with
 					| v :: vl ->

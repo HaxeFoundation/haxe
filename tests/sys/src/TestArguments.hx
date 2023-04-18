@@ -99,6 +99,8 @@ class TestArguments extends utest.Test {
 		"bin/php/TestArguments/index.php";
 	#elseif lua
 		"bin/lua/TestArguments.lua";
+	#elseif js
+		"bin/js/TestArguments.js";
 	#else
 		null;
 	#end

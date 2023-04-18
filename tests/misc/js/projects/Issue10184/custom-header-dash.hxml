@@ -1,0 +1,4 @@
+--main Main
+--js main.js
+-D source-header=custom
+--cmd haxe --run CheckSourceHeader custom

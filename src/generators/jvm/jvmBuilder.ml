@@ -29,12 +29,47 @@ type annotation_kind =
 	| ABool of bool
 	| AEnum of jsignature * string
 	| AArray of annotation_kind list
+	| AAnnotation of jsignature * annotation 
 
 and annotation = (string * annotation_kind) list
 
 type export_config = {
 	export_debug : bool;
 }
+
+let convert_annotations pool annotations =
+	let rec process_annotation (jsig, l) = 		
+		let offset = pool#add_string (generate_signature false jsig) in
+		let l = List.map (fun (name,ak) ->
+			let offset = pool#add_string name in
+			let rec loop ak = match ak with
+				| AInt i32 ->
+					'I',ValConst(pool#add (ConstInt i32))
+				| ADouble f ->
+					'D',ValConst(pool#add (ConstDouble f))
+				| AString s ->
+					's',ValConst(pool#add_string s)
+				| ABool b ->
+					'Z',ValConst(pool#add (ConstInt (if b then Int32.one else Int32.zero)))
+				| AEnum(jsig,name) ->
+					'e',ValEnum(pool#add_string (generate_signature false jsig),pool#add_string name)
+				| AArray l ->
+					let l = List.map (fun ak -> loop ak) l in
+					'[',ValArray(Array.of_list l)
+				| AAnnotation (jsig, a) -> 
+					let ann = process_annotation (jsig, a) in 
+					'@',ValAnnotation(ann)
+					
+			in
+			offset,loop ak
+		) l in
+		{ 
+			ann_type = offset;
+			ann_elements = Array.of_list l;
+		} 
+	in  
+	let a = Array.map process_annotation annotations in
+	a
 
 class base_builder = object(self)
 	val mutable access_flags = 0
@@ -54,33 +89,7 @@ class base_builder = object(self)
 	method private commit_annotations pool =
 		if DynArray.length annotations > 0 then begin
 			let open JvmAttribute in
-			let a = DynArray.to_array annotations in
-			let a = Array.map (fun (jsig,l) ->
-				let offset = pool#add_string (generate_signature false jsig) in
-				let l = List.map (fun (name,ak) ->
-					let offset = pool#add_string name in
-					let rec loop ak = match ak with
-						| AInt i32 ->
-							'I',ValConst(pool#add (ConstInt i32))
-						| ADouble f ->
-							'D',ValConst(pool#add (ConstDouble f))
-						| AString s ->
-							's',ValConst(pool#add_string s)
-						| ABool b ->
-							'Z',ValConst(pool#add (ConstInt (if b then Int32.one else Int32.zero)))
-						| AEnum(jsig,name) ->
-							'e',ValEnum(pool#add_string (generate_signature false jsig),pool#add_string name)
-						| AArray l ->
-							let l = List.map (fun ak -> loop ak) l in
-							'[',ValArray(Array.of_list l)
-					in
-					offset,loop ak
-				) l in
-				{
-					ann_type = offset;
-					ann_elements = Array.of_list l;
-				}
-			) a in
+			let a = convert_annotations pool (DynArray.to_array annotations) in
 			self#add_attribute (AttributeRuntimeVisibleAnnotations a)
 		end
 

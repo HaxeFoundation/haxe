@@ -12,6 +12,7 @@ class Issue7932 extends DisplayTestCase {
 				kind: DKParserError,
 				range: diagnosticsRange(pos(1), pos(2)),
 				severity: Error,
+				relatedInformation: [],
 				args: "Expected type parameter"
 			}
 		], diagnostics());

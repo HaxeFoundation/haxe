@@ -20,8 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Window.webidl. Do not edit!
-
 package js.html;
 
 import js.lib.Promise;
@@ -558,6 +556,11 @@ extern class Window extends EventTarget {
 		Writes a message to the console.
 	**/
 	function dump( str : String ) : Void;
+
+	/**
+		Creates a deep clone of a given value using the structured clone algorithm.
+	**/
+	function structuredClone<T>(value: T, ?options: {transfer: Array<Any>}): T;
 
 	/**
 		Toggles a user's ability to resize a window.

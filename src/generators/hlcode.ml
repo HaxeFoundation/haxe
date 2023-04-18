@@ -48,6 +48,7 @@ type ttype =
 	| HNull of ttype
 	| HMethod of ttype list * ttype
 	| HStruct of class_proto
+	| HPacked of ttype
 
 and class_proto = {
 	pname : string;
@@ -256,10 +257,10 @@ let list_mapi f l =
 let is_nullable t =
 	match t with
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ | HStruct _ -> true
-	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid -> false
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HPacked _ -> false
 
 let is_struct = function
-	| HStruct _ -> true
+	| HStruct _ | HPacked _ -> true
 	| _ -> false
 
 let is_int = function
@@ -332,6 +333,8 @@ let rec safe_cast t1 t2 =
 			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
 		in
 		loop p1
+	| HPacked t1, HStruct _ ->
+		safe_cast t1 t2
 	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
 	| _ ->
@@ -382,7 +385,10 @@ let gather_types (code:code) =
 	let types = ref PMap.empty in
 	let arr = DynArray.create() in
 	let rec get_type t =
-		(match t with HObj { psuper = Some p } -> get_type (HObj p) | _ -> ());
+		(match t with
+		| HObj { psuper = Some p } -> get_type (HObj p)
+		| HStruct { psuper = Some p } -> get_type (HStruct p)
+		| _ -> ());
 		if PMap.mem t !types then () else
 		let index = DynArray.length arr in
 		DynArray.add arr t;
@@ -462,6 +468,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HEnum e ->
 		"enum(" ^ e.ename ^ ")"
 	| HNull t -> "null(" ^ tstr t ^ ")"
+	| HPacked t -> "packed(" ^ tstr t ^ ")"
 
 let ostr fstr o =
 	match o with
@@ -565,7 +572,6 @@ let ostr fstr o =
 	| ORefData (r,d) -> Printf.sprintf "refdata %d, %d" r d
 	| ORefOffset (r,r2,off) -> Printf.sprintf "refoffset %d, %d, %d" r r2 off
 	| ONop s -> if s = "" then "nop" else "nop " ^ s
-
 let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)
 
 let dump pr code =

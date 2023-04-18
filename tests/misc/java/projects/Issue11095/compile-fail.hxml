@@ -1,0 +1,9 @@
+--class-path rudy
+NoRudy
+--jvm no-rudy.jar
+
+--next
+
+--main Main
+--java-lib no-rudy.jar
+--java run.jar

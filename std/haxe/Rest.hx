@@ -7,7 +7,7 @@ private typedef NativeRest<T> = Array<T>;
 
 /**
 	A special type that represents a "rest" function argument.
-	
+
 	The special `...` syntax can be used for convenience and improved readability:
 
 	```haxe

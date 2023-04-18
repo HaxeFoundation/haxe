@@ -62,7 +62,7 @@ class NativeStackTrace {
 			for (i in 0...stack.length) {
 				if(skip > i) continue;
 				var line = stack[i];
-				var matched:Null<Array<String>> = Syntax.code('{0}.match(/^    at ([A-Za-z0-9_. ]+) \\(([^)]+):([0-9]+):([0-9]+)\\)$/)', line);
+				var matched:Null<Array<String>> = Syntax.code("{0}.match(/^    at ([$A-Za-z0-9_. ]+) \\(([^)]+):([0-9]+):([0-9]+)\\)$/)", line);
 				if (matched != null) {
 					var path = matched[1].split(".");
 					if(path[0] == "$hxClasses") {

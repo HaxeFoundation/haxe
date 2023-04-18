@@ -5,8 +5,11 @@ import runci.Config.*;
 
 class Jvm {
 	static public function run(args:Array<String>) {
+		deleteDirectoryRecursively("bin/jvm");
+		Java.getJavaDependencies();
+
 		for (level in 0...3) {
-			var args = args.concat(["-D", "jvm.dynamic-level=" + level]);
+			final args = args.concat(["-D", "jvm.dynamic-level=" + level]);
 			runCommand("haxe", ["compile-jvm.hxml"].concat(args));
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 
@@ -16,7 +19,7 @@ class Jvm {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
-		runCommand("java", ["-jar", "bin/jvm/sys.jar"]);
+		runSysTest("java", ["-jar", "bin/jvm/sys.jar"]);
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--jvm", "export/threads.jar"].concat(args));

@@ -277,6 +277,7 @@ extern class Syntax {
 		[$arg1, $arg2, $arg3]
 		```
 	**/
+	@:pure
 	static function arrayDecl<T>(args:Rest<T>):NativeIndexedArray<T>;
 
 	/**
@@ -303,6 +304,7 @@ extern class Syntax {
 		That means you can't pass an object stored in a variable to this method like `Syntax.assocDecl(someVar)`.
 		Use `php.Lib.associativeArrayOfObject(someVar)` instead.
 	**/
+	@:pure
 	static function assocDecl<T:{}>(?arg:T):NativeAssocArray<Dynamic>;
 
 	/**

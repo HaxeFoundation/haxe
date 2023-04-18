@@ -103,6 +103,12 @@ class SubConstrOpt3 extends BaseConstrOpt {
 	}
 }
 
+enum abstract MyEnumAbstract(Int) {
+	var A = 1;
+	var B = 2;
+	var C = 3;
+}
+
 class TestMisc extends Test {
 
 	static var unit = "testing package conflict";
@@ -328,6 +334,7 @@ class TestMisc extends Test {
 		eq("Héllow", haxe.crypto.Base64.decode("SMOpbGxvdw", false).toString());
 		eq("Héllo", haxe.crypto.Base64.decode("SMOpbGxv").toString());
 		eq("Héll", haxe.crypto.Base64.decode("SMOpbGw=").toString());
+		exc(() -> haxe.crypto.Base64.decode("invalid string"));
 
 		// alternative base64
 		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
@@ -602,5 +609,10 @@ class TestMisc extends Test {
 	function testNullFieldAccess() {
 		eq("NPE", try nf1.s catch (e:Any) "NPE");
 		eq("NPE", try nf2.s catch (e:Any) "NPE");
+	}
+
+	function testAbstractEnumTools() {
+		var values = AbstractEnumTools.getValues(MyEnumAbstract);
+		eq(values.join(","), "1,2,3");
 	}
 }

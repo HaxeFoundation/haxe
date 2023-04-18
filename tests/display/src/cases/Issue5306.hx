@@ -7,7 +7,7 @@ class Issue5306 extends DisplayTestCase {
 		class Main {
 			static function main() {
 				var ib:Array<Int>;
-				ib[0] = 0; ib[1] = 1; {-7-}ib[2]{-8-}
+				ib[0] = 0; ib[1] = 1; ib[2]
 				{-5-}trace{-6-}("test");
 			}
 		}
@@ -21,22 +21,18 @@ class Issue5306 extends DisplayTestCase {
 			// 	args: []
 			// },
 			{
-				kind: DKCompilerError,
-				range: diagnosticsRange(pos(3), pos(4)),
-				severity: Error,
-				args: "Type not found : InvalidType"
-			},
-			{
 				kind: DKParserError,
 				range: diagnosticsRange(pos(5), pos(6)),
 				severity: Error,
+				relatedInformation: [],
 				args: "Missing ;"
 			},
 			{
 				kind: DKCompilerError,
-				range: diagnosticsRange(pos(7), pos(8)),
-				severity: Warning,
-				args: "This code has no effect"
+				range: diagnosticsRange(pos(3), pos(4)),
+				severity: Error,
+				relatedInformation: [],
+				args: "Type not found : InvalidType"
 			}
 		];
 		arrayEq(expected, diagnostics());

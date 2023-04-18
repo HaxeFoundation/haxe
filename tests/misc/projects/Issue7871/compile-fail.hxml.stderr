@@ -1,0 +1,5 @@
+Macro.hx:7: characters 60-61 : Warning : ok
+Macro.hx:11: characters 42-43 : Warning : after init 1
+Macro.hx:12: characters 3-32 : Warning : This API should only be used from initialization macros.
+Package "hax.ds" was not found in any of class paths
+Macro.hx:17: characters 42-43 : Warning : after init 2

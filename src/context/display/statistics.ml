@@ -99,7 +99,6 @@ let collect_statistics ctx pos_filters with_expressions =
 		| _,None -> raise Not_found
 	in
 	let var_decl v = declare (SKVariable v) v.v_pos in
-	let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
 	let related_fields = Hashtbl.create 0 in
 	let field_reference co cf p =
 		let p1 = patch_string_pos p cf.cf_name in
@@ -235,7 +234,7 @@ let collect_statistics ctx pos_filters with_expressions =
 			if (has_class_flag c CInterface) then
 				collect_implementations c;
 			let field cf =
-				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField (cf,Some c.cl_path)) cf.cf_name_pos;
+				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField (cf,Some c)) cf.cf_name_pos;
 				if with_expressions then begin
 					let _ = follow cf.cf_type in
 					match cf.cf_expr with None -> () | Some e -> collect_references c e

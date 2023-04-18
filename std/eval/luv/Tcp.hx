@@ -23,7 +23,7 @@ import eval.luv.SockAddr;
 	/**
 		Sets TCP_NODELAY.
 	**/
-	public function noDelay():Result<Result.NoData>;
+	public function noDelay(enable:Bool):Result<Result.NoData>;
 
 	/**
 		Sets the TCP keepalive.

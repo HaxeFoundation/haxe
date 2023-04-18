@@ -1,180 +1,259 @@
 package runci.targets;
 
-import sys.io.File;
 import sys.FileSystem;
-import haxe.io.Path;
-import haxe.Json;
+import sys.io.File;
 import sys.io.Process;
+import haxe.Json;
 import haxe.Http;
+import haxe.io.Path;
 
 import runci.System.*;
+import runci.System.CommandFailure;
 import runci.Config.*;
 
-class Flash {
-	static var miscFlashDir(get,never):String;
-	static inline function get_miscFlashDir() return miscDir + 'flash/';
+using StringTools;
 
-	static public function getLatestFPVersion():Array<Int> {
-		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
-		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
+class Flash {
+	static final miscFlashDir = getMiscSubDir('flash');
+	static var playerLocation:String;
+
+	static final DEFAULT_APACHE_MIRROR = "https://downloads.apache.org/";
+
+	static function getPreferredApacheMirror() {
+		return try {
+			Json.parse(Http.requestUrl("https://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
+		} catch (e) {
+			failMsg('Unable to determine preferred Apache mirror. Defaulting to $DEFAULT_APACHE_MIRROR');
+			DEFAULT_APACHE_MIRROR;
+		};
+	}
+
+	static function downloadAndExtractFlexSdk(version:String, sdkPath:String):Void {
+		final apacheMirror = getPreferredApacheMirror();
+		final archiveExtension = if (systemName == "Windows") "zip" else "tar.gz";
+		final archiveName = 'apache-flex-sdk-${version}-bin.$archiveExtension';
+		runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${version}/binaries/$archiveName', "-O", getDownloadPath() + '/$archiveName']);
+
+		if (systemName == "Windows") {
+			runCommand("7z", ["x", getDownloadPath() + '/$archiveName', "-o" + sdkPath, "-y"]);
+		} else {
+			runCommand("tar", ["-xf", getDownloadPath() + '/$archiveName', "-C", getInstallPath()]);
+		}
+	}
+
+	static function setupFlexSdk():Void {
+		if (commandSucceed("mxmlc", ["--version"])) {
+			infoMsg('mxmlc has already been installed.');
+			return;
+		}
+		// download flex sdk
+		final flexVersion = "4.16.1";
+		final flexSdkPath = Path.normalize(getInstallPath() + '/apache-flex-sdk-${flexVersion}-bin');
+
+		if (FileSystem.exists(flexSdkPath)) {
+			infoMsg('Flex SDK found at $flexSdkPath');
+		} else {
+			downloadAndExtractFlexSdk(flexVersion, flexSdkPath);
+		}
+		addToPATH(flexSdkPath + "/bin");
+
+		// download playerglobal.swc
+		final playerGlobalSwcFolder = flexSdkPath + "/player";
+		final playerGlobalSwcSubFolder = playerGlobalSwcFolder + "/27.0";
+		FileSystem.createDirectory(playerGlobalSwcSubFolder);
+
+		final playerGlobalSwcPath = '$playerGlobalSwcSubFolder/playerglobal.swc';
+
+		if (FileSystem.exists(playerGlobalSwcPath)) {
+			infoMsg('playerglobal.swc found at $playerGlobalSwcPath');
+		} else {
+			final flashVersion = getLatestFPVersion();
+			runNetworkCommand("wget", [
+				"-nv",
+				'https://fpdownload.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc',
+				"-O",
+				playerGlobalSwcPath
+			]);
+		}
+		// set playerglobal.swc
+		File.saveContent(flexSdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerGlobalSwcFolder');
+
+		// ensure flex sdk is working
+		runCommand("mxmlc", ["--version"]);
+	}
+
+	static function getLatestFPVersion():Array<Int> {
+		final appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		final versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
 		return versionStr.split(",").map(Std.parseInt);
 	}
 
-	static public function setupFlexSdk():Void {
-		if (commandSucceed("mxmlc", ["--version"])) {
-			infoMsg('mxmlc has already been installed.');
+	static function downloadPlayer(version:Int, fileName:String, outputPath:String) {
+		runNetworkCommand("wget", [
+			"-nv",
+			'https://fpdownload.macromedia.com/pub/flashplayer/updaters/$version/$fileName',
+			"-O",
+			'$outputPath/$fileName'
+		]);
+	}
+
+	static function setupFlashPlayerMac():Void {
+		playerLocation = getInstallPath() + "/Flash Player.app";
+
+		if (FileSystem.exists(playerLocation))
+			infoMsg('Flash player found at $playerLocation');
+		else {
+			final majorVersion = getLatestFPVersion()[0];
+			final packageName = 'flashplayer_${majorVersion}_sa_debug.dmg';
+			downloadPlayer(majorVersion, packageName, getDownloadPath());
+			runCommand("hdiutil", ["attach", getDownloadPath() + '/$packageName']);
+
+			runCommand("cp", ["-R", "/Volumes/Flash Player/Flash Player.app", getInstallPath()]);
+			runCommand("hdiutil", ["detach", "/Volumes/Flash Player"]);
+
+			// Disable the "application downloaded from Internet" warning
+			runCommand("xattr", ["-d", "-r", "com.apple.quarantine", playerLocation]);
+		}
+
+		runCommand("open", ["-a", playerLocation, "-v"]);
+	}
+
+	static function setupFlashPlayerLinux():Void {
+		final playerName = "flashplayerdebugger";
+		playerLocation = Path.join([getInstallPath(), playerName]);
+		if (Sys.command("type", [playerName]) == 0) {
+			playerLocation = playerName;
+			infoMsg('Using $playerName from PATH');
+		} else if(FileSystem.exists(playerLocation)) {
+			infoMsg('Flash player found at $playerLocation');
 		} else {
-			var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
-			var flexVersion = "4.16.0";
-			runCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
-			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
-			var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
-			addToPATH(flexsdkPath + "/bin");
-			var playerglobalswcFolder = flexsdkPath + "/player";
-			FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-			var flashVersion = runci.targets.Flash.getLatestFPVersion();
-			runCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
-			File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
-			runCommand("mxmlc", ["--version"]);
+			Linux.requireAptPackages(["libglib2.0-0", "libfreetype6"]);
+			final tarFileName = 'flash_player_sa_linux_debug.x86_64.tar.gz';
+			downloadPlayer(getLatestFPVersion()[0], tarFileName, getDownloadPath());
+			runCommand("tar", ["-xf", getDownloadPath() + '/$tarFileName', "-C", getInstallPath()]);
+		}
+
+		// ensure the debugger works
+		switch (ci) {
+			case GithubActions:
+				runCommand("xvfb-run", ["-a", playerLocation, "-v"]);
+			case _:
+				runCommand(playerLocation, ["-v"]);
 		}
 	}
 
-	static public var playerCmd:String;
+	static function setupFlashPlayerWindows():Void {
+		final majorVersion = getLatestFPVersion()[0];
+		final exeName = 'flashplayer_${majorVersion}_sa_debug.exe';
+		playerLocation = Path.join([getInstallPath(), exeName]);
 
-	static public function setupFlashPlayerDebugger():Void {
-		var mmcfgPath = switch (systemName) {
+		if (FileSystem.exists(playerLocation))
+			infoMsg('Flash player found at $playerLocation');
+		else
+			downloadPlayer(majorVersion, exeName, getInstallPath());
+	}
+
+	static function setupFlashPlayer():Void {
+		switch (systemName) {
 			case "Linux":
-				Sys.getEnv("HOME") + "/mm.cfg";
+				setupFlashPlayerLinux();
 			case "Mac":
-				"/Library/Application Support/Macromedia/mm.cfg";
+				setupFlashPlayerMac();
+			case "Windows":
+				setupFlashPlayerWindows();
 			case _:
 				throw "unsupported system";
 		}
+	}
 
-		switch (systemName) {
-			case "Linux":
-				playerCmd = "flashplayerdebugger";
-				if(Sys.command("type", [playerCmd]) != 0) {
-					Linux.requireAptPackages([
-						"libglib2.0", "libfreetype6"
-					]);
-					var majorVersion = getLatestFPVersion()[0];
-					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
-					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
-					playerCmd = Path.join([Sys.getEnv("HOME"), "flashplayerdebugger"]);
-				}
-				if (!FileSystem.exists(mmcfgPath)) {
-					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-				}
-				switch (ci) {
-					case GithubActions:
-						runCommand("xvfb-run", ["-a", playerCmd, "-v"]);
-					case _:
-						runCommand(playerCmd, ["-v"]);
-				}
-			case "Mac":
-				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
+	static function readUntil(stdout:haxe.io.Input, expected:String, ?unexpectedStrings:Map<String, ()->Void>) {
+		final possibleStrings = unexpectedStrings?.copy() ?? [];
+		possibleStrings[expected] = function() {};
+		var output = "";
+		while (true) {
+			final char = try {
+				String.fromCharCode(stdout.readByte());
+			} catch (e:haxe.io.Eof) {
+				failMsg('Expected to find "$expected" in stdout');
+				throw new CommandFailure();
+			};
+			Sys.print(char);
+			output += char;
+			for (string => onMatch in possibleStrings) {
+				if (output.endsWith(string)) {
+					onMatch();
 					return;
 				}
-				runCommand("brew", ["uninstall", "openssl@1.0.2t"], false, true);
-				runCommand("brew", ["uninstall", "python@2.7.17"], false, true);
-				runCommand("brew", ["untap", "local/openssl"], false, true);
-				runCommand("brew", ["untap", "local/python2"], false, true);
-				runCommand("brew", ["update"]);
-				runCommand("brew", ["install", "--cask", "flash-player-debugger"]);
-
-				// Disable the "application downloaded from Internet" warning
-				runCommand("xattr", ["-d", "-r", "com.apple.quarantine", "/Applications/Flash Player Debugger.app"]);
-
-				var dir = Path.directory(mmcfgPath);
-				if (!FileSystem.exists(dir)) {
-					runCommand("sudo", ["mkdir", "-p", dir]);
-					runCommand("sudo", ["chmod", "a+w", dir]);
-				}
-				if (!FileSystem.exists(mmcfgPath)) {
-					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-				}
+			}
 		}
 	}
 
 	/**
 		Run a Flash swf file.
-		Return whether the test is successful or not.
-		It detemines the test result by reading the flashlog.txt, looking for "SUCCESS: true".
+		Throws `CommandFailure` if unsuccessful.
 	*/
-	static public function runFlash(swf:String):Bool {
+	static function runFlash(swf:String):Void {
 		swf = FileSystem.fullPath(swf);
-		Sys.println('going to run $swf');
-		switch (systemName) {
-			case "Linux":
-				switch (ci) {
-					case GithubActions:
-						new Process("xvfb-run", ["-a", playerCmd, swf]);
-					case _:
-						new Process(playerCmd, [swf]);
-				}
+		infoMsg('Running .swf file: $swf');
+
+		final debuggerProcess = new Process("fdb");
+
+		final FDB_PROMPT = "(fdb) ";
+		// waits for the fdb prompt and runs a command
+		function runDebuggerCommand(command:String) {
+			readUntil(debuggerProcess.stdout, FDB_PROMPT);
+			Sys.println(command);
+			debuggerProcess.stdin.writeString('$command\n');
+		}
+
+		runDebuggerCommand("run");
+
+		function onUnexpectedPrompt() {
+			Sys.println("quit");
+			debuggerProcess.stdin.writeString("quit\n");
+			throw new CommandFailure();
+		}
+
+		readUntil(debuggerProcess.stdout, "Waiting for Player to connect", [FDB_PROMPT => onUnexpectedPrompt]);
+		final playerProcess = switch (systemName) {
+			case "Linux" if (ci == GithubActions):
+				new Process("xvfb-run", ["-a", playerLocation, swf]);
 			case "Mac":
-				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
-		}
+				new Process("open", ["-a", playerLocation, swf]);
+			default:
+				new Process(playerLocation, [swf]);
+		};
 
-		//wait a little until flashlog.txt is created
-		var flashlogPath = switch (systemName) {
-			case "Linux":
-				Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
-			case "Mac":
-				Sys.getEnv("HOME") + "/Library/Preferences/Macromedia/Flash Player/Logs/flashlog.txt";
-			case _:
-				throw "unsupported system";
-		}
+		readUntil(debuggerProcess.stdout, "Player connected; session starting.", [FDB_PROMPT => onUnexpectedPrompt]);
+		runDebuggerCommand("continue");
 
-		for (t in 0...5) {
-			runCommand("sleep", ["2"]);
-			if (FileSystem.exists(flashlogPath))
-				break;
-		}
-		if (!FileSystem.exists(flashlogPath)) {
-			failMsg('$flashlogPath not found.');
-			return false;
-		}
+		var success = true;
+		readUntil(debuggerProcess.stdout, "(success: true)", [
+			FDB_PROMPT => onUnexpectedPrompt,
+			"(success: false)" => () -> { success = false; }
+		]);
 
-		//read flashlog.txt continously
-		var traceProcess = new Process("tail", ["-f", flashlogPath]);
-		var success = false;
-		while (true) {
-			try {
-				var line = traceProcess.stdout.readLine();
-				if (line.indexOf("success: ") >= 0) {
-					success = line.indexOf("success: true") >= 0;
-					break;
-				}
-			} catch (e:haxe.io.Eof) {
-				break;
-			}
-		}
-		traceProcess.kill();
-		traceProcess.close();
-		Sys.command("cat", [flashlogPath]);
-		return success;
+		runDebuggerCommand("quit");
+
+		debuggerProcess.kill();
+		debuggerProcess.close();
+		playerProcess.kill();
+		playerProcess.close();
+
+		if (!success)
+			throw new CommandFailure();
 	}
 
 	static public function run(args:Array<String>) {
-		setupFlashPlayerDebugger();
+		setupFlashPlayer();
 		setupFlexSdk();
-		var success = true;
-		for (argsVariant in [[], ["--swf-version", "32"]]) {
-			runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args).concat(argsVariant));
-			var runSuccess = runFlash("bin/unit9.swf");
-			if (!runSuccess) {
-				success = false;
-			}
+		for (flashVersion in ["11", "32"]) {
+			runCommand("haxe", ["compile-flash.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids", "--swf-version", flashVersion].concat(args));
+			runFlash("bin/unit.swf");
 		}
 
 		changeDirectory(miscFlashDir);
 		runCommand("haxe", ["run.hxml"]);
-
-		if (!success)
-			fail();
 	}
-
 
 }

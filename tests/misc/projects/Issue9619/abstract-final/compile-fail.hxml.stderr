@@ -1,1 +1,1 @@
-Main.hx:2: characters 26-42 : Abstract methods may not be final
+Main.hx:2: characters 26-42 : Invalid modifier combination: abstract + final

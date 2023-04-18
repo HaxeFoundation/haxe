@@ -36,6 +36,13 @@
     hererocks lua53 -l5.3 -rlatest
     call lua53/bin/activate
 
+- name: Install wget
+  if: matrix.target == 'flash'
+  shell: cmd
+  run: |
+    choco install wget
+    wget --version
+
 - name: Setup haxelib
   shell: pwsh
   run: |

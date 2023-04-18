@@ -17,7 +17,6 @@ and error_msg =
 	| Unify of unify_error list
 	| Custom of string
 	| Unknown_ident of string
-	| Stack of error_msg * error_msg
 	| Call_error of call_error
 	| No_constructor of module_type
 	| Abstract_class of module_type
@@ -26,8 +25,31 @@ and type_not_found_reason =
 	| Private_type
 	| Not_defined
 
-exception Fatal_error of string * Globals.pos
-exception Error of error_msg * Globals.pos
+type error = {
+	err_message : error_msg;
+	err_pos : pos;
+	(* TODO Should probably be deprecated at some point and be derived from err_sub *)
+	err_depth : int;
+	(* Reverse list of sub errors. Use Error.recurse_error to handle an error and its sub errors with depth. *)
+	err_sub : error list;
+	err_from_macro : bool;
+}
+
+let make_error ?(depth = 0) ?(from_macro = false) ?(sub = []) msg p = {
+	err_message = msg;
+	err_pos = p;
+	err_depth = depth;
+	err_from_macro = from_macro;
+	err_sub = sub;
+}
+
+let rec recurse_error ?(depth = 0) cb err =
+	let depth = if depth > 0 then depth else err.err_depth in
+	cb depth err;
+	List.iter (recurse_error ~depth:(depth+1) cb) (List.rev err.err_sub);
+
+exception Fatal_error of error
+exception Error of error
 
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
@@ -102,6 +124,7 @@ module BetterErrors = struct
 		mutable acc_expected : TType.t;
 		mutable acc_actual : TType.t;
 		mutable acc_messages : unify_error list;
+		mutable acc_extra : unify_error list;
 		mutable acc_next : access option;
 	}
 
@@ -118,12 +141,16 @@ module BetterErrors = struct
 			acc_expected = expected;
 			acc_actual = actual;
 			acc_messages = [];
+			acc_extra = [];
 			acc_next = None;
 		} in
 		let root_acc = make_acc Root t_dynamic t_dynamic in
 		let current_acc = ref root_acc in
 		let add_message msg =
 			!current_acc.acc_messages <- msg :: !current_acc.acc_messages
+		in
+		let add_extra msg =
+			!current_acc.acc_extra <- msg :: !current_acc.acc_extra
 		in
 		let add_access kind =
 			let acc = make_acc kind t_dynamic t_dynamic in
@@ -143,6 +170,8 @@ module BetterErrors = struct
 				add_access FunctionReturn;
 			| Invariant_parameter i ->
 				add_access (TypeParameter i);
+			| Unify_custom _ ->
+				add_extra err
 			| _ ->
 				add_message err
 		) l;
@@ -191,8 +220,10 @@ module BetterErrors = struct
 					let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name) :: acc) a.a_fields [] in
 					"{" ^ String.concat "," fl ^ " }"
 			end
-		| TDynamic t2 ->
-			"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+		| TDynamic None ->
+			"Dynamic"
+		| TDynamic (Some t2) ->
+			"Dynamic" ^ s_type_params ctx [t2]
 		| TLazy f ->
 			s_type ctx (lazy_type f)
 
@@ -265,7 +296,7 @@ module BetterErrors = struct
 		in
 		match access.acc_next with
 		| None ->
-			String.concat "\n" (List.rev_map (unify_error_msg ctx) access.acc_messages)
+			String.concat "\n" (List.rev_map (unify_error_msg ctx) (access.acc_extra @ access.acc_messages))
 		| Some access_next ->
 			let slhs,srhs = loop access_next access  in
 			Printf.sprintf "error: %s\nhave: %s\nwant: %s" (Buffer.contents message_buffer) slhs srhs
@@ -278,10 +309,9 @@ let rec error_msg = function
 	| Unify l -> BetterErrors.better_error_message l
 	| Unknown_ident s -> "Unknown identifier : " ^ s
 	| Custom s -> s
-	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Call_error err -> s_call_error err
-	| No_constructor mt -> (s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
-	| Abstract_class mt -> (s_type_path (t_infos mt).mt_path) ^ " is abstract and cannot be constructed"
+	| No_constructor mt -> s_type_path (t_infos mt).mt_path ^ " does not have a constructor"
+	| Abstract_class mt -> s_type_path (t_infos mt).mt_path ^ " is abstract and cannot be constructed"
 
 and s_call_error = function
 	| Not_enough_arguments tl ->
@@ -291,13 +321,17 @@ and s_call_error = function
 	| Could_not_unify err -> error_msg err
 	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
 
-let error msg p = raise (Error (Custom msg,p))
+(* Global error helpers *)
+let raise_error err = raise (Error err)
+let raise_error_msg ?(depth = 0) msg p = raise_error (make_error ~depth msg p)
+let raise_msg ?(depth = 0) msg p = raise_error_msg ~depth (Custom msg) p
 
-let raise_error err p = raise (Error(err,p))
+let raise_typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
+let raise_typing_error_ext err = raise_error err
 
 let error_require r p =
 	if r = "" then
-		error "This field is not available with the current compilation flags" p
+		raise_typing_error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
@@ -308,6 +342,6 @@ let error_require r p =
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
-	error ("Accessing this field requires " ^ r) p
+	raise_typing_error ("Accessing this field requires " ^ r) p
 
-let invalid_assign p = error "Invalid assign" p
+let invalid_assign p = raise_typing_error "Invalid assign" p

@@ -1,7 +1,5 @@
 #if sys
 
-#if !(php && Windows)
-
 // bind & listen
 var s = new sys.net.Socket();
 var host = new sys.net.Host("127.0.0.1");
@@ -60,10 +58,6 @@ c.read() == "abc";
 
 c.close();
 s.close();
-
-#else //!(php && Windows)
-1 == 1;
-#end
 
 #else
 1 == 1;

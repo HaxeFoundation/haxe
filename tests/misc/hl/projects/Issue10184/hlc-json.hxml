@@ -1,0 +1,5 @@
+# test hlc.json defines
+--main CheckJson
+--hl out/main.c
+-D no-compilation
+--cmd haxe --run CheckJson

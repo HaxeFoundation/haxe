@@ -43,11 +43,11 @@ class Host {
 		this.ip = ip;
 	}
 
-	extern static public function localhost();
+	extern static public function localhost():String;
 
-	extern static function hostReverse(ip:Int);
+	extern static function hostReverse(ip:Int):String;
 
-	extern static function hostToString(ip:Int);
+	extern static function hostToString(ip:Int):String;
 
-	extern static function resolve(name:String);
+	extern static function resolve(name:String):Int;
 }

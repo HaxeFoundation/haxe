@@ -108,15 +108,14 @@ class Boot {
 		}
 	}
 
-	private static function __tagserialize(o:Dynamic)
-		untyped {
-			var n = o.__enum__.__ename__;
-			var x = __dollar__amake(n.length + 1);
-			for (i in 0...n.length)
-				x[i] = n[i].__s;
-			x[n.length] = o.tag;
-			return x;
-		}
+	private static function __tagserialize(o:Dynamic) untyped {
+		var n = o.__enum__.__ename__;
+		var x = __dollar__amake(n.length + 1);
+		for (i in 0...n.length)
+			x[i] = n[i].__s;
+		x[n.length] = o.tag;
+		return x;
+	}
 
 	private static function __unserialize(v:Dynamic) {
 		untyped {
@@ -125,7 +124,7 @@ class Boot {
 			for (i in 0...__dollar__asize(v))
 				if (__dollar__typeof(v[i]) != __dollar__tstring)
 					throw "Invalid serialized class data";
-			var cl = neko.Boot.__classes;
+			var cl:Dynamic = neko.Boot.__classes;
 			for (i in 0...__dollar__asize(v)) {
 				cl = __dollar__objget(cl, __dollar__hash(v[i]));
 				if (cl == null)

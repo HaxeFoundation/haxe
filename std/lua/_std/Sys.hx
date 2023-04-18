@@ -89,7 +89,7 @@ class Sys {
 	}
 
 	public inline static function getCwd():String
-		return Misc.cwd();
+		return haxe.io.Path.addTrailingSlash(Misc.cwd());
 
 	public inline static function setCwd(s:String):Void
 		Misc.chdir(s);
@@ -98,7 +98,9 @@ class Sys {
 		return Os.getenv(s);
 	}
 
-	public inline static function putEnv(s:String, v:String):Void {
+	public inline static function putEnv(s:String, v:Null<String>):Void {
+		if (v == null)
+			return Os.unsetenv(s);
 		Os.setenv(s, v);
 	}
 
