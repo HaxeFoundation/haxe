@@ -38,6 +38,7 @@ type t = {
 	detail_times : int;
 	user_var_fusion : bool;
 	fusion_debug : bool;
+	coro_debug : bool;
 }
 
 let flag_optimize = "optimize"
@@ -74,6 +75,7 @@ let get_base_config com =
 		detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.AnalyzerTimes) with _ -> 0);
 		user_var_fusion = (match com.platform with Flash | Java -> false | _ -> true) && (Common.raw_defined com "analyzer_user_var_fusion" || (not com.debug && not (Common.raw_defined com "analyzer_no_user_var_fusion")));
 		fusion_debug = false;
+		coro_debug = false;
 	}
 
 let update_config_from_meta com config ml =
@@ -97,6 +99,7 @@ let update_config_from_meta com config ml =
 						| "dot_debug" -> { config with debug_kind = DebugDot }
 						| "full_debug" -> { config with debug_kind = DebugFull }
 						| "fusion_debug" -> { config with fusion_debug = true }
+						| "coro_debug" -> { config with coro_debug = true }
 						| "as_var" -> config
 						| _ ->
 							let options = Warning.from_meta ml in
