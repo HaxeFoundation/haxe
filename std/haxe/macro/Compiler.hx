@@ -182,6 +182,17 @@ class Compiler {
 	}
 
 	/**
+		Sets the target configuration.
+
+		Usage of this function outside a macro context does nothing.
+	**/
+	public static function setPlatformConfiguration(config:PlatformConfig):Void {
+		#if (neko || eval)
+		load("set_platform_configuration", 1)(config);
+		#end
+	}
+
+	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 
 		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
