@@ -45,10 +45,12 @@ let rec func ctx bb tf t p =
 	let bb_root = create_node (BKFunctionBegin tf) tf.tf_expr.etype tf.tf_expr.epos in
 	let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
 	let coroutine = match follow t with
-		| TFun(_,_,true) -> Some (
-			alloc_var VGenerated "_hx_result" t_dynamic p,
-			alloc_var VGenerated "_hx_error" t_dynamic p
-		)
+		| TFun(_,_,true) ->
+			let v_result = alloc_var VGenerated "_hx_result" t_dynamic p in
+			let v_error = alloc_var VGenerated "_hx_error" t_dynamic p in
+			declare_var ctx.graph v_result bb_root;
+			declare_var ctx.graph v_error bb_root;
+			Some (v_result,v_error)
 		| _ -> None
 	in
 	add_function g tf t p bb_root coroutine;
@@ -770,8 +772,11 @@ and func ctx i =
 		match tfi.tf_coroutine with
 		| Some (vresult,verror) ->
 			let vcontinuation = alloc_var VGenerated "_hx_continuation" (tfun [tf.tf_type; t_dynamic] ctx.com.basic.tvoid) p in
+			add_var_flag vcontinuation VCaptured;
 			declare_var ctx.graph vcontinuation bb;
 			let e = AnalyzerCoro.block_to_texpr_coroutine ctx bb vcontinuation vresult verror p in
+			(* All actual arguments will be captured after the transformation. *)
+			List.iter (fun (v,_) -> add_var_flag v VCaptured) tf.tf_args;
 			let tf_args = tf.tf_args @ [(vcontinuation,None)] in
 			let sm_type = tfun [t_dynamic; t_dynamic] ctx.com.basic.tvoid in
 			e, tf_args, sm_type

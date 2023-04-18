@@ -11,9 +11,6 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	let open Texpr.Builder in
 	let com = ctx.com in
 
-	declare_var ctx.graph vresult bb;
-	declare_var ctx.graph verror bb;
-
 	let eerror = make_local verror null_pos in
 
 	let mk_int i = make_int com.basic i null_pos in
@@ -23,17 +20,20 @@ let block_to_texpr_coroutine ctx bb vcontinuation vresult verror p =
 	in
 
 	let vstate = alloc_var VGenerated "_hx_state" com.basic.tint p in
+	add_var_flag vstate VCaptured;
 	declare_var ctx.graph vstate bb;
 	let estate = make_local vstate p in
 	let set_state id = mk_assign estate (mk_int id) in
 
 	let vexcstate = alloc_var VGenerated "_hx_exceptionState" com.basic.tint p in
+	add_var_flag vexcstate VCaptured;
 	declare_var ctx.graph vexcstate bb;
 	let eexcstate = make_local vexcstate p in
 	let set_excstate id = mk_assign eexcstate (mk_int id) in
 
 	let tstatemachine = tfun [t_dynamic; t_dynamic] com.basic.tvoid in
 	let vstatemachine = alloc_var VGenerated "_hx_stateMachine" tstatemachine p in
+	add_var_flag vstatemachine VCaptured;
 	declare_var ctx.graph vstatemachine bb;
 	let estatemachine = make_local vstatemachine p in
 
