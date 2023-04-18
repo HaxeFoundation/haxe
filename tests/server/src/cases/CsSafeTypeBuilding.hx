@@ -26,12 +26,21 @@ class CsSafeTypeBuilding extends TestCase {
 		assertSuccess();
 
 		// Make sure all types are generated
+		#if debug
+		if (!assertHasPrint("[runtime] Hello from Bar")) trace("Fail");
+		if (!assertHasPrint("[runtime] Hello from Baz")) trace("Fail");
+		if (!assertHasPrint("[runtime] Hello from Foo__Bar__Bar")) trace("Fail");
+		if (!assertHasPrint("[runtime] Hello from Foo__Baz__Baz")) trace("Fail");
+		if (!assertHasPrint("[runtime] Hello from Foo__Main__Main")) trace("Fail");
+		if (!assertHasPrint("[runtime] Hello from Main")) trace("Fail");
+		#else
 		assertHasPrint("[runtime] Hello from Bar");
 		assertHasPrint("[runtime] Hello from Baz");
 		assertHasPrint("[runtime] Hello from Foo__Bar__Bar");
 		assertHasPrint("[runtime] Hello from Foo__Baz__Baz");
 		assertHasPrint("[runtime] Hello from Foo__Main__Main");
 		assertHasPrint("[runtime] Hello from Main");
+		#end
 
 		// Disabled this check because types move around a bit so we get false negatives
 		// Kept for debugging purposes
@@ -57,6 +66,8 @@ class CsSafeTypeBuilding extends TestCase {
 	}
 
 	function assertBuilt(modules:Array<String>, ?macroInvalidated:Bool = false) {
+		#if debug trace('Invalidated ${modules.join(",")} (macro invalidated: ${macroInvalidated ? "true" : "false"})'); #end
+
 		for (m in modules) {
 			assertHasPrint('Building $m.');
 
@@ -89,6 +100,7 @@ class CsSafeTypeBuilding extends TestCase {
 		if (target == "js") originalContent = sys.io.File.getContent(haxe.io.Path.join([testDir, "out.js"]));
 		assertResult(target);
 
+		#if debug trace("Rerun without invalidate"); #end
 		runHaxe(args);
 		assertResult(target);
 
