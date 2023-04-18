@@ -24,7 +24,7 @@ class TestBuilder {
 					if (variants.length == 0) {
 						makeAsyncTest(f, field.pos);
 					} else {
-						// TODO: support functions that define their own async arg
+						// TODO: support functions that define their own async arg (not named `_` or `async`)
 						var args = f.args.copy();
 						f.args = [];
 						makeAsyncTest(f, field.pos);
@@ -32,14 +32,31 @@ class TestBuilder {
 						// Ignore original field; generate variants instead
 						removedFields.push(field);
 
-						// TODO error handling for misuse and args mismatch
 						for (variant in variants) {
-							var name = haxe.macro.ExprTools.getValue(variant.params.shift());
+							if (variant.params.length == 0) {
+								Context.error('Unexpected amount of variant parameters.', variant.pos);
+							}
+
+							var nameParam = variant.params.shift();
+							var name:String = try haxe.macro.ExprTools.getValue(nameParam) catch(e) {
+								Context.error('Variant first parameter should be a String (variant name)', nameParam.pos);
+							};
+
 							var inits = [for (arg in args) {
 								var name = arg.name;
 								var ct = arg.type;
-								macro var $name:$ct = ${variant.params.shift()};
+
+								if (variant.params.length == 0) {
+									Context.error('Unexpected amount of variant parameters.', variant.pos);
+								}
+
+								var param = variant.params.shift();
+								macro @:pos(param.pos) var $name:$ct = (($name:$ct) -> $i{name})(${param});
 							}];
+
+							if (variant.params.length > 0) {
+								Context.error('Unexpected amount of variant parameters.', variant.params[0].pos);
+							}
 
 							switch (f.expr.expr) {
 								case EBlock(b):
