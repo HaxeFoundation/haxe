@@ -43,6 +43,7 @@ let rec traverse e =
 	| TSwitch switch ->
 		let switch = { switch with
 			switch_cases = List.map (fun case -> { case with case_expr = traverse (mk_block e)}) switch.switch_cases;
+			switch_default = Option.map (fun e -> traverse (mk_block e)) switch.switch_default;
 		} in
 		{ e with eexpr = TSwitch switch }
 	| TWhile (cond,block,flag) ->

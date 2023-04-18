@@ -825,7 +825,7 @@ struct
 
 				| TSwitch switch when is_string switch.switch_subject.etype ->
 					(*let change_string_switch gen eswitch e1 ecases edefault =*)
-					change_string_switch gen e (run switch.switch_subject) (List.map (fun case -> {case with case_expr = run e}) switch.switch_cases) (Option.map run switch.switch_default)
+					change_string_switch gen e (run switch.switch_subject) (List.map (fun case -> {case with case_expr = run case.case_expr}) switch.switch_cases) (Option.map run switch.switch_default)
 
 				| TBinop( (Ast.OpNotEq as op), e1, e2)
 				| TBinop( (Ast.OpEq as op), e1, e2) when not (is_null e2 || is_null e1) && (is_string e1.etype || is_string e2.etype || is_equatable gen e1.etype || is_equatable gen e2.etype) ->
