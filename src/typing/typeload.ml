@@ -773,16 +773,20 @@ let rec type_type_param ctx host path get_params p tp =
 		| None ->
 			None
 		| Some ct ->
-			let t = load_complex_type ctx true ct in
-			begin match host with
-			| TPHType ->
-				()
-			| TPHConstructor
-			| TPHMethod
-			| TPHEnumConstructor ->
-				display_error ctx.com "Default type parameters are only supported on types" (pos ct)
-			end;
-			Some t
+			let r = exc_protect ctx (fun r ->
+				r := lazy_processing (fun() -> t);
+				let t = load_complex_type ctx true ct in
+				begin match host with
+				| TPHType ->
+					()
+				| TPHConstructor
+				| TPHMethod
+				| TPHEnumConstructor ->
+					display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+				end;
+				t
+			) "default" in
+			Some (TLazy r)
 	in
 	match tp.tp_constraints with
 	| None ->
