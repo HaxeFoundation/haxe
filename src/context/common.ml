@@ -559,8 +559,8 @@ let get_config com =
 	| Cross ->
 		default_config
 	| CustomTarget _ ->
-		(* TODO: allow custom configuration? *)
-		default_config
+		(* impossible to reach. see update_platform_config *)
+		raise Exit
 	| Js ->
 		let es6 = get_es_version com >= 6 in
 		{
@@ -934,12 +934,19 @@ let flash_version_tag = function
 	| v when v >= 12.0 && float_of_int (int_of_float v) = v -> int_of_float v + 11
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
+let update_platform_config com =
+	match com.platform with
+	| CustomTarget _ ->
+		() (* do nothing, configured with macro api *)
+	| _ ->
+		com.config <- get_config com
+
 let init_platform com pf =
 	com.platform <- pf;
 	let name = platform_define pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
-	com.config <- get_config com;
+	update_platform_config com;
 	if com.config.pf_static then begin
 		raw_define com "target.static";
 		define com Define.Static;
