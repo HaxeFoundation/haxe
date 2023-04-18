@@ -1,0 +1,4 @@
+hxtest.Init.init()
+[Init] Config correct: true
+output: out
+[Generate] Config correct: true
