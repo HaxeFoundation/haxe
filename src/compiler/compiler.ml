@@ -315,7 +315,6 @@ let filter ctx tctx =
 	t()
 
 let call_light_init_macro com path =
-	let test_github = 1 in
 	let open MacroContext in
 	let mctx = create_macro_context com in
 	let api = make_macro_com_api com null_pos in
