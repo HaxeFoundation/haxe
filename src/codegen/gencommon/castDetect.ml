@@ -1278,6 +1278,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 						case_patterns = List.map run case.case_patterns;
 						case_expr = (in_value := false; run (mk_block case.case_expr))
 					}) switch.switch_cases;
+					switch_default = Option.map (fun e -> in_value := false; run (mk_block e)) switch.switch_default;
 				} in
 				{ e with eexpr = TSwitch switch }
 			| TFor (v,cond,e1) ->
