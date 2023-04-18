@@ -278,7 +278,7 @@ let to_texpr ctx t_switch with_type dt =
 					let e = match cases,e_default,with_type with
 						| [case],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->
 							{case.case_expr with etype = t_switch}
-						(* | [[e1],e2],Some _,_ *)
+						| [{case_patterns = [e1];case_expr = e2}],Some _,_
 						| [{case_patterns = [e1];case_expr = e2}],None,NoValue ->
 							let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 							begin match e2.eexpr with
