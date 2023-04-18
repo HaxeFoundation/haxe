@@ -327,8 +327,8 @@ let compile ctx actx =
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
-	let mctx = match com.platform with
-		| CustomTarget name ->
+	let mctx = match com.custom_target with
+		| Some (name,_) ->
 			begin try
 				Some (call_light_init_macro com (Printf.sprintf "%s.Init.init()" name))
 			with Error.Error err ->
