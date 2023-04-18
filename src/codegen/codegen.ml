@@ -373,7 +373,6 @@ module Dump = struct
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
 			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
-			| "legacy" -> dump_types com Type.s_expr
 			| "record" -> dump_record com
 			| "position" -> dump_position com
 			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")

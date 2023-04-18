@@ -1722,12 +1722,12 @@ let generate con =
 								in_value := true;
 								expr_s w (mk_paren econd);
 						)
-					| TSwitch (econd, ele_l, default) ->
+					| TSwitch switch ->
 						write w "switch ";
-						expr_s w (mk_paren econd);
+						expr_s w (mk_paren switch.switch_subject);
 						write w " ";
 						begin_block w;
-						List.iter (fun (el, e) ->
+						List.iter (fun {case_patterns = el;case_expr = e}  ->
 							List.iter (fun e ->
 								write w "case ";
 								in_value := true;
@@ -1739,12 +1739,12 @@ let generate con =
 							expr_s w (mk_block e);
 							newline w;
 							newline w
-						) ele_l;
-						if is_some default then begin
+						) switch.switch_cases;
+						if is_some switch.switch_default then begin
 							write w "default:";
 							newline w;
 							in_value := false;
-							expr_s w (get default);
+							expr_s w (get switch.switch_default);
 							newline w;
 						end;
 						end_block w
@@ -3387,13 +3387,13 @@ let generate con =
 
 		SwitchToIf.configure gen (fun e ->
 			match e.eexpr with
-				| TSwitch(cond, cases, def) ->
-					(match gen.gfollow#run_f cond.etype with
+				| TSwitch switch ->
+					(match gen.gfollow#run_f switch.switch_subject.etype with
 						| TAbstract ({ a_path = ([], "Int") },[])
 						| TInst({ cl_path = ([], "String") },[]) ->
-							(List.exists (fun (c,_) ->
-								List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
-							) cases)
+							(List.exists (fun case ->
+								List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) case.case_patterns
+							) switch.switch_cases)
 						| _ -> true
 					)
 				| _ -> die "" __LOC__

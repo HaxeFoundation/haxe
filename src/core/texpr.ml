@@ -47,10 +47,10 @@ let iter f e =
 		f e;
 		f e1;
 		(match e2 with None -> () | Some e -> f e)
-	| TSwitch (e,cases,def) ->
-		f e;
-		List.iter (fun (el,e2) -> List.iter f el; f e2) cases;
-		(match def with None -> () | Some e -> f e)
+	| TSwitch switch ->
+		f switch.switch_subject;
+		List.iter (fun case -> List.iter f case.case_patterns; f case.case_expr) switch.switch_cases;
+		(match switch.switch_default with None -> () | Some e -> f e)
 	| TTry (e,catches) ->
 		f e;
 		List.iter (fun (_,e) -> f e) catches
@@ -83,10 +83,10 @@ let check_expr predicate e =
 			predicate fu.tf_expr
 		| TIf (e,e1,e2) ->
 			predicate e || predicate e1 || (match e2 with None -> false | Some e -> predicate e)
-		| TSwitch (e,cases,def) ->
-			predicate e
-			|| List.exists (fun (el,e2) -> List.exists predicate el || predicate e2) cases
-			|| (match def with None -> false | Some e -> predicate e)
+		| TSwitch switch ->
+			predicate switch.switch_subject
+			|| List.exists (fun case -> List.exists predicate case.case_patterns || predicate case.case_expr) switch.switch_cases
+			|| (match switch.switch_default with None -> false | Some e -> predicate e)
 		| TTry (e,catches) ->
 			predicate e || List.exists (fun (_,e) -> predicate e) catches
 
@@ -142,10 +142,14 @@ let map_expr f e =
 		let ec = f ec in
 		let e1 = f e1 in
 		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)) }
-	| TSwitch (e1,cases,def) ->
-		let e1 = f e1 in
-		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
-		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)) }
+	| TSwitch switch ->
+		let e1 = f switch.switch_subject in
+		let cases = List.map (fun case -> {
+			case_patterns = List.map f case.case_patterns;
+			case_expr = f case.case_expr
+		}) switch.switch_cases in
+		let def = Option.map f switch.switch_default in
+		{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def} }
 	| TTry (e1,catches) ->
 		let e1 = f e1 in
 		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f e) catches) }
@@ -236,10 +240,14 @@ let map_expr_type f ft fv e =
 		let ec = f ec in
 		let e1 = f e1 in
 		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)); etype = ft e.etype }
-	| TSwitch (e1,cases,def) ->
-		let e1 = f e1 in
-		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
-		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TSwitch switch ->
+		let e1 = f switch.switch_subject in
+		let cases = List.map (fun case -> {
+			case_patterns = List.map f case.case_patterns;
+			case_expr = f case.case_expr
+		}) switch.switch_cases in
+		let def = Option.map f switch.switch_default in
+		{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def}; etype = ft e.etype }
 	| TTry (e1,catches) ->
 		let e1 = f e1 in
 		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
@@ -284,10 +292,10 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TIf(e1,ethen1,None),TIf(e2,ethen2,None) -> equal e1 e2 && equal ethen1 ethen2
 	| TIf(e1,ethen1,Some eelse1),TIf(e2,ethen2,Some eelse2) -> equal e1 e2 && equal ethen1 ethen2 && equal eelse1 eelse2
 	| TWhile(e1,eb1,flag1),TWhile(e2,eb2,flag2) -> equal e1 e2 && equal eb2 eb2 && flag1 = flag2
-	| TSwitch(e1,cases1,eo1),TSwitch(e2,cases2,eo2) ->
-		equal e1 e2 &&
-		safe_for_all2 (fun (el1,e1) (el2,e2) -> safe_for_all2 equal el1 el2 && equal e1 e2) cases1 cases2 &&
-		(match eo1,eo2 with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
+	| TSwitch switch1,TSwitch switch2 ->
+		equal switch1.switch_subject switch2.switch_subject &&
+		safe_for_all2 (fun case1 case2 -> safe_for_all2 equal case1.case_patterns case2.case_patterns && equal case1.case_expr case2.case_expr) switch1.switch_cases switch2.switch_cases &&
+		(match switch1.switch_default,switch2.switch_default with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
 	| TTry(e1,catches1),TTry(e2,catches2) -> equal e1 e2 && safe_for_all2 (fun (v1,e1) (v2,e2) -> v1 == v2 && equal e1 e2) catches1 catches2
 	| TReturn None,TReturn None -> true
 	| TReturn(Some e1),TReturn(Some e2) -> equal e1 e2
@@ -434,15 +442,15 @@ let foldmap f acc e =
 		let acc,e1 = f acc e1 in
 		let acc,eo = foldmap_opt f acc eo in
 		acc,{ e with eexpr = TIf (ec,e1,eo)}
-	| TSwitch (e1,cases,def) ->
-		let acc,e1 = f acc e1 in
-		let acc,cases = List.fold_left (fun (acc,cases) (el,e2) ->
-			let acc,el = foldmap_list f acc el in
-			let acc,e2 = f acc e2 in
-			acc,((el,e2) :: cases)
-		) (acc,[]) cases in
-		let acc,def = foldmap_opt f acc def in
-		acc,{ e with eexpr = TSwitch (e1, cases, def) }
+	| TSwitch switch ->
+		let acc,e1 = f acc switch.switch_subject in
+		let acc,cases = List.fold_left (fun (acc,cases) case ->
+			let acc,el = foldmap_list f acc case.case_patterns in
+			let acc,e2 = f acc case.case_expr in
+			acc,({case_patterns = el;case_expr = e2} :: cases)
+		) (acc,[]) switch.switch_cases in
+		let acc,def = foldmap_opt f acc switch.switch_default in
+		acc,{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def} }
 	| TTry (e1,catches) ->
 		let acc,e1 = f acc e1 in
 		let acc,catches = foldmap_pairs f acc catches in
@@ -732,14 +740,14 @@ let dump_with_pos tabs e =
 			add "TWhile";
 			loop e1;
 			loop e2;
-		| TSwitch(e1,cases,def) ->
+		| TSwitch switch ->
 			add "TSwitch";
-			loop e1;
-			List.iter (fun (el,e) ->
-				List.iter (loop' (tabs ^ "    ")) el;
-				loop' (tabs ^ "      ") e;
-			) cases;
-			Option.may (loop' (tabs ^ "      ")) def
+			loop switch.switch_subject;
+			List.iter (fun case ->
+				List.iter (loop' (tabs ^ "    ")) case.case_patterns;
+				loop' (tabs ^ "      ") case.case_expr;
+			) switch.switch_cases;
+			Option.may (loop' (tabs ^ "      ")) switch.switch_default
 		| TTry(e1,catches) ->
 			add "TTry";
 			loop e1;
@@ -843,13 +851,15 @@ let punion_el default_pos el =
 		else
 			punion first last
 
-let is_exhaustive e1 def =
-	let rec loop e1 = match e1.eexpr with
-		| TMeta((Meta.Exhaustive,_,_),_) -> true
-		| TMeta(_, e1) | TParenthesis e1 -> loop e1
-		| _ -> false
-	in
-	def <> None || loop e1
+let is_exhaustive switch =
+	switch.switch_exhaustive
+
+let mk_switch subject cases default exhaustive = {
+	switch_subject = subject;
+	switch_cases = cases;
+	switch_default = default;
+	switch_exhaustive = exhaustive;
+}
 
 let rec is_true_expr e1 = match e1.eexpr with
 	| TConst(TBool true) -> true
@@ -890,15 +900,15 @@ module DeadEnd = struct
 				loop cond || loop if_body && loop else_body
 			| TIf (cond, _, None) ->
 				loop cond
-			| TSwitch(e1, cases, def) ->
+			| TSwitch switch ->
 				let check_exhaustive () =
-					(is_exhaustive e1 def) && List.for_all (fun (el,e) ->
-						List.exists loop el ||
-						loop e
-					) cases &&
-					Option.map_default (loop ) true def (* true because we know it's exhaustive *)
+					(is_exhaustive switch) && List.for_all (fun case ->
+						List.exists loop case.case_patterns ||
+						loop case.case_expr
+					) switch.switch_cases &&
+					Option.map_default (loop ) true switch.switch_default (* true because we know it's exhaustive *)
 				in
-				loop e1 || check_exhaustive ()
+				loop switch.switch_subject || check_exhaustive ()
 			| TFor(_, e1, _) ->
 				loop e1
 			| TBinop(OpBoolAnd, e1, e2) ->

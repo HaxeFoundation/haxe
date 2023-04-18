@@ -51,11 +51,11 @@ let is_string t = match follow t with
 	| TInst({cl_path=[],"String"},_) -> true
 	| _ -> false
 
-let is_const_int_pattern (el,_) =
+let is_const_int_pattern case =
 	List.for_all (fun e -> match e.eexpr with
 		| TConst (TInt _) -> true
 		| _ -> false
-	) el
+	) case.case_patterns
 
 open EvalJitContext
 
@@ -248,12 +248,12 @@ and jit_expr jit return e =
 			| Some e -> jit_expr jit return e
 		in
 		emit_if exec_cond exec_then exec_else
-	| TSwitch(e1,cases,def) when is_int e1.etype && List.for_all is_const_int_pattern cases ->
-		let exec = jit_expr jit false e1 in
+	| TSwitch switch when is_int switch.switch_subject.etype && List.for_all is_const_int_pattern switch.switch_cases ->
+		let exec = jit_expr jit false switch.switch_subject in
 		let h = ref IntMap.empty in
 		let max = ref 0 in
 		let min = ref max_int in
-		List.iter (fun (el,e) ->
+		List.iter (fun {case_patterns = el;case_expr = e} ->
 			push_scope jit e.epos;
 			let exec = jit_expr jit return e in
 			List.iter (fun e -> match e.eexpr with
@@ -265,14 +265,14 @@ and jit_expr jit return e =
 				| _ -> die "" __LOC__
 			) el;
 			pop_scope jit;
-		) cases;
-		let exec_def = jit_default jit return def in
+		) switch.switch_cases;
+		let exec_def = jit_default jit return switch.switch_default in
 		let l = !max - !min + 1 in
 		if l > 0 && l < 256 then begin
 			let cases = Array.init l (fun i -> try IntMap.find (i + !min) !h with Not_found -> exec_def) in
-			emit_int_switch_array (- !min) exec cases exec_def e1.epos
+			emit_int_switch_array (- !min) exec cases exec_def switch.switch_subject.epos
 		end else
-			emit_int_switch_map exec !h exec_def e1.epos
+			emit_int_switch_map exec !h exec_def switch.switch_subject.epos
 	(* | TSwitch(e1,cases,def) when is_string e1.etype ->
 		let exec = jit_expr jit false e1 in
 		let h = ref PMap.empty in
@@ -287,17 +287,17 @@ and jit_expr jit return e =
 		) cases;
 		let exec_def = jit_default jit return def in
 		emit_string_switch_map exec !h exec_def e1.epos *)
-	| TSwitch(e1,cases,def) ->
-		let exec = jit_expr jit false e1 in
+	| TSwitch switch ->
+		let exec = jit_expr jit false switch.switch_subject in
 		let execs = DynArray.create () in
-		let patterns = List.map (fun (el,e) ->
+		let patterns = List.map (fun {case_patterns = el;case_expr = e}  ->
 			push_scope jit e.epos;
 			let el = List.map (jit_expr jit false) el in
 			DynArray.add execs (jit_expr jit return e);
 			pop_scope jit;
 			el
-		) cases in
-		let exec_def = jit_default jit return def in
+		) switch.switch_cases in
+		let exec_def = jit_default jit return switch.switch_default in
 		emit_switch exec (DynArray.to_array execs) (Array.of_list patterns) exec_def
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
