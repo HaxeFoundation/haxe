@@ -1271,8 +1271,15 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				{ e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, (in_value := false; run (mk_block ethen)), Option.map (fun e -> in_value := false; run (mk_block e)) eelse) }
 			| TWhile (econd, e1, flag) ->
 				{ e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, (in_value := false; run (mk_block e1)), flag) }
-			| TSwitch (cond, el_e_l, edef) ->
-				{ e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, (in_value := false; run (mk_block e)))) el_e_l, Option.map (fun e -> in_value := false; run (mk_block e)) edef) }
+			| TSwitch switch ->
+				let switch = { switch with
+					switch_subject = run switch.switch_subject;
+					switch_cases = List.map (fun case -> {
+						case_patterns = List.map run case.case_patterns;
+						case_expr = (in_value := false; run (mk_block case.case_expr))
+					}) switch.switch_cases;
+				} in
+				{ e with eexpr = TSwitch switch }
 			| TFor (v,cond,e1) ->
 				{ e with eexpr = TFor(v, run cond, (in_value := false; run (mk_block e1))) }
 			| TTry (e, ve_l) ->

@@ -170,8 +170,12 @@ let rec expr_stat_map fn (expr:texpr) =
 			{ expr with eexpr = TIf(fn cond, eif, eelse) }
 		| TWhile(cond, block, flag) ->
 			{ expr with eexpr = TWhile(fn cond, block, flag) }
-		| TSwitch(cond, el_block_l, default) ->
-			{ expr with eexpr = TSwitch( fn cond, List.map (fun (el,block) -> (List.map fn el, block)) el_block_l, default ) }
+		| TSwitch switch ->
+			let switch = { switch with
+				switch_subject = fn switch.switch_subject;
+				switch_cases = List.map (fun case -> {case with case_patterns = List.map fn case.case_patterns}) switch.switch_cases;
+			} in
+			{ expr with eexpr = TSwitch switch }
 		| TReturn(eopt) ->
 			{ expr with eexpr = TReturn(Option.map fn eopt) }
 		| TThrow (texpr) ->
@@ -361,8 +365,12 @@ let rec apply_assign assign_fun right =
 	match right.eexpr with
 		| TBlock el ->
 			{ right with eexpr = TBlock(apply_assign_block assign_fun el) }
-		| TSwitch (cond, elblock_l, default) ->
-			{ right with eexpr = TSwitch(cond, List.map (fun (el,block) -> (el, mk_get_block assign_fun block)) elblock_l, Option.map (mk_get_block assign_fun) default) }
+		| TSwitch switch ->
+			let switch = { switch with
+				switch_cases = List.map (fun case -> {case with case_expr = mk_get_block assign_fun case.case_expr}) switch.switch_cases;
+				switch_default = Option.map (mk_get_block assign_fun) switch.switch_default;
+			} in
+			{ right with eexpr = TSwitch switch }
 		| TTry (block, catches) ->
 			{ right with eexpr = TTry(mk_get_block assign_fun block, List.map (fun (v,block) -> (v,mk_get_block assign_fun block) ) catches) }
 		| TIf (cond,eif,eelse) ->
@@ -621,8 +629,12 @@ let configure gen =
 			{ e with eexpr = TBlock block }
 		| TTry (block, catches) ->
 			{ e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
-		| TSwitch (cond,el_e_l, default) ->
-			{ e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
+		| TSwitch switch ->
+			let switch = { switch with
+				switch_cases = List.map (fun case -> {case with case_expr = traverse (mk_block case.case_expr)}) switch.switch_cases;
+				switch_default = Option.map (fun e -> traverse (mk_block e)) switch.switch_default;
+			} in
+			{ e with eexpr = TSwitch switch }
 		| TWhile (cond,block,flag) ->
 			{e with eexpr = TWhile(cond,traverse (mk_block block), flag) }
 		| TIf (cond, eif, eelse) ->

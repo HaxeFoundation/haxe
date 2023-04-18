@@ -431,9 +431,9 @@ let rec func ctx bb tf t p =
 					bb_next
 				end
 			end
-		| TSwitch(e1,cases,edef) ->
-			let is_exhaustive = is_exhaustive e1 edef in
-			let bb,e1 = bind_to_temp bb e1 in
+		| TSwitch switch ->
+			let is_exhaustive = is_exhaustive switch.switch_subject switch.switch_default in
+			let bb,e1 = bind_to_temp bb switch.switch_subject in
 			bb.bb_terminator <- TermCondBranch e1;
 			let reachable = ref [] in
 			let make_case e =
@@ -444,12 +444,12 @@ let rec func ctx bb tf t p =
 				close_node bb_case_next;
 				bb_case
 			in
-			let cases = List.map (fun (el,e) ->
-				let bb_case = make_case e in
-				List.iter (fun e -> add_cfg_edge bb bb_case (CFGCondBranch e)) el;
-				el,bb_case
-			) cases in
-			let def = match edef with
+			let cases = List.map (fun case ->
+				let bb_case = make_case case.case_expr in
+				List.iter (fun e -> add_cfg_edge bb bb_case (CFGCondBranch e)) case.case_patterns;
+				case.case_patterns,bb_case
+			) switch.switch_cases in
+			let def = match switch.switch_default with
 				| None ->
 					None
 				| Some e ->
@@ -708,7 +708,15 @@ let rec block_to_texpr_el ctx bb =
 				let e2 = block bb_body in
 				if_live bb_next,Some (mk (TWhile(get_terminator(),e2,NormalWhile)) ctx.com.basic.tvoid p)
 			| SESwitch(bbl,bo,bb_next,p) ->
-				Some bb_next,Some (mk (TSwitch(get_terminator(),List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)) ctx.com.basic.tvoid p)
+				let switch = {
+					switch_subject = get_terminator();
+					switch_cases = List.map (fun (el,bb) -> {
+						case_patterns = el;
+						case_expr = block bb
+					}) bbl;
+					switch_default = Option.map block bo;
+				} in
+				Some bb_next,Some (mk (TSwitch switch) ctx.com.basic.tvoid p)
 		in
 		let bb_next,e_term = loop bb bb.bb_syntax_edge in
 		let el = DynArray.to_list bb.bb_el in

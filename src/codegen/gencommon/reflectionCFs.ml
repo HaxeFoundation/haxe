@@ -1000,11 +1000,18 @@ let implement_get_set ctx cl =
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->
 				(if names = [] then Globals.die "" __LOC__);
-				(List.map (switch_case ctx pos) names, do_field cf cf.cf_type)
+				{
+					case_patterns = List.map (switch_case ctx pos) names;
+					case_expr = do_field cf cf.cf_type;
+				}
 			) fields in
 			let default = Some(do_default()) in
-
-			mk_block { eexpr = TSwitch(local_switch_var, cases, default); etype = basic.tvoid; epos = pos }
+			let switch = {
+				switch_subject = local_switch_var;
+				switch_cases = cases;
+				switch_default = default;
+			} in
+			mk_block { eexpr = TSwitch switch; etype = basic.tvoid; epos = pos }
 		in
 
 		let is_override = match cl.cl_super with
@@ -1177,26 +1184,27 @@ let implement_invokeField ctx slow_invoke cl =
 				let t = apply_params cf.cf_params (List.map (fun _ -> t_dynamic) cf.cf_params) cf.cf_type in
 				mk_this_call_raw cf.cf_name t params
 			in
-			(cases,
-				mk_return (
-					mk_this_call cf (List.map (fun (name,optional,t) ->
-						let idx = make_int ctx.rcf_gen.gcon.basic !i pos in
-						let ret = { eexpr = TArray(dyn_arg_local, idx); etype = t_dynamic; epos = pos } in
-						let ret =
-							if ExtType.is_rest t then
-								{ ret with eexpr = TUnop(Spread,Prefix,{ ret with etype = t }) }
+			{
+				case_patterns = cases;
+				case_expr =	mk_return (
+						mk_this_call cf (List.map (fun (name,optional,t) ->
+							let idx = make_int ctx.rcf_gen.gcon.basic !i pos in
+							let ret = { eexpr = TArray(dyn_arg_local, idx); etype = t_dynamic; epos = pos } in
+							let ret =
+								if ExtType.is_rest t then
+									{ ret with eexpr = TUnop(Spread,Prefix,{ ret with etype = t }) }
+								else
+									ret
+							in
+							incr i;
+							if optional then
+								let condition = binop OpGt dyn_arg_length idx ctx.rcf_gen.gcon.basic.tbool pos in
+								mk (TIf (condition, ret, Some (make_null ret.etype pos))) ret.etype pos
 							else
 								ret
-						in
-						incr i;
-						if optional then
-							let condition = binop OpGt dyn_arg_length idx ctx.rcf_gen.gcon.basic.tbool pos in
-							mk (TIf (condition, ret, Some (make_null ret.etype pos))) ret.etype pos
-						else
-							ret
-					) (fst (get_fun (cf.cf_type))))
-				)
-			)
+						) (fst (get_fun (cf.cf_type))))
+					)
+			}
 		in
 
 		let cfs = List.filter (fun (_,cf) -> match cf.cf_kind with
@@ -1209,7 +1217,10 @@ let implement_invokeField ctx slow_invoke cl =
 			| [] -> cases
 			| _ ->
 				let ncases = List.map (fun cf -> switch_case ctx pos cf.cf_name) old in
-				( ncases, mk_return (slow_invoke this (mk_local (fst (List.hd field_args)) pos) (mk_local dynamic_arg pos)) ) :: cases
+				{
+					case_patterns = ncases;
+					case_expr = mk_return (slow_invoke this (mk_local (fst (List.hd field_args)) pos) (mk_local dynamic_arg pos))
+				} :: cases
 		in
 
 		let default = if !is_override then
@@ -1235,9 +1246,13 @@ let implement_invokeField ctx slow_invoke cl =
 				epos = pos
 			} )
 		in
-
+		let switch = {
+			switch_subject = mk_local switch_var pos;
+			switch_cases = cases;
+			switch_default = Some default;
+		} in
 		{
-			eexpr = TSwitch(mk_local switch_var pos, cases, Some default);
+			eexpr = TSwitch switch;
 			etype = basic.tvoid;
 			epos = pos;
 		}

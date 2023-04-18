@@ -522,7 +522,10 @@ struct
 						t_cf
 						pos
 				in
-				[make_string gen.gcon.basic cf.cf_name pos], expr
+				{
+					case_patterns = [make_string gen.gcon.basic cf.cf_name pos];
+					case_expr = expr;
+				}
 			) fields
 		in
 
@@ -567,10 +570,15 @@ struct
 						(
 							(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
 							let edef = gen.gtools.r_set_field basic.tvoid local_new_me local_field (gen.gtools.r_field false basic.tvoid this local_field) in
-							if fields <> [] then
+							if fields <> [] then begin
 								(* switch(field) { ... } *)
-								mk (TSwitch (local_field, fields_to_cases fields, Some edef)) basic.tvoid pos
-							else
+								let switch = {
+									switch_subject = local_field;
+									switch_cases = fields_to_cases fields;
+									switch_default = Some edef
+								} in
+								mk (TSwitch switch) basic.tvoid pos
+							end else
 								edef;
 						)
 					]) basic.tvoid pos,

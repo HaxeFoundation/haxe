@@ -1034,10 +1034,14 @@ module Run = struct
 						let e2 = loop e2 in
 						let e3 = loop e3 in
 						{e with eexpr = TIf(e1,e2,Some e3); etype = get_t e.etype}
-					| TSwitch(e1,cases,edef) ->
-						let cases = List.map (fun (el,e) -> el,loop e) cases in
-						let edef = Option.map loop edef in
-						{e with eexpr = TSwitch(e1,cases,edef); etype = get_t e.etype}
+					| TSwitch switch ->
+						let cases = List.map (fun case -> {case with case_expr = loop case.case_expr}) switch.switch_cases in
+						let edef = Option.map loop switch.switch_default in
+						let switch = { switch with
+							switch_cases = cases;
+							switch_default = edef;
+						} in
+						{e with eexpr = TSwitch switch; etype = get_t e.etype}
 					| TTry(e1,catches) ->
 						let e1 = loop e1 in
 						let catches = List.map (fun (v,e) -> v,loop e) catches in

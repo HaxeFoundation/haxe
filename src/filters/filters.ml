@@ -221,9 +221,9 @@ let check_local_vars_init ctx e =
 			) catches in
 			loop vars e;
 			join vars cvars;
-		| TSwitch (e,cases,def) ->
+		| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
 			loop vars e;
-			let cvars = List.map (fun (ec,e) ->
+			let cvars = List.map (fun {case_patterns = ec;case_expr = e} ->
 				let old = !vars in
 				List.iter (loop vars) ec;
 				vars := old;

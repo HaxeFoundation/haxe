@@ -44,11 +44,15 @@ let map_values ?(allow_control_flow=true) f e =
 			let e2 = loop true e2 in
 			let e3 = loop true e3 in
 			{e with eexpr = TIf(e1,e2,Some e3)}
-		| TSwitch(e1,cases,edef) ->
+		| TSwitch switch ->
 			branching := true;
-			let cases = List.map (fun (el,e) -> el,loop true e) cases in
-			let edef = Option.map (loop true) edef in
-			{e with eexpr = TSwitch(e1,cases,edef)}
+			let cases = List.map (fun case -> {case with case_expr = loop true case.case_expr}) switch.switch_cases in
+			let edef = Option.map (loop true) switch.switch_default in
+			let switch = { switch with
+				switch_cases = cases;
+				switch_default = edef;
+			} in
+			{e with eexpr = TSwitch switch}
 		| TBlock [e1] ->
 			loop complex e1
 		| TBlock el ->
@@ -553,8 +557,8 @@ module Fusion = struct
 					| Some e ->
 						block_element acc (e :: el)
 				end
-			| ({eexpr = TSwitch(e1,cases,def)} as e) :: el ->
-				begin match Optimizer.check_constant_switch e1 cases def with
+			| ({eexpr = TSwitch switch} as e) :: el ->
+				begin match Optimizer.check_constant_switch switch with
 				| Some e -> block_element acc (e :: el)
 				| None -> block_element (e :: acc) el
 				end
@@ -678,13 +682,14 @@ module Fusion = struct
 						let e2 = replace e2 in
 						let eo = Option.map replace eo in
 						{e with eexpr = TIf(e1,e2,eo)}
-					| TSwitch(e1,cases,edef) ->
+					| TSwitch switch ->
 						let e1 = match com.platform with
-							| Lua | Python -> explore e1
-							| _ -> replace e1
+							| Lua | Python -> explore switch.switch_subject
+							| _ -> replace switch.switch_subject
 						in
 						if not !found then raise Exit;
-						{e with eexpr = TSwitch(e1,cases,edef)}
+						let switch = { switch with switch_subject = e1 } in
+						{e with eexpr = TSwitch switch}
 					(* locals *)
 					| TLocal v2 when v1 == v2 && not !blocked ->
 						found := true;
