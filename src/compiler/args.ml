@@ -101,7 +101,7 @@ let parse_args com =
 		("Target",["--custom-target"],["-custom"],Arg.String (fun target ->
 			let name, path = try let split = ExtString.String.split target "=" in split with _ -> target, "" in
 			set_custom_target com name path;
-		),"<name[=path]>","add a custom target for configuration or custom code generation");
+		),"<name[=path]>","generate code for a custom target");
 		("Target",[],["-x"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with
