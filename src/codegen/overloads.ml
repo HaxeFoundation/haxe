@@ -219,12 +219,6 @@ struct
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
 
-	let s_options rated =
-		String.concat ",\n" (List.map (fun ((elist,t,_),rate) ->
-			"( " ^ (String.concat "," (List.map (fun(e,_) -> s_expr (s_type (print_context())) e) elist)) ^ " ) => " ^
-			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
-		) rated)
-
 	let count_optionals t =
 		match follow t with
 		| TFun(args,_) ->

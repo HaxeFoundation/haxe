@@ -149,8 +149,8 @@ module TExprToExpr = struct
 			EFor (ein,convert_expr e)
 		| TIf (e,e1,e2) -> EIf (convert_expr e,convert_expr e1,eopt e2)
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)
-		| TSwitch (e,cases,def) ->
-			let cases = List.map (fun (vl,e) ->
+		| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
+			let cases = List.map (fun {case_patterns = vl;case_expr = e} ->
 				List.map convert_expr vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (convert_expr e)),e.epos
 			) cases in
 			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some (None,null_pos) | Some e -> Some (Some e,pos e) in

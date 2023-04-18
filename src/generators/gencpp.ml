@@ -1698,7 +1698,7 @@ and tcpp_to_string tcpp =
 
 and cpp_class_path_of klass params =
    match (get_meta_string klass.cl_meta Meta.Native)<>"" with
-   | true -> 
+   | true ->
       let typeParams = match params with
       | [] -> ""
       | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >" in
@@ -3134,7 +3134,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             CppIf(ec, e1, e2), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
 
           (* Switch internal return - wrap whole thing in block  *)
-         | TSwitch (condition,cases,def) ->
+         | TSwitch {switch_subject = condition;switch_cases = cases;switch_default = def} ->
             if return_type<>TCppVoid then
                abort "Value from a switch not handled" expr.epos;
 
@@ -3142,19 +3142,19 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let condition = retype conditionType condition in
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             if forCppia then begin
-               let cases = List.map (fun (el,e2) ->
+               let cases = List.map (fun {case_patterns = el;case_expr = e2} ->
                   let cppBlock = retype TCppVoid (mk_block e2) in
                   (List.map (retype conditionType) el), cppBlock ) cases in
                CppSwitch(condition, conditionType, cases, cppDef, -1), TCppVoid
             end else (try
                (match conditionType with TCppScalar("int") | TCppScalar("bool") -> () | _ -> raise Not_found );
-               let cases = List.map (fun (el,e2) ->
+               let cases = List.map (fun {case_patterns = el;case_expr = e2} ->
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
                CppIntSwitch(condition, cases, cppDef), TCppVoid
             with Not_found ->
                let label = alloc_file_id () in
                (* do something better maybe ... *)
-               let cases = List.map (fun (el,e2) ->
+               let cases = List.map (fun {case_patterns = el;case_expr = e2} ->
                   let cppBlock = retype TCppVoid (mk_block e2) in
                   let gotoExpr = { cppexpr = CppGoto(label); cpptype = TCppVoid; cpppos = e2.epos } in
                   let cppBlock = cpp_append_block cppBlock  gotoExpr in
@@ -7952,11 +7952,11 @@ class script_writer ctx filename asciiOut =
    | TEnumIndex expr ->
          this#write ( (this#op IaCallMember) ^ (this#typeTextString "::hx::EnumBase") ^ " " ^ (this#stringText "__Index") ^ "0" ^ (this#commentOf ("Enum index") ) ^ "\n");
          this#gen_expression expr;
-   | TSwitch (condition,cases,optional_default)  ->
+   | TSwitch {switch_subject = condition;switch_cases = cases;switch_default = optional_default} ->
          this#write ( (this#op IaSwitch) ^ (string_of_int (List.length cases)) ^ " " ^
                            (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
          this#gen_expression condition;
-         List.iter (fun (cases_list,expression) ->
+         List.iter (fun {case_patterns = cases_list;case_expr = expression} ->
             this#writeList ("\t\t\t"^indent) (List.length cases_list);
             List.iter (fun value -> this#gen_expression value ) cases_list;
             this#gen_expression expression;

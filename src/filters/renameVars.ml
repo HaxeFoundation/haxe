@@ -235,13 +235,13 @@ let rec collect_vars ?(in_block=false) rc scope e =
 			collect_vars scope e;
 			if rc.rc_no_catch_var_shadowing then use_var rc scope v;
 		) catches
-	| TSwitch (target, cases, default_opt) when rc.rc_switch_cases_no_blocks ->
-		collect_vars scope target;
-		List.iter (fun (el,e) ->
-			List.iter (collect_vars scope) el;
-			collect_ignore_block ~in_block:true rc scope e
-		) cases;
-		Option.may (collect_ignore_block ~in_block:true rc scope) default_opt
+	| TSwitch switch when rc.rc_switch_cases_no_blocks ->
+		collect_vars scope switch.switch_subject;
+		List.iter (fun case ->
+			List.iter (collect_vars scope) case.case_patterns;
+			collect_ignore_block ~in_block:true rc scope case.case_expr
+		) switch.switch_cases;
+		Option.may (collect_ignore_block ~in_block:true rc scope) switch.switch_default
 	| TBlock exprs when rc.rc_scope = BlockScope && not in_block ->
 		let scope = create_scope (Some scope) in
 		List.iter (collect_vars scope) exprs

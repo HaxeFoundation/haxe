@@ -266,7 +266,7 @@ let to_texpr ctx t_switch with_type dt =
 						let eo = loop params dt in
 						begin match eo with
 							| None -> None
-							| Some e -> Some (List.map (constructor_to_texpr ctx) (List.sort Constructor.compare cons),e)
+							| Some e -> Some {case_patterns = List.map (constructor_to_texpr ctx) (List.sort Constructor.compare cons);case_expr = e}
 						end
 					) cases in
 					let is_nullable_subject = is_explicit_null e_subject.etype in
@@ -276,10 +276,10 @@ let to_texpr ctx t_switch with_type dt =
 						| SKLength -> ExprToPattern.type_field_access ctx e_subject "length"
 					in
 					let e = match cases,e_default,with_type with
-						| [_,e2],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->
-							{e2 with etype = t_switch}
-						| [[e1],e2],Some _,_
-						| [[e1],e2],None,NoValue ->
+						| [case],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->
+							{case.case_expr with etype = t_switch}
+						| [{case_patterns = [e1];case_expr = e2}],Some _,_
+						| [{case_patterns = [e1];case_expr = e2}],None,NoValue ->
 							let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 							begin match e2.eexpr with
 								| TIf(e_op2,e3,e_default2) when (match e_default,e_default2 with Some(e1),Some(e2) when e1 == e2 -> true | _ -> false) ->
@@ -288,8 +288,8 @@ let to_texpr ctx t_switch with_type dt =
 								| _ ->
 									mk (TIf(e_op,e2,e_default)) t_switch dt.dt_pos
 							end
-						| [([{eexpr = TConst (TBool true)}],e1);([{eexpr = TConst (TBool false)}],e2)],None,_
-						| [([{eexpr = TConst (TBool false)}],e2);([{eexpr = TConst (TBool true)}],e1)],None,_ ->
+						| [{case_patterns = [{eexpr = TConst (TBool true)}];case_expr = e2};{case_patterns = [{eexpr = TConst (TBool false)}];case_expr = e1}],None,_
+						| [{case_patterns = [{eexpr = TConst (TBool false)}];case_expr = e2};{case_patterns = [{eexpr = TConst (TBool true)}];case_expr = e1}],None,_ ->
 							mk (TIf(e_subject,e1,Some e2)) t_switch dt.dt_pos
 						| _ ->
 							let e_subject = match finiteness with
@@ -299,7 +299,12 @@ let to_texpr ctx t_switch with_type dt =
 								| _ ->
 									e_subject
 							in
-							mk (TSwitch(e_subject,cases,e_default)) t_switch dt.dt_pos
+							let switch = {
+								switch_subject = e_subject;
+								switch_cases = cases;
+								switch_default = e_default;
+							} in
+							mk (TSwitch switch) t_switch dt.dt_pos
 					in
 					Some e
 				| Guard(e,dt1,dt2) ->

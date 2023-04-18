@@ -1099,7 +1099,10 @@ struct
 			let mk_invoke_switch i api =
 				let t = TFun (func_sig_i i, t_dynamic) in
 				(* case i: return this.invokeX_o(0, 0, 0, 0, 0, ... arg[0], args[1]....); *)
-				[make_int gen.gcon.basic i pos], mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				{
+					case_patterns = [make_int gen.gcon.basic i pos];
+					case_expr = mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				}
 			in
 			let rec loop_cases api arity acc =
 				if arity < 0 then
@@ -1148,11 +1151,13 @@ struct
 						epos = pos;
 					} in
 
+					let switch = {
+						switch_subject = switch_cond;
+						switch_cases = loop_cases api !max_arity [];
+						switch_default = Some(make_throw (mk_arg_exception "Too many arguments" pos) pos);
+					} in
 					{
-						eexpr = TSwitch(
-							switch_cond,
-							loop_cases api !max_arity [],
-							Some(make_throw (mk_arg_exception "Too many arguments" pos) pos));
+						eexpr = TSwitch switch;
 						etype = basic.tvoid;
 						epos = pos;
 					}

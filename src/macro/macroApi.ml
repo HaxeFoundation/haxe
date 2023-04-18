@@ -1363,10 +1363,10 @@ and encode_texpr e =
 			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
 			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;vbool (flag = NormalWhile)]
-			| TSwitch(e1,cases,edef) -> 18,[
-				loop e1;
-				encode_array (List.map (fun (el,e) -> encode_obj ["values",encode_texpr_list el;"expr",loop e]) cases);
-				vopt encode_texpr edef
+			| TSwitch switch -> 18,[
+				loop switch.switch_subject;
+				encode_array (List.map (fun case -> encode_obj ["values",encode_texpr_list case.case_patterns;"expr",loop case.case_expr]) switch.switch_cases);
+				vopt encode_texpr switch.switch_default
 				]
 			| TTry(e1,catches) -> 19,[
 				loop e1;
@@ -1539,7 +1539,16 @@ and decode_texpr v =
 		| 15, [v;v1;v2] -> TFor(decode_tvar v,loop v1,loop v2)
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
 		| 17, [vcond;v1;b] -> TWhile(loop vcond,loop v1,if decode_bool b then NormalWhile else DoWhile)
-		| 18, [v1;cl;vdef] -> TSwitch(loop v1,List.map (fun v -> List.map loop (decode_array (field v "values")),loop (field v "expr")) (decode_array cl),opt loop vdef)
+		| 18, [v1;cl;vdef] ->
+			let switch = {
+				switch_subject = loop v1;
+				switch_cases = List.map (fun v -> {
+					case_patterns = List.map loop (decode_array (field v "values"));
+					case_expr = loop (field v "expr")
+				}) (decode_array cl);
+				switch_default = opt loop vdef;
+			} in
+			TSwitch switch
 		| 19, [v1;cl] -> TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (decode_array cl))
 		| 20, [vo] -> TReturn(opt loop vo)
 		| 21, [] -> TBreak

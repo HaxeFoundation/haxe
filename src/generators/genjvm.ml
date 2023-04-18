@@ -347,17 +347,17 @@ let write_class gctx path jc =
 	gctx.out#add_entry (Bytes.unsafe_to_string (IO.close_out ch)) path;
 	t()
 
-let is_const_int_pattern (el,_) =
+let is_const_int_pattern case =
 	List.for_all (fun e -> match e.eexpr with
 		| TConst (TInt _) -> true
 		| _ -> false
-	) el
+	) case.case_patterns
 
-let is_const_string_pattern (el,_) =
+let is_const_string_pattern case =
 	List.for_all (fun e -> match e.eexpr with
 		| TConst (TString _) -> true
 		| _ -> false
-	) el
+	) case.case_patterns
 
 let is_interface_var_access c cf =
 	(has_class_flag c CInterface) && match cf.cf_kind with
@@ -909,21 +909,22 @@ class texpr_to_jvm
 			label_else#if_ (if flip then CmpNe else CmpEq)
 		end
 
-	method switch ret e1 cases def =
+	method switch ret {switch_subject = e1;switch_cases = cases;switch_default = def} =
 		let need_val = match ret with
 			| RValue _ -> true
 			| RReturn -> return_type <> None
 			| _ -> false
 		in
+		(* TODO: this seems to be missing the default, though in that case there probably wouldn't be a TSwitch in the AST *)
 		if cases = [] then
 			self#texpr ret e1
 		else if List.for_all is_const_int_pattern cases then begin
-			let cases = List.map (fun (el,e) ->
+			let cases = List.map (fun case ->
 				let il = List.map (fun e -> match e.eexpr with
 					| TConst (TInt i32) -> i32
 					| _ -> die "" __LOC__
-				) el in
-				(il,(fun () -> self#texpr ret e))
+				) case.case_patterns in
+				(il,(fun () -> self#texpr ret case.case_expr))
 			) cases in
 			let def = match def with
 				| None -> None
@@ -933,12 +934,12 @@ class texpr_to_jvm
 			jm#cast TInt;
 			jm#int_switch need_val cases def
 		end else if List.for_all is_const_string_pattern cases then begin
-			let cases = List.map (fun (el,e) ->
+			let cases = List.map (fun case ->
 				let sl = List.map (fun e -> match e.eexpr with
 					| TConst (TString s) -> s
 					| _ -> die "" __LOC__
-				) el in
-				(sl,(fun () -> self#texpr ret e))
+				) case.case_patterns in
+				(sl,(fun () -> self#texpr ret case.case_expr))
 			) cases in
 			let def = match def with
 				| None -> None
@@ -958,9 +959,9 @@ class texpr_to_jvm
 			self#cast v.v_type;
 			store();
 			let ev = mk (TLocal v) v.v_type null_pos in
-			let el = List.rev_map (fun (el,e) ->
+			let el = List.rev_map (fun case ->
 				let f e' = mk (TBinop(OpEq,ev,e')) com.basic.tbool e'.epos in
-				let e_cond = match el with
+				let e_cond = match case.case_patterns with
 					| [] -> die "" __LOC__
 					| [e] -> f e
 					| e :: el ->
@@ -968,10 +969,10 @@ class texpr_to_jvm
 							mk (TBinop(OpBoolOr,eacc,f e)) com.basic.tbool e.epos
 						) (f e) el
 				in
-				(e_cond,e)
+				(e_cond,case.case_expr)
 			) cases in
 			(* If we rewrite an exhaustive switch that has no default value, treat the last case as the default case to satisfy control flow. *)
-			let cases,def = if need_val && def = None then (match List.rev cases with (_,e) :: cases -> List.rev cases,Some e | _ -> die "" __LOC__) else cases,def in
+			let cases,def = if need_val && def = None then (match List.rev cases with case :: cases -> List.rev cases,Some case.case_expr | _ -> die "" __LOC__) else cases,def in
 			let e = List.fold_left (fun e_else (e_cond,e_then) -> Some (mk (TIf(e_cond,e_then,e_else)) e_then.etype e_then.epos)) def el in
 			self#texpr ret (Option.get e);
 			pop_scope()
@@ -1928,8 +1929,8 @@ class texpr_to_jvm
 					self#texpr ret (mk_block e3);
 					if need_val ret then self#cast e.etype;
 				)
-		| TSwitch(e1,cases,def) ->
-			self#switch ret e1 cases def
+		| TSwitch switch ->
+			self#switch ret switch
 		| TWhile(e1,e2,flag) ->
 			block_exits <- ExitLoop :: block_exits;
 			let is_true_loop = match (Texpr.skip e1).eexpr with TConst (TBool true) -> true | _ -> false in

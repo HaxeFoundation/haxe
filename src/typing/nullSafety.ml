@@ -1132,7 +1132,7 @@ class expr_checker mode immediate_execution report =
 				| TFor _ -> self#check_for e
 				| TIf _ -> self#check_if e
 				| TWhile _ -> self#check_while e
-				| TSwitch (target, cases, default) -> self#check_switch target cases default e.epos
+				| TSwitch switch -> self#check_switch switch e.epos
 				| TTry (try_block, catches) -> self#check_try try_block catches
 				| TReturn (Some expr) -> self#check_return expr e.epos
 				| TReturn None -> ()
@@ -1293,15 +1293,18 @@ class expr_checker mode immediate_execution report =
 		(**
 			Check safety in `switch` expressions.
 		*)
-		method private check_switch target cases default p =
+		method private check_switch switch p =
+			let target = switch.switch_subject in
+			let cases = switch.switch_cases in
+			let default = switch.switch_default in
 			if self#is_nullable_expr target then
 				self#error "Cannot switch on nullable value." [target.epos; p];
 			self#check_expr target;
 			let rec traverse_cases cases =
 				match cases with
 					| [] -> ()
-					| (_, body) :: rest ->
-						self#check_expr body;
+					| case :: rest ->
+						self#check_expr case.case_expr;
 						traverse_cases rest
 			in
 			traverse_cases cases;

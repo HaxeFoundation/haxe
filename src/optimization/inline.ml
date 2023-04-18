@@ -734,15 +734,23 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let eloop = map false false eloop in
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
-		| TSwitch (e1,cases,def) when term ->
-			let term = term && (is_exhaustive e1 def) in
-			let cases = List.map (fun (el,e) ->
-				let el = List.map (map false false) el in
-				el, map term false e
-			) cases in
-			let def = opt (map term false) def in
-			let t = return_type e.etype ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) in
-			{ e with eexpr = TSwitch (map false false e1,cases,def); etype = t }
+		| TSwitch switch when term ->
+			let term = term && (is_exhaustive switch.switch_subject switch.switch_default) in
+			let cases = List.map (fun case ->
+				let el = List.map (map false false) case.case_patterns in
+				{
+					case_patterns = el;
+					case_expr = map term false case.case_expr
+				}
+			) switch.switch_cases in
+			let def = opt (map term false) switch.switch_default in
+			let t = return_type e.etype ((List.map (fun case -> case.case_expr) cases) @ (match def with None -> [] | Some e -> [e])) in
+			let switch = {switch with
+				switch_subject = map false false switch.switch_subject;
+				switch_cases = cases;
+				switch_default = def;
+			} in
+			{ e with eexpr = TSwitch switch; etype = t }
 		| TTry (e1,catches) ->
 			let t = if not term then e.etype else return_type e.etype (e1::List.map snd catches) in
 			{ e with eexpr = TTry (map term false e1,List.map (fun (v,e) ->
@@ -758,10 +766,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					let r = match e.eexpr with
 					| TReturn _ -> true
 					| TFunction _ -> false
-					| TIf (_,_,None) | TSwitch (_,_,None) | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
+					| TIf (_,_,None) | TSwitch {switch_default = None} | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
 					| TTry (a, catches) -> List.for_all has_term_return (a :: List.map snd catches)
 					| TIf (cond,a,Some b) -> has_term_return cond || (has_term_return a && has_term_return b)
-					| TSwitch (cond,cases,Some def) -> has_term_return cond || List.for_all has_term_return (def :: List.map snd cases)
+					| TSwitch ({switch_default = Some def} as switch) -> has_term_return switch.switch_subject || List.for_all has_term_return (def :: List.map (fun case -> case.case_expr) switch.switch_cases)
 					| TBinop (OpBoolAnd,a,b) -> has_term_return a && has_term_return b
 					| _ -> Type.iter loop e; false
 					in
