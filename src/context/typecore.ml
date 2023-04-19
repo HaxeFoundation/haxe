@@ -74,7 +74,6 @@ type typer_module = {
 	curmod : module_def;
 	mutable module_resolution : resolution list;
 	mutable module_using : (tclass * pos) list;
-	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
 	mutable wildcard_packages : (string list * pos) list;
 	mutable import_statements : import list;
 }
@@ -764,6 +763,14 @@ let extract_type_imports l =
 		| _ ->
 			None
 	) l
+
+let extract_field_imports l =
+	List.fold_left (fun acc res -> match res.r_kind with
+		| RFieldImport(c,cf) ->
+			PMap.add (fst res.r_alias) ((TClassDecl c),cf.cf_name,res.r_pos) acc
+		| _ ->
+			acc
+	) PMap.empty l
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

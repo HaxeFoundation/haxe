@@ -415,7 +415,7 @@ let collect ctx tk with_type sort =
 					| _ -> raise Not_found
 			with Not_found ->
 				()
-		) ctx.m.module_globals;
+		) (extract_field_imports ctx.m.module_resolution);
 
 		(* literals *)
 		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");

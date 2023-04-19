@@ -115,18 +115,25 @@ let init_import ctx context_init path mode p =
 			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pname then
 				DisplayEmitter.display_module_type ctx mt pname;
 		in
+		let add_static_field c cf alias =
+			let res = mk_resolution alias (RFieldImport(c,cf)) p in
+			ctx.m.module_resolution <- res :: ctx.m.module_resolution;
+		in
+		let add_enum_constructor en ef alias =
+			let res = mk_resolution alias (REnumConstructorImport(en,ef)) p in
+			ctx.m.module_resolution <- res :: ctx.m.module_resolution;
+		in
 		let add_static_init t name s =
 			match resolve_typedef t with
 			| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
 				ignore(c.cl_build());
 				let cf = PMap.find s c.cl_statics in
 				let name = Option.default (cf.cf_name,null_pos) name in
-				let res = mk_resolution name (RFieldImport(c,cf)) p in
-				ctx.m.module_resolution <- res :: ctx.m.module_resolution;
-			| TEnumDecl e ->
-				let name,pname = (match name with None -> s,null_pos | Some (n,pname) -> n,pname) in
-				ignore(PMap.find s e.e_constrs);
-				ctx.m.module_globals <- PMap.add name (TEnumDecl e,s,p) ctx.m.module_globals
+				add_static_field c cf name
+			| TEnumDecl en ->
+				let ef = PMap.find s en.e_constrs in
+				let name = Option.default (ef.ef_name,null_pos) name in
+				add_enum_constructor en ef name
 			| _ ->
 				raise Not_found
 		in
@@ -148,7 +155,7 @@ let init_import ctx context_init path mode p =
 							ignore(c.cl_build());
 							List.iter (fun cf ->
 								if has_class_field_flag cf CfPublic then
-									ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals
+									add_static_field c cf (cf.cf_name,null_pos)
 							) c.cl_ordered_statics
 						);
 					) md.m_statics
@@ -218,8 +225,8 @@ let init_import ctx context_init path mode p =
 											if not (has_class_field_flag cf CfPublic) then
 												error_private p
 											else
-												let imported_name = match name with None -> tsub | Some (n,pname) -> n in
-												ctx.m.module_globals <- PMap.add imported_name (TClassDecl c,tsub,p) ctx.m.module_globals;
+												let name = Option.default (cf.cf_name,null_pos) name in
+												add_static_field c cf name;
 										else
 											loop rest
 								in
@@ -253,9 +260,9 @@ let init_import ctx context_init path mode p =
 				| TClassDecl c
 				| TAbstractDecl {a_impl = Some c} ->
 					ignore(c.cl_build());
-					PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals) c.cl_statics
-				| TEnumDecl e ->
-					PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
+					PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then add_static_field c cf (cf.cf_name,null_pos)) c.cl_statics
+				| TEnumDecl en ->
+					PMap.iter (fun _ ef -> if not (has_meta Meta.NoImportGlobal ef.ef_meta) then add_enum_constructor en ef (ef.ef_name,null_pos)) en.e_constrs
 				| _ ->
 					raise_typing_error "No statics to import from this type" p
 			)

@@ -259,6 +259,20 @@ let unify_min_for_type_source ctx el src =
 	| _ ->
 		unify_min ctx el
 
+let enum_field_access ctx en ef mode p pt =
+	let et = type_module_type ctx (TEnumDecl en) None p in
+	ImportHandling.mark_import_position ctx pt;
+	let wrap e =
+		let acc = AKExpr e in
+		let is_set = match mode with MSet _ -> true | _ -> false in
+		(* Should this really be here? *)
+		if is_set then
+			AKNo(acc,p)
+		else
+			acc
+	in
+	wrap (mk (TField (et,FEnum (en,ef))) (enum_field_type ctx en ef p) p)
+
 let rec resolve_enum_constructor ctx i mode (mt,pt) p = match mt with
 	| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
 		begin try
@@ -286,20 +300,9 @@ let rec resolve_enum_constructor ctx i mode (mt,pt) p = match mt with
 			| TAbstract (a,_) when a.a_enum -> resolve_enum_constructor ctx i mode (TAbstractDecl a,pt) p
 			| _ -> raise Not_found
 		end
-	| TEnumDecl e ->
-		let ef = PMap.find i e.e_constrs in
-		let et = type_module_type ctx mt None p in
-		ImportHandling.mark_import_position ctx pt;
-		let wrap e =
-			let acc = AKExpr e in
-			let is_set = match mode with MSet _ -> true | _ -> false in
-			(* Should this really be here? *)
-			if is_set then
-				AKNo(acc,p)
-			else
-				acc
-		in
-		wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
+	| TEnumDecl en ->
+		let ef = PMap.find i en.e_constrs in
+		enum_field_access ctx en ef mode p pt
 
 let rec type_ident_raise ctx i p mode with_type =
 	let resolve kind pres =
@@ -310,6 +313,8 @@ let rec type_ident_raise ctx i p mode with_type =
 		| RFieldImport(c,cf) ->
 			let e = type_module_type ctx (TClassDecl c) None p in
 			field_access ctx mode cf (FHStatic c) e p
+		| REnumConstructorImport(en,ef) ->
+			enum_field_access ctx en ef mode p pres
 		| _ ->
 			assert false
 	in
@@ -480,14 +485,8 @@ let rec type_ident_raise ctx i p mode with_type =
 	with Not_found -> try
 		(* TODO: cache this *)
 		resolve_import (List.rev_map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos) ctx.m.curmod.m_types)
-	with Not_found -> try
-		resolve_import ctx.m.module_resolution;
 	with Not_found ->
-		(* lookup imported globals *)
-		let t, name, pi = PMap.find i ctx.m.module_globals in
-		ImportHandling.mark_import_position ctx pi;
-		let e = type_module_type ctx t None p in
-		type_field_default_cfg ctx e name p mode with_type
+		resolve_import ctx.m.module_resolution;
 
 and type_ident ctx i p mode with_type =
 	try
@@ -2138,7 +2137,6 @@ let rec create com =
 			curmod = null_module;
 			module_resolution = [];
 			module_using = [];
-			module_globals = PMap.empty;
 			wildcard_packages = [];
 			import_statements = [];
 		};

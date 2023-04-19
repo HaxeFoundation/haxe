@@ -717,7 +717,6 @@ let hide_params ctx =
 		curmod = ctx.g.std;
 		module_resolution = [];
 		module_using = [];
-		module_globals = PMap.empty;
 		wildcard_packages = [];
 		import_statements = [];
 	};

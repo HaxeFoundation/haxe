@@ -493,7 +493,6 @@ let make_macro_api ctx p =
 			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
 		MacroApi.with_imports = (fun imports usings f ->
-			let old_globals = ctx.m.module_globals in
 			let old_resolution = ctx.m.module_resolution in
 			let old_using = ctx.m.module_using in
 			let run () =
@@ -508,7 +507,6 @@ let make_macro_api ctx p =
 				f()
 			in
 			let restore () =
-				ctx.m.module_globals <- old_globals;
 				ctx.m.module_resolution <- old_resolution;
 				ctx.m.module_using <- old_using;
 			in
@@ -676,7 +674,6 @@ let load_macro_module mctx com cpath display p =
 		curmod = mloaded;
 		module_resolution = [];
 		module_using = [];
-		module_globals = PMap.empty;
 		wildcard_packages = [];
 		import_statements = [];
 	};
@@ -717,7 +714,6 @@ let load_macro'' com mctx display cpath f p =
 			curmod = null_module;
 			module_resolution = [];
 			module_using = [];
-			module_globals = PMap.empty;
 			wildcard_packages = [];
 			import_statements = [];
 		};
