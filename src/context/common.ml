@@ -940,7 +940,7 @@ let update_platform_config com =
 		com.config <- get_config com
 
 let init_platform com =
-	let name = platform_define com.platform in
+	let name = platform_name com.platform in
 	if (com.platform = Flash) && Path.file_extension com.file = "swc" then define com Define.Swc;
 	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
 	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
@@ -968,7 +968,7 @@ let init_platform com =
 		raw_define com "target.unicode";
 	end;
 	raw_define_value com.defines "target.name" name;
-	raw_define com name;
+	raw_define com (match com.platform with | CustomTarget _ -> "custom_target" | _ -> name);
 	if com.config.pf_supports_atomics then begin
 		raw_define com "target.atomics"
 	end
@@ -979,6 +979,8 @@ let set_platform com pf file =
 	com.file <- file
 
 let set_custom_target com name path =
+	if List.find_opt (fun pf -> (platform_name pf) = name) platforms <> None then
+		raise (Arg.Bad (Printf.sprintf "--custom-target cannot use reserved name %s" name));
 	if String.length name > max_custom_target_len then
 		raise (Arg.Bad (Printf.sprintf "--custom-target name %s exceeds the maximum of %d characters" name max_custom_target_len));
 	let name_regexp = Str.regexp "^[a-zA-Z0-9\\_]+$" in
@@ -1042,12 +1044,8 @@ let abort ?(depth = 0) msg p = raise (Abort (Error.make_error ~depth (Custom msg
 let platform ctx p = ctx.platform = p
 
 let platform_name_macro com =
-	if defined com Define.Macro then
-		"macro"
-	else
-		match com.platform with
-		| CustomTarget n -> n
-		| pf -> platform_define pf
+	if defined com Define.Macro then "macro"
+	else platform_name com.platform
 
 let remove_extension file =
 	try String.sub file 0 (String.rindex file '.')
@@ -1277,7 +1275,7 @@ let adapt_defines_to_macro_context defines =
 		defines_signature = None
 	} in
 	Define.define macro_defines Define.Macro;
-	Define.raw_define macro_defines (platform_define !Globals.macro_platform);
+	Define.raw_define macro_defines (platform_name !Globals.macro_platform);
 	macro_defines
 
 let adapt_defines_to_display_context defines =

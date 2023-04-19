@@ -69,11 +69,7 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
-	| CustomTarget c -> "custom_" ^ c
-
-let platform_define = function
-	| CustomTarget _ -> "cross"
-	| pf -> platform_name pf
+	| CustomTarget c -> c
 
 let parse_platform = function
 	| "cross" -> Cross
@@ -88,13 +84,7 @@ let parse_platform = function
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval
-	| p ->
-		let max_len = (String.length "custom_") + max_custom_target_len in
-		let regex = Str.regexp "^custom\\_\\([a-zA-Z0-9\\_]+\\)$" in
-		if String.length p < max_len && Str.string_match regex p 0 then
-			CustomTarget (Str.matched_group 1 p)
-		else
-			raise (failwith ("invalid platform " ^ p))
+	| p -> CustomTarget p
 
 let platform_list_help = function
 	| [] -> ""
