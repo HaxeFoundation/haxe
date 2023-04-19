@@ -259,8 +259,82 @@ let unify_min_for_type_source ctx el src =
 	| _ ->
 		unify_min ctx el
 
+let rec resolve_enum_constructor ctx i mode (mt,pt) p = match mt with
+	| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
+		begin try
+			let cf = PMap.find i c.cl_statics in
+			if not (has_class_field_flag cf CfEnum) then
+				raise Not_found
+			else begin
+				let et = type_module_type ctx (TClassDecl c) None p in
+				let inline = match cf.cf_kind with
+					| Var {v_read = AccInline} -> true
+					|  _ -> false
+				in
+				let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
+				ImportHandling.mark_import_position ctx pt;
+				AKField fa
+			end
+		with Not_found ->
+			raise Not_found
+		end
+	| TClassDecl _ | TAbstractDecl _ ->
+		raise Not_found
+	| TTypeDecl t ->
+		begin match follow t.t_type with
+			| TEnum (e,_) -> resolve_enum_constructor ctx i mode (TEnumDecl e,pt) p
+			| TAbstract (a,_) when a.a_enum -> resolve_enum_constructor ctx i mode (TAbstractDecl a,pt) p
+			| _ -> raise Not_found
+		end
+	| TEnumDecl e ->
+		let ef = PMap.find i e.e_constrs in
+		let et = type_module_type ctx mt None p in
+		ImportHandling.mark_import_position ctx pt;
+		let wrap e =
+			let acc = AKExpr e in
+			let is_set = match mode with MSet _ -> true | _ -> false in
+			(* Should this really be here? *)
+			if is_set then
+				AKNo(acc,p)
+			else
+				acc
+		in
+		wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
+
 let rec type_ident_raise ctx i p mode with_type =
-	let is_set = match mode with MSet _ -> true | _ -> false in
+	let resolve kind pres =
+		ImportHandling.mark_import_position ctx pres;
+		match kind with
+		| RTypeImport mt ->
+			AKExpr (type_module_type ctx mt None p)
+		| RFieldImport(c,cf) ->
+			let e = type_module_type ctx (TClassDecl c) None p in
+			field_access ctx mode cf (FHStatic c) e p
+		| _ ->
+			assert false
+	in
+	let rec resolve_import l = match l with
+		| [] ->
+			raise Not_found
+		| res :: l ->
+			let default () =
+				if fst res.r_alias = i then
+					resolve res.r_kind res.r_pos
+				else
+					resolve_import l
+			in
+			match res.r_kind with
+				| RTypeImport mt ->
+					begin try
+						(* We always want to check the constructors first because if the type name is the same as one of
+						   the constructors, we want to prioritize the latter. *)
+						resolve_enum_constructor ctx i mode (mt,null_pos) p
+					with Not_found ->
+						default()
+					end
+				| _ ->
+					default()
+	in
 	match i with
 	| "true" ->
 		let acc = AKExpr (mk (TConst (TBool true)) ctx.t.tbool p) in
@@ -404,54 +478,10 @@ let rec type_ident_raise ctx i p mode with_type =
 			field_access ctx mode f (FHStatic c) e p
 		)
 	with Not_found -> try
-		let wrap e =
-			let acc = AKExpr e in
-			if is_set then
-				AKNo(acc,p)
-			else
-				acc
-		in
-		(* lookup imported enums *)
-		let rec loop l =
-			match l with
-			| [] -> raise Not_found
-			| (t,pt) :: l ->
-				match t with
-				| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
-					begin try
-						let cf = PMap.find i c.cl_statics in
-						if not (has_class_field_flag cf CfEnum) then
-							loop l
-						else begin
-							let et = type_module_type ctx (TClassDecl c) None p in
-							let inline = match cf.cf_kind with
-								| Var {v_read = AccInline} -> true
-								|  _ -> false
-							in
-							let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
-							ImportHandling.mark_import_position ctx pt;
-							AKField fa
-						end
-					with Not_found ->
-						loop l
-					end
-				| TClassDecl _ | TAbstractDecl _ ->
-					loop l
-				| TTypeDecl t ->
-					(match follow t.t_type with
-					| TEnum (e,_) -> loop ((TEnumDecl e,pt) :: l)
-					| TAbstract (a,_) when a.a_enum -> loop ((TAbstractDecl a,pt) :: l)
-					| _ -> loop l)
-				| TEnumDecl e ->
-					try
-						let ef = PMap.find i e.e_constrs in
-						let et = type_module_type ctx t None p in
-						ImportHandling.mark_import_position ctx pt;
-						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
-					with
-						Not_found -> loop l
-		in
-		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop (extract_type_imports ctx.m.module_resolution))
+		(* TODO: cache this *)
+		resolve_import (List.rev_map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos) ctx.m.curmod.m_types)
+	with Not_found -> try
+		resolve_import ctx.m.module_resolution;
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
@@ -2154,7 +2184,7 @@ let rec create com =
 				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.module_resolution <- List.map (fun t -> mk_resolution (RTypeImport t) null_pos) ctx.g.std.m_types;
+	ctx.m.module_resolution <- List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types;
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->

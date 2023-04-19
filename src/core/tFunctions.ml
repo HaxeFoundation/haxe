@@ -250,6 +250,8 @@ let t_infos t : tinfos =
 
 let t_path t = (t_infos t).mt_path
 
+let t_name t = snd (t_path t)
+
 let rec extends c csup =
 	if c == csup || List.exists (fun (i,_) -> extends i csup) c.cl_implements then
 		true

@@ -123,7 +123,7 @@ let find_type_import check l =
 	| res :: l ->
 		match res.r_kind with
 		| RTypeImport mt ->
-			if check mt then (mt,res.r_pos) else loop l
+			if check (fst res.r_alias) mt then (mt,res.r_pos) else loop l
 		| _ ->
 			loop l
 	in
@@ -131,14 +131,14 @@ let find_type_import check l =
 
 let find_type_in_current_module_context ctx pack name =
 	let no_pack = pack = [] in
-	let path_matches t2 =
+	let path_matches alias t2 =
 		let tp = t_path t2 in
 		(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
-		tp = (pack,name) || (no_pack && snd tp = name)
+		tp = (pack,name) || (no_pack && alias = name)
 	in
 	try
 		(* Check the types in our own module *)
-		List.find path_matches ctx.m.curmod.m_types
+		List.find (fun mt -> path_matches (t_name mt) mt) ctx.m.curmod.m_types
 	with Not_found ->
 		(* Check the local imports *)
 		let t,pi = find_type_import path_matches ctx.m.module_resolution in

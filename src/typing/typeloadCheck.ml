@@ -537,9 +537,9 @@ module Inheritance = struct
 			| _ :: _ -> t,p
 			| [] ->
 				try
-					let path_matches lt = snd (t_path lt) = t.tname in
+					let path_matches alias _ = alias = t.tname in
 					let lt = try
-						List.find path_matches ctx.m.curmod.m_types
+						List.find (fun mt -> path_matches (t_name mt) mt) ctx.m.curmod.m_types
 					with Not_found ->
 						let t,pi = Typeload.find_type_import path_matches ctx.m.module_resolution in
 						ImportHandling.mark_import_position ctx pi;

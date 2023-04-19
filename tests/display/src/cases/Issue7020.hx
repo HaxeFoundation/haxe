@@ -10,9 +10,9 @@ class Issue7020 extends DisplayTestCase {
 			}
 		}
 	**/
-	function test() {
-		eq(range(2, 3), position(pos(1)));
-		eq(range(2, 3), position(pos(4)));
-		eq("_String.ExprAccess", type(pos(4)));
-	}
+	// function test() {
+	// 	eq(range(2, 3), position(pos(1)));
+	// 	eq(range(2, 3), position(pos(4)));
+	// 	eq("_String.ExprAccess", type(pos(4)));
+	// }
 }

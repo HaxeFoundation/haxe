@@ -707,7 +707,7 @@ end
 
 let make_curmod ctx m = {
 	curmod = m;
-	module_resolution = List.map (fun t -> mk_resolution (RTypeImport t) null_pos) ctx.g.std.m_types;
+	module_resolution = List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types;
 	module_using = [];
 	module_globals = PMap.empty;
 	wildcard_packages = [];

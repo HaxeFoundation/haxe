@@ -109,29 +109,22 @@ let init_import ctx context_init path mode p =
 			chk_private t p_type;
 			t
 		in
-		let rebind t name p =
+		let check_alias mt name pname =
 			if not (name.[0] >= 'A' && name.[0] <= 'Z') then
-				raise_typing_error "Type aliases must start with an uppercase letter" p;
-			let _, _, f = ctx.g.do_build_instance ctx t p_type in
-			(* create a temp private typedef, does not register it in module *)
-			let t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name) in
-			let t_type = f (extract_param_types (t_infos t).mt_params) in
-			let mt = TTypeDecl {(mk_typedef ctx.m.curmod t_path p p t_type) with
-				t_private = true;
-				t_params = (t_infos t).mt_params
-			} in
-			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
-				DisplayEmitter.display_module_type ctx mt p;
-			mt
+				raise_typing_error "Type aliases must start with an uppercase letter" pname;
+			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pname then
+				DisplayEmitter.display_module_type ctx mt pname;
 		in
 		let add_static_init t name s =
-			let name = (match name with None -> s | Some (n,_) -> n) in
 			match resolve_typedef t with
 			| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
 				ignore(c.cl_build());
-				ignore(PMap.find s c.cl_statics);
-				ctx.m.module_globals <- PMap.add name (TClassDecl c,s,p) ctx.m.module_globals
+				let cf = PMap.find s c.cl_statics in
+				let name = Option.default (cf.cf_name,null_pos) name in
+				let res = mk_resolution name (RFieldImport(c,cf)) p in
+				ctx.m.module_resolution <- res :: ctx.m.module_resolution;
 			| TEnumDecl e ->
+				let name,pname = (match name with None -> s,null_pos | Some (n,pname) -> n,pname) in
 				ignore(PMap.find s e.e_constrs);
 				ctx.m.module_globals <- PMap.add name (TEnumDecl e,s,p) ctx.m.module_globals
 			| _ ->
@@ -146,7 +139,7 @@ let init_import ctx context_init path mode p =
 				| None ->
 					ctx.m.module_resolution <- (ExtList.List.filter_map (fun t ->
 						if not_private t then
-							Some (mk_resolution (RTypeImport t) p)
+							Some (mk_resolution (t_name t,null_pos) (RTypeImport t) p)
 						else
 							None
 					) types) @ ctx.m.module_resolution;
@@ -161,8 +154,8 @@ let init_import ctx context_init path mode p =
 					) md.m_statics
 				| Some(newname,pname) ->
 					let mt = get_type tname in
-					let mt = rebind mt newname pname in
-					let res = mk_resolution (RTypeImport mt) p2 in
+					check_alias mt newname pname;
+					let res = mk_resolution (newname,pname) (RTypeImport mt) p2 in
 					ctx.m.module_resolution <- res :: ctx.m.module_resolution;
 				end
 			| [tsub,p2] ->
@@ -170,13 +163,14 @@ let init_import ctx context_init path mode p =
 				(try
 					let tsub = List.find (has_name tsub) types in
 					chk_private tsub pu;
-					let res = match name with
+					let name = match name with
 						| None ->
-							mk_resolution (RTypeImport tsub) p2
-						| Some(newname,pname) ->
-							let mt = rebind tsub newname pname in
-							mk_resolution (RTypeImport mt) p2
+							(t_name tsub,null_pos)
+						| Some(name,pname) ->
+							check_alias tsub name pname;
+							(name,pname)
 					in
+					let res = mk_resolution name (RTypeImport tsub) p2 in
 					ctx.m.module_resolution <- res :: ctx.m.module_resolution
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
@@ -305,5 +299,5 @@ let handle_using ctx path p =
 let init_using ctx context_init path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
-	ctx.m.module_resolution <- (List.map (fun mt -> mk_resolution (RTypeImport mt) p) types) @ ctx.m.module_resolution;
+	ctx.m.module_resolution <- (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types) @ ctx.m.module_resolution;
 	context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

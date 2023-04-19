@@ -60,12 +60,12 @@ type typer_pass =
 
 type resolution_kind =
 	| RTypeImport of module_type
-	| RFieldImport of module_type * tclass_field
-	| REnumConstructorImport of module_type * tenum_field
+	| RFieldImport of tclass * tclass_field
+	| REnumConstructorImport of tenum * tenum_field
 	| RWildcardPackage of string list
-	| RAliased of placed_name * resolution
 
 and resolution = {
+	r_alias : placed_name;
 	r_kind : resolution_kind;
 	r_pos : pos;
 }
@@ -212,7 +212,8 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error
 
-let mk_resolution kind p = {
+let mk_resolution alias kind p = {
+	r_alias = alias;
 	r_kind = kind;
 	r_pos = p;
 }
