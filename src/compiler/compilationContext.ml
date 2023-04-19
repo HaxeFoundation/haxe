@@ -44,7 +44,7 @@ and compilation_context = {
 
 type compilation_callbacks = {
 	before_anything : compilation_context -> unit;
-	after_arg_parsing : compilation_context -> unit;
+	after_target_init : compilation_context -> unit;
 	after_compilation : compilation_context -> unit;
 }
 

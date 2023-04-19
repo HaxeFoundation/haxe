@@ -647,7 +647,8 @@ let create_macro_context com =
 	let defines = adapt_defines_to_macro_context com2.defines; in
 	com2.defines.values <- defines.values;
 	com2.defines.defines_signature <- None;
-	Common.init_platform com2 !Globals.macro_platform;
+	com2.platform <- !Globals.macro_platform;
+	Common.init_platform com2;
 	let mctx = !create_context_ref com2 in
 	mctx.is_display_file <- false;
 	CommonCache.lock_signature com2 "get_macro_context";
