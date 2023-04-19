@@ -1,6 +1,12 @@
-[WARNING] Main.hx:6: characters 9-10
+[WARNING] Main.hx:8: characters 9-10
 
- 6 |   $type(a);
-   |         ^
-   | A<String, Int>
+  8 |   $type(a);
+    |         ^
+    | A<String, Int>
+
+[WARNING] Main.hx:11: characters 9-10
+
+ 11 |   $type(b);
+    |         ^
+    | B<Bool, String, Int>
 
