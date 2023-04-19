@@ -167,7 +167,7 @@ let find_in_wildcard_imports ctx mname p f =
 				loop l
 			end
 	in
-	loop ctx.m.wildcard_packages
+	loop (extract_wildcard_packages ctx.m.module_resolution)
 
 (* TODO: move these generic find functions into a separate module *)
 let find_in_modules_starting_from_current_package ~resume ctx mname p f =
@@ -717,7 +717,6 @@ let hide_params ctx =
 		curmod = ctx.g.std;
 		module_resolution = [];
 		module_using = [];
-		wildcard_packages = [];
 		import_statements = [];
 	};
 	ctx.type_params <- [];

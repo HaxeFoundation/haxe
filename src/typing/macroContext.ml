@@ -674,7 +674,6 @@ let load_macro_module mctx com cpath display p =
 		curmod = mloaded;
 		module_resolution = [];
 		module_using = [];
-		wildcard_packages = [];
 		import_statements = [];
 	};
 	mloaded,(fun () -> mctx.com.display <- old)
@@ -714,7 +713,6 @@ let load_macro'' com mctx display cpath f p =
 			curmod = null_module;
 			module_resolution = [];
 			module_using = [];
-			wildcard_packages = [];
 			import_statements = [];
 		};
 		t();

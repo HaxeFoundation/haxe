@@ -74,7 +74,6 @@ type typer_module = {
 	curmod : module_def;
 	mutable module_resolution : resolution list;
 	mutable module_using : (tclass * pos) list;
-	mutable wildcard_packages : (string list * pos) list;
 	mutable import_statements : import list;
 }
 
@@ -771,6 +770,14 @@ let extract_field_imports l =
 		| _ ->
 			acc
 	) PMap.empty l
+
+let extract_wildcard_packages l =
+	ExtList.List.filter_map (fun res -> match res.r_kind with
+		| RWildcardPackage sl ->
+			Some (sl,res.r_pos)
+		| _ ->
+			None
+	) l
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

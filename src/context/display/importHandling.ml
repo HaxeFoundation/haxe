@@ -71,7 +71,8 @@ let init_import ctx context_init path mode p =
 	| [] ->
 		(match mode with
 		| IAll ->
-			ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
+			let res = mk_resolution ("",null_pos) (RWildcardPackage (List.map fst pack)) p in
+			ctx.m.module_resolution <- res :: ctx.m.module_resolution
 		| _ ->
 			(match List.rev path with
 			(* p spans `import |` (to the display position), so we take the pmax here *)

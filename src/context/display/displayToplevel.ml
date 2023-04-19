@@ -188,7 +188,7 @@ module CollectionContext = struct
 			Shadowed
 		with Not_found ->
 			let check_wildcard () =
-				List.exists (fun (sl,_) -> (sl,snd path) = path) ctx.ctx.m.wildcard_packages
+				List.exists (fun (sl,_) -> (sl,snd path) = path) (extract_wildcard_packages ctx.ctx.m.module_resolution)
 			in
 			if is_import || (fst path = []) || check_wildcard () then Imported else Unimported
 

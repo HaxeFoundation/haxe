@@ -315,7 +315,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			field_access ctx mode cf (FHStatic c) e p
 		| REnumConstructorImport(en,ef) ->
 			enum_field_access ctx en ef mode p pres
-		| _ ->
+		| RWildcardPackage _ ->
 			assert false
 	in
 	let rec resolve_import l = match l with
@@ -2137,7 +2137,6 @@ let rec create com =
 			curmod = null_module;
 			module_resolution = [];
 			module_using = [];
-			wildcard_packages = [];
 			import_statements = [];
 		};
 		is_display_file = false;
