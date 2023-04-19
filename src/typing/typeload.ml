@@ -342,9 +342,9 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		else begin
 			let is_java_rest = ctx.com.platform = Java && is_extern in
 			let is_rest = is_rest || is_java_rest in
-			let load_param t =
-				match t with
-				| TPExpr e ->
+			let load_param t def =
+				match (t,def) with
+				| TPExpr e,_ ->
 					let name = (match fst e with
 						| EConst (String(s,_)) -> "S" ^ s
 						| EConst (Int (_,_) as c) -> "I" ^ s_constant c
@@ -357,12 +357,17 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 					c.cl_kind <- KExpr e;
 					TInst (c,[]),pos e
-				| TPType t -> load_complex_type ctx true t,pos t
+				| TPType (CTSkipped,p), None ->
+						raise_typing_error "Cannot skip non-default type parameter" p
+				| TPType (CTSkipped,p), Some def ->
+						def,p
+				| TPType t,_ ->
+						load_complex_type ctx true t,pos t
 			in
 			let checks = DynArray.create () in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
-				| t :: tl1,({ttp_name=name;ttp_type=t2}) :: tl2 ->
-					let t,pt = load_param t in
+				| t :: tl1,({ttp_name=name;ttp_type=t2;ttp_default=def}) :: tl2 ->
+					let t,pt = load_param t def in
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 						let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
@@ -402,7 +407,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 							t :: loop [] tl is_rest
 					end
 				| t :: tl,[] ->
-					let t,pt = load_param t in
+					let t,pt = load_param t None in
 					if is_rest then
 						t :: loop tl [] true
 					else if ignore_error ctx.com then
@@ -453,6 +458,7 @@ and load_complex_type' ctx allow_display (t,p) =
 	| CTPath t -> load_instance ~allow_display ctx (t,p) false
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
+	| CTSkipped -> raise_typing_error "Invalid type : _" p
 	| CTIntersection tl ->
 		let tl = List.map (fun (t,pn) ->
 			try
