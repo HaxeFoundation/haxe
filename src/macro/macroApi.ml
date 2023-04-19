@@ -910,7 +910,7 @@ and decode_expr v =
 				let vmeta = field v "meta" in
 				let meta = if vmeta == vnull then [] else decode_meta_content vmeta in
 				let name_pos = maybe_decode_pos (field v "namePos") in
-				let name_pos = if name_pos == null_pos then p else name_pos in
+				let name_pos = if name_pos = null_pos then p else name_pos in
 				let name = ((decode_string (field v "name")), name_pos)
 				and t = opt decode_ctype (field v "type")
 				and eo = opt loop (field v "expr") in
