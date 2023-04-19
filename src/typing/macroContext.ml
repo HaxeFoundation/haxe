@@ -731,6 +731,15 @@ let load_macro' ctx display cpath f p =
 	   voodoo stuff in displayToplevel.ml *)
 	fst (load_macro'' ctx.com (get_macro_context ctx) display cpath f p)
 
+let do_call_macro com api cpath f args p =
+	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
+	let t = macro_timer com ["execution";s_type_path cpath ^ "." ^ f] in
+	incr stats.s_macros_called;
+	let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
+	t();
+	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
+	r
+
 let load_macro ctx display cpath f p =
 	let api = make_macro_api ctx p in
 	let mctx = get_macro_context ctx in
@@ -738,13 +747,7 @@ let load_macro ctx display cpath f p =
 	let _,_,{cl_path = cpath},_ = meth in
 	let call args =
 		add_dependency ctx.m.curmod mloaded;
-		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
-		let t = macro_timer ctx.com ["execution";s_type_path cpath ^ "." ^ f] in
-		incr stats.s_macros_called;
-		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
-		t();
-		if ctx.com.verbose then Common.log ctx.com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
-		r
+		do_call_macro ctx.com api cpath f args p
 	in
 	mctx, meth, call
 
@@ -931,22 +934,21 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	in
 	e
 
-let call_macro ctx path meth args p =
-	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
+let call_macro mctx args margs call p =
 	mctx.curclass <- null_class;
 	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 
-let call_init_macro ctx e =
+let resolve_init_macro com e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
 	let e = try
 		if String.get e (String.length e - 1) = ';' then raise_typing_error "Unexpected ;" p;
-		begin match ParserEntry.parse_expr_string ctx.com.defines e p raise_typing_error false with
+		begin match ParserEntry.parse_expr_string com.defines e p raise_typing_error false with
 		| ParseSuccess(data,_,_) -> data
 		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
 		end
 	with err ->
-		display_error ctx.com ("Could not parse `" ^ e ^ "`") p;
+		display_error com ("Could not parse `" ^ e ^ "`") p;
 		raise err
 	in
 	match fst e with
@@ -962,9 +964,14 @@ let call_init_macro ctx e =
 		| [meth;"server"] -> (["haxe";"macro"],"CompilationServer"), meth
 		| meth :: cl :: path -> (List.rev path,cl), meth
 		| _ -> raise_typing_error "Invalid macro call" p) in
-		ignore(call_macro ctx path meth args p);
+		(path,meth,args,p)
 	| _ ->
 		raise_typing_error "Invalid macro call" p
+
+let call_init_macro ctx e =
+	let (path,meth,args,p) = resolve_init_macro ctx.com e in
+	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
+	ignore(call_macro mctx args margs call p);
 
 module MacroLight = struct
 	let load_macro_light com mctx api display cpath f p =
@@ -972,50 +979,14 @@ module MacroLight = struct
 		let meth,mloaded = load_macro'' com mctx display cpath f p in
 		let _,_,{cl_path = cpath},_ = meth in
 		let call args =
-			if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
-			let t = macro_timer com ["execution";s_type_path cpath ^ "." ^ f] in
-			incr stats.s_macros_called;
-			let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
-			t();
-			if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
-			r
+			do_call_macro com api cpath f args p
 		in
 		mctx, meth, call
 
-	let call_macro com mctx api path meth args p =
-		let mctx, (margs,_,mclass,mfield), call = load_macro_light com mctx api false path meth p in
-		mctx.curclass <- null_class;
-		let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
-		call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
-
 	let call_init_macro com mctx api e =
-		let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
-		let e = try
-			if String.get e (String.length e - 1) = ';' then raise_typing_error "Unexpected ;" p;
-			begin match ParserEntry.parse_expr_string com.defines e p raise_typing_error false with
-			| ParseSuccess(data,_,_) -> data
-			| ParseError(_,(msg,p),_) -> (Parser.error msg p)
-			end
-		with err ->
-			display_error com ("Could not parse `" ^ e ^ "`") p;
-			raise err
-		in
-		match fst e with
-		| ECall (e,args) ->
-			let rec loop e =
-				match fst e with
-				| EField (e,f,_) -> f :: loop e
-				| EConst (Ident i) -> [i]
-				| _ -> raise_typing_error "Invalid macro call" p
-			in
-			let path, meth = (match loop e with
-			| [meth] -> (["haxe";"macro"],"Compiler"), meth
-			| [meth;"server"] -> (["haxe";"macro"],"CompilationServer"), meth
-			| meth :: cl :: path -> (List.rev path,cl), meth
-			| _ -> raise_typing_error "Invalid macro call" p) in
-			ignore(call_macro com mctx api path meth args p);
-		| _ ->
-			raise_typing_error "Invalid macro call" p
+		let (path,meth,args,p) = resolve_init_macro com e in
+		let mctx, (margs,_,mclass,mfield), call = load_macro_light com mctx api false path meth p in
+		ignore(call_macro mctx args margs call p);
 
 end
 
