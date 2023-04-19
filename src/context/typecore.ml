@@ -216,6 +216,12 @@ let mk_resolution alias kind p = {
 	r_pos = p;
 }
 
+let s_resolution_kind = function
+	| RTypeImport mt -> Printf.sprintf "RTypeImport(%s)" (s_type_path (t_infos mt).mt_path)
+	| RFieldImport(c,cf) -> Printf.sprintf "RFieldImport(%s, %s)" (s_type_path c.cl_path) cf.cf_name
+	| REnumConstructorImport(en,ef) -> Printf.sprintf "REnumConstructorImport(%s, %s)" (s_type_path en.e_path) ef.ef_name
+	| RWildcardPackage sl -> Printf.sprintf "RWildcardPackage(%s)" (String.concat "." sl)
+
 let memory_marker = [|Unix.time()|]
 
 let locate_macro_error = ref true

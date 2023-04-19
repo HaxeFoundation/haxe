@@ -1736,6 +1736,10 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Dollar s,_,p) ->
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
+		| (Meta.Custom ":debug.import",_,_) ->
+			let sl = List.map (fun res -> s_resolution_kind res.r_kind) ctx.m.module_resolution in
+			print_endline (String.concat "\n" sl);
+			e()
 		| _ ->
 			if ctx.g.retain_meta then
 				let e = e() in
