@@ -1,0 +1,6 @@
+[ERROR] Main3.hx:1: characters 13-14
+
+ 1 | typedef B = _;
+   |             ^
+   | Invalid type : _
+

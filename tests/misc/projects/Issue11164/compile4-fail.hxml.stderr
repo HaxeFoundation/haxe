@@ -1,0 +1,6 @@
+[ERROR] Main4.hx:1: characters 9-10
+
+ 1 | typedef _ = String;
+   |         ^
+   | Type name should start with an uppercase letter
+

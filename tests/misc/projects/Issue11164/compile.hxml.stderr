@@ -1,0 +1,6 @@
+[WARNING] Main.hx:6: characters 9-10
+
+ 6 |   $type(a);
+   |         ^
+   | A<String, Int>
+

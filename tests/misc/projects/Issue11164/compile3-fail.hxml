@@ -1,0 +1,3 @@
+-main Main3
+-D message.reporting=pretty
+-D message.no-color

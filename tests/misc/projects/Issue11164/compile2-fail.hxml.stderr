@@ -1,0 +1,6 @@
+[ERROR] Main2.hx:3: characters 15-16
+
+ 3 |   var b:Array<_> = [];
+   |               ^
+   | Cannot skip non-default type parameter
+
