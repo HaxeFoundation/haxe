@@ -71,25 +71,15 @@ let run_command ctx cmd =
 
 module Setup = struct
 	let initialize_target ctx com actx =
+		init_platform com;
 		let add_std dir =
 			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 		in
 		match com.platform with
 			| Cross ->
-				(match com.custom_target with
-				| Some (name,path) ->
-					(* --custom-target *)
-					set_platform com (CustomTarget name) path
-				| None ->
-					(* no platform selected *)
-					set_platform com Cross "");
 				"?"
-			| pf when (com.custom_target <> None) ->
-				(* --custom-target defined with another target *)
-				failwith "Multiple targets.";
-			| CustomTarget _ ->
-				(* should be impossible to reach this *)
-				failwith "--custom-target initialized improperly.";
+			| CustomTarget name ->
+				name
 			| Flash ->
 				let rec loop = function
 					| [] -> ()
@@ -327,8 +317,8 @@ let compile ctx actx =
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
-	let mctx = match com.custom_target with
-		| Some (name,_) ->
+	let mctx = match com.platform with
+		| CustomTarget name ->
 			begin try
 				Some (call_light_init_macro com (Printf.sprintf "%s.Init.init()" name))
 			with Error.Error err ->
