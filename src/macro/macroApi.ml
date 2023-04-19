@@ -448,7 +448,6 @@ and encode_platform_config pc =
 		"padNulls", vbool pc.pf_pad_nulls;
 		"addFinalReturn", vbool pc.pf_add_final_return;
 		"overloadFunctions", vbool pc.pf_overload;
-		"canSkipNonNullableArgument", vbool pc.pf_can_skip_non_nullable_argument;
 		"reservedTypePaths", encode_array (List.map encode_path pc.pf_reserved_type_paths);
 		"supportsFunctionEquality", vbool pc.pf_supports_function_equality;
 		"usesUtf16", vbool pc.pf_uses_utf16;
@@ -1731,7 +1730,7 @@ let decode_platform_config v =
 		pf_pad_nulls = decode_bool (field v "padNulls");
 		pf_add_final_return = decode_bool (field v "addFinalReturn");
 		pf_overload = decode_bool (field v "overloadFunctions");
-		pf_can_skip_non_nullable_argument = decode_bool (field v "canSkipNonNullableArgument");
+		pf_can_skip_non_nullable_argument = false;
 		pf_reserved_type_paths = List.map decode_path (decode_array (field v "reservedTypePaths"));
 		pf_supports_function_equality = decode_bool (field v "supportsFunctionEquality");
 		pf_uses_utf16 = decode_bool (field v "usesUtf16");

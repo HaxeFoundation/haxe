@@ -12,7 +12,6 @@ class Init {
 			scope: BlockScope,
 			flags: []
 		},
-		canSkipNonNullableArgument: true,
 		exceptions: {
 			nativeThrows: [],
 			avoidWrapping: true,
