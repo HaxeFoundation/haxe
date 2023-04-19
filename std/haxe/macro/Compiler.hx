@@ -22,7 +22,7 @@
 
 package haxe.macro;
 
-import haxe.display.Display;
+import haxe.display.Display.MetadataTarget;
 import haxe.macro.Expr;
 
 /**

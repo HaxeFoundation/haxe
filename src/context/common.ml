@@ -979,7 +979,7 @@ let set_platform com pf file =
 	com.file <- file
 
 let set_custom_target com name path =
-	if List.find_opt (fun pf -> (platform_name pf) = name) platforms <> None then
+	if is_reserved_platform_name name then
 		raise (Arg.Bad (Printf.sprintf "--custom-target cannot use reserved name %s" name));
 	if String.length name > max_custom_target_len then
 		raise (Arg.Bad (Printf.sprintf "--custom-target name %s exceeds the maximum of %d characters" name max_custom_target_len));

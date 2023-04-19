@@ -866,6 +866,27 @@ and decode_display_kind v = match (decode_enum v) with
 	| 4, [outermost] -> DKPattern (decode_bool outermost)
 	| _ -> raise Invalid_expr
 
+and decode_platform v = match (decode_enum v) with
+	| 0, [] -> Cross
+	| 1, [] -> Js
+	| 2, [] -> Lua
+	| 3, [] -> Neko
+	| 4, [] -> Flash
+	| 5, [] -> Php
+	| 6, [] -> Cpp
+	| 7, [] -> Cs
+	| 8, [] -> Java
+	| 9, [] -> Python
+	| 10, [] -> Hl
+	| 11, [] -> Eval
+	| 12, [name] ->
+		let custom_name = decode_string name in
+		if is_reserved_platform_name custom_name then
+			raise (Arg.Bad (Printf.sprintf "Platform.Custom(_) cannot use reserved name %s" custom_name))
+		else
+			CustomTarget custom_name
+	| _ -> raise Invalid_expr
+
 and decode_function_kind kind = if kind = vnull then FKAnonymous else match decode_enum kind with
 	| 0, [] -> FKAnonymous
 	| 1, [name;inline] -> FKNamed ((decode_string name,Globals.null_pos), decode_opt_bool inline)
@@ -1962,10 +1983,10 @@ let macro_api ccom get_api =
 		"register_define_impl", vfun2 (fun d src ->
 			let flags : define_parameter list = [] in
 
-			let platforms = decode_opt_array decode_string (field d "platforms") in
+			let platforms = decode_opt_array decode_platform (field d "platforms") in
 			let flags = match platforms with
 				| [] -> flags
-				| _ ->(Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+				| _ -> (Platforms platforms) :: flags
 			in
 
 			let params = decode_opt_array decode_string (field d "params") in
@@ -1984,10 +2005,10 @@ let macro_api ccom get_api =
 		"register_metadata_impl", vfun2 (fun m src ->
 			let flags : meta_parameter list = [] in
 
-			let platforms = decode_opt_array decode_string (field m "platforms") in
+			let platforms = decode_opt_array decode_platform (field m "platforms") in
 			let flags =
 				if (List.length platforms) = 0 then flags
-				else (Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+				else (Platforms platforms) :: flags
 			in
 
 			let targets = decode_opt_array decode_string (field m "targets") in

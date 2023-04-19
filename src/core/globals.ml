@@ -91,6 +91,8 @@ let platform_list_help = function
 	| [p] -> " (" ^ platform_name p ^ " only)"
 	| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
 
+let is_reserved_platform_name name = (List.find_opt (fun pf -> (platform_name pf) = name) platforms) <> None
+
 let mk_zero_range_pos p = { p with pmax = p.pmin }
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
