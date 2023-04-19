@@ -82,7 +82,7 @@ let init_import ctx context_init path mode p =
 		let p_type = punion p1 p2 in
 		let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
 		let types = md.m_types in
-		let no_private (t,_) = not (t_infos t).mt_private in
+		let not_private mt = not (t_infos mt).mt_private in
 		let error_private p = raise_typing_error "Importing private declarations from a module is not allowed" p in
 		let chk_private t p = if ctx.m.curmod != (t_infos t).mt_module && (t_infos t).mt_private then error_private p in
 		let has_name name t = snd (t_infos t).mt_path = name in
@@ -142,9 +142,14 @@ let init_import ctx context_init path mode p =
 			let name = (match mode with IAsName n -> Some n | _ -> None) in
 			(match rest with
 			| [] ->
-				(match name with
+				begin match name with
 				| None ->
-					ctx.m.module_imports <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_imports;
+					ctx.m.module_resolution <- (ExtList.List.filter_map (fun t ->
+						if not_private t then
+							Some (mk_resolution (RTypeImport t) p)
+						else
+							None
+					) types) @ ctx.m.module_resolution;
 					Option.may (fun c ->
 						context_init#add (fun () ->
 							ignore(c.cl_build());
@@ -155,13 +160,24 @@ let init_import ctx context_init path mode p =
 						);
 					) md.m_statics
 				| Some(newname,pname) ->
-					ctx.m.module_imports <- (rebind (get_type tname) newname pname,p) :: ctx.m.module_imports);
+					let mt = get_type tname in
+					let mt = rebind mt newname pname in
+					let res = mk_resolution (RTypeImport mt) p2 in
+					ctx.m.module_resolution <- res :: ctx.m.module_resolution;
+				end
 			| [tsub,p2] ->
 				let pu = punion p1 p2 in
 				(try
 					let tsub = List.find (has_name tsub) types in
 					chk_private tsub pu;
-					ctx.m.module_imports <- ((match name with None -> tsub | Some(n,pname) -> rebind tsub n pname),p) :: ctx.m.module_imports
+					let res = match name with
+						| None ->
+							mk_resolution (RTypeImport tsub) p2
+						| Some(newname,pname) ->
+							let mt = rebind tsub newname pname in
+							mk_resolution (RTypeImport mt) p2
+					in
+					ctx.m.module_resolution <- res :: ctx.m.module_resolution
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
 					let find_main_type_static () =
@@ -289,5 +305,5 @@ let handle_using ctx path p =
 let init_using ctx context_init path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
-	ctx.m.module_imports <- (List.map (fun t -> t,p) types) @ ctx.m.module_imports;
+	ctx.m.module_resolution <- (List.map (fun mt -> mk_resolution (RTypeImport mt) p) types) @ ctx.m.module_resolution;
 	context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

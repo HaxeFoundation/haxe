@@ -58,9 +58,21 @@ type typer_pass =
 	| PForce				(* usually ensure that lazy have been evaluated *)
 	| PFinal				(* not used, only mark for finalize *)
 
+type resolution_kind =
+	| RTypeImport of module_type
+	| RFieldImport of module_type * tclass_field
+	| REnumConstructorImport of module_type * tenum_field
+	| RWildcardPackage of string list
+	| RAliased of placed_name * resolution
+
+and resolution = {
+	r_kind : resolution_kind;
+	r_pos : pos;
+}
+
 type typer_module = {
 	curmod : module_def;
-	mutable module_imports : (module_type * pos) list;
+	mutable module_resolution : resolution list;
 	mutable module_using : (tclass * pos) list;
 	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
 	mutable wildcard_packages : (string list * pos) list;
@@ -199,6 +211,11 @@ type dot_path_part = {
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error
+
+let mk_resolution kind p = {
+	r_kind = kind;
+	r_pos = p;
+}
 
 let memory_marker = [|Unix.time()|]
 
@@ -737,6 +754,15 @@ let create_deprecation_context ctx = {
 	class_meta = ctx.curclass.cl_meta;
 	field_meta = ctx.curfield.cf_meta;
 }
+
+(* TODO: remove this *)
+let extract_type_imports l =
+	ExtList.List.filter_map (fun res -> match res.r_kind with
+		| RTypeImport mt ->
+			Some (mt,res.r_pos)
+		| _ ->
+			None
+	) l
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

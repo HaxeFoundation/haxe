@@ -378,7 +378,7 @@ let collect ctx tk with_type sort =
 				()
 		in
 		List.iter enum_ctors ctx.m.curmod.m_types;
-		List.iter enum_ctors (List.map fst ctx.m.module_imports);
+		List.iter enum_ctors (List.map fst (extract_type_imports ctx.m.module_resolution));
 
 		(* enum constructors of expected type *)
 		begin match with_type with
@@ -460,7 +460,7 @@ let collect ctx tk with_type sort =
 	List.iter add_type ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter add_type (List.rev_map fst ctx.m.module_imports); (* reverse! *)
+	List.iter add_type (List.rev_map fst (extract_type_imports ctx.m.module_resolution)); (* reverse! *)
 
 	(* types from files *)
 	let cs = ctx.com.cs in

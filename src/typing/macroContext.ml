@@ -494,7 +494,7 @@ let make_macro_api ctx p =
 		);
 		MacroApi.with_imports = (fun imports usings f ->
 			let old_globals = ctx.m.module_globals in
-			let old_imports = ctx.m.module_imports in
+			let old_resolution = ctx.m.module_resolution in
 			let old_using = ctx.m.module_using in
 			let run () =
 				let context_init = new TypeloadFields.context_init in
@@ -509,7 +509,7 @@ let make_macro_api ctx p =
 			in
 			let restore () =
 				ctx.m.module_globals <- old_globals;
-				ctx.m.module_imports <- old_imports;
+				ctx.m.module_resolution <- old_resolution;
 				ctx.m.module_using <- old_using;
 			in
 			Std.finally restore run ()
@@ -674,7 +674,7 @@ let load_macro_module mctx com cpath display p =
 	let mloaded = TypeloadModule.load_module mctx m p in
 	mctx.m <- {
 		curmod = mloaded;
-		module_imports = [];
+		module_resolution = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
@@ -715,7 +715,7 @@ let load_macro'' com mctx display cpath f p =
 		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
-			module_imports = [];
+			module_resolution = [];
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
