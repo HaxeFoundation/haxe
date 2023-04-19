@@ -1,0 +1,36 @@
+[WARNING] Main.hx:12: characters 9-10
+
+ 12 |   $type(a);
+    |         ^
+    | A<String, Int>
+
+[WARNING] Main.hx:15: characters 9-10
+
+ 15 |   $type(b);
+    |         ^
+    | B<Bool, String, Int>
+
+[WARNING] Main.hx:18: characters 9-10
+
+ 18 |   $type(c);
+    |         ^
+    | DefaultGeneric<Unknown<0>>
+
+[WARNING] Main.hx:21: characters 9-10
+
+ 21 |   $type(d);
+    |         ^
+    | DefaultGeneric<String>
+
+[WARNING] Main.hx:24: characters 9-10
+
+ 24 |   $type(e);
+    |         ^
+    | DefaultGeneric<String>
+
+[WARNING] Main.hx:27: characters 9-10
+
+ 27 |   $type(f);
+    |         ^
+    | DefaultGeneric<String>
+
