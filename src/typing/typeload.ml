@@ -357,9 +357,9 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 					c.cl_kind <- KExpr e;
 					TInst (c,[]),pos e
-				| TPType (CTSkipped,p), None ->
+				| TPType (CTPath({ tpackage = ["$"]; tname = "_hx_skipped" }),p), None ->
 						raise_typing_error "Cannot skip non-default type parameter" p
-				| TPType (CTSkipped,p), Some def ->
+				| TPType (CTPath({ tpackage = ["$"]; tname = "_hx_skipped" }),p), Some def ->
 						def,p
 				| TPType t,_ ->
 						load_complex_type ctx true t,pos t
@@ -455,10 +455,10 @@ and load_complex_type' ctx allow_display (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
 	| CTPath { tpackage = ["$"]; tname = "_hx_mono" } -> spawn_monomorph ctx p
+	| CTPath { tpackage = ["$"]; tname = "_hx_skipped" } -> raise_typing_error "Invalid type : _" p
 	| CTPath t -> load_instance ~allow_display ctx (t,p) false
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
-	| CTSkipped -> raise_typing_error "Invalid type : _" p
 	| CTIntersection tl ->
 		let tl = List.map (fun (t,pn) ->
 			try

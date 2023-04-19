@@ -707,7 +707,7 @@ and parse_complex_type_inner allow_named = parser
 		in
 		CTPath (mk_type_path ~params:[TPType hint] (["haxe"],"Rest")),punion p1 p2
 	| [< '(Const (Ident "_"),p) >] ->
-		CTSkipped,p
+		CTPath (mk_type_path (["$"],"_hx_skipped")),p
 	| [< n = dollar_ident; s >] ->
 		(match s with parser
 		| [< '(DblDot,_) when allow_named; t = parse_complex_type >] ->

@@ -174,7 +174,6 @@ and complex_type =
 	| CTOptional of type_hint
 	| CTNamed of placed_name * type_hint
 	| CTIntersection of type_hint list
-	| CTSkipped
 
 and type_hint = complex_type * pos
 
