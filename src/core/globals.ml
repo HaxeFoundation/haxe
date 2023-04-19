@@ -23,6 +23,7 @@ type platform =
 	| Python
 	| Hl
 	| Eval
+	| CustomTarget of string
 
 let version = 5000
 let version_major = version / 1000
@@ -37,6 +38,8 @@ let macro_platform = ref Neko
 let return_partial_type = ref false
 
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
+
+let max_custom_target_len = 16
 
 let platforms = [
 	Js;
@@ -66,6 +69,7 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
+	| CustomTarget c -> c
 
 let parse_platform = function
 	| "cross" -> Cross
@@ -80,7 +84,7 @@ let parse_platform = function
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval
-	| p -> raise (failwith ("invalid platform " ^ p))
+	| p -> CustomTarget p
 
 let platform_list_help = function
 	| [] -> ""

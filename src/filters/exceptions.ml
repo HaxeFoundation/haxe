@@ -587,7 +587,7 @@ let filter tctx =
 			if contains_throw_or_try e then run e
 			else stub e
 		)
-	| Cross -> stub
+	| Cross | CustomTarget _ -> stub
 
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.

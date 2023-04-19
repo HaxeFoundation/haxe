@@ -445,7 +445,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
 
-let after_arg_parsing sctx ctx =
+let after_target_init sctx ctx =
 	let com = ctx.com in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
@@ -608,7 +608,7 @@ let rec process sctx comm args =
 		cache = sctx.cs;
 		callbacks = {
 			before_anything = before_anything sctx;
-			after_arg_parsing = after_arg_parsing sctx;
+			after_target_init = after_target_init sctx;
 			after_compilation = after_compilation sctx;
 		};
 		init_wait_socket = init_wait_socket;

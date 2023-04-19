@@ -1,5 +1,4 @@
 #if macro
-import validation.Target;
 import validation.Lines;
 import validation.ValidationReport;
 import validation.ValidationError;
@@ -8,6 +7,7 @@ import haxe.display.Position.Location;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Compiler;
+import validation.Target;
 import haxe.io.Path;
 
 using sys.io.File;
