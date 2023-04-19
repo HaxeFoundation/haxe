@@ -321,8 +321,8 @@ let compile ctx actx callbacks =
 		| CustomTarget name ->
 			begin try
 				Some (call_light_init_macro com (Printf.sprintf "%s.Init.init()" name))
-			with Error.Error err ->
-				error_ext ctx err;
+			with (Error.Error { err_message = Module_not_found ([pack],"Init") }) when pack = name ->
+				(* ignore if <target_name>.Init doesn't exist *)
 				None
 			end
 		| _ ->
