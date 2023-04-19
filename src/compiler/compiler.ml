@@ -312,7 +312,7 @@ let call_light_init_macro com path =
 	MacroContext.MacroLight.call_init_macro com mctx api path;
 	(init,mctx)
 
-let compile ctx actx =
+let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
@@ -331,6 +331,7 @@ let compile ctx actx =
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
 	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
+	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
@@ -454,8 +455,7 @@ let compile_ctx callbacks ctx =
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_actx ctx actx;
-			callbacks.after_arg_parsing ctx;
-			compile ctx actx;
+			compile ctx actx callbacks;
 		);
 		finalize ctx;
 		callbacks.after_compilation ctx;
