@@ -287,37 +287,6 @@ let enum_field_access ctx en ef mode p pt =
 	in
 	wrap (mk (TField (et,FEnum (en,ef))) (enum_field_type ctx en ef p) p)
 
-let rec resolve_enum_constructor ctx i mode (mt,pt) p = match mt with
-	| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
-		begin try
-			let cf = PMap.find i c.cl_statics in
-			if not (has_class_field_flag cf CfEnum) then
-				raise Not_found
-			else begin
-				let et = type_module_type ctx (TClassDecl c) None p in
-				let inline = match cf.cf_kind with
-					| Var {v_read = AccInline} -> true
-					|  _ -> false
-				in
-				let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
-				ImportHandling.mark_import_position ctx pt;
-				AKField fa
-			end
-		with Not_found ->
-			raise Not_found
-		end
-	| TClassDecl _ | TAbstractDecl _ ->
-		raise Not_found
-	| TTypeDecl t ->
-		begin match follow t.t_type with
-			| TEnum (e,_) -> resolve_enum_constructor ctx i mode (TEnumDecl e,pt) p
-			| TAbstract (a,_) when a.a_enum -> resolve_enum_constructor ctx i mode (TAbstractDecl a,pt) p
-			| _ -> raise Not_found
-		end
-	| TEnumDecl en ->
-		let ef = PMap.find i en.e_constrs in
-		enum_field_access ctx en ef mode p pt
-
 let rec type_ident_raise ctx i p mode with_type =
 	let resolve kind pres =
 		ImportHandling.mark_import_position ctx pres;
@@ -344,23 +313,10 @@ let rec type_ident_raise ctx i p mode with_type =
 		| [] ->
 			raise Not_found
 		| res :: l ->
-			let default () =
-				if fst res.r_alias = i then
-					resolve res.r_kind res.r_pos
-				else
-					resolve_import l
-			in
-			match res.r_kind with
-				| RTypeImport mt ->
-					begin try
-						(* We always want to check the constructors first because if the type name is the same as one of
-						   the constructors, we want to prioritize the latter. *)
-						resolve_enum_constructor ctx i mode (mt,null_pos) p
-					with Not_found ->
-						default()
-					end
-				| _ ->
-					default()
+			if fst res.r_alias = i then
+				resolve res.r_kind res.r_pos
+			else
+				resolve_import l
 	in
 	match i with
 	| "true" ->

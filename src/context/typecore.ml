@@ -84,11 +84,43 @@ class resolution_list (l : resolution list) = object(self)
 
 	method add (res : resolution) =
 		expanded <- false;
-		l <- res :: l
+		l <- res :: l;
+		(* If we import a type, we automatically want to import all its constructors in case of
+		   enums and enum abstracts. We add a RLazy in front of the list so that it takes priority
+		   over the type itself. When resolved, it will insert its fields into the resolution list. *)
+		begin match res.r_kind with
+		| RTypeImport mt ->
+			let f () = self#expand_enum_constructors mt in
+			l <- (mk_resolution ("",null_pos) (RLazy f) null_pos) :: l
+		| _ ->
+			()
+		end
 
 	method add_l (rl : resolution list) =
-		expanded <- false;
-		l <- rl @ l
+		List.iter self#add (List.rev rl)
+
+	method expand_enum_constructors (mt : module_type) = match mt with
+		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
+			ignore(c.cl_build());
+			List.fold_left (fun acc cf ->
+				if not (has_class_field_flag cf CfEnum) then
+					acc
+				else
+					(mk_resolution (cf.cf_name,null_pos) (RAbstractFieldImport(a,c,cf)) null_pos) :: acc
+			) [] c.cl_ordered_statics
+		| TTypeDecl t ->
+			begin match follow t.t_type with
+				| TEnum (e,_) -> self#expand_enum_constructors (TEnumDecl e)
+				| TAbstract (a,_) when a.a_enum -> self#expand_enum_constructors (TAbstractDecl a)
+				| _ -> []
+			end
+		| TEnumDecl en ->
+			List.fold_left (fun acc n ->
+				let ef = PMap.find n en.e_constrs in
+				(mk_resolution (ef.ef_name,null_pos) (REnumConstructorImport(en,ef)) null_pos) :: acc
+			) [] en.e_names
+		| TClassDecl _ | TAbstractDecl _ ->
+			[]
 
 	method check_expand =
 		if not expanded then begin
@@ -117,7 +149,6 @@ class resolution_list (l : resolution list) = object(self)
 		l
 
 	method find_type_import check =
-		(* self#check_expand; *) (* Should not be needed for types *)
 		let rec loop = function
 		| [] ->
 			raise Not_found
@@ -132,7 +163,6 @@ class resolution_list (l : resolution list) = object(self)
 
 	(* TODO: remove this *)
 	method extract_type_imports =
-		(* self#check_expand; *)
 		ExtList.List.filter_map (fun res -> match res.r_kind with
 			| RTypeImport mt ->
 				Some (mt,res.r_pos)
@@ -150,7 +180,6 @@ class resolution_list (l : resolution list) = object(self)
 		) PMap.empty l
 
 	method extract_wildcard_packages =
-		self#check_expand;
 		ExtList.List.filter_map (fun res -> match res.r_kind with
 			| RWildcardPackage sl ->
 				Some (sl,res.r_pos)
