@@ -213,6 +213,12 @@ let load_qualified_type_def ctx pack mname tname p =
 	let m = load_module ctx (pack,mname) p in
 	find_type_in_module_raise ctx m tname p
 
+let load_type_def' ctx pack mname tname p =
+	if pack = [] then
+		load_unqualified_type_def ctx mname tname p
+	else
+		load_qualified_type_def ctx pack mname tname p
+
 (*
 	load a type or a subtype definition
 *)
@@ -220,17 +226,14 @@ let load_type_def ctx p t =
 	if t = Parser.magic_type_path then
 		raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
-	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
+	let tname = match t.tsub with None -> t.tname | Some n -> n in
 
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
 		find_type_in_current_module_context ctx t.tpackage tname
 	with Not_found ->
-		if t.tpackage = [] then
-			load_unqualified_type_def ctx t.tname tname p
-		else
-			load_qualified_type_def ctx t.tpackage t.tname tname p
+		load_type_def' ctx t.tpackage t.tname tname p
 
 (* let load_type_def ctx p t =
 	let timer = Timer.timer ["typing";"load_type_def"] in

@@ -483,7 +483,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				let e = {e with etype = TAbstract(a,tl)} in
 				e,FHAbstract(a,tl,ctx.curclass)
 			| _ ->
-				let e = type_type ctx ctx.curclass.cl_path p in
+				let e = type_module_type ctx (TClassDecl ctx.curclass) None p in
 				e,FHStatic ctx.curclass
 		in
 		field_access ctx mode f fa e p
@@ -499,7 +499,11 @@ and type_ident ctx i p mode with_type =
 	with Not_found -> try
 		(* lookup type *)
 		if is_lower_ident i p then raise Not_found;
-		let e = (try type_type ctx ([],i) p with Error { err_message = Module_not_found ([],name) } when name = i -> raise Not_found) in
+		let e = try
+			type_module_type ctx (Typeload.load_type_def' ctx [] i i p) None p
+		with Error { err_message = Module_not_found ([],name) } when name = i ->
+			raise Not_found
+		in
 		AKExpr e
 	with Not_found ->
 		let resolved_to_type_parameter = ref false in
