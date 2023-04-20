@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 open Extlib_leftovers
-open Unix
 open Globals
 open Ast
 open Type
@@ -2738,7 +2737,7 @@ and eval_expr ctx e =
 		let r = alloc_tmp ctx rt in
 		(try
 			let max = ref (-1) in
-			let rec get_int e =
+			let get_int e =
 				match e.eexpr with
 				| TConst (TInt i) ->
 					let v = Int32.to_int i in
@@ -3345,7 +3344,7 @@ let generate_static ctx c f =
 		loop f.cf_meta
 
 
-let rec generate_member ctx c f =
+let generate_member ctx c f =
 	match f.cf_kind with
 	| Var _ -> ()
 	| _ when is_extern_field f -> ()
@@ -3688,7 +3687,7 @@ let write_code ch code debug =
 	let byte = IO.write_byte ch in
 	let write_index = write_index_gen byte in
 
-	let rec write_type t =
+	let write_type t =
 		write_index (try PMap.find t htypes with Not_found -> die (tstr t) __LOC__)
 	in
 

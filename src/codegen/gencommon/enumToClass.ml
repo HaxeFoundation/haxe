@@ -20,7 +20,6 @@ open Common
 open Globals
 open Ast
 open Type
-open Codegen
 open Texpr.Builder
 open Gencommon
 

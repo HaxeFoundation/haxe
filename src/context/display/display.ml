@@ -2,13 +2,10 @@ open Ast
 open Common
 open DisplayTypes
 open DisplayMode
-open DisplayPosition
 open CompletionItem
-open CompletionResultKind
 open Type
 open Typecore
 open Globals
-open Genjson
 open DisplayPosition
 open ImportStatus
 
@@ -290,7 +287,7 @@ let sort_fields l with_type tk =
 	in
 	let l = match with_type with
 		| WithType.WithType(t,_) when (match follow t with TMono _ -> false | _ -> true) ->
-			let rec comp item = match item.ci_type with
+			let comp item = match item.ci_type with
 				| None -> 9
 				| Some (t',_) ->
 				(* For enum constructors, we consider the return type of the constructor function

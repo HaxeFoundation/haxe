@@ -4,7 +4,6 @@ open Type
 open Typecore
 open Common
 open Error
-open DisplayTypes
 open MatcherGlobals
 open DecisionTree
 open Constructor

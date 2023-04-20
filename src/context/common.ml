@@ -1260,8 +1260,6 @@ let display_error_ext com err =
 let display_error com ?(depth = 0) msg p =
 	display_error_ext com (Error.make_error ~depth (Custom msg) p)
 
-open Printer
-
 let dump_path com =
 	Define.defined_value_safe ~default:"dump" com.defines Define.DumpPath
 

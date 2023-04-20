@@ -422,7 +422,7 @@ module JReaderModern = struct
 			let len = read_i32 ch in
 			ignore(IO.nread_string ch len); (* code *)
 			let len = read_ui16 ch in
-			for i = 0 to len - 1 do
+			for _ = 0 to len - 1 do
 				ignore(IO.nread_string ch 8);
 			done; (* exceptions *)
 			let attribs = parse_attributes consts ch in

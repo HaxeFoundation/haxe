@@ -1,5 +1,4 @@
 open Globals
-open Ast
 open Common
 open Type
 open Error

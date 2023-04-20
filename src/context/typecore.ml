@@ -22,7 +22,6 @@ open Ast
 open Common
 open Type
 open Error
-open DisplayTypes
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -468,7 +467,7 @@ let is_removable_field com f =
 	)
 
 (** checks if we can access to a given class field using current context *)
-let rec can_access ctx c cf stat =
+let can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
 		true
 	else if c == ctx.curclass then

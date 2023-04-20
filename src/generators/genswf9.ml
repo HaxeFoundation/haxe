@@ -917,7 +917,7 @@ let pop_value ctx retval =
 	   branch value *)
 	if retval then ctx.infos.istack <- ctx.infos.istack - 1
 
-let rec gen_access ctx e (forset : 'a) : 'a access =
+let gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal v ->
 		gen_local_access ctx v e.epos forset

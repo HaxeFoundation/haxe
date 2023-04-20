@@ -25,7 +25,7 @@ type matcher_context = {
 	mutable dt_count : int;
 }
 
-let rec hashcons mctx dt p =
+let hashcons mctx dt p =
 	try
 		DtTable.find mctx.dt_table dt
 	with Not_found ->
@@ -41,7 +41,7 @@ let bind mctx bindings dt = hashcons mctx (Bind(bindings,dt)) dt.dt_pos
 let guard mctx e dt1 dt2 = hashcons mctx (Guard(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 let guard_null mctx e dt1 dt2 = hashcons mctx (GuardNull(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 
-let rec get_sub_subjects mctx e con arg_positions =
+let get_sub_subjects mctx e con arg_positions =
 	match fst con with
 	| ConEnum(en,ef) ->
 		let tl = Monomorph.spawn_constrained_monos (fun t -> t) en.e_params in
@@ -106,7 +106,7 @@ let rec is_wildcard_pattern pat = match fst pat with
 	| PatBind(_,pat1) -> is_wildcard_pattern pat1
 	| _ -> false
 
-let rec expand cases =
+let expand cases =
 	let rec expand f (case,bindings,patterns) = match patterns with
 		| (PatOr(pat1,pat2),_) :: patterns ->
 			(expand f (case,bindings,pat1 :: patterns)) @ (expand f (case,bindings,pat2 :: patterns))

@@ -226,7 +226,7 @@ let get_real_path path = List.map get_real_name path
 (**
 	Resolve real type (bypass abstracts and typedefs)
 *)
-let rec follow = Abstract.follow_with_abstracts
+let follow = Abstract.follow_with_abstracts
 
 (**
 	Adds packages specified by `-D php-prefix` to `type_path`.
@@ -276,7 +276,7 @@ let fail ?msg p = Globals.die (Option.default "" msg) ~p
 (**
 	Check if `target` is a `Dynamic` type
 *)
-let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
+let is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
 	Check if `target` is `php.Ref`
@@ -286,7 +286,7 @@ let is_ref (target:Type.t) = match target with TType ({ t_path = type_path }, _)
 (**
 	Check if `field` is a `dynamic function`
 *)
-let rec is_dynamic_method (field:tclass_field) =
+let is_dynamic_method (field:tclass_field) =
 	match field.cf_kind with
 		| Method MethDynamic -> true
 		| _ -> false

@@ -32,7 +32,6 @@ open Type
 open Typecore
 open Error
 open Globals
-open Filename
 
 let build_count = ref 0
 
@@ -524,7 +523,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		end
 	| CTAnonymous l ->
 		let displayed_field = ref None in
-		let rec loop acc f =
+		let loop acc f =
 			let n = fst f.cff_name in
 			let pf = snd f.cff_name in
 			let p = f.cff_pos in

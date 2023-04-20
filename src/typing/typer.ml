@@ -19,7 +19,6 @@
 open Extlib_leftovers
 open Ast
 open DisplayTypes.DisplayMode
-open DisplayException
 open DisplayTypes.CompletionResultKind
 open CompletionItem.ClassFieldOrigin
 open Common
@@ -927,7 +926,7 @@ and type_object_decl ctx fl with_type p =
 		t, fl
 	in
 	let type_plain_fields () =
-		let rec loop (l,acc) ((f,pf,qs),e) =
+		let loop (l,acc) ((f,pf,qs),e) =
 			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then raise_typing_error ("Duplicate field in object declaration : " ^ f) pf;
 			let e = type_expr ctx e (WithType.named_structure_field f) in
@@ -2075,7 +2074,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
 
-let rec create com =
+let create com =
 	let ctx = {
 		com = com;
 		t = com.basic;
