@@ -114,7 +114,7 @@ let init_import ctx path mode p =
 			if not (name.[0] >= 'A' && name.[0] <= 'Z') then
 				raise_typing_error "Type aliases must start with an uppercase letter" pname;
 			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pname then
-				DisplayEmitter.display_module_type ctx mt pname;
+				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname;
 		in
 		let make_static_field c cf alias =
 			mk_resolution alias (RFieldImport(c,cf)) p

@@ -19,6 +19,17 @@ let symbol_of_module_type = function
 	| TTypeDecl td -> SKTypedef td
 	| TAbstractDecl a -> SKAbstract a
 
+let display_alias ctx name t p = match ctx.com.display.dms_kind with
+	| DMDefinition | DMTypeDefinition ->
+		raise_positions [p];
+	| DMUsage _ | DMImplementation ->
+		ReferencePosition.set (name,p,SKOther)
+	| DMHover ->
+		let ct = CompletionType.from_type (get_import_status ctx) t in
+		raise_hover (make_ci_literal name (t,ct)) None p
+	| _ ->
+		()
+
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 	| DMDefinition | DMTypeDefinition ->
 		begin match mt with
