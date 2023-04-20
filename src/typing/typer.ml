@@ -289,9 +289,9 @@ let enum_field_access ctx en ef mode p pt =
 	wrap (mk (TField (et,FEnum (en,ef))) (enum_field_type ctx en ef p) p)
 
 let rec type_ident_raise ctx i p mode with_type =
-	let resolve kind pres =
-		ImportHandling.mark_import_position ctx pres;
-		match kind with
+	let resolve res =
+		ImportHandling.mark_import_position ctx res.r_pos;
+		match res.r_kind with
 		| RTypeImport mt ->
 			AKExpr (type_module_type ctx mt None p)
 		| RClassFieldImport(c,cf) ->
@@ -306,18 +306,9 @@ let rec type_ident_raise ctx i p mode with_type =
 			let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
 			AKField fa
 		| REnumConstructorImport(en,ef) ->
-			enum_field_access ctx en ef mode p pres
+			enum_field_access ctx en ef mode p res.r_pos
 		| RWildcardPackage _ | RLazy _ ->
 			assert false
-	in
-	let rec resolve_import l = match l with
-		| [] ->
-			raise Not_found
-		| res :: l ->
-			if fst res.r_alias = i then
-				resolve res.r_kind res.r_pos
-			else
-				resolve_import l
 	in
 	match i with
 	| "true" ->
@@ -454,9 +445,9 @@ let rec type_ident_raise ctx i p mode with_type =
 		field_access ctx mode f fa e p
 	with Not_found -> try
 		let own_resolution = get_own_resolution ctx in
-		resolve_import own_resolution#get_list
+		resolve (own_resolution#resolve i)
 	with Not_found ->
-		resolve_import ctx.m.import_resolution#get_list;
+		resolve (ctx.m.import_resolution#resolve i)
 
 and type_ident ctx i p mode with_type =
 	try

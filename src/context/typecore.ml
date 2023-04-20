@@ -200,14 +200,6 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error
 
-let s_resolution_kind = function
-	| RTypeImport mt -> Printf.sprintf "RTypeImport(%s)" (s_type_path (t_infos mt).mt_path)
-	| RClassFieldImport(c,cf) -> Printf.sprintf "RClassFieldImport(%s, %s)" (s_type_path c.cl_path) cf.cf_name
-	| RAbstractFieldImport(a,c,cf) -> Printf.sprintf "RAbstractFieldImport(%s, %s)" (s_type_path a.a_path) cf.cf_name
-	| REnumConstructorImport(en,ef) -> Printf.sprintf "REnumConstructorImport(%s, %s)" (s_type_path en.e_path) ef.ef_name
-	| RWildcardPackage sl -> Printf.sprintf "RWildcardPackage(%s)" (String.concat "." sl)
-	| RLazy f -> "RLazy"
-
 let memory_marker = [|Unix.time()|]
 
 let locate_macro_error = ref true

@@ -22,9 +22,18 @@ let mk_resolution alias kind p = {
 	r_pos = p;
 }
 
+let s_resolution_kind = function
+	| RTypeImport mt -> Printf.sprintf "RTypeImport(%s)" (s_type_path (t_infos mt).mt_path)
+	| RClassFieldImport(c,cf) -> Printf.sprintf "RClassFieldImport(%s, %s)" (s_type_path c.cl_path) cf.cf_name
+	| RAbstractFieldImport(a,c,cf) -> Printf.sprintf "RAbstractFieldImport(%s, %s)" (s_type_path a.a_path) cf.cf_name
+	| REnumConstructorImport(en,ef) -> Printf.sprintf "REnumConstructorImport(%s, %s)" (s_type_path en.e_path) ef.ef_name
+	| RWildcardPackage sl -> Printf.sprintf "RWildcardPackage(%s)" (String.concat "." sl)
+	| RLazy f -> "RLazy"
+
 class resolution_list (l : resolution list) = object(self)
 	val mutable l = l
-	val mutable expanded = true
+	val mutable expanded = false
+	val cache = Hashtbl.create 0
 
 	method add (res : resolution) =
 		expanded <- false;
@@ -42,6 +51,10 @@ class resolution_list (l : resolution list) = object(self)
 
 	method add_l (rl : resolution list) =
 		List.iter self#add (List.rev rl)
+
+	method resolve (i : string) =
+		self#check_expand;
+		Hashtbl.find cache i
 
 	method expand_enum_constructors (mt : module_type) = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
@@ -69,12 +82,16 @@ class resolution_list (l : resolution list) = object(self)
 	method check_expand =
 		if not expanded then begin
 			expanded <- true;
+			Hashtbl.clear cache;
 			let rec loop acc l = match l with
 				| [] ->
 					List.rev acc
 				| {r_kind = RLazy f} :: l ->
-					loop (f() @ acc) l
+					loop acc (f() @ l)
 				| res :: l ->
+					let key = fst res.r_alias in
+					if not (Hashtbl.mem cache key) then
+						Hashtbl.add cache key res;
 					loop (res :: acc) l
 			in
 			l <- loop [] l
@@ -82,10 +99,9 @@ class resolution_list (l : resolution list) = object(self)
 
 	method save =
 		let l' = l in
-		let expanded' = expanded in
 		(fun () ->
 			l <- l';
-			expanded <- expanded';
+			expanded <- false;
 		)
 
 	method get_list =
