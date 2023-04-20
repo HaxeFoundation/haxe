@@ -493,7 +493,7 @@ let make_macro_api ctx p =
 			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
 		MacroApi.with_imports = (fun imports usings f ->
-			let old_resolution = ctx.m.import_resolution in
+			let restore_resolution = ctx.m.import_resolution#save in
 			let old_using = ctx.m.module_using in
 			let run () =
 				List.iter (fun (path,mode) ->
@@ -506,7 +506,7 @@ let make_macro_api ctx p =
 				f()
 			in
 			let restore () =
-				ctx.m.import_resolution <- old_resolution;
+				restore_resolution();
 				ctx.m.module_using <- old_using;
 			in
 			Std.finally restore run ()

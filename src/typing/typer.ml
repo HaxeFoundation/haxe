@@ -2185,7 +2185,7 @@ let rec create com =
 				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.import_resolution <- new resolution_list (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
+	ctx.m.import_resolution#add_l (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->

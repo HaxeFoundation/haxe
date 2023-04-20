@@ -99,8 +99,11 @@ class resolution_list (l : resolution list) = object(self)
 
 	method save =
 		let l' = l in
-		l <- [];
-		(fun () -> l <- l')
+		let expanded' = expanded in
+		(fun () ->
+			l <- l';
+			expanded <- expanded';
+		)
 
 	method get_list =
 		self#check_expand;
@@ -151,7 +154,7 @@ end
 
 type typer_module = {
 	curmod : module_def;
-	mutable import_resolution : resolution_list;
+	import_resolution : resolution_list;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
 }
