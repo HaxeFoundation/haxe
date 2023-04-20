@@ -978,7 +978,7 @@ class class_wrapper (cls) =
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
 		*)
-		method get_magic_init = cls.cl_init
+		method! get_magic_init = cls.cl_init
 		(**
 			Returns hx source file name where this type was declared
 		*)
@@ -990,7 +990,7 @@ class class_wrapper (cls) =
 		(**
 			If current type requires some additional type to be generated
 		*)
-		method get_service_type : module_type option =
+		method! get_service_type : module_type option =
 			if not (has_class_flag cls CExtern) then
 				None
 			else
@@ -3434,7 +3434,7 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Indicates if type should be declared as `final`
 		*)
-		method is_final =
+		method! is_final =
 			if not (has_class_flag cls CFinal) then
 				false
 			else begin
@@ -3454,7 +3454,7 @@ class class_builder ctx (cls:tclass) =
 			Get amount of arguments of a parent method.
 			Returns `None` if no such parent method exists.
 		*)
-		method private get_parent_method_args_count name is_static : (int * int) option =
+		method! private get_parent_method_args_count name is_static : (int * int) option =
 			match cls.cl_super with
 				| None -> None
 				| Some (cls, _) ->
@@ -3478,14 +3478,14 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Indicates if `field` should be declared as `final`
 		*)
-		method is_final_field (field:tclass_field) : bool =
+		method! is_final_field (field:tclass_field) : bool =
 			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
 			E.g. `StdClass` does have a constructor while still can be called with `new StdClass()`.
 			So this method will return true for `MyClass` if `MyClass extends StdClass`.
 		*)
-		method private extends_no_constructor =
+		method! private extends_no_constructor =
 			let rec extends_no_constructor tcls =
 				match tcls.cl_super with
 					| None -> true
