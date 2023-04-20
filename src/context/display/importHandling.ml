@@ -61,7 +61,7 @@ let commit_import ctx path mode p =
 	ctx.m.import_statements <- (path,mode) :: ctx.m.import_statements;
 	if Filename.basename p.pfile <> "import.hx" then add_import_position ctx p path
 
-let init_import ctx context_init path mode p =
+let init_import ctx path mode p =
 	let rec loop acc = function
 		| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
 		| rest -> List.rev acc, rest
@@ -317,7 +317,7 @@ let handle_using ctx path p =
 	in
 	types,filter_classes
 
-let init_using ctx context_init path p =
+let init_using ctx path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
 	ctx.m.module_resolution#add_l (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types);

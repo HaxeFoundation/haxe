@@ -400,7 +400,7 @@ module TypeLevel = struct
 			DisplayEmitter.display_enum_field ctx e f p;
 		f,cf
 
-	let init_class ctx context_init c d p =
+	let init_class ctx c d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
@@ -418,7 +418,7 @@ module TypeLevel = struct
 				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
-					TypeloadFields.init_class ctx c p context_init d.d_flags d.d_data;
+					TypeloadFields.init_class ctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
 					incr build_count;
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
@@ -468,7 +468,7 @@ module TypeLevel = struct
 					| _ -> ()
 			)
 
-	let init_enum ctx context_init e d p =
+	let init_enum ctx e d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
@@ -494,7 +494,7 @@ module TypeLevel = struct
 				}
 			) (!constructs)
 		in
-		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs context_init (fun (e,p) ->
+		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs (fun (e,p) ->
 			match e with
 			| EVars [{ ev_type = Some (CTAnonymous fields,p); ev_expr = None }] ->
 				constructs := List.map (fun f ->
@@ -550,7 +550,7 @@ module TypeLevel = struct
 				) e.e_constrs
 			)
 
-	let init_typedef ctx context_init t d p =
+	let init_typedef ctx t d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
@@ -595,14 +595,14 @@ module TypeLevel = struct
 			| None -> Monomorph.bind r tt;
 			| Some _ -> die "" __LOC__);
 		| _ -> die "" __LOC__);
-		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) context_init (fun _ -> ());
+		TypeloadFields.build_module_def ctx (TTypeDecl t) t.t_meta (fun _ -> []) (fun _ -> ());
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
 			)
 
-	let init_abstract ctx context_init a d p =
+	let init_abstract ctx a d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
@@ -666,10 +666,10 @@ module TypeLevel = struct
 
 	(*
 		In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
-		since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
+		since they have not been setup. We also build a list that will be evaluated the first time we evaluate
 		an expression into the context
 	*)
-	let init_module_type ctx context_init (decl,p) =
+	let init_module_type ctx (decl,p) =
 		let get_type name =
 			try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> die "" __LOC__
 		in
@@ -680,26 +680,26 @@ module TypeLevel = struct
 		| EImport (path,mode) ->
 			begin try
 				check_path_display path p;
-				ImportHandling.init_import ctx context_init path mode p;
+				ImportHandling.init_import ctx path mode p;
 				ImportHandling.commit_import ctx path mode p;
 			with Error err ->
 				display_error_ext ctx.com err
 			end
 		| EUsing path ->
 			check_path_display path p;
-			ImportHandling.init_using ctx context_init path p
+			ImportHandling.init_using ctx path p
 		| EClass d ->
 			let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> die "" __LOC__) in
-			init_class ctx context_init c d p
+			init_class ctx c d p
 		| EEnum d ->
 			let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> die "" __LOC__) in
-			init_enum ctx context_init e d p
+			init_enum ctx e d p
 		| ETypedef d ->
 			let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> die "" __LOC__) in
-			init_typedef ctx context_init t d p
+			init_typedef ctx t d p
 		| EAbstract d ->
 			let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> die "" __LOC__) in
-			init_abstract ctx context_init a d p
+			init_abstract ctx a d p
 		| EStatic _ ->
 			(* nothing to do here as module fields are collected into a special EClass *)
 			()
@@ -766,10 +766,9 @@ let type_types_into_module ctx m tdecls p =
 	end;
 	ModuleLevel.init_type_params ctx decls;
 	(* setup module types *)
-	let context_init = new TypeloadFields.context_init in
-	List.iter (TypeLevel.init_module_type ctx context_init) tdecls;
+	List.iter (TypeLevel.init_module_type ctx) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx PConnectField (fun () -> context_init#run; ctx.m.module_resolution#check_expand);
+	delay ctx PConnectField (fun () -> ctx.m.module_resolution#check_expand);
 	ctx
 
 (*

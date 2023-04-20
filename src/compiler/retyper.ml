@@ -74,13 +74,13 @@ let pair_class_field rctx ctx cctx fctx cf cff p =
 				remove_class_field_flag cf CfPostProcessed;
 		)
 
-let pair_classes rctx context_init c d p =
+let pair_classes rctx c d p =
 	let rctx = {rctx with
 		print_stack = (Printf.sprintf "[Class %s]" (s_type_path c.cl_path)) :: rctx.print_stack
 	} in
 	c.cl_restore();
 	(* TODO: What do we do with build macros? *)
-	let cctx = create_class_context c context_init p in
+	let cctx = create_class_context c p in
 	let ctx = create_typer_context_for_class rctx.typer cctx p in
 	let _ =
 		let rctx = {rctx with
@@ -180,14 +180,14 @@ let pair_typedefs ctx rctx td d =
 	ignore (disable_typeloading rctx ctx (fun () -> Typeload.load_complex_type ctx false d.d_data));
 	[]
 
-let pair_abstracts ctx rctx context_init a d p =
+let pair_abstracts ctx rctx a d p =
 	let rctx = {rctx with
 		print_stack = (Printf.sprintf "[Abstract %s]" (s_type_path a.a_path)) :: rctx.print_stack
 	} in
 	match a.a_impl with
 	| Some c ->
 		c.cl_restore();
-		let cctx = create_class_context c context_init p in
+		let cctx = create_class_context c p in
 		let ctx = create_typer_context_for_class rctx.typer cctx p in
 		let fl = List.map (fun cff ->
 			let cff = TypeloadFields.transform_abstract_field2 ctx a cff in
@@ -218,7 +218,6 @@ let attempt_retyping ctx m p =
 		print_stack = [Printf.sprintf "[Module %s]" (s_type_path m.m_path)];
 	} in
 	(* log rctx 0 (Printf.sprintf "Retyping module %s" (s_type_path m.m_path)); *)
-	let context_init = new TypeloadFields.context_init in
 	let find_type name = try
 		List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types
 	with Not_found ->
@@ -230,11 +229,11 @@ let attempt_retyping ctx m p =
 		| (d,p) :: decls ->
 			begin match d with
 			| EImport (path,mode) ->
-				ImportHandling.init_import ctx context_init path mode p;
+				ImportHandling.init_import ctx path mode p;
 				ImportHandling.commit_import ctx path mode p;
 				loop acc decls
 			| EUsing path ->
-				ImportHandling.init_using ctx context_init path p;
+				ImportHandling.init_using ctx path p;
 				loop acc decls
 			| EClass c ->
 				let mt = find_type (fst c.d_name) in
@@ -257,18 +256,17 @@ let attempt_retyping ctx m p =
 		let pairs = loop [] decls in
 		let fl = List.map (fun (d,mt) -> match d,mt with
 			| EClass d,TClassDecl c ->
-				pair_classes rctx context_init c d p
+				pair_classes rctx c d p
 			| EEnum d,TEnumDecl en ->
 				pair_enums ctx rctx en d
 			| ETypedef d,TTypeDecl td ->
 				pair_typedefs ctx rctx td d
 			| EAbstract d,TAbstractDecl a ->
-				pair_abstracts ctx rctx context_init a d p
+				pair_abstracts ctx rctx a d p
 			| _ ->
 				fail rctx "?"
 		) pairs in
 		(* If we get here we know that the everything is ok. *)
-		delay ctx PConnectField (fun () -> context_init#run);
 		List.iter (fun fl ->
 			List.iter (fun f -> f()) fl
 		) fl;

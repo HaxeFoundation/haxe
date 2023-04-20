@@ -496,12 +496,11 @@ let make_macro_api ctx p =
 			let old_resolution = ctx.m.module_resolution in
 			let old_using = ctx.m.module_using in
 			let run () =
-				let context_init = new TypeloadFields.context_init in
 				List.iter (fun (path,mode) ->
-					ImportHandling.init_import ctx context_init path mode null_pos
+					ImportHandling.init_import ctx path mode null_pos
 				) imports;
 				List.iter (fun path ->
-					ImportHandling.init_using ctx context_init path null_pos
+					ImportHandling.init_using ctx path null_pos
 				) usings;
 				flush_pass ctx PConnectField "with_imports";
 				f()
