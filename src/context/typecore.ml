@@ -70,9 +70,65 @@ and resolution = {
 	r_pos : pos;
 }
 
+class module_resolution (l : resolution list) = object(self)
+	val mutable l = l
+
+	method add (res : resolution) =
+		l <- res :: l
+
+	method add_l (rl : resolution list) =
+		l <- rl @ l
+
+	method save =
+		let l' = l in
+		l <- [];
+		(fun () -> l <- l')
+
+	method get_list =
+		l
+
+	method find_type_import check =
+		let rec loop = function
+		| [] ->
+			raise Not_found
+		| res :: l ->
+			match res.r_kind with
+			| RTypeImport mt ->
+				if check (fst res.r_alias) mt then (mt,res.r_pos) else loop l
+			| _ ->
+				loop l
+		in
+		loop l
+
+	(* TODO: remove this *)
+	method extract_type_imports =
+		ExtList.List.filter_map (fun res -> match res.r_kind with
+			| RTypeImport mt ->
+				Some (mt,res.r_pos)
+			| _ ->
+				None
+		) l
+
+	method extract_field_imports =
+		List.fold_left (fun acc res -> match res.r_kind with
+			| RFieldImport(c,cf) ->
+				PMap.add (fst res.r_alias) ((TClassDecl c),cf.cf_name,res.r_pos) acc
+			| _ ->
+				acc
+		) PMap.empty l
+
+	method extract_wildcard_packages =
+		ExtList.List.filter_map (fun res -> match res.r_kind with
+			| RWildcardPackage sl ->
+				Some (sl,res.r_pos)
+			| _ ->
+				None
+		) l
+end
+
 type typer_module = {
 	curmod : module_def;
-	mutable module_resolution : resolution list;
+	mutable module_resolution : module_resolution;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
 }
@@ -759,31 +815,6 @@ let create_deprecation_context ctx = {
 	class_meta = ctx.curclass.cl_meta;
 	field_meta = ctx.curfield.cf_meta;
 }
-
-(* TODO: remove this *)
-let extract_type_imports l =
-	ExtList.List.filter_map (fun res -> match res.r_kind with
-		| RTypeImport mt ->
-			Some (mt,res.r_pos)
-		| _ ->
-			None
-	) l
-
-let extract_field_imports l =
-	List.fold_left (fun acc res -> match res.r_kind with
-		| RFieldImport(c,cf) ->
-			PMap.add (fst res.r_alias) ((TClassDecl c),cf.cf_name,res.r_pos) acc
-		| _ ->
-			acc
-	) PMap.empty l
-
-let extract_wildcard_packages l =
-	ExtList.List.filter_map (fun res -> match res.r_kind with
-		| RWildcardPackage sl ->
-			Some (sl,res.r_pos)
-		| _ ->
-			None
-	) l
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

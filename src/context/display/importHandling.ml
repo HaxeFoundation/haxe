@@ -72,7 +72,7 @@ let init_import ctx context_init path mode p =
 		(match mode with
 		| IAll ->
 			let res = mk_resolution ("",null_pos) (RWildcardPackage (List.map fst pack)) p in
-			ctx.m.module_resolution <- res :: ctx.m.module_resolution
+			ctx.m.module_resolution#add res;
 		| _ ->
 			(match List.rev path with
 			(* p spans `import |` (to the display position), so we take the pmax here *)
@@ -118,11 +118,11 @@ let init_import ctx context_init path mode p =
 		in
 		let add_static_field c cf alias =
 			let res = mk_resolution alias (RFieldImport(c,cf)) p in
-			ctx.m.module_resolution <- res :: ctx.m.module_resolution;
+			ctx.m.module_resolution#add res;
 		in
 		let add_enum_constructor en ef alias =
 			let res = mk_resolution alias (REnumConstructorImport(en,ef)) p in
-			ctx.m.module_resolution <- res :: ctx.m.module_resolution;
+			ctx.m.module_resolution#add res;
 		in
 		let add_static_init t name s =
 			match resolve_typedef t with
@@ -145,12 +145,12 @@ let init_import ctx context_init path mode p =
 			| [] ->
 				begin match name with
 				| None ->
-					ctx.m.module_resolution <- (ExtList.List.filter_map (fun t ->
+					ctx.m.module_resolution#add_l (ExtList.List.filter_map (fun t ->
 						if not_private t then
 							Some (mk_resolution (t_name t,null_pos) (RTypeImport t) p)
 						else
 							None
-					) types) @ ctx.m.module_resolution;
+					) types);
 					Option.may (fun c ->
 						context_init#add (fun () ->
 							ignore(c.cl_build());
@@ -164,7 +164,7 @@ let init_import ctx context_init path mode p =
 					let mt = get_type tname in
 					check_alias mt newname pname;
 					let res = mk_resolution (newname,pname) (RTypeImport mt) p2 in
-					ctx.m.module_resolution <- res :: ctx.m.module_resolution;
+					ctx.m.module_resolution#add res;
 				end
 			| [tsub,p2] ->
 				let pu = punion p1 p2 in
@@ -179,7 +179,7 @@ let init_import ctx context_init path mode p =
 							(name,pname)
 					in
 					let res = mk_resolution name (RTypeImport tsub) p2 in
-					ctx.m.module_resolution <- res :: ctx.m.module_resolution
+					ctx.m.module_resolution#add res;
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
 					let find_main_type_static () =
@@ -307,5 +307,5 @@ let handle_using ctx path p =
 let init_using ctx context_init path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
-	ctx.m.module_resolution <- (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types) @ ctx.m.module_resolution;
+	ctx.m.module_resolution#add_l (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types);
 	context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

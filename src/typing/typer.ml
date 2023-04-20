@@ -486,7 +486,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* TODO: cache this *)
 		resolve_import (List.rev_map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos) ctx.m.curmod.m_types)
 	with Not_found ->
-		resolve_import ctx.m.module_resolution;
+		resolve_import ctx.m.module_resolution#get_list;
 
 and type_ident ctx i p mode with_type =
 	try
@@ -1737,7 +1737,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
 		| (Meta.Custom ":debug.import",_,_) ->
-			let sl = List.map (fun res -> s_resolution_kind res.r_kind) ctx.m.module_resolution in
+			let sl = List.map (fun res -> s_resolution_kind res.r_kind) ctx.m.module_resolution#get_list in
 			print_endline (String.concat "\n" sl);
 			e()
 		| _ ->
@@ -2139,7 +2139,7 @@ let rec create com =
 		};
 		m = {
 			curmod = null_module;
-			module_resolution = [];
+			module_resolution = new module_resolution [];
 			module_using = [];
 			import_statements = [];
 		};
@@ -2185,7 +2185,7 @@ let rec create com =
 				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.module_resolution <- List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types;
+	ctx.m.module_resolution <- new module_resolution (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->

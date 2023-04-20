@@ -116,19 +116,6 @@ with Error { err_message = (Module_not_found _ | Type_not_found _); err_pos = p2
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
-let find_type_import check l =
-	let rec loop = function
-	| [] ->
-		raise Not_found
-	| res :: l ->
-		match res.r_kind with
-		| RTypeImport mt ->
-			if check (fst res.r_alias) mt then (mt,res.r_pos) else loop l
-		| _ ->
-			loop l
-	in
-	loop l
-
 let find_type_in_current_module_context ctx pack name =
 	let no_pack = pack = [] in
 	let path_matches alias t2 =
@@ -141,7 +128,7 @@ let find_type_in_current_module_context ctx pack name =
 		List.find (fun mt -> path_matches (t_name mt) mt) ctx.m.curmod.m_types
 	with Not_found ->
 		(* Check the local imports *)
-		let t,pi = find_type_import path_matches ctx.m.module_resolution in
+		let t,pi = ctx.m.module_resolution#find_type_import path_matches in
 		ImportHandling.mark_import_position ctx pi;
 		t
 
@@ -167,7 +154,7 @@ let find_in_wildcard_imports ctx mname p f =
 				loop l
 			end
 	in
-	loop (extract_wildcard_packages ctx.m.module_resolution)
+	loop (ctx.m.module_resolution#extract_wildcard_packages)
 
 (* TODO: move these generic find functions into a separate module *)
 let find_in_modules_starting_from_current_package ~resume ctx mname p f =
@@ -715,7 +702,7 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		module_resolution = [];
+		module_resolution = new module_resolution [];
 		module_using = [];
 		import_statements = [];
 	};
