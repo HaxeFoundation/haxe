@@ -68,6 +68,20 @@ let get_iterable_param t =
 			raise Not_found)
 	| _ -> raise Not_found
 
+let get_own_resolution ctx = match ctx.m.own_resolution with
+	| Some resolution ->
+		resolution
+	| None ->
+		let rl = new resolution_list [] in
+		Option.may (fun c ->
+			List.iter (fun cf ->
+				rl#add (mk_resolution (cf.cf_name,null_pos) (RFieldImport(c,cf)) null_pos)
+			) c.cl_ordered_statics
+		) ctx.m.curmod.m_statics;
+		rl#add_l (List.rev_map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos) ctx.m.curmod.m_types);
+		ctx.m.own_resolution <- Some rl;
+		rl
+
 let maybe_type_against_enum ctx f with_type iscall p =
 	try
 		begin match with_type with
@@ -91,9 +105,9 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					raise Exit
 			in
 			let is_enum,path,fields,mt = loop [] t in
-			let old = ctx.m.curmod.m_types in
-			let restore () = ctx.m.curmod.m_types <- old in
-			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [mt];
+			let own_resolution = get_own_resolution ctx in
+			let restore = own_resolution#save in
+			own_resolution#add (mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos);
 			let e = try
 				f()
 			with
@@ -474,17 +488,8 @@ let rec type_ident_raise ctx i p mode with_type =
 		in
 		field_access ctx mode f fa e p
 	with Not_found -> try
-		(* module-level statics *)
-		(match ctx.m.curmod.m_statics with
-		| None -> raise Not_found
-		| Some c ->
-			let f = PMap.find i c.cl_statics in
-			let e = type_module_type ctx (TClassDecl c) None p in
-			field_access ctx mode f (FHStatic c) e p
-		)
-	with Not_found -> try
-		(* TODO: cache this *)
-		resolve_import (List.rev_map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos) ctx.m.curmod.m_types)
+		let own_resolution = get_own_resolution ctx in
+		resolve_import own_resolution#get_list
 	with Not_found ->
 		resolve_import ctx.m.import_resolution#get_list;
 
@@ -1737,8 +1742,14 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
 		| (Meta.Custom ":debug.import",_,_) ->
-			let sl = List.map (fun res -> s_resolution_kind res.r_kind) ctx.m.import_resolution#get_list in
-			print_endline (String.concat "\n" sl);
+			let print l =
+				let sl = List.map (fun res -> s_resolution_kind res.r_kind) l in
+				print_endline (String.concat "\n" sl);
+			in
+			print_endline "OWN:";
+			print (get_own_resolution ctx)#get_list;
+			print_endline "IMPORT:";
+			print ctx.m.import_resolution#get_list;
 			e()
 		| _ ->
 			if ctx.g.retain_meta then
@@ -2140,6 +2151,7 @@ let rec create com =
 		m = {
 			curmod = null_module;
 			import_resolution = new resolution_list [];
+			own_resolution = None;
 			module_using = [];
 			import_statements = [];
 		};

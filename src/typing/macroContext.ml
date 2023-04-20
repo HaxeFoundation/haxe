@@ -672,6 +672,7 @@ let load_macro_module mctx com cpath display p =
 	mctx.m <- {
 		curmod = mloaded;
 		import_resolution = new resolution_list [];
+		own_resolution = None;
 		module_using = [];
 		import_statements = [];
 	};
@@ -711,6 +712,7 @@ let load_macro'' com mctx display cpath f p =
 		mctx.m <- {
 			curmod = null_module;
 			import_resolution = new resolution_list [];
+			own_resolution = None;
 			module_using = [];
 			import_statements = [];
 		};

@@ -703,6 +703,7 @@ let hide_params ctx =
 	ctx.m <- {
 		curmod = ctx.g.std;
 		import_resolution = new resolution_list [];
+		own_resolution = None;
 		module_using = [];
 		import_statements = [];
 	};

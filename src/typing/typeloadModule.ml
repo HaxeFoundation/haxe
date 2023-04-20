@@ -708,6 +708,7 @@ end
 let make_curmod ctx m = {
 	curmod = m;
 	import_resolution = new resolution_list (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
+	own_resolution = None;
 	module_using = [];
 	import_statements = [];
 }
