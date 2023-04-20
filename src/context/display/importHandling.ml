@@ -117,18 +117,23 @@ let init_import ctx path mode p =
 				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname;
 		in
 		let make_static_field c cf alias =
-			mk_resolution alias (RFieldImport(c,cf)) p
+			mk_resolution alias (RClassFieldImport(c,cf)) p
 		in
 		let make_enum_constructor en ef alias =
 			mk_resolution alias (REnumConstructorImport(en,ef)) p
 		in
 		let add_static_init t name s =
 			match resolve_typedef t with
-			| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
+			| TClassDecl c ->
 				ignore(c.cl_build());
 				let cf = PMap.find s c.cl_statics in
 				let name = Option.default (cf.cf_name,null_pos) name in
 				make_static_field c cf name
+			| TAbstractDecl ({a_impl = Some c} as a) ->
+				ignore(c.cl_build());
+				let cf = PMap.find s c.cl_statics in
+				let name = Option.default (cf.cf_name,null_pos) name in
+				mk_resolution name (RAbstractFieldImport(a,c,cf)) p
 			| TEnumDecl en ->
 				let ef = PMap.find s en.e_constrs in
 				let name = Option.default (ef.ef_name,null_pos) name in

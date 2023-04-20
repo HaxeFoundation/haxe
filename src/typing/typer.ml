@@ -75,7 +75,7 @@ let get_own_resolution ctx = match ctx.m.own_resolution with
 		let rl = new resolution_list [] in
 		Option.may (fun c ->
 			List.iter (fun cf ->
-				rl#add (mk_resolution (cf.cf_name,null_pos) (RFieldImport(c,cf)) null_pos)
+				rl#add (mk_resolution (cf.cf_name,null_pos) (RClassFieldImport(c,cf)) null_pos)
 			) c.cl_ordered_statics
 		) ctx.m.curmod.m_statics;
 		rl#add_l (List.rev_map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos) ctx.m.curmod.m_types);
@@ -324,9 +324,17 @@ let rec type_ident_raise ctx i p mode with_type =
 		match kind with
 		| RTypeImport mt ->
 			AKExpr (type_module_type ctx mt None p)
-		| RFieldImport(c,cf) ->
+		| RClassFieldImport(c,cf) ->
 			let e = type_module_type ctx (TClassDecl c) None p in
 			field_access ctx mode cf (FHStatic c) e p
+		| RAbstractFieldImport(a,c,cf) ->
+			let et = type_module_type ctx (TClassDecl c) None p in
+			let inline = match cf.cf_kind with
+				| Var {v_read = AccInline} -> true
+				|  _ -> false
+			in
+			let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
+			AKField fa
 		| REnumConstructorImport(en,ef) ->
 			enum_field_access ctx en ef mode p pres
 		| RWildcardPackage _ | RLazy _ ->
