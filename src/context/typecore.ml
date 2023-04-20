@@ -107,7 +107,7 @@ class module_resolution (l : resolution list) = object(self)
 		l
 
 	method find_type_import check =
-		self#check_expand;
+		(* self#check_expand; *) (* Should not be needed for types *)
 		let rec loop = function
 		| [] ->
 			raise Not_found
@@ -122,7 +122,7 @@ class module_resolution (l : resolution list) = object(self)
 
 	(* TODO: remove this *)
 	method extract_type_imports =
-		self#check_expand;
+		(* self#check_expand; *)
 		ExtList.List.filter_map (fun res -> match res.r_kind with
 			| RTypeImport mt ->
 				Some (mt,res.r_pos)
