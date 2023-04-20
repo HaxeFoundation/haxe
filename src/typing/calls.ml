@@ -91,7 +91,7 @@ let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
-		let et = type_module_type ctx (TClassDecl c) None p in
+		let et = type_module_type ctx (TClassDecl c) p in
 		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 		make_call ctx ef [ebase;e1] r p
 
@@ -102,7 +102,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
-			let et = type_module_type ctx (TClassDecl c) None p in
+			let et = type_module_type ctx (TClassDecl c) p in
 			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 			make_call ctx ef [ebase;e1;evalue] r p
 
@@ -160,7 +160,7 @@ let rec acc_get ctx g =
 					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
 					cf
 				in
-				let e_t = type_module_type ctx (TClassDecl c2) None p in
+				let e_t = type_module_type ctx (TClassDecl c2) p in
 				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FHStatic c2) true p) FRead
 			in
 			let e_def = FieldAccess.get_field_expr fa FRead in

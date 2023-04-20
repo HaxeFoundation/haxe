@@ -71,14 +71,15 @@ let run_command ctx cmd =
 
 module Setup = struct
 	let initialize_target ctx com actx =
+		init_platform com;
 		let add_std dir =
 			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 		in
 		match com.platform with
 			| Cross ->
-				(* no platform selected *)
-				set_platform com Cross "";
 				"?"
+			| CustomTarget name ->
+				name
 			| Flash ->
 				let rec loop = function
 					| [] -> ()
@@ -159,7 +160,6 @@ module Setup = struct
 		) com.defines.values;
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
-		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 		com.callbacks#run com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
@@ -304,14 +304,34 @@ let filter ctx tctx =
 	Filters.run ctx.com tctx ctx.com.main;
 	t()
 
-let compile ctx actx =
+let call_light_init_macro com path =
+	let open MacroContext in
+	let mctx = create_macro_context com in
+	let api = make_macro_com_api com null_pos in
+	let init = create_macro_interp api mctx in
+	MacroContext.MacroLight.call_init_macro com mctx api path;
+	(init,mctx)
+
+let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	let mctx = match com.platform with
+		| CustomTarget name ->
+			begin try
+				Some (call_light_init_macro com (Printf.sprintf "%s.Init.init()" name))
+			with (Error.Error { err_message = Module_not_found ([pack],"Init") }) when pack = name ->
+				(* ignore if <target_name>.Init doesn't exist *)
+				None
+			end
+		| _ ->
+			None
+		in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
-	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
+	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
+	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
@@ -321,6 +341,7 @@ let compile ctx actx =
 	end else begin
 		(* Actual compilation starts here *)
 		let tctx = Setup.create_typer_context ctx actx.native_libs in
+		tctx.g.macros <- mctx;
 		com.stage <- CTyperCreated;
 		let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 		begin try
@@ -434,8 +455,7 @@ let compile_ctx callbacks ctx =
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_actx ctx actx;
-			callbacks.after_arg_parsing ctx;
-			compile ctx actx;
+			compile ctx actx callbacks;
 		);
 		finalize ctx;
 		callbacks.after_compilation ctx;

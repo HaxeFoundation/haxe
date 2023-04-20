@@ -42,11 +42,6 @@ typedef PlatformConfig = {
 	final overloadFunctions:Bool;
 
 	/**
-		Can the platform use default values for non-nullable arguments
-	**/
-	final canSkipNonNullableArgument:Bool;
-
-	/**
 		Type paths that are reserved on the platform
 	**/
 	final reservedTypePaths:Array<TypePath>;

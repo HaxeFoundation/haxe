@@ -17,7 +17,7 @@ class MacroClass {
 		trace(config.debug);
 		trace(config.verbose);
 		trace(config.foptimize);
-		trace(config.platform);
+		trace(platformToString(config.platform));
 		trace(config.mainClass.pack);
 		trace(config.mainClass.name);
 
@@ -26,6 +26,15 @@ class MacroClass {
 				case Forbidden: trace(packageName + " is forbidden");
 				case _:
 			}
+		}
+	}
+
+	static function platformToString(p: Platform) {
+		return switch(p) {
+			case Eval: "eval";
+			case Js: "js";
+			case Cpp: "cpp";
+			case _: "unused platform";
 		}
 	}
 }
