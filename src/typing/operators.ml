@@ -713,7 +713,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
 		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
-		let et = type_module_type ctx (TClassDecl c) None p in
+		let et = type_module_type ctx (TClassDecl c) p in
 		let e = match cf_set.cf_expr,cf_get.cf_expr with
 			| None,None ->
 				let ea = mk (TArray(ebase,ekey)) r_get p in

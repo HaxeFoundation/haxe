@@ -44,7 +44,7 @@ let resolve_module_field ctx m path p mode with_type =
 		raise Not_found
 	| {name = name; pos = p} :: path_rest, Some c ->
 		let f = PMap.find name c.cl_statics in (* raises Not_found *)
-		let e = type_module_type ctx (TClassDecl c) None p in
+		let e = type_module_type ctx (TClassDecl c) p in
 		field_access ctx mode f (FHStatic c) e p, path_rest
 
 let resolve_module_type ctx m name p =
@@ -93,7 +93,7 @@ let resolve_unqualified ctx name next_path p mode with_type =
 			*)
 			match next_path with
 			| {name = field; pos = pfield} :: next_path ->
-				let e = type_module_type ctx t None p in
+				let e = type_module_type ctx t p in
 				let access = type_field (TypeFieldConfig.create true) ctx e field pfield mode with_type in
 				access, next_path
 			| _ ->

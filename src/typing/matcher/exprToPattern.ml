@@ -193,7 +193,7 @@ let rec make pctx toplevel t e =
 			let restore = catch_errors () in
 			begin try
 				let mt = module_type_of_type t in
-				let e_mt = TyperBase.type_module_type ctx mt None p in
+				let e_mt = TyperBase.type_module_type ctx mt p in
 				let e = type_field_access ctx ~resume:true e_mt s in
 				restore();
 				check_expr e
