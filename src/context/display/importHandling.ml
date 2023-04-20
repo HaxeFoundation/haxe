@@ -116,13 +116,11 @@ let init_import ctx context_init path mode p =
 			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pname then
 				DisplayEmitter.display_module_type ctx mt pname;
 		in
-		let add_static_field c cf alias =
-			let res = mk_resolution alias (RFieldImport(c,cf)) p in
-			ctx.m.module_resolution#add res;
+		let make_static_field c cf alias =
+			mk_resolution alias (RFieldImport(c,cf)) p
 		in
-		let add_enum_constructor en ef alias =
-			let res = mk_resolution alias (REnumConstructorImport(en,ef)) p in
-			ctx.m.module_resolution#add res;
+		let make_enum_constructor en ef alias =
+			mk_resolution alias (REnumConstructorImport(en,ef)) p
 		in
 		let add_static_init t name s =
 			match resolve_typedef t with
@@ -130,13 +128,16 @@ let init_import ctx context_init path mode p =
 				ignore(c.cl_build());
 				let cf = PMap.find s c.cl_statics in
 				let name = Option.default (cf.cf_name,null_pos) name in
-				add_static_field c cf name
+				make_static_field c cf name
 			| TEnumDecl en ->
 				let ef = PMap.find s en.e_constrs in
 				let name = Option.default (ef.ef_name,null_pos) name in
-				add_enum_constructor en ef name
+				make_enum_constructor en ef name
 			| _ ->
 				raise Not_found
+		in
+		let add_lazy_resolution f =
+			ctx.m.module_resolution#add (mk_resolution ("",null_pos) (RLazy f) null_pos)
 		in
 		(match mode with
 		| INormal | IAsName _ ->
@@ -152,12 +153,14 @@ let init_import ctx context_init path mode p =
 							None
 					) types);
 					Option.may (fun c ->
-						context_init#add (fun () ->
+						add_lazy_resolution (fun () ->
 							ignore(c.cl_build());
-							List.iter (fun cf ->
+							List.fold_left (fun acc cf ->
 								if has_class_field_flag cf CfPublic then
-									add_static_field c cf (cf.cf_name,null_pos)
-							) c.cl_ordered_statics
+									(make_static_field c cf (cf.cf_name,null_pos) :: acc)
+								else
+									acc
+							) [] c.cl_ordered_statics
 						);
 					) md.m_statics
 				| Some(newname,pname) ->
@@ -186,7 +189,7 @@ let init_import ctx context_init path mode p =
 						try
 							let tmain = find_type tname in
 							begin try
-								add_static_init tmain name tsub
+								[add_static_init tmain name tsub]
 							with Not_found ->
 								let parent,target_kind,candidates = match resolve_typedef tmain with
 									| TClassDecl c ->
@@ -207,13 +210,13 @@ let init_import ctx context_init path mode p =
 										(* TODO: cleaner way to get module fields? *)
 										PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
 								in
-
-								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p
+								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p;
+								[]
 							end
 						with Not_found ->
 							fail_usefully tsub p
 					in
-					context_init#add (fun() ->
+					add_lazy_resolution (fun() ->
 						match md.m_statics with
 						| Some c ->
 							(try
@@ -227,7 +230,7 @@ let init_import ctx context_init path mode p =
 												error_private p
 											else
 												let name = Option.default (cf.cf_name,null_pos) name in
-												add_static_field c cf name;
+												[make_static_field c cf name]
 										else
 											loop rest
 								in
@@ -243,11 +246,12 @@ let init_import ctx context_init path mode p =
 				| [] -> ()
 				| (n,p) :: _ -> raise_typing_error ("Unexpected " ^ n) p);
 				let tsub = get_type tsub in
-				context_init#add (fun() ->
+				add_lazy_resolution (fun() ->
 					try
-						add_static_init tsub name fname
+						[add_static_init tsub name fname]
 					with Not_found ->
-						display_error ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+						display_error ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3);
+						[]
 				);
 			)
 		| IAll ->
@@ -256,14 +260,24 @@ let init_import ctx context_init path mode p =
 				| [tsub,_] -> get_type tsub
 				| _ :: (n,p) :: _ -> raise_typing_error ("Unexpected " ^ n) p
 			) in
-			context_init#add (fun() ->
+			add_lazy_resolution (fun() ->
 				match resolve_typedef t with
 				| TClassDecl c
 				| TAbstractDecl {a_impl = Some c} ->
 					ignore(c.cl_build());
-					PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then add_static_field c cf (cf.cf_name,null_pos)) c.cl_statics
+					PMap.fold (fun cf acc ->
+						if not (has_meta Meta.NoImportGlobal cf.cf_meta) then
+							(make_static_field c cf (cf.cf_name,null_pos)) :: acc
+						else
+							acc
+					  )  c.cl_statics []
 				| TEnumDecl en ->
-					PMap.iter (fun _ ef -> if not (has_meta Meta.NoImportGlobal ef.ef_meta) then add_enum_constructor en ef (ef.ef_name,null_pos)) en.e_constrs
+					PMap.fold (fun ef acc ->
+						if not (has_meta Meta.NoImportGlobal ef.ef_meta) then
+							(make_enum_constructor en ef (ef.ef_name,null_pos)) :: acc
+						else
+							acc
+					 ) en.e_constrs []
 				| _ ->
 					raise_typing_error "No statics to import from this type" p
 			)
@@ -288,7 +302,6 @@ let handle_using ctx path p =
 			let t = ctx.g.do_load_type_def ctx p t in
 			[t]
 	) in
-	(* delay the using since we need to resolve typedefs *)
 	let filter_classes types =
 		let rec loop acc types = match types with
 			| td :: l ->
@@ -308,4 +321,5 @@ let init_using ctx context_init path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
 	ctx.m.module_resolution#add_l (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types);
-	context_init#add (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
+	(* delay the using since we need to resolve typedefs *)
+	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

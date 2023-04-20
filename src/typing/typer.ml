@@ -315,7 +315,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			field_access ctx mode cf (FHStatic c) e p
 		| REnumConstructorImport(en,ef) ->
 			enum_field_access ctx en ef mode p pres
-		| RWildcardPackage _ ->
+		| RWildcardPackage _ | RLazy _ ->
 			assert false
 	in
 	let rec resolve_import l = match l with

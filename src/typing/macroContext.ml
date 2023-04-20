@@ -503,7 +503,7 @@ let make_macro_api ctx p =
 				List.iter (fun path ->
 					ImportHandling.init_using ctx context_init path null_pos
 				) usings;
-				context_init#run;
+				flush_pass ctx PConnectField "with_imports";
 				f()
 			in
 			let restore () =

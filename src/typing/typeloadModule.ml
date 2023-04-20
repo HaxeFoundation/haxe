@@ -769,7 +769,7 @@ let type_types_into_module ctx m tdecls p =
 	let context_init = new TypeloadFields.context_init in
 	List.iter (TypeLevel.init_module_type ctx context_init) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx PConnectField (fun () -> context_init#run);
+	delay ctx PConnectField (fun () -> context_init#run; ctx.m.module_resolution#check_expand);
 	ctx
 
 (*

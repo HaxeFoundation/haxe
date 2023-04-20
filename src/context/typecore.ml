@@ -63,6 +63,7 @@ type resolution_kind =
 	| RFieldImport of tclass * tclass_field
 	| REnumConstructorImport of tenum * tenum_field
 	| RWildcardPackage of string list
+	| RLazy of (unit -> resolution list)
 
 and resolution = {
 	r_alias : placed_name;
@@ -72,12 +73,29 @@ and resolution = {
 
 class module_resolution (l : resolution list) = object(self)
 	val mutable l = l
+	val mutable expanded = true
 
 	method add (res : resolution) =
+		expanded <- false;
 		l <- res :: l
 
 	method add_l (rl : resolution list) =
+		expanded <- false;
 		l <- rl @ l
+
+	method check_expand =
+		if not expanded then begin
+			expanded <- true;
+			let rec loop acc l = match l with
+				| [] ->
+					List.rev acc
+				| {r_kind = RLazy f} :: l ->
+					loop (f() @ acc) l
+				| res :: l ->
+					loop (res :: acc) l
+			in
+			l <- loop [] l
+		end
 
 	method save =
 		let l' = l in
@@ -85,9 +103,11 @@ class module_resolution (l : resolution list) = object(self)
 		(fun () -> l <- l')
 
 	method get_list =
+		self#check_expand;
 		l
 
 	method find_type_import check =
+		self#check_expand;
 		let rec loop = function
 		| [] ->
 			raise Not_found
@@ -102,6 +122,7 @@ class module_resolution (l : resolution list) = object(self)
 
 	(* TODO: remove this *)
 	method extract_type_imports =
+		self#check_expand;
 		ExtList.List.filter_map (fun res -> match res.r_kind with
 			| RTypeImport mt ->
 				Some (mt,res.r_pos)
@@ -110,6 +131,7 @@ class module_resolution (l : resolution list) = object(self)
 		) l
 
 	method extract_field_imports =
+		self#check_expand;
 		List.fold_left (fun acc res -> match res.r_kind with
 			| RFieldImport(c,cf) ->
 				PMap.add (fst res.r_alias) ((TClassDecl c),cf.cf_name,res.r_pos) acc
@@ -118,6 +140,7 @@ class module_resolution (l : resolution list) = object(self)
 		) PMap.empty l
 
 	method extract_wildcard_packages =
+		self#check_expand;
 		ExtList.List.filter_map (fun res -> match res.r_kind with
 			| RWildcardPackage sl ->
 				Some (sl,res.r_pos)
@@ -277,6 +300,7 @@ let s_resolution_kind = function
 	| RFieldImport(c,cf) -> Printf.sprintf "RFieldImport(%s, %s)" (s_type_path c.cl_path) cf.cf_name
 	| REnumConstructorImport(en,ef) -> Printf.sprintf "REnumConstructorImport(%s, %s)" (s_type_path en.e_path) ef.ef_name
 	| RWildcardPackage sl -> Printf.sprintf "RWildcardPackage(%s)" (String.concat "." sl)
+	| RLazy f -> "RLazy"
 
 let memory_marker = [|Unix.time()|]
 
