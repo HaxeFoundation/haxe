@@ -25,6 +25,7 @@ open CompletionItem.ClassFieldOrigin
 open Common
 open Type
 open Typecore
+open Resolution
 open Error
 open Globals
 open TyperBase

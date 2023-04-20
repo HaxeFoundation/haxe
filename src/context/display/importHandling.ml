@@ -5,6 +5,7 @@ open Common
 open Type
 open Error
 open Typecore
+open Resolution
 
 type import_display_kind =
 	| IDKPackage of string list
