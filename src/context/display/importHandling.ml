@@ -72,7 +72,7 @@ let init_import ctx path mode p =
 		(match mode with
 		| IAll ->
 			let res = mk_resolution ("",null_pos) (RWildcardPackage (List.map fst pack)) p in
-			ctx.m.module_resolution#add res;
+			ctx.m.import_resolution#add res;
 		| _ ->
 			(match List.rev path with
 			(* p spans `import |` (to the display position), so we take the pmax here *)
@@ -137,7 +137,7 @@ let init_import ctx path mode p =
 				raise Not_found
 		in
 		let add_lazy_resolution f =
-			ctx.m.module_resolution#add (mk_resolution ("",null_pos) (RLazy f) null_pos)
+			ctx.m.import_resolution#add (mk_resolution ("",null_pos) (RLazy f) null_pos)
 		in
 		(match mode with
 		| INormal | IAsName _ ->
@@ -146,7 +146,7 @@ let init_import ctx path mode p =
 			| [] ->
 				begin match name with
 				| None ->
-					ctx.m.module_resolution#add_l (ExtList.List.filter_map (fun t ->
+					ctx.m.import_resolution#add_l (ExtList.List.filter_map (fun t ->
 						if not_private t then
 							Some (mk_resolution (t_name t,null_pos) (RTypeImport t) p)
 						else
@@ -167,7 +167,7 @@ let init_import ctx path mode p =
 					let mt = get_type tname in
 					check_alias mt newname pname;
 					let res = mk_resolution (newname,pname) (RTypeImport mt) p2 in
-					ctx.m.module_resolution#add res;
+					ctx.m.import_resolution#add res;
 				end
 			| [tsub,p2] ->
 				let pu = punion p1 p2 in
@@ -182,7 +182,7 @@ let init_import ctx path mode p =
 							(name,pname)
 					in
 					let res = mk_resolution name (RTypeImport tsub) p2 in
-					ctx.m.module_resolution#add res;
+					ctx.m.import_resolution#add res;
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
 					let find_main_type_static () =
@@ -320,6 +320,6 @@ let handle_using ctx path p =
 let init_using ctx path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
-	ctx.m.module_resolution#add_l (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types);
+	ctx.m.import_resolution#add_l (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types);
 	(* delay the using since we need to resolve typedefs *)
 	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

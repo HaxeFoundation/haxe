@@ -17,7 +17,7 @@ let get_macro_path ctx e args p =
 				if not (PMap.mem i ctx.curclass.cl_statics) then raise Not_found;
 				ctx.curclass.cl_path
 			with Not_found -> try
-				(t_infos (let path,_,_ = PMap.find i (ctx.m.module_resolution#extract_field_imports) in path)).mt_path
+				(t_infos (let path,_,_ = PMap.find i (ctx.m.import_resolution#extract_field_imports) in path)).mt_path
 			with Not_found ->
 				raise_typing_error "Invalid macro call" p
 			in

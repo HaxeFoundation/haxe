@@ -71,7 +71,7 @@ and resolution = {
 	r_pos : pos;
 }
 
-class module_resolution (l : resolution list) = object(self)
+class resolution_list (l : resolution list) = object(self)
 	val mutable l = l
 	val mutable expanded = true
 
@@ -151,7 +151,7 @@ end
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_resolution : module_resolution;
+	mutable import_resolution : resolution_list;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
 }

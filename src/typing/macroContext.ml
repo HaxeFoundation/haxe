@@ -493,7 +493,7 @@ let make_macro_api ctx p =
 			| NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
 		MacroApi.with_imports = (fun imports usings f ->
-			let old_resolution = ctx.m.module_resolution in
+			let old_resolution = ctx.m.import_resolution in
 			let old_using = ctx.m.module_using in
 			let run () =
 				List.iter (fun (path,mode) ->
@@ -506,7 +506,7 @@ let make_macro_api ctx p =
 				f()
 			in
 			let restore () =
-				ctx.m.module_resolution <- old_resolution;
+				ctx.m.import_resolution <- old_resolution;
 				ctx.m.module_using <- old_using;
 			in
 			Std.finally restore run ()
@@ -671,7 +671,7 @@ let load_macro_module mctx com cpath display p =
 	let mloaded = TypeloadModule.load_module mctx m p in
 	mctx.m <- {
 		curmod = mloaded;
-		module_resolution = new module_resolution [];
+		import_resolution = new resolution_list [];
 		module_using = [];
 		import_statements = [];
 	};
@@ -710,7 +710,7 @@ let load_macro'' com mctx display cpath f p =
 		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
-			module_resolution = new module_resolution [];
+			import_resolution = new resolution_list [];
 			module_using = [];
 			import_statements = [];
 		};
