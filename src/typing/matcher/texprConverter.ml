@@ -292,7 +292,7 @@ let to_texpr ctx t_switch with_type dt =
 						| [{case_patterns = [{eexpr = TConst (TBool false)}];case_expr = e2};{case_patterns = [{eexpr = TConst (TBool true)}];case_expr = e1}],None,_ ->
 							mk (TIf(e_subject,e1,Some e2)) t_switch dt.dt_pos
 						| _ ->
-							let is_exhaustive = match finiteness with
+							let is_exhaustive = e_default <> None || match finiteness with
 								| RunTimeFinite | CompileTimeFinite when e_default = None ->
 									true
 								| _ ->
