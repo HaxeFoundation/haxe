@@ -153,6 +153,59 @@ let make_macro_api ctx p =
 		MacroApi.resolve_type = (fun t p ->
 			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false (t,p))
 		);
+		MacroApi.resolve_complex_type = (fun t ->
+			typing_timer ctx false (fun() ->
+				let rec load (t,pos) =
+					((match t with
+					| CTPath p ->
+						CTPath (load_path p pos)
+					| CTFunction (args,ret) ->
+						CTFunction (List.map load args, load ret)
+					| CTAnonymous fl ->
+						CTAnonymous (List.map load_cf fl)
+					| CTParent t ->
+						CTParent (load t)
+					| CTExtend (pl, fl) ->
+						CTExtend (List.map (fun (p,pos) -> load_path p pos, pos) pl,List.map load_cf fl)
+					| CTOptional t ->
+						CTOptional t
+					| CTNamed (n,t) ->
+						CTNamed (n, load t)
+					| CTIntersection tl ->
+						CTIntersection (List.map load tl)
+					),p)
+				and load_cf f =
+					let k = match f.cff_kind with
+					| FVar (t, e) -> FVar ((match t with None -> None | Some t -> Some (load t)), e)
+					| FProp (n1,n2,t,e) -> FProp(n1,n2,(match t with None -> None | Some t -> Some (load t)),e)
+					| FFun f ->
+						FFun {
+							f_params = List.map load_tparam f.f_params;
+							f_args = List.map (fun (n,o,m,t,e) -> n,o,m,(match t with None -> None | Some t -> Some (load t)),e) f.f_args;
+							f_type = (match f.f_type with None -> None | Some t -> Some (load t));
+							f_expr = f.f_expr;
+						}
+					in
+					{ f with cff_kind = k }
+				and load_tparam ft =
+					{ ft with
+						tp_params = List.map load_tparam ft.tp_params;
+						tp_constraints = (match ft.tp_constraints with None -> None | Some t -> Some (load t));
+						tp_default = (match ft.tp_default with None -> None | Some t -> Some (load t));
+					}
+				and load_path p pos =
+					let t = t_infos (Typeload.load_type_def ctx pos p) in
+					let is_sub = t.mt_module.m_path <> t.mt_path in
+					{
+						tpackage = fst t.mt_path;
+						tname = (if is_sub then snd t.mt_module.m_path else snd t.mt_path);
+						tparams = List.map (fun ct -> match ct with TPType t -> TPType (load t) | TPExpr _ -> ct) p.tparams;
+						tsub = (if is_sub then Some (snd t.mt_path) else None);
+					}
+				in
+				load t
+			)
+		);
 		MacroApi.get_module = (fun s ->
 			typing_timer ctx false (fun() ->
 				let path = parse_path s in
