@@ -63,6 +63,7 @@ type typer_module = {
 	curmod : module_def;
 	import_resolution : resolution_list;
 	mutable own_resolution : resolution_list option;
+	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
 }

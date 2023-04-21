@@ -30,10 +30,10 @@ let s_resolution_kind = function
 	| RWildcardPackage sl -> Printf.sprintf "RWildcardPackage(%s)" (String.concat "." sl)
 	| RLazy f -> "RLazy"
 
-class resolution_list (l : resolution list) = object(self)
-	val mutable l = l
+class resolution_list = object(self)
+	val mutable l = []
 	val mutable expanded = false
-	val cache = Hashtbl.create 0
+	val mutable cache = StringMap.empty
 
 	method add (res : resolution) =
 		expanded <- false;
@@ -54,7 +54,7 @@ class resolution_list (l : resolution list) = object(self)
 
 	method resolve (i : string) =
 		self#check_expand;
-		Hashtbl.find cache i
+		StringMap.find i cache
 
 	method expand_enum_constructors (mt : module_type) = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
@@ -82,7 +82,7 @@ class resolution_list (l : resolution list) = object(self)
 	method check_expand =
 		if not expanded then begin
 			expanded <- true;
-			Hashtbl.clear cache;
+			cache <- StringMap.empty;
 			let rec loop acc l = match l with
 				| [] ->
 					List.rev acc
@@ -90,18 +90,21 @@ class resolution_list (l : resolution list) = object(self)
 					loop acc (f() @ l)
 				| res :: l ->
 					let key = fst res.r_alias in
-					if not (Hashtbl.mem cache key) then
-						Hashtbl.add cache key res;
+					if not (StringMap.mem key cache) then
+						cache <- StringMap.add key res cache;
 					loop (res :: acc) l
 			in
-			l <- loop [] l
+			l <- loop [] l;
 		end
 
 	method save =
 		let l' = l in
+		let cache' = cache in
+		let expanded' = expanded in
 		(fun () ->
 			l <- l';
-			expanded <- false;
+			cache <- cache';
+			expanded <- expanded';
 		)
 
 	method get_list =

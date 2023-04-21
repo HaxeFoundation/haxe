@@ -673,8 +673,9 @@ let load_macro_module mctx com cpath display p =
 	let mloaded = TypeloadModule.load_module mctx m p in
 	mctx.m <- {
 		curmod = mloaded;
-		import_resolution = new resolution_list [];
+		import_resolution = new resolution_list;
 		own_resolution = None;
+		enum_with_type = None;
 		module_using = [];
 		import_statements = [];
 	};
@@ -713,8 +714,9 @@ let load_macro'' com mctx display cpath f p =
 		mctx.com.cached_macros#add (cpath,f) meth;
 		mctx.m <- {
 			curmod = null_module;
-			import_resolution = new resolution_list [];
+			import_resolution = new resolution_list;
 			own_resolution = None;
+			enum_with_type = None;
 			module_using = [];
 			import_statements = [];
 		};

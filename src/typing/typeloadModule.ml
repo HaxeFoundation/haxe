@@ -706,13 +706,17 @@ module TypeLevel = struct
 			()
 end
 
-let make_curmod ctx m = {
-	curmod = m;
-	import_resolution = new resolution_list (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
-	own_resolution = None;
-	module_using = [];
-	import_statements = [];
-}
+let make_curmod ctx m =
+	let rl = new resolution_list in
+	rl#add_l (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
+	{
+		curmod = m;
+		import_resolution = rl;
+		own_resolution = None;
+		enum_with_type = None;
+		module_using = [];
+		import_statements = [];
+	}
 
 let create_typer_context_for_module ctx m = {
 		com = ctx.com;

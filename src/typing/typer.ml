@@ -73,7 +73,7 @@ let get_own_resolution ctx = match ctx.m.own_resolution with
 	| Some resolution ->
 		resolution
 	| None ->
-		let rl = new resolution_list [] in
+		let rl = new resolution_list in
 		Option.may (fun c ->
 			List.iter (fun cf ->
 				rl#add (mk_resolution (cf.cf_name,null_pos) (RClassFieldImport(c,cf)) null_pos)
@@ -106,9 +106,9 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					raise Exit
 			in
 			let is_enum,path,fields,mt = loop [] t in
-			let own_resolution = get_own_resolution ctx in
-			let restore = own_resolution#save in
-			own_resolution#add (mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos);
+			let old = ctx.m.enum_with_type in
+			let restore () = ctx.m.enum_with_type <- old in
+			ctx.m.enum_with_type <- Some mt;
 			let e = try
 				f()
 			with
@@ -288,6 +288,31 @@ let enum_field_access ctx en ef mode p pt =
 	in
 	wrap (mk (TField (et,FEnum (en,ef))) (enum_field_type ctx en ef p) p)
 
+let resolve_against_expected_enum ctx i =
+	let rec loop mt = match mt with
+		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
+			let cf = PMap.find i c.cl_statics in
+			if not (has_class_field_flag cf CfEnum) then
+				raise Not_found;
+			mk_resolution (cf.cf_name,null_pos) (RAbstractFieldImport(a,c,cf)) null_pos
+		| TClassDecl _ | TAbstractDecl _ ->
+			raise Not_found
+		| TTypeDecl t ->
+			begin match follow t.t_type with
+				| TEnum (e,_) -> loop (TEnumDecl e)
+				| TAbstract (a,_) when a.a_enum -> loop (TAbstractDecl a)
+				| _ -> raise Not_found
+			end
+		| TEnumDecl en ->
+			let ef = PMap.find i en.e_constrs in
+			mk_resolution (ef.ef_name,null_pos) (REnumConstructorImport(en,ef)) null_pos
+	in
+	match ctx.m.enum_with_type with
+	| None ->
+		raise Not_found
+	| Some mt ->
+		loop mt
+
 let rec type_ident_raise ctx i p mode with_type =
 	let resolve res =
 		ImportHandling.mark_import_position ctx res.r_pos;
@@ -443,6 +468,8 @@ let rec type_ident_raise ctx i p mode with_type =
 				e,FHStatic ctx.curclass
 		in
 		field_access ctx mode f fa e p
+	with Not_found -> try
+		resolve (resolve_against_expected_enum ctx i)
 	with Not_found -> try
 		let own_resolution = get_own_resolution ctx in
 		resolve (own_resolution#resolve i)
@@ -2110,8 +2137,9 @@ let rec create com =
 		};
 		m = {
 			curmod = null_module;
-			import_resolution = new resolution_list [];
+			import_resolution = new resolution_list;
 			own_resolution = None;
+			enum_with_type = None;
 			module_using = [];
 			import_statements = [];
 		};

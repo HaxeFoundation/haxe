@@ -705,8 +705,9 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		import_resolution = new Resolution.resolution_list [];
+		import_resolution = new Resolution.resolution_list;
 		own_resolution = None;
+		enum_with_type = None;
 		module_using = [];
 		import_statements = [];
 	};
