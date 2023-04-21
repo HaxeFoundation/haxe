@@ -135,6 +135,9 @@ let make_macro_com_api com p =
 		resolve_type = (fun t p ->
 			Interp.exc_string "unsupported"
 		);
+		resolve_complex_type = (fun t ->
+			Interp.exc_string "unsupported"
+		);
 		get_module = (fun s ->
 			Interp.exc_string "unsupported"
 		);
