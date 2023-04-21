@@ -4,7 +4,6 @@ open Ast
 open Type
 open Typecore
 open Error
-open CallUnification
 
 let cast_stack = new_rec_stack()
 

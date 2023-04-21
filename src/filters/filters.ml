@@ -849,7 +849,7 @@ let save_class_state ctx t =
 		in
 		let mk_field_restore f =
 			Option.may save_vars f.cf_expr;
-			let rec mk_overload_restore f =
+			let mk_overload_restore f =
 				add_class_field_flag f CfPostProcessed;
 				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
 			in

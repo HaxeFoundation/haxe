@@ -4906,7 +4906,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          visited := List.tl !visited;
       end
    in
-   let rec visit_params expression =
+   let visit_params expression =
       begin
       let rec visit_expression = fun expression ->
          (* Expand out TTypeExpr (ie, the name of a class, as used for static access etc ... *)

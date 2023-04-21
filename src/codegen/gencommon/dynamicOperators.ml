@@ -19,7 +19,6 @@
 open Common
 open Ast
 open Type
-open Codegen
 open Texpr.Builder
 open Gencommon
 

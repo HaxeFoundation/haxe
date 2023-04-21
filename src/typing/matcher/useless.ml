@@ -85,7 +85,7 @@ let transfer_column source target =
 
 let copy p = List.map (fun _ -> []) p
 
-let rec specialize' is_tuple con pM qM rM =
+let specialize' is_tuple con pM qM rM =
 	let arity = arity con in
 	let rec loop pAcc qAcc rAcc pM qM rM = match pM,qM,rM with
 		| p1 :: pM,q1 :: qM,r1 :: rM ->

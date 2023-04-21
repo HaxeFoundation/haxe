@@ -18,7 +18,6 @@
  *)
 open Extlib_leftovers
 open Globals
-open Type
 open EvalValue
 open EvalContext
 open EvalField

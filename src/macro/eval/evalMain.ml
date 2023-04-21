@@ -25,8 +25,6 @@ open EvalValue
 open EvalContext
 open EvalPrototype
 open EvalExceptions
-open EvalJit
-open EvalJitContext
 open EvalPrinting
 open EvalMisc
 open EvalHash
@@ -101,7 +99,7 @@ let create com api is_macro =
 	} in
 	let eval = EvalThread.create_eval thread in
 	let evals = IntMap.singleton 0 eval in
-	let rec ctx = {
+	let ctx = {
 		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
 		debug = debug;
@@ -153,7 +151,7 @@ let create com api is_macro =
 				| Error.Error err ->
 						let messages = ref [] in
 						Error.recurse_error (fun depth err ->
-							make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error
+							messages := (make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error) :: !messages;
 						) err;
 						MessageReporting.format_messages com !messages
 				| _ -> Printexc.to_string ex

@@ -1,6 +1,4 @@
-open Globals
 open Ast
-open Meta
 open TType
 open TFunctions
 open TPrinting

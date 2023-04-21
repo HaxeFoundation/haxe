@@ -18,7 +18,6 @@
  *)
 
 open Globals
-open ExtString
 
 type native_lib_flags =
 	| FlagIsStd

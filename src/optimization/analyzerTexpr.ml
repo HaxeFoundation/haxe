@@ -115,7 +115,7 @@ let target_handles_side_effect_order com = match com.platform with
 	| Php -> false
 	| _ -> true
 
-let rec can_be_used_as_value com e =
+let can_be_used_as_value com e =
 	let rec loop e = match e.eexpr with
 		| TBlock [e] -> loop e
 		| TBlock _ | TSwitch _ | TTry _ -> raise Exit

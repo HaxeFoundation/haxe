@@ -1,9 +1,7 @@
 open Globals
 open EvalContext
-open EvalExceptions
 open EvalValue
 open EvalEncode
-open EvalDecode
 open EvalHash
 open EvalString
 

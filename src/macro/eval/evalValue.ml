@@ -18,7 +18,6 @@
  *)
 open Extlib_leftovers
 open Globals
-open EvalHash
 
 type cmp =
 	| CEq

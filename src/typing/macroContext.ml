@@ -534,7 +534,7 @@ let make_macro_api ctx p =
 		);
 	}
 
-let rec init_macro_interp mctx mint =
+let init_macro_interp mctx mint =
 	let p = null_pos in
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
 	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);

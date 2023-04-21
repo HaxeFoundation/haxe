@@ -1,10 +1,8 @@
 open Globals
-open Ast
 open DisplayTypes
 open Common
 open Type
 open Typecore
-open ImportHandling
 
 let find_possible_references tctx cs =
 	let name,_,kind = Display.ReferencePosition.get () in

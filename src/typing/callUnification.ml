@@ -13,7 +13,7 @@ let is_forced_inline c cf =
 	| _ when has_class_field_flag cf CfExtern -> true
 	| _ -> false
 
-let rec unify_call_args ctx el args r callp inline force_inline in_overload =
+let unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
 
 	let arg_error e name opt =
@@ -30,7 +30,7 @@ let rec unify_call_args ctx el args r callp inline force_inline in_overload =
 		let infos = mk_infos ctx callp [] in
 		type_expr ctx infos (WithType.with_type t)
 	in
-	let rec default_value name t =
+	let default_value name t =
 		if is_pos_infos t then
 			mk_pos_infos t
 		else

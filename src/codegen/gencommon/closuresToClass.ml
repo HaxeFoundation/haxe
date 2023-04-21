@@ -19,7 +19,6 @@
 open Option
 open Common
 open Globals
-open Codegen
 open Texpr.Builder
 open Ast
 open Type
@@ -1080,7 +1079,7 @@ struct
 			let cl = parent_func_class in
 			let pos = cl.cl_pos in
 
-			let rec mk_dyn_call arity api =
+			let mk_dyn_call arity api =
 				let zero = make_float gen.gcon.basic "0.0" pos in
 				let rec loop i acc =
 					if i = 0 then

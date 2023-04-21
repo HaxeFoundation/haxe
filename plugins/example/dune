@@ -1,6 +1,12 @@
 (data_only_dirs cmxs hx)
 (include_subdirs unqualified)
 
+(env
+	(_
+		(flags -w -27 -w -50)
+	)
+)
+
 (library
 	(name example)
 	(libraries haxe)

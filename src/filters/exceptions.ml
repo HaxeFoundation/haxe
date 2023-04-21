@@ -3,8 +3,6 @@ open Ast
 open Type
 open Common
 open Typecore
-open TyperBase
-open Fields
 open Error
 
 let haxe_exception_type_path = (["haxe"],"Exception")
@@ -107,13 +105,13 @@ let is_in_list t lst =
 (**
 	Check if `t` can be thrown without wrapping.
 *)
-let rec is_native_throw ctx t =
+let is_native_throw ctx t =
 	ctx.throws_anything || is_in_list t ctx.config.ec_native_throws
 
 (**
 	Check if `t` can be caught without wrapping.
 *)
-let rec is_native_catch ctx t =
+let is_native_catch ctx t =
 	ctx.catches_anything || is_in_list t ctx.config.ec_native_catches
 
 (**

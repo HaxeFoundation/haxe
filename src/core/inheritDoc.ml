@@ -1,7 +1,5 @@
-open Globals
 open Ast
 open Type
-open Typecore
 
 let expr_to_target e =
 	let rec loop (e,p) =
@@ -194,7 +192,7 @@ and get_target_doc ctx e_target =
 		with Not_found ->
 			None
 	in
-	let rec resolve_type_t t =
+	let resolve_type_t t =
 		match follow t with
 		| TInst (c, _) ->
 			build_class_doc ctx c;
