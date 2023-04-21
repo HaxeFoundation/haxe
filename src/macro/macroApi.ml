@@ -34,6 +34,7 @@ type 'value compiler_api = {
 	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
+	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -1932,6 +1933,9 @@ let macro_api ccom get_api =
 		);
 		"resolve_type", vfun2 (fun t p ->
 			encode_type ((get_api()).resolve_type (fst (decode_ctype t)) (decode_pos p));
+		);
+		"resolve_complex_type", vfun2 (fun ct p ->
+			encode_ctype ((get_api()).resolve_complex_type (fst (decode_ctype ct),decode_pos p))
 		);
 		"s_type", vfun1 (fun v ->
 			encode_string (Type.s_type (print_context()) (decode_type v))
