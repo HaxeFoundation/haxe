@@ -2,7 +2,6 @@ open Globals
 open Common
 open Json
 open DisplayTypes
-open DisplayTypes
 open Type
 open Genjson
 open MessageKind

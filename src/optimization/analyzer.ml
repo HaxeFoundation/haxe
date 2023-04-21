@@ -638,7 +638,7 @@ module LocalDce = struct
 	open Graph
 	open AnalyzerConfig
 
-	let rec has_side_effect e =
+	let has_side_effect e =
 		let rec loop e =
 			match e.eexpr with
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
@@ -659,7 +659,7 @@ module LocalDce = struct
 		with Exit ->
 			true
 
-	let rec apply ctx =
+	let apply ctx =
 		let is_used v =
 			has_var_flag v VUsed
 		in

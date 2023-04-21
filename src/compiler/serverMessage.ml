@@ -2,7 +2,6 @@ open Globals
 open Common
 open CompilationCache
 open Type
-open Json
 
 type server_message_options = {
 	mutable print_added_directory : bool;

@@ -1,8 +1,6 @@
 open Globals
-open Path
 open Ast
 open Type
-open Json
 open Genjson
 
 module SymbolKind = struct

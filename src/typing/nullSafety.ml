@@ -1408,7 +1408,7 @@ class expr_checker mode immediate_execution report =
 						| None ->
 							List.iter self#check_expr args
 						| Some cf ->
-							let rec traverse t =
+							let traverse t =
 								match follow t with
 									| TFun (types, _) -> self#check_args e_new args types
 									| _ -> fail ~msg:"Unexpected constructor type." e_new.epos __POS__
@@ -1674,7 +1674,7 @@ let run (com:Common.context) (types:module_type list) =
 	let timer = Timer.timer ["null safety"] in
 	let report = { sr_errors = [] } in
 	let immediate_execution = new immediate_execution in
-	let rec traverse module_type =
+	let traverse module_type =
 		match module_type with
 			| TEnumDecl enm -> ()
 			| TTypeDecl typedef -> ()

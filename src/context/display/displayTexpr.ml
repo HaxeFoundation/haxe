@@ -4,9 +4,7 @@ open Ast
 open Type
 open Typecore
 open DisplayPosition
-open CompletionItem
 open CompilationCache
-open ClassFieldOrigin
 
 let find_field_by_position sc p =
 	List.find (fun cff ->

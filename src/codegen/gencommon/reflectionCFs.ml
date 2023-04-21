@@ -20,7 +20,6 @@ open Option
 open Common
 open Ast
 open Type
-open Codegen
 open Texpr.Builder
 open Gencommon
 open ClosuresToClass
@@ -1490,7 +1489,7 @@ struct
 	let priority = min_dep +. 10.
 
 	let configure gen baseclass baseinterface basedynamic =
-		let rec run md =
+		let run md =
 			if is_hxgen md then
 				match md with
 				| TClassDecl cl when (has_class_flag cl CInterface) && cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->

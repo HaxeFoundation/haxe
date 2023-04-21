@@ -21,11 +21,9 @@
 
 open Globals
 open Ast
-open Filename
 open Type
 open Typecore
 open DisplayTypes.DisplayMode
-open DisplayTypes.CompletionResultKind
 open Common
 open Typeload
 open Error

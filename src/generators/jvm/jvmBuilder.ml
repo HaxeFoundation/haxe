@@ -18,7 +18,6 @@
  *)
 
 open JvmGlobals
-open JvmData
 open JvmSignature
 open JvmAttribute
 
@@ -29,7 +28,7 @@ type annotation_kind =
 	| ABool of bool
 	| AEnum of jsignature * string
 	| AArray of annotation_kind list
-	| AAnnotation of jsignature * annotation 
+	| AAnnotation of jsignature * annotation
 
 and annotation = (string * annotation_kind) list
 
@@ -38,7 +37,7 @@ type export_config = {
 }
 
 let convert_annotations pool annotations =
-	let rec process_annotation (jsig, l) = 		
+	let rec process_annotation (jsig, l) =
 		let offset = pool#add_string (generate_signature false jsig) in
 		let l = List.map (fun (name,ak) ->
 			let offset = pool#add_string name in
@@ -56,18 +55,18 @@ let convert_annotations pool annotations =
 				| AArray l ->
 					let l = List.map (fun ak -> loop ak) l in
 					'[',ValArray(Array.of_list l)
-				| AAnnotation (jsig, a) -> 
-					let ann = process_annotation (jsig, a) in 
+				| AAnnotation (jsig, a) ->
+					let ann = process_annotation (jsig, a) in
 					'@',ValAnnotation(ann)
-					
+
 			in
 			offset,loop ak
 		) l in
-		{ 
+		{
 			ann_type = offset;
 			ann_elements = Array.of_list l;
-		} 
-	in  
+		}
+	in
 	let a = Array.map process_annotation annotations in
 	a
 

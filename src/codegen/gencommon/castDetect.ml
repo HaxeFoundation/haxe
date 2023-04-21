@@ -21,7 +21,6 @@ open Common
 open Ast
 open Globals
 open Type
-open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -241,7 +240,7 @@ let is_exactly_basic gen t1 t2 =
 		| _ ->
 			false
 
-let rec is_unsafe_cast gen to_t from_t =
+let is_unsafe_cast gen to_t from_t =
 	match (follow to_t, follow from_t) with
 		| TInst(cl_to, to_params), TInst(cl_from, from_params) ->
 			not (is_cl_related gen cl_from from_params cl_to to_params)
@@ -657,7 +656,7 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 		| _ ->
 			false
 	in
-	let rec check_cf cf =
+	let check_cf cf =
 		let t = apply_params sup.cl_params stl cf.cf_type in
 		replace_mono t;
 		let args, _ = get_fun t in

@@ -1,5 +1,4 @@
 open Globals
-open Json.Reader
 open JsonRpc
 open Jsonrpc_handler
 open Json

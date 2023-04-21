@@ -24,7 +24,6 @@ open Typecore
 open CompletionItem
 open ClassFieldOrigin
 open DisplayTypes
-open Genjson
 open Globals
 
 (* Merges argument and return types from macro and non-macro context, preferring the one that isn't Dynamic.

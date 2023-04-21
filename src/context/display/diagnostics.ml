@@ -1,12 +1,8 @@
 open Globals
 open Ast
 open Type
-open Typecore
 open Common
-open Display
-open DisplayTypes.DisplayMode
 open DisplayTypes
-open DisplayException
 
 let add_removable_code ctx s p prange =
 	ctx.removable_code <- (s,p,prange) :: ctx.removable_code

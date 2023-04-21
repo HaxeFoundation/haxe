@@ -30,7 +30,7 @@ let rec plist f = parser
 	| [< v = f; l = plist f >] -> v :: l
 	| [< >] -> []
 
-let rec psep_nonempty sep f = parser
+let psep_nonempty sep f = parser
 	| [< v = f; s >] ->
 		let rec loop = parser
 			| [< '(sep2,_) when sep2 = sep; v = f; l = loop >] -> v :: l
@@ -38,7 +38,7 @@ let rec psep_nonempty sep f = parser
 		in
 		v :: loop s
 
-let rec psep sep f = parser
+let psep sep f = parser
 	| [< r = psep_nonempty sep f >] -> r
 	| [< >] -> []
 
