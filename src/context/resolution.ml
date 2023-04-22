@@ -68,9 +68,11 @@ let s_resolution_kind = function
 	| REnumStatics en -> Printf.sprintf "REnumStatics(%s)" (s_type_path en.e_path)
 	| RLazy _ -> "RLazy"
 
-class resolution_list = object(self)
+class resolution_list (id : string list) = object(self)
 	val mutable l = []
 	val mutable resolved_lazies = true
+	val mutable cached_type_imports = true
+	val mutable type_import_cache = StringMap.empty
 
 	method add (res : resolution) =
 		l <- res :: l;
@@ -80,6 +82,7 @@ class resolution_list = object(self)
 		begin match res.r_kind with
 		| RTypeImport(_,mt) ->
 			Option.may (fun res -> l <- res :: l) (self#expand_enum_constructors mt);
+			cached_type_imports <- false;
 		| RLazy _ ->
 			resolved_lazies <- false;
 		| _ ->
@@ -102,7 +105,9 @@ class resolution_list = object(self)
 		in
 		if not resolved_lazies then begin
 			resolved_lazies <- true;
-			l <- loop [] l
+			let close = Timer.timer ("resolution" :: "lazies" :: id) in
+			l <- loop [] l;
+			close();
 		end
 
 	method resolve (i : string) : resolution =
@@ -144,7 +149,8 @@ class resolution_list = object(self)
 					loop l
 				end
 		in
-		loop l
+		let close = Timer.timer ("resolution" :: "resolve" :: id) in
+		Std.finally close loop l
 
 	method expand_enum_constructors (mt : module_type) = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
@@ -175,18 +181,41 @@ class resolution_list = object(self)
 	method get_list =
 		l
 
-	method find_type_import check =
+	method cache_type_imports =
 		let rec loop = function
 		| [] ->
-			raise Not_found
+			()
 		| res :: l ->
+			(* loop first to retain correct order *)
+			loop l;
 			match res.r_kind with
 			| RTypeImport(alias,mt) ->
-				if check alias mt then (mt,res.r_pos) else loop l
+				type_import_cache <- StringMap.add alias (mt,res.r_pos) type_import_cache;
 			| _ ->
-				loop l
+				()
 		in
-		loop l
+		if not cached_type_imports then begin
+			cached_type_imports <- true;
+			type_import_cache <- StringMap.empty;
+			loop l
+		end;
+
+	method find_type_import alias =
+		let close = Timer.timer ("resolution" :: "find_type_import" :: id) in
+		self#cache_type_imports;
+		Std.finally close StringMap.find alias type_import_cache
+
+	method find_type_import_weirdly pack name =
+		let close = Timer.timer ("resolution" :: "find_type_import_weirdly" :: id) in
+		let rec find l = match l with
+			| [] ->
+				raise Not_found
+			| {r_kind = RTypeImport(alias,mt); r_pos = p} :: l ->
+				if  t_path mt = (pack,name) then (mt,p) else find l
+			| _ :: l ->
+				find l
+		in
+		Std.finally close find l
 
 	method extract_type_imports =
 		ExtList.List.filter_map (fun res -> match res.r_kind with
@@ -198,7 +227,8 @@ class resolution_list = object(self)
 
 	method extract_field_imports =
 		self#resolve_lazies;
-		List.fold_left (fun acc res -> match res.r_kind with
+		let close = Timer.timer ("resolution" :: "extract_field_imports" :: id) in
+		let l = List.fold_left (fun acc res -> match res.r_kind with
 			| RClassFieldImport(alias,c,cf) ->
 				PMap.add alias ((TClassDecl c),cf.cf_name,res.r_pos) acc
 			| RClassStatics c ->
@@ -212,7 +242,9 @@ class resolution_list = object(self)
 				) acc c.cl_ordered_statics
 			| _ ->
 				acc
-		) PMap.empty l
+		) PMap.empty l in
+		close();
+		l
 
 	method extract_wildcard_packages =
 		ExtList.List.filter_map (fun res -> match res.r_kind with

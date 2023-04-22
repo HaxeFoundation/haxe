@@ -72,7 +72,7 @@ let get_own_resolution ctx = match ctx.m.own_resolution with
 	| Some resolution ->
 		resolution
 	| None ->
-		let rl = new resolution_list in
+		let rl = new resolution_list ["own";s_type_path ctx.m.curmod.m_path] in
 		Option.may (fun c ->
 			rl#add (class_statics_resolution c null_pos)
 		) ctx.m.curmod.m_statics;
@@ -2135,7 +2135,7 @@ let create com =
 		};
 		m = {
 			curmod = null_module;
-			import_resolution = new resolution_list;
+			import_resolution = new resolution_list ["import";"typer"];
 			own_resolution = None;
 			enum_with_type = None;
 			module_using = [];

@@ -116,20 +116,23 @@ with Error { err_message = (Module_not_found _ | Type_not_found _); err_pos = p2
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 let find_type_in_current_module_context ctx pack name =
-	let no_pack = pack = [] in
-	let path_matches alias t2 =
-		let tp = t_path t2 in
-		(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
-		tp = (pack,name) || (no_pack && alias = name)
-	in
-	try
-		(* Check the types in our own module *)
-		List.find (fun mt -> path_matches (t_name mt) mt) ctx.m.curmod.m_types
-	with Not_found ->
-		(* Check the local imports *)
-		let t,pi = ctx.m.import_resolution#find_type_import path_matches in
+	let check_imports () =
+		let t,pi = ctx.m.import_resolution#find_type_import name in
 		ImportHandling.mark_import_position ctx pi;
 		t
+	in
+	if pack = [] then begin
+		try
+			(* Check the types in our own module *)
+			List.find (fun mt -> t_name mt = name) ctx.m.curmod.m_types
+		with Not_found ->
+			check_imports()
+	end else begin
+		(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
+		let t,pi = ctx.m.import_resolution#find_type_import_weirdly pack name in
+		ImportHandling.mark_import_position ctx pi;
+		t
+	end
 
 let find_in_wildcard_imports ctx mname p f =
 	let rec loop l =
@@ -704,7 +707,7 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		import_resolution = new Resolution.resolution_list;
+		import_resolution = new Resolution.resolution_list ["hide_params"];
 		own_resolution = None;
 		enum_with_type = None;
 		module_using = [];
