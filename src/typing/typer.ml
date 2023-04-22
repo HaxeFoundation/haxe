@@ -74,11 +74,9 @@ let get_own_resolution ctx = match ctx.m.own_resolution with
 	| None ->
 		let rl = new resolution_list in
 		Option.may (fun c ->
-			List.iter (fun cf ->
-				rl#add (mk_resolution (cf.cf_name,null_pos) (RClassFieldImport(c,cf)) null_pos)
-			) c.cl_ordered_statics
+			rl#add (class_statics_resolution c null_pos)
 		) ctx.m.curmod.m_statics;
-		rl#add_l (List.rev_map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) null_pos) ctx.m.curmod.m_types);
+		rl#add_l (List.rev_map (fun mt -> module_type_resolution mt None null_pos) ctx.m.curmod.m_types);
 		ctx.m.own_resolution <- Some rl;
 		rl
 
@@ -293,7 +291,7 @@ let resolve_against_expected_enum ctx i =
 			let cf = PMap.find i c.cl_statics in
 			if not (has_class_field_flag cf CfEnum) then
 				raise Not_found;
-			mk_resolution (cf.cf_name,null_pos) (RAbstractFieldImport(a,c,cf)) null_pos
+			static_abstract_field_resolution a c cf None null_pos
 		| TClassDecl _ | TAbstractDecl _ ->
 			raise Not_found
 		| TTypeDecl t ->
@@ -304,7 +302,7 @@ let resolve_against_expected_enum ctx i =
 			end
 		| TEnumDecl en ->
 			let ef = PMap.find i en.e_constrs in
-			mk_resolution (ef.ef_name,null_pos) (REnumConstructorImport(en,ef)) null_pos
+			enum_constructor_resolution en ef None null_pos
 	in
 	match ctx.m.enum_with_type with
 	| None ->
@@ -331,7 +329,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			AKField fa
 		| REnumConstructorImport(en,ef) ->
 			enum_field_access ctx en ef mode p res.r_pos
-		| RWildcardPackage _ | RLazy _ ->
+		| RWildcardPackage _ | RLazy _ | RClassStatics _ | REnumStatics _ ->
 			assert false
 	in
 	match i with
@@ -2184,7 +2182,7 @@ let create com =
 				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.import_resolution#add_l (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
+	ctx.m.import_resolution#add_l (List.map (fun t -> module_type_resolution t None null_pos) ctx.g.std.m_types);
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->

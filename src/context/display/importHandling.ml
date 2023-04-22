@@ -72,7 +72,7 @@ let init_import ctx path mode p =
 	| [] ->
 		(match mode with
 		| IAll ->
-			let res = mk_resolution ("",null_pos) (RWildcardPackage (List.map fst pack)) p in
+			let res = mk_resolution None (RWildcardPackage (List.map fst pack)) p in
 			ctx.m.import_resolution#add res;
 		| _ ->
 			(match List.rev path with
@@ -117,33 +117,24 @@ let init_import ctx path mode p =
 			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pname then
 				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname;
 		in
-		let make_static_field c cf alias =
-			mk_resolution alias (RClassFieldImport(c,cf)) p
-		in
-		let make_enum_constructor en ef alias =
-			mk_resolution alias (REnumConstructorImport(en,ef)) p
-		in
 		let add_static_init t name s =
 			match resolve_typedef t with
 			| TClassDecl c ->
 				ignore(c.cl_build());
 				let cf = PMap.find s c.cl_statics in
-				let name = Option.default (cf.cf_name,null_pos) name in
-				make_static_field c cf name
+				static_field_resolution c cf name p
 			| TAbstractDecl ({a_impl = Some c} as a) ->
 				ignore(c.cl_build());
 				let cf = PMap.find s c.cl_statics in
-				let name = Option.default (cf.cf_name,null_pos) name in
-				mk_resolution name (RAbstractFieldImport(a,c,cf)) p
+				static_abstract_field_resolution a c cf name p
 			| TEnumDecl en ->
 				let ef = PMap.find s en.e_constrs in
-				let name = Option.default (ef.ef_name,null_pos) name in
-				make_enum_constructor en ef name
+				enum_constructor_resolution en ef name p
 			| _ ->
 				raise Not_found
 		in
 		let add_lazy_resolution f =
-			ctx.m.import_resolution#add (mk_resolution ("",null_pos) (RLazy f) null_pos)
+			ctx.m.import_resolution#add (lazy_resolution f)
 		in
 		(match mode with
 		| INormal | IAsName _ ->
@@ -154,48 +145,38 @@ let init_import ctx path mode p =
 				| None ->
 					ctx.m.import_resolution#add_l (ExtList.List.filter_map (fun t ->
 						if not_private t then
-							Some (mk_resolution (t_name t,null_pos) (RTypeImport t) p)
+							Some (module_type_resolution t None p)
 						else
 							None
 					) types);
 					Option.may (fun c ->
-						add_lazy_resolution (fun () ->
-							ignore(c.cl_build());
-							List.fold_left (fun acc cf ->
-								if has_class_field_flag cf CfPublic then
-									(make_static_field c cf (cf.cf_name,null_pos) :: acc)
-								else
-									acc
-							) [] c.cl_ordered_statics
-						);
+						ctx.m.import_resolution#add (class_statics_resolution c p)
 					) md.m_statics
 				| Some(newname,pname) ->
 					let mt = get_type tname in
 					check_alias mt newname pname;
-					let res = mk_resolution (newname,pname) (RTypeImport mt) p2 in
-					ctx.m.import_resolution#add res;
+					ctx.m.import_resolution#add (module_type_resolution mt (Some newname) p2)
 				end
 			| [tsub,p2] ->
 				let pu = punion p1 p2 in
 				(try
 					let tsub = List.find (has_name tsub) types in
 					chk_private tsub pu;
-					let name = match name with
+					let alias = match name with
 						| None ->
-							(t_name tsub,null_pos)
+							None
 						| Some(name,pname) ->
 							check_alias tsub name pname;
-							(name,pname)
+							Some name
 					in
-					let res = mk_resolution name (RTypeImport tsub) p2 in
-					ctx.m.import_resolution#add res;
+					ctx.m.import_resolution#add (module_type_resolution tsub alias p2);
 				with Not_found ->
 					(* this might be a static property, wait later to check *)
 					let find_main_type_static () =
 						try
 							let tmain = find_type tname in
 							begin try
-								[add_static_init tmain name tsub]
+								Some (add_static_init tmain (Option.map fst name) tsub)
 							with Not_found ->
 								let parent,target_kind,candidates = match resolve_typedef tmain with
 									| TClassDecl c ->
@@ -217,7 +198,7 @@ let init_import ctx path mode p =
 										PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
 								in
 								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p;
-								[]
+								None
 							end
 						with Not_found ->
 							fail_usefully tsub p
@@ -235,8 +216,7 @@ let init_import ctx path mode p =
 											if not (has_class_field_flag cf CfPublic) then
 												error_private p
 											else
-												let name = Option.default (cf.cf_name,null_pos) name in
-												[make_static_field c cf name]
+												Some (static_field_resolution c cf (Option.map fst name) p)
 										else
 											loop rest
 								in
@@ -254,10 +234,10 @@ let init_import ctx path mode p =
 				let tsub = get_type tsub in
 				add_lazy_resolution (fun() ->
 					try
-						[add_static_init tsub name fname]
+						Some (add_static_init tsub (Option.map fst name) fname)
 					with Not_found ->
 						display_error ctx.com (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3);
-						[]
+						None
 				);
 			)
 		| IAll ->
@@ -270,20 +250,9 @@ let init_import ctx path mode p =
 				match resolve_typedef t with
 				| TClassDecl c
 				| TAbstractDecl {a_impl = Some c} ->
-					ignore(c.cl_build());
-					PMap.fold (fun cf acc ->
-						if not (has_meta Meta.NoImportGlobal cf.cf_meta) then
-							(make_static_field c cf (cf.cf_name,null_pos)) :: acc
-						else
-							acc
-					  )  c.cl_statics []
+					Some (class_statics_resolution c p)
 				| TEnumDecl en ->
-					PMap.fold (fun ef acc ->
-						if not (has_meta Meta.NoImportGlobal ef.ef_meta) then
-							(make_enum_constructor en ef (ef.ef_name,null_pos)) :: acc
-						else
-							acc
-					 ) en.e_constrs []
+					Some (enum_statics_resolution en p)
 				| _ ->
 					raise_typing_error "No statics to import from this type" p
 			)
@@ -326,6 +295,6 @@ let handle_using ctx path p =
 let init_using ctx path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
-	ctx.m.import_resolution#add_l (List.map (fun mt -> mk_resolution (t_name mt,null_pos) (RTypeImport mt) p) types);
+	ctx.m.import_resolution#add_l (List.map (fun mt -> module_type_resolution mt None p) types);
 	(* delay the using since we need to resolve typedefs *)
 	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

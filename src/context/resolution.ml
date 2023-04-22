@@ -8,10 +8,12 @@ type resolution_kind =
 	| RAbstractFieldImport of tabstract * tclass * tclass_field
 	| REnumConstructorImport of tenum * tenum_field
 	| RWildcardPackage of string list
-	| RLazy of (unit -> resolution list)
+	| RClassStatics of tclass
+	| REnumStatics of tenum
+	| RLazy of (unit -> resolution option)
 
 and resolution = {
-	r_alias : placed_name;
+	r_alias : string option;
 	r_kind : resolution_kind;
 	r_pos : pos;
 }
@@ -22,29 +24,63 @@ let mk_resolution alias kind p = {
 	r_pos = p;
 }
 
+let lazy_resolution f =
+	mk_resolution None (RLazy f) null_pos
+
+let module_type_resolution mt alias p =
+	mk_resolution (Some (Option.default (t_name mt) alias)) (RTypeImport mt) p
+
+let static_field_resolution c cf alias p =
+	mk_resolution (Some (Option.default cf.cf_name alias)) (RClassFieldImport(c,cf)) p
+
+let static_abstract_field_resolution a c cf alias p =
+	mk_resolution (Some (Option.default cf.cf_name alias)) (RAbstractFieldImport(a,c,cf)) p
+
+let enum_constructor_resolution en ef alias p =
+	mk_resolution (Some (Option.default ef.ef_name alias)) (REnumConstructorImport(en,ef)) p
+
+let class_statics_resolution c p =
+	mk_resolution None (RClassStatics c) p
+
+let enum_statics_resolution en p =
+	mk_resolution None (REnumStatics en) p
+
+let as_importable_static c cf p =
+	if not (has_meta Meta.NoImportGlobal cf.cf_meta) then begin match c.cl_kind with
+		| KAbstractImpl a ->
+			if a.a_enum && not (has_class_field_flag cf CfEnum) then
+				None
+			else
+				Some (static_abstract_field_resolution a c cf None p)
+		| _ ->
+			Some (static_field_resolution c cf None p)
+	end else
+		None
+
 let s_resolution_kind = function
 	| RTypeImport mt -> Printf.sprintf "RTypeImport(%s)" (s_type_path (t_infos mt).mt_path)
 	| RClassFieldImport(c,cf) -> Printf.sprintf "RClassFieldImport(%s, %s)" (s_type_path c.cl_path) cf.cf_name
 	| RAbstractFieldImport(a,c,cf) -> Printf.sprintf "RAbstractFieldImport(%s, %s)" (s_type_path a.a_path) cf.cf_name
 	| REnumConstructorImport(en,ef) -> Printf.sprintf "REnumConstructorImport(%s, %s)" (s_type_path en.e_path) ef.ef_name
 	| RWildcardPackage sl -> Printf.sprintf "RWildcardPackage(%s)" (String.concat "." sl)
-	| RLazy f -> "RLazy"
+	| RClassStatics c -> Printf.sprintf "RClassStatics(%s)" (s_type_path c.cl_path)
+	| REnumStatics en -> Printf.sprintf "REnumStatics(%s)" (s_type_path en.e_path)
+	| RLazy _ -> "RLazy"
 
 class resolution_list = object(self)
 	val mutable l = []
-	val mutable expanded = false
-	val mutable cache = StringMap.empty
+	val mutable resolved_lazies = true
 
 	method add (res : resolution) =
-		expanded <- false;
 		l <- res :: l;
 		(* If we import a type, we automatically want to import all its constructors in case of
 		   enums and enum abstracts. We add a RLazy in front of the list so that it takes priority
 		   over the type itself. When resolved, it will insert its fields into the resolution list. *)
 		begin match res.r_kind with
 		| RTypeImport mt ->
-			let f () = self#expand_enum_constructors mt in
-			l <- (mk_resolution ("",null_pos) (RLazy f) null_pos) :: l
+			Option.may (fun res -> l <- res :: l) (self#expand_enum_constructors mt);
+		| RLazy _ ->
+			resolved_lazies <- false;
 		| _ ->
 			()
 		end
@@ -52,63 +88,87 @@ class resolution_list = object(self)
 	method add_l (rl : resolution list) =
 		List.iter self#add (List.rev rl)
 
+	method resolve_lazies =
+		let rec loop acc l = match l with
+			| {r_kind = RLazy f} :: l ->
+				begin match f() with
+				| None ->
+					loop acc l
+				| Some res ->
+					loop acc (res :: l)
+				end
+			| res :: l ->
+				loop (res :: acc) l
+			| [] ->
+				List.rev acc
+		in
+		if not resolved_lazies then begin
+			resolved_lazies <- true;
+			l <- loop [] l
+		end
+
 	method resolve (i : string) =
-		self#check_expand;
-		StringMap.find i cache
+		self#resolve_lazies;
+		let rec loop l = match l with
+			| [] ->
+				raise Not_found
+			| ({r_kind = RClassStatics c} as res) :: l ->
+				ignore(c.cl_build());
+				begin try
+					let cf = PMap.find i c.cl_statics in
+					begin match as_importable_static c cf res.r_pos with
+					| None ->
+						loop l
+					| Some res ->
+						res
+					end;
+				with Not_found ->
+					loop l
+				end
+			| ({r_kind = REnumStatics en} as res) :: l->
+				begin try
+					let ef = PMap.find i en.e_constrs in
+					if not (has_meta Meta.NoImportGlobal ef.ef_meta) then
+						enum_constructor_resolution en ef None res.r_pos
+					else
+						loop l
+				with Not_found ->
+					loop l
+				end
+			| ({r_alias = Some alias} as res) :: l when alias = i ->
+				res
+			| _ :: l ->
+				loop l
+		in
+		loop l
 
 	method expand_enum_constructors (mt : module_type) = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
-			ignore(c.cl_build());
-			List.fold_left (fun acc cf ->
-				if not (has_class_field_flag cf CfEnum) then
-					acc
-				else
-					(mk_resolution (cf.cf_name,null_pos) (RAbstractFieldImport(a,c,cf)) null_pos) :: acc
-			) [] c.cl_ordered_statics
-		| TTypeDecl t ->
-			begin match follow t.t_type with
-				| TEnum (e,_) -> self#expand_enum_constructors (TEnumDecl e)
-				| TAbstract (a,_) when a.a_enum -> self#expand_enum_constructors (TAbstractDecl a)
-				| _ -> []
-			end
+			Some (class_statics_resolution c null_pos)
 		| TEnumDecl en ->
-			List.fold_left (fun acc n ->
-				let ef = PMap.find n en.e_constrs in
-				(mk_resolution (ef.ef_name,null_pos) (REnumConstructorImport(en,ef)) null_pos) :: acc
-			) [] en.e_names
-		| TClassDecl _ | TAbstractDecl _ ->
-			[]
-
-	method check_expand =
-		if not expanded then begin
-			expanded <- true;
-			cache <- StringMap.empty;
-			let rec loop acc l = match l with
-				| [] ->
-					List.rev acc
-				| {r_kind = RLazy f} :: l ->
-					loop acc (f() @ l)
-				| res :: l ->
-					let key = fst res.r_alias in
-					if not (StringMap.mem key cache) then
-						cache <- StringMap.add key res cache;
-					loop (res :: acc) l
+			Some (enum_statics_resolution en null_pos)
+		| TTypeDecl t ->
+			let f () =
+				begin match follow t.t_type with
+					| TEnum (e,_) -> self#expand_enum_constructors (TEnumDecl e)
+					| TAbstract (a,_) when a.a_enum -> self#expand_enum_constructors (TAbstractDecl a)
+					| _ -> None
+				end
 			in
-			l <- loop [] l;
-		end
+			resolved_lazies <- false;
+			Some (lazy_resolution f)
+		| TClassDecl _ | TAbstractDecl _ ->
+			None
 
 	method save =
 		let l' = l in
-		let cache' = cache in
-		let expanded' = expanded in
+		let resolved_lazies' = resolved_lazies in
 		(fun () ->
 			l <- l';
-			cache <- cache';
-			expanded <- expanded';
+			resolved_lazies <- resolved_lazies';
 		)
 
 	method get_list =
-		self#check_expand;
 		l
 
 	method find_type_import check =
@@ -116,15 +176,14 @@ class resolution_list = object(self)
 		| [] ->
 			raise Not_found
 		| res :: l ->
-			match res.r_kind with
-			| RTypeImport mt ->
-				if check (fst res.r_alias) mt then (mt,res.r_pos) else loop l
+			match res.r_kind,res.r_alias with
+			| RTypeImport mt,Some alias ->
+				if check alias mt then (mt,res.r_pos) else loop l
 			| _ ->
 				loop l
 		in
 		loop l
 
-	(* TODO: remove this *)
 	method extract_type_imports =
 		ExtList.List.filter_map (fun res -> match res.r_kind with
 			| RTypeImport mt ->
@@ -134,10 +193,19 @@ class resolution_list = object(self)
 		) l
 
 	method extract_field_imports =
-		self#check_expand;
-		List.fold_left (fun acc res -> match res.r_kind with
-			| RClassFieldImport(c,cf) ->
-				PMap.add (fst res.r_alias) ((TClassDecl c),cf.cf_name,res.r_pos) acc
+		self#resolve_lazies;
+		List.fold_left (fun acc res -> match res.r_kind,res.r_alias with
+			| RClassFieldImport(c,cf),Some alias ->
+				PMap.add alias ((TClassDecl c),cf.cf_name,res.r_pos) acc
+			| RClassStatics c,_ ->
+				List.fold_left (fun acc cf ->
+					begin match as_importable_static c cf null_pos with
+					| Some ({r_alias = Some alias} as res) ->
+						PMap.add alias ((TClassDecl c),cf.cf_name,res.r_pos) acc
+					| _ ->
+						acc
+					end
+				) acc c.cl_ordered_statics
 			| _ ->
 				acc
 		) PMap.empty l

@@ -706,7 +706,7 @@ end
 
 let make_curmod ctx m =
 	let rl = new resolution_list in
-	rl#add_l (List.map (fun t -> mk_resolution (t_name t,null_pos) (RTypeImport t) null_pos) ctx.g.std.m_types);
+	rl#add_l (List.map (fun t -> module_type_resolution t None null_pos) ctx.g.std.m_types);
 	{
 		curmod = m;
 		import_resolution = rl;
@@ -772,7 +772,7 @@ let type_types_into_module ctx m tdecls p =
 	(* setup module types *)
 	List.iter (TypeLevel.init_module_type ctx) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx PConnectField (fun () -> ctx.m.import_resolution#check_expand);
+	delay ctx PConnectField (fun () -> ctx.m.import_resolution#resolve_lazies);
 	ctx
 
 (*
