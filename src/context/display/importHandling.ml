@@ -142,12 +142,10 @@ let init_import ctx path mode p =
 			| [] ->
 				begin match name with
 				| None ->
-					ctx.m.import_resolution#add_l (ExtList.List.filter_map (fun t ->
-						if not_private t then
-							Some (module_type_resolution t None p)
-						else
-							None
-					) types);
+					List.iter (fun mt ->
+						if not_private mt then
+							ctx.m.import_resolution#add (module_type_resolution mt None p)
+					) (List.rev types);
 					Option.may (fun c ->
 						ctx.m.import_resolution#add (class_statics_resolution c p)
 					) md.m_statics
@@ -294,6 +292,8 @@ let handle_using ctx path p =
 let init_using ctx path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
-	ctx.m.import_resolution#add_l (List.map (fun mt -> module_type_resolution mt None p) types);
+	List.iter (fun mt ->
+		ctx.m.import_resolution#add (module_type_resolution mt None p)
+	) (List.rev types);
 	(* delay the using since we need to resolve typedefs *)
 	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)

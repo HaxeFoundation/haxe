@@ -706,7 +706,9 @@ end
 
 let make_curmod ctx m =
 	let rl = new resolution_list in
-	rl#add_l (List.map (fun t -> module_type_resolution t None null_pos) ctx.g.std.m_types);
+	List.iter (fun mt ->
+		rl#add (module_type_resolution mt None null_pos))
+	(List.rev ctx.g.std.m_types);
 	{
 		curmod = m;
 		import_resolution = rl;

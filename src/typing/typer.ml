@@ -76,7 +76,9 @@ let get_own_resolution ctx = match ctx.m.own_resolution with
 		Option.may (fun c ->
 			rl#add (class_statics_resolution c null_pos)
 		) ctx.m.curmod.m_statics;
-		rl#add_l (List.rev_map (fun mt -> module_type_resolution mt None null_pos) ctx.m.curmod.m_types);
+		List.iter (fun mt ->
+			rl#add (module_type_resolution mt None null_pos)
+		) ctx.m.curmod.m_types;
 		ctx.m.own_resolution <- Some rl;
 		rl
 
@@ -2181,7 +2183,9 @@ let create com =
 				raise_typing_error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.import_resolution#add_l (List.map (fun t -> module_type_resolution t None null_pos) ctx.g.std.m_types);
+	List.iter (fun mt ->
+		ctx.m.import_resolution#add (module_type_resolution mt None null_pos))
+	(List.rev ctx.g.std.m_types);
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->

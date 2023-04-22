@@ -86,9 +86,6 @@ class resolution_list = object(self)
 			()
 		end
 
-	method add_l (rl : resolution list) =
-		List.iter self#add (List.rev rl)
-
 	method resolve_lazies =
 		let rec loop acc l = match l with
 			| {r_kind = RLazy f} :: l ->
