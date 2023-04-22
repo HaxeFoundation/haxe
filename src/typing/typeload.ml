@@ -126,8 +126,9 @@ let find_type_in_current_module_context ctx pack name =
 		(* Check the types in our own module *)
 		List.find (fun mt -> path_matches (t_name mt) mt) ctx.m.curmod.m_types
 	with Not_found ->
+		if not no_pack then raise Not_found;
 		(* Check the local imports *)
-		let t,pi = ctx.m.import_resolution#find_type_import path_matches in
+		let t,pi = ctx.m.import_resolution#find_type_import name in
 		ImportHandling.mark_import_position ctx pi;
 		t
 
@@ -704,7 +705,7 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		import_resolution = new Resolution.resolution_list;
+		import_resolution = new Resolution.resolution_list ["hide_params"];
 		own_resolution = None;
 		enum_with_type = None;
 		module_using = [];

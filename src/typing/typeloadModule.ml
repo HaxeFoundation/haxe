@@ -705,7 +705,7 @@ module TypeLevel = struct
 end
 
 let make_curmod ctx m =
-	let rl = new resolution_list in
+	let rl = new resolution_list ["import";s_type_path m.m_path] in
 	List.iter (fun mt ->
 		rl#add (module_type_resolution mt None null_pos))
 	(List.rev ctx.g.std.m_types);
