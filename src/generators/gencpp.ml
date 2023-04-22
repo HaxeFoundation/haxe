@@ -4587,11 +4587,15 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output ("\t" ^ (tcpp_to_string return_type) ^ " _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")\n");
             output "\t{\n";
 
-            output (if is_void then "\t\t" else "\t\treturn ");
-            (if is_static then
-               output (class_name ^ "::" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n")
-            else
-               output ("obj->" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n"));
+            if is_dynamic_haxe_method field then begin
+               gen_cpp_function_body ctx class_def is_static ("__default_" ^ remap_name) function_def "" "" no_debug;
+            end else begin
+               output (if is_void then "\t\t" else "\t\treturn ");
+               (if is_static then
+                  output (class_name ^ "::" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n")
+               else
+                  output ("obj->" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n"));
+            end;
 
             output "\t}\n";
 
