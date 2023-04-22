@@ -72,8 +72,7 @@ let init_import ctx path mode p =
 	| [] ->
 		(match mode with
 		| IAll ->
-			let res = mk_resolution None (RWildcardPackage (List.map fst pack)) p in
-			ctx.m.import_resolution#add res;
+			ctx.m.import_resolution#add (wildcard_package_resolution (List.map fst pack) p)
 		| _ ->
 			(match List.rev path with
 			(* p spans `import |` (to the display position), so we take the pmax here *)

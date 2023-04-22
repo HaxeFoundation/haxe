@@ -273,7 +273,6 @@ let unify_min_for_type_source ctx el src =
 
 let enum_field_access ctx en ef mode p pt =
 	let et = type_module_type ctx (TEnumDecl en) p in
-	ImportHandling.mark_import_position ctx pt;
 	let wrap e =
 		let acc = AKExpr e in
 		let is_set = match mode with MSet _ -> true | _ -> false in
@@ -314,12 +313,12 @@ let rec type_ident_raise ctx i p mode with_type =
 	let resolve res =
 		ImportHandling.mark_import_position ctx res.r_pos;
 		match res.r_kind with
-		| RTypeImport mt ->
+		| RTypeImport(_,mt) ->
 			AKExpr (type_module_type ctx mt p)
-		| RClassFieldImport(c,cf) ->
+		| RClassFieldImport(_,c,cf) ->
 			let e = type_module_type ctx (TClassDecl c) p in
 			field_access ctx mode cf (FHStatic c) e p
-		| RAbstractFieldImport(a,c,cf) ->
+		| RAbstractFieldImport(_,a,c,cf) ->
 			let et = type_module_type ctx (TClassDecl c) p in
 			let inline = match cf.cf_kind with
 				| Var {v_read = AccInline} -> true
@@ -327,7 +326,7 @@ let rec type_ident_raise ctx i p mode with_type =
 			in
 			let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
 			AKField fa
-		| REnumConstructorImport(en,ef) ->
+		| REnumConstructorImport(_,en,ef) ->
 			enum_field_access ctx en ef mode p res.r_pos
 		| RWildcardPackage _ | RLazy _ | RClassStatics _ | REnumStatics _ ->
 			assert false
