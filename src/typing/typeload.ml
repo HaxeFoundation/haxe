@@ -116,21 +116,22 @@ with Error { err_message = (Module_not_found _ | Type_not_found _); err_pos = p2
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 let find_type_in_current_module_context ctx pack name =
-	let check_imports () =
-		let t,pi = ctx.m.import_resolution#find_type_import name in
-		ImportHandling.mark_import_position ctx pi;
-		t
-	in
 	if pack = [] then begin
 		try
 			(* Check the types in our own module *)
 			List.find (fun mt -> t_name mt = name) ctx.m.curmod.m_types
 		with Not_found ->
-			check_imports()
+			let t,pi = ctx.m.import_resolution#find_type_import name in
+			ImportHandling.mark_import_position ctx pi;
+			t
 	end else begin
-		(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
-		let t,pi = ctx.m.import_resolution#find_type_import_weirdly pack name in
-		ImportHandling.mark_import_position ctx pi;
+		(* All this is very weird *)
+		try
+			List.find (fun mt -> t_path mt = (pack,name)) ctx.m.curmod.m_types
+		with Not_found ->
+			(* see also https://github.com/HaxeFoundation/haxe/issues/9150 *)
+			let t,pi = ctx.m.import_resolution#find_type_import_weirdly pack name in
+			ImportHandling.mark_import_position ctx pi;
 		t
 	end
 
