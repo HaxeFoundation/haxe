@@ -948,9 +948,7 @@ module Run = struct
 			| _ -> ["analyzer"] (* whatever *)
 		in
 		let timer = Timer.timer name in
-		let r = f() in
-		timer();
-		r
+		Std.finally timer f ()
 
 	let create_analyzer_context com config identifier e =
 		let g = Graph.create e.etype e.epos in

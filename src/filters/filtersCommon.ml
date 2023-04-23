@@ -55,9 +55,7 @@ let run_expression_filters ?(ignore_processed_status=false) time_details ctx fil
 				match time_details with
 				| Some timer_label ->
 					let t = Timer.timer (timer_label @ [filter_name]) in
-					let e = f e in
-					t();
-					e
+					Std.finally t f e
 				| None -> f e
 			)
 			e filters
