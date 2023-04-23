@@ -4543,6 +4543,48 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       let orig_debug = ctx.ctx_debug_level in
       let no_debug = has_meta_key field.cf_meta Meta.NoDebug in
 
+      let func_signature     = ctx_tfun_arg_list_signature ctx function_def in
+      let obj_ptr_class_name = "::hx::ObjectPtr<" ^ class_name ^ ">" in
+      let write_closure_header callable_name captures_obj =
+         output ("struct " ^ callable_name ^ " : public ::hx::Callable_obj<" ^ func_signature ^ ">\n");
+         output "{\n";
+
+         if captures_obj then begin
+            output ("\t" ^ obj_ptr_class_name ^ " __this;\n");
+            output ("\t" ^ callable_name ^ "(" ^ obj_ptr_class_name ^ "obj = null()) : __this(obj) {}\n");
+         end else begin
+            output ("\t" ^ callable_name ^ "() {}\n");
+         end;
+
+         (* Implement the pure virtual function *)
+
+         output ("\t" ^ return_type_str ^ " _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")\n");
+         output "\t{\n";
+      in
+      let write_closure_trailer captures_obj =
+         output "\t}\n";
+
+         (* Override the dynamic run functions *)
+
+         output ("\t::Dynamic __Run(const Array< ::Dynamic>& inArgs) { " ^ (if is_void then "" else "return") ^ " _hx_run(");
+         output (String.concat ", " (List.init (List.length function_def.tf_args) (fun i -> ("inArgs[" ^ (string_of_int i) ^ "]"))));
+         output "); return null(); }\n";
+
+         output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) function_def.tf_args)) ^ ")");
+         output ("{" ^ (if is_void then "" else "return") ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i _ -> ("inArg" ^ (string_of_int i))) function_def.tf_args)) ^ "); return null(); }\n");
+
+         if captures_obj then begin
+            output "\tvoid __Mark(hx::MarkContext* __inCtx) { HX_MARK_MEMBER(__this); }\n";
+            output "#ifdef HXCPP_VISIT_ALLOCS\n";
+            output "\tvoid __Visit(hx::VisitContext* __inCtx) { HX_VISIT_MEMBER(__this); }\n";
+            output "#endif\n";
+         end;
+
+         (* TODO : Generate, compare, etc, etc *)
+
+         output "};\n\n";   
+      in
+
       (* The actual function definition *)
       if (not (is_dynamic_haxe_method field)) then begin
          let nativeImpl = get_meta_string field.cf_meta Meta.Native in
@@ -4561,129 +4603,39 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output "}\n\n";
          end else
             gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code no_debug;
-      end;
 
-      output "\n\n";
-      let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
-      let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
-      (* generate dynamic version too ... *)
-      if ( doDynamic ) then begin
-         let callable_name      = if (is_dynamic_haxe_method field) then "__default_" ^ remap_name else "__" ^ class_name ^ remap_name in
-         let func_signature     = ctx_tfun_arg_list_signature ctx function_def in
-         let obj_ptr_class_name = "::hx::ObjectPtr<" ^ class_name ^ ">" in
-         (
-            output ("struct " ^ callable_name ^ " : public ::hx::Callable_obj<" ^ func_signature ^ ">\n");
+         output "\n\n";
+         let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
+         let doDynamic =  (nonVirtual || not (is_override field ) ) && (reflective class_def field ) in
+         (* generate dynamic version too ... *)
+         if ( doDynamic ) then begin
+            let callable_name = ("__" ^ class_name ^ remap_name) in
+            write_closure_header callable_name (not is_static);
+
+            output (if is_void then "\t\t" else "\t\treturn ");
+            if is_static then
+               output (class_name ^ "::" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n")
+            else
+               output ("__this->" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
+
+            write_closure_trailer (not is_static);
+
+            output ("::hx::Callable<" ^ func_signature ^ "> " ^ class_name ^ "::" ^ remap_name ^ "_dyn()\n");
             output "{\n";
-
-            (if is_static then
-               output ("\t" ^ callable_name ^ "() {}\n")
-            else begin
-               output ("\t" ^ obj_ptr_class_name ^ " obj;\n");
-               output ("\t" ^ callable_name ^ "(" ^ obj_ptr_class_name ^ "_obj) : obj(_obj) {}\n");
-            end);
-
-            (* Implement the pure virtual function *)
-
-            output ("\t" ^ (tcpp_to_string return_type) ^ " _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")\n");
-            output "\t{\n";
-
-            if is_dynamic_haxe_method field then begin
-               gen_cpp_function_body ctx class_def is_static ("__default_" ^ remap_name) function_def "" "" no_debug;
-            end else begin
-               output (if is_void then "\t\t" else "\t\treturn ");
-               (if is_static then
-                  output (class_name ^ "::" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n")
-               else
-                  output ("obj->" ^ remap_name ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n"));
-            end;
-
-            output "\t}\n";
-
-            (* Override the dynamic run functions *)
-
-            output ("\t::Dynamic __Run(const Array< ::Dynamic>& inArgs) { " ^ (if is_void then "" else "return") ^ " _hx_run(");
-            output (String.concat ", " (List.init (List.length function_def.tf_args) (fun i -> ("inArgs[" ^ (string_of_int i) ^ "]"))));
-            output "); return null(); }\n";
-
-            output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) function_def.tf_args)) ^ ")");
-            output ("{" ^ (if is_void then "" else "return") ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i _ -> ("inArg" ^ (string_of_int i))) function_def.tf_args)) ^ "); return null(); }\n");
-
-            if (not is_static) then begin
-               output "\tvoid __Mark(hx::MarkContext* __inCtx) { HX_MARK_MEMBER(obj); }\n";
-               output "#ifdef HXCPP_VISIT_ALLOCS\n";
-               output "\tvoid __Visit(hx::VisitContext* __inCtx) { HX_VISIT_MEMBER(obj); }\n";
-               output "#endif\n";
-            end;
-
-            (* TODO : Generate, compare, etc, etc *)
-
-            output "};\n\n";
-
-            if is_dynamic_haxe_method field then begin
-               if is_static then begin
-                  output ("::hx::Callable<" ^ func_signature ^ "> " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
-               end;
-            end else begin
-               output ("::hx::Callable<" ^ func_signature ^ "> " ^ class_name ^ "::" ^ remap_name ^ "_dyn()\n");
-               output "{\n";
-               output ("\treturn new " ^ callable_name ^ "(" ^ (if is_static then "" else "this") ^ ");\n");
-               output "}\n\n";
-            end;
-         )
-         (* let tcpp_args = List.map (fun (v,_) -> cpp_type_of ctx v.v_type  ) function_def.tf_args in
-         let wrap = (needsWrapper return_type) || (List.exists needsWrapper tcpp_args) in
-         if wrap then begin
-            let wrapName = "_hx_wrap" ^ class_name ^ "_" ^ remap_name in
-            output ("static ::Dynamic " ^ wrapName ^ "( "  );
-            let sep = ref " " in
-            if not is_static then begin
-               output "::hx::Object *obj";
-               sep := ",";
-            end;
-            ExtList.List.iteri (fun i _ -> output (!sep ^ "const Dynamic &a" ^ (string_of_int i)) ; sep:=",")  tcpp_args;
-            output ( ") {\n\t");
-            if not is_void then begin
-               match return_type with
-                  | TCppStar _ ->
-                     output "return (cpp::Pointer<const void *>) "
-                  | TCppInst(t, _) when has_meta_key t.cl_meta Meta.StructAccess ->
-                     output ("return (cpp::Struct< " ^ (tcpp_to_string return_type) ^ " >) ");
-                  | _ -> output "return ";
-            end;
-
-            if is_static then
-               output (class_name ^ "::" ^ remap_name ^ "(")
-            else
-               output ("reinterpret_cast< " ^ class_name ^ " *>(obj)->" ^ remap_name ^ "(");
-
-            sep := "";
-            ExtList.List.iteri (fun i arg ->
-                  output !sep; sep := ",";
-                  (match arg with
-                     | TCppStar (t,const) ->
-                        output ("(cpp::" ^ (if const then "Const" else "") ^"Pointer<" ^ (tcpp_to_string t)^" >) ")
-                     | TCppInst(t, _) when has_meta_key t.cl_meta Meta.StructAccess ->
-                        output ("(cpp::Struct< " ^ (tcpp_to_string arg) ^ " >) ");
-                     | _ -> () );
-                  output ("a" ^ (string_of_int i));
-               )  tcpp_args;
-
-            output ");\n";
-
-            if is_void then output "\treturn null();\n";
-            output "}\n";
-            let nName = string_of_int (List.length tcpp_args) in
-            output ("::Dynamic " ^ class_name ^ "::" ^ remap_name ^ "_dyn() {\n\treturn ");
-            if is_static then
-               output ("::hx::CreateStaticFunction" ^ nName ^ "(\"" ^ remap_name ^ "\"," ^ wrapName ^ ");")
-            else
-               output ("::hx::CreateMemberFunction" ^ nName ^ "(\"" ^ remap_name ^ "\",this," ^ wrapName ^ ");");
-            output "}\n";
-         end else begin
-            if (is_static) then output "STATIC_";
-            output ("HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ "," ^ remap_name ^ "," ^ ret ^ ")\n\n");
-         end *)
+            output ("\treturn new " ^ callable_name ^ "(" ^ (if is_static then "" else "this") ^ ");\n");
+            output "}\n\n";
          end;
+      end else begin
+         write_closure_header ("__default_" ^ remap_name) true;
+
+         ctx.ctx_real_this_ptr <- false;
+         gen_cpp_function_body ctx class_def is_static ("__default_" ^ remap_name) function_def "" "" no_debug;
+         
+         write_closure_trailer true;
+
+         if is_static then
+            output ("::hx::Callable<" ^ func_signature ^ "> " ^ class_name ^ "::" ^ remap_name ^ ";\n\n")
+      end;
       ctx.ctx_debug_level <- orig_debug
 
    (* Data field *)
