@@ -83,18 +83,33 @@ let init com =
 module Overlaps = struct
 	type t = {
 		mutable ov_vars : tvar IntMap.t;
+		mutable ov_name_cache : bool StringMap.t option;
 	}
 
 	let create () = {
 		ov_vars = IntMap.empty;
+		ov_name_cache = None;
 	}
 
 	let copy ov = {
 		ov_vars = ov.ov_vars;
+		ov_name_cache = ov.ov_name_cache;
 	}
 
 	let add id v ov =
-		ov.ov_vars <- IntMap.add id v ov.ov_vars
+		ov.ov_vars <- IntMap.add id v ov.ov_vars;
+		ov.ov_name_cache <- None
+
+	let get_cache ov = match ov.ov_name_cache with
+		| Some cache ->
+			cache
+		| None ->
+			let cache = IntMap.fold (fun _ v acc -> StringMap.add v.v_name true acc) ov.ov_vars StringMap.empty in
+			ov.ov_name_cache <- Some cache;
+			cache
+
+	let has_name name ov =
+		StringMap.mem name (get_cache ov)
 
 	let iter f ov =
 		IntMap.iter f ov.ov_vars
@@ -106,7 +121,8 @@ module Overlaps = struct
 		IntMap.exists f ov.ov_vars
 
 	let reset ov =
-		ov.ov_vars <- IntMap.empty
+		ov.ov_vars <- IntMap.empty;
+		ov.ov_name_cache <- None
 
 	let is_empty ov =
 		IntMap.is_empty ov.ov_vars
@@ -319,7 +335,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		v.v_name <- name
 	in
 	let rec loop name count =
-		if StringMap.mem name !reserved || Overlaps.exists (fun _ o -> name = o.v_name) overlaps then begin
+		if StringMap.mem name !reserved || Overlaps.has_name name overlaps then begin
 			let count = count + 1 in
 			loop (v.v_name ^ (string_of_int count)) count
 		end else
