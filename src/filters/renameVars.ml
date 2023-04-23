@@ -188,8 +188,7 @@ let declare_var rc scope v =
 			else begin
 				let overlaps = Overlaps.copy scope.loop_vars in
 				Overlaps.iter (fun i o ->
-					if not (Overlaps.mem i overlaps) then
-						Overlaps.add i o overlaps
+					Overlaps.add i o overlaps
 				) scope.foreign_vars;
 				overlaps
 			end
@@ -205,20 +204,24 @@ let rec use_var rc scope v =
 	let rec loop declarations =
 		match declarations with
 		| [] ->
-			if (rc.rc_no_shadowing || rc.rc_hoisting) && not (Overlaps.mem v.v_id scope.foreign_vars) then
+			if (rc.rc_no_shadowing || rc.rc_hoisting) then
 				Overlaps.add v.v_id v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> use_var rc parent v
 			| None -> raise (Failure "Failed to locate variable declaration")
 			)
-		| (d, _) :: _ when d == v -> ()
+		| (d, _) :: _ when d == v ->
+			()
 		| (d, overlaps) :: rest ->
-			if not (Overlaps.mem v.v_id overlaps) then
+			(* If we find a declaration that already knows us, we don't have to keep
+			   looping because we can be sure that we've been here before. *)
+			if not (Overlaps.mem v.v_id overlaps) then begin
 				Overlaps.add v.v_id v overlaps;
-			loop rest
+				loop rest
+			end
 	in
 	loop scope.own_vars;
-	if scope.loop_count > 0 && not (Overlaps.mem v.v_id scope.loop_vars) then
+	if scope.loop_count > 0 then
 		Overlaps.add v.v_id v scope.loop_vars
 
 let collect_loop scope fn =
@@ -307,8 +310,6 @@ and collect_ignore_block ?(in_block=false) rc scope e =
 	| TBlock el -> List.iter (collect_vars ~in_block rc scope) el
 	| _ -> collect_vars ~in_block rc scope e
 
-let trailing_numbers = Str.regexp "[0-9]+$"
-
 (**
 	Rename `v` if needed
 *)
@@ -317,11 +318,6 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: v.v_meta;
 		v.v_name <- name
 	in
-	(* chop escape char for all local variables generated *)
-	if is_gen_local v then begin
-		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
-		commit ("_g" ^ (Str.replace_first trailing_numbers "" name))
-	end;
 	let rec loop name count =
 		if StringMap.mem name !reserved || Overlaps.exists (fun _ o -> name = o.v_name) overlaps then begin
 			let count = count + 1 in

@@ -6,7 +6,7 @@ let rec collect_new_args_values ctx args declarations values n =
 	match args with
 	| [] -> declarations, values
 	| arg :: rest ->
-		let v = alloc_var VGenerated ("`tmp" ^ (string_of_int n)) arg.etype arg.epos in
+		let v = gen_local ctx arg.etype arg.epos in
 		let decl = { eexpr = TVar (v, Some arg); etype = ctx.t.tvoid; epos = v.v_pos }
 		and value = { arg with eexpr = TLocal v } in
 		collect_new_args_values ctx rest (decl :: declarations) (value :: values) (n + 1)
@@ -51,7 +51,7 @@ let rec redeclare_vars ctx vars declarations replace_list =
 	match vars with
 	| [] -> declarations, replace_list
 	| v :: rest ->
-		let new_v = alloc_var VGenerated ("`" ^ v.v_name) v.v_type v.v_pos in
+		let new_v = alloc_var VGenerated (gen_local_prefix ^ v.v_name) v.v_type v.v_pos in
 		let decl =
 			{
 				eexpr = TVar (new_v, Some { eexpr = TLocal v; etype = v.v_type; epos = v.v_pos; });
