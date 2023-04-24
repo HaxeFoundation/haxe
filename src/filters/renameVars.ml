@@ -95,13 +95,13 @@ module Overlaps = struct
 
 	let copy ov = {
 		ov_vars = ov.ov_vars;
-		ov_lut = ov.ov_lut;
+		ov_lut = Hashtbl.copy ov.ov_lut;
 		ov_name_cache = ov.ov_name_cache;
 	}
 
-	let add id v ov =
+	let add v ov =
 		ov.ov_vars <- v :: ov.ov_vars;
-		Hashtbl.add ov.ov_lut id true;
+		Hashtbl.add ov.ov_lut v.v_id true;
 		ov.ov_name_cache <- None
 
 	let get_cache ov = match ov.ov_name_cache with
@@ -123,6 +123,7 @@ module Overlaps = struct
 
 	let reset ov =
 		ov.ov_vars <- [];
+		Hashtbl.clear ov.ov_lut;
 		ov.ov_name_cache <- None
 
 	let is_empty ov = match ov.ov_vars with
@@ -208,14 +209,14 @@ let declare_var rc scope v =
 			else begin
 				let overlaps = Overlaps.copy scope.loop_vars in
 				Overlaps.iter (fun o ->
-					Overlaps.add o.v_id o overlaps
+					Overlaps.add o overlaps
 				) scope.foreign_vars;
 				overlaps
 			end
 	in
 	scope.own_vars <- (v, overlaps) :: scope.own_vars;
 	if scope.loop_count > 0 then
-		Overlaps.add v.v_id v scope.loop_vars
+		Overlaps.add v scope.loop_vars
 
 (**
 	Invoked for each `TLocal v` texr_expr
@@ -225,7 +226,7 @@ let rec use_var rc scope v =
 		match declarations with
 		| [] ->
 			if (rc.rc_no_shadowing || rc.rc_hoisting) then
-				Overlaps.add v.v_id v scope.foreign_vars;
+				Overlaps.add v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> use_var rc parent v
 			| None -> raise (Failure "Failed to locate variable declaration")
@@ -236,13 +237,13 @@ let rec use_var rc scope v =
 			(* If we find a declaration that already knows us, we don't have to keep
 			   looping because we can be sure that we've been here before. *)
 			if not (Overlaps.mem v.v_id overlaps) then begin
-				Overlaps.add v.v_id v overlaps;
+				Overlaps.add v overlaps;
 				loop rest
 			end
 	in
 	loop scope.own_vars;
 	if scope.loop_count > 0 then
-		Overlaps.add v.v_id v scope.loop_vars
+		Overlaps.add v scope.loop_vars
 
 let collect_loop scope fn =
 	scope.loop_count <- scope.loop_count + 1;
