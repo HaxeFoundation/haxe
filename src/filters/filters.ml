@@ -320,16 +320,16 @@ let check_unification ctx e t =
 	end;
 	e
 
-let rec fix_return_dynamic_from_void_function ctx return_is_void e =
+let rec fix_return_dynamic_from_void_function return_is_void e =
 	match e.eexpr with
 	| TFunction fn ->
 		let is_void = ExtType.is_void (follow fn.tf_type) in
-		let body = fix_return_dynamic_from_void_function ctx is_void fn.tf_expr in
+		let body = fix_return_dynamic_from_void_function is_void fn.tf_expr in
 		{ e with eexpr = TFunction { fn with tf_expr = body } }
 	| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
 		let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
 		let exprs = [
-			fix_return_dynamic_from_void_function ctx return_is_void return_expr;
+			fix_return_dynamic_from_void_function return_is_void return_expr;
 			{ e with eexpr = TReturn None; epos = return_pos };
 		] in
 		{ e with
@@ -338,7 +338,7 @@ let rec fix_return_dynamic_from_void_function ctx return_is_void e =
 				mk (TBlock exprs) e.etype e.epos
 			);
 		}
-	| _ -> Type.map_expr (fix_return_dynamic_from_void_function ctx return_is_void) e
+	| _ -> Type.map_expr (fix_return_dynamic_from_void_function return_is_void) e
 
 let check_abstract_as_value e =
 	let rec loop e =
@@ -385,10 +385,10 @@ let remove_extern_fields com t = match t with
 (* PASS 3 begin *)
 
 (* Checks if a private class' path clashes with another path *)
-let check_private_path ctx t = match t with
+let check_private_path com t = match t with
 	| TClassDecl c when c.cl_private ->
 		let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
-		if ctx.com.type_to_module#mem rpath then raise_typing_error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
+		if com.type_to_module#mem rpath then raise_typing_error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 	| _ ->
 		()
 
@@ -653,10 +653,10 @@ let commit_features com t =
 		Common.add_feature com k;
 	) m.m_extra.m_features
 
-let check_reserved_type_paths ctx t =
+let check_reserved_type_paths com t =
 	let check path pos =
-		if List.mem path ctx.com.config.pf_reserved_type_paths then begin
-			warning ctx WReservedTypePath ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+		if List.mem path com.config.pf_reserved_type_paths then begin
+			com.warning WReservedTypePath [] ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
 		end
 	in
 	match t with
@@ -745,7 +745,7 @@ let destruction tctx detail_times main locals =
 		com.types;
 	let type_filters = [
 		Exceptions.patch_constructors tctx; (* TODO: I don't believe this should load_instance anything at this point... *)
-		check_private_path tctx;
+		check_private_path com;
 		apply_native_paths;
 		add_rtti com;
 		(match com.platform with | Java | Cs -> (fun _ -> ()) | _ -> (fun mt -> add_field_inits tctx.curclass.cl_path locals com mt));
@@ -753,7 +753,7 @@ let destruction tctx detail_times main locals =
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ -> ()));
 		commit_features com;
-		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths tctx else (fun _ -> ()));
+		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths com else (fun _ -> ()));
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun t -> InterfaceProps.run t ]
@@ -824,10 +824,10 @@ let update_cache_dependencies com t =
 			()
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
-let save_class_state ctx t =
+let save_class_state com t =
 	(* Update m_processed here. This means that nothing should add a dependency afterwards because
 	   then the module is immediately considered uncached again *)
-	(t_infos t).mt_module.m_extra.m_processed <- ctx.com.compilation_step;
+	(t_infos t).mt_module.m_extra.m_processed <- com.compilation_step;
 	match t with
 	| TClassDecl c ->
 		let vars = ref [] in
@@ -955,7 +955,7 @@ let run tctx main =
 	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	let filters = [
 		"local_statics",LocalStatic.run tctx;
-		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
+		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function true;
 		"check_local_vars_init",check_local_vars_init tctx;
 		"check_abstract_as_value",check_abstract_as_value;
 		"Tre",if defined com Define.AnalyzerOptimize then Tre.run tctx else (fun e -> e);
@@ -1013,7 +1013,7 @@ let run tctx main =
 	with_timer detail_times "save state" None (fun () ->
 		List.iter (fun mt ->
 			update_cache_dependencies com mt;
-			save_class_state tctx mt
+			save_class_state com mt
 		) new_types;
 	);
 	com.stage <- CSaveDone;
