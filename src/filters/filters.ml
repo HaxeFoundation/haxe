@@ -671,7 +671,8 @@ let is_cached com t =
 	m.m_processed <> 0 && m.m_processed < com.compilation_step
 
 let apply_filters_once ctx filters t =
-	if not (is_cached ctx.com t) then run_expression_filters None ctx filters t
+	let detail_times = (try int_of_string (Common.defined_value_safe ctx.com ~default:"0" Define.FilterTimes) with _ -> 0) in
+	if not (is_cached ctx.com t) then run_expression_filters ctx.com detail_times filters t
 
 let iter_expressions fl mt =
 	match mt with
@@ -685,13 +686,6 @@ let iter_expressions fl mt =
 		(match c.cl_constructor with None -> () | Some cf -> field cf)
 	| _ ->
 		()
-
-let filter_timer detailed s =
-	Timer.timer (if detailed then "filters" :: s else ["filters"])
-
-let timer_label detailed s =
-	if detailed then Some ("filters" :: s)
-	else None
 
 module ForRemap = struct
 	let apply ctx e =
@@ -713,36 +707,38 @@ module ForRemap = struct
 		loop e
 end
 
+open FilterContext
+
 let destruction tctx detail_times main locals =
 	let com = tctx.com in
-	let t = filter_timer detail_times ["type 2"] in
-	(* PASS 2: type filters pre-DCE *)
-	List.iter (fun t ->
-		remove_generic_base t;
-		remove_extern_fields com t;
-		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
-		check_remove_metadata t;
-	) com.types;
-	t();
+	with_timer detail_times "type 2" None (fun () ->
+		(* PASS 2: type filters pre-DCE *)
+		List.iter (fun t ->
+			remove_generic_base t;
+			remove_extern_fields com t;
+			(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
+			check_remove_metadata t;
+		) com.types;
+	);
 	com.stage <- CDceStart;
-	let t = filter_timer detail_times ["dce"] in
-	(* DCE *)
-	let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
-	let dce_mode = match dce_mode with
-		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
-		| "std" -> DceStd
-		| "no" -> DceNo
-		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
-	in
-	Dce.run com main dce_mode;
-	t();
+	with_timer detail_times "dce" None (fun () ->
+		(* DCE *)
+		let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
+		let dce_mode = match dce_mode with
+			| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
+			| "std" -> DceStd
+			| "no" -> DceNo
+			| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
+		in
+		Dce.run com main dce_mode;
+	);
 	com.stage <- CDceDone;
 	(* PASS 3: type filters post-DCE *)
 	List.iter
 		(run_expression_filters
 			~ignore_processed_status:true
-			(timer_label detail_times [])
-			tctx
+			com
+			detail_times
 			(* This has to run after DCE, or otherwise its condition always holds. *)
 			["insert_save_stacks",Exceptions.insert_save_stacks tctx]
 		)
@@ -763,17 +759,17 @@ let destruction tctx detail_times main locals =
 		| Cs -> type_filters @ [ fun t -> InterfaceProps.run t ]
 		| _ -> type_filters
 	in
-	let t = filter_timer detail_times ["type 3"] in
-	List.iter (fun t ->
-		begin match t with
-		| TClassDecl c ->
-			tctx.curclass <- c
-		| _ ->
-			()
-		end;
-		List.iter (fun f -> f t) type_filters
-	) com.types;
-	t();
+	with_timer detail_times "type 3" None (fun () ->
+		List.iter (fun t ->
+			begin match t with
+			| TClassDecl c ->
+				tctx.curclass <- c
+			| _ ->
+				()
+			end;
+			List.iter (fun f -> f t) type_filters
+		) com.types;
+	);
 	com.callbacks#run com.callbacks#get_after_filters;
 	com.stage <- CFilteringDone
 
@@ -915,8 +911,9 @@ let save_class_state ctx t =
 			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 		)
 
-let run com tctx main =
-	let detail_times = Common.defined com DefineList.FilterTimes in
+let run tctx main =
+	let com = tctx.com in
+	let detail_times = (try int_of_string (Common.defined_value_safe com ~default:"0" Define.FilterTimes) with _ -> 0) in
 	let new_types = List.filter (fun t ->
 		let cached = is_cached com t in
 		begin match t with
@@ -955,7 +952,7 @@ let run com tctx main =
 		"ForRemap",ForRemap.apply tctx;
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
 	] in
-	List.iter (run_expression_filters (timer_label detail_times ["expr 0"]) tctx filters) new_types;
+	List.iter (run_expression_filters com detail_times filters) new_types;
 	let filters = [
 		"local_statics",LocalStatic.run tctx;
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
@@ -977,13 +974,13 @@ let run com tctx main =
 			filters
 		| _ -> filters
 	in
-	List.iter (run_expression_filters (timer_label detail_times ["expr 1"]) tctx filters) new_types;
+	List.iter (run_expression_filters com detail_times filters) new_types;
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
 		| Cs ->
 			[
-				check_cs_events tctx.com;
+				check_cs_events com;
 				DefaultArguments.run com;
 			]
 		| Java ->
@@ -993,9 +990,9 @@ let run com tctx main =
 		| _ ->
 			[]
 	in
-	let t = filter_timer detail_times ["type 1"] in
-	List.iter (fun f -> List.iter f new_types) filters;
-	t();
+	with_timer detail_times "type 1" None (fun () ->
+		List.iter (fun f -> List.iter f new_types) filters;
+	);
 	com.stage <- CAnalyzerStart;
 	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
 	com.stage <- CAnalyzerDone;
@@ -1008,19 +1005,19 @@ let run com tctx main =
 		| _ -> (fun e -> RenameVars.run tctx.curclass.cl_path locals e));
 		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
-	List.iter (run_expression_filters (timer_label detail_times ["expr 2"]) tctx filters) new_types;
-	let t = filter_timer detail_times ["callbacks"] in
-	com.callbacks#run com.callbacks#get_before_save; (* macros onGenerate etc. *)
-	t();
+	List.iter (run_expression_filters com detail_times filters) new_types;
+	with_timer detail_times "callbacks" None (fun () ->
+		com.callbacks#run com.callbacks#get_before_save;
+	);
 	com.stage <- CSaveStart;
-	let t = filter_timer detail_times ["save state"] in
-	List.iter (fun mt ->
-		update_cache_dependencies com mt;
-		save_class_state tctx mt
-	) new_types;
-	t();
+	with_timer detail_times "save state" None (fun () ->
+		List.iter (fun mt ->
+			update_cache_dependencies com mt;
+			save_class_state tctx mt
+		) new_types;
+	);
 	com.stage <- CSaveDone;
-	let t = filter_timer detail_times ["callbacks"] in
-	com.callbacks#run com.callbacks#get_after_save; (* macros onGenerate etc. *)
-	t();
+	with_timer detail_times "callbacks" None (fun () ->
+		com.callbacks#run com.callbacks#get_after_save;
+	);
 	destruction tctx detail_times main locals

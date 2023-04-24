@@ -301,7 +301,7 @@ let finalize_typing ctx tctx =
 let filter ctx tctx =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	Filters.run ctx.com tctx ctx.com.main;
+	Filters.run tctx ctx.com.main;
 	t()
 
 let call_light_init_macro com path =
