@@ -82,29 +82,33 @@ let init com =
 
 module Overlaps = struct
 	type t = {
-		mutable ov_vars : tvar IntMap.t;
+		mutable ov_vars : tvar list;
+		mutable ov_lut : (int,bool) Hashtbl.t;
 		mutable ov_name_cache : bool StringMap.t option;
 	}
 
 	let create () = {
-		ov_vars = IntMap.empty;
+		ov_vars = [];
+		ov_lut = Hashtbl.create 0;
 		ov_name_cache = None;
 	}
 
 	let copy ov = {
 		ov_vars = ov.ov_vars;
+		ov_lut = ov.ov_lut;
 		ov_name_cache = ov.ov_name_cache;
 	}
 
 	let add id v ov =
-		ov.ov_vars <- IntMap.add id v ov.ov_vars;
+		ov.ov_vars <- v :: ov.ov_vars;
+		Hashtbl.add ov.ov_lut id true;
 		ov.ov_name_cache <- None
 
 	let get_cache ov = match ov.ov_name_cache with
 		| Some cache ->
 			cache
 		| None ->
-			let cache = IntMap.fold (fun _ v acc -> StringMap.add v.v_name true acc) ov.ov_vars StringMap.empty in
+			let cache = List.fold_left (fun acc v -> StringMap.add v.v_name true acc) StringMap.empty ov.ov_vars in
 			ov.ov_name_cache <- Some cache;
 			cache
 
@@ -112,20 +116,20 @@ module Overlaps = struct
 		StringMap.mem name (get_cache ov)
 
 	let iter f ov =
-		IntMap.iter f ov.ov_vars
+		List.iter f ov.ov_vars
 
-	let mem i ov =
-		IntMap.mem i ov.ov_vars
-
-	let exists f ov =
-		IntMap.exists f ov.ov_vars
+	let mem id ov =
+		Hashtbl.mem ov.ov_lut id
 
 	let reset ov =
-		ov.ov_vars <- IntMap.empty;
+		ov.ov_vars <- [];
 		ov.ov_name_cache <- None
 
-	let is_empty ov =
-		IntMap.is_empty ov.ov_vars
+	let is_empty ov = match ov.ov_vars with
+		| [] ->
+			true
+		| _ ->
+			false
 
 end
 
@@ -203,8 +207,8 @@ let declare_var rc scope v =
 				Overlaps.copy scope.foreign_vars
 			else begin
 				let overlaps = Overlaps.copy scope.loop_vars in
-				Overlaps.iter (fun i o ->
-					Overlaps.add i o overlaps
+				Overlaps.iter (fun o ->
+					Overlaps.add o.v_id o overlaps
 				) scope.foreign_vars;
 				overlaps
 			end
@@ -351,7 +355,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 let rec rename_vars rc scope =
 	let reserved = ref rc.rc_reserved in
 	if (rc.rc_hoisting || rc.rc_no_shadowing) && not (Overlaps.is_empty scope.foreign_vars) then
-		Overlaps.iter (fun _ v -> reserve reserved v.v_name) scope.foreign_vars;
+		Overlaps.iter (fun v -> reserve reserved v.v_name) scope.foreign_vars;
 	List.iter (maybe_rename_var rc reserved) (List.rev scope.own_vars);
 	List.iter (rename_vars rc) scope.children
 
