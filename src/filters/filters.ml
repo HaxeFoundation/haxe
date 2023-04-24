@@ -672,7 +672,7 @@ let is_cached com t =
 
 let apply_filters_once ctx filters t =
 	let detail_times = (try int_of_string (Common.defined_value_safe ctx.com ~default:"0" Define.FilterTimes) with _ -> 0) in
-	if not (is_cached ctx.com t) then run_expression_filters ctx.com detail_times filters t
+	if not (is_cached ctx.com t) then run_expression_filters ctx detail_times filters t
 
 let iter_expressions fl mt =
 	match mt with
@@ -737,7 +737,7 @@ let destruction tctx detail_times main locals =
 	List.iter
 		(run_expression_filters
 			~ignore_processed_status:true
-			com
+			tctx
 			detail_times
 			(* This has to run after DCE, or otherwise its condition always holds. *)
 			["insert_save_stacks",Exceptions.insert_save_stacks tctx]
@@ -952,7 +952,7 @@ let run tctx main =
 		"ForRemap",ForRemap.apply tctx;
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts tctx;
 	] in
-	List.iter (run_expression_filters com detail_times filters) new_types;
+	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	let filters = [
 		"local_statics",LocalStatic.run tctx;
 		"fix_return_dynamic_from_void_function",fix_return_dynamic_from_void_function tctx true;
@@ -974,7 +974,7 @@ let run tctx main =
 			filters
 		| _ -> filters
 	in
-	List.iter (run_expression_filters com detail_times filters) new_types;
+	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
@@ -1005,7 +1005,7 @@ let run tctx main =
 		| _ -> (fun e -> RenameVars.run tctx.curclass.cl_path locals e));
 		"mark_switch_break_loops",mark_switch_break_loops;
 	] in
-	List.iter (run_expression_filters com detail_times filters) new_types;
+	List.iter (run_expression_filters tctx detail_times filters) new_types;
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.callbacks#get_before_save;
 	);
