@@ -80,6 +80,55 @@ let init com =
 	) com.config.pf_scoping.vs_flags;
 	ri
 
+module Overlaps = struct
+	type t = {
+		mutable ov_vars : tvar IntMap.t;
+		mutable ov_name_cache : bool StringMap.t option;
+	}
+
+	let create () = {
+		ov_vars = IntMap.empty;
+		ov_name_cache = None;
+	}
+
+	let copy ov = {
+		ov_vars = ov.ov_vars;
+		ov_name_cache = ov.ov_name_cache;
+	}
+
+	let add id v ov =
+		ov.ov_vars <- IntMap.add id v ov.ov_vars;
+		ov.ov_name_cache <- None
+
+	let get_cache ov = match ov.ov_name_cache with
+		| Some cache ->
+			cache
+		| None ->
+			let cache = IntMap.fold (fun _ v acc -> StringMap.add v.v_name true acc) ov.ov_vars StringMap.empty in
+			ov.ov_name_cache <- Some cache;
+			cache
+
+	let has_name name ov =
+		StringMap.mem name (get_cache ov)
+
+	let iter f ov =
+		IntMap.iter f ov.ov_vars
+
+	let mem i ov =
+		IntMap.mem i ov.ov_vars
+
+	let exists f ov =
+		IntMap.exists f ov.ov_vars
+
+	let reset ov =
+		ov.ov_vars <- IntMap.empty;
+		ov.ov_name_cache <- None
+
+	let is_empty ov =
+		IntMap.is_empty ov.ov_vars
+
+end
+
 type scope = {
 	(** Parent scope *)
 	parent : scope option;
@@ -97,11 +146,11 @@ type scope = {
 		```
 		in this example `b` overlaps with `a`.
 	*)
-	mutable own_vars : (tvar * (tvar IntMap.t ref)) list;
+	mutable own_vars : (tvar * Overlaps.t) list;
 	(** Variables declared outside of this scope, but used inside of it *)
-	mutable foreign_vars : tvar IntMap.t;
+	mutable foreign_vars : Overlaps.t;
 	(** List of variables used in current loop *)
-	loop_vars : tvar IntMap.t ref;
+	loop_vars : Overlaps.t;
 	(** Current loops depth *)
 	mutable loop_count : int;
 }
@@ -134,8 +183,8 @@ let create_scope parent =
 		parent = parent;
 		children = [];
 		own_vars = [];
-		foreign_vars = IntMap.empty;
-		loop_vars = ref IntMap.empty;
+		foreign_vars = Overlaps.create();
+		loop_vars = Overlaps.create();
 		loop_count = 0;
 	} in
 	Option.may (fun p -> p.children <- scope :: p.children) parent;
@@ -146,24 +195,23 @@ let create_scope parent =
 *)
 let declare_var rc scope v =
 	let overlaps =
-		if not rc.rc_hoisting || IntMap.is_empty scope.foreign_vars then
-			if scope.loop_count = 0 then IntMap.empty
-			else !(scope.loop_vars)
+		if not rc.rc_hoisting || Overlaps.is_empty scope.foreign_vars then
+			if scope.loop_count = 0 then Overlaps.create ()
+			else Overlaps.copy scope.loop_vars
 		else
 			if scope.loop_count = 0 then
-				scope.foreign_vars
+				Overlaps.copy scope.foreign_vars
 			else begin
-				let overlaps = ref !(scope.loop_vars) in
-				IntMap.iter (fun i o ->
-					if not (IntMap.mem i !overlaps) then
-						overlaps := IntMap.add i o !overlaps
+				let overlaps = Overlaps.copy scope.loop_vars in
+				Overlaps.iter (fun i o ->
+					Overlaps.add i o overlaps
 				) scope.foreign_vars;
-				!overlaps
+				overlaps
 			end
 	in
-	scope.own_vars <- (v, ref overlaps) :: scope.own_vars;
+	scope.own_vars <- (v, overlaps) :: scope.own_vars;
 	if scope.loop_count > 0 then
-		scope.loop_vars := IntMap.add v.v_id v !(scope.loop_vars)
+		Overlaps.add v.v_id v scope.loop_vars
 
 (**
 	Invoked for each `TLocal v` texr_expr
@@ -172,21 +220,25 @@ let rec use_var rc scope v =
 	let rec loop declarations =
 		match declarations with
 		| [] ->
-			if (rc.rc_no_shadowing || rc.rc_hoisting) && not (IntMap.mem v.v_id scope.foreign_vars) then
-				scope.foreign_vars <- IntMap.add v.v_id v scope.foreign_vars;
+			if (rc.rc_no_shadowing || rc.rc_hoisting) then
+				Overlaps.add v.v_id v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> use_var rc parent v
 			| None -> raise (Failure "Failed to locate variable declaration")
 			)
-		| (d, _) :: _ when d == v -> ()
+		| (d, _) :: _ when d == v ->
+			()
 		| (d, overlaps) :: rest ->
-			if not (IntMap.mem v.v_id !overlaps) then
-				overlaps := IntMap.add v.v_id v !overlaps;
-			loop rest
+			(* If we find a declaration that already knows us, we don't have to keep
+			   looping because we can be sure that we've been here before. *)
+			if not (Overlaps.mem v.v_id overlaps) then begin
+				Overlaps.add v.v_id v overlaps;
+				loop rest
+			end
 	in
 	loop scope.own_vars;
-	if scope.loop_count > 0 && not (IntMap.mem v.v_id !(scope.loop_vars)) then
-		scope.loop_vars := IntMap.add v.v_id v !(scope.loop_vars)
+	if scope.loop_count > 0 then
+		Overlaps.add v.v_id v scope.loop_vars
 
 let collect_loop scope fn =
 	scope.loop_count <- scope.loop_count + 1;
@@ -195,7 +247,7 @@ let collect_loop scope fn =
 	if scope.loop_count < 0 then
 		raise (Failure "Unexpected loop count");
 	if scope.loop_count = 0 then
-		scope.loop_vars := IntMap.empty
+		Overlaps.reset scope.loop_vars
 
 (**
 	Collect all the variables declared and used in `e` expression.
@@ -274,8 +326,6 @@ and collect_ignore_block ?(in_block=false) rc scope e =
 	| TBlock el -> List.iter (collect_vars ~in_block rc scope) el
 	| _ -> collect_vars ~in_block rc scope e
 
-let trailing_numbers = Str.regexp "[0-9]+$"
-
 (**
 	Rename `v` if needed
 *)
@@ -284,22 +334,15 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: v.v_meta;
 		v.v_name <- name
 	in
-	(* chop escape char for all local variables generated *)
-	if is_gen_local v then begin
-		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
-		commit ("_g" ^ (Str.replace_first trailing_numbers "" name))
-	end;
-	let name = ref v.v_name in
-	let count = ref 0 in
-	let same_name _ o = !name = o.v_name in
-	while (
-		StringMap.mem !name !reserved
-		|| IntMap.exists same_name !overlaps
-	) do
-		incr count;
-		name := v.v_name ^ (string_of_int !count);
-	done;
-	commit !name;
+	let rec loop name count =
+		if StringMap.mem name !reserved || Overlaps.has_name name overlaps then begin
+			let count = count + 1 in
+			loop (v.v_name ^ (string_of_int count)) count
+		end else
+			name
+	in
+	let name = loop v.v_name 0 in
+	commit name;
 	if rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting) then reserve reserved v.v_name
 
 (**
@@ -307,8 +350,8 @@ let maybe_rename_var rc reserved (v,overlaps) =
 *)
 let rec rename_vars rc scope =
 	let reserved = ref rc.rc_reserved in
-	if (rc.rc_hoisting || rc.rc_no_shadowing) && not (IntMap.is_empty scope.foreign_vars) then
-		IntMap.iter (fun _ v -> reserve reserved v.v_name) scope.foreign_vars;
+	if (rc.rc_hoisting || rc.rc_no_shadowing) && not (Overlaps.is_empty scope.foreign_vars) then
+		Overlaps.iter (fun _ v -> reserve reserved v.v_name) scope.foreign_vars;
 	List.iter (maybe_rename_var rc reserved) (List.rev scope.own_vars);
 	List.iter (rename_vars rc) scope.children
 

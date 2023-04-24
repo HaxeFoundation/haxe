@@ -370,13 +370,16 @@ let add_local_with_origin ctx origin n t p =
 	check_local_variable_name ctx n origin p;
 	add_local ctx (VUser origin) n t p
 
-let gen_local_prefix = "`"
+let gen_local_prefix = "_g"
 
 let gen_local ctx t p =
-	add_local ctx VGenerated "`" t p
+	add_local ctx VGenerated gen_local_prefix t p
 
-let is_gen_local v =
-	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
+let is_gen_local v = match v.v_kind with
+	| VGenerated ->
+		true
+	| _ ->
+		false
 
 let delay ctx p f =
 	let rec loop = function
