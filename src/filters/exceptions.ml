@@ -217,7 +217,7 @@ class catch ctx catch_local catch_pos =
 			let v =
 				match hx_exception_var with
 				| None ->
-					let v = alloc_var VGenerated "`" ctx.haxe_exception_type p in
+					let v = alloc_var VGenerated gen_local_prefix ctx.haxe_exception_type p in
 					hx_exception_var <- Some v;
 					v
 				| Some v -> v
@@ -228,7 +228,7 @@ class catch ctx catch_local catch_pos =
 			let v =
 				match unwrapped_var with
 				| None ->
-					let v = alloc_var VGenerated "`" t_dynamic p in
+					let v = alloc_var VGenerated gen_local_prefix t_dynamic p in
 					unwrapped_var <- Some v;
 					(* unwrapped_local <- Some e; *)
 					v
@@ -262,7 +262,7 @@ let catches_to_ifs ctx catches t p =
 	match catches with
 	| [] -> []
 	| ((first_v, first_body) :: _) as rest ->
-		let catch_var = alloc_var VGenerated "`" ctx.wildcard_catch_type first_v.v_pos in
+		let catch_var = alloc_var VGenerated gen_local_prefix ctx.wildcard_catch_type first_v.v_pos in
 		add_var_flag catch_var VCaught;
 		let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 		let body =
@@ -396,7 +396,7 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 			| Some (catch_var, _) ->
 				catch_var
 			| None ->
-				let catch_var = alloc_var VGenerated "`" ctx.value_exception_type first_v.v_pos in
+				let catch_var = alloc_var VGenerated gen_local_prefix ctx.value_exception_type first_v.v_pos in
 				add_var_flag catch_var VCaught;
 				catch_var
 		in
