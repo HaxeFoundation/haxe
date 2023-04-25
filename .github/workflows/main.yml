@@ -18,13 +18,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v3.0.11
-        with:
-          path: D:\.opam
-          key: ${{ runner.os }}${{ env.ARCH }}-${{ hashFiles('./haxe.opam', './libs/') }}
-
+      # @import cache-opam-windows.yml
       - name: Install Neko from S3
         shell: pwsh
         run: |
@@ -59,7 +53,7 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
 
       - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+        # if: steps.cache-opam.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
@@ -114,13 +108,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v3.0.11
-        with:
-          path: D:\.opam
-          key: ${{ runner.os }}${{ env.ARCH }}-${{ hashFiles('./haxe.opam', './libs/') }}
-
+      # @import cache-opam-windows.yml
       - name: Install Neko from S3
         shell: pwsh
         run: |
@@ -157,7 +145,7 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
 
       - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+        # if: steps.cache-opam.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1

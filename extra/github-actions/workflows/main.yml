@@ -17,7 +17,7 @@ jobs:
         with:
           submodules: recursive
 
-      @import cache-opam-windows.yml
+      # @import cache-opam-windows.yml
       @import install-neko-windows.yml
       @import install-ocaml-windows64.yml
       @import install-ocaml-libs-windows.yml
@@ -36,7 +36,7 @@ jobs:
         with:
           submodules: recursive
 
-      @import cache-opam-windows.yml
+      # @import cache-opam-windows.yml
       @import install-neko-windows.yml
       @import install-ocaml-windows.yml
       @import install-ocaml-libs-windows.yml
