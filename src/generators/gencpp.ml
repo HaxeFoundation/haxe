@@ -4307,13 +4307,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          writer#add_big_closures;
       let argsCount = list_num closure.close_args in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
-      out (if closure.close_this != None then "::hx::CallableThis_obj< " else "::hx::Callable_obj< ");
+      out ("::hx::Callable_obj< ");
       out (cpp_closure_signature ctx closure);
       out (">,_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var ->
          out ("," ^ (cpp_macro_var_type_of ctx var) ^ "," ^ (keyword_remap name));
       ) closure.close_undeclared;
-      out (") HXARGC(" ^ argsCount ^")\n");
+      out (")\n");
 
       output_i ((tcpp_to_string closure.close_type) ^ " _hx_run(" ^ (ctx_callable_args ctx closure.close_args "__o_") ^ ")");
 
@@ -4332,6 +4332,18 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           end
       in
       gen_with_injection (mk_injection prologue "" "") closure.close_expr true;
+
+      if closure.close_this=None then begin
+         output_i "inline void DoMarkThis(hx::MarkContext* __inCtx) {}\n";
+         out "#ifdef HXCPP_VISIT_ALLOCS\n";
+         output_i "inline void DoVisitThis(hx::VisitContext* __inCtx) {}\n";
+         out "#endif\n";
+      end else begin
+         output_i "inline void DoMarkThis(hx::MarkContext* __inCtx) { HX_MARK_MEMBER(__this); }\n";
+         out "#ifdef HXCPP_VISIT_ALLOCS\n";
+         output_i "inline void DoVisitThis(hx::VisitContext* __inCtx) { HX_VISIT_MEMBER(__this); }\n";
+         out "#endif\n";
+      end;
 
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
 
@@ -4572,9 +4584,9 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output ("{" ^ (if is_void then "" else "return") ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i _ -> ("inArg" ^ (string_of_int i))) function_def.tf_args)) ^ "); return null(); }\n");
 
          if captures_obj then begin
-            output "\tvoid __Mark(hx::MarkContext* __inCtx) { HX_MARK_MEMBER(__this); }\n";
+            output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
             output "#ifdef HXCPP_VISIT_ALLOCS\n";
-            output "\tvoid __Visit(hx::VisitContext* __inCtx) { HX_VISIT_MEMBER(__this); }\n";
+            output "\tvoid __Visit(hx::VisitContext* __inCtx) override { HX_VISIT_MEMBER(__this); }\n";
             output "#endif\n";
          end;
 
