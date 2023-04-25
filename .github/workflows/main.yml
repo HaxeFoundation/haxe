@@ -97,7 +97,6 @@ jobs:
 
   windows-build:
     runs-on: windows-latest
-    if: false
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
@@ -867,8 +866,7 @@ jobs:
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows64-test]
-    # needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-20.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
@@ -911,9 +909,9 @@ jobs:
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/${FILE_NAME}.zip
           aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/${FILE_NAME}.zip
           aws s3 cp win64Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows64-choco/
-          # aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/${FILE_NAME}.zip
-          # aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/${FILE_NAME}.zip
-          # aws s3 cp win32Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows-choco/
+          aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/${FILE_NAME}.zip
+          aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/${FILE_NAME}.zip
+          aws s3 cp win32Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows-choco/
 
       - name: Update "latest"
         if: github.ref == 'refs/heads/development'
@@ -931,21 +929,20 @@ jobs:
           aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/haxe_latest.tar.gz
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/haxe_latest.zip
           aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/haxe_latest.zip
-          # aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/haxe_latest.zip
-          # aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/haxe_latest.zip
+          aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/haxe_latest.zip
+          aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/haxe_latest.zip
 
           # Chocolatey packages have to be named with version number,
           # so let's use web redirection to keep the original file name.
           [[ "$HXBUILDS_S3ADDR" =~ s3://([^/]+)(.*) ]] && HXBUILDS_S3BUCKET="${BASH_REMATCH[1]}" && HXBUILDS_S3PATH="${BASH_REMATCH[2]}"
           [[ `echo win64Binaries/*.nupkg` =~ win64Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
           aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows64-choco/${FILE_NAME} ${HXBUILDS_S3ADDR}/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
-          # [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
-          # aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows-choco/${FILE_NAME}   ${HXBUILDS_S3ADDR}/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
+          [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
+          aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows-choco/${FILE_NAME}   ${HXBUILDS_S3ADDR}/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows64-test]
-    # needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-20.04
     steps:
       - name: Install dependencies
