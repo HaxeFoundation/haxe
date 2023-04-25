@@ -4306,16 +4306,17 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       if argc >= 20 || (List.length closure.close_args) >= 20 then
          writer#add_big_closures;
       let argsCount = list_num closure.close_args in
+      let signature = cpp_closure_signature ctx closure in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
       out ("::hx::Callable_obj< ");
-      out (cpp_closure_signature ctx closure);
+      out signature;
       out (">,_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var ->
          out ("," ^ (cpp_macro_var_type_of ctx var) ^ "," ^ (keyword_remap name));
       ) closure.close_undeclared;
       out (")\n");
 
-      output_i ((tcpp_to_string closure.close_type) ^ " _hx_run(" ^ (ctx_callable_args ctx closure.close_args "__o_") ^ ")");
+      output_i ((tcpp_to_string closure.close_type) ^ " _hx_run(" ^ (ctx_callable_args ctx closure.close_args "__o_") ^ ") override");
 
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
@@ -4332,6 +4333,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           end
       in
       gen_with_injection (mk_injection prologue "" "") closure.close_expr true;
+
+      output_i "int __Compare(const ::hx::Object* inRhs) const override {\n";
+      output_i ("\treturn dynamic_cast<const ::hx::Callable_obj< " ^ signature ^ ">*>(inRhs) ? 0 : -1;\n");
+      output_i "}\n";
 
       if closure.close_this=None then begin
          output_i "inline void DoMarkThis(hx::MarkContext* __inCtx) {}\n";
@@ -4566,9 +4571,11 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output ("\t" ^ callable_name ^ "() {}\n");
          end;
 
-         (* Implement the pure virtual function *)
+         output "\tint __Compare(const ::hx::Object* inRhs) const override {\n";
+         output ("\t\treturn dynamic_cast<const " ^ callable_name ^ "*>(inRhs) ? 0 : -1;\n");
+         output "\t}\n";
 
-         output ("\t" ^ return_type_str ^ " _hx_run(" ^ (ctx_callable_args ctx function_def.tf_args prefix) ^ ")\n");
+         output ("\t" ^ return_type_str ^ " _hx_run(" ^ (ctx_callable_args ctx function_def.tf_args prefix) ^ ") override\n");
          output "\t{\n";
       in
       let write_closure_trailer captures_obj =
