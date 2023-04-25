@@ -91,7 +91,7 @@ devcontainer:
     RUN git config --global codespaces-theme.hide-status 1
 
     # Install OCaml libraries
-    COPY opam .
+    COPY haxe.opam .
     RUN opam init --disable-sandboxing
     RUN opam install . --yes --deps-only --no-depexts
     RUN opam list
