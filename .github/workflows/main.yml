@@ -18,7 +18,26 @@ jobs:
         with:
           submodules: recursive
 
-      # @import cache-opam-windows.yml
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: choco install nsis
+        uses: nick-invision/retry@v1
+        with:
+          timeout_minutes: 10
+          max_attempts: 10
+          command: choco install --no-progress nsis.portable --version 3.02 -y
+
+      - name: choco install things
+        shell: pwsh
+        run: choco install --no-progress curl wget 7zip.portable -y
+
+      - name: Prepend Chocolatey path
+        shell: pwsh
+        run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
+
       - name: Install Neko from S3
         shell: pwsh
         run: |
@@ -53,7 +72,6 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
 
       - name: Install OCaml libraries
-        # if: steps.cache-opam.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
@@ -108,7 +126,26 @@ jobs:
         with:
           submodules: recursive
 
-      # @import cache-opam-windows.yml
+      - name: Use GNU Tar from msys
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rm C:\msys64\usr\bin\bash.exe
+
+      - name: choco install nsis
+        uses: nick-invision/retry@v1
+        with:
+          timeout_minutes: 10
+          max_attempts: 10
+          command: choco install --no-progress nsis.portable --version 3.02 -y
+
+      - name: choco install things
+        shell: pwsh
+        run: choco install --no-progress curl wget 7zip.portable -y
+
+      - name: Prepend Chocolatey path
+        shell: pwsh
+        run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
+
       - name: Install Neko from S3
         shell: pwsh
         run: |
@@ -162,7 +199,6 @@ jobs:
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
 
       - name: Install OCaml libraries
-        # if: steps.cache-opam.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
