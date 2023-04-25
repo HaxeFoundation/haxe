@@ -8,6 +8,7 @@
       default: https://github.com/ocaml/opam-repository.git
     opam-local-packages: |
       haxe.opam
+    cache-prefix: w32-v1
 
 - name: Install dependencies
   shell: pwsh
