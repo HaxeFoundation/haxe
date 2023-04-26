@@ -82,29 +82,33 @@ let init com =
 
 module Overlaps = struct
 	type t = {
-		mutable ov_vars : tvar IntMap.t;
+		mutable ov_vars : tvar list;
+		mutable ov_lut : (int,bool) Hashtbl.t;
 		mutable ov_name_cache : bool StringMap.t option;
 	}
 
 	let create () = {
-		ov_vars = IntMap.empty;
+		ov_vars = [];
+		ov_lut = Hashtbl.create 0;
 		ov_name_cache = None;
 	}
 
 	let copy ov = {
 		ov_vars = ov.ov_vars;
+		ov_lut = Hashtbl.copy ov.ov_lut;
 		ov_name_cache = ov.ov_name_cache;
 	}
 
-	let add id v ov =
-		ov.ov_vars <- IntMap.add id v ov.ov_vars;
+	let add v ov =
+		ov.ov_vars <- v :: ov.ov_vars;
+		Hashtbl.add ov.ov_lut v.v_id true;
 		ov.ov_name_cache <- None
 
 	let get_cache ov = match ov.ov_name_cache with
 		| Some cache ->
 			cache
 		| None ->
-			let cache = IntMap.fold (fun _ v acc -> StringMap.add v.v_name true acc) ov.ov_vars StringMap.empty in
+			let cache = List.fold_left (fun acc v -> StringMap.add v.v_name true acc) StringMap.empty ov.ov_vars in
 			ov.ov_name_cache <- Some cache;
 			cache
 
@@ -112,20 +116,21 @@ module Overlaps = struct
 		StringMap.mem name (get_cache ov)
 
 	let iter f ov =
-		IntMap.iter f ov.ov_vars
+		List.iter f ov.ov_vars
 
-	let mem i ov =
-		IntMap.mem i ov.ov_vars
-
-	let exists f ov =
-		IntMap.exists f ov.ov_vars
+	let mem id ov =
+		Hashtbl.mem ov.ov_lut id
 
 	let reset ov =
-		ov.ov_vars <- IntMap.empty;
+		ov.ov_vars <- [];
+		Hashtbl.clear ov.ov_lut;
 		ov.ov_name_cache <- None
 
-	let is_empty ov =
-		IntMap.is_empty ov.ov_vars
+	let is_empty ov = match ov.ov_vars with
+		| [] ->
+			true
+		| _ ->
+			false
 
 end
 
@@ -162,6 +167,8 @@ type rename_context = {
 	rc_switch_cases_no_blocks : bool;
 	rc_scope : var_scope;
 	mutable rc_reserved : bool StringMap.t;
+	(** Scope a variable is declared in *)
+	rc_var_origins : (int,scope) Hashtbl.t;
 }
 
 (**
@@ -203,27 +210,31 @@ let declare_var rc scope v =
 				Overlaps.copy scope.foreign_vars
 			else begin
 				let overlaps = Overlaps.copy scope.loop_vars in
-				Overlaps.iter (fun i o ->
-					Overlaps.add i o overlaps
+				Overlaps.iter (fun o ->
+					Overlaps.add o overlaps
 				) scope.foreign_vars;
 				overlaps
 			end
 	in
 	scope.own_vars <- (v, overlaps) :: scope.own_vars;
+	Hashtbl.add rc.rc_var_origins v.v_id scope;
 	if scope.loop_count > 0 then
-		Overlaps.add v.v_id v scope.loop_vars
+		Overlaps.add v scope.loop_vars
+
+let will_be_reserved rc v =
+	rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting)
 
 (**
 	Invoked for each `TLocal v` texr_expr
 *)
-let rec use_var rc scope v =
+let rec determine_overlaps rc scope v =
 	let rec loop declarations =
 		match declarations with
 		| [] ->
 			if (rc.rc_no_shadowing || rc.rc_hoisting) then
-				Overlaps.add v.v_id v scope.foreign_vars;
+				Overlaps.add v scope.foreign_vars;
 			(match scope.parent with
-			| Some parent -> use_var rc parent v
+			| Some parent -> determine_overlaps rc parent v
 			| None -> raise (Failure "Failed to locate variable declaration")
 			)
 		| (d, _) :: _ when d == v ->
@@ -232,13 +243,32 @@ let rec use_var rc scope v =
 			(* If we find a declaration that already knows us, we don't have to keep
 			   looping because we can be sure that we've been here before. *)
 			if not (Overlaps.mem v.v_id overlaps) then begin
-				Overlaps.add v.v_id v overlaps;
+				Overlaps.add v overlaps;
 				loop rest
 			end
 	in
-	loop scope.own_vars;
+	loop scope.own_vars
+
+let use_var rc scope v =
+	if not (will_be_reserved rc v) then
+		determine_overlaps rc scope v
+	else begin
+		let origin = Hashtbl.find rc.rc_var_origins v.v_id in
+		let rec loop scope =
+			if scope != origin then begin
+				if (rc.rc_no_shadowing || rc.rc_hoisting) then
+					Overlaps.add v scope.foreign_vars;
+				match scope.parent with
+				| Some parent ->
+					loop parent
+				| None ->
+					raise (Failure "Failed to locate variable declaration")
+			end
+		in
+		loop scope
+	end;
 	if scope.loop_count > 0 then
-		Overlaps.add v.v_id v scope.loop_vars
+		Overlaps.add v scope.loop_vars
 
 let collect_loop scope fn =
 	scope.loop_count <- scope.loop_count + 1;
@@ -343,7 +373,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 	in
 	let name = loop v.v_name 0 in
 	commit name;
-	if rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting) then reserve reserved v.v_name
+	if will_be_reserved rc v then reserve reserved v.v_name
 
 (**
 	Rename variables found in `scope`
@@ -351,7 +381,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 let rec rename_vars rc scope =
 	let reserved = ref rc.rc_reserved in
 	if (rc.rc_hoisting || rc.rc_no_shadowing) && not (Overlaps.is_empty scope.foreign_vars) then
-		Overlaps.iter (fun _ v -> reserve reserved v.v_name) scope.foreign_vars;
+		Overlaps.iter (fun v -> reserve reserved v.v_name) scope.foreign_vars;
 	List.iter (maybe_rename_var rc reserved) (List.rev scope.own_vars);
 	List.iter (rename_vars rc) scope.children
 
@@ -367,6 +397,7 @@ let run cl_path ri e =
 			rc_no_catch_var_shadowing = ri.ri_no_catch_var_shadowing;
 			rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
 			rc_reserved = ri.ri_reserved;
+			rc_var_origins = Hashtbl.create 0;
 		} in
 		if ri.ri_reserve_current_top_level_symbol then begin
 			match cl_path with

@@ -758,6 +758,10 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_supports_threads = true;
 			pf_supports_atomics = true;
+			pf_scoping = {
+				vs_scope = BlockScope;
+				vs_flags = [NoShadowing]
+			};
 		}
 	| Eval ->
 		{

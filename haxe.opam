@@ -19,17 +19,16 @@ build: [
 install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
-  "ocaml" {>= "4.02"}
+  "ocaml" {>= "4.08"}
   "ocamlfind" {build}
   "dune" {>= "1.11"}
   "camlp5" {build & = "8.00"}
   "sedlex" {>= "2.0"}
   "xml-light"
   "extlib" {>= "1.7.8"}
-  "ptmap" {>= "2.0.0"}
   "sha"
   "conf-libpcre2-8"
   "conf-zlib"
   "conf-neko"
-  "luv" {= "0.5.11"}
+  "luv"
 ]

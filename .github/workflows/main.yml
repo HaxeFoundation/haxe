@@ -10,30 +10,15 @@ jobs:
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
-      OPAMYES: 1
-      OPAMROOT: D:\.opam
-      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
       ARCH: 64
       MINGW_ARCH: x86_64
-      CYGWIN_SETUP: https://cygwin.com/setup-x86_64.exe
-      CYG_ROOT: C:/cygwin64
+      CYG_ROOT: D:\cygwin
     steps:
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
-      - name: Use GNU Tar from msys
-        run: |
-          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          rm C:\msys64\usr\bin\bash.exe
-
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v3.0.11
-        with:
-          path: D:\.opam
-          key: ${{ runner.os }}64-${{ hashFiles('./opam', './libs/') }}
-
+      # @import cache-opam-windows.yml
       - name: Install Neko from S3
         shell: pwsh
         run: |
@@ -46,47 +31,34 @@ jobs:
       - name: Print Neko version
         run: neko -version 2>&1
 
-      - name: choco install nsis
-        uses: nick-invision/retry@v1
+      - name: Setup ocaml
+        uses: ocaml/setup-ocaml@v2
         with:
-          timeout_minutes: 10
-          max_attempts: 10
-          command: choco install --no-progress nsis.portable --version 3.02 -y
-      - name: choco install things
-        shell: pwsh
-        run: choco install --no-progress curl wget 7zip.portable -y
-      - name: Prepend Chocolatey path
-        shell: pwsh
-        run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
+          ocaml-compiler: 4.08.1
+          opam-repositories: |
+            opam-repository-mingw: https://github.com/ocaml-opam/opam-repository-mingw.git#sunset
+            default: https://github.com/ocaml/opam-repository.git
+          opam-local-packages: |
+            haxe.opam
 
-      - name: Install OCaml
+      - name: Install dependencies
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
-          curl.exe -fsSL -o cygwin-setup.exe --retry 3 $($env:CYGWIN_SETUP)
-          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre2-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre2" -Wait -RedirectStandardOutput cygwin-setup-out.txt
-          Get-Content cygwin-setup-out.txt
-          curl.exe -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam$($env:ARCH).tar.xz
           curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'curl -L https://cpanmin.us | perl - App::cpanminus')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm IPC::System::Simple module')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm String::ShellQuote')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'echo "$OLDPWD"')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -xf opam.tar.xz')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && bash opam${ARCH}/install.sh')
 
       - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+        # if: steps.cache-opam.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam init mingw "https://github.com/fdopen/opam-repository-mingw.git#opam2" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
+          opam install haxe --deps-only
+          opam list
 
       - name: Expose mingw dll files
         shell: pwsh
@@ -125,33 +97,19 @@ jobs:
 
   windows-build:
     runs-on: windows-latest
+    if: false
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows
-      OPAMYES: 1
-      OPAMROOT: D:\.opam
-      CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin-archive/20221123
       ARCH: 32
       MINGW_ARCH: i686
-      CYGWIN_SETUP: https://cygwin.com/setup-x86.exe
-      CYG_ROOT: C:/cygwin
+      CYG_ROOT: D:\cygwin
     steps:
       - uses: actions/checkout@main
         with:
           submodules: recursive
 
-      - name: Use GNU Tar from msys
-        run: |
-          echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          rm C:\msys64\usr\bin\bash.exe
-
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v3.0.11
-        with:
-          path: D:\.opam
-          key: ${{ runner.os }}32-${{ hashFiles('./opam', './libs/') }}
-
+      # @import cache-opam-windows.yml
       - name: Install Neko from S3
         shell: pwsh
         run: |
@@ -164,48 +122,36 @@ jobs:
       - name: Print Neko version
         run: neko -version 2>&1
 
-      - name: choco install nsis
-        uses: nick-invision/retry@v1
+      - name: Setup ocaml
+        uses: kLabz/setup-ocaml@win32
         with:
-          timeout_minutes: 10
-          max_attempts: 10
-          command: choco install --no-progress nsis.portable --version 3.02 -y
-      - name: choco install things
-        shell: pwsh
-        run: choco install --no-progress curl wget 7zip.portable -y
-      - name: Prepend Chocolatey path
-        shell: pwsh
-        run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
+          ocaml-compiler: 4.08.1
+          opam-depext: false
+          opam-repositories: |
+            opam-repository-mingw: https://github.com/ocaml-opam/opam-repository-mingw.git#sunset
+            default: https://github.com/ocaml/opam-repository.git
+          opam-local-packages: |
+            haxe.opam
+          cache-prefix: w32-v1
 
-      - name: Install OCaml
+      - name: Install dependencies
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
-          curl.exe -fsSL -o cygwin-setup.exe --retry 3 $($env:CYGWIN_SETUP)
-          Start-Process -FilePath "cygwin-setup.exe" -ArgumentList "-B -q -R $($env:CYG_ROOT) -l C:/tmp -s $($env:CYG_MIRROR) -P default -P make -P git -P zlib-devel -P rsync -P patch -P diffutils -P curl -P unzip -P tar -P m4 -P perl -P libpcre2-devel -P mbedtls-devel -P mingw64-$($env:MINGW_ARCH)-zlib -P mingw64-$($env:MINGW_ARCH)-gcc-core -P mingw64-$($env:MINGW_ARCH)-pcre2 --allow-unsupported-windows" -Wait -RedirectStandardOutput cygwin-setup-out.txt
-          Get-Content cygwin-setup-out.txt
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('--norc', '--noprofile', '/etc/postinstall/ca-certificates.sh')
-          curl.exe -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam$($env:ARCH).tar.xz
           curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 https://github.com/Simn/mingw64-mbedtls/releases/download/2.16.3/mingw64-$($env:MINGW_ARCH)-mbedtls-2.16.3-1.tar.xz
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'curl -L https://cpanmin.us | perl - App::cpanminus')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm IPC::System::Simple module')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cpanm String::ShellQuote')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'echo "$OLDPWD"')
           & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -C / -xvf libmbedtls.tar.xz')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && tar -xf opam.tar.xz')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && bash opam${ARCH}/install.sh')
 
       - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+        # if: steps.cache-opam.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam init mingw "https://github.com/fdopen/opam-repository-mingw.git#opam2" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam update --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam pin add haxe . --kind=path --no-action --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam install haxe --deps-only --yes 2>&1')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'opam list')
-          & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'ocamlopt -v')
+          opam install haxe --deps-only
+          opam list
 
       - name: Expose mingw dll files
         shell: pwsh
@@ -257,7 +203,7 @@ jobs:
         uses: actions/cache@v3.0.11
         with:
           path: ~/.opam/
-          key: ${{ runner.os }}-${{ hashFiles('./opam', './libs/') }}-2
+          key: ${{ runner.os }}-${{ hashFiles('./haxe.opam', './libs/') }}-2
 
       - name: Install Neko from S3
         run: |
@@ -572,7 +518,7 @@ jobs:
         uses: actions/cache@v3.0.11
         with:
           path: ~/.opam/
-          key: ${{ runner.os }}-${{ hashFiles('./opam', './libs/') }}-2
+          key: ${{ runner.os }}-${{ hashFiles('./haxe.opam', './libs/') }}-2
 
       - name: Install Neko from S3
         run: |
@@ -625,14 +571,13 @@ jobs:
           make && make install
           cd ..
 
-
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
           opam init # --disable-sandboxing
           opam update
-          opam switch create 4.07.1
+          opam switch create 4.08.1
           eval $(opam env)
           opam env
           opam pin add ctypes 0.17.1 --yes
@@ -922,7 +867,8 @@ jobs:
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64, mac-test, windows64-test]
+    # needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-20.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
@@ -965,9 +911,9 @@ jobs:
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/${FILE_NAME}.zip
           aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/${FILE_NAME}.zip
           aws s3 cp win64Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows64-choco/
-          aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/${FILE_NAME}.zip
-          aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/${FILE_NAME}.zip
-          aws s3 cp win32Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows-choco/
+          # aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/${FILE_NAME}.zip
+          # aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/${FILE_NAME}.zip
+          # aws s3 cp win32Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows-choco/
 
       - name: Update "latest"
         if: github.ref == 'refs/heads/development'
@@ -985,20 +931,21 @@ jobs:
           aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/haxe_latest.tar.gz
           aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/haxe_latest.zip
           aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/haxe_latest.zip
-          aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/haxe_latest.zip
-          aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/haxe_latest.zip
+          # aws s3 cp win32Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows/haxe_latest.zip
+          # aws s3 cp win32Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows-installer/haxe_latest.zip
 
           # Chocolatey packages have to be named with version number,
           # so let's use web redirection to keep the original file name.
           [[ "$HXBUILDS_S3ADDR" =~ s3://([^/]+)(.*) ]] && HXBUILDS_S3BUCKET="${BASH_REMATCH[1]}" && HXBUILDS_S3PATH="${BASH_REMATCH[2]}"
           [[ `echo win64Binaries/*.nupkg` =~ win64Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
           aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows64-choco/${FILE_NAME} ${HXBUILDS_S3ADDR}/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
-          [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
-          aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows-choco/${FILE_NAME}   ${HXBUILDS_S3ADDR}/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
+          # [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
+          # aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows-choco/${FILE_NAME}   ${HXBUILDS_S3ADDR}/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
+    needs: [linux-test, linux-arm64, mac-test, windows64-test]
+    # needs: [linux-test, linux-arm64, mac-test, windows-test, windows64-test]
     runs-on: ubuntu-20.04
     steps:
       - name: Install dependencies
