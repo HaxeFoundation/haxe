@@ -167,6 +167,8 @@ type rename_context = {
 	rc_switch_cases_no_blocks : bool;
 	rc_scope : var_scope;
 	mutable rc_reserved : bool StringMap.t;
+	(** Scope a variable is declared in *)
+	rc_var_origins : (int,scope) Hashtbl.t;
 }
 
 (**
@@ -215,20 +217,24 @@ let declare_var rc scope v =
 			end
 	in
 	scope.own_vars <- (v, overlaps) :: scope.own_vars;
+	Hashtbl.add rc.rc_var_origins v.v_id scope;
 	if scope.loop_count > 0 then
 		Overlaps.add v scope.loop_vars
+
+let will_be_reserved rc v =
+	rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting)
 
 (**
 	Invoked for each `TLocal v` texr_expr
 *)
-let rec use_var rc scope v =
+let rec determine_overlaps rc scope v =
 	let rec loop declarations =
 		match declarations with
 		| [] ->
 			if (rc.rc_no_shadowing || rc.rc_hoisting) then
 				Overlaps.add v scope.foreign_vars;
 			(match scope.parent with
-			| Some parent -> use_var rc parent v
+			| Some parent -> determine_overlaps rc parent v
 			| None -> raise (Failure "Failed to locate variable declaration")
 			)
 		| (d, _) :: _ when d == v ->
@@ -241,7 +247,26 @@ let rec use_var rc scope v =
 				loop rest
 			end
 	in
-	loop scope.own_vars;
+	loop scope.own_vars
+
+let use_var rc scope v =
+	if not (will_be_reserved rc v) then
+		determine_overlaps rc scope v
+	else begin
+		let origin = Hashtbl.find rc.rc_var_origins v.v_id in
+		let rec loop scope =
+			if scope != origin then begin
+				if (rc.rc_no_shadowing || rc.rc_hoisting) then
+					Overlaps.add v scope.foreign_vars;
+				match scope.parent with
+				| Some parent ->
+					loop parent
+				| None ->
+					raise (Failure "Failed to locate variable declaration")
+			end
+		in
+		loop scope
+	end;
 	if scope.loop_count > 0 then
 		Overlaps.add v scope.loop_vars
 
@@ -348,7 +373,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 	in
 	let name = loop v.v_name 0 in
 	commit name;
-	if rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting) then reserve reserved v.v_name
+	if will_be_reserved rc v then reserve reserved v.v_name
 
 (**
 	Rename variables found in `scope`
@@ -372,6 +397,7 @@ let run cl_path ri e =
 			rc_no_catch_var_shadowing = ri.ri_no_catch_var_shadowing;
 			rc_switch_cases_no_blocks = ri.ri_switch_cases_no_blocks;
 			rc_reserved = ri.ri_reserved;
+			rc_var_origins = Hashtbl.create 0;
 		} in
 		if ri.ri_reserve_current_top_level_symbol then begin
 			match cl_path with
