@@ -298,10 +298,10 @@ let finalize_typing ctx tctx =
 	com.modules <- modules;
 	t()
 
-let filter ctx tctx =
+let filter ctx tctx before_destruction =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	Filters.run tctx ctx.com.main;
+	run_or_diagnose ctx Filters.run tctx ctx.com.main before_destruction;
 	t()
 
 let call_light_init_macro com path =
@@ -351,8 +351,7 @@ let compile ctx actx callbacks =
 		end;
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
-		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
-		filter ctx tctx;
+		filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path);
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
