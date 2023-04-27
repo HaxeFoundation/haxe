@@ -4561,7 +4561,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       let write_closure_trailer captures_obj =
          output "\t}\n";
 
-         output ( "HX_DYNAMIC_CALL" ^ string_of_int (List.length function_def.tf_args) ^ "(" ^ (if is_void then "" else "return") ^ ", HX_LOCAL_RUN)");
+         output ( "HX_DYNAMIC_CALL" ^ nargs ^ "(" ^ (if is_void then "" else "return") ^ ", HX_LOCAL_RUN)");
 
          if captures_obj then begin
             output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
@@ -4616,10 +4616,10 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output "}\n\n";
          end;
       end else begin
-         write_closure_header ("__default_" ^ remap_name) true "__o_";
+         write_closure_header ("__default_" ^ class_name ^ remap_name) true "__o_";
 
          ctx.ctx_real_this_ptr <- false;
-         gen_cpp_function_body ctx class_def is_static ("__default_" ^ remap_name) function_def "" "" no_debug;
+         gen_cpp_function_body ctx class_def is_static ("__default_" ^ class_name ^ remap_name) function_def "" "" no_debug;
          
          write_closure_trailer true;
 
@@ -4664,7 +4664,9 @@ let gen_field_init ctx class_def field =
    (* Function field *)
    | Some { eexpr = TFunction function_def } ->
       if (is_dynamic_haxe_method field) then begin
-         let func_name = "__default_" ^ (remap_name) in
+         let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
+         let class_name = (snd class_def.cl_path) ^ (if nativeGen then "" else "_obj") in
+         let func_name = "__default_" ^ class_name ^ remap_name in
          output ( "\t" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n" );
       end
 
@@ -6120,7 +6122,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (List.length dynamic_functions > 0) then begin
       output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(::hx::Ctx *_hx_ctx," ^ class_name ^ " *_hx_obj) {\n");
       List.iter (fun name ->
-             output_cpp ("\tif (!_hx_obj->" ^ name ^".mPtr) _hx_obj->" ^ name ^ " = new __default_" ^ name ^ "(_hx_obj);\n")
+            output_cpp ("\tif (!_hx_obj->" ^ name ^".mPtr) _hx_obj->" ^ name ^ " = new __default_" ^ class_name ^ name ^ "(_hx_obj);\n")
          ) dynamic_functions;
       (match class_def.cl_super with
       | Some super ->
@@ -6149,7 +6151,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if ( (not (has_class_flag class_def CInterface)) && (not nativeGen) ) then begin
       output_cpp (class_name ^ "::" ^ class_name ^  "()\n{\n");
       List.iter (fun name ->
-             output_cpp ("\t" ^ name ^ " = new __default_" ^ name ^ "(this);\n")
+             output_cpp ("\t" ^ name ^ " = new __default_" ^ class_name ^ name ^ "(this);\n")
          ) dynamic_functions;
       output_cpp "}\n\n";
 
