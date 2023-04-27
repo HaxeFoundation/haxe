@@ -317,6 +317,11 @@ typedef Var = {
 	var name:String;
 
 	/**
+		The position of the variable name.
+	**/
+	var ?namePos:Position;
+
+	/**
 		The type-hint of the variable, if available.
 	**/
 	var ?type:ComplexType;

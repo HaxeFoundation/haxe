@@ -560,7 +560,7 @@ and encode_expr e =
 				10, [encode_array (List.map (fun v ->
 					encode_obj [
 						"name",encode_placed_name v.ev_name;
-						"name_pos",encode_pos (pos v.ev_name);
+						"namePos",encode_pos (pos v.ev_name);
 						"isFinal",vbool v.ev_final;
 						"isStatic",vbool v.ev_static;
 						"type",null encode_ctype v.ev_type;
@@ -924,7 +924,9 @@ and decode_expr v =
 				let static = if vstatic == vnull then false else decode_bool vstatic in
 				let vmeta = field v "meta" in
 				let meta = if vmeta == vnull then [] else decode_meta_content vmeta in
-				let name = (decode_placed_name (field v "name_pos") (field v "name"))
+				let name_pos = maybe_decode_pos (field v "namePos") in
+				let name_pos = if name_pos = null_pos then p else name_pos in
+				let name = ((decode_string (field v "name")), name_pos)
 				and t = opt decode_ctype (field v "type")
 				and eo = opt loop (field v "expr") in
 				mk_evar ~final ~static ?t ?eo ~meta name
