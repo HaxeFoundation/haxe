@@ -292,6 +292,7 @@ let reify in_macro =
 			expr "EVars" [to_array (fun v p ->
 				let fields = [
 					"name", to_string (fst v.ev_name) (snd v.ev_name);
+					"namePos", to_pos (snd v.ev_name);
 					"type", to_opt to_type_hint v.ev_type p;
 					"expr", to_opt to_expr v.ev_expr p;
 					"isFinal",to_bool v.ev_final p;
