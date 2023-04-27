@@ -243,7 +243,14 @@ class ServerTests extends TestCase {
 		vfs.touchFile("haxe/ds/Vector.hx");
 		runHaxe(args);
 		assertSuccess();
+	}
 
+	function test11179() {
+		vfs.putContent("Main.hx", getTemplate("issues/Issue11179/Main.hx"));
+		var args = ["-main", "Main", "--macro", 'nullSafety("Main", Strict)', "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertSuccess();
 	}
 
 	// See https://github.com/HaxeFoundation/haxe/issues/8368#issuecomment-525379060
