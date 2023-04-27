@@ -1498,7 +1498,7 @@ class class_checker cls immediate_execution report =
 			validate_safety_meta report cls_meta;
 			if is_safe_class && (not (has_class_flag cls CExtern)) && (not (has_class_flag cls CInterface)) then
 				self#check_var_fields;
-			let check_field is_static f =
+			let check_field is_static f = if not (has_class_field_flag f CfPostProcessed) then begin
 				validate_safety_meta report f.cf_meta;
 				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
@@ -1509,7 +1509,7 @@ class class_checker cls immediate_execution report =
 								(self#get_checker mode)#check_root_expr expr
 						);
 						self#check_accessors is_static f
-			in
+			end in
 			if is_safe_class then
 				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) cls.cl_init;
 			Option.may (check_field false) cls.cl_constructor;
