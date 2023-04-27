@@ -1415,7 +1415,6 @@ and tcpp_closure = {
    close_expr : tcppexpr;
    close_id : int;
    close_undeclared : (string,tvar) Hashtbl.t;
-   close_this : tcppthis option;
 }
 
 
@@ -2934,7 +2933,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
                            close_undeclared= !undeclared;
                            close_type= ret;
                            close_args= func.tf_args;
-                           close_this= !uses_this;
                          } in
             incr closureId;
             declarations := old_declarations;
@@ -3888,11 +3886,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | CppCallable closure ->
           out (" ::hx::Callable<" ^ (cpp_closure_signature ctx closure )^ ">(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
           let separator = ref "" in
-          (match closure.close_this with
-          | Some this ->
-             out (if this=ThisReal then "this" else "__this");
-             separator := ",";
-          | _ -> () );
 
           Hashtbl.iter (fun name value ->
              out !separator; separator := ",";
@@ -4322,10 +4315,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           cpp_gen_default_values ctx closure.close_args "__o_";
           hx_stack_push ctx output_i class_name func_name closure.close_expr.cpppos gc_stack;
           if (ctx.ctx_debug_level>=2) then begin
-             if (closure.close_this != None) then
-                output_i ("HX_STACK_THIS(__this.mPtr)\n");
-             List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
-                (List.filter (cpp_debug_var_visible ctx) closure.close_args);
+             List.iter
+               (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
+               (List.filter (cpp_debug_var_visible ctx) closure.close_args);
 
              let line = Lexer.get_error_line closure.close_expr.cpppos in
              let lineName = Printf.sprintf "%4d" line in
@@ -4337,18 +4329,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       output_i "int __Compare(const ::hx::Object* inRhs) const override {\n";
       output_i ("\treturn dynamic_cast<const ::hx::Callable_obj< " ^ signature ^ ">*>(inRhs) ? 0 : -1;\n");
       output_i "}\n";
-
-      if closure.close_this=None then begin
-         output_i "inline void DoMarkThis(hx::MarkContext* __inCtx) {}\n";
-         out "#ifdef HXCPP_VISIT_ALLOCS\n";
-         output_i "inline void DoVisitThis(hx::VisitContext* __inCtx) {}\n";
-         out "#endif\n";
-      end else begin
-         output_i "inline void DoMarkThis(hx::MarkContext* __inCtx) { HX_MARK_MEMBER(__this); }\n";
-         out "#ifdef HXCPP_VISIT_ALLOCS\n";
-         output_i "inline void DoVisitThis(hx::VisitContext* __inCtx) { HX_VISIT_MEMBER(__this); }\n";
-         out "#endif\n";
-      end;
 
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
 
