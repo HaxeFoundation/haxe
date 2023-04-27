@@ -4309,7 +4309,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       ) closure.close_undeclared;
       out (")\n");
 
-      output_i ((tcpp_to_string closure.close_type) ^ " _hx_run(" ^ (ctx_callable_args ctx closure.close_args "__o_") ^ ") override");
+      output_i ((tcpp_to_string closure.close_type) ^ " HX_LOCAL_RUN(" ^ (ctx_callable_args ctx closure.close_args "__o_") ^ ") override");
 
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
@@ -4555,20 +4555,13 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output ("\t\treturn dynamic_cast<const " ^ callable_name ^ "*>(inRhs) ? 0 : -1;\n");
          output "\t}\n";
 
-         output ("\t" ^ return_type_str ^ " _hx_run(" ^ (ctx_callable_args ctx function_def.tf_args prefix) ^ ") override\n");
+         output ("\t" ^ return_type_str ^ " HX_LOCAL_RUN(" ^ (ctx_callable_args ctx function_def.tf_args prefix) ^ ") override\n");
          output "\t{\n";
       in
       let write_closure_trailer captures_obj =
          output "\t}\n";
 
-         (* Override the dynamic run functions *)
-
-         output ("\t::Dynamic __Run(const Array< ::Dynamic>& inArgs) { " ^ (if is_void then "" else "return") ^ " _hx_run(");
-         output (String.concat ", " (List.init (List.length function_def.tf_args) (fun i -> ("inArgs[" ^ (string_of_int i) ^ "]"))));
-         output "); return null(); }\n";
-
-         output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) function_def.tf_args)) ^ ")");
-         output ("{" ^ (if is_void then "" else "return") ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i _ -> ("inArg" ^ (string_of_int i))) function_def.tf_args)) ^ "); return null(); }\n");
+         output ( "HX_DYNAMIC_CALL" ^ string_of_int (List.length function_def.tf_args) ^ "(" ^ (if is_void then "" else "return") ^ ", HX_LOCAL_RUN)");
 
          if captures_obj then begin
             output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
