@@ -2389,8 +2389,8 @@ let passwd_fields = [
 		encode_result (fun (p:Passwd.t) ->
 			encode_obj_s [
 				"username",encode_string p.username;
-				"uid",vint p.uid;
-				"gid",vint p.gid;
+				"uid",vint (Unsigned.ULong.to_int p.uid);
+				"gid",vint (Unsigned.ULong.to_int p.gid);
 				"shell",encode_nullable encode_string p.shell;
 				"homedir",vnative_string p.homedir;
 			]
