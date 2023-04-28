@@ -358,7 +358,7 @@ let rec reduce_loop ctx e =
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let config = inline_config (Some cl) cf el e.etype in
-					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
+					let rt = (match Abstract.follow_with_abstracts e1.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
 					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error { err_message = Custom _ } -> None) in
 					(match inl with
 					| None -> reduce_expr ctx e
