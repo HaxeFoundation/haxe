@@ -1,1 +1,1 @@
-[{"file":"C:\\git\\haxe\\tests\\misc\\projects\\Issue6794\\Main.hx","diagnostics":[{"kind":2,"severity":2,"range":{"start":{"line":12,"character":42},"end":{"line":12,"character":43}},"args":"foo","relatedInformation":[]}]}]
+[{"file":"$$normPath(::cwd::/,true)Main.hx","diagnostics":[{"kind":2,"severity":2,"range":{"start":{"line":12,"character":42},"end":{"line":12,"character":43}},"args":"foo","relatedInformation":[]}]}]
