@@ -4525,16 +4525,10 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
    (* Function field *)
    | Some { eexpr = TFunction function_def } ->
       let return_type_str = (ctx_type_string ctx function_def.tf_type) in
-      let nargs = string_of_int (List.length function_def.tf_args) in
       let return_type = (cpp_type_of ctx function_def.tf_type ) in
       let is_void = return_type = TCppVoid in
       let ret = if is_void  then "(void)" else "return " in
 
-      let needsWrapper t = match t with
-         | TCppStar _ -> true
-         | TCppInst(t, _) -> has_meta_key t.cl_meta Meta.StructAccess
-         | _ -> false
-      in
       let orig_debug = ctx.ctx_debug_level in
       let no_debug = has_meta_key field.cf_meta Meta.NoDebug in
 
@@ -4561,7 +4555,36 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       let write_closure_trailer captures_obj =
          output "\t}\n";
 
-         output ( "HX_DYNAMIC_CALL" ^ nargs ^ "(" ^ (if is_void then "" else "return") ^ ", HX_LOCAL_RUN)");
+         (* Override the dynamic run functions *)
+
+         let return_string =
+            if is_void then
+               ""
+            else
+               "return " ^ match return_type with
+               | TCppStar _ ->
+                  "(::cpp::Pointer<const void*>)"
+               | TCppInst (klass, _) when has_meta_key klass.cl_meta Meta.StructAccess ->
+                  "(::cpp::Struct<" ^ return_type_str ^ ">)"
+               | _ -> "" in
+
+         let arg_callsite_prefix t =
+            let tcpp = cpp_type_of ctx t in
+            match tcpp with
+            | TCppStar (tcpp, is_const) ->
+               let const_str = if is_const then "Const" else "" in
+               let ptr_str   = tcpp_to_string tcpp in
+               "::cpp::" ^ const_str ^ "Pointer<" ^ ptr_str ^ ">"
+            | TCppInst (klass, _) when has_meta_key klass.cl_meta Meta.StructAccess ->
+               "::cpp::Struct<" ^ (tcpp_to_string tcpp) ^ ">"
+            | _ -> "" in
+
+         output ("\t::Dynamic __Run(const Array< ::Dynamic>& inArgs) { " ^ return_string ^ " _hx_run(");
+         output (String.concat ", " (List.mapi (fun i (tvar, _) -> ((arg_callsite_prefix tvar.v_type) ^ "(inArgs[" ^ (string_of_int i) ^ "])")) function_def.tf_args));
+         output "); return null(); }\n";
+
+         output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) function_def.tf_args)) ^ ")");
+         output ("{" ^ return_string ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i (tvar, _) -> ((arg_callsite_prefix tvar.v_type) ^ "(inArg" ^ (string_of_int i) ^ ")")) function_def.tf_args)) ^ "); return null(); }\n");
 
          if captures_obj then begin
             output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
