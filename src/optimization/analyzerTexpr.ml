@@ -716,7 +716,7 @@ module Fusion = struct
 		array or object declarations. The resulting element list is reversed.
 		INFO: `el` is a reversed list of expressions in a block.
 	*)
-	let rec block_element config state loop_bottom acc el =
+	let block_element config state loop_bottom acc el =
 		let rec loop acc el = match el with
 			| {eexpr = TBinop(OpAssign, { eexpr = TLocal v1 }, { eexpr = TLocal v2 })} :: el when v1 == v2 ->
 				loop acc el
