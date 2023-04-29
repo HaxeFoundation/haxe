@@ -30,5 +30,5 @@ depends: [
   "conf-libpcre2-8"
   "conf-zlib"
   "conf-neko"
-  "luv"
+  "luv" {>= "0.5.12"}
 ]
