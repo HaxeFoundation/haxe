@@ -377,7 +377,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v2
         with:
           name: linuxBinaries
 
@@ -446,7 +446,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v2
         with:
           name: linuxBinaries
 
@@ -692,7 +692,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v2
         with:
           name: win${{env.ARCH}}Binaries
 
@@ -784,7 +784,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v2
         with:
           name: win${{env.ARCH}}Binaries
 
@@ -876,7 +876,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v2
         with:
           name: macBinaries
 
