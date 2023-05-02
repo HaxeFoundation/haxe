@@ -34,7 +34,7 @@
     [ $(ls -1 out | wc -l) -eq "3" ]
 
 - name: Upload artifact
-  uses: actions/upload-artifact@v2
+  uses: actions/upload-artifact@v3
   with:
     name: win${{env.ARCH}}Binaries
     path: out
