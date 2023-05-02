@@ -63,7 +63,7 @@
     otool -L ./haxelib
 
 - name: Upload artifact
-  uses: actions/upload-artifact@v1.0.0
+  uses: actions/upload-artifact@v2
   with:
     name: macBinaries
     path: out

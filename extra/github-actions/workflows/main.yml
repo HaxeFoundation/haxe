@@ -117,13 +117,13 @@ jobs:
           EOL
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v1.0.0
+        uses: actions/upload-artifact@v2
         with:
           name: linuxBinaries
           path: out
 
       - name: Upload xmldoc artifact
-        uses: actions/upload-artifact@v1.0.0
+        uses: actions/upload-artifact@v2
         with:
           name: xmldoc
           path: extra/doc
@@ -307,7 +307,7 @@ jobs:
           EARTHLY_REMOTE_CACHE: "ghcr.io/${{env.CONTAINER_REG}}_cache:build-${{env.CONTAINER_TAG}}-arm64"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v1.0.0
+        uses: actions/upload-artifact@v2
         with:
           name: linuxArm64Binaries
           path: out/linux/arm64
