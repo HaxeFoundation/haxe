@@ -380,6 +380,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: linuxBinaries
+          path: linuxBinaries
 
       - name: Install Neko from S3
         run: |
@@ -449,6 +450,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: linuxBinaries
+          path: linuxBinaries
 
       - name: Download xmldoc artifact
         uses: actions/download-artifact@v2
@@ -695,6 +697,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: win${{env.ARCH}}Binaries
+          path: win${{env.ARCH}}Binaries
 
       - name: Install Neko from S3
         shell: pwsh
@@ -787,6 +790,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: win${{env.ARCH}}Binaries
+          path: win${{env.ARCH}}Binaries
 
       - name: Install Neko from S3
         shell: pwsh
@@ -879,6 +883,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: macBinaries
+          path: macBinaries
 
       - name: Install Neko from S3
         run: |

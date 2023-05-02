@@ -156,6 +156,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: linuxBinaries
+          path: linuxBinaries
 
       @import install-neko-unix.yml
 
@@ -209,6 +210,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: linuxBinaries
+          path: linuxBinaries
 
       - name: Download xmldoc artifact
         uses: actions/download-artifact@v2
@@ -348,6 +350,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: win${{env.ARCH}}Binaries
+          path: win${{env.ARCH}}Binaries
 
       @import install-neko-windows.yml
       @import test-windows.yml
@@ -374,6 +377,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: win${{env.ARCH}}Binaries
+          path: win${{env.ARCH}}Binaries
 
       @import install-neko-windows.yml
       @import test-windows.yml
@@ -400,6 +404,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: macBinaries
+          path: macBinaries
 
       @import install-neko-unix.yml
       @import test-mac.yml
