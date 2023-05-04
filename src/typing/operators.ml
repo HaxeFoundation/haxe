@@ -571,8 +571,10 @@ let type_assign ctx e1 e2 with_type p =
 		mk (TBinop (OpAssign,e1,e2)) e1.etype p
 	in
 	match e1 with
-	| AKNo(_,p) ->
-		raise_typing_error "This expression cannot be accessed for writing" p
+	| AKNo(acc,p) ->
+		if not (Common.ignore_error ctx.com) then
+			raise_typing_error "This expression cannot be accessed for writing" p
+		else acc_get ctx acc;
 	| AKUsingField _ | AKSafeNav _ ->
 		raise_typing_error "Invalid operation" p
 	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
