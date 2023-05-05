@@ -191,7 +191,10 @@ let rec acc_get ctx g =
 	in
 	let dispatcher p = new call_dispatcher ctx MGet WithType.value p in
 	match g with
-	| AKNo(_,p) -> typing_error ("This expression cannot be accessed for reading") p
+	| AKNo(acc,p) ->
+		if not (Common.ignore_error ctx.com) then
+			typing_error ("This expression cannot be accessed for reading") p
+		else acc_get ctx acc;
 	| AKExpr e -> e
 	| AKSafeNav sn ->
 		(* generate null-check branching for the safe navigation chain *)
