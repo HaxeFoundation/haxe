@@ -424,6 +424,10 @@ let rec flush_pass ctx p (where:string) =
 	| _ ->
 		()
 
+let flush_pass ctx p where =
+	let timer = Timer.timer ["flush_pass";where] in
+	Std.finally timer (flush_pass ctx p) where
+
 let make_pass ctx f = f
 
 let init_class_done ctx =
