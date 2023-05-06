@@ -104,8 +104,8 @@ let json_of_diagnostics com dctx =
 			(match lines with
 				| [] -> ()
 				| s :: sub ->
-					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_information sub in
-					diag.diag_related_information <- (p,d,s) :: related;
+					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) [] (List.rev sub) in
+					diag.diag_related_information <- List.append diag.diag_related_information ((p,d,s) :: related);
 			)
 		| 0, _ ->
 			add kind p sev (JString s)
@@ -211,7 +211,7 @@ let json_of_diagnostics com dctx =
 				"range",Genjson.generate_pos_as_range diag.diag_pos;
 				"args",diag.diag_args;
 				"relatedInformation",JArray (
-					List.rev_map (fun (pos,depth,msg) -> (JObject [
+					List.map (fun (pos,depth,msg) -> (JObject [
 						"location",Genjson.generate_pos_as_location pos;
 						"depth",JInt depth;
 						"message",JString msg;
