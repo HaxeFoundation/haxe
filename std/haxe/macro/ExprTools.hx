@@ -144,7 +144,7 @@ class ExprTools {
 				case EConst(_): e.expr;
 				case EArray(e1, e2): EArray(f(e1), f(e2));
 				case EBinop(op, e1, e2): EBinop(op, f(e1), f(e2));
-				case EField(e, field): EField(f(e), field);
+				case EField(e, field, kind): EField(f(e), field, kind);
 				case EParenthesis(e): EParenthesis(f(e));
 				case EObjectDecl(fields):
 					var ret = [];
