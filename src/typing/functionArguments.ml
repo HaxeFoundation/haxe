@@ -98,7 +98,7 @@ object(self)
 					v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
-					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
+					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn) "for_expr";
 					if not is_extern then check_local_variable_name ctx name TVOArgument pn;
 					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name (VUser TVOArgument) t m pn in
@@ -120,7 +120,7 @@ object(self)
 			| syntax,(name,_,t) :: typed when is_abstract_this ->
 				loop false syntax typed
 			| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
-				delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
+				delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn) "verify_extern";
 				ignore(type_function_arg_value ctx t eo do_display);
 				loop false syntax typed
 			| [],[] ->

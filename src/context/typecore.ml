@@ -69,7 +69,7 @@ type typer_module = {
 
 type delay = {
 	delay_pass : typer_pass;
-	delay_functions : (unit -> unit) list;
+	delay_functions : ((unit -> unit) * string) list;
 }
 
 type typer_globals = {
@@ -391,35 +391,35 @@ let make_delay pass fl = {
 	delay_functions = fl;
 }
 
-let delay ctx p f =
+let delay ctx p f name =
 	let rec loop = function
 		| [] ->
-			[make_delay p [f]]
+			[make_delay p [f,name]]
 		| delay :: rest ->
 			if delay.delay_pass = p then
-				(make_delay p (f :: delay.delay_functions)) :: rest
+				(make_delay p ((f,name) :: delay.delay_functions)) :: rest
 			else if delay.delay_pass < p then
 				delay :: loop rest
 			else
-				(make_delay p [f]) :: delay :: rest
+				(make_delay p [f,name]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
-let delay_late ctx p f =
+let delay_late ctx p f name =
 	let rec loop = function
 		| [] ->
-			[make_delay p [f]]
+			[make_delay p [f,name]]
 		| delay :: rest ->
 			if delay.delay_pass <= p then
 				delay :: loop rest
 			else
-				(make_delay p [f]) :: delay :: rest
+				(make_delay p [f,name]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
 let delay_if_mono ctx p t f = match follow t with
 	| TMono _ ->
-		delay ctx p f
+		delay ctx p f "delay_if_mono"
 	| _ ->
 		f()
 
@@ -429,9 +429,11 @@ let rec flush_pass ctx p (where:string) =
 		(match delay.delay_functions with
 		| [] ->
 			ctx.g.delayed <- rest;
-		| f :: l ->
+		| (f,name) :: l ->
 			ctx.g.delayed <- (make_delay delay.delay_pass l) :: rest;
-			f());
+			let timer = Timer.timer [where ^ "/" ^ name] in
+			Std.finally timer f ()
+		);
 		flush_pass ctx p where
 	| _ ->
 		()
@@ -456,7 +458,7 @@ let exc_protect ?(force=true) ctx f (where:string) =
 			| Error e ->
 				raise (Fatal_error e)
 	);
-	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
+	if force then delay ctx PForce (fun () -> ignore(lazy_type r)) where;
 	r
 
 let fake_modules = Hashtbl.create 0

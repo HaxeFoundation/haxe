@@ -176,7 +176,7 @@ let check_display_metadata ctx meta =
 		List.iter (fun e ->
 			if display_position#enclosed_in (pos e) then begin
 				let e = ExprPreprocessing.process_expr ctx.com e in
-				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
+				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e WithType.value)) "check_display_metadata";
 			end
 		) args
 	) meta

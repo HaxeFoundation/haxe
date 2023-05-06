@@ -296,4 +296,4 @@ let init_using ctx path p =
 		ctx.m.import_resolution#add (module_type_resolution mt None p)
 	) (List.rev types);
 	(* delay the using since we need to resolve typedefs *)
-	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
+	delay_late ctx PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) "init_using"
