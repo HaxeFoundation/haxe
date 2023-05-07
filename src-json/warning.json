@@ -64,6 +64,11 @@
 		"parent": "WDeprecated"
 	},
 	{
+		"name": "WDeprecatedEnumAbstract",
+		"doc": "`@:enum abstract` is deprecated, `enum abstract` should be used instead",
+		"parent": "WDeprecated"
+	},
+	{
 		"name": "WVarInit",
 		"doc": "A local variable might be used before being assigned a value",
 		"parent": "WTyper"
