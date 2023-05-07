@@ -9,6 +9,7 @@ class Issue7946 extends DisplayTestCase {
 			{
 				kind: DKParserError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(1), pos(2)),
 				relatedInformation: [],
 				args: "Unexpected open"
@@ -24,6 +25,7 @@ class Issue7946 extends DisplayTestCase {
 			{
 				kind: DKParserError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(1), pos(2)),
 				relatedInformation: [],
 				args: "Unexpected clas"
