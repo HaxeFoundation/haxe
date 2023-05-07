@@ -204,7 +204,7 @@ module ModuleLevel = struct
 					| None -> ()
 					| Some p ->
 						let options = Warning.from_meta d.d_meta in
-						ctx.com.warning WDeprecated options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
+						ctx.com.warning WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
 				end;
 				decls := (TAbstractDecl a, decl) :: !decls;
 				match d.d_data with
