@@ -1782,10 +1782,6 @@ let cpp_is_dynamic_type = function
 
 
 let rec cpp_type_of stack ctx haxe_type =
-   if List.exists (fast_eq haxe_type) stack then
-      TCppDynamic
-   else begin
-      let stack = haxe_type :: stack in
       (match haxe_type with
       | TMono r -> (match r.tm_type with None -> TCppDynamic | Some t -> cpp_type_of stack ctx t)
 
@@ -1813,8 +1809,54 @@ let rec cpp_type_of stack ctx haxe_type =
                   TCppDynamic)
 
       | TType (type_def,params) ->
-         cpp_type_from_path stack ctx type_def.t_path params (fun () ->
-            cpp_type_of stack ctx (apply_typedef type_def params) )
+         let expected = (apply_typedef type_def params) in
+         let rec find t =
+            Printf.printf "\t%s\n" (s_type_kind t);
+            if fast_eq expected t then begin
+               Printf.printf "\tmatch!\n";
+               true
+            end else
+               match t with
+               | TMono r ->
+                  (match r.tm_type with
+                  | None -> false
+                  | Some t -> find t)
+               | TEnum (_,tl) | TInst (_,tl) ->
+                  List.exists find tl
+               | TAbstract (abs,tl) ->
+                  if (find (Abstract.get_underlying_type ~return_first:true abs tl)) then
+                     true
+                  else
+                     List.exists find tl
+               | TType (tdef,tl) ->
+                  let applied = apply_typedef tdef tl in
+
+                  Printf.printf "\tTType\n";
+                  Printf.printf "\t\t%s\n" (s_type (print_context()) t);
+                  Printf.printf "\t\t%s\n" (s_type (print_context()) applied);
+
+                  find applied
+               | TFun (tl,r) ->
+                  if (find r) then
+                     true
+                  else begin
+                     List.exists (fun (_,_,targ) -> find targ) tl
+                  end
+               | TLazy f ->
+                  find (lazy_type f)
+               | TDynamic (Some t2) ->
+                  find t2
+               | _ -> false
+               in
+         Printf.printf "searching for %s\n" (s_type_kind expected);
+
+         if find expected then
+            TCppDynamic
+         else begin
+            let stack = (haxe_type :: stack) in
+            cpp_type_from_path stack ctx type_def.t_path params (fun () ->
+               cpp_type_of stack ctx (apply_typedef type_def params) )
+         end
 
       | TFun (args, return) ->
          let fargs = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack ctx o t) args |> List.map tcpp_to_string in
@@ -1826,7 +1868,6 @@ let rec cpp_type_of stack ctx haxe_type =
       | TDynamic _ -> TCppDynamic
       | TLazy func -> cpp_type_of stack ctx (lazy_type func)
       )
-   end
    and  cpp_type_from_path stack ctx path params default =
       match path,params with
       | ([],"Void"),_ -> TCppVoid
