@@ -78,7 +78,7 @@ let unify_constructor ctx params t con =
 		Some(con,params)
 
 let rec extract_ctor e = match e.eexpr with
-	| TConst ct when ct <> TNull -> Some (ConConst ct)
+	| TConst ct -> Some (ConConst ct)
 	| TField(_,FEnum(en,ef)) -> Some (ConEnum(en,ef))
 	| TCast(e1,None) -> extract_ctor e1
 	| _ -> None
@@ -131,6 +131,7 @@ let all_ctors ctx e cases =
 				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
 					| Some e ->
 						begin match extract_ctor e with
+						| Some (ConConst TNull) -> ()
 						| Some ctor -> add (ctor,null_pos)
 						| None -> add (ConStatic(c,cf),null_pos)
 						end;
