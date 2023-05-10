@@ -48,6 +48,7 @@ class Issue11211 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(4), pos(5)),
 				relatedInformation: [],
 				args: "Variables of type Void are not allowed"
