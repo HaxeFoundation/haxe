@@ -203,7 +203,9 @@ module ModuleLevel = struct
 				begin match p_enum_meta with
 					| None when a.a_enum -> a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta; (* HAXE5: remove *)
 					| None -> ()
-					| Some p -> warning ctx WDeprecated "`@:enum abstract` is deprecated in favor of `enum abstract`" p
+					| Some p ->
+						let options = Warning.from_meta d.d_meta in
+						ctx.com.warning WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p
 				end;
 				decls := (TAbstractDecl a, decl) :: !decls;
 				match d.d_data with

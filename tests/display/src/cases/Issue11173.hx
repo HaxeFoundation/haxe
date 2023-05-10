@@ -27,6 +27,7 @@ class Issue11173 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(3), pos(4)),
 				relatedInformation: [],
 				args: "This expression cannot be accessed for writing"
@@ -34,6 +35,7 @@ class Issue11173 extends DisplayTestCase {
 			{
 				kind: DKCompilerError,
 				severity: Error,
+				code: null,
 				range: diagnosticsRange(pos(5), pos(6)),
 				relatedInformation: [],
 				args: "This expression cannot be accessed for writing"
