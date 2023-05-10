@@ -82,10 +82,6 @@ let get_own_resolution ctx = match ctx.m.own_resolution with
 		ctx.m.own_resolution <- Some rl;
 		rl
 
-let get_own_resolution ctx =
-	let close = Timer.timer ("typing" :: "get_own_resolution" :: []) in
-	Std.finally close get_own_resolution ctx
-
 let maybe_type_against_enum ctx f with_type iscall p =
 	try
 		begin match with_type with

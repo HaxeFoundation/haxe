@@ -559,8 +559,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	with Not_found -> try
 		type_field_by_fallback e t
 	with Not_found -> try
-		let close = Timer.timer ("typing" :: "type_field_by_module" :: []) in
-		Std.finally close type_field_by_module e t
+		type_field_by_module e t
 	with Not_found when not (TypeFieldConfig.do_resume cfg) ->
 		if not ctx.untyped then begin
 			let has_special_field a =

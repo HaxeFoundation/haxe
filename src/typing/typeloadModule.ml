@@ -790,9 +790,9 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
 	m
 
-let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let timer = Timer.timer ["typing";"type_module";s_type_path mpath] in
-	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p
+(* let type_module ctx mpath file ?(is_extern=false) tdecls p =
+	let timer = Timer.timer ["typing";"type_module"] in
+	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
@@ -839,8 +839,8 @@ let load_module ctx m p =
 	if ctx.pass = PTypeField then flush_pass ctx PConnectField "load_module";
 	m2
 
-let load_module ctx m p =
-	let timer = Timer.timer ["typing";"load_module";s_type_path m] in
-	Std.finally timer (load_module ctx m) p
+(* let load_module ctx m p =
+	let timer = Timer.timer ["typing";"load_module"] in
+	Std.finally timer (load_module ctx m) p *)
 
 ;;

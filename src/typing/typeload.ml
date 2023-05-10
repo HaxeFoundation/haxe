@@ -238,9 +238,9 @@ let load_type_def ctx p t =
 	with Not_found ->
 		load_type_def' ctx t.tpackage t.tname tname p
 
-let load_type_def ctx p t =
+(* let load_type_def ctx p t =
 	let timer = Timer.timer ["typing";"load_type_def"] in
-	Std.finally timer (load_type_def ctx p) t
+	Std.finally timer (load_type_def ctx p) t *)
 
 let resolve_position_by_path ctx path p =
 	let mt = load_type_def ctx p path in
