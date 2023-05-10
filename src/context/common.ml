@@ -233,7 +233,7 @@ class file_keys = object(self)
 end
 
 type shared_display_information = {
-	mutable diagnostics_messages : (string * pos * MessageKind.t * MessageSeverity.t * int (* depth *)) list;
+	mutable diagnostics_messages : diagnostic list;
 }
 
 type display_information = {
@@ -1248,10 +1248,10 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message ?(depth = 0) com s p kind sev =
+let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,kind,sev,depth) :: di.diagnostics_messages
+	di.diagnostics_messages <- (make_diagnostic ~depth ~code s p kind sev) :: di.diagnostics_messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin

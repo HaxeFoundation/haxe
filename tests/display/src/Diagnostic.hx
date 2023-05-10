@@ -67,6 +67,7 @@ typedef Diagnostic<T> = {
 	var range:Range;
 	var severity:DiagnosticSeverity;
 	var args:T;
+	var code:Null<String>;
 	var relatedInformation:Array<DiagnosticRelatedInformation>;
 }
 

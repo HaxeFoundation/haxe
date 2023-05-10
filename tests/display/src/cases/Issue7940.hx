@@ -14,6 +14,7 @@ class Issue7940 extends DisplayTestCase {
 				kind: DKParserError,
 				range: diagnosticsRange(pos(1), pos(1)),
 				severity: Error,
+				code: null,
 				relatedInformation: [],
 				args: "Unterminated string"
 			}
