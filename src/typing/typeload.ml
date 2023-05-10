@@ -433,7 +433,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 					DynArray.iter (fun (t,c,p) ->
 						check_param_constraints ctx t map c p
 					) checks
-				) "check_param_constraints";
+				);
 			end;
 			f params
 		end
@@ -619,7 +619,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		| None ->
 			()
 		| Some cf ->
-			delay ctx PBuildClass (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos) "load_complex_type";
+			delay ctx PBuildClass (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos);
 		end;
 		TAnon a
 	| CTFunction (args,r) ->
@@ -638,7 +638,7 @@ and load_complex_type ctx allow_display (t,pn) =
 		load_complex_type' ctx allow_display (t,pn)
 	with Error ({ err_message = Module_not_found(([],name)) } as err) ->
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
-			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true) "load_complex_type";
+			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
 			t_dynamic
 		end else if ignore_error ctx.com && not (DisplayPosition.display_position#enclosed_in pn) then
 			t_dynamic

@@ -166,7 +166,7 @@ module ModuleLevel = struct
 					match t.t_type with
 					| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 					| _ -> ()
-				) "typedef";
+				);
 				decls := (TTypeDecl t, decl) :: !decls;
 				acc
 			| EAbstract d ->
@@ -427,7 +427,7 @@ module TypeLevel = struct
 				with TypeloadCheck.Build_canceled state ->
 					c.cl_build <- make_pass ctx build;
 					let rebuild() =
-						delay_late ctx PBuildClass (fun() -> ignore(c.cl_build())) "rebuild";
+						delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
 					in
 					(match state with
 					| Built -> die "" __LOC__
@@ -450,9 +450,9 @@ module TypeLevel = struct
 		c.cl_build <- make_pass ctx build;
 		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
-		delay ctx PBuildClass (fun() -> ignore(c.cl_build())) (Printf.sprintf "cl_build %s" (s_type_path c.cl_path));
+		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
-				delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c) "inherit doc";
+				delay ctx PConnectField (fun() -> InheritDoc.build_class_doc ctx c);
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not (has_class_flag c CExtern) then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx c.cl_meta in
@@ -467,7 +467,7 @@ module TypeLevel = struct
 				match c.cl_constructor with
 					| Some f -> run_field f
 					| _ -> ()
-			) "check_strict_meta"
+			)
 
 	let init_enum ctx e d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -532,7 +532,7 @@ module TypeLevel = struct
 			incr index;
 			names := (fst c.ec_name) :: !names;
 			if Meta.has Meta.InheritDoc f.ef_meta then
-				delay ctx PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx f) "inherit doc";
+				delay ctx PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
@@ -540,7 +540,7 @@ module TypeLevel = struct
 		e.e_type.t_type <- mk_anon ~fields:!fields (ref (EnumStatics e));
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
-			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e) "inherit doc";
+			delay ctx PConnectField (fun() -> InheritDoc.build_enum_doc ctx e);
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx e.e_meta in
@@ -549,7 +549,7 @@ module TypeLevel = struct
 					let metas = StrictMeta.check_strict_meta ctx ef.ef_meta in
 					if metas <> [] then ef.ef_meta <- metas @ ef.ef_meta
 				) e.e_constrs
-			) "check_strict_meta"
+			)
 
 	let init_typedef ctx t d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -601,7 +601,7 @@ module TypeLevel = struct
 			delay ctx PTypeField (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx t.t_meta in
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
-			) "check_strict_meta"
+			)
 
 	let init_abstract ctx a d p =
 		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
@@ -647,7 +647,7 @@ module TypeLevel = struct
 						| _ -> ()
 					in
 					loop [] at
-				) "AbOver";
+				);
 				a.a_this <- at;
 				is_type := true;
 			| AbExtern ->
@@ -663,7 +663,7 @@ module TypeLevel = struct
 				raise_typing_error "Abstract is missing underlying type declaration" a.a_pos
 		end;
 		if Meta.has Meta.InheritDoc a.a_meta then
-			delay ctx PConnectField (fun() -> InheritDoc.build_abstract_doc ctx a) "inherit doc"
+			delay ctx PConnectField (fun() -> InheritDoc.build_abstract_doc ctx a)
 
 	(*
 		In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
@@ -776,7 +776,7 @@ let type_types_into_module ctx m tdecls p =
 	(* setup module types *)
 	List.iter (TypeLevel.init_module_type ctx) tdecls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx PConnectField (fun () -> ctx.m.import_resolution#resolve_lazies) "resolve_lazies";
+	delay ctx PConnectField (fun () -> ctx.m.import_resolution#resolve_lazies);
 	ctx
 
 (*

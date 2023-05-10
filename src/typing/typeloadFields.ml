@@ -249,7 +249,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos; Meta.InheritDoc,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
 		c.cl_constructor <- Some cf;
-		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf) "ensure_struct_init_constructor"
+		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem_assoc AStatic f.cff_access in
@@ -496,7 +496,7 @@ let build_module_def ctx mt meta fvars fbuild =
 					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
 					delay_late ctx PConnectField (fun () ->
 						ti.mt_using <- (filter_classes types) @ ti.mt_using
-					) "build_module_def"
+					)
 				with Exit ->
 					raise_typing_error "dot path expected" (pos e)
 			) el;
@@ -521,7 +521,7 @@ let build_module_def ctx mt meta fvars fbuild =
 			delay_late ctx PConnectField (fun () ->
 				Option.may inherit_using csup;
 				List.iter inherit_using interfaces;
-			) "f_enum";
+			);
 			None
 		| _ ->
 			None
@@ -780,7 +780,7 @@ module TypeBinding = struct
 					()
 				| Error _ when display ->
 					()
-			) "bind_type"
+			)
 		in
 		let handle_display_field () =
 			if fctx.is_macro && not ctx.com.is_macro_context then
@@ -1420,10 +1420,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			delay ctx PTypeField (fun () ->
 				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
 				ignore(args#for_expr)
-			) "create_method";
+			);
 			check_field_display ctx fctx c cf;
 		end else
-			delay ctx PTypeField (fun () -> args#verify_extern) "create_method";
+			delay ctx PTypeField (fun () -> args#verify_extern);
 		if fd.f_expr <> None then begin
 			if fctx.is_abstract then unexpected_expression ctx.com fctx "Abstract methods may not have an expression" p
 			else if not (fctx.is_inline || fctx.is_macro) then warning ctx WExternWithExpr "Extern non-inline function may not have an expression" p;
@@ -1493,7 +1493,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 						display_error ctx.com "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
 				with Error ({ err_message = Unify _ } as err) ->
 					raise_error (make_error ~sub:[err] (Custom ("In method " ^ m ^ " required by property " ^ name)) err.err_pos)
-			) "check_method"
+			)
 		with
 			| Not_found ->
 				let generate_field () =
@@ -1533,7 +1533,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		with Not_found ->
 			()
 	in
-	let delay_check f = delay ctx PConnectField f "create_property" in
+	let delay_check = delay ctx PConnectField in
 	let get = (match get with
 		| "null",_ -> AccNo
 		| "dynamic",_ -> AccCall
@@ -1541,7 +1541,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "get",pget ->
 			let get = "get_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx PConnectField (fun () -> display_accessor get pget) "create_property";
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx PConnectField (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccCall
 		| _,pget ->
@@ -1560,7 +1560,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "set",pset ->
 			let set = "set_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx PConnectField (fun () -> display_accessor set pset) "create_property";
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx PConnectField (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccCall
 		| _,pset ->
@@ -1634,7 +1634,7 @@ let init_field (ctx,cctx,fctx) f =
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
 	if Meta.has Meta.InheritDoc cf.cf_meta then
-		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf) "init_field";
+		delay ctx PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf);
 	cf
 
 let check_overload ctx f fs is_extern_class =
@@ -1688,7 +1688,7 @@ let finalize_class ctx cctx =
 		init_class_done ctx;
 		(match r with
 		| None -> ()
-		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)) (Printf.sprintf "finalize_class %s" (s_type_path cctx.tclass.cl_path)))
+		| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
 	) cctx.delayed_expr
 
 let check_functional_interface ctx c =
@@ -1721,13 +1721,13 @@ let init_class ctx c p herits fields =
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = patch_class ctx c fields in
 	let fields = build_fields (ctx,cctx) c fields in
-	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c) "init_class";
+	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 	if not cctx.is_lib then begin
-		delay ctx PForce (fun() -> check_overloads ctx c) "check_overloads";
+		delay ctx PForce (fun() -> check_overloads ctx c);
 		begin match c.cl_super with
 		| Some(csup,tl) ->
 			if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
-				delay ctx PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx c csup tl) "check_abstract_class";
+				delay ctx PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx c csup tl);
 		| None ->
 			()
 		end
