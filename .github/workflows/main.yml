@@ -327,7 +327,7 @@ jobs:
       - name: Extract branch name
         id: extract_branch
         shell: bash
-        run: echo "branch={echo ${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
         run: |
@@ -960,7 +960,7 @@ jobs:
       - name: Extract branch name
         id: extract_branch
         shell: bash
-        run: echo "branch={echo ${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Upload binaries
         shell: bash
