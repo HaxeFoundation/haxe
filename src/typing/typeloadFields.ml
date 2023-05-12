@@ -917,7 +917,7 @@ module TypeBinding = struct
 						e
 					end in
 					e
-				| Var v when v.v_read = AccInline && ctx.g.doinline ->
+				| Var v when v.v_read = AccInline && (ctx.g.doinline || CallUnification.is_forced_inline (Some c) cf) ->
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
 						| KAbstractImpl a when has_class_field_flag cf CfEnum && a.a_enum ->
