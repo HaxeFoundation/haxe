@@ -455,6 +455,16 @@ let is_removable_field com f =
 			| _ -> false)
 	)
 
+let is_forced_inline c cf =
+	match c with
+	| Some { cl_kind = KAbstractImpl _ } -> true
+	| Some c when has_class_flag c CExtern -> true
+	| _ when has_class_field_flag cf CfExtern -> true
+	| _ -> false
+
+let needs_inline ctx c cf =
+	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
+
 (** checks if we can access to a given class field using current context *)
 let rec can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
