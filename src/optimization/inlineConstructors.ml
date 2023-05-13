@@ -213,7 +213,7 @@ let inline_constructors ctx original_e =
 			| TNew _, true ->
 				true, false
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				Inline.needs_inline ctx (has_class_flag c CExtern) cf, false
+				needs_inline ctx (Some c) cf, false
 			| _ -> false, false
 		in
 		is_ctor || Type.check_expr (check_for_ctors ~force_inline:is_meta_inline) e
@@ -238,7 +238,7 @@ let inline_constructors ctx original_e =
 			| TNew _, true ->
 				mark()
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				if Inline.needs_inline ctx (has_class_flag c CExtern) cf then mark()
+				if needs_inline ctx (Some c) cf then mark()
 				else e
 			| _ -> e
 	in
@@ -286,7 +286,7 @@ let inline_constructors ctx original_e =
 					let f = PMap.find fname ctor.ioc_class.cl_fields in
 					begin match f.cf_params, f.cf_kind, f.cf_expr with
 					| [], Method MethInline, Some({eexpr = TFunction tf}) ->
-						if Inline.needs_inline ctx (has_class_flag ctor.ioc_class CExtern) f then
+						if needs_inline ctx (Some ctor.ioc_class) f then
 							Some (ctor.ioc_class, ctor.ioc_tparams, f, tf)
 						else
 							None
