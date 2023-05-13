@@ -185,12 +185,30 @@ type compiler_message = {
 }
 
 let make_compiler_message ?(from_macro = false) msg p depth kind sev = {
-		cm_message = msg;
-		cm_pos = p;
-		cm_depth = depth;
-		cm_from_macro = from_macro;
-		cm_kind = kind;
-		cm_severity = sev;
+	cm_message = msg;
+	cm_pos = p;
+	cm_depth = depth;
+	cm_from_macro = from_macro;
+	cm_kind = kind;
+	cm_severity = sev;
+}
+
+type diagnostic = {
+	diag_message : string;
+	diag_code : string option;
+	diag_pos : pos;
+	diag_kind : MessageKind.t;
+	diag_severity : MessageSeverity.t;
+	diag_depth : int;
+}
+
+let make_diagnostic ?(depth = 0) ?(code = None) message pos kind sev = {
+	diag_message = message;
+	diag_pos = pos;
+	diag_code = code;
+	diag_kind = kind;
+	diag_severity = sev;
+	diag_depth = depth;
 }
 
 let i32_31 = Int32.of_int 31

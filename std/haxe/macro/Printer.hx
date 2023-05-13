@@ -457,8 +457,9 @@ class Printer {
 					add("EBinop " + printBinop(op));
 					loopI(e1);
 					loopI(e2);
-				case EField(e, field):
-					add("EField " + field);
+				case EField(e, field, kind):
+					if (kind == null) kind = Normal;
+					add('EField $field (${kind.getName()})');
 					loopI(e);
 				case EParenthesis(e):
 					add("EParenthesis");

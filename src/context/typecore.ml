@@ -66,8 +66,13 @@ type typer_module = {
 	mutable import_statements : import list;
 }
 
+type delay = {
+	delay_pass : typer_pass;
+	delay_functions : (unit -> unit) list;
+}
+
 type typer_globals = {
-	mutable delayed : (typer_pass * (unit -> unit) list) list;
+	mutable delayed : delay list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
@@ -380,27 +385,34 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
+let make_delay pass fl = {
+	delay_pass = pass;
+	delay_functions = fl;
+}
+
 let delay ctx p f =
 	let rec loop = function
-		| [] -> [p,[f]]
-		| (p2,l) :: rest ->
-			if p2 = p then
-				(p, f :: l) :: rest
-			else if p2 < p then
-				(p2,l) :: loop rest
+		| [] ->
+			[make_delay p [f]]
+		| delay :: rest ->
+			if delay.delay_pass = p then
+				(make_delay p (f :: delay.delay_functions)) :: rest
+			else if delay.delay_pass < p then
+				delay :: loop rest
 			else
-				(p,[f]) :: (p2,l) :: rest
+				(make_delay p [f]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
 let delay_late ctx p f =
 	let rec loop = function
-		| [] -> [p,[f]]
-		| (p2,l) :: rest ->
-			if p2 <= p then
-				(p2,l) :: loop rest
+		| [] ->
+			[make_delay p [f]]
+		| delay :: rest ->
+			if delay.delay_pass <= p then
+				delay :: loop rest
 			else
-				(p,[f]) :: (p2,l) :: rest
+				(make_delay p [f]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
@@ -412,12 +424,12 @@ let delay_if_mono ctx p t f = match follow t with
 
 let rec flush_pass ctx p (where:string) =
 	match ctx.g.delayed with
-	| (p2,l) :: rest when p2 <= p ->
-		(match l with
+	| delay :: rest when delay.delay_pass <= p ->
+		(match delay.delay_functions with
 		| [] ->
 			ctx.g.delayed <- rest;
 		| f :: l ->
-			ctx.g.delayed <- (p2,l) :: rest;
+			ctx.g.delayed <- (make_delay delay.delay_pass l) :: rest;
 			f());
 		flush_pass ctx p where
 	| _ ->

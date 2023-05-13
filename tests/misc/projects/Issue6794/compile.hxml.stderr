@@ -1,1 +1,1 @@
-[{"file":"$$normPath(::cwd::/,true)Main.hx","diagnostics":[{"kind":2,"severity":2,"range":{"start":{"line":13,"character":42},"end":{"line":13,"character":43}},"args":"foo","relatedInformation":[]}]}]
+[{"file":"$$normPath(::cwd::/,true)Main.hx","diagnostics":[{"kind":2,"severity":2,"range":{"start":{"line":13,"character":42},"end":{"line":13,"character":43}},"args":"foo","code":"WUser","relatedInformation":[]}]}]
