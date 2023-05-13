@@ -489,7 +489,7 @@ let is_forced_inline c cf =
 	| _ -> false
 
 let needs_inline ctx c cf =
-	cf.cf_kind = Method MethInline && ctx.allow_inline && (is_forced_inline c cf || ctx.g.doinline)
+	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
 
 (** checks if we can access to a given class field using current context *)
 let can_access ctx c cf stat =
