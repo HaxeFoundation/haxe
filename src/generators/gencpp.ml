@@ -4611,9 +4611,6 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                "::cpp::Struct<" ^ (tcpp_to_string tcpp) ^ ">"
             | _ -> "" in
 
-         output ("\t::Dynamic __Run(const Array< ::Dynamic>& inArgs) { " ^ return_string ^ " _hx_run(");
-         output (String.concat ", " (List.mapi (fun i (tvar, _) -> ((arg_callsite_prefix tvar.v_type) ^ "(inArgs[" ^ (string_of_int i) ^ "])")) function_def.tf_args));
-         output "); return null(); }\n";
 
          output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) function_def.tf_args)) ^ ")");
          output ("{" ^ return_string ^ " _hx_run(" ^ (String.concat ", " (List.mapi (fun i (tvar, _) -> ((arg_callsite_prefix tvar.v_type) ^ "(inArg" ^ (string_of_int i) ^ ")")) function_def.tf_args)) ^ "); return null(); }\n");
