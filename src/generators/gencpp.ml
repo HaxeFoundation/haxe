@@ -3451,7 +3451,7 @@ let cpp_gen_default_values ctx args prefix =
       match o with
       | Some {eexpr = TConst TNull} -> ()
       | Some const ->
-         let vtype = cpp_type_of ctx const.etype in
+         let vtype = cpp_type_of ctx tvar.v_type in
          let not_null = (type_has_meta_key tvar.v_type Meta.NotNull) || (is_cpp_scalar vtype) in
          let name = cpp_var_name_of tvar in
          let spacer = if (ctx.ctx_debug_level>0) then "            \t" else "" in
