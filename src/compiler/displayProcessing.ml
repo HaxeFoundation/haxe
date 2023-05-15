@@ -312,7 +312,6 @@ let process_global_display_mode com tctx =
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
-	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
 		let open CompilationCache in
 		let cs = com.cs in
