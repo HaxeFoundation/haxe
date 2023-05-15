@@ -296,6 +296,12 @@ let handler =
 				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
 				()
 			) ();
+			hctx.jsonrpc#get_opt_param (fun () ->
+				let b = hctx.jsonrpc#get_bool_param "populateCacheFromDisplay" in
+				ServerConfig.populate_cache_from_display := b;
+				l := jstring ("Compilation cache refill from display " ^ (if b then "enabled" else "disabled")) :: !l;
+				()
+			) ();
 			hctx.send_result (jarray !l)
 		);
 		"server/memory",(fun hctx ->
