@@ -4359,7 +4359,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       gen_with_injection (mk_injection prologue "" "") closure.close_expr true;
 
       output_i "int __Compare(const ::hx::Object* inRhs) const override {\n";
-      output_i ("\treturn dynamic_cast<const ::hx::Callable_obj< " ^ signature ^ ">*>(inRhs) ? 0 : -1;\n");
+      output_i ("\treturn dynamic_cast<const _hx_Closure_" ^ (string_of_int closure.close_id) ^ "*>(inRhs) ? 0 : -1;\n");
       output_i "}\n";
 
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
