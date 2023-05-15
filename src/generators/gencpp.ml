@@ -4578,7 +4578,11 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          end;
 
          output "\tint __Compare(const ::hx::Object* inRhs) const override {\n";
-         output ("\t\treturn dynamic_cast<const " ^ callable_name ^ "*>(inRhs) ? 0 : -1;\n");
+         output ("\t\tauto casted = dynamic_cast<const " ^ callable_name ^ "*>(inRhs);\n");
+         output "\t\tif (!casted) return -1;\n";
+         if captures_obj then
+            output "\t\tif (__this != casted->__this) return 1;\n";
+         output "\t\treturn 0;";
          output "\t}\n";
 
          output ("\t" ^ return_type_str ^ " HX_LOCAL_RUN(" ^ (ctx_callable_args ctx function_def.tf_args prefix) ^ ") override\n");
