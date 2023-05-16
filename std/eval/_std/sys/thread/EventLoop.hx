@@ -196,11 +196,8 @@ class EventLoop {
 
 		if (started && isMainThread) {
 			var next = @:privateAccess MainLoop.tick();
-			if (haxe.MainLoop.hasEvents()) {
-				wakeup.send();
-			} else {
-				refUnref();
-			}
+			if (haxe.MainLoop.hasEvents()) wakeup.send();
+			refUnref();
 		}
 	}
 }
