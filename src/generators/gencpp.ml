@@ -4615,9 +4615,6 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                "::cpp::Struct<" ^ (tcpp_to_string tcpp) ^ ">"
             | _ -> "" in
 
-         output ("\t::Dynamic __run(" ^ (String.concat "," (List.mapi (fun i _ -> ("const ::Dynamic& inArg" ^ (string_of_int i))) function_def.tf_args)) ^ ")");
-         output ("{" ^ return_string ^ " HX_LOCAL_RUN(" ^ (String.concat ", " (List.mapi (fun i (tvar, _) -> ((arg_callsite_prefix tvar.v_type) ^ "(inArg" ^ (string_of_int i) ^ ")")) function_def.tf_args)) ^ "); return null(); }\n");
-
          if captures_obj then begin
             output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
             output "#ifdef HXCPP_VISIT_ALLOCS\n";
