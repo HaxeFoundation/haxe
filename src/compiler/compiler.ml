@@ -351,7 +351,12 @@ let compile ctx actx callbacks =
 		end;
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
-		filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path);
+		if is_diagnostics com then
+			filter ctx tctx (fun () -> DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path)
+		else begin
+			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
+			filter ctx tctx (fun () -> ());
+		end;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
