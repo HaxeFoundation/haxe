@@ -178,7 +178,7 @@ let prepare com =
 	dctx
 
 let secure_generated_code ctx e =
-	mk (TMeta((Meta.CompilerGenerated,[],e.epos),e)) e.etype e.epos
+	if is_diagnostics ctx then mk (TMeta((Meta.CompilerGenerated,[],e.epos),e)) e.etype e.epos else e
 
 let print com =
 	let dctx = prepare com in
