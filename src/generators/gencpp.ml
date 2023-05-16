@@ -4865,9 +4865,10 @@ let gen_member_def ctx class_def is_static is_interface field =
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
          | _ when nativeGen  -> ()
-         | TFun (_,_) ->
+         | TFun (tArgs,tRet) ->
+            let type_string = "::hx::Callable<" ^ (tcpp_to_string (cpp_type_of ctx tRet)) ^ "(" ^ (ctx_tfun_arg_list ctx false tArgs) ^ ")> " in
             output (if is_static then "\t\tstatic " else "\t\t");
-            output ("Dynamic " ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
+            output (type_string ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
          | _ ->  (match field.cf_kind with
             | Var { v_read = AccCall } when (not is_static) && (is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def) ->
                output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
