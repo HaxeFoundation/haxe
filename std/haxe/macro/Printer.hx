@@ -385,8 +385,24 @@ class Printer {
 						case _: printComplexType(ct);
 					})
 					+ ";";
-				case TDAbstract(tthis, from, to):
-					"abstract "
+				case TDAbstract(tthis, tflags, from, to):
+					var from = from.copy();
+					var to = to.copy();
+					var isEnum = false;
+					var isExtern = false;
+
+					for (flag in tflags) {
+						switch (flag) {
+							case AbEnum: isEnum = true;
+							case AbExtern: isExtern = true;
+							case AbFrom(ct): from.push(ct);
+							case AbTo(ct): to.push(ct);
+						}
+					}
+
+					(!t.isExtern && isExtern ? "extern " : "")
+					+ (isEnum ? "enum " : "")
+					+ "abstract "
 					+ t.name
 					+ ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
 					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
