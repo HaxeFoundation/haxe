@@ -21,7 +21,6 @@ let resolve_source file l1 p1 l2 p2 =
 			end
 		in
 
-		try
 			let read_char line = match input_char_or_done ch line with
 				| '\n' -> inc 1 line
 				| '\r' ->
@@ -48,12 +47,11 @@ let resolve_source file l1 p1 l2 p2 =
 			in
 
 			let (delta, line) = read_char line in
+			(* Printf.printf "Loop %d %d: %s \n" delta p line; *)
 			loop (p + delta) line
-		with End_of_file ->
-			close_in ch;
 	in
 
-	loop 0 "";
+	try loop 0 ""; with End_of_file -> close_in ch;
 	List.rev !lines
 
 let resolve_file ctx f =
