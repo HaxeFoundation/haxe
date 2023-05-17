@@ -386,8 +386,8 @@ class Printer {
 					})
 					+ ";";
 				case TDAbstract(tthis, tflags, from, to):
-					var from = from.copy();
-					var to = to.copy();
+					var from = from == null ? [] : from.copy();
+					var to = to == null ? [] : to.copy();
 					var isEnum = false;
 
 					for (flag in tflags) {
@@ -403,8 +403,8 @@ class Printer {
 					+ t.name
 					+ ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
 					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
-					+ (from == null ? "" : [for (f in from) " from " + printComplexType(f)].join(""))
-					+ (to == null ? "" : [for (t in to) " to " + printComplexType(t)].join(""))
+					+ [for (f in from) " from " + printComplexType(f)].join("")
+					+ [for (f in to) " to " + printComplexType(f)].join("")
 					+ " {\n"
 					+ [
 						for (f in t.fields) {
