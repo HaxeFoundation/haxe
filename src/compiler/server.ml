@@ -121,39 +121,36 @@ module Communication = struct
 				end
 			in
 
-			try
-				let read_char line = match input_char_or_done ch line with
-					| '\n' -> inc 1 line
-					| '\r' ->
-						ignore(input_char_or_done ch line);
-						inc 2 line
-					| c -> begin
-						let line = ref (line ^ (String.make 1 c)) in
-						let rec skip n =
-							if n > 0 then begin
-								let c = input_char_or_done ch !line in
-								line := !line ^ (String.make 1 c);
-								skip (n - 1)
-							end
-						in
+			let read_char line = match input_char_or_done ch line with
+				| '\n' -> inc 1 line
+				| '\r' ->
+					ignore(input_char_or_done ch line);
+					inc 2 line
+				| c -> begin
+					let line = ref (line ^ (String.make 1 c)) in
+					let rec skip n =
+						if n > 0 then begin
+							let c = input_char_or_done ch !line in
+							line := !line ^ (String.make 1 c);
+							skip (n - 1)
+						end
+					in
 
-						let code = int_of_char c in
-						if code < 0xC0 then ()
-						else if code < 0xE0 then skip 1
-						else if code < 0xF0 then skip 2
-						else skip 3;
+					let code = int_of_char c in
+					if code < 0xC0 then ()
+					else if code < 0xE0 then skip 1
+					else if code < 0xF0 then skip 2
+					else skip 3;
 
-						(1, !line)
-					end
-				in
+					(1, !line)
+				end
+			in
 
-				let (delta, line) = read_char line in
-				loop (p + delta) line
-			with End_of_file ->
-				close_in ch;
+			let (delta, line) = read_char line in
+			loop (p + delta) line
 		in
 
-		loop 0 "";
+		try loop 0 ""; with End_of_file -> close_in ch;
 		List.rev !lines
 
 	let resolve_file ctx f =
