@@ -233,7 +233,6 @@ module DisplayMode = struct
 		| DMDefault | DMDefinition | DMTypeDefinition | DMPackage | DMHover | DMSignature -> settings
 		| DMUsage _ | DMImplementation -> { settings with
 				dms_full_typing = true;
-				dms_populate_cache = !ServerConfig.populate_cache_from_display;
 				dms_force_macro_typing = true;
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false

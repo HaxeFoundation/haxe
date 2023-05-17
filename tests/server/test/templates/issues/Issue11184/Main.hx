@@ -1,6 +1,6 @@
 class Main {
 	static function main() {
-		function fo{-1-}o():Void {}
+		function foo():Void {}
 		final arr = [foo()];
 	}
 }
