@@ -88,7 +88,7 @@ module BinopResult = struct
 		| BinopSpecial(_,needs_assign) -> needs_assign
 end
 
-let check_assign ctx e =
+let rec check_assign ctx e =
 	match e.eexpr with
 	| TLocal v when has_var_flag v VFinal && not (Common.ignore_error ctx.com) ->
 		raise_typing_error "Cannot assign to final" e.epos
@@ -96,6 +96,8 @@ let check_assign ctx e =
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
+	| TMeta ((Meta.CompilerGenerated,_,_),e1) ->
+		check_assign ctx e1
 	| _ ->
 		if not (Common.ignore_error ctx.com) then
 			invalid_assign e.epos
