@@ -1,5 +1,24 @@
 open Globals
 open CompilationContext
+open TType
+
+let test_hxb com m =
+	if m.m_extra.m_kind = MCode then begin
+		let ch = IO.output_bytes() in
+		let anon_identification = new Genshared.tanon_identification ([],"") in
+		let writer = new HxbWriter.hxb_writer anon_identification (* cp *) in
+		writer#write_module m;
+		let bytes_module = IO.close_out ch in
+		let ch = IO.output_bytes() in
+		writer#export ch;
+		let bytes_cp = IO.close_out ch in
+		let path = m.m_path in
+		let l = ((Common.dump_path com) :: "hxb" :: (Common.platform_name_macro com) :: fst path @ [snd path]) in
+		let ch_file = Path.create_file true ".hxb" [] l in
+		output_bytes ch_file bytes_cp;
+		output_bytes ch_file bytes_module;
+		close_out ch_file
+	end
 
 let check_auxiliary_output com actx =
 	begin match actx.xml_out with
@@ -17,8 +36,17 @@ let check_auxiliary_output com actx =
 			Common.log com ("Generating json : " ^ file);
 			Path.mkdir_from_path file;
 			Genjson.generate com.types file
+	end;
+	begin match actx.hxb_out with
+		| None -> ()
+		| Some file ->
+				Common.log com ("Generating hxb : " ^ file);
+				Path.mkdir_from_path file;
+				let t = Timer.timer ["generate";"hxb"] in
+				(* HxbWriter.write com file; *)
+				List.iter (test_hxb com) com.modules;
+				t();
 	end
-
 
 let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
 		| [width; height; fps] ->
