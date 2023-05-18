@@ -797,6 +797,38 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
+let load_hxb_module ctx path p =
+	let l = ((Common.dump_path ctx.com) :: "hxb" :: (Common.platform_name_macro ctx.com) :: fst path @ [snd path]) in
+	let filepath = (List.fold_left (fun acc s -> acc ^ "/" ^ s) "." l) ^ ".hxb" in
+	Printf.printf "Looking for %s...\n" filepath;
+
+	let ch = try open_in_bin filepath with Sys_error _ -> raise Not_found in
+	Printf.printf "Found hxb file, loading %s.\n" (snd path);
+	let input = IO.input_channel ch in
+
+	let make_module path file = ModuleLevel.make_module ctx path file p in
+
+	(* TODO rework? *)
+	let add_module m =
+		Printf.printf "  Add module %s\n" (snd m.m_path);
+		ctx.com.module_lut#add m.m_path m
+	in
+
+	(* TODO rework *)
+	let resolve_type pack mname tname =
+		Printf.printf "  Resolve type %s\n" tname;
+		let m = ctx.com.module_lut#find (pack,mname) in
+		List.find (fun t -> snd (t_path t) = tname) m.m_types;
+		(* load_type ctx (pack,mname) tname p *)
+	in
+
+	(* TODO store reader somewhere *)
+	let reader = new HxbReader.hxb_reader input make_module add_module resolve_type in
+	let m = reader#read true p in
+	close_in ch;
+	Printf.printf "Done loading %s\n" (snd m.m_path);
+	m
+
 let load_module' ctx g m p =
 	try
 		(* Check current context *)
@@ -806,7 +838,7 @@ let load_module' ctx g m p =
 		match !type_module_hook ctx m p with
 		| Some m ->
 			m
-		| None ->
+		| None -> try load_hxb_module ctx m p with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
