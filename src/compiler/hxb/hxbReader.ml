@@ -455,10 +455,11 @@ class hxb_reader
 		m
 
 	method read (debug : bool) (p : pos) =
-		if (Bytes.to_string (IO.nread ch 3)) <> "hxb" then
-			raise (HxbFailure "magic");
-		let version = self#read_u8 in
-		ignore(version);
+		(* TODO: add it to writer! *)
+		(* if (Bytes.to_string (IO.nread ch 3)) <> "hxb" then *)
+		(* 	raise (HxbFailure "magic"); *)
+		(* let version = self#read_u8 in *)
+		(* ignore(version); *)
 		let rec loop acc =
 			ch <- file_ch;
 			let chunk = self#read_chunk in
