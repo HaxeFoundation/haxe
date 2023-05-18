@@ -13,6 +13,7 @@ let test_hxb com m =
 		writer#export ch;
 		let bytes_cp = IO.close_out ch in
 		let path = m.m_path in
+		(* TODO use actual hxb output path *)
 		let l = ((Common.dump_path com) :: "hxb" :: (Common.platform_name_macro com) :: fst path @ [snd path]) in
 		let ch_file = Path.create_file true ".hxb" [] l in
 		output_bytes ch_file bytes_cp;
