@@ -46,6 +46,7 @@ let parse_args com =
 	let actx = {
 		classes = [([],"Std")];
 		xml_out = None;
+		hxb_out = None;
 		json_out = None;
 		cmds = [];
 		config_macros = [];
@@ -120,14 +121,26 @@ let parse_args com =
 		("Target",["--run"],[], Arg.Unit (fun() ->
 			raise (Arg.Bad "--run requires an argument: a Haxe module name")
 		), "<module> [args...]","interpret a Haxe module with command line arguments");
+		("Target",["--hxb"],[], Arg.String (fun file ->
+			actx.hxb_out <- Some file;
+		),"<file>", "generate haxe binary as target file");
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path>","add a directory to find source files");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
-			let cpath = Path.parse_type_path cl in
-			com.main_class <- Some cpath;
-			actx.classes <- cpath :: actx.classes
+			begin match Path.file_extension cl with
+			| "hxb" ->
+				actx.pre_compilation <- (fun () ->
+					(* TODO: update hxb runner *)
+					(* HxbRunner.run com cl; *)
+					actx.did_something <- true
+				) :: actx.pre_compilation;
+			| _ ->
+				let cpath = Path.parse_type_path cl in
+				com.main_class <- Some cpath;
+				actx.classes <- cpath :: actx.classes
+			end
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->

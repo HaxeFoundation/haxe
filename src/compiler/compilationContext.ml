@@ -10,6 +10,7 @@ type server_mode =
 type arg_context = {
 	mutable classes : Globals.path list;
 	mutable xml_out : string option;
+	mutable hxb_out : string option;
 	mutable json_out : string option;
 	mutable cmds : string list;
 	mutable config_macros : string list;
