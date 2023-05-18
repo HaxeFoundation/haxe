@@ -1,2 +1,2 @@
-Main.hx:7: characters 3-9 : Cannot add module level fields for module Test
-Test.hx:1: character 1 : Previously defined here
+Main.hx:9: characters 16-27 : Cannot add module level fields for module Test
+Test.hx:3: character 1 : Previously defined here

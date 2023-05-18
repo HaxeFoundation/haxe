@@ -1,6 +1,7 @@
-class Main {
+class Main2 {
 	static function main() {
-		Test.foo();
+		// Works fine if Test wasn't loaded
+		// Note that types/fields declared in Test.hx will become unusable
 		test();
 	}
 
