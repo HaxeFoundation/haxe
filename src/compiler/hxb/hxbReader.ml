@@ -113,7 +113,7 @@ class hxb_reader
 		let name = self#read_string in
 		(* TODO: el *)
 		let p = self#read_pos in
-		(Meta.parse name,[],p)
+		(Meta.from_string name,[],p)
 
 	method read_metadata =
 		self#read_list (fun () -> self#read_metadata_entry)
