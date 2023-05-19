@@ -809,21 +809,13 @@ let rec load_hxb_module ctx path p =
 
 	let l = ((Common.dump_path ctx.com) :: "hxb" :: (Common.platform_name_macro ctx.com) :: fst path @ [snd path]) in
 	let filepath = (List.fold_left (fun acc s -> acc ^ "/" ^ s) "." l) ^ ".hxb" in
-	Printf.eprintf "Looking for %s...\n" filepath;
-
 	let ch = try open_in_bin filepath with Sys_error _ -> raise Not_found in
-	Printf.eprintf "Found hxb file, loading %s.\n" (snd path);
 	let input = IO.input_channel ch in
 
 	let make_module path file = ModuleLevel.make_module ctx path file p in
-
-	let add_module m =
-		Printf.eprintf "  Add module %s\n" (snd m.m_path);
-		ctx.com.module_lut#add m.m_path m
-	in
+	let add_module m = ctx.com.module_lut#add m.m_path m in
 
 	let resolve_type pack mname tname =
-		Printf.eprintf "  Resolve type %s\n" tname;
 		let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types;
 	in
@@ -832,7 +824,7 @@ let rec load_hxb_module ctx path p =
 	let reader = new HxbReader.hxb_reader input make_module add_module resolve_type in
 	let m = reader#read true p in
 	close_in ch;
-	Printf.eprintf "Done loading %s\n" (snd m.m_path);
+	Printf.eprintf "Loaded %s from %s\n" (snd m.m_path) filepath;
 	m
 
 and load_module' ctx g m p =
