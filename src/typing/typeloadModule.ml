@@ -797,39 +797,45 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let load_hxb_module ctx path p =
+let rec load_hxb_module ctx path p =
+	(* Modules failing to load so far *)
+	match snd path with
+	(* | "ArrayIterattnameor" *)
+	(* | "ArrayKeyValueIterator" *)
+	(* | "StdTypes" *)
+	| "Any"
+		-> raise Not_found
+	| _ -> ();
+
 	let l = ((Common.dump_path ctx.com) :: "hxb" :: (Common.platform_name_macro ctx.com) :: fst path @ [snd path]) in
 	let filepath = (List.fold_left (fun acc s -> acc ^ "/" ^ s) "." l) ^ ".hxb" in
-	Printf.printf "Looking for %s...\n" filepath;
+	Printf.eprintf "Looking for %s...\n" filepath;
 
 	let ch = try open_in_bin filepath with Sys_error _ -> raise Not_found in
-	Printf.printf "Found hxb file, loading %s.\n" (snd path);
+	Printf.eprintf "Found hxb file, loading %s.\n" (snd path);
 	let input = IO.input_channel ch in
 
 	let make_module path file = ModuleLevel.make_module ctx path file p in
 
-	(* TODO rework? *)
 	let add_module m =
-		Printf.printf "  Add module %s\n" (snd m.m_path);
+		Printf.eprintf "  Add module %s\n" (snd m.m_path);
 		ctx.com.module_lut#add m.m_path m
 	in
 
-	(* TODO rework *)
 	let resolve_type pack mname tname =
-		Printf.printf "  Resolve type %s\n" tname;
-		let m = ctx.com.module_lut#find (pack,mname) in
+		Printf.eprintf "  Resolve type %s\n" tname;
+		let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types;
-		(* load_type ctx (pack,mname) tname p *)
 	in
 
 	(* TODO store reader somewhere *)
 	let reader = new HxbReader.hxb_reader input make_module add_module resolve_type in
 	let m = reader#read true p in
 	close_in ch;
-	Printf.printf "Done loading %s\n" (snd m.m_path);
+	Printf.eprintf "Done loading %s\n" (snd m.m_path);
 	m
 
-let load_module' ctx g m p =
+and load_module' ctx g m p =
 	try
 		(* Check current context *)
 		ctx.com.module_lut#find m
