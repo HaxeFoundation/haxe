@@ -26,8 +26,15 @@
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && cygcheck ./haxelib.exe')
     & "$($env:CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && ls ./out')
 
+- name: Check artifact
+  shell: bash
+  run: |
+    ls out
+    # Output should contain binaries zip, installer zip and nupkg
+    [ $(ls -1 out | wc -l) -eq "3" ]
+
 - name: Upload artifact
-  uses: actions/upload-artifact@v1.0.0
+  uses: actions/upload-artifact@v3
   with:
     name: win${{env.ARCH}}Binaries
     path: out

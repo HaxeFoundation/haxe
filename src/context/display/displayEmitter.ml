@@ -6,7 +6,6 @@ open DisplayException
 open DisplayTypes
 open DisplayMode
 open CompletionItem
-open CompletionType
 open ClassFieldOrigin
 open DisplayTypes.CompletionResultKind
 open Common

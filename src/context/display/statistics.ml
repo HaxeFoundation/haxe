@@ -1,11 +1,8 @@
 open Globals
-open Ast
 open Type
 open Common
 open Typecore
 open DisplayTypes
-
-open ImportHandling
 
 type relation =
 	| Implemented

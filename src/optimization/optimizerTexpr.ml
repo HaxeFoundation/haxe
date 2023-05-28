@@ -43,7 +43,7 @@ let is_read_only_field_access e fa = match fa with
 
 let create_affection_checker () =
 	let modified_locals = Hashtbl.create 0 in
-	let rec might_be_affected e =
+	let might_be_affected e =
 		let rec loop e = match e.eexpr with
 			| TConst _ | TFunction _ | TTypeExpr _ -> ()
 			| TLocal v when has_var_flag v VCaptured -> raise Exit

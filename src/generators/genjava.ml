@@ -18,12 +18,9 @@
  *)
 open Extlib_leftovers
 open Globals
-open JData
-open Unix
 open Ast
 open Common
 open Type
-open Codegen
 open Gencommon
 open Gencommon.SourceWriter
 open Printf
@@ -366,8 +363,8 @@ struct
 			| TMeta ((Meta.LoopLabel,_,_), { eexpr = TBreak }) -> true
 			| TParenthesis p | TMeta (_,p) -> is_final_return_expr p
 			| TBlock bl -> is_final_return_block is_switch bl
-			| TSwitch (_, el_e_l, edef) ->
-				List.for_all (fun (_,e) -> is_final_return_expr e) el_e_l && Option.map_default is_final_return_expr false edef
+			| TSwitch switch ->
+				List.for_all (fun case -> is_final_return_expr case.case_expr) switch.switch_cases && Option.map_default is_final_return_expr false switch.switch_default
 			| TIf (_,eif, Some eelse) ->
 				is_final_return_expr eif && is_final_return_expr eelse
 			| TFor (_,_,e) ->
@@ -486,7 +483,7 @@ struct
 		let rec reorder_cases unordered ordered =
 			match unordered with
 				| [] -> ordered
-				| (el, e) :: tl ->
+				| {case_patterns = el;case_expr = e} :: tl ->
 					let current = Hashtbl.create 1 in
 					List.iter (fun e ->
 						let str = get_str e in
@@ -497,21 +494,21 @@ struct
 					let rec extract_fields cases found_cases ret_cases =
 						match cases with
 							| [] -> found_cases, ret_cases
-							| (el, e) :: tl ->
+							| {case_patterns = el;case_expr = e}  :: tl ->
 								if List.exists (fun e -> Hashtbl.mem current (java_hash (get_str e)) ) el then begin
 									has_conflict := true;
 									List.iter (fun e -> Hashtbl.add current (java_hash (get_str e)) true) el;
-									extract_fields tl ( (el, e) :: found_cases ) ret_cases
+									extract_fields tl ( {case_patterns = el;case_expr = e}  :: found_cases ) ret_cases
 								end else
-									extract_fields tl found_cases ( (el, e) :: ret_cases )
+									extract_fields tl found_cases ( {case_patterns = el;case_expr = e}  :: ret_cases )
 					in
 					let found, remaining = extract_fields tl [] [] in
 					let ret = if found <> [] then
-						let ret = List.sort (fun (e1,_) (e2,_) -> compare (List.length e2) (List.length e1) ) ( (el, e) :: found ) in
+						let ret = List.sort (fun case1 case2 -> compare (List.length case2.case_patterns) (List.length case1.case_patterns) ) ( {case_patterns = el;case_expr = e} :: found ) in
 						let rec loop ret acc =
 							match ret with
-								| (el, e) :: ( (_,_) :: _ as tl ) -> loop tl ( (true, el, e) :: acc )
-								| (el, e) :: [] -> ( (false, el, e) :: acc )
+								| {case_patterns = el;case_expr = e}  :: ( _ :: _ as tl ) -> loop tl ( (true, el, e) :: acc )
+								| {case_patterns = el;case_expr = e}  :: [] -> ( (false, el, e) :: acc )
 								| _ -> die "" __LOC__
 						in
 						List.rev (loop ret [])
@@ -574,13 +571,14 @@ struct
 
 			let e = if has_fallback then { e with eexpr = TBlock([ e; mk (TIdent "__fallback__") t_dynamic e.epos]) } else e in
 
-			(el, e)
+			{case_patterns = el;case_expr = e}
 		in
 
 		let is_not_null_check = mk (TBinop (OpNotEq, local, { local with eexpr = TConst TNull })) basic.tbool local.epos in
 		let if_not_null e = { e with eexpr = TIf (is_not_null_check, e, None) } in
+		let switch = mk_switch !local_hashcode (List.map change_case (reorder_cases ecases [])) None false (* idk *) in
 		let switch = if_not_null { eswitch with
-			eexpr = TSwitch(!local_hashcode, List.map change_case (reorder_cases ecases []), None);
+			eexpr = TSwitch switch;
 		} in
 		(if !has_case then begin
 			(if has_default then block := { e1 with eexpr = TVar(execute_def_var, Some({ e1 with eexpr = TConst(TBool true); etype = basic.tbool })); etype = basic.tvoid } :: !block);
@@ -818,9 +816,9 @@ struct
 				| TCast(expr, _) when is_string e.etype ->
 					{ e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
 
-				| TSwitch(cond, ecases, edefault) when is_string cond.etype ->
+				| TSwitch switch when is_string switch.switch_subject.etype ->
 					(*let change_string_switch gen eswitch e1 ecases edefault =*)
-					change_string_switch gen e (run cond) (List.map (fun (el,e) -> (el, run e)) ecases) (Option.map run edefault)
+					change_string_switch gen e (run switch.switch_subject) (List.map (fun case -> {case with case_expr = run case.case_expr}) switch.switch_cases) (Option.map run switch.switch_default)
 
 				| TBinop( (Ast.OpNotEq as op), e1, e2)
 				| TBinop( (Ast.OpEq as op), e1, e2) when not (is_null e2 || is_null e1) && (is_string e1.etype || is_string e2.etype || is_equatable gen e1.etype || is_equatable gen e2.etype) ->
@@ -1054,7 +1052,7 @@ let generate con =
 		String.map (function | '$' -> '.' | c -> c) name
 	in
 	let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
-	let rec change_ns ns = match ns with
+	let change_ns ns = match ns with
 		| [] -> ["haxe"; "root"]
 		| _ -> List.map change_id ns
 	in
@@ -1373,7 +1371,7 @@ let generate con =
 
 	let in_value = ref false in
 
-	let rec md_s pos md =
+	let md_s pos md =
 		let md = follow_module (gen.gfollow#run_f) md in
 		match md with
 			| TClassDecl (cl) ->
@@ -1744,11 +1742,11 @@ let generate con =
 							in_value := true;
 							expr_s w (mk_paren econd);
 					)
-				| TSwitch (econd, ele_l, default) ->
+				| TSwitch switch ->
 					write w "switch ";
-					expr_s w (mk_paren econd);
+					expr_s w (mk_paren switch.switch_subject);
 					begin_block w;
-					List.iter (fun (el, e) ->
+					List.iter (fun {case_patterns = el;case_expr = e}  ->
 						List.iter (fun e ->
 							write w "case ";
 							in_value := true;
@@ -1765,12 +1763,12 @@ let generate con =
 						expr_s w (mk_block e);
 						newline w;
 						newline w
-					) ele_l;
-					if is_some default then begin
+					) switch.switch_cases;
+					if is_some switch.switch_default then begin
 						write w "default:";
 						newline w;
 						in_value := false;
-						expr_s w (get default);
+						expr_s w (get switch.switch_default);
 						newline w;
 					end;
 					end_block w
@@ -2623,14 +2621,14 @@ let generate con =
 
 	SwitchToIf.configure gen (fun e ->
 		match e.eexpr with
-			| TSwitch(cond, cases, def) ->
-				(match gen.gfollow#run_f cond.etype with
+			| TSwitch switch ->
+				(match gen.gfollow#run_f switch.switch_subject.etype with
 					| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 					| TAbstract ({ a_path = ([], "Int") },[])
 					| TInst({ cl_path = ([], "String") },[]) ->
-						(List.exists (fun (c,_) ->
-							List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
-						) cases)
+						(List.exists (fun case ->
+							List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) case.case_patterns
+						) switch.switch_cases)
 					| _ -> true
 				)
 			| _ -> die "" __LOC__

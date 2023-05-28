@@ -23,8 +23,6 @@ open Globals
 open Ast
 open Type
 open Typecore
-open DisplayTypes.DisplayMode
-open DisplayException
 open Common
 open Error
 open FunctionArguments

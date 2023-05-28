@@ -267,7 +267,7 @@ let mark_mt dce mt = match mt with
 		()
 
 (* find all dependent fields by checking implementing/subclassing types *)
-let rec mark_dependent_fields dce csup n stat =
+let mark_dependent_fields dce csup n stat =
 	let rec loop c =
 		(try
 			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in

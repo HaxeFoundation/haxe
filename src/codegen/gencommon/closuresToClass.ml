@@ -19,7 +19,6 @@
 open Option
 open Common
 open Globals
-open Codegen
 open Texpr.Builder
 open Ast
 open Type
@@ -1080,7 +1079,7 @@ struct
 			let cl = parent_func_class in
 			let pos = cl.cl_pos in
 
-			let rec mk_dyn_call arity api =
+			let mk_dyn_call arity api =
 				let zero = make_float gen.gcon.basic "0.0" pos in
 				let rec loop i acc =
 					if i = 0 then
@@ -1099,7 +1098,10 @@ struct
 			let mk_invoke_switch i api =
 				let t = TFun (func_sig_i i, t_dynamic) in
 				(* case i: return this.invokeX_o(0, 0, 0, 0, 0, ... arg[0], args[1]....); *)
-				[make_int gen.gcon.basic i pos], mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				{
+					case_patterns = [make_int gen.gcon.basic i pos];
+					case_expr = mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				}
 			in
 			let rec loop_cases api arity acc =
 				if arity < 0 then
@@ -1148,11 +1150,9 @@ struct
 						epos = pos;
 					} in
 
+					let switch = mk_switch switch_cond (loop_cases api !max_arity []) (Some(make_throw (mk_arg_exception "Too many arguments" pos) pos)) true in
 					{
-						eexpr = TSwitch(
-							switch_cond,
-							loop_cases api !max_arity [],
-							Some(make_throw (mk_arg_exception "Too many arguments" pos) pos));
+						eexpr = TSwitch switch;
 						etype = basic.tvoid;
 						epos = pos;
 					}

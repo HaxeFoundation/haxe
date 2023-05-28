@@ -182,6 +182,17 @@ class Compiler {
 	}
 
 	/**
+		Sets the target configuration.
+
+		Usage of this function outside a macro context does nothing.
+	**/
+	public static function setPlatformConfiguration(config:PlatformConfig):Void {
+		#if (neko || eval)
+		load("set_platform_configuration", 1)(config);
+		#end
+	}
+
+	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 
 		Usage of this function outside of initialization macros is deprecated and may cause compilation server issues.
@@ -720,7 +731,7 @@ typedef CompilerConfiguration = {
 	/**
 		The target platform.
 	**/
-	final platform:haxe.display.Display.Platform;
+	final platform:Platform;
 
 	/**
 		The compilation configuration for the target platform.
@@ -743,6 +754,22 @@ typedef CompilerConfiguration = {
 		For example, the "java" package is "Forbidden" when the target platform is Python.
 	**/
 	final packageRules:Map<String, PackageRule>;
+}
+
+enum Platform {
+	Cross;
+	Js;
+	Lua;
+	Neko;
+	Flash;
+	Php;
+	Cpp;
+	Cs;
+	Java;
+	Python;
+	Hl;
+	Eval;
+	CustomTarget(name:String);
 }
 
 enum PackageRule {

@@ -150,7 +150,6 @@ let resolve_module_file com m remap p =
 
 module ConditionDisplay = struct
 	open ParserEntry
-	open CompletionItem.CompletionType
 	open DisplayPosition
 
 	exception Result of expr

@@ -19,7 +19,6 @@
 open Extlib_leftovers
 open Ast
 open DisplayTypes.DisplayMode
-open DisplayException
 open DisplayTypes.CompletionResultKind
 open CompletionItem.ClassFieldOrigin
 open Common
@@ -400,7 +399,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		| None -> raise Not_found
 		| Some c ->
 			let f = PMap.find i c.cl_statics in
-			let e = type_module_type ctx (TClassDecl c) None p in
+			let e = type_module_type ctx (TClassDecl c) p in
 			field_access ctx mode f (FHStatic c) e p
 		)
 	with Not_found -> try
@@ -423,7 +422,7 @@ let rec type_ident_raise ctx i p mode with_type =
 						if not (has_class_field_flag cf CfEnum) then
 							loop l
 						else begin
-							let et = type_module_type ctx (TClassDecl c) None p in
+							let et = type_module_type ctx (TClassDecl c) p in
 							let inline = match cf.cf_kind with
 								| Var {v_read = AccInline} -> true
 								|  _ -> false
@@ -445,7 +444,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				| TEnumDecl e ->
 					try
 						let ef = PMap.find i e.e_constrs in
-						let et = type_module_type ctx t None p in
+						let et = type_module_type ctx t p in
 						ImportHandling.mark_import_position ctx pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
 					with
@@ -456,7 +455,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
 		ImportHandling.mark_import_position ctx pi;
-		let e = type_module_type ctx t None p in
+		let e = type_module_type ctx t p in
 		type_field_default_cfg ctx e name p mode with_type
 
 and type_ident ctx i p mode with_type =
@@ -474,7 +473,7 @@ and type_ident ctx i p mode with_type =
 			resolved_to_type_parameter := true;
 			let c = match follow (extract_param_type t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
-				let e = type_module_type ctx (TClassDecl c) None p in
+				let e = type_module_type ctx (TClassDecl c) p in
 				AKExpr {e with etype = (extract_param_type t)}
 			end else
 				raise Not_found
@@ -927,7 +926,7 @@ and type_object_decl ctx fl with_type p =
 		t, fl
 	in
 	let type_plain_fields () =
-		let rec loop (l,acc) ((f,pf,qs),e) =
+		let loop (l,acc) ((f,pf,qs),e) =
 			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then raise_typing_error ("Duplicate field in object declaration : " ^ f) pf;
 			let e = type_expr ctx e (WithType.named_structure_field f) in
@@ -1124,7 +1123,7 @@ and type_new ctx path el with_type force_inline p =
 		raise_typing_error (s_type (print_context()) t ^ " cannot be constructed") p
 	end with Error ({ err_message = No_constructor _ } as err) when ctx.com.display.dms_kind <> DMNone ->
 		display_error_ext ctx.com err;
-		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
+		Diagnostics.secure_generated_code ctx.com (mk (TConst TNull) t p)
 
 and type_try ctx e1 catches with_type p =
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
@@ -1267,7 +1266,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let cf = PMap.find "set" c.cl_statics in
 	let v = gen_local ctx tmap p in
 	let ev = mk (TLocal v) tmap p in
-	let ec = type_module_type ctx (TClassDecl c) None p in
+	let ec = type_module_type ctx (TClassDecl c) p in
 	let ef = mk (TField(ec,FStatic(c,cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
 	let el = ev :: List.map2 (fun e1 e2 -> (make_call ctx ef [ev;e1;e2] ctx.com.basic.tvoid p)) el_k el_v in
 	let enew = mk (TNew(c,[tkey;tval],[])) tmap p in
@@ -1791,7 +1790,7 @@ and type_call_builtin ctx e el mode with_type p =
 		| _ ->
 			let e = type_expr ctx e WithType.value in
 			warning ctx WInfo (s_type (print_context()) e.etype) e.epos;
-			let e = Diagnostics.secure_generated_code ctx e in
+			let e = Diagnostics.secure_generated_code ctx.com e in
 			e
 		end
 	| (EField(e,"match",efk_todo),p), [epat] ->
@@ -2056,7 +2055,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			let mt = Typeload.load_type_def ctx p_t tp in
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
 				DisplayEmitter.display_module_type ctx mt p_t;
-			let e_t = type_module_type ctx mt None p_t in
+			let e_t = type_module_type ctx mt p_t in
 			let e_Std_isOfType =
 				match Typeload.load_type_raise ctx ([],"Std") "Std" p with
 				| TClassDecl c ->
@@ -2075,7 +2074,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
 
-let rec create com =
+let create com =
 	let ctx = {
 		com = com;
 		t = com.basic;
@@ -2219,4 +2218,5 @@ make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
 type_block_ref := type_block;
-create_context_ref := create
+create_context_ref := create;
+type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> type_expr ~mode ctx e with_type);

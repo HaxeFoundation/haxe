@@ -32,14 +32,13 @@
     make && make install
     cd ..
 
-
 - name: Install OCaml libraries
   if: steps.cache-opam.outputs.cache-hit != 'true'
   run: |
     set -ex
     opam init # --disable-sandboxing
     opam update
-    opam switch create 4.07.1
+    opam switch create 4.08.1
     eval $(opam env)
     opam env
     opam pin add ctypes 0.17.1 --yes
@@ -64,7 +63,7 @@
     otool -L ./haxelib
 
 - name: Upload artifact
-  uses: actions/upload-artifact@v1.0.0
+  uses: actions/upload-artifact@v3
   with:
     name: macBinaries
     path: out

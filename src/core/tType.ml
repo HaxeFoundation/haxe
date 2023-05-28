@@ -177,7 +177,7 @@ and texpr_expr =
 	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
-	| TSwitch of texpr * (texpr list * texpr) list * texpr option
+	| TSwitch of tswitch
 	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -188,6 +188,18 @@ and texpr_expr =
 	| TEnumParameter of texpr * tenum_field * int
 	| TEnumIndex of texpr
 	| TIdent of string
+
+and tswitch = {
+	switch_subject : texpr;
+	switch_cases : switch_case list;
+	switch_default: texpr option;
+	switch_exhaustive : bool;
+}
+
+and switch_case = {
+	case_patterns : texpr list;
+	case_expr : texpr;
+}
 
 and tfield_access =
 	| FInstance of tclass * tparams * tclass_field
@@ -446,3 +458,7 @@ type flag_tvar =
 	| VAssigned
 	| VCaught
 	| VStatic
+
+let flag_tvar_names = [
+	"VCaptured";"VFinal";"VUsed";"VAssigned";"VCaught";"VStatic"
+]

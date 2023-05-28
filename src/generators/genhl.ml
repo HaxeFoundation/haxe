@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 open Extlib_leftovers
-open Unix
 open Globals
 open Ast
 open Type
@@ -2733,12 +2732,12 @@ and eval_expr ctx e =
 		eval_expr ctx e
 	| TFor (v,it,loop) ->
 		eval_expr ctx (Texpr.for_remap ctx.com.basic v it loop e.epos)
-	| TSwitch (en,cases,def) ->
+	| TSwitch {switch_subject = en;switch_cases = cases;switch_default = def} ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in
 		(try
 			let max = ref (-1) in
-			let rec get_int e =
+			let get_int e =
 				match e.eexpr with
 				| TConst (TInt i) ->
 					let v = Int32.to_int i in
@@ -2747,12 +2746,12 @@ and eval_expr ctx e =
 				| _ ->
 					raise Exit
 			in
-			List.iter (fun (values,_) ->
+			List.iter (fun case ->
 				List.iter (fun v ->
 					let i = get_int v in
 					if i < 0 then raise Exit;
 					if i > !max then max := i;
-				) values;
+				) case.case_patterns;
 			) cases;
 			if !max > 255 || cases = [] then raise Exit;
 			let ridx = eval_to ctx en HI32 in
@@ -2766,7 +2765,7 @@ and eval_expr ctx e =
 				let re = eval_to ctx e rt in
 				if rt <> HVoid then op ctx (OMov (r,re)));
 			let jends = ref [jump ctx (fun i -> OJAlways i)] in
-			List.iter (fun (values,ecase) ->
+			List.iter (fun {case_patterns = values;case_expr = ecase} ->
 				List.iter (fun v ->
 					Array.set indexes (get_int v) (current_pos ctx - switch_pos)
 				) values;
@@ -2779,7 +2778,7 @@ and eval_expr ctx e =
 		with Exit ->
 			let jends = ref [] in
 			let rvalue = eval_expr ctx en in
-			let loop (cases,e) =
+			let loop {case_patterns = cases;case_expr = e} =
 				hold ctx rvalue;
 				let ok = List.map (fun c ->
 					let ct = common_type ctx en c true c.epos in
@@ -3345,7 +3344,7 @@ let generate_static ctx c f =
 		loop f.cf_meta
 
 
-let rec generate_member ctx c f =
+let generate_member ctx c f =
 	match f.cf_kind with
 	| Var _ -> ()
 	| _ when is_extern_field f -> ()
@@ -3688,7 +3687,7 @@ let write_code ch code debug =
 	let byte = IO.write_byte ch in
 	let write_index = write_index_gen byte in
 
-	let rec write_type t =
+	let write_type t =
 		write_index (try PMap.find t htypes with Not_found -> die (tstr t) __LOC__)
 	in
 

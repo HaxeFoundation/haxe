@@ -275,7 +275,7 @@ module BetterErrors = struct
 				let s1,s2 = loop() in
 				Printf.sprintf "(...) -> %s" s1,Printf.sprintf "(...) -> %s" s2
 			| TypeParameter i ->
-				let rec get_params t = match t with
+				let get_params t = match t with
 					| TInst({cl_path = path},params) | TEnum({e_path = path},params) | TAbstract({a_path = path},params) | TType({t_path = path},params) ->
 						path,params
 					| _ ->

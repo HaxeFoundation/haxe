@@ -226,7 +226,7 @@ let get_real_path path = List.map get_real_name path
 (**
 	Resolve real type (bypass abstracts and typedefs)
 *)
-let rec follow = Abstract.follow_with_abstracts
+let follow = Abstract.follow_with_abstracts
 
 (**
 	Adds packages specified by `-D php-prefix` to `type_path`.
@@ -276,7 +276,7 @@ let fail ?msg p = Globals.die (Option.default "" msg) ~p
 (**
 	Check if `target` is a `Dynamic` type
 *)
-let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
+let is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
 	Check if `target` is `php.Ref`
@@ -286,7 +286,7 @@ let is_ref (target:Type.t) = match target with TType ({ t_path = type_path }, _)
 (**
 	Check if `field` is a `dynamic function`
 *)
-let rec is_dynamic_method (field:tclass_field) =
+let is_dynamic_method (field:tclass_field) =
 	match field.cf_kind with
 		| Method MethDynamic -> true
 		| _ -> false
@@ -978,7 +978,7 @@ class class_wrapper (cls) =
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
 		*)
-		method get_magic_init = cls.cl_init
+		method! get_magic_init = cls.cl_init
 		(**
 			Returns hx source file name where this type was declared
 		*)
@@ -990,7 +990,7 @@ class class_wrapper (cls) =
 		(**
 			If current type requires some additional type to be generated
 		*)
-		method get_service_type : module_type option =
+		method! get_service_type : module_type option =
 			if not (has_class_flag cls CExtern) then
 				None
 			else
@@ -1682,7 +1682,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| _ ->
 							self#write_expr_while condition expr do_while
 					)
-				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
+				| TSwitch switch -> self#write_expr_switch switch.switch_subject switch.switch_cases switch.switch_default
 				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
 				| TReturn expr -> self#write_expr_return expr
 				| TBreak -> self#write "break"
@@ -1856,7 +1856,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						| TFor (_, _, _) -> false
 						| TFunction _ -> false
 						| TBlock _ -> false
-						| TSwitch (_, _, _) -> false
+						| TSwitch _ -> false
 						| _ -> true
 			in
 			if needs_closure then
@@ -2836,7 +2836,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			let rec write_cases cases =
 				match cases with
 					| [] -> ()
-					| (conditions, expr) :: rest ->
+					| {case_patterns = conditions;case_expr = expr} :: rest ->
 						self#write "if (";
 						write_conditions conditions;
 						self#write ") ";
@@ -3434,7 +3434,7 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Indicates if type should be declared as `final`
 		*)
-		method is_final =
+		method! is_final =
 			if not (has_class_flag cls CFinal) then
 				false
 			else begin
@@ -3454,7 +3454,7 @@ class class_builder ctx (cls:tclass) =
 			Get amount of arguments of a parent method.
 			Returns `None` if no such parent method exists.
 		*)
-		method private get_parent_method_args_count name is_static : (int * int) option =
+		method! private get_parent_method_args_count name is_static : (int * int) option =
 			match cls.cl_super with
 				| None -> None
 				| Some (cls, _) ->
@@ -3478,14 +3478,14 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Indicates if `field` should be declared as `final`
 		*)
-		method is_final_field (field:tclass_field) : bool =
+		method! is_final_field (field:tclass_field) : bool =
 			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
 			E.g. `StdClass` does have a constructor while still can be called with `new StdClass()`.
 			So this method will return true for `MyClass` if `MyClass extends StdClass`.
 		*)
-		method private extends_no_constructor =
+		method! private extends_no_constructor =
 			let rec extends_no_constructor tcls =
 				match tcls.cl_super with
 					| None -> true

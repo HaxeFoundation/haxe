@@ -1,13 +1,10 @@
-open Printf
 open Globals
-open Ast
 open Common
 open CompilationCache
 open Timer
 open Type
 open DisplayProcessingGlobals
 open Json
-open Compiler
 open CompilationContext
 open MessageReporting
 
@@ -445,7 +442,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
 
-let after_arg_parsing sctx ctx =
+let after_target_init sctx ctx =
 	let com = ctx.com in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
@@ -557,7 +554,7 @@ let do_connect host port args =
 	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
 	ssend sock (Bytes.of_string (s ^ "\000"));
 	let has_error = ref false in
-	let rec print line =
+	let print line =
 		match (if line = "" then '\x00' else line.[0]) with
 		| '\x01' ->
 			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
@@ -608,7 +605,7 @@ let rec process sctx comm args =
 		cache = sctx.cs;
 		callbacks = {
 			before_anything = before_anything sctx;
-			after_arg_parsing = after_arg_parsing sctx;
+			after_target_init = after_target_init sctx;
 			after_compilation = after_compilation sctx;
 		};
 		init_wait_socket = init_wait_socket;

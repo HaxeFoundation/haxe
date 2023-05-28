@@ -1,5 +1,4 @@
 open Globals
-open CompilationCache
 open Common
 open Type
 open Genjson

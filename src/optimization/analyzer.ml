@@ -638,7 +638,7 @@ module LocalDce = struct
 	open Graph
 	open AnalyzerConfig
 
-	let rec has_side_effect e =
+	let has_side_effect e =
 		let rec loop e =
 			match e.eexpr with
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
@@ -659,7 +659,7 @@ module LocalDce = struct
 		with Exit ->
 			true
 
-	let rec apply ctx =
+	let apply ctx =
 		let is_used v =
 			has_var_flag v VUsed
 		in
@@ -795,10 +795,10 @@ module Debug = struct
 			edge bb_next "next";
 		| SEMerge bb_next ->
 			edge bb_next "merge"
-		| SESwitch(bbl,bo,bb_next,_) ->
-			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) bbl;
-			(match bo with None -> () | Some bb -> edge bb "default");
-			edge bb_next "next";
+		| SESwitch ss ->
+			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) ss.ss_cases;
+			(match ss.ss_default with None -> () | Some bb -> edge bb "default");
+			edge ss.ss_next "next";
 		| SETry(bb_try,_,bbl,bb_next,_) ->
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
@@ -948,9 +948,7 @@ module Run = struct
 			| _ -> ["analyzer"] (* whatever *)
 		in
 		let timer = Timer.timer name in
-		let r = f() in
-		timer();
-		r
+		Std.finally timer f ()
 
 	let create_analyzer_context com config identifier e =
 		let g = Graph.create e.etype e.epos in
@@ -1034,10 +1032,14 @@ module Run = struct
 						let e2 = loop e2 in
 						let e3 = loop e3 in
 						{e with eexpr = TIf(e1,e2,Some e3); etype = get_t e.etype}
-					| TSwitch(e1,cases,edef) ->
-						let cases = List.map (fun (el,e) -> el,loop e) cases in
-						let edef = Option.map loop edef in
-						{e with eexpr = TSwitch(e1,cases,edef); etype = get_t e.etype}
+					| TSwitch switch ->
+						let cases = List.map (fun case -> {case with case_expr = loop case.case_expr}) switch.switch_cases in
+						let edef = Option.map loop switch.switch_default in
+						let switch = { switch with
+							switch_cases = cases;
+							switch_default = edef;
+						} in
+						{e with eexpr = TSwitch switch; etype = get_t e.etype}
 					| TTry(e1,catches) ->
 						let e1 = loop e1 in
 						let catches = List.map (fun (v,e) -> v,loop e) catches in

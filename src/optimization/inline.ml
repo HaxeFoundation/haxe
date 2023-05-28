@@ -6,10 +6,6 @@ open Common
 open Typecore
 open Error
 
-let needs_inline ctx is_extern_class cf =
-	cf.cf_kind = Method MethInline && ctx.allow_inline
-	&& (ctx.g.doinline || is_extern_class || has_class_field_flag cf CfExtern)
-
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
@@ -593,7 +589,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				mk (TBlock (DynArray.to_list el)) tret e.epos
 		in
 		let e = inline_metadata e cf.cf_meta in
-		let e = Diagnostics.secure_generated_code ctx e in
+		let e = Diagnostics.secure_generated_code ctx.com e in
 		if has_params then begin
 			let mt = map_type cf.cf_type in
 			let unify_func () = unify_raise mt (TFun (tl,tret)) p in
@@ -734,15 +730,23 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let eloop = map false false eloop in
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
-		| TSwitch (e1,cases,def) when term ->
-			let term = term && (is_exhaustive e1 def) in
-			let cases = List.map (fun (el,e) ->
-				let el = List.map (map false false) el in
-				el, map term false e
-			) cases in
-			let def = opt (map term false) def in
-			let t = return_type e.etype ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) in
-			{ e with eexpr = TSwitch (map false false e1,cases,def); etype = t }
+		| TSwitch switch when term ->
+			let term = term && (is_exhaustive switch) in
+			let cases = List.map (fun case ->
+				let el = List.map (map false false) case.case_patterns in
+				{
+					case_patterns = el;
+					case_expr = map term false case.case_expr
+				}
+			) switch.switch_cases in
+			let def = opt (map term false) switch.switch_default in
+			let t = return_type e.etype ((List.map (fun case -> case.case_expr) cases) @ (match def with None -> [] | Some e -> [e])) in
+			let switch = {switch with
+				switch_subject = map false false switch.switch_subject;
+				switch_cases = cases;
+				switch_default = def;
+			} in
+			{ e with eexpr = TSwitch switch; etype = t }
 		| TTry (e1,catches) ->
 			let t = if not term then e.etype else return_type e.etype (e1::List.map snd catches) in
 			{ e with eexpr = TTry (map term false e1,List.map (fun (v,e) ->
@@ -758,10 +762,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					let r = match e.eexpr with
 					| TReturn _ -> true
 					| TFunction _ -> false
-					| TIf (_,_,None) | TSwitch (_,_,None) | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
+					| TIf (_,_,None) | TSwitch {switch_default = None} | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
 					| TTry (a, catches) -> List.for_all has_term_return (a :: List.map snd catches)
 					| TIf (cond,a,Some b) -> has_term_return cond || (has_term_return a && has_term_return b)
-					| TSwitch (cond,cases,Some def) -> has_term_return cond || List.for_all has_term_return (def :: List.map snd cases)
+					| TSwitch ({switch_default = Some def} as switch) -> has_term_return switch.switch_subject || List.for_all has_term_return (def :: List.map (fun case -> case.case_expr) switch.switch_cases)
 					| TBinop (OpBoolAnd,a,b) -> has_term_return a && has_term_return b
 					| _ -> Type.iter loop e; false
 					in

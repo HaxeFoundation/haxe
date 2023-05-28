@@ -525,6 +525,19 @@ class Context {
 	}
 
 	/**
+		Resolve type `t` and returns the corresponding `ComplexType`.
+
+		Resolving the type may result in a compiler error which can be
+		caught using `try ... catch`.
+		Resolution is performed based on the current context in which the macro is called.
+		The difference with `resolveType` is that it only performs type resolution, it does not
+		build any type or trigger macros.
+	**/
+	public static function resolveComplexType(t:ComplexType, p:Position):ComplexType {
+		return load("resolve_complex_type", 2)(t, p);
+	}
+
+	/**
 		Returns the `ComplexType` corresponding to the given `Type` `t`.
 
 		See `haxe.macro.TypeTools.toComplexType` for details.

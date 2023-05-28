@@ -1112,7 +1112,7 @@ let normalize_ilcls ctx cls =
 	in
 	let refclsfields = List.fold_left fold_field [] refclsfields in
 
-	let rec fold (fields,methods,props) f = match !f with
+	let fold (fields,methods,props) f = match !f with
 		| IlField f,_,_,_ -> f :: fields,methods,props
 		| IlMethod m,_,_,_ -> fields,m :: methods,props
 		| IlProp p,_,_,_ -> fields,methods,p :: props

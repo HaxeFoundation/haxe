@@ -34,6 +34,7 @@ type 'value compiler_api = {
 	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
+	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -98,6 +99,7 @@ type enum_type =
 	| ICapturePolicy
 	| IVarScope
 	| IVarScopingFlags
+	| IPlatform
 	| IPackageRule
 	| IMessage
 	| IFunctionKind
@@ -421,9 +423,23 @@ and encode_display_mode dm =
 	in
 	encode_enum ~pos:None IDisplayMode tag pl
 
-(** encoded to haxe.display.Display.Platform, an enum abstract of String *)
 and encode_platform p =
-	encode_string (platform_name p)
+	let tag, pl = match p with
+		| Cross -> 0, []
+		| Js -> 1, []
+		| Lua -> 2, []
+		| Neko -> 3, []
+		| Flash -> 4, []
+		| Php -> 5, []
+		| Cpp -> 6, []
+		| Cs -> 7, []
+		| Java -> 8, []
+		| Python -> 9, []
+		| Hl -> 10, []
+		| Eval -> 11, []
+		| CustomTarget s -> 12, [(encode_string s)]
+	in
+	encode_enum ~pos:None IPlatform tag pl
 
 and encode_platform_config pc =
 	encode_obj [
@@ -433,7 +449,6 @@ and encode_platform_config pc =
 		"padNulls", vbool pc.pf_pad_nulls;
 		"addFinalReturn", vbool pc.pf_add_final_return;
 		"overloadFunctions", vbool pc.pf_overload;
-		"canSkipNonNullableArgument", vbool pc.pf_can_skip_non_nullable_argument;
 		"reservedTypePaths", encode_array (List.map encode_path pc.pf_reserved_type_paths);
 		"supportsFunctionEquality", vbool pc.pf_supports_function_equality;
 		"usesUtf16", vbool pc.pf_uses_utf16;
@@ -545,7 +560,7 @@ and encode_expr e =
 				10, [encode_array (List.map (fun v ->
 					encode_obj [
 						"name",encode_placed_name v.ev_name;
-						"name_pos",encode_pos (pos v.ev_name);
+						"namePos",encode_pos (pos v.ev_name);
 						"isFinal",vbool v.ev_final;
 						"isStatic",vbool v.ev_static;
 						"type",null encode_ctype v.ev_type;
@@ -909,7 +924,9 @@ and decode_expr v =
 				let static = if vstatic == vnull then false else decode_bool vstatic in
 				let vmeta = field v "meta" in
 				let meta = if vmeta == vnull then [] else decode_meta_content vmeta in
-				let name = (decode_placed_name (field v "name_pos") (field v "name"))
+				let name_pos = maybe_decode_pos (field v "namePos") in
+				let name_pos = if name_pos = null_pos then p else name_pos in
+				let name = ((decode_string (field v "name")), name_pos)
 				and t = opt decode_ctype (field v "type")
 				and eo = opt loop (field v "expr") in
 				mk_evar ~final ~static ?t ?eo ~meta name
@@ -1363,10 +1380,17 @@ and encode_texpr e =
 			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
 			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;vbool (flag = NormalWhile)]
-			| TSwitch(e1,cases,edef) -> 18,[
-				loop e1;
-				encode_array (List.map (fun (el,e) -> encode_obj ["values",encode_texpr_list el;"expr",loop e]) cases);
-				vopt encode_texpr edef
+			| TSwitch switch ->
+				let switch_subject = if switch.switch_exhaustive then
+					let meta = (Meta.Exhaustive,[],null_pos) in
+					{switch.switch_subject with eexpr = (TMeta(meta,switch.switch_subject))}
+				else
+					switch.switch_subject
+				in
+				18,[
+					loop switch_subject;
+					encode_array (List.map (fun case -> encode_obj ["values",encode_texpr_list case.case_patterns;"expr",loop case.case_expr]) switch.switch_cases);
+					vopt encode_texpr switch.switch_default
 				]
 			| TTry(e1,catches) -> 19,[
 				loop e1;
@@ -1539,7 +1563,24 @@ and decode_texpr v =
 		| 15, [v;v1;v2] -> TFor(decode_tvar v,loop v1,loop v2)
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
 		| 17, [vcond;v1;b] -> TWhile(loop vcond,loop v1,if decode_bool b then NormalWhile else DoWhile)
-		| 18, [v1;cl;vdef] -> TSwitch(loop v1,List.map (fun v -> List.map loop (decode_array (field v "values")),loop (field v "expr")) (decode_array cl),opt loop vdef)
+		| 18, [v1;cl;vdef] ->
+			let is_exhaustive e1 def =
+				let rec loop e1 = match e1.eexpr with
+					| TMeta((Meta.Exhaustive,_,_),_) -> true
+					| TMeta(_, e1) | TParenthesis e1 -> loop e1
+					| _ -> false
+				in
+				def <> None || loop e1
+			in
+			let subject = loop v1 in
+			let cases = List.map (fun v -> {
+					case_patterns = List.map loop (decode_array (field v "values"));
+					case_expr = loop (field v "expr")
+				}) (decode_array cl)
+			in
+			let default = opt loop vdef in
+			let switch = mk_switch subject cases default (is_exhaustive subject default) in
+			TSwitch switch
 		| 19, [v1;cl] -> TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (decode_array cl))
 		| 20, [vo] -> TReturn(opt loop vo)
 		| 21, [] -> TBreak
@@ -1642,6 +1683,68 @@ let decode_type_def v =
 		| _ -> pack, fst name
 	) in
 	(pack, name), tdef, pos
+
+let decode_path v =
+	let pack = List.map decode_string (decode_array (field v "pack"))
+	and name = decode_string (field v "name") in
+	(pack,name)
+
+let decode_platform_config v =
+	let open Common in
+	let capture_policy = match decode_enum (field v "capturePolicy") with
+		| 0, [] -> CPNone
+		| 1, [] -> CPWrapRef
+		| 2, [] -> CPLoopVars
+		| _ -> raise Invalid_expr
+	in
+	let v_exc = field v "exceptions" in
+	let exception_config = {
+		ec_native_throws = List.map decode_path (decode_array (field v_exc "nativeThrows"));
+		ec_native_catches = List.map decode_path (decode_array (field v_exc "nativeCatches"));
+		ec_avoid_wrapping = decode_bool (field v_exc "avoidWrapping");
+		ec_wildcard_catch = decode_path (field v_exc "wildcardCatch");
+		ec_base_throw = decode_path (field v_exc "baseThrow");
+		ec_special_throw = (fun _ -> (* wtf is this? *) false);
+	} in
+	let v_scoping = field v "scoping" in
+	let decode_scope_flag v = match decode_enum v with
+		| 0, [] -> VarHoisting
+		| 1, [] -> NoShadowing
+		| 2, [] -> NoCatchVarShadowing
+		| 3, [] -> ReserveCurrentTopLevelSymbol
+		| 4, [] -> ReserveAllTopLevelSymbols
+		| 5, [] -> ReserveAllTypesFlat
+		| 6, [sl] -> ReserveNames (List.map decode_string (decode_array sl))
+		| 7, [] -> SwitchCasesNoBlocks
+		| _ -> raise Invalid_expr
+	in
+	let var_scoping_config = {
+		vs_scope = (match decode_enum (field v_scoping "scope") with
+			| 0,[] -> FunctionScope
+			| 1,[] -> BlockScope
+			| _ -> raise Invalid_expr
+		);
+		vs_flags = List.map decode_scope_flag (decode_array (field v_scoping "flags"));
+	} in
+	{
+		pf_static = decode_bool (field v "staticTypeSystem");
+		pf_sys = decode_bool (field v "sys");
+		pf_capture_policy = capture_policy;
+		pf_pad_nulls = decode_bool (field v "padNulls");
+		pf_add_final_return = decode_bool (field v "addFinalReturn");
+		pf_overload = decode_bool (field v "overloadFunctions");
+		pf_can_skip_non_nullable_argument = false;
+		pf_reserved_type_paths = List.map decode_path (decode_array (field v "reservedTypePaths"));
+		pf_supports_function_equality = decode_bool (field v "supportsFunctionEquality");
+		pf_uses_utf16 = decode_bool (field v "usesUtf16");
+		pf_this_before_super = decode_bool (field v "thisBeforeSuper");
+		pf_supports_threads = decode_bool (field v "supportsThreads");
+		pf_supports_unicode = decode_bool (field v "supportsUnicode");
+		pf_supports_rest_args = decode_bool (field v "supportsRestArgs");
+		pf_exceptions = exception_config;
+		pf_scoping = var_scoping_config;
+		pf_supports_atomics = decode_bool (field v "supportsAtomics");
+	}
 
 (* ---------------------------------------------------------------------- *)
 (* VALUE-TO-CONSTANT *)
@@ -1832,6 +1935,9 @@ let macro_api ccom get_api =
 		);
 		"resolve_type", vfun2 (fun t p ->
 			encode_type ((get_api()).resolve_type (fst (decode_ctype t)) (decode_pos p));
+		);
+		"resolve_complex_type", vfun2 (fun ct p ->
+			encode_ctype ((get_api()).resolve_complex_type (fst (decode_ctype ct),decode_pos p))
 		);
 		"s_type", vfun1 (fun v ->
 			encode_string (Type.s_type (print_context()) (decode_type v))
@@ -2145,6 +2251,10 @@ let macro_api ccom get_api =
 				"mainClass", (match com.main_class with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
+		);
+		"set_platform_configuration", vfun1 (fun v ->
+			(ccom()).config <- decode_platform_config v;
+			vnull
 		);
 		"get_main_expr", vfun0 (fun() ->
 			match (ccom()).main with None -> vnull | Some e -> encode_texpr e

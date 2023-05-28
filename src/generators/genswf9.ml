@@ -917,7 +917,7 @@ let pop_value ctx retval =
 	   branch value *)
 	if retval then ctx.infos.istack <- ctx.infos.istack - 1
 
-let rec gen_access ctx e (forset : 'a) : 'a access =
+let gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal v ->
 		gen_local_access ctx v e.epos forset
@@ -1298,7 +1298,7 @@ let rec gen_expr_content ctx retval e =
 		write ctx (HJump (J3Always,0));
 		ctx.continues <- (fun target -> DynArray.set ctx.code op (HJump (J3Always,target - p))) :: ctx.continues;
 		no_value ctx retval
-	| TSwitch (e0,el,eo) ->
+	| TSwitch {switch_subject = e0;switch_cases = cases;switch_default = eo} ->
 		let t = classify ctx e.etype in
 		(try
 			let t0 = classify ctx e0.etype in
@@ -1310,9 +1310,9 @@ let rec gen_expr_content ctx retval e =
 				| TParenthesis e | TBlock [e] | TMeta (_,e) -> get_int e
 				| _ -> raise Not_found
 			in
-			List.iter (fun (vl,_) -> List.iter (fun v ->
+			List.iter (fun case -> List.iter (fun v ->
 				try ignore (get_int v) with _ -> raise Exit
-			) vl) el;
+			) case.case_patterns ) cases;
 			gen_expr ctx true e0;
 			if t0 <> KInt then write ctx HToInt;
 			let switch, case = begin_switch ctx in
@@ -1325,14 +1325,14 @@ let rec gen_expr_content ctx retval e =
 			| Some e ->
 				gen_expr ctx retval e;
 				if retval && classify ctx e.etype <> t then coerce ctx t);
-			let jends = List.map (fun (vl,e) ->
+			let jends = List.map (fun {case_patterns = vl;case_expr = e} ->
 				let j = jump ctx J3Always in
 				List.iter (fun v -> case (get_int v)) vl;
 				pop_value ctx retval;
 				gen_expr ctx retval e;
 				if retval && classify ctx e.etype <> t then coerce ctx t;
 				j
-			) el in
+			) cases in
 			List.iter (fun j -> j()) jends;
 			switch();
 		with Exit ->
@@ -1341,7 +1341,7 @@ let rec gen_expr_content ctx retval e =
 		set_reg ctx r;
 		let branch = begin_branch ctx in
 		let prev = ref (fun () -> ()) in
-		let jend = List.map (fun (vl,e) ->
+		let jend = List.map (fun {case_patterns = vl;case_expr = e} ->
 			(!prev)();
 			let rec loop = function
 				| [] ->
@@ -1362,7 +1362,7 @@ let rec gen_expr_content ctx retval e =
 			pop_value ctx retval;
 			if retval && classify ctx e.etype <> t then coerce ctx t;
 			jump ctx J3Always
-		) el in
+		) cases in
 		(!prev)();
 		free_reg ctx r;
 		(match eo with

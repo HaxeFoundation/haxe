@@ -60,7 +60,6 @@ open Globals
 open Option
 open Printf
 open ExtString
-open Codegen
 open Overloads
 
 (* ******************************************* *)
@@ -132,7 +131,7 @@ let path_of_md_def md_def =
 		| _ -> md_def.m_path
 
 let debug_type t = (s_type (print_context())) t
-let debug_expr = s_expr debug_type
+let debug_expr = s_expr_ast true "" debug_type
 
 let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()

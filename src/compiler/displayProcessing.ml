@@ -48,7 +48,7 @@ let handle_display_argument_old com file_pos actx =
 			| "diagnostics" ->
 				com.report_mode <- RMDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true}
+				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
@@ -95,10 +95,11 @@ let process_display_configuration ctx =
 		com.info <- (fun ?depth ?from_macro s p ->
 			add_diagnostics_message ?depth com s p DKCompilerMessage Information
 		);
-		com.warning <- (fun ?depth ?from_macro w options s p ->
+		com.warning <- (fun ?(depth = 0) ?from_macro w options s p ->
 			match Warning.get_mode w (com.warning_options @ options) with
 			| WMEnable ->
-				add_diagnostics_message ?depth com s p DKCompilerMessage Warning
+				let wobj = Warning.warning_obj w in
+				add_diagnostics_message ~depth ~code:(Some wobj.w_name) com s p DKCompilerMessage Warning
 			| WMDisable ->
 				()
 		);
@@ -311,7 +312,6 @@ let process_global_display_mode com tctx =
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
-	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
 		let open CompilationCache in
 		let cs = com.cs in

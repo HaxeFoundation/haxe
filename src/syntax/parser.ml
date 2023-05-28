@@ -19,7 +19,6 @@
 
 open Ast
 open Globals
-open Reification
 open DisplayTypes.DisplayMode
 open DisplayPosition
 

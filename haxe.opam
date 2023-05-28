@@ -1,0 +1,34 @@
+opam-version: "2.0"
+name: "haxe"
+version: "4.3.0"
+synopsis: "Multi-target universal programming language"
+description: """
+Haxe is an open source toolkit based on a modern,
+high level, static-typed programming language, a cross-compiler,
+a complete cross-platform standard library and ways to access each
+platform's native capabilities."""
+maintainer: ["Haxe Foundation <contact@haxe.org>" "Andy Li <andy@onthewings.net>"]
+authors: "Haxe Foundation <contact@haxe.org>"
+homepage: "https://haxe.org/"
+bug-reports: "https://github.com/HaxeFoundation/haxe/issues"
+license: ["GPL2+" "MIT"]
+dev-repo: "git+https://github.com/HaxeFoundation/haxe.git"
+build: [
+  [make]
+]
+install: [make "install" "INSTALL_DIR=%{prefix}%"]
+remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
+depends: [
+  "ocaml" {>= "4.08"}
+  "ocamlfind" {build}
+  "dune" {>= "1.11"}
+  "camlp5" {build & = "8.00"}
+  "sedlex" {>= "2.0"}
+  "xml-light"
+  "extlib" {>= "1.7.8"}
+  "sha"
+  "conf-libpcre2-8"
+  "conf-zlib"
+  "conf-neko"
+  "luv" {>= "0.5.12"}
+]

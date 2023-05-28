@@ -52,7 +52,6 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
-	let open OptimizerTexpr in
 	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
 		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),f2.cf_pos],null_pos) :: f1.cf_meta
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
@@ -287,11 +286,11 @@ let rec return_flow ctx e =
 	| TIf (_,e1,Some e2) ->
 		return_flow e1;
 		return_flow e2;
-	| TSwitch (v,cases,Some e) ->
-		List.iter (fun (_,e) -> return_flow e) cases;
+	| TSwitch ({switch_default = Some e} as switch) ->
+		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 		return_flow e
-	| TSwitch ({eexpr = TMeta((Meta.Exhaustive,_,_),_)},cases,None) ->
-		List.iter (fun (_,e) -> return_flow e) cases;
+	| TSwitch ({switch_exhaustive = true} as switch) ->
+		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;

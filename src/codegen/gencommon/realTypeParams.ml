@@ -20,7 +20,6 @@ open Option
 open Common
 open Ast
 open Type
-open Codegen
 open Texpr.Builder
 open Gencommon
 
@@ -91,7 +90,7 @@ let rec has_type_params t =
 			List.exists (fun (n,o,t) -> has_type_params t) args || has_type_params ret
 		| _ -> false
 
-let rec follow_all_md md =
+let follow_all_md md =
 	let t = match md with
 		| TClassDecl { cl_kind = KAbstractImpl a } ->
 			TAbstract(a, extract_param_types a.a_params)
@@ -366,7 +365,7 @@ module RealTypeParamsModf =
 struct
 
 	let set_only_hxgeneric gen =
-		let rec run md =
+		let run md =
 			match md with
 				| TTypeDecl _ | TAbstractDecl _ -> md
 				| _ -> ignore (set_hxgeneric gen md); md
@@ -522,7 +521,10 @@ struct
 						t_cf
 						pos
 				in
-				[make_string gen.gcon.basic cf.cf_name pos], expr
+				{
+					case_patterns = [make_string gen.gcon.basic cf.cf_name pos];
+					case_expr = expr;
+				}
 			) fields
 		in
 
@@ -567,10 +569,11 @@ struct
 						(
 							(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
 							let edef = gen.gtools.r_set_field basic.tvoid local_new_me local_field (gen.gtools.r_field false basic.tvoid this local_field) in
-							if fields <> [] then
+							if fields <> [] then begin
 								(* switch(field) { ... } *)
-								mk (TSwitch (local_field, fields_to_cases fields, Some edef)) basic.tvoid pos
-							else
+								let switch = mk_switch local_field (fields_to_cases fields) (Some edef) true in
+								mk (TSwitch switch) basic.tvoid pos
+							end else
 								edef;
 						)
 					]) basic.tvoid pos,
@@ -651,7 +654,7 @@ struct
 			end
 		in
 
-		let rec run md =
+		let run md =
 			match md with
 				| TClassDecl ({ cl_params = [] } as cl) ->
 					(* see if we're implementing any generic interface *)

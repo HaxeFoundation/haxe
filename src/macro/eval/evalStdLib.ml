@@ -1861,7 +1861,7 @@ module StdReflect = struct
 	)
 
 	let compareMethods = vfun2 (fun a b ->
-		let rec loop a b = a == b || match a,b with
+		let loop a b = a == b || match a,b with
 			| VFunction(f1,_),VFunction(f2,_) -> f1 == f2
 			| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && EvalMisc.compare v1 v2 = CEq
 			| _ -> false
@@ -2787,8 +2787,6 @@ module StdTls = struct
 end
 
 module StdType = struct
-	open Ast
-
 	let create_enum v constr params =
 		let vf = field v constr in
 		match vf,params with

@@ -866,12 +866,12 @@ and gen_expr ctx e =
 		ctx.catch_vars <- List.tl ctx.catch_vars
 	| TTry _ ->
 		abort "Unhandled try/catch, please report" e.epos
-	| TSwitch (e,cases,def) ->
+	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
 		spr ctx "switch";
 		gen_value ctx e;
 		spr ctx " {";
 		newline ctx;
-		List.iter (fun (el,e2) ->
+		List.iter (fun {case_patterns = el;case_expr = e2} ->
 			List.iter (fun e ->
 				match e.eexpr with
 				| TConst(c) when c = TNull ->
@@ -1078,12 +1078,15 @@ and gen_value ctx e =
 		(match eo with
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);
-	| TSwitch (cond,cases,def) ->
+	| TSwitch switch ->
 		let v = value() in
-		gen_expr ctx (mk (TSwitch (cond,
-			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-			match def with None -> None | Some e -> Some (assign e)
-		)) e.etype e.epos);
+		let switch = { switch with
+			switch_cases = List.map (fun case -> { case with
+				case_expr = assign case.case_expr
+			}) switch.switch_cases;
+			switch_default = Option.map assign switch.switch_default
+		} in
+		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
 		v()
 	| TTry (b,catchs) ->
 		let v = value() in

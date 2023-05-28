@@ -454,7 +454,7 @@ let build_class com c file =
 let extract_data (_,tags) =
 	let t = Timer.timer ["read";"swf"] in
 	let h = Hashtbl.create 0 in
-	let rec loop_field f =
+	let loop_field f =
 		match f.hlf_kind with
 		| HFClass c ->
 			let path = make_tpath f.hlf_name in
@@ -647,7 +647,7 @@ let remove_classes toremove lib l =
 					match t.tdata with
 					| TActionScript3 (h,data) ->
 						let data = As3hlparse.parse data in
-						let rec loop f =
+						let loop f =
 							match f.hlf_kind with
 							| HFClass _ ->
 								let path = make_tpath f.hlf_name in

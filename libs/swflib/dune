@@ -1,5 +1,11 @@
 (include_subdirs no)
 
+(env
+	(_
+		(flags (-w -3 -w -27))
+	)
+)
+
 (library
 	(name swflib)
 	(libraries extc extlib extlib_leftovers)

@@ -2,7 +2,15 @@
 
 (env
 	(_
-		(flags (:standard -w -3 -w -23 -thread))
+		; 3 - Remove deprecation warnings
+		; 6 - Label omitted in function application
+		; 9 - Missing record field in a record pattern
+		; 23 - Useless record `with` clause (all fields already listed)
+		; 27 - Unused var (strict)
+		; 32 - Unused value declaration
+		; 36 - Unused `as super`
+		; 50 - Unexpected docstring
+		(flags (:standard -w -3 -w -6 -w -9 -w -23 -w -27 -w -32 -w -36 -w -50 -thread))
 	)
 )
 
@@ -12,7 +20,7 @@
 		extc extproc extlib_leftovers ilib javalib mbedtls neko objsize pcre2 swflib ttflib ziplib
 		json
 		unix str bigarray threads dynlink
-		xml-light extlib ptmap sha
+		xml-light extlib sha
 		luv
 	)
 	(modules (:standard \ haxe))

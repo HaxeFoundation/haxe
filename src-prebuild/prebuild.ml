@@ -9,6 +9,17 @@ type parsed_warning = {
 	w_generic : bool;
 }
 
+type parsed_meta = {
+	m_name : string;
+	m_meta : string;
+	m_doc : string;
+	m_params : string list;
+	m_platforms : string list;
+	m_targets : string list;
+	m_internal : bool;
+	m_links : string list;
+}
+
 let as_string = function
 	| JString s -> Some s
 	| _ -> None
@@ -112,14 +123,16 @@ let parse_meta json =
 		| JObject fl -> fl
 		| _ -> raise (Prebuild_error "not an object")
 	in
-	(* name *) get_field "name" as_string fields,
-	(* metadata *) get_field "metadata" as_string fields,
-	(* doc *) get_field "doc" as_string fields,
-	(* params *) get_optional_field "params" as_params [] fields,
-	(* platforms *) get_optional_field "platforms" as_platforms [] fields,
-	(* targets *) get_optional_field "targets" as_targets [] fields,
-	(* internal *) get_optional_field "internal" as_bool false fields,
-	(* links *) get_optional_field "links" as_links [] fields
+	{
+		m_name = get_field "name" as_string fields;
+		m_meta = get_field "metadata" as_string fields;
+		m_doc = get_field "doc" as_string fields;
+		m_params = get_optional_field "params" as_params [] fields;
+		m_platforms = get_optional_field "platforms" as_platforms [] fields;
+		m_targets = get_optional_field "targets" as_targets [] fields;
+		m_internal = get_optional_field "internal" as_bool false fields;
+		m_links = get_optional_field "links" as_links [] fields
+	}
 
 let parse_warning json =
 	let fields = match json with
@@ -194,27 +207,26 @@ let gen_define_info defines =
 
 let gen_meta_type metas =
 	String.concat "\n" (List.map (function
-		| ("InlineConstructorArgument", _, _, _, _, _, _, _) -> "\t| InlineConstructorArgument of int * int"
-		| (name, _, _, _, _, _, _, _) -> "\t| " ^ name
+		| {m_name = "InlineConstructorArgument"} -> "\t| InlineConstructorArgument of int * int"
+		| {m_name = name} -> "\t| " ^ name
 	) metas)
 
 let gen_meta_info metas =
-	let meta_str = List.map (function
-		(name, metadata, doc, params, platforms, targets, internal, links) ->
-			let platforms_str = gen_platforms platforms in
-			let params_str = gen_params params in
-			let targets_str = (match targets with
+	let meta_str = List.map (function meta ->
+			let platforms_str = gen_platforms meta.m_platforms in
+			let params_str = gen_params meta.m_params in
+			let targets_str = (match meta.m_targets with
 				| [] -> []
 				| targets -> ["UsedOn [" ^ (String.concat ";" targets) ^ "]"]
 			) in
-			let internal_str = if internal then ["UsedInternally"] else [] in
-			let links_str = gen_links links in
-			let name = (match name with
+			let internal_str = if meta.m_internal then ["UsedInternally"] else [] in
+			let links_str = gen_links meta.m_links in
+			let name = (match meta.m_name with
 				(* this is a hacky, I know *)
 				| "InlineConstructorArgument" -> "InlineConstructorArgument _"
-				| _ -> name
+				| _ -> meta.m_name
 			) in
-			"\t| " ^ name ^ " -> \"" ^ metadata ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ targets_str @ internal_str @ links_str)) ^ "])"
+			"\t| " ^ name ^ " -> \"" ^ meta.m_meta ^ "\",(" ^ (Printf.sprintf "%S" meta.m_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ targets_str @ internal_str @ links_str)) ^ "])"
 	) metas in
 	String.concat "\n" meta_str
 

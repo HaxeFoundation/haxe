@@ -32,7 +32,6 @@ open Type
 open Typecore
 open Error
 open Globals
-open Filename
 
 let build_count = ref 0
 
@@ -524,7 +523,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		end
 	| CTAnonymous l ->
 		let displayed_field = ref None in
-		let rec loop acc f =
+		let loop acc f =
 			let n = fst f.cff_name in
 			let pf = snd f.cff_name in
 			let p = f.cff_pos in
@@ -761,16 +760,20 @@ let rec type_type_param ctx host path get_params p tp =
 		| None ->
 			None
 		| Some ct ->
-			let t = load_complex_type ctx true ct in
-			begin match host with
-			| TPHType ->
-				()
-			| TPHConstructor
-			| TPHMethod
-			| TPHEnumConstructor ->
-				display_error ctx.com "Default type parameters are only supported on types" (pos ct)
-			end;
-			Some t
+			let r = exc_protect ctx (fun r ->
+				r := lazy_processing (fun() -> t);
+				let t = load_complex_type ctx true ct in
+				begin match host with
+				| TPHType ->
+					()
+				| TPHConstructor
+				| TPHMethod
+				| TPHEnumConstructor ->
+					display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+				end;
+				t
+			) "default" in
+			Some (TLazy r)
 	in
 	match tp.tp_constraints with
 	| None ->

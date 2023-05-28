@@ -673,8 +673,8 @@ and compile_builtin ctx tail b el p =
 			write ctx (Call 1);
 			(* // insert an infinite loop in order to
 			// comply with bytecode checker *)
-			let _ = jmp ctx in
-			()
+			let _jmp = jmp ctx in
+			ignore(_jmp)
 		) dtraps;
 	| ("goto" , _) ->
 		error "Invalid $goto statement" p

@@ -88,7 +88,7 @@ module BinopResult = struct
 		| BinopSpecial(_,needs_assign) -> needs_assign
 end
 
-let check_assign ctx e =
+let rec check_assign ctx e =
 	match e.eexpr with
 	| TLocal v when has_var_flag v VFinal && not (Common.ignore_error ctx.com) ->
 		raise_typing_error "Cannot assign to final" e.epos
@@ -96,6 +96,8 @@ let check_assign ctx e =
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
+	| TMeta ((Meta.CompilerGenerated,_,_),e1) ->
+		check_assign ctx e1
 	| _ ->
 		if not (Common.ignore_error ctx.com) then
 			invalid_assign e.epos
@@ -570,35 +572,39 @@ let type_assign ctx e1 e2 with_type p =
 		| _ , _ -> ());
 		mk (TBinop (OpAssign,e1,e2)) e1.etype p
 	in
-	match e1 with
-	| AKNo(_,p) ->
-		raise_typing_error "This expression cannot be accessed for writing" p
-	| AKUsingField _ | AKSafeNav _ ->
-		raise_typing_error "Invalid operation" p
-	| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
-		raise_typing_error ("Cannot access function " ^ name ^ " for writing") p
-	| AKField fa ->
-		let ef = FieldAccess.get_field_expr fa FWrite in
-		assign_to ef
-	| AKExpr e1  ->
-		assign_to e1
-	| AKAccessor fa ->
-		let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
-		dispatcher#accessor_call fa [] [e2]
-	| AKAccess(a,tl,c,ebase,ekey) ->
-		let e2 = type_rhs WithType.value in
-		mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey e2 p) c ebase p
-	| AKResolve(sea,name) ->
-		let eparam = sea.se_this in
-		let e_name = Texpr.Builder.make_string ctx.t name null_pos in
-		(new call_dispatcher ctx (MCall [e2]) with_type p)#field_call sea.se_access [eparam;e_name] [e2]
-	| AKUsingAccessor sea ->
-		let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet (Some e2)) with
-			| AccessorFound fa -> fa
-			| _ -> raise_typing_error "Could not resolve accessor" p
-		in
-		let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
-		dispatcher#field_call fa_set [sea.se_this] [e2]
+	let rec check_acc e1 = match e1 with
+		| AKNo(acc,p) ->
+			if not (Common.ignore_error ctx.com) then
+				raise_typing_error "This expression cannot be accessed for writing" p
+			else check_acc acc
+		| AKUsingField _ | AKSafeNav _ ->
+			raise_typing_error "Invalid operation" p
+		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
+			raise_typing_error ("Cannot access function " ^ name ^ " for writing") p
+		| AKField fa ->
+			let ef = FieldAccess.get_field_expr fa FWrite in
+			assign_to ef
+		| AKExpr e1  ->
+			assign_to e1
+		| AKAccessor fa ->
+			let dispatcher = new call_dispatcher ctx (MSet (Some e2)) with_type p in
+			dispatcher#accessor_call fa [] [e2]
+		| AKAccess(a,tl,c,ebase,ekey) ->
+			let e2 = type_rhs WithType.value in
+			mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey e2 p) c ebase p
+		| AKResolve(sea,name) ->
+			let eparam = sea.se_this in
+			let e_name = Texpr.Builder.make_string ctx.t name null_pos in
+			(new call_dispatcher ctx (MCall [e2]) with_type p)#field_call sea.se_access [eparam;e_name] [e2]
+		| AKUsingAccessor sea ->
+			let fa_set = match FieldAccess.resolve_accessor sea.se_access (MSet (Some e2)) with
+				| AccessorFound fa -> fa
+				| _ -> raise_typing_error "Could not resolve accessor" p
+			in
+			let dispatcher = new call_dispatcher ctx (MCall [e2]) with_type p in
+			dispatcher#field_call fa_set [sea.se_this] [e2]
+	in
+	check_acc e1
 
 let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_type p =
 	(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
@@ -713,7 +719,7 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
 		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
-		let et = type_module_type ctx (TClassDecl c) None p in
+		let et = type_module_type ctx (TClassDecl c) p in
 		let e = match cf_set.cf_expr,cf_get.cf_expr with
 			| None,None ->
 				let ea = mk (TArray(ebase,ekey)) r_get p in

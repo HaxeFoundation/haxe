@@ -40,8 +40,12 @@ let rec traverse e =
 		{ e with eexpr = TBlock bl }
 	| TTry (block, catches) ->
 		{ e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
-	| TSwitch (cond,el_e_l, default) ->
-		{ e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
+	| TSwitch switch ->
+		let switch = { switch with
+			switch_cases = List.map (fun case -> { case with case_expr = traverse (mk_block e)}) switch.switch_cases;
+			switch_default = Option.map (fun e -> traverse (mk_block e)) switch.switch_default;
+		} in
+		{ e with eexpr = TSwitch switch }
 	| TWhile (cond,block,flag) ->
 		{e with eexpr = TWhile(cond,traverse (mk_block block), flag) }
 	| TIf (cond, eif, eelse) ->
