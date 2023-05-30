@@ -374,34 +374,29 @@ let inline_constructors ctx original_e =
 					let argvs, pl = analyze_call_args pl in
 					let _, cname = c.cl_path in
 					let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
-					match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
-					| Some inlined_expr ->
-						let inlined_expr = mark_ctors inlined_expr in
-						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
-						let forced = is_extern_ctor c cf || force_inline in
-						let io = mk_io (IOKCtor{ioc_class=c; ioc_tparams=tl; ioc_field=cf; ioc_forced=forced}) io_id inlined_expr ~has_untyped:has_untyped in
-						io.io_dependent_vars <- argvs;
-						let rec loop (c:tclass) (tl:t list) =
-							let apply = apply_params c.cl_params tl in
-							List.iter (fun cf ->
-								match cf.cf_kind,cf.cf_expr with
-								| Var _, _ ->
-									let fieldt = apply cf.cf_type in
-									ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
-								| _ -> ()
-							) c.cl_ordered_fields;
-							match c.cl_super with
-							| Some (c,tl) -> loop c (List.map apply tl)
-							| None -> ()
-						in loop c tl;
-						let iv = add v IVKLocal in
-						set_iv_alias iv io;
-						ignore(analyze_aliases_in_ctor cf true io.io_expr);
-						Some iv
-					| _ ->
-						List.iter (fun v -> cancel_v v v.v_pos) argvs;
-						if is_extern_ctor c cf then display_error ctx.com "Extern constructor could not be inlined" e.epos;
-						None
+					let inlined_expr = Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos in
+					let inlined_expr = mark_ctors inlined_expr in
+					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
+					let forced = is_extern_ctor c cf || force_inline in
+					let io = mk_io (IOKCtor{ioc_class=c; ioc_tparams=tl; ioc_field=cf; ioc_forced=forced}) io_id inlined_expr ~has_untyped:has_untyped in
+					io.io_dependent_vars <- argvs;
+					let rec loop (c:tclass) (tl:t list) =
+						let apply = apply_params c.cl_params tl in
+						List.iter (fun cf ->
+							match cf.cf_kind,cf.cf_expr with
+							| Var _, _ ->
+								let fieldt = apply cf.cf_type in
+								ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
+							| _ -> ()
+						) c.cl_ordered_fields;
+						match c.cl_super with
+						| Some (c,tl) -> loop c (List.map apply tl)
+						| None -> ()
+					in loop c tl;
+					let iv = add v IVKLocal in
+					set_iv_alias iv io;
+					ignore(analyze_aliases_in_ctor cf true io.io_expr);
+					Some iv
 				end
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
 				raise_typing_error "Extern constructor could not be inlined" e.epos;
@@ -501,29 +496,24 @@ let inline_constructors ctx original_e =
 				let argvs, pl = analyze_call_args call_args in
 				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
 				io.io_has_untyped <- io.io_has_untyped or (Meta.has Meta.HasUntyped cf.cf_meta);
-				begin match Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true with
-				| Some e ->
-					let e = mark_ctors e in
-					io.io_inline_methods <- io.io_inline_methods @ [e];
-					begin match analyze_aliases captured e with
-						| Some(iv) ->
-							(*
-								The parent inline object might have been cancelled while analyzing the inlined method body
-								If the parent inline object is cancelled the inlining of this method will no longer happen,
-								so the return value must be cancelled.
-							*)
-							if io.io_cancelled then begin
-								cancel_iv iv e.epos;
-								None
-							end else begin
-								io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
-								Some(iv)
-							end
-						| None -> None
-					end
-				| None ->
-					cancel_io io e.epos;
-					None
+				let e = Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true in
+				let e = mark_ctors e in
+				io.io_inline_methods <- io.io_inline_methods @ [e];
+				begin match analyze_aliases captured e with
+					| Some(iv) ->
+						(*
+							The parent inline object might have been cancelled while analyzing the inlined method body
+							If the parent inline object is cancelled the inlining of this method will no longer happen,
+							so the return value must be cancelled.
+						*)
+						if io.io_cancelled then begin
+							cancel_iv iv e.epos;
+							None
+						end else begin
+							io.io_dependent_vars <- iv.iv_var :: io.io_dependent_vars;
+							Some(iv)
+						end
+					| None -> None
 				end
 			| IOFInlineVar(iv) ->
 				cancel_iv iv e.epos;

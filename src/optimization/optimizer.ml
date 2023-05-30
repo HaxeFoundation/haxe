@@ -352,20 +352,23 @@ let rec reduce_loop ctx e =
 				let cf = mk_field "" ef.etype e.epos null_pos in
 				let ethis = mk (TConst TThis) t_dynamic e.epos in
 				let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
-				let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error { err_message = Custom _ } -> None) in
-				(match inl with
-				| None -> reduce_expr ctx e
-				| Some e -> reduce_loop ctx e)
+				begin try
+					let e = type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false in
+					reduce_loop ctx e
+				with Error { err_message = Custom _ } ->
+					reduce_expr ctx e
+				end;
 			| {eexpr = TField(ef,(FStatic(cl,cf) | FInstance(cl,_,cf)))} when needs_inline ctx (Some cl) cf && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let config = inline_config (Some cl) cf el e.etype in
 					let rt = (match Abstract.follow_with_abstracts e1.etype with TFun (_,rt) -> rt | _ -> die "" __LOC__) in
-					let inl = (try type_inline ctx cf tf ef el rt config e.epos false with Error { err_message = Custom _ } -> None) in
-					(match inl with
-					| None -> reduce_expr ctx e
-					| Some e ->
-						rec_stack_default inline_stack cf (fun cf' -> cf' == cf) (fun () -> reduce_loop ctx e) e)
+					begin try
+						let e = type_inline ctx cf tf ef el rt config e.epos false in
+						rec_stack_default inline_stack cf (fun cf' -> cf' == cf) (fun () -> reduce_loop ctx e) e
+					with Error { err_message = Custom _ } ->
+						reduce_expr ctx e
+					end
 				| _ ->
 					reduce_expr ctx e
 				end
