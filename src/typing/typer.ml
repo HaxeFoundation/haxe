@@ -1143,7 +1143,7 @@ and type_new ctx path el with_type force_inline p =
 		raise_typing_error (s_type (print_context()) t ^ " cannot be constructed") p
 	end with Error ({ err_message = No_constructor _ } as err) when ctx.com.display.dms_kind <> DMNone ->
 		display_error_ext ctx.com err;
-		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
+		Diagnostics.secure_generated_code ctx.com (mk (TConst TNull) t p)
 
 and type_try ctx e1 catches with_type p =
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
@@ -1820,7 +1820,7 @@ and type_call_builtin ctx e el mode with_type p =
 		| _ ->
 			let e = type_expr ctx e WithType.value in
 			warning ctx WInfo (s_type (print_context()) e.etype) e.epos;
-			let e = Diagnostics.secure_generated_code ctx e in
+			let e = Diagnostics.secure_generated_code ctx.com e in
 			e
 		end
 	| (EField(e,"match",efk_todo),p), [epat] ->

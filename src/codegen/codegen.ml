@@ -476,10 +476,6 @@ let interpolate_code com code tl f_string f_expr p =
 			i := !i + String.length txt;
 			f_string txt;
 			loop tl
-		| Str.Delim a :: Str.Delim b :: tl when a = b ->
-			i := !i + 2;
-			f_string a;
-			loop tl
 		| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
 			begin try
 				let expr = Array.get exprs (int_of_string n) in

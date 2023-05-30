@@ -34,8 +34,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				raise Exit
 		in
 		if not force_inline then begin
-			let is_extern_class = match cl with Some c -> (has_class_flag c CExtern) | _ -> false in
-			if not (Inline.needs_inline ctx is_extern_class f) then raise Exit;
+			if not (needs_inline ctx cl f) then raise Exit;
 		end else begin
 			match cl with
 			| None ->
@@ -71,11 +70,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match f.cf_expr_unoptimized,f.cf_expr with
 		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
-			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
-			| None ->
-				if force_inline then raise_typing_error "Inline could not be done" p;
-				raise Exit;
-			| Some e -> e)
+			Inline.type_inline ctx f fd ethis params t config p force_inline
 		| _ ->
 			(*
 				we can't inline because there is most likely a loop in the typing.

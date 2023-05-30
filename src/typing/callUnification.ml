@@ -6,13 +6,6 @@ open Typecore
 open Error
 open FieldAccess
 
-let is_forced_inline c cf =
-	match c with
-	| Some { cl_kind = KAbstractImpl _ } -> true
-	| Some c when has_class_flag c CExtern -> true
-	| _ when has_class_field_flag cf CfExtern -> true
-	| _ -> false
-
 let unify_call_args ctx el args r callp inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
 
@@ -500,7 +493,7 @@ object(self)
 			!ethis_f();
 			raise exc
 		in
-		let e = Diagnostics.secure_generated_code ctx e in
+		let e = Diagnostics.secure_generated_code ctx.com e in
 		ctx.com.error_ext <- old;
 		!ethis_f();
 		e

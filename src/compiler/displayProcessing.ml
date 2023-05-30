@@ -48,7 +48,7 @@ let handle_display_argument_old com file_pos actx =
 			| "diagnostics" ->
 				com.report_mode <- RMDiagnostics [file_unique];
 				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true}
+				{dm with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = !ServerConfig.populate_cache_from_display}
 			| "statistics" ->
 				com.report_mode <- RMStatistics;
 				let dm = create DMNone in
@@ -312,7 +312,6 @@ let process_global_display_mode com tctx =
 		FindReferences.find_references tctx com with_definition
 	| DMImplementation ->
 		FindReferences.find_implementations tctx com
-	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
 		let open CompilationCache in
 		let cs = com.cs in
