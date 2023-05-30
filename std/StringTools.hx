@@ -344,11 +344,13 @@ class StringTools {
 
 		This is a convenience function for `ltrim(rtrim(s))`.
 	**/
-	public #if (cs || java) inline #end static function trim(s:String):String {
+	public #if (cs || java || (js && js_es >= 5)) inline #end static function trim(s:String):String {
 		#if cs
 		return untyped s.Trim();
 		#elseif java
 		return (cast s : java.NativeString).trim();
+		#elseif (js && js_es >= 5)
+		return (cast s).trim();
 		#else
 		return ltrim(rtrim(s));
 		#end
