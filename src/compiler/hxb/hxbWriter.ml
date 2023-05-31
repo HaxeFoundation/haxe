@@ -923,6 +923,7 @@ class ['a] hxb_writer
 			self#start_chunk CLSR;
 			chunk#write_list l (fun c ->
 				let m = c.cl_module in
+				Printf.eprintf "  Write clsr for %s.%s\n" (snd m.m_path) (snd c.cl_path);
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path)
 			)
 		end;
