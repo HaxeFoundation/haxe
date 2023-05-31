@@ -69,10 +69,13 @@ class hxb_reader
 		self#read_u8 <> 0
 
 	method read_from_string_pool pool =
-		(* TODO fix module vs global string pool handling *)
 		let l = self#read_uleb128 in
 		(* Printf.eprintf "  Get string #%d\n" l; *)
-		try pool.(l) with e -> begin
+		try begin
+			let s = pool.(l) in
+			(* Printf.eprintf "  Read string %s\n" s; *)
+			s
+		end with e -> begin
 			Printf.eprintf "  Failed getting string #%d\n" l;
 			(* "" *)
 			raise e
@@ -84,7 +87,7 @@ class hxb_reader
 	method read_raw_string =
 		let l = self#read_uleb128 in
 		let s = Bytes.unsafe_to_string (IO.nread ch l) in
-		(* Printf.eprintf "  Read raw string %s\n" s; *)
+		(* Printf.eprintf "    Read raw string %s\n" s; *)
 		s
 
 	(* Basic compounds *)
@@ -115,6 +118,7 @@ class hxb_reader
 		let pack = self#read_list8 (fun () -> self#read_string) in
 		let mname = self#read_string in
 		let tname = self#read_string in
+		Printf.eprintf "    Read full path %s.%s.%s\n" (ExtString.String.join "." pack) mname tname;
 		(pack,mname,tname)
 
 	method read_documentation =
@@ -655,26 +659,20 @@ class hxb_reader
 
 		method read_class_field (m : module_def) : tclass_field =
 			let name = self#read_string in
-			Printf.eprintf "  Read class field %s\n" name;
+			Printf.eprintf "    Read class field %s\n" name;
 			(* TODO read_list? *)
 			(* self#read_type_parameters m ([],name) (fun a -> *)
 			(* 	field_type_parameters <- a *)
 			(* ); *)
-
-			(* TODO fix flags *)
-			(* let flags = Int32.to_int self#read_u32 in *)
-			(* let flags = Int32.to_int (IO.read_real_i32 ch) in *)
-			(* let flags = IO.read_i32 ch in *)
-			let flags = 0 in
-
 			let t = self#read_type_instance in
+			let flags = IO.read_i32 ch in
 			let pos = self#read_pos in
 			let name_pos = self#read_pos in
 			let doc = self#read_option (fun () -> self#read_documentation) in
 			let meta = self#read_metadata in
-			self#read_type_parameters m ([],name) (fun a ->
-				field_type_parameters <- a
-			);
+			(* self#read_type_parameters m ([],name) (fun a -> *)
+			(* 	field_type_parameters <- a *)
+			(* ); *)
 			let params = Array.to_list field_type_parameters in
 			let kind = self#read_field_kind in
 			let expr = self#read_option (fun () -> self#read_texpr) in
@@ -706,10 +704,13 @@ class hxb_reader
 			| _ ->
 				type_type_parameters <- Array.of_list c.cl_params
 			end;
+			Printf.eprintf "  Read constructor for %s\n" (snd m.m_path);
 			c.cl_constructor <- self#read_option f;
+			Printf.eprintf "  Read ordered fields for %s\n" (snd m.m_path);
 				(* TODO check list 8 vs 16 *)
 			c.cl_ordered_fields <- self#read_list8 f;
 				(* TODO check list 8 vs 16 *)
+			Printf.eprintf "  Read ordered statics for %s\n" (snd m.m_path);
 			c.cl_ordered_statics <- self#read_list8 f;
 			List.iter (fun cf -> c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics) c.cl_ordered_statics;
 
@@ -842,7 +843,7 @@ class hxb_reader
 			let l = self#read_uleb128 in
 			classes <- Array.append classes (Array.init l (fun i ->
 				let (pack,mname,tname) = self#read_full_path in
-				Printf.eprintf "  Read clsr %d of %d for class %s\n" i (l-1) tname;
+				Printf.eprintf "  Read clsr %d of %d for %s.%s\n" i (l-1) mname tname;
 				match resolve_type pack mname tname with
 				| TClassDecl c ->
 					c
@@ -931,15 +932,15 @@ class hxb_reader
 						let m = self#read_hhdr in
 						m,chunks
 					| STRI ->
-						string_pool <- Array.concat [string_pool; self#read_string_pool];
-						(* string_pool <- self#read_string_pool; *)
+						(* string_pool <- Array.concat [string_pool; self#read_string_pool]; *)
+						string_pool <- self#read_string_pool;
 						(* Array.iteri (fun i s -> *)
 						(* 	Printf.eprintf "  [Pool] string #%d %s\n" i s; *)
 						(* ) string_pool; *)
 						pass_0 chunks
 					| DOCS ->
-						doc_pool <- Array.concat [doc_pool; self#read_string_pool];
-						(* doc_pool <- self#read_string_pool; *)
+						(* doc_pool <- Array.concat [doc_pool; self#read_string_pool]; *)
+						doc_pool <- self#read_string_pool;
 						(* Array.iteri (fun i s -> *)
 						(* 	Printf.eprintf "  [Pool] doc string #%d %s\n" i s; *)
 						(* ) doc_pool; *)
@@ -949,6 +950,7 @@ class hxb_reader
 			in
 			let m,chunks = pass_0 chunks in
 			List.iter (fun (kind,data) ->
+				Printf.eprintf "Reading chunk %s\n" (string_of_chunk_kind kind);
 				ch <- IO.input_bytes data;
 				match kind with
 				| TYPF ->
