@@ -37,7 +37,7 @@ class class_maintenance_task (cs : CompilationCache.t) (c : tclass) = object(sel
 		let rec field cf =
 			(* Unset cf_expr. This holds the optimized version for generators, which we don't need to persist. If
 				we compile again, the semi-optimized expression will be restored by calling cl_restore(). *)
-			cf.cf_expr <- None;
+			(* cf.cf_expr <- None; *)
 			List.iter field cf.cf_overloads
 		in
 		(* What we're doing here at the moment is free, so we can just do it in one task. If this ever gets more expensive,
