@@ -199,19 +199,24 @@ let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 }
 
 let null_module = {
-		m_id = alloc_mid();
-		m_path = [] , "";
-		m_types = [];
-		m_statics = None;
-		m_extra = module_extra "" "" 0. MFake [];
-	}
+	m_id = alloc_mid();
+	m_path = [] , "";
+	m_types = [];
+	m_statics = None;
+	m_extra = module_extra "" "" 0. MFake [];
+}
 
 let null_class =
 	let c = mk_class null_module ([],"") null_pos null_pos in
 	c.cl_private <- true;
 	c
 
+(* TODO null_enum *)
+
 let null_field = mk_field "" t_dynamic null_pos null_pos
+(* TODO null_class_field *)
+(* TODO null_abstract_field *)
+(* TODO null_enum_field *)
 
 let null_abstract = {
 	a_path = ([],"");
@@ -238,6 +243,10 @@ let null_abstract = {
 	a_call = None;
 	a_enum = false;
 }
+
+let null_tdef =
+	(* TODO better null type? *)
+	mk_typedef null_module ([],"") null_pos null_pos (TDynamic None)
 
 let add_dependency ?(skip_postprocess=false) m mdep =
 	if m != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin

@@ -494,7 +494,7 @@ let add_field_inits cl_path locals com t =
 				| None -> die "" __LOC__
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,extract_param_types c.cl_params,cf))) cf.cf_type cf.cf_pos in
-					cf.cf_expr <- None;
+					(* cf.cf_expr <- None; *)
 					mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos
 			) inits in
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in

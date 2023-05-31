@@ -145,7 +145,7 @@ let handle_class gen cl =
 				in
 
 				let ret = binop Ast.OpAssign var (change_expr e) (fn cf.cf_type) cf.cf_pos in
-				cf.cf_expr <- None;
+				(* cf.cf_expr <- None; *)
 				let is_override = has_class_field_flag cf CfOverride in
 
 				if is_override then begin
