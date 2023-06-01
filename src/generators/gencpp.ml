@@ -1945,6 +1945,7 @@ let rec cpp_type_of stack ctx haxe_type =
             | TCppDynamicArray
             | TCppObjectArray _
             | TCppScalarArray _
+            | TCppCallable _
                -> TCppObjectArray(arrayOf)
             | _ ->
               TCppScalarArray(arrayOf)
@@ -4033,7 +4034,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | TCppDynamicArray
          | TCppClass
          | TCppEnum _
-         | TCppInst _ -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ " >()")
+         | TCppInst _
+         | TCppCallable _
+            -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ " >()")
          | _ ->()
          )
 
