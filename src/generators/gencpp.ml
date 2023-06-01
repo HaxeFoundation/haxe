@@ -4590,31 +4590,6 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       in
       let write_closure_trailer captures_obj =
          output "\t}\n";
-
-         (* Override the dynamic run functions *)
-
-         let return_string =
-            if is_void then
-               ""
-            else
-               "return " ^ match return_type with
-               | TCppStar _ ->
-                  "(::cpp::Pointer<const void*>)"
-               | TCppInst (klass, _) when has_meta_key klass.cl_meta Meta.StructAccess ->
-                  "(::cpp::Struct<" ^ return_type_str ^ ">)"
-               | _ -> "" in
-
-         let arg_callsite_prefix t =
-            let tcpp = cpp_type_of ctx t in
-            match tcpp with
-            | TCppStar (tcpp, is_const) ->
-               let const_str = if is_const then "Const" else "" in
-               let ptr_str   = tcpp_to_string tcpp in
-               "::cpp::" ^ const_str ^ "Pointer<" ^ ptr_str ^ ">"
-            | TCppInst (klass, _) when has_meta_key klass.cl_meta Meta.StructAccess ->
-               "::cpp::Struct<" ^ (tcpp_to_string tcpp) ^ ">"
-            | _ -> "" in
-
          if captures_obj then begin
             output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
             output "#ifdef HXCPP_VISIT_ALLOCS\n";
