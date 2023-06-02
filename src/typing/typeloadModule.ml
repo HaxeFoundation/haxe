@@ -798,11 +798,8 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 let type_module_hook = ref (fun _ _ _ -> None)
 
 let reader : HxbReader.hxb_reader option ref = ref None
-let rec get_reader ctx input p = match !reader with
-	| Some r ->
-		r#set_input input;
-		r
-	| None ->
+
+let rec get_reader ctx input p =
 		let make_module path file = ModuleLevel.make_module ctx path file p in
 		let add_module m = ctx.com.module_lut#add m.m_path m in
 
@@ -811,9 +808,24 @@ let rec get_reader ctx input p = match !reader with
 			List.find (fun t -> snd (t_path t) = tname) m.m_types;
 		in
 
-		let r = new HxbReader.hxb_reader input make_module add_module resolve_type in
-		reader := Some r;
-		r
+		new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
+
+(* let rec get_reader ctx input p = match !reader with *)
+(* 	| Some r -> *)
+(* 		r#set_input input; *)
+(* 		r *)
+(* 	| None -> *)
+(* 		let make_module path file = ModuleLevel.make_module ctx path file p in *)
+(* 		let add_module m = ctx.com.module_lut#add m.m_path m in *)
+
+(* 		let resolve_type pack mname tname = *)
+(* 			let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in *)
+(* 			List.find (fun t -> snd (t_path t) = tname) m.m_types; *)
+(* 		in *)
+
+(* 		let r = new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type in *)
+(* 		reader := Some r; *)
+(* 		r *)
 
 and load_hxb_module ctx path p =
 	(* Modules failing to load so far *)

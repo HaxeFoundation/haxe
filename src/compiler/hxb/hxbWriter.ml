@@ -425,20 +425,25 @@ class ['a] hxb_writer
 
 	method write_texpr (e : texpr) =
 		Printf.eprintf "  Print texpr\n";
-		self#write_pos e.epos;
-		let curmin = ref e.epos.pmin in
-		let curmax = ref e.epos.pmax in
-		let check_diff p =
-			let dmin = p.pmin - !curmin in
-			let dmax = p.pmax - !curmax in
-			chunk#write_i16 dmin;
-			chunk#write_i16 dmax;
-			curmin := p.pmin;
-			curmax := p.pmax;
-		in
+		(* self#write_pos e.epos; *)
+		(* let curmin = ref e.epos.pmin in *)
+		(* let curmax = ref e.epos.pmax in *)
+
+		(* TODO fix that *)
+		(* let check_diff p = *)
+		(* 	let dmin = p.pmin - !curmin in *)
+		(* 	let dmax = p.pmax - !curmax in *)
+		(* 	(1* chunk#write_i16 dmin; *1) *)
+		(* 	(1* chunk#write_i16 dmax; *1) *)
+		(* 	curmin := p.pmin; *)
+		(* 	curmax := p.pmax; *)
+		(* in *)
+
 		let rec loop e =
 			self#write_type_instance e.etype;
-			check_diff e.epos;
+			(* check_diff e.epos; *)
+			self#write_pos e.epos;
+
 			match e.eexpr with
 			(* values 0-19 *)
 			| TConst ct ->
@@ -740,13 +745,14 @@ class ['a] hxb_writer
 		Printf.eprintf " Write class field %s\n" cf.cf_name;
 		self#set_field_type_parameters cf.cf_params;
 		chunk#write_string cf.cf_name;
-		(* chunk#write_list cf.cf_params self#write_type_parameter_forward; *)
-		(* chunk#write_list cf.cf_params self#write_type_parameter_data; *)
+		chunk#write_list cf.cf_params self#write_type_parameter_forward;
+		chunk#write_list cf.cf_params self#write_type_parameter_data;
+		Printf.eprintf "  Field type params: %d\n" (List.length cf.cf_params);
 		self#write_type_instance cf.cf_type;
 		chunk#write_i32 cf.cf_flags;
 		self#write_pos cf.cf_pos;
 		self#write_pos cf.cf_name_pos;
-		chunk#write_option cf.cf_doc self#write_documentation;
+		(* chunk#write_option cf.cf_doc self#write_documentation; *)
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
 		chunk#write_option cf.cf_expr self#write_texpr;
@@ -900,8 +906,10 @@ class ['a] hxb_writer
 			chunk#write_list own_classes (fun c ->
 				begin match c.cl_kind with
 				| KAbstractImpl a ->
+					Printf.eprintf "\n === Write CFLD for %s ===\n" (snd a.a_path);
 					self#select_type a.a_path
 				| _ ->
+					Printf.eprintf "\n === Write CFLD for %s ===\n" (snd c.cl_path);
 					self#select_type c.cl_path;
 				end;
 				chunk#write_option c.cl_constructor self#write_class_field;
