@@ -156,8 +156,8 @@ class hxb_reader
 			pmin = min;
 			pmax = max;
 		} in
-		Printf.eprintf "Read pos: %s\n" (Printer.s_pos pos);
-		MessageReporting.display_source_at com pos;
+		(* Printf.eprintf "Read pos: %s\n" (Printer.s_pos pos); *)
+		(* MessageReporting.display_source_at com pos; *)
 		pos
 
 	method read_metadata_entry : metadata_entry =
@@ -364,38 +364,38 @@ class hxb_reader
 	(* 	(k,e) *)
 
 	method read_tfunction_arg =
-		Printf.eprintf "   read_tfunction_arg\n";
+		(* Printf.eprintf "   read_tfunction_arg\n"; *)
 		let v = self#read_var in
 		let cto = self#read_option (fun () -> self#read_texpr) in
 		(v,cto)
 
 	method read_tfunction =
-		Printf.eprintf "   read_tfunction\n";
+		(* Printf.eprintf "   read_tfunction\n"; *)
 		let args = self#read_list16 (fun () -> self#read_tfunction_arg) in
 		let r = self#read_type_instance in
 		let e = self#read_texpr in
-		Printf.eprintf "   read_tfunction done\n";
+		(* Printf.eprintf "   read_tfunction done\n"; *)
 		{
 			tf_args = args;
 			tf_type = r;
 			tf_expr = e;
 		}
 
-	method read_switch_case =
-		(* list_8 *)
-		Printf.eprintf "   read_switch_case\n";
-		let el = self#read_list8 (fun () -> self#read_texpr) in
-		let e = self#read_texpr in
-		{
-			case_patterns = el;
-			case_expr = e;
-		}
+	(* method read_switch_case = *)
+	(* 	(1* list_8 *1) *)
+	(* 	(1* Printf.eprintf "   read_switch_case\n"; *1) *)
+	(* 	let el = self#read_list8 (fun () -> self#read_texpr) in *)
+	(* 	let e = self#read_texpr in *)
+	(* 	{ *)
+	(* 		case_patterns = el; *)
+	(* 		case_expr = e; *)
+	(* 	} *)
 
-	method read_catch =
-		Printf.eprintf "   read_catch\n";
-		let v = self#read_var in
-		let e = self#read_texpr in
-		(v,e)
+	(* method read_catch = *)
+	(* 	(1* Printf.eprintf "   read_catch\n"; *1) *)
+	(* 	let v = self#read_var in *)
+	(* 	let e = self#read_texpr in *)
+	(* 	(v,e) *)
 
 	method read_tfield_access =
 		match IO.read_byte ch with
@@ -466,7 +466,7 @@ class hxb_reader
 		let pos = self#read_pos in
 
 		let i = IO.read_byte ch in
-		Printf.eprintf "      -- loop [%d] --\n" i;
+		Printf.eprintf "      -- texpr [%d] --\n" i;
 		let e = match i with
 			(* values 0-19 *)
 			| 0 -> TConst TNull
@@ -516,13 +516,39 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let e2 = self#read_texpr in
 				TArray (e1,e2)
-			(* TODO 61-63 *)
+			| 61 -> TParenthesis self#read_texpr
+			| 62 -> TArrayDecl self#read_texpr_list
+			| 63 ->
+				let fl = self#read_list16 (fun () ->
+					let name = self#read_string in
+					let p = self#read_pos in
+					let qs = match IO.read_byte ch with
+						| 0 -> NoQuotes
+						| 1 -> DoubleQuotes
+						| _ -> assert false
+					in
+					let e = self#read_texpr in
+					((name,p,qs),e)
+				) in
+				TObjectDecl fl
 			| 64 ->
 				let e1 = self#read_texpr in
 				let el = self#read_texpr_list in
 				TCall(e1,el)
 
 			(* branching 80-89 *)
+			| 80 ->
+				let e1 = self#read_texpr in
+				let e2 = self#read_texpr in
+				TIf(e1,e2,None)
+			| 84 ->
+				let e1 = self#read_texpr in
+				let e2 = self#read_texpr in
+				TWhile(e1,e2,NormalWhile)
+			| 85 ->
+				let e1 = self#read_texpr in
+				let e2 = self#read_texpr in
+				TWhile(e1,e2,DoWhile)
 
 			(* control flow 90-99 *)
 			| 90 -> TReturn None
@@ -565,12 +591,12 @@ class hxb_reader
 			| 124 -> TCast(self#read_texpr,None)
 			| 126 ->
 				let c = self#read_class_ref in
-				Printf.eprintf "      -- [%d] c.name = %s --\n" i (snd c.cl_path);
+				(* Printf.eprintf "      -- [%d] c.name = %s --\n" i (snd c.cl_path); *)
 				let tl = self#read_types in
-				Printf.eprintf "      -- [%d] tl.len = %d --\n" i (List.length tl);
+				(* Printf.eprintf "      -- [%d] tl.len = %d --\n" i (List.length tl); *)
 				let el = self#read_texpr_list in
-				Printf.eprintf "      -- [%d] el.len = %d --\n" i (List.length el);
-				Printf.eprintf "      -- [%d] ready --\n" i;
+				(* Printf.eprintf "      -- [%d] el.len = %d --\n" i (List.length el); *)
+				(* Printf.eprintf "      -- [%d] ready --\n" i; *)
 				TNew(c,tl,el)
 
 			(* unops 140-159 *)
@@ -626,15 +652,15 @@ class hxb_reader
 				in
 
 				let op = get_binop (i - 160) in
-				Printf.eprintf "      -- [%d] e1 --\n" i;
+				(* Printf.eprintf "      -- [%d] e1 --\n" i; *)
 				let e1 = self#read_texpr in
-				Printf.eprintf "      -- [%d] read e1 at: --\n" i;
-				MessageReporting.display_source_at com e1.epos;
-				Printf.eprintf "      -- [%d] e2 --\n" i;
+				(* Printf.eprintf "      -- [%d] read e1 at: --\n" i; *)
+				(* MessageReporting.display_source_at com e1.epos; *)
+				(* Printf.eprintf "      -- [%d] e2 --\n" i; *)
 				let e2 = self#read_texpr in
-				Printf.eprintf "      -- [%d] read e2 at: --\n" i;
-				MessageReporting.display_source_at com e2.epos;
-				Printf.eprintf "      -- [%d] binop ready --\n" i;
+				(* Printf.eprintf "      -- [%d] read e2 at: --\n" i; *)
+				(* MessageReporting.display_source_at com e2.epos; *)
+				(* Printf.eprintf "      -- [%d] binop ready --\n" i; *)
 				TBinop(op,e1,e2)
 
 			(* rest 250-254 *)
@@ -646,8 +672,8 @@ class hxb_reader
 				assert false
 		in
 
-		Printf.eprintf "   Done reading texpr at:\n";
-		MessageReporting.display_source_at com pos;
+		(* Printf.eprintf "   Done reading texpr at:\n"; *)
+		(* MessageReporting.display_source_at com pos; *)
 
 		{
 			eexpr = e;
@@ -662,7 +688,6 @@ class hxb_reader
 	method read_class_field (m : module_def) : tclass_field =
 		let name = self#read_string in
 		Printf.eprintf "    Read class field %s\n" name;
-		(* TODO fix fietd type param reading *)
 		self#read_type_parameters m ([],name) (fun a ->
 			Printf.eprintf "     Read field type param (len = %d)\n" (Array.length a);
 			field_type_parameters <- a
@@ -782,29 +807,53 @@ class hxb_reader
 	method read_abstract (m : module_def) (a : tabstract) =
 		self#read_common_module_type m (Obj.magic a);
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
+		Printf.eprintf "Read type instance...\n";
 		a.a_this <- self#read_type_instance;
 			(* TODO check list 8 vs 16 *)
+		Printf.eprintf "Read from...\n";
 		a.a_from <- self#read_list16 (fun () -> self#read_type_instance);
 			(* TODO check list 8 vs 16 *)
+		Printf.eprintf "Read @:from fields...\n";
 		a.a_from_field <- self#read_list16 (fun () ->
+		let name = self#read_string in
+		self#read_type_parameters m ([],name) (fun a ->
+			Printf.eprintf "     Read field type param (len = %d)\n" (Array.length a);
+			field_type_parameters <- a
+		);
 			let t = self#read_type_instance in
 			let cf = self#read_field_ref in
 			(t,cf)
 		);
 			(* TODO check list 8 vs 16 *)
+		Printf.eprintf "Read to...\n";
 		a.a_to <- self#read_list16 (fun () -> self#read_type_instance);
 			(* TODO check list 8 vs 16 *)
+		Printf.eprintf "Read @:to fields...\n";
 		a.a_to_field <- self#read_list16 (fun () ->
+		Printf.eprintf "1\n";
+		let name = self#read_string in
+		self#read_type_parameters m ([],name) (fun a ->
+			Printf.eprintf "     Read field type param (len = %d)\n" (Array.length a);
+			field_type_parameters <- a
+		);
 			let t = self#read_type_instance in
+		Printf.eprintf "2\n";
 			let cf = self#read_field_ref in
+		Printf.eprintf "3\n";
 			(t,cf)
 		);
 			(* TODO check list 8 vs 16 *)
+		(* Printf.eprintf "1\n"; *)
 		a.a_array <- self#read_list16 (fun () -> self#read_field_ref);
+		(* Printf.eprintf "2\n"; *)
 		a.a_read <- self#read_option (fun () -> self#read_field_ref);
+		(* Printf.eprintf "3\n"; *)
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
+		(* Printf.eprintf "4\n"; *)
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
-		a.a_enum <- self#read_bool
+		(* Printf.eprintf "5\n"; *)
+		a.a_enum <- self#read_bool;
+		Printf.eprintf "Done.\n";
 
 	(* Chunks *)
 

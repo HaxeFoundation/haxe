@@ -843,13 +843,19 @@ class ['a] hxb_writer
 		self#write_type_instance a.a_this;
 		chunk#write_list a.a_from self#write_type_instance;
 		chunk#write_list a.a_from_field (fun (t,cf) ->
+			chunk#write_string cf.cf_name;
 			self#set_field_type_parameters cf.cf_params;
+		chunk#write_list cf.cf_params self#write_type_parameter_forward;
+		chunk#write_list cf.cf_params self#write_type_parameter_data;
 			self#write_type_instance t;
 			self#write_field_ref (ClassStatic c) cf;
 		);
 		chunk#write_list a.a_to self#write_type_instance;
 		chunk#write_list a.a_to_field (fun (t,cf) ->
+			chunk#write_string cf.cf_name;
 			self#set_field_type_parameters cf.cf_params;
+		chunk#write_list cf.cf_params self#write_type_parameter_forward;
+		chunk#write_list cf.cf_params self#write_type_parameter_data;
 			self#write_type_instance t;
 			self#write_field_ref (ClassStatic c) cf;
 		);
