@@ -358,11 +358,17 @@ and collect_ignore_block ?(in_block=false) rc scope e =
 (**
 	Rename `v` if needed
 *)
+let trailing_numbers = Str.regexp "[0-9]+$"
 let maybe_rename_var rc reserved (v,overlaps) =
 	let commit name =
 		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: v.v_meta;
 		v.v_name <- name
 	in
+	(* chop escape char for all local variables generated *)
+	if String.unsafe_get v.v_name 0 = String.unsafe_get Typecore.gen_local_prefix 0 then begin
+		let name = String.sub v.v_name 1 (String.length v.v_name - 1) in
+		commit ("_g" ^ (Str.replace_first trailing_numbers "" name))
+	end;
 	let rec loop name count =
 		if StringMap.mem name !reserved || Overlaps.has_name name overlaps then begin
 			let count = count + 1 in

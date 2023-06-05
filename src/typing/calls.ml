@@ -70,11 +70,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match f.cf_expr_unoptimized,f.cf_expr with
 		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
-			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
-			| None ->
-				if force_inline then raise_typing_error "Inline could not be done" p;
-				raise Exit;
-			| Some e -> e)
+			Inline.type_inline ctx f fd ethis params t config p force_inline
 		| _ ->
 			(*
 				we can't inline because there is most likely a loop in the typing.
