@@ -829,20 +829,19 @@ let rec get_reader ctx input p =
 
 and load_hxb_module ctx path p =
 	(* Modules failing to load so far *)
-	(* match snd path with *)
-	(* (1* | "ArrayIterator" *1) *)
-	(* (1* | "ArrayKeyValueIterator" *1) *)
-	(* (1* | "StdTypes" *1) *)
+	match snd path with
+	(* | "ArrayIterator" *)
+	(* | "ArrayKeyValueIterator" *)
+	(* | "StdTypes" *)
 	(* | "Any" *)
 	(* 	-> raise Not_found *)
-	(* | _ -> (); *)
+	| _ -> ();
 
 	let l = ((Common.dump_path ctx.com) :: "hxb" :: (Common.platform_name_macro ctx.com) :: fst path @ [snd path]) in
 	let filepath = (List.fold_left (fun acc s -> acc ^ "/" ^ s) "." l) ^ ".hxb" in
 	let ch = try open_in_bin filepath with Sys_error _ -> raise Not_found in
 	let input = IO.input_channel ch in
 
-	(* TODO store reader somewhere *)
 	Printf.eprintf "Loading %s from %s...\n" (snd path) filepath;
 	let m = (get_reader ctx input p)#read true p in
 	close_in ch;
