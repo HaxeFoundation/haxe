@@ -236,7 +236,9 @@ class TestExceptions extends Test {
 		var data = [
 			'_without_ throws' => stacksWithoutThrowLevel1(),
 			'_with_ throws' => stacksWithThrowLevel1(),
+			#if (eval || hl || neko)
 			'auto wrapped' => stacksAutoWrappedLevel1()
+			#end
 		];
 		for(label => stacks in data) {
 			Assert.isTrue(stacks.length > 1, '$label: wrong stacks.length');
@@ -304,7 +306,7 @@ class TestExceptions extends Test {
 		// order with no additional code in between.
 		result.push(try throw new Exception('') catch(e:Exception) e.stack);
 		result.push(try throw "" catch(e:Exception) e.stack);
-		#if (eval || hl || neko) result.push(try wrapNativeError((null:String).length) catch(e:Exception) e.stack); #end
+		result.push(try wrapNativeError((null:String).length) catch(e:Exception) e.stack);
 		return result;
 	}
 
