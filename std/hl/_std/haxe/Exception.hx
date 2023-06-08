@@ -18,7 +18,10 @@ class Exception {
 		if(Std.isOfType(value, Exception)) {
 			return value;
 		} else {
-			return new ValueException(value, null, value);
+			var e = new ValueException(value, null, value);
+			// Undo automatic __shiftStack()
+			e.__unshiftStack();
+			return e;
 		}
 	}
 
@@ -60,6 +63,12 @@ class Exception {
 	@:ifFeature("haxe.Exception.get_stack")
 	inline function __shiftStack():Void {
 		__skipStack++;
+	}
+
+	@:noCompletion
+	@:ifFeature("haxe.Exception.get_stack")
+	inline function __unshiftStack():Void {
+		__skipStack--;
 	}
 
 	function get_message():String {
