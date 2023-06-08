@@ -7,9 +7,13 @@ type chunk_kind =
 	| TYPF (* forward types *)
 	| CLSR (* class reference array *)
 	| ABSR (* abstract reference array *)
+	| ENMR (* enum reference array *)
+	| TPDR (* typedef reference array *)
 	| CLSD (* class definition *)
 	| CFLD (* class fields without expressions *)
 	| ABSD (* abstract definition *)
+	| ENMD (* enum definition *)
+	| TPDD (* typedef definition *)
 	| HEND (* the end *)
 
 let string_of_chunk_kind = function
@@ -19,9 +23,13 @@ let string_of_chunk_kind = function
 	| TYPF -> "TYPF"
 	| CLSR -> "CLSR"
 	| ABSR -> "ABSR"
+	| ENMR -> "ENMR"
+	| TPDR -> "TPDR"
 	| CLSD -> "CLSD"
 	| CFLD -> "CFLD"
 	| ABSD -> "ABSD"
+	| ENMD -> "ENMD"
+	| TPDD -> "TPDD"
 	| HEND -> "HEND"
 
 let chunk_kind_of_string = function
@@ -31,9 +39,13 @@ let chunk_kind_of_string = function
 	| "TYPF" -> TYPF
 	| "CLSR" -> CLSR
 	| "ABSR" -> ABSR
+	| "ENMR" -> ENMR
+	| "TPDR" -> TPDR
 	| "CLSD" -> CLSD
 	| "CFLD" -> CFLD
 	| "ABSD" -> ABSD
+	| "ENMD" -> ENMD
+	| "TPDD" -> TPDD
 	| "HEND" -> HEND
 	| name -> raise (HxbFailure ("Invalid chunk name: " ^ name))
 

@@ -211,7 +211,27 @@ let null_class =
 	c.cl_private <- true;
 	c
 
-(* TODO null_enum *)
+let null_typedef =
+	let t = mk_typedef null_module ([],"") null_pos null_pos (TDynamic None) in
+	t.t_private <- true;
+	t
+
+let null_enum = {
+	e_path = ([],"");
+	e_module = null_module;
+	e_pos = null_pos;
+	e_name_pos = null_pos;
+	e_private = true;
+	e_doc = None;
+	e_meta = [];
+	e_params = [];
+	e_using = [];
+	e_restore = (fun () -> ());
+	e_type = null_typedef;
+	e_extern = false;
+	e_constrs = PMap.empty;
+	e_names = [];
+}
 
 let null_field = mk_field "" t_dynamic null_pos null_pos
 (* TODO null_class_field *)
@@ -243,10 +263,6 @@ let null_abstract = {
 	a_call = None;
 	a_enum = false;
 }
-
-let null_tdef =
-	(* TODO better null type? *)
-	mk_typedef null_module ([],"") null_pos null_pos (TDynamic None)
 
 let null_tvar = {
 	v_id = -1;

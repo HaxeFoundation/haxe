@@ -447,7 +447,7 @@ module Inheritance = struct
 					add_class_field_flag cf CfAbstract;
 				end else if has_class_field_flag f CfDefault then begin
 					let cf = make_implicit_field () in
-					(* cf.cf_expr <- None; *)
+					cf.cf_expr <- None;
 					add_class_field_flag cf CfExtern;
 					add_class_field_flag cf CfOverride;
 				end else if not (has_class_flag c CInterface) then begin
