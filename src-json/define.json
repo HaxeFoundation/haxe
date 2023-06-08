@@ -279,6 +279,11 @@
 		"platforms": ["hl"],
 		"params": ["version"]
 	},
+  {
+    "name": "HxbOnly",
+    "define": "hxb.only",
+    "doc": "Only load types from hxb files (and cache)"
+  },
 	{
 		"name": "HxcppApiLevel",
 		"define": "hxcpp-api-level",
