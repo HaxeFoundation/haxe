@@ -1,4 +1,4 @@
-﻿package unit;
+package unit;
 
 import haxe.Exception;
 import haxe.exceptions.ArgumentException;
@@ -235,7 +235,8 @@ class TestExceptions extends Test {
 	public function testExceptionStack() {
 		var data = [
 			'_without_ throws' => stacksWithoutThrowLevel1(),
-			'_with_ throws' => stacksWithThrowLevel1()
+			'_with_ throws' => stacksWithThrowLevel1(),
+			'auto wrapped' => stacksAutoWrappedLevel1()
 		];
 		for(label => stacks in data) {
 			Assert.isTrue(stacks.length > 1, '$label: wrong stacks.length');
@@ -292,6 +293,22 @@ class TestExceptions extends Test {
 		result.push(try throw new WithConstructorValueException('') catch(e:Exception) e.stack);
 		result.push(try throw new NoConstructorValueException('') catch(e:Exception) e.stack);
 		result.push(try throw @:privateAccess (Exception.thrown(''):Exception) catch(e:Exception) e.stack);
+		return result;
+	}
+
+	function stacksAutoWrappedLevel1() {
+		return stacksAutoWrappedLevel2();
+	}
+
+	function stacksAutoWrappedLevel2():Array<CallStack> {
+		@:pure(false) function wrapNativeError(_) return [];
+
+		var result:Array<CallStack> = [];
+		// It's critical for `testExceptionStack` test to keep the following lines
+		// order with no additional code in between.
+		result.push(try throw new Exception('') catch(e:Exception) e.stack);
+		result.push(try throw "" catch(e:Exception) e.stack);
+		#if (eval || hl || neko || cpp) result.push(try wrapNativeError((null:String).length) catch(e:Exception) e.stack); #end
 		return result;
 	}
 
