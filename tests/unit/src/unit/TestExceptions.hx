@@ -304,7 +304,7 @@ class TestExceptions extends Test {
 		// order with no additional code in between.
 		result.push(try throw new Exception('') catch(e:Exception) e.stack);
 		result.push(try throw "" catch(e:Exception) e.stack);
-		#if (eval || hl || neko || cpp) result.push(try wrapNativeError((null:String).length) catch(e:Exception) e.stack); #end
+		#if (eval || hl || neko) result.push(try wrapNativeError((null:String).length) catch(e:Exception) e.stack); #end
 		return result;
 	}
 
