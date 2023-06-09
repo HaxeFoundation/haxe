@@ -798,6 +798,7 @@ let rec get_reader ctx input p =
 		let add_module m = ctx.com.module_lut#add m.m_path m in
 
 		let resolve_type pack mname tname =
+			Printf.eprintf "[typeloadModule] resolve type %s.%s\n" mname tname;
 			let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
 			List.find (fun t -> snd (t_path t) = tname) m.m_types;
 		in

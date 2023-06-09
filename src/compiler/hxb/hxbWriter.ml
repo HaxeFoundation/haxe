@@ -792,10 +792,12 @@ class ['a] hxb_writer
 	method write_class (c : tclass) =
 		begin match c.cl_kind with
 		| KAbstractImpl a ->
+			Printf.eprintf "Write abstract impl %s with %d type params\n" (snd c.cl_path) (List.length a.a_params);
 			self#select_type a.a_path
 		| _ ->
 			self#select_type c.cl_path;
 		end;
+		Printf.eprintf "Write class %s with %d type params\n" (snd c.cl_path) (List.length c.cl_params);
 		self#write_common_module_type (Obj.magic c);
 		self#write_class_kind c.cl_kind;
 		chunk#write_u32 (Int32.of_int c.cl_flags);
@@ -831,8 +833,8 @@ class ['a] hxb_writer
 		chunk#write_list a.a_from_field (fun (t,cf) ->
 			chunk#write_string cf.cf_name;
 			self#set_field_type_parameters cf.cf_params;
-		chunk#write_list cf.cf_params self#write_type_parameter_forward;
-		chunk#write_list cf.cf_params self#write_type_parameter_data;
+			chunk#write_list cf.cf_params self#write_type_parameter_forward;
+			chunk#write_list cf.cf_params self#write_type_parameter_data;
 			self#write_type_instance t;
 			self#write_field_ref (ClassStatic c) cf;
 		);
@@ -840,8 +842,8 @@ class ['a] hxb_writer
 		chunk#write_list a.a_to_field (fun (t,cf) ->
 			chunk#write_string cf.cf_name;
 			self#set_field_type_parameters cf.cf_params;
-		chunk#write_list cf.cf_params self#write_type_parameter_forward;
-		chunk#write_list cf.cf_params self#write_type_parameter_data;
+			chunk#write_list cf.cf_params self#write_type_parameter_forward;
+			chunk#write_list cf.cf_params self#write_type_parameter_data;
 			self#write_type_instance t;
 			self#write_field_ref (ClassStatic c) cf;
 		);
@@ -881,6 +883,7 @@ class ['a] hxb_writer
 			3
 		in
 		let infos = t_infos mt in
+		Printf.eprintf "Forward declare type %s\n" (snd infos.mt_path);
 		chunk#write_byte i;
 		self#write_path infos.mt_path;
 		self#write_pos infos.mt_pos;
@@ -900,6 +903,16 @@ class ['a] hxb_writer
 		self#start_chunk TYPF;
 		chunk#write_list m.m_types self#forward_declare_type;
 
+		Printf.eprintf "Write module %s with %d own classes, %d own abstracts, %d own enums, %d own typedefs\n"
+			(snd m.m_path) (List.length own_classes#to_list) (List.length own_abstracts#to_list) (List.length own_enums#to_list) (List.length own_typedefs#to_list);
+
+		begin match own_abstracts#to_list with
+		| [] ->
+			()
+		| own_abstracts ->
+			self#start_chunk ABSD;
+			chunk#write_list own_abstracts self#write_abstract;
+		end;
 		begin match own_classes#to_list with
 		| [] ->
 			()
@@ -918,13 +931,6 @@ class ['a] hxb_writer
 				chunk#write_list c.cl_ordered_fields self#write_class_field;
 				chunk#write_list c.cl_ordered_statics self#write_class_field;
 			)
-		end;
-		begin match own_abstracts#to_list with
-		| [] ->
-			()
-		| own_abstracts ->
-			self#start_chunk ABSD;
-			chunk#write_list own_abstracts self#write_abstract;
 		end;
 		begin match own_enums#to_list with
 		| [] ->
@@ -947,6 +953,7 @@ class ['a] hxb_writer
 			self#start_chunk CLSR;
 			chunk#write_list l (fun c ->
 				let m = c.cl_module in
+				Printf.eprintf "  [cls] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd c.cl_path)]));
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path)
 			)
 		end;
@@ -957,6 +964,7 @@ class ['a] hxb_writer
 			self#start_chunk ABSR;
 			chunk#write_list l (fun a ->
 				let m = a.a_module in
+				Printf.eprintf "  [abs] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd a.a_path)]));
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd a.a_path)
 			)
 		end;
@@ -967,6 +975,7 @@ class ['a] hxb_writer
 			self#start_chunk ENMR;
 			chunk#write_list l (fun en ->
 				let m = en.e_module in
+				Printf.eprintf "  [enm] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd en.e_path)]));
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd en.e_path)
 			)
 		end;
@@ -977,6 +986,7 @@ class ['a] hxb_writer
 			self#start_chunk TPDR;
 			chunk#write_list l (fun td ->
 				let m = td.t_module in
+				Printf.eprintf "  [tpd] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd td.t_path)]));
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path)
 			)
 		end;

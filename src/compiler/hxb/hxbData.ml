@@ -9,9 +9,9 @@ type chunk_kind =
 	| ABSR (* abstract reference array *)
 	| ENMR (* enum reference array *)
 	| TPDR (* typedef reference array *)
+	| ABSD (* abstract definition *)
 	| CLSD (* class definition *)
 	| CFLD (* class fields without expressions *)
-	| ABSD (* abstract definition *)
 	| ENMD (* enum definition *)
 	| TPDD (* typedef definition *)
 	| HEND (* the end *)
@@ -50,4 +50,5 @@ let chunk_kind_of_string = function
 	| name -> raise (HxbFailure ("Invalid chunk name: " ^ name))
 
 let error (s : string) =
+	Printf.eprintf "[error] %s\n" s;
 	raise (HxbFailure s)
