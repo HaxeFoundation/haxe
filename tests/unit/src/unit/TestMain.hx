@@ -75,6 +75,7 @@ function main() {
 		new TestCasts(),
 		new TestSyntaxModule(),
 		new TestNull(),
+		new TestNullCoalescing(),
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
@@ -107,7 +108,8 @@ function main() {
 		new TestOverloadsForEveryone(),
 		new TestInterface(),
 		new TestNaN(),
-		#if ((dce == "full") && !interp) new TestDCE(),
+		#if ((dce == "full") && !interp)
+		new TestDCE(),
 		#end
 		new TestMapComprehension(),
 		new TestMacro(),
