@@ -110,7 +110,7 @@ class hxb_reader
 		let pack = self#read_list16 (fun () -> self#read_string) in
 		let mname = self#read_string in
 		let tname = self#read_string in
-		Printf.eprintf "    Read full path %s\n" (ExtString.String.join "." (pack @ [mname; tname]));
+		(* Printf.eprintf "    Read full path %s\n" (ExtString.String.join "." (pack @ [mname; tname])); *)
 		(pack,mname,tname)
 
 	method read_documentation =
@@ -178,10 +178,10 @@ class hxb_reader
 		let name = self#read_string in
 		try PMap.find name fields with e ->
 			Printf.eprintf "  TODO error reading field ref for %s\n" name;
-			(* raise e *)
 			null_field
 
 	method read_enum_field_ref =
+		(* Printf.eprintf "  TODO enum field ref %s\n" name; *)
 		assert false (* TODO *)
 
 	(* Type instances *)
@@ -204,13 +204,9 @@ class hxb_reader
 		| 10 ->
 			TInst(self#read_class_ref,[])
 		| 11 ->
-			let i = self#read_uleb128 in
-			Printf.eprintf "  TODO enum ref #%d\n" i;
-			t_dynamic (* TODO *)
+			TEnum(self#read_enum_ref,[])
 		| 12 ->
-			let i = self#read_uleb128 in
-			Printf.eprintf "  TODO typedef ref #%d\n" i;
-			t_dynamic (* TODO *)
+			TType(self#read_typedef_ref,[])
 		| 13 ->
 			TAbstract(self#read_abstract_ref,[])
 		| 14 ->
@@ -264,8 +260,8 @@ class hxb_reader
 		let a = Array.init l (fun _ ->
 			let name = self#read_string in
 			let pos = self#read_pos in
-			Printf.eprintf "      Read ttp pos for %s: %s\n" name (Printer.s_pos pos);
-			Printf.eprintf "      - Path was %s\n" (s_type_path path);
+			(* Printf.eprintf "      Read ttp pos for %s: %s\n" name (Printer.s_pos pos); *)
+			(* Printf.eprintf "      - Path was %s\n" (s_type_path path); *)
 
 			(* This is wrong for field ttp (why again?) *)
 			let c = mk_class m (fst path @ [snd path],name) pos pos in
@@ -538,11 +534,13 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
 				let tl = self#read_types in
+				Printf.eprintf "  Read field ref for expr 102 (cl = %s)\n" (snd c.cl_path);
 				let cf = self#read_field_ref c.cl_fields in
 				TField(e1,FInstance(c,tl,cf))
 			| 103 ->
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
+				Printf.eprintf "  Read field ref for expr 103 (cl = %s)\n" (snd c.cl_path);
 				let cf = self#read_field_ref c.cl_statics in
 				TField(e1,FStatic(c,cf))
 			| 104 ->
@@ -554,6 +552,7 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
 				let tl = self#read_types in
+				Printf.eprintf "  Read field ref for expr 105 (cl = %s)\n" (snd c.cl_path);
 				let cf = self#read_field_ref c.cl_fields in
 				TField(e1,FClosure(Some(c,tl),cf))
 			| 106 ->
@@ -668,16 +667,44 @@ class hxb_reader
 		let len = IO.read_ui16 ch in
 		List.init len (fun _ -> self#read_texpr);
 
-	method read_class_field (m : module_def) : tclass_field =
-		let name = self#read_string in
-		Printf.eprintf "  field type parameters for %s\n" name;
+	method read_class_field (m : module_def) (cf : tclass_field) : unit =
+		let name = cf.cf_name in
+		(* Printf.eprintf "  field type parameters for %s\n" name; *)
 		self#read_type_parameters m ([],name) (fun a ->
 			field_type_parameters <- a
 		);
 		let params = Array.to_list field_type_parameters in
-		(* Printf.eprintf "  read type instance for %s\n" name; *)
 		let t = self#read_type_instance in
-		(* Printf.eprintf "  flags for %s (done) \n" name; *)
+		let flags = IO.read_i32 ch in
+
+		(* TODO fix doc *)
+		(* let doc = self#read_option (fun () -> self#read_documentation) in *)
+		let doc = None in
+		let meta = self#read_metadata in
+		let kind = self#read_field_kind in
+
+		let expr = self#read_option (fun () -> self#read_texpr) in
+		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
+		let overloads = self#read_list16 (fun () -> self#read_class_field' m) in
+
+		cf.cf_type <- t;
+		cf.cf_doc <- doc;
+		cf.cf_meta <- meta;
+		cf.cf_kind <- kind;
+		cf.cf_expr <- expr;
+		cf.cf_expr_unoptimized <- expr_unoptimized;
+		cf.cf_params <- params;
+		cf.cf_overloads <- overloads;
+		cf.cf_flags <- flags;
+
+	method read_class_field' (m : module_def) : tclass_field =
+		let name = self#read_string in
+		(* Printf.eprintf "  field type parameters for %s\n" name; *)
+		self#read_type_parameters m ([],name) (fun a ->
+			field_type_parameters <- a
+		);
+		let params = Array.to_list field_type_parameters in
+		let t = self#read_type_instance in
 		let flags = IO.read_i32 ch in
 		let pos = self#read_pos in
 		let name_pos = self#read_pos in
@@ -685,13 +712,12 @@ class hxb_reader
 		(* TODO fix doc *)
 		(* let doc = self#read_option (fun () -> self#read_documentation) in *)
 		let doc = None in
-
 		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
 
 		let expr = self#read_option (fun () -> self#read_texpr) in
 		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
-		let overloads = self#read_list16 (fun () -> self#read_class_field m) in
+		let overloads = self#read_list16 (fun () -> self#read_class_field' m) in
 		{
 			cf_name = name;
 			cf_type = t;
@@ -708,19 +734,37 @@ class hxb_reader
 		}
 
 	method read_class_fields (m : module_def) (c : tclass) =
-		let f () = self#read_class_field m in
 		begin match c.cl_kind with
 		| KAbstractImpl a ->
 			type_type_parameters <- Array.of_list a.a_params
 		| _ ->
 			type_type_parameters <- Array.of_list c.cl_params
 		end;
-		Printf.eprintf "  read class fields with type parameters for %s: %d\n" (snd c.cl_path) (Array.length type_type_parameters);
-		Printf.eprintf "    own class params: %d\n" (List.length c.cl_params);
-		c.cl_constructor <- self#read_option f;
-		c.cl_ordered_fields <- self#read_list16 f;
-		c.cl_ordered_statics <- self#read_list16 f;
-		List.iter (fun cf -> c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics) c.cl_ordered_statics;
+		(* Printf.eprintf "  read class fields with type parameters for %s: %d\n" (snd c.cl_path) (Array.length type_type_parameters); *)
+		(* Printf.eprintf "    own class params: %d\n" (List.length c.cl_params); *)
+		let _ = self#read_option (fun f ->
+			let _ = self#read_string in
+			self#read_class_field m (Option.get c.cl_constructor)
+		) in
+		let f fields =
+			let name = self#read_string in
+			let cf = PMap.find name fields in
+			self#read_class_field m cf
+		in
+		let _ = self#read_list16 (fun () -> f c.cl_fields) in
+		let _ = self#read_list16 (fun () -> f c.cl_statics) in
+		()
+
+	method read_enum_fields (m : module_def) (e : tenum) =
+		let constrs = self#read_list16 (fun () ->
+			let name = self#read_string in
+			(* TODO read enum field *)
+			Printf.eprintf "  TODO read enum field %s\n" name;
+			()
+		) in
+		(* TODO set e_constrs *)
+		Printf.eprintf "  TODO set enum constructors for %s\n" (snd e.e_path);
+		()
 
 	(* Module types *)
 
@@ -729,9 +773,9 @@ class hxb_reader
 		(* TODO: fix that *)
 		(* infos.mt_doc <- self#read_option (fun () -> self#read_documentation); *)
 		infos.mt_meta <- self#read_metadata;
-		Printf.eprintf "  read type parameters for %s\n" (snd infos.mt_path);
+		(* Printf.eprintf "  read type parameters for %s\n" (snd infos.mt_path); *)
 		self#read_type_parameters m infos.mt_path (fun a ->
-			Printf.eprintf "  read type parameters for %s: %d\n" (snd infos.mt_path) (Array.length a);
+			(* Printf.eprintf "  read type parameters for %s: %d\n" (snd infos.mt_path) (Array.length a); *)
 			type_type_parameters <- a
 		);
 		infos.mt_params <- Array.to_list type_type_parameters;
@@ -767,6 +811,7 @@ class hxb_reader
 			error (Printf.sprintf "Invalid class kind id: %i" i)
 
 	method read_class (m : module_def) (c : tclass) =
+		Printf.eprintf "  Read class %s\n" (snd c.cl_path);
 		self#read_common_module_type m (Obj.magic c);
 		c.cl_kind <- self#read_class_kind;
 		c.cl_flags <- (Int32.to_int self#read_u32);
@@ -779,57 +824,66 @@ class hxb_reader
 		c.cl_implements <- self#read_list16 read_relation;
 		c.cl_dynamic <- self#read_option (fun () -> self#read_type_instance);
 		c.cl_array_access <- self#read_option (fun () -> self#read_type_instance);
+		let read_field () =
+			let name = self#read_string in
+			let pos = self#read_pos in
+			let name_pos = self#read_pos in
+			(* TODO overloads *)
+			{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
+		in
+		c.cl_constructor <- self#read_option read_field;
+		c.cl_ordered_fields <- self#read_list16 read_field;
+		c.cl_ordered_statics <- self#read_list16 read_field;
+		List.iter (fun cf -> c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields) c.cl_ordered_fields;
+		List.iter (fun cf -> c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics) c.cl_ordered_statics;
 
 	method read_abstract (m : module_def) (a : tabstract) =
 		Printf.eprintf "  Read abstract %s\n" (snd a.a_path);
 		self#read_common_module_type m (Obj.magic a);
-		Printf.eprintf "1";
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
-		Printf.eprintf "2";
 		a.a_this <- self#read_type_instance;
-		Printf.eprintf "3";
 		a.a_from <- self#read_list16 (fun () -> self#read_type_instance);
-		Printf.eprintf "4";
 		a.a_from_field <- self#read_list16 (fun () ->
 			let name = self#read_string in
 			self#read_type_parameters m ([],name) (fun a ->
 				field_type_parameters <- a
 			);
 			let t = self#read_type_instance in
+			Printf.eprintf "  Read field ref for abstract from field %s (a = %s)\n" name (snd a.a_path);
+			let impl = Option.get a.a_impl in
+			Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics);
+			(* let cf = self#read_field_ref (Option.get a.a_impl).cl_fields in *)
 			let cf = self#read_field_ref (Option.get a.a_impl).cl_statics in
 			(t,cf)
 		);
-		Printf.eprintf "5";
 		a.a_to <- self#read_list16 (fun () -> self#read_type_instance);
-		Printf.eprintf "6";
 		a.a_to_field <- self#read_list16 (fun () ->
 			let name = self#read_string in
 			self#read_type_parameters m ([],name) (fun a ->
 				field_type_parameters <- a
 			);
 			let t = self#read_type_instance in
+			Printf.eprintf "  Read field ref for abstract to field %s (a = %s)\n" name (snd a.a_path);
 			let cf = self#read_field_ref (Option.get a.a_impl).cl_fields in
 			(t,cf)
 		);
-		Printf.eprintf "7";
 		a.a_array <- self#read_list16 (fun () -> self#read_field_ref (Option.get a.a_impl).cl_statics);
-		Printf.eprintf "8";
 		a.a_read <- self#read_option (fun () -> self#read_field_ref (Option.get a.a_impl).cl_fields);
-		Printf.eprintf "9";
 		a.a_write <- self#read_option (fun () -> self#read_field_ref (Option.get a.a_impl).cl_fields);
-		Printf.eprintf "10";
 		a.a_call <- self#read_option (fun () -> self#read_field_ref (Option.get a.a_impl).cl_fields);
-		Printf.eprintf "11";
 		a.a_enum <- self#read_bool;
-		Printf.eprintf "12\n";
 
 	method read_enum (m : module_def) (e : tenum) =
-		(* TODO *)
-		()
+		Printf.eprintf "  Read enum %s\n" (snd e.e_path);
+		self#read_common_module_type m (Obj.magic e);
+		e.e_type <- self#read_typedef_ref;
+		e.e_extern <- self#read_bool;
+		e.e_names <- self#read_list16 (fun () -> self#read_string)
 
-	method read_typedef (m : module_def) (t : tdef) =
-		(* TODO *)
-		()
+	method read_typedef (m : module_def) (td : tdef) =
+		Printf.eprintf "  Read typedef %s\n" (snd td.t_path);
+		self#read_common_module_type m (Obj.magic td);
+		td.t_type <- self#read_type_instance
 
 	(* Chunks *)
 
@@ -877,6 +931,14 @@ class hxb_reader
 			self#read_enum m en;
 		done
 
+	method read_efld (m : module_def) =
+		let l = self#read_uleb128 in
+		for i = 0 to l - 1 do
+			let e = enums.(i) in
+			self#read_enum_fields m e;
+		done
+
+
 	method read_tpdd (m : module_def) =
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
@@ -921,7 +983,7 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			Printf.eprintf "  Read enmr %d of %d for abstract %s\n" i l tname;
+			Printf.eprintf "  Read enmr %d of %d for enum %s\n" i l tname;
 			match resolve_type pack mname tname with
 			| TEnumDecl en ->
 				en
@@ -1041,6 +1103,8 @@ class hxb_reader
 				self#read_cfld m;
 			| ENMD ->
 				self#read_enmd m;
+			| EFLD ->
+				self#read_efld m;
 			| TPDD ->
 				self#read_tpdd m;
 			| _ ->

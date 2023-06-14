@@ -729,21 +729,23 @@ class ['a] hxb_writer
 			f r;
 			f w;
 
-	method write_class_field cf =
+	method write_class_field ?(with_pos = false) cf =
 		self#set_field_type_parameters cf.cf_params;
 		chunk#write_string cf.cf_name;
 		chunk#write_list cf.cf_params self#write_type_parameter_forward;
 		chunk#write_list cf.cf_params self#write_type_parameter_data;
 		self#write_type_instance cf.cf_type;
 		chunk#write_i32 cf.cf_flags;
-		self#write_pos cf.cf_pos;
-		self#write_pos cf.cf_name_pos;
+		if with_pos then begin
+			self#write_pos cf.cf_pos;
+			self#write_pos cf.cf_name_pos;
+		end;
 		(* chunk#write_option cf.cf_doc self#write_documentation; *)
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
 		chunk#write_option cf.cf_expr self#write_texpr;
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
-		chunk#write_list cf.cf_overloads self#write_class_field;
+		chunk#write_list cf.cf_overloads (self#write_class_field ~with_pos:true);
 
 	(* Module types *)
 
@@ -811,6 +813,15 @@ class ['a] hxb_writer
 		);
 		chunk#write_option c.cl_dynamic self#write_type_instance;
 		chunk#write_option c.cl_array_access self#write_type_instance;
+		(* Write minimal data to be able to create refs *)
+		let write_field cf =
+			chunk#write_string cf.cf_name;
+			self#write_pos cf.cf_pos;
+			self#write_pos cf.cf_name_pos
+		in
+		chunk#write_option c.cl_constructor write_field;
+		chunk#write_list c.cl_ordered_fields write_field;
+		chunk#write_list c.cl_ordered_statics write_field;
 
 	method write_abstract (a : tabstract) =
 		begin try
@@ -854,11 +865,16 @@ class ['a] hxb_writer
 		chunk#write_bool a.a_enum
 
 	method write_enum (e : tenum) =
-		(* TODO *)
-		()
+		self#select_type e.e_path;
+		self#write_common_module_type (Obj.magic e);
+		self#write_typedef_ref e.e_type;
+		chunk#write_bool e.e_extern;
+		chunk#write_list e.e_names chunk#write_string
 
-	method write_typedef (e : tdef) =
-		(* TODO *)
+	method write_typedef (td : tdef) =
+		self#select_type td.t_path;
+		self#write_common_module_type (Obj.magic td);
+		self#write_type_instance td.t_type;
 		()
 
 	(* Module *)
@@ -938,6 +954,13 @@ class ['a] hxb_writer
 		| own_enums ->
 			self#start_chunk ENMD;
 			chunk#write_list own_enums self#write_enum;
+			self#start_chunk EFLD;
+			chunk#write_list own_enums (fun e ->
+				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,f) ->
+					chunk#write_string s;
+					(* TODO write enum field *)
+				);
+			)
 		end;
 		begin match own_typedefs#to_list with
 		| [] ->
@@ -987,6 +1010,7 @@ class ['a] hxb_writer
 			chunk#write_list l (fun td ->
 				let m = td.t_module in
 				Printf.eprintf "  [tpd] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd td.t_path)]));
+				Printf.eprintf "  [tpd] Write full path %s\n" (ExtString.String.join "." ((fst td.t_path) @ [(snd td.t_path)]));
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path)
 			)
 		end;
