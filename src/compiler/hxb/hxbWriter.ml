@@ -676,7 +676,9 @@ class ['a] hxb_writer
 			| TCast(e1,Some md) ->
 				chunk#write_byte 125;
 				loop e1;
-				self#write_path (t_infos md).mt_path
+				let infos = t_infos md in
+				let m = infos.mt_module in
+				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
 			| TNew(c,tl,el) ->
 				chunk#write_byte 126;
 				self#write_class_ref c;

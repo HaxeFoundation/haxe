@@ -606,12 +606,10 @@ class hxb_reader
 			| 123 -> TTypeExpr (TTypeDecl self#read_typedef_ref)
 			| 124 -> TCast(self#read_texpr,None)
 			| 125 ->
-				let _e1 = self#read_texpr in
-				let _path = self#read_path in
-				(* TODO retrieve md from path *)
-				(* TCast(e1,Some path) *)
-				Printf.eprintf "  %s TCast\n" todo;
-				assert false
+				let e1 = self#read_texpr in
+				let (pack,mname,tname) = self#read_full_path in
+				let md = resolve_type pack mname tname in
+				TCast(e1,Some md)
 			| 126 ->
 				let c = self#read_class_ref in
 				let tl = self#read_types in
