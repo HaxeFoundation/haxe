@@ -4,6 +4,14 @@ open Type
 open HxbData
 open Tanon_identification
 
+(* Debug utils *)
+let no_color = false
+let c_reset = if no_color then "" else "\x1b[0m"
+let c_bold = if no_color then "" else "\x1b[1m"
+let c_dim = if no_color then "" else "\x1b[2m"
+let todo = "\x1b[33m[TODO]" ^ c_reset
+let todo_error = "\x1b[41m[TODO] error:" ^ c_reset
+
 type field_source =
 	| ClassStatic of tclass
 	| ClassMember of tclass
@@ -256,6 +264,7 @@ class ['a] hxb_writer
 	method write_metadata_entry ((meta,el,p) : metadata_entry) =
 		chunk#write_string (Meta.to_string meta);
 		(* TODO: el -_- *)
+		Printf.eprintf "  %s metadata entry - expr def\n" todo;
 		self#write_pos p
 
 	method write_metadata ml =
@@ -288,7 +297,6 @@ class ['a] hxb_writer
 		chunk#write_uleb128 i
 
 	method write_field_ref (source : field_source) (cf : tclass_field) =
-		(* TODO: is this enough? :x *)
 		chunk#write_string cf.cf_name
 
 	method write_enum_field_ref ef =
@@ -392,8 +400,9 @@ class ['a] hxb_writer
 		| TAnon an ->
 			let pfm = Option.get (anon_id#identify true t) in
 			chunk#write_byte 51;
-			chunk#write_uleb128 (anons#get_or_add pfm.pfm_path an)
-			(* TODO? *)
+			chunk#write_uleb128 (anons#get_or_add pfm.pfm_path an);
+			Printf.eprintf "  %s TAnon an\n" todo;
+			(* TODO TAnon *)
 			(* begin match !(an.a_status) with
 			| Closed -> chunk#write_byte 50
 			| Const -> chunk#write_byte 51
@@ -632,6 +641,7 @@ class ['a] hxb_writer
 			| TField(e1,FAnon cf) ->
 				chunk#write_byte 104;
 				loop e1;
+				Printf.eprintf "  %s TField(e,FAnon cf)\n" todo;
 				(* TODO *)
 				(* self#write_field_ref (ClassMember c) cf; (1* TODO check source *1) *)
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
@@ -644,6 +654,7 @@ class ['a] hxb_writer
 			| TField(e1,FClosure(None,cf)) ->
 				chunk#write_byte 106;
 				loop e1;
+				Printf.eprintf "  %s TField(e,FClosure(None,cf))\n" todo;
 				(* TODO *)
 				(* self#write_field_ref (ClassMember c) cf; (1* TODO check source *1) *)
 			| TField(e1,FEnum(en,ef)) ->
@@ -805,6 +816,7 @@ class ['a] hxb_writer
 			self#write_types tl;
 		| KExpr e ->
 			chunk#write_byte 2;
+			Printf.eprintf "  %s KExpr\n" todo;
 			(* TODO *)
 		| KGeneric ->
 			chunk#write_byte 3;
@@ -816,12 +828,14 @@ class ['a] hxb_writer
 			chunk#write_byte 5;
 		| KGenericBuild l ->
 			chunk#write_byte 6;
+			Printf.eprintf "  %s KGenericBuild\n" todo;
 			(* TODO *)
 		| KAbstractImpl a ->
 			chunk#write_byte 7;
 			self#write_abstract_ref a;
 		| KModuleFields md ->
 			chunk#write_byte 8;
+			Printf.eprintf "  %s KModuleFields\n" todo;
 			(* TODO *)
 
 	method write_class (c : tclass) =
@@ -980,7 +994,7 @@ class ['a] hxb_writer
 					chunk#write_byte ef.ef_index
 				);
 		| TAbstractDecl a ->
-				(* TODO *)
+				(* TODO ? *)
 				()
 		| TTypeDecl t -> ()
 
