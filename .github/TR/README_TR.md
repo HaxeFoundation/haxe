@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://haxe.org/" title="haxe.org"><img src="extra/images/Readme.png" /></a>
+  <a href="https://haxe.org/" title="haxe.org"><img src="https://github.com/HaxeFoundation/haxe/blob/development/extra/images/Readme.png" /></a>
 </p>
 
 <p align="center">
