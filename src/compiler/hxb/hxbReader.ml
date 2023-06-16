@@ -516,8 +516,13 @@ class hxb_reader
 					switch_exhaustive = true;
 				}
 			| 83 ->
-				(* TODO TTry *)
-				assert false
+				let e1 = self#read_texpr in
+				let catches = self#read_list16 (fun () ->
+					let v = self#read_var in
+					let e = self#read_texpr in
+					(v,e)
+				) in
+				TTry(e1,catches)
 			| 84 ->
 				let e1 = self#read_texpr in
 				let e2 = self#read_texpr in
