@@ -292,7 +292,6 @@ class ['a] hxb_writer
 		chunk#write_string cf.cf_name
 
 	method write_enum_field_ref ef =
-		(* TODO -- enum ref should be written too *)
 		chunk#write_string ef.ef_name
 
 	(* Type instances *)
@@ -774,7 +773,7 @@ class ['a] hxb_writer
 			self#write_pos cf.cf_pos;
 			self#write_pos cf.cf_name_pos;
 		end;
-		(* chunk#write_option cf.cf_doc self#write_documentation; *)
+		chunk#write_option cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
 		chunk#write_option cf.cf_expr self#write_texpr;
@@ -789,8 +788,7 @@ class ['a] hxb_writer
 	method write_common_module_type (infos : tinfos) : unit =
 		(* self#write_path infos.mt_path; *)
 		chunk#write_bool infos.mt_private;
-		(* TODO: fix that *)
-		(* chunk#write_option infos.mt_doc self#write_documentation; *)
+		chunk#write_option infos.mt_doc self#write_documentation;
 		self#write_metadata infos.mt_meta;
 		chunk#write_list infos.mt_params self#write_type_parameter_forward;
 		chunk#write_list infos.mt_params self#write_type_parameter_data;
@@ -1039,7 +1037,7 @@ class ['a] hxb_writer
 					chunk#write_list ef.ef_params self#write_type_parameter_forward;
 					chunk#write_list ef.ef_params self#write_type_parameter_data;
 					self#write_type_instance ef.ef_type;
-					(* TODO ef_doc *)
+					chunk#write_option ef.ef_doc self#write_documentation;
 					self#write_metadata ef.ef_meta;
 				);
 			)
