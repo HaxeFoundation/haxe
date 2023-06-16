@@ -852,11 +852,9 @@ class hxb_reader
 			);
 			let t = self#read_type_instance in
 			let impl = Option.get a.a_impl in
-			Printf.eprintf "  Read field ref for abstract from field %s (a = %s)\n" name (s_type_path a.a_path);
-			Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics);
-			(* let cf = self#read_field_ref (Option.get a.a_impl).cl_fields in *)
+			(* Printf.eprintf "  Read field ref for abstract from field %s (a = %s)\n" name (s_type_path a.a_path); *)
+			(* Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics); *)
 			let cf = self#read_field_ref (s_type_path impl.cl_path) impl.cl_statics in
-			(* let cf = self#read_field_ref (Option.get a.a_impl).cl_statics in *)
 			(t,cf)
 		);
 		a.a_to <- self#read_list16 (fun () -> self#read_type_instance);
