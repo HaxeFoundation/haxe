@@ -187,7 +187,6 @@ class hxb_reader
 
 	method read_enum_field_ref en =
 		let name = self#read_string in
-		Printf.eprintf "  TODO enum field ref %s\n" name;
 		try PMap.find name en.e_constrs with e ->
 			Printf.eprintf "  %s reading enum field ref for %s.%s\n" todo_error (s_type_path en.e_path) name;
 			Printf.eprintf "    Available fields: %s\n" (PMap.fold (fun ef acc -> acc ^ " " ^ ef.ef_name) en.e_constrs "");
@@ -558,14 +557,14 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
 				let tl = self#read_types in
-				Printf.eprintf "  Read field ref for expr 102 (cl = %s, %d fields)\n" (s_type_path c.cl_path) (List.length c.cl_ordered_fields);
+				(* Printf.eprintf "  Read field ref for expr 102 (cl = %s, %d fields)\n" (s_type_path c.cl_path) (List.length c.cl_ordered_fields); *)
 				let cf = self#read_field_ref (s_type_path c.cl_path) c.cl_fields in
 				(* let cf = self#read_field_ref c.cl_fields in *)
 				TField(e1,FInstance(c,tl,cf))
 			| 103 ->
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
-				Printf.eprintf "  Read field ref for expr 103 (cl = %s)\n" (s_type_path c.cl_path);
+				(* Printf.eprintf "  Read field ref for expr 103 (cl = %s)\n" (s_type_path c.cl_path); *)
 				let cf = self#read_field_ref (s_type_path c.cl_path) c.cl_statics in
 				(* let cf = self#read_field_ref c.cl_statics in *)
 				TField(e1,FStatic(c,cf))
@@ -579,7 +578,7 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
 				let tl = self#read_types in
-				Printf.eprintf "  Read field ref for expr 105 (cl = %s)\n" (s_type_path c.cl_path);
+				(* Printf.eprintf "  Read field ref for expr 105 (cl = %s)\n" (s_type_path c.cl_path); *)
 				let cf = self#read_field_ref (s_type_path c.cl_path) c.cl_fields in
 				(* let cf = self#read_field_ref c.cl_fields in *)
 				TField(e1,FClosure(Some(c,tl),cf))
@@ -787,7 +786,7 @@ class hxb_reader
 		()
 
 	method read_enum_fields (m : module_def) (e : tenum) =
-		let _constrs = self#read_list16 (fun () ->
+		ignore(self#read_list16 (fun () ->
 			let name = self#read_string in
 			Printf.eprintf "  Read enum field %s\n" name;
 			let ef = PMap.find name e.e_constrs in
@@ -798,10 +797,7 @@ class hxb_reader
 			ef.ef_type <- self#read_type_instance;
 			(* TODO ef_doc *)
 			ef.ef_meta <- self#read_metadata;
-		) in
-		(* TODO set e_constrs *)
-		Printf.eprintf "  %s set enum constructors for %s\n" todo (s_type_path e.e_path);
-		()
+		))
 
 	(* Module types *)
 
@@ -861,19 +857,6 @@ class hxb_reader
 		c.cl_implements <- self#read_list16 read_relation;
 		c.cl_dynamic <- self#read_option (fun () -> self#read_type_instance);
 		c.cl_array_access <- self#read_option (fun () -> self#read_type_instance);
-		(* let read_field () = *)
-		(* 	let name = self#read_string in *)
-		(* 	let pos = self#read_pos in *)
-		(* 	let name_pos = self#read_pos in *)
-		(* 	(1* TODO overloads *1) *)
-		(* 	{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos } *)
-		(* in *)
-		(* c.cl_constructor <- self#read_option read_field; *)
-		(* c.cl_ordered_fields <- self#read_list16 read_field; *)
-		(* c.cl_ordered_statics <- self#read_list16 read_field; *)
-		(* Printf.eprintf "   %d fields, %d statics\n" (List.length c.cl_ordered_fields) (List.length c.cl_ordered_statics); *)
-		(* List.iter (fun cf -> c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields) c.cl_ordered_fields; *)
-		(* List.iter (fun cf -> c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics) c.cl_ordered_statics; *)
 
 	method read_abstract (m : module_def) (a : tabstract) =
 		Printf.eprintf "  Read abstract %s\n" (s_type_path a.a_path);
@@ -1071,9 +1054,8 @@ class hxb_reader
 		self#read_list16 (fun () ->
 			let kind = self#read_u8 in
 			(* let path = self#read_path in *)
-			let (pack,mname,tname) = self#read_full_path in
+			let (pack,_,tname) = self#read_full_path in
 			let path = (pack, tname) in
-			(* let path = (pack @ [mname], tname) in *)
 			let pos = self#read_pos in
 			let name_pos = self#read_pos in
 			let mt = match kind with
