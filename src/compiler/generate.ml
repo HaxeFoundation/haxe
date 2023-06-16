@@ -1,11 +1,12 @@
 open Globals
 open CompilationContext
 open TType
+open Tanon_identification
 
 let test_hxb com m =
 	if m.m_extra.m_kind = MCode then begin
 		let ch = IO.output_bytes() in
-		let anon_identification = new Genshared.tanon_identification ([],"") in
+		let anon_identification = new tanon_identification ([],"") in
 		let writer = new HxbWriter.hxb_writer anon_identification (* cp *) in
 		writer#write_module m;
 		let bytes_module = IO.close_out ch in
