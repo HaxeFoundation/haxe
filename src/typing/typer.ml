@@ -2094,6 +2094,7 @@ let create com macros =
 		memory_marker = Typecore.memory_marker;
 	} in
 	ctx.g.std <- (try
+		Printf.eprintf "=== Load Std ===\n";
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error { err_message = Module_not_found ([],"StdTypes") } ->

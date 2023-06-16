@@ -830,6 +830,7 @@ let load_core_class ctx c =
 			com2.class_path <- ctx.com.std_path;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			CommonCache.lock_signature com2 "load_core_class";
+			Printf.eprintf "=== Load core class ===\n";
 			let ctx2 = !create_context_ref com2 ctx.g.macros in
 			ctx.g.core_api <- Some ctx2;
 			ctx2

@@ -234,9 +234,16 @@ let null_enum = {
 }
 
 let null_field = mk_field "" t_dynamic null_pos null_pos
-(* TODO null_class_field *)
-(* TODO null_abstract_field *)
-(* TODO null_enum_field *)
+let null_enum_field = {
+	ef_name = "";
+	ef_type = TEnum (null_enum, []);
+	ef_pos = null_pos;
+	ef_name_pos = null_pos;
+	ef_doc = None;
+	ef_index = 0;
+	ef_params = [];
+	ef_meta = [];
+}
 
 let null_abstract = {
 	a_path = ([],"");
