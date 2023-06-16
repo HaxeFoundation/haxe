@@ -118,23 +118,11 @@ class hxb_reader
 
 	method read_documentation =
 		let doc_own = self#read_option (fun () ->
-			(* TODO fix that *)
-			(* let _ = self#read_uleb128 in *)
-			(* doc_pool.(self#read_uleb128) *)
 			self#read_from_string_pool doc_pool
-			(* "" *)
 		) in
-		let doc_inherited = [] in
-		(* let doc_inherited = self#read_list8 (fun () -> *)
-		(* 	(1* TODO fix that *1) *)
-		(* 	(1* let i = self#read_uleb128 in *1) *)
-		(* 	(1* let _ = self#read_uleb128 in *1) *)
-		(* 	(1* Printf.eprintf "    Read doc string %d\n" i; *1) *)
-		(* 	(1* doc_pool.(i) *1) *)
-		(* 	(1* doc_pool.(self#read_uleb128) *1) *)
-		(* 	self#read_from_string_pool doc_pool *)
-		(* 	(1* "" *1) *)
-		(* ) in *)
+		let doc_inherited = self#read_list8 (fun () ->
+			self#read_from_string_pool doc_pool
+		) in
 		{doc_own;doc_inherited}
 
 	method read_pos =
@@ -705,9 +693,7 @@ class hxb_reader
 		let t = self#read_type_instance in
 		let flags = IO.read_i32 ch in
 
-		(* TODO fix doc *)
-		(* let doc = self#read_option (fun () -> self#read_documentation) in *)
-		let doc = None in
+		let doc = self#read_option (fun () -> self#read_documentation) in
 		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
 
@@ -737,9 +723,7 @@ class hxb_reader
 		let pos = self#read_pos in
 		let name_pos = self#read_pos in
 
-		(* TODO fix doc *)
-		(* let doc = self#read_option (fun () -> self#read_documentation) in *)
-		let doc = None in
+		let doc = self#read_option (fun () -> self#read_documentation) in
 		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
 
@@ -793,7 +777,7 @@ class hxb_reader
 			);
 			ef.ef_params <- Array.to_list field_type_parameters;
 			ef.ef_type <- self#read_type_instance;
-			(* TODO ef_doc *)
+			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
 			ef.ef_meta <- self#read_metadata;
 		))
 
@@ -801,8 +785,7 @@ class hxb_reader
 
 	method read_common_module_type (m : module_def) (infos : tinfos) =
 		infos.mt_private <- self#read_bool;
-		(* TODO: fix that *)
-		(* infos.mt_doc <- self#read_option (fun () -> self#read_documentation); *)
+		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
 		(* Printf.eprintf "  read type parameters for %s\n" (s_type_path infos.mt_path); *)
 		self#read_type_parameters m infos.mt_path (fun a ->
@@ -1104,7 +1087,6 @@ class hxb_reader
 			| 3 ->
 				let a = mk_abstract m path pos name_pos in
 				abstracts <- Array.append abstracts (Array.make 1 a);
-				(* TODO fields *)
 				TAbstractDecl a
 			| _ ->
 				error ("Invalid type kind: " ^ (string_of_int kind));
