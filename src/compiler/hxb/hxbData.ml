@@ -7,14 +7,14 @@ type chunk_kind =
 	| TYPF (* forward types *)
 	| CLSR (* class reference array *)
 	| ABSR (* abstract reference array *)
-	| ENMR (* enum reference array *)
 	| TPDR (* typedef reference array *)
+	| ENMR (* enum reference array *)
 	| CLSD (* class definition *)
 	| ABSD (* abstract definition *)
-	| CFLD (* class fields without expressions *)
+	| CFLD (* class fields *)
+	| TPDD (* typedef definition *)
 	| ENMD (* enum definition *)
 	| EFLD (* enum fields *)
-	| TPDD (* typedef definition *)
 	| HEND (* the end *)
 
 let string_of_chunk_kind = function
