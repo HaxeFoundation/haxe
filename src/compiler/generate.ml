@@ -3,7 +3,7 @@ open CompilationContext
 open TType
 open Tanon_identification
 
-let test_hxb com m =
+let export_hxb com m =
 	if m.m_extra.m_kind = MCode then begin
 		let ch = IO.output_bytes() in
 		let anon_identification = new tanon_identification ([],"") in
@@ -46,7 +46,7 @@ let check_auxiliary_output com actx =
 				Path.mkdir_from_path file;
 				let t = Timer.timer ["generate";"hxb"] in
 				(* HxbWriter.write com file; *)
-				List.iter (test_hxb com) com.modules;
+				List.iter (export_hxb com) com.modules;
 				t();
 	end
 
