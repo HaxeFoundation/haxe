@@ -55,7 +55,11 @@ private class SocketInput extends haxe.io.Input {
 		var r;
 		var data = buf.getData();
 		try {
-			r = __s.recv(len, 0);
+			try {
+				r = __s.recv(len, 0);
+			} catch(e:SSLWantReadError) {
+				return 0;
+			}
 			for (i in pos...(pos + r.length)) {
 				data.set(i, r[i - pos]);
 			}
@@ -93,7 +97,12 @@ private class SocketOutput extends haxe.io.Output {
 		try {
 			var data = buf.getData();
 			var payload = python.Syntax.code("{0}[{1}:{1}+{2}]", data, pos, len);
-			var r = __s.send(payload, 0);
+			var r = 0;
+			try {
+				r = __s.send(payload, 0);
+			} catch(e:SSLWantWriteError) {
+				return 0;
+			}
 			return r;
 		} catch (e:BlockingIOError) {
 			throw Blocked;
