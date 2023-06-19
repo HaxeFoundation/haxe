@@ -31,6 +31,7 @@ import python.lib.socket.Socket in PSocket;
 import python.lib.Socket in PSocketModule;
 import python.lib.socket.Address in PAddress;
 import python.lib.Select;
+import python.lib.ssl.Errors;
 
 private class SocketInput extends haxe.io.Input {
 	var __s:PSocket;
