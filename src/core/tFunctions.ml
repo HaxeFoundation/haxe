@@ -216,6 +216,8 @@ let null_typedef =
 	t.t_private <- true;
 	t
 
+let null_tanon = { a_fields = PMap.empty; a_status = ref Closed }
+
 let null_enum = {
 	e_path = ([],"");
 	e_module = null_module;
