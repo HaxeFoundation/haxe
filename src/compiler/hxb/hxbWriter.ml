@@ -71,6 +71,9 @@ class ['key,'value] pool = object(self)
 	method extract (key : 'key) =
 		DynArray.get items (self#get key)
 
+	method has (key : 'key) =
+		Hashtbl.mem lut key
+
 	method get (key : 'key) =
 		Hashtbl.find lut key
 
@@ -214,20 +217,21 @@ class ['a] hxb_writer
 	val enums = new pool
 	val typedefs = new pool
 	val abstracts = new pool
-
-	(* val fields = new pool *)
+	val anons = new pool
+	val anon_fields = new pool
 
 	val own_classes = new pool
 	val own_abstracts = new pool
 	val own_enums = new pool
 	val own_typedefs = new pool
 
-	(* TODO *)
-	val anons = new pool
-
 	val type_param_lut = new pool
+	val mutable ttp_key = ([],"")
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new pool
+
+	(* method ctrl () = *)
+	(* 	chunk#write_string "ctrl" *)
 
 	(* Chunks *)
 
@@ -296,6 +300,12 @@ class ['a] hxb_writer
 		(* Printf.eprintf "  Write abstract ref %d for %s\n" i (snd a.a_path); *)
 		chunk#write_uleb128 i
 
+	method write_anon_ref (an : tanon) =
+		let pfm = Option.get (anon_id#identify true (TAnon an)) in
+		let i = anons#get_or_add pfm.pfm_path (an,ttp_key) in
+		Printf.eprintf "  Write anon ref %d for %s\n" i (s_type_path pfm.pfm_path);
+		chunk#write_uleb128 i
+
 	method write_field_ref (source : field_source) (cf : tclass_field) =
 		chunk#write_string cf.cf_name
 
@@ -311,6 +321,7 @@ class ['a] hxb_writer
 			self#write_type_instance t;
 		in
 		match t with
+		(* TODO: we might need to properly restore monomorphs... *)
 		| TMono r ->
 			begin match r.tm_type with
 			| None ->
@@ -389,6 +400,7 @@ class ['a] hxb_writer
 			chunk#write_list args write_function_arg;
 			self#write_type_instance t;
 		| TLazy r ->
+			chunk#write_byte 33;
 			self#write_type_instance (lazy_type r);
 		| TDynamic None ->
 			chunk#write_byte 40
@@ -397,31 +409,10 @@ class ['a] hxb_writer
 			self#write_type_instance t;
 		| TAnon an when PMap.is_empty an.a_fields ->
 			chunk#write_byte 50;
+			chunk#write_bool true
 		| TAnon an ->
-			let pfm = Option.get (anon_id#identify true t) in
 			chunk#write_byte 51;
-			chunk#write_uleb128 (anons#get_or_add pfm.pfm_path an);
-			Printf.eprintf "  %s TAnon an\n" todo;
-			(* TODO TAnon *)
-			(* begin match !(an.a_status) with
-			| Closed -> chunk#write_byte 50
-			| Const -> chunk#write_byte 51
-			| Extend _ -> chunk#write_byte 52
-			| Statics _ -> chunk#write_byte 53
-			| EnumStatics _ -> chunk#write_byte 54
-			| AbstractStatics _ -> chunk#write_byte 55
-			end; *)
-			(* let l = pmap_to_list an.a_fields in
-			(* chunk#write_list l (fun (_,cf) -> self#write_class_field cf); *)
-			begin match !(an.a_status) with
-			| Extend tl -> self#write_types tl
-			| Statics c -> self#write_class_ref c
-			| EnumStatics en -> self#write_enum_ref en
-			| AbstractStatics a -> self#write_abstract_ref a
-			| Closed
-			| Const ->
-				()
-			end; *)
+			self#write_anon_ref an;
 
 	method write_types tl =
 		chunk#write_list tl self#write_type_instance
@@ -641,9 +632,8 @@ class ['a] hxb_writer
 			| TField(e1,FAnon cf) ->
 				chunk#write_byte 104;
 				loop e1;
-				Printf.eprintf "  %s TField(e,FAnon cf)\n" todo;
-				(* TODO *)
-				(* self#write_field_ref (ClassMember c) cf; (1* TODO check source *1) *)
+				chunk#write_uleb128 (anon_fields#get_or_add cf cf);
+				(* Printf.eprintf "  %s TField(e,FAnon cf)\n" todo; *)
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
 				chunk#write_byte 105;
 				loop e1;
@@ -654,9 +644,8 @@ class ['a] hxb_writer
 			| TField(e1,FClosure(None,cf)) ->
 				chunk#write_byte 106;
 				loop e1;
-				Printf.eprintf "  %s TField(e,FClosure(None,cf))\n" todo;
-				(* TODO *)
-				(* self#write_field_ref (ClassMember c) cf; (1* TODO check source *1) *)
+				chunk#write_uleb128 (anon_fields#get_or_add cf cf);
+				(* Printf.eprintf "  %s TField(e,FClosure(None,cf))\n" todo; *)
 			| TField(e1,FEnum(en,ef)) ->
 				chunk#write_byte 107;
 				loop e1;
@@ -794,6 +783,8 @@ class ['a] hxb_writer
 	(* Module types *)
 
 	method select_type (path : path) =
+		Printf.eprintf "Select type %s\n" (s_type_path path);
+		ttp_key <- path;
 		type_type_parameters <- type_param_lut#extract path
 
 	method write_common_module_type (infos : tinfos) : unit =
@@ -860,15 +851,6 @@ class ['a] hxb_writer
 		);
 		chunk#write_option c.cl_dynamic self#write_type_instance;
 		chunk#write_option c.cl_array_access self#write_type_instance;
-		(* (1* Write minimal data to be able to create refs *1) *)
-		(* let write_field cf = *)
-		(* 	chunk#write_string cf.cf_name; *)
-		(* 	self#write_pos cf.cf_pos; *)
-		(* 	self#write_pos cf.cf_name_pos *)
-		(* in *)
-		(* chunk#write_option c.cl_constructor write_field; *)
-		(* chunk#write_list c.cl_ordered_fields write_field; *)
-		(* chunk#write_list c.cl_ordered_statics write_field; *)
 
 	method write_abstract (a : tabstract) =
 		begin try
@@ -915,22 +897,60 @@ class ['a] hxb_writer
 		Printf.eprintf "Write enum %s\n" (snd e.e_path);
 		self#select_type e.e_path;
 		self#write_common_module_type (Obj.magic e);
-
-		(* Printf.eprintf "  Write typedef ref for %s\n" (snd e.e_type.t_path); *)
-		self#write_path e.e_type.t_path;
-		self#write_pos e.e_type.t_pos;
-		self#write_pos e.e_type.t_name_pos;
-		self#write_common_module_type (Obj.magic e.e_type);
-		self#write_type_instance e.e_type.t_type;
-		(* self#write_typedef_ref e.e_type; *)
-
 		chunk#write_bool e.e_extern;
-		chunk#write_list e.e_names chunk#write_string
+		chunk#write_list e.e_names chunk#write_string;
 
 	method write_typedef (td : tdef) =
+		Printf.eprintf "Write typedef %s %s >>\n" (s_type_path td.t_path) (s_type_kind td.t_type);
 		self#select_type td.t_path;
 		self#write_common_module_type (Obj.magic td);
-		self#write_type_instance td.t_type
+		self#write_type_instance td.t_type;
+
+		(* TODO this is so unsafe... *)
+		match td.t_type with
+		| TMono { tm_type = Some (TLazy r) }
+		| TLazy r ->
+			begin match lazy_type r with
+				| TAnon an ->
+					chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (s,cf) ->
+						self#write_type_instance cf.cf_type;
+					);
+				| _ -> ()
+			end
+		| _ -> ();
+
+	method write_anon (m : module_def) ((an : tanon), (ttp_key : path)) =
+		chunk#write_string (snd ttp_key);
+		self#select_type ttp_key;
+
+		let write_fields () =
+			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
+				self#write_class_field ~with_pos:true cf;
+			)
+		in
+
+		begin match !(an.a_status) with
+		| Closed ->
+			chunk#write_byte 0;
+			write_fields ()
+		| Const ->
+			chunk#write_byte 1;
+			write_fields ()
+		| Extend tl ->
+			chunk#write_byte 2;
+			self#write_types tl;
+			write_fields ()
+		| Statics c ->
+			chunk#write_byte 3;
+			self#write_class_ref c;
+		| EnumStatics en ->
+			chunk#write_byte 4;
+			write_fields ()
+		| AbstractStatics a ->
+			chunk#write_byte 5;
+			self#write_abstract_ref a;
+			write_fields ()
+		end
 
 	(* Module *)
 
@@ -1043,7 +1063,7 @@ class ['a] hxb_writer
 			chunk#write_list own_enums self#write_enum;
 			self#start_chunk EFLD;
 			chunk#write_list own_enums (fun e ->
-				(* TODO use to_list *)
+				(* TODO write and use pmap_to_list *)
 				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
 					Printf.eprintf "  Write enum field %s.%s\n" (s_type_path e.e_path) s;
 					chunk#write_string s;
@@ -1104,17 +1124,38 @@ class ['a] hxb_writer
 			chunk#write_list l (fun td ->
 				let m = td.t_module in
 				Printf.eprintf "  [tpdr] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd td.t_path)]));
-				(* Printf.eprintf "  [tpdr] Write full path %s\n" (ExtString.String.join "." ((fst td.t_path) @ [(snd td.t_path)])); *)
-				(* match td.t_params with *)
-				(* | [] -> () *)
-				(* | params -> *)
-				(* 	List.iter (fun ttp -> *)
-				(* 		(1* ignore(type_type_parameters#add ttp.ttp_name ttp); *1) *)
-				(* 		Printf.eprintf "   [tpdr] type param %s %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type); *)
-				(* 	) params; *)
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path)
 			)
 		end;
+
+		begin match anons#to_list with
+		| [] ->
+			()
+		| anons ->
+			self#start_chunk ANNR;
+			chunk#write_uleb128 (List.length anons);
+			self#start_chunk ANND;
+			chunk#write_list anons (fun an -> self#write_anon m an);
+		end;
+
+		let anon_fields = anon_fields#to_list in
+		begin match anon_fields with
+		| [] ->
+			()
+		| l ->
+			self#start_chunk ANFR;
+			chunk#write_list l (fun cf ->
+				Printf.eprintf "Write anon field %s\n" cf.cf_name;
+				chunk#write_string cf.cf_name;
+				self#write_pos cf.cf_pos;
+				self#write_pos cf.cf_name_pos;
+			);
+			self#start_chunk ANFD;
+			chunk#write_list l (fun cf ->
+				self#write_class_field cf;
+			);
+		end;
+
 		self#start_chunk HEND;
 
 	(* Export *)
