@@ -189,7 +189,7 @@ and parse_class_content doc meta flags n p1 s =
 	let tl = parse_constraint_params s in
 	let rec loop had_display p0 acc =
 		let check_display p1 =
-			if not had_display && !in_display_file && display_position#enclosed_in p1 then
+			if not had_display && !in_display_file && !display_mode = DMDefault && display_position#enclosed_in p1 then
 				syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) None (display_position#with_pos p1)
 		in
 		match s with parser
