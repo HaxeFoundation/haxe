@@ -801,58 +801,56 @@ let indent = ref (-1)
 
 let rec get_reader ctx input mpath p =
 		let make_module path file =
-			Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m make module %s\n" (s_type_path path);
+			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m make module %s\n" (s_type_path path); *)
 			ModuleLevel.make_module ctx path file p in
 
 		let add_module m =
-			Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m add module %s = %s\n" (s_type_path m.m_path) (s_type_path mpath);
+			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m add module %s = %s\n" (s_type_path m.m_path) (s_type_path mpath); *)
 			ctx.com.module_lut#add mpath m in
 			(* ctx.com.module_lut#add m.m_path m in *)
 
 		let resolve_type pack mname tname =
-			Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m resolve type %s\n" (s_type_path ((pack @ [mname]),tname));
+			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m resolve type %s\n" (s_type_path ((pack @ [mname]),tname)); *)
 			let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
 			let t = List.find (fun t -> snd (t_path t) = tname) m.m_types in
-			Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m resolved type %s\n" (s_type_path ((pack @ [mname]),tname));
+			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m resolved type %s\n" (s_type_path ((pack @ [mname]),tname)); *)
 			t
 		in
 
 		new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
 
 and load_hxb_module ctx path p =
-	let mk_indent indent =
-		ExtLib.String.make (indent*2) ' '
-	in
+	(* let mk_indent indent = *)
+	(* 	ExtLib.String.make (indent*2) ' ' *)
+	(* in *)
 
-	(* if ctx.com.is_macro_context then raise Not_found; *)
-	if defined ctx.com Define.Macro then raise Not_found;
 	let l = ((Common.dump_path ctx.com) :: "hxb" :: (Common.platform_name_macro ctx.com) :: fst path @ [snd path]) in
 	let filepath = (List.fold_left (fun acc s -> acc ^ "/" ^ s) "." l) ^ ".hxb" in
 	let ch = try open_in_bin filepath with Sys_error _ -> raise Not_found in
 	let input = IO.input_channel ch in
 
 	indent := !indent + 1;
-	Printf.eprintf "%s\x1b[44m>> Loading %s from %s...\x1b[0m\n" (mk_indent !indent) (snd path) filepath;
+	(* Printf.eprintf "%s\x1b[44m>> Loading %s from %s...\x1b[0m\n" (mk_indent !indent) (snd path) filepath; *)
 	try
 		let m = (get_reader ctx input path p)#read true p in
-		Printf.eprintf "%s\x1b[44m<< Loaded %s from %s\x1b[0m\n" (mk_indent !indent) (snd m.m_path) filepath;
+		(* Printf.eprintf "%s\x1b[44m<< Loaded %s from %s\x1b[0m\n" (mk_indent !indent) (snd m.m_path) filepath; *)
 		indent := !indent - 1;
 		close_in ch;
 		m
 	with e ->
-		Printf.eprintf "%s\x1b[44m<< Error loading %s from %s\x1b[0m\n" (mk_indent !indent) (snd path) filepath;
-		let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in
-		Printf.eprintf "%s => %s\n%s\n" (mk_indent !indent) msg stack;
+		(* Printf.eprintf "%s\x1b[44m<< Error loading %s from %s\x1b[0m\n" (mk_indent !indent) (snd path) filepath; *)
+		(* let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in *)
+		(* Printf.eprintf "%s => %s\n%s\n" (mk_indent !indent) msg stack; *)
 		indent := !indent - 1;
 		close_in ch;
 		raise e
 
 and load_module' ctx g m p =
-	Printf.eprintf "\x1b[45m[typeloadModule]\x1b[0m Load module %s\n" (s_type_path m);
+	(* Printf.eprintf "\x1b[45m[typeloadModule]\x1b[0m Load module %s\n" (s_type_path m); *)
 	try
 		(* Check current context *)
 		let m = ctx.com.module_lut#find m in
-		Printf.eprintf "\x1b[44m-- Retrieved %s from cache\x1b[0m\n" (snd m.m_path);
+		(* Printf.eprintf "\x1b[44m-- Retrieved %s from cache\x1b[0m\n" (snd m.m_path); *)
 		m
 	with Not_found ->
 		(* Check cache *)

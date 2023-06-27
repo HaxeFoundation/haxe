@@ -230,13 +230,10 @@ class ['a] hxb_writer
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new pool
 
-	(* method ctrl () = *)
-	(* 	chunk#write_string "ctrl" *)
-
 	(* Chunks *)
 
 	method start_chunk (kind : chunk_kind) =
-		Printf.eprintf "Writing chunk %s\n" (string_of_chunk_kind kind);
+		(* Printf.eprintf "Writing chunk %s\n" (string_of_chunk_kind kind); *)
 		let new_chunk = new chunk kind cp in
 		DynArray.add chunks new_chunk;
 		chunk <- new_chunk
@@ -267,9 +264,8 @@ class ['a] hxb_writer
 
 	method write_metadata_entry ((meta,el,p) : metadata_entry) =
 		chunk#write_string (Meta.to_string meta);
-		(* TODO: el -_- *)
-		Printf.eprintf "  %s metadata entry - expr def\n" todo;
-		self#write_pos p
+		self#write_pos p;
+		chunk#write_list el self#write_expr;
 
 	method write_metadata ml =
 		chunk#write_list ml self#write_metadata_entry
@@ -277,25 +273,21 @@ class ['a] hxb_writer
 	(* References *)
 
 	method write_class_ref (c : tclass) =
-		(* chunk#write_uleb128 (classes#get_or_add c.cl_path c) *)
 		let i = classes#get_or_add c.cl_path c in
 		(* Printf.eprintf "  Write class ref %d for %s\n" i (snd c.cl_path); *)
 		chunk#write_uleb128 i
 
 	method write_enum_ref (en : tenum) =
-		(* chunk#write_uleb128 (enums#get_or_add en.e_path en) *)
 		let i = enums#get_or_add en.e_path en in
 		(* Printf.eprintf "  Write enum ref %d for %s\n" i (snd en.e_path); *)
 		chunk#write_uleb128 i
 
 	method write_typedef_ref (td : tdef) =
-		(* chunk#write_uleb128 (typedefs#get_or_add td.t_path td) *)
 		let i = typedefs#get_or_add td.t_path td in
 		(* Printf.eprintf "  Write typedef ref %d for %s\n" i (s_type_path td.t_path); *)
 		chunk#write_uleb128 i
 
 	method write_abstract_ref (a : tabstract) =
-		(* chunk#write_uleb128 (abstracts#get_or_add a.a_path a) *)
 		let i = abstracts#get_or_add a.a_path a in
 		(* Printf.eprintf "  Write abstract ref %d for %s\n" i (snd a.a_path); *)
 		chunk#write_uleb128 i
@@ -303,7 +295,7 @@ class ['a] hxb_writer
 	method write_anon_ref (an : tanon) =
 		let pfm = Option.get (anon_id#identify true (TAnon an)) in
 		let i = anons#get_or_add pfm.pfm_path (an,ttp_key) in
-		Printf.eprintf "  Write anon ref %d for %s\n" i (s_type_path pfm.pfm_path);
+		(* Printf.eprintf "  Write anon ref %d for %s\n" i (s_type_path pfm.pfm_path); *)
 		chunk#write_uleb128 i
 
 	method write_field_ref (source : field_source) (cf : tclass_field) =
@@ -390,11 +382,12 @@ class ['a] hxb_writer
 			chunk#write_byte 17;
 			self#write_abstract_ref a;
 			self#write_types tl
-		(* | TFun([],t) when ExtType.is_void (follow t) ->
-			chunk#write_byte 30;
-		| TFun(args,t) when ExtType.is_void (follow t) ->
-			chunk#write_byte 31;
-			chunk#write_list args write_function_arg; *)
+		(* TODO what to do with void special case? *)
+		(* | TFun([],t) when ExtType.is_void (follow t) -> *)
+		(* 	chunk#write_byte 30; *)
+		(* | TFun(args,t) when ExtType.is_void (follow t) -> *)
+		(* 	chunk#write_byte 31; *)
+		(* 	chunk#write_list args write_function_arg; *)
 		| TFun(args,t) ->
 			chunk#write_byte 32;
 			chunk#write_list args write_function_arg;
@@ -416,6 +409,326 @@ class ['a] hxb_writer
 
 	method write_types tl =
 		chunk#write_list tl self#write_type_instance
+
+	(* expr *)
+
+	method write_object_field_key (n,p,qs) =
+		chunk#write_string n;
+		self#write_pos p;
+		begin match qs with
+			| NoQuotes -> chunk#write_byte 0
+			| DoubleQuotes -> chunk#write_byte 1
+		end
+
+	method write_type_path tp =
+		chunk#write_list tp.tpackage chunk#write_string;
+		chunk#write_string tp.tname;
+		chunk#write_list tp.tparams self#write_type_param_or_const;
+		chunk#write_option tp.tsub chunk#write_string
+
+	method write_placed_type_path (tp,p) =
+		self#write_type_path tp;
+		self#write_pos p
+
+	method write_type_param_or_const = function
+		| TPType th ->
+			chunk#write_byte 0;
+			self#write_type_hint th
+		| TPExpr e ->
+			chunk#write_byte 1;
+			self#write_expr e
+
+	method write_complex_type = function
+		| CTPath tp ->
+			chunk#write_byte 0;
+			self#write_type_path tp
+		| CTFunction(thl,th) ->
+			chunk#write_byte 1;
+			chunk#write_list thl self#write_type_hint;
+			self#write_type_hint th
+		| CTAnonymous cffl ->
+			chunk#write_byte 2;
+			chunk#write_list cffl self#write_cfield;
+		| CTParent th ->
+			chunk#write_byte 3;
+			self#write_type_hint th
+		| CTExtend(ptp,cffl) ->
+			chunk#write_byte 4;
+			chunk#write_list ptp self#write_placed_type_path;
+			chunk#write_list cffl self#write_cfield;
+		| CTOptional th ->
+			chunk#write_byte 5;
+			self#write_type_hint th
+		| CTNamed(pn,th) ->
+			chunk#write_byte 6;
+			self#write_placed_name pn;
+			self#write_type_hint th
+		| CTIntersection(thl) ->
+			chunk#write_byte 6;
+			chunk#write_list thl self#write_type_hint;
+
+	method write_type_hint (ct,p) =
+		self#write_complex_type ct;
+		self#write_pos p
+
+	method write_type_param tp =
+		self#write_placed_name tp.tp_name;
+		chunk#write_list tp.tp_params self#write_type_param;
+		chunk#write_option tp.tp_constraints self#write_type_hint;
+		chunk#write_option tp.tp_default self#write_type_hint;
+		chunk#write_list tp.tp_meta self#write_metadata_entry;
+
+	method write_func_arg (pn,b,meta,tho,eo) =
+		self#write_placed_name pn;
+		chunk#write_bool b;
+		self#write_metadata meta;
+		chunk#write_option tho self#write_type_hint;
+		chunk#write_option eo self#write_expr;
+
+	method write_func f =
+		chunk#write_list f.f_params self#write_type_param;
+		chunk#write_list f.f_args self#write_func_arg;
+		chunk#write_option f.f_type self#write_type_hint;
+		chunk#write_option f.f_expr self#write_expr
+
+	method write_placed_name (s,p) =
+		chunk#write_string s;
+		self#write_pos p
+
+	method write_access ac =
+		let i = match ac with
+		| APublic -> 0
+		| APrivate -> 1
+		| AStatic -> 2
+		| AOverride -> 3
+		| ADynamic -> 4
+		| AInline -> 5
+		| AMacro -> 6
+		| AFinal -> 7
+		| AExtern -> 8
+		| AAbstract -> 9
+		| AOverload -> 10
+		| AEnum -> 11
+		in
+		chunk#write_byte i;
+
+
+	method write_placed_access (ac,p) =
+		self#write_access ac;
+		self#write_pos p;
+
+	method write_cfield_kind = function
+		| FVar(tho,eo) ->
+			chunk#write_byte 0;
+			chunk#write_option tho self#write_type_hint;
+			chunk#write_option eo self#write_expr;
+		| FFun f ->
+			chunk#write_byte 1;
+			self#write_func f;
+		| FProp(pn1,pn2,tho,eo) ->
+			chunk#write_byte 2;
+			self#write_placed_name pn1;
+			self#write_placed_name pn2;
+			chunk#write_option tho self#write_type_hint;
+			chunk#write_option eo self#write_expr;
+
+	method write_cfield cff =
+		self#write_placed_name cff.cff_name;
+		chunk#write_option cff.cff_doc self#write_documentation;
+		self#write_pos cff.cff_pos;
+		self#write_metadata cff.cff_meta;
+		chunk#write_list cff.cff_access self#write_placed_access;
+		self#write_cfield_kind cff.cff_kind;
+
+	method write_expr (e,p) =
+		self#write_pos p;
+		match e with
+		| EConst (Int (s, suffix)) ->
+			chunk#write_byte 0;
+			chunk#write_string s;
+			chunk#write_option suffix chunk#write_string;
+		| EConst (Float (s, suffix)) ->
+			chunk#write_byte 1;
+			chunk#write_string s;
+			chunk#write_option suffix chunk#write_string;
+		| EConst (String (s,qs)) ->
+			chunk#write_byte 2;
+			chunk#write_string s;
+			begin match qs with
+			| SDoubleQuotes -> chunk#write_byte 0;
+			| SSingleQuotes -> chunk#write_byte 1;
+			end
+		| EConst (Ident s) ->
+			chunk#write_byte 3;
+			chunk#write_string s;
+		| EConst (Regexp(s1,s2)) ->
+			chunk#write_byte 4;
+			chunk#write_string s1;
+			chunk#write_string s2;
+		| EArray(e1,e2) ->
+			chunk#write_byte 5;
+			self#write_expr e1;
+			self#write_expr e2;
+		| EBinop(op,e1,e2) ->
+			chunk#write_byte 6;
+			chunk#write_byte (binop_index op);
+			self#write_expr e1;
+			self#write_expr e2;
+		| EField(e1,s,kind) ->
+			chunk#write_byte 7;
+			self#write_expr e1;
+			chunk#write_string s;
+			begin match kind with
+			| EFNormal -> chunk#write_byte 0;
+			| EFSafe -> chunk#write_byte 1;
+			end
+		| EParenthesis e1 ->
+			chunk#write_byte 8;
+			self#write_expr e1
+		| EObjectDecl fl ->
+			chunk#write_byte 9;
+			let write_field (k,e1) =
+				self#write_object_field_key k;
+				self#write_expr e1
+			in
+			chunk#write_list fl write_field;
+		| EArrayDecl el ->
+			chunk#write_byte 10;
+			chunk#write_list el self#write_expr;
+		| ECall(e1,el) ->
+			chunk#write_byte 11;
+			self#write_expr e1;
+			chunk#write_list el self#write_expr
+		| ENew(ptp,el) ->
+			chunk#write_byte 12;
+			self#write_placed_type_path ptp;
+			chunk#write_list el self#write_expr;
+		| EUnop(op,flag,e1) ->
+			chunk#write_byte 13;
+			chunk#write_byte (unop_index op flag);
+			self#write_expr e1;
+		| EVars vl ->
+			chunk#write_byte 14;
+			let write_var v =
+				self#write_placed_name v.ev_name;
+				chunk#write_bool v.ev_final;
+				chunk#write_bool v.ev_static;
+				chunk#write_option v.ev_type self#write_type_hint;
+				chunk#write_option v.ev_expr self#write_expr;
+				self#write_metadata v.ev_meta;
+			in
+			chunk#write_list vl write_var
+		| EFunction(fk,f) ->
+			chunk#write_byte 15;
+			begin match fk with
+			| FKAnonymous -> chunk#write_byte 0;
+			| FKNamed (pn,inline) ->
+				chunk#write_byte 1;
+				self#write_placed_name pn;
+				chunk#write_bool inline;
+			| FKArrow -> chunk#write_byte 2;
+			end;
+			self#write_func f;
+		| EBlock el ->
+			chunk#write_byte 16;
+			chunk#write_list el self#write_expr
+		| EFor(e1,e2) ->
+			chunk#write_byte 17;
+			self#write_expr e1;
+			self#write_expr e2;
+		| EIf(e1,e2,None) ->
+			chunk#write_byte 18;
+			self#write_expr e1;
+			self#write_expr e2;
+		| EIf(e1,e2,Some e3) ->
+			chunk#write_byte 19;
+			self#write_expr e1;
+			self#write_expr e2;
+			self#write_expr e3;
+		| EWhile(e1,e2,NormalWhile) ->
+			chunk#write_byte 20;
+			self#write_expr e1;
+			self#write_expr e2;
+		| EWhile(e1,e2,DoWhile) ->
+			chunk#write_byte 21;
+			self#write_expr e1;
+			self#write_expr e2;
+		| ESwitch(e1,cases,def) ->
+			chunk#write_byte 22;
+			self#write_expr e1;
+			let write_case (el,eg,eo,p) =
+				chunk#write_list el self#write_expr;
+				chunk#write_option eg self#write_expr;
+				chunk#write_option eo self#write_expr;
+				self#write_pos p;
+			in
+			chunk#write_list cases write_case;
+			let write_default (eo,p) =
+				chunk#write_option eo self#write_expr;
+				self#write_pos p
+			in
+			chunk#write_option def write_default;
+		| ETry(e1,catches) ->
+			chunk#write_byte 23;
+			self#write_expr e1;
+			let write_catch (pn,th,e,p) =
+				self#write_placed_name pn;
+				chunk#write_option th self#write_type_hint;
+				self#write_expr e;
+				self#write_pos p;
+			in
+			chunk#write_list catches write_catch;
+		| EReturn None ->
+			chunk#write_byte 24;
+		| EReturn (Some e1) ->
+			chunk#write_byte 25;
+			self#write_expr e1;
+		| EBreak ->
+			chunk#write_byte 26;
+		| EContinue ->
+			chunk#write_byte 27;
+		| EUntyped e1 ->
+			chunk#write_byte 28;
+			self#write_expr e1;
+		| EThrow e1 ->
+			chunk#write_byte 29;
+			self#write_expr e1;
+		| ECast(e1,None) ->
+			chunk#write_byte 30;
+			self#write_expr e1;
+		| ECast(e1,Some th) ->
+			chunk#write_byte 31;
+			self#write_expr e1;
+			self#write_type_hint th;
+		| EIs(e1,th) ->
+			chunk#write_byte 32;
+			self#write_expr e1;
+			self#write_type_hint th;
+		| EDisplay(e1,dk) ->
+			chunk#write_byte 33;
+			self#write_expr e1;
+			begin match dk with
+			| DKCall -> chunk#write_byte 0;
+			| DKDot -> chunk#write_byte 1;
+			| DKStructure -> chunk#write_byte 2;
+			| DKMarked -> chunk#write_byte 3;
+			| DKPattern b ->
+				chunk#write_byte 4;
+				chunk#write_bool b;
+			end
+		| ETernary(e1,e2,e3) ->
+			chunk#write_byte 34;
+			self#write_expr e1;
+			self#write_expr e2;
+			self#write_expr e3;
+		| ECheckType(e1,th) ->
+			chunk#write_byte 35;
+			self#write_expr e1;
+			self#write_type_hint th;
+		| EMeta(m,e1) ->
+			chunk#write_byte 36;
+			self#write_metadata_entry m;
+			self#write_expr e1
 
 	(* texpr *)
 
@@ -440,12 +753,12 @@ class ['a] hxb_writer
 		chunk#write_string v.v_name;
 		self#write_type_instance v.v_type;
 		self#write_var_kind v.v_kind;
-		(* chunk#write_bool v.v_capture;
-		chunk#write_bool v.v_final;
-		chunk#write_option v.v_extra (fun (tl,eo) ->
-			self#write_type_params tl;
-			chunk#write_option eo self#write_texpr;
-		); *)
+		chunk#write_option v.v_extra (fun ve ->
+			(* TODO *)
+			(* chunk#write_list ve.v_params self#write_typed_type_param; *)
+			chunk#write_option ve.v_expr self#write_texpr;
+		);
+		chunk#write_i32 v.v_flags;
 		self#write_metadata v.v_meta;
 		self#write_pos v.v_pos;
 
@@ -516,7 +829,6 @@ class ['a] hxb_writer
 			(* function 50-59 *)
 			| TFunction tf ->
 				chunk#write_byte 50;
-				(* list16 *)
 				chunk#write_list tf.tf_args (fun (v,eo) ->
 					self#write_var v;
 					chunk#write_option eo loop
@@ -536,7 +848,6 @@ class ['a] hxb_writer
 				loop_el el;
 			| TObjectDecl fl ->
 				chunk#write_byte 63;
-				(* list16 *)
 				chunk#write_list fl (fun ((name,p,qs),e) ->
 					chunk#write_string name;
 					self#write_pos p;
@@ -567,7 +878,6 @@ class ['a] hxb_writer
 			| TSwitch s ->
 				chunk#write_byte 82;
 				loop s.switch_subject;
-				(* list16 *)
 				chunk#write_list s.switch_cases (fun c ->
 					loop_el c.case_patterns;
 					loop c.case_expr;
@@ -576,7 +886,6 @@ class ['a] hxb_writer
 			| TTry(e1,catches) ->
 				chunk#write_byte 83;
 				loop e1;
-				(* list16 *)
 				chunk#write_list catches  (fun (v,e) ->
 					self#write_var v;
 					loop e
@@ -621,31 +930,26 @@ class ['a] hxb_writer
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
-				(* Printf.eprintf "  TField %d for %s\n" 102 cf.cf_name; *)
 				self#write_field_ref (ClassMember c) cf; (* TODO check source *)
 			| TField(e1,FStatic(c,cf)) ->
 				chunk#write_byte 103;
 				loop e1;
 				self#write_class_ref c;
-				(* Printf.eprintf "  TField %d for %s\n" 103 cf.cf_name; *)
 				self#write_field_ref (ClassMember c) cf; (* TODO check source *)
 			| TField(e1,FAnon cf) ->
 				chunk#write_byte 104;
 				loop e1;
 				chunk#write_uleb128 (anon_fields#get_or_add cf cf);
-				(* Printf.eprintf "  %s TField(e,FAnon cf)\n" todo; *)
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
 				chunk#write_byte 105;
 				loop e1;
 				self#write_class_ref c;
 				self#write_types tl;
-				(* Printf.eprintf "  TField FClosure %d for %s.%s\n" 105 (snd c.cl_path) cf.cf_name; *)
 				self#write_field_ref (ClassMember c) cf; (* TODO check source *)
 			| TField(e1,FClosure(None,cf)) ->
 				chunk#write_byte 106;
 				loop e1;
 				chunk#write_uleb128 (anon_fields#get_or_add cf cf);
-				(* Printf.eprintf "  %s TField(e,FClosure(None,cf))\n" todo; *)
 			| TField(e1,FEnum(en,ef)) ->
 				chunk#write_byte 107;
 				loop e1;
@@ -667,7 +971,6 @@ class ['a] hxb_writer
 				self#write_abstract_ref a
 			| TTypeExpr (TTypeDecl td) ->
 				chunk#write_byte 123;
-				(* Printf.eprintf "  TTypeExpr %d for %s\n" 123 (s_type_path td.t_path); *)
 				self#write_typedef_ref td
 			| TCast(e1,None) ->
 				chunk#write_byte 124;
@@ -763,7 +1066,7 @@ class ['a] hxb_writer
 
 	method write_class_field ?(with_pos = false) cf =
 		self#set_field_type_parameters cf.cf_params;
-		Printf.eprintf " Write class field %s\n" cf.cf_name;
+		(* Printf.eprintf " Write class field %s\n" cf.cf_name; *)
 		chunk#write_string cf.cf_name;
 		chunk#write_list cf.cf_params self#write_type_parameter_forward;
 		chunk#write_list cf.cf_params self#write_type_parameter_data;
@@ -783,7 +1086,7 @@ class ['a] hxb_writer
 	(* Module types *)
 
 	method select_type (path : path) =
-		Printf.eprintf "Select type %s\n" (s_type_path path);
+		(* Printf.eprintf "Select type %s\n" (s_type_path path); *)
 		ttp_key <- path;
 		type_type_parameters <- type_param_lut#extract path
 
@@ -807,8 +1110,7 @@ class ['a] hxb_writer
 			self#write_types tl;
 		| KExpr e ->
 			chunk#write_byte 2;
-			Printf.eprintf "  %s KExpr\n" todo;
-			(* TODO *)
+			self#write_expr e;
 		| KGeneric ->
 			chunk#write_byte 3;
 		| KGenericInstance(c,tl) ->
@@ -819,25 +1121,24 @@ class ['a] hxb_writer
 			chunk#write_byte 5;
 		| KGenericBuild l ->
 			chunk#write_byte 6;
-			Printf.eprintf "  %s KGenericBuild\n" todo;
-			(* TODO *)
+			chunk#write_list l self#write_cfield;
 		| KAbstractImpl a ->
 			chunk#write_byte 7;
 			self#write_abstract_ref a;
 		| KModuleFields md ->
 			chunk#write_byte 8;
-			Printf.eprintf "  %s KModuleFields\n" todo;
 			(* TODO *)
+			Printf.eprintf "  %s KModuleFields\n" todo;
 
 	method write_class (c : tclass) =
 		begin match c.cl_kind with
 		| KAbstractImpl a ->
-			Printf.eprintf "Write abstract impl %s with %d type params\n" (snd c.cl_path) (List.length a.a_params);
+			(* Printf.eprintf "Write abstract impl %s with %d type params\n" (snd c.cl_path) (List.length a.a_params); *)
 			self#select_type a.a_path
 		| _ ->
 			self#select_type c.cl_path;
 		end;
-		Printf.eprintf "Write class %s with %d type params\n" (snd c.cl_path) (List.length c.cl_params);
+		(* Printf.eprintf "Write class %s with %d type params\n" (snd c.cl_path) (List.length c.cl_params); *)
 		self#write_common_module_type (Obj.magic c);
 		self#write_class_kind c.cl_kind;
 		chunk#write_u32 (Int32.of_int c.cl_flags);
@@ -894,30 +1195,17 @@ class ['a] hxb_writer
 		chunk#write_bool a.a_enum
 
 	method write_enum (e : tenum) =
-		Printf.eprintf "Write enum %s\n" (snd e.e_path);
+		(* Printf.eprintf "Write enum %s\n" (snd e.e_path); *)
 		self#select_type e.e_path;
 		self#write_common_module_type (Obj.magic e);
 		chunk#write_bool e.e_extern;
 		chunk#write_list e.e_names chunk#write_string;
 
 	method write_typedef (td : tdef) =
-		Printf.eprintf "Write typedef %s %s >>\n" (s_type_path td.t_path) (s_type_kind td.t_type);
+		(* Printf.eprintf "Write typedef %s %s >>\n" (s_type_path td.t_path) (s_type_kind td.t_type); *)
 		self#select_type td.t_path;
 		self#write_common_module_type (Obj.magic td);
 		self#write_type_instance td.t_type;
-
-		(* TODO this is so unsafe... *)
-		match td.t_type with
-		| TMono { tm_type = Some (TLazy r) }
-		| TLazy r ->
-			begin match lazy_type r with
-				| TAnon an ->
-					chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (s,cf) ->
-						self#write_type_instance cf.cf_type;
-					);
-				| _ -> ()
-			end
-		| _ -> ();
 
 	method write_anon (m : module_def) ((an : tanon), (ttp_key : path)) =
 		chunk#write_string (snd ttp_key);
@@ -980,7 +1268,7 @@ class ['a] hxb_writer
 		in
 
 		let infos = t_infos mt in
-		Printf.eprintf "Forward declare type %s\n" (s_type_path infos.mt_path);
+		(* Printf.eprintf "Forward declare type %s\n" (s_type_path infos.mt_path); *)
 		chunk#write_byte i;
 		(* self#write_path infos.mt_path; *)
 		self#write_full_path (fst infos.mt_path) (snd infos.mt_path) !name;
@@ -1007,16 +1295,18 @@ class ['a] hxb_writer
 			chunk#write_list c.cl_ordered_statics write_field;
 		| TEnumDecl e ->
 				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
-					Printf.eprintf "  forward declare enum field %s.%s\n" (s_type_path e.e_path) s;
+					(* Printf.eprintf "  forward declare enum field %s.%s\n" (s_type_path e.e_path) s; *)
 					chunk#write_string s;
 					self#write_pos ef.ef_pos;
 					self#write_pos ef.ef_name_pos;
 					chunk#write_byte ef.ef_index
 				);
 		| TAbstractDecl a ->
-				(* TODO ? *)
-				()
-		| TTypeDecl t -> ()
+			(* TODO ? *)
+			()
+		| TTypeDecl t ->
+			(* TODO ? *)
+			()
 
 	method write_module (m : module_def) =
 		self#start_chunk HHDR;
@@ -1026,8 +1316,8 @@ class ['a] hxb_writer
 		self#start_chunk TYPF;
 		chunk#write_list m.m_types self#forward_declare_type;
 
-		Printf.eprintf "Write module %s with %d own classes, %d own abstracts, %d own enums, %d own typedefs\n"
-			(snd m.m_path) (List.length own_classes#to_list) (List.length own_abstracts#to_list) (List.length own_enums#to_list) (List.length own_typedefs#to_list);
+		(* Printf.eprintf "Write module %s with %d own classes, %d own abstracts, %d own enums, %d own typedefs\n" *)
+		(* 	(snd m.m_path) (List.length own_classes#to_list) (List.length own_abstracts#to_list) (List.length own_enums#to_list) (List.length own_typedefs#to_list); *)
 
 		begin match own_abstracts#to_list with
 		| [] ->
@@ -1063,9 +1353,8 @@ class ['a] hxb_writer
 			chunk#write_list own_enums self#write_enum;
 			self#start_chunk EFLD;
 			chunk#write_list own_enums (fun e ->
-				(* TODO write and use pmap_to_list *)
 				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
-					Printf.eprintf "  Write enum field %s.%s\n" (s_type_path e.e_path) s;
+					(* Printf.eprintf "  Write enum field %s.%s\n" (s_type_path e.e_path) s; *)
 					chunk#write_string s;
 					self#set_field_type_parameters ef.ef_params;
 					chunk#write_list ef.ef_params self#write_type_parameter_forward;
@@ -1082,50 +1371,6 @@ class ['a] hxb_writer
 		| own_typedefs ->
 			self#start_chunk TPDD;
 			chunk#write_list own_typedefs self#write_typedef;
-		end;
-		begin match classes#to_list with
-		| [] ->
-			()
-		| l ->
-			self#start_chunk CLSR;
-			chunk#write_list l (fun c ->
-				let m = c.cl_module in
-				Printf.eprintf "  [cls] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd c.cl_path)]));
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path)
-			)
-		end;
-		begin match abstracts#to_list with
-		| [] ->
-			()
-		| l ->
-			self#start_chunk ABSR;
-			chunk#write_list l (fun a ->
-				let m = a.a_module in
-				Printf.eprintf "  [abs] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd a.a_path)]));
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd a.a_path)
-			)
-		end;
-		begin match enums#to_list with
-		| [] ->
-			()
-		| l ->
-			self#start_chunk ENMR;
-			chunk#write_list l (fun en ->
-				let m = en.e_module in
-				Printf.eprintf "  [enm] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd en.e_path)]));
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd en.e_path)
-			)
-		end;
-		begin match typedefs#to_list with
-		| [] ->
-			()
-		| l ->
-			self#start_chunk TPDR;
-			chunk#write_list l (fun td ->
-				let m = td.t_module in
-				Printf.eprintf "  [tpdr] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd td.t_path)]));
-				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path)
-			)
 		end;
 
 		begin match anons#to_list with
@@ -1145,7 +1390,7 @@ class ['a] hxb_writer
 		| l ->
 			self#start_chunk ANFR;
 			chunk#write_list l (fun cf ->
-				Printf.eprintf "Write anon field %s\n" cf.cf_name;
+				(* Printf.eprintf "Write anon field %s\n" cf.cf_name; *)
 				chunk#write_string cf.cf_name;
 				self#write_pos cf.cf_pos;
 				self#write_pos cf.cf_name_pos;
@@ -1156,6 +1401,50 @@ class ['a] hxb_writer
 			);
 		end;
 
+		begin match classes#to_list with
+		| [] ->
+			()
+		| l ->
+			self#start_chunk CLSR;
+			chunk#write_list l (fun c ->
+				let m = c.cl_module in
+				(* Printf.eprintf "  [cls] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd c.cl_path)])); *)
+				self#write_full_path (fst m.m_path) (snd m.m_path) (snd c.cl_path)
+			)
+		end;
+		begin match abstracts#to_list with
+		| [] ->
+			()
+		| l ->
+			self#start_chunk ABSR;
+			chunk#write_list l (fun a ->
+				let m = a.a_module in
+				(* Printf.eprintf "  [abs] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd a.a_path)])); *)
+				self#write_full_path (fst m.m_path) (snd m.m_path) (snd a.a_path)
+			)
+		end;
+		begin match enums#to_list with
+		| [] ->
+			()
+		| l ->
+			self#start_chunk ENMR;
+			chunk#write_list l (fun en ->
+				let m = en.e_module in
+				(* Printf.eprintf "  [enm] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd en.e_path)])); *)
+				self#write_full_path (fst m.m_path) (snd m.m_path) (snd en.e_path)
+			)
+		end;
+		begin match typedefs#to_list with
+		| [] ->
+			()
+		| l ->
+			self#start_chunk TPDR;
+			chunk#write_list l (fun td ->
+				let m = td.t_module in
+				(* Printf.eprintf "  [tpdr] Write full path %s\n" (ExtString.String.join "." ((fst m.m_path) @ [(snd m.m_path); (snd td.t_path)])); *)
+				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path)
+			)
+		end;
 		self#start_chunk HEND;
 
 	(* Export *)
