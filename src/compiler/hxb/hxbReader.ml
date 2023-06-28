@@ -249,8 +249,13 @@ class hxb_reader
 
 	method read_placed_type_path =
 		let tp = self#read_type_path in
-		let p = self#read_pos in
-		(tp,p)
+		let pfull = self#read_pos in
+		let ppath = self#read_pos in
+		{
+			path = tp;
+			pos_full = pfull;
+			pos_path = ppath;
+		}
 
 	method read_type_param =
 		let pn = self#read_placed_name in
@@ -294,7 +299,7 @@ class hxb_reader
 
 	method read_complex_type =
 		match IO.read_byte ch with
-		| 0 -> CTPath (self#read_type_path)
+		| 0 -> CTPath (self#read_placed_type_path)
 		| 1 ->
 			let thl = self#read_list (fun () -> self#read_type_hint) in
 			let th = self#read_type_hint in
@@ -1298,7 +1303,7 @@ class hxb_reader
 				an.a_status := Extend self#read_types;
 				read_fields ()
 			| 3 ->
-				an.a_status := Statics self#read_class_ref;
+				an.a_status := ClassStatics self#read_class_ref;
 			| 4 ->
 				an.a_status := EnumStatics self#read_enum_ref;
 				read_fields ()
