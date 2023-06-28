@@ -222,12 +222,12 @@ class hxb_reader
 		| 3 -> Neg,Prefix
 		| 4 -> NegBits,Prefix
 		| 5 -> Spread,Prefix
-		| 6 -> Increment,Prefix
-		| 7 -> Decrement,Prefix
-		| 8 -> Not,Prefix
-		| 9 -> Neg,Prefix
-		| 10 -> NegBits,Prefix
-		| 11 -> Spread,Prefix
+		| 6 -> Increment,Postfix
+		| 7 -> Decrement,Postfix
+		| 8 -> Not,Postfix
+		| 9 -> Neg,Postfix
+		| 10 -> NegBits,Postfix
+		| 11 -> Spread,Postfix
 		| _ -> assert false
 
 	method read_placed_name =
