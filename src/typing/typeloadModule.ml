@@ -792,8 +792,7 @@ let rec get_reader ctx input mpath p =
 
 		let add_module m =
 			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m add module %s = %s\n" (s_type_path m.m_path) (s_type_path mpath); *)
-			ctx.com.module_lut#add mpath m in
-			(* ctx.com.module_lut#add m.m_path m in *)
+			ctx.com.module_lut#add m.m_path m in
 
 		let resolve_type pack mname tname =
 			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m resolve type %s\n" (s_type_path ((pack @ [mname]),tname)); *)
@@ -806,28 +805,28 @@ let rec get_reader ctx input mpath p =
 		new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
 
 and load_hxb_module ctx path p =
-	(* let mk_indent indent = *)
-	(* 	ExtLib.String.make (indent*2) ' ' *)
-	(* in *)
+	let compose_path no_rename =
+		(match path with
+		| [] , name -> name
+		| x :: l , name ->
+			String.concat "/" (x :: l) ^ "/" ^ name
+		) ^ ".hxb"
+	in
 
-	let l = ((Common.dump_path ctx.com) :: "hxb" :: (Common.platform_name_macro ctx.com) :: fst path @ [snd path]) in
-	let filepath = (List.fold_left (fun acc s -> acc ^ "/" ^ s) "." l) ^ ".hxb" in
-	let ch = try open_in_bin filepath with Sys_error _ -> raise Not_found in
+	let find_file = Common.find_file ctx.com ~class_path:ctx.com.binary_class_path in
+	let file = try find_file (compose_path false) with Not_found -> find_file (compose_path true) in
+	let ch = try open_in_bin file with Sys_error _ -> raise Not_found in
 	let input = IO.input_channel ch in
 
-	indent := !indent + 1;
-	(* Printf.eprintf "%s\x1b[44m>> Loading %s from %s...\x1b[0m\n" (mk_indent !indent) (snd path) filepath; *)
+	(* TODO use finally instead *)
 	try
 		let m = (get_reader ctx input path p)#read true p in
-		(* Printf.eprintf "%s\x1b[44m<< Loaded %s from %s\x1b[0m\n" (mk_indent !indent) (snd m.m_path) filepath; *)
-		indent := !indent - 1;
 		close_in ch;
 		m
 	with e ->
-		(* Printf.eprintf "%s\x1b[44m<< Error loading %s from %s\x1b[0m\n" (mk_indent !indent) (snd path) filepath; *)
-		(* let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in *)
-		(* Printf.eprintf "%s => %s\n%s\n" (mk_indent !indent) msg stack; *)
-		indent := !indent - 1;
+		Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
+		let msg = Printexc.to_string e and stack = Printexc.get_backtrace () in
+		Printf.eprintf " => %s\n%s\n" msg stack;
 		close_in ch;
 		raise e
 
@@ -843,6 +842,7 @@ and load_module' ctx g m p =
 		match !type_module_hook ctx m p with
 		| Some m ->
 			m
+		(* Try loading from hxb first *)
 		| None -> try load_hxb_module ctx m p with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();

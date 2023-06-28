@@ -374,6 +374,7 @@ type context = {
 	mutable config : platform_config;
 	mutable std_path : string list;
 	mutable class_path : string list;
+	mutable binary_class_path : string list;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
@@ -830,6 +831,7 @@ let create compilation_step cs version args display_mode =
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		std_path = [];
 		class_path = [];
+		binary_class_path = [];
 		main_class = None;
 		package_rules = PMap.empty;
 		file = "";
@@ -1135,7 +1137,7 @@ let cache_directory ctx class_path dir f_dir =
 	in
 	Option.may (Array.iter prepare_file) dir_listing
 
-let find_file ctx f =
+let find_file ctx ?(class_path=ctx.class_path) f =
 	try
 		match ctx.file_lookup_cache#find f with
 		| None -> raise Exit
@@ -1170,7 +1172,7 @@ let find_file ctx f =
 						loop (had_empty || p = "") l
 				end
 		in
-		let r = try Some (loop false ctx.class_path) with Not_found -> None in
+		let r = try Some (loop false class_path) with Not_found -> None in
 		ctx.file_lookup_cache#add f r;
 		match r with
 		| None -> raise Not_found

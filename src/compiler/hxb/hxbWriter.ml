@@ -345,7 +345,7 @@ class ['a] hxb_writer
 			begin match td.t_type with
 				| TAnon an ->
 					begin match !(an.a_status) with
-						| Statics c ->
+						| ClassStatics c ->
 							chunk#write_byte 0;
 							self#write_class_ref c;
 						| EnumStatics en ->
@@ -426,9 +426,10 @@ class ['a] hxb_writer
 		chunk#write_list tp.tparams self#write_type_param_or_const;
 		chunk#write_option tp.tsub chunk#write_string
 
-	method write_placed_type_path (tp,p) =
-		self#write_type_path tp;
-		self#write_pos p
+	method write_placed_type_path ptp =
+		self#write_type_path ptp.path;
+		self#write_pos ptp.pos_full;
+		self#write_pos ptp.pos_path
 
 	method write_type_param_or_const = function
 		| TPType th ->
@@ -441,7 +442,7 @@ class ['a] hxb_writer
 	method write_complex_type = function
 		| CTPath tp ->
 			chunk#write_byte 0;
-			self#write_type_path tp
+			self#write_placed_type_path tp
 		| CTFunction(thl,th) ->
 			chunk#write_byte 1;
 			chunk#write_list thl self#write_type_hint;
@@ -1228,7 +1229,7 @@ class ['a] hxb_writer
 			chunk#write_byte 2;
 			self#write_types tl;
 			write_fields ()
-		| Statics c ->
+		| ClassStatics c ->
 			chunk#write_byte 3;
 			self#write_class_ref c;
 		| EnumStatics en ->

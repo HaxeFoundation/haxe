@@ -3,19 +3,17 @@ open CompilationContext
 open TType
 open Tanon_identification
 
-let export_hxb com m =
+let export_hxb com root m =
 	if m.m_extra.m_kind = MCode then begin
-		let ch = IO.output_bytes() in
 		let anon_identification = new tanon_identification ([],"") in
-		let writer = new HxbWriter.hxb_writer anon_identification (* cp *) in
+		let writer = new HxbWriter.hxb_writer anon_identification in
 		writer#write_module m;
+		let ch = IO.output_bytes() in
 		let bytes_module = IO.close_out ch in
 		let ch = IO.output_bytes() in
 		writer#export ch;
 		let bytes_cp = IO.close_out ch in
-		let path = m.m_path in
-		(* TODO use actual hxb output path *)
-		let l = ((Common.dump_path com) :: "hxb" :: (Common.platform_name_macro com) :: fst path @ [snd path]) in
+		let l = (root :: fst m.m_path @ [snd m.m_path]) in
 		let ch_file = Path.create_file true ".hxb" [] l in
 		output_bytes ch_file bytes_cp;
 		output_bytes ch_file bytes_module;
@@ -41,13 +39,36 @@ let check_auxiliary_output com actx =
 	end;
 	begin match actx.hxb_out with
 		| None -> ()
-		| Some file ->
-				Common.log com ("Generating hxb : " ^ file);
-				Path.mkdir_from_path file;
-				let t = Timer.timer ["generate";"hxb"] in
-				(* HxbWriter.write com file; *)
-				List.iter (export_hxb com) com.modules;
-				t();
+		| Some path ->
+			let clean_files path =
+				let rec iter_files pack dir path = try
+					let file = Unix.readdir dir in
+
+					if file <> "." && file <> ".." then begin
+						let filepath = path ^ "/" ^ file in
+						if (Unix.stat filepath).st_kind = S_DIR then
+							let pack = pack @ [file] in
+							iter_files (pack) (Unix.opendir filepath) filepath;
+							try Unix.rmdir filepath with Unix.Unix_error (ENOTEMPTY,_,_) -> ();
+						else
+							Sys.remove filepath
+					end;
+
+					iter_files pack dir path
+				with | End_of_file | Unix.Unix_error _ ->
+					Unix.closedir dir
+				in
+				iter_files [] (Unix.opendir path) path
+			in
+
+			let path = Path.add_trailing_slash path in
+			Common.log com ("Generating hxb : " ^ path);
+			Printf.eprintf "Generating hxb to %s\n" path;
+			Path.mkdir_from_path path;
+			clean_files path;
+			let t = Timer.timer ["generate";"hxb"] in
+			List.iter (export_hxb com path) com.modules;
+			t();
 	end
 
 let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with

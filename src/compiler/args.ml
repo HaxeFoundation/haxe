@@ -129,6 +129,9 @@ let parse_args com =
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path>","add a directory to find source files");
+		("Compilation",["--binary-class-path"],["-bcp"],Arg.String (fun path ->
+			com.binary_class_path <- Path.add_trailing_slash path :: com.binary_class_path
+		),"<path>","add a directory to find binary source files");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
 			begin match Path.file_extension cl with
