@@ -1289,7 +1289,7 @@ class hxb_reader
 			let an = anons.(i) in
 			let read_fields () =
 				let fields = self#read_list (fun () -> self#read_class_field' m) in
-				List.iter (fun cf -> ignore(PMap.add cf.cf_name cf an.a_fields)) fields
+				List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields;) fields;
 			in
 
 			begin match self#read_u8 with
