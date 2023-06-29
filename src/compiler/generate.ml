@@ -3,6 +3,24 @@ open CompilationContext
 open TType
 open Tanon_identification
 
+let check_auxiliary_output com actx =
+	begin match actx.xml_out with
+		| None -> ()
+		| Some "hx" ->
+			Genhxold.generate com
+		| Some file ->
+			Common.log com ("Generating xml: " ^ file);
+			Path.mkdir_from_path file;
+			Genxml.generate com file
+	end;
+	begin match actx.json_out with
+		| None -> ()
+		| Some file ->
+			Common.log com ("Generating json : " ^ file);
+			Path.mkdir_from_path file;
+			Genjson.generate com.types file
+	end
+
 let export_hxb com root m =
 	if m.m_extra.m_kind = MCode then begin
 		let anon_identification = new tanon_identification ([],"") in
@@ -20,26 +38,11 @@ let export_hxb com root m =
 		close_out ch_file
 	end
 
-let check_auxiliary_output com actx =
-	begin match actx.xml_out with
-		| None -> ()
-		| Some "hx" ->
-			Genhxold.generate com
-		| Some file ->
-			Common.log com ("Generating xml: " ^ file);
-			Path.mkdir_from_path file;
-			Genxml.generate com file
-	end;
-	begin match actx.json_out with
-		| None -> ()
-		| Some file ->
-			Common.log com ("Generating json : " ^ file);
-			Path.mkdir_from_path file;
-			Genjson.generate com.types file
-	end;
+let check_hxb_output com actx =
 	begin match actx.hxb_out with
 		| None -> ()
 		| Some path ->
+			(* TODO move somewhere else *)
 			let clean_files path =
 				let rec iter_files pack dir path = try
 					let file = Unix.readdir dir in
@@ -62,8 +65,7 @@ let check_auxiliary_output com actx =
 			in
 
 			let path = Path.add_trailing_slash path in
-			Common.log com ("Generating hxb : " ^ path);
-			Printf.eprintf "Generating hxb to %s\n" path;
+			Common.log com ("Generating hxb to " ^ path);
 			Path.mkdir_from_path path;
 			clean_files path;
 			let t = Timer.timer ["generate";"hxb"] in
