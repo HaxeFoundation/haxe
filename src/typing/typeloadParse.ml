@@ -297,7 +297,6 @@ let parse_module' com m p =
 	file,remap,pack,decls
 
 let parse_module ctx m p =
-	if Common.defined ctx.com Define.HxbOnly then raise Not_found;
 	let file,remap,pack,decls = parse_module' ctx.com m p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in

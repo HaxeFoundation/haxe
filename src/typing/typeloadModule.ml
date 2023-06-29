@@ -783,29 +783,23 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let indent = ref (-1)
-
 let rec get_reader ctx input mpath p =
-		let make_module path file =
-			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m make module %s\n" (s_type_path path); *)
-			let m = ModuleLevel.make_module ctx path file p in
-			m.m_extra.m_processed <- 1;
-			m
-		in
+	let make_module path file =
+		let m = ModuleLevel.make_module ctx path file p in
+		m.m_extra.m_processed <- 1;
+		m
+	in
 
-		let add_module m =
-			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m add module %s = %s\n" (s_type_path m.m_path) (s_type_path mpath); *)
-			ctx.com.module_lut#add m.m_path m in
+	let add_module m =
+		ctx.com.module_lut#add m.m_path m
+	in
 
-		let resolve_type pack mname tname =
-			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m resolve type %s\n" (s_type_path ((pack @ [mname]),tname)); *)
-			let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
-			let t = List.find (fun t -> snd (t_path t) = tname) m.m_types in
-			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m resolved type %s\n" (s_type_path ((pack @ [mname]),tname)); *)
-			t
-		in
+	let resolve_type pack mname tname =
+		let m = try ctx.com.module_lut#find (pack,mname) with Not_found -> load_module' ctx ctx.g (pack,mname) p in
+		List.find (fun t -> snd (t_path t) = tname) m.m_types
+	in
 
-		new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
+	new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
 
 and load_hxb_module ctx path p =
 	let compose_path no_rename =
@@ -834,18 +828,15 @@ and load_hxb_module ctx path p =
 		raise e
 
 and load_module' ctx g m p =
-	(* Printf.eprintf "\x1b[45m[typeloadModule]\x1b[0m Load module %s\n" (s_type_path m); *)
 	try
 		(* Check current context *)
-		let m = ctx.com.module_lut#find m in
-		(* Printf.eprintf "\x1b[44m-- Retrieved %s from cache\x1b[0m\n" (snd m.m_path); *)
-		m
+		ctx.com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
 		match !type_module_hook ctx m p with
 		| Some m ->
 			m
-		(* Try loading from hxb first *)
+		(* Try loading from hxb first, then from source *)
 		| None -> try load_hxb_module ctx m p with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
