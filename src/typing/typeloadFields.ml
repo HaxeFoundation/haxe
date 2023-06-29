@@ -1740,7 +1740,6 @@ let init_class ctx c p herits fields =
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = patch_class ctx c fields in
 	let fields = build_fields (ctx,cctx) c fields in
-	(* Triggers a second loading of many types.. *)
 	if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 	if not cctx.is_lib then begin
 		delay ctx PForce (fun() -> check_overloads ctx c);
