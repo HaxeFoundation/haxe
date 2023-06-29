@@ -798,7 +798,10 @@ let indent = ref (-1)
 let rec get_reader ctx input mpath p =
 		let make_module path file =
 			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m make module %s\n" (s_type_path path); *)
-			ModuleLevel.make_module ctx path file p in
+			let m = ModuleLevel.make_module ctx path file p in
+			m.m_extra.m_processed <- 1;
+			m
+		in
 
 		let add_module m =
 			(* Printf.eprintf "  \x1b[35m[typeloadModule]\x1b[0m add module %s = %s\n" (s_type_path m.m_path) (s_type_path mpath); *)
