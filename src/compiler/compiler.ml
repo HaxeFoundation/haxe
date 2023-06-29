@@ -365,8 +365,11 @@ let compile ctx actx callbacks =
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
 		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
-		(* TODO check if this is fine for xml and json output *)
-		Generate.check_auxiliary_output com actx;
+		com.callbacks#add_after_save (fun () ->
+		(* com.callbacks#add_before_save (fun () -> *)
+			(* TODO check if this is fine for xml and json output *)
+			Generate.check_auxiliary_output com actx;
+		);
 		filter ctx tctx;
 		if ctx.has_error then raise Abort;
 		(* Generate.check_auxiliary_output com actx; *)
