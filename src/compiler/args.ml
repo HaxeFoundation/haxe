@@ -123,9 +123,6 @@ let parse_args com =
 		("Target",["--run"],[], Arg.Unit (fun() ->
 			raise (Arg.Bad "--run requires an argument: a Haxe module name")
 		), "<module> [args...]","interpret a Haxe module with command line arguments");
-		("Target",["--hxb"],[], Arg.String (fun file ->
-			actx.hxb_out <- Some file;
-		),"<file>", "generate haxe binary as target file");
 		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path>","add a directory to find source files");
@@ -134,18 +131,9 @@ let parse_args com =
 		),"<path>","add a directory to find binary source files");
 		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
-			begin match Path.file_extension cl with
-			| "hxb" ->
-				actx.pre_compilation <- (fun () ->
-					(* TODO: update hxb runner *)
-					(* HxbRunner.run com cl; *)
-					actx.did_something <- true
-				) :: actx.pre_compilation;
-			| _ ->
-				let cpath = Path.parse_type_path cl in
-				com.main_class <- Some cpath;
-				actx.classes <- cpath :: actx.classes
-			end
+			let cpath = Path.parse_type_path cl in
+			com.main_class <- Some cpath;
+			actx.classes <- cpath :: actx.classes
 		),"<class>","select startup class");
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun _ -> ()),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
@@ -282,6 +270,9 @@ let parse_args com =
 		("Services",["--json"],[],Arg.String (fun file ->
 			actx.json_out <- Some file
 		),"<file>","generate JSON types description");
+		("Services",["--hxb"],[], Arg.String (fun dir ->
+			actx.hxb_out <- Some dir;
+		),"<directory>", "generate haxe binary representation in target directory");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> actx.no_output <- true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> Timer.measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->

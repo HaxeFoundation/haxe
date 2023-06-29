@@ -344,7 +344,6 @@ let handle_type_path_exception ctx p c is_import pos =
 			| None ->
 				DisplayPath.TypePathHandler.complete_type_path com p
 			| Some (c,cur_package) ->
-				Printf.eprintf "=== [Display] create typer context ===\n";
 				let ctx = Typer.create com None in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
 		end with Error.Fatal_error err ->
