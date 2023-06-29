@@ -1340,7 +1340,9 @@ class ['a] hxb_writer
 				| _ ->
 					self#select_type c.cl_path;
 				end;
+
 				chunk#write_option c.cl_constructor self#write_class_field;
+				chunk#write_option c.cl_init self#write_texpr;
 				chunk#write_list c.cl_ordered_fields self#write_class_field;
 				chunk#write_list c.cl_ordered_statics self#write_class_field;
 			)
