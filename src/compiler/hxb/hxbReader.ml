@@ -1091,6 +1091,7 @@ class hxb_reader
 			let _ = self#read_string in
 			self#read_class_field m (Option.get c.cl_constructor)
 		) in
+		c.cl_init <- self#read_option (fun () -> self#read_texpr);
 		let f fields =
 			let name = self#read_string in
 			let cf = PMap.find name fields in
