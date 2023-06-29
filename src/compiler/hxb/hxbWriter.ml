@@ -226,7 +226,7 @@ class ['a] hxb_writer
 	val own_typedefs = new pool
 
 	val type_param_lut = new pool
-	val mutable ttp_key = ([],"")
+	val mutable ttp_key = None
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new pool
 
@@ -313,7 +313,6 @@ class ['a] hxb_writer
 			self#write_type_instance t;
 		in
 		match t with
-		(* TODO: we might need to properly restore monomorphs... *)
 		| TMono r ->
 			begin match r.tm_type with
 			| None ->
@@ -343,23 +342,13 @@ class ['a] hxb_writer
 		| TType(td,[]) ->
 			chunk#write_byte 12;
 			begin match td.t_type with
+				| TAnon an when PMap.is_empty an.a_fields ->
+					chunk#write_byte 0;
 				| TAnon an ->
-					begin match !(an.a_status) with
-						| Statics c ->
-							chunk#write_byte 0;
-							self#write_class_ref c;
-						| EnumStatics en ->
-							chunk#write_byte 1;
-							self#write_enum_ref en;
-						| AbstractStatics a ->
-							chunk#write_byte 2;
-							self#write_abstract_ref a;
-						| _ ->
-							chunk#write_byte 3;
-							self#write_typedef_ref td;
-					end
+					chunk#write_byte 1;
+					self#write_anon_ref an;
 				| _ ->
-					chunk#write_byte 3;
+					chunk#write_byte 2;
 					self#write_typedef_ref td;
 			end;
 		| TAbstract(a,[]) ->
@@ -1087,7 +1076,7 @@ class ['a] hxb_writer
 
 	method select_type (path : path) =
 		(* Printf.eprintf "Select type %s\n" (s_type_path path); *)
-		ttp_key <- path;
+		ttp_key <- Some path;
 		type_type_parameters <- type_param_lut#extract path
 
 	method write_common_module_type (infos : tinfos) : unit =
@@ -1207,9 +1196,11 @@ class ['a] hxb_writer
 		self#write_common_module_type (Obj.magic td);
 		self#write_type_instance td.t_type;
 
-	method write_anon (m : module_def) ((an : tanon), (ttp_key : path)) =
-		chunk#write_string (snd ttp_key);
-		self#select_type ttp_key;
+	method write_anon (m : module_def) ((an : tanon), (ttp_key : path option)) =
+		chunk#write_option ttp_key (fun (_,k) -> chunk#write_string k);
+		match ttp_key with
+		| None -> ()
+		| Some ttp_key -> self#select_type ttp_key;
 
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
@@ -1233,6 +1224,7 @@ class ['a] hxb_writer
 			self#write_class_ref c;
 		| EnumStatics en ->
 			chunk#write_byte 4;
+			self#write_enum_ref en;
 			write_fields ()
 		| AbstractStatics a ->
 			chunk#write_byte 5;
@@ -1294,13 +1286,21 @@ class ['a] hxb_writer
 			chunk#write_list c.cl_ordered_fields write_field;
 			chunk#write_list c.cl_ordered_statics write_field;
 		| TEnumDecl e ->
-				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
-					(* Printf.eprintf "  forward declare enum field %s.%s\n" (s_type_path e.e_path) s; *)
-					chunk#write_string s;
-					self#write_pos ef.ef_pos;
-					self#write_pos ef.ef_name_pos;
-					chunk#write_byte ef.ef_index
-				);
+			(match e.e_type.t_type with
+			| TAnon an when PMap.is_empty an.a_fields ->
+				chunk#write_byte 0;
+			| TAnon an ->
+				chunk#write_byte 1;
+				self#write_anon_ref an;
+			| _ -> assert false);
+
+			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
+				(* Printf.eprintf "  forward declare enum field %s.%s\n" (s_type_path e.e_path) s; *)
+				chunk#write_string s;
+				self#write_pos ef.ef_pos;
+				self#write_pos ef.ef_name_pos;
+				chunk#write_byte ef.ef_index
+			);
 		| TAbstractDecl a ->
 			(* TODO ? *)
 			()

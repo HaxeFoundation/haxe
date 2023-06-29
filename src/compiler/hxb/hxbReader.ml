@@ -592,11 +592,9 @@ class hxb_reader
 			TEnum(self#read_enum_ref,[])
 		| 12 ->
 			begin match self#read_u8 with
-				| 0 -> TType(class_module_type self#read_class_ref,[])
-				| 1 ->
-					let e = self#read_enum_ref in
-					TType(enum_module_type e.e_module e.e_path e.e_pos,[])
-				| 2 -> TType(abstract_module_type self#read_abstract_ref [],[])
+				(* TODO wrap those two in TType? *)
+				| 0 -> mk_anon (ref Closed)
+				| 1 -> TAnon self#read_anon_ref
 				| _ -> TType(self#read_typedef_ref,[])
 			end
 		| 13 ->
@@ -1270,16 +1268,20 @@ class hxb_reader
 	method read_annd (m : module_def) =
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
-			let tname = self#read_string in
-			match List.find_opt (fun t -> snd (t_path t) = tname) m.m_types with
+			let tname = self#read_option (fun () -> self#read_string) in
+			match tname with
 			| None -> ()
-			| Some parent ->
-				begin match parent with
-				| TClassDecl c -> type_type_parameters <- Array.of_list c.cl_params;
-				| TEnumDecl en -> type_type_parameters <- Array.of_list en.e_params;
-				| TTypeDecl td -> type_type_parameters <- Array.of_list td.t_params;
-				| TAbstractDecl a -> type_type_parameters <- Array.of_list a.a_params;
-				end;
+			| Some tname ->
+				(match List.find_opt (fun t -> snd (t_path t) = tname) m.m_types with
+				| None -> ()
+				| Some parent ->
+					begin match parent with
+					| TClassDecl c -> type_type_parameters <- Array.of_list c.cl_params;
+					| TEnumDecl en -> type_type_parameters <- Array.of_list en.e_params;
+					| TTypeDecl td -> type_type_parameters <- Array.of_list td.t_params;
+					| TAbstractDecl a -> type_type_parameters <- Array.of_list a.a_params;
+					end
+				);
 
 			let an = anons.(i) in
 			let read_fields () =
@@ -1418,6 +1420,10 @@ class hxb_reader
 				TClassDecl c
 			| 1 ->
 				let en = mk_enum m path pos name_pos in
+				(match self#read_u8 with
+				| 0 -> en.e_type.t_type <- (mk_anon (ref Closed))
+				| _ -> en.e_type.t_type <- TAnon self#read_anon_ref);
+
 				enums <- Array.append enums (Array.make 1 en);
 
 				let read_field () =
