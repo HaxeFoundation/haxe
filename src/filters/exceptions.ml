@@ -480,9 +480,11 @@ let catch_native ctx catches t p =
 			)
 		(* Haxe-specific wildcard catches should go to if-fest because they need additional handling *)
 		| (v,_) :: _ when is_haxe_wildcard_catch ctx v.v_type ->
-			(match handle_as_value_exception with
-			| [] ->
+			(match handle_as_value_exception, value_exception_catch with
+			| [], None ->
 				catches_to_ifs ctx catches t p
+			| [], Some catch ->
+				catches_to_ifs ctx [catch] t p
 			| _ ->
 				catches_as_value_exception ctx handle_as_value_exception None t p
 				:: catches_to_ifs ctx catches t p

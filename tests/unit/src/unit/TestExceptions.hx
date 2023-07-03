@@ -336,6 +336,16 @@ class TestExceptions extends Test {
 		eq('haxe.Exception', HelperMacros.typeString(try throw new Exception('') catch(e) e));
 	}
 
+	function testCatchValueException() {
+		try {
+			throw "";
+		} catch(e:ValueException) {
+			Assert.pass();
+		} catch(e) {
+			Assert.fail();
+		}
+	}
+
 	function testNotImplemented() {
 		try {
 			futureFeature();
