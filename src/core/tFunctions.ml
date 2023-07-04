@@ -273,17 +273,6 @@ let null_abstract = {
 	a_enum = false;
 }
 
-let null_tvar = {
-	v_id = -1;
-	v_name = "";
-	v_type = t_dynamic;
-	v_kind = VGenerated;
-	v_flags = 0;
-	v_extra = None;
-	v_meta = [];
-	v_pos = null_pos;
-}
-
 let add_dependency ?(skip_postprocess=false) m mdep =
 	if m != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
 		m.m_extra.m_deps <- PMap.add mdep.m_id (mdep.m_extra.m_sign, mdep.m_path) m.m_extra.m_deps;
