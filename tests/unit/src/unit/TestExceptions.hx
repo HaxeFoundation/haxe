@@ -294,6 +294,7 @@ class TestExceptions extends Test {
 		return result;
 	}
 
+	#if (eval || hl || neko)
 	function stacksAutoWrappedLevel1() {
 		return stacksAutoWrappedLevel2();
 	}
@@ -309,6 +310,7 @@ class TestExceptions extends Test {
 		result.push(try wrapNativeError((null:String).length) catch(e:Exception) e.stack);
 		return result;
 	}
+	#end
 
 	function stackItemData(item:StackItem):ItemData {
 		var result:ItemData = {};
