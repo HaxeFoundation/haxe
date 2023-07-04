@@ -1623,10 +1623,19 @@ let decode_type_def v =
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
-	| 4, [tthis;tfrom;tto] ->
-		let flags = match opt decode_array tfrom with None -> [] | Some ta -> List.map (fun t -> AbFrom (decode_ctype t)) ta in
+	| 4, [tthis;tflags;tfrom;tto] ->
+		let flags = match opt decode_array tflags with
+			| None -> []
+			| Some ta -> List.map (fun f -> match decode_enum f with
+				| 0, [] -> AbEnum
+				| 1, [ct] -> AbFrom (decode_ctype ct)
+				| 2, [ct] -> AbTo (decode_ctype ct)
+				| _ -> raise Invalid_expr
+		) ta in
+		let flags = match opt decode_array tfrom with None -> flags | Some ta -> List.map (fun t -> AbFrom (decode_ctype t)) ta @ flags in
 		let flags = match opt decode_array tto with None -> flags | Some ta -> (List.map (fun t -> AbTo (decode_ctype t)) ta) @ flags in
 		let flags = match opt decode_ctype tthis with None -> flags | Some t -> (AbOver t) :: flags in
+		let flags = if isExtern then AbExtern :: flags else flags in
 		EAbstract(mk flags fields)
 	| 5, [fk;al] ->
 		let fk = decode_class_field_kind fk in

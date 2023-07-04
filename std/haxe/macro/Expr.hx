@@ -999,12 +999,34 @@ enum TypeDefKind {
 	/**
 		Represents an abstract kind.
 	**/
-	TDAbstract(tthis:Null<ComplexType>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
+	TDAbstract(tthis:Null<ComplexType>, ?flags:Array<AbstractFlag>, ?from:Array<ComplexType>, ?to:Array<ComplexType>);
 
 	/**
 		Represents a module-level field.
 	**/
 	TDField(kind:FieldType, ?access:Array<Access>); // ignore TypeDefinition.fields
+}
+
+/**
+	Represents an abstract flag.
+**/
+enum AbstractFlag {
+	/**
+		Indicates that this abstract is an `enum abstract`
+	**/
+	AbEnum;
+
+	/**
+		Indicates that this abstract can be assigned from `ct`.
+		This flag can be added several times to add multiple "from" types.
+	**/
+	AbFrom(ct:ComplexType);
+
+	/**
+		Indicates that this abstract can be assigned to `ct`.
+		This flag can be added several times to add multiple "to" types.
+	**/
+	AbTo(ct:ComplexType);
 }
 
 /**
