@@ -371,12 +371,11 @@ class ['a] hxb_writer
 			chunk#write_byte 17;
 			self#write_abstract_ref a;
 			self#write_types tl
-		(* TODO what to do with void special case? *)
-		(* | TFun([],t) when ExtType.is_void (follow t) -> *)
-		(* 	chunk#write_byte 30; *)
-		(* | TFun(args,t) when ExtType.is_void (follow t) -> *)
-		(* 	chunk#write_byte 31; *)
-		(* 	chunk#write_list args write_function_arg; *)
+		| TFun([],t) when ExtType.is_void (follow t) ->
+			chunk#write_byte 30;
+		| TFun(args,t) when ExtType.is_void (follow t) ->
+			chunk#write_byte 31;
+			chunk#write_list args write_function_arg;
 		| TFun(args,t) ->
 			chunk#write_byte 32;
 			chunk#write_list args write_function_arg;
