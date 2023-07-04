@@ -1011,9 +1011,7 @@ class hxb_reader
 	method read_class_field (m : module_def) (cf : tclass_field) : unit =
 		let name = cf.cf_name in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
-		self#read_type_parameters m ([],name) (fun a ->
-			field_type_parameters <- a
-		);
+		self#read_type_parameters m ([],name) (fun a -> field_type_parameters <- a);
 		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
 
@@ -1041,9 +1039,7 @@ class hxb_reader
 	method read_class_field' (m : module_def) : tclass_field =
 		let name = self#read_string in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
-		self#read_type_parameters m ([],name) (fun a ->
-			field_type_parameters <- a
-		);
+		self#read_type_parameters m ([],name) (fun a -> field_type_parameters <- a);
 		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
 		let flags = IO.read_i32 ch in
@@ -1169,9 +1165,7 @@ class hxb_reader
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
 		a.a_from_field <- self#read_list (fun () ->
 			let name = self#read_string in
-			self#read_type_parameters m ([],name) (fun a ->
-				field_type_parameters <- a
-			);
+			self#read_type_parameters m ([],name) (fun a -> field_type_parameters <- a);
 			let t = self#read_type_instance in
 			let impl = Option.get a.a_impl in
 			(* Printf.eprintf "  Read field ref for abstract from field %s (a = %s)\n" name (s_type_path a.a_path); *)
@@ -1182,9 +1176,7 @@ class hxb_reader
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
 		a.a_to_field <- self#read_list (fun () ->
 			let name = self#read_string in
-			self#read_type_parameters m ([],name) (fun a ->
-				field_type_parameters <- a
-			);
+			self#read_type_parameters m ([],name) (fun a -> field_type_parameters <- a);
 			let t = self#read_type_instance in
 			let impl = Option.get a.a_impl in
 			(* Printf.eprintf "  Read field ref for abstract to field %s (a = %s)\n" name (s_type_path a.a_path); *)
@@ -1269,20 +1261,7 @@ class hxb_reader
 	method read_annd (m : module_def) =
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
-			let tname = self#read_option (fun () -> self#read_string) in
-			match tname with
-			| None -> ()
-			| Some tname ->
-				(match List.find_opt (fun t -> snd (t_path t) = tname) m.m_types with
-				| None -> ()
-				| Some parent ->
-					begin match parent with
-					| TClassDecl c -> type_type_parameters <- Array.of_list c.cl_params;
-					| TEnumDecl en -> type_type_parameters <- Array.of_list en.e_params;
-					| TTypeDecl td -> type_type_parameters <- Array.of_list td.t_params;
-					| TAbstractDecl a -> type_type_parameters <- Array.of_list a.a_params;
-					end
-				);
+			self#read_type_parameters m ([],"") (fun a -> type_type_parameters <- a);
 
 			let an = anons.(i) in
 			let read_fields () =
@@ -1316,6 +1295,7 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
 			let cf = anon_fields.(i) in
+			self#read_type_parameters m ([],"") (fun a -> type_type_parameters <- a);
 			let _ = self#read_string in
 			self#read_class_field m cf;
 		done

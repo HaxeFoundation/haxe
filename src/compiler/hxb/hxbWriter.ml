@@ -294,7 +294,7 @@ class ['a] hxb_writer
 
 	method write_anon_ref (an : tanon) =
 		let pfm = Option.get (anon_id#identify true (TAnon an)) in
-		let i = anons#get_or_add pfm.pfm_path (an,ttp_key) in
+		let i = anons#get_or_add pfm.pfm_path (an,type_type_parameters,field_type_parameters) in
 		(* Printf.eprintf "  Write anon ref %d for %s\n" i (s_type_path pfm.pfm_path); *)
 		chunk#write_uleb128 i
 
@@ -928,7 +928,7 @@ class ['a] hxb_writer
 			| TField(e1,FAnon cf) ->
 				chunk#write_byte 104;
 				loop e1;
-				chunk#write_uleb128 (anon_fields#get_or_add cf cf);
+				chunk#write_uleb128 (anon_fields#get_or_add cf (cf,type_type_parameters,field_type_parameters));
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
 				chunk#write_byte 105;
 				loop e1;
@@ -938,7 +938,7 @@ class ['a] hxb_writer
 			| TField(e1,FClosure(None,cf)) ->
 				chunk#write_byte 106;
 				loop e1;
-				chunk#write_uleb128 (anon_fields#get_or_add cf cf);
+				chunk#write_uleb128 (anon_fields#get_or_add cf (cf,type_type_parameters,field_type_parameters));
 			| TField(e1,FEnum(en,ef)) ->
 				chunk#write_byte 107;
 				loop e1;
@@ -1196,15 +1196,15 @@ class ['a] hxb_writer
 		self#write_common_module_type (Obj.magic td);
 		self#write_type_instance td.t_type;
 
-	method write_anon (m : module_def) ((an : tanon), (ttp_key : path option)) =
-		chunk#write_option ttp_key (fun (_,k) -> chunk#write_string k);
-		match ttp_key with
-		| None -> ()
-		| Some ttp_key -> self#select_type ttp_key;
+	method write_anon (m : module_def) ((an : tanon), (ttp : (string, typed_type_param) pool), (ftp : (string, typed_type_param) pool)) =
+		type_type_parameters <- ttp;
+		let ttp = ttp#to_list in
+		chunk#write_list ttp self#write_type_parameter_forward;
+		chunk#write_list ttp self#write_type_parameter_data;
 
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				self#write_class_field ~with_pos:true cf;
+				self#write_class_field ~with_pos:true { cf with cf_params = (cf.cf_params @ ftp#to_list) };
 			)
 		in
 
@@ -1391,15 +1391,20 @@ class ['a] hxb_writer
 			()
 		| l ->
 			self#start_chunk ANFR;
-			chunk#write_list l (fun cf ->
+			chunk#write_list l (fun (cf,_,_) ->
 				(* Printf.eprintf "Write anon field %s\n" cf.cf_name; *)
 				chunk#write_string cf.cf_name;
 				self#write_pos cf.cf_pos;
 				self#write_pos cf.cf_name_pos;
 			);
 			self#start_chunk ANFD;
-			chunk#write_list l (fun cf ->
-				self#write_class_field cf;
+			chunk#write_list l (fun (cf,ttp,ftp) ->
+				(* Printf.eprintf "Write anon field def %s\n" cf.cf_name; *)
+				type_type_parameters <- ttp;
+				let ttp = ttp#to_list in
+				chunk#write_list ttp self#write_type_parameter_forward;
+				chunk#write_list ttp self#write_type_parameter_data;
+				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp#to_list) };
 			);
 		end;
 
