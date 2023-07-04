@@ -34,6 +34,15 @@ class hxb_reader
 	val mutable type_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 	val mutable field_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 
+	val mutable tvoid = None
+	method get_tvoid =
+		match tvoid with
+		| Some tvoid -> tvoid
+		| None ->
+				let t = type_of_module_type (resolve_type [] "StdTypes" "Void") in
+				tvoid <- Some t;
+				t
+
 	(* Primitives *)
 
 	method read_u8 =
@@ -620,18 +629,17 @@ class hxb_reader
 			let a = self#read_abstract_ref in
 			let tl = self#read_types in
 			TAbstract(a,tl)
-		(* TODO see writer *)
-		(* | 30 -> TFun([],t_void) *)
-		(* | 31 -> *)
-		(* 	let f () = *)
-		(* 		let name = self#read_string in *)
-		(* 		(1* Printf.eprintf "  Read type instance for %s\n" name; *1) *)
-		(* 		let opt = self#read_bool in *)
-		(* 		let t = self#read_type_instance in *)
-		(* 		(name,opt,t) *)
-		(* 	in *)
-		(* 	let args = self#read_list f in *)
-		(* 	TFun(args,t_void) *)
+		| 30 -> TFun([],self#get_tvoid)
+		| 31 ->
+			let f () =
+				let name = self#read_string in
+				(* Printf.eprintf "  Read type instance for %s\n" name; *)
+				let opt = self#read_bool in
+				let t = self#read_type_instance in
+				(name,opt,t)
+			in
+			let args = self#read_list f in
+			TFun(args,self#get_tvoid)
 		| 32 ->
 			let f () =
 				let name = self#read_string in
