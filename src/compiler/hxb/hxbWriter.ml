@@ -1375,16 +1375,6 @@ class ['a] hxb_writer
 			chunk#write_list own_typedefs self#write_typedef;
 		end;
 
-		begin match anons#to_list with
-		| [] ->
-			()
-		| anons ->
-			self#start_chunk ANNR;
-			chunk#write_uleb128 (List.length anons);
-			self#start_chunk ANND;
-			chunk#write_list anons (fun an -> self#write_anon m an);
-		end;
-
 		let anon_fields = anon_fields#to_list in
 		begin match anon_fields with
 		| [] ->
@@ -1405,7 +1395,31 @@ class ['a] hxb_writer
 				chunk#write_list ttp self#write_type_parameter_forward;
 				chunk#write_list ttp self#write_type_parameter_data;
 				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp#to_list) };
+				(* Printf.eprintf "Write anon field %s (done)\n" cf.cf_name; *)
 			);
+		end;
+
+		begin match anons#to_list with
+		| [] ->
+			()
+		| al ->
+			(* TODO clean this... currently loops until writing anons doesn't register any new anon *)
+			let rec loop written al =
+				let len = List.length al in
+				(* Printf.eprintf "Write ANND - %d anons registered for %s\n" len (s_type_path current_module.m_path); *)
+
+				self#start_chunk ANND;
+				(* TODO this is wasteful... *)
+				chunk#write_list al (fun an -> self#write_anon m an);
+
+				let al = anons#to_list in
+				let new_len = List.length al in
+				if len = new_len then begin
+					self#start_chunk ANNR;
+					chunk#write_uleb128 len;
+				end else loop len al;
+			in
+			loop 0 al
 		end;
 
 		begin match classes#to_list with

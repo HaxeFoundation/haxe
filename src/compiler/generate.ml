@@ -21,22 +21,24 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let export_hxb com root m =
-	if m.m_extra.m_kind = MCode then begin
-		let anon_identification = new tanon_identification ([],"") in
-		let writer = new HxbWriter.hxb_writer anon_identification in
-		writer#write_module m;
-		let ch = IO.output_bytes() in
-		let bytes_module = IO.close_out ch in
-		let ch = IO.output_bytes() in
-		writer#export ch;
-		let bytes_cp = IO.close_out ch in
-		let l = (root :: fst m.m_path @ [snd m.m_path]) in
-		let ch_file = Path.create_file true ".hxb" [] l in
-		output_bytes ch_file bytes_cp;
-		output_bytes ch_file bytes_module;
-		close_out ch_file
-	end
+let export_hxb root m =
+	match m.m_extra.m_kind with
+		| MCode | MMacro -> begin
+			let anon_identification = new tanon_identification ([],"") in
+			let writer = new HxbWriter.hxb_writer anon_identification in
+			writer#write_module m;
+			let ch = IO.output_bytes() in
+			let bytes_module = IO.close_out ch in
+			let ch = IO.output_bytes() in
+			writer#export ch;
+			let bytes_cp = IO.close_out ch in
+			let l = (root :: fst m.m_path @ [snd m.m_path]) in
+			let ch_file = Path.create_file true ".hxb" [] l in
+			output_bytes ch_file bytes_cp;
+			output_bytes ch_file bytes_module;
+			close_out ch_file
+		end
+	| _ -> ()
 
 let check_hxb_output com actx =
 	begin match actx.hxb_out with
@@ -64,13 +66,19 @@ let check_hxb_output com actx =
 				iter_files [] (Unix.opendir path) path
 			in
 
-			let path = Path.add_trailing_slash path in
-			Common.log com ("Generating hxb to " ^ path);
-			Path.mkdir_from_path path;
-			clean_files path;
-			let t = Timer.timer ["generate";"hxb"] in
-			List.iter (export_hxb com path) com.modules;
-			t();
+			let export com =
+				let path = Path.add_trailing_slash (path ^ Path.path_sep ^ (Common.platform_name_macro com)) in
+				Common.log com ("Generating hxb to " ^ path);
+				Printf.eprintf "Generating hxb to %s\n" path;
+				Path.mkdir_from_path path;
+				clean_files path;
+				let t = Timer.timer ["generate";"hxb"] in
+				List.iter (export_hxb path) com.modules;
+				t();
+			in
+
+			export com;
+			Option.may export (com.get_macros());
 	end
 
 let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
