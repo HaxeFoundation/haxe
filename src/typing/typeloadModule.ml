@@ -824,7 +824,9 @@ and load_hxb_module ctx path p =
 		) ^ ".hxb"
 	in
 
-	let find_file = Common.find_file ctx.com ~class_path:ctx.com.binary_class_path in
+	let target = Common.platform_name_macro ctx.com in
+	let bcp = List.map (fun p -> p ^ target ^ Path.path_sep) ctx.com.binary_class_path in
+	let find_file = Common.find_file ctx.com ~class_path:bcp in
 	let file = try find_file (compose_path false) with Not_found -> find_file (compose_path true) in
 	let ch = try open_in_bin file with Sys_error _ -> raise Not_found in
 	let input = IO.input_channel ch in
