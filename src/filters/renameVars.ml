@@ -223,6 +223,9 @@ let declare_var rc scope v =
 let will_be_reserved rc v =
 	rc.rc_no_shadowing || (has_var_flag v VCaptured && rc.rc_hoisting)
 
+let unbound_variable v =
+	raise (Failure (Printf.sprintf "Unbound variable: %s<%i>" v.v_name v.v_id))
+
 (**
 	Invoked for each `TLocal v` texr_expr
 *)
@@ -234,7 +237,7 @@ let rec determine_overlaps rc scope v =
 				Overlaps.add v scope.foreign_vars;
 			(match scope.parent with
 			| Some parent -> determine_overlaps rc parent v
-			| None -> raise (Failure "Failed to locate variable declaration")
+			| None -> unbound_variable v
 			)
 		| (d, _) :: _ when d == v ->
 			()
@@ -261,7 +264,7 @@ let use_var rc scope v =
 				| Some parent ->
 					loop parent
 				| None ->
-					raise (Failure "Failed to locate variable declaration")
+					unbound_variable v
 			end
 		in
 		loop scope
