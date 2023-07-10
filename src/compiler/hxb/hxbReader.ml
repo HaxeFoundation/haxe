@@ -1103,7 +1103,7 @@ class hxb_reader
 		in
 		let _ = self#read_list (fun () -> f c.cl_fields) in
 		let _ = self#read_list (fun () -> f c.cl_statics) in
-		()
+		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (m : module_def) (e : tenum) =
 		ignore(self#read_list (fun () ->
@@ -1137,7 +1137,7 @@ class hxb_reader
 			(c,p)
 		)
 
-	method read_class_kind = match self#read_u8 with
+	method read_class_kind m = match self#read_u8 with
 		| 0 -> KNormal
 		| 1 -> KTypeParameter self#read_types
 		| 2 -> KExpr self#read_expr
@@ -1149,16 +1149,14 @@ class hxb_reader
 		| 5 -> KMacroType
 		| 6 -> KGenericBuild (self#read_list (fun () -> self#read_cfield))
 		| 7 -> KAbstractImpl self#read_abstract_ref
-		| 8 ->
-			(* TODO KModuleFields *)
-			KNormal
+		| 8 -> KModuleFields m
 		| i ->
 			error (Printf.sprintf "Invalid class kind id: %i" i)
 
 	method read_class (m : module_def) (c : tclass) =
 		(* Printf.eprintf "  Read class %s\n" (s_type_path c.cl_path); *)
 		self#read_common_module_type m (Obj.magic c);
-		c.cl_kind <- self#read_class_kind;
+		c.cl_kind <- self#read_class_kind m;
 		c.cl_flags <- (Int32.to_int self#read_u32);
 		let read_relation () =
 			let c = self#read_class_ref in
