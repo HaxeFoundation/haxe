@@ -6,7 +6,6 @@ private function g() {
 
 class Issue9777 extends unit.Test {
 	function test() {
-		// t(g());
-		utest.Assert.pass();
+		t(g());
 	}
 }

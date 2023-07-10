@@ -1,7 +1,7 @@
 package unit.issues;
 import unit.Test;
 
-// function sort<T:{next:T}>(l:T) {}
+function sort<T:{next:T}>(l:T) {}
 
 private class C {
 	public var next:C;
@@ -11,7 +11,7 @@ private class C {
 
 class Issue9603 extends Test {
 	function test() {
-		// sort(new C());
+		sort(new C());
 		utest.Assert.pass();
 	}
 }
