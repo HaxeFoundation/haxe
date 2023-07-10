@@ -5,16 +5,15 @@ import unit.Test.*;
 import utest.Runner;
 import utest.ui.Report;
 
-class TestMain {
-static final asyncWaits = new Array<haxe.PosInfos>();
-static final asyncCache = new Array<() -> Void>();
+final asyncWaits = new Array<haxe.PosInfos>();
+final asyncCache = new Array<() -> Void>();
 
 @:access(unit.Test)
 #if js
 @:expose("unit.TestMain.main")
 @:keep
 #end
-static function main() {
+function main() {
 	#if js
 	if (js.Browser.supported) {
 		var oTrace = haxe.Log.trace;
@@ -162,5 +161,4 @@ static function main() {
 	#if (flash && fdb)
 	flash.Lib.fscommand("quit");
 	#end
-}
 }

@@ -1115,8 +1115,6 @@ class ['a] hxb_writer
 			self#write_abstract_ref a;
 		| KModuleFields md ->
 			chunk#write_byte 8;
-			(* TODO *)
-			Printf.eprintf "  %s KModuleFields\n" todo;
 
 	method write_class (c : tclass) =
 		begin match c.cl_kind with
