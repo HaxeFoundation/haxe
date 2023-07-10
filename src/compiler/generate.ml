@@ -23,7 +23,7 @@ let check_auxiliary_output com actx =
 
 let export_hxb root m =
 	match m.m_extra.m_kind with
-		| MCode | MMacro -> begin
+		| MCode | MMacro | MFake -> begin
 			let anon_identification = new tanon_identification ([],"") in
 			let writer = new HxbWriter.hxb_writer anon_identification in
 			writer#write_module m;
