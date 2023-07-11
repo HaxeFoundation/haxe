@@ -176,11 +176,10 @@ class hxb_reader
 		(* Printf.eprintf " Read anon ref %d of %d\n" i ((Array.length anons) - 1); *)
 		anons.(i)
 
-	(* method read_field_ref fields = *)
-	method read_field_ref source fields =
+	method read_field_ref fields =
 		let name = self#read_string in
 		try PMap.find name fields with e ->
-			Printf.eprintf "  %s reading field ref for %s.%s\n" todo_error source name;
+			Printf.eprintf "  %s reading field %s\n" todo_error name;
 			Printf.eprintf "    Available fields: %s\n" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields "");
 			null_field
 
@@ -928,15 +927,13 @@ class hxb_reader
 				let c = self#read_class_ref in
 				let tl = self#read_types in
 				(* Printf.eprintf "  Read field ref for expr 102 (cl = %s, %d fields)\n" (s_type_path c.cl_path) (List.length c.cl_ordered_fields); *)
-				let cf = self#read_field_ref (s_type_path c.cl_path) c.cl_fields in
-				(* let cf = self#read_field_ref c.cl_fields in *)
+				let cf = self#read_field_ref c.cl_fields in
 				TField(e1,FInstance(c,tl,cf))
 			| 103 ->
 				let e1 = self#read_texpr in
 				let c = self#read_class_ref in
 				(* Printf.eprintf "  Read field ref for expr 103 (cl = %s)\n" (s_type_path c.cl_path); *)
-				let cf = self#read_field_ref (s_type_path c.cl_path) c.cl_statics in
-				(* let cf = self#read_field_ref c.cl_statics in *)
+				let cf = self#read_field_ref c.cl_statics in
 				TField(e1,FStatic(c,cf))
 			| 104 ->
 				let e1 = self#read_texpr in
@@ -947,8 +944,7 @@ class hxb_reader
 				let c = self#read_class_ref in
 				let tl = self#read_types in
 				(* Printf.eprintf "  Read field ref for expr 105 (cl = %s)\n" (s_type_path c.cl_path); *)
-				let cf = self#read_field_ref (s_type_path c.cl_path) c.cl_fields in
-				(* let cf = self#read_field_ref c.cl_fields in *)
+				let cf = self#read_field_ref c.cl_fields in
 				TField(e1,FClosure(Some(c,tl),cf))
 			| 106 ->
 				let e1 = self#read_texpr in
@@ -1176,7 +1172,7 @@ class hxb_reader
 			let t = self#read_type_instance in
 			(* Printf.eprintf "  Read field ref for abstract from field %s (a = %s)\n" name (s_type_path a.a_path); *)
 			(* Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics); *)
-			let cf = self#read_field_ref (s_type_path impl.cl_path) impl.cl_statics in
+			let cf = self#read_field_ref impl.cl_statics in
 			(t,cf)
 		);
 		a.a_to <- self#read_list (fun () -> self#read_type_instance);
@@ -1186,16 +1182,14 @@ class hxb_reader
 			let t = self#read_type_instance in
 			(* Printf.eprintf "  Read field ref for abstract to field %s (a = %s)\n" name (s_type_path a.a_path); *)
 			(* Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics); *)
-			let cf = self#read_field_ref (s_type_path impl.cl_path) impl.cl_statics in
-			(* let cf = self#read_field_ref impl.cl_statics in *)
+			let cf = self#read_field_ref impl.cl_statics in
 			(t,cf)
 		);
 
-		(* TODO fix those when they don't have expr, then remove debug arg *)
-		a.a_array <- self#read_list (fun () -> self#read_field_ref (Printf.sprintf "a_array %s" (s_type_path a.a_path)) impl.cl_statics);
-		a.a_read <- self#read_option (fun () -> self#read_field_ref (Printf.sprintf "a_read %s" (s_type_path a.a_path)) impl.cl_statics);
-		a.a_write <- self#read_option (fun () -> self#read_field_ref (Printf.sprintf "a_write %s" (s_type_path a.a_path)) impl.cl_statics);
-		a.a_call <- self#read_option (fun () -> self#read_field_ref (Printf.sprintf "a_call %s" (s_type_path a.a_path)) impl.cl_statics);
+		a.a_array <- self#read_list (fun () -> self#read_field_ref impl.cl_statics);
+		a.a_read <- self#read_option (fun () -> self#read_field_ref impl.cl_statics);
+		a.a_write <- self#read_option (fun () -> self#read_field_ref impl.cl_statics);
+		a.a_call <- self#read_option (fun () -> self#read_field_ref impl.cl_statics);
 		a.a_enum <- self#read_bool;
 
 	method read_enum (m : module_def) (e : tenum) =
