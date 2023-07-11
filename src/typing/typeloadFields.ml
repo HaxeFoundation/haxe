@@ -79,7 +79,6 @@ type field_init_ctx = {
 	field_kind : field_kind;
 	display_modifier : placed_access option;
 	mutable do_bind : bool;
-	mutable do_add : bool;
 	(* If true, cf_expr = None makes a difference in the logic. We insert a dummy expression in
 	   display mode in order to address this. *)
 	mutable expr_presence_matters : bool;
@@ -144,7 +143,6 @@ let dump_field_context fctx =
 		"is_field_debug",string_of_bool fctx.is_field_debug;
 		"field_kind",s_field_kind fctx.field_kind;
 		"do_bind",string_of_bool fctx.do_bind;
-		"do_add",string_of_bool fctx.do_add;
 		"expr_presence_matters",string_of_bool fctx.expr_presence_matters;
 	]
 
@@ -646,7 +644,6 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 		is_generic = Meta.has Meta.Generic cff.cff_meta;
 		field_kind = field_kind;
 		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
-		do_add = true;
 		expr_presence_matters = false;
 		had_error = false;
 	} in
@@ -1222,7 +1219,6 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		if !allows_no_expr then begin
 			cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
 			fctx.do_bind <- false;
-			if not (Meta.has Meta.CoreType a.a_meta) then fctx.do_add <- false;
 		end
 	end
 
@@ -1873,7 +1869,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx.com ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then TClass.add_field c cf
+				TClass.add_field c cf
 			end
 		with Error ({ err_message = Custom _; err_pos = p2 } as err) when p = p2 ->
 			display_error_ext ctx.com err
