@@ -331,7 +331,9 @@ class ['a] hxb_writer
 				chunk#write_byte 6;
 				chunk#write_uleb128 i
 			with Not_found ->
-				error ("Unbound type parameter " ^ (s_type_path c.cl_path))
+				(* error ("Unbound type parameter " ^ (s_type_path c.cl_path)) *)
+				Printf.eprintf "%s Unbound type parameter %s\n" todo_error (s_type_path c.cl_path);
+				chunk#write_byte 0
 			end
 		| TInst(c,[]) ->
 			chunk#write_byte 10;
