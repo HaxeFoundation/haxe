@@ -1172,13 +1172,13 @@ class hxb_reader
 		(* Printf.eprintf "  Read abstract %s\n" (s_type_path a.a_path); *)
 		self#read_common_module_type m (Obj.magic a);
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
+		let impl = match a.a_impl with None -> null_class | Some c -> c in
 		a.a_this <- self#read_type_instance;
 		a.a_from <- self#read_list (fun () -> self#read_type_instance);
 		a.a_from_field <- self#read_list (fun () ->
 			let name = self#read_string in
 			self#read_type_parameters m ([],name) (fun a -> field_type_parameters <- a);
 			let t = self#read_type_instance in
-			let impl = Option.get a.a_impl in
 			(* Printf.eprintf "  Read field ref for abstract from field %s (a = %s)\n" name (s_type_path a.a_path); *)
 			(* Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics); *)
 			let cf = self#read_field_ref (s_type_path impl.cl_path) impl.cl_statics in
@@ -1189,7 +1189,6 @@ class hxb_reader
 			let name = self#read_string in
 			self#read_type_parameters m ([],name) (fun a -> field_type_parameters <- a);
 			let t = self#read_type_instance in
-			let impl = Option.get a.a_impl in
 			(* Printf.eprintf "  Read field ref for abstract to field %s (a = %s)\n" name (s_type_path a.a_path); *)
 			(* Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics); *)
 			let cf = self#read_field_ref (s_type_path impl.cl_path) impl.cl_statics in
@@ -1197,11 +1196,11 @@ class hxb_reader
 			(t,cf)
 		);
 
-		(* TODO check if those work, then remove debug arg *)
-		a.a_array <- self#read_list (fun () -> self#read_field_ref "TODO" (Option.get a.a_impl).cl_statics);
-		a.a_read <- self#read_option (fun () -> self#read_field_ref "TODO" (Option.get a.a_impl).cl_fields);
-		a.a_write <- self#read_option (fun () -> self#read_field_ref "TODO" (Option.get a.a_impl).cl_fields);
-		a.a_call <- self#read_option (fun () -> self#read_field_ref "TODO" (Option.get a.a_impl).cl_fields);
+		(* TODO fix those when they don't have expr, then remove debug arg *)
+		a.a_array <- self#read_list (fun () -> self#read_field_ref (Printf.sprintf "a_array %s" (s_type_path a.a_path)) impl.cl_statics);
+		a.a_read <- self#read_option (fun () -> self#read_field_ref (Printf.sprintf "a_read %s" (s_type_path a.a_path)) impl.cl_statics);
+		a.a_write <- self#read_option (fun () -> self#read_field_ref (Printf.sprintf "a_write %s" (s_type_path a.a_path)) impl.cl_statics);
+		a.a_call <- self#read_option (fun () -> self#read_field_ref (Printf.sprintf "a_call %s" (s_type_path a.a_path)) impl.cl_statics);
 		a.a_enum <- self#read_bool;
 
 	method read_enum (m : module_def) (e : tenum) =
