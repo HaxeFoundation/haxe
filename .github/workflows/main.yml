@@ -881,9 +881,6 @@ jobs:
       fail-fast: false
       matrix:
         target: [macro]
-        include:
-          - target: hl
-            BREW_PACKAGES: ninja
     steps:
       - uses: actions/checkout@main
         with:
