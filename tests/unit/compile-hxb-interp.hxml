@@ -1,0 +1,4 @@
+compile-each.hxml
+--main unit.TestMain
+--interp
+--hxb bin/hxb
