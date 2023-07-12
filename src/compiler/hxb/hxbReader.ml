@@ -577,6 +577,19 @@ class hxb_reader
 
 	(* Type instances *)
 
+	method read_type_parameter_ref = function
+		| 5 ->
+			let i = self#read_uleb128 in
+			(field_type_parameters.(i)).ttp_type
+		| 6 ->
+			let i = self#read_uleb128 in
+			(type_type_parameters.(i)).ttp_type
+		| 7 ->
+			let k = self#read_uleb128 in
+			(DynArray.get local_type_parameters k).ttp_type
+		| _ ->
+			die "" __LOC__
+
 	method read_type_instance =
 		let kind = self#read_u8 in
 		(* Printf.eprintf "   Read type instance %d\n" kind; *)
@@ -591,17 +604,7 @@ class hxb_reader
 			let tmono = !monomorph_create_ref () in (* TODO identity *)
 			tmono.tm_type <- Some t;
 			TMono tmono;
-		| 5 ->
-			let i = self#read_uleb128 in
-			(* Printf.eprintf "     Get field type param %d\n" i; *)
-			(field_type_parameters.(i)).ttp_type
-		| 6 ->
-			let i = self#read_uleb128 in
-			(* Printf.eprintf "     Get type type param %d\n" i; *)
-			(type_type_parameters.(i)).ttp_type
-		| 7 ->
-			let k = self#read_uleb128 in
-			(DynArray.get local_type_parameters k).ttp_type
+		| 5 | 6 | 7 -> self#read_type_parameter_ref kind
 		| 8 ->
 			let e = self#read_expr in
 			TInst({null_class with cl_kind = KExpr e}, [])
@@ -691,9 +694,11 @@ class hxb_reader
 		for i = 0 to l - 1 do
 			let tl1 = self#read_types in
 			let tl2 = self#read_types in
+			let meta = self#read_metadata in
 			begin match a.(i) with
 			| {ttp_type = TInst(c,_)} as ttp ->
 				c.cl_kind <- KTypeParameter tl1;
+				c.cl_meta <- meta;
 				a.(i) <- {ttp with ttp_type = (TInst(c,tl2))}
 			| _ ->
 				die "" __LOC__
@@ -996,26 +1001,16 @@ class hxb_reader
 				TNew(c,tl,el)
 			| 127 ->
 				(* TODO: this is giga awkward *)
-				let t = match self#read_uleb128 with
-					| 5 ->
-						let i = self#read_uleb128 in
-						(field_type_parameters.(i)).ttp_type
-					| 6 ->
-						let i = self#read_uleb128 in
-						(type_type_parameters.(i)).ttp_type
-					| 7 ->
-						let k = self#read_uleb128 in
-						(DynArray.get local_type_parameters k).ttp_type
-					| _ ->
-						die "" __LOC__
-				in
-				let c = match t with
-					| TInst(c,_) -> c
-					| _ -> die "" __LOC__
-				in
+				let t = self#read_type_parameter_ref self#read_uleb128 in
+				let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
 				let tl = self#read_types in
 				let el = self#read_texpr_list in
 				TNew(c,tl,el)
+			| 128 ->
+				(* TODO: this is giga awkward *)
+				let t = self#read_type_parameter_ref self#read_uleb128 in
+				let c = match t with | TInst(c,_) -> c | _ -> die "" __LOC__ in
+				TTypeExpr (TClassDecl c)
 
 			(* unops 140-159 *)
 			| _ when i >= 140 && i < 160 ->
