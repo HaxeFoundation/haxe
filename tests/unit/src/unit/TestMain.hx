@@ -67,7 +67,7 @@ function main() {
 		new TestSerialize(),
 		new TestSerializerCrossTarget(),
 		new TestMeta(),
-		// new TestType(),
+		new TestType(),
 		new TestOrder(),
 		// new TestGADT(), // hxb: Unbound type parameter EBinop.C
 		// new TestGeneric(),

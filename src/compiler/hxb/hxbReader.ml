@@ -987,6 +987,28 @@ class hxb_reader
 				let tl = self#read_types in
 				let el = self#read_texpr_list in
 				TNew(c,tl,el)
+			| 127 ->
+				(* TODO: this is giga awkward *)
+				let t = match self#read_uleb128 with
+					| 5 ->
+						let i = self#read_uleb128 in
+						(field_type_parameters.(i)).ttp_type
+					| 6 ->
+						let i = self#read_uleb128 in
+						(type_type_parameters.(i)).ttp_type
+					| 7 ->
+						let k = self#read_uleb128 in
+						(DynArray.get local_type_parameters k).ttp_type
+					| _ ->
+						die "" __LOC__
+				in
+				let c = match t with
+					| TInst(c,_) -> c
+					| _ -> die "" __LOC__
+				in
+				let tl = self#read_types in
+				let el = self#read_texpr_list in
+				TNew(c,tl,el)
 
 			(* unops 140-159 *)
 			| _ when i >= 140 && i < 160 ->
