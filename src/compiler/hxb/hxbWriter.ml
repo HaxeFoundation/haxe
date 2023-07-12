@@ -385,9 +385,19 @@ class ['a] hxb_writer
 			self#write_types tl
 		| TType(td,tl) ->
 			chunk#write_byte 16;
-			(* Printf.eprintf "  TType %d for %s\n" 16 (s_type_path td.t_path); *)
-			self#write_typedef_ref td;
-			self#write_types tl
+			begin match td.t_type with
+				| TAnon an when PMap.is_empty an.a_fields ->
+					chunk#write_byte 0;
+					self#write_types tl
+				| TAnon an ->
+					chunk#write_byte 1;
+					self#write_anon_ref an;
+					self#write_types tl
+				| _ ->
+					chunk#write_byte 2;
+					self#write_typedef_ref td;
+					self#write_types tl
+			end;
 		| TAbstract(a,tl) ->
 			chunk#write_byte 17;
 			self#write_abstract_ref a;

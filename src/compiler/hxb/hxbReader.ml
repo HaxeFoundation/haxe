@@ -630,9 +630,22 @@ class hxb_reader
 			let tl = self#read_types in
 			TEnum(e,tl)
 		| 16 ->
-			let t = self#read_typedef_ref in
-			let tl = self#read_types in
-			TType(t,tl)
+			begin match self#read_u8 with
+				| 0 ->
+					let an = mk_anon (ref Closed) in
+					let tl = self#read_types in
+					let td = { null_typedef with t_type = an } in
+					TType(td,tl)
+				| 1 ->
+					let an = TAnon self#read_anon_ref in
+					let tl = self#read_types in
+					let td = { null_typedef with t_type = an } in
+					TType(td,tl)
+				| _ ->
+					let t = self#read_typedef_ref in
+					let tl = self#read_types in
+					TType(t,tl)
+			end
 		| 17 ->
 			let a = self#read_abstract_ref in
 			let tl = self#read_types in

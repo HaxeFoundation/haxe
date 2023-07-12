@@ -69,7 +69,7 @@ function main() {
 		new TestMeta(),
 		new TestType(),
 		new TestOrder(),
-		// new TestGADT(), // Cannot resolve type unit.TestGADT.Enum<unit.Expr>
+		new TestGADT(),
 		new TestGeneric(),
 		new TestArrowFunctions(),
 		new TestCasts(),
@@ -81,7 +81,7 @@ function main() {
 		new TestRest(),
 		new TestHttp(),
 		#if !no_pattern_matching
-		// new TestMatch(), // Cannot resolve type unit.TestMatch.Enum<unit.A>
+		new TestMatch(),
 		#end
 		#if cs
 		new TestCSharp(),
