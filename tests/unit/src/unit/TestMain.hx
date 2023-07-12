@@ -69,8 +69,8 @@ function main() {
 		new TestMeta(),
 		new TestType(),
 		new TestOrder(),
-		// new TestGADT(), // hxb: Unbound type parameter EBinop.C
-		// new TestGeneric(),
+		// new TestGADT(), // Cannot resolve type unit.TestGADT.Enum<unit.Expr>
+		new TestGeneric(),
 		new TestArrowFunctions(),
 		new TestCasts(),
 		new TestSyntaxModule(),
@@ -80,9 +80,9 @@ function main() {
 		new TestHashMap(),
 		new TestRest(),
 		new TestHttp(),
-		// #if !no_pattern_matching
-		// new TestMatch(), // hxb: Unbound type parameter ref.T
-		// #end
+		#if !no_pattern_matching
+		// new TestMatch(), // Cannot resolve type unit.TestMatch.Enum<unit.A>
+		#end
 		#if cs
 		new TestCSharp(),
 		#end
@@ -116,15 +116,14 @@ function main() {
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs(),
 		new TestDefaultTypeParameters(),
-		// new TestUnspecified(),
+		// new TestUnspecified(), // testMonoAdd: FAILURE FF
 	];
 
-	// TODO: fails to load those from hxb
 	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
 		classes.push(specClass);
 	}
 	TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
-	// TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
+	TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 
 	var runner = new Runner();
 	for (c in classes) {

@@ -86,10 +86,10 @@ class ClassWithCtorDefaultValuesChild extends ClassWithCtorDefaultValues {
 	}
 }
 
-// enum SomeEnum<T> {
-// 	NoArguments;
-// 	OneArgument(t:T);
-// }
+enum SomeEnum<T> {
+	NoArguments;
+	OneArgument(t:T);
+}
 
 class IntWrap {
 	public var i(default, null):Int;
