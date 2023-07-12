@@ -978,6 +978,9 @@ class ['a] hxb_writer
 				loop e1;
 				chunk#write_string s;
 			(* module types 120-139 *)
+			| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter []} as c)) ->
+				chunk#write_byte 128;
+				self#write_type_parameter_ref c
 			| TTypeExpr (TClassDecl c) ->
 				chunk#write_byte 120;
 				self#write_class_ref c;
@@ -1044,9 +1047,10 @@ class ['a] hxb_writer
 			die "" __LOC__
 
 	method write_type_parameter_data ttp = match follow ttp.ttp_type with
-		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
+		| TInst({cl_kind = KTypeParameter tl1} as c,tl2) ->
 			self#write_types tl1;
 			self#write_types tl2;
+			self#write_metadata c.cl_meta
 		| _ ->
 			die "" __LOC__
 
