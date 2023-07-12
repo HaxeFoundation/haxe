@@ -108,7 +108,7 @@ function main() {
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs(),
 		new TestDefaultTypeParameters(),
-		// new TestUnspecified(), // testMonoAdd: FAILURE FF
+		// new TestUnspecified(),
 	];
 
 	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
