@@ -35,12 +35,16 @@ class hxb_reader
 	val mutable field_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 	val mutable local_type_parameters = DynArray.create ()
 
+	method resolve_type pack mname tname =
+		try resolve_type pack mname tname with
+		| Not_found -> error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
+
 	val mutable tvoid = None
 	method get_tvoid =
 		match tvoid with
 		| Some tvoid -> tvoid
 		| None ->
-				let t = type_of_module_type (resolve_type [] "StdTypes" "Void") in
+				let t = type_of_module_type (self#resolve_type [] "StdTypes" "Void") in
 				tvoid <- Some t;
 				t
 
@@ -985,7 +989,7 @@ class hxb_reader
 			| 125 ->
 				let e1 = self#read_texpr in
 				let (pack,mname,tname) = self#read_full_path in
-				let md = resolve_type pack mname tname in
+				let md = self#resolve_type pack mname tname in
 				TCast(e1,Some md)
 			| 126 ->
 				let c = self#read_class_ref in
@@ -1349,7 +1353,7 @@ class hxb_reader
 		classes <- (Array.init l (fun i ->
 				let (pack,mname,tname) = self#read_full_path in
 				(* Printf.eprintf "  Read clsr %d of %d for %s\n" i (l-1) (s_type_path ((pack @ [mname]),tname)); *)
-				match resolve_type pack mname tname with
+				match self#resolve_type pack mname tname with
 				| TClassDecl c ->
 					(* Printf.eprintf "  Resolved %d = %s with %d fields and %d statics\n" i (s_type_path c.cl_path) (List.length c.cl_ordered_fields) (List.length c.cl_ordered_statics); *)
 					c
@@ -1362,7 +1366,7 @@ class hxb_reader
 		abstracts <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
 			(* Printf.eprintf "  Read absr %d of %d for abstract %s\n" i l tname; *)
-			match resolve_type pack mname tname with
+			match self#resolve_type pack mname tname with
 			| TAbstractDecl a ->
 				a
 			| _ ->
@@ -1374,7 +1378,7 @@ class hxb_reader
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
 			(* Printf.eprintf "  Read enmr %d of %d for enum %s\n" i l tname; *)
-			match resolve_type pack mname tname with
+			match self#resolve_type pack mname tname with
 			| TEnumDecl en ->
 				en
 			| _ ->
@@ -1386,7 +1390,7 @@ class hxb_reader
 		typedefs <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
 			(* Printf.eprintf "  Read tpdr %d of %d for typedef %s\n" i l (s_type_path ((pack @ [mname]), tname)); *)
-			match resolve_type pack mname tname with
+			match self#resolve_type pack mname tname with
 			| TTypeDecl tpd ->
 				tpd
 			| _ ->
