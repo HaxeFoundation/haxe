@@ -307,6 +307,33 @@ class ['a] hxb_writer
 
 	(* Type instances *)
 
+	method write_type_parameter_ref (c : tclass) =
+		begin try
+			let i = field_type_parameters#get (snd c.cl_path) in
+			chunk#write_byte 5;
+			chunk#write_uleb128 i
+		with Not_found -> try
+			let i = type_type_parameters#get (snd c.cl_path) in
+			chunk#write_byte 6;
+			chunk#write_uleb128 i
+		with Not_found -> try
+			let rec loop k l = match l with
+				| [] ->
+					raise Not_found
+				| c' :: l ->
+					if c == c' then begin
+						chunk#write_byte 7;
+						chunk#write_uleb128 k;
+					end else
+						loop (k + 1) l
+			in
+			loop 0 local_type_parameters
+		with Not_found ->
+			(* error ("Unbound type parameter " ^ (s_type_path c.cl_path)) *)
+			Printf.eprintf "%s Unbound type parameter %s\n" todo_error (s_type_path c.cl_path);
+			chunk#write_byte 40
+		end
+
 	method write_type_instance t =
 		let write_function_arg (n,o,t) =
 			chunk#write_string n;
@@ -323,31 +350,7 @@ class ['a] hxb_writer
 				self#write_type_instance t
 			end
 		| TInst({cl_kind = KTypeParameter _} as c,[]) ->
-			begin try
-				let i = field_type_parameters#get (snd c.cl_path) in
-				chunk#write_byte 5;
-				chunk#write_uleb128 i
-			with Not_found -> try
-				let i = type_type_parameters#get (snd c.cl_path) in
-				chunk#write_byte 6;
-				chunk#write_uleb128 i
-			with Not_found -> try
-				let rec loop k l = match l with
-					| [] ->
-						raise Not_found
-					| c' :: l ->
-						if c == c' then begin
-							chunk#write_byte 7;
-							chunk#write_uleb128 k;
-						end else
-							loop (k + 1) l
-				in
-				loop 0 local_type_parameters
-			with Not_found ->
-				(* error ("Unbound type parameter " ^ (s_type_path c.cl_path)) *)
-				Printf.eprintf "%s Unbound type parameter %s\n" todo_error (s_type_path c.cl_path);
-				chunk#write_byte 40
-			end
+			self#write_type_parameter_ref c
 		| TInst(c,[]) ->
 			chunk#write_byte 10;
 			self#write_class_ref c;
@@ -993,6 +996,11 @@ class ['a] hxb_writer
 				let infos = t_infos md in
 				let m = infos.mt_module in
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd infos.mt_path);
+			| TNew(({cl_kind = KTypeParameter _} as c),tl,el) ->
+				chunk#write_byte 127;
+				self#write_type_parameter_ref c;
+				self#write_types tl;
+				loop_el el;
 			| TNew(c,tl,el) ->
 				chunk#write_byte 126;
 				self#write_class_ref c;
