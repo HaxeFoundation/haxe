@@ -473,7 +473,7 @@ class ['a] hxb_writer
 			self#write_placed_name pn;
 			self#write_type_hint th
 		| CTIntersection(thl) ->
-			chunk#write_byte 6;
+			chunk#write_byte 7;
 			chunk#write_list thl self#write_type_hint;
 
 	method write_type_hint (ct,p) =
