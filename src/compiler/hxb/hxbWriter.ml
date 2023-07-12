@@ -335,15 +335,12 @@ class ['a] hxb_writer
 				let rec loop k l = match l with
 					| [] ->
 						raise Not_found
-					| pool :: l ->
-						begin try
-							let i = pool#get (snd c.cl_path) in
+					| c' :: l ->
+						if c == c' then begin
 							chunk#write_byte 7;
 							chunk#write_uleb128 k;
-							chunk#write_uleb128 i
-						with Not_found ->
+						end else
 							loop (k + 1) l
-						end
 				in
 				loop 0 local_type_parameters
 			with Not_found ->
@@ -518,7 +515,6 @@ class ['a] hxb_writer
 		| AEnum -> 11
 		in
 		chunk#write_byte i;
-
 
 	method write_placed_access (ac,p) =
 		self#write_access ac;
@@ -755,30 +751,28 @@ class ['a] hxb_writer
 		in
 		chunk#write_byte b
 
-	method set_local_type_parameters (params : typed_type_param list) =
-		let pool = new pool in
-		local_type_parameters <- pool :: local_type_parameters;
-		List.iter (fun ttp ->
-			ignore(pool#add ttp.ttp_name ttp);
+	method add_local_type_parameters (params : typed_type_param list) =
+		List.iter (fun ttp -> match follow ttp.ttp_type with
+			| TInst(c,_) ->
+				local_type_parameters <- c :: local_type_parameters
+			| _ ->
+				die "" __LOC__
 		) params
 
 	method write_var v =
-		let close = ref (fun () -> ()) in (* TODO: awkward *)
 		chunk#write_i32 v.v_id;
 		chunk#write_string v.v_name;
 		chunk#write_option v.v_extra (fun ve ->
-			self#set_local_type_parameters ve.v_params;
+			self#add_local_type_parameters ve.v_params;
 			chunk#write_list ve.v_params self#write_type_parameter_forward;
 			chunk#write_list ve.v_params self#write_type_parameter_data;
 			chunk#write_option ve.v_expr self#write_texpr;
-			close := (fun () -> local_type_parameters <- List.tl local_type_parameters)
 		);
 		self#write_type_instance v.v_type;
 		self#write_var_kind v.v_kind;
 		chunk#write_i32 v.v_flags;
 		self#write_metadata v.v_meta;
-		self#write_pos v.v_pos;
-		!close
+		self#write_pos v.v_pos
 
 	method write_texpr (e : texpr) =
 		let rec loop e =
@@ -815,12 +809,11 @@ class ['a] hxb_writer
 				chunk#write_i32 v.v_id;
 			| TVar(v,None) ->
 				chunk#write_byte 21;
-				self#write_var v ()
+				self#write_var v
 			| TVar(v,Some e1) ->
 				chunk#write_byte 22;
-				let close = self#write_var v in
+				self#write_var v;
 				loop e1;
-				close()
 			(* blocks 30-49 *)
 			| TBlock [] ->
 				chunk#write_byte 30;
@@ -849,9 +842,8 @@ class ['a] hxb_writer
 			| TFunction tf ->
 				chunk#write_byte 50;
 				chunk#write_list tf.tf_args (fun (v,eo) ->
-					let close = self#write_var v in
+					self#write_var v;
 					chunk#write_option eo loop;
-					close();
 				);
 				self#write_type_instance tf.tf_type;
 				loop tf.tf_expr;
@@ -907,7 +899,7 @@ class ['a] hxb_writer
 				chunk#write_byte 83;
 				loop e1;
 				chunk#write_list catches  (fun (v,e) ->
-					self#write_var v ();
+					self#write_var v;
 					loop e
 				);
 			| TWhile(e1,e2,flag) ->
@@ -916,7 +908,7 @@ class ['a] hxb_writer
 				loop e2;
 			| TFor(v,e1,e2) ->
 				chunk#write_byte 86;
-				self#write_var v ();
+				self#write_var v;
 				loop e1;
 				loop e2;
 			(* control flow 90-99 *)

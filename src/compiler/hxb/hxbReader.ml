@@ -33,7 +33,7 @@ class hxb_reader
 	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 	val mutable field_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
-	val mutable local_type_parameters = []
+	val mutable local_type_parameters = DynArray.create ()
 
 	val mutable tvoid = None
 	method get_tvoid =
@@ -602,16 +602,7 @@ class hxb_reader
 			(type_type_parameters.(i)).ttp_type
 		| 7 ->
 			let k = self#read_uleb128 in
-			let i = self#read_uleb128 in
-			let rec loop left params = match params with
-				| _ :: params when left > 0 ->
-					loop (left - 1) params
-				| params :: _ ->
-					params.(i).ttp_type
-				| _ ->
-					error (Printf.sprintf "Bad index into local params: %i" k)
-			in
-			loop k local_type_parameters
+			(DynArray.get local_type_parameters k).ttp_type
 		| 10 ->
 			TInst(self#read_class_ref,[])
 		| 11 ->
@@ -753,7 +744,6 @@ class hxb_reader
 		let args = self#read_list (fun () -> self#read_tfunction_arg) in
 		let r = self#read_type_instance in
 		let e = self#read_texpr in
-		let args = List.map (fun ((v,close),cto) -> close(); (v,cto)) args in
 		{
 			tf_args = args;
 			tf_type = r;
@@ -776,15 +766,13 @@ class hxb_reader
 			| _ -> assert false
 
 	method read_var =
-		let close = ref (fun () -> ()) in (* TODO: awkward *)
 		let id = IO.read_i32 ch in
 		let name = self#read_string in
 		let extra = self#read_option (fun () ->
 			let params = ref [] in
 			self#read_type_parameters null_module ([],name) (fun a ->
-				local_type_parameters <- a :: local_type_parameters;
+				Array.iter (fun ttp -> DynArray.add local_type_parameters ttp) a;
 				params := Array.to_list a;
-				close := (fun () -> local_type_parameters <- List.tl local_type_parameters)
 			);
 			let vexpr = self#read_option (fun () -> self#read_texpr) in
 			{
@@ -808,7 +796,7 @@ class hxb_reader
 			v_flags = flags;
 		} in
 		Hashtbl.add vars id v;
-		v,!close
+		v
 
 	method read_texpr =
 		let t = self#read_type_instance in
@@ -830,13 +818,11 @@ class hxb_reader
 			(* vars 20-29 *)
 			| 20 -> TLocal (Hashtbl.find vars (IO.read_i32 ch))
 			| 21 ->
-				let v,close = self#read_var in
-				close();
+				let v = self#read_var in
 				TVar (v,None)
 			| 22 ->
-					let v,close = self#read_var in
+					let v = self#read_var in
 					let e = self#read_texpr in
-					close();
 					TVar (v, Some e)
 
 			(* blocks 30-49 *)
@@ -917,9 +903,8 @@ class hxb_reader
 			| 83 ->
 				let e1 = self#read_texpr in
 				let catches = self#read_list (fun () ->
-					let v,close = self#read_var in
+					let v = self#read_var in
 					let e = self#read_texpr in
-					close();
 					(v,e)
 				) in
 				TTry(e1,catches)
@@ -932,10 +917,9 @@ class hxb_reader
 				let e2 = self#read_texpr in
 				TWhile(e1,e2,DoWhile)
 			| 86 ->
-				let v,close = self#read_var in
+				let v  = self#read_var in
 				let e1 = self#read_texpr in
 				let e2 = self#read_texpr in
-				close();
 				TFor(v,e1,e2)
 
 			(* control flow 90-99 *)
