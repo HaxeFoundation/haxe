@@ -351,6 +351,9 @@ class ['a] hxb_writer
 			end
 		| TInst({cl_kind = KTypeParameter _} as c,[]) ->
 			self#write_type_parameter_ref c
+		| TInst({cl_kind = KExpr e},[]) ->
+			chunk#write_byte 8;
+			self#write_expr e;
 		| TInst(c,[]) ->
 			chunk#write_byte 10;
 			self#write_class_ref c;
