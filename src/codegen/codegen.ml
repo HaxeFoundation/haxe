@@ -65,12 +65,12 @@ let add_property_field com c =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
 
-let escape_res_name name allow_dirs =
+let escape_res_name name allowed =
 	ExtString.String.replace_chars (fun chr ->
 		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
 			Char.escaped chr
-		else if chr = '/' && allow_dirs then
-			"/"
+		else if List.mem chr allowed then
+			Char.escaped chr
 		else
 			"-x" ^ (string_of_int (Char.code chr))) name
 

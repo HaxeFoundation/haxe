@@ -295,7 +295,6 @@ module ModuleLevel = struct
 			(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
 			let m_import = make_module ctx ([],path) path p in
 			m_import.m_extra.m_kind <- MImport;
-			add_module ctx m_import p;
 			m_import
 		in
 		List.fold_left (fun acc path ->
@@ -311,7 +310,9 @@ module ModuleLevel = struct
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
-					add_dependency m (make_import_module path r);
+					let m_import = make_import_module path r in
+					add_module ctx m_import p;
+					add_dependency m m_import;
 					r
 				end else begin
 					let r = [] in
