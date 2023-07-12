@@ -602,6 +602,9 @@ class hxb_reader
 		| 7 ->
 			let k = self#read_uleb128 in
 			(DynArray.get local_type_parameters k).ttp_type
+		| 8 ->
+			let e = self#read_expr in
+			TInst({null_class with cl_kind = KExpr e}, [])
 		| 10 ->
 			TInst(self#read_class_ref,[])
 		| 11 ->
