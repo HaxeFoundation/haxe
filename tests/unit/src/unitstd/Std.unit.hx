@@ -55,8 +55,8 @@ Std.string(cwts) == "ClassWithToString.toString()";
 Std.string(cwtsc) == "ClassWithToString.toString()";
 Std.string(cwtsc2) == "ClassWithToStringChild2.toString()";
 
-// Std.string(SomeEnum.NoArguments) == "NoArguments";
-// Std.string(SomeEnum.OneArgument("foo")) == "OneArgument(foo)";
+Std.string(SomeEnum.NoArguments) == "NoArguments";
+Std.string(SomeEnum.OneArgument("foo")) == "OneArgument(foo)";
 
 Std.string(null) == "null";
 
