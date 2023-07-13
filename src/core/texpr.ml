@@ -232,7 +232,7 @@ let map_expr_type f ft fv e =
 	| TFunction fu ->
 		let fu = {
 			tf_expr = f fu.tf_expr;
-			tf_args = List.map (fun (v,o) -> fv v, o) fu.tf_args;
+			tf_args = List.map (fun (v,o) -> fv v, (Option.map f o)) fu.tf_args;
 			tf_type = ft fu.tf_type;
 		} in
 		{ e with eexpr = TFunction fu; etype = ft e.etype }
