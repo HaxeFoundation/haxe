@@ -157,6 +157,13 @@ object(self)
 		IO.nwrite chex bytes;
 		let crc = Int32.of_int 0x1234567 in (* TODO *)
 		IO.write_real_i32 chex crc
+
+	method export_data : 'a . 'a IO.output -> unit = fun chex ->
+		let bytes = IO.close_out ch in
+		IO.nwrite chex bytes;
+
+	method ch =
+		ch
 end
 
 class string_pool (kind : chunk_kind) = object(self)
@@ -238,6 +245,15 @@ class ['a] hxb_writer
 		let new_chunk = new chunk kind cp in
 		DynArray.add chunks new_chunk;
 		chunk <- new_chunk
+
+	method start_temporary_chunk =
+		let new_chunk = new chunk HEND (* TODO: something else? *) cp in
+		let old_chunk = chunk in
+		chunk <- new_chunk;
+		(fun f ->
+			chunk <- old_chunk;
+			f old_chunk new_chunk;
+		)
 
 	(* Basic compounds *)
 
@@ -1103,6 +1119,8 @@ class ['a] hxb_writer
 
 	method write_class_field ?(with_pos = false) cf =
 		self#set_field_type_parameters cf.cf_params;
+		local_type_parameters <- [];
+		let restore = self#start_temporary_chunk in
 		(* Printf.eprintf " Write class field %s\n" cf.cf_name; *)
 		chunk#write_string cf.cf_name;
 		chunk#write_list cf.cf_params self#write_type_parameter_forward;
@@ -1119,6 +1137,9 @@ class ['a] hxb_writer
 		chunk#write_option cf.cf_expr self#write_texpr;
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
 		chunk#write_list cf.cf_overloads (self#write_class_field ~with_pos:true);
+		restore (fun chunk new_chunk ->
+			new_chunk#export_data chunk#ch
+		)
 
 	(* Module types *)
 

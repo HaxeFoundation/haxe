@@ -1069,6 +1069,7 @@ class hxb_reader
 	method read_class_field (cf : tclass_field) : unit =
 		let name = cf.cf_name in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
+		local_type_parameters <- DynArray.create ();
 		self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
 		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
@@ -1097,6 +1098,7 @@ class hxb_reader
 	method read_class_field' : tclass_field =
 		let name = self#read_string in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
+		local_type_parameters <- DynArray.create ();
 		self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
 		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
