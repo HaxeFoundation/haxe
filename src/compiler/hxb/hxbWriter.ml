@@ -73,10 +73,6 @@ let print_params source ttp =
 	Printf.eprintf "Params from %s: \n" source;
 	List.iter (fun t -> Printf.eprintf "  %s\n" t.ttp_name) ttp
 
-let print_lparams source ltp =
-	Printf.eprintf "Local Params from %s: \n" source;
-	List.iter (fun c -> Printf.eprintf "  %s\n" (s_type_path c.cl_path)) ltp
-
 class ['key,'value] pool = object(self)
 	val lut = Hashtbl.create 0
 	val items = DynArray.create ()
@@ -333,7 +329,7 @@ class ['a] hxb_writer
 		let pfm = Option.get (anon_id#identify true (TAnon an)) in
 		let ftp = field_type_parameters#to_list in
 		let ttp = ttp @ type_type_parameters#to_list in
-		let i = anons#get_or_add pfm.pfm_path (an,ttp,ftp,local_type_parameters) in
+		let i = anons#get_or_add pfm.pfm_path (an,ttp,ftp) in
 		chunk#write_uleb128 i
 
 	method write_field_ref (source : field_source) (cf : tclass_field) =
@@ -355,7 +351,7 @@ class ['a] hxb_writer
 		(* 	else Printf.eprintf "Adding anon %s in anon_fields\n" cf.cf_name; *)
 		(* end; *)
 
-		let i = anon_fields#get_or_add cf (cf,ttp,ftp,local_type_parameters) in
+		let i = anon_fields#get_or_add cf (cf,ttp,ftp) in
 		chunk#write_uleb128 i
 
 	(* Type instances *)
@@ -1162,9 +1158,9 @@ class ['a] hxb_writer
 			f r;
 			f w;
 
-	method write_class_field ?(with_pos = false) ?(ltp = []) cf =
+	method write_class_field ?(with_pos = false) cf =
 		self#set_field_type_parameters cf.cf_params;
-		local_type_parameters <- ltp;
+		local_type_parameters <- [];
 		let restore = self#start_temporary_chunk in
 		(* if (snd current_module.m_path) = "Main" then *)
 		(* 	Printf.eprintf " (1) Write class field %s\n" cf.cf_name; *)
@@ -1316,7 +1312,7 @@ class ['a] hxb_writer
 		self#write_common_module_type (Obj.magic td);
 		self#write_type_instance td.t_type;
 
-	method write_anon (m : module_def) ((an : tanon), (ttp : type_params), (ftp : type_params), (ltp : tclass list)) =
+	method write_anon (m : module_def) ((an : tanon), (ttp : type_params), (ftp : type_params)) =
 		type_type_parameters <- new pool;
 		List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
 		chunk#write_list ttp self#write_type_parameter_forward;
@@ -1324,7 +1320,7 @@ class ['a] hxb_writer
 
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				self#write_class_field ~with_pos:true ~ltp { cf with cf_params = (cf.cf_params @ ftp) };
+				self#write_class_field ~with_pos:true { cf with cf_params = (cf.cf_params @ ftp) };
 			)
 		in
 
@@ -1504,19 +1500,19 @@ class ['a] hxb_writer
 			()
 		| l ->
 			self#start_chunk ANFR;
-			chunk#write_list l (fun (cf,_,_,_) ->
+			chunk#write_list l (fun (cf,_,_) ->
 				(* Printf.eprintf "Write anon field %s\n" cf.cf_name; *)
 				chunk#write_string cf.cf_name;
 				self#write_pos cf.cf_pos;
 				self#write_pos cf.cf_name_pos;
 			);
 			self#start_chunk ANFD;
-			chunk#write_list l (fun (cf,ttp,ftp,ltp) ->
+			chunk#write_list l (fun (cf,ttp,ftp) ->
 				type_type_parameters <- new pool;
 				List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
 				chunk#write_list ttp self#write_type_parameter_forward;
 				chunk#write_list ttp self#write_type_parameter_data;
-				self#write_class_field ~ltp { cf with cf_params = (cf.cf_params @ ftp) };
+				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp) };
 			);
 		end;
 
