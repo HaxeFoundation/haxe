@@ -10,7 +10,7 @@ let c_reset = if no_color then "" else "\x1b[0m"
 let c_bold = if no_color then "" else "\x1b[1m"
 let c_dim = if no_color then "" else "\x1b[2m"
 let todo = "\x1b[33m[TODO]" ^ c_reset
-let todo_error = "\x1b[41m[TODO] error:" ^ c_reset
+let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
 type field_source =
 	| ClassStatic of tclass
@@ -57,6 +57,21 @@ let unop_index op flag = match op,flag with
 	| Neg,Postfix -> 9
 	| NegBits,Postfix -> 10
 	| Spread,Postfix -> 11
+
+let print_stacktrace () =
+	let stack = Printexc.get_callstack 10 in
+	let lines = Printf.sprintf "%s\n" (Printexc.raw_backtrace_to_string stack) in
+	match (ExtString.String.split_on_char '\n' lines) with
+		| (_ :: (_ :: lines)) -> Printf.eprintf "%s" (ExtString.String.join "\n" lines)
+		| _ -> die "" __LOC__
+
+let print_types source tl =
+	Printf.eprintf "Types from %s: \n" source;
+	List.iter (fun t -> Printf.eprintf "  %s\n" (s_type_kind t)) tl
+
+let print_params source ttp =
+	Printf.eprintf "Params from %s: \n" source;
+	List.iter (fun t -> Printf.eprintf "  %s\n" t.ttp_name) ttp
 
 class ['key,'value] pool = object(self)
 	val lut = Hashtbl.create 0
@@ -211,9 +226,11 @@ class chunk
 end
 
 class ['a] hxb_writer
+	(com : Common.context)
 	(anon_id : Type.t tanon_identification)
 = object(self)
 
+	val mutable current_module = null_module
 	val chunks = DynArray.create ()
 	val cp = new string_pool STRI
 	val docs = new string_pool DOCS
@@ -233,7 +250,6 @@ class ['a] hxb_writer
 	val own_typedefs = new pool
 
 	val type_param_lut = new pool
-	val mutable ttp_key = None
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new pool
 	val mutable local_type_parameters = []
@@ -309,10 +325,11 @@ class ['a] hxb_writer
 		(* Printf.eprintf "  Write abstract ref %d for %s\n" i (snd a.a_path); *)
 		chunk#write_uleb128 i
 
-	method write_anon_ref (an : tanon) =
+	method write_anon_ref (an : tanon) (ttp : type_params) =
 		let pfm = Option.get (anon_id#identify true (TAnon an)) in
-		let i = anons#get_or_add pfm.pfm_path (an,type_type_parameters,field_type_parameters) in
-		(* Printf.eprintf "  Write anon ref %d for %s\n" i (s_type_path pfm.pfm_path); *)
+		let ftp = field_type_parameters#to_list in
+		let ttp = ttp @ type_type_parameters#to_list in
+		let i = anons#get_or_add pfm.pfm_path (an,ttp,ftp) in
 		chunk#write_uleb128 i
 
 	method write_field_ref (source : field_source) (cf : tclass_field) =
@@ -320,6 +337,22 @@ class ['a] hxb_writer
 
 	method write_enum_field_ref ef =
 		chunk#write_string ef.ef_name
+
+	method write_anon_field_ref cf =
+		let ftp = field_type_parameters#to_list in
+		let ttp = type_type_parameters#to_list in
+
+		(* if (snd current_module.m_path) = "Main" then begin *)
+		(* 	List.iter (fun ttp -> Printf.eprintf "[%s] Anon field TTP %s for %s\n" (s_type_path current_module.m_path) ttp.ttp_name cf.cf_name) cf.cf_params; *)
+		(* 	List.iter (fun ttp -> Printf.eprintf "TTP %s %s for %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type) cf.cf_name) ttp; *)
+		(* 	List.iter (fun ttp -> Printf.eprintf "FTP %s %s for %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type) cf.cf_name) ftp; *)
+
+		(* 	if anon_fields#has cf then Printf.eprintf "Anon %s was already in anon_fields\n" cf.cf_name *)
+		(* 	else Printf.eprintf "Adding anon %s in anon_fields\n" cf.cf_name; *)
+		(* end; *)
+
+		let i = anon_fields#get_or_add cf (cf,ttp,ftp) in
+		chunk#write_uleb128 i
 
 	(* Type instances *)
 
@@ -345,8 +378,10 @@ class ['a] hxb_writer
 			in
 			loop 0 local_type_parameters
 		with Not_found ->
-			(* error ("Unbound type parameter " ^ (s_type_path c.cl_path)) *)
-			Printf.eprintf "%s Unbound type parameter %s\n" todo_error (s_type_path c.cl_path);
+			Printf.eprintf "[%s] %s Unbound type parameter %s (%s)\n" (s_type_path current_module.m_path) todo_error (s_type_path c.cl_path) (snd c.cl_path);
+			(* DynArray.iter (fun ttp -> Printf.eprintf "FTP %s %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items; *)
+			(* DynArray.iter (fun ttp -> Printf.eprintf "TTP %s %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type)) type_type_parameters#items; *)
+			(* print_stacktrace (); *)
 			chunk#write_byte 40
 		end
 
@@ -366,6 +401,7 @@ class ['a] hxb_writer
 				self#write_type_instance t
 			end
 		| TInst({cl_kind = KTypeParameter _} as c,[]) ->
+			(* Printf.eprintf "[%s] KTypeParameter for %s\n" (s_type_path current_module.m_path) (s_type_path c.cl_path); *)
 			self#write_type_parameter_ref c
 		| TInst({cl_kind = KExpr e},[]) ->
 			chunk#write_byte 8;
@@ -383,7 +419,7 @@ class ['a] hxb_writer
 					chunk#write_byte 0;
 				| TAnon an ->
 					chunk#write_byte 1;
-					self#write_anon_ref an;
+					self#write_anon_ref an td.t_params
 				| _ ->
 					chunk#write_byte 2;
 					self#write_typedef_ref td;
@@ -407,7 +443,7 @@ class ['a] hxb_writer
 					self#write_types tl
 				| TAnon an ->
 					chunk#write_byte 1;
-					self#write_anon_ref an;
+					self#write_anon_ref an td.t_params;
 					self#write_types tl
 				| _ ->
 					chunk#write_byte 2;
@@ -440,7 +476,7 @@ class ['a] hxb_writer
 			chunk#write_bool true
 		| TAnon an ->
 			chunk#write_byte 51;
-			self#write_anon_ref an;
+			self#write_anon_ref an []
 
 	method write_types tl =
 		chunk#write_list tl self#write_type_instance
@@ -807,7 +843,10 @@ class ['a] hxb_writer
 
 	method write_texpr (e : texpr) =
 		let rec loop e =
-			self#write_type_instance e.etype;
+			(try self#write_type_instance e.etype; with _ -> begin
+				Printf.eprintf "Error while writing type instance for:\n";
+				MessageReporting.display_source_at com e.epos;
+			end);
 			self#write_pos e.epos;
 
 			match e.eexpr with
@@ -982,7 +1021,7 @@ class ['a] hxb_writer
 			| TField(e1,FAnon cf) ->
 				chunk#write_byte 104;
 				loop e1;
-				chunk#write_uleb128 (anon_fields#get_or_add cf (cf,type_type_parameters,field_type_parameters));
+				self#write_anon_field_ref cf
 			| TField(e1,FClosure(Some(c,tl),cf)) ->
 				chunk#write_byte 105;
 				loop e1;
@@ -992,12 +1031,15 @@ class ['a] hxb_writer
 			| TField(e1,FClosure(None,cf)) ->
 				chunk#write_byte 106;
 				loop e1;
-				chunk#write_uleb128 (anon_fields#get_or_add cf (cf,type_type_parameters,field_type_parameters));
+				self#write_anon_field_ref cf
 			| TField(e1,FEnum(en,ef)) ->
 				chunk#write_byte 107;
 				loop e1;
 				self#write_enum_ref en;
 				self#write_enum_field_ref ef;
+				(* TODO ef.ef_params here triggers unbound type params later *)
+				chunk#write_list ef.ef_params self#write_type_parameter_forward;
+				chunk#write_list ef.ef_params self#write_type_parameter_data;
 			| TField(e1,FDynamic s) ->
 				chunk#write_byte 108;
 				loop e1;
@@ -1120,11 +1162,15 @@ class ['a] hxb_writer
 		self#set_field_type_parameters cf.cf_params;
 		local_type_parameters <- [];
 		let restore = self#start_temporary_chunk in
-		(* Printf.eprintf " Write class field %s\n" cf.cf_name; *)
+		(* if (snd current_module.m_path) = "Main" then *)
+		(* 	Printf.eprintf " (1) Write class field %s\n" cf.cf_name; *)
 		chunk#write_string cf.cf_name;
 		chunk#write_list cf.cf_params self#write_type_parameter_forward;
 		chunk#write_list cf.cf_params self#write_type_parameter_data;
-		self#write_type_instance cf.cf_type;
+		(try self#write_type_instance cf.cf_type with e -> begin
+			Printf.eprintf "%s while writing type instance for field %s\n" todo_error cf.cf_name;
+			raise e
+		end);
 		chunk#write_i32 cf.cf_flags;
 		if with_pos then begin
 			self#write_pos cf.cf_pos;
@@ -1133,7 +1179,11 @@ class ['a] hxb_writer
 		chunk#write_option cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
-		chunk#write_option cf.cf_expr self#write_texpr;
+		(try chunk#write_option cf.cf_expr self#write_texpr with e -> begin
+			Printf.eprintf "%s while writing expr for field %s\n" todo_error cf.cf_name;
+			MessageReporting.display_source_at com cf.cf_pos;
+			raise e
+		end);
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
 		chunk#write_list cf.cf_overloads (self#write_class_field ~with_pos:true);
 		restore (fun chunk new_chunk ->
@@ -1144,7 +1194,6 @@ class ['a] hxb_writer
 
 	method select_type (path : path) =
 		(* Printf.eprintf "Select type %s\n" (s_type_path path); *)
-		ttp_key <- Some path;
 		type_type_parameters <- type_param_lut#extract path
 
 	method write_common_module_type (infos : tinfos) : unit =
@@ -1193,7 +1242,8 @@ class ['a] hxb_writer
 		| _ ->
 			self#select_type c.cl_path;
 		end;
-		(* Printf.eprintf "Write class %s with %d type params\n" (snd c.cl_path) (List.length c.cl_params); *)
+		(* if (snd current_module.m_path) = "Bar_String" then *)
+		(* Printf.eprintf "[%s] Write class %s with %d type params\n" (s_type_path current_module.m_path) (snd c.cl_path) (List.length c.cl_params); *)
 		self#write_common_module_type (Obj.magic c);
 		self#write_class_kind c.cl_kind;
 		chunk#write_u32 (Int32.of_int c.cl_flags);
@@ -1262,15 +1312,15 @@ class ['a] hxb_writer
 		self#write_common_module_type (Obj.magic td);
 		self#write_type_instance td.t_type;
 
-	method write_anon (m : module_def) ((an : tanon), (ttp : (string, typed_type_param) pool), (ftp : (string, typed_type_param) pool)) =
-		type_type_parameters <- ttp;
-		let ttp = ttp#to_list in
+	method write_anon (m : module_def) ((an : tanon), (ttp : type_params), (ftp : type_params)) =
+		type_type_parameters <- new pool;
+		List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
 		chunk#write_list ttp self#write_type_parameter_forward;
 		chunk#write_list ttp self#write_type_parameter_data;
 
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				self#write_class_field ~with_pos:true { cf with cf_params = (cf.cf_params @ ftp#to_list) };
+				self#write_class_field ~with_pos:true { cf with cf_params = (cf.cf_params @ ftp) };
 			)
 		in
 
@@ -1357,7 +1407,7 @@ class ['a] hxb_writer
 				chunk#write_byte 0;
 			| TAnon an ->
 				chunk#write_byte 1;
-				self#write_anon_ref an;
+				self#write_anon_ref an e.e_type.t_params
 			| _ -> assert false);
 
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
@@ -1375,6 +1425,7 @@ class ['a] hxb_writer
 			()
 
 	method write_module (m : module_def) =
+		current_module <- m;
 		self#start_chunk HHDR;
 		self#write_path m.m_path;
 		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);
@@ -1382,6 +1433,7 @@ class ['a] hxb_writer
 		self#start_chunk TYPF;
 		chunk#write_list m.m_types self#forward_declare_type;
 
+		(* if (snd current_module.m_path) = "Issue3090" then *)
 		(* Printf.eprintf "Write module %s with %d own classes, %d own abstracts, %d own enums, %d own typedefs\n" *)
 		(* 	(snd m.m_path) (List.length own_classes#to_list) (List.length own_abstracts#to_list) (List.length own_enums#to_list) (List.length own_typedefs#to_list); *)
 
@@ -1422,6 +1474,7 @@ class ['a] hxb_writer
 			self#start_chunk EFLD;
 			chunk#write_list own_enums (fun e ->
 				chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) e.e_constrs []) (fun (s,ef) ->
+					self#select_type e.e_path;
 					(* Printf.eprintf "  Write enum field %s.%s\n" (s_type_path e.e_path) s; *)
 					chunk#write_string s;
 					self#set_field_type_parameters ef.ef_params;
@@ -1455,13 +1508,11 @@ class ['a] hxb_writer
 			);
 			self#start_chunk ANFD;
 			chunk#write_list l (fun (cf,ttp,ftp) ->
-				(* Printf.eprintf "Write anon field def %s\n" cf.cf_name; *)
-				type_type_parameters <- ttp;
-				let ttp = ttp#to_list in
+				type_type_parameters <- new pool;
+				List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
 				chunk#write_list ttp self#write_type_parameter_forward;
 				chunk#write_list ttp self#write_type_parameter_data;
-				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp#to_list) };
-				(* Printf.eprintf "Write anon field %s (done)\n" cf.cf_name; *)
+				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp) };
 			);
 		end;
 
