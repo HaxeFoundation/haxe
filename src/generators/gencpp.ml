@@ -1442,7 +1442,7 @@ and tcppvarloc =
    | VarInternal of tcppexpr * string * string
 
 and tcppinst =
-   | InstPtr
+   | InstPtr of tcpp
    | InstObjC
    | InstStruct
 
@@ -1564,7 +1564,7 @@ let rec s_tcpp = function
 
    | CppCall (FuncThis _,_)  -> "CppCallThis"
    | CppCall (FuncInstance (obj,inst,field),_) ->
-       (match inst with InstObjC -> "CppCallObjCInstance(" | InstPtr-> "CppCallInstance(" | _ -> "CppCallStruct(") ^
+       (match inst with InstObjC -> "CppCallObjCInstance(" | InstPtr _ -> "CppCallInstance(" | _ -> "CppCallStruct(") ^
           tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
    | CppCall (FuncInterface  _,_) -> "CppCallInterface"
    | CppCall (FuncStatic  (_,objC,_),_) -> if objC then "CppCallStaticObjC" else "CppCallStatic"
@@ -2607,7 +2607,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   CppNullAccess, TCppDynamic
                else if retypedObj.cpptype=TCppDynamic && not (has_class_flag clazz CInterface) then begin
                   if is_internal_member member.cf_name then
-                    CppFunction( FuncInstance(retypedObj,InstPtr,member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,InstPtr(clazzType),member), funcReturn ), exprType
                   else
                      CppDynamicField(retypedObj, member.cf_name), TCppVariant
                end else if cpp_is_struct_access retypedObj.cpptype then begin
@@ -2661,14 +2661,19 @@ let retype_expression ctx request_type function_args function_type expression_tr
                      | _ -> false in
                  (* Special array return values *)
                  let funcReturn =
-                    if isArrayObj then match member.cf_name with
-                       | "map" -> TCppDynamicArray
-                       | "splice"
-                       | "slice"
-                       | "concat"
-                       | "copy"
-                       |  "filter" -> retypedObj.cpptype
-                       | _ -> funcReturn
+                     if isArrayObj then match member.cf_name with
+                     | "map" ->
+                        (match expr.etype with
+                        | TFun (_, ret) ->
+                           cpp_type_of ret
+                        | _ ->
+                           die "map expr type should be TFun" __LOC__)
+                     | "splice"
+                     | "slice"
+                     | "concat"
+                     | "copy"
+                     | "filter" -> retypedObj.cpptype
+                     | _ -> funcReturn
                     else match retypedObj.cpptype, funcReturn with
                        | TCppPointer(_,t), TCppDynamic
                        | TCppRawPointer(_,t), TCppDynamic (* the 'type parameter' will show up as Dynamic *)
@@ -2681,7 +2686,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                  | CppSuper this ->
                     CppFunction( FuncSuper(this, retypedObj.cpptype,member), funcReturn ), exprType
                  | _ ->
-                    CppFunction( FuncInstance(retypedObj,(if is_objc then InstObjC else InstPtr),member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,(if is_objc then InstObjC else InstPtr(clazzType)),member), funcReturn ), exprType
                  )
                end
 
@@ -2782,13 +2787,13 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   (* Not actually a TCall...*)
                   retypedFunc.cppexpr, retypedFunc.cpptype
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when not forCppia && return_type=TCppVoid && is_array_splice_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when not forCppia && return_type=TCppVoid && is_array_splice_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
-                  CppCall( FuncInstance(obj, InstPtr, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
+                  CppCall( FuncInstance(obj, InstPtr tcpp, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when is_array_concat_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when is_array_concat_call obj member ->
                   let retypedArgs = List.map (retype obj.cpptype) args in
-                  CppCall( FuncInstance(obj, InstPtr, member), retypedArgs), return_type
+                  CppCall( FuncInstance(obj, InstPtr tcpp, member), retypedArgs), return_type
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "::hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
@@ -2822,7 +2827,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                   )
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when is_map_get_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when is_map_get_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let fname, cppType = match return_type with
                   | TCppVoid | TCppScalar("bool")  -> (if forCppia then "getBool" else "get_bool"), return_type
@@ -2832,7 +2837,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | TCppString  -> (if forCppia then "getString" else "get_string"), return_type
                   | _ -> "get", TCppDynamic
                   in
-                  let func = FuncInstance(obj, InstPtr, {member with cf_name=fname}) in
+                  let func = FuncInstance(obj, InstPtr tcpp, {member with cf_name=fname}) in
                   (*
                   if  cpp_can_static_cast cppType return_type then begin
                      let call = mk_cppexpr (CppCall(func,retypedArgs)) cppType in
@@ -2842,7 +2847,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                      CppCall( func, retypedArgs), cppType
 
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when forCppia && is_map_set_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr tcpp, member), _ ) when forCppia && is_map_set_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let fname = match retypedArgs with
                   | [_;{cpptype=TCppScalar("bool")}]  -> "setBool"
@@ -2852,11 +2857,11 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | [_;{cpptype=TCppString}]  -> "setString"
                   | _ -> "set"
                   in
-                  let func = FuncInstance(obj, InstPtr, {member with cf_name=fname}) in
+                  let func = FuncInstance(obj, InstPtr tcpp, {member with cf_name=fname}) in
                   CppCall( func, retypedArgs), cppType
 
 
-               | CppFunction( FuncInstance(obj,InstPtr,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
+               | CppFunction( FuncInstance(obj,InstPtr _,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let call = mk_cppexpr (CppCall(func,retypedArgs)) returnType in
                   CppCastStatic(call, cppType), cppType
@@ -3621,12 +3626,32 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out "->_hx_getIndex()"
 
       | CppNullAccess -> out ("::hx::Throw(" ^ strq "Null access" ^ ")")
-      | CppFunction(func,_) ->
+      | CppFunction(func,tcpp) ->
          (match func with
          | FuncThis(field,_) ->
               out ("this->" ^ (cpp_member_name_of field) ^ "_dyn()");
-         | FuncInstance(expr,inst,field) ->
-              gen expr; out ((if expr.cpptype=TCppString || inst=InstStruct then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncInstance(f_expr,inst,field) ->
+            (* array map is a special case as it is implemented as a templated function *)
+            (* so we need to figure out the target array type of the map function to generate the template params *)
+            let template_extra =
+               if (field.cf_name="map") then
+                  match inst with
+                  | InstPtr (TCppObjectArray _)
+                  | InstPtr (TCppScalarArray _)
+                  | InstPtr TCppDynamicArray ->
+                     (match tcpp with
+                     | TCppObjectArray el
+                     | TCppScalarArray el ->
+                        "< " ^ (tcpp_to_string el) ^ " >"
+                     | TCppDynamicArray ->
+                        tcpp_to_string tcpp
+                     | _ ->
+                        die "map return type should be an array" __LOC__)
+                  | _ ->
+                     ""
+               else
+                  "" in
+            gen f_expr; out ((if f_expr.cpptype=TCppString || inst=InstStruct then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn" ^ template_extra ^ "()");
          | FuncInterface(expr,_,field) ->
               gen expr;
               out ("->__Field(" ^ strq field.cf_name ^ ", ::hx::paccDynamic)")
