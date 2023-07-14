@@ -227,7 +227,7 @@ end
 
 class ['a] hxb_writer
 	(com : Common.context)
-	(anon_id : Type.t tanon_identification)
+	(anon_id : Type.t Tanon_identification.tanon_identification)
 = object(self)
 
 	val mutable current_module = null_module
