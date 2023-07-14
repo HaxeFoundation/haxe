@@ -734,6 +734,7 @@ let run tctx main before_destruction =
 		end;
 		not cached
 	) com.types in
+	Printf.eprintf "%d new types\n" (List.length new_types);
 	(* IMPORTANT:
 	    There may be types in new_types which have already been post-processed, but then had their m_processed flag unset
 		because they received an additional dependency. This could happen in cases such as @:generic methods in #10635.

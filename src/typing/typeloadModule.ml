@@ -819,7 +819,9 @@ and load_hxb_module ctx path p =
 
 	(* TODO use finally instead *)
 	try
+		(* Printf.eprintf "[%s] Read module %s\n" target (s_type_path path); *)
 		let m = (get_reader ctx input path p)#read true p in
+		(* Printf.eprintf "[%s] Done reading module %s\n" target (s_type_path path); *)
 		close_in ch;
 		m
 	with e ->

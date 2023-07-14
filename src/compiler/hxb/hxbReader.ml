@@ -9,7 +9,7 @@ let c_reset = if no_color then "" else "\x1b[0m"
 let c_bold = if no_color then "" else "\x1b[1m"
 let c_dim = if no_color then "" else "\x1b[2m"
 let todo = "\x1b[33m[TODO]" ^ c_reset
-let todo_error = "\x1b[41m[TODO] error:" ^ c_reset
+let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
 class hxb_reader
 	(com : Common.context)
@@ -185,7 +185,7 @@ class hxb_reader
 	method read_field_ref fields =
 		let name = self#read_string in
 		try PMap.find name fields with e ->
-			Printf.eprintf "  %s reading field %s\n" todo_error name;
+			Printf.eprintf "[%s]  %s reading field %s\n" (s_type_path m.m_path) todo_error name;
 			Printf.eprintf "    Available fields: %s\n" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields "");
 			null_field
 
@@ -681,7 +681,8 @@ class hxb_reader
 			TFun(args,ret)
 		| 33 ->
 			let t = self#read_type_instance in
-			TLazy (ref (LAvailable t))
+			(* TLazy (ref (LAvailable t)) *)
+			t
 		| 40 ->
 			t_dynamic
 		| 41 ->
@@ -996,6 +997,9 @@ class hxb_reader
 				let e1 = self#read_texpr in
 				let en = self#read_enum_ref in
 				let ef = self#read_enum_field_ref en in
+				let params = ref [] in
+				self#read_type_parameters ([],ef.ef_name) (fun a -> params := Array.to_list a);
+				ef.ef_params <- !params;
 				TField(e1,FEnum(en,ef))
 			| 108 ->
 				let e1 = self#read_texpr in
@@ -1153,13 +1157,12 @@ class hxb_reader
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (e : tenum) =
+		type_type_parameters <- Array.of_list e.e_params;
 		ignore(self#read_list (fun () ->
 			let name = self#read_string in
 			(* Printf.eprintf "  Read enum field %s\n" name; *)
 			let ef = PMap.find name e.e_constrs in
-			self#read_type_parameters ([],name) (fun a ->
-				field_type_parameters <- a
-			);
+			self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
 			ef.ef_params <- Array.to_list field_type_parameters;
 			ef.ef_type <- self#read_type_instance;
 			ef.ef_doc <- self#read_option (fun () -> self#read_documentation);
@@ -1169,14 +1172,12 @@ class hxb_reader
 	(* Module types *)
 
 	method read_common_module_type (infos : tinfos) =
+		(* if (snd m.m_path) = "Issue9149" then *)
+		(* Printf.eprintf "[%s] Read module type %s\n" (s_type_path m.m_path) (s_type_path infos.mt_path); *)
 		infos.mt_private <- self#read_bool;
 		infos.mt_doc <- self#read_option (fun () -> self#read_documentation);
 		infos.mt_meta <- self#read_metadata;
-		(* Printf.eprintf "  read type parameters for %s\n" (s_type_path infos.mt_path); *)
-		self#read_type_parameters infos.mt_path (fun a ->
-			(* Printf.eprintf "  read type parameters for %s: %d\n" (s_type_path infos.mt_path) (Array.length a); *)
-			type_type_parameters <- a
-		);
+		self#read_type_parameters infos.mt_path (fun a -> type_type_parameters <- a);
 		infos.mt_params <- Array.to_list type_type_parameters;
 		infos.mt_using <- self#read_list (fun () ->
 			let c = self#read_class_ref in
@@ -1184,7 +1185,7 @@ class hxb_reader
 			(c,p)
 		)
 
-	method read_class_kind m = match self#read_u8 with
+	method read_class_kind = match self#read_u8 with
 		| 0 -> KNormal
 		| 1 -> KTypeParameter self#read_types
 		| 2 -> KExpr self#read_expr
@@ -1201,9 +1202,8 @@ class hxb_reader
 			error (Printf.sprintf "Invalid class kind id: %i" i)
 
 	method read_class (c : tclass) =
-		(* Printf.eprintf "  Read class %s\n" (s_type_path c.cl_path); *)
 		self#read_common_module_type (Obj.magic c);
-		c.cl_kind <- self#read_class_kind m;
+		c.cl_kind <- self#read_class_kind;
 		c.cl_flags <- (Int32.to_int self#read_u32);
 		let read_relation () =
 			let c = self#read_class_ref in
@@ -1216,7 +1216,6 @@ class hxb_reader
 		c.cl_array_access <- self#read_option (fun () -> self#read_type_instance);
 
 	method read_abstract (a : tabstract) =
-		(* Printf.eprintf "  Read abstract %s\n" (s_type_path a.a_path); *)
 		self#read_common_module_type (Obj.magic a);
 		a.a_impl <- self#read_option (fun () -> self#read_class_ref);
 		let impl = match a.a_impl with None -> null_class | Some c -> c in
@@ -1226,8 +1225,6 @@ class hxb_reader
 			let name = self#read_string in
 			self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
 			let t = self#read_type_instance in
-			(* Printf.eprintf "  Read field ref for abstract from field %s (a = %s)\n" name (s_type_path a.a_path); *)
-			(* Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics); *)
 			let cf = self#read_field_ref impl.cl_statics in
 			(t,cf)
 		);
@@ -1236,8 +1233,6 @@ class hxb_reader
 			let name = self#read_string in
 			self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
 			let t = self#read_type_instance in
-			(* Printf.eprintf "  Read field ref for abstract to field %s (a = %s)\n" name (s_type_path a.a_path); *)
-			(* Printf.eprintf "   Impl has %d fields and %d statics\n" (List.length impl.cl_ordered_fields) (List.length impl.cl_ordered_statics); *)
 			let cf = self#read_field_ref impl.cl_statics in
 			(t,cf)
 		);
@@ -1249,13 +1244,11 @@ class hxb_reader
 		a.a_enum <- self#read_bool;
 
 	method read_enum (e : tenum) =
-		(* Printf.eprintf "  Read enum %s\n" (s_type_path e.e_path); *)
 		self#read_common_module_type (Obj.magic e);
 		e.e_extern <- self#read_bool;
 		e.e_names <- self#read_list (fun () -> self#read_string);
 
 	method read_typedef (td : tdef) =
-		(* Printf.eprintf "  Reading typedef %s\n" (s_type_path td.t_path); *)
 		self#read_common_module_type (Obj.magic td);
 		td.t_type <- self#read_type_instance;
 
@@ -1366,10 +1359,8 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		classes <- (Array.init l (fun i ->
 				let (pack,mname,tname) = self#read_full_path in
-				(* Printf.eprintf "  Read clsr %d of %d for %s\n" i (l-1) (s_type_path ((pack @ [mname]),tname)); *)
 				match self#resolve_type pack mname tname with
 				| TClassDecl c ->
-					(* Printf.eprintf "  Resolved %d = %s with %d fields and %d statics\n" i (s_type_path c.cl_path) (List.length c.cl_ordered_fields) (List.length c.cl_ordered_statics); *)
 					c
 				| _ ->
 					error ("Unexpected type where class was expected: " ^ (s_type_path (pack,tname)))
@@ -1379,7 +1370,6 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		abstracts <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			(* Printf.eprintf "  Read absr %d of %d for abstract %s\n" i l tname; *)
 			match self#resolve_type pack mname tname with
 			| TAbstractDecl a ->
 				a
@@ -1391,7 +1381,6 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			(* Printf.eprintf "  Read enmr %d of %d for enum %s\n" i l tname; *)
 			match self#resolve_type pack mname tname with
 			| TEnumDecl en ->
 				en
@@ -1403,7 +1392,6 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		typedefs <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			(* Printf.eprintf "  Read tpdr %d of %d for typedef %s\n" i l (s_type_path ((pack @ [mname]), tname)); *)
 			match self#resolve_type pack mname tname with
 			| TTypeDecl tpd ->
 				tpd
@@ -1495,8 +1483,7 @@ class hxb_reader
 	method read_hhdr =
 		let path = self#read_path in
 		let file = self#read_string in
-		let m = make_module path file in
-		m
+		make_module path file
 
 	method read (debug : bool) (p : pos) =
 		(* TODO: add magic & version to writer! *)
