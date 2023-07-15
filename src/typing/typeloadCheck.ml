@@ -564,8 +564,10 @@ module Inheritance = struct
 					   purpose. However, we STILL have to delay the check because at the time pending is handled, the class
 					   is not built yet. See issue #10847. *)
 					pending := (fun () -> delay ctx PConnectField check_interfaces_or_delay) :: !pending
-				| _ ->
+				| _ when ctx.com.display.dms_full_typing ->
 					check_interfaces ctx c
+				| _ ->
+					()
 			in
 			if is_extends then begin
 				if c.cl_super <> None then raise_typing_error "Cannot extend several classes" p;

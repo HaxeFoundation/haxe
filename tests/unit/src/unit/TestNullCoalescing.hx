@@ -1,18 +1,25 @@
 package unit;
 
+private class A {}
+private class B extends A {}
+private class C extends A {}
+
 @:nullSafety(StrictThreaded)
 class TestNullCoalescing extends Test {
 	final nullInt:Null<Int> = null;
+	final nullFloat:Null<Float> = null;
 	final nullBool:Null<Bool> = null;
 	final nullString:Null<String> = null;
 
 	var count = 0;
+
 	function call() {
 		count++;
 		return "_";
 	}
 
 	function test() {
+		eq(true, 0 != 1 ?? 2);
 		var a = call() ?? "default";
 		eq(count, 1);
 
@@ -30,9 +37,10 @@ class TestNullCoalescing extends Test {
 		final s:Int = if (nullInt == null) 2; else nullInt;
 		final s = nullInt ?? 2;
 
-		// $type(testBool); // Bool
-		// $type(testNullBool); // Null<Bool>
-		// $type(s); // Int
+		f(HelperMacros.isNullable(testBool));
+		t(HelperMacros.isNullable(testNullBool));
+		f(HelperMacros.isNullable(s));
+		// nullsafety filter test:
 		final shouldBeBool:Bool = testBool;
 		if (testNullBool == null) {}
 		final shouldBeInt:Int = s;
@@ -54,10 +62,7 @@ class TestNullCoalescing extends Test {
 		eq(arr[1], 1);
 		eq(arr[2], 1);
 
-		final arr = [
-			nullInt ?? 2,
-			2
-		];
+		final arr = [nullInt ?? 2, 2];
 		eq(arr[0], arr[1]);
 
 		var a = [0 => nullInt ?? 0 + 100];
@@ -110,7 +115,8 @@ class TestNullCoalescing extends Test {
 		}
 		eq(item(1) ?? item(2) ?? item(3), 1);
 		eq(arr.length, 1);
-		for (i => v in [1]) eq(arr[i], v);
+		for (i => v in [1])
+			eq(arr[i], v);
 
 		final arr = [];
 		function item(n) {
@@ -119,6 +125,22 @@ class TestNullCoalescing extends Test {
 		}
 		eq(item(1) ?? item(2) ?? item(3), null);
 		eq(arr.length, 3);
-		for (i => v in [1, 2, 3]) eq(arr[i], v);
+		for (i => v in [1, 2, 3])
+			eq(arr[i], v);
+
+		var b:B = cast null;
+		var c:C = cast null;
+		var a = if (b != null) b else c;
+		var a = b ?? c;
+		eq("unit._TestNullCoalescing.A", HelperMacros.typeString(a));
+
+		var nullF = false ? nullFloat : 0;
+		var nullF2 = nullFloat ?? nullInt;
+		var notNullF = nullFloat ?? 0;
+		var notNullF2 = (1 : Null<Float>) ?? throw "";
+		t(HelperMacros.isNullable(nullF));
+		t(HelperMacros.isNullable(nullF2));
+		f(HelperMacros.isNullable(notNullF));
+		f(HelperMacros.isNullable(notNullF2));
 	}
 }

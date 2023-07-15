@@ -393,7 +393,12 @@ let keyword_remap name =
    | "HX_" | "HXLINE" | "HXDLIN"
    | "NO" | "YES"
    | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
-   | "struct" -> "_hx_" ^ name
+   | "struct" | "_Atomic"
+   | "constexpr" | "consteval" | "constinit"
+   | "co_await" | "co_return" | "co_yield"
+   | "alignas" | "alignof"
+   | "_Alignas" | "_Alignof"
+   | "requires" -> "_hx_" ^ name
    | x -> x
 ;;
 

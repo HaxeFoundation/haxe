@@ -704,18 +704,15 @@ let type_assign_op ctx op e1 e2 with_type p =
 		let cf_get,tf_get,r_get,ekey = AbstractCast.find_array_read_access ctx a tl ekey p in
 		(* bind complex keys to a variable so they do not make it into the output twice *)
 		let save = save_locals ctx in
-		let maybe_bind_to_temp e = match Optimizer.make_constant_expression ctx e with
-			| Some e -> e,None
-			| None ->
-				let v = gen_local ctx e.etype p in
-				let e' = mk (TLocal v) e.etype p in
-				e', Some (mk (TVar (v,Some e)) ctx.t.tvoid p)
+		let vr = new value_reference ctx in
+		let maybe_bind_to_temp name e = match Optimizer.make_constant_expression ctx e with
+			| Some e -> e
+			| None -> vr#as_var name e
 		in
-		let ekey,ekey' = maybe_bind_to_temp ekey in
-		let ebase,ebase' = maybe_bind_to_temp ebase in
+		let ebase = maybe_bind_to_temp "base" ebase in
+		let ekey = maybe_bind_to_temp "key" ekey in
 		let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey) c ebase p in
 		let eget = type_binop2 ctx op eget e2 true WithType.value p in
-		let vr = new value_reference ctx in
 		let eget = BinopResult.to_texpr vr eget (fun e -> e) in
 		unify ctx eget.etype r_get p;
 		let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
@@ -727,8 +724,6 @@ let type_assign_op ctx op e1 e2 with_type p =
 			| Some _,Some _ ->
 				let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
 				let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
-				let el = match ebase' with None -> el | Some ebase -> ebase :: el in
-				let el = match ekey' with None -> el | Some ekey -> ekey :: el in
 				begin match el with
 					| [e] -> e
 					| el -> mk (TBlock el) r_set p

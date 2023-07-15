@@ -419,8 +419,7 @@ exception Abort of Error.error
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
-	if b then
-		if b then com.has_error <- true;
+	if b then com.has_error <- true;
 	b
 
 (* Defines *)
