@@ -707,7 +707,7 @@ let generate_module_type ctx mt =
 
 (* module *)
 
-let generate_module cc m =
+let generate_module cs cc m =
 	jobject [
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
@@ -718,11 +718,10 @@ let generate_module cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-		"dependencies",jarray (PMap.fold (fun (_,mpath) acc ->
+		"dependencies",jarray (PMap.fold (fun (sign,mpath) acc ->
 			(jobject [
 				"path",jstring (s_type_path mpath);
-				(* TODO handle modules from another context here *)
-				"sign",jstring (Digest.to_hex (cc#find_module mpath).m_extra.m_sign);
+				"sign",jstring (Digest.to_hex ((cs#get_context sign)#find_module mpath).m_extra.m_sign);
 			]) :: acc
 		) m.m_extra.m_deps []);
 		"dependents",jarray (List.map (fun m -> (jobject [

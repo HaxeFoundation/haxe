@@ -182,13 +182,14 @@ let handler =
 		"server/module", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
-			let cc = hctx.display#get_cs#get_context sign in
+			let cs = hctx.display#get_cs in
+			let cc = cs#get_context sign in
 			let m = try
 				cc#find_module path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module cc m)
+			hctx.send_result (generate_module cs cc m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
