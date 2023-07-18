@@ -718,7 +718,7 @@ let generate_module cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-		"dependencies",jarray (PMap.fold (fun mpath acc ->
+		"dependencies",jarray (PMap.fold (fun (_,mpath) acc ->
 			let m = cc#find_module mpath in
 			(jobject [
 				"path",jstring (s_type_path mpath);

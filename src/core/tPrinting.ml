@@ -605,7 +605,7 @@ module Printer = struct
 			"m_cache_state",s_module_cache_state me.m_cache_state;
 			"m_added",string_of_int me.m_added;
 			"m_checked",string_of_int me.m_checked;
-			"m_deps",s_pmap string_of_int (fun m -> snd m) me.m_deps;
+			"m_deps",s_pmap string_of_int (fun (_,m) -> snd m) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)

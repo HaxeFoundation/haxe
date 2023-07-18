@@ -381,14 +381,14 @@ module Dump = struct
 			| None -> platform_name_macro com
 			| Some s -> s
 		in
-		let cc = CommonCache.get_cache com in
 		let dump_dependencies_path = [dump_path com;target_name;"dependencies"] in
 		let buf,close = create_dumpfile [] dump_dependencies_path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
-			PMap.iter (fun _ mpath ->
+			PMap.iter (fun _ (sign,mpath) ->
+				let cc = com.cs#get_context sign in
 				let m2 = cc#find_module mpath in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;

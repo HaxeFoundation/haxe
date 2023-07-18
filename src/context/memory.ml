@@ -33,14 +33,15 @@ let update_module_type_deps deps md =
 	) md.m_types;
 	!deps
 
-let rec scan_module_deps cc m h =
+let rec scan_module_deps cs m h =
 	if Hashtbl.mem h m.m_id then
 		()
 	else begin
 		Hashtbl.add h m.m_id m;
-		PMap.iter (fun _ mpath ->
+		PMap.iter (fun _ (sign,mpath) ->
+			let cc = cs#get_context sign in
 			let m = cc#find_module mpath in
-			scan_module_deps cc m h) m.m_extra.m_deps
+			scan_module_deps cs m h) m.m_extra.m_deps
 	end
 
 let module_sign key md =
@@ -61,9 +62,9 @@ let collect_leaks m deps out =
 let get_out out =
 	Obj.repr Common.memory_marker :: Obj.repr Typecore.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
 
-let get_module_memory cc all_modules m =
+let get_module_memory cs all_modules m =
 	let mdeps = Hashtbl.create 0 in
-	scan_module_deps cc m mdeps;
+	scan_module_deps cs m mdeps;
 	let deps = ref [Obj.repr null_module] in
 	let out = ref all_modules in
 	let deps = Hashtbl.fold (fun _ md deps ->
@@ -134,7 +135,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 		let cc = cs#get_context sign in
 		let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty cs#get_modules in
 		let l = Hashtbl.fold (fun _ m acc ->
-			(m,(get_module_memory cc all_modules m)) :: acc
+			(m,(get_module_memory cs all_modules m)) :: acc
 		) cc#get_modules [] in
 		let l = List.sort (fun (_,(size1,_)) (_,(size2,_)) -> compare size2 size1) l in
 		let leaks = ref [] in
@@ -173,7 +174,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 		let cc = cs#get_context sign in
 		let m = cc#find_module path in
 		let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty cs#get_modules in
-		let _,(_,deps,out,_) = get_module_memory cc all_modules m in
+		let _,(_,deps,out,_) = get_module_memory cs all_modules m in
 		let deps = update_module_type_deps deps m in
 		let out = get_out out in
 		let types = List.map (fun md ->
@@ -239,7 +240,6 @@ let display_memory com =
 	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
 	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
 	let c = com.cs in
-	let cc = CommonCache.get_cache com in
 	print ("Total cache size " ^ size c);
 	(* print ("  haxelib " ^ size c.c_haxelib); *)
 	(* print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)"); *)
@@ -247,7 +247,7 @@ let display_memory com =
 	let module_list = c#get_modules in
 	let all_modules = List.fold_left (fun acc m -> PMap.add m.m_id m acc) PMap.empty module_list in
 	let modules = List.fold_left (fun acc m ->
-		let (size,r) = get_module_memory cc all_modules m in
+		let (size,r) = get_module_memory c all_modules m in
 		(m,size,r) :: acc
 	) [] module_list in
 	let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
@@ -275,7 +275,8 @@ let display_memory com =
 			());
 		if verbose then begin
 			print (Printf.sprintf "      %d total deps" (List.length deps));
-			PMap.iter (fun _ mpath ->
+			PMap.iter (fun _ (sign,mpath) ->
+				let cc = c#get_context sign in
 				let md = cc#find_module mpath in
 				print (Printf.sprintf "      dep %s%s" (s_type_path mpath) (module_sign key md));
 			) m.m_extra.m_deps;
