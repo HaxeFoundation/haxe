@@ -29,14 +29,11 @@ let export_hxb com root m =
 			let writer = new HxbWriter.hxb_writer com anon_identification in
 			writer#write_module m;
 			let ch = IO.output_bytes() in
-			let bytes_module = IO.close_out ch in
-			let ch = IO.output_bytes() in
 			writer#export ch;
 			let bytes_cp = IO.close_out ch in
 			let l = (root :: fst m.m_path @ [snd m.m_path]) in
 			let ch_file = Path.create_file true ".hxb" [] l in
 			output_bytes ch_file bytes_cp;
-			output_bytes ch_file bytes_module;
 			close_out ch_file
 		end
 	| _ -> ()
