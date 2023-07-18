@@ -307,7 +307,9 @@ let check_module sctx ctx m p =
 			end
 		in
 		let check_dependencies () =
-			PMap.iter (fun _ m2 -> match check m2 with
+			PMap.iter (fun _ (sign,mpath) ->
+				let m2 = (com.cs#get_context sign)#find_module mpath in
+				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
 			) m.m_extra.m_deps;
@@ -407,7 +409,10 @@ let add_modules sctx ctx m p =
 				) m.m_types;
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
-				PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
+				PMap.iter (fun _ (sign,mpath) ->
+					let m2 = (com.cs#get_context sign)#find_module mpath in
+					add_modules (tabs ^ "  ") m0 m2
+				) m.m_extra.m_deps
 			)
 		end
 	in
