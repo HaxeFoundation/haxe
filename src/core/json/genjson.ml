@@ -719,10 +719,10 @@ let generate_module cc m =
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
 		"dependencies",jarray (PMap.fold (fun (_,mpath) acc ->
-			let m = cc#find_module mpath in
 			(jobject [
 				"path",jstring (s_type_path mpath);
-				"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+				(* TODO handle modules from another context here *)
+				"sign",jstring (Digest.to_hex (cc#find_module mpath).m_extra.m_sign);
 			]) :: acc
 		) m.m_extra.m_deps []);
 		"dependents",jarray (List.map (fun m -> (jobject [

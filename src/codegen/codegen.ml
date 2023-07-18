@@ -388,8 +388,7 @@ module Dump = struct
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 			PMap.iter (fun _ (sign,mpath) ->
-				let cc = com.cs#get_context sign in
-				let m2 = cc#find_module mpath in
+				let m2 = (com.cs#get_context sign)#find_module mpath in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
