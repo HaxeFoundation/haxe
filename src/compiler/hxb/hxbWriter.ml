@@ -1524,15 +1524,15 @@ class ['a] hxb_writer
 			(* TODO clean this... currently loops until writing anons doesn't register any new anon *)
 			let rec loop written al =
 				let len = List.length al in
-				(* Printf.eprintf "Write ANND - %d anons registered for %s\n" len (s_type_path current_module.m_path); *)
-
-				self#start_chunk ANND;
-				(* TODO this is wasteful... *)
+				let temp_chunk = new chunk ANND cp in
+				chunk <- temp_chunk;
 				chunk#write_list al (fun an -> self#write_anon m an);
 
 				let al = anons#to_list in
 				let new_len = List.length al in
 				if len = new_len then begin
+					DynArray.add chunks temp_chunk;
+
 					self#start_chunk ANNR;
 					chunk#write_uleb128 len;
 				end else loop len al;
