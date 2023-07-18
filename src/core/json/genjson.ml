@@ -718,10 +718,13 @@ let generate_module cc m =
 			| MSGood -> "Good"
 			| MSBad reason -> Printer.s_module_skip_reason reason
 			| MSUnknown -> "Unknown");
-		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
-			"path",jstring (s_type_path m.m_path);
-			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		]) :: acc) m.m_extra.m_deps []);
+		"dependencies",jarray (PMap.fold (fun mpath acc ->
+			let m = cc#find_module mpath in
+			(jobject [
+				"path",jstring (s_type_path mpath);
+				"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+			]) :: acc
+		) m.m_extra.m_deps []);
 		"dependents",jarray (List.map (fun m -> (jobject [
 			"path",jstring (s_type_path m.m_path);
 			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
