@@ -120,6 +120,8 @@ class ['key,'value] identity_pool = object(self)
 
 	method to_list =
 		DynArray.to_list items
+
+	method items = items
 end
 
 class abstract_chunk
@@ -257,7 +259,7 @@ class ['a] hxb_writer
 	val typedefs = new pool
 	val abstracts = new pool
 	val anons = new pool
-	val anon_fields = new pool
+	val anon_fields = new identity_pool
 
 	val own_classes = new pool
 	val own_abstracts = new pool
@@ -366,7 +368,11 @@ class ['a] hxb_writer
 		(* 	else Printf.eprintf "Adding anon %s in anon_fields\n" cf.cf_name; *)
 		(* end; *)
 
-		let i = anon_fields#get_or_add cf (cf,ttp,ftp) in
+		let i = try
+			anon_fields#get cf
+		with Not_found ->
+			anon_fields#add cf (ttp,ftp)
+		in
 		chunk#write_uleb128 i
 
 	(* Type instances *)
@@ -1432,9 +1438,6 @@ class ['a] hxb_writer
 
 	method write_module (m : module_def) =
 		current_module <- m;
-		self#start_chunk HHDR;
-		self#write_path m.m_path;
-		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);
 
 		self#start_chunk TYPF;
 		chunk#write_list m.m_types self#forward_declare_type;
@@ -1500,20 +1503,19 @@ class ['a] hxb_writer
 			chunk#write_list own_typedefs self#write_typedef;
 		end;
 
-		let anon_fields = anon_fields#to_list in
-		begin match anon_fields with
+		begin match anon_fields#to_list with
 		| [] ->
 			()
 		| l ->
 			self#start_chunk ANFR;
-			chunk#write_list l (fun (cf,_,_) ->
+			chunk#write_list l (fun (cf,(_,_)) ->
 				(* Printf.eprintf "Write anon field %s\n" cf.cf_name; *)
 				chunk#write_string cf.cf_name;
 				self#write_pos cf.cf_pos;
 				self#write_pos cf.cf_name_pos;
 			);
 			self#start_chunk ANFD;
-			chunk#write_list l (fun (cf,ttp,ftp) ->
+			chunk#write_list l (fun (cf,(ttp,ftp)) ->
 				type_type_parameters <- new pool;
 				List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
 				chunk#write_list ttp self#write_type_parameter_forward;
@@ -1589,6 +1591,9 @@ class ['a] hxb_writer
 				self#write_full_path (fst m.m_path) (snd m.m_path) (snd td.t_path)
 			)
 		end;
+		self#start_chunk HHDR;
+		self#write_path m.m_path;
+		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		self#start_chunk HEND;
 
 	(* Export *)
