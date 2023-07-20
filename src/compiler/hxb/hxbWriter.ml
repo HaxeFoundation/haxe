@@ -1167,7 +1167,12 @@ class ['a] hxb_writer
 			f r;
 			f w;
 
-	method write_class_field ?(with_pos = false) cf =
+	method write_class_field_forward cf =
+		chunk#write_string cf.cf_name;
+		self#write_pos cf.cf_pos;
+		self#write_pos cf.cf_name_pos;
+
+	method write_class_field_data cf =
 		self#set_field_type_parameters cf.cf_params;
 		local_type_parameters <- new identity_pool;
 		let restore = self#start_temporary_chunk in
@@ -1178,10 +1183,6 @@ class ['a] hxb_writer
 			raise e
 		end);
 		chunk#write_i32 cf.cf_flags;
-		if with_pos then begin
-			self#write_pos cf.cf_pos;
-			self#write_pos cf.cf_name_pos;
-		end;
 		chunk#write_option cf.cf_doc self#write_documentation;
 		self#write_metadata cf.cf_meta;
 		self#write_field_kind cf.cf_kind;
@@ -1191,9 +1192,8 @@ class ['a] hxb_writer
 			raise e
 		end);
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
-		chunk#write_list cf.cf_overloads (self#write_class_field ~with_pos:true);
+		chunk#write_list cf.cf_overloads (self#write_class_field);
 		restore (fun chunk new_chunk ->
-			chunk#write_string cf.cf_name;
 			chunk#write_list cf.cf_params self#write_type_parameter_forward;
 			chunk#write_list cf.cf_params self#write_type_parameter_data;
 			let ltp = List.map snd local_type_parameters#to_list in
@@ -1201,6 +1201,10 @@ class ['a] hxb_writer
 			chunk#write_list ltp self#write_type_parameter_data;
 			new_chunk#export_data chunk#ch
 		)
+
+	method write_class_field cf =
+		self#write_class_field_forward cf;
+		self#write_class_field_data cf;
 
 	(* Module types *)
 
@@ -1332,7 +1336,7 @@ class ['a] hxb_writer
 
 		let write_fields () =
 			chunk#write_list (PMap.foldi (fun s f acc -> (s,f) :: acc) an.a_fields []) (fun (_,cf) ->
-				self#write_class_field ~with_pos:true { cf with cf_params = (cf.cf_params @ ftp) };
+				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp) };
 			)
 		in
 
@@ -1404,15 +1408,9 @@ class ['a] hxb_writer
 		(* Forward declare fields *)
 		match mt with
 		| TClassDecl c ->
-			(* Write minimal data to be able to create refs *)
-			let write_field cf =
-				chunk#write_string cf.cf_name;
-				self#write_pos cf.cf_pos;
-				self#write_pos cf.cf_name_pos
-			in
-			chunk#write_option c.cl_constructor write_field;
-			chunk#write_list c.cl_ordered_fields write_field;
-			chunk#write_list c.cl_ordered_statics write_field;
+			chunk#write_option c.cl_constructor self#write_class_field_forward;
+			chunk#write_list c.cl_ordered_fields self#write_class_field_forward;
+			chunk#write_list c.cl_ordered_statics self#write_class_field_forward;
 		| TEnumDecl e ->
 			(match e.e_type.t_type with
 			| TAnon an when PMap.is_empty an.a_fields ->
@@ -1468,10 +1466,15 @@ class ['a] hxb_writer
 					self#select_type c.cl_path;
 				end;
 
-				chunk#write_option c.cl_constructor self#write_class_field;
+				let write_field cf =
+					chunk#write_string cf.cf_name;
+					self#write_class_field_data cf;
+				in
+
+				chunk#write_option c.cl_constructor self#write_class_field_data;
+				chunk#write_list c.cl_ordered_fields write_field;
+				chunk#write_list c.cl_ordered_statics write_field;
 				chunk#write_option c.cl_init self#write_texpr;
-				chunk#write_list c.cl_ordered_fields self#write_class_field;
-				chunk#write_list c.cl_ordered_statics self#write_class_field;
 			)
 		end;
 		begin match own_enums#to_list with
@@ -1510,9 +1513,7 @@ class ['a] hxb_writer
 			self#start_chunk ANFR;
 			chunk#write_list l (fun (cf,(_,_)) ->
 				(* Printf.eprintf "Write anon field %s\n" cf.cf_name; *)
-				chunk#write_string cf.cf_name;
-				self#write_pos cf.cf_pos;
-				self#write_pos cf.cf_name_pos;
+				self#write_class_field_forward cf;
 			);
 			self#start_chunk ANFD;
 			chunk#write_list l (fun (cf,(ttp,ftp)) ->
@@ -1520,7 +1521,7 @@ class ['a] hxb_writer
 				List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
 				chunk#write_list ttp self#write_type_parameter_forward;
 				chunk#write_list ttp self#write_type_parameter_data;
-				self#write_class_field { cf with cf_params = (cf.cf_params @ ftp) };
+				self#write_class_field_data { cf with cf_params = (cf.cf_params @ ftp) };
 			);
 		end;
 
