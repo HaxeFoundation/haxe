@@ -1069,7 +1069,14 @@ class hxb_reader
 		let len = IO.read_ui16 ch in
 		List.init len (fun _ -> self#read_texpr);
 
-	method read_class_field (cf : tclass_field) : unit =
+	method read_class_field_forward =
+		let name = self#read_string in
+		let pos = self#read_pos in
+		let name_pos = self#read_pos in
+		(* TODO overloads *)
+		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
+
+	method read_class_field_data (cf : tclass_field) : unit =
 		let name = cf.cf_name in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
 		self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
@@ -1085,7 +1092,7 @@ class hxb_reader
 
 		let expr = self#read_option (fun () -> self#read_texpr) in
 		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
-		let overloads = self#read_list (fun () -> self#read_class_field') in
+		let overloads = self#read_list (fun () -> self#read_class_field) in
 
 		cf.cf_type <- t;
 		cf.cf_doc <- doc;
@@ -1097,41 +1104,10 @@ class hxb_reader
 		cf.cf_overloads <- overloads;
 		cf.cf_flags <- flags;
 
-	(* TODO merge with above *)
-	method read_class_field' : tclass_field =
-		let name = self#read_string in
-		(* Printf.eprintf "  Read class field %s\n" name; *)
-		self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
-		(* TODO: The name is wrong, we might have to encode the local name here or something *)
-		self#read_type_parameters ([],name) (fun a -> local_type_parameters <- a);
-		let params = Array.to_list field_type_parameters in
-		let t = self#read_type_instance in
-		let flags = IO.read_i32 ch in
-		let pos = self#read_pos in
-		let name_pos = self#read_pos in
-
-		let doc = self#read_option (fun () -> self#read_documentation) in
-		let meta = self#read_metadata in
-		let kind = self#read_field_kind in
-
-		let expr = self#read_option (fun () -> self#read_texpr) in
-		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
-		let overloads = self#read_list (fun () -> self#read_class_field') in
-
-		{
-			cf_name = name;
-			cf_type = t;
-			cf_pos = pos;
-			cf_name_pos = name_pos;
-			cf_doc = doc;
-			cf_meta = meta;
-			cf_kind = kind;
-			cf_expr = expr;
-			cf_expr_unoptimized = expr_unoptimized;
-			cf_params = params;
-			cf_overloads = overloads;
-			cf_flags = flags;
-		}
+	method read_class_field =
+		let cf = self#read_class_field_forward in
+		self#read_class_field_data cf;
+		cf
 
 	method read_class_fields (c : tclass) =
 		begin match c.cl_kind with
@@ -1143,17 +1119,16 @@ class hxb_reader
 		(* Printf.eprintf "  read class fields with type parameters for %s: %d\n" (s_type_path c.cl_path) (Array.length type_type_parameters); *)
 		(* Printf.eprintf "    own class params: %d\n" (List.length c.cl_params); *)
 		let _ = self#read_option (fun f ->
-			let _ = self#read_string in
-			self#read_class_field (Option.get c.cl_constructor)
+			self#read_class_field_data (Option.get c.cl_constructor)
 		) in
-		c.cl_init <- self#read_option (fun () -> self#read_texpr);
 		let f fields =
 			let name = self#read_string in
 			let cf = PMap.find name fields in
-			self#read_class_field cf
+			self#read_class_field_data cf
 		in
 		let _ = self#read_list (fun () -> f c.cl_fields) in
 		let _ = self#read_list (fun () -> f c.cl_statics) in
+		c.cl_init <- self#read_option (fun () -> self#read_texpr);
 		(match c.cl_kind with KModuleFields md -> md.m_statics <- Some c; | _ -> ());
 
 	method read_enum_fields (e : tenum) =
@@ -1313,7 +1288,7 @@ class hxb_reader
 
 			let an = anons.(i) in
 			let read_fields () =
-				let fields = self#read_list (fun () -> self#read_class_field') in
+				let fields = self#read_list (fun () -> self#read_class_field) in
 				List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields;) fields;
 			in
 
@@ -1344,8 +1319,7 @@ class hxb_reader
 		for i = 0 to l - 1 do
 			let cf = anon_fields.(i) in
 			self#read_type_parameters ([],"") (fun a -> type_type_parameters <- a);
-			let _ = self#read_string in
-			self#read_class_field cf;
+			self#read_class_field_data cf;
 		done
 
 	method read_tpdd =
@@ -1407,10 +1381,7 @@ class hxb_reader
 	method read_anfr =
 		let l = self#read_uleb128 in
 		anon_fields <- (Array.init l (fun i ->
-			let name = self#read_string in
-			let pos = self#read_pos in
-			let name_pos = self#read_pos in
-			{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
+			self#read_class_field_forward
 		))
 
 	method read_typf =
@@ -1427,11 +1398,7 @@ class hxb_reader
 				classes <- Array.append classes (Array.make 1 c);
 
 				let read_field () =
-					let name = self#read_string in
-					let pos = self#read_pos in
-					let name_pos = self#read_pos in
-					(* TODO overloads *)
-					{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
+					self#read_class_field_forward;
 				in
 
 				c.cl_constructor <- self#read_option read_field;
