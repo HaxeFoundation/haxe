@@ -107,6 +107,21 @@ class ['key,'value] pool = object(self)
 	method items = items
 end
 
+class ['key,'value] identity_pool = object(self)
+	val items = DynArray.create ()
+
+	method add (key : 'key) (value : 'value) =
+		let index = DynArray.length items in
+		DynArray.add items (key,value);
+		index
+
+	method get (key : 'key) =
+		DynArray.index_of (fun (key',_) -> key == key') items
+
+	method to_list =
+		DynArray.to_list items
+end
+
 class abstract_chunk
 	(name : string) =
 object(self)
@@ -252,7 +267,7 @@ class ['a] hxb_writer
 	val type_param_lut = new pool
 	val mutable type_type_parameters = new pool
 	val mutable field_type_parameters = new pool
-	val mutable local_type_parameters = []
+	val mutable local_type_parameters = new identity_pool
 
 	(* Chunks *)
 
@@ -366,17 +381,9 @@ class ['a] hxb_writer
 			chunk#write_byte 6;
 			chunk#write_uleb128 i
 		with Not_found -> try
-			let rec loop k l = match l with
-				| [] ->
-					raise Not_found
-				| c' :: l ->
-					if c == c' then begin
-						chunk#write_byte 7;
-						chunk#write_uleb128 k;
-					end else
-						loop (k + 1) l
-			in
-			loop 0 local_type_parameters
+			let index = local_type_parameters#get c in
+			chunk#write_byte 7;
+			chunk#write_uleb128 index;
 		with Not_found ->
 			Printf.eprintf "[%s] %s Unbound type parameter %s (%s)\n" (s_type_path current_module.m_path) todo_error (s_type_path c.cl_path) (snd c.cl_path);
 			(* DynArray.iter (fun ttp -> Printf.eprintf "FTP %s %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type)) field_type_parameters#items; *)
@@ -818,21 +825,17 @@ class ['a] hxb_writer
 		in
 		chunk#write_byte b
 
-	method add_local_type_parameters (params : typed_type_param list) =
-		List.iter (fun ttp -> match follow ttp.ttp_type with
-			| TInst(c,_) ->
-				local_type_parameters <- c :: local_type_parameters
-			| _ ->
-				die "" __LOC__
-		) params
-
 	method write_var v =
 		chunk#write_i32 v.v_id;
 		chunk#write_string v.v_name;
 		chunk#write_option v.v_extra (fun ve ->
-			self#add_local_type_parameters ve.v_params;
-			chunk#write_list ve.v_params self#write_type_parameter_forward;
-			chunk#write_list ve.v_params self#write_type_parameter_data;
+			chunk#write_list ve.v_params (fun ttp -> match follow ttp.ttp_type with
+				| TInst(c,_) ->
+					let index = local_type_parameters#add c ttp in
+					chunk#write_uleb128 index
+				| _ ->
+					die "" __LOC__
+			);
 			chunk#write_option ve.v_expr self#write_texpr;
 		);
 		self#write_type_instance v.v_type;
@@ -1160,13 +1163,10 @@ class ['a] hxb_writer
 
 	method write_class_field ?(with_pos = false) cf =
 		self#set_field_type_parameters cf.cf_params;
-		local_type_parameters <- [];
+		local_type_parameters <- new identity_pool;
 		let restore = self#start_temporary_chunk in
 		(* if (snd current_module.m_path) = "Main" then *)
 		(* 	Printf.eprintf " (1) Write class field %s\n" cf.cf_name; *)
-		chunk#write_string cf.cf_name;
-		chunk#write_list cf.cf_params self#write_type_parameter_forward;
-		chunk#write_list cf.cf_params self#write_type_parameter_data;
 		(try self#write_type_instance cf.cf_type with e -> begin
 			Printf.eprintf "%s while writing type instance for field %s\n" todo_error cf.cf_name;
 			raise e
@@ -1187,6 +1187,12 @@ class ['a] hxb_writer
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
 		chunk#write_list cf.cf_overloads (self#write_class_field ~with_pos:true);
 		restore (fun chunk new_chunk ->
+			chunk#write_string cf.cf_name;
+			chunk#write_list cf.cf_params self#write_type_parameter_forward;
+			chunk#write_list cf.cf_params self#write_type_parameter_data;
+			let ltp = List.map snd local_type_parameters#to_list in
+			chunk#write_list ltp self#write_type_parameter_forward;
+			chunk#write_list ltp self#write_type_parameter_data;
 			new_chunk#export_data chunk#ch
 		)
 

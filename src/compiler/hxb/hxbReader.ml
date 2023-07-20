@@ -34,7 +34,7 @@ class hxb_reader
 	val vars = Hashtbl.create 0
 	val mutable type_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 	val mutable field_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
-	val mutable local_type_parameters = DynArray.create ()
+	val mutable local_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 
 	method resolve_type pack mname tname =
 		try resolve_type pack mname tname with
@@ -587,7 +587,7 @@ class hxb_reader
 			(type_type_parameters.(i)).ttp_type
 		| 7 ->
 			let k = self#read_uleb128 in
-			(DynArray.get local_type_parameters k).ttp_type
+			local_type_parameters.(k).ttp_type
 		| _ ->
 			die "" __LOC__
 
@@ -791,14 +791,13 @@ class hxb_reader
 		let id = IO.read_i32 ch in
 		let name = self#read_string in
 		let extra = self#read_option (fun () ->
-			let params = ref [] in
-			self#read_type_parameters ([],name) (fun a ->
-				Array.iter (fun ttp -> DynArray.add local_type_parameters ttp) a;
-				params := Array.to_list a;
-			);
+			let params = self#read_list (fun () ->
+				let i = self#read_uleb128 in
+				local_type_parameters.(i)
+			) in
 			let vexpr = self#read_option (fun () -> self#read_texpr) in
 			{
-				v_params = !params;
+				v_params = params;
 				v_expr = vexpr;
 			};
 		) in
@@ -1068,8 +1067,8 @@ class hxb_reader
 	method read_class_field (cf : tclass_field) : unit =
 		let name = cf.cf_name in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
-		local_type_parameters <- DynArray.create ();
 		self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
+		self#read_type_parameters ([],name) (fun a -> local_type_parameters <- a);
 		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
 
@@ -1097,8 +1096,9 @@ class hxb_reader
 	method read_class_field' : tclass_field =
 		let name = self#read_string in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
-		local_type_parameters <- DynArray.create ();
 		self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
+		(* TODO: The name is wrong, we might have to encode the local name here or something *)
+		self#read_type_parameters ([],name) (fun a -> local_type_parameters <- a);
 		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
 		let flags = IO.read_i32 ch in
