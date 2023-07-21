@@ -197,8 +197,17 @@ class hxb_reader
 			null_enum_field
 
 	method read_anon_field_ref =
-		let i = self#read_uleb128 in
-		anon_fields.(i)
+		match IO.read_byte ch with
+		| 0 ->
+			let index = self#read_uleb128 in
+			anon_fields.(index)
+		| 1 ->
+			let index = self#read_uleb128 in
+			let cf = self#read_class_field true in
+			anon_fields.(index) <- cf;
+			cf
+		| _ ->
+			assert false
 
 	(* Expr *)
 
@@ -1071,11 +1080,15 @@ class hxb_reader
 		(* TODO overloads *)
 		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
 
-	method read_class_field_data (cf : tclass_field) : unit =
+	method read_class_field_data (nested : bool) (cf : tclass_field) : unit =
 		let name = cf.cf_name in
 		(* Printf.eprintf "  Read class field %s\n" name; *)
-		self#read_type_parameters ([],name) (fun a -> field_type_parameters <- a);
-		self#read_type_parameters ([],name) (fun a -> local_type_parameters <- a);
+		self#read_type_parameters ([],name) (fun a ->
+			field_type_parameters <- if nested then Array.append field_type_parameters a else a
+		);
+		self#read_type_parameters ([],name) (fun a ->
+			local_type_parameters <- if nested then Array.append local_type_parameters a else a
+		);
 		let params = Array.to_list field_type_parameters in
 		let t = self#read_type_instance in
 
@@ -1087,7 +1100,7 @@ class hxb_reader
 
 		let expr = self#read_option (fun () -> self#read_texpr) in
 		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
-		let overloads = self#read_list (fun () -> self#read_class_field) in
+		let overloads = self#read_list (fun () -> self#read_class_field false) in
 
 		cf.cf_type <- t;
 		cf.cf_doc <- doc;
@@ -1099,9 +1112,9 @@ class hxb_reader
 		cf.cf_overloads <- overloads;
 		cf.cf_flags <- flags;
 
-	method read_class_field =
+	method read_class_field (nested : bool) =
 		let cf = self#read_class_field_forward in
-		self#read_class_field_data cf;
+		self#read_class_field_data nested cf;
 		cf
 
 	method read_class_fields (c : tclass) =
@@ -1114,12 +1127,12 @@ class hxb_reader
 		(* Printf.eprintf "  read class fields with type parameters for %s: %d\n" (s_type_path c.cl_path) (Array.length type_type_parameters); *)
 		(* Printf.eprintf "    own class params: %d\n" (List.length c.cl_params); *)
 		let _ = self#read_option (fun f ->
-			self#read_class_field_data (Option.get c.cl_constructor)
+			self#read_class_field_data false (Option.get c.cl_constructor)
 		) in
 		let f fields =
 			let name = self#read_string in
 			let cf = PMap.find name fields in
-			self#read_class_field_data cf
+			self#read_class_field_data false cf
 		in
 		let _ = self#read_list (fun () -> f c.cl_fields) in
 		let _ = self#read_list (fun () -> f c.cl_statics) in
@@ -1283,7 +1296,7 @@ class hxb_reader
 
 			let an = anons.(i) in
 			let read_fields () =
-				let fields = self#read_list (fun () -> self#read_class_field) in
+				let fields = self#read_list (fun () -> self#read_class_field false) in
 				List.iter (fun cf -> an.a_fields <- PMap.add cf.cf_name cf an.a_fields;) fields;
 			in
 
@@ -1307,14 +1320,6 @@ class hxb_reader
 				read_fields ()
 			| _ -> assert false
 			end;
-		done
-
-	method read_anfd =
-		let l = self#read_uleb128 in
-		for i = 0 to l - 1 do
-			let cf = anon_fields.(i) in
-			self#read_type_parameters ([],"") (fun a -> type_type_parameters <- a);
-			self#read_class_field_data cf;
 		done
 
 	method read_tpdd =
@@ -1372,12 +1377,6 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		(* Printf.eprintf "ANNR - %d\n" l; *)
 		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
-
-	method read_anfr =
-		let l = self#read_uleb128 in
-		anon_fields <- (Array.init l (fun i ->
-			self#read_class_field_forward
-		))
 
 	method read_typf =
 		self#read_list (fun () ->
@@ -1445,6 +1444,7 @@ class hxb_reader
 	method read_hhdr =
 		let path = self#read_path in
 		let file = self#read_string in
+		anon_fields <- Array.make (self#read_uleb128) null_field;
 		make_module path file
 
 	method read (debug : bool) (p : pos) =
@@ -1503,8 +1503,6 @@ class hxb_reader
 				self#read_tpdr;
 			| ANNR ->
 				self#read_annr;
-			| ANFR ->
-				self#read_anfr;
 			| ABSD ->
 				self#read_absd;
 			| CLSD ->
@@ -1517,8 +1515,6 @@ class hxb_reader
 				self#read_efld;
 			| ANND ->
 				self#read_annd;
-			| ANFD ->
-				self#read_anfd;
 			| TPDD ->
 				self#read_tpdd;
 			| _ ->
