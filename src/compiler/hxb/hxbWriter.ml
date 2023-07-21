@@ -356,24 +356,19 @@ class ['a] hxb_writer
 		chunk#write_string ef.ef_name
 
 	method write_anon_field_ref cf =
-		let ftp = field_type_parameters#to_list in
-		let ttp = type_type_parameters#to_list in
-
-		(* if (snd current_module.m_path) = "Main" then begin *)
-		(* 	List.iter (fun ttp -> Printf.eprintf "[%s] Anon field TTP %s for %s\n" (s_type_path current_module.m_path) ttp.ttp_name cf.cf_name) cf.cf_params; *)
-		(* 	List.iter (fun ttp -> Printf.eprintf "TTP %s %s for %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type) cf.cf_name) ttp; *)
-		(* 	List.iter (fun ttp -> Printf.eprintf "FTP %s %s for %s\n" ttp.ttp_name (s_type_kind ttp.ttp_type) cf.cf_name) ftp; *)
-
-		(* 	if anon_fields#has cf then Printf.eprintf "Anon %s was already in anon_fields\n" cf.cf_name *)
-		(* 	else Printf.eprintf "Adding anon %s in anon_fields\n" cf.cf_name; *)
-		(* end; *)
-
-		let i = try
-			anon_fields#get cf
+		try
+			let index = anon_fields#get cf in
+			chunk#write_byte 0;
+			chunk#write_uleb128 index
 		with Not_found ->
-			anon_fields#add cf (ttp,ftp)
-		in
-		chunk#write_uleb128 i
+			let index = anon_fields#add cf () in
+			chunk#write_byte 1;
+			chunk#write_uleb128 index;
+			List.iter (fun ttp ->
+				ignore(field_type_parameters#add ttp.ttp_name ttp);
+			) cf.cf_params;
+			self#write_class_field_forward cf;
+			self#write_class_field_data cf;
 
 	(* Type instances *)
 
@@ -1168,14 +1163,22 @@ class ['a] hxb_writer
 			f r;
 			f w;
 
+	method open_field_scope (cf : tclass_field) =
+		let old_field_params = field_type_parameters in
+		let old_local_params = local_type_parameters in
+		local_type_parameters <- new identity_pool;
+		self#set_field_type_parameters cf.cf_params;
+		(fun () ->
+			field_type_parameters <- old_field_params;
+			local_type_parameters <- old_local_params;
+		)
+
 	method write_class_field_forward cf =
 		chunk#write_string cf.cf_name;
 		self#write_pos cf.cf_pos;
 		self#write_pos cf.cf_name_pos;
 
 	method write_class_field_data cf =
-		self#set_field_type_parameters cf.cf_params;
-		local_type_parameters <- new identity_pool;
 		let restore = self#start_temporary_chunk in
 		(* if (snd current_module.m_path) = "Main" then *)
 		(* 	Printf.eprintf " (1) Write class field %s\n" cf.cf_name; *)
@@ -1204,8 +1207,10 @@ class ['a] hxb_writer
 		)
 
 	method write_class_field cf =
+		let close = self#open_field_scope cf in
 		self#write_class_field_forward cf;
 		self#write_class_field_data cf;
+		close()
 
 	(* Module types *)
 
@@ -1467,14 +1472,16 @@ class ['a] hxb_writer
 					self#select_type c.cl_path;
 				end;
 
-				let write_field cf =
-					chunk#write_string cf.cf_name;
+				let write_field with_name cf =
+					if with_name then chunk#write_string cf.cf_name;
+					let close = self#open_field_scope cf in
 					self#write_class_field_data cf;
+					close();
 				in
 
-				chunk#write_option c.cl_constructor self#write_class_field_data;
-				chunk#write_list c.cl_ordered_fields write_field;
-				chunk#write_list c.cl_ordered_statics write_field;
+				chunk#write_option c.cl_constructor (write_field false);
+				chunk#write_list c.cl_ordered_fields (write_field true);
+				chunk#write_list c.cl_ordered_statics (write_field true);
 				chunk#write_option c.cl_init self#write_texpr;
 			)
 		end;
@@ -1505,25 +1512,6 @@ class ['a] hxb_writer
 		| own_typedefs ->
 			self#start_chunk TPDD;
 			chunk#write_list own_typedefs self#write_typedef;
-		end;
-
-		begin match anon_fields#to_list with
-		| [] ->
-			()
-		| l ->
-			self#start_chunk ANFR;
-			chunk#write_list l (fun (cf,(_,_)) ->
-				(* Printf.eprintf "Write anon field %s\n" cf.cf_name; *)
-				self#write_class_field_forward cf;
-			);
-			self#start_chunk ANFD;
-			chunk#write_list l (fun (cf,(ttp,ftp)) ->
-				type_type_parameters <- new pool;
-				List.iter (fun ttp -> ignore(type_type_parameters#add ttp.ttp_name ttp)) ttp;
-				chunk#write_list ttp self#write_type_parameter_forward;
-				chunk#write_list ttp self#write_type_parameter_data;
-				self#write_class_field_data { cf with cf_params = (cf.cf_params @ ftp) };
-			);
 		end;
 
 		begin match anons#to_list with
@@ -1596,6 +1584,7 @@ class ['a] hxb_writer
 		self#start_chunk HHDR;
 		self#write_path m.m_path;
 		chunk#write_string (Path.UniqueKey.lazy_path m.m_extra.m_file);
+		chunk#write_uleb128 (DynArray.length anon_fields#items);
 		self#start_chunk HEND;
 
 	(* Export *)
