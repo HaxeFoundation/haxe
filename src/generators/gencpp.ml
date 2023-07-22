@@ -3244,7 +3244,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
                | TCppPointer(_,_)
                | TCppRawPointer(_,_)
                | TCppStar(_)
-               | TCppCallable(_)
                | TCppInst(_) -> CppCast(baseCpp,return_type), return_type
                | TCppString -> CppCastScalar(baseCpp,"::String"), return_type
                | TCppCode(t) when baseStr <> (tcpp_to_string t)  ->
