@@ -3240,6 +3240,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
             if baseStr=returnStr then
                baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *)
             else (match return_type with
+               | TCppFunction _ ->
+                  (match baseCpp.cppexpr with
+                  | CppCast (inner, TCppCallable _) -> 
+                     inner.cppexpr, inner.cpptype
+                  | _ ->
+                     baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
                | TCppObjC(k) -> CppCastObjC(baseCpp,k), return_type
                | TCppPointer(_,_)
                | TCppRawPointer(_,_)
