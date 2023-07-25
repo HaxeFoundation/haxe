@@ -1077,8 +1077,8 @@ class hxb_reader
 		let name = self#read_string in
 		let pos = self#read_pos in
 		let name_pos = self#read_pos in
-		(* TODO overloads *)
-		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos }
+		let overloads = self#read_list (fun () -> self#read_class_field_forward) in
+		{ null_field with cf_name = name; cf_pos = pos; cf_name_pos = name_pos; cf_overloads = overloads }
 
 	method read_class_field_data (nested : bool) (cf : tclass_field) : unit =
 		let name = cf.cf_name in
@@ -1100,7 +1100,12 @@ class hxb_reader
 
 		let expr = self#read_option (fun () -> self#read_texpr) in
 		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
-		let overloads = self#read_list (fun () -> self#read_class_field false) in
+
+		let l = self#read_uleb128 in
+		for i = 0 to l - 1 do
+			let f = List.nth cf.cf_overloads i in
+			self#read_class_field_data true f
+		done;
 
 		cf.cf_type <- t;
 		cf.cf_doc <- doc;
@@ -1109,7 +1114,6 @@ class hxb_reader
 		cf.cf_expr <- expr;
 		cf.cf_expr_unoptimized <- expr_unoptimized;
 		cf.cf_params <- params;
-		cf.cf_overloads <- overloads;
 		cf.cf_flags <- flags;
 
 	method read_class_field (nested : bool) =
