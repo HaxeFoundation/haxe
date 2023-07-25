@@ -1121,7 +1121,7 @@ class hxb_reader
 			print_endline (Printf.sprintf "Error reading field expr for %s" cf.cf_name);
 			raise e
 		in
-		(* let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in *)
+		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
 
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do

@@ -364,7 +364,11 @@ let compile ctx actx callbacks =
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
 		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
-		com.callbacks#add_before_save (fun () -> Generate.check_hxb_output com actx);
+		com.callbacks#add_after_save (fun () ->
+			(* TODO use hxb cache for hxb output *)
+			callbacks.after_save ctx;
+			Generate.check_hxb_output com actx;
+		);
 		filter ctx tctx;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
