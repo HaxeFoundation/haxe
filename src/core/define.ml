@@ -123,6 +123,7 @@ let get_signature def =
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in
 		let str = String.concat "@" (List.sort compare defines) in
+		(* Printf.eprintf "Defines: %s\n" str; *)
 		let s = Digest.string str in
 		def.defines_signature <- Some s;
 		s

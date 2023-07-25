@@ -75,12 +75,26 @@ let rec cache_context cs com =
 	let cache_module m =
 		(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heueristic. *)
 		let cc = if m.m_extra.m_sign == sign then cc else cs#get_context m.m_extra.m_sign in
+		(* assert (m.m_extra.m_sign = sign); *)
 		cc#cache_module m.m_path m;
 	in
 	List.iter cache_module com.modules;
 	match com.get_macros() with
 	| None -> ()
 	| Some com -> cache_context cs com
+
+let rec clear_cache cs com =
+	let cc = get_cache com in
+	cc#clear_cache;
+
+	com.module_lut#clear;
+	com.stored_typed_exprs#clear;
+	com.module_nonexistent_lut#clear;
+	(* com.type_to_module#clear; *)
+
+	match com.get_macros() with
+	| None -> ()
+	| Some com -> clear_cache cs com
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in

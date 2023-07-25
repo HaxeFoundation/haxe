@@ -243,7 +243,7 @@ class chunk
 end
 
 class ['a] hxb_writer
-	(com : Common.context)
+	(* (com : Common.context) *)
 	(anon_id : Type.t Tanon_identification.tanon_identification)
 = object(self)
 
@@ -849,7 +849,7 @@ class ['a] hxb_writer
 		let rec loop e =
 			(try self#write_type_instance e.etype; with _ -> begin
 				Printf.eprintf "Error while writing type instance for:\n";
-				MessageReporting.display_source_at com e.epos;
+				(* MessageReporting.display_source_at com e.epos; *)
 			end);
 			self#write_pos e.epos;
 
@@ -1184,7 +1184,7 @@ class ['a] hxb_writer
 		(* 	Printf.eprintf " (1) Write class field %s\n" cf.cf_name; *)
 		(try self#write_type_instance cf.cf_type with e -> begin
 			Printf.eprintf "%s while writing type instance for field %s\n" todo_error cf.cf_name;
-			raise e
+			(* raise e *)
 		end);
 		chunk#write_i32 cf.cf_flags;
 		chunk#write_option cf.cf_doc self#write_documentation;
@@ -1192,8 +1192,8 @@ class ['a] hxb_writer
 		self#write_field_kind cf.cf_kind;
 		(try chunk#write_option cf.cf_expr self#write_texpr with e -> begin
 			Printf.eprintf "%s while writing expr for field %s\n" todo_error cf.cf_name;
-			MessageReporting.display_source_at com cf.cf_pos;
-			raise e
+			(* MessageReporting.display_source_at com cf.cf_pos; *)
+			(* raise e *)
 		end);
 		chunk#write_option cf.cf_expr_unoptimized self#write_texpr;
 		chunk#write_list cf.cf_overloads (fun f -> self#write_class_field_data f);

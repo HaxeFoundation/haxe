@@ -23,9 +23,25 @@ type cached_native_lib = {
 	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
-class context_cache (index : int) = object(self)
+(* TODO find a better place (and name?) to store this? *)
+type module_cache = {
+	mc_path : path;
+	mc_bytes : bytes;
+	mc_extra : module_def_extra;
+}
+
+let get_module_name_of_cfile file cfile = match cfile.c_module_name with
+	| None ->
+		let name = Path.module_name_of_file file in
+		cfile.c_module_name <- Some name;
+		name
+	| Some name ->
+		name
+
+class context_cache (index : int) (sign : string) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
+	val binary_cache : (path,module_cache) Hashtbl.t = Hashtbl.create 0
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -42,6 +58,7 @@ class context_cache (index : int) = object(self)
 		try
 			let f = Hashtbl.find files key in
 			Hashtbl.remove files key;
+			Hashtbl.remove binary_cache (f.c_package, get_module_name_of_cfile f.c_file_path f);
 			Hashtbl.replace removed_files key f.c_file_path
 		with Not_found -> ()
 
@@ -57,17 +74,40 @@ class context_cache (index : int) = object(self)
 	method find_module_opt path =
 		Hashtbl.find_opt modules path
 
-	method cache_module path value =
-		Hashtbl.replace modules path value
+	method cache_module path m =
+		Hashtbl.replace modules path m;
+		(* TODO move this somewhere else, factorize with generate.ml as much as possible *)
+		let anon_identification = new Tanon_identification.tanon_identification ([],"") in
+		let writer = new HxbWriter.hxb_writer anon_identification in
+		writer#write_module m;
+		let ch = IO.output_bytes() in
+		writer#export ch;
+		let bytes = IO.close_out ch in
+		Hashtbl.replace binary_cache path {
+			mc_path = path;
+			mc_bytes = bytes;
+			(* TODO warning, this m_extra will be updated from module cache *)
+			mc_extra = m.m_extra;
+			(* mc_extra = { m.m_extra with m_processed = 1 } *)
+		}
+
+	method clear_cache =
+		Hashtbl.clear modules
 
 	(* initialization *)
 
 	method is_initialized = initialized
 	method set_initialized value = initialized <- value
 
+	method get_sign = sign
 	method get_index = index
 	method get_files = files
 	method get_modules = modules
+
+	(* TODO rename all this to something that makes sense *)
+	method get_hxb path = Hashtbl.find_opt binary_cache path
+
+	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
 
 	method get_json = json
@@ -115,7 +155,7 @@ class cache = object(self)
 		try
 			Hashtbl.find contexts sign
 		with Not_found ->
-			let cache = new context_cache (Hashtbl.length contexts) in
+			let cache = new context_cache (Hashtbl.length contexts) sign in
 			context_list <- cache :: context_list;
 			Hashtbl.add contexts sign cache;
 			cache
@@ -267,11 +307,3 @@ type context_options =
 	| NormalContext
 	| MacroContext
 	| NormalAndMacroContext
-
-let get_module_name_of_cfile file cfile = match cfile.c_module_name with
-	| None ->
-		let name = Path.module_name_of_file file in
-		cfile.c_module_name <- Some name;
-		name
-	| Some name ->
-		name

@@ -44,7 +44,7 @@ let field_of_static_definition d p =
 	}
 
 module ModuleLevel = struct
-	let make_module ctx mpath file loadp =
+	let make_module ctx mpath file =
 		let m = {
 			m_id = alloc_mid();
 			m_path = mpath;
@@ -293,7 +293,7 @@ module ModuleLevel = struct
 		let make_import_module path r =
 			com.parser_cache#add path r;
 			(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
-			let m_import = make_module ctx ([],path) path p in
+			let m_import = make_module ctx ([],path) path in
 			m_import.m_extra.m_kind <- MImport;
 			m_import
 		in
@@ -784,7 +784,7 @@ let type_types_into_module ctx m tdecls p =
 	Creates a new module and types [tdecls] into it.
 *)
 let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
-	let m = ModuleLevel.make_module ctx mpath file p in
+	let m = ModuleLevel.make_module ctx mpath file in
 	ctx.com.module_lut#add m.m_path m;
 	let tdecls = ModuleLevel.handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
@@ -797,9 +797,11 @@ let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecl
 
 let type_module_hook = ref (fun _ _ _ -> None)
 
-let rec get_reader ctx input mpath p =
+(* TODO: get rid of `p` here? *)
+let rec get_reader ctx p =
 	let make_module path file =
-		let m = ModuleLevel.make_module ctx path file p in
+		let m = ModuleLevel.make_module ctx path file in
+		(* m.m_extra.m_added <- ctx.com.compilation_step; *)
 		m.m_extra.m_processed <- 1;
 		m
 	in
@@ -813,7 +815,7 @@ let rec get_reader ctx input mpath p =
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
 
-	new HxbReader.hxb_reader ctx.com input make_module add_module resolve_type
+	new HxbReader.hxb_reader make_module add_module resolve_type
 
 and load_hxb_module ctx path p =
 	let compose_path no_rename =
@@ -834,7 +836,7 @@ and load_hxb_module ctx path p =
 	(* TODO use finally instead *)
 	try
 		(* Printf.eprintf "[%s] Read module %s\n" target (s_type_path path); *)
-		let m = (get_reader ctx input path p)#read true p in
+		let m = (get_reader ctx p)#read input true p in
 		(* Printf.eprintf "[%s] Done reading module %s\n" target (s_type_path path); *)
 		close_in ch;
 		m

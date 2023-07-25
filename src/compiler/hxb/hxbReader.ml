@@ -12,15 +12,15 @@ let todo = "\x1b[33m[TODO]" ^ c_reset
 let todo_error = "\x1b[31m[TODO] error:" ^ c_reset
 
 class hxb_reader
-	(com : Common.context)
-	(file_ch : IO.input)
+	(* (com : Common.context) *)
+	(* (file_ch : IO.input) *)
 	(make_module : path -> string -> module_def)
 	(add_module : module_def -> unit)
 	(resolve_type : string list -> string -> string -> module_type)
 = object(self)
 
 	val mutable m = null_module
-	val mutable ch = file_ch
+	val mutable ch = IO.input_bytes Bytes.empty
 	val mutable string_pool = Array.make 0 ""
 	val mutable doc_pool = Array.make 0 ""
 
@@ -92,7 +92,7 @@ class hxb_reader
 	method read_from_string_pool pool =
 		let l = self#read_uleb128 in
 		try pool.(l) with e ->
-			Printf.eprintf "  Failed getting string #%d\n" l;
+			ServerMessage.debug_msg (Printf.sprintf "  Failed getting string #%d\n" l);
 			raise e
 
 	method read_string =
@@ -163,49 +163,66 @@ class hxb_reader
 
 	method read_class_ref =
 		let i = self#read_uleb128 in
-		classes.(i)
+		try classes.(i) with e ->
+			ServerMessage.debug_msg (Printf.sprintf "[%s] %s reading class ref %i\n" (s_type_path m.m_path) todo_error i);
+			raise e
 
 	method read_abstract_ref =
 		let i = self#read_uleb128 in
-		abstracts.(i)
+		try abstracts.(i) with e ->
+			ServerMessage.debug_msg (Printf.sprintf "[%s] %s reading abstract ref %i\n" (s_type_path m.m_path) todo_error i);
+			raise e
 
 	method read_enum_ref =
 		let i = self#read_uleb128 in
-		enums.(i)
+		try enums.(i) with e ->
+			ServerMessage.debug_msg (Printf.sprintf "[%s] %s reading enum ref %i\n" (s_type_path m.m_path) todo_error i);
+			raise e
 
 	method read_typedef_ref =
 		let i = self#read_uleb128 in
-		typedefs.(i)
+		try typedefs.(i) with e ->
+			ServerMessage.debug_msg (Printf.sprintf "[%s] %s reading typedef ref %i\n" (s_type_path m.m_path) todo_error i);
+			raise e
 
 	method read_anon_ref =
 		let i = self#read_uleb128 in
-		(* Printf.eprintf " Read anon ref %d of %d\n" i ((Array.length anons) - 1); *)
-		anons.(i)
+		try anons.(i) with e ->
+			ServerMessage.debug_msg (Printf.sprintf "[%s] %s reading anon ref %i\n" (s_type_path m.m_path) todo_error i);
+			raise e
 
 	method read_field_ref fields =
 		let name = self#read_string in
 		try PMap.find name fields with e ->
-			Printf.eprintf "[%s]  %s reading field %s\n" (s_type_path m.m_path) todo_error name;
-			Printf.eprintf "    Available fields: %s\n" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields "");
+			ServerMessage.debug_msg (Printf.sprintf "[%s]  %s reading field %s\n" (s_type_path m.m_path) todo_error name);
+			ServerMessage.debug_msg (Printf.sprintf "    Available fields: %s\n" (PMap.fold (fun f acc -> acc ^ " " ^ f.cf_name) fields ""));
 			null_field
 
 	method read_enum_field_ref en =
 		let name = self#read_string in
 		try PMap.find name en.e_constrs with e ->
-			Printf.eprintf "  %s reading enum field ref for %s.%s\n" todo_error (s_type_path en.e_path) name;
-			Printf.eprintf "    Available fields: %s\n" (PMap.fold (fun ef acc -> acc ^ " " ^ ef.ef_name) en.e_constrs "");
+			ServerMessage.debug_msg (Printf.sprintf "  %s reading enum field ref for %s.%s\n" todo_error (s_type_path en.e_path) name);
+			ServerMessage.debug_msg (Printf.sprintf "    Available fields: %s\n" (PMap.fold (fun ef acc -> acc ^ " " ^ ef.ef_name) en.e_constrs ""));
 			null_enum_field
 
 	method read_anon_field_ref =
 		match IO.read_byte ch with
 		| 0 ->
 			let index = self#read_uleb128 in
-			anon_fields.(index)
+			(try anon_fields.(index) with e ->
+				ServerMessage.debug_msg (Printf.sprintf "[%s] %s reading anon field (0) ref %i\n" (s_type_path m.m_path) todo_error index);
+				raise e
+			)
 		| 1 ->
 			let index = self#read_uleb128 in
-			let cf = self#read_class_field true in
-			anon_fields.(index) <- cf;
-			cf
+			(try begin
+				let cf = self#read_class_field true in
+				anon_fields.(index) <- cf;
+				cf
+			end with e ->
+				ServerMessage.debug_msg (Printf.sprintf "[%s] %s reading anon field (1) ref %i\n" (s_type_path m.m_path) todo_error index);
+				raise e
+			)
 		| _ ->
 			assert false
 
@@ -1055,8 +1072,8 @@ class hxb_reader
 			| 250 -> TIdent (self#read_string)
 
 			| i ->
-				Printf.eprintf "  [ERROR] Unhandled texpr %d at:\n" i;
-				MessageReporting.display_source_at com pos;
+				ServerMessage.debug_msg (Printf.sprintf "  [ERROR] Unhandled texpr %d at:\n" i);
+				(* MessageReporting.display_source_at com pos; *)
 				assert false
 		in
 
@@ -1098,8 +1115,13 @@ class hxb_reader
 		let meta = self#read_metadata in
 		let kind = self#read_field_kind in
 
-		let expr = self#read_option (fun () -> self#read_texpr) in
-		let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in
+		let expr = try
+			self#read_option (fun () -> self#read_texpr)
+		with e ->
+			print_endline (Printf.sprintf "Error reading field expr for %s" cf.cf_name);
+			raise e
+		in
+		(* let expr_unoptimized = self#read_option (fun () -> self#read_texpr) in *)
 
 		let l = self#read_uleb128 in
 		for i = 0 to l - 1 do
@@ -1448,10 +1470,11 @@ class hxb_reader
 	method read_hhdr =
 		let path = self#read_path in
 		let file = self#read_string in
+		(* ServerMessage.debug_msg (Printf.sprintf "Read hxb module %s" (s_type_path path)); *)
 		anon_fields <- Array.make (self#read_uleb128) null_field;
 		make_module path file
 
-	method read (debug : bool) (p : pos) =
+	method read (file_ch : IO.input) (debug : bool) (p : pos) =
 		(* TODO: add magic & version to writer! *)
 		(* if (Bytes.to_string (IO.nread ch 3)) <> "hxb" then *)
 		(* 	raise (HxbFailure "magic"); *)
@@ -1524,5 +1547,6 @@ class hxb_reader
 			| _ ->
 				error ("Unexpected late chunk: " ^ (string_of_chunk_kind kind))
 		) chunks;
+		(* ServerMessage.debug_msg (Printf.sprintf "Done reading hxb module %s" (s_type_path m.m_path)); *)
 		m
 end

@@ -57,10 +57,15 @@ let reset sctx =
 	Hashtbl.clear Timer.htimers;
 	Helper.start_time := get_time()
 
-let maybe_cache_context sctx com =
-	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
+let after_compilation sctx com has_error =
+	if has_error || not com.display.dms_full_typing || not com.display.dms_populate_cache then
+		CommonCache.clear_cache sctx.cs com
+	else begin
 		CommonCache.cache_context sctx.cs com;
 		ServerMessage.cached_modules com "" (List.length com.modules);
+
+		(* TEMP: Wipe server cache to force loading from hxb *)
+		CommonCache.clear_cache sctx.cs com;
 	end
 
 let ensure_macro_setup sctx =

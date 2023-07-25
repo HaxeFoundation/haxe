@@ -371,7 +371,7 @@ and module_def = {
 	m_path : path;
 	mutable m_types : module_type list;
 	mutable m_statics : tclass option;
-	m_extra : module_def_extra;
+	mutable m_extra : module_def_extra;
 }
 
 and module_def_display = {

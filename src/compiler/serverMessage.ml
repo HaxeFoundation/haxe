@@ -4,6 +4,7 @@ open CompilationCache
 open Type
 
 type server_message_options = {
+	mutable print_debug : bool;
 	mutable print_compiler_stage : bool;
 	mutable print_added_directory : bool;
 	mutable print_found_directories : bool;
@@ -14,6 +15,7 @@ type server_message_options = {
 	mutable print_removed_directory : bool;
 	mutable print_reusing : bool;
 	mutable print_retyping : bool;
+	mutable print_hxb : bool;
 	mutable print_skipping_dep : bool;
 	mutable print_unchanged_content : bool;
 	mutable print_cached_modules : bool;
@@ -31,6 +33,7 @@ type server_message_options = {
 }
 
 let config = {
+	print_debug = false;
 	print_compiler_stage = false;
 	print_added_directory = false;
 	print_found_directories = false;
@@ -41,6 +44,7 @@ let config = {
 	print_removed_directory = false;
 	print_reusing = false;
 	print_retyping = false;
+	print_hxb = false;
 	print_skipping_dep = false;
 	print_unchanged_content = false;
 	print_cached_modules = false;
@@ -66,6 +70,9 @@ let sign_string com =
 let compiler_stage com =
 	if config.print_compiler_stage then print_endline (Printf.sprintf "compiler stage: %s" (s_compiler_stage com.stage))
 
+let debug_msg msg =
+	if config.print_debug then print_endline msg
+
 let added_directory com tabs dir =
 	if config.print_added_directory then print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir)
 
@@ -90,6 +97,9 @@ let removed_directory com tabs dir =
 
 let reusing com tabs m =
 	if config.print_reusing then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path))
+
+let restore_hxb com path =
+	if config.print_hxb then print_endline (Printf.sprintf "%srestoring %s from hxb" (sign_string com) (s_type_path path))
 
 let retyper_ok com tabs m =
 	if config.print_retyping then print_endline (Printf.sprintf "%s%sretyped %s" (sign_string com) tabs (s_type_path m.m_path))
@@ -143,16 +153,18 @@ let message s =
 	if config.print_message then print_endline ("> " ^ s)
 
 let gc_stats time stats_before did_compact space_overhead =
-	if config.print_stats then begin
-		let stats = Gc.quick_stat() in
-		print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s"
-			(if did_compact then "compaction" else "collection")
-			time
-			space_overhead
-			(Memory.fmt_word (float_of_int stats_before.Gc.heap_words))
-			(Memory.fmt_word (float_of_int stats.heap_words))
-		)
-	end
+	(* Commented out to avoid dependency cycle with hxb.. *)
+	()
+	(* if config.print_stats then begin *)
+	(* 	let stats = Gc.quick_stat() in *)
+	(* 	print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s" *)
+	(* 		(if did_compact then "compaction" else "collection") *)
+	(* 		time *)
+	(* 		space_overhead *)
+	(* 		(Memory.fmt_word (float_of_int stats_before.Gc.heap_words)) *)
+	(* 		(Memory.fmt_word (float_of_int stats.heap_words)) *)
+	(* 	) *)
+	(* end *)
 
 let socket_message s =
 	if config.print_socket_message then print_endline s
@@ -161,6 +173,7 @@ let uncaught_error s =
 	if config.print_uncaught_error then print_endline ("Uncaught Error : " ^ s)
 
 let enable_all () =
+	config.print_debug <- true;
 	config.print_compiler_stage <- true;
 	config.print_added_directory <- true;
 	config.print_found_directories <- true;
@@ -171,6 +184,7 @@ let enable_all () =
 	config.print_removed_directory <- true;
 	config.print_reusing <- true;
 	config.print_retyping <- true;
+	config.print_hxb <- true;
 	config.print_skipping_dep <- true;
 	config.print_unchanged_content <- true;
 	config.print_cached_modules <- true;
@@ -187,6 +201,7 @@ let enable_all () =
 
 let set_by_name name value = match name with
 	| "compilerStage" -> config.print_compiler_stage <- value
+	| "debug" -> config.print_debug <- value
 	| "addedDirectory" -> config.print_added_directory <- value
 	| "foundDirectories" -> config.print_found_directories <- value;
 	| "changedDirectories" -> config.print_changed_directories <- value;
@@ -196,6 +211,7 @@ let set_by_name name value = match name with
 	| "removedDirectory" -> config.print_removed_directory <- value;
 	| "reusing" -> config.print_reusing <- value;
 	| "retyping" -> config.print_retyping <- value;
+	| "hxb" -> config.print_hxb <- value;
 	| "skippingDep" -> config.print_skipping_dep <- value;
 	| "unchangedContent" -> config.print_unchanged_content <- value;
 	| "cachedModules" -> config.print_cached_modules <- value;
