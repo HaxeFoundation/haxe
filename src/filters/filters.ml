@@ -722,6 +722,7 @@ let destruction tctx detail_times main locals =
 		) com.types;
 	);
 	com.stage <- CDceStart;
+	ServerMessage.compiler_stage com;
 	with_timer detail_times "dce" None (fun () ->
 		(* DCE *)
 		let dce_mode = try Common.defined_value com Define.Dce with _ -> "no" in
@@ -734,6 +735,7 @@ let destruction tctx detail_times main locals =
 		Dce.run com main dce_mode;
 	);
 	com.stage <- CDceDone;
+	ServerMessage.compiler_stage com;
 	(* PASS 3: type filters post-DCE *)
 	List.iter
 		(run_expression_filters
@@ -772,7 +774,8 @@ let destruction tctx detail_times main locals =
 		) com.types;
 	);
 	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
-	com.stage <- CFilteringDone
+	com.stage <- CFilteringDone;
+	ServerMessage.compiler_stage com
 
 let update_cache_dependencies com t =
 	let visited_anons = ref [] in
@@ -938,6 +941,7 @@ let run tctx main =
 		end;
 		not cached
 	) com.types in
+	ServerMessage.debug_msg (Printf.sprintf "%d new types\n" (List.length new_types));
 	(* IMPORTANT:
 	    There may be types in new_types which have already been post-processed, but then had their m_processed flag unset
 		because they received an additional dependency. This could happen in cases such as @:generic methods in #10635.
@@ -995,8 +999,10 @@ let run tctx main =
 		List.iter (fun f -> List.iter f new_types) filters;
 	);
 	com.stage <- CAnalyzerStart;
+	ServerMessage.compiler_stage com;
 	if com.platform <> Cross then Analyzer.Run.run_on_types com new_types;
 	com.stage <- CAnalyzerDone;
+	ServerMessage.compiler_stage com;
 	let locals = RenameVars.init com in
 	let filters = [
 		"sanitize",Optimizer.sanitize com;
@@ -1012,6 +1018,7 @@ let run tctx main =
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;
 	);
 	com.stage <- CSaveStart;
+	ServerMessage.compiler_stage com;
 	with_timer detail_times "save state" None (fun () ->
 		List.iter (fun mt ->
 			update_cache_dependencies com mt;
@@ -1019,6 +1026,7 @@ let run tctx main =
 		) new_types;
 	);
 	com.stage <- CSaveDone;
+	ServerMessage.compiler_stage com;
 	with_timer detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
