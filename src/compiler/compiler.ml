@@ -143,7 +143,14 @@ module Setup = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "" __LOC__);
+				if not (Common.defined com Define.HlVer) then begin
+					let hl_ver = try
+						Std.input_file (Common.find_file com "hl/hl_version")
+					with Not_found ->
+						failwith "The file hl_version could not be found. Please make sure HAXE_STD_PATH is set to the standard library corresponding to the used compiler version."
+					in
+					Define.define_value com.defines Define.HlVer hl_ver
+				end;
 				"hl"
 			| Eval ->
 				add_std "eval";
