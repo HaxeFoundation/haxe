@@ -228,21 +228,25 @@ let collect ctx e_ast e dk with_type p =
 		| TAnon an ->
 			(* @:forwardStatics *)
 			let items = match !(an.a_status) with
-				| Statics { cl_kind = KAbstractImpl { a_meta = meta; a_this = TInst (c,_) }} when Meta.has Meta.ForwardStatics meta ->
-					let items = List.fold_left (fun acc cf ->
-						if should_access c cf true && is_new_item acc cf.cf_name then begin
-							let origin = Self(TClassDecl c) in
-							let item = make_class_field origin cf in
-							PMap.add cf.cf_name item acc
-						end else
-							acc
-					) items c.cl_ordered_statics in
-					PMap.foldi (fun name item acc ->
-						if is_new_item acc name then
-							PMap.add name item acc
-						else
-							acc
-					) PMap.empty items
+				| Statics { cl_kind = KAbstractImpl { a_meta = meta; a_this}} when Meta.has Meta.ForwardStatics meta ->
+					begin match follow a_this with
+					| TInst (c,_) ->
+						let items = List.fold_left (fun acc cf ->
+							if should_access c cf true && is_new_item acc cf.cf_name then begin
+								let origin = Self(TClassDecl c) in
+								let item = make_class_field origin cf in
+								PMap.add cf.cf_name item acc
+							end else
+								acc
+						) items c.cl_ordered_statics in
+						PMap.foldi (fun name item acc ->
+							if is_new_item acc name then
+								PMap.add name item acc
+							else
+								acc
+						) PMap.empty items
+					| _ -> items
+					end
 				| _ -> items
 			in
 			(* Anon own fields *)
