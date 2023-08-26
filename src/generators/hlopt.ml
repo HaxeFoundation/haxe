@@ -875,6 +875,11 @@ let _optimize (f:fundecl) =
 			| OGetThis (r,fid) when (match f.regs.(r) with HStruct _ -> true | _ -> false) ->
 				do_write r;
 				if is_packed_field 0 fid then state.(r).rnullcheck <- true;
+			| OGetArray (r,arr,idx) ->
+				do_read arr;
+				do_read idx;
+				do_write r;
+				(match f.regs.(arr) with HAbstract _ -> state.(r).rnullcheck <- true | _ -> ());
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r
