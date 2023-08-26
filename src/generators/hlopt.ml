@@ -164,6 +164,8 @@ let opcode_fx frw op =
 		write r;
 	| ONop _  ->
 		()
+	| OPrefetch (r,_,_) ->
+		read r
 
 let opcode_eq a b =
 	match a, b with
@@ -432,6 +434,9 @@ let opcode_map read write op =
 		ORefOffset (write r,r2,off);
 	| ONop _ ->
 		op
+	| OPrefetch (r, fid, mode) ->
+		let r2 = read r in
+		OPrefetch (r2, fid, mode)
 
 (* build code graph *)
 

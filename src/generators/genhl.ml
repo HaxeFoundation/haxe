@@ -310,6 +310,12 @@ let unsigned_op e1 e2 =
 	in
 	is_unsigned e1 && is_unsigned e2
 
+let rec get_const e =
+	match e.eexpr with
+	| TConst c -> c
+	| TParenthesis e | TCast (e,_) -> get_const e
+	| _ -> abort "Should be a constant" e.epos
+
 let set_curpos ctx p =
 	ctx.m.mcurpos <- p
 
@@ -2067,6 +2073,15 @@ and eval_expr ctx e =
 			free ctx rfile;
 			free ctx min;
 			r
+		| "$prefetch", [value; mode] ->
+			let mode = (match get_const mode with
+				| TInt m -> Int32.to_int m
+				| _ -> abort "Constant mode required" e.epos
+			) in
+			(match get_access ctx value with
+			| AInstanceField (f, index) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
+			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
+			alloc_tmp ctx HVoid
 		| _ ->
 			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
