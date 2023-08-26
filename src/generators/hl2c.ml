@@ -1087,6 +1087,15 @@ let generate_function ctx f =
 			sexpr "%s = %s + %s" (reg r) (reg r2) (reg off)
 		| ONop _ ->
 			()
+		| OPrefetch (r,fid,mode) ->
+			let expr = (if fid = 0 then reg r else (match rtype r with
+			| HObj o | HStruct o ->
+				let name, t = resolve_field o (fid - 1) in
+				Printf.sprintf "%s->%s" (reg r) name
+			| _ ->
+				Globals.die "" __LOC__
+			)) in
+			sexpr "__hl_prefetch_m%d(%s)" mode expr
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();
