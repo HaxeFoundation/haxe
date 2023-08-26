@@ -131,6 +131,7 @@ type access =
 	| AInstanceProto of texpr * field index
 	| AInstanceField of texpr * field index
 	| AArray of reg * (ttype * ttype) * reg
+	| ACArray of reg * ttype * reg
 	| AVirtualMethod of texpr * field index
 	| ADynamic of texpr * string index
 	| AEnum of tenum * field index
@@ -1377,6 +1378,13 @@ and get_access ctx e =
 				free ctx a;
 				let t = to_type ctx t in
 				AArray (a,(t,t),i)
+			| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String("hl_carray",_)),_) },_)]) ->
+				let a = eval_null_check ctx a in
+				hold ctx a;
+				let i = eval_to ctx i HI32 in
+				free ctx a;
+				let t = to_type ctx e.etype in
+				ACArray (a,t,i)
 			| TAbstract (a,pl) ->
 				loop (Abstract.get_underlying_type a pl)
 			| _ ->
@@ -1894,7 +1902,13 @@ and eval_expr ctx e =
 			r
 		| "$asize", [e] ->
 			let r = alloc_tmp ctx HI32 in
-			op ctx (OArraySize (r, eval_to ctx e HArray));
+			(match follow e.etype with
+			| TInst ({cl_path=["hl"],"Abstract"},[TInst({ cl_kind = KExpr (EConst (String("hl_carray",_)),_) },_)]) ->
+				let arr = eval_expr ctx e in
+				op ctx (ONullCheck arr);
+				op ctx (OArraySize (r, arr))
+			| _ ->
+				op ctx (OArraySize (r, eval_to ctx e HArray)));
 			r
 		| "$aalloc", [esize] ->
 			let et = (match follow e.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
@@ -2208,7 +2222,7 @@ and eval_expr ctx e =
 				ignore(make_fun ctx ("","") fid f None None);
 			end;
 			op ctx (OStaticClosure (r,fid));
-		| ANone | ALocal _ | AArray _ | ACaptured _ ->
+		| ANone | ALocal _ | AArray _ | ACaptured _ | ACArray _ ->
 			abort "Invalid access" e.epos);
 		let to_t = to_type ctx e.etype in
 		(match to_t with
@@ -2452,7 +2466,7 @@ and eval_expr ctx e =
 				let r = value() in
 				op ctx (OSetEnumField (ctx.m.mcaptreg,index,r));
 				r
-			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
+			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ | ACArray _ ->
 				die "" __LOC__)
 		| OpBoolOr ->
 			let r = alloc_tmp ctx HBool in
@@ -2727,6 +2741,10 @@ and eval_expr ctx e =
 		(match get_access ctx e with
 		| AArray (a,at,idx) ->
 			array_read ctx a at idx e.epos
+		| ACArray (a,t,idx) ->
+			let tmp = alloc_tmp ctx t in
+			op ctx (OGetArray (tmp,a,idx));
+			tmp
 		| _ ->
 			die "" __LOC__)
 	| TMeta (_,e) ->
@@ -3046,7 +3064,7 @@ and gen_assign_op ctx acc e1 f =
 		free ctx robj;
 		op ctx (ODynSet (robj,fid,r));
 		r
-	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ ->
+	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ | ACArray _ ->
 		die "" __LOC__
 
 and build_capture_vars ctx f =

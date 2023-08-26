@@ -2436,7 +2436,7 @@ let check code macros =
 			| ORethrow r ->
 				reg r HDyn
 			| OGetArray (v,a,i) ->
-				reg a HArray;
+				(match rtype a with HAbstract ("hl_carray",_) -> () | _ -> reg a HArray);
 				reg i HI32;
 				ignore(rtype v);
 			| OGetUI8 (r,b,p) | OGetUI16(r,b,p) ->
@@ -2466,7 +2466,7 @@ let check code macros =
 				ignore(rtype a);
 				ignore(rtype b);
 			| OArraySize (r,a) ->
-				reg a HArray;
+				(match rtype a with HAbstract ("hl_carray",_) -> () | _ -> reg a HArray);
 				reg r HI32
 			| OType (r,_) ->
 				reg r HType
