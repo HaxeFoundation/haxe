@@ -1,7 +1,7 @@
 - name: Install dependencies
   env:
     # For compatibility with macOS 10.13
-    ZLIB_VERSION: 1.2.13
+    ZLIB_VERSION: 1.3
     MBEDTLS_VERSION: 2.25.0
     PCRE2_VERSION: 10.42
   run: |
@@ -63,7 +63,7 @@
     otool -L ./haxelib
 
 - name: Upload artifact
-  uses: actions/upload-artifact@v1.0.0
+  uses: actions/upload-artifact@v3
   with:
     name: macBinaries
     path: out
