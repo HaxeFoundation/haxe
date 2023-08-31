@@ -552,7 +552,7 @@ module Pattern = struct
 				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
-				let e1 = MacroContext.type_stored_expr ctx e1 in
+				let e1 = TyperBase.type_stored_expr ctx e1 in
 				loop (TExprToExpr.convert_expr e1)
 			| _ ->
 				fail()

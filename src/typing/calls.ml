@@ -218,8 +218,8 @@ let rec acc_get ctx g =
 	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
-		(* TODO *)
-		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
+		let id,_ = store_typed_expr ctx.com sea.se_this e_field.epos in
+		let e_field = {e_field with eexpr = (TMeta((Meta.StaticExtension,[make_stored_id_expr id e_field.epos],null_pos),e_field))} in
 		let t = match follow e_field.etype with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
 			| t -> t

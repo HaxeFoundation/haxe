@@ -713,10 +713,13 @@ let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
 	(fun() -> incr uid; !uid)
 
+let make_stored_id_expr id p =
+	(EConst (Int (string_of_int id, None))), p
+
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
 	com.stored_typed_exprs#add id te;
-	let eid = (EConst (Int (string_of_int id, None))), p in
+	let eid = make_stored_id_expr id p in
 	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
 let push_this ctx e = match e.eexpr with
