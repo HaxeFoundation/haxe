@@ -1055,7 +1055,3 @@ let interpret ctx =
 
 let setup() =
 	Interp.setup Interp.macro_api
-
-let type_stored_expr ctx e1 =
-	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
-	TyperBase.get_stored_typed_expr ctx id

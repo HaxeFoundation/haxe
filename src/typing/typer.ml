@@ -1672,7 +1672,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| _ -> e()
 			end
 		| (Meta.StoredTypedExpr,_,_) ->
-			MacroContext.type_stored_expr ctx e1
+			type_stored_expr ctx e1
 		| (Meta.NoPrivateAccess,_,_) ->
 			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 			e()
