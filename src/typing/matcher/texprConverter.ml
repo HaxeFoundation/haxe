@@ -393,4 +393,4 @@ let to_texpr ctx t_switch with_type dt =
 	| None ->
 		raise_typing_error "Unmatched patterns: _" p;
 	| Some e ->
-		Texpr.duplicate_tvars e
+		Texpr.duplicate_tvars e_identity e

@@ -307,7 +307,9 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
 	| _ -> false
 
-let duplicate_tvars e =
+let e_identity e = e
+
+let duplicate_tvars f_this e =
 	let vars = Hashtbl.create 0 in
 	let copy_var v =
 		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
@@ -344,6 +346,8 @@ let duplicate_tvars e =
 				{e with eexpr = TLocal v2}
 			with _ ->
 				e)
+		| TConst TThis ->
+			f_this e
 		| _ ->
 			map_expr build_expr e
 	in
