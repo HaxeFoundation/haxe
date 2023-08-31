@@ -703,10 +703,6 @@ let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
 	(fun() -> incr uid; !uid)
 
-let get_stored_typed_expr com id =
-	let e = com.stored_typed_exprs#find id in
-	Texpr.duplicate_tvars e
-
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
 	com.stored_typed_exprs#add id te;

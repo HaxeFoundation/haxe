@@ -1662,7 +1662,7 @@ module TexprConverter = struct
 		| None ->
 			typing_error "Unmatched patterns: _" p;
 		| Some e ->
-			Texpr.duplicate_tvars e
+			Texpr.duplicate_tvars e_identity e
 end
 
 module Match = struct

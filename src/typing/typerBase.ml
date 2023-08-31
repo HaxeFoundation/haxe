@@ -173,6 +173,10 @@ let get_this ctx p =
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
 
+let get_stored_typed_expr ctx id =
+	let e = ctx.com.stored_typed_exprs#find id in
+	Texpr.duplicate_tvars (fun e -> get_this ctx e.epos) e
+
 let assign_to_this_is_allowed ctx =
 	match ctx.curclass.cl_kind with
 		| KAbstractImpl _ ->
