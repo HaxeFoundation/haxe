@@ -7,11 +7,13 @@
 	Bugfixes:
 
 	all : don't infer Null<?> if it already is Null<?> (#11286)
+	all : fix ?? inference and precedence (#11252)
 	all : bring back forced inline (#11217)
 	all : allow non constant "inline" var init with -D no-inline (#11192)
 	all : improve @:enum abstract deprecation warning handling (#11302)
 	all : fix some stack overflow with pretty errors
 	display : fix go to definition with final (#11173)
+	display : fix completion requests with @:forwardStatics (#11294)
 	eval : fix MainLoop.add not repeating (#11202)
 	hl/eval/neko : fix exception stack when wrapping native exceptions (#11249)
 	macro : map `this` when restoring typed expressions (#11212)
