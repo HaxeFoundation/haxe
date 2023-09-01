@@ -20,7 +20,7 @@
 	macro : macro generated EVars position fixes (#11163)
 	macro : fix abstract casts for local statics (#11301)
 	macro : add flags to TDAbstract to be able to construct enum abstracts (#11230)
-	nullsafety : make break/continue exprs not-nullable (#11269)
+	nullsafety : make break/continue expressions not-nullable (#11269)
 	nullsafety : handle return in assignment (#11114)
 
 2023-04-28 4.3.1
