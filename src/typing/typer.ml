@@ -1704,6 +1704,9 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
 			| _ -> e()
 			end
+		(* Allow `${...}` reification because it's a noop and happens easily with macros *)
+		| (Meta.Dollar "",_,p) ->
+			e()
 		| (Meta.Dollar s,_,p) ->
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
