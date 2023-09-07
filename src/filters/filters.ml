@@ -75,6 +75,7 @@ module LocalStatic = struct
 			typing_error ~depth:1 "Conflicting field was found here" cf.cf_name_pos;
 		with Not_found ->
 			let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
+			cf.cf_meta <- v.v_meta;
 			begin match eo with
 			| None ->
 				()
