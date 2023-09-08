@@ -387,11 +387,13 @@ class Printer {
 					var to = to == null ? [] : to.copy();
 					var isEnum = false;
 
-					for (flag in tflags) {
-						switch (flag) {
-							case AbEnum: isEnum = true;
-							case AbFrom(ct): from.push(ct);
-							case AbTo(ct): to.push(ct);
+					if (tflags != null) {
+						for (flag in tflags) {
+							switch (flag) {
+								case AbEnum: isEnum = true;
+								case AbFrom(ct): from.push(ct);
+								case AbTo(ct): to.push(ct);
+							}
 						}
 					}
 
