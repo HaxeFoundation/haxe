@@ -544,7 +544,9 @@ let init_wait_stdio() =
 (* The connect function to connect to [host] at [port] and send arguments [args]. *)
 let do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
+	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with
+	| Unix.Unix_error (code, _, _) ->
+		failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " - " ^ (Unix.error_message code)));
 	let rec display_stdin args =
 		match args with
 		| [] -> ""
