@@ -39,6 +39,8 @@ type module_skip_reason =
 	| Shadowed of string
 	| LibraryChanged
 
+exception Bad_module of path * module_skip_reason
+
 type module_cache_state =
 	| MSGood
 	| MSBad of module_skip_reason

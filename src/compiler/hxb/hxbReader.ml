@@ -46,6 +46,7 @@ class hxb_reader
 
 	method resolve_type pack mname tname =
 		try resolve_type pack mname tname with
+		| Bad_module (path, reason) -> raise (Bad_module (m.m_path, DependencyDirty (path, reason)))
 		| Not_found -> error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
 
 	val mutable tvoid = None
