@@ -36,6 +36,22 @@ class TestCase implements ITest {
 
 	public function new() {}
 
+	function debugMessages(?pos:PosInfos) {
+		for (m in messages) haxe.Log.trace(m, pos);
+	}
+
+	function debugErrorMessages(?pos:PosInfos) {
+		for (m in errorMessages) haxe.Log.trace(m, pos);
+	}
+
+	function messagesWith(s:String, ?pos:PosInfos) {
+		for (m in messages) if (m.contains(s)) haxe.Log.trace(m, pos);
+	}
+
+	function errorMessagesWith(s:String, ?pos:PosInfos) {
+		for (m in errorMessages) if (m.contains(s)) haxe.Log.trace(m, pos);
+	}
+
 	static public function printSkipReason(ddr:SkipReason) {
 		return switch (ddr) {
 			case DependencyDirty(path): 'DependencyDirty $path';
