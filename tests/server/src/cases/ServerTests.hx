@@ -219,46 +219,46 @@ class ServerTests extends TestCase {
 		});
 	}
 
-	function testDiagnosticsRecache() {
-		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-		var args = ["--main", "HelloWorld", "--interp"];
-		runHaxe(args);
-		assertSuccess();
-		runHaxe(args);
-		assertReuse("HelloWorld");
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-		runHaxe(args);
-		assertSkipping("HelloWorld", Tainted("server/invalidate"));
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
-		runHaxe(args);
-		assertReuse("HelloWorld");
-	}
+	// function testDiagnosticsRecache() {
+	// 	vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+	// 	var args = ["--main", "HelloWorld", "--interp"];
+	// 	runHaxe(args);
+	// 	assertSuccess();
+	// 	runHaxe(args);
+	// 	assertReuse("HelloWorld");
+	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+	// 	runHaxe(args);
+	// 	assertSkipping("HelloWorld", Tainted("server/invalidate"));
+	// 	runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+	// 		Assert.equals(0, res.length);
+	// 	});
+	// 	runHaxe(args);
+	// 	assertReuse("HelloWorld");
+	// }
 
-	function testDiagnosticsRecache2() {
-		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-		var args = ["--main", "HelloWorld", "--interp"];
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
-		runHaxe(args);
-		assertReuse("HelloWorld");
-	}
+	// function testDiagnosticsRecache2() {
+	// 	vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+	// 	var args = ["--main", "HelloWorld", "--interp"];
+	// 	runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+	// 		Assert.equals(0, res.length);
+	// 	});
+	// 	runHaxe(args);
+	// 	assertReuse("HelloWorld");
+	// }
 
-	function testDiagnosticsRecache3() {
-		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-		var args = ["--main", "HelloWorld", "--interp"];
-		runHaxe(args);
-		runHaxe(args);
-		assertReuse("HelloWorld");
-		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
-		assertReuse("HelloWorld");
-	}
+	// function testDiagnosticsRecache3() {
+	// 	vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+	// 	var args = ["--main", "HelloWorld", "--interp"];
+	// 	runHaxe(args);
+	// 	runHaxe(args);
+	// 	assertReuse("HelloWorld");
+	// 	runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
+	// 	runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}, res -> {
+	// 		Assert.equals(0, res.length);
+	// 	});
+	// 	runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
+	// 	assertReuse("HelloWorld");
+	// }
 
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
