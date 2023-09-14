@@ -25,7 +25,7 @@ open ExtList;;
 exception Error_message of string
 
 type reader_ctx = {
-	ch : Pervasives.in_channel;
+	ch : Stdlib.in_channel;
 	i : IO.input;
 	verbose : bool;
 }
@@ -42,7 +42,7 @@ let seek r pos =
 	seek_in r.ch pos
 
 let pos r =
-	Pervasives.pos_in r.ch
+	Stdlib.pos_in r.ch
 
 let info r msg =
 	if r.verbose then

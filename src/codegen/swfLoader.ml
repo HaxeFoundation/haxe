@@ -33,7 +33,7 @@ let lowercase_pack pack =
 			let name =
 				let fchar = String.get name 0 in
 				if fchar >= 'A' && fchar <= 'Z' then
-					(String.make 1 (Char.lowercase fchar)) ^ String.sub name 1 (String.length name - 1)
+					(String.make 1 (Char.lowercase_ascii fchar)) ^ String.sub name 1 (String.length name - 1)
 				else
 					name
 			in

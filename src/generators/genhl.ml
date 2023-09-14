@@ -4059,7 +4059,7 @@ let add_types ctx types =
 						| Method MethNormal when not (List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta) ->
 							(match f.cf_expr with
 							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } | None ->
-								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
+								let name = prefix ^ String.lowercase_ascii (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
 								f.cf_meta <- (Meta.HlNative, [(EConst (String(lib,SDoubleQuotes)),p);(EConst (String(name,SDoubleQuotes)),p)], p) :: f.cf_meta;
 							| _ -> ())
 						| _ -> ()
@@ -4149,7 +4149,7 @@ let generate com =
 	in
 
 	if Path.file_extension com.file = "c" then begin
-		let gnames = Array.create (Array.length code.globals) "" in
+		let gnames = Array.make (Array.length code.globals) "" in
 		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		if not (Common.defined com Define.SourceHeader) then begin
 			let version_major = com.version / 1000 in

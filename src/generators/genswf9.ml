@@ -645,7 +645,7 @@ let begin_switch ctx =
 		constructs := (tag,ctx.infos.ipos) :: !constructs;
 	in
 	let fend() =
-		let cases = Array.create (!max + 1) 1 in
+		let cases = Array.make (!max + 1) 1 in
 		List.iter (fun (tag,pos) -> Array.set cases tag (pos - switch_pos)) !constructs;
 		DynArray.set ctx.code switch_index (HSwitch (1,Array.to_list cases));
 		branch();

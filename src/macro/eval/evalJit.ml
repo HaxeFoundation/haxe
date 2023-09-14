@@ -230,7 +230,7 @@ and jit_expr jit return e =
 		let hasret = jit_closure.has_nonfinal_return in
 		let eci = get_env_creation jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
 		let captures = Hashtbl.fold (fun vid (i,declared) acc -> (i,vid,declared) :: acc) jit_closure.captures [] in
-		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Pervasives.compare i1 i2) captures in
+		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Stdlib.compare i1 i2) captures in
 		(* Check if the out-of-scope var is in the outer scope because otherwise we have to promote outwards. *)
 		List.iter (fun var -> ignore(get_capture_slot jit var)) jit_closure.captures_outside_scope;
 		let captures = ExtList.List.filter_map (fun (i,vid,declared) ->

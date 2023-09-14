@@ -93,6 +93,9 @@ devcontainer:
     # Install OCaml libraries
     COPY haxe.opam .
     RUN opam init --disable-sandboxing
+    RUN opam switch create 4.08.1
+    RUN eval $(opam env)
+    RUN opam env
     RUN opam install . --yes --deps-only --no-depexts
     RUN opam list
     RUN ocamlopt -v

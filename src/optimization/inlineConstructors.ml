@@ -499,7 +499,7 @@ let inline_constructors ctx original_e =
 			| IOFInlineMethod(io,io_var,c,tl,cf,tf) ->
 				let argvs, pl = analyze_call_args call_args in
 				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
-				io.io_has_untyped <- io.io_has_untyped or (Meta.has Meta.HasUntyped cf.cf_meta);
+				io.io_has_untyped <- io.io_has_untyped || (Meta.has Meta.HasUntyped cf.cf_meta);
 				begin match Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true with
 				| Some e ->
 					let e = mark_ctors e in

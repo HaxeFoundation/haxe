@@ -1134,7 +1134,7 @@ let make_types_idents htypes =
 			try
 				PMap.find vp (!types_descs)
 			with Not_found ->
-				let arr = Array.create (Array.length vp.vfields) ("",DSimple HVoid) in
+				let arr = Array.make (Array.length vp.vfields) ("",DSimple HVoid) in
 				let td = DVirtual arr in
 				types_descs := PMap.add vp td (!types_descs);
 				Array.iteri (fun i (f,_,t) -> arr.(i) <- (f,make_desc t)) vp.vfields;
