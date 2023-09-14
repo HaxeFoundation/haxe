@@ -4,6 +4,7 @@ open CompilationCache
 open Timer
 open Type
 open DisplayProcessingGlobals
+open Ipaddr
 open Json
 open CompilationContext
 open MessageReporting
@@ -542,8 +543,12 @@ let init_wait_stdio() =
 	mk_length_prefixed_communication false stdin stderr
 
 (* The connect function to connect to [host] at [port] and send arguments [args]. *)
-let do_connect host port args =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+let do_connect ip port args =
+	let (domain, host) = match ip with
+		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
+		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
+	in
+	let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with
 		| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
 		| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
@@ -710,14 +715,22 @@ and wait_loop verbose accept =
 	0
 
 (* Connect to given host/port and return accept function for communication *)
-and init_wait_connect host port =
+and init_wait_connect ip port =
+	let host = match ip with
+		| V4 ip -> V4.to_string ip
+		| V6 ip -> V6.to_string ip
+	in
 	let host = Unix.inet_addr_of_string host in
 	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
 	mk_length_prefixed_communication true chin chout
 
 (* The accept-function to wait for a socket connection. *)
-and init_wait_socket host port =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+and init_wait_socket ip port =
+	let (domain, host) = match ip with
+		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
+		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
+	in
+	let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
 	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
 	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
 	ServerMessage.socket_message ("Waiting on " ^ host ^ ":" ^ string_of_int port);

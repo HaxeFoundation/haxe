@@ -31,4 +31,5 @@ depends: [
   "conf-zlib"
   "conf-neko"
   "luv" {>= "0.5.12"}
+  "ipaddr"
 ]
