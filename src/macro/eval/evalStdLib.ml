@@ -2735,10 +2735,12 @@ module StdThread = struct
 		vnull
 	)
 
-	let kill = vifun0 (fun vthis ->
-		Thread.kill (this vthis).tthread;
-		vnull
-	)
+	(* Thread.kill has been marked deprecated (because unstable or even not working at all) for a while, and removed in ocaml 5 *)
+	(* See also https://github.com/HaxeFoundation/haxe/issues/5800 *)
+	(* let kill = vifun0 (fun vthis -> *)
+	(* 	Thread.kill (this vthis).tthread; *)
+	(* 	vnull *)
+	(* ) *)
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
@@ -3728,7 +3730,7 @@ let init_standard_library builtins =
 		"id",StdThread.id;
 		"get_events",StdThread.get_events;
 		"set_events",StdThread.set_events;
-		"kill",StdThread.kill;
+		(* "kill",StdThread.kill; *)
 		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["sys";"thread"],"Tls") [] [
