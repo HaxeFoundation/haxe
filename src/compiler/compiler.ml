@@ -572,8 +572,8 @@ module HighLevel = struct
 					(* If we are already connected, ignore (issue #10813) *)
 					loop acc l
 				else begin
-					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-					server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+					let host, port = Helper.parse_host_port hp in
+					server_api.do_connect host port ((List.rev acc) @ l);
 					[],None
 				end
 			| "--server-connect" :: hp :: l ->
