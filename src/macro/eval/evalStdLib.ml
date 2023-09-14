@@ -289,7 +289,7 @@ module StdBytes = struct
 	let compare = vifun1 (fun vthis other ->
 		let this = this vthis in
 		let other = decode_bytes other in
-		vint (Pervasives.compare this other)
+		vint (Stdlib.compare this other)
 	)
 
 	let fastGet = vfun2 (fun b pos ->
@@ -1694,13 +1694,13 @@ module StdMath = struct
 	let ceil = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (ceil (num v))))
 	let cos = vfun1 (fun v -> vfloat (cos (num v)))
 	let exp = vfun1 (fun v -> vfloat (exp (num v)))
-	let fceil = vfun1 (fun v -> vfloat (Pervasives.ceil (num v)))
-	let ffloor = vfun1 (fun v -> vfloat (Pervasives.floor (num v)))
+	let fceil = vfun1 (fun v -> vfloat (Stdlib.ceil (num v)))
+	let ffloor = vfun1 (fun v -> vfloat (Stdlib.floor (num v)))
 	let floor = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (floor (num v))))
-	let fround = vfun1 (fun v -> vfloat (Pervasives.floor (num v +. 0.5)))
+	let fround = vfun1 (fun v -> vfloat (Stdlib.floor (num v +. 0.5)))
 	let isFinite = vfun1 (fun v -> vbool (match v with VFloat f -> f <> infinity && f <> neg_infinity && f = f | _ -> true))
 	let isNaN = vfun1 (fun v -> vbool (match v with VFloat f -> f <> f | VInt32 _ -> false | _ -> true))
-	let log = vfun1 (fun v -> vfloat (Pervasives.log (num v)))
+	let log = vfun1 (fun v -> vfloat (Stdlib.log (num v)))
 
 	let max = vfun2 (fun a b ->
 		let a = num a in
@@ -1716,7 +1716,7 @@ module StdMath = struct
 
 	let pow = vfun2 (fun a b -> vfloat ((num a) ** (num b)))
 	let random = vfun0 (fun () -> vfloat (Random.State.float random 1.))
-	let round = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (Pervasives.floor (num v +. 0.5))))
+	let round = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (Stdlib.floor (num v +. 0.5))))
 	let sin = vfun1 (fun v -> vfloat (sin (num v)))
 
 	let sqrt = vfun1 (fun v ->
@@ -2690,7 +2690,7 @@ module StdSys = struct
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
+						Stdlib.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -3062,7 +3062,7 @@ module StdUtf8 = struct
 	let compare = vfun2 (fun a b ->
 		let a = decode_string a in
 		let b = decode_string b in
-		vint (Pervasives.compare a b)
+		vint (Stdlib.compare a b)
 	)
 
 	let decode = vfun1 (fun s ->

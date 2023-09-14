@@ -1111,7 +1111,7 @@ let interp ctx f args =
 			(match rtype r with
 			| HEnum e ->
 				let _, _, fl = e.efields.(f) in
-				let vl = Array.create (Array.length fl) VUndef in
+				let vl = Array.make (Array.length fl) VUndef in
 				set r (VEnum (e, f, vl))
 			| _ -> Globals.die "" __LOC__
 			)
@@ -1257,7 +1257,7 @@ let load_native ctx lib name t =
 			| _ -> Globals.die "" __LOC__)
 		| "alloc_array" ->
 			(function
-			| [VType t;VInt i] -> VArray (Array.create (int i) (default t),t)
+			| [VType t;VInt i] -> VArray (Array.make (int i) (default t),t)
 			| _ -> Globals.die "" __LOC__)
 		| "alloc_obj" ->
 			(function
@@ -1347,7 +1347,7 @@ let load_native ctx lib name t =
 		| "math_asin" -> (function [VFloat f] -> VFloat (asin f) | _ -> Globals.die "" __LOC__)
 		| "math_atan" -> (function [VFloat f] -> VFloat (atan f) | _ -> Globals.die "" __LOC__)
 		| "math_atan2" -> (function [VFloat a; VFloat b] -> VFloat (atan2 a b) | _ -> Globals.die "" __LOC__)
-		| "math_log" -> (function [VFloat f] -> VFloat (Pervasives.log f) | _ -> Globals.die "" __LOC__)
+		| "math_log" -> (function [VFloat f] -> VFloat (Stdlib.log f) | _ -> Globals.die "" __LOC__)
 		| "math_exp" -> (function [VFloat f] -> VFloat (exp f) | _ -> Globals.die "" __LOC__)
 		| "math_pow" -> (function [VFloat a; VFloat b] -> VFloat (a ** b) | _ -> Globals.die "" __LOC__)
 		| "parse_int" ->
@@ -1539,7 +1539,7 @@ let load_native ctx lib name t =
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						Pervasives.ignore (Process_helper.close_process_in_pid (ic, pid));
+						Stdlib.ignore (Process_helper.close_process_in_pid (ic, pid));
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -2147,7 +2147,7 @@ let add_code ctx code =
 	ctx.t_globals <- globals;
 	(* expand function table *)
 	let nfunctions = Array.length code.functions + Array.length code.natives in
-	let functions = Array.create nfunctions (FNativeFun ("",(fun _ -> Globals.die "" __LOC__),HDyn)) in
+	let functions = Array.make nfunctions (FNativeFun ("",(fun _ -> Globals.die "" __LOC__),HDyn)) in
 	Array.blit ctx.t_functions 0 functions 0 (Array.length ctx.t_functions);
 	let rec loop i =
 		if i = Array.length code.natives then () else
@@ -2191,7 +2191,7 @@ let add_code ctx code =
 (* ------------------------------- CHECK ---------------------------------------------- *)
 
 let check code macros =
-	let ftypes = Array.create (Array.length code.natives + Array.length code.functions) HVoid in
+	let ftypes = Array.make (Array.length code.natives + Array.length code.functions) HVoid in
 	let is_native_fun = Hashtbl.create 0 in
 
 	let check_fun f =
