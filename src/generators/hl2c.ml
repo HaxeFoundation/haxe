@@ -85,7 +85,7 @@ let sprintf = Printf.sprintf
 
 let keywords =
 	let c_kwds = [
-	"auto";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
+	"auto";"bool";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
 	"if";"int";"long";"register";"return";"short";"signed";"sizeof";"static";"struct";"switch";"typedef";"union";"unsigned";
 	"void";"volatile";"while";
 	(* Values *)
