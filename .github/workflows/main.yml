@@ -335,6 +335,7 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
+        if: matrix.ocaml == '4.08.1'
         run: |
           set -ex
           make -s xmldoc
