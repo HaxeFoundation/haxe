@@ -319,7 +319,7 @@ let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
 		let path2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		let m2 = ctx.com.module_lut#find path2 in
 		let hex1 = Digest.to_hex m.m_extra.m_sign in
 		let hex2 = Digest.to_hex m2.m_extra.m_sign in

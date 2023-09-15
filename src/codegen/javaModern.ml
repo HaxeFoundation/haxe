@@ -555,7 +555,7 @@ module PathConverter = struct
 	let jname_to_hx name =
 		let name =
 			if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
-				Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
+				Char.escaped (Char.uppercase_ascii (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
 			else
 				name
 		in
