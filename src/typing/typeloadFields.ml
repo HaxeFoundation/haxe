@@ -1820,7 +1820,7 @@ let init_class ctx c p context_init herits fields =
 			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
 				raise_typing_error "You can only declare static fields in extern interfaces" p;
 			let set_feature s =
-				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
+				ctx.m.curmod.m_extra.m_if_feature <- (s, (mk_class_field_ref c cf fctx.is_static fctx.is_macro)) :: ctx.m.curmod.m_extra.m_if_feature;
 			in
 			List.iter set_feature cl_if_feature;
 			List.iter set_feature (check_if_feature cf.cf_meta);

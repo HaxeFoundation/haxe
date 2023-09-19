@@ -40,7 +40,7 @@ type dce = {
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
 	mutable ts_stack : t list;
-	mutable features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
+	mutable features : (string, class_field_ref list) Hashtbl.t;
 }
 
 let push_class dce c =
@@ -49,6 +49,26 @@ let push_class dce c =
 	(fun () ->
 		dce.curclass <- old
 	)
+
+let find_field c name is_static =
+	match name with
+	| "new" when not is_static ->
+		begin match c.cl_constructor with Some cf -> cf | None -> raise Not_found end
+	| name ->
+		let fields = if is_static then c.cl_statics else c.cl_fields in
+		PMap.find name fields
+
+let resolve_class_field_ref ctx cfr =
+	let ctx = if cfr.cfr_is_macro && not ctx.is_macro_context then Option.get (ctx.get_macros()) else ctx in
+	let path = ctx.type_to_module#find cfr.cfr_path in
+	let m = ctx.module_lut#find path in
+
+	Option.get (ExtList.List.find_map (fun mt -> match mt with
+		| TClassDecl c when c.cl_path = cfr.cfr_path ->
+			let cf = find_field c cfr.cfr_field cfr.cfr_is_static in
+			Some (c, cf)
+		| _ -> None
+	) m.m_types)
 
 (* checking *)
 
@@ -138,8 +158,9 @@ let rec keep_field dce cf c is_static =
 let rec check_feature dce s =
 	try
 		let l = Hashtbl.find dce.features s in
-		List.iter (fun (c,cf,stat) ->
-			mark_field dce c cf stat
+		List.iter (fun cfr ->
+			let (c, cf) = resolve_class_field_ref dce.com cfr in
+			mark_field dce c cf cfr.cfr_is_static
 		) l;
 		Hashtbl.remove dce.features s;
 	with Not_found ->
@@ -152,10 +173,10 @@ and check_and_add_feature dce s =
 
 (* mark a field as kept *)
 and mark_field dce c cf stat =
-	let add cf =
+	let add c' cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			cf.cf_meta <- (mk_used_meta cf.cf_pos) :: cf.cf_meta;
-			dce.added_fields <- (c,cf,stat) :: dce.added_fields;
+			dce.added_fields <- (c',cf,stat) :: dce.added_fields;
 			dce.marked_fields <- cf :: dce.marked_fields;
 			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
 		end
@@ -163,7 +184,7 @@ and mark_field dce c cf stat =
 	if cf.cf_name = "new" then begin
 		let rec loop c =
 			begin match c.cl_constructor with
-				| Some cf -> add cf
+				| Some cf -> add c cf
 				| None -> ()
 			end;
 			match c.cl_super with
@@ -174,10 +195,10 @@ and mark_field dce c cf stat =
 	end else begin
 		if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
 			match c.cl_super with
-			| None -> add cf
+			| None -> add c cf
 			| Some (c,_) -> mark_field dce c cf stat
 		end else
-			add cf;
+			add c cf;
 		if not stat && is_physical_field cf then
 			match c.cl_constructor with
 				| None -> ()
@@ -319,14 +340,8 @@ let rec to_string dce t = match t with
 		()
 
 and field dce c n stat =
-	let find_field n =
-		if n = "new" then match c.cl_constructor with
-			| None -> raise Not_found
-			| Some cf -> cf
-		else PMap.find n (if stat then c.cl_statics else c.cl_fields)
-	in
 	(try
-		let cf = find_field n in
+		let cf = find_field c n stat in
 		mark_field dce c cf stat;
 	with Not_found -> try
 		if (has_class_flag c CInterface) then begin
