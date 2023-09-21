@@ -29,7 +29,6 @@ type server_message_options = {
 	mutable print_message : bool;
 	mutable print_socket_message : bool;
 	mutable print_uncaught_error : bool;
-	mutable print_new_context : bool;
 }
 
 let config = {
@@ -58,7 +57,6 @@ let config = {
 	print_message = false;
 	print_socket_message = false;
 	print_uncaught_error = false;
-	print_new_context = false;
 }
 
 let sign_string com =
@@ -196,8 +194,7 @@ let enable_all () =
 	config.print_stats <- true;
 	config.print_message <- true;
 	config.print_socket_message <- true;
-	config.print_uncaught_error <- true;
-	config.print_new_context <- true
+	config.print_uncaught_error <- true
 
 let set_by_name name value = match name with
 	| "compilerStage" -> config.print_compiler_stage <- value
@@ -224,5 +221,4 @@ let set_by_name name value = match name with
 	| "message" -> config.print_message <- value;
 	| "socketMessage" -> config.print_socket_message <- value;
 	| "uncaughtError" -> config.print_uncaught_error <- value;
-	| "newContext" -> config.print_new_context <- value;
 	| _ -> raise Not_found

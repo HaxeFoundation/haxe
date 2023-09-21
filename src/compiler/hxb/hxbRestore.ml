@@ -7,7 +7,6 @@ class hxb_restore
 = object(self)
 
 	method find (path : path) =
-		(* ServerMessage.debug_msg (Printf.sprintf "[1] Find %s from hxb" (s_type_path path)); *)
 		try begin
 			let m = com.module_lut#find path in
 			(match m.m_extra.m_cache_state with
@@ -16,11 +15,9 @@ class hxb_restore
 			)
 		end with
 		| Not_found ->
-			(* ServerMessage.debug_msg (Printf.sprintf "[2] Find %s from hxb" (s_type_path path)); *)
 			match cc#find_module_opt path with
 			| Some m -> m
 			| None ->
-				(* ServerMessage.debug_msg (Printf.sprintf "[3] Find %s from hxb" (s_type_path path)); *)
 				begin match cc#get_hxb_module path with
 					| None -> raise Not_found
 					| Some { mc_extra = { m_cache_state = MSBad reason }} -> raise (Bad_module (path, reason))
@@ -28,13 +25,8 @@ class hxb_restore
 				end
 
 	method load (mc : module_cache) =
-		(* ServerMessage.debug_msg (Printf.sprintf "[1] Load %s from hxb" (s_type_path mc.mc_path)); *)
 		let reader = new HxbReader.hxb_reader (self#make_module mc) self#add_module self#resolve_type (fun () -> ()) in
-		try
-			let m = reader#read (IO.input_bytes mc.mc_bytes) true null_pos in
-			(* ServerMessage.debug_msg (Printf.sprintf "[2] Loaded %s from hxb" (s_type_path mc.mc_path)); *)
-			m
-		with
+		try reader#read (IO.input_bytes mc.mc_bytes) true null_pos with
 		| Bad_module (path, reason) ->
 			ServerMessage.skipping_dep com "" (path,(Printer.s_module_skip_reason reason));
 			com.module_lut#remove mc.mc_path;
@@ -54,17 +46,12 @@ class hxb_restore
 
 	method resolve_type (pack : string list) (mname : string) (tname : string) =
 		let path = (pack,mname) in
-		(* ServerMessage.debug_msg (Printf.sprintf "  resolve type %s (%b)" (s_type_path path) (com.module_lut#mem path)); *)
 		try
-			let m = self#find path in
+			let m = try self#find path with Not_found -> print_endline "cannot find module"; raise Not_found in
 			List.find (fun t -> snd (t_path t) = tname) m.m_types
 		with
-		| Bad_module (_, reason) ->
-			ServerMessage.debug_msg (Printf.sprintf "  error resolving type %s (bad)" (s_type_path path));
-			raise (Bad_module (path, reason))
-		| Not_found ->
-			ServerMessage.debug_msg (Printf.sprintf "  error resolving type %s (not found)" (s_type_path path));
-			raise Not_found
+			| Bad_module (_, reason) -> raise (Bad_module (path, reason))
+			| Not_found -> raise Not_found
 
 	method make_module (mc : module_cache) (path : path) (file : string) =
 		{
@@ -85,3 +72,8 @@ end
 let find (cc : CompilationCache.context_cache) (com : Common.context) (path : path) =
 	let loader = new hxb_restore cc com in
 	loader#find path
+
+let find_type (cc : CompilationCache.context_cache) (com : Common.context) (path : path) =
+	let m = find cc com path in
+	List.find (fun t -> snd (t_path t) = (snd path)) m.m_types
+

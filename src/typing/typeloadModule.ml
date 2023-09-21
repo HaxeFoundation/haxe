@@ -310,9 +310,9 @@ module ModuleLevel = struct
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
-					let m_import = make_import_module path r in
-					add_module ctx m_import p;
-					add_dependency m m_import;
+					let mimport = make_import_module path r in
+					add_module ctx mimport p;
+					add_dependency m mimport;
 					r
 				end else begin
 					let r = [] in
@@ -854,32 +854,33 @@ and load_hxb_module ctx path p =
 		close_in ch;
 		raise e
 
-and load_module' ctx g m p =
+and load_module' ctx g mpath p =
 	try
 		(* Check current context *)
-		ctx.com.module_lut#find m
+		ctx.com.module_lut#find mpath
 	with Not_found ->
 		(* Check cache *)
-		match !type_module_hook ctx m p with
+		match !type_module_hook ctx mpath p with
 		| Some m ->
+			ctx.com.module_lut#add mpath m;
 			m
 		(* Try loading from hxb first, then from source *)
-		| None -> try load_hxb_module ctx m p with Not_found ->
-			let raise_not_found () = raise_error_msg (Module_not_found m) p in
-			if ctx.com.module_nonexistent_lut#mem m then raise_not_found();
+		| None -> try load_hxb_module ctx mpath p with Not_found ->
+			let raise_not_found () = raise_error_msg (Module_not_found mpath) p in
+			if ctx.com.module_nonexistent_lut#mem mpath then raise_not_found();
 			if ctx.g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
 			let file, decls = try
 				(* Try parsing *)
-				TypeloadParse.parse_module ctx m p
+				TypeloadParse.parse_module ctx mpath p
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
 					| [] ->
-						ctx.com.module_nonexistent_lut#add m true;
+						ctx.com.module_nonexistent_lut#add mpath true;
 						raise_not_found()
 					| (file,load) :: l ->
-						match load m p with
+						match load mpath p with
 						| None -> loop l
 						| Some (_,a) -> file, a
 				in
@@ -888,7 +889,7 @@ and load_module' ctx g m p =
 			in
 			let is_extern = !is_extern in
 			try
-				type_module ctx m file ~is_extern decls p
+				type_module ctx mpath file ~is_extern decls p
 			with Forbid_package (inf,pl,pf) when p <> null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 
