@@ -653,8 +653,8 @@ and class_type ?(tref=None) ctx c pl statics =
 				) in
 				Some fid
 			) in
-			match f.cf_kind, fid with
-			| Method _, Some fid -> p.pbindings <- (fid, alloc_fun_path ctx c.cl_path f.cf_name) :: p.pbindings
+			match f.cf_kind, f.cf_expr, fid with
+			| Method _, Some _, Some fid -> p.pbindings <- (fid, alloc_fun_path ctx c.cl_path f.cf_name) :: p.pbindings
 			| _ -> ()
 		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
 		if not statics then begin
@@ -3333,7 +3333,7 @@ let generate_static ctx c f =
 					(match f.cf_expr with
 					| Some { eexpr = TFunction fn } -> ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
 					| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
-					
+
 				else
 				add_native "std" f.cf_name
 			| (Meta.HlNative,[] ,_ ) :: _ ->
