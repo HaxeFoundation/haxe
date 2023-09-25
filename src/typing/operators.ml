@@ -239,14 +239,12 @@ let make_binop ctx op e1 e2 is_assign_op with_type p =
 			if unify_int ctx e1 KUnk then tint else tfloat
 		| KUnk , KFloat
 		| KUnk , KString  ->
-			unify ctx e1.etype e2.etype e1.epos;
-			e1.etype
+			e2.etype
 		| KInt , KUnk ->
 			if unify_int ctx e2 KUnk then tint else tfloat
 		| KFloat , KUnk
 		| KString , KUnk ->
-			unify ctx e2.etype e1.etype e2.epos;
-			e2.etype
+			e1.etype
 		| _ , KString
 		| KString , _ ->
 			tstring
