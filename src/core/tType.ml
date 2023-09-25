@@ -397,11 +397,16 @@ and module_def_extra = {
 	mutable m_features : (string,bool) Hashtbl.t;
 }
 
+and class_field_ref_kind =
+	| CfrStatic
+	| CfrMember
+	| CfrConstructor
+
 and class_field_ref = {
 	cfr_sign : string;
 	cfr_path : path;
 	cfr_field : string;
-	cfr_is_static : bool;
+	cfr_kind : class_field_ref_kind;
 	cfr_is_macro : bool;
 }
 
