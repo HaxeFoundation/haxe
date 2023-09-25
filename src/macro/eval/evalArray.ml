@@ -201,6 +201,6 @@ let resize a l =
 		set a (l - 1) vnull;
 		()
 	end else if a.alength > l then begin
-		ignore(splice a l (a.alength - l) a.alength);
-		()
+		Array.fill a.avalues l (a.alength - l) vnull;
+		a.alength <- l;
 	end else ()
