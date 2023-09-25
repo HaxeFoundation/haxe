@@ -713,7 +713,7 @@ let rec block_to_texpr_el ctx bb =
 		let block bb = block_to_texpr ctx bb in
 		let live bb = not ctx.did_optimize || not ctx.config.local_dce || has_block_flag bb BlockDce in
 		let if_live bb = if live bb then Some bb else None in
-		let rec loop bb se =
+		let loop bb se =
 			let get_terminator() = match bb.bb_terminator with
 				| TermCondBranch e1 -> e1
 				| _ -> die "" __LOC__

@@ -44,7 +44,7 @@ and compilation_context = {
 
 type compilation_callbacks = {
 	before_anything : compilation_context -> unit;
-	after_arg_parsing : compilation_context -> unit;
+	after_target_init : compilation_context -> unit;
 	after_compilation : compilation_context -> unit;
 }
 
@@ -54,11 +54,11 @@ type server_api = {
 	cache : CompilationCache.t;
 	callbacks : compilation_callbacks;
 	on_context_create : unit -> int;
-	init_wait_socket : string -> int -> server_accept;
-	init_wait_connect : string -> int -> server_accept;
+	init_wait_socket : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> server_accept;
+	init_wait_connect : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> server_accept;
 	init_wait_stdio : unit -> server_accept;
 	wait_loop : bool -> server_accept -> int;
-	do_connect : string -> int -> string list -> unit;
+	do_connect : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> string list -> unit;
 }
 
 let message ctx msg =

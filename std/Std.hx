@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#if !(core_api || cross || eval)
+#if !(core_api || cross || custom_target || eval)
 #error "Please don't add haxe/std to your classpath, instead set HAXE_STD_PATH env var"
 #end
 

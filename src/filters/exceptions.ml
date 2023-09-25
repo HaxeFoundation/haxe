@@ -3,8 +3,6 @@ open Ast
 open Type
 open Common
 open Typecore
-open TyperBase
-open Fields
 open Error
 
 let haxe_exception_type_path = (["haxe"],"Exception")
@@ -107,13 +105,13 @@ let is_in_list t lst =
 (**
 	Check if `t` can be thrown without wrapping.
 *)
-let rec is_native_throw ctx t =
+let is_native_throw ctx t =
 	ctx.throws_anything || is_in_list t ctx.config.ec_native_throws
 
 (**
 	Check if `t` can be caught without wrapping.
 *)
-let rec is_native_catch ctx t =
+let is_native_catch ctx t =
 	ctx.catches_anything || is_in_list t ctx.config.ec_native_catches
 
 (**
@@ -219,7 +217,7 @@ class catch ctx catch_local catch_pos =
 			let v =
 				match hx_exception_var with
 				| None ->
-					let v = alloc_var VGenerated "`" ctx.haxe_exception_type p in
+					let v = alloc_var VGenerated gen_local_prefix ctx.haxe_exception_type p in
 					hx_exception_var <- Some v;
 					v
 				| Some v -> v
@@ -230,7 +228,7 @@ class catch ctx catch_local catch_pos =
 			let v =
 				match unwrapped_var with
 				| None ->
-					let v = alloc_var VGenerated "`" t_dynamic p in
+					let v = alloc_var VGenerated gen_local_prefix t_dynamic p in
 					unwrapped_var <- Some v;
 					(* unwrapped_local <- Some e; *)
 					v
@@ -264,7 +262,7 @@ let catches_to_ifs ctx catches t p =
 	match catches with
 	| [] -> []
 	| ((first_v, first_body) :: _) as rest ->
-		let catch_var = alloc_var VGenerated "`" ctx.wildcard_catch_type first_v.v_pos in
+		let catch_var = alloc_var VGenerated gen_local_prefix ctx.wildcard_catch_type first_v.v_pos in
 		add_var_flag catch_var VCaught;
 		let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 		let body =
@@ -398,7 +396,7 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 			| Some (catch_var, _) ->
 				catch_var
 			| None ->
-				let catch_var = alloc_var VGenerated "`" ctx.value_exception_type first_v.v_pos in
+				let catch_var = alloc_var VGenerated gen_local_prefix ctx.value_exception_type first_v.v_pos in
 				add_var_flag catch_var VCaught;
 				catch_var
 		in
@@ -482,9 +480,11 @@ let catch_native ctx catches t p =
 			)
 		(* Haxe-specific wildcard catches should go to if-fest because they need additional handling *)
 		| (v,_) :: _ when is_haxe_wildcard_catch ctx v.v_type ->
-			(match handle_as_value_exception with
-			| [] ->
+			(match handle_as_value_exception, value_exception_catch with
+			| [], None ->
 				catches_to_ifs ctx catches t p
+			| [], Some catch ->
+				catches_to_ifs ctx [catch] t p
 			| _ ->
 				catches_as_value_exception ctx handle_as_value_exception None t p
 				:: catches_to_ifs ctx catches t p
@@ -587,7 +587,7 @@ let filter tctx =
 			if contains_throw_or_try e then run e
 			else stub e
 		)
-	| Cross -> stub
+	| Cross | CustomTarget _ -> stub
 
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.

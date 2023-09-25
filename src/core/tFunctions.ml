@@ -233,8 +233,8 @@ let null_abstract = {
 }
 
 let add_dependency ?(skip_postprocess=false) m mdep =
-	if m != null_module && m != mdep then begin
-		m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps;
+	if m != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
+		m.m_extra.m_deps <- PMap.add mdep.m_id (mdep.m_extra.m_sign, mdep.m_path) m.m_extra.m_deps;
 		(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
 		if not skip_postprocess then m.m_extra.m_processed <- 0
 	end

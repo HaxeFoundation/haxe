@@ -1,5 +1,4 @@
 open Globals
-open Constructor
 open Type
 open MatcherGlobals
 

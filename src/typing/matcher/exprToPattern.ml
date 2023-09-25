@@ -193,7 +193,7 @@ let rec make pctx toplevel t e =
 			let restore = catch_errors () in
 			begin try
 				let mt = module_type_of_type t in
-				let e_mt = TyperBase.type_module_type ctx mt None p in
+				let e_mt = TyperBase.type_module_type ctx mt p in
 				let e = type_field_access ctx ~resume:true e_mt s in
 				restore();
 				check_expr e
@@ -412,6 +412,9 @@ let rec make pctx toplevel t e =
 			restore();
 			let pat = make pctx toplevel e1.etype e2 in
 			PatExtractor {ex_var = v; ex_expr = e1; ex_pattern = pat}
+		| EBinop((OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte | OpBoolAnd | OpBoolOr),_,_) ->
+			let e_rhs = (EConst (Ident "true"),null_pos) in
+			loop (EBinop(OpArrow,e,e_rhs),(pos e))
 		(* Special case for completion on a pattern local: We don't want to add the local to the context
 		   while displaying (#7319) *)
 		| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
@@ -433,7 +436,7 @@ let rec make pctx toplevel t e =
 			ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) MGet (WithType.with_type t));
 			pat
 		| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
-			let e1 = MacroContext.type_stored_expr ctx e1 in
+			let e1 = TyperBase.type_stored_expr ctx e1 in
 			loop (TExprToExpr.convert_expr e1)
 		| _ ->
 			fail()

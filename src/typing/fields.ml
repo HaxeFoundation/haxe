@@ -347,7 +347,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 				| Statics { cl_kind = KAbstractImpl a } ->
 					type_field_by_forward_static (fun() ->
 						let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
-						let et = type_module_type ctx mt None p in
+						let et = type_module_type ctx mt p in
 						type_field_by_e type_field_by_type et
 					) a
 				| _ -> raise Not_found

@@ -166,7 +166,7 @@ module Monomorph = struct
 		| CMixed l ->
 			List.iter (fun constr -> check_down_constraints constr t) l
 
-	let rec collect_up_constraints m =
+	let collect_up_constraints m =
 		let rec collect m acc =
 			List.fold_left (fun acc (t,name) ->
 				match t with
@@ -286,7 +286,7 @@ let rec follow_and_close t = match follow t with
 	| t ->
 		t
 
-let rec link e a b =
+let link e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
 		if t == a then

@@ -52,7 +52,6 @@ let valid_redefinition ctx map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
-	let open OptimizerTexpr in
 	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
 		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),f2.cf_pos],null_pos) :: f1.cf_meta
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
@@ -324,7 +323,7 @@ let check_module_types ctx m p t =
 	let t = t_infos t in
 	try
 		let path2 = ctx.com.type_to_module#find t.mt_path in
-		if m.m_path <> path2 && String.lowercase (s_type_path path2) = String.lowercase (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 		let m2 = ctx.com.module_lut#find path2 in
 		let hex1 = Digest.to_hex m.m_extra.m_sign in
 		let hex2 = Digest.to_hex m2.m_extra.m_sign in
@@ -569,8 +568,10 @@ module Inheritance = struct
 					   purpose. However, we STILL have to delay the check because at the time pending is handled, the class
 					   is not built yet. See issue #10847. *)
 					pending := (fun () -> delay ctx PConnectField check_interfaces_or_delay) :: !pending
-				| _ ->
+				| _ when ctx.com.display.dms_full_typing ->
 					check_interfaces ctx c
+				| _ ->
+					()
 			in
 			if is_extends then begin
 				if c.cl_super <> None then raise_typing_error "Cannot extend several classes" p;

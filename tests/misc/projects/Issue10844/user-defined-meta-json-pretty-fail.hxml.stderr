@@ -2,9 +2,9 @@
 
    | Uncaught exception Could not read file meta.jsno
 
-    ->  $$normPath(::std::)/haxe/macro/Compiler.hx:487: characters 11-39
+    ->  $$normPath(::std::)/haxe/macro/Compiler.hx:498: characters 11-39
 
-    487 |   var f = sys.io.File.getContent(path);
+    498 |   var f = sys.io.File.getContent(path);
         |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         | Called from here
 

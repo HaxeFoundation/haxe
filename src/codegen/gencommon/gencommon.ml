@@ -60,7 +60,6 @@ open Globals
 open Option
 open Printf
 open ExtString
-open Codegen
 open Overloads
 
 (* ******************************************* *)

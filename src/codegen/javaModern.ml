@@ -422,7 +422,7 @@ module JReaderModern = struct
 			let len = read_i32 ch in
 			ignore(IO.nread_string ch len); (* code *)
 			let len = read_ui16 ch in
-			for i = 0 to len - 1 do
+			for _ = 0 to len - 1 do
 				ignore(IO.nread_string ch 8);
 			done; (* exceptions *)
 			let attribs = parse_attributes consts ch in
@@ -555,7 +555,7 @@ module PathConverter = struct
 	let jname_to_hx name =
 		let name =
 			if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
-				Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
+				Char.escaped (Char.uppercase_ascii (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
 			else
 				name
 		in

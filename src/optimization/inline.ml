@@ -6,10 +6,6 @@ open Common
 open Typecore
 open Error
 
-let needs_inline ctx is_extern_class cf =
-	cf.cf_kind = Method MethInline && ctx.allow_inline
-	&& (ctx.g.doinline || is_extern_class || has_class_field_flag cf CfExtern)
-
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
@@ -510,14 +506,14 @@ class inline_state ctx ethis params cf f p = object(self)
 						| VIInline ->
 							begin match e'.eexpr with
 								(* If we inline a function expression, we have to duplicate its locals. *)
-								| TFunction _ -> Texpr.duplicate_tvars e'
+								| TFunction _ -> Texpr.duplicate_tvars e_identity e'
 								| TCast(e1,None) when in_assignment -> e1
 								| _ -> e'
 							end
 						| VIInlineIfCalled when in_call ->
 							(* We allow inlining function expressions into call-places. However, we have to substitute
 							   their locals to avoid duplicate declarations. *)
-							Texpr.duplicate_tvars e'
+							Texpr.duplicate_tvars e_identity e'
 						| _ -> e
 					end
 				with Not_found ->
@@ -593,7 +589,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				mk (TBlock (DynArray.to_list el)) tret e.epos
 		in
 		let e = inline_metadata e cf.cf_meta in
-		let e = Diagnostics.secure_generated_code ctx e in
+		let e = Diagnostics.secure_generated_code ctx.com e in
 		if has_params then begin
 			let mt = map_type cf.cf_type in
 			let unify_func () = unify_raise mt (TFun (tl,tret,false)) p in
@@ -660,7 +656,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		) in
 		(match api_inline ctx cl cf.cf_name params p with
 		| None -> raise Exit
-		| Some e -> Some e)
+		| Some e -> e)
 	with Exit ->
 	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
 	let params = inline_rest_params ctx f params map_type p in
@@ -835,10 +831,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			state#set_side_effect;
 			begin match follow t with
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
-				begin match type_inline_ctor ctx c cf tf ethis el po with
-				| Some e -> map term false e
-				| None -> raise_typing_error "Could not inline super constructor call" po
-				end
+				let e = type_inline_ctor ctx c cf tf ethis el po in
+				map term false e
 			| _ -> raise_typing_error "Cannot inline function containing super" po
 			end
 		| TCall(e1,el) ->
@@ -880,7 +874,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			(se "\t" e)
 		);
 	end;
-	Some e
+	e
 
 (* Same as type_inline, but modifies the function body to add field inits *)
 and type_inline_ctor ctx c cf tf ethis el po =

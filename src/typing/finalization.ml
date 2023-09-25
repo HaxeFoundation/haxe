@@ -1,5 +1,4 @@
 open Globals
-open Ast
 open Common
 open Type
 open Error
@@ -44,7 +43,7 @@ let get_main ctx types =
 		in
 		if not (ExtType.is_void (follow r)) then raise_typing_error (Printf.sprintf "Return type of main function should be Void (found %s)" (s_type (print_context()) r)) f.cf_name_pos;
 		f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
-		let emain = type_module_type ctx (TClassDecl c) None null_pos in
+		let emain = type_module_type ctx (TClassDecl c) null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
 		let call_static path method_name =
 			let et = List.find (fun t -> t_path t = path) types in

@@ -2,7 +2,6 @@ open Globals
 open Common
 open Json
 open DisplayTypes
-open DisplayTypes
 open Type
 open Genjson
 open MessageKind
@@ -11,14 +10,16 @@ type t = {
 	diag_kind : MessageKind.t;
 	diag_pos : pos;
 	diag_severity : MessageSeverity.t;
+	diag_code : string option;
 	diag_args : Json.t;
 	mutable diag_related_information : (pos * int * string) list;
 }
 
-let make_diagnostic kd p sev args = {
+let make_diagnostic kd p sev code args = {
 	diag_kind = kd;
 	diag_pos = p;
 	diag_severity = sev;
+	diag_code = code;
 	diag_args = args;
 	diag_related_information = [];
 }
@@ -60,7 +61,7 @@ let json_of_diagnostics com dctx =
 			Hashtbl.replace diagnostics file (diag :: fdiag)
 	in
 	let file_keys = new Common.file_keys in
-	let add dk p sev args =
+	let add dk p sev code args =
 		let append = match dk with
 			| DKUnusedImport
 			| DKRemovableCode
@@ -74,7 +75,7 @@ let json_of_diagnostics com dctx =
 				true
 		in
 		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then begin
-			let diag = make_diagnostic dk p sev args in
+			let diag = make_diagnostic dk p sev code args in
 			current := Some diag;
 			add append diag
 		end else current := None
@@ -97,19 +98,19 @@ let json_of_diagnostics com dctx =
 					"name",JString s;
 				])
 		) suggestions in
-		add DKUnresolvedIdentifier p MessageSeverity.Error (JArray suggestions);
+		add DKUnresolvedIdentifier p MessageSeverity.Error None (JArray suggestions);
 	) dctx.unresolved_identifiers;
-	List.iter (fun (s,p,kind,sev,depth) -> match (depth, !current) with
-		| d, Some diag when d > 0 ->
-			let lines = ExtString.String.nsplit s "\n" in
+	List.iter (fun d -> match (d.diag_depth, !current) with
+		| depth, Some diag when depth > 0 ->
+			let lines = ExtString.String.nsplit d.diag_message "\n" in
 			(match lines with
 				| [] -> ()
 				| s :: sub ->
-					let related = List.fold_left (fun acc s -> (p,d,Error.compl_msg s) :: acc) diag.diag_related_information sub in
-					diag.diag_related_information <- (p,d,s) :: related;
+					let related = List.fold_left (fun acc s -> (d.diag_pos,depth,Error.compl_msg s) :: acc) [] (List.rev sub) in
+					diag.diag_related_information <- List.append diag.diag_related_information ((d.diag_pos,depth,s) :: related);
 			)
 		| 0, _ ->
-			add kind p sev (JString s)
+			add d.diag_kind d.diag_pos d.diag_severity d.diag_code (JString d.diag_message)
 		| _ ->
 			(* Do not add errors with depth greater than one as top level diagnostic. *)
 			(* This could happen when running diagnostics for a file that is wentioned in *)
@@ -177,22 +178,23 @@ let json_of_diagnostics com dctx =
 			"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mt).mt_module.m_extra.m_file);
 			"entries",jarray l
 		] in
-		add DKMissingFields p MessageSeverity.Error j
+		add DKMissingFields p MessageSeverity.Error None j
 	) dctx.missing_fields;
 	(* non-append from here *)
 	begin match Warning.get_mode WDeprecated com.warning_options with
 	| WMEnable ->
 		Hashtbl.iter (fun _ (s,p) ->
-			add DKDeprecationWarning p MessageSeverity.Warning (JString s);
+			let wobj = Warning.warning_obj WDeprecated in
+			add DKDeprecationWarning p MessageSeverity.Warning (Some wobj.w_name) (JString s);
 		) DeprecationCheck.warned_positions;
 	| WMDisable ->
 		()
 	end;
 	PMap.iter (fun p r ->
-		if not !r then add DKUnusedImport p MessageSeverity.Warning (JArray [])
+		if not !r then add DKUnusedImport p MessageSeverity.Warning None (JArray [])
 	) dctx.import_positions;
 	List.iter (fun (s,p,prange) ->
-		add DKRemovableCode p MessageSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
+		add DKRemovableCode p MessageSeverity.Warning None (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 	) dctx.removable_code;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->
@@ -201,7 +203,7 @@ let json_of_diagnostics com dctx =
 					"string",JString (Ast.Printer.s_expr e)
 				]
 			] in
-			add DKInactiveBlock p MessageSeverity.Hint jo
+			add DKInactiveBlock p MessageSeverity.Hint None jo
 		) ranges
 	) dctx.dead_blocks;
 	let jl = Hashtbl.fold (fun file diag acc ->
@@ -211,8 +213,9 @@ let json_of_diagnostics com dctx =
 				"severity",JInt (MessageSeverity.to_int diag.diag_severity);
 				"range",Genjson.generate_pos_as_range diag.diag_pos;
 				"args",diag.diag_args;
+				"code",(match diag.diag_code with None -> JNull | Some c -> JString c);
 				"relatedInformation",JArray (
-					List.rev_map (fun (pos,depth,msg) -> (JObject [
+					List.map (fun (pos,depth,msg) -> (JObject [
 						"location",Genjson.generate_pos_as_location pos;
 						"depth",JInt depth;
 						"message",JString msg;

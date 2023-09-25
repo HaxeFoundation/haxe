@@ -390,7 +390,7 @@ and module_def_extra = {
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_deps : (int,(string (* sign *) * path)) PMap.t;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
@@ -458,3 +458,7 @@ type flag_tvar =
 	| VAssigned
 	| VCaught
 	| VStatic
+
+let flag_tvar_names = [
+	"VCaptured";"VFinal";"VUsed";"VAssigned";"VCaught";"VStatic"
+]

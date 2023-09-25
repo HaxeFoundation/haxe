@@ -4,7 +4,6 @@ open Type
 open Typecore
 open Common
 open Error
-open DisplayTypes
 open MatcherGlobals
 open DecisionTree
 open Constructor
@@ -24,7 +23,7 @@ let constructor_to_texpr ctx con =
 	| ConEnum(en,ef) -> mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
 	| ConConst ct -> make_const_texpr ctx.com.basic ct p
 	| ConArray i -> make_int ctx.com.basic i p
-	| ConTypeExpr mt -> TyperBase.type_module_type ctx mt None p
+	| ConTypeExpr mt -> TyperBase.type_module_type ctx mt p
 	| ConStatic(c,cf) -> make_static_field c cf p
 	| ConFields _ -> raise_typing_error "Something went wrong" p
 
@@ -78,9 +77,10 @@ let unify_constructor ctx params t con =
 	| _ ->
 		Some(con,params)
 
-let rec extract_const e = match e.eexpr with
-	| TConst ct -> Some ct
-	| TCast(e1,None) -> extract_const e1
+let rec extract_ctor e = match e.eexpr with
+	| TConst ct -> Some (ConConst ct)
+	| TField(_,FEnum(en,ef)) -> Some (ConEnum(en,ef))
+	| TCast(e1,None) -> extract_ctor e1
 	| _ -> None
 
 let all_ctors ctx e cases =
@@ -118,32 +118,37 @@ let all_ctors ctx e cases =
 	let add constructor =
 		Compile.ConTable.replace h constructor true
 	in
-	let rec loop t = match follow t with
+	let rec loop deep t = match follow t with
 		| TAbstract({a_path = [],"Bool"},_) ->
-			add (ConConst(TBool true),null_pos);
-			add (ConConst(TBool false),null_pos);
+			if not deep then begin
+				add (ConConst(TBool true),null_pos);
+				add (ConConst(TBool false),null_pos);
+			end;
 			SKValue,RunTimeFinite
 		| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
-			List.iter (fun cf ->
+			if not deep then List.iter (fun cf ->
 				ignore(follow cf.cf_type);
 				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
 					| Some e ->
-						begin match extract_const e with
-						| Some ct -> if ct <> TNull then add (ConConst ct,null_pos)
+						begin match extract_ctor e with
+						| Some (ConConst TNull) -> ()
+						| Some ctor -> add (ctor,null_pos)
 						| None -> add (ConStatic(c,cf),null_pos)
 						end;
 					| _ -> add (ConStatic(c,cf),null_pos)
 			) c.cl_ordered_statics;
-			SKValue,CompileTimeFinite
+			let real_kind,_ = loop true (Abstract.get_underlying_type a pl) in
+			real_kind,CompileTimeFinite
 		| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-			loop (Abstract.get_underlying_type a pl)
+			loop deep (Abstract.get_underlying_type a pl)
 		| TInst({cl_path=[],"String"},_)
 		| TInst({cl_kind = KTypeParameter _ },_) ->
 			SKValue,Infinite
 		| TInst({cl_path=[],"Array"},_) ->
 			SKLength,Infinite
 		| TEnum(en,pl) ->
-			PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
+			if not deep then
+				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
 			SKEnum,RunTimeFinite
 		| TAnon _ ->
 			SKValue,Infinite
@@ -152,7 +157,7 @@ let all_ctors ctx e cases =
 		| _ ->
 			SKValue,Infinite
 	in
-	let kind,finiteness = loop t in
+	let kind,finiteness = loop false t in
 	let compatible_kind con = match fst con with
 		| ConEnum _ -> kind = SKEnum
 		| ConArray _ -> kind = SKLength
@@ -169,12 +174,12 @@ let report_not_exhaustive v_lookup e_subject unmatched =
 	let sl = match follow e_subject.etype with
 		| TAbstract({a_impl = Some c} as a,tl) when a.a_enum ->
 			List.map (fun (con,_) -> match fst con with
-				| ConConst ct1 ->
+				| ConConst _ | ConEnum _ ->
 					let cf = List.find (fun cf ->
 						match cf.cf_expr with
 						| Some e ->
-							begin match extract_const e with
-							| Some ct2 -> ct1 = ct2
+							begin match extract_ctor e with
+							| Some ctor -> Constructor.equal (ctor,null_pos) con
 							| None -> false
 							end
 						| _ -> false
@@ -188,7 +193,7 @@ let report_not_exhaustive v_lookup e_subject unmatched =
 	in
 	let s = match unmatched with
 		| [] -> "_"
-		| _ -> String.concat " | " (List.sort Pervasives.compare sl)
+		| _ -> String.concat " | " (List.sort Stdlib.compare sl)
 	in
 	raise_typing_error (Printf.sprintf "Unmatched patterns: %s" (s_subject v_lookup s e_subject)) e_subject.epos
 
@@ -292,7 +297,7 @@ let to_texpr ctx t_switch with_type dt =
 						| [{case_patterns = [{eexpr = TConst (TBool false)}];case_expr = e2};{case_patterns = [{eexpr = TConst (TBool true)}];case_expr = e1}],None,_ ->
 							mk (TIf(e_subject,e1,Some e2)) t_switch dt.dt_pos
 						| _ ->
-							let is_exhaustive = match finiteness with
+							let is_exhaustive = e_default <> None || match finiteness with
 								| RunTimeFinite | CompileTimeFinite when e_default = None ->
 									true
 								| _ ->
@@ -388,4 +393,4 @@ let to_texpr ctx t_switch with_type dt =
 	| None ->
 		raise_typing_error "Unmatched patterns: _" p;
 	| Some e ->
-		Texpr.duplicate_tvars e
+		Texpr.duplicate_tvars e_identity e

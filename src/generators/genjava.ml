@@ -18,12 +18,9 @@
  *)
 open Extlib_leftovers
 open Globals
-open JData
-open Unix
 open Ast
 open Common
 open Type
-open Codegen
 open Gencommon
 open Gencommon.SourceWriter
 open Printf
@@ -1055,7 +1052,7 @@ let generate con =
 		String.map (function | '$' -> '.' | c -> c) name
 	in
 	let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
-	let rec change_ns ns = match ns with
+	let change_ns ns = match ns with
 		| [] -> ["haxe"; "root"]
 		| _ -> List.map change_id ns
 	in
@@ -1374,7 +1371,7 @@ let generate con =
 
 	let in_value = ref false in
 
-	let rec md_s pos md =
+	let md_s pos md =
 		let md = follow_module (gen.gfollow#run_f) md in
 		match md with
 			| TClassDecl (cl) ->
@@ -2664,7 +2661,7 @@ let generate con =
 	let res = ref [] in
 	Hashtbl.iter (fun name v ->
 		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
-		let name = Codegen.escape_res_name name true in
+		let name = Codegen.escape_res_name name ['/'] in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
 		Path.mkdir_from_path full_path;
 

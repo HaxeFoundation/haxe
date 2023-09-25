@@ -71,14 +71,15 @@ let run_command ctx cmd =
 
 module Setup = struct
 	let initialize_target ctx com actx =
+		init_platform com;
 		let add_std dir =
 			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 		in
 		match com.platform with
 			| Cross ->
-				(* no platform selected *)
-				set_platform com Cross "";
 				"?"
+			| CustomTarget name ->
+				name
 			| Flash ->
 				let rec loop = function
 					| [] -> ()
@@ -142,7 +143,14 @@ module Setup = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "" __LOC__);
+				if not (Common.defined com Define.HlVer) then begin
+					let hl_ver = try
+						Std.input_file (Common.find_file com "hl/hl_version")
+					with Not_found ->
+						failwith "The file hl_version could not be found. Please make sure HAXE_STD_PATH is set to the standard library corresponding to the used compiler version."
+					in
+					Define.define_value com.defines Define.HlVer hl_ver
+				end;
 				"hl"
 			| Eval ->
 				add_std "eval";
@@ -159,7 +167,6 @@ module Setup = struct
 		) com.defines.values;
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
-		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 		com.callbacks#run com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
@@ -301,17 +308,37 @@ let finalize_typing ctx tctx =
 let filter ctx tctx =
 	let t = Timer.timer ["filters"] in
 	DeprecationCheck.run ctx.com;
-	Filters.run ctx.com tctx ctx.com.main;
+	Filters.run tctx ctx.com.main;
 	t()
 
-let compile ctx actx =
+let call_light_init_macro com path =
+	let open MacroContext in
+	let mctx = create_macro_context com in
+	let api = make_macro_com_api com null_pos in
+	let init = create_macro_interp api mctx in
+	MacroContext.MacroLight.call_init_macro com mctx api path;
+	(init,mctx)
+
+let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	let mctx = match com.platform with
+		| CustomTarget name ->
+			begin try
+				Some (call_light_init_macro com (Printf.sprintf "%s.Init.init()" name))
+			with (Error.Error { err_message = Module_not_found ([pack],"Init") }) when pack = name ->
+				(* ignore if <target_name>.Init doesn't exist *)
+				None
+			end
+		| _ ->
+			None
+		in
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
-	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
+	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
+	callbacks.after_target_init ctx;
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
@@ -321,6 +348,7 @@ let compile ctx actx =
 	end else begin
 		(* Actual compilation starts here *)
 		let tctx = Setup.create_typer_context ctx actx.native_libs in
+		tctx.g.macros <- mctx;
 		com.stage <- CTyperCreated;
 		let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 		begin try
@@ -434,8 +462,7 @@ let compile_ctx callbacks ctx =
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_actx ctx actx;
-			callbacks.after_arg_parsing ctx;
-			compile ctx actx;
+			compile ctx actx callbacks;
 		);
 		finalize ctx;
 		callbacks.after_compilation ctx;
@@ -545,8 +572,8 @@ module HighLevel = struct
 					(* If we are already connected, ignore (issue #10813) *)
 					loop acc l
 				else begin
-					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-					server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+					let host, port = Helper.parse_host_port hp in
+					server_api.do_connect host port ((List.rev acc) @ l);
 					[],None
 				end
 			| "--server-connect" :: hp :: l ->

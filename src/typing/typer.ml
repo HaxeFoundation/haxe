@@ -19,7 +19,6 @@
 open Extlib_leftovers
 open Ast
 open DisplayTypes.DisplayMode
-open DisplayException
 open DisplayTypes.CompletionResultKind
 open CompletionItem.ClassFieldOrigin
 open Common
@@ -332,8 +331,9 @@ let rec type_ident_raise ctx i p mode with_type =
 				let t = match with_type with
 					| WithType.WithType(t,_) ->
 						begin match follow t with
-						| TMono r ->
-							(* If our expected type is a monomorph, bind it to Null<?>. *)
+						| TMono r when not (is_nullable t) ->
+							(* If our expected type is a monomorph, bind it to Null<?>. The is_nullable check is here because
+							   the expected type could already be Null<?>, in which case we don't want to double-wrap (issue #11286). *)
 							Monomorph.do_bind r (tnull())
 						| _ ->
 							(* Otherwise there's no need to create a monomorph, we can just type the null literal
@@ -402,7 +402,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		| None -> raise Not_found
 		| Some c ->
 			let f = PMap.find i c.cl_statics in
-			let e = type_module_type ctx (TClassDecl c) None p in
+			let e = type_module_type ctx (TClassDecl c) p in
 			field_access ctx mode f (FHStatic c) e p
 		)
 	with Not_found -> try
@@ -425,7 +425,7 @@ let rec type_ident_raise ctx i p mode with_type =
 						if not (has_class_field_flag cf CfEnum) then
 							loop l
 						else begin
-							let et = type_module_type ctx (TClassDecl c) None p in
+							let et = type_module_type ctx (TClassDecl c) p in
 							let inline = match cf.cf_kind with
 								| Var {v_read = AccInline} -> true
 								|  _ -> false
@@ -447,7 +447,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				| TEnumDecl e ->
 					try
 						let ef = PMap.find i e.e_constrs in
-						let et = type_module_type ctx t None p in
+						let et = type_module_type ctx t p in
 						ImportHandling.mark_import_position ctx pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
 					with
@@ -458,7 +458,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
 		ImportHandling.mark_import_position ctx pi;
-		let e = type_module_type ctx t None p in
+		let e = type_module_type ctx t p in
 		type_field_default_cfg ctx e name p mode with_type
 
 and type_ident ctx i p mode with_type =
@@ -476,7 +476,7 @@ and type_ident ctx i p mode with_type =
 			resolved_to_type_parameter := true;
 			let c = match follow (extract_param_type t) with TInst(c,_) -> c | _ -> die "" __LOC__ in
 			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
-				let e = type_module_type ctx (TClassDecl c) None p in
+				let e = type_module_type ctx (TClassDecl c) p in
 				AKExpr {e with etype = (extract_param_type t)}
 			end else
 				raise Not_found
@@ -929,7 +929,7 @@ and type_object_decl ctx fl with_type p =
 		t, fl
 	in
 	let type_plain_fields () =
-		let rec loop (l,acc) ((f,pf,qs),e) =
+		let loop (l,acc) ((f,pf,qs),e) =
 			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then raise_typing_error ("Duplicate field in object declaration : " ^ f) pf;
 			let e = type_expr ctx e (WithType.named_structure_field f) in
@@ -1126,7 +1126,7 @@ and type_new ctx path el with_type force_inline p =
 		raise_typing_error (s_type (print_context()) t ^ " cannot be constructed") p
 	end with Error ({ err_message = No_constructor _ } as err) when ctx.com.display.dms_kind <> DMNone ->
 		display_error_ext ctx.com err;
-		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
+		Diagnostics.secure_generated_code ctx.com (mk (TConst TNull) t p)
 
 and type_try ctx e1 catches with_type p =
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
@@ -1269,7 +1269,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let cf = PMap.find "set" c.cl_statics in
 	let v = gen_local ctx tmap p in
 	let ev = mk (TLocal v) tmap p in
-	let ec = type_module_type ctx (TClassDecl c) None p in
+	let ec = type_module_type ctx (TClassDecl c) p in
 	let ef = mk (TField(ec,FStatic(c,cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
 	let el = ev :: List.map2 (fun e1 e2 -> (make_call ctx ef [ev;e1;e2] ctx.com.basic.tvoid p)) el_k el_v in
 	let enew = mk (TNew(c,[tkey;tval],[])) tmap p in
@@ -1686,7 +1686,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| _ -> e()
 			end
 		| (Meta.StoredTypedExpr,_,_) ->
-			MacroContext.type_stored_expr ctx e1
+			type_stored_expr ctx e1
 		| (Meta.NoPrivateAccess,_,_) ->
 			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 			e()
@@ -1724,6 +1724,9 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 				type_local_function ctx kind f with_type p true
 			| _ -> e()
 			end
+		(* Allow `${...}` reification because it's a noop and happens easily with macros *)
+		| (Meta.Dollar "",_,p) ->
+			e()
 		| (Meta.Dollar s,_,p) ->
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()
@@ -1831,7 +1834,7 @@ and type_call_builtin ctx e el mode with_type p =
 		| _ ->
 			let e = type_expr ctx e WithType.value in
 			warning ctx WInfo (s_type (print_context()) e.etype) e.epos;
-			let e = Diagnostics.secure_generated_code ctx e in
+			let e = Diagnostics.secure_generated_code ctx.com e in
 			e
 		end
 	| (EField(e,"match",efk_todo),p), [epat] ->
@@ -1932,19 +1935,24 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let vr = new value_reference ctx in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
-		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull e1.etype} in
+		let tmin = unify_min ctx [e1; e2] in
+		let e1 = vr#as_var "tmp" {e1 with etype = ctx.t.tnull tmin} in
 		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
 
-		let follow_null_once t =
+		let rec follow_null t =
 			match t with
-			| TAbstract({a_path = [],"Null"},[t]) -> t
+			| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
 			| _ -> t
 		in
 		let iftype = if DeadEnd.has_dead_end e2 then
-			WithType.with_type (follow_null_once e1.etype)
+			WithType.with_type (follow_null e1.etype)
 		else
-			WithType.WithType(e2.etype,None)
+			let t = match e2.etype with
+				| TAbstract({a_path = [],"Null"},[t]) -> tmin
+				| _ -> follow_null tmin
+			in
+			WithType.with_type t
 		in
 		let e_if = make_if_then_else ctx e_cond e1 e2 iftype p in
 		vr#to_texpr e_if
@@ -2096,7 +2104,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			let mt = Typeload.load_type_def ctx p_t tp in
 			if ctx.in_display && DisplayPosition.display_position#enclosed_in p_t then
 				DisplayEmitter.display_module_type ctx mt p_t;
-			let e_t = type_module_type ctx mt None p_t in
+			let e_t = type_module_type ctx mt p_t in
 			let e_Std_isOfType =
 				match Typeload.load_type_raise ctx ([],"Std") "Std" p with
 				| TClassDecl c ->
@@ -2115,7 +2123,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
 
-let rec create com =
+let create com =
 	let ctx = {
 		com = com;
 		t = com.basic;
@@ -2260,4 +2268,5 @@ make_call_ref := make_call;
 type_call_target_ref := type_call_target;
 type_access_ref := type_access;
 type_block_ref := type_block;
-create_context_ref := create
+create_context_ref := create;
+type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> type_expr ~mode ctx e with_type);

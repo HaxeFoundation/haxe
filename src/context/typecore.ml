@@ -22,7 +22,6 @@ open Ast
 open Common
 open Type
 open Error
-open DisplayTypes
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -67,8 +66,13 @@ type typer_module = {
 	mutable import_statements : import list;
 }
 
+type delay = {
+	delay_pass : typer_pass;
+	delay_functions : (unit -> unit) list;
+}
+
 type typer_globals = {
-	mutable delayed : (typer_pass * (unit -> unit) list) list;
+	mutable delayed : delay list;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
 	retain_meta : bool;
@@ -374,32 +378,42 @@ let add_local_with_origin ctx origin n t p =
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =
-	add_local ctx VGenerated "`" t p
+	add_local ctx VGenerated gen_local_prefix t p
 
-let is_gen_local v =
-	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
+let is_gen_local v = match v.v_kind with
+	| VGenerated ->
+		true
+	| _ ->
+		false
+
+let make_delay pass fl = {
+	delay_pass = pass;
+	delay_functions = fl;
+}
 
 let delay ctx p f =
 	let rec loop = function
-		| [] -> [p,[f]]
-		| (p2,l) :: rest ->
-			if p2 = p then
-				(p, f :: l) :: rest
-			else if p2 < p then
-				(p2,l) :: loop rest
+		| [] ->
+			[make_delay p [f]]
+		| delay :: rest ->
+			if delay.delay_pass = p then
+				(make_delay p (f :: delay.delay_functions)) :: rest
+			else if delay.delay_pass < p then
+				delay :: loop rest
 			else
-				(p,[f]) :: (p2,l) :: rest
+				(make_delay p [f]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
 let delay_late ctx p f =
 	let rec loop = function
-		| [] -> [p,[f]]
-		| (p2,l) :: rest ->
-			if p2 <= p then
-				(p2,l) :: loop rest
+		| [] ->
+			[make_delay p [f]]
+		| delay :: rest ->
+			if delay.delay_pass <= p then
+				delay :: loop rest
 			else
-				(p,[f]) :: (p2,l) :: rest
+				(make_delay p [f]) :: delay :: rest
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
@@ -411,12 +425,12 @@ let delay_if_mono ctx p t f = match follow t with
 
 let rec flush_pass ctx p (where:string) =
 	match ctx.g.delayed with
-	| (p2,l) :: rest when p2 <= p ->
-		(match l with
+	| delay :: rest when delay.delay_pass <= p ->
+		(match delay.delay_functions with
 		| [] ->
 			ctx.g.delayed <- rest;
 		| f :: l ->
-			ctx.g.delayed <- (p2,l) :: rest;
+			ctx.g.delayed <- (make_delay delay.delay_pass l) :: rest;
 			f());
 		flush_pass ctx p where
 	| _ ->
@@ -468,8 +482,18 @@ let is_removable_field com f =
 			| _ -> false)
 	)
 
+let is_forced_inline c cf =
+	match c with
+	| Some { cl_kind = KAbstractImpl _ } -> true
+	| Some c when has_class_flag c CExtern -> true
+	| _ when has_class_field_flag cf CfExtern -> true
+	| _ -> false
+
+let needs_inline ctx c cf =
+	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.g.doinline || is_forced_inline c cf)
+
 (** checks if we can access to a given class field using current context *)
-let rec can_access ctx c cf stat =
+let can_access ctx c cf stat =
 	if (has_class_field_flag cf CfPublic) then
 		true
 	else if c == ctx.curclass then
@@ -605,7 +629,7 @@ let merge_core_doc ctx mt =
 
 let field_to_type_path com e =
 	let rec loop e pack name = match e with
-		| EField(e,f,_),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+		| EField(e,f,_),p when Char.lowercase_ascii (String.get f 0) <> String.get f 0 -> (match name with
 			| [] | _ :: [] ->
 				loop e pack (f :: name)
 			| _ -> (* too many name paths *)
@@ -617,7 +641,7 @@ let field_to_type_path com e =
 			let pack, name, sub = match name with
 				| [] ->
 					let fchar = String.get f 0 in
-					if Char.uppercase fchar = fchar then
+					if Char.uppercase_ascii fchar = fchar then
 						pack, f, None
 					else begin
 						display_error com "A class name must start with an uppercase letter" (snd e);
@@ -673,12 +697,12 @@ let coroutine_type ctx args ret =
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
 	let fpath = slashes (Path.get_full_path file) in
-	let fpath_lower = String.lowercase fpath in
+	let fpath_lower = String.lowercase_ascii fpath in
 	let flen = String.length fpath_lower in
 	let rec loop = function
 		| [] -> file
 		| path :: l ->
-			let spath = String.lowercase (slashes path) in
+			let spath = String.lowercase_ascii (slashes path) in
 			let slen = String.length spath in
 			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
 	in
@@ -722,14 +746,13 @@ let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
 	(fun() -> incr uid; !uid)
 
-let get_stored_typed_expr com id =
-	let e = com.stored_typed_exprs#find id in
-	Texpr.duplicate_tvars e
+let make_stored_id_expr id p =
+	(EConst (Int (string_of_int id, None))), p
 
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
 	com.stored_typed_exprs#add id te;
-	let eid = (EConst (Int (string_of_int id, None))), p in
+	let eid = make_stored_id_expr id p in
 	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
 let push_this ctx e = match e.eexpr with

@@ -1041,6 +1041,8 @@ class expr_checker mode immediate_execution report =
 				| TMeta (_, e) -> self#is_nullable_expr e
 				| TThrow _ -> false
 				| TReturn _ -> false
+				| TContinue -> false
+				| TBreak -> false
 				| TBinop ((OpAssign | OpAssignOp _), _, right) -> self#is_nullable_expr right
 				| TBlock exprs ->
 					local_safety#block_declared;
@@ -1408,7 +1410,7 @@ class expr_checker mode immediate_execution report =
 						| None ->
 							List.iter self#check_expr args
 						| Some cf ->
-							let rec traverse t =
+							let traverse t =
 								match follow t with
 									| TFun (types, _, _) -> self#check_args e_new args types
 									| _ -> fail ~msg:"Unexpected constructor type." e_new.epos __POS__
@@ -1498,7 +1500,7 @@ class class_checker cls immediate_execution report =
 			validate_safety_meta report cls_meta;
 			if is_safe_class && (not (has_class_flag cls CExtern)) && (not (has_class_flag cls CInterface)) then
 				self#check_var_fields;
-			let check_field is_static f =
+			let check_field is_static f = if not (has_class_field_flag f CfPostProcessed) then begin
 				validate_safety_meta report f.cf_meta;
 				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
@@ -1509,7 +1511,7 @@ class class_checker cls immediate_execution report =
 								(self#get_checker mode)#check_root_expr expr
 						);
 						self#check_accessors is_static f
-			in
+			end in
 			if is_safe_class then
 				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) cls.cl_init;
 			Option.may (check_field false) cls.cl_constructor;
@@ -1674,7 +1676,7 @@ let run (com:Common.context) (types:module_type list) =
 	let timer = Timer.timer ["null safety"] in
 	let report = { sr_errors = [] } in
 	let immediate_execution = new immediate_execution in
-	let rec traverse module_type =
+	let traverse module_type =
 		match module_type with
 			| TEnumDecl enm -> ()
 			| TTypeDecl typedef -> ()

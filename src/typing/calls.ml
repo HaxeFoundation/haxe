@@ -34,8 +34,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				raise Exit
 		in
 		if not force_inline then begin
-			let is_extern_class = match cl with Some c -> (has_class_flag c CExtern) | _ -> false in
-			if not (Inline.needs_inline ctx is_extern_class f) then raise Exit;
+			if not (needs_inline ctx cl f) then raise Exit;
 		end else begin
 			match cl with
 			| None ->
@@ -71,11 +70,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match f.cf_expr_unoptimized,f.cf_expr with
 		| Some {eexpr = TFunction fd},_
 		| None,Some { eexpr = TFunction fd } ->
-			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
-			| None ->
-				if force_inline then raise_typing_error "Inline could not be done" p;
-				raise Exit;
-			| Some e -> e)
+			Inline.type_inline ctx f fd ethis params t config p force_inline
 		| _ ->
 			(*
 				we can't inline because there is most likely a loop in the typing.
@@ -91,7 +86,7 @@ let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
-		let et = type_module_type ctx (TClassDecl c) None p in
+		let et = type_module_type ctx (TClassDecl c) p in
 		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 		make_call ctx ef [ebase;e1] r p
 
@@ -102,7 +97,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
-			let et = type_module_type ctx (TClassDecl c) None p in
+			let et = type_module_type ctx (TClassDecl c) p in
 			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 			make_call ctx ef [ebase;e1;evalue] r p
 
@@ -160,7 +155,7 @@ let rec acc_get ctx g =
 					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
 					cf
 				in
-				let e_t = type_module_type ctx (TClassDecl c2) None p in
+				let e_t = type_module_type ctx (TClassDecl c2) p in
 				FieldAccess.get_field_expr (FieldAccess.create e_t cf (FHStatic c2) true p) FRead
 			in
 			let e_def = FieldAccess.get_field_expr fa FRead in
@@ -191,7 +186,10 @@ let rec acc_get ctx g =
 	in
 	let dispatcher p = new call_dispatcher ctx MGet WithType.value p in
 	match g with
-	| AKNo(_,p) -> raise_typing_error ("This expression cannot be accessed for reading") p
+	| AKNo(acc,p) ->
+		if not (Common.ignore_error ctx.com) then
+			raise_typing_error ("This expression cannot be accessed for reading") p
+		else acc_get ctx acc;
 	| AKExpr e -> e
 	| AKSafeNav sn ->
 		(* generate null-check branching for the safe navigation chain *)
@@ -216,8 +214,8 @@ let rec acc_get ctx g =
 	| AKUsingAccessor sea | AKUsingField sea when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let e_field = FieldAccess.get_field_expr sea.se_access FGet in
-		(* TODO *)
-		(* let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in *)
+		let id,_ = store_typed_expr ctx.com sea.se_this e_field.epos in
+		let e_field = {e_field with eexpr = (TMeta((Meta.StaticExtension,[make_stored_id_expr id e_field.epos],null_pos),e_field))} in
 		let t = match follow e_field.etype with
 			| TFun (_ :: args,ret,coro) -> TFun(args,ret,coro)
 			| t -> t
@@ -414,12 +412,12 @@ let type_bind ctx (e : texpr) (args,ret,coro) params p =
 				since we'll create a closure for the binding anyway, instead store the instance and
 				call its method inside a bind-generated closure
 			*)
-			let vobj = alloc_var VGenerated "`" eobj.etype eobj.epos in
+			let vobj = alloc_var VGenerated gen_local_prefix eobj.etype eobj.epos in
 			let var_decl = mk (TVar(vobj, Some eobj)) ctx.t.tvoid eobj.epos in
 			let eobj = { eobj with eexpr = TLocal vobj } in
 			{ e with eexpr = TField(eobj, FInstance (cl, tp, cf)) }, var_decl :: var_decls
 		| _ ->
-			let e_var = alloc_var VGenerated "`" e.etype e.epos in
+			let e_var = alloc_var VGenerated gen_local_prefix e.etype e.epos in
 			(mk (TLocal e_var) e.etype e.epos), (mk (TVar(e_var,Some e)) ctx.t.tvoid e.epos) :: var_decls
 	in
 	let call = make_call ctx e ordered_args ret p in

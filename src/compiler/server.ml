@@ -1,13 +1,11 @@
-open Printf
 open Globals
-open Ast
 open Common
 open CompilationCache
 open Timer
 open Type
 open DisplayProcessingGlobals
+open Ipaddr
 open Json
-open Compiler
 open CompilationContext
 open MessageReporting
 
@@ -310,7 +308,9 @@ let check_module sctx ctx m p =
 			end
 		in
 		let check_dependencies () =
-			PMap.iter (fun _ m2 -> match check m2 with
+			PMap.iter (fun _ (sign,mpath) ->
+				let m2 = (com.cs#get_context sign)#find_module mpath in
+				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
 			) m.m_extra.m_deps;
@@ -410,7 +410,10 @@ let add_modules sctx ctx m p =
 				) m.m_types;
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
-				PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
+				PMap.iter (fun _ (sign,mpath) ->
+					let m2 = (com.cs#get_context sign)#find_module mpath in
+					add_modules (tabs ^ "  ") m0 m2
+				) m.m_extra.m_deps
 			)
 		end
 	in
@@ -445,7 +448,7 @@ let type_module sctx (ctx:Typecore.typer) mpath p =
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
 
-let after_arg_parsing sctx ctx =
+let after_target_init sctx ctx =
 	let com = ctx.com in
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
@@ -540,9 +543,16 @@ let init_wait_stdio() =
 	mk_length_prefixed_communication false stdin stderr
 
 (* The connect function to connect to [host] at [port] and send arguments [args]. *)
-let do_connect host port args =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
+let do_connect ip port args =
+	let (domain, host) = match ip with
+		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
+		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
+	in
+	let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
+	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with
+		| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
+		| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
+	);
 	let rec display_stdin args =
 		match args with
 		| [] -> ""
@@ -557,7 +567,7 @@ let do_connect host port args =
 	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
 	ssend sock (Bytes.of_string (s ^ "\000"));
 	let has_error = ref false in
-	let rec print line =
+	let print line =
 		match (if line = "" then '\x00' else line.[0]) with
 		| '\x01' ->
 			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
@@ -608,7 +618,7 @@ let rec process sctx comm args =
 		cache = sctx.cs;
 		callbacks = {
 			before_anything = before_anything sctx;
-			after_arg_parsing = after_arg_parsing sctx;
+			after_target_init = after_target_init sctx;
 			after_compilation = after_compilation sctx;
 		};
 		init_wait_socket = init_wait_socket;
@@ -705,14 +715,22 @@ and wait_loop verbose accept =
 	0
 
 (* Connect to given host/port and return accept function for communication *)
-and init_wait_connect host port =
+and init_wait_connect ip port =
+	let host = match ip with
+		| V4 ip -> V4.to_string ip
+		| V6 ip -> V6.to_string ip
+	in
 	let host = Unix.inet_addr_of_string host in
 	let chin, chout = Unix.open_connection (Unix.ADDR_INET (host,port)) in
 	mk_length_prefixed_communication true chin chout
 
 (* The accept-function to wait for a socket connection. *)
-and init_wait_socket host port =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+and init_wait_socket ip port =
+	let (domain, host) = match ip with
+		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
+		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
+	in
+	let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
 	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
 	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
 	ServerMessage.socket_message ("Waiting on " ^ host ^ ":" ^ string_of_int port);

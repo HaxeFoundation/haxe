@@ -6,7 +6,7 @@ type pos = {
 
 type path = string list * string
 
-module IntMap = Ptmap
+module IntMap = Map.Make(struct type t = int let compare i1 i2 = i2 - i1 end)
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 module Int32Map = Map.Make(struct type t = Int32.t let compare = Int32.compare end)
 
@@ -23,6 +23,7 @@ type platform =
 	| Python
 	| Hl
 	| Eval
+	| CustomTarget of string
 
 let version = 5000
 let version_major = version / 1000
@@ -37,6 +38,8 @@ let macro_platform = ref Neko
 let return_partial_type = ref false
 
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
+
+let max_custom_target_len = 16
 
 let platforms = [
 	Js;
@@ -66,6 +69,7 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
+	| CustomTarget c -> c
 
 let parse_platform = function
 	| "cross" -> Cross
@@ -80,7 +84,7 @@ let parse_platform = function
 	| "python" -> Python
 	| "hl" -> Hl
 	| "eval" -> Eval
-	| p -> raise (failwith ("invalid platform " ^ p))
+	| p -> CustomTarget p
 
 let platform_list_help = function
 	| [] -> ""
@@ -181,12 +185,30 @@ type compiler_message = {
 }
 
 let make_compiler_message ?(from_macro = false) msg p depth kind sev = {
-		cm_message = msg;
-		cm_pos = p;
-		cm_depth = depth;
-		cm_from_macro = from_macro;
-		cm_kind = kind;
-		cm_severity = sev;
+	cm_message = msg;
+	cm_pos = p;
+	cm_depth = depth;
+	cm_from_macro = from_macro;
+	cm_kind = kind;
+	cm_severity = sev;
+}
+
+type diagnostic = {
+	diag_message : string;
+	diag_code : string option;
+	diag_pos : pos;
+	diag_kind : MessageKind.t;
+	diag_severity : MessageSeverity.t;
+	diag_depth : int;
+}
+
+let make_diagnostic ?(depth = 0) ?(code = None) message pos kind sev = {
+	diag_message = message;
+	diag_pos = pos;
+	diag_code = code;
+	diag_kind = kind;
+	diag_severity = sev;
+	diag_depth = depth;
 }
 
 let i32_31 = Int32.of_int 31

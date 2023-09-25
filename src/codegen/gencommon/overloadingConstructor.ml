@@ -19,7 +19,6 @@
 open Option
 open Common
 open Type
-open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -237,7 +236,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 
 (* makes constructors that only call super() for the 'ctor' argument *)
 let clone_ctors com ctor sup stl cl =
-	let rec clone cf =
+	let clone cf =
 		let ncf = mk_class_field "new" (apply_params sup.cl_params stl cf.cf_type) (has_class_field_flag cf CfPublic) cf.cf_pos cf.cf_kind cf.cf_params in
 		if Meta.has Meta.Protected cf.cf_meta then
 			ncf.cf_meta <- (Meta.Protected,[],ncf.cf_pos) :: ncf.cf_meta;

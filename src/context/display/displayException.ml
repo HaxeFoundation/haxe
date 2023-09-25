@@ -23,9 +23,9 @@ let max_completion_items = ref 0
 let filter_somehow ctx items kind subj =
 	let subject = match subj.s_name with
 		| None -> ""
-		| Some name-> String.lowercase name
+		| Some name-> ExtString.String.lowercase name
 	in
-	let subject_length = String.length subject in
+	let subject_length = ExtString.String.length subject in
 	let determine_cost s =
 		let get_initial_cost o =
 			if o = 0 then
@@ -33,7 +33,7 @@ let filter_somehow ctx items kind subj =
 			else begin
 				(* Consider `.` as anchors and determine distance from closest one. Penalize starting distance by factor 2. *)
 				try
-					let last_anchor = String.rindex_from s o '.' in
+					let last_anchor = ExtString.String.rindex_from s o '.' in
 					(o - (last_anchor + 1)) * 2
 				with Not_found ->
 					o * 2
@@ -54,12 +54,12 @@ let filter_somehow ctx items kind subj =
 				let o',new_cost = index_from o subject.[i] in
 				loop (i + 1) o' (cost + new_cost)
 			end else
-				cost + (if o = String.length s - 1 then 0 else 1) (* Slightly penalize for not-exact matches. *)
+				cost + (if o = ExtString.String.length s - 1 then 0 else 1) (* Slightly penalize for not-exact matches. *)
 		in
 		if subject_length = 0 then
 			0
 		else try
-			let o = String.index s subject.[0] in
+			let o = ExtString.String.index s subject.[0] in
 			loop 1 o (get_initial_cost o);
 		with Not_found | Invalid_argument _ ->
 			-1
@@ -67,7 +67,7 @@ let filter_somehow ctx items kind subj =
 	let rec loop acc items index =
 		match items with
 		| item :: items ->
-			let name = String.lowercase (get_filter_name item) in
+			let name = ExtString.String.lowercase (get_filter_name item) in
 			let cost = determine_cost name in
 			let acc = if cost >= 0 then
 				(item,index,cost) :: acc
@@ -102,8 +102,8 @@ let patch_completion_subject subj =
 	match subj.s_name with
 	| Some name ->
 		let delta = p.pmax - p.pmin in
-		let name = if delta > 0 && delta < String.length name then
-			String.sub name 0 delta
+		let name = if delta > 0 && delta < ExtString.String.length name then
+			ExtString.String.sub name 0 delta
 		else
 			name
 		in

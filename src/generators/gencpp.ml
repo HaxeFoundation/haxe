@@ -393,7 +393,12 @@ let keyword_remap name =
    | "HX_" | "HXLINE" | "HXDLIN"
    | "NO" | "YES"
    | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
-   | "struct" -> "_hx_" ^ name
+   | "struct" | "_Atomic"
+   | "constexpr" | "consteval" | "constinit"
+   | "co_await" | "co_return" | "co_yield"
+   | "alignas" | "alignof"
+   | "_Alignas" | "_Alignof"
+   | "requires" -> "_hx_" ^ name
    | x -> x
 ;;
 
@@ -4906,7 +4911,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          visited := List.tl !visited;
       end
    in
-   let rec visit_params expression =
+   let visit_params expression =
       begin
       let rec visit_expression = fun expression ->
          (* Expand out TTypeExpr (ie, the name of a class, as used for static access etc ... *)
@@ -7030,8 +7035,8 @@ let write_build_options common_ctx filename defines =
       | _ ->  write_define name (escape_command value)) defines;
    let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
    set_binary_mode_in pin false;
-   write_define "hxcpp" (Pervasives.input_line pin);
-   Pervasives.ignore (Process_helper.close_process_in_pid (pin,pid));
+   write_define "hxcpp" (Stdlib.input_line pin);
+   Stdlib.ignore (Process_helper.close_process_in_pid (pin,pid));
    writer#close;;
 
 let create_member_types common_ctx =

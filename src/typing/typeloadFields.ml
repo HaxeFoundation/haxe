@@ -79,7 +79,6 @@ type field_init_ctx = {
 	field_kind : field_kind;
 	display_modifier : placed_access option;
 	mutable do_bind : bool;
-	mutable do_add : bool;
 	(* If true, cf_expr = None makes a difference in the logic. We insert a dummy expression in
 	   display mode in order to address this. *)
 	mutable expr_presence_matters : bool;
@@ -106,6 +105,9 @@ module FieldError = struct
 
 	let invalid_modifier_only com fctx m c p =
 		maybe_display_error com fctx (Printf.sprintf "Invalid modifier: %s is only supported %s" m c) p
+
+	let invalid_modifier_on_property com fctx m p =
+		maybe_display_error com fctx (Printf.sprintf "Invalid modifier: %s is not supported on properties" m) p
 
 	let missing_expression com fctx reason p =
 		maybe_display_error com fctx (Printf.sprintf "%s" reason) p
@@ -144,7 +146,6 @@ let dump_field_context fctx =
 		"is_field_debug",string_of_bool fctx.is_field_debug;
 		"field_kind",s_field_kind fctx.field_kind;
 		"do_bind",string_of_bool fctx.do_bind;
-		"do_add",string_of_bool fctx.do_add;
 		"expr_presence_matters",string_of_bool fctx.expr_presence_matters;
 	]
 
@@ -646,7 +647,6 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 		is_generic = Meta.has Meta.Generic cff.cff_meta;
 		field_kind = field_kind;
 		do_bind = (((not ((has_class_flag c CExtern) || !is_extern) || is_inline) && not is_abstract && not (has_class_flag c CInterface)) || field_kind = FKInit);
-		do_add = true;
 		expr_presence_matters = false;
 		had_error = false;
 	} in
@@ -917,7 +917,7 @@ module TypeBinding = struct
 						e
 					end in
 					e
-				| Var v when v.v_read = AccInline ->
+				| Var v when v.v_read = AccInline && (ctx.g.doinline || is_forced_inline (Some c) cf) ->
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
 						| KAbstractImpl a when has_class_field_flag cf CfEnum && a.a_enum ->
@@ -1052,165 +1052,178 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	TypeBinding.bind_var ctx cctx fctx cf eo;
 	cf
 
-let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
-	match cctx.abstract with
-		| Some a ->
-			let m = mk_mono() in
-			let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
-			let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
-			let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
-			let allow_no_expr () = if not (has_class_field_flag cf CfExtern) then begin
-				allows_no_expr := true;
-				fctx.expr_presence_matters <- true;
-			end in
-			let rec loop ml =
-				(match ml with
-				| (Meta.From,_,_) :: _ ->
-					let r = exc_protect ctx (fun r ->
-						r := lazy_processing (fun () -> t);
-						(* the return type of a from-function must be the abstract, not the underlying type *)
-						if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
-						match t with
-							| TFun([_,_,t],_,_) -> t
-							| TFun([(_,_,t1);(_,true,t2)],_,_) when is_pos_infos t2 -> t1
-							| _ -> raise_typing_error ("@:from cast functions must accept exactly one argument") p
-					) "@:from" in
-					a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
-				| (Meta.To,_,_) :: _ ->
-					if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "cast function" p;
-					let are_valid_args args =
-						match args with
-						| [_] -> true
-						| [_; (_,true,t)] when is_pos_infos t -> true
-						| _ -> false
-					in
-					(match cf.cf_kind, cf.cf_type with
-					| Var _, _ ->
-						raise_typing_error "Invalid metadata: @:to must be used on method of abstract" p
-					| Method _, TFun(args, _,_) when not fctx.is_abstract_member && not (are_valid_args args) ->
-						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
-						raise_typing_error "static @:to method should have one argument" p
-					| Method _, TFun(args, _,_) when fctx.is_abstract_member && not (are_valid_args args) ->
-						if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
-						raise_typing_error "@:to method should have no arguments" p
-					| _ -> ()
-					);
-					(* TODO: this doesn't seem quite right... *)
-					if not (has_class_field_flag cf CfImpl) then add_class_field_flag cf CfImpl;
-					let resolve_m args =
-						(try unify_raise t (tfun (tthis :: args) m) cf.cf_pos with Error ({ err_message = Unify l; } as err) -> raise_typing_error_ext err);
-						match follow m with
-							| TMono _ when (match t with TFun(_,r,_) -> r == t_dynamic | _ -> false) -> t_dynamic
-							| m -> m
-					in
-					let is_multitype_cast = Meta.has Meta.MultiType a.a_meta && not fctx.is_abstract_member in
-					if is_multitype_cast && not (Meta.has Meta.MultiType cf.cf_meta) then
-						cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
-					let r = exc_protect ctx (fun r ->
-						r := lazy_processing (fun () -> t);
-						let args = if is_multitype_cast then begin
-							let ctor = try
-								PMap.find "_new" c.cl_statics
-							with Not_found ->
-								raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
-							in
-							(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
-							let args = match follow (monomorphs a.a_params ctor.cf_type) with
-								| TFun(args,_,_) -> List.map (fun (_,_,t) -> t) args
-								| _ -> die "" __LOC__
-							in
-							args
-						end else
-							match cf.cf_type with
-							| TFun([_;(_,true,t)],_,_) when is_pos_infos t -> [t]
-							| _ -> []
-						in
-						let t = resolve_m args in
-						t
-					) "@:to" in
-					a.a_to_field <- (TLazy r, cf) :: a.a_to_field
-				| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
-					if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "array-access function" p;
-					a.a_array <- cf :: a.a_array;
-					allow_no_expr();
-				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
-					raise_typing_error "Assignment overloading is not supported" p;
-				| (Meta.Op,[EBinop(OpAssignOp OpNullCoal,_,_),_],_) :: _
-				| (Meta.Op,[EBinop(OpNullCoal,_,_),_],_) :: _ ->
-					raise_typing_error "Null coalescing overloading is not supported" p;
-				| (Meta.Op,[ETernary(_,_,_),_],_) :: _ ->
-					raise_typing_error "Ternary overloading is not supported" p;
-				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
-					if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
-					let targ = if fctx.is_abstract_member then tthis else ta in
-					let left_eq,right_eq =
-						match follow t with
-						| TFun([(_,_,t1);(_,_,t2)],_,_) ->
-							type_iseq targ t1,type_iseq targ t2
-						| TFun([(_,_,t1);(_,_,t2);(_,true,t3)],_,_) when is_pos_infos t3 ->
-							type_iseq targ t1,type_iseq targ t2
-						| _ ->
-							if fctx.is_abstract_member then
-								raise_typing_error ("Member @:op functions must accept exactly one argument") cf.cf_pos
-							else
-								raise_typing_error ("Static @:op functions must accept exactly two arguments") cf.cf_pos
-					in
-					if not (left_eq || right_eq) then raise_typing_error ("The left or right argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
-					if right_eq && Meta.has Meta.Commutative cf.cf_meta then raise_typing_error ("Invalid metadata: @:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) cf.cf_pos;
-					a.a_ops <- (op,cf) :: a.a_ops;
-					allow_no_expr();
-				| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
-					if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
-					let targ = if fctx.is_abstract_member then tthis else ta in
-					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise_error_msg (Unify l) cf.cf_pos);
-					a.a_unops <- (op,flag,cf) :: a.a_unops;
-					allow_no_expr();
-				| (Meta.Op,[ECall _,_],_) :: _ ->
-					begin match a.a_call with
-					| None ->
-						a.a_call <- Some cf
-					| Some cf' ->
-						cf'.cf_overloads <- cf :: cf'.cf_overloads
-					end;
-					allow_no_expr();
-				| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
-					let targ = if fctx.is_abstract_member then tthis else ta in
-					let check_fun t1 t2 =
-						if not fctx.is_macro then begin
-							if not (type_iseq targ t1) then raise_typing_error ("First argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
-							if not (type_iseq ctx.t.tstring t2) then raise_typing_error ("Second argument type must be String") cf.cf_pos
-						end
-					in
-					begin match follow t with
-						| TFun((_,_,t1) :: (_,_,t2) :: args,_,_) when is_empty_or_pos_infos args ->
-							if a.a_read <> None then raise_typing_error "Multiple resolve-read methods are not supported" cf.cf_pos;
-							check_fun t1 t2;
-							a.a_read <- Some cf;
-						| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_,_) when is_empty_or_pos_infos args ->
-							if a.a_write <> None then raise_typing_error "Multiple resolve-write methods are not supported" cf.cf_pos;
-							check_fun t1 t2;
-							a.a_write <- Some cf;
-						| _ ->
-							raise_typing_error ("Field type of resolve must be " ^ (s_type (print_context()) targ) ^ " -> String -> T") cf.cf_pos
-					end;
-				| _ -> ());
-				match ml with
-				| _ :: ml -> loop ml
-				| [] -> ()
+let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
+	let m = mk_mono() in
+	let ta = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_params) in
+	let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
+	let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
+	let allow_no_expr () = if not (has_class_field_flag cf CfExtern) then begin
+		allows_no_expr := true;
+		fctx.expr_presence_matters <- true;
+	end in
+	let handle_from () =
+		let r = exc_protect ctx (fun r ->
+			r := lazy_processing (fun () -> t);
+			(* the return type of a from-function must be the abstract, not the underlying type *)
+			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
+			match t with
+				| TFun([_,_,t],_,_) -> t
+				| TFun([(_,_,t1);(_,true,t2)],_,_) when is_pos_infos t2 -> t1
+				| _ -> raise_typing_error ("@:from cast functions must accept exactly one argument") p
+		) "@:from" in
+		a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
+	in
+	let handle_to () =
+		if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "cast function" p;
+		let are_valid_args args =
+			match args with
+			| [_] -> true
+			| [_; (_,true,t)] when is_pos_infos t -> true
+			| _ -> false
+		in
+		(match cf.cf_kind, cf.cf_type with
+		| Var _, _ ->
+			raise_typing_error "Invalid metadata: @:to must be used on method of abstract" p
+		| Method _, TFun(args, _,_) when not fctx.is_abstract_member && not (are_valid_args args) ->
+			if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
+			raise_typing_error "static @:to method should have one argument" p
+		| Method _, TFun(args, _,_) when fctx.is_abstract_member && not (are_valid_args args) ->
+			if not (Meta.has Meta.MultiType a.a_meta) then (* TODO: get rid of this check once multitype is removed *)
+			raise_typing_error "@:to method should have no arguments" p
+		| _ -> ()
+		);
+		(* TODO: this doesn't seem quite right... *)
+		if not (has_class_field_flag cf CfImpl) then add_class_field_flag cf CfImpl;
+		let resolve_m args =
+			(try unify_raise t (tfun (tthis :: args) m) cf.cf_pos with Error ({ err_message = Unify l; } as err) -> raise_typing_error_ext err);
+			match follow m with
+				| TMono _ when (match t with TFun(_,r,_) -> r == t_dynamic | _ -> false) -> t_dynamic
+				| m -> m
+		in
+		let is_multitype_cast = Meta.has Meta.MultiType a.a_meta && not fctx.is_abstract_member in
+		if is_multitype_cast && not (Meta.has Meta.MultiType cf.cf_meta) then
+			cf.cf_meta <- (Meta.MultiType,[],null_pos) :: cf.cf_meta;
+		let r = exc_protect ctx (fun r ->
+			r := lazy_processing (fun () -> t);
+			let args = if is_multitype_cast then begin
+				let ctor = try
+					PMap.find "_new" c.cl_statics
+				with Not_found ->
+					raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+				in
+				(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
+				let args = match follow (monomorphs a.a_params ctor.cf_type) with
+					| TFun(args,_,_) -> List.map (fun (_,_,t) -> t) args
+					| _ -> die "" __LOC__
+				in
+				args
+			end else
+				match cf.cf_type with
+				| TFun([_;(_,true,t)],_,_) when is_pos_infos t -> [t]
+				| _ -> []
 			in
-			loop cf.cf_meta;
-			if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
-			if fd.f_expr = None then begin
-				if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
-				if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
-				if !allows_no_expr then begin
-					cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
-					fctx.do_bind <- false;
-					if not (Meta.has Meta.CoreType a.a_meta) then fctx.do_add <- false;
-				end
+			let t = resolve_m args in
+			t
+		) "@:to" in
+		a.a_to_field <- (TLazy r, cf) :: a.a_to_field
+	in
+	let handle_array_access () =
+		if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "array-access function" p;
+		a.a_array <- cf :: a.a_array;
+		allow_no_expr();
+	in
+	let handle_resolve () =
+		let targ = if fctx.is_abstract_member then tthis else ta in
+		let check_fun t1 t2 =
+			if not fctx.is_macro then begin
+				if not (type_iseq targ t1) then raise_typing_error ("First argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
+				if not (type_iseq ctx.t.tstring t2) then raise_typing_error ("Second argument type must be String") cf.cf_pos
 			end
+		in
+		begin match follow t with
+			| TFun((_,_,t1) :: (_,_,t2) :: args,_,_) when is_empty_or_pos_infos args ->
+				if a.a_read <> None then raise_typing_error "Multiple resolve-read methods are not supported" cf.cf_pos;
+				check_fun t1 t2;
+				a.a_read <- Some cf;
+			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_,_) when is_empty_or_pos_infos args ->
+				if a.a_write <> None then raise_typing_error "Multiple resolve-write methods are not supported" cf.cf_pos;
+				check_fun t1 t2;
+				a.a_write <- Some cf;
+			| _ ->
+				raise_typing_error ("Field type of resolve must be " ^ (s_type (print_context()) targ) ^ " -> String -> T") cf.cf_pos
+		end;
+	in
+	let handle_op e = match fst e with
+		| (EArrayDecl _) ->
+			handle_array_access()
+		| EBinop(OpAssign,_,_) ->
+			raise_typing_error "Assignment overloading is not supported" p;
+		| EBinop(OpAssignOp OpNullCoal,_,_)
+		| EBinop(OpNullCoal,_,_) ->
+			raise_typing_error "Null coalescing overloading is not supported" p;
+		| ETernary(_,_,_) ->
+			raise_typing_error "Ternary overloading is not supported" p;
+		| EBinop(op,_,_) ->
+			if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
+			let targ = if fctx.is_abstract_member then tthis else ta in
+			let left_eq,right_eq =
+				match follow t with
+				| TFun([(_,_,t1);(_,_,t2)],_,_) ->
+					type_iseq targ t1,type_iseq targ t2
+				| TFun([(_,_,t1);(_,_,t2);(_,true,t3)],_,_) when is_pos_infos t3 ->
+					type_iseq targ t1,type_iseq targ t2
+				| _ ->
+					if fctx.is_abstract_member then
+						raise_typing_error ("Member @:op functions must accept exactly one argument") cf.cf_pos
+					else
+						raise_typing_error ("Static @:op functions must accept exactly two arguments") cf.cf_pos
+			in
+			if not (left_eq || right_eq) then raise_typing_error ("The left or right argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
+			if right_eq && Meta.has Meta.Commutative cf.cf_meta then raise_typing_error ("Invalid metadata: @:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) cf.cf_pos;
+			a.a_ops <- (op,cf) :: a.a_ops;
+			allow_no_expr();
+		| EUnop(op,flag,_) ->
+			if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
+			let targ = if fctx.is_abstract_member then tthis else ta in
+			(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise_error_msg (Unify l) cf.cf_pos);
+			a.a_unops <- (op,flag,cf) :: a.a_unops;
+			allow_no_expr();
+		| ECall _ ->
+			begin match a.a_call with
+			| None ->
+				a.a_call <- Some cf
+			| Some cf' ->
+				cf'.cf_overloads <- cf :: cf'.cf_overloads
+			end;
+			allow_no_expr();
+		| EField _ ->
+			handle_resolve()
 		| _ ->
-			()
+			raise_typing_error ("Invalid @:op expresssions, should be an operator or a call") (pos e)
+	in
+	let check_meta m = match m with
+		| (Meta.From,_,_) ->
+			handle_from()
+		| (Meta.To,_,_) ->
+			handle_to()
+		| (Meta.Op,[e],_) ->
+			handle_op e
+		| (Meta.ArrayAccess,_,_) ->
+			handle_array_access()
+		| (Meta.Resolve,_,_) ->
+			handle_resolve()
+		| _ -> ();
+	in
+	List.iter check_meta cf.cf_meta;
+	if cf.cf_name = "_new" && Meta.has Meta.MultiType a.a_meta then fctx.do_bind <- false;
+	if fd.f_expr = None then begin
+		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
+		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
+		if !allows_no_expr then begin
+			cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
+			fctx.do_bind <- false;
+		end
+	end
 
 let type_opt (ctx,cctx,fctx) p t =
 	let c = cctx.tclass in
@@ -1429,7 +1442,12 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				()
 	) parent;
 	generate_args_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
-	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
+	begin match cctx.abstract with
+	| Some a ->
+		check_abstract (ctx,cctx,fctx) a c cf fd t ret p;
+	| _ ->
+		()
+	end;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;
 	if fctx.do_bind then
@@ -1617,6 +1635,7 @@ let init_field (ctx,cctx,fctx) f =
 	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
+		| AFinal, FProp _ when not (has_class_flag c CExtern) && ctx.com.platform <> Java -> invalid_modifier_on_property ctx.com fctx (Ast.s_placed_access acc) (snd acc)
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _ | AOverload, FFun _ -> ()
 		| AEnum, (FVar _ | FProp _) -> ()
@@ -1855,7 +1874,7 @@ let init_class ctx c p context_init herits fields =
 						in
 						display_error ctx.com ("Duplicate " ^ type_kind ^ " field declaration : " ^ s_type_path path ^ "." ^ cf.cf_name) cf.cf_name_pos
 				else
-				if fctx.do_add then TClass.add_field c cf
+				TClass.add_field c cf
 			end
 		with Error ({ err_message = Custom _; err_pos = p2 } as err) when p = p2 ->
 			display_error_ext ctx.com err

@@ -20,7 +20,6 @@
 open Ast
 open Type
 open Common
-open Error
 open Globals
 open Extlib_leftovers
 
@@ -66,12 +65,12 @@ let add_property_field com c =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
 
-let escape_res_name name allow_dirs =
+let escape_res_name name allowed =
 	ExtString.String.replace_chars (fun chr ->
 		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
 			Char.escaped chr
-		else if chr = '/' && allow_dirs then
-			"/"
+		else if List.mem chr allowed then
+			Char.escaped chr
 		else
 			"-x" ^ (string_of_int (Char.code chr))) name
 
@@ -392,7 +391,8 @@ module Dump = struct
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
 			print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
-			PMap.iter (fun _ m2 ->
+			PMap.iter (fun _ (sign,mpath) ->
+				let m2 = (com.cs#get_context sign)#find_module mpath in
 				let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
 				print "\t%s\n" file;
 				let l = try Hashtbl.find dep file with Not_found -> [] in
@@ -480,10 +480,6 @@ let interpolate_code com code tl f_string f_expr p =
 		| Str.Text txt :: tl ->
 			i := !i + String.length txt;
 			f_string txt;
-			loop tl
-		| Str.Delim a :: Str.Delim b :: tl when a = b ->
-			i := !i + 2;
-			f_string a;
 			loop tl
 		| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
 			begin try

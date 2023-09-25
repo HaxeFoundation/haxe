@@ -186,6 +186,7 @@ let encode_enum i pos index pl =
 		| ICapturePolicy -> key_haxe_macro_CapturePolicy
 		| IVarScope -> key_haxe_macro_VarScope
 		| IVarScopingFlags -> key_haxe_macro_VarScopingFlags
+		| IPlatform -> key_haxe_macro_Platform
 		| IPackageRule -> key_haxe_macro_PackageRule
 		| IMessage -> key_haxe_macro_Message
 		| IFunctionKind -> key_haxe_macro_FunctionKind

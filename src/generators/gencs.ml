@@ -24,7 +24,6 @@ open Common
 open Type
 open Gencommon
 open Gencommon.SourceWriter
-open Codegen
 open Texpr.Builder
 open Printf
 open Option
@@ -1153,7 +1152,7 @@ let generate con =
 
 		let in_value = ref false in
 
-		let rec md_s md =
+		let md_s md =
 			let md = follow_module (gen.gfollow#run_f) md in
 			match md with
 				| TClassDecl ({ cl_params = [] } as cl) ->
@@ -1559,7 +1558,7 @@ let generate con =
 								let nblocks = loop (List.rev !fixeds) 0 in
 								in_value := false;
 								expr_s w { e with eexpr = TBlock el };
-								for i = 1 to nblocks do
+								for _ = 1 to nblocks do
 									end_block w
 								done
 							| _ ->
@@ -2105,7 +2104,7 @@ let generate con =
 			write w (String.concat " " (List.rev !parts));
 		in
 
-		let rec gen_event w is_static cl (event,t,custom,add,remove) =
+		let gen_event w is_static cl (event,t,custom,add,remove) =
 			let is_interface = (has_class_flag cl CInterface) in
 			let visibility = if is_interface then "" else "public" in
 			let visibility, modifiers = get_fun_modifiers event.cf_meta visibility ["event"] in
@@ -2125,7 +2124,7 @@ let generate con =
 			newline w;
 		in
 
-		let rec gen_prop w is_static cl is_final (prop,t,get,set) =
+		let gen_prop w is_static cl is_final (prop,t,get,set) =
 			gen_attributes w prop.cf_meta;
 			let is_interface = (has_class_flag cl CInterface) in
 			let fn_is_final = function
@@ -3422,7 +3421,7 @@ let generate con =
 					gen.gcon.file ^ "/src/Resources"
 			in
 			Hashtbl.iter (fun name v ->
-				let name = Codegen.escape_res_name name true in
+				let name = Codegen.escape_res_name name ['/'] in
 				let full_path = src ^ "/" ^ name in
 				Path.mkdir_from_path full_path;
 
