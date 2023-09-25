@@ -73,6 +73,7 @@ class Hl {
 		getHlDependencies();
 
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
+		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		runCommand(hlBinary, ["bin/unit.hl"]);
 
 		changeDirectory(threadsDir);

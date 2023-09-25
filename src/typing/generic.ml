@@ -16,57 +16,64 @@ type generic_context = {
 	mutable mg : module_def option;
 }
 
-let generic_check_const_expr ctx t =
-	match follow t with
-	| TInst({cl_kind = KExpr e},_) ->
-		let e = type_expr {ctx with locals = PMap.empty} e WithType.value in
-		e.etype,Some e
-	| _ -> t,None
-
 let make_generic ctx ps pt p =
-	let rec loop l1 l2 =
-		match l1, l2 with
-		| [] , [] -> []
-		| ({ttp_type=TLazy f} as tp) :: l1, _ -> loop ({tp with ttp_type=lazy_type f} :: l1) l2
-		| tp1 :: l1 , t2 :: l2 ->
-			let t,eo = generic_check_const_expr ctx t2 in
-			(tp1.ttp_type,(t,eo)) :: loop l1 l2
-		| _ -> die "" __LOC__
+	let subst s = "_" ^ string_of_int (Char.code (String.get (Str.matched_string s) 0)) ^ "_" in
+	let ident_safe = Str.global_substitute (Str.regexp "[^a-zA-Z0-9_]") subst in
+	let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
+	let process t =
+		let rec loop top t = match t with
+			| TInst(c,tl) ->
+				begin match c.cl_kind with
+					| KExpr e ->
+						let name = ident_safe (Ast.Printer.s_expr e) in
+						let e = type_expr {ctx with locals = PMap.empty} e WithType.value in
+						name,(e.etype,Some e)
+					| _ ->
+						((ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl top tl),(t,None))
+				end
+			| TType (td,tl) ->
+				(s_type_path_underscore td.t_path) ^ (loop_tl top tl),(t,None)
+			| TEnum(en,tl) ->
+				(s_type_path_underscore en.e_path) ^ (loop_tl top tl),(t,None)
+			| TAnon(a) ->
+				"anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop_deep (follow f.cf_type))) :: acc) a.a_fields []),(t,None)
+			| TFun(args, return_type) ->
+				("func_" ^ (String.concat "_" (List.map (fun (_, _, t) -> loop_deep t) args)) ^ "_" ^ (loop_deep return_type)),(t,None)
+			| TAbstract(a,tl) ->
+				(s_type_path_underscore a.a_path) ^ (loop_tl top tl),(t,None)
+			| TDynamic _ ->
+				"Dynamic",(t,None)
+			| TMono { tm_type = None } ->
+				if not top then
+					"_",(t,None)
+				else
+					raise Exit
+			| TMono { tm_type = Some t} ->
+				loop top t
+			| TLazy f ->
+				loop top (lazy_type f)
+		and loop_tl top tl = match tl with
+			| [] -> ""
+			| tl -> "_" ^ String.concat "_" (List.map (fun t -> fst (loop top t)) tl)
+		and loop_deep t =
+			fst (loop false t)
+		in
+		loop true t
 	in
-	let name =
-		String.concat "_" (List.map2 (fun {ttp_name=s} t ->
-			let subst s = "_" ^ string_of_int (Char.code (String.get (Str.matched_string s) 0)) ^ "_" in
-			let ident_safe = Str.global_substitute (Str.regexp "[^a-zA-Z0-9_]") subst in
-			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
-			let rec loop top t = match t with
-				| TInst(c,tl) -> (match c.cl_kind with
-					| KExpr e -> ident_safe (Ast.Printer.s_expr e)
-					| _ -> (ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl top tl))
-				| TType (td,tl) -> (s_type_path_underscore td.t_path) ^ (loop_tl top tl)
-				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl top tl)
-				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false (follow f.cf_type))) :: acc) a.a_fields [])
-				| TFun(args, return_type) -> "func_" ^ (String.concat "_" (List.map (fun (_, _, t) -> loop false t) args)) ^ "_" ^ (loop false return_type)
-				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl top tl)
-				| _ when not top ->
-					follow_or t top (fun() -> "_") (* allow unknown/incompatible types as type parameters to retain old behavior *)
-				| TMono { tm_type = None } -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
-				| TDynamic _ -> "Dynamic"
-				| t ->
-					follow_or t top (fun() -> raise (Generic_Exception (("Unsupported type parameter: " ^ (s_type (print_context()) t) ^ ")"), p)))
-			and loop_tl top tl = match tl with
-				| [] -> ""
-				| tl -> "_" ^ String.concat "_" (List.map (loop top) tl)
-			and follow_or t top or_fn =
-				let ft = follow_once t in
-				if ft == t then or_fn()
-				else loop top ft
-			in
-			loop true t
-		) ps pt)
+	let rec loop acc_name acc_subst ttpl tl = match ttpl,tl with
+		| ttp :: ttpl,t :: tl ->
+			let name,t = try process t with Exit -> raise (Generic_Exception (("Could not determine type for parameter " ^ ttp.ttp_name), p)) in
+			loop (name :: acc_name) ((follow ttp.ttp_type,t) :: acc_subst) ttpl tl
+		| [],[] ->
+			let name = String.concat "_" (List.rev acc_name) in
+			name,acc_subst
+		| _ ->
+			die "" __LOC__
 	in
+	let name,subst = loop [] [] ps pt in
 	{
 		ctx = ctx;
-		subst = loop ps pt;
+		subst = subst;
 		name = name;
 		p = p;
 		mg = None;

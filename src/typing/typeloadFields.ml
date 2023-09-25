@@ -93,6 +93,9 @@ module FieldError = struct
 	let invalid_modifier_only com fctx m c p =
 		maybe_display_error com fctx (Printf.sprintf "Invalid modifier: %s is only supported %s" m c) p
 
+	let invalid_modifier_on_property com fctx m p =
+		maybe_display_error com fctx (Printf.sprintf "Invalid modifier: %s is not supported on properties" m) p
+
 	let missing_expression com fctx reason p =
 		maybe_display_error com fctx (Printf.sprintf "%s" reason) p
 
@@ -1613,6 +1616,7 @@ let init_field (ctx,cctx,fctx) f =
 	if not (has_class_flag c CExtern) && not (Meta.has Meta.Native f.cff_meta) then Typecore.check_field_name ctx name p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
+		| AFinal, FProp _ when not (has_class_flag c CExtern) && ctx.com.platform <> Java -> invalid_modifier_on_property ctx.com fctx (Ast.s_placed_access acc) (snd acc)
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ | AAbstract, FFun _ | AOverload, FFun _ -> ()
 		| AEnum, (FVar _ | FProp _) -> ()

@@ -31,6 +31,7 @@ open JvmSignature
 open JvmMethod
 open JvmBuilder
 open Genshared
+open Tanon_identification
 
 (* Note: This module is the bridge between Haxe structures and JVM structures. No module in generators/jvm should reference any
    Haxe-specific type. *)

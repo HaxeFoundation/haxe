@@ -143,7 +143,14 @@ module Setup = struct
 				"python"
 			| Hl ->
 				add_std "hl";
-				if not (Common.defined com Define.HlVer) then Define.define_value com.defines Define.HlVer (try Std.input_file (Common.find_file com "hl/hl_version") with Not_found -> die "" __LOC__);
+				if not (Common.defined com Define.HlVer) then begin
+					let hl_ver = try
+						Std.input_file (Common.find_file com "hl/hl_version")
+					with Not_found ->
+						failwith "The file hl_version could not be found. Please make sure HAXE_STD_PATH is set to the standard library corresponding to the used compiler version."
+					in
+					Define.define_value com.defines Define.HlVer hl_ver
+				end;
 				"hl"
 			| Eval ->
 				add_std "eval";
@@ -565,8 +572,8 @@ module HighLevel = struct
 					(* If we are already connected, ignore (issue #10813) *)
 					loop acc l
 				else begin
-					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-					server_api.do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l);
+					let host, port = Helper.parse_host_port hp in
+					server_api.do_connect host port ((List.rev acc) @ l);
 					[],None
 				end
 			| "--server-connect" :: hp :: l ->

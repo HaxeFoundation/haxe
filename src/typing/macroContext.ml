@@ -606,8 +606,8 @@ and flush_macro_context mint mctx =
 	mctx.com.Common.modules <- modules;
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [
-		"local_statics",Filters.LocalStatic.run mctx;
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts mctx;
+		"local_statics",Filters.LocalStatic.run mctx;
 		"Exceptions",Exceptions.filter mctx;
 		"captured_vars",CapturedVars.captured_vars mctx.com;
 	] in
@@ -1053,7 +1053,3 @@ let interpret ctx =
 
 let setup() =
 	Interp.setup Interp.macro_api
-
-let type_stored_expr ctx e1 =
-	let id = match e1 with (EConst (Int (s, _)),_) -> int_of_string s | _ -> die "" __LOC__ in
-	get_stored_typed_expr ctx.com id

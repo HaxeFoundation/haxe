@@ -193,7 +193,7 @@ let report_not_exhaustive v_lookup e_subject unmatched =
 	in
 	let s = match unmatched with
 		| [] -> "_"
-		| _ -> String.concat " | " (List.sort Pervasives.compare sl)
+		| _ -> String.concat " | " (List.sort Stdlib.compare sl)
 	in
 	raise_typing_error (Printf.sprintf "Unmatched patterns: %s" (s_subject v_lookup s e_subject)) e_subject.epos
 
@@ -393,4 +393,4 @@ let to_texpr ctx t_switch with_type dt =
 	| None ->
 		raise_typing_error "Unmatched patterns: _" p;
 	| Some e ->
-		Texpr.duplicate_tvars e
+		Texpr.duplicate_tvars e_identity e

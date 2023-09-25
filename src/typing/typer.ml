@@ -402,8 +402,9 @@ let rec type_ident_raise ctx i p mode with_type =
 				let t = match with_type with
 					| WithType.WithType(t,_) ->
 						begin match follow t with
-						| TMono r ->
-							(* If our expected type is a monomorph, bind it to Null<?>. *)
+						| TMono r when not (is_nullable t) ->
+							(* If our expected type is a monomorph, bind it to Null<?>. The is_nullable check is here because
+							   the expected type could already be Null<?>, in which case we don't want to double-wrap (issue #11286). *)
 							Monomorph.do_bind r (tnull())
 						| _ ->
 							(* Otherwise there's no need to create a monomorph, we can just type the null literal
@@ -1691,7 +1692,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| _ -> e()
 			end
 		| (Meta.StoredTypedExpr,_,_) ->
-			MacroContext.type_stored_expr ctx e1
+			type_stored_expr ctx e1
 		| (Meta.NoPrivateAccess,_,_) ->
 			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 			e()
@@ -1723,6 +1724,9 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
 			| _ -> e()
 			end
+		(* Allow `${...}` reification because it's a noop and happens easily with macros *)
+		| (Meta.Dollar "",_,p) ->
+			e()
 		| (Meta.Dollar s,_,p) ->
 			display_error ctx.com (Printf.sprintf "Reification $%s is not allowed outside of `macro` expression" s) p;
 			e()

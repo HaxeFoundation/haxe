@@ -326,7 +326,7 @@ module IterationKind = struct
 					| _ -> map_expr loop e
 				in
 				let e2 = loop e2 in
-				Texpr.duplicate_tvars e2
+				Texpr.duplicate_tvars e_identity e2
 			) in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
@@ -367,7 +367,7 @@ module IterationKind = struct
 			let el = List.map (fun e ->
 				let ev = mk (TVar(v,Some e)) t_void e.epos in
 				let e = concat ev e2 in
-				Texpr.duplicate_tvars e
+				Texpr.duplicate_tvars e_identity e
 			) el in
 			mk (TBlock el) t_void p
 		| IteratorArray | IteratorArrayAccess ->

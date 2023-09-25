@@ -68,7 +68,7 @@ let cs_unops =
 let netname_to_hx name =
 	let len = String.length name in
 	let chr = String.get name 0 in
-	String.make 1 (Char.uppercase chr) ^ (String.sub name 1 (len-1))
+	String.make 1 (Char.uppercase_ascii chr) ^ (String.sub name 1 (len-1))
 
 (* -net-lib implementation *)
 
@@ -105,7 +105,7 @@ let escape_chars =
 
 let netcl_to_hx cl =
 	let cl = if String.length cl > 0 && String.get cl 0 >= 'a' && String.get cl 0 <= 'z' then
-			Char.escaped (Char.uppercase (String.get cl 0)) ^ (String.sub cl 1 (String.length cl - 1))
+			Char.escaped (Char.uppercase_ascii (String.get cl 0)) ^ (String.sub cl 1 (String.length cl - 1))
 		else
 			cl
 	in
