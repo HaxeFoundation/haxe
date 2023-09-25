@@ -1820,7 +1820,11 @@ let init_class ctx c p context_init herits fields =
 			if fctx.is_static && (has_class_flag c CInterface) && fctx.field_kind <> FKInit && not cctx.is_lib && not ((has_class_flag c CExtern)) then
 				raise_typing_error "You can only declare static fields in extern interfaces" p;
 			let set_feature s =
-				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
+				let ref_kind = match fctx.field_kind with
+					| FKConstructor -> CfrConstructor
+					| _ -> if fctx.is_static then CfrStatic else CfrMember
+				in
+				ctx.m.curmod.m_extra.m_if_feature <- (s, (mk_class_field_ref c cf ref_kind fctx.is_macro)) :: ctx.m.curmod.m_extra.m_if_feature;
 			in
 			List.iter set_feature cl_if_feature;
 			List.iter set_feature (check_if_feature cf.cf_meta);
@@ -1838,7 +1842,7 @@ let init_class ctx c p context_init herits fields =
 				end;
 				begin match c.cl_constructor with
 				| None ->
-						c.cl_constructor <- Some cf
+					c.cl_constructor <- Some cf
 				| Some ctor when ctx.com.config.pf_overload ->
 					if has_class_field_flag cf CfOverload && has_class_field_flag ctor CfOverload then
 						ctor.cf_overloads <- cf :: ctor.cf_overloads
