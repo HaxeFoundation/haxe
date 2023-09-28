@@ -816,9 +816,8 @@ let rec get_reader ctx =
 		flush_pass ctx PConnectField "hxb"
 	in
 
-	let resolve_type pack mname tname =
-		let cc = CommonCache.get_cache ctx.Typecore.com in
-		let m = HxbRestore.find cc ctx.Typecore.com (pack,mname) in
+	let resolve_type sign pack mname tname =
+		let m = HxbRestore.find ctx.Typecore.com.cs sign ctx.Typecore.com (pack,mname) in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 	in
 

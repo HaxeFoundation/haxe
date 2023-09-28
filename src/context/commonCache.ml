@@ -69,6 +69,10 @@ let get_cache com = match com.Common.cache with
 	| Some cache ->
 		cache
 
+let get_cache_sign com = match com.Common.cache with
+	| None -> Define.get_signature com.defines
+	| Some cache -> cache#get_sign
+
 let rec cache_context cs com =
 	let cc = get_cache com in
 	let sign = Define.get_signature com.defines in

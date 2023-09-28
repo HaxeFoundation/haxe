@@ -220,8 +220,8 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 	t();
 	dirs
 
-let find_or_restore_module (cc : context_cache) ctx path =
-	HxbRestore.find cc ctx.Typecore.com path
+let find_or_restore_module cs sign ctx path =
+	HxbRestore.find cs sign ctx.Typecore.com path
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
@@ -312,7 +312,7 @@ let check_module sctx ctx m p =
 		in
 		let check_dependencies () =
 			PMap.iter (fun _ (sign,mpath) ->
-				let m2 = try find_or_restore_module (com.cs#get_context sign) ctx mpath with Bad_module (_, reason) -> raise (Dirty (DependencyDirty(mpath,reason))) in
+				let m2 = try find_or_restore_module com.cs sign ctx mpath with Bad_module (_, reason) -> raise (Dirty (DependencyDirty(mpath,reason))) in
 				match check m2 with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(m2.m_path,reason)))
@@ -414,7 +414,7 @@ let add_modules sctx ctx m p =
 				TypeloadModule.ModuleLevel.add_module ctx m p;
 				PMap.iter (Hashtbl.replace com.resources) m.m_extra.m_binded_res;
 				PMap.iter (fun _ (sign,mpath) ->
-					let m2 = find_or_restore_module (com.cs#get_context sign) ctx mpath in
+					let m2 = find_or_restore_module com.cs sign ctx mpath in
 					assert (m2.m_extra.m_sign == sign);
 					add_modules (tabs ^ "  ") m0 m2
 				) m.m_extra.m_deps
@@ -428,9 +428,8 @@ let add_modules sctx ctx m p =
 let type_module sctx (ctx:Typecore.typer) mpath p =
 	let t = Timer.timer ["server";"module cache"] in
 	let com = ctx.Typecore.com in
-	let cc = CommonCache.get_cache com in
 	try
-		let m = find_or_restore_module cc ctx mpath in
+		let m = find_or_restore_module com.cs (CommonCache.get_cache_sign com) ctx mpath in
 		let tcheck = Timer.timer ["server";"module cache";"check"] in
 		begin match check_module sctx ctx m p with
 		| None -> ()

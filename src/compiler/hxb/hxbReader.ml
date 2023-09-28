@@ -23,7 +23,7 @@ class hxb_reader
 	(* (file_ch : IO.input) *)
 	(make_module : path -> string -> module_def)
 	(add_module : module_def -> unit)
-	(resolve_type : string list -> string -> string -> module_type)
+	(resolve_type : string -> string list -> string -> string -> module_type)
 	(flush_fields : unit -> unit)
 = object(self)
 
@@ -44,8 +44,8 @@ class hxb_reader
 	val mutable field_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 	val mutable local_type_parameters = Array.make 0 (mk_type_param "" t_dynamic None)
 
-	method resolve_type pack mname tname =
-		try resolve_type pack mname tname with
+	method resolve_type sign pack mname tname =
+		try resolve_type sign pack mname tname with
 		| Bad_module (path, reason) -> raise (Bad_module (m.m_path, DependencyDirty (path, reason)))
 		| Not_found -> error (Printf.sprintf "Cannot resolve type %s" (s_type_path ((pack @ [mname]),tname)))
 
@@ -54,7 +54,7 @@ class hxb_reader
 		match tvoid with
 		| Some tvoid -> tvoid
 		| None ->
-				let t = type_of_module_type (self#resolve_type [] "StdTypes" "Void") in
+				let t = type_of_module_type (self#resolve_type m.m_extra.m_sign [] "StdTypes" "Void") in
 				tvoid <- Some t;
 				t
 
@@ -1041,7 +1041,8 @@ class hxb_reader
 			| 125 ->
 				let e1 = self#read_texpr in
 				let (pack,mname,tname) = self#read_full_path in
-				let md = self#resolve_type pack mname tname in
+				let sign = self#read_string in
+				let md = self#resolve_type sign pack mname tname in
 				TCast(e1,Some md)
 			| 126 ->
 				let c = self#read_class_ref in
@@ -1365,7 +1366,8 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		classes <- (Array.init l (fun i ->
 				let (pack,mname,tname) = self#read_full_path in
-				match self#resolve_type pack mname tname with
+				let sign = self#read_string in
+				match self#resolve_type sign pack mname tname with
 				| TClassDecl c ->
 					c
 				| _ ->
@@ -1376,7 +1378,8 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		abstracts <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			match self#resolve_type pack mname tname with
+			let sign = self#read_string in
+			match self#resolve_type sign pack mname tname with
 			| TAbstractDecl a ->
 				a
 			| _ ->
@@ -1387,7 +1390,8 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		enums <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			match self#resolve_type pack mname tname with
+			let sign = self#read_string in
+			match self#resolve_type sign pack mname tname with
 			| TEnumDecl en ->
 				en
 			| _ ->
@@ -1398,7 +1402,8 @@ class hxb_reader
 		let l = self#read_uleb128 in
 		typedefs <- (Array.init l (fun i ->
 			let (pack,mname,tname) = self#read_full_path in
-			match self#resolve_type pack mname tname with
+			let sign = self#read_string in
+			match self#resolve_type sign pack mname tname with
 			| TTypeDecl tpd ->
 				tpd
 			| _ ->
