@@ -313,9 +313,11 @@ class ['a] hxb_writer
 		);
 
 	method write_pos (p : pos) =
+		(* let t = Timer.timer ["server";"cache context";"write module";"write pos"] in *)
 		chunk#write_string p.pfile;
 		chunk#write_leb128 p.pmin;
 		chunk#write_leb128 p.pmax;
+		(* t() *)
 
 	method write_metadata_entry ((meta,el,p) : metadata_entry) =
 		chunk#write_string (Meta.to_string meta);

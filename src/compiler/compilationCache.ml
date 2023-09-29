@@ -71,7 +71,9 @@ class context_cache (index : int) (sign : string) = object(self)
 		(* TODO move this somewhere else, factorize with generate.ml as much as possible *)
 		let anon_identification = new Tanon_identification.tanon_identification ([],"") in
 		let writer = new HxbWriter.hxb_writer anon_identification in
+		(* let t = Timer.timer ["server";"cache context";"write module"] in *)
 		writer#write_module m;
+		(* t(); *)
 		let ch = IO.output_bytes() in
 		writer#export ch;
 		let bytes = IO.close_out ch in
