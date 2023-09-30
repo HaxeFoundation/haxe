@@ -156,7 +156,7 @@ module Setup = struct
 				add_std "eval";
 				"eval"
 
-	let create_typer_context ctx native_libs =
+	let create_typer_context ctx macros native_libs =
 		let com = ctx.com in
 		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		let buffer = Buffer.create 64 in
@@ -172,7 +172,7 @@ module Setup = struct
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
 		List.iter (fun f -> f()) fl;
-		Typer.create com
+		Typer.create com macros
 
 	let executable_path() =
 		Extc.executable_path()
@@ -270,15 +270,18 @@ let check_defines com =
 	end
 
 (** Creates the typer context and types [classes] into it. *)
-let do_type ctx tctx actx =
-	let com = tctx.Typecore.com in
+let do_type ctx mctx actx =
+	let com = ctx.com in
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	com.stage <- CInitMacrosStart;
-	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
+	let (mctx, api) = List.fold_left (fun (mctx,api) path ->
+		(MacroContext.call_init_macro ctx.com mctx api path)
+	) (Option.map (fun (_,mctx) -> mctx) mctx, None) (List.rev actx.config_macros) in
 	com.stage <- CInitMacrosDone;
-	ServerMessage.compiler_stage com;
+	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
+	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
 	com.callbacks#run com.callbacks#get_after_init_macros;
@@ -295,7 +298,8 @@ let do_type ctx tctx actx =
 		| (DMUsage _ | DMImplementation) -> FindReferences.find_possible_references tctx cs;
 		| _ -> ()
 	end;
-	t()
+	t();
+	tctx
 
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
@@ -326,7 +330,8 @@ let compile ctx actx callbacks =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
-	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
+	(* TODO handle display *)
+	(* let display_file_dot_path = DisplayProcessing.process_display_file com actx in *)
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
@@ -351,19 +356,18 @@ let compile ctx actx callbacks =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let tctx = Setup.create_typer_context ctx actx.native_libs in
-		tctx.g.macros <- mctx;
 		com.stage <- CTyperCreated;
-		ServerMessage.compiler_stage com;
-		let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
-		begin try
-			do_type ctx tctx actx
+		(* let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in *)
+		let tctx = try
+			do_type ctx mctx actx
 		with TypeloadParse.DisplayInMacroBlock ->
-			ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true);
-		end;
-		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
+			(* TODO *)
+			(* ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true); *)
+			assert false
+		in
+		(* DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path; *)
 		finalize_typing ctx tctx;
-		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
+		(* DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path; *)
 		filter ctx tctx;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
