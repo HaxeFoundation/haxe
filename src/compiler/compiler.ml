@@ -276,10 +276,12 @@ let do_type ctx mctx actx =
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	com.stage <- CInitMacrosStart;
+	ServerMessage.compiler_stage com;
 	let (mctx, api) = List.fold_left (fun (mctx,api) path ->
 		(MacroContext.call_init_macro ctx.com mctx api path)
 	) (Option.map (fun (_,mctx) -> mctx) mctx, None) (List.rev actx.config_macros) in
 	com.stage <- CInitMacrosDone;
+	ServerMessage.compiler_stage com;
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
 	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
 	check_defines ctx.com;
@@ -357,6 +359,7 @@ let compile ctx actx callbacks =
 	end else begin
 		(* Actual compilation starts here *)
 		com.stage <- CTyperCreated;
+		ServerMessage.compiler_stage com;
 		(* let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in *)
 		let tctx = try
 			do_type ctx mctx actx
