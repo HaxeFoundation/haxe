@@ -271,6 +271,24 @@ type compiler_stage =
 	| CGenerationStart  (* Generation is about to begin. *)
 	| CGenerationDone   (* Generation just finished. *)
 
+let s_compiler_stage = function
+	| CCreated          -> "CCreated"
+	| CInitialized      -> "CInitialized"
+	| CTyperCreated     -> "CTyperCreated"
+	| CInitMacrosStart  -> "CInitMacrosStart"
+	| CInitMacrosDone   -> "CInitMacrosDone"
+	| CTypingDone       -> "CTypingDone"
+	| CFilteringStart   -> "CFilteringStart"
+	| CAnalyzerStart    -> "CAnalyzerStart"
+	| CAnalyzerDone     -> "CAnalyzerDone"
+	| CSaveStart        -> "CSaveStart"
+	| CSaveDone         -> "CSaveDone"
+	| CDceStart         -> "CDceStart"
+	| CDceDone          -> "CDceDone"
+	| CFilteringDone    -> "CFilteringDone"
+	| CGenerationStart  -> "CGenerationStart"
+	| CGenerationDone   -> "CGenerationDone"
+
 type report_mode =
 	| RMNone
 	| RMDiagnostics of Path.UniqueKey.t list

@@ -278,6 +278,7 @@ let do_type ctx tctx actx =
 	com.stage <- CInitMacrosStart;
 	List.iter (MacroContext.call_init_macro tctx) (List.rev actx.config_macros);
 	com.stage <- CInitMacrosDone;
+	ServerMessage.compiler_stage com;
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
 	com.callbacks#run com.callbacks#get_after_init_macros;
@@ -287,6 +288,7 @@ let do_type ctx tctx actx =
 		Finalization.finalize tctx;
 	) ();
 	com.stage <- CTypingDone;
+	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		identifier we are interested in. We then type only those modules that contain the identifier. *)
 	begin match com.display.dms_kind with
@@ -299,6 +301,7 @@ let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
 	let com = ctx.com in
 	com.stage <- CFilteringStart;
+	ServerMessage.compiler_stage com;
 	let main, types, modules = run_or_diagnose ctx Finalization.generate tctx in
 	com.main <- main;
 	com.types <- types;
@@ -343,6 +346,7 @@ let compile ctx actx callbacks =
 	List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 	t();
 	com.stage <- CInitialized;
+	ServerMessage.compiler_stage com;
 	if actx.classes = [([],"Std")] && not actx.force_typing then begin
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
@@ -350,6 +354,7 @@ let compile ctx actx callbacks =
 		let tctx = Setup.create_typer_context ctx actx.native_libs in
 		tctx.g.macros <- mctx;
 		com.stage <- CTyperCreated;
+		ServerMessage.compiler_stage com;
 		let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 		begin try
 			do_type ctx tctx actx
@@ -363,8 +368,10 @@ let compile ctx actx callbacks =
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
 		com.stage <- CGenerationStart;
+		ServerMessage.compiler_stage com;
 		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		com.stage <- CGenerationDone;
+		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
 	com.callbacks#run com.callbacks#get_after_generation;
