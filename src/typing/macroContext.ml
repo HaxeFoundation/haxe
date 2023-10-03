@@ -272,7 +272,7 @@ let make_macro_com_api com p =
 			!macro_enable_cache
 		);
 		format_string = (fun s p ->
-			Interp.exc_string "unsupported"
+			Common.format_string com s p (fun e p -> (e,p))
 		);
 		cast_or_unify = (fun t e p ->
 			Interp.exc_string "unsupported"
@@ -523,9 +523,6 @@ let make_macro_api ctx p =
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
-		);
-		MacroApi.format_string = (fun s p ->
-			ctx.g.do_format_string ctx s p
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
 			typing_timer ctx true (fun () ->
