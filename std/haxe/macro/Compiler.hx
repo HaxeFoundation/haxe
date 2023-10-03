@@ -94,6 +94,7 @@ class Compiler {
 		if (!ident.match(field))
 			throw "Invalid " + field;
 		#if (neko || eval)
+		Context.assertInitMacrosDone(false);
 		load("type_patch", 4)(className, field, isStatic == true, null);
 		#else
 		typePatch(className, field, isStatic == true, null);
@@ -111,6 +112,7 @@ class Compiler {
 		if (!ident.match((field.charAt(0) == "$") ? field.substr(1) : field))
 			throw "Invalid " + field;
 		#if (neko || eval)
+		Context.assertInitMacrosDone(false);
 		load("type_patch", 4)(className, field, isStatic == true, type);
 		#else
 		typePatch(className, field, isStatic == true, type);
@@ -128,6 +130,7 @@ class Compiler {
 		if (field != null && !ident.match(field))
 			throw "Invalid " + field;
 		#if (neko || eval)
+		Context.assertInitMacrosDone(false);
 		load("meta_patch", 4)(meta, className, field, isStatic == true);
 		#else
 		metaPatch(meta, className, field, isStatic == true);

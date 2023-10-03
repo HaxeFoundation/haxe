@@ -175,6 +175,7 @@ class Context {
 		Returns `null` if the current macro is not a `@:genericBuild` macro.
 	**/
 	public static function getCallArguments():Null<Array<Expr>> {
+		assertInitMacrosDone(false);
 		return load("get_call_arguments", 0)();
 	}
 
@@ -184,6 +185,7 @@ class Context {
 		If no such class exists, `null` is returned.
 	**/
 	public static function getLocalClass():Null<Type.Ref<Type.ClassType>> {
+		assertInitMacrosDone(false);
 		var l:Type = load("get_local_type", 0)();
 		if (l == null)
 			return null;
@@ -197,6 +199,7 @@ class Context {
 		Returns the current module path in/on which the macro was called.
 	**/
 	public static function getLocalModule():String {
+		assertInitMacrosDone(false);
 		return load("get_local_module", 0)();
 	}
 
@@ -206,6 +209,7 @@ class Context {
 		If no such type exists, `null` is returned.
 	**/
 	public static function getLocalType():Null<Type> {
+		assertInitMacrosDone(false);
 		return load("get_local_type", 0)();
 	}
 
@@ -215,6 +219,7 @@ class Context {
 		If no such method exists, `null` is returned.
 	**/
 	public static function getLocalMethod():Null<String> {
+		assertInitMacrosDone(false);
 		return load("get_local_method", 0)();
 	}
 
@@ -225,6 +230,7 @@ class Context {
 		Modifying the returned array has no effect on the compiler.
 	**/
 	public static function getLocalUsing():Array<Type.Ref<Type.ClassType>> {
+		assertInitMacrosDone(false);
 		return load("get_local_using", 0)();
 	}
 
@@ -234,6 +240,7 @@ class Context {
 		Modifying the returned array has no effect on the compiler.
 	**/
 	public static function getLocalImports():Array<ImportExpr> {
+		assertInitMacrosDone(false);
 		return load("get_local_imports", 0)();
 	}
 
@@ -248,6 +255,7 @@ class Context {
 	**/
 	@:deprecated("Use Context.getLocalTVars() instead")
 	public static function getLocalVars():Map<String, Type> {
+		assertInitMacrosDone(false);
 		return load("local_vars", 1)(false);
 	}
 
@@ -256,6 +264,7 @@ class Context {
 		of `Type`.
 	**/
 	public static function getLocalTVars():Map<String, Type.TVar> {
+		assertInitMacrosDone(false);
 		return load("local_vars", 1)(true);
 	}
 
@@ -537,6 +546,7 @@ class Context {
 		build any type or trigger macros.
 	**/
 	public static function resolveComplexType(t:ComplexType, p:Position):ComplexType {
+		assertInitMacrosDone(false);
 		return load("resolve_complex_type", 2)(t, p);
 	}
 
@@ -635,6 +645,7 @@ class Context {
 		This is only defined for `@:build/@:autoBuild` macros.
 	**/
 	public static function getBuildFields():Array<Field> {
+		assertInitMacrosDone(false);
 		return load("get_build_fields", 0)();
 	}
 
@@ -863,7 +874,7 @@ class Context {
 	}
 
 	private static function sExpr(e:TypedExpr, pretty:Bool):String {
-		return haxe.macro.Context.load("s_expr", 2)(e, pretty);
+		return load("s_expr", 2)(e, pretty);
 	}
 
 	@:allow(haxe.macro.Compiler)
@@ -878,6 +889,7 @@ class Context {
 		}
 	}
 
+	@:allow(haxe.macro.Compiler)
 	private static function assertInitMacrosDone(includeSuggestion = true):Void {
 		if (!initMacrosDone()) {
 			var stack = getMacroStack();
