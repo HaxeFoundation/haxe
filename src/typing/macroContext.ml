@@ -739,7 +739,7 @@ let get_macro_context ctx =
 		ctx
 	| None ->
 		let mctx = create_macro_context ctx.com in
-		let api = make_macro_api mctx null_pos in
+		let api = make_macro_api ctx null_pos in
 		let init,_ = create_macro_interp api mctx in
 		ctx.g.macros <- Some (init,mctx);
 		mctx.g.macros <- Some (init,mctx);
