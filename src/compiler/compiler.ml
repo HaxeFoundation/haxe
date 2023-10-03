@@ -286,11 +286,13 @@ let do_type ctx mctx actx display_file_dot_path =
 	com.stage <- CInitMacrosDone;
 	ServerMessage.compiler_stage com;
 	MacroContext.macro_enable_cache := macro_cache_enabled;
+
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
 	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
+	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
 
 	(try begin
 		com.callbacks#run com.callbacks#get_after_init_macros;

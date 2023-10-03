@@ -127,7 +127,6 @@ let make_macro_com_api com p =
 	in
 	{
 		MacroApi.pos = p;
-		MacroApi.is_full = false;
 		get_com = (fun () -> com);
 		get_macro_stack = (fun () ->
 			let envs = Interp.call_stack (Interp.get_eval (Interp.get_ctx ())) in
@@ -328,7 +327,6 @@ and promote_com_api com_api ctx p =
 	in
 	{
 		com_api with
-		MacroApi.is_full = true;
 		MacroApi.get_type = (fun s ->
 			typing_timer ctx false (fun() ->
 				let path = parse_path s in
@@ -712,7 +710,7 @@ let create_macro_interp api mctx =
 	init();
 	let init = (fun() -> Interp.select mint) in
 	mctx.g.macros <- Some (init,mctx);
-	init
+	(init, mint)
 
 let create_macro_context com =
 	let com2 = Common.clone com true in
@@ -742,7 +740,7 @@ let get_macro_context ctx =
 	| None ->
 		let mctx = create_macro_context ctx.com in
 		let api = make_macro_api mctx null_pos in
-		let init = create_macro_interp api mctx in
+		let init,_ = create_macro_interp api mctx in
 		ctx.g.macros <- Some (init,mctx);
 		mctx.g.macros <- Some (init,mctx);
 		mctx
@@ -1055,13 +1053,18 @@ let call_init_macro com mctx e =
 	let api = make_macro_com_api com p in
 	(match !macro_interp_cache with
 	| None ->
-		let init = create_macro_interp api mctx in
+		let init,_ = create_macro_interp api mctx in
 		init();
 	| _ -> ());
 
 	let mctx, (margs,_,mclass,mfield), call = load_macro mctx com mctx api false path meth p in
 	ignore(call_macro mctx args margs call p);
 	mctx
+
+let finalize_macro_api tctx mctx =
+	let api = make_macro_api tctx null_pos in
+	let mint = (match !macro_interp_cache with None -> snd (create_macro_interp api mctx) | Some mint -> mint) in
+	Interp.do_reuse mint api;
 
 module MacroLight = struct
 	let load_macro_light com mctx api display cpath f p =
