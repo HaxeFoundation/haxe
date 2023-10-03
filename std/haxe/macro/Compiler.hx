@@ -299,11 +299,7 @@ class Compiler {
 				Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 		}
 
-		if (!Context.initMacrosDone()) {
-			Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
-		} else {
-			include(pack, rec, ignore, classPaths, strict);
-		}
+		Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
 	}
 
 	/**

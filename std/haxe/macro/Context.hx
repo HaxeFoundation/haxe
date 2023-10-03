@@ -459,8 +459,11 @@ class Context {
 		actual typing.
 	**/
 	public static function onAfterInitMacros(callback:Void->Void):Void {
-		assertInitMacro();
-		load("on_after_init_macros", 1)(callback);
+		if (Context.initMacrosDone()) {
+			callback();
+		} else {
+			load("on_after_init_macros", 1)(callback);
+		}
 	}
 
 	/**
@@ -773,8 +776,7 @@ class Context {
 		run your code once typer is ready to be used.
 	**/
 	public static function registerModuleDependency(modulePath:String, externFile:String) {
-		assertInitMacrosDone();
-		load("register_module_dependency", 2)(modulePath, externFile);
+		onAfterInitMacros(() -> load("register_module_dependency", 2)(modulePath, externFile));
 	}
 
 	/**
@@ -883,7 +885,7 @@ class Context {
 				? "\nUse `Context.onAfterInitMacros` to register a callback to run when context is ready."
 				: "";
 
-			error(
+			fatalError(
 				"Cannot use this API from initialization macros." + suggestion,
 				if (stack.length > 2) stack[2] else currentPos()
 			);
