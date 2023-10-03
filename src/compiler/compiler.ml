@@ -270,7 +270,7 @@ let check_defines com =
 	end
 
 (** Creates the typer context and types [classes] into it. *)
-let do_type ctx mctx actx =
+let do_type ctx mctx actx display_file_dot_path =
 	let com = ctx.com in
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
@@ -288,14 +288,22 @@ let do_type ctx mctx actx =
 	MacroContext.macro_enable_cache := macro_cache_enabled;
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
 	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
+	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
-	com.callbacks#run com.callbacks#get_after_init_macros;
-	run_or_diagnose ctx (fun () ->
-		if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
-		Finalization.finalize tctx;
-	) ();
+
+	(try begin
+		com.callbacks#run com.callbacks#get_after_init_macros;
+
+		run_or_diagnose ctx (fun () ->
+			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
+			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
+			Finalization.finalize tctx;
+		) ();
+	end with TypeloadParse.DisplayInMacroBlock ->
+		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
+	);
+
 	com.stage <- CTypingDone;
 	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
@@ -305,7 +313,7 @@ let do_type ctx mctx actx =
 		| _ -> ()
 	end;
 	t();
-	tctx
+	(tctx, display_file_dot_path)
 
 let finalize_typing ctx tctx =
 	let t = Timer.timer ["finalize"] in
@@ -337,8 +345,7 @@ let compile ctx actx callbacks =
 	MacroContext.macro_interp_cache := None;
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
-	(* TODO handle display *)
-	(* let display_file_dot_path = DisplayProcessing.process_display_file com actx in *)
+	let display_file_dot_path = DisplayProcessing.process_display_file com actx in
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
@@ -363,18 +370,10 @@ let compile ctx actx callbacks =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		ServerMessage.compiler_stage com;
-		(* let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in *)
-		let tctx = try
-			do_type ctx mctx actx
-		with TypeloadParse.DisplayInMacroBlock ->
-			(* TODO *)
-			(* ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true); *)
-			assert false
-		in
-		(* DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path; *)
+		let (tctx,display_file_dot_path) = do_type ctx mctx actx display_file_dot_path in
+		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		finalize_typing ctx tctx;
-		(* DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path; *)
+		DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
 		filter ctx tctx;
 		if ctx.has_error then raise Abort;
 		Generate.check_auxiliary_output com actx;
