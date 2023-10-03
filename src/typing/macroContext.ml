@@ -127,6 +127,7 @@ let make_macro_com_api com p =
 	in
 	{
 		MacroApi.pos = p;
+		MacroApi.is_full = false;
 		get_com = (fun () -> com);
 		get_macro_stack = (fun () ->
 			let envs = Interp.call_stack (Interp.get_eval (Interp.get_ctx ())) in
@@ -316,7 +317,7 @@ let make_macro_com_api com p =
 		);
 	}
 
-let make_macro_api ctx p =
+and promote_com_api com_api ctx p =
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos raise_typing_error false with
@@ -325,9 +326,9 @@ let make_macro_api ctx p =
 		with _ ->
 			raise_typing_error "Malformed metadata string" p
 	in
-	let com_api = make_macro_com_api ctx.com p in
 	{
 		com_api with
+		MacroApi.is_full = true;
 		MacroApi.get_type = (fun s ->
 			typing_timer ctx false (fun() ->
 				let path = parse_path s in
@@ -608,6 +609,10 @@ let make_macro_api ctx p =
 			warning ~depth ctx w msg p
 		);
 	}
+
+let make_macro_api ctx p =
+	let com_api = make_macro_com_api ctx.com p in
+	promote_com_api com_api ctx p
 
 let init_macro_interp mctx mint =
 	let p = null_pos in
@@ -1043,19 +1048,20 @@ let resolve_init_macro com e =
 	| _ ->
 		raise_typing_error "Invalid macro call" p
 
-let call_init_macro com mctx api e =
+let call_init_macro com mctx e =
+	let (path,meth,args,p) = resolve_init_macro com e in
+
 	let mctx = match mctx with Some mctx -> mctx | None -> create_macro_context com in
-	let api = match api with Some api -> api | None ->
-		let api = make_macro_com_api com null_pos in
+	let api = make_macro_com_api com p in
+	(match !macro_interp_cache with
+	| None ->
 		let init = create_macro_interp api mctx in
 		init();
-		api
-	in
+	| _ -> ());
 
-	let (path,meth,args,p) = resolve_init_macro com e in
 	let mctx, (margs,_,mclass,mfield), call = load_macro mctx com mctx api false path meth p in
 	ignore(call_macro mctx args margs call p);
-	(Some mctx, Some api)
+	mctx
 
 module MacroLight = struct
 	let load_macro_light com mctx api display cpath f p =

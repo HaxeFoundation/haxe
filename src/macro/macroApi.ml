@@ -19,6 +19,7 @@ type compiler_options = {
 **)
 
 type 'value compiler_api = {
+	is_full : bool;
 	pos : Globals.pos;
 	get_com : unit -> Common.context;
 	get_macro_stack : unit -> pos list;
@@ -1893,8 +1894,10 @@ let macro_api ccom get_api =
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
 		);
 		"on_after_init_macros", vfun1 (fun f ->
-			let f = prepare_callback f 1 in
-			(get_api()).after_init_macros (fun tl -> ignore(f []));
+			if (get_api()).is_full then begin
+				let f = prepare_callback f 1 in
+				(get_api()).after_init_macros (fun tctx -> ignore(f []));
+			end;
 			vnull
 		);
 		"on_after_typing", vfun1 (fun f ->

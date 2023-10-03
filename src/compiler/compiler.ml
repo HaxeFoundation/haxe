@@ -275,13 +275,17 @@ let do_type ctx mctx actx =
 	let t = Timer.timer ["typing"] in
 	let cs = com.cs in
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
+	let macro_cache_enabled = !MacroContext.macro_enable_cache in
+	MacroContext.macro_enable_cache := true;
 	com.stage <- CInitMacrosStart;
 	ServerMessage.compiler_stage com;
-	let (mctx, api) = List.fold_left (fun (mctx,api) path ->
-		(MacroContext.call_init_macro ctx.com mctx api path)
-	) (Option.map (fun (_,mctx) -> mctx) mctx, None) (List.rev actx.config_macros) in
+
+	let mctx = List.fold_left (fun mctx path ->
+		Some (MacroContext.call_init_macro ctx.com mctx path)
+	) (Option.map (fun (_,mctx) -> mctx) mctx) (List.rev actx.config_macros) in
 	com.stage <- CInitMacrosDone;
 	ServerMessage.compiler_stage com;
+	MacroContext.macro_enable_cache := macro_cache_enabled;
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
 	let tctx = Setup.create_typer_context ctx macros actx.native_libs in
 	check_defines ctx.com;
@@ -330,6 +334,7 @@ let call_light_init_macro com path =
 
 let compile ctx actx callbacks =
 	let com = ctx.com in
+	MacroContext.macro_interp_cache := None;
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	(* TODO handle display *)
