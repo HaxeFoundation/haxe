@@ -256,7 +256,6 @@ type json_api = {
 type compiler_stage =
 	| CCreated          (* Context was just created *)
 	| CInitialized      (* Context was initialized (from CLI args and such). *)
-	| CTyperCreated     (* The typer context was just created. *)
 	| CInitMacrosStart  (* Init macros are about to run. *)
 	| CInitMacrosDone   (* Init macros did run - at this point the signature is locked. *)
 	| CTypingDone       (* The typer is done - at this point com.types/modules/main is filled. *)
@@ -274,7 +273,6 @@ type compiler_stage =
 let s_compiler_stage = function
 	| CCreated          -> "CCreated"
 	| CInitialized      -> "CInitialized"
-	| CTyperCreated     -> "CTyperCreated"
 	| CInitMacrosStart  -> "CInitMacrosStart"
 	| CInitMacrosDone   -> "CInitMacrosDone"
 	| CTypingDone       -> "CTypingDone"

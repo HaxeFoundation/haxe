@@ -363,7 +363,6 @@ let compile ctx actx callbacks =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		com.stage <- CTyperCreated;
 		ServerMessage.compiler_stage com;
 		(* let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in *)
 		let tctx = try
