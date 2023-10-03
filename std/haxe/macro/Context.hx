@@ -877,19 +877,17 @@ class Context {
 	}
 
 	private static function assertInitMacrosDone(includeSuggestion = true):Void {
-		#if haxe_next
 		if (!initMacrosDone()) {
 			var stack = getMacroStack();
 			var suggestion = includeSuggestion
 				? "\nUse `Context.onAfterInitMacros` to register a callback to run when context is ready."
 				: "";
 
-			warning(
+			error(
 				"Cannot use this API from initialization macros." + suggestion,
 				if (stack.length > 2) stack[2] else currentPos()
 			);
 		}
-		#end
 	}
 	#end
 }
