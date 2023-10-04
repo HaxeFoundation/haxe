@@ -1999,6 +1999,7 @@ let create com =
 			core_api = None;
 			macros = None;
 			type_patches = Hashtbl.create 0;
+			global_metadata = [];
 			module_check_policies = [];
 			delayed = [];
 			debug_delayed = [];
