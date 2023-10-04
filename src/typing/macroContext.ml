@@ -180,8 +180,26 @@ let make_macro_com_api com p =
 			];
 		);
 		parse_string = (fun s p inl ->
-			(* TODO: typing_timer *)
-			Interp.exc_string "unsupported"
+			let old = com.error_ext in
+			com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
+			let exit() = com.error_ext <- old in
+
+			try
+				let r = match ParserEntry.parse_expr_string com.defines s p raise_typing_error inl with
+					| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
+					| ParseSuccess(data,_,_) -> data
+					| ParseError _ -> raise MacroApi.Invalid_expr in
+				exit();
+				r
+			with Error err ->
+				exit();
+				Interp.compiler_error err
+			| WithTypeError err ->
+				exit();
+				Interp.compiler_error err
+			| e ->
+				exit();
+				raise e
 		);
 		parse = (fun entry s ->
 			match ParserEntry.parse_string entry com.defines s null_pos raise_typing_error false with
@@ -248,13 +266,13 @@ let make_macro_com_api com p =
 			Interp.exc_string "unsupported"
 		);
 		current_module = (fun() ->
-			Interp.exc_string "unsupported"
+			null_module
 		);
 		use_cache = (fun() ->
 			!macro_enable_cache
 		);
 		format_string = (fun s p ->
-			Interp.exc_string "unsupported"
+			Common.format_string com s p (fun e p -> (e,p))
 		);
 		cast_or_unify = (fun t e p ->
 			Interp.exc_string "unsupported"
@@ -282,18 +300,11 @@ let make_macro_com_api com p =
 			com.info ~depth msg p
 		);
 		warning = (fun ?(depth=0) w msg p ->
-			Interp.exc_string "unsupported"
+			com.warning ~depth w [] msg p
 		);
 	}
 
 let make_macro_api ctx p =
-	let parse_expr_string s p inl =
-		typing_timer ctx false (fun() ->
-			match ParserEntry.parse_expr_string ctx.com.defines s p raise_typing_error inl with
-				| ParseSuccess(data,true,_) when inl -> data (* ignore errors when inline-parsing in display file *)
-				| ParseSuccess(data,_,_) -> data
-				| ParseError _ -> raise MacroApi.Invalid_expr)
-	in
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos raise_typing_error false with
@@ -384,7 +395,6 @@ let make_macro_api ctx p =
 				m
 			)
 		);
-		MacroApi.parse_string = parse_expr_string;
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
 		);
@@ -513,9 +523,6 @@ let make_macro_api ctx p =
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
-		);
-		MacroApi.format_string = (fun s p ->
-			ctx.g.do_format_string ctx s p
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
 			typing_timer ctx true (fun () ->

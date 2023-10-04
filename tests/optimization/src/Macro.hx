@@ -15,20 +15,22 @@ class Macro {
 		if (classes.length == 0) {
 			Context.onAfterGenerate(run);
 		}
-		if (className.charAt(0).toLowerCase() == className.charAt(0)) {
-			var dir = sys.FileSystem.readDirectory("src/" +className.replace(".", "/"));
-			for (file in dir) {
-				if (file.endsWith(".hx")) {
-					var name = className + "." + file.substr(0, -3);
-					Context.getType(name);
-					classes.push(name);
+		Context.onAfterInitMacros(() -> {
+			if (className.charAt(0).toLowerCase() == className.charAt(0)) {
+				var dir = sys.FileSystem.readDirectory("src/" +className.replace(".", "/"));
+				for (file in dir) {
+					if (file.endsWith(".hx")) {
+						var name = className + "." + file.substr(0, -3);
+						Context.getType(name);
+						classes.push(name);
 
+					}
 				}
+			} else {
+				Context.getType(className);
+				classes.push(className);
 			}
-		} else {
-			Context.getType(className);
-			classes.push(className);
-		}
+		});
 	}
 
 	static function run() {

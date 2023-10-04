@@ -4,6 +4,7 @@ open CompilationCache
 open Type
 
 type server_message_options = {
+	mutable print_compiler_stage : bool;
 	mutable print_added_directory : bool;
 	mutable print_found_directories : bool;
 	mutable print_changed_directories : bool;
@@ -30,6 +31,7 @@ type server_message_options = {
 }
 
 let config = {
+	print_compiler_stage = false;
 	print_added_directory = false;
 	print_found_directories = false;
 	print_changed_directories = false;
@@ -60,6 +62,9 @@ let sign_string com =
 	let cs = com.cs in
 	let	sign_id = (cs#get_context sign)#get_index in
 	Printf.sprintf "%2i,%3s: " sign_id (short_platform_name com.platform)
+
+let compiler_stage com =
+	if config.print_compiler_stage then print_endline (Printf.sprintf "compiler stage: %s" (s_compiler_stage com.stage))
 
 let added_directory com tabs dir =
 	if config.print_added_directory then print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir)
@@ -156,6 +161,7 @@ let uncaught_error s =
 	if config.print_uncaught_error then print_endline ("Uncaught Error : " ^ s)
 
 let enable_all () =
+	config.print_compiler_stage <- true;
 	config.print_added_directory <- true;
 	config.print_found_directories <- true;
 	config.print_changed_directories <- true;
@@ -180,6 +186,7 @@ let enable_all () =
 	config.print_new_context <- true
 
 let set_by_name name value = match name with
+	| "compilerStage" -> config.print_compiler_stage <- value
 	| "addedDirectory" -> config.print_added_directory <- value
 	| "foundDirectories" -> config.print_found_directories <- value;
 	| "changedDirectories" -> config.print_changed_directories <- value;
