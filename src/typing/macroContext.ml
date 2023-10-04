@@ -316,7 +316,7 @@ let make_macro_com_api com p =
 		);
 	}
 
-and promote_com_api com_api ctx p =
+let make_macro_api ctx p =
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string Grammar.parse_meta ctx.com.defines s null_pos raise_typing_error false with
@@ -325,6 +325,7 @@ and promote_com_api com_api ctx p =
 		with _ ->
 			raise_typing_error "Malformed metadata string" p
 	in
+	let com_api = make_macro_com_api ctx.com p in
 	{
 		com_api with
 		MacroApi.get_type = (fun s ->
@@ -607,10 +608,6 @@ and promote_com_api com_api ctx p =
 			warning ~depth ctx w msg p
 		);
 	}
-
-let make_macro_api ctx p =
-	let com_api = make_macro_com_api ctx.com p in
-	promote_com_api com_api ctx p
 
 let init_macro_interp mctx mint =
 	let p = null_pos in
@@ -1058,8 +1055,9 @@ let call_init_macro com mctx e =
 
 let finalize_macro_api tctx mctx =
 	let api = make_macro_api tctx null_pos in
-	let mint = (match !macro_interp_cache with None -> snd (create_macro_interp api mctx) | Some mint -> mint) in
-	mint.curapi <- api
+	match !macro_interp_cache with
+		| None -> ignore(create_macro_interp api mctx)
+		| Some mint -> mint.curapi <- api
 
 let interpret ctx =
 	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) false in

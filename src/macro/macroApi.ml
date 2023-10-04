@@ -1893,10 +1893,8 @@ let macro_api ccom get_api =
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
 		);
 		"on_after_init_macros", vfun1 (fun f ->
-			(get_api()).after_init_macros (fun tctx ->
-				let f = prepare_callback f 1 in
-				ignore(f [])
-			);
+			let f = prepare_callback f 1 in
+			(get_api()).after_init_macros (fun tctx -> ignore(f []));
 			vnull
 		);
 		"on_after_typing", vfun1 (fun f ->
