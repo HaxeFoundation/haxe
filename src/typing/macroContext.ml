@@ -117,6 +117,14 @@ let typing_timer ctx need_type f =
 		raise e
 
 let make_macro_com_api com p =
+	let parse_metadata s p =
+		try
+			match ParserEntry.parse_string Grammar.parse_meta com.defines s null_pos raise_typing_error false with
+			| ParseSuccess(meta,_,_) -> meta
+			| ParseError(_,_,_) -> raise_typing_error "Malformed metadata string" p
+		with _ ->
+			raise_typing_error "Malformed metadata string" p
+	in
 	{
 		MacroApi.pos = p;
 		get_com = (fun () -> com);
@@ -278,7 +286,11 @@ let make_macro_com_api com p =
 			Interp.exc_string "unsupported"
 		);
 		add_global_metadata = (fun s1 s2 config p ->
-			Interp.exc_string "unsupported"
+			let meta = parse_metadata s2 p in
+			List.iter (fun (m,el,_) ->
+				let m = (m,el,p) in
+				com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: com.global_metadata;
+			) meta;
 		);
 		add_module_check_policy = (fun sl il b i ->
 			Interp.exc_string "unsupported"
@@ -537,7 +549,7 @@ let make_macro_api ctx p =
 			let meta = parse_metadata s2 p in
 			List.iter (fun (m,el,_) ->
 				let m = (m,el,p) in
-				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
+				ctx.com.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.com.global_metadata;
 			) meta;
 		);
 		MacroApi.add_module_check_policy = (fun sl il b i ->

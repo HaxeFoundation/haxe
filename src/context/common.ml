@@ -397,6 +397,7 @@ type context = {
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
 	(* typing state *)
+	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	shared : shared_context;
 	display_information : display_information;
 	file_lookup_cache : (string,string option) lookup;
@@ -829,6 +830,7 @@ let create compilation_step cs version args =
 		file = "";
 		types = [];
 		callbacks = new compiler_callbacks;
+		global_metadata = [];
 		modules = [];
 		module_lut = new hashtbl_lookup;
 		module_nonexistent_lut = new hashtbl_lookup;
