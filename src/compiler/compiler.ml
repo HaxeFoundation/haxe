@@ -336,7 +336,6 @@ let filter ctx tctx =
 
 let compile ctx actx callbacks =
 	let com = ctx.com in
-	MacroContext.macro_interp_cache := None;
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
 	let display_file_dot_path = DisplayProcessing.process_display_file com actx in

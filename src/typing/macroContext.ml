@@ -1045,10 +1045,18 @@ let resolve_init_macro com e =
 
 let call_init_macro com mctx e =
 	let (path,meth,args,p) = resolve_init_macro com e in
+	let (mctx, api) = match mctx with
+	| Some mctx ->
+		let api = make_macro_com_api com p in
+		(mctx, api)
+	| None ->
+		let mctx = create_macro_context com in
+		let api = make_macro_com_api com p in
+		let init,_ = create_macro_interp api mctx in
+		mctx.g.macros <- Some (init,mctx);
+		(mctx, api)
+	in
 
-	let mctx = match mctx with Some mctx -> mctx | None -> create_macro_context com in
-	let api = make_macro_com_api com p in
-	if Option.is_none !macro_interp_cache then (fst (create_macro_interp api mctx)) ();
 	let mctx, (margs,_,mclass,mfield), call = load_macro mctx com mctx api false path meth p in
 	ignore(call_macro mctx args margs call p);
 	mctx
