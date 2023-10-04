@@ -1051,12 +1051,7 @@ let call_init_macro com mctx e =
 
 	let mctx = match mctx with Some mctx -> mctx | None -> create_macro_context com in
 	let api = make_macro_com_api com p in
-	(match !macro_interp_cache with
-	| None ->
-		let init,_ = create_macro_interp api mctx in
-		init();
-	| _ -> ());
-
+	if Option.is_none !macro_interp_cache then (fst (create_macro_interp api mctx)) ();
 	let mctx, (margs,_,mclass,mfield), call = load_macro mctx com mctx api false path meth p in
 	ignore(call_macro mctx args margs call p);
 	mctx
@@ -1064,24 +1059,7 @@ let call_init_macro com mctx e =
 let finalize_macro_api tctx mctx =
 	let api = make_macro_api tctx null_pos in
 	let mint = (match !macro_interp_cache with None -> snd (create_macro_interp api mctx) | Some mint -> mint) in
-	mint.curapi <- api;
-
-module MacroLight = struct
-	let load_macro_light com mctx api display cpath f p =
-		let api = {api with MacroApi.pos = p} in
-		let meth,mloaded = load_macro'' com mctx display cpath f p in
-		let _,_,{cl_path = cpath},_ = meth in
-		let call args =
-			do_call_macro com api cpath f args p
-		in
-		mctx, meth, call
-
-	let call_init_macro com mctx api e =
-		let (path,meth,args,p) = resolve_init_macro com e in
-		let mctx, (margs,_,mclass,mfield), call = load_macro_light com mctx api false path meth p in
-		ignore(call_macro mctx args margs call p);
-
-end
+	mint.curapi <- api
 
 let interpret ctx =
 	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) false in

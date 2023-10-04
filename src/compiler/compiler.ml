@@ -282,7 +282,7 @@ let do_type ctx mctx actx display_file_dot_path =
 
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro ctx.com mctx path)
-	) (Option.map (fun (_,mctx) -> mctx) mctx) (List.rev actx.config_macros) in
+	) mctx (List.rev actx.config_macros) in
 	com.stage <- CInitMacrosDone;
 	ServerMessage.compiler_stage com;
 	MacroContext.macro_enable_cache := macro_cache_enabled;
@@ -334,14 +334,6 @@ let filter ctx tctx =
 	Filters.run tctx ctx.com.main;
 	t()
 
-let call_light_init_macro com path =
-	let open MacroContext in
-	let mctx = create_macro_context com in
-	let api = make_macro_com_api com null_pos in
-	let init = create_macro_interp api mctx in
-	MacroContext.MacroLight.call_init_macro com mctx api path;
-	(init,mctx)
-
 let compile ctx actx callbacks =
 	let com = ctx.com in
 	MacroContext.macro_interp_cache := None;
@@ -351,7 +343,7 @@ let compile ctx actx callbacks =
 	let mctx = match com.platform with
 		| CustomTarget name ->
 			begin try
-				Some (call_light_init_macro com (Printf.sprintf "%s.Init.init()" name))
+				Some (MacroContext.call_init_macro com None (Printf.sprintf "%s.Init.init()" name))
 			with (Error.Error { err_message = Module_not_found ([pack],"Init") }) when pack = name ->
 				(* ignore if <target_name>.Init doesn't exist *)
 				None
