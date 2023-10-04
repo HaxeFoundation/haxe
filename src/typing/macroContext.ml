@@ -274,7 +274,7 @@ let make_macro_com_api com p =
 			Interp.exc_string "unsupported"
 		);
 		current_module = (fun() ->
-			Interp.exc_string "unsupported"
+			null_module
 		);
 		use_cache = (fun() ->
 			!macro_enable_cache
@@ -312,7 +312,7 @@ let make_macro_com_api com p =
 			com.info ~depth msg p
 		);
 		warning = (fun ?(depth=0) w msg p ->
-			Interp.exc_string "unsupported"
+			com.warning ~depth w [] msg p
 		);
 	}
 
