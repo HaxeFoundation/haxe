@@ -1053,18 +1053,20 @@ let call_init_macro com mctx e =
 	let api = make_macro_com_api com p in
 	(match !macro_interp_cache with
 	| None ->
+		(* trace "create macro interp for init macro"; *)
 		let init,_ = create_macro_interp api mctx in
 		init();
 	| _ -> ());
 
 	let mctx, (margs,_,mclass,mfield), call = load_macro mctx com mctx api false path meth p in
 	ignore(call_macro mctx args margs call p);
+	(* (Some mctx, Some api) *)
 	mctx
 
 let finalize_macro_api tctx mctx =
 	let api = make_macro_api tctx null_pos in
 	let mint = (match !macro_interp_cache with None -> snd (create_macro_interp api mctx) | Some mint -> mint) in
-	Interp.do_reuse mint api;
+	mint.curapi <- api;
 
 module MacroLight = struct
 	let load_macro_light com mctx api display cpath f p =
