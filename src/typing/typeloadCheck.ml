@@ -312,7 +312,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
-	) ctx.com.global_metadata;
+	) ctx.g.global_metadata;
 	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 let check_module_types ctx m p t =
