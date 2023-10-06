@@ -43,6 +43,14 @@ let field_of_static_definition d p =
 		cff_kind = d.d_data;
 	}
 
+let do_add_module com m =
+	let sign = CommonCache.get_cache_sign com in
+	if m.m_extra.m_sign <> sign then begin
+		trace (Printf.sprintf "Adding module %s with a different sign!" (s_type_path m.m_path));
+		trace (Define.retrieve_defines sign);
+		trace (Define.retrieve_defines m.m_extra.m_sign);
+	end else com.module_lut#add m.m_path m;
+
 module ModuleLevel = struct
 	let make_module ctx mpath file =
 		let m = {
@@ -56,7 +64,8 @@ module ModuleLevel = struct
 
 	let add_module ctx m p =
 		List.iter (TypeloadCheck.check_module_types ctx m p) m.m_types;
-		ctx.com.module_lut#add m.m_path m
+		(* ctx.com.module_lut#add m.m_path m *)
+		do_add_module ctx.com m
 
 	(*
 		Build module structure : should be atomic - no type loading is possible
@@ -785,7 +794,8 @@ let type_types_into_module ctx m tdecls p =
 *)
 let type_module ctx mpath file ?(dont_check_path=false) ?(is_extern=false) tdecls p =
 	let m = ModuleLevel.make_module ctx mpath file in
-	ctx.com.module_lut#add m.m_path m;
+	(* ctx.com.module_lut#add m.m_path m; *)
+	do_add_module ctx.com m;
 	let tdecls = ModuleLevel.handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Typecore.check_module_path ctx m.m_path p;
@@ -809,7 +819,8 @@ let rec get_reader ctx =
 	in
 
 	let add_module m =
-		ctx.com.module_lut#add m.m_path m
+		(* ctx.com.module_lut#add m.m_path m *)
+		do_add_module ctx.com m;
 	in
 
 	let flush_fields () =
@@ -861,7 +872,8 @@ and load_module' ctx g mpath p =
 		(* Check cache *)
 		match !type_module_hook ctx mpath p with
 		| Some m ->
-			ctx.com.module_lut#add mpath m;
+			(* ctx.com.module_lut#add mpath m; *)
+			do_add_module ctx.com m;
 			m
 		(* Try loading from hxb first, then from source *)
 		| None -> try load_hxb_module ctx mpath p with Not_found ->

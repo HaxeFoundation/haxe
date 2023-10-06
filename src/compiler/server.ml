@@ -221,7 +221,20 @@ let get_changed_directories sctx (ctx : Typecore.typer) =
 	dirs
 
 let find_or_restore_module cs sign ctx path =
-	HxbRestore.find cs sign ctx.Typecore.com path
+	let com = ctx.Typecore.com in
+	(* Use macro context if needed *)
+	let com = if sign <> (CommonCache.get_cache_sign com) then
+		(match com.get_macros() with
+			| None ->
+					ignore(MacroContext.get_macro_context ctx);
+					Option.get (com.get_macros())
+			| Some com -> com)
+		else com
+	in
+	assert (sign = (CommonCache.get_cache_sign com));
+	(* Make sure cache is created *)
+	ignore(CommonCache.get_cache com);
+	HxbRestore.find cs sign com path
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)

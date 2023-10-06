@@ -144,17 +144,28 @@ class cache = object(self)
 
 	(* contexts *)
 
+	method create_context sign =
+		let cache = new context_cache (Hashtbl.length contexts) sign in
+		context_list <- cache :: context_list;
+		Hashtbl.add contexts sign cache;
+		cache
+
+	method get_or_create_context sign =
+		match Hashtbl.find_opt contexts sign with
+		| None -> self#create_context sign
+		| Some cache -> cache
+
 	method get_context sign =
 		try
 			Hashtbl.find contexts sign
 		with Not_found ->
-			let cache = new context_cache (Hashtbl.length contexts) sign in
-			context_list <- cache :: context_list;
-			Hashtbl.add contexts sign cache;
-			cache
+			trace_call_stack ();
+			assert false
 
 	method add_info sign desc platform class_path defines =
-		let cc = self#get_context sign in
+		(* TODO context should probably already exist at this point? *)
+		(* let cc = self#get_context sign in *)
+		let cc = self#get_or_create_context sign in
 		let jo = JObject [
 			"index",JInt cc#get_index;
 			"desc",JString desc;

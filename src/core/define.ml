@@ -121,6 +121,8 @@ let get_signature_raw def =
 	) def.values [] in
 	String.concat "@" (List.sort compare defines)
 
+let digest_tbl = Hashtbl.create 0
+
 let get_signature def =
 	match def.defines_signature with
 	| Some s -> s
@@ -129,7 +131,11 @@ let get_signature def =
 		(* Printf.eprintf "Defines: %s\n" str; *)
 		let s = Digest.string str in
 		def.defines_signature <- Some s;
+		Hashtbl.add digest_tbl s str;
 		s
+
+let retrieve_defines sign =
+	try Hashtbl.find digest_tbl sign with Not_found -> "[cannot find defines for sign %s]" ^ sign
 
 let deprecation_lut =
 	let h = Hashtbl.create 0 in

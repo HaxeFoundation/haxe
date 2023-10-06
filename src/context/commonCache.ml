@@ -65,7 +65,7 @@ let handle_native_lib com lib =
 let get_cache com = match com.Common.cache with
 	| None ->
 		let sign = Define.get_signature com.defines in
-		com.cs#get_context sign
+		com.cs#get_or_create_context sign
 	| Some cache ->
 		cache
 
