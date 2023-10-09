@@ -289,7 +289,6 @@ enum ValueType {
 				#else
 				if (a._hx_index != b._hx_index)
 					return false;
-				var enm = $hxEnums[e];
 				var aparams:Array<Any> = a.__params__();
 				var bparams:Array<Any> = b.__params__();
 				for (i in 0...aparams.length) {
