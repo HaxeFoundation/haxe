@@ -290,9 +290,10 @@ enum ValueType {
 				if (a._hx_index != b._hx_index)
 					return false;
 				var enm = $hxEnums[e];
-				var params:Array<String> = enm.__constructs__[a._hx_index].__params__;
-				for (f in params) {
-					if (!enumEq(a[f], b[f])) {
+				var aparams:Array<Any> = a.__params__();
+				var bparams:Array<Any> = b.__params__();
+				for (i in 0...aparams.length) {
+					if (!enumEq(aparams[i], bparams[i])) {
 						return false;
 					}
 				}
@@ -318,9 +319,7 @@ enum ValueType {
 	#else
 	public static function enumParameters(e:EnumValue):Array<Dynamic>
 		untyped {
-			var enm:Enum<Dynamic> = $hxEnums[e.__enum__];
-			var params:Array<String> = enm.__constructs__[e._hx_index].__params__;
-			return params != null ? [for (p in params) e[p]] : [];
+			return e.__params__ != null ? e.__params__() : [];
 		}
 	#end
 
