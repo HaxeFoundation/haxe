@@ -371,8 +371,16 @@ jobs:
       fail-fast: false
       matrix:
         ocaml: ["4.08.1", "5.0.0"]
-        # target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash, neko]
-        target: [macro]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, lua, flash, neko]
+        include:
+          - target: hl
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: cpp
+            APT_PACKAGES: gcc-multilib g++-multilib
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+          - target: flash
+            APT_PACKAGES: libglib2.0-0 libgtk2.0-0 libfreetype6 xvfb
     steps:
       - uses: actions/checkout@main
         with:
@@ -689,7 +697,7 @@ jobs:
       fail-fast: false
       matrix:
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -786,7 +794,7 @@ jobs:
       matrix:
         # TODO jvm: https://github.com/HaxeFoundation/haxe/issues/8601
         # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro]
+        target: [macro, js, hl, cpp, java, cs, php, python, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -880,7 +888,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro]
+        target: [macro, js, hl, cpp, 'java,jvm', cs, php, python, flash, neko]
+        include:
+          - target: hl
+            BREW_PACKAGES: ninja
     steps:
       - uses: actions/checkout@main
         with:

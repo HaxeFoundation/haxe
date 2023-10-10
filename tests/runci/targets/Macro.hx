@@ -5,9 +5,9 @@ import runci.Config.*;
 
 class Macro {
 	static public function run(args:Array<String>) {
-		runCommand("haxe", ["compile-hxb-interp.hxml"].concat(args));
-		runCommand("haxe", ["compile-read-hxb-interp.hxml"].concat(args));
-		return; // don't overlook this
+		// runCommand("haxe", ["compile-hxb-interp.hxml"].concat(args));
+		// runCommand("haxe", ["compile-read-hxb-interp.hxml"].concat(args));
+		// return; // don't overlook this
 
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
