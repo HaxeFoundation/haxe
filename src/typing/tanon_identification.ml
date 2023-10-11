@@ -2,10 +2,16 @@ open Globals
 open Type
 
 let replace_mono t =
+	let visited_anons = ref [] in
 	let rec loop t =
 		match t with
 		| TMono ({ tm_type = None } as tmono) ->
 			Monomorph.bind tmono t_dynamic
+		| TAnon an ->
+			if not (List.memq an !visited_anons) then begin
+				visited_anons := an :: !visited_anons;
+				TFunctions.iter loop t
+			end
 		| _ ->
 			TFunctions.iter loop t
 	in
