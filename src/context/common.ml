@@ -201,14 +201,14 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
-	method run r =
+	method run handle_error r =
 		match !r with
 		| [] ->
 			()
 		| l ->
 			r := [];
-			List.iter (fun f -> f()) (List.rev l);
-			self#run r
+			(try List.iter (fun f -> f()) (List.rev l) with Error.Error err -> handle_error err);
+			self#run handle_error r
 
 	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
