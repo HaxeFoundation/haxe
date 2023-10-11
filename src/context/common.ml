@@ -207,7 +207,7 @@ class compiler_callbacks = object(self)
 			()
 		| l ->
 			r := [];
-			(try List.iter (fun f -> f()) (List.rev l) with Error.Error err -> handle_error err);
+			List.iter (fun f -> try f() with Error.Error err -> handle_error err) (List.rev l);
 			self#run handle_error r
 
 	method get_before_typer_create = before_typer_create
