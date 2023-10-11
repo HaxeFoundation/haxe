@@ -1,21 +1,15 @@
 open Globals
 open Type
 
-let rec replace_mono t =
-	match t with
-	| TMono t ->
-		(match t.tm_type with
-		| None -> Monomorph.bind t t_dynamic
-		| Some _ -> ())
-	| TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
-		List.iter replace_mono p
-	| TFun (args,ret) ->
-		List.iter (fun (_,_,t) -> replace_mono t) args;
-		replace_mono ret
-	| TAnon _
-	| TDynamic _ -> ()
-	| TLazy f ->
-		replace_mono (lazy_type f)
+let replace_mono t =
+	let rec loop t =
+		match t with
+		| TMono ({ tm_type = None } as tmono) ->
+			Monomorph.bind tmono t_dynamic
+		| _ ->
+			TFunctions.iter loop t
+	in
+	loop t
 
 type 'a path_field_mapping = {
 	pfm_path : path;
