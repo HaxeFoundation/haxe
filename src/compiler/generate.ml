@@ -21,7 +21,7 @@ let check_auxiliary_output com actx =
 			Genjson.generate com.types file
 	end
 
-let export_hxb com root m =
+let export_hxb com root (m:TType.module_def) =
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
