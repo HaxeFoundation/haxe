@@ -257,9 +257,9 @@ class builder jc name jsig = object(self)
 		| _ -> die "" __LOC__
 
 	(** Emits an invokestatic instruction to invoke method [name] on [path] with signature [jsigm]. **)
-	method invokestatic (path : jpath) (name : string) (jsigm : jsignature) = match jsigm with
+	method invokestatic (path : jpath) (name : string) ?(kind=FKMethod) (jsigm : jsignature) = match jsigm with
 		| TMethod(tl,tr) ->
-			let offset = code#get_pool#add_field path name jsigm FKMethod in
+			let offset = code#get_pool#add_field path name jsigm kind in
 			code#invokestatic offset tl (match tr with None -> [] | Some tr -> [tr])
 		| _ -> die "" __LOC__
 
