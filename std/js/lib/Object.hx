@@ -284,28 +284,28 @@ typedef ObjectPropertyDescriptor<TProp> = {
 		The value associated with the property.
 		Can be any valid JavaScript value (number, object, function, etc).
 	**/
-	@:optional var value:TProp;
+	var ?value:TProp;
 
 	/**
 		`true` if and only if the type of this property descriptor may be
 		changed and if the property may be deleted from the corresponding object.
 		Defaults to `false`.
 	**/
-	@:optional var configurable:Bool;
+	var ?configurable:Bool;
 
 	/**
 		`true` if and only if this property shows up during enumeration of the
 		properties on the corresponding object.
 		Defaults to `false`.
 	**/
-	@:optional var enumerable:Bool;
+	var ?enumerable:Bool;
 
 	/**
 		`true` if and only if the value associated with the property may be
 		changed with an assignment operator.
 		Defaults to `false`.
 	**/
-	@:optional var writable:Bool;
+	var ?writable:Bool;
 
 	/**
 		A function which serves as a getter for the property, or `undefined` if
@@ -315,7 +315,7 @@ typedef ObjectPropertyDescriptor<TProp> = {
 		property is defined due to inheritance).
 		The return value will be used as the value of the property.
 	**/
-	@:optional var get:Void->TProp;
+	var ?get:Void->TProp;
 
 	/**
 		A function which serves as a setter for the property, or undefined if
@@ -323,7 +323,7 @@ typedef ObjectPropertyDescriptor<TProp> = {
 		is called with one argument (the value being assigned to the property)
 		and with `this` set to the object through which the property is assigned.
 	**/
-	@:optional var set:TProp->Void;
+	var ?set:TProp->Void;
 }
 
 /**
