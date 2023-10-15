@@ -41,7 +41,7 @@ extern class Symbol {
 
 		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 	**/
-	@:native('for') static function for_(key:String):Symbol;
+	@:native("for") static function for_(key:String):Symbol;
 
 	/**
 		The Symbol.keyFor(sym) method retrieves a shared symbol key from the
@@ -49,7 +49,7 @@ extern class Symbol {
 
 		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/keyFor
 	**/
-	@:pure static function keyFor(symbol:Symbol):Null<String>;
+	@:pure static function keyFor(sym:Symbol):Null<String>;
 
 	/**
 		Returns a string containing the description of the Symbol.
@@ -57,9 +57,14 @@ extern class Symbol {
 	@:pure function toString():String;
 
 	/**
-		A method returning the default iterator for an object. Used by for...of.
+		A method returning the default iterator for an object.
 	**/
 	static var iterator(default, null):Symbol;
+
+	/**
+		A method that returns the default AsyncIterator for an object.
+	**/
+	static var asyncIterator(default, null):Symbol;
 
 	/**
 		A method that matches against a string, also used to determine if an
@@ -128,4 +133,3 @@ extern class Symbol {
 	inline function ofObject<T>(object:{}):Null<T>
 		return (cast object)[cast this];
 }
-
