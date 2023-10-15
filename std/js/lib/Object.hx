@@ -22,8 +22,8 @@
 
 package js.lib;
 
-import haxe.extern.Rest;
 import haxe.DynamicAccess;
+import haxe.extern.Rest;
 
 /**
 	The `js.lib.Object` constructor creates an object wrapper.
@@ -32,126 +32,209 @@ import haxe.DynamicAccess;
 **/
 @:native("Object")
 extern class Object {
-	/**
-		Copies the values of all enumerable own properties from one or more
-		source objects to a target object.
-	**/
-	static function assign<T:{}>(target:T, sources:Rest<{}>):T;
-
-	/**
-		Creates a new object with the specified prototype object and properties.
-	**/
-	@:pure static function create<T>(proto:{}, ?propertiesObject:DynamicAccess<ObjectPropertyDescriptor>):T;
-
-	/**
-		Adds the named properties described by the given descriptors to an object.
-	**/
-	static function defineProperties<T:{}>(obj:T, props:DynamicAccess<ObjectPropertyDescriptor>):T;
-
-	/**
-		Adds the named property described by a given descriptor to an object.
-	**/
-	@:overload(function<T:{}>(obj:T, prop:Symbol, descriptor:ObjectPropertyDescriptor):T {})
-	static function defineProperty<T:{}>(obj:T, prop:String, descriptor:ObjectPropertyDescriptor):T;
-
-	/**
-		Returns an array containing all of the [key, value] pairs of a given
-		object's own enumerable string properties.
-	**/
-	@:pure static function entries(obj:{}):Array<ObjectEntry>;
-
-	/**
-		Freezes an object: other code can't delete or change any properties.
-	**/
-	static function freeze<T:{}>(obj:T):T;
-
-	/**
-		Returns a new object from an iterable of key-value pairs
-		(reverses Object.entries).
-	**/
-	@:pure static function fromEntries<T:{}>(iterable:Any):T;
-
-	/**
-		Returns a property descriptor for a named property on an object.
-	**/
-	@:overload(function<T>(target:Array<T>, propertyKey:Int):Null<ObjectPropertyDescriptor> {})
-	@:overload(function(obj:{}, prop:Symbol):Null<ObjectPropertyDescriptor> {})
-	@:pure static function getOwnPropertyDescriptor(obj:{}, prop:String):Null<ObjectPropertyDescriptor>;
-
-	/**
-		Returns an array containing the names of all of the given object's own
-		enumerable and non-enumerable properties.
-	**/
-	@:pure static function getOwnPropertyNames(obj:{}):Array<String>;
-
-	/**
-		Returns an array of all symbol properties found directly upon a given object.
-	**/
-	@:pure static function getOwnPropertySymbols(obj:{}):Array<Symbol>;
-
-	/**
-		Returns the prototype of the specified object.
-	**/
-	@:pure static function getPrototypeOf<TProto:{}>(obj:{}):Null<TProto>;
-
-	/**
-		Compares if two values are the same value. Equates all NaN values
-		(which differs from both Abstract Equality Comparison and
-		Strict Equality Comparison).
-	**/
-	@:pure static function is<T>(value1:T, value2:T):Bool;
-
-	/**
-		Determines if extending of an object is allowed.
-	**/
-	@:pure static function isExtensible(obj:{}):Bool;
-
-	/**
-		Determines if an object was frozen.
-	**/
-	@:pure static function isFrozen(obj:{}):Bool;
-
-	/**
-		Determines if an object is sealed.
-	**/
-	@:pure static function isSealed(obj:{}):Bool;
-
-	/**
-		Returns an array containing the names of all of the given object's own
-		enumerable string properties.
-	**/
-	@:pure static function keys(obj:{}):Array<String>;
-
-	/**
-		Prevents any extensions of an object.
-	**/
-	static function preventExtensions<T:{}>(obj:T):T;
-
-	/**
-		Prevents other code from deleting properties of an object.
-	**/
-	static function seal<T:{}>(obj:T):T;
-
-	/**
-		Sets the prototype (i.e., the internal Prototype property).
-	**/
-	static function setPrototypeOf<T:{}>(obj:T, prototype:Null<{}>):T;
-
-	/**
-		Returns an array containing the values that correspond to all of
-		a given object's own enumerable string properties.
-	**/
-	@:pure static function values(obj:{}):Array<Any>;
-
-	/**
-		Allows the addition of properties to all objects of type Object.
-	**/
-	static var prototype(default, never):ObjectPrototype;
+	static var prototype(default,never):ObjectPrototype;
 
 	/**
 		The Object constructor creates an object wrapper.
 	**/
 	@:pure function new(?value:Any);
+
+	/**
+		The Object.assign() method is used to copy the values of all enumerable
+		own properties from one or more source objects to a target object. It
+		will return the target object.
+
+		Note: this is an ES2015 feature
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+	**/
+	@:pure static function assign<TSource:{}, TDest:{}>(target:TSource, sources:Rest<{}>):TDest;
+
+	/**
+		The Object.create() method create a new object, using an existing object
+		to provide the newly created object's __proto__ . (see browser console
+		for visual evidence.)
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create
+	**/
+	@:pure static function create<TObj>(proto:Null<{}>, ?propertiesObject:DynamicAccess<ObjectPropertyDescriptor<Any>>):TObj;
+
+	/**
+		The static method Object.defineProperty() defines a new property directly
+		on an object, or modifies an existing property on an object, and returns
+		the object.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty
+	**/
+	@:overload(function<TObj:{}, TProp>(obj:TObj, prop:Symbol, descriptor:ObjectPropertyDescriptor<TProp>):TObj {})
+	static function defineProperty<TObj:{}, TProp>(obj:TObj, prop:String, descriptor:ObjectPropertyDescriptor<TProp>):TObj;
+
+	/**
+		The Object.defineProperties() method defines new or modifies existing
+		properties directly on an object, returning the object.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperties
+	**/
+	static function defineProperties<TObj:{}>(obj:TObj, props:DynamicAccess<ObjectPropertyDescriptor<Any>>):TObj;
+
+	/**
+		The Object.entries() method returns an array of a given object's own
+		enumerable property [key, value] pairs, in the same order as that
+		provided by a for...in loop (the difference being that a for-in loop
+		enumerates properties in the prototype chain as well).
+
+		Note: this is an ES2017 feature
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
+	**/
+	@:pure static function entries<TObj:{}>(obj:TObj):Array<ObjectEntry>;
+
+	/**
+		The Object.freeze() method freezes an object: that is, prevents new
+		properties from being added to it; prevents existing properties from
+		being removed; and prevents existing properties, or their enumerability,
+		configurability, or writability, from being changed, it also prevents the
+		prototype from being changed.
+		The method returns the passed object.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
+	**/
+	static function freeze<TObj:{}>(obj:TObj):TObj;
+
+	/**
+		The Object.getOwnPropertyDescriptor() method returns a property
+		descriptor for an own property (that is, one directly present on an
+		object and not in the object's prototype chain) of a given object.
+
+		In ES5, if the first argument to this method is not an object (a
+		primitive), then it will cause a TypeError. In ES2015, a non-object
+		first argument will be coerced to an object at first.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptor
+	**/
+	@:overload(function(obj:String, prop:Symbol):Null<ObjectPropertyDescriptor<String>> {})
+	@:overload(function(obj:String, prop:String):Null<ObjectPropertyDescriptor<String>> {})
+	@:overload(function<T>(target:Array<T>, propertyKey:Int):Null<ObjectPropertyDescriptor<T>> {})
+	@:overload(function<TObj, TProp>(obj:TObj, prop:Symbol):Null<ObjectPropertyDescriptor<TProp>> {})
+	@:pure static function getOwnPropertyDescriptor<TObj, TProp>(obj:TObj, prop:String):Null<ObjectPropertyDescriptor<TProp>>;
+
+	/**
+		The Object.getOwnPropertyDescriptors() method returns all own property
+		descriptors of a given object.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptors
+	**/
+	@:overload(function(target:String):DynamicAccess<ObjectPropertyDescriptor<String>> {})
+	@:overload(function<T>(target:Array<T>):DynamicAccess<ObjectPropertyDescriptor<T>> {})
+	@:pure static function getOwnPropertyDescriptors<TObj>(obj:TObj):DynamicAccess<ObjectPropertyDescriptor<Any>>;
+
+	/**
+		The Object.getOwnPropertyNames() method returns an array of all
+		properties (including non-enumerable properties except for those which
+		use Symbol) found directly upon a given object.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyNames
+	**/
+	@:pure static function getOwnPropertyNames<TObj:{}>(obj:TObj):Array<String>;
+
+	/**
+		The Object.getOwnPropertySymbols() method returns an array of all symbol
+		properties found directly upon a given object.
+
+		Note: this is an ES2015 feature
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertySymbols
+	**/
+	@:pure static function getOwnPropertySymbols<TObj:{}>(obj:TObj):Array<Symbol>;
+
+	/**
+		The Object.getPrototypeOf() method returns the prototype (i.e. the value
+		of the internal [[Prototype]] property) of the specified object.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
+	**/
+	@:pure static function getPrototypeOf<TObj:{}, TProto>(obj:TObj):TProto;
+
+	/**
+		The Object.is() method determines whether two values are the same value.
+
+		Note: this is an ES2015 feature
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
+	**/
+	@:pure static function is<TObj:{}>(obj1:TObj, obj2:TObj):Bool;
+
+	/**
+		The Object.isExtensible() method determines if an object is extensible
+		(whether it can have new properties added to it).
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/isExtensible
+	**/
+	@:pure static function isExtensible<TObj:{}>(obj:TObj):Bool;
+
+	/**
+		The Object.isFrozen() determines if an object is frozen.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/isFrozen
+	**/
+	@:pure static function isFrozen<TObj:{}>(obj:TObj):Bool;
+
+	/**
+		The Object.isSealed() method determines if an object is sealed.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/isSealed
+	**/
+	@:pure static function isSealed<TObj:{}>(obj:TObj):Bool;
+
+	/**
+		The Object.keys() method returns an array of a given object's own
+		enumerable properties, in the same order as that provided by a for...in
+		loop (the difference being that a for-in loop enumerates properties in
+		the prototype chain as well).
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys
+	**/
+	@:pure static function keys<TObj:{}>(obj:TObj):Array<String>;
+
+	/**
+		The Object.preventExtensions() method prevents new properties from ever
+		being added to an object (i.e. prevents future extensions to the object).
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/preventExtensions
+	**/
+	static function preventExtensions<TObj:{}>(obj:TObj):TObj;
+
+	/**
+		The Object.seal() method seals an object, preventing new properties from
+		being added to it and marking all existing properties as
+		non-configurable. Values of present properties can still be changed as
+		long as they are writable.
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/seal
+	**/
+	static function seal<TObj:{}>(obj:TObj):TObj;
+
+	/**
+		The Object.setPrototypeOf() method sets the prototype (i.e., the internal
+		[[Prototype]] property) of a specified object to another object or null.
+
+		Note: this is an ES2015 feature
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
+	**/
+	static function setPrototypeOf<TObj:{}, TProto:{}>(obj:TObj, proto:Null<TProto>):TObj;
+
+	/**
+		The Object.values() method returns an array of a given object's own
+		enumerable property values, in the same order as that provided by a
+		for...in loop (the difference being that a for-in loop enumerates
+		properties in the prototype chain as well).
+
+		Note: this is an ES2017 feature
+
+		See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
+	**/
+	@:pure static function values<TObj:{}>(obj:TObj):Array<Dynamic>;
 }
 
 /**
@@ -164,68 +247,65 @@ typedef ObjectPrototype = {
 		property as a direct property of that object and not inherited through
 		the prototype chain.
 	**/
-	var hasOwnProperty(default, never):Function;
+	var hasOwnProperty(default,never):Function;
 
 	/**
 		Returns a boolean indicating whether the object this method is called
 		upon is in the prototype chain of the specified object.
 	**/
-	var isPrototypeOf(default, never):Function;
+	var isPrototypeOf(default,never):Function;
 
 	/**
 		Returns a boolean indicating if the internal enumerable attribute is set.
 	**/
-	var propertyIsEnumerable(default, never):Function;
+	var propertyIsEnumerable(default,never):Function;
 
 	/**
 		Calls `toString()`.
 	**/
-	var toLocaleString(default, never):Function;
+	var toLocaleString(default,never):Function;
 
 	/**
 		Returns a string representation of the object.
 	**/
-	var toString(default, never):Function;
+	var toString(default,never):Function;
 
 	/**
 		Returns the primitive value of the specified object.
 	**/
-	var valueOf(default, never):Function;
+	var valueOf(default,never):Function;
 }
 
 /**
 	@see <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty>
 **/
-typedef ObjectPropertyDescriptor = {
-	/**
-		`true` if and only if the type of this property descriptor may be
-		changed and if the property may be deleted from the corresponding object.
-
-		Defaults to `false`.
-	**/
-	var ?configurable:Bool;
-
-	/**
-		`true` if and only if this property shows up during enumeration of the
-		properties on the corresponding object.
-
-		Defaults to `false`.
-	**/
-	var ?enumerable:Bool;
-
+typedef ObjectPropertyDescriptor<TProp> = {
 	/**
 		The value associated with the property.
 		Can be any valid JavaScript value (number, object, function, etc).
 	**/
-	var ?value:Any;
+	@:optional var value:TProp;
+
+	/**
+		`true` if and only if the type of this property descriptor may be
+		changed and if the property may be deleted from the corresponding object.
+		Defaults to `false`.
+	**/
+	@:optional var configurable:Bool;
+
+	/**
+		`true` if and only if this property shows up during enumeration of the
+		properties on the corresponding object.
+		Defaults to `false`.
+	**/
+	@:optional var enumerable:Bool;
 
 	/**
 		`true` if and only if the value associated with the property may be
 		changed with an assignment operator.
-
 		Defaults to `false`.
 	**/
-	var ?writable:Bool;
+	@:optional var writable:Bool;
 
 	/**
 		A function which serves as a getter for the property, or `undefined` if
@@ -235,7 +315,7 @@ typedef ObjectPropertyDescriptor = {
 		property is defined due to inheritance).
 		The return value will be used as the value of the property.
 	**/
-	var ?get:Void->Any;
+	@:optional var get:Void->TProp;
 
 	/**
 		A function which serves as a setter for the property, or undefined if
@@ -243,7 +323,7 @@ typedef ObjectPropertyDescriptor = {
 		is called with one argument (the value being assigned to the property)
 		and with `this` set to the object through which the property is assigned.
 	**/
-	var ?set:Any->Void;
+	@:optional var set:TProp->Void;
 }
 
 /**
@@ -252,7 +332,6 @@ typedef ObjectPropertyDescriptor = {
 abstract ObjectEntry(Array<Any>) {
 	public var key(get, never):String;
 	public var value(get, never):Any;
-
 	inline function get_key():String
 		return this[0];
 
