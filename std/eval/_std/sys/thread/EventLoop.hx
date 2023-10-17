@@ -2,10 +2,8 @@ package sys.thread;
 
 import eval.luv.Loop;
 import eval.luv.Async;
-// import eval.luv.Timer as LuvTimer;
+import eval.luv.Timer as LuvTimer;
 import haxe.MainLoop;
-
-typedef LuvTimer = eval.luv.Timer;
 
 /**
 	When an event loop has an available event to execute.
