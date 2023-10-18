@@ -167,7 +167,7 @@ module Setup = struct
 		) com.defines.values;
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
-		com.callbacks#run com.callbacks#get_before_typer_create;
+		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
 		(* Native lib pass 1: Register *)
 		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) (List.rev native_libs) in
 		(* Native lib pass 2: Initialize *)
@@ -291,10 +291,8 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	check_defines ctx.com;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
-
 	(try begin
-		com.callbacks#run com.callbacks#get_after_init_macros;
-
+		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
 		run_or_diagnose ctx (fun () ->
 			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev actx.classes);
@@ -303,7 +301,6 @@ let do_type ctx mctx actx display_file_dot_path macro_cache_enabled =
 	end with TypeloadParse.DisplayInMacroBlock ->
 		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
 	);
-
 	com.stage <- CTypingDone;
 	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
@@ -377,7 +374,7 @@ let compile ctx actx callbacks =
 		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
-	com.callbacks#run com.callbacks#get_after_generation;
+	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in

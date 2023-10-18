@@ -1597,7 +1597,8 @@ class texpr_to_jvm
 			end
 		| TField(e1,FStatic(c,({cf_kind = Method (MethNormal | MethInline)} as cf))) ->
 			let tl,tr = self#call_arguments cf.cf_type el in
-			jm#invokestatic c.cl_path cf.cf_name (method_sig tl tr);
+			let kind = if has_class_flag c CInterface then FKInterfaceMethod else FKMethod in
+			jm#invokestatic c.cl_path cf.cf_name ~kind (method_sig tl tr);
 			tr
 		| TField(e1,FInstance({cl_path=(["haxe";"root"],"StringBuf");cl_descendants=[]} as c,_,({cf_name="add"} as cf))) ->
 			self#texpr rvalue_any e1;
