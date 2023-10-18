@@ -264,6 +264,7 @@ and debug = {
 
 and context = {
 	ctx_id : int;
+	basic : TType.basic_types;
 	is_macro : bool;
 	detail_times : bool;
 	builtins : builtins;
